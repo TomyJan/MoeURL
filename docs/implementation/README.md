@@ -11,6 +11,7 @@
 
 v0.0.1 实施文档包括：
 
+- [v0.0.1 工程实施合同](v0.0.1-implementation-contract.md)：v0.0.1 工程开发主入口，集中定义 schema、API、权限、事件、标准命令和验收映射。
 - [v0.0.1 实施规划](v0.0.1-plan.md)：说明实施目标、阶段划分、阶段交付和总体验收标准。
 - [v0.0.1 工程实施计划](v0.0.1-engineering-plan.md)：基于 Go + Vue 技术栈，定义可指导开发的工程阶段、文件结构、API、业务规则和验收标准。
 - [v0.0.1 任务级实施清单](v0.0.1-tasks.md)：把实施规划拆成可执行任务，便于后续按任务开发。
@@ -22,6 +23,8 @@ v0.0.1 实施文档包括：
 technical-decision.md
   ↓
 technical-baseline.md
+  ↓
+v0.0.1-implementation-contract.md
   ↓
 v0.0.1-plan.md
   ↓
@@ -53,6 +56,7 @@ v0.0.1-acceptance.md
 ```text
 technical-decision.md
 technical-baseline.md
+v0.0.1-implementation-contract.md
 v0.0.1-plan.md
 v0.0.1-engineering-plan.md
 v0.0.1-tasks.md

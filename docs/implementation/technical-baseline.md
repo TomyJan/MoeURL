@@ -4,6 +4,8 @@
 
 本文档定义 MoeURL 的工程技术基线。所有后续实现、重构和实施计划都应以本文档为准。
 
+v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0.1 工程实施合同](./v0.0.1-implementation-contract.md) 为主执行入口。
+
 技术基线服务以下目标：
 
 - 让项目结构清晰，便于长期维护。
@@ -247,6 +249,26 @@ v0.0.1 至少包含：
 
 预留表是否在 v0.0.1 实际创建，取决于工程计划；但相关字段和接口边界应保留。
 
+### v0.0.1 最小 schema 摘要
+
+v0.0.1 的字段级 schema 以 [v0.0.1 工程实施合同](./v0.0.1-implementation-contract.md#4-数据库-schema-合同) 为准。最小表结构必须覆盖：
+
+- `system_settings`：保存站点名称、初始化状态、系统访问域名、默认短链访问域名、默认语言和默认主题。
+- `user_groups`：保存 `guest`、`user`、`admin` 用户组及其权限数组。
+- `users`：保存本地用户、内置 `guest` 用户、主用户组、账号状态和密码哈希。
+- `sessions`：保存服务端会话、过期时间、最近访问时间和撤销时间。
+- `domains`：保存系统访问域名、短链访问域名、用途、启用状态和全局默认标记。
+- `short_links`：保存创建者、域名、全系统唯一短码、目标 URL、状态和软删除时间。
+
+关键约束：
+
+- `user_groups.key` 唯一。
+- `users.username` 唯一。
+- `domains.host` 唯一。
+- `short_links.slug` 全系统唯一。
+- `short_links.deleted_at` 用于软删除。
+- 软删除后短码仍不释放。
+
 ### 迁移规则
 
 - 每个 schema 变更都必须通过 Goose migration。
@@ -263,7 +285,9 @@ short_link:create
 short_link:read_own
 short_link:update_own
 short_link:delete_own
-short_link:manage_all
+short_link:read_all
+short_link:update_all
+short_link:delete_all
 domain:use_default
 admin:access
 ```
@@ -275,6 +299,19 @@ admin:access
 - 管理入口访问。
 
 前端隐藏或置灰只用于体验，后端权限判断才是安全边界。
+
+### Cookie Session 安全规范
+
+- Cookie 名称：`moeurl_session`。
+- Cookie 必须设置 `HttpOnly`。
+- Cookie `SameSite` 使用 `Lax`。
+- 生产环境必须设置 `Secure`。
+- Cookie Path 使用 `/`。
+- 登录成功后生成新的 session ID。
+- 退出登录必须撤销服务端 session 并清理 Cookie。
+- 每次授权操作必须重新检查用户状态和权限。
+- 用户被禁用后，不得继续执行授权操作。
+- v0.0.1 不要求单独实现 CSRF Token；默认依赖 `SameSite=Lax` 和 JSON API 边界，后续如开放跨站嵌入或第三方表单再补充 CSRF 机制。
 
 ## 8. 前端结构约定
 
@@ -363,8 +400,9 @@ go test ./...
 推荐命令：
 
 ```bash
-npm run test
-npm run test:e2e
+cd web && npm run test
+cd web && npm run build
+cd web && npm run test:e2e
 ```
 
 ## 12. 部署约定
@@ -384,6 +422,14 @@ Go 服务负责：
 - 处理短链跳转。
 
 前端构建产物应复制到 Go 服务镜像中。
+
+标准本地部署命令：
+
+```bash
+docker compose up --build
+```
+
+该命令应启动应用服务和 PostgreSQL，并允许通过 `/api/v1/health` 验证服务状态。
 
 ## 13. 环境变量约定
 
