@@ -43,17 +43,22 @@ MoeURL 当前技术栈固定为：
 - 状态：Pinia、TanStack Query for Vue。
 - 国际化：vue-i18n。
 - 表单校验：vee-validate、zod。
+- PWA：Web App Manifest、Service Worker。
 - 测试：go test、testify、testcontainers-go、Vitest、Playwright。
 - 部署：Docker、Docker Compose。
 
 实现时遵循以下约束：
 
 - 后端 API 使用 `/api/v1` 前缀。
+- 后端 API 使用语义化路径，业务动作只使用 `GET` 和 `POST`，不使用 `PUT`、`PATCH`、`DELETE` 表达业务动作。
+- API 业务成功和业务失败默认返回 HTTP `200`，通过统一数字 `code` 表达结果；只有未登录、无权限和基础设施级错误使用 `401`、`403` 和 `500`。
 - 短链访问路由使用 `/{slug}`，且优先级低于固定路由和 API 路由。
 - 后端使用 Cookie Session + 服务端会话存储，不使用 JWT 作为主登录会话。
 - 数据库 schema 变更必须通过 Goose migration。
+- 数据库表名使用单数蛇形命名，用户表使用 `app_user`。
 - 数据访问优先通过 SQLC 查询，不引入 GORM。
-- 前端 UI 使用 Vuetify 3，并建立 MoeURL 自定义主题。
+- 前端 UI 使用 Vuetify 3，并从初始化阶段建立 MoeURL 自定义主题，默认主题采用 Material Design 3 风格。
+- 前端从 v0.0.1 开始支持 PWA 基础能力，但不缓存登录态 API、短链业务数据和权限相关响应。
 - 前端服务端状态使用 TanStack Query，不长期塞入 Pinia。
 - 不引入 Ant Design 系 UI。
 
@@ -75,6 +80,7 @@ MoeURL 当前技术栈固定为：
 - 未登录访问者默认继承 `guest` 用户组权限。
 - v0.0.1 默认不开放 `guest` 创建短链。
 - 短码全系统唯一，不随短链访问域名重复。
+- 短码只生成、保存和展示小写字母数字，访问查找按小写归一化值处理。
 - 系统固定路由优先于短链短码路由。
 - 短链删除采用软删除，短码不自动复用。
 - v0.0.1 只要求实现直接跳转。

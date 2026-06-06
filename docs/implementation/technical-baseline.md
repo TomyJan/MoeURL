@@ -35,6 +35,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 | UI 组件 | Vuetify 3 |
 | 国际化 | vue-i18n |
 | 表单 | vee-validate + zod |
+| PWA | Web App Manifest + Service Worker |
 | 后端测试 | go test + testify + testcontainers-go |
 | 前端测试 | Vitest + Vue Testing Library + Playwright |
 | 部署 | Docker + Docker Compose |
@@ -133,7 +134,7 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 - 解析 HTTP 请求。
 - 调用 Service。
 - 返回 JSON 或重定向响应。
-- 将业务错误映射为 HTTP 状态码。
+- 将业务结果映射为统一响应体。
 
 不应负责：
 
@@ -171,9 +172,13 @@ API 使用 `/api/v1` 前缀：
 /api/v1/auth/login
 /api/v1/auth/logout
 /api/v1/auth/me
-/api/v1/short-links
-/api/v1/short-links/{id}
-/api/v1/admin/short-links
+/api/v1/short-link/create
+/api/v1/short-link/list
+/api/v1/short-link/update
+/api/v1/short-link/delete
+/api/v1/admin/short-link/list
+/api/v1/admin/short-link/update
+/api/v1/admin/short-link/delete
 ```
 
 短链访问路由不使用 API 前缀：
@@ -184,48 +189,67 @@ API 使用 `/api/v1` 前缀：
 
 固定前端路由和 API 路由必须优先于短码路由。
 
+### API 风格
+
+后端 API 使用语义化路径，业务动作通过路径表达，只使用 `GET` 和 `POST` 方法：
+
+- `GET` 用于读取状态和列表。
+- `POST` 用于创建、更新、删除、登录、退出和初始化等动作。
+- 不使用 `PUT`、`PATCH`、`DELETE` 表达业务动作。
+
 ### JSON 响应格式
 
-成功响应建议：
+成功响应：
 
 ```json
 {
+  "code": 0,
+  "message": "OK",
   "data": {},
   "meta": {}
 }
 ```
 
-错误响应建议：
+业务失败响应：
 
 ```json
 {
-  "error": {
-    "code": "short_link.not_found",
-    "message": "短链不存在"
-  }
+  "code": 200104,
+  "message": "短链不存在",
+  "data": null,
+  "meta": {}
 }
 ```
 
-`message` 可以根据当前语言返回本地化文案。`code` 必须稳定，供前端判断。
+`message` 可以根据当前语言返回本地化文案。`code` 必须是稳定数字码，供前端判断。
 
 ### HTTP 状态码
 
-- `200 OK`：查询或操作成功。
-- `201 Created`：资源创建成功。
-- `204 No Content`：删除、退出登录等无响应体操作成功。
-- `400 Bad Request`：请求格式或参数错误。
-- `401 Unauthorized`：未登录或会话失效。
-- `403 Forbidden`：已登录但无权限。
-- `404 Not Found`：资源不存在。
-- `409 Conflict`：短码冲突、初始化重复等状态冲突。
-- `422 Unprocessable Entity`：业务校验失败。
-- `500 Internal Server Error`：未预期服务器错误。
+- `200 OK`：应用层正常处理的业务成功和业务失败。
+- `401 Unauthorized`：未登录或会话失效，用于前端自动跳转登录。
+- `403 Forbidden`：已登录但无权限，用于前端展示无权限状态。
+- `500 Internal Server Error`：未进入应用层或未预期服务器错误。
+
+除 `401`、`403` 和基础设施级 `500` 外，不通过 HTTP 状态码表达业务错误。
+
+### 错误码范围
+
+| 范围 | 含义 |
+| --- | --- |
+| `0` | 成功。 |
+| `100000`-`109999` | 通用请求、参数和校验错误。 |
+| `110000`-`119999` | 认证和会话错误。 |
+| `120000`-`129999` | 权限错误。 |
+| `200000`-`299999` | 短链错误。 |
+| `300000`-`399999` | 用户错误。 |
+| `400000`-`499999` | 域名错误。 |
+| `900000`-`999999` | 系统和初始化错误。 |
 
 ## 6. 数据库约定
 
 ### 命名规则
 
-- 表名使用复数蛇形命名，例如 `users`、`short_links`。
+- 表名使用单数蛇形命名，例如 `app_user`、`short_link`。
 - 字段使用蛇形命名，例如 `created_at`、`deleted_at`。
 - 主键统一使用 `id`。
 - 时间字段统一使用 `timestamptz`。
@@ -235,17 +259,17 @@ API 使用 `/api/v1` 前缀：
 
 v0.0.1 至少包含：
 
-- `users`
-- `user_groups`
-- `domains`
-- `short_links`
-- `system_settings`
-- `sessions`
+- `app_user`
+- `user_group`
+- `domain`
+- `short_link`
+- `system_setting`
+- `session`
 
 可以预留：
 
-- `short_link_events`
-- `operation_logs`
+- `short_link_event`
+- `operation_log`
 
 预留表是否在 v0.0.1 实际创建，取决于工程计划；但相关字段和接口边界应保留。
 
@@ -253,21 +277,29 @@ v0.0.1 至少包含：
 
 v0.0.1 的字段级 schema 以 [v0.0.1 工程实施合同](./v0.0.1-implementation-contract.md#4-数据库-schema-合同) 为准。最小表结构必须覆盖：
 
-- `system_settings`：保存站点名称、初始化状态、系统访问域名、默认短链访问域名、默认语言和默认主题。
-- `user_groups`：保存 `guest`、`user`、`admin` 用户组及其权限数组。
-- `users`：保存本地用户、内置 `guest` 用户、主用户组、账号状态和密码哈希。
-- `sessions`：保存服务端会话、过期时间、最近访问时间和撤销时间。
-- `domains`：保存系统访问域名、短链访问域名、用途、启用状态和全局默认标记。
-- `short_links`：保存创建者、域名、全系统唯一短码、目标 URL、状态和软删除时间。
+- `system_setting`：保存站点名称、初始化状态、系统访问域名、默认短链访问域名、默认语言和默认主题。
+- `user_group`：保存 `guest`、`user`、`admin` 用户组及其权限数组。
+- `app_user`：保存本地用户、内置 `guest` 用户、主用户组、账号状态和密码哈希。
+- `session`：保存服务端会话、过期时间、最近访问时间和撤销时间。
+- `domain`：保存系统访问域名、短链访问域名、用途、启用状态和全局默认标记。
+- `short_link`：保存创建者、域名、全系统唯一短码、目标 URL、状态和软删除时间。
 
 关键约束：
 
-- `user_groups.key` 唯一。
-- `users.username` 唯一。
-- `domains.host` 唯一。
-- `short_links.slug` 全系统唯一。
-- `short_links.deleted_at` 用于软删除。
+- `user_group.key` 唯一。
+- `app_user.username` 唯一。
+- `domain.host` 唯一。
+- `short_link.slug` 全系统唯一。
+- `short_link.deleted_at` 用于软删除。
 - 软删除后短码仍不释放。
+
+### 短码规则
+
+- v0.0.1 默认生成 6 位随机短码。
+- 短码只允许小写字母和数字：`[a-z0-9]`。
+- 系统生成、保存和展示的短码都使用小写。
+- 后续如开放自定义短码，输入应先归一化为小写再校验和保存。
+- 短码唯一性、保留路径校验和访问查找都基于归一化后的小写值。
 
 ### 迁移规则
 
@@ -373,8 +405,26 @@ v0.0.1 应至少定义：
 - 错误色。
 - 浅色主题。
 - 深色主题。
+- 跟随系统模式。
 
-## 11. 测试约定
+默认主题应采用 Material Design 3 风格。v0.0.1 可以先写死 MoeURL 默认主题，不要求提供后台主题配置。
+
+## 11. PWA 约定
+
+前端从 v0.0.1 开始支持 PWA 基础能力。
+
+阶段要求：
+
+- 前端工程初始化阶段建立 `manifest`、图标、主题色和基础注册入口。
+- UI 收尾阶段验证安装体验、移动端启动显示和静态资源缓存。
+
+缓存策略：
+
+- v0.0.1 只缓存 App Shell 和静态资源。
+- 不缓存登录态 API、短链业务数据和权限相关响应。
+- Service Worker 更新后应能让用户获得新版本资源。
+
+## 12. 测试约定
 
 ### 后端测试
 
@@ -405,7 +455,7 @@ cd web && npm run build
 cd web && npm run test:e2e
 ```
 
-## 12. 部署约定
+## 13. 部署约定
 
 生产部署优先使用 Docker Compose：
 
@@ -431,7 +481,7 @@ docker compose up --build
 
 该命令应启动应用服务和 PostgreSQL，并允许通过 `/api/v1/health` 验证服务状态。
 
-## 13. 环境变量约定
+## 14. 环境变量约定
 
 建议环境变量：
 
@@ -447,7 +497,7 @@ MOEURL_DEFAULT_THEME
 
 敏感配置不得提交到仓库。
 
-## 14. 文档同步规则
+## 15. 文档同步规则
 
 修改技术栈、目录结构、API 约定、数据库约定、权限约定或部署方式时，必须同步更新：
 
