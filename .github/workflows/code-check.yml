@@ -1,0 +1,89 @@
+name: Code Check
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Lint, typecheck, test, coverage, build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          package_json_file: web/package.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+
+      - name: Backend lint
+        shell: bash
+        run: |
+          test -z "$(gofmt -l .)"
+          go vet ./...
+
+      - name: Frontend lint
+        working-directory: web
+        run: pnpm lint
+
+      - name: Frontend typecheck
+        working-directory: web
+        run: pnpm typecheck
+
+      - name: Backend tests
+        run: go test ./...
+
+      - name: Frontend tests
+        working-directory: web
+        run: pnpm test
+
+      - name: Backend test coverage
+        run: |
+          go test \
+            ./internal/auth \
+            ./internal/db \
+            ./internal/http \
+            ./internal/permission \
+            ./internal/shortlink \
+            ./internal/system \
+            ./internal/user \
+            -coverprofile="$GITHUB_WORKSPACE/coverage.out"
+          node scripts/go-coverage-threshold.mjs "$GITHUB_WORKSPACE/coverage.out" 100
+
+      - name: Frontend test coverage
+        working-directory: web
+        run: pnpm test:coverage
+
+      - name: Frontend build
+        working-directory: web
+        run: pnpm build
+
+      - name: Docker build
+        run: docker build .

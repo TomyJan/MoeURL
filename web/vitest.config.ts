@@ -11,6 +11,13 @@ export default defineConfig({
     },
   },
   test: {
+    coverage: {
+      include: ['src/**/*.{ts,vue}'],
+      reporter: ['text', 'lcov'],
+      thresholds: {
+        100: true,
+      },
+    },
     environment: 'jsdom',
     exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
     globals: true,

@@ -39,7 +39,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 | PWA | Web App Manifest + Service Worker |
 | 后端测试 | go test + testify + testcontainers-go |
 | 前端测试 | Vitest + Vue Testing Library + Playwright |
-| 部署 | Docker + Docker Compose |
+| 部署 | Docker + Docker Compose，支持裸机运行 |
 
 ## 3. 仓库目录结构
 
@@ -458,6 +458,15 @@ v0.0.1 应至少定义：
 go test ./...
 ```
 
+覆盖率门禁：
+
+```bash
+go test ./internal/auth ./internal/db ./internal/http ./internal/permission ./internal/shortlink ./internal/system ./internal/user -coverprofile="$PWD/coverage.out"
+node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100
+```
+
+后端测试覆盖率必须达到 100%。未达到 100% 时，CI 应失败。
+
 ### 前端测试
 
 前端测试分为：
@@ -470,13 +479,16 @@ go test ./...
 
 ```bash
 cd web && pnpm test
+cd web && pnpm test:coverage
 cd web && pnpm build
 cd web && pnpm test:e2e
 ```
 
+前端单元和组件测试覆盖率必须达到 100%。未达到 100% 时，CI 应失败。
+
 ## 13. 部署约定
 
-生产部署优先使用 Docker Compose：
+生产部署优先使用 Docker Compose，同时支持裸机运行：
 
 ```text
 moeurl-app
@@ -499,6 +511,14 @@ docker compose up --build
 ```
 
 该命令应启动应用服务和 PostgreSQL，并允许通过 `/api/v1/health` 验证服务状态。
+
+裸机运行时应先完成以下步骤：
+
+- 准备 PostgreSQL 数据库。
+- 使用 Goose 执行 `migrations/` 下的数据库迁移。
+- 使用 pnpm 构建 `web/dist`。
+- 设置 `MOEURL_DATABASE_URL`、`MOEURL_HTTP_ADDR` 和 `MOEURL_STATIC_DIR`。
+- 运行 `go run ./cmd/server` 或构建后的后端二进制。
 
 ## 14. 环境变量约定
 

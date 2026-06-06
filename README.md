@@ -2,84 +2,157 @@
 
 MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
 
-当前项目处于 v0.0.1 工程开发阶段，优先目标是完成基础可用闭环：首次初始化、本地登录、权限判断、创建短链、管理短链和访问短链直接跳转。
+## 功能概览
 
-## 当前实现状态
+- 首次初始化站点和管理员账号。
+- Cookie Session + 服务端会话存储。
+- 内置 `guest`、`user`、`admin` 用户组和权限判断。
+- 创建、查看、禁用和软删除短链。
+- 管理员全站短链管理和用户创建入口。
+- 短链直接跳转，短码全系统唯一。
+- Vue 3 + Vuetify 3 前端，支持主题、国际化和 PWA 基础能力。
 
-v0.0.1 基础闭环已进入验收收尾阶段。当前 feature 分支已经覆盖以下自动化路径：
+## 技术栈
 
-- 首次初始化。
-- 登录后识别当前用户，并支持退出登录。
-- `guest` 首页无权限提示和禁用创建入口。
-- 首页创建短链，并提供复制、打开和继续创建入口。
-- 我的短链列表展示、复制、打开、禁用和删除基础操作。
-- 管理员全站短链列表和基础管理操作。
-- Docker Compose 下的端到端基础流程。
+- 后端：Go、Chi、SQLC、Goose、PostgreSQL。
+- 前端：Vue 3、Vite、TypeScript、Vuetify 3。
+- 状态：Pinia、TanStack Query for Vue。
+- 包管理：pnpm。
+- 测试：go test、Vitest、Playwright、testcontainers-go。
+- 部署：Docker、Docker Compose，也支持裸机运行。
 
-最终发布前仍需对照 [v0.0.1 验收清单](./docs/implementation/v0.0.1-acceptance.md) 完成逐项确认。
-
-## 文档入口
+## 文档
 
 - [文档总览](./docs/README.md)
 - [产品总览](./docs/product/overview.md)
-- [v0.0.1 范围](./docs/product/scope-v0.0.1.md)
-- [v0.0.1 工程实施合同](./docs/implementation/v0.0.1-implementation-contract.md)
-- [v0.0.1 任务级实施清单](./docs/implementation/v0.0.1-tasks.md)
-- [v0.0.1 验收清单](./docs/implementation/v0.0.1-acceptance.md)
+- [技术选型决策](./docs/implementation/technical-decision.md)
+- [技术基线](./docs/implementation/technical-baseline.md)
+- [验收清单](./docs/implementation/v0.0.1-acceptance.md)
 
-## v0.0.1 目标技术栈
+## 环境要求
 
-- Go 版本：Go 1.25 或更高版本。
-- 后端：Go 1.25+、Chi、SQLC、Goose、PostgreSQL。
-- 前端：Vue 3、Vite、TypeScript、Vuetify 3。
-- 前端包管理：pnpm。
-- 状态：Pinia、TanStack Query for Vue。
-- PWA：Web App Manifest、Service Worker。
-- 测试：go test、testify、testcontainers-go、Vitest、Playwright。
-- 部署：Docker、Docker Compose。
+- Go 1.25 或更高版本。
+- Node.js 24 或更高版本。
+- pnpm 11.5 或更高版本。
+- PostgreSQL 18 或兼容版本。
+- Docker 和 Docker Compose（用于容器运行、E2E 和集成测试）。
 
-## 开发命令
-
-后端测试：
-
-```bash
-go test ./...
-```
-
-前端测试和构建：
-
-```bash
-cd web && pnpm test
-cd web && pnpm build
-```
-
-端到端测试：
-
-```bash
-cd web && pnpm test:e2e
-```
-
-本地 Docker Compose 部署：
+## Docker 运行
 
 ```bash
 docker compose up --build
 ```
 
-启动后可以通过以下地址验证服务状态：
+启动后访问：
 
 ```text
+http://localhost:8080
 http://localhost:8080/api/v1/health
 ```
 
-## 环境变量
+停止并清理本地数据卷：
 
-后端服务使用以下核心环境变量：
-
-```text
-MOEURL_ENV=development
-MOEURL_HTTP_ADDR=:8080
-MOEURL_DATABASE_URL=postgres://...
-MOEURL_STATIC_DIR=web/dist
+```bash
+docker compose down -v
 ```
 
-Docker Compose 会自动配置 PostgreSQL 连接和静态资源目录。
+## 裸机运行
+
+先准备 PostgreSQL，并创建数据库：
+
+```bash
+createdb moeurl
+```
+
+构建前端静态资源：
+
+```bash
+cd web
+pnpm install --frozen-lockfile
+pnpm build
+cd ..
+```
+
+执行数据库迁移：
+
+```bash
+go install github.com/pressly/goose/v3/cmd/goose@v3.26.0
+goose -dir migrations postgres "postgres://moeurl:moeurl@127.0.0.1:5432/moeurl?sslmode=disable" up
+```
+
+启动后端服务：
+
+```bash
+$env:MOEURL_ENV="development"
+$env:MOEURL_HTTP_ADDR=":8080"
+$env:MOEURL_STATIC_DIR="web/dist"
+$env:MOEURL_DATABASE_URL="postgres://moeurl:moeurl@127.0.0.1:5432/moeurl?sslmode=disable"
+go run ./cmd/server
+```
+
+Linux/macOS 使用同名环境变量即可：
+
+```bash
+MOEURL_ENV=development \
+MOEURL_HTTP_ADDR=:8080 \
+MOEURL_STATIC_DIR=web/dist \
+MOEURL_DATABASE_URL='postgres://moeurl:moeurl@127.0.0.1:5432/moeurl?sslmode=disable' \
+go run ./cmd/server
+```
+
+## 开发调试
+
+后端开发服务：
+
+```bash
+go run ./cmd/server
+```
+
+前端开发服务：
+
+```bash
+cd web
+pnpm dev
+```
+
+前端开发服务器默认监听 `5173`，并将 `/api` 请求代理到 `http://127.0.0.1:8080`。
+
+## 质量检查
+
+后端检查：
+
+```bash
+gofmt -l .
+go vet ./...
+go test ./...
+$coverageProfile = Join-Path (Get-Location) "coverage.out"
+go test ./internal/auth ./internal/db ./internal/http ./internal/permission ./internal/shortlink ./internal/system ./internal/user "-coverprofile=$coverageProfile"
+node scripts/go-coverage-threshold.mjs $coverageProfile 100
+```
+
+Linux/macOS：
+
+```bash
+go test ./internal/auth ./internal/db ./internal/http ./internal/permission ./internal/shortlink ./internal/system ./internal/user -coverprofile="$PWD/coverage.out"
+node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100
+```
+
+前端检查：
+
+```bash
+cd web
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm test:coverage
+pnpm build
+```
+
+端到端测试：
+
+```bash
+cd web
+pnpm test:e2e
+```
+
+项目要求后端和前端测试覆盖率均达到 100%。当前 CI 已配置覆盖率门禁，未达到 100% 时会失败。
