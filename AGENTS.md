@@ -1,0 +1,101 @@
+# AGENTS.md
+
+## 项目定位
+
+MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
+
+当前优先目标是 v0.0.1 基础可用闭环。
+
+## 工作入口
+
+开始任何产品、文档或实现工作前，优先阅读：
+
+1. `docs/README.md`
+2. `docs/product/overview.md`
+3. `docs/product/scope-v0.0.1.md`
+
+如果任务涉及具体模块，再阅读 `docs/specs/` 下的对应规格文档。
+
+如果任务涉及技术实现，必须继续阅读：
+
+1. `docs/implementation/technical-decision.md`
+2. `docs/implementation/technical-baseline.md`
+3. `docs/implementation/v0.0.1-implementation-contract.md`
+4. `docs/implementation/v0.0.1-engineering-plan.md`
+5. `docs/implementation/v0.0.1-tasks.md`
+6. `docs/implementation/v0.0.1-acceptance.md`
+
+## 文档分层规则
+
+- 产品方向、版本边界和路线图写入 `docs/product/`。
+- 功能规格写入 `docs/specs/`。
+- 技术决策、技术基线、实施计划、阶段任务和验收记录写入 `docs/implementation/`。
+- 修改版本范围时，同步更新 `docs/README.md` 和相关产品文档。
+- 修改技术栈、目录结构、API、数据库、测试或部署约定时，同步更新 `docs/implementation/technical-decision.md` 和 `docs/implementation/technical-baseline.md`。
+- 不要把远期设想混入当前版本的必须实现范围。
+
+## 技术栈规则
+
+MoeURL 当前技术栈固定为：
+
+- 后端：Go、Chi、SQLC、Goose、PostgreSQL。
+- 前端：Vue 3、Vite、TypeScript、Vuetify 3。
+- 状态：Pinia、TanStack Query for Vue。
+- 国际化：vue-i18n。
+- 表单校验：vee-validate、zod。
+- PWA：Web App Manifest、Service Worker。
+- 测试：go test、testify、testcontainers-go、Vitest、Playwright。
+- 部署：Docker、Docker Compose。
+
+实现时遵循以下约束：
+
+- 后端 API 使用 `/api/v1` 前缀。
+- 后端 API 使用语义化路径，业务动作只使用 `GET` 和 `POST`，不使用 `PUT`、`PATCH`、`DELETE` 表达业务动作。
+- API 业务成功和业务失败默认返回 HTTP `200`，通过统一数字 `code` 表达结果；`guest` 权限不足属于业务无权限，返回 `200` 和业务错误码；只有登录态无效、已登录用户基础访问控制失败和基础设施级错误使用 `401`、`403` 和 `500`。
+- 短链访问路由使用 `/{slug}`，且优先级低于固定路由和 API 路由。
+- 后端使用 Cookie Session + 服务端会话存储，不使用 JWT 作为主登录会话。
+- 数据库 schema 变更必须通过 Goose migration。
+- 数据库表名使用单数蛇形命名，用户表使用 `app_user`。
+- 数据访问优先通过 SQLC 查询，不引入 GORM。
+- 前端 UI 使用 Vuetify 3，并从初始化阶段建立 MoeURL 自定义主题，默认主题采用 Material Design 3 风格。
+- 前端从 v0.0.1 开始支持 PWA 基础能力，但不缓存登录态 API、短链业务数据和权限相关响应。
+- 前端服务端状态使用 TanStack Query，不长期塞入 Pinia。
+- 不引入 Ant Design 系 UI。
+
+## 实施原则
+
+- 以 v0.0.1 基础可用闭环为当前优先目标。
+- 实施前先确认对应产品范围、功能规格和技术基线。
+- v0.0.1 只实现 `docs/product/scope-v0.0.1.md` 中列入必须实现的内容。
+- 远期能力只做必要的模型、接口或扩展点预留，不做完整 UI 和完整流程。
+- 保持 YAGNI，避免为了远期能力提前引入过重抽象。
+- 每个阶段都应有明确可验证的完成标准。
+- 每个功能完成前应运行对应测试或手工验证。
+
+## 核心产品约束
+
+- 权限系统是核心边界，功能开放应通过权限表达。
+- `admin` 用户组默认拥有最高权限，但业务逻辑仍应走权限判断。
+- `guest` 是内置系统身份，不允许直接登录，不作为普通账号处理。
+- 未登录访问者默认继承 `guest` 用户组权限。
+- v0.0.1 默认不开放 `guest` 创建短链。
+- 短码全系统唯一，不随短链访问域名重复。
+- 短码只生成、保存和展示小写字母数字，访问查找按小写归一化值处理。
+- 系统固定路由优先于短链短码路由。
+- 短链删除采用软删除，短码不自动复用。
+- v0.0.1 只要求实现直接跳转。
+
+## 中文文档规范
+
+- 中文语境使用全角标点。
+- 中英文之间留空格。
+- 中文与数字之间留空格。
+- 技术名词、命令、代码和权限标识使用半角英文或代码格式。
+- Markdown 标题层级不要跳级。
+- 文档应直接服务产品理解和实施，不写无意义的兼容说明。
+
+## Git 规则
+
+- 未经用户要求，不要主动提交或推送。
+- 删除、重命名或大规模改写文档前，确认新结构已经能覆盖原有有效内容。
+- 汇报变更时说明新增、修改和删除的文件，以及下一步建议。
