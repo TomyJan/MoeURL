@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+web/dist/
+web/playwright-report/
+web/test-results/
+
+# Local environment
+.env
+.env.*
+
+# Logs
+*.log

@@ -1,0 +1,11 @@
+.git
+.codegraph
+Dockerfile
+docker-compose.yml
+README.md
+docs
+web/node_modules
+web/dist
+web/.vite
+**/.DS_Store
+**/*.log

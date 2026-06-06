@@ -17,7 +17,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 
 | 层级 | 技术 |
 | --- | --- |
-| 后端语言 | Go |
+| 后端语言 | Go 1.25+ |
 | HTTP 路由 | Chi |
 | 数据库 | PostgreSQL |
 | 数据访问 | SQLC |
@@ -28,6 +28,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 | 会话 | Cookie Session + 服务端会话存储 |
 | 前端框架 | Vue 3 |
 | 前端构建 | Vite |
+| 前端包管理 | pnpm |
 | 前端语言 | TypeScript |
 | 前端路由 | Vue Router |
 | 客户端状态 | Pinia |
@@ -468,9 +469,9 @@ go test ./...
 推荐命令：
 
 ```bash
-cd web && npm run test
-cd web && npm run build
-cd web && npm run test:e2e
+cd web && pnpm test
+cd web && pnpm build
+cd web && pnpm test:e2e
 ```
 
 ## 13. 部署约定
