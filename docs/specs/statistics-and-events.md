@@ -48,12 +48,17 @@ v0.0.1 必须预留以下事件类型：
 | 事件 | 触发时机 |
 | --- | --- |
 | `short_link_opened` | 访问者打开短链 URL，并成功识别域名和短码。 |
-| `access_condition_checked` | 系统完成访问条件检查，例如过期、禁用、次数上限、密码要求等。 |
-| `password_verified` | 访问者输入访问密码且验证通过。 |
-| `confirmation_clicked` | 访问者在确认页点击继续访问。 |
+| `access_condition_checked` | 系统完成访问条件检查，例如不存在、软删除、禁用等。 |
 | `redirect_initiated` | 系统准备跳转到目标链接。 |
-| `redirect_response_sent` | 系统已返回跳转响应，或跳转页已触发跳转动作。 |
-| `redirect_blocked` | 短链因状态、权限、风控或访问条件被阻止。 |
+| `redirect_response_sent` | 系统已返回跳转响应。 |
+| `redirect_blocked` | 短链因不存在、软删除、禁用或访问条件被阻止。 |
+
+以下事件属于后续能力落地时再启用的扩展事件，不属于 v0.0.1 必须预留范围：
+
+| 事件 | 对应后续能力 |
+| --- | --- |
+| `password_verified` | 访问密码。 |
+| `confirmation_clicked` | 确认页跳转。 |
 
 `redirect_response_sent` 只表示 MoeURL 已完成自身可确认的跳转处理，不代表访问者浏览器一定完成跳转，也不代表目标页面实际加载成功。
 
