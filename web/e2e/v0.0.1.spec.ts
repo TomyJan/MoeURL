@@ -34,14 +34,14 @@ test('v0.0.1 initialization login short link and disabled redirect flow', async 
   await page.getByRole('button', { name: 'Login' }).click()
   await expect(page.getByText('Admin')).toBeVisible()
 
-  await page.goto('/admin/users/new')
+  await page.goto('/admin/user/new')
   await page.getByLabel('Username').fill('alice')
   await page.getByLabel('Password').fill('alice-password')
   await page.getByLabel('Nickname').fill('Alice')
   await page.getByRole('button', { name: '创建用户' }).click()
   await expect(page.getByText('alice')).toBeVisible()
 
-  await page.goto('/admin/users')
+  await page.goto('/admin/user')
   await expect(page.getByText('alice')).toBeVisible()
   const disableUser = page.waitForResponse('**/api/v1/admin/user/update')
   await page.getByRole('row', { name: /alice/ }).getByRole('button', { name: '禁用' }).click()
@@ -72,7 +72,7 @@ test('v0.0.1 initialization login short link and disabled redirect flow', async 
   expect(activeRedirect.status()).toBe(302)
   expect(activeRedirect.headers().location).toBe('https://example.com/e2e-target')
 
-  await page.goto('/admin/links')
+  await page.goto('/admin/link')
   await page.getByLabel('关键词搜索').fill(slug)
   await expect(page.getByRole('link', { name: createdUrl ?? '' })).toBeVisible()
   const disableLink = page.waitForResponse('**/api/v1/admin/short-link/update')
@@ -83,13 +83,13 @@ test('v0.0.1 initialization login short link and disabled redirect flow', async 
   await expect(blocked).toBeOK()
   expect(await blocked.text()).toContain('Short link disabled')
 
-  await page.goto('/links')
+  await page.goto('/link')
   await selectVuetifyOption(page, '状态筛选', '禁用')
   await expect(page.getByRole('link', { name: createdUrl ?? '' })).toBeVisible()
   await expect(page.getByRole('button', { name: '复制' })).toBeVisible()
   await expect(page.getByRole('link', { name: '打开' })).toHaveAttribute('href', createdUrl ?? '')
 
-  await page.goto('/admin/links')
+  await page.goto('/admin/link')
   await selectVuetifyOption(page, '状态筛选', '禁用')
   await page.getByLabel('关键词搜索').fill(slug)
   await expect(page.getByRole('link', { name: createdUrl ?? '' })).toBeVisible()

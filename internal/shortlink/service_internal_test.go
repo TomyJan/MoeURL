@@ -36,3 +36,15 @@ func TestInternalServiceHelpers(t *testing.T) {
 		t.Fatal("expected plain error to not be unique violation")
 	}
 }
+
+func TestReservedSlugsIncludeSingularPageRoutes(t *testing.T) {
+	for _, slug := range []string{"api", "assets", "setup", "login", "link", "links", "admin", "LINK"} {
+		if !isReservedSlug(slug) {
+			t.Fatalf("expected %q to be reserved", slug)
+		}
+	}
+
+	if isReservedSlug("abc123") {
+		t.Fatal("expected ordinary slug to be available")
+	}
+}

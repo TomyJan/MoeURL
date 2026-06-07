@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { routes } from './router'
 
 describe('router', () => {
-  it('contains v0.0.1 fixed routes', () => {
+  it('contains fixed singular page routes', () => {
     expect(routes.map((route) => route.path)).toEqual(
-      expect.arrayContaining(['/', '/setup', '/login', '/links', '/admin/links', '/admin/users', '/admin/users/new', '/:pathMatch(.*)*']),
+      expect.arrayContaining(['/', '/setup', '/login', '/link', '/admin/link', '/admin/user', '/admin/user/new', '/:pathMatch(.*)*']),
     )
   })
 })

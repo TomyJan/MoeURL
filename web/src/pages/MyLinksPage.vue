@@ -63,7 +63,7 @@ const statusOptions = [
   { title: '禁用', value: 'disabled' },
 ]
 const query = useQuery({
-  queryKey: computed(() => ['short-links', statusFilter.value]),
+  queryKey: computed(() => ['short-link', statusFilter.value]),
   queryFn: () => listShortLinks({ status: statusFilter.value }),
 })
 const links = computed(() => query.data.value?.items ?? [])
@@ -90,7 +90,7 @@ function copyUrl(url: string) {
 }
 
 function invalidateLinks() {
-  void queryClient.invalidateQueries({ queryKey: ['short-links'] })
+  void queryClient.invalidateQueries({ queryKey: ['short-link'] })
 }
 </script>
 

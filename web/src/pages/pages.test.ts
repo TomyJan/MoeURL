@@ -315,7 +315,7 @@ describe('pages', () => {
     const queryKey = state.queryKeys[0]
     state.queryFns[0]?.()
 
-    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['short-links', 'disabled'])
+    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['short-link', 'disabled'])
     expect(listShortLinks).toHaveBeenCalledWith({ status: 'disabled' })
   })
 
@@ -350,7 +350,7 @@ describe('pages', () => {
     const queryKey = state.queryKeys[0]
     state.queryFns[0]?.()
 
-    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['admin-short-links', 'active', 'alice'])
+    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['admin-short-link', 'active', 'alice'])
     expect(listAdminShortLinks).toHaveBeenCalledWith({ status: 'active', q: 'alice' })
   })
 

@@ -14,10 +14,10 @@ export const routes: RouteRecordRaw[] = [
   { path: '/', component: HomePage },
   { path: '/setup', component: SetupPage },
   { path: '/login', component: LoginPage },
-  { path: '/links', component: MyLinksPage },
-  { path: '/admin/links', component: AdminLinksPage },
-  { path: '/admin/users', component: AdminUsersPage },
-  { path: '/admin/users/new', component: CreateUserPage },
+  { path: '/link', component: MyLinksPage },
+  { path: '/admin/link', component: AdminLinksPage },
+  { path: '/admin/user', component: AdminUsersPage },
+  { path: '/admin/user/new', component: CreateUserPage },
   { path: '/:pathMatch(.*)*', component: NotFoundPage },
 ]
 

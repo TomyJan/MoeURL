@@ -5,7 +5,7 @@
       <span class="text-body-2 text-medium-emphasis">共 {{ total }} 个用户</span>
     </div>
     <div class="mb-4">
-      <v-btn color="primary" to="/admin/users/new" variant="flat">创建用户</v-btn>
+      <v-btn color="primary" to="/admin/user/new" variant="flat">创建用户</v-btn>
     </div>
     <v-alert v-if="query.isError.value" type="error" variant="tonal">加载失败</v-alert>
     <v-progress-linear v-if="query.isPending.value" indeterminate />
@@ -77,7 +77,7 @@ const queryClient = useQueryClient()
 const draftNicknames = reactive<Record<string, string>>({})
 const draftPasswords = reactive<Record<string, string>>({})
 const query = useQuery({
-  queryKey: ['admin-users'],
+  queryKey: ['admin-user'],
   queryFn: () => listUsers({ page: 1, pageSize: 20 }),
 })
 const users = computed(() => query.data.value?.items ?? [])
@@ -127,7 +127,7 @@ function resetPassword(item: UserSummary) {
 }
 
 function invalidateUsers() {
-  void queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+  void queryClient.invalidateQueries({ queryKey: ['admin-user'] })
 }
 </script>
 
