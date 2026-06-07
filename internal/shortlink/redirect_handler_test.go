@@ -53,6 +53,29 @@ func TestRedirectHandlerDoesNotOverrideStaticFixedRoutes(t *testing.T) {
 	}
 }
 
+func TestRedirectHandlerDoesNotOverrideStaticAssetRoutes(t *testing.T) {
+	staticDir := t.TempDir()
+	err := os.WriteFile(filepath.Join(staticDir, "manifest.webmanifest"), []byte(`{"name":"MoeURL"}`), 0o644)
+	if err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		Redirect:  &fakeRedirectService{result: shortlink.RedirectResult{TargetURL: "https://example.com/target"}},
+		StaticDir: staticDir,
+	})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/manifest.webmanifest", nil)
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected static manifest route to win, got %d", response.Code)
+	}
+	if response.Header().Get("Location") != "" {
+		t.Fatalf("expected no redirect location, got %q", response.Header().Get("Location"))
+	}
+}
+
 func TestRedirectHandlerDoesNotOverrideFixedRoutes(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		Redirect: &fakeRedirectService{result: shortlink.RedirectResult{TargetURL: "https://example.com/target"}},

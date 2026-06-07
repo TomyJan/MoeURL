@@ -40,9 +40,6 @@ func TestRouterHealthReturnsOK(t *testing.T) {
 	if body.Data["status"] != "ok" {
 		t.Fatalf("expected status ok, got %q", body.Data["status"])
 	}
-	if body.Meta == nil {
-		t.Fatal("expected meta object")
-	}
 }
 
 func TestRouterServesSPAFixedRoutesFromStaticDir(t *testing.T) {
@@ -90,8 +87,5 @@ func TestRouterUnknownAPIUsesUnifiedResponse(t *testing.T) {
 	}
 	if body.Data != nil {
 		t.Fatalf("expected nil data, got %#v", body.Data)
-	}
-	if body.Meta == nil {
-		t.Fatal("expected meta object")
 	}
 }

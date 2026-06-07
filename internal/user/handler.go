@@ -1,9 +1,11 @@
 package user
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
@@ -67,7 +69,13 @@ func businessError(w http.ResponseWriter, code int, message string) {
 }
 
 func writeJSON(w http.ResponseWriter, status int, body response) {
+	var buffer bytes.Buffer
+	if err := json.NewEncoder(&buffer).Encode(body); err != nil {
+		slog.Error("encoding user response", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(body)
+	_, _ = w.Write(buffer.Bytes())
 }

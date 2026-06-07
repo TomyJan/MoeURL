@@ -1,7 +1,9 @@
 package http
 
 import (
+	"bytes"
 	"encoding/json"
+	"log/slog"
 	nethttp "net/http"
 )
 
@@ -15,9 +17,15 @@ type Response struct {
 }
 
 func WriteJSON(w nethttp.ResponseWriter, status int, response Response) {
+	var buffer bytes.Buffer
+	if err := json.NewEncoder(&buffer).Encode(response); err != nil {
+		slog.Error("encoding response", "error", err, "response", response)
+		nethttp.Error(w, "Internal server error", nethttp.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(response)
+	_, _ = w.Write(buffer.Bytes())
 }
 
 func OK(w nethttp.ResponseWriter, data any) {
@@ -25,7 +33,7 @@ func OK(w nethttp.ResponseWriter, data any) {
 		Code:    CodeOK,
 		Message: "OK",
 		Data:    data,
-		Meta:    map[string]any{},
+		Meta:    nil,
 	})
 }
 
@@ -34,6 +42,6 @@ func BusinessError(w nethttp.ResponseWriter, code int, message string) {
 		Code:    code,
 		Message: message,
 		Data:    nil,
-		Meta:    map[string]any{},
+		Meta:    nil,
 	})
 }

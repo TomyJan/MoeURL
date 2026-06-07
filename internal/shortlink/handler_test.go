@@ -158,6 +158,27 @@ func TestHandlerListShortLinksReturnsItemsAndMeta(t *testing.T) {
 	}
 }
 
+func TestHandlerListShortLinksUsesDefaultPaginationForInvalidQuery(t *testing.T) {
+	service := &fakeShortLinkService{}
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		CurrentUser: &fakeCurrentUserResolver{
+			user: auth.CurrentUser{ID: "user-id", Username: "alice", GroupKey: "user", Permissions: permission.UserPermissions},
+		},
+		ShortLink: service,
+	})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/short-link/list?page=bad&pageSize=bad", nil)
+
+	router.ServeHTTP(response, request)
+
+	if service.listInput.Page != 1 {
+		t.Fatalf("expected default page 1, got %d", service.listInput.Page)
+	}
+	if service.listInput.PageSize != 20 {
+		t.Fatalf("expected default pageSize 20, got %d", service.listInput.PageSize)
+	}
+}
+
 func TestHandlerUpdateShortLinkReturnsUpdatedLink(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		CurrentUser: &fakeCurrentUserResolver{
@@ -333,7 +354,9 @@ func TestHandlerAdminUpdateAndDeleteShortLinks(t *testing.T) {
 type fakeShortLinkService struct {
 	result          shortlink.CreateResult
 	listResult      shortlink.ListResult
+	listInput       shortlink.ListInput
 	adminListResult shortlink.AdminListResult
+	adminListInput  shortlink.ListInput
 	err             error
 }
 
@@ -341,7 +364,8 @@ func (f *fakeShortLinkService) Create(context.Context, auth.CurrentUser, shortli
 	return f.result, f.err
 }
 
-func (f *fakeShortLinkService) List(context.Context, auth.CurrentUser, shortlink.ListInput) (shortlink.ListResult, error) {
+func (f *fakeShortLinkService) List(_ context.Context, _ auth.CurrentUser, input shortlink.ListInput) (shortlink.ListResult, error) {
+	f.listInput = input
 	return f.listResult, f.err
 }
 
@@ -353,7 +377,8 @@ func (f *fakeShortLinkService) Delete(context.Context, auth.CurrentUser, shortli
 	return f.err
 }
 
-func (f *fakeShortLinkService) AdminList(context.Context, auth.CurrentUser, shortlink.ListInput) (shortlink.AdminListResult, error) {
+func (f *fakeShortLinkService) AdminList(_ context.Context, _ auth.CurrentUser, input shortlink.ListInput) (shortlink.AdminListResult, error) {
+	f.adminListInput = input
 	return f.adminListResult, f.err
 }
 

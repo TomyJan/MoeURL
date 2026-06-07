@@ -72,14 +72,14 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 		})
 	})
 
+	if dependency.StaticDir != "" {
+		registerStaticRoutes(router, dependency.StaticDir)
+	}
 	if dependency.Redirect != nil {
 		redirectHandler := shortlink.NewRedirectHandler(dependency.Redirect)
 		router.Get("/{slug}", func(w nethttp.ResponseWriter, r *nethttp.Request) {
 			redirectHandler.Open(w, r, chi.URLParam(r, "slug"))
 		})
-	}
-	if dependency.StaticDir != "" {
-		registerStaticRoutes(router, dependency.StaticDir)
 	}
 
 	return router

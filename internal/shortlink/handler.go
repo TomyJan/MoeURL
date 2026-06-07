@@ -65,8 +65,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	result, err := h.service.List(r.Context(), auth.UserFromContext(r.Context()), ListInput{
-		Page:     queryInt32(r, "page"),
-		PageSize: queryInt32(r, "pageSize"),
+		Page:     queryInt32WithDefault(r, "page", defaultPage),
+		PageSize: queryInt32WithDefault(r, "pageSize", defaultPageSize),
 	})
 	if err != nil {
 		if errors.Is(err, ErrPermissionDenied) {
@@ -123,8 +123,8 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) AdminList(w http.ResponseWriter, r *http.Request) {
 	result, err := h.service.AdminList(r.Context(), auth.UserFromContext(r.Context()), ListInput{
-		Page:     queryInt32(r, "page"),
-		PageSize: queryInt32(r, "pageSize"),
+		Page:     queryInt32WithDefault(r, "page", defaultPage),
+		PageSize: queryInt32WithDefault(r, "pageSize", defaultPageSize),
 	})
 	if err != nil {
 		writeBusinessOrSystemError(w, err)
@@ -211,14 +211,14 @@ func writeJSON(w http.ResponseWriter, status int, body response) {
 	_ = json.NewEncoder(w).Encode(body)
 }
 
-func queryInt32(r *http.Request, key string) int32 {
+func queryInt32WithDefault(r *http.Request, key string, defaultValue int32) int32 {
 	raw := r.URL.Query().Get(key)
 	if raw == "" {
-		return 0
+		return defaultValue
 	}
 	value, err := strconv.ParseInt(raw, 10, 32)
 	if err != nil {
-		return 0
+		return defaultValue
 	}
 	return int32(value)
 }

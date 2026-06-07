@@ -33,6 +33,10 @@ func TestHandlerCreateUserReturnsCreatedUser(t *testing.T) {
 
 	router.ServeHTTP(response, request)
 
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected http 200, got %d", response.Code)
+	}
+
 	var body struct {
 		Code int `json:"code"`
 		Data struct {
@@ -70,6 +74,10 @@ func TestHandlerCreateUserMapsBusinessErrors(t *testing.T) {
 			}`))
 
 			router.ServeHTTP(response, request)
+
+			if response.Code != http.StatusOK {
+				t.Fatalf("expected http 200, got %d", response.Code)
+			}
 
 			var body struct {
 				Code int `json:"code"`

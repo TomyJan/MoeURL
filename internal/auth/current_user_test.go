@@ -16,7 +16,10 @@ func TestCurrentUserMiddlewareUsesGuestWithoutSession(t *testing.T) {
 		current = auth.UserFromContext(r.Context())
 	}))
 
-	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
+	handler.ServeHTTP(
+		httptest.NewRecorder(),
+		httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil),
+	)
 
 	if current.Username != "guest" {
 		t.Fatalf("expected guest, got %s", current.Username)
@@ -40,7 +43,7 @@ func TestCurrentUserMiddlewareResolvesSessionUser(t *testing.T) {
 	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		current = auth.UserFromContext(r.Context())
 	}))
-	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	request.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session-id"})
 
 	handler.ServeHTTP(httptest.NewRecorder(), request)
