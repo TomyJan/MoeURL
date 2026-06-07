@@ -486,6 +486,18 @@ cd web && pnpm test:e2e
 
 前端单元和组件测试覆盖率必须达到 100%。未达到 100% 时，CI 应失败。
 
+### 质量检查工作流
+
+GitHub Actions 使用单个 `Check Code` 工作流文件。该工作流包含 5 个互相独立的并行任务：
+
+- `Lint`
+- `Typecheck`
+- `Test`
+- `Test Coverage`
+- `Build`
+
+工作流支持手动触发，在提交到 `master` 和面向 `master` 的 PR 时触发。外部贡献者 PR 是否自动运行由仓库 Actions 安全策略控制，工作流本身不使用 `pull_request_target`。
+
 ## 13. 部署约定
 
 生产部署优先使用 Docker Compose，同时支持裸机运行：
