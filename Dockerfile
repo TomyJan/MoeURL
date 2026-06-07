@@ -8,7 +8,7 @@ RUN pnpm install --frozen-lockfile --config.dangerously-allow-all-builds=true
 COPY web/ ./
 RUN pnpm build
 
-FROM golang:1.25-alpine AS go-build
+FROM golang:1.26-alpine AS go-build
 WORKDIR /workspace
 RUN apk add --no-cache git
 COPY go.mod go.sum ./
