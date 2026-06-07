@@ -40,6 +40,9 @@ func (w *statusResponseWriter) WriteHeader(status int) {
 }
 
 func (w *statusResponseWriter) Write(data []byte) (int, error) {
+	if !w.wroteHeader {
+		w.WriteHeader(nethttp.StatusOK)
+	}
 	size, err := w.ResponseWriter.Write(data)
 	w.bytesWritten += size
 	return size, err
