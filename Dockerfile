@@ -2,8 +2,8 @@
 
 FROM node:26-alpine AS web-build
 WORKDIR /workspace/web
-RUN npm install -g pnpm@11.5.0
 COPY web/package.json web/pnpm-lock.yaml ./
+RUN npm install -g $(node -p "require('./package.json').packageManager")
 RUN pnpm install --frozen-lockfile --config.dangerously-allow-all-builds=true
 COPY web/ ./
 RUN pnpm build
