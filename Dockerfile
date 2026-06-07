@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24-alpine AS web-build
+FROM node:26-alpine AS web-build
 WORKDIR /workspace/web
-RUN corepack enable
+RUN npm install -g pnpm@11.5.0
 COPY web/package.json web/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --config.dangerously-allow-all-builds=true
 COPY web/ ./
