@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
@@ -38,6 +39,12 @@ func TestSessionServiceCreatesReadsAndRevokesSession(t *testing.T) {
 	}
 	if session.ID == "" {
 		t.Fatal("expected session id")
+	}
+	if regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`).MatchString(session.ID) {
+		t.Fatalf("expected opaque session token, got uuid-shaped id %q", session.ID)
+	}
+	if !regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`).MatchString(session.ID) {
+		t.Fatalf("expected URL-safe 256-bit session token, got %q", session.ID)
 	}
 	if !session.ExpiresAt.After(time.Now()) {
 		t.Fatal("expected future expiration")
@@ -85,7 +92,7 @@ func migratedAuthDatabaseURL(t *testing.T, ctx context.Context) string {
 	t.Helper()
 
 	container, err := postgres.Run(ctx,
-		"postgres:17-alpine",
+		"postgres:18-alpine",
 		postgres.WithDatabase("moeurl_test"),
 		postgres.WithUsername("moeurl"),
 		postgres.WithPassword("moeurl"),

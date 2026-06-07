@@ -42,9 +42,24 @@ func TestServiceCreateRejectsUnsafeTargetURL(t *testing.T) {
 
 	service := shortlink.NewService(pool, permission.NewService())
 
-	_, err := service.Create(ctx, user, shortlink.CreateInput{TargetURL: "javascript:alert(1)"})
-	if !errors.Is(err, shortlink.ErrInvalidTargetURL) {
-		t.Fatalf("expected ErrInvalidTargetURL, got %v", err)
+	tests := []string{
+		"javascript:alert(1)",
+		"http://localhost/admin",
+		"http://127.0.0.1/admin",
+		"http://10.0.0.1/admin",
+		"http://172.16.0.1/admin",
+		"http://192.168.1.1/admin",
+		"http://169.254.169.254/latest/meta-data",
+		"http://[::1]/admin",
+	}
+
+	for _, targetURL := range tests {
+		t.Run(targetURL, func(t *testing.T) {
+			_, err := service.Create(ctx, user, shortlink.CreateInput{TargetURL: targetURL})
+			if !errors.Is(err, shortlink.ErrInvalidTargetURL) {
+				t.Fatalf("expected ErrInvalidTargetURL, got %v", err)
+			}
+		})
 	}
 }
 
@@ -395,7 +410,7 @@ func migratedShortLinkDatabaseURL(t *testing.T, ctx context.Context) string {
 	t.Helper()
 
 	container, err := postgres.Run(ctx,
-		"postgres:17-alpine",
+		"postgres:18-alpine",
 		postgres.WithDatabase("moeurl_test"),
 		postgres.WithUsername("moeurl"),
 		postgres.WithPassword("moeurl"),

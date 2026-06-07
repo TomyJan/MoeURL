@@ -3,6 +3,7 @@ package user_test
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"path/filepath"
 	"testing"
 	"time"
@@ -39,22 +40,18 @@ func insertUserGroup(t *testing.T, ctx context.Context, pool *pgxpool.Pool, key 
 }
 
 func permissionsJSON(permissions []string) string {
-	result := "["
-	for index, value := range permissions {
-		if index > 0 {
-			result += ","
-		}
-		result += `"` + value + `"`
+	data, err := json.Marshal(permissions)
+	if err != nil {
+		panic(err)
 	}
-	result += "]"
-	return result
+	return string(data)
 }
 
 func migratedUserDatabaseURL(t *testing.T, ctx context.Context) string {
 	t.Helper()
 
 	container, err := postgres.Run(ctx,
-		"postgres:17-alpine",
+		"postgres:18-alpine",
 		postgres.WithDatabase("moeurl_test"),
 		postgres.WithUsername("moeurl"),
 		postgres.WithPassword("moeurl"),

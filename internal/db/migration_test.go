@@ -18,7 +18,7 @@ import (
 func TestInitialMigrationCreatesCoreTablesAndConstraints(t *testing.T) {
 	ctx := context.Background()
 	container, err := postgres.Run(ctx,
-		"postgres:17-alpine",
+		"postgres:18-alpine",
 		postgres.WithDatabase("moeurl_test"),
 		postgres.WithUsername("moeurl"),
 		postgres.WithPassword("moeurl"),

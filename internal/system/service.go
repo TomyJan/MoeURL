@@ -129,6 +129,10 @@ func validateSetupInput(input SetupInput) error {
 			return ErrInvalidSetupInput
 		}
 	}
+	adminUsername := strings.ToLower(strings.TrimSpace(input.AdminUsername))
+	if adminUsername == "guest" {
+		return ErrInvalidSetupInput
+	}
 	return nil
 }
 

@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
 	"time"
 )
 
 const (
+	CodeInvalidRequest     = 100001
 	CodeInvalidCredentials = 110101
 	CodeUserDisabled       = 110102
 )
@@ -30,7 +32,7 @@ func NewHandler(service Port) *Handler {
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var input LoginInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		businessError(w, 100001, "Invalid request")
+		businessError(w, CodeInvalidRequest, "Invalid request")
 		return
 	}
 
@@ -81,6 +83,7 @@ func sessionCookie(value string, expiresAt time.Time) *http.Cookie {
 		Path:     "/",
 		Expires:  expiresAt,
 		HttpOnly: true,
+		Secure:   isProduction(),
 		SameSite: http.SameSiteLaxMode,
 	}
 }
@@ -92,8 +95,13 @@ func clearSessionCookie() *http.Cookie {
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
+		Secure:   isProduction(),
 		SameSite: http.SameSiteLaxMode,
 	}
+}
+
+func isProduction() bool {
+	return os.Getenv("MOEURL_ENV") == "production"
 }
 
 type response struct {

@@ -35,7 +35,7 @@ create index app_user_group_id_idx on app_user(group_id);
 create index app_user_deleted_at_idx on app_user(deleted_at);
 
 create table session (
-    id uuid primary key,
+    id text primary key,
     user_id uuid not null references app_user(id),
     expires_at timestamptz not null,
     last_seen_at timestamptz not null,

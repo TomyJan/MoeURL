@@ -72,16 +72,49 @@ func TestHandlerSetupMapsAlreadyInitializedToBusinessCode(t *testing.T) {
 	}
 }
 
+func TestHandlerSetupDecodesCamelCaseJSON(t *testing.T) {
+	service := &fakeSystemService{}
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		System: service,
+	})
+	body := bytes.NewBufferString(`{
+		"adminUsername": "admin",
+		"adminPassword": "secure-password",
+		"adminNickname": "Administrator",
+		"siteName": "MoeURL",
+		"systemDomain": "example.com",
+		"shortLinkDomain": "go.example.com",
+		"defaultLanguage": "zh-CN",
+		"defaultTheme": "system"
+	}`)
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/init/setup", body)
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected http 200, got %d", response.Code)
+	}
+	if service.setupInput.AdminUsername != "admin" {
+		t.Fatalf("expected camelCase admin username to decode, got %q", service.setupInput.AdminUsername)
+	}
+	if service.setupInput.ShortLinkDomain != "go.example.com" {
+		t.Fatalf("expected camelCase short link domain to decode, got %q", service.setupInput.ShortLinkDomain)
+	}
+}
+
 type fakeSystemService struct {
 	initialized bool
 	setupErr    error
+	setupInput  system.SetupInput
 }
 
 func (f *fakeSystemService) IsInitialized(context.Context) (bool, error) {
 	return f.initialized, nil
 }
 
-func (f *fakeSystemService) Setup(context.Context, system.SetupInput) error {
+func (f *fakeSystemService) Setup(_ context.Context, input system.SetupInput) error {
+	f.setupInput = input
 	if f.setupErr != nil {
 		return f.setupErr
 	}

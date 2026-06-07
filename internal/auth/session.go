@@ -2,10 +2,11 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -30,10 +31,13 @@ func NewSessionService(pool *pgxpool.Pool, ttl time.Duration) *SessionService {
 }
 
 func (s *SessionService) Create(ctx context.Context, userID string) (Session, error) {
-	sessionID := uuid.NewString()
+	sessionID, err := generateSessionID()
+	if err != nil {
+		return Session{}, err
+	}
 	expiresAt := time.Now().UTC().Add(s.ttl)
 
-	_, err := s.pool.Exec(ctx, `
+	_, err = s.pool.Exec(ctx, `
 		insert into session (id, user_id, expires_at, last_seen_at, created_at)
 		values ($1, $2, $3, now(), now())
 	`, sessionID, userID, expiresAt)
@@ -42,6 +46,14 @@ func (s *SessionService) Create(ctx context.Context, userID string) (Session, er
 	}
 
 	return Session{ID: sessionID, UserID: userID, ExpiresAt: expiresAt}, nil
+}
+
+func generateSessionID() (string, error) {
+	token := make([]byte, 32)
+	if _, err := rand.Read(token); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(token), nil
 }
 
 func (s *SessionService) Resolve(ctx context.Context, sessionID string) (Session, error) {

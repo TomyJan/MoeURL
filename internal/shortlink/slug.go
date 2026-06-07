@@ -3,6 +3,7 @@ package shortlink
 import (
 	"crypto/rand"
 	"math/big"
+	"strings"
 )
 
 const (
@@ -32,6 +33,6 @@ func generateSlug() (string, error) {
 }
 
 func isReservedSlug(slug string) bool {
-	_, ok := reservedSlugs[slug]
+	_, ok := reservedSlugs[strings.ToLower(slug)]
 	return ok
 }

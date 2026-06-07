@@ -77,6 +77,33 @@ func TestServiceSetupInitializesBuiltInData(t *testing.T) {
 	}
 }
 
+func TestServiceSetupRejectsReservedAdminUsername(t *testing.T) {
+	ctx := context.Background()
+	databaseURL := migratedDatabaseURL(t, ctx)
+
+	pool, err := appdb.OpenPool(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("open pool: %v", err)
+	}
+	t.Cleanup(pool.Close)
+
+	service := system.NewService(pool)
+
+	err = service.Setup(ctx, system.SetupInput{
+		AdminUsername:   "guest",
+		AdminPassword:   "secure-password",
+		AdminNickname:   "Guest Admin",
+		SiteName:        "MoeURL",
+		SystemDomain:    "example.com",
+		ShortLinkDomain: "go.example.com",
+		DefaultLanguage: "zh-CN",
+		DefaultTheme:    "system",
+	})
+	if !errors.Is(err, system.ErrInvalidSetupInput) {
+		t.Fatalf("expected ErrInvalidSetupInput, got %v", err)
+	}
+}
+
 func assertBuiltInData(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	t.Helper()
 
@@ -139,7 +166,7 @@ func migratedDatabaseURL(t *testing.T, ctx context.Context) string {
 	t.Helper()
 
 	container, err := postgres.Run(ctx,
-		"postgres:17-alpine",
+		"postgres:18-alpine",
 		postgres.WithDatabase("moeurl_test"),
 		postgres.WithUsername("moeurl"),
 		postgres.WithPassword("moeurl"),

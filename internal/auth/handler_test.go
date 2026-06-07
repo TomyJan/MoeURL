@@ -14,6 +14,7 @@ import (
 )
 
 func TestAuthHandlerLoginSetsSessionCookie(t *testing.T) {
+	t.Setenv("MOEURL_ENV", "production")
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		Auth: &fakeAuthService{
 			loginResult: auth.LoginResult{
@@ -33,7 +34,7 @@ func TestAuthHandlerLoginSetsSessionCookie(t *testing.T) {
 		},
 	})
 	response := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{
 		"username": "alice",
 		"password": "correct-password"
 	}`))
@@ -52,6 +53,9 @@ func TestAuthHandlerLoginSetsSessionCookie(t *testing.T) {
 	}
 	if cookie.SameSite != http.SameSiteLaxMode {
 		t.Fatalf("expected SameSite=Lax, got %v", cookie.SameSite)
+	}
+	if !cookie.Secure {
+		t.Fatal("expected Secure cookie in production")
 	}
 
 	var body struct {
@@ -85,7 +89,7 @@ func TestAuthHandlerLoginMapsInvalidCredentials(t *testing.T) {
 		Auth: &fakeAuthService{loginErr: auth.ErrInvalidCredentials},
 	})
 	response := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{
 		"username": "alice",
 		"password": "wrong-password"
 	}`))
@@ -108,7 +112,7 @@ func TestAuthHandlerMeReturnsGuestWithoutSession(t *testing.T) {
 		Auth: &fakeAuthService{},
 	})
 	response := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/auth/me", nil)
 
 	router.ServeHTTP(response, request)
 
@@ -140,7 +144,7 @@ func TestAuthHandlerLogoutClearsCookie(t *testing.T) {
 		Auth: &fakeAuthService{},
 	})
 	response := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/auth/logout", nil)
 	request.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session-id"})
 
 	router.ServeHTTP(response, request)

@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
@@ -50,6 +51,36 @@ func VerifyPassword(password string, encodedHash string) bool {
 		return false
 	}
 
-	actual := argon2.IDKey([]byte(password), salt, argonTime, argonMemory, argonThreads, argonKeyLen)
+	memory, timeCost, threads := parseArgonParams(parts[3])
+	actual := argon2.IDKey([]byte(password), salt, timeCost, memory, threads, argonKeyLen)
 	return subtle.ConstantTimeCompare(actual, expected) == 1
+}
+
+func parseArgonParams(value string) (uint32, uint32, uint8) {
+	memory := argonMemory
+	timeCost := argonTime
+	threads := argonThreads
+
+	for _, part := range strings.Split(value, ",") {
+		keyValue := strings.SplitN(part, "=", 2)
+		if len(keyValue) != 2 {
+			continue
+		}
+		parsed, err := strconv.ParseUint(keyValue[1], 10, 32)
+		if err != nil || parsed == 0 {
+			continue
+		}
+		switch keyValue[0] {
+		case "m":
+			memory = uint32(parsed)
+		case "t":
+			timeCost = uint32(parsed)
+		case "p":
+			if parsed <= 255 {
+				threads = uint8(parsed)
+			}
+		}
+	}
+
+	return memory, timeCost, threads
 }
