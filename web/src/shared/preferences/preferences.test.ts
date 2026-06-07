@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   loadPreferences,
@@ -8,8 +8,15 @@ import {
 } from './preferences'
 
 describe('preferences', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'localStorage', {
+      value: createTestStorage(),
+      configurable: true,
+    })
+  })
+
   it('loads defaults when storage is empty', () => {
-    localStorage.clear()
+    window.localStorage.clear()
 
     const preferences = loadPreferences()
 
@@ -18,7 +25,7 @@ describe('preferences', () => {
   })
 
   it('persists supported language and theme values', () => {
-    localStorage.clear()
+    window.localStorage.clear()
 
     saveLanguagePreference('en')
     saveThemePreference('dark')
@@ -27,8 +34,8 @@ describe('preferences', () => {
   })
 
   it('ignores unsupported stored values', () => {
-    localStorage.setItem('moeurl.language', 'fr')
-    localStorage.setItem('moeurl.theme', 'sepia')
+    window.localStorage.setItem('moeurl.language', 'fr')
+    window.localStorage.setItem('moeurl.theme', 'sepia')
 
     expect(loadPreferences()).toEqual({ language: 'zh-CN', theme: 'system' })
   })
@@ -50,3 +57,28 @@ describe('preferences', () => {
     expect(resolveVuetifyTheme('dark')).toBe('moeurlDark')
   })
 })
+
+function createTestStorage(): Storage {
+  const entries = new Map<string, string>()
+
+  return {
+    get length() {
+      return entries.size
+    },
+    clear() {
+      entries.clear()
+    },
+    getItem(key: string) {
+      return entries.get(key) ?? null
+    },
+    key(index: number) {
+      return Array.from(entries.keys())[index] ?? null
+    },
+    removeItem(key: string) {
+      entries.delete(key)
+    },
+    setItem(key: string, value: string) {
+      entries.set(key, value)
+    },
+  }
+}

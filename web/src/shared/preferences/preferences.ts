@@ -14,17 +14,17 @@ const themeStorageKey = 'moeurl.theme'
 
 export function loadPreferences(): UserPreferences {
   return {
-    language: parseLanguage(localStorage.getItem(languageStorageKey)),
-    theme: parseTheme(localStorage.getItem(themeStorageKey)),
+    language: parseLanguage(window.localStorage.getItem(languageStorageKey)),
+    theme: parseTheme(window.localStorage.getItem(themeStorageKey)),
   }
 }
 
 export function saveLanguagePreference(language: LanguagePreference): void {
-  localStorage.setItem(languageStorageKey, language)
+  window.localStorage.setItem(languageStorageKey, language)
 }
 
 export function saveThemePreference(theme: ThemePreference): void {
-  localStorage.setItem(themeStorageKey, theme)
+  window.localStorage.setItem(themeStorageKey, theme)
 }
 
 export function resolveVuetifyTheme(theme: ThemePreference): 'moeurlLight' | 'moeurlDark' {
