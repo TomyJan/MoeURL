@@ -5,9 +5,9 @@
 MoeURL 采用以下技术栈作为 v0.0.1 及后续演进的技术基线：
 
 ```text
-后端：Go 1.25+ + Chi + SQLC + Goose + PostgreSQL
+后端： Go 1.25+ + Chi + SQLC + Goose + PostgreSQL
 前端：Vue 3 + Vite + TypeScript + Vuetify 3
-前端包管理：pnpm
+前端包管理： pnpm
 状态：Pinia + TanStack Query for Vue
 国际化：vue-i18n
 表单校验：vee-validate + zod

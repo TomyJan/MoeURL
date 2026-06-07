@@ -39,7 +39,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 | PWA | Web App Manifest + Service Worker |
 | 后端测试 | go test + testify + testcontainers-go |
 | 前端测试 | Vitest + Vue Testing Library + Playwright |
-| 部署 | Docker + Docker Compose，支持裸机运行 |
+| 部署 | Docker + Docker Compose（支持裸机运行） |
 
 ## 3. 仓库目录结构
 
@@ -284,7 +284,7 @@ v0.0.1 的字段级 schema 以 [v0.0.1 工程实施合同](./v0.0.1-implementati
 - `system_setting`：保存站点名称、初始化状态、系统访问域名、默认短链访问域名、默认语言和默认主题。
 - `user_group`：保存 `guest`、`user`、`admin` 用户组及其权限数组。
 - `app_user`：保存本地用户、内置 `guest` 用户、主用户组、账号状态和密码哈希。
-- `session`：保存服务端会话、过期时间、最近访问时间和撤销时间。
+- `session`：保存加密随机会话 ID、过期时间、最近访问时间和撤销时间。
 - `domain`：保存系统访问域名、短链访问域名、用途、启用状态和全局默认标记。
 - `short_link`：保存创建者、域名、全系统唯一短码、目标 URL、状态和软删除时间。
 
@@ -343,7 +343,7 @@ admin:access
 - Cookie `SameSite` 使用 `Lax`。
 - 生产环境必须设置 `Secure`。
 - Cookie Path 使用 `/`。
-- 登录成功后生成新的 session ID。
+- 登录成功后生成新的加密随机 session ID。
 - 退出登录必须撤销服务端 session 并清理 Cookie。
 - 每次授权操作必须重新检查用户状态和权限。
 - 用户被禁用后，不得继续执行授权操作。
