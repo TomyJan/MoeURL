@@ -3,7 +3,9 @@ package user
 import "errors"
 
 var (
-	ErrPermissionDenied = errors.New("permission denied")
-	ErrUsernameExists   = errors.New("username exists")
-	ErrInvalidInput     = errors.New("invalid input")
+	ErrPermissionDenied     = errors.New("permission denied")
+	ErrUsernameExists       = errors.New("username exists")
+	ErrInvalidInput         = errors.New("invalid input")
+	ErrUserNotFound         = errors.New("user not found")
+	ErrBuiltinUserImmutable = errors.New("builtin user immutable")
 )

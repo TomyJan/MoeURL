@@ -11,6 +11,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countAppUsers = `-- name: CountAppUsers :one
+select count(*)::bigint
+from app_user
+where deleted_at is null
+`
+
+func (q *Queries) CountAppUsers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countAppUsers)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createAppUser = `-- name: CreateAppUser :one
 insert into app_user (id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at)
 values ($1, $2, $3, $4, $5, $6, $7, now(), now())
@@ -91,6 +104,30 @@ func (q *Queries) CreateUserGroup(ctx context.Context, arg CreateUserGroupParams
 	return i, err
 }
 
+const getAppUserByID = `-- name: GetAppUserByID :one
+select id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at, deleted_at
+from app_user
+where id = $1 and deleted_at is null
+`
+
+func (q *Queries) GetAppUserByID(ctx context.Context, id pgtype.UUID) (AppUser, error) {
+	row := q.db.QueryRow(ctx, getAppUserByID, id)
+	var i AppUser
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Nickname,
+		&i.GroupID,
+		&i.Status,
+		&i.Builtin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const getUserByUsername = `-- name: GetUserByUsername :one
 select id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at, deleted_at
 from app_user
@@ -115,6 +152,28 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (AppUs
 	return i, err
 }
 
+const getUserGroupByID = `-- name: GetUserGroupByID :one
+select id, key, name, description, permissions, builtin, created_at, updated_at
+from user_group
+where id = $1
+`
+
+func (q *Queries) GetUserGroupByID(ctx context.Context, id pgtype.UUID) (UserGroup, error) {
+	row := q.db.QueryRow(ctx, getUserGroupByID, id)
+	var i UserGroup
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Name,
+		&i.Description,
+		&i.Permissions,
+		&i.Builtin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getUserGroupByKey = `-- name: GetUserGroupByKey :one
 select id, key, name, description, permissions, builtin, created_at, updated_at
 from user_group
@@ -133,6 +192,120 @@ func (q *Queries) GetUserGroupByKey(ctx context.Context, key string) (UserGroup,
 		&i.Builtin,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listAppUsers = `-- name: ListAppUsers :many
+select app_user.id,
+	app_user.username,
+	app_user.nickname,
+	user_group.key as group_key,
+	app_user.status,
+	app_user.builtin,
+	app_user.created_at,
+	app_user.updated_at
+from app_user
+join user_group on user_group.id = app_user.group_id
+where app_user.deleted_at is null
+order by app_user.created_at desc, app_user.username asc
+limit $1 offset $2
+`
+
+type ListAppUsersParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+type ListAppUsersRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	Username  string             `json:"username"`
+	Nickname  string             `json:"nickname"`
+	GroupKey  string             `json:"group_key"`
+	Status    string             `json:"status"`
+	Builtin   bool               `json:"builtin"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) ListAppUsers(ctx context.Context, arg ListAppUsersParams) ([]ListAppUsersRow, error) {
+	rows, err := q.db.Query(ctx, listAppUsers, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAppUsersRow{}
+	for rows.Next() {
+		var i ListAppUsersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.Nickname,
+			&i.GroupKey,
+			&i.Status,
+			&i.Builtin,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateAppUserPassword = `-- name: UpdateAppUserPassword :execrows
+update app_user
+set password_hash = $2,
+	updated_at = now()
+where id = $1 and deleted_at is null and builtin = false
+`
+
+type UpdateAppUserPasswordParams struct {
+	ID           pgtype.UUID `json:"id"`
+	PasswordHash pgtype.Text `json:"password_hash"`
+}
+
+func (q *Queries) UpdateAppUserPassword(ctx context.Context, arg UpdateAppUserPasswordParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateAppUserPassword, arg.ID, arg.PasswordHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updateAppUserProfile = `-- name: UpdateAppUserProfile :one
+update app_user
+set nickname = $2,
+	status = $3,
+	updated_at = now()
+where id = $1 and deleted_at is null and builtin = false
+returning id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at, deleted_at
+`
+
+type UpdateAppUserProfileParams struct {
+	ID       pgtype.UUID `json:"id"`
+	Nickname string      `json:"nickname"`
+	Status   string      `json:"status"`
+}
+
+func (q *Queries) UpdateAppUserProfile(ctx context.Context, arg UpdateAppUserProfileParams) (AppUser, error) {
+	row := q.db.QueryRow(ctx, updateAppUserProfile, arg.ID, arg.Nickname, arg.Status)
+	var i AppUser
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Nickname,
+		&i.GroupID,
+		&i.Status,
+		&i.Builtin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }

@@ -33,7 +33,7 @@ type Domain struct {
 }
 
 type Session struct {
-	ID         pgtype.UUID        `json:"id"`
+	ID         string             `json:"id"`
 	UserID     pgtype.UUID        `json:"user_id"`
 	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
 	LastSeenAt pgtype.Timestamptz `json:"last_seen_at"`
