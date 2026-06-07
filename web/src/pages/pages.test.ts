@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { isRef, ref } from 'vue'
 
 import AdminLinksPage from './AdminLinksPage.vue'
 import AdminUsersPage from './AdminUsersPage.vue'
@@ -11,9 +11,12 @@ import MyLinksPage from './MyLinksPage.vue'
 import NotFoundPage from './NotFoundPage.vue'
 import SetupPage from './SetupPage.vue'
 import { componentStubs } from '@/test/component-stubs'
+import { listAdminShortLinks, listShortLinks } from '@/entities/short-link/api'
 
 const state = vi.hoisted(() => ({
   queryResult: {},
+  queryKeys: [] as unknown[],
+  queryFns: [] as Array<() => unknown>,
   mutationResult: {},
   queryClient: {
     invalidateQueries: vi.fn(),
@@ -83,7 +86,11 @@ vi.mock('@tanstack/vue-query', () => ({
       }),
     }
   }),
-  useQuery: vi.fn((options?: { queryFn?: () => unknown }) => {
+  useQuery: vi.fn((options?: { queryFn?: () => unknown; queryKey?: unknown }) => {
+    state.queryKeys.push(options?.queryKey)
+    if (options?.queryFn) {
+      state.queryFns.push(options.queryFn)
+    }
     options?.queryFn?.()
     return state.queryResult
   }),
@@ -132,6 +139,8 @@ describe('pages', () => {
   beforeEach(() => {
     setQueryResult({})
     setMutationResult()
+    state.queryKeys = []
+    state.queryFns = []
     state.queryClient.invalidateQueries.mockReset()
     Object.defineProperty(window.navigator, 'clipboard', {
       configurable: true,
@@ -285,15 +294,29 @@ describe('pages', () => {
     })
     mount(MyLinksPage)
 
-    await fireEvent.click(screen.getByText('禁用'))
-    await fireEvent.click(screen.getByText('启用'))
+    await fireEvent.click(screen.getAllByText('禁用')[1])
+    await fireEvent.click(screen.getAllByText('启用')[1])
     await fireEvent.click(screen.getAllByText('复制')[0])
     await fireEvent.click(screen.getAllByText('删除')[0])
 
+    expect(screen.getByLabelText('状态筛选')).toBeTruthy()
+    expect(listShortLinks).toHaveBeenCalledWith({ status: '' })
     expect(update).toHaveBeenCalledWith({ id: 'link-id', status: 'disabled' })
     expect(update).toHaveBeenCalledWith({ id: 'link-disabled', status: 'active' })
     expect(update).toHaveBeenCalledWith('link-id')
     expect(window.navigator.clipboard.writeText).toHaveBeenCalledWith('https://go.example.com/abc123')
+  })
+
+  it('queries own links with status filter state', async () => {
+    setQueryResult({ data: ref({ items: [] }) })
+    mount(MyLinksPage)
+
+    await fireEvent.update(screen.getByLabelText('状态筛选'), 'disabled')
+    const queryKey = state.queryKeys[0]
+    state.queryFns[0]?.()
+
+    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['short-links', 'disabled'])
+    expect(listShortLinks).toHaveBeenCalledWith({ status: 'disabled' })
   })
 
   it('renders admin links states and row actions', async () => {
@@ -305,14 +328,30 @@ describe('pages', () => {
     expect(screen.getByText('共 1 条')).toBeTruthy()
     expect(screen.getByText('owner-id')).toBeTruthy()
     expect(screen.getByText('Bobby')).toBeTruthy()
-    await fireEvent.click(screen.getByText('启用'))
-    await fireEvent.click(screen.getByText('禁用'))
+    await fireEvent.click(screen.getAllByText('启用')[1])
+    await fireEvent.click(screen.getAllByText('禁用')[1])
     await fireEvent.click(screen.getAllByText('复制')[0])
     await fireEvent.click(screen.getAllByText('删除')[0])
 
+    expect(screen.getByLabelText('状态筛选')).toBeTruthy()
+    expect(screen.getByLabelText('关键词搜索')).toBeTruthy()
+    expect(listAdminShortLinks).toHaveBeenCalledWith({ status: '', q: '' })
     expect(mutate).toHaveBeenCalledWith({ id: 'link-id', status: 'active' })
     expect(mutate).toHaveBeenCalledWith({ id: 'link-active', status: 'disabled' })
     expect(mutate).toHaveBeenCalledWith('link-id')
+  })
+
+  it('queries admin links with filter state', async () => {
+    setQueryResult({ data: ref({ meta: { total: 0 }, items: [] }) })
+    mount(AdminLinksPage)
+
+    await fireEvent.update(screen.getByLabelText('状态筛选'), 'active')
+    await fireEvent.update(screen.getByLabelText('关键词搜索'), 'alice')
+    const queryKey = state.queryKeys[0]
+    state.queryFns[0]?.()
+
+    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['admin-short-links', 'active', 'alice'])
+    expect(listAdminShortLinks).toHaveBeenCalledWith({ status: 'active', q: 'alice' })
   })
 
   it('renders admin links error, loading, and empty states', () => {
@@ -430,6 +469,39 @@ describe('pages', () => {
     expect(mutate).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Alice', status: 'disabled' })
     expect(mutate).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Alice Renamed', status: 'active' })
     expect(mutate).toHaveBeenCalledWith({ id: 'user-id', password: 'new-password' })
+  })
+
+  it('submits admin user fallback actions for disabled users', async () => {
+    setQueryResult({
+      data: ref({
+        meta: { total: 1 },
+        items: [
+          {
+            id: 'user-id',
+            username: 'bob',
+            nickname: 'Bob',
+            group: 'user',
+            status: 'disabled',
+            builtin: false,
+            createdAt: '2026-06-08T00:00:00Z',
+            updatedAt: '2026-06-08T00:00:00Z',
+          },
+        ],
+      }),
+    })
+    const mutate = vi.fn()
+    setMutationResult({ mutate })
+    mount(AdminUsersPage)
+
+    await fireEvent.click(screen.getByText('启用'))
+    await fireEvent.update(screen.getByLabelText('昵称'), '')
+    await fireEvent.click(screen.getByText('保存昵称'))
+    await fireEvent.update(screen.getByLabelText('新密码'), '')
+    await fireEvent.click(screen.getByText('重置密码'))
+
+    expect(mutate).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Bob', status: 'active' })
+    expect(mutate).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Bob', status: 'disabled' })
+    expect(mutate).toHaveBeenCalledWith({ id: 'user-id', password: '' })
   })
 
   it('renders admin users error, loading, and empty states', () => {

@@ -67,6 +67,40 @@ describe('user api', () => {
     expect(fetch).toHaveBeenCalledWith('/api/v1/admin/user/list?page=2&pageSize=10', expect.objectContaining({ method: 'GET' }))
   })
 
+  it('uses requested user list meta fallback', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            code: 0,
+            message: 'OK',
+            data: {
+              items: [
+                {
+                  id: 'user-id',
+                  username: 'alice',
+                  nickname: 'Alice',
+                  group: 'user',
+                  status: 'active',
+                  builtin: false,
+                  createdAt: '2026-06-08T00:00:00Z',
+                  updatedAt: '2026-06-08T00:00:00Z',
+                },
+              ],
+            },
+            meta: {},
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }),
+    )
+
+    const result = await listUsers({ page: 3, pageSize: 15 })
+
+    expect(result.meta).toEqual({ page: 3, pageSize: 15, total: 1 })
+  })
+
   it('posts admin update user request', async () => {
     vi.stubGlobal(
       'fetch',

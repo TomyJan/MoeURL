@@ -67,13 +67,10 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	result, err := h.service.List(r.Context(), auth.UserFromContext(r.Context()), ListInput{
 		Page:     queryInt32WithDefault(r, "page", defaultPage),
 		PageSize: queryInt32WithDefault(r, "pageSize", defaultPageSize),
+		Status:   r.URL.Query().Get("status"),
 	})
 	if err != nil {
-		if errors.Is(err, ErrPermissionDenied) {
-			businessError(w, CodePermissionDenied, "Permission denied")
-			return
-		}
-		writeJSON(w, http.StatusInternalServerError, response{Code: 900000, Message: "Internal server error", Data: nil, Meta: map[string]any{}})
+		writeBusinessOrSystemError(w, err)
 		return
 	}
 
@@ -125,6 +122,8 @@ func (h *Handler) AdminList(w http.ResponseWriter, r *http.Request) {
 	result, err := h.service.AdminList(r.Context(), auth.UserFromContext(r.Context()), ListInput{
 		Page:     queryInt32WithDefault(r, "page", defaultPage),
 		PageSize: queryInt32WithDefault(r, "pageSize", defaultPageSize),
+		Status:   r.URL.Query().Get("status"),
+		Query:    r.URL.Query().Get("q"),
 	})
 	if err != nil {
 		writeBusinessOrSystemError(w, err)

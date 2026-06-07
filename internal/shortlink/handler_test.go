@@ -207,6 +207,27 @@ func TestHandlerListShortLinksUsesDefaultPaginationForInvalidQuery(t *testing.T)
 	}
 }
 
+func TestHandlerListShortLinksPassesStatusFilter(t *testing.T) {
+	service := &fakeShortLinkService{}
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		CurrentUser: &fakeCurrentUserResolver{
+			user: auth.CurrentUser{ID: "user-id", Username: "alice", GroupKey: "user", Permissions: permission.UserPermissions},
+		},
+		ShortLink: service,
+	})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/short-link/list?page=2&pageSize=10&status=disabled", nil)
+
+	router.ServeHTTP(response, request)
+
+	if service.listInput.Page != 2 || service.listInput.PageSize != 10 {
+		t.Fatalf("unexpected pagination: %#v", service.listInput)
+	}
+	if service.listInput.Status != "disabled" {
+		t.Fatalf("expected disabled status filter, got %q", service.listInput.Status)
+	}
+}
+
 func TestHandlerListShortLinksUsesDefaultPaginationForMissingQuery(t *testing.T) {
 	service := &fakeShortLinkService{}
 	router := apphttp.NewRouter(apphttp.Dependencies{
@@ -236,6 +257,7 @@ func TestHandlerListShortLinksMapsErrors(t *testing.T) {
 		code       int
 	}{
 		{name: "permission denied", err: shortlink.ErrPermissionDenied, httpStatus: http.StatusOK, code: 120001},
+		{name: "invalid status", err: shortlink.ErrInvalidStatus, httpStatus: http.StatusOK, code: 100001},
 		{name: "system", err: errors.New("database down"), httpStatus: http.StatusInternalServerError, code: 900000},
 	}
 
@@ -451,6 +473,30 @@ func TestHandlerAdminListShortLinksReturnsOwners(t *testing.T) {
 	}
 	if body.Code != 0 || len(body.Data.Items) != 1 || body.Data.Items[0].Owner.Username != "alice" {
 		t.Fatalf("unexpected body: %#v", body)
+	}
+}
+
+func TestHandlerAdminListShortLinksPassesFilters(t *testing.T) {
+	service := &fakeShortLinkService{}
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		CurrentUser: &fakeCurrentUserResolver{
+			user: auth.CurrentUser{ID: "admin-id", Username: "admin", GroupKey: "admin", Permissions: permission.AdminPermissions},
+		},
+		ShortLink: service,
+	})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/admin/short-link/list?page=3&pageSize=15&status=active&q=alice", nil)
+
+	router.ServeHTTP(response, request)
+
+	if service.adminListInput.Page != 3 || service.adminListInput.PageSize != 15 {
+		t.Fatalf("unexpected pagination: %#v", service.adminListInput)
+	}
+	if service.adminListInput.Status != "active" {
+		t.Fatalf("expected active status filter, got %q", service.adminListInput.Status)
+	}
+	if service.adminListInput.Query != "alice" {
+		t.Fatalf("expected alice query, got %q", service.adminListInput.Query)
 	}
 }
 

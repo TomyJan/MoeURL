@@ -183,6 +183,30 @@ func TestServiceListReturnsOnlyOwnActiveRecords(t *testing.T) {
 	}
 }
 
+func TestServiceListFiltersOwnLinksByStatus(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	insertStoredShortLink(t, ctx, pool, user.ID, "alice1", "https://example.com/1", "active", false)
+	insertStoredShortLink(t, ctx, pool, user.ID, "alice2", "https://example.com/2", "disabled", false)
+
+	service := shortlink.NewService(pool, permission.NewService())
+
+	result, err := service.List(ctx, user, shortlink.ListInput{Page: 1, PageSize: 20, Status: "disabled"})
+	if err != nil {
+		t.Fatalf("list disabled short links: %v", err)
+	}
+	if result.Total != 1 || len(result.Items) != 1 || result.Items[0].Slug != "alice2" {
+		t.Fatalf("expected only disabled alice2, got %#v", result)
+	}
+
+	_, err = service.List(ctx, user, shortlink.ListInput{Page: 1, PageSize: 20, Status: "pending"})
+	if !errors.Is(err, shortlink.ErrInvalidStatus) {
+		t.Fatalf("expected ErrInvalidStatus, got %v", err)
+	}
+}
+
 func TestServiceListRejectsGuest(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -430,6 +454,40 @@ func TestServiceAdminListReturnsAllOwners(t *testing.T) {
 	}
 	if !owners["alice"] || !owners["bob"] {
 		t.Fatalf("expected alice and bob owners, got %#v", owners)
+	}
+}
+
+func TestServiceAdminListFiltersByStatusAndSearchesKeyword(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	alice := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	bob := insertShortLinkUserForGroup(t, ctx, pool, "bob", "00000000-0000-0000-0000-000000000401", "00000000-0000-0000-0000-000000000502", "user", permission.UserPermissions)
+	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: "admin"}
+	insertStoredShortLink(t, ctx, pool, alice.ID, "alice1", "https://example.com/one", "active", false)
+	insertStoredShortLink(t, ctx, pool, bob.ID, "bob002", "https://example.org/two", "disabled", false)
+
+	service := shortlink.NewService(pool, permission.NewService())
+
+	disabled, err := service.AdminList(ctx, admin, shortlink.ListInput{Page: 1, PageSize: 20, Status: "disabled"})
+	if err != nil {
+		t.Fatalf("admin list disabled: %v", err)
+	}
+	if disabled.Total != 1 || len(disabled.Items) != 1 || disabled.Items[0].Slug != "bob002" {
+		t.Fatalf("expected disabled bob002, got %#v", disabled)
+	}
+
+	searched, err := service.AdminList(ctx, admin, shortlink.ListInput{Page: 1, PageSize: 20, Query: "alice"})
+	if err != nil {
+		t.Fatalf("admin search alice: %v", err)
+	}
+	if searched.Total != 1 || len(searched.Items) != 1 || searched.Items[0].Owner.Username != "alice" {
+		t.Fatalf("expected alice search result, got %#v", searched)
+	}
+
+	_, err = service.AdminList(ctx, admin, shortlink.ListInput{Page: 1, PageSize: 20, Status: "pending"})
+	if !errors.Is(err, shortlink.ErrInvalidStatus) {
+		t.Fatalf("expected ErrInvalidStatus, got %v", err)
 	}
 }
 

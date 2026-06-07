@@ -166,6 +166,22 @@ func TestHandlerListUsersReturnsItemsAndMeta(t *testing.T) {
 	}
 }
 
+func TestHandlerListUsersUsesDefaultPaginationForInvalidQuery(t *testing.T) {
+	service := &fakeUserService{}
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		CurrentUser: &fakeCurrentUserResolver{user: auth.CurrentUser{ID: "admin-id", Username: "admin", GroupKey: "admin", Permissions: permission.AdminPermissions}},
+		User:        service,
+	})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/admin/user/list?page=bad&pageSize=bad", nil)
+
+	router.ServeHTTP(response, request)
+
+	if service.listInput.Page != 1 || service.listInput.PageSize != 20 {
+		t.Fatalf("unexpected default pagination: %#v", service.listInput)
+	}
+}
+
 func TestHandlerUpdateUserAndResetPassword(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		CurrentUser: &fakeCurrentUserResolver{user: auth.CurrentUser{ID: "admin-id", Username: "admin", GroupKey: "admin", Permissions: permission.AdminPermissions}},
@@ -214,6 +230,42 @@ func TestHandlerUpdateUserAndResetPassword(t *testing.T) {
 	}
 }
 
+func TestHandlerUpdateAndResetRejectInvalidJSON(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "update", path: "/api/v1/admin/user/update"},
+		{name: "reset", path: "/api/v1/admin/user/reset-password"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := apphttp.NewRouter(apphttp.Dependencies{
+				CurrentUser: &fakeCurrentUserResolver{},
+				User:        &fakeUserService{},
+			})
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodPost, tt.path, bytes.NewBufferString(`{`))
+
+			router.ServeHTTP(response, request)
+
+			if response.Code != http.StatusOK {
+				t.Fatalf("expected http 200, got %d", response.Code)
+			}
+			var body struct {
+				Code int `json:"code"`
+			}
+			if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if body.Code != 100001 {
+				t.Fatalf("expected code 100001, got %d", body.Code)
+			}
+		})
+	}
+}
+
 func TestHandlerUserManagementMapsErrors(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -229,6 +281,7 @@ func TestHandlerUserManagementMapsErrors(t *testing.T) {
 		{name: "update not found", method: http.MethodPost, path: "/api/v1/admin/user/update", body: `{"id":"missing","nickname":"Missing","status":"disabled"}`, err: user.ErrUserNotFound, httpStatus: http.StatusOK, code: 300103},
 		{name: "reset invalid", method: http.MethodPost, path: "/api/v1/admin/user/reset-password", body: `{"id":"user-id"}`, err: user.ErrInvalidInput, httpStatus: http.StatusOK, code: 100001},
 		{name: "reset system", method: http.MethodPost, path: "/api/v1/admin/user/reset-password", body: `{"id":"user-id","password":"new-password"}`, err: errors.New("database down"), httpStatus: http.StatusInternalServerError, code: 900000},
+		{name: "update duplicate", method: http.MethodPost, path: "/api/v1/admin/user/update", body: `{"id":"user-id","nickname":"Alice","status":"active"}`, err: user.ErrUsernameExists, httpStatus: http.StatusOK, code: 300101},
 	}
 
 	for _, tt := range tests {
@@ -261,6 +314,7 @@ func TestHandlerUserManagementMapsErrors(t *testing.T) {
 type fakeUserService struct {
 	result       user.CreateResult
 	listResult   user.ListResult
+	listInput    user.ListInput
 	updateResult user.UpdateResult
 	err          error
 }
@@ -269,7 +323,8 @@ func (f *fakeUserService) Create(context.Context, auth.CurrentUser, user.CreateI
 	return f.result, f.err
 }
 
-func (f *fakeUserService) List(context.Context, auth.CurrentUser, user.ListInput) (user.ListResult, error) {
+func (f *fakeUserService) List(_ context.Context, _ auth.CurrentUser, input user.ListInput) (user.ListResult, error) {
+	f.listInput = input
 	return f.listResult, f.err
 }
 
