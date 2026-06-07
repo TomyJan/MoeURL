@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -35,6 +36,20 @@ func TestHandlerStatusReturnsInitializedFlag(t *testing.T) {
 	}
 	if !body.Data.Initialized {
 		t.Fatal("expected initialized true")
+	}
+}
+
+func TestHandlerStatusMapsSystemError(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		System: &fakeSystemService{statusErr: errors.New("database down")},
+	})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/init/status", nil)
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("expected http 500, got %d", response.Code)
 	}
 }
 
@@ -72,6 +87,45 @@ func TestHandlerSetupMapsAlreadyInitializedToBusinessCode(t *testing.T) {
 	}
 }
 
+func TestHandlerSetupMapsInvalidInputAndSystemErrors(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       string
+		err        error
+		httpStatus int
+		code       int
+	}{
+		{name: "invalid json", body: `{`, httpStatus: http.StatusOK, code: 100001},
+		{name: "invalid input", body: setupBody(), err: system.ErrInvalidSetupInput, httpStatus: http.StatusOK, code: 100001},
+		{name: "system", body: setupBody(), err: errors.New("database down"), httpStatus: http.StatusInternalServerError, code: 900000},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := apphttp.NewRouter(apphttp.Dependencies{
+				System: &fakeSystemService{setupErr: tt.err},
+			})
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodPost, "/api/v1/init/setup", bytes.NewBufferString(tt.body))
+
+			router.ServeHTTP(response, request)
+
+			if response.Code != tt.httpStatus {
+				t.Fatalf("expected http %d, got %d", tt.httpStatus, response.Code)
+			}
+			var body struct {
+				Code int `json:"code"`
+			}
+			if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if body.Code != tt.code {
+				t.Fatalf("expected code %d, got %d", tt.code, body.Code)
+			}
+		})
+	}
+}
+
 func TestHandlerSetupDecodesCamelCaseJSON(t *testing.T) {
 	service := &fakeSystemService{}
 	router := apphttp.NewRouter(apphttp.Dependencies{
@@ -105,11 +159,15 @@ func TestHandlerSetupDecodesCamelCaseJSON(t *testing.T) {
 
 type fakeSystemService struct {
 	initialized bool
+	statusErr   error
 	setupErr    error
 	setupInput  system.SetupInput
 }
 
 func (f *fakeSystemService) IsInitialized(context.Context) (bool, error) {
+	if f.statusErr != nil {
+		return false, f.statusErr
+	}
 	return f.initialized, nil
 }
 
@@ -119,4 +177,17 @@ func (f *fakeSystemService) Setup(_ context.Context, input system.SetupInput) er
 		return f.setupErr
 	}
 	return nil
+}
+
+func setupBody() string {
+	return `{
+		"adminUsername": "admin",
+		"adminPassword": "secure-password",
+		"adminNickname": "Administrator",
+		"siteName": "MoeURL",
+		"systemDomain": "example.com",
+		"shortLinkDomain": "go.example.com",
+		"defaultLanguage": "zh-CN",
+		"defaultTheme": "system"
+	}`
 }

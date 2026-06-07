@@ -98,6 +98,18 @@ func TestRedirectServiceBlocksMissingAndDisabledShortLink(t *testing.T) {
 	}
 }
 
+func TestRedirectServiceReturnsDatabaseError(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	service := shortlink.NewRedirectService(pool, nil)
+	pool.Close()
+
+	_, err := service.Resolve(ctx, "abc123")
+	if err == nil {
+		t.Fatal("expected database error")
+	}
+}
+
 type recordingRecorder struct {
 	types []string
 }

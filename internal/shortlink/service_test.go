@@ -34,6 +34,17 @@ func TestServiceCreateRejectsGuest(t *testing.T) {
 	}
 }
 
+func TestServiceConstructorsUseDefaultPermissions(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	service := shortlink.NewService(pool, nil)
+
+	_, err := service.List(ctx, auth.GuestUser(), shortlink.ListInput{})
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected ErrPermissionDenied, got %v", err)
+	}
+}
+
 func TestServiceCreateRejectsUnsafeTargetURL(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -102,6 +113,42 @@ func TestServiceCreateStoresShortLinkWithGeneratedSlug(t *testing.T) {
 	}
 }
 
+func TestServiceCreateReturnsDatabaseAndInputErrors(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	service := shortlink.NewService(pool, permission.NewService())
+
+	_, err := service.Create(ctx, auth.CurrentUser{ID: "bad-id", GroupKey: "user"}, shortlink.CreateInput{TargetURL: "https://example.com"})
+	if err == nil {
+		t.Fatal("expected owner id parse error")
+	}
+
+	pool.Close()
+	_, err = service.Create(ctx, user, shortlink.CreateInput{TargetURL: "https://example.com"})
+	if err == nil {
+		t.Fatal("expected database error")
+	}
+}
+
+func TestServiceCreateReturnsInsertError(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	_, err := pool.Exec(ctx, `alter table short_link add constraint target_url_reject_all check (false)`)
+	if err != nil {
+		t.Fatalf("add failing constraint: %v", err)
+	}
+	service := shortlink.NewService(pool, permission.NewService())
+
+	_, err = service.Create(ctx, user, shortlink.CreateInput{TargetURL: "https://example.com"})
+	if err == nil {
+		t.Fatal("expected insert error")
+	}
+}
+
 func TestServiceListReturnsOnlyOwnActiveRecords(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -147,6 +194,50 @@ func TestServiceListRejectsGuest(t *testing.T) {
 	}
 }
 
+func TestServiceListNormalizesPaginationAndReturnsErrors(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	service := shortlink.NewService(pool, permission.NewService())
+
+	result, err := service.List(ctx, user, shortlink.ListInput{Page: 0, PageSize: 999})
+	if err != nil {
+		t.Fatalf("list short links: %v", err)
+	}
+	if result.Page != 1 || result.PageSize != 100 {
+		t.Fatalf("expected normalized pagination, got page=%d pageSize=%d", result.Page, result.PageSize)
+	}
+
+	_, err = service.List(ctx, auth.CurrentUser{ID: "bad-id", GroupKey: "user"}, shortlink.ListInput{})
+	if err == nil {
+		t.Fatal("expected owner id parse error")
+	}
+
+	pool.Close()
+	_, err = service.List(ctx, user, shortlink.ListInput{})
+	if err == nil {
+		t.Fatal("expected database error")
+	}
+}
+
+func TestServiceListReturnsRowQueryError(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	_, err := pool.Exec(ctx, `alter table domain rename column host to broken_host`)
+	if err != nil {
+		t.Fatalf("rename domain host: %v", err)
+	}
+	service := shortlink.NewService(pool, permission.NewService())
+
+	_, err = service.List(ctx, user, shortlink.ListInput{})
+	if err == nil {
+		t.Fatal("expected row query error")
+	}
+}
+
 func TestServiceUpdateOwnShortLink(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -167,6 +258,25 @@ func TestServiceUpdateOwnShortLink(t *testing.T) {
 	}
 	if result.ShortLink.Status != "disabled" {
 		t.Fatalf("expected disabled, got %q", result.ShortLink.Status)
+	}
+}
+
+func TestServiceUpdateReturnsDefaultDomainError(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	linkID := insertStoredShortLink(t, ctx, pool, user.ID, "alice1", "https://example.com/1", "active", false)
+	_, err := pool.Exec(ctx, `update domain set enabled = false where is_default = true`)
+	if err != nil {
+		t.Fatalf("disable default domain: %v", err)
+	}
+	status := "disabled"
+	service := shortlink.NewService(pool, permission.NewService())
+
+	_, err = service.Update(ctx, user, shortlink.UpdateInput{ID: linkID, Status: &status})
+	if err == nil {
+		t.Fatal("expected default domain error")
 	}
 }
 
@@ -194,6 +304,36 @@ func TestServiceUpdateRejectsInvalidInputAndForeignLink(t *testing.T) {
 	_, err = service.Update(ctx, user, shortlink.UpdateInput{ID: foreignLinkID, Status: &invalidStatus})
 	if !errors.Is(err, shortlink.ErrInvalidStatus) {
 		t.Fatalf("expected ErrInvalidStatus, got %v", err)
+	}
+
+	_, err = service.Update(ctx, user, shortlink.UpdateInput{ID: "bad-id", Status: ptr("disabled")})
+	if err == nil {
+		t.Fatal("expected link id parse error")
+	}
+
+	_, err = service.Update(ctx, auth.CurrentUser{ID: "bad-owner", GroupKey: "user"}, shortlink.UpdateInput{ID: foreignLinkID, Status: ptr("disabled")})
+	if err == nil {
+		t.Fatal("expected owner id parse error")
+	}
+}
+
+func TestServiceUpdateRejectsPermissionAndReturnsDatabaseErrors(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	linkID := insertStoredShortLink(t, ctx, pool, user.ID, "alice1", "https://example.com/1", "active", false)
+	service := shortlink.NewService(pool, permission.NewService())
+
+	_, err := service.Update(ctx, auth.GuestUser(), shortlink.UpdateInput{ID: linkID, Status: ptr("disabled")})
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected ErrPermissionDenied, got %v", err)
+	}
+
+	pool.Close()
+	_, err = service.Update(ctx, user, shortlink.UpdateInput{ID: linkID, Status: ptr("disabled")})
+	if err == nil {
+		t.Fatal("expected database error")
 	}
 }
 
@@ -237,6 +377,31 @@ func TestServiceDeleteRejectsForeignLinkAndGuest(t *testing.T) {
 	err = service.Delete(ctx, auth.GuestUser(), shortlink.DeleteInput{ID: foreignLinkID})
 	if !errors.Is(err, shortlink.ErrPermissionDenied) {
 		t.Fatalf("expected ErrPermissionDenied, got %v", err)
+	}
+
+	err = service.Delete(ctx, user, shortlink.DeleteInput{ID: "bad-id"})
+	if err == nil {
+		t.Fatal("expected link id parse error")
+	}
+
+	err = service.Delete(ctx, auth.CurrentUser{ID: "bad-owner", GroupKey: "user"}, shortlink.DeleteInput{ID: foreignLinkID})
+	if err == nil {
+		t.Fatal("expected owner id parse error")
+	}
+}
+
+func TestServiceDeleteReturnsDatabaseError(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	linkID := insertStoredShortLink(t, ctx, pool, user.ID, "alice1", "https://example.com/1", "active", false)
+	service := shortlink.NewService(pool, permission.NewService())
+	pool.Close()
+
+	err := service.Delete(ctx, user, shortlink.DeleteInput{ID: linkID})
+	if err == nil {
+		t.Fatal("expected database error")
 	}
 }
 
@@ -282,6 +447,10 @@ func TestServiceAdminOperationsRequirePermissions(t *testing.T) {
 	if !errors.Is(err, shortlink.ErrPermissionDenied) {
 		t.Fatalf("expected ErrPermissionDenied, got %v", err)
 	}
+	_, err = service.AdminUpdate(ctx, regular, shortlink.UpdateInput{ID: "00000000-0000-0000-0000-000000000701"})
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected ErrPermissionDenied, got %v", err)
+	}
 }
 
 func TestServiceAdminUpdateAndDeleteAnyShortLink(t *testing.T) {
@@ -313,6 +482,129 @@ func TestServiceAdminUpdateAndDeleteAnyShortLink(t *testing.T) {
 	}
 	if !deleted {
 		t.Fatal("expected deleted_at")
+	}
+}
+
+func TestServiceAdminUpdateReturnsDefaultDomainError(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	owner := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	linkID := insertStoredShortLink(t, ctx, pool, owner.ID, "alice1", "https://example.com/1", "active", false)
+	_, err := pool.Exec(ctx, `update domain set enabled = false where is_default = true`)
+	if err != nil {
+		t.Fatalf("disable default domain: %v", err)
+	}
+	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: "admin"}
+	status := "disabled"
+	service := shortlink.NewService(pool, permission.NewService())
+
+	_, err = service.AdminUpdate(ctx, admin, shortlink.UpdateInput{ID: linkID, Status: &status})
+	if err == nil {
+		t.Fatal("expected default domain error")
+	}
+}
+
+func TestServiceAdminListNormalizesPaginationAndReturnsDatabaseError(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: "admin"}
+	service := shortlink.NewService(pool, permission.NewService())
+
+	result, err := service.AdminList(ctx, admin, shortlink.ListInput{Page: -1, PageSize: -1})
+	if err != nil {
+		t.Fatalf("admin list: %v", err)
+	}
+	if result.Page != 1 || result.PageSize != 20 {
+		t.Fatalf("expected normalized pagination, got page=%d pageSize=%d", result.Page, result.PageSize)
+	}
+
+	pool.Close()
+	_, err = service.AdminList(ctx, admin, shortlink.ListInput{})
+	if err == nil {
+		t.Fatal("expected database error")
+	}
+}
+
+func TestServiceAdminListReturnsRowQueryError(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: "admin"}
+	_, err := pool.Exec(ctx, `alter table domain rename column host to broken_host`)
+	if err != nil {
+		t.Fatalf("rename domain host: %v", err)
+	}
+	service := shortlink.NewService(pool, permission.NewService())
+
+	_, err = service.AdminList(ctx, admin, shortlink.ListInput{})
+	if err == nil {
+		t.Fatal("expected row query error")
+	}
+}
+
+func TestServiceAdminUpdateRejectsInvalidInputAndReturnsErrors(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	owner := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	linkID := insertStoredShortLink(t, ctx, pool, owner.ID, "alice1", "https://example.com/1", "active", false)
+	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: "admin"}
+	service := shortlink.NewService(pool, permission.NewService())
+	invalidURL := "file:///secret"
+	invalidStatus := "pending"
+
+	_, err := service.AdminUpdate(ctx, admin, shortlink.UpdateInput{ID: linkID, TargetURL: &invalidURL})
+	if !errors.Is(err, shortlink.ErrInvalidTargetURL) {
+		t.Fatalf("expected ErrInvalidTargetURL, got %v", err)
+	}
+
+	_, err = service.AdminUpdate(ctx, admin, shortlink.UpdateInput{ID: linkID, Status: &invalidStatus})
+	if !errors.Is(err, shortlink.ErrInvalidStatus) {
+		t.Fatalf("expected ErrInvalidStatus, got %v", err)
+	}
+
+	_, err = service.AdminUpdate(ctx, admin, shortlink.UpdateInput{ID: "bad-id", Status: ptr("disabled")})
+	if err == nil {
+		t.Fatal("expected id parse error")
+	}
+
+	_, err = service.AdminUpdate(ctx, admin, shortlink.UpdateInput{ID: "00000000-0000-0000-0000-000000009999", Status: ptr("disabled")})
+	if !errors.Is(err, shortlink.ErrShortLinkMissing) {
+		t.Fatalf("expected ErrShortLinkMissing, got %v", err)
+	}
+
+	pool.Close()
+	_, err = service.AdminUpdate(ctx, admin, shortlink.UpdateInput{ID: linkID, Status: ptr("disabled")})
+	if err == nil {
+		t.Fatal("expected database error")
+	}
+}
+
+func TestServiceAdminDeleteReturnsInputMissingAndDatabaseErrors(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	owner := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	linkID := insertStoredShortLink(t, ctx, pool, owner.ID, "alice1", "https://example.com/1", "active", false)
+	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: "admin"}
+	service := shortlink.NewService(pool, permission.NewService())
+
+	err := service.AdminDelete(ctx, admin, shortlink.DeleteInput{ID: "bad-id"})
+	if err == nil {
+		t.Fatal("expected id parse error")
+	}
+
+	err = service.AdminDelete(ctx, admin, shortlink.DeleteInput{ID: "00000000-0000-0000-0000-000000009999"})
+	if !errors.Is(err, shortlink.ErrShortLinkMissing) {
+		t.Fatalf("expected ErrShortLinkMissing, got %v", err)
+	}
+
+	pool.Close()
+	err = service.AdminDelete(ctx, admin, shortlink.DeleteInput{ID: linkID})
+	if err == nil {
+		t.Fatal("expected database error")
 	}
 }
 

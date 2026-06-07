@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -107,6 +108,64 @@ func TestAuthHandlerLoginMapsInvalidCredentials(t *testing.T) {
 	}
 }
 
+func TestAuthHandlerLoginMapsDisabledAndSystemErrors(t *testing.T) {
+	tests := []struct {
+		name       string
+		err        error
+		httpStatus int
+		code       int
+	}{
+		{name: "disabled", err: auth.ErrUserDisabled, httpStatus: http.StatusOK, code: 110102},
+		{name: "system", err: errors.New("database down"), httpStatus: http.StatusInternalServerError, code: 900000},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := apphttp.NewRouter(apphttp.Dependencies{
+				Auth: &fakeAuthService{loginErr: tt.err},
+			})
+			response := httptest.NewRecorder()
+			request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{
+				"username": "alice",
+				"password": "password"
+			}`))
+
+			router.ServeHTTP(response, request)
+
+			if response.Code != tt.httpStatus {
+				t.Fatalf("expected http %d, got %d", tt.httpStatus, response.Code)
+			}
+			var body struct {
+				Code int `json:"code"`
+			}
+			if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if body.Code != tt.code {
+				t.Fatalf("expected code %d, got %d", tt.code, body.Code)
+			}
+		})
+	}
+}
+
+func TestAuthHandlerLoginRejectsInvalidJSON(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.Dependencies{Auth: &fakeAuthService{}})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{`))
+
+	router.ServeHTTP(response, request)
+
+	var body struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Code != 100001 {
+		t.Fatalf("expected code 100001, got %d", body.Code)
+	}
+}
+
 func TestAuthHandlerMeReturnsGuestWithoutSession(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		Auth: &fakeAuthService{},
@@ -136,6 +195,34 @@ func TestAuthHandlerMeReturnsGuestWithoutSession(t *testing.T) {
 	}
 	if body.Data.User.Group != "guest" {
 		t.Fatalf("expected guest group, got %s", body.Data.User.Group)
+	}
+}
+
+func TestAuthHandlerMeUsesSessionCookieAndFallsBackOnError(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		Auth: &fakeAuthService{
+			loginErr: auth.ErrInvalidSession,
+		},
+	})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/auth/me", nil)
+	request.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session-id"})
+
+	router.ServeHTTP(response, request)
+
+	var body struct {
+		Code int `json:"code"`
+		Data struct {
+			User struct {
+				Username string `json:"username"`
+			} `json:"user"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Data.User.Username != "guest" {
+		t.Fatalf("expected guest fallback, got %s", body.Data.User.Username)
 	}
 }
 
@@ -172,6 +259,9 @@ func (f *fakeAuthService) Logout(context.Context, string) error {
 }
 
 func (f *fakeAuthService) Me(context.Context, string) (auth.CurrentUser, error) {
+	if f.loginErr != nil {
+		return auth.GuestUser(), f.loginErr
+	}
 	if f.loginResult.User.Username == "" {
 		return auth.GuestUser(), nil
 	}

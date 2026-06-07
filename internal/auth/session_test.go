@@ -3,6 +3,7 @@ package auth_test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"path/filepath"
 	"regexp"
 	"testing"
@@ -65,6 +66,47 @@ func TestSessionServiceCreatesReadsAndRevokesSession(t *testing.T) {
 	_, err = service.Resolve(ctx, session.ID)
 	if err == nil {
 		t.Fatal("expected revoked session to be rejected")
+	}
+}
+
+func TestSessionServiceRejectsMissingSession(t *testing.T) {
+	ctx := context.Background()
+	databaseURL := migratedAuthDatabaseURL(t, ctx)
+
+	pool, err := appdb.OpenPool(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("open pool: %v", err)
+	}
+	t.Cleanup(pool.Close)
+
+	service := auth.NewSessionService(pool, 24*time.Hour)
+
+	_, err = service.Resolve(ctx, "missing")
+	if !errors.Is(err, auth.ErrInvalidSession) {
+		t.Fatalf("expected ErrInvalidSession, got %v", err)
+	}
+}
+
+func TestSessionServiceReturnsDatabaseErrors(t *testing.T) {
+	ctx := context.Background()
+	databaseURL := migratedAuthDatabaseURL(t, ctx)
+
+	pool, err := appdb.OpenPool(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("open pool: %v", err)
+	}
+	pool.Close()
+
+	service := auth.NewSessionService(pool, 24*time.Hour)
+
+	_, err = service.Create(ctx, "00000000-0000-0000-0000-000000000201")
+	if err == nil {
+		t.Fatal("expected create database error")
+	}
+
+	_, err = service.Resolve(ctx, "missing")
+	if err == nil {
+		t.Fatal("expected resolve database error")
 	}
 }
 

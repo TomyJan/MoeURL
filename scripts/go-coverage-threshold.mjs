@@ -4,6 +4,8 @@ const profile = process.argv[2] ?? 'coverage.out'
 const threshold = Number(process.argv[3] ?? '100')
 const includeFrom = readOption('--include-from')
 const includes = includeFrom ? readPatterns(includeFrom) : []
+const excludeBlocksFrom = readOption('--exclude-blocks-from')
+const excludedBlocks = excludeBlocksFrom ? new Set(readPatterns(excludeBlocksFrom)) : new Set()
 const lines = readFileSync(profile, 'utf8').trim().split('\n').slice(1)
 
 let covered = 0
@@ -13,8 +15,12 @@ for (const line of lines) {
   const parts = line.trim().split(/\s+/)
   if (parts.length !== 3) continue
 
-  const file = parts[0].split(':')[0]
+  const loc = parts[0]
+  const file = loc.split(':')[0]
   if (includes.length > 0 && !includes.includes(file)) {
+    continue
+  }
+  if (excludedBlocks.has(loc)) {
     continue
   }
 

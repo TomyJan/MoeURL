@@ -462,10 +462,10 @@ go test ./...
 
 ```bash
 go test ./internal/auth ./internal/db ./internal/http ./internal/permission ./internal/shortlink ./internal/system ./internal/user -coverprofile="$PWD/coverage.out"
-node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100 --include-from=scripts/go-coverage-targets.txt
+node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100 --include-from=scripts/go-coverage-targets.txt --exclude-blocks-from=scripts/go-coverage-excluded-blocks.txt
 ```
 
-后端覆盖率门禁针对 `scripts/go-coverage-targets.txt` 中列出的确定性单元覆盖目标执行，必须达到 100%。数据库集成、HTTP 路由装配和框架胶水仍通过 `go test ./...` 验证，但不计入 100% 单元覆盖率门禁。
+后端覆盖率门禁覆盖 `scripts/go-coverage-targets.txt` 中列出的业务源码文件，必须达到 100%。`scripts/go-coverage-excluded-blocks.txt` 只允许精确列出不可稳定触发或由数据模型保证不可达的代码块，例如事务中途基础设施失败、随机短码连续冲突耗尽、静态类型值的 JSON 编码失败。数据库集成、进程入口和框架胶水仍通过 `go test ./...` 验证，但不作为业务源码覆盖率分母。
 
 ### 前端测试
 
@@ -484,7 +484,7 @@ cd web && pnpm build
 cd web && pnpm test:e2e
 ```
 
-前端单元和组件测试覆盖率门禁针对 `vitest.config.ts` 中 `coverage.include` 覆盖的应用配置、实体 API 和共享工具代码执行，必须达到 100%。页面壳、`main.ts` 启动入口和类型声明由构建、类型检查和 E2E 覆盖，不计入单元覆盖率门禁。
+前端单元和组件测试覆盖率门禁针对 `vitest.config.ts` 中 `coverage.include` 覆盖的应用配置、实体 API、页面组件和共享工具代码执行，必须达到 100%。`main.ts` 启动入口、类型声明和纯类型模型由构建、类型检查和 E2E 覆盖，不计入单元覆盖率门禁。
 
 ### 质量检查工作流
 

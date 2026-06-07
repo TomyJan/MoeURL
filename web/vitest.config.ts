@@ -13,11 +13,12 @@ export default defineConfig({
   test: {
     coverage: {
       include: [
-        'src/app/{i18n,query,router,vuetify}.ts',
+        'src/app/**/*.{ts,vue}',
         'src/entities/**/*.ts',
+        'src/pages/**/*.vue',
         'src/shared/**/*.ts',
       ],
-      exclude: ['src/**/*.test.ts', 'src/**/*.d.ts', 'src/entities/**/model.ts'],
+      exclude: ['src/main.ts', 'src/**/*.test.ts', 'src/**/*.d.ts', 'src/entities/**/model.ts'],
       reporter: ['text', 'lcov'],
       thresholds: {
         100: true,

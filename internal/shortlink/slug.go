@@ -2,6 +2,7 @@ package shortlink
 
 import (
 	"crypto/rand"
+	"io"
 	"math/big"
 	"strings"
 )
@@ -20,10 +21,12 @@ var reservedSlugs = map[string]struct{}{
 	"admin":  {},
 }
 
+var slugRandomReader io.Reader = rand.Reader
+
 func generateSlug() (string, error) {
 	bytes := make([]byte, defaultSlugLength)
 	for i := range bytes {
-		index, err := rand.Int(rand.Reader, big.NewInt(int64(len(slugAlphabet))))
+		index, err := rand.Int(slugRandomReader, big.NewInt(int64(len(slugAlphabet))))
 		if err != nil {
 			return "", err
 		}

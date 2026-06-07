@@ -104,6 +104,52 @@ func TestServiceSetupRejectsReservedAdminUsername(t *testing.T) {
 	}
 }
 
+func TestServiceSetupRejectsBlankRequiredFields(t *testing.T) {
+	ctx := context.Background()
+	pool := systemTestPool(t, ctx)
+	service := system.NewService(pool)
+
+	err := service.Setup(ctx, system.SetupInput{
+		AdminUsername:   "admin",
+		AdminPassword:   "secure-password",
+		AdminNickname:   "Administrator",
+		SiteName:        "",
+		SystemDomain:    "example.com",
+		ShortLinkDomain: "go.example.com",
+		DefaultLanguage: "zh-CN",
+		DefaultTheme:    "system",
+	})
+	if !errors.Is(err, system.ErrInvalidSetupInput) {
+		t.Fatalf("expected ErrInvalidSetupInput, got %v", err)
+	}
+}
+
+func TestServiceReturnsDatabaseErrors(t *testing.T) {
+	ctx := context.Background()
+	pool := systemTestPool(t, ctx)
+	service := system.NewService(pool)
+	pool.Close()
+
+	_, err := service.IsInitialized(ctx)
+	if err == nil {
+		t.Fatal("expected initialized database error")
+	}
+
+	err = service.Setup(ctx, system.SetupInput{
+		AdminUsername:   "admin",
+		AdminPassword:   "secure-password",
+		AdminNickname:   "Administrator",
+		SiteName:        "MoeURL",
+		SystemDomain:    "example.com",
+		ShortLinkDomain: "go.example.com",
+		DefaultLanguage: "zh-CN",
+		DefaultTheme:    "system",
+	})
+	if err == nil {
+		t.Fatal("expected setup database error")
+	}
+}
+
 func assertBuiltInData(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	t.Helper()
 
@@ -160,6 +206,17 @@ func assertBuiltInData(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	if defaultHost != "go.example.com" {
 		t.Fatalf("expected default domain go.example.com, got %s", defaultHost)
 	}
+}
+
+func systemTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
+	t.Helper()
+	databaseURL := migratedDatabaseURL(t, ctx)
+	pool, err := appdb.OpenPool(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("open pool: %v", err)
+	}
+	t.Cleanup(pool.Close)
+	return pool
 }
 
 func migratedDatabaseURL(t *testing.T, ctx context.Context) string {

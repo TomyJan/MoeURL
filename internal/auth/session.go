@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"io"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -14,6 +15,8 @@ import (
 const SessionCookieName = "moeurl_session"
 
 var ErrInvalidSession = errors.New("invalid session")
+
+var sessionRandomReader io.Reader = rand.Reader
 
 type Session struct {
 	ID        string
@@ -50,7 +53,7 @@ func (s *SessionService) Create(ctx context.Context, userID string) (Session, er
 
 func generateSessionID() (string, error) {
 	token := make([]byte, 32)
-	if _, err := rand.Read(token); err != nil {
+	if _, err := io.ReadFull(sessionRandomReader, token); err != nil {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(token), nil

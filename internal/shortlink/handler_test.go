@@ -105,6 +105,34 @@ func TestHandlerCreateShortLinkMapsBusinessErrors(t *testing.T) {
 	}
 }
 
+func TestHandlerCreateShortLinkRejectsInvalidJSONAndMapsSystemError(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       string
+		err        error
+		httpStatus int
+		code       int
+	}{
+		{name: "invalid json", body: `{`, httpStatus: http.StatusOK, code: 100001},
+		{name: "system", body: `{"targetUrl":"https://example.com"}`, err: errors.New("database down"), httpStatus: http.StatusInternalServerError, code: 900000},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := apphttp.NewRouter(apphttp.Dependencies{
+				CurrentUser: &fakeCurrentUserResolver{},
+				ShortLink:   &fakeShortLinkService{err: tt.err},
+			})
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodPost, "/api/v1/short-link/create", bytes.NewBufferString(tt.body))
+
+			router.ServeHTTP(response, request)
+
+			assertBusinessCode(t, response, tt.httpStatus, tt.code)
+		})
+	}
+}
+
 func TestHandlerListShortLinksReturnsItemsAndMeta(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		CurrentUser: &fakeCurrentUserResolver{
@@ -176,6 +204,54 @@ func TestHandlerListShortLinksUsesDefaultPaginationForInvalidQuery(t *testing.T)
 	}
 	if service.listInput.PageSize != 20 {
 		t.Fatalf("expected default pageSize 20, got %d", service.listInput.PageSize)
+	}
+}
+
+func TestHandlerListShortLinksUsesDefaultPaginationForMissingQuery(t *testing.T) {
+	service := &fakeShortLinkService{}
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		CurrentUser: &fakeCurrentUserResolver{
+			user: auth.CurrentUser{ID: "user-id", Username: "alice", GroupKey: "user", Permissions: permission.UserPermissions},
+		},
+		ShortLink: service,
+	})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/short-link/list", nil)
+
+	router.ServeHTTP(response, request)
+
+	if service.listInput.Page != 1 {
+		t.Fatalf("expected default page 1, got %d", service.listInput.Page)
+	}
+	if service.listInput.PageSize != 20 {
+		t.Fatalf("expected default pageSize 20, got %d", service.listInput.PageSize)
+	}
+}
+
+func TestHandlerListShortLinksMapsErrors(t *testing.T) {
+	tests := []struct {
+		name       string
+		err        error
+		httpStatus int
+		code       int
+	}{
+		{name: "permission denied", err: shortlink.ErrPermissionDenied, httpStatus: http.StatusOK, code: 120001},
+		{name: "system", err: errors.New("database down"), httpStatus: http.StatusInternalServerError, code: 900000},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := apphttp.NewRouter(apphttp.Dependencies{
+				CurrentUser: &fakeCurrentUserResolver{},
+				ShortLink:   &fakeShortLinkService{err: tt.err},
+			})
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodGet, "/api/v1/short-link/list", nil)
+
+			router.ServeHTTP(response, request)
+
+			assertBusinessCode(t, response, tt.httpStatus, tt.code)
+		})
 	}
 }
 
@@ -264,6 +340,75 @@ func TestHandlerMapsMissingShortLink(t *testing.T) {
 	}
 	if body.Code != 200104 {
 		t.Fatalf("expected code 200104, got %d", body.Code)
+	}
+}
+
+func TestHandlerUpdateDeleteAndAdminRoutesRejectInvalidJSON(t *testing.T) {
+	tests := []struct {
+		name   string
+		method string
+		path   string
+	}{
+		{name: "update", method: http.MethodPost, path: "/api/v1/short-link/update"},
+		{name: "delete", method: http.MethodPost, path: "/api/v1/short-link/delete"},
+		{name: "admin update", method: http.MethodPost, path: "/api/v1/admin/short-link/update"},
+		{name: "admin delete", method: http.MethodPost, path: "/api/v1/admin/short-link/delete"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := apphttp.NewRouter(apphttp.Dependencies{
+				CurrentUser: &fakeCurrentUserResolver{},
+				ShortLink:   &fakeShortLinkService{},
+			})
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(tt.method, tt.path, bytes.NewBufferString(`{`))
+
+			router.ServeHTTP(response, request)
+
+			assertBusinessCode(t, response, http.StatusOK, 100001)
+		})
+	}
+}
+
+func TestHandlerWriteBusinessOrSystemErrorMappings(t *testing.T) {
+	tests := []struct {
+		name       string
+		path       string
+		err        error
+		httpStatus int
+		code       int
+	}{
+		{name: "update permission", path: "/api/v1/short-link/update", err: shortlink.ErrPermissionDenied, httpStatus: http.StatusOK, code: 120001},
+		{name: "update invalid target", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidTargetURL, httpStatus: http.StatusOK, code: 200103},
+		{name: "update invalid status", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidStatus, httpStatus: http.StatusOK, code: 100001},
+		{name: "update slug conflict", path: "/api/v1/short-link/update", err: shortlink.ErrSlugConflict, httpStatus: http.StatusOK, code: 200101},
+		{name: "update reserved slug", path: "/api/v1/short-link/update", err: shortlink.ErrReservedSlug, httpStatus: http.StatusOK, code: 200102},
+		{name: "update system", path: "/api/v1/short-link/update", err: errors.New("database down"), httpStatus: http.StatusInternalServerError, code: 900000},
+		{name: "admin list permission", path: "/api/v1/admin/short-link/list", err: shortlink.ErrPermissionDenied, httpStatus: http.StatusOK, code: 120001},
+		{name: "admin update missing", path: "/api/v1/admin/short-link/update", err: shortlink.ErrShortLinkMissing, httpStatus: http.StatusOK, code: 200104},
+		{name: "admin delete system", path: "/api/v1/admin/short-link/delete", err: errors.New("database down"), httpStatus: http.StatusInternalServerError, code: 900000},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := apphttp.NewRouter(apphttp.Dependencies{
+				CurrentUser: &fakeCurrentUserResolver{},
+				ShortLink:   &fakeShortLinkService{err: tt.err},
+			})
+			response := httptest.NewRecorder()
+			method := http.MethodPost
+			body := `{"id":"link-id"}`
+			if tt.path == "/api/v1/admin/short-link/list" {
+				method = http.MethodGet
+				body = ""
+			}
+			request := httptest.NewRequest(method, tt.path, bytes.NewBufferString(body))
+
+			router.ServeHTTP(response, request)
+
+			assertBusinessCode(t, response, tt.httpStatus, tt.code)
+		})
 	}
 }
 
@@ -406,3 +551,19 @@ func (f *fakeCurrentUserResolver) ResolveCurrentUser(context.Context, string) (a
 }
 
 var _ = errors.Is
+
+func assertBusinessCode(t *testing.T, response *httptest.ResponseRecorder, httpStatus int, code int) {
+	t.Helper()
+	if response.Code != httpStatus {
+		t.Fatalf("expected http status %d, got %d body %q", httpStatus, response.Code, response.Body.String())
+	}
+	var body struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Code != code {
+		t.Fatalf("expected code %d, got %d", code, body.Code)
+	}
+}

@@ -98,6 +98,7 @@ func TestRedirectHandlerShowsBlockedStatus(t *testing.T) {
 	}{
 		{name: "missing", err: shortlink.ErrShortLinkMissing, code: http.StatusNotFound},
 		{name: "disabled", err: shortlink.ErrShortLinkDisabled, code: http.StatusOK},
+		{name: "system", err: errors.New("database down"), code: http.StatusInternalServerError},
 	}
 
 	for _, tt := range tests {

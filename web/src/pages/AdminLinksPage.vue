@@ -2,11 +2,11 @@
   <v-container class="py-10">
     <div class="d-flex align-center justify-space-between mb-4">
       <h1 class="text-h4">{{ t('page.adminLinks') }}</h1>
-      <span class="text-body-2 text-medium-emphasis">共 {{ query.data.value?.meta.total ?? 0 }} 条</span>
+      <span class="text-body-2 text-medium-emphasis">共 {{ total }} 条</span>
     </div>
     <v-alert v-if="query.isError.value" type="error" variant="tonal">加载失败</v-alert>
     <v-progress-linear v-if="query.isPending.value" indeterminate />
-    <v-alert v-else-if="(query.data.value?.items ?? []).length === 0" type="info" variant="tonal">
+    <v-alert v-else-if="links.length === 0" type="info" variant="tonal">
       暂无短链
     </v-alert>
     <v-table v-else>
@@ -20,7 +20,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="link in query.data.value?.items ?? []" :key="link.id">
+        <tr v-for="link in links" :key="link.id">
           <td>
             <a :href="link.url" target="_blank" rel="noreferrer">{{ link.url }}</a>
           </td>
@@ -52,6 +52,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -64,6 +65,8 @@ const query = useQuery({
   queryKey: ['admin-short-links'],
   queryFn: () => listAdminShortLinks(),
 })
+const links = computed(() => query.data.value?.items ?? [])
+const total = computed(() => query.data.value?.meta.total ?? 0)
 
 const updateMutation = useMutation({
   mutationFn: updateAdminShortLink,

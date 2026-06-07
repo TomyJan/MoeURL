@@ -3,7 +3,7 @@
     <h1 class="text-h4 mb-4">{{ t('page.links') }}</h1>
     <v-alert v-if="query.isError.value" type="error" variant="tonal">加载失败</v-alert>
     <v-progress-linear v-if="query.isPending.value" indeterminate />
-    <v-alert v-else-if="(query.data.value?.items ?? []).length === 0" type="info" variant="tonal">
+    <v-alert v-else-if="links.length === 0" type="info" variant="tonal">
       暂无短链
     </v-alert>
     <v-table v-else>
@@ -16,7 +16,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="link in query.data.value?.items ?? []" :key="link.id">
+        <tr v-for="link in links" :key="link.id">
           <td>
             <a :href="link.url" target="_blank" rel="noreferrer">{{ link.url }}</a>
           </td>
@@ -44,6 +44,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -56,6 +57,7 @@ const query = useQuery({
   queryKey: ['short-links'],
   queryFn: () => listShortLinks(),
 })
+const links = computed(() => query.data.value?.items ?? [])
 
 const updateMutation = useMutation({
   mutationFn: updateShortLink,

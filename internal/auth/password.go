@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -19,9 +20,11 @@ const (
 	saltLen             = 16
 )
 
+var passwordRandomReader io.Reader = rand.Reader
+
 func HashPassword(password string) (string, error) {
 	salt := make([]byte, saltLen)
-	if _, err := rand.Read(salt); err != nil {
+	if _, err := io.ReadFull(passwordRandomReader, salt); err != nil {
 		return "", err
 	}
 
