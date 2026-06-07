@@ -5,8 +5,9 @@
 MoeURL 采用以下技术栈作为 v0.0.1 及后续演进的技术基线：
 
 ```text
-后端：Go + Chi + SQLC + Goose + PostgreSQL
+后端： Go 1.25+ + Chi + SQLC + Goose + PostgreSQL
 前端：Vue 3 + Vite + TypeScript + Vuetify 3
+前端包管理： pnpm
 状态：Pinia + TanStack Query for Vue
 国际化：vue-i18n
 表单校验：vee-validate + zod
@@ -31,6 +32,8 @@ PWA：Web App Manifest + Service Worker
 ## 3. 后端技术栈
 
 ### Go
+
+v0.0.1 的最低 Go 版本为 Go 1.25。
 
 Go 作为后端语言，适合 MoeURL 的 API、认证、权限、短链跳转和后台任务场景。
 
@@ -134,6 +137,17 @@ Vite 作为前端构建工具。
 - Vue 支持成熟。
 - 配置简洁。
 - 现代前端项目主流选择。
+
+### pnpm
+
+pnpm 作为前端包管理器。
+
+选择原因：
+
+- 依赖安装快，磁盘占用低。
+- 锁文件稳定，适合多人协作和 CI。
+- 对 monorepo 和后续拆分扩展友好。
+- 与 Vite、Vue 3 和 Playwright 生态配合自然。
 
 ### TypeScript
 

@@ -1,0 +1,26 @@
+# Exact Go coverage profile blocks excluded from the backend business coverage gate.
+#
+# These blocks are defensive infrastructure failure paths that are not stable or
+# meaningful to force through unit coverage: cryptographic/random failure after
+# caller validation, database failures between sequential statements, transaction
+# step failures covered by transaction integration tests, JSON marshaling of
+# statically typed values, and exhaustive short-code collision retries.
+github.com/TomyJan/MoeURL/internal/system/service.go:57.16,59.3
+github.com/TomyJan/MoeURL/internal/system/service.go:67.119,69.4
+github.com/TomyJan/MoeURL/internal/system/service.go:70.131,72.4
+github.com/TomyJan/MoeURL/internal/system/service.go:73.136,75.4
+github.com/TomyJan/MoeURL/internal/system/service.go:80.49,82.4
+github.com/TomyJan/MoeURL/internal/system/service.go:87.143,89.4
+github.com/TomyJan/MoeURL/internal/system/service.go:94.77,96.4
+github.com/TomyJan/MoeURL/internal/system/service.go:107.66,109.5
+github.com/TomyJan/MoeURL/internal/system/service.go:141.16,143.3
+github.com/TomyJan/MoeURL/internal/system/service.go:154.16,156.3
+github.com/TomyJan/MoeURL/internal/auth/service.go:48.16,50.3
+github.com/TomyJan/MoeURL/internal/auth/service.go:137.16,139.3
+github.com/TomyJan/MoeURL/internal/auth/session.go:81.16,83.3
+github.com/TomyJan/MoeURL/internal/user/service.go:44.16,46.3
+github.com/TomyJan/MoeURL/internal/user/service.go:60.16,62.3
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:61.17,63.4
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:64.27,65.12
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:76.29,77.12
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:94.2,94.40

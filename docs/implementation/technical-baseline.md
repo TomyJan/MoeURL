@@ -17,7 +17,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 
 | 层级 | 技术 |
 | --- | --- |
-| 后端语言 | Go |
+| 后端语言 | Go 1.25+ |
 | HTTP 路由 | Chi |
 | 数据库 | PostgreSQL |
 | 数据访问 | SQLC |
@@ -28,6 +28,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 | 会话 | Cookie Session + 服务端会话存储 |
 | 前端框架 | Vue 3 |
 | 前端构建 | Vite |
+| 前端包管理 | pnpm |
 | 前端语言 | TypeScript |
 | 前端路由 | Vue Router |
 | 客户端状态 | Pinia |
@@ -38,7 +39,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 | PWA | Web App Manifest + Service Worker |
 | 后端测试 | go test + testify + testcontainers-go |
 | 前端测试 | Vitest + Vue Testing Library + Playwright |
-| 部署 | Docker + Docker Compose |
+| 部署 | Docker + Docker Compose（支持裸机运行） |
 
 ## 3. 仓库目录结构
 
@@ -283,7 +284,7 @@ v0.0.1 的字段级 schema 以 [v0.0.1 工程实施合同](./v0.0.1-implementati
 - `system_setting`：保存站点名称、初始化状态、系统访问域名、默认短链访问域名、默认语言和默认主题。
 - `user_group`：保存 `guest`、`user`、`admin` 用户组及其权限数组。
 - `app_user`：保存本地用户、内置 `guest` 用户、主用户组、账号状态和密码哈希。
-- `session`：保存服务端会话、过期时间、最近访问时间和撤销时间。
+- `session`：保存加密随机会话 ID、过期时间、最近访问时间和撤销时间。
 - `domain`：保存系统访问域名、短链访问域名、用途、启用状态和全局默认标记。
 - `short_link`：保存创建者、域名、全系统唯一短码、目标 URL、状态和软删除时间。
 
@@ -342,7 +343,7 @@ admin:access
 - Cookie `SameSite` 使用 `Lax`。
 - 生产环境必须设置 `Secure`。
 - Cookie Path 使用 `/`。
-- 登录成功后生成新的 session ID。
+- 登录成功后生成新的加密随机 session ID。
 - 退出登录必须撤销服务端 session 并清理 Cookie。
 - 每次授权操作必须重新检查用户状态和权限。
 - 用户被禁用后，不得继续执行授权操作。
@@ -457,6 +458,15 @@ v0.0.1 应至少定义：
 go test ./...
 ```
 
+覆盖率门禁：
+
+```bash
+go test ./internal/auth ./internal/db ./internal/http ./internal/permission ./internal/shortlink ./internal/system ./internal/user -coverprofile="$PWD/coverage.out"
+node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100 --include-from=scripts/go-coverage-targets.txt --exclude-blocks-from=scripts/go-coverage-excluded-blocks.txt
+```
+
+后端覆盖率门禁覆盖 `scripts/go-coverage-targets.txt` 中列出的业务源码文件，必须达到 100%。`scripts/go-coverage-excluded-blocks.txt` 只允许精确列出不可稳定触发或由数据模型保证不可达的代码块，例如事务中途基础设施失败、随机短码连续冲突耗尽、静态类型值的 JSON 编码失败。数据库集成、进程入口和框架胶水仍通过 `go test ./...` 验证，但不作为业务源码覆盖率分母。
+
 ### 前端测试
 
 前端测试分为：
@@ -468,14 +478,29 @@ go test ./...
 推荐命令：
 
 ```bash
-cd web && npm run test
-cd web && npm run build
-cd web && npm run test:e2e
+cd web && pnpm test
+cd web && pnpm test:coverage
+cd web && pnpm build
+cd web && pnpm test:e2e
 ```
+
+前端单元和组件测试覆盖率门禁针对 `vitest.config.ts` 中 `coverage.include` 覆盖的应用配置、实体 API、页面组件和共享工具代码执行，必须达到 100%。`main.ts` 启动入口、类型声明和纯类型模型由构建、类型检查和 E2E 覆盖，不计入单元覆盖率门禁。
+
+### 质量检查工作流
+
+GitHub Actions 使用单个 `Check Code` 工作流文件。该工作流包含 5 个互相独立的并行任务：
+
+- `Lint`
+- `Typecheck`
+- `Test`
+- `Test Coverage`
+- `Build`
+
+工作流支持手动触发，在提交到 `master` 和面向 `master` 的 PR 时触发。外部贡献者 PR 是否自动运行由仓库 Actions 安全策略控制，工作流本身不使用 `pull_request_target`。
 
 ## 13. 部署约定
 
-生产部署优先使用 Docker Compose：
+生产部署优先使用 Docker Compose，同时支持裸机运行：
 
 ```text
 moeurl-app
@@ -498,6 +523,14 @@ docker compose up --build
 ```
 
 该命令应启动应用服务和 PostgreSQL，并允许通过 `/api/v1/health` 验证服务状态。
+
+裸机运行时应先完成以下步骤：
+
+- 准备 PostgreSQL 数据库。
+- 使用 Goose 执行 `migrations/` 下的数据库迁移。
+- 使用 pnpm 构建 `web/dist`。
+- 设置 `MOEURL_DATABASE_URL`、`MOEURL_HTTP_ADDR` 和 `MOEURL_STATIC_DIR`。
+- 运行 `go run ./cmd/server` 或构建后的后端二进制。
 
 ## 14. 环境变量约定
 

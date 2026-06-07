@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+web/dist/
+web/playwright-report/
+web/test-results/
+coverage.out
+coverage/
+web/coverage/
+
+# Local environment
+.env
+.env.*
+
+# Logs
+*.log
