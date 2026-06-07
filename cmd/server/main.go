@@ -13,7 +13,13 @@ import (
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	application, err := app.New(context.Background(), config.Load(), logger)
+	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		logger.Error("invalid_config", "error", err)
+		os.Exit(1)
+	}
+
+	application, err := app.New(context.Background(), cfg, logger)
 	if err != nil {
 		logger.Error("app_initialization_failed", "error", err)
 		os.Exit(1)

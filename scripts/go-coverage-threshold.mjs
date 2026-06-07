@@ -13,6 +13,9 @@ for (const line of lines) {
 
   const statements = Number(parts[1])
   const count = Number(parts[2])
+  if (!Number.isFinite(statements) || !Number.isFinite(count)) {
+    throw new Error(`Invalid coverage line: ${line}`)
+  }
   total += statements
   if (count > 0) covered += statements
 }

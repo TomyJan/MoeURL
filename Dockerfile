@@ -20,15 +20,16 @@ RUN go install github.com/pressly/goose/v3/cmd/goose@v3.26.0
 
 FROM alpine:3.22
 WORKDIR /app
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates && addgroup -S moeurl && adduser -S -G moeurl moeurl
 COPY --from=go-build /out/moeurl /app/moeurl
 COPY --from=go-build /go/bin/goose /app/goose
 COPY --from=web-build /workspace/web/dist /app/web
 COPY migrations /app/migrations
 COPY docker/entrypoint.sh /app/entrypoint.sh
-RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh && chown -R moeurl:moeurl /app
 ENV MOEURL_ENV=production
 ENV MOEURL_HTTP_ADDR=:8080
 ENV MOEURL_STATIC_DIR=/app/web
 EXPOSE 8080
+USER moeurl
 ENTRYPOINT ["/app/entrypoint.sh"]
