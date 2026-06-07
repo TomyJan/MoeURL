@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24-alpine AS web-build
+FROM node:26-alpine AS web-build
 WORKDIR /workspace/web
 RUN corepack enable
 COPY web/package.json web/pnpm-lock.yaml ./
