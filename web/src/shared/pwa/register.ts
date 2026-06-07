@@ -4,6 +4,10 @@ export function registerServiceWorker() {
   }
 
   window.addEventListener('load', () => {
-    void navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker
+      .register('/sw.js')
+      .catch((error: unknown) => {
+        console.error('Service worker registration failed', error)
+      })
   })
 }

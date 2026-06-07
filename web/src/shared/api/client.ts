@@ -45,9 +45,24 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<ApiRespo
 }
 
 async function decodeResponse<T>(response: Response): Promise<ApiResponse<T>> {
-  const payload = (await response.json()) as ApiResponse<T>
+  const text = await response.text()
+  const payload = parsePayload<T>(text)
+  if (!response.ok) {
+    throw new ApiClientError(response.status, payload?.message || `HTTP ${response.status}`, { status: response.status })
+  }
+  if (!payload) {
+    throw new ApiClientError(100001, 'Invalid JSON response', { status: response.status })
+  }
   if (payload.code !== 0) {
-    throw new ApiClientError(payload.code, payload.message, payload.meta)
+    throw new ApiClientError(payload.code, payload.message, payload.meta ?? {})
   }
   return payload
+}
+
+function parsePayload<T>(text: string): ApiResponse<T> | null {
+  try {
+    return JSON.parse(text) as ApiResponse<T>
+  } catch {
+    return null
+  }
 }

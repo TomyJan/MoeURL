@@ -32,11 +32,7 @@ export async function listShortLinks(page = 1, pageSize = 20): Promise<ShortLink
   const response = await apiGet<ShortLinkItemsResponse>(`/short-link/list?page=${page}&pageSize=${pageSize}`)
   return {
     items: response.data.items,
-    meta: {
-      page: Number(response.meta.page ?? page),
-      pageSize: Number(response.meta.pageSize ?? pageSize),
-      total: Number(response.meta.total ?? 0),
-    },
+    meta: normalizeListMeta(response.meta, page, pageSize),
   }
 }
 
@@ -56,11 +52,7 @@ export async function listAdminShortLinks(page = 1, pageSize = 20): Promise<{
   const response = await apiGet<AdminShortLinkItemsResponse>(`/admin/short-link/list?page=${page}&pageSize=${pageSize}`)
   return {
     items: response.data.items,
-    meta: {
-      page: Number(response.meta.page ?? page),
-      pageSize: Number(response.meta.pageSize ?? pageSize),
-      total: Number(response.meta.total ?? 0),
-    },
+    meta: normalizeListMeta(response.meta, page, pageSize),
   }
 }
 
@@ -71,4 +63,12 @@ export async function updateAdminShortLink(input: UpdateShortLinkInput): Promise
 
 export async function deleteAdminShortLink(id: string): Promise<void> {
   await apiPost('/admin/short-link/delete', { id })
+}
+
+function normalizeListMeta(meta: Record<string, unknown>, page: number, pageSize: number): ShortLinkListResponse['meta'] {
+  return {
+    page: Number(meta.page ?? page),
+    pageSize: Number(meta.pageSize ?? pageSize),
+    total: Number(meta.total ?? 0),
+  }
 }
