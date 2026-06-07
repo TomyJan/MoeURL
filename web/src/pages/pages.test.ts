@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
 import AdminLinksPage from './AdminLinksPage.vue'
+import AdminUsersPage from './AdminUsersPage.vue'
 import CreateUserPage from './CreateUserPage.vue'
 import HomePage from './HomePage.vue'
 import LoginPage from './LoginPage.vue'
@@ -47,6 +48,9 @@ vi.mock('@/entities/system/api', () => ({
 
 vi.mock('@/entities/user/api', () => ({
   createUser: vi.fn(),
+  listUsers: vi.fn(async () => ({ items: [], meta: { page: 1, pageSize: 20, total: 0 } })),
+  resetUserPassword: vi.fn(),
+  updateUser: vi.fn(),
 }))
 
 vi.mock('@tanstack/vue-query', () => ({
@@ -379,5 +383,74 @@ describe('pages', () => {
     await fireEvent.click(screen.getByText('创建用户'))
 
     expect(screen.getByText('alice')).toBeTruthy()
+  })
+
+  it('renders admin users list and submits user actions', async () => {
+    setQueryResult({
+      data: ref({
+        meta: { total: 2 },
+        items: [
+          {
+            id: 'user-id',
+            username: 'alice',
+            nickname: 'Alice',
+            group: 'user',
+            status: 'active',
+            builtin: false,
+            createdAt: '2026-06-08T00:00:00Z',
+            updatedAt: '2026-06-08T00:00:00Z',
+          },
+          {
+            id: 'guest-id',
+            username: 'guest',
+            nickname: 'Guest',
+            group: 'guest',
+            status: 'active',
+            builtin: true,
+            createdAt: '2026-06-08T00:00:00Z',
+            updatedAt: '2026-06-08T00:00:00Z',
+          },
+        ],
+      }),
+    })
+    const mutate = vi.fn()
+    setMutationResult({ mutate })
+    mount(AdminUsersPage)
+
+    expect(screen.getByText('共 2 个用户')).toBeTruthy()
+    expect(screen.getByText('alice')).toBeTruthy()
+    expect(screen.getByText('内置')).toBeTruthy()
+
+    await fireEvent.click(screen.getAllByText('禁用')[0])
+    await fireEvent.update(screen.getAllByLabelText('昵称')[0], 'Alice Renamed')
+    await fireEvent.click(screen.getAllByText('保存昵称')[0])
+    await fireEvent.update(screen.getAllByLabelText('新密码')[0], 'new-password')
+    await fireEvent.click(screen.getAllByText('重置密码')[0])
+
+    expect(mutate).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Alice', status: 'disabled' })
+    expect(mutate).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Alice Renamed', status: 'active' })
+    expect(mutate).toHaveBeenCalledWith({ id: 'user-id', password: 'new-password' })
+  })
+
+  it('renders admin users error, loading, and empty states', () => {
+    setQueryResult({ isError: ref(true) })
+    const error = mount(AdminUsersPage)
+    expect(screen.getByText('加载失败')).toBeTruthy()
+    error.unmount()
+
+    setQueryResult({ isPending: ref(true) })
+    const pending = mount(AdminUsersPage)
+    expect(screen.getByRole('progressbar')).toBeTruthy()
+    pending.unmount()
+
+    setQueryResult({ data: ref({ meta: { total: 0 }, items: [] }) })
+    const empty = mount(AdminUsersPage)
+    expect(screen.getByText('暂无用户')).toBeTruthy()
+    expect(screen.getByText('共 0 个用户')).toBeTruthy()
+    empty.unmount()
+
+    setQueryResult({ data: ref(undefined) })
+    mount(AdminUsersPage)
+    expect(screen.getByText('暂无用户')).toBeTruthy()
   })
 })
