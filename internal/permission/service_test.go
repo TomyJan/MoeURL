@@ -9,8 +9,14 @@ import (
 func TestBuiltInGroupPermissions(t *testing.T) {
 	service := permission.NewService()
 
+	if service.Has("unknown", permission.ShortLinkCreate) {
+		t.Fatal("expected unknown group to have no permissions")
+	}
 	if service.Has(permission.GroupGuest, permission.ShortLinkCreate) {
 		t.Fatal("expected guest to have no short link create permission")
+	}
+	if service.Has(permission.GroupUser, "unknown:permission") {
+		t.Fatal("expected user group to reject unknown permission")
 	}
 	if !service.Has(permission.GroupUser, permission.ShortLinkCreate) {
 		t.Fatal("expected user to create short links")

@@ -39,4 +39,14 @@ describe('preferences', () => {
     expect(resolveVuetifyTheme('system')).toBe('moeurlDark')
     expect(resolveVuetifyTheme('light')).toBe('moeurlLight')
   })
+
+  it('resolves system theme to light when media query does not prefer dark', () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false })))
+
+    expect(resolveVuetifyTheme('system')).toBe('moeurlLight')
+  })
+
+  it('resolves explicit dark theme', () => {
+    expect(resolveVuetifyTheme('dark')).toBe('moeurlDark')
+  })
 })

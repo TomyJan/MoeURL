@@ -48,4 +48,15 @@ describe('service worker registration', () => {
       expect.any(Error),
     )
   })
+
+  it('does nothing when service workers are unavailable', () => {
+    Object.defineProperty(window, 'navigator', {
+      configurable: true,
+      value: {},
+    })
+
+    registerServiceWorker()
+
+    expect(window.addEventListener).not.toHaveBeenCalled()
+  })
 })

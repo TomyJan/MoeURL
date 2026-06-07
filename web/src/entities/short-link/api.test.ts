@@ -64,6 +64,27 @@ describe('short link api', () => {
     expect(fetch).toHaveBeenCalledWith('/api/v1/short-link/list?page=1&pageSize=20', expect.objectContaining({ method: 'GET' }))
   })
 
+  it('uses requested pagination defaults when list meta is missing', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            code: 0,
+            message: 'OK',
+            data: { items: [] },
+            meta: {},
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }),
+    )
+
+    const result = await listShortLinks(3, 15)
+
+    expect(result.meta).toEqual({ page: 3, pageSize: 15, total: 0 })
+  })
+
   it('posts update and delete requests', async () => {
     vi.stubGlobal(
       'fetch',

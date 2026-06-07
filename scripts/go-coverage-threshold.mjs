@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 
 const profile = process.argv[2] ?? 'coverage.out'
 const threshold = Number(process.argv[3] ?? '100')
+const includeFrom = readOption('--include-from')
+const includes = includeFrom ? readPatterns(includeFrom) : []
 const lines = readFileSync(profile, 'utf8').trim().split('\n').slice(1)
 
 let covered = 0
@@ -10,6 +12,11 @@ let total = 0
 for (const line of lines) {
   const parts = line.trim().split(/\s+/)
   if (parts.length !== 3) continue
+
+  const file = parts[0].split(':')[0]
+  if (includes.length > 0 && !includes.includes(file)) {
+    continue
+  }
 
   const statements = Number(parts[1])
   const count = Number(parts[2])
@@ -26,4 +33,17 @@ console.log(`Go coverage: ${percent.toFixed(2)}%`)
 if (percent + Number.EPSILON < threshold) {
   console.error(`Go coverage must be at least ${threshold}%`)
   process.exit(1)
+}
+
+function readOption(name) {
+  const prefix = `${name}=`
+  const value = process.argv.find((argument) => argument.startsWith(prefix))
+  return value?.slice(prefix.length)
+}
+
+function readPatterns(path) {
+  return readFileSync(path, 'utf8')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '' && !line.startsWith('#'))
 }

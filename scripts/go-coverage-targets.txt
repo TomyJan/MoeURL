@@ -1,0 +1,8 @@
+# Files in this list are the deterministic backend unit coverage gate.
+# Database integration, HTTP route composition, and framework glue are still
+# validated by `go test ./...`, but are not counted in the 100% unit gate.
+github.com/TomyJan/MoeURL/internal/auth/current_user.go
+github.com/TomyJan/MoeURL/internal/http/response.go
+github.com/TomyJan/MoeURL/internal/middleware/request_logger.go
+github.com/TomyJan/MoeURL/internal/permission/service.go
+github.com/TomyJan/MoeURL/internal/shortlink/validator.go

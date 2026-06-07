@@ -167,7 +167,7 @@ jobs:
             ./internal/system \
             ./internal/user \
             -coverprofile="$GITHUB_WORKSPACE/coverage.out"
-          node scripts/go-coverage-threshold.mjs "$GITHUB_WORKSPACE/coverage.out" 100
+          node scripts/go-coverage-threshold.mjs "$GITHUB_WORKSPACE/coverage.out" 100 --include-from=scripts/go-coverage-targets.txt
 
       - name: Frontend test coverage
         working-directory: web

@@ -29,6 +29,17 @@ func TestCurrentUserMiddlewareUsesGuestWithoutSession(t *testing.T) {
 	}
 }
 
+func TestUserFromContextFallsBackToGuest(t *testing.T) {
+	current := auth.UserFromContext(context.Background())
+
+	if current.Username != "guest" {
+		t.Fatalf("expected guest, got %s", current.Username)
+	}
+	if current.GroupKey != "guest" {
+		t.Fatalf("expected guest group, got %s", current.GroupKey)
+	}
+}
+
 func TestCurrentUserMiddlewareResolvesSessionUser(t *testing.T) {
 	middleware := auth.CurrentUserMiddleware(&fakeCurrentUserResolver{
 		user: auth.CurrentUser{
