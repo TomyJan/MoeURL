@@ -6,9 +6,6 @@ import App from './App.vue'
 import { componentStubs } from '@/test/component-stubs'
 
 const state = vi.hoisted(() => ({
-  currentUser: { value: undefined as unknown },
-  invalidateQueries: vi.fn(),
-  logoutMutate: vi.fn(),
   themeName: { value: 'moeurlLight' },
 }))
 
@@ -25,25 +22,6 @@ vi.mock('vuetify/framework', () => ({
       name: state.themeName,
     },
   }),
-}))
-
-vi.mock('@tanstack/vue-query', () => ({
-  useMutation: vi.fn((options?: { onSuccess?: () => void }) => ({
-    isPending: ref(false),
-    mutate: vi.fn(() => {
-      state.logoutMutate()
-      options?.onSuccess?.()
-    }),
-  })),
-  useQuery: vi.fn(() => ({
-    data: state.currentUser,
-  })),
-}))
-
-vi.mock('@/app/query', () => ({
-  queryClient: {
-    invalidateQueries: state.invalidateQueries,
-  },
 }))
 
 const preferenceSpies = vi.hoisted(() => ({
@@ -63,42 +41,16 @@ vi.mock('@/shared/preferences/preferences', async (importOriginal) => {
 
 describe('App', () => {
   beforeEach(() => {
-    state.currentUser.value = undefined
-    state.invalidateQueries.mockReset()
-    state.logoutMutate.mockReset()
     preferenceSpies.saveLanguagePreference.mockReset()
     preferenceSpies.saveThemePreference.mockReset()
   })
 
-  it('renders guest navigation and login action', () => {
+  it('renders the route outlet without global product navigation', () => {
     render(App, { global: { stubs: componentStubs } })
 
-    expect(screen.getByText('MoeURL')).toBeTruthy()
-    expect(screen.getByText('guest')).toBeTruthy()
-    expect(screen.getByText('nav.login')).toBeTruthy()
-  })
-
-  it('renders authorized navigation and logs out users', async () => {
-    state.currentUser.value = {
-      user: {
-        username: 'alice',
-        nickname: 'Alice',
-        group: 'admin',
-        permissions: ['short_link:read_own', 'admin:access'],
-      },
-    }
-
-    render(App, { global: { stubs: componentStubs } })
-
-    expect(screen.getByText('nav.links')).toBeTruthy()
-    expect(screen.getByText('nav.admin')).toBeTruthy()
-    expect(screen.getByText('nav.users')).toBeTruthy()
-    expect(screen.getByText('Alice')).toBeTruthy()
-
-    await fireEvent.click(screen.getByText('nav.logout'))
-
-    expect(state.logoutMutate).toHaveBeenCalled()
-    expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['auth', 'me'] })
+    expect(screen.getByTestId('router-view')).toBeTruthy()
+    expect(screen.queryByText('nav.links')).toBeNull()
+    expect(screen.queryByText('nav.admin')).toBeNull()
   })
 
   it('persists toolbar language and theme selections', async () => {

@@ -1,11 +1,6 @@
 <template>
   <v-app>
-    <v-app-bar border="b" elevation="0">
-      <v-app-bar-title>MoeURL</v-app-bar-title>
-      <v-btn to="/" variant="text">{{ t('nav.home') }}</v-btn>
-      <v-btn v-if="canReadOwnLinks" to="/link" variant="text">{{ t('nav.links') }}</v-btn>
-      <v-btn v-if="canAccessAdmin" to="/admin/link" variant="text">{{ t('nav.admin') }}</v-btn>
-      <v-btn v-if="canAccessAdmin" to="/admin/user" variant="text">{{ t('nav.users') }}</v-btn>
+    <div class="app-preferences" aria-label="app preferences">
       <v-select
         v-model="language"
         class="toolbar-select"
@@ -15,10 +10,7 @@
         variant="outlined"
       />
       <v-select v-model="themeMode" class="toolbar-select" density="compact" hide-details :items="themeItems" variant="outlined" />
-      <span class="current-user">{{ currentUserName }}</span>
-      <v-btn v-if="isGuest" to="/login" variant="text">{{ t('nav.login') }}</v-btn>
-      <v-btn v-else variant="text" :loading="logoutMutation.isPending.value" @click="submitLogout">{{ t('nav.logout') }}</v-btn>
-    </v-app-bar>
+    </div>
 
     <v-main>
       <router-view />
@@ -27,13 +19,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useMutation, useQuery } from '@tanstack/vue-query'
 import { useTheme } from 'vuetify/framework'
 
-import { me, logout } from '@/entities/auth/api'
-import { queryClient } from '@/app/query'
 import {
   loadPreferences,
   resolveVuetifyTheme,
@@ -42,26 +31,11 @@ import {
 } from '@/shared/preferences/preferences'
 import type { LanguagePreference, ThemePreference } from '@/shared/preferences/preferences'
 
-const { locale, t } = useI18n()
+const { locale } = useI18n()
 const theme = useTheme()
 const preferences = loadPreferences()
 const language = ref<LanguagePreference>(preferences.language)
 const themeMode = ref<ThemePreference>(preferences.theme)
-const currentUserQuery = useQuery({
-  queryKey: ['auth', 'me'],
-  queryFn: me,
-})
-const currentUser = computed(() => currentUserQuery.data.value?.user)
-const currentUserName = computed(() => currentUser.value?.nickname || currentUser.value?.username || 'guest')
-const isGuest = computed(() => currentUser.value?.group === 'guest' || !currentUser.value)
-const canReadOwnLinks = computed(() => currentUser.value?.permissions.includes('short_link:read_own') ?? false)
-const canAccessAdmin = computed(() => currentUser.value?.permissions.includes('admin:access') ?? false)
-const logoutMutation = useMutation({
-  mutationFn: logout,
-  onSuccess() {
-    queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
-  },
-})
 
 const languageItems = [
   { title: '简体中文', value: 'zh-CN' },
@@ -85,19 +59,19 @@ watch(themeMode, (value) => {
   theme.global.name.value = resolveVuetifyTheme(value)
   saveThemePreference(value)
 })
-
-function submitLogout() {
-  logoutMutation.mutate()
-}
 </script>
 
 <style scoped>
-.toolbar-select {
-  max-width: 128px;
+.app-preferences {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
 }
 
-.current-user {
-  margin-inline: 12px;
-  white-space: nowrap;
+.toolbar-select {
+  max-width: 128px;
 }
 </style>

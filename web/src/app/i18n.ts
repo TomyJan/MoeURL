@@ -57,6 +57,13 @@ export const messages = {
       reset: '继续创建',
       failed: '创建失败，请检查链接和权限',
     },
+    console: {
+      newShortLink: '新建短链',
+      createShortLink: '创建短链',
+      openMenu: '打开控制台菜单',
+      closeMenu: '关闭菜单',
+      closeCreate: '关闭',
+    },
     adminUsers: {
       createUser: '创建用户',
       loadFailed: '加载失败',
@@ -149,6 +156,13 @@ export const messages = {
       open: 'Open link',
       reset: 'Create another',
       failed: 'Failed to create the short link. Check the URL and permissions.',
+    },
+    console: {
+      newShortLink: 'New short link',
+      createShortLink: 'Create short link',
+      openMenu: 'Open console menu',
+      closeMenu: 'Close menu',
+      closeCreate: 'Close',
     },
     adminUsers: {
       createUser: 'Create user',
