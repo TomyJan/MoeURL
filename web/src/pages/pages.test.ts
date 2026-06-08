@@ -18,6 +18,7 @@ const state = vi.hoisted(() => ({
   queryKeys: [] as unknown[],
   queryFns: [] as Array<() => unknown>,
   mutationResult: {},
+  routerPush: vi.fn(),
   queryClient: {
     invalidateQueries: vi.fn(),
   },
@@ -26,6 +27,13 @@ const state = vi.hoisted(() => ({
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
     t: (key: string) => key,
+  }),
+}))
+
+vi.mock('vue-router', () => ({
+  RouterLink: { props: ['to'], template: '<a :data-to="to"><slot /></a>' },
+  useRouter: () => ({
+    push: state.routerPush,
   }),
 }))
 
@@ -141,6 +149,7 @@ describe('pages', () => {
     setMutationResult()
     state.queryKeys = []
     state.queryFns = []
+    state.routerPush.mockReset()
     state.queryClient.invalidateQueries.mockReset()
     Object.defineProperty(window.navigator, 'clipboard', {
       configurable: true,
@@ -212,15 +221,18 @@ describe('pages', () => {
   })
 
   it('blocks guest creation and creates short links for authorized users', async () => {
-    setQueryResult({ data: ref({ user: { permissions: [] } }) })
+    setQueryResult({ data: ref({ user: { username: 'guest', nickname: 'Guest', group: 'guest', permissions: [] } }) })
     const guest = mount(HomePage)
 
+    expect(screen.getByText('nav.login')).toBeTruthy()
+    expect(screen.getByText('home.heroTitle')).toBeTruthy()
+    expect(screen.getByText('homeIntro.permission.title')).toBeTruthy()
     expect(screen.getByText('shortLinkCreate.permissionRequired')).toBeTruthy()
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
     guest.unmount()
 
     const mutate = vi.fn()
-    setQueryResult({ data: ref({ user: { permissions: ['short_link:create', 'domain:use_default'] } }) })
+    setQueryResult({ data: ref({ user: { username: 'alice', nickname: 'Alice', group: 'user', permissions: ['short_link:create', 'domain:use_default'] } }) })
     setMutationResult({
       data: ref(undefined),
       error: ref(new Error('invalid target')),
@@ -237,7 +249,7 @@ describe('pages', () => {
   })
 
   it('shows fallback create error message', () => {
-    setQueryResult({ data: ref({ user: { permissions: ['short_link:create', 'domain:use_default'] } }) })
+    setQueryResult({ data: ref({ user: { username: 'alice', nickname: 'Alice', group: 'user', permissions: ['short_link:create', 'domain:use_default'] } }) })
     setMutationResult({
       data: ref(undefined),
       error: ref({}),
@@ -249,7 +261,7 @@ describe('pages', () => {
   })
 
   it('shows created short link actions', async () => {
-    setQueryResult({ data: ref({ user: { permissions: ['short_link:create', 'domain:use_default'] } }) })
+    setQueryResult({ data: ref({ user: { username: 'alice', nickname: 'Alice', group: 'user', permissions: ['short_link:create', 'domain:use_default'] } }) })
     setMutationResult()
     mount(HomePage)
 
@@ -260,6 +272,32 @@ describe('pages', () => {
     await fireEvent.click(screen.getByText('shortLinkCreate.copy'))
     expect(window.navigator.clipboard.writeText).toHaveBeenCalledWith('https://go.example.com/abc123')
     await fireEvent.click(screen.getByText('shortLinkCreate.reset'))
+  })
+
+  it('renders home as guest when current user is missing', () => {
+    setQueryResult({ data: ref({}) })
+    mount(HomePage)
+
+    expect(screen.getByText('nav.login')).toBeTruthy()
+    expect(screen.getByText('shortLinkCreate.permissionRequired')).toBeTruthy()
+  })
+
+  it('routes authenticated users from home account entry to console', async () => {
+    setQueryResult({
+      data: ref({
+        user: {
+          username: 'alice',
+          nickname: 'Alice',
+          group: 'user',
+          permissions: ['short_link:create', 'domain:use_default'],
+        },
+      }),
+    })
+    mount(HomePage)
+
+    await fireEvent.click(screen.getByText('Alice'))
+
+    expect(state.routerPush).toHaveBeenCalledWith('/link')
   })
 
   it('renders own links states and row actions', async () => {

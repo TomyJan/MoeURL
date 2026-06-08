@@ -20,6 +20,29 @@ export const messages = {
       createUser: '创建用户',
       notFound: '页面不存在',
     },
+    home: {
+      heroTitle: '把链接变短，把控制留在自己手里',
+      heroSummary: '粘贴目标链接，快速生成可管理、可控权限的短链。',
+      scrollHint: '继续了解 MoeURL',
+    },
+    homeIntro: {
+      permission: {
+        title: '权限可控',
+        description: '创建、管理和访问能力都通过权限表达，适合个人和小团队自托管。',
+      },
+      selfHosted: {
+        title: '自托管友好',
+        description: '数据、域名和运行环境都由部署者掌控，轻量维护，不绑定外部平台。',
+      },
+      management: {
+        title: '快速管理',
+        description: '短链列表、状态筛选和管理员维护入口已经形成基础闭环。',
+      },
+      modern: {
+        title: '现代体验',
+        description: '支持浅色、深色、国际化和 PWA 基础能力，后续页面可持续扩展。',
+      },
+    },
     filter: {
       status: '状态筛选',
       all: '全部',
@@ -89,6 +112,29 @@ export const messages = {
       adminUsers: 'Users',
       createUser: 'Create user',
       notFound: 'Page not found',
+    },
+    home: {
+      heroTitle: 'Shorten links while keeping control',
+      heroSummary: 'Paste a target URL and create a manageable short link with permission boundaries.',
+      scrollHint: 'Learn more about MoeURL',
+    },
+    homeIntro: {
+      permission: {
+        title: 'Permission first',
+        description: 'Creation, management, and access are expressed through permissions for self-hosted teams.',
+      },
+      selfHosted: {
+        title: 'Self-hosted friendly',
+        description: 'Keep your data, domains, and runtime under your own control with a lightweight stack.',
+      },
+      management: {
+        title: 'Fast management',
+        description: 'Link lists, status filters, and administrator maintenance already form a usable loop.',
+      },
+      modern: {
+        title: 'Modern experience',
+        description: 'Light mode, dark mode, i18n, and PWA basics are ready for the next product surfaces.',
+      },
     },
     filter: {
       status: 'Status',

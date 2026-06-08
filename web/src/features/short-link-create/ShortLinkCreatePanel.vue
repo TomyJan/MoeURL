@@ -60,8 +60,8 @@ const currentUserQuery = useQuery({
 })
 const canCreateShortLink = computed(
   () =>
-    currentUserQuery.data.value?.user.permissions.includes('short_link:create') &&
-    currentUserQuery.data.value?.user.permissions.includes('domain:use_default'),
+    currentUserQuery.data.value?.user?.permissions.includes('short_link:create') &&
+    currentUserQuery.data.value?.user?.permissions.includes('domain:use_default'),
 )
 
 const mutation = useMutation({

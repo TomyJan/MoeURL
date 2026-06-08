@@ -1,6 +1,7 @@
 import type { Component } from 'vue'
 
 export const componentStubs: Record<string, Component> = {
+  RouterLink: { props: ['to'], template: '<a :data-to="to"><slot /></a>' },
   RouterView: { template: '<div data-testid="router-view" />' },
   VAlert: { props: ['type', 'variant', 'color'], template: '<div role="alert"><slot /></div>' },
   VApp: { template: '<div><slot /></div>' },
