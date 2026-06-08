@@ -44,7 +44,7 @@ test('v0.0.1 initialization login short link and disabled redirect flow', async 
   await expect(page.getByRole('heading', { name: '我的短链' })).toBeVisible()
 
   await page.goto('/admin/user/new')
-  await page.getByLabel('账号').fill('alice')
+  await page.getByRole('textbox', { name: '账号' }).fill('alice')
   await page.getByLabel('密码').fill('alice-password')
   await page.getByLabel('昵称').fill('Alice')
   await page.getByRole('button', { name: '创建用户' }).click()

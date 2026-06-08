@@ -175,6 +175,37 @@ describe('ConsoleShell', () => {
     expect(within(screen.getByTestId('console-mobile-nav')).getByText('nav.links')).toBeTruthy()
   })
 
+  it('opens the mobile account menu and logs out from the topbar avatar', async () => {
+    mountShell()
+
+    await fireEvent.click(screen.getByLabelText('console.openAccountMenu'))
+
+    expect(screen.getByTestId('console-mobile-account-menu')).toBeTruthy()
+    expect(within(screen.getByTestId('console-mobile-account-menu')).getByText('Alice')).toBeTruthy()
+
+    await fireEvent.click(within(screen.getByTestId('console-mobile-account-menu')).getByText('nav.logout'))
+
+    expect(state.logoutMutate).toHaveBeenCalled()
+    expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['auth', 'me'] })
+    expect(state.routerPush).toHaveBeenCalledWith('/login')
+  })
+
+  it('closes the mobile account menu on outside click and Escape', async () => {
+    mountShell()
+
+    await fireEvent.click(screen.getByLabelText('console.openAccountMenu'))
+    expect(screen.getByTestId('console-mobile-account-menu')).toBeTruthy()
+
+    await fireEvent.pointerDown(document.body)
+    expect(screen.queryByTestId('console-mobile-account-menu')).toBeNull()
+
+    await fireEvent.click(screen.getByLabelText('console.openAccountMenu'))
+    expect(screen.getByTestId('console-mobile-account-menu')).toBeTruthy()
+
+    await fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByTestId('console-mobile-account-menu')).toBeNull()
+  })
+
   it('closes mobile navigation after choosing a route item', async () => {
     mountShell()
 

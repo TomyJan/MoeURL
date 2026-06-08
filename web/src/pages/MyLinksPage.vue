@@ -12,13 +12,13 @@
       </div>
     </div>
     <div class="console-data-panel" data-testid="console-data-panel">
-      <v-alert v-if="query.isError.value" type="error" variant="tonal">加载失败</v-alert>
+      <v-alert v-if="query.isError.value" type="error" variant="tonal">{{ t('links.loadFailed') }}</v-alert>
       <v-progress-linear v-if="query.isPending.value" indeterminate />
       <div v-else-if="links.length === 0" class="console-page__empty">
         <span class="console-page__empty-mark">M</span>
         <div>
-          <h2>暂无短链</h2>
-          <p>从左侧「新建短链」开始，生成后的链接会在这里集中管理。</p>
+          <h2>{{ t('links.emptyTitle') }}</h2>
+          <p>{{ t('links.emptyOwnDescription') }}</p>
         </div>
       </div>
       <ConsoleLinkList

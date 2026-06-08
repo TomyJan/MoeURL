@@ -11,7 +11,10 @@
     />
     <ConsoleTopbar
       :display-name="displayName"
+      :logout-pending="logoutMutation.isPending.value"
+      :username="username"
       @create-short-link="openCreatePanel"
+      @logout="submitLogout"
       @open-menu="mobileNavOpen = true"
     />
 

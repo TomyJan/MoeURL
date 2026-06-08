@@ -5,7 +5,7 @@
         <p class="console-page__eyebrow">{{ t('pageMeta.adminEyebrow') }}</p>
         <h1>{{ t('page.adminLinks') }}</h1>
       </div>
-      <span class="console-page__total">共 {{ total }} 条</span>
+      <span class="console-page__total">{{ t('adminLinks.total', { total }) }}</span>
     </div>
     <div class="console-page__tools">
       <div class="console-page__filters">
@@ -14,13 +14,13 @@
       </div>
     </div>
     <div class="console-data-panel" data-testid="console-data-panel">
-      <v-alert v-if="query.isError.value" type="error" variant="tonal">加载失败</v-alert>
+      <v-alert v-if="query.isError.value" type="error" variant="tonal">{{ t('adminLinks.loadFailed') }}</v-alert>
       <v-progress-linear v-if="query.isPending.value" indeterminate />
       <div v-else-if="links.length === 0" class="console-page__empty">
         <span class="console-page__empty-mark">A</span>
         <div>
-          <h2>暂无短链</h2>
-          <p>当前筛选条件下没有全站短链，调整状态或关键词后再查看。</p>
+          <h2>{{ t('links.emptyTitle') }}</h2>
+          <p>{{ t('adminLinks.emptyDescription') }}</p>
         </div>
       </div>
       <ConsoleLinkList

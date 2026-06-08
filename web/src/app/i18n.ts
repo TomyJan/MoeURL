@@ -116,6 +116,9 @@ export const messages = {
       disabled: '禁用',
     },
     links: {
+      loadFailed: '加载失败',
+      emptyTitle: '暂无短链',
+      emptyOwnDescription: '从新建短链入口开始，生成后的链接会在这里集中管理。',
       shortUrl: '短链',
       targetUrl: '目标链接',
       owner: '所有者',
@@ -131,6 +134,11 @@ export const messages = {
         delete: '删除',
         more: '更多操作',
       },
+    },
+    adminLinks: {
+      loadFailed: '加载失败',
+      emptyDescription: '当前筛选条件下没有全站短链，调整状态或关键词后再查看。',
+      total: '共 {total} 条',
     },
     shortLinkCreate: {
       eyebrow: '快速生成',
@@ -150,6 +158,7 @@ export const messages = {
       newShortLink: '新建短链',
       createShortLink: '创建短链',
       openMenu: '打开控制台菜单',
+      openAccountMenu: '打开账号菜单',
       closeMenu: '关闭菜单',
       closeCreate: '关闭',
       nav: {
@@ -188,6 +197,10 @@ export const messages = {
       preferenceLegend: '默认偏好',
       defaultLanguage: '默认语言',
       defaultTheme: '默认主题',
+      languages: {
+        zhCn: '简体中文',
+        en: 'English',
+      },
       submit: '初始化',
       failed: '初始化失败',
       hint: '初始化会创建管理员账号，并写入站点基础访问域名。',
@@ -382,6 +395,9 @@ export const messages = {
       disabled: 'Disabled',
     },
     links: {
+      loadFailed: 'Failed to load links',
+      emptyTitle: 'No short links',
+      emptyOwnDescription: 'Start from the create-link entry, then manage generated links here.',
       shortUrl: 'Short link',
       targetUrl: 'Target URL',
       owner: 'Owner',
@@ -397,6 +413,11 @@ export const messages = {
         delete: 'Delete',
         more: 'More actions',
       },
+    },
+    adminLinks: {
+      loadFailed: 'Failed to load links',
+      emptyDescription: 'No global short links match the current filters. Adjust status or keyword and try again.',
+      total: '{total} links',
     },
     shortLinkCreate: {
       eyebrow: 'Quick create',
@@ -416,6 +437,7 @@ export const messages = {
       newShortLink: 'New short link',
       createShortLink: 'Create short link',
       openMenu: 'Open console menu',
+      openAccountMenu: 'Open account menu',
       closeMenu: 'Close menu',
       closeCreate: 'Close',
       nav: {
@@ -454,6 +476,10 @@ export const messages = {
       preferenceLegend: 'Default preferences',
       defaultLanguage: 'Default language',
       defaultTheme: 'Default theme',
+      languages: {
+        zhCn: 'Simplified Chinese',
+        en: 'English',
+      },
       submit: 'Initialize',
       failed: 'Initialization failed',
       hint: 'Initialization creates the administrator account and stores the base access domains.',

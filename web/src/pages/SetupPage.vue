@@ -67,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { useMutation, useQuery } from '@tanstack/vue-query'
@@ -92,15 +92,15 @@ const form = reactive<SetupInput>({
   defaultTheme: 'system',
 })
 
-const languageItems = [
-  { title: '简体中文', value: 'zh-CN' },
-  { title: 'English', value: 'en' },
-]
-const themeItems = [
-  { title: '跟随系统', value: 'system' },
-  { title: '浅色', value: 'light' },
-  { title: '深色', value: 'dark' },
-]
+const languageItems = computed(() => [
+  { title: t('setup.languages.zhCn'), value: 'zh-CN' },
+  { title: t('setup.languages.en'), value: 'en' },
+])
+const themeItems = computed(() => [
+  { title: t('preferences.system'), value: 'system' },
+  { title: t('preferences.light'), value: 'light' },
+  { title: t('preferences.dark'), value: 'dark' },
+])
 const mutation = useMutation({
   mutationFn: setupSystem,
   onSuccess(result) {

@@ -343,7 +343,7 @@ describe('pages', () => {
   it('renders own links states and row actions', async () => {
     setQueryResult({ isError: ref(true) })
     const error = mount(MyLinksPage)
-    expect(screen.getByText('加载失败')).toBeTruthy()
+    expect(screen.getByText('links.loadFailed')).toBeTruthy()
     error.unmount()
 
     setQueryResult({ isPending: ref(true) })
@@ -353,13 +353,14 @@ describe('pages', () => {
 
     setQueryResult({ data: ref({ items: [] }) })
     const empty = mount(MyLinksPage)
-    expect(screen.getByText('暂无短链')).toBeTruthy()
+    expect(screen.getByText('links.emptyTitle')).toBeTruthy()
+    expect(screen.getByText('links.emptyOwnDescription')).toBeTruthy()
     expect(empty.container.querySelector('.console-page__empty')).toBeTruthy()
     empty.unmount()
 
     setQueryResult({ data: ref(undefined) })
     const missingData = mount(MyLinksPage)
-    expect(screen.getByText('暂无短链')).toBeTruthy()
+    expect(screen.getByText('links.emptyTitle')).toBeTruthy()
     missingData.unmount()
 
     const update = vi.fn()
@@ -466,7 +467,7 @@ describe('pages', () => {
     expect(screen.getByTestId('console-page-admin-links')).toBeTruthy()
     expect(screen.getByTestId('console-data-panel')).toBeTruthy()
     expect(screen.getByTestId('console-link-list')).toBeTruthy()
-    expect(screen.getByText('共 1 条')).toBeTruthy()
+    expect(screen.getByText('adminLinks.total')).toBeTruthy()
     expect(screen.getAllByText('owner-id').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Bobby').length).toBeGreaterThan(0)
     const rows = screen.getAllByTestId('console-link-row')
@@ -509,7 +510,7 @@ describe('pages', () => {
   it('renders admin links error, loading, and empty states', () => {
     setQueryResult({ isError: ref(true) })
     const error = mount(AdminLinksPage)
-    expect(screen.getByText('加载失败')).toBeTruthy()
+    expect(screen.getByText('adminLinks.loadFailed')).toBeTruthy()
     error.unmount()
 
     setQueryResult({ isPending: ref(true) })
@@ -519,14 +520,15 @@ describe('pages', () => {
 
     setQueryResult({ data: ref({ meta: { total: 0 }, items: [] }) })
     const empty = mount(AdminLinksPage)
-    expect(screen.getByText('暂无短链')).toBeTruthy()
-    expect(screen.getByText('共 0 条')).toBeTruthy()
+    expect(screen.getByText('links.emptyTitle')).toBeTruthy()
+    expect(screen.getByText('adminLinks.emptyDescription')).toBeTruthy()
+    expect(screen.getByText('adminLinks.total')).toBeTruthy()
     expect(empty.container.querySelector('.console-page__empty')).toBeTruthy()
     empty.unmount()
 
     setQueryResult({ data: ref(undefined) })
     mount(AdminLinksPage)
-    expect(screen.getByText('暂无短链')).toBeTruthy()
+    expect(screen.getByText('links.emptyTitle')).toBeTruthy()
   })
 
   it('renders setup form error and successful initialized state', async () => {
@@ -607,6 +609,16 @@ describe('pages', () => {
             createdAt: '2026-06-08T00:00:00Z',
             updatedAt: '2026-06-08T00:00:00Z',
           },
+          {
+            id: 'legacy-id',
+            username: 'legacy',
+            nickname: 'Legacy',
+            group: 'user',
+            status: 'active',
+            builtin: true,
+            createdAt: 'legacy-date',
+            updatedAt: 'legacy-date',
+          },
         ],
       }),
     })
@@ -616,12 +628,14 @@ describe('pages', () => {
 
     expect(screen.getByTestId('console-page-admin-users')).toBeTruthy()
     expect(screen.getByTestId('console-data-panel')).toBeTruthy()
-    expect(screen.getAllByTestId('console-user-row')).toHaveLength(2)
-    expect(screen.getAllByTestId('console-user-summary-actions')).toHaveLength(2)
+    expect(screen.getAllByTestId('console-user-row')).toHaveLength(3)
+    expect(screen.getAllByTestId('console-user-summary-actions')).toHaveLength(3)
     expect(screen.getByText('adminUsers.total')).toBeTruthy()
     expect(screen.getByText('alice')).toBeTruthy()
-    expect(screen.getByText('adminUsers.type.builtin')).toBeTruthy()
-    expect(screen.getAllByText(/2026-06-08T00:00:00Z/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('adminUsers.type.builtin').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('2026-06-08').length).toBeGreaterThan(0)
+    expect(screen.queryByText(/2026-06-08T00:00:00Z/)).toBeNull()
+    expect(screen.getByText('legacy-date')).toBeTruthy()
     expect(screen.queryByLabelText('adminUsers.labels.nickname')).toBeNull()
 
     expect(screen.getByText('adminUsers.paginationNotice')).toBeTruthy()

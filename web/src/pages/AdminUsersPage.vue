@@ -31,7 +31,7 @@
               <strong>{{ item.username }}</strong>
               <small>
                 <span>{{ item.group }}</span>
-                <span>{{ item.createdAt }}</span>
+                <span>{{ formatDate(item.createdAt) }}</span>
               </small>
             </div>
           </div>
@@ -191,5 +191,13 @@ function toggleMore(id: string) {
 
 function invalidateUsers() {
   void queryClient.invalidateQueries({ queryKey: ['admin-user'] })
+}
+
+function formatDate(value: string) {
+  const timestamp = Date.parse(value)
+  if (Number.isNaN(timestamp)) {
+    return value
+  }
+  return new Date(timestamp).toISOString().slice(0, 10)
 }
 </script>
