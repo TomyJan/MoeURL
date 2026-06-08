@@ -215,8 +215,8 @@ describe('pages', () => {
     setQueryResult({ data: ref({ user: { permissions: [] } }) })
     const guest = mount(HomePage)
 
-    expect(screen.getByText('请登录后创建短链')).toBeTruthy()
-    await fireEvent.click(screen.getByText('创建短链'))
+    expect(screen.getByText('shortLinkCreate.permissionRequired')).toBeTruthy()
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
     guest.unmount()
 
     const mutate = vi.fn()
@@ -230,7 +230,7 @@ describe('pages', () => {
     mount(HomePage)
 
     await fireEvent.update(screen.getByLabelText('https://example.com'), 'https://example.com')
-    await fireEvent.click(screen.getByText('创建短链'))
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
     expect(screen.getByText('invalid target')).toBeTruthy()
     expect(mutate).toHaveBeenCalledWith({ targetUrl: 'https://example.com' })
@@ -245,7 +245,7 @@ describe('pages', () => {
     })
     mount(HomePage)
 
-    expect(screen.getByText('创建失败，请检查链接和权限')).toBeTruthy()
+    expect(screen.getByText('shortLinkCreate.failed')).toBeTruthy()
   })
 
   it('shows created short link actions', async () => {
@@ -254,12 +254,12 @@ describe('pages', () => {
     mount(HomePage)
 
     await fireEvent.update(screen.getByLabelText('https://example.com'), 'https://example.com')
-    await fireEvent.click(screen.getByText('创建短链'))
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
     expect(screen.getByText('https://go.example.com/abc123')).toBeTruthy()
-    await fireEvent.click(screen.getByText('复制短链'))
+    await fireEvent.click(screen.getByText('shortLinkCreate.copy'))
     expect(window.navigator.clipboard.writeText).toHaveBeenCalledWith('https://go.example.com/abc123')
-    await fireEvent.click(screen.getByText('继续创建'))
+    await fireEvent.click(screen.getByText('shortLinkCreate.reset'))
   })
 
   it('renders own links states and row actions', async () => {

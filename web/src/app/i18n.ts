@@ -26,6 +26,14 @@ export const messages = {
       active: '启用',
       disabled: '禁用',
     },
+    shortLinkCreate: {
+      permissionRequired: '请登录后创建短链，或联系管理员开通权限。',
+      submit: '创建短链',
+      copy: '复制短链',
+      open: '打开短链',
+      reset: '继续创建',
+      failed: '创建失败，请检查链接和权限',
+    },
     adminUsers: {
       createUser: '创建用户',
       loadFailed: '加载失败',
@@ -87,6 +95,14 @@ export const messages = {
       all: 'All',
       active: 'Active',
       disabled: 'Disabled',
+    },
+    shortLinkCreate: {
+      permissionRequired: 'Sign in or ask an administrator for permission to create short links.',
+      submit: 'Create short link',
+      copy: 'Copy link',
+      open: 'Open link',
+      reset: 'Create another',
+      failed: 'Failed to create the short link. Check the URL and permissions.',
     },
     adminUsers: {
       createUser: 'Create user',
