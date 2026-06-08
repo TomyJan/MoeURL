@@ -16,3 +16,6 @@ web/coverage/
 
 # Logs
 *.log
+
+# Local brainstorming prototypes
+.superpowers/brainstorm/
