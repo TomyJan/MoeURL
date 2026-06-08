@@ -24,9 +24,9 @@ test('v0.0.1 initialization login short link and disabled redirect flow', async 
   await expect(page.getByText('Initialized')).toBeVisible()
 
   await page.goto('/login')
-  await page.getByLabel('Username').fill('admin')
-  await page.getByLabel('Password').fill('wrong-password')
-  await page.getByRole('button', { name: 'Login' }).click()
+  await page.getByLabel('账号').fill('admin')
+  await page.getByLabel('密码').fill('wrong-password')
+  await page.getByRole('button', { name: '登录' }).click()
   await expect(page.getByText('Invalid username or password')).toBeVisible()
   const login = await page.request.post('/api/v1/auth/login', {
     data: { username: 'admin', password: 'admin-password' },
@@ -65,7 +65,7 @@ test('v0.0.1 initialization login short link and disabled redirect flow', async 
   })
 
   await page.goto('/')
-  await page.getByLabel('https://example.com').fill('https://example.com/e2e-target')
+  await page.getByLabel('输入链接').fill('https://example.com/e2e-target')
   await page.getByRole('button', { name: '创建短链' }).click()
   const createdLink = page.getByRole('link', { name: new RegExp(`${e2eHostPattern}\\/[a-z0-9]{6}`) })
   await expect(createdLink).toBeVisible()
@@ -81,7 +81,7 @@ test('v0.0.1 initialization login short link and disabled redirect flow', async 
   await page.getByRole('button', { name: '新建短链' }).first().click()
   const createDialog = page.getByRole('dialog')
   await expect(createDialog.getByRole('heading', { name: '创建短链' })).toBeVisible()
-  await createDialog.getByLabel('https://example.com').fill('https://example.com/e2e-console-target')
+  await createDialog.getByLabel('输入链接').fill('https://example.com/e2e-console-target')
   await createDialog.getByRole('button', { name: '创建短链' }).click()
   const consoleCreatedLink = createDialog.getByRole('link', { name: new RegExp(`${e2eHostPattern}\\/[a-z0-9]{6}`) })
   await expect(consoleCreatedLink).toBeVisible()

@@ -7,9 +7,9 @@
 
     <section class="auth-page__panel" data-testid="auth-panel">
       <aside class="auth-page__story">
-        <p class="auth-page__eyebrow">Private console</p>
+        <p class="auth-page__eyebrow">{{ t('auth.privateConsole') }}</p>
         <h1>{{ t('page.login') }}</h1>
-        <p>进入控制台，继续管理你的短链、权限和用户。</p>
+        <p>{{ t('auth.consoleSummary') }}</p>
         <div class="auth-page__signal-card" aria-hidden="true">
           <span>moe.url</span>
           <strong>/console</strong>
@@ -19,15 +19,25 @@
 
       <form class="auth-page__form" @submit.prevent="submit">
         <div class="auth-page__form-heading">
-          <span>Account</span>
-          <h2>控制台入口</h2>
+          <span>MoeURL</span>
+          <h2>{{ t('auth.consoleEntry') }}</h2>
         </div>
-        <v-text-field v-model="username" label="Username" variant="outlined" />
-        <v-text-field v-model="password" label="Password" type="password" variant="outlined" />
-        <v-alert v-if="mutation.isError.value" class="auth-page__alert" type="error" variant="tonal">
-          {{ mutation.error.value?.message || 'Login failed' }}
-        </v-alert>
-        <v-btn class="auth-page__submit" color="primary" :loading="mutation.isPending.value" type="submit">Login</v-btn>
+        <v-text-field v-model="username" :label="t('auth.username')" variant="outlined" />
+        <v-text-field v-model="password" :label="t('auth.password')" type="password" variant="outlined" />
+        <Transition name="moe-overlay">
+          <v-snackbar
+            v-if="mutation.isError.value"
+            class="auth-page__toast"
+            data-testid="auth-error-toast"
+            :model-value="true"
+            :timeout="5000"
+          >
+            {{ mutation.error.value?.message || t('auth.loginFailed') }}
+          </v-snackbar>
+        </Transition>
+        <v-btn class="auth-page__submit" color="primary" :loading="mutation.isPending.value" type="submit">
+          {{ t('auth.loginSubmit') }}
+        </v-btn>
       </form>
     </section>
   </main>
@@ -202,7 +212,7 @@ function submit() {
   line-height: 1.15;
 }
 
-.auth-page__alert {
+.auth-page__toast {
   border-radius: 24px;
 }
 

@@ -99,7 +99,10 @@ describe('ShortLinkCreatePanel', () => {
 
     expect(container.querySelector('.short-link-create-panel__shell')).toBeTruthy()
     expect(container.querySelector('.short-link-create-panel__field-row')).toBeTruthy()
-    expect((screen.getByLabelText('https://example.com') as HTMLInputElement).disabled).toBe(true)
+    const targetInput = screen.getByLabelText('shortLinkCreate.targetLabel') as HTMLInputElement
+    expect(targetInput.disabled).toBe(true)
+    expect(targetInput.placeholder).toBe('https://example.com')
+    expect(screen.queryByText(/^https$/i)).toBeNull()
     expect(screen.getByText('shortLinkCreate.permissionRequired')).toBeTruthy()
 
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
@@ -114,10 +117,12 @@ describe('ShortLinkCreatePanel', () => {
 
     mountPanel({ mode: 'full' })
 
-    await fireEvent.update(screen.getByLabelText('https://example.com'), 'https://example.com')
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
     expect(mutate).toHaveBeenCalledWith({ targetUrl: 'https://example.com' })
+    expect(screen.getByTestId('short-link-create-result')).toBeTruthy()
+    expect(screen.getByText('shortLinkCreate.successTitle')).toBeTruthy()
     expect(screen.getByText('https://go.example.com/abc123')).toBeTruthy()
 
     await fireEvent.click(screen.getByText('shortLinkCreate.copy'))

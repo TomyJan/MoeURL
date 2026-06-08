@@ -6,6 +6,7 @@
     </RouterLink>
 
     <nav class="home-header__actions">
+      <PreferenceSwitcher />
       <v-btn v-if="isGuest" class="home-header__login" to="/login" variant="text">{{ t('nav.login') }}</v-btn>
       <button v-else class="home-header__account" type="button" @click="$emit('consoleClick')">
         <span class="home-header__avatar">{{ avatarText }}</span>
@@ -19,6 +20,8 @@
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+
+import PreferenceSwitcher from '@/shared/preferences/PreferenceSwitcher.vue'
 
 const props = defineProps<{
   displayName: string
@@ -94,5 +97,21 @@ const avatarText = computed(() => (props.displayName || 'M').slice(0, 1).toUpper
   background: color-mix(in srgb, var(--moeurl-surface-glass) 86%, transparent);
   box-shadow: 0 12px 32px color-mix(in srgb, rgb(var(--v-theme-primary)) 8%, transparent);
   backdrop-filter: blur(18px);
+}
+
+@media (max-width: 620px) {
+  .home-header {
+    width: min(100% - 20px, 1120px);
+    gap: 10px;
+    padding-block: 16px;
+  }
+
+  .home-header__account span:last-child {
+    display: none;
+  }
+
+  .home-header__actions {
+    gap: 6px;
+  }
 }
 </style>

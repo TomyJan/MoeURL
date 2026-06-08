@@ -6,7 +6,16 @@ import { componentStubs } from '@/test/component-stubs'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
+    locale: { value: 'zh-CN' },
     t: (key: string) => key,
+  }),
+}))
+
+vi.mock('vuetify/framework', () => ({
+  useTheme: () => ({
+    global: {
+      name: { value: 'moeurlLight' },
+    },
   }),
 }))
 
@@ -31,6 +40,9 @@ describe('HomeHeader', () => {
 
     expect(screen.getByText('MoeURL')).toBeTruthy()
     expect(screen.getByText('nav.login')).toBeTruthy()
+    expect(screen.getByRole('group', { name: 'app preferences' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '切换语言' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '切换主题' })).toBeTruthy()
   })
 
   it('emits console navigation when authenticated account is clicked', async () => {

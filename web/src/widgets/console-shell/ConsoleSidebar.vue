@@ -13,6 +13,9 @@
     </v-btn>
 
     <nav class="console-sidebar__nav">
+      <v-btn to="/" class="console-sidebar__nav-item console-sidebar__nav-item--home" variant="text">
+        {{ t('console.backHome') }}
+      </v-btn>
       <v-btn v-for="item in navItems" :key="item.to" :to="item.to" class="console-sidebar__nav-item" variant="text">
         {{ t(item.labelKey) }}
       </v-btn>

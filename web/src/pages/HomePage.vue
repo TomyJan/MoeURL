@@ -2,8 +2,8 @@
   <div class="home-page">
     <HomeHeader :display-name="currentUserName" :is-guest="isGuest" @console-click="goConsole" />
 
-    <main class="home-page__hero">
-      <section class="home-page__hero-panel" data-testid="home-hero-panel">
+    <main class="home-page__hero" data-testid="home-hero-panel">
+      <section class="home-page__hero-content">
         <div class="home-page__copy">
           <p class="home-page__eyebrow">MoeURL</p>
           <h1>{{ t('home.heroTitle') }}</h1>
@@ -70,24 +70,17 @@ function goConsole() {
   min-height: calc(100vh - 86px);
   grid-template-rows: 1fr auto;
   justify-items: center;
-  padding: 34px 16px 26px;
+  padding: 24px 16px 26px;
 }
 
-.home-page__hero-panel {
+.home-page__hero-content {
   position: relative;
   display: grid;
   justify-items: center;
   align-self: center;
   width: min(880px, 100%);
-  padding: clamp(20px, 3.5vw, 34px);
-  border: 1px solid var(--moeurl-outline);
-  border-radius: clamp(34px, 6vw, 56px);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--moeurl-surface-glass) 92%, white 8%), var(--moeurl-surface-glass)),
-    var(--moeurl-surface-glass);
-  box-shadow: var(--moeurl-shadow-strong);
+  padding: clamp(10px, 2vw, 22px);
   text-align: center;
-  backdrop-filter: blur(26px);
 }
 
 .home-page__copy {
@@ -125,7 +118,7 @@ function goConsole() {
 .home-page__tool {
   display: grid;
   gap: 12px;
-  width: min(820px, 100%);
+  width: min(760px, 100%);
   margin-top: clamp(18px, 3vw, 26px);
 }
 
@@ -180,9 +173,8 @@ function goConsole() {
     padding-top: 18px;
   }
 
-  .home-page__hero-panel {
-    padding: 18px;
-    border-radius: 34px;
+  .home-page__hero-content {
+    padding: 8px;
   }
 }
 </style>

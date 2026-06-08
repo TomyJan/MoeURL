@@ -46,17 +46,17 @@ describe('vuetify', () => {
 
     expect(moeurlDarkTheme.dark).toBe(true)
     expect(moeurlDarkTheme.colors.primary).toBe('#65d6b1')
-    expect(moeurlDarkTheme.colors.background).toBe('#10211e')
+    expect(moeurlDarkTheme.colors.background).toBe('#10231f')
     expect(moeurlDarkTheme.colors.secondary).toBe('#ecb65c')
     expect(moeurlDarkTheme.colors['on-background']).toBe('#effdf6')
     expect(moeurlDarkTheme.variables).toEqual(
       expect.objectContaining({
-        'app-elevated-surface': '#17231f',
-        'app-glass-surface': 'rgba(23, 35, 31, 0.72)',
-        'app-hero-glow': 'rgba(101, 214, 177, 0.16)',
-        'app-soft-surface': '#111816',
-        'app-outline': 'rgba(255, 255, 255, 0.08)',
-        'app-ring': 'rgba(101, 214, 177, 0.22)',
+        'app-elevated-surface': '#203a34',
+        'app-glass-surface': 'rgba(31, 56, 49, 0.76)',
+        'app-hero-glow': 'rgba(101, 214, 177, 0.24)',
+        'app-soft-surface': '#142b26',
+        'app-outline': 'rgba(199, 244, 226, 0.12)',
+        'app-ring': 'rgba(101, 214, 177, 0.28)',
         'radius-panel': '32px',
       }),
     )

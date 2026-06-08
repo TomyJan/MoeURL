@@ -27,6 +27,7 @@ const state = vi.hoisted(() => ({
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
+    locale: ref('zh-CN'),
     t: (key: string) => key,
   }),
 }))
@@ -35,6 +36,14 @@ vi.mock('vue-router', () => ({
   RouterLink: { props: ['to'], template: '<a :data-to="to"><slot /></a>' },
   useRouter: () => ({
     push: state.routerPush,
+  }),
+}))
+
+vi.mock('vuetify/framework', () => ({
+  useTheme: () => ({
+    global: {
+      name: ref('moeurlLight'),
+    },
   }),
 }))
 
@@ -185,10 +194,11 @@ describe('pages', () => {
 
     expect(screen.getByTestId('auth-page-login')).toBeTruthy()
     expect(screen.getByTestId('auth-panel')).toBeTruthy()
-    await fireEvent.update(screen.getByLabelText('Username'), 'alice')
-    await fireEvent.update(screen.getByLabelText('Password'), 'secret')
-    await fireEvent.click(screen.getByText('Login'))
+    await fireEvent.update(screen.getByLabelText('auth.username'), 'alice')
+    await fireEvent.update(screen.getByLabelText('auth.password'), 'secret')
+    await fireEvent.click(screen.getByText('auth.loginSubmit'))
 
+    expect(screen.getByTestId('auth-error-toast')).toBeTruthy()
     expect(screen.getByText('bad credentials')).toBeTruthy()
     expect(mutate).toHaveBeenCalledWith({ username: 'alice', password: 'secret' })
     expect(state.queryClient.setQueryData).toHaveBeenCalledWith(
@@ -257,7 +267,7 @@ describe('pages', () => {
     })
     mount(HomePage)
 
-    await fireEvent.update(screen.getByLabelText('https://example.com'), 'https://example.com')
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
     expect(screen.getByText('invalid target')).toBeTruthy()
@@ -281,7 +291,7 @@ describe('pages', () => {
     setMutationResult()
     mount(HomePage)
 
-    await fireEvent.update(screen.getByLabelText('https://example.com'), 'https://example.com')
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
     expect(screen.getByText('https://go.example.com/abc123')).toBeTruthy()
@@ -487,7 +497,8 @@ describe('pages', () => {
       mutate: vi.fn(),
     })
     const login = mount(LoginPage)
-    expect(screen.getByText('Login failed')).toBeTruthy()
+    expect(screen.getByTestId('auth-error-toast')).toBeTruthy()
+    expect(screen.getByText('auth.loginFailed')).toBeTruthy()
     login.unmount()
 
     setQueryResult({ data: ref({ initialized: false }) })

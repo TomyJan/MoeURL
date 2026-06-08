@@ -23,9 +23,14 @@ export const componentStubs: Record<string, Component> = {
     template: '<select :aria-label="label || \'select\'" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :key="typeof item === \'string\' ? item : item.value" :value="typeof item === \'string\' ? item : item.value">{{ typeof item === \'string\' ? item : item.title }}</option></select>',
   },
   VTable: { template: '<table><slot /></table>' },
+  VSnackbar: {
+    props: ['modelValue', 'timeout'],
+    emits: ['update:modelValue'],
+    template: '<div v-if="modelValue" role="status"><slot /></div>',
+  },
   VTextField: {
-    props: ['disabled', 'errorMessages', 'label', 'modelValue', 'type'],
+    props: ['disabled', 'errorMessages', 'label', 'modelValue', 'placeholder', 'type'],
     emits: ['update:modelValue', 'keyup'],
-    template: '<label>{{ label }}<input :aria-label="label" :disabled="disabled" :type="type || \'text\'" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" @keyup="$emit(\'keyup\', $event)" /><span v-if="errorMessages">{{ errorMessages }}</span></label>',
+    template: '<label>{{ label }}<input :aria-label="label" :disabled="disabled" :placeholder="placeholder" :type="type || \'text\'" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" @keyup="$emit(\'keyup\', $event)" /><span v-if="errorMessages">{{ errorMessages }}</span></label>',
   },
 }

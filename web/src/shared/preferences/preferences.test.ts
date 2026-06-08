@@ -33,11 +33,29 @@ describe('preferences', () => {
     expect(loadPreferences()).toEqual({ language: 'en', theme: 'dark' })
   })
 
+  it('loads the explicit system theme preference', () => {
+    window.localStorage.setItem('moeurl.theme', 'system')
+
+    expect(loadPreferences().theme).toBe('system')
+  })
+
+  it('loads the explicit light theme preference', () => {
+    window.localStorage.setItem('moeurl.theme', 'light')
+
+    expect(loadPreferences().theme).toBe('light')
+  })
+
   it('ignores unsupported stored values', () => {
     window.localStorage.setItem('moeurl.language', 'fr')
     window.localStorage.setItem('moeurl.theme', 'sepia')
 
     expect(loadPreferences()).toEqual({ language: 'zh-CN', theme: 'system' })
+  })
+
+  it('loads the explicit zh-CN language preference', () => {
+    window.localStorage.setItem('moeurl.language', 'zh-CN')
+
+    expect(loadPreferences().language).toBe('zh-CN')
   })
 
   it('resolves system theme from media query', () => {
@@ -55,6 +73,23 @@ describe('preferences', () => {
 
   it('resolves explicit dark theme', () => {
     expect(resolveVuetifyTheme('dark')).toBe('moeurlDark')
+  })
+
+  it('falls back safely when browser storage and media query are unavailable', () => {
+    vi.stubGlobal('window', {})
+
+    expect(loadPreferences()).toEqual({ language: 'zh-CN', theme: 'system' })
+    expect(() => saveLanguagePreference('zh-CN')).not.toThrow()
+    expect(() => saveThemePreference('system')).not.toThrow()
+    expect(resolveVuetifyTheme('system')).toBe('moeurlLight')
+  })
+
+  it('resolves system theme to light when matchMedia is unavailable', () => {
+    vi.stubGlobal('window', {
+      localStorage: createTestStorage(),
+    })
+
+    expect(resolveVuetifyTheme('system')).toBe('moeurlLight')
   })
 })
 

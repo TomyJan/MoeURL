@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/vue'
+import { render, screen } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
@@ -56,51 +56,34 @@ describe('App', () => {
   })
 
   it('renders the route outlet without global product navigation', () => {
-    render(App, { global: { stubs: componentStubs } })
+    render(App, {
+      global: {
+        stubs: {
+          ...componentStubs,
+          RouterView: {
+            template: '<div data-testid="router-view"><slot :Component="{ template: \'<section data-testid=\\\'route-component\\\'>route</section>\' }" /></div>',
+          },
+        },
+      },
+    })
 
     expect(screen.getByTestId('router-view')).toBeTruthy()
+    expect(screen.getByTestId('route-component')).toBeTruthy()
     expect(screen.queryByText('nav.links')).toBeNull()
     expect(screen.queryByText('nav.admin')).toBeNull()
   })
 
-  it('persists toolbar language and theme selections', async () => {
-    render(App, { global: { stubs: componentStubs } })
-
-    const preferences = screen.getByLabelText('app preferences')
-    expect(preferences.classList.contains('app-preferences--compact')).toBe(true)
-    expect(preferences.classList.contains('app-preferences--home')).toBe(true)
-    await fireEvent.click(screen.getByRole('button', { name: '切换语言' }))
-    await fireEvent.click(screen.getByRole('button', { name: '切换主题' }))
-
-    expect(preferenceSpies.saveLanguagePreference).toHaveBeenCalledWith('en')
-    expect(preferenceSpies.saveThemePreference).toHaveBeenCalledWith('dark')
-    expect(state.themeName.value).toBe('moeurlDark')
-  })
-
-  it('moves global preferences away from the console sidebar', () => {
-    state.routePath.value = '/link'
-
+  it('leaves preference controls to page layouts instead of floating globally', () => {
     render(App, { global: { stubs: componentStubs } })
 
     expect(screen.queryByLabelText('app preferences')).toBeNull()
+    expect(screen.queryByRole('button', { name: '切换语言' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '切换主题' })).toBeNull()
   })
 
-  it('cycles preference button labels', async () => {
+  it('wraps route changes with a reusable transition boundary', () => {
     render(App, { global: { stubs: componentStubs } })
 
-    const languageButton = screen.getByRole('button', { name: '切换语言' })
-    const themeButton = screen.getByRole('button', { name: '切换主题' })
-
-    expect(languageButton.textContent).toContain('CN')
-    await fireEvent.click(languageButton)
-    expect(languageButton.textContent).toContain('EN')
-    await fireEvent.click(languageButton)
-    expect(languageButton.textContent).toContain('CN')
-
-    expect(themeButton.textContent).toContain('Light')
-    await fireEvent.click(themeButton)
-    expect(themeButton.textContent).toContain('Dark')
-    await fireEvent.click(themeButton)
-    expect(themeButton.textContent).toContain('Auto')
+    expect(screen.getByTestId('app-route-transition')).toBeTruthy()
   })
 })

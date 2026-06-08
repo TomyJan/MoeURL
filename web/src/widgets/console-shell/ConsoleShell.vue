@@ -15,37 +15,44 @@
       @open-menu="mobileNavOpen = true"
     />
 
-    <div v-if="mobileNavOpen" class="console-shell__mobile-nav" data-testid="console-mobile-nav">
-      <div class="console-shell__mobile-panel">
-        <button class="console-shell__mobile-close" type="button" @click="mobileNavOpen = false">
-          {{ t('console.closeMenu') }}
-        </button>
-        <v-btn color="primary" variant="flat" @click="openCreatePanel">{{ t('console.newShortLink') }}</v-btn>
-        <nav>
-          <v-btn v-for="item in navItems" :key="item.to" :to="item.to" variant="text">
-            {{ t(item.labelKey) }}
-          </v-btn>
-        </nav>
+    <Transition name="moe-overlay">
+      <div v-if="mobileNavOpen" class="console-shell__mobile-nav" data-testid="console-mobile-nav">
+        <div class="console-shell__mobile-panel moe-overlay-panel" data-testid="console-drawer-transition">
+          <button class="console-shell__mobile-close" type="button" @click="mobileNavOpen = false">
+            {{ t('console.closeMenu') }}
+          </button>
+          <v-btn color="primary" variant="flat" @click="openCreatePanel">{{ t('console.newShortLink') }}</v-btn>
+          <nav>
+            <v-btn to="/" variant="text">{{ t('console.backHome') }}</v-btn>
+            <v-btn v-for="item in navItems" :key="item.to" :to="item.to" variant="text">
+              {{ t(item.labelKey) }}
+            </v-btn>
+          </nav>
+        </div>
       </div>
-    </div>
+    </Transition>
 
     <main class="console-shell__main">
-      <div class="console-shell__workspace">
-        <slot>
-          <RouterView />
-        </slot>
-      </div>
+      <Transition name="moe-layout" mode="out-in">
+        <div :key="$route?.path || 'console'" class="console-shell__workspace">
+          <slot>
+            <RouterView />
+          </slot>
+        </div>
+      </Transition>
     </main>
 
-    <div v-if="createPanelOpen" class="console-shell__dialog" role="dialog" aria-modal="true">
-      <section class="console-shell__dialog-panel">
-        <div class="console-shell__dialog-heading">
-          <h2>{{ t('console.createShortLink') }}</h2>
-          <button type="button" @click="createPanelOpen = false">{{ t('console.closeCreate') }}</button>
-        </div>
-        <ShortLinkCreatePanel mode="compact" />
-      </section>
-    </div>
+    <Transition name="moe-overlay">
+      <div v-if="createPanelOpen" class="console-shell__dialog" role="dialog" aria-modal="true">
+        <section class="console-shell__dialog-panel moe-overlay-panel" data-testid="console-create-transition">
+          <div class="console-shell__dialog-heading">
+            <h2>{{ t('console.createShortLink') }}</h2>
+            <button type="button" @click="createPanelOpen = false">{{ t('console.closeCreate') }}</button>
+          </div>
+          <ShortLinkCreatePanel mode="compact" />
+        </section>
+      </div>
+    </Transition>
   </div>
 </template>
 

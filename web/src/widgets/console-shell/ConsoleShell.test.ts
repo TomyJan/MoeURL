@@ -81,6 +81,7 @@ describe('ConsoleShell', () => {
 
     expect(container.querySelector('.console-shell__workspace')).toBeTruthy()
     expect(screen.getByText('console content')).toBeTruthy()
+    expect(screen.getByText('console.backHome')).toBeTruthy()
     expect(screen.getByText('nav.links')).toBeTruthy()
     expect(screen.queryByText('nav.admin')).toBeNull()
     expect(screen.queryByText('nav.users')).toBeNull()
@@ -111,6 +112,7 @@ describe('ConsoleShell', () => {
 
     await fireEvent.click(screen.getAllByText('console.newShortLink')[0])
 
+    expect(screen.getByTestId('console-create-transition')).toBeTruthy()
     expect(screen.getByText('console.createShortLink')).toBeTruthy()
     expect(screen.getByText('shortLinkCreate.submit')).toBeTruthy()
   })
@@ -123,6 +125,8 @@ describe('ConsoleShell', () => {
     await fireEvent.click(screen.getByLabelText('console.openMenu'))
 
     expect(screen.getByTestId('console-mobile-nav')).toBeTruthy()
+    expect(screen.getByTestId('console-drawer-transition')).toBeTruthy()
+    expect(within(screen.getByTestId('console-mobile-nav')).getByText('console.backHome')).toBeTruthy()
     expect(within(screen.getByTestId('console-mobile-nav')).getByText('nav.links')).toBeTruthy()
   })
 
