@@ -8,6 +8,7 @@ import { componentStubs } from '@/test/component-stubs'
 const state = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
   logoutMutate: vi.fn(),
+  routerPush: vi.fn(),
   queryResult: {},
   routePath: '/link',
 }))
@@ -32,6 +33,9 @@ vi.mock('vue-router', () => ({
   RouterView: { template: '<div data-testid="router-view" />' },
   useRoute: () => ({
     path: state.routePath,
+  }),
+  useRouter: () => ({
+    push: state.routerPush,
   }),
 }))
 
@@ -86,6 +90,7 @@ describe('ConsoleShell', () => {
   beforeEach(() => {
     state.invalidateQueries.mockReset()
     state.logoutMutate.mockReset()
+    state.routerPush.mockReset()
     state.routePath = '/link'
     setCurrentUser({
       username: 'alice',
@@ -170,6 +175,15 @@ describe('ConsoleShell', () => {
     expect(within(screen.getByTestId('console-mobile-nav')).getByText('nav.links')).toBeTruthy()
   })
 
+  it('closes mobile navigation after choosing a route item', async () => {
+    mountShell()
+
+    await fireEvent.click(screen.getByLabelText('console.openMenu'))
+    await fireEvent.click(within(screen.getByTestId('console-mobile-nav')).getByText('nav.links'))
+
+    expect(screen.queryByTestId('console-mobile-nav')).toBeNull()
+  })
+
   it('logs out from the sidebar account area', async () => {
     mountShell()
 
@@ -177,5 +191,6 @@ describe('ConsoleShell', () => {
 
     expect(state.logoutMutate).toHaveBeenCalled()
     expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['auth', 'me'] })
+    expect(state.routerPush).toHaveBeenCalledWith('/login')
   })
 })

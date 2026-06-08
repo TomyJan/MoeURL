@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="switcherRef"
     class="preference-switcher"
     :class="[`preference-switcher--${density}`, `preference-switcher--${placement}`]"
     role="group"
@@ -81,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { LanguagePreference, ThemePreference } from './preferences'
@@ -100,6 +101,7 @@ withDefaults(
 
 const { language, setLanguage, setTheme, themeMode } = useAppPreferences()
 const { t } = useI18n()
+const switcherRef = ref<globalThis.HTMLElement | null>(null)
 const languageOpen = ref(false)
 const themeOpen = ref(false)
 
@@ -137,6 +139,35 @@ function selectTheme(value: ThemePreference) {
   setTheme(value)
   themeOpen.value = false
 }
+
+function closeMenus() {
+  languageOpen.value = false
+  themeOpen.value = false
+}
+
+function handlePointerDown(event: globalThis.PointerEvent) {
+  const target = event.target
+  if (target instanceof globalThis.Node && switcherRef.value?.contains(target)) {
+    return
+  }
+  closeMenus()
+}
+
+function handleKeyDown(event: globalThis.KeyboardEvent) {
+  if (event.key === 'Escape') {
+    closeMenus()
+  }
+}
+
+onMounted(() => {
+  globalThis.document?.addEventListener('pointerdown', handlePointerDown)
+  globalThis.document?.addEventListener('keydown', handleKeyDown)
+})
+
+onBeforeUnmount(() => {
+  globalThis.document?.removeEventListener('pointerdown', handlePointerDown)
+  globalThis.document?.removeEventListener('keydown', handleKeyDown)
+})
 </script>
 
 <style scoped>

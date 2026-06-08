@@ -13,10 +13,13 @@ import type { LanguagePreference, ThemePreference } from './preferences'
 const language = ref<LanguagePreference>('zh-CN')
 const themeMode = ref<ThemePreference>('system')
 let preferencesLoaded = false
+let systemThemeListenerInstalled = false
+let activeThemeName: { value: string } | undefined
 
 export function useAppPreferences() {
   const { locale } = useI18n()
   const theme = useTheme()
+  activeThemeName = theme.global.name
 
   if (!preferencesLoaded) {
     preferencesLoaded = true
@@ -27,6 +30,7 @@ export function useAppPreferences() {
 
   locale.value = language.value
   theme.global.name.value = resolveVuetifyTheme(themeMode.value)
+  installSystemThemeListener()
 
   function setLanguage(value: LanguagePreference) {
     language.value = value
@@ -46,4 +50,21 @@ export function useAppPreferences() {
     setTheme,
     themeMode,
   }
+}
+
+function installSystemThemeListener() {
+  if (systemThemeListenerInstalled) {
+    return
+  }
+  const mediaQuery = globalThis.window?.matchMedia?.('(prefers-color-scheme: dark)')
+  if (!mediaQuery?.addEventListener) {
+    return
+  }
+  systemThemeListenerInstalled = true
+  mediaQuery.addEventListener('change', (event) => {
+    if (themeMode.value !== 'system') {
+      return
+    }
+    activeThemeName!.value = event.matches ? 'moeurlDark' : 'moeurlLight'
+  })
 }

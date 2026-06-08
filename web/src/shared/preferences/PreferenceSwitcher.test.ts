@@ -112,4 +112,20 @@ describe('PreferenceSwitcher', () => {
       expect(preferenceSpies.saveLanguagePreference).toHaveBeenCalledWith('en')
     })
   })
+
+  it('closes open menus from outside click and Escape', async () => {
+    render(PreferenceSwitcher)
+
+    await fireEvent.click(screen.getByRole('button', { name: '选择语言' }))
+    expect(screen.getByRole('menu', { name: '语言选项' })).toBeTruthy()
+
+    await fireEvent.pointerDown(document.body)
+    expect(screen.queryByRole('menu', { name: '语言选项' })).toBeNull()
+
+    await fireEvent.click(screen.getByRole('button', { name: '选择主题' }))
+    expect(screen.getByRole('menu', { name: '主题选项' })).toBeTruthy()
+
+    await fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('menu', { name: '主题选项' })).toBeNull()
+  })
 })

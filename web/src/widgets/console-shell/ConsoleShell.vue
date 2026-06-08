@@ -19,8 +19,8 @@
       <div v-if="mobileNavOpen" class="console-shell__mobile-nav" data-testid="console-mobile-nav">
         <div class="console-shell__mobile-panel moe-overlay-panel" data-testid="console-drawer-transition">
           <div class="console-shell__mobile-head">
-            <RouterLink class="console-shell__mobile-brand" to="/">MoeURL</RouterLink>
-            <RouterLink class="console-shell__mobile-home" to="/">
+            <RouterLink class="console-shell__mobile-brand" to="/" @click="closeMobileNav">MoeURL</RouterLink>
+            <RouterLink class="console-shell__mobile-home" to="/" @click="closeMobileNav">
               <span aria-hidden="true">↗</span>
               {{ t('console.backHome') }}
             </RouterLink>
@@ -38,7 +38,7 @@
             <section v-for="group in navGroups" :key="group.labelKey" class="console-shell__mobile-nav-group">
               <p>{{ t(group.labelKey) }}</p>
               <template v-for="item in group.items" :key="item.to || item.labelKey">
-                <v-btn v-if="item.to" :to="item.to" variant="text">
+                <v-btn v-if="item.to" :to="item.to" variant="text" @click="closeMobileNav">
                   {{ t(item.labelKey) }}
                 </v-btn>
                 <div v-else class="console-shell__mobile-nav-subgroup">
@@ -59,6 +59,7 @@
                         class="console-shell__mobile-nav-child"
                         :to="child.to"
                         variant="text"
+                        @click="closeMobileNav"
                       >
                         {{ t(child.labelKey) }}
                       </v-btn>
@@ -100,7 +101,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterView, useRoute } from 'vue-router'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { logout, me } from '@/entities/auth/api'
@@ -112,6 +113,7 @@ import type { ConsoleNavGroup } from './ConsoleSidebar.vue'
 
 const { t } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const queryClient = useQueryClient()
 const mobileNavOpen = ref(false)
 const createPanelOpen = ref(false)
@@ -169,12 +171,17 @@ const logoutMutation = useMutation({
   mutationFn: logout,
   onSuccess() {
     void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
+    void router.push('/login')
   },
 })
 
+function closeMobileNav() {
+  mobileNavOpen.value = false
+}
+
 function openCreatePanel() {
   createPanelOpen.value = true
-  mobileNavOpen.value = false
+  closeMobileNav()
 }
 
 function submitLogout() {

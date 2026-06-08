@@ -58,7 +58,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useMutation, useQuery } from '@tanstack/vue-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { me } from '@/entities/auth/api'
 import { createShortLink } from '@/entities/short-link/api'
@@ -73,6 +73,7 @@ withDefaults(
 )
 
 const { t } = useI18n()
+const queryClient = useQueryClient()
 const targetUrl = ref('')
 const createdUrl = ref('')
 const currentUserQuery = useQuery({
@@ -89,6 +90,8 @@ const mutation = useMutation({
   mutationFn: createShortLink,
   onSuccess(result) {
     createdUrl.value = result.shortLink.url
+    void queryClient.invalidateQueries({ queryKey: ['short-link'] })
+    void queryClient.invalidateQueries({ queryKey: ['admin-short-link'] })
   },
 })
 

@@ -6,6 +6,7 @@ import ShortLinkCreatePanel from './ShortLinkCreatePanel.vue'
 import { componentStubs } from '@/test/component-stubs'
 
 const state = vi.hoisted(() => ({
+  invalidateQueries: vi.fn(),
   queryResult: {},
   mutationResult: {},
 }))
@@ -46,6 +47,9 @@ vi.mock('@tanstack/vue-query', () => ({
     }
   }),
   useQuery: vi.fn(() => state.queryResult),
+  useQueryClient: () => ({
+    invalidateQueries: state.invalidateQueries,
+  }),
 }))
 
 function mountPanel(props: Record<string, unknown> = {}) {
@@ -83,6 +87,7 @@ function setMutationResult(value: Partial<{
 
 describe('ShortLinkCreatePanel', () => {
   beforeEach(() => {
+    state.invalidateQueries.mockReset()
     setQueryResult([])
     setMutationResult()
     Object.defineProperty(window.navigator, 'clipboard', {
@@ -121,6 +126,8 @@ describe('ShortLinkCreatePanel', () => {
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
     expect(mutate).toHaveBeenCalledWith({ targetUrl: 'https://example.com' })
+    expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['short-link'] })
+    expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['admin-short-link'] })
     expect(screen.getByTestId('short-link-create-result')).toBeTruthy()
     expect(screen.getByText('shortLinkCreate.successTitle')).toBeTruthy()
     expect(screen.getByText('https://go.example.com/abc123')).toBeTruthy()
