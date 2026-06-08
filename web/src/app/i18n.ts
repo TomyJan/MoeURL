@@ -45,9 +45,26 @@ export const messages = {
     },
     filter: {
       status: '状态筛选',
+      keyword: '关键词搜索',
       all: '全部',
       active: '启用',
       disabled: '禁用',
+    },
+    links: {
+      shortUrl: '短链',
+      targetUrl: '目标链接',
+      owner: '所有者',
+      status: {
+        active: '启用',
+        disabled: '禁用',
+      },
+      actions: {
+        enable: '启用',
+        disable: '禁用',
+        copy: '复制',
+        open: '打开',
+        delete: '删除',
+      },
     },
     shortLinkCreate: {
       eyebrow: '快速生成',
@@ -115,6 +132,28 @@ export const messages = {
       passwordRequired: '请输入新密码',
       passwordMinLength: '密码至少需要 8 个字符',
     },
+    createUser: {
+      eyebrow: '新账号',
+      mark: '账号',
+      title: '创建可登录账号',
+      description: '为需要管理短链的成员创建账号，并在创建时确定用户组和启用状态。',
+      accountLegend: '账号信息',
+      accessLegend: '权限与状态',
+      username: '账号',
+      password: '密码',
+      nickname: '昵称',
+      group: '用户组',
+      status: '状态',
+      submit: '创建用户',
+      groups: {
+        user: '普通用户',
+        admin: '管理员',
+      },
+      statuses: {
+        active: '启用',
+        disabled: '禁用',
+      },
+    },
   },
   en: {
     nav: {
@@ -160,9 +199,26 @@ export const messages = {
     },
     filter: {
       status: 'Status',
+      keyword: 'Keyword',
       all: 'All',
       active: 'Active',
       disabled: 'Disabled',
+    },
+    links: {
+      shortUrl: 'Short link',
+      targetUrl: 'Target URL',
+      owner: 'Owner',
+      status: {
+        active: 'Active',
+        disabled: 'Disabled',
+      },
+      actions: {
+        enable: 'Enable',
+        disable: 'Disable',
+        copy: 'Copy',
+        open: 'Open',
+        delete: 'Delete',
+      },
     },
     shortLinkCreate: {
       eyebrow: 'Quick create',
@@ -229,6 +285,28 @@ export const messages = {
       },
       passwordRequired: 'Enter a new password',
       passwordMinLength: 'Password must be at least 8 characters',
+    },
+    createUser: {
+      eyebrow: 'New account',
+      mark: 'Account',
+      title: 'Create a sign-in account',
+      description: 'Create an account for a member who manages short links, then set its group and status.',
+      accountLegend: 'Account info',
+      accessLegend: 'Access and status',
+      username: 'Username',
+      password: 'Password',
+      nickname: 'Nickname',
+      group: 'Group',
+      status: 'Status',
+      submit: 'Create user',
+      groups: {
+        user: 'User',
+        admin: 'Admin',
+      },
+      statuses: {
+        active: 'Active',
+        disabled: 'Disabled',
+      },
     },
   },
 }

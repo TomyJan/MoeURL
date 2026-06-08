@@ -50,6 +50,7 @@ describe('HomeHeader', () => {
     mountHeader({ isGuest: false, displayName: 'Alice', onConsoleClick: consoleClick })
 
     expect(screen.queryByText('nav.login')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Alice' }).textContent).toContain('Alice')
     await fireEvent.click(screen.getByText('Alice'))
 
     expect(consoleClick).toHaveBeenCalled()

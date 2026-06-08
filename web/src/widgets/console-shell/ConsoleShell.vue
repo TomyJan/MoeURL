@@ -127,24 +127,18 @@ function submitLogout() {
 
 .console-shell__main {
   min-width: 0;
-  padding: 10px;
-  border: 1px solid var(--moeurl-outline);
+  padding: 8px;
   border-radius: var(--moeurl-radius-page);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--moeurl-surface-glass) 94%, transparent), var(--moeurl-surface-soft)),
-    var(--moeurl-surface-soft);
-  box-shadow: var(--moeurl-shadow-strong);
+  background: color-mix(in srgb, var(--moeurl-surface-soft) 72%, transparent);
 }
 
 .console-shell__workspace {
   min-height: calc(100vh - 58px);
-  padding: clamp(18px, 3vw, 28px);
-  border: 1px solid color-mix(in srgb, var(--moeurl-outline) 82%, transparent);
-  border-radius: calc(var(--moeurl-radius-page) - 10px);
+  padding: clamp(22px, 3.4vw, 36px);
+  border-radius: calc(var(--moeurl-radius-page) - 8px);
   background:
-    linear-gradient(135deg, color-mix(in srgb, rgb(var(--v-theme-secondary)) 8%, transparent), transparent 32%),
-    radial-gradient(circle at 86% 18%, color-mix(in srgb, rgb(var(--v-theme-primary)) 9%, transparent), transparent 18rem),
-    color-mix(in srgb, var(--moeurl-surface-elevated) 70%, transparent);
+    radial-gradient(circle at 88% 12%, color-mix(in srgb, rgb(var(--v-theme-primary)) 8%, transparent), transparent 17rem),
+    color-mix(in srgb, var(--moeurl-surface-elevated) 42%, transparent);
 }
 
 .console-shell__mobile-nav,

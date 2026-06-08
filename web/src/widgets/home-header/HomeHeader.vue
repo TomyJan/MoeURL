@@ -8,8 +8,8 @@
     <nav class="home-header__actions">
       <PreferenceSwitcher />
       <v-btn v-if="isGuest" class="home-header__login" to="/login" variant="text">{{ t('nav.login') }}</v-btn>
-      <button v-else class="home-header__account" type="button" @click="$emit('consoleClick')">
-        <span class="home-header__avatar">{{ avatarText }}</span>
+      <button v-else class="home-header__account" type="button" :aria-label="displayName" @click="$emit('consoleClick')">
+        <span class="home-header__avatar" aria-hidden="true">{{ avatarText }}</span>
         <span>{{ displayName }}</span>
       </button>
     </nav>

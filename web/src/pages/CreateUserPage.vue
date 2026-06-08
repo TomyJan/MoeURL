@@ -1,37 +1,39 @@
 <template>
   <section class="console-page" data-testid="console-page-create-user">
     <header class="console-page__header">
-      <p class="console-page__eyebrow">New user</p>
-      <h1>{{ t('page.createUser') }}</h1>
+      <div>
+        <p class="console-page__eyebrow">{{ t('createUser.eyebrow') }}</p>
+        <h1>{{ t('page.createUser') }}</h1>
+      </div>
     </header>
     <div class="console-form-panel" data-testid="console-form-panel">
       <div class="console-form-panel__intro">
-        <span class="console-form-panel__mark">Account</span>
-        <h2>创建可登录账号</h2>
-        <p>为需要管理短链的成员创建账号，并在创建时确定用户组和启用状态。</p>
+        <span class="console-form-panel__mark">{{ t('createUser.mark') }}</span>
+        <h2>{{ t('createUser.title') }}</h2>
+        <p>{{ t('createUser.description') }}</p>
       </div>
 
       <form class="console-form-panel__body" @submit.prevent="submit">
         <fieldset class="console-form-panel__group" data-testid="console-form-group">
-          <legend>账号信息</legend>
+          <legend>{{ t('createUser.accountLegend') }}</legend>
           <div class="console-form-panel__grid">
-            <v-text-field v-model="username" label="Username" variant="outlined" />
-            <v-text-field v-model="password" label="Password" type="password" variant="outlined" />
-            <v-text-field v-model="nickname" label="Nickname" variant="outlined" />
+            <v-text-field v-model="username" :label="t('createUser.username')" variant="outlined" />
+            <v-text-field v-model="password" :label="t('createUser.password')" type="password" variant="outlined" />
+            <v-text-field v-model="nickname" :label="t('createUser.nickname')" variant="outlined" />
           </div>
         </fieldset>
 
         <fieldset class="console-form-panel__group" data-testid="console-form-group">
-          <legend>权限与状态</legend>
+          <legend>{{ t('createUser.accessLegend') }}</legend>
           <div class="console-form-panel__grid console-form-panel__grid--compact">
-            <v-select v-model="groupKey" label="Group" :items="['user', 'admin']" variant="outlined" />
-            <v-select v-model="status" label="Status" :items="['active', 'disabled']" variant="outlined" />
+            <v-select v-model="groupKey" :label="t('createUser.group')" :items="groupOptions" variant="outlined" />
+            <v-select v-model="status" :label="t('createUser.status')" :items="statusOptions" variant="outlined" />
           </div>
         </fieldset>
 
         <div class="console-form-panel__actions">
           <v-btn class="console-form-panel__submit" color="primary" :loading="mutation.isPending.value" type="submit">
-            创建用户
+            {{ t('createUser.submit') }}
           </v-btn>
         </div>
 
@@ -44,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation } from '@tanstack/vue-query'
 
@@ -58,6 +60,14 @@ const nickname = ref('')
 const groupKey = ref<CreateUserInput['groupKey']>('user')
 const status = ref<CreateUserInput['status']>('active')
 const createdUsername = ref('')
+const groupOptions = computed(() => [
+  { title: t('createUser.groups.user'), value: 'user' },
+  { title: t('createUser.groups.admin'), value: 'admin' },
+])
+const statusOptions = computed(() => [
+  { title: t('createUser.statuses.active'), value: 'active' },
+  { title: t('createUser.statuses.disabled'), value: 'disabled' },
+])
 
 const mutation = useMutation({
   mutationFn: createUser,
