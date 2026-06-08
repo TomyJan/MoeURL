@@ -66,7 +66,9 @@ describe('App', () => {
   it('persists toolbar language and theme selections', async () => {
     render(App, { global: { stubs: componentStubs } })
 
-    expect(screen.getByLabelText('app preferences').classList.contains('app-preferences--compact')).toBe(true)
+    const preferences = screen.getByLabelText('app preferences')
+    expect(preferences.classList.contains('app-preferences--compact')).toBe(true)
+    expect(preferences.classList.contains('app-preferences--home')).toBe(true)
     await fireEvent.click(screen.getByRole('button', { name: '切换语言' }))
     await fireEvent.click(screen.getByRole('button', { name: '切换主题' }))
 

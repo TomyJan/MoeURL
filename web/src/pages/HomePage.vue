@@ -57,37 +57,10 @@ function goConsole() {
   overflow: hidden;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 50% 18%, var(--moeurl-hero-glow), transparent 30rem),
+    radial-gradient(circle at 50% 18%, var(--moeurl-hero-glow), transparent 32rem),
+    radial-gradient(circle at 12% 22%, color-mix(in srgb, rgb(var(--v-theme-secondary)) 10%, transparent), transparent 22rem),
+    radial-gradient(circle at 88% 72%, color-mix(in srgb, rgb(var(--v-theme-primary)) 10%, transparent), transparent 22rem),
     linear-gradient(145deg, rgb(var(--v-theme-background)), var(--moeurl-surface-soft));
-}
-
-.home-page::before,
-.home-page::after {
-  position: absolute;
-  z-index: 0;
-  border: 1px solid var(--moeurl-outline);
-  content: "";
-  pointer-events: none;
-}
-
-.home-page::before {
-  top: 118px;
-  left: max(22px, calc(50% - 620px));
-  width: 150px;
-  height: 150px;
-  border-radius: 54px;
-  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 16%, transparent);
-  transform: rotate(-10deg);
-}
-
-.home-page::after {
-  right: max(18px, calc(50% - 660px));
-  bottom: 120px;
-  width: 220px;
-  height: 220px;
-  border-radius: 76px;
-  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 10%, transparent);
-  transform: rotate(12deg);
 }
 
 .home-page__hero {
@@ -202,11 +175,6 @@ function goConsole() {
 }
 
 @media (max-width: 680px) {
-  .home-page::before,
-  .home-page::after {
-    opacity: 0.45;
-  }
-
   .home-page__hero {
     min-height: calc(100vh - 76px);
     padding-top: 18px;

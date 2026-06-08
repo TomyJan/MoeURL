@@ -183,6 +183,8 @@ describe('pages', () => {
     })
     mount(LoginPage)
 
+    expect(screen.getByTestId('auth-page-login')).toBeTruthy()
+    expect(screen.getByTestId('auth-panel')).toBeTruthy()
     await fireEvent.update(screen.getByLabelText('Username'), 'alice')
     await fireEvent.update(screen.getByLabelText('Password'), 'secret')
     await fireEvent.click(screen.getByText('Login'))
@@ -199,6 +201,7 @@ describe('pages', () => {
   it('renders setup loading, initialized, and submit states', async () => {
     setQueryResult({ isLoading: ref(true) })
     const loading = mount(SetupPage)
+    expect(screen.getByTestId('auth-page-setup')).toBeTruthy()
     expect(screen.getByText('Loading')).toBeTruthy()
     loading.unmount()
 
@@ -216,6 +219,7 @@ describe('pages', () => {
     })
     mount(SetupPage)
 
+    expect(screen.getByTestId('auth-panel')).toBeTruthy()
     expect(screen.getByText('setup failed')).toBeTruthy()
     await fireEvent.update(screen.getByLabelText('Admin username'), 'admin')
     await fireEvent.update(screen.getByLabelText('Admin password'), 'password123')
@@ -502,6 +506,7 @@ describe('pages', () => {
 
     expect(screen.getByTestId('console-page-create-user')).toBeTruthy()
     expect(screen.getByTestId('console-form-panel')).toBeTruthy()
+    expect(screen.getAllByTestId('console-form-group')).toHaveLength(2)
     await fireEvent.update(screen.getByLabelText('Username'), 'alice')
     await fireEvent.update(screen.getByLabelText('Password'), 'password123')
     await fireEvent.update(screen.getByLabelText('Nickname'), 'Alice')
