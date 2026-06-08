@@ -11,6 +11,8 @@ type CreateResult struct {
 type ListInput struct {
 	Page     int32
 	PageSize int32
+	Status   string
+	Query    string
 }
 
 type UpdateInput struct {

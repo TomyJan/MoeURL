@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 )
@@ -14,10 +15,15 @@ import (
 const (
 	CodePermissionDenied = 120001
 	CodeUsernameExists   = 300101
+	CodeBuiltinImmutable = 300102
+	CodeUserNotFound     = 300103
 )
 
 type Port interface {
 	Create(ctx context.Context, actor auth.CurrentUser, input CreateInput) (CreateResult, error)
+	List(ctx context.Context, actor auth.CurrentUser, input ListInput) (ListResult, error)
+	Update(ctx context.Context, actor auth.CurrentUser, input UpdateInput) (UpdateResult, error)
+	ResetPassword(ctx context.Context, actor auth.CurrentUser, input ResetPasswordInput) error
 }
 
 type Handler struct {
@@ -53,6 +59,75 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	ok(w, result)
 }
 
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+	result, err := h.service.List(r.Context(), auth.UserFromContext(r.Context()), ListInput{
+		Page:     queryInt32WithDefault(r, "page", defaultPage),
+		PageSize: queryInt32WithDefault(r, "pageSize", defaultPageSize),
+	})
+	if err != nil {
+		writeUserError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, response{
+		Code:    0,
+		Message: "OK",
+		Data:    map[string]any{"items": result.Items},
+		Meta: map[string]any{
+			"page":     result.Page,
+			"pageSize": result.PageSize,
+			"total":    result.Total,
+		},
+	})
+}
+
+func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+	var input UpdateInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		businessError(w, 100001, "Invalid request")
+		return
+	}
+
+	result, err := h.service.Update(r.Context(), auth.UserFromContext(r.Context()), input)
+	if err != nil {
+		writeUserError(w, err)
+		return
+	}
+	ok(w, result)
+}
+
+func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var input ResetPasswordInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		businessError(w, 100001, "Invalid request")
+		return
+	}
+
+	err := h.service.ResetPassword(r.Context(), auth.UserFromContext(r.Context()), input)
+	if err != nil {
+		writeUserError(w, err)
+		return
+	}
+	ok(w, map[string]bool{"reset": true})
+}
+
+func writeUserError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, ErrPermissionDenied):
+		businessError(w, CodePermissionDenied, "Permission denied")
+	case errors.Is(err, ErrUsernameExists):
+		businessError(w, CodeUsernameExists, "Username exists")
+	case errors.Is(err, ErrInvalidInput):
+		businessError(w, 100001, "Invalid request")
+	case errors.Is(err, ErrBuiltinUserImmutable):
+		businessError(w, CodeBuiltinImmutable, "Builtin user cannot be modified")
+	case errors.Is(err, ErrUserNotFound):
+		businessError(w, CodeUserNotFound, "User not found")
+	default:
+		writeJSON(w, http.StatusInternalServerError, response{Code: 900000, Message: "Internal server error", Data: nil, Meta: map[string]any{}})
+	}
+}
+
 type response struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
@@ -78,4 +153,16 @@ func writeJSON(w http.ResponseWriter, status int, body response) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	_, _ = w.Write(buffer.Bytes())
+}
+
+func queryInt32WithDefault(r *http.Request, key string, defaultValue int32) int32 {
+	raw := r.URL.Query().Get(key)
+	if raw == "" {
+		return defaultValue
+	}
+	parsed, err := strconv.ParseInt(raw, 10, 32)
+	if err != nil {
+		return defaultValue
+	}
+	return int32(parsed)
 }

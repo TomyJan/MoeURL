@@ -15,6 +15,16 @@ export interface ShortLinkListResponse {
   }
 }
 
+export interface ShortLinkListInput {
+  page?: number
+  pageSize?: number
+  status?: ShortLink['status'] | ''
+}
+
+export interface AdminShortLinkListInput extends ShortLinkListInput {
+  q?: string
+}
+
 interface ShortLinkItemsResponse {
   items: ShortLink[]
 }
@@ -28,8 +38,17 @@ export async function createShortLink(input: CreateShortLinkInput): Promise<Shor
   return response.data
 }
 
-export async function listShortLinks(page = 1, pageSize = 20): Promise<ShortLinkListResponse> {
-  const response = await apiGet<ShortLinkItemsResponse>(`/short-link/list?page=${page}&pageSize=${pageSize}`)
+export async function listShortLinks(input: ShortLinkListInput = {}): Promise<ShortLinkListResponse> {
+  const page = input.page ?? 1
+  const pageSize = input.pageSize ?? 20
+  const search = new URLSearchParams({
+    page: String(page),
+    pageSize: String(pageSize),
+  })
+  if (input.status) {
+    search.set('status', input.status)
+  }
+  const response = await apiGet<ShortLinkItemsResponse>(`/short-link/list?${search.toString()}`)
   return {
     items: response.data.items,
     meta: normalizeListMeta(response.meta, page, pageSize),
@@ -45,11 +64,23 @@ export async function deleteShortLink(id: string): Promise<void> {
   await apiPost('/short-link/delete', { id })
 }
 
-export async function listAdminShortLinks(page = 1, pageSize = 20): Promise<{
+export async function listAdminShortLinks(input: AdminShortLinkListInput = {}): Promise<{
   items: AdminShortLink[]
   meta: ShortLinkListResponse['meta']
 }> {
-  const response = await apiGet<AdminShortLinkItemsResponse>(`/admin/short-link/list?page=${page}&pageSize=${pageSize}`)
+  const page = input.page ?? 1
+  const pageSize = input.pageSize ?? 20
+  const search = new URLSearchParams({
+    page: String(page),
+    pageSize: String(pageSize),
+  })
+  if (input.status) {
+    search.set('status', input.status)
+  }
+  if (input.q) {
+    search.set('q', input.q)
+  }
+  const response = await apiGet<AdminShortLinkItemsResponse>(`/admin/short-link/list?${search.toString()}`)
   return {
     items: response.data.items,
     meta: normalizeListMeta(response.meta, page, pageSize),

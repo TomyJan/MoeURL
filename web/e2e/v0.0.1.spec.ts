@@ -1,11 +1,9 @@
 import { expect, test } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
-type ApiResponse<T> = {
-  code: number
-  data: T
-  message: string
-  meta: Record<string, unknown>
-}
+const e2ePort = process.env.MOEURL_E2E_PORT ?? '8080'
+const e2eHost = `127.0.0.1:${e2ePort}`
+const e2eHostPattern = escapeRegExp(e2eHost)
 
 test('v0.0.1 initialization login short link and disabled redirect flow', async ({ page }) => {
   const status = await page.request.get('/api/v1/init/status')
@@ -20,8 +18,8 @@ test('v0.0.1 initialization login short link and disabled redirect flow', async 
   await page.getByLabel('Admin password').fill('admin-password')
   await page.getByLabel('Admin nickname').fill('Admin')
   await page.getByLabel('Site name').fill('MoeURL')
-  await page.getByLabel('System domain').fill('127.0.0.1:8080')
-  await page.getByLabel('Short link domain').fill('127.0.0.1:8080')
+  await page.getByLabel('System domain').fill(e2eHost)
+  await page.getByLabel('Short link domain').fill(e2eHost)
   await page.getByRole('button', { name: '初始化' }).click()
   await expect(page.getByText('Initialized')).toBeVisible()
 
@@ -36,48 +34,67 @@ test('v0.0.1 initialization login short link and disabled redirect flow', async 
   await page.getByRole('button', { name: 'Login' }).click()
   await expect(page.getByText('Admin')).toBeVisible()
 
+  await page.goto('/admin/user/new')
+  await page.getByLabel('Username').fill('alice')
+  await page.getByLabel('Password').fill('alice-password')
+  await page.getByLabel('Nickname').fill('Alice')
+  await page.getByRole('button', { name: '创建用户' }).click()
+  await expect(page.getByText('alice')).toBeVisible()
+
+  await page.goto('/admin/user')
+  await expect(page.getByText('alice')).toBeVisible()
+  const disableUser = page.waitForResponse('**/api/v1/admin/user/update')
+  await page.getByRole('row', { name: /alice/ }).getByRole('button', { name: '禁用' }).click()
+  expect((await disableUser).status()).toBe(200)
+  const disabledLogin = await page.request.post('/api/v1/auth/login', {
+    data: { username: 'alice', password: 'alice-password' },
+  })
+  await expect(disabledLogin).toBeOK()
+  expect(await disabledLogin.json()).toMatchObject({
+    code: 110102,
+    message: 'User disabled',
+  })
+
   await page.goto('/')
   await page.getByLabel('https://example.com').fill('https://example.com/e2e-target')
   await page.getByRole('button', { name: '创建短链' }).click()
-  const createdLink = page.getByRole('link', { name: /127\.0\.0\.1:8080\/[a-z0-9]{6}/ })
+  const createdLink = page.getByRole('link', { name: new RegExp(`${e2eHostPattern}\\/[a-z0-9]{6}`) })
   await expect(createdLink).toBeVisible()
   const createdUrl = await createdLink.getAttribute('href')
-  expect(createdUrl).toMatch(/^https?:\/\/127\.0\.0\.1:8080\/[a-z0-9]{6}$/)
+  expect(createdUrl).toMatch(new RegExp(`^https?:\\/\\/${e2eHostPattern}\\/[a-z0-9]{6}$`))
   await expect(page.getByRole('button', { name: '复制短链' })).toBeVisible()
   await expect(page.getByRole('link', { name: '打开短链' })).toHaveAttribute('href', createdUrl ?? '')
   await expect(page.getByRole('button', { name: '继续创建' })).toBeVisible()
 
   const slug = new URL(createdUrl ?? '').pathname.slice(1)
 
-  const redirect = await page.goto(`/${slug}`, { waitUntil: 'commit' })
-  expect(redirect?.status()).toBe(404)
-  expect(page.url()).toBe('https://example.com/e2e-target')
+  const activeRedirect = await page.request.get(`/${slug}`, { maxRedirects: 0 })
+  expect(activeRedirect.status()).toBe(302)
+  expect(activeRedirect.headers().location).toBe('https://example.com/e2e-target')
 
-  const list = await page.request.get('/api/v1/short-link/list?page=1&pageSize=20')
-  await expect(list).toBeOK()
-  const listBody = (await list.json()) as ApiResponse<{
-    items: { id: string; slug: string; url: string }[]
-  }>
-  const created = listBody.data.items.find((item) => item.slug === slug)
-  expect(created).toBeTruthy()
-
-  const update = await page.request.post('/api/v1/short-link/update', {
-    data: { id: created?.id, status: 'disabled' },
-  })
-  await expect(update).toBeOK()
-  expect(await update.json()).toMatchObject({
-    code: 0,
-    data: { shortLink: { status: 'disabled' } },
-  })
-
-  await page.goto('/links')
+  await page.goto('/admin/link')
+  await page.getByLabel('关键词搜索').fill(slug)
   await expect(page.getByRole('link', { name: createdUrl ?? '' })).toBeVisible()
-  await expect(page.getByRole('button', { name: '复制' })).toBeVisible()
-  await expect(page.getByRole('link', { name: '打开' })).toHaveAttribute('href', createdUrl ?? '')
+  const disableLink = page.waitForResponse('**/api/v1/admin/short-link/update')
+  await page.getByRole('row', { name: new RegExp(slug) }).getByRole('button', { name: '禁用' }).click()
+  expect((await disableLink).status()).toBe(200)
 
   const blocked = await page.request.get(`/${slug}`)
   await expect(blocked).toBeOK()
   expect(await blocked.text()).toContain('Short link disabled')
+
+  await page.goto('/link')
+  await selectVuetifyOption(page, '状态筛选', '禁用')
+  await expect(page.getByRole('link', { name: createdUrl ?? '' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '复制' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '打开' })).toHaveAttribute('href', createdUrl ?? '')
+
+  await page.goto('/admin/link')
+  await selectVuetifyOption(page, '状态筛选', '禁用')
+  await page.getByLabel('关键词搜索').fill(slug)
+  await expect(page.getByRole('link', { name: createdUrl ?? '' })).toBeVisible()
+  await page.getByLabel('关键词搜索').fill('no-such-short-link')
+  await expect(page.getByText('暂无短链')).toBeVisible()
 
   await page.goto('/')
   await page.getByRole('button', { name: '退出登录' }).click()
@@ -86,3 +103,12 @@ test('v0.0.1 initialization login short link and disabled redirect flow', async 
   await expect(page.getByText('请登录后创建短链')).toBeVisible()
   await expect(page.getByRole('button', { name: '创建短链' })).toBeDisabled()
 })
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+async function selectVuetifyOption(page: Page, label: string, option: string) {
+  await page.getByLabel(label).locator('xpath=ancestor::*[contains(@class, "v-input")][1]').click()
+  await page.getByRole('option', { name: option }).click()
+}

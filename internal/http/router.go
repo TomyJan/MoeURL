@@ -65,6 +65,9 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 		if dependency.User != nil {
 			userHandler := user.NewHandler(dependency.User)
 			api.Post("/admin/user/create", userHandler.Create)
+			api.Get("/admin/user/list", userHandler.List)
+			api.Post("/admin/user/update", userHandler.Update)
+			api.Post("/admin/user/reset-password", userHandler.ResetPassword)
 		}
 
 		api.NotFound(func(w nethttp.ResponseWriter, r *nethttp.Request) {
@@ -91,7 +94,7 @@ func registerStaticRoutes(router chi.Router, staticDir string) {
 	router.Handle("/icons/*", fileServer)
 	router.Get("/manifest.webmanifest", serveStaticFile(staticDir, "manifest.webmanifest"))
 	router.Get("/sw.js", serveStaticFile(staticDir, "sw.js"))
-	for _, path := range []string{"/", "/setup", "/login", "/links", "/admin/links", "/admin/users/new"} {
+	for _, path := range []string{"/", "/setup", "/login", "/link", "/admin/link", "/admin/user", "/admin/user/new"} {
 		router.Get(path, serveStaticFile(staticDir, "index.html"))
 	}
 }

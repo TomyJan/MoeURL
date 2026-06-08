@@ -98,6 +98,9 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 	if !s.permissions.Has(user.GroupKey, permission.ShortLinkReadOwn) {
 		return ListResult{}, ErrPermissionDenied
 	}
+	if input.Status != "" && !isAllowedStatus(input.Status) {
+		return ListResult{}, ErrInvalidStatus
+	}
 
 	page, pageSize := normalizePagination(input)
 	ownerID, err := uuid.Parse(user.ID)
@@ -105,7 +108,10 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 		return ListResult{}, err
 	}
 
-	total, err := s.queries.CountShortLinksByOwner(ctx, uuidToPgtype(ownerID))
+	total, err := s.queries.CountShortLinksByOwner(ctx, sqlc.CountShortLinksByOwnerParams{
+		OwnerID: uuidToPgtype(ownerID),
+		Status:  optionalFilterText(input.Status),
+	})
 	if err != nil {
 		return ListResult{}, err
 	}
@@ -114,6 +120,7 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 		OwnerID: uuidToPgtype(ownerID),
 		Limit:   pageSize,
 		Offset:  (page - 1) * pageSize,
+		Status:  optionalFilterText(input.Status),
 	})
 	if err != nil {
 		return ListResult{}, err
@@ -212,15 +219,23 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 	if !s.hasAdminPermission(user, permission.ShortLinkReadAll) {
 		return AdminListResult{}, ErrPermissionDenied
 	}
+	if input.Status != "" && !isAllowedStatus(input.Status) {
+		return AdminListResult{}, ErrInvalidStatus
+	}
 
 	page, pageSize := normalizePagination(input)
-	total, err := s.queries.CountAllShortLinks(ctx)
+	total, err := s.queries.CountAllShortLinks(ctx, sqlc.CountAllShortLinksParams{
+		Status: optionalFilterText(input.Status),
+		Query:  input.Query,
+	})
 	if err != nil {
 		return AdminListResult{}, err
 	}
 	rows, err := s.queries.ListAllShortLinks(ctx, sqlc.ListAllShortLinksParams{
 		Limit:  pageSize,
 		Offset: (page - 1) * pageSize,
+		Status: optionalFilterText(input.Status),
+		Query:  input.Query,
 	})
 	if err != nil {
 		return AdminListResult{}, err
@@ -349,6 +364,13 @@ func optionalText(value *string) pgtype.Text {
 		return pgtype.Text{}
 	}
 	return pgtype.Text{String: *value, Valid: true}
+}
+
+func optionalFilterText(value string) pgtype.Text {
+	if value == "" {
+		return pgtype.Text{}
+	}
+	return pgtype.Text{String: value, Valid: true}
 }
 
 func isAllowedStatus(value string) bool {

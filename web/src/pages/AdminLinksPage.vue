@@ -4,6 +4,10 @@
       <h1 class="text-h4">{{ t('page.adminLinks') }}</h1>
       <span class="text-body-2 text-medium-emphasis">共 {{ total }} 条</span>
     </div>
+    <div class="mb-4 filters">
+      <v-select v-model="statusFilter" :items="statusOptions" label="状态筛选" />
+      <v-text-field v-model="searchKeyword" label="关键词搜索" />
+    </div>
     <v-alert v-if="query.isError.value" type="error" variant="tonal">加载失败</v-alert>
     <v-progress-linear v-if="query.isPending.value" indeterminate />
     <v-alert v-else-if="links.length === 0" type="info" variant="tonal">
@@ -52,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -61,9 +65,25 @@ import type { AdminShortLink } from '@/entities/short-link/model'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
+const statusFilter = ref<'' | AdminShortLink['status']>('')
+const searchKeyword = ref('')
+const debouncedKeyword = ref('')
+const statusOptions = [
+  { title: '全部', value: '' },
+  { title: '启用', value: 'active' },
+  { title: '禁用', value: 'disabled' },
+]
+
+watch(searchKeyword, (value, _oldValue, onCleanup) => {
+  const timer = globalThis.setTimeout(() => {
+    debouncedKeyword.value = value
+  }, 500)
+  onCleanup(() => globalThis.clearTimeout(timer))
+})
+
 const query = useQuery({
-  queryKey: ['admin-short-links'],
-  queryFn: () => listAdminShortLinks(),
+  queryKey: computed(() => ['admin-short-link', statusFilter.value, debouncedKeyword.value]),
+  queryFn: () => listAdminShortLinks({ status: statusFilter.value, q: debouncedKeyword.value }),
 })
 const links = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.meta.total ?? 0)
@@ -90,6 +110,20 @@ function copyUrl(url: string) {
 }
 
 function invalidateLinks() {
-  void queryClient.invalidateQueries({ queryKey: ['admin-short-links'] })
+  void queryClient.invalidateQueries({ queryKey: ['admin-short-link'] })
 }
 </script>
+
+<style scoped>
+.filters {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(160px, 220px) minmax(220px, 320px);
+}
+
+@media (max-width: 720px) {
+  .filters {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

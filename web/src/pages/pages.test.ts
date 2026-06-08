@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/vue'
+import { fireEvent, render, screen, within } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { isRef, ref } from 'vue'
 
 import AdminLinksPage from './AdminLinksPage.vue'
+import AdminUsersPage from './AdminUsersPage.vue'
 import CreateUserPage from './CreateUserPage.vue'
 import HomePage from './HomePage.vue'
 import LoginPage from './LoginPage.vue'
@@ -10,9 +11,12 @@ import MyLinksPage from './MyLinksPage.vue'
 import NotFoundPage from './NotFoundPage.vue'
 import SetupPage from './SetupPage.vue'
 import { componentStubs } from '@/test/component-stubs'
+import { listAdminShortLinks, listShortLinks } from '@/entities/short-link/api'
 
 const state = vi.hoisted(() => ({
   queryResult: {},
+  queryKeys: [] as unknown[],
+  queryFns: [] as Array<() => unknown>,
   mutationResult: {},
   queryClient: {
     invalidateQueries: vi.fn(),
@@ -47,6 +51,9 @@ vi.mock('@/entities/system/api', () => ({
 
 vi.mock('@/entities/user/api', () => ({
   createUser: vi.fn(),
+  listUsers: vi.fn(async () => ({ items: [], meta: { page: 1, pageSize: 20, total: 0 } })),
+  resetUserPassword: vi.fn(),
+  updateUser: vi.fn(),
 }))
 
 vi.mock('@tanstack/vue-query', () => ({
@@ -79,7 +86,11 @@ vi.mock('@tanstack/vue-query', () => ({
       }),
     }
   }),
-  useQuery: vi.fn((options?: { queryFn?: () => unknown }) => {
+  useQuery: vi.fn((options?: { queryFn?: () => unknown; queryKey?: unknown }) => {
+    state.queryKeys.push(options?.queryKey)
+    if (options?.queryFn) {
+      state.queryFns.push(options.queryFn)
+    }
     options?.queryFn?.()
     return state.queryResult
   }),
@@ -128,6 +139,8 @@ describe('pages', () => {
   beforeEach(() => {
     setQueryResult({})
     setMutationResult()
+    state.queryKeys = []
+    state.queryFns = []
     state.queryClient.invalidateQueries.mockReset()
     Object.defineProperty(window.navigator, 'clipboard', {
       configurable: true,
@@ -136,6 +149,7 @@ describe('pages', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.clearAllMocks()
   })
 
@@ -281,15 +295,36 @@ describe('pages', () => {
     })
     mount(MyLinksPage)
 
-    await fireEvent.click(screen.getByText('禁用'))
-    await fireEvent.click(screen.getByText('启用'))
-    await fireEvent.click(screen.getAllByText('复制')[0])
-    await fireEvent.click(screen.getAllByText('删除')[0])
+    const rows = screen.getAllByRole('row')
+    const activeRow = rows.find((row) => within(row).queryByText('https://go.example.com/abc123'))
+    const disabledRow = rows.find((row) => within(row).queryByText('https://go.example.com/def456'))
+    if (!activeRow || !disabledRow) {
+      throw new Error('expected short link rows')
+    }
 
+    await fireEvent.click(within(activeRow).getByRole('button', { name: '禁用' }))
+    await fireEvent.click(within(disabledRow).getByRole('button', { name: '启用' }))
+    await fireEvent.click(within(activeRow).getByRole('button', { name: '复制' }))
+    await fireEvent.click(within(activeRow).getByRole('button', { name: '删除' }))
+
+    expect(screen.getByLabelText('filter.status')).toBeTruthy()
+    expect(listShortLinks).toHaveBeenCalledWith({ status: '' })
     expect(update).toHaveBeenCalledWith({ id: 'link-id', status: 'disabled' })
     expect(update).toHaveBeenCalledWith({ id: 'link-disabled', status: 'active' })
     expect(update).toHaveBeenCalledWith('link-id')
     expect(window.navigator.clipboard.writeText).toHaveBeenCalledWith('https://go.example.com/abc123')
+  })
+
+  it('queries own links with status filter state', async () => {
+    setQueryResult({ data: ref({ items: [] }) })
+    mount(MyLinksPage)
+
+    await fireEvent.update(screen.getByLabelText('filter.status'), 'disabled')
+    const queryKey = state.queryKeys[0]
+    state.queryFns[0]?.()
+
+    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['short-link', 'disabled'])
+    expect(listShortLinks).toHaveBeenCalledWith({ status: 'disabled' })
   })
 
   it('renders admin links states and row actions', async () => {
@@ -301,14 +336,39 @@ describe('pages', () => {
     expect(screen.getByText('共 1 条')).toBeTruthy()
     expect(screen.getByText('owner-id')).toBeTruthy()
     expect(screen.getByText('Bobby')).toBeTruthy()
-    await fireEvent.click(screen.getByText('启用'))
-    await fireEvent.click(screen.getByText('禁用'))
-    await fireEvent.click(screen.getAllByText('复制')[0])
-    await fireEvent.click(screen.getAllByText('删除')[0])
+    const rows = screen.getAllByRole('row')
+    const disabledRow = rows.find((row) => within(row).queryByText('https://go.example.com/abc123'))
+    const activeRow = rows.find((row) => within(row).queryByText('https://go.example.com/active'))
+    if (!disabledRow || !activeRow) {
+      throw new Error('expected admin short link rows')
+    }
 
+    await fireEvent.click(within(disabledRow).getByRole('button', { name: '启用' }))
+    await fireEvent.click(within(activeRow).getByRole('button', { name: '禁用' }))
+    await fireEvent.click(within(disabledRow).getByRole('button', { name: '复制' }))
+    await fireEvent.click(within(disabledRow).getByRole('button', { name: '删除' }))
+
+    expect(screen.getByLabelText('状态筛选')).toBeTruthy()
+    expect(screen.getByLabelText('关键词搜索')).toBeTruthy()
+    expect(listAdminShortLinks).toHaveBeenCalledWith({ status: '', q: '' })
     expect(mutate).toHaveBeenCalledWith({ id: 'link-id', status: 'active' })
     expect(mutate).toHaveBeenCalledWith({ id: 'link-active', status: 'disabled' })
     expect(mutate).toHaveBeenCalledWith('link-id')
+  })
+
+  it('queries admin links with filter state', async () => {
+    vi.useFakeTimers()
+    setQueryResult({ data: ref({ meta: { total: 0 }, items: [] }) })
+    mount(AdminLinksPage)
+
+    await fireEvent.update(screen.getByLabelText('状态筛选'), 'active')
+    await fireEvent.update(screen.getByLabelText('关键词搜索'), 'alice')
+    vi.advanceTimersByTime(500)
+    const queryKey = state.queryKeys[0]
+    state.queryFns[0]?.()
+
+    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['admin-short-link', 'active', 'alice'])
+    expect(listAdminShortLinks).toHaveBeenCalledWith({ status: 'active', q: 'alice' })
   })
 
   it('renders admin links error, loading, and empty states', () => {
@@ -379,5 +439,140 @@ describe('pages', () => {
     await fireEvent.click(screen.getByText('创建用户'))
 
     expect(screen.getByText('alice')).toBeTruthy()
+  })
+
+  it('renders admin users list and submits user actions', async () => {
+    setQueryResult({
+      data: ref({
+        meta: { total: 2 },
+        items: [
+          {
+            id: 'user-id',
+            username: 'alice',
+            nickname: 'Alice',
+            group: 'user',
+            status: 'active',
+            builtin: false,
+            createdAt: '2026-06-08T00:00:00Z',
+            updatedAt: '2026-06-08T00:00:00Z',
+          },
+          {
+            id: 'guest-id',
+            username: 'guest',
+            nickname: 'Guest',
+            group: 'guest',
+            status: 'active',
+            builtin: true,
+            createdAt: '2026-06-08T00:00:00Z',
+            updatedAt: '2026-06-08T00:00:00Z',
+          },
+        ],
+      }),
+    })
+    const mutate = vi.fn()
+    setMutationResult({ mutate })
+    mount(AdminUsersPage)
+
+    expect(screen.getByText('adminUsers.total')).toBeTruthy()
+    expect(screen.getByText('alice')).toBeTruthy()
+    expect(screen.getByText('adminUsers.type.builtin')).toBeTruthy()
+    expect(screen.getAllByText('2026-06-08T00:00:00Z').length).toBeGreaterThan(0)
+
+    expect(screen.getByText('adminUsers.paginationNotice')).toBeTruthy()
+
+    await fireEvent.click(screen.getAllByText('adminUsers.actions.disable')[0])
+    await fireEvent.update(screen.getAllByLabelText('adminUsers.labels.nickname')[0], 'Alice Renamed')
+    await fireEvent.click(screen.getAllByText('adminUsers.saveNickname')[0])
+    await fireEvent.update(screen.getAllByLabelText('adminUsers.labels.newPassword')[0], 'new-password')
+    await fireEvent.click(screen.getAllByText('adminUsers.resetPassword')[0])
+
+    expect(mutate).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Alice', status: 'disabled' })
+    expect(mutate).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Alice Renamed', status: 'active' })
+    expect(mutate).toHaveBeenCalledWith({ id: 'user-id', password: 'new-password' })
+  })
+
+  it('submits admin user fallback actions for disabled users', async () => {
+    setQueryResult({
+      data: ref({
+        meta: { total: 1 },
+        items: [
+          {
+            id: 'user-id',
+            username: 'bob',
+            nickname: 'Bob',
+            group: 'user',
+            status: 'disabled',
+            builtin: false,
+            createdAt: '2026-06-08T00:00:00Z',
+            updatedAt: '2026-06-08T00:00:00Z',
+          },
+        ],
+      }),
+    })
+    const mutate = vi.fn()
+    setMutationResult({ mutate })
+    mount(AdminUsersPage)
+
+    await fireEvent.click(screen.getByText('adminUsers.actions.enable'))
+    await fireEvent.update(screen.getByLabelText('adminUsers.labels.nickname'), '')
+    await fireEvent.click(screen.getByText('adminUsers.saveNickname'))
+    await fireEvent.update(screen.getByLabelText('adminUsers.labels.newPassword'), '')
+    await fireEvent.click(screen.getByText('adminUsers.resetPassword'))
+
+    expect(mutate).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Bob', status: 'active' })
+    expect(mutate).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Bob', status: 'disabled' })
+    expect(mutate).not.toHaveBeenCalledWith({ id: 'user-id', password: '' })
+    expect(screen.getByText('adminUsers.passwordRequired')).toBeTruthy()
+  })
+
+  it('validates admin reset password length before submitting', async () => {
+    setQueryResult({
+      data: ref({
+        meta: { total: 1 },
+        items: [
+          {
+            id: 'user-id',
+            username: 'bob',
+            nickname: 'Bob',
+            group: 'user',
+            status: 'disabled',
+            builtin: false,
+            createdAt: '2026-06-08T00:00:00Z',
+            updatedAt: '2026-06-08T00:00:00Z',
+          },
+        ],
+      }),
+    })
+    const mutate = vi.fn()
+    setMutationResult({ mutate })
+    mount(AdminUsersPage)
+
+    await fireEvent.update(screen.getByLabelText('adminUsers.labels.newPassword'), ' short ')
+    await fireEvent.click(screen.getByText('adminUsers.resetPassword'))
+
+    expect(mutate).not.toHaveBeenCalledWith({ id: 'user-id', password: 'short' })
+    expect(screen.getByText('adminUsers.passwordMinLength')).toBeTruthy()
+  })
+
+  it('renders admin users error, loading, and empty states', () => {
+    setQueryResult({ isError: ref(true) })
+    const error = mount(AdminUsersPage)
+    expect(screen.getByText('adminUsers.loadFailed')).toBeTruthy()
+    error.unmount()
+
+    setQueryResult({ isPending: ref(true) })
+    const pending = mount(AdminUsersPage)
+    expect(screen.getByRole('progressbar')).toBeTruthy()
+    pending.unmount()
+
+    setQueryResult({ data: ref({ meta: { total: 0 }, items: [] }) })
+    const empty = mount(AdminUsersPage)
+    expect(screen.getByText('adminUsers.noUsers')).toBeTruthy()
+    expect(screen.getByText('adminUsers.total')).toBeTruthy()
+    empty.unmount()
+
+    setQueryResult({ data: ref(undefined) })
+    mount(AdminUsersPage)
+    expect(screen.getByText('adminUsers.noUsers')).toBeTruthy()
   })
 })

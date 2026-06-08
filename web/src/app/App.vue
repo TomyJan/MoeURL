@@ -3,9 +3,9 @@
     <v-app-bar border="b" elevation="0">
       <v-app-bar-title>MoeURL</v-app-bar-title>
       <v-btn to="/" variant="text">{{ t('nav.home') }}</v-btn>
-      <v-btn v-if="canReadOwnLinks" to="/links" variant="text">{{ t('nav.links') }}</v-btn>
-      <v-btn v-if="canAccessAdmin" to="/admin/links" variant="text">{{ t('nav.admin') }}</v-btn>
-      <v-btn v-if="canAccessAdmin" to="/admin/users/new" variant="text">{{ t('nav.users') }}</v-btn>
+      <v-btn v-if="canReadOwnLinks" to="/link" variant="text">{{ t('nav.links') }}</v-btn>
+      <v-btn v-if="canAccessAdmin" to="/admin/link" variant="text">{{ t('nav.admin') }}</v-btn>
+      <v-btn v-if="canAccessAdmin" to="/admin/user" variant="text">{{ t('nav.users') }}</v-btn>
       <v-select
         v-model="language"
         class="toolbar-select"

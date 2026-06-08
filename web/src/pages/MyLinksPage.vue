@@ -1,6 +1,9 @@
 <template>
   <v-container class="py-10">
     <h1 class="text-h4 mb-4">{{ t('page.links') }}</h1>
+    <div class="mb-4 filters">
+      <v-select v-model="statusFilter" :items="statusOptions" :label="t('filter.status')" />
+    </div>
     <v-alert v-if="query.isError.value" type="error" variant="tonal">加载失败</v-alert>
     <v-progress-linear v-if="query.isPending.value" indeterminate />
     <v-alert v-else-if="links.length === 0" type="info" variant="tonal">
@@ -44,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -53,9 +56,15 @@ import type { ShortLink } from '@/entities/short-link/model'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
+const statusFilter = ref<'' | ShortLink['status']>('')
+const statusOptions = computed(() => [
+  { title: t('filter.all'), value: '' },
+  { title: t('filter.active'), value: 'active' },
+  { title: t('filter.disabled'), value: 'disabled' },
+])
 const query = useQuery({
-  queryKey: ['short-links'],
-  queryFn: () => listShortLinks(),
+  queryKey: computed(() => ['short-link', statusFilter.value]),
+  queryFn: () => listShortLinks({ status: statusFilter.value }),
 })
 const links = computed(() => query.data.value?.items ?? [])
 
@@ -81,6 +90,12 @@ function copyUrl(url: string) {
 }
 
 function invalidateLinks() {
-  void queryClient.invalidateQueries({ queryKey: ['short-links'] })
+  void queryClient.invalidateQueries({ queryKey: ['short-link'] })
 }
 </script>
+
+<style scoped>
+.filters {
+  max-width: 220px;
+}
+</style>

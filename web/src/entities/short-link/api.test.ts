@@ -64,6 +64,25 @@ describe('short link api', () => {
     expect(fetch).toHaveBeenCalledWith('/api/v1/short-link/list?page=1&pageSize=20', expect.objectContaining({ method: 'GET' }))
   })
 
+  it('loads my short links with status filter', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        return new Response(JSON.stringify({ code: 0, message: 'OK', data: { items: [] }, meta: {} }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }),
+    )
+
+    await listShortLinks({ page: 2, pageSize: 10, status: 'disabled' })
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/v1/short-link/list?page=2&pageSize=10&status=disabled',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
   it('uses requested pagination defaults when list meta is missing', async () => {
     vi.stubGlobal(
       'fetch',
@@ -80,7 +99,7 @@ describe('short link api', () => {
       }),
     )
 
-    const result = await listShortLinks(3, 15)
+    const result = await listShortLinks({ page: 3, pageSize: 15 })
 
     expect(result.meta).toEqual({ page: 3, pageSize: 15, total: 0 })
   })
@@ -143,11 +162,47 @@ describe('short link api', () => {
       }),
     )
 
-    const result = await listAdminShortLinks(2, 10)
+    const result = await listAdminShortLinks({ page: 2, pageSize: 10 })
 
     expect(result.items[0].owner.username).toBe('alice')
     expect(result.meta.total).toBe(21)
     expect(fetch).toHaveBeenCalledWith('/api/v1/admin/short-link/list?page=2&pageSize=10', expect.objectContaining({ method: 'GET' }))
+  })
+
+  it('loads admin short links with default pagination', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        return new Response(JSON.stringify({ code: 0, message: 'OK', data: { items: [] }, meta: {} }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }),
+    )
+
+    const result = await listAdminShortLinks()
+
+    expect(result.meta).toEqual({ page: 1, pageSize: 20, total: 0 })
+    expect(fetch).toHaveBeenCalledWith('/api/v1/admin/short-link/list?page=1&pageSize=20', expect.objectContaining({ method: 'GET' }))
+  })
+
+  it('loads admin short links with filters', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        return new Response(JSON.stringify({ code: 0, message: 'OK', data: { items: [] }, meta: {} }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }),
+    )
+
+    await listAdminShortLinks({ page: 3, pageSize: 15, status: 'active', q: 'alice link' })
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/v1/admin/short-link/list?page=3&pageSize=15&status=active&q=alice+link',
+      expect.objectContaining({ method: 'GET' }),
+    )
   })
 
   it('posts admin update and delete requests', async () => {

@@ -14,11 +14,25 @@ import (
 const countAllShortLinks = `-- name: CountAllShortLinks :one
 select count(*)
 from short_link
-where deleted_at is null
+left join app_user on $1::text <> '' and app_user.id = short_link.owner_id
+where short_link.deleted_at is null
+    and ($2::text is null or short_link.status = $2::text)
+    and (
+        $1::text = ''
+        or short_link.slug ilike '%' || $1::text || '%'
+        or short_link.target_url ilike '%' || $1::text || '%'
+        or app_user.username ilike '%' || $1::text || '%'
+        or app_user.nickname ilike '%' || $1::text || '%'
+    )
 `
 
-func (q *Queries) CountAllShortLinks(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countAllShortLinks)
+type CountAllShortLinksParams struct {
+	Query  string      `json:"query"`
+	Status pgtype.Text `json:"status"`
+}
+
+func (q *Queries) CountAllShortLinks(ctx context.Context, arg CountAllShortLinksParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countAllShortLinks, arg.Query, arg.Status)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -28,10 +42,16 @@ const countShortLinksByOwner = `-- name: CountShortLinksByOwner :one
 select count(*)
 from short_link
 where owner_id = $1 and deleted_at is null
+    and ($2::text is null or status = $2::text)
 `
 
-func (q *Queries) CountShortLinksByOwner(ctx context.Context, ownerID pgtype.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countShortLinksByOwner, ownerID)
+type CountShortLinksByOwnerParams struct {
+	OwnerID pgtype.UUID `json:"owner_id"`
+	Status  pgtype.Text `json:"status"`
+}
+
+func (q *Queries) CountShortLinksByOwner(ctx context.Context, arg CountShortLinksByOwnerParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countShortLinksByOwner, arg.OwnerID, arg.Status)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -116,13 +136,23 @@ from short_link
 join domain on domain.id = short_link.domain_id
 join app_user on app_user.id = short_link.owner_id
 where short_link.deleted_at is null
+    and ($3::text is null or short_link.status = $3::text)
+    and (
+        $4::text = ''
+        or short_link.slug ilike '%' || $4::text || '%'
+        or short_link.target_url ilike '%' || $4::text || '%'
+        or app_user.username ilike '%' || $4::text || '%'
+        or app_user.nickname ilike '%' || $4::text || '%'
+    )
 order by short_link.created_at desc
 limit $1 offset $2
 `
 
 type ListAllShortLinksParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+	Limit  int32       `json:"limit"`
+	Offset int32       `json:"offset"`
+	Status pgtype.Text `json:"status"`
+	Query  string      `json:"query"`
 }
 
 type ListAllShortLinksRow struct {
@@ -141,7 +171,12 @@ type ListAllShortLinksRow struct {
 }
 
 func (q *Queries) ListAllShortLinks(ctx context.Context, arg ListAllShortLinksParams) ([]ListAllShortLinksRow, error) {
-	rows, err := q.db.Query(ctx, listAllShortLinks, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, listAllShortLinks,
+		arg.Limit,
+		arg.Offset,
+		arg.Status,
+		arg.Query,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -187,6 +222,7 @@ select short_link.id,
 from short_link
 join domain on domain.id = short_link.domain_id
 where short_link.owner_id = $1 and short_link.deleted_at is null
+    and ($4::text is null or short_link.status = $4::text)
 order by short_link.created_at desc
 limit $2 offset $3
 `
@@ -195,6 +231,7 @@ type ListShortLinksByOwnerParams struct {
 	OwnerID pgtype.UUID `json:"owner_id"`
 	Limit   int32       `json:"limit"`
 	Offset  int32       `json:"offset"`
+	Status  pgtype.Text `json:"status"`
 }
 
 type ListShortLinksByOwnerRow struct {
@@ -211,7 +248,12 @@ type ListShortLinksByOwnerRow struct {
 }
 
 func (q *Queries) ListShortLinksByOwner(ctx context.Context, arg ListShortLinksByOwnerParams) ([]ListShortLinksByOwnerRow, error) {
-	rows, err := q.db.Query(ctx, listShortLinksByOwner, arg.OwnerID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, listShortLinksByOwner,
+		arg.OwnerID,
+		arg.Limit,
+		arg.Offset,
+		arg.Status,
+	)
 	if err != nil {
 		return nil, err
 	}

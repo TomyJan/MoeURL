@@ -22,13 +22,15 @@ select short_link.id,
 from short_link
 join domain on domain.id = short_link.domain_id
 where short_link.owner_id = $1 and short_link.deleted_at is null
+    and (sqlc.narg('status')::text is null or short_link.status = sqlc.narg('status')::text)
 order by short_link.created_at desc
 limit $2 offset $3;
 
 -- name: CountShortLinksByOwner :one
 select count(*)
 from short_link
-where owner_id = $1 and deleted_at is null;
+where owner_id = $1 and deleted_at is null
+    and (sqlc.narg('status')::text is null or status = sqlc.narg('status')::text);
 
 -- name: UpdateOwnShortLink :one
 update short_link
@@ -65,13 +67,30 @@ from short_link
 join domain on domain.id = short_link.domain_id
 join app_user on app_user.id = short_link.owner_id
 where short_link.deleted_at is null
+    and (sqlc.narg('status')::text is null or short_link.status = sqlc.narg('status')::text)
+    and (
+        sqlc.arg('query')::text = ''
+        or short_link.slug ilike '%' || sqlc.arg('query')::text || '%'
+        or short_link.target_url ilike '%' || sqlc.arg('query')::text || '%'
+        or app_user.username ilike '%' || sqlc.arg('query')::text || '%'
+        or app_user.nickname ilike '%' || sqlc.arg('query')::text || '%'
+    )
 order by short_link.created_at desc
 limit $1 offset $2;
 
 -- name: CountAllShortLinks :one
 select count(*)
 from short_link
-where deleted_at is null;
+left join app_user on sqlc.arg('query')::text <> '' and app_user.id = short_link.owner_id
+where short_link.deleted_at is null
+    and (sqlc.narg('status')::text is null or short_link.status = sqlc.narg('status')::text)
+    and (
+        sqlc.arg('query')::text = ''
+        or short_link.slug ilike '%' || sqlc.arg('query')::text || '%'
+        or short_link.target_url ilike '%' || sqlc.arg('query')::text || '%'
+        or app_user.username ilike '%' || sqlc.arg('query')::text || '%'
+        or app_user.nickname ilike '%' || sqlc.arg('query')::text || '%'
+    );
 
 -- name: UpdateAnyShortLink :one
 update short_link
