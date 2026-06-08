@@ -36,8 +36,7 @@ const avatarText = computed(() => (props.displayName || props.username || 'M').s
   padding: 10px;
   border: 1px solid var(--moeurl-outline);
   border-radius: var(--moeurl-radius-card);
-  background: color-mix(in srgb, var(--moeurl-surface-elevated) 68%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 18%, transparent);
+  background: color-mix(in srgb, var(--moeurl-surface-soft) 74%, var(--moeurl-surface-elevated) 26%);
 }
 
 .console-account-card__avatar {
@@ -47,9 +46,8 @@ const avatarText = computed(() => (props.displayName || props.username || 'M').s
   height: 42px;
   place-items: center;
   border-radius: 18px;
-  background:
-    linear-gradient(145deg, rgb(var(--v-theme-primary)), color-mix(in srgb, rgb(var(--v-theme-primary)) 76%, black 24%));
-  color: rgb(var(--v-theme-on-primary));
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 18%, transparent);
+  color: rgb(var(--v-theme-primary));
   font-weight: 800;
 }
 

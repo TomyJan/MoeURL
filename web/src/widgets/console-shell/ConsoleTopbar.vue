@@ -6,7 +6,7 @@
       <span />
     </button>
     <RouterLink class="console-topbar__brand" to="/">MoeURL</RouterLink>
-    <PreferenceSwitcher class="console-topbar__preferences" />
+    <PreferenceSwitcher class="console-topbar__preferences" density="compact" placement="topbar" />
     <v-btn color="primary" variant="flat" @click="$emit('createShortLink')">{{ t('console.newShortLink') }}</v-btn>
     <span class="console-topbar__avatar">{{ avatarText }}</span>
   </header>

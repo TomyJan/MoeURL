@@ -30,35 +30,39 @@ describe('vuetify', () => {
     expect(moeurlLightTheme.dark).toBe(false)
     expect(moeurlLightTheme.colors.primary).toBe('#0f4f48')
     expect(moeurlLightTheme.colors.background).toBe('#eff6f2')
-    expect(moeurlLightTheme.colors.secondary).toBe('#e49a3f')
+    expect(moeurlLightTheme.colors.secondary).toBe('#f0a94f')
     expect(moeurlLightTheme.colors['on-background']).toBe('#14302b')
     expect(moeurlLightTheme.variables).toEqual(
       expect.objectContaining({
         'app-elevated-surface': '#ffffff',
-        'app-glass-surface': 'rgba(255, 255, 255, 0.78)',
-        'app-hero-glow': 'rgba(228, 154, 63, 0.18)',
-        'app-soft-surface': '#f7fbf8',
-        'app-strong-surface': '#e5f0eb',
-        'app-outline': 'rgba(15, 79, 72, 0.12)',
-        'app-ring': 'rgba(15, 79, 72, 0.22)',
+        'app-glass-surface': 'rgba(255, 255, 255, 0.88)',
+        'app-hero-glow': 'rgba(240, 169, 79, 0.18)',
+        'app-soft-surface': '#f6fbf8',
+        'app-workspace-surface': '#f6fbf8',
+        'app-strong-surface': '#e2eee8',
+        'app-outline': 'rgba(15, 79, 72, 0.10)',
+        'app-outline-strong': 'rgba(15, 79, 72, 0.18)',
+        'app-ring': 'rgba(15, 79, 72, 0.18)',
         'radius-panel': '32px',
       }),
     )
 
     expect(moeurlDarkTheme.dark).toBe(true)
     expect(moeurlDarkTheme.colors.primary).toBe('#65d6b1')
-    expect(moeurlDarkTheme.colors.background).toBe('#111d1a')
+    expect(moeurlDarkTheme.colors.background).toBe('#0f1c19')
     expect(moeurlDarkTheme.colors.secondary).toBe('#ecb65c')
-    expect(moeurlDarkTheme.colors['on-background']).toBe('#f3fbf6')
+    expect(moeurlDarkTheme.colors['on-background']).toBe('#effdf6')
     expect(moeurlDarkTheme.variables).toEqual(
       expect.objectContaining({
-        'app-elevated-surface': '#182622',
-        'app-glass-surface': 'rgba(23, 35, 31, 0.90)',
-        'app-hero-glow': 'rgba(236, 182, 92, 0.16)',
-        'app-soft-surface': '#121a18',
+        'app-elevated-surface': '#17231f',
+        'app-glass-surface': 'rgba(23, 35, 31, 0.94)',
+        'app-hero-glow': 'rgba(236, 182, 92, 0.13)',
+        'app-soft-surface': '#111816',
+        'app-workspace-surface': '#0f1a18',
         'app-strong-surface': '#17332e',
-        'app-outline': 'rgba(232, 248, 240, 0.13)',
-        'app-ring': 'rgba(101, 214, 177, 0.26)',
+        'app-outline': 'rgba(255, 255, 255, 0.08)',
+        'app-outline-strong': 'rgba(255, 255, 255, 0.14)',
+        'app-ring': 'rgba(101, 214, 177, 0.24)',
         'radius-panel': '32px',
       }),
     )

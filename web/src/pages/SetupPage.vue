@@ -7,58 +7,58 @@
 
     <section class="auth-page__panel auth-page__panel--wide" data-testid="auth-panel">
       <aside class="auth-page__story">
-        <p class="auth-page__eyebrow">First run setup</p>
+        <p class="auth-page__eyebrow">{{ t('setup.eyebrow') }}</p>
         <h1>{{ t('page.setup') }}</h1>
-        <p>完成首次初始化后，MoeURL 才会开放控制台和短链管理。</p>
+        <p>{{ t('setup.summary') }}</p>
       </aside>
 
       <div class="auth-page__form">
-        <v-alert v-if="isLoading" class="auth-page__state" color="primary" variant="tonal">Loading</v-alert>
+        <v-alert v-if="isLoading" class="auth-page__state" color="primary" variant="tonal">{{ t('setup.loading') }}</v-alert>
         <v-alert v-else-if="data?.initialized || initialized" class="auth-page__state" type="success" variant="tonal">
-          Initialized
+          {{ t('setup.initialized') }}
         </v-alert>
 
         <form v-else class="auth-page__setup-form" @submit.prevent="submit">
           <div class="auth-page__form-heading">
-            <span>System owner</span>
-            <h2>初始化管理员与站点</h2>
+            <span>{{ t('setup.mark') }}</span>
+            <h2>{{ t('setup.title') }}</h2>
           </div>
 
           <fieldset class="auth-page__group">
-            <legend>管理员账号</legend>
+            <legend>{{ t('setup.adminLegend') }}</legend>
             <div class="auth-page__field-grid auth-page__field-grid--three">
-              <v-text-field v-model="form.adminUsername" label="Admin username" variant="outlined" />
-              <v-text-field v-model="form.adminPassword" label="Admin password" type="password" variant="outlined" />
-              <v-text-field v-model="form.adminNickname" label="Admin nickname" variant="outlined" />
+              <v-text-field v-model="form.adminUsername" :label="t('setup.adminUsername')" variant="outlined" />
+              <v-text-field v-model="form.adminPassword" :label="t('setup.adminPassword')" type="password" variant="outlined" />
+              <v-text-field v-model="form.adminNickname" :label="t('setup.adminNickname')" variant="outlined" />
             </div>
           </fieldset>
 
           <fieldset class="auth-page__group">
-            <legend>站点域名</legend>
+            <legend>{{ t('setup.domainLegend') }}</legend>
             <div class="auth-page__field-grid">
-              <v-text-field v-model="form.siteName" label="Site name" variant="outlined" />
-              <v-text-field v-model="form.systemDomain" label="System domain" variant="outlined" />
-              <v-text-field v-model="form.shortLinkDomain" label="Short link domain" variant="outlined" />
+              <v-text-field v-model="form.siteName" :label="t('setup.siteName')" variant="outlined" />
+              <v-text-field v-model="form.systemDomain" :label="t('setup.systemDomain')" variant="outlined" />
+              <v-text-field v-model="form.shortLinkDomain" :label="t('setup.shortLinkDomain')" variant="outlined" />
             </div>
           </fieldset>
 
           <fieldset class="auth-page__group">
-            <legend>默认偏好</legend>
+            <legend>{{ t('setup.preferenceLegend') }}</legend>
             <div class="auth-page__field-grid">
-              <v-select v-model="form.defaultLanguage" label="Default language" :items="languageItems" variant="outlined" />
-              <v-select v-model="form.defaultTheme" label="Default theme" :items="themeItems" variant="outlined" />
+              <v-select v-model="form.defaultLanguage" :label="t('setup.defaultLanguage')" :items="languageItems" variant="outlined" />
+              <v-select v-model="form.defaultTheme" :label="t('setup.defaultTheme')" :items="themeItems" variant="outlined" />
             </div>
           </fieldset>
 
           <v-alert v-if="mutation.isError.value" class="auth-page__alert" type="error" variant="tonal">
-            {{ mutation.error.value?.message || '初始化失败' }}
+            {{ mutation.error.value?.message || t('setup.failed') }}
           </v-alert>
 
           <div class="auth-page__actions">
             <v-btn class="auth-page__submit" color="primary" :loading="mutation.isPending.value" type="submit">
-              初始化
+              {{ t('setup.submit') }}
             </v-btn>
-            <p>初始化会创建管理员账号，并写入站点基础访问域名。</p>
+            <p>{{ t('setup.hint') }}</p>
           </div>
         </form>
       </div>

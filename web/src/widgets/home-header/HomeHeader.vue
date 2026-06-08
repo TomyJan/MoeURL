@@ -6,7 +6,7 @@
     </RouterLink>
 
     <nav class="home-header__actions">
-      <PreferenceSwitcher />
+      <PreferenceSwitcher density="compact" placement="inline" />
       <v-btn v-if="isGuest" class="home-header__login" to="/login" variant="text">{{ t('nav.login') }}</v-btn>
       <button v-else class="home-header__account" type="button" :aria-label="displayName" @click="$emit('consoleClick')">
         <span class="home-header__avatar" aria-hidden="true">{{ avatarText }}</span>
@@ -74,10 +74,10 @@ const avatarText = computed(() => (props.displayName || 'M').slice(0, 1).toUpper
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px;
-  border: 1px solid color-mix(in srgb, var(--moeurl-outline) 78%, transparent);
+  padding: 0;
+  border: 0;
   border-radius: var(--moeurl-radius-pill);
-  background: color-mix(in srgb, var(--moeurl-surface-elevated) 58%, transparent);
+  background: transparent;
 }
 
 .home-header__account {

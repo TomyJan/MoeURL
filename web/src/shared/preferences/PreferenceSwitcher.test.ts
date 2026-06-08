@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/vue'
+import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import PreferenceSwitcher from './PreferenceSwitcher.vue'
@@ -16,6 +16,17 @@ const preferenceSpies = vi.hoisted(() => ({
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
     locale: state.locale,
+    t: (key: string) =>
+      ({
+        'preferences.language': '选择语言',
+        'preferences.languageOptions': '语言选项',
+        'preferences.theme': '选择主题',
+        'preferences.themeOptions': '主题选项',
+        'preferences.system': '跟随系统',
+        'preferences.systemShort': '系统',
+        'preferences.light': '浅色',
+        'preferences.dark': '深色',
+      })[key] ?? key,
   }),
 }))
 
@@ -79,5 +90,24 @@ describe('PreferenceSwitcher', () => {
     await fireEvent.click(screen.getByRole('menuitemradio', { name: '跟随系统' }))
     expect(themeButton.textContent).toContain('系统')
     expect(preferenceSpies.saveThemePreference).toHaveBeenCalledWith('system')
+  })
+
+  it('adapts to sidebar placement without changing preference behavior', async () => {
+    const { container } = render(PreferenceSwitcher, {
+      props: {
+        density: 'compact',
+        placement: 'sidebar',
+      },
+    })
+
+    expect(container.querySelector('.preference-switcher--compact')).toBeTruthy()
+    expect(container.querySelector('.preference-switcher--sidebar')).toBeTruthy()
+
+    await fireEvent.click(screen.getByRole('button', { name: '选择语言' }))
+    await fireEvent.click(screen.getByRole('menuitemradio', { name: 'English' }))
+
+    await waitFor(() => {
+      expect(preferenceSpies.saveLanguagePreference).toHaveBeenCalledWith('en')
+    })
   })
 })

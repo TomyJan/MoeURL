@@ -24,10 +24,16 @@
               {{ t('console.closeMenu') }}
             </button>
           </div>
-          <v-btn class="console-shell__mobile-create" color="primary" variant="flat" @click="openCreatePanel">
-            {{ t('console.newShortLink') }}
-          </v-btn>
-          <RouterLink class="console-shell__mobile-home" to="/">{{ t('console.backHome') }}</RouterLink>
+          <div class="console-shell__mobile-quick">
+            <v-btn class="console-shell__mobile-create" color="primary" variant="flat" @click="openCreatePanel">
+              <span aria-hidden="true">+</span>
+              {{ t('console.newShortLink') }}
+            </v-btn>
+            <RouterLink class="console-shell__mobile-home" to="/">
+              <span aria-hidden="true">↗</span>
+              {{ t('console.backHome') }}
+            </RouterLink>
+          </div>
           <nav class="console-shell__mobile-nav-list">
             <section v-for="group in navGroups" :key="group.labelKey" class="console-shell__mobile-nav-group">
               <p>{{ t(group.labelKey) }}</p>
@@ -44,7 +50,7 @@
               </template>
             </section>
           </nav>
-          <PreferenceSwitcher />
+          <PreferenceSwitcher density="compact" placement="sidebar" />
         </div>
       </div>
     </Transition>
@@ -146,8 +152,8 @@ function submitLogout() {
   gap: 18px;
   padding: 18px;
   background:
-    radial-gradient(circle at 9% -4%, var(--moeurl-hero-glow), transparent 26rem),
-    rgb(var(--v-theme-background));
+    radial-gradient(circle at 8% -8%, var(--moeurl-hero-glow), transparent 24rem),
+    var(--moeurl-surface-workspace);
 }
 
 .console-shell__main {
@@ -203,21 +209,41 @@ function submitLogout() {
   text-decoration: none;
 }
 
+.console-shell__mobile-quick {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--moeurl-outline);
+  border-radius: 28px;
+  background: color-mix(in srgb, var(--moeurl-surface-soft) 88%, var(--moeurl-surface-elevated) 12%);
+}
+
 .console-shell__mobile-create {
-  min-height: 48px;
+  min-height: 46px;
+}
+
+.console-shell__mobile-create :deep(.v-btn__content) {
+  gap: 8px;
 }
 
 .console-shell__mobile-home {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: 10px 14px;
-  border: 1px solid color-mix(in srgb, rgb(var(--v-theme-secondary)) 36%, var(--moeurl-outline));
+  justify-content: flex-start;
+  gap: 9px;
+  padding: 9px 12px;
+  border: 1px solid transparent;
   border-radius: 20px;
-  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 10%, transparent);
-  color: rgb(var(--v-theme-secondary));
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface-variant));
   font-weight: 850;
   text-decoration: none;
+}
+
+.console-shell__mobile-home:hover {
+  border-color: color-mix(in srgb, rgb(var(--v-theme-secondary)) 32%, transparent);
+  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 9%, transparent);
+  color: rgb(var(--v-theme-secondary));
 }
 
 .console-shell__mobile-nav-list,
@@ -236,11 +262,9 @@ function submitLogout() {
 }
 
 .console-shell__mobile-nav-subgroup {
-  padding: 8px;
-  border-left: 1px solid var(--moeurl-outline);
-  border-radius: 0;
-  margin-left: 10px;
-  border-radius: 22px;
+  padding: 8px 0 8px 12px;
+  border-left: 1px solid var(--moeurl-outline-strong);
+  margin-left: 12px;
   background: transparent;
 }
 

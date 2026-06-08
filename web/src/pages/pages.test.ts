@@ -212,12 +212,12 @@ describe('pages', () => {
     setQueryResult({ isLoading: ref(true) })
     const loading = mount(SetupPage)
     expect(screen.getByTestId('auth-page-setup')).toBeTruthy()
-    expect(screen.getByText('Loading')).toBeTruthy()
+    expect(screen.getByText('setup.loading')).toBeTruthy()
     loading.unmount()
 
     setQueryResult({ data: ref({ initialized: true }) })
     const initialized = mount(SetupPage)
-    expect(screen.getByText('Initialized')).toBeTruthy()
+    expect(screen.getByText('setup.initialized')).toBeTruthy()
     initialized.unmount()
 
     const mutate = vi.fn()
@@ -231,17 +231,17 @@ describe('pages', () => {
 
     expect(screen.getByTestId('auth-panel')).toBeTruthy()
     expect(screen.getByText('setup failed')).toBeTruthy()
-    await fireEvent.update(screen.getByLabelText('Admin username'), 'admin')
-    await fireEvent.update(screen.getByLabelText('Admin password'), 'password123')
-    await fireEvent.update(screen.getByLabelText('Admin nickname'), 'Admin')
-    await fireEvent.update(screen.getByLabelText('Site name'), 'MoeURL Test')
-    await fireEvent.update(screen.getByLabelText('System domain'), 'example.com')
-    await fireEvent.update(screen.getByLabelText('Short link domain'), 'go.example.com')
-    await fireEvent.update(screen.getByLabelText('Default language'), 'en')
-    await fireEvent.update(screen.getByLabelText('Default theme'), 'dark')
-    await fireEvent.click(screen.getByText('初始化'))
+    await fireEvent.update(screen.getByLabelText('setup.adminUsername'), 'admin')
+    await fireEvent.update(screen.getByLabelText('setup.adminPassword'), 'password123')
+    await fireEvent.update(screen.getByLabelText('setup.adminNickname'), 'Admin')
+    await fireEvent.update(screen.getByLabelText('setup.siteName'), 'MoeURL Test')
+    await fireEvent.update(screen.getByLabelText('setup.systemDomain'), 'example.com')
+    await fireEvent.update(screen.getByLabelText('setup.shortLinkDomain'), 'go.example.com')
+    await fireEvent.update(screen.getByLabelText('setup.defaultLanguage'), 'en')
+    await fireEvent.update(screen.getByLabelText('setup.defaultTheme'), 'dark')
+    await fireEvent.click(screen.getByText('setup.submit'))
 
-    expect(screen.getByText('Initialized')).toBeTruthy()
+    expect(screen.getByText('setup.initialized')).toBeTruthy()
     expect(mutate).toHaveBeenCalledWith(expect.objectContaining({ adminUsername: 'admin', defaultLanguage: 'en', defaultTheme: 'dark' }))
   })
 
@@ -524,9 +524,9 @@ describe('pages', () => {
     mount(SetupPage)
 
     expect(screen.getByText('setup failed')).toBeTruthy()
-    await fireEvent.click(screen.getByText('初始化'))
+    await fireEvent.click(screen.getByText('setup.submit'))
 
-    expect(screen.getByText('Initialized')).toBeTruthy()
+    expect(screen.getByText('setup.initialized')).toBeTruthy()
   })
 
   it('renders fallback error messages', () => {
@@ -547,7 +547,7 @@ describe('pages', () => {
       mutate: vi.fn(),
     })
     mount(SetupPage)
-    expect(screen.getByText('初始化失败')).toBeTruthy()
+    expect(screen.getByText('setup.failed')).toBeTruthy()
   })
 
   it('submits create user form and shows created username', async () => {

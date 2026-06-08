@@ -41,8 +41,8 @@ describe('HomeHeader', () => {
     expect(screen.getByText('MoeURL')).toBeTruthy()
     expect(screen.getByText('nav.login')).toBeTruthy()
     expect(screen.getByRole('group', { name: 'app preferences' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: '选择语言' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: '选择主题' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'preferences.language' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'preferences.theme' })).toBeTruthy()
   })
 
   it('emits console navigation when authenticated account is clicked', async () => {

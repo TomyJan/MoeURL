@@ -2,12 +2,14 @@ export const moeurlThemeCss = `
 :root {
   color: rgb(var(--v-theme-on-background));
   background: rgb(var(--v-theme-background));
-  --moeurl-surface-elevated: var(--v-app-elevated-surface);
+  --moeurl-surface-elevated: rgb(var(--v-app-elevated-surface));
   --moeurl-surface-glass: var(--v-app-glass-surface);
-  --moeurl-surface-soft: var(--v-app-soft-surface);
-  --moeurl-surface-strong: var(--v-app-strong-surface);
+  --moeurl-surface-soft: rgb(var(--v-app-soft-surface));
+  --moeurl-surface-workspace: rgb(var(--v-app-workspace-surface));
+  --moeurl-surface-strong: rgb(var(--v-app-strong-surface));
   --moeurl-hero-glow: var(--v-app-hero-glow);
   --moeurl-outline: var(--v-app-outline);
+  --moeurl-outline-strong: var(--v-app-outline-strong);
   --moeurl-ring: var(--v-app-ring);
   --moeurl-shadow: var(--v-app-shadow);
   --moeurl-shadow-strong: var(--v-app-shadow-strong);
@@ -27,7 +29,7 @@ body,
 body {
   margin: 0;
   background:
-    radial-gradient(circle at 18% -4%, var(--moeurl-hero-glow), transparent 27rem),
+    radial-gradient(circle at 20% -8%, var(--moeurl-hero-glow), transparent 24rem),
     linear-gradient(180deg, rgb(var(--v-theme-background)), rgb(var(--v-theme-background)));
   font-feature-settings: "liga" 1, "kern" 1;
 }
@@ -52,12 +54,12 @@ body {
 }
 
 .v-btn--variant-flat {
-  box-shadow: 0 14px 34px color-mix(in srgb, rgb(var(--v-theme-primary)) 16%, transparent);
+  box-shadow: 0 12px 28px color-mix(in srgb, rgb(var(--v-theme-primary)) 14%, transparent);
 }
 
 .v-field {
   border-radius: var(--moeurl-radius-control);
-  background: color-mix(in srgb, var(--moeurl-surface-elevated) 86%, rgb(var(--v-theme-background)) 14%);
+  background: color-mix(in srgb, var(--moeurl-surface-elevated) 88%, var(--moeurl-surface-workspace) 12%);
   transition: background 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
 }
 
@@ -67,7 +69,7 @@ body {
 
 .v-field--focused {
   background: var(--moeurl-surface-elevated);
-  box-shadow: 0 0 0 3px var(--moeurl-ring);
+  box-shadow: 0 0 0 2px var(--moeurl-ring);
 }
 
 .v-field--focused .v-field__outline {
@@ -204,7 +206,7 @@ body {
   border: 1px solid var(--moeurl-outline);
   border-radius: var(--moeurl-radius-panel);
   background: var(--moeurl-surface-elevated);
-  box-shadow: var(--moeurl-shadow);
+  box-shadow: 0 14px 34px color-mix(in srgb, rgb(var(--v-theme-primary)) 5%, transparent);
 }
 
 .console-data-panel {

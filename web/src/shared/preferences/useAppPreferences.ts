@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTheme } from 'vuetify/framework'
 
@@ -13,7 +13,6 @@ import type { LanguagePreference, ThemePreference } from './preferences'
 const language = ref<LanguagePreference>('zh-CN')
 const themeMode = ref<ThemePreference>('system')
 let preferencesLoaded = false
-let watchersInstalled = false
 
 export function useAppPreferences() {
   const { locale } = useI18n()
@@ -29,24 +28,16 @@ export function useAppPreferences() {
   locale.value = language.value
   theme.global.name.value = resolveVuetifyTheme(themeMode.value)
 
-  if (!watchersInstalled) {
-    watchersInstalled = true
-    watch(language, (value) => {
-      locale.value = value
-      saveLanguagePreference(value)
-    })
-    watch(themeMode, (value) => {
-      theme.global.name.value = resolveVuetifyTheme(value)
-      saveThemePreference(value)
-    })
-  }
-
   function setLanguage(value: LanguagePreference) {
     language.value = value
+    locale.value = value
+    saveLanguagePreference(value)
   }
 
   function setTheme(value: ThemePreference) {
     themeMode.value = value
+    theme.global.name.value = resolveVuetifyTheme(value)
+    saveThemePreference(value)
   }
 
   return {
