@@ -333,6 +333,8 @@ describe('pages', () => {
     })
     mount(MyLinksPage)
 
+    expect(screen.getByTestId('console-page-links')).toBeTruthy()
+    expect(screen.getByTestId('console-page-panel')).toBeTruthy()
     const rows = screen.getAllByRole('row')
     const activeRow = rows.find((row) => within(row).queryByText('https://go.example.com/abc123'))
     const disabledRow = rows.find((row) => within(row).queryByText('https://go.example.com/def456'))
@@ -371,6 +373,8 @@ describe('pages', () => {
     setMutationResult({ mutate })
     mount(AdminLinksPage)
 
+    expect(screen.getByTestId('console-page-admin-links')).toBeTruthy()
+    expect(screen.getByTestId('console-page-panel')).toBeTruthy()
     expect(screen.getByText('共 1 条')).toBeTruthy()
     expect(screen.getByText('owner-id')).toBeTruthy()
     expect(screen.getByText('Bobby')).toBeTruthy()
@@ -469,6 +473,8 @@ describe('pages', () => {
     setMutationResult()
     mount(CreateUserPage)
 
+    expect(screen.getByTestId('console-page-create-user')).toBeTruthy()
+    expect(screen.getByTestId('console-form-panel')).toBeTruthy()
     await fireEvent.update(screen.getByLabelText('Username'), 'alice')
     await fireEvent.update(screen.getByLabelText('Password'), 'password123')
     await fireEvent.update(screen.getByLabelText('Nickname'), 'Alice')
@@ -511,6 +517,8 @@ describe('pages', () => {
     setMutationResult({ mutate })
     mount(AdminUsersPage)
 
+    expect(screen.getByTestId('console-page-admin-users')).toBeTruthy()
+    expect(screen.getByTestId('console-page-panel')).toBeTruthy()
     expect(screen.getByText('adminUsers.total')).toBeTruthy()
     expect(screen.getByText('alice')).toBeTruthy()
     expect(screen.getByText('adminUsers.type.builtin')).toBeTruthy()
