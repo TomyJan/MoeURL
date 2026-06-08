@@ -18,6 +18,7 @@
           <th>用户组</th>
           <th>状态</th>
           <th>类型</th>
+          <th>创建时间</th>
           <th>操作</th>
         </tr>
       </thead>
@@ -37,6 +38,7 @@
           <td>{{ item.group }}</td>
           <td>{{ item.status }}</td>
           <td>{{ item.builtin ? '内置' : '普通' }}</td>
+          <td>{{ item.createdAt }}</td>
           <td>
             <v-btn size="small" variant="text" :disabled="item.builtin" :loading="updateMutation.isPending.value" @click="toggleStatus(item)">
               {{ item.status === 'active' ? '禁用' : '启用' }}

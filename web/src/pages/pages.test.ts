@@ -459,6 +459,7 @@ describe('pages', () => {
     expect(screen.getByText('共 2 个用户')).toBeTruthy()
     expect(screen.getByText('alice')).toBeTruthy()
     expect(screen.getByText('内置')).toBeTruthy()
+    expect(screen.getAllByText('2026-06-08T00:00:00Z').length).toBeGreaterThan(0)
 
     await fireEvent.click(screen.getAllByText('禁用')[0])
     await fireEvent.update(screen.getAllByLabelText('昵称')[0], 'Alice Renamed')
