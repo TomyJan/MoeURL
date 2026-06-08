@@ -56,16 +56,33 @@ func TestRouterServesSPAFixedRoutesFromStaticDir(t *testing.T) {
 		t.Fatalf("write index: %v", err)
 	}
 	router := apphttp.NewRouter(apphttp.Dependencies{StaticDir: staticDir})
-	request := httptest.NewRequest(http.MethodGet, "/login", nil)
-	response := httptest.NewRecorder()
 
-	router.ServeHTTP(response, request)
+	for _, path := range []string{
+		"/",
+		"/setup",
+		"/login",
+		"/console",
+		"/link",
+		"/analytics",
+		"/admin/link",
+		"/admin/user",
+		"/admin/user/group",
+		"/admin/setting",
+		"/admin/user/new",
+	} {
+		t.Run(path, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, path, nil)
+			response := httptest.NewRecorder()
 
-	if response.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, response.Code)
-	}
-	if response.Body.String() == "" {
-		t.Fatal("expected index body")
+			router.ServeHTTP(response, request)
+
+			if response.Code != http.StatusOK {
+				t.Fatalf("expected status %d, got %d", http.StatusOK, response.Code)
+			}
+			if response.Body.String() == "" {
+				t.Fatal("expected index body")
+			}
+		})
 	}
 }
 

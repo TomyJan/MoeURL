@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
   logoutMutate: vi.fn(),
   queryResult: {},
+  routePath: '/link',
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -23,6 +24,14 @@ vi.mock('vuetify/framework', () => ({
     global: {
       name: ref('moeurlLight'),
     },
+  }),
+}))
+
+vi.mock('vue-router', () => ({
+  RouterLink: { props: ['to'], template: '<a :data-to="to"><slot /></a>' },
+  RouterView: { template: '<div data-testid="router-view" />' },
+  useRoute: () => ({
+    path: state.routePath,
   }),
 }))
 
@@ -77,6 +86,7 @@ describe('ConsoleShell', () => {
   beforeEach(() => {
     state.invalidateQueries.mockReset()
     state.logoutMutate.mockReset()
+    state.routePath = '/link'
     setCurrentUser({
       username: 'alice',
       nickname: 'Alice',
@@ -100,7 +110,7 @@ describe('ConsoleShell', () => {
     expect(screen.getAllByRole('group', { name: 'app preferences' }).length).toBeGreaterThan(0)
   })
 
-  it('shows administrator navigation as grouped two-level sections without create-user nav', () => {
+  it('shows administrator navigation as grouped two-level sections without create-user nav', async () => {
     setCurrentUser({
       username: 'admin',
       nickname: 'Admin',
@@ -111,12 +121,30 @@ describe('ConsoleShell', () => {
     mountShell()
 
     expect(screen.getByText('nav.links')).toBeTruthy()
+    expect(screen.getByText('nav.overview')).toBeTruthy()
     expect(screen.getAllByText('nav.admin').length).toBeGreaterThan(0)
-    expect(screen.getByText('console.nav.userManagement')).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: 'console.nav.userManagement' }).length).toBeGreaterThan(0)
+    expect(screen.queryByText('nav.users')).toBeNull()
+    await fireEvent.click(screen.getAllByRole('button', { name: 'console.nav.userManagement' })[0])
     expect(screen.getByText('nav.users')).toBeTruthy()
+    expect(screen.getByText('nav.userGroups')).toBeTruthy()
     expect(screen.queryByText('page.createUser')).toBeNull()
-    expect(screen.queryByText('console.stats')).toBeNull()
-    expect(screen.queryByText('console.settings')).toBeNull()
+    expect(screen.getByText('nav.analytics')).toBeTruthy()
+    expect(screen.getByText('nav.settings')).toBeTruthy()
+  })
+
+  it('expands the matching two-level navigation group for child routes', () => {
+    state.routePath = '/admin/user/group'
+    setCurrentUser({
+      username: 'admin',
+      nickname: 'Admin',
+      group: 'admin',
+      permissions: ['short_link:create', 'domain:use_default', 'short_link:read_own', 'admin:access'],
+    })
+
+    mountShell()
+
+    expect(screen.getByText('nav.userGroups')).toBeTruthy()
   })
 
   it('opens short link creation dialog from the console action', async () => {
@@ -139,7 +167,6 @@ describe('ConsoleShell', () => {
     expect(screen.getByTestId('console-mobile-nav')).toBeTruthy()
     expect(screen.getByTestId('console-drawer-transition')).toBeTruthy()
     expect(within(screen.getByTestId('console-mobile-nav')).getByRole('group', { name: 'app preferences' })).toBeTruthy()
-    expect(within(screen.getByTestId('console-mobile-nav')).getByText('console.backHome')).toBeTruthy()
     expect(within(screen.getByTestId('console-mobile-nav')).getByText('nav.links')).toBeTruthy()
   })
 

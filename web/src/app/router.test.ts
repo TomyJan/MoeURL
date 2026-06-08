@@ -21,7 +21,20 @@ describe('router', () => {
     const routePaths = routes.flatMap((route) => [route.path, ...(route.children?.map((child) => child.path) ?? [])])
 
     expect(routePaths).toEqual(
-      expect.arrayContaining(['/', '/setup', '/login', '/link', '/admin/link', '/admin/user', '/admin/user/new', '/:pathMatch(.*)*']),
+      expect.arrayContaining([
+        '/',
+        '/setup',
+        '/login',
+        '/console',
+        '/link',
+        '/analytics',
+        '/admin/link',
+        '/admin/user',
+        '/admin/user/group',
+        '/admin/setting',
+        '/admin/user/new',
+        '/:pathMatch(.*)*',
+      ]),
     )
   })
 
@@ -29,7 +42,7 @@ describe('router', () => {
     const consoleRoute = routes.find((route) => route.children)
     const adminRoutes = consoleRoute?.children?.filter((route) => route.path.startsWith('/admin/')) ?? []
 
-    expect(adminRoutes).toHaveLength(3)
+    expect(adminRoutes).toHaveLength(5)
     expect(adminRoutes.every((route) => route.meta?.requiresAdmin === true)).toBe(true)
   })
 

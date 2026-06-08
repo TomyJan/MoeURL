@@ -10,12 +10,15 @@ vi.mock('vue-i18n', () => ({
 }))
 
 describe('HomeIntroSections', () => {
-  it('renders the four lightweight product introduction sections', () => {
+  it('renders richer product introduction sections and footer copyright', () => {
     render(HomeIntroSections)
 
     expect(screen.getByText('homeIntro.permission.title')).toBeTruthy()
     expect(screen.getByText('homeIntro.selfHosted.title')).toBeTruthy()
     expect(screen.getByText('homeIntro.management.title')).toBeTruthy()
     expect(screen.getByText('homeIntro.modern.title')).toBeTruthy()
+    expect(screen.getByText('homeIntro.workflow.title')).toBeTruthy()
+    expect(screen.getByText('homeIntro.deploy.title')).toBeTruthy()
+    expect(screen.getByText('homeIntro.footerCopyright')).toBeTruthy()
   })
 })

@@ -14,7 +14,7 @@ describe('moeurlThemeCss', () => {
     expect(moeurlThemeCss).toContain('--moeurl-radius-page: var(--v-radius-page)')
     expect(moeurlThemeCss).toContain('border-radius: var(--moeurl-radius-panel)')
     expect(moeurlThemeCss).toContain('.console-page__tools')
-    expect(moeurlThemeCss).toContain('box-shadow: 0 0 0 1px var(--moeurl-ring)')
+    expect(moeurlThemeCss).toContain('box-shadow: 0 8px 20px color-mix')
     expect(moeurlThemeCss).toContain(':where(a, button, [role="button"]):focus-visible')
     expect(moeurlThemeCss).not.toContain(':where(a, button, input, select, textarea):focus-visible')
   })

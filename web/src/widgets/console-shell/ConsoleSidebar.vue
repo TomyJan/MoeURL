@@ -13,11 +13,6 @@
         <span aria-hidden="true">+</span>
         {{ t('console.newShortLink') }}
       </v-btn>
-
-      <RouterLink class="console-sidebar__home" data-testid="console-sidebar-home" to="/">
-        <span class="console-sidebar__home-mark" aria-hidden="true">↗</span>
-        <span>{{ t('console.backHome') }}</span>
-      </RouterLink>
     </div>
 
     <nav class="console-sidebar__nav">
@@ -34,23 +29,37 @@
             {{ t(item.labelKey) }}
           </v-btn>
           <div v-else class="console-sidebar__nav-subgroup">
-            <p>
-              <span class="console-sidebar__nav-caret" aria-hidden="true" />
-              {{ t(item.labelKey) }}
-            </p>
-            <v-btn
-              v-for="child in item.children"
-              :key="child.to"
-              :to="child.to"
-              class="console-sidebar__nav-item console-sidebar__nav-item--child"
-              variant="text"
+            <button
+              class="console-sidebar__nav-item console-sidebar__nav-parent"
+              type="button"
+              :aria-expanded="expandedGroups.has(item.labelKey)"
+              @click="toggleGroup(item.labelKey)"
             >
-              {{ t(child.labelKey) }}
-            </v-btn>
+              {{ t(item.labelKey) }}
+              <span class="console-sidebar__nav-caret" aria-hidden="true" />
+            </button>
+            <Transition name="console-nav-children">
+              <div v-if="expandedGroups.has(item.labelKey)" class="console-sidebar__nav-children">
+                <v-btn
+                  v-for="child in item.children"
+                  :key="child.to"
+                  :to="child.to"
+                  class="console-sidebar__nav-item console-sidebar__nav-item--child"
+                  variant="text"
+                >
+                  {{ t(child.labelKey) }}
+                </v-btn>
+              </div>
+            </Transition>
           </div>
         </template>
       </section>
     </nav>
+
+    <RouterLink class="console-sidebar__home" data-testid="console-sidebar-home" to="/">
+      <span class="console-sidebar__home-mark" aria-hidden="true">↗</span>
+      <span>{{ t('console.backHome') }}</span>
+    </RouterLink>
 
     <PreferenceSwitcher class="console-sidebar__preferences" density="compact" placement="sidebar" />
 
@@ -70,7 +79,8 @@
   nested management subjects.
 -->
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
+import { reactive, watchEffect } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 import PreferenceSwitcher from '@/shared/preferences/PreferenceSwitcher.vue'
@@ -88,7 +98,7 @@ export interface ConsoleNavGroup {
   labelKey: string
 }
 
-defineProps<{
+const props = defineProps<{
   displayName: string
   logoutPending?: boolean
   navGroups: ConsoleNavGroup[]
@@ -101,6 +111,26 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
+const route = useRoute()
+const expandedGroups = reactive(new Set<string>())
+
+watchEffect(() => {
+  for (const group of props.navGroups) {
+    for (const item of group.items) {
+      if (item.children?.some((child) => child.to === route.path)) {
+        expandedGroups.add(item.labelKey)
+      }
+    }
+  }
+})
+
+function toggleGroup(labelKey: string) {
+  if (expandedGroups.has(labelKey)) {
+    expandedGroups.delete(labelKey)
+    return
+  }
+  expandedGroups.add(labelKey)
+}
 </script>
 
 <style scoped>
@@ -109,7 +139,7 @@ const { t } = useI18n()
   top: 20px;
   display: grid;
   min-height: calc(100vh - 40px);
-  grid-template-rows: auto auto 1fr auto auto;
+  grid-template-rows: auto auto 1fr auto auto auto;
   gap: 16px;
   padding: 18px;
   border: 1px solid var(--moeurl-outline);
@@ -154,11 +184,8 @@ const { t } = useI18n()
 
 .console-sidebar__quick {
   display: grid;
-  gap: 10px;
-  padding: 10px;
-  border: 1px solid var(--moeurl-outline);
-  border-radius: 28px;
-  background: color-mix(in srgb, var(--moeurl-surface-soft) 82%, var(--moeurl-surface-elevated) 18%);
+  padding: 0;
+  background: transparent;
 }
 
 .console-sidebar__action {
@@ -178,9 +205,9 @@ const { t } = useI18n()
   align-items: center;
   justify-content: flex-start;
   gap: 9px;
-  padding: 8px 9px;
+  padding: 9px 10px;
   border: 1px solid transparent;
-  border-radius: 20px;
+  border-radius: var(--moeurl-radius-pill);
   background: transparent;
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.84rem;
@@ -217,10 +244,9 @@ const { t } = useI18n()
   gap: 4px;
 }
 
-.console-sidebar__nav-label,
-.console-sidebar__nav-subgroup p {
+.console-sidebar__nav-label {
   margin: 0;
-  padding: 0 10px;
+  padding: 0 12px;
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.71rem;
   font-weight: 900;
@@ -228,38 +254,27 @@ const { t } = useI18n()
 }
 
 .console-sidebar__nav-subgroup {
-  position: relative;
-  margin: 4px 0 0;
-  padding: 3px 0 3px 12px;
+  margin: 0;
+  padding: 0;
   background: transparent;
 }
 
-.console-sidebar__nav-subgroup::before {
-  position: absolute;
-  top: 10px;
-  bottom: 10px;
-  left: 7px;
-  width: 1px;
-  border-radius: 999px;
-  background: var(--moeurl-outline-strong);
-  content: "";
-}
-
-.console-sidebar__nav-subgroup p {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 26px;
-  padding-left: 12px;
-  text-transform: none;
+.console-sidebar__nav-children {
+  display: grid;
+  gap: 4px;
+  margin: 2px 0 4px 14px;
+  padding-left: 9px;
+  border-left: 1px solid var(--moeurl-outline-strong);
 }
 
 .console-sidebar__nav-caret {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
+  margin-left: auto;
   border-right: 1.5px solid currentcolor;
   border-bottom: 1.5px solid currentcolor;
-  transform: rotate(45deg) translateY(-1px);
+  transform: rotate(-45deg);
+  transition: transform 180ms ease;
 }
 
 .console-sidebar__nav-item {
@@ -268,6 +283,19 @@ const { t } = useI18n()
   border-radius: 18px;
   color: rgb(var(--v-theme-on-surface-variant));
   font-weight: 760;
+}
+
+.console-sidebar__nav-parent {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.console-sidebar__nav-parent[aria-expanded="true"] .console-sidebar__nav-caret {
+  transform: rotate(45deg) translateY(-1px);
 }
 
 .console-sidebar__nav-item::before {
@@ -281,8 +309,8 @@ const { t } = useI18n()
 
 .console-sidebar__nav-item--child {
   min-height: 34px;
-  margin-left: 8px;
-  padding-inline-start: 6px;
+  margin-left: 0;
+  padding-inline-start: 8px;
   font-size: 0.9rem;
 }
 
@@ -306,5 +334,25 @@ const { t } = useI18n()
 
 .console-sidebar__account {
   align-self: end;
+}
+
+.console-nav-children-enter-active,
+.console-nav-children-leave-active {
+  overflow: hidden;
+  transition: opacity 170ms ease, transform 170ms ease, max-height 170ms ease;
+}
+
+.console-nav-children-enter-from,
+.console-nav-children-leave-to {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.console-nav-children-enter-to,
+.console-nav-children-leave-from {
+  max-height: 180px;
+  opacity: 1;
+  transform: translateY(0);
 }
 </style>

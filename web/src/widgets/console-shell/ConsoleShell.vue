@@ -20,6 +20,10 @@
         <div class="console-shell__mobile-panel moe-overlay-panel" data-testid="console-drawer-transition">
           <div class="console-shell__mobile-head">
             <RouterLink class="console-shell__mobile-brand" to="/">MoeURL</RouterLink>
+            <RouterLink class="console-shell__mobile-home" to="/">
+              <span aria-hidden="true">↗</span>
+              {{ t('console.backHome') }}
+            </RouterLink>
             <button class="console-shell__mobile-close" type="button" @click="mobileNavOpen = false">
               {{ t('console.closeMenu') }}
             </button>
@@ -29,10 +33,6 @@
               <span aria-hidden="true">+</span>
               {{ t('console.newShortLink') }}
             </v-btn>
-            <RouterLink class="console-shell__mobile-home" to="/">
-              <span aria-hidden="true">↗</span>
-              {{ t('console.backHome') }}
-            </RouterLink>
           </div>
           <nav class="console-shell__mobile-nav-list">
             <section v-for="group in navGroups" :key="group.labelKey" class="console-shell__mobile-nav-group">
@@ -42,13 +42,28 @@
                   {{ t(item.labelKey) }}
                 </v-btn>
                 <div v-else class="console-shell__mobile-nav-subgroup">
-                  <span>
-                    <i aria-hidden="true" />
+                  <button
+                    class="console-shell__mobile-nav-parent"
+                    type="button"
+                    :aria-expanded="expandedMobileGroups.has(item.labelKey)"
+                    @click="toggleMobileGroup(item.labelKey)"
+                  >
                     {{ t(item.labelKey) }}
-                  </span>
-                  <v-btn v-for="child in item.children" :key="child.to" class="console-shell__mobile-nav-child" :to="child.to" variant="text">
-                    {{ t(child.labelKey) }}
-                  </v-btn>
+                    <i aria-hidden="true" />
+                  </button>
+                  <Transition name="console-nav-children">
+                    <div v-if="expandedMobileGroups.has(item.labelKey)" class="console-shell__mobile-nav-children">
+                      <v-btn
+                        v-for="child in item.children"
+                        :key="child.to"
+                        class="console-shell__mobile-nav-child"
+                        :to="child.to"
+                        variant="text"
+                      >
+                        {{ t(child.labelKey) }}
+                      </v-btn>
+                    </div>
+                  </Transition>
                 </div>
               </template>
             </section>
@@ -83,9 +98,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, reactive, ref, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterView } from 'vue-router'
+import { RouterView, useRoute } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { logout, me } from '@/entities/auth/api'
@@ -96,9 +111,11 @@ import ConsoleTopbar from './ConsoleTopbar.vue'
 import type { ConsoleNavGroup } from './ConsoleSidebar.vue'
 
 const { t } = useI18n()
+const route = useRoute()
 const queryClient = useQueryClient()
 const mobileNavOpen = ref(false)
 const createPanelOpen = ref(false)
+const expandedMobileGroups = reactive(new Set<string>())
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,
@@ -113,7 +130,11 @@ const navGroups = computed<ConsoleNavGroup[]>(() => {
   if (permissions.value.includes('short_link:read_own')) {
     groups.push({
       labelKey: 'console.nav.workspace',
-      items: [{ labelKey: 'nav.links', to: '/link' }],
+      items: [
+        { labelKey: 'nav.overview', to: '/console' },
+        { labelKey: 'nav.links', to: '/link' },
+        { labelKey: 'nav.analytics', to: '/analytics' },
+      ],
     })
   }
   if (permissions.value.includes('admin:access')) {
@@ -123,12 +144,26 @@ const navGroups = computed<ConsoleNavGroup[]>(() => {
         { labelKey: 'page.adminLinks', to: '/admin/link' },
         {
           labelKey: 'console.nav.userManagement',
-          children: [{ labelKey: 'nav.users', level: 2, to: '/admin/user' }],
+          children: [
+            { labelKey: 'nav.users', level: 2, to: '/admin/user' },
+            { labelKey: 'nav.userGroups', level: 2, to: '/admin/user/group' },
+          ],
         },
+        { labelKey: 'nav.settings', to: '/admin/setting' },
       ],
     })
   }
   return groups
+})
+
+watchEffect(() => {
+  for (const group of navGroups.value) {
+    for (const item of group.items) {
+      if (item.children?.some((child) => child.to === route.path)) {
+        expandedMobileGroups.add(item.labelKey)
+      }
+    }
+  }
 })
 const logoutMutation = useMutation({
   mutationFn: logout,
@@ -144,6 +179,14 @@ function openCreatePanel() {
 
 function submitLogout() {
   logoutMutation.mutate()
+}
+
+function toggleMobileGroup(labelKey: string) {
+  if (expandedMobileGroups.has(labelKey)) {
+    expandedMobileGroups.delete(labelKey)
+    return
+  }
+  expandedMobileGroups.add(labelKey)
 }
 </script>
 
@@ -215,10 +258,8 @@ function submitLogout() {
 .console-shell__mobile-quick {
   display: grid;
   gap: 10px;
-  padding: 10px;
-  border: 1px solid var(--moeurl-outline);
-  border-radius: 28px;
-  background: color-mix(in srgb, var(--moeurl-surface-soft) 82%, var(--moeurl-surface-elevated) 18%);
+  padding: 0;
+  background: transparent;
 }
 
 .console-shell__mobile-create {
@@ -234,7 +275,7 @@ function submitLogout() {
   align-items: center;
   justify-content: flex-start;
   gap: 9px;
-  padding: 9px 12px;
+  padding: 7px 10px;
   border: 1px solid transparent;
   border-radius: 20px;
   background: transparent;
@@ -251,13 +292,13 @@ function submitLogout() {
 
 .console-shell__mobile-nav-list,
 .console-shell__mobile-nav-group,
-.console-shell__mobile-nav-subgroup {
+.console-shell__mobile-nav-subgroup,
+.console-shell__mobile-nav-children {
   display: grid;
   gap: 5px;
 }
 
-.console-shell__mobile-nav-group p,
-.console-shell__mobile-nav-subgroup span {
+.console-shell__mobile-nav-group p {
   margin: 8px 4px 0;
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.74rem;
@@ -280,42 +321,48 @@ function submitLogout() {
 }
 
 .console-shell__mobile-nav-subgroup {
-  position: relative;
-  padding: 4px 0 4px 14px;
-  margin-left: 0;
+  padding: 0;
   background: transparent;
 }
 
-.console-shell__mobile-nav-subgroup::before {
-  position: absolute;
-  top: 12px;
-  bottom: 10px;
-  left: 7px;
-  width: 1px;
-  border-radius: 999px;
-  background: var(--moeurl-outline-strong);
-  content: "";
-}
-
-.console-shell__mobile-nav-subgroup span {
+.console-shell__mobile-nav-parent {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-left: 0;
-  padding-left: 10px;
-  text-transform: none;
+  justify-content: flex-start;
+  min-height: 38px;
+  width: 100%;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface-variant));
+  cursor: pointer;
+  font: inherit;
+  font-weight: 780;
 }
 
-.console-shell__mobile-nav-subgroup span i {
+.console-shell__mobile-nav-parent i {
   width: 7px;
   height: 7px;
+  margin-left: auto;
   border-right: 1.5px solid currentcolor;
   border-bottom: 1.5px solid currentcolor;
+  transform: rotate(-45deg);
+  transition: transform 180ms ease;
+}
+
+.console-shell__mobile-nav-parent[aria-expanded="true"] i {
   transform: rotate(45deg) translateY(-1px);
 }
 
+.console-shell__mobile-nav-children {
+  margin-left: 16px;
+  padding-left: 9px;
+  border-left: 1px solid var(--moeurl-outline-strong);
+}
+
 .console-shell__mobile-nav-child {
-  margin-left: 8px;
+  margin-left: 0;
 }
 
 .console-shell__mobile-close,

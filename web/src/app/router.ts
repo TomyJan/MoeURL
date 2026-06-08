@@ -4,6 +4,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { me } from '@/entities/auth/api'
 import AdminLinksPage from '@/pages/AdminLinksPage.vue'
 import AdminUsersPage from '@/pages/AdminUsersPage.vue'
+import ConsolePlaceholderPage from '@/pages/ConsolePlaceholderPage.vue'
 import CreateUserPage from '@/pages/CreateUserPage.vue'
 import HomePage from '@/pages/HomePage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
@@ -53,7 +54,21 @@ export const routes: RouteRecordRaw[] = [
     path: '/',
     component: ConsoleShell,
     children: [
+      {
+        path: '/console',
+        component: ConsolePlaceholderPage,
+        props: { kind: 'overview' },
+        meta: { requiresConsole: true },
+        beforeEnter: requireConsoleAccess,
+      },
       { path: '/link', component: MyLinksPage, meta: { requiresConsole: true }, beforeEnter: requireConsoleAccess },
+      {
+        path: '/analytics',
+        component: ConsolePlaceholderPage,
+        props: { kind: 'analytics' },
+        meta: { requiresConsole: true },
+        beforeEnter: requireConsoleAccess,
+      },
       {
         path: '/admin/link',
         component: AdminLinksPage,
@@ -63,6 +78,20 @@ export const routes: RouteRecordRaw[] = [
       {
         path: '/admin/user',
         component: AdminUsersPage,
+        meta: { requiresConsole: true, requiresAdmin: true },
+        beforeEnter: requireAdminAccess,
+      },
+      {
+        path: '/admin/user/group',
+        component: ConsolePlaceholderPage,
+        props: { kind: 'userGroups' },
+        meta: { requiresConsole: true, requiresAdmin: true },
+        beforeEnter: requireAdminAccess,
+      },
+      {
+        path: '/admin/setting',
+        component: ConsolePlaceholderPage,
+        props: { kind: 'settings' },
         meta: { requiresConsole: true, requiresAdmin: true },
         beforeEnter: requireAdminAccess,
       },

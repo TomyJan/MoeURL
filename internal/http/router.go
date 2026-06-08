@@ -94,7 +94,19 @@ func registerStaticRoutes(router chi.Router, staticDir string) {
 	router.Handle("/icons/*", fileServer)
 	router.Get("/manifest.webmanifest", serveStaticFile(staticDir, "manifest.webmanifest"))
 	router.Get("/sw.js", serveStaticFile(staticDir, "sw.js"))
-	for _, path := range []string{"/", "/setup", "/login", "/link", "/admin/link", "/admin/user", "/admin/user/new"} {
+	for _, path := range []string{
+		"/",
+		"/setup",
+		"/login",
+		"/console",
+		"/link",
+		"/analytics",
+		"/admin/link",
+		"/admin/user",
+		"/admin/user/group",
+		"/admin/setting",
+		"/admin/user/new",
+	} {
 		router.Get(path, serveStaticFile(staticDir, "index.html"))
 	}
 }

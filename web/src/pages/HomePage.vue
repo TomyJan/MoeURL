@@ -82,26 +82,26 @@ function goConsole() {
 }
 
 .home-page__hero h1 {
-  max-width: 720px;
+  max-width: 640px;
   margin: 0;
   color: rgb(var(--v-theme-on-background));
-  font-size: clamp(2.05rem, 4.7vw, 3.8rem);
-  line-height: 1.04;
+  font-size: clamp(1.72rem, 3.2vw, 2.65rem);
+  line-height: 1.1;
 }
 
 .home-page__summary {
-  max-width: 620px;
-  margin: 18px 0 0;
+  max-width: 520px;
+  margin: 14px 0 0;
   color: rgb(var(--v-theme-on-surface-variant));
-  font-size: clamp(1rem, 1.8vw, 1.16rem);
-  line-height: 1.7;
+  font-size: clamp(0.92rem, 1.2vw, 1.04rem);
+  line-height: 1.65;
 }
 
 .home-page__tool {
   display: grid;
   gap: 12px;
   width: min(760px, 100%);
-  margin-top: clamp(22px, 3.4vw, 32px);
+  margin-top: clamp(20px, 3vw, 28px);
 }
 
 .home-page__scroll-hint {

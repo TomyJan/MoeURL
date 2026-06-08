@@ -36,10 +36,10 @@ describe('vuetify', () => {
       expect.objectContaining({
         'app-elevated-surface': '#ffffff',
         'app-glass-surface': 'rgba(255, 255, 255, 0.92)',
-        'app-hero-glow': 'rgba(240, 169, 79, 0.16)',
-        'app-soft-surface': '#f6fbf8',
-        'app-workspace-surface': '#f1f8f4',
-        'app-strong-surface': '#e2eee8',
+        'app-hero-glow': 'rgba(240, 169, 79, 0.13)',
+        'app-soft-surface': '#f7fbf8',
+        'app-workspace-surface': '#f3faf6',
+        'app-strong-surface': '#e7f1ec',
         'app-outline': 'rgba(15, 79, 72, 0.10)',
         'app-outline-strong': 'rgba(15, 79, 72, 0.18)',
         'app-ring': 'rgba(15, 79, 72, 0.18)',
@@ -49,17 +49,17 @@ describe('vuetify', () => {
 
     expect(moeurlDarkTheme.dark).toBe(true)
     expect(moeurlDarkTheme.colors.primary).toBe('#65d6b1')
-    expect(moeurlDarkTheme.colors.background).toBe('#10211e')
+    expect(moeurlDarkTheme.colors.background).toBe('#0f1d1a')
     expect(moeurlDarkTheme.colors.secondary).toBe('#ecb65c')
     expect(moeurlDarkTheme.colors['on-background']).toBe('#effdf6')
     expect(moeurlDarkTheme.variables).toEqual(
       expect.objectContaining({
-        'app-elevated-surface': '#17231f',
-        'app-glass-surface': 'rgba(23, 35, 31, 0.96)',
-        'app-hero-glow': 'rgba(236, 182, 92, 0.10)',
-        'app-soft-surface': '#111816',
-        'app-workspace-surface': '#111816',
-        'app-strong-surface': '#1b2b27',
+        'app-elevated-surface': '#151f1c',
+        'app-glass-surface': 'rgba(21, 31, 28, 0.96)',
+        'app-hero-glow': 'rgba(236, 182, 92, 0.08)',
+        'app-soft-surface': '#111815',
+        'app-workspace-surface': '#101614',
+        'app-strong-surface': '#1c302a',
         'app-outline': 'rgba(255, 255, 255, 0.08)',
         'app-outline-strong': 'rgba(255, 255, 255, 0.14)',
         'app-ring': 'rgba(236, 182, 92, 0.28)',

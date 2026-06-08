@@ -2,7 +2,7 @@
   <section class="console-page" data-testid="console-page-admin-links">
     <div class="console-page__header">
       <div>
-        <p class="console-page__eyebrow">{{ t('page.adminLinks') }}</p>
+        <p class="console-page__eyebrow">{{ t('pageMeta.adminEyebrow') }}</p>
         <h1>{{ t('page.adminLinks') }}</h1>
       </div>
       <span class="console-page__total">共 {{ total }} 条</span>

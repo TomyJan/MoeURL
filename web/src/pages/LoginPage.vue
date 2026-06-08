@@ -7,14 +7,14 @@
 
     <section class="auth-page__panel" data-testid="auth-panel">
       <aside class="auth-page__story">
-        <p class="auth-page__eyebrow">MoeURL</p>
-        <h1>{{ t('page.login') }}</h1>
+        <p class="auth-page__eyebrow">{{ t('auth.privateConsole') }}</p>
+        <h1>{{ t('auth.consoleEntry') }}</h1>
         <p>{{ t('auth.consoleSummary') }}</p>
       </aside>
 
       <form class="auth-page__form" @submit.prevent="submit">
         <div class="auth-page__form-heading">
-          <h2>{{ t('auth.consoleEntry') }}</h2>
+          <h2>{{ t('page.login') }}</h2>
         </div>
         <v-text-field v-model="username" :label="t('auth.username')" variant="outlined" />
         <v-text-field v-model="password" :label="t('auth.password')" type="password" variant="outlined" />

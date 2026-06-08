@@ -2,7 +2,7 @@
   <section class="console-page" data-testid="console-page-create-user">
     <header class="console-page__header">
       <div>
-        <p class="console-page__eyebrow">{{ t('page.adminUsers') }}</p>
+        <p class="console-page__eyebrow">{{ t('pageMeta.createUserEyebrow') }}</p>
         <h1>{{ t('page.createUser') }}</h1>
       </div>
       <v-btn to="/admin/user" variant="text">{{ t('createUser.backToUsers') }}</v-btn>

@@ -2,7 +2,7 @@
   <section class="console-page" data-testid="console-page-admin-users">
     <div class="console-page__header">
       <div>
-        <p class="console-page__eyebrow">{{ t('page.adminUsers') }}</p>
+        <p class="console-page__eyebrow">{{ t('pageMeta.identityEyebrow') }}</p>
         <h1>{{ t('page.adminUsers') }}</h1>
       </div>
       <span class="console-page__total">{{ t('adminUsers.total', { total }) }}</span>

@@ -4,6 +4,7 @@ import { isRef, ref } from 'vue'
 
 import AdminLinksPage from './AdminLinksPage.vue'
 import AdminUsersPage from './AdminUsersPage.vue'
+import ConsolePlaceholderPage from './ConsolePlaceholderPage.vue'
 import CreateUserPage from './CreateUserPage.vue'
 import HomePage from './HomePage.vue'
 import LoginPage from './LoginPage.vue'
@@ -181,6 +182,19 @@ describe('pages', () => {
     mount(NotFoundPage)
 
     expect(screen.getByText('page.notFound')).toBeTruthy()
+  })
+
+  it('renders planned console placeholder pages without fake data', () => {
+    render(ConsolePlaceholderPage, {
+      props: {
+        kind: 'analytics',
+      },
+    })
+
+    expect(screen.getByTestId('console-page-placeholder-analytics')).toBeTruthy()
+    expect(screen.getByText('page.analytics')).toBeTruthy()
+    expect(screen.getByText('placeholder.status')).toBeTruthy()
+    expect(screen.getByText('placeholder.analytics.items.privacy')).toBeTruthy()
   })
 
   it('submits login credentials and shows errors', async () => {

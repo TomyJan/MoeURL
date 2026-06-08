@@ -4,9 +4,13 @@ export const messages = {
   'zh-CN': {
     nav: {
       home: '首页',
+      overview: '概览',
       links: '我的短链',
+      analytics: '分析',
       admin: '管理',
       users: '用户',
+      userGroups: '用户组',
+      settings: '设置',
       login: '登录',
       logout: '退出登录',
     },
@@ -14,15 +18,26 @@ export const messages = {
       home: '创建并管理你的短链',
       setup: '初始化 MoeURL',
       login: '登录',
+      overview: '控制台概览',
       links: '我的短链',
+      analytics: '访问分析',
       adminLinks: '全站短链',
       adminUsers: '用户管理',
+      userGroups: '用户组与权限',
+      settings: '系统设置',
       createUser: '创建用户',
       notFound: '页面不存在',
     },
+    pageMeta: {
+      workspaceEyebrow: '工作区',
+      linksEyebrow: '链接工作台',
+      adminEyebrow: '全站管理',
+      identityEyebrow: '账号与权限',
+      createUserEyebrow: '账号维护',
+    },
     home: {
       heroTitle: '把链接变短，把控制留在自己手里',
-      heroSummary: '粘贴目标链接，MoeURL 会用你的域名生成可管理、可禁用、可审计的短链。',
+      heroSummary: '粘贴目标链接，用自己的域名生成一条可管理的短链。',
       scrollHint: '继续了解 MoeURL',
     },
     homeIntro: {
@@ -43,6 +58,54 @@ export const messages = {
       modern: {
         title: '现代体验',
         description: '浅色、深色、语言偏好和 PWA 基础能力从一开始就纳入设计，后续页面会沿用同一套组件。',
+      },
+      workflow: {
+        title: '入口清晰',
+        description: '首页负责快速生成，控制台负责整理和维护。新建短链使用同一套组件，减少重复操作和状态差异。',
+      },
+      deploy: {
+        title: '部署透明',
+        description: '系统域名、短链域名、初始化账号和容器部署都保持显式配置，便于你在自己的环境里排查和迁移。',
+      },
+      footerCopyright: '© 2026 MoeURL。为自托管短链场景构建。',
+    },
+    placeholder: {
+      status: '规划中',
+      overview: {
+        panelTitle: '这里会成为控制台的轻量首页',
+        description: '概览页会优先放置当前账号可用的快捷入口、权限状态和最近操作，不伪造统计数据。',
+        items: {
+          links: '查看自己的短链和常用管理入口。',
+          permissions: '理解当前账号拥有的创建、管理和访问权限。',
+          actions: '保留新建短链、进入列表和账号设置等常用动作。',
+        },
+      },
+      analytics: {
+        panelTitle: '分析能力会在后续业务版本补齐',
+        description: 'v0.0.3 只确定导航位置和页面边界，不展示未采集的访问趋势或明细。',
+        items: {
+          scope: '后续会围绕访问次数、来源和时间趋势设计。',
+          privacy: '分析数据会遵循自托管和权限边界，不开放给无关账号。',
+          future: '当前可以先通过短链列表完成启用、禁用、复制和删除。',
+        },
+      },
+      userGroups: {
+        panelTitle: '权限分组会服务管理员协作',
+        description: '当前版本保留用户组与权限的页面位置，实际维护仍通过用户管理和后端内置权限完成。',
+        items: {
+          admin: '管理员组拥有最高权限，但业务仍走权限判断。',
+          guest: 'guest 是系统内置身份，不允许直接登录。',
+          groups: '后续可在这里设计用户组、权限预设和成员关系。',
+        },
+      },
+      settings: {
+        panelTitle: '系统设置先沉淀边界',
+        description: '系统设置页暂不开放表单，避免误以为 v0.0.3 已支持后台改域名或主题配置。',
+        items: {
+          domains: '域名配置仍通过初始化和部署配置维护。',
+          preferences: '语言和主题偏好继续使用前端偏好组件。',
+          deployment: '部署相关能力保留给后续版本完善。',
+        },
       },
     },
     filter: {
@@ -71,7 +134,7 @@ export const messages = {
     },
     shortLinkCreate: {
       eyebrow: '快速生成',
-      title: '输入链接',
+      title: '快速生成短链',
       targetLabel: '输入链接',
       targetPlaceholder: 'https://example.com',
       successTitle: '短链已生成',
@@ -101,8 +164,11 @@ export const messages = {
       themeOptions: '主题选项',
       system: '跟随系统',
       systemShort: '系统',
+      systemDescription: '跟随设备设置',
       light: '浅色',
+      lightDescription: '清透浅色界面',
       dark: '深色',
+      darkDescription: '低眩光深色界面',
     },
     setup: {
       eyebrow: '首次初始化',
@@ -132,8 +198,8 @@ export const messages = {
       loginSubmit: '登录',
       loginFailed: '登录失败，请检查账号和密码后再试。',
       consoleEntry: '进入控制台',
-      consoleSummary: '使用管理员或成员账号进入你的 MoeURL 工作台。',
-      privateConsole: 'MoeURL',
+      consoleSummary: '使用管理员或成员账号进入工作台。',
+      privateConsole: '自托管短链控制台',
     },
     adminUsers: {
       createUser: '创建用户',
@@ -204,9 +270,13 @@ export const messages = {
   en: {
     nav: {
       home: 'Home',
+      overview: 'Overview',
       links: 'My Links',
+      analytics: 'Analytics',
       admin: 'Admin',
       users: 'Users',
+      userGroups: 'Groups',
+      settings: 'Settings',
       login: 'Sign in',
       logout: 'Sign out',
     },
@@ -214,15 +284,26 @@ export const messages = {
       home: 'Create and manage your short links',
       setup: 'Set up MoeURL',
       login: 'Sign in',
+      overview: 'Console overview',
       links: 'My links',
+      analytics: 'Analytics',
       adminLinks: 'All links',
       adminUsers: 'Users',
+      userGroups: 'Groups and permissions',
+      settings: 'System settings',
       createUser: 'Create user',
       notFound: 'Page not found',
     },
+    pageMeta: {
+      workspaceEyebrow: 'Workspace',
+      linksEyebrow: 'Link workspace',
+      adminEyebrow: 'Global admin',
+      identityEyebrow: 'Identity and access',
+      createUserEyebrow: 'Account maintenance',
+    },
     home: {
       heroTitle: 'Shorten links while keeping control',
-      heroSummary: 'Paste a target URL and MoeURL creates a managed short link under your own domain.',
+      heroSummary: 'Paste a target URL and create a managed short link under your own domain.',
       scrollHint: 'Learn more about MoeURL',
     },
     homeIntro: {
@@ -243,6 +324,54 @@ export const messages = {
       modern: {
         title: 'Modern experience',
         description: 'Light mode, dark mode, language preference, and PWA basics share the same component system.',
+      },
+      workflow: {
+        title: 'Clear entry points',
+        description: 'The home page creates links quickly, while the console keeps management focused. Both use the same creation component.',
+      },
+      deploy: {
+        title: 'Transparent deployment',
+        description: 'System domains, short-link domains, initial accounts, and container deployment remain explicit and easy to inspect.',
+      },
+      footerCopyright: '© 2026 MoeURL. Built for self-hosted short links.',
+    },
+    placeholder: {
+      status: 'Planned',
+      overview: {
+        panelTitle: 'This will become a lightweight console home',
+        description: 'The overview will focus on available actions, permission state, and recent work without fake statistics.',
+        items: {
+          links: 'Open your links and common management entries.',
+          permissions: 'Understand your create, manage, and access permissions.',
+          actions: 'Keep create-link, list entry, and account preferences close at hand.',
+        },
+      },
+      analytics: {
+        panelTitle: 'Analytics will land in a later product release',
+        description: 'v0.0.3 only fixes navigation placement and page boundaries, without showing uncollected traffic data.',
+        items: {
+          scope: 'Future work can cover visits, sources, and time trends.',
+          privacy: 'Analytics will follow self-hosted data and permission boundaries.',
+          future: 'For now, link lists support enable, disable, copy, and delete workflows.',
+        },
+      },
+      userGroups: {
+        panelTitle: 'Permission groups will support admin collaboration',
+        description: 'This version keeps the place for groups and permissions while actual maintenance stays in user management and built-in backend rules.',
+        items: {
+          admin: 'The admin group has top-level access while still using permission checks.',
+          guest: 'guest is a built-in system identity and cannot sign in directly.',
+          groups: 'Future versions can add groups, presets, and membership editing here.',
+        },
+      },
+      settings: {
+        panelTitle: 'System settings start as a clear boundary',
+        description: 'The settings page does not expose forms yet, so users do not mistake v0.0.3 for runtime domain or theme configuration.',
+        items: {
+          domains: 'Domain configuration still lives in setup and deployment config.',
+          preferences: 'Language and theme preferences keep using shared frontend controls.',
+          deployment: 'Deployment settings are reserved for later releases.',
+        },
       },
     },
     filter: {
@@ -271,7 +400,7 @@ export const messages = {
     },
     shortLinkCreate: {
       eyebrow: 'Quick create',
-      title: 'Enter a link',
+      title: 'Create a short link',
       targetLabel: 'Enter link',
       targetPlaceholder: 'https://example.com',
       successTitle: 'Short link created',
@@ -301,8 +430,11 @@ export const messages = {
       themeOptions: 'Theme options',
       system: 'System',
       systemShort: 'System',
+      systemDescription: 'Follow device settings',
       light: 'Light',
+      lightDescription: 'Clear light interface',
       dark: 'Dark',
+      darkDescription: 'Low-glare dark interface',
     },
     setup: {
       eyebrow: 'First run setup',
@@ -332,8 +464,8 @@ export const messages = {
       loginSubmit: 'Sign in',
       loginFailed: 'Sign-in failed. Check your account and password.',
       consoleEntry: 'Open console',
-      consoleSummary: 'Use an administrator or member account to enter your MoeURL workspace.',
-      privateConsole: 'MoeURL',
+      consoleSummary: 'Use an administrator or member account to enter the workspace.',
+      privateConsole: 'Self-hosted short-link console',
     },
     adminUsers: {
       createUser: 'Create user',

@@ -7,68 +7,75 @@
   >
     <div class="preference-switcher__menu">
       <button
-        class="preference-switcher__trigger"
+        class="preference-switcher__trigger preference-switcher__trigger--icon"
         type="button"
         :aria-label="t('preferences.language')"
         :aria-expanded="languageOpen"
         @click="toggleLanguageMenu"
       >
-        <span class="preference-switcher__mark preference-switcher__mark--language" aria-hidden="true">文</span>
-        <span class="preference-switcher__trigger-text">{{ currentLanguage.label }}</span>
-        <span class="preference-switcher__chevron" aria-hidden="true" />
+        <span class="preference-switcher__mark preference-switcher__mark--language" aria-hidden="true">Aa</span>
       </button>
-      <div v-if="languageOpen" class="preference-switcher__popover" role="menu" :aria-label="t('preferences.languageOptions')">
-        <button
-          v-for="option in languageChoices"
-          :key="option.value"
-          class="preference-switcher__option"
-          type="button"
-          role="menuitemradio"
-          :aria-checked="language === option.value"
-          @click="selectLanguage(option.value)"
-        >
-          <span class="preference-switcher__option-label">{{ option.label }}</span>
-          <span class="preference-switcher__option-check" aria-hidden="true" />
-        </button>
-      </div>
+      <Transition name="preference-popover">
+        <div v-if="languageOpen" class="preference-switcher__popover" role="menu" :aria-label="t('preferences.languageOptions')">
+          <button
+            v-for="option in languageChoices"
+            :key="option.value"
+            class="preference-switcher__option"
+            type="button"
+            role="menuitemradio"
+            :aria-label="option.label"
+            :aria-checked="language === option.value"
+            @click="selectLanguage(option.value)"
+          >
+            <span class="preference-switcher__option-code">{{ option.code }}</span>
+            <span class="preference-switcher__option-label">{{ option.label }}</span>
+            <span class="preference-switcher__option-check" aria-hidden="true" />
+          </button>
+        </div>
+      </Transition>
     </div>
 
     <div class="preference-switcher__menu">
       <button
-        class="preference-switcher__trigger"
+        class="preference-switcher__trigger preference-switcher__trigger--icon"
         type="button"
         :aria-label="t('preferences.theme')"
         :aria-expanded="themeOpen"
         @click="toggleThemeMenu"
       >
-        <span class="preference-switcher__mark preference-switcher__mark--theme" :class="`preference-switcher__mark--${themeMode}`" aria-hidden="true" />
-        <span class="preference-switcher__trigger-text">{{ currentTheme.shortLabel }}</span>
-        <span class="preference-switcher__chevron" aria-hidden="true" />
+        <span class="preference-switcher__mark preference-switcher__mark--theme" :class="`preference-switcher__mark--${themeMode}`" aria-hidden="true">
+          <span />
+        </span>
       </button>
-      <div
-        v-if="themeOpen"
-        class="preference-switcher__popover preference-switcher__popover--theme"
-        role="menu"
-        :aria-label="t('preferences.themeOptions')"
-      >
-        <button
-          v-for="option in themeChoices"
-          :key="option.value"
-          class="preference-switcher__theme-option"
-          type="button"
-          role="menuitemradio"
-          data-testid="theme-choice"
-          :aria-checked="themeMode === option.value"
-          :aria-label="option.label"
-          @click="selectTheme(option.value)"
+      <Transition name="preference-popover">
+        <div
+          v-if="themeOpen"
+          class="preference-switcher__popover preference-switcher__popover--theme"
+          role="menu"
+          :aria-label="t('preferences.themeOptions')"
         >
-          <span class="preference-switcher__theme-graphic" :class="`preference-switcher__theme-graphic--${option.value}`" aria-hidden="true">
-            <span />
-          </span>
-          <span class="preference-switcher__theme-label">{{ option.label }}</span>
-          <span class="preference-switcher__option-check" aria-hidden="true" />
-        </button>
-      </div>
+          <button
+            v-for="option in themeChoices"
+            :key="option.value"
+            class="preference-switcher__theme-option"
+            type="button"
+            role="menuitemradio"
+            data-testid="theme-choice"
+            :aria-checked="themeMode === option.value"
+            :aria-label="option.label"
+            @click="selectTheme(option.value)"
+          >
+            <span class="preference-switcher__theme-graphic" :class="`preference-switcher__theme-graphic--${option.value}`" aria-hidden="true">
+              <span />
+            </span>
+            <span class="preference-switcher__theme-copy">
+              <span class="preference-switcher__theme-label">{{ option.label }}</span>
+              <small>{{ option.description }}</small>
+            </span>
+            <span class="preference-switcher__option-check" aria-hidden="true" />
+          </button>
+        </div>
+      </Transition>
     </div>
   </div>
 </template>
@@ -96,19 +103,16 @@ const { t } = useI18n()
 const languageOpen = ref(false)
 const themeOpen = ref(false)
 
-const languageChoices = computed<Array<{ label: string; value: LanguagePreference }>>(() => [
-  { label: '中文', value: 'zh-CN' },
-  { label: 'English', value: 'en' },
+const languageChoices = computed<Array<{ code: string; label: string; value: LanguagePreference }>>(() => [
+  { code: '中', label: '中文', value: 'zh-CN' },
+  { code: 'En', label: 'English', value: 'en' },
 ])
 
-const themeChoices = computed<Array<{ label: string; shortLabel: string; value: ThemePreference }>>(() => [
-  { label: t('preferences.system'), shortLabel: t('preferences.systemShort'), value: 'system' },
-  { label: t('preferences.light'), shortLabel: t('preferences.light'), value: 'light' },
-  { label: t('preferences.dark'), shortLabel: t('preferences.dark'), value: 'dark' },
+const themeChoices = computed<Array<{ description: string; label: string; value: ThemePreference }>>(() => [
+  { description: t('preferences.systemDescription'), label: t('preferences.system'), value: 'system' },
+  { description: t('preferences.lightDescription'), label: t('preferences.light'), value: 'light' },
+  { description: t('preferences.darkDescription'), label: t('preferences.dark'), value: 'dark' },
 ])
-
-const currentLanguage = computed(() => languageChoices.value.find((item) => item.value === language.value) ?? languageChoices.value[0])
-const currentTheme = computed(() => themeChoices.value.find((item) => item.value === themeMode.value) ?? themeChoices.value[0])
 
 function toggleLanguageMenu() {
   languageOpen.value = !languageOpen.value
@@ -139,13 +143,13 @@ function selectTheme(value: ThemePreference) {
 .preference-switcher {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .preference-switcher--sidebar {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  width: auto;
   gap: 8px;
 }
 
@@ -157,13 +161,12 @@ function selectTheme(value: ThemePreference) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 38px;
-  width: 100%;
-  padding: 4px 11px 4px 6px;
+  min-height: 42px;
+  width: 42px;
+  padding: 0;
   border: 1px solid var(--moeurl-outline);
-  border-radius: var(--moeurl-radius-pill);
-  background: color-mix(in srgb, var(--moeurl-surface-elevated) 82%, var(--moeurl-surface-soft) 18%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--moeurl-surface-elevated) 76%, var(--moeurl-surface-soft) 24%);
   color: rgb(var(--v-theme-on-surface));
   cursor: pointer;
   font: inherit;
@@ -186,34 +189,50 @@ function selectTheme(value: ThemePreference) {
 .preference-switcher__mark {
   display: inline-grid;
   flex: 0 0 auto;
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   place-items: center;
-  border-radius: 10px;
-  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 14%, var(--moeurl-surface-elevated));
+  border-radius: 999px;
+  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 13%, transparent);
   color: rgb(var(--v-theme-secondary));
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   font-weight: 950;
   line-height: 1;
 }
 
 .preference-switcher__mark--theme {
+  position: relative;
+  overflow: hidden;
   border: 1px solid color-mix(in srgb, rgb(var(--v-theme-primary)) 24%, transparent);
-  background:
-    linear-gradient(135deg, #eff6f2 0 48%, #10211e 48% 100%);
 }
 
 .preference-switcher__mark--light {
-  background: linear-gradient(135deg, #ffffff, #eff6f2 62%, #f0a94f 150%);
+  background: #f6fbf8;
+}
+
+.preference-switcher__mark--light span {
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  background: #f0a94f;
+  box-shadow: 0 0 0 4px rgba(240, 169, 79, 0.18);
 }
 
 .preference-switcher__mark--dark {
-  background: linear-gradient(135deg, #10211e, #17231f 68%, #65d6b1 180%);
+  background: #10211e;
 }
 
-.preference-switcher__trigger-text {
-  min-width: 0;
-  white-space: nowrap;
+.preference-switcher__mark--dark span {
+  width: 15px;
+  height: 15px;
+  border-radius: 999px;
+  background: #65d6b1;
+  box-shadow: -5px -2px 0 0 #10211e;
+  transform: translateX(2px);
+}
+
+.preference-switcher__mark--system {
+  background: linear-gradient(135deg, #f6fbf8 0 50%, #10211e 50% 100%);
 }
 
 .preference-switcher__popover {
@@ -222,12 +241,12 @@ function selectTheme(value: ThemePreference) {
   right: 0;
   z-index: 80;
   display: grid;
-  min-width: 148px;
-  gap: 4px;
-  padding: 8px;
+  min-width: 172px;
+  gap: 6px;
+  padding: 9px;
   border: 1px solid var(--moeurl-outline);
-  border-radius: 22px;
-  background: color-mix(in srgb, var(--moeurl-surface-elevated) 94%, var(--moeurl-surface-soft) 6%);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--moeurl-surface-elevated) 96%, var(--moeurl-surface-soft) 4%);
   box-shadow: var(--moeurl-shadow-strong);
 }
 
@@ -235,12 +254,11 @@ function selectTheme(value: ThemePreference) {
   top: auto;
   bottom: calc(100% + 8px);
   right: auto;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
 }
 
 .preference-switcher__popover--theme {
-  min-width: 178px;
+  min-width: 238px;
   grid-template-columns: 1fr;
 }
 
@@ -254,7 +272,7 @@ function selectTheme(value: ThemePreference) {
   position: relative;
   display: grid;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   border: 1px solid transparent;
   border-radius: 15px;
   background: transparent;
@@ -268,8 +286,8 @@ function selectTheme(value: ThemePreference) {
 }
 
 .preference-switcher__option {
-  grid-template-columns: minmax(0, 1fr) 12px;
-  padding: 10px 10px 10px 12px;
+  grid-template-columns: auto minmax(0, 1fr) 12px;
+  padding: 10px;
 }
 
 .preference-switcher__theme-option {
@@ -293,6 +311,18 @@ function selectTheme(value: ThemePreference) {
   background: transparent;
 }
 
+.preference-switcher__option-code {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 10%, transparent);
+  color: rgb(var(--v-theme-primary));
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
 .preference-switcher__option[aria-checked="true"] .preference-switcher__option-check,
 .preference-switcher__theme-option[aria-checked="true"] .preference-switcher__option-check {
   background: rgb(var(--v-theme-secondary));
@@ -308,6 +338,17 @@ function selectTheme(value: ThemePreference) {
   overflow: hidden;
 }
 
+.preference-switcher__theme-copy {
+  display: grid;
+  gap: 1px;
+}
+
+.preference-switcher__theme-copy small {
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
 .preference-switcher__theme-graphic span {
   align-self: end;
   justify-self: end;
@@ -316,17 +357,6 @@ function selectTheme(value: ThemePreference) {
   margin: 3px;
   border-radius: 999px;
   background: rgb(var(--v-theme-secondary));
-}
-
-.preference-switcher__chevron {
-  display: block;
-  width: 6px;
-  height: 6px;
-  margin-left: 1px;
-  border-right: 1.5px solid currentcolor;
-  border-bottom: 1.5px solid currentcolor;
-  color: rgb(var(--v-theme-on-surface-variant));
-  transform: translateY(-1px) rotate(45deg);
 }
 
 .preference-switcher__theme-graphic--system {
@@ -342,26 +372,26 @@ function selectTheme(value: ThemePreference) {
 }
 
 .preference-switcher--compact .preference-switcher__trigger {
-  min-height: 36px;
-  padding: 4px 10px 4px 5px;
-  font-size: 0.78rem;
+  min-height: 40px;
+  width: 40px;
+  font-size: 0.76rem;
 }
 
 .preference-switcher--compact .preference-switcher__mark {
-  width: 23px;
-  height: 23px;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
 }
 
-.preference-switcher--topbar .preference-switcher__trigger-text,
-.preference-switcher--topbar .preference-switcher__chevron {
-  display: none;
+.preference-popover-enter-active,
+.preference-popover-leave-active {
+  transform-origin: top right;
+  transition: opacity 160ms ease, transform 160ms ease;
 }
 
-.preference-switcher--topbar .preference-switcher__trigger {
-  width: 38px;
-  min-width: 38px;
-  padding: 4px;
+.preference-popover-enter-from,
+.preference-popover-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.96);
 }
 
 @media (max-width: 520px) {
@@ -369,29 +399,10 @@ function selectTheme(value: ThemePreference) {
     gap: 6px;
   }
 
-  .preference-switcher:not(.preference-switcher--sidebar) .preference-switcher__trigger-text {
-    display: none;
-  }
-
-  .preference-switcher:not(.preference-switcher--sidebar) .preference-switcher__chevron {
-    display: none;
-  }
-
   .preference-switcher__trigger {
-    min-height: 34px;
-    width: 34px;
-    padding: 4px;
+    min-height: 38px;
+    width: 38px;
     font-size: 0.78rem;
-  }
-
-  .preference-switcher--sidebar .preference-switcher__trigger {
-    width: 100%;
-    padding: 4px 10px 4px 5px;
-  }
-
-  .preference-switcher--sidebar .preference-switcher__trigger-text,
-  .preference-switcher--sidebar .preference-switcher__chevron {
-    display: inline-block;
   }
 }
 </style>
