@@ -7,18 +7,13 @@
 
     <section class="auth-page__panel" data-testid="auth-panel">
       <aside class="auth-page__story">
-        <p class="auth-page__eyebrow">{{ t('auth.privateConsole') }}</p>
+        <p class="auth-page__eyebrow">MoeURL</p>
         <h1>{{ t('page.login') }}</h1>
         <p>{{ t('auth.consoleSummary') }}</p>
-        <div class="auth-page__signal-card" aria-hidden="true">
-          <strong>MoeURL</strong>
-          <span>self-hosted</span>
-        </div>
       </aside>
 
       <form class="auth-page__form" @submit.prevent="submit">
         <div class="auth-page__form-heading">
-          <span>MoeURL</span>
           <h2>{{ t('auth.consoleEntry') }}</h2>
         </div>
         <v-text-field v-model="username" :label="t('auth.username')" variant="outlined" />
@@ -75,11 +70,10 @@ function submit() {
   display: grid;
   min-height: 100vh;
   place-items: center;
-  padding: 104px 24px 54px;
+  padding: 82px 24px 44px;
   background:
-    linear-gradient(115deg, color-mix(in srgb, rgb(var(--v-theme-secondary)) 8%, transparent), transparent 36%),
-    linear-gradient(245deg, color-mix(in srgb, rgb(var(--v-theme-secondary)) 10%, transparent), transparent 34%),
-    linear-gradient(145deg, rgb(var(--v-theme-background)), var(--moeurl-surface-soft));
+    radial-gradient(circle at 50% 8%, var(--moeurl-hero-glow), transparent 28rem),
+    linear-gradient(180deg, rgb(var(--v-theme-background)), var(--moeurl-surface-soft));
 }
 
 .auth-page__brand {
@@ -109,29 +103,18 @@ function submit() {
   position: relative;
   z-index: 1;
   display: grid;
-  width: min(1060px, 100%);
-  grid-template-columns: minmax(0, 0.78fr) minmax(360px, 1fr);
-  gap: clamp(18px, 3vw, 28px);
-  padding: clamp(16px, 2.8vw, 24px);
-  border: 1px solid var(--moeurl-outline);
-  border-radius: clamp(34px, 6vw, 58px);
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--moeurl-surface-glass) 90%, white 10%), var(--moeurl-surface-glass)),
-    var(--moeurl-surface-glass);
-  box-shadow: var(--moeurl-shadow-strong);
-  backdrop-filter: blur(28px);
+  width: min(900px, 100%);
+  grid-template-columns: minmax(0, 0.72fr) minmax(360px, 1fr);
+  gap: clamp(24px, 5vw, 64px);
+  align-items: center;
 }
 
 .auth-page__story {
   display: grid;
-  align-content: space-between;
-  min-height: 476px;
-  padding: clamp(28px, 4vw, 42px);
-  border: 1px solid color-mix(in srgb, var(--moeurl-outline) 72%, transparent);
-  border-radius: clamp(28px, 5vw, 44px);
-  background:
-    linear-gradient(145deg, color-mix(in srgb, rgb(var(--v-theme-secondary)) 12%, transparent), transparent 62%),
-    color-mix(in srgb, var(--moeurl-surface-elevated) 42%, transparent);
+  align-content: center;
+  min-height: 320px;
+  padding: 0;
+  background: transparent;
 }
 
 .auth-page__story h1,
@@ -144,18 +127,17 @@ function submit() {
   margin: 0 0 12px;
   padding: 7px 14px;
   border: 1px solid var(--moeurl-outline);
-  border-radius: var(--moeurl-radius-control);
+  border-radius: var(--moeurl-radius-pill);
   background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 14%, transparent);
   color: rgb(var(--v-theme-secondary));
   font-size: 0.78rem;
   font-weight: 900;
-  text-transform: uppercase;
 }
 
 .auth-page__story h1 {
   max-width: 8em;
   margin: 0;
-  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-size: clamp(2rem, 4.6vw, 3rem);
   line-height: 1.08;
 }
 
@@ -167,39 +149,16 @@ function submit() {
   line-height: 1.8;
 }
 
-.auth-page__signal-card {
-  display: grid;
-  gap: 6px;
-  width: min(230px, 100%);
-  padding: 18px;
-  border: 1px solid color-mix(in srgb, var(--moeurl-outline) 80%, transparent);
-  border-radius: 28px;
-  background: color-mix(in srgb, var(--moeurl-surface-glass) 66%, transparent);
-}
-
-.auth-page__signal-card span,
-.auth-page__signal-card small,
-.auth-page__form-heading span {
-  color: rgb(var(--v-theme-on-surface-variant));
-  font-size: 0.78rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.auth-page__signal-card strong {
-  color: rgb(var(--v-theme-primary));
-  font-size: 1.45rem;
-  line-height: 1;
-}
-
 .auth-page__form {
   display: grid;
   align-content: center;
-  gap: 14px;
-  padding: clamp(20px, 4vw, 36px);
-  border: 1px solid color-mix(in srgb, var(--moeurl-outline) 70%, transparent);
+  gap: 16px;
+  min-height: 360px;
+  padding: clamp(24px, 4vw, 40px);
+  border: 1px solid var(--moeurl-outline);
   border-radius: clamp(28px, 5vw, 42px);
-  background: color-mix(in srgb, var(--moeurl-surface-elevated) 72%, transparent);
+  background: var(--moeurl-surface-elevated);
+  box-shadow: var(--moeurl-shadow);
 }
 
 .auth-page__form-heading {
@@ -218,7 +177,7 @@ function submit() {
 
 .auth-page__submit {
   min-height: 52px;
-  border-radius: var(--moeurl-radius-control);
+  border-radius: var(--moeurl-radius-pill);
 }
 
 @media (max-width: 620px) {
@@ -242,16 +201,13 @@ function submit() {
 
   .auth-page__panel {
     grid-template-columns: 1fr;
-    padding: 10px;
-    border-radius: 32px;
-    gap: 10px;
+    gap: 18px;
   }
 
   .auth-page__story {
     min-height: auto;
     align-content: start;
-    padding: 18px;
-    border-radius: 26px;
+    padding: 0 4px;
   }
 
   .auth-page__eyebrow {
@@ -269,10 +225,6 @@ function submit() {
     margin-top: 10px;
     font-size: 0.88rem;
     line-height: 1.6;
-  }
-
-  .auth-page__signal-card {
-    display: none;
   }
 
   .auth-page__form {

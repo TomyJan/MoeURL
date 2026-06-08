@@ -2,9 +2,10 @@
   <section class="console-page" data-testid="console-page-create-user">
     <header class="console-page__header">
       <div>
-        <p class="console-page__eyebrow">{{ t('createUser.eyebrow') }}</p>
+        <p class="console-page__eyebrow">{{ t('page.adminUsers') }}</p>
         <h1>{{ t('page.createUser') }}</h1>
       </div>
+      <v-btn to="/admin/user" variant="text">{{ t('createUser.backToUsers') }}</v-btn>
     </header>
     <div class="console-form-panel" data-testid="console-form-panel">
       <div class="console-form-panel__intro">
@@ -17,17 +18,17 @@
         <fieldset class="console-form-panel__group" data-testid="console-form-group">
           <legend>{{ t('createUser.accountLegend') }}</legend>
           <div class="console-form-panel__grid">
-            <v-text-field v-model="username" :label="t('createUser.username')" variant="outlined" />
-            <v-text-field v-model="password" :label="t('createUser.password')" type="password" variant="outlined" />
-            <v-text-field v-model="nickname" :label="t('createUser.nickname')" variant="outlined" />
+            <v-text-field v-model="username" :label="t('createUser.username')" density="compact" variant="outlined" />
+            <v-text-field v-model="password" :label="t('createUser.password')" density="compact" type="password" variant="outlined" />
+            <v-text-field v-model="nickname" :label="t('createUser.nickname')" density="compact" variant="outlined" />
           </div>
         </fieldset>
 
         <fieldset class="console-form-panel__group" data-testid="console-form-group">
           <legend>{{ t('createUser.accessLegend') }}</legend>
           <div class="console-form-panel__grid console-form-panel__grid--compact">
-            <v-select v-model="groupKey" :label="t('createUser.group')" :items="groupOptions" variant="outlined" />
-            <v-select v-model="status" :label="t('createUser.status')" :items="statusOptions" variant="outlined" />
+            <v-select v-model="groupKey" :label="t('createUser.group')" :items="groupOptions" density="compact" variant="outlined" />
+            <v-select v-model="status" :label="t('createUser.status')" :items="statusOptions" density="compact" variant="outlined" />
           </div>
         </fieldset>
 

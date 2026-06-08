@@ -7,9 +7,11 @@
       </div>
       <span class="console-page__total">共 {{ total }} 条</span>
     </div>
-    <div class="console-page__filters">
-      <v-select v-model="statusFilter" :items="statusOptions" :label="t('filter.status')" />
-      <v-text-field v-model="searchKeyword" :label="t('filter.keyword')" />
+    <div class="console-page__tools">
+      <div class="console-page__filters">
+        <v-select v-model="statusFilter" :items="statusOptions" :label="t('filter.status')" density="compact" variant="outlined" />
+        <v-text-field v-model="searchKeyword" :label="t('filter.keyword')" density="compact" variant="outlined" />
+      </div>
     </div>
     <div class="console-data-panel" data-testid="console-data-panel">
       <v-alert v-if="query.isError.value" type="error" variant="tonal">加载失败</v-alert>

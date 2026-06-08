@@ -18,11 +18,15 @@
     <Transition name="moe-overlay">
       <div v-if="mobileNavOpen" class="console-shell__mobile-nav" data-testid="console-mobile-nav">
         <div class="console-shell__mobile-panel moe-overlay-panel" data-testid="console-drawer-transition">
-          <button class="console-shell__mobile-close" type="button" @click="mobileNavOpen = false">
-            {{ t('console.closeMenu') }}
-          </button>
-          <PreferenceSwitcher />
-          <v-btn color="primary" variant="flat" @click="openCreatePanel">{{ t('console.newShortLink') }}</v-btn>
+          <div class="console-shell__mobile-head">
+            <RouterLink class="console-shell__mobile-brand" to="/">MoeURL</RouterLink>
+            <button class="console-shell__mobile-close" type="button" @click="mobileNavOpen = false">
+              {{ t('console.closeMenu') }}
+            </button>
+          </div>
+          <v-btn class="console-shell__mobile-create" color="primary" variant="flat" @click="openCreatePanel">
+            {{ t('console.newShortLink') }}
+          </v-btn>
           <RouterLink class="console-shell__mobile-home" to="/">{{ t('console.backHome') }}</RouterLink>
           <nav class="console-shell__mobile-nav-list">
             <section v-for="group in navGroups" :key="group.labelKey" class="console-shell__mobile-nav-group">
@@ -40,6 +44,7 @@
               </template>
             </section>
           </nav>
+          <PreferenceSwitcher />
         </div>
       </div>
     </Transition>
@@ -137,29 +142,26 @@ function submitLogout() {
 .console-shell {
   display: grid;
   min-height: 100vh;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 22px;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 18px;
   padding: 18px;
   background:
-    radial-gradient(circle at 8% 4%, var(--moeurl-hero-glow), transparent 25rem),
-    radial-gradient(circle at 100% 0%, color-mix(in srgb, rgb(var(--v-theme-secondary)) 8%, transparent), transparent 22rem),
+    radial-gradient(circle at 9% -4%, var(--moeurl-hero-glow), transparent 26rem),
     rgb(var(--v-theme-background));
 }
 
 .console-shell__main {
   min-width: 0;
-  padding: 8px;
+  padding: 0;
   border-radius: var(--moeurl-radius-page);
-  background: color-mix(in srgb, var(--moeurl-surface-soft) 92%, rgb(var(--v-theme-background)) 8%);
+  background: transparent;
 }
 
 .console-shell__workspace {
-  min-height: calc(100vh - 58px);
-  padding: clamp(22px, 3.4vw, 36px);
-  border-radius: calc(var(--moeurl-radius-page) - 8px);
-  background:
-    radial-gradient(circle at 88% 12%, color-mix(in srgb, rgb(var(--v-theme-secondary)) 5%, transparent), transparent 16rem),
-    color-mix(in srgb, var(--moeurl-surface-elevated) 64%, rgb(var(--v-theme-background)) 36%);
+  min-height: calc(100vh - 36px);
+  padding: clamp(22px, 3vw, 36px);
+  border-radius: var(--moeurl-radius-page);
+  background: transparent;
 }
 
 .console-shell__mobile-nav,
@@ -184,21 +186,36 @@ function submitLogout() {
   padding: 18px;
   border: 1px solid color-mix(in srgb, var(--moeurl-outline) 90%, transparent);
   border-radius: var(--moeurl-radius-panel);
-  background-color: rgb(var(--v-theme-surface));
-  background-image:
-    linear-gradient(180deg, color-mix(in srgb, var(--moeurl-surface-elevated) 34%, transparent), transparent),
-    linear-gradient(135deg, color-mix(in srgb, rgb(var(--v-theme-secondary)) 7%, transparent), transparent 58%);
+  background: var(--moeurl-surface-elevated);
   box-shadow: var(--moeurl-shadow-strong);
+}
+
+.console-shell__mobile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.console-shell__mobile-brand {
+  color: rgb(var(--v-theme-on-surface));
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.console-shell__mobile-create {
+  min-height: 48px;
 }
 
 .console-shell__mobile-home {
   display: inline-flex;
   align-items: center;
-  padding: 11px 14px;
-  border: 1px dashed color-mix(in srgb, var(--moeurl-outline) 90%, rgb(var(--v-theme-secondary)) 10%);
+  justify-content: center;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, rgb(var(--v-theme-secondary)) 36%, var(--moeurl-outline));
   border-radius: 20px;
-  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 9%, transparent);
-  color: rgb(var(--v-theme-on-surface-variant));
+  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 10%, transparent);
+  color: rgb(var(--v-theme-secondary));
   font-weight: 850;
   text-decoration: none;
 }
@@ -220,9 +237,11 @@ function submitLogout() {
 
 .console-shell__mobile-nav-subgroup {
   padding: 8px;
-  border: 1px solid color-mix(in srgb, var(--moeurl-outline) 70%, transparent);
+  border-left: 1px solid var(--moeurl-outline);
+  border-radius: 0;
+  margin-left: 10px;
   border-radius: 22px;
-  background: color-mix(in srgb, var(--moeurl-surface-elevated) 36%, transparent);
+  background: transparent;
 }
 
 .console-shell__mobile-close,
@@ -275,14 +294,14 @@ function submitLogout() {
 
   .console-shell__main {
     margin: 0 12px 12px;
-    padding: 8px;
-    border-radius: 32px;
+    padding: 0;
+    border-radius: 0;
   }
 
   .console-shell__workspace {
     min-height: calc(100vh - 90px);
-    padding: 14px;
-    border-radius: 26px;
+    padding: 16px;
+    border-radius: 30px;
   }
 
   .console-shell__dialog {

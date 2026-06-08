@@ -24,7 +24,7 @@
       </div>
 
       <div class="console-link-row__actions">
-        <v-btn size="small" variant="text" @click="$emit('copy', link.url)">{{ t('links.actions.copy') }}</v-btn>
+        <v-btn size="small" color="primary" variant="tonal" @click="$emit('copy', link.url)">{{ t('links.actions.copy') }}</v-btn>
         <v-btn size="small" variant="text" :href="link.url" target="_blank" rel="noreferrer">
           {{ t('links.actions.open') }}
         </v-btn>

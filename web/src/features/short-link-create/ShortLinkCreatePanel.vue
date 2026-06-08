@@ -1,7 +1,7 @@
 <template>
   <section class="short-link-create-panel" :class="`short-link-create-panel--${mode}`">
     <div class="short-link-create-panel__shell">
-      <div class="short-link-create-panel__header">
+      <div v-if="mode === 'full'" class="short-link-create-panel__header">
         <div>
           <p class="short-link-create-panel__eyebrow">{{ t('shortLinkCreate.eyebrow') }}</p>
           <h2>{{ t('shortLinkCreate.title') }}</h2>
@@ -36,19 +36,21 @@
         </div>
       </div>
 
-      <div v-if="createdUrl" class="short-link-create-panel__result" data-testid="short-link-create-result" role="status">
-        <div class="short-link-create-panel__created">
-          <strong>{{ t('shortLinkCreate.successTitle') }}</strong>
-          <a :href="createdUrl" target="_blank" rel="noreferrer">{{ createdUrl }}</a>
-          <div class="short-link-create-panel__actions">
-            <v-btn size="small" variant="text" @click="copyUrl(createdUrl)">{{ t('shortLinkCreate.copy') }}</v-btn>
-            <v-btn size="small" variant="text" :href="createdUrl" target="_blank" rel="noreferrer">
-              {{ t('shortLinkCreate.open') }}
-            </v-btn>
-            <v-btn size="small" variant="text" @click="resetForm">{{ t('shortLinkCreate.reset') }}</v-btn>
+      <Transition name="moe-layout">
+        <div v-if="createdUrl" class="short-link-create-panel__result" data-testid="short-link-create-result" role="status">
+          <div class="short-link-create-panel__created">
+            <strong>{{ t('shortLinkCreate.successTitle') }}</strong>
+            <a :href="createdUrl" target="_blank" rel="noreferrer">{{ createdUrl }}</a>
+            <div class="short-link-create-panel__actions">
+              <v-btn size="small" variant="text" @click="copyUrl(createdUrl)">{{ t('shortLinkCreate.copy') }}</v-btn>
+              <v-btn size="small" variant="text" :href="createdUrl" target="_blank" rel="noreferrer">
+                {{ t('shortLinkCreate.open') }}
+              </v-btn>
+              <v-btn size="small" variant="text" @click="resetForm">{{ t('shortLinkCreate.reset') }}</v-btn>
+            </div>
           </div>
         </div>
-      </div>
+      </Transition>
     </div>
   </section>
 </template>
@@ -127,22 +129,13 @@ function copyUrl(url: string) {
 .short-link-create-panel__shell {
   position: relative;
   overflow: hidden;
-  padding: clamp(14px, 2.4vw, 20px);
+  padding: clamp(16px, 2.6vw, 24px);
   border: 1px solid var(--moeurl-outline);
-  border-radius: var(--moeurl-radius-panel);
+  border-radius: clamp(28px, 4vw, 40px);
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--moeurl-surface-elevated) 84%, transparent), var(--moeurl-surface-glass)),
-    var(--moeurl-surface-glass);
+    linear-gradient(135deg, color-mix(in srgb, rgb(var(--v-theme-secondary)) 7%, transparent), transparent 44%),
+    var(--moeurl-surface-elevated);
   box-shadow: var(--moeurl-shadow);
-  backdrop-filter: blur(22px);
-}
-
-.short-link-create-panel__shell::before {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(120deg, color-mix(in srgb, rgb(var(--v-theme-secondary)) 18%, transparent), transparent 36%);
-  content: "";
-  pointer-events: none;
 }
 
 .short-link-create-panel__header,
@@ -154,7 +147,7 @@ function copyUrl(url: string) {
 
 .short-link-create-panel__header {
   display: grid;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   text-align: left;
 }
 
@@ -178,13 +171,11 @@ function copyUrl(url: string) {
 }
 
 .short-link-create-panel__permission {
-  padding: 14px 16px;
-  border: 1px solid color-mix(in srgb, rgb(var(--v-theme-secondary)) 24%, transparent);
-  border-radius: 22px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, rgb(var(--v-theme-secondary)) 13%, transparent), transparent 70%),
-    color-mix(in srgb, var(--moeurl-surface-elevated) 54%, transparent);
-  color: rgb(var(--v-theme-on-surface));
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, rgb(var(--v-theme-secondary)) 22%, transparent);
+  border-radius: 20px;
+  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 7%, transparent);
+  color: rgb(var(--v-theme-on-surface-variant));
   font-weight: 750;
   text-align: center;
 }
@@ -203,16 +194,18 @@ function copyUrl(url: string) {
 .short-link-create-panel__submit {
   min-height: 56px;
   padding-inline: 24px;
+  border-radius: var(--moeurl-radius-pill);
 }
 
 .short-link-create-panel__result {
   display: grid;
   place-items: center;
-  margin-top: 14px;
-  padding: 14px;
+  margin: 16px auto 0;
+  padding: 16px;
+  width: min(560px, 100%);
   border: 1px solid color-mix(in srgb, rgb(var(--v-theme-primary)) 24%, transparent);
-  border-radius: 24px;
-  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 10%, transparent);
+  border-radius: 26px;
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 11%, transparent);
 }
 
 .short-link-create-panel__created {

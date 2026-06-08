@@ -22,10 +22,12 @@ export const messages = {
     },
     home: {
       heroTitle: '把链接变短，把控制留在自己手里',
-      heroSummary: '粘贴链接，生成短链。',
+      heroSummary: '粘贴目标链接，MoeURL 会用你的域名生成可管理、可禁用、可审计的短链。',
       scrollHint: '继续了解 MoeURL',
     },
     homeIntro: {
+      headingEyebrow: '为什么是 MoeURL',
+      headingTitle: '为自托管和小团队准备的短链工作流',
       permission: {
         title: '权限可控',
         description: '创建、管理和访问都由权限决定。管理员可以把能力开放给合适的人，普通成员只看到自己该用的入口。',
@@ -98,7 +100,7 @@ export const messages = {
       loginSubmit: '登录',
       loginFailed: '登录失败，请检查账号和密码后再试。',
       consoleEntry: '进入控制台',
-      consoleSummary: '管理短链、用户和权限。',
+      consoleSummary: '使用管理员或成员账号进入你的 MoeURL 工作台。',
       privateConsole: 'MoeURL',
     },
     adminUsers: {
@@ -107,6 +109,7 @@ export const messages = {
       noUsers: '暂无用户',
       emptyDescription: '创建第一个普通用户后，可以在这里维护状态、昵称和密码。',
       total: '共 {total} 个用户',
+      manageHint: '编辑资料和账号操作收纳在每个用户行内。',
       paginationNotice: '当前仅显示前 20 个用户，分页将在后续版本实现。',
       headers: {
         username: '账号',
@@ -147,6 +150,7 @@ export const messages = {
       mark: '账号',
       title: '创建可登录账号',
       description: '为需要管理短链的成员创建账号，并在创建时确定用户组和启用状态。',
+      backToUsers: '返回用户管理',
       accountLegend: '账号信息',
       accessLegend: '权限与状态',
       username: '账号',
@@ -186,10 +190,12 @@ export const messages = {
     },
     home: {
       heroTitle: 'Shorten links while keeping control',
-      heroSummary: 'Paste a URL and create a short link.',
+      heroSummary: 'Paste a target URL and MoeURL creates a managed short link under your own domain.',
       scrollHint: 'Learn more about MoeURL',
     },
     homeIntro: {
+      headingEyebrow: 'Why MoeURL',
+      headingTitle: 'A short-link workflow built for self-hosted teams',
       permission: {
         title: 'Permission first',
         description: 'Creation, management, and access all go through permissions, so every user sees the right surface.',
@@ -262,7 +268,7 @@ export const messages = {
       loginSubmit: 'Sign in',
       loginFailed: 'Sign-in failed. Check your account and password.',
       consoleEntry: 'Open console',
-      consoleSummary: 'Manage links, users, and permissions.',
+      consoleSummary: 'Use an administrator or member account to enter your MoeURL workspace.',
       privateConsole: 'MoeURL',
     },
     adminUsers: {
@@ -271,6 +277,7 @@ export const messages = {
       noUsers: 'No users',
       emptyDescription: 'Create your first user, then maintain status, nickname, and password here.',
       total: '{total} users',
+      manageHint: 'Profile and account actions stay inside each user row.',
       paginationNotice: 'Showing first 20 users; pagination is planned for a future release.',
       headers: {
         username: 'Username',
@@ -311,6 +318,7 @@ export const messages = {
       mark: 'Account',
       title: 'Create a sign-in account',
       description: 'Create an account for a member who manages short links, then set its group and status.',
+      backToUsers: 'Back to users',
       accountLegend: 'Account info',
       accessLegend: 'Access and status',
       username: 'Username',

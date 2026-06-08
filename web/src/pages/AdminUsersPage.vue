@@ -7,8 +7,11 @@
       </div>
       <span class="console-page__total">{{ t('adminUsers.total', { total }) }}</span>
     </div>
-    <div class="console-page__actions-bar">
-      <v-btn color="primary" to="/admin/user/new" variant="flat">{{ t('adminUsers.createUser') }}</v-btn>
+    <div class="console-page__tools">
+      <p class="console-page__muted">{{ t('adminUsers.manageHint') }}</p>
+      <div class="console-page__actions-bar">
+        <v-btn color="primary" to="/admin/user/new" variant="flat">{{ t('adminUsers.createUser') }}</v-btn>
+      </div>
     </div>
     <div class="console-data-panel" data-testid="console-data-panel">
       <v-alert v-if="query.isError.value" type="error" variant="tonal">{{ t('adminUsers.loadFailed') }}</v-alert>

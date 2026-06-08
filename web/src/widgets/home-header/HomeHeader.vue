@@ -65,17 +65,19 @@ const avatarText = computed(() => (props.displayName || 'M').slice(0, 1).toUpper
   height: 36px;
   place-items: center;
   border-radius: 16px;
-  background:
-    linear-gradient(145deg, rgb(var(--v-theme-primary)), color-mix(in srgb, rgb(var(--v-theme-primary)) 74%, black 26%));
+  background: rgb(var(--v-theme-primary));
   color: rgb(var(--v-theme-on-primary));
   font-weight: 800;
-  box-shadow: 0 14px 34px color-mix(in srgb, rgb(var(--v-theme-primary)) 25%, transparent);
 }
 
 .home-header__actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 4px;
+  border: 1px solid color-mix(in srgb, var(--moeurl-outline) 78%, transparent);
+  border-radius: var(--moeurl-radius-pill);
+  background: color-mix(in srgb, var(--moeurl-surface-elevated) 58%, transparent);
 }
 
 .home-header__account {
@@ -84,22 +86,16 @@ const avatarText = computed(() => (props.displayName || 'M').slice(0, 1).toUpper
   gap: 10px;
   padding: 6px 12px 6px 6px;
   border: 1px solid var(--moeurl-outline);
-  border-radius: var(--moeurl-radius-control);
-  background: var(--moeurl-surface-glass);
+  border-radius: var(--moeurl-radius-pill);
+  background: color-mix(in srgb, var(--moeurl-surface-elevated) 86%, transparent);
   color: rgb(var(--v-theme-on-surface));
   cursor: pointer;
-  box-shadow: 0 16px 42px color-mix(in srgb, rgb(var(--v-theme-primary)) 10%, transparent);
-  backdrop-filter: blur(18px);
 }
 
 .home-header__login {
   border: 1px solid var(--moeurl-outline);
-  background:
-    linear-gradient(145deg, color-mix(in srgb, white 10%, transparent), transparent),
-    color-mix(in srgb, var(--moeurl-surface-elevated) 90%, transparent);
+  background: color-mix(in srgb, var(--moeurl-surface-elevated) 86%, transparent);
   color: rgb(var(--v-theme-on-surface));
-  box-shadow: 0 12px 32px color-mix(in srgb, black 9%, transparent);
-  backdrop-filter: blur(18px);
 }
 
 @media (max-width: 620px) {

@@ -5,17 +5,11 @@
     <main class="home-page__hero" data-testid="home-hero-panel">
       <section class="home-page__hero-content">
         <div class="home-page__copy">
-          <p class="home-page__eyebrow">MoeURL</p>
           <h1>{{ t('home.heroTitle') }}</h1>
+          <p class="home-page__summary">{{ t('home.heroSummary') }}</p>
         </div>
         <div class="home-page__tool">
-          <p class="home-page__tool-caption">{{ t('home.heroSummary') }}</p>
           <ShortLinkCreatePanel mode="full" />
-        </div>
-        <div class="home-page__signals" aria-hidden="true">
-          <span />
-          <span />
-          <span />
         </div>
       </section>
       <span class="home-page__scroll-hint">{{ t('home.scrollHint') }}</span>
@@ -57,10 +51,9 @@ function goConsole() {
   overflow: hidden;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 50% 18%, var(--moeurl-hero-glow), transparent 30rem),
-    radial-gradient(circle at 12% 22%, color-mix(in srgb, rgb(var(--v-theme-secondary)) 10%, transparent), transparent 22rem),
-    radial-gradient(circle at 88% 72%, color-mix(in srgb, rgb(var(--v-theme-secondary)) 7%, transparent), transparent 22rem),
-    linear-gradient(145deg, rgb(var(--v-theme-background)), var(--moeurl-surface-soft));
+    radial-gradient(circle at 50% 12%, var(--moeurl-hero-glow), transparent 30rem),
+    radial-gradient(circle at 9% 18%, color-mix(in srgb, rgb(var(--v-theme-primary)) 7%, transparent), transparent 20rem),
+    linear-gradient(180deg, rgb(var(--v-theme-background)), var(--moeurl-surface-soft));
 }
 
 .home-page__hero {
@@ -70,7 +63,7 @@ function goConsole() {
   min-height: calc(100vh - 86px);
   grid-template-rows: 1fr auto;
   justify-items: center;
-  padding: 24px 16px 26px;
+  padding: 12px 16px 20px;
 }
 
 .home-page__hero-content {
@@ -78,8 +71,8 @@ function goConsole() {
   display: grid;
   justify-items: center;
   align-self: center;
-  width: min(880px, 100%);
-  padding: clamp(10px, 2vw, 22px);
+  width: min(900px, 100%);
+  padding: clamp(16px, 2.8vw, 26px);
   text-align: center;
 }
 
@@ -88,30 +81,19 @@ function goConsole() {
   justify-items: center;
 }
 
-.home-page__eyebrow {
-  margin: 0 0 12px;
-  padding: 7px 14px;
-  border: 1px solid var(--moeurl-outline);
-  border-radius: var(--moeurl-radius-control);
-  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 14%, transparent);
-  color: rgb(var(--v-theme-secondary));
-  font-size: 0.82rem;
-  font-weight: 900;
-}
-
 .home-page__hero h1 {
-  max-width: 610px;
+  max-width: 720px;
   margin: 0;
   color: rgb(var(--v-theme-on-background));
-  font-size: clamp(1.95rem, 4.2vw, 3.35rem);
-  line-height: 1.1;
+  font-size: clamp(2.05rem, 4.7vw, 3.8rem);
+  line-height: 1.04;
 }
 
 .home-page__summary {
   max-width: 620px;
-  margin: 16px 0 22px;
+  margin: 18px 0 0;
   color: rgb(var(--v-theme-on-surface-variant));
-  font-size: 1.08rem;
+  font-size: clamp(1rem, 1.8vw, 1.16rem);
   line-height: 1.7;
 }
 
@@ -119,35 +101,7 @@ function goConsole() {
   display: grid;
   gap: 12px;
   width: min(760px, 100%);
-  margin-top: clamp(18px, 3vw, 26px);
-}
-
-.home-page__tool-caption {
-  margin: 0;
-  color: rgb(var(--v-theme-on-surface-variant));
-  font-size: 1rem;
-  line-height: 1.7;
-}
-
-.home-page__signals {
-  display: flex;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.home-page__signals span {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 72%, transparent);
-}
-
-.home-page__signals span:nth-child(2) {
-  background: rgb(var(--v-theme-secondary));
-}
-
-.home-page__signals span:nth-child(3) {
-  background: color-mix(in srgb, rgb(var(--v-theme-on-surface-variant)) 42%, transparent);
+  margin-top: clamp(22px, 3.4vw, 32px);
 }
 
 .home-page__scroll-hint {

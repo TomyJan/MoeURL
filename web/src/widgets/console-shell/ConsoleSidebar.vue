@@ -13,7 +13,6 @@
     </v-btn>
 
     <RouterLink class="console-sidebar__home" data-testid="console-sidebar-home" to="/">
-      <span class="console-sidebar__home-mark" aria-hidden="true" />
       <span>{{ t('console.backHome') }}</span>
     </RouterLink>
 
@@ -100,19 +99,16 @@ const { t } = useI18n()
 <style scoped>
 .console-sidebar {
   position: sticky;
-  top: 18px;
+  top: 20px;
   display: grid;
-  min-height: calc(100vh - 36px);
+  min-height: calc(100vh - 40px);
   grid-template-rows: auto auto auto 1fr auto auto;
   gap: 14px;
-  padding: 18px;
+  padding: 16px;
   border: 1px solid var(--moeurl-outline);
   border-radius: var(--moeurl-radius-page);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--moeurl-surface-glass) 94%, transparent), var(--moeurl-surface-glass)),
-    var(--moeurl-surface-glass);
-  box-shadow: var(--moeurl-shadow-strong);
-  backdrop-filter: blur(24px);
+  background: var(--moeurl-surface-elevated);
+  box-shadow: var(--moeurl-shadow);
 }
 
 .console-sidebar__brand {
@@ -143,41 +139,31 @@ const { t } = useI18n()
   width: 38px;
   height: 38px;
   place-items: center;
-  border-radius: 16px;
-  background:
-    linear-gradient(145deg, rgb(var(--v-theme-primary)), color-mix(in srgb, rgb(var(--v-theme-primary)) 74%, black 26%));
+  border-radius: 17px;
+  background: rgb(var(--v-theme-primary));
   color: rgb(var(--v-theme-on-primary));
-  box-shadow: 0 14px 34px color-mix(in srgb, rgb(var(--v-theme-primary)) 26%, transparent);
 }
 
 .console-sidebar__action {
   width: 100%;
-  min-height: 48px;
-  box-shadow: 0 18px 42px color-mix(in srgb, rgb(var(--v-theme-primary)) 22%, transparent);
+  min-height: 44px;
+  border-radius: var(--moeurl-radius-pill);
+  font-weight: 850;
 }
 
 .console-sidebar__home {
   display: inline-flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 10px;
-  padding: 12px 14px;
-  border: 1px dashed color-mix(in srgb, var(--moeurl-outline) 92%, rgb(var(--v-theme-secondary)) 8%);
-  border-radius: 22px;
-  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 8%, transparent);
-  color: rgb(var(--v-theme-on-surface-variant));
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, rgb(var(--v-theme-secondary)) 38%, var(--moeurl-outline));
+  border-radius: 20px;
+  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 9%, transparent);
+  color: rgb(var(--v-theme-secondary));
   font-size: 0.88rem;
   font-weight: 850;
   text-decoration: none;
-}
-
-.console-sidebar__home-mark {
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  background: rgb(var(--v-theme-secondary));
-  box-shadow: 0 0 0 5px color-mix(in srgb, rgb(var(--v-theme-secondary)) 14%, transparent);
 }
 
 .console-sidebar__nav {
@@ -203,27 +189,27 @@ const { t } = useI18n()
 
 .console-sidebar__nav-subgroup {
   margin-top: 2px;
-  padding: 8px;
-  border: 1px solid color-mix(in srgb, var(--moeurl-outline) 70%, transparent);
-  border-radius: 24px;
-  background: color-mix(in srgb, var(--moeurl-surface-elevated) 34%, transparent);
+  padding: 8px 0 8px 10px;
+  border-left: 1px solid var(--moeurl-outline);
+  background: transparent;
 }
 
 .console-sidebar__nav-item {
   justify-content: flex-start;
-  min-height: 44px;
+  min-height: 40px;
+  border-radius: 18px;
   color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .console-sidebar__nav-item--child {
-  min-height: 40px;
+  min-height: 38px;
   padding-inline-start: 18px;
   font-size: 0.9rem;
 }
 
 .console-sidebar__nav-item.router-link-active,
 .console-sidebar__nav-item[aria-current="page"] {
-  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 12%, transparent);
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 13%, transparent);
   color: rgb(var(--v-theme-primary));
   font-weight: 800;
 }

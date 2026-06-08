@@ -9,7 +9,7 @@
         @click="toggleLanguageMenu"
       >
         <span>{{ currentLanguage.label }}</span>
-        <span aria-hidden="true">⌄</span>
+        <span class="preference-switcher__chevron" aria-hidden="true">⌄</span>
       </button>
       <div v-if="languageOpen" class="preference-switcher__popover" role="menu" aria-label="语言选项">
         <button
@@ -35,7 +35,7 @@
         @click="toggleThemeMenu"
       >
         <span>{{ currentTheme.shortLabel }}</span>
-        <span aria-hidden="true">⌄</span>
+        <span class="preference-switcher__chevron" aria-hidden="true">⌄</span>
       </button>
       <div
         v-if="themeOpen"
@@ -127,20 +127,16 @@ function selectTheme(value: ThemePreference) {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 38px;
+  min-height: 40px;
   padding: 0 13px;
-  border: 1px solid color-mix(in srgb, var(--moeurl-outline) 88%, rgb(var(--v-theme-on-surface)) 8%);
-  border-radius: var(--moeurl-radius-control);
-  background:
-    linear-gradient(145deg, color-mix(in srgb, white 8%, transparent), transparent),
-    color-mix(in srgb, var(--moeurl-surface-elevated) 88%, transparent);
+  border: 1px solid var(--moeurl-outline);
+  border-radius: var(--moeurl-radius-pill);
+  background: color-mix(in srgb, var(--moeurl-surface-elevated) 86%, transparent);
   color: rgb(var(--v-theme-on-surface));
   cursor: pointer;
   font: inherit;
   font-size: 0.84rem;
   font-weight: 850;
-  box-shadow: 0 12px 30px color-mix(in srgb, black 10%, transparent);
-  backdrop-filter: blur(18px);
 }
 
 .preference-switcher__trigger:hover,
@@ -161,9 +157,8 @@ function selectTheme(value: ThemePreference) {
   padding: 8px;
   border: 1px solid var(--moeurl-outline);
   border-radius: 22px;
-  background: var(--moeurl-surface-glass);
+  background: var(--moeurl-surface-elevated);
   box-shadow: var(--moeurl-shadow);
-  backdrop-filter: blur(24px);
 }
 
 .preference-switcher__popover--theme {
@@ -210,6 +205,11 @@ function selectTheme(value: ThemePreference) {
   height: 24px;
   border: 1px solid color-mix(in srgb, var(--moeurl-outline) 80%, transparent);
   border-radius: 999px;
+}
+
+.preference-switcher__chevron {
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 0.76rem;
 }
 
 .preference-switcher__theme-graphic--system {
