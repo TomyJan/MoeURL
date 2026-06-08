@@ -21,6 +21,7 @@ const state = vi.hoisted(() => ({
   routerPush: vi.fn(),
   queryClient: {
     invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
   },
 }))
 
@@ -35,6 +36,10 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({
     push: state.routerPush,
   }),
+}))
+
+vi.mock('@/app/query', () => ({
+  queryClient: state.queryClient,
 }))
 
 vi.mock('@/entities/auth/api', () => ({
@@ -151,6 +156,7 @@ describe('pages', () => {
     state.queryFns = []
     state.routerPush.mockReset()
     state.queryClient.invalidateQueries.mockReset()
+    state.queryClient.setQueryData.mockReset()
     Object.defineProperty(window.navigator, 'clipboard', {
       configurable: true,
       value: { writeText: vi.fn() },
@@ -183,6 +189,11 @@ describe('pages', () => {
 
     expect(screen.getByText('bad credentials')).toBeTruthy()
     expect(mutate).toHaveBeenCalledWith({ username: 'alice', password: 'secret' })
+    expect(state.queryClient.setQueryData).toHaveBeenCalledWith(
+      ['auth', 'me'],
+      expect.objectContaining({ user: expect.objectContaining({ username: 'alice' }) }),
+    )
+    expect(state.routerPush).toHaveBeenCalledWith('/')
   })
 
   it('renders setup loading, initialized, and submit states', async () => {

@@ -14,7 +14,7 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    command: `docker compose down && docker compose up --build`,
+    command: `docker compose down -v && docker compose up --build`,
     cwd: '..',
     env: {
       MOEURL_HTTP_PORT: e2ePort,

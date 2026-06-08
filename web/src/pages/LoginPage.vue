@@ -17,18 +17,22 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { useMutation } from '@tanstack/vue-query'
 
 import { login } from '@/entities/auth/api'
 import { queryClient } from '@/app/query'
 
 const { t } = useI18n()
+const router = useRouter()
 const username = ref('')
 const password = ref('')
 const mutation = useMutation({
   mutationFn: login,
-  onSuccess() {
-    queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
+  onSuccess(data) {
+    queryClient.setQueryData(['auth', 'me'], data)
+    void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
+    void router.push('/')
   },
 })
 
