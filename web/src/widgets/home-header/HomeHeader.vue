@@ -39,7 +39,7 @@ const avatarText = computed(() => (props.displayName || 'M').slice(0, 1).toUpper
 <style scoped>
 .home-header {
   position: relative;
-  z-index: 1;
+  z-index: 60;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -94,8 +94,11 @@ const avatarText = computed(() => (props.displayName || 'M').slice(0, 1).toUpper
 
 .home-header__login {
   border: 1px solid var(--moeurl-outline);
-  background: color-mix(in srgb, var(--moeurl-surface-glass) 86%, transparent);
-  box-shadow: 0 12px 32px color-mix(in srgb, rgb(var(--v-theme-primary)) 8%, transparent);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, white 10%, transparent), transparent),
+    color-mix(in srgb, var(--moeurl-surface-elevated) 90%, transparent);
+  color: rgb(var(--v-theme-on-surface));
+  box-shadow: 0 12px 32px color-mix(in srgb, black 9%, transparent);
   backdrop-filter: blur(18px);
 }
 

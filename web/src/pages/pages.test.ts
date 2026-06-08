@@ -371,9 +371,12 @@ describe('pages', () => {
       throw new Error('expected short link rows')
     }
 
+    await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.more' }))
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.disable' }))
+    await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.more' }))
     await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.enable' }))
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.copy' }))
+    await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.more' }))
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.delete' }))
     expect(screen.getByLabelText('filter.status')).toBeTruthy()
     expect(listShortLinks).toHaveBeenCalledWith({ status: '' })
@@ -381,6 +384,51 @@ describe('pages', () => {
     expect(update).toHaveBeenCalledWith({ id: 'link-disabled', status: 'active' })
     expect(update).toHaveBeenCalledWith('link-id')
     expect(window.navigator.clipboard.writeText).toHaveBeenCalledWith('https://go.example.com/abc123')
+  })
+
+  it('toggles link and user action panels closed on repeated clicks', async () => {
+    setMutationResult({ mutate: vi.fn() })
+    setQueryResult({
+      data: ref({
+        items: [{ id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' }],
+      }),
+    })
+    const links = mount(MyLinksPage)
+    const linkRow = screen.getByTestId('console-link-row')
+    await fireEvent.click(within(linkRow).getByRole('button', { name: 'links.actions.more' }))
+    expect(within(linkRow).getByRole('button', { name: 'links.actions.delete' })).toBeTruthy()
+    await fireEvent.click(within(linkRow).getByRole('button', { name: 'links.actions.more' }))
+    expect(within(linkRow).queryByRole('button', { name: 'links.actions.delete' })).toBeNull()
+    links.unmount()
+
+    setQueryResult({
+      data: ref({
+        meta: { total: 1 },
+        items: [
+          {
+            id: 'user-id',
+            username: 'alice',
+            nickname: 'Alice',
+            group: 'user',
+            status: 'active',
+            builtin: false,
+            createdAt: '2026-06-08T00:00:00Z',
+            updatedAt: '2026-06-08T00:00:00Z',
+          },
+        ],
+      }),
+    })
+    mount(AdminUsersPage)
+    await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.edit' }))
+    expect(screen.getByTestId('console-user-edit-panel')).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.edit' }))
+    expect(screen.queryByTestId('console-user-edit-panel')).toBeNull()
+    await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.edit' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.more' }))
+    expect(screen.queryByTestId('console-user-edit-panel')).toBeNull()
+    expect(screen.getByTestId('console-user-actions')).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.more' }))
+    expect(screen.queryByTestId('console-user-actions')).toBeNull()
   })
 
   it('queries own links with status filter state', async () => {
@@ -414,9 +462,12 @@ describe('pages', () => {
       throw new Error('expected admin short link rows')
     }
 
+    await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.more' }))
     await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.enable' }))
+    await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.more' }))
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.disable' }))
     await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.copy' }))
+    await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.more' }))
     await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.delete' }))
     expect(screen.getByLabelText('filter.status')).toBeTruthy()
     expect(screen.getByLabelText('filter.keyword')).toBeTruthy()
@@ -552,17 +603,21 @@ describe('pages', () => {
     expect(screen.getByTestId('console-page-admin-users')).toBeTruthy()
     expect(screen.getByTestId('console-data-panel')).toBeTruthy()
     expect(screen.getAllByTestId('console-user-row')).toHaveLength(2)
-    expect(screen.getAllByTestId('console-user-actions')).toHaveLength(2)
+    expect(screen.getAllByTestId('console-user-summary-actions')).toHaveLength(2)
     expect(screen.getByText('adminUsers.total')).toBeTruthy()
     expect(screen.getByText('alice')).toBeTruthy()
     expect(screen.getByText('adminUsers.type.builtin')).toBeTruthy()
     expect(screen.getAllByText(/2026-06-08T00:00:00Z/).length).toBeGreaterThan(0)
+    expect(screen.queryByLabelText('adminUsers.labels.nickname')).toBeNull()
 
     expect(screen.getByText('adminUsers.paginationNotice')).toBeTruthy()
 
+    await fireEvent.click(screen.getAllByRole('button', { name: 'adminUsers.actions.more' })[0])
     await fireEvent.click(screen.getAllByText('adminUsers.actions.disable')[0])
+    await fireEvent.click(screen.getAllByRole('button', { name: 'adminUsers.actions.edit' })[0])
     await fireEvent.update(screen.getAllByLabelText('adminUsers.labels.nickname')[0], 'Alice Renamed')
     await fireEvent.click(screen.getAllByText('adminUsers.saveNickname')[0])
+    await fireEvent.click(screen.getAllByRole('button', { name: 'adminUsers.actions.more' })[0])
     await fireEvent.update(screen.getAllByLabelText('adminUsers.labels.newPassword')[0], 'new-password')
     await fireEvent.click(screen.getAllByText('adminUsers.resetPassword')[0])
 
@@ -593,9 +648,12 @@ describe('pages', () => {
     setMutationResult({ mutate })
     mount(AdminUsersPage)
 
+    await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.more' }))
     await fireEvent.click(screen.getByText('adminUsers.actions.enable'))
+    await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.edit' }))
     await fireEvent.update(screen.getByLabelText('adminUsers.labels.nickname'), '')
     await fireEvent.click(screen.getByText('adminUsers.saveNickname'))
+    await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.more' }))
     await fireEvent.update(screen.getByLabelText('adminUsers.labels.newPassword'), '')
     await fireEvent.click(screen.getByText('adminUsers.resetPassword'))
 
@@ -627,6 +685,7 @@ describe('pages', () => {
     setMutationResult({ mutate })
     mount(AdminUsersPage)
 
+    await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.more' }))
     await fireEvent.update(screen.getByLabelText('adminUsers.labels.newPassword'), ' short ')
     await fireEvent.click(screen.getByText('adminUsers.resetPassword'))
 

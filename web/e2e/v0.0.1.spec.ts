@@ -53,7 +53,9 @@ test('v0.0.1 initialization login short link and disabled redirect flow', async 
   await page.goto('/admin/user')
   await expect(page.getByText('alice')).toBeVisible()
   const disableUser = page.waitForResponse('**/api/v1/admin/user/update')
-  await page.getByTestId('console-user-row').filter({ hasText: 'alice' }).getByRole('button', { name: '禁用' }).click()
+  const aliceRow = page.getByTestId('console-user-row').filter({ hasText: 'alice' })
+  await aliceRow.getByRole('button', { name: '更多操作' }).click()
+  await aliceRow.getByRole('button', { name: '禁用' }).click()
   expect((await disableUser).status()).toBe(200)
   const disabledLogin = await page.request.post('/api/v1/auth/login', {
     data: { username: 'alice', password: 'alice-password' },
@@ -101,7 +103,9 @@ test('v0.0.1 initialization login short link and disabled redirect flow', async 
   await page.getByLabel('关键词搜索').fill(slug)
   await expect(page.getByRole('link', { name: createdUrl ?? '' })).toBeVisible()
   const disableLink = page.waitForResponse('**/api/v1/admin/short-link/update')
-  await page.getByTestId('console-link-row').filter({ hasText: slug }).getByRole('button', { name: '禁用' }).click()
+  const createdLinkRow = page.getByTestId('console-link-row').filter({ hasText: slug })
+  await createdLinkRow.getByRole('button', { name: '更多操作' }).click()
+  await createdLinkRow.getByRole('button', { name: '禁用' }).click()
   expect((await disableLink).status()).toBe(200)
 
   const blocked = await page.request.get(`/${slug}`)

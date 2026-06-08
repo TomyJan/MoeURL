@@ -11,9 +11,8 @@
         <h1>{{ t('page.login') }}</h1>
         <p>{{ t('auth.consoleSummary') }}</p>
         <div class="auth-page__signal-card" aria-hidden="true">
-          <span>moe.url</span>
-          <strong>/console</strong>
-          <small>session guarded</small>
+          <strong>MoeURL</strong>
+          <span>self-hosted</span>
         </div>
       </aside>
 
@@ -78,7 +77,7 @@ function submit() {
   place-items: center;
   padding: 104px 24px 54px;
   background:
-    linear-gradient(115deg, color-mix(in srgb, rgb(var(--v-theme-primary)) 10%, transparent), transparent 36%),
+    linear-gradient(115deg, color-mix(in srgb, rgb(var(--v-theme-secondary)) 8%, transparent), transparent 36%),
     linear-gradient(245deg, color-mix(in srgb, rgb(var(--v-theme-secondary)) 10%, transparent), transparent 34%),
     linear-gradient(145deg, rgb(var(--v-theme-background)), var(--moeurl-surface-soft));
 }
@@ -111,7 +110,7 @@ function submit() {
   z-index: 1;
   display: grid;
   width: min(1060px, 100%);
-  grid-template-columns: minmax(0, 0.88fr) minmax(360px, 1fr);
+  grid-template-columns: minmax(0, 0.78fr) minmax(360px, 1fr);
   gap: clamp(18px, 3vw, 28px);
   padding: clamp(16px, 2.8vw, 24px);
   border: 1px solid var(--moeurl-outline);
@@ -131,7 +130,7 @@ function submit() {
   border: 1px solid color-mix(in srgb, var(--moeurl-outline) 72%, transparent);
   border-radius: clamp(28px, 5vw, 44px);
   background:
-    linear-gradient(145deg, color-mix(in srgb, rgb(var(--v-theme-primary)) 16%, transparent), transparent 62%),
+    linear-gradient(145deg, color-mix(in srgb, rgb(var(--v-theme-secondary)) 12%, transparent), transparent 62%),
     color-mix(in srgb, var(--moeurl-surface-elevated) 42%, transparent);
 }
 
@@ -141,6 +140,7 @@ function submit() {
 }
 
 .auth-page__eyebrow {
+  width: fit-content;
   margin: 0 0 12px;
   padding: 7px 14px;
   border: 1px solid var(--moeurl-outline);
@@ -170,7 +170,7 @@ function submit() {
 .auth-page__signal-card {
   display: grid;
   gap: 6px;
-  width: min(280px, 100%);
+  width: min(230px, 100%);
   padding: 18px;
   border: 1px solid color-mix(in srgb, var(--moeurl-outline) 80%, transparent);
   border-radius: 28px;
@@ -188,7 +188,7 @@ function submit() {
 
 .auth-page__signal-card strong {
   color: rgb(var(--v-theme-primary));
-  font-size: 1.8rem;
+  font-size: 1.45rem;
   line-height: 1;
 }
 

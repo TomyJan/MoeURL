@@ -32,6 +32,9 @@ const avatarText = computed(() => (props.displayName || 'M').slice(0, 1).toUpper
 <style scoped>
 .console-topbar {
   display: none;
+  position: sticky;
+  top: 10px;
+  z-index: 15;
   align-items: center;
   gap: 10px;
   margin: 10px 10px 8px;

@@ -101,7 +101,7 @@ describe('ShortLinkCreatePanel', () => {
     expect(container.querySelector('.short-link-create-panel__field-row')).toBeTruthy()
     const targetInput = screen.getByLabelText('shortLinkCreate.targetLabel') as HTMLInputElement
     expect(targetInput.disabled).toBe(true)
-    expect(targetInput.placeholder).toBe('https://example.com')
+    expect(targetInput.placeholder).toBe('shortLinkCreate.targetPlaceholder')
     expect(screen.queryByText(/^https$/i)).toBeNull()
     expect(screen.getByText('shortLinkCreate.permissionRequired')).toBeTruthy()
 

@@ -2,7 +2,7 @@
   <section class="console-page" data-testid="console-page-admin-users">
     <div class="console-page__header">
       <div>
-        <p class="console-page__eyebrow">Users</p>
+        <p class="console-page__eyebrow">{{ t('page.adminUsers') }}</p>
         <h1>{{ t('page.adminUsers') }}</h1>
       </div>
       <span class="console-page__total">{{ t('adminUsers.total', { total }) }}</span>
@@ -17,7 +17,7 @@
         <span class="console-page__empty-mark">U</span>
         <div>
           <h2>{{ t('adminUsers.noUsers') }}</h2>
-          <p>创建第一个普通用户后，可以在这里维护状态、昵称和密码。</p>
+          <p>{{ t('adminUsers.emptyDescription') }}</p>
         </div>
       </div>
       <div v-else class="console-user-list">
@@ -40,38 +40,56 @@
             <span class="console-page__type">{{ t(item.builtin ? 'adminUsers.type.builtin' : 'adminUsers.type.normal') }}</span>
           </div>
 
-          <div class="console-user-row__actions" data-testid="console-user-actions">
-            <div class="console-user-row__nickname">
-              <v-text-field
-                v-model="draftNicknames[item.id]"
-                density="compact"
-                hide-details
-                :label="t('adminUsers.labels.nickname')"
-                :disabled="item.builtin"
-                variant="outlined"
-              />
-              <v-btn size="small" variant="text" :disabled="item.builtin" :loading="updateMutation.isPending.value" @click="saveNickname(item)">
-                {{ t('adminUsers.saveNickname') }}
-              </v-btn>
-            </div>
-            <div class="console-user-row__password">
-              <v-text-field
-                v-model="draftPasswords[item.id]"
-                density="compact"
-                :error-messages="resetPasswordErrors[item.id]"
-                :label="t('adminUsers.labels.newPassword')"
-                :disabled="item.builtin"
-                type="password"
-                variant="outlined"
-              />
-              <v-btn size="small" variant="text" :disabled="item.builtin" :loading="resetMutation.isPending.value" @click="resetPassword(item)">
-                {{ t('adminUsers.resetPassword') }}
-              </v-btn>
-            </div>
-            <v-btn size="small" variant="text" :disabled="item.builtin" :loading="updateMutation.isPending.value" @click="toggleStatus(item)">
-              {{ t(item.status === 'active' ? 'adminUsers.actions.disable' : 'adminUsers.actions.enable') }}
+          <div class="console-user-row__summary-actions" data-testid="console-user-summary-actions">
+            <v-btn size="small" variant="text" :disabled="item.builtin" @click="toggleEdit(item.id)">
+              {{ t('adminUsers.actions.edit') }}
             </v-btn>
+            <button class="console-user-row__more" type="button" :disabled="item.builtin" @click="toggleMore(item.id)">
+              {{ t('adminUsers.actions.more') }}
+            </button>
           </div>
+
+          <Transition name="moe-layout">
+            <div v-if="editingUserId === item.id" class="console-user-row__actions" data-testid="console-user-edit-panel">
+              <p class="console-user-row__panel-title">{{ t('adminUsers.editTitle') }}</p>
+              <div class="console-user-row__nickname">
+                <v-text-field
+                  v-model="draftNicknames[item.id]"
+                  density="compact"
+                  hide-details
+                  :label="t('adminUsers.labels.nickname')"
+                  :disabled="item.builtin"
+                  variant="outlined"
+                />
+                <v-btn size="small" variant="text" :disabled="item.builtin" :loading="updateMutation.isPending.value" @click="saveNickname(item)">
+                  {{ t('adminUsers.saveNickname') }}
+                </v-btn>
+              </div>
+            </div>
+          </Transition>
+
+          <Transition name="moe-layout">
+            <div v-if="moreUserId === item.id" class="console-user-row__actions console-user-row__actions--more" data-testid="console-user-actions">
+              <p class="console-user-row__panel-title">{{ t('adminUsers.moreTitle') }}</p>
+              <v-btn size="small" variant="text" :disabled="item.builtin" :loading="updateMutation.isPending.value" @click="toggleStatus(item)">
+                {{ t(item.status === 'active' ? 'adminUsers.actions.disable' : 'adminUsers.actions.enable') }}
+              </v-btn>
+              <div class="console-user-row__password">
+                <v-text-field
+                  v-model="draftPasswords[item.id]"
+                  density="compact"
+                  :error-messages="resetPasswordErrors[item.id]"
+                  :label="t('adminUsers.labels.newPassword')"
+                  :disabled="item.builtin"
+                  type="password"
+                  variant="outlined"
+                />
+                <v-btn size="small" variant="text" :disabled="item.builtin" :loading="resetMutation.isPending.value" @click="resetPassword(item)">
+                  {{ t('adminUsers.resetPassword') }}
+                </v-btn>
+              </div>
+            </div>
+          </Transition>
         </article>
       </div>
       <p v-if="users.length > 0" class="console-page__notice">{{ t('adminUsers.paginationNotice') }}</p>
@@ -80,7 +98,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -92,6 +110,8 @@ const queryClient = useQueryClient()
 const draftNicknames = reactive<Record<string, string>>({})
 const draftPasswords = reactive<Record<string, string>>({})
 const resetPasswordErrors = reactive<Record<string, string>>({})
+const editingUserId = ref('')
+const moreUserId = ref('')
 const query = useQuery({
   queryKey: ['admin-user'],
   queryFn: () => listUsers({ page: 1, pageSize: 20 }),
@@ -150,6 +170,20 @@ function resetPassword(item: UserSummary) {
     id: item.id,
     password,
   })
+}
+
+function toggleEdit(id: string) {
+  editingUserId.value = editingUserId.value === id ? '' : id
+  if (editingUserId.value) {
+    moreUserId.value = ''
+  }
+}
+
+function toggleMore(id: string) {
+  moreUserId.value = moreUserId.value === id ? '' : id
+  if (moreUserId.value) {
+    editingUserId.value = ''
+  }
 }
 
 function invalidateUsers() {

@@ -14,7 +14,7 @@
             v-model="targetUrl"
             class="short-link-create-panel__input"
             :label="t('shortLinkCreate.targetLabel')"
-            placeholder="https://example.com"
+            :placeholder="t('shortLinkCreate.targetPlaceholder')"
             variant="outlined"
             :disabled="!canCreateShortLink"
             :error-messages="errorMessage"
@@ -31,9 +31,9 @@
             {{ t('shortLinkCreate.submit') }}
           </v-btn>
         </div>
-        <v-alert v-if="!canCreateShortLink" type="info" variant="tonal">
+        <div v-if="!canCreateShortLink" class="short-link-create-panel__permission" role="status">
           {{ t('shortLinkCreate.permissionRequired') }}
-        </v-alert>
+        </div>
       </div>
 
       <div v-if="createdUrl" class="short-link-create-panel__result" data-testid="short-link-create-result" role="status">
@@ -131,7 +131,7 @@ function copyUrl(url: string) {
   border: 1px solid var(--moeurl-outline);
   border-radius: var(--moeurl-radius-panel);
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--moeurl-surface-elevated) 88%, transparent), var(--moeurl-surface-glass)),
+    linear-gradient(135deg, color-mix(in srgb, var(--moeurl-surface-elevated) 84%, transparent), var(--moeurl-surface-glass)),
     var(--moeurl-surface-glass);
   box-shadow: var(--moeurl-shadow);
   backdrop-filter: blur(22px);
@@ -175,6 +175,18 @@ function copyUrl(url: string) {
 .short-link-create-panel__form {
   display: grid;
   gap: 12px;
+}
+
+.short-link-create-panel__permission {
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, rgb(var(--v-theme-secondary)) 24%, transparent);
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, rgb(var(--v-theme-secondary)) 13%, transparent), transparent 70%),
+    color-mix(in srgb, var(--moeurl-surface-elevated) 54%, transparent);
+  color: rgb(var(--v-theme-on-surface));
+  font-weight: 750;
+  text-align: center;
 }
 
 .short-link-create-panel__field-row {

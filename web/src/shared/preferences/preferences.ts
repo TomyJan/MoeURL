@@ -14,9 +14,11 @@ const themeStorageKey = 'moeurl.theme'
 
 export function loadPreferences(): UserPreferences {
   const storage = globalThis.window?.localStorage
+  const storedLanguage = storage?.getItem(languageStorageKey)
+  const storedTheme = storage?.getItem(themeStorageKey)
   return {
-    language: parseLanguage(storage?.getItem(languageStorageKey) ?? null),
-    theme: parseTheme(storage?.getItem(themeStorageKey) ?? null),
+    language: languageOptions.includes(storedLanguage as LanguagePreference) ? (storedLanguage as LanguagePreference) : 'zh-CN',
+    theme: themeOptions.includes(storedTheme as ThemePreference) ? (storedTheme as ThemePreference) : 'system',
   }
 }
 
@@ -36,25 +38,4 @@ export function resolveVuetifyTheme(theme: ThemePreference): 'moeurlLight' | 'mo
     return 'moeurlDark'
   }
   return globalThis.window?.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'moeurlDark' : 'moeurlLight'
-}
-
-function parseLanguage(value: string | null): LanguagePreference {
-  switch (value) {
-    case 'en':
-    case 'zh-CN':
-      return value
-    default:
-      return 'zh-CN'
-  }
-}
-
-function parseTheme(value: string | null): ThemePreference {
-  switch (value) {
-    case 'light':
-    case 'dark':
-    case 'system':
-      return value
-    default:
-      return 'system'
-  }
 }

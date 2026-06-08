@@ -13,7 +13,16 @@ const state = vi.hoisted(() => ({
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
+    locale: ref('zh-CN'),
     t: (key: string) => key,
+  }),
+}))
+
+vi.mock('vuetify/framework', () => ({
+  useTheme: () => ({
+    global: {
+      name: ref('moeurlLight'),
+    },
   }),
 }))
 
@@ -81,15 +90,17 @@ describe('ConsoleShell', () => {
 
     expect(container.querySelector('.console-shell__workspace')).toBeTruthy()
     expect(screen.getByText('console content')).toBeTruthy()
-    expect(screen.getByText('console.backHome')).toBeTruthy()
+    expect(screen.getByTestId('console-sidebar-home')).toBeTruthy()
+    expect(screen.getByText('console.nav.workspace')).toBeTruthy()
     expect(screen.getByText('nav.links')).toBeTruthy()
     expect(screen.queryByText('nav.admin')).toBeNull()
     expect(screen.queryByText('nav.users')).toBeNull()
     expect(screen.queryByText('page.createUser')).toBeNull()
     expect(within(screen.getByTestId('console-account')).getByText('Alice')).toBeTruthy()
+    expect(screen.getAllByRole('group', { name: 'app preferences' }).length).toBeGreaterThan(0)
   })
 
-  it('shows administrator navigation without unimplemented entries', () => {
+  it('shows administrator navigation as grouped two-level sections without create-user nav', () => {
     setCurrentUser({
       username: 'admin',
       nickname: 'Admin',
@@ -100,9 +111,10 @@ describe('ConsoleShell', () => {
     mountShell()
 
     expect(screen.getByText('nav.links')).toBeTruthy()
-    expect(screen.getByText('nav.admin')).toBeTruthy()
+    expect(screen.getAllByText('nav.admin').length).toBeGreaterThan(0)
+    expect(screen.getByText('console.nav.userManagement')).toBeTruthy()
     expect(screen.getByText('nav.users')).toBeTruthy()
-    expect(screen.getByText('page.createUser')).toBeTruthy()
+    expect(screen.queryByText('page.createUser')).toBeNull()
     expect(screen.queryByText('console.stats')).toBeNull()
     expect(screen.queryByText('console.settings')).toBeNull()
   })
@@ -126,6 +138,7 @@ describe('ConsoleShell', () => {
 
     expect(screen.getByTestId('console-mobile-nav')).toBeTruthy()
     expect(screen.getByTestId('console-drawer-transition')).toBeTruthy()
+    expect(within(screen.getByTestId('console-mobile-nav')).getByRole('group', { name: 'app preferences' })).toBeTruthy()
     expect(within(screen.getByTestId('console-mobile-nav')).getByText('console.backHome')).toBeTruthy()
     expect(within(screen.getByTestId('console-mobile-nav')).getByText('nav.links')).toBeTruthy()
   })

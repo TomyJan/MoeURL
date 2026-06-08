@@ -57,9 +57,9 @@ function goConsole() {
   overflow: hidden;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 50% 18%, var(--moeurl-hero-glow), transparent 32rem),
+    radial-gradient(circle at 50% 18%, var(--moeurl-hero-glow), transparent 30rem),
     radial-gradient(circle at 12% 22%, color-mix(in srgb, rgb(var(--v-theme-secondary)) 10%, transparent), transparent 22rem),
-    radial-gradient(circle at 88% 72%, color-mix(in srgb, rgb(var(--v-theme-primary)) 10%, transparent), transparent 22rem),
+    radial-gradient(circle at 88% 72%, color-mix(in srgb, rgb(var(--v-theme-secondary)) 7%, transparent), transparent 22rem),
     linear-gradient(145deg, rgb(var(--v-theme-background)), var(--moeurl-surface-soft));
 }
 

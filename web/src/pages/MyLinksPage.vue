@@ -2,7 +2,7 @@
   <section class="console-page" data-testid="console-page-links">
     <header class="console-page__header">
       <div>
-        <p class="console-page__eyebrow">Links</p>
+        <p class="console-page__eyebrow">{{ t('page.links') }}</p>
         <h1>{{ t('page.links') }}</h1>
       </div>
     </header>

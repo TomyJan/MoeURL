@@ -22,25 +22,25 @@ export const messages = {
     },
     home: {
       heroTitle: '把链接变短，把控制留在自己手里',
-      heroSummary: '粘贴目标链接，快速生成可管理、可控权限的短链。',
+      heroSummary: '粘贴链接，生成短链。',
       scrollHint: '继续了解 MoeURL',
     },
     homeIntro: {
       permission: {
         title: '权限可控',
-        description: '创建、管理和访问能力都通过权限表达，适合个人和小团队自托管。',
+        description: '创建、管理和访问都由权限决定。管理员可以把能力开放给合适的人，普通成员只看到自己该用的入口。',
       },
       selfHosted: {
         title: '自托管友好',
-        description: '数据、域名和运行环境都由部署者掌控，轻量维护，不绑定外部平台。',
+        description: '域名、数据和运行环境都留在自己的机器上。Docker Compose 即可拉起，适合个人、小团队和内部工具。',
       },
       management: {
         title: '快速管理',
-        description: '短链列表、状态筛选和管理员维护入口已经形成基础闭环。',
+        description: '生成后的短链进入控制台集中维护。你可以按状态筛选、复制、打开、禁用或清理不再使用的链接。',
       },
       modern: {
         title: '现代体验',
-        description: '支持浅色、深色、国际化和 PWA 基础能力，后续页面可持续扩展。',
+        description: '浅色、深色、语言偏好和 PWA 基础能力从一开始就纳入设计，后续页面会沿用同一套组件。',
       },
     },
     filter: {
@@ -64,6 +64,7 @@ export const messages = {
         copy: '复制',
         open: '打开',
         delete: '删除',
+        more: '更多操作',
       },
     },
     shortLinkCreate: {
@@ -86,20 +87,25 @@ export const messages = {
       openMenu: '打开控制台菜单',
       closeMenu: '关闭菜单',
       closeCreate: '关闭',
+      nav: {
+        workspace: '工作区',
+        userManagement: '用户管理',
+      },
     },
     auth: {
       username: '账号',
       password: '密码',
       loginSubmit: '登录',
       loginFailed: '登录失败，请检查账号和密码后再试。',
-      consoleEntry: '控制台入口',
-      consoleSummary: '进入控制台，继续管理你的短链、权限和用户。',
-      privateConsole: '私有控制台',
+      consoleEntry: '进入控制台',
+      consoleSummary: '管理短链、用户和权限。',
+      privateConsole: 'MoeURL',
     },
     adminUsers: {
       createUser: '创建用户',
       loadFailed: '加载失败',
       noUsers: '暂无用户',
+      emptyDescription: '创建第一个普通用户后，可以在这里维护状态、昵称和密码。',
       total: '共 {total} 个用户',
       paginationNotice: '当前仅显示前 20 个用户，分页将在后续版本实现。',
       headers: {
@@ -118,7 +124,11 @@ export const messages = {
       actions: {
         enable: '启用',
         disable: '禁用',
+        edit: '编辑',
+        more: '更多操作',
       },
+      editTitle: '资料维护',
+      moreTitle: '账号操作',
       saveNickname: '保存昵称',
       resetPassword: '重置密码',
       status: {
@@ -176,25 +186,25 @@ export const messages = {
     },
     home: {
       heroTitle: 'Shorten links while keeping control',
-      heroSummary: 'Paste a target URL and create a manageable short link with permission boundaries.',
+      heroSummary: 'Paste a URL and create a short link.',
       scrollHint: 'Learn more about MoeURL',
     },
     homeIntro: {
       permission: {
         title: 'Permission first',
-        description: 'Creation, management, and access are expressed through permissions for self-hosted teams.',
+        description: 'Creation, management, and access all go through permissions, so every user sees the right surface.',
       },
       selfHosted: {
         title: 'Self-hosted friendly',
-        description: 'Keep your data, domains, and runtime under your own control with a lightweight stack.',
+        description: 'Keep data, domains, and runtime on your own infrastructure with a lightweight Docker deployment.',
       },
       management: {
         title: 'Fast management',
-        description: 'Link lists, status filters, and administrator maintenance already form a usable loop.',
+        description: 'Created links enter the console for status filters, copy/open actions, disable, and cleanup.',
       },
       modern: {
         title: 'Modern experience',
-        description: 'Light mode, dark mode, i18n, and PWA basics are ready for the next product surfaces.',
+        description: 'Light mode, dark mode, language preference, and PWA basics share the same component system.',
       },
     },
     filter: {
@@ -218,6 +228,7 @@ export const messages = {
         copy: 'Copy',
         open: 'Open',
         delete: 'Delete',
+        more: 'More actions',
       },
     },
     shortLinkCreate: {
@@ -240,20 +251,25 @@ export const messages = {
       openMenu: 'Open console menu',
       closeMenu: 'Close menu',
       closeCreate: 'Close',
+      nav: {
+        workspace: 'Workspace',
+        userManagement: 'User management',
+      },
     },
     auth: {
       username: 'Username',
       password: 'Password',
       loginSubmit: 'Sign in',
       loginFailed: 'Sign-in failed. Check your account and password.',
-      consoleEntry: 'Console entry',
-      consoleSummary: 'Enter the console to manage your links, permissions, and users.',
-      privateConsole: 'Private console',
+      consoleEntry: 'Open console',
+      consoleSummary: 'Manage links, users, and permissions.',
+      privateConsole: 'MoeURL',
     },
     adminUsers: {
       createUser: 'Create user',
       loadFailed: 'Failed to load users',
       noUsers: 'No users',
+      emptyDescription: 'Create your first user, then maintain status, nickname, and password here.',
       total: '{total} users',
       paginationNotice: 'Showing first 20 users; pagination is planned for a future release.',
       headers: {
@@ -272,7 +288,11 @@ export const messages = {
       actions: {
         enable: 'Enable',
         disable: 'Disable',
+        edit: 'Edit',
+        more: 'More actions',
       },
+      editTitle: 'Profile',
+      moreTitle: 'Account actions',
       saveNickname: 'Save nickname',
       resetPassword: 'Reset password',
       status: {

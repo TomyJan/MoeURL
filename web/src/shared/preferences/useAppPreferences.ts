@@ -41,23 +41,18 @@ export function useAppPreferences() {
     })
   }
 
-  function toggleLanguage() {
-    language.value = language.value === 'zh-CN' ? 'en' : 'zh-CN'
+  function setLanguage(value: LanguagePreference) {
+    language.value = value
   }
 
-  function toggleTheme() {
-    const nextTheme: Record<ThemePreference, ThemePreference> = {
-      system: 'light',
-      light: 'dark',
-      dark: 'system',
-    }
-    themeMode.value = nextTheme[themeMode.value]
+  function setTheme(value: ThemePreference) {
+    themeMode.value = value
   }
 
   return {
     language,
+    setLanguage,
+    setTheme,
     themeMode,
-    toggleLanguage,
-    toggleTheme,
   }
 }

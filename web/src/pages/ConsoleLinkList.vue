@@ -24,22 +24,28 @@
       </div>
 
       <div class="console-link-row__actions">
-        <v-btn size="small" variant="text" :loading="updating" @click="$emit('toggleStatus', link)">
-          {{ t(link.status === 'active' ? 'links.actions.disable' : 'links.actions.enable') }}
-        </v-btn>
         <v-btn size="small" variant="text" @click="$emit('copy', link.url)">{{ t('links.actions.copy') }}</v-btn>
         <v-btn size="small" variant="text" :href="link.url" target="_blank" rel="noreferrer">
           {{ t('links.actions.open') }}
         </v-btn>
-        <v-btn size="small" variant="text" color="error" :loading="deleting" @click="$emit('remove', link.id)">
-          {{ t('links.actions.delete') }}
-        </v-btn>
+        <button class="console-link-row__more" type="button" @click="toggleMore(link.id)">
+          {{ t('links.actions.more') }}
+        </button>
+        <div v-if="openedMoreId === link.id" class="console-link-row__more-menu">
+          <v-btn size="small" variant="text" :loading="updating" @click="$emit('toggleStatus', link)">
+            {{ t(link.status === 'active' ? 'links.actions.disable' : 'links.actions.enable') }}
+          </v-btn>
+          <v-btn size="small" variant="text" color="error" :loading="deleting" @click="$emit('remove', link.id)">
+            {{ t('links.actions.delete') }}
+          </v-btn>
+        </div>
       </div>
     </article>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 export interface ConsoleLinkListItem {
@@ -67,4 +73,9 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
+const openedMoreId = ref('')
+
+function toggleMore(id: string) {
+  openedMoreId.value = openedMoreId.value === id ? '' : id
+}
 </script>

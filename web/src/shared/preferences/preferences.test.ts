@@ -33,6 +33,19 @@ describe('preferences', () => {
     expect(loadPreferences()).toEqual({ language: 'en', theme: 'dark' })
   })
 
+  it('loads every supported stored preference value', () => {
+    window.localStorage.setItem('moeurl.language', 'en')
+    window.localStorage.setItem('moeurl.theme', 'dark')
+    expect(loadPreferences()).toEqual({ language: 'en', theme: 'dark' })
+
+    window.localStorage.setItem('moeurl.language', 'zh-CN')
+    window.localStorage.setItem('moeurl.theme', 'light')
+    expect(loadPreferences()).toEqual({ language: 'zh-CN', theme: 'light' })
+
+    window.localStorage.setItem('moeurl.theme', 'system')
+    expect(loadPreferences()).toEqual({ language: 'zh-CN', theme: 'system' })
+  })
+
   it('loads the explicit system theme preference', () => {
     window.localStorage.setItem('moeurl.theme', 'system')
 

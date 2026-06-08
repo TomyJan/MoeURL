@@ -4,7 +4,7 @@
       class="console-shell__sidebar"
       :display-name="displayName"
       :logout-pending="logoutMutation.isPending.value"
-      :nav-items="navItems"
+      :nav-groups="navGroups"
       :username="username"
       @create-short-link="openCreatePanel"
       @logout="submitLogout"
@@ -21,12 +21,24 @@
           <button class="console-shell__mobile-close" type="button" @click="mobileNavOpen = false">
             {{ t('console.closeMenu') }}
           </button>
+          <PreferenceSwitcher />
           <v-btn color="primary" variant="flat" @click="openCreatePanel">{{ t('console.newShortLink') }}</v-btn>
-          <nav>
-            <v-btn to="/" variant="text">{{ t('console.backHome') }}</v-btn>
-            <v-btn v-for="item in navItems" :key="item.to" :to="item.to" variant="text">
-              {{ t(item.labelKey) }}
-            </v-btn>
+          <RouterLink class="console-shell__mobile-home" to="/">{{ t('console.backHome') }}</RouterLink>
+          <nav class="console-shell__mobile-nav-list">
+            <section v-for="group in navGroups" :key="group.labelKey" class="console-shell__mobile-nav-group">
+              <p>{{ t(group.labelKey) }}</p>
+              <template v-for="item in group.items" :key="item.to || item.labelKey">
+                <v-btn v-if="item.to" :to="item.to" variant="text">
+                  {{ t(item.labelKey) }}
+                </v-btn>
+                <div v-else class="console-shell__mobile-nav-subgroup">
+                  <span>{{ t(item.labelKey) }}</span>
+                  <v-btn v-for="child in item.children" :key="child.to" :to="child.to" variant="text">
+                    {{ t(child.labelKey) }}
+                  </v-btn>
+                </div>
+              </template>
+            </section>
           </nav>
         </div>
       </div>
@@ -64,9 +76,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { logout, me } from '@/entities/auth/api'
 import ShortLinkCreatePanel from '@/features/short-link-create/ShortLinkCreatePanel.vue'
+import PreferenceSwitcher from '@/shared/preferences/PreferenceSwitcher.vue'
 import ConsoleSidebar from './ConsoleSidebar.vue'
 import ConsoleTopbar from './ConsoleTopbar.vue'
-import type { ConsoleNavItem } from './ConsoleSidebar.vue'
+import type { ConsoleNavGroup } from './ConsoleSidebar.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
@@ -81,19 +94,27 @@ const currentUser = computed(() => currentUserQuery.data.value?.user)
 const displayName = computed(() => currentUser.value?.nickname || currentUser.value?.username || 'guest')
 const username = computed(() => currentUser.value?.username || 'guest')
 const permissions = computed(() => currentUser.value?.permissions ?? [])
-const navItems = computed<ConsoleNavItem[]>(() => {
-  const items: ConsoleNavItem[] = []
+const navGroups = computed<ConsoleNavGroup[]>(() => {
+  const groups: ConsoleNavGroup[] = []
   if (permissions.value.includes('short_link:read_own')) {
-    items.push({ labelKey: 'nav.links', to: '/link' })
+    groups.push({
+      labelKey: 'console.nav.workspace',
+      items: [{ labelKey: 'nav.links', to: '/link' }],
+    })
   }
   if (permissions.value.includes('admin:access')) {
-    items.push(
-      { labelKey: 'nav.admin', to: '/admin/link' },
-      { labelKey: 'nav.users', to: '/admin/user' },
-      { labelKey: 'page.createUser', to: '/admin/user/new' },
-    )
+    groups.push({
+      labelKey: 'nav.admin',
+      items: [
+        { labelKey: 'page.adminLinks', to: '/admin/link' },
+        {
+          labelKey: 'console.nav.userManagement',
+          children: [{ labelKey: 'nav.users', level: 2, to: '/admin/user' }],
+        },
+      ],
+    })
   }
-  return items
+  return groups
 })
 const logoutMutation = useMutation({
   mutationFn: logout,
@@ -120,8 +141,8 @@ function submitLogout() {
   gap: 22px;
   padding: 18px;
   background:
-    radial-gradient(circle at 8% 4%, var(--moeurl-hero-glow), transparent 28rem),
-    radial-gradient(circle at 100% 0%, color-mix(in srgb, rgb(var(--v-theme-primary)) 12%, transparent), transparent 24rem),
+    radial-gradient(circle at 8% 4%, var(--moeurl-hero-glow), transparent 25rem),
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, rgb(var(--v-theme-secondary)) 8%, transparent), transparent 22rem),
     rgb(var(--v-theme-background));
 }
 
@@ -129,7 +150,7 @@ function submitLogout() {
   min-width: 0;
   padding: 8px;
   border-radius: var(--moeurl-radius-page);
-  background: color-mix(in srgb, var(--moeurl-surface-soft) 72%, transparent);
+  background: color-mix(in srgb, var(--moeurl-surface-soft) 92%, rgb(var(--v-theme-background)) 8%);
 }
 
 .console-shell__workspace {
@@ -137,20 +158,23 @@ function submitLogout() {
   padding: clamp(22px, 3.4vw, 36px);
   border-radius: calc(var(--moeurl-radius-page) - 8px);
   background:
-    radial-gradient(circle at 88% 12%, color-mix(in srgb, rgb(var(--v-theme-primary)) 8%, transparent), transparent 17rem),
-    color-mix(in srgb, var(--moeurl-surface-elevated) 42%, transparent);
+    radial-gradient(circle at 88% 12%, color-mix(in srgb, rgb(var(--v-theme-secondary)) 5%, transparent), transparent 16rem),
+    color-mix(in srgb, var(--moeurl-surface-elevated) 64%, rgb(var(--v-theme-background)) 36%);
 }
 
 .console-shell__mobile-nav,
 .console-shell__dialog {
   position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: 120;
   display: grid;
-  background: rgba(0, 0, 0, 0.32);
+  background: color-mix(in srgb, black 76%, rgb(var(--v-theme-background)) 24%);
+  backdrop-filter: blur(14px);
 }
 
 .console-shell__mobile-panel {
+  position: relative;
+  z-index: 1;
   display: grid;
   align-content: start;
   gap: 14px;
@@ -158,15 +182,47 @@ function submitLogout() {
   height: calc(100% - 32px);
   margin: 16px;
   padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--moeurl-outline) 90%, transparent);
   border-radius: var(--moeurl-radius-panel);
-  background: var(--moeurl-surface-glass);
+  background-color: rgb(var(--v-theme-surface));
+  background-image:
+    linear-gradient(180deg, color-mix(in srgb, var(--moeurl-surface-elevated) 34%, transparent), transparent),
+    linear-gradient(135deg, color-mix(in srgb, rgb(var(--v-theme-secondary)) 7%, transparent), transparent 58%);
   box-shadow: var(--moeurl-shadow-strong);
-  backdrop-filter: blur(24px);
 }
 
-.console-shell__mobile-panel nav {
+.console-shell__mobile-home {
+  display: inline-flex;
+  align-items: center;
+  padding: 11px 14px;
+  border: 1px dashed color-mix(in srgb, var(--moeurl-outline) 90%, rgb(var(--v-theme-secondary)) 10%);
+  border-radius: 20px;
+  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 9%, transparent);
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.console-shell__mobile-nav-list,
+.console-shell__mobile-nav-group,
+.console-shell__mobile-nav-subgroup {
   display: grid;
   gap: 8px;
+}
+
+.console-shell__mobile-nav-group p,
+.console-shell__mobile-nav-subgroup span {
+  margin: 8px 4px 0;
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.console-shell__mobile-nav-subgroup {
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--moeurl-outline) 70%, transparent);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--moeurl-surface-elevated) 36%, transparent);
 }
 
 .console-shell__mobile-close,

@@ -12,14 +12,41 @@
       {{ t('console.newShortLink') }}
     </v-btn>
 
+    <RouterLink class="console-sidebar__home" data-testid="console-sidebar-home" to="/">
+      <span class="console-sidebar__home-mark" aria-hidden="true" />
+      <span>{{ t('console.backHome') }}</span>
+    </RouterLink>
+
     <nav class="console-sidebar__nav">
-      <v-btn to="/" class="console-sidebar__nav-item console-sidebar__nav-item--home" variant="text">
-        {{ t('console.backHome') }}
-      </v-btn>
-      <v-btn v-for="item in navItems" :key="item.to" :to="item.to" class="console-sidebar__nav-item" variant="text">
-        {{ t(item.labelKey) }}
-      </v-btn>
+      <section v-for="group in navGroups" :key="group.labelKey" class="console-sidebar__nav-group">
+        <p class="console-sidebar__nav-label">{{ t(group.labelKey) }}</p>
+        <template v-for="item in group.items" :key="item.to || item.labelKey">
+          <v-btn
+            v-if="item.to"
+            :to="item.to"
+            class="console-sidebar__nav-item"
+            :class="{ 'console-sidebar__nav-item--child': item.level === 2 }"
+            variant="text"
+          >
+            {{ t(item.labelKey) }}
+          </v-btn>
+          <div v-else class="console-sidebar__nav-subgroup">
+            <p>{{ t(item.labelKey) }}</p>
+            <v-btn
+              v-for="child in item.children"
+              :key="child.to"
+              :to="child.to"
+              class="console-sidebar__nav-item console-sidebar__nav-item--child"
+              variant="text"
+            >
+              {{ t(child.labelKey) }}
+            </v-btn>
+          </div>
+        </template>
+      </section>
     </nav>
+
+    <PreferenceSwitcher class="console-sidebar__preferences" />
 
     <ConsoleAccountCard
       class="console-sidebar__account"
@@ -31,21 +58,34 @@
   </aside>
 </template>
 
+<!--
+  Navigation is intentionally grouped here instead of using a flat router list.
+  It mirrors the v0.0.3 product IA: workspace first, management second, then
+  nested management subjects.
+-->
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
+import PreferenceSwitcher from '@/shared/preferences/PreferenceSwitcher.vue'
 import ConsoleAccountCard from './ConsoleAccountCard.vue'
 
 export interface ConsoleNavItem {
+  children?: ConsoleNavItem[]
   labelKey: string
-  to: string
+  level?: 1 | 2
+  to?: string
+}
+
+export interface ConsoleNavGroup {
+  items: ConsoleNavItem[]
+  labelKey: string
 }
 
 defineProps<{
   displayName: string
   logoutPending?: boolean
-  navItems: ConsoleNavItem[]
+  navGroups: ConsoleNavGroup[]
   username: string
 }>()
 
@@ -63,8 +103,8 @@ const { t } = useI18n()
   top: 18px;
   display: grid;
   min-height: calc(100vh - 36px);
-  grid-template-rows: auto auto 1fr auto;
-  gap: 18px;
+  grid-template-rows: auto auto auto 1fr auto auto;
+  gap: 14px;
   padding: 18px;
   border: 1px solid var(--moeurl-outline);
   border-radius: var(--moeurl-radius-page);
@@ -116,10 +156,57 @@ const { t } = useI18n()
   box-shadow: 0 18px 42px color-mix(in srgb, rgb(var(--v-theme-primary)) 22%, transparent);
 }
 
+.console-sidebar__home {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px dashed color-mix(in srgb, var(--moeurl-outline) 92%, rgb(var(--v-theme-secondary)) 8%);
+  border-radius: 22px;
+  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 8%, transparent);
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 0.88rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.console-sidebar__home-mark {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: rgb(var(--v-theme-secondary));
+  box-shadow: 0 0 0 5px color-mix(in srgb, rgb(var(--v-theme-secondary)) 14%, transparent);
+}
+
 .console-sidebar__nav {
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: 18px;
+}
+
+.console-sidebar__nav-group,
+.console-sidebar__nav-subgroup {
+  display: grid;
+  gap: 7px;
+}
+
+.console-sidebar__nav-label,
+.console-sidebar__nav-subgroup p {
+  margin: 0;
+  padding: 0 10px;
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.console-sidebar__nav-subgroup {
+  margin-top: 2px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--moeurl-outline) 70%, transparent);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--moeurl-surface-elevated) 34%, transparent);
 }
 
 .console-sidebar__nav-item {
@@ -128,11 +215,21 @@ const { t } = useI18n()
   color: rgb(var(--v-theme-on-surface-variant));
 }
 
+.console-sidebar__nav-item--child {
+  min-height: 40px;
+  padding-inline-start: 18px;
+  font-size: 0.9rem;
+}
+
 .console-sidebar__nav-item.router-link-active,
 .console-sidebar__nav-item[aria-current="page"] {
   background: color-mix(in srgb, rgb(var(--v-theme-primary)) 12%, transparent);
   color: rgb(var(--v-theme-primary));
   font-weight: 800;
+}
+
+.console-sidebar__preferences {
+  align-self: end;
 }
 
 .console-sidebar__account {
