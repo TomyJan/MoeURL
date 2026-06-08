@@ -59,6 +59,25 @@
           </tbody>
         </v-table>
       </div>
+      <div v-if="links.length > 0" class="console-page__mobile-list" data-testid="console-page-mobile-list">
+        <article v-for="link in links" :key="`mobile-${link.id}`" class="console-page__mobile-card">
+          <div class="console-page__mobile-card-head">
+            <a :href="link.url" target="_blank" rel="noreferrer">{{ link.url }}</a>
+            <span class="console-page__status" :class="`console-page__status--${link.status}`">{{ link.status }}</span>
+          </div>
+          <p>{{ link.targetUrl }}</p>
+          <div class="console-page__actions">
+            <v-btn size="small" variant="text" :loading="updateMutation.isPending.value" @click="toggleStatus(link.id, link.status)">
+              {{ link.status === 'active' ? '禁用' : '启用' }}
+            </v-btn>
+            <v-btn size="small" variant="text" @click="copyUrl(link.url)">复制</v-btn>
+            <v-btn size="small" variant="text" :href="link.url" target="_blank" rel="noreferrer">打开</v-btn>
+            <v-btn size="small" variant="text" color="error" :loading="deleteMutation.isPending.value" @click="remove(link.id)">
+              删除
+            </v-btn>
+          </div>
+        </article>
+      </div>
     </div>
   </section>
 </template>
@@ -162,6 +181,39 @@ function invalidateLinks() {
   overflow-x: auto;
 }
 
+.console-page__mobile-list {
+  display: none;
+}
+
+.console-page__mobile-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--moeurl-outline) 72%, transparent);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--moeurl-surface-elevated) 72%, transparent);
+}
+
+.console-page__mobile-card + .console-page__mobile-card {
+  margin-top: 12px;
+}
+
+.console-page__mobile-card-head {
+  display: grid;
+  gap: 10px;
+}
+
+.console-page__mobile-card a,
+.console-page__mobile-card p {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.console-page__mobile-card p {
+  margin: 0;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
 .console-page__empty {
   display: flex;
   align-items: center;
@@ -227,6 +279,14 @@ function invalidateLinks() {
 @media (max-width: 620px) {
   .console-page__toolbar {
     max-width: none;
+  }
+
+  .console-page__table {
+    display: none;
+  }
+
+  .console-page__mobile-list {
+    display: block;
   }
 
   .console-page__empty {
