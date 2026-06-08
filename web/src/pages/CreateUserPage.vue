@@ -1,22 +1,21 @@
 <template>
   <section class="console-page" data-testid="console-page-create-user">
     <header class="console-page__header">
+      <p class="console-page__eyebrow">New user</p>
       <h1>{{ t('page.createUser') }}</h1>
     </header>
     <div class="console-form-panel" data-testid="console-form-panel">
-      <v-card variant="flat">
-        <v-card-text class="console-form-panel__body">
-          <v-text-field v-model="username" label="Username" variant="outlined" />
-          <v-text-field v-model="password" label="Password" type="password" variant="outlined" />
-          <v-text-field v-model="nickname" label="Nickname" variant="outlined" />
-          <v-select v-model="groupKey" label="Group" :items="['user', 'admin']" variant="outlined" />
-          <v-select v-model="status" label="Status" :items="['active', 'disabled']" variant="outlined" />
-          <v-btn color="primary" :loading="mutation.isPending.value" @click="submit">创建用户</v-btn>
-          <v-alert v-if="createdUsername" class="mt-4" type="success" variant="tonal">
-            {{ createdUsername }}
-          </v-alert>
-        </v-card-text>
-      </v-card>
+      <div class="console-form-panel__body">
+        <v-text-field v-model="username" label="Username" variant="outlined" />
+        <v-text-field v-model="password" label="Password" type="password" variant="outlined" />
+        <v-text-field v-model="nickname" label="Nickname" variant="outlined" />
+        <v-select v-model="groupKey" label="Group" :items="['user', 'admin']" variant="outlined" />
+        <v-select v-model="status" label="Status" :items="['active', 'disabled']" variant="outlined" />
+        <v-btn color="primary" :loading="mutation.isPending.value" @click="submit">创建用户</v-btn>
+        <v-alert v-if="createdUsername" class="mt-4" type="success" variant="tonal">
+          {{ createdUsername }}
+        </v-alert>
+      </div>
     </div>
   </section>
 </template>
@@ -59,21 +58,31 @@ function submit() {
 <style scoped>
 .console-page {
   display: grid;
-  gap: 18px;
+  gap: 16px;
+}
+
+.console-page__eyebrow {
+  margin: 0 0 6px;
+  color: rgb(var(--v-theme-secondary));
+  font-size: 0.8rem;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .console-page__header h1 {
   margin: 0;
-  font-size: 1.9rem;
+  font-size: clamp(1.8rem, 3vw, 2.35rem);
   line-height: 1.2;
 }
 
 .console-form-panel {
   width: min(680px, 100%);
-  padding: 18px;
+  padding: clamp(16px, 3vw, 24px);
   border: 1px solid var(--moeurl-outline);
   border-radius: var(--moeurl-radius-panel);
-  background: rgb(var(--v-theme-surface));
+  background: var(--moeurl-surface-glass);
+  box-shadow: 0 18px 48px color-mix(in srgb, rgb(var(--v-theme-primary)) 8%, transparent);
+  backdrop-filter: blur(18px);
 }
 
 .console-form-panel__body {

@@ -235,6 +235,7 @@ describe('pages', () => {
     setQueryResult({ data: ref({ user: { username: 'guest', nickname: 'Guest', group: 'guest', permissions: [] } }) })
     const guest = mount(HomePage)
 
+    expect(screen.getByTestId('home-hero-panel')).toBeTruthy()
     expect(screen.getByText('nav.login')).toBeTruthy()
     expect(screen.getByText('home.heroTitle')).toBeTruthy()
     expect(screen.getByText('homeIntro.permission.title')).toBeTruthy()
@@ -325,6 +326,7 @@ describe('pages', () => {
     setQueryResult({ data: ref({ items: [] }) })
     const empty = mount(MyLinksPage)
     expect(screen.getByText('暂无短链')).toBeTruthy()
+    expect(empty.container.querySelector('.console-page__empty')).toBeTruthy()
     empty.unmount()
 
     setQueryResult({ data: ref(undefined) })
@@ -346,6 +348,7 @@ describe('pages', () => {
 
     expect(screen.getByTestId('console-page-links')).toBeTruthy()
     expect(screen.getByTestId('console-page-panel')).toBeTruthy()
+    expect(screen.getByTestId('console-page-toolbar')).toBeTruthy()
     const rows = screen.getAllByRole('row')
     const activeRow = rows.find((row) => within(row).queryByText('https://go.example.com/abc123'))
     const disabledRow = rows.find((row) => within(row).queryByText('https://go.example.com/def456'))
@@ -439,6 +442,7 @@ describe('pages', () => {
     const empty = mount(AdminLinksPage)
     expect(screen.getByText('暂无短链')).toBeTruthy()
     expect(screen.getByText('共 0 条')).toBeTruthy()
+    expect(empty.container.querySelector('.console-page__empty')).toBeTruthy()
     empty.unmount()
 
     setQueryResult({ data: ref(undefined) })
@@ -626,6 +630,7 @@ describe('pages', () => {
     const empty = mount(AdminUsersPage)
     expect(screen.getByText('adminUsers.noUsers')).toBeTruthy()
     expect(screen.getByText('adminUsers.total')).toBeTruthy()
+    expect(empty.container.querySelector('.console-page__empty')).toBeTruthy()
     empty.unmount()
 
     setQueryResult({ data: ref(undefined) })

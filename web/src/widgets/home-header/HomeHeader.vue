@@ -6,7 +6,7 @@
     </RouterLink>
 
     <nav class="home-header__actions">
-      <v-btn v-if="isGuest" to="/login" variant="text">{{ t('nav.login') }}</v-btn>
+      <v-btn v-if="isGuest" class="home-header__login" to="/login" variant="text">{{ t('nav.login') }}</v-btn>
       <button v-else class="home-header__account" type="button" @click="$emit('consoleClick')">
         <span class="home-header__avatar">{{ avatarText }}</span>
         <span>{{ displayName }}</span>
@@ -43,7 +43,7 @@ const avatarText = computed(() => (props.displayName || 'M').slice(0, 1).toUpper
   gap: 16px;
   width: min(1120px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 24px 0;
+  padding: 22px 0;
 }
 
 .home-header__brand {
@@ -51,7 +51,7 @@ const avatarText = computed(() => (props.displayName || 'M').slice(0, 1).toUpper
   align-items: center;
   gap: 10px;
   color: rgb(var(--v-theme-on-background));
-  font-weight: 800;
+  font-weight: 900;
   text-decoration: none;
 }
 
@@ -62,9 +62,11 @@ const avatarText = computed(() => (props.displayName || 'M').slice(0, 1).toUpper
   height: 36px;
   place-items: center;
   border-radius: 16px;
-  background: rgb(var(--v-theme-primary));
+  background:
+    linear-gradient(145deg, rgb(var(--v-theme-primary)), color-mix(in srgb, rgb(var(--v-theme-primary)) 74%, black 26%));
   color: rgb(var(--v-theme-on-primary));
   font-weight: 800;
+  box-shadow: 0 14px 34px color-mix(in srgb, rgb(var(--v-theme-primary)) 25%, transparent);
 }
 
 .home-header__actions {
@@ -80,8 +82,17 @@ const avatarText = computed(() => (props.displayName || 'M').slice(0, 1).toUpper
   padding: 6px 12px 6px 6px;
   border: 1px solid var(--moeurl-outline);
   border-radius: var(--moeurl-radius-control);
-  background: rgb(var(--v-theme-surface));
+  background: var(--moeurl-surface-glass);
   color: rgb(var(--v-theme-on-surface));
   cursor: pointer;
+  box-shadow: 0 16px 42px color-mix(in srgb, rgb(var(--v-theme-primary)) 10%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.home-header__login {
+  border: 1px solid var(--moeurl-outline);
+  background: color-mix(in srgb, var(--moeurl-surface-glass) 86%, transparent);
+  box-shadow: 0 12px 32px color-mix(in srgb, rgb(var(--v-theme-primary)) 8%, transparent);
+  backdrop-filter: blur(18px);
 }
 </style>

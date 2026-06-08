@@ -34,8 +34,12 @@ describe('vuetify', () => {
     expect(moeurlLightTheme.colors['on-background']).toBe('#14302b')
     expect(moeurlLightTheme.variables).toEqual(
       expect.objectContaining({
+        'app-elevated-surface': '#ffffff',
+        'app-glass-surface': 'rgba(255, 255, 255, 0.72)',
+        'app-hero-glow': 'rgba(240, 169, 79, 0.24)',
         'app-soft-surface': '#f6fbf8',
         'app-outline': 'rgba(15, 79, 72, 0.10)',
+        'app-ring': 'rgba(15, 79, 72, 0.18)',
         'radius-panel': '32px',
       }),
     )
@@ -47,8 +51,12 @@ describe('vuetify', () => {
     expect(moeurlDarkTheme.colors['on-background']).toBe('#effdf6')
     expect(moeurlDarkTheme.variables).toEqual(
       expect.objectContaining({
+        'app-elevated-surface': '#17231f',
+        'app-glass-surface': 'rgba(23, 35, 31, 0.72)',
+        'app-hero-glow': 'rgba(101, 214, 177, 0.16)',
         'app-soft-surface': '#111816',
         'app-outline': 'rgba(255, 255, 255, 0.08)',
+        'app-ring': 'rgba(101, 214, 177, 0.22)',
         'radius-panel': '32px',
       }),
     )

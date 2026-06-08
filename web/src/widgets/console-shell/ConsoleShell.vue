@@ -30,9 +30,11 @@
     </div>
 
     <main class="console-shell__main">
-      <slot>
-        <RouterView />
-      </slot>
+      <div class="console-shell__workspace">
+        <slot>
+          <RouterView />
+        </slot>
+      </div>
     </main>
 
     <div v-if="createPanelOpen" class="console-shell__dialog" role="dialog" aria-modal="true">
@@ -111,17 +113,31 @@ function submitLogout() {
   gap: 22px;
   padding: 18px;
   background:
-    radial-gradient(circle at 10% 8%, rgba(240, 169, 79, 0.12), transparent 26%),
+    radial-gradient(circle at 8% 4%, var(--moeurl-hero-glow), transparent 28rem),
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, rgb(var(--v-theme-primary)) 12%, transparent), transparent 24rem),
     rgb(var(--v-theme-background));
 }
 
 .console-shell__main {
   min-width: 0;
-  padding: 24px;
+  padding: 10px;
   border: 1px solid var(--moeurl-outline);
   border-radius: var(--moeurl-radius-page);
-  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 84%, transparent);
-  box-shadow: var(--moeurl-shadow);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--moeurl-surface-glass) 94%, transparent), var(--moeurl-surface-soft)),
+    var(--moeurl-surface-soft);
+  box-shadow: var(--moeurl-shadow-strong);
+}
+
+.console-shell__workspace {
+  min-height: calc(100vh - 58px);
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid color-mix(in srgb, var(--moeurl-outline) 82%, transparent);
+  border-radius: calc(var(--moeurl-radius-page) - 10px);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, rgb(var(--v-theme-secondary)) 8%, transparent), transparent 32%),
+    radial-gradient(circle at 86% 18%, color-mix(in srgb, rgb(var(--v-theme-primary)) 9%, transparent), transparent 18rem),
+    color-mix(in srgb, var(--moeurl-surface-elevated) 70%, transparent);
 }
 
 .console-shell__mobile-nav,
@@ -142,7 +158,9 @@ function submitLogout() {
   margin: 16px;
   padding: 18px;
   border-radius: var(--moeurl-radius-panel);
-  background: rgb(var(--v-theme-surface));
+  background: var(--moeurl-surface-glass);
+  box-shadow: var(--moeurl-shadow-strong);
+  backdrop-filter: blur(24px);
 }
 
 .console-shell__mobile-panel nav {
@@ -170,7 +188,10 @@ function submitLogout() {
   width: min(680px, 100%);
   padding: 22px;
   border-radius: var(--moeurl-radius-page);
-  background: rgb(var(--v-theme-surface));
+  border: 1px solid var(--moeurl-outline);
+  background: var(--moeurl-surface-glass);
+  box-shadow: var(--moeurl-shadow-strong);
+  backdrop-filter: blur(24px);
 }
 
 .console-shell__dialog-heading {
@@ -197,8 +218,14 @@ function submitLogout() {
 
   .console-shell__main {
     margin: 0 12px 12px;
-    padding: 16px;
+    padding: 8px;
     border-radius: 32px;
+  }
+
+  .console-shell__workspace {
+    min-height: calc(100vh - 90px);
+    padding: 14px;
+    border-radius: 26px;
   }
 
   .console-shell__dialog {

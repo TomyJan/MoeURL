@@ -95,8 +95,10 @@ describe('ShortLinkCreatePanel', () => {
     const mutate = vi.fn()
     setMutationResult({ mutate })
 
-    mountPanel()
+    const { container } = mountPanel()
 
+    expect(container.querySelector('.short-link-create-panel__shell')).toBeTruthy()
+    expect(container.querySelector('.short-link-create-panel__field-row')).toBeTruthy()
     expect((screen.getByLabelText('https://example.com') as HTMLInputElement).disabled).toBe(true)
     expect(screen.getByText('shortLinkCreate.permissionRequired')).toBeTruthy()
 

@@ -77,8 +77,9 @@ describe('ConsoleShell', () => {
   })
 
   it('renders desktop navigation and account inside the sidebar for regular users', () => {
-    mountShell()
+    const { container } = mountShell()
 
+    expect(container.querySelector('.console-shell__workspace')).toBeTruthy()
     expect(screen.getByText('console content')).toBeTruthy()
     expect(screen.getByText('nav.links')).toBeTruthy()
     expect(screen.queryByText('nav.admin')).toBeNull()

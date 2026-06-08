@@ -6,8 +6,11 @@ describe('moeurlThemeCss', () => {
   it('defines global application surfaces and radius tokens', () => {
     expect(moeurlThemeCss).toContain('background: rgb(var(--v-theme-background))')
     expect(moeurlThemeCss).toContain('--moeurl-surface-soft: var(--v-app-soft-surface)')
+    expect(moeurlThemeCss).toContain('--moeurl-surface-glass: var(--v-app-glass-surface)')
+    expect(moeurlThemeCss).toContain('--moeurl-hero-glow: var(--v-app-hero-glow)')
     expect(moeurlThemeCss).toContain('--moeurl-radius-page: var(--v-radius-page)')
     expect(moeurlThemeCss).toContain('border-radius: var(--moeurl-radius-panel)')
+    expect(moeurlThemeCss).toContain('backdrop-filter: blur(22px)')
   })
 
   it('installs the global style element idempotently', () => {

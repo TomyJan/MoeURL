@@ -22,6 +22,8 @@ const items = [
 
 <style scoped>
 .home-intro {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
@@ -37,10 +39,18 @@ const items = [
   padding: 24px;
   border: 1px solid var(--moeurl-outline);
   border-radius: var(--moeurl-radius-card);
-  background: rgb(var(--v-theme-surface));
+  background: var(--moeurl-surface-glass);
+  box-shadow: 0 18px 48px color-mix(in srgb, rgb(var(--v-theme-primary)) 8%, transparent);
+  backdrop-filter: blur(18px);
 }
 
 .home-intro__mark {
+  display: inline-grid;
+  width: 42px;
+  height: 32px;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 15%, transparent);
   color: rgb(var(--v-theme-secondary));
   font-size: 0.82rem;
   font-weight: 800;
