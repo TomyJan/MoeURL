@@ -5,22 +5,54 @@ import * as directives from 'vuetify/directives'
 export const moeurlLightTheme = {
   dark: false,
   colors: {
-    primary: '#4f6356',
-    secondary: '#52635a',
-    background: '#f7fbf6',
+    primary: '#0f4f48',
+    secondary: '#f0a94f',
+    background: '#eff6f2',
     surface: '#ffffff',
+    'surface-variant': '#f6fbf8',
+    'on-primary': '#ffffff',
+    'on-secondary': '#14302b',
+    'on-background': '#14302b',
+    'on-surface': '#14302b',
+    'on-surface-variant': '#5d766d',
+    outline: 'rgba(15, 79, 72, 0.10)',
     error: '#ba1a1a',
+  },
+  variables: {
+    'app-soft-surface': '#f6fbf8',
+    'app-outline': 'rgba(15, 79, 72, 0.10)',
+    'app-shadow': '0 24px 70px rgba(15, 79, 72, 0.12)',
+    'radius-page': '40px',
+    'radius-panel': '32px',
+    'radius-card': '28px',
+    'radius-control': '999px',
   },
 }
 
 export const moeurlDarkTheme = {
   dark: true,
   colors: {
-    primary: '#b7ccbd',
-    secondary: '#bac8bf',
-    background: '#101512',
-    surface: '#191d1a',
+    primary: '#65d6b1',
+    secondary: '#ecb65c',
+    background: '#10211e',
+    surface: '#17231f',
+    'surface-variant': '#17332e',
+    'on-primary': '#10211e',
+    'on-secondary': '#10211e',
+    'on-background': '#effdf6',
+    'on-surface': '#effdf6',
+    'on-surface-variant': '#9eb6ad',
+    outline: 'rgba(255, 255, 255, 0.08)',
     error: '#ffb4ab',
+  },
+  variables: {
+    'app-soft-surface': '#111816',
+    'app-outline': 'rgba(255, 255, 255, 0.08)',
+    'app-shadow': '0 24px 70px rgba(0, 0, 0, 0.34)',
+    'radius-page': '40px',
+    'radius-panel': '32px',
+    'radius-card': '28px',
+    'radius-control': '999px',
   },
 }
 
@@ -28,10 +60,16 @@ export const vuetify = createVuetify({
   components,
   defaults: {
     VBtn: {
-      rounded: 'lg',
+      rounded: 'pill',
     },
     VCard: {
-      rounded: 'lg',
+      rounded: 'xl',
+    },
+    VDialog: {
+      rounded: 'xl',
+    },
+    VTextField: {
+      rounded: 'xl',
     },
   },
   theme: {
