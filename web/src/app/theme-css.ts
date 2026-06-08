@@ -29,7 +29,7 @@ body,
 body {
   margin: 0;
   background:
-    radial-gradient(circle at 20% -8%, var(--moeurl-hero-glow), transparent 24rem),
+    radial-gradient(circle at 18% -12%, var(--moeurl-hero-glow), transparent 22rem),
     linear-gradient(180deg, rgb(var(--v-theme-background)), rgb(var(--v-theme-background)));
   font-feature-settings: "liga" 1, "kern" 1;
 }
@@ -69,7 +69,7 @@ body {
 
 .v-field--focused {
   background: var(--moeurl-surface-elevated);
-  box-shadow: 0 0 0 2px var(--moeurl-ring);
+  box-shadow: 0 0 0 1px var(--moeurl-ring), 0 10px 24px color-mix(in srgb, rgb(var(--v-theme-primary)) 7%, transparent);
 }
 
 .v-field--focused .v-field__outline {
@@ -206,7 +206,7 @@ body {
   border: 1px solid var(--moeurl-outline);
   border-radius: var(--moeurl-radius-panel);
   background: var(--moeurl-surface-elevated);
-  box-shadow: 0 14px 34px color-mix(in srgb, rgb(var(--v-theme-primary)) 5%, transparent);
+  box-shadow: 0 14px 34px color-mix(in srgb, rgb(var(--v-theme-primary)) 3%, transparent);
 }
 
 .console-data-panel {
@@ -258,7 +258,7 @@ body {
 
 .console-link-row:hover,
 .console-user-row:hover {
-  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 5%, transparent);
+  background: color-mix(in srgb, var(--moeurl-surface-strong) 32%, transparent);
 }
 
 .console-link-row {
@@ -367,7 +367,7 @@ body {
 
 .console-link-row__status--active,
 .console-page__status--active {
-  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 15%, transparent);
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 12%, transparent);
   color: rgb(var(--v-theme-primary));
 }
 
@@ -515,8 +515,8 @@ body {
   height: 54px;
   place-items: center;
   border-radius: 20px;
-  background: rgb(var(--v-theme-primary));
-  color: rgb(var(--v-theme-on-primary));
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 18%, var(--moeurl-surface-elevated));
+  color: rgb(var(--v-theme-primary));
   font-weight: 900;
 }
 
