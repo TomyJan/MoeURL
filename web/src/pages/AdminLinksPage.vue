@@ -56,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -67,14 +67,23 @@ const { t } = useI18n()
 const queryClient = useQueryClient()
 const statusFilter = ref<'' | AdminShortLink['status']>('')
 const searchKeyword = ref('')
+const debouncedKeyword = ref('')
 const statusOptions = [
   { title: '全部', value: '' },
   { title: '启用', value: 'active' },
   { title: '禁用', value: 'disabled' },
 ]
+
+watch(searchKeyword, (value, _oldValue, onCleanup) => {
+  const timer = globalThis.setTimeout(() => {
+    debouncedKeyword.value = value
+  }, 500)
+  onCleanup(() => globalThis.clearTimeout(timer))
+})
+
 const query = useQuery({
-  queryKey: computed(() => ['admin-short-link', statusFilter.value, searchKeyword.value]),
-  queryFn: () => listAdminShortLinks({ status: statusFilter.value, q: searchKeyword.value }),
+  queryKey: computed(() => ['admin-short-link', statusFilter.value, debouncedKeyword.value]),
+  queryFn: () => listAdminShortLinks({ status: statusFilter.value, q: debouncedKeyword.value }),
 })
 const links = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.meta.total ?? 0)

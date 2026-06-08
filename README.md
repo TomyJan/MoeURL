@@ -58,6 +58,13 @@ http://localhost:8080
 http://localhost:8080/api/v1/health
 ```
 
+如果设置了 `MOEURL_HTTP_PORT`，请把示例中的宿主端口替换为该变量的值。例如 `MOEURL_HTTP_PORT=18080` 时访问：
+
+```text
+http://localhost:18080
+http://localhost:18080/api/v1/health
+```
+
 停止并清理本地数据卷：
 
 ```bash
@@ -191,5 +198,7 @@ docker compose up --build
 http://localhost:8080/api/v1/health
 http://localhost:8080/setup
 ```
+
+如果通过 `MOEURL_HTTP_PORT` 指定了宿主端口，请使用对应端口访问。例如 `MOEURL_HTTP_PORT=18080` 时访问 `http://localhost:18080/api/v1/health` 和 `http://localhost:18080/setup`。
 
 `/api/v1/health` 应返回 `code` 为 `0` 且 `status` 为 `ok` 的响应。未初始化环境访问 `/setup` 应进入首次初始化流程。

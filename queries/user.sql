@@ -48,6 +48,11 @@ select id, username, password_hash, nickname, group_id, status, builtin, created
 from app_user
 where id = $1 and deleted_at is null;
 
+-- name: GetAppUserMetaByID :one
+select id, builtin, deleted_at
+from app_user
+where id = $1 and deleted_at is null;
+
 -- name: UpdateAppUserProfile :one
 update app_user
 set nickname = $2,

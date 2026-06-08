@@ -101,6 +101,28 @@ describe('user api', () => {
     expect(result.meta).toEqual({ page: 3, pageSize: 15, total: 1 })
   })
 
+  it('uses default pagination for admin user list', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            code: 0,
+            message: 'OK',
+            data: { items: [] },
+            meta: {},
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }),
+    )
+
+    const result = await listUsers({})
+
+    expect(result.meta).toEqual({ page: 1, pageSize: 20, total: 0 })
+    expect(fetch).toHaveBeenCalledWith('/api/v1/admin/user/list?page=1&pageSize=20', expect.objectContaining({ method: 'GET' }))
+  })
+
   it('posts admin update user request', async () => {
     vi.stubGlobal(
       'fetch',

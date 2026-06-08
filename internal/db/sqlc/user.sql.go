@@ -128,6 +128,25 @@ func (q *Queries) GetAppUserByID(ctx context.Context, id pgtype.UUID) (AppUser, 
 	return i, err
 }
 
+const getAppUserMetaByID = `-- name: GetAppUserMetaByID :one
+select id, builtin, deleted_at
+from app_user
+where id = $1 and deleted_at is null
+`
+
+type GetAppUserMetaByIDRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	Builtin   bool               `json:"builtin"`
+	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
+}
+
+func (q *Queries) GetAppUserMetaByID(ctx context.Context, id pgtype.UUID) (GetAppUserMetaByIDRow, error) {
+	row := q.db.QueryRow(ctx, getAppUserMetaByID, id)
+	var i GetAppUserMetaByIDRow
+	err := row.Scan(&i.ID, &i.Builtin, &i.DeletedAt)
+	return i, err
+}
+
 const getUserByUsername = `-- name: GetUserByUsername :one
 select id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at, deleted_at
 from app_user

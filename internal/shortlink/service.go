@@ -110,7 +110,7 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 
 	total, err := s.queries.CountShortLinksByOwner(ctx, sqlc.CountShortLinksByOwnerParams{
 		OwnerID: uuidToPgtype(ownerID),
-		Status:  input.Status,
+		Status:  optionalFilterText(input.Status),
 	})
 	if err != nil {
 		return ListResult{}, err
@@ -120,7 +120,7 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 		OwnerID: uuidToPgtype(ownerID),
 		Limit:   pageSize,
 		Offset:  (page - 1) * pageSize,
-		Status:  input.Status,
+		Status:  optionalFilterText(input.Status),
 	})
 	if err != nil {
 		return ListResult{}, err
@@ -225,7 +225,7 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 
 	page, pageSize := normalizePagination(input)
 	total, err := s.queries.CountAllShortLinks(ctx, sqlc.CountAllShortLinksParams{
-		Status: input.Status,
+		Status: optionalFilterText(input.Status),
 		Query:  input.Query,
 	})
 	if err != nil {
@@ -234,7 +234,7 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 	rows, err := s.queries.ListAllShortLinks(ctx, sqlc.ListAllShortLinksParams{
 		Limit:  pageSize,
 		Offset: (page - 1) * pageSize,
-		Status: input.Status,
+		Status: optionalFilterText(input.Status),
 		Query:  input.Query,
 	})
 	if err != nil {
@@ -364,6 +364,13 @@ func optionalText(value *string) pgtype.Text {
 		return pgtype.Text{}
 	}
 	return pgtype.Text{String: *value, Valid: true}
+}
+
+func optionalFilterText(value string) pgtype.Text {
+	if value == "" {
+		return pgtype.Text{}
+	}
+	return pgtype.Text{String: value, Valid: true}
 }
 
 func isAllowedStatus(value string) bool {

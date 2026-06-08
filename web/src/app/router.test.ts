@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { requireAdminAccess, router, routes } from './router'
+import { createRequireAdminAccess, requireAdminAccess, router, routes } from './router'
 import { me } from '@/entities/auth/api'
 
 vi.mock('@/entities/auth/api', () => ({
@@ -10,6 +10,13 @@ vi.mock('@/entities/auth/api', () => ({
 }))
 
 describe('router', () => {
+  afterEach(async () => {
+    vi.clearAllMocks()
+    if (router.currentRoute.value.path !== '/') {
+      await router.push('/')
+    }
+  })
+
   it('contains fixed singular page routes', () => {
     expect(routes.map((route) => route.path)).toEqual(
       expect.arrayContaining(['/', '/setup', '/login', '/link', '/admin/link', '/admin/user', '/admin/user/new', '/:pathMatch(.*)*']),
@@ -37,15 +44,39 @@ describe('router', () => {
       throw new Error('session unavailable')
     })
 
-    await expect(requireAdminAccess(admin)).resolves.toBe(true)
-    await expect(requireAdminAccess(regular)).resolves.toBe('/')
-    await expect(requireAdminAccess(guest)).resolves.toBe('/login')
-    await expect(requireAdminAccess(failed)).resolves.toBe('/login')
+    await expect(createRequireAdminAccess(admin)()).resolves.toBe(true)
+    await expect(createRequireAdminAccess(regular)()).resolves.toBe('/')
+    await expect(createRequireAdminAccess(guest)()).resolves.toBe('/login')
+    await expect(createRequireAdminAccess(failed)()).resolves.toBe('/login')
   })
 
   it('uses the current user API when invoked as a route guard', async () => {
     await expect(requireAdminAccess()).resolves.toBe(true)
 
+    expect(me).toHaveBeenCalled()
+  })
+
+  it('redirects non-admin users during actual router navigation', async () => {
+    vi.mocked(me).mockResolvedValueOnce({
+      user: { id: 'user-id', username: 'alice', nickname: 'Alice', group: 'user', permissions: [] },
+    })
+
+    await router.push('/admin/user')
+    await router.isReady()
+
+    expect(router.currentRoute.value.path).toBe('/')
+    expect(me).toHaveBeenCalled()
+  })
+
+  it('redirects guests during actual router navigation', async () => {
+    vi.mocked(me).mockResolvedValueOnce({
+      user: { id: 'guest-id', username: 'guest', nickname: 'Guest', group: 'guest', permissions: [] },
+    })
+
+    await router.push('/admin/user')
+    await router.isReady()
+
+    expect(router.currentRoute.value.path).toBe('/login')
     expect(me).toHaveBeenCalled()
   })
 

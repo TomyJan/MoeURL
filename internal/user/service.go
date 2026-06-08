@@ -127,7 +127,7 @@ func (s *Service) Update(ctx context.Context, actor auth.CurrentUser, input Upda
 	if err != nil {
 		return UpdateResult{}, ErrInvalidInput
 	}
-	existing, err := s.queries.GetAppUserByID(ctx, uuidToPgtype(userID))
+	existing, err := s.queries.GetAppUserMetaByID(ctx, uuidToPgtype(userID))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return UpdateResult{}, ErrUserNotFound
 	}

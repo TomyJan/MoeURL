@@ -27,8 +27,8 @@ export interface CreateUserResponse {
 }
 
 export interface ListUsersInput {
-  page: number
-  pageSize: number
+  page?: number
+  pageSize?: number
 }
 
 export interface ListUsersResponse {
@@ -64,17 +64,19 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserResp
   return response.data
 }
 
-export async function listUsers(input: ListUsersInput): Promise<ListUsersResponse> {
+export async function listUsers(input: ListUsersInput = {}): Promise<ListUsersResponse> {
+  const page = input.page ?? 1
+  const pageSize = input.pageSize ?? 20
   const search = new URLSearchParams({
-    page: String(input.page),
-    pageSize: String(input.pageSize),
+    page: String(page),
+    pageSize: String(pageSize),
   })
   const response = await apiGet<{ items: UserSummary[] }>(`/admin/user/list?${search.toString()}`)
   return {
     items: response.data.items,
     meta: {
-      page: Number(response.meta.page ?? input.page),
-      pageSize: Number(response.meta.pageSize ?? input.pageSize),
+      page: Number(response.meta.page ?? page),
+      pageSize: Number(response.meta.pageSize ?? pageSize),
       total: Number(response.meta.total ?? response.data.items.length),
     },
   }
