@@ -68,12 +68,14 @@ body {
 }
 
 .v-field--focused {
-  background: var(--moeurl-surface-elevated);
-  box-shadow: 0 8px 20px color-mix(in srgb, rgb(var(--v-theme-primary)) 5%, transparent);
+  background: color-mix(in srgb, var(--moeurl-surface-elevated) 96%, rgb(var(--v-theme-primary)) 4%);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, rgb(var(--v-theme-primary)) 18%, transparent),
+    0 16px 34px color-mix(in srgb, rgb(var(--v-theme-primary)) 12%, transparent);
 }
 
 .v-field--focused .v-field__outline {
-  --v-field-border-opacity: 0.42;
+  --v-field-border-opacity: 0.18;
 }
 
 .v-table {

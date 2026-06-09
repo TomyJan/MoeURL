@@ -69,13 +69,19 @@ http://localhost:18080
 http://localhost:18080/api/v1/health
 ```
 
-停止并清理本地数据卷：
+停止容器但保留数据库数据：
+
+```bash
+docker compose down
+```
+
+只有确认要重置本地数据库、管理员账号和短链数据时，才清理本地数据卷：
 
 ```bash
 docker compose down -v
 ```
 
-当前 Compose 使用 PostgreSQL 18，数据卷挂载在 `/var/lib/postgresql`。如果从旧的本地测试卷升级后启动失败，可先确认不需要保留本地测试数据，再执行 `docker compose down -v` 清理卷后重试。
+当前 Compose 使用 PostgreSQL 18，数据卷挂载在 `/var/lib/postgresql`。普通 `docker compose up --build`、`docker compose down` 和再次启动不会重置数据库。`docker compose down -v` 会删除默认 Compose 项目的数据库卷，执行后需要重新初始化管理员账号。
 
 ## 裸机运行
 
@@ -187,6 +193,8 @@ cd web
 $env:MOEURL_E2E_PORT="18080"
 pnpm test:e2e
 ```
+
+E2E 会使用独立的 Compose project name，并只清理该测试项目的数据卷，不会删除日常 `docker compose up --build` 使用的默认开发数据库卷。如需指定测试项目名，可设置 `MOEURL_E2E_COMPOSE_PROJECT`。
 
 项目要求后端和前端测试覆盖率均达到 100%。当前 CI 已配置覆盖率门禁，未达到 100% 时会失败。
 
