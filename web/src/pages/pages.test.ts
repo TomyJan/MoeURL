@@ -244,6 +244,11 @@ describe('pages', () => {
     mount(SetupPage)
 
     expect(screen.getByTestId('auth-panel')).toBeTruthy()
+    expect(screen.getByTestId('setup-wizard')).toBeTruthy()
+    expect(screen.getAllByTestId('setup-step-card')).toHaveLength(3)
+    expect(screen.getByText('setup.steps.admin')).toBeTruthy()
+    expect(screen.getByText('setup.steps.domain')).toBeTruthy()
+    expect(screen.getByText('setup.steps.preference')).toBeTruthy()
     expect(screen.getByText('setup failed')).toBeTruthy()
     await fireEvent.update(screen.getByLabelText('setup.adminUsername'), 'admin')
     await fireEvent.update(screen.getByLabelText('setup.adminPassword'), 'password123')
@@ -540,6 +545,7 @@ describe('pages', () => {
     mount(SetupPage)
 
     expect(screen.getByText('setup failed')).toBeTruthy()
+    expect(screen.getByTestId('setup-wizard')).toBeTruthy()
     await fireEvent.click(screen.getByText('setup.submit'))
 
     expect(screen.getByText('setup.initialized')).toBeTruthy()

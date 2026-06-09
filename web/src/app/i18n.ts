@@ -186,6 +186,11 @@ export const messages = {
       initialized: '已完成初始化',
       mark: '系统所有者',
       title: '初始化管理员与站点',
+      steps: {
+        admin: '账号所有者',
+        domain: '访问域名',
+        preference: '初始偏好',
+      },
       adminLegend: '管理员账号',
       adminUsername: '管理员账号',
       adminPassword: '管理员密码',
@@ -465,6 +470,11 @@ export const messages = {
       initialized: 'Initialized',
       mark: 'System owner',
       title: 'Initialize administrator and site',
+      steps: {
+        admin: 'Account owner',
+        domain: 'Access domains',
+        preference: 'Initial preferences',
+      },
       adminLegend: 'Administrator account',
       adminUsername: 'Admin username',
       adminPassword: 'Admin password',

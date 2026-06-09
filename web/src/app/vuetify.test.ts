@@ -28,41 +28,41 @@ import { moeurlDarkTheme, moeurlLightTheme, vuetify } from './vuetify'
 describe('vuetify', () => {
   it('defines MoeURL light and dark themes', () => {
     expect(moeurlLightTheme.dark).toBe(false)
-    expect(moeurlLightTheme.colors.primary).toBe('#0f4f48')
-    expect(moeurlLightTheme.colors.background).toBe('#eff6f2')
-    expect(moeurlLightTheme.colors.secondary).toBe('#f0a94f')
-    expect(moeurlLightTheme.colors['on-background']).toBe('#14302b')
+    expect(moeurlLightTheme.colors.primary).toBe('#145b53')
+    expect(moeurlLightTheme.colors.background).toBe('#eef7f3')
+    expect(moeurlLightTheme.colors.secondary).toBe('#e7a84b')
+    expect(moeurlLightTheme.colors['on-background']).toBe('#132c27')
     expect(moeurlLightTheme.variables).toEqual(
       expect.objectContaining({
         'app-elevated-surface': '#ffffff',
         'app-glass-surface': 'rgba(255, 255, 255, 0.92)',
-        'app-hero-glow': 'rgba(240, 169, 79, 0.13)',
-        'app-soft-surface': '#f7fbf8',
-        'app-workspace-surface': '#f3faf6',
-        'app-strong-surface': '#e7f1ec',
-        'app-outline': 'rgba(15, 79, 72, 0.10)',
-        'app-outline-strong': 'rgba(15, 79, 72, 0.18)',
-        'app-ring': 'rgba(15, 79, 72, 0.18)',
+        'app-hero-glow': 'rgba(231, 168, 75, 0.14)',
+        'app-soft-surface': '#f8fcf9',
+        'app-workspace-surface': '#f2f8f4',
+        'app-strong-surface': '#e4efe9',
+        'app-outline': 'rgba(20, 91, 83, 0.10)',
+        'app-outline-strong': 'rgba(20, 91, 83, 0.18)',
+        'app-ring': 'rgba(20, 91, 83, 0.18)',
         'radius-panel': '32px',
       }),
     )
 
     expect(moeurlDarkTheme.dark).toBe(true)
-    expect(moeurlDarkTheme.colors.primary).toBe('#65d6b1')
-    expect(moeurlDarkTheme.colors.background).toBe('#10211e')
-    expect(moeurlDarkTheme.colors.secondary).toBe('#ecb65c')
-    expect(moeurlDarkTheme.colors['on-background']).toBe('#effdf6')
+    expect(moeurlDarkTheme.colors.primary).toBe('#7adfbd')
+    expect(moeurlDarkTheme.colors.background).toBe('#14221f')
+    expect(moeurlDarkTheme.colors.secondary).toBe('#e7bf75')
+    expect(moeurlDarkTheme.colors['on-background']).toBe('#f2fbf5')
     expect(moeurlDarkTheme.variables).toEqual(
       expect.objectContaining({
-        'app-elevated-surface': '#17231f',
-        'app-glass-surface': 'rgba(23, 35, 31, 0.94)',
-        'app-hero-glow': 'rgba(236, 182, 92, 0.11)',
-        'app-soft-surface': '#162720',
-        'app-workspace-surface': '#111816',
-        'app-strong-surface': '#17332e',
-        'app-outline': 'rgba(255, 255, 255, 0.08)',
-        'app-outline-strong': 'rgba(255, 255, 255, 0.16)',
-        'app-ring': 'rgba(101, 214, 177, 0.30)',
+        'app-elevated-surface': '#1d2b26',
+        'app-glass-surface': 'rgba(29, 43, 38, 0.94)',
+        'app-hero-glow': 'rgba(231, 191, 117, 0.14)',
+        'app-soft-surface': '#1a2722',
+        'app-workspace-surface': '#18211e',
+        'app-strong-surface': '#284238',
+        'app-outline': 'rgba(255, 255, 255, 0.10)',
+        'app-outline-strong': 'rgba(255, 255, 255, 0.18)',
+        'app-ring': 'rgba(122, 223, 189, 0.28)',
         'radius-panel': '32px',
       }),
     )

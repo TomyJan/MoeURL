@@ -18,37 +18,46 @@
           {{ t('setup.initialized') }}
         </v-alert>
 
-        <form v-else class="auth-page__setup-form" @submit.prevent="submit">
+        <form v-else class="setup-wizard" data-testid="setup-wizard" @submit.prevent="submit">
           <div class="auth-page__form-heading">
             <span>{{ t('setup.mark') }}</span>
             <h2>{{ t('setup.title') }}</h2>
           </div>
 
-          <fieldset class="auth-page__group">
-            <legend>{{ t('setup.adminLegend') }}</legend>
+          <section class="setup-wizard__step" data-testid="setup-step-card" aria-labelledby="setup-admin-title">
+            <div class="setup-wizard__step-head">
+              <span class="setup-wizard__step-index">01</span>
+              <h3 id="setup-admin-title">{{ t('setup.steps.admin') }}</h3>
+            </div>
             <div class="auth-page__field-grid auth-page__field-grid--three">
               <v-text-field v-model="form.adminUsername" :label="t('setup.adminUsername')" variant="outlined" />
               <v-text-field v-model="form.adminPassword" :label="t('setup.adminPassword')" type="password" variant="outlined" />
               <v-text-field v-model="form.adminNickname" :label="t('setup.adminNickname')" variant="outlined" />
             </div>
-          </fieldset>
+          </section>
 
-          <fieldset class="auth-page__group">
-            <legend>{{ t('setup.domainLegend') }}</legend>
+          <section class="setup-wizard__step" data-testid="setup-step-card" aria-labelledby="setup-domain-title">
+            <div class="setup-wizard__step-head">
+              <span class="setup-wizard__step-index">02</span>
+              <h3 id="setup-domain-title">{{ t('setup.steps.domain') }}</h3>
+            </div>
             <div class="auth-page__field-grid">
               <v-text-field v-model="form.siteName" :label="t('setup.siteName')" variant="outlined" />
               <v-text-field v-model="form.systemDomain" :label="t('setup.systemDomain')" variant="outlined" />
               <v-text-field v-model="form.shortLinkDomain" :label="t('setup.shortLinkDomain')" variant="outlined" />
             </div>
-          </fieldset>
+          </section>
 
-          <fieldset class="auth-page__group">
-            <legend>{{ t('setup.preferenceLegend') }}</legend>
+          <section class="setup-wizard__step" data-testid="setup-step-card" aria-labelledby="setup-preference-title">
+            <div class="setup-wizard__step-head">
+              <span class="setup-wizard__step-index">03</span>
+              <h3 id="setup-preference-title">{{ t('setup.steps.preference') }}</h3>
+            </div>
             <div class="auth-page__field-grid">
               <v-select v-model="form.defaultLanguage" :label="t('setup.defaultLanguage')" :items="languageItems" variant="outlined" />
               <v-select v-model="form.defaultTheme" :label="t('setup.defaultTheme')" :items="themeItems" variant="outlined" />
             </div>
-          </fieldset>
+          </section>
 
           <v-alert v-if="mutation.isError.value" class="auth-page__alert" type="error" variant="tonal">
             {{ mutation.error.value?.message || t('setup.failed') }}
@@ -227,7 +236,7 @@ function submit() {
   padding: 18px;
 }
 
-.auth-page__setup-form {
+.setup-wizard {
   display: grid;
   gap: 14px;
 }
@@ -242,19 +251,41 @@ function submit() {
   line-height: 1.15;
 }
 
-.auth-page__group {
+.setup-wizard__step {
+  display: grid;
   min-width: 0;
-  margin: 0;
-  padding: 14px 14px 0;
-  border: 1px solid color-mix(in srgb, var(--moeurl-outline) 78%, transparent);
+  gap: 12px;
+  padding: 16px 16px 0;
+  border: 1px solid color-mix(in srgb, var(--moeurl-outline) 82%, transparent);
   border-radius: 28px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--moeurl-surface-elevated) 88%, rgb(var(--v-theme-primary)) 5%), var(--moeurl-surface-elevated));
+  box-shadow: 0 12px 26px color-mix(in srgb, rgb(var(--v-theme-primary)) 3%, transparent);
 }
 
-.auth-page__group legend {
-  padding: 0 8px;
-  color: rgb(var(--v-theme-on-surface-variant));
-  font-size: 0.82rem;
+.setup-wizard__step-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.setup-wizard__step-head h3 {
+  margin: 0;
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 0.96rem;
   font-weight: 900;
+}
+
+.setup-wizard__step-index {
+  display: inline-grid;
+  width: 34px;
+  height: 28px;
+  place-items: center;
+  border-radius: var(--moeurl-radius-pill);
+  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 15%, transparent);
+  color: rgb(var(--v-theme-secondary));
+  font-size: 0.74rem;
+  font-weight: 950;
 }
 
 .auth-page__field-grid {

@@ -37,41 +37,7 @@
               {{ t('console.newShortLink') }}
             </v-btn>
           </div>
-          <nav class="console-shell__mobile-nav-list">
-            <section v-for="group in navGroups" :key="group.labelKey" class="console-shell__mobile-nav-group">
-              <p>{{ t(group.labelKey) }}</p>
-              <template v-for="item in group.items" :key="item.to || item.labelKey">
-                <v-btn v-if="item.to" :to="item.to" variant="text" @click="closeMobileNav">
-                  {{ t(item.labelKey) }}
-                </v-btn>
-                <div v-else class="console-shell__mobile-nav-subgroup">
-                  <button
-                    class="console-shell__mobile-nav-parent"
-                    type="button"
-                    :aria-expanded="expandedMobileGroups.has(item.labelKey)"
-                    @click="toggleMobileGroup(item.labelKey)"
-                  >
-                    {{ t(item.labelKey) }}
-                    <i aria-hidden="true" />
-                  </button>
-                  <Transition name="console-nav-children">
-                    <div v-if="expandedMobileGroups.has(item.labelKey)" class="console-shell__mobile-nav-children">
-                      <v-btn
-                        v-for="child in item.children"
-                        :key="child.to"
-                        class="console-shell__mobile-nav-child"
-                        :to="child.to"
-                        variant="text"
-                        @click="closeMobileNav"
-                      >
-                        {{ t(child.labelKey) }}
-                      </v-btn>
-                    </div>
-                  </Transition>
-                </div>
-              </template>
-            </section>
-          </nav>
+          <ConsoleNavList :nav-groups="navGroups" variant="mobile" @navigate="closeMobileNav" />
           <PreferenceSwitcher density="compact" placement="sidebar" />
         </div>
       </div>
@@ -102,25 +68,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watchEffect } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterView, useRoute, useRouter } from 'vue-router'
+import { RouterView, useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { logout, me } from '@/entities/auth/api'
 import ShortLinkCreatePanel from '@/features/short-link-create/ShortLinkCreatePanel.vue'
 import PreferenceSwitcher from '@/shared/preferences/PreferenceSwitcher.vue'
+import ConsoleNavList from './ConsoleNavList.vue'
 import ConsoleSidebar from './ConsoleSidebar.vue'
 import ConsoleTopbar from './ConsoleTopbar.vue'
-import type { ConsoleNavGroup } from './ConsoleSidebar.vue'
+import type { ConsoleNavGroup } from './ConsoleNavList.vue'
 
 const { t } = useI18n()
-const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
 const mobileNavOpen = ref(false)
 const createPanelOpen = ref(false)
-const expandedMobileGroups = reactive(new Set<string>())
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,
@@ -161,15 +126,6 @@ const navGroups = computed<ConsoleNavGroup[]>(() => {
   return groups
 })
 
-watchEffect(() => {
-  for (const group of navGroups.value) {
-    for (const item of group.items) {
-      if (item.children?.some((child) => child.to === route.path)) {
-        expandedMobileGroups.add(item.labelKey)
-      }
-    }
-  }
-})
 const logoutMutation = useMutation({
   mutationFn: logout,
   onSuccess() {
@@ -191,13 +147,6 @@ function submitLogout() {
   logoutMutation.mutate()
 }
 
-function toggleMobileGroup(labelKey: string) {
-  if (expandedMobileGroups.has(labelKey)) {
-    expandedMobileGroups.delete(labelKey)
-    return
-  }
-  expandedMobileGroups.add(labelKey)
-}
 </script>
 
 <style scoped>
@@ -298,81 +247,6 @@ function toggleMobileGroup(labelKey: string) {
   border-color: color-mix(in srgb, rgb(var(--v-theme-secondary)) 32%, transparent);
   background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 9%, transparent);
   color: rgb(var(--v-theme-secondary));
-}
-
-.console-shell__mobile-nav-list,
-.console-shell__mobile-nav-group,
-.console-shell__mobile-nav-subgroup,
-.console-shell__mobile-nav-children {
-  display: grid;
-  gap: 5px;
-}
-
-.console-shell__mobile-nav-group p {
-  margin: 8px 4px 0;
-  color: rgb(var(--v-theme-on-surface-variant));
-  font-size: 0.74rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.console-shell__mobile-nav-list :deep(.v-btn) {
-  justify-content: flex-start;
-  min-height: 38px;
-  border-radius: 18px;
-  color: rgb(var(--v-theme-on-surface-variant));
-  font-weight: 780;
-}
-
-.console-shell__mobile-nav-list :deep(.v-btn.router-link-active),
-.console-shell__mobile-nav-list :deep(.v-btn[aria-current="page"]) {
-  background: color-mix(in srgb, var(--moeurl-surface-strong) 48%, transparent);
-  color: rgb(var(--v-theme-primary));
-}
-
-.console-shell__mobile-nav-subgroup {
-  padding: 0;
-  background: transparent;
-}
-
-.console-shell__mobile-nav-parent {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  min-height: 38px;
-  width: 100%;
-  padding: 0 16px;
-  border: 0;
-  border-radius: 18px;
-  background: transparent;
-  color: rgb(var(--v-theme-on-surface-variant));
-  cursor: pointer;
-  font: inherit;
-  font-weight: 780;
-}
-
-.console-shell__mobile-nav-parent i {
-  width: 7px;
-  height: 7px;
-  margin-left: auto;
-  border-right: 1.5px solid currentcolor;
-  border-bottom: 1.5px solid currentcolor;
-  transform: rotate(-45deg);
-  transition: transform 180ms ease;
-}
-
-.console-shell__mobile-nav-parent[aria-expanded="true"] i {
-  transform: rotate(45deg) translateY(-1px);
-}
-
-.console-shell__mobile-nav-children {
-  margin-left: 16px;
-  padding-left: 9px;
-  border-left: 1px solid var(--moeurl-outline-strong);
-}
-
-.console-shell__mobile-nav-child {
-  margin-left: 0;
 }
 
 .console-shell__mobile-close,
