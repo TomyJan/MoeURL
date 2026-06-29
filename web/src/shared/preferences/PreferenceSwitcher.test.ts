@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
+import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import PreferenceSwitcher from './PreferenceSwitcher.vue'
@@ -127,5 +128,18 @@ describe('PreferenceSwitcher', () => {
 
     await fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('menu', { name: '主题选项' })).toBeNull()
+  })
+
+  it('uses the mist blue graphite palette for theme preview graphics', () => {
+    const source = readFileSync('src/shared/preferences/PreferenceSwitcher.vue', 'utf8')
+
+    expect(source).toContain('#f5f7fb')
+    expect(source).toContain('#c47a4a')
+    expect(source).toContain('#101722')
+    expect(source).toContain('#1a2433')
+    expect(source).toContain('#8ab8e8')
+    expect(source).not.toContain('#f6fbf8')
+    expect(source).not.toContain('#f0a94f')
+    expect(source).not.toContain('#65d6b1')
   })
 })

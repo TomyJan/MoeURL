@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/vue'
+import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
@@ -226,5 +227,14 @@ describe('ConsoleShell', () => {
     expect(state.logoutMutate).toHaveBeenCalled()
     expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['auth', 'me'] })
     expect(state.routerPush).toHaveBeenCalledWith('/login')
+  })
+
+  it('keeps parent expansion visually separate from active child navigation', () => {
+    const source = readFileSync('src/widgets/console-shell/ConsoleNavList.vue', 'utf8')
+
+    expect(source).toContain('.console-nav-list__item--parent[aria-expanded="true"]')
+    expect(source).not.toContain('.console-nav-list__item--parent[aria-expanded="true"] .console-nav-list__rail')
+    expect(source).toContain('.console-nav-list__item.router-link-active .console-nav-list__rail')
+    expect(source).toContain('background: color-mix(in srgb, var(--moeurl-surface-strong) 40%, transparent)')
   })
 })

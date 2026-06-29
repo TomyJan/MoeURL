@@ -238,32 +238,32 @@ onBeforeUnmount(() => {
 }
 
 .preference-switcher__mark--light {
-  background: #f6fbf8;
+  background: #f5f7fb;
 }
 
 .preference-switcher__mark--light span {
   width: 13px;
   height: 13px;
   border-radius: 999px;
-  background: #f0a94f;
-  box-shadow: 0 0 0 4px rgba(240, 169, 79, 0.18);
+  background: #c47a4a;
+  box-shadow: 0 0 0 4px rgba(196, 122, 74, 0.18);
 }
 
 .preference-switcher__mark--dark {
-  background: #10211e;
+  background: #101722;
 }
 
 .preference-switcher__mark--dark span {
   width: 15px;
   height: 15px;
   border-radius: 999px;
-  background: #65d6b1;
-  box-shadow: -5px -2px 0 0 #10211e;
+  background: #8ab8e8;
+  box-shadow: -5px -2px 0 0 #101722;
   transform: translateX(2px);
 }
 
 .preference-switcher__mark--system {
-  background: linear-gradient(135deg, #f6fbf8 0 50%, #10211e 50% 100%);
+  background: linear-gradient(135deg, #f5f7fb 0 50%, #101722 50% 100%);
 }
 
 .preference-switcher__popover {
@@ -391,15 +391,15 @@ onBeforeUnmount(() => {
 }
 
 .preference-switcher__theme-graphic--system {
-  background: linear-gradient(90deg, #eff6f2 0 50%, #10211e 50% 100%);
+  background: linear-gradient(90deg, #f5f7fb 0 50%, #101722 50% 100%);
 }
 
 .preference-switcher__theme-graphic--light {
-  background: linear-gradient(135deg, #ffffff, #eff6f2 58%, #f0a94f 130%);
+  background: linear-gradient(135deg, #ffffff, #f5f7fb 58%, #c47a4a 130%);
 }
 
 .preference-switcher__theme-graphic--dark {
-  background: linear-gradient(135deg, #10211e, #17231f 58%, #65d6b1 150%);
+  background: linear-gradient(135deg, #101722, #1a2433 58%, #8ab8e8 150%);
 }
 
 .preference-switcher--compact .preference-switcher__trigger {

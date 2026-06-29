@@ -51,10 +51,16 @@ body {
 .v-btn {
   letter-spacing: 0;
   text-transform: none;
+  transition: transform 160ms ease, background 160ms ease, box-shadow 160ms ease;
 }
 
 .v-btn--variant-flat {
   box-shadow: 0 12px 28px color-mix(in srgb, rgb(var(--v-theme-primary)) 14%, transparent);
+}
+
+.v-btn--variant-flat:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 34px color-mix(in srgb, rgb(var(--v-theme-primary)) 16%, transparent);
 }
 
 .v-field {
@@ -70,8 +76,8 @@ body {
 .v-field--focused {
   background: color-mix(in srgb, var(--moeurl-surface-elevated) 96%, rgb(var(--v-theme-primary)) 4%);
   box-shadow:
-    0 0 0 4px color-mix(in srgb, rgb(var(--v-theme-primary)) 18%, transparent),
-    0 16px 34px color-mix(in srgb, rgb(var(--v-theme-primary)) 12%, transparent);
+    0 0 0 4px color-mix(in srgb, rgb(var(--v-theme-primary)) 24%, transparent),
+    0 16px 34px color-mix(in srgb, rgb(var(--v-theme-primary)) 10%, transparent);
 }
 
 .v-field--focused .v-field__outline {
@@ -226,7 +232,7 @@ body {
   min-height: 32px;
   padding: 6px 13px;
   border-radius: var(--moeurl-radius-pill);
-  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 14%, transparent);
+  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 12%, transparent);
   color: rgb(var(--v-theme-secondary));
   font-size: 0.8rem;
   font-weight: 860;

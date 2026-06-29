@@ -201,12 +201,11 @@ function toggleGroup(labelKey: string) {
 }
 
 .console-nav-list__item--parent[aria-expanded="true"] {
-  border-color: color-mix(in srgb, rgb(var(--v-theme-primary)) 16%, transparent);
+  border-color: color-mix(in srgb, rgb(var(--v-theme-primary)) 12%, transparent);
   background: color-mix(in srgb, var(--moeurl-surface-strong) 40%, transparent);
-  color: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-surface));
 }
 
-.console-nav-list__item--parent[aria-expanded="true"] .console-nav-list__rail,
 .console-nav-list__item.router-link-active .console-nav-list__rail,
 .console-nav-list__item[aria-current="page"] .console-nav-list__rail {
   background: rgb(var(--v-theme-secondary));
