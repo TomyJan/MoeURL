@@ -2,7 +2,6 @@
   <section class="console-page" data-testid="console-page-links">
     <header class="console-page__header">
       <div>
-        <p class="console-page__eyebrow">{{ t('pageMeta.linksEyebrow') }}</p>
         <h1>{{ t('page.links') }}</h1>
       </div>
     </header>
@@ -15,7 +14,6 @@
       <v-alert v-if="query.isError.value" type="error" variant="tonal">{{ t('links.loadFailed') }}</v-alert>
       <v-progress-linear v-if="query.isPending.value" indeterminate />
       <div v-else-if="links.length === 0" class="console-page__empty">
-        <span class="console-page__empty-mark">M</span>
         <div>
           <h2>{{ t('links.emptyTitle') }}</h2>
           <p>{{ t('links.emptyOwnDescription') }}</p>

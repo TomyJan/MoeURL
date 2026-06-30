@@ -7,7 +7,6 @@
 
     <section class="auth-page__panel" data-testid="auth-panel">
       <aside class="auth-page__story">
-        <p class="auth-page__eyebrow">{{ t('auth.privateConsole') }}</p>
         <h1>{{ t('auth.consoleEntry') }}</h1>
         <p>{{ t('auth.consoleSummary') }}</p>
       </aside>
@@ -122,18 +121,6 @@ function submit() {
   color: rgb(var(--v-theme-on-background));
 }
 
-.auth-page__eyebrow {
-  width: fit-content;
-  margin: 0 0 12px;
-  padding: 7px 14px;
-  border: 1px solid var(--moeurl-outline);
-  border-radius: var(--moeurl-radius-pill);
-  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 14%, transparent);
-  color: rgb(var(--v-theme-secondary));
-  font-size: 0.78rem;
-  font-weight: 900;
-}
-
 .auth-page__story h1 {
   max-width: 8em;
   margin: 0;
@@ -208,13 +195,6 @@ function submit() {
     min-height: auto;
     align-content: start;
     padding: 0 4px;
-  }
-
-  .auth-page__eyebrow {
-    width: fit-content;
-    margin-bottom: 10px;
-    padding: 6px 11px;
-    font-size: 0.68rem;
   }
 
   .auth-page__story h1 {

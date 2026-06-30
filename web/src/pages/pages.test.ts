@@ -193,6 +193,7 @@ describe('pages', () => {
 
     expect(screen.getByTestId('console-page-placeholder-analytics')).toBeTruthy()
     expect(screen.getByText('page.analytics')).toBeTruthy()
+    expect(screen.queryByText('pageMeta.workspaceEyebrow')).toBeNull()
     expect(screen.getByText('placeholder.status')).toBeTruthy()
     expect(screen.getByText('placeholder.analytics.items.privacy')).toBeTruthy()
   })
@@ -208,6 +209,7 @@ describe('pages', () => {
 
     expect(screen.getByTestId('auth-page-login')).toBeTruthy()
     expect(screen.getByTestId('auth-panel')).toBeTruthy()
+    expect(screen.queryByText('auth.privateConsole')).toBeNull()
     await fireEvent.update(screen.getByLabelText('auth.username'), 'alice')
     await fireEvent.update(screen.getByLabelText('auth.password'), 'secret')
     await fireEvent.click(screen.getByText('auth.loginSubmit'))
@@ -245,6 +247,7 @@ describe('pages', () => {
 
     expect(screen.getByTestId('auth-panel')).toBeTruthy()
     expect(screen.getByTestId('setup-wizard')).toBeTruthy()
+    expect(screen.queryByText('setup.eyebrow')).toBeNull()
     expect(screen.getAllByTestId('setup-step-card')).toHaveLength(3)
     expect(screen.getByText('setup.steps.admin')).toBeTruthy()
     expect(screen.getByText('setup.steps.domain')).toBeTruthy()
@@ -361,6 +364,7 @@ describe('pages', () => {
     expect(screen.getByText('links.emptyTitle')).toBeTruthy()
     expect(screen.getByText('links.emptyOwnDescription')).toBeTruthy()
     expect(empty.container.querySelector('.console-page__empty')).toBeTruthy()
+    expect(empty.container.querySelector('.console-page__empty-mark')).toBeNull()
     empty.unmount()
 
     setQueryResult({ data: ref(undefined) })
@@ -381,6 +385,7 @@ describe('pages', () => {
     mount(MyLinksPage)
 
     expect(screen.getByTestId('console-page-links')).toBeTruthy()
+    expect(screen.queryByText('pageMeta.linksEyebrow')).toBeNull()
     expect(screen.getByTestId('console-data-panel')).toBeTruthy()
     expect(screen.getByTestId('console-page-toolbar')).toBeTruthy()
     expect(screen.getByTestId('console-link-list')).toBeTruthy()
@@ -470,6 +475,7 @@ describe('pages', () => {
     mount(AdminLinksPage)
 
     expect(screen.getByTestId('console-page-admin-links')).toBeTruthy()
+    expect(screen.queryByText('pageMeta.adminEyebrow')).toBeNull()
     expect(screen.getByTestId('console-data-panel')).toBeTruthy()
     expect(screen.getByTestId('console-link-list')).toBeTruthy()
     expect(screen.getByText('adminLinks.total')).toBeTruthy()
@@ -529,6 +535,7 @@ describe('pages', () => {
     expect(screen.getByText('adminLinks.emptyDescription')).toBeTruthy()
     expect(screen.getByText('adminLinks.total')).toBeTruthy()
     expect(empty.container.querySelector('.console-page__empty')).toBeTruthy()
+    expect(empty.container.querySelector('.console-page__empty-mark')).toBeNull()
     empty.unmount()
 
     setQueryResult({ data: ref(undefined) })
@@ -580,6 +587,8 @@ describe('pages', () => {
     expect(screen.getByTestId('console-form-panel')).toBeTruthy()
     expect(screen.getAllByTestId('console-form-group')).toHaveLength(2)
     expect(screen.getByText('createUser.title')).toBeTruthy()
+    expect(screen.queryByText('pageMeta.createUserEyebrow')).toBeNull()
+    expect(screen.queryByText('createUser.mark')).toBeNull()
     await fireEvent.update(screen.getByLabelText('createUser.username'), 'alice')
     await fireEvent.update(screen.getByLabelText('createUser.password'), 'password123')
     await fireEvent.update(screen.getByLabelText('createUser.nickname'), 'Alice')
@@ -633,6 +642,7 @@ describe('pages', () => {
     mount(AdminUsersPage)
 
     expect(screen.getByTestId('console-page-admin-users')).toBeTruthy()
+    expect(screen.queryByText('pageMeta.identityEyebrow')).toBeNull()
     expect(screen.getByTestId('console-data-panel')).toBeTruthy()
     expect(screen.getAllByTestId('console-user-row')).toHaveLength(3)
     expect(screen.getAllByTestId('console-user-summary-actions')).toHaveLength(3)
@@ -743,6 +753,7 @@ describe('pages', () => {
     expect(screen.getByText('adminUsers.noUsers')).toBeTruthy()
     expect(screen.getByText('adminUsers.total')).toBeTruthy()
     expect(empty.container.querySelector('.console-page__empty')).toBeTruthy()
+    expect(empty.container.querySelector('.console-page__empty-mark')).toBeNull()
     empty.unmount()
 
     setQueryResult({ data: ref(undefined) })

@@ -7,7 +7,6 @@
 
     <section class="auth-page__panel auth-page__panel--wide" data-testid="auth-panel">
       <aside class="auth-page__story">
-        <p class="auth-page__eyebrow">{{ t('setup.eyebrow') }}</p>
         <h1>{{ t('page.setup') }}</h1>
         <p>{{ t('setup.summary') }}</p>
       </aside>
@@ -20,7 +19,6 @@
 
         <form v-else class="setup-wizard" data-testid="setup-wizard" @submit.prevent="submit">
           <div class="auth-page__form-heading">
-            <span>{{ t('setup.mark') }}</span>
             <h2>{{ t('setup.title') }}</h2>
           </div>
 
@@ -184,18 +182,6 @@ function submit() {
   color: rgb(var(--v-theme-on-background));
 }
 
-.auth-page__eyebrow {
-  margin: 0 0 12px;
-  padding: 7px 14px;
-  border: 1px solid var(--moeurl-outline);
-  border-radius: var(--moeurl-radius-pill);
-  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 14%, transparent);
-  color: rgb(var(--v-theme-secondary));
-  font-size: 0.78rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
 .auth-page__story h1 {
   max-width: 8em;
   margin: 0;
@@ -209,13 +195,6 @@ function submit() {
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 1.02rem;
   line-height: 1.8;
-}
-
-.auth-page__form-heading span {
-  color: rgb(var(--v-theme-on-surface-variant));
-  font-size: 0.78rem;
-  font-weight: 900;
-  text-transform: uppercase;
 }
 
 .auth-page__form,
@@ -348,13 +327,6 @@ function submit() {
     min-height: auto;
     align-content: start;
     padding: 0 4px;
-  }
-
-  .auth-page__eyebrow {
-    width: fit-content;
-    margin-bottom: 10px;
-    padding: 6px 11px;
-    font-size: 0.68rem;
   }
 
   .auth-page__story h1 {

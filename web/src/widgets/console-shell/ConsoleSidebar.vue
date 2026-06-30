@@ -4,7 +4,6 @@
       <span class="console-sidebar__logo">M</span>
       <span class="console-sidebar__brand-text">
         <strong>MoeURL</strong>
-        <small>short links</small>
       </span>
     </RouterLink>
 
@@ -86,19 +85,8 @@ const { t } = useI18n()
   text-decoration: none;
 }
 
-.console-sidebar__brand-text {
-  display: grid;
-  line-height: 1.1;
-}
-
 .console-sidebar__brand-text strong {
   font-weight: 950;
-}
-
-.console-sidebar__brand-text small {
-  color: rgb(var(--v-theme-on-surface-variant));
-  font-size: 0.75rem;
-  font-weight: 700;
 }
 
 .console-sidebar__logo {

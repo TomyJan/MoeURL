@@ -2,14 +2,12 @@
   <section class="console-page" data-testid="console-page-create-user">
     <header class="console-page__header">
       <div>
-        <p class="console-page__eyebrow">{{ t('pageMeta.createUserEyebrow') }}</p>
         <h1>{{ t('page.createUser') }}</h1>
       </div>
       <v-btn to="/admin/user" variant="text">{{ t('createUser.backToUsers') }}</v-btn>
     </header>
     <div class="console-form-panel" data-testid="console-form-panel">
       <div class="console-form-panel__intro">
-        <span class="console-form-panel__mark">{{ t('createUser.mark') }}</span>
         <h2>{{ t('createUser.title') }}</h2>
         <p>{{ t('createUser.description') }}</p>
       </div>

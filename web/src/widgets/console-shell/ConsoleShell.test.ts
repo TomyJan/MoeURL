@@ -107,6 +107,7 @@ describe('ConsoleShell', () => {
     expect(container.querySelector('.console-shell__workspace')).toBeTruthy()
     expect(screen.getByText('console content')).toBeTruthy()
     expect(screen.getByTestId('console-sidebar-home')).toBeTruthy()
+    expect(screen.queryByText('short links')).toBeNull()
     expect(screen.getByText('console.nav.workspace')).toBeTruthy()
     expect(screen.getByText('nav.links')).toBeTruthy()
     expect(screen.queryByText('nav.admin')).toBeNull()

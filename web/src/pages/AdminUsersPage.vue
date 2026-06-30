@@ -2,7 +2,6 @@
   <section class="console-page" data-testid="console-page-admin-users">
     <div class="console-page__header">
       <div>
-        <p class="console-page__eyebrow">{{ t('pageMeta.identityEyebrow') }}</p>
         <h1>{{ t('page.adminUsers') }}</h1>
       </div>
       <span class="console-page__total">{{ t('adminUsers.total', { total }) }}</span>
@@ -17,7 +16,6 @@
       <v-alert v-if="query.isError.value" type="error" variant="tonal">{{ t('adminUsers.loadFailed') }}</v-alert>
       <v-progress-linear v-if="query.isPending.value" indeterminate />
       <div v-else-if="users.length === 0" class="console-page__empty">
-        <span class="console-page__empty-mark">U</span>
         <div>
           <h2>{{ t('adminUsers.noUsers') }}</h2>
           <p>{{ t('adminUsers.emptyDescription') }}</p>

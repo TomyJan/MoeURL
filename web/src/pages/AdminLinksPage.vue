@@ -2,7 +2,6 @@
   <section class="console-page" data-testid="console-page-admin-links">
     <div class="console-page__header">
       <div>
-        <p class="console-page__eyebrow">{{ t('pageMeta.adminEyebrow') }}</p>
         <h1>{{ t('page.adminLinks') }}</h1>
       </div>
       <span class="console-page__total">{{ t('adminLinks.total', { total }) }}</span>
@@ -17,7 +16,6 @@
       <v-alert v-if="query.isError.value" type="error" variant="tonal">{{ t('adminLinks.loadFailed') }}</v-alert>
       <v-progress-linear v-if="query.isPending.value" indeterminate />
       <div v-else-if="links.length === 0" class="console-page__empty">
-        <span class="console-page__empty-mark">A</span>
         <div>
           <h2>{{ t('links.emptyTitle') }}</h2>
           <p>{{ t('adminLinks.emptyDescription') }}</p>
