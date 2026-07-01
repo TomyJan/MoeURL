@@ -16,12 +16,16 @@
 
     <ConsoleNavList class="console-sidebar__nav" :nav-groups="navGroups" />
 
-    <RouterLink class="console-sidebar__home" data-testid="console-sidebar-home" to="/">
-      <span class="console-sidebar__home-mark" aria-hidden="true">↗</span>
-      <span>{{ t('console.backHome') }}</span>
-    </RouterLink>
+    <div class="console-sidebar__utilities" data-testid="console-sidebar-utilities">
+      <RouterLink class="console-sidebar__home" data-testid="console-sidebar-home" to="/">
+        <span class="console-sidebar__home-mark" aria-hidden="true">
+          <MoeIcon name="home" />
+        </span>
+        <span>{{ t('console.backHome') }}</span>
+      </RouterLink>
 
-    <PreferenceSwitcher class="console-sidebar__preferences" density="compact" placement="sidebar" />
+      <PreferenceSwitcher class="console-sidebar__preferences" density="compact" placement="sidebar" />
+    </div>
 
     <ConsoleAccountCard
       class="console-sidebar__account"
@@ -43,6 +47,7 @@ import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 import PreferenceSwitcher from '@/shared/preferences/PreferenceSwitcher.vue'
+import MoeIcon from '@/shared/ui/MoeIcon.vue'
 import ConsoleAccountCard from './ConsoleAccountCard.vue'
 import ConsoleNavList from './ConsoleNavList.vue'
 import type { ConsoleNavGroup } from './ConsoleNavList.vue'
@@ -68,7 +73,7 @@ const { t } = useI18n()
   top: 20px;
   display: grid;
   min-height: calc(100vh - 40px);
-  grid-template-rows: auto auto 1fr auto auto auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   gap: 16px;
   padding: 18px;
   border: 1px solid var(--moeurl-outline);
@@ -118,12 +123,24 @@ const { t } = useI18n()
   gap: 8px;
 }
 
+.console-sidebar__utilities {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--moeurl-outline);
+}
+
 .console-sidebar__home {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 40px;
   gap: 9px;
-  padding: 9px 10px;
+  padding: 7px 10px;
   border: 1px solid transparent;
   border-radius: var(--moeurl-radius-pill);
   background: transparent;
@@ -131,6 +148,12 @@ const { t } = useI18n()
   font-size: 0.84rem;
   font-weight: 850;
   text-decoration: none;
+}
+
+.console-sidebar__home span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .console-sidebar__home:hover {
@@ -141,12 +164,18 @@ const { t } = useI18n()
 
 .console-sidebar__home-mark {
   display: inline-grid;
-  width: 25px;
-  height: 25px;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
   place-items: center;
-  border-radius: 10px;
+  border-radius: 999px;
   background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 14%, transparent);
   color: rgb(var(--v-theme-secondary));
+}
+
+.console-sidebar__home-mark :deep(.moe-icon) {
+  width: 15px;
+  height: 15px;
 }
 
 .console-sidebar__nav {
@@ -154,9 +183,7 @@ const { t } = useI18n()
 }
 
 .console-sidebar__preferences {
-  align-self: end;
-  padding-top: 12px;
-  border-top: 1px solid var(--moeurl-outline);
+  flex: 0 0 auto;
 }
 
 .console-sidebar__account {

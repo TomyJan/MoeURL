@@ -23,13 +23,18 @@
         <div class="console-shell__mobile-panel moe-overlay-panel" data-testid="console-drawer-transition">
           <div class="console-shell__mobile-head">
             <RouterLink class="console-shell__mobile-brand" to="/" @click="closeMobileNav">MoeURL</RouterLink>
-            <RouterLink class="console-shell__mobile-home" to="/" @click="closeMobileNav">
-              <span aria-hidden="true">↗</span>
-              {{ t('console.backHome') }}
-            </RouterLink>
             <button class="console-shell__mobile-close" type="button" @click="mobileNavOpen = false">
               {{ t('console.closeMenu') }}
             </button>
+          </div>
+          <div class="console-shell__mobile-utilities" data-testid="console-mobile-utilities">
+            <RouterLink class="console-shell__mobile-home" data-testid="console-mobile-home" to="/" @click="closeMobileNav">
+              <span class="console-shell__mobile-home-mark" aria-hidden="true">
+                <MoeIcon name="home" />
+              </span>
+              <span>{{ t('console.backHome') }}</span>
+            </RouterLink>
+            <PreferenceSwitcher density="compact" placement="sidebar" />
           </div>
           <div class="console-shell__mobile-quick">
             <v-btn class="console-shell__mobile-create" color="primary" variant="flat" @click="openCreatePanel">
@@ -38,14 +43,13 @@
             </v-btn>
           </div>
           <ConsoleNavList :nav-groups="navGroups" variant="mobile" @navigate="closeMobileNav" />
-          <PreferenceSwitcher density="compact" placement="sidebar" />
         </div>
       </div>
     </Transition>
 
     <main class="console-shell__main">
       <Transition name="moe-layout" mode="out-in">
-        <div :key="$route?.path || 'console'" class="console-shell__workspace">
+        <div :key="route.path || 'console'" class="console-shell__workspace">
           <slot>
             <RouterView />
           </slot>
@@ -70,18 +74,20 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterView, useRouter } from 'vue-router'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { logout, me } from '@/entities/auth/api'
 import ShortLinkCreatePanel from '@/features/short-link-create/ShortLinkCreatePanel.vue'
 import PreferenceSwitcher from '@/shared/preferences/PreferenceSwitcher.vue'
+import MoeIcon from '@/shared/ui/MoeIcon.vue'
 import ConsoleNavList from './ConsoleNavList.vue'
 import ConsoleSidebar from './ConsoleSidebar.vue'
 import ConsoleTopbar from './ConsoleTopbar.vue'
 import type { ConsoleNavGroup } from './ConsoleNavList.vue'
 
 const { t } = useI18n()
+const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
 const mobileNavOpen = ref(false)
@@ -229,10 +235,24 @@ function submitLogout() {
   gap: 8px;
 }
 
+.console-shell__mobile-utilities {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--moeurl-outline) 86%, transparent);
+  border-radius: 28px;
+  background: color-mix(in srgb, var(--moeurl-surface-strong) 34%, transparent);
+}
+
 .console-shell__mobile-home {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 40px;
   gap: 9px;
   padding: 7px 10px;
   border: 1px solid transparent;
@@ -243,10 +263,32 @@ function submitLogout() {
   text-decoration: none;
 }
 
+.console-shell__mobile-home span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .console-shell__mobile-home:hover {
   border-color: color-mix(in srgb, rgb(var(--v-theme-secondary)) 32%, transparent);
   background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 9%, transparent);
   color: rgb(var(--v-theme-secondary));
+}
+
+.console-shell__mobile-home-mark {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 14%, transparent);
+  color: rgb(var(--v-theme-secondary));
+}
+
+.console-shell__mobile-home-mark :deep(.moe-icon) {
+  width: 15px;
+  height: 15px;
 }
 
 .console-shell__mobile-close,

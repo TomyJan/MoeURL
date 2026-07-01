@@ -1,5 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
-import { readFileSync } from 'node:fs'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import PreferenceSwitcher from './PreferenceSwitcher.vue'
@@ -67,16 +66,19 @@ describe('PreferenceSwitcher', () => {
 
     expect(languageButton.classList.contains('preference-switcher__trigger--icon')).toBe(true)
     expect(themeButton.classList.contains('preference-switcher__trigger--icon')).toBe(true)
-    expect(languageButton.textContent).toContain('Aa')
+    expect(languageButton.textContent).not.toContain('Aa')
+    expect(within(languageButton).getByTestId('preference-icon-language')).toBeTruthy()
+    expect(within(themeButton).getByTestId('preference-icon-theme-light')).toBeTruthy()
     await fireEvent.click(languageButton)
     expect(screen.getByRole('menu', { name: '语言选项' })).toBeTruthy()
     await fireEvent.click(screen.getByRole('menuitemradio', { name: 'English' }))
-    expect(languageButton.textContent).toContain('Aa')
+    expect(languageButton.textContent).not.toContain('Aa')
+    expect(within(languageButton).getByTestId('preference-icon-language')).toBeTruthy()
     expect(state.locale.value).toBe('en')
     expect(preferenceSpies.saveLanguagePreference).toHaveBeenCalledWith('en')
     await fireEvent.click(languageButton)
     await fireEvent.click(screen.getByRole('menuitemradio', { name: '中文' }))
-    expect(languageButton.textContent).toContain('Aa')
+    expect(languageButton.textContent).not.toContain('Aa')
     expect(state.locale.value).toBe('zh-CN')
     expect(preferenceSpies.saveLanguagePreference).toHaveBeenCalledWith('zh-CN')
 
@@ -84,14 +86,17 @@ describe('PreferenceSwitcher', () => {
     await fireEvent.click(themeButton)
     expect(screen.getByRole('menu', { name: '主题选项' })).toBeTruthy()
     expect(screen.getAllByTestId('theme-choice')).toHaveLength(3)
+    expect(screen.getByTestId('preference-icon-theme-option-system')).toBeTruthy()
+    expect(screen.getByTestId('preference-icon-theme-option-light')).toBeTruthy()
+    expect(screen.getByTestId('preference-icon-theme-option-dark')).toBeTruthy()
     await fireEvent.click(screen.getByRole('menuitemradio', { name: '深色' }))
-    expect(themeButton.querySelector('.preference-switcher__mark--dark')).toBeTruthy()
+    expect(within(themeButton).getByTestId('preference-icon-theme-dark')).toBeTruthy()
     expect(state.themeName.value).toBe('moeurlDark')
     expect(preferenceSpies.saveThemePreference).toHaveBeenCalledWith('dark')
 
     await fireEvent.click(themeButton)
     await fireEvent.click(screen.getByRole('menuitemradio', { name: '跟随系统' }))
-    expect(themeButton.querySelector('.preference-switcher__mark--system')).toBeTruthy()
+    expect(within(themeButton).getByTestId('preference-icon-theme-system')).toBeTruthy()
     expect(preferenceSpies.saveThemePreference).toHaveBeenCalledWith('system')
   })
 
@@ -130,16 +135,15 @@ describe('PreferenceSwitcher', () => {
     expect(screen.queryByRole('menu', { name: '主题选项' })).toBeNull()
   })
 
-  it('uses the mist blue graphite palette for theme preview graphics', () => {
-    const source = readFileSync('src/shared/preferences/PreferenceSwitcher.vue', 'utf8')
+  it('uses familiar icon affordances instead of text-only or custom-drawn marks', () => {
+    render(PreferenceSwitcher)
 
-    expect(source).toContain('#f5f7fb')
-    expect(source).toContain('#c47a4a')
-    expect(source).toContain('#101722')
-    expect(source).toContain('#1a2433')
-    expect(source).toContain('#8ab8e8')
-    expect(source).not.toContain('#f6fbf8')
-    expect(source).not.toContain('#f0a94f')
-    expect(source).not.toContain('#65d6b1')
+    expect(screen.getByTestId('preference-icon-language')).toBeTruthy()
+    expect(
+      screen.queryByTestId('preference-icon-theme-light') ??
+        screen.queryByTestId('preference-icon-theme-dark') ??
+        screen.queryByTestId('preference-icon-theme-system'),
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: '选择语言' }).textContent).not.toContain('Aa')
   })
 })

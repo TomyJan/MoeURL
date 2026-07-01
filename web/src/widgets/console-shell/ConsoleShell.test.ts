@@ -106,7 +106,9 @@ describe('ConsoleShell', () => {
 
     expect(container.querySelector('.console-shell__workspace')).toBeTruthy()
     expect(screen.getByText('console content')).toBeTruthy()
-    expect(screen.getByTestId('console-sidebar-home')).toBeTruthy()
+    const sidebarUtilities = screen.getByTestId('console-sidebar-utilities')
+    expect(within(sidebarUtilities).getByTestId('console-sidebar-home')).toBeTruthy()
+    expect(within(sidebarUtilities).getByRole('group', { name: 'app preferences' })).toBeTruthy()
     expect(screen.queryByText('short links')).toBeNull()
     expect(screen.getByText('console.nav.workspace')).toBeTruthy()
     expect(screen.getByText('nav.links')).toBeTruthy()
@@ -171,12 +173,15 @@ describe('ConsoleShell', () => {
     mountShell()
 
     expect(screen.queryByTestId('console-mobile-nav')).toBeNull()
+    expect(within(screen.getByLabelText('console.openMenu')).getByTestId('console-icon-menu')).toBeTruthy()
 
     await fireEvent.click(screen.getByLabelText('console.openMenu'))
 
     expect(screen.getByTestId('console-mobile-nav')).toBeTruthy()
     expect(screen.getByTestId('console-drawer-transition')).toBeTruthy()
-    expect(within(screen.getByTestId('console-mobile-nav')).getByRole('group', { name: 'app preferences' })).toBeTruthy()
+    const mobileUtilities = within(screen.getByTestId('console-mobile-nav')).getByTestId('console-mobile-utilities')
+    expect(within(mobileUtilities).getByTestId('console-mobile-home')).toBeTruthy()
+    expect(within(mobileUtilities).getByRole('group', { name: 'app preferences' })).toBeTruthy()
     expect(within(screen.getByTestId('console-mobile-nav')).getByText('nav.links')).toBeTruthy()
   })
 

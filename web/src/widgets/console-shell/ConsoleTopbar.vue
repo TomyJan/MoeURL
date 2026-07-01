@@ -1,9 +1,7 @@
 <template>
   <header class="console-topbar">
     <button class="console-topbar__menu" type="button" :aria-label="t('console.openMenu')" @click="$emit('openMenu')">
-      <span />
-      <span />
-      <span />
+      <MoeIcon name="menu" data-testid="console-icon-menu" />
     </button>
     <RouterLink class="console-topbar__brand" to="/">MoeURL</RouterLink>
     <PreferenceSwitcher class="console-topbar__preferences" density="compact" placement="topbar" />
@@ -39,6 +37,7 @@ import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 import PreferenceSwitcher from '@/shared/preferences/PreferenceSwitcher.vue'
+import MoeIcon from '@/shared/ui/MoeIcon.vue'
 
 const props = defineProps<{
   displayName: string
@@ -117,12 +116,10 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-.console-topbar__menu span {
-  display: block;
-  width: 16px;
-  height: 2px;
-  border-radius: 999px;
-  background: rgb(var(--v-theme-on-surface));
+.console-topbar__menu :deep(.moe-icon) {
+  width: 19px;
+  height: 19px;
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .console-topbar__brand {

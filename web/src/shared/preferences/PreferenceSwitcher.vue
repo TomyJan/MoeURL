@@ -14,7 +14,9 @@
         :aria-expanded="languageOpen"
         @click="toggleLanguageMenu"
       >
-        <span class="preference-switcher__mark preference-switcher__mark--language" aria-hidden="true">Aa</span>
+        <span class="preference-switcher__mark preference-switcher__mark--language" aria-hidden="true">
+          <MoeIcon name="globe" data-testid="preference-icon-language" />
+        </span>
       </button>
       <Transition name="preference-popover">
         <div v-if="languageOpen" class="preference-switcher__popover" role="menu" :aria-label="t('preferences.languageOptions')">
@@ -45,7 +47,7 @@
         @click="toggleThemeMenu"
       >
         <span class="preference-switcher__mark preference-switcher__mark--theme" :class="`preference-switcher__mark--${themeMode}`" aria-hidden="true">
-          <span />
+          <MoeIcon :name="themeIconByMode[themeMode]" :data-testid="`preference-icon-theme-${themeMode}`" />
         </span>
       </button>
       <Transition name="preference-popover">
@@ -67,7 +69,7 @@
             @click="selectTheme(option.value)"
           >
             <span class="preference-switcher__theme-graphic" :class="`preference-switcher__theme-graphic--${option.value}`" aria-hidden="true">
-              <span />
+              <MoeIcon :name="themeIconByMode[option.value]" :data-testid="`preference-icon-theme-option-${option.value}`" />
             </span>
             <span class="preference-switcher__theme-copy">
               <span class="preference-switcher__theme-label">{{ option.label }}</span>
@@ -85,6 +87,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import MoeIcon from '@/shared/ui/MoeIcon.vue'
 import type { LanguagePreference, ThemePreference } from './preferences'
 import { useAppPreferences } from './useAppPreferences'
 
@@ -109,6 +112,12 @@ const languageChoices = computed<Array<{ code: string; label: string; value: Lan
   { code: '中', label: '中文', value: 'zh-CN' },
   { code: 'En', label: 'English', value: 'en' },
 ])
+
+const themeIconByMode = {
+  dark: 'moon',
+  light: 'sun',
+  system: 'monitor',
+} as const
 
 const themeChoices = computed<Array<{ description: string; label: string; value: ThemePreference }>>(() => [
   { description: t('preferences.systemDescription'), label: t('preferences.system'), value: 'system' },
@@ -231,39 +240,33 @@ onBeforeUnmount(() => {
   line-height: 1;
 }
 
+.preference-switcher__mark :deep(.moe-icon) {
+  width: 16px;
+  height: 16px;
+}
+
+.preference-switcher__mark--language {
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 10%, transparent);
+  color: rgb(var(--v-theme-primary));
+}
+
 .preference-switcher__mark--theme {
-  position: relative;
-  overflow: hidden;
   border: 1px solid color-mix(in srgb, rgb(var(--v-theme-primary)) 24%, transparent);
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 9%, transparent);
+  color: rgb(var(--v-theme-primary));
 }
 
 .preference-switcher__mark--light {
-  background: #f5f7fb;
-}
-
-.preference-switcher__mark--light span {
-  width: 13px;
-  height: 13px;
-  border-radius: 999px;
-  background: #c47a4a;
-  box-shadow: 0 0 0 4px rgba(196, 122, 74, 0.18);
+  color: #c47a4a;
 }
 
 .preference-switcher__mark--dark {
-  background: #101722;
-}
-
-.preference-switcher__mark--dark span {
-  width: 15px;
-  height: 15px;
-  border-radius: 999px;
-  background: #8ab8e8;
-  box-shadow: -5px -2px 0 0 #101722;
-  transform: translateX(2px);
+  background: color-mix(in srgb, #101722 86%, var(--moeurl-surface-elevated));
+  color: #8ab8e8;
 }
 
 .preference-switcher__mark--system {
-  background: linear-gradient(135deg, #f5f7fb 0 50%, #101722 50% 100%);
+  color: rgb(var(--v-theme-primary));
 }
 
 .preference-switcher__popover {
@@ -362,11 +365,18 @@ onBeforeUnmount(() => {
 .preference-switcher__theme-graphic {
   position: relative;
   display: grid;
-  width: 34px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
+  place-items: center;
   border: 1px solid color-mix(in srgb, var(--moeurl-outline) 80%, transparent);
-  border-radius: 12px;
-  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 9%, transparent);
+  color: rgb(var(--v-theme-primary));
+}
+
+.preference-switcher__theme-graphic :deep(.moe-icon) {
+  width: 16px;
+  height: 16px;
 }
 
 .preference-switcher__theme-copy {
@@ -380,26 +390,18 @@ onBeforeUnmount(() => {
   font-weight: 650;
 }
 
-.preference-switcher__theme-graphic span {
-  align-self: end;
-  justify-self: end;
-  width: 11px;
-  height: 11px;
-  margin: 3px;
-  border-radius: 999px;
-  background: rgb(var(--v-theme-secondary));
-}
-
 .preference-switcher__theme-graphic--system {
-  background: linear-gradient(90deg, #f5f7fb 0 50%, #101722 50% 100%);
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 10%, transparent);
 }
 
 .preference-switcher__theme-graphic--light {
-  background: linear-gradient(135deg, #ffffff, #f5f7fb 58%, #c47a4a 130%);
+  background: color-mix(in srgb, #c47a4a 13%, transparent);
+  color: #c47a4a;
 }
 
 .preference-switcher__theme-graphic--dark {
-  background: linear-gradient(135deg, #101722, #1a2433 58%, #8ab8e8 150%);
+  background: color-mix(in srgb, #101722 86%, var(--moeurl-surface-elevated));
+  color: #8ab8e8;
 }
 
 .preference-switcher--compact .preference-switcher__trigger {
