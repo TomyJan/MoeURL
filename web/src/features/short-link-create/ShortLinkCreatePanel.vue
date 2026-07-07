@@ -34,6 +34,9 @@
         <div v-if="!canCreateShortLink" class="short-link-create-panel__permission" role="status">
           {{ t('shortLinkCreate.permissionRequired') }}
         </div>
+        <p v-if="copyErrorMessage" class="short-link-create-panel__error" role="alert">
+          {{ copyErrorMessage }}
+        </p>
       </div>
 
       <Transition name="moe-layout">
@@ -59,6 +62,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { z } from 'zod'
 
 import { me } from '@/entities/auth/api'
 import { createShortLink } from '@/entities/short-link/api'
@@ -76,6 +80,9 @@ const { t } = useI18n()
 const queryClient = useQueryClient()
 const targetUrl = ref('')
 const createdUrl = ref('')
+const validationErrorMessage = ref('')
+const copyErrorMessage = ref('')
+const targetUrlSchema = z.string().trim().url()
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,
@@ -96,6 +103,9 @@ const mutation = useMutation({
 })
 
 const errorMessage = computed(() => {
+  if (validationErrorMessage.value) {
+    return validationErrorMessage.value
+  }
   if (!mutation.data.value && mutation.error.value) {
     return mutation.error.value instanceof Error ? mutation.error.value.message : t('shortLinkCreate.failed')
   }
@@ -106,17 +116,35 @@ function submit() {
   if (!canCreateShortLink.value) {
     return
   }
+  validationErrorMessage.value = ''
+  copyErrorMessage.value = ''
+  const targetUrlResult = targetUrlSchema.safeParse(targetUrl.value)
+  if (!targetUrlResult.success) {
+    validationErrorMessage.value = t('shortLinkCreate.invalidUrl')
+    return
+  }
   createdUrl.value = ''
-  mutation.mutate({ targetUrl: targetUrl.value })
+  mutation.mutate({ targetUrl: targetUrlResult.data })
 }
 
 function resetForm() {
   targetUrl.value = ''
   createdUrl.value = ''
+  validationErrorMessage.value = ''
+  copyErrorMessage.value = ''
 }
 
-function copyUrl(url: string) {
-  void navigator.clipboard?.writeText(url)
+async function copyUrl(url: string) {
+  copyErrorMessage.value = ''
+  try {
+    const writeText = navigator.clipboard?.writeText
+    if (!writeText) {
+      throw new Error('clipboard unavailable')
+    }
+    await writeText.call(navigator.clipboard, url)
+  } catch {
+    copyErrorMessage.value = t('shortLinkCreate.copyFailed')
+  }
 }
 </script>
 
@@ -180,6 +208,14 @@ function copyUrl(url: string) {
   background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 7%, transparent);
   color: rgb(var(--v-theme-on-surface-variant));
   font-weight: 750;
+  text-align: center;
+}
+
+.short-link-create-panel__error {
+  margin: 0;
+  color: rgb(var(--v-theme-error));
+  font-size: 0.88rem;
+  font-weight: 760;
   text-align: center;
 }
 

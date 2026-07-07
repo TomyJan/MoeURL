@@ -4,10 +4,14 @@ import { ref } from 'vue'
 
 import ShortLinkCreatePanel from './ShortLinkCreatePanel.vue'
 import { componentStubs } from '@/test/component-stubs'
+import { me } from '@/entities/auth/api'
+import { createShortLink } from '@/entities/short-link/api'
 
 const state = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
+  mutationOptions: [] as unknown[],
   queryResult: {},
+  queryOptions: [] as unknown[],
   mutationResult: {},
 }))
 
@@ -27,6 +31,7 @@ vi.mock('@/entities/short-link/api', () => ({
 
 vi.mock('@tanstack/vue-query', () => ({
   useMutation: vi.fn((options?: { onSuccess?: (value: unknown) => void }) => {
+    state.mutationOptions.push(options)
     const base = state.mutationResult as {
       data?: ReturnType<typeof ref>
       error?: ReturnType<typeof ref>
@@ -46,7 +51,10 @@ vi.mock('@tanstack/vue-query', () => ({
       }),
     }
   }),
-  useQuery: vi.fn(() => state.queryResult),
+  useQuery: vi.fn((options?: unknown) => {
+    state.queryOptions.push(options)
+    return state.queryResult
+  }),
   useQueryClient: () => ({
     invalidateQueries: state.invalidateQueries,
   }),
@@ -88,6 +96,8 @@ function setMutationResult(value: Partial<{
 describe('ShortLinkCreatePanel', () => {
   beforeEach(() => {
     state.invalidateQueries.mockReset()
+    state.mutationOptions = []
+    state.queryOptions = []
     setQueryResult([])
     setMutationResult()
     Object.defineProperty(window.navigator, 'clipboard', {
@@ -122,6 +132,11 @@ describe('ShortLinkCreatePanel', () => {
 
     mountPanel({ mode: 'full' })
 
+    expect(state.mutationOptions).toEqual(
+      expect.arrayContaining([expect.objectContaining({ mutationFn: createShortLink })]),
+    )
+    expect(state.queryOptions).toEqual(expect.arrayContaining([expect.objectContaining({ queryFn: me })]))
+
     await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
@@ -137,6 +152,38 @@ describe('ShortLinkCreatePanel', () => {
 
     await fireEvent.click(screen.getByText('shortLinkCreate.reset'))
     expect(screen.queryByText('https://go.example.com/abc123')).toBeNull()
+  })
+
+  it('validates target URL before submitting', async () => {
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_default'])
+    setMutationResult({ mutate })
+
+    mountPanel()
+
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'not-a-url')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+
+    expect(mutate).not.toHaveBeenCalled()
+    expect(screen.getByText('shortLinkCreate.invalidUrl')).toBeTruthy()
+  })
+
+  it('shows copy failures without clearing the created link', async () => {
+    setQueryResult(['short_link:create', 'domain:use_default'])
+    setMutationResult()
+    Object.defineProperty(window.navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn(async () => Promise.reject(new Error('denied'))) },
+    })
+
+    mountPanel()
+
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    await fireEvent.click(screen.getByText('shortLinkCreate.copy'))
+
+    expect(await screen.findByText('shortLinkCreate.copyFailed')).toBeTruthy()
+    expect(screen.getByText('https://go.example.com/abc123')).toBeTruthy()
   })
 
   it('shows API errors and fallback errors', () => {
