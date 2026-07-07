@@ -24,7 +24,7 @@
             class="short-link-create-panel__submit"
             color="primary"
             size="large"
-            :disabled="!canCreateShortLink"
+            :disabled="!canCreateShortLink || mutation.isPending.value"
             :loading="mutation.isPending.value"
             @click="submit"
           >

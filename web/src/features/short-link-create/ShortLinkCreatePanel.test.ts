@@ -185,6 +185,13 @@ describe('ShortLinkCreatePanel', () => {
     expect(mutate).not.toHaveBeenCalled()
   })
 
+  it('binds pending state into the submit button disabled expression', () => {
+    const source = readFileSync('src/features/short-link-create/ShortLinkCreatePanel.vue', 'utf8')
+    const submitButtonBlock = source.match(/<v-btn\s+class="short-link-create-panel__submit"[\s\S]+?<\/v-btn>/)?.[0] ?? ''
+
+    expect(submitButtonBlock).toContain(':disabled="!canCreateShortLink || mutation.isPending.value"')
+  })
+
   it('uses the Zod 4 URL validator pipeline for target URLs', () => {
     const source = readFileSync('src/features/short-link-create/ShortLinkCreatePanel.vue', 'utf8')
 
