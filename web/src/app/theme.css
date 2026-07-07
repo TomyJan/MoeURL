@@ -364,7 +364,6 @@ body {
 .console-link-row__target span:last-child {
   min-width: 0;
   overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .console-link-row__label {
@@ -561,7 +560,6 @@ body {
 .console-page__mobile-card a,
 .console-page__mobile-card p {
   overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .console-page__mobile-card p {
