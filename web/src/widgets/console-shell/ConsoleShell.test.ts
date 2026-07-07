@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 
 import ConsoleShell from './ConsoleShell.vue'
 import { componentStubs } from '@/test/component-stubs'
@@ -10,7 +10,7 @@ const state = vi.hoisted(() => ({
   logoutMutate: vi.fn(),
   routerPush: vi.fn(),
   queryResult: {},
-  routePath: '/link',
+  routePath: undefined as unknown as { value: string },
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -28,17 +28,26 @@ vi.mock('vuetify', () => ({
   }),
 }))
 
-vi.mock('vue-router', () => ({
-  RouterLink: { props: ['to'], template: '<a :data-to="to"><slot /></a>' },
-  RouterView: { template: '<div data-testid="router-view" />' },
-  useRoute: () => ({
-    fullPath: state.routePath,
-    path: state.routePath,
-  }),
-  useRouter: () => ({
-    push: state.routerPush,
-  }),
-}))
+vi.mock('vue-router', async () => {
+  const { componentStubs } = await import('@/test/component-stubs')
+  const { ref } = await import('vue')
+  state.routePath = ref('/link')
+  return {
+    RouterLink: componentStubs.RouterLink,
+    RouterView: { template: '<div data-testid="router-view" />' },
+    useRoute: () => ({
+      get fullPath() {
+        return state.routePath.value
+      },
+      get path() {
+        return state.routePath.value
+      },
+    }),
+    useRouter: () => ({
+      push: state.routerPush,
+    }),
+  }
+})
 
 vi.mock('@/entities/auth/api', () => ({
   logout: vi.fn(),
@@ -95,7 +104,7 @@ describe('ConsoleShell', () => {
     state.invalidateQueries.mockReset()
     state.logoutMutate.mockReset()
     state.routerPush.mockReset()
-    state.routePath = '/link'
+    state.routePath.value = '/link'
     setCurrentUser({
       username: 'alice',
       nickname: 'Alice',
@@ -151,7 +160,7 @@ describe('ConsoleShell', () => {
   })
 
   it('expands the matching two-level navigation group for child routes', () => {
-    state.routePath = '/admin/user/group'
+    state.routePath.value = '/admin/user/group'
     setCurrentUser({
       username: 'admin',
       nickname: 'Admin',
@@ -261,7 +270,7 @@ describe('ConsoleShell', () => {
   })
 
   it('redirects to login when the current user query fails in the shell', () => {
-    state.routePath = '/admin/user?tab=profile'
+    state.routePath.value = '/admin/user?tab=profile'
     state.queryResult = {
       data: ref(undefined),
       isError: ref(true),
@@ -277,7 +286,7 @@ describe('ConsoleShell', () => {
   })
 
   it('redirects to login when the current user query resolves to guest', () => {
-    state.routePath = '/link?status=active'
+    state.routePath.value = '/link?status=active'
     setCurrentUser({
       username: 'guest',
       nickname: 'Guest',
@@ -294,7 +303,7 @@ describe('ConsoleShell', () => {
   })
 
   it('keeps parent expansion visually separate from active child navigation', () => {
-    state.routePath = '/admin/user'
+    state.routePath.value = '/admin/user'
     setCurrentUser({
       username: 'admin',
       nickname: 'Admin',
@@ -305,7 +314,10 @@ describe('ConsoleShell', () => {
     mountShell()
 
     const parent = screen.getAllByRole('button', { name: 'console.nav.userManagement' })[0]
+    const childPanelId = parent.getAttribute('aria-controls')
     expect(parent.getAttribute('aria-expanded')).toBe('true')
+    expect(childPanelId).toBeTruthy()
+    expect(document.getElementById(childPanelId ?? '')).toBeTruthy()
     expect(parent.classList.contains('console-nav-list__item--parent')).toBe(true)
     expect(within(parent).getByText('console.nav.userManagement')).toBeTruthy()
     expect(screen.getByText('nav.users')).toBeTruthy()
@@ -314,7 +326,7 @@ describe('ConsoleShell', () => {
   })
 
   it('rebuilds expanded navigation groups from the current route instead of accumulating old matches', async () => {
-    state.routePath = '/admin/user'
+    state.routePath.value = '/admin/user'
     setCurrentUser({
       username: 'admin',
       nickname: 'Admin',
@@ -322,14 +334,13 @@ describe('ConsoleShell', () => {
       permissions: ['short_link:create', 'domain:use_default', 'short_link:read_own', 'admin:access'],
     })
 
-    const { unmount } = mountShell()
+    mountShell()
 
     const expandedParent = screen.getAllByRole('button', { name: 'console.nav.userManagement' })[0]
     expect(expandedParent.getAttribute('aria-expanded')).toBe('true')
-    unmount()
 
-    state.routePath = '/admin/link'
-    mountShell()
+    state.routePath.value = '/admin/link'
+    await nextTick()
 
     const collapsedParent = screen.getAllByRole('button', { name: 'console.nav.userManagement' })[0]
     expect(collapsedParent.getAttribute('aria-expanded')).toBe('false')

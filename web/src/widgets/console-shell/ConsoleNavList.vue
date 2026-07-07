@@ -23,6 +23,7 @@
             class="console-nav-list__item console-nav-list__item--primary console-nav-list__item--parent"
             data-testid="console-nav-parent-item"
             type="button"
+            :aria-controls="navChildrenId(item.labelKey)"
             :aria-expanded="expandedGroups.has(item.labelKey)"
             @click="toggleGroup(item.labelKey)"
           >
@@ -31,7 +32,7 @@
             <span class="console-nav-list__caret" aria-hidden="true" />
           </button>
           <Transition name="console-nav-children">
-            <div v-if="expandedGroups.has(item.labelKey)" class="console-nav-list__children">
+            <div v-if="expandedGroups.has(item.labelKey)" :id="navChildrenId(item.labelKey)" class="console-nav-list__children">
               <v-btn
                 v-for="child in item.children"
                 :key="child.to"
@@ -112,6 +113,10 @@ function toggleGroup(labelKey: string) {
   }
   nextExpandedGroups.add(labelKey)
   expandedGroups.value = nextExpandedGroups
+}
+
+function navChildrenId(labelKey: string) {
+  return `console-nav-children-${labelKey.replaceAll('.', '-')}`
 }
 </script>
 
