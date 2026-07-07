@@ -246,7 +246,8 @@ describe('pages', () => {
 
     expect(screen.getByTestId('auth-error-toast')).toBeTruthy()
 
-    await fireEvent.click(screen.getByLabelText('snackbar.close'))
+    expect(screen.getByRole('button', { name: 'auth.dismissError' })).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: 'auth.dismissError' }))
 
     expect(screen.queryByTestId('auth-error-toast')).toBeNull()
   })
@@ -274,6 +275,12 @@ describe('pages', () => {
 
     expect(screen.getByText('network unavailable')).toBeTruthy()
     expect(mutate).toHaveBeenCalledWith({ username: 'alice', password: 'secret' })
+    expect(state.routerPush).toHaveBeenCalledWith('/')
+
+    state.routerPush.mockReset()
+    state.routeQuery = { redirect: '//evil.example' }
+    mount(LoginPage)
+    await fireEvent.click(screen.getAllByText('auth.loginSubmit')[1])
     expect(state.routerPush).toHaveBeenCalledWith('/')
   })
 

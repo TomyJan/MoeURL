@@ -27,6 +27,11 @@
             @update:model-value="setLoginErrorSnackbarOpen"
           >
             {{ loginErrorMessage }}
+            <template #actions>
+              <v-btn variant="text" @click="setLoginErrorSnackbarOpen(false)">
+                {{ t('auth.dismissError') }}
+              </v-btn>
+            </template>
           </v-snackbar>
         </Transition>
         <v-btn class="auth-page__submit" color="primary" :loading="mutation.isPending.value" type="submit">
@@ -80,7 +85,7 @@ const loginErrorMessage = computed(() => {
 
 const loginRedirectTarget = computed(() => {
   const redirect = route.query.redirect
-  return typeof redirect === 'string' && redirect.startsWith('/') ? redirect : '/'
+  return typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/'
 })
 
 function submit() {
