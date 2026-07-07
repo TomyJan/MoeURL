@@ -42,10 +42,24 @@
           </div>
 
           <div class="console-user-row__summary-actions" data-testid="console-user-summary-actions">
-            <v-btn size="small" variant="text" :disabled="item.builtin" @click="toggleEdit(item.id)">
+            <v-btn
+              size="small"
+              variant="text"
+              :disabled="item.builtin"
+              aria-haspopup="true"
+              :aria-expanded="editingUserId === item.id"
+              @click="toggleEdit(item.id)"
+            >
               {{ t('adminUsers.actions.edit') }}
             </v-btn>
-            <button class="console-user-row__more" type="button" :disabled="item.builtin" @click="toggleMore(item.id)">
+            <button
+              class="console-user-row__more"
+              type="button"
+              :disabled="item.builtin"
+              aria-haspopup="menu"
+              :aria-expanded="moreUserId === item.id"
+              @click="toggleMore(item.id)"
+            >
               {{ t('adminUsers.actions.more') }}
             </button>
           </div>

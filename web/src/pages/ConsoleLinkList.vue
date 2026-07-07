@@ -23,7 +23,7 @@
         </span>
       </div>
 
-      <div class="console-link-row__actions">
+      <div class="console-link-row__actions" :data-link-more-id="link.id">
         <v-btn size="small" color="primary" variant="tonal" @click="$emit('copy', link.url)">{{ t('links.actions.copy') }}</v-btn>
         <v-btn size="small" variant="text" :href="link.url" target="_blank" rel="noreferrer">
           {{ t('links.actions.open') }}
@@ -51,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 export interface ConsoleLinkListItem {
@@ -81,7 +81,42 @@ defineEmits<{
 const { t } = useI18n()
 const openedMoreId = ref('')
 
+watch(openedMoreId, (id, _oldId, onCleanup) => {
+  if (!id) {
+    return
+  }
+  globalThis.document?.addEventListener('pointerdown', handleDocumentPointerDown)
+  globalThis.document?.addEventListener('keydown', handleDocumentKeyDown)
+  onCleanup(removeDocumentListeners)
+})
+
+onBeforeUnmount(removeDocumentListeners)
+
 function toggleMore(id: string) {
   openedMoreId.value = openedMoreId.value === id ? '' : id
+}
+
+function closeMore() {
+  openedMoreId.value = ''
+}
+
+function handleDocumentPointerDown(event: globalThis.PointerEvent) {
+  const target = event.target
+  const activeActions = globalThis.document?.querySelector(`[data-link-more-id="${openedMoreId.value}"]`)
+  if (target instanceof globalThis.Node && activeActions?.contains(target)) {
+    return
+  }
+  closeMore()
+}
+
+function handleDocumentKeyDown(event: globalThis.KeyboardEvent) {
+  if (event.key === 'Escape') {
+    closeMore()
+  }
+}
+
+function removeDocumentListeners() {
+  globalThis.document?.removeEventListener('pointerdown', handleDocumentPointerDown)
+  globalThis.document?.removeEventListener('keydown', handleDocumentKeyDown)
 }
 </script>
