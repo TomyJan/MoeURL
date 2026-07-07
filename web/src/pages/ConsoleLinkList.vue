@@ -38,10 +38,10 @@
           {{ t('links.actions.more') }}
         </button>
         <div v-if="openedMoreId === link.id" class="console-link-row__more-menu" role="menu">
-          <v-btn size="small" variant="text" :loading="updatingId === link.id" @click="$emit('toggleStatus', link)">
+          <v-btn size="small" variant="text" role="menuitem" :loading="updatingId === link.id" @click="$emit('toggleStatus', link)">
             {{ t(link.status === 'active' ? 'links.actions.disable' : 'links.actions.enable') }}
           </v-btn>
-          <v-btn size="small" variant="text" color="error" :loading="deletingId === link.id" @click="$emit('remove', link.id)">
+          <v-btn size="small" variant="text" color="error" role="menuitem" :loading="deletingId === link.id" @click="$emit('remove', link.id)">
             {{ t('links.actions.delete') }}
           </v-btn>
         </div>

@@ -20,15 +20,20 @@
 
     <Transition name="moe-overlay">
       <div v-if="mobileNavOpen" class="console-shell__mobile-nav" data-testid="console-mobile-nav" @click.self="closeOverlays">
-        <div class="console-shell__mobile-panel moe-overlay-panel" data-testid="console-drawer-transition">
+        <div
+          ref="mobileNavPanelRef"
+          class="console-shell__mobile-panel moe-overlay-panel"
+          data-testid="console-drawer-transition"
+          tabindex="-1"
+        >
           <div class="console-shell__mobile-head">
-            <RouterLink class="console-shell__mobile-brand" to="/" @click="closeMobileNav">MoeURL</RouterLink>
-            <button class="console-shell__mobile-close" type="button" @click="closeMobileNav">
+            <RouterLink class="console-shell__mobile-brand" to="/" @click="closeMobileNav()">MoeURL</RouterLink>
+            <button class="console-shell__mobile-close" type="button" @click="closeMobileNav()">
               {{ t('console.closeMenu') }}
             </button>
           </div>
           <div class="console-shell__mobile-utilities" data-testid="console-mobile-utilities">
-            <RouterLink class="console-shell__mobile-home" data-testid="console-mobile-home" to="/" @click="closeMobileNav">
+            <RouterLink class="console-shell__mobile-home" data-testid="console-mobile-home" to="/" @click="closeMobileNav()">
               <span class="console-shell__mobile-home-mark" aria-hidden="true">
                 <MoeIcon name="home" />
               </span>
@@ -42,7 +47,7 @@
               {{ t('console.newShortLink') }}
             </v-btn>
           </div>
-          <ConsoleNavList :nav-groups="navGroups" variant="mobile" @navigate="closeMobileNav" />
+          <ConsoleNavList :nav-groups="navGroups" variant="mobile" @navigate="closeMobileNav()" />
         </div>
       </div>
     </Transition>
@@ -58,10 +63,22 @@
     </main>
 
     <Transition name="moe-overlay">
-      <div v-if="createPanelOpen" class="console-shell__dialog" role="dialog" aria-modal="true" @click.self="closeOverlays">
-        <section class="console-shell__dialog-panel moe-overlay-panel" data-testid="console-create-transition">
+      <div
+        v-if="createPanelOpen"
+        class="console-shell__dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="console-create-title"
+        @click.self="closeOverlays"
+      >
+        <section
+          ref="createDialogPanelRef"
+          class="console-shell__dialog-panel moe-overlay-panel"
+          data-testid="console-create-transition"
+          tabindex="-1"
+        >
           <div class="console-shell__dialog-heading">
-            <h2>{{ t('console.createShortLink') }}</h2>
+            <h2 id="console-create-title">{{ t('console.createShortLink') }}</h2>
             <button type="button" @click="closeCreatePanel">{{ t('console.closeCreate') }}</button>
           </div>
           <ShortLinkCreatePanel mode="compact" />
@@ -72,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -92,6 +109,8 @@ const router = useRouter()
 const queryClient = useQueryClient()
 const mobileNavOpen = ref(false)
 const createPanelOpen = ref(false)
+const mobileNavPanelRef = ref<globalThis.HTMLElement | null>(null)
+const createDialogPanelRef = ref<globalThis.HTMLElement | null>(null)
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,
@@ -106,6 +125,15 @@ const displayName = computed(() => currentUser.value?.nickname || currentUser.va
 const username = computed(() => currentUser.value?.username || 'guest')
 const permissions = computed(() => currentUser.value?.permissions ?? [])
 const overlaysOpen = computed(() => mobileNavOpen.value || createPanelOpen.value)
+const activeOverlayPanel = computed(() => {
+  if (createPanelOpen.value) {
+    return createDialogPanelRef.value
+  }
+  if (mobileNavOpen.value) {
+    return mobileNavPanelRef.value
+  }
+  return null
+})
 const navGroups = computed<ConsoleNavGroup[]>(() => {
   const groups: ConsoleNavGroup[] = []
   if (permissions.value.includes('short_link:read_own')) {
@@ -146,6 +174,8 @@ const logoutMutation = useMutation({
 })
 
 let previousBodyOverflow: string | undefined
+let overlayOpener: globalThis.HTMLElement | null = null
+let fallbackOverlayOpener: globalThis.HTMLElement | null = null
 
 watch(
   () => [currentUserQuery.isError.value, isGuestFallback.value] as const,
@@ -186,25 +216,39 @@ onBeforeUnmount(() => {
 })
 
 function openMobileNav() {
+  rememberOverlayOpener()
   mobileNavOpen.value = true
+  void focusActiveOverlay()
 }
 
-function closeMobileNav() {
+function closeMobileNav(options: { restoreFocus?: boolean } = {}) {
   mobileNavOpen.value = false
+  if (options.restoreFocus !== false) {
+    restoreOverlayFocus()
+  }
 }
 
 function openCreatePanel() {
+  const previousOverlayOpener = overlayOpener
+  rememberOverlayOpener()
+  fallbackOverlayOpener = previousOverlayOpener
   createPanelOpen.value = true
-  closeMobileNav()
+  closeMobileNav({ restoreFocus: false })
+  void focusActiveOverlay()
 }
 
 function closeCreatePanel() {
   createPanelOpen.value = false
+  restoreOverlayFocus()
 }
 
 function closeOverlays() {
+  const hadOverlay = overlaysOpen.value
   mobileNavOpen.value = false
   createPanelOpen.value = false
+  if (hadOverlay) {
+    restoreOverlayFocus()
+  }
 }
 
 function submitLogout() {
@@ -212,9 +256,75 @@ function submitLogout() {
 }
 
 function handleKeyDown(event: globalThis.KeyboardEvent) {
+  if (event.key === 'Tab') {
+    trapOverlayFocus(event)
+    return
+  }
   if (event.key === 'Escape') {
     closeOverlays()
   }
+}
+
+function rememberOverlayOpener() {
+  const activeElement = globalThis.document?.activeElement
+  overlayOpener = activeElement instanceof globalThis.HTMLElement ? activeElement : null
+}
+
+async function focusActiveOverlay() {
+  await nextTick()
+  const panel = activeOverlayPanel.value
+  if (!panel) {
+    return
+  }
+  const firstFocusable = getFocusableElements(panel)[0] ?? panel
+  firstFocusable.focus()
+}
+
+function restoreOverlayFocus() {
+  const opener = overlayOpener?.isConnected ? overlayOpener : fallbackOverlayOpener?.isConnected ? fallbackOverlayOpener : null
+  overlayOpener = null
+  fallbackOverlayOpener = null
+  if (opener?.isConnected) {
+    opener.focus()
+  }
+}
+
+function trapOverlayFocus(event: globalThis.KeyboardEvent) {
+  const panel = activeOverlayPanel.value
+  if (!panel) {
+    return
+  }
+  const focusable = getFocusableElements(panel)
+  if (focusable.length === 0) {
+    event.preventDefault()
+    panel.focus()
+    return
+  }
+  const activeElement = globalThis.document?.activeElement
+  const firstFocusable = focusable[0]
+  const lastFocusable = focusable.at(-1)
+  if (!activeElement || !panel.contains(activeElement)) {
+    event.preventDefault()
+    firstFocusable.focus()
+    return
+  }
+  if (event.shiftKey && activeElement === firstFocusable) {
+    event.preventDefault()
+    lastFocusable?.focus()
+    return
+  }
+  if (!event.shiftKey && activeElement === lastFocusable) {
+    event.preventDefault()
+    firstFocusable.focus()
+  }
+}
+
+function getFocusableElements(root: globalThis.HTMLElement) {
+  return Array.from(
+    root.querySelectorAll<globalThis.HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((element) => element.tabIndex >= 0 && !element.hasAttribute('disabled'))
 }
 </script>
 

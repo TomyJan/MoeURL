@@ -10,7 +10,7 @@ export const componentStubs: Record<string, Component> = {
   VBtn: {
     props: ['color', 'disabled', 'href', 'loading', 'size', 'target', 'to', 'variant'],
     emits: ['click'],
-    template: '<button :disabled="disabled || loading" :data-href="href" :data-to="to" @click="$emit(\'click\')"><slot /></button>',
+    template: '<button v-bind="$attrs" :disabled="disabled || loading" :data-href="href" :data-to="to" @click="$emit(\'click\')"><slot /></button>',
   },
   VCard: { template: '<section><slot /></section>' },
   VCardText: { template: '<div><slot /></div>' },

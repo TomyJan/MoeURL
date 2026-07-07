@@ -261,8 +261,8 @@ function submit() {
   height: 28px;
   place-items: center;
   border-radius: var(--moeurl-radius-pill);
-  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 15%, transparent);
-  color: rgb(var(--v-theme-secondary));
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 13%, transparent);
+  color: rgb(var(--v-theme-primary));
   font-size: 0.74rem;
   font-weight: 950;
 }

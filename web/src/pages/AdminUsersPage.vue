@@ -46,7 +46,7 @@
               size="small"
               variant="text"
               :disabled="item.builtin"
-              aria-haspopup="true"
+              :aria-controls="userEditPanelId(item.id)"
               :aria-expanded="editingUserId === item.id"
               @click="toggleEdit(item.id)"
             >
@@ -56,7 +56,7 @@
               class="console-user-row__more"
               type="button"
               :disabled="item.builtin"
-              aria-haspopup="menu"
+              :aria-controls="userMorePanelId(item.id)"
               :aria-expanded="moreUserId === item.id"
               @click="toggleMore(item.id)"
             >
@@ -65,7 +65,7 @@
           </div>
 
           <Transition name="moe-layout">
-            <div v-if="editingUserId === item.id" class="console-user-row__actions" data-testid="console-user-edit-panel">
+            <div v-if="editingUserId === item.id" :id="userEditPanelId(item.id)" class="console-user-row__actions" data-testid="console-user-edit-panel">
               <p class="console-user-row__panel-title">{{ t('adminUsers.editTitle') }}</p>
               <div class="console-user-row__nickname">
                 <v-text-field
@@ -84,7 +84,7 @@
           </Transition>
 
           <Transition name="moe-layout">
-            <div v-if="moreUserId === item.id" class="console-user-row__actions console-user-row__actions--more" data-testid="console-user-actions">
+            <div v-if="moreUserId === item.id" :id="userMorePanelId(item.id)" class="console-user-row__actions console-user-row__actions--more" data-testid="console-user-actions">
               <p class="console-user-row__panel-title">{{ t('adminUsers.moreTitle') }}</p>
               <v-btn size="small" variant="text" :disabled="item.builtin" :loading="isUpdatingUser(item.id)" @click="toggleStatus(item)">
                 {{ t(item.status === 'active' ? 'adminUsers.actions.disable' : 'adminUsers.actions.enable') }}
@@ -223,5 +223,13 @@ function formatDate(value: string) {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+function userEditPanelId(id: string) {
+  return `console-user-edit-${id}`
+}
+
+function userMorePanelId(id: string) {
+  return `console-user-more-${id}`
 }
 </script>

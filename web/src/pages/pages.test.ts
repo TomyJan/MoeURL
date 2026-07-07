@@ -327,6 +327,14 @@ describe('pages', () => {
     expect(mutate).toHaveBeenCalledWith(expect.objectContaining({ adminUsername: 'admin', defaultLanguage: 'en', defaultTheme: 'dark' }))
   })
 
+  it('uses primary color semantics for setup step indexes', () => {
+    const source = readFileSync('src/pages/SetupPage.vue', 'utf8')
+    const stepIndexBlock = source.match(/\.setup-wizard__step-index\s*{[^}]+}/)?.[0] ?? ''
+
+    expect(stepIndexBlock).toContain('rgb(var(--v-theme-primary))')
+    expect(stepIndexBlock).not.toContain('rgb(var(--v-theme-secondary))')
+  })
+
   it('blocks guest creation and creates short links for authorized users', async () => {
     const guestMutate = vi.fn()
     setQueryResult({ data: ref({ user: { username: 'guest', nickname: 'Guest', group: 'guest', permissions: [] } }) })
@@ -463,13 +471,14 @@ describe('pages', () => {
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.more' }))
     expect(within(activeRow).getByRole('button', { name: 'links.actions.more' }).getAttribute('aria-haspopup')).toBe('menu')
     expect(within(activeRow).getByRole('button', { name: 'links.actions.more' }).getAttribute('aria-expanded')).toBe('true')
-    await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.disable' }))
+    expect(within(activeRow).getAllByRole('menuitem')).toHaveLength(2)
+    await fireEvent.click(within(activeRow).getByRole('menuitem', { name: 'links.actions.disable' }))
     await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.more' }))
     expect(within(activeRow).getByRole('button', { name: 'links.actions.more' }).getAttribute('aria-expanded')).toBe('false')
-    await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.enable' }))
+    await fireEvent.click(within(disabledRow).getByRole('menuitem', { name: 'links.actions.enable' }))
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.copy' }))
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.more' }))
-    await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.delete' }))
+    await fireEvent.click(within(activeRow).getByRole('menuitem', { name: 'links.actions.delete' }))
     expect(screen.getByLabelText('filter.status')).toBeTruthy()
     expect(listShortLinks).toHaveBeenCalledWith({ status: '' })
     expect(update).toHaveBeenCalledWith({ id: 'link-id', status: 'disabled' })
@@ -501,10 +510,10 @@ describe('pages', () => {
     }
 
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.more' }))
-    expect((within(activeRow).getByRole('button', { name: 'links.actions.disable' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((within(activeRow).getByRole('menuitem', { name: 'links.actions.disable' }) as HTMLButtonElement).disabled).toBe(true)
 
     await fireEvent.click(within(otherRow).getByRole('button', { name: 'links.actions.more' }))
-    expect((within(otherRow).getByRole('button', { name: 'links.actions.disable' }) as HTMLButtonElement).disabled).toBe(false)
+    expect((within(otherRow).getByRole('menuitem', { name: 'links.actions.disable' }) as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('scopes own link deleting state to the active row', async () => {
@@ -530,10 +539,10 @@ describe('pages', () => {
     }
 
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.more' }))
-    expect((within(activeRow).getByRole('button', { name: 'links.actions.delete' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((within(activeRow).getByRole('menuitem', { name: 'links.actions.delete' }) as HTMLButtonElement).disabled).toBe(true)
 
     await fireEvent.click(within(otherRow).getByRole('button', { name: 'links.actions.more' }))
-    expect((within(otherRow).getByRole('button', { name: 'links.actions.delete' }) as HTMLButtonElement).disabled).toBe(false)
+    expect((within(otherRow).getByRole('menuitem', { name: 'links.actions.delete' }) as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('toggles link and user action panels closed on repeated clicks', async () => {
@@ -546,21 +555,21 @@ describe('pages', () => {
     const links = mount(MyLinksPage)
     const linkRow = screen.getByTestId('console-link-row')
     await fireEvent.click(within(linkRow).getByRole('button', { name: 'links.actions.more' }))
-    const deleteButton = within(linkRow).getByRole('button', { name: 'links.actions.delete' })
+    const deleteButton = within(linkRow).getByRole('menuitem', { name: 'links.actions.delete' })
     expect(deleteButton).toBeTruthy()
     await fireEvent.pointerDown(deleteButton)
-    expect(within(linkRow).getByRole('button', { name: 'links.actions.delete' })).toBeTruthy()
+    expect(within(linkRow).getByRole('menuitem', { name: 'links.actions.delete' })).toBeTruthy()
     await fireEvent.keyDown(document, { key: 'Enter' })
-    expect(within(linkRow).getByRole('button', { name: 'links.actions.delete' })).toBeTruthy()
+    expect(within(linkRow).getByRole('menuitem', { name: 'links.actions.delete' })).toBeTruthy()
     await fireEvent.pointerDown(document.body)
-    expect(within(linkRow).queryByRole('button', { name: 'links.actions.delete' })).toBeNull()
+    expect(within(linkRow).queryByRole('menuitem', { name: 'links.actions.delete' })).toBeNull()
     await fireEvent.click(within(linkRow).getByRole('button', { name: 'links.actions.more' }))
     await fireEvent.keyDown(document, { key: 'Escape' })
-    expect(within(linkRow).queryByRole('button', { name: 'links.actions.delete' })).toBeNull()
+    expect(within(linkRow).queryByRole('menuitem', { name: 'links.actions.delete' })).toBeNull()
     await fireEvent.click(within(linkRow).getByRole('button', { name: 'links.actions.more' }))
-    expect(within(linkRow).getByRole('button', { name: 'links.actions.delete' })).toBeTruthy()
+    expect(within(linkRow).getByRole('menuitem', { name: 'links.actions.delete' })).toBeTruthy()
     await fireEvent.click(within(linkRow).getByRole('button', { name: 'links.actions.more' }))
-    expect(within(linkRow).queryByRole('button', { name: 'links.actions.delete' })).toBeNull()
+    expect(within(linkRow).queryByRole('menuitem', { name: 'links.actions.delete' })).toBeNull()
     links.unmount()
 
     setQueryResult({
@@ -583,12 +592,13 @@ describe('pages', () => {
     mount(AdminUsersPage)
     const editButton = screen.getByRole('button', { name: 'adminUsers.actions.edit' })
     const moreButton = screen.getByRole('button', { name: 'adminUsers.actions.more' })
-    expect(editButton.getAttribute('aria-haspopup')).toBe('true')
+    expect(editButton.getAttribute('aria-haspopup')).toBeNull()
     expect(editButton.getAttribute('aria-expanded')).toBe('false')
-    expect(moreButton.getAttribute('aria-haspopup')).toBe('menu')
+    expect(moreButton.getAttribute('aria-haspopup')).toBeNull()
     expect(moreButton.getAttribute('aria-expanded')).toBe('false')
     await fireEvent.click(editButton)
     expect(editButton.getAttribute('aria-expanded')).toBe('true')
+    expect(document.getElementById(editButton.getAttribute('aria-controls') ?? '')).toBeTruthy()
     expect(moreButton.getAttribute('aria-expanded')).toBe('false')
     expect(screen.getByTestId('console-user-edit-panel')).toBeTruthy()
     await fireEvent.click(editButton)
@@ -598,6 +608,7 @@ describe('pages', () => {
     await fireEvent.click(moreButton)
     expect(editButton.getAttribute('aria-expanded')).toBe('false')
     expect(moreButton.getAttribute('aria-expanded')).toBe('true')
+    expect(document.getElementById(moreButton.getAttribute('aria-controls') ?? '')).toBeTruthy()
     expect(screen.queryByTestId('console-user-edit-panel')).toBeNull()
     expect(screen.getByTestId('console-user-actions')).toBeTruthy()
     await fireEvent.click(moreButton)
@@ -638,12 +649,12 @@ describe('pages', () => {
     }
 
     await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.more' }))
-    await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.enable' }))
+    await fireEvent.click(within(disabledRow).getByRole('menuitem', { name: 'links.actions.enable' }))
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.more' }))
-    await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.disable' }))
+    await fireEvent.click(within(activeRow).getByRole('menuitem', { name: 'links.actions.disable' }))
     await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.copy' }))
     await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.more' }))
-    await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.delete' }))
+    await fireEvent.click(within(disabledRow).getByRole('menuitem', { name: 'links.actions.delete' }))
     expect(screen.getByLabelText('filter.status')).toBeTruthy()
     expect(screen.getByLabelText('filter.keyword')).toBeTruthy()
     expect(listAdminShortLinks).toHaveBeenCalledWith({ status: '', q: '' })
@@ -676,10 +687,10 @@ describe('pages', () => {
     }
 
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.more' }))
-    expect((within(activeRow).getByRole('button', { name: 'links.actions.delete' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((within(activeRow).getByRole('menuitem', { name: 'links.actions.delete' }) as HTMLButtonElement).disabled).toBe(true)
 
     await fireEvent.click(within(otherRow).getByRole('button', { name: 'links.actions.more' }))
-    expect((within(otherRow).getByRole('button', { name: 'links.actions.delete' }) as HTMLButtonElement).disabled).toBe(false)
+    expect((within(otherRow).getByRole('menuitem', { name: 'links.actions.delete' }) as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('does not mark admin link rows as deleting for non-delete mutation variables', async () => {
@@ -700,7 +711,7 @@ describe('pages', () => {
     const row = screen.getByTestId('console-link-row')
     await fireEvent.click(within(row).getByRole('button', { name: 'links.actions.more' }))
 
-    expect((within(row).getByRole('button', { name: 'links.actions.delete' }) as HTMLButtonElement).disabled).toBe(false)
+    expect((within(row).getByRole('menuitem', { name: 'links.actions.delete' }) as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('queries admin links with filter state', async () => {
@@ -803,6 +814,14 @@ describe('pages', () => {
     expect((screen.getByLabelText('createUser.nickname') as HTMLInputElement).value).toBe('')
     expect((screen.getByLabelText('createUser.group') as HTMLSelectElement).value).toBe('user')
     expect((screen.getByLabelText('createUser.status') as HTMLSelectElement).value).toBe('active')
+  })
+
+  it('binds pending user creation to both loading and disabled submit states', () => {
+    const source = readFileSync('src/pages/CreateUserPage.vue', 'utf8')
+    const submitBlock = source.match(/<v-btn\s+class="console-form-panel__submit"[\s\S]+?<\/v-btn>/)?.[0] ?? ''
+
+    expect(submitBlock).toContain(':loading="mutation.isPending.value"')
+    expect(submitBlock).toContain(':disabled="mutation.isPending.value"')
   })
 
   it('renders admin users list and submits user actions', async () => {

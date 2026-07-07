@@ -31,7 +31,7 @@
         </fieldset>
 
         <div class="console-form-panel__actions">
-          <v-btn class="console-form-panel__submit" color="primary" :loading="mutation.isPending.value" type="submit">
+          <v-btn class="console-form-panel__submit" color="primary" :disabled="mutation.isPending.value" :loading="mutation.isPending.value" type="submit">
             {{ t('createUser.submit') }}
           </v-btn>
         </div>

@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+const sourcePath = resolve(__dirname, 'useAppPreferences.ts')
 
 function mockPreferenceRuntime(
   themePreference: string,
@@ -140,7 +143,7 @@ describe('useAppPreferences', () => {
   })
 
   it('uses the public Vuetify entrypoint and shared theme resolution', () => {
-    const source = readFileSync('src/shared/preferences/useAppPreferences.ts', 'utf8')
+    const source = readFileSync(sourcePath, 'utf8')
 
     expect(source).toContain("import { useTheme } from 'vuetify'")
     expect(source).not.toContain("from 'vuetify/framework'")

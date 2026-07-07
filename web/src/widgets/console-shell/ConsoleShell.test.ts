@@ -176,11 +176,19 @@ describe('ConsoleShell', () => {
   it('opens short link creation dialog from the console action', async () => {
     mountShell()
 
-    await fireEvent.click(screen.getAllByText('console.newShortLink')[0])
+    const opener = screen.getAllByText('console.newShortLink')[0] as HTMLElement
+    opener.focus()
+    await fireEvent.click(opener)
 
+    const dialog = screen.getByRole('dialog', { name: 'console.createShortLink' })
+    expect(dialog.contains(document.activeElement)).toBe(true)
     expect(screen.getByTestId('console-create-transition')).toBeTruthy()
     expect(screen.getByText('console.createShortLink')).toBeTruthy()
     expect(screen.getByText('shortLinkCreate.submit')).toBeTruthy()
+
+    await fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByTestId('console-create-transition')).toBeNull()
+    expect(document.activeElement).toBe(opener)
   })
 
   it('closes overlays from backdrop click and Escape while locking background scroll', async () => {
@@ -201,6 +209,31 @@ describe('ConsoleShell', () => {
     await fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByTestId('console-mobile-nav')).toBeNull()
     expect(document.body.style.overflow).toBe('')
+  })
+
+  it('keeps keyboard focus inside the mobile navigation overlay and restores the opener', async () => {
+    mountShell()
+
+    const opener = screen.getByLabelText('console.openMenu') as HTMLElement
+    opener.focus()
+    await fireEvent.click(opener)
+
+    const mobileNav = screen.getByTestId('console-mobile-nav')
+    const panel = screen.getByTestId('console-drawer-transition')
+    expect(mobileNav.contains(document.activeElement)).toBe(true)
+
+    const focusable = Array.from(panel.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'))
+    focusable[0]?.focus()
+    await fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(focusable.at(-1))
+
+    focusable.at(-1)?.focus()
+    await fireEvent.keyDown(document, { key: 'Tab' })
+    expect(document.activeElement).toBe(focusable[0])
+
+    await fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByTestId('console-mobile-nav')).toBeNull()
+    expect(document.activeElement).toBe(opener)
   })
 
   it('opens mobile navigation from the hamburger button', async () => {
