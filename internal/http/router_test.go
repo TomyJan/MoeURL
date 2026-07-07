@@ -20,7 +20,7 @@ import (
 
 func TestRouterHealthReturnsOK(t *testing.T) {
 	router := apphttp.NewRouter()
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/health", nil)
 	response := httptest.NewRecorder()
 
 	router.ServeHTTP(response, request)
@@ -71,7 +71,7 @@ func TestRouterServesSPAFixedRoutesFromStaticDir(t *testing.T) {
 		"/admin/user/new",
 	} {
 		t.Run(path, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodGet, path, nil)
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
 			response := httptest.NewRecorder()
 
 			router.ServeHTTP(response, request)
@@ -88,7 +88,7 @@ func TestRouterServesSPAFixedRoutesFromStaticDir(t *testing.T) {
 
 func TestRouterUnknownAPIUsesUnifiedResponse(t *testing.T) {
 	router := apphttp.NewRouter()
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/missing", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/missing", nil)
 	response := httptest.NewRecorder()
 
 	router.ServeHTTP(response, request)
@@ -151,7 +151,7 @@ func TestRouterRegistersOptionalDependencies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
 			response := httptest.NewRecorder()
-			request := httptest.NewRequest(tt.method, tt.path, bytes.NewBufferString(tt.body))
+			request := httptest.NewRequestWithContext(t.Context(), tt.method, tt.path, bytes.NewBufferString(tt.body))
 
 			router.ServeHTTP(response, request)
 
