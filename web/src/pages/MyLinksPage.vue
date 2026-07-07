@@ -21,9 +21,9 @@
       </div>
       <ConsoleLinkList
         v-else
-        :deleting="deleteMutation.isPending.value"
+        :deleting-id="deletingId"
         :links="linkItems"
-        :updating="updateMutation.isPending.value"
+        :updating-id="updatingId"
         @copy="copyUrl"
         @remove="remove"
         @toggle-status="toggleStatus"
@@ -55,6 +55,10 @@ const query = useQuery({
 })
 const links = computed(() => query.data.value?.items ?? [])
 const linkItems = computed<ConsoleLinkListItem[]>(() => links.value)
+const updatingId = computed(() => (updateMutation.isPending.value ? updateMutation.variables.value?.id : ''))
+const deletingId = computed(() =>
+  deleteMutation.isPending.value && typeof deleteMutation.variables.value === 'string' ? deleteMutation.variables.value : '',
+)
 
 const updateMutation = useMutation({
   mutationFn: updateShortLink,

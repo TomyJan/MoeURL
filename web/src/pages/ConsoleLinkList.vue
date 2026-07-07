@@ -32,10 +32,10 @@
           {{ t('links.actions.more') }}
         </button>
         <div v-if="openedMoreId === link.id" class="console-link-row__more-menu">
-          <v-btn size="small" variant="text" :loading="updating" @click="$emit('toggleStatus', link)">
+          <v-btn size="small" variant="text" :loading="updatingId === link.id" @click="$emit('toggleStatus', link)">
             {{ t(link.status === 'active' ? 'links.actions.disable' : 'links.actions.enable') }}
           </v-btn>
-          <v-btn size="small" variant="text" color="error" :loading="deleting" @click="$emit('remove', link.id)">
+          <v-btn size="small" variant="text" color="error" :loading="deletingId === link.id" @click="$emit('remove', link.id)">
             {{ t('links.actions.delete') }}
           </v-btn>
         </div>
@@ -61,9 +61,9 @@ export interface ConsoleLinkListItem {
 }
 
 defineProps<{
-  deleting?: boolean
+  deletingId?: string
   links: ConsoleLinkListItem[]
-  updating?: boolean
+  updatingId?: string
 }>()
 
 defineEmits<{

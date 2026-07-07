@@ -62,7 +62,7 @@
                   :disabled="item.builtin"
                   variant="outlined"
                 />
-                <v-btn size="small" variant="text" :disabled="item.builtin" :loading="updateMutation.isPending.value" @click="saveNickname(item)">
+                <v-btn size="small" variant="text" :disabled="item.builtin" :loading="isUpdatingUser(item.id)" @click="saveNickname(item)">
                   {{ t('adminUsers.saveNickname') }}
                 </v-btn>
               </div>
@@ -72,7 +72,7 @@
           <Transition name="moe-layout">
             <div v-if="moreUserId === item.id" class="console-user-row__actions console-user-row__actions--more" data-testid="console-user-actions">
               <p class="console-user-row__panel-title">{{ t('adminUsers.moreTitle') }}</p>
-              <v-btn size="small" variant="text" :disabled="item.builtin" :loading="updateMutation.isPending.value" @click="toggleStatus(item)">
+              <v-btn size="small" variant="text" :disabled="item.builtin" :loading="isUpdatingUser(item.id)" @click="toggleStatus(item)">
                 {{ t(item.status === 'active' ? 'adminUsers.actions.disable' : 'adminUsers.actions.enable') }}
               </v-btn>
               <div class="console-user-row__password">
@@ -85,7 +85,7 @@
                   type="password"
                   variant="outlined"
                 />
-                <v-btn size="small" variant="text" :disabled="item.builtin" :loading="resetMutation.isPending.value" @click="resetPassword(item)">
+                <v-btn size="small" variant="text" :disabled="item.builtin" :loading="isResettingUser(item.id)" @click="resetPassword(item)">
                   {{ t('adminUsers.resetPassword') }}
                 </v-btn>
               </div>
@@ -191,11 +191,23 @@ function invalidateUsers() {
   void queryClient.invalidateQueries({ queryKey: ['admin-user'] })
 }
 
+function isUpdatingUser(id: string) {
+  return updateMutation.isPending.value && updateMutation.variables.value?.id === id
+}
+
+function isResettingUser(id: string) {
+  return resetMutation.isPending.value && resetMutation.variables.value?.id === id
+}
+
 function formatDate(value: string) {
   const timestamp = Date.parse(value)
   if (Number.isNaN(timestamp)) {
     return value
   }
-  return new Date(timestamp).toISOString().slice(0, 10)
+  const date = new Date(timestamp)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 </script>
