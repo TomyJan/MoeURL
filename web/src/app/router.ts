@@ -1,4 +1,4 @@
-import type { NavigationGuard, RouteRecordRaw } from 'vue-router'
+import type { NavigationGuard, RouteLocationRaw, RouteRecordRaw } from 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
 
 import { me } from '@/entities/auth/api'
@@ -13,31 +13,38 @@ import NotFoundPage from '@/pages/NotFoundPage.vue'
 import SetupPage from '@/pages/SetupPage.vue'
 import ConsoleShell from '@/widgets/console-shell/ConsoleShell.vue'
 
-type AdminAccessGuard = NavigationGuard & (() => Promise<true | string>)
-type ConsoleAccessGuard = NavigationGuard & (() => Promise<true | string>)
+type AdminAccessGuard = NavigationGuard & (() => Promise<true | string | RouteLocationRaw>)
+type ConsoleAccessGuard = NavigationGuard & (() => Promise<true | string | RouteLocationRaw>)
+
+function createLoginRedirect(fullPath?: string): RouteLocationRaw {
+  if (!fullPath) {
+    return '/login'
+  }
+  return { path: '/login', query: { redirect: fullPath } }
+}
 
 export function createRequireConsoleAccess(loadCurrentUser = me): ConsoleAccessGuard {
-  const guard = async () => {
+  const guard = async (to?: { fullPath?: string }) => {
     try {
       const result = await loadCurrentUser()
-      return result.user.group === 'guest' ? '/login' : true
+      return result.user.group === 'guest' ? createLoginRedirect(to?.fullPath) : true
     } catch {
-      return '/login'
+      return createLoginRedirect(to?.fullPath)
     }
   }
   return guard as ConsoleAccessGuard
 }
 
 export function createRequireAdminAccess(loadCurrentUser = me): AdminAccessGuard {
-  const guard = async () => {
+  const guard = async (to?: { fullPath?: string }) => {
     try {
       const result = await loadCurrentUser()
       if (result.user.permissions.includes('admin:access')) {
         return true
       }
-      return result.user.group === 'guest' ? '/login' : '/'
+      return result.user.group === 'guest' ? createLoginRedirect(to?.fullPath) : '/'
     } catch {
-      return '/login'
+      return createLoginRedirect(to?.fullPath)
     }
   }
   return guard as AdminAccessGuard

@@ -67,8 +67,14 @@ describe('router', () => {
     })
 
     await expect(createRequireConsoleAccess(regular)()).resolves.toBe(true)
-    await expect(createRequireConsoleAccess(guest)()).resolves.toBe('/login')
-    await expect(createRequireConsoleAccess(failed)()).resolves.toBe('/login')
+    await expect(createRequireConsoleAccess(guest)({ fullPath: '/link' } as never, {} as never, vi.fn())).resolves.toEqual({
+      path: '/login',
+      query: { redirect: '/link' },
+    })
+    await expect(createRequireConsoleAccess(failed)({ fullPath: '/console' } as never, {} as never, vi.fn())).resolves.toEqual({
+      path: '/login',
+      query: { redirect: '/console' },
+    })
   })
 
   it('allows admins and redirects non-admin users before entering admin routes', async () => {
@@ -87,8 +93,14 @@ describe('router', () => {
 
     await expect(createRequireAdminAccess(admin)()).resolves.toBe(true)
     await expect(createRequireAdminAccess(regular)()).resolves.toBe('/')
-    await expect(createRequireAdminAccess(guest)()).resolves.toBe('/login')
-    await expect(createRequireAdminAccess(failed)()).resolves.toBe('/login')
+    await expect(createRequireAdminAccess(guest)({ fullPath: '/admin/user' } as never, {} as never, vi.fn())).resolves.toEqual({
+      path: '/login',
+      query: { redirect: '/admin/user' },
+    })
+    await expect(createRequireAdminAccess(failed)({ fullPath: '/admin/link' } as never, {} as never, vi.fn())).resolves.toEqual({
+      path: '/login',
+      query: { redirect: '/admin/link' },
+    })
   })
 
   it('uses the current user API when invoked as a route guard', async () => {
@@ -119,6 +131,7 @@ describe('router', () => {
     await router.isReady()
 
     expect(router.currentRoute.value.path).toBe('/login')
+    expect(router.currentRoute.value.query.redirect).toBe('/admin/user')
     expect(me).toHaveBeenCalled()
   })
 

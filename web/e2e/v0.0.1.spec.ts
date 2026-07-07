@@ -27,15 +27,10 @@ test('v0.0.1 initialization login short link and disabled redirect flow', async 
   await page.getByLabel('账号').fill('admin')
   await page.getByLabel('密码').fill('wrong-password')
   await page.getByRole('button', { name: '登录' }).click()
-  await expect(page.getByText('Invalid username or password')).toBeVisible()
-  const login = await page.request.post('/api/v1/auth/login', {
-    data: { username: 'admin', password: 'admin-password' },
-  })
-  await expect(login).toBeOK()
-  expect(await login.json()).toMatchObject({
-    code: 0,
-    data: { user: { username: 'admin', nickname: 'Admin' } },
-  })
+  await expect(page.getByText('登录失败，请检查账号和密码后再试。')).toBeVisible()
+  await page.getByLabel('密码').fill('admin-password')
+  await page.getByRole('button', { name: '登录' }).click()
+  await expect(page.getByRole('button', { name: 'Admin' })).toBeVisible()
 
   await page.goto('/')
   await expect(page.getByRole('button', { name: 'Admin' })).toBeVisible()

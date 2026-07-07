@@ -25,7 +25,7 @@
             :model-value="true"
             :timeout="5000"
           >
-            {{ mutation.error.value?.message || t('auth.loginFailed') }}
+            {{ loginErrorMessage }}
           </v-snackbar>
         </Transition>
         <v-btn class="auth-page__submit" color="primary" :loading="mutation.isPending.value" type="submit">
@@ -37,9 +37,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useMutation } from '@tanstack/vue-query'
 
 import { login } from '@/entities/auth/api'
@@ -47,6 +47,7 @@ import { queryClient } from '@/app/query'
 
 const { t } = useI18n()
 const router = useRouter()
+const route = useRoute()
 const username = ref('')
 const password = ref('')
 const mutation = useMutation({
@@ -54,12 +55,29 @@ const mutation = useMutation({
   onSuccess(data) {
     queryClient.setQueryData(['auth', 'me'], data)
     void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
-    void router.push('/')
+    void router.push(loginRedirectTarget.value)
   },
+})
+
+const loginErrorMessage = computed(() => {
+  const error = mutation.error.value
+  if (isInvalidCredentialError(error)) {
+    return t('auth.loginFailed')
+  }
+  return error instanceof Error ? error.message : t('auth.loginFailed')
+})
+
+const loginRedirectTarget = computed(() => {
+  const redirect = route.query.redirect
+  return typeof redirect === 'string' && redirect.startsWith('/') ? redirect : '/'
 })
 
 function submit() {
   mutation.mutate({ username: username.value, password: password.value })
+}
+
+function isInvalidCredentialError(error: unknown) {
+  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: number }).code === 110101
 }
 </script>
 
