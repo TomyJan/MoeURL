@@ -19,11 +19,12 @@
         <v-text-field v-model="password" :label="t('auth.password')" type="password" variant="outlined" />
         <Transition name="moe-overlay">
           <v-snackbar
-            v-if="mutation.isError.value"
+            v-if="loginErrorSnackbarOpen"
             class="auth-page__toast"
             data-testid="auth-error-toast"
-            :model-value="true"
+            :model-value="loginErrorSnackbarOpen"
             :timeout="5000"
+            @update:model-value="setLoginErrorSnackbarOpen"
           >
             {{ loginErrorMessage }}
           </v-snackbar>
@@ -37,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useMutation } from '@tanstack/vue-query'
@@ -50,6 +51,8 @@ const router = useRouter()
 const route = useRoute()
 const username = ref('')
 const password = ref('')
+const loginErrorSnackbarOpen = ref(false)
+const INVALID_CREDENTIAL_ERROR_CODE = 110101
 const mutation = useMutation({
   mutationFn: login,
   onSuccess(data) {
@@ -58,6 +61,14 @@ const mutation = useMutation({
     void router.push(loginRedirectTarget.value)
   },
 })
+
+watch(
+  () => [mutation.isError.value, mutation.error.value] as const,
+  ([isError]) => {
+    loginErrorSnackbarOpen.value = isError
+  },
+  { immediate: true },
+)
 
 const loginErrorMessage = computed(() => {
   const error = mutation.error.value
@@ -76,8 +87,12 @@ function submit() {
   mutation.mutate({ username: username.value, password: password.value })
 }
 
+function setLoginErrorSnackbarOpen(value: boolean) {
+  loginErrorSnackbarOpen.value = value
+}
+
 function isInvalidCredentialError(error: unknown) {
-  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: number }).code === 110101
+  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: number }).code === INVALID_CREDENTIAL_ERROR_CODE
 }
 </script>
 

@@ -26,7 +26,7 @@ export const componentStubs: Record<string, Component> = {
   VSnackbar: {
     props: ['modelValue', 'timeout'],
     emits: ['update:modelValue'],
-    template: '<div v-if="modelValue" role="status"><slot /></div>',
+    template: '<div v-if="modelValue" role="status"><slot /><button type="button" aria-label="snackbar.close" @click="$emit(\'update:modelValue\', false)" /></div>',
   },
   VTextField: {
     props: ['disabled', 'errorMessages', 'label', 'modelValue', 'placeholder', 'type'],

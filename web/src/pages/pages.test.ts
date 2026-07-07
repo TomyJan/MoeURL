@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/vue'
+import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { isRef, ref } from 'vue'
 
@@ -233,6 +234,28 @@ describe('pages', () => {
       expect.objectContaining({ user: expect.objectContaining({ username: 'alice' }) }),
     )
     expect(state.routerPush).toHaveBeenCalledWith('/admin/user')
+  })
+
+  it('lets users dismiss the login error toast without clearing form state', async () => {
+    setMutationResult({
+      error: ref({ code: 110101, message: 'Invalid username or password' }),
+      isError: ref(true),
+      mutate: vi.fn(),
+    })
+    mount(LoginPage)
+
+    expect(screen.getByTestId('auth-error-toast')).toBeTruthy()
+
+    await fireEvent.click(screen.getByLabelText('snackbar.close'))
+
+    expect(screen.queryByTestId('auth-error-toast')).toBeNull()
+  })
+
+  it('keeps login business error codes named', () => {
+    const source = readFileSync('src/pages/LoginPage.vue', 'utf8')
+
+    expect(source).toContain('INVALID_CREDENTIAL_ERROR_CODE')
+    expect(source).not.toContain('=== 110101')
   })
 
   it('shows non-auth login errors and ignores unsafe redirect targets', async () => {
