@@ -27,7 +27,10 @@ export function createRequireConsoleAccess(loadCurrentUser = me): ConsoleAccessG
   const guard = async (to?: { fullPath?: string }) => {
     try {
       const result = await loadCurrentUser()
-      return result.user.group === 'guest' ? createLoginRedirect(to?.fullPath) : true
+      if (result.user.group === 'guest') {
+        return createLoginRedirect(to?.fullPath)
+      }
+      return result.user.permissions.includes('short_link:read_own') ? true : '/'
     } catch {
       return createLoginRedirect(to?.fullPath)
     }

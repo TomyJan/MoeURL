@@ -6,7 +6,7 @@ import HomePage from '@/pages/HomePage.vue'
 
 vi.mock('@/entities/auth/api', () => ({
   me: vi.fn(async () => ({
-    user: { id: 'admin-id', username: 'admin', nickname: 'Admin', group: 'admin', permissions: ['admin:access'] },
+    user: { id: 'admin-id', username: 'admin', nickname: 'Admin', group: 'admin', permissions: ['admin:access', 'short_link:read_own'] },
   })),
 }))
 
@@ -67,6 +67,9 @@ describe('router', () => {
     const regular = vi.fn(async () => ({
       user: { id: 'user-id', username: 'alice', nickname: 'Alice', group: 'user', permissions: ['short_link:read_own'] },
     }))
+    const withoutOwnLinks = vi.fn(async () => ({
+      user: { id: 'user-id', username: 'alice', nickname: 'Alice', group: 'user', permissions: [] },
+    }))
     const guest = vi.fn(async () => ({
       user: { id: 'guest-id', username: 'guest', nickname: 'Guest', group: 'guest', permissions: [] },
     }))
@@ -75,6 +78,7 @@ describe('router', () => {
     })
 
     await expect(createRequireConsoleAccess(regular)()).resolves.toBe(true)
+    await expect(createRequireConsoleAccess(withoutOwnLinks)()).resolves.toBe('/')
     await expect(createRequireConsoleAccess(guest)({ fullPath: '/link' } as never, {} as never, vi.fn())).resolves.toEqual({
       path: '/login',
       query: { redirect: '/link' },
@@ -116,6 +120,18 @@ describe('router', () => {
     await expect(requireConsoleAccess()).resolves.toBe(true)
     await expect(requireAdminAccess()).resolves.toBe(true)
 
+    expect(me).toHaveBeenCalled()
+  })
+
+  it('redirects signed-in users without own-link read permission during console navigation', async () => {
+    vi.mocked(me).mockResolvedValueOnce({
+      user: { id: 'user-id', username: 'alice', nickname: 'Alice', group: 'user', permissions: [] },
+    })
+
+    await router.push('/link')
+    await router.isReady()
+
+    expect(router.currentRoute.value.path).toBe('/')
     expect(me).toHaveBeenCalled()
   })
 
