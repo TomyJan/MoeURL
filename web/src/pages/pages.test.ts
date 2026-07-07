@@ -235,6 +235,25 @@ describe('pages', () => {
     expect(state.routerPush).toHaveBeenCalledWith('/admin/user')
   })
 
+  it('shows non-auth login errors and ignores unsafe redirect targets', async () => {
+    const mutate = vi.fn()
+    state.routeQuery = { redirect: 'https://evil.example' }
+    setMutationResult({
+      error: ref(new Error('network unavailable')),
+      isError: ref(true),
+      mutate,
+    })
+    mount(LoginPage)
+
+    await fireEvent.update(screen.getByLabelText('auth.username'), 'alice')
+    await fireEvent.update(screen.getByLabelText('auth.password'), 'secret')
+    await fireEvent.click(screen.getByText('auth.loginSubmit'))
+
+    expect(screen.getByText('network unavailable')).toBeTruthy()
+    expect(mutate).toHaveBeenCalledWith({ username: 'alice', password: 'secret' })
+    expect(state.routerPush).toHaveBeenCalledWith('/')
+  })
+
   it('renders setup loading, initialized, and submit states', async () => {
     setQueryResult({ isLoading: ref(true) })
     const loading = mount(SetupPage)
@@ -455,6 +474,35 @@ describe('pages', () => {
     expect((within(otherRow).getByRole('button', { name: 'links.actions.disable' }) as HTMLButtonElement).disabled).toBe(false)
   })
 
+  it('scopes own link deleting state to the active row', async () => {
+    setQueryResult({
+      data: ref({
+        items: [
+          { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' },
+          { id: 'link-other', url: 'https://go.example.com/def456', slug: 'def456', targetUrl: 'https://example.org', status: 'active' },
+        ],
+      }),
+    })
+    setMutationResult({
+      isPending: ref(true),
+      variables: ref('link-id'),
+    })
+    mount(MyLinksPage)
+
+    const rows = screen.getAllByTestId('console-link-row')
+    const activeRow = rows.find((row) => within(row).queryByText('https://go.example.com/abc123'))
+    const otherRow = rows.find((row) => within(row).queryByText('https://go.example.com/def456'))
+    if (!activeRow || !otherRow) {
+      throw new Error('expected short link rows')
+    }
+
+    await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.more' }))
+    expect((within(activeRow).getByRole('button', { name: 'links.actions.delete' }) as HTMLButtonElement).disabled).toBe(true)
+
+    await fireEvent.click(within(otherRow).getByRole('button', { name: 'links.actions.more' }))
+    expect((within(otherRow).getByRole('button', { name: 'links.actions.delete' }) as HTMLButtonElement).disabled).toBe(false)
+  })
+
   it('toggles link and user action panels closed on repeated clicks', async () => {
     setMutationResult({ mutate: vi.fn() })
     setQueryResult({
@@ -545,6 +593,36 @@ describe('pages', () => {
     expect(mutate).toHaveBeenCalledWith({ id: 'link-id', status: 'active' })
     expect(mutate).toHaveBeenCalledWith({ id: 'link-active', status: 'disabled' })
     expect(mutate).toHaveBeenCalledWith('link-id')
+  })
+
+  it('scopes admin link deleting state to the active row', async () => {
+    setQueryResult({
+      data: ref({
+        meta: { total: 2 },
+        items: [
+          { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', owner: { id: 'owner-id', username: 'alice', nickname: '' } },
+          { id: 'link-other', url: 'https://go.example.com/def456', slug: 'def456', targetUrl: 'https://example.org', status: 'active', owner: { id: 'owner-2', username: 'bob', nickname: '' } },
+        ],
+      }),
+    })
+    setMutationResult({
+      isPending: ref(true),
+      variables: ref('link-id'),
+    })
+    mount(AdminLinksPage)
+
+    const rows = screen.getAllByTestId('console-link-row')
+    const activeRow = rows.find((row) => within(row).queryByText('https://go.example.com/abc123'))
+    const otherRow = rows.find((row) => within(row).queryByText('https://go.example.com/def456'))
+    if (!activeRow || !otherRow) {
+      throw new Error('expected admin short link rows')
+    }
+
+    await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.more' }))
+    expect((within(activeRow).getByRole('button', { name: 'links.actions.delete' }) as HTMLButtonElement).disabled).toBe(true)
+
+    await fireEvent.click(within(otherRow).getByRole('button', { name: 'links.actions.more' }))
+    expect((within(otherRow).getByRole('button', { name: 'links.actions.delete' }) as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('queries admin links with filter state', async () => {
@@ -788,6 +866,55 @@ describe('pages', () => {
 
     await fireEvent.click(within(aliceRow).getByRole('button', { name: 'adminUsers.actions.edit' }))
     expect((within(aliceRow).getByRole('button', { name: 'adminUsers.saveNickname' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('scopes admin user password reset loading state to the active row', async () => {
+    setQueryResult({
+      data: ref({
+        meta: { total: 2 },
+        items: [
+          {
+            id: 'user-id',
+            username: 'alice',
+            nickname: 'Alice',
+            group: 'user',
+            status: 'active',
+            builtin: false,
+            createdAt: '2026-06-08T00:00:00Z',
+            updatedAt: '2026-06-08T00:00:00Z',
+          },
+          {
+            id: 'other-id',
+            username: 'bob',
+            nickname: 'Bob',
+            group: 'user',
+            status: 'active',
+            builtin: false,
+            createdAt: '2026-06-08T00:00:00Z',
+            updatedAt: '2026-06-08T00:00:00Z',
+          },
+        ],
+      }),
+    })
+    setMutationResult({
+      isPending: ref(true),
+      variables: ref({ id: 'user-id', password: 'new-password' }),
+    })
+
+    mount(AdminUsersPage)
+
+    const rows = screen.getAllByTestId('console-user-row')
+    const aliceRow = rows.find((row) => within(row).queryByText('alice'))
+    const bobRow = rows.find((row) => within(row).queryByText('bob'))
+    if (!aliceRow || !bobRow) {
+      throw new Error('expected user rows')
+    }
+
+    await fireEvent.click(within(bobRow).getByRole('button', { name: 'adminUsers.actions.more' }))
+    expect((within(bobRow).getByRole('button', { name: 'adminUsers.resetPassword' }) as HTMLButtonElement).disabled).toBe(false)
+
+    await fireEvent.click(within(aliceRow).getByRole('button', { name: 'adminUsers.actions.more' }))
+    expect((within(aliceRow).getByRole('button', { name: 'adminUsers.resetPassword' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('submits admin user fallback actions for disabled users', async () => {

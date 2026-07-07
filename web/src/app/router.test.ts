@@ -75,6 +75,7 @@ describe('router', () => {
       path: '/login',
       query: { redirect: '/console' },
     })
+    await expect(createRequireConsoleAccess(guest)()).resolves.toBe('/login')
   })
 
   it('allows admins and redirects non-admin users before entering admin routes', async () => {
