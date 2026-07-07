@@ -54,6 +54,7 @@ export const requireConsoleAccess = createRequireConsoleAccess()
 export const requireAdminAccess = createRequireAdminAccess()
 
 export const routes: RouteRecordRaw[] = [
+  // Keep the public homepage before the ConsoleShell parent: both records use '/', and vue-router resolves by definition order.
   { path: '/', component: HomePage },
   { path: '/setup', component: SetupPage },
   { path: '/login', component: LoginPage },

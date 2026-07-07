@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createRequireConsoleAccess, createRequireAdminAccess, requireAdminAccess, requireConsoleAccess, router, routes } from './router'
 import { me } from '@/entities/auth/api'
+import HomePage from '@/pages/HomePage.vue'
 
 vi.mock('@/entities/auth/api', () => ({
   me: vi.fn(async () => ({
@@ -53,6 +54,13 @@ describe('router', () => {
       expect.arrayContaining(['/link', '/admin/link', '/admin/user', '/admin/user/new']),
     )
     expect(consoleRoute?.children?.every((route) => route.meta?.requiresConsole === true)).toBe(true)
+  })
+
+  it('resolves the public root path to home before the console shell parent', async () => {
+    await router.push('/')
+    await router.isReady()
+
+    expect(router.currentRoute.value.matched[0]?.components?.default).toBe(HomePage)
   })
 
   it('allows signed-in users and redirects guests before entering console routes', async () => {
