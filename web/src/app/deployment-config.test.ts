@@ -35,8 +35,11 @@ describe('deployment configuration', () => {
     const config = readFileSync(resolve(repositoryRoot, 'web/playwright.config.ts'), 'utf8')
 
     expect(config).toContain('MOEURL_E2E_COMPOSE_PROJECT')
-    expect(config).toContain('docker compose -p')
-    expect(config).toContain('down -v')
+    expect(config).toContain("execFileSync(\\'docker\\'")
+    expect(config).toContain("\\'compose\\', \\'-p\\'")
+    expect(config).toContain("\\'down\\', \\'-v\\'")
+    expect(config).toContain('catch')
     expect(config).not.toContain('docker compose down -v && docker compose up --build')
+    expect(config).not.toContain('down -v && docker compose')
   })
 })

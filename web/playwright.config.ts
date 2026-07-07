@@ -16,9 +16,11 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    command: `docker compose -p ${composeProjectName} down -v && docker compose -p ${composeProjectName} up --build`,
+    command:
+      'node -e "const { execFileSync } = require(\'node:child_process\'); const project = process.env.MOEURL_E2E_COMPOSE_PROJECT; try { execFileSync(\'docker\', [\'compose\', \'-p\', project, \'down\', \'-v\'], { stdio: \'inherit\' }); } catch {} execFileSync(\'docker\', [\'compose\', \'-p\', project, \'up\', \'--build\'], { stdio: \'inherit\' });"',
     cwd: '..',
     env: {
+      MOEURL_E2E_COMPOSE_PROJECT: composeProjectName,
       MOEURL_ENV: 'development',
       MOEURL_HTTP_PORT: e2ePort,
       MOEURL_POSTGRES_PORT: e2ePostgresPort,
