@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/vue'
-import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { defineComponent, h, nextTick, onMounted, ref } from 'vue'
 
 import App from './App.vue'
 import { componentStubs } from '@/test/component-stubs'
@@ -62,7 +61,7 @@ describe('App', () => {
         stubs: {
           ...componentStubs,
           RouterView: {
-            template: '<div data-testid="router-view"><slot :Component="{ template: \'<section data-testid=\\\'route-component\\\'>route</section>\' }" :route="{ fullPath: \'/route\' }" /></div>',
+            template: `<div data-testid="router-view"><slot :Component="{ template: '<section data-testid=\\'route-component\\'>route</section>' }" :route="{ fullPath: '/route' }" /></div>`,
           },
         },
       },
@@ -88,10 +87,36 @@ describe('App', () => {
     expect(screen.getByTestId('app-route-transition')).toBeTruthy()
   })
 
-  it('keys routed components by the current route path', () => {
-    const source = readFileSync('src/app/App.vue', 'utf8')
+  it('remounts the routed component when the route full path changes', async () => {
+    const mountCount = ref(0)
+    const routeFullPath = ref('/')
+    const RoutedComponent = defineComponent({
+      setup() {
+        onMounted(() => {
+          mountCount.value += 1
+        })
+        return () => h('section', { 'data-testid': 'route-component' }, `mounted ${mountCount.value}`)
+      },
+    })
 
-    expect(source).toContain('v-slot="{ Component, route }"')
-    expect(source).toContain(':key="route.fullPath"')
+    render(App, {
+      global: {
+        stubs: {
+          ...componentStubs,
+          RouterView: {
+            components: { RoutedComponent },
+            setup(_, { slots }) {
+              return () => h('div', { 'data-testid': 'router-view' }, slots.default?.({ Component: RoutedComponent, route: { fullPath: routeFullPath.value } }))
+            },
+          },
+        },
+      },
+    })
+
+    expect(mountCount.value).toBe(1)
+    routeFullPath.value = '/link?status=active'
+    await nextTick()
+
+    expect(mountCount.value).toBe(2)
   })
 })
