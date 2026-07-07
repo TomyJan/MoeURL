@@ -154,9 +154,15 @@ describe('PreferenceSwitcher', () => {
 
   it('uses theme tokens for theme preview icon colors', () => {
     const source = readFileSync('src/shared/preferences/PreferenceSwitcher.vue', 'utf8')
+    const lightMarkBlock = source.match(/\.preference-switcher__mark--light\s*{[^}]+}/)?.[0] ?? ''
+    const lightGraphicBlock = source.match(/\.preference-switcher__theme-graphic--light\s*{[^}]+}/)?.[0] ?? ''
 
     expect(source).toContain('.preference-switcher__mark--light')
     expect(source).toContain('rgb(var(--v-theme-primary))')
+    expect(lightMarkBlock).toContain('rgb(var(--v-theme-primary))')
+    expect(lightMarkBlock).not.toContain('rgb(var(--v-theme-secondary))')
+    expect(lightGraphicBlock).toContain('rgb(var(--v-theme-primary))')
+    expect(lightGraphicBlock).not.toContain('rgb(var(--v-theme-secondary))')
     expect(source).not.toContain('color: #c47a4a')
     expect(source).not.toContain('color: #8ab8e8')
   })

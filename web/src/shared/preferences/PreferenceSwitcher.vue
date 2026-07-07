@@ -259,7 +259,7 @@ onBeforeUnmount(() => {
 }
 
 .preference-switcher__mark--light {
-  color: rgb(var(--v-theme-secondary));
+  color: rgb(var(--v-theme-primary));
 }
 
 .preference-switcher__mark--dark {
@@ -397,8 +397,8 @@ onBeforeUnmount(() => {
 }
 
 .preference-switcher__theme-graphic--light {
-  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 13%, transparent);
-  color: rgb(var(--v-theme-secondary));
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 13%, transparent);
+  color: rgb(var(--v-theme-primary));
 }
 
 .preference-switcher__theme-graphic--dark {
