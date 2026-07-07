@@ -38,8 +38,6 @@ const primaryItems = [
 const secondaryItems = [
   { key: 'management', mark: '03' },
   { key: 'modern', mark: '04' },
-  { key: 'workflow', mark: '05' },
-  { key: 'deploy', mark: '06' },
 ]
 </script>
 
@@ -94,14 +92,14 @@ const secondaryItems = [
 
 .home-intro__grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
 }
 
 .home-intro__item {
   display: grid;
   gap: 10px;
-  min-height: 210px;
+  min-height: 160px;
   padding: 22px;
   border: 1px solid var(--moeurl-outline);
   border-radius: var(--moeurl-radius-card);

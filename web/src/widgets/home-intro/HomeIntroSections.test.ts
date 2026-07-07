@@ -10,7 +10,7 @@ vi.mock('vue-i18n', () => ({
 }))
 
 describe('HomeIntroSections', () => {
-  it('renders richer product introduction sections and footer copyright', () => {
+  it('keeps the below-fold product introduction lightweight', () => {
     render(HomeIntroSections)
 
     expect(screen.getByLabelText('homeIntro.ariaLabel')).toBeTruthy()
@@ -18,8 +18,8 @@ describe('HomeIntroSections', () => {
     expect(screen.getByText('homeIntro.selfHosted.title')).toBeTruthy()
     expect(screen.getByText('homeIntro.management.title')).toBeTruthy()
     expect(screen.getByText('homeIntro.modern.title')).toBeTruthy()
-    expect(screen.getByText('homeIntro.workflow.title')).toBeTruthy()
-    expect(screen.getByText('homeIntro.deploy.title')).toBeTruthy()
+    expect(screen.queryByText('homeIntro.workflow.title')).toBeNull()
+    expect(screen.queryByText('homeIntro.deploy.title')).toBeNull()
     expect(screen.getByText('homeIntro.footerCopyright')).toBeTruthy()
   })
 })
