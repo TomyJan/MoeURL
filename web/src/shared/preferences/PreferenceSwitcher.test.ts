@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/vue'
+import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import PreferenceSwitcher from './PreferenceSwitcher.vue'
@@ -20,6 +21,7 @@ vi.mock('vue-i18n', () => ({
       ({
         'preferences.language': '选择语言',
         'preferences.languageOptions': '语言选项',
+        'preferences.groupLabel': '应用偏好',
         'preferences.theme': '选择主题',
         'preferences.themeOptions': '主题选项',
         'preferences.system': '跟随系统',
@@ -59,7 +61,7 @@ describe('PreferenceSwitcher', () => {
   it('selects language and theme from two dropdown menus', async () => {
     render(PreferenceSwitcher)
 
-    expect(screen.getByRole('group', { name: 'app preferences' })).toBeTruthy()
+    expect(screen.getByRole('group', { name: '应用偏好' })).toBeTruthy()
 
     const languageButton = screen.getByRole('button', { name: '选择语言' })
     const themeButton = screen.getByRole('button', { name: '选择主题' })
@@ -136,7 +138,7 @@ describe('PreferenceSwitcher', () => {
   })
 
   it('uses familiar icon affordances instead of text-only or custom-drawn marks', () => {
-    render(PreferenceSwitcher)
+    const { container } = render(PreferenceSwitcher)
 
     expect(screen.getByTestId('preference-icon-language')).toBeTruthy()
     expect(
@@ -145,5 +147,15 @@ describe('PreferenceSwitcher', () => {
         screen.queryByTestId('preference-icon-theme-system'),
     ).toBeTruthy()
     expect(screen.getByRole('button', { name: '选择语言' }).textContent).not.toContain('Aa')
+    expect(container.querySelector('.preference-switcher__mark--theme')).toBeTruthy()
+  })
+
+  it('uses theme tokens for theme preview icon colors', () => {
+    const source = readFileSync('src/shared/preferences/PreferenceSwitcher.vue', 'utf8')
+
+    expect(source).toContain('.preference-switcher__mark--light')
+    expect(source).toContain('rgb(var(--v-theme-primary))')
+    expect(source).not.toContain('color: #c47a4a')
+    expect(source).not.toContain('color: #8ab8e8')
   })
 })

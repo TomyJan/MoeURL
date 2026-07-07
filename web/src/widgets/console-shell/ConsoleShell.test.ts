@@ -84,11 +84,14 @@ function setCurrentUser(user: {
 }) {
   state.queryResult = {
     data: ref({ user }),
+    isError: ref(false),
+    isPending: ref(false),
   }
 }
 
 describe('ConsoleShell', () => {
   beforeEach(() => {
+    document.body.style.overflow = ''
     state.invalidateQueries.mockReset()
     state.logoutMutate.mockReset()
     state.routerPush.mockReset()
@@ -108,7 +111,7 @@ describe('ConsoleShell', () => {
     expect(screen.getByText('console content')).toBeTruthy()
     const sidebarUtilities = screen.getByTestId('console-sidebar-utilities')
     expect(within(sidebarUtilities).getByTestId('console-sidebar-home')).toBeTruthy()
-    expect(within(sidebarUtilities).getByRole('group', { name: 'app preferences' })).toBeTruthy()
+    expect(within(sidebarUtilities).getByRole('group', { name: 'preferences.groupLabel' })).toBeTruthy()
     expect(screen.queryByText('short links')).toBeNull()
     expect(screen.getByText('console.nav.workspace')).toBeTruthy()
     expect(screen.getByText('nav.links')).toBeTruthy()
@@ -116,7 +119,7 @@ describe('ConsoleShell', () => {
     expect(screen.queryByText('nav.users')).toBeNull()
     expect(screen.queryByText('page.createUser')).toBeNull()
     expect(within(screen.getByTestId('console-account')).getByText('Alice')).toBeTruthy()
-    expect(screen.getAllByRole('group', { name: 'app preferences' }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('group', { name: 'preferences.groupLabel' }).length).toBeGreaterThan(0)
   })
 
   it('shows administrator navigation as grouped two-level sections without create-user nav', async () => {
@@ -171,6 +174,26 @@ describe('ConsoleShell', () => {
     expect(screen.getByText('shortLinkCreate.submit')).toBeTruthy()
   })
 
+  it('closes overlays from backdrop click and Escape while locking background scroll', async () => {
+    mountShell()
+
+    await fireEvent.click(screen.getAllByText('console.newShortLink')[0])
+    expect(screen.getByTestId('console-create-transition')).toBeTruthy()
+    expect(document.body.style.overflow).toBe('hidden')
+
+    await fireEvent.click(screen.getByRole('dialog'))
+    expect(screen.queryByTestId('console-create-transition')).toBeNull()
+    expect(document.body.style.overflow).toBe('')
+
+    await fireEvent.click(screen.getByLabelText('console.openMenu'))
+    expect(screen.getByTestId('console-mobile-nav')).toBeTruthy()
+    expect(document.body.style.overflow).toBe('hidden')
+
+    await fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByTestId('console-mobile-nav')).toBeNull()
+    expect(document.body.style.overflow).toBe('')
+  })
+
   it('opens mobile navigation from the hamburger button', async () => {
     mountShell()
 
@@ -183,7 +206,7 @@ describe('ConsoleShell', () => {
     expect(screen.getByTestId('console-drawer-transition')).toBeTruthy()
     const mobileUtilities = within(screen.getByTestId('console-mobile-nav')).getByTestId('console-mobile-utilities')
     expect(within(mobileUtilities).getByTestId('console-mobile-home')).toBeTruthy()
-    expect(within(mobileUtilities).getByRole('group', { name: 'app preferences' })).toBeTruthy()
+    expect(within(mobileUtilities).getByRole('group', { name: 'preferences.groupLabel' })).toBeTruthy()
     expect(within(screen.getByTestId('console-mobile-nav')).getByText('nav.links')).toBeTruthy()
   })
 
@@ -237,6 +260,18 @@ describe('ConsoleShell', () => {
     expect(state.routerPush).toHaveBeenCalledWith('/login')
   })
 
+  it('redirects to login when the current user query fails in the shell', () => {
+    state.queryResult = {
+      data: ref(undefined),
+      isError: ref(true),
+      isPending: ref(false),
+    }
+
+    mountShell()
+
+    expect(state.routerPush).toHaveBeenCalledWith('/login')
+  })
+
   it('keeps parent expansion visually separate from active child navigation', () => {
     const source = readFileSync('src/widgets/console-shell/ConsoleNavList.vue', 'utf8')
 
@@ -246,5 +281,12 @@ describe('ConsoleShell', () => {
     expect(source).toContain('background: color-mix(in srgb, var(--moeurl-surface-strong) 40%, transparent)')
     expect(source).toContain('.console-nav-list__badge')
     expect(source).toContain('background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 14%, transparent)')
+  })
+
+  it('rebuilds expanded navigation groups from the current route instead of accumulating old matches', () => {
+    const source = readFileSync('src/widgets/console-shell/ConsoleNavList.vue', 'utf8')
+
+    expect(source).toContain('const nextExpandedGroups = new Set<string>()')
+    expect(source).toContain('expandedGroups.value = nextExpandedGroups')
   })
 })

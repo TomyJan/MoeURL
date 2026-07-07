@@ -41,6 +41,7 @@ export const messages = {
       scrollHint: '继续了解 MoeURL',
     },
     homeIntro: {
+      ariaLabel: 'MoeURL 介绍',
       headingEyebrow: '为什么是 MoeURL',
       headingTitle: '为自托管和小团队准备的短链工作流',
       permission: {
@@ -151,6 +152,8 @@ export const messages = {
       copy: '复制短链',
       open: '打开短链',
       reset: '继续创建',
+      invalidUrl: '请输入有效的 URL',
+      copyFailed: '复制失败，请手动复制短链。',
       failed: '创建失败，请检查链接和权限',
     },
     console: {
@@ -167,6 +170,7 @@ export const messages = {
       },
     },
     preferences: {
+      groupLabel: '应用偏好',
       language: '选择语言',
       languageOptions: '语言选项',
       theme: '选择主题',
@@ -325,6 +329,7 @@ export const messages = {
       scrollHint: 'Learn more about MoeURL',
     },
     homeIntro: {
+      ariaLabel: 'MoeURL introduction',
       headingEyebrow: 'Why MoeURL',
       headingTitle: 'A short-link workflow built for self-hosted teams',
       permission: {
@@ -435,6 +440,8 @@ export const messages = {
       copy: 'Copy link',
       open: 'Open link',
       reset: 'Create another',
+      invalidUrl: 'Enter a valid URL',
+      copyFailed: 'Copy failed. Copy the short link manually.',
       failed: 'Failed to create the short link. Check the URL and permissions.',
     },
     console: {
@@ -451,6 +458,7 @@ export const messages = {
       },
     },
     preferences: {
+      groupLabel: 'App preferences',
       language: 'Select language',
       languageOptions: 'Language options',
       theme: 'Select theme',

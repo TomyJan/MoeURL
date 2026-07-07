@@ -15,15 +15,15 @@
       :username="username"
       @create-short-link="openCreatePanel"
       @logout="submitLogout"
-      @open-menu="mobileNavOpen = true"
+      @open-menu="openMobileNav"
     />
 
     <Transition name="moe-overlay">
-      <div v-if="mobileNavOpen" class="console-shell__mobile-nav" data-testid="console-mobile-nav">
+      <div v-if="mobileNavOpen" class="console-shell__mobile-nav" data-testid="console-mobile-nav" @click.self="closeOverlays">
         <div class="console-shell__mobile-panel moe-overlay-panel" data-testid="console-drawer-transition">
           <div class="console-shell__mobile-head">
             <RouterLink class="console-shell__mobile-brand" to="/" @click="closeMobileNav">MoeURL</RouterLink>
-            <button class="console-shell__mobile-close" type="button" @click="mobileNavOpen = false">
+            <button class="console-shell__mobile-close" type="button" @click="closeMobileNav">
               {{ t('console.closeMenu') }}
             </button>
           </div>
@@ -58,11 +58,11 @@
     </main>
 
     <Transition name="moe-overlay">
-      <div v-if="createPanelOpen" class="console-shell__dialog" role="dialog" aria-modal="true">
+      <div v-if="createPanelOpen" class="console-shell__dialog" role="dialog" aria-modal="true" @click.self="closeOverlays">
         <section class="console-shell__dialog-panel moe-overlay-panel" data-testid="console-create-transition">
           <div class="console-shell__dialog-heading">
             <h2>{{ t('console.createShortLink') }}</h2>
-            <button type="button" @click="createPanelOpen = false">{{ t('console.closeCreate') }}</button>
+            <button type="button" @click="closeCreatePanel">{{ t('console.closeCreate') }}</button>
           </div>
           <ShortLinkCreatePanel mode="compact" />
         </section>
@@ -72,7 +72,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -101,6 +101,7 @@ const currentUser = computed(() => currentUserQuery.data.value?.user)
 const displayName = computed(() => currentUser.value?.nickname || currentUser.value?.username || 'guest')
 const username = computed(() => currentUser.value?.username || 'guest')
 const permissions = computed(() => currentUser.value?.permissions ?? [])
+const overlaysOpen = computed(() => mobileNavOpen.value || createPanelOpen.value)
 const navGroups = computed<ConsoleNavGroup[]>(() => {
   const groups: ConsoleNavGroup[] = []
   if (permissions.value.includes('short_link:read_own')) {
@@ -140,6 +141,50 @@ const logoutMutation = useMutation({
   },
 })
 
+let previousBodyOverflow: string | undefined
+
+watch(
+  () => currentUserQuery.isError.value,
+  (isError) => {
+    if (isError) {
+      void router.push('/login')
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  overlaysOpen,
+  (isOpen) => {
+    if (!globalThis.document?.body) {
+      return
+    }
+    if (isOpen) {
+      previousBodyOverflow ??= globalThis.document.body.style.overflow
+      globalThis.document.body.style.overflow = 'hidden'
+      return
+    }
+    globalThis.document.body.style.overflow = previousBodyOverflow ?? ''
+    previousBodyOverflow = undefined
+  },
+  { immediate: true },
+)
+
+onMounted(() => {
+  globalThis.document?.addEventListener('keydown', handleKeyDown)
+})
+
+onBeforeUnmount(() => {
+  globalThis.document?.removeEventListener('keydown', handleKeyDown)
+  if (globalThis.document?.body) {
+    globalThis.document.body.style.overflow = previousBodyOverflow ?? ''
+  }
+})
+
+function openMobileNav() {
+  mobileNavOpen.value = true
+}
+
 function closeMobileNav() {
   mobileNavOpen.value = false
 }
@@ -149,10 +194,24 @@ function openCreatePanel() {
   closeMobileNav()
 }
 
+function closeCreatePanel() {
+  createPanelOpen.value = false
+}
+
+function closeOverlays() {
+  mobileNavOpen.value = false
+  createPanelOpen.value = false
+}
+
 function submitLogout() {
   logoutMutation.mutate()
 }
 
+function handleKeyDown(event: globalThis.KeyboardEvent) {
+  if (event.key === 'Escape') {
+    closeOverlays()
+  }
+}
 </script>
 
 <style scoped>

@@ -4,7 +4,7 @@
     class="preference-switcher"
     :class="[`preference-switcher--${density}`, `preference-switcher--${placement}`]"
     role="group"
-    aria-label="app preferences"
+    :aria-label="t('preferences.groupLabel')"
   >
     <div class="preference-switcher__menu">
       <button
@@ -257,12 +257,12 @@ onBeforeUnmount(() => {
 }
 
 .preference-switcher__mark--light {
-  color: #c47a4a;
+  color: rgb(var(--v-theme-secondary));
 }
 
 .preference-switcher__mark--dark {
-  background: color-mix(in srgb, #101722 86%, var(--moeurl-surface-elevated));
-  color: #8ab8e8;
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 14%, var(--moeurl-surface-elevated));
+  color: rgb(var(--v-theme-primary));
 }
 
 .preference-switcher__mark--system {
@@ -395,13 +395,13 @@ onBeforeUnmount(() => {
 }
 
 .preference-switcher__theme-graphic--light {
-  background: color-mix(in srgb, #c47a4a 13%, transparent);
-  color: #c47a4a;
+  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 13%, transparent);
+  color: rgb(var(--v-theme-secondary));
 }
 
 .preference-switcher__theme-graphic--dark {
-  background: color-mix(in srgb, #101722 86%, var(--moeurl-surface-elevated));
-  color: #8ab8e8;
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 14%, var(--moeurl-surface-elevated));
+  color: rgb(var(--v-theme-primary));
 }
 
 .preference-switcher--compact .preference-switcher__trigger {

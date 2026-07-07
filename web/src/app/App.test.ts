@@ -76,7 +76,7 @@ describe('App', () => {
   it('leaves preference controls to page layouts instead of floating globally', () => {
     render(App, { global: { stubs: componentStubs } })
 
-    expect(screen.queryByLabelText('app preferences')).toBeNull()
+    expect(screen.queryByLabelText('preferences.groupLabel')).toBeNull()
     expect(screen.queryByRole('button', { name: '切换语言' })).toBeNull()
     expect(screen.queryByRole('button', { name: '切换主题' })).toBeNull()
   })

@@ -56,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, watchEffect } from 'vue'
+import { ref, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
@@ -89,24 +89,29 @@ defineEmits<{
 
 const { t } = useI18n()
 const route = useRoute()
-const expandedGroups = reactive(new Set<string>())
+const expandedGroups = ref(new Set<string>())
 
 watchEffect(() => {
+  const nextExpandedGroups = new Set<string>()
   for (const group of props.navGroups) {
     for (const item of group.items) {
       if (item.children?.some((child) => child.to === route.path)) {
-        expandedGroups.add(item.labelKey)
+        nextExpandedGroups.add(item.labelKey)
       }
     }
   }
+  expandedGroups.value = nextExpandedGroups
 })
 
 function toggleGroup(labelKey: string) {
-  if (expandedGroups.has(labelKey)) {
-    expandedGroups.delete(labelKey)
+  const nextExpandedGroups = new Set(expandedGroups.value)
+  if (nextExpandedGroups.has(labelKey)) {
+    nextExpandedGroups.delete(labelKey)
+    expandedGroups.value = nextExpandedGroups
     return
   }
-  expandedGroups.add(labelKey)
+  nextExpandedGroups.add(labelKey)
+  expandedGroups.value = nextExpandedGroups
 }
 </script>
 

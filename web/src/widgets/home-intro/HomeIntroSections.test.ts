@@ -13,6 +13,7 @@ describe('HomeIntroSections', () => {
   it('renders richer product introduction sections and footer copyright', () => {
     render(HomeIntroSections)
 
+    expect(screen.getByLabelText('homeIntro.ariaLabel')).toBeTruthy()
     expect(screen.getByText('homeIntro.permission.title')).toBeTruthy()
     expect(screen.getByText('homeIntro.selfHosted.title')).toBeTruthy()
     expect(screen.getByText('homeIntro.management.title')).toBeTruthy()

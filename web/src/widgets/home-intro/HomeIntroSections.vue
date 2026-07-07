@@ -1,5 +1,5 @@
 <template>
-  <section class="home-intro" aria-label="MoeURL introduction">
+  <section class="home-intro" :aria-label="t('homeIntro.ariaLabel')">
     <div class="home-intro__heading">
       <p>{{ t('homeIntro.headingEyebrow') }}</p>
       <h2>{{ t('homeIntro.headingTitle') }}</h2>
