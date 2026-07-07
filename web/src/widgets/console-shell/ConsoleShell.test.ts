@@ -276,6 +276,23 @@ describe('ConsoleShell', () => {
     })
   })
 
+  it('redirects to login when the current user query resolves to guest', () => {
+    state.routePath = '/link?status=active'
+    setCurrentUser({
+      username: 'guest',
+      nickname: 'Guest',
+      group: 'guest',
+      permissions: [],
+    })
+
+    mountShell()
+
+    expect(state.routerPush).toHaveBeenCalledWith({
+      path: '/login',
+      query: { redirect: '/link?status=active' },
+    })
+  })
+
   it('keeps parent expansion visually separate from active child navigation', () => {
     state.routePath = '/admin/user'
     setCurrentUser({

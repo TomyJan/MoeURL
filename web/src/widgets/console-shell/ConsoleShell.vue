@@ -98,6 +98,10 @@ const currentUserQuery = useQuery({
 })
 
 const currentUser = computed(() => currentUserQuery.data.value?.user)
+const isGuestFallback = computed(() => {
+  const user = currentUser.value
+  return user ? user.group === 'guest' || user.username === 'guest' : false
+})
 const displayName = computed(() => currentUser.value?.nickname || currentUser.value?.username || 'guest')
 const username = computed(() => currentUser.value?.username || 'guest')
 const permissions = computed(() => currentUser.value?.permissions ?? [])
@@ -144,9 +148,9 @@ const logoutMutation = useMutation({
 let previousBodyOverflow: string | undefined
 
 watch(
-  () => currentUserQuery.isError.value,
-  (isError) => {
-    if (isError) {
+  () => [currentUserQuery.isError.value, isGuestFallback.value] as const,
+  ([isError, isGuest]) => {
+    if (isError || isGuest) {
       void router.push({ path: '/login', query: { redirect: route.fullPath } })
     }
   },
