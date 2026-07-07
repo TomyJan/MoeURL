@@ -38,6 +38,7 @@ import { useI18n } from 'vue-i18n'
 
 import PreferenceSwitcher from '@/shared/preferences/PreferenceSwitcher.vue'
 import MoeIcon from '@/shared/ui/MoeIcon.vue'
+import { useAvatarText } from '@/shared/user/useAvatarText'
 
 const props = defineProps<{
   displayName: string
@@ -53,7 +54,8 @@ const emit = defineEmits<{
 }>()
 const accountRef = ref<globalThis.HTMLElement | null>(null)
 const accountOpen = ref(false)
-const avatarText = computed(() => (props.displayName || 'M').slice(0, 1).toUpperCase())
+const displayName = computed(() => props.displayName)
+const avatarText = useAvatarText(displayName)
 
 function submitLogout() {
   accountOpen.value = false

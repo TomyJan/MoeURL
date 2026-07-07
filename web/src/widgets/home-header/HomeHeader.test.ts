@@ -51,6 +51,7 @@ describe('HomeHeader', () => {
 
     expect(screen.queryByText('nav.login')).toBeNull()
     expect(screen.getByRole('button', { name: 'Alice' }).textContent).toContain('Alice')
+    expect(screen.getByRole('button', { name: 'Alice' }).textContent).toContain('A')
     await fireEvent.click(screen.getByText('Alice'))
 
     expect(consoleClick).toHaveBeenCalled()

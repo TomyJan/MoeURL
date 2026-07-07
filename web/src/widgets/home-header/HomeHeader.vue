@@ -22,6 +22,7 @@ import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 import PreferenceSwitcher from '@/shared/preferences/PreferenceSwitcher.vue'
+import { useAvatarText } from '@/shared/user/useAvatarText'
 
 const props = defineProps<{
   displayName: string
@@ -33,7 +34,8 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
-const avatarText = computed(() => (props.displayName || 'M').slice(0, 1).toUpperCase())
+const displayName = computed(() => props.displayName)
+const avatarText = useAvatarText(displayName)
 </script>
 
 <style scoped>
