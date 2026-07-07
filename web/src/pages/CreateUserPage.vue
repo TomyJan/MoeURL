@@ -72,6 +72,7 @@ const mutation = useMutation({
   mutationFn: createUser,
   onSuccess(result) {
     createdUsername.value = result.user.username
+    resetForm()
   },
 })
 
@@ -84,5 +85,13 @@ function submit() {
     groupKey: groupKey.value,
     status: status.value,
   })
+}
+
+function resetForm() {
+  username.value = ''
+  password.value = ''
+  nickname.value = ''
+  groupKey.value = 'user'
+  status.value = 'active'
 }
 </script>

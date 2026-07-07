@@ -798,6 +798,11 @@ describe('pages', () => {
     await fireEvent.click(screen.getByText('createUser.submit'))
 
     expect(screen.getByText('alice')).toBeTruthy()
+    expect((screen.getByLabelText('createUser.username') as HTMLInputElement).value).toBe('')
+    expect((screen.getByLabelText('createUser.password') as HTMLInputElement).value).toBe('')
+    expect((screen.getByLabelText('createUser.nickname') as HTMLInputElement).value).toBe('')
+    expect((screen.getByLabelText('createUser.group') as HTMLSelectElement).value).toBe('user')
+    expect((screen.getByLabelText('createUser.status') as HTMLSelectElement).value).toBe('active')
   })
 
   it('renders admin users list and submits user actions', async () => {
