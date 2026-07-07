@@ -14,6 +14,23 @@ describe('deployment configuration', () => {
     expect(compose).not.toContain('postgres-data:/var/lib/postgresql/data')
   })
 
+  it('keeps the default Compose environment aligned with production cookie security', () => {
+    const compose = readFileSync(resolve(repositoryRoot, 'docker-compose.yml'), 'utf8')
+    const config = readFileSync(resolve(repositoryRoot, 'web/playwright.config.ts'), 'utf8')
+
+    expect(compose).toContain('MOEURL_ENV: ${MOEURL_ENV:-production}')
+    expect(config).toContain("MOEURL_ENV: 'development'")
+  })
+
+  it('allows the PostgreSQL host port to be isolated for E2E', () => {
+    const compose = readFileSync(resolve(repositoryRoot, 'docker-compose.yml'), 'utf8')
+    const config = readFileSync(resolve(repositoryRoot, 'web/playwright.config.ts'), 'utf8')
+
+    expect(compose).toContain('${MOEURL_POSTGRES_PORT:-5432}:5432')
+    expect(config).toContain('MOEURL_E2E_POSTGRES_PORT')
+    expect(config).toContain('MOEURL_POSTGRES_PORT: e2ePostgresPort')
+  })
+
   it('keeps E2E Compose cleanup isolated from the default development project', () => {
     const config = readFileSync(resolve(repositoryRoot, 'web/playwright.config.ts'), 'utf8')
 

@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
 const e2ePort = process.env.MOEURL_E2E_PORT ?? '8080'
+const e2ePostgresPort = process.env.MOEURL_E2E_POSTGRES_PORT ?? '15432'
 const baseURL = `http://127.0.0.1:${e2ePort}`
 const composeProjectName = process.env.MOEURL_E2E_COMPOSE_PROJECT ?? `moeurl-e2e-${e2ePort}`
 
@@ -18,7 +19,9 @@ export default defineConfig({
     command: `docker compose -p ${composeProjectName} down -v && docker compose -p ${composeProjectName} up --build`,
     cwd: '..',
     env: {
+      MOEURL_ENV: 'development',
       MOEURL_HTTP_PORT: e2ePort,
+      MOEURL_POSTGRES_PORT: e2ePostgresPort,
     },
     reuseExistingServer: false,
     timeout: 240_000,

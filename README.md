@@ -56,6 +56,13 @@ $env:MOEURL_HTTP_PORT="18080"
 docker compose up --build
 ```
 
+如果宿主机 `5432` 已被其他 PostgreSQL 服务占用，可以临时指定 PostgreSQL 宿主端口：
+
+```bash
+$env:MOEURL_POSTGRES_PORT="15432"
+docker compose up --build
+```
+
 启动后访问：
 
 ```text
@@ -82,7 +89,7 @@ docker compose down
 docker compose down -v
 ```
 
-当前 Compose 使用 PostgreSQL 18，数据卷挂载在 `/var/lib/postgresql`。普通 `docker compose up --build`、`docker compose down` 和再次启动不会重置数据库。`docker compose down -v` 会删除默认 Compose 项目的数据库卷，执行后需要重新初始化管理员账号。
+当前 Compose 使用 PostgreSQL 18，数据卷挂载在 `/var/lib/postgresql`。默认 Compose 环境按生产语义运行，登录 Cookie 在该模式下会设置 `Secure`；本地 HTTP 调试如需非 Secure Cookie，应显式设置 `MOEURL_ENV=development`。普通 `docker compose up --build`、`docker compose down` 和再次启动不会重置数据库。`docker compose down -v` 会删除默认 Compose 项目的数据库卷，执行后需要重新初始化管理员账号。
 
 ## 裸机运行
 
@@ -195,7 +202,16 @@ $env:MOEURL_E2E_PORT="18080"
 pnpm test:e2e
 ```
 
-E2E 会使用独立的 Compose project name，并只清理该测试项目的数据卷，不会删除日常 `docker compose up --build` 使用的默认开发数据库卷。如需指定测试项目名，可设置 `MOEURL_E2E_COMPOSE_PROJECT`。
+如果宿主机 `5432` 也已被默认 Compose 或本地 PostgreSQL 占用，可同时指定 E2E PostgreSQL 宿主端口：
+
+```bash
+cd web
+$env:MOEURL_E2E_PORT="18080"
+$env:MOEURL_E2E_POSTGRES_PORT="15432"
+pnpm test:e2e
+```
+
+E2E 会使用独立的 Compose project name、独立应用宿主端口和独立 PostgreSQL 宿主端口，并显式以 `MOEURL_ENV=development` 运行测试应用，避免本地 HTTP 测试受 Secure Cookie 影响。E2E 只清理该测试项目的数据卷，不会删除日常 `docker compose up --build` 使用的默认开发数据库卷。如需指定测试项目名，可设置 `MOEURL_E2E_COMPOSE_PROJECT`。
 
 项目要求后端和前端测试覆盖率均达到 100%。当前 CI 已配置覆盖率门禁，未达到 100% 时会失败。
 
@@ -212,6 +228,6 @@ http://localhost:8080/api/v1/health
 http://localhost:8080/setup
 ```
 
-如果通过 `MOEURL_HTTP_PORT` 指定了宿主端口，请使用对应端口访问。例如 `MOEURL_HTTP_PORT=18080` 时访问 `http://localhost:18080/api/v1/health` 和 `http://localhost:18080/setup`。
+如果通过 `MOEURL_HTTP_PORT` 指定了应用宿主端口，请使用对应端口访问。例如 `MOEURL_HTTP_PORT=18080` 时访问 `http://localhost:18080/api/v1/health` 和 `http://localhost:18080/setup`。如果通过 `MOEURL_POSTGRES_PORT` 指定了 PostgreSQL 宿主端口，只影响宿主机访问数据库，容器内应用仍通过 `postgres:5432` 连接。
 
 `/api/v1/health` 应返回 `code` 为 `0` 且 `status` 为 `ok` 的响应。未初始化环境访问 `/setup` 应进入首次初始化流程。
