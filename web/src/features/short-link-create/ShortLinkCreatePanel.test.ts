@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/vue'
+import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
@@ -166,6 +167,29 @@ describe('ShortLinkCreatePanel', () => {
 
     expect(mutate).not.toHaveBeenCalled()
     expect(screen.getByText('shortLinkCreate.invalidUrl')).toBeTruthy()
+  })
+
+  it('blocks duplicate submissions while creation is pending', async () => {
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_default'])
+    setMutationResult({ isPending: ref(true), mutate })
+
+    mountPanel()
+
+    const submitButton = screen.getByText('shortLinkCreate.submit') as HTMLButtonElement
+    expect(submitButton.disabled).toBe(true)
+
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(submitButton)
+
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
+  it('uses the Zod 4 URL validator pipeline for target URLs', () => {
+    const source = readFileSync('src/features/short-link-create/ShortLinkCreatePanel.vue', 'utf8')
+
+    expect(source).toContain('z.string().trim().pipe(z.url())')
+    expect(source).not.toContain('z.string().trim().url()')
   })
 
   it('shows copy failures without clearing the created link', async () => {

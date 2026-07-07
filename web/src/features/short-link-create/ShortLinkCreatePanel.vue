@@ -16,7 +16,7 @@
             :label="t('shortLinkCreate.targetLabel')"
             :placeholder="t('shortLinkCreate.targetPlaceholder')"
             variant="outlined"
-            :disabled="!canCreateShortLink"
+            :disabled="!canCreateShortLink || mutation.isPending.value"
             :error-messages="errorMessage"
             @keyup.enter="submit"
           />
@@ -82,7 +82,7 @@ const targetUrl = ref('')
 const createdUrl = ref('')
 const validationErrorMessage = ref('')
 const copyErrorMessage = ref('')
-const targetUrlSchema = z.string().trim().url()
+const targetUrlSchema = z.string().trim().pipe(z.url())
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,
@@ -113,7 +113,7 @@ const errorMessage = computed(() => {
 })
 
 function submit() {
-  if (!canCreateShortLink.value) {
+  if (!canCreateShortLink.value || mutation.isPending.value) {
     return
   }
   validationErrorMessage.value = ''
