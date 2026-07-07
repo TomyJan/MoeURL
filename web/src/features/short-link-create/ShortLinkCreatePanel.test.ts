@@ -126,6 +126,18 @@ describe('ShortLinkCreatePanel', () => {
     expect(mutate).not.toHaveBeenCalled()
   })
 
+  it('does not flash the permission hint before the current user query resolves', () => {
+    state.queryResult = {
+      data: ref(undefined),
+    }
+
+    const { container } = mountPanel()
+
+    expect(container.querySelector('.short-link-create-panel__shell')).toBeTruthy()
+    expect(screen.queryByText('shortLinkCreate.permissionRequired')).toBeNull()
+    expect((screen.getByLabelText('shortLinkCreate.targetLabel') as HTMLInputElement).disabled).toBe(true)
+  })
+
   it('creates a short link and exposes copy and reset actions', async () => {
     const mutate = vi.fn()
     setQueryResult(['short_link:create', 'domain:use_default'])
@@ -228,5 +240,17 @@ describe('ShortLinkCreatePanel', () => {
     setMutationResult({ error: ref({}) })
     mountPanel()
     expect(screen.getByText('shortLinkCreate.failed')).toBeTruthy()
+  })
+
+  it('shows a later API failure even when mutation data still contains a previous success', () => {
+    setQueryResult(['short_link:create', 'domain:use_default'])
+    setMutationResult({
+      data: ref({ shortLink: { url: 'https://go.example.com/abc123' } }),
+      error: ref(new Error('later failure')),
+    })
+
+    mountPanel()
+
+    expect(screen.getByText('later failure')).toBeTruthy()
   })
 })

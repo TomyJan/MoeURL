@@ -31,7 +31,7 @@
             {{ t('shortLinkCreate.submit') }}
           </v-btn>
         </div>
-        <div v-if="!canCreateShortLink" class="short-link-create-panel__permission" role="status">
+        <div v-if="showPermissionRequired" class="short-link-create-panel__permission" role="status">
           {{ t('shortLinkCreate.permissionRequired') }}
         </div>
         <p v-if="copyErrorMessage" class="short-link-create-panel__error" role="alert">
@@ -87,11 +87,12 @@ const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,
 })
-const canCreateShortLink = computed(
-  () =>
-    currentUserQuery.data.value?.user?.permissions.includes('short_link:create') &&
-    currentUserQuery.data.value?.user?.permissions.includes('domain:use_default'),
+const currentUser = computed(() => currentUserQuery.data.value?.user)
+const hasResolvedCurrentUser = computed(() => currentUserQuery.data.value !== undefined)
+const canCreateShortLink = computed(() =>
+  Boolean(currentUser.value?.permissions.includes('short_link:create') && currentUser.value?.permissions.includes('domain:use_default')),
 )
+const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !canCreateShortLink.value)
 
 const mutation = useMutation({
   mutationFn: createShortLink,
@@ -106,7 +107,7 @@ const errorMessage = computed(() => {
   if (validationErrorMessage.value) {
     return validationErrorMessage.value
   }
-  if (!mutation.data.value && mutation.error.value) {
+  if (mutation.error.value) {
     return mutation.error.value instanceof Error ? mutation.error.value.message : t('shortLinkCreate.failed')
   }
   return ''
