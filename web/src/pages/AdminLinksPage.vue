@@ -41,6 +41,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { deleteAdminShortLink, listAdminShortLinks, updateAdminShortLink } from '@/entities/short-link/api'
 import type { AdminShortLink } from '@/entities/short-link/model'
+import { useMutationTargetId } from '@/shared/mutations/useMutationTargetId'
 import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue'
 
 const { t } = useI18n()
@@ -68,10 +69,6 @@ const query = useQuery({
 const links = computed(() => query.data.value?.items ?? [])
 const linkItems = computed<ConsoleLinkListItem[]>(() => links.value)
 const total = computed(() => query.data.value?.meta.total ?? 0)
-const updatingId = computed(() => (updateMutation.isPending.value ? updateMutation.variables.value?.id : ''))
-const deletingId = computed(() =>
-  deleteMutation.isPending.value && typeof deleteMutation.variables.value === 'string' ? deleteMutation.variables.value : '',
-)
 
 const updateMutation = useMutation({
   mutationFn: updateAdminShortLink,
@@ -81,6 +78,8 @@ const deleteMutation = useMutation({
   mutationFn: deleteAdminShortLink,
   onSuccess: invalidateLinks,
 })
+const updatingId = useMutationTargetId(updateMutation, (variables) => variables?.id)
+const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof variables === 'string' ? variables : undefined))
 
 function toggleStatus(link: ConsoleLinkListItem) {
   updateMutation.mutate({ id: link.id, status: link.status === 'active' ? 'disabled' : 'active' })

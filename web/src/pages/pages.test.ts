@@ -651,6 +651,27 @@ describe('pages', () => {
     expect((within(otherRow).getByRole('button', { name: 'links.actions.delete' }) as HTMLButtonElement).disabled).toBe(false)
   })
 
+  it('does not mark admin link rows as deleting for non-delete mutation variables', async () => {
+    setQueryResult({
+      data: ref({
+        meta: { total: 1 },
+        items: [
+          { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', owner: { id: 'owner-id', username: 'alice', nickname: '' } },
+        ],
+      }),
+    })
+    setMutationResult({
+      isPending: ref(true),
+      variables: ref({ id: 'link-id', status: 'disabled' }),
+    })
+    mount(AdminLinksPage)
+
+    const row = screen.getByTestId('console-link-row')
+    await fireEvent.click(within(row).getByRole('button', { name: 'links.actions.more' }))
+
+    expect((within(row).getByRole('button', { name: 'links.actions.delete' }) as HTMLButtonElement).disabled).toBe(false)
+  })
+
   it('queries admin links with filter state', async () => {
     vi.useFakeTimers()
     setQueryResult({ data: ref({ meta: { total: 0 }, items: [] }) })
