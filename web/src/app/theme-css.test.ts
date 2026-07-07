@@ -5,10 +5,12 @@ import { installMoeurlThemeCss, moeurlThemeCss } from './theme-css'
 describe('moeurlThemeCss', () => {
   it('defines global application surfaces and radius tokens', () => {
     expect(moeurlThemeCss).toContain('background: rgb(var(--v-theme-background))')
+    expect(moeurlThemeCss).toContain('--moeurl-surface-elevated: rgb(var(--v-app-elevated-surface))')
     expect(moeurlThemeCss).toContain('--moeurl-surface-soft: rgb(var(--v-app-soft-surface))')
     expect(moeurlThemeCss).toContain('--moeurl-surface-workspace: rgb(var(--v-app-workspace-surface))')
     expect(moeurlThemeCss).toContain('--moeurl-surface-glass: var(--v-app-glass-surface)')
     expect(moeurlThemeCss).toContain('--moeurl-surface-strong: rgb(var(--v-app-strong-surface))')
+    expect(moeurlThemeCss).not.toContain('--moeurl-surface-elevated: var(--v-app-elevated-surface)')
     expect(moeurlThemeCss).toContain('--moeurl-outline-strong: var(--v-app-outline-strong)')
     expect(moeurlThemeCss).toContain('--moeurl-hero-glow: var(--v-app-hero-glow)')
     expect(moeurlThemeCss).toContain('--moeurl-radius-page: var(--v-radius-page)')

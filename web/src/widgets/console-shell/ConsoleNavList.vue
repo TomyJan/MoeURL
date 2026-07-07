@@ -13,6 +13,9 @@
         >
           <span class="console-nav-list__rail" aria-hidden="true" />
           <span class="console-nav-list__text">{{ t(item.labelKey) }}</span>
+          <span v-if="item.planned" class="console-nav-list__badge" data-testid="console-nav-planned-badge">
+            {{ t('placeholder.status') }}
+          </span>
         </v-btn>
 
         <div v-else class="console-nav-list__subgroup">
@@ -40,6 +43,9 @@
               >
                 <span class="console-nav-list__rail" aria-hidden="true" />
                 <span class="console-nav-list__text">{{ t(child.labelKey) }}</span>
+                <span v-if="child.planned" class="console-nav-list__badge" data-testid="console-nav-planned-badge">
+                  {{ t('placeholder.status') }}
+                </span>
               </v-btn>
             </div>
           </Transition>
@@ -58,6 +64,7 @@ export interface ConsoleNavItem {
   children?: ConsoleNavItem[]
   labelKey: string
   level?: 1 | 2
+  planned?: boolean
   to?: string
 }
 
@@ -184,7 +191,29 @@ function toggleGroup(labelKey: string) {
 }
 
 .console-nav-list__text {
+  flex: 0 1 auto;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.console-nav-list__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-height: 20px;
+  max-width: 72px;
+  margin-left: auto;
+  padding: 2px 8px;
+  border: 1px solid color-mix(in srgb, rgb(var(--v-theme-secondary)) 22%, transparent);
+  border-radius: var(--moeurl-radius-pill);
+  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 14%, transparent);
+  color: rgb(var(--v-theme-secondary));
+  font-size: 0.68rem;
+  font-weight: 880;
+  line-height: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

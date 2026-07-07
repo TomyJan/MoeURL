@@ -107,9 +107,9 @@ const navGroups = computed<ConsoleNavGroup[]>(() => {
     groups.push({
       labelKey: 'console.nav.workspace',
       items: [
-        { labelKey: 'nav.overview', to: '/console' },
+        { labelKey: 'nav.overview', planned: true, to: '/console' },
         { labelKey: 'nav.links', to: '/link' },
-        { labelKey: 'nav.analytics', to: '/analytics' },
+        { labelKey: 'nav.analytics', planned: true, to: '/analytics' },
       ],
     })
   }
@@ -122,10 +122,10 @@ const navGroups = computed<ConsoleNavGroup[]>(() => {
           labelKey: 'console.nav.userManagement',
           children: [
             { labelKey: 'nav.users', level: 2, to: '/admin/user' },
-            { labelKey: 'nav.userGroups', level: 2, to: '/admin/user/group' },
+            { labelKey: 'nav.userGroups', level: 2, planned: true, to: '/admin/user/group' },
           ],
         },
-        { labelKey: 'nav.settings', to: '/admin/setting' },
+        { labelKey: 'nav.settings', planned: true, to: '/admin/setting' },
       ],
     })
   }
