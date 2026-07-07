@@ -33,7 +33,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 | 前端路由 | Vue Router |
 | 客户端状态 | Pinia |
 | 服务端状态 | TanStack Query for Vue |
-| UI 组件 | Vuetify 3 |
+| UI 组件 | Vuetify 4 |
 | 国际化 | vue-i18n |
 | 表单 | vee-validate + zod |
 | PWA | Web App Manifest + Service Worker |
@@ -391,7 +391,7 @@ web/src/
 
 ## 10. UI 和主题约定
 
-UI 使用 Vuetify 3，并建立 MoeURL 自定义主题。
+UI 使用 Vuetify 4，并建立 MoeURL 自定义主题。
 
 主题方向：
 
