@@ -14,7 +14,7 @@
     </div>
     <div class="console-data-panel" data-testid="console-data-panel">
       <v-alert v-if="query.isError.value" type="error" variant="tonal">{{ t('adminUsers.loadFailed') }}</v-alert>
-      <v-progress-linear v-if="query.isPending.value" indeterminate />
+      <v-progress-linear v-else-if="query.isPending.value" indeterminate />
       <div v-else-if="users.length === 0" class="console-page__empty">
         <div>
           <h2>{{ t('adminUsers.noUsers') }}</h2>

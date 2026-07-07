@@ -715,6 +715,7 @@ describe('pages', () => {
     setQueryResult({ isError: ref(true) })
     const error = mount(AdminLinksPage)
     expect(screen.getByText('adminLinks.loadFailed')).toBeTruthy()
+    expect(screen.queryByText('links.emptyTitle')).toBeNull()
     error.unmount()
 
     setQueryResult({ isPending: ref(true) })
@@ -1059,6 +1060,7 @@ describe('pages', () => {
     setQueryResult({ isError: ref(true) })
     const error = mount(AdminUsersPage)
     expect(screen.getByText('adminUsers.loadFailed')).toBeTruthy()
+    expect(screen.queryByText('adminUsers.noUsers')).toBeNull()
     error.unmount()
 
     setQueryResult({ isPending: ref(true) })
