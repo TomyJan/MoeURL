@@ -220,8 +220,8 @@ onBeforeUnmount(() => {
 .preference-switcher__trigger:hover,
 .preference-switcher__option:hover,
 .preference-switcher__theme-option:hover {
-  border-color: color-mix(in srgb, rgb(var(--v-theme-secondary)) 34%, var(--moeurl-outline));
-  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 8%, var(--moeurl-surface-elevated));
+  border-color: color-mix(in srgb, rgb(var(--v-theme-primary)) 34%, var(--moeurl-outline));
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 8%, var(--moeurl-surface-elevated));
 }
 
 .preference-switcher__trigger:hover {
@@ -235,8 +235,8 @@ onBeforeUnmount(() => {
   height: 30px;
   place-items: center;
   border-radius: 999px;
-  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 13%, transparent);
-  color: rgb(var(--v-theme-secondary));
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 13%, transparent);
+  color: rgb(var(--v-theme-primary));
   font-size: 0.72rem;
   font-weight: 950;
   line-height: 1;
@@ -259,6 +259,7 @@ onBeforeUnmount(() => {
 }
 
 .preference-switcher__mark--light {
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 12%, transparent);
   color: rgb(var(--v-theme-primary));
 }
 
@@ -268,6 +269,7 @@ onBeforeUnmount(() => {
 }
 
 .preference-switcher__mark--system {
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 12%, transparent);
   color: rgb(var(--v-theme-primary));
 }
 
@@ -334,8 +336,8 @@ onBeforeUnmount(() => {
 
 .preference-switcher__option[aria-checked="true"],
 .preference-switcher__theme-option[aria-checked="true"] {
-  border-color: color-mix(in srgb, rgb(var(--v-theme-secondary)) 32%, transparent);
-  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 11%, transparent);
+  border-color: color-mix(in srgb, rgb(var(--v-theme-primary)) 32%, transparent);
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 11%, transparent);
   color: rgb(var(--v-theme-primary));
 }
 
@@ -361,7 +363,7 @@ onBeforeUnmount(() => {
 
 .preference-switcher__option[aria-checked="true"] .preference-switcher__option-check,
 .preference-switcher__theme-option[aria-checked="true"] .preference-switcher__option-check {
-  background: rgb(var(--v-theme-secondary));
+  background: rgb(var(--v-theme-primary));
 }
 
 .preference-switcher__theme-graphic {

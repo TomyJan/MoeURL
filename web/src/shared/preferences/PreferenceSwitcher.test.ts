@@ -156,6 +156,10 @@ describe('PreferenceSwitcher', () => {
     const source = readFileSync('src/shared/preferences/PreferenceSwitcher.vue', 'utf8')
     const lightMarkBlock = source.match(/\.preference-switcher__mark--light\s*{[^}]+}/)?.[0] ?? ''
     const lightGraphicBlock = source.match(/\.preference-switcher__theme-graphic--light\s*{[^}]+}/)?.[0] ?? ''
+    const hoverBlock = source.match(/\.preference-switcher__trigger:hover,[\s\S]+?{[^}]+}/)?.[0] ?? ''
+    const selectedBlock = source.match(/\.preference-switcher__option\[aria-checked="true"\],[\s\S]+?{[^}]+}/)?.[0] ?? ''
+    const selectedDotBlock =
+      source.match(/\.preference-switcher__option\[aria-checked="true"\] \.preference-switcher__option-check,[\s\S]+?{[^}]+}/)?.[0] ?? ''
 
     expect(source).toContain('.preference-switcher__mark--light')
     expect(source).toContain('rgb(var(--v-theme-primary))')
@@ -163,6 +167,12 @@ describe('PreferenceSwitcher', () => {
     expect(lightMarkBlock).not.toContain('rgb(var(--v-theme-secondary))')
     expect(lightGraphicBlock).toContain('rgb(var(--v-theme-primary))')
     expect(lightGraphicBlock).not.toContain('rgb(var(--v-theme-secondary))')
+    expect(hoverBlock).toContain('rgb(var(--v-theme-primary))')
+    expect(hoverBlock).not.toContain('rgb(var(--v-theme-secondary))')
+    expect(selectedBlock).toContain('rgb(var(--v-theme-primary))')
+    expect(selectedBlock).not.toContain('rgb(var(--v-theme-secondary))')
+    expect(selectedDotBlock).toContain('rgb(var(--v-theme-primary))')
+    expect(selectedDotBlock).not.toContain('rgb(var(--v-theme-secondary))')
     expect(source).not.toContain('color: #c47a4a')
     expect(source).not.toContain('color: #8ab8e8')
   })
