@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useTheme } from 'vuetify/framework'
+import { useTheme } from 'vuetify'
 
 import {
   loadPreferences,
@@ -61,10 +61,10 @@ function installSystemThemeListener() {
     return
   }
   systemThemeListenerInstalled = true
-  mediaQuery.addEventListener('change', (event) => {
+  mediaQuery.addEventListener('change', () => {
     if (themeMode.value !== 'system') {
       return
     }
-    activeThemeName!.value = event.matches ? 'moeurlDark' : 'moeurlLight'
+    activeThemeName!.value = resolveVuetifyTheme('system')
   })
 }

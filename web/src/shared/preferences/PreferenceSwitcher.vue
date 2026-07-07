@@ -10,6 +10,7 @@
       <button
         class="preference-switcher__trigger preference-switcher__trigger--icon"
         type="button"
+        aria-haspopup="menu"
         :aria-label="t('preferences.language')"
         :aria-expanded="languageOpen"
         @click="toggleLanguageMenu"
@@ -42,6 +43,7 @@
       <button
         class="preference-switcher__trigger preference-switcher__trigger--icon"
         type="button"
+        aria-haspopup="menu"
         :aria-label="t('preferences.theme')"
         :aria-expanded="themeOpen"
         @click="toggleThemeMenu"

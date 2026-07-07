@@ -1,7 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
 
-function mockPreferenceRuntime(themePreference: string, matchMediaValue: ReturnType<typeof vi.fn>) {
+function mockPreferenceRuntime(
+  themePreference: string,
+  matchMediaValue: (query: string) => {
+    addEventListener?: (event: 'change', listener: (event: { matches: boolean }) => void) => void
+    matches?: boolean
+  },
+) {
   vi.resetModules()
+  let systemMatches = false
   const state = {
     locale: { value: 'zh-CN' },
     themeName: { value: 'moeurlLight' },
@@ -12,7 +20,7 @@ function mockPreferenceRuntime(themePreference: string, matchMediaValue: ReturnT
       locale: state.locale,
     }),
   }))
-  vi.doMock('vuetify/framework', () => ({
+  vi.doMock('vuetify', () => ({
     useTheme: () => ({
       global: {
         name: state.themeName,
@@ -26,7 +34,27 @@ function mockPreferenceRuntime(themePreference: string, matchMediaValue: ReturnT
       setItem: vi.fn(),
     },
   })
-  vi.stubGlobal('matchMedia', matchMediaValue)
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((query: string) => {
+      const mediaQuery = matchMediaValue(query)
+      const addEventListener = mediaQuery.addEventListener
+      return {
+        ...mediaQuery,
+        get matches() {
+          return systemMatches
+        },
+        addEventListener: addEventListener
+          ? (event: 'change', listener: (event: { matches: boolean }) => void) => {
+              addEventListener(event, (changeEvent: { matches: boolean }) => {
+                systemMatches = changeEvent.matches
+                listener(changeEvent)
+              })
+            }
+          : undefined,
+      }
+    }),
+  )
 
   return state
 }
@@ -109,5 +137,14 @@ describe('useAppPreferences', () => {
     useAppPreferences()
 
     expect(addEventListener).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses the public Vuetify entrypoint and shared theme resolution', () => {
+    const source = readFileSync('src/shared/preferences/useAppPreferences.ts', 'utf8')
+
+    expect(source).toContain("import { useTheme } from 'vuetify'")
+    expect(source).not.toContain("from 'vuetify/framework'")
+    expect(source).toContain("resolveVuetifyTheme('system')")
+    expect(source).not.toContain("event.matches ? 'moeurlDark' : 'moeurlLight'")
   })
 })

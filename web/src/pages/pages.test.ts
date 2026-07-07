@@ -44,7 +44,7 @@ vi.mock('vue-router', () => ({
   }),
 }))
 
-vi.mock('vuetify/framework', () => ({
+vi.mock('vuetify', () => ({
   useTheme: () => ({
     global: {
       name: ref('moeurlLight'),
@@ -431,8 +431,11 @@ describe('pages', () => {
     }
 
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.more' }))
+    expect(within(activeRow).getByRole('button', { name: 'links.actions.more' }).getAttribute('aria-haspopup')).toBe('menu')
+    expect(within(activeRow).getByRole('button', { name: 'links.actions.more' }).getAttribute('aria-expanded')).toBe('true')
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.disable' }))
     await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.more' }))
+    expect(within(activeRow).getByRole('button', { name: 'links.actions.more' }).getAttribute('aria-expanded')).toBe('false')
     await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.enable' }))
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.copy' }))
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.more' }))

@@ -11,7 +11,7 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
-vi.mock('vuetify/framework', () => ({
+vi.mock('vuetify', () => ({
   useTheme: () => ({
     global: {
       name: { value: 'moeurlLight' },

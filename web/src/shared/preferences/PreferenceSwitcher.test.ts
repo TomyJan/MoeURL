@@ -32,7 +32,7 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
-vi.mock('vuetify/framework', () => ({
+vi.mock('vuetify', () => ({
   useTheme: () => ({
     global: {
       name: state.themeName,
@@ -66,6 +66,8 @@ describe('PreferenceSwitcher', () => {
     const languageButton = screen.getByRole('button', { name: '选择语言' })
     const themeButton = screen.getByRole('button', { name: '选择主题' })
 
+    expect(languageButton.getAttribute('aria-haspopup')).toBe('menu')
+    expect(themeButton.getAttribute('aria-haspopup')).toBe('menu')
     expect(languageButton.classList.contains('preference-switcher__trigger--icon')).toBe(true)
     expect(themeButton.classList.contains('preference-switcher__trigger--icon')).toBe(true)
     expect(languageButton.textContent).not.toContain('Aa')

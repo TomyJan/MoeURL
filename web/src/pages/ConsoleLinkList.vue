@@ -28,10 +28,16 @@
         <v-btn size="small" variant="text" :href="link.url" target="_blank" rel="noreferrer">
           {{ t('links.actions.open') }}
         </v-btn>
-        <button class="console-link-row__more" type="button" @click="toggleMore(link.id)">
+        <button
+          class="console-link-row__more"
+          type="button"
+          aria-haspopup="menu"
+          :aria-expanded="openedMoreId === link.id"
+          @click="toggleMore(link.id)"
+        >
           {{ t('links.actions.more') }}
         </button>
-        <div v-if="openedMoreId === link.id" class="console-link-row__more-menu">
+        <div v-if="openedMoreId === link.id" class="console-link-row__more-menu" role="menu">
           <v-btn size="small" variant="text" :loading="updatingId === link.id" @click="$emit('toggleStatus', link)">
             {{ t(link.status === 'active' ? 'links.actions.disable' : 'links.actions.enable') }}
           </v-btn>
