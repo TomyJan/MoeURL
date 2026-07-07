@@ -10,8 +10,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import { useAvatarText } from '@/shared/user/useAvatarText'
 
 const props = defineProps<{
   displayName: string
@@ -24,7 +26,7 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
-const avatarText = computed(() => (props.displayName || props.username || 'M').slice(0, 1).toUpperCase())
+const avatarText = useAvatarText(toRef(props, 'displayName'))
 </script>
 
 <style scoped>

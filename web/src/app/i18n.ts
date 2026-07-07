@@ -164,6 +164,7 @@ export const messages = {
       openAccountMenu: '打开账号菜单',
       closeMenu: '关闭菜单',
       closeCreate: '关闭',
+      logoutFailed: '退出登录失败，请检查网络后再试。',
       nav: {
         workspace: '工作区',
         userManagement: '用户管理',
@@ -453,6 +454,7 @@ export const messages = {
       openAccountMenu: 'Open account menu',
       closeMenu: 'Close menu',
       closeCreate: 'Close',
+      logoutFailed: 'Sign-out failed. Check your connection and try again.',
       nav: {
         workspace: 'Workspace',
         userManagement: 'User management',
@@ -464,7 +466,7 @@ export const messages = {
       languageOptions: 'Language options',
       theme: 'Select theme',
       themeOptions: 'Theme options',
-      system: 'System',
+      system: 'System default',
       systemShort: 'System',
       systemDescription: 'Follow device settings',
       light: 'Light',

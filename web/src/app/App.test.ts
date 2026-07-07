@@ -87,9 +87,10 @@ describe('App', () => {
     expect(screen.getByTestId('app-route-transition')).toBeTruthy()
   })
 
-  it('remounts the routed component when the route full path changes', async () => {
+  it('keeps the routed shell mounted when only the nested full path changes', async () => {
     const mountCount = ref(0)
     const routeFullPath = ref('/')
+    const routeMatchedPath = ref('/console')
     const RoutedComponent = defineComponent({
       setup() {
         onMounted(() => {
@@ -106,7 +107,15 @@ describe('App', () => {
           RouterView: {
             components: { RoutedComponent },
             setup(_, { slots }) {
-              return () => h('div', { 'data-testid': 'router-view' }, slots.default?.({ Component: RoutedComponent, route: { fullPath: routeFullPath.value } }))
+              return () =>
+                h(
+                  'div',
+                  { 'data-testid': 'router-view' },
+                  slots.default?.({
+                    Component: RoutedComponent,
+                    route: { fullPath: routeFullPath.value, matched: [{ path: routeMatchedPath.value }] },
+                  }),
+                )
             },
           },
         },
@@ -115,6 +124,11 @@ describe('App', () => {
 
     expect(mountCount.value).toBe(1)
     routeFullPath.value = '/link?status=active'
+    await nextTick()
+
+    expect(mountCount.value).toBe(1)
+
+    routeMatchedPath.value = '/login'
     await nextTick()
 
     expect(mountCount.value).toBe(2)

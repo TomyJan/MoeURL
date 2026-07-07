@@ -1,8 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/vue'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 
 import HomeHeader from './HomeHeader.vue'
 import { componentStubs } from '@/test/component-stubs'
+
+const sourcePath = resolve(__dirname, 'HomeHeader.vue')
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -55,5 +59,13 @@ describe('HomeHeader', () => {
     await fireEvent.click(screen.getByText('Alice'))
 
     expect(consoleClick).toHaveBeenCalled()
+  })
+
+  it('passes the reactive display name prop directly to shared avatar text', () => {
+    const source = readFileSync(sourcePath, 'utf8')
+
+    expect(source).toContain("const displayName = toRef(props, 'displayName')")
+    expect(source).toContain('useAvatarText(displayName)')
+    expect(source).not.toContain('computed(() => props.displayName)')
   })
 })

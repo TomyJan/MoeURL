@@ -17,6 +17,9 @@
       @logout="submitLogout"
       @open-menu="openMobileNav"
     />
+    <v-alert v-if="logoutErrorVisible" class="console-shell__logout-error" type="error" variant="tonal">
+      {{ t('console.logoutFailed') }}
+    </v-alert>
 
     <Transition name="moe-overlay">
       <div v-if="mobileNavOpen" class="console-shell__mobile-nav" data-testid="console-mobile-nav" @click.self="closeOverlays">
@@ -109,6 +112,7 @@ const router = useRouter()
 const queryClient = useQueryClient()
 const mobileNavOpen = ref(false)
 const createPanelOpen = ref(false)
+const logoutErrorVisible = ref(false)
 const mobileNavPanelRef = ref<globalThis.HTMLElement | null>(null)
 const createDialogPanelRef = ref<globalThis.HTMLElement | null>(null)
 const currentUserQuery = useQuery({
@@ -167,7 +171,11 @@ const navGroups = computed<ConsoleNavGroup[]>(() => {
 
 const logoutMutation = useMutation({
   mutationFn: logout,
+  onError() {
+    logoutErrorVisible.value = true
+  },
   onSuccess() {
+    logoutErrorVisible.value = false
     void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
     void router.push('/login')
   },
@@ -252,6 +260,7 @@ function closeOverlays() {
 }
 
 function submitLogout() {
+  logoutErrorVisible.value = false
   logoutMutation.mutate()
 }
 

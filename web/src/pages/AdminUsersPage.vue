@@ -24,7 +24,7 @@
       <div v-else class="console-user-list">
         <article v-for="item in users" :key="item.id" class="console-user-row" data-testid="console-user-row">
           <div class="console-user-row__identity">
-            <span class="console-user-row__avatar">{{ item.username.slice(0, 1).toUpperCase() }}</span>
+            <span class="console-user-row__avatar"><UserAvatarText :username="item.username" /></span>
             <div>
               <strong>{{ item.username }}</strong>
               <small>
@@ -113,12 +113,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, defineComponent, reactive, ref, toRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { listUsers, resetUserPassword, updateUser } from '@/entities/user/api'
 import type { UserSummary } from '@/entities/user/api'
+import { useAvatarText } from '@/shared/user/useAvatarText'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
@@ -133,6 +134,19 @@ const query = useQuery({
 })
 const users = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.meta.total ?? 0)
+const UserAvatarText = defineComponent({
+  name: 'UserAvatarText',
+  props: {
+    username: {
+      type: String,
+      required: true,
+    },
+  },
+  setup(props) {
+    const avatarText = useAvatarText(toRef(props, 'username'))
+    return () => avatarText.value
+  },
+})
 
 watch(
   users,

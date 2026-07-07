@@ -4,7 +4,7 @@
       <div class="app-route-transition" data-testid="app-route-transition">
         <router-view v-slot="{ Component, route }">
           <Transition name="moe-route" mode="out-in">
-            <component :is="Component" :key="route.fullPath" />
+            <component :is="Component" :key="route.matched?.[0]?.path || route.path || route.fullPath" />
           </Transition>
         </router-view>
       </div>

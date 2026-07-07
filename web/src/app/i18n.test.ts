@@ -13,6 +13,11 @@ describe('i18n', () => {
     expect(messages.en.nav.home).toBe('Home')
   })
 
+  it('keeps English preference system labels distinct for full and compact UI', () => {
+    expect(messages.en.preferences.system).toBe('System default')
+    expect(messages.en.preferences.systemShort).toBe('System')
+  })
+
   it('keeps locale message trees aligned', () => {
     function flattenKeys(value: unknown, prefix = ''): string[] {
       if (!value || typeof value !== 'object') {

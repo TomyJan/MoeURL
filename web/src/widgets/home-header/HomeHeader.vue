@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { toRef } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
@@ -34,7 +34,7 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
-const displayName = computed(() => props.displayName)
+const displayName = toRef(props, 'displayName')
 const avatarText = useAvatarText(displayName)
 </script>
 

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/vue'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
 
@@ -7,6 +7,8 @@ import { componentStubs } from '@/test/component-stubs'
 
 const state = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
+  createShortLinkRequest: vi.fn(() => ({ shortLink: { url: 'https://go.example.com/new' } })),
+  logoutRequest: vi.fn(() => undefined),
   logoutMutate: vi.fn(),
   routerPush: vi.fn(),
   queryResult: {},
@@ -50,24 +52,55 @@ vi.mock('vue-router', async () => {
 })
 
 vi.mock('@/entities/auth/api', () => ({
-  logout: vi.fn(),
+  logout: state.logoutRequest,
   me: vi.fn(),
 }))
 
 vi.mock('@/entities/short-link/api', () => ({
-  createShortLink: vi.fn(),
+  createShortLink: state.createShortLinkRequest,
 }))
 
 vi.mock('@tanstack/vue-query', () => ({
-  useMutation: vi.fn((options?: { onSuccess?: () => void }) => ({
-    data: ref(undefined),
-    error: ref(undefined),
-    isPending: ref(false),
-    mutate: vi.fn(() => {
-      state.logoutMutate()
-      options?.onSuccess?.()
-    }),
-  })),
+  useMutation: vi.fn(
+    (options?: {
+      mutationFn?: (variables?: unknown) => unknown
+      onError?: (error: unknown) => void
+      onSuccess?: (result: unknown) => void
+    }) => {
+      const data = ref<unknown>(undefined)
+      const error = ref<unknown>(undefined)
+      const isPending = ref(false)
+      const variables = ref<unknown>(undefined)
+      return {
+        data,
+        error,
+        isPending,
+        variables,
+        mutate: vi.fn((payload?: unknown) => {
+          variables.value = payload
+          error.value = undefined
+          if (options?.mutationFn === state.logoutRequest) {
+            state.logoutMutate()
+          }
+          const result = options?.mutationFn?.(payload)
+          if (result && typeof (result as Promise<unknown>).then === 'function') {
+            void (result as Promise<unknown>)
+              .then((value) => {
+                data.value = value
+                options?.onSuccess?.(value)
+              })
+              .catch((mutationError: unknown) => {
+                error.value = mutationError
+                options?.onError?.(mutationError)
+              })
+            return
+          }
+          data.value = result
+          options?.onSuccess?.(result)
+        }),
+      }
+    },
+  ),
   useQuery: vi.fn(() => state.queryResult),
   useQueryClient: () => ({
     invalidateQueries: state.invalidateQueries,
@@ -101,7 +134,11 @@ function setCurrentUser(user: {
 describe('ConsoleShell', () => {
   beforeEach(() => {
     document.body.style.overflow = ''
+    state.createShortLinkRequest.mockClear()
+    state.createShortLinkRequest.mockReturnValue({ shortLink: { url: 'https://go.example.com/new' } })
     state.invalidateQueries.mockReset()
+    state.logoutRequest.mockReset()
+    state.logoutRequest.mockReturnValue(undefined)
     state.logoutMutate.mockReset()
     state.routerPush.mockReset()
     state.routePath.value = '/link'
@@ -189,6 +226,17 @@ describe('ConsoleShell', () => {
     await fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByTestId('console-create-transition')).toBeNull()
     expect(document.activeElement).toBe(opener)
+  })
+
+  it('keeps short-link creation mutations separate from logout tracking', async () => {
+    mountShell()
+
+    await fireEvent.click(screen.getAllByText('console.newShortLink')[0])
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkCreate.submit' }))
+
+    expect(state.createShortLinkRequest).toHaveBeenCalledWith({ targetUrl: 'https://example.com' })
+    expect(state.logoutMutate).not.toHaveBeenCalled()
   })
 
   it('closes overlays from backdrop click and Escape while locking background scroll', async () => {
@@ -300,6 +348,17 @@ describe('ConsoleShell', () => {
     expect(state.logoutMutate).toHaveBeenCalled()
     expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['auth', 'me'] })
     expect(state.routerPush).toHaveBeenCalledWith('/login')
+  })
+
+  it('shows an error when logout fails instead of silently doing nothing', async () => {
+    state.logoutRequest.mockRejectedValueOnce(new Error('network'))
+    mountShell()
+
+    await fireEvent.click(within(screen.getByTestId('console-account')).getByText('nav.logout'))
+
+    expect(state.logoutMutate).toHaveBeenCalled()
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('console.logoutFailed'))
+    expect(state.routerPush).not.toHaveBeenCalledWith('/login')
   })
 
   it('redirects to login when the current user query fails in the shell', () => {

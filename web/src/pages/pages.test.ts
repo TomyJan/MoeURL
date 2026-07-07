@@ -922,6 +922,30 @@ describe('pages', () => {
     expect(screen.queryByText('2026-06-07T23:30:00Z')).toBeNull()
   })
 
+  it('renders admin user avatar text with shared Unicode-safe initials', () => {
+    setQueryResult({
+      data: ref({
+        meta: { total: 1 },
+        items: [
+          {
+            id: 'user-id',
+            username: '  😀alice',
+            nickname: '',
+            group: 'user',
+            status: 'active',
+            builtin: false,
+            createdAt: '2026-06-08T00:00:00Z',
+            updatedAt: '2026-06-08T00:00:00Z',
+          },
+        ],
+      }),
+    })
+
+    const { container } = mount(AdminUsersPage)
+
+    expect(container.querySelector('.console-user-row__avatar')?.textContent).toBe('😀')
+  })
+
   it('scopes admin user action loading state to the active row', async () => {
     setQueryResult({
       data: ref({
