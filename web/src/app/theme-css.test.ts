@@ -1,9 +1,12 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-import { installMoeurlThemeCss, moeurlThemeCss } from './theme-css'
+import './theme-css'
 
 describe('moeurlThemeCss', () => {
   it('defines global application surfaces and radius tokens', () => {
+    const moeurlThemeCss = readFileSync('src/app/theme.css', 'utf8').replace(/\r\n/g, '\n')
+
     expect(moeurlThemeCss).toContain('background: rgb(var(--v-theme-background))')
     expect(moeurlThemeCss).toContain('--moeurl-surface-elevated: rgb(var(--v-app-elevated-surface))')
     expect(moeurlThemeCss).toContain('--moeurl-surface-soft: rgb(var(--v-app-soft-surface))')
@@ -30,14 +33,10 @@ describe('moeurlThemeCss', () => {
     expect(moeurlThemeCss).not.toContain(':where(a, button, input, select, textarea):focus-visible')
   })
 
-  it('installs the global style element idempotently', () => {
-    document.head.innerHTML = ''
+  it('loads theme styles through a CSS asset import', () => {
+    const source = readFileSync('src/app/theme-css.ts', 'utf8')
 
-    const firstStyle = installMoeurlThemeCss()
-    const secondStyle = installMoeurlThemeCss()
-
-    expect(firstStyle).toBe(secondStyle)
-    expect(document.querySelectorAll('#moeurl-theme-css')).toHaveLength(1)
-    expect(firstStyle.textContent).toBe(moeurlThemeCss)
+    expect(source).toBe("import './theme.css'\n")
+    expect(source).not.toContain('moeurlThemeCss = `')
   })
 })
