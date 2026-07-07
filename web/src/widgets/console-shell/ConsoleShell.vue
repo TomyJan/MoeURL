@@ -147,7 +147,7 @@ watch(
   () => currentUserQuery.isError.value,
   (isError) => {
     if (isError) {
-      void router.push('/login')
+      void router.push({ path: '/login', query: { redirect: route.fullPath } })
     }
   },
   { immediate: true },

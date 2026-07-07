@@ -2,9 +2,9 @@
   <v-app>
     <v-main>
       <div class="app-route-transition" data-testid="app-route-transition">
-        <router-view v-slot="{ Component }">
+        <router-view v-slot="{ Component, route }">
           <Transition name="moe-route" mode="out-in">
-            <component :is="Component" />
+            <component :is="Component" :key="route.fullPath" />
           </Transition>
         </router-view>
       </div>

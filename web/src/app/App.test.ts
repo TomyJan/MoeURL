@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/vue'
+import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
@@ -17,7 +18,7 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
-vi.mock('vuetify/framework', () => ({
+vi.mock('vuetify', () => ({
   useTheme: () => ({
     global: {
       name: state.themeName,
@@ -61,7 +62,7 @@ describe('App', () => {
         stubs: {
           ...componentStubs,
           RouterView: {
-            template: '<div data-testid="router-view"><slot :Component="{ template: \'<section data-testid=\\\'route-component\\\'>route</section>\' }" /></div>',
+            template: '<div data-testid="router-view"><slot :Component="{ template: \'<section data-testid=\\\'route-component\\\'>route</section>\' }" :route="{ fullPath: \'/route\' }" /></div>',
           },
         },
       },
@@ -85,5 +86,12 @@ describe('App', () => {
     render(App, { global: { stubs: componentStubs } })
 
     expect(screen.getByTestId('app-route-transition')).toBeTruthy()
+  })
+
+  it('keys routed components by the current route path', () => {
+    const source = readFileSync('src/app/App.vue', 'utf8')
+
+    expect(source).toContain('v-slot="{ Component, route }"')
+    expect(source).toContain(':key="route.fullPath"')
   })
 })

@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, within } from '@testing-library/vue'
-import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
@@ -21,7 +20,7 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
-vi.mock('vuetify/framework', () => ({
+vi.mock('vuetify', () => ({
   useTheme: () => ({
     global: {
       name: ref('moeurlLight'),
@@ -33,6 +32,7 @@ vi.mock('vue-router', () => ({
   RouterLink: { props: ['to'], template: '<a :data-to="to"><slot /></a>' },
   RouterView: { template: '<div data-testid="router-view" />' },
   useRoute: () => ({
+    fullPath: state.routePath,
     path: state.routePath,
   }),
   useRouter: () => ({
@@ -261,6 +261,7 @@ describe('ConsoleShell', () => {
   })
 
   it('redirects to login when the current user query fails in the shell', () => {
+    state.routePath = '/admin/user?tab=profile'
     state.queryResult = {
       data: ref(undefined),
       isError: ref(true),
@@ -269,24 +270,51 @@ describe('ConsoleShell', () => {
 
     mountShell()
 
-    expect(state.routerPush).toHaveBeenCalledWith('/login')
+    expect(state.routerPush).toHaveBeenCalledWith({
+      path: '/login',
+      query: { redirect: '/admin/user?tab=profile' },
+    })
   })
 
   it('keeps parent expansion visually separate from active child navigation', () => {
-    const source = readFileSync('src/widgets/console-shell/ConsoleNavList.vue', 'utf8')
+    state.routePath = '/admin/user'
+    setCurrentUser({
+      username: 'admin',
+      nickname: 'Admin',
+      group: 'admin',
+      permissions: ['short_link:create', 'domain:use_default', 'short_link:read_own', 'admin:access'],
+    })
 
-    expect(source).toContain('.console-nav-list__item--parent[aria-expanded="true"]')
-    expect(source).not.toContain('.console-nav-list__item--parent[aria-expanded="true"] .console-nav-list__rail')
-    expect(source).toContain('.console-nav-list__item.router-link-active .console-nav-list__rail')
-    expect(source).toContain('background: color-mix(in srgb, var(--moeurl-surface-strong) 40%, transparent)')
-    expect(source).toContain('.console-nav-list__badge')
-    expect(source).toContain('background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 14%, transparent)')
+    mountShell()
+
+    const parent = screen.getAllByRole('button', { name: 'console.nav.userManagement' })[0]
+    expect(parent.getAttribute('aria-expanded')).toBe('true')
+    expect(parent.classList.contains('console-nav-list__item--parent')).toBe(true)
+    expect(within(parent).getByText('console.nav.userManagement')).toBeTruthy()
+    expect(screen.getByText('nav.users')).toBeTruthy()
+    expect(screen.getByText('nav.userGroups')).toBeTruthy()
+    expect(screen.getAllByTestId('console-nav-planned-badge').length).toBeGreaterThan(0)
   })
 
-  it('rebuilds expanded navigation groups from the current route instead of accumulating old matches', () => {
-    const source = readFileSync('src/widgets/console-shell/ConsoleNavList.vue', 'utf8')
+  it('rebuilds expanded navigation groups from the current route instead of accumulating old matches', async () => {
+    state.routePath = '/admin/user'
+    setCurrentUser({
+      username: 'admin',
+      nickname: 'Admin',
+      group: 'admin',
+      permissions: ['short_link:create', 'domain:use_default', 'short_link:read_own', 'admin:access'],
+    })
 
-    expect(source).toContain('const nextExpandedGroups = new Set<string>()')
-    expect(source).toContain('expandedGroups.value = nextExpandedGroups')
+    const { unmount } = mountShell()
+
+    const expandedParent = screen.getAllByRole('button', { name: 'console.nav.userManagement' })[0]
+    expect(expandedParent.getAttribute('aria-expanded')).toBe('true')
+    unmount()
+
+    state.routePath = '/admin/link'
+    mountShell()
+
+    const collapsedParent = screen.getAllByRole('button', { name: 'console.nav.userManagement' })[0]
+    expect(collapsedParent.getAttribute('aria-expanded')).toBe('false')
   })
 })
