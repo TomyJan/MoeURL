@@ -42,4 +42,11 @@ describe('deployment configuration', () => {
     expect(config).not.toContain('docker compose down -v && docker compose up --build')
     expect(config).not.toContain('down -v && docker compose')
   })
+
+  it('does not rely on local Vuetify declarations for public exports', () => {
+    const declarations = readFileSync(resolve(repositoryRoot, 'web/src/vuetify.d.ts'), 'utf8')
+
+    expect(declarations).toContain("from 'vuetify'")
+    expect(declarations).not.toContain('vuetify/lib/framework')
+  })
 })
