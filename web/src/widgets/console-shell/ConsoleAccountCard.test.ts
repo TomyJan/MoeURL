@@ -31,4 +31,15 @@ describe('ConsoleAccountCard', () => {
     await rerender({ displayName: '   ', username: 'alice' })
     expect(screen.getByText('M')).toBeTruthy()
   })
+
+  it('does not fall back to username initials when display name is blank', async () => {
+    const { rerender } = mountAccountCard('Alice', 'bob')
+
+    expect(screen.getByText('A')).toBeTruthy()
+
+    await rerender({ displayName: '   ', username: 'bob' })
+
+    expect(screen.getByText('M')).toBeTruthy()
+    expect(screen.queryByText('B')).toBeNull()
+  })
 })
