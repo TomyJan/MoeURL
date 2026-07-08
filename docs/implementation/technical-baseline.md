@@ -33,7 +33,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 | 前端路由 | Vue Router |
 | 客户端状态 | Pinia |
 | 服务端状态 | TanStack Query for Vue |
-| UI 组件 | Vuetify 3 |
+| UI 组件 | Vuetify 4 |
 | 国际化 | vue-i18n |
 | 表单 | vee-validate + zod |
 | PWA | Web App Manifest + Service Worker |
@@ -391,7 +391,7 @@ web/src/
 
 ## 10. UI 和主题约定
 
-UI 使用 Vuetify 3，并建立 MoeURL 自定义主题。
+UI 使用 Vuetify 4，并建立 MoeURL 自定义主题。
 
 主题方向：
 
@@ -486,6 +486,8 @@ cd web && pnpm test:e2e
 
 前端单元和组件测试覆盖率门禁针对 `vitest.config.ts` 中 `coverage.include` 覆盖的应用配置、实体 API、页面组件和共享工具代码执行，必须达到 100%。`main.ts` 启动入口、类型声明和纯类型模型由构建、类型检查和 E2E 覆盖，不计入单元覆盖率门禁。
 
+Playwright E2E 通过 `web/playwright.config.ts` 启动 Docker Compose 测试环境。E2E 必须使用独立的 Compose project name，默认由 `MOEURL_E2E_PORT` 派生，也可通过 `MOEURL_E2E_COMPOSE_PROJECT` 显式指定。E2E 同时通过 `MOEURL_E2E_PORT` 和 `MOEURL_E2E_POSTGRES_PORT` 隔离应用宿主端口与 PostgreSQL 宿主端口，避免和日常 Compose 或本机 PostgreSQL 端口冲突。E2E 显式以 `MOEURL_ENV=development` 运行测试应用，避免本地 HTTP 流程受 Secure Cookie 影响。E2E 可以在该隔离测试项目内执行 `down -v` 清理测试卷，但不得清理日常 `docker compose up --build` 使用的默认开发数据库卷。
+
 ### 质量检查工作流
 
 GitHub Actions 使用单个 `Check Code` 工作流文件。该工作流包含 5 个互相独立的并行任务：
@@ -522,7 +524,9 @@ Go 服务负责：
 docker compose up --build
 ```
 
-该命令应启动应用服务和 PostgreSQL，并允许通过 `/api/v1/health` 验证服务状态。
+该命令应启动应用服务和 PostgreSQL，并允许通过 `/api/v1/health` 验证服务状态。默认 Compose 环境使用 `MOEURL_ENV=production`，确保 Cookie `Secure` 语义和生产部署一致；本地 HTTP 调试或裸机开发如需非 Secure Cookie，应显式使用开发环境变量启动后端。
+
+默认 Compose 项目的 PostgreSQL 数据保存在命名卷 `postgres-data` 中，挂载点保持为 `/var/lib/postgresql`。PostgreSQL 宿主端口默认映射为 `5432`，可通过 `MOEURL_POSTGRES_PORT` 改写；容器内应用连接仍固定使用 `postgres:5432`。普通 `docker compose up --build`、`docker compose down` 和再次启动不得重置数据库、管理员账号或短链数据；只有显式执行 `docker compose down -v` 才会删除默认开发数据卷。
 
 裸机运行时应先完成以下步骤：
 

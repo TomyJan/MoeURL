@@ -1,3 +1,3 @@
 declare module 'vuetify' {
-  export { createVuetify } from 'vuetify/lib/framework'
+  export { createVuetify, useTheme } from 'vuetify'
 }

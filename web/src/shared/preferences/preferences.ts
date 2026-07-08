@@ -13,18 +13,21 @@ const languageStorageKey = 'moeurl.language'
 const themeStorageKey = 'moeurl.theme'
 
 export function loadPreferences(): UserPreferences {
+  const storage = globalThis.window?.localStorage
+  const storedLanguage = storage?.getItem(languageStorageKey)
+  const storedTheme = storage?.getItem(themeStorageKey)
   return {
-    language: parseLanguage(window.localStorage.getItem(languageStorageKey)),
-    theme: parseTheme(window.localStorage.getItem(themeStorageKey)),
+    language: languageOptions.includes(storedLanguage as LanguagePreference) ? (storedLanguage as LanguagePreference) : 'zh-CN',
+    theme: themeOptions.includes(storedTheme as ThemePreference) ? (storedTheme as ThemePreference) : 'system',
   }
 }
 
 export function saveLanguagePreference(language: LanguagePreference): void {
-  window.localStorage.setItem(languageStorageKey, language)
+  globalThis.window?.localStorage?.setItem(languageStorageKey, language)
 }
 
 export function saveThemePreference(theme: ThemePreference): void {
-  window.localStorage.setItem(themeStorageKey, theme)
+  globalThis.window?.localStorage?.setItem(themeStorageKey, theme)
 }
 
 export function resolveVuetifyTheme(theme: ThemePreference): 'moeurlLight' | 'moeurlDark' {
@@ -34,13 +37,5 @@ export function resolveVuetifyTheme(theme: ThemePreference): 'moeurlLight' | 'mo
   if (theme === 'dark') {
     return 'moeurlDark'
   }
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'moeurlDark' : 'moeurlLight'
-}
-
-function parseLanguage(value: string | null): LanguagePreference {
-  return value === 'en' || value === 'zh-CN' ? value : 'zh-CN'
-}
-
-function parseTheme(value: string | null): ThemePreference {
-  return value === 'light' || value === 'dark' || value === 'system' ? value : 'system'
+  return globalThis.window?.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'moeurlDark' : 'moeurlLight'
 }

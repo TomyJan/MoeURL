@@ -16,3 +16,9 @@ web/coverage/
 
 # Logs
 *.log
+
+# Local brainstorming prototypes
+.superpowers/brainstorm/
+
+# Local visual verification screenshots
+.codex-screenshots/

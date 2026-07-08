@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 FROM node:26-alpine AS web-build
 WORKDIR /workspace/web
 COPY web/package.json web/pnpm-lock.yaml ./

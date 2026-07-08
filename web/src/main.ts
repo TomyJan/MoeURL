@@ -8,6 +8,7 @@ import App from './app/App.vue'
 import { i18n } from './app/i18n'
 import { queryClient } from './app/query'
 import { router } from './app/router'
+import './app/theme-css'
 import { vuetify } from './app/vuetify'
 import { registerServiceWorker } from './shared/pwa/register'
 

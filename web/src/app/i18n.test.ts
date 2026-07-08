@@ -12,4 +12,21 @@ describe('i18n', () => {
     expect(messages['zh-CN'].nav.home).toBe('首页')
     expect(messages.en.nav.home).toBe('Home')
   })
+
+  it('keeps English preference system labels distinct for full and compact UI', () => {
+    expect(messages.en.preferences.system).toBe('System default')
+    expect(messages.en.preferences.systemShort).toBe('System')
+  })
+
+  it('keeps locale message trees aligned', () => {
+    function flattenKeys(value: unknown, prefix = ''): string[] {
+      if (!value || typeof value !== 'object') {
+        return [prefix]
+      }
+
+      return Object.entries(value).flatMap(([key, child]) => flattenKeys(child, prefix ? `${prefix}.${key}` : key))
+    }
+
+    expect(flattenKeys(messages.en).sort()).toEqual(flattenKeys(messages['zh-CN']).sort())
+  })
 })

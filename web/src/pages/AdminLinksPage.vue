@@ -1,58 +1,37 @@
 <template>
-  <v-container class="py-10">
-    <div class="d-flex align-center justify-space-between mb-4">
-      <h1 class="text-h4">{{ t('page.adminLinks') }}</h1>
-      <span class="text-body-2 text-medium-emphasis">共 {{ total }} 条</span>
+  <section class="console-page" data-testid="console-page-admin-links">
+    <div class="console-page__header">
+      <div>
+        <h1>{{ t('page.adminLinks') }}</h1>
+      </div>
+      <span class="console-page__total">{{ t('adminLinks.total', { total }) }}</span>
     </div>
-    <div class="mb-4 filters">
-      <v-select v-model="statusFilter" :items="statusOptions" label="状态筛选" />
-      <v-text-field v-model="searchKeyword" label="关键词搜索" />
+    <div class="console-page__tools">
+      <div class="console-page__filters">
+        <v-select v-model="statusFilter" :items="statusOptions" :label="t('filter.status')" density="compact" variant="outlined" />
+        <v-text-field v-model="searchKeyword" :label="t('filter.keyword')" density="compact" variant="outlined" />
+      </div>
     </div>
-    <v-alert v-if="query.isError.value" type="error" variant="tonal">加载失败</v-alert>
-    <v-progress-linear v-if="query.isPending.value" indeterminate />
-    <v-alert v-else-if="links.length === 0" type="info" variant="tonal">
-      暂无短链
-    </v-alert>
-    <v-table v-else>
-      <thead>
-        <tr>
-          <th>短链</th>
-          <th>目标链接</th>
-          <th>所有者</th>
-          <th>状态</th>
-          <th>操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="link in links" :key="link.id">
-          <td>
-            <a :href="link.url" target="_blank" rel="noreferrer">{{ link.url }}</a>
-          </td>
-          <td>{{ link.targetUrl }}</td>
-          <td>
-            <div>{{ link.owner.username }}</div>
-            <div class="text-caption text-medium-emphasis">{{ link.owner.nickname || link.owner.id }}</div>
-          </td>
-          <td>{{ link.status }}</td>
-          <td>
-            <v-btn
-              size="small"
-              variant="text"
-              :loading="updateMutation.isPending.value"
-              @click="toggleStatus(link.id, link.status)"
-            >
-              {{ link.status === 'active' ? '禁用' : '启用' }}
-            </v-btn>
-            <v-btn size="small" variant="text" @click="copyUrl(link.url)">复制</v-btn>
-            <v-btn size="small" variant="text" :href="link.url" target="_blank" rel="noreferrer">打开</v-btn>
-            <v-btn size="small" variant="text" color="error" :loading="deleteMutation.isPending.value" @click="remove(link.id)">
-              删除
-            </v-btn>
-          </td>
-        </tr>
-      </tbody>
-    </v-table>
-  </v-container>
+    <div class="console-data-panel" data-testid="console-data-panel">
+      <v-alert v-if="query.isError.value" type="error" variant="tonal">{{ t('adminLinks.loadFailed') }}</v-alert>
+      <v-progress-linear v-else-if="query.isPending.value" indeterminate />
+      <div v-else-if="links.length === 0" class="console-page__empty">
+        <div>
+          <h2>{{ t('links.emptyTitle') }}</h2>
+          <p>{{ t('adminLinks.emptyDescription') }}</p>
+        </div>
+      </div>
+      <ConsoleLinkList
+        v-else
+        :deleting-id="deletingId"
+        :links="linkItems"
+        :updating-id="updatingId"
+        @copy="copyUrl"
+        @remove="remove"
+        @toggle-status="toggleStatus"
+      />
+    </div>
+  </section>
 </template>
 
 <script setup lang="ts">
@@ -62,17 +41,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { deleteAdminShortLink, listAdminShortLinks, updateAdminShortLink } from '@/entities/short-link/api'
 import type { AdminShortLink } from '@/entities/short-link/model'
+import { useMutationTargetId } from '@/shared/mutations/useMutationTargetId'
+import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const statusFilter = ref<'' | AdminShortLink['status']>('')
 const searchKeyword = ref('')
 const debouncedKeyword = ref('')
-const statusOptions = [
-  { title: '全部', value: '' },
-  { title: '启用', value: 'active' },
-  { title: '禁用', value: 'disabled' },
-]
+const statusOptions = computed(() => [
+  { title: t('filter.all'), value: '' },
+  { title: t('filter.active'), value: 'active' },
+  { title: t('filter.disabled'), value: 'disabled' },
+])
 
 watch(searchKeyword, (value, _oldValue, onCleanup) => {
   const timer = globalThis.setTimeout(() => {
@@ -86,6 +67,7 @@ const query = useQuery({
   queryFn: () => listAdminShortLinks({ status: statusFilter.value, q: debouncedKeyword.value }),
 })
 const links = computed(() => query.data.value?.items ?? [])
+const linkItems = computed<ConsoleLinkListItem[]>(() => links.value)
 const total = computed(() => query.data.value?.meta.total ?? 0)
 
 const updateMutation = useMutation({
@@ -96,9 +78,11 @@ const deleteMutation = useMutation({
   mutationFn: deleteAdminShortLink,
   onSuccess: invalidateLinks,
 })
+const updatingId = useMutationTargetId(updateMutation, (variables) => variables?.id)
+const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof variables === 'string' ? variables : undefined))
 
-function toggleStatus(id: string, status: AdminShortLink['status']) {
-  updateMutation.mutate({ id, status: status === 'active' ? 'disabled' : 'active' })
+function toggleStatus(link: ConsoleLinkListItem) {
+  updateMutation.mutate({ id: link.id, status: link.status === 'active' ? 'disabled' : 'active' })
 }
 
 function remove(id: string) {
@@ -113,17 +97,3 @@ function invalidateLinks() {
   void queryClient.invalidateQueries({ queryKey: ['admin-short-link'] })
 }
 </script>
-
-<style scoped>
-.filters {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: minmax(160px, 220px) minmax(220px, 320px);
-}
-
-@media (max-width: 720px) {
-  .filters {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

@@ -20,7 +20,7 @@ import (
 
 func TestRouterHealthReturnsOK(t *testing.T) {
 	router := apphttp.NewRouter()
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/health", nil)
 	response := httptest.NewRecorder()
 
 	router.ServeHTTP(response, request)
@@ -56,22 +56,39 @@ func TestRouterServesSPAFixedRoutesFromStaticDir(t *testing.T) {
 		t.Fatalf("write index: %v", err)
 	}
 	router := apphttp.NewRouter(apphttp.Dependencies{StaticDir: staticDir})
-	request := httptest.NewRequest(http.MethodGet, "/login", nil)
-	response := httptest.NewRecorder()
 
-	router.ServeHTTP(response, request)
+	for _, path := range []string{
+		"/",
+		"/setup",
+		"/login",
+		"/console",
+		"/link",
+		"/analytics",
+		"/admin/link",
+		"/admin/user",
+		"/admin/user/group",
+		"/admin/setting",
+		"/admin/user/new",
+	} {
+		t.Run(path, func(t *testing.T) {
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
+			response := httptest.NewRecorder()
 
-	if response.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, response.Code)
-	}
-	if response.Body.String() == "" {
-		t.Fatal("expected index body")
+			router.ServeHTTP(response, request)
+
+			if response.Code != http.StatusOK {
+				t.Fatalf("expected status %d, got %d", http.StatusOK, response.Code)
+			}
+			if response.Body.String() == "" {
+				t.Fatal("expected index body")
+			}
+		})
 	}
 }
 
 func TestRouterUnknownAPIUsesUnifiedResponse(t *testing.T) {
 	router := apphttp.NewRouter()
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/missing", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/missing", nil)
 	response := httptest.NewRecorder()
 
 	router.ServeHTTP(response, request)
@@ -134,7 +151,7 @@ func TestRouterRegistersOptionalDependencies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
 			response := httptest.NewRecorder()
-			request := httptest.NewRequest(tt.method, tt.path, bytes.NewBufferString(tt.body))
+			request := httptest.NewRequestWithContext(t.Context(), tt.method, tt.path, bytes.NewBufferString(tt.body))
 
 			router.ServeHTTP(response, request)
 

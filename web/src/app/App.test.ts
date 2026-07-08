@@ -1,14 +1,12 @@
-import { fireEvent, render, screen } from '@testing-library/vue'
+import { render, screen } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { defineComponent, h, nextTick, onMounted, ref } from 'vue'
 
 import App from './App.vue'
 import { componentStubs } from '@/test/component-stubs'
 
 const state = vi.hoisted(() => ({
-  currentUser: { value: undefined as unknown },
-  invalidateQueries: vi.fn(),
-  logoutMutate: vi.fn(),
+  routePath: { value: '/' },
   themeName: { value: 'moeurlLight' },
 }))
 
@@ -19,7 +17,7 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
-vi.mock('vuetify/framework', () => ({
+vi.mock('vuetify', () => ({
   useTheme: () => ({
     global: {
       name: state.themeName,
@@ -27,23 +25,12 @@ vi.mock('vuetify/framework', () => ({
   }),
 }))
 
-vi.mock('@tanstack/vue-query', () => ({
-  useMutation: vi.fn((options?: { onSuccess?: () => void }) => ({
-    isPending: ref(false),
-    mutate: vi.fn(() => {
-      state.logoutMutate()
-      options?.onSuccess?.()
-    }),
-  })),
-  useQuery: vi.fn(() => ({
-    data: state.currentUser,
-  })),
-}))
-
-vi.mock('@/app/query', () => ({
-  queryClient: {
-    invalidateQueries: state.invalidateQueries,
-  },
+vi.mock('vue-router', () => ({
+  useRoute: () => ({
+    get path() {
+      return state.routePath.value
+    },
+  }),
 }))
 
 const preferenceSpies = vi.hoisted(() => ({
@@ -63,53 +50,87 @@ vi.mock('@/shared/preferences/preferences', async (importOriginal) => {
 
 describe('App', () => {
   beforeEach(() => {
-    state.currentUser.value = undefined
-    state.invalidateQueries.mockReset()
-    state.logoutMutate.mockReset()
+    state.routePath.value = '/'
     preferenceSpies.saveLanguagePreference.mockReset()
     preferenceSpies.saveThemePreference.mockReset()
   })
 
-  it('renders guest navigation and login action', () => {
-    render(App, { global: { stubs: componentStubs } })
-
-    expect(screen.getByText('MoeURL')).toBeTruthy()
-    expect(screen.getByText('guest')).toBeTruthy()
-    expect(screen.getByText('nav.login')).toBeTruthy()
-  })
-
-  it('renders authorized navigation and logs out users', async () => {
-    state.currentUser.value = {
-      user: {
-        username: 'alice',
-        nickname: 'Alice',
-        group: 'admin',
-        permissions: ['short_link:read_own', 'admin:access'],
+  it('renders the route outlet without global product navigation', () => {
+    render(App, {
+      global: {
+        stubs: {
+          ...componentStubs,
+          RouterView: {
+            template: `<div data-testid="router-view"><slot :Component="{ template: '<section data-testid=\\'route-component\\'>route</section>' }" :route="{ fullPath: '/route' }" /></div>`,
+          },
+        },
       },
-    }
+    })
 
-    render(App, { global: { stubs: componentStubs } })
-
-    expect(screen.getByText('nav.links')).toBeTruthy()
-    expect(screen.getByText('nav.admin')).toBeTruthy()
-    expect(screen.getByText('nav.users')).toBeTruthy()
-    expect(screen.getByText('Alice')).toBeTruthy()
-
-    await fireEvent.click(screen.getByText('nav.logout'))
-
-    expect(state.logoutMutate).toHaveBeenCalled()
-    expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['auth', 'me'] })
+    expect(screen.getByTestId('router-view')).toBeTruthy()
+    expect(screen.getByTestId('route-component')).toBeTruthy()
+    expect(screen.queryByText('nav.links')).toBeNull()
+    expect(screen.queryByText('nav.admin')).toBeNull()
   })
 
-  it('persists toolbar language and theme selections', async () => {
+  it('leaves preference controls to page layouts instead of floating globally', () => {
     render(App, { global: { stubs: componentStubs } })
 
-    const selects = screen.getAllByLabelText('select')
-    await fireEvent.update(selects[0], 'en')
-    await fireEvent.update(selects[1], 'dark')
+    expect(screen.queryByLabelText('preferences.groupLabel')).toBeNull()
+    expect(screen.queryByRole('button', { name: '切换语言' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '切换主题' })).toBeNull()
+  })
 
-    expect(preferenceSpies.saveLanguagePreference).toHaveBeenCalledWith('en')
-    expect(preferenceSpies.saveThemePreference).toHaveBeenCalledWith('dark')
-    expect(state.themeName.value).toBe('moeurlDark')
+  it('wraps route changes with a reusable transition boundary', () => {
+    render(App, { global: { stubs: componentStubs } })
+
+    expect(screen.getByTestId('app-route-transition')).toBeTruthy()
+  })
+
+  it('keeps the routed shell mounted when only the nested full path changes', async () => {
+    const mountCount = ref(0)
+    const routeFullPath = ref('/')
+    const routeMatchedPath = ref('/console')
+    const RoutedComponent = defineComponent({
+      setup() {
+        onMounted(() => {
+          mountCount.value += 1
+        })
+        return () => h('section', { 'data-testid': 'route-component' }, `mounted ${mountCount.value}`)
+      },
+    })
+
+    render(App, {
+      global: {
+        stubs: {
+          ...componentStubs,
+          RouterView: {
+            components: { RoutedComponent },
+            setup(_, { slots }) {
+              return () =>
+                h(
+                  'div',
+                  { 'data-testid': 'router-view' },
+                  slots.default?.({
+                    Component: RoutedComponent,
+                    route: { fullPath: routeFullPath.value, matched: [{ path: routeMatchedPath.value }] },
+                  }),
+                )
+            },
+          },
+        },
+      },
+    })
+
+    expect(mountCount.value).toBe(1)
+    routeFullPath.value = '/link?status=active'
+    await nextTick()
+
+    expect(mountCount.value).toBe(1)
+
+    routeMatchedPath.value = '/login'
+    await nextTick()
+
+    expect(mountCount.value).toBe(2)
   })
 })

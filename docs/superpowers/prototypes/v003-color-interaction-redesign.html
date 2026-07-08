@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MoeURL Color Interaction Redesign</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink-950: #141a22;
+        --ink-800: #273241;
+        --ink-600: #5f6b7a;
+        --ink-400: #8c98a8;
+        --paper-000: #ffffff;
+        --paper-050: #f8fafc;
+        --paper-100: #f3f6fa;
+        --paper-150: #edf2f7;
+        --paper-200: #e2e9f1;
+        --blue-700: #315f8c;
+        --blue-800: #244a70;
+        --blue-100: #dcebf8;
+        --copper-600: #b87349;
+        --copper-100: #f4e3d7;
+        --success-600: #527a58;
+        --danger-600: #b25555;
+        --radius-xl: 34px;
+        --radius-lg: 26px;
+        --radius-md: 18px;
+        --radius-pill: 999px;
+        --shadow-light: 0 24px 70px rgba(33, 48, 67, 0.11);
+        --shadow-dark: 0 28px 80px rgba(0, 0, 0, 0.34);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: #e8edf3;
+        color: var(--ink-950);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        letter-spacing: 0;
+      }
+
+      button,
+      input {
+        font: inherit;
+        letter-spacing: 0;
+      }
+
+      .page {
+        min-height: 100vh;
+        padding: 34px;
+      }
+
+      .brief {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+        gap: 18px;
+        align-items: end;
+        max-width: 1440px;
+        margin: 0 auto 24px;
+      }
+
+      .brief h1 {
+        margin: 0;
+        font-size: clamp(2rem, 4vw, 4.5rem);
+        line-height: 0.96;
+        letter-spacing: -0.04em;
+      }
+
+      .brief p {
+        max-width: 760px;
+        margin: 14px 0 0;
+        color: var(--ink-600);
+        font-size: 1rem;
+        line-height: 1.7;
+      }
+
+      .thesis {
+        display: grid;
+        gap: 10px;
+        padding: 18px;
+        border: 1px solid rgba(49, 95, 140, 0.13);
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.62);
+      }
+
+      .thesis strong {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        color: var(--blue-700);
+      }
+
+      .thesis span {
+        color: var(--ink-800);
+        line-height: 1.55;
+      }
+
+      .showcase {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 24px;
+        max-width: 1440px;
+        margin: 0 auto;
+      }
+
+      .mock {
+        overflow: hidden;
+        min-height: 720px;
+        border-radius: 42px;
+        box-shadow: var(--shadow-light);
+      }
+
+      .mock-light {
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(243, 246, 250, 0.72)),
+          var(--paper-100);
+      }
+
+      .mock-dark {
+        background: #101722;
+        color: #edf4fb;
+        box-shadow: var(--shadow-dark);
+      }
+
+      .home {
+        min-height: 720px;
+        padding: 30px;
+      }
+
+      .home-nav,
+      .console-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 820;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 36px;
+        height: 36px;
+        place-items: center;
+        border-radius: 14px;
+        background: #1f2a37;
+        color: #ffffff;
+        font-weight: 900;
+      }
+
+      .home-actions,
+      .console-actions {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+
+      .icon-button,
+      .button,
+      .ghost-button {
+        min-height: 42px;
+        border: 0;
+        border-radius: var(--radius-pill);
+        cursor: pointer;
+      }
+
+      .icon-button {
+        width: 42px;
+        border: 1px solid rgba(49, 95, 140, 0.14);
+        background: rgba(255, 255, 255, 0.72);
+        color: var(--ink-800);
+      }
+
+      .button {
+        padding: 0 20px;
+        background: var(--blue-700);
+        color: #ffffff;
+        font-weight: 820;
+        box-shadow: 0 12px 28px rgba(49, 95, 140, 0.18);
+      }
+
+      .button:hover,
+      .button.is-hover {
+        background: var(--blue-800);
+        transform: translateY(-1px);
+      }
+
+      .ghost-button {
+        padding: 0 16px;
+        border: 1px solid rgba(49, 95, 140, 0.14);
+        background: rgba(255, 255, 255, 0.58);
+        color: var(--ink-800);
+        font-weight: 760;
+      }
+
+      .hero {
+        display: grid;
+        align-content: center;
+        min-height: 560px;
+        padding: 42px 0 22px;
+      }
+
+      .hero-inner {
+        width: min(720px, 100%);
+        margin: 0 auto;
+        text-align: center;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 0 12px;
+        border-radius: var(--radius-pill);
+        background: rgba(196, 122, 74, 0.12);
+        color: var(--copper-600);
+        font-size: 0.78rem;
+        font-weight: 860;
+      }
+
+      .hero h2 {
+        margin: 18px 0 12px;
+        font-size: clamp(2.7rem, 6vw, 5.4rem);
+        line-height: 0.92;
+        letter-spacing: -0.055em;
+      }
+
+      .hero p {
+        max-width: 540px;
+        margin: 0 auto;
+        color: var(--ink-600);
+        font-size: 1rem;
+        line-height: 1.75;
+      }
+
+      .create-panel {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        margin: 30px auto 0;
+        padding: 10px;
+        border: 1px solid rgba(49, 95, 140, 0.14);
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.82);
+        box-shadow: 0 20px 60px rgba(33, 48, 67, 0.1);
+      }
+
+      .field {
+        min-height: 52px;
+        width: 100%;
+        border: 1px solid transparent;
+        border-radius: 20px;
+        background: #f7f9fc;
+        color: var(--ink-950);
+        outline: 0;
+        padding: 0 18px;
+      }
+
+      .field:focus,
+      .field.is-focus {
+        border-color: rgba(49, 95, 140, 0.35);
+        box-shadow: 0 0 0 4px rgba(49, 95, 140, 0.18);
+      }
+
+      .support {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+
+      .support-item {
+        padding: 16px;
+        border-top: 1px solid rgba(49, 95, 140, 0.12);
+      }
+
+      .support-item strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .support-item small {
+        color: var(--ink-600);
+        line-height: 1.55;
+      }
+
+      .console {
+        display: grid;
+        grid-template-columns: 248px minmax(0, 1fr);
+        min-height: 720px;
+      }
+
+      .sidebar {
+        display: grid;
+        grid-template-rows: auto auto 1fr auto;
+        gap: 22px;
+        padding: 24px;
+        border-right: 1px solid rgba(237, 244, 251, 0.08);
+        background: #121b28;
+      }
+
+      .sidebar .brand-mark {
+        background: #8ab8e8;
+        color: #0f1722;
+      }
+
+      .sidebar .muted {
+        margin: 2px 0 0;
+        color: #9aa8b8;
+        font-size: 0.78rem;
+      }
+
+      .nav {
+        display: grid;
+        align-content: start;
+        gap: 18px;
+      }
+
+      .nav-group {
+        display: grid;
+        gap: 5px;
+      }
+
+      .nav-label {
+        padding: 0 12px;
+        color: #7f8da0;
+        font-size: 0.7rem;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 42px;
+        padding: 0 12px;
+        border-radius: 18px;
+        color: #a7b4c4;
+        font-size: 0.92rem;
+        font-weight: 760;
+      }
+
+      .nav-item.is-parent {
+        justify-content: space-between;
+      }
+
+      .nav-rail {
+        width: 3px;
+        height: 16px;
+        border-radius: var(--radius-pill);
+        background: transparent;
+      }
+
+      .nav-text {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .nav-caret {
+        width: 8px;
+        height: 8px;
+        margin-left: auto;
+        border-right: 1.5px solid currentcolor;
+        border-bottom: 1.5px solid currentcolor;
+        transform: rotate(45deg) translateY(-1px);
+      }
+
+      .nav-children {
+        display: grid;
+        gap: 4px;
+        margin: 4px 0 6px 14px;
+        padding-left: 9px;
+        border-left: 1px solid rgba(237, 244, 251, 0.1);
+      }
+
+      .nav-child {
+        min-height: 38px;
+        border-radius: 16px;
+        color: #96a5b8;
+        font-size: 0.88rem;
+      }
+
+      .nav-child .nav-rail {
+        height: 13px;
+      }
+
+      .nav-badge {
+        margin-left: auto;
+        padding: 3px 8px;
+        border-radius: var(--radius-pill);
+        background: rgba(224, 160, 111, 0.12);
+        color: #e0a06f;
+        font-size: 0.68rem;
+        font-weight: 860;
+      }
+
+      .nav-item.is-expanded {
+        background: rgba(32, 44, 61, 0.64);
+        color: #c9d5e3;
+      }
+
+      .nav-item.is-active {
+        background: #202c3d;
+        color: #8ab8e8;
+      }
+
+      .nav-item.is-active .nav-rail {
+        background: #e0a06f;
+      }
+
+      .account {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid rgba(237, 244, 251, 0.09);
+        border-radius: 22px;
+        background: #172231;
+      }
+
+      .avatar {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        place-items: center;
+        border-radius: 14px;
+        background: rgba(138, 184, 232, 0.16);
+        color: #8ab8e8;
+        font-weight: 900;
+      }
+
+      .account strong {
+        display: block;
+        font-size: 0.88rem;
+      }
+
+      .account small {
+        color: #9aa8b8;
+      }
+
+      .workspace {
+        padding: 24px;
+        background: #101722;
+      }
+
+      .console-top h2 {
+        margin: 0;
+        font-size: 2rem;
+        letter-spacing: -0.035em;
+      }
+
+      .console-top p {
+        margin: 4px 0 0;
+        color: #9aa8b8;
+      }
+
+      .dark-button {
+        min-height: 42px;
+        padding: 0 18px;
+        border: 0;
+        border-radius: var(--radius-pill);
+        background: #8ab8e8;
+        color: #0f1722;
+        font-weight: 850;
+      }
+
+      .data-panel {
+        margin-top: 24px;
+        padding: 12px;
+        border: 1px solid rgba(237, 244, 251, 0.09);
+        border-radius: 30px;
+        background: #1a2433;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: minmax(120px, 0.85fr) minmax(170px, 1.4fr) auto auto;
+        gap: 16px;
+        align-items: center;
+        min-height: 74px;
+        padding: 14px 16px;
+        border-radius: 22px;
+      }
+
+      .row + .row {
+        border-top: 1px solid rgba(237, 244, 251, 0.08);
+        border-radius: 0;
+      }
+
+      .row:hover,
+      .row.is-hover {
+        background: #202c3d;
+      }
+
+      .row a {
+        color: #8ab8e8;
+        font-weight: 850;
+        text-decoration: none;
+      }
+
+      .label {
+        display: block;
+        margin-bottom: 4px;
+        color: #7f8da0;
+        font-size: 0.72rem;
+        font-weight: 900;
+      }
+
+      .row span:last-child,
+      .row small {
+        color: #a7b4c4;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 30px;
+        padding: 0 11px;
+        border-radius: var(--radius-pill);
+        font-size: 0.76rem;
+        font-weight: 850;
+      }
+
+      .pill-active {
+        background: rgba(138, 184, 232, 0.14);
+        color: #8ab8e8;
+      }
+
+      .pill-disabled {
+        background: rgba(224, 160, 111, 0.14);
+        color: #e0a06f;
+      }
+
+      .more {
+        min-height: 34px;
+        border: 1px solid rgba(237, 244, 251, 0.1);
+        border-radius: var(--radius-pill);
+        background: transparent;
+        color: #edf4fb;
+        padding: 0 12px;
+      }
+
+      .interaction-board {
+        max-width: 1440px;
+        margin: 24px auto 0;
+        padding: 24px;
+        border-radius: 38px;
+        background: rgba(255, 255, 255, 0.7);
+        box-shadow: 0 18px 54px rgba(33, 48, 67, 0.08);
+      }
+
+      .interaction-board h2 {
+        margin: 0 0 4px;
+        font-size: 1.4rem;
+      }
+
+      .interaction-board > p {
+        margin: 0 0 18px;
+        color: var(--ink-600);
+      }
+
+      .states {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr 1fr;
+        gap: 18px;
+      }
+
+      .state-group {
+        display: grid;
+        gap: 12px;
+        padding: 16px;
+        border: 1px solid rgba(49, 95, 140, 0.12);
+        border-radius: 24px;
+        background: #ffffff;
+      }
+
+      .state-group h3 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .button-strip,
+      .chip-strip,
+      .swatches {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .chip {
+        min-height: 30px;
+        padding: 0 11px;
+        border-radius: var(--radius-pill);
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.78rem;
+        font-weight: 850;
+      }
+
+      .chip-info {
+        background: rgba(49, 95, 140, 0.12);
+        color: var(--blue-700);
+      }
+
+      .chip-warn {
+        background: rgba(184, 115, 73, 0.15);
+        color: var(--copper-600);
+      }
+
+      .chip-success {
+        background: rgba(82, 122, 88, 0.14);
+        color: var(--success-600);
+      }
+
+      .chip-danger {
+        background: rgba(178, 85, 85, 0.13);
+        color: var(--danger-600);
+      }
+
+      .swatch {
+        min-width: 104px;
+      }
+
+      .swatch i {
+        display: block;
+        height: 54px;
+        border-radius: 18px;
+        border: 1px solid rgba(20, 26, 34, 0.08);
+      }
+
+      .swatch span {
+        display: block;
+        margin-top: 7px;
+        color: var(--ink-600);
+        font-size: 0.75rem;
+        font-weight: 780;
+      }
+
+      .mini-menu {
+        display: grid;
+        gap: 6px;
+        width: min(250px, 100%);
+        padding: 8px;
+        border: 1px solid rgba(49, 95, 140, 0.14);
+        border-radius: 22px;
+        background: #ffffff;
+        box-shadow: 0 18px 48px rgba(33, 48, 67, 0.12);
+      }
+
+      .mini-option {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 10px;
+        align-items: center;
+        min-height: 44px;
+        padding: 0 10px;
+        border-radius: 16px;
+        color: var(--ink-800);
+      }
+
+      .mini-option.is-selected {
+        background: rgba(49, 95, 140, 0.1);
+        color: var(--blue-700);
+        font-weight: 850;
+      }
+
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: var(--radius-pill);
+        background: var(--copper-600);
+      }
+
+      @media (max-width: 1100px) {
+        .brief,
+        .showcase,
+        .states {
+          grid-template-columns: 1fr;
+        }
+
+        .mock {
+          min-height: auto;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .page {
+          padding: 16px;
+        }
+
+        .home {
+          padding: 20px;
+        }
+
+        .create-panel,
+        .row,
+        .console {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          display: none;
+        }
+
+        .support {
+          grid-template-columns: 1fr;
+        }
+
+        .hero h2 {
+          font-size: 3rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="brief">
+        <div>
+          <h1>MoeURL 配色和交互重设方向</h1>
+          <p>
+            这版避开现有绿色体系，保留当前的大圆角、留白和控制台结构。浅色使用冷白、雾蓝和石墨文字，深色使用蓝黑、钢蓝表面和冰蓝主操作，少量铜橙只负责提醒和当前位置标识。
+          </p>
+        </div>
+        <aside class="thesis">
+          <strong>Visual thesis</strong>
+          <span>冷静工具感作为骨架，清透产品感作为表面；颜色服务可读性、状态判断和品牌记忆，不做装饰性炫技。</span>
+          <strong>Interaction thesis</strong>
+          <span>主操作轻微上浮；输入聚焦使用低饱和蓝色光晕；导航选中用暖色窄 rail，避免整块高饱和填充。</span>
+        </aside>
+      </section>
+
+      <section class="showcase" aria-label="theme previews">
+        <article class="mock mock-light">
+          <div class="home">
+            <nav class="home-nav">
+              <div class="brand">
+                <span class="brand-mark">M</span>
+                <span>MoeURL</span>
+              </div>
+              <div class="home-actions">
+                <button class="icon-button" type="button">Aa</button>
+                <button class="icon-button" type="button">◐</button>
+                <button class="ghost-button" type="button">登录</button>
+              </div>
+            </nav>
+
+            <section class="hero">
+              <div class="hero-inner">
+                <span class="eyebrow">自托管短链工作台</span>
+                <h2>粘贴链接，生成可控短链。</h2>
+                <p>面向个人和小团队的轻量短链系统，把创建、权限和管理放在同一个清晰入口里。</p>
+                <div class="create-panel">
+                  <input class="field is-focus" value="https://example.com/project/release-note" aria-label="目标链接" />
+                  <button class="button is-hover" type="button">生成短链</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="support">
+              <div class="support-item">
+                <strong>权限可控</strong>
+                <small>入口是否开放由用户组权限决定，不把业务开关散落在页面里。</small>
+              </div>
+              <div class="support-item">
+                <strong>部署清晰</strong>
+                <small>单服务承载 API、前端和短链跳转，适合自托管维护。</small>
+              </div>
+              <div class="support-item">
+                <strong>快速管理</strong>
+                <small>生成后回到控制台继续筛选、禁用和维护短链。</small>
+              </div>
+            </section>
+          </div>
+        </article>
+
+        <article class="mock mock-dark">
+          <div class="console">
+            <aside class="sidebar">
+              <div>
+                <div class="brand">
+                  <span class="brand-mark">M</span>
+                  <span>MoeURL</span>
+                </div>
+                <p class="muted">Console</p>
+              </div>
+              <button class="dark-button" type="button">新建短链</button>
+              <nav class="nav">
+                <div class="nav-group">
+                  <div class="nav-label">Workspace</div>
+                  <div class="nav-item"><span class="nav-rail"></span><span class="nav-text">概览</span></div>
+                  <div class="nav-item"><span class="nav-rail"></span><span class="nav-text">我的短链</span></div>
+                  <div class="nav-item"><span class="nav-rail"></span><span class="nav-text">访问分析</span><span class="nav-badge">规划中</span></div>
+                </div>
+                <div class="nav-group">
+                  <div class="nav-label">Admin</div>
+                  <div class="nav-item"><span class="nav-rail"></span><span class="nav-text">全站短链</span></div>
+                  <div class="nav-item is-parent is-expanded">
+                    <span class="nav-rail"></span>
+                    <span class="nav-text">用户管理</span>
+                    <span class="nav-caret"></span>
+                  </div>
+                  <div class="nav-children">
+                    <div class="nav-item nav-child is-active"><span class="nav-rail"></span><span class="nav-text">用户</span></div>
+                    <div class="nav-item nav-child"><span class="nav-rail"></span><span class="nav-text">用户组与权限</span><span class="nav-badge">规划中</span></div>
+                  </div>
+                  <div class="nav-item"><span class="nav-rail"></span><span class="nav-text">系统设置</span><span class="nav-badge">规划中</span></div>
+                </div>
+              </nav>
+              <div class="account">
+                <span class="avatar">A</span>
+                <span><strong>admin</strong><small>管理员</small></span>
+              </div>
+            </aside>
+
+            <section class="workspace">
+              <div class="console-top">
+                <div>
+                  <h2>用户管理</h2>
+                  <p>维护账号状态、身份边界和管理员可用操作。</p>
+                </div>
+                <div class="console-actions">
+                  <button class="more" type="button">筛选</button>
+                  <button class="dark-button" type="button">创建用户</button>
+                </div>
+              </div>
+
+              <div class="data-panel">
+                <div class="row is-hover">
+                  <div>
+                    <span class="label">账号</span>
+                    <a href="#">admin</a>
+                  </div>
+                  <div>
+                    <span class="label">昵称</span>
+                    <span>站点管理员</span>
+                  </div>
+                  <span class="pill pill-active">管理员</span>
+                  <button class="more" type="button">更多</button>
+                </div>
+                <div class="row">
+                  <div>
+                    <span class="label">账号</span>
+                    <a href="#">writer</a>
+                  </div>
+                  <div>
+                    <span class="label">昵称</span>
+                    <span>内容维护</span>
+                  </div>
+                  <span class="pill pill-active">普通用户</span>
+                  <button class="more" type="button">更多</button>
+                </div>
+                <div class="row">
+                  <div>
+                    <span class="label">账号</span>
+                    <a href="#">reviewer</a>
+                  </div>
+                  <div>
+                    <span class="label">昵称</span>
+                    <span>临时协作账号</span>
+                  </div>
+                  <span class="pill pill-disabled">已禁用</span>
+                  <button class="more" type="button">更多</button>
+                </div>
+              </div>
+            </section>
+          </div>
+        </article>
+      </section>
+
+      <section class="interaction-board">
+        <h2>组件交互状态</h2>
+        <p>这里定义实现时要落到 token 的状态语义：蓝色负责主操作和焦点，铜橙负责当前位置和提醒，业务成功/错误只用于状态，不参与品牌主色。</p>
+        <div class="states">
+          <div class="state-group">
+            <h3>操作和输入</h3>
+            <div class="button-strip">
+              <button class="button" type="button">默认按钮</button>
+              <button class="button is-hover" type="button">悬停按钮</button>
+              <button class="ghost-button" type="button">次级按钮</button>
+            </div>
+            <input class="field is-focus" value="聚焦输入框使用蓝色光晕" />
+          </div>
+
+          <div class="state-group">
+            <h3>状态标签</h3>
+            <div class="chip-strip">
+              <span class="chip chip-info">信息</span>
+              <span class="chip chip-success">启用</span>
+              <span class="chip chip-warn">规划中</span>
+              <span class="chip chip-danger">错误</span>
+            </div>
+            <div class="mini-menu">
+              <div class="mini-option is-selected"><span class="dot"></span><span>浅色模式</span><span>•</span></div>
+              <div class="mini-option"><span></span><span>深色模式</span><span></span></div>
+              <div class="mini-option"><span></span><span>跟随系统</span><span></span></div>
+            </div>
+          </div>
+
+          <div class="state-group">
+            <h3>Token 色板</h3>
+            <div class="swatches">
+              <div class="swatch"><i style="background: #f5f7fb"></i><span>#f5f7fb 背景</span></div>
+              <div class="swatch"><i style="background: #315f8c"></i><span>#315f8c 主色</span></div>
+              <div class="swatch"><i style="background: #c47a4a"></i><span>#c47a4a 强调</span></div>
+              <div class="swatch"><i style="background: #101722"></i><span>#101722 深色背景</span></div>
+              <div class="swatch"><i style="background: #1a2433"></i><span>#1a2433 深色表面</span></div>
+              <div class="swatch"><i style="background: #8ab8e8"></i><span>#8ab8e8 深色主色</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

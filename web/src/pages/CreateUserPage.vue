@@ -1,24 +1,51 @@
 <template>
-  <v-container class="py-10">
-    <h1 class="text-h4 mb-4">{{ t('page.createUser') }}</h1>
-    <v-card max-width="640" variant="outlined">
-      <v-card-text>
-        <v-text-field v-model="username" label="Username" variant="outlined" />
-        <v-text-field v-model="password" label="Password" type="password" variant="outlined" />
-        <v-text-field v-model="nickname" label="Nickname" variant="outlined" />
-        <v-select v-model="groupKey" label="Group" :items="['user', 'admin']" variant="outlined" />
-        <v-select v-model="status" label="Status" :items="['active', 'disabled']" variant="outlined" />
-        <v-btn color="primary" :loading="mutation.isPending.value" @click="submit">创建用户</v-btn>
+  <section class="console-page" data-testid="console-page-create-user">
+    <header class="console-page__header">
+      <div>
+        <h1>{{ t('page.createUser') }}</h1>
+      </div>
+      <v-btn to="/admin/user" variant="text">{{ t('createUser.backToUsers') }}</v-btn>
+    </header>
+    <div class="console-form-panel" data-testid="console-form-panel">
+      <div class="console-form-panel__intro">
+        <h2>{{ t('createUser.title') }}</h2>
+        <p>{{ t('createUser.description') }}</p>
+      </div>
+
+      <form class="console-form-panel__body" @submit.prevent="submit">
+        <fieldset class="console-form-panel__group" data-testid="console-form-group">
+          <legend>{{ t('createUser.accountLegend') }}</legend>
+          <div class="console-form-panel__grid">
+            <v-text-field v-model="username" :label="t('createUser.username')" density="compact" variant="outlined" />
+            <v-text-field v-model="password" :label="t('createUser.password')" density="compact" type="password" variant="outlined" />
+            <v-text-field v-model="nickname" :label="t('createUser.nickname')" density="compact" variant="outlined" />
+          </div>
+        </fieldset>
+
+        <fieldset class="console-form-panel__group" data-testid="console-form-group">
+          <legend>{{ t('createUser.accessLegend') }}</legend>
+          <div class="console-form-panel__grid console-form-panel__grid--compact">
+            <v-select v-model="groupKey" :label="t('createUser.group')" :items="groupOptions" density="compact" variant="outlined" />
+            <v-select v-model="status" :label="t('createUser.status')" :items="statusOptions" density="compact" variant="outlined" />
+          </div>
+        </fieldset>
+
+        <div class="console-form-panel__actions">
+          <v-btn class="console-form-panel__submit" color="primary" :disabled="mutation.isPending.value" :loading="mutation.isPending.value" type="submit">
+            {{ t('createUser.submit') }}
+          </v-btn>
+        </div>
+
         <v-alert v-if="createdUsername" class="mt-4" type="success" variant="tonal">
           {{ createdUsername }}
         </v-alert>
-      </v-card-text>
-    </v-card>
-  </v-container>
+      </form>
+    </div>
+  </section>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation } from '@tanstack/vue-query'
 
@@ -32,11 +59,20 @@ const nickname = ref('')
 const groupKey = ref<CreateUserInput['groupKey']>('user')
 const status = ref<CreateUserInput['status']>('active')
 const createdUsername = ref('')
+const groupOptions = computed(() => [
+  { title: t('createUser.groups.user'), value: 'user' },
+  { title: t('createUser.groups.admin'), value: 'admin' },
+])
+const statusOptions = computed(() => [
+  { title: t('createUser.statuses.active'), value: 'active' },
+  { title: t('createUser.statuses.disabled'), value: 'disabled' },
+])
 
 const mutation = useMutation({
   mutationFn: createUser,
   onSuccess(result) {
     createdUsername.value = result.user.username
+    resetForm()
   },
 })
 
@@ -49,5 +85,13 @@ function submit() {
     groupKey: groupKey.value,
     status: status.value,
   })
+}
+
+function resetForm() {
+  username.value = ''
+  password.value = ''
+  nickname.value = ''
+  groupKey.value = 'user'
+  status.value = 'active'
 }
 </script>
