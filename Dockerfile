@@ -16,7 +16,7 @@ COPY internal ./internal
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/moeurl ./cmd/server
 RUN go install github.com/pressly/goose/v3/cmd/goose@v3.26.0
 
-FROM alpine:3.23
+FROM alpine:3.24
 WORKDIR /app
 RUN apk add --no-cache ca-certificates && addgroup -S moeurl && adduser -S -G moeurl moeurl
 COPY --from=go-build /out/moeurl /app/moeurl
