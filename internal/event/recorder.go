@@ -2,6 +2,7 @@ package event
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
@@ -12,14 +13,17 @@ import (
 
 const recordTimeout = 500 * time.Millisecond
 
+// DBRecorder records short link visit events in PostgreSQL.
 type DBRecorder struct {
 	queries *sqlc.Queries
 }
 
+// NewRecorder creates a database-backed event recorder.
 func NewRecorder(pool *pgxpool.Pool) *DBRecorder {
 	return &DBRecorder{queries: sqlc.New(pool)}
 }
 
+// Record validates and queues a short link visit event for best-effort persistence.
 func (r *DBRecorder) Record(_ context.Context, event Event) error {
 	if event.ShortLinkID == "" {
 		return nil
@@ -39,7 +43,13 @@ func (r *DBRecorder) Record(_ context.Context, event Event) error {
 	go func() {
 		writeCtx, cancel := context.WithTimeout(context.Background(), recordTimeout)
 		defer cancel()
-		_ = r.queries.CreateShortLinkEvent(writeCtx, params)
+		if err := r.queries.CreateShortLinkEvent(writeCtx, params); err != nil {
+			slog.Default().Warn("short_link_event_record_failed",
+				"event_type", event.Type,
+				"short_link_id", event.ShortLinkID,
+				"err", err,
+			)
+		}
 	}()
 	return nil
 }

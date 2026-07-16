@@ -11,16 +11,19 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// RedirectResult contains the resolved redirect target and source short link.
 type RedirectResult struct {
 	TargetURL   string
 	ShortLinkID string
 }
 
+// RedirectService resolves short link redirects.
 type RedirectService struct {
 	queries  *sqlc.Queries
 	recorder event.Recorder
 }
 
+// NewRedirectService creates a redirect service backed by PostgreSQL.
 func NewRedirectService(pool *pgxpool.Pool, recorder event.Recorder) *RedirectService {
 	if recorder == nil {
 		recorder = event.NoopRecorder{}
@@ -31,6 +34,7 @@ func NewRedirectService(pool *pgxpool.Pool, recorder event.Recorder) *RedirectSe
 	}
 }
 
+// Resolve resolves a slug into a redirect target.
 func (s *RedirectService) Resolve(ctx context.Context, slug string) (RedirectResult, error) {
 	slug = strings.ToLower(slug)
 	link, err := s.queries.GetShortLinkBySlug(ctx, slug)

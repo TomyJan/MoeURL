@@ -9,15 +9,18 @@ import (
 	"github.com/TomyJan/MoeURL/internal/event"
 )
 
+// RedirectPort resolves a short link slug into a redirect target.
 type RedirectPort interface {
 	Resolve(ctx context.Context, slug string) (RedirectResult, error)
 }
 
+// RedirectHandler handles public short link redirect requests.
 type RedirectHandler struct {
 	service  RedirectPort
 	recorder event.Recorder
 }
 
+// NewRedirectHandler creates a redirect handler.
 func NewRedirectHandler(service RedirectPort, recorders ...event.Recorder) *RedirectHandler {
 	recorder := event.Recorder(event.NoopRecorder{})
 	if len(recorders) > 0 && recorders[0] != nil {
@@ -26,6 +29,7 @@ func NewRedirectHandler(service RedirectPort, recorders ...event.Recorder) *Redi
 	return &RedirectHandler{service: service, recorder: recorder}
 }
 
+// Open writes the redirect response for a slug.
 func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug string) {
 	result, err := h.service.Resolve(r.Context(), slug)
 	if err != nil {

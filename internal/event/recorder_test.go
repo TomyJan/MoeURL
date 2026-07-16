@@ -1,9 +1,13 @@
 package event_test
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"log/slog"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -99,6 +103,12 @@ func TestRecorderDropsWriteFailures(t *testing.T) {
 	pool := eventTestPool(t, ctx)
 	recorder := event.NewRecorder(pool)
 	pool.Close()
+	logOutput := &lockedBuffer{}
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(logOutput, nil)))
+	t.Cleanup(func() {
+		slog.SetDefault(previousLogger)
+	})
 
 	err := recorder.Record(ctx, event.Event{
 		Type:        event.RedirectResponseSent,
@@ -107,6 +117,7 @@ func TestRecorderDropsWriteFailures(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected write failure to be dropped, got %v", err)
 	}
+	waitForLogMessage(t, logOutput, "short_link_event_record_failed")
 }
 
 func TestNoopRecorderIgnoresEvents(t *testing.T) {
@@ -166,6 +177,37 @@ func waitForEventCount(t *testing.T, ctx context.Context, pool *pgxpool.Pool, li
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+}
+
+func waitForLogMessage(t *testing.T, output *lockedBuffer, message string) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if strings.Contains(output.String(), message) {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("expected log message %q, got %q", message, output.String())
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+type lockedBuffer struct {
+	mu     sync.Mutex
+	buffer bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.String()
 }
 
 func eventTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
