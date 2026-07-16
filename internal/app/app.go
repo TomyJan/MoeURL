@@ -39,7 +39,9 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.Auth = authService
 		deps.CurrentUser = authService
 		deps.ShortLink = shortlink.NewService(pool, permission.NewService())
-		deps.Redirect = shortlink.NewRedirectService(pool, event.NewRecorder(pool))
+		recorder := event.NewRecorder(pool)
+		deps.Redirect = shortlink.NewRedirectService(pool, recorder)
+		deps.RedirectRecorder = recorder
 		deps.User = user.NewService(pool, permission.NewService())
 	}
 	deps.StaticDir = cfg.StaticDir

@@ -24,14 +24,13 @@ select short_link.id,
     stats.last_visited_at::timestamptz as last_visited_at
 from short_link
 join domain on domain.id = short_link.domain_id
-left join (
-    select short_link_id,
-        count(*) filter (where event_type = 'redirect_response_sent')::bigint as visit_count,
+left join lateral (
+    select count(*) filter (where event_type = 'redirect_response_sent')::bigint as visit_count,
         count(*) filter (where event_type = 'redirect_response_sent' and created_at >= current_date)::bigint as today_visit_count,
         max(created_at) filter (where event_type = 'redirect_response_sent') as last_visited_at
     from short_link_event
-    group by short_link_id
-) stats on stats.short_link_id = short_link.id
+    where short_link_event.short_link_id = short_link.id
+) stats on true
 where short_link.owner_id = $1 and short_link.deleted_at is null
     and (sqlc.narg('status')::text is null or short_link.status = sqlc.narg('status')::text)
 order by short_link.created_at desc
@@ -80,14 +79,13 @@ select short_link.id,
 from short_link
 join domain on domain.id = short_link.domain_id
 join app_user on app_user.id = short_link.owner_id
-left join (
-    select short_link_id,
-        count(*) filter (where event_type = 'redirect_response_sent')::bigint as visit_count,
+left join lateral (
+    select count(*) filter (where event_type = 'redirect_response_sent')::bigint as visit_count,
         count(*) filter (where event_type = 'redirect_response_sent' and created_at >= current_date)::bigint as today_visit_count,
         max(created_at) filter (where event_type = 'redirect_response_sent') as last_visited_at
     from short_link_event
-    group by short_link_id
-) stats on stats.short_link_id = short_link.id
+    where short_link_event.short_link_id = short_link.id
+) stats on true
 where short_link.deleted_at is null
     and (sqlc.narg('status')::text is null or short_link.status = sqlc.narg('status')::text)
     and (

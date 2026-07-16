@@ -3,7 +3,10 @@ package shortlink
 import (
 	"context"
 	"errors"
+	"html"
 	"net/http"
+
+	"github.com/TomyJan/MoeURL/internal/event"
 )
 
 type RedirectPort interface {
@@ -11,11 +14,16 @@ type RedirectPort interface {
 }
 
 type RedirectHandler struct {
-	service RedirectPort
+	service  RedirectPort
+	recorder event.Recorder
 }
 
-func NewRedirectHandler(service RedirectPort) *RedirectHandler {
-	return &RedirectHandler{service: service}
+func NewRedirectHandler(service RedirectPort, recorders ...event.Recorder) *RedirectHandler {
+	recorder := event.Recorder(event.NoopRecorder{})
+	if len(recorders) > 0 && recorders[0] != nil {
+		recorder = recorders[0]
+	}
+	return &RedirectHandler{service: service, recorder: recorder}
 }
 
 func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug string) {
@@ -33,5 +41,10 @@ func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug stri
 		return
 	}
 
-	http.Redirect(w, r, result.TargetURL, http.StatusFound)
+	w.Header().Set("Location", result.TargetURL)
+	w.WriteHeader(http.StatusFound)
+	_, writeErr := w.Write([]byte(`<a href="` + html.EscapeString(result.TargetURL) + `">Found</a>.` + "\n\n"))
+	if writeErr == nil {
+		_ = h.recorder.Record(r.Context(), event.Event{Type: event.RedirectResponseSent, Slug: slug, ShortLinkID: result.ShortLinkID})
+	}
 }

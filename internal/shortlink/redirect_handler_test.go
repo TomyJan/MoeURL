@@ -9,13 +9,14 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/TomyJan/MoeURL/internal/event"
 	apphttp "github.com/TomyJan/MoeURL/internal/http"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 )
 
 func TestRedirectHandlerRedirectsActiveSlug(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
-		Redirect: &fakeRedirectService{result: shortlink.RedirectResult{TargetURL: "https://example.com/target"}},
+		Redirect: &fakeRedirectService{result: shortlink.RedirectResult{TargetURL: "https://example.com/target", ShortLinkID: "link-id"}},
 	})
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/abc123", nil)
@@ -27,6 +28,41 @@ func TestRedirectHandlerRedirectsActiveSlug(t *testing.T) {
 	}
 	if response.Header().Get("Location") != "https://example.com/target" {
 		t.Fatalf("unexpected location %q", response.Header().Get("Location"))
+	}
+}
+
+func TestRedirectHandlerRecordsSuccessfulRedirectResponse(t *testing.T) {
+	recorder := &recordingRecorder{}
+	handler := shortlink.NewRedirectHandler(
+		&fakeRedirectService{result: shortlink.RedirectResult{TargetURL: "https://example.com/target", ShortLinkID: "link-id"}},
+		recorder,
+	)
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/abc123", nil)
+
+	handler.Open(response, request, "abc123")
+
+	if response.Code != http.StatusFound {
+		t.Fatalf("expected 302, got %d", response.Code)
+	}
+	assertEvents(t, recorder.types, []string{event.RedirectResponseSent})
+	if len(recorder.ids) != 1 || recorder.ids[0] != "link-id" {
+		t.Fatalf("expected response event with short link id, got %#v", recorder.ids)
+	}
+}
+
+func TestRedirectHandlerSkipsSuccessfulEventWhenResponseWriteFails(t *testing.T) {
+	recorder := &recordingRecorder{}
+	handler := shortlink.NewRedirectHandler(
+		&fakeRedirectService{result: shortlink.RedirectResult{TargetURL: "https://example.com/target", ShortLinkID: "link-id"}},
+		recorder,
+	)
+	request := httptest.NewRequest(http.MethodGet, "/abc123", nil)
+
+	handler.Open(&failingRedirectWriter{header: http.Header{}}, request, "abc123")
+
+	if len(recorder.types) != 0 {
+		t.Fatalf("expected no events when response write fails, got %#v", recorder.types)
 	}
 }
 
@@ -134,3 +170,20 @@ func (f *fakeRedirectService) Resolve(context.Context, string) (shortlink.Redire
 }
 
 var _ = errors.Is
+
+type failingRedirectWriter struct {
+	header http.Header
+	code   int
+}
+
+func (w *failingRedirectWriter) Header() http.Header {
+	return w.header
+}
+
+func (w *failingRedirectWriter) WriteHeader(code int) {
+	w.code = code
+}
+
+func (w *failingRedirectWriter) Write([]byte) (int, error) {
+	return 0, errors.New("write failed")
+}

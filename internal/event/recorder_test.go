@@ -34,15 +34,7 @@ func TestRecorderPersistsShortLinkEvent(t *testing.T) {
 		t.Fatalf("record event: %v", err)
 	}
 
-	var count int
-	err = pool.QueryRow(ctx, `
-		select count(*)
-		from short_link_event
-		where short_link_id = $1 and event_type = $2
-	`, linkID, event.RedirectResponseSent).Scan(&count)
-	if err != nil {
-		t.Fatalf("query recorded event: %v", err)
-	}
+	count := waitForEventCount(t, ctx, pool, linkID, event.RedirectResponseSent)
 	if count != 1 {
 		t.Fatalf("expected 1 event, got %d", count)
 	}
@@ -68,6 +60,29 @@ func TestRecorderIgnoresEventsWithoutShortLinkID(t *testing.T) {
 	}
 }
 
+func TestRecorderIgnoresNonVisitEvents(t *testing.T) {
+	ctx := context.Background()
+	pool := eventTestPool(t, ctx)
+	linkID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
+	insertEventRecorderFixtures(t, ctx, pool, linkID)
+	recorder := event.NewRecorder(pool)
+
+	err := recorder.Record(ctx, event.Event{Type: event.RedirectInitiated, ShortLinkID: linkID.String()})
+	if err != nil {
+		t.Fatalf("record non-visit event: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	var count int
+	err = pool.QueryRow(ctx, `select count(*) from short_link_event`).Scan(&count)
+	if err != nil {
+		t.Fatalf("query recorded events: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no persisted events, got %d", count)
+	}
+}
+
 func TestRecorderReturnsInvalidShortLinkIDError(t *testing.T) {
 	ctx := context.Background()
 	pool := eventTestPool(t, ctx)
@@ -76,6 +91,21 @@ func TestRecorderReturnsInvalidShortLinkIDError(t *testing.T) {
 	err := recorder.Record(ctx, event.Event{Type: event.RedirectResponseSent, ShortLinkID: "bad-id"})
 	if err == nil {
 		t.Fatal("expected invalid short link id error")
+	}
+}
+
+func TestRecorderDropsWriteFailures(t *testing.T) {
+	ctx := context.Background()
+	pool := eventTestPool(t, ctx)
+	recorder := event.NewRecorder(pool)
+	pool.Close()
+
+	err := recorder.Record(ctx, event.Event{
+		Type:        event.RedirectResponseSent,
+		ShortLinkID: "00000000-0000-0000-0000-000000000301",
+	})
+	if err != nil {
+		t.Fatalf("expected write failure to be dropped, got %v", err)
 	}
 }
 
@@ -115,6 +145,26 @@ func insertEventRecorderFixtures(t *testing.T, ctx context.Context, pool *pgxpoo
 	`, linkID)
 	if err != nil {
 		t.Fatalf("insert short link fixture: %v", err)
+	}
+}
+
+func waitForEventCount(t *testing.T, ctx context.Context, pool *pgxpool.Pool, linkID uuid.UUID, eventType string) int {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	var count int
+	for {
+		err := pool.QueryRow(ctx, `
+			select count(*)
+			from short_link_event
+			where short_link_id = $1 and event_type = $2
+		`, linkID, eventType).Scan(&count)
+		if err != nil {
+			t.Fatalf("query recorded event: %v", err)
+		}
+		if count > 0 || time.Now().After(deadline) {
+			return count
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 

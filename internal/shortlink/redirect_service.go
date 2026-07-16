@@ -12,7 +12,8 @@ import (
 )
 
 type RedirectResult struct {
-	TargetURL string
+	TargetURL   string
+	ShortLinkID string
 }
 
 type RedirectService struct {
@@ -52,8 +53,7 @@ func (s *RedirectService) Resolve(ctx context.Context, slug string) (RedirectRes
 	}
 
 	s.record(ctx, event.RedirectInitiated, slug, shortLinkID)
-	s.record(ctx, event.RedirectResponseSent, slug, shortLinkID)
-	return RedirectResult{TargetURL: link.TargetUrl}, nil
+	return RedirectResult{TargetURL: link.TargetUrl, ShortLinkID: shortLinkID}, nil
 }
 
 func (s *RedirectService) record(ctx context.Context, eventType string, slug string, shortLinkID string) {
