@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"io"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -27,7 +28,7 @@ func TestRecorderPersistsShortLinkEvent(t *testing.T) {
 	pool := eventTestPool(t, ctx)
 	linkID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
 	insertEventRecorderFixtures(t, ctx, pool, linkID)
-	recorder := event.NewRecorder(pool)
+	recorder := event.NewRecorder(pool, discardLogger())
 
 	err := recorder.Record(ctx, event.Event{
 		Type:        event.RedirectResponseSent,
@@ -47,7 +48,7 @@ func TestRecorderPersistsShortLinkEvent(t *testing.T) {
 func TestRecorderIgnoresEventsWithoutShortLinkID(t *testing.T) {
 	ctx := context.Background()
 	pool := eventTestPool(t, ctx)
-	recorder := event.NewRecorder(pool)
+	recorder := event.NewRecorder(pool, discardLogger())
 
 	err := recorder.Record(ctx, event.Event{Type: event.RedirectBlocked, Slug: "missing"})
 	if err != nil {
@@ -69,7 +70,7 @@ func TestRecorderIgnoresNonVisitEvents(t *testing.T) {
 	pool := eventTestPool(t, ctx)
 	linkID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
 	insertEventRecorderFixtures(t, ctx, pool, linkID)
-	recorder := event.NewRecorder(pool)
+	recorder := event.NewRecorder(pool, discardLogger())
 
 	err := recorder.Record(ctx, event.Event{Type: event.RedirectInitiated, ShortLinkID: linkID.String()})
 	if err != nil {
@@ -90,7 +91,7 @@ func TestRecorderIgnoresNonVisitEvents(t *testing.T) {
 func TestRecorderReturnsInvalidShortLinkIDError(t *testing.T) {
 	ctx := context.Background()
 	pool := eventTestPool(t, ctx)
-	recorder := event.NewRecorder(pool)
+	recorder := event.NewRecorder(pool, discardLogger())
 
 	err := recorder.Record(ctx, event.Event{Type: event.RedirectResponseSent, ShortLinkID: "bad-id"})
 	if err == nil {
@@ -101,14 +102,9 @@ func TestRecorderReturnsInvalidShortLinkIDError(t *testing.T) {
 func TestRecorderDropsWriteFailures(t *testing.T) {
 	ctx := context.Background()
 	pool := eventTestPool(t, ctx)
-	recorder := event.NewRecorder(pool)
-	pool.Close()
 	logOutput := &lockedBuffer{}
-	previousLogger := slog.Default()
-	slog.SetDefault(slog.New(slog.NewTextHandler(logOutput, nil)))
-	t.Cleanup(func() {
-		slog.SetDefault(previousLogger)
-	})
+	recorder := event.NewRecorder(pool, slog.New(slog.NewTextHandler(logOutput, nil)))
+	pool.Close()
 
 	err := recorder.Record(ctx, event.Event{
 		Type:        event.RedirectResponseSent,
@@ -125,6 +121,10 @@ func TestNoopRecorderIgnoresEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected noop recorder to ignore event, got %v", err)
 	}
+}
+
+func discardLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
 func insertEventRecorderFixtures(t *testing.T, ctx context.Context, pool *pgxpool.Pool, linkID uuid.UUID) {

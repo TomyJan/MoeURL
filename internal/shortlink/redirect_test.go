@@ -106,7 +106,7 @@ func TestRedirectServiceDoesNotRecordSuccessfulResponseEvent(t *testing.T) {
 	insertShortLinkDefaultDomain(t, ctx, pool)
 	user := insertShortLinkUser(t, ctx, pool, "alice", "user", []string{})
 	insertStoredShortLink(t, ctx, pool, user.ID, "active1", "https://example.com/target", "active", false)
-	service := shortlink.NewRedirectService(pool, event.NewRecorder(pool))
+	service := shortlink.NewRedirectService(pool, nil)
 
 	_, err := service.Resolve(ctx, "active1")
 	if err != nil {
