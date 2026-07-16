@@ -20,10 +20,12 @@ type ServicePort interface {
 	Setup(ctx context.Context, input SetupInput) error
 }
 
+// NewHandler implements package-specific behavior.
 func NewHandler(service ServicePort) *Handler {
 	return &Handler{service: service}
 }
 
+// Status implements package-specific behavior.
 func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
 	initialized, err := h.service.IsInitialized(r.Context())
 	if err != nil {
@@ -34,6 +36,7 @@ func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]bool{"initialized": initialized})
 }
 
+// Setup implements package-specific behavior.
 func (h *Handler) Setup(w http.ResponseWriter, r *http.Request) {
 	var input SetupInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -63,14 +66,17 @@ type response struct {
 	Meta    any    `json:"meta"`
 }
 
+// ok implements package-specific behavior.
 func ok(w http.ResponseWriter, data any) {
 	writeJSON(w, http.StatusOK, response{Code: 0, Message: "OK", Data: data, Meta: map[string]any{}})
 }
 
+// businessError implements package-specific behavior.
 func businessError(w http.ResponseWriter, code int, message string) {
 	writeJSON(w, http.StatusOK, response{Code: code, Message: message, Data: nil, Meta: map[string]any{}})
 }
 
+// writeJSON implements package-specific behavior.
 func writeJSON(w http.ResponseWriter, status int, body response) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)

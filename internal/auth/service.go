@@ -24,6 +24,7 @@ type Service struct {
 	sessions *SessionService
 }
 
+// NewService implements package-specific behavior.
 func NewService(pool *pgxpool.Pool, sessionTTL time.Duration) *Service {
 	return &Service{
 		pool:     pool,
@@ -31,6 +32,7 @@ func NewService(pool *pgxpool.Pool, sessionTTL time.Duration) *Service {
 	}
 }
 
+// Login implements package-specific behavior.
 func (s *Service) Login(ctx context.Context, input LoginInput) (LoginResult, error) {
 	user, passwordHash, status, err := s.findUser(ctx, input.Username)
 	if err != nil {
@@ -52,6 +54,7 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (LoginResult, err
 	return LoginResult{User: user, Session: session}, nil
 }
 
+// Logout implements package-specific behavior.
 func (s *Service) Logout(ctx context.Context, sessionID string) error {
 	if sessionID == "" {
 		return nil
@@ -59,6 +62,7 @@ func (s *Service) Logout(ctx context.Context, sessionID string) error {
 	return s.sessions.Revoke(ctx, sessionID)
 }
 
+// Me implements package-specific behavior.
 func (s *Service) Me(ctx context.Context, sessionID string) (CurrentUser, error) {
 	if sessionID == "" {
 		return GuestUser(), nil
@@ -77,10 +81,12 @@ func (s *Service) Me(ctx context.Context, sessionID string) (CurrentUser, error)
 	return user, nil
 }
 
+// ResolveCurrentUser implements package-specific behavior.
 func (s *Service) ResolveCurrentUser(ctx context.Context, sessionID string) (CurrentUser, error) {
 	return s.Me(ctx, sessionID)
 }
 
+// findUser implements package-specific behavior.
 func (s *Service) findUser(ctx context.Context, username string) (CurrentUser, string, string, error) {
 	var user CurrentUser
 	var passwordHash *string
@@ -114,6 +120,7 @@ func (s *Service) findUser(ctx context.Context, username string) (CurrentUser, s
 	return user, *passwordHash, status, nil
 }
 
+// findUserByID implements package-specific behavior.
 func (s *Service) findUserByID(ctx context.Context, userID string) (CurrentUser, string, string, error) {
 	var user CurrentUser
 	var passwordHash *string

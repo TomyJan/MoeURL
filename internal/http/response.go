@@ -16,6 +16,7 @@ type Response struct {
 	Meta    any    `json:"meta"`
 }
 
+// WriteJSON implements package-specific behavior.
 func WriteJSON(w nethttp.ResponseWriter, status int, response Response) {
 	var buffer bytes.Buffer
 	if err := json.NewEncoder(&buffer).Encode(response); err != nil {
@@ -28,12 +29,14 @@ func WriteJSON(w nethttp.ResponseWriter, status int, response Response) {
 	_, _ = w.Write(buffer.Bytes())
 }
 
+// writeInternalServerError implements package-specific behavior.
 func writeInternalServerError(w nethttp.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(nethttp.StatusInternalServerError)
 	_, _ = w.Write([]byte(`{"code":500,"message":"Internal server error","data":null,"meta":null}` + "\n"))
 }
 
+// OK implements package-specific behavior.
 func OK(w nethttp.ResponseWriter, data any) {
 	WriteJSON(w, nethttp.StatusOK, Response{
 		Code:    CodeOK,
@@ -43,6 +46,7 @@ func OK(w nethttp.ResponseWriter, data any) {
 	})
 }
 
+// BusinessError implements package-specific behavior.
 func BusinessError(w nethttp.ResponseWriter, code int, message string) {
 	WriteJSON(w, nethttp.StatusOK, Response{
 		Code:    code,

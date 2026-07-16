@@ -26,6 +26,7 @@ type Dependencies struct {
 	StaticDir        string
 }
 
+// NewRouter implements package-specific behavior.
 func NewRouter(deps ...Dependencies) nethttp.Handler {
 	var dependency Dependencies
 	if len(deps) > 0 {
@@ -90,6 +91,7 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 	return router
 }
 
+// registerStaticRoutes implements package-specific behavior.
 func registerStaticRoutes(router chi.Router, staticDir string) {
 	fileServer := nethttp.FileServer(nethttp.Dir(staticDir))
 	router.Handle("/assets/*", fileServer)
@@ -113,6 +115,7 @@ func registerStaticRoutes(router chi.Router, staticDir string) {
 	}
 }
 
+// serveStaticFile implements package-specific behavior.
 func serveStaticFile(staticDir string, name string) nethttp.HandlerFunc {
 	return func(w nethttp.ResponseWriter, r *nethttp.Request) {
 		nethttp.ServeFile(w, r, filepath.Join(staticDir, name))

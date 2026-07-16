@@ -25,10 +25,12 @@ type Handler struct {
 	service Port
 }
 
+// NewHandler implements package-specific behavior.
 func NewHandler(service Port) *Handler {
 	return &Handler{service: service}
 }
 
+// Login implements package-specific behavior.
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var input LoginInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -53,6 +55,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]any{"user": result.User})
 }
 
+// Logout implements package-specific behavior.
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie(SessionCookieName); err == nil {
 		_ = h.service.Logout(r.Context(), cookie.Value)
@@ -62,6 +65,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]bool{"loggedOut": true})
 }
 
+// Me implements package-specific behavior.
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	sessionID := ""
 	if cookie, err := r.Cookie(SessionCookieName); err == nil {
@@ -76,6 +80,7 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]any{"user": user})
 }
 
+// sessionCookie implements package-specific behavior.
 func sessionCookie(value string, expiresAt time.Time) *http.Cookie {
 	return &http.Cookie{
 		Name:     SessionCookieName,
@@ -88,6 +93,7 @@ func sessionCookie(value string, expiresAt time.Time) *http.Cookie {
 	}
 }
 
+// clearSessionCookie implements package-specific behavior.
 func clearSessionCookie() *http.Cookie {
 	return &http.Cookie{
 		Name:     SessionCookieName,
@@ -100,6 +106,7 @@ func clearSessionCookie() *http.Cookie {
 	}
 }
 
+// isProduction implements package-specific behavior.
 func isProduction() bool {
 	return os.Getenv("MOEURL_ENV") == "production"
 }
@@ -111,14 +118,17 @@ type response struct {
 	Meta    any    `json:"meta"`
 }
 
+// ok implements package-specific behavior.
 func ok(w http.ResponseWriter, data any) {
 	writeJSON(w, http.StatusOK, response{Code: 0, Message: "OK", Data: data, Meta: map[string]any{}})
 }
 
+// businessError implements package-specific behavior.
 func businessError(w http.ResponseWriter, code int, message string) {
 	writeJSON(w, http.StatusOK, response{Code: code, Message: message, Data: nil, Meta: map[string]any{}})
 }
 
+// writeJSON implements package-specific behavior.
 func writeJSON(w http.ResponseWriter, status int, body response) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)

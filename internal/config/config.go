@@ -13,6 +13,7 @@ type Config struct {
 	StaticDir   string
 }
 
+// Load implements package-specific behavior.
 func Load() Config {
 	return Config{
 		Env:         getEnv("MOEURL_ENV", "development"),
@@ -22,6 +23,7 @@ func Load() Config {
 	}
 }
 
+// Validate implements package-specific behavior.
 func (c Config) Validate() error {
 	if strings.TrimSpace(c.DatabaseURL) == "" {
 		return errors.New("MOEURL_DATABASE_URL is required")
@@ -32,6 +34,7 @@ func (c Config) Validate() error {
 	return nil
 }
 
+// getEnv implements package-specific behavior.
 func getEnv(key string, fallback string) string {
 	value := os.Getenv(key)
 	if value == "" {

@@ -19,6 +19,7 @@ type CurrentUserResolver interface {
 	ResolveCurrentUser(ctx context.Context, sessionID string) (CurrentUser, error)
 }
 
+// GuestUser implements package-specific behavior.
 func GuestUser() CurrentUser {
 	return CurrentUser{
 		Username:    "guest",
@@ -28,6 +29,7 @@ func GuestUser() CurrentUser {
 	}
 }
 
+// CurrentUserMiddleware implements package-specific behavior.
 func CurrentUserMiddleware(resolver CurrentUserResolver) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -45,6 +47,7 @@ func CurrentUserMiddleware(resolver CurrentUserResolver) func(http.Handler) http
 	}
 }
 
+// UserFromContext implements package-specific behavior.
 func UserFromContext(ctx context.Context) CurrentUser {
 	user, ok := ctx.Value(currentUserContextKey{}).(CurrentUser)
 	if !ok {

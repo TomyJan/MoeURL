@@ -29,10 +29,12 @@ type SessionService struct {
 	ttl  time.Duration
 }
 
+// NewSessionService implements package-specific behavior.
 func NewSessionService(pool *pgxpool.Pool, ttl time.Duration) *SessionService {
 	return &SessionService{pool: pool, ttl: ttl}
 }
 
+// Create implements package-specific behavior.
 func (s *SessionService) Create(ctx context.Context, userID string) (Session, error) {
 	sessionID, err := generateSessionID()
 	if err != nil {
@@ -51,6 +53,7 @@ func (s *SessionService) Create(ctx context.Context, userID string) (Session, er
 	return Session{ID: sessionID, UserID: userID, ExpiresAt: expiresAt}, nil
 }
 
+// generateSessionID implements package-specific behavior.
 func generateSessionID() (string, error) {
 	token := make([]byte, 32)
 	if _, err := io.ReadFull(sessionRandomReader, token); err != nil {
@@ -59,6 +62,7 @@ func generateSessionID() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(token), nil
 }
 
+// Resolve implements package-specific behavior.
 func (s *SessionService) Resolve(ctx context.Context, sessionID string) (Session, error) {
 	var session Session
 	var revokedAt *time.Time
@@ -85,6 +89,7 @@ func (s *SessionService) Resolve(ctx context.Context, sessionID string) (Session
 	return session, nil
 }
 
+// Revoke implements package-specific behavior.
 func (s *SessionService) Revoke(ctx context.Context, sessionID string) error {
 	_, err := s.pool.Exec(ctx, `update session set revoked_at = now() where id = $1`, sessionID)
 	return err

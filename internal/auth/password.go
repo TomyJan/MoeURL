@@ -22,6 +22,7 @@ const (
 
 var passwordRandomReader io.Reader = rand.Reader
 
+// HashPassword implements package-specific behavior.
 func HashPassword(password string) (string, error) {
 	salt := make([]byte, saltLen)
 	if _, err := io.ReadFull(passwordRandomReader, salt); err != nil {
@@ -39,6 +40,7 @@ func HashPassword(password string) (string, error) {
 	), nil
 }
 
+// VerifyPassword implements package-specific behavior.
 func VerifyPassword(password string, encodedHash string) bool {
 	parts := strings.Split(encodedHash, "$")
 	if len(parts) != 6 || parts[1] != "argon2id" {
@@ -59,6 +61,7 @@ func VerifyPassword(password string, encodedHash string) bool {
 	return subtle.ConstantTimeCompare(actual, expected) == 1
 }
 
+// parseArgonParams implements package-specific behavior.
 func parseArgonParams(value string) (uint32, uint32, uint8) {
 	memory := argonMemory
 	timeCost := argonTime

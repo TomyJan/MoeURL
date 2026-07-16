@@ -24,6 +24,7 @@ var reservedSlugs = map[string]struct{}{
 
 var slugRandomReader io.Reader = rand.Reader
 
+// generateSlug implements package-specific behavior.
 func generateSlug() (string, error) {
 	bytes := make([]byte, defaultSlugLength)
 	for i := range bytes {
@@ -36,6 +37,7 @@ func generateSlug() (string, error) {
 	return string(bytes), nil
 }
 
+// isReservedSlug implements package-specific behavior.
 func isReservedSlug(slug string) bool {
 	_, ok := reservedSlugs[strings.ToLower(slug)]
 	return ok

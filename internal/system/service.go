@@ -20,10 +20,12 @@ type Service struct {
 	pool *pgxpool.Pool
 }
 
+// NewService implements package-specific behavior.
 func NewService(pool *pgxpool.Pool) *Service {
 	return &Service{pool: pool}
 }
 
+// IsInitialized implements package-specific behavior.
 func (s *Service) IsInitialized(ctx context.Context) (bool, error) {
 	var initialized bool
 	err := s.pool.QueryRow(ctx, `
@@ -40,6 +42,7 @@ func (s *Service) IsInitialized(ctx context.Context) (bool, error) {
 	return initialized, nil
 }
 
+// Setup implements package-specific behavior.
 func (s *Service) Setup(ctx context.Context, input SetupInput) error {
 	if err := validateSetupInput(input); err != nil {
 		return err
@@ -113,6 +116,7 @@ func (s *Service) Setup(ctx context.Context, input SetupInput) error {
 	})
 }
 
+// validateSetupInput implements package-specific behavior.
 func validateSetupInput(input SetupInput) error {
 	required := []string{
 		input.AdminUsername,
@@ -136,6 +140,7 @@ func validateSetupInput(input SetupInput) error {
 	return nil
 }
 
+// insertGroup implements package-specific behavior.
 func insertGroup(ctx context.Context, tx pgx.Tx, id uuid.UUID, key string, name string, description string, permissions []string, now time.Time) error {
 	permissionsJSON, err := json.Marshal(permissions)
 	if err != nil {
@@ -149,6 +154,7 @@ func insertGroup(ctx context.Context, tx pgx.Tx, id uuid.UUID, key string, name 
 	return err
 }
 
+// upsertSetting implements package-specific behavior.
 func upsertSetting(ctx context.Context, tx pgx.Tx, key string, value any, now time.Time) error {
 	valueJSON, err := json.Marshal(value)
 	if err != nil {

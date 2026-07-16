@@ -26,6 +26,7 @@ type Service struct {
 	permissions *permission.Service
 }
 
+// NewService implements package-specific behavior.
 func NewService(pool *pgxpool.Pool, permissions *permission.Service) *Service {
 	if permissions == nil {
 		permissions = permission.NewService()
@@ -36,6 +37,7 @@ func NewService(pool *pgxpool.Pool, permissions *permission.Service) *Service {
 	}
 }
 
+// Create implements package-specific behavior.
 func (s *Service) Create(ctx context.Context, actor auth.CurrentUser, input CreateInput) (CreateResult, error) {
 	if !s.permissions.Has(actor.GroupKey, permission.AdminAccess) {
 		return CreateResult{}, ErrPermissionDenied
@@ -80,6 +82,7 @@ func (s *Service) Create(ctx context.Context, actor auth.CurrentUser, input Crea
 	}, nil
 }
 
+// List implements package-specific behavior.
 func (s *Service) List(ctx context.Context, actor auth.CurrentUser, input ListInput) (ListResult, error) {
 	if !s.permissions.Has(actor.GroupKey, permission.AdminAccess) {
 		return ListResult{}, ErrPermissionDenied
@@ -115,6 +118,7 @@ func (s *Service) List(ctx context.Context, actor auth.CurrentUser, input ListIn
 	return ListResult{Items: items, Page: page, PageSize: pageSize, Total: total}, nil
 }
 
+// Update implements package-specific behavior.
 func (s *Service) Update(ctx context.Context, actor auth.CurrentUser, input UpdateInput) (UpdateResult, error) {
 	if !s.permissions.Has(actor.GroupKey, permission.AdminAccess) {
 		return UpdateResult{}, ErrPermissionDenied
@@ -166,6 +170,7 @@ func (s *Service) Update(ctx context.Context, actor auth.CurrentUser, input Upda
 	}}, nil
 }
 
+// ResetPassword implements package-specific behavior.
 func (s *Service) ResetPassword(ctx context.Context, actor auth.CurrentUser, input ResetPasswordInput) error {
 	if !s.permissions.Has(actor.GroupKey, permission.AdminAccess) {
 		return ErrPermissionDenied
@@ -205,6 +210,7 @@ func (s *Service) ResetPassword(ctx context.Context, actor auth.CurrentUser, inp
 	return nil
 }
 
+// normalizePagination implements package-specific behavior.
 func normalizePagination(input ListInput) (int32, int32) {
 	page := input.Page
 	if page < 1 {
@@ -220,10 +226,12 @@ func normalizePagination(input ListInput) (int32, int32) {
 	return page, pageSize
 }
 
+// validStatus implements package-specific behavior.
 func validStatus(status string) bool {
 	return status == "active" || status == "disabled"
 }
 
+// formatTime implements package-specific behavior.
 func formatTime(value pgtype.Timestamptz) string {
 	if !value.Valid {
 		return ""
@@ -231,10 +239,12 @@ func formatTime(value pgtype.Timestamptz) string {
 	return value.Time.UTC().Format(time.RFC3339)
 }
 
+// uuidToPgtype implements package-specific behavior.
 func uuidToPgtype(value uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{Bytes: value, Valid: true}
 }
 
+// uuidFromPgtype implements package-specific behavior.
 func uuidFromPgtype(value pgtype.UUID) string {
 	if !value.Valid {
 		return ""
@@ -242,6 +252,7 @@ func uuidFromPgtype(value pgtype.UUID) string {
 	return uuid.UUID(value.Bytes).String()
 }
 
+// isUniqueViolation implements package-specific behavior.
 func isUniqueViolation(err error) bool {
 	if err == nil {
 		return false

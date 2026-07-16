@@ -60,6 +60,7 @@ func (s *RedirectService) Resolve(ctx context.Context, slug string) (RedirectRes
 	return RedirectResult{TargetURL: link.TargetUrl, ShortLinkID: shortLinkID}, nil
 }
 
+// record implements package-specific behavior.
 func (s *RedirectService) record(ctx context.Context, eventType string, slug string, shortLinkID string) {
 	_ = s.recorder.Record(ctx, event.Event{Type: eventType, Slug: slug, ShortLinkID: shortLinkID})
 }

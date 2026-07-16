@@ -25,6 +25,7 @@ type App struct {
 	pool   *pgxpool.Pool
 }
 
+// New implements package-specific behavior.
 func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, error) {
 	var pool *pgxpool.Pool
 	var deps apphttp.Dependencies
@@ -58,11 +59,13 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 	}, nil
 }
 
+// Run implements package-specific behavior.
 func (a *App) Run() error {
 	a.logger.Info("server_starting", "addr", a.config.HTTPAddr)
 	return a.server.ListenAndServe()
 }
 
+// Shutdown implements package-specific behavior.
 func (a *App) Shutdown(ctx context.Context) error {
 	if a.pool != nil {
 		a.pool.Close()

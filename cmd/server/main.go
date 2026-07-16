@@ -11,6 +11,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/config"
 )
 
+// main implements package-specific behavior.
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	cfg := config.Load()

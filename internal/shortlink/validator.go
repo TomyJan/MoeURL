@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// validateTargetURL implements package-specific behavior.
 func validateTargetURL(value string) error {
 	parsed, err := url.ParseRequestURI(value)
 	if err != nil {
@@ -27,11 +28,13 @@ func validateTargetURL(value string) error {
 	return nil
 }
 
+// isLocalHostname implements package-specific behavior.
 func isLocalHostname(host string) bool {
 	normalized := strings.ToLower(strings.TrimSuffix(host, "."))
 	return normalized == "localhost" || normalized == "localhost.localdomain"
 }
 
+// isBlockedTargetIP implements package-specific behavior.
 func isBlockedTargetIP(ip netip.Addr) bool {
 	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
 		return true
