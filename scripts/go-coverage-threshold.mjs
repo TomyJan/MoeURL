@@ -6,6 +6,7 @@ const includeFrom = readOption('--include-from')
 const includes = includeFrom ? readPatterns(includeFrom) : []
 const excludeBlocksFrom = readOption('--exclude-blocks-from')
 const excludedBlocks = excludeBlocksFrom ? new Set(readPatterns(excludeBlocksFrom)) : new Set()
+const excludedLineRanges = new Set([...excludedBlocks].map(toLineRange))
 const lines = readFileSync(profile, 'utf8').trim().split('\n').slice(1)
 
 let covered = 0
@@ -20,7 +21,7 @@ for (const line of lines) {
   if (includes.length > 0 && !includes.includes(file)) {
     continue
   }
-  if (excludedBlocks.has(loc)) {
+  if (excludedBlocks.has(loc) || excludedLineRanges.has(toLineRange(loc))) {
     continue
   }
 
@@ -52,4 +53,9 @@ function readPatterns(path) {
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line !== '' && !line.startsWith('#'))
+}
+
+function toLineRange(location) {
+  const match = /^(.*):(\d+)\.\d+,(\d+)\.\d+$/.exec(location)
+  return match ? `${match[1]}:${match[2]},${match[3]}` : location
 }

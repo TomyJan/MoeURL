@@ -1,4 +1,7 @@
-# Exact Go coverage profile blocks excluded from the backend business coverage gate.
+# Go coverage profile blocks excluded from the backend business coverage gate.
+#
+# The gate matches each configured file and line range while ignoring compiler
+# column offsets, which vary between Go toolchains without changing source logic.
 #
 # These blocks are defensive infrastructure failure paths that are not stable or
 # meaningful to force through unit coverage: cryptographic/random failure after
