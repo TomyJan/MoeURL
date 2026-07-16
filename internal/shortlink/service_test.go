@@ -155,10 +155,12 @@ func TestServiceListReturnsOnlyOwnActiveRecords(t *testing.T) {
 	insertShortLinkDefaultDomain(t, ctx, pool)
 	user := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
 	other := insertShortLinkUserForGroup(t, ctx, pool, "bob", "00000000-0000-0000-0000-000000000401", "00000000-0000-0000-0000-000000000502", "user", permission.UserPermissions)
-	insertStoredShortLink(t, ctx, pool, user.ID, "alice1", "https://example.com/1", "active", false)
+	aliceActiveID := insertStoredShortLink(t, ctx, pool, user.ID, "alice1", "https://example.com/1", "active", false)
 	insertStoredShortLink(t, ctx, pool, user.ID, "alice2", "https://example.com/2", "disabled", false)
 	insertStoredShortLink(t, ctx, pool, user.ID, "deleted", "https://example.com/deleted", "active", true)
 	insertStoredShortLink(t, ctx, pool, other.ID, "bob001", "https://example.com/bob", "active", false)
+	insertStoredShortLinkVisitEvent(t, ctx, pool, aliceActiveID)
+	insertStoredShortLinkVisitEvent(t, ctx, pool, aliceActiveID)
 
 	service := shortlink.NewService(pool, permission.NewService())
 
@@ -179,6 +181,20 @@ func TestServiceListReturnsOnlyOwnActiveRecords(t *testing.T) {
 		}
 		if item.URL != "https://go.example.com/"+item.Slug {
 			t.Fatalf("unexpected url %q", item.URL)
+		}
+		if item.Slug == "alice1" {
+			if item.Stats == nil {
+				t.Fatal("expected statistics")
+			}
+			if item.Stats.VisitCount != 2 {
+				t.Fatalf("expected visit count 2, got %d", item.Stats.VisitCount)
+			}
+			if item.Stats.TodayVisitCount != 2 {
+				t.Fatalf("expected today visit count 2, got %d", item.Stats.TodayVisitCount)
+			}
+			if item.Stats.LastVisitedAt == nil {
+				t.Fatal("expected last visited at")
+			}
 		}
 	}
 }
@@ -436,8 +452,9 @@ func TestServiceAdminListReturnsAllOwners(t *testing.T) {
 	alice := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
 	bob := insertShortLinkUserForGroup(t, ctx, pool, "bob", "00000000-0000-0000-0000-000000000401", "00000000-0000-0000-0000-000000000502", "user", permission.UserPermissions)
 	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: "admin"}
-	insertStoredShortLink(t, ctx, pool, alice.ID, "alice1", "https://example.com/1", "active", false)
+	aliceLinkID := insertStoredShortLink(t, ctx, pool, alice.ID, "alice1", "https://example.com/1", "active", false)
 	insertStoredShortLink(t, ctx, pool, bob.ID, "bob001", "https://example.com/bob", "disabled", false)
+	insertStoredShortLinkVisitEvent(t, ctx, pool, aliceLinkID)
 
 	service := shortlink.NewService(pool, permission.NewService())
 
@@ -454,6 +471,11 @@ func TestServiceAdminListReturnsAllOwners(t *testing.T) {
 	}
 	if !owners["alice"] || !owners["bob"] {
 		t.Fatalf("expected alice and bob owners, got %#v", owners)
+	}
+	for _, item := range result.Items {
+		if item.Slug == "alice1" && (item.Stats == nil || item.Stats.VisitCount != 1 || item.Stats.TodayVisitCount != 1 || item.Stats.LastVisitedAt == nil) {
+			t.Fatalf("unexpected statistics for alice1: %#v", item.Stats)
+		}
 	}
 }
 
@@ -726,6 +748,17 @@ func insertStoredShortLink(t *testing.T, ctx context.Context, pool *pgxpool.Pool
 		t.Fatalf("insert stored short link: %v", err)
 	}
 	return id
+}
+
+func insertStoredShortLinkVisitEvent(t *testing.T, ctx context.Context, pool *pgxpool.Pool, linkID string) {
+	t.Helper()
+	_, err := pool.Exec(ctx, `
+		insert into short_link_event (id, short_link_id, event_type, created_at)
+		values (gen_random_uuid(), $1, 'redirect_response_sent', now())
+	`, linkID)
+	if err != nil {
+		t.Fatalf("insert short link visit event: %v", err)
+	}
 }
 
 func ptr(value string) *string {

@@ -131,10 +131,21 @@ select short_link.id,
     short_link.deleted_at,
     domain.host as domain_host,
     app_user.username as owner_username,
-    app_user.nickname as owner_nickname
+    app_user.nickname as owner_nickname,
+    coalesce(stats.visit_count, 0)::bigint as visit_count,
+    coalesce(stats.today_visit_count, 0)::bigint as today_visit_count,
+    stats.last_visited_at::timestamptz as last_visited_at
 from short_link
 join domain on domain.id = short_link.domain_id
 join app_user on app_user.id = short_link.owner_id
+left join (
+    select short_link_id,
+        count(*) filter (where event_type = 'redirect_response_sent')::bigint as visit_count,
+        count(*) filter (where event_type = 'redirect_response_sent' and created_at >= current_date)::bigint as today_visit_count,
+        max(created_at) filter (where event_type = 'redirect_response_sent') as last_visited_at
+    from short_link_event
+    group by short_link_id
+) stats on stats.short_link_id = short_link.id
 where short_link.deleted_at is null
     and ($3::text is null or short_link.status = $3::text)
     and (
@@ -156,18 +167,21 @@ type ListAllShortLinksParams struct {
 }
 
 type ListAllShortLinksRow struct {
-	ID            pgtype.UUID        `json:"id"`
-	OwnerID       pgtype.UUID        `json:"owner_id"`
-	DomainID      pgtype.UUID        `json:"domain_id"`
-	Slug          string             `json:"slug"`
-	TargetUrl     string             `json:"target_url"`
-	Status        string             `json:"status"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt     pgtype.Timestamptz `json:"deleted_at"`
-	DomainHost    string             `json:"domain_host"`
-	OwnerUsername string             `json:"owner_username"`
-	OwnerNickname string             `json:"owner_nickname"`
+	ID              pgtype.UUID        `json:"id"`
+	OwnerID         pgtype.UUID        `json:"owner_id"`
+	DomainID        pgtype.UUID        `json:"domain_id"`
+	Slug            string             `json:"slug"`
+	TargetUrl       string             `json:"target_url"`
+	Status          string             `json:"status"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
+	DomainHost      string             `json:"domain_host"`
+	OwnerUsername   string             `json:"owner_username"`
+	OwnerNickname   string             `json:"owner_nickname"`
+	VisitCount      int64              `json:"visit_count"`
+	TodayVisitCount int64              `json:"today_visit_count"`
+	LastVisitedAt   pgtype.Timestamptz `json:"last_visited_at"`
 }
 
 func (q *Queries) ListAllShortLinks(ctx context.Context, arg ListAllShortLinksParams) ([]ListAllShortLinksRow, error) {
@@ -197,6 +211,9 @@ func (q *Queries) ListAllShortLinks(ctx context.Context, arg ListAllShortLinksPa
 			&i.DomainHost,
 			&i.OwnerUsername,
 			&i.OwnerNickname,
+			&i.VisitCount,
+			&i.TodayVisitCount,
+			&i.LastVisitedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -218,9 +235,20 @@ select short_link.id,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
-    domain.host as domain_host
+    domain.host as domain_host,
+    coalesce(stats.visit_count, 0)::bigint as visit_count,
+    coalesce(stats.today_visit_count, 0)::bigint as today_visit_count,
+    stats.last_visited_at::timestamptz as last_visited_at
 from short_link
 join domain on domain.id = short_link.domain_id
+left join (
+    select short_link_id,
+        count(*) filter (where event_type = 'redirect_response_sent')::bigint as visit_count,
+        count(*) filter (where event_type = 'redirect_response_sent' and created_at >= current_date)::bigint as today_visit_count,
+        max(created_at) filter (where event_type = 'redirect_response_sent') as last_visited_at
+    from short_link_event
+    group by short_link_id
+) stats on stats.short_link_id = short_link.id
 where short_link.owner_id = $1 and short_link.deleted_at is null
     and ($4::text is null or short_link.status = $4::text)
 order by short_link.created_at desc
@@ -235,16 +263,19 @@ type ListShortLinksByOwnerParams struct {
 }
 
 type ListShortLinksByOwnerRow struct {
-	ID         pgtype.UUID        `json:"id"`
-	OwnerID    pgtype.UUID        `json:"owner_id"`
-	DomainID   pgtype.UUID        `json:"domain_id"`
-	Slug       string             `json:"slug"`
-	TargetUrl  string             `json:"target_url"`
-	Status     string             `json:"status"`
-	CreatedAt  pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt  pgtype.Timestamptz `json:"deleted_at"`
-	DomainHost string             `json:"domain_host"`
+	ID              pgtype.UUID        `json:"id"`
+	OwnerID         pgtype.UUID        `json:"owner_id"`
+	DomainID        pgtype.UUID        `json:"domain_id"`
+	Slug            string             `json:"slug"`
+	TargetUrl       string             `json:"target_url"`
+	Status          string             `json:"status"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
+	DomainHost      string             `json:"domain_host"`
+	VisitCount      int64              `json:"visit_count"`
+	TodayVisitCount int64              `json:"today_visit_count"`
+	LastVisitedAt   pgtype.Timestamptz `json:"last_visited_at"`
 }
 
 func (q *Queries) ListShortLinksByOwner(ctx context.Context, arg ListShortLinksByOwnerParams) ([]ListShortLinksByOwnerRow, error) {
@@ -272,6 +303,9 @@ func (q *Queries) ListShortLinksByOwner(ctx context.Context, arg ListShortLinksB
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.DomainHost,
+			&i.VisitCount,
+			&i.TodayVisitCount,
+			&i.LastVisitedAt,
 		); err != nil {
 			return nil, err
 		}

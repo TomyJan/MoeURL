@@ -6,6 +6,8 @@ github.com/TomyJan/MoeURL/internal/auth/handler.go
 github.com/TomyJan/MoeURL/internal/auth/password.go
 github.com/TomyJan/MoeURL/internal/auth/service.go
 github.com/TomyJan/MoeURL/internal/auth/session.go
+github.com/TomyJan/MoeURL/internal/event/event.go
+github.com/TomyJan/MoeURL/internal/event/recorder.go
 github.com/TomyJan/MoeURL/internal/http/response.go
 github.com/TomyJan/MoeURL/internal/http/router.go
 github.com/TomyJan/MoeURL/internal/middleware/request_logger.go

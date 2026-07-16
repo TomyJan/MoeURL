@@ -1,4 +1,4 @@
-package db_test
+package event_test
 
 import (
 	"context"
@@ -8,10 +8,8 @@ import (
 	"time"
 
 	appdb "github.com/TomyJan/MoeURL/internal/db"
-	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/event"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
@@ -20,74 +18,75 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func TestSQLCPackageExposesQueries(t *testing.T) {
-	queries := sqlc.New(nil)
-	if queries == nil {
-		t.Fatal("expected generated queries")
-	}
-}
-
-func TestShortLinkStatisticsQueries(t *testing.T) {
+func TestRecorderPersistsShortLinkEvent(t *testing.T) {
 	ctx := context.Background()
-	pool := sqlcTestPool(t, ctx)
-	queries := sqlc.New(pool)
-
-	ownerID := uuid.MustParse("00000000-0000-0000-0000-000000000201")
-	domainID := uuid.MustParse("00000000-0000-0000-0000-000000000101")
+	pool := eventTestPool(t, ctx)
 	linkID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
-	insertSQLCShortLinkFixtures(t, ctx, pool, ownerID, domainID, linkID)
+	insertEventRecorderFixtures(t, ctx, pool, linkID)
+	recorder := event.NewRecorder(pool)
 
-	for i := 0; i < 2; i++ {
-		err := queries.CreateShortLinkEvent(ctx, sqlc.CreateShortLinkEventParams{
-			ID:          uuidToPgtype(uuid.New()),
-			ShortLinkID: uuidToPgtype(linkID),
-			EventType:   event.RedirectResponseSent,
-		})
-		if err != nil {
-			t.Fatalf("create short link event: %v", err)
-		}
-	}
-
-	rows, err := queries.ListShortLinksByOwner(ctx, sqlc.ListShortLinksByOwnerParams{
-		OwnerID: uuidToPgtype(ownerID),
-		Limit:   20,
-		Offset:  0,
-		Status:  pgtype.Text{},
+	err := recorder.Record(ctx, event.Event{
+		Type:        event.RedirectResponseSent,
+		ShortLinkID: linkID.String(),
+		Slug:        "abc123",
 	})
 	if err != nil {
-		t.Fatalf("list short links: %v", err)
-	}
-	if len(rows) != 1 {
-		t.Fatalf("expected 1 row, got %d", len(rows))
-	}
-	if rows[0].VisitCount != 2 {
-		t.Fatalf("expected visit count 2, got %d", rows[0].VisitCount)
-	}
-	if rows[0].TodayVisitCount != 2 {
-		t.Fatalf("expected today visit count 2, got %d", rows[0].TodayVisitCount)
-	}
-	if !rows[0].LastVisitedAt.Valid {
-		t.Fatal("expected last visited at")
+		t.Fatalf("record event: %v", err)
 	}
 
-	adminRows, err := queries.ListAllShortLinks(ctx, sqlc.ListAllShortLinksParams{
-		Limit:  20,
-		Offset: 0,
-		Status: pgtype.Text{},
-		Query:  "",
-	})
+	var count int
+	err = pool.QueryRow(ctx, `
+		select count(*)
+		from short_link_event
+		where short_link_id = $1 and event_type = $2
+	`, linkID, event.RedirectResponseSent).Scan(&count)
 	if err != nil {
-		t.Fatalf("list all short links: %v", err)
+		t.Fatalf("query recorded event: %v", err)
 	}
-	if len(adminRows) != 1 {
-		t.Fatalf("expected 1 admin row, got %d", len(adminRows))
-	}
-	if adminRows[0].VisitCount != 2 || adminRows[0].TodayVisitCount != 2 || !adminRows[0].LastVisitedAt.Valid {
-		t.Fatalf("unexpected admin statistics: %#v", adminRows[0])
+	if count != 1 {
+		t.Fatalf("expected 1 event, got %d", count)
 	}
 }
 
-func insertSQLCShortLinkFixtures(t *testing.T, ctx context.Context, pool sqlc.DBTX, ownerID uuid.UUID, domainID uuid.UUID, linkID uuid.UUID) {
+func TestRecorderIgnoresEventsWithoutShortLinkID(t *testing.T) {
+	ctx := context.Background()
+	pool := eventTestPool(t, ctx)
+	recorder := event.NewRecorder(pool)
+
+	err := recorder.Record(ctx, event.Event{Type: event.RedirectBlocked, Slug: "missing"})
+	if err != nil {
+		t.Fatalf("record event without short link id: %v", err)
+	}
+
+	var count int
+	err = pool.QueryRow(ctx, `select count(*) from short_link_event`).Scan(&count)
+	if err != nil {
+		t.Fatalf("query recorded events: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no persisted events, got %d", count)
+	}
+}
+
+func TestRecorderReturnsInvalidShortLinkIDError(t *testing.T) {
+	ctx := context.Background()
+	pool := eventTestPool(t, ctx)
+	recorder := event.NewRecorder(pool)
+
+	err := recorder.Record(ctx, event.Event{Type: event.RedirectResponseSent, ShortLinkID: "bad-id"})
+	if err == nil {
+		t.Fatal("expected invalid short link id error")
+	}
+}
+
+func TestNoopRecorderIgnoresEvents(t *testing.T) {
+	err := (event.NoopRecorder{}).Record(context.Background(), event.Event{Type: event.RedirectBlocked, Slug: "missing"})
+	if err != nil {
+		t.Fatalf("expected noop recorder to ignore event, got %v", err)
+	}
+}
+
+func insertEventRecorderFixtures(t *testing.T, ctx context.Context, pool *pgxpool.Pool, linkID uuid.UUID) {
 	t.Helper()
 	_, err := pool.Exec(ctx, `
 		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
@@ -98,30 +97,30 @@ func insertSQLCShortLinkFixtures(t *testing.T, ctx context.Context, pool sqlc.DB
 	}
 	_, err = pool.Exec(ctx, `
 		insert into app_user (id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at)
-		values ($1, 'alice', 'hash', 'Alice', '00000000-0000-0000-0000-000000000001', 'active', false, now(), now())
-	`, ownerID)
+		values ('00000000-0000-0000-0000-000000000201', 'alice', 'hash', 'Alice', '00000000-0000-0000-0000-000000000001', 'active', false, now(), now())
+	`)
 	if err != nil {
 		t.Fatalf("insert app user fixture: %v", err)
 	}
 	_, err = pool.Exec(ctx, `
 		insert into domain (id, host, display_name, purpose, enabled, is_default, created_at, updated_at)
-		values ($1, 'go.example.com', 'Default', 'short_link', true, true, now(), now())
-	`, domainID)
+		values ('00000000-0000-0000-0000-000000000101', 'go.example.com', 'Default', 'short_link', true, true, now(), now())
+	`)
 	if err != nil {
 		t.Fatalf("insert domain fixture: %v", err)
 	}
 	_, err = pool.Exec(ctx, `
 		insert into short_link (id, owner_id, domain_id, slug, target_url, status, created_at, updated_at)
-		values ($1, $2, $3, 'abc123', 'https://example.com', 'active', now(), now())
-	`, linkID, ownerID, domainID)
+		values ($1, '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000101', 'abc123', 'https://example.com', 'active', now(), now())
+	`, linkID)
 	if err != nil {
 		t.Fatalf("insert short link fixture: %v", err)
 	}
 }
 
-func sqlcTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
+func eventTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
-	databaseURL := migratedSQLCDatabaseURL(t, ctx)
+	databaseURL := migratedEventDatabaseURL(t, ctx)
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {
 		t.Fatalf("open pool: %v", err)
@@ -130,7 +129,7 @@ func sqlcTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	return pool
 }
 
-func migratedSQLCDatabaseURL(t *testing.T, ctx context.Context) string {
+func migratedEventDatabaseURL(t *testing.T, ctx context.Context) string {
 	t.Helper()
 
 	container, err := postgres.Run(ctx,
@@ -174,8 +173,4 @@ func migratedSQLCDatabaseURL(t *testing.T, ctx context.Context) string {
 	}
 
 	return databaseURL
-}
-
-func uuidToPgtype(value uuid.UUID) pgtype.UUID {
-	return pgtype.UUID{Bytes: value, Valid: true}
 }

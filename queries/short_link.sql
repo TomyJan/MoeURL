@@ -18,9 +18,20 @@ select short_link.id,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
-    domain.host as domain_host
+    domain.host as domain_host,
+    coalesce(stats.visit_count, 0)::bigint as visit_count,
+    coalesce(stats.today_visit_count, 0)::bigint as today_visit_count,
+    stats.last_visited_at::timestamptz as last_visited_at
 from short_link
 join domain on domain.id = short_link.domain_id
+left join (
+    select short_link_id,
+        count(*) filter (where event_type = 'redirect_response_sent')::bigint as visit_count,
+        count(*) filter (where event_type = 'redirect_response_sent' and created_at >= current_date)::bigint as today_visit_count,
+        max(created_at) filter (where event_type = 'redirect_response_sent') as last_visited_at
+    from short_link_event
+    group by short_link_id
+) stats on stats.short_link_id = short_link.id
 where short_link.owner_id = $1 and short_link.deleted_at is null
     and (sqlc.narg('status')::text is null or short_link.status = sqlc.narg('status')::text)
 order by short_link.created_at desc
@@ -62,10 +73,21 @@ select short_link.id,
     short_link.deleted_at,
     domain.host as domain_host,
     app_user.username as owner_username,
-    app_user.nickname as owner_nickname
+    app_user.nickname as owner_nickname,
+    coalesce(stats.visit_count, 0)::bigint as visit_count,
+    coalesce(stats.today_visit_count, 0)::bigint as today_visit_count,
+    stats.last_visited_at::timestamptz as last_visited_at
 from short_link
 join domain on domain.id = short_link.domain_id
 join app_user on app_user.id = short_link.owner_id
+left join (
+    select short_link_id,
+        count(*) filter (where event_type = 'redirect_response_sent')::bigint as visit_count,
+        count(*) filter (where event_type = 'redirect_response_sent' and created_at >= current_date)::bigint as today_visit_count,
+        max(created_at) filter (where event_type = 'redirect_response_sent') as last_visited_at
+    from short_link_event
+    group by short_link_id
+) stats on stats.short_link_id = short_link.id
 where short_link.deleted_at is null
     and (sqlc.narg('status')::text is null or short_link.status = sqlc.narg('status')::text)
     and (

@@ -11,8 +11,9 @@ const (
 )
 
 type Event struct {
-	Type string
-	Slug string
+	Type        string
+	Slug        string
+	ShortLinkID string
 }
 
 type Recorder interface {

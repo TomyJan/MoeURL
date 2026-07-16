@@ -9,6 +9,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/config"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
+	"github.com/TomyJan/MoeURL/internal/event"
 	apphttp "github.com/TomyJan/MoeURL/internal/http"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
@@ -38,7 +39,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.Auth = authService
 		deps.CurrentUser = authService
 		deps.ShortLink = shortlink.NewService(pool, permission.NewService())
-		deps.Redirect = shortlink.NewRedirectService(pool, nil)
+		deps.Redirect = shortlink.NewRedirectService(pool, event.NewRecorder(pool))
 		deps.User = user.NewService(pool, permission.NewService())
 	}
 	deps.StaticDir = cfg.StaticDir

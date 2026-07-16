@@ -34,27 +34,28 @@ func (s *RedirectService) Resolve(ctx context.Context, slug string) (RedirectRes
 	slug = strings.ToLower(slug)
 	link, err := s.queries.GetShortLinkBySlug(ctx, slug)
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.record(ctx, event.AccessConditionChecked, slug)
-		s.record(ctx, event.RedirectBlocked, slug)
+		s.record(ctx, event.AccessConditionChecked, slug, "")
+		s.record(ctx, event.RedirectBlocked, slug, "")
 		return RedirectResult{}, ErrShortLinkMissing
 	}
 	if err != nil {
 		return RedirectResult{}, err
 	}
 
-	s.record(ctx, event.ShortLinkOpened, slug)
-	s.record(ctx, event.AccessConditionChecked, slug)
+	shortLinkID := uuidFromPgtype(link.ID)
+	s.record(ctx, event.ShortLinkOpened, slug, shortLinkID)
+	s.record(ctx, event.AccessConditionChecked, slug, shortLinkID)
 
 	if link.Status != shortLinkStatusActive {
-		s.record(ctx, event.RedirectBlocked, slug)
+		s.record(ctx, event.RedirectBlocked, slug, shortLinkID)
 		return RedirectResult{}, ErrShortLinkDisabled
 	}
 
-	s.record(ctx, event.RedirectInitiated, slug)
-	s.record(ctx, event.RedirectResponseSent, slug)
+	s.record(ctx, event.RedirectInitiated, slug, shortLinkID)
+	s.record(ctx, event.RedirectResponseSent, slug, shortLinkID)
 	return RedirectResult{TargetURL: link.TargetUrl}, nil
 }
 
-func (s *RedirectService) record(ctx context.Context, eventType string, slug string) {
-	_ = s.recorder.Record(ctx, event.Event{Type: eventType, Slug: slug})
+func (s *RedirectService) record(ctx context.Context, eventType string, slug string, shortLinkID string) {
+	_ = s.recorder.Record(ctx, event.Event{Type: eventType, Slug: slug, ShortLinkID: shortLinkID})
 }

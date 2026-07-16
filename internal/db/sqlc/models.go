@@ -53,6 +53,13 @@ type ShortLink struct {
 	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type ShortLinkEvent struct {
+	ID          pgtype.UUID        `json:"id"`
+	ShortLinkID pgtype.UUID        `json:"short_link_id"`
+	EventType   string             `json:"event_type"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
 type SystemSetting struct {
 	Key       string             `json:"key"`
 	Value     []byte             `json:"value"`

@@ -147,7 +147,14 @@ func TestHandlerListShortLinksReturnsItemsAndMeta(t *testing.T) {
 		ShortLink: &fakeShortLinkService{
 			listResult: shortlink.ListResult{
 				Items: []shortlink.ShortLink{
-					{ID: "link-id", URL: "https://go.example.com/abc123", Slug: "abc123", TargetURL: "https://example.com", Status: "active"},
+					{
+						ID:        "link-id",
+						URL:       "https://go.example.com/abc123",
+						Slug:      "abc123",
+						TargetURL: "https://example.com",
+						Status:    "active",
+						Stats:     &shortlink.ShortLinkStats{VisitCount: 2, TodayVisitCount: 1},
+					},
 				},
 				Page:     2,
 				PageSize: 10,
@@ -180,6 +187,9 @@ func TestHandlerListShortLinksReturnsItemsAndMeta(t *testing.T) {
 	}
 	if len(body.Data.Items) != 1 || body.Data.Items[0].Slug != "abc123" {
 		t.Fatalf("unexpected items: %#v", body.Data.Items)
+	}
+	if body.Data.Items[0].Stats == nil || body.Data.Items[0].Stats.VisitCount != 2 || body.Data.Items[0].Stats.TodayVisitCount != 1 {
+		t.Fatalf("unexpected stats: %#v", body.Data.Items[0].Stats)
 	}
 	if body.Meta.Page != 2 || body.Meta.PageSize != 10 || body.Meta.Total != 21 {
 		t.Fatalf("unexpected meta: %#v", body.Meta)

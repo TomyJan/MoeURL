@@ -68,6 +68,8 @@ PostgreSQL 作为主数据库。
 - 统计查询能力强，适合后续访问数据分析。
 - 自托管生态成熟。
 
+v0.0.4 开始使用 PostgreSQL 持久化 `short_link_event` 访问事件表，用于支撑短链列表的总访问量、今日访问量和最近访问时间。该阶段不保存 IP、User-Agent、Referer 和地区信息。
+
 ### SQLC
 
 SQLC 用于根据 SQL 生成类型安全的 Go 数据访问代码。

@@ -449,8 +449,22 @@ describe('pages', () => {
     setQueryResult({
       data: ref({
         items: [
-          { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' },
-          { id: 'link-disabled', url: 'https://go.example.com/def456', slug: 'def456', targetUrl: 'https://example.org', status: 'disabled' },
+          {
+            id: 'link-id',
+            url: 'https://go.example.com/abc123',
+            slug: 'abc123',
+            targetUrl: 'https://example.com',
+            status: 'active',
+            stats: { visitCount: 2, todayVisitCount: 1, lastVisitedAt: '2026-07-16T05:00:00Z' },
+          },
+          {
+            id: 'link-disabled',
+            url: 'https://go.example.com/def456',
+            slug: 'def456',
+            targetUrl: 'https://example.org',
+            status: 'disabled',
+            stats: { visitCount: 0, todayVisitCount: 0, lastVisitedAt: 'invalid-date' },
+          },
         ],
       }),
     })
@@ -467,6 +481,12 @@ describe('pages', () => {
     if (!activeRow || !disabledRow) {
       throw new Error('expected short link rows')
     }
+    expect(within(activeRow).getByText('links.stats.visitCount')).toBeTruthy()
+    expect(within(activeRow).getByText('2')).toBeTruthy()
+    expect(within(activeRow).getByText('links.stats.todayVisitCount')).toBeTruthy()
+    expect(within(activeRow).getByText('1')).toBeTruthy()
+    expect(within(activeRow).getByText('links.stats.lastVisitedAt')).toBeTruthy()
+    expect(within(disabledRow).getByText('links.stats.neverVisited')).toBeTruthy()
 
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.more' }))
     expect(within(activeRow).getByRole('button', { name: 'links.actions.more' }).getAttribute('aria-haspopup')).toBe('menu')

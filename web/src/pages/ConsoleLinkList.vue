@@ -21,6 +21,20 @@
         <span class="console-link-row__status" :class="`console-link-row__status--${link.status}`">
           {{ t(`links.status.${link.status}`) }}
         </span>
+        <dl class="console-link-row__stats">
+          <div>
+            <dt>{{ t('links.stats.visitCount') }}</dt>
+            <dd>{{ link.stats?.visitCount ?? 0 }}</dd>
+          </div>
+          <div>
+            <dt>{{ t('links.stats.todayVisitCount') }}</dt>
+            <dd>{{ link.stats?.todayVisitCount ?? 0 }}</dd>
+          </div>
+          <div>
+            <dt>{{ t('links.stats.lastVisitedAt') }}</dt>
+            <dd>{{ formatVisitedAt(link.stats?.lastVisitedAt) }}</dd>
+          </div>
+        </dl>
       </div>
 
       <div class="console-link-row__actions" :data-link-more-id="link.id">
@@ -62,6 +76,11 @@ export interface ConsoleLinkListItem {
     username: string
   }
   status: 'active' | 'disabled'
+  stats?: {
+    visitCount: number
+    todayVisitCount: number
+    lastVisitedAt: string | null
+  }
   targetUrl: string
   url: string
 }
@@ -98,6 +117,21 @@ function toggleMore(id: string) {
 
 function closeMore() {
   openedMoreId.value = ''
+}
+
+function formatVisitedAt(value?: string | null) {
+  if (!value) {
+    return t('links.stats.neverVisited')
+  }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return t('links.stats.neverVisited')
+  }
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-')
 }
 
 function handleDocumentPointerDown(event: globalThis.PointerEvent) {

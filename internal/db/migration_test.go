@@ -58,7 +58,7 @@ func TestInitialMigrationCreatesCoreTablesAndConstraints(t *testing.T) {
 		t.Fatalf("run migrations: %v", err)
 	}
 
-	expectedTables := []string{"system_setting", "user_group", "app_user", "session", "domain", "short_link"}
+	expectedTables := []string{"system_setting", "user_group", "app_user", "session", "domain", "short_link", "short_link_event"}
 	for _, table := range expectedTables {
 		t.Run(fmt.Sprintf("table_%s_exists", table), func(t *testing.T) {
 			var exists bool

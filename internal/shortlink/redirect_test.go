@@ -98,6 +98,47 @@ func TestRedirectServiceBlocksMissingAndDisabledShortLink(t *testing.T) {
 	}
 }
 
+func TestRedirectServiceRecordsSuccessfulVisit(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "alice", "user", []string{})
+	activeID := insertStoredShortLink(t, ctx, pool, user.ID, "active1", "https://example.com/target", "active", false)
+	insertStoredShortLink(t, ctx, pool, user.ID, "disabled", "https://example.com/disabled", "disabled", false)
+	service := shortlink.NewRedirectService(pool, event.NewRecorder(pool))
+
+	_, err := service.Resolve(ctx, "active1")
+	if err != nil {
+		t.Fatalf("resolve active link: %v", err)
+	}
+	_, err = service.Resolve(ctx, "disabled")
+	if !errors.Is(err, shortlink.ErrShortLinkDisabled) {
+		t.Fatalf("expected disabled error, got %v", err)
+	}
+
+	var activeVisits int
+	err = pool.QueryRow(ctx, `
+		select count(*)
+		from short_link_event
+		where short_link_id = $1 and event_type = $2
+	`, activeID, event.RedirectResponseSent).Scan(&activeVisits)
+	if err != nil {
+		t.Fatalf("query active visits: %v", err)
+	}
+	if activeVisits != 1 {
+		t.Fatalf("expected 1 active visit, got %d", activeVisits)
+	}
+
+	var allVisits int
+	err = pool.QueryRow(ctx, `select count(*) from short_link_event where event_type = $1`, event.RedirectResponseSent).Scan(&allVisits)
+	if err != nil {
+		t.Fatalf("query all visits: %v", err)
+	}
+	if allVisits != 1 {
+		t.Fatalf("expected only successful redirect to be recorded, got %d", allVisits)
+	}
+}
+
 func TestRedirectServiceReturnsDatabaseError(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)

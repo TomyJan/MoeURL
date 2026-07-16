@@ -134,6 +134,7 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 			Slug:      row.Slug,
 			TargetURL: row.TargetUrl,
 			Status:    row.Status,
+			Stats:     statsFromRow(row.VisitCount, row.TodayVisitCount, row.LastVisitedAt),
 		})
 	}
 
@@ -249,6 +250,7 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 			Slug:      row.Slug,
 			TargetURL: row.TargetUrl,
 			Status:    row.Status,
+			Stats:     statsFromRow(row.VisitCount, row.TodayVisitCount, row.LastVisitedAt),
 			Owner: OwnerSummary{
 				ID:       uuidFromPgtype(row.OwnerID),
 				Username: row.OwnerUsername,
@@ -371,6 +373,17 @@ func optionalFilterText(value string) pgtype.Text {
 		return pgtype.Text{}
 	}
 	return pgtype.Text{String: value, Valid: true}
+}
+
+func statsFromRow(visitCount int64, todayVisitCount int64, lastVisitedAt pgtype.Timestamptz) *ShortLinkStats {
+	stats := &ShortLinkStats{
+		VisitCount:      visitCount,
+		TodayVisitCount: todayVisitCount,
+	}
+	if lastVisitedAt.Valid {
+		stats.LastVisitedAt = &lastVisitedAt.Time
+	}
+	return stats
 }
 
 func isAllowedStatus(value string) bool {
