@@ -161,7 +161,9 @@ jobs:
           go test \
             ./internal/auth \
             ./internal/db \
+            ./internal/event \
             ./internal/http \
+            ./internal/middleware \
             ./internal/permission \
             ./internal/shortlink \
             ./internal/system \
