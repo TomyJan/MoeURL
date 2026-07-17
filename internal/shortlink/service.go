@@ -378,6 +378,14 @@ type analyticsLinkResult struct {
 	shortLink ShortLink
 }
 
+type analyticsQueries interface {
+	GetShortLinkAnalyticsSummary(context.Context, pgtype.UUID) (sqlc.GetShortLinkAnalyticsSummaryRow, error)
+	ListShortLinkDailyVisits(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkDailyVisitsRow, error)
+	ListShortLinkReferrerStats(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkReferrerStatsRow, error)
+	ListShortLinkDeviceStats(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkDeviceStatsRow, error)
+	ListShortLinkCountryStats(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkCountryStatsRow, error)
+}
+
 // analyticsLink returns a non-deleted link formatted for analytics responses.
 func (s *Service) analyticsLink(ctx context.Context, linkID uuid.UUID) (analyticsLinkResult, error) {
 	row, err := s.queries.GetShortLinkAnalyticsLink(ctx, uuidToPgtype(linkID))
@@ -401,24 +409,29 @@ func (s *Service) analyticsLink(ctx context.Context, linkID uuid.UUID) (analytic
 
 // analytics assembles summary, trend, and dimension aggregates for one visible link.
 func (s *Service) analytics(ctx context.Context, linkID uuid.UUID, shortLink ShortLink) (StatisticsResult, error) {
+	return analyticsWithQueries(ctx, s.queries, linkID, shortLink)
+}
+
+// analyticsWithQueries assembles analytics using the supplied aggregate query reader.
+func analyticsWithQueries(ctx context.Context, queries analyticsQueries, linkID uuid.UUID, shortLink ShortLink) (StatisticsResult, error) {
 	pgLinkID := uuidToPgtype(linkID)
-	summary, err := s.queries.GetShortLinkAnalyticsSummary(ctx, pgLinkID)
+	summary, err := queries.GetShortLinkAnalyticsSummary(ctx, pgLinkID)
 	if err != nil {
 		return StatisticsResult{}, err
 	}
-	trend, err := s.queries.ListShortLinkDailyVisits(ctx, pgLinkID)
+	trend, err := queries.ListShortLinkDailyVisits(ctx, pgLinkID)
 	if err != nil {
 		return StatisticsResult{}, err
 	}
-	referrers, err := s.queries.ListShortLinkReferrerStats(ctx, pgLinkID)
+	referrers, err := queries.ListShortLinkReferrerStats(ctx, pgLinkID)
 	if err != nil {
 		return StatisticsResult{}, err
 	}
-	devices, err := s.queries.ListShortLinkDeviceStats(ctx, pgLinkID)
+	devices, err := queries.ListShortLinkDeviceStats(ctx, pgLinkID)
 	if err != nil {
 		return StatisticsResult{}, err
 	}
-	countries, err := s.queries.ListShortLinkCountryStats(ctx, pgLinkID)
+	countries, err := queries.ListShortLinkCountryStats(ctx, pgLinkID)
 	if err != nil {
 		return StatisticsResult{}, err
 	}

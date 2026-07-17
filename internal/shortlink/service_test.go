@@ -763,6 +763,24 @@ func TestServiceStatisticsEnforcesVisibilityAndInput(t *testing.T) {
 	if !errors.Is(err, shortlink.ErrPermissionDenied) {
 		t.Fatalf("expected permission denied, got %v", err)
 	}
+	_, err = service.Statistics(ctx, auth.GuestUser(), shortlink.StatisticsInput{ID: linkID})
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected owner permission denied, got %v", err)
+	}
+	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", GroupKey: "admin"}
+	_, err = service.AdminStatistics(ctx, admin, shortlink.StatisticsInput{ID: "bad-id"})
+	if !errors.Is(err, shortlink.ErrInvalidShortLinkID) {
+		t.Fatalf("expected admin invalid id, got %v", err)
+	}
+	_, err = service.AdminStatistics(ctx, admin, shortlink.StatisticsInput{ID: "00000000-0000-0000-0000-000000009999"})
+	if !errors.Is(err, shortlink.ErrShortLinkMissing) {
+		t.Fatalf("expected admin missing link, got %v", err)
+	}
+	pool.Close()
+	_, err = service.Statistics(ctx, owner, shortlink.StatisticsInput{ID: linkID})
+	if err == nil {
+		t.Fatal("expected analytics database error")
+	}
 }
 
 // TestServiceAdminStatisticsReturnsAnyVisibleLink verifies administrators can read cross-owner analytics.

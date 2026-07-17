@@ -223,6 +223,19 @@ func TestHandlerStatisticsReturnsAnalyticsAndForwardsID(t *testing.T) {
 	}
 }
 
+// TestHandlerAdminStatisticsReturnsAnalyticsAndForwardsID verifies the administrator statistics endpoint.
+func TestHandlerAdminStatisticsReturnsAnalyticsAndForwardsID(t *testing.T) {
+	service := &fakeShortLinkService{statisticsResult: shortlink.StatisticsResult{Stats: shortlink.AnalyticsStats{VisitCount: 3}}}
+	router := apphttp.NewRouter(apphttp.Dependencies{CurrentUser: &fakeCurrentUserResolver{}, ShortLink: service})
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/admin/short-link/statistics?id=link-id", nil))
+
+	if response.Code != http.StatusOK || service.statisticsInput.ID != "link-id" {
+		t.Fatalf("unexpected response %d or input %#v", response.Code, service.statisticsInput)
+	}
+}
+
 // TestHandlerStatisticsMapsErrors verifies both statistics endpoints preserve response conventions.
 func TestHandlerStatisticsMapsErrors(t *testing.T) {
 	tests := []struct {
