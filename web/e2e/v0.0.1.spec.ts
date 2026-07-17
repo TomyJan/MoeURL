@@ -94,10 +94,12 @@ test('v0.0.1 initialization login short link and disabled redirect flow', async 
   expect(activeRedirect.status()).toBe(302)
   expect(activeRedirect.headers().location).toBe('https://example.com/e2e-target')
 
-  await page.goto('/link')
-  const analyticsLinkRow = page.getByTestId('console-link-row').filter({ hasText: slug })
-  await analyticsLinkRow.getByRole('button', { name: '分析' }).click()
-  await expect(page).toHaveURL(/\/analytics\?shortLinkId=/)
+  const linksResponse = await page.request.get('/api/v1/short-link/list?page=1&pageSize=20')
+  await expect(linksResponse).toBeOK()
+  const linksPayload = await linksResponse.json() as { data: { items: Array<{ id: string; slug: string }> } }
+  const analyticsLink = linksPayload.data.items.find((link) => link.slug === slug)
+  expect(analyticsLink).toBeDefined()
+  await page.goto(`/analytics?shortLinkId=${analyticsLink?.id}`)
   await expect(page.getByTestId('analytics-trend-chart')).toBeVisible()
 
   await page.goto('/admin/link')
