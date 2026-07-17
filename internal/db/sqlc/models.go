@@ -54,10 +54,13 @@ type ShortLink struct {
 }
 
 type ShortLinkEvent struct {
-	ID          pgtype.UUID        `json:"id"`
-	ShortLinkID pgtype.UUID        `json:"short_link_id"`
-	EventType   string             `json:"event_type"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	ID           pgtype.UUID        `json:"id"`
+	ShortLinkID  pgtype.UUID        `json:"short_link_id"`
+	EventType    string             `json:"event_type"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	ReferrerHost pgtype.Text        `json:"referrer_host"`
+	DeviceType   pgtype.Text        `json:"device_type"`
+	CountryCode  pgtype.Text        `json:"country_code"`
 }
 
 type SystemSetting struct {

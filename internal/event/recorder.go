@@ -51,9 +51,12 @@ func (r *DBRecorder) Record(_ context.Context, event Event) error {
 		return nil
 	}
 	params := sqlc.CreateShortLinkEventParams{
-		ID:          pgtypeUUID(uuid.New()),
-		ShortLinkID: pgtypeUUID(shortLinkID),
-		EventType:   event.Type,
+		ID:           pgtypeUUID(uuid.New()),
+		ShortLinkID:  pgtypeUUID(shortLinkID),
+		EventType:    event.Type,
+		ReferrerHost: nullableText(event.ReferrerHost),
+		DeviceType:   nullableText(event.DeviceType),
+		CountryCode:  nullableText(event.CountryCode),
 	}
 	select {
 	case r.writeSlots <- struct{}{}:
@@ -83,4 +86,9 @@ func (r *DBRecorder) Record(_ context.Context, event Event) error {
 // pgtypeUUID converts a UUID to its pgx database representation.
 func pgtypeUUID(value uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{Bytes: value, Valid: true}
+}
+
+// nullableText converts a non-empty analytics dimension into its pgx representation.
+func nullableText(value string) pgtype.Text {
+	return pgtype.Text{String: value, Valid: value != ""}
 }

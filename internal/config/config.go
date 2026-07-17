@@ -7,19 +7,21 @@ import (
 )
 
 type Config struct {
-	Env         string
-	HTTPAddr    string
-	DatabaseURL string
-	StaticDir   string
+	Env                    string
+	HTTPAddr               string
+	DatabaseURL            string
+	StaticDir              string
+	AnalyticsCountryHeader string
 }
 
 // Load reads the application configuration from environment variables.
 func Load() Config {
 	return Config{
-		Env:         getEnv("MOEURL_ENV", "development"),
-		HTTPAddr:    getEnv("MOEURL_HTTP_ADDR", ":8080"),
-		DatabaseURL: os.Getenv("MOEURL_DATABASE_URL"),
-		StaticDir:   os.Getenv("MOEURL_STATIC_DIR"),
+		Env:                    getEnv("MOEURL_ENV", "development"),
+		HTTPAddr:               getEnv("MOEURL_HTTP_ADDR", ":8080"),
+		DatabaseURL:            os.Getenv("MOEURL_DATABASE_URL"),
+		StaticDir:              os.Getenv("MOEURL_STATIC_DIR"),
+		AnalyticsCountryHeader: os.Getenv("MOEURL_ANALYTICS_COUNTRY_HEADER"),
 	}
 }
 

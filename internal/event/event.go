@@ -12,9 +12,12 @@ const (
 
 // Event describes a short link access event emitted by the redirect flow.
 type Event struct {
-	Type        string
-	Slug        string
-	ShortLinkID string
+	Type         string
+	Slug         string
+	ShortLinkID  string
+	ReferrerHost string
+	DeviceType   string
+	CountryCode  string
 }
 
 // Recorder persists or forwards short link access events.
