@@ -715,6 +715,73 @@ func TestServiceAdminDeleteReturnsInputMissingAndDatabaseErrors(t *testing.T) {
 	}
 }
 
+// TestServiceStatisticsReturnsOwnedLinkAnalytics verifies owners receive summary, trend, and dimensions.
+func TestServiceStatisticsReturnsOwnedLinkAnalytics(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	owner := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	linkID := insertStoredShortLink(t, ctx, pool, owner.ID, "stats1", "https://example.com/1", "active", false)
+	insertStoredAnalyticsVisit(t, ctx, pool, linkID, "search.example", "mobile", "CN", "now()")
+	insertStoredAnalyticsVisit(t, ctx, pool, linkID, "", "desktop", "US", "now() - interval '2 days'")
+	service := shortlink.NewService(pool, permission.NewService())
+
+	result, err := service.Statistics(ctx, owner, shortlink.StatisticsInput{ID: linkID})
+	if err != nil {
+		t.Fatalf("statistics: %v", err)
+	}
+	if result.ShortLink.ID != linkID || result.Stats.VisitCount != 2 || result.Stats.TodayVisitCount != 1 || len(result.Stats.Trend) != 7 {
+		t.Fatalf("unexpected statistics: %#v", result)
+	}
+	if len(result.Stats.Referrers) != 2 || result.Stats.Referrers[0].Value != "search.example" {
+		t.Fatalf("unexpected referrers: %#v", result.Stats.Referrers)
+	}
+	if len(result.Stats.Devices) != 2 || len(result.Stats.Countries) != 2 {
+		t.Fatalf("unexpected dimensions: %#v", result.Stats)
+	}
+}
+
+// TestServiceStatisticsEnforcesVisibilityAndInput verifies statistics errors do not disclose other links.
+func TestServiceStatisticsEnforcesVisibilityAndInput(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	owner := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	linkID := insertStoredShortLink(t, ctx, pool, owner.ID, "stats2", "https://example.com/2", "active", false)
+	other := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000602", GroupKey: "user"}
+	service := shortlink.NewService(pool, permission.NewService())
+
+	_, err := service.Statistics(ctx, other, shortlink.StatisticsInput{ID: linkID})
+	if !errors.Is(err, shortlink.ErrShortLinkMissing) {
+		t.Fatalf("expected missing link, got %v", err)
+	}
+	_, err = service.Statistics(ctx, owner, shortlink.StatisticsInput{ID: "bad-id"})
+	if !errors.Is(err, shortlink.ErrInvalidShortLinkID) {
+		t.Fatalf("expected invalid id, got %v", err)
+	}
+	_, err = service.AdminStatistics(ctx, other, shortlink.StatisticsInput{ID: linkID})
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected permission denied, got %v", err)
+	}
+}
+
+// TestServiceAdminStatisticsReturnsAnyVisibleLink verifies administrators can read cross-owner analytics.
+func TestServiceAdminStatisticsReturnsAnyVisibleLink(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	owner := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	linkID := insertStoredShortLink(t, ctx, pool, owner.ID, "stats3", "https://example.com/3", "active", false)
+	insertStoredAnalyticsVisit(t, ctx, pool, linkID, "", "mobile", "", "now()")
+	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", GroupKey: "admin"}
+	service := shortlink.NewService(pool, permission.NewService())
+
+	result, err := service.AdminStatistics(ctx, admin, shortlink.StatisticsInput{ID: linkID})
+	if err != nil || result.Stats.VisitCount != 1 {
+		t.Fatalf("admin statistics = %#v, %v", result, err)
+	}
+}
+
 // insertShortLinkDefaultDomain creates the default domain used by short-link fixtures.
 func insertShortLinkDefaultDomain(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	t.Helper()
@@ -790,6 +857,18 @@ func insertStoredShortLinkVisitEvent(t *testing.T, ctx context.Context, pool *pg
 	`, linkID)
 	if err != nil {
 		t.Fatalf("insert short link visit event: %v", err)
+	}
+}
+
+// insertStoredAnalyticsVisit persists one successful event with normalized analytics dimensions.
+func insertStoredAnalyticsVisit(t *testing.T, ctx context.Context, pool *pgxpool.Pool, linkID string, referrerHost string, deviceType string, countryCode string, createdAt string) {
+	t.Helper()
+	_, err := pool.Exec(ctx, `
+		insert into short_link_event (id, short_link_id, event_type, referrer_host, device_type, country_code, created_at)
+		values (gen_random_uuid(), $1, 'redirect_response_sent', $2, $3, $4, `+createdAt+`)
+	`, linkID, referrerHost, deviceType, countryCode)
+	if err != nil {
+		t.Fatalf("insert analytics visit: %v", err)
 	}
 }
 

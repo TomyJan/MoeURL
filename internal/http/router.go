@@ -60,9 +60,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			shortLinkHandler := shortlink.NewHandler(dependency.ShortLink)
 			api.Post("/short-link/create", shortLinkHandler.Create)
 			api.Get("/short-link/list", shortLinkHandler.List)
+			api.Get("/short-link/statistics", shortLinkHandler.Statistics)
 			api.Post("/short-link/update", shortLinkHandler.Update)
 			api.Post("/short-link/delete", shortLinkHandler.Delete)
 			api.Get("/admin/short-link/list", shortLinkHandler.AdminList)
+			api.Get("/admin/short-link/statistics", shortLinkHandler.AdminStatistics)
 			api.Post("/admin/short-link/update", shortLinkHandler.AdminUpdate)
 			api.Post("/admin/short-link/delete", shortLinkHandler.AdminDelete)
 		}
