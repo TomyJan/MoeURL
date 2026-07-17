@@ -9,6 +9,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 )
 
+// TestRedirectServiceResolvesActiveShortLink verifies active links resolve to their target.
 func TestRedirectServiceResolvesActiveShortLink(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -35,6 +36,7 @@ func TestRedirectServiceResolvesActiveShortLink(t *testing.T) {
 	})
 }
 
+// TestRedirectServiceNormalizesSlugBeforeLookup verifies slug lookups are case-insensitive.
 func TestRedirectServiceNormalizesSlugBeforeLookup(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -52,6 +54,7 @@ func TestRedirectServiceNormalizesSlugBeforeLookup(t *testing.T) {
 	}
 }
 
+// TestRedirectServiceBlocksMissingAndDisabledShortLink verifies missing and disabled links do not resolve.
 func TestRedirectServiceBlocksMissingAndDisabledShortLink(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -100,6 +103,7 @@ func TestRedirectServiceBlocksMissingAndDisabledShortLink(t *testing.T) {
 	}
 }
 
+// TestRedirectServiceDoesNotRecordSuccessfulResponseEvent verifies handlers own success events.
 func TestRedirectServiceDoesNotRecordSuccessfulResponseEvent(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)

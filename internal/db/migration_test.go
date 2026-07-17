@@ -15,6 +15,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+// TestInitialMigrationCreatesCoreTablesAndConstraints verifies the baseline schema contract.
 func TestInitialMigrationCreatesCoreTablesAndConstraints(t *testing.T) {
 	ctx := context.Background()
 	container, err := postgres.Run(ctx,
@@ -91,6 +92,7 @@ func TestInitialMigrationCreatesCoreTablesAndConstraints(t *testing.T) {
 	}
 }
 
+// insertUserGroups inserts the fixed groups required by migration assertions.
 func insertUserGroups(t *testing.T, ctx context.Context, database *sql.DB) {
 	t.Helper()
 

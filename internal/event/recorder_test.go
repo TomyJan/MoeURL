@@ -23,6 +23,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+// TestRecorderPersistsShortLinkEvent verifies a successful redirect event reaches PostgreSQL.
 func TestRecorderPersistsShortLinkEvent(t *testing.T) {
 	ctx := context.Background()
 	pool := eventTestPool(t, ctx)
@@ -45,6 +46,7 @@ func TestRecorderPersistsShortLinkEvent(t *testing.T) {
 	}
 }
 
+// TestRecorderIgnoresEventsWithoutShortLinkID verifies unidentified events are dropped.
 func TestRecorderIgnoresEventsWithoutShortLinkID(t *testing.T) {
 	ctx := context.Background()
 	pool := eventTestPool(t, ctx)
@@ -65,6 +67,7 @@ func TestRecorderIgnoresEventsWithoutShortLinkID(t *testing.T) {
 	}
 }
 
+// TestRecorderIgnoresNonVisitEvents verifies only successful redirect events are persisted.
 func TestRecorderIgnoresNonVisitEvents(t *testing.T) {
 	ctx := context.Background()
 	pool := eventTestPool(t, ctx)
@@ -88,6 +91,7 @@ func TestRecorderIgnoresNonVisitEvents(t *testing.T) {
 	}
 }
 
+// TestRecorderReturnsInvalidShortLinkIDError verifies malformed event identifiers are rejected.
 func TestRecorderReturnsInvalidShortLinkIDError(t *testing.T) {
 	ctx := context.Background()
 	pool := eventTestPool(t, ctx)
@@ -99,6 +103,7 @@ func TestRecorderReturnsInvalidShortLinkIDError(t *testing.T) {
 	}
 }
 
+// TestRecorderDropsWriteFailures verifies asynchronous database failures are logged and ignored.
 func TestRecorderDropsWriteFailures(t *testing.T) {
 	ctx := context.Background()
 	pool := eventTestPool(t, ctx)
@@ -116,6 +121,7 @@ func TestRecorderDropsWriteFailures(t *testing.T) {
 	waitForLogMessage(t, logOutput, "short_link_event_record_failed")
 }
 
+// TestNoopRecorderIgnoresEvents verifies the no-op recorder always succeeds.
 func TestNoopRecorderIgnoresEvents(t *testing.T) {
 	err := (event.NoopRecorder{}).Record(context.Background(), event.Event{Type: event.RedirectBlocked, Slug: "missing"})
 	if err != nil {
@@ -123,10 +129,12 @@ func TestNoopRecorderIgnoresEvents(t *testing.T) {
 	}
 }
 
+// discardLogger creates a logger that suppresses expected test diagnostics.
 func discardLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
+// insertEventRecorderFixtures creates the short-link rows required by recorder tests.
 func insertEventRecorderFixtures(t *testing.T, ctx context.Context, pool *pgxpool.Pool, linkID uuid.UUID) {
 	t.Helper()
 	_, err := pool.Exec(ctx, `
@@ -159,6 +167,7 @@ func insertEventRecorderFixtures(t *testing.T, ctx context.Context, pool *pgxpoo
 	}
 }
 
+// waitForEventCount waits for a best-effort write to become visible in PostgreSQL.
 func waitForEventCount(t *testing.T, ctx context.Context, pool *pgxpool.Pool, linkID uuid.UUID, eventType string) int {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
@@ -179,6 +188,7 @@ func waitForEventCount(t *testing.T, ctx context.Context, pool *pgxpool.Pool, li
 	}
 }
 
+// waitForLogMessage waits for the asynchronous recorder to emit a diagnostic.
 func waitForLogMessage(t *testing.T, output *lockedBuffer, message string) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
@@ -198,18 +208,21 @@ type lockedBuffer struct {
 	buffer bytes.Buffer
 }
 
+// Write appends logger output while synchronizing concurrent recorder access.
 func (b *lockedBuffer) Write(p []byte) (int, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.buffer.Write(p)
 }
 
+// String returns a synchronized snapshot of logger output.
 func (b *lockedBuffer) String() string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.buffer.String()
 }
 
+// eventTestPool opens a migrated PostgreSQL pool for recorder integration tests.
 func eventTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
 	databaseURL := migratedEventDatabaseURL(t, ctx)
@@ -221,6 +234,7 @@ func eventTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	return pool
 }
 
+// migratedEventDatabaseURL starts PostgreSQL and applies all project migrations.
 func migratedEventDatabaseURL(t *testing.T, ctx context.Context) string {
 	t.Helper()
 

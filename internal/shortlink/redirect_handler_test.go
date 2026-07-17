@@ -14,6 +14,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 )
 
+// TestRedirectHandlerRedirectsActiveSlug verifies active short links return a 302 response.
 func TestRedirectHandlerRedirectsActiveSlug(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		Redirect: &fakeRedirectService{result: shortlink.RedirectResult{TargetURL: "https://example.com/target", ShortLinkID: "link-id"}},
@@ -31,6 +32,7 @@ func TestRedirectHandlerRedirectsActiveSlug(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerRecordsSuccessfulRedirectResponse verifies successful responses emit an event.
 func TestRedirectHandlerRecordsSuccessfulRedirectResponse(t *testing.T) {
 	recorder := &recordingRecorder{}
 	handler := shortlink.NewRedirectHandler(
@@ -51,6 +53,7 @@ func TestRedirectHandlerRecordsSuccessfulRedirectResponse(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerSkipsSuccessfulEventWhenResponseWriteFails verifies failed writes are not counted.
 func TestRedirectHandlerSkipsSuccessfulEventWhenResponseWriteFails(t *testing.T) {
 	recorder := &recordingRecorder{}
 	handler := shortlink.NewRedirectHandler(
@@ -66,6 +69,7 @@ func TestRedirectHandlerSkipsSuccessfulEventWhenResponseWriteFails(t *testing.T)
 	}
 }
 
+// TestRedirectHandlerDoesNotOverrideStaticFixedRoutes verifies fixed SPA routes win over slugs.
 func TestRedirectHandlerDoesNotOverrideStaticFixedRoutes(t *testing.T) {
 	staticDir := t.TempDir()
 	err := os.WriteFile(filepath.Join(staticDir, "index.html"), []byte("<!doctype html><title>MoeURL</title>"), 0o644)
@@ -89,6 +93,7 @@ func TestRedirectHandlerDoesNotOverrideStaticFixedRoutes(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerDoesNotOverrideStaticAssetRoutes verifies static assets win over slugs.
 func TestRedirectHandlerDoesNotOverrideStaticAssetRoutes(t *testing.T) {
 	staticDir := t.TempDir()
 	err := os.WriteFile(filepath.Join(staticDir, "manifest.webmanifest"), []byte(`{"name":"MoeURL"}`), 0o644)
@@ -112,6 +117,7 @@ func TestRedirectHandlerDoesNotOverrideStaticAssetRoutes(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerDoesNotOverrideFixedRoutes verifies API routes win over slug redirects.
 func TestRedirectHandlerDoesNotOverrideFixedRoutes(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		Redirect: &fakeRedirectService{result: shortlink.RedirectResult{TargetURL: "https://example.com/target"}},
@@ -126,6 +132,7 @@ func TestRedirectHandlerDoesNotOverrideFixedRoutes(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerShowsBlockedStatus verifies disabled links do not redirect.
 func TestRedirectHandlerShowsBlockedStatus(t *testing.T) {
 	tests := []struct {
 		name string
@@ -162,6 +169,7 @@ type fakeRedirectService struct {
 	err    error
 }
 
+// Resolve returns the configured result for redirect handler tests.
 func (f *fakeRedirectService) Resolve(context.Context, string) (shortlink.RedirectResult, error) {
 	if f.err != nil {
 		return shortlink.RedirectResult{}, f.err
@@ -176,14 +184,17 @@ type failingRedirectWriter struct {
 	code   int
 }
 
+// Header returns the response headers used by the failing test writer.
 func (w *failingRedirectWriter) Header() http.Header {
 	return w.header
 }
 
+// WriteHeader records the status written by the failing test writer.
 func (w *failingRedirectWriter) WriteHeader(code int) {
 	w.code = code
 }
 
+// Write always fails to simulate a redirect response write error.
 func (w *failingRedirectWriter) Write([]byte) (int, error) {
 	return 0, errors.New("write failed")
 }

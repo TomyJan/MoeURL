@@ -21,6 +21,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+// TestSQLCPackageExposesQueries verifies that generated queries can be constructed.
 func TestSQLCPackageExposesQueries(t *testing.T) {
 	queries := sqlc.New(nil)
 	if queries == nil {
@@ -28,6 +29,7 @@ func TestSQLCPackageExposesQueries(t *testing.T) {
 	}
 }
 
+// TestWithTxRollsBackAfterPanic verifies a panic releases the transaction connection.
 func TestWithTxRollsBackAfterPanic(t *testing.T) {
 	ctx := context.Background()
 	databaseURL := migratedSQLCDatabaseURL(t, ctx)
@@ -61,6 +63,7 @@ func TestWithTxRollsBackAfterPanic(t *testing.T) {
 	}
 }
 
+// TestShortLinkStatisticsQueries verifies list queries return persisted visit aggregates.
 func TestShortLinkStatisticsQueries(t *testing.T) {
 	ctx := context.Background()
 	pool := sqlcTestPool(t, ctx)
@@ -121,6 +124,7 @@ func TestShortLinkStatisticsQueries(t *testing.T) {
 	}
 }
 
+// insertSQLCShortLinkFixtures creates the owner, domain, and link required by SQLC tests.
 func insertSQLCShortLinkFixtures(t *testing.T, ctx context.Context, pool sqlc.DBTX, ownerID uuid.UUID, domainID uuid.UUID, linkID uuid.UUID) {
 	t.Helper()
 	_, err := pool.Exec(ctx, `
@@ -153,6 +157,7 @@ func insertSQLCShortLinkFixtures(t *testing.T, ctx context.Context, pool sqlc.DB
 	}
 }
 
+// sqlcTestPool opens a migrated PostgreSQL pool for SQLC integration tests.
 func sqlcTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
 	databaseURL := migratedSQLCDatabaseURL(t, ctx)
@@ -164,6 +169,7 @@ func sqlcTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	return pool
 }
 
+// migratedSQLCDatabaseURL starts PostgreSQL and applies all project migrations.
 func migratedSQLCDatabaseURL(t *testing.T, ctx context.Context) string {
 	t.Helper()
 
@@ -210,6 +216,7 @@ func migratedSQLCDatabaseURL(t *testing.T, ctx context.Context) string {
 	return databaseURL
 }
 
+// uuidToPgtype converts a UUID into the pgx value used by generated queries.
 func uuidToPgtype(value uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{Bytes: value, Valid: true}
 }
