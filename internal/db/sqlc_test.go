@@ -11,6 +11,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/event"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -24,6 +25,39 @@ func TestSQLCPackageExposesQueries(t *testing.T) {
 	queries := sqlc.New(nil)
 	if queries == nil {
 		t.Fatal("expected generated queries")
+	}
+}
+
+func TestWithTxRollsBackAfterPanic(t *testing.T) {
+	ctx := context.Background()
+	databaseURL := migratedSQLCDatabaseURL(t, ctx)
+	poolConfig, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		t.Fatalf("parse pool config: %v", err)
+	}
+	poolConfig.MaxConns = 1
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		t.Fatalf("open pool: %v", err)
+	}
+	t.Cleanup(pool.Close)
+
+	func() {
+		defer func() {
+			if recover() == nil {
+				t.Fatal("expected transaction callback panic")
+			}
+		}()
+		_ = appdb.WithTx(ctx, pool, func(pgx.Tx) error {
+			panic("transaction callback panic")
+		})
+	}()
+
+	queryCtx, cancel := context.WithTimeout(ctx, 200*time.Millisecond)
+	defer cancel()
+	var value int
+	if err := pool.QueryRow(queryCtx, `select 1`).Scan(&value); err != nil {
+		t.Fatalf("expected rollback to release the connection: %v", err)
 	}
 }
 

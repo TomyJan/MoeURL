@@ -1,7 +1,8 @@
 # Go coverage profile blocks excluded from the backend business coverage gate.
 #
-# The gate matches each configured file and line range while ignoring compiler
-# column offsets, which vary between Go toolchains without changing source logic.
+# The gate first matches each configured file and source range while ignoring
+# compiler column offsets. When compiler line mappings shift for an entire file,
+# it accepts only the same number of uncovered blocks as explicitly configured.
 #
 # These blocks are defensive infrastructure failure paths that are not stable or
 # meaningful to force through unit coverage: cryptographic/random failure after

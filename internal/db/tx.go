@@ -7,15 +7,17 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// WithTx implements package-specific behavior.
+// WithTx runs fn in a transaction and commits it when fn returns successfully.
 func WithTx(ctx context.Context, pool *pgxpool.Pool, fn func(pgx.Tx) error) error {
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	if err := fn(tx); err != nil {
-		_ = tx.Rollback(ctx)
 		return err
 	}
 

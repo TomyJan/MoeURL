@@ -28,7 +28,7 @@ type Service struct {
 	permissions *permission.Service
 }
 
-// NewService implements package-specific behavior.
+// NewService creates a short link service backed by SQLC queries and permissions.
 func NewService(pool *pgxpool.Pool, permissions *permission.Service) *Service {
 	if permissions == nil {
 		permissions = permission.NewService()
@@ -39,7 +39,7 @@ func NewService(pool *pgxpool.Pool, permissions *permission.Service) *Service {
 	}
 }
 
-// Create implements package-specific behavior.
+// Create validates a target URL and creates an active short link for the caller.
 func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input CreateInput) (CreateResult, error) {
 	if !s.permissions.Has(user.GroupKey, permission.ShortLinkCreate) || !s.permissions.Has(user.GroupKey, permission.DomainUseDefault) {
 		return CreateResult{}, ErrPermissionDenied
@@ -96,7 +96,7 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 	return CreateResult{}, ErrSlugConflict
 }
 
-// List implements package-specific behavior.
+// List returns a paginated view of short links owned by the caller.
 func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInput) (ListResult, error) {
 	if !s.permissions.Has(user.GroupKey, permission.ShortLinkReadOwn) {
 		return ListResult{}, ErrPermissionDenied
@@ -149,7 +149,7 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 	}, nil
 }
 
-// Update implements package-specific behavior.
+// Update changes the target URL or status of a short link owned by the caller.
 func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input UpdateInput) (CreateResult, error) {
 	if !s.permissions.Has(user.GroupKey, permission.ShortLinkUpdateOwn) {
 		return CreateResult{}, ErrPermissionDenied
@@ -197,7 +197,7 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 	}, nil
 }
 
-// Delete implements package-specific behavior.
+// Delete soft-deletes a short link owned by the caller.
 func (s *Service) Delete(ctx context.Context, user auth.CurrentUser, input DeleteInput) error {
 	if !s.permissions.Has(user.GroupKey, permission.ShortLinkDeleteOwn) {
 		return ErrPermissionDenied
@@ -221,7 +221,7 @@ func (s *Service) Delete(ctx context.Context, user auth.CurrentUser, input Delet
 	return nil
 }
 
-// AdminList implements package-specific behavior.
+// AdminList returns a paginated, filterable view of all short links.
 func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input ListInput) (AdminListResult, error) {
 	if !s.hasAdminPermission(user, permission.ShortLinkReadAll) {
 		return AdminListResult{}, ErrPermissionDenied
@@ -273,7 +273,7 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 	}, nil
 }
 
-// AdminUpdate implements package-specific behavior.
+// AdminUpdate changes the target URL or status of any short link.
 func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input UpdateInput) (CreateResult, error) {
 	if !s.hasAdminPermission(user, permission.ShortLinkUpdateAll) {
 		return CreateResult{}, ErrPermissionDenied
@@ -319,7 +319,7 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 	}, nil
 }
 
-// AdminDelete implements package-specific behavior.
+// AdminDelete soft-deletes any short link.
 func (s *Service) AdminDelete(ctx context.Context, user auth.CurrentUser, input DeleteInput) error {
 	if !s.hasAdminPermission(user, permission.ShortLinkDeleteAll) {
 		return ErrPermissionDenied
@@ -338,12 +338,12 @@ func (s *Service) AdminDelete(ctx context.Context, user auth.CurrentUser, input 
 	return nil
 }
 
-// hasAdminPermission implements package-specific behavior.
+// hasAdminPermission checks both administrative access and the requested permission.
 func (s *Service) hasAdminPermission(user auth.CurrentUser, required string) bool {
 	return s.permissions.Has(user.GroupKey, permission.AdminAccess) && s.permissions.Has(user.GroupKey, required)
 }
 
-// normalizePagination implements package-specific behavior.
+// normalizePagination applies default and maximum bounds to pagination input.
 func normalizePagination(input ListInput) (int32, int32) {
 	page := input.Page
 	if page < 1 {
@@ -359,7 +359,7 @@ func normalizePagination(input ListInput) (int32, int32) {
 	return page, pageSize
 }
 
-// parseLinkAndOwnerIDs implements package-specific behavior.
+// parseLinkAndOwnerIDs parses short link and owner identifiers.
 func parseLinkAndOwnerIDs(linkID string, ownerID string) (uuid.UUID, uuid.UUID, error) {
 	parsedLinkID, err := uuid.Parse(linkID)
 	if err != nil {
@@ -372,7 +372,7 @@ func parseLinkAndOwnerIDs(linkID string, ownerID string) (uuid.UUID, uuid.UUID, 
 	return parsedLinkID, parsedOwnerID, nil
 }
 
-// optionalText implements package-specific behavior.
+// optionalText converts an optional string to a nullable PostgreSQL text value.
 func optionalText(value *string) pgtype.Text {
 	if value == nil {
 		return pgtype.Text{}
@@ -380,7 +380,7 @@ func optionalText(value *string) pgtype.Text {
 	return pgtype.Text{String: *value, Valid: true}
 }
 
-// optionalFilterText implements package-specific behavior.
+// optionalFilterText converts a non-empty filter to a nullable PostgreSQL text value.
 func optionalFilterText(value string) pgtype.Text {
 	if value == "" {
 		return pgtype.Text{}
@@ -388,7 +388,7 @@ func optionalFilterText(value string) pgtype.Text {
 	return pgtype.Text{String: value, Valid: true}
 }
 
-// statsFromRow implements package-specific behavior.
+// statsFromRow builds API statistics from aggregated query fields.
 func statsFromRow(visitCount int64, todayVisitCount int64, lastVisitedAt pgtype.Timestamptz) *ShortLinkStats {
 	stats := &ShortLinkStats{
 		VisitCount:      visitCount,
@@ -400,17 +400,17 @@ func statsFromRow(visitCount int64, todayVisitCount int64, lastVisitedAt pgtype.
 	return stats
 }
 
-// isAllowedStatus implements package-specific behavior.
+// isAllowedStatus reports whether a short link status can be persisted.
 func isAllowedStatus(value string) bool {
 	return value == "active" || value == "disabled"
 }
 
-// uuidToPgtype implements package-specific behavior.
+// uuidToPgtype converts a UUID to its PostgreSQL representation.
 func uuidToPgtype(value uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{Bytes: value, Valid: true}
 }
 
-// uuidFromPgtype implements package-specific behavior.
+// uuidFromPgtype converts a valid PostgreSQL UUID to its string representation.
 func uuidFromPgtype(value pgtype.UUID) string {
 	if !value.Valid {
 		return ""
@@ -418,7 +418,7 @@ func uuidFromPgtype(value pgtype.UUID) string {
 	return uuid.UUID(value.Bytes).String()
 }
 
-// buildShortLinkURL implements package-specific behavior.
+// buildShortLinkURL joins a configured host and slug into a public short link URL.
 func buildShortLinkURL(host string, slug string) string {
 	if strings.HasPrefix(host, "http://") || strings.HasPrefix(host, "https://") {
 		return strings.TrimRight(host, "/") + "/" + slug
@@ -426,7 +426,7 @@ func buildShortLinkURL(host string, slug string) string {
 	return "https://" + strings.TrimRight(host, "/") + "/" + slug
 }
 
-// isUniqueViolation implements package-specific behavior.
+// isUniqueViolation reports whether an error is a PostgreSQL unique constraint violation.
 func isUniqueViolation(err error) bool {
 	if err == nil {
 		return false

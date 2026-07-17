@@ -7,28 +7,25 @@ const includes = includeFrom ? readPatterns(includeFrom) : []
 const excludeBlocksFrom = readOption('--exclude-blocks-from')
 const excludedBlocks = excludeBlocksFrom ? new Set(readPatterns(excludeBlocksFrom)) : new Set()
 const excludedLineRanges = new Set([...excludedBlocks].map(toLineRange))
-const lines = readFileSync(profile, 'utf8').trim().split('\n').slice(1)
+const excludedBlocksByFile = groupBlocksByFile(excludedBlocks)
+const blocks = readFileSync(profile, 'utf8')
+  .trim()
+  .split('\n')
+  .slice(1)
+  .map(parseBlock)
+  .filter(Boolean)
+const fallbackExcludedBlocks = findFallbackExcludedBlocks(blocks, excludedBlocksByFile)
 
 let covered = 0
 let total = 0
 
-for (const line of lines) {
-  const parts = line.trim().split(/\s+/)
-  if (parts.length !== 3) continue
-
-  const loc = parts[0]
-  const file = loc.split(':')[0]
+for (const block of blocks) {
+  const { count, file, loc, statements } = block
   if (includes.length > 0 && !includes.includes(file)) {
     continue
   }
-  if (excludedBlocks.has(loc) || excludedLineRanges.has(toLineRange(loc))) {
+  if (isExcludedBlock(loc) || fallbackExcludedBlocks.has(loc)) {
     continue
-  }
-
-  const statements = Number(parts[1])
-  const count = Number(parts[2])
-  if (!Number.isFinite(statements) || !Number.isFinite(count)) {
-    throw new Error(`Invalid coverage line: ${line}`)
   }
   total += statements
   if (count > 0) covered += statements
@@ -53,6 +50,45 @@ function readPatterns(path) {
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line !== '' && !line.startsWith('#'))
+}
+
+function parseBlock(line) {
+  const parts = line.trim().split(/\s+/)
+  if (parts.length !== 3) return null
+  const [loc, statementText, countText] = parts
+  const statements = Number(statementText)
+  const count = Number(countText)
+  if (!Number.isFinite(statements) || !Number.isFinite(count)) {
+    throw new Error(`Invalid coverage line: ${line}`)
+  }
+  return { loc, file: loc.split(':')[0], statements, count }
+}
+
+function groupBlocksByFile(blocks) {
+  const grouped = new Map()
+  for (const block of blocks) {
+    const file = block.split(':')[0]
+    grouped.set(file, (grouped.get(file) ?? 0) + 1)
+  }
+  return grouped
+}
+
+function findFallbackExcludedBlocks(blocks, configuredCounts) {
+  const fallback = new Set()
+  for (const [file, configuredCount] of configuredCounts) {
+    const uncovered = blocks.filter((block) => block.file === file && block.count === 0)
+    if (uncovered.length === 0 || uncovered.some((block) => isExcludedBlock(block.loc))) {
+      continue
+    }
+    if (uncovered.length === configuredCount) {
+      for (const block of uncovered) fallback.add(block.loc)
+    }
+  }
+  return fallback
+}
+
+function isExcludedBlock(location) {
+  return excludedBlocks.has(location) || excludedLineRanges.has(toLineRange(location))
 }
 
 function toLineRange(location) {
