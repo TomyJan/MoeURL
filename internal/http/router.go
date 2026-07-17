@@ -26,7 +26,7 @@ type Dependencies struct {
 	StaticDir        string
 }
 
-// NewRouter implements package-specific behavior.
+// NewRouter registers API, static-file, and short-link redirect routes.
 func NewRouter(deps ...Dependencies) nethttp.Handler {
 	var dependency Dependencies
 	if len(deps) > 0 {
@@ -91,7 +91,7 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 	return router
 }
 
-// registerStaticRoutes implements package-specific behavior.
+// registerStaticRoutes serves the web application assets and client routes.
 func registerStaticRoutes(router chi.Router, staticDir string) {
 	fileServer := nethttp.FileServer(nethttp.Dir(staticDir))
 	router.Handle("/assets/*", fileServer)
@@ -115,7 +115,7 @@ func registerStaticRoutes(router chi.Router, staticDir string) {
 	}
 }
 
-// serveStaticFile implements package-specific behavior.
+// serveStaticFile returns a handler for a file within the static directory.
 func serveStaticFile(staticDir string, name string) nethttp.HandlerFunc {
 	return func(w nethttp.ResponseWriter, r *nethttp.Request) {
 		nethttp.ServeFile(w, r, filepath.Join(staticDir, name))

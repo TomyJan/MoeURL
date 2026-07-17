@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// RequestLogger implements package-specific behavior.
+// RequestLogger logs each completed HTTP request with its response status.
 func RequestLogger(logger *slog.Logger) func(nethttp.Handler) nethttp.Handler {
 	return func(next nethttp.Handler) nethttp.Handler {
 		return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
@@ -31,7 +31,7 @@ type statusResponseWriter struct {
 	wroteHeader  bool
 }
 
-// WriteHeader implements package-specific behavior.
+// WriteHeader records the response status before writing the header.
 func (w *statusResponseWriter) WriteHeader(status int) {
 	if w.wroteHeader {
 		return
@@ -41,7 +41,7 @@ func (w *statusResponseWriter) WriteHeader(status int) {
 	w.ResponseWriter.WriteHeader(status)
 }
 
-// Write implements package-specific behavior.
+// Write records an implicit success status before writing the response body.
 func (w *statusResponseWriter) Write(data []byte) (int, error) {
 	if !w.wroteHeader {
 		w.WriteHeader(nethttp.StatusOK)

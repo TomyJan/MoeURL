@@ -77,11 +77,13 @@ function findFallbackExcludedBlocks(blocks, configuredCounts) {
   const fallback = new Set()
   for (const [file, configuredCount] of configuredCounts) {
     const uncovered = blocks.filter((block) => block.file === file && block.count === 0)
-    if (uncovered.length === 0 || uncovered.some((block) => isExcludedBlock(block.loc))) {
+    const unmatched = uncovered.filter((block) => !isExcludedBlock(block.loc))
+    const remainingConfiguredCount = configuredCount - (uncovered.length - unmatched.length)
+    if (unmatched.length === 0 || remainingConfiguredCount <= 0) {
       continue
     }
-    if (uncovered.length === configuredCount) {
-      for (const block of uncovered) fallback.add(block.loc)
+    if (unmatched.length === remainingConfiguredCount) {
+      for (const block of unmatched) fallback.add(block.loc)
     }
   }
   return fallback

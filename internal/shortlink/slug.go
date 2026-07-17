@@ -24,7 +24,7 @@ var reservedSlugs = map[string]struct{}{
 
 var slugRandomReader io.Reader = rand.Reader
 
-// generateSlug implements package-specific behavior.
+// generateSlug creates a random lowercase alphanumeric short-link slug.
 func generateSlug() (string, error) {
 	bytes := make([]byte, defaultSlugLength)
 	for i := range bytes {
@@ -37,7 +37,7 @@ func generateSlug() (string, error) {
 	return string(bytes), nil
 }
 
-// isReservedSlug implements package-specific behavior.
+// isReservedSlug reports whether a slug conflicts with a fixed application route.
 func isReservedSlug(slug string) bool {
 	_, ok := reservedSlugs[strings.ToLower(slug)]
 	return ok

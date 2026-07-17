@@ -80,7 +80,7 @@ func (r *DBRecorder) Record(_ context.Context, event Event) error {
 	return nil
 }
 
-// pgtypeUUID implements package-specific behavior.
+// pgtypeUUID converts a UUID to its pgx database representation.
 func pgtypeUUID(value uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{Bytes: value, Valid: true}
 }
