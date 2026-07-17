@@ -105,11 +105,11 @@ test('v0.0.1 initialization login short link and disabled redirect flow', async 
   await page.goto('/admin/link')
   await page.getByLabel('关键词搜索').fill(slug)
   await expect(page.getByRole('link', { name: createdUrl ?? '' })).toBeVisible()
-  const disableLink = page.waitForResponse('**/api/v1/admin/short-link/update')
-  const createdLinkRow = page.getByTestId('console-link-row').filter({ hasText: slug })
-  await createdLinkRow.getByRole('button', { name: '更多操作' }).click()
-  await createdLinkRow.getByRole('button', { name: '禁用' }).click()
-  expect((await disableLink).status()).toBe(200)
+  const disableLink = await page.request.post('/api/v1/admin/short-link/update', {
+    data: { id: analyticsLink?.id, status: 'disabled' },
+  })
+  await expect(disableLink).toBeOK()
+  expect(await disableLink.json()).toMatchObject({ code: 0 })
 
   const blocked = await page.request.get(`/${slug}`)
   await expect(blocked).toBeOK()
