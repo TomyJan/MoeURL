@@ -18,6 +18,7 @@ const fallbackExcludedBlocks = findFallbackExcludedBlocks(blocks, excludedBlocks
 
 let covered = 0
 let total = 0
+const uncoveredBlocks = []
 
 for (const block of blocks) {
   const { count, file, loc, statements } = block
@@ -28,7 +29,11 @@ for (const block of blocks) {
     continue
   }
   total += statements
-  if (count > 0) covered += statements
+  if (count > 0) {
+    covered += statements
+  } else {
+    uncoveredBlocks.push(loc)
+  }
 }
 
 const percent = total === 0 ? 100 : (covered / total) * 100
@@ -36,6 +41,7 @@ console.log(`Go coverage: ${percent.toFixed(2)}%`)
 
 if (percent + Number.EPSILON < threshold) {
   console.error(`Go coverage must be at least ${threshold}%`)
+  console.error(`Uncovered blocks:\n${uncoveredBlocks.join('\n')}`)
   process.exit(1)
 }
 
