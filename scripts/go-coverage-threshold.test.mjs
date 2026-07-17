@@ -131,11 +131,12 @@ test('rejects additional uncovered blocks after line positions shift', () => {
       '100',
       `--include-from=${targetsPath}`,
       `--exclude-blocks-from=${excludedPath}`,
-    ], { cwd: process.cwd(), encoding: 'utf8' })
+    ], { cwd: process.cwd(), encoding: 'utf8', env: { ...process.env, GITHUB_ACTIONS: 'true' } })
 
     assert.equal(result.status, 1)
     assert.match(result.stderr, /Go coverage must be at least 100%/)
     assert.match(result.stderr, new RegExp(`${sourcePath}:160\\.1,162\\.99`))
+    assert.match(result.stderr, new RegExp(`::error file=${sourcePath},line=160::Uncovered coverage block`))
   } finally {
     rmSync(directory, { force: true, recursive: true })
   }

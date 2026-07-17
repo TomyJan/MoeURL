@@ -42,6 +42,14 @@ console.log(`Go coverage: ${percent.toFixed(2)}%`)
 if (percent + Number.EPSILON < threshold) {
   console.error(`Go coverage must be at least ${threshold}%`)
   console.error(`Uncovered blocks:\n${uncoveredBlocks.join('\n')}`)
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    for (const location of uncoveredBlocks) {
+      const match = /^(.*):(\d+)\.\d+/.exec(location)
+      if (match) {
+        console.error(`::error file=${match[1]},line=${match[2]}::Uncovered coverage block: ${location}`)
+      }
+    }
+  }
   process.exit(1)
 }
 
