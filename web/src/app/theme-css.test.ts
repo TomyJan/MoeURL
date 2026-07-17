@@ -34,7 +34,7 @@ describe('moeurlThemeCss', () => {
   })
 
   it('loads theme styles through a CSS asset import', () => {
-    const source = readFileSync('src/app/theme-css.ts', 'utf8')
+    const source = readFileSync('src/app/theme-css.ts', 'utf8').replace(/\r\n/g, '\n')
 
     expect(source).toBe("import './theme.css'\n")
     expect(source).not.toContain('moeurlThemeCss = `')

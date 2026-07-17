@@ -4,6 +4,8 @@ import {
   createShortLink,
   deleteAdminShortLink,
   deleteShortLink,
+  getAdminShortLinkStatistics,
+  getShortLinkStatistics,
   listAdminShortLinks,
   listShortLinks,
   updateAdminShortLink,
@@ -11,6 +13,27 @@ import {
 } from './api'
 
 describe('short link api', () => {
+  it('loads owner and administrator analytics', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({
+        code: 0,
+        message: 'OK',
+        data: {
+          shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' },
+          stats: { visitCount: 2, todayVisitCount: 1, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] },
+        },
+        meta: {},
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })),
+    )
+
+    await expect(getShortLinkStatistics('link id')).resolves.toMatchObject({ stats: { visitCount: 2 } })
+    await expect(getAdminShortLinkStatistics('link id')).resolves.toMatchObject({ shortLink: { slug: 'abc123' } })
+
+    expect(fetch).toHaveBeenCalledWith('/api/v1/short-link/statistics?id=link%20id', expect.objectContaining({ method: 'GET' }))
+    expect(fetch).toHaveBeenCalledWith('/api/v1/admin/short-link/statistics?id=link%20id', expect.objectContaining({ method: 'GET' }))
+  })
+
   it('posts create request', async () => {
     vi.stubGlobal(
       'fetch',

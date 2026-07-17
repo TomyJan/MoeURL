@@ -42,6 +42,9 @@
         <v-btn size="small" variant="text" :href="link.url" target="_blank" rel="noreferrer">
           {{ t('links.actions.open') }}
         </v-btn>
+        <v-btn size="small" variant="text" :to="{ path: '/analytics', query: { shortLinkId: link.id } }">
+          {{ t('links.actions.analytics') }}
+        </v-btn>
         <button
           class="console-link-row__more"
           type="button"

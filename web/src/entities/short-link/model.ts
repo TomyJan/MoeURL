@@ -13,6 +13,28 @@ export interface ShortLinkStats {
   lastVisitedAt: string | null
 }
 
+export interface AnalyticsTrendPoint {
+  date: string
+  visitCount: number
+}
+
+export interface AnalyticsDimension {
+  value: string
+  visitCount: number
+}
+
+export interface AnalyticsStats extends ShortLinkStats {
+  trend: AnalyticsTrendPoint[]
+  referrers: AnalyticsDimension[]
+  devices: AnalyticsDimension[]
+  countries: AnalyticsDimension[]
+}
+
+export interface ShortLinkStatisticsResponse {
+  shortLink: ShortLink
+  stats: AnalyticsStats
+}
+
 export interface OwnerSummary {
   id: string
   username: string
