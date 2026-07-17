@@ -9,6 +9,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/config"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
+	"github.com/TomyJan/MoeURL/internal/event"
 	apphttp "github.com/TomyJan/MoeURL/internal/http"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
@@ -24,6 +25,7 @@ type App struct {
 	pool   *pgxpool.Pool
 }
 
+// New builds the application dependencies and HTTP server from configuration.
 func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, error) {
 	var pool *pgxpool.Pool
 	var deps apphttp.Dependencies
@@ -38,7 +40,9 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.Auth = authService
 		deps.CurrentUser = authService
 		deps.ShortLink = shortlink.NewService(pool, permission.NewService())
-		deps.Redirect = shortlink.NewRedirectService(pool, nil)
+		recorder := event.NewRecorder(pool, logger)
+		deps.Redirect = shortlink.NewRedirectService(pool, recorder)
+		deps.RedirectRecorder = recorder
 		deps.User = user.NewService(pool, permission.NewService())
 	}
 	deps.StaticDir = cfg.StaticDir
@@ -55,11 +59,13 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 	}, nil
 }
 
+// Run starts the configured HTTP server.
 func (a *App) Run() error {
 	a.logger.Info("server_starting", "addr", a.config.HTTPAddr)
 	return a.server.ListenAndServe()
 }
 
+// Shutdown closes database resources and gracefully stops the HTTP server.
 func (a *App) Shutdown(ctx context.Context) error {
 	if a.pool != nil {
 		a.pool.Close()

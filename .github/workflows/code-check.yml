@@ -158,10 +158,13 @@ jobs:
 
       - name: Backend test coverage
         run: |
+          node --test scripts/go-coverage-threshold.test.mjs
           go test \
             ./internal/auth \
             ./internal/db \
+            ./internal/event \
             ./internal/http \
+            ./internal/middleware \
             ./internal/permission \
             ./internal/shortlink \
             ./internal/system \

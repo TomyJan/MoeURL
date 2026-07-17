@@ -270,12 +270,13 @@ v0.0.1 至少包含：
 - `system_setting`
 - `session`
 
-可以预留：
+后续版本可以预留：
 
-- `short_link_event`
 - `operation_log`
 
-预留表是否在 v0.0.1 实际创建，取决于工程计划；但相关字段和接口边界应保留。
+后续预留表不属于 v0.0.1 必须创建的最小 schema；是否实际创建，取决于对应版本的工程计划。
+
+v0.0.4 创建 `short_link_event` 表，用于持久化已成功写出跳转响应的短链事件，并支撑列表级基础统计。
 
 ### v0.0.1 最小 schema 摘要
 
@@ -296,6 +297,12 @@ v0.0.1 的字段级 schema 以 [v0.0.1 工程实施合同](./v0.0.1-implementati
 - `short_link.slug` 全系统唯一。
 - `short_link.deleted_at` 用于软删除。
 - 软删除后短码仍不释放。
+
+### v0.0.4 schema 扩展摘要
+
+v0.0.4 在 v0.0.1 最小 schema 之外新增：
+
+- `short_link_event`：保存短链访问事件 ID、短链 ID、事件类型和创建时间。v0.0.4 只持久化用于基础统计的成功响应事件，不保存 IP、User-Agent、Referer 或地区信息。
 
 ### 短码规则
 

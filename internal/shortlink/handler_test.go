@@ -15,6 +15,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 )
 
+// TestHandlerCreateShortLinkReturnsCreatedLink verifies the create response payload.
 func TestHandlerCreateShortLinkReturnsCreatedLink(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		CurrentUser: &fakeCurrentUserResolver{
@@ -67,6 +68,7 @@ func TestHandlerCreateShortLinkReturnsCreatedLink(t *testing.T) {
 	}
 }
 
+// TestHandlerCreateShortLinkMapsBusinessErrors verifies create error-code mappings.
 func TestHandlerCreateShortLinkMapsBusinessErrors(t *testing.T) {
 	tests := []struct {
 		name string
@@ -105,6 +107,7 @@ func TestHandlerCreateShortLinkMapsBusinessErrors(t *testing.T) {
 	}
 }
 
+// TestHandlerCreateShortLinkRejectsInvalidJSONAndMapsSystemError covers malformed and internal failures.
 func TestHandlerCreateShortLinkRejectsInvalidJSONAndMapsSystemError(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -133,6 +136,7 @@ func TestHandlerCreateShortLinkRejectsInvalidJSONAndMapsSystemError(t *testing.T
 	}
 }
 
+// TestHandlerListShortLinksReturnsItemsAndMeta verifies list data and pagination metadata.
 func TestHandlerListShortLinksReturnsItemsAndMeta(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		CurrentUser: &fakeCurrentUserResolver{
@@ -147,7 +151,14 @@ func TestHandlerListShortLinksReturnsItemsAndMeta(t *testing.T) {
 		ShortLink: &fakeShortLinkService{
 			listResult: shortlink.ListResult{
 				Items: []shortlink.ShortLink{
-					{ID: "link-id", URL: "https://go.example.com/abc123", Slug: "abc123", TargetURL: "https://example.com", Status: "active"},
+					{
+						ID:        "link-id",
+						URL:       "https://go.example.com/abc123",
+						Slug:      "abc123",
+						TargetURL: "https://example.com",
+						Status:    "active",
+						Stats:     &shortlink.ShortLinkStats{VisitCount: 2, TodayVisitCount: 1},
+					},
 				},
 				Page:     2,
 				PageSize: 10,
@@ -181,11 +192,15 @@ func TestHandlerListShortLinksReturnsItemsAndMeta(t *testing.T) {
 	if len(body.Data.Items) != 1 || body.Data.Items[0].Slug != "abc123" {
 		t.Fatalf("unexpected items: %#v", body.Data.Items)
 	}
+	if body.Data.Items[0].Stats == nil || body.Data.Items[0].Stats.VisitCount != 2 || body.Data.Items[0].Stats.TodayVisitCount != 1 {
+		t.Fatalf("unexpected stats: %#v", body.Data.Items[0].Stats)
+	}
 	if body.Meta.Page != 2 || body.Meta.PageSize != 10 || body.Meta.Total != 21 {
 		t.Fatalf("unexpected meta: %#v", body.Meta)
 	}
 }
 
+// TestHandlerListShortLinksUsesDefaultPaginationForInvalidQuery verifies invalid pagination defaults.
 func TestHandlerListShortLinksUsesDefaultPaginationForInvalidQuery(t *testing.T) {
 	service := &fakeShortLinkService{}
 	router := apphttp.NewRouter(apphttp.Dependencies{
@@ -207,6 +222,7 @@ func TestHandlerListShortLinksUsesDefaultPaginationForInvalidQuery(t *testing.T)
 	}
 }
 
+// TestHandlerListShortLinksPassesStatusFilter verifies status query forwarding.
 func TestHandlerListShortLinksPassesStatusFilter(t *testing.T) {
 	service := &fakeShortLinkService{}
 	router := apphttp.NewRouter(apphttp.Dependencies{
@@ -228,6 +244,7 @@ func TestHandlerListShortLinksPassesStatusFilter(t *testing.T) {
 	}
 }
 
+// TestHandlerListShortLinksUsesDefaultPaginationForMissingQuery verifies absent pagination defaults.
 func TestHandlerListShortLinksUsesDefaultPaginationForMissingQuery(t *testing.T) {
 	service := &fakeShortLinkService{}
 	router := apphttp.NewRouter(apphttp.Dependencies{
@@ -249,6 +266,7 @@ func TestHandlerListShortLinksUsesDefaultPaginationForMissingQuery(t *testing.T)
 	}
 }
 
+// TestHandlerListShortLinksMapsErrors verifies list business and infrastructure failures.
 func TestHandlerListShortLinksMapsErrors(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -277,6 +295,7 @@ func TestHandlerListShortLinksMapsErrors(t *testing.T) {
 	}
 }
 
+// TestHandlerUpdateShortLinkReturnsUpdatedLink verifies update response serialization.
 func TestHandlerUpdateShortLinkReturnsUpdatedLink(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		CurrentUser: &fakeCurrentUserResolver{
@@ -314,6 +333,7 @@ func TestHandlerUpdateShortLinkReturnsUpdatedLink(t *testing.T) {
 	}
 }
 
+// TestHandlerDeleteShortLinkReturnsOK verifies successful delete responses.
 func TestHandlerDeleteShortLinkReturnsOK(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		CurrentUser: &fakeCurrentUserResolver{
@@ -342,6 +362,7 @@ func TestHandlerDeleteShortLinkReturnsOK(t *testing.T) {
 	}
 }
 
+// TestHandlerMapsMissingShortLink verifies missing-link business responses.
 func TestHandlerMapsMissingShortLink(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		CurrentUser: &fakeCurrentUserResolver{},
@@ -365,6 +386,7 @@ func TestHandlerMapsMissingShortLink(t *testing.T) {
 	}
 }
 
+// TestHandlerUpdateDeleteAndAdminRoutesRejectInvalidJSON verifies malformed bodies across mutating routes.
 func TestHandlerUpdateDeleteAndAdminRoutesRejectInvalidJSON(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -393,6 +415,7 @@ func TestHandlerUpdateDeleteAndAdminRoutesRejectInvalidJSON(t *testing.T) {
 	}
 }
 
+// TestHandlerWriteBusinessOrSystemErrorMappings verifies all shared error mappings.
 func TestHandlerWriteBusinessOrSystemErrorMappings(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -434,6 +457,7 @@ func TestHandlerWriteBusinessOrSystemErrorMappings(t *testing.T) {
 	}
 }
 
+// TestHandlerAdminListShortLinksReturnsOwners verifies administrator list owner summaries.
 func TestHandlerAdminListShortLinksReturnsOwners(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		CurrentUser: &fakeCurrentUserResolver{
@@ -476,6 +500,7 @@ func TestHandlerAdminListShortLinksReturnsOwners(t *testing.T) {
 	}
 }
 
+// TestHandlerAdminListShortLinksPassesFilters verifies administrator query forwarding.
 func TestHandlerAdminListShortLinksPassesFilters(t *testing.T) {
 	service := &fakeShortLinkService{}
 	router := apphttp.NewRouter(apphttp.Dependencies{
@@ -500,6 +525,7 @@ func TestHandlerAdminListShortLinksPassesFilters(t *testing.T) {
 	}
 }
 
+// TestHandlerAdminUpdateAndDeleteShortLinks verifies administrator mutation routes.
 func TestHandlerAdminUpdateAndDeleteShortLinks(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		CurrentUser: &fakeCurrentUserResolver{
@@ -551,32 +577,39 @@ type fakeShortLinkService struct {
 	err             error
 }
 
+// Create returns the configured create result for handler tests.
 func (f *fakeShortLinkService) Create(context.Context, auth.CurrentUser, shortlink.CreateInput) (shortlink.CreateResult, error) {
 	return f.result, f.err
 }
 
+// List records list input and returns the configured result for handler tests.
 func (f *fakeShortLinkService) List(_ context.Context, _ auth.CurrentUser, input shortlink.ListInput) (shortlink.ListResult, error) {
 	f.listInput = input
 	return f.listResult, f.err
 }
 
+// Update returns the configured update result for handler tests.
 func (f *fakeShortLinkService) Update(context.Context, auth.CurrentUser, shortlink.UpdateInput) (shortlink.CreateResult, error) {
 	return f.result, f.err
 }
 
+// Delete returns the configured delete error for handler tests.
 func (f *fakeShortLinkService) Delete(context.Context, auth.CurrentUser, shortlink.DeleteInput) error {
 	return f.err
 }
 
+// AdminList records administrator list input and returns the configured result.
 func (f *fakeShortLinkService) AdminList(_ context.Context, _ auth.CurrentUser, input shortlink.ListInput) (shortlink.AdminListResult, error) {
 	f.adminListInput = input
 	return f.adminListResult, f.err
 }
 
+// AdminUpdate returns the configured administrator update result.
 func (f *fakeShortLinkService) AdminUpdate(context.Context, auth.CurrentUser, shortlink.UpdateInput) (shortlink.CreateResult, error) {
 	return f.result, f.err
 }
 
+// AdminDelete returns the configured administrator delete error.
 func (f *fakeShortLinkService) AdminDelete(context.Context, auth.CurrentUser, shortlink.DeleteInput) error {
 	return f.err
 }
@@ -586,6 +619,7 @@ type fakeCurrentUserResolver struct {
 	err  error
 }
 
+// ResolveCurrentUser returns the configured request identity for handler tests.
 func (f *fakeCurrentUserResolver) ResolveCurrentUser(context.Context, string) (auth.CurrentUser, error) {
 	if f.err != nil {
 		return auth.GuestUser(), f.err
@@ -598,6 +632,7 @@ func (f *fakeCurrentUserResolver) ResolveCurrentUser(context.Context, string) (a
 
 var _ = errors.Is
 
+// assertBusinessCode verifies a unified HTTP status and business code.
 func assertBusinessCode(t *testing.T, response *httptest.ResponseRecorder, httpStatus int, code int) {
 	t.Helper()
 	if response.Code != httpStatus {

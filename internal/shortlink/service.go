@@ -28,6 +28,7 @@ type Service struct {
 	permissions *permission.Service
 }
 
+// NewService creates a short link service backed by SQLC queries and permissions.
 func NewService(pool *pgxpool.Pool, permissions *permission.Service) *Service {
 	if permissions == nil {
 		permissions = permission.NewService()
@@ -38,6 +39,7 @@ func NewService(pool *pgxpool.Pool, permissions *permission.Service) *Service {
 	}
 }
 
+// Create validates a target URL and creates an active short link for the caller.
 func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input CreateInput) (CreateResult, error) {
 	if !s.permissions.Has(user.GroupKey, permission.ShortLinkCreate) || !s.permissions.Has(user.GroupKey, permission.DomainUseDefault) {
 		return CreateResult{}, ErrPermissionDenied
@@ -94,6 +96,7 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 	return CreateResult{}, ErrSlugConflict
 }
 
+// List returns a paginated view of short links owned by the caller.
 func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInput) (ListResult, error) {
 	if !s.permissions.Has(user.GroupKey, permission.ShortLinkReadOwn) {
 		return ListResult{}, ErrPermissionDenied
@@ -134,6 +137,7 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 			Slug:      row.Slug,
 			TargetURL: row.TargetUrl,
 			Status:    row.Status,
+			Stats:     statsFromRow(row.VisitCount, row.TodayVisitCount, row.LastVisitedAt),
 		})
 	}
 
@@ -145,6 +149,7 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 	}, nil
 }
 
+// Update changes the target URL or status of a short link owned by the caller.
 func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input UpdateInput) (CreateResult, error) {
 	if !s.permissions.Has(user.GroupKey, permission.ShortLinkUpdateOwn) {
 		return CreateResult{}, ErrPermissionDenied
@@ -192,6 +197,7 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 	}, nil
 }
 
+// Delete soft-deletes a short link owned by the caller.
 func (s *Service) Delete(ctx context.Context, user auth.CurrentUser, input DeleteInput) error {
 	if !s.permissions.Has(user.GroupKey, permission.ShortLinkDeleteOwn) {
 		return ErrPermissionDenied
@@ -215,6 +221,7 @@ func (s *Service) Delete(ctx context.Context, user auth.CurrentUser, input Delet
 	return nil
 }
 
+// AdminList returns a paginated, filterable view of all short links.
 func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input ListInput) (AdminListResult, error) {
 	if !s.hasAdminPermission(user, permission.ShortLinkReadAll) {
 		return AdminListResult{}, ErrPermissionDenied
@@ -249,6 +256,7 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 			Slug:      row.Slug,
 			TargetURL: row.TargetUrl,
 			Status:    row.Status,
+			Stats:     statsFromRow(row.VisitCount, row.TodayVisitCount, row.LastVisitedAt),
 			Owner: OwnerSummary{
 				ID:       uuidFromPgtype(row.OwnerID),
 				Username: row.OwnerUsername,
@@ -265,6 +273,7 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 	}, nil
 }
 
+// AdminUpdate changes the target URL or status of any short link.
 func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input UpdateInput) (CreateResult, error) {
 	if !s.hasAdminPermission(user, permission.ShortLinkUpdateAll) {
 		return CreateResult{}, ErrPermissionDenied
@@ -310,6 +319,7 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 	}, nil
 }
 
+// AdminDelete soft-deletes any short link.
 func (s *Service) AdminDelete(ctx context.Context, user auth.CurrentUser, input DeleteInput) error {
 	if !s.hasAdminPermission(user, permission.ShortLinkDeleteAll) {
 		return ErrPermissionDenied
@@ -328,10 +338,12 @@ func (s *Service) AdminDelete(ctx context.Context, user auth.CurrentUser, input 
 	return nil
 }
 
+// hasAdminPermission checks both administrative access and the requested permission.
 func (s *Service) hasAdminPermission(user auth.CurrentUser, required string) bool {
 	return s.permissions.Has(user.GroupKey, permission.AdminAccess) && s.permissions.Has(user.GroupKey, required)
 }
 
+// normalizePagination applies default and maximum bounds to pagination input.
 func normalizePagination(input ListInput) (int32, int32) {
 	page := input.Page
 	if page < 1 {
@@ -347,6 +359,7 @@ func normalizePagination(input ListInput) (int32, int32) {
 	return page, pageSize
 }
 
+// parseLinkAndOwnerIDs parses short link and owner identifiers.
 func parseLinkAndOwnerIDs(linkID string, ownerID string) (uuid.UUID, uuid.UUID, error) {
 	parsedLinkID, err := uuid.Parse(linkID)
 	if err != nil {
@@ -359,6 +372,7 @@ func parseLinkAndOwnerIDs(linkID string, ownerID string) (uuid.UUID, uuid.UUID, 
 	return parsedLinkID, parsedOwnerID, nil
 }
 
+// optionalText converts an optional string to a nullable PostgreSQL text value.
 func optionalText(value *string) pgtype.Text {
 	if value == nil {
 		return pgtype.Text{}
@@ -366,6 +380,7 @@ func optionalText(value *string) pgtype.Text {
 	return pgtype.Text{String: *value, Valid: true}
 }
 
+// optionalFilterText converts a non-empty filter to a nullable PostgreSQL text value.
 func optionalFilterText(value string) pgtype.Text {
 	if value == "" {
 		return pgtype.Text{}
@@ -373,14 +388,29 @@ func optionalFilterText(value string) pgtype.Text {
 	return pgtype.Text{String: value, Valid: true}
 }
 
+// statsFromRow builds API statistics from aggregated query fields.
+func statsFromRow(visitCount int64, todayVisitCount int64, lastVisitedAt pgtype.Timestamptz) *ShortLinkStats {
+	stats := &ShortLinkStats{
+		VisitCount:      visitCount,
+		TodayVisitCount: todayVisitCount,
+	}
+	if lastVisitedAt.Valid {
+		stats.LastVisitedAt = &lastVisitedAt.Time
+	}
+	return stats
+}
+
+// isAllowedStatus reports whether a short link status can be persisted.
 func isAllowedStatus(value string) bool {
 	return value == "active" || value == "disabled"
 }
 
+// uuidToPgtype converts a UUID to its PostgreSQL representation.
 func uuidToPgtype(value uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{Bytes: value, Valid: true}
 }
 
+// uuidFromPgtype converts a valid PostgreSQL UUID to its string representation.
 func uuidFromPgtype(value pgtype.UUID) string {
 	if !value.Valid {
 		return ""
@@ -388,6 +418,7 @@ func uuidFromPgtype(value pgtype.UUID) string {
 	return uuid.UUID(value.Bytes).String()
 }
 
+// buildShortLinkURL joins a configured host and slug into a public short link URL.
 func buildShortLinkURL(host string, slug string) string {
 	if strings.HasPrefix(host, "http://") || strings.HasPrefix(host, "https://") {
 		return strings.TrimRight(host, "/") + "/" + slug
@@ -395,6 +426,7 @@ func buildShortLinkURL(host string, slug string) string {
 	return "https://" + strings.TrimRight(host, "/") + "/" + slug
 }
 
+// isUniqueViolation reports whether an error is a PostgreSQL unique constraint violation.
 func isUniqueViolation(err error) bool {
 	if err == nil {
 		return false

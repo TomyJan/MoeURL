@@ -29,6 +29,12 @@ v0.0.3 实施文档包括：
 - [v0.0.3 任务级实施清单](v0.0.3-tasks.md)：把 v0.0.3 拆成可执行任务。
 - [v0.0.3 验收清单](v0.0.3-acceptance.md)：用于 v0.0.3 开发完成后的体验验收和发布前检查。
 
+v0.0.4 实施文档包括：
+
+- [v0.0.4 实施计划](v0.0.4-plan.md)：定义 v0.0.4 基础统计前置的阶段、边界和验证要求。
+- [v0.0.4 任务级实施清单](v0.0.4-tasks.md)：把 v0.0.4 拆成可执行任务。
+- [v0.0.4 验收清单](v0.0.4-acceptance.md)：用于 v0.0.4 开发完成后的统计验收和发布前检查。
+
 建议阅读顺序：
 
 ```text
@@ -36,6 +42,16 @@ technical-decision.md
   ↓
 technical-baseline.md
   ↓
+v0.0.4-plan.md
+  ↓
+v0.0.4-tasks.md
+  ↓
+v0.0.4-acceptance.md
+```
+
+涉及 v0.0.3 已完成的 UI/UX、控制台 Shell、短链生成组件和列表体验时，继续阅读：
+
+```text
 v0.0.3-plan.md
   ↓
 v0.0.3-tasks.md
@@ -73,7 +89,7 @@ v0.0.1-acceptance.md
 
 - 先确认产品范围，再拆分开发任务。
 - 技术实现以 [技术选型决策](technical-decision.md) 和 [技术基线](technical-baseline.md) 为准。
-- 以 v0.0.3 UI/UX 精细化重设计为当前优先目标。
+- 以 v0.0.4 基础统计前置为当前优先目标。
 - 不把远期能力直接纳入当前版本实现。
 - 对远期能力只保留必要的数据模型、接口边界或扩展点。
 - 每份实施计划都应明确目标、范围、任务顺序和验收标准。
@@ -99,5 +115,8 @@ v0.0.2-acceptance.md
 v0.0.3-plan.md
 v0.0.3-tasks.md
 v0.0.3-acceptance.md
+v0.0.4-plan.md
+v0.0.4-tasks.md
+v0.0.4-acceptance.md
 v0.1.0-plan.md
 ```

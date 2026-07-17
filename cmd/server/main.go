@@ -11,6 +11,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/config"
 )
 
+// main loads configuration and starts the application server.
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	cfg := config.Load()

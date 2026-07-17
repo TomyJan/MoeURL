@@ -3,21 +3,33 @@ package shortlink
 import (
 	"context"
 	"errors"
+	"html"
 	"net/http"
+
+	"github.com/TomyJan/MoeURL/internal/event"
 )
 
+// RedirectPort resolves a short link slug into a redirect target.
 type RedirectPort interface {
 	Resolve(ctx context.Context, slug string) (RedirectResult, error)
 }
 
+// RedirectHandler handles public short link redirect requests.
 type RedirectHandler struct {
-	service RedirectPort
+	service  RedirectPort
+	recorder event.Recorder
 }
 
-func NewRedirectHandler(service RedirectPort) *RedirectHandler {
-	return &RedirectHandler{service: service}
+// NewRedirectHandler creates a redirect handler.
+func NewRedirectHandler(service RedirectPort, recorders ...event.Recorder) *RedirectHandler {
+	recorder := event.Recorder(event.NoopRecorder{})
+	if len(recorders) > 0 && recorders[0] != nil {
+		recorder = recorders[0]
+	}
+	return &RedirectHandler{service: service, recorder: recorder}
 }
 
+// Open writes the redirect response for a slug.
 func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug string) {
 	result, err := h.service.Resolve(r.Context(), slug)
 	if err != nil {
@@ -33,5 +45,10 @@ func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug stri
 		return
 	}
 
-	http.Redirect(w, r, result.TargetURL, http.StatusFound)
+	w.Header().Set("Location", result.TargetURL)
+	w.WriteHeader(http.StatusFound)
+	_, writeErr := w.Write([]byte(`<a href="` + html.EscapeString(result.TargetURL) + `">Found</a>.` + "\n\n"))
+	if writeErr == nil {
+		_ = h.recorder.Record(r.Context(), event.Event{Type: event.RedirectResponseSent, Slug: slug, ShortLinkID: result.ShortLinkID})
+	}
 }

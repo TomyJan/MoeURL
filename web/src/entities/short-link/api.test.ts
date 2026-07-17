@@ -64,6 +64,48 @@ describe('short link api', () => {
     expect(fetch).toHaveBeenCalledWith('/api/v1/short-link/list?page=1&pageSize=20', expect.objectContaining({ method: 'GET' }))
   })
 
+  it('loads my short links with basic statistics', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            code: 0,
+            message: 'OK',
+            data: {
+              items: [
+                {
+                  id: 'link-id',
+                  url: 'https://go.example.com/abc123',
+                  slug: 'abc123',
+                  targetUrl: 'https://example.com',
+                  status: 'active',
+                  stats: {
+                    visitCount: 2,
+                    todayVisitCount: 1,
+                    lastVisitedAt: '2026-07-16T05:00:00Z',
+                  },
+                },
+              ],
+            },
+            meta: { page: 1, pageSize: 20, total: 1 },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }),
+    )
+
+    const result = await listShortLinks()
+
+    const [item] = result.items
+    if (!item?.stats) {
+      throw new Error('expected short link statistics')
+    }
+    expect(item.stats.visitCount).toBe(2)
+    expect(item.stats.todayVisitCount).toBe(1)
+    expect(item.stats.lastVisitedAt).toBe('2026-07-16T05:00:00Z')
+  })
+
   it('loads my short links with status filter', async () => {
     vi.stubGlobal(
       'fetch',
@@ -151,6 +193,7 @@ describe('short link api', () => {
                   slug: 'abc123',
                   targetUrl: 'https://example.com',
                   status: 'active',
+                  stats: { visitCount: 3, todayVisitCount: 2, lastVisitedAt: null },
                   owner: { id: 'owner-id', username: 'alice', nickname: 'Alice' },
                 },
               ],
@@ -164,7 +207,12 @@ describe('short link api', () => {
 
     const result = await listAdminShortLinks({ page: 2, pageSize: 10 })
 
-    expect(result.items[0].owner.username).toBe('alice')
+    const [item] = result.items
+    if (!item?.stats) {
+      throw new Error('expected admin short link statistics')
+    }
+    expect(item.owner.username).toBe('alice')
+    expect(item.stats.visitCount).toBe(3)
     expect(result.meta.total).toBe(21)
     expect(fetch).toHaveBeenCalledWith('/api/v1/admin/short-link/list?page=2&pageSize=10', expect.objectContaining({ method: 'GET' }))
   })

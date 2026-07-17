@@ -83,9 +83,9 @@ export const messages = {
       },
       analytics: {
         panelTitle: '分析能力会在后续业务版本补齐',
-        description: 'v0.0.3 只确定导航位置和页面边界，不展示未采集的访问趋势或明细。',
+        description: 'v0.0.4 只在短链列表展示基础访问统计，完整趋势、维度和明细仍在后续版本补齐。',
         items: {
-          scope: '后续会围绕访问次数、来源和时间趋势设计。',
+          scope: '当前先提供总访问、今日访问和最近访问时间。',
           privacy: '分析数据会遵循自托管和权限边界，不开放给无关账号。',
           future: '当前可以先通过短链列表完成启用、禁用、复制和删除。',
         },
@@ -126,6 +126,12 @@ export const messages = {
       status: {
         active: '启用',
         disabled: '禁用',
+      },
+      stats: {
+        visitCount: '总访问',
+        todayVisitCount: '今日',
+        lastVisitedAt: '最近访问',
+        neverVisited: '暂无访问',
       },
       actions: {
         enable: '启用',
@@ -373,9 +379,9 @@ export const messages = {
       },
       analytics: {
         panelTitle: 'Analytics will land in a later product release',
-        description: 'v0.0.3 only fixes navigation placement and page boundaries, without showing uncollected traffic data.',
+        description: 'v0.0.4 shows basic visit statistics in link lists only. Full trends, dimensions, and details remain planned.',
         items: {
-          scope: 'Future work can cover visits, sources, and time trends.',
+          scope: 'Current statistics cover total visits, today visits, and last visit time.',
           privacy: 'Analytics will follow self-hosted data and permission boundaries.',
           future: 'For now, link lists support enable, disable, copy, and delete workflows.',
         },
@@ -416,6 +422,12 @@ export const messages = {
       status: {
         active: 'Active',
         disabled: 'Disabled',
+      },
+      stats: {
+        visitCount: 'Visits',
+        todayVisitCount: 'Today',
+        lastVisitedAt: 'Last visit',
+        neverVisited: 'No visits yet',
       },
       actions: {
         enable: 'Enable',

@@ -24,6 +24,7 @@ type Service struct {
 	sessions *SessionService
 }
 
+// NewService creates an authentication service with database-backed sessions.
 func NewService(pool *pgxpool.Pool, sessionTTL time.Duration) *Service {
 	return &Service{
 		pool:     pool,
@@ -31,6 +32,7 @@ func NewService(pool *pgxpool.Pool, sessionTTL time.Duration) *Service {
 	}
 }
 
+// Login verifies credentials and creates a session for an active user.
 func (s *Service) Login(ctx context.Context, input LoginInput) (LoginResult, error) {
 	user, passwordHash, status, err := s.findUser(ctx, input.Username)
 	if err != nil {
@@ -52,6 +54,7 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (LoginResult, err
 	return LoginResult{User: user, Session: session}, nil
 }
 
+// Logout revokes a non-empty session identifier.
 func (s *Service) Logout(ctx context.Context, sessionID string) error {
 	if sessionID == "" {
 		return nil
@@ -59,6 +62,7 @@ func (s *Service) Logout(ctx context.Context, sessionID string) error {
 	return s.sessions.Revoke(ctx, sessionID)
 }
 
+// Me resolves an active session user or returns the guest identity.
 func (s *Service) Me(ctx context.Context, sessionID string) (CurrentUser, error) {
 	if sessionID == "" {
 		return GuestUser(), nil
@@ -77,10 +81,12 @@ func (s *Service) Me(ctx context.Context, sessionID string) (CurrentUser, error)
 	return user, nil
 }
 
+// ResolveCurrentUser satisfies current-user resolution through Me.
 func (s *Service) ResolveCurrentUser(ctx context.Context, sessionID string) (CurrentUser, error) {
 	return s.Me(ctx, sessionID)
 }
 
+// findUser loads a login user, password hash, and status by username.
 func (s *Service) findUser(ctx context.Context, username string) (CurrentUser, string, string, error) {
 	var user CurrentUser
 	var passwordHash *string
@@ -114,6 +120,7 @@ func (s *Service) findUser(ctx context.Context, username string) (CurrentUser, s
 	return user, *passwordHash, status, nil
 }
 
+// findUserByID loads a user, optional password hash, and status by identifier.
 func (s *Service) findUserByID(ctx context.Context, userID string) (CurrentUser, string, string, error) {
 	var user CurrentUser
 	var passwordHash *string

@@ -31,6 +31,7 @@ type CountAllShortLinksParams struct {
 	Status pgtype.Text `json:"status"`
 }
 
+// CountAllShortLinks returns the number of globally visible links matching filters.
 func (q *Queries) CountAllShortLinks(ctx context.Context, arg CountAllShortLinksParams) (int64, error) {
 	row := q.db.QueryRow(ctx, countAllShortLinks, arg.Query, arg.Status)
 	var count int64
@@ -50,6 +51,7 @@ type CountShortLinksByOwnerParams struct {
 	Status  pgtype.Text `json:"status"`
 }
 
+// CountShortLinksByOwner returns the number of an owner's links matching filters.
 func (q *Queries) CountShortLinksByOwner(ctx context.Context, arg CountShortLinksByOwnerParams) (int64, error) {
 	row := q.db.QueryRow(ctx, countShortLinksByOwner, arg.OwnerID, arg.Status)
 	var count int64
@@ -72,6 +74,7 @@ type CreateShortLinkParams struct {
 	Status    string      `json:"status"`
 }
 
+// CreateShortLink inserts a short link and returns the stored row.
 func (q *Queries) CreateShortLink(ctx context.Context, arg CreateShortLinkParams) (ShortLink, error) {
 	row := q.db.QueryRow(ctx, createShortLink,
 		arg.ID,
@@ -102,6 +105,7 @@ from short_link
 where slug = $1 and deleted_at is null
 `
 
+// GetShortLinkBySlug returns a non-deleted short link by slug.
 func (q *Queries) GetShortLinkBySlug(ctx context.Context, slug string) (ShortLink, error) {
 	row := q.db.QueryRow(ctx, getShortLinkBySlug, slug)
 	var i ShortLink
@@ -131,10 +135,20 @@ select short_link.id,
     short_link.deleted_at,
     domain.host as domain_host,
     app_user.username as owner_username,
-    app_user.nickname as owner_nickname
+    app_user.nickname as owner_nickname,
+    coalesce(stats.visit_count, 0)::bigint as visit_count,
+    coalesce(stats.today_visit_count, 0)::bigint as today_visit_count,
+    stats.last_visited_at::timestamptz as last_visited_at
 from short_link
 join domain on domain.id = short_link.domain_id
 join app_user on app_user.id = short_link.owner_id
+left join lateral (
+    select count(*) filter (where event_type = 'redirect_response_sent')::bigint as visit_count,
+        count(*) filter (where event_type = 'redirect_response_sent' and created_at >= current_date)::bigint as today_visit_count,
+        max(created_at) filter (where event_type = 'redirect_response_sent') as last_visited_at
+    from short_link_event
+    where short_link_event.short_link_id = short_link.id
+) stats on true
 where short_link.deleted_at is null
     and ($3::text is null or short_link.status = $3::text)
     and (
@@ -156,20 +170,24 @@ type ListAllShortLinksParams struct {
 }
 
 type ListAllShortLinksRow struct {
-	ID            pgtype.UUID        `json:"id"`
-	OwnerID       pgtype.UUID        `json:"owner_id"`
-	DomainID      pgtype.UUID        `json:"domain_id"`
-	Slug          string             `json:"slug"`
-	TargetUrl     string             `json:"target_url"`
-	Status        string             `json:"status"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt     pgtype.Timestamptz `json:"deleted_at"`
-	DomainHost    string             `json:"domain_host"`
-	OwnerUsername string             `json:"owner_username"`
-	OwnerNickname string             `json:"owner_nickname"`
+	ID              pgtype.UUID        `json:"id"`
+	OwnerID         pgtype.UUID        `json:"owner_id"`
+	DomainID        pgtype.UUID        `json:"domain_id"`
+	Slug            string             `json:"slug"`
+	TargetUrl       string             `json:"target_url"`
+	Status          string             `json:"status"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
+	DomainHost      string             `json:"domain_host"`
+	OwnerUsername   string             `json:"owner_username"`
+	OwnerNickname   string             `json:"owner_nickname"`
+	VisitCount      int64              `json:"visit_count"`
+	TodayVisitCount int64              `json:"today_visit_count"`
+	LastVisitedAt   pgtype.Timestamptz `json:"last_visited_at"`
 }
 
+// ListAllShortLinks returns filtered global links with owner and visit statistics.
 func (q *Queries) ListAllShortLinks(ctx context.Context, arg ListAllShortLinksParams) ([]ListAllShortLinksRow, error) {
 	rows, err := q.db.Query(ctx, listAllShortLinks,
 		arg.Limit,
@@ -197,6 +215,9 @@ func (q *Queries) ListAllShortLinks(ctx context.Context, arg ListAllShortLinksPa
 			&i.DomainHost,
 			&i.OwnerUsername,
 			&i.OwnerNickname,
+			&i.VisitCount,
+			&i.TodayVisitCount,
+			&i.LastVisitedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -218,9 +239,19 @@ select short_link.id,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
-    domain.host as domain_host
+    domain.host as domain_host,
+    coalesce(stats.visit_count, 0)::bigint as visit_count,
+    coalesce(stats.today_visit_count, 0)::bigint as today_visit_count,
+    stats.last_visited_at::timestamptz as last_visited_at
 from short_link
 join domain on domain.id = short_link.domain_id
+left join lateral (
+    select count(*) filter (where event_type = 'redirect_response_sent')::bigint as visit_count,
+        count(*) filter (where event_type = 'redirect_response_sent' and created_at >= current_date)::bigint as today_visit_count,
+        max(created_at) filter (where event_type = 'redirect_response_sent') as last_visited_at
+    from short_link_event
+    where short_link_event.short_link_id = short_link.id
+) stats on true
 where short_link.owner_id = $1 and short_link.deleted_at is null
     and ($4::text is null or short_link.status = $4::text)
 order by short_link.created_at desc
@@ -235,18 +266,22 @@ type ListShortLinksByOwnerParams struct {
 }
 
 type ListShortLinksByOwnerRow struct {
-	ID         pgtype.UUID        `json:"id"`
-	OwnerID    pgtype.UUID        `json:"owner_id"`
-	DomainID   pgtype.UUID        `json:"domain_id"`
-	Slug       string             `json:"slug"`
-	TargetUrl  string             `json:"target_url"`
-	Status     string             `json:"status"`
-	CreatedAt  pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt  pgtype.Timestamptz `json:"deleted_at"`
-	DomainHost string             `json:"domain_host"`
+	ID              pgtype.UUID        `json:"id"`
+	OwnerID         pgtype.UUID        `json:"owner_id"`
+	DomainID        pgtype.UUID        `json:"domain_id"`
+	Slug            string             `json:"slug"`
+	TargetUrl       string             `json:"target_url"`
+	Status          string             `json:"status"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
+	DomainHost      string             `json:"domain_host"`
+	VisitCount      int64              `json:"visit_count"`
+	TodayVisitCount int64              `json:"today_visit_count"`
+	LastVisitedAt   pgtype.Timestamptz `json:"last_visited_at"`
 }
 
+// ListShortLinksByOwner returns an owner's links with visit statistics.
 func (q *Queries) ListShortLinksByOwner(ctx context.Context, arg ListShortLinksByOwnerParams) ([]ListShortLinksByOwnerRow, error) {
 	rows, err := q.db.Query(ctx, listShortLinksByOwner,
 		arg.OwnerID,
@@ -272,6 +307,9 @@ func (q *Queries) ListShortLinksByOwner(ctx context.Context, arg ListShortLinksB
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.DomainHost,
+			&i.VisitCount,
+			&i.TodayVisitCount,
+			&i.LastVisitedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -291,6 +329,7 @@ where id = $1
     and deleted_at is null
 `
 
+// SoftDeleteAnyShortLink marks a non-deleted link as deleted.
 func (q *Queries) SoftDeleteAnyShortLink(ctx context.Context, id pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, softDeleteAnyShortLink, id)
 	if err != nil {
@@ -313,6 +352,7 @@ type SoftDeleteOwnShortLinkParams struct {
 	OwnerID pgtype.UUID `json:"owner_id"`
 }
 
+// SoftDeleteOwnShortLink marks an owner's non-deleted link as deleted.
 func (q *Queries) SoftDeleteOwnShortLink(ctx context.Context, arg SoftDeleteOwnShortLinkParams) (int64, error) {
 	result, err := q.db.Exec(ctx, softDeleteOwnShortLink, arg.ID, arg.OwnerID)
 	if err != nil {
@@ -337,6 +377,7 @@ type UpdateAnyShortLinkParams struct {
 	ID        pgtype.UUID `json:"id"`
 }
 
+// UpdateAnyShortLink updates a non-deleted link and returns the stored row.
 func (q *Queries) UpdateAnyShortLink(ctx context.Context, arg UpdateAnyShortLinkParams) (ShortLink, error) {
 	row := q.db.QueryRow(ctx, updateAnyShortLink, arg.TargetUrl, arg.Status, arg.ID)
 	var i ShortLink
@@ -372,6 +413,7 @@ type UpdateOwnShortLinkParams struct {
 	OwnerID   pgtype.UUID `json:"owner_id"`
 }
 
+// UpdateOwnShortLink updates an owner's non-deleted link and returns the stored row.
 func (q *Queries) UpdateOwnShortLink(ctx context.Context, arg UpdateOwnShortLinkParams) (ShortLink, error) {
 	row := q.db.QueryRow(ctx, updateOwnShortLink,
 		arg.TargetUrl,

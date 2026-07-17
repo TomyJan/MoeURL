@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	"github.com/TomyJan/MoeURL/internal/event"
 	"github.com/TomyJan/MoeURL/internal/middleware"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/system"
@@ -15,15 +16,17 @@ import (
 )
 
 type Dependencies struct {
-	System      system.ServicePort
-	Auth        auth.Port
-	CurrentUser auth.CurrentUserResolver
-	ShortLink   shortlink.Port
-	Redirect    shortlink.RedirectPort
-	User        user.Port
-	StaticDir   string
+	System           system.ServicePort
+	Auth             auth.Port
+	CurrentUser      auth.CurrentUserResolver
+	ShortLink        shortlink.Port
+	Redirect         shortlink.RedirectPort
+	RedirectRecorder event.Recorder
+	User             user.Port
+	StaticDir        string
 }
 
+// NewRouter registers API, static-file, and short-link redirect routes.
 func NewRouter(deps ...Dependencies) nethttp.Handler {
 	var dependency Dependencies
 	if len(deps) > 0 {
@@ -79,7 +82,7 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 		registerStaticRoutes(router, dependency.StaticDir)
 	}
 	if dependency.Redirect != nil {
-		redirectHandler := shortlink.NewRedirectHandler(dependency.Redirect)
+		redirectHandler := shortlink.NewRedirectHandler(dependency.Redirect, dependency.RedirectRecorder)
 		router.Get("/{slug}", func(w nethttp.ResponseWriter, r *nethttp.Request) {
 			redirectHandler.Open(w, r, chi.URLParam(r, "slug"))
 		})
@@ -88,6 +91,7 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 	return router
 }
 
+// registerStaticRoutes serves the web application assets and client routes.
 func registerStaticRoutes(router chi.Router, staticDir string) {
 	fileServer := nethttp.FileServer(nethttp.Dir(staticDir))
 	router.Handle("/assets/*", fileServer)
@@ -111,6 +115,7 @@ func registerStaticRoutes(router chi.Router, staticDir string) {
 	}
 }
 
+// serveStaticFile returns a handler for a file within the static directory.
 func serveStaticFile(staticDir string, name string) nethttp.HandlerFunc {
 	return func(w nethttp.ResponseWriter, r *nethttp.Request) {
 		nethttp.ServeFile(w, r, filepath.Join(staticDir, name))

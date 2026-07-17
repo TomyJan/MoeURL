@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// validateTargetURL rejects malformed, unsafe, and non-HTTP target URLs.
 func validateTargetURL(value string) error {
 	parsed, err := url.ParseRequestURI(value)
 	if err != nil {
@@ -27,11 +28,13 @@ func validateTargetURL(value string) error {
 	return nil
 }
 
+// isLocalHostname reports whether a hostname addresses the local machine.
 func isLocalHostname(host string) bool {
 	normalized := strings.ToLower(strings.TrimSuffix(host, "."))
 	return normalized == "localhost" || normalized == "localhost.localdomain"
 }
 
+// isBlockedTargetIP reports whether an IP address is not publicly routable.
 func isBlockedTargetIP(ip netip.Addr) bool {
 	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
 		return true

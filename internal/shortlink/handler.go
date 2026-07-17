@@ -32,10 +32,12 @@ type Handler struct {
 	service Port
 }
 
+// NewHandler creates an HTTP handler backed by the short-link service.
 func NewHandler(service Port) *Handler {
 	return &Handler{service: service}
 }
 
+// Create validates a short-link request and returns the created link.
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var input CreateInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -63,6 +65,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	ok(w, result)
 }
 
+// List returns short links visible to the current user.
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	result, err := h.service.List(r.Context(), auth.UserFromContext(r.Context()), ListInput{
 		Page:     queryInt32WithDefault(r, "page", defaultPage),
@@ -86,6 +89,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Update applies permitted changes to a short link owned by the current user.
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	var input UpdateInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -102,6 +106,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	ok(w, result)
 }
 
+// Delete soft-deletes a short link owned by the current user.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	var input DeleteInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -118,6 +123,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]bool{"deleted": true})
 }
 
+// AdminList returns short links available to an administrator.
 func (h *Handler) AdminList(w http.ResponseWriter, r *http.Request) {
 	result, err := h.service.AdminList(r.Context(), auth.UserFromContext(r.Context()), ListInput{
 		Page:     queryInt32WithDefault(r, "page", defaultPage),
@@ -142,6 +148,7 @@ func (h *Handler) AdminList(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// AdminUpdate applies administrator changes to a short link.
 func (h *Handler) AdminUpdate(w http.ResponseWriter, r *http.Request) {
 	var input UpdateInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -156,6 +163,7 @@ func (h *Handler) AdminUpdate(w http.ResponseWriter, r *http.Request) {
 	ok(w, result)
 }
 
+// AdminDelete soft-deletes a short link as an administrator.
 func (h *Handler) AdminDelete(w http.ResponseWriter, r *http.Request) {
 	var input DeleteInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -170,6 +178,7 @@ func (h *Handler) AdminDelete(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]bool{"deleted": true})
 }
 
+// writeBusinessOrSystemError maps service errors to business or server responses.
 func writeBusinessOrSystemError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, ErrPermissionDenied):
@@ -196,20 +205,24 @@ type response struct {
 	Meta    any    `json:"meta"`
 }
 
+// ok writes a successful short-link response.
 func ok(w http.ResponseWriter, data any) {
 	writeJSON(w, http.StatusOK, response{Code: 0, Message: "OK", Data: data, Meta: map[string]any{}})
 }
 
+// businessError writes a short-link business failure response.
 func businessError(w http.ResponseWriter, code int, message string) {
 	writeJSON(w, http.StatusOK, response{Code: code, Message: message, Data: nil, Meta: map[string]any{}})
 }
 
+// writeJSON writes a short-link response as JSON.
 func writeJSON(w http.ResponseWriter, status int, body response) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(body)
 }
 
+// queryInt32WithDefault parses a positive int32 query value or returns its default.
 func queryInt32WithDefault(r *http.Request, key string, defaultValue int32) int32 {
 	raw := r.URL.Query().Get(key)
 	if raw == "" {

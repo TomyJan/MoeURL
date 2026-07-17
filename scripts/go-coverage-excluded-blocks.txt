@@ -1,4 +1,8 @@
-# Exact Go coverage profile blocks excluded from the backend business coverage gate.
+# Go coverage profile blocks excluded from the backend business coverage gate.
+#
+# The gate first matches each configured file and source range while ignoring
+# compiler column offsets. When compiler line mappings shift for an entire file,
+# it accepts only the same number of uncovered blocks as explicitly configured.
 #
 # These blocks are defensive infrastructure failure paths that are not stable or
 # meaningful to force through unit coverage: cryptographic/random failure after
@@ -18,15 +22,13 @@ github.com/TomyJan/MoeURL/internal/system/service.go:154.16,156.3
 github.com/TomyJan/MoeURL/internal/auth/service.go:48.16,50.3
 github.com/TomyJan/MoeURL/internal/auth/service.go:137.16,139.3
 github.com/TomyJan/MoeURL/internal/auth/session.go:81.16,83.3
-github.com/TomyJan/MoeURL/internal/user/service.go:44.16,46.3
-github.com/TomyJan/MoeURL/internal/user/service.go:60.16,62.3
 # User Create password hashing failure; argon2/random failure is an infrastructure branch that is not deterministically triggerable.
 github.com/TomyJan/MoeURL/internal/user/service.go:52.16,54.3
 # ResetPassword password hashing failure; argon2/random failure is an infrastructure branch that is not deterministically triggerable.
 github.com/TomyJan/MoeURL/internal/user/service.go:192.16,194.3
 # uuidFromPgtype invalid UUID fallback; SQLC schema guarantees valid IDs so this defensive branch is not reachable through normal service paths.
 github.com/TomyJan/MoeURL/internal/user/service.go:228.18,230.3
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:61.17,63.4
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:64.27,65.12
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:76.29,77.12
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:94.2,94.40
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:63.17,65.4
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:66.27,67.12
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:78.29,79.12
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:96.2,96.40

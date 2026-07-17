@@ -13,6 +13,7 @@ type Config struct {
 	StaticDir   string
 }
 
+// Load reads the application configuration from environment variables.
 func Load() Config {
 	return Config{
 		Env:         getEnv("MOEURL_ENV", "development"),
@@ -22,6 +23,7 @@ func Load() Config {
 	}
 }
 
+// Validate verifies that required configuration values are present.
 func (c Config) Validate() error {
 	if strings.TrimSpace(c.DatabaseURL) == "" {
 		return errors.New("MOEURL_DATABASE_URL is required")
@@ -32,6 +34,7 @@ func (c Config) Validate() error {
 	return nil
 }
 
+// getEnv returns an environment value or its fallback when unset.
 func getEnv(key string, fallback string) string {
 	value := os.Getenv(key)
 	if value == "" {

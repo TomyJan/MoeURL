@@ -1,5 +1,7 @@
 package shortlink
 
+import "time"
+
 type CreateInput struct {
 	TargetURL string
 }
@@ -33,11 +35,18 @@ type ListResult struct {
 }
 
 type ShortLink struct {
-	ID        string `json:"id"`
-	URL       string `json:"url"`
-	Slug      string `json:"slug"`
-	TargetURL string `json:"targetUrl"`
-	Status    string `json:"status"`
+	ID        string          `json:"id"`
+	URL       string          `json:"url"`
+	Slug      string          `json:"slug"`
+	TargetURL string          `json:"targetUrl"`
+	Status    string          `json:"status"`
+	Stats     *ShortLinkStats `json:"stats,omitempty"`
+}
+
+type ShortLinkStats struct {
+	VisitCount      int64      `json:"visitCount"`
+	TodayVisitCount int64      `json:"todayVisitCount"`
+	LastVisitedAt   *time.Time `json:"lastVisitedAt"`
 }
 
 type OwnerSummary struct {
@@ -47,12 +56,13 @@ type OwnerSummary struct {
 }
 
 type AdminShortLink struct {
-	ID        string       `json:"id"`
-	URL       string       `json:"url"`
-	Slug      string       `json:"slug"`
-	TargetURL string       `json:"targetUrl"`
-	Status    string       `json:"status"`
-	Owner     OwnerSummary `json:"owner"`
+	ID        string          `json:"id"`
+	URL       string          `json:"url"`
+	Slug      string          `json:"slug"`
+	TargetURL string          `json:"targetUrl"`
+	Status    string          `json:"status"`
+	Stats     *ShortLinkStats `json:"stats,omitempty"`
+	Owner     OwnerSummary    `json:"owner"`
 }
 
 type AdminListResult struct {

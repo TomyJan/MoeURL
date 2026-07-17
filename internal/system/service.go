@@ -20,10 +20,12 @@ type Service struct {
 	pool *pgxpool.Pool
 }
 
+// NewService creates the system-initialization service.
 func NewService(pool *pgxpool.Pool) *Service {
 	return &Service{pool: pool}
 }
 
+// IsInitialized reports whether the initial administrator account exists.
 func (s *Service) IsInitialized(ctx context.Context) (bool, error) {
 	var initialized bool
 	err := s.pool.QueryRow(ctx, `
@@ -40,6 +42,7 @@ func (s *Service) IsInitialized(ctx context.Context) (bool, error) {
 	return initialized, nil
 }
 
+// Setup creates the initial groups, administrator, domain, and settings once.
 func (s *Service) Setup(ctx context.Context, input SetupInput) error {
 	if err := validateSetupInput(input); err != nil {
 		return err
@@ -113,6 +116,7 @@ func (s *Service) Setup(ctx context.Context, input SetupInput) error {
 	})
 }
 
+// validateSetupInput verifies the required initial-system setup fields.
 func validateSetupInput(input SetupInput) error {
 	required := []string{
 		input.AdminUsername,
@@ -136,6 +140,7 @@ func validateSetupInput(input SetupInput) error {
 	return nil
 }
 
+// insertGroup inserts an initial user group and its permissions.
 func insertGroup(ctx context.Context, tx pgx.Tx, id uuid.UUID, key string, name string, description string, permissions []string, now time.Time) error {
 	permissionsJSON, err := json.Marshal(permissions)
 	if err != nil {
@@ -149,6 +154,7 @@ func insertGroup(ctx context.Context, tx pgx.Tx, id uuid.UUID, key string, name 
 	return err
 }
 
+// upsertSetting inserts or updates a system setting in the transaction.
 func upsertSetting(ctx context.Context, tx pgx.Tx, key string, value any, now time.Time) error {
 	valueJSON, err := json.Marshal(value)
 	if err != nil {

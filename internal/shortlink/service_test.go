@@ -21,6 +21,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+// TestServiceCreateRejectsGuest verifies guests cannot create short links.
 func TestServiceCreateRejectsGuest(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -34,6 +35,7 @@ func TestServiceCreateRejectsGuest(t *testing.T) {
 	}
 }
 
+// TestServiceConstructorsUseDefaultPermissions verifies nil permissions use built-in defaults.
 func TestServiceConstructorsUseDefaultPermissions(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -45,6 +47,7 @@ func TestServiceConstructorsUseDefaultPermissions(t *testing.T) {
 	}
 }
 
+// TestServiceCreateRejectsUnsafeTargetURL verifies unsafe targets are rejected.
 func TestServiceCreateRejectsUnsafeTargetURL(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -74,6 +77,7 @@ func TestServiceCreateRejectsUnsafeTargetURL(t *testing.T) {
 	}
 }
 
+// TestServiceCreateStoresShortLinkWithGeneratedSlug verifies persisted generated links.
 func TestServiceCreateStoresShortLinkWithGeneratedSlug(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -113,6 +117,7 @@ func TestServiceCreateStoresShortLinkWithGeneratedSlug(t *testing.T) {
 	}
 }
 
+// TestServiceCreateReturnsDatabaseAndInputErrors verifies invalid identifiers and database failures.
 func TestServiceCreateReturnsDatabaseAndInputErrors(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -132,6 +137,7 @@ func TestServiceCreateReturnsDatabaseAndInputErrors(t *testing.T) {
 	}
 }
 
+// TestServiceCreateReturnsInsertError verifies insert constraint failures propagate.
 func TestServiceCreateReturnsInsertError(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -149,16 +155,19 @@ func TestServiceCreateReturnsInsertError(t *testing.T) {
 	}
 }
 
+// TestServiceListReturnsOnlyOwnActiveRecords verifies ownership filtering and visit statistics.
 func TestServiceListReturnsOnlyOwnActiveRecords(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
 	insertShortLinkDefaultDomain(t, ctx, pool)
 	user := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
 	other := insertShortLinkUserForGroup(t, ctx, pool, "bob", "00000000-0000-0000-0000-000000000401", "00000000-0000-0000-0000-000000000502", "user", permission.UserPermissions)
-	insertStoredShortLink(t, ctx, pool, user.ID, "alice1", "https://example.com/1", "active", false)
+	aliceActiveID := insertStoredShortLink(t, ctx, pool, user.ID, "alice1", "https://example.com/1", "active", false)
 	insertStoredShortLink(t, ctx, pool, user.ID, "alice2", "https://example.com/2", "disabled", false)
 	insertStoredShortLink(t, ctx, pool, user.ID, "deleted", "https://example.com/deleted", "active", true)
 	insertStoredShortLink(t, ctx, pool, other.ID, "bob001", "https://example.com/bob", "active", false)
+	insertStoredShortLinkVisitEvent(t, ctx, pool, aliceActiveID)
+	insertStoredShortLinkVisitEvent(t, ctx, pool, aliceActiveID)
 
 	service := shortlink.NewService(pool, permission.NewService())
 
@@ -180,9 +189,24 @@ func TestServiceListReturnsOnlyOwnActiveRecords(t *testing.T) {
 		if item.URL != "https://go.example.com/"+item.Slug {
 			t.Fatalf("unexpected url %q", item.URL)
 		}
+		if item.Slug == "alice1" {
+			if item.Stats == nil {
+				t.Fatal("expected statistics")
+			}
+			if item.Stats.VisitCount != 2 {
+				t.Fatalf("expected visit count 2, got %d", item.Stats.VisitCount)
+			}
+			if item.Stats.TodayVisitCount != 2 {
+				t.Fatalf("expected today visit count 2, got %d", item.Stats.TodayVisitCount)
+			}
+			if item.Stats.LastVisitedAt == nil {
+				t.Fatal("expected last visited at")
+			}
+		}
 	}
 }
 
+// TestServiceListFiltersOwnLinksByStatus verifies status filtering and validation.
 func TestServiceListFiltersOwnLinksByStatus(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -207,6 +231,7 @@ func TestServiceListFiltersOwnLinksByStatus(t *testing.T) {
 	}
 }
 
+// TestServiceListRejectsGuest verifies guests cannot list owned links.
 func TestServiceListRejectsGuest(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -218,6 +243,7 @@ func TestServiceListRejectsGuest(t *testing.T) {
 	}
 }
 
+// TestServiceListNormalizesPaginationAndReturnsErrors verifies list bounds and failures.
 func TestServiceListNormalizesPaginationAndReturnsErrors(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -245,6 +271,7 @@ func TestServiceListNormalizesPaginationAndReturnsErrors(t *testing.T) {
 	}
 }
 
+// TestServiceListReturnsRowQueryError verifies malformed list queries propagate errors.
 func TestServiceListReturnsRowQueryError(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -262,6 +289,7 @@ func TestServiceListReturnsRowQueryError(t *testing.T) {
 	}
 }
 
+// TestServiceUpdateOwnShortLink verifies owners can update their links.
 func TestServiceUpdateOwnShortLink(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -285,6 +313,7 @@ func TestServiceUpdateOwnShortLink(t *testing.T) {
 	}
 }
 
+// TestServiceUpdateReturnsDefaultDomainError verifies updates require the default domain.
 func TestServiceUpdateReturnsDefaultDomainError(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -304,6 +333,7 @@ func TestServiceUpdateReturnsDefaultDomainError(t *testing.T) {
 	}
 }
 
+// TestServiceUpdateRejectsInvalidInputAndForeignLink verifies validation and ownership boundaries.
 func TestServiceUpdateRejectsInvalidInputAndForeignLink(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -341,6 +371,7 @@ func TestServiceUpdateRejectsInvalidInputAndForeignLink(t *testing.T) {
 	}
 }
 
+// TestServiceUpdateRejectsPermissionAndReturnsDatabaseErrors verifies update failure paths.
 func TestServiceUpdateRejectsPermissionAndReturnsDatabaseErrors(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -361,6 +392,7 @@ func TestServiceUpdateRejectsPermissionAndReturnsDatabaseErrors(t *testing.T) {
 	}
 }
 
+// TestServiceDeleteOwnShortLinkSoftDeletes verifies owner deletion is soft deletion.
 func TestServiceDeleteOwnShortLinkSoftDeletes(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -384,6 +416,7 @@ func TestServiceDeleteOwnShortLinkSoftDeletes(t *testing.T) {
 	}
 }
 
+// TestServiceDeleteRejectsForeignLinkAndGuest verifies delete ownership and permission checks.
 func TestServiceDeleteRejectsForeignLinkAndGuest(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -414,6 +447,7 @@ func TestServiceDeleteRejectsForeignLinkAndGuest(t *testing.T) {
 	}
 }
 
+// TestServiceDeleteReturnsDatabaseError verifies delete database failures propagate.
 func TestServiceDeleteReturnsDatabaseError(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -429,6 +463,7 @@ func TestServiceDeleteReturnsDatabaseError(t *testing.T) {
 	}
 }
 
+// TestServiceAdminListReturnsAllOwners verifies administrators see links and owners.
 func TestServiceAdminListReturnsAllOwners(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -436,8 +471,9 @@ func TestServiceAdminListReturnsAllOwners(t *testing.T) {
 	alice := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
 	bob := insertShortLinkUserForGroup(t, ctx, pool, "bob", "00000000-0000-0000-0000-000000000401", "00000000-0000-0000-0000-000000000502", "user", permission.UserPermissions)
 	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: "admin"}
-	insertStoredShortLink(t, ctx, pool, alice.ID, "alice1", "https://example.com/1", "active", false)
+	aliceLinkID := insertStoredShortLink(t, ctx, pool, alice.ID, "alice1", "https://example.com/1", "active", false)
 	insertStoredShortLink(t, ctx, pool, bob.ID, "bob001", "https://example.com/bob", "disabled", false)
+	insertStoredShortLinkVisitEvent(t, ctx, pool, aliceLinkID)
 
 	service := shortlink.NewService(pool, permission.NewService())
 
@@ -455,8 +491,14 @@ func TestServiceAdminListReturnsAllOwners(t *testing.T) {
 	if !owners["alice"] || !owners["bob"] {
 		t.Fatalf("expected alice and bob owners, got %#v", owners)
 	}
+	for _, item := range result.Items {
+		if item.Slug == "alice1" && (item.Stats == nil || item.Stats.VisitCount != 1 || item.Stats.TodayVisitCount != 1 || item.Stats.LastVisitedAt == nil) {
+			t.Fatalf("unexpected statistics for alice1: %#v", item.Stats)
+		}
+	}
 }
 
+// TestServiceAdminListFiltersByStatusAndSearchesKeyword verifies admin filtering and search.
 func TestServiceAdminListFiltersByStatusAndSearchesKeyword(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -491,6 +533,7 @@ func TestServiceAdminListFiltersByStatusAndSearchesKeyword(t *testing.T) {
 	}
 }
 
+// TestServiceAdminOperationsRequirePermissions verifies all admin link operations require permissions.
 func TestServiceAdminOperationsRequirePermissions(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -511,6 +554,7 @@ func TestServiceAdminOperationsRequirePermissions(t *testing.T) {
 	}
 }
 
+// TestServiceAdminUpdateAndDeleteAnyShortLink verifies administrators can mutate any link.
 func TestServiceAdminUpdateAndDeleteAnyShortLink(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -543,6 +587,7 @@ func TestServiceAdminUpdateAndDeleteAnyShortLink(t *testing.T) {
 	}
 }
 
+// TestServiceAdminUpdateReturnsDefaultDomainError verifies admin updates require the default domain.
 func TestServiceAdminUpdateReturnsDefaultDomainError(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -563,6 +608,7 @@ func TestServiceAdminUpdateReturnsDefaultDomainError(t *testing.T) {
 	}
 }
 
+// TestServiceAdminListNormalizesPaginationAndReturnsDatabaseError verifies admin list bounds and failures.
 func TestServiceAdminListNormalizesPaginationAndReturnsDatabaseError(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -585,6 +631,7 @@ func TestServiceAdminListNormalizesPaginationAndReturnsDatabaseError(t *testing.
 	}
 }
 
+// TestServiceAdminListReturnsRowQueryError verifies admin row query failures propagate.
 func TestServiceAdminListReturnsRowQueryError(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -602,6 +649,7 @@ func TestServiceAdminListReturnsRowQueryError(t *testing.T) {
 	}
 }
 
+// TestServiceAdminUpdateRejectsInvalidInputAndReturnsErrors verifies admin update validation.
 func TestServiceAdminUpdateRejectsInvalidInputAndReturnsErrors(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -640,6 +688,7 @@ func TestServiceAdminUpdateRejectsInvalidInputAndReturnsErrors(t *testing.T) {
 	}
 }
 
+// TestServiceAdminDeleteReturnsInputMissingAndDatabaseErrors verifies admin delete failure paths.
 func TestServiceAdminDeleteReturnsInputMissingAndDatabaseErrors(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -666,6 +715,7 @@ func TestServiceAdminDeleteReturnsInputMissingAndDatabaseErrors(t *testing.T) {
 	}
 }
 
+// insertShortLinkDefaultDomain creates the default domain used by short-link fixtures.
 func insertShortLinkDefaultDomain(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	t.Helper()
 	_, err := pool.Exec(ctx, `
@@ -677,6 +727,7 @@ func insertShortLinkDefaultDomain(t *testing.T, ctx context.Context, pool *pgxpo
 	}
 }
 
+// insertShortLinkUser creates a user and returns its authenticated identity.
 func insertShortLinkUser(t *testing.T, ctx context.Context, pool *pgxpool.Pool, username string, groupKey string, permissions []string) auth.CurrentUser {
 	t.Helper()
 	groupID := "00000000-0000-0000-0000-000000000401"
@@ -691,6 +742,7 @@ func insertShortLinkUser(t *testing.T, ctx context.Context, pool *pgxpool.Pool, 
 	return insertShortLinkUserForGroup(t, ctx, pool, username, groupID, "00000000-0000-0000-0000-000000000501", groupKey, permissions)
 }
 
+// insertShortLinkUserForGroup creates a user with explicit group and user identifiers.
 func insertShortLinkUserForGroup(t *testing.T, ctx context.Context, pool *pgxpool.Pool, username string, groupID string, userID string, groupKey string, permissions []string) auth.CurrentUser {
 	t.Helper()
 	_, err := pool.Exec(ctx, `
@@ -710,6 +762,7 @@ func insertShortLinkUserForGroup(t *testing.T, ctx context.Context, pool *pgxpoo
 	}
 }
 
+// insertStoredShortLink persists a fixture link and returns its identifier.
 func insertStoredShortLink(t *testing.T, ctx context.Context, pool *pgxpool.Pool, ownerID string, slug string, targetURL string, status string, deleted bool) string {
 	t.Helper()
 	deletedAt := "null"
@@ -728,10 +781,24 @@ func insertStoredShortLink(t *testing.T, ctx context.Context, pool *pgxpool.Pool
 	return id
 }
 
+// insertStoredShortLinkVisitEvent persists a successful redirect event for a fixture link.
+func insertStoredShortLinkVisitEvent(t *testing.T, ctx context.Context, pool *pgxpool.Pool, linkID string) {
+	t.Helper()
+	_, err := pool.Exec(ctx, `
+		insert into short_link_event (id, short_link_id, event_type, created_at)
+		values (gen_random_uuid(), $1, 'redirect_response_sent', now())
+	`, linkID)
+	if err != nil {
+		t.Fatalf("insert short link visit event: %v", err)
+	}
+}
+
+// ptr returns a pointer to a string literal for optional update fields.
 func ptr(value string) *string {
 	return &value
 }
 
+// permissionsJSON serializes fixture permissions for direct SQL inserts.
 func permissionsJSON(t *testing.T, permissions []string) string {
 	t.Helper()
 	result := "["
@@ -745,6 +812,7 @@ func permissionsJSON(t *testing.T, permissions []string) string {
 	return result
 }
 
+// shortLinkTestPool opens a migrated PostgreSQL pool for service integration tests.
 func shortLinkTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
 	databaseURL := migratedShortLinkDatabaseURL(t, ctx)
@@ -756,6 +824,7 @@ func shortLinkTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	return pool
 }
 
+// migratedShortLinkDatabaseURL starts PostgreSQL and applies all project migrations.
 func migratedShortLinkDatabaseURL(t *testing.T, ctx context.Context) string {
 	t.Helper()
 

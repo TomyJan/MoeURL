@@ -25,10 +25,12 @@ type Handler struct {
 	service Port
 }
 
+// NewHandler creates an HTTP handler backed by the authentication service.
 func NewHandler(service Port) *Handler {
 	return &Handler{service: service}
 }
 
+// Login authenticates credentials and sets the resulting session cookie.
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var input LoginInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -53,6 +55,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]any{"user": result.User})
 }
 
+// Logout revokes the current session when present and clears its cookie.
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie(SessionCookieName); err == nil {
 		_ = h.service.Logout(r.Context(), cookie.Value)
@@ -62,6 +65,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]bool{"loggedOut": true})
 }
 
+// Me returns the current user, falling back to the guest identity.
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	sessionID := ""
 	if cookie, err := r.Cookie(SessionCookieName); err == nil {
@@ -76,6 +80,7 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]any{"user": user})
 }
 
+// sessionCookie builds the secure session cookie for a newly created session.
 func sessionCookie(value string, expiresAt time.Time) *http.Cookie {
 	return &http.Cookie{
 		Name:     SessionCookieName,
@@ -88,6 +93,7 @@ func sessionCookie(value string, expiresAt time.Time) *http.Cookie {
 	}
 }
 
+// clearSessionCookie builds an expired session cookie.
 func clearSessionCookie() *http.Cookie {
 	return &http.Cookie{
 		Name:     SessionCookieName,
@@ -100,6 +106,7 @@ func clearSessionCookie() *http.Cookie {
 	}
 }
 
+// isProduction reports whether the process runs in the production environment.
 func isProduction() bool {
 	return os.Getenv("MOEURL_ENV") == "production"
 }
@@ -111,14 +118,17 @@ type response struct {
 	Meta    any    `json:"meta"`
 }
 
+// ok writes a successful authentication response.
 func ok(w http.ResponseWriter, data any) {
 	writeJSON(w, http.StatusOK, response{Code: 0, Message: "OK", Data: data, Meta: map[string]any{}})
 }
 
+// businessError writes an authentication business failure response.
 func businessError(w http.ResponseWriter, code int, message string) {
 	writeJSON(w, http.StatusOK, response{Code: code, Message: message, Data: nil, Meta: map[string]any{}})
 }
 
+// writeJSON writes an authentication response as JSON.
 func writeJSON(w http.ResponseWriter, status int, body response) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
