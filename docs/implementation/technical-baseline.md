@@ -304,6 +304,8 @@ v0.0.4 在 v0.0.1 最小 schema 之外新增：
 
 - `short_link_event`：保存短链访问事件 ID、短链 ID、事件类型和创建时间。v0.0.4 只持久化用于基础统计的成功响应事件，不保存 IP、User-Agent、Referer 或地区信息。
 
+v0.1.0 在 `short_link_event` 追加 `referrer_host`、`device_type` 和 `country_code`。这些字段只保存已规范化的聚合维度；原始 IP、完整 User-Agent 和完整 Referer 不进入数据库。`country_code` 仅在 `MOEURL_ANALYTICS_COUNTRY_HEADER` 配置后读取，部署者必须确保请求头来自可信反向代理。
+
 ### 短码规则
 
 - v0.0.1 默认生成 6 位随机短码。
