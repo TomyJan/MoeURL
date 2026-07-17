@@ -22,6 +22,7 @@ type CreateShortLinkEventParams struct {
 	EventType   string      `json:"event_type"`
 }
 
+// CreateShortLinkEvent inserts a persisted short-link access event.
 func (q *Queries) CreateShortLinkEvent(ctx context.Context, arg CreateShortLinkEventParams) error {
 	_, err := q.db.Exec(ctx, createShortLinkEvent, arg.ID, arg.ShortLinkID, arg.EventType)
 	return err

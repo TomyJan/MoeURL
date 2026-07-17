@@ -127,6 +127,7 @@ func TestRedirectServiceDoesNotRecordSuccessfulResponseEvent(t *testing.T) {
 	}
 }
 
+// TestRedirectServiceReturnsDatabaseError verifies resolution returns query failures.
 func TestRedirectServiceReturnsDatabaseError(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -144,12 +145,14 @@ type recordingRecorder struct {
 	ids   []string
 }
 
+// Record captures redirect events for service assertions.
 func (r *recordingRecorder) Record(_ context.Context, item event.Event) error {
 	r.types = append(r.types, item.Type)
 	r.ids = append(r.ids, item.ShortLinkID)
 	return nil
 }
 
+// assertEvents verifies an ordered redirect event sequence.
 func assertEvents(t *testing.T, actual []string, expected []string) {
 	t.Helper()
 	if len(actual) != len(expected) {
