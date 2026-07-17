@@ -21,9 +21,16 @@ const state = vi.hoisted(() => ({
   queryResult: {},
   queryKeys: [] as unknown[],
   queryFns: [] as Array<() => unknown>,
+  chartConfigurations: [] as unknown[],
   mutationResult: {},
   routeQuery: {} as Record<string, unknown>,
   routerPush: vi.fn(),
+  theme: {} as {
+    global: {
+      current: { value: { colors: { primary: string } } }
+      name: { value: string }
+    }
+  },
   queryClient: {
     invalidateQueries: vi.fn(),
     setQueryData: vi.fn(),
@@ -48,11 +55,7 @@ vi.mock('vue-router', () => ({
 }))
 
 vi.mock('vuetify', () => ({
-  useTheme: () => ({
-    global: {
-      name: ref('moeurlLight'),
-    },
-  }),
+  useTheme: () => state.theme,
 }))
 
 vi.mock('@/app/query', () => ({
@@ -80,6 +83,9 @@ vi.mock('chart.js', () => {
   class Chart {
     static register = vi.fn()
     destroy = vi.fn()
+    constructor(_canvas: unknown, configuration?: unknown) {
+      state.chartConfigurations.push(configuration)
+    }
   }
   return {
     CategoryScale: class {},
@@ -141,13 +147,11 @@ vi.mock('@tanstack/vue-query', () => ({
     if (isRef(options?.queryKey)) {
       void options.queryKey.value
     }
-    if (isRef(options?.enabled)) {
-      void options.enabled.value
-    }
-    if (options?.queryFn) {
+    const enabled = isRef(options?.enabled) ? options.enabled.value : options?.enabled
+    if (enabled !== false && options?.queryFn) {
       state.queryFns.push(options.queryFn)
+      void options.queryFn()
     }
-    options?.queryFn?.()
     return state.queryResult
   }),
   useQueryClient: () => state.queryClient,
@@ -199,6 +203,7 @@ describe('pages', () => {
     setMutationResult()
     state.queryKeys = []
     state.queryFns = []
+    state.chartConfigurations = []
     state.routeQuery = {}
     state.routerPush.mockReset()
     state.queryClient.invalidateQueries.mockReset()
@@ -206,6 +211,13 @@ describe('pages', () => {
     vi.mocked(getAdminShortLinkStatistics).mockReset()
     vi.mocked(getShortLinkStatistics).mockReset()
     vi.mocked(me).mockReset()
+    vi.mocked(me).mockResolvedValue({ user: { permissions: [] } } as never)
+    state.theme = {
+      global: {
+        current: ref({ colors: { primary: '#315f8c' } }),
+        name: ref('moeurlLight'),
+      },
+    }
     Object.defineProperty(window.navigator, 'clipboard', {
       configurable: true,
       value: { writeText: vi.fn() },
@@ -273,6 +285,20 @@ describe('pages', () => {
     expect(screen.getByText('search.example')).toBeTruthy()
     expect(screen.getByText('analytics.unknown')).toBeTruthy()
     expect(state.queryFns).toHaveLength(1)
+    expect(state.chartConfigurations).toContainEqual(expect.objectContaining({
+      data: expect.objectContaining({
+        datasets: [expect.objectContaining({ borderColor: '#315f8c', backgroundColor: '#315f8c' })],
+      }),
+    }))
+
+    state.theme.global.current.value = { colors: { primary: '#8ab8e8' } }
+    await nextTick()
+    await nextTick()
+    expect(state.chartConfigurations).toContainEqual(expect.objectContaining({
+      data: expect.objectContaining({
+        datasets: [expect.objectContaining({ borderColor: '#8ab8e8', backgroundColor: '#8ab8e8' })],
+      }),
+    }))
 
     analytics.value.stats.lastVisitedAt = null as never
     await nextTick()
@@ -298,6 +324,8 @@ describe('pages', () => {
   it('renders selected-link, loading, and error analytics states', () => {
     mount(AnalyticsPage)
     expect(screen.getByText('analytics.selectLink')).toBeTruthy()
+    expect(state.queryFns).toHaveLength(0)
+    expect(me).not.toHaveBeenCalled()
 
     state.routeQuery = { shortLinkId: 'link-id' }
     setQueryResult({ isPending: ref(true) })

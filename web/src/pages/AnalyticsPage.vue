@@ -49,6 +49,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 import { Chart, LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, type ChartConfiguration } from 'chart.js'
+import { useTheme } from 'vuetify'
 
 import { me } from '@/entities/auth/api'
 import { getAdminShortLinkStatistics, getShortLinkStatistics } from '@/entities/short-link/api'
@@ -58,6 +59,7 @@ Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryS
 
 const { t } = useI18n()
 const route = useRoute()
+const theme = useTheme()
 const trendCanvas = ref<globalThis.HTMLCanvasElement>()
 const shortLinkId = computed(() => typeof route.query.shortLinkId === 'string' ? route.query.shortLinkId : '')
 const query = useQuery({
@@ -90,7 +92,7 @@ const dimensions = computed(() => {
 })
 let chart: Chart | undefined
 
-watch(statistics, async (value) => {
+watch([statistics, () => theme.global.current.value.colors.primary], async ([value, primary]: [ShortLinkStatisticsResponse | undefined, string]) => {
   chart?.destroy()
   chart = undefined
   if (!value) return
@@ -100,7 +102,7 @@ watch(statistics, async (value) => {
     type: 'line',
     data: {
       labels: value.stats.trend.map((point) => point.date),
-      datasets: [{ data: value.stats.trend.map((point) => point.visitCount), borderColor: '#437c8c', backgroundColor: '#437c8c', tension: 0.25 }],
+      datasets: [{ data: value.stats.trend.map((point) => point.visitCount), borderColor: primary, backgroundColor: primary, tension: 0.25 }],
     },
     options: { plugins: { legend: { display: false } }, responsive: true, maintainAspectRatio: false },
   }
