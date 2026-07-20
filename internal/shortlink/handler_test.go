@@ -200,6 +200,64 @@ func TestHandlerListShortLinksReturnsItemsAndMeta(t *testing.T) {
 	}
 }
 
+// TestHandlerStatisticsReturnsAnalyticsAndForwardsID verifies the owner statistics endpoint.
+func TestHandlerStatisticsReturnsAnalyticsAndForwardsID(t *testing.T) {
+	service := &fakeShortLinkService{statisticsResult: shortlink.StatisticsResult{
+		ShortLink: shortlink.ShortLink{ID: "link-id", Slug: "abc123"},
+		Stats:     shortlink.AnalyticsStats{VisitCount: 2, Trend: []shortlink.AnalyticsTrendPoint{{Date: "2026-07-17", VisitCount: 2}}},
+	}}
+	router := apphttp.NewRouter(apphttp.Dependencies{CurrentUser: &fakeCurrentUserResolver{}, ShortLink: service})
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/short-link/statistics?id=link-id", nil))
+
+	if response.Code != http.StatusOK || service.statisticsInput.ID != "link-id" {
+		t.Fatalf("unexpected response %d or input %#v", response.Code, service.statisticsInput)
+	}
+	var body struct {
+		Code int                        `json:"code"`
+		Data shortlink.StatisticsResult `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil || body.Code != 0 || body.Data.Stats.VisitCount != 2 {
+		t.Fatalf("unexpected statistics body %#v, %v", body, err)
+	}
+}
+
+// TestHandlerAdminStatisticsReturnsAnalyticsAndForwardsID verifies the administrator statistics endpoint.
+func TestHandlerAdminStatisticsReturnsAnalyticsAndForwardsID(t *testing.T) {
+	service := &fakeShortLinkService{statisticsResult: shortlink.StatisticsResult{Stats: shortlink.AnalyticsStats{VisitCount: 3}}}
+	router := apphttp.NewRouter(apphttp.Dependencies{CurrentUser: &fakeCurrentUserResolver{}, ShortLink: service})
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/admin/short-link/statistics?id=link-id", nil))
+
+	if response.Code != http.StatusOK || service.statisticsInput.ID != "link-id" {
+		t.Fatalf("unexpected response %d or input %#v", response.Code, service.statisticsInput)
+	}
+}
+
+// TestHandlerStatisticsMapsErrors verifies both statistics endpoints preserve response conventions.
+func TestHandlerStatisticsMapsErrors(t *testing.T) {
+	tests := []struct {
+		path   string
+		err    error
+		status int
+		code   int
+	}{
+		{path: "/api/v1/short-link/statistics?id=bad", err: shortlink.ErrInvalidShortLinkID, status: http.StatusOK, code: 100001},
+		{path: "/api/v1/admin/short-link/statistics?id=missing", err: shortlink.ErrShortLinkMissing, status: http.StatusOK, code: 200104},
+		{path: "/api/v1/short-link/statistics?id=link-id", err: errors.New("database down"), status: http.StatusInternalServerError, code: 900000},
+	}
+	for _, test := range tests {
+		t.Run(test.path, func(t *testing.T) {
+			router := apphttp.NewRouter(apphttp.Dependencies{CurrentUser: &fakeCurrentUserResolver{}, ShortLink: &fakeShortLinkService{err: test.err}})
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.path, nil))
+			assertBusinessCode(t, response, test.status, test.code)
+		})
+	}
+}
+
 // TestHandlerListShortLinksUsesDefaultPaginationForInvalidQuery verifies invalid pagination defaults.
 func TestHandlerListShortLinksUsesDefaultPaginationForInvalidQuery(t *testing.T) {
 	service := &fakeShortLinkService{}
@@ -569,12 +627,14 @@ func TestHandlerAdminUpdateAndDeleteShortLinks(t *testing.T) {
 }
 
 type fakeShortLinkService struct {
-	result          shortlink.CreateResult
-	listResult      shortlink.ListResult
-	listInput       shortlink.ListInput
-	adminListResult shortlink.AdminListResult
-	adminListInput  shortlink.ListInput
-	err             error
+	result           shortlink.CreateResult
+	listResult       shortlink.ListResult
+	listInput        shortlink.ListInput
+	adminListResult  shortlink.AdminListResult
+	adminListInput   shortlink.ListInput
+	statisticsResult shortlink.StatisticsResult
+	statisticsInput  shortlink.StatisticsInput
+	err              error
 }
 
 // Create returns the configured create result for handler tests.
@@ -598,10 +658,22 @@ func (f *fakeShortLinkService) Delete(context.Context, auth.CurrentUser, shortli
 	return f.err
 }
 
+// Statistics records analytics input and returns the configured result.
+func (f *fakeShortLinkService) Statistics(_ context.Context, _ auth.CurrentUser, input shortlink.StatisticsInput) (shortlink.StatisticsResult, error) {
+	f.statisticsInput = input
+	return f.statisticsResult, f.err
+}
+
 // AdminList records administrator list input and returns the configured result.
 func (f *fakeShortLinkService) AdminList(_ context.Context, _ auth.CurrentUser, input shortlink.ListInput) (shortlink.AdminListResult, error) {
 	f.adminListInput = input
 	return f.adminListResult, f.err
+}
+
+// AdminStatistics records administrator analytics input and returns the configured result.
+func (f *fakeShortLinkService) AdminStatistics(_ context.Context, _ auth.CurrentUser, input shortlink.StatisticsInput) (shortlink.StatisticsResult, error) {
+	f.statisticsInput = input
+	return f.statisticsResult, f.err
 }
 
 // AdminUpdate returns the configured administrator update result.

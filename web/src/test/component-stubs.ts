@@ -13,9 +13,13 @@ export const componentStubs: Record<string, Component> = {
     template: '<button v-bind="$attrs" :disabled="disabled || loading" :data-href="href" :data-to="to" @click="$emit(\'click\')"><slot /></button>',
   },
   VCard: { template: '<section><slot /></section>' },
+  VCardTitle: { template: '<h2><slot /></h2>' },
   VCardText: { template: '<div><slot /></div>' },
   VContainer: { template: '<main><slot /></main>' },
   VMain: { template: '<div><slot /></div>' },
+  VList: { template: '<ul><slot /></ul>' },
+  VListItem: { template: '<li><slot /><slot name="append" /></li>' },
+  VListItemTitle: { template: '<span><slot /></span>' },
   VProgressLinear: { template: '<div role="progressbar" />' },
   VSelect: {
     props: ['items', 'label', 'modelValue'],

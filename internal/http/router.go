@@ -16,14 +16,15 @@ import (
 )
 
 type Dependencies struct {
-	System           system.ServicePort
-	Auth             auth.Port
-	CurrentUser      auth.CurrentUserResolver
-	ShortLink        shortlink.Port
-	Redirect         shortlink.RedirectPort
-	RedirectRecorder event.Recorder
-	User             user.Port
-	StaticDir        string
+	System                 system.ServicePort
+	Auth                   auth.Port
+	CurrentUser            auth.CurrentUserResolver
+	ShortLink              shortlink.Port
+	Redirect               shortlink.RedirectPort
+	RedirectRecorder       event.Recorder
+	AnalyticsCountryHeader string
+	User                   user.Port
+	StaticDir              string
 }
 
 // NewRouter registers API, static-file, and short-link redirect routes.
@@ -59,9 +60,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			shortLinkHandler := shortlink.NewHandler(dependency.ShortLink)
 			api.Post("/short-link/create", shortLinkHandler.Create)
 			api.Get("/short-link/list", shortLinkHandler.List)
+			api.Get("/short-link/statistics", shortLinkHandler.Statistics)
 			api.Post("/short-link/update", shortLinkHandler.Update)
 			api.Post("/short-link/delete", shortLinkHandler.Delete)
 			api.Get("/admin/short-link/list", shortLinkHandler.AdminList)
+			api.Get("/admin/short-link/statistics", shortLinkHandler.AdminStatistics)
 			api.Post("/admin/short-link/update", shortLinkHandler.AdminUpdate)
 			api.Post("/admin/short-link/delete", shortLinkHandler.AdminDelete)
 		}
@@ -82,7 +85,7 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 		registerStaticRoutes(router, dependency.StaticDir)
 	}
 	if dependency.Redirect != nil {
-		redirectHandler := shortlink.NewRedirectHandler(dependency.Redirect, dependency.RedirectRecorder)
+		redirectHandler := shortlink.NewRedirectHandlerWithAnalytics(dependency.Redirect, dependency.RedirectRecorder, dependency.AnalyticsCountryHeader)
 		router.Get("/{slug}", func(w nethttp.ResponseWriter, r *nethttp.Request) {
 			redirectHandler.Open(w, r, chi.URLParam(r, "slug"))
 		})

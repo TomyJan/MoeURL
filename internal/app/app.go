@@ -43,6 +43,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		recorder := event.NewRecorder(pool, logger)
 		deps.Redirect = shortlink.NewRedirectService(pool, recorder)
 		deps.RedirectRecorder = recorder
+		deps.AnalyticsCountryHeader = cfg.AnalyticsCountryHeader
 		deps.User = user.NewService(pool, permission.NewService())
 	}
 	deps.StaticDir = cfg.StaticDir

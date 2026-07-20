@@ -1,6 +1,6 @@
 import { apiGet, apiPost } from '@/shared/api/client'
 
-import type { AdminShortLink, CreateShortLinkInput, ShortLink, UpdateShortLinkInput } from './model'
+import type { AdminShortLink, CreateShortLinkInput, ShortLink, ShortLinkStatisticsResponse, UpdateShortLinkInput } from './model'
 
 export interface ShortLinkResponse {
   shortLink: ShortLink
@@ -64,6 +64,11 @@ export async function deleteShortLink(id: string): Promise<void> {
   await apiPost('/short-link/delete', { id })
 }
 
+export async function getShortLinkStatistics(id: string): Promise<ShortLinkStatisticsResponse> {
+	const response = await apiGet<ShortLinkStatisticsResponse>(`/short-link/statistics?id=${encodeURIComponent(id)}`)
+	return response.data
+}
+
 export async function listAdminShortLinks(input: AdminShortLinkListInput = {}): Promise<{
   items: AdminShortLink[]
   meta: ShortLinkListResponse['meta']
@@ -94,6 +99,11 @@ export async function updateAdminShortLink(input: UpdateShortLinkInput): Promise
 
 export async function deleteAdminShortLink(id: string): Promise<void> {
   await apiPost('/admin/short-link/delete', { id })
+}
+
+export async function getAdminShortLinkStatistics(id: string): Promise<ShortLinkStatisticsResponse> {
+	const response = await apiGet<ShortLinkStatisticsResponse>(`/admin/short-link/statistics?id=${encodeURIComponent(id)}`)
+	return response.data
 }
 
 function normalizeListMeta(meta: Record<string, unknown>, page: number, pageSize: number): ShortLinkListResponse['meta'] {

@@ -99,6 +99,42 @@ func (q *Queries) CreateShortLink(ctx context.Context, arg CreateShortLinkParams
 	return i, err
 }
 
+const getShortLinkAnalyticsLink = `-- name: GetShortLinkAnalyticsLink :one
+select short_link.id,
+    short_link.owner_id,
+    short_link.slug,
+    short_link.target_url,
+    short_link.status,
+    domain.host as domain_host
+from short_link
+join domain on domain.id = short_link.domain_id
+where short_link.id = $1 and short_link.deleted_at is null
+`
+
+type GetShortLinkAnalyticsLinkRow struct {
+	ID         pgtype.UUID `json:"id"`
+	OwnerID    pgtype.UUID `json:"owner_id"`
+	Slug       string      `json:"slug"`
+	TargetUrl  string      `json:"target_url"`
+	Status     string      `json:"status"`
+	DomainHost string      `json:"domain_host"`
+}
+
+// GetShortLinkAnalyticsLink returns the non-deleted link needed for analytics authorization and display.
+func (q *Queries) GetShortLinkAnalyticsLink(ctx context.Context, id pgtype.UUID) (GetShortLinkAnalyticsLinkRow, error) {
+	row := q.db.QueryRow(ctx, getShortLinkAnalyticsLink, id)
+	var i GetShortLinkAnalyticsLinkRow
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.Slug,
+		&i.TargetUrl,
+		&i.Status,
+		&i.DomainHost,
+	)
+	return i, err
+}
+
 const getShortLinkBySlug = `-- name: GetShortLinkBySlug :one
 select id, owner_id, domain_id, slug, target_url, status, created_at, updated_at, deleted_at
 from short_link

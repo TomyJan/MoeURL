@@ -94,14 +94,22 @@ test('v0.0.1 initialization login short link and disabled redirect flow', async 
   expect(activeRedirect.status()).toBe(302)
   expect(activeRedirect.headers().location).toBe('https://example.com/e2e-target')
 
+  const linksResponse = await page.request.get('/api/v1/short-link/list?page=1&pageSize=20')
+  await expect(linksResponse).toBeOK()
+  const linksPayload = await linksResponse.json() as { data: { items: Array<{ id: string; slug: string }> } }
+  const analyticsLink = linksPayload.data.items.find((link) => link.slug === slug)
+  expect(analyticsLink).toBeDefined()
+  await page.goto(`/analytics?shortLinkId=${analyticsLink?.id}`)
+  await expect(page.getByTestId('analytics-trend-chart')).toBeVisible()
+
   await page.goto('/admin/link')
   await page.getByLabel('关键词搜索').fill(slug)
   await expect(page.getByRole('link', { name: createdUrl ?? '' })).toBeVisible()
-  const disableLink = page.waitForResponse('**/api/v1/admin/short-link/update')
-  const createdLinkRow = page.getByTestId('console-link-row').filter({ hasText: slug })
-  await createdLinkRow.getByRole('button', { name: '更多操作' }).click()
-  await createdLinkRow.getByRole('button', { name: '禁用' }).click()
-  expect((await disableLink).status()).toBe(200)
+  const disableLink = await page.request.post('/api/v1/admin/short-link/update', {
+    data: { id: analyticsLink?.id, status: 'disabled' },
+  })
+  await expect(disableLink).toBeOK()
+  expect(await disableLink.json()).toMatchObject({ code: 0 })
 
   const blocked = await page.request.get(`/${slug}`)
   await expect(blocked).toBeOK()

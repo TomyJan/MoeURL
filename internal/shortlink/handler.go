@@ -23,7 +23,9 @@ type Port interface {
 	List(ctx context.Context, user auth.CurrentUser, input ListInput) (ListResult, error)
 	Update(ctx context.Context, user auth.CurrentUser, input UpdateInput) (CreateResult, error)
 	Delete(ctx context.Context, user auth.CurrentUser, input DeleteInput) error
+	Statistics(ctx context.Context, user auth.CurrentUser, input StatisticsInput) (StatisticsResult, error)
 	AdminList(ctx context.Context, user auth.CurrentUser, input ListInput) (AdminListResult, error)
+	AdminStatistics(ctx context.Context, user auth.CurrentUser, input StatisticsInput) (StatisticsResult, error)
 	AdminUpdate(ctx context.Context, user auth.CurrentUser, input UpdateInput) (CreateResult, error)
 	AdminDelete(ctx context.Context, user auth.CurrentUser, input DeleteInput) error
 }
@@ -123,6 +125,16 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]bool{"deleted": true})
 }
 
+// Statistics returns analytics for a short link owned by the current user.
+func (h *Handler) Statistics(w http.ResponseWriter, r *http.Request) {
+	result, err := h.service.Statistics(r.Context(), auth.UserFromContext(r.Context()), StatisticsInput{ID: r.URL.Query().Get("id")})
+	if err != nil {
+		writeBusinessOrSystemError(w, err)
+		return
+	}
+	ok(w, result)
+}
+
 // AdminList returns short links available to an administrator.
 func (h *Handler) AdminList(w http.ResponseWriter, r *http.Request) {
 	result, err := h.service.AdminList(r.Context(), auth.UserFromContext(r.Context()), ListInput{
@@ -146,6 +158,16 @@ func (h *Handler) AdminList(w http.ResponseWriter, r *http.Request) {
 			"total":    result.Total,
 		},
 	})
+}
+
+// AdminStatistics returns analytics for a short link visible to an administrator.
+func (h *Handler) AdminStatistics(w http.ResponseWriter, r *http.Request) {
+	result, err := h.service.AdminStatistics(r.Context(), auth.UserFromContext(r.Context()), StatisticsInput{ID: r.URL.Query().Get("id")})
+	if err != nil {
+		writeBusinessOrSystemError(w, err)
+		return
+	}
+	ok(w, result)
 }
 
 // AdminUpdate applies administrator changes to a short link.
@@ -186,6 +208,8 @@ func writeBusinessOrSystemError(w http.ResponseWriter, err error) {
 	case errors.Is(err, ErrInvalidTargetURL):
 		businessError(w, CodeInvalidTargetURL, "Invalid target URL")
 	case errors.Is(err, ErrInvalidStatus):
+		businessError(w, 100001, "Invalid request")
+	case errors.Is(err, ErrInvalidShortLinkID):
 		businessError(w, 100001, "Invalid request")
 	case errors.Is(err, ErrShortLinkMissing):
 		businessError(w, CodeShortLinkMissing, "Short link not found")

@@ -16,8 +16,9 @@ type RedirectPort interface {
 
 // RedirectHandler handles public short link redirect requests.
 type RedirectHandler struct {
-	service  RedirectPort
-	recorder event.Recorder
+	service       RedirectPort
+	recorder      event.Recorder
+	countryHeader string
 }
 
 // NewRedirectHandler creates a redirect handler.
@@ -27,6 +28,13 @@ func NewRedirectHandler(service RedirectPort, recorders ...event.Recorder) *Redi
 		recorder = recorders[0]
 	}
 	return &RedirectHandler{service: service, recorder: recorder}
+}
+
+// NewRedirectHandlerWithAnalytics creates a redirect handler configured for anonymous analytics dimensions.
+func NewRedirectHandlerWithAnalytics(service RedirectPort, recorder event.Recorder, countryHeader string) *RedirectHandler {
+	handler := NewRedirectHandler(service, recorder)
+	handler.countryHeader = countryHeader
+	return handler
 }
 
 // Open writes the redirect response for a slug.
@@ -49,6 +57,7 @@ func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug stri
 	w.WriteHeader(http.StatusFound)
 	_, writeErr := w.Write([]byte(`<a href="` + html.EscapeString(result.TargetURL) + `">Found</a>.` + "\n\n"))
 	if writeErr == nil {
-		_ = h.recorder.Record(r.Context(), event.Event{Type: event.RedirectResponseSent, Slug: slug, ShortLinkID: result.ShortLinkID})
+		referrerHost, deviceType, countryCode := analyticsEventFields(r, h.countryHeader)
+		_ = h.recorder.Record(r.Context(), event.Event{Type: event.RedirectResponseSent, Slug: slug, ShortLinkID: result.ShortLinkID, ReferrerHost: referrerHost, DeviceType: deviceType, CountryCode: countryCode})
 	}
 }

@@ -4,6 +4,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { me } from '@/entities/auth/api'
 import AdminLinksPage from '@/pages/AdminLinksPage.vue'
 import AdminUsersPage from '@/pages/AdminUsersPage.vue'
+import AnalyticsPage from '@/pages/AnalyticsPage.vue'
 import ConsolePlaceholderPage from '@/pages/ConsolePlaceholderPage.vue'
 import CreateUserPage from '@/pages/CreateUserPage.vue'
 import HomePage from '@/pages/HomePage.vue'
@@ -75,8 +76,7 @@ export const routes: RouteRecordRaw[] = [
       { path: '/link', component: MyLinksPage, meta: { requiresConsole: true }, beforeEnter: requireConsoleAccess },
       {
         path: '/analytics',
-        component: ConsolePlaceholderPage,
-        props: { kind: 'analytics' },
+        component: AnalyticsPage,
         meta: { requiresConsole: true },
         beforeEnter: requireConsoleAccess,
       },

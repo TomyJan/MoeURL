@@ -8,6 +8,17 @@ select id, owner_id, domain_id, slug, target_url, status, created_at, updated_at
 from short_link
 where slug = $1 and deleted_at is null;
 
+-- name: GetShortLinkAnalyticsLink :one
+select short_link.id,
+    short_link.owner_id,
+    short_link.slug,
+    short_link.target_url,
+    short_link.status,
+    domain.host as domain_host
+from short_link
+join domain on domain.id = short_link.domain_id
+where short_link.id = $1 and short_link.deleted_at is null;
+
 -- name: ListShortLinksByOwner :many
 select short_link.id,
     short_link.owner_id,

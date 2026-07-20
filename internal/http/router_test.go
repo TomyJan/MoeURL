@@ -213,8 +213,16 @@ func (routerShortLinkService) Delete(context.Context, auth.CurrentUser, shortlin
 	return nil
 }
 
+func (routerShortLinkService) Statistics(context.Context, auth.CurrentUser, shortlink.StatisticsInput) (shortlink.StatisticsResult, error) {
+	return shortlink.StatisticsResult{}, nil
+}
+
 func (routerShortLinkService) AdminList(context.Context, auth.CurrentUser, shortlink.ListInput) (shortlink.AdminListResult, error) {
 	return shortlink.AdminListResult{}, nil
+}
+
+func (routerShortLinkService) AdminStatistics(context.Context, auth.CurrentUser, shortlink.StatisticsInput) (shortlink.StatisticsResult, error) {
+	return shortlink.StatisticsResult{}, nil
 }
 
 func (routerShortLinkService) AdminUpdate(context.Context, auth.CurrentUser, shortlink.UpdateInput) (shortlink.CreateResult, error) {

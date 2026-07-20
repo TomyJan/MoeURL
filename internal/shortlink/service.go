@@ -221,6 +221,41 @@ func (s *Service) Delete(ctx context.Context, user auth.CurrentUser, input Delet
 	return nil
 }
 
+// Statistics returns analytics for a short link owned by the current user.
+func (s *Service) Statistics(ctx context.Context, user auth.CurrentUser, input StatisticsInput) (StatisticsResult, error) {
+	if !s.permissions.Has(user.GroupKey, permission.ShortLinkReadOwn) {
+		return StatisticsResult{}, ErrPermissionDenied
+	}
+	linkID, ownerID, err := parseLinkAndOwnerIDs(input.ID, user.ID)
+	if err != nil {
+		return StatisticsResult{}, ErrInvalidShortLinkID
+	}
+	link, err := s.analyticsLink(ctx, linkID)
+	if err != nil {
+		return StatisticsResult{}, err
+	}
+	if link.ownerID != ownerID {
+		return StatisticsResult{}, ErrShortLinkMissing
+	}
+	return s.analytics(ctx, linkID, link.shortLink)
+}
+
+// AdminStatistics returns analytics for a short link visible to an administrator.
+func (s *Service) AdminStatistics(ctx context.Context, user auth.CurrentUser, input StatisticsInput) (StatisticsResult, error) {
+	if !s.hasAdminPermission(user, permission.ShortLinkReadAll) {
+		return StatisticsResult{}, ErrPermissionDenied
+	}
+	linkID, err := uuid.Parse(input.ID)
+	if err != nil {
+		return StatisticsResult{}, ErrInvalidShortLinkID
+	}
+	link, err := s.analyticsLink(ctx, linkID)
+	if err != nil {
+		return StatisticsResult{}, err
+	}
+	return s.analytics(ctx, linkID, link.shortLink)
+}
+
 // AdminList returns a paginated, filterable view of all short links.
 func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input ListInput) (AdminListResult, error) {
 	if !s.hasAdminPermission(user, permission.ShortLinkReadAll) {
@@ -336,6 +371,118 @@ func (s *Service) AdminDelete(ctx context.Context, user auth.CurrentUser, input 
 		return ErrShortLinkMissing
 	}
 	return nil
+}
+
+type analyticsLinkResult struct {
+	ownerID   uuid.UUID
+	shortLink ShortLink
+}
+
+type analyticsQueries interface {
+	GetShortLinkAnalyticsSummary(context.Context, pgtype.UUID) (sqlc.GetShortLinkAnalyticsSummaryRow, error)
+	ListShortLinkDailyVisits(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkDailyVisitsRow, error)
+	ListShortLinkReferrerStats(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkReferrerStatsRow, error)
+	ListShortLinkDeviceStats(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkDeviceStatsRow, error)
+	ListShortLinkCountryStats(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkCountryStatsRow, error)
+}
+
+// analyticsLink returns a non-deleted link formatted for analytics responses.
+func (s *Service) analyticsLink(ctx context.Context, linkID uuid.UUID) (analyticsLinkResult, error) {
+	row, err := s.queries.GetShortLinkAnalyticsLink(ctx, uuidToPgtype(linkID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return analyticsLinkResult{}, ErrShortLinkMissing
+	}
+	if err != nil {
+		return analyticsLinkResult{}, err
+	}
+	return analyticsLinkResult{
+		ownerID: uuid.UUID(row.OwnerID.Bytes),
+		shortLink: ShortLink{
+			ID:        uuidFromPgtype(row.ID),
+			URL:       buildShortLinkURL(row.DomainHost, row.Slug),
+			Slug:      row.Slug,
+			TargetURL: row.TargetUrl,
+			Status:    row.Status,
+		},
+	}, nil
+}
+
+// analytics assembles summary, trend, and dimension aggregates for one visible link.
+func (s *Service) analytics(ctx context.Context, linkID uuid.UUID, shortLink ShortLink) (StatisticsResult, error) {
+	return analyticsWithQueries(ctx, s.queries, linkID, shortLink)
+}
+
+// analyticsWithQueries assembles analytics using the supplied aggregate query reader.
+func analyticsWithQueries(ctx context.Context, queries analyticsQueries, linkID uuid.UUID, shortLink ShortLink) (StatisticsResult, error) {
+	pgLinkID := uuidToPgtype(linkID)
+	summary, err := queries.GetShortLinkAnalyticsSummary(ctx, pgLinkID)
+	if err != nil {
+		return StatisticsResult{}, err
+	}
+	trend, err := queries.ListShortLinkDailyVisits(ctx, pgLinkID)
+	if err != nil {
+		return StatisticsResult{}, err
+	}
+	referrers, err := queries.ListShortLinkReferrerStats(ctx, pgLinkID)
+	if err != nil {
+		return StatisticsResult{}, err
+	}
+	devices, err := queries.ListShortLinkDeviceStats(ctx, pgLinkID)
+	if err != nil {
+		return StatisticsResult{}, err
+	}
+	countries, err := queries.ListShortLinkCountryStats(ctx, pgLinkID)
+	if err != nil {
+		return StatisticsResult{}, err
+	}
+	stats := AnalyticsStats{
+		VisitCount:      summary.VisitCount,
+		TodayVisitCount: summary.TodayVisitCount,
+		Trend:           trendFromRows(trend),
+		Referrers:       referrerDimensions(referrers),
+		Devices:         deviceDimensions(devices),
+		Countries:       countryDimensions(countries),
+	}
+	if summary.LastVisitedAt.Valid {
+		stats.LastVisitedAt = &summary.LastVisitedAt.Time
+	}
+	return StatisticsResult{ShortLink: shortLink, Stats: stats}, nil
+}
+
+// trendFromRows maps generated day aggregates to the API response.
+func trendFromRows(rows []sqlc.ListShortLinkDailyVisitsRow) []AnalyticsTrendPoint {
+	items := make([]AnalyticsTrendPoint, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, AnalyticsTrendPoint{Date: row.Day.Time.Format("2006-01-02"), VisitCount: row.VisitCount})
+	}
+	return items
+}
+
+// referrerDimensions maps referrer aggregation rows to API dimensions.
+func referrerDimensions(rows []sqlc.ListShortLinkReferrerStatsRow) []AnalyticsDimension {
+	items := make([]AnalyticsDimension, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, AnalyticsDimension{Value: row.Value, VisitCount: row.VisitCount})
+	}
+	return items
+}
+
+// deviceDimensions maps device aggregation rows to API dimensions.
+func deviceDimensions(rows []sqlc.ListShortLinkDeviceStatsRow) []AnalyticsDimension {
+	items := make([]AnalyticsDimension, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, AnalyticsDimension{Value: row.Value, VisitCount: row.VisitCount})
+	}
+	return items
+}
+
+// countryDimensions maps country aggregation rows to API dimensions.
+func countryDimensions(rows []sqlc.ListShortLinkCountryStatsRow) []AnalyticsDimension {
+	items := make([]AnalyticsDimension, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, AnalyticsDimension{Value: row.Value, VisitCount: row.VisitCount})
+	}
+	return items
 }
 
 // hasAdminPermission checks both administrative access and the requested permission.

@@ -1,10 +1,11 @@
 import { fireEvent, render, screen, within } from '@testing-library/vue'
 import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { isRef, ref } from 'vue'
+import { isRef, nextTick, ref } from 'vue'
 
 import AdminLinksPage from './AdminLinksPage.vue'
 import AdminUsersPage from './AdminUsersPage.vue'
+import AnalyticsPage from './AnalyticsPage.vue'
 import ConsolePlaceholderPage from './ConsolePlaceholderPage.vue'
 import CreateUserPage from './CreateUserPage.vue'
 import HomePage from './HomePage.vue'
@@ -13,15 +14,23 @@ import MyLinksPage from './MyLinksPage.vue'
 import NotFoundPage from './NotFoundPage.vue'
 import SetupPage from './SetupPage.vue'
 import { componentStubs } from '@/test/component-stubs'
-import { listAdminShortLinks, listShortLinks } from '@/entities/short-link/api'
+import { me } from '@/entities/auth/api'
+import { getAdminShortLinkStatistics, getShortLinkStatistics, listAdminShortLinks, listShortLinks } from '@/entities/short-link/api'
 
 const state = vi.hoisted(() => ({
   queryResult: {},
   queryKeys: [] as unknown[],
   queryFns: [] as Array<() => unknown>,
+  chartConfigurations: [] as unknown[],
   mutationResult: {},
   routeQuery: {} as Record<string, unknown>,
   routerPush: vi.fn(),
+  theme: {} as {
+    global: {
+      current: { value: { colors: { primary: string } } }
+      name: { value: string }
+    }
+  },
   queryClient: {
     invalidateQueries: vi.fn(),
     setQueryData: vi.fn(),
@@ -46,11 +55,7 @@ vi.mock('vue-router', () => ({
 }))
 
 vi.mock('vuetify', () => ({
-  useTheme: () => ({
-    global: {
-      name: ref('moeurlLight'),
-    },
-  }),
+  useTheme: () => state.theme,
 }))
 
 vi.mock('@/app/query', () => ({
@@ -70,7 +75,28 @@ vi.mock('@/entities/short-link/api', () => ({
   updateAdminShortLink: vi.fn(),
   updateShortLink: vi.fn(),
   createShortLink: vi.fn(),
+  getAdminShortLinkStatistics: vi.fn(),
+  getShortLinkStatistics: vi.fn(),
 }))
+
+vi.mock('chart.js', () => {
+  class Chart {
+    static register = vi.fn()
+    destroy = vi.fn()
+    constructor(_canvas: unknown, configuration?: unknown) {
+      state.chartConfigurations.push(configuration)
+    }
+  }
+  return {
+    CategoryScale: class {},
+    Chart,
+    LineController: class {},
+    LineElement: class {},
+    LinearScale: class {},
+    PointElement: class {},
+    Tooltip: class {},
+  }
+})
 
 vi.mock('@/entities/system/api', () => ({
   getInitStatus: vi.fn(async () => ({ initialized: false })),
@@ -116,12 +142,16 @@ vi.mock('@tanstack/vue-query', () => ({
       }),
     }
   }),
-  useQuery: vi.fn((options?: { queryFn?: () => unknown; queryKey?: unknown }) => {
+  useQuery: vi.fn((options?: { enabled?: unknown; queryFn?: () => unknown; queryKey?: unknown }) => {
     state.queryKeys.push(options?.queryKey)
-    if (options?.queryFn) {
-      state.queryFns.push(options.queryFn)
+    if (isRef(options?.queryKey)) {
+      void options.queryKey.value
     }
-    options?.queryFn?.()
+    const enabled = isRef(options?.enabled) ? options.enabled.value : options?.enabled
+    if (enabled !== false && options?.queryFn) {
+      state.queryFns.push(options.queryFn)
+      void options.queryFn()
+    }
     return state.queryResult
   }),
   useQueryClient: () => state.queryClient,
@@ -173,10 +203,21 @@ describe('pages', () => {
     setMutationResult()
     state.queryKeys = []
     state.queryFns = []
+    state.chartConfigurations = []
     state.routeQuery = {}
     state.routerPush.mockReset()
     state.queryClient.invalidateQueries.mockReset()
     state.queryClient.setQueryData.mockReset()
+    vi.mocked(getAdminShortLinkStatistics).mockReset()
+    vi.mocked(getShortLinkStatistics).mockReset()
+    vi.mocked(me).mockReset()
+    vi.mocked(me).mockResolvedValue({ user: { permissions: [] } } as never)
+    state.theme = {
+      global: {
+        current: ref({ colors: { primary: '#315f8c' } }),
+        name: ref('moeurlLight'),
+      },
+    }
     Object.defineProperty(window.navigator, 'clipboard', {
       configurable: true,
       value: { writeText: vi.fn() },
@@ -194,18 +235,130 @@ describe('pages', () => {
     expect(screen.getByText('page.notFound')).toBeTruthy()
   })
 
-  it('renders planned console placeholder pages without fake data', () => {
+  it('renders remaining planned console placeholder pages without fake data', () => {
     render(ConsolePlaceholderPage, {
       props: {
-        kind: 'analytics',
+        kind: 'userGroups',
       },
     })
 
-    expect(screen.getByTestId('console-page-placeholder-analytics')).toBeTruthy()
-    expect(screen.getByText('page.analytics')).toBeTruthy()
+    expect(screen.getByTestId('console-page-placeholder-userGroups')).toBeTruthy()
+    expect(screen.getByText('page.userGroups')).toBeTruthy()
     expect(screen.queryByText('pageMeta.workspaceEyebrow')).toBeNull()
     expect(screen.getByText('placeholder.status')).toBeTruthy()
-    expect(screen.getByText('placeholder.analytics.items.privacy')).toBeTruthy()
+    expect(screen.getByText('placeholder.userGroups.items.groups')).toBeTruthy()
+  })
+
+  it('renders analytics data, chart, and dimension summaries for a selected link', async () => {
+    state.routeQuery = { shortLinkId: 'link-id' }
+    const analytics = ref<undefined | {
+      shortLink: { id: string; url: string; slug: string; targetUrl: string; status: 'active' }
+      stats: { visitCount: number; todayVisitCount: number; lastVisitedAt: string; trend: Array<{ date: string; visitCount: number }>; referrers: Array<{ value: string; visitCount: number }>; devices: Array<{ value: string; visitCount: number }>; countries: Array<{ value: string; visitCount: number }> }
+    }>(undefined)
+    setQueryResult({ data: analytics })
+    vi.mocked(me).mockResolvedValue({ user: { permissions: [] } } as never)
+    vi.mocked(getShortLinkStatistics).mockResolvedValue({
+      shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' },
+      stats: { visitCount: 5, todayVisitCount: 2, lastVisitedAt: '2026-07-17T00:00:00Z', trend: [{ date: '2026-07-17', visitCount: 2 }], referrers: [{ value: 'search.example', visitCount: 3 }], devices: [{ value: 'mobile', visitCount: 4 }], countries: [{ value: 'unknown', visitCount: 1 }] },
+    })
+
+    mount(AnalyticsPage)
+    await state.queryFns[0]?.()
+    analytics.value = {
+        shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' },
+        stats: {
+          visitCount: 5,
+          todayVisitCount: 2,
+          lastVisitedAt: '2026-07-17T00:00:00Z',
+          trend: [{ date: '2026-07-17', visitCount: 2 }],
+          referrers: [{ value: 'search.example', visitCount: 3 }],
+          devices: [{ value: 'mobile', visitCount: 4 }],
+          countries: [{ value: 'unknown', visitCount: 1 }],
+        },
+    }
+    await nextTick()
+    await nextTick()
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0))
+
+    expect(await screen.findByTestId('analytics-trend-chart')).toBeTruthy()
+    expect(screen.getByTestId('analytics-summary')).toBeTruthy()
+    expect(screen.getByText('search.example')).toBeTruthy()
+    expect(screen.getByText('analytics.unknown')).toBeTruthy()
+    expect(state.queryFns).toHaveLength(1)
+    expect(state.chartConfigurations).toContainEqual(expect.objectContaining({
+      data: expect.objectContaining({
+        datasets: [expect.objectContaining({ borderColor: '#315f8c', backgroundColor: '#315f8c' })],
+      }),
+    }))
+
+    state.theme.global.current.value = { colors: { primary: '#8ab8e8' } }
+    await nextTick()
+    await nextTick()
+    expect(state.chartConfigurations).toContainEqual(expect.objectContaining({
+      data: expect.objectContaining({
+        datasets: [expect.objectContaining({ borderColor: '#8ab8e8', backgroundColor: '#8ab8e8' })],
+      }),
+    }))
+
+    analytics.value.stats.lastVisitedAt = null as never
+    await nextTick()
+    expect(screen.getByText('links.stats.neverVisited')).toBeTruthy()
+
+    analytics.value = undefined
+    await nextTick()
+    expect(screen.queryByTestId('analytics-summary')).toBeNull()
+  })
+
+  it('uses the administrator analytics request for an administrator', async () => {
+    state.routeQuery = { shortLinkId: 'link-id' }
+    setQueryResult({})
+    vi.mocked(me).mockResolvedValue({ user: { permissions: ['admin:access'] } } as never)
+    vi.mocked(getAdminShortLinkStatistics).mockResolvedValue({} as never)
+
+    mount(AnalyticsPage)
+    await state.queryFns[0]?.()
+
+    expect(getAdminShortLinkStatistics).toHaveBeenCalledWith('link-id')
+  })
+
+  it('renders selected-link, loading, and error analytics states', () => {
+    mount(AnalyticsPage)
+    expect(screen.getByText('analytics.selectLink')).toBeTruthy()
+    expect(state.queryFns).toHaveLength(0)
+    expect(me).not.toHaveBeenCalled()
+
+    state.routeQuery = { shortLinkId: 'link-id' }
+    setQueryResult({ isPending: ref(true) })
+    mount(AnalyticsPage)
+    expect(screen.getByRole('progressbar')).toBeTruthy()
+
+    setQueryResult({ isError: ref(true) })
+    mount(AnalyticsPage)
+    expect(screen.getByText('analytics.loadFailed')).toBeTruthy()
+  })
+
+  it('renders empty analytics dimensions and normalizes other labels', () => {
+    state.routeQuery = { shortLinkId: 'link-id' }
+    setQueryResult({
+      data: ref({
+        shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' },
+        stats: {
+          visitCount: 1,
+          todayVisitCount: 0,
+          lastVisitedAt: 'not-a-date',
+          trend: [],
+          referrers: [],
+          devices: [{ value: 'other', visitCount: 1 }],
+          countries: [],
+        },
+      }),
+    })
+
+    mount(AnalyticsPage)
+
+    expect(screen.getAllByText('analytics.emptyDimension')).toHaveLength(2)
+    expect(screen.getByText('analytics.other')).toBeTruthy()
+    expect(screen.getByText('links.stats.neverVisited')).toBeTruthy()
   })
 
   it('submits login credentials, maps invalid credentials, and follows redirect query', async () => {
