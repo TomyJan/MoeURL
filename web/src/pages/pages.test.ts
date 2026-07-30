@@ -6,6 +6,7 @@ import { isRef, nextTick, ref } from 'vue'
 import AdminLinksPage from './AdminLinksPage.vue'
 import AdminUsersPage from './AdminUsersPage.vue'
 import AnalyticsPage from './AnalyticsPage.vue'
+import ConsoleOverviewPage from './ConsoleOverviewPage.vue'
 import ConsolePlaceholderPage from './ConsolePlaceholderPage.vue'
 import CreateUserPage from './CreateUserPage.vue'
 import HomePage from './HomePage.vue'
@@ -15,10 +16,12 @@ import NotFoundPage from './NotFoundPage.vue'
 import SetupPage from './SetupPage.vue'
 import { componentStubs } from '@/test/component-stubs'
 import { me } from '@/entities/auth/api'
-import { getAdminShortLinkStatistics, getShortLinkStatistics, listAdminShortLinks, listShortLinks } from '@/entities/short-link/api'
+import { getAdminShortLinkStatistics, getShortLinkOverview, getShortLinkStatistics, listAdminShortLinks, listShortLinks } from '@/entities/short-link/api'
 
 const state = vi.hoisted(() => ({
   queryResult: {},
+  queryResults: [] as unknown[],
+  queryResultIndex: 0,
   queryKeys: [] as unknown[],
   queryFns: [] as Array<() => unknown>,
   chartConfigurations: [] as unknown[],
@@ -76,6 +79,7 @@ vi.mock('@/entities/short-link/api', () => ({
   updateShortLink: vi.fn(),
   createShortLink: vi.fn(),
   getAdminShortLinkStatistics: vi.fn(),
+  getShortLinkOverview: vi.fn(async () => ({ totalLinkCount: 0, activeLinkCount: 0, visitCount: 0, todayVisitCount: 0 })),
   getShortLinkStatistics: vi.fn(),
 }))
 
@@ -152,7 +156,9 @@ vi.mock('@tanstack/vue-query', () => ({
       state.queryFns.push(options.queryFn)
       void options.queryFn()
     }
-    return state.queryResult
+    const result = state.queryResults[state.queryResultIndex] ?? state.queryResult
+    state.queryResultIndex += 1
+    return result
   }),
   useQueryClient: () => state.queryClient,
 }))
@@ -170,13 +176,25 @@ function setQueryResult(value: Partial<{
   isError: ReturnType<typeof ref>
   isLoading: ReturnType<typeof ref>
   isPending: ReturnType<typeof ref>
+  refetch: ReturnType<typeof vi.fn>
 }>) {
   state.queryResult = {
     data: value.data ?? ref(undefined),
     isError: value.isError ?? ref(false),
     isLoading: value.isLoading ?? ref(false),
     isPending: value.isPending ?? ref(false),
+    refetch: value.refetch ?? vi.fn(),
   }
+}
+
+function setQueryResults(...values: Array<Parameters<typeof setQueryResult>[0]>) {
+  state.queryResults = values.map((value) => ({
+    data: value.data ?? ref(undefined),
+    isError: value.isError ?? ref(false),
+    isLoading: value.isLoading ?? ref(false),
+    isPending: value.isPending ?? ref(false),
+    refetch: value.refetch ?? vi.fn(),
+  }))
 }
 
 function setMutationResult(value: Partial<{
@@ -200,6 +218,8 @@ function setMutationResult(value: Partial<{
 describe('pages', () => {
   beforeEach(() => {
     setQueryResult({})
+    state.queryResults = []
+    state.queryResultIndex = 0
     setMutationResult()
     state.queryKeys = []
     state.queryFns = []
@@ -209,6 +229,7 @@ describe('pages', () => {
     state.queryClient.invalidateQueries.mockReset()
     state.queryClient.setQueryData.mockReset()
     vi.mocked(getAdminShortLinkStatistics).mockReset()
+    vi.mocked(getShortLinkOverview).mockClear()
     vi.mocked(getShortLinkStatistics).mockReset()
     vi.mocked(me).mockReset()
     vi.mocked(me).mockResolvedValue({ user: { permissions: [] } } as never)
@@ -247,6 +268,100 @@ describe('pages', () => {
     expect(screen.queryByText('pageMeta.workspaceEyebrow')).toBeNull()
     expect(screen.getByText('placeholder.status')).toBeTruthy()
     expect(screen.getByText('placeholder.userGroups.items.groups')).toBeTruthy()
+  })
+
+  it('renders personal overview metrics and recent links from independent queries', () => {
+    setQueryResults(
+      {
+        data: ref({ totalLinkCount: 12, activeLinkCount: 9, visitCount: 840, todayVisitCount: 31 }),
+      },
+      {
+        data: ref({
+          items: [{
+            id: 'link-id',
+            url: 'https://go.example.com/abc123',
+            slug: 'abc123',
+            targetUrl: 'https://example.com/recent',
+            status: 'active' as const,
+            stats: { visitCount: 20, todayVisitCount: 3, lastVisitedAt: null },
+          }],
+          meta: { page: 1, pageSize: 5, total: 12 },
+        }),
+      },
+    )
+
+    mount(ConsoleOverviewPage)
+
+    expect(screen.getByTestId('console-page-overview')).toBeTruthy()
+    expect(screen.getByText('840')).toBeTruthy()
+    expect(screen.getByText('31')).toBeTruthy()
+    expect(screen.getByText('abc123')).toBeTruthy()
+    expect(screen.getByText('https://example.com/recent')).toBeTruthy()
+    expect(screen.getByText('overview.viewAllLinks').closest('a')?.getAttribute('data-to')).toBe('/link')
+    expect(screen.getByText('overview.viewAnalytics').closest('a')?.getAttribute('data-to')).toBe('/analytics')
+    expect(screen.getByText('links.actions.analytics').closest('a')?.getAttribute('data-to')).toBe('/analytics?shortLinkId=link-id')
+    expect(getShortLinkOverview).toHaveBeenCalledTimes(1)
+    expect(listShortLinks).toHaveBeenCalledWith({ page: 1, pageSize: 5 })
+  })
+
+  it('renders stable loading placeholders for overview metrics and recent links', () => {
+    setQueryResults(
+      { isPending: ref(true) },
+      { isPending: ref(true) },
+    )
+
+    mount(ConsoleOverviewPage)
+
+    expect(screen.getByTestId('overview-metrics-loading')).toBeTruthy()
+    expect(screen.getByTestId('overview-recent-loading')).toBeTruthy()
+    expect(screen.queryByTestId('overview-empty')).toBeNull()
+  })
+
+  it('keeps successful overview regions visible and retries each failed query independently', async () => {
+    const retryOverview = vi.fn()
+    setQueryResults(
+      { isError: ref(true), refetch: retryOverview },
+      {
+        data: ref({
+          items: [{ id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' as const }],
+          meta: { page: 1, pageSize: 5, total: 1 },
+        }),
+      },
+    )
+
+    const firstRender = mount(ConsoleOverviewPage)
+    expect(screen.getByTestId('overview-metrics-error')).toBeTruthy()
+    expect(screen.getByText('abc123')).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: 'overview.retryMetrics' }))
+    expect(retryOverview).toHaveBeenCalledTimes(1)
+    firstRender.unmount()
+
+    state.queryResultIndex = 0
+    const retryRecent = vi.fn()
+    setQueryResults(
+      { data: ref({ totalLinkCount: 12, activeLinkCount: 9, visitCount: 840, todayVisitCount: 31 }) },
+      { isError: ref(true), refetch: retryRecent },
+    )
+    mount(ConsoleOverviewPage)
+    expect(screen.getByText('840')).toBeTruthy()
+    expect(screen.getByTestId('overview-recent-error')).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: 'overview.retryRecent' }))
+    expect(retryRecent).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders zero-value fallbacks and existing create-entry guidance when no links exist', () => {
+    setQueryResults(
+      { data: ref(undefined) },
+      { data: ref(undefined) },
+    )
+
+    mount(ConsoleOverviewPage)
+
+    expect(within(screen.getByLabelText('overview.metricsLabel')).getAllByText('0')).toHaveLength(4)
+    expect(screen.getByTestId('overview-empty')).toBeTruthy()
+    expect(screen.getByText('overview.emptyDescription')).toBeTruthy()
+    expect(screen.getByText('overview.createFromHome').closest('a')?.getAttribute('data-to')).toBe('/')
+    expect(screen.queryByTestId('short-link-create-panel')).toBeNull()
   })
 
   it('renders analytics data, chart, and dimension summaries for a selected link', async () => {

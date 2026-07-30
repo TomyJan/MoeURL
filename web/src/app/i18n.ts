@@ -72,15 +72,6 @@ export const messages = {
     },
     placeholder: {
       status: '规划中',
-      overview: {
-        panelTitle: '这里会成为控制台的轻量首页',
-        description: '概览页会优先放置当前账号可用的快捷入口、权限状态和最近操作，不伪造统计数据。',
-        items: {
-          links: '查看自己的短链和常用管理入口。',
-          permissions: '理解当前账号拥有的创建、管理和访问权限。',
-          actions: '保留新建短链、进入列表和账号设置等常用动作。',
-        },
-      },
       userGroups: {
         panelTitle: '权限分组会服务管理员协作',
         description: '当前版本保留用户组与权限的页面位置，实际维护仍通过用户管理和后端内置权限完成。',
@@ -99,6 +90,27 @@ export const messages = {
           deployment: '部署相关能力保留给后续版本完善。',
         },
       },
+    },
+    overview: {
+      summary: '查看自己的短链规模、访问表现和最近工作。',
+      metricsLabel: '个人短链概览指标',
+      metrics: {
+        totalLinkCount: '短链总数',
+        activeLinkCount: '启用短链',
+        visitCount: '总访问量',
+        todayVisitCount: '今日访问量',
+      },
+      viewAllLinks: '查看我的短链',
+      viewAnalytics: '进入访问分析',
+      recentTitle: '最近短链',
+      recentDescription: '按创建时间查看最近 5 条短链。',
+      metricsLoadFailed: '概览指标加载失败。',
+      retryMetrics: '重试指标',
+      recentLoadFailed: '最近短链加载失败。',
+      retryRecent: '重试列表',
+      emptyTitle: '还没有短链',
+      emptyDescription: '使用首页或控制台中的新建短链入口开始创建，生成后的链接会显示在这里。',
+      createFromHome: '前往首页创建',
     },
     filter: {
       status: '状态筛选',
@@ -372,15 +384,6 @@ export const messages = {
     },
     placeholder: {
       status: 'Planned',
-      overview: {
-        panelTitle: 'This will become a lightweight console home',
-        description: 'The overview will focus on available actions, permission state, and recent work without fake statistics.',
-        items: {
-          links: 'Open your links and common management entries.',
-          permissions: 'Understand your create, manage, and access permissions.',
-          actions: 'Keep create-link, list entry, and account preferences close at hand.',
-        },
-      },
       userGroups: {
         panelTitle: 'Permission groups will support admin collaboration',
         description: 'This version keeps the place for groups and permissions while actual maintenance stays in user management and built-in backend rules.',
@@ -399,6 +402,27 @@ export const messages = {
           deployment: 'Deployment settings are reserved for later releases.',
         },
       },
+    },
+    overview: {
+      summary: 'Review your short-link footprint, visit activity, and recent work.',
+      metricsLabel: 'Personal short-link overview metrics',
+      metrics: {
+        totalLinkCount: 'Total links',
+        activeLinkCount: 'Active links',
+        visitCount: 'Total visits',
+        todayVisitCount: 'Visits today',
+      },
+      viewAllLinks: 'View my links',
+      viewAnalytics: 'Open analytics',
+      recentTitle: 'Recent links',
+      recentDescription: 'Review the 5 most recently created short links.',
+      metricsLoadFailed: 'Failed to load overview metrics.',
+      retryMetrics: 'Retry metrics',
+      recentLoadFailed: 'Failed to load recent links.',
+      retryRecent: 'Retry list',
+      emptyTitle: 'No short links yet',
+      emptyDescription: 'Use the create-link action on the home page or in the console. New links will appear here.',
+      createFromHome: 'Create from home',
     },
     filter: {
       status: 'Status',

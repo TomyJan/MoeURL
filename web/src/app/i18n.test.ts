@@ -21,8 +21,17 @@ describe('i18n', () => {
   it('keeps placeholder copy limited to capabilities that are still planned', () => {
     expect(messages['zh-CN'].placeholder).not.toHaveProperty('analytics')
     expect(messages.en.placeholder).not.toHaveProperty('analytics')
+    expect(messages['zh-CN'].placeholder).not.toHaveProperty('overview')
+    expect(messages.en.placeholder).not.toHaveProperty('overview')
     expect(JSON.stringify(messages['zh-CN'].placeholder)).not.toMatch(/v\d+\.\d+\.\d+/)
     expect(JSON.stringify(messages.en.placeholder)).not.toMatch(/v\d+\.\d+\.\d+/)
+  })
+
+  it('contains complete personal overview labels for supported locales', () => {
+    expect(messages['zh-CN'].overview.metrics.totalLinkCount).toBe('短链总数')
+    expect(messages.en.overview.metrics.totalLinkCount).toBe('Total links')
+    expect(messages['zh-CN'].overview.retryRecent).toBeTruthy()
+    expect(messages.en.overview.retryRecent).toBeTruthy()
   })
 
   it('keeps locale message trees aligned', () => {
