@@ -53,6 +53,20 @@ from short_link
 where owner_id = $1 and deleted_at is null
     and (sqlc.narg('status')::text is null or status = sqlc.narg('status')::text);
 
+-- name: GetShortLinkOverviewByOwner :one
+select count(distinct short_link.id)::bigint as total_link_count,
+    count(distinct short_link.id) filter (where short_link.status = 'active')::bigint as active_link_count,
+    count(short_link_event.id) filter (where short_link_event.event_type = 'redirect_response_sent')::bigint as visit_count,
+    count(short_link_event.id) filter (
+        where short_link_event.event_type = 'redirect_response_sent'
+            and short_link_event.created_at >= current_date
+            and short_link_event.created_at < current_date + interval '1 day'
+    )::bigint as today_visit_count
+from short_link
+left join short_link_event on short_link_event.short_link_id = short_link.id
+where short_link.owner_id = $1
+    and short_link.deleted_at is null;
+
 -- name: UpdateOwnShortLink :one
 update short_link
 set target_url = coalesce(sqlc.narg('target_url'), target_url),
