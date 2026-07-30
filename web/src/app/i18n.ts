@@ -92,7 +92,8 @@ export const messages = {
       },
       settings: {
         panelTitle: '系统设置先沉淀边界',
-        description: '系统设置页暂不开放表单，域名或主题等运行时配置仍通过初始化与部署配置维护。',
+        description:
+          '系统设置页暂不开放表单；域名仍通过初始化或部署配置维护，主题偏好由前端控制，并保留跟随系统、浅色和深色模式切换。',
         items: {
           domains: '域名配置仍通过初始化和部署配置维护。',
           preferences: '语言和主题偏好继续使用前端偏好组件。',
@@ -392,7 +393,8 @@ export const messages = {
       },
       settings: {
         panelTitle: 'System settings start as a clear boundary',
-        description: 'The settings page does not expose forms yet; runtime domain and theme configuration still live in setup and deployment config.',
+        description:
+          'The settings page does not expose forms yet. Domains remain managed through setup or deployment configuration, while theme preferences stay in the frontend with system, light, and dark modes.',
         items: {
           domains: 'Domain configuration still lives in setup and deployment config.',
           preferences: 'Language and theme preferences keep using shared frontend controls.',

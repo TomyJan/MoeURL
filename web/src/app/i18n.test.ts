@@ -25,6 +25,15 @@ describe('i18n', () => {
     expect(JSON.stringify(messages.en.placeholder)).not.toMatch(/v\d+\.\d+\.\d+/)
   })
 
+  it('keeps deployment-managed domains separate from frontend theme preferences', () => {
+    expect(messages['zh-CN'].placeholder.settings.description).toBe(
+      '系统设置页暂不开放表单；域名仍通过初始化或部署配置维护，主题偏好由前端控制，并保留跟随系统、浅色和深色模式切换。',
+    )
+    expect(messages.en.placeholder.settings.description).toBe(
+      'The settings page does not expose forms yet. Domains remain managed through setup or deployment configuration, while theme preferences stay in the frontend with system, light, and dark modes.',
+    )
+  })
+
   it('keeps locale message trees aligned', () => {
     function flattenKeys(value: unknown, prefix = ''): string[] {
       if (!value || typeof value !== 'object') {
