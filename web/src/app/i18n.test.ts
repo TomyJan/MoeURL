@@ -18,6 +18,13 @@ describe('i18n', () => {
     expect(messages.en.preferences.systemShort).toBe('System')
   })
 
+  it('keeps placeholder copy limited to capabilities that are still planned', () => {
+    expect(messages['zh-CN'].placeholder).not.toHaveProperty('analytics')
+    expect(messages.en.placeholder).not.toHaveProperty('analytics')
+    expect(JSON.stringify(messages['zh-CN'].placeholder)).not.toMatch(/v\d+\.\d+\.\d+/)
+    expect(JSON.stringify(messages.en.placeholder)).not.toMatch(/v\d+\.\d+\.\d+/)
+  })
+
   it('keeps locale message trees aligned', () => {
     function flattenKeys(value: unknown, prefix = ''): string[] {
       if (!value || typeof value !== 'object') {

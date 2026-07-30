@@ -81,15 +81,6 @@ export const messages = {
           actions: '保留新建短链、进入列表和账号设置等常用动作。',
         },
       },
-      analytics: {
-        panelTitle: '分析能力会在后续业务版本补齐',
-        description: 'v0.0.4 只在短链列表展示基础访问统计，完整趋势、维度和明细仍在后续版本补齐。',
-        items: {
-          scope: '当前先提供总访问、今日访问和最近访问时间。',
-          privacy: '分析数据会遵循自托管和权限边界，不开放给无关账号。',
-          future: '当前可以先通过短链列表完成启用、禁用、复制和删除。',
-        },
-      },
       userGroups: {
         panelTitle: '权限分组会服务管理员协作',
         description: '当前版本保留用户组与权限的页面位置，实际维护仍通过用户管理和后端内置权限完成。',
@@ -101,7 +92,7 @@ export const messages = {
       },
       settings: {
         panelTitle: '系统设置先沉淀边界',
-        description: '系统设置页暂不开放表单，避免误以为 v0.0.3 已支持后台改域名或主题配置。',
+        description: '系统设置页暂不开放表单，域名或主题等运行时配置仍通过初始化与部署配置维护。',
         items: {
           domains: '域名配置仍通过初始化和部署配置维护。',
           preferences: '语言和主题偏好继续使用前端偏好组件。',
@@ -390,15 +381,6 @@ export const messages = {
           actions: 'Keep create-link, list entry, and account preferences close at hand.',
         },
       },
-      analytics: {
-        panelTitle: 'Analytics will land in a later product release',
-        description: 'v0.0.4 shows basic visit statistics in link lists only. Full trends, dimensions, and details remain planned.',
-        items: {
-          scope: 'Current statistics cover total visits, today visits, and last visit time.',
-          privacy: 'Analytics will follow self-hosted data and permission boundaries.',
-          future: 'For now, link lists support enable, disable, copy, and delete workflows.',
-        },
-      },
       userGroups: {
         panelTitle: 'Permission groups will support admin collaboration',
         description: 'This version keeps the place for groups and permissions while actual maintenance stays in user management and built-in backend rules.',
@@ -410,7 +392,7 @@ export const messages = {
       },
       settings: {
         panelTitle: 'System settings start as a clear boundary',
-        description: 'The settings page does not expose forms yet, so users do not mistake v0.0.3 for runtime domain or theme configuration.',
+        description: 'The settings page does not expose forms yet; runtime domain and theme configuration still live in setup and deployment config.',
         items: {
           domains: 'Domain configuration still lives in setup and deployment config.',
           preferences: 'Language and theme preferences keep using shared frontend controls.',
