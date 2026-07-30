@@ -160,11 +160,11 @@ func TestShortLinkOverviewQuery(t *testing.T) {
 		insert into short_link_event (id, short_link_id, event_type, created_at)
 		values
 			($1, $5, 'redirect_response_sent', now()),
-			($2, $5, 'redirect_response_sent', current_date - interval '1 day'),
+			($2, $9, 'redirect_response_sent', current_date - interval '1 day'),
 			($3, $5, 'redirect_attempted', now()),
 			($4, $6, 'redirect_response_sent', now()),
 			($7, $8, 'redirect_response_sent', now())
-	`, uuid.New(), uuid.New(), uuid.New(), uuid.New(), activeLinkID, deletedLinkID, uuid.New(), otherLinkID)
+	`, uuid.New(), uuid.New(), uuid.New(), uuid.New(), activeLinkID, deletedLinkID, uuid.New(), otherLinkID, disabledLinkID)
 	if err != nil {
 		t.Fatalf("insert overview event fixtures: %v", err)
 	}
