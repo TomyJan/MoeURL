@@ -19,8 +19,8 @@ describe('i18n', () => {
   })
 
   it('keeps placeholder copy limited to capabilities that are still planned', () => {
-    expect(messages['zh-CN'].placeholder).not.toHaveProperty('analytics')
-    expect(messages.en.placeholder).not.toHaveProperty('analytics')
+    expect(messages['zh-CN'].placeholder.overview.items).not.toHaveProperty('analytics')
+    expect(messages.en.placeholder.overview.items).not.toHaveProperty('analytics')
     expect(JSON.stringify(messages['zh-CN'].placeholder)).not.toMatch(/v\d+\.\d+\.\d+/)
     expect(JSON.stringify(messages.en.placeholder)).not.toMatch(/v\d+\.\d+\.\d+/)
   })
