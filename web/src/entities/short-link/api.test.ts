@@ -5,6 +5,7 @@ import {
   deleteAdminShortLink,
   deleteShortLink,
   getAdminShortLinkStatistics,
+  getShortLinkOverview,
   getShortLinkStatistics,
   listAdminShortLinks,
   listShortLinks,
@@ -13,6 +14,26 @@ import {
 } from './api'
 
 describe('short link api', () => {
+  it('loads the current user overview', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({
+        code: 0,
+        message: 'OK',
+        data: { totalLinkCount: 12, activeLinkCount: 9, visitCount: 840, todayVisitCount: 31 },
+        meta: {},
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })),
+    )
+
+    await expect(getShortLinkOverview()).resolves.toEqual({
+      totalLinkCount: 12,
+      activeLinkCount: 9,
+      visitCount: 840,
+      todayVisitCount: 31,
+    })
+    expect(fetch).toHaveBeenCalledWith('/api/v1/short-link/overview', expect.objectContaining({ method: 'GET' }))
+  })
+
   it('loads owner and administrator analytics', async () => {
     vi.stubGlobal(
       'fetch',

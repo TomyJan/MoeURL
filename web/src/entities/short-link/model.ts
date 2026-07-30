@@ -13,6 +13,13 @@ export interface ShortLinkStats {
   lastVisitedAt: string | null
 }
 
+export interface ShortLinkOverview {
+  totalLinkCount: number
+  activeLinkCount: number
+  visitCount: number
+  todayVisitCount: number
+}
+
 export interface AnalyticsTrendPoint {
   date: string
   visitCount: number
