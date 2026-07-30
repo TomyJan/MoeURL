@@ -200,6 +200,68 @@ func TestHandlerListShortLinksReturnsItemsAndMeta(t *testing.T) {
 	}
 }
 
+// TestHandlerOverviewReturnsPersonalAggregates verifies the overview response payload.
+func TestHandlerOverviewReturnsPersonalAggregates(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		ShortLink: &fakeShortLinkService{
+			overviewResult: shortlink.OverviewResult{
+				TotalLinkCount:  12,
+				ActiveLinkCount: 9,
+				VisitCount:      840,
+				TodayVisitCount: 31,
+			},
+		},
+	})
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/short-link/overview", nil))
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected http 200, got %d", response.Code)
+	}
+	var body struct {
+		Code int                      `json:"code"`
+		Data shortlink.OverviewResult `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Code != 0 || body.Data.TotalLinkCount != 12 || body.Data.ActiveLinkCount != 9 || body.Data.VisitCount != 840 || body.Data.TodayVisitCount != 31 {
+		t.Fatalf("unexpected overview response: %#v", body)
+	}
+}
+
+// TestHandlerOverviewMapsErrors verifies business and infrastructure response conventions.
+func TestHandlerOverviewMapsErrors(t *testing.T) {
+	tests := []struct {
+		name       string
+		err        error
+		httpStatus int
+		code       int
+	}{
+		{name: "permission denied", err: shortlink.ErrPermissionDenied, httpStatus: http.StatusOK, code: shortlink.CodePermissionDenied},
+		{name: "database failure", err: errors.New("database unavailable"), httpStatus: http.StatusInternalServerError, code: 900000},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			router := apphttp.NewRouter(apphttp.Dependencies{ShortLink: &fakeShortLinkService{err: test.err}})
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/short-link/overview", nil))
+			assertBusinessCode(t, response, test.httpStatus, test.code)
+		})
+	}
+}
+
+// TestHandlerOverviewRejectsPost verifies overview remains a read-only GET route.
+func TestHandlerOverviewRejectsPost(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.Dependencies{ShortLink: &fakeShortLinkService{}})
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/v1/short-link/overview", nil))
+	if response.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected http 405, got %d body %q", response.Code, response.Body.String())
+	}
+}
+
 // TestHandlerStatisticsReturnsAnalyticsAndForwardsID verifies the owner statistics endpoint.
 func TestHandlerStatisticsReturnsAnalyticsAndForwardsID(t *testing.T) {
 	service := &fakeShortLinkService{statisticsResult: shortlink.StatisticsResult{
@@ -628,6 +690,7 @@ func TestHandlerAdminUpdateAndDeleteShortLinks(t *testing.T) {
 
 type fakeShortLinkService struct {
 	result           shortlink.CreateResult
+	overviewResult   shortlink.OverviewResult
 	listResult       shortlink.ListResult
 	listInput        shortlink.ListInput
 	adminListResult  shortlink.AdminListResult
@@ -635,6 +698,11 @@ type fakeShortLinkService struct {
 	statisticsResult shortlink.StatisticsResult
 	statisticsInput  shortlink.StatisticsInput
 	err              error
+}
+
+// Overview returns the configured personal aggregate result.
+func (f *fakeShortLinkService) Overview(context.Context, auth.CurrentUser) (shortlink.OverviewResult, error) {
+	return f.overviewResult, f.err
 }
 
 // Create returns the configured create result for handler tests.

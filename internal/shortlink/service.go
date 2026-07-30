@@ -96,6 +96,27 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 	return CreateResult{}, ErrSlugConflict
 }
 
+// Overview returns aggregate metrics for short links owned by the caller.
+func (s *Service) Overview(ctx context.Context, user auth.CurrentUser) (OverviewResult, error) {
+	if !s.permissions.Has(user.GroupKey, permission.ShortLinkReadOwn) {
+		return OverviewResult{}, ErrPermissionDenied
+	}
+	ownerID, err := uuid.Parse(user.ID)
+	if err != nil {
+		return OverviewResult{}, err
+	}
+	overview, err := s.queries.GetShortLinkOverviewByOwner(ctx, uuidToPgtype(ownerID))
+	if err != nil {
+		return OverviewResult{}, err
+	}
+	return OverviewResult{
+		TotalLinkCount:  overview.TotalLinkCount,
+		ActiveLinkCount: overview.ActiveLinkCount,
+		VisitCount:      overview.VisitCount,
+		TodayVisitCount: overview.TodayVisitCount,
+	}, nil
+}
+
 // List returns a paginated view of short links owned by the caller.
 func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInput) (ListResult, error) {
 	if !s.permissions.Has(user.GroupKey, permission.ShortLinkReadOwn) {

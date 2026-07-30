@@ -155,6 +155,69 @@ func TestServiceCreateReturnsInsertError(t *testing.T) {
 	}
 }
 
+// TestServiceOverviewReturnsOnlyOwnAggregates verifies personal overview scope and event rules.
+func TestServiceOverviewReturnsOnlyOwnAggregates(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	other := insertShortLinkUserForGroup(t, ctx, pool, "bob", "00000000-0000-0000-0000-000000000401", "00000000-0000-0000-0000-000000000502", "user", permission.UserPermissions)
+	activeLinkID := insertStoredShortLink(t, ctx, pool, user.ID, "alice1", "https://example.com/1", "active", false)
+	insertStoredShortLink(t, ctx, pool, user.ID, "alice2", "https://example.com/2", "disabled", false)
+	deletedLinkID := insertStoredShortLink(t, ctx, pool, user.ID, "deleted", "https://example.com/deleted", "active", true)
+	otherLinkID := insertStoredShortLink(t, ctx, pool, other.ID, "bob001", "https://example.com/bob", "active", false)
+	insertStoredShortLinkVisitEvent(t, ctx, pool, activeLinkID)
+	insertStoredAnalyticsVisit(t, ctx, pool, activeLinkID, "", "", "", "current_date - interval '1 day'")
+	insertStoredShortLinkVisitEvent(t, ctx, pool, deletedLinkID)
+	insertStoredShortLinkVisitEvent(t, ctx, pool, otherLinkID)
+	_, err := pool.Exec(ctx, `
+		insert into short_link_event (id, short_link_id, event_type, created_at)
+		values (gen_random_uuid(), $1, 'redirect_attempted', now())
+	`, activeLinkID)
+	if err != nil {
+		t.Fatalf("insert non-success event: %v", err)
+	}
+
+	service := shortlink.NewService(pool, permission.NewService())
+	result, err := service.Overview(ctx, user)
+	if err != nil {
+		t.Fatalf("get overview: %v", err)
+	}
+	if result.TotalLinkCount != 2 || result.ActiveLinkCount != 1 || result.VisitCount != 2 || result.TodayVisitCount != 1 {
+		t.Fatalf("unexpected overview: %#v", result)
+	}
+}
+
+// TestServiceOverviewRejectsMissingPermission verifies own-link read permission is required.
+func TestServiceOverviewRejectsMissingPermission(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	service := shortlink.NewService(pool, permission.NewService())
+
+	_, err := service.Overview(ctx, auth.GuestUser())
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected ErrPermissionDenied, got %v", err)
+	}
+}
+
+// TestServiceOverviewReturnsOwnerAndDatabaseErrors verifies invalid identities and query failures propagate.
+func TestServiceOverviewReturnsOwnerAndDatabaseErrors(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	service := shortlink.NewService(pool, permission.NewService())
+
+	_, err := service.Overview(ctx, auth.CurrentUser{ID: "bad-id", GroupKey: "user"})
+	if err == nil {
+		t.Fatal("expected owner id parse error")
+	}
+
+	pool.Close()
+	_, err = service.Overview(ctx, auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000501", GroupKey: "user"})
+	if err == nil {
+		t.Fatal("expected database error")
+	}
+}
+
 // TestServiceListReturnsOnlyOwnActiveRecords verifies ownership filtering and visit statistics.
 func TestServiceListReturnsOnlyOwnActiveRecords(t *testing.T) {
 	ctx := context.Background()

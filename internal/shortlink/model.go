@@ -17,6 +17,14 @@ type ListInput struct {
 	Query    string
 }
 
+// OverviewResult contains personal short-link and visit aggregates.
+type OverviewResult struct {
+	TotalLinkCount  int64 `json:"totalLinkCount"`
+	ActiveLinkCount int64 `json:"activeLinkCount"`
+	VisitCount      int64 `json:"visitCount"`
+	TodayVisitCount int64 `json:"todayVisitCount"`
+}
+
 type UpdateInput struct {
 	ID        string
 	TargetURL *string
