@@ -124,6 +124,7 @@ describe('short link api', () => {
                   slug: 'abc123',
                   targetUrl: 'https://example.com',
                   status: 'active',
+                  createdAt: '2026-07-01T00:00:00Z',
                   stats: {
                     visitCount: 2,
                     todayVisitCount: 1,
@@ -148,6 +149,7 @@ describe('short link api', () => {
     expect(item.stats.visitCount).toBe(2)
     expect(item.stats.todayVisitCount).toBe(1)
     expect(item.stats.lastVisitedAt).toBe('2026-07-16T05:00:00Z')
+    expect(item.createdAt).toBe('2026-07-01T00:00:00Z')
   })
 
   it('loads my short links with status filter', async () => {
@@ -237,6 +239,7 @@ describe('short link api', () => {
                   slug: 'abc123',
                   targetUrl: 'https://example.com',
                   status: 'active',
+                  createdAt: '2026-07-02T00:00:00Z',
                   stats: { visitCount: 3, todayVisitCount: 2, lastVisitedAt: null },
                   owner: { id: 'owner-id', username: 'alice', nickname: 'Alice' },
                 },
@@ -257,6 +260,7 @@ describe('short link api', () => {
     }
     expect(item.owner.username).toBe('alice')
     expect(item.stats.visitCount).toBe(3)
+    expect(item.createdAt).toBe('2026-07-02T00:00:00Z')
     expect(result.meta.total).toBe(21)
     expect(fetch).toHaveBeenCalledWith('/api/v1/admin/short-link/list?page=2&pageSize=10', expect.objectContaining({ method: 'GET' }))
   })

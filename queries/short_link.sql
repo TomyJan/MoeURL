@@ -14,6 +14,7 @@ select short_link.id,
     short_link.slug,
     short_link.target_url,
     short_link.status,
+    short_link.created_at,
     domain.host as domain_host
 from short_link
 join domain on domain.id = short_link.domain_id

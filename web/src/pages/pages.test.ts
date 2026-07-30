@@ -283,6 +283,7 @@ describe('pages', () => {
             slug: 'abc123',
             targetUrl: 'https://example.com/recent',
             status: 'active' as const,
+            createdAt: '2026-07-30T04:30:00Z',
             stats: { visitCount: 20, todayVisitCount: 3, lastVisitedAt: null },
           }],
           meta: { page: 1, pageSize: 5, total: 12 },
@@ -297,11 +298,35 @@ describe('pages', () => {
     expect(screen.getByText('31')).toBeTruthy()
     expect(screen.getByText('abc123')).toBeTruthy()
     expect(screen.getByText('https://example.com/recent')).toBeTruthy()
+    expect(screen.getByText('2026-07-30')).toBeTruthy()
     expect(screen.getByText('overview.viewAllLinks').closest('a')?.getAttribute('data-to')).toBe('/link')
     expect(screen.getByText('overview.viewAnalytics').closest('a')?.getAttribute('data-to')).toBe('/analytics')
     expect(screen.getByText('links.actions.analytics').closest('a')?.getAttribute('data-to')).toBe('/analytics?shortLinkId=link-id')
     expect(getShortLinkOverview).toHaveBeenCalledTimes(1)
     expect(listShortLinks).toHaveBeenCalledWith({ page: 1, pageSize: 5 })
+  })
+
+  it('keeps an invalid recent-link creation timestamp visible', () => {
+    setQueryResults(
+      { data: ref({ totalLinkCount: 1, activeLinkCount: 1, visitCount: 0, todayVisitCount: 0 }) },
+      {
+        data: ref({
+          items: [{
+            id: 'invalid-date-link',
+            url: 'https://go.example.com/invalid',
+            slug: 'invalid',
+            targetUrl: 'https://example.com/invalid',
+            status: 'active' as const,
+            createdAt: 'invalid-date',
+          }],
+          meta: { page: 1, pageSize: 5, total: 1 },
+        }),
+      },
+    )
+
+    mount(ConsoleOverviewPage)
+
+    expect(screen.getByText('invalid-date')).toBeTruthy()
   })
 
   it('renders stable loading placeholders for overview metrics and recent links', () => {
@@ -367,20 +392,20 @@ describe('pages', () => {
   it('renders analytics data, chart, and dimension summaries for a selected link', async () => {
     state.routeQuery = { shortLinkId: 'link-id' }
     const analytics = ref<undefined | {
-      shortLink: { id: string; url: string; slug: string; targetUrl: string; status: 'active' }
+      shortLink: { id: string; url: string; slug: string; targetUrl: string; status: 'active'; createdAt: string }
       stats: { visitCount: number; todayVisitCount: number; lastVisitedAt: string; trend: Array<{ date: string; visitCount: number }>; referrers: Array<{ value: string; visitCount: number }>; devices: Array<{ value: string; visitCount: number }>; countries: Array<{ value: string; visitCount: number }> }
     }>(undefined)
     setQueryResult({ data: analytics })
     vi.mocked(me).mockResolvedValue({ user: { permissions: [] } } as never)
     vi.mocked(getShortLinkStatistics).mockResolvedValue({
-      shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' },
+      shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', createdAt: '2026-07-01T00:00:00Z' },
       stats: { visitCount: 5, todayVisitCount: 2, lastVisitedAt: '2026-07-17T00:00:00Z', trend: [{ date: '2026-07-17', visitCount: 2 }], referrers: [{ value: 'search.example', visitCount: 3 }], devices: [{ value: 'mobile', visitCount: 4 }], countries: [{ value: 'unknown', visitCount: 1 }] },
     })
 
     mount(AnalyticsPage)
     await state.queryFns[0]?.()
     analytics.value = {
-        shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' },
+        shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', createdAt: '2026-07-01T00:00:00Z' },
         stats: {
           visitCount: 5,
           todayVisitCount: 2,

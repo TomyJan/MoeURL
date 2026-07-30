@@ -82,6 +82,7 @@ type ShortLink struct {
 	Slug      string          `json:"slug"`
 	TargetURL string          `json:"targetUrl"`
 	Status    string          `json:"status"`
+	CreatedAt time.Time       `json:"createdAt"`
 	Stats     *ShortLinkStats `json:"stats,omitempty"`
 }
 
@@ -103,6 +104,7 @@ type AdminShortLink struct {
 	Slug      string          `json:"slug"`
 	TargetURL string          `json:"targetUrl"`
 	Status    string          `json:"status"`
+	CreatedAt time.Time       `json:"createdAt"`
 	Stats     *ShortLinkStats `json:"stats,omitempty"`
 	Owner     OwnerSummary    `json:"owner"`
 }

@@ -105,6 +105,7 @@ select short_link.id,
     short_link.slug,
     short_link.target_url,
     short_link.status,
+    short_link.created_at,
     domain.host as domain_host
 from short_link
 join domain on domain.id = short_link.domain_id
@@ -112,12 +113,13 @@ where short_link.id = $1 and short_link.deleted_at is null
 `
 
 type GetShortLinkAnalyticsLinkRow struct {
-	ID         pgtype.UUID `json:"id"`
-	OwnerID    pgtype.UUID `json:"owner_id"`
-	Slug       string      `json:"slug"`
-	TargetUrl  string      `json:"target_url"`
-	Status     string      `json:"status"`
-	DomainHost string      `json:"domain_host"`
+	ID         pgtype.UUID        `json:"id"`
+	OwnerID    pgtype.UUID        `json:"owner_id"`
+	Slug       string             `json:"slug"`
+	TargetUrl  string             `json:"target_url"`
+	Status     string             `json:"status"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	DomainHost string             `json:"domain_host"`
 }
 
 // GetShortLinkAnalyticsLink returns the non-deleted link needed for analytics authorization and display.
@@ -130,6 +132,7 @@ func (q *Queries) GetShortLinkAnalyticsLink(ctx context.Context, id pgtype.UUID)
 		&i.Slug,
 		&i.TargetUrl,
 		&i.Status,
+		&i.CreatedAt,
 		&i.DomainHost,
 	)
 	return i, err

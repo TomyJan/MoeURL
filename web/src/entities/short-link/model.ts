@@ -4,6 +4,7 @@ export interface ShortLink {
   slug: string
   targetUrl: string
   status: 'active' | 'disabled'
+  createdAt: string
   stats?: ShortLinkStats
 }
 

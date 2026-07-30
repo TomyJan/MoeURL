@@ -89,6 +89,7 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 				Slug:      created.Slug,
 				TargetURL: created.TargetUrl,
 				Status:    created.Status,
+				CreatedAt: created.CreatedAt.Time,
 			},
 		}, nil
 	}
@@ -158,6 +159,7 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 			Slug:      row.Slug,
 			TargetURL: row.TargetUrl,
 			Status:    row.Status,
+			CreatedAt: row.CreatedAt.Time,
 			Stats:     statsFromRow(row.VisitCount, row.TodayVisitCount, row.LastVisitedAt),
 		})
 	}
@@ -214,6 +216,7 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 			Slug:      updated.Slug,
 			TargetURL: updated.TargetUrl,
 			Status:    updated.Status,
+			CreatedAt: updated.CreatedAt.Time,
 		},
 	}, nil
 }
@@ -312,6 +315,7 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 			Slug:      row.Slug,
 			TargetURL: row.TargetUrl,
 			Status:    row.Status,
+			CreatedAt: row.CreatedAt.Time,
 			Stats:     statsFromRow(row.VisitCount, row.TodayVisitCount, row.LastVisitedAt),
 			Owner: OwnerSummary{
 				ID:       uuidFromPgtype(row.OwnerID),
@@ -371,6 +375,7 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 			Slug:      updated.Slug,
 			TargetURL: updated.TargetUrl,
 			Status:    updated.Status,
+			CreatedAt: updated.CreatedAt.Time,
 		},
 	}, nil
 }
@@ -424,6 +429,7 @@ func (s *Service) analyticsLink(ctx context.Context, linkID uuid.UUID) (analytic
 			Slug:      row.Slug,
 			TargetURL: row.TargetUrl,
 			Status:    row.Status,
+			CreatedAt: row.CreatedAt.Time,
 		},
 	}, nil
 }
