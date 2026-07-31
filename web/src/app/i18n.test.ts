@@ -19,19 +19,19 @@ describe('i18n', () => {
   })
 
   it('keeps placeholder copy limited to capabilities that are still planned', () => {
-    expect(messages['zh-CN'].placeholder).not.toHaveProperty('analytics')
-    expect(messages.en.placeholder).not.toHaveProperty('analytics')
-    expect(messages['zh-CN'].placeholder).not.toHaveProperty('overview')
-    expect(messages.en.placeholder).not.toHaveProperty('overview')
+    expect(messages['zh-CN'].placeholder.overview.items).not.toHaveProperty('analytics')
+    expect(messages.en.placeholder.overview.items).not.toHaveProperty('analytics')
     expect(JSON.stringify(messages['zh-CN'].placeholder)).not.toMatch(/v\d+\.\d+\.\d+/)
     expect(JSON.stringify(messages.en.placeholder)).not.toMatch(/v\d+\.\d+\.\d+/)
   })
 
-  it('contains complete personal overview labels for supported locales', () => {
-    expect(messages['zh-CN'].overview.metrics.totalLinkCount).toBe('短链总数')
-    expect(messages.en.overview.metrics.totalLinkCount).toBe('Total links')
-    expect(messages['zh-CN'].overview.retryRecent).toBeTruthy()
-    expect(messages.en.overview.retryRecent).toBeTruthy()
+  it('keeps deployment-managed domains separate from frontend theme preferences', () => {
+    expect(messages['zh-CN'].placeholder.settings.description).toBe(
+      '系统设置页暂不开放表单；域名仍通过初始化或部署配置维护，主题偏好由前端控制，并保留跟随系统、浅色和深色模式切换。',
+    )
+    expect(messages.en.placeholder.settings.description).toBe(
+      'The settings page does not expose forms yet. Domains remain managed through setup or deployment configuration, while theme preferences stay in the frontend with system, light, and dark modes.',
+    )
   })
 
   it('keeps locale message trees aligned', () => {

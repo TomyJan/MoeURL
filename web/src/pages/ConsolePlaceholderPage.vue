@@ -27,7 +27,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-type PlaceholderKind = 'userGroups' | 'settings'
+type PlaceholderKind = 'overview' | 'userGroups' | 'settings'
 
 const props = defineProps<{
   kind: PlaceholderKind
@@ -44,6 +44,12 @@ const metadata: Record<
     titleKey: string
   }
 > = {
+  overview: {
+    descriptionKey: 'placeholder.overview.description',
+    items: ['links', 'permissions', 'actions'],
+    panelTitleKey: 'placeholder.overview.panelTitle',
+    titleKey: 'page.overview',
+  },
   userGroups: {
     descriptionKey: 'placeholder.userGroups.description',
     items: ['admin', 'guest', 'groups'],

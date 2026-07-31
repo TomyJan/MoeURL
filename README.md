@@ -159,7 +159,7 @@ pnpm dev
 
 后端检查：
 
-```bash
+```powershell
 gofmt -l .
 go vet ./...
 go test ./...
