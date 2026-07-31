@@ -2,7 +2,7 @@
 
 MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
 
-当前开发重点是 v0.0.3 UI/UX 精细化重设计：重建浅色和深色主题、重设计首页、抽象可复用短链生成组件，并统一控制台框架。
+当前已完成 v0.1.0 短链统计分析闭环：在基础短链管理之上提供访问概览、近 7 天趋势，以及来源、设备和地区聚合。
 
 ## 功能概览
 
@@ -12,12 +12,14 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 - 创建、查看、筛选、禁用和软删除短链。
 - 管理员全站短链管理、用户创建和用户维护入口。
 - 短链直接跳转，短码全系统唯一。
-- Vue 3 + Vuetify 3 前端，支持主题、国际化和 PWA 基础能力。
+- 短链列表展示总访问量、今日访问量和最近访问时间。
+- 按短链展示近 7 天趋势、来源、设备和地区聚合，不保存原始 IP、完整 User-Agent 或完整 Referer。
+- Vue 3 + Vuetify 4 前端，支持主题、国际化和 PWA 基础能力。
 
 ## 技术栈
 
 - 后端：Go、Chi、SQLC、Goose、PostgreSQL。
-- 前端：Vue 3、Vite、TypeScript、Vuetify 3。
+- 前端：Vue 3、Vite、TypeScript、Vuetify 4。
 - 状态：Pinia、TanStack Query for Vue。
 - 包管理：pnpm。
 - 测试：go test、Vitest、Playwright、testcontainers-go。
@@ -27,13 +29,12 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 - [文档总览](./docs/README.md)
 - [产品总览](./docs/product/overview.md)
-- [v0.0.3 范围](./docs/product/scope-v0.0.3.md)
-- [v0.0.3 UI/UX 设计规格](./docs/superpowers/specs/2026-06-08-v0.0.3-ui-ux-redesign.md)
-- [v0.0.3 配色与交互重设设计](./docs/superpowers/specs/2026-06-30-v0.0.3-color-interaction-redesign.md)
+- [v0.1.0 范围](./docs/product/scope-v0.1.0.md)
+- [统计与事件规格](./docs/specs/statistics-and-events.md)
 - [技术选型决策](./docs/implementation/technical-decision.md)
 - [技术基线](./docs/implementation/technical-baseline.md)
-- [v0.0.3 实施计划](./docs/implementation/v0.0.3-plan.md)
-- [v0.0.3 验收清单](./docs/implementation/v0.0.3-acceptance.md)
+- [v0.1.0 实施计划](./docs/implementation/v0.1.0-plan.md)
+- [v0.1.0 验收清单](./docs/implementation/v0.1.0-acceptance.md)
 
 ## 环境要求
 
@@ -111,7 +112,7 @@ cd ..
 执行数据库迁移：
 
 ```bash
-go install github.com/pressly/goose/v3/cmd/goose@v3.26.0
+go install github.com/pressly/goose/v3/cmd/goose@v3.27.3
 goose -dir migrations postgres "postgres://moeurl:moeurl@127.0.0.1:5432/moeurl?sslmode=disable" up
 ```
 
@@ -158,19 +159,19 @@ pnpm dev
 
 后端检查：
 
-```bash
+```powershell
 gofmt -l .
 go vet ./...
 go test ./...
 $coverageProfile = Join-Path (Get-Location) "coverage.out"
-go test ./internal/auth ./internal/db ./internal/http ./internal/permission ./internal/shortlink ./internal/system ./internal/user "-coverprofile=$coverageProfile"
+go test ./internal/auth ./internal/db ./internal/event ./internal/http ./internal/middleware ./internal/permission ./internal/shortlink ./internal/system ./internal/user "-coverprofile=$coverageProfile"
 node scripts/go-coverage-threshold.mjs $coverageProfile 100 --include-from=scripts/go-coverage-targets.txt --exclude-blocks-from=scripts/go-coverage-excluded-blocks.txt
 ```
 
 Linux/macOS：
 
 ```bash
-go test ./internal/auth ./internal/db ./internal/http ./internal/permission ./internal/shortlink ./internal/system ./internal/user -coverprofile="$PWD/coverage.out"
+go test ./internal/auth ./internal/db ./internal/event ./internal/http ./internal/middleware ./internal/permission ./internal/shortlink ./internal/system ./internal/user -coverprofile="$PWD/coverage.out"
 node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100 --include-from=scripts/go-coverage-targets.txt --exclude-blocks-from=scripts/go-coverage-excluded-blocks.txt
 ```
 

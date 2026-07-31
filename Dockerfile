@@ -14,7 +14,7 @@ RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/moeurl ./cmd/server
-RUN go install github.com/pressly/goose/v3/cmd/goose@v3.26.0
+RUN go install github.com/pressly/goose/v3/cmd/goose@v3.27.3
 
 FROM alpine:3.24
 WORKDIR /app
