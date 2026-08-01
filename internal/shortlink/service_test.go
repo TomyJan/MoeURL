@@ -980,8 +980,12 @@ func assertCreatedAt(t *testing.T, value any) {
 	if !ok || createdAt == "" {
 		t.Fatalf("expected createdAt in %s", payload)
 	}
-	if _, err := time.Parse(time.RFC3339Nano, createdAt); err != nil {
+	parsedCreatedAt, err := time.Parse(time.RFC3339Nano, createdAt)
+	if err != nil {
 		t.Fatalf("parse createdAt %q: %v", createdAt, err)
+	}
+	if parsedCreatedAt.IsZero() {
+		t.Fatalf("expected non-zero createdAt in %s", payload)
 	}
 }
 

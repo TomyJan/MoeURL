@@ -11,9 +11,9 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 3. [统计与事件](specs/statistics-and-events.md)：确认短链访问事件、基础统计和维度统计口径。
 4. [短链](specs/short-links.md)：确认短链访问、状态和事件记录调用点。
 5. [功能规格](specs/)：按模块查看权限、短链、用户、域名、页面、跳转、统计、主题和后台设计。
-6. [v0.1.1 实施计划](implementation/v0.1.1-plan.md)：确认 v0.1.1 的实施阶段、边界和验收目标。
-7. [技术选型决策](implementation/technical-decision.md)：确认 Go + Vue 技术栈和选型理由。
-8. [技术基线](implementation/technical-baseline.md)：确认仓库结构、模块边界、API、数据库、测试和部署约定。
+6. [技术选型决策](implementation/technical-decision.md)：确认 Go + Vue 技术栈和选型理由。
+7. [技术基线](implementation/technical-baseline.md)：确认仓库结构、模块边界、API、数据库、测试和部署约定。
+8. [v0.1.1 实施计划](implementation/v0.1.1-plan.md)：确认 v0.1.1 的实施阶段、边界和验收目标。
 9. [实施文档](implementation/)：查看工程计划、阶段任务和验收记录。
 
 ## 文档分层

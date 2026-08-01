@@ -299,9 +299,9 @@ describe('pages', () => {
     expect(screen.getByText('abc123')).toBeTruthy()
     expect(screen.getByText('https://example.com/recent')).toBeTruthy()
     expect(screen.getByText('2026-07-30')).toBeTruthy()
-    expect(screen.getByText('overview.viewAllLinks').closest('a')?.getAttribute('data-to')).toBe('/link')
-    expect(screen.getByText('overview.viewAnalytics').closest('a')?.getAttribute('data-to')).toBe('/analytics')
-    expect(screen.getByText('links.actions.analytics').closest('a')?.getAttribute('data-to')).toBe('/analytics?shortLinkId=link-id')
+    expect(screen.getByText('overview.viewAllLinks').closest('button')?.getAttribute('data-to')).toBe('/link')
+    expect(screen.getByText('overview.viewAnalytics').closest('button')?.getAttribute('data-to')).toBe('/analytics')
+    expect(screen.getByText('links.actions.analytics').closest('button')?.getAttribute('data-to')).toBe('/analytics?shortLinkId=link-id')
     expect(getShortLinkOverview).toHaveBeenCalledTimes(1)
     expect(listShortLinks).toHaveBeenCalledWith({ page: 1, pageSize: 5 })
   })
@@ -329,7 +329,7 @@ describe('pages', () => {
     expect(screen.getByText('invalid-date')).toBeTruthy()
   })
 
-  it('renders stable loading placeholders for overview metrics and recent links', () => {
+  it('renders shared loading indicators for overview metrics and recent links', () => {
     setQueryResults(
       { isPending: ref(true) },
       { isPending: ref(true) },
@@ -339,6 +339,7 @@ describe('pages', () => {
 
     expect(screen.getByTestId('overview-metrics-loading')).toBeTruthy()
     expect(screen.getByTestId('overview-recent-loading')).toBeTruthy()
+    expect(screen.getAllByRole('progressbar')).toHaveLength(2)
     expect(screen.queryByTestId('overview-empty')).toBeNull()
   })
 
@@ -385,7 +386,7 @@ describe('pages', () => {
     expect(within(screen.getByLabelText('overview.metricsLabel')).getAllByText('0')).toHaveLength(4)
     expect(screen.getByTestId('overview-empty')).toBeTruthy()
     expect(screen.getByText('overview.emptyDescription')).toBeTruthy()
-    expect(screen.getByText('overview.createFromHome').closest('a')?.getAttribute('data-to')).toBe('/')
+    expect(screen.getByText('overview.createFromHome').closest('button')?.getAttribute('data-to')).toBe('/')
     expect(screen.queryByTestId('short-link-create-panel')).toBeNull()
   })
 

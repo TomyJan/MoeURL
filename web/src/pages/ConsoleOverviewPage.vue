@@ -5,35 +5,32 @@
         <h1>{{ t('page.overview') }}</h1>
         <p>{{ t('overview.summary') }}</p>
       </div>
-      <div class="overview-page__actions">
-        <RouterLink class="overview-page__action" to="/link">{{ t('overview.viewAllLinks') }}</RouterLink>
-        <RouterLink class="overview-page__action overview-page__action--secondary" to="/analytics">
-          {{ t('overview.viewAnalytics') }}
-        </RouterLink>
+      <div class="console-page__actions-bar overview-page__actions">
+        <v-btn color="primary" variant="flat" to="/link">{{ t('overview.viewAllLinks') }}</v-btn>
+        <v-btn color="primary" variant="tonal" to="/analytics">{{ t('overview.viewAnalytics') }}</v-btn>
       </div>
     </header>
 
     <section
       v-if="overviewQuery.isPending.value"
-      class="overview-metrics overview-metrics--loading"
+      class="console-data-panel"
       :aria-label="t('overview.metricsLabel')"
       data-testid="overview-metrics-loading"
     >
-      <article v-for="index in 4" :key="index" class="overview-metric" aria-hidden="true">
-        <span class="overview-skeleton overview-skeleton--label" />
-        <strong class="overview-skeleton overview-skeleton--value" />
-      </article>
+      <v-progress-linear indeterminate />
     </section>
     <section
       v-else-if="overviewQuery.isError.value"
-      class="overview-feedback overview-feedback--metrics"
+      class="console-data-panel"
+      :aria-label="t('overview.metricsLabel')"
       data-testid="overview-metrics-error"
-      role="alert"
     >
-      <p>{{ t('overview.metricsLoadFailed') }}</p>
-      <button type="button" @click="retryOverview">{{ t('overview.retryMetrics') }}</button>
+      <v-alert type="error" variant="tonal">
+        <span>{{ t('overview.metricsLoadFailed') }}</span>
+        <v-btn color="error" size="small" variant="tonal" @click="retryOverview">{{ t('overview.retryMetrics') }}</v-btn>
+      </v-alert>
     </section>
-    <section v-else class="overview-metrics" :aria-label="t('overview.metricsLabel')">
+    <section v-else class="console-data-panel overview-metrics" :aria-label="t('overview.metricsLabel')">
       <article v-for="metric in metrics" :key="metric.key" class="overview-metric">
         <span>{{ t(`overview.metrics.${metric.key}`) }}</span>
         <strong>{{ metric.value }}</strong>
@@ -49,18 +46,20 @@
       </header>
 
       <div class="console-data-panel overview-recent__panel">
-        <div v-if="recentLinksQuery.isPending.value" class="overview-recent__loading" data-testid="overview-recent-loading">
-          <span v-for="index in 3" :key="index" class="overview-skeleton overview-skeleton--row" aria-hidden="true" />
+        <div v-if="recentLinksQuery.isPending.value" data-testid="overview-recent-loading">
+          <v-progress-linear indeterminate />
         </div>
-        <div v-else-if="recentLinksQuery.isError.value" class="overview-feedback" data-testid="overview-recent-error" role="alert">
-          <p>{{ t('overview.recentLoadFailed') }}</p>
-          <button type="button" @click="retryRecentLinks">{{ t('overview.retryRecent') }}</button>
+        <div v-else-if="recentLinksQuery.isError.value" data-testid="overview-recent-error">
+          <v-alert type="error" variant="tonal">
+            <span>{{ t('overview.recentLoadFailed') }}</span>
+            <v-btn color="error" size="small" variant="tonal" @click="retryRecentLinks">{{ t('overview.retryRecent') }}</v-btn>
+          </v-alert>
         </div>
-        <div v-else-if="recentLinks.length === 0" class="overview-empty" data-testid="overview-empty">
+        <div v-else-if="recentLinks.length === 0" class="console-page__empty" data-testid="overview-empty">
           <div>
-            <h3>{{ t('overview.emptyTitle') }}</h3>
+            <h2>{{ t('overview.emptyTitle') }}</h2>
             <p>{{ t('overview.emptyDescription') }}</p>
-            <RouterLink class="overview-empty__action" to="/">{{ t('overview.createFromHome') }}</RouterLink>
+            <v-btn class="mt-4" color="primary" variant="tonal" to="/">{{ t('overview.createFromHome') }}</v-btn>
           </div>
         </div>
         <div v-else class="overview-recent__list">
@@ -86,9 +85,9 @@
                 <dd>{{ formatDate(link.createdAt) }}</dd>
               </div>
             </dl>
-            <RouterLink class="overview-recent-row__analytics" :to="`/analytics?shortLinkId=${encodeURIComponent(link.id)}`">
+            <v-btn color="primary" size="small" variant="tonal" :to="`/analytics?shortLinkId=${encodeURIComponent(link.id)}`">
               {{ t('links.actions.analytics') }}
-            </RouterLink>
+            </v-btn>
           </article>
         </div>
       </div>
@@ -99,7 +98,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 
 import { getShortLinkOverview, listShortLinks } from '@/entities/short-link/api'
@@ -155,74 +153,9 @@ function formatDate(value: string) {
   line-height: 1.6;
 }
 
-.overview-page__actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.overview-page__action,
-.overview-recent-row__analytics {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 40px;
-  padding: 0 16px;
-  border-radius: var(--moeurl-radius-pill);
-  background: rgb(var(--v-theme-primary));
-  color: rgb(var(--v-theme-on-primary));
-  font-weight: 800;
-  text-decoration: none;
-}
-
-.overview-page__action--secondary,
-.overview-recent-row__analytics {
-  border: 1px solid var(--moeurl-outline);
-  background: transparent;
-  color: rgb(var(--v-theme-primary));
-}
-
 .overview-metrics {
   display: grid;
-  overflow: hidden;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid var(--moeurl-outline);
-  border-radius: var(--moeurl-radius-panel);
-  background: var(--moeurl-surface-elevated);
-}
-
-.overview-feedback {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 92px;
-  padding: 18px 20px;
-  border: 1px solid color-mix(in srgb, rgb(var(--v-theme-error)) 24%, var(--moeurl-outline));
-  border-radius: var(--moeurl-radius-panel);
-  background: color-mix(in srgb, rgb(var(--v-theme-error)) 7%, var(--moeurl-surface-elevated));
-  color: rgb(var(--v-theme-on-surface));
-}
-
-.overview-feedback--metrics {
-  min-height: 112px;
-}
-
-.overview-feedback p {
-  margin: 0;
-}
-
-.overview-feedback button {
-  min-width: 88px;
-  min-height: 38px;
-  padding: 0 14px;
-  border: 1px solid var(--moeurl-outline);
-  border-radius: var(--moeurl-radius-pill);
-  background: transparent;
-  color: rgb(var(--v-theme-primary));
-  cursor: pointer;
-  font: inherit;
-  font-weight: 800;
 }
 
 .overview-metric {
@@ -248,23 +181,6 @@ function formatDate(value: string) {
   line-height: 1;
 }
 
-.overview-skeleton {
-  display: block;
-  border-radius: 6px;
-  background: var(--moeurl-surface-strong);
-  animation: overview-pulse 1.4s ease-in-out infinite alternate;
-}
-
-.overview-skeleton--label {
-  width: 58%;
-  height: 13px;
-}
-
-.overview-skeleton--value {
-  width: 42%;
-  height: 30px;
-}
-
 .overview-recent {
   display: grid;
   gap: 12px;
@@ -282,52 +198,6 @@ function formatDate(value: string) {
 
 .overview-recent__list {
   display: grid;
-}
-
-.overview-recent__loading {
-  display: grid;
-  gap: 1px;
-  padding: 4px 0;
-}
-
-.overview-skeleton--row {
-  width: 100%;
-  height: 66px;
-}
-
-.overview-empty {
-  display: grid;
-  min-height: 150px;
-  place-items: center;
-  padding: 28px;
-  text-align: center;
-}
-
-.overview-empty h3,
-.overview-empty p {
-  margin: 0;
-}
-
-.overview-empty__action {
-  display: inline-flex;
-  align-items: center;
-  min-height: 38px;
-  margin-top: 14px;
-  color: rgb(var(--v-theme-primary));
-  font-weight: 850;
-  text-decoration: none;
-}
-
-.overview-empty h3 {
-  color: rgb(var(--v-theme-on-surface));
-  font-size: 1rem;
-}
-
-.overview-empty p {
-  max-width: 520px;
-  margin-top: 7px;
-  color: rgb(var(--v-theme-on-surface-variant));
-  line-height: 1.6;
 }
 
 .overview-recent-row {
@@ -383,28 +253,6 @@ function formatDate(value: string) {
   font-weight: 850;
 }
 
-.overview-recent-row__analytics {
-  min-height: 36px;
-  padding: 0 13px;
-  font-size: 0.8rem;
-}
-
-@keyframes overview-pulse {
-  from {
-    opacity: 0.55;
-  }
-
-  to {
-    opacity: 0.95;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .overview-skeleton {
-    animation: none;
-  }
-}
-
 @media (max-width: 980px) {
   .overview-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -421,23 +269,17 @@ function formatDate(value: string) {
   .overview-recent-row {
     grid-template-columns: minmax(0, 1fr) auto;
   }
-
-  .overview-recent-row__analytics {
-    justify-self: start;
-  }
 }
 
 @media (max-width: 620px) {
   .overview-page__header,
   .overview-page__actions,
-  .overview-recent-row,
-  .overview-feedback {
+  .overview-recent-row {
     display: grid;
     grid-template-columns: 1fr;
   }
 
-  .overview-page__actions,
-  .overview-page__action {
+  .overview-page__actions {
     width: 100%;
   }
 
