@@ -174,6 +174,7 @@ API 使用 `/api/v1` 前缀：
 /api/v1/auth/logout
 /api/v1/auth/me
 /api/v1/short-link/create
+/api/v1/short-link/overview
 /api/v1/short-link/list
 /api/v1/short-link/update
 /api/v1/short-link/delete
@@ -181,6 +182,8 @@ API 使用 `/api/v1` 前缀：
 /api/v1/admin/short-link/update
 /api/v1/admin/short-link/delete
 ```
+
+`GET /api/v1/short-link/overview` 返回当前用户拥有且未软删除短链的总数、启用数、总访问量和今日访问量。该接口使用 `short_link:read_own`，管理员调用时同样只返回个人数据；全站概览应使用后续独立的管理员接口。
 
 短链访问路由不使用 API 前缀：
 

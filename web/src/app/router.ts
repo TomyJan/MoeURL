@@ -5,6 +5,7 @@ import { me } from '@/entities/auth/api'
 import AdminLinksPage from '@/pages/AdminLinksPage.vue'
 import AdminUsersPage from '@/pages/AdminUsersPage.vue'
 import AnalyticsPage from '@/pages/AnalyticsPage.vue'
+import ConsoleOverviewPage from '@/pages/ConsoleOverviewPage.vue'
 import ConsolePlaceholderPage from '@/pages/ConsolePlaceholderPage.vue'
 import CreateUserPage from '@/pages/CreateUserPage.vue'
 import HomePage from '@/pages/HomePage.vue'
@@ -68,8 +69,7 @@ export const routes: RouteRecordRaw[] = [
     children: [
       {
         path: '/console',
-        component: ConsolePlaceholderPage,
-        props: { kind: 'overview' },
+        component: ConsoleOverviewPage,
         meta: { requiresConsole: true },
         beforeEnter: requireConsoleAccess,
       },

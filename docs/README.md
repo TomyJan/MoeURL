@@ -7,13 +7,13 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 建议按以下顺序阅读：
 
 1. [产品总览](product/overview.md)：了解 MoeURL 的定位、目标和核心原则。
-2. [v0.1.0 范围](product/scope-v0.1.0.md)：确认当前阶段统计分析的实现边界和隐私约束。
+2. [v0.1.1 范围](product/scope-v0.1.1.md)：确认当前阶段控制台个人概览的实现边界和统计口径。
 3. [统计与事件](specs/statistics-and-events.md)：确认短链访问事件、基础统计和维度统计口径。
 4. [短链](specs/short-links.md)：确认短链访问、状态和事件记录调用点。
 5. [功能规格](specs/)：按模块查看权限、短链、用户、域名、页面、跳转、统计、主题和后台设计。
-6. [v0.1.0 实施计划](implementation/v0.1.0-plan.md)：确认 v0.1.0 的实施阶段、边界和验收目标。
-7. [技术选型决策](implementation/technical-decision.md)：确认 Go + Vue 技术栈和选型理由。
-8. [技术基线](implementation/technical-baseline.md)：确认仓库结构、模块边界、API、数据库、测试和部署约定。
+6. [技术选型决策](implementation/technical-decision.md)：确认 Go + Vue 技术栈和选型理由。
+7. [技术基线](implementation/technical-baseline.md)：确认仓库结构、模块边界、API、数据库、测试和部署约定。
+8. [v0.1.1 实施计划](implementation/v0.1.1-plan.md)：确认 v0.1.1 的实施阶段、边界和验收目标。
 9. [实施文档](implementation/)：查看工程计划、阶段任务和验收记录。
 
 ## 文档分层
@@ -28,6 +28,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 - [v0.0.3 范围](product/scope-v0.0.3.md)
 - [v0.0.4 范围](product/scope-v0.0.4.md)
 - [v0.1.0 范围](product/scope-v0.1.0.md)
+- [v0.1.1 范围](product/scope-v0.1.1.md)
 - [路线图](product/roadmap.md)
 
 ### 功能规格层
@@ -48,7 +49,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 实施层文档位于 [implementation](implementation/) 目录，用于承载技术决策、技术基线、工程计划、任务拆分和验收记录。
 
-当前优先目标是 v0.1.0 短链统计分析。实施计划应优先覆盖 [v0.1.0 范围](product/scope-v0.1.0.md) 中的必须实现项，并遵循 [技术基线](implementation/technical-baseline.md)。涉及 v0.0.4 事件与基础统计、v0.0.3 控制台 UI、v0.0.2 已完成功能、既有 API、schema、权限和验收口径时，应继续参考对应版本验收清单和 [v0.0.1 工程实施合同](implementation/v0.0.1-implementation-contract.md)。
+当前优先目标是 v0.1.1 控制台个人概览。实施计划应优先覆盖 [v0.1.1 范围](product/scope-v0.1.1.md) 中的必须实现项，并遵循 [技术基线](implementation/technical-baseline.md)。涉及 v0.1.0 统计口径、v0.0.4 事件与基础统计、v0.0.3 控制台 UI、v0.0.2 已完成功能、既有 API、schema、权限和验收口径时，应继续参考对应版本验收清单和 [v0.0.1 工程实施合同](implementation/v0.0.1-implementation-contract.md)。
 
 当前实施层文档包括：
 
@@ -71,3 +72,6 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 - [v0.1.0 实施计划](implementation/v0.1.0-plan.md)
 - [v0.1.0 任务级实施清单](implementation/v0.1.0-tasks.md)
 - [v0.1.0 验收清单](implementation/v0.1.0-acceptance.md)
+- [v0.1.1 实施计划](implementation/v0.1.1-plan.md)
+- [v0.1.1 任务级实施清单](implementation/v0.1.1-tasks.md)
+- [v0.1.1 验收清单](implementation/v0.1.1-acceptance.md)

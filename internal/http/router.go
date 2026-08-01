@@ -59,6 +59,7 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 		if dependency.ShortLink != nil {
 			shortLinkHandler := shortlink.NewHandler(dependency.ShortLink)
 			api.Post("/short-link/create", shortLinkHandler.Create)
+			api.Get("/short-link/overview", shortLinkHandler.Overview)
 			api.Get("/short-link/list", shortLinkHandler.List)
 			api.Get("/short-link/statistics", shortLinkHandler.Statistics)
 			api.Post("/short-link/update", shortLinkHandler.Update)

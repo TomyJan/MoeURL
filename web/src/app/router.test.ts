@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createRequireConsoleAccess, createRequireAdminAccess, requireAdminAccess, requireConsoleAccess, router, routes } from './router'
 import { me } from '@/entities/auth/api'
+import ConsoleOverviewPage from '@/pages/ConsoleOverviewPage.vue'
 import HomePage from '@/pages/HomePage.vue'
 
 vi.mock('@/entities/auth/api', () => ({
@@ -49,11 +50,13 @@ describe('router', () => {
 
   it('nests console pages under the console shell', () => {
     const consoleRoute = routes.find((route) => route.children)
+    const overviewRoute = consoleRoute?.children?.find((route) => route.path === '/console')
 
     expect(consoleRoute?.children?.map((route) => route.path)).toEqual(
       expect.arrayContaining(['/link', '/admin/link', '/admin/user', '/admin/user/new']),
     )
     expect(consoleRoute?.children?.every((route) => route.meta?.requiresConsole === true)).toBe(true)
+    expect(overviewRoute?.component).toBe(ConsoleOverviewPage)
   })
 
   it('resolves the public root path to home before the console shell parent', async () => {

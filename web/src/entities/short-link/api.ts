@@ -1,6 +1,6 @@
 import { apiGet, apiPost } from '@/shared/api/client'
 
-import type { AdminShortLink, CreateShortLinkInput, ShortLink, ShortLinkStatisticsResponse, UpdateShortLinkInput } from './model'
+import type { AdminShortLink, CreateShortLinkInput, ShortLink, ShortLinkOverview, ShortLinkStatisticsResponse, UpdateShortLinkInput } from './model'
 
 export interface ShortLinkResponse {
   shortLink: ShortLink
@@ -53,6 +53,11 @@ export async function listShortLinks(input: ShortLinkListInput = {}): Promise<Sh
     items: response.data.items,
     meta: normalizeListMeta(response.meta, page, pageSize),
   }
+}
+
+export async function getShortLinkOverview(): Promise<ShortLinkOverview> {
+  const response = await apiGet<ShortLinkOverview>('/short-link/overview')
+  return response.data
 }
 
 export async function updateShortLink(input: UpdateShortLinkInput): Promise<ShortLinkResponse> {

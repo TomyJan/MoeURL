@@ -20,6 +20,7 @@ const (
 
 type Port interface {
 	Create(ctx context.Context, user auth.CurrentUser, input CreateInput) (CreateResult, error)
+	Overview(ctx context.Context, user auth.CurrentUser) (OverviewResult, error)
 	List(ctx context.Context, user auth.CurrentUser, input ListInput) (ListResult, error)
 	Update(ctx context.Context, user auth.CurrentUser, input UpdateInput) (CreateResult, error)
 	Delete(ctx context.Context, user auth.CurrentUser, input DeleteInput) error
@@ -64,6 +65,16 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ok(w, result)
+}
+
+// Overview returns aggregate metrics for short links owned by the current user.
+func (h *Handler) Overview(w http.ResponseWriter, r *http.Request) {
+	result, err := h.service.Overview(r.Context(), auth.UserFromContext(r.Context()))
+	if err != nil {
+		writeBusinessOrSystemError(w, err)
+		return
+	}
 	ok(w, result)
 }
 

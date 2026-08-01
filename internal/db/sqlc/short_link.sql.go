@@ -105,6 +105,7 @@ select short_link.id,
     short_link.slug,
     short_link.target_url,
     short_link.status,
+    short_link.created_at,
     domain.host as domain_host
 from short_link
 join domain on domain.id = short_link.domain_id
@@ -112,12 +113,13 @@ where short_link.id = $1 and short_link.deleted_at is null
 `
 
 type GetShortLinkAnalyticsLinkRow struct {
-	ID         pgtype.UUID `json:"id"`
-	OwnerID    pgtype.UUID `json:"owner_id"`
-	Slug       string      `json:"slug"`
-	TargetUrl  string      `json:"target_url"`
-	Status     string      `json:"status"`
-	DomainHost string      `json:"domain_host"`
+	ID         pgtype.UUID        `json:"id"`
+	OwnerID    pgtype.UUID        `json:"owner_id"`
+	Slug       string             `json:"slug"`
+	TargetUrl  string             `json:"target_url"`
+	Status     string             `json:"status"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	DomainHost string             `json:"domain_host"`
 }
 
 // GetShortLinkAnalyticsLink returns the non-deleted link needed for analytics authorization and display.
@@ -130,6 +132,7 @@ func (q *Queries) GetShortLinkAnalyticsLink(ctx context.Context, id pgtype.UUID)
 		&i.Slug,
 		&i.TargetUrl,
 		&i.Status,
+		&i.CreatedAt,
 		&i.DomainHost,
 	)
 	return i, err
@@ -155,6 +158,41 @@ func (q *Queries) GetShortLinkBySlug(ctx context.Context, slug string) (ShortLin
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getShortLinkOverviewByOwner = `-- name: GetShortLinkOverviewByOwner :one
+select count(distinct short_link.id)::bigint as total_link_count,
+    count(distinct short_link.id) filter (where short_link.status = 'active')::bigint as active_link_count,
+    count(short_link_event.id) filter (where short_link_event.event_type = 'redirect_response_sent')::bigint as visit_count,
+    count(short_link_event.id) filter (
+        where short_link_event.event_type = 'redirect_response_sent'
+            and short_link_event.created_at >= current_date
+            and short_link_event.created_at < current_date + interval '1 day'
+    )::bigint as today_visit_count
+from short_link
+left join short_link_event on short_link_event.short_link_id = short_link.id
+where short_link.owner_id = $1
+    and short_link.deleted_at is null
+`
+
+type GetShortLinkOverviewByOwnerRow struct {
+	TotalLinkCount  int64 `json:"total_link_count"`
+	ActiveLinkCount int64 `json:"active_link_count"`
+	VisitCount      int64 `json:"visit_count"`
+	TodayVisitCount int64 `json:"today_visit_count"`
+}
+
+// GetShortLinkOverviewByOwner returns aggregate link and visit counts for one owner.
+func (q *Queries) GetShortLinkOverviewByOwner(ctx context.Context, ownerID pgtype.UUID) (GetShortLinkOverviewByOwnerRow, error) {
+	row := q.db.QueryRow(ctx, getShortLinkOverviewByOwner, ownerID)
+	var i GetShortLinkOverviewByOwnerRow
+	err := row.Scan(
+		&i.TotalLinkCount,
+		&i.ActiveLinkCount,
+		&i.VisitCount,
+		&i.TodayVisitCount,
 	)
 	return i, err
 }

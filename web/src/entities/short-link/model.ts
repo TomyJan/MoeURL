@@ -4,6 +4,7 @@ export interface ShortLink {
   slug: string
   targetUrl: string
   status: 'active' | 'disabled'
+  createdAt: string
   stats?: ShortLinkStats
 }
 
@@ -11,6 +12,13 @@ export interface ShortLinkStats {
   visitCount: number
   todayVisitCount: number
   lastVisitedAt: string | null
+}
+
+export interface ShortLinkOverview {
+  totalLinkCount: number
+  activeLinkCount: number
+  visitCount: number
+  todayVisitCount: number
 }
 
 export interface AnalyticsTrendPoint {

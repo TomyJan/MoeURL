@@ -135,6 +135,7 @@ func TestRouterRegistersOptionalDependencies(t *testing.T) {
 		{method: http.MethodPost, path: "/api/v1/auth/logout"},
 		{method: http.MethodGet, path: "/api/v1/auth/me"},
 		{method: http.MethodPost, path: "/api/v1/short-link/create", body: `{}`},
+		{method: http.MethodGet, path: "/api/v1/short-link/overview"},
 		{method: http.MethodGet, path: "/api/v1/short-link/list"},
 		{method: http.MethodPost, path: "/api/v1/short-link/update", body: `{}`},
 		{method: http.MethodPost, path: "/api/v1/short-link/delete", body: `{}`},
@@ -196,6 +197,10 @@ func (routerCurrentUserResolver) ResolveCurrentUser(context.Context, string) (au
 }
 
 type routerShortLinkService struct{}
+
+func (routerShortLinkService) Overview(context.Context, auth.CurrentUser) (shortlink.OverviewResult, error) {
+	return shortlink.OverviewResult{}, nil
+}
 
 func (routerShortLinkService) Create(context.Context, auth.CurrentUser, shortlink.CreateInput) (shortlink.CreateResult, error) {
 	return shortlink.CreateResult{}, nil

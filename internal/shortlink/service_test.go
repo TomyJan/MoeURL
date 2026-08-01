@@ -3,6 +3,7 @@ package shortlink_test
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"regexp"
@@ -106,6 +107,7 @@ func TestServiceCreateStoresShortLinkWithGeneratedSlug(t *testing.T) {
 	if result.ShortLink.Status != "active" {
 		t.Fatalf("unexpected status %q", result.ShortLink.Status)
 	}
+	assertCreatedAt(t, result.ShortLink)
 
 	var storedTarget string
 	err = pool.QueryRow(ctx, `select target_url from short_link where slug = $1`, result.ShortLink.Slug).Scan(&storedTarget)
@@ -155,6 +157,69 @@ func TestServiceCreateReturnsInsertError(t *testing.T) {
 	}
 }
 
+// TestServiceOverviewReturnsOnlyOwnAggregates verifies personal overview scope and event rules.
+func TestServiceOverviewReturnsOnlyOwnAggregates(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "alice", "admin", permission.AdminPermissions)
+	other := insertShortLinkUserForGroup(t, ctx, pool, "bob", "00000000-0000-0000-0000-000000000401", "00000000-0000-0000-0000-000000000502", "user", permission.UserPermissions)
+	activeLinkID := insertStoredShortLink(t, ctx, pool, user.ID, "alice1", "https://example.com/1", "active", false)
+	disabledLinkID := insertStoredShortLink(t, ctx, pool, user.ID, "alice2", "https://example.com/2", "disabled", false)
+	deletedLinkID := insertStoredShortLink(t, ctx, pool, user.ID, "deleted", "https://example.com/deleted", "active", true)
+	otherLinkID := insertStoredShortLink(t, ctx, pool, other.ID, "bob001", "https://example.com/bob", "active", false)
+	insertStoredShortLinkVisitEvent(t, ctx, pool, activeLinkID)
+	insertStoredAnalyticsVisit(t, ctx, pool, disabledLinkID, "", "", "", "current_date - interval '1 day'")
+	insertStoredShortLinkVisitEvent(t, ctx, pool, deletedLinkID)
+	insertStoredShortLinkVisitEvent(t, ctx, pool, otherLinkID)
+	_, err := pool.Exec(ctx, `
+		insert into short_link_event (id, short_link_id, event_type, created_at)
+		values (gen_random_uuid(), $1, 'redirect_attempted', now())
+	`, activeLinkID)
+	if err != nil {
+		t.Fatalf("insert non-success event: %v", err)
+	}
+
+	service := shortlink.NewService(pool, permission.NewService())
+	result, err := service.Overview(ctx, user)
+	if err != nil {
+		t.Fatalf("get overview: %v", err)
+	}
+	if result.TotalLinkCount != 2 || result.ActiveLinkCount != 1 || result.VisitCount != 2 || result.TodayVisitCount != 1 {
+		t.Fatalf("unexpected overview: %#v", result)
+	}
+}
+
+// TestServiceOverviewRejectsMissingPermission verifies own-link read permission is required.
+func TestServiceOverviewRejectsMissingPermission(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	service := shortlink.NewService(pool, permission.NewService())
+
+	_, err := service.Overview(ctx, auth.GuestUser())
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected ErrPermissionDenied, got %v", err)
+	}
+}
+
+// TestServiceOverviewReturnsOwnerAndDatabaseErrors verifies invalid identities and query failures propagate.
+func TestServiceOverviewReturnsOwnerAndDatabaseErrors(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	service := shortlink.NewService(pool, permission.NewService())
+
+	_, err := service.Overview(ctx, auth.CurrentUser{ID: "bad-id", GroupKey: "user"})
+	if err == nil {
+		t.Fatal("expected owner id parse error")
+	}
+
+	pool.Close()
+	_, err = service.Overview(ctx, auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000501", GroupKey: "user"})
+	if err == nil {
+		t.Fatal("expected database error")
+	}
+}
+
 // TestServiceListReturnsOnlyOwnActiveRecords verifies ownership filtering and visit statistics.
 func TestServiceListReturnsOnlyOwnActiveRecords(t *testing.T) {
 	ctx := context.Background()
@@ -183,6 +248,7 @@ func TestServiceListReturnsOnlyOwnActiveRecords(t *testing.T) {
 		t.Fatalf("expected 2 items, got %d", len(result.Items))
 	}
 	for _, item := range result.Items {
+		assertCreatedAt(t, item)
 		if item.Slug == "deleted" || item.Slug == "bob001" {
 			t.Fatalf("unexpected item in list: %#v", item)
 		}
@@ -311,6 +377,7 @@ func TestServiceUpdateOwnShortLink(t *testing.T) {
 	if result.ShortLink.Status != "disabled" {
 		t.Fatalf("expected disabled, got %q", result.ShortLink.Status)
 	}
+	assertCreatedAt(t, result.ShortLink)
 }
 
 // TestServiceUpdateReturnsDefaultDomainError verifies updates require the default domain.
@@ -486,6 +553,7 @@ func TestServiceAdminListReturnsAllOwners(t *testing.T) {
 	}
 	owners := map[string]bool{}
 	for _, item := range result.Items {
+		assertCreatedAt(t, item)
 		owners[item.Owner.Username] = true
 	}
 	if !owners["alice"] || !owners["bob"] {
@@ -572,6 +640,7 @@ func TestServiceAdminUpdateAndDeleteAnyShortLink(t *testing.T) {
 	if updated.ShortLink.Status != "disabled" {
 		t.Fatalf("expected disabled, got %q", updated.ShortLink.Status)
 	}
+	assertCreatedAt(t, updated.ShortLink)
 
 	err = service.AdminDelete(ctx, admin, shortlink.DeleteInput{ID: linkID})
 	if err != nil {
@@ -733,6 +802,7 @@ func TestServiceStatisticsReturnsOwnedLinkAnalytics(t *testing.T) {
 	if result.ShortLink.ID != linkID || result.Stats.VisitCount != 2 || result.Stats.TodayVisitCount != 1 || len(result.Stats.Trend) != 7 {
 		t.Fatalf("unexpected statistics: %#v", result)
 	}
+	assertCreatedAt(t, result.ShortLink)
 	if len(result.Stats.Referrers) != 2 || result.Stats.Referrers[0].Value != "search.example" {
 		t.Fatalf("unexpected referrers: %#v", result.Stats.Referrers)
 	}
@@ -893,6 +963,30 @@ func insertStoredAnalyticsVisit(t *testing.T, ctx context.Context, pool *pgxpool
 // ptr returns a pointer to a string literal for optional update fields.
 func ptr(value string) *string {
 	return &value
+}
+
+// assertCreatedAt verifies short-link API models expose a valid creation timestamp.
+func assertCreatedAt(t *testing.T, value any) {
+	t.Helper()
+	payload, err := json.Marshal(value)
+	if err != nil {
+		t.Fatalf("marshal short link: %v", err)
+	}
+	var fields map[string]any
+	if err := json.Unmarshal(payload, &fields); err != nil {
+		t.Fatalf("decode short link: %v", err)
+	}
+	createdAt, ok := fields["createdAt"].(string)
+	if !ok || createdAt == "" {
+		t.Fatalf("expected createdAt in %s", payload)
+	}
+	parsedCreatedAt, err := time.Parse(time.RFC3339Nano, createdAt)
+	if err != nil {
+		t.Fatalf("parse createdAt %q: %v", createdAt, err)
+	}
+	if parsedCreatedAt.IsZero() {
+		t.Fatalf("expected non-zero createdAt in %s", payload)
+	}
 }
 
 // permissionsJSON serializes fixture permissions for direct SQL inserts.
