@@ -395,6 +395,16 @@ func TestServiceUpdateProfileRejectsPermissionInputBuiltinAndMissingUser(t *test
 		t.Fatalf("expected ErrInvalidInput, got %v", err)
 	}
 
+	_, err = service.UpdateProfile(ctx, auth.CurrentUser{
+		ID:          "bad-id",
+		Username:    "bad",
+		GroupKey:    "user",
+		Permissions: permission.UserPermissions,
+	}, user.UpdateProfileInput{Nickname: "Bad"})
+	if !errors.Is(err, user.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput for bad id, got %v", err)
+	}
+
 	_, err = service.UpdateProfile(ctx, auth.CurrentUser{ID: builtinID, Username: "system", GroupKey: "user", Permissions: permission.UserPermissions}, user.UpdateProfileInput{Nickname: "System Renamed"})
 	if !errors.Is(err, user.ErrBuiltinUserImmutable) {
 		t.Fatalf("expected ErrBuiltinUserImmutable, got %v", err)
@@ -478,6 +488,71 @@ func TestServiceUpdateProfileReturnsMissingWhenUpdateSkipsRow(t *testing.T) {
 	_, err = service.UpdateProfile(ctx, actor, user.UpdateProfileInput{Nickname: "Alice Renamed"})
 	if !errors.Is(err, user.ErrUserNotFound) {
 		t.Fatalf("expected ErrUserNotFound from skipped nickname update, got %v", err)
+	}
+}
+
+func TestServiceUpdateProfileReturnsMutationGroupAndPermissionErrors(t *testing.T) {
+	ctx := context.Background()
+	pool := userTestPool(t, ctx)
+	insertUserGroup(t, ctx, pool, "user", permission.UserPermissions)
+	aliceID := insertAppUser(t, ctx, pool, "alice", "hash", "Alice", "user", "active", false)
+	bobID := insertAppUser(t, ctx, pool, "bob", "hash", "Bob", "user", "active", false)
+	carolID := insertAppUser(t, ctx, pool, "carol", "hash", "Carol", "user", "active", false)
+	service := user.NewService(pool, permission.NewService())
+	actor := func(id string, username string) auth.CurrentUser {
+		return auth.CurrentUser{
+			ID:          id,
+			Username:    username,
+			Nickname:    username,
+			GroupKey:    "user",
+			Permissions: permission.UserPermissions,
+		}
+	}
+
+	_, err := pool.Exec(ctx, `
+		create function fail_app_user_nickname_update() returns trigger language plpgsql as $$
+		begin
+			raise exception 'nickname update failed';
+		end;
+		$$;
+		create trigger fail_app_user_nickname_update_trigger before update of nickname on app_user
+		for each row execute function fail_app_user_nickname_update();
+	`)
+	if err != nil {
+		t.Fatalf("create nickname fail trigger: %v", err)
+	}
+	_, err = service.UpdateProfile(ctx, actor(aliceID, "alice"), user.UpdateProfileInput{Nickname: "Alice Renamed"})
+	if err == nil {
+		t.Fatal("expected nickname update error")
+	}
+
+	_, err = pool.Exec(ctx, `
+		drop trigger fail_app_user_nickname_update_trigger on app_user;
+		drop function fail_app_user_nickname_update();
+	`)
+	if err != nil {
+		t.Fatalf("drop nickname fail trigger: %v", err)
+	}
+	_, err = pool.Exec(ctx, `alter table app_user drop constraint app_user_group_id_fkey`)
+	if err != nil {
+		t.Fatalf("drop group constraint: %v", err)
+	}
+	_, err = pool.Exec(ctx, `update app_user set group_id = '00000000-0000-0000-0000-000000009999' where id = $1`, bobID)
+	if err != nil {
+		t.Fatalf("orphan user group: %v", err)
+	}
+	_, err = service.UpdateProfile(ctx, actor(bobID, "bob"), user.UpdateProfileInput{Nickname: "Bob Renamed"})
+	if err == nil {
+		t.Fatal("expected group lookup error")
+	}
+
+	_, err = pool.Exec(ctx, `update user_group set permissions = '{"bad": true}'::jsonb where key = 'user'`)
+	if err != nil {
+		t.Fatalf("break user group permissions: %v", err)
+	}
+	_, err = service.UpdateProfile(ctx, actor(carolID, "carol"), user.UpdateProfileInput{Nickname: "Carol Renamed"})
+	if err == nil {
+		t.Fatal("expected permissions decode error")
 	}
 }
 
