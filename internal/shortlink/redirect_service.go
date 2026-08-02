@@ -66,7 +66,7 @@ func (s *RedirectService) Open(ctx context.Context, slug string) (OpenResult, er
 
 	shortLinkID := uuidFromPgtype(link.ID)
 	s.record(ctx, event.ShortLinkOpened, slug, shortLinkID)
-	if err := s.checkAccess(ctx, slug, shortLinkID, link.Status, link.ExpiresAt.Valid, link.ExpiresAt.Time); err != nil {
+	if err := s.checkAccess(ctx, slug, shortLinkID, link.Status, link.Expired); err != nil {
 		return OpenResult{}, err
 	}
 
@@ -97,7 +97,7 @@ func (s *RedirectService) Preview(ctx context.Context, slug string) (PreviewResu
 	if link.Status != shortLinkStatusActive {
 		return PreviewResult{}, ErrShortLinkDisabled
 	}
-	if isExpired(link.ExpiresAt.Valid, link.ExpiresAt.Time) {
+	if link.Expired {
 		return PreviewResult{}, ErrShortLinkExpired
 	}
 	if link.RedirectMode != RedirectModeIntermediate {
@@ -133,7 +133,7 @@ func (s *RedirectService) Continue(ctx context.Context, slug string) (RedirectRe
 	}
 
 	shortLinkID := uuidFromPgtype(link.ID)
-	if err := s.checkAccess(ctx, slug, shortLinkID, link.Status, link.ExpiresAt.Valid, link.ExpiresAt.Time); err != nil {
+	if err := s.checkAccess(ctx, slug, shortLinkID, link.Status, link.Expired); err != nil {
 		return RedirectResult{}, err
 	}
 	if link.RedirectMode != RedirectModeIntermediate {
@@ -145,13 +145,13 @@ func (s *RedirectService) Continue(ctx context.Context, slug string) (RedirectRe
 	return RedirectResult{TargetURL: link.TargetUrl, ShortLinkID: shortLinkID}, nil
 }
 
-func (s *RedirectService) checkAccess(ctx context.Context, slug string, shortLinkID string, status string, expiresAtValid bool, expiresAt time.Time) error {
+func (s *RedirectService) checkAccess(ctx context.Context, slug string, shortLinkID string, status string, expired bool) error {
 	s.record(ctx, event.AccessConditionChecked, slug, shortLinkID)
 	if status != shortLinkStatusActive {
 		s.record(ctx, event.RedirectBlocked, slug, shortLinkID)
 		return ErrShortLinkDisabled
 	}
-	if isExpired(expiresAtValid, expiresAt) {
+	if expired {
 		s.record(ctx, event.RedirectBlocked, slug, shortLinkID)
 		return ErrShortLinkExpired
 	}
@@ -161,10 +161,6 @@ func (s *RedirectService) checkAccess(ctx context.Context, slug string, shortLin
 func (s *RedirectService) recordBlocked(ctx context.Context, slug string, shortLinkID string) {
 	s.record(ctx, event.AccessConditionChecked, slug, shortLinkID)
 	s.record(ctx, event.RedirectBlocked, slug, shortLinkID)
-}
-
-func isExpired(valid bool, expiresAt time.Time) bool {
-	return valid && !expiresAt.After(time.Now())
 }
 
 func optionalTime(valid bool, value time.Time) *time.Time {

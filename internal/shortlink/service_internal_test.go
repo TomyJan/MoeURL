@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/google/uuid"
@@ -87,6 +88,26 @@ func TestInternalServiceHelpers(t *testing.T) {
 	}
 	if isUniqueViolation(errors.New("plain error")) {
 		t.Fatal("expected plain error to not be unique violation")
+	}
+}
+
+// TestExpirationValuesUsesDatabaseState verifies mapping never recalculates expiration with the application clock.
+func TestExpirationValuesUsesDatabaseState(t *testing.T) {
+	farFuture := time.Date(2100, time.January, 1, 0, 0, 0, 0, time.UTC)
+	expiresAt, expired := expirationValues(pgtype.Timestamptz{Time: farFuture, Valid: true}, true)
+	if expiresAt == nil || !expiresAt.Equal(farFuture) || !expired {
+		t.Fatalf("expected database expired state for future timestamp, got %v %t", expiresAt, expired)
+	}
+
+	farPast := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
+	_, expired = expirationValues(pgtype.Timestamptz{Time: farPast, Valid: true}, false)
+	if expired {
+		t.Fatal("expected database non-expired state to override the application clock")
+	}
+
+	expiresAt, expired = expirationValues(pgtype.Timestamptz{}, true)
+	if expiresAt != nil || expired {
+		t.Fatalf("expected missing expiration to remain non-expired, got %v %t", expiresAt, expired)
 	}
 }
 

@@ -941,6 +941,48 @@ func TestServiceAccessConfigCreateListAndUpdate(t *testing.T) {
 	}
 	assertAccessConfig(t, cleared.ShortLink, shortlink.RedirectModeIntermediate, 7, nil, false)
 
+	ownerFuture := future.Add(time.Hour)
+	ownerConfigured, err := service.Update(ctx, user, shortlink.UpdateInput{
+		ID: created.ShortLink.ID,
+		Expiration: &shortlink.ExpirationInput{
+			Mode:      shortlink.ExpirationModeAt,
+			ExpiresAt: &ownerFuture,
+		},
+	})
+	if err != nil {
+		t.Fatalf("set owner expiration after clearing it: %v", err)
+	}
+	assertAccessConfig(t, ownerConfigured.ShortLink, shortlink.RedirectModeIntermediate, 7, &ownerFuture, false)
+	ownerCleared, err := service.Update(ctx, user, shortlink.UpdateInput{
+		ID:         created.ShortLink.ID,
+		Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeNever},
+	})
+	if err != nil {
+		t.Fatalf("clear owner expiration: %v", err)
+	}
+	assertAccessConfig(t, ownerCleared.ShortLink, shortlink.RedirectModeIntermediate, 7, nil, false)
+
+	adminFuture := ownerFuture.Add(time.Hour)
+	adminConfigured, err := service.AdminUpdate(ctx, admin, shortlink.UpdateInput{
+		ID: created.ShortLink.ID,
+		Expiration: &shortlink.ExpirationInput{
+			Mode:      shortlink.ExpirationModeAt,
+			ExpiresAt: &adminFuture,
+		},
+	})
+	if err != nil {
+		t.Fatalf("set admin expiration from never: %v", err)
+	}
+	assertAccessConfig(t, adminConfigured.ShortLink, shortlink.RedirectModeIntermediate, 7, &adminFuture, false)
+	adminCleared, err := service.AdminUpdate(ctx, admin, shortlink.UpdateInput{
+		ID:         created.ShortLink.ID,
+		Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeNever},
+	})
+	if err != nil {
+		t.Fatalf("clear admin expiration: %v", err)
+	}
+	assertAccessConfig(t, adminCleared.ShortLink, shortlink.RedirectModeIntermediate, 7, nil, false)
+
 	direct := shortlink.RedirectModeDirect
 	delay := int16(5)
 	adminUpdated, err := service.AdminUpdate(ctx, admin, shortlink.UpdateInput{
@@ -1025,6 +1067,18 @@ func TestServiceAccessConfigValidation(t *testing.T) {
 	_, err = service.AdminUpdate(ctx, admin, shortlink.UpdateInput{ID: created.ShortLink.ID, RedirectMode: &invalidMode})
 	if !errors.Is(err, shortlink.ErrInvalidRedirectMode) {
 		t.Fatalf("expected admin invalid redirect mode, got %v", err)
+	}
+
+	pool.Close()
+	_, err = service.Update(ctx, user, shortlink.UpdateInput{
+		ID: created.ShortLink.ID,
+		Expiration: &shortlink.ExpirationInput{
+			Mode:      shortlink.ExpirationModeAt,
+			ExpiresAt: &future,
+		},
+	})
+	if err == nil || errors.Is(err, shortlink.ErrInvalidExpiration) {
+		t.Fatalf("expected database time query error, got %v", err)
 	}
 }
 

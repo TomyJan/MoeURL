@@ -66,6 +66,7 @@ insert into short_link (
 values ($1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
 returning id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at,
+    coalesce(expires_at <= now(), false)::boolean as expired,
     created_at, updated_at, deleted_at
 `
 
@@ -91,6 +92,7 @@ type CreateShortLinkRow struct {
 	RedirectMode             string             `json:"redirect_mode"`
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	Expired                  bool               `json:"expired"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -119,11 +121,23 @@ func (q *Queries) CreateShortLink(ctx context.Context, arg CreateShortLinkParams
 		&i.RedirectMode,
 		&i.IntermediateDelaySeconds,
 		&i.ExpiresAt,
+		&i.Expired,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
 	)
 	return i, err
+}
+
+const getDatabaseTime = `-- name: GetDatabaseTime :one
+select now()::timestamptz as current_time
+`
+
+func (q *Queries) GetDatabaseTime(ctx context.Context) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, getDatabaseTime)
+	var current_time pgtype.Timestamptz
+	err := row.Scan(&current_time)
+	return current_time, err
 }
 
 const getShortLinkAnalyticsLink = `-- name: GetShortLinkAnalyticsLink :one
@@ -135,6 +149,7 @@ select short_link.id,
     short_link.redirect_mode,
     short_link.intermediate_delay_seconds,
     short_link.expires_at,
+    coalesce(short_link.expires_at <= now(), false)::boolean as expired,
     short_link.created_at,
     domain.host as domain_host
 from short_link
@@ -151,6 +166,7 @@ type GetShortLinkAnalyticsLinkRow struct {
 	RedirectMode             string             `json:"redirect_mode"`
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	Expired                  bool               `json:"expired"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	DomainHost               string             `json:"domain_host"`
 }
@@ -167,6 +183,7 @@ func (q *Queries) GetShortLinkAnalyticsLink(ctx context.Context, id pgtype.UUID)
 		&i.RedirectMode,
 		&i.IntermediateDelaySeconds,
 		&i.ExpiresAt,
+		&i.Expired,
 		&i.CreatedAt,
 		&i.DomainHost,
 	)
@@ -176,6 +193,7 @@ func (q *Queries) GetShortLinkAnalyticsLink(ctx context.Context, id pgtype.UUID)
 const getShortLinkBySlug = `-- name: GetShortLinkBySlug :one
 select id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at,
+    coalesce(expires_at <= now(), false)::boolean as expired,
     created_at, updated_at, deleted_at
 from short_link
 where slug = $1 and deleted_at is null
@@ -191,6 +209,7 @@ type GetShortLinkBySlugRow struct {
 	RedirectMode             string             `json:"redirect_mode"`
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	Expired                  bool               `json:"expired"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -209,6 +228,7 @@ func (q *Queries) GetShortLinkBySlug(ctx context.Context, slug string) (GetShort
 		&i.RedirectMode,
 		&i.IntermediateDelaySeconds,
 		&i.ExpiresAt,
+		&i.Expired,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -260,6 +280,7 @@ select short_link.id,
     short_link.redirect_mode,
     short_link.intermediate_delay_seconds,
     short_link.expires_at,
+    coalesce(short_link.expires_at <= now(), false)::boolean as expired,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
@@ -309,6 +330,7 @@ type ListAllShortLinksRow struct {
 	RedirectMode             string             `json:"redirect_mode"`
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	Expired                  bool               `json:"expired"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -344,6 +366,7 @@ func (q *Queries) ListAllShortLinks(ctx context.Context, arg ListAllShortLinksPa
 			&i.RedirectMode,
 			&i.IntermediateDelaySeconds,
 			&i.ExpiresAt,
+			&i.Expired,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
@@ -374,6 +397,7 @@ select short_link.id,
     short_link.redirect_mode,
     short_link.intermediate_delay_seconds,
     short_link.expires_at,
+    coalesce(short_link.expires_at <= now(), false)::boolean as expired,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
@@ -413,6 +437,7 @@ type ListShortLinksByOwnerRow struct {
 	RedirectMode             string             `json:"redirect_mode"`
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	Expired                  bool               `json:"expired"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -446,6 +471,7 @@ func (q *Queries) ListShortLinksByOwner(ctx context.Context, arg ListShortLinksB
 			&i.RedirectMode,
 			&i.IntermediateDelaySeconds,
 			&i.ExpiresAt,
+			&i.Expired,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
@@ -518,6 +544,7 @@ where id = $7
     and deleted_at is null
 returning id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at,
+    coalesce(expires_at <= now(), false)::boolean as expired,
     created_at, updated_at, deleted_at
 `
 
@@ -541,6 +568,7 @@ type UpdateAnyShortLinkRow struct {
 	RedirectMode             string             `json:"redirect_mode"`
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	Expired                  bool               `json:"expired"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -567,6 +595,7 @@ func (q *Queries) UpdateAnyShortLink(ctx context.Context, arg UpdateAnyShortLink
 		&i.RedirectMode,
 		&i.IntermediateDelaySeconds,
 		&i.ExpiresAt,
+		&i.Expired,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -591,6 +620,7 @@ where id = $7
     and deleted_at is null
 returning id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at,
+    coalesce(expires_at <= now(), false)::boolean as expired,
     created_at, updated_at, deleted_at
 `
 
@@ -615,6 +645,7 @@ type UpdateOwnShortLinkRow struct {
 	RedirectMode             string             `json:"redirect_mode"`
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	Expired                  bool               `json:"expired"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -642,6 +673,7 @@ func (q *Queries) UpdateOwnShortLink(ctx context.Context, arg UpdateOwnShortLink
 		&i.RedirectMode,
 		&i.IntermediateDelaySeconds,
 		&i.ExpiresAt,
+		&i.Expired,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,

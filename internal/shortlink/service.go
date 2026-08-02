@@ -52,7 +52,7 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 	if err := validateTargetURL(input.TargetURL); err != nil {
 		return CreateResult{}, err
 	}
-	accessConfig, err := s.createAccessConfig(user, input)
+	accessConfig, err := s.createAccessConfig(ctx, user, input)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -102,7 +102,7 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 			Status:    created.Status,
 			CreatedAt: created.CreatedAt.Time,
 		}
-		applyAccessConfig(&shortLink, created.RedirectMode, created.IntermediateDelaySeconds, created.ExpiresAt)
+		applyAccessConfig(&shortLink, created.RedirectMode, created.IntermediateDelaySeconds, created.ExpiresAt, created.Expired)
 		return CreateResult{ShortLink: shortLink}, nil
 	}
 
@@ -174,7 +174,7 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 			CreatedAt: row.CreatedAt.Time,
 			Stats:     statsFromRow(row.VisitCount, row.TodayVisitCount, row.LastVisitedAt),
 		}
-		applyAccessConfig(&shortLink, row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt)
+		applyAccessConfig(&shortLink, row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired)
 		items = append(items, shortLink)
 	}
 
@@ -199,7 +199,7 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 	if input.Status != nil && !isAllowedStatus(*input.Status) {
 		return CreateResult{}, ErrInvalidStatus
 	}
-	accessConfig, err := s.updateAccessConfig(user, input)
+	accessConfig, err := s.updateAccessConfig(ctx, user, input)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -239,7 +239,7 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 		Status:    updated.Status,
 		CreatedAt: updated.CreatedAt.Time,
 	}
-	applyAccessConfig(&shortLink, updated.RedirectMode, updated.IntermediateDelaySeconds, updated.ExpiresAt)
+	applyAccessConfig(&shortLink, updated.RedirectMode, updated.IntermediateDelaySeconds, updated.ExpiresAt, updated.Expired)
 	return CreateResult{ShortLink: shortLink}, nil
 }
 
@@ -345,7 +345,7 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 				Nickname: row.OwnerNickname,
 			},
 		}
-		applyAdminAccessConfig(&shortLink, row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt)
+		applyAdminAccessConfig(&shortLink, row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired)
 		items = append(items, shortLink)
 	}
 
@@ -370,7 +370,7 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 	if input.Status != nil && !isAllowedStatus(*input.Status) {
 		return CreateResult{}, ErrInvalidStatus
 	}
-	accessConfig, err := s.updateAccessConfig(user, input)
+	accessConfig, err := s.updateAccessConfig(ctx, user, input)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -408,7 +408,7 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 		Status:    updated.Status,
 		CreatedAt: updated.CreatedAt.Time,
 	}
-	applyAccessConfig(&shortLink, updated.RedirectMode, updated.IntermediateDelaySeconds, updated.ExpiresAt)
+	applyAccessConfig(&shortLink, updated.RedirectMode, updated.IntermediateDelaySeconds, updated.ExpiresAt, updated.Expired)
 	return CreateResult{ShortLink: shortLink}, nil
 }
 
@@ -461,7 +461,7 @@ func (s *Service) analyticsLink(ctx context.Context, linkID uuid.UUID) (analytic
 		Status:    row.Status,
 		CreatedAt: row.CreatedAt.Time,
 	}
-	applyAccessConfig(&shortLink, row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt)
+	applyAccessConfig(&shortLink, row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired)
 	return analyticsLinkResult{
 		ownerID:   uuid.UUID(row.OwnerID.Bytes),
 		shortLink: shortLink,
@@ -560,7 +560,7 @@ type updateAccessConfigParams struct {
 }
 
 // createAccessConfig normalizes defaults and validates advanced creation settings.
-func (s *Service) createAccessConfig(user auth.CurrentUser, input CreateInput) (createAccessConfigParams, error) {
+func (s *Service) createAccessConfig(ctx context.Context, user auth.CurrentUser, input CreateInput) (createAccessConfigParams, error) {
 	redirectMode := input.RedirectMode
 	if redirectMode == "" {
 		redirectMode = RedirectModeDirect
@@ -583,7 +583,7 @@ func (s *Service) createAccessConfig(user auth.CurrentUser, input CreateInput) (
 	if input.Expiration != nil && !s.permissions.Has(user.GroupKey, permission.ShortLinkSetExpiration) {
 		return createAccessConfigParams{}, ErrPermissionDenied
 	}
-	_, expiresAt, err := normalizeExpiration(input.Expiration)
+	_, expiresAt, err := s.normalizeExpiration(ctx, input.Expiration)
 	if err != nil {
 		return createAccessConfigParams{}, err
 	}
@@ -595,7 +595,7 @@ func (s *Service) createAccessConfig(user auth.CurrentUser, input CreateInput) (
 }
 
 // updateAccessConfig validates only fields explicitly present in an update request.
-func (s *Service) updateAccessConfig(user auth.CurrentUser, input UpdateInput) (updateAccessConfigParams, error) {
+func (s *Service) updateAccessConfig(ctx context.Context, user auth.CurrentUser, input UpdateInput) (updateAccessConfigParams, error) {
 	if input.RedirectMode != nil && !isAllowedRedirectMode(*input.RedirectMode) {
 		return updateAccessConfigParams{}, ErrInvalidRedirectMode
 	}
@@ -610,7 +610,7 @@ func (s *Service) updateAccessConfig(user auth.CurrentUser, input UpdateInput) (
 		return updateAccessConfigParams{}, ErrPermissionDenied
 	}
 
-	expirationMode, expiresAt, err := normalizeExpiration(input.Expiration)
+	expirationMode, expiresAt, err := s.normalizeExpiration(ctx, input.Expiration)
 	if err != nil {
 		return updateAccessConfigParams{}, err
 	}
@@ -622,7 +622,7 @@ func (s *Service) updateAccessConfig(user auth.CurrentUser, input UpdateInput) (
 	}, nil
 }
 
-func normalizeExpiration(input *ExpirationInput) (string, pgtype.Timestamptz, error) {
+func (s *Service) normalizeExpiration(ctx context.Context, input *ExpirationInput) (string, pgtype.Timestamptz, error) {
 	if input == nil {
 		return expirationModeKeep, pgtype.Timestamptz{}, nil
 	}
@@ -633,7 +633,14 @@ func normalizeExpiration(input *ExpirationInput) (string, pgtype.Timestamptz, er
 		}
 		return ExpirationModeNever, pgtype.Timestamptz{}, nil
 	case ExpirationModeAt:
-		if input.ExpiresAt == nil || !input.ExpiresAt.After(time.Now()) {
+		if input.ExpiresAt == nil {
+			return "", pgtype.Timestamptz{}, ErrInvalidExpiration
+		}
+		databaseTime, err := s.queries.GetDatabaseTime(ctx)
+		if err != nil {
+			return "", pgtype.Timestamptz{}, err
+		}
+		if !input.ExpiresAt.After(databaseTime.Time) {
 			return "", pgtype.Timestamptz{}, ErrInvalidExpiration
 		}
 		return ExpirationModeAt, pgtype.Timestamptz{Time: input.ExpiresAt.UTC(), Valid: true}, nil
@@ -657,24 +664,24 @@ func optionalInt2(value *int16) pgtype.Int2 {
 	return pgtype.Int2{Int16: *value, Valid: true}
 }
 
-func applyAccessConfig(link *ShortLink, redirectMode string, delay int16, expiresAt pgtype.Timestamptz) {
+func applyAccessConfig(link *ShortLink, redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool) {
 	link.RedirectMode = redirectMode
 	link.IntermediateDelaySeconds = delay
-	link.ExpiresAt, link.Expired = expirationValues(expiresAt)
+	link.ExpiresAt, link.Expired = expirationValues(expiresAt, expired)
 }
 
-func applyAdminAccessConfig(link *AdminShortLink, redirectMode string, delay int16, expiresAt pgtype.Timestamptz) {
+func applyAdminAccessConfig(link *AdminShortLink, redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool) {
 	link.RedirectMode = redirectMode
 	link.IntermediateDelaySeconds = delay
-	link.ExpiresAt, link.Expired = expirationValues(expiresAt)
+	link.ExpiresAt, link.Expired = expirationValues(expiresAt, expired)
 }
 
-func expirationValues(value pgtype.Timestamptz) (*time.Time, bool) {
+func expirationValues(value pgtype.Timestamptz, expired bool) (*time.Time, bool) {
 	if !value.Valid {
 		return nil, false
 	}
 	expiresAt := value.Time
-	return &expiresAt, !expiresAt.After(time.Now())
+	return &expiresAt, expired
 }
 
 // hasAdminPermission checks both administrative access and the requested permission.
