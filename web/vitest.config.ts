@@ -11,6 +11,7 @@ export default defineConfig({
     },
   },
   test: {
+    execArgv: ['--no-experimental-webstorage'],
     coverage: {
       include: [
         'src/app/**/*.{ts,vue}',

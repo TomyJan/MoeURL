@@ -72,4 +72,14 @@ describe('deployment configuration', () => {
     }
   })
 
+  it('disables the Node 26 Web Storage global for Vitest workers', () => {
+    const packageJson = JSON.parse(readFileSync(resolve(repositoryRoot, 'web/package.json'), 'utf8')) as {
+      scripts: Record<string, string>
+    }
+    const vitestConfig = readFileSync(resolve(repositoryRoot, 'web/vitest.config.ts'), 'utf8')
+
+    expect(packageJson.scripts.test).toBe('vitest run')
+    expect(packageJson.scripts['test:coverage']).toBe('vitest run --coverage')
+    expect(vitestConfig).toContain("execArgv: ['--no-experimental-webstorage']")
+  })
 })
