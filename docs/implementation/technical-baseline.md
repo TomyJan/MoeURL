@@ -488,11 +488,18 @@ go test ./...
 覆盖率门禁：
 
 ```bash
-go test ./internal/auth ./internal/db ./internal/http ./internal/permission ./internal/shortlink ./internal/system ./internal/user -coverprofile="$PWD/coverage.out"
+go test -p=1 ./internal/auth ./internal/db ./internal/event ./internal/http ./internal/middleware ./internal/permission ./internal/shortlink ./internal/system ./internal/user -coverprofile="$PWD/coverage.out" -count=1
 node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100 --include-from=scripts/go-coverage-targets.txt --exclude-blocks-from=scripts/go-coverage-excluded-blocks.txt
 ```
 
 后端覆盖率门禁覆盖 `scripts/go-coverage-targets.txt` 中列出的业务源码文件，必须达到 100%。`scripts/go-coverage-excluded-blocks.txt` 只允许精确列出不可稳定触发或由数据模型保证不可达的代码块，例如事务中途基础设施失败、随机短码连续冲突耗尽、静态类型值的 JSON 编码失败。数据库集成、进程入口和框架胶水仍通过 `go test ./...` 验证，但不作为业务源码覆盖率分母。
+
+SQLC 生成文件必须使用文件头声明的版本重新生成，并保持零手工漂移。当前版本使用 SQLC `1.30.0`，可通过以下命令验证：
+
+```bash
+docker run --rm -v "$PWD:/src" -w /src sqlc/sqlc:1.30.0 generate
+git diff --exit-code -- internal/db/sqlc
+```
 
 ### 前端测试
 
@@ -516,6 +523,8 @@ cd web && pnpm test:e2e
 v0.2.0 将新增的短链创建、访问配置和二维码组件纳入覆盖率门禁。二维码测试必须验证编码输入、有效图片结果和生成失败状态，不允许只断言 mock 调用次数。
 
 Playwright E2E 通过 `web/playwright.config.ts` 启动 Docker Compose 测试环境。E2E 必须使用独立的 Compose project name，默认由 `MOEURL_E2E_PORT` 派生，也可通过 `MOEURL_E2E_COMPOSE_PROJECT` 显式指定。E2E 同时通过 `MOEURL_E2E_PORT` 和 `MOEURL_E2E_POSTGRES_PORT` 隔离应用宿主端口与 PostgreSQL 宿主端口，避免和日常 Compose 或本机 PostgreSQL 端口冲突。E2E 显式以 `MOEURL_ENV=development` 运行测试应用，避免本地 HTTP 流程受 Secure Cookie 影响。E2E 可以在该隔离测试项目内执行 `down -v` 清理测试卷，但不得清理日常 `docker compose up --build` 使用的默认开发数据库卷。
+
+v0.2.0 访问体验 E2E 必须覆盖真实 `/{slug}` 入口、进入中间页前访问量为 0、继续路由目标 `302`、真实 UI 继续访问后访问量为 1，以及过期访问不增加访问量。中间页、访问设置和二维码对话框必须同时在 `1280 x 720` 与 `390 x 800` 视口验证控件顺序、操作区几何和横向溢出；异步流程使用条件等待，不允许使用固定 `waitForTimeout`。
 
 ### 质量检查工作流
 
