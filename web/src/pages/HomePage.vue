@@ -1,6 +1,6 @@
 <template>
   <div class="home-page">
-    <HomeHeader :display-name="currentUserName" :is-guest="isGuest" @console-click="goProfile" />
+    <HomeHeader :display-name="currentUserName" :is-guest="isGuest" @account-click="goProfile" />
 
     <main class="home-page__hero" data-testid="home-hero-panel">
       <section class="home-page__hero-content">

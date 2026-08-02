@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
@@ -25,6 +26,7 @@ const (
 )
 
 type Service struct {
+	pool        *pgxpool.Pool
 	queries     *sqlc.Queries
 	permissions *permission.Service
 }
@@ -35,6 +37,7 @@ func NewService(pool *pgxpool.Pool, permissions *permission.Service) *Service {
 		permissions = permission.NewService()
 	}
 	return &Service{
+		pool:        pool,
 		queries:     sqlc.New(pool),
 		permissions: permissions,
 	}
@@ -202,22 +205,32 @@ func (s *Service) UpdateProfile(ctx context.Context, actor auth.CurrentUser, inp
 		return UpdateProfileResult{}, ErrBuiltinUserImmutable
 	}
 
-	updated, err := s.queries.UpdateAppUserNickname(ctx, sqlc.UpdateAppUserNicknameParams{
-		ID:       uuidToPgtype(userID),
-		Nickname: nickname,
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return UpdateProfileResult{}, ErrUserNotFound
-	}
-	if err != nil {
-		return UpdateProfileResult{}, err
-	}
-	group, err := s.queries.GetUserGroupByID(ctx, updated.GroupID)
-	if err != nil {
-		return UpdateProfileResult{}, err
-	}
+	var updated sqlc.AppUser
+	var group sqlc.UserGroup
 	var permissions []string
-	if err := json.Unmarshal(group.Permissions, &permissions); err != nil {
+	err = appdb.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		txQueries := s.queries.WithTx(tx)
+		var err error
+		updated, err = txQueries.UpdateAppUserNickname(ctx, sqlc.UpdateAppUserNicknameParams{
+			ID:       uuidToPgtype(userID),
+			Nickname: nickname,
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrUserNotFound
+		}
+		if err != nil {
+			return err
+		}
+		group, err = txQueries.GetUserGroupByID(ctx, updated.GroupID)
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(group.Permissions, &permissions); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
 		return UpdateProfileResult{}, err
 	}
 

@@ -1,5 +1,5 @@
 FROM golang:1.25.8 AS web-build
-ARG NODE_VERSION=26.3.0
+ARG NODE_VERSION=26.5.1
 ARG TARGETARCH
 WORKDIR /workspace/web
 RUN apt-get update \

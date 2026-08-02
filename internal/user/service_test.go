@@ -554,6 +554,14 @@ func TestServiceUpdateProfileReturnsMutationGroupAndPermissionErrors(t *testing.
 	if err == nil {
 		t.Fatal("expected permissions decode error")
 	}
+	var storedNickname string
+	err = pool.QueryRow(ctx, `select nickname from app_user where id = $1`, carolID).Scan(&storedNickname)
+	if err != nil {
+		t.Fatalf("query rollback nickname: %v", err)
+	}
+	if storedNickname != "Carol" {
+		t.Fatalf("expected nickname update to roll back, got %q", storedNickname)
+	}
 }
 
 func TestServiceResetPasswordRejectsBuiltinUserAndChangesPasswordHash(t *testing.T) {

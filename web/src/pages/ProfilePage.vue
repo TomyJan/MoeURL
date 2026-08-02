@@ -84,7 +84,14 @@ import { useAvatarText } from '@/shared/user/useAvatarText'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
-const nonRetryableSaveErrorCodes = new Set([120001, 300102, 300103])
+const ERR_PERMISSION_DENIED_CODE = 120001
+const ERR_BUILTIN_USER_IMMUTABLE_CODE = 300102
+const ERR_USER_NOT_FOUND_CODE = 300103
+const nonRetryableSaveErrorCodes = new Set([
+  ERR_PERMISSION_DENIED_CODE,
+  ERR_BUILTIN_USER_IMMUTABLE_CODE,
+  ERR_USER_NOT_FOUND_CODE,
+])
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,
