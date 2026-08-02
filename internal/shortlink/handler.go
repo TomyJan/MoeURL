@@ -16,9 +16,12 @@ const (
 	CodeReservedSlug             = 200102
 	CodeInvalidTargetURL         = 200103
 	CodeShortLinkMissing         = 200104
-	CodeInvalidRedirectMode      = 200105
-	CodeInvalidIntermediateDelay = 200106
-	CodeInvalidExpiration        = 200107
+	CodeShortLinkDisabled        = 200105
+	CodeInvalidRedirectMode      = 200106
+	CodeInvalidIntermediateDelay = 200107
+	CodeInvalidExpiration        = 200108
+	CodeShortLinkExpired         = 200109
+	CodeShortLinkNotIntermediate = 200110
 )
 
 type Port interface {

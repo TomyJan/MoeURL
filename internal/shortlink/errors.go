@@ -11,6 +11,8 @@ var (
 	ErrInvalidExpiration        = errors.New("invalid expiration")
 	ErrShortLinkMissing         = errors.New("short link missing")
 	ErrShortLinkDisabled        = errors.New("short link disabled")
+	ErrShortLinkExpired         = errors.New("short link expired")
+	ErrShortLinkNotIntermediate = errors.New("short link not intermediate")
 	ErrSlugConflict             = errors.New("slug conflict")
 	ErrReservedSlug             = errors.New("reserved slug")
 	ErrInvalidShortLinkID       = errors.New("invalid short link id")

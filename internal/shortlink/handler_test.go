@@ -128,9 +128,9 @@ func TestHandlerCreateShortLinkMapsBusinessErrors(t *testing.T) {
 	}{
 		{name: "permission denied", err: shortlink.ErrPermissionDenied, code: 120001},
 		{name: "invalid target url", err: shortlink.ErrInvalidTargetURL, code: 200103},
-		{name: "invalid redirect mode", err: shortlink.ErrInvalidRedirectMode, code: 200105},
-		{name: "invalid intermediate delay", err: shortlink.ErrInvalidIntermediateDelay, code: 200106},
-		{name: "invalid expiration", err: shortlink.ErrInvalidExpiration, code: 200107},
+		{name: "invalid redirect mode", err: shortlink.ErrInvalidRedirectMode, code: 200106},
+		{name: "invalid intermediate delay", err: shortlink.ErrInvalidIntermediateDelay, code: 200107},
+		{name: "invalid expiration", err: shortlink.ErrInvalidExpiration, code: 200108},
 		{name: "slug conflict", err: shortlink.ErrSlugConflict, code: 200101},
 		{name: "reserved slug", err: shortlink.ErrReservedSlug, code: 200102},
 	}
@@ -158,6 +158,38 @@ func TestHandlerCreateShortLinkMapsBusinessErrors(t *testing.T) {
 				t.Fatalf("expected code %d, got %d", tt.code, body.Code)
 			}
 		})
+	}
+}
+
+func TestShortLinkBusinessErrorCodesRemainStable(t *testing.T) {
+	codes := map[string]int{
+		"slug conflict":              shortlink.CodeSlugConflict,
+		"reserved slug":              shortlink.CodeReservedSlug,
+		"invalid target url":         shortlink.CodeInvalidTargetURL,
+		"missing":                    shortlink.CodeShortLinkMissing,
+		"disabled":                   shortlink.CodeShortLinkDisabled,
+		"invalid redirect mode":      shortlink.CodeInvalidRedirectMode,
+		"invalid intermediate delay": shortlink.CodeInvalidIntermediateDelay,
+		"invalid expiration":         shortlink.CodeInvalidExpiration,
+		"expired":                    shortlink.CodeShortLinkExpired,
+		"not intermediate":           shortlink.CodeShortLinkNotIntermediate,
+	}
+	expected := map[string]int{
+		"slug conflict":              200101,
+		"reserved slug":              200102,
+		"invalid target url":         200103,
+		"missing":                    200104,
+		"disabled":                   200105,
+		"invalid redirect mode":      200106,
+		"invalid intermediate delay": 200107,
+		"invalid expiration":         200108,
+		"expired":                    200109,
+		"not intermediate":           200110,
+	}
+	for name, code := range codes {
+		if code != expected[name] {
+			t.Fatalf("%s code = %d, want %d", name, code, expected[name])
+		}
 	}
 }
 
@@ -601,9 +633,9 @@ func TestHandlerWriteBusinessOrSystemErrorMappings(t *testing.T) {
 		{name: "update permission", path: "/api/v1/short-link/update", err: shortlink.ErrPermissionDenied, httpStatus: http.StatusOK, code: 120001},
 		{name: "update invalid target", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidTargetURL, httpStatus: http.StatusOK, code: 200103},
 		{name: "update invalid status", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidStatus, httpStatus: http.StatusOK, code: 100001},
-		{name: "update invalid redirect mode", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidRedirectMode, httpStatus: http.StatusOK, code: 200105},
-		{name: "update invalid intermediate delay", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidIntermediateDelay, httpStatus: http.StatusOK, code: 200106},
-		{name: "update invalid expiration", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidExpiration, httpStatus: http.StatusOK, code: 200107},
+		{name: "update invalid redirect mode", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidRedirectMode, httpStatus: http.StatusOK, code: 200106},
+		{name: "update invalid intermediate delay", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidIntermediateDelay, httpStatus: http.StatusOK, code: 200107},
+		{name: "update invalid expiration", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidExpiration, httpStatus: http.StatusOK, code: 200108},
 		{name: "update slug conflict", path: "/api/v1/short-link/update", err: shortlink.ErrSlugConflict, httpStatus: http.StatusOK, code: 200101},
 		{name: "update reserved slug", path: "/api/v1/short-link/update", err: shortlink.ErrReservedSlug, httpStatus: http.StatusOK, code: 200102},
 		{name: "update system", path: "/api/v1/short-link/update", err: errors.New("database down"), httpStatus: http.StatusInternalServerError, code: 900000},
