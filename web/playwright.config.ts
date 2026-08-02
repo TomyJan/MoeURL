@@ -1,23 +1,36 @@
 import { existsSync } from 'node:fs'
 import { chromium, defineConfig, devices } from '@playwright/test'
 
+type BrowserChannel = 'chrome' | 'msedge'
+type BrowserCandidate = {
+  channel: BrowserChannel
+  paths: string[]
+}
+
 const e2ePort = process.env.MOEURL_E2E_PORT ?? '8080'
 const e2ePostgresPort = process.env.MOEURL_E2E_POSTGRES_PORT ?? '15432'
 const baseURL = `http://127.0.0.1:${e2ePort}`
 const composeProjectName = process.env.MOEURL_E2E_COMPOSE_PROJECT ?? `moeurl-e2e-${e2ePort}`
 const browserChannel = process.env.MOEURL_E2E_BROWSER_CHANNEL?.trim() || detectFallbackBrowserChannel()
 
-function detectFallbackBrowserChannel() {
-  if (existsSync(chromium.executablePath()) || process.platform !== 'win32') {
+export function detectFallbackBrowserChannel(
+  executableExists: (path: string) => boolean = existsSync,
+  bundledChromiumPath = chromium.executablePath(),
+): BrowserChannel | undefined {
+  if (executableExists(bundledChromiumPath)) {
     return undefined
   }
 
-  const candidates = [
+  const candidates: BrowserCandidate[] = [
     {
       channel: 'chrome',
       paths: [
         'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
         'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        '/usr/bin/google-chrome',
+        '/usr/bin/google-chrome-stable',
+        '/opt/google/chrome/chrome',
       ],
     },
     {
@@ -25,11 +38,15 @@ function detectFallbackBrowserChannel() {
       paths: [
         'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
         'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+        '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+        '/usr/bin/microsoft-edge',
+        '/usr/bin/microsoft-edge-stable',
+        '/opt/microsoft/msedge/msedge',
       ],
     },
   ]
 
-  return candidates.find(({ paths }) => paths.some((path) => existsSync(path)))?.channel
+  return candidates.find(({ paths }) => paths.some((path) => executableExists(path)))?.channel
 }
 
 export default defineConfig({

@@ -1,10 +1,16 @@
 FROM golang:1.25.8 AS web-build
 ARG NODE_VERSION=26.3.0
+ARG TARGETARCH
 WORKDIR /workspace/web
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl xz-utils \
     && rm -rf /var/lib/apt/lists/* \
-    && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o /tmp/node.tar.xz \
+    && case "${TARGETARCH}" in \
+        amd64) node_arch="linux-x64" ;; \
+        arm64) node_arch="linux-arm64" ;; \
+        *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+    && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${node_arch}.tar.xz" -o /tmp/node.tar.xz \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
     && rm -f /tmp/node.tar.xz \
     && node -v \
@@ -24,7 +30,7 @@ COPY internal ./internal
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/moeurl ./cmd/server
 RUN CGO_ENABLED=0 go install github.com/pressly/goose/v3/cmd/goose@v3.27.3
 
-FROM alpine:3.20
+FROM alpine:3.24
 WORKDIR /app
 RUN apk add --no-cache ca-certificates && addgroup -S moeurl && adduser -S -G moeurl moeurl
 COPY --from=go-build /out/moeurl /app/moeurl

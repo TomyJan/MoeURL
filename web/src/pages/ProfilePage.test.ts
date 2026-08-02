@@ -8,6 +8,13 @@ import { updateProfile } from '@/entities/user/api'
 import { ApiClientError } from '@/shared/api/client'
 
 const state = vi.hoisted(() => ({
+  mutation: undefined as
+    | undefined
+    | {
+        error: { value: unknown }
+        mutate: (input: { nickname: string }) => unknown
+        mutateAsync: (input: { nickname: string }) => Promise<unknown>
+      },
   queryResult: {
     data: {
       value: {
@@ -74,26 +81,33 @@ vi.mock('@tanstack/vue-query', () => ({
     const isPending = ref(false)
     const error = ref<unknown>(undefined)
     const variables = ref<unknown>(undefined)
-    return {
+    async function runMutation(input: { nickname: string }) {
+      variables.value = input
+      isPending.value = true
+      try {
+        const result = await options?.mutationFn?.(input)
+        options?.onSuccess?.(result)
+        return result
+      } catch (mutationError) {
+        error.value = mutationError
+        options?.onError?.(mutationError)
+        throw mutationError
+      } finally {
+        isPending.value = false
+      }
+    }
+
+    const mutation = {
       error,
       isPending,
       variables,
-      mutate: vi.fn(async (input: { nickname: string }) => {
-        variables.value = input
-        isPending.value = true
-        try {
-          const result = await options?.mutationFn?.(input)
-          options?.onSuccess?.(result)
-          return result
-        } catch (mutationError) {
-          error.value = mutationError
-          options?.onError?.(mutationError)
-          throw mutationError
-        } finally {
-          isPending.value = false
-        }
+      mutate: vi.fn((input: { nickname: string }) => {
+        void runMutation(input).catch(() => undefined)
       }),
+      mutateAsync: vi.fn(runMutation),
     }
+    state.mutation = mutation
+    return mutation
   }),
   useQueryClient: () => state.queryClient,
 }))
@@ -137,6 +151,7 @@ describe('ProfilePage', () => {
     state.queryResult.isPending.value = false
     state.queryClient.invalidateQueries.mockReset()
     state.queryClient.setQueryData.mockReset()
+    state.mutation = undefined
     vi.mocked(updateProfile).mockClear()
   })
 
@@ -222,18 +237,20 @@ describe('ProfilePage', () => {
     await fireEvent.update(screen.getByLabelText('profile.nicknameLabel'), '  Alice Renamed  ')
     await fireEvent.click(screen.getByRole('button', { name: 'profile.saveNickname' }))
 
-    expect(vi.mocked(updateProfile)).toHaveBeenCalledWith({ nickname: 'Alice Renamed' })
-    expect(state.queryClient.setQueryData).toHaveBeenCalledWith(
-      ['auth', 'me'],
-      expect.objectContaining({
-        user: expect.objectContaining({
-          nickname: 'Alice Renamed',
+    await waitFor(() => {
+      expect(vi.mocked(updateProfile)).toHaveBeenCalledWith({ nickname: 'Alice Renamed' })
+      expect(state.queryClient.setQueryData).toHaveBeenCalledWith(
+        ['auth', 'me'],
+        expect.objectContaining({
+          user: expect.objectContaining({
+            nickname: 'Alice Renamed',
+          }),
         }),
-      }),
-    )
-    expect(state.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['auth', 'me'] })
-    expect(screen.getByText('profile.saveSuccess')).toBeTruthy()
-    expect(screen.getByDisplayValue('Alice Renamed')).toBeTruthy()
+      )
+      expect(state.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['auth', 'me'] })
+      expect(screen.getByText('profile.saveSuccess')).toBeTruthy()
+      expect(screen.getByDisplayValue('Alice Renamed')).toBeTruthy()
+    })
   })
 
   it('shows a save failure when the profile update request rejects', async () => {
@@ -247,6 +264,18 @@ describe('ProfilePage', () => {
       expect(screen.getByText('profile.saveFailed')).toBeTruthy()
     })
     expect(state.queryClient.setQueryData).not.toHaveBeenCalled()
+  })
+
+  it('keeps the mutation mock fire-and-forget like TanStack Query mutate', async () => {
+    vi.mocked(updateProfile).mockRejectedValueOnce(new Error('network down'))
+    mountProfilePage()
+
+    const result = state.mutation?.mutate({ nickname: 'Alice Renamed' })
+
+    expect(result).toBeUndefined()
+    await waitFor(() => {
+      expect(state.mutation?.error.value).toBeInstanceOf(Error)
+    })
   })
 
   it('shows a retryable backend reason when the save request fails with invalid input', async () => {
