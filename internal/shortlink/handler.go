@@ -11,11 +11,14 @@ import (
 )
 
 const (
-	CodePermissionDenied = 120001
-	CodeSlugConflict     = 200101
-	CodeReservedSlug     = 200102
-	CodeInvalidTargetURL = 200103
-	CodeShortLinkMissing = 200104
+	CodePermissionDenied         = 120001
+	CodeSlugConflict             = 200101
+	CodeReservedSlug             = 200102
+	CodeInvalidTargetURL         = 200103
+	CodeShortLinkMissing         = 200104
+	CodeInvalidRedirectMode      = 200105
+	CodeInvalidIntermediateDelay = 200106
+	CodeInvalidExpiration        = 200107
 )
 
 type Port interface {
@@ -55,6 +58,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 			businessError(w, CodePermissionDenied, "Permission denied")
 		case errors.Is(err, ErrInvalidTargetURL):
 			businessError(w, CodeInvalidTargetURL, "Invalid target URL")
+		case errors.Is(err, ErrInvalidRedirectMode):
+			businessError(w, CodeInvalidRedirectMode, "Invalid redirect mode")
+		case errors.Is(err, ErrInvalidIntermediateDelay):
+			businessError(w, CodeInvalidIntermediateDelay, "Invalid intermediate delay")
+		case errors.Is(err, ErrInvalidExpiration):
+			businessError(w, CodeInvalidExpiration, "Invalid expiration")
 		case errors.Is(err, ErrSlugConflict):
 			businessError(w, CodeSlugConflict, "Short code conflict")
 		case errors.Is(err, ErrReservedSlug):
@@ -220,6 +229,12 @@ func writeBusinessOrSystemError(w http.ResponseWriter, err error) {
 		businessError(w, CodeInvalidTargetURL, "Invalid target URL")
 	case errors.Is(err, ErrInvalidStatus):
 		businessError(w, 100001, "Invalid request")
+	case errors.Is(err, ErrInvalidRedirectMode):
+		businessError(w, CodeInvalidRedirectMode, "Invalid redirect mode")
+	case errors.Is(err, ErrInvalidIntermediateDelay):
+		businessError(w, CodeInvalidIntermediateDelay, "Invalid intermediate delay")
+	case errors.Is(err, ErrInvalidExpiration):
+		businessError(w, CodeInvalidExpiration, "Invalid expiration")
 	case errors.Is(err, ErrInvalidShortLinkID):
 		businessError(w, 100001, "Invalid request")
 	case errors.Is(err, ErrShortLinkMissing):

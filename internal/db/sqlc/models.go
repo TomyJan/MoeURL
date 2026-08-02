@@ -42,15 +42,18 @@ type Session struct {
 }
 
 type ShortLink struct {
-	ID        pgtype.UUID        `json:"id"`
-	OwnerID   pgtype.UUID        `json:"owner_id"`
-	DomainID  pgtype.UUID        `json:"domain_id"`
-	Slug      string             `json:"slug"`
-	TargetUrl string             `json:"target_url"`
-	Status    string             `json:"status"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
+	ID                       pgtype.UUID        `json:"id"`
+	OwnerID                  pgtype.UUID        `json:"owner_id"`
+	DomainID                 pgtype.UUID        `json:"domain_id"`
+	Slug                     string             `json:"slug"`
+	TargetUrl                string             `json:"target_url"`
+	Status                   string             `json:"status"`
+	CreatedAt                pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
+	RedirectMode             string             `json:"redirect_mode"`
+	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
+	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 }
 
 type ShortLinkEvent struct {

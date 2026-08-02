@@ -31,7 +31,6 @@ type CountAllShortLinksParams struct {
 	Status pgtype.Text `json:"status"`
 }
 
-// CountAllShortLinks returns the number of globally visible links matching filters.
 func (q *Queries) CountAllShortLinks(ctx context.Context, arg CountAllShortLinksParams) (int64, error) {
 	row := q.db.QueryRow(ctx, countAllShortLinks, arg.Query, arg.Status)
 	var count int64
@@ -51,7 +50,6 @@ type CountShortLinksByOwnerParams struct {
 	Status  pgtype.Text `json:"status"`
 }
 
-// CountShortLinksByOwner returns the number of an owner's links matching filters.
 func (q *Queries) CountShortLinksByOwner(ctx context.Context, arg CountShortLinksByOwnerParams) (int64, error) {
 	row := q.db.QueryRow(ctx, countShortLinksByOwner, arg.OwnerID, arg.Status)
 	var count int64
@@ -60,22 +58,45 @@ func (q *Queries) CountShortLinksByOwner(ctx context.Context, arg CountShortLink
 }
 
 const createShortLink = `-- name: CreateShortLink :one
-insert into short_link (id, owner_id, domain_id, slug, target_url, status, created_at, updated_at)
-values ($1, $2, $3, $4, $5, $6, now(), now())
-returning id, owner_id, domain_id, slug, target_url, status, created_at, updated_at, deleted_at
+insert into short_link (
+    id, owner_id, domain_id, slug, target_url, status,
+    redirect_mode, intermediate_delay_seconds, expires_at,
+    created_at, updated_at
+)
+values ($1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
+returning id, owner_id, domain_id, slug, target_url, status,
+    redirect_mode, intermediate_delay_seconds, expires_at,
+    created_at, updated_at, deleted_at
 `
 
 type CreateShortLinkParams struct {
-	ID        pgtype.UUID `json:"id"`
-	OwnerID   pgtype.UUID `json:"owner_id"`
-	DomainID  pgtype.UUID `json:"domain_id"`
-	Slug      string      `json:"slug"`
-	TargetUrl string      `json:"target_url"`
-	Status    string      `json:"status"`
+	ID                       pgtype.UUID        `json:"id"`
+	OwnerID                  pgtype.UUID        `json:"owner_id"`
+	DomainID                 pgtype.UUID        `json:"domain_id"`
+	Slug                     string             `json:"slug"`
+	TargetUrl                string             `json:"target_url"`
+	Status                   string             `json:"status"`
+	RedirectMode             string             `json:"redirect_mode"`
+	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
+	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 }
 
-// CreateShortLink inserts a short link and returns the stored row.
-func (q *Queries) CreateShortLink(ctx context.Context, arg CreateShortLinkParams) (ShortLink, error) {
+type CreateShortLinkRow struct {
+	ID                       pgtype.UUID        `json:"id"`
+	OwnerID                  pgtype.UUID        `json:"owner_id"`
+	DomainID                 pgtype.UUID        `json:"domain_id"`
+	Slug                     string             `json:"slug"`
+	TargetUrl                string             `json:"target_url"`
+	Status                   string             `json:"status"`
+	RedirectMode             string             `json:"redirect_mode"`
+	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
+	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt                pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
+}
+
+func (q *Queries) CreateShortLink(ctx context.Context, arg CreateShortLinkParams) (CreateShortLinkRow, error) {
 	row := q.db.QueryRow(ctx, createShortLink,
 		arg.ID,
 		arg.OwnerID,
@@ -83,8 +104,11 @@ func (q *Queries) CreateShortLink(ctx context.Context, arg CreateShortLinkParams
 		arg.Slug,
 		arg.TargetUrl,
 		arg.Status,
+		arg.RedirectMode,
+		arg.IntermediateDelaySeconds,
+		arg.ExpiresAt,
 	)
-	var i ShortLink
+	var i CreateShortLinkRow
 	err := row.Scan(
 		&i.ID,
 		&i.OwnerID,
@@ -92,6 +116,9 @@ func (q *Queries) CreateShortLink(ctx context.Context, arg CreateShortLinkParams
 		&i.Slug,
 		&i.TargetUrl,
 		&i.Status,
+		&i.RedirectMode,
+		&i.IntermediateDelaySeconds,
+		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -105,6 +132,9 @@ select short_link.id,
     short_link.slug,
     short_link.target_url,
     short_link.status,
+    short_link.redirect_mode,
+    short_link.intermediate_delay_seconds,
+    short_link.expires_at,
     short_link.created_at,
     domain.host as domain_host
 from short_link
@@ -113,16 +143,18 @@ where short_link.id = $1 and short_link.deleted_at is null
 `
 
 type GetShortLinkAnalyticsLinkRow struct {
-	ID         pgtype.UUID        `json:"id"`
-	OwnerID    pgtype.UUID        `json:"owner_id"`
-	Slug       string             `json:"slug"`
-	TargetUrl  string             `json:"target_url"`
-	Status     string             `json:"status"`
-	CreatedAt  pgtype.Timestamptz `json:"created_at"`
-	DomainHost string             `json:"domain_host"`
+	ID                       pgtype.UUID        `json:"id"`
+	OwnerID                  pgtype.UUID        `json:"owner_id"`
+	Slug                     string             `json:"slug"`
+	TargetUrl                string             `json:"target_url"`
+	Status                   string             `json:"status"`
+	RedirectMode             string             `json:"redirect_mode"`
+	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
+	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt                pgtype.Timestamptz `json:"created_at"`
+	DomainHost               string             `json:"domain_host"`
 }
 
-// GetShortLinkAnalyticsLink returns the non-deleted link needed for analytics authorization and display.
 func (q *Queries) GetShortLinkAnalyticsLink(ctx context.Context, id pgtype.UUID) (GetShortLinkAnalyticsLinkRow, error) {
 	row := q.db.QueryRow(ctx, getShortLinkAnalyticsLink, id)
 	var i GetShortLinkAnalyticsLinkRow
@@ -132,6 +164,9 @@ func (q *Queries) GetShortLinkAnalyticsLink(ctx context.Context, id pgtype.UUID)
 		&i.Slug,
 		&i.TargetUrl,
 		&i.Status,
+		&i.RedirectMode,
+		&i.IntermediateDelaySeconds,
+		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.DomainHost,
 	)
@@ -139,15 +174,31 @@ func (q *Queries) GetShortLinkAnalyticsLink(ctx context.Context, id pgtype.UUID)
 }
 
 const getShortLinkBySlug = `-- name: GetShortLinkBySlug :one
-select id, owner_id, domain_id, slug, target_url, status, created_at, updated_at, deleted_at
+select id, owner_id, domain_id, slug, target_url, status,
+    redirect_mode, intermediate_delay_seconds, expires_at,
+    created_at, updated_at, deleted_at
 from short_link
 where slug = $1 and deleted_at is null
 `
 
-// GetShortLinkBySlug returns a non-deleted short link by slug.
-func (q *Queries) GetShortLinkBySlug(ctx context.Context, slug string) (ShortLink, error) {
+type GetShortLinkBySlugRow struct {
+	ID                       pgtype.UUID        `json:"id"`
+	OwnerID                  pgtype.UUID        `json:"owner_id"`
+	DomainID                 pgtype.UUID        `json:"domain_id"`
+	Slug                     string             `json:"slug"`
+	TargetUrl                string             `json:"target_url"`
+	Status                   string             `json:"status"`
+	RedirectMode             string             `json:"redirect_mode"`
+	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
+	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt                pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
+}
+
+func (q *Queries) GetShortLinkBySlug(ctx context.Context, slug string) (GetShortLinkBySlugRow, error) {
 	row := q.db.QueryRow(ctx, getShortLinkBySlug, slug)
-	var i ShortLink
+	var i GetShortLinkBySlugRow
 	err := row.Scan(
 		&i.ID,
 		&i.OwnerID,
@@ -155,6 +206,9 @@ func (q *Queries) GetShortLinkBySlug(ctx context.Context, slug string) (ShortLin
 		&i.Slug,
 		&i.TargetUrl,
 		&i.Status,
+		&i.RedirectMode,
+		&i.IntermediateDelaySeconds,
+		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -184,7 +238,6 @@ type GetShortLinkOverviewByOwnerRow struct {
 	TodayVisitCount int64 `json:"today_visit_count"`
 }
 
-// GetShortLinkOverviewByOwner returns aggregate link and visit counts for one owner.
 func (q *Queries) GetShortLinkOverviewByOwner(ctx context.Context, ownerID pgtype.UUID) (GetShortLinkOverviewByOwnerRow, error) {
 	row := q.db.QueryRow(ctx, getShortLinkOverviewByOwner, ownerID)
 	var i GetShortLinkOverviewByOwnerRow
@@ -204,6 +257,9 @@ select short_link.id,
     short_link.slug,
     short_link.target_url,
     short_link.status,
+    short_link.redirect_mode,
+    short_link.intermediate_delay_seconds,
+    short_link.expires_at,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
@@ -244,24 +300,26 @@ type ListAllShortLinksParams struct {
 }
 
 type ListAllShortLinksRow struct {
-	ID              pgtype.UUID        `json:"id"`
-	OwnerID         pgtype.UUID        `json:"owner_id"`
-	DomainID        pgtype.UUID        `json:"domain_id"`
-	Slug            string             `json:"slug"`
-	TargetUrl       string             `json:"target_url"`
-	Status          string             `json:"status"`
-	CreatedAt       pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
-	DomainHost      string             `json:"domain_host"`
-	OwnerUsername   string             `json:"owner_username"`
-	OwnerNickname   string             `json:"owner_nickname"`
-	VisitCount      int64              `json:"visit_count"`
-	TodayVisitCount int64              `json:"today_visit_count"`
-	LastVisitedAt   pgtype.Timestamptz `json:"last_visited_at"`
+	ID                       pgtype.UUID        `json:"id"`
+	OwnerID                  pgtype.UUID        `json:"owner_id"`
+	DomainID                 pgtype.UUID        `json:"domain_id"`
+	Slug                     string             `json:"slug"`
+	TargetUrl                string             `json:"target_url"`
+	Status                   string             `json:"status"`
+	RedirectMode             string             `json:"redirect_mode"`
+	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
+	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt                pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
+	DomainHost               string             `json:"domain_host"`
+	OwnerUsername            string             `json:"owner_username"`
+	OwnerNickname            string             `json:"owner_nickname"`
+	VisitCount               int64              `json:"visit_count"`
+	TodayVisitCount          int64              `json:"today_visit_count"`
+	LastVisitedAt            pgtype.Timestamptz `json:"last_visited_at"`
 }
 
-// ListAllShortLinks returns filtered global links with owner and visit statistics.
 func (q *Queries) ListAllShortLinks(ctx context.Context, arg ListAllShortLinksParams) ([]ListAllShortLinksRow, error) {
 	rows, err := q.db.Query(ctx, listAllShortLinks,
 		arg.Limit,
@@ -283,6 +341,9 @@ func (q *Queries) ListAllShortLinks(ctx context.Context, arg ListAllShortLinksPa
 			&i.Slug,
 			&i.TargetUrl,
 			&i.Status,
+			&i.RedirectMode,
+			&i.IntermediateDelaySeconds,
+			&i.ExpiresAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
@@ -310,6 +371,9 @@ select short_link.id,
     short_link.slug,
     short_link.target_url,
     short_link.status,
+    short_link.redirect_mode,
+    short_link.intermediate_delay_seconds,
+    short_link.expires_at,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
@@ -340,22 +404,24 @@ type ListShortLinksByOwnerParams struct {
 }
 
 type ListShortLinksByOwnerRow struct {
-	ID              pgtype.UUID        `json:"id"`
-	OwnerID         pgtype.UUID        `json:"owner_id"`
-	DomainID        pgtype.UUID        `json:"domain_id"`
-	Slug            string             `json:"slug"`
-	TargetUrl       string             `json:"target_url"`
-	Status          string             `json:"status"`
-	CreatedAt       pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
-	DomainHost      string             `json:"domain_host"`
-	VisitCount      int64              `json:"visit_count"`
-	TodayVisitCount int64              `json:"today_visit_count"`
-	LastVisitedAt   pgtype.Timestamptz `json:"last_visited_at"`
+	ID                       pgtype.UUID        `json:"id"`
+	OwnerID                  pgtype.UUID        `json:"owner_id"`
+	DomainID                 pgtype.UUID        `json:"domain_id"`
+	Slug                     string             `json:"slug"`
+	TargetUrl                string             `json:"target_url"`
+	Status                   string             `json:"status"`
+	RedirectMode             string             `json:"redirect_mode"`
+	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
+	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt                pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
+	DomainHost               string             `json:"domain_host"`
+	VisitCount               int64              `json:"visit_count"`
+	TodayVisitCount          int64              `json:"today_visit_count"`
+	LastVisitedAt            pgtype.Timestamptz `json:"last_visited_at"`
 }
 
-// ListShortLinksByOwner returns an owner's links with visit statistics.
 func (q *Queries) ListShortLinksByOwner(ctx context.Context, arg ListShortLinksByOwnerParams) ([]ListShortLinksByOwnerRow, error) {
 	rows, err := q.db.Query(ctx, listShortLinksByOwner,
 		arg.OwnerID,
@@ -377,6 +443,9 @@ func (q *Queries) ListShortLinksByOwner(ctx context.Context, arg ListShortLinksB
 			&i.Slug,
 			&i.TargetUrl,
 			&i.Status,
+			&i.RedirectMode,
+			&i.IntermediateDelaySeconds,
+			&i.ExpiresAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
@@ -403,7 +472,6 @@ where id = $1
     and deleted_at is null
 `
 
-// SoftDeleteAnyShortLink marks a non-deleted link as deleted.
 func (q *Queries) SoftDeleteAnyShortLink(ctx context.Context, id pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, softDeleteAnyShortLink, id)
 	if err != nil {
@@ -426,7 +494,6 @@ type SoftDeleteOwnShortLinkParams struct {
 	OwnerID pgtype.UUID `json:"owner_id"`
 }
 
-// SoftDeleteOwnShortLink marks an owner's non-deleted link as deleted.
 func (q *Queries) SoftDeleteOwnShortLink(ctx context.Context, arg SoftDeleteOwnShortLinkParams) (int64, error) {
 	result, err := q.db.Exec(ctx, softDeleteOwnShortLink, arg.ID, arg.OwnerID)
 	if err != nil {
@@ -439,22 +506,57 @@ const updateAnyShortLink = `-- name: UpdateAnyShortLink :one
 update short_link
 set target_url = coalesce($1, target_url),
     status = coalesce($2, status),
+    redirect_mode = coalesce($3::text, redirect_mode),
+    intermediate_delay_seconds = coalesce($4::smallint, intermediate_delay_seconds),
+    expires_at = case $5::text
+        when 'never' then null
+        when 'at' then $6::timestamptz
+        else expires_at
+    end,
     updated_at = now()
-where id = $3
+where id = $7
     and deleted_at is null
-returning id, owner_id, domain_id, slug, target_url, status, created_at, updated_at, deleted_at
+returning id, owner_id, domain_id, slug, target_url, status,
+    redirect_mode, intermediate_delay_seconds, expires_at,
+    created_at, updated_at, deleted_at
 `
 
 type UpdateAnyShortLinkParams struct {
-	TargetUrl pgtype.Text `json:"target_url"`
-	Status    pgtype.Text `json:"status"`
-	ID        pgtype.UUID `json:"id"`
+	TargetUrl                pgtype.Text        `json:"target_url"`
+	Status                   pgtype.Text        `json:"status"`
+	RedirectMode             pgtype.Text        `json:"redirect_mode"`
+	IntermediateDelaySeconds pgtype.Int2        `json:"intermediate_delay_seconds"`
+	ExpirationMode           string             `json:"expiration_mode"`
+	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	ID                       pgtype.UUID        `json:"id"`
 }
 
-// UpdateAnyShortLink updates a non-deleted link and returns the stored row.
-func (q *Queries) UpdateAnyShortLink(ctx context.Context, arg UpdateAnyShortLinkParams) (ShortLink, error) {
-	row := q.db.QueryRow(ctx, updateAnyShortLink, arg.TargetUrl, arg.Status, arg.ID)
-	var i ShortLink
+type UpdateAnyShortLinkRow struct {
+	ID                       pgtype.UUID        `json:"id"`
+	OwnerID                  pgtype.UUID        `json:"owner_id"`
+	DomainID                 pgtype.UUID        `json:"domain_id"`
+	Slug                     string             `json:"slug"`
+	TargetUrl                string             `json:"target_url"`
+	Status                   string             `json:"status"`
+	RedirectMode             string             `json:"redirect_mode"`
+	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
+	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt                pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
+}
+
+func (q *Queries) UpdateAnyShortLink(ctx context.Context, arg UpdateAnyShortLinkParams) (UpdateAnyShortLinkRow, error) {
+	row := q.db.QueryRow(ctx, updateAnyShortLink,
+		arg.TargetUrl,
+		arg.Status,
+		arg.RedirectMode,
+		arg.IntermediateDelaySeconds,
+		arg.ExpirationMode,
+		arg.ExpiresAt,
+		arg.ID,
+	)
+	var i UpdateAnyShortLinkRow
 	err := row.Scan(
 		&i.ID,
 		&i.OwnerID,
@@ -462,6 +564,9 @@ func (q *Queries) UpdateAnyShortLink(ctx context.Context, arg UpdateAnyShortLink
 		&i.Slug,
 		&i.TargetUrl,
 		&i.Status,
+		&i.RedirectMode,
+		&i.IntermediateDelaySeconds,
+		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -473,29 +578,60 @@ const updateOwnShortLink = `-- name: UpdateOwnShortLink :one
 update short_link
 set target_url = coalesce($1, target_url),
     status = coalesce($2, status),
+    redirect_mode = coalesce($3::text, redirect_mode),
+    intermediate_delay_seconds = coalesce($4::smallint, intermediate_delay_seconds),
+    expires_at = case $5::text
+        when 'never' then null
+        when 'at' then $6::timestamptz
+        else expires_at
+    end,
     updated_at = now()
-where id = $3
-    and owner_id = $4
+where id = $7
+    and owner_id = $8
     and deleted_at is null
-returning id, owner_id, domain_id, slug, target_url, status, created_at, updated_at, deleted_at
+returning id, owner_id, domain_id, slug, target_url, status,
+    redirect_mode, intermediate_delay_seconds, expires_at,
+    created_at, updated_at, deleted_at
 `
 
 type UpdateOwnShortLinkParams struct {
-	TargetUrl pgtype.Text `json:"target_url"`
-	Status    pgtype.Text `json:"status"`
-	ID        pgtype.UUID `json:"id"`
-	OwnerID   pgtype.UUID `json:"owner_id"`
+	TargetUrl                pgtype.Text        `json:"target_url"`
+	Status                   pgtype.Text        `json:"status"`
+	RedirectMode             pgtype.Text        `json:"redirect_mode"`
+	IntermediateDelaySeconds pgtype.Int2        `json:"intermediate_delay_seconds"`
+	ExpirationMode           string             `json:"expiration_mode"`
+	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	ID                       pgtype.UUID        `json:"id"`
+	OwnerID                  pgtype.UUID        `json:"owner_id"`
 }
 
-// UpdateOwnShortLink updates an owner's non-deleted link and returns the stored row.
-func (q *Queries) UpdateOwnShortLink(ctx context.Context, arg UpdateOwnShortLinkParams) (ShortLink, error) {
+type UpdateOwnShortLinkRow struct {
+	ID                       pgtype.UUID        `json:"id"`
+	OwnerID                  pgtype.UUID        `json:"owner_id"`
+	DomainID                 pgtype.UUID        `json:"domain_id"`
+	Slug                     string             `json:"slug"`
+	TargetUrl                string             `json:"target_url"`
+	Status                   string             `json:"status"`
+	RedirectMode             string             `json:"redirect_mode"`
+	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
+	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt                pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
+}
+
+func (q *Queries) UpdateOwnShortLink(ctx context.Context, arg UpdateOwnShortLinkParams) (UpdateOwnShortLinkRow, error) {
 	row := q.db.QueryRow(ctx, updateOwnShortLink,
 		arg.TargetUrl,
 		arg.Status,
+		arg.RedirectMode,
+		arg.IntermediateDelaySeconds,
+		arg.ExpirationMode,
+		arg.ExpiresAt,
 		arg.ID,
 		arg.OwnerID,
 	)
-	var i ShortLink
+	var i UpdateOwnShortLinkRow
 	err := row.Scan(
 		&i.ID,
 		&i.OwnerID,
@@ -503,6 +639,9 @@ func (q *Queries) UpdateOwnShortLink(ctx context.Context, arg UpdateOwnShortLink
 		&i.Slug,
 		&i.TargetUrl,
 		&i.Status,
+		&i.RedirectMode,
+		&i.IntermediateDelaySeconds,
+		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,

@@ -124,6 +124,101 @@ func TestShortLinkStatisticsQueries(t *testing.T) {
 	}
 }
 
+// TestShortLinkAccessConfigQueries verifies generated create, read, list, and update contracts.
+func TestShortLinkAccessConfigQueries(t *testing.T) {
+	ctx := context.Background()
+	pool := sqlcTestPool(t, ctx)
+	queries := sqlc.New(pool)
+	ownerID := uuid.MustParse("00000000-0000-0000-0000-000000000201")
+	domainID := uuid.MustParse("00000000-0000-0000-0000-000000000101")
+	fixtureID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
+	configuredID := uuid.MustParse("00000000-0000-0000-0000-000000000302")
+	insertSQLCShortLinkFixtures(t, ctx, pool, ownerID, domainID, fixtureID)
+	expiresAt := time.Date(2026, time.August, 10, 12, 0, 0, 0, time.UTC)
+
+	created, err := queries.CreateShortLink(ctx, sqlc.CreateShortLinkParams{
+		ID:                       uuidToPgtype(configuredID),
+		OwnerID:                  uuidToPgtype(ownerID),
+		DomainID:                 uuidToPgtype(domainID),
+		Slug:                     "config",
+		TargetUrl:                "https://example.com/configured",
+		Status:                   "active",
+		RedirectMode:             "intermediate",
+		IntermediateDelaySeconds: 7,
+		ExpiresAt:                pgtype.Timestamptz{Time: expiresAt, Valid: true},
+	})
+	if err != nil {
+		t.Fatalf("create configured short link: %v", err)
+	}
+	if created.RedirectMode != "intermediate" || created.IntermediateDelaySeconds != 7 || !created.ExpiresAt.Valid || !created.ExpiresAt.Time.Equal(expiresAt) {
+		t.Fatalf("unexpected created access config: %#v", created)
+	}
+
+	bySlug, err := queries.GetShortLinkBySlug(ctx, "config")
+	if err != nil {
+		t.Fatalf("get configured short link: %v", err)
+	}
+	if bySlug.RedirectMode != "intermediate" || bySlug.IntermediateDelaySeconds != 7 || !bySlug.ExpiresAt.Valid {
+		t.Fatalf("unexpected slug access config: %#v", bySlug)
+	}
+
+	listed, err := queries.ListShortLinksByOwner(ctx, sqlc.ListShortLinksByOwnerParams{
+		OwnerID: uuidToPgtype(ownerID),
+		Limit:   20,
+		Offset:  0,
+		Status:  pgtype.Text{},
+	})
+	if err != nil {
+		t.Fatalf("list configured short link: %v", err)
+	}
+	var found bool
+	for _, row := range listed {
+		if row.ID == uuidToPgtype(configuredID) {
+			found = true
+			if row.RedirectMode != "intermediate" || row.IntermediateDelaySeconds != 7 || !row.ExpiresAt.Valid {
+				t.Fatalf("unexpected listed access config: %#v", row)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("expected configured short link in owner list")
+	}
+
+	updated, err := queries.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
+		ID:                       uuidToPgtype(configuredID),
+		OwnerID:                  uuidToPgtype(ownerID),
+		TargetUrl:                pgtype.Text{},
+		Status:                   pgtype.Text{String: "disabled", Valid: true},
+		RedirectMode:             pgtype.Text{},
+		IntermediateDelaySeconds: pgtype.Int2{},
+		ExpirationMode:           "keep",
+		ExpiresAt:                pgtype.Timestamptz{},
+	})
+	if err != nil {
+		t.Fatalf("update configured short link status: %v", err)
+	}
+	if updated.RedirectMode != "intermediate" || updated.IntermediateDelaySeconds != 7 || !updated.ExpiresAt.Valid {
+		t.Fatalf("status update cleared access config: %#v", updated)
+	}
+
+	cleared, err := queries.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
+		ID:                       uuidToPgtype(configuredID),
+		OwnerID:                  uuidToPgtype(ownerID),
+		TargetUrl:                pgtype.Text{},
+		Status:                   pgtype.Text{},
+		RedirectMode:             pgtype.Text{String: "direct", Valid: true},
+		IntermediateDelaySeconds: pgtype.Int2{Int16: 5, Valid: true},
+		ExpirationMode:           "never",
+		ExpiresAt:                pgtype.Timestamptz{},
+	})
+	if err != nil {
+		t.Fatalf("clear configured short link expiration: %v", err)
+	}
+	if cleared.RedirectMode != "direct" || cleared.IntermediateDelaySeconds != 5 || cleared.ExpiresAt.Valid {
+		t.Fatalf("unexpected cleared access config: %#v", cleared)
+	}
+}
+
 // TestShortLinkOverviewQuery verifies owner-scoped link and visit aggregates.
 func TestShortLinkOverviewQuery(t *testing.T) {
 	ctx := context.Background()

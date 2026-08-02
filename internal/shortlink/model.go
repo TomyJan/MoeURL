@@ -2,8 +2,23 @@ package shortlink
 
 import "time"
 
+const (
+	RedirectModeDirect       = "direct"
+	RedirectModeIntermediate = "intermediate"
+	ExpirationModeNever      = "never"
+	ExpirationModeAt         = "at"
+)
+
+type ExpirationInput struct {
+	Mode      string     `json:"mode"`
+	ExpiresAt *time.Time `json:"expiresAt"`
+}
+
 type CreateInput struct {
-	TargetURL string
+	TargetURL                string           `json:"targetUrl"`
+	RedirectMode             string           `json:"redirectMode"`
+	IntermediateDelaySeconds int16            `json:"intermediateDelaySeconds"`
+	Expiration               *ExpirationInput `json:"expiration"`
 }
 
 type CreateResult struct {
@@ -26,9 +41,12 @@ type OverviewResult struct {
 }
 
 type UpdateInput struct {
-	ID        string
-	TargetURL *string
-	Status    *string
+	ID                       string           `json:"id"`
+	TargetURL                *string          `json:"targetUrl"`
+	Status                   *string          `json:"status"`
+	RedirectMode             *string          `json:"redirectMode"`
+	IntermediateDelaySeconds *int16           `json:"intermediateDelaySeconds"`
+	Expiration               *ExpirationInput `json:"expiration"`
 }
 
 type DeleteInput struct {
@@ -77,13 +95,17 @@ type ListResult struct {
 }
 
 type ShortLink struct {
-	ID        string          `json:"id"`
-	URL       string          `json:"url"`
-	Slug      string          `json:"slug"`
-	TargetURL string          `json:"targetUrl"`
-	Status    string          `json:"status"`
-	CreatedAt time.Time       `json:"createdAt"`
-	Stats     *ShortLinkStats `json:"stats,omitempty"`
+	ID                       string          `json:"id"`
+	URL                      string          `json:"url"`
+	Slug                     string          `json:"slug"`
+	TargetURL                string          `json:"targetUrl"`
+	Status                   string          `json:"status"`
+	RedirectMode             string          `json:"redirectMode"`
+	IntermediateDelaySeconds int16           `json:"intermediateDelaySeconds"`
+	ExpiresAt                *time.Time      `json:"expiresAt"`
+	Expired                  bool            `json:"expired"`
+	CreatedAt                time.Time       `json:"createdAt"`
+	Stats                    *ShortLinkStats `json:"stats,omitempty"`
 }
 
 type ShortLinkStats struct {
@@ -99,14 +121,18 @@ type OwnerSummary struct {
 }
 
 type AdminShortLink struct {
-	ID        string          `json:"id"`
-	URL       string          `json:"url"`
-	Slug      string          `json:"slug"`
-	TargetURL string          `json:"targetUrl"`
-	Status    string          `json:"status"`
-	CreatedAt time.Time       `json:"createdAt"`
-	Stats     *ShortLinkStats `json:"stats,omitempty"`
-	Owner     OwnerSummary    `json:"owner"`
+	ID                       string          `json:"id"`
+	URL                      string          `json:"url"`
+	Slug                     string          `json:"slug"`
+	TargetURL                string          `json:"targetUrl"`
+	Status                   string          `json:"status"`
+	RedirectMode             string          `json:"redirectMode"`
+	IntermediateDelaySeconds int16           `json:"intermediateDelaySeconds"`
+	ExpiresAt                *time.Time      `json:"expiresAt"`
+	Expired                  bool            `json:"expired"`
+	CreatedAt                time.Time       `json:"createdAt"`
+	Stats                    *ShortLinkStats `json:"stats,omitempty"`
+	Owner                    OwnerSummary    `json:"owner"`
 }
 
 type AdminListResult struct {
