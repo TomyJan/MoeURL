@@ -16,7 +16,7 @@ import NotFoundPage from './NotFoundPage.vue'
 import SetupPage from './SetupPage.vue'
 import { componentStubs } from '@/test/component-stubs'
 import { me } from '@/entities/auth/api'
-import { getAdminShortLinkStatistics, getShortLinkOverview, getShortLinkStatistics, listAdminShortLinks, listShortLinks } from '@/entities/short-link/api'
+import { getAdminShortLinkStatistics, getShortLinkOverview, getShortLinkStatistics, listAdminShortLinks, listShortLinks, updateAdminShortLink, updateShortLink } from '@/entities/short-link/api'
 
 const state = vi.hoisted(() => ({
   queryResult: {},
@@ -39,6 +39,14 @@ const state = vi.hoisted(() => ({
     setQueryData: vi.fn(),
   },
 }))
+
+const defaultShortLinkAccessConfig = {
+  redirectMode: 'direct' as const,
+  intermediateDelaySeconds: 5,
+  expiresAt: null,
+  expired: false,
+  createdAt: '2026-08-01T00:00:00Z',
+}
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -119,7 +127,7 @@ vi.mock('@tanstack/vue-query', () => ({
     getDefaultOptions = vi.fn()
     invalidateQueries = vi.fn()
   },
-  useMutation: vi.fn((options?: { onSuccess?: (value: unknown) => void }) => {
+  useMutation: vi.fn((options?: { mutationFn?: (input: unknown) => unknown; onSuccess?: (value: unknown) => void }) => {
     const base = state.mutationResult as {
       data?: ReturnType<typeof ref>
       error?: ReturnType<typeof ref>
@@ -135,8 +143,10 @@ vi.mock('@tanstack/vue-query', () => ({
       isError: base.isError ?? ref(false),
       isPending: base.isPending ?? ref(false),
       variables: base.variables ?? ref(undefined),
+      reset: vi.fn(),
       mutate: vi.fn((input: unknown) => {
         providedMutate?.(input)
+        void options?.mutationFn?.(input)
         options?.onSuccess?.({
           initialized: true,
           shortLink: { url: 'https://go.example.com/abc123' },
@@ -231,6 +241,8 @@ describe('pages', () => {
     vi.mocked(getAdminShortLinkStatistics).mockReset()
     vi.mocked(getShortLinkOverview).mockClear()
     vi.mocked(getShortLinkStatistics).mockReset()
+    vi.mocked(updateAdminShortLink).mockReset()
+    vi.mocked(updateShortLink).mockReset()
     vi.mocked(me).mockReset()
     vi.mocked(me).mockResolvedValue({ user: { permissions: [] } } as never)
     state.theme = {
@@ -283,6 +295,7 @@ describe('pages', () => {
             slug: 'abc123',
             targetUrl: 'https://example.com/recent',
             status: 'active' as const,
+            ...defaultShortLinkAccessConfig,
             createdAt: '2026-07-30T04:30:00Z',
             stats: { visitCount: 20, todayVisitCount: 3, lastVisitedAt: null },
           }],
@@ -317,6 +330,7 @@ describe('pages', () => {
             slug: 'invalid',
             targetUrl: 'https://example.com/invalid',
             status: 'active' as const,
+            ...defaultShortLinkAccessConfig,
             createdAt: 'invalid-date',
           }],
           meta: { page: 1, pageSize: 5, total: 1 },
@@ -349,7 +363,7 @@ describe('pages', () => {
       { isError: ref(true), refetch: retryOverview },
       {
         data: ref({
-          items: [{ id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' as const }],
+          items: [{ id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' as const, ...defaultShortLinkAccessConfig }],
           meta: { page: 1, pageSize: 5, total: 1 },
         }),
       },
@@ -482,7 +496,7 @@ describe('pages', () => {
     state.routeQuery = { shortLinkId: 'link-id' }
     setQueryResult({
       data: ref({
-        shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' },
+        shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig },
         stats: {
           visitCount: 1,
           todayVisitCount: 0,
@@ -749,6 +763,10 @@ describe('pages', () => {
             slug: 'abc123',
             targetUrl: 'https://example.com',
             status: 'active',
+            redirectMode: 'intermediate',
+            intermediateDelaySeconds: 7,
+            expiresAt: '2026-08-10T00:00:00Z',
+            expired: false,
             stats: { visitCount: 2, todayVisitCount: 1, lastVisitedAt: '2026-07-16T05:00:00Z' },
           },
           {
@@ -757,6 +775,10 @@ describe('pages', () => {
             slug: 'def456',
             targetUrl: 'https://example.org',
             status: 'disabled',
+            redirectMode: 'direct',
+            intermediateDelaySeconds: 5,
+            expiresAt: '2026-07-01T00:00:00Z',
+            expired: true,
             stats: { visitCount: 0, todayVisitCount: 0, lastVisitedAt: 'invalid-date' },
           },
         ],
@@ -781,11 +803,14 @@ describe('pages', () => {
     expect(within(activeRow).getByText('1')).toBeTruthy()
     expect(within(activeRow).getByText('links.stats.lastVisitedAt')).toBeTruthy()
     expect(within(disabledRow).getByText('links.stats.neverVisited')).toBeTruthy()
+    expect(within(activeRow).getByText('shortLinkCreate.redirectModes.intermediate')).toBeTruthy()
+    expect(within(activeRow).getByText('2026-08-10')).toBeTruthy()
+    expect(within(disabledRow).getByText('links.expired')).toBeTruthy()
 
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.more' }))
     expect(within(activeRow).getByRole('button', { name: 'links.actions.more' }).getAttribute('aria-haspopup')).toBe('menu')
     expect(within(activeRow).getByRole('button', { name: 'links.actions.more' }).getAttribute('aria-expanded')).toBe('true')
-    expect(within(activeRow).getAllByRole('menuitem')).toHaveLength(2)
+    expect(within(activeRow).getAllByRole('menuitem')).toHaveLength(3)
     await fireEvent.click(within(activeRow).getByRole('menuitem', { name: 'links.actions.disable' }))
     await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.more' }))
     expect(within(activeRow).getByRole('button', { name: 'links.actions.more' }).getAttribute('aria-expanded')).toBe('false')
@@ -801,12 +826,80 @@ describe('pages', () => {
     expect(window.navigator.clipboard.writeText).toHaveBeenCalledWith('https://go.example.com/abc123')
   })
 
+  it('updates own link settings through the personal endpoint and invalidates the personal list', async () => {
+    setQueryResult({
+      data: ref({
+        items: [{
+          id: 'link-id',
+          url: 'https://go.example.com/abc123',
+          slug: 'abc123',
+          targetUrl: 'https://example.com/original',
+          status: 'active',
+          redirectMode: 'direct',
+          intermediateDelaySeconds: 5,
+          expiresAt: '2026-08-10T00:00:00Z',
+          expired: false,
+          createdAt: '2026-08-01T00:00:00Z',
+        }],
+      }),
+    })
+    const view = mount(MyLinksPage)
+    const row = screen.getByTestId('console-link-row')
+
+    await fireEvent.click(within(row).getByRole('button', { name: 'links.actions.more' }))
+    await fireEvent.click(within(row).getByRole('menuitem', { name: 'links.actions.configure' }))
+    await fireEvent.update(screen.getByLabelText('shortLinkSettings.targetUrl'), 'https://example.com/updated')
+    await fireEvent.click(screen.getByLabelText('shortLinkSettings.expirationEnabled'))
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(updateShortLink).toHaveBeenCalledWith({
+      id: 'link-id',
+      targetUrl: 'https://example.com/updated',
+      redirectMode: 'direct',
+      intermediateDelaySeconds: 5,
+      expiration: { mode: 'never' },
+    })
+    expect(state.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['short-link'] })
+    expect(screen.queryByText('shortLinkSettings.title')).toBeNull()
+    view.unmount()
+  })
+
+  it('keeps personal settings errors in the dialog and closes them from cancel', async () => {
+    const mutationError = ref<unknown>(new Error('personal settings failed'))
+    setMutationResult({ isError: ref(true), error: mutationError })
+    setQueryResult({
+      data: ref({
+        items: [{
+          id: 'link-id',
+          url: 'https://go.example.com/abc123',
+          slug: 'abc123',
+          targetUrl: 'https://example.com/original',
+          status: 'active',
+          ...defaultShortLinkAccessConfig,
+        }],
+      }),
+    })
+    mount(MyLinksPage)
+    const row = screen.getByTestId('console-link-row')
+
+    await fireEvent.click(within(row).getByRole('button', { name: 'links.actions.more' }))
+    await fireEvent.click(within(row).getByRole('menuitem', { name: 'links.actions.configure' }))
+    expect(screen.getByRole('alert').textContent).toContain('personal settings failed')
+
+    mutationError.value = { code: 200103 }
+    await nextTick()
+    expect(screen.getByRole('alert').textContent).toContain('links.settingsSaveFailed')
+
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.cancel' }))
+    expect(screen.queryByText('shortLinkSettings.title')).toBeNull()
+  })
+
   it('scopes own link updating state to the active row', async () => {
     setQueryResult({
       data: ref({
         items: [
-          { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' },
-          { id: 'link-other', url: 'https://go.example.com/def456', slug: 'def456', targetUrl: 'https://example.org', status: 'active' },
+          { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig },
+          { id: 'link-other', url: 'https://go.example.com/def456', slug: 'def456', targetUrl: 'https://example.org', status: 'active', ...defaultShortLinkAccessConfig },
         ],
       }),
     })
@@ -834,8 +927,8 @@ describe('pages', () => {
     setQueryResult({
       data: ref({
         items: [
-          { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' },
-          { id: 'link-other', url: 'https://go.example.com/def456', slug: 'def456', targetUrl: 'https://example.org', status: 'active' },
+          { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig },
+          { id: 'link-other', url: 'https://go.example.com/def456', slug: 'def456', targetUrl: 'https://example.org', status: 'active', ...defaultShortLinkAccessConfig },
         ],
       }),
     })
@@ -863,7 +956,7 @@ describe('pages', () => {
     setMutationResult({ mutate: vi.fn() })
     setQueryResult({
       data: ref({
-        items: [{ id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' }],
+        items: [{ id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig }],
       }),
     })
     const links = mount(MyLinksPage)
@@ -943,7 +1036,37 @@ describe('pages', () => {
   })
 
   it('renders admin links states and row actions', async () => {
-    setQueryResult({ data: ref({ meta: { total: 1 }, items: [{ id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'disabled', owner: { id: 'owner-id', username: 'alice', nickname: '' } }, { id: 'link-active', url: 'https://go.example.com/active', slug: 'active', targetUrl: 'https://example.net', status: 'active', owner: { id: 'owner-2', username: 'bob', nickname: 'Bobby' } }] }) })
+    setQueryResult({
+      data: ref({
+        meta: { total: 1 },
+        items: [
+          {
+            id: 'link-id',
+            url: 'https://go.example.com/abc123',
+            slug: 'abc123',
+            targetUrl: 'https://example.com',
+            status: 'disabled',
+            redirectMode: 'direct',
+            intermediateDelaySeconds: 5,
+            expiresAt: 'invalid-date',
+            expired: false,
+            owner: { id: 'owner-id', username: 'alice', nickname: '' },
+          },
+          {
+            id: 'link-active',
+            url: 'https://go.example.com/active',
+            slug: 'active',
+            targetUrl: 'https://example.net',
+            status: 'active',
+            redirectMode: 'intermediate',
+            intermediateDelaySeconds: 6,
+            expiresAt: '2026-08-12T00:00:00Z',
+            expired: false,
+            owner: { id: 'owner-2', username: 'bob', nickname: 'Bobby' },
+          },
+        ],
+      }),
+    })
     const mutate = vi.fn()
     setMutationResult({ mutate })
     mount(AdminLinksPage)
@@ -961,6 +1084,7 @@ describe('pages', () => {
     if (!disabledRow || !activeRow) {
       throw new Error('expected admin short link rows')
     }
+    expect(within(disabledRow).getByText('links.neverExpires')).toBeTruthy()
 
     await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.more' }))
     await fireEvent.click(within(disabledRow).getByRole('menuitem', { name: 'links.actions.enable' }))
@@ -977,13 +1101,84 @@ describe('pages', () => {
     expect(mutate).toHaveBeenCalledWith('link-id')
   })
 
+  it('updates admin link settings through the administrator endpoint and invalidates the admin list', async () => {
+    setQueryResult({
+      data: ref({
+        meta: { total: 1 },
+        items: [{
+          id: 'link-id',
+          url: 'https://go.example.com/abc123',
+          slug: 'abc123',
+          targetUrl: 'https://example.com/original',
+          status: 'active',
+          redirectMode: 'direct',
+          intermediateDelaySeconds: 5,
+          expiresAt: null,
+          expired: false,
+          createdAt: '2026-08-01T00:00:00Z',
+          owner: { id: 'owner-id', username: 'alice', nickname: '' },
+        }],
+      }),
+    })
+    const view = mount(AdminLinksPage)
+    const row = screen.getByTestId('console-link-row')
+
+    await fireEvent.click(within(row).getByRole('button', { name: 'links.actions.more' }))
+    await fireEvent.click(within(row).getByRole('menuitem', { name: 'links.actions.configure' }))
+    await fireEvent.update(screen.getByLabelText('shortLinkSettings.targetUrl'), 'https://example.com/admin-updated')
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(updateAdminShortLink).toHaveBeenCalledWith({
+      id: 'link-id',
+      targetUrl: 'https://example.com/admin-updated',
+      redirectMode: 'direct',
+      intermediateDelaySeconds: 5,
+      expiration: { mode: 'never' },
+    })
+    expect(state.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['admin-short-link'] })
+    expect(screen.queryByText('shortLinkSettings.title')).toBeNull()
+    view.unmount()
+  })
+
+  it('keeps administrator settings errors in the dialog and closes them from cancel', async () => {
+    const mutationError = ref<unknown>(new Error('administrator settings failed'))
+    setMutationResult({ isError: ref(true), error: mutationError })
+    setQueryResult({
+      data: ref({
+        meta: { total: 1 },
+        items: [{
+          id: 'link-id',
+          url: 'https://go.example.com/abc123',
+          slug: 'abc123',
+          targetUrl: 'https://example.com/original',
+          status: 'active',
+          ...defaultShortLinkAccessConfig,
+          owner: { id: 'owner-id', username: 'alice', nickname: '' },
+        }],
+      }),
+    })
+    mount(AdminLinksPage)
+    const row = screen.getByTestId('console-link-row')
+
+    await fireEvent.click(within(row).getByRole('button', { name: 'links.actions.more' }))
+    await fireEvent.click(within(row).getByRole('menuitem', { name: 'links.actions.configure' }))
+    expect(screen.getByRole('alert').textContent).toContain('administrator settings failed')
+
+    mutationError.value = { code: 200103 }
+    await nextTick()
+    expect(screen.getByRole('alert').textContent).toContain('links.settingsSaveFailed')
+
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.cancel' }))
+    expect(screen.queryByText('shortLinkSettings.title')).toBeNull()
+  })
+
   it('scopes admin link deleting state to the active row', async () => {
     setQueryResult({
       data: ref({
         meta: { total: 2 },
         items: [
-          { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', owner: { id: 'owner-id', username: 'alice', nickname: '' } },
-          { id: 'link-other', url: 'https://go.example.com/def456', slug: 'def456', targetUrl: 'https://example.org', status: 'active', owner: { id: 'owner-2', username: 'bob', nickname: '' } },
+          { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig, owner: { id: 'owner-id', username: 'alice', nickname: '' } },
+          { id: 'link-other', url: 'https://go.example.com/def456', slug: 'def456', targetUrl: 'https://example.org', status: 'active', ...defaultShortLinkAccessConfig, owner: { id: 'owner-2', username: 'bob', nickname: '' } },
         ],
       }),
     })
@@ -1012,7 +1207,7 @@ describe('pages', () => {
       data: ref({
         meta: { total: 1 },
         items: [
-          { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', owner: { id: 'owner-id', username: 'alice', nickname: '' } },
+          { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig, owner: { id: 'owner-id', username: 'alice', nickname: '' } },
         ],
       }),
     })

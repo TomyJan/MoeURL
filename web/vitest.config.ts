@@ -15,7 +15,8 @@ export default defineConfig({
       include: [
         'src/app/**/*.{ts,vue}',
         'src/entities/**/*.ts',
-		'src/features/short-link-create/ShortLinkCreatePanel.vue',
+        'src/features/short-link-create/ShortLinkCreatePanel.vue',
+        'src/features/short-link-settings/ShortLinkSettingsDialog.vue',
         'src/pages/**/*.vue',
         'src/shared/**/*.ts',
       ],
