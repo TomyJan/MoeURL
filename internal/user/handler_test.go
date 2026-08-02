@@ -230,6 +230,41 @@ func TestHandlerUpdateUserAndResetPassword(t *testing.T) {
 	}
 }
 
+func TestHandlerUpdateProfile(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		CurrentUser: &fakeCurrentUserResolver{user: auth.CurrentUser{ID: "user-id", Username: "alice", Nickname: "Alice", GroupKey: "user", Permissions: permission.UserPermissions}},
+		User: &fakeUserService{updateProfileResult: user.UpdateProfileResult{
+			User: auth.CurrentUser{ID: "user-id", Username: "alice", Nickname: "Alice Renamed", GroupKey: "user", Permissions: permission.UserPermissions},
+		}},
+	})
+
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/user/profile/update", bytes.NewBufferString(`{
+		"nickname": "Alice Renamed"
+	}`))
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected http 200, got %d", response.Code)
+	}
+
+	var body struct {
+		Code int `json:"code"`
+		Data struct {
+			User auth.CurrentUser `json:"user"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Code != 0 {
+		t.Fatalf("expected code 0, got %d", body.Code)
+	}
+	if body.Data.User.Nickname != "Alice Renamed" || body.Data.User.Username != "alice" {
+		t.Fatalf("unexpected profile body: %#v", body)
+	}
+}
+
 func TestHandlerUpdateAndResetRejectInvalidJSON(t *testing.T) {
 	tests := []struct {
 		name string
@@ -237,6 +272,7 @@ func TestHandlerUpdateAndResetRejectInvalidJSON(t *testing.T) {
 	}{
 		{name: "update", path: "/api/v1/admin/user/update"},
 		{name: "reset", path: "/api/v1/admin/user/reset-password"},
+		{name: "profile", path: "/api/v1/user/profile/update"},
 	}
 
 	for _, tt := range tests {
@@ -282,6 +318,11 @@ func TestHandlerUserManagementMapsErrors(t *testing.T) {
 		{name: "reset invalid", method: http.MethodPost, path: "/api/v1/admin/user/reset-password", body: `{"id":"user-id"}`, err: user.ErrInvalidInput, httpStatus: http.StatusOK, code: 100001},
 		{name: "reset system", method: http.MethodPost, path: "/api/v1/admin/user/reset-password", body: `{"id":"user-id","password":"new-password"}`, err: errors.New("database down"), httpStatus: http.StatusInternalServerError, code: 900000},
 		{name: "update duplicate", method: http.MethodPost, path: "/api/v1/admin/user/update", body: `{"id":"user-id","nickname":"Alice","status":"active"}`, err: user.ErrUsernameExists, httpStatus: http.StatusOK, code: 300101},
+		{name: "profile permission", method: http.MethodPost, path: "/api/v1/user/profile/update", body: `{"nickname":"Alice"}`, err: user.ErrPermissionDenied, httpStatus: http.StatusOK, code: 120001},
+		{name: "profile invalid", method: http.MethodPost, path: "/api/v1/user/profile/update", body: `{"nickname":"   "}`, err: user.ErrInvalidInput, httpStatus: http.StatusOK, code: 100001},
+		{name: "profile builtin", method: http.MethodPost, path: "/api/v1/user/profile/update", body: `{"nickname":"Alice"}`, err: user.ErrBuiltinUserImmutable, httpStatus: http.StatusOK, code: 300102},
+		{name: "profile not found", method: http.MethodPost, path: "/api/v1/user/profile/update", body: `{"nickname":"Alice"}`, err: user.ErrUserNotFound, httpStatus: http.StatusOK, code: 300103},
+		{name: "profile system", method: http.MethodPost, path: "/api/v1/user/profile/update", body: `{"nickname":"Alice"}`, err: errors.New("database down"), httpStatus: http.StatusInternalServerError, code: 900000},
 	}
 
 	for _, tt := range tests {
@@ -312,11 +353,12 @@ func TestHandlerUserManagementMapsErrors(t *testing.T) {
 }
 
 type fakeUserService struct {
-	result       user.CreateResult
-	listResult   user.ListResult
-	listInput    user.ListInput
-	updateResult user.UpdateResult
-	err          error
+	result              user.CreateResult
+	listResult          user.ListResult
+	listInput           user.ListInput
+	updateResult        user.UpdateResult
+	updateProfileResult user.UpdateProfileResult
+	err                 error
 }
 
 func (f *fakeUserService) Create(context.Context, auth.CurrentUser, user.CreateInput) (user.CreateResult, error) {
@@ -330,6 +372,10 @@ func (f *fakeUserService) List(_ context.Context, _ auth.CurrentUser, input user
 
 func (f *fakeUserService) Update(context.Context, auth.CurrentUser, user.UpdateInput) (user.UpdateResult, error) {
 	return f.updateResult, f.err
+}
+
+func (f *fakeUserService) UpdateProfile(context.Context, auth.CurrentUser, user.UpdateProfileInput) (user.UpdateProfileResult, error) {
+	return f.updateProfileResult, f.err
 }
 
 func (f *fakeUserService) ResetPassword(context.Context, auth.CurrentUser, user.ResetPasswordInput) error {

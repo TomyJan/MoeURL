@@ -1,6 +1,6 @@
 <template>
   <div class="home-page">
-    <HomeHeader :display-name="currentUserName" :is-guest="isGuest" @console-click="goConsole" />
+    <HomeHeader :display-name="currentUserName" :is-guest="isGuest" @console-click="goProfile" />
 
     <main class="home-page__hero" data-testid="home-hero-panel">
       <section class="home-page__hero-content">
@@ -40,8 +40,8 @@ const currentUser = computed(() => currentUserQuery.data.value?.user)
 const currentUserName = computed(() => currentUser.value?.nickname || currentUser.value?.username || 'guest')
 const isGuest = computed(() => currentUser.value?.group === 'guest' || !currentUser.value)
 
-function goConsole() {
-  void router.push('/link')
+function goProfile() {
+  void router.push('/profile')
 }
 </script>
 

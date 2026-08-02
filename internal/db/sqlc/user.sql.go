@@ -296,6 +296,37 @@ func (q *Queries) UpdateAppUserPassword(ctx context.Context, arg UpdateAppUserPa
 	return result.RowsAffected(), nil
 }
 
+const updateAppUserNickname = `-- name: UpdateAppUserNickname :one
+update app_user
+set nickname = $2,
+	updated_at = now()
+where id = $1 and deleted_at is null and builtin = false
+returning id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at, deleted_at
+`
+
+type UpdateAppUserNicknameParams struct {
+	ID       pgtype.UUID `json:"id"`
+	Nickname string      `json:"nickname"`
+}
+
+func (q *Queries) UpdateAppUserNickname(ctx context.Context, arg UpdateAppUserNicknameParams) (AppUser, error) {
+	row := q.db.QueryRow(ctx, updateAppUserNickname, arg.ID, arg.Nickname)
+	var i AppUser
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Nickname,
+		&i.GroupID,
+		&i.Status,
+		&i.Builtin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const updateAppUserProfile = `-- name: UpdateAppUserProfile :one
 update app_user
 set nickname = $2,

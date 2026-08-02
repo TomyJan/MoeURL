@@ -11,12 +11,14 @@ import CreateUserPage from '@/pages/CreateUserPage.vue'
 import HomePage from '@/pages/HomePage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
 import MyLinksPage from '@/pages/MyLinksPage.vue'
+import ProfilePage from '@/pages/ProfilePage.vue'
 import NotFoundPage from '@/pages/NotFoundPage.vue'
 import SetupPage from '@/pages/SetupPage.vue'
 import ConsoleShell from '@/widgets/console-shell/ConsoleShell.vue'
 
 type AdminAccessGuard = NavigationGuard & (() => Promise<true | string | RouteLocationRaw>)
 type ConsoleAccessGuard = NavigationGuard & (() => Promise<true | string | RouteLocationRaw>)
+type SignedInAccessGuard = NavigationGuard & (() => Promise<true | string | RouteLocationRaw>)
 
 function createLoginRedirect(fullPath?: string): RouteLocationRaw {
   if (!fullPath) {
@@ -40,6 +42,21 @@ export function createRequireConsoleAccess(loadCurrentUser = me): ConsoleAccessG
   return guard as ConsoleAccessGuard
 }
 
+export function createRequireSignedIn(loadCurrentUser = me): SignedInAccessGuard {
+  const guard = async (to?: { fullPath?: string }) => {
+    try {
+      const result = await loadCurrentUser()
+      if (result.user.group === 'guest') {
+        return createLoginRedirect(to?.fullPath)
+      }
+      return true
+    } catch {
+      return createLoginRedirect(to?.fullPath)
+    }
+  }
+  return guard as SignedInAccessGuard
+}
+
 export function createRequireAdminAccess(loadCurrentUser = me): AdminAccessGuard {
   const guard = async (to?: { fullPath?: string }) => {
     try {
@@ -56,6 +73,7 @@ export function createRequireAdminAccess(loadCurrentUser = me): AdminAccessGuard
 }
 
 export const requireConsoleAccess = createRequireConsoleAccess()
+export const requireSignedIn = createRequireSignedIn()
 export const requireAdminAccess = createRequireAdminAccess()
 
 export const routes: RouteRecordRaw[] = [
@@ -67,6 +85,12 @@ export const routes: RouteRecordRaw[] = [
     path: '/',
     component: ConsoleShell,
     children: [
+      {
+        path: '/profile',
+        component: ProfilePage,
+        meta: { requiresSignedIn: true },
+        beforeEnter: requireSignedIn,
+      },
       {
         path: '/console',
         component: ConsoleOverviewPage,

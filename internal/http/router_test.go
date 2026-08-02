@@ -146,6 +146,7 @@ func TestRouterRegistersOptionalDependencies(t *testing.T) {
 		{method: http.MethodGet, path: "/api/v1/admin/user/list"},
 		{method: http.MethodPost, path: "/api/v1/admin/user/update", body: `{}`},
 		{method: http.MethodPost, path: "/api/v1/admin/user/reset-password", body: `{}`},
+		{method: http.MethodPost, path: "/api/v1/user/profile/update", body: `{}`},
 		{method: http.MethodGet, path: "/abc123"},
 	}
 
@@ -256,6 +257,10 @@ func (routerUserService) List(context.Context, auth.CurrentUser, user.ListInput)
 
 func (routerUserService) Update(context.Context, auth.CurrentUser, user.UpdateInput) (user.UpdateResult, error) {
 	return user.UpdateResult{}, nil
+}
+
+func (routerUserService) UpdateProfile(context.Context, auth.CurrentUser, user.UpdateProfileInput) (user.UpdateProfileResult, error) {
+	return user.UpdateProfileResult{}, nil
 }
 
 func (routerUserService) ResetPassword(context.Context, auth.CurrentUser, user.ResetPasswordInput) error {

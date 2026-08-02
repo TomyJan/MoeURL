@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createRequireConsoleAccess, createRequireAdminAccess, requireAdminAccess, requireConsoleAccess, router, routes } from './router'
+import { createRequireAdminAccess, createRequireConsoleAccess, createRequireSignedIn, requireAdminAccess, requireConsoleAccess, requireSignedIn, router, routes } from './router'
 import { me } from '@/entities/auth/api'
 import ConsoleOverviewPage from '@/pages/ConsoleOverviewPage.vue'
 import HomePage from '@/pages/HomePage.vue'
@@ -27,6 +27,7 @@ describe('router', () => {
         '/',
         '/setup',
         '/login',
+        '/profile',
         '/console',
         '/link',
         '/analytics',
@@ -51,11 +52,14 @@ describe('router', () => {
   it('nests console pages under the console shell', () => {
     const consoleRoute = routes.find((route) => route.children)
     const overviewRoute = consoleRoute?.children?.find((route) => route.path === '/console')
+    const profileRoute = consoleRoute?.children?.find((route) => route.path === '/profile')
 
     expect(consoleRoute?.children?.map((route) => route.path)).toEqual(
-      expect.arrayContaining(['/link', '/admin/link', '/admin/user', '/admin/user/new']),
+      expect.arrayContaining(['/profile', '/link', '/admin/link', '/admin/user', '/admin/user/new']),
     )
-    expect(consoleRoute?.children?.every((route) => route.meta?.requiresConsole === true)).toBe(true)
+    expect(profileRoute?.meta?.requiresSignedIn).toBe(true)
+    expect(profileRoute?.beforeEnter).toBe(requireSignedIn)
+    expect(consoleRoute?.children?.filter((route) => route.meta?.requiresConsole === true).every((route) => route.path !== '/profile')).toBe(true)
     expect(overviewRoute?.component).toBe(ConsoleOverviewPage)
   })
 
@@ -93,6 +97,28 @@ describe('router', () => {
     await expect(createRequireConsoleAccess(guest)()).resolves.toBe('/login')
   })
 
+  it('allows signed-in users without console permissions before entering profile routes', async () => {
+    const regular = vi.fn(async () => ({
+      user: { id: 'user-id', username: 'alice', nickname: 'Alice', group: 'user', permissions: [] },
+    }))
+    const guest = vi.fn(async () => ({
+      user: { id: 'guest-id', username: 'guest', nickname: 'Guest', group: 'guest', permissions: [] },
+    }))
+    const failed = vi.fn(async () => {
+      throw new Error('session unavailable')
+    })
+
+    await expect(createRequireSignedIn(regular)()).resolves.toBe(true)
+    await expect(createRequireSignedIn(guest)({ fullPath: '/profile' } as never, {} as never, vi.fn())).resolves.toEqual({
+      path: '/login',
+      query: { redirect: '/profile' },
+    })
+    await expect(createRequireSignedIn(failed)({ fullPath: '/profile?tab=account' } as never, {} as never, vi.fn())).resolves.toEqual({
+      path: '/login',
+      query: { redirect: '/profile?tab=account' },
+    })
+  })
+
   it('allows admins and redirects non-admin users before entering admin routes', async () => {
     const admin = vi.fn(async () => ({
       user: { id: 'admin-id', username: 'admin', nickname: 'Admin', group: 'admin', permissions: ['admin:access'] },
@@ -122,6 +148,7 @@ describe('router', () => {
   it('uses the current user API when invoked as a route guard', async () => {
     await expect(requireConsoleAccess()).resolves.toBe(true)
     await expect(requireAdminAccess()).resolves.toBe(true)
+    await expect(requireSignedIn()).resolves.toBe(true)
 
     expect(me).toHaveBeenCalled()
   })
@@ -135,6 +162,18 @@ describe('router', () => {
     await router.isReady()
 
     expect(router.currentRoute.value.path).toBe('/')
+    expect(me).toHaveBeenCalled()
+  })
+
+  it('allows signed-in users to open the profile route without console permissions', async () => {
+    vi.mocked(me).mockResolvedValueOnce({
+      user: { id: 'user-id', username: 'alice', nickname: 'Alice', group: 'user', permissions: [] },
+    })
+
+    await router.push('/profile')
+    await router.isReady()
+
+    expect(router.currentRoute.value.path).toBe('/profile')
     expect(me).toHaveBeenCalled()
   })
 
@@ -163,6 +202,19 @@ describe('router', () => {
     expect(me).toHaveBeenCalled()
   })
 
+  it('redirects guests during actual profile navigation', async () => {
+    vi.mocked(me).mockResolvedValueOnce({
+      user: { id: 'guest-id', username: 'guest', nickname: 'Guest', group: 'guest', permissions: [] },
+    })
+
+    await router.push('/profile')
+    await router.isReady()
+
+    expect(router.currentRoute.value.path).toBe('/login')
+    expect(router.currentRoute.value.query.redirect).toBe('/profile')
+    expect(me).toHaveBeenCalled()
+  })
+
   it('registers the admin guard on concrete admin routes', () => {
     const adminRoute = router.getRoutes().find((route) => route.path === '/admin/user')
 
@@ -173,5 +225,11 @@ describe('router', () => {
     const linksRoute = router.getRoutes().find((route) => route.path === '/link')
 
     expect(linksRoute?.beforeEnter).toBe(requireConsoleAccess)
+  })
+
+  it('registers the signed-in guard on the profile route', () => {
+    const profileRoute = router.getRoutes().find((route) => route.path === '/profile')
+
+    expect(profileRoute?.beforeEnter).toBe(requireSignedIn)
   })
 })

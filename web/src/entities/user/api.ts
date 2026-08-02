@@ -1,4 +1,5 @@
 import { apiGet, apiPost } from '@/shared/api/client'
+import type { CurrentUser } from '@/entities/auth/api'
 
 export interface CreateUserInput {
   username: string
@@ -50,6 +51,14 @@ export interface UpdateUserResponse {
   user: UserSummary
 }
 
+export interface UpdateProfileInput {
+  nickname: string
+}
+
+export interface UpdateProfileResponse {
+  user: CurrentUser
+}
+
 export interface ResetPasswordInput {
   id: string
   password: string
@@ -84,6 +93,11 @@ export async function listUsers(input: ListUsersInput = {}): Promise<ListUsersRe
 
 export async function updateUser(input: UpdateUserInput): Promise<UpdateUserResponse> {
   const response = await apiPost<UpdateUserResponse>('/admin/user/update', input)
+  return response.data
+}
+
+export async function updateProfile(input: UpdateProfileInput): Promise<UpdateProfileResponse> {
+  const response = await apiPost<UpdateProfileResponse>('/user/profile/update', input)
   return response.data
 }
 

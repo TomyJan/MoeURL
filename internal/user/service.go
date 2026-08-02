@@ -2,7 +2,9 @@ package user
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
@@ -167,6 +169,60 @@ func (s *Service) Update(ctx context.Context, actor auth.CurrentUser, input Upda
 		Builtin:   updated.Builtin,
 		CreatedAt: formatTime(updated.CreatedAt),
 		UpdatedAt: formatTime(updated.UpdatedAt),
+	}}, nil
+}
+
+// UpdateProfile changes the current user's own nickname.
+func (s *Service) UpdateProfile(ctx context.Context, actor auth.CurrentUser, input UpdateProfileInput) (UpdateProfileResult, error) {
+	if actor.GroupKey == permission.GroupGuest || actor.ID == "" {
+		return UpdateProfileResult{}, ErrPermissionDenied
+	}
+
+	nickname := strings.TrimSpace(input.Nickname)
+	if nickname == "" {
+		return UpdateProfileResult{}, ErrInvalidInput
+	}
+
+	userID, err := uuid.Parse(actor.ID)
+	if err != nil {
+		return UpdateProfileResult{}, ErrInvalidInput
+	}
+	existing, err := s.queries.GetAppUserMetaByID(ctx, uuidToPgtype(userID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return UpdateProfileResult{}, ErrUserNotFound
+	}
+	if err != nil {
+		return UpdateProfileResult{}, err
+	}
+	if existing.Builtin {
+		return UpdateProfileResult{}, ErrBuiltinUserImmutable
+	}
+
+	updated, err := s.queries.UpdateAppUserNickname(ctx, sqlc.UpdateAppUserNicknameParams{
+		ID:       uuidToPgtype(userID),
+		Nickname: nickname,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return UpdateProfileResult{}, ErrUserNotFound
+	}
+	if err != nil {
+		return UpdateProfileResult{}, err
+	}
+	group, err := s.queries.GetUserGroupByID(ctx, updated.GroupID)
+	if err != nil {
+		return UpdateProfileResult{}, err
+	}
+	var permissions []string
+	if err := json.Unmarshal(group.Permissions, &permissions); err != nil {
+		return UpdateProfileResult{}, err
+	}
+
+	return UpdateProfileResult{User: auth.CurrentUser{
+		ID:          uuidFromPgtype(updated.ID),
+		Username:    updated.Username,
+		Nickname:    updated.Nickname,
+		GroupKey:    group.Key,
+		Permissions: permissions,
 	}}, nil
 }
 

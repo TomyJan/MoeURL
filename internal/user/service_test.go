@@ -334,6 +334,131 @@ func TestServiceUpdateReturnsGroupLookupError(t *testing.T) {
 	}
 }
 
+func TestServiceUpdateProfileUpdatesOwnNickname(t *testing.T) {
+	ctx := context.Background()
+	pool := userTestPool(t, ctx)
+	insertUserGroup(t, ctx, pool, "user", permission.UserPermissions)
+	userID := insertAppUser(t, ctx, pool, "alice", "hash", "Alice", "user", "active", false)
+	actor := auth.CurrentUser{
+		ID:          userID,
+		Username:    "alice",
+		Nickname:    "Alice",
+		GroupKey:    "user",
+		Permissions: permission.UserPermissions,
+	}
+	service := user.NewService(pool, permission.NewService())
+
+	result, err := service.UpdateProfile(ctx, actor, user.UpdateProfileInput{Nickname: "Alice Renamed"})
+	if err != nil {
+		t.Fatalf("update profile: %v", err)
+	}
+	if result.User.ID != userID {
+		t.Fatalf("unexpected user id: %#v", result.User)
+	}
+	if result.User.Username != "alice" || result.User.Nickname != "Alice Renamed" {
+		t.Fatalf("unexpected user: %#v", result.User)
+	}
+	if result.User.GroupKey != "user" {
+		t.Fatalf("unexpected group: %#v", result.User)
+	}
+	if !containsString(result.User.Permissions, permission.ShortLinkReadOwn) {
+		t.Fatalf("expected permissions to include read own, got %#v", result.User.Permissions)
+	}
+
+	var storedNickname string
+	err = pool.QueryRow(ctx, `select nickname from app_user where id = $1`, userID).Scan(&storedNickname)
+	if err != nil {
+		t.Fatalf("query stored nickname: %v", err)
+	}
+	if storedNickname != "Alice Renamed" {
+		t.Fatalf("unexpected stored nickname: %q", storedNickname)
+	}
+}
+
+func TestServiceUpdateProfileRejectsPermissionInputBuiltinAndMissingUser(t *testing.T) {
+	ctx := context.Background()
+	pool := userTestPool(t, ctx)
+	insertUserGroup(t, ctx, pool, "user", permission.UserPermissions)
+	regular := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000602", Username: "bob", GroupKey: "user", Permissions: permission.UserPermissions}
+	guest := auth.CurrentUser{Username: "guest", GroupKey: "guest"}
+	builtinID := insertAppUser(t, ctx, pool, "system", "hash", "System", "user", "active", true)
+	service := user.NewService(pool, permission.NewService())
+
+	_, err := service.UpdateProfile(ctx, guest, user.UpdateProfileInput{Nickname: "Visitor"})
+	if !errors.Is(err, user.ErrPermissionDenied) {
+		t.Fatalf("expected ErrPermissionDenied, got %v", err)
+	}
+
+	_, err = service.UpdateProfile(ctx, regular, user.UpdateProfileInput{Nickname: "   "})
+	if !errors.Is(err, user.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+
+	_, err = service.UpdateProfile(ctx, auth.CurrentUser{ID: builtinID, Username: "system", GroupKey: "user", Permissions: permission.UserPermissions}, user.UpdateProfileInput{Nickname: "System Renamed"})
+	if !errors.Is(err, user.ErrBuiltinUserImmutable) {
+		t.Fatalf("expected ErrBuiltinUserImmutable, got %v", err)
+	}
+
+	_, err = service.UpdateProfile(ctx, auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000701", Username: "missing", GroupKey: "user", Permissions: permission.UserPermissions}, user.UpdateProfileInput{Nickname: "Missing"})
+	if !errors.Is(err, user.ErrUserNotFound) {
+		t.Fatalf("expected ErrUserNotFound, got %v", err)
+	}
+}
+
+func TestServiceUpdateProfileReturnsDatabaseError(t *testing.T) {
+	ctx := context.Background()
+	pool := userTestPool(t, ctx)
+	insertUserGroup(t, ctx, pool, "user", permission.UserPermissions)
+	userID := insertAppUser(t, ctx, pool, "alice", "hash", "Alice", "user", "active", false)
+	actor := auth.CurrentUser{
+		ID:          userID,
+		Username:    "alice",
+		Nickname:    "Alice",
+		GroupKey:    "user",
+		Permissions: permission.UserPermissions,
+	}
+	service := user.NewService(pool, permission.NewService())
+
+	pool.Close()
+	_, err := service.UpdateProfile(ctx, actor, user.UpdateProfileInput{Nickname: "Alice Renamed"})
+	if err == nil {
+		t.Fatal("expected update profile database error")
+	}
+}
+
+func TestServiceUpdateProfileReturnsMissingWhenUpdateSkipsRow(t *testing.T) {
+	ctx := context.Background()
+	pool := userTestPool(t, ctx)
+	insertUserGroup(t, ctx, pool, "user", permission.UserPermissions)
+	userID := insertAppUser(t, ctx, pool, "alice", "hash", "Alice", "user", "active", false)
+	actor := auth.CurrentUser{
+		ID:          userID,
+		Username:    "alice",
+		Nickname:    "Alice",
+		GroupKey:    "user",
+		Permissions: permission.UserPermissions,
+	}
+	service := user.NewService(pool, permission.NewService())
+
+	_, err := pool.Exec(ctx, `
+		create function skip_app_user_nickname_update() returns trigger language plpgsql as $$
+		begin
+			return null;
+		end;
+		$$;
+		create trigger skip_app_user_nickname_update_trigger before update of nickname on app_user
+		for each row execute function skip_app_user_nickname_update();
+	`)
+	if err != nil {
+		t.Fatalf("create skip trigger: %v", err)
+	}
+
+	_, err = service.UpdateProfile(ctx, actor, user.UpdateProfileInput{Nickname: "Alice Renamed"})
+	if !errors.Is(err, user.ErrUserNotFound) {
+		t.Fatalf("expected ErrUserNotFound from skipped nickname update, got %v", err)
+	}
+}
+
 func TestServiceResetPasswordRejectsBuiltinUserAndChangesPasswordHash(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -487,4 +612,13 @@ func nullableText(value string) pgtype.Text {
 		return pgtype.Text{}
 	}
 	return pgtype.Text{String: value, Valid: true}
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }

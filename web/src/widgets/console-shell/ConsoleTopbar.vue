@@ -22,6 +22,9 @@
             <strong>{{ displayName }}</strong>
             <small>{{ username }}</small>
           </span>
+          <v-btn role="menuitem" variant="text" to="/profile" @click="accountOpen = false">
+            {{ t('nav.profile') }}
+          </v-btn>
           <button type="button" role="menuitem" :disabled="logoutPending" @click="submitLogout">
             {{ t('nav.logout') }}
           </button>
