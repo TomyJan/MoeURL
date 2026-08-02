@@ -25,7 +25,6 @@ type CreateShortLinkEventParams struct {
 	CountryCode  pgtype.Text `json:"country_code"`
 }
 
-// CreateShortLinkEvent inserts a persisted short-link access event.
 func (q *Queries) CreateShortLinkEvent(ctx context.Context, arg CreateShortLinkEventParams) error {
 	_, err := q.db.Exec(ctx, createShortLinkEvent,
 		arg.ID,
@@ -52,7 +51,6 @@ type GetShortLinkAnalyticsSummaryRow struct {
 	LastVisitedAt   pgtype.Timestamptz `json:"last_visited_at"`
 }
 
-// GetShortLinkAnalyticsSummary returns aggregate visit counters for one short link.
 func (q *Queries) GetShortLinkAnalyticsSummary(ctx context.Context, shortLinkID pgtype.UUID) (GetShortLinkAnalyticsSummaryRow, error) {
 	row := q.db.QueryRow(ctx, getShortLinkAnalyticsSummary, shortLinkID)
 	var i GetShortLinkAnalyticsSummaryRow
@@ -81,7 +79,6 @@ type ListShortLinkCountryStatsRow struct {
 	VisitCount int64  `json:"visit_count"`
 }
 
-// ListShortLinkCountryStats returns visit counts grouped by country code.
 func (q *Queries) ListShortLinkCountryStats(ctx context.Context, shortLinkID pgtype.UUID) ([]ListShortLinkCountryStatsRow, error) {
 	rows, err := q.db.Query(ctx, listShortLinkCountryStats, shortLinkID)
 	if err != nil {
@@ -123,7 +120,6 @@ type ListShortLinkDailyVisitsRow struct {
 	VisitCount int64       `json:"visit_count"`
 }
 
-// ListShortLinkDailyVisits returns seven consecutive daily visit buckets.
 func (q *Queries) ListShortLinkDailyVisits(ctx context.Context, shortLinkID pgtype.UUID) ([]ListShortLinkDailyVisitsRow, error) {
 	rows, err := q.db.Query(ctx, listShortLinkDailyVisits, shortLinkID)
 	if err != nil {
@@ -165,7 +161,6 @@ type ListShortLinkDeviceStatsRow struct {
 	VisitCount int64  `json:"visit_count"`
 }
 
-// ListShortLinkDeviceStats returns visit counts grouped by device type.
 func (q *Queries) ListShortLinkDeviceStats(ctx context.Context, shortLinkID pgtype.UUID) ([]ListShortLinkDeviceStatsRow, error) {
 	rows, err := q.db.Query(ctx, listShortLinkDeviceStats, shortLinkID)
 	if err != nil {
@@ -207,7 +202,6 @@ type ListShortLinkReferrerStatsRow struct {
 	VisitCount int64  `json:"visit_count"`
 }
 
-// ListShortLinkReferrerStats returns visit counts grouped by referrer host.
 func (q *Queries) ListShortLinkReferrerStats(ctx context.Context, shortLinkID pgtype.UUID) ([]ListShortLinkReferrerStatsRow, error) {
 	rows, err := q.db.Query(ctx, listShortLinkReferrerStats, shortLinkID)
 	if err != nil {
