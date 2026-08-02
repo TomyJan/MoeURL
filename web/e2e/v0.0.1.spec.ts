@@ -94,6 +94,13 @@ test('v0.2.0 initialization short-link access experience and logout flow', async
   const intermediateUrl = await intermediateCreatedLink.getAttribute('href')
   expect(intermediateUrl).toMatch(new RegExp(`^https?://${e2eHostPattern}/[a-z0-9]{6}$`))
   const intermediateSlug = new URL(intermediateUrl ?? '').pathname.slice(1)
+  const intermediateLink = await findShortLink(page, intermediateSlug)
+  expect(intermediateLink).toBeDefined()
+  if (!intermediateLink) {
+    throw new Error('intermediate short link was not returned by the personal list')
+  }
+  const intermediateLinkId = intermediateLink.id
+  expect(await readVisitCount(page, intermediateLinkId)).toBe(0)
 
   await page.getByRole('button', { name: '二维码' }).click()
   const qrDialog = page.getByRole('dialog')
@@ -108,6 +115,27 @@ test('v0.2.0 initialization short-link access experience and logout flow', async
   await attachScreenshot(testInfo, 'qr-mobile', page)
   await qrDialog.getByRole('button', { name: '关闭' }).click()
   await page.setViewportSize({ width: 1280, height: 720 })
+
+  const intermediateOpen = await page.request.get(`/${intermediateSlug}`, { maxRedirects: 0 })
+  expect(intermediateOpen.status()).toBe(302)
+  expect(intermediateOpen.headers().location).toBe(`/go/${intermediateSlug}`)
+  expect(await readVisitCount(page, intermediateLinkId)).toBe(0)
+
+  const continueProbeTarget = 'https://example.net/e2e-continue-probe'
+  const continueProbeCreate = await page.request.post('/api/v1/short-link/create', {
+    data: { targetUrl: continueProbeTarget, redirectMode: 'intermediate', intermediateDelaySeconds: 3 },
+  })
+  await expect(continueProbeCreate).toBeOK()
+  const continueProbePayload = await continueProbeCreate.json() as {
+    code: number
+    data: { shortLink: { slug: string } }
+  }
+  expect(continueProbePayload.code).toBe(0)
+  const continueProbe = await page.request.get(`/go/${continueProbePayload.data.shortLink.slug}/continue`, {
+    maxRedirects: 0,
+  })
+  expect(continueProbe.status()).toBe(302)
+  expect(continueProbe.headers().location).toBe(continueProbeTarget)
 
   const previewResponsePromise = page.waitForResponse((response) =>
     response.url().includes(`/api/v1/public/short-link/preview?slug=${intermediateSlug}`),
@@ -147,13 +175,6 @@ test('v0.2.0 initialization short-link access experience and logout flow', async
     page.waitForURL(intermediateTarget),
     page.getByRole('button', { name: '立即前往' }).click(),
   ])
-
-  const intermediateLink = await findShortLink(page, intermediateSlug)
-  expect(intermediateLink).toBeDefined()
-  if (!intermediateLink) {
-    throw new Error('intermediate short link was not returned by the personal list')
-  }
-  const intermediateLinkId = intermediateLink.id
   await expect.poll(() => readVisitCount(page, intermediateLinkId)).toBe(1)
 
   await page.goto('/link')
@@ -165,6 +186,14 @@ test('v0.2.0 initialization short-link access experience and logout flow', async
   const updatedIntermediateTarget = 'https://example.org/e2e-expired'
   await settingsDialog.getByLabel('目标链接').fill(updatedIntermediateTarget)
   await settingsDialog.getByLabel('设置过期时间', { exact: true }).click()
+  await expectSettingsDialogLayout(page, settingsDialog)
+  await attachScreenshot(testInfo, 'settings-desktop', page)
+
+  await page.setViewportSize({ width: 390, height: 800 })
+  await expectSettingsDialogLayout(page, settingsDialog)
+  await attachScreenshot(testInfo, 'settings-mobile', page)
+  await page.setViewportSize({ width: 1280, height: 720 })
+
   const expiresAt = toLocalDateTimeValue(new Date(Date.now() + 20_000))
   await setDateTimeLocalValue(settingsDialog.getByLabel('过期时间', { exact: true }), expiresAt)
   const updateResponsePromise = page.waitForResponse('**/api/v1/short-link/update')
@@ -352,6 +381,38 @@ async function expectIntermediateLayout(page: Page) {
   }
   expect(targetBox.y + targetBox.height).toBeLessThanOrEqual(countdownBox.y + 1)
   expect(countdownBox.y + countdownBox.height).toBeLessThanOrEqual(actionsBox.y + 1)
+}
+
+async function expectSettingsDialogLayout(page: Page, dialog: Locator) {
+  await expectNoHorizontalOverflow(page)
+  const controls = dialog.locator('.short-link-settings-dialog__body > *')
+  await expect(controls).toHaveCount(5)
+  const [dialogBox, actionsBox, cancelBox, saveBox, controlBoxes] = await Promise.all([
+    dialog.locator('.short-link-settings-dialog').boundingBox(),
+    dialog.locator('.short-link-settings-dialog__actions').boundingBox(),
+    dialog.getByRole('button', { name: '取消' }).boundingBox(),
+    dialog.getByRole('button', { name: '保存' }).boundingBox(),
+    controls.evaluateAll((elements) => elements.map((element) => {
+      const box = element.getBoundingClientRect()
+      return { x: box.x, y: box.y, width: box.width, height: box.height }
+    })),
+  ])
+  expect(dialogBox).not.toBeNull()
+  expect(actionsBox).not.toBeNull()
+  expect(cancelBox).not.toBeNull()
+  expect(saveBox).not.toBeNull()
+  if (!dialogBox || !actionsBox || !cancelBox || !saveBox) {
+    return
+  }
+  expect(dialogBox.x).toBeGreaterThanOrEqual(0)
+  expect(dialogBox.x + dialogBox.width).toBeLessThanOrEqual(page.viewportSize()?.width ?? dialogBox.width)
+  for (let index = 0; index < controlBoxes.length - 1; index += 1) {
+    const current = controlBoxes[index]
+    const next = controlBoxes[index + 1]
+    expect(current.y + current.height).toBeLessThanOrEqual(next.y + 1)
+  }
+  expect(controlBoxes.at(-1)?.y).toBeLessThan(actionsBox.y)
+  expect(cancelBox.x + cancelBox.width).toBeLessThanOrEqual(saveBox.x + 1)
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
