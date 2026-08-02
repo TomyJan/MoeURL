@@ -137,22 +137,59 @@ vi.mock('@tanstack/vue-query', () => ({
       variables?: ReturnType<typeof ref>
     }
     const providedMutate = base.mutate
+    const data = base.data ?? ref(undefined)
+    const error = base.error ?? ref(undefined)
+    const isError = base.isError ?? ref(false)
+    const isPending = base.isPending ?? ref(false)
+    const variables = base.variables ?? ref(undefined)
+    const reset = vi.fn(() => {
+      data.value = undefined
+      error.value = undefined
+      isError.value = false
+    })
+    const succeed = (value: unknown) => {
+      data.value = value
+      options?.onSuccess?.(value)
+    }
+    const fail = (reason: unknown) => {
+      error.value = reason
+      isError.value = true
+    }
     return {
-      data: base.data ?? ref(undefined),
-      error: base.error ?? ref(undefined),
-      isError: base.isError ?? ref(false),
-      isPending: base.isPending ?? ref(false),
-      variables: base.variables ?? ref(undefined),
-      reset: vi.fn(),
+      data,
+      error,
+      isError,
+      isPending,
+      variables,
+      reset,
       mutate: vi.fn((input: unknown) => {
+        variables.value = input
         providedMutate?.(input)
-        void options?.mutationFn?.(input)
-        options?.onSuccess?.({
-          initialized: true,
-          shortLink: { url: 'https://go.example.com/abc123' },
-          user: { username: 'alice' },
-          input,
-        })
+        if (!providedMutate) {
+          error.value = undefined
+          isError.value = false
+        }
+        try {
+          const result = options?.mutationFn?.(input)
+          if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
+            isPending.value = true
+            void Promise.resolve(result)
+              .then(succeed)
+              .catch(fail)
+              .finally(() => {
+                isPending.value = false
+              })
+            return
+          }
+          succeed({
+            initialized: true,
+            shortLink: { url: 'https://go.example.com/abc123' },
+            user: { username: 'alice' },
+            input,
+          })
+        } catch (reason) {
+          fail(reason)
+        }
       }),
     }
   }),
@@ -223,6 +260,22 @@ function setMutationResult(value: Partial<{
     variables: value.variables ?? ref(undefined),
     ...(value.mutate ? { mutate: value.mutate } : {}),
   }
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, reject, resolve }
+}
+
+async function flushPromises() {
+  await Promise.resolve()
+  await Promise.resolve()
+  await nextTick()
 }
 
 describe('pages', () => {
@@ -832,22 +885,29 @@ describe('pages', () => {
   })
 
   it('updates own link settings through the personal endpoint and invalidates the personal list', async () => {
-    setQueryResult({
-      data: ref({
-        items: [{
-          id: 'link-id',
-          url: 'https://go.example.com/abc123',
-          slug: 'abc123',
-          targetUrl: 'https://example.com/original',
-          status: 'active',
-          redirectMode: 'direct',
-          intermediateDelaySeconds: 5,
-          expiresAt: '2026-08-10T00:00:00Z',
-          expired: false,
-          createdAt: '2026-08-01T00:00:00Z',
-        }],
-      }),
-    })
+    const update = createDeferred<unknown>()
+    vi.mocked(updateShortLink).mockReturnValueOnce(update.promise as never)
+    setQueryResults(
+      {
+        data: ref({
+          items: [{
+            id: 'link-id',
+            url: 'https://go.example.com/abc123',
+            slug: 'abc123',
+            targetUrl: 'https://example.com/original',
+            status: 'active',
+            redirectMode: 'direct',
+            intermediateDelaySeconds: 5,
+            expiresAt: '2026-08-10T00:00:00Z',
+            expired: false,
+            createdAt: '2026-08-01T00:00:00Z',
+          }],
+        }),
+      },
+      {
+        data: ref({ user: { permissions: ['short_link:use_intermediate', 'short_link:set_expiration'] } }),
+      },
+    )
     const view = mount(MyLinksPage)
     const row = screen.getByTestId('console-link-row')
 
@@ -864,36 +924,62 @@ describe('pages', () => {
       intermediateDelaySeconds: 5,
       expiration: { mode: 'never' },
     })
+    expect((screen.getByRole('button', { name: 'shortLinkSettings.save' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText('shortLinkSettings.title')).toBeTruthy()
+    expect(state.queryClient.invalidateQueries).not.toHaveBeenCalled()
+
+    update.resolve({ shortLink: { id: 'link-id' } })
+    await flushPromises()
+
     expect(state.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['short-link'] })
     expect(screen.queryByText('shortLinkSettings.title')).toBeNull()
     view.unmount()
   })
 
   it('keeps personal settings errors in the dialog and closes them from cancel', async () => {
-    const mutationError = ref<unknown>(new Error('personal settings failed'))
-    setMutationResult({ isError: ref(true), error: mutationError })
-    setQueryResult({
-      data: ref({
-        items: [{
-          id: 'link-id',
-          url: 'https://go.example.com/abc123',
-          slug: 'abc123',
-          targetUrl: 'https://example.com/original',
-          status: 'active',
-          ...defaultShortLinkAccessConfig,
-        }],
-      }),
-    })
+    const update = createDeferred<unknown>()
+    const retry = createDeferred<unknown>()
+    vi.mocked(updateShortLink)
+      .mockReturnValueOnce(update.promise as never)
+      .mockReturnValueOnce(retry.promise as never)
+    setQueryResults(
+      {
+        data: ref({
+          items: [{
+            id: 'link-id',
+            url: 'https://go.example.com/abc123',
+            slug: 'abc123',
+            targetUrl: 'https://example.com/original',
+            status: 'active',
+            ...defaultShortLinkAccessConfig,
+          }],
+        }),
+      },
+      {
+        data: ref({ user: { permissions: ['short_link:use_intermediate', 'short_link:set_expiration'] } }),
+      },
+    )
     mount(MyLinksPage)
     const row = screen.getByTestId('console-link-row')
 
     await fireEvent.click(within(row).getByRole('button', { name: 'links.actions.more' }))
     await fireEvent.click(within(row).getByRole('menuitem', { name: 'links.actions.configure' }))
-    expect(screen.getByRole('alert').textContent).toContain('personal settings failed')
+    await fireEvent.update(screen.getByLabelText('shortLinkSettings.targetUrl'), 'https://example.com/failed')
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
 
-    mutationError.value = { code: 200103 }
-    await nextTick()
+    update.reject(new Error('personal settings failed'))
+    await flushPromises()
+
+    expect(screen.getByRole('alert').textContent).toContain('personal settings failed')
+    expect(screen.getByText('shortLinkSettings.title')).toBeTruthy()
+    expect(state.queryClient.invalidateQueries).not.toHaveBeenCalled()
+
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+    retry.reject({ code: 200103 })
+    await flushPromises()
+
     expect(screen.getByRole('alert').textContent).toContain('links.settingsSaveFailed')
+    expect(screen.getByText('shortLinkSettings.title')).toBeTruthy()
 
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.cancel' }))
     expect(screen.queryByText('shortLinkSettings.title')).toBeNull()
@@ -1112,24 +1198,31 @@ describe('pages', () => {
   })
 
   it('updates admin link settings through the administrator endpoint and invalidates the admin list', async () => {
-    setQueryResult({
-      data: ref({
-        meta: { total: 1 },
-        items: [{
-          id: 'link-id',
-          url: 'https://go.example.com/abc123',
-          slug: 'abc123',
-          targetUrl: 'https://example.com/original',
-          status: 'active',
-          redirectMode: 'direct',
-          intermediateDelaySeconds: 5,
-          expiresAt: null,
-          expired: false,
-          createdAt: '2026-08-01T00:00:00Z',
-          owner: { id: 'owner-id', username: 'alice', nickname: '' },
-        }],
-      }),
-    })
+    const update = createDeferred<unknown>()
+    vi.mocked(updateAdminShortLink).mockReturnValueOnce(update.promise as never)
+    setQueryResults(
+      {
+        data: ref({
+          meta: { total: 1 },
+          items: [{
+            id: 'link-id',
+            url: 'https://go.example.com/abc123',
+            slug: 'abc123',
+            targetUrl: 'https://example.com/original',
+            status: 'active',
+            redirectMode: 'direct',
+            intermediateDelaySeconds: 5,
+            expiresAt: null,
+            expired: false,
+            createdAt: '2026-08-01T00:00:00Z',
+            owner: { id: 'owner-id', username: 'alice', nickname: '' },
+          }],
+        }),
+      },
+      {
+        data: ref({ user: { permissions: ['short_link:use_intermediate', 'short_link:set_expiration'] } }),
+      },
+    )
     const view = mount(AdminLinksPage)
     const row = screen.getByTestId('console-link-row')
 
@@ -1145,38 +1238,64 @@ describe('pages', () => {
       intermediateDelaySeconds: 5,
       expiration: { mode: 'never' },
     })
+    expect((screen.getByRole('button', { name: 'shortLinkSettings.save' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText('shortLinkSettings.title')).toBeTruthy()
+    expect(state.queryClient.invalidateQueries).not.toHaveBeenCalled()
+
+    update.resolve({ shortLink: { id: 'link-id' } })
+    await flushPromises()
+
     expect(state.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['admin-short-link'] })
     expect(screen.queryByText('shortLinkSettings.title')).toBeNull()
     view.unmount()
   })
 
   it('keeps administrator settings errors in the dialog and closes them from cancel', async () => {
-    const mutationError = ref<unknown>(new Error('administrator settings failed'))
-    setMutationResult({ isError: ref(true), error: mutationError })
-    setQueryResult({
-      data: ref({
-        meta: { total: 1 },
-        items: [{
-          id: 'link-id',
-          url: 'https://go.example.com/abc123',
-          slug: 'abc123',
-          targetUrl: 'https://example.com/original',
-          status: 'active',
-          ...defaultShortLinkAccessConfig,
-          owner: { id: 'owner-id', username: 'alice', nickname: '' },
-        }],
-      }),
-    })
+    const update = createDeferred<unknown>()
+    const retry = createDeferred<unknown>()
+    vi.mocked(updateAdminShortLink)
+      .mockReturnValueOnce(update.promise as never)
+      .mockReturnValueOnce(retry.promise as never)
+    setQueryResults(
+      {
+        data: ref({
+          meta: { total: 1 },
+          items: [{
+            id: 'link-id',
+            url: 'https://go.example.com/abc123',
+            slug: 'abc123',
+            targetUrl: 'https://example.com/original',
+            status: 'active',
+            ...defaultShortLinkAccessConfig,
+            owner: { id: 'owner-id', username: 'alice', nickname: '' },
+          }],
+        }),
+      },
+      {
+        data: ref({ user: { permissions: ['short_link:use_intermediate', 'short_link:set_expiration'] } }),
+      },
+    )
     mount(AdminLinksPage)
     const row = screen.getByTestId('console-link-row')
 
     await fireEvent.click(within(row).getByRole('button', { name: 'links.actions.more' }))
     await fireEvent.click(within(row).getByRole('menuitem', { name: 'links.actions.configure' }))
-    expect(screen.getByRole('alert').textContent).toContain('administrator settings failed')
+    await fireEvent.update(screen.getByLabelText('shortLinkSettings.targetUrl'), 'https://example.com/failed')
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
 
-    mutationError.value = { code: 200103 }
-    await nextTick()
+    update.reject({ code: 200103 })
+    await flushPromises()
+
     expect(screen.getByRole('alert').textContent).toContain('links.settingsSaveFailed')
+    expect(screen.getByText('shortLinkSettings.title')).toBeTruthy()
+    expect(state.queryClient.invalidateQueries).not.toHaveBeenCalled()
+
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+    retry.reject(new Error('administrator settings failed'))
+    await flushPromises()
+
+    expect(screen.getByRole('alert').textContent).toContain('administrator settings failed')
+    expect(screen.getByText('shortLinkSettings.title')).toBeTruthy()
 
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.cancel' }))
     expect(screen.queryByText('shortLinkSettings.title')).toBeNull()

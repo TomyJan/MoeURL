@@ -1,14 +1,27 @@
 import { fireEvent, render, screen } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 
 import ShortLinkSettingsDialog from './ShortLinkSettingsDialog.vue'
 import type { ShortLink } from '@/entities/short-link/model'
 import { componentStubs } from '@/test/component-stubs'
 
+const state = vi.hoisted(() => ({
+  queryResult: {},
+}))
+
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
     t: (key: string) => key,
   }),
+}))
+
+vi.mock('@/entities/auth/api', () => ({
+  me: vi.fn(),
+}))
+
+vi.mock('@tanstack/vue-query', () => ({
+  useQuery: vi.fn(() => state.queryResult),
 }))
 
 const directLink: ShortLink = {
@@ -44,10 +57,21 @@ function mountDialog(props: Partial<{
   })
 }
 
+function setPermissions(permissions: string[]) {
+  state.queryResult = {
+    data: ref({
+      user: {
+        permissions,
+      },
+    }),
+  }
+}
+
 describe('ShortLinkSettingsDialog', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-02T00:00:00Z'))
+    setPermissions(['short_link:use_intermediate', 'short_link:set_expiration'])
   })
 
   afterEach(() => {
@@ -97,6 +121,59 @@ describe('ShortLinkSettingsDialog', () => {
     ]])
   })
 
+  it('omits access configuration fields when the user lacks advanced permissions', async () => {
+    setPermissions([])
+    const view = mountDialog()
+
+    expect(screen.queryByLabelText('shortLinkSettings.redirectMode')).toBeNull()
+    expect(screen.queryByLabelText('shortLinkSettings.expirationEnabled')).toBeNull()
+    await fireEvent.update(screen.getByLabelText('shortLinkSettings.targetUrl'), 'https://example.com/updated')
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(view.emitted().save).toEqual([[
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.com/updated',
+      },
+    ]])
+  })
+
+  it('submits only the intermediate configuration when expiration permission is absent', async () => {
+    setPermissions(['short_link:use_intermediate'])
+    const view = mountDialog()
+
+    expect(screen.queryByLabelText('shortLinkSettings.expirationEnabled')).toBeNull()
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.intermediate' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(view.emitted().save).toEqual([[
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.com/original',
+        redirectMode: 'intermediate',
+        intermediateDelaySeconds: 5,
+      },
+    ]])
+  })
+
+  it('submits only expiration when intermediate permission is absent', async () => {
+    setPermissions(['short_link:set_expiration'])
+    const view = mountDialog()
+
+    expect(screen.queryByLabelText('shortLinkSettings.redirectMode')).toBeNull()
+    await fireEvent.click(screen.getByLabelText('shortLinkSettings.expirationEnabled'))
+    await fireEvent.update(screen.getByLabelText('shortLinkSettings.expiresAt'), '2026-08-04T10:30')
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(view.emitted().save).toEqual([[
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.com/original',
+        expiration: { mode: 'at', expiresAt: new Date('2026-08-04T10:30').toISOString() },
+      },
+    ]])
+  })
+
   it('switches between direct and intermediate modes', async () => {
     mountDialog()
 
@@ -127,12 +204,24 @@ describe('ShortLinkSettingsDialog', () => {
     expect(view.emitted().save).toBeUndefined()
   })
 
-  it('disables save while pending and emits close from cancel', async () => {
-    const view = mountDialog({ pending: true })
+  it('disables actions and rejects close requests while pending', async () => {
+    const view = mountDialog(
+      { pending: true },
+      {
+        ...componentStubs,
+        VDialog: {
+          props: ['modelValue', 'persistent'],
+          emits: ['update:modelValue'],
+          template: '<div v-if="modelValue" role="dialog" :data-persistent="persistent"><button aria-label="dialog-model-close" @click="$emit(\'update:modelValue\', false)" /><slot /></div>',
+        },
+      },
+    )
     expect((screen.getByRole('button', { name: 'shortLinkSettings.save' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByRole('dialog').getAttribute('data-persistent')).toBe('true')
 
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.cancel' }))
-    expect(view.emitted()['update:open']).toEqual([[false]])
+    await fireEvent.click(screen.getByLabelText('dialog-model-close'))
+    expect(view.emitted()['update:open']).toBeUndefined()
   })
 
   it('keeps the save guard when a pending button still dispatches a click', async () => {

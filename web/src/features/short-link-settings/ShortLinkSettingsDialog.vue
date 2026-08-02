@@ -1,5 +1,5 @@
 <template>
-  <v-dialog :model-value="open" max-width="640" @update:model-value="handleOpenUpdate">
+  <v-dialog :model-value="open" :persistent="pending" max-width="640" @update:model-value="handleOpenUpdate">
     <v-card class="short-link-settings-dialog">
       <v-card-title>{{ t('shortLinkSettings.title') }}</v-card-title>
       <v-card-text class="short-link-settings-dialog__body">
@@ -11,7 +11,7 @@
           variant="outlined"
         />
 
-        <div class="short-link-settings-dialog__mode">
+        <div v-if="canUseIntermediate" class="short-link-settings-dialog__mode">
           <span>{{ t('shortLinkSettings.redirectMode') }}</span>
           <v-btn-toggle :model-value="redirectMode" mandatory divided :aria-label="t('shortLinkSettings.redirectMode')">
             <v-btn
@@ -36,7 +36,7 @@
         </div>
 
         <v-slider
-          v-if="redirectMode === 'intermediate'"
+          v-if="canUseIntermediate && redirectMode === 'intermediate'"
           v-model="intermediateDelaySeconds"
           :disabled="pending"
           :label="t('shortLinkSettings.intermediateDelay')"
@@ -48,6 +48,7 @@
         />
 
         <v-switch
+          v-if="canSetExpiration"
           v-model="expirationEnabled"
           color="primary"
           density="comfortable"
@@ -56,7 +57,7 @@
           :label="t('shortLinkSettings.expirationEnabled')"
         />
         <v-text-field
-          v-if="expirationEnabled"
+          v-if="canSetExpiration && expirationEnabled"
           v-model="expiresAt"
           type="datetime-local"
           variant="outlined"
@@ -77,10 +78,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useQuery } from '@tanstack/vue-query'
 import { z } from 'zod'
 
+import { me } from '@/entities/auth/api'
 import type { RedirectMode, ShortLink, UpdateShortLinkInput } from '@/entities/short-link/model'
 
 const props = defineProps<{
@@ -108,6 +111,13 @@ const futureDateTimeSchema = z.string().trim().min(1).refine((value) => {
   const timestamp = new Date(value).getTime()
   return Number.isFinite(timestamp) && timestamp > Date.now()
 })
+const currentUserQuery = useQuery({
+  queryKey: ['auth', 'me'],
+  queryFn: me,
+})
+const currentUser = computed(() => currentUserQuery.data.value?.user)
+const canUseIntermediate = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:use_intermediate')))
+const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
 
 watch(
   () => [props.open, props.link] as const,
@@ -132,32 +142,42 @@ function save() {
     return
   }
 
-  let expiration: UpdateShortLinkInput['expiration'] = { mode: 'never' }
-  if (expirationEnabled.value) {
-    const expirationResult = futureDateTimeSchema.safeParse(expiresAt.value)
-    if (!expirationResult.success) {
-      expirationErrorMessage.value = expiresAt.value.trim()
-        ? t('shortLinkSettings.expirationFuture')
-        : t('shortLinkSettings.expirationRequired')
-      return
-    }
-    expiration = { mode: 'at', expiresAt: new Date(expirationResult.data).toISOString() }
-  }
-
-  emit('save', {
+  const input: UpdateShortLinkInput = {
     id: props.link.id,
     targetUrl: targetResult.data,
-    redirectMode: redirectMode.value,
-    intermediateDelaySeconds: intermediateDelaySeconds.value,
-    expiration,
-  })
+  }
+  if (canUseIntermediate.value) {
+    input.redirectMode = redirectMode.value
+    input.intermediateDelaySeconds = intermediateDelaySeconds.value
+  }
+  if (canSetExpiration.value) {
+    input.expiration = { mode: 'never' }
+    if (expirationEnabled.value) {
+      const expirationResult = futureDateTimeSchema.safeParse(expiresAt.value)
+      if (!expirationResult.success) {
+        expirationErrorMessage.value = expiresAt.value.trim()
+          ? t('shortLinkSettings.expirationFuture')
+          : t('shortLinkSettings.expirationRequired')
+        return
+      }
+      input.expiration = { mode: 'at', expiresAt: new Date(expirationResult.data).toISOString() }
+    }
+  }
+
+  emit('save', input)
 }
 
 function close() {
+  if (props.pending) {
+    return
+  }
   emit('update:open', false)
 }
 
 function handleOpenUpdate(open: boolean) {
+  if (props.pending && !open) {
+    return
+  }
   emit('update:open', open)
 }
 
