@@ -24,10 +24,28 @@ func TestBuiltInGroupPermissions(t *testing.T) {
 	if !service.Has(permission.GroupUser, permission.ShortLinkReadOwn) {
 		t.Fatal("expected user to read own short links")
 	}
+	if !service.Has(permission.GroupUser, permission.ShortLinkUseIntermediate) {
+		t.Fatal("expected user to use intermediate redirects")
+	}
+	if !service.Has(permission.GroupUser, permission.ShortLinkSetExpiration) {
+		t.Fatal("expected user to set short link expiration")
+	}
+	if service.Has(permission.GroupGuest, permission.ShortLinkUseIntermediate) {
+		t.Fatal("expected guest to have no intermediate redirect permission")
+	}
+	if service.Has(permission.GroupGuest, permission.ShortLinkSetExpiration) {
+		t.Fatal("expected guest to have no short link expiration permission")
+	}
 	if !service.Has(permission.GroupAdmin, permission.AdminAccess) {
 		t.Fatal("expected admin access permission")
 	}
 	if !service.Has(permission.GroupAdmin, permission.ShortLinkDeleteAll) {
 		t.Fatal("expected admin to delete all short links")
+	}
+	if !service.Has(permission.GroupAdmin, permission.ShortLinkUseIntermediate) {
+		t.Fatal("expected admin to use intermediate redirects")
+	}
+	if !service.Has(permission.GroupAdmin, permission.ShortLinkSetExpiration) {
+		t.Fatal("expected admin to set short link expiration")
 	}
 }
