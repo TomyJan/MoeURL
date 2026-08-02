@@ -178,6 +178,7 @@ API 使用 `/api/v1` 前缀：
 /api/v1/short-link/list
 /api/v1/short-link/update
 /api/v1/short-link/delete
+/api/v1/public/short-link/preview
 /api/v1/admin/short-link/list
 /api/v1/admin/short-link/update
 /api/v1/admin/short-link/delete
@@ -189,9 +190,11 @@ API 使用 `/api/v1` 前缀：
 
 ```text
 /{slug}
+/go/{slug}
+/go/{slug}/continue
 ```
 
-固定前端路由和 API 路由必须优先于短码路由。
+固定前端路由、公开继续路由和 API 路由必须优先于短码路由。`/go/{slug}` 用于 v0.2.0 中间页 App Shell，`/go/{slug}/continue` 在重新检查短链状态和过期时间后写出最终目标跳转。
 
 ### API 风格
 
@@ -309,6 +312,16 @@ v0.0.4 在 v0.0.1 最小 schema 之外新增：
 
 v0.1.0 在 `short_link_event` 追加 `referrer_host`、`device_type` 和 `country_code`。这些字段只保存已规范化的聚合维度；原始 IP、完整 User-Agent 和完整 Referer 不进入数据库。`country_code` 仅在 `MOEURL_ANALYTICS_COUNTRY_HEADER` 配置后读取，部署者必须确保请求头来自可信反向代理。
 
+### v0.2.0 schema 扩展摘要
+
+v0.2.0 在 `short_link` 追加：
+
+- `redirect_mode`：`direct` 或 `intermediate`，默认 `direct`。
+- `intermediate_delay_seconds`：中间页倒计时，范围 3 至 10 秒，默认 5 秒。
+- `expires_at`：可选 `timestamptz`，为空表示不设置固定过期时间。
+
+过期是访问时根据数据库时间判断的动态状态，不复用 `disabled`，也不修改持久化状态。migration 同步为既有内置 `user`、`admin` 用户组追加 v0.2.0 权限，并在回滚时删除这些权限。
+
 ### 短码规则
 
 - v0.0.1 默认生成 6 位随机短码。
@@ -337,6 +350,8 @@ short_link:read_all
 short_link:update_all
 short_link:delete_all
 domain:use_default
+short_link:use_intermediate
+short_link:set_expiration
 admin:access
 ```
 
@@ -498,6 +513,8 @@ cd web && pnpm test:e2e
 
 前端单元和组件测试覆盖率门禁针对 `vitest.config.ts` 中 `coverage.include` 覆盖的应用配置、实体 API、页面组件和共享工具代码执行，必须达到 100%。`main.ts` 启动入口、类型声明和纯类型模型由构建、类型检查和 E2E 覆盖，不计入单元覆盖率门禁。
 
+v0.2.0 将新增的短链创建、访问配置和二维码组件纳入覆盖率门禁。二维码测试必须验证编码输入、有效图片结果和生成失败状态，不允许只断言 mock 调用次数。
+
 Playwright E2E 通过 `web/playwright.config.ts` 启动 Docker Compose 测试环境。E2E 必须使用独立的 Compose project name，默认由 `MOEURL_E2E_PORT` 派生，也可通过 `MOEURL_E2E_COMPOSE_PROJECT` 显式指定。E2E 同时通过 `MOEURL_E2E_PORT` 和 `MOEURL_E2E_POSTGRES_PORT` 隔离应用宿主端口与 PostgreSQL 宿主端口，避免和日常 Compose 或本机 PostgreSQL 端口冲突。E2E 显式以 `MOEURL_ENV=development` 运行测试应用，避免本地 HTTP 流程受 Secure Cookie 影响。E2E 可以在该隔离测试项目内执行 `down -v` 清理测试卷，但不得清理日常 `docker compose up --build` 使用的默认开发数据库卷。
 
 ### 质量检查工作流
@@ -527,6 +544,7 @@ Go 服务负责：
 - 托管前端静态资源。
 - 处理前端 SPA fallback。
 - 处理短链跳转。
+- 处理 `/go/{slug}` 中间页 App Shell 和 `/go/{slug}/continue` 最终跳转。
 
 前端构建产物应复制到 Go 服务镜像中。
 

@@ -36,6 +36,12 @@ v0.0.4 实施文档包括：
 - [v0.0.4 任务级实施清单](v0.0.4-tasks.md)：把 v0.0.4 拆成可执行任务。
 - [v0.0.4 验收清单](v0.0.4-acceptance.md)：用于 v0.0.4 开发完成后的统计验收和发布前检查。
 
+v0.2.0 实施文档包括：
+
+- [v0.2.0 实施计划](v0.2.0-plan.md)：定义短链访问体验与生命周期的阶段、边界和验证要求。
+- [v0.2.0 任务级实施清单](v0.2.0-tasks.md)：把中间页、过期时间、二维码、配置编辑和发布收尾拆成可执行任务。
+- [v0.2.0 验收清单](v0.2.0-acceptance.md)：用于数据库、权限、公共访问、页面和发布质量验收。
+
 建议阅读顺序：
 
 ```text
@@ -45,11 +51,11 @@ technical-baseline.md
   ↓
 agent-delivery-guidelines.md
   ↓
-v0.1.2-plan.md
+v0.2.0-plan.md
   ↓
-v0.1.2-tasks.md
+v0.2.0-tasks.md
   ↓
-v0.1.2-acceptance.md
+v0.2.0-acceptance.md
 ```
 
 涉及 v0.0.3 已完成的 UI/UX、控制台 Shell、短链生成组件和列表体验时，继续阅读：
@@ -122,4 +128,7 @@ v0.0.4-plan.md
 v0.0.4-tasks.md
 v0.0.4-acceptance.md
 v0.1.0-plan.md
+v0.2.0-plan.md
+v0.2.0-tasks.md
+v0.2.0-acceptance.md
 ```
