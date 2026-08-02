@@ -91,7 +91,7 @@ func TestInternalServiceHelpers(t *testing.T) {
 }
 
 func TestReservedSlugsIncludeSingularPageRoutes(t *testing.T) {
-	for _, slug := range []string{"api", "assets", "setup", "login", "link", "links", "admin", "LINK"} {
+	for _, slug := range []string{"api", "assets", "setup", "login", "profile", "console", "link", "links", "analytics", "admin", "PROFILE"} {
 		if !isReservedSlug(slug) {
 			t.Fatalf("expected %q to be reserved", slug)
 		}

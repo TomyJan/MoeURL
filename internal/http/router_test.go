@@ -61,6 +61,7 @@ func TestRouterServesSPAFixedRoutesFromStaticDir(t *testing.T) {
 		"/",
 		"/setup",
 		"/login",
+		"/profile",
 		"/console",
 		"/link",
 		"/analytics",

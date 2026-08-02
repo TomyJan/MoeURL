@@ -13,13 +13,16 @@ const (
 )
 
 var reservedSlugs = map[string]struct{}{
-	"api":    {},
-	"assets": {},
-	"setup":  {},
-	"login":  {},
-	"link":   {},
-	"links":  {},
-	"admin":  {},
+	"api":       {},
+	"assets":    {},
+	"setup":     {},
+	"login":     {},
+	"profile":   {},
+	"console":   {},
+	"link":      {},
+	"links":     {},
+	"analytics": {},
+	"admin":     {},
 }
 
 var slugRandomReader io.Reader = rand.Reader
