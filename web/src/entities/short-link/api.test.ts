@@ -5,6 +5,7 @@ import {
   deleteAdminShortLink,
   deleteShortLink,
   getAdminShortLinkStatistics,
+	getPublicShortLinkPreview,
   getShortLinkOverview,
   getShortLinkStatistics,
   listAdminShortLinks,
@@ -84,6 +85,52 @@ describe('short link api', () => {
     expect(result.shortLink.slug).toBe('abc123')
     expect(fetch).toHaveBeenCalledWith('/api/v1/short-link/create', expect.objectContaining({ method: 'POST' }))
   })
+
+	it('posts access configuration and loads the minimal public preview', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async (request: RequestInfo | URL) => {
+				const url = String(request)
+				return new Response(JSON.stringify({
+					code: 0,
+					message: 'OK',
+					data: url.includes('/preview')
+						? { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 5, expiresAt: null }
+						: { shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123' } },
+					meta: {},
+				}), { status: 200, headers: { 'Content-Type': 'application/json' } })
+			}),
+		)
+
+		await createShortLink({
+			targetUrl: 'https://example.com/docs',
+			redirectMode: 'intermediate',
+			intermediateDelaySeconds: 5,
+			expiration: { mode: 'never' },
+		})
+		await expect(getPublicShortLinkPreview('a b')).resolves.toEqual({
+			slug: 'abc123',
+			targetHost: 'example.com',
+			intermediateDelaySeconds: 5,
+			expiresAt: null,
+		})
+
+		expect(fetch).toHaveBeenCalledWith(
+			'/api/v1/short-link/create',
+			expect.objectContaining({
+				body: JSON.stringify({
+					targetUrl: 'https://example.com/docs',
+					redirectMode: 'intermediate',
+					intermediateDelaySeconds: 5,
+					expiration: { mode: 'never' },
+				}),
+			}),
+		)
+		expect(fetch).toHaveBeenCalledWith(
+			'/api/v1/public/short-link/preview?slug=a%20b',
+			expect.objectContaining({ method: 'GET' }),
+		)
+	})
 
   it('loads my short links', async () => {
     vi.stubGlobal(

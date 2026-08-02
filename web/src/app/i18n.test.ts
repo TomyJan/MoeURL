@@ -18,6 +18,15 @@ describe('i18n', () => {
     expect(messages.en.preferences.systemShort).toBe('System')
   })
 
+	it('defines bilingual advanced short-link settings', () => {
+		expect(messages['zh-CN'].shortLinkCreate.advanced).toBe('高级设置')
+		expect(messages['zh-CN'].shortLinkCreate.redirectModes.intermediate).toBe('中间页')
+		expect(messages['zh-CN'].shortLinkCreate.expirationFuture).toBe('过期时间必须晚于当前时间')
+		expect(messages.en.shortLinkCreate.advanced).toBe('Advanced settings')
+		expect(messages.en.shortLinkCreate.redirectModes.intermediate).toBe('Intermediate page')
+		expect(messages.en.shortLinkCreate.expirationFuture).toBe('Expiration must be in the future')
+	})
+
   it('keeps placeholder copy limited to capabilities that are still planned', () => {
     expect(messages['zh-CN'].placeholder.overview.items).not.toHaveProperty('analytics')
     expect(messages.en.placeholder.overview.items).not.toHaveProperty('analytics')

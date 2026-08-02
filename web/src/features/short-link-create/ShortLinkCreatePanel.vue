@@ -31,6 +31,68 @@
             {{ t('shortLinkCreate.submit') }}
           </v-btn>
         </div>
+        <div v-if="canConfigureAccess" class="short-link-create-panel__advanced">
+          <v-btn
+            class="short-link-create-panel__advanced-toggle"
+            size="small"
+            variant="text"
+            :aria-expanded="advancedOpen"
+            @click="advancedOpen = !advancedOpen"
+          >
+            {{ t('shortLinkCreate.advanced') }}
+          </v-btn>
+          <Transition name="moe-layout">
+            <div v-if="advancedOpen" class="short-link-create-panel__advanced-controls">
+              <div v-if="canUseIntermediate" class="short-link-create-panel__mode-control">
+                <span>{{ t('shortLinkCreate.redirectMode') }}</span>
+                <v-btn-toggle :model-value="redirectMode" mandatory divided :aria-label="t('shortLinkCreate.redirectMode')">
+                  <v-btn
+                    size="small"
+                    :aria-pressed="redirectMode === 'direct'"
+                    value="direct"
+                    @click="redirectMode = 'direct'"
+                  >
+                    {{ t('shortLinkCreate.redirectModes.direct') }}
+                  </v-btn>
+                  <v-btn
+                    size="small"
+                    :aria-pressed="redirectMode === 'intermediate'"
+                    value="intermediate"
+                    @click="redirectMode = 'intermediate'"
+                  >
+                    {{ t('shortLinkCreate.redirectModes.intermediate') }}
+                  </v-btn>
+                </v-btn-toggle>
+              </div>
+              <v-slider
+                v-if="canUseIntermediate && redirectMode === 'intermediate'"
+                v-model="intermediateDelaySeconds"
+                :label="t('shortLinkCreate.intermediateDelay')"
+                :min="3"
+                :max="10"
+                :step="1"
+                show-ticks="always"
+                thumb-label
+              />
+              <v-switch
+                v-if="canSetExpiration"
+                v-model="expirationEnabled"
+                color="primary"
+                density="comfortable"
+                hide-details
+                :label="t('shortLinkCreate.expirationEnabled')"
+              />
+              <v-text-field
+                v-if="canSetExpiration && expirationEnabled"
+                v-model="expiresAt"
+                type="datetime-local"
+                variant="outlined"
+                :label="t('shortLinkCreate.expiresAt')"
+                :error-messages="expirationErrorMessage"
+              />
+            </div>
+          </Transition>
+        </div>
         <div v-if="showPermissionRequired" class="short-link-create-panel__permission" role="status">
           {{ t('shortLinkCreate.permissionRequired') }}
         </div>
@@ -66,6 +128,7 @@ import { z } from 'zod'
 
 import { me } from '@/entities/auth/api'
 import { createShortLink } from '@/entities/short-link/api'
+import type { CreateShortLinkInput, RedirectMode } from '@/entities/short-link/model'
 
 withDefaults(
   defineProps<{
@@ -82,7 +145,17 @@ const targetUrl = ref('')
 const createdUrl = ref('')
 const validationErrorMessage = ref('')
 const copyErrorMessage = ref('')
+const expirationErrorMessage = ref('')
+const advancedOpen = ref(false)
+const redirectMode = ref<RedirectMode>('direct')
+const intermediateDelaySeconds = ref(5)
+const expirationEnabled = ref(false)
+const expiresAt = ref('')
 const targetUrlSchema = z.string().trim().pipe(z.url())
+const futureDateTimeSchema = z.string().trim().min(1).refine((value) => {
+  const timestamp = new Date(value).getTime()
+  return Number.isFinite(timestamp) && timestamp > Date.now()
+})
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,
@@ -92,12 +165,16 @@ const hasResolvedCurrentUser = computed(() => currentUserQuery.data.value !== un
 const canCreateShortLink = computed(() =>
   Boolean(currentUser.value?.permissions.includes('short_link:create') && currentUser.value?.permissions.includes('domain:use_default')),
 )
+const canUseIntermediate = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:use_intermediate')))
+const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
+const canConfigureAccess = computed(() => canUseIntermediate.value || canSetExpiration.value)
 const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !canCreateShortLink.value)
 
 const mutation = useMutation({
   mutationFn: createShortLink,
   onSuccess(result) {
     createdUrl.value = result.shortLink.url
+		resetInputFields()
     void queryClient.invalidateQueries({ queryKey: ['short-link'] })
     void queryClient.invalidateQueries({ queryKey: ['admin-short-link'] })
   },
@@ -119,20 +196,54 @@ function submit() {
   }
   validationErrorMessage.value = ''
   copyErrorMessage.value = ''
+  expirationErrorMessage.value = ''
   const targetUrlResult = targetUrlSchema.safeParse(targetUrl.value)
   if (!targetUrlResult.success) {
     validationErrorMessage.value = t('shortLinkCreate.invalidUrl')
     return
   }
+  let expiration: CreateShortLinkInput['expiration']
+  if (canSetExpiration.value) {
+    if (!expirationEnabled.value) {
+      expiration = { mode: 'never' }
+    } else {
+      const expirationResult = futureDateTimeSchema.safeParse(expiresAt.value)
+      if (!expirationResult.success) {
+        expirationErrorMessage.value = expiresAt.value.trim()
+          ? t('shortLinkCreate.expirationFuture')
+          : t('shortLinkCreate.expirationRequired')
+        return
+      }
+      expiration = { mode: 'at', expiresAt: new Date(expirationResult.data).toISOString() }
+    }
+  }
+
+	const input: CreateShortLinkInput = { targetUrl: targetUrlResult.data }
+	if (canUseIntermediate.value) {
+		input.redirectMode = redirectMode.value
+		input.intermediateDelaySeconds = intermediateDelaySeconds.value
+	}
+	if (expiration) {
+		input.expiration = expiration
+	}
   createdUrl.value = ''
-  mutation.mutate({ targetUrl: targetUrlResult.data })
+	mutation.mutate(input)
 }
 
 function resetForm() {
-  targetUrl.value = ''
+	resetInputFields()
   createdUrl.value = ''
+}
+
+function resetInputFields() {
+  targetUrl.value = ''
   validationErrorMessage.value = ''
   copyErrorMessage.value = ''
+	expirationErrorMessage.value = ''
+	redirectMode.value = 'direct'
+	intermediateDelaySeconds.value = 5
+	expirationEnabled.value = false
+	expiresAt.value = ''
 }
 
 async function copyUrl(url: string) {
@@ -210,6 +321,35 @@ async function copyUrl(url: string) {
   color: rgb(var(--v-theme-on-surface-variant));
   font-weight: 750;
   text-align: center;
+}
+
+.short-link-create-panel__advanced {
+	display: grid;
+	justify-items: start;
+	border-top: 1px solid var(--moeurl-outline);
+	padding-top: 8px;
+}
+
+.short-link-create-panel__advanced-toggle {
+	margin-inline-start: -8px;
+}
+
+.short-link-create-panel__advanced-controls {
+	display: grid;
+	gap: 12px;
+	width: 100%;
+	padding-top: 8px;
+}
+
+.short-link-create-panel__mode-control {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	color: rgb(var(--v-theme-on-surface-variant));
+	font-size: 0.88rem;
+	font-weight: 760;
 }
 
 .short-link-create-panel__error {

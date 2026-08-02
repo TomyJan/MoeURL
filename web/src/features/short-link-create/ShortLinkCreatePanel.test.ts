@@ -167,6 +167,78 @@ describe('ShortLinkCreatePanel', () => {
     expect(screen.queryByText('https://go.example.com/abc123')).toBeNull()
   })
 
+	it('hides advanced settings without access-configuration permissions', () => {
+		setQueryResult(['short_link:create', 'domain:use_default'])
+
+		mountPanel()
+
+		expect(screen.queryByText('shortLinkCreate.advanced')).toBeNull()
+		expect(screen.queryByText('shortLinkCreate.redirectModes.intermediate')).toBeNull()
+		expect(screen.queryByLabelText('shortLinkCreate.expirationEnabled')).toBeNull()
+	})
+
+	it('submits intermediate and future expiration settings then resets defaults', async () => {
+		const mutate = vi.fn()
+		setQueryResult([
+			'short_link:create',
+			'domain:use_default',
+			'short_link:use_intermediate',
+			'short_link:set_expiration',
+		])
+		setMutationResult({ mutate })
+
+		mountPanel()
+
+		await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+		expect(screen.queryByLabelText('shortLinkCreate.intermediateDelay')).toBeNull()
+		await fireEvent.click(screen.getByText('shortLinkCreate.redirectModes.intermediate'))
+		expect(screen.getByLabelText('shortLinkCreate.intermediateDelay')).toBeTruthy()
+		await fireEvent.update(screen.getByLabelText('shortLinkCreate.intermediateDelay'), '7')
+		await fireEvent.click(screen.getByText('shortLinkCreate.redirectModes.direct'))
+		expect(screen.queryByLabelText('shortLinkCreate.intermediateDelay')).toBeNull()
+		await fireEvent.click(screen.getByText('shortLinkCreate.redirectModes.intermediate'))
+
+		await fireEvent.click(screen.getByLabelText('shortLinkCreate.expirationEnabled'))
+		await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com/docs')
+		await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+		expect(screen.getByText('shortLinkCreate.expirationRequired')).toBeTruthy()
+		await fireEvent.update(screen.getByLabelText('shortLinkCreate.expiresAt'), '2020-01-01T00:00')
+		await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+		expect(mutate).not.toHaveBeenCalled()
+		expect(screen.getByText('shortLinkCreate.expirationFuture')).toBeTruthy()
+
+		await fireEvent.update(screen.getByLabelText('shortLinkCreate.expiresAt'), '2099-01-01T00:00')
+		await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+
+		expect(mutate).toHaveBeenCalledWith({
+			targetUrl: 'https://example.com/docs',
+			redirectMode: 'intermediate',
+			intermediateDelaySeconds: 7,
+			expiration: { mode: 'at', expiresAt: new Date('2099-01-01T00:00').toISOString() },
+		})
+		expect((screen.getByLabelText('shortLinkCreate.targetLabel') as HTMLInputElement).value).toBe('')
+		expect(screen.queryByLabelText('shortLinkCreate.intermediateDelay')).toBeNull()
+		expect((screen.getByLabelText('shortLinkCreate.expirationEnabled') as HTMLInputElement).checked).toBe(false)
+	})
+
+	it('submits never expiration without exposing intermediate controls', async () => {
+		const mutate = vi.fn()
+		setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_expiration'])
+		setMutationResult({ mutate })
+
+		mountPanel()
+
+		await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+		expect(screen.queryByText('shortLinkCreate.redirectMode')).toBeNull()
+		await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+		await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+
+		expect(mutate).toHaveBeenCalledWith({
+			targetUrl: 'https://example.com',
+			expiration: { mode: 'never' },
+		})
+	})
+
   it('validates target URL before submitting', async () => {
     const mutate = vi.fn()
     setQueryResult(['short_link:create', 'domain:use_default'])
@@ -228,6 +300,22 @@ describe('ShortLinkCreatePanel', () => {
     expect(await screen.findByText('shortLinkCreate.copyFailed')).toBeTruthy()
     expect(screen.getByText('https://go.example.com/abc123')).toBeTruthy()
   })
+
+	it('shows a copy failure when the clipboard API is unavailable', async () => {
+		setQueryResult(['short_link:create', 'domain:use_default'])
+		Object.defineProperty(window.navigator, 'clipboard', {
+			configurable: true,
+			value: undefined,
+		})
+
+		mountPanel()
+
+		await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+		await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+		await fireEvent.click(screen.getByText('shortLinkCreate.copy'))
+
+		expect(await screen.findByText('shortLinkCreate.copyFailed')).toBeTruthy()
+	})
 
   it('shows API errors and fallback errors', () => {
     setQueryResult(['short_link:create', 'domain:use_default'])

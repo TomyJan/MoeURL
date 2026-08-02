@@ -12,6 +12,11 @@ export const componentStubs: Record<string, Component> = {
     emits: ['click'],
     template: '<button v-bind="$attrs" :disabled="disabled || loading" :data-href="href" :data-to="to" @click="$emit(\'click\')"><slot /></button>',
   },
+	VBtnToggle: {
+		props: ['modelValue'],
+		emits: ['update:modelValue'],
+		template: '<div role="radiogroup"><slot /></div>',
+	},
   VCard: { template: '<section><slot /></section>' },
   VCardTitle: { template: '<h2><slot /></h2>' },
   VCardText: { template: '<div><slot /></div>' },
@@ -26,6 +31,16 @@ export const componentStubs: Record<string, Component> = {
     emits: ['update:modelValue'],
     template: '<select :aria-label="label || \'select\'" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :key="typeof item === \'string\' ? item : item.value" :value="typeof item === \'string\' ? item : item.value">{{ typeof item === \'string\' ? item : item.title }}</option></select>',
   },
+	VSlider: {
+		props: ['disabled', 'label', 'max', 'min', 'modelValue', 'step'],
+		emits: ['update:modelValue'],
+		template: '<label>{{ label }}<input v-bind="$attrs" type="range" :aria-label="label" :disabled="disabled" :max="max" :min="min" :step="step" :value="modelValue" @input="$emit(\'update:modelValue\', Number($event.target.value))" /></label>',
+	},
+	VSwitch: {
+		props: ['disabled', 'label', 'modelValue'],
+		emits: ['update:modelValue'],
+		template: '<label><input type="checkbox" :aria-label="label" :checked="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.checked)" />{{ label }}</label>',
+	},
   VTable: { template: '<table><slot /></table>' },
   VSnackbar: {
     props: ['modelValue', 'timeout'],

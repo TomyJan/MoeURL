@@ -1,9 +1,19 @@
+export type RedirectMode = 'direct' | 'intermediate'
+
+export type ExpirationInput =
+  | { mode: 'never' }
+  | { mode: 'at'; expiresAt: string }
+
 export interface ShortLink {
   id: string
   url: string
   slug: string
   targetUrl: string
   status: 'active' | 'disabled'
+	redirectMode: RedirectMode
+	intermediateDelaySeconds: number
+	expiresAt: string | null
+	expired: boolean
   createdAt: string
   stats?: ShortLinkStats
 }
@@ -55,10 +65,23 @@ export interface AdminShortLink extends ShortLink {
 
 export interface CreateShortLinkInput {
   targetUrl: string
+	redirectMode?: RedirectMode
+	intermediateDelaySeconds?: number
+	expiration?: ExpirationInput
 }
 
 export interface UpdateShortLinkInput {
   id: string
   targetUrl?: string
   status?: ShortLink['status']
+	redirectMode?: RedirectMode
+	intermediateDelaySeconds?: number
+	expiration?: ExpirationInput
+}
+
+export interface PublicShortLinkPreview {
+	slug: string
+	targetHost: string
+	intermediateDelaySeconds: number
+	expiresAt: string | null
 }
