@@ -57,9 +57,19 @@ describe('deployment configuration', () => {
     expect(config).toContain('codeSplitting')
     expect(config).toContain("name: 'vendor-vue'")
     expect(config).toContain("name: 'vendor-vuetify'")
-    expect(config).toContain('maxSize: 450 * 1024')
     expect(config).toContain("name: 'vendor-chart'")
     expect(config).toContain("name: 'vendor-qrcode'")
+    expect(config).not.toContain('maxSize')
     expect(config).not.toContain('chunkSizeWarningLimit')
   })
+
+  it('registers only the Vuetify components used by the application', () => {
+    const vuetify = readFileSync(resolve(repositoryRoot, 'web/src/app/vuetify.ts'), 'utf8')
+
+    expect(vuetify).not.toContain("import * as components from 'vuetify/components'")
+    for (const component of ['VAlert', 'VApp', 'VBtn', 'VDialog', 'VTextField']) {
+      expect(vuetify).toContain(component)
+    }
+  })
+
 })

@@ -9,9 +9,11 @@
         <v-progress-linear indeterminate />
       </template>
 
-      <div v-else-if="loadFailed" class="redirect-page__state">
-        <h1>{{ t('redirect.loadFailed') }}</h1>
-        <v-btn color="primary" @click="loadPreview">{{ t('redirect.retry') }}</v-btn>
+      <div v-else-if="failureState" class="redirect-page__state">
+        <h1>{{ t(`redirect.${failureState}`) }}</h1>
+        <v-btn v-if="failureState === 'loadFailed'" color="primary" @click="loadPreview">
+          {{ t('redirect.retry') }}
+        </v-btn>
         <v-btn variant="text" :to="{ path: '/' }">{{ t('redirect.backHome') }}</v-btn>
       </div>
 
@@ -45,13 +47,16 @@ import { useRoute } from 'vue-router'
 
 import { getPublicShortLinkPreview } from '@/entities/short-link/api'
 import type { PublicShortLinkPreview } from '@/entities/short-link/model'
+import { ApiClientError } from '@/shared/api/client'
+
+type PreviewFailureState = '' | 'expired' | 'loadFailed' | 'unavailable'
 
 const { t } = useI18n()
 const route = useRoute()
 const preview = ref<PublicShortLinkPreview | null>(null)
 const remainingSeconds = ref(0)
 const loading = ref(true)
-const loadFailed = ref(false)
+const failureState = ref<PreviewFailureState>('')
 const continueFailed = ref(false)
 const navigating = ref(false)
 let countdownTimer: ReturnType<typeof globalThis.setInterval> | null = null
@@ -63,14 +68,14 @@ async function loadPreview() {
   clearCountdown()
   preview.value = null
   loading.value = true
-  loadFailed.value = false
+  failureState.value = ''
   continueFailed.value = false
   navigating.value = false
 
   const slug = route.params.slug
   if (typeof slug !== 'string' || !slug) {
     loading.value = false
-    loadFailed.value = true
+    failureState.value = 'unavailable'
     return
   }
 
@@ -79,11 +84,22 @@ async function loadPreview() {
     preview.value = result
     remainingSeconds.value = result.intermediateDelaySeconds
     startCountdown()
-  } catch {
-    loadFailed.value = true
+  } catch (error) {
+    failureState.value = classifyPreviewError(error)
   } finally {
     loading.value = false
   }
+}
+
+function classifyPreviewError(error: unknown): PreviewFailureState {
+  const code = error instanceof ApiClientError ? error.code : 0
+  if (code === 200109) {
+    return 'expired'
+  }
+  if (code === 200104 || code === 200105 || code === 200110) {
+    return 'unavailable'
+  }
+  return 'loadFailed'
 }
 
 function startCountdown() {

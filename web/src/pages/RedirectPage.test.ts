@@ -4,6 +4,7 @@ import { nextTick } from 'vue'
 
 import RedirectPage from './RedirectPage.vue'
 import { getPublicShortLinkPreview } from '@/entities/short-link/api'
+import { ApiClientError } from '@/shared/api/client'
 import { componentStubs } from '@/test/component-stubs'
 
 const state = vi.hoisted(() => ({
@@ -104,13 +105,28 @@ describe('RedirectPage', () => {
     expect(screen.getByText('example.com')).toBeTruthy()
   })
 
+  it.each([
+    [200104, 'redirect.unavailable'],
+    [200105, 'redirect.unavailable'],
+    [200109, 'redirect.expired'],
+    [200110, 'redirect.unavailable'],
+  ])('shows a non-retryable state for public business error %i', async (code, messageKey) => {
+    vi.mocked(getPublicShortLinkPreview).mockRejectedValueOnce(new ApiClientError(code, 'unavailable'))
+    mountPage()
+    await flushPreview()
+
+    expect(screen.getByText(messageKey)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'redirect.retry' })).toBeNull()
+  })
+
   it('rejects missing route slugs without calling the preview API', async () => {
     state.params = {}
     mountPage()
     await flushPreview()
 
     expect(getPublicShortLinkPreview).not.toHaveBeenCalled()
-    expect(screen.getByText('redirect.loadFailed')).toBeTruthy()
+    expect(screen.getByText('redirect.unavailable')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'redirect.retry' })).toBeNull()
   })
 
   it('clears the countdown interval when unmounted', async () => {

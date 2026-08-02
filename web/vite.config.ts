@@ -19,7 +19,6 @@ export default defineConfig({
               name: 'vendor-vuetify',
               test: /node_modules[\\/]vuetify[\\/]/,
               priority: 30,
-              maxSize: 450 * 1024,
             },
             {
               name: 'vendor-chart',
