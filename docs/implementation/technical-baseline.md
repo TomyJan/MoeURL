@@ -572,3 +572,9 @@ MOEURL_DEFAULT_THEME
 - [v0.0.1 工程实施计划](v0.0.1-engineering-plan.md)
 - [v0.0.1 任务级实施清单](v0.0.1-tasks.md)
 - [AGENTS.md](../../AGENTS.md)
+
+## 16. Agent 自主交付约定
+
+当任务涉及新版本设计、跨模块功能开发、生产化交付，或用户要求 Agent 独立完成设计、文档、开发、测试和提交时，必须遵循 [Agent 自主交付规范](agent-delivery-guidelines.md)。
+
+该规范是通用工程工作法，不承载具体版本需求。具体版本的产品范围、功能规格、实施计划、任务清单和验收记录仍按本文档的文档分层规则分别维护。

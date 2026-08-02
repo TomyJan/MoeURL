@@ -4,7 +4,7 @@
 
 MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
 
-当前优先目标是 v0.1.1 控制台个人概览闭环。
+当前已完成到 v0.1.2 个人设置基础闭环。后续版本设计和实施应以 `docs/product/overview.md`、`docs/product/roadmap.md` 和对应版本范围文档为准。
 
 ## 工作入口
 
@@ -12,7 +12,9 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 1. `docs/README.md`
 2. `docs/product/overview.md`
-3. `docs/product/scope-v0.1.1.md`
+3. `docs/product/scope-v0.1.2.md`
+
+如果任务涉及新版本设计、跨模块功能开发、生产化交付或要求 Agent 自主完成设计、文档、开发、测试和提交，必须继续阅读 `docs/implementation/agent-delivery-guidelines.md`。
 
 如果任务涉及回溯 v0.0.1 范围、验收或兼容性，再阅读 `docs/product/scope-v0.0.1.md`。
 
@@ -22,9 +24,9 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 1. `docs/implementation/technical-decision.md`
 2. `docs/implementation/technical-baseline.md`
-3. `docs/implementation/v0.1.1-plan.md`
-4. `docs/implementation/v0.1.1-tasks.md`
-5. `docs/implementation/v0.1.1-acceptance.md`
+3. `docs/implementation/v0.1.2-plan.md`
+4. `docs/implementation/v0.1.2-tasks.md`
+5. `docs/implementation/v0.1.2-acceptance.md`
 
 如果任务涉及 v0.1.1 控制台概览、个人短链聚合或最近短链，必须继续阅读：
 
@@ -122,9 +124,10 @@ MoeURL 当前技术栈固定为：
 
 ## 实施原则
 
-- 以 v0.1.1 控制台个人概览为当前优先目标。
 - 实施前先确认对应产品范围、功能规格和技术基线。
-- v0.1.1 只实现 `docs/product/scope-v0.1.1.md` 中列入必须实现的内容。
+- 当前已完成版本以 `docs/product/overview.md` 和最新 `docs/product/scope-v*.md` 为准。
+- 新版本、跨模块和生产化任务必须遵循 `docs/implementation/agent-delivery-guidelines.md`。
+- 每个版本只实现对应范围文档中列入必须实现的内容。
 - 远期能力只做必要的模型、接口或扩展点预留，不做完整 UI 和完整流程。
 - 保持 YAGNI，避免为了远期能力提前引入过重抽象。
 - 每个阶段都应有明确可验证的完成标准。

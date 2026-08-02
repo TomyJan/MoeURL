@@ -6,6 +6,7 @@
 
 技术基线文档包括：
 
+- [Agent 自主交付规范](agent-delivery-guidelines.md)：定义新版本、跨模块和生产化任务的自主设计、文档、开发、测试、提交和交付报告约定。
 - [技术选型决策](technical-decision.md)：记录后端、前端、数据库、测试和部署技术栈的选择原因。
 - [技术基线](technical-baseline.md)：定义仓库结构、模块边界、API、数据库、权限、前端结构、测试和部署约定。
 
@@ -42,11 +43,13 @@ technical-decision.md
   ↓
 technical-baseline.md
   ↓
-v0.0.4-plan.md
+agent-delivery-guidelines.md
   ↓
-v0.0.4-tasks.md
+v0.1.2-plan.md
   ↓
-v0.0.4-acceptance.md
+v0.1.2-tasks.md
+  ↓
+v0.1.2-acceptance.md
 ```
 
 涉及 v0.0.3 已完成的 UI/UX、控制台 Shell、短链生成组件和列表体验时，继续阅读：
@@ -89,7 +92,7 @@ v0.0.1-acceptance.md
 
 - 先确认产品范围，再拆分开发任务。
 - 技术实现以 [技术选型决策](technical-decision.md) 和 [技术基线](technical-baseline.md) 为准。
-- 以 v0.0.4 基础统计前置为当前优先目标。
+- 新版本、跨模块和生产化任务必须遵循 [Agent 自主交付规范](agent-delivery-guidelines.md)。
 - 不把远期能力直接纳入当前版本实现。
 - 对远期能力只保留必要的数据模型、接口边界或扩展点。
 - 每份实施计划都应明确目标、范围、任务顺序和验收标准。
