@@ -26,6 +26,7 @@
         :updating-id="updatingId"
         @configure="configure"
         @copy="copyUrl"
+        @qr="showQr"
         @remove="remove"
         @toggle-status="toggleStatus"
       />
@@ -40,6 +41,13 @@
     @save="saveSettings"
     @update:open="closeSettings"
   />
+  <ShortLinkQrDialog
+    v-if="qrLink"
+    :open="true"
+    :slug="qrLink.slug"
+    :url="qrLink.url"
+    @update:open="closeQr"
+  />
 </template>
 
 <script setup lang="ts">
@@ -51,6 +59,7 @@ import { deleteShortLink, listShortLinks, updateShortLink } from '@/entities/sho
 import type { ShortLink, UpdateShortLinkInput } from '@/entities/short-link/model'
 import { useMutationTargetId } from '@/shared/mutations/useMutationTargetId'
 import ShortLinkSettingsDialog from '@/features/short-link-settings/ShortLinkSettingsDialog.vue'
+import ShortLinkQrDialog from '@/features/short-link-qr/ShortLinkQrDialog.vue'
 import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue'
 
 const { t } = useI18n()
@@ -68,6 +77,7 @@ const query = useQuery({
 const links = computed(() => query.data.value?.items ?? [])
 const linkItems = computed<ConsoleLinkListItem[]>(() => links.value)
 const settingsLink = ref<ConsoleLinkListItem | null>(null)
+const qrLink = ref<ConsoleLinkListItem | null>(null)
 
 const statusMutation = useMutation({
   mutationFn: updateShortLink,
@@ -110,6 +120,14 @@ function saveSettings(input: UpdateShortLinkInput) {
 
 function closeSettings() {
   settingsLink.value = null
+}
+
+function showQr(link: ConsoleLinkListItem) {
+  qrLink.value = link
+}
+
+function closeQr() {
+  qrLink.value = null
 }
 
 function remove(id: string) {

@@ -3,16 +3,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import type { CurrentUser } from '@/entities/auth/api'
 import { me } from '@/entities/auth/api'
-import AdminLinksPage from '@/pages/AdminLinksPage.vue'
-import AdminUsersPage from '@/pages/AdminUsersPage.vue'
-import AnalyticsPage from '@/pages/AnalyticsPage.vue'
-import ConsoleOverviewPage from '@/pages/ConsoleOverviewPage.vue'
-import ConsolePlaceholderPage from '@/pages/ConsolePlaceholderPage.vue'
-import CreateUserPage from '@/pages/CreateUserPage.vue'
 import HomePage from '@/pages/HomePage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
-import MyLinksPage from '@/pages/MyLinksPage.vue'
-import ProfilePage from '@/pages/ProfilePage.vue'
 import NotFoundPage from '@/pages/NotFoundPage.vue'
 import SetupPage from '@/pages/SetupPage.vue'
 import ConsoleShell from '@/widgets/console-shell/ConsoleShell.vue'
@@ -77,58 +69,59 @@ export const routes: RouteRecordRaw[] = [
   { path: '/', component: HomePage },
   { path: '/setup', component: SetupPage },
   { path: '/login', component: LoginPage },
+  { path: '/go/:slug', component: () => import('@/pages/RedirectPage.vue') },
   {
     path: '/',
     component: ConsoleShell,
     children: [
       {
         path: '/profile',
-        component: ProfilePage,
+        component: () => import('@/pages/ProfilePage.vue'),
         meta: { requiresSignedIn: true },
         beforeEnter: requireSignedIn,
       },
       {
         path: '/console',
-        component: ConsoleOverviewPage,
+        component: () => import('@/pages/ConsoleOverviewPage.vue'),
         meta: { requiresConsole: true },
         beforeEnter: requireConsoleAccess,
       },
-      { path: '/link', component: MyLinksPage, meta: { requiresConsole: true }, beforeEnter: requireConsoleAccess },
+      { path: '/link', component: () => import('@/pages/MyLinksPage.vue'), meta: { requiresConsole: true }, beforeEnter: requireConsoleAccess },
       {
         path: '/analytics',
-        component: AnalyticsPage,
+        component: () => import('@/pages/AnalyticsPage.vue'),
         meta: { requiresConsole: true },
         beforeEnter: requireConsoleAccess,
       },
       {
         path: '/admin/link',
-        component: AdminLinksPage,
+        component: () => import('@/pages/AdminLinksPage.vue'),
         meta: { requiresConsole: true, requiresAdmin: true },
         beforeEnter: requireAdminAccess,
       },
       {
         path: '/admin/user',
-        component: AdminUsersPage,
+        component: () => import('@/pages/AdminUsersPage.vue'),
         meta: { requiresConsole: true, requiresAdmin: true },
         beforeEnter: requireAdminAccess,
       },
       {
         path: '/admin/user/group',
-        component: ConsolePlaceholderPage,
+        component: () => import('@/pages/ConsolePlaceholderPage.vue'),
         props: { kind: 'userGroups' },
         meta: { requiresConsole: true, requiresAdmin: true },
         beforeEnter: requireAdminAccess,
       },
       {
         path: '/admin/setting',
-        component: ConsolePlaceholderPage,
+        component: () => import('@/pages/ConsolePlaceholderPage.vue'),
         props: { kind: 'settings' },
         meta: { requiresConsole: true, requiresAdmin: true },
         beforeEnter: requireAdminAccess,
       },
       {
         path: '/admin/user/new',
-        component: CreateUserPage,
+        component: () => import('@/pages/CreateUserPage.vue'),
         meta: { requiresConsole: true, requiresAdmin: true },
         beforeEnter: requireAdminAccess,
       },

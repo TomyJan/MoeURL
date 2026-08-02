@@ -5,6 +5,37 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [vue()],
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: 'vendor-vue',
+              test: /node_modules[\\/](?:@vue|vue|vue-router|pinia|@tanstack)[\\/]/,
+              priority: 40,
+            },
+            {
+              name: 'vendor-vuetify',
+              test: /node_modules[\\/]vuetify[\\/]/,
+              priority: 30,
+              maxSize: 450 * 1024,
+            },
+            {
+              name: 'vendor-chart',
+              test: /node_modules[\\/]chart\.js[\\/]/,
+              priority: 20,
+            },
+            {
+              name: 'vendor-qrcode',
+              test: /node_modules[\\/](?:qrcode|dijkstrajs|pngjs)[\\/]/,
+              priority: 20,
+            },
+          ],
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

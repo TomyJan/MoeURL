@@ -28,6 +28,7 @@
         :updating-id="updatingId"
         @configure="configure"
         @copy="copyUrl"
+        @qr="showQr"
         @remove="remove"
         @toggle-status="toggleStatus"
       />
@@ -42,6 +43,13 @@
     @save="saveSettings"
     @update:open="closeSettings"
   />
+  <ShortLinkQrDialog
+    v-if="qrLink"
+    :open="true"
+    :slug="qrLink.slug"
+    :url="qrLink.url"
+    @update:open="closeQr"
+  />
 </template>
 
 <script setup lang="ts">
@@ -52,6 +60,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { deleteAdminShortLink, listAdminShortLinks, updateAdminShortLink } from '@/entities/short-link/api'
 import type { AdminShortLink, UpdateShortLinkInput } from '@/entities/short-link/model'
 import ShortLinkSettingsDialog from '@/features/short-link-settings/ShortLinkSettingsDialog.vue'
+import ShortLinkQrDialog from '@/features/short-link-qr/ShortLinkQrDialog.vue'
 import { useMutationTargetId } from '@/shared/mutations/useMutationTargetId'
 import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue'
 
@@ -81,6 +90,7 @@ const links = computed(() => query.data.value?.items ?? [])
 const linkItems = computed<ConsoleLinkListItem[]>(() => links.value)
 const total = computed(() => query.data.value?.meta.total ?? 0)
 const settingsLink = ref<ConsoleLinkListItem | null>(null)
+const qrLink = ref<ConsoleLinkListItem | null>(null)
 
 const statusMutation = useMutation({
   mutationFn: updateAdminShortLink,
@@ -123,6 +133,14 @@ function saveSettings(input: UpdateShortLinkInput) {
 
 function closeSettings() {
   settingsLink.value = null
+}
+
+function showQr(link: ConsoleLinkListItem) {
+  qrLink.value = link
+}
+
+function closeQr() {
+  qrLink.value = null
 }
 
 function remove(id: string) {

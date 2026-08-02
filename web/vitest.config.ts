@@ -17,6 +17,7 @@ export default defineConfig({
         'src/entities/**/*.ts',
         'src/features/short-link-create/ShortLinkCreatePanel.vue',
         'src/features/short-link-settings/ShortLinkSettingsDialog.vue',
+        'src/features/short-link-qr/ShortLinkQrDialog.vue',
         'src/pages/**/*.vue',
         'src/shared/**/*.ts',
       ],

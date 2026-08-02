@@ -3,6 +3,11 @@ import type { Component } from 'vue'
 export const componentStubs: Record<string, Component> = {
   RouterLink: { props: ['to'], template: '<a :data-to="to" :href="typeof to === \'string\' ? to : to?.path"><slot /></a>' },
   RouterView: { template: '<div data-testid="router-view"><slot :Component="undefined" :route="{ fullPath: \'/\' }" /></div>' },
+  ShortLinkQrDialog: {
+    props: ['open', 'slug', 'url'],
+    emits: ['update:open'],
+    template: '<div v-if="open" data-testid="short-link-qr-dialog-stub"><span>{{ slug }}</span><span>{{ url }}</span><button aria-label="short-link-qr-close" @click="$emit(\'update:open\', false)" /></div>',
+  },
   VAlert: { props: ['type', 'variant', 'color'], template: '<div role="alert"><slot /></div>' },
   VApp: { template: '<div><slot /></div>' },
   VAppBar: { template: '<nav><slot /></nav>' },

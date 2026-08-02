@@ -49,4 +49,17 @@ describe('deployment configuration', () => {
     expect(declarations).toContain("from 'vuetify'")
     expect(declarations).not.toContain('vuetify/lib/framework')
   })
+
+  it('keeps large frontend dependencies in explicit Rolldown chunks', () => {
+    const config = readFileSync(resolve(repositoryRoot, 'web/vite.config.ts'), 'utf8')
+
+    expect(config).toContain('rolldownOptions')
+    expect(config).toContain('codeSplitting')
+    expect(config).toContain("name: 'vendor-vue'")
+    expect(config).toContain("name: 'vendor-vuetify'")
+    expect(config).toContain('maxSize: 450 * 1024')
+    expect(config).toContain("name: 'vendor-chart'")
+    expect(config).toContain("name: 'vendor-qrcode'")
+    expect(config).not.toContain('chunkSizeWarningLimit')
+  })
 })

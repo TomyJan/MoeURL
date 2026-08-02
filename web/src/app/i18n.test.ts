@@ -25,6 +25,12 @@ describe('i18n', () => {
 		expect(messages.en.shortLinkCreate.advanced).toBe('Advanced settings')
 		expect(messages.en.shortLinkCreate.redirectModes.intermediate).toBe('Intermediate page')
 		expect(messages.en.shortLinkCreate.expirationFuture).toBe('Expiration must be in the future')
+		expect(messages['zh-CN'].shortLinkCreate.qrCode).toBe('二维码')
+		expect(messages.en.shortLinkCreate.qrCode).toBe('QR code')
+		expect(messages['zh-CN'].shortLinkQr.download).toBe('下载 PNG')
+		expect(messages.en.shortLinkQr.generateFailed).toBe('Failed to generate the QR code. Try again.')
+		expect(messages['zh-CN'].redirect.continue).toBe('立即前往')
+		expect(messages.en.redirect.loadFailed).toBe('This short link is unavailable.')
 	})
 
   it('keeps placeholder copy limited to capabilities that are still planned', () => {

@@ -111,6 +111,7 @@
               <v-btn size="small" variant="text" :href="createdUrl" target="_blank" rel="noreferrer">
                 {{ t('shortLinkCreate.open') }}
               </v-btn>
+              <v-btn size="small" variant="text" @click="qrOpen = true">{{ t('shortLinkCreate.qrCode') }}</v-btn>
               <v-btn size="small" variant="text" @click="resetForm">{{ t('shortLinkCreate.reset') }}</v-btn>
             </div>
           </div>
@@ -118,6 +119,12 @@
       </Transition>
     </div>
   </section>
+  <ShortLinkQrDialog
+    :open="qrOpen"
+    :slug="createdSlug"
+    :url="createdUrl"
+    @update:open="qrOpen = $event"
+  />
 </template>
 
 <script setup lang="ts">
@@ -129,6 +136,7 @@ import { z } from 'zod'
 import { me } from '@/entities/auth/api'
 import { createShortLink } from '@/entities/short-link/api'
 import type { CreateShortLinkInput, RedirectMode } from '@/entities/short-link/model'
+import ShortLinkQrDialog from '@/features/short-link-qr/ShortLinkQrDialog.vue'
 
 withDefaults(
   defineProps<{
@@ -143,6 +151,8 @@ const { t } = useI18n()
 const queryClient = useQueryClient()
 const targetUrl = ref('')
 const createdUrl = ref('')
+const createdSlug = ref('')
+const qrOpen = ref(false)
 const validationErrorMessage = ref('')
 const copyErrorMessage = ref('')
 const expirationErrorMessage = ref('')
@@ -174,6 +184,8 @@ const mutation = useMutation({
   mutationFn: createShortLink,
   onSuccess(result) {
     createdUrl.value = result.shortLink.url
+    createdSlug.value = result.shortLink.slug
+		qrOpen.value = false
 		resetInputFields()
     void queryClient.invalidateQueries({ queryKey: ['short-link'] })
     void queryClient.invalidateQueries({ queryKey: ['admin-short-link'] })
@@ -233,6 +245,8 @@ function submit() {
 function resetForm() {
 	resetInputFields()
   createdUrl.value = ''
+  createdSlug.value = ''
+  qrOpen.value = false
 }
 
 function resetInputFields() {

@@ -63,6 +63,9 @@
           <v-btn size="small" variant="text" role="menuitem" @click="openSettings(link)">
             {{ t('links.actions.configure') }}
           </v-btn>
+          <v-btn size="small" variant="text" role="menuitem" @click="openQr(link)">
+            {{ t('links.actions.qrCode') }}
+          </v-btn>
           <v-btn size="small" variant="text" role="menuitem" :loading="updatingId === link.id" @click="$emit('toggleStatus', link)">
             {{ t(link.status === 'active' ? 'links.actions.disable' : 'links.actions.enable') }}
           </v-btn>
@@ -83,6 +86,7 @@ import type { RedirectMode } from '@/entities/short-link/model'
 
 export interface ConsoleLinkListItem {
   id: string
+  slug: string
   owner?: {
     id: string
     nickname: string
@@ -111,6 +115,7 @@ defineProps<{
 const emit = defineEmits<{
   configure: [link: ConsoleLinkListItem]
   copy: [url: string]
+  qr: [link: ConsoleLinkListItem]
   remove: [id: string]
   toggleStatus: [link: ConsoleLinkListItem]
 }>()
@@ -140,6 +145,11 @@ function closeMore() {
 function openSettings(link: ConsoleLinkListItem) {
   closeMore()
   emit('configure', link)
+}
+
+function openQr(link: ConsoleLinkListItem) {
+  closeMore()
+  emit('qr', link)
 }
 
 function formatVisitedAt(value?: string | null) {

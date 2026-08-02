@@ -47,7 +47,7 @@ vi.mock('@tanstack/vue-query', () => ({
       mutate: vi.fn((input: unknown) => {
         providedMutate?.(input)
         options?.onSuccess?.({
-          shortLink: { url: 'https://go.example.com/abc123' },
+          shortLink: { slug: 'abc123', url: 'https://go.example.com/abc123' },
         })
       }),
     }
@@ -159,6 +159,12 @@ describe('ShortLinkCreatePanel', () => {
     expect(screen.getByTestId('short-link-create-result')).toBeTruthy()
     expect(screen.getByText('shortLinkCreate.successTitle')).toBeTruthy()
     expect(screen.getByText('https://go.example.com/abc123')).toBeTruthy()
+
+    await fireEvent.click(screen.getByText('shortLinkCreate.qrCode'))
+    expect(screen.getByTestId('short-link-qr-dialog-stub').textContent).toContain('https://go.example.com/abc123')
+    expect(screen.getByTestId('short-link-qr-dialog-stub').textContent).toContain('abc123')
+    await fireEvent.click(screen.getByLabelText('short-link-qr-close'))
+    expect(screen.queryByTestId('short-link-qr-dialog-stub')).toBeNull()
 
     await fireEvent.click(screen.getByText('shortLinkCreate.copy'))
     expect(window.navigator.clipboard.writeText).toHaveBeenCalledWith('https://go.example.com/abc123')
