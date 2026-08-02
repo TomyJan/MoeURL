@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
@@ -180,6 +181,9 @@ func (s *Service) UpdateProfile(ctx context.Context, actor auth.CurrentUser, inp
 
 	nickname := strings.TrimSpace(input.Nickname)
 	if nickname == "" {
+		return UpdateProfileResult{}, ErrInvalidInput
+	}
+	if utf8.RuneCountInString(nickname) > NicknameMaxLength {
 		return UpdateProfileResult{}, ErrInvalidInput
 	}
 

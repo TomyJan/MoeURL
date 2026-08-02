@@ -3,6 +3,7 @@ package user_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
@@ -402,6 +403,27 @@ func TestServiceUpdateProfileRejectsPermissionInputBuiltinAndMissingUser(t *test
 	_, err = service.UpdateProfile(ctx, auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000701", Username: "missing", GroupKey: "user", Permissions: permission.UserPermissions}, user.UpdateProfileInput{Nickname: "Missing"})
 	if !errors.Is(err, user.ErrUserNotFound) {
 		t.Fatalf("expected ErrUserNotFound, got %v", err)
+	}
+}
+
+func TestServiceUpdateProfileRejectsTooLongNickname(t *testing.T) {
+	ctx := context.Background()
+	pool := userTestPool(t, ctx)
+	insertUserGroup(t, ctx, pool, "user", permission.UserPermissions)
+	userID := insertAppUser(t, ctx, pool, "alice", "hash", "Alice", "user", "active", false)
+	actor := auth.CurrentUser{
+		ID:          userID,
+		Username:    "alice",
+		Nickname:    "Alice",
+		GroupKey:    "user",
+		Permissions: permission.UserPermissions,
+	}
+	service := user.NewService(pool, permission.NewService())
+
+	longNickname := strings.Repeat("a", user.NicknameMaxLength+1)
+	_, err := service.UpdateProfile(ctx, actor, user.UpdateProfileInput{Nickname: longNickname})
+	if !errors.Is(err, user.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput for too long nickname, got %v", err)
 	}
 }
 

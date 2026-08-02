@@ -1,22 +1,30 @@
-FROM node:26-alpine AS web-build
+FROM golang:1.25.8 AS web-build
+ARG NODE_VERSION=26.3.0
 WORKDIR /workspace/web
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl xz-utils \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o /tmp/node.tar.xz \
+    && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
+    && rm -f /tmp/node.tar.xz \
+    && node -v \
+    && npm -v
 COPY web/package.json web/pnpm-lock.yaml ./
 RUN npm install -g $(node -p "require('./package.json').packageManager")
 RUN pnpm install --frozen-lockfile --config.dangerously-allow-all-builds=true
 COPY web/ ./
 RUN pnpm build
 
-FROM golang:1.26-alpine AS go-build
+FROM golang:1.25.8 AS go-build
 WORKDIR /workspace
-RUN apk add --no-cache git
 COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/moeurl ./cmd/server
-RUN go install github.com/pressly/goose/v3/cmd/goose@v3.27.3
+RUN CGO_ENABLED=0 go install github.com/pressly/goose/v3/cmd/goose@v3.27.3
 
-FROM alpine:3.24
+FROM alpine:3.20
 WORKDIR /app
 RUN apk add --no-cache ca-certificates && addgroup -S moeurl && adduser -S -G moeurl moeurl
 COPY --from=go-build /out/moeurl /app/moeurl

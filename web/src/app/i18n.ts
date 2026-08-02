@@ -195,6 +195,8 @@ export const messages = {
       saveNickname: '保存昵称',
       saveSuccess: '昵称已更新',
       saveFailed: '昵称保存失败，请稍后重试。',
+      saveFailedWithReason: '昵称保存失败：{message}，请稍后重试。',
+      saveUnavailable: '当前账号暂时无法修改昵称。',
       nicknameRequired: '请输入昵称',
     },
     preferences: {
@@ -512,6 +514,8 @@ export const messages = {
       saveNickname: 'Save nickname',
       saveSuccess: 'Nickname updated',
       saveFailed: 'Failed to save nickname. Try again later.',
+      saveFailedWithReason: 'Failed to save nickname: {message}. Try again later.',
+      saveUnavailable: 'This account cannot be modified right now.',
       nicknameRequired: 'Enter a nickname',
     },
     preferences: {

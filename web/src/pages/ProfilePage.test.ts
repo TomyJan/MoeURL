@@ -5,6 +5,7 @@ import { ref } from 'vue'
 import ProfilePage from './ProfilePage.vue'
 import { componentStubs } from '@/test/component-stubs'
 import { updateProfile } from '@/entities/user/api'
+import { ApiClientError } from '@/shared/api/client'
 
 const state = vi.hoisted(() => ({
   queryResult: {
@@ -45,7 +46,12 @@ const state = vi.hoisted(() => ({
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
     locale: ref('zh-CN'),
-    t: (key: string) => key,
+    t: (key: string, params?: Record<string, unknown>) => {
+      if (typeof params?.message === 'string') {
+        return `${key}:${params.message}`
+      }
+      return key
+    },
   }),
 }))
 
@@ -241,5 +247,41 @@ describe('ProfilePage', () => {
       expect(screen.getByText('profile.saveFailed')).toBeTruthy()
     })
     expect(state.queryClient.setQueryData).not.toHaveBeenCalled()
+  })
+
+  it('shows a retryable backend reason when the save request fails with invalid input', async () => {
+    vi.mocked(updateProfile).mockRejectedValueOnce(new ApiClientError(100001, 'Invalid request'))
+    mountProfilePage()
+
+    await fireEvent.update(screen.getByLabelText('profile.nicknameLabel'), 'Alice Renamed')
+    await fireEvent.click(screen.getByRole('button', { name: 'profile.saveNickname' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('profile.saveFailedWithReason:Invalid request')).toBeTruthy()
+    })
+  })
+
+  it('falls back to the generic save failure when the backend error has no message', async () => {
+    vi.mocked(updateProfile).mockRejectedValueOnce(new ApiClientError(100001, ''))
+    mountProfilePage()
+
+    await fireEvent.update(screen.getByLabelText('profile.nicknameLabel'), 'Alice Renamed')
+    await fireEvent.click(screen.getByRole('button', { name: 'profile.saveNickname' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('profile.saveFailed')).toBeTruthy()
+    })
+  })
+
+  it('shows a non-retryable message when the backend rejects an immutable account', async () => {
+    vi.mocked(updateProfile).mockRejectedValueOnce(new ApiClientError(300102, 'Builtin user cannot be modified'))
+    mountProfilePage()
+
+    await fireEvent.update(screen.getByLabelText('profile.nicknameLabel'), 'Alice Renamed')
+    await fireEvent.click(screen.getByRole('button', { name: 'profile.saveNickname' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('profile.saveUnavailable')).toBeTruthy()
+    })
   })
 })

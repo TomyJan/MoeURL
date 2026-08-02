@@ -78,11 +78,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { me } from '@/entities/auth/api'
 import { updateProfile } from '@/entities/user/api'
+import { ApiClientError } from '@/shared/api/client'
 import PreferenceSwitcher from '@/shared/preferences/PreferenceSwitcher.vue'
 import { useAvatarText } from '@/shared/user/useAvatarText'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
+const nonRetryableSaveErrorCodes = new Set([120001, 300102, 300103])
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,
@@ -94,7 +96,7 @@ const draftNickname = ref('')
 const nicknameError = ref('')
 const saveErrorVisible = ref(false)
 const saveSuccessVisible = ref(false)
-const saveErrorMessage = computed(() => t('profile.saveFailed'))
+const saveErrorMessage = computed(() => resolveSaveErrorMessage(updateProfileMutation.error.value))
 const isLoading = computed(() => currentUserQuery.isPending.value || !currentUser.value)
 
 watch(
@@ -123,6 +125,19 @@ const updateProfileMutation = useMutation({
     saveErrorVisible.value = true
   },
 })
+
+function resolveSaveErrorMessage(error: unknown) {
+  if (!(error instanceof ApiClientError)) {
+    return t('profile.saveFailed')
+  }
+  if (nonRetryableSaveErrorCodes.has(error.code)) {
+    return t('profile.saveUnavailable')
+  }
+  if (error.message) {
+    return t('profile.saveFailedWithReason', { message: error.message })
+  }
+  return t('profile.saveFailed')
+}
 
 function submit() {
   const nickname = draftNickname.value.trim()

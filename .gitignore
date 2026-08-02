@@ -6,6 +6,7 @@ dist/
 web/dist/
 web/playwright-report/
 web/test-results/
+.pw-browsers*/
 coverage.out
 coverage/
 web/coverage/

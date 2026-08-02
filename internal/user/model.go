@@ -2,6 +2,8 @@ package user
 
 import "github.com/TomyJan/MoeURL/internal/auth"
 
+const NicknameMaxLength = 64
+
 type CreateInput struct {
 	Username string
 	Password string
