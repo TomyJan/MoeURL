@@ -1005,6 +1005,13 @@ func TestServiceAccessConfigCreateListAndUpdate(t *testing.T) {
 	if len(expiredList.Items) != 1 || expiredList.Items[0].ExpiresAt == nil || !expiredList.Items[0].Expired {
 		t.Fatalf("expected dynamic expired response, got %#v", expiredList.Items)
 	}
+	expiredAdminList, err := service.AdminList(ctx, admin, shortlink.ListInput{Page: 1, PageSize: 20})
+	if err != nil {
+		t.Fatalf("admin list expired short link: %v", err)
+	}
+	if len(expiredAdminList.Items) != 1 || expiredAdminList.Items[0].ExpiresAt == nil || !expiredAdminList.Items[0].Expired {
+		t.Fatalf("expected dynamic admin expired response, got %#v", expiredAdminList.Items)
+	}
 }
 
 // TestServiceAccessConfigValidation verifies stable validation errors for every access setting boundary.
@@ -1068,6 +1075,26 @@ func TestServiceAccessConfigValidation(t *testing.T) {
 	if !errors.Is(err, shortlink.ErrInvalidRedirectMode) {
 		t.Fatalf("expected admin invalid redirect mode, got %v", err)
 	}
+
+	lowerBoundary, err := service.Create(ctx, user, shortlink.CreateInput{
+		TargetURL:                "https://example.com/lower-boundary",
+		RedirectMode:             shortlink.RedirectModeIntermediate,
+		IntermediateDelaySeconds: 3,
+	})
+	if err != nil {
+		t.Fatalf("create with minimum intermediate delay: %v", err)
+	}
+	assertAccessConfig(t, lowerBoundary.ShortLink, shortlink.RedirectModeIntermediate, 3, nil, false)
+
+	upperDelay := int16(10)
+	upperBoundary, err := service.Update(ctx, user, shortlink.UpdateInput{
+		ID:                       created.ShortLink.ID,
+		IntermediateDelaySeconds: &upperDelay,
+	})
+	if err != nil {
+		t.Fatalf("update with maximum intermediate delay: %v", err)
+	}
+	assertAccessConfig(t, upperBoundary.ShortLink, shortlink.RedirectModeDirect, 10, nil, false)
 
 	pool.Close()
 	_, err = service.Update(ctx, user, shortlink.UpdateInput{
