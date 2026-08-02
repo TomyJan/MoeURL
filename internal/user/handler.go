@@ -23,6 +23,7 @@ type Port interface {
 	Create(ctx context.Context, actor auth.CurrentUser, input CreateInput) (CreateResult, error)
 	List(ctx context.Context, actor auth.CurrentUser, input ListInput) (ListResult, error)
 	Update(ctx context.Context, actor auth.CurrentUser, input UpdateInput) (UpdateResult, error)
+	UpdateProfile(ctx context.Context, actor auth.CurrentUser, input UpdateProfileInput) (UpdateProfileResult, error)
 	ResetPassword(ctx context.Context, actor auth.CurrentUser, input ResetPasswordInput) error
 }
 
@@ -93,6 +94,22 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.service.Update(r.Context(), auth.UserFromContext(r.Context()), input)
+	if err != nil {
+		writeUserError(w, err)
+		return
+	}
+	ok(w, result)
+}
+
+// UpdateProfile applies nickname changes for the current user.
+func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	var input UpdateProfileInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		businessError(w, 100001, "Invalid request")
+		return
+	}
+
+	result, err := h.service.UpdateProfile(r.Context(), auth.UserFromContext(r.Context()), input)
 	if err != nil {
 		writeUserError(w, err)
 		return

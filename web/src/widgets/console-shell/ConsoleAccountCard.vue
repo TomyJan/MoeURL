@@ -5,6 +5,7 @@
       <strong>{{ displayName }}</strong>
       <small>{{ username }}</small>
     </span>
+    <v-btn size="small" variant="text" to="/profile">{{ t('nav.profile') }}</v-btn>
     <v-btn size="small" variant="text" :loading="logoutPending" @click="$emit('logout')">{{ t('nav.logout') }}</v-btn>
   </div>
 </template>

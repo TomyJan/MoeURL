@@ -166,6 +166,7 @@ describe('ConsoleShell', () => {
     expect(screen.queryByText('nav.users')).toBeNull()
     expect(screen.queryByText('page.createUser')).toBeNull()
     expect(within(screen.getByTestId('console-account')).getByText('Alice')).toBeTruthy()
+    expect(within(screen.getByTestId('console-account')).getByText('nav.profile').closest('button')?.getAttribute('data-to')).toBe('/profile')
     expect(screen.getAllByRole('group', { name: 'preferences.groupLabel' }).length).toBeGreaterThan(0)
   })
 
@@ -308,6 +309,7 @@ describe('ConsoleShell', () => {
 
     expect(screen.getByTestId('console-mobile-account-menu')).toBeTruthy()
     expect(within(screen.getByTestId('console-mobile-account-menu')).getByText('Alice')).toBeTruthy()
+    expect(within(screen.getByTestId('console-mobile-account-menu')).getByText('nav.profile').closest('button')?.getAttribute('data-to')).toBe('/profile')
 
     await fireEvent.click(within(screen.getByTestId('console-mobile-account-menu')).getByText('nav.logout'))
 

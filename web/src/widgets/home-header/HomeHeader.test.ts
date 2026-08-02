@@ -26,7 +26,7 @@ vi.mock('vuetify', () => ({
 interface HomeHeaderTestProps {
   displayName: string
   isGuest: boolean
-  onConsoleClick?: () => void
+  onAccountClick?: () => void
 }
 
 function mountHeader(props: HomeHeaderTestProps) {
@@ -49,16 +49,16 @@ describe('HomeHeader', () => {
     expect(screen.getByRole('button', { name: 'preferences.theme' })).toBeTruthy()
   })
 
-  it('emits console navigation when authenticated account is clicked', async () => {
-    const consoleClick = vi.fn()
-    mountHeader({ isGuest: false, displayName: 'Alice', onConsoleClick: consoleClick })
+  it('emits account navigation when authenticated account is clicked', async () => {
+    const accountClick = vi.fn()
+    mountHeader({ isGuest: false, displayName: 'Alice', onAccountClick: accountClick })
 
     expect(screen.queryByText('nav.login')).toBeNull()
     expect(screen.getByRole('button', { name: 'Alice' }).textContent).toContain('Alice')
     expect(screen.getByRole('button', { name: 'Alice' }).textContent).toContain('A')
     await fireEvent.click(screen.getByText('Alice'))
 
-    expect(consoleClick).toHaveBeenCalled()
+    expect(accountClick).toHaveBeenCalled()
   })
 
   it('passes the reactive display name prop directly to shared avatar text', () => {

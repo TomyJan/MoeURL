@@ -1,6 +1,7 @@
 import type { NavigationGuard, RouteLocationRaw, RouteRecordRaw } from 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
 
+import type { CurrentUser } from '@/entities/auth/api'
 import { me } from '@/entities/auth/api'
 import AdminLinksPage from '@/pages/AdminLinksPage.vue'
 import AdminUsersPage from '@/pages/AdminUsersPage.vue'
@@ -11,12 +12,14 @@ import CreateUserPage from '@/pages/CreateUserPage.vue'
 import HomePage from '@/pages/HomePage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
 import MyLinksPage from '@/pages/MyLinksPage.vue'
+import ProfilePage from '@/pages/ProfilePage.vue'
 import NotFoundPage from '@/pages/NotFoundPage.vue'
 import SetupPage from '@/pages/SetupPage.vue'
 import ConsoleShell from '@/widgets/console-shell/ConsoleShell.vue'
 
-type AdminAccessGuard = NavigationGuard & (() => Promise<true | string | RouteLocationRaw>)
-type ConsoleAccessGuard = NavigationGuard & (() => Promise<true | string | RouteLocationRaw>)
+type AccessGuard = NavigationGuard & (() => Promise<true | string | RouteLocationRaw>)
+type AccessDecision = true | string | RouteLocationRaw
+type AccessDecisionPredicate = (user: CurrentUser, loginRedirect: RouteLocationRaw) => AccessDecision
 
 function createLoginRedirect(fullPath?: string): RouteLocationRaw {
   if (!fullPath) {
@@ -25,37 +28,48 @@ function createLoginRedirect(fullPath?: string): RouteLocationRaw {
   return { path: '/login', query: { redirect: fullPath } }
 }
 
-export function createRequireConsoleAccess(loadCurrentUser = me): ConsoleAccessGuard {
+function createAccessGuard(loadCurrentUser = me, decideAccess: AccessDecisionPredicate): AccessGuard {
   const guard = async (to?: { fullPath?: string }) => {
+    const loginRedirect = createLoginRedirect(to?.fullPath)
     try {
       const result = await loadCurrentUser()
-      if (result.user.group === 'guest') {
-        return createLoginRedirect(to?.fullPath)
-      }
-      return result.user.permissions.includes('short_link:read_own') ? true : '/'
+      return decideAccess(result.user, loginRedirect)
     } catch {
-      return createLoginRedirect(to?.fullPath)
+      return loginRedirect
     }
   }
-  return guard as ConsoleAccessGuard
+  return guard as AccessGuard
 }
 
-export function createRequireAdminAccess(loadCurrentUser = me): AdminAccessGuard {
-  const guard = async (to?: { fullPath?: string }) => {
-    try {
-      const result = await loadCurrentUser()
-      if (result.user.permissions.includes('admin:access')) {
-        return true
-      }
-      return result.user.group === 'guest' ? createLoginRedirect(to?.fullPath) : '/'
-    } catch {
-      return createLoginRedirect(to?.fullPath)
+export function createRequireConsoleAccess(loadCurrentUser = me): AccessGuard {
+  return createAccessGuard(loadCurrentUser, (user, loginRedirect) => {
+    if (user.group === 'guest') {
+      return loginRedirect
     }
-  }
-  return guard as AdminAccessGuard
+    return user.permissions.includes('short_link:read_own') ? true : '/'
+  })
+}
+
+export function createRequireSignedIn(loadCurrentUser = me): AccessGuard {
+  return createAccessGuard(loadCurrentUser, (user, loginRedirect) => {
+    if (user.group === 'guest') {
+      return loginRedirect
+    }
+    return true
+  })
+}
+
+export function createRequireAdminAccess(loadCurrentUser = me): AccessGuard {
+  return createAccessGuard(loadCurrentUser, (user, loginRedirect) => {
+    if (user.permissions.includes('admin:access')) {
+      return true
+    }
+    return user.group === 'guest' ? loginRedirect : '/'
+  })
 }
 
 export const requireConsoleAccess = createRequireConsoleAccess()
+export const requireSignedIn = createRequireSignedIn()
 export const requireAdminAccess = createRequireAdminAccess()
 
 export const routes: RouteRecordRaw[] = [
@@ -67,6 +81,12 @@ export const routes: RouteRecordRaw[] = [
     path: '/',
     component: ConsoleShell,
     children: [
+      {
+        path: '/profile',
+        component: ProfilePage,
+        meta: { requiresSignedIn: true },
+        beforeEnter: requireSignedIn,
+      },
       {
         path: '/console',
         component: ConsoleOverviewPage,

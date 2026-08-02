@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createUser, listUsers, resetUserPassword, updateUser } from './api'
+import { createUser, listUsers, resetUserPassword, updateProfile, updateUser } from './api'
 
 describe('user api', () => {
   it('posts admin create user request', async () => {
@@ -143,6 +143,36 @@ describe('user api', () => {
 
     expect(result.user.status).toBe('disabled')
     expect(fetch).toHaveBeenCalledWith('/api/v1/admin/user/update', expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('posts profile update request', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            code: 0,
+            message: 'OK',
+            data: {
+              user: {
+                id: 'user-id',
+                username: 'alice',
+                nickname: 'Alice Renamed',
+                group: 'user',
+                permissions: ['short_link:read_own'],
+              },
+            },
+            meta: {},
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }),
+    )
+
+    const result = await updateProfile({ nickname: 'Alice Renamed' })
+
+    expect(result.user.nickname).toBe('Alice Renamed')
+    expect(fetch).toHaveBeenCalledWith('/api/v1/user/profile/update', expect.objectContaining({ method: 'POST' }))
   })
 
   it('posts admin reset password request', async () => {

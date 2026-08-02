@@ -1,5 +1,9 @@
 package user
 
+import "github.com/TomyJan/MoeURL/internal/auth"
+
+const NicknameMaxLength = 64
+
 type CreateInput struct {
 	Username string
 	Password string
@@ -32,6 +36,14 @@ type UpdateInput struct {
 
 type UpdateResult struct {
 	User UserSummary `json:"user"`
+}
+
+type UpdateProfileInput struct {
+	Nickname string
+}
+
+type UpdateProfileResult struct {
+	User auth.CurrentUser `json:"user"`
 }
 
 type ResetPasswordInput struct {

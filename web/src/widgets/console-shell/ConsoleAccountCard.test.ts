@@ -23,6 +23,13 @@ function mountAccountCard(displayName: string, username = 'alice') {
 }
 
 describe('ConsoleAccountCard', () => {
+  it('links to profile from the account card', () => {
+    mountAccountCard('Alice')
+
+    expect(screen.getByText('nav.profile').closest('button')?.getAttribute('data-to')).toBe('/profile')
+    expect(screen.getByText('nav.logout')).toBeTruthy()
+  })
+
   it('uses shared avatar text rules for blank and multi-code-unit names', async () => {
     const { rerender } = mountAccountCard('  😀 Alice')
 

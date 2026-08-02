@@ -35,7 +35,10 @@ test('v0.0.1 initialization login short link and disabled redirect flow', async 
   await page.goto('/')
   await expect(page.getByRole('button', { name: 'Admin' })).toBeVisible()
   await page.getByRole('button', { name: 'Admin' }).click()
-  await expect(page).toHaveURL(/\/link$/)
+  await expect(page).toHaveURL(/\/profile$/)
+  await expect(page.getByRole('heading', { name: '个人设置' })).toBeVisible()
+
+  await page.goto('/link')
   await expect(page.getByRole('heading', { name: '我的短链' })).toBeVisible()
 
   await page.goto('/admin/user/new')

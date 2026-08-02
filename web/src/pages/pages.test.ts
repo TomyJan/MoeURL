@@ -696,7 +696,7 @@ describe('pages', () => {
     expect(screen.getByText('shortLinkCreate.permissionRequired')).toBeTruthy()
   })
 
-  it('routes authenticated users from home account entry to console', async () => {
+  it('routes authenticated users from home account entry to profile', async () => {
     setQueryResult({
       data: ref({
         user: {
@@ -711,7 +711,7 @@ describe('pages', () => {
 
     await fireEvent.click(screen.getByText('Alice'))
 
-    expect(state.routerPush).toHaveBeenCalledWith('/link')
+    expect(state.routerPush).toHaveBeenCalledWith('/profile')
   })
 
   it('renders own links states and row actions', async () => {

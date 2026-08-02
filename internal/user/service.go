@@ -2,10 +2,14 @@ package user
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
@@ -22,6 +26,7 @@ const (
 )
 
 type Service struct {
+	pool        *pgxpool.Pool
 	queries     *sqlc.Queries
 	permissions *permission.Service
 }
@@ -32,6 +37,7 @@ func NewService(pool *pgxpool.Pool, permissions *permission.Service) *Service {
 		permissions = permission.NewService()
 	}
 	return &Service{
+		pool:        pool,
 		queries:     sqlc.New(pool),
 		permissions: permissions,
 	}
@@ -167,6 +173,73 @@ func (s *Service) Update(ctx context.Context, actor auth.CurrentUser, input Upda
 		Builtin:   updated.Builtin,
 		CreatedAt: formatTime(updated.CreatedAt),
 		UpdatedAt: formatTime(updated.UpdatedAt),
+	}}, nil
+}
+
+// UpdateProfile changes the current user's own nickname.
+func (s *Service) UpdateProfile(ctx context.Context, actor auth.CurrentUser, input UpdateProfileInput) (UpdateProfileResult, error) {
+	if actor.GroupKey == permission.GroupGuest || actor.ID == "" {
+		return UpdateProfileResult{}, ErrPermissionDenied
+	}
+
+	nickname := strings.TrimSpace(input.Nickname)
+	if nickname == "" {
+		return UpdateProfileResult{}, ErrInvalidInput
+	}
+	if utf8.RuneCountInString(nickname) > NicknameMaxLength {
+		return UpdateProfileResult{}, ErrInvalidInput
+	}
+
+	userID, err := uuid.Parse(actor.ID)
+	if err != nil {
+		return UpdateProfileResult{}, ErrInvalidInput
+	}
+	existing, err := s.queries.GetAppUserMetaByID(ctx, uuidToPgtype(userID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return UpdateProfileResult{}, ErrUserNotFound
+	}
+	if err != nil {
+		return UpdateProfileResult{}, err
+	}
+	if existing.Builtin {
+		return UpdateProfileResult{}, ErrBuiltinUserImmutable
+	}
+
+	var updated sqlc.AppUser
+	var group sqlc.UserGroup
+	var permissions []string
+	err = appdb.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		txQueries := s.queries.WithTx(tx)
+		var err error
+		updated, err = txQueries.UpdateAppUserNickname(ctx, sqlc.UpdateAppUserNicknameParams{
+			ID:       uuidToPgtype(userID),
+			Nickname: nickname,
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrUserNotFound
+		}
+		if err != nil {
+			return err
+		}
+		group, err = txQueries.GetUserGroupByID(ctx, updated.GroupID)
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(group.Permissions, &permissions); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return UpdateProfileResult{}, err
+	}
+
+	return UpdateProfileResult{User: auth.CurrentUser{
+		ID:          uuidFromPgtype(updated.ID),
+		Username:    updated.Username,
+		Nickname:    updated.Nickname,
+		GroupKey:    group.Key,
+		Permissions: permissions,
 	}}, nil
 }
 

@@ -74,6 +74,7 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			api.Post("/admin/user/create", userHandler.Create)
 			api.Get("/admin/user/list", userHandler.List)
 			api.Post("/admin/user/update", userHandler.Update)
+			api.Post("/user/profile/update", userHandler.UpdateProfile)
 			api.Post("/admin/user/reset-password", userHandler.ResetPassword)
 		}
 
@@ -106,6 +107,7 @@ func registerStaticRoutes(router chi.Router, staticDir string) {
 		"/",
 		"/setup",
 		"/login",
+		"/profile",
 		"/console",
 		"/link",
 		"/analytics",

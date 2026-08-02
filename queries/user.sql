@@ -53,6 +53,13 @@ select id, builtin, deleted_at
 from app_user
 where id = $1 and deleted_at is null;
 
+-- name: UpdateAppUserNickname :one
+update app_user
+set nickname = $2,
+	updated_at = now()
+where id = $1 and deleted_at is null and builtin = false
+returning id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at, deleted_at;
+
 -- name: UpdateAppUserProfile :one
 update app_user
 set nickname = $2,
