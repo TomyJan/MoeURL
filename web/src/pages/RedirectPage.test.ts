@@ -112,9 +112,9 @@ describe('RedirectPage', () => {
 
   it.each([
     [200104, 'redirect.unavailable'],
-    [200105, 'redirect.unavailable'],
+    [200105, 'redirect.disabled'],
     [200109, 'redirect.expired'],
-    [200110, 'redirect.unavailable'],
+    [200110, 'redirect.notIntermediate'],
   ])('shows a non-retryable state for public business error %i', async (code, messageKey) => {
     vi.mocked(getPublicShortLinkPreview).mockRejectedValueOnce(new ApiClientError(code, 'unavailable'))
     mountPage()

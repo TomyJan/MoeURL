@@ -48,7 +48,7 @@ v0.2.0 完成短链访问体验与生命周期闭环：在既有直接跳转、�
 - `POST /api/v1/short-link/update` 与管理员更新接口支持修改访问配置；未提供的字段保持原值。
 - `GET /api/v1/public/short-link/preview?slug=...` 返回中间页所需的最小公开信息。
 - `GET /{slug}` 对直接模式写出目标跳转，对中间页模式进入 `/go/{slug}`。
-- `GET /go/{slug}/continue` 重新检查短链状态和过期时间，成功时写出目标跳转并记录访问事件。
+- `GET /go/{slug}/continue` 重新检查短链的 `status`、`deleted_at` 和 `expires_at`；仅对仍启用、未软删除且未过期的短链写出目标跳转并记录 `redirect_response_sent` 成功访问事件。软删除短链按不存在处理，不得跳转或记录成功访问事件。
 - 业务错误继续使用统一数字 `code`；公开短链的不存在、禁用和过期状态沿用适合浏览器访问的 HTTP 响应。
 
 ## 暂不实现

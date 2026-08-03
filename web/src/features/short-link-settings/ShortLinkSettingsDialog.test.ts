@@ -262,6 +262,15 @@ describe('ShortLinkSettingsDialog', () => {
     expect(view.emitted()['update:open']).toEqual([[true]])
   })
 
+  it('preserves edits when the open dialog receives a refreshed link reference', async () => {
+    const view = mountDialog()
+
+    await fireEvent.update(screen.getByLabelText('shortLinkSettings.targetUrl'), 'https://example.com/edited')
+    await view.rerender({ link: { ...directLink } })
+
+    expect((screen.getByLabelText('shortLinkSettings.targetUrl') as HTMLInputElement).value).toBe('https://example.com/edited')
+  })
+
   it('treats an invalid persisted expiration as an empty local date', () => {
     mountDialog({
       link: {

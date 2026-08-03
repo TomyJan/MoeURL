@@ -115,10 +115,10 @@ const canUseIntermediate = computed(() => Boolean(currentUser.value?.permissions
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
 
 watch(
-  () => [props.open, props.link] as const,
-  ([open, link]) => {
+  () => props.open,
+  (open) => {
     if (open) {
-      resetFromLink(link)
+      resetFromLink(props.link)
     }
   },
   { immediate: true },

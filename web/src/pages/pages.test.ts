@@ -19,6 +19,7 @@ import { login, me } from '@/entities/auth/api'
 import { getAdminShortLinkStatistics, getShortLinkOverview, getShortLinkStatistics, listAdminShortLinks, listShortLinks, updateAdminShortLink, updateShortLink } from '@/entities/short-link/api'
 import type { ShortLink } from '@/entities/short-link/model'
 import { updateUser } from '@/entities/user/api'
+import { createDeferred } from '@/test/deferred'
 import type { MutationMockResult } from '@/test/mutation-mock'
 
 const state = vi.hoisted(() => ({
@@ -209,22 +210,6 @@ function setMutationResult(value: Partial<{
     variables: value.variables ?? ref(undefined),
     ...(value.mutate ? { mutate: value.mutate } : {}),
   }
-}
-
-function createDeferred<T>() {
-  let resolve!: (value: T) => void
-  let reject!: (reason?: unknown) => void
-  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
-    resolve = resolvePromise
-    reject = rejectPromise
-  })
-  return { promise, reject, resolve }
-}
-
-async function flushPromises() {
-  await Promise.resolve()
-  await Promise.resolve()
-  await nextTick()
 }
 
 describe('pages', () => {
@@ -899,10 +884,10 @@ describe('pages', () => {
     expect(state.queryClient.invalidateQueries).not.toHaveBeenCalled()
 
     update.resolve({ shortLink: { id: 'link-id' } })
-    await flushPromises()
-
-    expect(state.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['short-link'] })
-    expect(screen.queryByText('shortLinkSettings.title')).toBeNull()
+    await vi.waitFor(() => {
+      expect(state.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['short-link'] })
+      expect(screen.queryByText('shortLinkSettings.title')).toBeNull()
+    })
     view.unmount()
   })
 
@@ -963,18 +948,18 @@ describe('pages', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
 
     update.reject(new Error('personal settings failed'))
-    await flushPromises()
-
-    expect(screen.getByRole('alert').textContent).toContain('personal settings failed')
-    expect(screen.getByText('shortLinkSettings.title')).toBeTruthy()
-    expect(state.queryClient.invalidateQueries).not.toHaveBeenCalled()
+    await vi.waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('personal settings failed')
+      expect(screen.getByText('shortLinkSettings.title')).toBeTruthy()
+      expect(state.queryClient.invalidateQueries).not.toHaveBeenCalled()
+    })
 
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
     retry.reject({ code: 200103 })
-    await flushPromises()
-
-    expect(screen.getByRole('alert').textContent).toContain('links.settingsSaveFailed')
-    expect(screen.getByText('shortLinkSettings.title')).toBeTruthy()
+    await vi.waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('links.settingsSaveFailed')
+      expect(screen.getByText('shortLinkSettings.title')).toBeTruthy()
+    })
 
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.cancel' }))
     expect(screen.queryByText('shortLinkSettings.title')).toBeNull()
@@ -1238,10 +1223,10 @@ describe('pages', () => {
     expect(state.queryClient.invalidateQueries).not.toHaveBeenCalled()
 
     update.resolve({ shortLink: { id: 'link-id' } })
-    await flushPromises()
-
-    expect(state.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['admin-short-link'] })
-    expect(screen.queryByText('shortLinkSettings.title')).toBeNull()
+    await vi.waitFor(() => {
+      expect(state.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['admin-short-link'] })
+      expect(screen.queryByText('shortLinkSettings.title')).toBeNull()
+    })
     view.unmount()
   })
 
@@ -1306,18 +1291,18 @@ describe('pages', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
 
     update.reject({ code: 200103 })
-    await flushPromises()
-
-    expect(screen.getByRole('alert').textContent).toContain('links.settingsSaveFailed')
-    expect(screen.getByText('shortLinkSettings.title')).toBeTruthy()
-    expect(state.queryClient.invalidateQueries).not.toHaveBeenCalled()
+    await vi.waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('links.settingsSaveFailed')
+      expect(screen.getByText('shortLinkSettings.title')).toBeTruthy()
+      expect(state.queryClient.invalidateQueries).not.toHaveBeenCalled()
+    })
 
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
     retry.reject(new Error('administrator settings failed'))
-    await flushPromises()
-
-    expect(screen.getByRole('alert').textContent).toContain('administrator settings failed')
-    expect(screen.getByText('shortLinkSettings.title')).toBeTruthy()
+    await vi.waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('administrator settings failed')
+      expect(screen.getByText('shortLinkSettings.title')).toBeTruthy()
+    })
 
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.cancel' }))
     expect(screen.queryByText('shortLinkSettings.title')).toBeNull()

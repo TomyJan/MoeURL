@@ -116,8 +116,14 @@ function classifyPreviewError(error: unknown): PreviewFailureState {
   if (code === 200109) {
     return 'expired'
   }
-  if (code === 200104 || code === 200105 || code === 200110) {
+  if (code === 200104) {
     return 'unavailable'
+  }
+  if (code === 200105) {
+    return 'disabled'
+  }
+  if (code === 200110) {
+    return 'notIntermediate'
   }
   return 'loadFailed'
 }
