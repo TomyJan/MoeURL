@@ -30,7 +30,7 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 如果任务涉及 v0.2.0 中间页、过期时间、二维码、访问配置或继续访问路由，必须继续阅读：
 
-1. `docs/superpowers/specs/2026-08-02-v0.2.0-link-experience-design.md`
+1. `docs/specs/2026-08-02-v0.2.0-link-experience-design.md`
 2. `docs/specs/short-links.md`
 3. `docs/specs/redirect-modes.md`
 4. `docs/specs/permissions.md`
