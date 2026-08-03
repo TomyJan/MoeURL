@@ -7,6 +7,7 @@ import ShortLinkCreatePanel from './ShortLinkCreatePanel.vue'
 import { componentStubs } from '@/test/component-stubs'
 import { me } from '@/entities/auth/api'
 import { createShortLink } from '@/entities/short-link/api'
+import type { MutationMockResult } from '@/test/mutation-mock'
 
 const state = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
@@ -30,62 +31,22 @@ vi.mock('@/entities/short-link/api', () => ({
   createShortLink: vi.fn(),
 }))
 
-vi.mock('@tanstack/vue-query', () => ({
-  useMutation: vi.fn((options?: { mutationFn?: (input: unknown) => unknown; onSuccess?: (value: unknown) => void }) => {
-    state.mutationOptions.push(options)
-    const base = state.mutationResult as {
-      data?: ReturnType<typeof ref>
-      error?: ReturnType<typeof ref>
-      isPending?: ReturnType<typeof ref>
-      mutate?: (input: unknown) => void
-    }
-    const providedMutate = base.mutate
-    const data = base.data ?? ref(undefined)
-    const error = base.error ?? ref(undefined)
-    const isPending = base.isPending ?? ref(false)
-    const succeed = (value: unknown) => {
-      data.value = value
-      options?.onSuccess?.(value)
-    }
-    return {
-      data,
-      error,
-      isPending,
-      mutate: vi.fn((input: unknown) => {
-        if (providedMutate) {
-          providedMutate(input)
-          return
-        }
-        error.value = undefined
-        try {
-          const result = options?.mutationFn?.(input)
-          if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
-            isPending.value = true
-            void Promise.resolve(result)
-              .then(succeed)
-              .catch((reason) => {
-                error.value = reason
-              })
-              .finally(() => {
-                isPending.value = false
-              })
-            return
-          }
-          succeed(result)
-        } catch (reason) {
-          error.value = reason
-        }
-      }),
-    }
-  }),
-  useQuery: vi.fn((options?: unknown) => {
-    state.queryOptions.push(options)
-    return state.queryResult
-  }),
-  useQueryClient: () => ({
-    invalidateQueries: state.invalidateQueries,
-  }),
-}))
+vi.mock('@tanstack/vue-query', async () => {
+  const { createMutationMock } = await import('@/test/mutation-mock')
+  return {
+    useMutation: createMutationMock({
+      captureOptions: (options) => state.mutationOptions.push(options),
+      getResult: () => state.mutationResult as MutationMockResult,
+    }),
+    useQuery: vi.fn((options?: unknown) => {
+      state.queryOptions.push(options)
+      return state.queryResult
+    }),
+    useQueryClient: () => ({
+      invalidateQueries: state.invalidateQueries,
+    }),
+  }
+})
 
 function mountPanel(props: Record<string, unknown> = {}) {
   return render(ShortLinkCreatePanel, {

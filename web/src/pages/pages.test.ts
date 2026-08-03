@@ -19,6 +19,7 @@ import { login, me } from '@/entities/auth/api'
 import { getAdminShortLinkStatistics, getShortLinkOverview, getShortLinkStatistics, listAdminShortLinks, listShortLinks, updateAdminShortLink, updateShortLink } from '@/entities/short-link/api'
 import type { ShortLink } from '@/entities/short-link/model'
 import { updateUser } from '@/entities/user/api'
+import type { MutationMockResult } from '@/test/mutation-mock'
 
 const state = vi.hoisted(() => ({
   queryResult: {},
@@ -123,94 +124,40 @@ vi.mock('@/entities/user/api', () => ({
   updateUser: vi.fn(),
 }))
 
-vi.mock('@tanstack/vue-query', () => ({
-  QueryClient: class {
-    getDefaultOptions = vi.fn()
-    invalidateQueries = vi.fn()
-  },
-  useMutation: vi.fn((options?: { mutationFn?: (input: unknown) => unknown; onSuccess?: (value: unknown) => void }) => {
-    const base = state.mutationResult as {
-      data?: ReturnType<typeof ref>
-      error?: ReturnType<typeof ref>
-      isError?: ReturnType<typeof ref>
-      isPending?: ReturnType<typeof ref>
-      mutate?: (input: unknown) => void
-      variables?: ReturnType<typeof ref>
-    }
-    const providedMutate = base.mutate
-    const data = base.data ?? ref(undefined)
-    const error = base.error ?? ref(undefined)
-    const isError = base.isError ?? ref(false)
-    const isPending = base.isPending ?? ref(false)
-    const variables = base.variables ?? ref(undefined)
-    const reset = vi.fn(() => {
-      data.value = undefined
-      error.value = undefined
-      isError.value = false
-    })
-    const succeed = (value: unknown) => {
-      data.value = value
-      options?.onSuccess?.(value)
-    }
-    const fail = (reason: unknown) => {
-      error.value = reason
-      isError.value = true
-    }
-    return {
-      data,
-      error,
-      isError,
-      isPending,
-      variables,
-      reset,
-      mutate: vi.fn((input: unknown) => {
-        variables.value = input
-        if (providedMutate) {
-          providedMutate(input)
-          return
-        }
-        error.value = undefined
-        isError.value = false
-        try {
-          const result = options?.mutationFn?.(input)
-          if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
-            isPending.value = true
-            void Promise.resolve(result)
-              .then(succeed)
-              .catch(fail)
-              .finally(() => {
-                isPending.value = false
-              })
-            return
-          }
-          succeed({
-            initialized: true,
-            shortLink: { slug: 'abc123', url: 'https://go.example.com/abc123' },
-            user: { username: 'alice' },
-            input,
-          })
-        } catch (reason) {
-          fail(reason)
-        }
+vi.mock('@tanstack/vue-query', async () => {
+  const { createMutationMock } = await import('@/test/mutation-mock')
+  return {
+    QueryClient: class {
+      getDefaultOptions = vi.fn()
+      invalidateQueries = vi.fn()
+    },
+    useMutation: createMutationMock({
+      fields: { isError: true, reset: true, variables: true },
+      getResult: () => state.mutationResult as MutationMockResult,
+      resolveSynchronousResult: (_result, input) => ({
+        initialized: true,
+        shortLink: { slug: 'abc123', url: 'https://go.example.com/abc123' },
+        user: { username: 'alice' },
+        input,
       }),
-    }
-  }),
-  useQuery: vi.fn((options?: { enabled?: unknown; queryFn?: () => unknown; queryKey?: unknown }) => {
-    state.queryKeys.push(options?.queryKey)
-    if (isRef(options?.queryKey)) {
-      void options.queryKey.value
-    }
-    const enabled = isRef(options?.enabled) ? options.enabled.value : options?.enabled
-    if (enabled !== false && options?.queryFn) {
-      state.queryFns.push(options.queryFn)
-      void options.queryFn()
-    }
-    const result = state.queryResults[state.queryResultIndex] ?? state.queryResult
-    state.queryResultIndex += 1
-    return result
-  }),
-  useQueryClient: () => state.queryClient,
-}))
+    }),
+    useQuery: vi.fn((options?: { enabled?: unknown; queryFn?: () => unknown; queryKey?: unknown }) => {
+      state.queryKeys.push(options?.queryKey)
+      if (isRef(options?.queryKey)) {
+        void options.queryKey.value
+      }
+      const enabled = isRef(options?.enabled) ? options.enabled.value : options?.enabled
+      if (enabled !== false && options?.queryFn) {
+        state.queryFns.push(options.queryFn)
+        void options.queryFn()
+      }
+      const result = state.queryResults[state.queryResultIndex] ?? state.queryResult
+      state.queryResultIndex += 1
+      return result
+    }),
+    useQueryClient: () => state.queryClient,
+  }
+})
 
 function mount(component: object) {
   return render(component, {
