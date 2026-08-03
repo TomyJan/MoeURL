@@ -6,11 +6,16 @@ type Service struct {
 
 // NewService creates the permission lookup service.
 func NewService() *Service {
+	return NewServiceWithPermissions(UserPermissions, AdminPermissions)
+}
+
+// NewServiceWithPermissions creates a permission lookup service from isolated user and admin sets.
+func NewServiceWithPermissions(userPermissions []string, adminPermissions []string) *Service {
 	return &Service{
 		permissionsByGroup: map[string]map[string]struct{}{
 			GroupGuest: toSet(nil),
-			GroupUser:  toSet(UserPermissions),
-			GroupAdmin: toSet(AdminPermissions),
+			GroupUser:  toSet(userPermissions),
+			GroupAdmin: toSet(adminPermissions),
 		},
 	}
 }

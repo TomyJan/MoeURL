@@ -207,6 +207,22 @@ func TestRedirectHandlerContinuesToTargetAndRecordsSuccess(t *testing.T) {
 	assertEvents(t, recorder.types, []string{event.RedirectResponseSent})
 }
 
+func TestRedirectHandlerContinueWriteFailureDoesNotRecordSuccess(t *testing.T) {
+	recorder := &recordingRecorder{}
+	handler := shortlink.NewRedirectHandler(
+		&fakeRedirectService{continueResult: shortlink.RedirectResult{TargetURL: "https://example.com/final", ShortLinkID: "link-id"}},
+		recorder,
+	)
+	request := httptest.NewRequest(http.MethodGet, "/go/middle/continue", nil)
+	response := &failingRedirectWriter{header: http.Header{}}
+
+	handler.Continue(response, request, "middle")
+
+	if len(recorder.types) != 0 {
+		t.Fatalf("expected no events after failed final redirect write, got %#v", recorder.types)
+	}
+}
+
 // TestRedirectHandlerPreviewUsesUnifiedMinimalResponse verifies public preview never leaks the target URL.
 func TestRedirectHandlerPreviewUsesUnifiedMinimalResponse(t *testing.T) {
 	expiresAt := time.Now().UTC().Add(time.Hour).Truncate(time.Second)

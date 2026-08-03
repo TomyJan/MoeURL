@@ -103,13 +103,12 @@ func TestShortLinkExperienceMigrationUpgradesExistingDataAndRollsBack(t *testing
 	}
 	assertShortLinkExperienceDefaults(t, ctx, database, "00000000-0000-0000-0000-000000000302")
 
-	assertGroupPermissions(t, ctx, database, "guest", false)
-	assertGroupPermissions(t, ctx, database, "user", true)
-	assertGroupPermissions(t, ctx, database, "admin", true)
+	assertGroupPermissions(t, ctx, database, "guest", false, false)
+	assertGroupPermissions(t, ctx, database, "user", true, true)
+	assertGroupPermissions(t, ctx, database, "admin", true, true)
 
-	assertShortLinkExperienceConstraints(t, ctx, database)
-	assertShortLinkExperienceDefaults(t, ctx, database, "00000000-0000-0000-0000-000000000301")
-	assertShortLinkExpirationRoundTrip(t, ctx, database)
+	assertShortLinkExperienceConstraints(t, ctx, database, "00000000-0000-0000-0000-000000000301")
+	assertShortLinkExpirationRoundTrip(t, ctx, database, "00000000-0000-0000-0000-000000000301")
 
 	if err := goose.Up(database, migrationsDir); err != nil {
 		t.Fatalf("validate short link experience constraints: %v", err)
@@ -135,9 +134,9 @@ func TestShortLinkExperienceMigrationUpgradesExistingDataAndRollsBack(t *testing
 		t.Fatalf("expected experience columns to be removed, found %d", experienceColumnCount)
 	}
 
-	assertGroupPermissions(t, ctx, database, "guest", false)
-	assertGroupPermissions(t, ctx, database, "user", false)
-	assertGroupPermissions(t, ctx, database, "admin", false)
+	assertGroupPermissions(t, ctx, database, "guest", false, false)
+	assertGroupPermissions(t, ctx, database, "user", true, false)
+	assertGroupPermissions(t, ctx, database, "admin", false, false)
 
 	var retainedPermission bool
 	err = database.QueryRowContext(ctx, `select permissions ? 'short_link:create' from user_group where key = 'user'`).Scan(&retainedPermission)
@@ -153,11 +152,10 @@ func TestShortLinkExperienceMigrationUpgradesExistingDataAndRollsBack(t *testing
 	}
 	assertShortLinkExperienceDefaults(t, ctx, database, "00000000-0000-0000-0000-000000000301")
 	assertShortLinkExperienceDefaults(t, ctx, database, "00000000-0000-0000-0000-000000000302")
-	assertGroupPermissions(t, ctx, database, "guest", false)
-	assertGroupPermissions(t, ctx, database, "user", true)
-	assertGroupPermissions(t, ctx, database, "admin", true)
-	assertShortLinkExperienceConstraints(t, ctx, database)
-	assertShortLinkExperienceDefaults(t, ctx, database, "00000000-0000-0000-0000-000000000301")
+	assertGroupPermissions(t, ctx, database, "guest", false, false)
+	assertGroupPermissions(t, ctx, database, "user", true, true)
+	assertGroupPermissions(t, ctx, database, "admin", true, true)
+	assertShortLinkExperienceConstraints(t, ctx, database, "00000000-0000-0000-0000-000000000301")
 	assertShortLinkExperienceConstraintValidation(t, ctx, database, true)
 }
 
@@ -204,7 +202,7 @@ func migrationTestDatabase(t *testing.T, ctx context.Context) *sql.DB {
 	return database
 }
 
-func assertGroupPermissions(t *testing.T, ctx context.Context, database *sql.DB, groupKey string, expected bool) {
+func assertGroupPermissions(t *testing.T, ctx context.Context, database *sql.DB, groupKey string, expectedIntermediate bool, expectedExpiration bool) {
 	t.Helper()
 
 	var intermediateCount int
@@ -220,15 +218,19 @@ func assertGroupPermissions(t *testing.T, ctx context.Context, database *sql.DB,
 	if err != nil {
 		t.Fatalf("query %s group permissions: %v", groupKey, err)
 	}
-	expectedCount := 0
-	if expected {
-		expectedCount = 1
+	expectedIntermediateCount := 0
+	if expectedIntermediate {
+		expectedIntermediateCount = 1
 	}
-	if intermediateCount != expectedCount {
-		t.Fatalf("expected %s intermediate permission count %d, got %d", groupKey, expectedCount, intermediateCount)
+	if intermediateCount != expectedIntermediateCount {
+		t.Fatalf("expected %s intermediate permission count %d, got %d", groupKey, expectedIntermediateCount, intermediateCount)
 	}
-	if expirationCount != expectedCount {
-		t.Fatalf("expected %s expiration permission count %d, got %d", groupKey, expectedCount, expirationCount)
+	expectedExpirationCount := 0
+	if expectedExpiration {
+		expectedExpirationCount = 1
+	}
+	if expirationCount != expectedExpirationCount {
+		t.Fatalf("expected %s expiration permission count %d, got %d", groupKey, expectedExpirationCount, expirationCount)
 	}
 }
 
@@ -257,10 +259,9 @@ func assertShortLinkExperienceDefaults(t *testing.T, ctx context.Context, databa
 	}
 }
 
-func assertShortLinkExperienceConstraints(t *testing.T, ctx context.Context, database *sql.DB) {
+func assertShortLinkExperienceConstraints(t *testing.T, ctx context.Context, database *sql.DB, shortLinkID string) {
 	t.Helper()
 
-	const shortLinkID = "00000000-0000-0000-0000-000000000301"
 	if _, err := database.ExecContext(ctx, `update short_link set redirect_mode = 'intermediate' where id = $1`, shortLinkID); err != nil {
 		t.Fatalf("set valid intermediate redirect mode: %v", err)
 	}
@@ -327,10 +328,9 @@ func assertShortLinkExperienceConstraintValidation(t *testing.T, ctx context.Con
 	}
 }
 
-func assertShortLinkExpirationRoundTrip(t *testing.T, ctx context.Context, database *sql.DB) {
+func assertShortLinkExpirationRoundTrip(t *testing.T, ctx context.Context, database *sql.DB, shortLinkID string) {
 	t.Helper()
 
-	const shortLinkID = "00000000-0000-0000-0000-000000000301"
 	expiresAt := time.Date(2026, time.August, 10, 12, 0, 0, 0, time.UTC)
 	if _, err := database.ExecContext(ctx, `update short_link set expires_at = $1 where id = $2`, expiresAt, shortLinkID); err != nil {
 		t.Fatalf("set short link expiration: %v", err)

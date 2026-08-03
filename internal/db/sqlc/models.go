@@ -32,6 +32,11 @@ type Domain struct {
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
+type MoeurlShortLinkExperiencePermissionAddition struct {
+	UserGroupID pgtype.UUID `json:"user_group_id"`
+	Permission  string      `json:"permission"`
+}
+
 type Session struct {
 	ID         string             `json:"id"`
 	UserID     pgtype.UUID        `json:"user_id"`

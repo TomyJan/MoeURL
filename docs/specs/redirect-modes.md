@@ -1,6 +1,6 @@
 # 跳转模式
 
-本规格描述 MoeURL 跳转模式的完整目标形态。具体实现顺序以 [v0.0.1 范围](../product/scope-v0.0.1.md) 和 [路线图](../product/roadmap.md) 为准。
+本规格描述 MoeURL 跳转模式的完整目标形态。当前实现顺序以 [v0.2.0 范围](../product/scope-v0.2.0.md) 和 [v0.2.0 功能设计](2026-08-02-v0.2.0-link-experience-design.md) 为准；[v0.0.1 范围](../product/scope-v0.0.1.md) 仅作为历史基线。
 
 ## 直接跳转
 

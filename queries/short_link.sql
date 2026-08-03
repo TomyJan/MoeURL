@@ -1,5 +1,5 @@
 -- name: GetDatabaseTime :one
-select now()::timestamptz as current_time;
+select now()::timestamptz as database_time;
 
 -- name: CreateShortLink :one
 insert into short_link (

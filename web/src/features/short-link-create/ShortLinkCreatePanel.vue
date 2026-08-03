@@ -45,12 +45,11 @@
             <div v-if="advancedOpen" class="short-link-create-panel__advanced-controls">
               <div v-if="canUseIntermediate" class="short-link-create-panel__mode-control">
                 <span>{{ t('shortLinkCreate.redirectMode') }}</span>
-                <v-btn-toggle :model-value="redirectMode" mandatory divided :aria-label="t('shortLinkCreate.redirectMode')">
+                <v-btn-toggle v-model="redirectMode" mandatory divided :aria-label="t('shortLinkCreate.redirectMode')">
                   <v-btn
                     size="small"
                     :aria-pressed="redirectMode === 'direct'"
                     value="direct"
-                    @click="redirectMode = 'direct'"
                   >
                     {{ t('shortLinkCreate.redirectModes.direct') }}
                   </v-btn>
@@ -58,7 +57,6 @@
                     size="small"
                     :aria-pressed="redirectMode === 'intermediate'"
                     value="intermediate"
-                    @click="redirectMode = 'intermediate'"
                   >
                     {{ t('shortLinkCreate.redirectModes.intermediate') }}
                   </v-btn>

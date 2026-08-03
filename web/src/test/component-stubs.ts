@@ -20,7 +20,7 @@ export const componentStubs: Record<string, Component> = {
 	VBtnToggle: {
 		props: ['modelValue'],
 		emits: ['update:modelValue'],
-		template: '<div role="radiogroup"><slot /></div>',
+		template: '<div role="radiogroup" @click="$emit(\'update:modelValue\', $event.target.value)"><slot /></div>',
 	},
   VCard: { template: '<section><slot /></section>' },
   VCardActions: { template: '<div><slot /></div>' },

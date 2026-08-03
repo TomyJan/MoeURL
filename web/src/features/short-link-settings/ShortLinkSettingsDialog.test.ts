@@ -121,6 +121,29 @@ describe('ShortLinkSettingsDialog', () => {
     ]])
   })
 
+  it('passes through an unchanged persisted expiration without revalidating it', async () => {
+    vi.setSystemTime(new Date('2026-08-04T00:00:00Z'))
+    const persistedExpiresAt = '2026-08-03T02:30:00Z'
+    const view = mountDialog({
+      link: {
+        ...directLink,
+        expiresAt: persistedExpiresAt,
+      },
+    })
+
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(view.emitted().save).toEqual([[
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.com/original',
+        redirectMode: 'direct',
+        intermediateDelaySeconds: 5,
+        expiration: { mode: 'at', expiresAt: persistedExpiresAt },
+      },
+    ]])
+  })
+
   it('omits access configuration fields when the user lacks advanced permissions', async () => {
     setPermissions([])
     const view = mountDialog()

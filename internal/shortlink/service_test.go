@@ -1095,10 +1095,18 @@ func TestServiceAccessConfigValidation(t *testing.T) {
 		t.Fatalf("update with maximum intermediate delay: %v", err)
 	}
 	assertAccessConfig(t, upperBoundary.ShortLink, shortlink.RedirectModeDirect, 10, nil, false)
+}
 
+// TestServiceAccessConfigValidationDatabaseTimeError keeps the database-time failure isolated from boundary checks.
+func TestServiceAccessConfigValidationDatabaseTimeError(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	service := shortlink.NewService(pool, permission.NewService())
+	future := time.Now().UTC().Add(time.Hour)
 	pool.Close()
-	_, err = service.Update(ctx, user, shortlink.UpdateInput{
-		ID: created.ShortLink.ID,
+
+	_, err := service.Update(ctx, auth.CurrentUser{GroupKey: permission.GroupUser}, shortlink.UpdateInput{
+		ID: "00000000-0000-0000-0000-000000000301",
 		Expiration: &shortlink.ExpirationInput{
 			Mode:      shortlink.ExpirationModeAt,
 			ExpiresAt: &future,
@@ -1121,16 +1129,14 @@ func TestServiceAccessConfigRequiresCapabilities(t *testing.T) {
 		t.Fatalf("create baseline short link: %v", err)
 	}
 
-	originalUserPermissions := permission.UserPermissions
-	permission.UserPermissions = []string{
+	limitedPermissions := []string{
 		permission.ShortLinkCreate,
 		permission.ShortLinkReadOwn,
 		permission.ShortLinkUpdateOwn,
 		permission.ShortLinkDeleteOwn,
 		permission.DomainUseDefault,
 	}
-	limitedService := shortlink.NewService(pool, permission.NewService())
-	permission.UserPermissions = originalUserPermissions
+	limitedService := shortlink.NewService(pool, permission.NewServiceWithPermissions(limitedPermissions, permission.AdminPermissions))
 
 	_, err = limitedService.Create(ctx, user, shortlink.CreateInput{
 		TargetURL:    "https://example.com/intermediate",

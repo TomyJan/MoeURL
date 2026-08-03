@@ -130,14 +130,14 @@ func (q *Queries) CreateShortLink(ctx context.Context, arg CreateShortLinkParams
 }
 
 const getDatabaseTime = `-- name: GetDatabaseTime :one
-select now()::timestamptz as current_time
+select now()::timestamptz as database_time
 `
 
 func (q *Queries) GetDatabaseTime(ctx context.Context) (pgtype.Timestamptz, error) {
 	row := q.db.QueryRow(ctx, getDatabaseTime)
-	var current_time pgtype.Timestamptz
-	err := row.Scan(&current_time)
-	return current_time, err
+	var database_time pgtype.Timestamptz
+	err := row.Scan(&database_time)
+	return database_time, err
 }
 
 const getShortLinkAnalyticsLink = `-- name: GetShortLinkAnalyticsLink :one

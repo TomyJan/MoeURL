@@ -104,6 +104,8 @@ const redirectMode = ref<RedirectMode>('direct')
 const intermediateDelaySeconds = ref(5)
 const expirationEnabled = ref(false)
 const expiresAt = ref('')
+const initialPersistedExpiresAt = ref<string | null>(null)
+const initialExpirationInput = ref('')
 const targetErrorMessage = ref('')
 const expirationErrorMessage = ref('')
 const currentUserQuery = useQuery({
@@ -148,14 +150,19 @@ function save() {
   if (canSetExpiration.value) {
     input.expiration = { mode: 'never' }
     if (expirationEnabled.value) {
-      const expirationResult = futureDateTimeSchema.safeParse(expiresAt.value)
-      if (!expirationResult.success) {
-        expirationErrorMessage.value = expiresAt.value.trim()
-          ? t('shortLinkSettings.expirationFuture')
-          : t('shortLinkSettings.expirationRequired')
-        return
+      const expirationWasEdited = expiresAt.value !== initialExpirationInput.value
+      if (!expirationWasEdited && initialPersistedExpiresAt.value !== null) {
+        input.expiration = { mode: 'at', expiresAt: initialPersistedExpiresAt.value }
+      } else {
+        const expirationResult = futureDateTimeSchema.safeParse(expiresAt.value)
+        if (!expirationResult.success) {
+          expirationErrorMessage.value = expiresAt.value.trim()
+            ? t('shortLinkSettings.expirationFuture')
+            : t('shortLinkSettings.expirationRequired')
+          return
+        }
+        input.expiration = { mode: 'at', expiresAt: new Date(expirationResult.data).toISOString() }
       }
-      input.expiration = { mode: 'at', expiresAt: new Date(expirationResult.data).toISOString() }
     }
   }
 
@@ -182,6 +189,8 @@ function resetFromLink(link: Pick<ShortLink, 'targetUrl' | 'redirectMode' | 'int
   intermediateDelaySeconds.value = link.intermediateDelaySeconds
   expirationEnabled.value = link.expiresAt !== null
   expiresAt.value = toLocalDateTime(link.expiresAt)
+  initialPersistedExpiresAt.value = link.expiresAt
+  initialExpirationInput.value = expiresAt.value
   targetErrorMessage.value = ''
   expirationErrorMessage.value = ''
 }

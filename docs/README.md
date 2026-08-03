@@ -8,15 +8,16 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 1. [产品总览](product/overview.md)：了解 MoeURL 的定位、目标和核心原则。
 2. [v0.2.0 范围](product/scope-v0.2.0.md)：确认当前阶段短链访问体验与生命周期的实现边界。
-3. [v0.1.2 范围](product/scope-v0.1.2.md)：回看个人设置基础闭环的实现边界。
-4. [统计与事件](specs/statistics-and-events.md)：确认短链访问事件、基础统计和维度统计口径。
-5. [短链](specs/short-links.md)：确认短链访问、状态和事件记录调用点。
-6. [跳转模式](specs/redirect-modes.md)：确认直接跳转、中间页和后续模式边界。
-7. [功能规格](specs/)：按模块查看权限、短链、用户、域名、页面、跳转、统计、主题和后台设计。
-8. [技术选型决策](implementation/technical-decision.md)：确认 Go + Vue 技术栈和选型理由。
-9. [技术基线](implementation/technical-baseline.md)：确认仓库结构、模块边界、API、数据库、测试和部署约定。
-10. [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)：确认新版本、跨模块和生产化任务的统一执行约定。
-11. [实施文档](implementation/)：查看工程计划、阶段任务和验收记录。
+3. [v0.2.0 功能设计](specs/2026-08-02-v0.2.0-link-experience-design.md)：确认本版本的交互、接口、事件和验收设计。
+4. [v0.1.2 范围](product/scope-v0.1.2.md)：回看个人设置基础闭环的实现边界。
+5. [统计与事件](specs/statistics-and-events.md)：确认短链访问事件、基础统计和维度统计口径。
+6. [短链](specs/short-links.md)：确认短链访问、状态和事件记录调用点。
+7. [跳转模式](specs/redirect-modes.md)：确认直接跳转、中间页和后续模式边界。
+8. [功能规格](specs/)：按模块查看权限、短链、用户、域名、页面、跳转、统计、主题和后台设计。
+9. [技术选型决策](implementation/technical-decision.md)：确认 Go + Vue 技术栈和选型理由。
+10. [技术基线](implementation/technical-baseline.md)：确认仓库结构、模块边界、API、数据库、测试和部署约定。
+11. [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)：确认新版本、跨模块和生产化任务的统一执行约定。
+12. [实施文档](implementation/)：查看工程计划、阶段任务和验收记录。
 
 ## 文档分层
 
