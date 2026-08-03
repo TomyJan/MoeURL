@@ -44,6 +44,7 @@ describe('createMutationMock', () => {
     expect(state.data.value).toBeUndefined()
     expect(state.error.value).toBeUndefined()
     expect(state.isError.value).toBe(false)
+    expect(state.variables.value).toBeUndefined()
   })
 
   it('stops after a provided mutate while retaining configured variables', () => {
@@ -63,6 +64,20 @@ describe('createMutationMock', () => {
     expect(providedMutate).toHaveBeenCalledWith('payload')
     expect(mutationFn).not.toHaveBeenCalled()
     expect(onSuccess).not.toHaveBeenCalled()
+  })
+
+  it('leaves variables untouched when variable tracking is disabled', () => {
+    const variables = ref<unknown>('existing')
+    const useMutation = createMutationMock({
+      fields: { reset: true },
+      getResult: () => ({ variables }),
+    })
+
+    const mutation = useMutation()
+    mutation.reset?.()
+
+    expect(mutation).not.toHaveProperty('variables')
+    expect(variables.value).toBe('existing')
   })
 
   it('tracks Promise success and pending state', async () => {

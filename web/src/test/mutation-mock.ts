@@ -42,6 +42,9 @@ export function createMutationMock(config: CreateMutationMockOptions) {
       data.value = undefined
       error.value = undefined
       isError.value = false
+      if (config.fields?.variables) {
+        variables.value = undefined
+      }
     })
     const succeed = (value: unknown) => {
       data.value = value
