@@ -664,13 +664,29 @@ func optionalInt2(value *int16) pgtype.Int2 {
 	return pgtype.Int2{Int16: *value, Valid: true}
 }
 
+type accessConfigTarget interface {
+	setAccessConfig(string, int16, pgtype.Timestamptz, bool)
+}
+
 func applyAccessConfig(link *ShortLink, redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool) {
+	applyAccessConfigFields(link, redirectMode, delay, expiresAt, expired)
+}
+
+func applyAdminAccessConfig(link *AdminShortLink, redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool) {
+	applyAccessConfigFields(link, redirectMode, delay, expiresAt, expired)
+}
+
+func applyAccessConfigFields[T accessConfigTarget](link T, redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool) {
+	link.setAccessConfig(redirectMode, delay, expiresAt, expired)
+}
+
+func (link *ShortLink) setAccessConfig(redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool) {
 	link.RedirectMode = redirectMode
 	link.IntermediateDelaySeconds = delay
 	link.ExpiresAt, link.Expired = expirationValues(expiresAt, expired)
 }
 
-func applyAdminAccessConfig(link *AdminShortLink, redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool) {
+func (link *AdminShortLink) setAccessConfig(redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool) {
 	link.RedirectMode = redirectMode
 	link.IntermediateDelaySeconds = delay
 	link.ExpiresAt, link.Expired = expirationValues(expiresAt, expired)
