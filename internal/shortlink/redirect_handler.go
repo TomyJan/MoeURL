@@ -45,7 +45,7 @@ func NewRedirectHandlerWithAnalytics(service RedirectPort, recorder event.Record
 func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug string) {
 	result, err := h.service.Open(r.Context(), slug)
 	if err != nil {
-		writePublicAccessError(w, err)
+		writePublicAccessError(w, r, slug, err)
 		return
 	}
 	if result.RedirectMode == RedirectModeIntermediate {
@@ -87,7 +87,7 @@ func (h *RedirectHandler) Preview(w http.ResponseWriter, r *http.Request) {
 func (h *RedirectHandler) Continue(w http.ResponseWriter, r *http.Request, slug string) {
 	result, err := h.service.Continue(r.Context(), slug)
 	if err != nil {
-		writePublicAccessError(w, err)
+		writePublicAccessError(w, r, slug, err)
 		return
 	}
 	h.writeTargetRedirect(w, r, result, strings.ToLower(slug))
@@ -103,17 +103,22 @@ func (h *RedirectHandler) writeTargetRedirect(w http.ResponseWriter, r *http.Req
 	}
 }
 
-func writePublicAccessError(w http.ResponseWriter, err error) {
+func writePublicAccessError(w http.ResponseWriter, r *http.Request, slug string, err error) {
 	switch {
-	case errors.Is(err, ErrShortLinkMissing), errors.Is(err, ErrShortLinkNotIntermediate):
+	case errors.Is(err, ErrShortLinkMissing):
 		http.Error(w, "Short link not found", http.StatusNotFound)
 	case errors.Is(err, ErrShortLinkDisabled):
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("Short link disabled"))
+		redirectToPublicAccessState(w, r, slug, "disabled")
 	case errors.Is(err, ErrShortLinkExpired):
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("Short link expired"))
+		redirectToPublicAccessState(w, r, slug, "expired")
+	case errors.Is(err, ErrShortLinkNotIntermediate):
+		redirectToPublicAccessState(w, r, slug, "not-intermediate")
 	default:
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
+}
+
+func redirectToPublicAccessState(w http.ResponseWriter, r *http.Request, slug string, reason string) {
+	location := "/go/" + url.PathEscape(strings.ToLower(slug)) + "?reason=" + url.QueryEscape(reason)
+	http.Redirect(w, r, location, http.StatusFound)
 }

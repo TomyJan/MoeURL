@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import QRCode from 'qrcode'
+import { nextTick } from 'vue'
 
 import ShortLinkQrDialog from './ShortLinkQrDialog.vue'
 import { componentStubs } from '@/test/component-stubs'
@@ -31,6 +32,12 @@ function spyOnToDataURL() {
   )
 }
 
+async function flushStaleGeneration() {
+  await Promise.resolve()
+  await Promise.resolve()
+  await nextTick()
+}
+
 describe('ShortLinkQrDialog', () => {
   afterEach(() => {
     vi.restoreAllMocks()
@@ -39,6 +46,8 @@ describe('ShortLinkQrDialog', () => {
   it('encodes the complete public URL into a usable PNG and exposes a download', async () => {
     const toDataURL = spyOnToDataURL()
     const view = mountDialog()
+
+    expect(view.container.querySelector('.short-link-qr-dialog__preview')?.getAttribute('aria-live')).toBe('polite')
 
     const image = await screen.findByRole('img', { name: 'shortLinkQr.imageAlt' }) as HTMLImageElement
     expect(toDataURL).toHaveBeenCalledWith('https://go.example.com/abc123', expect.objectContaining({
@@ -98,7 +107,7 @@ describe('ShortLinkQrDialog', () => {
     expect(image.src).toContain('data:image/png;base64,new')
 
     resolveFirst?.('data:image/png;base64,old')
-    await Promise.resolve()
+    await flushStaleGeneration()
     expect(image.src).toContain('data:image/png;base64,new')
   })
 
@@ -115,7 +124,7 @@ describe('ShortLinkQrDialog', () => {
     const image = await screen.findByRole('img', { name: 'shortLinkQr.imageAlt' }) as HTMLImageElement
 
     rejectFirst?.(new Error('old generation failed'))
-    await Promise.resolve()
+    await flushStaleGeneration()
     expect(image.src).toContain('data:image/png;base64,new')
     expect(screen.queryByText('shortLinkQr.generateFailed')).toBeNull()
   })

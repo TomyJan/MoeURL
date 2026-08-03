@@ -10,6 +10,7 @@ import { componentStubs } from '@/test/component-stubs'
 const state = vi.hoisted(() => ({
   assign: vi.fn(),
   params: { slug: 'abc123' } as Record<string, unknown>,
+  query: {} as Record<string, unknown>,
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -17,7 +18,7 @@ vi.mock('vue-i18n', () => ({
 }))
 
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: state.params }),
+  useRoute: () => ({ params: state.params, query: state.query }),
 }))
 
 vi.mock('@/entities/short-link/api', () => ({
@@ -40,6 +41,7 @@ describe('RedirectPage', () => {
     vi.useFakeTimers()
     state.assign.mockReset()
     state.params = { slug: 'abc123' }
+    state.query = {}
     vi.stubGlobal('location', { assign: state.assign })
     vi.mocked(getPublicShortLinkPreview).mockReset()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValue({
@@ -115,6 +117,20 @@ describe('RedirectPage', () => {
     mountPage()
     await flushPreview()
 
+    expect(screen.getByText(messageKey)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'redirect.retry' })).toBeNull()
+  })
+
+  it.each([
+    ['disabled', 'redirect.disabled'],
+    ['expired', 'redirect.expired'],
+    ['not-intermediate', 'redirect.notIntermediate'],
+  ])('renders the localized public status for redirect reason %s', async (reason, messageKey) => {
+    state.query = { reason }
+    mountPage()
+    await flushPreview()
+
+    expect(getPublicShortLinkPreview).not.toHaveBeenCalled()
     expect(screen.getByText(messageKey)).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'redirect.retry' })).toBeNull()
   })

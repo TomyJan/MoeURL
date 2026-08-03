@@ -153,27 +153,20 @@ function openQr(link: ConsoleLinkListItem) {
 }
 
 function formatVisitedAt(value?: string | null) {
-  if (!value) {
-    return t('links.stats.neverVisited')
-  }
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return t('links.stats.neverVisited')
-  }
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, '0'),
-    String(date.getDate()).padStart(2, '0'),
-  ].join('-')
+  return formatLocalDate(value, t('links.stats.neverVisited'))
 }
 
 function formatExpiration(value: string | null) {
+  return formatLocalDate(value, t('links.neverExpires'))
+}
+
+function formatLocalDate(value: string | null | undefined, fallback: string) {
   if (!value) {
-    return t('links.neverExpires')
+    return fallback
   }
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) {
-    return t('links.neverExpires')
+    return fallback
   }
   return [
     date.getFullYear(),

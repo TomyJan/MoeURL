@@ -12,7 +12,7 @@ export default defineConfig({
           groups: [
             {
               name: 'vendor-vue',
-              test: /node_modules[\\/](?:@vue|vue|vue-router|pinia|@tanstack)[\\/]/,
+              test: /node_modules[\\/](?:@vue|vue|vue-i18n|vue-router|pinia|@tanstack)[\\/]/,
               priority: 40,
             },
             {

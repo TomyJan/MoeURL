@@ -3,9 +3,7 @@ package db_test
 import (
 	"context"
 	"database/sql"
-	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -33,30 +31,52 @@ func TestSQLCPackageExposesQueries(t *testing.T) {
 
 // TestShortLinkExpirationQueriesUseDatabaseTime locks the database-owned expiration contract.
 func TestShortLinkExpirationQueriesUseDatabaseTime(t *testing.T) {
-	queryPath := filepath.Join("..", "..", "queries", "short_link.sql")
-	querySource, err := os.ReadFile(queryPath)
+	ctx := context.Background()
+	pool := sqlcTestPool(t, ctx)
+	ownerID := uuid.MustParse("00000000-0000-0000-0000-000000000201")
+	domainID := uuid.MustParse("00000000-0000-0000-0000-000000000101")
+	linkID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
+	insertSQLCShortLinkFixtures(t, ctx, pool, ownerID, domainID, linkID)
+
+	connection, err := pool.Acquire(ctx)
 	if err != nil {
-		t.Fatalf("read short-link queries: %v", err)
+		t.Fatalf("acquire PostgreSQL connection: %v", err)
 	}
-	queryText := string(querySource)
-	if !strings.Contains(queryText, "-- name: GetDatabaseTime :one") {
-		t.Error("expected a SQLC query for the PostgreSQL current time")
-	}
-	if count := strings.Count(queryText, " as expired"); count < 7 {
-		t.Errorf("expected every short-link response query to return database-computed expired, got %d aliases", count)
+	defer connection.Release()
+	if _, err := connection.Exec(ctx, `set time zone 'Pacific/Kiritimati'`); err != nil {
+		t.Fatalf("set non-UTC session timezone: %v", err)
 	}
 
-	for _, sourcePath := range []string{
-		filepath.Join("..", "shortlink", "service.go"),
-		filepath.Join("..", "shortlink", "redirect_service.go"),
-	} {
-		source, err := os.ReadFile(sourcePath)
-		if err != nil {
-			t.Fatalf("read %s: %v", sourcePath, err)
-		}
-		if strings.Contains(string(source), "time.Now()") {
-			t.Errorf("expected %s to rely on PostgreSQL time, found time.Now()", sourcePath)
-		}
+	queries := sqlc.New(connection)
+	databaseTime, err := queries.GetDatabaseTime(ctx)
+	if err != nil || !databaseTime.Valid {
+		t.Fatalf("read database time: %v, %#v", err, databaseTime)
+	}
+	pastWithOffset := databaseTime.Time.Add(-time.Minute).In(time.FixedZone("UTC-11", -11*60*60))
+	if _, err := connection.Exec(ctx, `update short_link set expires_at = $1 where id = $2`, pastWithOffset, linkID); err != nil {
+		t.Fatalf("set past expiration with offset: %v", err)
+	}
+
+	bySlug, err := queries.GetShortLinkBySlug(ctx, "abc123")
+	if err != nil || !bySlug.Expired {
+		t.Fatalf("expected slug query to use database expiration state: %v, %#v", err, bySlug)
+	}
+	ownerRows, err := queries.ListShortLinksByOwner(ctx, sqlc.ListShortLinksByOwnerParams{OwnerID: uuidToPgtype(ownerID), Limit: 20})
+	if err != nil || len(ownerRows) != 1 || !ownerRows[0].Expired {
+		t.Fatalf("expected owner list to use database expiration state: %v, %#v", err, ownerRows)
+	}
+	adminRows, err := queries.ListAllShortLinks(ctx, sqlc.ListAllShortLinksParams{Limit: 20})
+	if err != nil || len(adminRows) != 1 || !adminRows[0].Expired {
+		t.Fatalf("expected admin list to use database expiration state: %v, %#v", err, adminRows)
+	}
+
+	futureWithOffset := databaseTime.Time.Add(time.Hour).In(time.FixedZone("UTC+13", 13*60*60))
+	if _, err := connection.Exec(ctx, `update short_link set expires_at = $1 where id = $2`, futureWithOffset, linkID); err != nil {
+		t.Fatalf("set future expiration with offset: %v", err)
+	}
+	bySlug, err = queries.GetShortLinkBySlug(ctx, "abc123")
+	if err != nil || bySlug.Expired {
+		t.Fatalf("expected future database expiration to remain active: %v, %#v", err, bySlug)
 	}
 }
 

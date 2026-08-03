@@ -3,7 +3,7 @@
     <v-card class="short-link-qr-dialog">
       <v-card-title>{{ t('shortLinkQr.title') }}</v-card-title>
       <v-card-text class="short-link-qr-dialog__body">
-        <div class="short-link-qr-dialog__preview">
+        <div class="short-link-qr-dialog__preview" aria-live="polite">
           <v-progress-linear v-if="generating" indeterminate />
           <v-alert v-else-if="generationError" type="error" variant="tonal">
             {{ t('shortLinkQr.generateFailed') }}

@@ -21,9 +21,13 @@ describe('i18n', () => {
   it('defines bilingual advanced short-link settings', () => {
     expect(messages['zh-CN'].shortLinkCreate.advanced).toBe('高级设置')
     expect(messages['zh-CN'].shortLinkCreate.redirectModes.intermediate).toBe('中间页')
+    expect(messages['zh-CN'].shortLinkCreate.expiresAt).toBe('过期时间（本地时间）')
+    expect(messages['zh-CN'].shortLinkSettings.expiresAt).toBe('过期时间（本地时间）')
     expect(messages['zh-CN'].shortLinkCreate.expirationFuture).toBe('过期时间必须晚于当前时间')
     expect(messages.en.shortLinkCreate.advanced).toBe('Advanced settings')
     expect(messages.en.shortLinkCreate.redirectModes.intermediate).toBe('Intermediate page')
+    expect(messages.en.shortLinkCreate.expiresAt).toBe('Expiration time (local time)')
+    expect(messages.en.shortLinkSettings.expiresAt).toBe('Expiration time (local time)')
     expect(messages.en.shortLinkCreate.expirationFuture).toBe('Expiration must be in the future')
     expect(messages['zh-CN'].shortLinkCreate.qrCode).toBe('二维码')
     expect(messages.en.shortLinkCreate.qrCode).toBe('QR code')

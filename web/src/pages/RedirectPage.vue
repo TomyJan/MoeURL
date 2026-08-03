@@ -49,7 +49,7 @@ import { getPublicShortLinkPreview } from '@/entities/short-link/api'
 import type { PublicShortLinkPreview } from '@/entities/short-link/model'
 import { ApiClientError } from '@/shared/api/client'
 
-type PreviewFailureState = '' | 'expired' | 'loadFailed' | 'unavailable'
+type PreviewFailureState = '' | 'disabled' | 'expired' | 'loadFailed' | 'notIntermediate' | 'unavailable'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -72,6 +72,13 @@ async function loadPreview() {
   continueFailed.value = false
   navigating.value = false
 
+  const requestedFailureState = failureStateFromReason(route.query.reason)
+  if (requestedFailureState) {
+    loading.value = false
+    failureState.value = requestedFailureState
+    return
+  }
+
   const slug = route.params.slug
   if (typeof slug !== 'string' || !slug) {
     loading.value = false
@@ -89,6 +96,19 @@ async function loadPreview() {
   } finally {
     loading.value = false
   }
+}
+
+function failureStateFromReason(reason: unknown): PreviewFailureState {
+  if (reason === 'disabled') {
+    return 'disabled'
+  }
+  if (reason === 'expired') {
+    return 'expired'
+  }
+  if (reason === 'not-intermediate') {
+    return 'notIntermediate'
+  }
+  return ''
 }
 
 function classifyPreviewError(error: unknown): PreviewFailureState {

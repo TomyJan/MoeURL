@@ -56,11 +56,18 @@ describe('deployment configuration', () => {
     expect(config).toContain('rolldownOptions')
     expect(config).toContain('codeSplitting')
     expect(config).toContain("name: 'vendor-vue'")
+    expect(config).toMatch(/vendor-vue[\s\S]*vue-i18n/)
     expect(config).toContain("name: 'vendor-vuetify'")
     expect(config).toContain("name: 'vendor-chart'")
     expect(config).toContain("name: 'vendor-qrcode'")
     expect(config).not.toContain('maxSize')
     expect(config).not.toContain('chunkSizeWarningLimit')
+  })
+
+  it('allows a cold Docker image build to finish before Playwright starts', () => {
+    const config = readFileSync(resolve(repositoryRoot, 'web/playwright.config.ts'), 'utf8')
+
+    expect(config).toMatch(/webServer:[\s\S]*timeout: 600_000/)
   })
 
   it('registers only the Vuetify components used by the application', () => {

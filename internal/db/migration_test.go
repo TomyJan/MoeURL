@@ -18,43 +18,9 @@ import (
 // TestInitialMigrationCreatesCoreTablesAndConstraints verifies the baseline schema contract.
 func TestInitialMigrationCreatesCoreTablesAndConstraints(t *testing.T) {
 	ctx := context.Background()
-	container, err := postgres.Run(ctx,
-		"postgres:18-alpine",
-		postgres.WithDatabase("moeurl_test"),
-		postgres.WithUsername("moeurl"),
-		postgres.WithPassword("moeurl"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(60*time.Second),
-		),
-	)
-	if err != nil {
-		t.Fatalf("start postgres container: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(container); err != nil {
-			t.Fatalf("terminate postgres container: %v", err)
-		}
-	})
-
-	connectionString, err := container.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		t.Fatalf("get connection string: %v", err)
-	}
-
-	database, err := sql.Open("pgx", connectionString)
-	if err != nil {
-		t.Fatalf("open database: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = database.Close()
-	})
+	database := migrationTestDatabase(t, ctx)
 
 	migrationsDir := filepath.Join("..", "..", "migrations")
-	if err := goose.SetDialect("postgres"); err != nil {
-		t.Fatalf("set goose dialect: %v", err)
-	}
 	if err := goose.Up(database, migrationsDir); err != nil {
 		t.Fatalf("run migrations: %v", err)
 	}
@@ -81,7 +47,7 @@ func TestInitialMigrationCreatesCoreTablesAndConstraints(t *testing.T) {
 
 	insertUserGroups(t, ctx, database)
 
-	_, err = database.ExecContext(ctx, `
+	_, err := database.ExecContext(ctx, `
 		insert into short_link (id, owner_id, domain_id, slug, target_url, status, created_at, updated_at)
 		values
 			('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000101', 'abc123', 'https://example.com', 'active', now(), now()),
@@ -329,7 +295,9 @@ func assertShortLinkExperienceConstraintValidation(t *testing.T, ctx context.Con
 	if err != nil {
 		t.Fatalf("query short link experience constraint validation: %v", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	count := 0
 	for rows.Next() {

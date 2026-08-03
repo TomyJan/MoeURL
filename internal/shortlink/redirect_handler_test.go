@@ -135,16 +135,17 @@ func TestRedirectHandlerDoesNotOverrideFixedRoutes(t *testing.T) {
 	}
 }
 
-// TestRedirectHandlerShowsBlockedStatus verifies disabled links do not redirect.
+// TestRedirectHandlerShowsBlockedStatus verifies blocked links use localized public states.
 func TestRedirectHandlerShowsBlockedStatus(t *testing.T) {
 	tests := []struct {
-		name string
-		err  error
-		code int
+		name     string
+		err      error
+		code     int
+		location string
 	}{
 		{name: "missing", err: shortlink.ErrShortLinkMissing, code: http.StatusNotFound},
-		{name: "disabled", err: shortlink.ErrShortLinkDisabled, code: http.StatusOK},
-		{name: "expired", err: shortlink.ErrShortLinkExpired, code: http.StatusOK},
+		{name: "disabled", err: shortlink.ErrShortLinkDisabled, code: http.StatusFound, location: "/go/abc123?reason=disabled"},
+		{name: "expired", err: shortlink.ErrShortLinkExpired, code: http.StatusFound, location: "/go/abc123?reason=expired"},
 		{name: "system", err: errors.New("database down"), code: http.StatusInternalServerError},
 	}
 
@@ -161,8 +162,8 @@ func TestRedirectHandlerShowsBlockedStatus(t *testing.T) {
 			if response.Code != tt.code {
 				t.Fatalf("expected %d, got %d", tt.code, response.Code)
 			}
-			if response.Header().Get("Location") != "" {
-				t.Fatalf("expected no redirect location, got %q", response.Header().Get("Location"))
+			if response.Header().Get("Location") != tt.location {
+				t.Fatalf("expected redirect location %q, got %q", tt.location, response.Header().Get("Location"))
 			}
 		})
 	}
@@ -297,14 +298,15 @@ func TestRedirectHandlerPreviewRejectsMissingSlug(t *testing.T) {
 // TestRedirectHandlerContinueShowsLifecycleErrors verifies final redirect rejections stay browser-readable.
 func TestRedirectHandlerContinueShowsLifecycleErrors(t *testing.T) {
 	tests := []struct {
-		name string
-		err  error
-		code int
+		name     string
+		err      error
+		code     int
+		location string
 	}{
 		{name: "missing", err: shortlink.ErrShortLinkMissing, code: http.StatusNotFound},
-		{name: "disabled", err: shortlink.ErrShortLinkDisabled, code: http.StatusOK},
-		{name: "expired", err: shortlink.ErrShortLinkExpired, code: http.StatusOK},
-		{name: "not intermediate", err: shortlink.ErrShortLinkNotIntermediate, code: http.StatusNotFound},
+		{name: "disabled", err: shortlink.ErrShortLinkDisabled, code: http.StatusFound, location: "/go/middle?reason=disabled"},
+		{name: "expired", err: shortlink.ErrShortLinkExpired, code: http.StatusFound, location: "/go/middle?reason=expired"},
+		{name: "not intermediate", err: shortlink.ErrShortLinkNotIntermediate, code: http.StatusFound, location: "/go/middle?reason=not-intermediate"},
 		{name: "system", err: errors.New("database down"), code: http.StatusInternalServerError},
 	}
 
@@ -316,8 +318,8 @@ func TestRedirectHandlerContinueShowsLifecycleErrors(t *testing.T) {
 
 			handler.Continue(response, request, "middle")
 
-			if response.Code != tt.code || response.Header().Get("Location") != "" {
-				t.Fatalf("expected status %d without redirect, got %d location %q", tt.code, response.Code, response.Header().Get("Location"))
+			if response.Code != tt.code || response.Header().Get("Location") != tt.location {
+				t.Fatalf("expected status %d location %q, got %d location %q", tt.code, tt.location, response.Code, response.Header().Get("Location"))
 			}
 		})
 	}

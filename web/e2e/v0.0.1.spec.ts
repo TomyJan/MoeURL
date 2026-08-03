@@ -195,7 +195,7 @@ test('v0.2.0 initialization short-link access experience and logout flow', async
   await page.setViewportSize({ width: 1280, height: 720 })
 
   const expiresAt = toLocalDateTimeValue(new Date(Date.now() + 20_000))
-  await setDateTimeLocalValue(settingsDialog.getByLabel('过期时间', { exact: true }), expiresAt)
+  await setDateTimeLocalValue(settingsDialog.getByLabel('过期时间（本地时间）', { exact: true }), expiresAt)
   const updateResponsePromise = page.waitForResponse('**/api/v1/short-link/update')
   await settingsDialog.getByRole('button', { name: '保存' }).click()
   const updateResponse = await updateResponsePromise
@@ -209,11 +209,11 @@ test('v0.2.0 initialization short-link access experience and logout flow', async
     { intervals: [250, 500, 1_000], timeout: 30_000 },
   ).toBe(200109)
   const expiredRedirect = await page.request.get(`/${intermediateSlug}`, { maxRedirects: 0 })
-  await expect(expiredRedirect).toBeOK()
-  expect(await expiredRedirect.text()).toContain('Short link expired')
+  expect(expiredRedirect.status()).toBe(302)
+  expect(expiredRedirect.headers().location).toBe(`/go/${intermediateSlug}?reason=expired`)
   expect(await readVisitCount(page, intermediateLinkId)).toBe(1)
 
-  await page.goto(`/go/${intermediateSlug}`)
+  await page.goto(expiredRedirect.headers().location!)
   await expect(page.getByRole('heading', { name: '该短链已过期。' })).toBeVisible()
   await expect(page.getByRole('button', { name: '重试' })).toHaveCount(0)
   await expectNoHorizontalOverflow(page)
@@ -255,9 +255,14 @@ test('v0.2.0 initialization short-link access experience and logout flow', async
   await expect(disableLink).toBeOK()
   expect(await disableLink.json()).toMatchObject({ code: 0 })
 
-  const blocked = await page.request.get(`/${slug}`)
-  await expect(blocked).toBeOK()
-  expect(await blocked.text()).toContain('Short link disabled')
+  const blocked = await page.request.get(`/${slug}`, { maxRedirects: 0 })
+  expect(blocked.status()).toBe(302)
+  expect(blocked.headers().location).toBe(`/go/${slug}?reason=disabled`)
+
+  await page.goto(blocked.headers().location!)
+  await expect(page.getByRole('heading', { name: '该短链已被停用。' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '重试' })).toHaveCount(0)
+  await expectNoHorizontalOverflow(page)
 
   await page.goto('/link')
   await selectVuetifyOption(page, '状态筛选', '禁用')

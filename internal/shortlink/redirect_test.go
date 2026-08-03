@@ -242,17 +242,13 @@ func TestRedirectServiceBlocksExpiredAndInvalidPreviewLinks(t *testing.T) {
 	insertShortLinkDefaultDomain(t, ctx, pool)
 	user := insertShortLinkUser(t, ctx, pool, "alice", "user", []string{})
 	expiredID := insertStoredShortLink(t, ctx, pool, user.ID, "expired", "https://example.com/expired", "active", false)
-	directID := insertStoredShortLink(t, ctx, pool, user.ID, "direct1", "https://example.com/direct", "active", false)
-	deletedID := insertStoredShortLink(t, ctx, pool, user.ID, "deleted", "https://example.com/deleted", "active", true)
-	disabledID := insertStoredShortLink(t, ctx, pool, user.ID, "disabled2", "https://example.com/disabled", "disabled", false)
+	insertStoredShortLink(t, ctx, pool, user.ID, "direct1", "https://example.com/direct", "active", false)
+	insertStoredShortLink(t, ctx, pool, user.ID, "deleted", "https://example.com/deleted", "active", true)
+	insertStoredShortLink(t, ctx, pool, user.ID, "disabled2", "https://example.com/disabled", "disabled", false)
 	_, err := pool.Exec(ctx, `update short_link set redirect_mode = 'intermediate', expires_at = now() - interval '1 second' where id = $1`, expiredID)
 	if err != nil {
 		t.Fatalf("expire short link: %v", err)
 	}
-	_ = directID
-	_ = deletedID
-	_ = disabledID
-
 	recorder := &recordingRecorder{}
 	service := shortlink.NewRedirectService(pool, recorder)
 	_, err = service.Open(ctx, "expired")

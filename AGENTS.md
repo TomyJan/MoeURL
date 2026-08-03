@@ -137,7 +137,7 @@ MoeURL 当前技术栈固定为：
 - `expires_at` 使用 `timestamptz`，为空表示无固定过期时间；服务端和数据库时间是创建、编辑与访问判断的权威来源。
 - 中间页和过期时间分别受 `short_link:use_intermediate` 与 `short_link:set_expiration` 权限控制，前端省略无权字段，后端执行最终校验。
 - 公开预览只返回短码、目标主机名、倒计时和可选过期时间，不返回完整目标 URL。
-- 进入中间页不计入访问量；只有 `/go/{slug}/continue` 最终写出目标跳转响应后才记录 `redirect_response_sent`。
+- 直接模式的 `/{slug}` 在成功写出目标 `302` 跳转响应后记录 `redirect_response_sent`；中间页入口不记录；`/go/{slug}/continue` 仅在成功写出目标跳转响应后记录。
 - 二维码只编码公开短链 URL，在浏览器即时生成，不保存到数据库，也不包含目标 URL 或账号信息。
 - `/go/{slug}` 和 `/go/{slug}/continue` 是固定路由，优先级必须高于 `/{slug}`，`go` 必须保留为不可生成短码。
 - E2E 必须从真实 `/{slug}` 入口验证中间页和访问量，覆盖桌面与移动端的中间页、访问设置和二维码布局，并保持生产构建无大分块警告。

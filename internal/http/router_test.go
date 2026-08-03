@@ -215,6 +215,22 @@ func TestRouterRegistersOptionalDependencies(t *testing.T) {
 	}
 }
 
+func TestRouterRedirectServiceKeepsConfiguredIntermediateResultWithEmptyTarget(t *testing.T) {
+	redirect := &routerRedirectService{
+		openResult:           shortlink.OpenResult{RedirectMode: shortlink.RedirectModeIntermediate, Slug: "middle"},
+		openResultConfigured: true,
+	}
+	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: redirect})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/abc123", nil)
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusFound || response.Header().Get("Location") != "/go/middle" {
+		t.Fatalf("expected configured intermediate redirect, got status %d location %q", response.Code, response.Header().Get("Location"))
+	}
+}
+
 type routerSystemService struct{}
 
 func (routerSystemService) IsInitialized(context.Context) (bool, error) {
@@ -291,17 +307,18 @@ func (routerShortLinkService) AdminDelete(context.Context, auth.CurrentUser, sho
 }
 
 type routerRedirectService struct {
-	openResult     shortlink.OpenResult
-	previewResult  shortlink.PreviewResult
-	continueResult shortlink.RedirectResult
-	openSlugs      []string
-	previewSlugs   []string
-	continueSlugs  []string
+	openResult           shortlink.OpenResult
+	openResultConfigured bool
+	previewResult        shortlink.PreviewResult
+	continueResult       shortlink.RedirectResult
+	openSlugs            []string
+	previewSlugs         []string
+	continueSlugs        []string
 }
 
 func (service *routerRedirectService) Open(_ context.Context, slug string) (shortlink.OpenResult, error) {
 	service.openSlugs = append(service.openSlugs, slug)
-	if service.openResult.TargetURL == "" {
+	if !service.openResultConfigured {
 		return shortlink.OpenResult{RedirectMode: shortlink.RedirectModeDirect, RedirectResult: shortlink.RedirectResult{TargetURL: "https://example.com"}}, nil
 	}
 	return service.openResult, nil
