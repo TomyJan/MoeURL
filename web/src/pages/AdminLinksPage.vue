@@ -58,10 +58,11 @@ import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { deleteAdminShortLink, listAdminShortLinks, updateAdminShortLink } from '@/entities/short-link/api'
-import type { AdminShortLink, UpdateShortLinkInput } from '@/entities/short-link/model'
+import type { AdminShortLink } from '@/entities/short-link/model'
 import ShortLinkSettingsDialog from '@/features/short-link-settings/ShortLinkSettingsDialog.vue'
 import ShortLinkQrDialog from '@/features/short-link-qr/ShortLinkQrDialog.vue'
 import { useMutationTargetId } from '@/shared/mutations/useMutationTargetId'
+import { useShortLinkSettings } from '@/shared/short-link/useShortLinkSettings'
 import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue'
 
 const { t } = useI18n()
@@ -89,8 +90,17 @@ const query = useQuery({
 const links = computed(() => query.data.value?.items ?? [])
 const linkItems = computed<ConsoleLinkListItem[]>(() => links.value)
 const total = computed(() => query.data.value?.meta.total ?? 0)
-const settingsLink = ref<ConsoleLinkListItem | null>(null)
-const qrLink = ref<ConsoleLinkListItem | null>(null)
+const {
+  closeQr,
+  closeSettings,
+  configure,
+  qrLink,
+  saveSettings,
+  settingsErrorMessage,
+  settingsLink,
+  settingsMutation,
+  showQr,
+} = useShortLinkSettings({ mutationFn: updateAdminShortLink, queryKey: ['admin-short-link'] })
 
 const statusMutation = useMutation({
   mutationFn: updateAdminShortLink,
@@ -100,47 +110,11 @@ const deleteMutation = useMutation({
   mutationFn: deleteAdminShortLink,
   onSuccess: invalidateLinks,
 })
-const settingsMutation = useMutation({
-  mutationFn: updateAdminShortLink,
-  onSuccess() {
-    settingsLink.value = null
-    invalidateLinks()
-  },
-})
-const settingsErrorMessage = computed(() => {
-  if (!settingsMutation.isError.value) {
-    return ''
-  }
-  return settingsMutation.error.value instanceof Error
-    ? settingsMutation.error.value.message
-    : t('links.settingsSaveFailed')
-})
 const updatingId = useMutationTargetId(statusMutation, (variables) => variables?.id)
 const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof variables === 'string' ? variables : undefined))
 
 function toggleStatus(link: ConsoleLinkListItem) {
   statusMutation.mutate({ id: link.id, status: link.status === 'active' ? 'disabled' : 'active' })
-}
-
-function configure(link: ConsoleLinkListItem) {
-  settingsMutation.reset()
-  settingsLink.value = link
-}
-
-function saveSettings(input: UpdateShortLinkInput) {
-  settingsMutation.mutate(input)
-}
-
-function closeSettings() {
-  settingsLink.value = null
-}
-
-function showQr(link: ConsoleLinkListItem) {
-  qrLink.value = link
-}
-
-function closeQr() {
-  qrLink.value = null
 }
 
 function remove(id: string) {

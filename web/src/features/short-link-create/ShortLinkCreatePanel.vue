@@ -131,12 +131,12 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { z } from 'zod'
 
 import { me } from '@/entities/auth/api'
 import { createShortLink } from '@/entities/short-link/api'
 import type { CreateShortLinkInput, RedirectMode } from '@/entities/short-link/model'
 import ShortLinkQrDialog from '@/features/short-link-qr/ShortLinkQrDialog.vue'
+import { futureDateTimeSchema, targetUrlSchema } from '@/shared/validation/shortLinkAccess'
 
 withDefaults(
   defineProps<{
@@ -161,11 +161,6 @@ const redirectMode = ref<RedirectMode>('direct')
 const intermediateDelaySeconds = ref(5)
 const expirationEnabled = ref(false)
 const expiresAt = ref('')
-const targetUrlSchema = z.string().trim().pipe(z.url())
-const futureDateTimeSchema = z.string().trim().min(1).refine((value) => {
-  const timestamp = new Date(value).getTime()
-  return Number.isFinite(timestamp) && timestamp > Date.now()
-})
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,

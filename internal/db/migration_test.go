@@ -108,6 +108,7 @@ func TestShortLinkExperienceMigrationUpgradesExistingDataAndRollsBack(t *testing
 	assertGroupPermissions(t, ctx, database, "admin", true)
 
 	assertShortLinkExperienceConstraints(t, ctx, database)
+	assertShortLinkExperienceDefaults(t, ctx, database, "00000000-0000-0000-0000-000000000301")
 	assertShortLinkExpirationRoundTrip(t, ctx, database)
 
 	if err := goose.Up(database, migrationsDir); err != nil {
@@ -156,6 +157,7 @@ func TestShortLinkExperienceMigrationUpgradesExistingDataAndRollsBack(t *testing
 	assertGroupPermissions(t, ctx, database, "user", true)
 	assertGroupPermissions(t, ctx, database, "admin", true)
 	assertShortLinkExperienceConstraints(t, ctx, database)
+	assertShortLinkExperienceDefaults(t, ctx, database, "00000000-0000-0000-0000-000000000301")
 	assertShortLinkExperienceConstraintValidation(t, ctx, database, true)
 }
 
@@ -280,6 +282,12 @@ func assertShortLinkExperienceConstraints(t *testing.T, ctx context.Context, dat
 	}
 	if _, err := database.ExecContext(ctx, `update short_link set intermediate_delay_seconds = null where id = $1`, shortLinkID); err == nil {
 		t.Fatal("expected null intermediate delay to violate not-null constraint")
+	}
+	if _, err := database.ExecContext(ctx, `update short_link set redirect_mode = 'direct' where id = $1`, shortLinkID); err != nil {
+		t.Fatalf("restore direct redirect mode: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `update short_link set intermediate_delay_seconds = 5 where id = $1`, shortLinkID); err != nil {
+		t.Fatalf("restore default intermediate delay: %v", err)
 	}
 }
 

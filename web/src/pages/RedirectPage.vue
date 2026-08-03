@@ -4,12 +4,12 @@
       <a href="/" class="redirect-page__brand">MoeURL</a>
     </header>
 
-    <section class="redirect-page__content" aria-live="polite">
+    <section class="redirect-page__content">
       <template v-if="loading">
         <v-progress-linear indeterminate />
       </template>
 
-      <div v-else-if="failureState" class="redirect-page__state">
+      <div v-else-if="failureState" class="redirect-page__state" aria-live="polite">
         <h1>{{ t(`redirect.${failureState}`) }}</h1>
         <v-btn v-if="failureState === 'loadFailed'" color="primary" @click="loadPreview">
           {{ t('redirect.retry') }}
@@ -22,7 +22,7 @@
         <h1>{{ t('redirect.title') }}</h1>
         <p class="redirect-page__target-label">{{ t('redirect.targetHost') }}</p>
         <strong class="redirect-page__target">{{ preview.targetHost }}</strong>
-        <div class="redirect-page__countdown">
+        <div class="redirect-page__countdown" aria-live="off">
           <strong>{{ remainingSeconds }}</strong>
           <span>{{ t('redirect.seconds') }}</span>
         </div>

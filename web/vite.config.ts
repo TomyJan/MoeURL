@@ -27,6 +27,7 @@ export default defineConfig({
             },
             {
               name: 'vendor-qrcode',
+              // dijkstrajs and pngjs are transitive qrcode dependencies. Revalidate this pattern whenever qrcode is upgraded.
               test: /node_modules[\\/](?:qrcode|dijkstrajs|pngjs)[\\/]/,
               priority: 20,
             },

@@ -81,10 +81,10 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
-import { z } from 'zod'
 
 import { me } from '@/entities/auth/api'
 import type { RedirectMode, ShortLink, UpdateShortLinkInput } from '@/entities/short-link/model'
+import { futureDateTimeSchema, targetUrlSchema } from '@/shared/validation/shortLinkAccess'
 
 const props = defineProps<{
   errorMessage?: string
@@ -106,11 +106,6 @@ const expirationEnabled = ref(false)
 const expiresAt = ref('')
 const targetErrorMessage = ref('')
 const expirationErrorMessage = ref('')
-const targetUrlSchema = z.string().trim().pipe(z.url())
-const futureDateTimeSchema = z.string().trim().min(1).refine((value) => {
-  const timestamp = new Date(value).getTime()
-  return Number.isFinite(timestamp) && timestamp > Date.now()
-})
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,

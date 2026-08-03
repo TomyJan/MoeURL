@@ -31,7 +31,7 @@ vi.mock('@/entities/short-link/api', () => ({
 }))
 
 vi.mock('@tanstack/vue-query', () => ({
-  useMutation: vi.fn((options?: { onSuccess?: (value: unknown) => void }) => {
+  useMutation: vi.fn((options?: { mutationFn?: (input: unknown) => unknown; onSuccess?: (value: unknown) => void }) => {
     state.mutationOptions.push(options)
     const base = state.mutationResult as {
       data?: ReturnType<typeof ref>
@@ -40,15 +40,41 @@ vi.mock('@tanstack/vue-query', () => ({
       mutate?: (input: unknown) => void
     }
     const providedMutate = base.mutate
+    const data = base.data ?? ref(undefined)
+    const error = base.error ?? ref(undefined)
+    const isPending = base.isPending ?? ref(false)
+    const succeed = (value: unknown) => {
+      data.value = value
+      options?.onSuccess?.(value)
+    }
     return {
-      data: base.data ?? ref(undefined),
-      error: base.error ?? ref(undefined),
-      isPending: base.isPending ?? ref(false),
+      data,
+      error,
+      isPending,
       mutate: vi.fn((input: unknown) => {
-        providedMutate?.(input)
-        options?.onSuccess?.({
-          shortLink: { slug: 'abc123', url: 'https://go.example.com/abc123' },
-        })
+        if (providedMutate) {
+          providedMutate(input)
+          return
+        }
+        error.value = undefined
+        try {
+          const result = options?.mutationFn?.(input)
+          if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
+            isPending.value = true
+            void Promise.resolve(result)
+              .then(succeed)
+              .catch((reason) => {
+                error.value = reason
+              })
+              .finally(() => {
+                isPending.value = false
+              })
+            return
+          }
+          succeed(result)
+        } catch (reason) {
+          error.value = reason
+        }
       }),
     }
   }),
@@ -99,6 +125,10 @@ describe('ShortLinkCreatePanel', () => {
     state.invalidateQueries.mockReset()
     state.mutationOptions = []
     state.queryOptions = []
+    vi.mocked(createShortLink).mockReset()
+    vi.mocked(createShortLink).mockResolvedValue({
+      shortLink: { slug: 'abc123', url: 'https://go.example.com/abc123' },
+    } as never)
     setQueryResult([])
     setMutationResult()
     Object.defineProperty(window.navigator, 'clipboard', {
@@ -139,9 +169,8 @@ describe('ShortLinkCreatePanel', () => {
   })
 
   it('creates a short link and exposes copy and reset actions', async () => {
-    const mutate = vi.fn()
     setQueryResult(['short_link:create', 'domain:use_default'])
-    setMutationResult({ mutate })
+    setMutationResult()
 
     mountPanel({ mode: 'full' })
 
@@ -153,10 +182,10 @@ describe('ShortLinkCreatePanel', () => {
     await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
-    expect(mutate).toHaveBeenCalledWith({ targetUrl: 'https://example.com' })
+    expect(createShortLink).toHaveBeenCalledWith({ targetUrl: 'https://example.com' })
+    expect(await screen.findByTestId('short-link-create-result')).toBeTruthy()
     expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['short-link'] })
     expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['admin-short-link'] })
-    expect(screen.getByTestId('short-link-create-result')).toBeTruthy()
     expect(screen.getByText('shortLinkCreate.successTitle')).toBeTruthy()
     expect(screen.getByText('https://go.example.com/abc123')).toBeTruthy()
 
@@ -173,6 +202,21 @@ describe('ShortLinkCreatePanel', () => {
     expect(screen.queryByText('https://go.example.com/abc123')).toBeNull()
   })
 
+  it('does not run the real mutation or success flow when a custom mutate is provided', async () => {
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_default'])
+    setMutationResult({ mutate })
+
+    mountPanel()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+
+    expect(mutate).toHaveBeenCalledWith({ targetUrl: 'https://example.com' })
+    expect(createShortLink).not.toHaveBeenCalled()
+    expect(state.invalidateQueries).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('short-link-create-result')).toBeNull()
+  })
+
 	it('hides advanced settings without access-configuration permissions', () => {
 		setQueryResult(['short_link:create', 'domain:use_default'])
 
@@ -184,14 +228,13 @@ describe('ShortLinkCreatePanel', () => {
 	})
 
 	it('submits intermediate and future expiration settings then resets defaults', async () => {
-		const mutate = vi.fn()
 		setQueryResult([
 			'short_link:create',
 			'domain:use_default',
 			'short_link:use_intermediate',
 			'short_link:set_expiration',
 		])
-		setMutationResult({ mutate })
+		setMutationResult()
 
 		mountPanel()
 
@@ -210,18 +253,19 @@ describe('ShortLinkCreatePanel', () => {
 		expect(screen.getByText('shortLinkCreate.expirationRequired')).toBeTruthy()
 		await fireEvent.update(screen.getByLabelText('shortLinkCreate.expiresAt'), '2020-01-01T00:00')
 		await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
-		expect(mutate).not.toHaveBeenCalled()
+		expect(createShortLink).not.toHaveBeenCalled()
 		expect(screen.getByText('shortLinkCreate.expirationFuture')).toBeTruthy()
 
 		await fireEvent.update(screen.getByLabelText('shortLinkCreate.expiresAt'), '2099-01-01T00:00')
 		await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
-		expect(mutate).toHaveBeenCalledWith({
+		expect(createShortLink).toHaveBeenCalledWith({
 			targetUrl: 'https://example.com/docs',
 			redirectMode: 'intermediate',
 			intermediateDelaySeconds: 7,
 			expiration: { mode: 'at', expiresAt: new Date('2099-01-01T00:00').toISOString() },
 		})
+		expect(await screen.findByTestId('short-link-create-result')).toBeTruthy()
 		expect((screen.getByLabelText('shortLinkCreate.targetLabel') as HTMLInputElement).value).toBe('')
 		expect(screen.queryByLabelText('shortLinkCreate.intermediateDelay')).toBeNull()
 		expect((screen.getByLabelText('shortLinkCreate.expirationEnabled') as HTMLInputElement).checked).toBe(false)
@@ -282,13 +326,6 @@ describe('ShortLinkCreatePanel', () => {
     expect(submitButtonBlock).toContain(':disabled="!canCreateShortLink || mutation.isPending.value"')
   })
 
-  it('uses the Zod 4 URL validator pipeline for target URLs', () => {
-    const source = readFileSync('src/features/short-link-create/ShortLinkCreatePanel.vue', 'utf8')
-
-    expect(source).toContain('z.string().trim().pipe(z.url())')
-    expect(source).not.toContain('z.string().trim().url()')
-  })
-
   it('shows copy failures without clearing the created link', async () => {
     setQueryResult(['short_link:create', 'domain:use_default'])
     setMutationResult()
@@ -301,7 +338,7 @@ describe('ShortLinkCreatePanel', () => {
 
     await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
-    await fireEvent.click(screen.getByText('shortLinkCreate.copy'))
+    await fireEvent.click(await screen.findByText('shortLinkCreate.copy'))
 
     expect(await screen.findByText('shortLinkCreate.copyFailed')).toBeTruthy()
     expect(screen.getByText('https://go.example.com/abc123')).toBeTruthy()
@@ -318,7 +355,7 @@ describe('ShortLinkCreatePanel', () => {
 
 		await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
 		await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
-		await fireEvent.click(screen.getByText('shortLinkCreate.copy'))
+		await fireEvent.click(await screen.findByText('shortLinkCreate.copy'))
 
 		expect(await screen.findByText('shortLinkCreate.copyFailed')).toBeTruthy()
 	})

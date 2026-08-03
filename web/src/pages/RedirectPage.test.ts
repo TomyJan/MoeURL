@@ -58,13 +58,15 @@ describe('RedirectPage', () => {
   })
 
   it('loads the minimal preview and continues after the countdown', async () => {
-    mountPage()
+    const { container } = mountPage()
     expect(screen.getByRole('progressbar')).toBeTruthy()
+    expect(container.querySelector('.redirect-page__content')?.getAttribute('aria-live')).toBeNull()
 
     await flushPreview()
     expect(getPublicShortLinkPreview).toHaveBeenCalledWith('abc123')
     expect(screen.getByText('example.com')).toBeTruthy()
     expect(screen.getByText('5')).toBeTruthy()
+    expect(container.querySelector('.redirect-page__countdown')?.getAttribute('aria-live')).toBe('off')
 
     await vi.advanceTimersByTimeAsync(5_000)
     expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
@@ -96,10 +98,11 @@ describe('RedirectPage', () => {
         intermediateDelaySeconds: 3,
         expiresAt: null,
       })
-    mountPage()
+    const { container } = mountPage()
     await flushPreview()
 
     expect(screen.getByText('redirect.loadFailed')).toBeTruthy()
+    expect(container.querySelector('.redirect-page__state')?.getAttribute('aria-live')).toBe('polite')
     await fireEvent.click(screen.getByRole('button', { name: 'redirect.retry' }))
     await flushPreview()
 

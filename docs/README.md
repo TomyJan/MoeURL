@@ -61,6 +61,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 - [技术选型决策](implementation/technical-decision.md)
 - [技术基线](implementation/technical-baseline.md)
 - [v0.2.0 实施计划](implementation/v0.2.0-plan.md)
+- [v0.2.0 详细实现计划](implementation/v0.2.0-detailed-plan.md)
 - [v0.2.0 任务级实施清单](implementation/v0.2.0-tasks.md)
 - [v0.2.0 验收清单](implementation/v0.2.0-acceptance.md)
 - [v0.0.1 工程实施合同](implementation/v0.0.1-implementation-contract.md)
