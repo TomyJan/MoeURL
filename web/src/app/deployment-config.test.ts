@@ -1,9 +1,35 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
+import { loadConfigFromFile } from 'vite'
 import { describe, expect, it } from 'vitest'
 
+import playwrightConfig from '../../playwright.config'
+
 const repositoryRoot = resolve(__dirname, '../../..')
+
+type RolldownChunkGroup = {
+  name?: string
+  test?: RegExp
+}
+
+type LoadedViteConfig = {
+  build?: {
+    chunkSizeWarningLimit?: number
+    rolldownOptions?: {
+      output?: {
+        codeSplitting?: {
+          groups?: RolldownChunkGroup[]
+          maxSize?: unknown
+        }
+      }
+    }
+  }
+}
+
+function configuredChunkGroups(config: LoadedViteConfig) {
+  return config.build?.rolldownOptions?.output?.codeSplitting?.groups
+}
 
 describe('deployment configuration', () => {
   it('keeps the development PostgreSQL volume on the established mount path', () => {
@@ -50,24 +76,33 @@ describe('deployment configuration', () => {
     expect(declarations).not.toContain('vuetify/lib/framework')
   })
 
-  it('keeps large frontend dependencies in explicit Rolldown chunks', () => {
-    const config = readFileSync(resolve(repositoryRoot, 'web/vite.config.ts'), 'utf8')
+  it('keeps large frontend dependencies in explicit Rolldown chunks', async () => {
+    const loadedConfig = await loadConfigFromFile(
+      { command: 'build', mode: 'test' },
+      resolve(repositoryRoot, 'web/vite.config.ts'),
+    )
+    if (!loadedConfig) {
+      throw new Error('expected Vite configuration to load')
+    }
+    const viteConfig = loadedConfig.config as LoadedViteConfig
+    const groups = configuredChunkGroups(viteConfig)
+    const vendorVue = groups?.find(({ name }) => name === 'vendor-vue')
 
-    expect(config).toContain('rolldownOptions')
-    expect(config).toContain('codeSplitting')
-    expect(config).toContain("name: 'vendor-vue'")
-    expect(config).toMatch(/vendor-vue[\s\S]*vue-i18n/)
-    expect(config).toContain("name: 'vendor-vuetify'")
-    expect(config).toContain("name: 'vendor-chart'")
-    expect(config).toContain("name: 'vendor-qrcode'")
-    expect(config).not.toContain('maxSize')
-    expect(config).not.toContain('chunkSizeWarningLimit')
+    expect(groups?.map(({ name }) => name)).toEqual(expect.arrayContaining([
+      'vendor-vue',
+      'vendor-vuetify',
+      'vendor-chart',
+      'vendor-qrcode',
+    ]))
+    expect(vendorVue?.test).toBeInstanceOf(RegExp)
+    expect(vendorVue?.test?.test('C:/app/node_modules/vue-i18n/dist/vue-i18n.mjs')).toBe(true)
+    expect(viteConfig.build?.chunkSizeWarningLimit).toBeUndefined()
+    expect(viteConfig.build?.rolldownOptions?.output?.codeSplitting?.maxSize).toBeUndefined()
   })
 
   it('allows a cold Docker image build to finish before Playwright starts', () => {
-    const config = readFileSync(resolve(repositoryRoot, 'web/playwright.config.ts'), 'utf8')
-
-    expect(config).toMatch(/webServer:[\s\S]*timeout: 600_000/)
+    expect(playwrightConfig.webServer).not.toBeInstanceOf(Array)
+    expect(playwrightConfig.webServer).toMatchObject({ timeout: 600_000 })
   })
 
   it('registers only the Vuetify components used by the application', () => {

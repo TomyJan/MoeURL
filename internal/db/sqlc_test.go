@@ -78,6 +78,14 @@ func TestShortLinkExpirationQueriesUseDatabaseTime(t *testing.T) {
 	if err != nil || bySlug.Expired {
 		t.Fatalf("expected future database expiration to remain active: %v, %#v", err, bySlug)
 	}
+	ownerRows, err = queries.ListShortLinksByOwner(ctx, sqlc.ListShortLinksByOwnerParams{OwnerID: uuidToPgtype(ownerID), Limit: 20})
+	if err != nil || len(ownerRows) != 1 || ownerRows[0].Expired {
+		t.Fatalf("expected future owner list expiration to remain active: %v, %#v", err, ownerRows)
+	}
+	adminRows, err = queries.ListAllShortLinks(ctx, sqlc.ListAllShortLinksParams{Limit: 20})
+	if err != nil || len(adminRows) != 1 || adminRows[0].Expired {
+		t.Fatalf("expected future admin list expiration to remain active: %v, %#v", err, adminRows)
+	}
 }
 
 // TestWithTxRollsBackAfterPanic verifies a panic releases the transaction connection.
