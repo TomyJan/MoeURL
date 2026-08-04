@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.62.0",
+    "@playwright/test": "^1.62.1",
     "@testing-library/vue": "^8.1.0",
     "@types/node": "^26.1.2",
     "@types/qrcode": "^1.5.6",
