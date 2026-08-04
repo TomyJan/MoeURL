@@ -27,7 +27,7 @@ func TestInitialMigrationCreatesCoreTablesAndConstraints(t *testing.T) {
 		t.Fatalf("run migrations: %v", err)
 	}
 
-	expectedTables := []string{"system_setting", "user_group", "app_user", "session", "domain", "short_link", "short_link_event"}
+	expectedTables := []string{"system_setting", "user_group", "app_user", "session", "domain", "short_link", "short_link_event", "short_link_access_grant"}
 	for _, table := range expectedTables {
 		t.Run(fmt.Sprintf("table_%s_exists", table), func(t *testing.T) {
 			var exists bool
@@ -64,6 +64,80 @@ func TestInitialMigrationCreatesCoreTablesAndConstraints(t *testing.T) {
 	}
 	if pgErr.Code != "23505" {
 		t.Fatalf("expected unique violation code 23505, got %s", pgErr.Code)
+	}
+}
+
+func TestShortLinkPasswordMigrationAddsProtectedAccessStateAndRollsBack(t *testing.T) {
+	ctx := context.Background()
+	database := migrationTestDatabase(t, ctx)
+	migrationsDir := filepath.Join("..", "..", "migrations")
+
+	if err := goose.UpTo(database, migrationsDir, 5); err != nil {
+		t.Fatalf("run migrations through version 5: %v", err)
+	}
+	insertUserGroups(t, ctx, database)
+	if _, err := database.ExecContext(ctx, `
+		insert into short_link (id, owner_id, domain_id, slug, target_url, status, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000101', 'protected', 'https://example.com', 'active', now(), now())
+	`); err != nil {
+		t.Fatalf("insert pre-password short link: %v", err)
+	}
+
+	if err := goose.UpTo(database, migrationsDir, 6); err != nil {
+		t.Fatalf("upgrade password migration: %v", err)
+	}
+
+	var passwordHash sql.NullString
+	var failedAttempts int
+	var windowStarted, blockedUntil, passwordUpdated sql.NullTime
+	err := database.QueryRowContext(ctx, `
+		select password_hash, password_failed_attempts, password_window_started_at,
+			password_blocked_until, password_updated_at
+		from short_link where slug = 'protected'
+	`).Scan(&passwordHash, &failedAttempts, &windowStarted, &blockedUntil, &passwordUpdated)
+	if err != nil {
+		t.Fatalf("read password defaults: %v", err)
+	}
+	if passwordHash.Valid || failedAttempts != 0 || windowStarted.Valid || blockedUntil.Valid || passwordUpdated.Valid {
+		t.Fatalf("unexpected password defaults: hash=%v attempts=%d window=%v blocked=%v updated=%v", passwordHash, failedAttempts, windowStarted, blockedUntil, passwordUpdated)
+	}
+
+	var grantTableExists bool
+	if err := database.QueryRowContext(ctx, `
+		select exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'short_link_access_grant')
+	`).Scan(&grantTableExists); err != nil {
+		t.Fatalf("check access grant table: %v", err)
+	}
+	if !grantTableExists {
+		t.Fatal("expected short_link_access_grant table")
+	}
+	var passwordPermission bool
+	if err := database.QueryRowContext(ctx, `select permissions ? 'short_link:set_password' from user_group where key = 'user'`).Scan(&passwordPermission); err != nil {
+		t.Fatalf("query upgraded password permission: %v", err)
+	}
+	if !passwordPermission {
+		t.Fatal("expected migration to add short_link:set_password")
+	}
+
+	if err := goose.DownTo(database, migrationsDir, 5); err != nil {
+		t.Fatalf("rollback password migration: %v", err)
+	}
+	var passwordColumnCount int
+	if err := database.QueryRowContext(ctx, `
+		select count(*) from information_schema.columns
+		where table_schema = 'public' and table_name = 'short_link'
+		and column_name in ('password_hash', 'password_failed_attempts', 'password_window_started_at', 'password_blocked_until', 'password_updated_at')
+	`).Scan(&passwordColumnCount); err != nil {
+		t.Fatalf("check rolled-back password columns: %v", err)
+	}
+	if passwordColumnCount != 0 {
+		t.Fatalf("expected password columns to be removed, found %d", passwordColumnCount)
+	}
+	if err := database.QueryRowContext(ctx, `select permissions ? 'short_link:set_password' from user_group where key = 'user'`).Scan(&passwordPermission); err != nil {
+		t.Fatalf("query rolled-back password permission: %v", err)
+	}
+	if passwordPermission {
+		t.Fatal("expected rollback to remove migration-added password permission")
 	}
 }
 

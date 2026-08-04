@@ -4,19 +4,24 @@ select now()::timestamptz as database_time;
 -- name: CreateShortLink :one
 insert into short_link (
     id, owner_id, domain_id, slug, target_url, status,
-    redirect_mode, intermediate_delay_seconds, expires_at,
+    redirect_mode, intermediate_delay_seconds, expires_at, password_hash,
+    password_updated_at,
     created_at, updated_at
 )
-values ($1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
+values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+    case when $10::text is null then null else now() end,
+    now(), now())
 returning id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at,
     coalesce(expires_at <= now(), false)::boolean as expired,
+    password_hash,
     created_at, updated_at, deleted_at;
 
 -- name: GetShortLinkBySlug :one
 select id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at,
     coalesce(expires_at <= now(), false)::boolean as expired,
+    password_hash,
     created_at, updated_at, deleted_at
 from short_link
 where slug = $1 and deleted_at is null;
@@ -31,6 +36,7 @@ select short_link.id,
     short_link.intermediate_delay_seconds,
     short_link.expires_at,
     coalesce(short_link.expires_at <= now(), false)::boolean as expired,
+    short_link.password_hash,
     short_link.created_at,
     domain.host as domain_host
 from short_link
@@ -48,6 +54,7 @@ select short_link.id,
     short_link.intermediate_delay_seconds,
     short_link.expires_at,
     coalesce(short_link.expires_at <= now(), false)::boolean as expired,
+    short_link.password_hash,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
@@ -100,6 +107,16 @@ set target_url = coalesce(sqlc.narg('target_url'), target_url),
         when 'at' then sqlc.narg('expires_at')::timestamptz
         else expires_at
     end,
+    password_hash = case sqlc.arg('password_mode')::text
+        when 'never' then null
+        when 'set' then sqlc.narg('password_hash')::text
+        else password_hash
+    end,
+    password_updated_at = case sqlc.arg('password_mode')::text
+        when 'never' then now()
+        when 'set' then now()
+        else password_updated_at
+    end,
     updated_at = now()
 where id = sqlc.arg('id')
     and owner_id = sqlc.arg('owner_id')
@@ -107,6 +124,7 @@ where id = sqlc.arg('id')
 returning id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at,
     coalesce(expires_at <= now(), false)::boolean as expired,
+    password_hash,
     created_at, updated_at, deleted_at;
 
 -- name: SoftDeleteOwnShortLink :execrows
@@ -128,6 +146,7 @@ select short_link.id,
     short_link.intermediate_delay_seconds,
     short_link.expires_at,
     coalesce(short_link.expires_at <= now(), false)::boolean as expired,
+    short_link.password_hash,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
@@ -184,12 +203,23 @@ set target_url = coalesce(sqlc.narg('target_url'), target_url),
         when 'at' then sqlc.narg('expires_at')::timestamptz
         else expires_at
     end,
+    password_hash = case sqlc.arg('password_mode')::text
+        when 'never' then null
+        when 'set' then sqlc.narg('password_hash')::text
+        else password_hash
+    end,
+    password_updated_at = case sqlc.arg('password_mode')::text
+        when 'never' then now()
+        when 'set' then now()
+        else password_updated_at
+    end,
     updated_at = now()
 where id = sqlc.arg('id')
     and deleted_at is null
 returning id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at,
     coalesce(expires_at <= now(), false)::boolean as expired,
+    password_hash,
     created_at, updated_at, deleted_at;
 
 -- name: SoftDeleteAnyShortLink :execrows
@@ -198,3 +228,39 @@ set deleted_at = now(),
     updated_at = now()
 where id = $1
     and deleted_at is null;
+
+-- name: GetShortLinkPasswordStateForUpdate :one
+select id, password_hash, password_failed_attempts, password_window_started_at,
+    password_blocked_until, password_updated_at
+from short_link
+where id = $1 and deleted_at is null
+for update;
+
+-- name: RecordShortLinkPasswordFailure :exec
+update short_link
+set password_failed_attempts = $2,
+    password_window_started_at = $3,
+    password_blocked_until = $4
+where id = $1 and deleted_at is null;
+
+-- name: ResetShortLinkPasswordFailures :exec
+update short_link
+set password_failed_attempts = 0,
+    password_window_started_at = null,
+    password_blocked_until = null
+where id = $1 and deleted_at is null;
+
+-- name: CreateShortLinkAccessGrant :one
+insert into short_link_access_grant (id, short_link_id, token_hash, expires_at, created_at)
+values ($1, $2, $3, $4, now())
+returning id, short_link_id, token_hash, expires_at, created_at;
+
+-- name: GetValidShortLinkAccessGrant :one
+select access_grant.id, access_grant.short_link_id, access_grant.token_hash,
+    access_grant.expires_at, access_grant.created_at
+from short_link_access_grant as access_grant
+join short_link on short_link.id = access_grant.short_link_id
+where access_grant.short_link_id = $1
+    and access_grant.token_hash = $2
+    and access_grant.expires_at > now()
+    and (short_link.password_updated_at is null or access_grant.created_at >= short_link.password_updated_at);

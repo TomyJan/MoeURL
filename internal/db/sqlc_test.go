@@ -209,11 +209,12 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 		RedirectMode:             "intermediate",
 		IntermediateDelaySeconds: 7,
 		ExpiresAt:                pgtype.Timestamptz{Time: expiresAt, Valid: true},
+		PasswordHash:             pgtype.Text{String: "$argon2id$v=19$m=1,t=1,p=1$test", Valid: true},
 	})
 	if err != nil {
 		t.Fatalf("create configured short link: %v", err)
 	}
-	if created.RedirectMode != "intermediate" || created.IntermediateDelaySeconds != 7 || !created.ExpiresAt.Valid || !created.ExpiresAt.Time.Equal(expiresAt) || created.Expired {
+	if created.RedirectMode != "intermediate" || created.IntermediateDelaySeconds != 7 || !created.ExpiresAt.Valid || !created.ExpiresAt.Time.Equal(expiresAt) || created.Expired || !created.PasswordHash.Valid {
 		t.Fatalf("unexpected created access config: %#v", created)
 	}
 
@@ -221,7 +222,7 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get configured short link: %v", err)
 	}
-	if bySlug.RedirectMode != "intermediate" || bySlug.IntermediateDelaySeconds != 7 || !bySlug.ExpiresAt.Valid || bySlug.Expired {
+	if bySlug.RedirectMode != "intermediate" || bySlug.IntermediateDelaySeconds != 7 || !bySlug.ExpiresAt.Valid || bySlug.Expired || !bySlug.PasswordHash.Valid {
 		t.Fatalf("unexpected slug access config: %#v", bySlug)
 	}
 
@@ -238,7 +239,7 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 	for _, row := range listed {
 		if row.ID == uuidToPgtype(configuredID) {
 			found = true
-			if row.RedirectMode != "intermediate" || row.IntermediateDelaySeconds != 7 || !row.ExpiresAt.Valid || row.Expired {
+			if row.RedirectMode != "intermediate" || row.IntermediateDelaySeconds != 7 || !row.ExpiresAt.Valid || row.Expired || !row.PasswordHash.Valid {
 				t.Fatalf("unexpected listed access config: %#v", row)
 			}
 		}
@@ -262,6 +263,20 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 	}
 	if updated.RedirectMode != "intermediate" || updated.IntermediateDelaySeconds != 7 || !updated.ExpiresAt.Valid {
 		t.Fatalf("status update cleared access config: %#v", updated)
+	}
+
+	passwordUpdated, err := queries.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
+		ID:             uuidToPgtype(configuredID),
+		OwnerID:        uuidToPgtype(ownerID),
+		PasswordMode:   "never",
+		PasswordHash:   pgtype.Text{},
+		ExpirationMode: "keep",
+	})
+	if err != nil {
+		t.Fatalf("clear short link password: %v", err)
+	}
+	if passwordUpdated.PasswordHash.Valid {
+		t.Fatalf("expected cleared password hash, got %#v", passwordUpdated.PasswordHash)
 	}
 
 	cleared, err := queries.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
