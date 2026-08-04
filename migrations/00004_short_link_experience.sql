@@ -20,15 +20,21 @@ create table moeurl_short_link_experience_permission_addition (
 comment on table moeurl_short_link_experience_permission_addition is
     'Tracks permissions added by migration 00004 for reversible rollback.';
 
+-- Goose keeps these row locks through the following update and transaction commit.
+with locked_user_group as materialized (
+    select id, permissions
+    from user_group
+    where key in ('user', 'admin')
+    for update
+)
 insert into moeurl_short_link_experience_permission_addition (user_group_id, permission)
-select user_group.id, added.permission
-from user_group
+select locked_user_group.id, added.permission
+from locked_user_group
 cross join (values
     ('short_link:use_intermediate'),
     ('short_link:set_expiration')
 ) as added(permission)
-where user_group.key in ('user', 'admin')
-    and not (user_group.permissions ? added.permission);
+where not (locked_user_group.permissions ? added.permission);
 
 update user_group
 set permissions = permissions

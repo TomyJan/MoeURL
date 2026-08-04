@@ -251,7 +251,7 @@ func TestRedirectHandlerPreviewUsesUnifiedMinimalResponse(t *testing.T) {
 	if body.Code != 0 || body.Data.TargetHost != "example.com" || body.Data.IntermediateDelaySeconds != 7 || body.Data.ExpiresAt == nil || !body.Data.ExpiresAt.Equal(expiresAt) {
 		t.Fatalf("unexpected preview body: %#v", body)
 	}
-	if bytes.Contains(raw, []byte("https://example.com/final")) || bytes.Contains(raw, []byte("targetUrl")) {
+	if bytes.Contains(raw, []byte("https://")) || bytes.Contains(raw, []byte("http://")) || bytes.Contains(raw, []byte("targetUrl")) {
 		t.Fatalf("preview leaked target URL: %s", raw)
 	}
 }

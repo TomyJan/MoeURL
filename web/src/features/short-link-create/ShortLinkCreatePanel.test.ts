@@ -188,6 +188,32 @@ describe('ShortLinkCreatePanel', () => {
     expect(screen.queryByLabelText('shortLinkCreate.expirationEnabled')).toBeNull()
   })
 
+  it('submits intermediate settings without expiration when only intermediate access is allowed', async () => {
+    const mutate = vi.fn()
+    setQueryResult([
+      'short_link:create',
+      'domain:use_default',
+      'short_link:use_intermediate',
+    ])
+    setMutationResult({ mutate })
+
+    mountPanel()
+
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    expect(screen.getByText('shortLinkCreate.redirectModes.intermediate')).toBeTruthy()
+    expect(screen.queryByLabelText('shortLinkCreate.expirationEnabled')).toBeNull()
+    await fireEvent.click(screen.getByText('shortLinkCreate.redirectModes.intermediate'))
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+
+    expect(mutate).toHaveBeenCalledWith({
+      targetUrl: 'https://example.com',
+      redirectMode: 'intermediate',
+      intermediateDelaySeconds: 5,
+    })
+    expect(mutate.mock.calls[0]?.[0]).not.toHaveProperty('expiration')
+  })
+
   it('submits intermediate and future expiration settings then resets defaults', async () => {
     setQueryResult([
       'short_link:create',

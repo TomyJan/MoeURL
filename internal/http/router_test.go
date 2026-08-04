@@ -121,13 +121,14 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 	var body struct {
 		Code int `json:"code"`
 		Data struct {
-			TargetHost string `json:"targetHost"`
+			TargetHost string  `json:"targetHost"`
+			TargetURL  *string `json:"targetUrl"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(preview.Body).Decode(&body); err != nil {
 		t.Fatalf("decode preview: %v", err)
 	}
-	if preview.Code != http.StatusOK || body.Code != 0 || body.Data.TargetHost != "example.com" {
+	if preview.Code != http.StatusOK || body.Code != 0 || body.Data.TargetHost != "example.com" || body.Data.TargetURL != nil {
 		t.Fatalf("unexpected preview response: status %d body %#v", preview.Code, body)
 	}
 	if len(redirect.previewSlugs) != 1 || redirect.previewSlugs[0] != "middle" {
