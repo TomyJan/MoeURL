@@ -8,7 +8,7 @@ const state = vi.hoisted(() => ({
   error: undefined as unknown,
   invalidateQueries: vi.fn(),
   isError: false,
-  mutationOptions: undefined as { onSuccess?: () => void } | undefined,
+  mutationOptions: undefined as { onSuccess?: (value?: unknown, variables?: UpdateShortLinkInput) => void } | undefined,
   mutate: vi.fn(),
   reset: vi.fn(),
 }))
@@ -18,7 +18,7 @@ vi.mock('vue-i18n', () => ({
 }))
 
 vi.mock('@tanstack/vue-query', () => ({
-  useMutation: (options: { onSuccess?: () => void }) => {
+  useMutation: (options: { onSuccess?: (value?: unknown, variables?: UpdateShortLinkInput) => void }) => {
     state.mutationOptions = options
     return {
       error: ref(state.error),
@@ -89,9 +89,23 @@ describe('useShortLinkSettings', () => {
     expect(state.mutate).toHaveBeenCalledWith(input)
     expect(settings.settingsErrorMessage.value).toBe('settings failed')
 
-    state.mutationOptions?.onSuccess?.()
+    state.mutationOptions?.onSuccess?.(undefined, input)
     expect(settings.settingsLink.value).toBeNull()
     expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['admin-short-link'] })
+  })
+
+  it('keeps a newer settings dialog open when an older save succeeds', () => {
+    const settings = useShortLinkSettings({ mutationFn: vi.fn(), queryKey: ['short-link'] })
+    const input: UpdateShortLinkInput = { id: 'link-id', targetUrl: 'https://example.org' }
+
+    settings.configure(link)
+    settings.saveSettings(input)
+    settings.configure({ ...link, id: 'other-link', slug: 'def456' })
+
+    state.mutationOptions?.onSuccess?.(undefined, input)
+
+    expect(settings.settingsLink.value?.id).toBe('other-link')
+    expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['short-link'] })
   })
 
   it('uses the translated fallback for non-Error mutation failures', () => {

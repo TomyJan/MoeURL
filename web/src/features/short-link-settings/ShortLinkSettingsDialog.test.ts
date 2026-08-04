@@ -123,7 +123,7 @@ describe('ShortLinkSettingsDialog', () => {
 
   it('omits an unchanged persisted expiration when saving other fields', async () => {
     vi.setSystemTime(new Date('2026-08-04T00:00:00Z'))
-    const persistedExpiresAt = '2026-08-03T02:30:00Z'
+    const persistedExpiresAt = '2026-08-03T02:30:45Z'
     const view = mountDialog({
       link: {
         ...directLink,
@@ -131,7 +131,7 @@ describe('ShortLinkSettingsDialog', () => {
       },
     })
 
-    expect((screen.getByLabelText('shortLinkSettings.expiresAt') as HTMLInputElement).step).toBe('1')
+    expect(screen.getByLabelText('shortLinkSettings.expiresAt').getAttribute('step')).toBeNull()
     await fireEvent.update(screen.getByLabelText('shortLinkSettings.targetUrl'), 'https://example.com/updated')
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
 

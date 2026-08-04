@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -78,14 +79,14 @@ func TestHandlerDecodesAccessConfigInputs(t *testing.T) {
 		},
 		ShortLink: service,
 	})
-	future := time.Date(2026, time.August, 10, 12, 0, 0, 0, time.UTC)
+	future := time.Now().UTC().Add(time.Hour).Truncate(time.Second)
 	createResponse := httptest.NewRecorder()
-	createRequest := httptest.NewRequest(http.MethodPost, "/api/v1/short-link/create", bytes.NewBufferString(`{
+	createRequest := httptest.NewRequest(http.MethodPost, "/api/v1/short-link/create", bytes.NewBufferString(fmt.Sprintf(`{
 		"targetUrl":"https://example.com/docs",
 		"redirectMode":"intermediate",
 		"intermediateDelaySeconds":7,
-		"expiration":{"mode":"at","expiresAt":"2026-08-10T12:00:00Z"}
-	}`))
+		"expiration":{"mode":"at","expiresAt":%q}
+	}`, future.Format(time.RFC3339))))
 	router.ServeHTTP(createResponse, createRequest)
 	if createResponse.Code != http.StatusOK {
 		t.Fatalf("unexpected create response: %d %s", createResponse.Code, createResponse.Body.String())

@@ -291,6 +291,7 @@ func TestRedirectServiceContinueRechecksEveryAccessCondition(t *testing.T) {
 	user := insertShortLinkUser(t, ctx, pool, "alice", "user", []string{})
 	insertStoredShortLink(t, ctx, pool, user.ID, "disabled3", "https://example.com/disabled", "disabled", false)
 	insertStoredShortLink(t, ctx, pool, user.ID, "direct2", "https://example.com/direct", "active", false)
+	insertStoredShortLink(t, ctx, pool, user.ID, "deleted3", "https://example.com/deleted", "active", true)
 
 	tests := []struct {
 		name   string
@@ -301,6 +302,7 @@ func TestRedirectServiceContinueRechecksEveryAccessCondition(t *testing.T) {
 		{name: "missing", slug: "missing2", err: shortlink.ErrShortLinkMissing, events: []string{event.AccessConditionChecked, event.RedirectBlocked}},
 		{name: "disabled", slug: "disabled3", err: shortlink.ErrShortLinkDisabled, events: []string{event.AccessConditionChecked, event.RedirectBlocked}},
 		{name: "direct", slug: "direct2", err: shortlink.ErrShortLinkNotIntermediate, events: []string{event.AccessConditionChecked, event.RedirectBlocked}},
+		{name: "deleted", slug: "deleted3", err: shortlink.ErrShortLinkMissing, events: []string{event.AccessConditionChecked, event.RedirectBlocked}},
 	}
 
 	for _, tt := range tests {

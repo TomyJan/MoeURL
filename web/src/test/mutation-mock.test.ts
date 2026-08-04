@@ -29,12 +29,14 @@ describe('createMutationMock', () => {
     expect(state.data.value).toEqual({ input: 'payload', result: 'raw result' })
     expect(state.error.value).toBeUndefined()
     expect(state.isError.value).toBe(false)
-    expect(onSuccess).toHaveBeenCalledWith({ input: 'payload', result: 'raw result' })
+    expect(onSuccess).toHaveBeenCalledWith({ input: 'payload', result: 'raw result' }, 'payload')
 
+    state.isPending.value = true
     mutation.reset?.()
     expect(state.data.value).toBeUndefined()
     expect(state.error.value).toBeUndefined()
     expect(state.isError.value).toBe(false)
+    expect(state.isPending.value).toBe(false)
     expect(state.variables.value).toBeUndefined()
   })
 
@@ -87,7 +89,7 @@ describe('createMutationMock', () => {
     deferred.resolve('saved')
     await vi.waitFor(() => expect(state.isPending.value).toBe(false))
     expect(state.data.value).toBe('saved')
-    expect(onSuccess).toHaveBeenCalledWith('saved')
+    expect(onSuccess).toHaveBeenCalledWith('saved', 'payload')
   })
 
   it('captures Promise failures and synchronous exceptions', async () => {

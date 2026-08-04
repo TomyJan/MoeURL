@@ -21,8 +21,10 @@ export function useShortLinkSettings(options: UseShortLinkSettingsOptions) {
   const qrLink = ref<ShortLinkSettingsTarget | null>(null)
   const settingsMutation = useMutation({
     mutationFn: options.mutationFn,
-    onSuccess() {
-      settingsLink.value = null
+    onSuccess(_data, variables) {
+      if (settingsLink.value?.id === variables.id) {
+        settingsLink.value = null
+      }
       void queryClient.invalidateQueries({ queryKey: options.queryKey })
     },
   })

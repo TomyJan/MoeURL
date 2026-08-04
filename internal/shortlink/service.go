@@ -664,20 +664,6 @@ func optionalInt2(value *int16) pgtype.Int2 {
 	return pgtype.Int2{Int16: *value, Valid: true}
 }
 
-func (link *ShortLink) setAccessConfig(redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool) {
-	setAccessConfigValues(&link.RedirectMode, &link.IntermediateDelaySeconds, &link.ExpiresAt, &link.Expired, redirectMode, delay, expiresAt, expired)
-}
-
-func (link *AdminShortLink) setAccessConfig(redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool) {
-	setAccessConfigValues(&link.RedirectMode, &link.IntermediateDelaySeconds, &link.ExpiresAt, &link.Expired, redirectMode, delay, expiresAt, expired)
-}
-
-func setAccessConfigValues(redirectMode *string, delay *int16, expiresAt **time.Time, expiredValue *bool, mode string, seconds int16, expiration pgtype.Timestamptz, isExpired bool) {
-	*redirectMode = mode
-	*delay = seconds
-	*expiresAt, *expiredValue = expirationValues(expiration, isExpired)
-}
-
 func expirationValues(value pgtype.Timestamptz, expired bool) (*time.Time, bool) {
 	if !value.Valid {
 		return nil, false

@@ -115,17 +115,14 @@ describe('short link api', () => {
 			expiresAt: null,
 		})
 
-		expect(fetch).toHaveBeenCalledWith(
-			'/api/v1/short-link/create',
-			expect.objectContaining({
-				body: JSON.stringify({
-					targetUrl: 'https://example.com/docs',
-					redirectMode: 'intermediate',
-					intermediateDelaySeconds: 5,
-					expiration: { mode: 'never' },
-				}),
-			}),
-		)
+		const createCall = vi.mocked(fetch).mock.calls.find(([input]) => input === '/api/v1/short-link/create')
+		expect(createCall).toBeDefined()
+		expect(JSON.parse(String(createCall?.[1]?.body))).toEqual({
+			targetUrl: 'https://example.com/docs',
+			redirectMode: 'intermediate',
+			intermediateDelaySeconds: 5,
+			expiration: { mode: 'never' },
+		})
 		expect(fetch).toHaveBeenCalledWith(
 			'/api/v1/public/short-link/preview?slug=a%20b',
 			expect.objectContaining({ method: 'GET' }),

@@ -1,6 +1,10 @@
 package shortlink
 
-import "time"
+import (
+	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
+)
 
 const (
 	RedirectModeDirect       = "direct"
@@ -94,18 +98,28 @@ type ListResult struct {
 	Total    int64       `json:"total"`
 }
 
+type AccessConfig struct {
+	RedirectMode             string     `json:"redirectMode"`
+	IntermediateDelaySeconds int16      `json:"intermediateDelaySeconds"`
+	ExpiresAt                *time.Time `json:"expiresAt"`
+	Expired                  bool       `json:"expired"`
+}
+
+func (config *AccessConfig) setAccessConfig(redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool) {
+	config.RedirectMode = redirectMode
+	config.IntermediateDelaySeconds = delay
+	config.ExpiresAt, config.Expired = expirationValues(expiresAt, expired)
+}
+
 type ShortLink struct {
-	ID                       string          `json:"id"`
-	URL                      string          `json:"url"`
-	Slug                     string          `json:"slug"`
-	TargetURL                string          `json:"targetUrl"`
-	Status                   string          `json:"status"`
-	RedirectMode             string          `json:"redirectMode"`
-	IntermediateDelaySeconds int16           `json:"intermediateDelaySeconds"`
-	ExpiresAt                *time.Time      `json:"expiresAt"`
-	Expired                  bool            `json:"expired"`
-	CreatedAt                time.Time       `json:"createdAt"`
-	Stats                    *ShortLinkStats `json:"stats,omitempty"`
+	ID        string `json:"id"`
+	URL       string `json:"url"`
+	Slug      string `json:"slug"`
+	TargetURL string `json:"targetUrl"`
+	Status    string `json:"status"`
+	AccessConfig
+	CreatedAt time.Time       `json:"createdAt"`
+	Stats     *ShortLinkStats `json:"stats,omitempty"`
 }
 
 type ShortLinkStats struct {
@@ -121,18 +135,15 @@ type OwnerSummary struct {
 }
 
 type AdminShortLink struct {
-	ID                       string          `json:"id"`
-	URL                      string          `json:"url"`
-	Slug                     string          `json:"slug"`
-	TargetURL                string          `json:"targetUrl"`
-	Status                   string          `json:"status"`
-	RedirectMode             string          `json:"redirectMode"`
-	IntermediateDelaySeconds int16           `json:"intermediateDelaySeconds"`
-	ExpiresAt                *time.Time      `json:"expiresAt"`
-	Expired                  bool            `json:"expired"`
-	CreatedAt                time.Time       `json:"createdAt"`
-	Stats                    *ShortLinkStats `json:"stats,omitempty"`
-	Owner                    OwnerSummary    `json:"owner"`
+	ID        string `json:"id"`
+	URL       string `json:"url"`
+	Slug      string `json:"slug"`
+	TargetURL string `json:"targetUrl"`
+	Status    string `json:"status"`
+	AccessConfig
+	CreatedAt time.Time       `json:"createdAt"`
+	Stats     *ShortLinkStats `json:"stats,omitempty"`
+	Owner     OwnerSummary    `json:"owner"`
 }
 
 type AdminListResult struct {

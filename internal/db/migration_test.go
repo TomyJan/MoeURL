@@ -3,11 +3,13 @@ package db_test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	"github.com/testcontainers/testcontainers-go"
@@ -55,6 +57,13 @@ func TestInitialMigrationCreatesCoreTablesAndConstraints(t *testing.T) {
 	`)
 	if err == nil {
 		t.Fatal("expected duplicate slug to violate unique constraint")
+	}
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		t.Fatalf("expected PostgreSQL error, got %T: %v", err, err)
+	}
+	if pgErr.Code != "23505" {
+		t.Fatalf("expected unique violation code 23505, got %s", pgErr.Code)
 	}
 }
 

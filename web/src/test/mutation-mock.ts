@@ -3,7 +3,7 @@ import { vi } from 'vitest'
 
 export interface MutationMockCallOptions {
   mutationFn?: (input: unknown) => unknown
-  onSuccess?: (value: unknown) => void
+  onSuccess?: (value: unknown, variables: unknown) => void
 }
 
 export interface MutationMockResult {
@@ -42,13 +42,14 @@ export function createMutationMock(config: CreateMutationMockOptions) {
       data.value = undefined
       error.value = undefined
       isError.value = false
+      isPending.value = false
       if (config.fields?.variables) {
         variables.value = undefined
       }
     })
-    const succeed = (value: unknown) => {
+    const succeed = (value: unknown, input: unknown) => {
       data.value = value
-      options?.onSuccess?.(value)
+      options?.onSuccess?.(value, input)
     }
     const fail = (reason: unknown) => {
       error.value = reason
@@ -73,14 +74,14 @@ export function createMutationMock(config: CreateMutationMockOptions) {
         if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
           isPending.value = true
           void Promise.resolve(result)
-            .then(succeed)
+            .then((value) => succeed(value, input))
             .catch(fail)
             .finally(() => {
               isPending.value = false
             })
           return
         }
-        succeed(config.resolveSynchronousResult?.(result, input) ?? result)
+        succeed(config.resolveSynchronousResult?.(result, input) ?? result, input)
       } catch (reason) {
         fail(reason)
       }

@@ -178,8 +178,8 @@ const mutation = useMutation({
   onSuccess(result) {
     createdUrl.value = result.shortLink.url
     createdSlug.value = result.shortLink.slug
-		qrOpen.value = false
-		resetInputFields()
+    qrOpen.value = false
+    resetInputFields()
     void queryClient.invalidateQueries({ queryKey: ['short-link'] })
     void queryClient.invalidateQueries({ queryKey: ['admin-short-link'] })
   },
@@ -223,21 +223,21 @@ function submit() {
     }
   }
 
-	const input: CreateShortLinkInput = { targetUrl: targetUrlResult.data }
-	if (canUseIntermediate.value) {
-		input.redirectMode = redirectMode.value
-		input.intermediateDelaySeconds = intermediateDelaySeconds.value
-	}
-	if (expiration) {
-	input.expiration = expiration
-	}
+  const input: CreateShortLinkInput = { targetUrl: targetUrlResult.data }
+  if (canUseIntermediate.value) {
+    input.redirectMode = redirectMode.value
+    input.intermediateDelaySeconds = intermediateDelaySeconds.value
+  }
+  if (expiration) {
+    input.expiration = expiration
+  }
   createdUrl.value = ''
-	createdSlug.value = ''
-	mutation.mutate(input)
+  createdSlug.value = ''
+  mutation.mutate(input)
 }
 
 function resetForm() {
-	resetInputFields()
+  resetInputFields()
   createdUrl.value = ''
   createdSlug.value = ''
   qrOpen.value = false
@@ -247,11 +247,11 @@ function resetInputFields() {
   targetUrl.value = ''
   validationErrorMessage.value = ''
   copyErrorMessage.value = ''
-	expirationErrorMessage.value = ''
-	redirectMode.value = 'direct'
-	intermediateDelaySeconds.value = 5
-	expirationEnabled.value = false
-	expiresAt.value = ''
+  expirationErrorMessage.value = ''
+  redirectMode.value = 'direct'
+  intermediateDelaySeconds.value = 5
+  expirationEnabled.value = false
+  expiresAt.value = ''
 }
 
 async function copyUrl(url: string) {
@@ -332,32 +332,32 @@ async function copyUrl(url: string) {
 }
 
 .short-link-create-panel__advanced {
-	display: grid;
-	justify-items: start;
-	border-top: 1px solid var(--moeurl-outline);
-	padding-top: 8px;
+  display: grid;
+  justify-items: start;
+  border-top: 1px solid var(--moeurl-outline);
+  padding-top: 8px;
 }
 
 .short-link-create-panel__advanced-toggle {
-	margin-inline-start: -8px;
+  margin-inline-start: -8px;
 }
 
 .short-link-create-panel__advanced-controls {
-	display: grid;
-	gap: 12px;
-	width: 100%;
-	padding-top: 8px;
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  padding-top: 8px;
 }
 
 .short-link-create-panel__mode-control {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	justify-content: space-between;
-	gap: 8px;
-	color: rgb(var(--v-theme-on-surface-variant));
-	font-size: 0.88rem;
-	font-weight: 760;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 0.88rem;
+  font-weight: 760;
 }
 
 .short-link-create-panel__error {

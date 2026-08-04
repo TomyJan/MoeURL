@@ -5,7 +5,7 @@ const e2ePort = process.env.MOEURL_E2E_PORT ?? '8080'
 const e2eHost = `127.0.0.1:${e2ePort}`
 const e2eHostPattern = escapeRegExp(e2eHost)
 
-test('v0.2.0 initialization short-link access experience and logout flow', async ({ page }, testInfo) => {
+test('v0.2.0 initialization, intermediate-page, expiry, QR-code, and logout flows', async ({ page }, testInfo) => {
   testInfo.setTimeout(120_000)
   page.setDefaultTimeout(10_000)
   const status = await page.request.get('/api/v1/init/status')
@@ -175,7 +175,10 @@ test('v0.2.0 initialization short-link access experience and logout flow', async
     page.waitForURL(intermediateTarget),
     page.getByRole('button', { name: '立即前往' }).click(),
   ])
-  await expect.poll(() => readVisitCount(page, intermediateLinkId)).toBe(1)
+  await expect.poll(
+    () => readVisitCount(page, intermediateLinkId),
+    { intervals: [250, 500, 1_000], timeout: 30_000 },
+  ).toBe(1)
 
   await page.goto('/link')
   const intermediateRow = page.getByTestId('console-link-row').filter({ hasText: intermediateUrl ?? '' })
@@ -196,7 +199,6 @@ test('v0.2.0 initialization short-link access experience and logout flow', async
 
   const expiresAt = toLocalDateTimeValue(new Date(Date.now() + 20_000))
   const expirationInput = settingsDialog.getByLabel('过期时间（本地时间）', { exact: true })
-  await expect(expirationInput).toHaveAttribute('step', '1')
   await setDateTimeLocalValue(expirationInput, expiresAt)
   const updateResponsePromise = page.waitForResponse('**/api/v1/short-link/update')
   await settingsDialog.getByRole('button', { name: '保存' }).click()
@@ -412,7 +414,12 @@ async function expectSettingsDialogLayout(page: Page, dialog: Locator) {
     return
   }
   expect(dialogBox.x).toBeGreaterThanOrEqual(0)
-  expect(dialogBox.x + dialogBox.width).toBeLessThanOrEqual(page.viewportSize()?.width ?? dialogBox.width)
+  const viewport = page.viewportSize()
+  expect(viewport).not.toBeNull()
+  if (!viewport) {
+    return
+  }
+  expect(dialogBox.x + dialogBox.width).toBeLessThanOrEqual(viewport.width)
   for (let index = 0; index < controlBoxes.length - 1; index += 1) {
     const current = controlBoxes[index]
     const next = controlBoxes[index + 1]

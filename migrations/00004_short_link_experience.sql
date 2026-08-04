@@ -12,10 +12,13 @@ alter table short_link
         check (intermediate_delay_seconds between 3 and 10) not valid;
 
 create table moeurl_short_link_experience_permission_addition (
-    user_group_id uuid not null references user_group(id),
+    user_group_id uuid not null references user_group(id) on delete cascade,
     permission text not null,
     primary key (user_group_id, permission)
 );
+
+comment on table moeurl_short_link_experience_permission_addition is
+    'Tracks permissions added by migration 00004 for reversible rollback.';
 
 insert into moeurl_short_link_experience_permission_addition (user_group_id, permission)
 select user_group.id, added.permission

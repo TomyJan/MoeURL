@@ -60,7 +60,6 @@
           v-if="canSetExpiration && expirationEnabled"
           v-model="expiresAt"
           type="datetime-local"
-          step="1"
           variant="outlined"
           :disabled="pending"
           :error-messages="expirationErrorMessage"

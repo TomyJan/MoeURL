@@ -52,6 +52,10 @@ technical-baseline.md
   ↓
 agent-delivery-guidelines.md
   ↓
+../product/scope-v0.2.0.md
+  ↓
+../specs/2026-08-02-v0.2.0-link-experience-design.md
+  ↓
 v0.2.0-plan.md
   ↓
 v0.2.0-detailed-plan.md
