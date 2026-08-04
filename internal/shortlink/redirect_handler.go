@@ -5,16 +5,20 @@ import (
 	"errors"
 	"html"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/TomyJan/MoeURL/internal/event"
 )
 
-// RedirectPort resolves a short link slug into a redirect target.
+// RedirectPort handles the three public short-link access actions.
 type RedirectPort interface {
-	Resolve(ctx context.Context, slug string) (RedirectResult, error)
+	Open(ctx context.Context, slug string) (OpenResult, error)
+	Preview(ctx context.Context, slug string) (PreviewResult, error)
+	Continue(ctx context.Context, slug string) (RedirectResult, error)
 }
 
-// RedirectHandler handles public short link redirect requests.
+// RedirectHandler handles public short-link access requests.
 type RedirectHandler struct {
 	service       RedirectPort
 	recorder      event.Recorder
@@ -37,22 +41,59 @@ func NewRedirectHandlerWithAnalytics(service RedirectPort, recorder event.Record
 	return handler
 }
 
-// Open writes the redirect response for a slug.
+// Open writes either the direct target redirect or the internal intermediate-page redirect.
 func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug string) {
-	result, err := h.service.Resolve(r.Context(), slug)
+	result, err := h.service.Open(r.Context(), slug)
+	if err != nil {
+		writePublicAccessError(w, r, slug, err)
+		return
+	}
+	if result.RedirectMode == RedirectModeIntermediate {
+		http.Redirect(w, r, "/go/"+url.PathEscape(result.Slug), http.StatusFound)
+		return
+	}
+	h.writeTargetRedirect(w, r, result.RedirectResult, result.Slug)
+}
+
+// Preview writes the minimal public data required by an intermediate page.
+func (h *RedirectHandler) Preview(w http.ResponseWriter, r *http.Request) {
+	slug := strings.TrimSpace(r.URL.Query().Get("slug"))
+	if slug == "" {
+		businessError(w, 100001, "Invalid request")
+		return
+	}
+
+	result, err := h.service.Preview(r.Context(), slug)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrShortLinkMissing):
-			http.Error(w, "Short link not found", http.StatusNotFound)
+			businessError(w, CodeShortLinkMissing, "Short link not found")
 		case errors.Is(err, ErrShortLinkDisabled):
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("Short link disabled"))
+			businessError(w, CodeShortLinkDisabled, "Short link disabled")
+		case errors.Is(err, ErrShortLinkExpired):
+			businessError(w, CodeShortLinkExpired, "Short link expired")
+		case errors.Is(err, ErrShortLinkNotIntermediate):
+			businessError(w, CodeShortLinkNotIntermediate, "Short link does not use an intermediate page")
 		default:
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			writeJSON(w, http.StatusInternalServerError, response{Code: 900000, Message: "Internal server error", Data: nil, Meta: map[string]any{}})
 		}
 		return
 	}
 
+	ok(w, result)
+}
+
+// Continue rechecks a short link and writes its final target redirect.
+func (h *RedirectHandler) Continue(w http.ResponseWriter, r *http.Request, slug string) {
+	result, err := h.service.Continue(r.Context(), slug)
+	if err != nil {
+		writePublicAccessError(w, r, slug, err)
+		return
+	}
+	h.writeTargetRedirect(w, r, result, strings.ToLower(slug))
+}
+
+func (h *RedirectHandler) writeTargetRedirect(w http.ResponseWriter, r *http.Request, result RedirectResult, slug string) {
 	w.Header().Set("Location", result.TargetURL)
 	w.WriteHeader(http.StatusFound)
 	_, writeErr := w.Write([]byte(`<a href="` + html.EscapeString(result.TargetURL) + `">Found</a>.` + "\n\n"))
@@ -60,4 +101,24 @@ func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug stri
 		referrerHost, deviceType, countryCode := analyticsEventFields(r, h.countryHeader)
 		_ = h.recorder.Record(r.Context(), event.Event{Type: event.RedirectResponseSent, Slug: slug, ShortLinkID: result.ShortLinkID, ReferrerHost: referrerHost, DeviceType: deviceType, CountryCode: countryCode})
 	}
+}
+
+func writePublicAccessError(w http.ResponseWriter, r *http.Request, slug string, err error) {
+	switch {
+	case errors.Is(err, ErrShortLinkMissing):
+		http.Error(w, "Short link not found", http.StatusNotFound)
+	case errors.Is(err, ErrShortLinkDisabled):
+		redirectToPublicAccessState(w, r, slug, "disabled")
+	case errors.Is(err, ErrShortLinkExpired):
+		redirectToPublicAccessState(w, r, slug, "expired")
+	case errors.Is(err, ErrShortLinkNotIntermediate):
+		redirectToPublicAccessState(w, r, slug, "not-intermediate")
+	default:
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
+func redirectToPublicAccessState(w http.ResponseWriter, r *http.Request, slug string, reason string) {
+	location := "/go/" + url.PathEscape(strings.ToLower(slug)) + "?reason=" + url.QueryEscape(reason)
+	http.Redirect(w, r, location, http.StatusFound)
 }

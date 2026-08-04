@@ -4,7 +4,7 @@
 
 MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
 
-当前已完成到 v0.1.2 个人设置基础闭环。后续版本设计和实施应以 `docs/product/overview.md`、`docs/product/roadmap.md` 和对应版本范围文档为准。
+当前已完成到 v0.2.0 短链访问体验与生命周期闭环。后续版本设计和实施应以 `docs/product/overview.md`、`docs/product/roadmap.md` 和对应版本范围文档为准。
 
 ## 工作入口
 
@@ -12,7 +12,7 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 1. `docs/README.md`
 2. `docs/product/overview.md`
-3. `docs/product/scope-v0.1.2.md`
+3. `docs/product/scope-v0.2.0.md`
 
 如果任务涉及新版本设计、跨模块功能开发、生产化交付或要求 Agent 自主完成设计、文档、开发、测试和提交，必须继续阅读 `docs/implementation/agent-delivery-guidelines.md`。
 
@@ -24,9 +24,17 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 1. `docs/implementation/technical-decision.md`
 2. `docs/implementation/technical-baseline.md`
-3. `docs/implementation/v0.1.2-plan.md`
-4. `docs/implementation/v0.1.2-tasks.md`
-5. `docs/implementation/v0.1.2-acceptance.md`
+3. `docs/implementation/v0.2.0-plan.md`
+4. `docs/implementation/v0.2.0-tasks.md`
+5. `docs/implementation/v0.2.0-acceptance.md`
+
+如果任务涉及 v0.2.0 中间页、过期时间、二维码、访问配置或继续访问路由，必须继续阅读：
+
+1. `docs/specs/2026-08-02-v0.2.0-link-experience-design.md`
+2. `docs/specs/short-links.md`
+3. `docs/specs/redirect-modes.md`
+4. `docs/specs/permissions.md`
+5. `docs/specs/navigation-and-pages.md`
 
 如果任务涉及 v0.1.1 控制台概览、个人短链聚合或最近短链，必须继续阅读：
 
@@ -122,6 +130,18 @@ MoeURL 当前技术栈固定为：
 - 统计展示必须沿用既有权限边界：普通用户只能看到自己的短链统计，管理员可查看全站短链统计。
 - 访问事件记录失败不得阻断短链跳转。
 
+## v0.2.0 访问体验实施规则
+
+- v0.2.0 只实现中间页跳转、可选过期时间、二维码和访问配置编辑，不实现访问密码、确认页、最大访问次数、二维码样式或模板管理。
+- 跳转模式只允许 `direct` 和 `intermediate`；中间页倒计时范围为 3 至 10 秒，既有短链默认保持直接跳转和 5 秒默认值。
+- `expires_at` 使用 `timestamptz`，为空表示无固定过期时间；服务端和数据库时间是创建、编辑与访问判断的权威来源。
+- 中间页和过期时间分别受 `short_link:use_intermediate` 与 `short_link:set_expiration` 权限控制，前端省略无权字段，后端执行最终校验。
+- 公开预览只返回短码、目标主机名、倒计时和可选过期时间，不返回完整目标 URL。
+- 直接模式的 `/{slug}` 在成功写出目标 `302` 跳转响应后记录 `redirect_response_sent`；中间页入口不记录；`/go/{slug}/continue` 仅在成功写出目标跳转响应后记录。
+- 二维码只编码公开短链 URL，在浏览器即时生成，不保存到数据库，也不包含目标 URL 或账号信息。
+- `/go/{slug}` 和 `/go/{slug}/continue` 是固定路由，优先级必须高于 `/{slug}`，`go` 必须保留为不可生成短码。
+- E2E 必须从真实 `/{slug}` 入口验证中间页和访问量，覆盖桌面与移动端的中间页、访问设置和二维码布局。生产构建允许既有基线的大分块警告，但禁止新增警告、扩大受影响分块范围或提高既有阈值；如采用等效规则，须经双方共同确认。
+
 ## 实施原则
 
 - 实施前先确认对应产品范围、功能规格和技术基线。
@@ -158,6 +178,6 @@ MoeURL 当前技术栈固定为：
 
 ## Git 规则
 
-- 未经用户要求，不要主动提交或推送。
+- 本地提交是默认行为；`push`、合并及其他 Git 或远程集成操作需用户明确授权。
 - 删除、重命名或大规模改写文档前，确认新结构已经能覆盖原有有效内容。
 - 汇报变更时说明新增、修改和删除的文件，以及下一步建议。

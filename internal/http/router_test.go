@@ -87,6 +87,55 @@ func TestRouterServesSPAFixedRoutesFromStaticDir(t *testing.T) {
 	}
 }
 
+func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T) {
+	staticDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(staticDir, "index.html"), []byte("<!doctype html><title>MoeURL</title>"), 0o644); err != nil {
+		t.Fatalf("write index: %v", err)
+	}
+	redirect := &routerRedirectService{
+		previewResult:  shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", IntermediateDelaySeconds: 5},
+		continueResult: shortlink.RedirectResult{TargetURL: "https://example.com/final", ShortLinkID: "link-id"},
+	}
+	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: redirect, StaticDir: staticDir})
+
+	appShell := httptest.NewRecorder()
+	router.ServeHTTP(appShell, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/go/middle", nil))
+	if appShell.Code != http.StatusOK || appShell.Body.String() == "" {
+		t.Fatalf("expected intermediate app shell, got status %d body %q", appShell.Code, appShell.Body.String())
+	}
+	if len(redirect.openSlugs) != 0 {
+		t.Fatalf("expected app shell not to resolve a short link, got %#v", redirect.openSlugs)
+	}
+
+	continued := httptest.NewRecorder()
+	router.ServeHTTP(continued, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/go/middle/continue", nil))
+	if continued.Code != http.StatusFound || continued.Header().Get("Location") != "https://example.com/final" {
+		t.Fatalf("expected final redirect, got status %d location %q", continued.Code, continued.Header().Get("Location"))
+	}
+	if len(redirect.continueSlugs) != 1 || redirect.continueSlugs[0] != "middle" {
+		t.Fatalf("expected continue route slug, got %#v", redirect.continueSlugs)
+	}
+
+	preview := httptest.NewRecorder()
+	router.ServeHTTP(preview, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/public/short-link/preview?slug=middle", nil))
+	var body struct {
+		Code int `json:"code"`
+		Data struct {
+			TargetHost string  `json:"targetHost"`
+			TargetURL  *string `json:"targetUrl"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(preview.Body).Decode(&body); err != nil {
+		t.Fatalf("decode preview: %v", err)
+	}
+	if preview.Code != http.StatusOK || body.Code != 0 || body.Data.TargetHost != "example.com" || body.Data.TargetURL != nil {
+		t.Fatalf("unexpected preview response: status %d body %#v", preview.Code, body)
+	}
+	if len(redirect.previewSlugs) != 1 || redirect.previewSlugs[0] != "middle" {
+		t.Fatalf("expected preview route slug, got %#v", redirect.previewSlugs)
+	}
+}
+
 func TestRouterUnknownAPIUsesUnifiedResponse(t *testing.T) {
 	router := apphttp.NewRouter()
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/missing", nil)
@@ -148,6 +197,8 @@ func TestRouterRegistersOptionalDependencies(t *testing.T) {
 		{method: http.MethodPost, path: "/api/v1/admin/user/update", body: `{}`},
 		{method: http.MethodPost, path: "/api/v1/admin/user/reset-password", body: `{}`},
 		{method: http.MethodPost, path: "/api/v1/user/profile/update", body: `{}`},
+		{method: http.MethodGet, path: "/api/v1/public/short-link/preview?slug=abc123"},
+		{method: http.MethodGet, path: "/go/abc123/continue"},
 		{method: http.MethodGet, path: "/abc123"},
 	}
 
@@ -162,6 +213,22 @@ func TestRouterRegistersOptionalDependencies(t *testing.T) {
 				t.Fatalf("expected registered route, got status %d body %q", response.Code, response.Body.String())
 			}
 		})
+	}
+}
+
+func TestRouterRedirectServiceKeepsConfiguredIntermediateResultWithEmptyTarget(t *testing.T) {
+	redirect := &routerRedirectService{
+		openResult:           shortlink.OpenResult{RedirectMode: shortlink.RedirectModeIntermediate, Slug: "middle"},
+		openResultConfigured: true,
+	}
+	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: redirect})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/abc123", nil)
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusFound || response.Header().Get("Location") != "/go/middle" {
+		t.Fatalf("expected configured intermediate redirect, got status %d location %q", response.Code, response.Header().Get("Location"))
 	}
 }
 
@@ -240,10 +307,38 @@ func (routerShortLinkService) AdminDelete(context.Context, auth.CurrentUser, sho
 	return nil
 }
 
-type routerRedirectService struct{}
+type routerRedirectService struct {
+	openResult           shortlink.OpenResult
+	openResultConfigured bool
+	previewResult        shortlink.PreviewResult
+	continueResult       shortlink.RedirectResult
+	openSlugs            []string
+	previewSlugs         []string
+	continueSlugs        []string
+}
 
-func (routerRedirectService) Resolve(context.Context, string) (shortlink.RedirectResult, error) {
-	return shortlink.RedirectResult{TargetURL: "https://example.com"}, nil
+func (service *routerRedirectService) Open(_ context.Context, slug string) (shortlink.OpenResult, error) {
+	service.openSlugs = append(service.openSlugs, slug)
+	if !service.openResultConfigured {
+		return shortlink.OpenResult{RedirectMode: shortlink.RedirectModeDirect, RedirectResult: shortlink.RedirectResult{TargetURL: "https://example.com"}}, nil
+	}
+	return service.openResult, nil
+}
+
+func (service *routerRedirectService) Preview(_ context.Context, slug string) (shortlink.PreviewResult, error) {
+	service.previewSlugs = append(service.previewSlugs, slug)
+	if service.previewResult.Slug == "" {
+		return shortlink.PreviewResult{Slug: "abc123", TargetHost: "example.com", IntermediateDelaySeconds: 5}, nil
+	}
+	return service.previewResult, nil
+}
+
+func (service *routerRedirectService) Continue(_ context.Context, slug string) (shortlink.RedirectResult, error) {
+	service.continueSlugs = append(service.continueSlugs, slug)
+	if service.continueResult.TargetURL == "" {
+		return shortlink.RedirectResult{TargetURL: "https://example.com"}, nil
+	}
+	return service.continueResult, nil
 }
 
 type routerUserService struct{}

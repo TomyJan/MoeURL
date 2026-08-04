@@ -1,10 +1,23 @@
+-- name: GetDatabaseTime :one
+select now()::timestamptz as database_time;
+
 -- name: CreateShortLink :one
-insert into short_link (id, owner_id, domain_id, slug, target_url, status, created_at, updated_at)
-values ($1, $2, $3, $4, $5, $6, now(), now())
-returning id, owner_id, domain_id, slug, target_url, status, created_at, updated_at, deleted_at;
+insert into short_link (
+    id, owner_id, domain_id, slug, target_url, status,
+    redirect_mode, intermediate_delay_seconds, expires_at,
+    created_at, updated_at
+)
+values ($1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
+returning id, owner_id, domain_id, slug, target_url, status,
+    redirect_mode, intermediate_delay_seconds, expires_at,
+    coalesce(expires_at <= now(), false)::boolean as expired,
+    created_at, updated_at, deleted_at;
 
 -- name: GetShortLinkBySlug :one
-select id, owner_id, domain_id, slug, target_url, status, created_at, updated_at, deleted_at
+select id, owner_id, domain_id, slug, target_url, status,
+    redirect_mode, intermediate_delay_seconds, expires_at,
+    coalesce(expires_at <= now(), false)::boolean as expired,
+    created_at, updated_at, deleted_at
 from short_link
 where slug = $1 and deleted_at is null;
 
@@ -14,6 +27,10 @@ select short_link.id,
     short_link.slug,
     short_link.target_url,
     short_link.status,
+    short_link.redirect_mode,
+    short_link.intermediate_delay_seconds,
+    short_link.expires_at,
+    coalesce(short_link.expires_at <= now(), false)::boolean as expired,
     short_link.created_at,
     domain.host as domain_host
 from short_link
@@ -27,6 +44,10 @@ select short_link.id,
     short_link.slug,
     short_link.target_url,
     short_link.status,
+    short_link.redirect_mode,
+    short_link.intermediate_delay_seconds,
+    short_link.expires_at,
+    coalesce(short_link.expires_at <= now(), false)::boolean as expired,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
@@ -72,11 +93,21 @@ where short_link.owner_id = $1
 update short_link
 set target_url = coalesce(sqlc.narg('target_url'), target_url),
     status = coalesce(sqlc.narg('status'), status),
+    redirect_mode = coalesce(sqlc.narg('redirect_mode')::text, redirect_mode),
+    intermediate_delay_seconds = coalesce(sqlc.narg('intermediate_delay_seconds')::smallint, intermediate_delay_seconds),
+    expires_at = case sqlc.arg('expiration_mode')::text
+        when 'never' then null
+        when 'at' then sqlc.narg('expires_at')::timestamptz
+        else expires_at
+    end,
     updated_at = now()
 where id = sqlc.arg('id')
     and owner_id = sqlc.arg('owner_id')
     and deleted_at is null
-returning id, owner_id, domain_id, slug, target_url, status, created_at, updated_at, deleted_at;
+returning id, owner_id, domain_id, slug, target_url, status,
+    redirect_mode, intermediate_delay_seconds, expires_at,
+    coalesce(expires_at <= now(), false)::boolean as expired,
+    created_at, updated_at, deleted_at;
 
 -- name: SoftDeleteOwnShortLink :execrows
 update short_link
@@ -93,6 +124,10 @@ select short_link.id,
     short_link.slug,
     short_link.target_url,
     short_link.status,
+    short_link.redirect_mode,
+    short_link.intermediate_delay_seconds,
+    short_link.expires_at,
+    coalesce(short_link.expires_at <= now(), false)::boolean as expired,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
@@ -142,10 +177,20 @@ where short_link.deleted_at is null
 update short_link
 set target_url = coalesce(sqlc.narg('target_url'), target_url),
     status = coalesce(sqlc.narg('status'), status),
+    redirect_mode = coalesce(sqlc.narg('redirect_mode')::text, redirect_mode),
+    intermediate_delay_seconds = coalesce(sqlc.narg('intermediate_delay_seconds')::smallint, intermediate_delay_seconds),
+    expires_at = case sqlc.arg('expiration_mode')::text
+        when 'never' then null
+        when 'at' then sqlc.narg('expires_at')::timestamptz
+        else expires_at
+    end,
     updated_at = now()
 where id = sqlc.arg('id')
     and deleted_at is null
-returning id, owner_id, domain_id, slug, target_url, status, created_at, updated_at, deleted_at;
+returning id, owner_id, domain_id, slug, target_url, status,
+    redirect_mode, intermediate_delay_seconds, expires_at,
+    coalesce(expires_at <= now(), false)::boolean as expired,
+    created_at, updated_at, deleted_at;
 
 -- name: SoftDeleteAnyShortLink :execrows
 update short_link

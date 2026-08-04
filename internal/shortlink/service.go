@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
@@ -16,11 +17,15 @@ import (
 )
 
 const (
-	shortLinkStatusActive = "active"
-	maxSlugAttempts       = 8
-	defaultPage           = 1
-	defaultPageSize       = 20
-	maxPageSize           = 100
+	shortLinkStatusActive    = "active"
+	maxSlugAttempts          = 8
+	defaultPage              = 1
+	defaultPageSize          = 20
+	maxPageSize              = 100
+	defaultIntermediateDelay = int16(5)
+	minIntermediateDelay     = int16(3)
+	maxIntermediateDelay     = int16(10)
+	expirationModeKeep       = "keep"
 )
 
 type Service struct {
@@ -47,6 +52,10 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 	if err := validateTargetURL(input.TargetURL); err != nil {
 		return CreateResult{}, err
 	}
+	accessConfig, err := s.createAccessConfig(ctx, user, input)
+	if err != nil {
+		return CreateResult{}, err
+	}
 
 	domain, err := s.queries.GetDefaultShortLinkDomain(ctx)
 	if err != nil {
@@ -68,12 +77,15 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 		}
 
 		created, err := s.queries.CreateShortLink(ctx, sqlc.CreateShortLinkParams{
-			ID:        uuidToPgtype(uuid.New()),
-			OwnerID:   uuidToPgtype(ownerID),
-			DomainID:  domain.ID,
-			Slug:      slug,
-			TargetUrl: input.TargetURL,
-			Status:    shortLinkStatusActive,
+			ID:                       uuidToPgtype(uuid.New()),
+			OwnerID:                  uuidToPgtype(ownerID),
+			DomainID:                 domain.ID,
+			Slug:                     slug,
+			TargetUrl:                input.TargetURL,
+			Status:                   shortLinkStatusActive,
+			RedirectMode:             accessConfig.redirectMode,
+			IntermediateDelaySeconds: accessConfig.intermediateDelaySeconds,
+			ExpiresAt:                accessConfig.expiresAt,
 		})
 		if isUniqueViolation(err) {
 			continue
@@ -82,16 +94,16 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 			return CreateResult{}, err
 		}
 
-		return CreateResult{
-			ShortLink: ShortLink{
-				ID:        uuidFromPgtype(created.ID),
-				URL:       buildShortLinkURL(domain.Host, created.Slug),
-				Slug:      created.Slug,
-				TargetURL: created.TargetUrl,
-				Status:    created.Status,
-				CreatedAt: created.CreatedAt.Time,
-			},
-		}, nil
+		shortLink := ShortLink{
+			ID:        uuidFromPgtype(created.ID),
+			URL:       buildShortLinkURL(domain.Host, created.Slug),
+			Slug:      created.Slug,
+			TargetURL: created.TargetUrl,
+			Status:    created.Status,
+			CreatedAt: created.CreatedAt.Time,
+		}
+		shortLink.setAccessConfig(created.RedirectMode, created.IntermediateDelaySeconds, created.ExpiresAt, created.Expired)
+		return CreateResult{ShortLink: shortLink}, nil
 	}
 
 	return CreateResult{}, ErrSlugConflict
@@ -153,7 +165,7 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 
 	items := make([]ShortLink, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, ShortLink{
+		shortLink := ShortLink{
 			ID:        uuidFromPgtype(row.ID),
 			URL:       buildShortLinkURL(row.DomainHost, row.Slug),
 			Slug:      row.Slug,
@@ -161,7 +173,9 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 			Status:    row.Status,
 			CreatedAt: row.CreatedAt.Time,
 			Stats:     statsFromRow(row.VisitCount, row.TodayVisitCount, row.LastVisitedAt),
-		})
+		}
+		shortLink.setAccessConfig(row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired)
+		items = append(items, shortLink)
 	}
 
 	return ListResult{
@@ -185,6 +199,10 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 	if input.Status != nil && !isAllowedStatus(*input.Status) {
 		return CreateResult{}, ErrInvalidStatus
 	}
+	accessConfig, err := s.updateAccessConfig(ctx, user, input)
+	if err != nil {
+		return CreateResult{}, err
+	}
 
 	linkID, ownerID, err := parseLinkAndOwnerIDs(input.ID, user.ID)
 	if err != nil {
@@ -192,10 +210,14 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 	}
 
 	updated, err := s.queries.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
-		ID:        uuidToPgtype(linkID),
-		OwnerID:   uuidToPgtype(ownerID),
-		TargetUrl: optionalText(input.TargetURL),
-		Status:    optionalText(input.Status),
+		ID:                       uuidToPgtype(linkID),
+		OwnerID:                  uuidToPgtype(ownerID),
+		TargetUrl:                optionalText(input.TargetURL),
+		Status:                   optionalText(input.Status),
+		RedirectMode:             accessConfig.redirectMode,
+		IntermediateDelaySeconds: accessConfig.intermediateDelaySeconds,
+		ExpirationMode:           accessConfig.expirationMode,
+		ExpiresAt:                accessConfig.expiresAt,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return CreateResult{}, ErrShortLinkMissing
@@ -209,16 +231,16 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 		return CreateResult{}, err
 	}
 
-	return CreateResult{
-		ShortLink: ShortLink{
-			ID:        uuidFromPgtype(updated.ID),
-			URL:       buildShortLinkURL(domain.Host, updated.Slug),
-			Slug:      updated.Slug,
-			TargetURL: updated.TargetUrl,
-			Status:    updated.Status,
-			CreatedAt: updated.CreatedAt.Time,
-		},
-	}, nil
+	shortLink := ShortLink{
+		ID:        uuidFromPgtype(updated.ID),
+		URL:       buildShortLinkURL(domain.Host, updated.Slug),
+		Slug:      updated.Slug,
+		TargetURL: updated.TargetUrl,
+		Status:    updated.Status,
+		CreatedAt: updated.CreatedAt.Time,
+	}
+	shortLink.setAccessConfig(updated.RedirectMode, updated.IntermediateDelaySeconds, updated.ExpiresAt, updated.Expired)
+	return CreateResult{ShortLink: shortLink}, nil
 }
 
 // Delete soft-deletes a short link owned by the caller.
@@ -309,7 +331,7 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 
 	items := make([]AdminShortLink, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, AdminShortLink{
+		shortLink := AdminShortLink{
 			ID:        uuidFromPgtype(row.ID),
 			URL:       buildShortLinkURL(row.DomainHost, row.Slug),
 			Slug:      row.Slug,
@@ -322,7 +344,9 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 				Username: row.OwnerUsername,
 				Nickname: row.OwnerNickname,
 			},
-		})
+		}
+		shortLink.setAccessConfig(row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired)
+		items = append(items, shortLink)
 	}
 
 	return AdminListResult{
@@ -346,15 +370,23 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 	if input.Status != nil && !isAllowedStatus(*input.Status) {
 		return CreateResult{}, ErrInvalidStatus
 	}
+	accessConfig, err := s.updateAccessConfig(ctx, user, input)
+	if err != nil {
+		return CreateResult{}, err
+	}
 
 	linkID, err := uuid.Parse(input.ID)
 	if err != nil {
 		return CreateResult{}, err
 	}
 	updated, err := s.queries.UpdateAnyShortLink(ctx, sqlc.UpdateAnyShortLinkParams{
-		ID:        uuidToPgtype(linkID),
-		TargetUrl: optionalText(input.TargetURL),
-		Status:    optionalText(input.Status),
+		ID:                       uuidToPgtype(linkID),
+		TargetUrl:                optionalText(input.TargetURL),
+		Status:                   optionalText(input.Status),
+		RedirectMode:             accessConfig.redirectMode,
+		IntermediateDelaySeconds: accessConfig.intermediateDelaySeconds,
+		ExpirationMode:           accessConfig.expirationMode,
+		ExpiresAt:                accessConfig.expiresAt,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return CreateResult{}, ErrShortLinkMissing
@@ -368,16 +400,16 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 		return CreateResult{}, err
 	}
 
-	return CreateResult{
-		ShortLink: ShortLink{
-			ID:        uuidFromPgtype(updated.ID),
-			URL:       buildShortLinkURL(domain.Host, updated.Slug),
-			Slug:      updated.Slug,
-			TargetURL: updated.TargetUrl,
-			Status:    updated.Status,
-			CreatedAt: updated.CreatedAt.Time,
-		},
-	}, nil
+	shortLink := ShortLink{
+		ID:        uuidFromPgtype(updated.ID),
+		URL:       buildShortLinkURL(domain.Host, updated.Slug),
+		Slug:      updated.Slug,
+		TargetURL: updated.TargetUrl,
+		Status:    updated.Status,
+		CreatedAt: updated.CreatedAt.Time,
+	}
+	shortLink.setAccessConfig(updated.RedirectMode, updated.IntermediateDelaySeconds, updated.ExpiresAt, updated.Expired)
+	return CreateResult{ShortLink: shortLink}, nil
 }
 
 // AdminDelete soft-deletes any short link.
@@ -421,16 +453,18 @@ func (s *Service) analyticsLink(ctx context.Context, linkID uuid.UUID) (analytic
 	if err != nil {
 		return analyticsLinkResult{}, err
 	}
+	shortLink := ShortLink{
+		ID:        uuidFromPgtype(row.ID),
+		URL:       buildShortLinkURL(row.DomainHost, row.Slug),
+		Slug:      row.Slug,
+		TargetURL: row.TargetUrl,
+		Status:    row.Status,
+		CreatedAt: row.CreatedAt.Time,
+	}
+	shortLink.setAccessConfig(row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired)
 	return analyticsLinkResult{
-		ownerID: uuid.UUID(row.OwnerID.Bytes),
-		shortLink: ShortLink{
-			ID:        uuidFromPgtype(row.ID),
-			URL:       buildShortLinkURL(row.DomainHost, row.Slug),
-			Slug:      row.Slug,
-			TargetURL: row.TargetUrl,
-			Status:    row.Status,
-			CreatedAt: row.CreatedAt.Time,
-		},
+		ownerID:   uuid.UUID(row.OwnerID.Bytes),
+		shortLink: shortLink,
 	}, nil
 }
 
@@ -510,6 +544,132 @@ func countryDimensions(rows []sqlc.ListShortLinkCountryStatsRow) []AnalyticsDime
 		items = append(items, AnalyticsDimension{Value: row.Value, VisitCount: row.VisitCount})
 	}
 	return items
+}
+
+type createAccessConfigParams struct {
+	redirectMode             string
+	intermediateDelaySeconds int16
+	expiresAt                pgtype.Timestamptz
+}
+
+type updateAccessConfigParams struct {
+	redirectMode             pgtype.Text
+	intermediateDelaySeconds pgtype.Int2
+	expirationMode           string
+	expiresAt                pgtype.Timestamptz
+}
+
+// createAccessConfig normalizes defaults and validates advanced creation settings.
+func (s *Service) createAccessConfig(ctx context.Context, user auth.CurrentUser, input CreateInput) (createAccessConfigParams, error) {
+	redirectMode := input.RedirectMode
+	if redirectMode == "" {
+		redirectMode = RedirectModeDirect
+	}
+	if !isAllowedRedirectMode(redirectMode) {
+		return createAccessConfigParams{}, ErrInvalidRedirectMode
+	}
+
+	delay := input.IntermediateDelaySeconds
+	if delay == 0 {
+		delay = defaultIntermediateDelay
+	}
+	if !isAllowedIntermediateDelay(delay) {
+		return createAccessConfigParams{}, ErrInvalidIntermediateDelay
+	}
+	if (redirectMode == RedirectModeIntermediate || delay != defaultIntermediateDelay) && !s.permissions.Has(user.GroupKey, permission.ShortLinkUseIntermediate) {
+		return createAccessConfigParams{}, ErrPermissionDenied
+	}
+
+	if input.Expiration != nil && !s.permissions.Has(user.GroupKey, permission.ShortLinkSetExpiration) {
+		return createAccessConfigParams{}, ErrPermissionDenied
+	}
+	_, expiresAt, err := s.normalizeExpiration(ctx, input.Expiration)
+	if err != nil {
+		return createAccessConfigParams{}, err
+	}
+	return createAccessConfigParams{
+		redirectMode:             redirectMode,
+		intermediateDelaySeconds: delay,
+		expiresAt:                expiresAt,
+	}, nil
+}
+
+// updateAccessConfig validates only fields explicitly present in an update request.
+func (s *Service) updateAccessConfig(ctx context.Context, user auth.CurrentUser, input UpdateInput) (updateAccessConfigParams, error) {
+	if input.RedirectMode != nil && !isAllowedRedirectMode(*input.RedirectMode) {
+		return updateAccessConfigParams{}, ErrInvalidRedirectMode
+	}
+	if input.IntermediateDelaySeconds != nil && !isAllowedIntermediateDelay(*input.IntermediateDelaySeconds) {
+		return updateAccessConfigParams{}, ErrInvalidIntermediateDelay
+	}
+	changesIntermediateConfig := input.RedirectMode != nil || input.IntermediateDelaySeconds != nil
+	if changesIntermediateConfig && !s.permissions.Has(user.GroupKey, permission.ShortLinkUseIntermediate) {
+		return updateAccessConfigParams{}, ErrPermissionDenied
+	}
+	if input.Expiration != nil && !s.permissions.Has(user.GroupKey, permission.ShortLinkSetExpiration) {
+		return updateAccessConfigParams{}, ErrPermissionDenied
+	}
+
+	expirationMode, expiresAt, err := s.normalizeExpiration(ctx, input.Expiration)
+	if err != nil {
+		return updateAccessConfigParams{}, err
+	}
+	return updateAccessConfigParams{
+		redirectMode:             optionalText(input.RedirectMode),
+		intermediateDelaySeconds: optionalInt2(input.IntermediateDelaySeconds),
+		expirationMode:           expirationMode,
+		expiresAt:                expiresAt,
+	}, nil
+}
+
+func (s *Service) normalizeExpiration(ctx context.Context, input *ExpirationInput) (string, pgtype.Timestamptz, error) {
+	if input == nil {
+		return expirationModeKeep, pgtype.Timestamptz{}, nil
+	}
+	switch input.Mode {
+	case ExpirationModeNever:
+		if input.ExpiresAt != nil {
+			return "", pgtype.Timestamptz{}, ErrInvalidExpiration
+		}
+		return ExpirationModeNever, pgtype.Timestamptz{}, nil
+	case ExpirationModeAt:
+		if input.ExpiresAt == nil {
+			return "", pgtype.Timestamptz{}, ErrInvalidExpiration
+		}
+		databaseTime, err := s.queries.GetDatabaseTime(ctx)
+		if err != nil {
+			return "", pgtype.Timestamptz{}, err
+		}
+		if !input.ExpiresAt.After(databaseTime.Time) {
+			return "", pgtype.Timestamptz{}, ErrInvalidExpiration
+		}
+		return ExpirationModeAt, pgtype.Timestamptz{Time: input.ExpiresAt.UTC(), Valid: true}, nil
+	default:
+		return "", pgtype.Timestamptz{}, ErrInvalidExpiration
+	}
+}
+
+func isAllowedRedirectMode(value string) bool {
+	return value == RedirectModeDirect || value == RedirectModeIntermediate
+}
+
+func isAllowedIntermediateDelay(value int16) bool {
+	return value >= minIntermediateDelay && value <= maxIntermediateDelay
+}
+
+func optionalInt2(value *int16) pgtype.Int2 {
+	if value == nil {
+		return pgtype.Int2{}
+	}
+	return pgtype.Int2{Int16: *value, Valid: true}
+}
+
+func expirationValues(value pgtype.Timestamptz, expired bool) (*time.Time, bool) {
+	if !value.Valid {
+		return nil, false
+	}
+	expiresAt := value.Time
+	return &expiresAt, expired
 }
 
 // hasAdminPermission checks both administrative access and the requested permission.

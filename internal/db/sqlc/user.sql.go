@@ -276,26 +276,6 @@ func (q *Queries) ListAppUsers(ctx context.Context, arg ListAppUsersParams) ([]L
 	return items, nil
 }
 
-const updateAppUserPassword = `-- name: UpdateAppUserPassword :execrows
-update app_user
-set password_hash = $2,
-	updated_at = now()
-where id = $1 and deleted_at is null and builtin = false
-`
-
-type UpdateAppUserPasswordParams struct {
-	ID           pgtype.UUID `json:"id"`
-	PasswordHash pgtype.Text `json:"password_hash"`
-}
-
-func (q *Queries) UpdateAppUserPassword(ctx context.Context, arg UpdateAppUserPasswordParams) (int64, error) {
-	result, err := q.db.Exec(ctx, updateAppUserPassword, arg.ID, arg.PasswordHash)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
-}
-
 const updateAppUserNickname = `-- name: UpdateAppUserNickname :one
 update app_user
 set nickname = $2,
@@ -325,6 +305,26 @@ func (q *Queries) UpdateAppUserNickname(ctx context.Context, arg UpdateAppUserNi
 		&i.DeletedAt,
 	)
 	return i, err
+}
+
+const updateAppUserPassword = `-- name: UpdateAppUserPassword :execrows
+update app_user
+set password_hash = $2,
+	updated_at = now()
+where id = $1 and deleted_at is null and builtin = false
+`
+
+type UpdateAppUserPasswordParams struct {
+	ID           pgtype.UUID `json:"id"`
+	PasswordHash pgtype.Text `json:"password_hash"`
+}
+
+func (q *Queries) UpdateAppUserPassword(ctx context.Context, arg UpdateAppUserPasswordParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateAppUserPassword, arg.ID, arg.PasswordHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const updateAppUserProfile = `-- name: UpdateAppUserProfile :one

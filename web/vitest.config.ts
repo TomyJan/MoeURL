@@ -11,10 +11,12 @@ export default defineConfig({
     },
   },
   test: {
+    execArgv: ['--no-experimental-webstorage'],
     coverage: {
       include: [
         'src/app/**/*.{ts,vue}',
         'src/entities/**/*.ts',
+        'src/features/**/*.vue',
         'src/pages/**/*.vue',
         'src/shared/**/*.ts',
       ],

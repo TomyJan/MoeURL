@@ -24,12 +24,30 @@
         :deleting-id="deletingId"
         :links="linkItems"
         :updating-id="updatingId"
+        @configure="configure"
         @copy="copyUrl"
+        @qr="showQr"
         @remove="remove"
         @toggle-status="toggleStatus"
       />
     </div>
   </section>
+  <ShortLinkSettingsDialog
+    v-if="settingsLink"
+    :error-message="settingsErrorMessage"
+    :link="settingsLink"
+    :open="true"
+    :pending="settingsMutation.isPending.value"
+    @save="saveSettings"
+    @update:open="closeSettings"
+  />
+  <ShortLinkQrDialog
+    v-if="qrLink"
+    :open="true"
+    :slug="qrLink.slug"
+    :url="qrLink.url"
+    @update:open="closeQr"
+  />
 </template>
 
 <script setup lang="ts">
@@ -40,6 +58,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { deleteShortLink, listShortLinks, updateShortLink } from '@/entities/short-link/api'
 import type { ShortLink } from '@/entities/short-link/model'
 import { useMutationTargetId } from '@/shared/mutations/useMutationTargetId'
+import { useShortLinkSettings } from '@/shared/short-link/useShortLinkSettings'
+import ShortLinkSettingsDialog from '@/features/short-link-settings/ShortLinkSettingsDialog.vue'
+import ShortLinkQrDialog from '@/features/short-link-qr/ShortLinkQrDialog.vue'
 import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue'
 
 const { t } = useI18n()
@@ -56,8 +77,19 @@ const query = useQuery({
 })
 const links = computed(() => query.data.value?.items ?? [])
 const linkItems = computed<ConsoleLinkListItem[]>(() => links.value)
+const {
+  closeQr,
+  closeSettings,
+  configure,
+  qrLink,
+  saveSettings,
+  settingsErrorMessage,
+  settingsLink,
+  settingsMutation,
+  showQr,
+} = useShortLinkSettings({ mutationFn: updateShortLink, queryKey: ['short-link'] })
 
-const updateMutation = useMutation({
+const statusMutation = useMutation({
   mutationFn: updateShortLink,
   onSuccess: invalidateLinks,
 })
@@ -65,11 +97,11 @@ const deleteMutation = useMutation({
   mutationFn: deleteShortLink,
   onSuccess: invalidateLinks,
 })
-const updatingId = useMutationTargetId(updateMutation, (variables) => variables?.id)
+const updatingId = useMutationTargetId(statusMutation, (variables) => variables?.id)
 const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof variables === 'string' ? variables : undefined))
 
 function toggleStatus(link: ConsoleLinkListItem) {
-  updateMutation.mutate({ id: link.id, status: link.status === 'active' ? 'disabled' : 'active' })
+  statusMutation.mutate({ id: link.id, status: link.status === 'active' ? 'disabled' : 'active' })
 }
 
 function remove(id: string) {

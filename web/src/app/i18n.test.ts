@@ -18,6 +18,27 @@ describe('i18n', () => {
     expect(messages.en.preferences.systemShort).toBe('System')
   })
 
+  it('defines bilingual advanced short-link settings', () => {
+    expect(messages['zh-CN'].shortLinkCreate.advanced).toBe('高级设置')
+    expect(messages['zh-CN'].shortLinkCreate.redirectModes.intermediate).toBe('中间页')
+    expect(messages['zh-CN'].shortLinkCreate.expiresAt).toBe('过期时间（本地时间）')
+    expect(messages['zh-CN'].shortLinkSettings.expiresAt).toBe('过期时间（本地时间）')
+    expect(messages['zh-CN'].shortLinkCreate.expirationFuture).toBe('过期时间必须晚于当前时间')
+    expect(messages.en.shortLinkCreate.advanced).toBe('Advanced settings')
+    expect(messages.en.shortLinkCreate.redirectModes.intermediate).toBe('Intermediate page')
+    expect(messages.en.shortLinkCreate.expiresAt).toBe('Expiration time (local time)')
+    expect(messages.en.shortLinkSettings.expiresAt).toBe('Expiration time (local time)')
+    expect(messages.en.shortLinkCreate.expirationFuture).toBe('Expiration must be in the future')
+    expect(messages['zh-CN'].shortLinkCreate.qrCode).toBe('二维码')
+    expect(messages.en.shortLinkCreate.qrCode).toBe('QR code')
+    expect(messages['zh-CN'].shortLinkQr.download).toBe('下载 PNG')
+    expect(messages.en.shortLinkQr.generateFailed).toBe('Failed to generate the QR code. Try again.')
+    expect(messages['zh-CN'].redirect.continue).toBe('立即前往')
+    expect(messages['zh-CN'].redirect.expired).toBe('该短链已过期。')
+    expect(messages.en.redirect.unavailable).toBe('This short link is no longer available.')
+    expect(messages.en.redirect.loadFailed).toBe('Unable to load this short link. Try again.')
+  })
+
   it('keeps placeholder copy limited to capabilities that are still planned', () => {
     expect(messages['zh-CN'].placeholder.overview.items).not.toHaveProperty('analytics')
     expect(messages.en.placeholder.overview.items).not.toHaveProperty('analytics')

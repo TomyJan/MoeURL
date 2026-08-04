@@ -9,6 +9,7 @@ import (
 	"time"
 
 	appdb "github.com/TomyJan/MoeURL/internal/db"
+	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/system"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -162,6 +163,13 @@ func assertBuiltInData(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 		t.Fatalf("expected 3 built-in groups, got %d", groupCount)
 	}
 
+	assertStoredGroupPermission(t, ctx, pool, permission.GroupGuest, permission.ShortLinkUseIntermediate, false)
+	assertStoredGroupPermission(t, ctx, pool, permission.GroupGuest, permission.ShortLinkSetExpiration, false)
+	assertStoredGroupPermission(t, ctx, pool, permission.GroupUser, permission.ShortLinkUseIntermediate, true)
+	assertStoredGroupPermission(t, ctx, pool, permission.GroupUser, permission.ShortLinkSetExpiration, true)
+	assertStoredGroupPermission(t, ctx, pool, permission.GroupAdmin, permission.ShortLinkUseIntermediate, true)
+	assertStoredGroupPermission(t, ctx, pool, permission.GroupAdmin, permission.ShortLinkSetExpiration, true)
+
 	var guestPassword sql.NullString
 	var guestGroup string
 	err = pool.QueryRow(ctx, `
@@ -205,6 +213,19 @@ func assertBuiltInData(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	}
 	if defaultHost != "go.example.com" {
 		t.Fatalf("expected default domain go.example.com, got %s", defaultHost)
+	}
+}
+
+func assertStoredGroupPermission(t *testing.T, ctx context.Context, pool *pgxpool.Pool, groupKey string, permissionName string, expected bool) {
+	t.Helper()
+
+	var hasPermission bool
+	err := pool.QueryRow(ctx, `select permissions ? $1 from user_group where key = $2`, permissionName, groupKey).Scan(&hasPermission)
+	if err != nil {
+		t.Fatalf("query %s group permission %s: %v", groupKey, permissionName, err)
+	}
+	if hasPermission != expected {
+		t.Fatalf("expected %s group permission %s to be %t, got %t", groupKey, permissionName, expected, hasPermission)
 	}
 }
 

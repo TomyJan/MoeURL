@@ -23,6 +23,7 @@ var reservedSlugs = map[string]struct{}{
 	"links":     {},
 	"analytics": {},
 	"admin":     {},
+	"go":        {},
 }
 
 var slugRandomReader io.Reader = rand.Reader

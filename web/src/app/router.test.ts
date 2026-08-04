@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createRequireAdminAccess, createRequireConsoleAccess, createRequireSignedIn, requireAdminAccess, requireConsoleAccess, requireSignedIn, router, routes } from './router'
 import { me } from '@/entities/auth/api'
-import ConsoleOverviewPage from '@/pages/ConsoleOverviewPage.vue'
 import HomePage from '@/pages/HomePage.vue'
 
 vi.mock('@/entities/auth/api', () => ({
@@ -27,6 +26,7 @@ describe('router', () => {
         '/',
         '/setup',
         '/login',
+        '/go/:slug',
         '/profile',
         '/console',
         '/link',
@@ -49,7 +49,7 @@ describe('router', () => {
     expect(adminRoutes.every((route) => route.meta?.requiresAdmin === true)).toBe(true)
   })
 
-  it('nests console pages under the console shell', () => {
+  it('nests console pages under the console shell and loads page chunks lazily', async () => {
     const consoleRoute = routes.find((route) => route.children)
     const overviewRoute = consoleRoute?.children?.find((route) => route.path === '/console')
     const profileRoute = consoleRoute?.children?.find((route) => route.path === '/profile')
@@ -60,7 +60,24 @@ describe('router', () => {
     expect(profileRoute?.meta?.requiresSignedIn).toBe(true)
     expect(profileRoute?.beforeEnter).toBe(requireSignedIn)
     expect(consoleRoute?.children?.filter((route) => route.meta?.requiresConsole === true).every((route) => route.path !== '/profile')).toBe(true)
-    expect(overviewRoute?.component).toBe(ConsoleOverviewPage)
+    expect(typeof overviewRoute?.component).toBe('function')
+    expect(typeof consoleRoute?.children?.find((route) => route.path === '/analytics')?.component).toBe('function')
+    expect(typeof consoleRoute?.children?.find((route) => route.path === '/admin/link')?.component).toBe('function')
+
+    const lazyChildren = consoleRoute?.children ?? []
+    const loadedPages = await Promise.all(lazyChildren.map((route) => (
+      route.component as () => Promise<{ default: unknown }>
+    )()))
+    expect(loadedPages.every((page) => page.default)).toBe(true)
+  })
+
+  it('registers the public redirect page as a lazy route without an access guard', async () => {
+    const redirectRoute = routes.find((route) => route.path === '/go/:slug')
+
+    expect(typeof redirectRoute?.component).toBe('function')
+    expect(redirectRoute?.beforeEnter).toBeUndefined()
+    const loadedPage = await (redirectRoute?.component as () => Promise<{ default: unknown }>)()
+    expect(loadedPage.default).toBeTruthy()
   })
 
   it('resolves the public root path to home before the console shell parent', async () => {

@@ -70,7 +70,7 @@ export default defineConfig({
       MOEURL_POSTGRES_PORT: e2ePostgresPort,
     },
     reuseExistingServer: false,
-    timeout: 240_000,
+    timeout: 600_000,
     url: `${baseURL}/api/v1/health`,
   },
   projects: [

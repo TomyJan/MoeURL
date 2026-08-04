@@ -1,5 +1,26 @@
 import { createVuetify } from 'vuetify'
-import * as components from 'vuetify/components'
+import {
+  VAlert,
+  VApp,
+  VBtn,
+  VBtnToggle,
+  VCard,
+  VCardActions,
+  VCardText,
+  VCardTitle,
+  VContainer,
+  VDialog,
+  VList,
+  VListItem,
+  VListItemTitle,
+  VMain,
+  VProgressLinear,
+  VSelect,
+  VSlider,
+  VSnackbar,
+  VSwitch,
+  VTextField,
+} from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 
 export const moeurlLightTheme = {
@@ -75,7 +96,28 @@ export const moeurlDarkTheme = {
 }
 
 export const vuetify = createVuetify({
-  components,
+  components: {
+    VAlert,
+    VApp,
+    VBtn,
+    VBtnToggle,
+    VCard,
+    VCardActions,
+    VCardText,
+    VCardTitle,
+    VContainer,
+    VDialog,
+    VList,
+    VListItem,
+    VListItemTitle,
+    VMain,
+    VProgressLinear,
+    VSelect,
+    VSlider,
+    VSnackbar,
+    VSwitch,
+    VTextField,
+  },
   defaults: {
     VBtn: {
       rounded: 'pill',

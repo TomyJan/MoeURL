@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	apphttp "github.com/TomyJan/MoeURL/internal/http"
@@ -68,6 +70,56 @@ func TestHandlerCreateShortLinkReturnsCreatedLink(t *testing.T) {
 	}
 }
 
+// TestHandlerDecodesAccessConfigInputs verifies create and update JSON preserve explicit expiration semantics.
+func TestHandlerDecodesAccessConfigInputs(t *testing.T) {
+	service := &fakeShortLinkService{}
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		CurrentUser: &fakeCurrentUserResolver{
+			user: auth.CurrentUser{ID: "user-id", Username: "alice", GroupKey: "user", Permissions: permission.UserPermissions},
+		},
+		ShortLink: service,
+	})
+	future := time.Now().UTC().Add(time.Hour).Truncate(time.Second)
+	createResponse := httptest.NewRecorder()
+	createRequest := httptest.NewRequest(http.MethodPost, "/api/v1/short-link/create", bytes.NewBufferString(fmt.Sprintf(`{
+		"targetUrl":"https://example.com/docs",
+		"redirectMode":"intermediate",
+		"intermediateDelaySeconds":7,
+		"expiration":{"mode":"at","expiresAt":%q}
+	}`, future.Format(time.RFC3339))))
+	router.ServeHTTP(createResponse, createRequest)
+	if createResponse.Code != http.StatusOK {
+		t.Fatalf("unexpected create response: %d %s", createResponse.Code, createResponse.Body.String())
+	}
+	if service.createInput.RedirectMode != shortlink.RedirectModeIntermediate || service.createInput.IntermediateDelaySeconds != 7 {
+		t.Fatalf("unexpected create access config: %#v", service.createInput)
+	}
+	if service.createInput.Expiration == nil || service.createInput.Expiration.Mode != shortlink.ExpirationModeAt || service.createInput.Expiration.ExpiresAt == nil || !service.createInput.Expiration.ExpiresAt.Equal(future) {
+		t.Fatalf("unexpected create expiration: %#v", service.createInput.Expiration)
+	}
+
+	updateResponse := httptest.NewRecorder()
+	updateRequest := httptest.NewRequest(http.MethodPost, "/api/v1/short-link/update", bytes.NewBufferString(`{
+		"id":"link-id",
+		"redirectMode":"direct",
+		"intermediateDelaySeconds":5,
+		"expiration":{"mode":"never"}
+	}`))
+	router.ServeHTTP(updateResponse, updateRequest)
+	if updateResponse.Code != http.StatusOK {
+		t.Fatalf("unexpected update response: %d %s", updateResponse.Code, updateResponse.Body.String())
+	}
+	if service.updateInput.RedirectMode == nil || *service.updateInput.RedirectMode != shortlink.RedirectModeDirect {
+		t.Fatalf("unexpected update mode: %#v", service.updateInput)
+	}
+	if service.updateInput.IntermediateDelaySeconds == nil || *service.updateInput.IntermediateDelaySeconds != 5 {
+		t.Fatalf("unexpected update delay: %#v", service.updateInput)
+	}
+	if service.updateInput.Expiration == nil || service.updateInput.Expiration.Mode != shortlink.ExpirationModeNever || service.updateInput.Expiration.ExpiresAt != nil {
+		t.Fatalf("unexpected update expiration: %#v", service.updateInput.Expiration)
+	}
+}
+
 // TestHandlerCreateShortLinkMapsBusinessErrors verifies create error-code mappings.
 func TestHandlerCreateShortLinkMapsBusinessErrors(t *testing.T) {
 	tests := []struct {
@@ -77,6 +129,9 @@ func TestHandlerCreateShortLinkMapsBusinessErrors(t *testing.T) {
 	}{
 		{name: "permission denied", err: shortlink.ErrPermissionDenied, code: 120001},
 		{name: "invalid target url", err: shortlink.ErrInvalidTargetURL, code: 200103},
+		{name: "invalid redirect mode", err: shortlink.ErrInvalidRedirectMode, code: 200106},
+		{name: "invalid intermediate delay", err: shortlink.ErrInvalidIntermediateDelay, code: 200107},
+		{name: "invalid expiration", err: shortlink.ErrInvalidExpiration, code: 200108},
 		{name: "slug conflict", err: shortlink.ErrSlugConflict, code: 200101},
 		{name: "reserved slug", err: shortlink.ErrReservedSlug, code: 200102},
 	}
@@ -94,6 +149,9 @@ func TestHandlerCreateShortLinkMapsBusinessErrors(t *testing.T) {
 
 			router.ServeHTTP(response, request)
 
+			if response.Code != http.StatusOK {
+				t.Fatalf("expected status %d, got %d", http.StatusOK, response.Code)
+			}
 			var body struct {
 				Code int `json:"code"`
 			}
@@ -104,6 +162,38 @@ func TestHandlerCreateShortLinkMapsBusinessErrors(t *testing.T) {
 				t.Fatalf("expected code %d, got %d", tt.code, body.Code)
 			}
 		})
+	}
+}
+
+func TestShortLinkBusinessErrorCodesRemainStable(t *testing.T) {
+	codes := map[string]int{
+		"slug conflict":              shortlink.CodeSlugConflict,
+		"reserved slug":              shortlink.CodeReservedSlug,
+		"invalid target url":         shortlink.CodeInvalidTargetURL,
+		"missing":                    shortlink.CodeShortLinkMissing,
+		"disabled":                   shortlink.CodeShortLinkDisabled,
+		"invalid redirect mode":      shortlink.CodeInvalidRedirectMode,
+		"invalid intermediate delay": shortlink.CodeInvalidIntermediateDelay,
+		"invalid expiration":         shortlink.CodeInvalidExpiration,
+		"expired":                    shortlink.CodeShortLinkExpired,
+		"not intermediate":           shortlink.CodeShortLinkNotIntermediate,
+	}
+	expected := map[string]int{
+		"slug conflict":              200101,
+		"reserved slug":              200102,
+		"invalid target url":         200103,
+		"missing":                    200104,
+		"disabled":                   200105,
+		"invalid redirect mode":      200106,
+		"invalid intermediate delay": 200107,
+		"invalid expiration":         200108,
+		"expired":                    200109,
+		"not intermediate":           200110,
+	}
+	for name, code := range codes {
+		if code != expected[name] {
+			t.Fatalf("%s code = %d, want %d", name, code, expected[name])
+		}
 	}
 }
 
@@ -547,6 +637,9 @@ func TestHandlerWriteBusinessOrSystemErrorMappings(t *testing.T) {
 		{name: "update permission", path: "/api/v1/short-link/update", err: shortlink.ErrPermissionDenied, httpStatus: http.StatusOK, code: 120001},
 		{name: "update invalid target", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidTargetURL, httpStatus: http.StatusOK, code: 200103},
 		{name: "update invalid status", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidStatus, httpStatus: http.StatusOK, code: 100001},
+		{name: "update invalid redirect mode", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidRedirectMode, httpStatus: http.StatusOK, code: 200106},
+		{name: "update invalid intermediate delay", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidIntermediateDelay, httpStatus: http.StatusOK, code: 200107},
+		{name: "update invalid expiration", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidExpiration, httpStatus: http.StatusOK, code: 200108},
 		{name: "update slug conflict", path: "/api/v1/short-link/update", err: shortlink.ErrSlugConflict, httpStatus: http.StatusOK, code: 200101},
 		{name: "update reserved slug", path: "/api/v1/short-link/update", err: shortlink.ErrReservedSlug, httpStatus: http.StatusOK, code: 200102},
 		{name: "update system", path: "/api/v1/short-link/update", err: errors.New("database down"), httpStatus: http.StatusInternalServerError, code: 900000},
@@ -697,6 +790,8 @@ type fakeShortLinkService struct {
 	adminListInput   shortlink.ListInput
 	statisticsResult shortlink.StatisticsResult
 	statisticsInput  shortlink.StatisticsInput
+	createInput      shortlink.CreateInput
+	updateInput      shortlink.UpdateInput
 	err              error
 }
 
@@ -706,7 +801,8 @@ func (f *fakeShortLinkService) Overview(context.Context, auth.CurrentUser) (shor
 }
 
 // Create returns the configured create result for handler tests.
-func (f *fakeShortLinkService) Create(context.Context, auth.CurrentUser, shortlink.CreateInput) (shortlink.CreateResult, error) {
+func (f *fakeShortLinkService) Create(_ context.Context, _ auth.CurrentUser, input shortlink.CreateInput) (shortlink.CreateResult, error) {
+	f.createInput = input
 	return f.result, f.err
 }
 
@@ -717,7 +813,8 @@ func (f *fakeShortLinkService) List(_ context.Context, _ auth.CurrentUser, input
 }
 
 // Update returns the configured update result for handler tests.
-func (f *fakeShortLinkService) Update(context.Context, auth.CurrentUser, shortlink.UpdateInput) (shortlink.CreateResult, error) {
+func (f *fakeShortLinkService) Update(_ context.Context, _ auth.CurrentUser, input shortlink.UpdateInput) (shortlink.CreateResult, error) {
+	f.updateInput = input
 	return f.result, f.err
 }
 
@@ -745,7 +842,8 @@ func (f *fakeShortLinkService) AdminStatistics(_ context.Context, _ auth.Current
 }
 
 // AdminUpdate returns the configured administrator update result.
-func (f *fakeShortLinkService) AdminUpdate(context.Context, auth.CurrentUser, shortlink.UpdateInput) (shortlink.CreateResult, error) {
+func (f *fakeShortLinkService) AdminUpdate(_ context.Context, _ auth.CurrentUser, input shortlink.UpdateInput) (shortlink.CreateResult, error) {
+	f.updateInput = input
 	return f.result, f.err
 }
 

@@ -13,9 +13,25 @@ vi.mock('vuetify', () => ({
 }))
 
 vi.mock('vuetify/components', () => ({
+  VAlert: {},
+  VApp: {},
   VBtn: {},
+  VBtnToggle: {},
   VCard: {},
+  VCardActions: {},
+  VCardText: {},
+  VCardTitle: {},
+  VContainer: {},
   VDialog: {},
+  VList: {},
+  VListItem: {},
+  VListItemTitle: {},
+  VMain: {},
+  VProgressLinear: {},
+  VSelect: {},
+  VSlider: {},
+  VSnackbar: {},
+  VSwitch: {},
   VTextField: {},
 }))
 

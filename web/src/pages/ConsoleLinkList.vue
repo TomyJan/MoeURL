@@ -21,6 +21,11 @@
         <span class="console-link-row__status" :class="`console-link-row__status--${link.status}`">
           {{ t(`links.status.${link.status}`) }}
         </span>
+        <div class="console-link-row__access">
+          <span>{{ t(`shortLinkCreate.redirectModes.${link.redirectMode}`) }}</span>
+          <span v-if="link.expired" class="console-link-row__expired">{{ t('links.expired') }}</span>
+          <span v-else>{{ formatExpiration(link.expiresAt) }}</span>
+        </div>
         <dl class="console-link-row__stats">
           <div>
             <dt>{{ t('links.stats.visitCount') }}</dt>
@@ -55,6 +60,12 @@
           {{ t('links.actions.more') }}
         </button>
         <div v-if="openedMoreId === link.id" class="console-link-row__more-menu" role="menu">
+          <v-btn size="small" variant="text" role="menuitem" @click="openSettings(link)">
+            {{ t('links.actions.configure') }}
+          </v-btn>
+          <v-btn size="small" variant="text" role="menuitem" @click="openQr(link)">
+            {{ t('links.actions.qrCode') }}
+          </v-btn>
           <v-btn size="small" variant="text" role="menuitem" :loading="updatingId === link.id" @click="$emit('toggleStatus', link)">
             {{ t(link.status === 'active' ? 'links.actions.disable' : 'links.actions.enable') }}
           </v-btn>
@@ -71,14 +82,21 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import type { RedirectMode } from '@/entities/short-link/model'
+
 export interface ConsoleLinkListItem {
   id: string
+  slug: string
   owner?: {
     id: string
     nickname: string
     username: string
   }
   status: 'active' | 'disabled'
+  redirectMode: RedirectMode
+  intermediateDelaySeconds: number
+  expiresAt: string | null
+  expired: boolean
   stats?: {
     visitCount: number
     todayVisitCount: number
@@ -94,8 +112,10 @@ defineProps<{
   updatingId?: string
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
+  configure: [link: ConsoleLinkListItem]
   copy: [url: string]
+  qr: [link: ConsoleLinkListItem]
   remove: [id: string]
   toggleStatus: [link: ConsoleLinkListItem]
 }>()
@@ -122,13 +142,38 @@ function closeMore() {
   openedMoreId.value = ''
 }
 
+function openSettings(link: ConsoleLinkListItem) {
+  closeMore()
+  emit('configure', link)
+}
+
+function openQr(link: ConsoleLinkListItem) {
+  closeMore()
+  emit('qr', link)
+}
+
 function formatVisitedAt(value?: string | null) {
+  return formatLocalDate(value, t('links.stats.neverVisited'))
+}
+
+function formatExpiration(value: string | null) {
   if (!value) {
-    return t('links.stats.neverVisited')
+    return t('links.neverExpires')
   }
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) {
-    return t('links.stats.neverVisited')
+    return t('links.neverExpires')
+  }
+  return `${formatLocalDate(value, t('links.neverExpires'))} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+function formatLocalDate(value: string | null | undefined, fallback: string) {
+  if (!value) {
+    return fallback
+  }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return fallback
   }
   return [
     date.getFullYear(),
@@ -157,3 +202,27 @@ function removeDocumentListeners() {
   globalThis.document?.removeEventListener('keydown', handleDocumentKeyDown)
 }
 </script>
+
+<style scoped>
+.console-link-row__access {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.console-link-row__access span {
+  min-height: 28px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--moeurl-surface-strong) 48%, transparent);
+}
+
+.console-link-row__access .console-link-row__expired {
+  background: color-mix(in srgb, rgb(var(--v-theme-error)) 12%, transparent);
+  color: rgb(var(--v-theme-error));
+}
+</style>

@@ -7,16 +7,17 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 建议按以下顺序阅读：
 
 1. [产品总览](product/overview.md)：了解 MoeURL 的定位、目标和核心原则。
-2. [v0.1.2 范围](product/scope-v0.1.2.md)：确认当前阶段个人设置基础闭环的实现边界。
-3. [v0.1.1 范围](product/scope-v0.1.1.md)：回看控制台个人概览的实现边界和统计口径。
-4. [统计与事件](specs/statistics-and-events.md)：确认短链访问事件、基础统计和维度统计口径。
-5. [短链](specs/short-links.md)：确认短链访问、状态和事件记录调用点。
-6. [功能规格](specs/)：按模块查看权限、短链、用户、域名、页面、跳转、统计、主题和后台设计。
-7. [技术选型决策](implementation/technical-decision.md)：确认 Go + Vue 技术栈和选型理由。
-8. [技术基线](implementation/technical-baseline.md)：确认仓库结构、模块边界、API、数据库、测试和部署约定。
-9. [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)：确认新版本、跨模块和生产化任务的统一执行约定。
-10. [v0.1.2 实施计划](implementation/v0.1.2-plan.md)：确认 v0.1.2 的实施阶段、边界和验收目标。
-11. [实施文档](implementation/)：查看工程计划、阶段任务和验收记录。
+2. [v0.2.0 范围](product/scope-v0.2.0.md)：确认当前阶段短链访问体验与生命周期的实现边界。
+3. [v0.2.0 功能设计](specs/2026-08-02-v0.2.0-link-experience-design.md)：确认本版本的交互、接口、事件和验收设计。
+4. [v0.1.2 范围](product/scope-v0.1.2.md)：回看个人设置基础闭环的实现边界。
+5. [统计与事件](specs/statistics-and-events.md)：确认短链访问事件、基础统计和维度统计口径。
+6. [短链](specs/short-links.md)：确认短链访问、状态和事件记录调用点。
+7. [跳转模式](specs/redirect-modes.md)：确认直接跳转、中间页和后续模式边界。
+8. [功能规格](specs/)：按模块查看权限、短链、用户、域名、页面、跳转、统计、主题和后台设计。
+9. [技术选型决策](implementation/technical-decision.md)：确认 Go + Vue 技术栈和选型理由。
+10. [技术基线](implementation/technical-baseline.md)：确认仓库结构、模块边界、API、数据库、测试和部署约定。
+11. [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)：确认新版本、跨模块和生产化任务的统一执行约定。
+12. [实施文档](implementation/)：查看工程计划、阶段任务和验收记录。
 
 ## 文档分层
 
@@ -32,6 +33,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 - [v0.1.0 范围](product/scope-v0.1.0.md)
 - [v0.1.1 范围](product/scope-v0.1.1.md)
 - [v0.1.2 范围](product/scope-v0.1.2.md)
+- [v0.2.0 范围](product/scope-v0.2.0.md)
 - [路线图](product/roadmap.md)
 
 ### 功能规格层
@@ -52,13 +54,17 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 实施层文档位于 [implementation](implementation/) 目录，用于承载技术决策、技术基线、工程计划、任务拆分和验收记录。
 
-当前优先目标是 v0.1.2 个人设置基础闭环。实施计划应优先覆盖 [v0.1.2 范围](product/scope-v0.1.2.md) 中的必须实现项，并遵循 [技术基线](implementation/technical-baseline.md)。涉及 v0.1.1 控制台个人概览、v0.1.0 统计口径、v0.0.4 事件与基础统计、v0.0.3 控制台 UI、v0.0.2 已完成功能、既有 API、schema、权限和验收口径时，应继续参考对应版本验收清单和 [v0.0.1 工程实施合同](implementation/v0.0.1-implementation-contract.md)。
+当前优先目标是 v0.2.0 短链访问体验与生命周期闭环。实施计划应优先覆盖 [v0.2.0 范围](product/scope-v0.2.0.md) 中的必须实现项，并遵循 [技术基线](implementation/technical-baseline.md)。涉及 v0.1.2 个人设置、v0.1.1 控制台个人概览、v0.1.0 统计口径、v0.0.4 事件与基础统计、v0.0.3 控制台 UI、v0.0.2 已完成功能、既有 API、schema、权限和验收口径时，应继续参考对应版本验收清单和 [v0.0.1 工程实施合同](implementation/v0.0.1-implementation-contract.md)。
 
 当前实施层文档包括：
 
 - [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)
 - [技术选型决策](implementation/technical-decision.md)
 - [技术基线](implementation/technical-baseline.md)
+- [v0.2.0 实施计划](implementation/v0.2.0-plan.md)
+- [v0.2.0 详细实现计划](implementation/v0.2.0-detailed-plan.md)
+- [v0.2.0 任务级实施清单](implementation/v0.2.0-tasks.md)
+- [v0.2.0 验收清单](implementation/v0.2.0-acceptance.md)
 - [v0.0.1 工程实施合同](implementation/v0.0.1-implementation-contract.md)
 - [v0.0.1 实施规划](implementation/v0.0.1-plan.md)
 - [v0.0.1 工程实施计划](implementation/v0.0.1-engineering-plan.md)

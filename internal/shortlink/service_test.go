@@ -107,6 +107,15 @@ func TestServiceCreateStoresShortLinkWithGeneratedSlug(t *testing.T) {
 	if result.ShortLink.Status != "active" {
 		t.Fatalf("unexpected status %q", result.ShortLink.Status)
 	}
+	if result.ShortLink.RedirectMode != shortlink.RedirectModeDirect {
+		t.Fatalf("unexpected redirect mode %q", result.ShortLink.RedirectMode)
+	}
+	if result.ShortLink.IntermediateDelaySeconds != 5 {
+		t.Fatalf("unexpected intermediate delay %d", result.ShortLink.IntermediateDelaySeconds)
+	}
+	if result.ShortLink.ExpiresAt != nil || result.ShortLink.Expired {
+		t.Fatalf("unexpected default expiration: %#v", result.ShortLink)
+	}
 	assertCreatedAt(t, result.ShortLink)
 
 	var storedTarget string
@@ -867,6 +876,326 @@ func TestServiceAdminStatisticsReturnsAnyVisibleLink(t *testing.T) {
 	result, err := service.AdminStatistics(ctx, admin, shortlink.StatisticsInput{ID: linkID})
 	if err != nil || result.Stats.VisitCount != 1 {
 		t.Fatalf("admin statistics = %#v, %v", result, err)
+	}
+}
+
+// TestServiceAccessConfigCreateListAndUpdate verifies access settings persist across every owner mutation path.
+func TestServiceAccessConfigCreateListAndUpdate(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	service := shortlink.NewService(pool, permission.NewService())
+	future := time.Now().UTC().Add(2 * time.Hour).Truncate(time.Second)
+
+	created, err := service.Create(ctx, user, shortlink.CreateInput{
+		TargetURL:                "https://example.com/docs",
+		RedirectMode:             shortlink.RedirectModeIntermediate,
+		IntermediateDelaySeconds: 7,
+		Expiration: &shortlink.ExpirationInput{
+			Mode:      shortlink.ExpirationModeAt,
+			ExpiresAt: &future,
+		},
+	})
+	if err != nil {
+		t.Fatalf("create configured short link: %v", err)
+	}
+	assertAccessConfig(t, created.ShortLink, shortlink.RedirectModeIntermediate, 7, &future, false)
+
+	listed, err := service.List(ctx, user, shortlink.ListInput{Page: 1, PageSize: 20})
+	if err != nil {
+		t.Fatalf("list configured short link: %v", err)
+	}
+	if len(listed.Items) != 1 {
+		t.Fatalf("expected one configured link, got %#v", listed.Items)
+	}
+	assertAccessConfig(t, listed.Items[0], shortlink.RedirectModeIntermediate, 7, &future, false)
+
+	status := "disabled"
+	statusOnly, err := service.Update(ctx, user, shortlink.UpdateInput{ID: created.ShortLink.ID, Status: &status})
+	if err != nil {
+		t.Fatalf("update configured link status: %v", err)
+	}
+	assertAccessConfig(t, statusOnly.ShortLink, shortlink.RedirectModeIntermediate, 7, &future, false)
+	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: permission.GroupAdmin}
+	active := "active"
+	adminStatusOnly, err := service.AdminUpdate(ctx, admin, shortlink.UpdateInput{ID: created.ShortLink.ID, Status: &active})
+	if err != nil {
+		t.Fatalf("admin update configured link status: %v", err)
+	}
+	assertAccessConfig(t, adminStatusOnly.ShortLink, shortlink.RedirectModeIntermediate, 7, &future, false)
+	adminList, err := service.AdminList(ctx, admin, shortlink.ListInput{Page: 1, PageSize: 20})
+	if err != nil {
+		t.Fatalf("admin list configured short link: %v", err)
+	}
+	if len(adminList.Items) != 1 || adminList.Items[0].RedirectMode != shortlink.RedirectModeIntermediate || adminList.Items[0].IntermediateDelaySeconds != 7 || adminList.Items[0].ExpiresAt == nil || !adminList.Items[0].ExpiresAt.Equal(future) || adminList.Items[0].Expired {
+		t.Fatalf("unexpected admin access config: %#v", adminList.Items)
+	}
+
+	cleared, err := service.Update(ctx, user, shortlink.UpdateInput{
+		ID:         created.ShortLink.ID,
+		Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeNever},
+	})
+	if err != nil {
+		t.Fatalf("clear configured link expiration: %v", err)
+	}
+	assertAccessConfig(t, cleared.ShortLink, shortlink.RedirectModeIntermediate, 7, nil, false)
+
+	ownerFuture := future.Add(time.Hour)
+	ownerConfigured, err := service.Update(ctx, user, shortlink.UpdateInput{
+		ID: created.ShortLink.ID,
+		Expiration: &shortlink.ExpirationInput{
+			Mode:      shortlink.ExpirationModeAt,
+			ExpiresAt: &ownerFuture,
+		},
+	})
+	if err != nil {
+		t.Fatalf("set owner expiration after clearing it: %v", err)
+	}
+	assertAccessConfig(t, ownerConfigured.ShortLink, shortlink.RedirectModeIntermediate, 7, &ownerFuture, false)
+	ownerCleared, err := service.Update(ctx, user, shortlink.UpdateInput{
+		ID:         created.ShortLink.ID,
+		Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeNever},
+	})
+	if err != nil {
+		t.Fatalf("clear owner expiration: %v", err)
+	}
+	assertAccessConfig(t, ownerCleared.ShortLink, shortlink.RedirectModeIntermediate, 7, nil, false)
+
+	adminFuture := ownerFuture.Add(time.Hour)
+	adminConfigured, err := service.AdminUpdate(ctx, admin, shortlink.UpdateInput{
+		ID: created.ShortLink.ID,
+		Expiration: &shortlink.ExpirationInput{
+			Mode:      shortlink.ExpirationModeAt,
+			ExpiresAt: &adminFuture,
+		},
+	})
+	if err != nil {
+		t.Fatalf("set admin expiration from never: %v", err)
+	}
+	assertAccessConfig(t, adminConfigured.ShortLink, shortlink.RedirectModeIntermediate, 7, &adminFuture, false)
+	adminCleared, err := service.AdminUpdate(ctx, admin, shortlink.UpdateInput{
+		ID:         created.ShortLink.ID,
+		Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeNever},
+	})
+	if err != nil {
+		t.Fatalf("clear admin expiration: %v", err)
+	}
+	assertAccessConfig(t, adminCleared.ShortLink, shortlink.RedirectModeIntermediate, 7, nil, false)
+
+	direct := shortlink.RedirectModeDirect
+	delay := int16(5)
+	adminUpdated, err := service.AdminUpdate(ctx, admin, shortlink.UpdateInput{
+		ID:                       created.ShortLink.ID,
+		RedirectMode:             &direct,
+		IntermediateDelaySeconds: &delay,
+	})
+	if err != nil {
+		t.Fatalf("admin update configured link: %v", err)
+	}
+	assertAccessConfig(t, adminUpdated.ShortLink, shortlink.RedirectModeDirect, 5, nil, false)
+
+	if _, err := pool.Exec(ctx, `update short_link set expires_at = now() - interval '1 minute' where id = $1`, created.ShortLink.ID); err != nil {
+		t.Fatalf("expire configured short link fixture: %v", err)
+	}
+	expiredList, err := service.List(ctx, user, shortlink.ListInput{Page: 1, PageSize: 20})
+	if err != nil {
+		t.Fatalf("list expired short link: %v", err)
+	}
+	if len(expiredList.Items) != 1 || expiredList.Items[0].ExpiresAt == nil || !expiredList.Items[0].Expired {
+		t.Fatalf("expected dynamic expired response, got %#v", expiredList.Items)
+	}
+	expiredAdminList, err := service.AdminList(ctx, admin, shortlink.ListInput{Page: 1, PageSize: 20})
+	if err != nil {
+		t.Fatalf("admin list expired short link: %v", err)
+	}
+	if len(expiredAdminList.Items) != 1 || expiredAdminList.Items[0].ExpiresAt == nil || !expiredAdminList.Items[0].Expired {
+		t.Fatalf("expected dynamic admin expired response, got %#v", expiredAdminList.Items)
+	}
+}
+
+// TestServiceAccessConfigValidation verifies stable validation errors for every access setting boundary.
+func TestServiceAccessConfigValidation(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	service := shortlink.NewService(pool, permission.NewService())
+	created, err := service.Create(ctx, user, shortlink.CreateInput{TargetURL: "https://example.com/baseline"})
+	if err != nil {
+		t.Fatalf("create validation baseline: %v", err)
+	}
+	past := time.Now().UTC().Add(-time.Minute)
+	future := time.Now().UTC().Add(time.Hour)
+
+	tests := []struct {
+		name  string
+		input shortlink.CreateInput
+		err   error
+	}{
+		{name: "invalid mode", input: shortlink.CreateInput{TargetURL: "https://example.com", RedirectMode: "confirm"}, err: shortlink.ErrInvalidRedirectMode},
+		{name: "delay below range", input: shortlink.CreateInput{TargetURL: "https://example.com", IntermediateDelaySeconds: 2}, err: shortlink.ErrInvalidIntermediateDelay},
+		{name: "delay above range", input: shortlink.CreateInput{TargetURL: "https://example.com", IntermediateDelaySeconds: 11}, err: shortlink.ErrInvalidIntermediateDelay},
+		{name: "missing expiration mode", input: shortlink.CreateInput{TargetURL: "https://example.com", Expiration: &shortlink.ExpirationInput{}}, err: shortlink.ErrInvalidExpiration},
+		{name: "never with time", input: shortlink.CreateInput{TargetURL: "https://example.com", Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeNever, ExpiresAt: &future}}, err: shortlink.ErrInvalidExpiration},
+		{name: "at without time", input: shortlink.CreateInput{TargetURL: "https://example.com", Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeAt}}, err: shortlink.ErrInvalidExpiration},
+		{name: "past expiration", input: shortlink.CreateInput{TargetURL: "https://example.com", Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeAt, ExpiresAt: &past}}, err: shortlink.ErrInvalidExpiration},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := service.Create(ctx, user, test.input)
+			if !errors.Is(err, test.err) {
+				t.Fatalf("expected %v, got %v", test.err, err)
+			}
+		})
+	}
+
+	invalidMode := "confirm"
+	invalidDelay := int16(2)
+	updateTests := []struct {
+		name  string
+		input shortlink.UpdateInput
+		err   error
+	}{
+		{name: "update invalid mode", input: shortlink.UpdateInput{ID: created.ShortLink.ID, RedirectMode: &invalidMode}, err: shortlink.ErrInvalidRedirectMode},
+		{name: "update invalid delay", input: shortlink.UpdateInput{ID: created.ShortLink.ID, IntermediateDelaySeconds: &invalidDelay}, err: shortlink.ErrInvalidIntermediateDelay},
+		{name: "update invalid expiration", input: shortlink.UpdateInput{ID: created.ShortLink.ID, Expiration: &shortlink.ExpirationInput{}}, err: shortlink.ErrInvalidExpiration},
+	}
+	for _, test := range updateTests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := service.Update(ctx, user, test.input)
+			if !errors.Is(err, test.err) {
+				t.Fatalf("expected %v, got %v", test.err, err)
+			}
+		})
+	}
+
+	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: permission.GroupAdmin}
+	_, err = service.AdminUpdate(ctx, admin, shortlink.UpdateInput{ID: created.ShortLink.ID, RedirectMode: &invalidMode})
+	if !errors.Is(err, shortlink.ErrInvalidRedirectMode) {
+		t.Fatalf("expected admin invalid redirect mode, got %v", err)
+	}
+
+	lowerBoundary, err := service.Create(ctx, user, shortlink.CreateInput{
+		TargetURL:                "https://example.com/lower-boundary",
+		RedirectMode:             shortlink.RedirectModeIntermediate,
+		IntermediateDelaySeconds: 3,
+	})
+	if err != nil {
+		t.Fatalf("create with minimum intermediate delay: %v", err)
+	}
+	assertAccessConfig(t, lowerBoundary.ShortLink, shortlink.RedirectModeIntermediate, 3, nil, false)
+
+	upperDelay := int16(10)
+	upperBoundary, err := service.Update(ctx, user, shortlink.UpdateInput{
+		ID:                       created.ShortLink.ID,
+		IntermediateDelaySeconds: &upperDelay,
+	})
+	if err != nil {
+		t.Fatalf("update with maximum intermediate delay: %v", err)
+	}
+	assertAccessConfig(t, upperBoundary.ShortLink, shortlink.RedirectModeDirect, 10, nil, false)
+}
+
+// TestServiceAccessConfigValidationDatabaseTimeError keeps the database-time failure isolated from boundary checks.
+func TestServiceAccessConfigValidationDatabaseTimeError(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	service := shortlink.NewService(pool, permission.NewService())
+	future := time.Now().UTC().Add(time.Hour)
+	pool.Close()
+
+	_, err := service.Update(ctx, auth.CurrentUser{GroupKey: permission.GroupUser}, shortlink.UpdateInput{
+		ID: "00000000-0000-0000-0000-000000000301",
+		Expiration: &shortlink.ExpirationInput{
+			Mode:      shortlink.ExpirationModeAt,
+			ExpiresAt: &future,
+		},
+	})
+	if err == nil || errors.Is(err, shortlink.ErrInvalidExpiration) {
+		t.Fatalf("expected database time query error, got %v", err)
+	}
+}
+
+// TestServiceAccessConfigRequiresCapabilities verifies status updates remain available when advanced permissions are absent.
+func TestServiceAccessConfigRequiresCapabilities(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	fullService := shortlink.NewService(pool, permission.NewService())
+	created, err := fullService.Create(ctx, user, shortlink.CreateInput{TargetURL: "https://example.com"})
+	if err != nil {
+		t.Fatalf("create baseline short link: %v", err)
+	}
+
+	limitedPermissions := []string{
+		permission.ShortLinkCreate,
+		permission.ShortLinkReadOwn,
+		permission.ShortLinkUpdateOwn,
+		permission.ShortLinkDeleteOwn,
+		permission.DomainUseDefault,
+	}
+	limitedService := shortlink.NewService(pool, permission.NewServiceWithPermissions(limitedPermissions, permission.AdminPermissions))
+
+	_, err = limitedService.Create(ctx, user, shortlink.CreateInput{
+		TargetURL:    "https://example.com/intermediate",
+		RedirectMode: shortlink.RedirectModeIntermediate,
+	})
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected intermediate create permission denial, got %v", err)
+	}
+	future := time.Now().UTC().Add(time.Hour)
+	_, err = limitedService.Create(ctx, user, shortlink.CreateInput{
+		TargetURL: "https://example.com/expiring",
+		Expiration: &shortlink.ExpirationInput{
+			Mode:      shortlink.ExpirationModeAt,
+			ExpiresAt: &future,
+		},
+	})
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected expiration create permission denial, got %v", err)
+	}
+
+	delay := int16(6)
+	direct := shortlink.RedirectModeDirect
+	_, err = limitedService.Update(ctx, user, shortlink.UpdateInput{ID: created.ShortLink.ID, RedirectMode: &direct})
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected redirect mode update permission denial, got %v", err)
+	}
+	_, err = limitedService.Update(ctx, user, shortlink.UpdateInput{ID: created.ShortLink.ID, IntermediateDelaySeconds: &delay})
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected intermediate update permission denial, got %v", err)
+	}
+	_, err = limitedService.Update(ctx, user, shortlink.UpdateInput{
+		ID:         created.ShortLink.ID,
+		Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeNever},
+	})
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected expiration update permission denial, got %v", err)
+	}
+
+	status := "disabled"
+	updated, err := limitedService.Update(ctx, user, shortlink.UpdateInput{ID: created.ShortLink.ID, Status: &status})
+	if err != nil {
+		t.Fatalf("status-only update with limited capabilities: %v", err)
+	}
+	assertAccessConfig(t, updated.ShortLink, shortlink.RedirectModeDirect, 5, nil, false)
+}
+
+func assertAccessConfig(t *testing.T, link shortlink.ShortLink, mode string, delay int16, expiresAt *time.Time, expired bool) {
+	t.Helper()
+	if link.RedirectMode != mode || link.IntermediateDelaySeconds != delay || link.Expired != expired {
+		t.Fatalf("unexpected access config: %#v", link)
+	}
+	if expiresAt == nil {
+		if link.ExpiresAt != nil {
+			t.Fatalf("expected no expiration, got %s", link.ExpiresAt)
+		}
+		return
+	}
+	if link.ExpiresAt == nil || !link.ExpiresAt.Equal(*expiresAt) {
+		t.Fatalf("expected expiration %s, got %v", expiresAt, link.ExpiresAt)
 	}
 }
 

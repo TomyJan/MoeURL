@@ -29,6 +29,65 @@ func TestSQLCPackageExposesQueries(t *testing.T) {
 	}
 }
 
+// TestShortLinkExpirationQueriesUseDatabaseTime locks the database-owned expiration contract.
+func TestShortLinkExpirationQueriesUseDatabaseTime(t *testing.T) {
+	ctx := context.Background()
+	pool := sqlcTestPool(t, ctx)
+	ownerID := uuid.MustParse("00000000-0000-0000-0000-000000000201")
+	domainID := uuid.MustParse("00000000-0000-0000-0000-000000000101")
+	linkID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
+	insertSQLCShortLinkFixtures(t, ctx, pool, ownerID, domainID, linkID)
+
+	connection, err := pool.Acquire(ctx)
+	if err != nil {
+		t.Fatalf("acquire PostgreSQL connection: %v", err)
+	}
+	defer connection.Release()
+	if _, err := connection.Exec(ctx, `set time zone 'Pacific/Kiritimati'`); err != nil {
+		t.Fatalf("set non-UTC session timezone: %v", err)
+	}
+
+	queries := sqlc.New(connection)
+	databaseTime, err := queries.GetDatabaseTime(ctx)
+	if err != nil || !databaseTime.Valid {
+		t.Fatalf("read database time: %v, %#v", err, databaseTime)
+	}
+	pastWithOffset := databaseTime.Time.Add(-time.Minute).In(time.FixedZone("UTC-11", -11*60*60))
+	if _, err := connection.Exec(ctx, `update short_link set expires_at = $1 where id = $2`, pastWithOffset, linkID); err != nil {
+		t.Fatalf("set past expiration with offset: %v", err)
+	}
+
+	bySlug, err := queries.GetShortLinkBySlug(ctx, "abc123")
+	if err != nil || !bySlug.Expired {
+		t.Fatalf("expected slug query to use database expiration state: %v, %#v", err, bySlug)
+	}
+	ownerRows, err := queries.ListShortLinksByOwner(ctx, sqlc.ListShortLinksByOwnerParams{OwnerID: uuidToPgtype(ownerID), Limit: 20})
+	if err != nil || len(ownerRows) != 1 || !ownerRows[0].Expired {
+		t.Fatalf("expected owner list to use database expiration state: %v, %#v", err, ownerRows)
+	}
+	adminRows, err := queries.ListAllShortLinks(ctx, sqlc.ListAllShortLinksParams{Limit: 20})
+	if err != nil || len(adminRows) != 1 || !adminRows[0].Expired {
+		t.Fatalf("expected admin list to use database expiration state: %v, %#v", err, adminRows)
+	}
+
+	futureWithOffset := databaseTime.Time.Add(time.Hour).In(time.FixedZone("UTC+13", 13*60*60))
+	if _, err := connection.Exec(ctx, `update short_link set expires_at = $1 where id = $2`, futureWithOffset, linkID); err != nil {
+		t.Fatalf("set future expiration with offset: %v", err)
+	}
+	bySlug, err = queries.GetShortLinkBySlug(ctx, "abc123")
+	if err != nil || bySlug.Expired {
+		t.Fatalf("expected future database expiration to remain active: %v, %#v", err, bySlug)
+	}
+	ownerRows, err = queries.ListShortLinksByOwner(ctx, sqlc.ListShortLinksByOwnerParams{OwnerID: uuidToPgtype(ownerID), Limit: 20})
+	if err != nil || len(ownerRows) != 1 || ownerRows[0].Expired {
+		t.Fatalf("expected future owner list expiration to remain active: %v, %#v", err, ownerRows)
+	}
+	adminRows, err = queries.ListAllShortLinks(ctx, sqlc.ListAllShortLinksParams{Limit: 20})
+	if err != nil || len(adminRows) != 1 || adminRows[0].Expired {
+		t.Fatalf("expected future admin list expiration to remain active: %v, %#v", err, adminRows)
+	}
+}
+
 // TestWithTxRollsBackAfterPanic verifies a panic releases the transaction connection.
 func TestWithTxRollsBackAfterPanic(t *testing.T) {
 	ctx := context.Background()
@@ -121,6 +180,132 @@ func TestShortLinkStatisticsQueries(t *testing.T) {
 	}
 	if adminRows[0].VisitCount != 2 || adminRows[0].TodayVisitCount != 2 || !adminRows[0].LastVisitedAt.Valid {
 		t.Fatalf("unexpected admin statistics: %#v", adminRows[0])
+	}
+}
+
+// TestShortLinkAccessConfigQueries verifies generated create, read, list, and update contracts.
+func TestShortLinkAccessConfigQueries(t *testing.T) {
+	ctx := context.Background()
+	pool := sqlcTestPool(t, ctx)
+	queries := sqlc.New(pool)
+	ownerID := uuid.MustParse("00000000-0000-0000-0000-000000000201")
+	domainID := uuid.MustParse("00000000-0000-0000-0000-000000000101")
+	fixtureID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
+	configuredID := uuid.MustParse("00000000-0000-0000-0000-000000000302")
+	insertSQLCShortLinkFixtures(t, ctx, pool, ownerID, domainID, fixtureID)
+	var expiresAt time.Time
+	if err := pool.QueryRow(ctx, `select now() + interval '24 hours'`).Scan(&expiresAt); err != nil {
+		t.Fatalf("read database future time: %v", err)
+	}
+	expiresAt = expiresAt.Truncate(time.Second)
+
+	created, err := queries.CreateShortLink(ctx, sqlc.CreateShortLinkParams{
+		ID:                       uuidToPgtype(configuredID),
+		OwnerID:                  uuidToPgtype(ownerID),
+		DomainID:                 uuidToPgtype(domainID),
+		Slug:                     "config",
+		TargetUrl:                "https://example.com/configured",
+		Status:                   "active",
+		RedirectMode:             "intermediate",
+		IntermediateDelaySeconds: 7,
+		ExpiresAt:                pgtype.Timestamptz{Time: expiresAt, Valid: true},
+	})
+	if err != nil {
+		t.Fatalf("create configured short link: %v", err)
+	}
+	if created.RedirectMode != "intermediate" || created.IntermediateDelaySeconds != 7 || !created.ExpiresAt.Valid || !created.ExpiresAt.Time.Equal(expiresAt) || created.Expired {
+		t.Fatalf("unexpected created access config: %#v", created)
+	}
+
+	bySlug, err := queries.GetShortLinkBySlug(ctx, "config")
+	if err != nil {
+		t.Fatalf("get configured short link: %v", err)
+	}
+	if bySlug.RedirectMode != "intermediate" || bySlug.IntermediateDelaySeconds != 7 || !bySlug.ExpiresAt.Valid || bySlug.Expired {
+		t.Fatalf("unexpected slug access config: %#v", bySlug)
+	}
+
+	listed, err := queries.ListShortLinksByOwner(ctx, sqlc.ListShortLinksByOwnerParams{
+		OwnerID: uuidToPgtype(ownerID),
+		Limit:   20,
+		Offset:  0,
+		Status:  pgtype.Text{},
+	})
+	if err != nil {
+		t.Fatalf("list configured short link: %v", err)
+	}
+	var found bool
+	for _, row := range listed {
+		if row.ID == uuidToPgtype(configuredID) {
+			found = true
+			if row.RedirectMode != "intermediate" || row.IntermediateDelaySeconds != 7 || !row.ExpiresAt.Valid || row.Expired {
+				t.Fatalf("unexpected listed access config: %#v", row)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("expected configured short link in owner list")
+	}
+
+	updated, err := queries.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
+		ID:                       uuidToPgtype(configuredID),
+		OwnerID:                  uuidToPgtype(ownerID),
+		TargetUrl:                pgtype.Text{},
+		Status:                   pgtype.Text{String: "disabled", Valid: true},
+		RedirectMode:             pgtype.Text{},
+		IntermediateDelaySeconds: pgtype.Int2{},
+		ExpirationMode:           "keep",
+		ExpiresAt:                pgtype.Timestamptz{},
+	})
+	if err != nil {
+		t.Fatalf("update configured short link status: %v", err)
+	}
+	if updated.RedirectMode != "intermediate" || updated.IntermediateDelaySeconds != 7 || !updated.ExpiresAt.Valid {
+		t.Fatalf("status update cleared access config: %#v", updated)
+	}
+
+	cleared, err := queries.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
+		ID:                       uuidToPgtype(configuredID),
+		OwnerID:                  uuidToPgtype(ownerID),
+		TargetUrl:                pgtype.Text{},
+		Status:                   pgtype.Text{},
+		RedirectMode:             pgtype.Text{String: "direct", Valid: true},
+		IntermediateDelaySeconds: pgtype.Int2{Int16: 5, Valid: true},
+		ExpirationMode:           "never",
+		ExpiresAt:                pgtype.Timestamptz{},
+	})
+	if err != nil {
+		t.Fatalf("clear configured short link expiration: %v", err)
+	}
+	if cleared.RedirectMode != "direct" || cleared.IntermediateDelaySeconds != 5 || cleared.ExpiresAt.Valid {
+		t.Fatalf("unexpected cleared access config: %#v", cleared)
+	}
+
+	ownerExpiresAt := expiresAt.Add(time.Hour)
+	ownerConfigured, err := queries.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
+		ID:             uuidToPgtype(configuredID),
+		OwnerID:        uuidToPgtype(ownerID),
+		ExpirationMode: "at",
+		ExpiresAt:      pgtype.Timestamptz{Time: ownerExpiresAt, Valid: true},
+	})
+	if err != nil {
+		t.Fatalf("set owner short link expiration: %v", err)
+	}
+	if !ownerConfigured.ExpiresAt.Valid || !ownerConfigured.ExpiresAt.Time.Equal(ownerExpiresAt) || ownerConfigured.Expired {
+		t.Fatalf("unexpected owner expiration update: %#v", ownerConfigured)
+	}
+
+	adminExpiresAt := ownerExpiresAt.Add(time.Hour)
+	adminConfigured, err := queries.UpdateAnyShortLink(ctx, sqlc.UpdateAnyShortLinkParams{
+		ID:             uuidToPgtype(configuredID),
+		ExpirationMode: "at",
+		ExpiresAt:      pgtype.Timestamptz{Time: adminExpiresAt, Valid: true},
+	})
+	if err != nil {
+		t.Fatalf("set admin short link expiration: %v", err)
+	}
+	if !adminConfigured.ExpiresAt.Valid || !adminConfigured.ExpiresAt.Time.Equal(adminExpiresAt) || adminConfigured.Expired {
+		t.Fatalf("unexpected admin expiration update: %#v", adminConfigured)
 	}
 }
 

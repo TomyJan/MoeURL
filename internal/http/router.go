@@ -39,6 +39,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 	router := chi.NewRouter()
 	router.Use(middleware.RequestLogger(logger))
 	router.Use(auth.CurrentUserMiddleware(dependency.CurrentUser))
+	var redirectHandler *shortlink.RedirectHandler
+	if dependency.Redirect != nil {
+		redirectHandler = shortlink.NewRedirectHandlerWithAnalytics(dependency.Redirect, dependency.RedirectRecorder, dependency.AnalyticsCountryHeader)
+	}
 
 	router.Route("/api/v1", func(api chi.Router) {
 		api.Get("/health", func(w nethttp.ResponseWriter, r *nethttp.Request) {
@@ -69,6 +73,9 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			api.Post("/admin/short-link/update", shortLinkHandler.AdminUpdate)
 			api.Post("/admin/short-link/delete", shortLinkHandler.AdminDelete)
 		}
+		if redirectHandler != nil {
+			api.Get("/public/short-link/preview", redirectHandler.Preview)
+		}
 		if dependency.User != nil {
 			userHandler := user.NewHandler(dependency.User)
 			api.Post("/admin/user/create", userHandler.Create)
@@ -83,11 +90,15 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 		})
 	})
 
+	if redirectHandler != nil {
+		router.Get("/go/{slug}/continue", func(w nethttp.ResponseWriter, r *nethttp.Request) {
+			redirectHandler.Continue(w, r, chi.URLParam(r, "slug"))
+		})
+	}
 	if dependency.StaticDir != "" {
 		registerStaticRoutes(router, dependency.StaticDir)
 	}
-	if dependency.Redirect != nil {
-		redirectHandler := shortlink.NewRedirectHandlerWithAnalytics(dependency.Redirect, dependency.RedirectRecorder, dependency.AnalyticsCountryHeader)
+	if redirectHandler != nil {
 		router.Get("/{slug}", func(w nethttp.ResponseWriter, r *nethttp.Request) {
 			redirectHandler.Open(w, r, chi.URLParam(r, "slug"))
 		})
@@ -119,6 +130,7 @@ func registerStaticRoutes(router chi.Router, staticDir string) {
 	} {
 		router.Get(path, serveStaticFile(staticDir, "index.html"))
 	}
+	router.Get("/go/{slug}", serveStaticFile(staticDir, "index.html"))
 }
 
 // serveStaticFile returns a handler for a file within the static directory.
