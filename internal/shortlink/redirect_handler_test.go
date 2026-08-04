@@ -35,6 +35,75 @@ func TestRedirectHandlerRedirectsActiveSlug(t *testing.T) {
 	}
 }
 
+func TestRedirectHandlerRedirectsProtectedSlugToPasswordPage(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		Redirect: &fakeRedirectService{openResult: shortlink.OpenResult{RedirectMode: shortlink.RedirectModeDirect, Slug: "abc123", RequiresPassword: true}},
+	})
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/abc123", nil))
+
+	if response.Code != http.StatusFound || response.Header().Get("Location") != "/go/abc123?reason=password" {
+		t.Fatalf("expected password redirect, got %d %q", response.Code, response.Header().Get("Location"))
+	}
+}
+
+func TestRedirectHandlerUnlockSetsScopedCookie(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		Redirect: &fakeRedirectService{unlockGrant: shortlink.AccessGrant{Token: "raw-token"}},
+	})
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString(`{"slug":"abc123","password":"correct horse"}`))
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", response.Code)
+	}
+	var body struct {
+		Code int `json:"code"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode unlock response: %v", err)
+	}
+	if body.Code != 0 {
+		t.Fatalf("expected successful unlock code, got %d", body.Code)
+	}
+	cookie := response.Result().Cookies()[0]
+	if cookie.Name != "moeurl_short_link_access" || cookie.Value != "raw-token" || cookie.Path != "/go/abc123" || !cookie.HttpOnly || cookie.Secure || cookie.SameSite != http.SameSiteLaxMode || cookie.MaxAge != 900 {
+		t.Fatalf("unexpected access cookie: %#v", cookie)
+	}
+}
+
+func TestRedirectHandlerUnlockMapsPasswordErrorsToBusinessCodes(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		err  error
+		code int
+	}{
+		{name: "required", err: shortlink.ErrPasswordRequired, code: 200111},
+		{name: "invalid", err: shortlink.ErrInvalidPassword, code: 200112},
+		{name: "missing", err: shortlink.ErrShortLinkMissing, code: 200112},
+		{name: "disabled", err: shortlink.ErrShortLinkDisabled, code: 200112},
+		{name: "expired", err: shortlink.ErrShortLinkExpired, code: 200112},
+		{name: "rate limited", err: shortlink.ErrPasswordRateLimited, code: 200113},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			router := apphttp.NewRouter(apphttp.Dependencies{Redirect: &fakeRedirectService{unlockErr: test.err}})
+			request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString(`{"slug":"abc123","password":"wrong"}`))
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			var body struct {
+				Code int `json:"code"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if response.Code != http.StatusOK || body.Code != test.code {
+				t.Fatalf("expected 200/code %d, got %d/code %d", test.code, response.Code, body.Code)
+			}
+		})
+	}
+}
+
 // TestRedirectHandlerRecordsSuccessfulRedirectResponse verifies successful responses emit an event.
 func TestRedirectHandlerRecordsSuccessfulRedirectResponse(t *testing.T) {
 	recorder := &recordingRecorder{}
@@ -229,6 +298,7 @@ func TestRedirectHandlerPreviewUsesUnifiedMinimalResponse(t *testing.T) {
 	handler := shortlink.NewRedirectHandler(&fakeRedirectService{previewResult: shortlink.PreviewResult{
 		Slug:                     "middle",
 		TargetHost:               "example.com",
+		RedirectMode:             shortlink.RedirectModeIntermediate,
 		IntermediateDelaySeconds: 7,
 		ExpiresAt:                &expiresAt,
 	}})
@@ -248,11 +318,25 @@ func TestRedirectHandlerPreviewUsesUnifiedMinimalResponse(t *testing.T) {
 	if err := json.NewDecoder(bytes.NewReader(raw)).Decode(&body); err != nil {
 		t.Fatalf("decode preview response: %v", err)
 	}
-	if body.Code != 0 || body.Data.TargetHost != "example.com" || body.Data.IntermediateDelaySeconds != 7 || body.Data.ExpiresAt == nil || !body.Data.ExpiresAt.Equal(expiresAt) {
+	if body.Code != 0 || body.Data.TargetHost != "example.com" || body.Data.RedirectMode != shortlink.RedirectModeIntermediate || body.Data.IntermediateDelaySeconds != 7 || body.Data.ExpiresAt == nil || !body.Data.ExpiresAt.Equal(expiresAt) {
 		t.Fatalf("unexpected preview body: %#v", body)
 	}
 	if bytes.Contains(raw, []byte("https://")) || bytes.Contains(raw, []byte("http://")) || bytes.Contains(raw, []byte("targetUrl")) {
 		t.Fatalf("preview leaked target URL: %s", raw)
+	}
+}
+
+func TestRedirectHandlerPreviewPassesScopedAccessCookie(t *testing.T) {
+	service := &fakeRedirectService{previewResult: shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", RedirectMode: shortlink.RedirectModeIntermediate}}
+	handler := shortlink.NewRedirectHandler(service)
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/go/middle/preview", nil)
+	request.AddCookie(&http.Cookie{Name: "moeurl_short_link_access", Value: "raw-token"})
+
+	handler.Preview(response, request, "middle")
+
+	if response.Code != http.StatusOK || service.previewToken != "raw-token" {
+		t.Fatalf("expected scoped preview token, got status %d token %q", response.Code, service.previewToken)
 	}
 }
 
@@ -348,6 +432,10 @@ type fakeRedirectService struct {
 	openErr        error
 	previewErr     error
 	continueErr    error
+	unlockGrant    shortlink.AccessGrant
+	unlockErr      error
+	continueToken  string
+	previewToken   string
 }
 
 // Open returns the configured initial access result.
@@ -359,7 +447,10 @@ func (f *fakeRedirectService) Open(context.Context, string) (shortlink.OpenResul
 }
 
 // Preview returns the configured public preview result.
-func (f *fakeRedirectService) Preview(context.Context, string) (shortlink.PreviewResult, error) {
+func (f *fakeRedirectService) Preview(_ context.Context, _ string, accessTokens ...string) (shortlink.PreviewResult, error) {
+	if len(accessTokens) > 0 {
+		f.previewToken = accessTokens[0]
+	}
 	if f.previewErr != nil {
 		return shortlink.PreviewResult{}, f.previewErr
 	}
@@ -367,11 +458,22 @@ func (f *fakeRedirectService) Preview(context.Context, string) (shortlink.Previe
 }
 
 // Continue returns the configured final redirect result.
-func (f *fakeRedirectService) Continue(context.Context, string) (shortlink.RedirectResult, error) {
+func (f *fakeRedirectService) Continue(_ context.Context, _ string, accessTokens ...string) (shortlink.RedirectResult, error) {
+	if len(accessTokens) > 0 {
+		f.continueToken = accessTokens[0]
+	}
 	if f.continueErr != nil {
 		return shortlink.RedirectResult{}, f.continueErr
 	}
 	return f.continueResult, nil
+}
+
+// Unlock returns the configured public access grant result.
+func (f *fakeRedirectService) Unlock(context.Context, string, string) (shortlink.AccessGrant, error) {
+	if f.unlockErr != nil {
+		return shortlink.AccessGrant{}, f.unlockErr
+	}
+	return f.unlockGrant, nil
 }
 
 var _ = errors.Is

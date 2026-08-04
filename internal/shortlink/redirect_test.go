@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/event"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 )
@@ -186,7 +187,7 @@ func TestRedirectServiceIntermediatePreviewAndContinue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("preview intermediate short link: %v", err)
 	}
-	if preview.Slug != "middle" || preview.TargetHost != "example.com" || preview.IntermediateDelaySeconds != 7 || preview.ExpiresAt == nil || !preview.ExpiresAt.Equal(expiresAt) {
+	if preview.Slug != "middle" || preview.TargetHost != "example.com" || preview.RedirectMode != shortlink.RedirectModeIntermediate || preview.IntermediateDelaySeconds != 7 || preview.ExpiresAt == nil || !preview.ExpiresAt.Equal(expiresAt) {
 		t.Fatalf("unexpected intermediate preview: %#v", preview)
 	}
 	if len(recorder.types) != 0 {
@@ -209,6 +210,77 @@ func TestRedirectServiceIntermediatePreviewAndContinue(t *testing.T) {
 		t.Fatalf("unexpected continued redirect: %#v", continued)
 	}
 	assertEvents(t, recorder.types, []string{event.AccessConditionChecked, event.RedirectInitiated})
+}
+
+func TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "protected-user", "user", []string{})
+	linkID := insertStoredShortLink(t, ctx, pool, user.ID, "protected", "https://example.com/protected", "active", false)
+	hash, err := auth.HashPassword("correct horse")
+	if err != nil {
+		t.Fatalf("hash protected password: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `update short_link set password_hash = $2, password_updated_at = now() where id = $1`, linkID, hash); err != nil {
+		t.Fatalf("configure protected password: %v", err)
+	}
+	recorder := &recordingRecorder{}
+	service := shortlink.NewRedirectService(pool, recorder)
+
+	opened, err := service.Open(ctx, "PROTECTED")
+	if err != nil || !opened.RequiresPassword || opened.TargetURL != "" {
+		t.Fatalf("expected password-gated open, got %#v error %v", opened, err)
+	}
+	assertEvents(t, recorder.types, []string{event.ShortLinkOpened, event.AccessConditionChecked})
+	recorder.types = nil
+	preview, err := service.Preview(ctx, "protected")
+	if err != nil || !preview.RequiresPassword || preview.RedirectMode != shortlink.RedirectModeDirect || preview.TargetHost != "example.com" {
+		t.Fatalf("expected protected preview, got %#v error %v", preview, err)
+	}
+	if len(recorder.types) != 0 {
+		t.Fatalf("expected preview without events, got %#v", recorder.types)
+	}
+	_, err = service.Continue(ctx, "protected")
+	if !errors.Is(err, shortlink.ErrPasswordRequired) {
+		t.Fatalf("expected missing grant error, got %v", err)
+	}
+	_, err = service.Unlock(ctx, "protected", "")
+	if !errors.Is(err, shortlink.ErrPasswordRequired) {
+		t.Fatalf("expected missing password error, got %v", err)
+	}
+
+	for attempt := 1; attempt <= 5; attempt++ {
+		_, err = service.Unlock(ctx, "protected", "wrong password")
+		want := shortlink.ErrInvalidPassword
+		if attempt == 5 {
+			want = shortlink.ErrPasswordRateLimited
+		}
+		if !errors.Is(err, want) {
+			t.Fatalf("attempt %d error = %v, want %v", attempt, err, want)
+		}
+	}
+	if _, err := pool.Exec(ctx, `update short_link set password_failed_attempts = 0, password_blocked_until = null where id = $1`, linkID); err != nil {
+		t.Fatalf("clear password block fixture: %v", err)
+	}
+	grant, err := service.Unlock(ctx, "protected", "correct horse")
+	if err != nil || grant.Token == "" {
+		t.Fatalf("expected successful unlock grant, got %#v error %v", grant, err)
+	}
+	continued, err := service.Continue(ctx, "protected", grant.Token)
+	if err != nil || continued.TargetURL != "https://example.com/protected" {
+		t.Fatalf("expected granted redirect, got %#v error %v", continued, err)
+	}
+	authorizedPreview, err := service.Preview(ctx, "protected", grant.Token)
+	if err != nil || authorizedPreview.RequiresPassword {
+		t.Fatalf("expected authorized preview to skip password, got %#v error %v", authorizedPreview, err)
+	}
+	if _, err := pool.Exec(ctx, `update short_link set password_updated_at = now() where id = $1`, linkID); err != nil {
+		t.Fatalf("invalidate protected grant: %v", err)
+	}
+	if _, err := service.Continue(ctx, "protected", grant.Token); !errors.Is(err, shortlink.ErrPasswordRequired) {
+		t.Fatalf("expected password update to invalidate old grant, got %v", err)
+	}
 }
 
 // TestRedirectServicePreviewRejectsCorruptStoredTargets verifies unexpected legacy data stays an internal error.

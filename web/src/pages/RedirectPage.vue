@@ -17,6 +17,30 @@
         <v-btn variant="text" :to="{ path: '/' }">{{ t('redirect.backHome') }}</v-btn>
       </div>
 
+      <div v-else-if="preview && passwordRequired" class="redirect-page__state" aria-live="polite">
+        <p class="redirect-page__eyebrow">{{ t('redirect.protectedEyebrow') }}</p>
+        <h1>{{ t('redirect.passwordTitle') }}</h1>
+        <p class="redirect-page__target-label">{{ t('redirect.targetHost') }}</p>
+        <strong class="redirect-page__target">{{ preview.targetHost }}</strong>
+        <v-text-field
+          v-model="password"
+          class="redirect-page__password"
+          type="password"
+          autocomplete="current-password"
+          :disabled="unlockPending"
+          :label="t('redirect.password')"
+          :error-messages="unlockErrorState ? t(`redirect.${unlockErrorState}`) : ''"
+          variant="outlined"
+          @keyup.enter="unlock"
+        />
+        <div class="redirect-page__actions">
+          <v-btn color="primary" size="large" :loading="unlockPending" @click="unlock">
+            {{ t('redirect.unlock') }}
+          </v-btn>
+          <v-btn variant="text" :to="{ path: '/' }">{{ t('redirect.backHome') }}</v-btn>
+        </div>
+      </div>
+
       <div v-else-if="preview" class="redirect-page__state">
         <p class="redirect-page__eyebrow">{{ t('redirect.eyebrow') }}</p>
         <h1>{{ t('redirect.title') }}</h1>
@@ -45,11 +69,12 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
-import { getPublicShortLinkPreview } from '@/entities/short-link/api'
+import { getPublicShortLinkPreview, unlockShortLink } from '@/entities/short-link/api'
 import type { PublicShortLinkPreview } from '@/entities/short-link/model'
 import { ApiClientError } from '@/shared/api/client'
 
 type PreviewFailureState = '' | 'disabled' | 'expired' | 'loadFailed' | 'notIntermediate' | 'unavailable'
+type UnlockErrorState = '' | 'invalidPassword' | 'passwordRequired' | 'rateLimited' | 'unlockFailed'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -59,6 +84,10 @@ const loading = ref(true)
 const failureState = ref<PreviewFailureState>('')
 const continueFailed = ref(false)
 const navigating = ref(false)
+const passwordRequired = ref(false)
+const password = ref('')
+const unlockPending = ref(false)
+const unlockErrorState = ref<UnlockErrorState>('')
 let countdownTimer: ReturnType<typeof globalThis.setInterval> | null = null
 let previewRequestId = 0
 let isMounted = false
@@ -81,6 +110,10 @@ async function loadPreview() {
   failureState.value = ''
   continueFailed.value = false
   navigating.value = false
+  passwordRequired.value = false
+  password.value = ''
+  unlockPending.value = false
+  unlockErrorState.value = unlockErrorFromReason(route.query.reason)
 
   const requestedFailureState = failureStateFromReason(route.query.reason)
   if (requestedFailureState) {
@@ -104,8 +137,10 @@ async function loadPreview() {
     const result = await getPublicShortLinkPreview(slug)
     whenCurrent(requestId, () => {
       preview.value = result
-      remainingSeconds.value = result.intermediateDelaySeconds
-      startCountdown()
+      passwordRequired.value = result.requiresPassword === true
+      if (!passwordRequired.value) {
+        proceedAfterAccess()
+      }
     })
   } catch (error) {
     whenCurrent(requestId, () => {
@@ -141,6 +176,10 @@ function failureStateFromReason(reason: unknown): PreviewFailureState {
   return ''
 }
 
+function unlockErrorFromReason(reason: unknown): UnlockErrorState {
+  return reason === 'rate-limited' ? 'rateLimited' : ''
+}
+
 function classifyPreviewError(error: unknown): PreviewFailureState {
   const code = error instanceof ApiClientError ? error.code : 0
   if (code === 200109) {
@@ -169,8 +208,64 @@ function startCountdown() {
   }, 1_000)
 }
 
+function proceedAfterAccess() {
+  const currentPreview = preview.value!
+  if (currentPreview.redirectMode === 'direct') {
+    continueToTarget()
+    return
+  }
+  remainingSeconds.value = currentPreview.intermediateDelaySeconds
+  startCountdown()
+}
+
+async function unlock() {
+  const slug = preview.value?.slug ?? route.params.slug
+  if (unlockPending.value || typeof slug !== 'string' || !slug) {
+    return
+  }
+  if (!password.value) {
+    unlockErrorState.value = 'passwordRequired'
+    return
+  }
+
+  unlockPending.value = true
+  unlockErrorState.value = ''
+  try {
+    await unlockShortLink({ slug, password: password.value })
+    if (!isMounted) {
+      return
+    }
+    passwordRequired.value = false
+    password.value = ''
+    proceedAfterAccess()
+  } catch (error) {
+    if (!isMounted) {
+      return
+    }
+    unlockErrorState.value = classifyUnlockError(error)
+  } finally {
+    if (isMounted) {
+      unlockPending.value = false
+    }
+  }
+}
+
+function classifyUnlockError(error: unknown): UnlockErrorState {
+  const code = error instanceof ApiClientError ? error.code : 0
+  if (code === 200111) {
+    return 'passwordRequired'
+  }
+  if (code === 200112) {
+    return 'invalidPassword'
+  }
+  if (code === 200113) {
+    return 'rateLimited'
+  }
+  return 'unlockFailed'
+}
+
 function continueToTarget() {
-  const slug = route.params.slug
+  const slug = preview.value?.slug ?? route.params.slug
   if (navigating.value || typeof slug !== 'string' || !slug) {
     return
   }
@@ -253,6 +348,10 @@ function clearCountdown() {
   overflow-wrap: anywhere;
   color: rgb(var(--v-theme-primary));
   font-size: clamp(1.1rem, 3vw, 1.55rem);
+}
+
+.redirect-page__password {
+  width: min(360px, 100%);
 }
 
 .redirect-page__countdown {

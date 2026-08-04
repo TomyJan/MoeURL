@@ -11,6 +11,8 @@ const (
 	RedirectModeIntermediate = "intermediate"
 	ExpirationModeNever      = "never"
 	ExpirationModeAt         = "at"
+	PasswordModeNever        = "never"
+	PasswordModeSet          = "set"
 )
 
 type ExpirationInput struct {
@@ -18,11 +20,27 @@ type ExpirationInput struct {
 	ExpiresAt *time.Time `json:"expiresAt"`
 }
 
+type PasswordInput struct {
+	Mode  string `json:"mode"`
+	Value string `json:"value,omitempty"`
+}
+
+type UnlockInput struct {
+	Slug     string `json:"slug"`
+	Password string `json:"password"`
+}
+
+type AccessGrant struct {
+	Token     string
+	ExpiresAt time.Time
+}
+
 type CreateInput struct {
 	TargetURL                string           `json:"targetUrl"`
 	RedirectMode             string           `json:"redirectMode"`
 	IntermediateDelaySeconds int16            `json:"intermediateDelaySeconds"`
 	Expiration               *ExpirationInput `json:"expiration"`
+	Password                 *PasswordInput   `json:"password"`
 }
 
 type CreateResult struct {
@@ -51,6 +69,7 @@ type UpdateInput struct {
 	RedirectMode             *string          `json:"redirectMode"`
 	IntermediateDelaySeconds *int16           `json:"intermediateDelaySeconds"`
 	Expiration               *ExpirationInput `json:"expiration"`
+	Password                 *PasswordInput   `json:"password"`
 }
 
 type DeleteInput struct {
@@ -103,12 +122,14 @@ type AccessConfig struct {
 	IntermediateDelaySeconds int16      `json:"intermediateDelaySeconds"`
 	ExpiresAt                *time.Time `json:"expiresAt"`
 	Expired                  bool       `json:"expired"`
+	PasswordEnabled          bool       `json:"passwordEnabled"`
 }
 
-func (config *AccessConfig) setAccessConfig(redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool) {
+func (config *AccessConfig) setAccessConfig(redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool, passwordHash pgtype.Text) {
 	config.RedirectMode = redirectMode
 	config.IntermediateDelaySeconds = delay
 	config.ExpiresAt, config.Expired = expirationValues(expiresAt, expired)
+	config.PasswordEnabled = passwordHash.Valid
 }
 
 type ShortLink struct {

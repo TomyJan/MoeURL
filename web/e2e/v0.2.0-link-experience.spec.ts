@@ -5,7 +5,7 @@ const e2ePort = process.env.MOEURL_E2E_PORT ?? '8080'
 const e2eHost = `127.0.0.1:${e2ePort}`
 const e2eHostPattern = escapeRegExp(e2eHost)
 
-test('v0.2.0 initialization, intermediate-page, expiry, QR-code, and logout flows', async ({ page }, testInfo) => {
+test('v0.3.0 protected access plus v0.2.0 initialization, intermediate-page, expiry, QR-code, and logout flows', async ({ page }, testInfo) => {
   testInfo.setTimeout(120_000)
   page.setDefaultTimeout(10_000)
   const status = await page.request.get('/api/v1/init/status')
@@ -79,6 +79,73 @@ test('v0.2.0 initialization, intermediate-page, expiry, QR-code, and logout flow
 
   const slug = new URL(createdUrl ?? '').pathname.slice(1)
 
+  const protectedTarget = 'https://example.com/e2e-protected'
+  const protectedCreate = await page.request.post('/api/v1/short-link/create', {
+    data: {
+      targetUrl: protectedTarget,
+      password: { mode: 'set', value: 'correct horse' },
+    },
+  })
+  await expect(protectedCreate).toBeOK()
+  const protectedPayload = await protectedCreate.json() as {
+    code: number
+    data: { shortLink: { id: string; slug: string } }
+  }
+  expect(protectedPayload.code).toBe(0)
+  const protectedSlug = protectedPayload.data.shortLink.slug
+  const protectedLinkId = protectedPayload.data.shortLink.id
+  expect(await readVisitCount(page, protectedLinkId)).toBe(0)
+
+  const protectedOpen = await page.request.get(`/${protectedSlug}`, { maxRedirects: 0 })
+  expect(protectedOpen.status()).toBe(302)
+  expect(protectedOpen.headers().location).toBe(`/go/${protectedSlug}?reason=password`)
+
+  await page.route(protectedTarget, (route) => route.fulfill({ status: 200, body: 'protected target reached' }))
+  await page.goto(protectedOpen.headers().location!)
+  await expect(page.getByRole('heading', { name: '输入密码后继续访问' })).toBeVisible()
+  await page.getByLabel('访问密码').fill('wrong-pass')
+  await page.getByRole('button', { name: '解锁并继续' }).click()
+  await expect(page.getByText('密码错误，请重试。')).toBeVisible()
+
+  await page.getByLabel('访问密码').fill('correct horse')
+  await Promise.all([
+    page.waitForURL(protectedTarget),
+    page.getByRole('button', { name: '解锁并继续' }).click(),
+  ])
+  await expect.poll(
+    () => readVisitCount(page, protectedLinkId),
+    { intervals: [250, 500, 1_000], timeout: 30_000 },
+  ).toBe(1)
+
+  await page.goto(`/${protectedSlug}`)
+  await expect(page).toHaveURL(protectedTarget)
+  await expect.poll(
+    () => readVisitCount(page, protectedLinkId),
+    { intervals: [250, 500, 1_000], timeout: 30_000 },
+  ).toBe(2)
+
+  const passwordUpdate = await page.request.post('/api/v1/admin/short-link/update', {
+    data: {
+      id: protectedLinkId,
+      password: { mode: 'set', value: 'new correct horse' },
+    },
+  })
+  await expect(passwordUpdate).toBeOK()
+  expect(await passwordUpdate.json()).toMatchObject({ code: 0 })
+
+  await page.goto(`/${protectedSlug}`)
+  await expect(page.getByRole('heading', { name: '输入密码后继续访问' })).toBeVisible()
+  await page.getByLabel('访问密码').fill('new correct horse')
+  await Promise.all([
+    page.waitForURL(protectedTarget),
+    page.getByRole('button', { name: '解锁并继续' }).click(),
+  ])
+  await expect.poll(
+    () => readVisitCount(page, protectedLinkId),
+    { intervals: [250, 500, 1_000], timeout: 30_000 },
+  ).toBe(3)
+
+  await page.goto('/')
   await page.getByRole('button', { name: '继续创建' }).click()
   await page.getByRole('button', { name: '高级设置' }).click()
   await page.getByRole('button', { name: '中间页', exact: true }).click()
@@ -138,7 +205,7 @@ test('v0.2.0 initialization, intermediate-page, expiry, QR-code, and logout flow
   expect(continueProbe.headers().location).toBe(continueProbeTarget)
 
   const previewResponsePromise = page.waitForResponse((response) =>
-    response.url().includes(`/api/v1/public/short-link/preview?slug=${intermediateSlug}`),
+    response.url().endsWith(`/go/${intermediateSlug}/preview`),
   )
   await page.route(intermediateTarget, (route) => route.fulfill({ status: 200, body: 'target reached' }))
   await page.goto(`/go/${intermediateSlug}`)
@@ -153,6 +220,7 @@ test('v0.2.0 initialization, intermediate-page, expiry, QR-code, and logout flow
     data: {
       slug: intermediateSlug,
       targetHost: 'example.com',
+      redirectMode: 'intermediate',
       intermediateDelaySeconds: 10,
     },
   })
@@ -322,7 +390,7 @@ async function readVisitCount(page: Page, id: string) {
 }
 
 async function readPublicPreviewCode(page: Page, slug: string) {
-  const response = await page.request.get(`/api/v1/public/short-link/preview?slug=${encodeURIComponent(slug)}`)
+  const response = await page.request.get(`/go/${encodeURIComponent(slug)}/preview`)
   await expect(response).toBeOK()
   const payload = await response.json() as { code: number }
   return payload.code

@@ -97,6 +97,7 @@ export interface ConsoleLinkListItem {
   intermediateDelaySeconds: number
   expiresAt: string | null
   expired: boolean
+  passwordEnabled: boolean
   stats?: {
     visitCount: number
     todayVisitCount: number

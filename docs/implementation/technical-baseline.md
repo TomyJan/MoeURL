@@ -179,6 +179,7 @@ API 使用 `/api/v1` 前缀：
 /api/v1/short-link/update
 /api/v1/short-link/delete
 /api/v1/public/short-link/preview
+/api/v1/public/short-link/unlock
 /api/v1/admin/short-link/list
 /api/v1/admin/short-link/update
 /api/v1/admin/short-link/delete
@@ -191,6 +192,7 @@ API 使用 `/api/v1` 前缀：
 ```text
 /{slug}
 /go/{slug}
+/go/{slug}/preview
 /go/{slug}/continue
 ```
 

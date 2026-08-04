@@ -5,7 +5,8 @@ import {
   deleteAdminShortLink,
   deleteShortLink,
   getAdminShortLinkStatistics,
-	getPublicShortLinkPreview,
+  getPublicShortLinkPreview,
+  unlockShortLink,
   getShortLinkOverview,
   getShortLinkStatistics,
   listAdminShortLinks,
@@ -86,48 +87,64 @@ describe('short link api', () => {
     expect(fetch).toHaveBeenCalledWith('/api/v1/short-link/create', expect.objectContaining({ method: 'POST' }))
   })
 
-	it('posts access configuration and loads the minimal public preview', async () => {
-		vi.stubGlobal(
-			'fetch',
-			vi.fn(async (request: RequestInfo | URL) => {
-				const url = String(request)
-				return new Response(JSON.stringify({
-					code: 0,
-					message: 'OK',
-					data: url.includes('/preview')
-						? { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 5, expiresAt: null }
-						: { shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123' } },
-					meta: {},
-				}), { status: 200, headers: { 'Content-Type': 'application/json' } })
-			}),
-		)
+  it('posts access configuration and loads the minimal public preview', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (request: RequestInfo | URL) => {
+        const url = String(request)
+        return new Response(JSON.stringify({
+          code: 0,
+          message: 'OK',
+          data: url.includes('/preview')
+            ? { slug: 'abc123', targetHost: 'example.com', redirectMode: 'intermediate', intermediateDelaySeconds: 5, expiresAt: null }
+            : { shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123' } },
+          meta: {},
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }),
+    )
 
-		await createShortLink({
-			targetUrl: 'https://example.com/docs',
-			redirectMode: 'intermediate',
-			intermediateDelaySeconds: 5,
-			expiration: { mode: 'never' },
-		})
-		await expect(getPublicShortLinkPreview('a b')).resolves.toEqual({
-			slug: 'abc123',
-			targetHost: 'example.com',
-			intermediateDelaySeconds: 5,
-			expiresAt: null,
-		})
+    await createShortLink({
+      targetUrl: 'https://example.com/docs',
+      redirectMode: 'intermediate',
+      intermediateDelaySeconds: 5,
+      expiration: { mode: 'never' },
+    })
+    await expect(getPublicShortLinkPreview('a b')).resolves.toEqual({
+      slug: 'abc123',
+      targetHost: 'example.com',
+      redirectMode: 'intermediate',
+      intermediateDelaySeconds: 5,
+      expiresAt: null,
+    })
 
-		const createCall = vi.mocked(fetch).mock.calls.find(([input]) => input === '/api/v1/short-link/create')
-		expect(createCall).toBeDefined()
-		expect(JSON.parse(String(createCall?.[1]?.body))).toEqual({
-			targetUrl: 'https://example.com/docs',
-			redirectMode: 'intermediate',
-			intermediateDelaySeconds: 5,
-			expiration: { mode: 'never' },
-		})
-		expect(fetch).toHaveBeenCalledWith(
-			'/api/v1/public/short-link/preview?slug=a%20b',
-			expect.objectContaining({ method: 'GET' }),
-		)
-	})
+    const createCall = vi.mocked(fetch).mock.calls.find(([input]) => input === '/api/v1/short-link/create')
+    expect(createCall).toBeDefined()
+    expect(JSON.parse(String(createCall?.[1]?.body))).toEqual({
+      targetUrl: 'https://example.com/docs',
+      redirectMode: 'intermediate',
+      intermediateDelaySeconds: 5,
+      expiration: { mode: 'never' },
+    })
+    expect(fetch).toHaveBeenCalledWith(
+      '/go/a%20b/preview',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('posts a public short-link unlock request', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { unlocked: true }, meta: {} }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })),
+    )
+
+    await expect(unlockShortLink({ slug: 'abc123', password: 'correct horse' })).resolves.toEqual({ unlocked: true })
+    const [input, init] = vi.mocked(fetch).mock.calls[0] ?? []
+    expect(input).toBe('/api/v1/public/short-link/unlock')
+    expect(JSON.parse(String(init?.body))).toEqual({ slug: 'abc123', password: 'correct horse' })
+  })
 
   it('loads my short links', async () => {
     vi.stubGlobal(

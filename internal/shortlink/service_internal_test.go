@@ -2,15 +2,78 @@ package shortlink
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
+	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+func TestValidatePasswordInput(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    *PasswordInput
+		wantMode string
+		wantRaw  string
+		wantErr  error
+	}{
+		{name: "omitted", wantMode: passwordModeKeep},
+		{name: "clear", input: &PasswordInput{Mode: PasswordModeNever}, wantMode: PasswordModeNever},
+		{name: "set minimum ASCII", input: &PasswordInput{Mode: PasswordModeSet, Value: "12345678"}, wantMode: PasswordModeSet, wantRaw: "12345678"},
+		{name: "set minimum Unicode", input: &PasswordInput{Mode: PasswordModeSet, Value: "\u5bc6\u7801\u5b89\u5168\u957f\u5ea6\u516b\u4f4d"}, wantMode: PasswordModeSet, wantRaw: "\u5bc6\u7801\u5b89\u5168\u957f\u5ea6\u516b\u4f4d"},
+		{name: "too short", input: &PasswordInput{Mode: PasswordModeSet, Value: "1234567"}, wantErr: ErrInvalidPasswordInput},
+		{name: "too long", input: &PasswordInput{Mode: PasswordModeSet, Value: strings.Repeat("a", 129)}, wantErr: ErrInvalidPasswordInput},
+		{name: "clear with value", input: &PasswordInput{Mode: PasswordModeNever, Value: "unexpected"}, wantErr: ErrInvalidPasswordInput},
+		{name: "unknown mode", input: &PasswordInput{Mode: "keep"}, wantErr: ErrInvalidPasswordInput},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mode, raw, err := validatePasswordInput(test.input)
+			if !errors.Is(err, test.wantErr) {
+				t.Fatalf("validatePasswordInput error = %v, want %v", err, test.wantErr)
+			}
+			if mode != test.wantMode || raw != test.wantRaw {
+				t.Fatalf("validatePasswordInput = (%q, %q), want (%q, %q)", mode, raw, test.wantMode, test.wantRaw)
+			}
+		})
+	}
+}
+
+func TestShortLinkPasswordStateMarshalsOnlyEnabledFlag(t *testing.T) {
+	raw, err := json.Marshal(ShortLink{AccessConfig: AccessConfig{PasswordEnabled: true}})
+	if err != nil {
+		t.Fatalf("marshal short link: %v", err)
+	}
+	if !strings.Contains(string(raw), `"passwordEnabled":true`) {
+		t.Fatalf("expected passwordEnabled flag, got %s", raw)
+	}
+	if strings.Contains(strings.ToLower(string(raw)), "hash") {
+		t.Fatalf("password hash leaked in response: %s", raw)
+	}
+}
+
+func TestNormalizePasswordRequiresPermissionAndStoresOnlyHash(t *testing.T) {
+	service := &Service{permissions: permission.NewService()}
+	user := auth.CurrentUser{GroupKey: permission.GroupUser}
+	mode, hash, err := service.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
+	if err != nil {
+		t.Fatalf("normalize password: %v", err)
+	}
+	if mode != PasswordModeSet || !hash.Valid || !auth.VerifyPassword("correct horse", hash.String) {
+		t.Fatalf("unexpected password result: mode=%q hash=%#v", mode, hash)
+	}
+	if _, _, err := service.normalizePassword(auth.GuestUser(), &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("expected guest permission error, got %v", err)
+	}
+}
 
 // TestAnalyticsWithQueriesPropagatesAggregateFailures verifies every aggregate query failure is returned.
 func TestAnalyticsWithQueriesPropagatesAggregateFailures(t *testing.T) {

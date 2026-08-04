@@ -19,7 +19,15 @@ export class ApiClientError extends Error {
 const API_BASE = '/api/v1'
 
 export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  return getJson<T>(`${API_BASE}${path}`)
+}
+
+export async function apiGetPath<T>(path: string): Promise<ApiResponse<T>> {
+  return getJson<T>(path)
+}
+
+async function getJson<T>(path: string): Promise<ApiResponse<T>> {
+  const response = await fetch(path, {
     credentials: 'include',
     headers: {
       Accept: 'application/json',

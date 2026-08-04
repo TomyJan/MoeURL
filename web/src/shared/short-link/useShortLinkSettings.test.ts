@@ -41,6 +41,7 @@ const link: ShortLink = {
   intermediateDelaySeconds: 5,
   expiresAt: null,
   expired: false,
+  passwordEnabled: false,
   createdAt: '2026-08-01T00:00:00Z',
 }
 

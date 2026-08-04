@@ -1,6 +1,6 @@
-import { apiGet, apiPost } from '@/shared/api/client'
+import { apiGet, apiGetPath, apiPost } from '@/shared/api/client'
 
-import type { AdminShortLink, CreateShortLinkInput, PublicShortLinkPreview, ShortLink, ShortLinkOverview, ShortLinkStatisticsResponse, UpdateShortLinkInput } from './model'
+import type { AdminShortLink, CreateShortLinkInput, PublicShortLinkPreview, ShortLink, ShortLinkOverview, ShortLinkStatisticsResponse, UnlockShortLinkInput, UnlockShortLinkResponse, UpdateShortLinkInput } from './model'
 
 export interface ShortLinkResponse {
   shortLink: ShortLink
@@ -39,8 +39,13 @@ export async function createShortLink(input: CreateShortLinkInput): Promise<Shor
 }
 
 export async function getPublicShortLinkPreview(slug: string): Promise<PublicShortLinkPreview> {
-	const response = await apiGet<PublicShortLinkPreview>(`/public/short-link/preview?slug=${encodeURIComponent(slug)}`)
-	return response.data
+  const response = await apiGetPath<PublicShortLinkPreview>(`/go/${encodeURIComponent(slug)}/preview`)
+  return response.data
+}
+
+export async function unlockShortLink(input: UnlockShortLinkInput): Promise<UnlockShortLinkResponse> {
+  const response = await apiPost<UnlockShortLinkResponse>('/public/short-link/unlock', input)
+  return response.data
 }
 
 export async function listShortLinks(input: ShortLinkListInput = {}): Promise<ShortLinkListResponse> {

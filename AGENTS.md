@@ -24,9 +24,11 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 1. `docs/implementation/technical-decision.md`
 2. `docs/implementation/technical-baseline.md`
-3. `docs/implementation/v0.3.0-plan.md`
-4. `docs/implementation/v0.3.0-tasks.md`
-5. `docs/implementation/v0.3.0-acceptance.md`
+3. `docs/specs/2026-08-04-v0.3.0-protected-link-access-design.md`
+4. `docs/implementation/v0.3.0-plan.md`
+5. `docs/implementation/v0.3.0-detailed-plan.md`
+6. `docs/implementation/v0.3.0-tasks.md`
+7. `docs/implementation/v0.3.0-acceptance.md`
 
 如果任务涉及 v0.2.0 中间页、过期时间、二维码、访问配置或继续访问路由，必须继续阅读：
 
@@ -149,7 +151,7 @@ MoeURL 当前技术栈固定为：
 - 访问密码由 `short_link:set_password` 权限控制；创建和编辑请求省略密码字段时保留现有值，显式 `never` 才清除。
 - 同一短链 15 分钟内连续 5 次失败后限流 15 分钟，失败窗口由数据库行锁保护，不能依赖进程内状态或未经验证的代理 IP 头。
 - 解锁成功授权有效 15 分钟，令牌哈希存储于数据库，Cookie 必须 `HttpOnly`、`SameSite=Lax`，生产环境启用 `Secure`，Path 限定为 `/go/{slug}`。
-- `Open`、`Preview`、`Continue` 都必须重新检查密码访问条件；密码修改通过 `password_updated_at` 使旧授权立即失效。
+- `Open`、`Preview`、`Continue` 都必须重新检查密码访问条件；浏览器页面通过同源 `/go/{slug}/preview` 读取路径作用域授权，密码修改通过 `password_updated_at` 使旧授权立即失效。
 - 访问量仍只统计最终成功写出目标跳转响应的 `redirect_response_sent`；密码失败、限流和授权检查不得计入成功访问量，事件写入失败不得阻断访问流程。
 
 ## 实施原则

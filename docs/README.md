@@ -8,7 +8,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 1. [产品总览](product/overview.md)：了解 MoeURL 的定位、目标和核心原则。
 2. [v0.3.0 范围](product/scope-v0.3.0.md)：确认受保护短链访问的实现边界。
-3. [v0.3.0 功能设计](superpowers/specs/2026-08-04-v0.3.0-protected-link-access-design.md)：确认密码、限流、授权和访问流程设计。
+3. [v0.3.0 功能设计](specs/2026-08-04-v0.3.0-protected-link-access-design.md)：确认密码、限流、授权和访问流程设计。
 4. [v0.2.0 范围](product/scope-v0.2.0.md)：回看短链访问体验与生命周期的实现边界。
 5. [v0.2.0 功能设计](specs/2026-08-02-v0.2.0-link-experience-design.md)：回看中间页、过期时间、二维码和事件设计。
 6. [统计与事件](specs/statistics-and-events.md)：确认短链访问事件、基础统计和维度统计口径。
@@ -43,6 +43,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 功能规格层文档位于 [specs](specs/) 目录，用于描述各模块的稳定产品规格。实施计划应引用这些文档，而不是在计划中重复定义产品规则。
 
 - [权限模型](specs/permissions.md)
+- [v0.3.0 受保护短链访问设计](specs/2026-08-04-v0.3.0-protected-link-access-design.md)
 - [用户与认证](specs/users-and-auth.md)
 - [短链](specs/short-links.md)
 - [域名](specs/domains.md)
@@ -68,6 +69,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 - [v0.2.0 任务级实施清单](implementation/v0.2.0-tasks.md)
 - [v0.2.0 验收清单](implementation/v0.2.0-acceptance.md)
 - [v0.3.0 实施计划](implementation/v0.3.0-plan.md)
+- [v0.3.0 详细实现计划](implementation/v0.3.0-detailed-plan.md)
 - [v0.3.0 任务级实施清单](implementation/v0.3.0-tasks.md)
 - [v0.3.0 验收清单](implementation/v0.3.0-acceptance.md)
 - [v0.0.1 工程实施合同](implementation/v0.0.1-implementation-contract.md)

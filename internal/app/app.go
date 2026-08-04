@@ -44,6 +44,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.Redirect = shortlink.NewRedirectService(pool, recorder)
 		deps.RedirectRecorder = recorder
 		deps.AnalyticsCountryHeader = cfg.AnalyticsCountryHeader
+		deps.SecureCookies = cfg.Env == "production"
 		deps.User = user.NewService(pool, permission.NewService())
 	}
 	deps.StaticDir = cfg.StaticDir

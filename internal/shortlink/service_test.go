@@ -128,6 +128,54 @@ func TestServiceCreateStoresShortLinkWithGeneratedSlug(t *testing.T) {
 	}
 }
 
+func TestServicePasswordConfigurationRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "password-user", "user", permission.UserPermissions)
+	service := shortlink.NewService(pool, permission.NewService())
+
+	created, err := service.Create(ctx, user, shortlink.CreateInput{
+		TargetURL: "https://example.com/protected",
+		Password:  &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "correct horse"},
+	})
+	if err != nil {
+		t.Fatalf("create protected short link: %v", err)
+	}
+	if !created.ShortLink.PasswordEnabled {
+		t.Fatal("expected created short link to report enabled password")
+	}
+	encoded, err := json.Marshal(created.ShortLink)
+	if err != nil {
+		t.Fatalf("marshal protected short link: %v", err)
+	}
+	if regexp.MustCompile(`(?i)password_hash|argon2`).Match(encoded) {
+		t.Fatalf("password hash leaked in response: %s", encoded)
+	}
+	var storedHash string
+	if err := pool.QueryRow(ctx, `select password_hash from short_link where id = $1`, created.ShortLink.ID).Scan(&storedHash); err != nil {
+		t.Fatalf("query protected password hash: %v", err)
+	}
+	if !auth.VerifyPassword("correct horse", storedHash) {
+		t.Fatal("stored password hash did not verify")
+	}
+
+	listed, err := service.List(ctx, user, shortlink.ListInput{Page: 1, PageSize: 20})
+	if err != nil || len(listed.Items) != 1 || !listed.Items[0].PasswordEnabled {
+		t.Fatalf("expected password-enabled list result, got %#v error %v", listed, err)
+	}
+	cleared, err := service.Update(ctx, user, shortlink.UpdateInput{
+		ID:       created.ShortLink.ID,
+		Password: &shortlink.PasswordInput{Mode: shortlink.PasswordModeNever},
+	})
+	if err != nil {
+		t.Fatalf("clear short link password: %v", err)
+	}
+	if cleared.ShortLink.PasswordEnabled {
+		t.Fatal("expected cleared password to be disabled")
+	}
+}
+
 // TestServiceCreateReturnsDatabaseAndInputErrors verifies invalid identifiers and database failures.
 func TestServiceCreateReturnsDatabaseAndInputErrors(t *testing.T) {
 	ctx := context.Background()

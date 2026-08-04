@@ -13,7 +13,7 @@ v0.3.0 在 v0.2.0 的中间页、过期时间和访问配置基础上，增加�
 - 访问密码使用 Argon2id 哈希保存，密码原文不写入数据库、日志、事件或 API 响应。
 - 访问密码长度为 8 至 128 个 Unicode 字符；密码值按原文校验，不自动去除首尾空格。
 - 密码保护独立于 `direct` 和 `intermediate` 模式；保护短链首次访问统一进入 `/go/{slug}` 密码页。
-- 公开预览只新增 `requiresPassword` 布尔值，不返回哈希或目标 URL。
+- 公开预览返回既有 `redirectMode` 和 `requiresPassword` 布尔值，不返回哈希或目标 URL。
 - 解锁成功后签发 15 分钟短期访问授权；授权令牌使用不可逆哈希存储，并通过短链路径作用域的 `HttpOnly`、生产环境 `Secure`、`SameSite=Lax` Cookie 传递。
 - 同一短链 15 分钟内连续 5 次密码失败后进入 15 分钟数据库一致限流窗口；成功解锁清零失败计数。限流按短链聚合，不依赖未经验证的代理 IP 头。
 - `/go/{slug}/continue` 每次重新检查短链状态、软删除、过期时间、密码授权和跳转模式；授权缺失或失效时不得返回目标跳转。
@@ -33,6 +33,10 @@ POST /api/v1/admin/short-link/update
 
 GET /api/v1/public/short-link/preview?slug=...
   data.requiresPassword: boolean
+  data.redirectMode: "direct" | "intermediate"
+
+GET /go/{slug}/preview
+  同源公共页面预览；仅用于接收 `/go/{slug}` 作用域 Cookie，携带有效授权时返回 `requiresPassword: false`
 
 POST /api/v1/public/short-link/unlock
   request: { slug: string, password: string }
@@ -69,5 +73,5 @@ GET /go/{slug}/continue
 - 有权限用户可以创建、修改和清除密码，无权限用户收到统一业务错误。
 - 正确密码可获得 15 分钟授权；错误密码在第五次后触发限流，成功后清零。
 - 旧授权在密码修改后失效，禁用、软删除和过期短链不能跳转或计入访问量。
-- 公开预览和列表只展示 `passwordEnabled`/`requiresPassword` 布尔状态。
+- 公开预览展示 `redirectMode` 与 `requiresPassword`，列表只展示 `passwordEnabled` 布尔状态；两者都不返回哈希或目标 URL。
 - 前端单元测试、后端测试、覆盖率、lint、类型检查、构建和 Playwright E2E 全部通过；生产构建遵循既有分块警告基线。

@@ -640,6 +640,7 @@ func TestHandlerWriteBusinessOrSystemErrorMappings(t *testing.T) {
 		{name: "update invalid redirect mode", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidRedirectMode, httpStatus: http.StatusOK, code: 200106},
 		{name: "update invalid intermediate delay", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidIntermediateDelay, httpStatus: http.StatusOK, code: 200107},
 		{name: "update invalid expiration", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidExpiration, httpStatus: http.StatusOK, code: 200108},
+		{name: "update invalid password", path: "/api/v1/short-link/update", err: shortlink.ErrInvalidPasswordInput, httpStatus: http.StatusOK, code: 100001},
 		{name: "update slug conflict", path: "/api/v1/short-link/update", err: shortlink.ErrSlugConflict, httpStatus: http.StatusOK, code: 200101},
 		{name: "update reserved slug", path: "/api/v1/short-link/update", err: shortlink.ErrReservedSlug, httpStatus: http.StatusOK, code: 200102},
 		{name: "update system", path: "/api/v1/short-link/update", err: errors.New("database down"), httpStatus: http.StatusInternalServerError, code: 900000},

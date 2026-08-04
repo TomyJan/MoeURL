@@ -276,6 +276,68 @@ describe('ShortLinkCreatePanel', () => {
     })
   })
 
+  it('shows password controls only with permission and submits a protected link', async () => {
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
+    setMutationResult()
+
+    mountPanel()
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    expect(screen.getByLabelText('shortLinkCreate.passwordEnabled')).toBeTruthy()
+    expect(screen.queryByLabelText('shortLinkCreate.password')).toBeNull()
+
+    await fireEvent.click(screen.getByLabelText('shortLinkCreate.passwordEnabled'))
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.password'), 'correct horse')
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+
+    expect(createShortLink).toHaveBeenCalledWith({
+      targetUrl: 'https://example.com',
+      password: { mode: 'set', value: 'correct horse' },
+    })
+  })
+
+  it('rejects an invalid protected-link password before mutation', async () => {
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
+    setMutationResult({ mutate })
+
+    mountPanel()
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    await fireEvent.click(screen.getByLabelText('shortLinkCreate.passwordEnabled'))
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.password'), 'short')
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+
+    expect(screen.getByText('shortLinkCreate.passwordInvalid')).toBeTruthy()
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
+  it('requires a password value when protection is enabled', async () => {
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
+    setMutationResult({ mutate })
+
+    mountPanel()
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    await fireEvent.click(screen.getByLabelText('shortLinkCreate.passwordEnabled'))
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+
+    expect(screen.getByText('shortLinkCreate.passwordRequired')).toBeTruthy()
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
+  it('hides password controls without password permission', async () => {
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:use_intermediate'])
+    setMutationResult()
+
+    mountPanel()
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+
+    expect(screen.queryByLabelText('shortLinkCreate.passwordEnabled')).toBeNull()
+    expect(screen.queryByLabelText('shortLinkCreate.password')).toBeNull()
+  })
+
   it('validates target URL before submitting', async () => {
     const mutate = vi.fn()
     setQueryResult(['short_link:create', 'domain:use_default'])

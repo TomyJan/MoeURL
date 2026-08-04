@@ -88,6 +88,22 @@
                 :label="t('shortLinkCreate.expiresAt')"
                 :error-messages="expirationErrorMessage"
               />
+              <v-switch
+                v-if="canSetPassword"
+                v-model="passwordEnabled"
+                color="primary"
+                density="comfortable"
+                hide-details
+                :label="t('shortLinkCreate.passwordEnabled')"
+              />
+              <v-text-field
+                v-if="canSetPassword && passwordEnabled"
+                v-model="password"
+                type="password"
+                variant="outlined"
+                :label="t('shortLinkCreate.password')"
+                :error-messages="passwordErrorMessage"
+              />
             </div>
           </Transition>
         </div>
@@ -134,7 +150,7 @@ import { me } from '@/entities/auth/api'
 import { createShortLink } from '@/entities/short-link/api'
 import type { CreateShortLinkInput, RedirectMode } from '@/entities/short-link/model'
 import ShortLinkQrDialog from '@/features/short-link-qr/ShortLinkQrDialog.vue'
-import { futureDateTimeSchema, targetUrlSchema } from '@/shared/validation/shortLinkAccess'
+import { futureDateTimeSchema, passwordSchema, targetUrlSchema } from '@/shared/validation/shortLinkAccess'
 
 withDefaults(
   defineProps<{
@@ -154,11 +170,14 @@ const qrOpen = ref(false)
 const validationErrorMessage = ref('')
 const copyErrorMessage = ref('')
 const expirationErrorMessage = ref('')
+const passwordErrorMessage = ref('')
 const advancedOpen = ref(false)
 const redirectMode = ref<RedirectMode>('direct')
 const intermediateDelaySeconds = ref(5)
 const expirationEnabled = ref(false)
 const expiresAt = ref('')
+const passwordEnabled = ref(false)
+const password = ref('')
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,
@@ -170,7 +189,8 @@ const canCreateShortLink = computed(() =>
 )
 const canUseIntermediate = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:use_intermediate')))
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
-const canConfigureAccess = computed(() => canUseIntermediate.value || canSetExpiration.value)
+const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
+const canConfigureAccess = computed(() => canUseIntermediate.value || canSetExpiration.value || canSetPassword.value)
 const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !canCreateShortLink.value)
 
 const mutation = useMutation({
@@ -202,6 +222,7 @@ function submit() {
   validationErrorMessage.value = ''
   copyErrorMessage.value = ''
   expirationErrorMessage.value = ''
+  passwordErrorMessage.value = ''
   const targetUrlResult = targetUrlSchema.safeParse(targetUrl.value)
   if (!targetUrlResult.success) {
     validationErrorMessage.value = t('shortLinkCreate.invalidUrl')
@@ -231,6 +252,14 @@ function submit() {
   if (expiration) {
     input.expiration = expiration
   }
+  if (canSetPassword.value && passwordEnabled.value) {
+    const passwordResult = passwordSchema.safeParse(password.value)
+    if (!passwordResult.success) {
+      passwordErrorMessage.value = password.value ? t('shortLinkCreate.passwordInvalid') : t('shortLinkCreate.passwordRequired')
+      return
+    }
+    input.password = { mode: 'set', value: passwordResult.data }
+  }
   createdUrl.value = ''
   createdSlug.value = ''
   mutation.mutate(input)
@@ -248,10 +277,13 @@ function resetInputFields() {
   validationErrorMessage.value = ''
   copyErrorMessage.value = ''
   expirationErrorMessage.value = ''
+  passwordErrorMessage.value = ''
   redirectMode.value = 'direct'
   intermediateDelaySeconds.value = 5
   expirationEnabled.value = false
   expiresAt.value = ''
+  passwordEnabled.value = false
+  password.value = ''
 }
 
 async function copyUrl(url: string) {

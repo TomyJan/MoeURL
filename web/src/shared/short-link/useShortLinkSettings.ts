@@ -11,7 +11,7 @@ interface UseShortLinkSettingsOptions {
 
 type ShortLinkSettingsTarget = Pick<
   ShortLink,
-  'id' | 'url' | 'slug' | 'targetUrl' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt'
+  'id' | 'url' | 'slug' | 'targetUrl' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'passwordEnabled'
 >
 
 export function useShortLinkSettings(options: UseShortLinkSettingsOptions) {

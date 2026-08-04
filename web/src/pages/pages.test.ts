@@ -396,20 +396,20 @@ describe('pages', () => {
   it('renders analytics data, chart, and dimension summaries for a selected link', async () => {
     state.routeQuery = { shortLinkId: 'link-id' }
     const analytics = ref<undefined | {
-		shortLink: { id: string; url: string; slug: string; targetUrl: string; status: 'active'; redirectMode: 'direct'; intermediateDelaySeconds: number; expiresAt: null; expired: false; createdAt: string }
+	shortLink: { id: string; url: string; slug: string; targetUrl: string; status: 'active'; redirectMode: 'direct'; intermediateDelaySeconds: number; expiresAt: null; expired: false; passwordEnabled: boolean; createdAt: string }
       stats: { visitCount: number; todayVisitCount: number; lastVisitedAt: string; trend: Array<{ date: string; visitCount: number }>; referrers: Array<{ value: string; visitCount: number }>; devices: Array<{ value: string; visitCount: number }>; countries: Array<{ value: string; visitCount: number }> }
     }>(undefined)
     setQueryResult({ data: analytics })
     vi.mocked(me).mockResolvedValue({ user: { permissions: [] } } as never)
     vi.mocked(getShortLinkStatistics).mockResolvedValue({
-		shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null, expired: false, createdAt: '2026-07-01T00:00:00Z' },
+	shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null, expired: false, passwordEnabled: false, createdAt: '2026-07-01T00:00:00Z' },
       stats: { visitCount: 5, todayVisitCount: 2, lastVisitedAt: '2026-07-17T00:00:00Z', trend: [{ date: '2026-07-17', visitCount: 2 }], referrers: [{ value: 'search.example', visitCount: 3 }], devices: [{ value: 'mobile', visitCount: 4 }], countries: [{ value: 'unknown', visitCount: 1 }] },
     })
 
     mount(AnalyticsPage)
     await state.queryFns[0]?.()
     analytics.value = {
-		shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null, expired: false, createdAt: '2026-07-01T00:00:00Z' },
+	shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null, expired: false, passwordEnabled: false, createdAt: '2026-07-01T00:00:00Z' },
         stats: {
           visitCount: 5,
           todayVisitCount: 2,
