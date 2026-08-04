@@ -6,6 +6,7 @@ import RedirectPage from './RedirectPage.vue'
 import { getPublicShortLinkPreview } from '@/entities/short-link/api'
 import { ApiClientError } from '@/shared/api/client'
 import { componentStubs } from '@/test/component-stubs'
+import { createDeferred } from '@/test/deferred'
 
 const state = vi.hoisted(() => ({
   assign: vi.fn(),
@@ -156,5 +157,30 @@ describe('RedirectPage', () => {
     view.unmount()
 
     expect(clearInterval).toHaveBeenCalled()
+  })
+
+  it('does not start a countdown when a pending preview resolves after unmount', async () => {
+    const preview = createDeferred<{
+      slug: string
+      targetHost: string
+      intermediateDelaySeconds: number
+      expiresAt: null
+    }>()
+    const setInterval = vi.spyOn(globalThis, 'setInterval')
+    vi.mocked(getPublicShortLinkPreview).mockReturnValueOnce(preview.promise)
+    const view = mountPage()
+
+    view.unmount()
+    preview.resolve({
+      slug: 'abc123',
+      targetHost: 'example.com',
+      intermediateDelaySeconds: 5,
+      expiresAt: null,
+    })
+    await flushPreview()
+    await vi.advanceTimersByTimeAsync(10_000)
+
+    expect(setInterval).not.toHaveBeenCalled()
+    expect(state.assign).not.toHaveBeenCalled()
   })
 })

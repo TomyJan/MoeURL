@@ -140,6 +140,7 @@ test('v0.2.0 initialization short-link access experience and logout flow', async
   const previewResponsePromise = page.waitForResponse((response) =>
     response.url().includes(`/api/v1/public/short-link/preview?slug=${intermediateSlug}`),
   )
+  await page.route(intermediateTarget, (route) => route.fulfill({ status: 200, body: 'target reached' }))
   await page.goto(`/go/${intermediateSlug}`)
   const previewResponse = await previewResponsePromise
   expect(previewResponse.status()).toBe(200)
@@ -169,7 +170,6 @@ test('v0.2.0 initialization short-link access experience and logout flow', async
   await page.setViewportSize({ width: 1280, height: 720 })
   await page.reload()
   await expect(page.getByRole('button', { name: '立即前往' })).toBeVisible()
-  await page.route(intermediateTarget, (route) => route.fulfill({ status: 200, body: 'target reached' }))
 
   await Promise.all([
     page.waitForURL(intermediateTarget),
@@ -195,7 +195,9 @@ test('v0.2.0 initialization short-link access experience and logout flow', async
   await page.setViewportSize({ width: 1280, height: 720 })
 
   const expiresAt = toLocalDateTimeValue(new Date(Date.now() + 20_000))
-  await setDateTimeLocalValue(settingsDialog.getByLabel('过期时间（本地时间）', { exact: true }), expiresAt)
+  const expirationInput = settingsDialog.getByLabel('过期时间（本地时间）', { exact: true })
+  await expect(expirationInput).toHaveAttribute('step', '1')
+  await setDateTimeLocalValue(expirationInput, expiresAt)
   const updateResponsePromise = page.waitForResponse('**/api/v1/short-link/update')
   await settingsDialog.getByRole('button', { name: '保存' }).click()
   const updateResponse = await updateResponsePromise

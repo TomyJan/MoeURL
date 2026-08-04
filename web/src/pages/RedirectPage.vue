@@ -60,11 +60,21 @@ const failureState = ref<PreviewFailureState>('')
 const continueFailed = ref(false)
 const navigating = ref(false)
 let countdownTimer: ReturnType<typeof globalThis.setInterval> | null = null
+let previewRequestId = 0
+let isMounted = false
 
-onMounted(loadPreview)
-onBeforeUnmount(clearCountdown)
+onMounted(() => {
+  isMounted = true
+  void loadPreview()
+})
+onBeforeUnmount(() => {
+  isMounted = false
+  previewRequestId += 1
+  clearCountdown()
+})
 
 async function loadPreview() {
+  const requestId = ++previewRequestId
   clearCountdown()
   preview.value = null
   loading.value = true
@@ -74,27 +84,47 @@ async function loadPreview() {
 
   const requestedFailureState = failureStateFromReason(route.query.reason)
   if (requestedFailureState) {
-    loading.value = false
-    failureState.value = requestedFailureState
+    whenCurrent(requestId, () => {
+      loading.value = false
+      failureState.value = requestedFailureState
+    })
     return
   }
 
   const slug = route.params.slug
   if (typeof slug !== 'string' || !slug) {
-    loading.value = false
-    failureState.value = 'unavailable'
+    whenCurrent(requestId, () => {
+      loading.value = false
+      failureState.value = 'unavailable'
+    })
     return
   }
 
   try {
     const result = await getPublicShortLinkPreview(slug)
-    preview.value = result
-    remainingSeconds.value = result.intermediateDelaySeconds
-    startCountdown()
+    whenCurrent(requestId, () => {
+      preview.value = result
+      remainingSeconds.value = result.intermediateDelaySeconds
+      startCountdown()
+    })
   } catch (error) {
-    failureState.value = classifyPreviewError(error)
+    whenCurrent(requestId, () => {
+      failureState.value = classifyPreviewError(error)
+    })
   } finally {
-    loading.value = false
+    whenCurrent(requestId, () => {
+      loading.value = false
+    })
+  }
+}
+
+function isCurrentRequest(requestId: number) {
+  return isMounted && requestId === previewRequestId
+}
+
+function whenCurrent(requestId: number, update: () => void) {
+  if (isCurrentRequest(requestId)) {
+    update()
   }
 }
 

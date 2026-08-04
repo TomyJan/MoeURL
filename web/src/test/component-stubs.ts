@@ -59,8 +59,8 @@ export const componentStubs: Record<string, Component> = {
     template: '<div v-if="modelValue" role="status"><slot /><slot name="actions" /></div>',
   },
   VTextField: {
-    props: ['disabled', 'errorMessages', 'label', 'modelValue', 'placeholder', 'type'],
+    props: ['disabled', 'errorMessages', 'label', 'modelValue', 'placeholder', 'step', 'type'],
     emits: ['update:modelValue', 'keyup'],
-    template: '<label>{{ label }}<input :aria-label="label" :disabled="disabled" :placeholder="placeholder" :type="type || \'text\'" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" @keyup="$emit(\'keyup\', $event)" /><span v-if="errorMessages">{{ errorMessages }}</span></label>',
+    template: '<label>{{ label }}<input :aria-label="label" :disabled="disabled" :placeholder="placeholder" :step="step" :type="type || \'text\'" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" @keyup="$emit(\'keyup\', $event)" /><span v-if="errorMessages">{{ errorMessages }}</span></label>',
   },
 }

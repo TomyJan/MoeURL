@@ -60,6 +60,7 @@
           v-if="canSetExpiration && expirationEnabled"
           v-model="expiresAt"
           type="datetime-local"
+          step="1"
           variant="outlined"
           :disabled="pending"
           :error-messages="expirationErrorMessage"
@@ -104,8 +105,8 @@ const redirectMode = ref<RedirectMode>('direct')
 const intermediateDelaySeconds = ref(5)
 const expirationEnabled = ref(false)
 const expiresAt = ref('')
-const initialPersistedExpiresAt = ref<string | null>(null)
 const initialExpirationInput = ref('')
+const initialExpirationEnabled = ref(false)
 const targetErrorMessage = ref('')
 const expirationErrorMessage = ref('')
 const currentUserQuery = useQuery({
@@ -148,12 +149,12 @@ function save() {
     input.intermediateDelaySeconds = intermediateDelaySeconds.value
   }
   if (canSetExpiration.value) {
-    input.expiration = { mode: 'never' }
-    if (expirationEnabled.value) {
-      const expirationWasEdited = expiresAt.value !== initialExpirationInput.value
-      if (!expirationWasEdited && initialPersistedExpiresAt.value !== null) {
-        input.expiration = { mode: 'at', expiresAt: initialPersistedExpiresAt.value }
-      } else {
+    if (!expirationEnabled.value) {
+      input.expiration = { mode: 'never' }
+    } else {
+      const expirationWasEdited =
+        expiresAt.value !== initialExpirationInput.value || expirationEnabled.value !== initialExpirationEnabled.value
+      if (expirationWasEdited) {
         const expirationResult = futureDateTimeSchema.safeParse(expiresAt.value)
         if (!expirationResult.success) {
           expirationErrorMessage.value = expiresAt.value.trim()
@@ -189,8 +190,8 @@ function resetFromLink(link: Pick<ShortLink, 'targetUrl' | 'redirectMode' | 'int
   intermediateDelaySeconds.value = link.intermediateDelaySeconds
   expirationEnabled.value = link.expiresAt !== null
   expiresAt.value = toLocalDateTime(link.expiresAt)
-  initialPersistedExpiresAt.value = link.expiresAt
   initialExpirationInput.value = expiresAt.value
+  initialExpirationEnabled.value = expirationEnabled.value
   targetErrorMessage.value = ''
   expirationErrorMessage.value = ''
 }
