@@ -194,7 +194,7 @@ API 使用 `/api/v1` 前缀：
 /go/{slug}/continue
 ```
 
-固定前端路由、公开继续路由和 API 路由必须优先于短码路由。`/go/{slug}` 用于 v0.2.0 中间页 App Shell，`/go/{slug}/continue` 在重新检查短链状态和过期时间后写出最终目标跳转。
+固定前端路由、公开继续路由和 API 路由必须优先于短码路由。`/go/{slug}` 用于 v0.2.0 中间页和 v0.3.0 密码页 App Shell，`/go/{slug}/continue` 在重新检查短链状态、过期时间和短期授权后写出最终目标跳转。
 
 ### API 风格
 
@@ -322,6 +322,10 @@ v0.2.0 在 `short_link` 追加：
 
 过期是访问时根据数据库时间判断的动态状态，不复用 `disabled`，也不修改持久化状态。migration 同步为既有内置 `user`、`admin` 用户组追加 v0.2.0 权限，并在回滚时删除这些权限。
 
+### v0.3.0 schema 扩展摘要
+
+v0.3.0 在 `short_link` 追加 `password_hash`、`password_failed_attempts`、`password_window_started_at`、`password_blocked_until` 和 `password_updated_at`；新增 `short_link_access_grant` 保存短期授权令牌哈希。密码原文、哈希和授权令牌不进入公开 API 或日志，授权查询同时检查令牌过期时间和密码更新时间。migration 同步为既有内置 `user`、`admin` 用户组追加 `short_link:set_password`，`guest` 保持无权限。
+
 ### 短码规则
 
 - v0.0.1 默认生成 6 位随机短码。
@@ -352,6 +356,7 @@ short_link:delete_all
 domain:use_default
 short_link:use_intermediate
 short_link:set_expiration
+short_link:set_password
 admin:access
 ```
 
@@ -520,11 +525,11 @@ cd web && pnpm test:e2e
 
 前端单元和组件测试覆盖率门禁针对 `vitest.config.ts` 中 `coverage.include` 覆盖的应用配置、实体 API、页面组件和共享工具代码执行，必须达到 100%。`main.ts` 启动入口、类型声明和纯类型模型由构建、类型检查和 E2E 覆盖，不计入单元覆盖率门禁。
 
-v0.2.0 将新增的短链创建、访问配置和二维码组件纳入覆盖率门禁。二维码测试必须验证编码输入、有效图片结果和生成失败状态，不允许只断言 mock 调用次数。
+v0.2.0 将新增的短链创建、访问配置和二维码组件纳入覆盖率门禁。v0.3.0 还将密码设置、公开解锁和密码页纳入覆盖率门禁；测试必须验证哈希不泄露、错误/限流/成功状态和授权失效，不允许只断言 mock 调用次数。
 
 Playwright E2E 通过 `web/playwright.config.ts` 启动 Docker Compose 测试环境。E2E 必须使用独立的 Compose project name，默认由 `MOEURL_E2E_PORT` 派生，也可通过 `MOEURL_E2E_COMPOSE_PROJECT` 显式指定。E2E 同时通过 `MOEURL_E2E_PORT` 和 `MOEURL_E2E_POSTGRES_PORT` 隔离应用宿主端口与 PostgreSQL 宿主端口，避免和日常 Compose 或本机 PostgreSQL 端口冲突。E2E 显式以 `MOEURL_ENV=development` 运行测试应用，避免本地 HTTP 流程受 Secure Cookie 影响。E2E 可以在该隔离测试项目内执行 `down -v` 清理测试卷，但不得清理日常 `docker compose up --build` 使用的默认开发数据库卷。
 
-v0.2.0 访问体验 E2E 必须覆盖真实 `/{slug}` 入口、进入中间页前访问量为 0、继续路由目标 `302`、真实 UI 继续访问后访问量为 1，以及过期访问不增加访问量。中间页、访问设置和二维码对话框必须同时在 `1280 x 720` 与 `390 x 800` 视口验证控件顺序、操作区几何和横向溢出；异步流程使用条件等待，不允许使用固定 `waitForTimeout`。
+v0.2.0 访问体验 E2E 必须覆盖真实 `/{slug}` 入口、进入中间页前访问量为 0、继续路由目标 `302`、真实 UI 继续访问后访问量为 1，以及过期访问不增加访问量。v0.3.0 还必须覆盖真实密码页、错误密码、有效授权、密码变更吊销旧授权和访问量口径。中间页、密码页、访问设置和二维码对话框必须同时在 `1280 x 720` 与 `390 x 800` 视口验证控件顺序、操作区几何和横向溢出；异步流程使用条件等待，不允许使用固定 `waitForTimeout`。
 
 ### 质量检查工作流
 
