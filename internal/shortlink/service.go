@@ -102,7 +102,7 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 			Status:    created.Status,
 			CreatedAt: created.CreatedAt.Time,
 		}
-		applyAccessConfig(&shortLink, created.RedirectMode, created.IntermediateDelaySeconds, created.ExpiresAt, created.Expired)
+		shortLink.setAccessConfig(created.RedirectMode, created.IntermediateDelaySeconds, created.ExpiresAt, created.Expired)
 		return CreateResult{ShortLink: shortLink}, nil
 	}
 
@@ -174,7 +174,7 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 			CreatedAt: row.CreatedAt.Time,
 			Stats:     statsFromRow(row.VisitCount, row.TodayVisitCount, row.LastVisitedAt),
 		}
-		applyAccessConfig(&shortLink, row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired)
+		shortLink.setAccessConfig(row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired)
 		items = append(items, shortLink)
 	}
 
@@ -239,7 +239,7 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 		Status:    updated.Status,
 		CreatedAt: updated.CreatedAt.Time,
 	}
-	applyAccessConfig(&shortLink, updated.RedirectMode, updated.IntermediateDelaySeconds, updated.ExpiresAt, updated.Expired)
+	shortLink.setAccessConfig(updated.RedirectMode, updated.IntermediateDelaySeconds, updated.ExpiresAt, updated.Expired)
 	return CreateResult{ShortLink: shortLink}, nil
 }
 
@@ -345,7 +345,7 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 				Nickname: row.OwnerNickname,
 			},
 		}
-		applyAdminAccessConfig(&shortLink, row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired)
+		shortLink.setAccessConfig(row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired)
 		items = append(items, shortLink)
 	}
 
@@ -408,7 +408,7 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 		Status:    updated.Status,
 		CreatedAt: updated.CreatedAt.Time,
 	}
-	applyAccessConfig(&shortLink, updated.RedirectMode, updated.IntermediateDelaySeconds, updated.ExpiresAt, updated.Expired)
+	shortLink.setAccessConfig(updated.RedirectMode, updated.IntermediateDelaySeconds, updated.ExpiresAt, updated.Expired)
 	return CreateResult{ShortLink: shortLink}, nil
 }
 
@@ -461,7 +461,7 @@ func (s *Service) analyticsLink(ctx context.Context, linkID uuid.UUID) (analytic
 		Status:    row.Status,
 		CreatedAt: row.CreatedAt.Time,
 	}
-	applyAccessConfig(&shortLink, row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired)
+	shortLink.setAccessConfig(row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired)
 	return analyticsLinkResult{
 		ownerID:   uuid.UUID(row.OwnerID.Bytes),
 		shortLink: shortLink,
@@ -664,24 +664,18 @@ func optionalInt2(value *int16) pgtype.Int2 {
 	return pgtype.Int2{Int16: *value, Valid: true}
 }
 
-func applyAccessConfig(link *ShortLink, redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool) {
-	link.setAccessConfig(redirectMode, delay, expiresAt, expired)
-}
-
-func applyAdminAccessConfig(link *AdminShortLink, redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool) {
-	link.setAccessConfig(redirectMode, delay, expiresAt, expired)
-}
-
 func (link *ShortLink) setAccessConfig(redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool) {
-	link.RedirectMode = redirectMode
-	link.IntermediateDelaySeconds = delay
-	link.ExpiresAt, link.Expired = expirationValues(expiresAt, expired)
+	setAccessConfigValues(&link.RedirectMode, &link.IntermediateDelaySeconds, &link.ExpiresAt, &link.Expired, redirectMode, delay, expiresAt, expired)
 }
 
 func (link *AdminShortLink) setAccessConfig(redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool) {
-	link.RedirectMode = redirectMode
-	link.IntermediateDelaySeconds = delay
-	link.ExpiresAt, link.Expired = expirationValues(expiresAt, expired)
+	setAccessConfigValues(&link.RedirectMode, &link.IntermediateDelaySeconds, &link.ExpiresAt, &link.Expired, redirectMode, delay, expiresAt, expired)
+}
+
+func setAccessConfigValues(redirectMode *string, delay *int16, expiresAt **time.Time, expiredValue *bool, mode string, seconds int16, expiration pgtype.Timestamptz, isExpired bool) {
+	*redirectMode = mode
+	*delay = seconds
+	*expiresAt, *expiredValue = expirationValues(expiration, isExpired)
 }
 
 func expirationValues(value pgtype.Timestamptz, expired bool) (*time.Time, bool) {

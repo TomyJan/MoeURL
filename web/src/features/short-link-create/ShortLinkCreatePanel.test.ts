@@ -257,11 +257,13 @@ describe('ShortLinkCreatePanel', () => {
 
     mountPanel()
 
-    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'not-a-url')
-    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    for (const value of ['not-a-url', 'ftp://example.com']) {
+      await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), value)
+      await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
-    expect(mutate).not.toHaveBeenCalled()
-    expect(screen.getByText('shortLinkCreate.invalidUrl')).toBeTruthy()
+      expect(mutate).not.toHaveBeenCalled()
+      expect(screen.getByText('shortLinkCreate.invalidUrl')).toBeTruthy()
+    }
   })
 
   it('blocks duplicate submissions while creation is pending', async () => {

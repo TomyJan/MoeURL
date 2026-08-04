@@ -157,7 +157,14 @@ function formatVisitedAt(value?: string | null) {
 }
 
 function formatExpiration(value: string | null) {
-  return formatLocalDate(value, t('links.neverExpires'))
+  if (!value) {
+    return t('links.neverExpires')
+  }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return t('links.neverExpires')
+  }
+  return `${formatLocalDate(value, t('links.neverExpires'))} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
 function formatLocalDate(value: string | null | undefined, fallback: string) {

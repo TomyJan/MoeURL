@@ -66,7 +66,7 @@ func (s *RedirectService) Open(ctx context.Context, slug string) (OpenResult, er
 
 	shortLinkID := uuidFromPgtype(link.ID)
 	s.record(ctx, event.ShortLinkOpened, slug, shortLinkID)
-	if err := s.checkAccess(ctx, slug, shortLinkID, link.Status, link.Expired); err != nil {
+	if err := s.checkAccess(ctx, slug, shortLinkID, link.Status, link.Expired, link.RedirectMode, false); err != nil {
 		return OpenResult{}, err
 	}
 
@@ -94,14 +94,8 @@ func (s *RedirectService) Preview(ctx context.Context, slug string) (PreviewResu
 	if err != nil {
 		return PreviewResult{}, err
 	}
-	if link.Status != shortLinkStatusActive {
-		return PreviewResult{}, ErrShortLinkDisabled
-	}
-	if link.Expired {
-		return PreviewResult{}, ErrShortLinkExpired
-	}
-	if link.RedirectMode != RedirectModeIntermediate {
-		return PreviewResult{}, ErrShortLinkNotIntermediate
+	if err := validateAccessConditions(link.Status, link.Expired, link.RedirectMode, true); err != nil {
+		return PreviewResult{}, err
 	}
 
 	target, err := url.Parse(link.TargetUrl)
@@ -133,27 +127,32 @@ func (s *RedirectService) Continue(ctx context.Context, slug string) (RedirectRe
 	}
 
 	shortLinkID := uuidFromPgtype(link.ID)
-	if err := s.checkAccess(ctx, slug, shortLinkID, link.Status, link.Expired); err != nil {
+	if err := s.checkAccess(ctx, slug, shortLinkID, link.Status, link.Expired, link.RedirectMode, true); err != nil {
 		return RedirectResult{}, err
-	}
-	if link.RedirectMode != RedirectModeIntermediate {
-		s.record(ctx, event.RedirectBlocked, slug, shortLinkID)
-		return RedirectResult{}, ErrShortLinkNotIntermediate
 	}
 
 	s.record(ctx, event.RedirectInitiated, slug, shortLinkID)
 	return RedirectResult{TargetURL: link.TargetUrl, ShortLinkID: shortLinkID}, nil
 }
 
-func (s *RedirectService) checkAccess(ctx context.Context, slug string, shortLinkID string, status string, expired bool) error {
+func (s *RedirectService) checkAccess(ctx context.Context, slug string, shortLinkID string, status string, expired bool, redirectMode string, requireIntermediate bool) error {
 	s.record(ctx, event.AccessConditionChecked, slug, shortLinkID)
-	if status != shortLinkStatusActive {
+	if err := validateAccessConditions(status, expired, redirectMode, requireIntermediate); err != nil {
 		s.record(ctx, event.RedirectBlocked, slug, shortLinkID)
+		return err
+	}
+	return nil
+}
+
+func validateAccessConditions(status string, expired bool, redirectMode string, requireIntermediate bool) error {
+	if status != shortLinkStatusActive {
 		return ErrShortLinkDisabled
 	}
 	if expired {
-		s.record(ctx, event.RedirectBlocked, slug, shortLinkID)
 		return ErrShortLinkExpired
+	}
+	if requireIntermediate && redirectMode != RedirectModeIntermediate {
+		return ErrShortLinkNotIntermediate
 	}
 	return nil
 }

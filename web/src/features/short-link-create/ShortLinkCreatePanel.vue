@@ -229,9 +229,10 @@ function submit() {
 		input.intermediateDelaySeconds = intermediateDelaySeconds.value
 	}
 	if (expiration) {
-		input.expiration = expiration
+	input.expiration = expiration
 	}
   createdUrl.value = ''
+	createdSlug.value = ''
 	mutation.mutate(input)
 }
 

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const targetUrlSchema = z.string().trim().pipe(z.url())
+export const targetUrlSchema = z.string().trim().pipe(z.httpUrl())
 
 export const futureDateTimeSchema = z.string().trim().min(1).refine((value) => {
   const timestamp = new Date(value).getTime()
