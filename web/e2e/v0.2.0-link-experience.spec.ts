@@ -146,7 +146,6 @@ test('v0.3.0 protected access plus v0.2.0 initialization, intermediate-page, exp
   ).toBe(3)
 
   await page.goto('/')
-  await page.getByRole('button', { name: '继续创建' }).click()
   await page.getByRole('button', { name: '高级设置' }).click()
   await page.getByRole('button', { name: '中间页', exact: true }).click()
   const delaySlider = page.locator('.short-link-create-panel__advanced-controls').getByRole('slider')
@@ -463,7 +462,7 @@ async function expectIntermediateLayout(page: Page) {
 async function expectSettingsDialogLayout(page: Page, dialog: Locator) {
   await expectNoHorizontalOverflow(page)
   const controls = dialog.locator('.short-link-settings-dialog__body > *')
-  await expect(controls).toHaveCount(5)
+  await expect(controls).toHaveCount(6)
   const [dialogBox, actionsBox, cancelBox, saveBox, controlBoxes] = await Promise.all([
     dialog.locator('.short-link-settings-dialog').boundingBox(),
     dialog.locator('.short-link-settings-dialog__actions').boundingBox(),
