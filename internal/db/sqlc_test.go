@@ -2,7 +2,6 @@ package db_test
 
 import (
 	"context"
-	"database/sql"
 	"path/filepath"
 	"testing"
 	"time"
@@ -10,15 +9,11 @@ import (
 	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/event"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/pressly/goose/v3"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // TestSQLCPackageExposesQueries verifies that generated queries can be constructed.
@@ -437,48 +432,7 @@ func sqlcTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 // migratedSQLCDatabaseURL starts PostgreSQL and applies all project migrations.
 func migratedSQLCDatabaseURL(t *testing.T, ctx context.Context) string {
 	t.Helper()
-
-	container, err := postgres.Run(ctx,
-		"postgres:18-alpine",
-		postgres.WithDatabase("moeurl_test"),
-		postgres.WithUsername("moeurl"),
-		postgres.WithPassword("moeurl"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(60*time.Second),
-		),
-	)
-	if err != nil {
-		t.Fatalf("start postgres container: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(container); err != nil {
-			t.Fatalf("terminate postgres container: %v", err)
-		}
-	})
-
-	databaseURL, err := container.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		t.Fatalf("get connection string: %v", err)
-	}
-
-	database, err := sql.Open("pgx", databaseURL)
-	if err != nil {
-		t.Fatalf("open database: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = database.Close()
-	})
-
-	if err := goose.SetDialect("postgres"); err != nil {
-		t.Fatalf("set goose dialect: %v", err)
-	}
-	if err := goose.Up(database, filepath.Join("..", "..", "migrations")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
-
-	return databaseURL
+	return testdb.MigratedDatabaseURL(t, ctx, filepath.Join("..", "..", "migrations"))
 }
 
 // uuidToPgtype converts a UUID into the pgx value used by generated queries.

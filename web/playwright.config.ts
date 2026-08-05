@@ -12,6 +12,12 @@ const e2ePostgresPort = process.env.MOEURL_E2E_POSTGRES_PORT ?? '15432'
 const baseURL = `http://127.0.0.1:${e2ePort}`
 const composeProjectName = process.env.MOEURL_E2E_COMPOSE_PROJECT ?? `moeurl-e2e-${e2ePort}`
 const browserChannel = process.env.MOEURL_E2E_BROWSER_CHANNEL?.trim() || detectFallbackBrowserChannel()
+const skipDockerCompose = shouldSkipDockerCompose()
+
+export function shouldSkipDockerCompose(envValue = process.env.MOEURL_E2E_SKIP_DOCKER): boolean {
+  const normalized = envValue?.trim().toLowerCase()
+  return normalized === '1' || normalized === 'true'
+}
 
 export function detectFallbackBrowserChannel(
   executableExists: (path: string) => boolean = existsSync,
@@ -59,20 +65,24 @@ export default defineConfig({
     baseURL,
     trace: 'on-first-retry',
   },
-  webServer: {
-    command:
-      'node -e "const { execFileSync } = require(\'node:child_process\'); const project = process.env.MOEURL_E2E_COMPOSE_PROJECT; try { execFileSync(\'docker\', [\'compose\', \'-p\', project, \'down\', \'-v\'], { stdio: \'inherit\' }); } catch {} execFileSync(\'docker\', [\'compose\', \'-p\', project, \'up\', \'--build\'], { stdio: \'inherit\' });"',
-    cwd: '..',
-    env: {
-      MOEURL_E2E_COMPOSE_PROJECT: composeProjectName,
-      MOEURL_ENV: 'development',
-      MOEURL_HTTP_PORT: e2ePort,
-      MOEURL_POSTGRES_PORT: e2ePostgresPort,
-    },
-    reuseExistingServer: false,
-    timeout: 600_000,
-    url: `${baseURL}/api/v1/health`,
-  },
+  ...(skipDockerCompose
+    ? {}
+    : {
+        webServer: {
+          command:
+            'node -e "const { execFileSync } = require(\'node:child_process\'); const project = process.env.MOEURL_E2E_COMPOSE_PROJECT; try { execFileSync(\'docker\', [\'compose\', \'-p\', project, \'down\', \'-v\'], { stdio: \'inherit\' }); } catch {} execFileSync(\'docker\', [\'compose\', \'-p\', project, \'up\', \'--build\'], { stdio: \'inherit\' });"',
+          cwd: '..',
+          env: {
+            MOEURL_E2E_COMPOSE_PROJECT: composeProjectName,
+            MOEURL_ENV: 'development',
+            MOEURL_HTTP_PORT: e2ePort,
+            MOEURL_POSTGRES_PORT: e2ePostgresPort,
+          },
+          reuseExistingServer: false,
+          timeout: 600_000,
+          url: `${baseURL}/api/v1/health`,
+        },
+      }),
   projects: [
     {
       name: 'chromium',
