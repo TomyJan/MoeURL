@@ -51,9 +51,8 @@ github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:290.75,292.3
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:303.17,305.3
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:306.39,308.3
 
-# Access token generation uses crypto/rand and is not deterministically injectable through the public service contract.
+# Access-token generation failure after transaction state changes remains covered at the generator boundary.
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:294.16,296.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:370.72,372.3
 
 # Password hashing failure is an Argon2id/random infrastructure path after input and permission validation.
 github.com/TomyJan/MoeURL/internal/shortlink/service.go:657.16,659.3

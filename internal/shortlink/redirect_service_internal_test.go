@@ -2,7 +2,9 @@ package shortlink
 
 import (
 	"encoding/base64"
+	"errors"
 	"testing"
+	"testing/iotest"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -49,5 +51,20 @@ func TestGenerateAccessTokenSeparatesRawTokenFromStoredHash(t *testing.T) {
 	}
 	if hashAccessToken(token) != tokenHash {
 		t.Fatal("stored token hash is not reproducible")
+	}
+}
+
+func TestGenerateAccessTokenReturnsRandomSourceError(t *testing.T) {
+	expected := errors.New("random source failed")
+	original := accessTokenRandomReader
+	accessTokenRandomReader = iotest.ErrReader(expected)
+	t.Cleanup(func() { accessTokenRandomReader = original })
+
+	token, tokenHash, err := generateAccessToken()
+	if !errors.Is(err, expected) {
+		t.Fatalf("generate access token error = %v, want %v", err, expected)
+	}
+	if token != "" || tokenHash != "" {
+		t.Fatalf("failed token generation returned token=%q hash=%q", token, tokenHash)
 	}
 }
