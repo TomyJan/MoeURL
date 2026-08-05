@@ -2,6 +2,7 @@ package db_test
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
@@ -316,6 +317,160 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 	}
 	if !adminConfigured.ExpiresAt.Valid || !adminConfigured.ExpiresAt.Time.Equal(adminExpiresAt) || adminConfigured.Expired {
 		t.Fatalf("unexpected admin expiration update: %#v", adminConfigured)
+	}
+}
+
+func TestShortLinkAccessGrantUsesIssuanceTimeAfterConcurrentPasswordUpdate(t *testing.T) {
+	ctx := context.Background()
+	pool := sqlcTestPool(t, ctx)
+	queries := sqlc.New(pool)
+	ownerID := uuid.MustParse("00000000-0000-0000-0000-000000000201")
+	domainID := uuid.MustParse("00000000-0000-0000-0000-000000000101")
+	linkID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
+	insertSQLCShortLinkFixtures(t, ctx, pool, ownerID, domainID, linkID)
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin grant transaction: %v", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	txQueries := queries.WithTx(tx)
+	if _, err := txQueries.GetDatabaseTime(ctx); err != nil {
+		t.Fatalf("establish grant transaction time: %v", err)
+	}
+	if _, err := tx.Exec(ctx, `select pg_sleep(0.01)`); err != nil {
+		t.Fatalf("separate transaction timestamps: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		update short_link
+		set password_hash = 'updated-hash', password_updated_at = clock_timestamp()
+		where id = $1
+	`, linkID); err != nil {
+		t.Fatalf("update password after grant transaction started: %v", err)
+	}
+
+	tokenHash := "concurrent-password-update-token"
+	if _, err := txQueries.CreateShortLinkAccessGrant(ctx, sqlc.CreateShortLinkAccessGrantParams{
+		ID:          uuidToPgtype(uuid.New()),
+		ShortLinkID: uuidToPgtype(linkID),
+		TokenHash:   tokenHash,
+		ExpiresAt:   pgtype.Timestamptz{Time: time.Now().Add(time.Hour), Valid: true},
+	}); err != nil {
+		t.Fatalf("create access grant: %v", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatalf("commit access grant: %v", err)
+	}
+
+	if _, err := queries.GetValidShortLinkAccessGrant(ctx, sqlc.GetValidShortLinkAccessGrantParams{
+		ShortLinkID: uuidToPgtype(linkID),
+		TokenHash:   tokenHash,
+	}); err != nil {
+		t.Fatalf("expected newly issued grant to survive an earlier password update: %v", err)
+	}
+}
+
+func TestShortLinkPasswordUpdateUsesLockAcquisitionTimeToInvalidateGrants(t *testing.T) {
+	ctx := context.Background()
+	pool := sqlcTestPool(t, ctx)
+	queries := sqlc.New(pool)
+	ownerID := uuid.MustParse("00000000-0000-0000-0000-000000000201")
+	domainID := uuid.MustParse("00000000-0000-0000-0000-000000000101")
+	linkID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
+	insertSQLCShortLinkFixtures(t, ctx, pool, ownerID, domainID, linkID)
+	if _, err := pool.Exec(ctx, `update short_link set password_hash = 'initial-hash', password_updated_at = clock_timestamp() where id = $1`, linkID); err != nil {
+		t.Fatalf("set initial password state: %v", err)
+	}
+
+	grantTx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin grant transaction: %v", err)
+	}
+	defer func() { _ = grantTx.Rollback(ctx) }()
+	grantQueries := queries.WithTx(grantTx)
+	if _, err := grantQueries.GetShortLinkPasswordStateForUpdate(ctx, uuidToPgtype(linkID)); err != nil {
+		t.Fatalf("lock short link for grant: %v", err)
+	}
+
+	updateTx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin password update transaction: %v", err)
+	}
+	defer func() { _ = updateTx.Rollback(ctx) }()
+	updateQueries := queries.WithTx(updateTx)
+	if _, err := updateQueries.GetDatabaseTime(ctx); err != nil {
+		t.Fatalf("establish password update transaction time: %v", err)
+	}
+	var updatePID int32
+	if err := updateTx.QueryRow(ctx, `select pg_backend_pid()`).Scan(&updatePID); err != nil {
+		t.Fatalf("read password update backend pid: %v", err)
+	}
+
+	updateResult := make(chan error, 1)
+	go func() {
+		_, updateErr := updateQueries.UpdateAnyShortLink(ctx, sqlc.UpdateAnyShortLinkParams{
+			ID:             uuidToPgtype(linkID),
+			ExpirationMode: "keep",
+			PasswordMode:   "set",
+			PasswordHash:   pgtype.Text{String: "updated-hash", Valid: true},
+		})
+		updateResult <- updateErr
+	}()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var waitEventType pgtype.Text
+		if err := pool.QueryRow(ctx, `select wait_event_type from pg_stat_activity where pid = $1`, updatePID).Scan(&waitEventType); err != nil {
+			t.Fatalf("read password update wait state: %v", err)
+		}
+		if waitEventType.Valid && waitEventType.String == "Lock" {
+			break
+		}
+		select {
+		case updateErr := <-updateResult:
+			t.Fatalf("password update returned before lock release: %v", updateErr)
+		default:
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("password update did not wait for the short-link lock")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	tokenHash := "grant-created-before-waiting-update"
+	if _, err := grantQueries.CreateShortLinkAccessGrant(ctx, sqlc.CreateShortLinkAccessGrantParams{
+		ID:          uuidToPgtype(uuid.New()),
+		ShortLinkID: uuidToPgtype(linkID),
+		TokenHash:   tokenHash,
+		ExpiresAt:   pgtype.Timestamptz{Time: time.Now().Add(time.Hour), Valid: true},
+	}); err != nil {
+		t.Fatalf("create access grant while password update waits: %v", err)
+	}
+	if err := grantTx.Commit(ctx); err != nil {
+		t.Fatalf("commit access grant: %v", err)
+	}
+	if err := <-updateResult; err != nil {
+		t.Fatalf("update password after lock release: %v", err)
+	}
+	if err := updateTx.Commit(ctx); err != nil {
+		t.Fatalf("commit password update: %v", err)
+	}
+	var createdAt, passwordUpdatedAt time.Time
+	if err := pool.QueryRow(ctx, `
+		select access_grant.created_at, short_link.password_updated_at
+		from short_link_access_grant as access_grant
+		join short_link on short_link.id = access_grant.short_link_id
+		where access_grant.token_hash = $1
+	`, tokenHash).Scan(&createdAt, &passwordUpdatedAt); err != nil {
+		t.Fatalf("read grant timestamps: %v", err)
+	}
+	t.Logf("grant created at %s, password updated at %s", createdAt.Format(time.RFC3339Nano), passwordUpdatedAt.Format(time.RFC3339Nano))
+
+	if _, err := queries.GetValidShortLinkAccessGrant(ctx, sqlc.GetValidShortLinkAccessGrantParams{
+		ShortLinkID: uuidToPgtype(linkID),
+		TokenHash:   tokenHash,
+	}); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("expected password update to invalidate the earlier grant, got %v", err)
 	}
 }
 

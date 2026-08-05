@@ -65,11 +65,11 @@ insert into short_link (
     created_at, updated_at
 )
 values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-    case when $10::text is null then null else now() end,
+    case when $10::text is null then null else clock_timestamp() end,
     now(), now())
 returning id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at,
-    coalesce(expires_at <= now(), false)::boolean as expired,
+    coalesce(expires_at <= clock_timestamp(), false)::boolean as expired,
     password_hash,
     created_at, updated_at, deleted_at
 `
@@ -139,7 +139,7 @@ func (q *Queries) CreateShortLink(ctx context.Context, arg CreateShortLinkParams
 
 const createShortLinkAccessGrant = `-- name: CreateShortLinkAccessGrant :one
 insert into short_link_access_grant (id, short_link_id, token_hash, expires_at, created_at)
-values ($1, $2, $3, $4, now())
+values ($1, $2, $3, $4, clock_timestamp())
 returning id, short_link_id, token_hash, expires_at, created_at
 `
 
@@ -172,7 +172,7 @@ const deleteExpiredShortLinkAccessGrants = `-- name: DeleteExpiredShortLinkAcces
 with expired_grant as (
     select id
     from short_link_access_grant
-    where expires_at <= now()
+    where expires_at <= clock_timestamp()
     order by expires_at
     limit 500
     for update skip locked
@@ -191,7 +191,7 @@ func (q *Queries) DeleteExpiredShortLinkAccessGrants(ctx context.Context) (int64
 }
 
 const getDatabaseTime = `-- name: GetDatabaseTime :one
-select now()::timestamptz as database_time
+select clock_timestamp()::timestamptz as database_time
 `
 
 func (q *Queries) GetDatabaseTime(ctx context.Context) (pgtype.Timestamptz, error) {
@@ -210,7 +210,7 @@ select short_link.id,
     short_link.redirect_mode,
     short_link.intermediate_delay_seconds,
     short_link.expires_at,
-    coalesce(short_link.expires_at <= now(), false)::boolean as expired,
+    coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
     short_link.password_hash,
     short_link.created_at,
     domain.host as domain_host
@@ -257,7 +257,7 @@ func (q *Queries) GetShortLinkAnalyticsLink(ctx context.Context, id pgtype.UUID)
 const getShortLinkBySlug = `-- name: GetShortLinkBySlug :one
 select id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at,
-    coalesce(expires_at <= now(), false)::boolean as expired,
+    coalesce(expires_at <= clock_timestamp(), false)::boolean as expired,
     password_hash,
     created_at, updated_at, deleted_at
 from short_link
@@ -375,7 +375,7 @@ from short_link_access_grant as access_grant
 join short_link on short_link.id = access_grant.short_link_id
 where access_grant.short_link_id = $1
     and access_grant.token_hash = $2
-    and access_grant.expires_at > now()
+    and access_grant.expires_at > clock_timestamp()
     and (short_link.password_updated_at is null or access_grant.created_at >= short_link.password_updated_at)
 `
 
@@ -407,7 +407,7 @@ select short_link.id,
     short_link.redirect_mode,
     short_link.intermediate_delay_seconds,
     short_link.expires_at,
-    coalesce(short_link.expires_at <= now(), false)::boolean as expired,
+    coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
     short_link.password_hash,
     short_link.created_at,
     short_link.updated_at,
@@ -527,7 +527,7 @@ select short_link.id,
     short_link.redirect_mode,
     short_link.intermediate_delay_seconds,
     short_link.expires_at,
-    coalesce(short_link.expires_at <= now(), false)::boolean as expired,
+    coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
     short_link.password_hash,
     short_link.created_at,
     short_link.updated_at,
@@ -700,6 +700,13 @@ func (q *Queries) SoftDeleteOwnShortLink(ctx context.Context, arg SoftDeleteOwnS
 }
 
 const updateAnyShortLink = `-- name: UpdateAnyShortLink :one
+with locked as materialized (
+    select short_link.id
+    from short_link
+    where short_link.id = $9
+        and short_link.deleted_at is null
+    for update
+)
 update short_link
 set target_url = coalesce($1, target_url),
     status = coalesce($2, status),
@@ -716,18 +723,18 @@ set target_url = coalesce($1, target_url),
         else password_hash
     end,
     password_updated_at = case $7::text
-        when 'never' then now()
-        when 'set' then now()
+        when 'never' then clock_timestamp()
+        when 'set' then clock_timestamp()
         else password_updated_at
     end,
     updated_at = now()
-where id = $9
-    and deleted_at is null
-returning id, owner_id, domain_id, slug, target_url, status,
-    redirect_mode, intermediate_delay_seconds, expires_at,
-    coalesce(expires_at <= now(), false)::boolean as expired,
-    password_hash,
-    created_at, updated_at, deleted_at
+from locked
+where short_link.id = locked.id
+returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
+    short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
+    coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
+    short_link.password_hash,
+    short_link.created_at, short_link.updated_at, short_link.deleted_at
 `
 
 type UpdateAnyShortLinkParams struct {
@@ -792,6 +799,14 @@ func (q *Queries) UpdateAnyShortLink(ctx context.Context, arg UpdateAnyShortLink
 }
 
 const updateOwnShortLink = `-- name: UpdateOwnShortLink :one
+with locked as materialized (
+    select short_link.id
+    from short_link
+    where short_link.id = $9
+        and short_link.owner_id = $10
+        and short_link.deleted_at is null
+    for update
+)
 update short_link
 set target_url = coalesce($1, target_url),
     status = coalesce($2, status),
@@ -808,19 +823,18 @@ set target_url = coalesce($1, target_url),
         else password_hash
     end,
     password_updated_at = case $7::text
-        when 'never' then now()
-        when 'set' then now()
+        when 'never' then clock_timestamp()
+        when 'set' then clock_timestamp()
         else password_updated_at
     end,
     updated_at = now()
-where id = $9
-    and owner_id = $10
-    and deleted_at is null
-returning id, owner_id, domain_id, slug, target_url, status,
-    redirect_mode, intermediate_delay_seconds, expires_at,
-    coalesce(expires_at <= now(), false)::boolean as expired,
-    password_hash,
-    created_at, updated_at, deleted_at
+from locked
+where short_link.id = locked.id
+returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
+    short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
+    coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
+    short_link.password_hash,
+    short_link.created_at, short_link.updated_at, short_link.deleted_at
 `
 
 type UpdateOwnShortLinkParams struct {
