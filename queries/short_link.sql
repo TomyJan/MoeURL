@@ -255,6 +255,10 @@ insert into short_link_access_grant (id, short_link_id, token_hash, expires_at, 
 values ($1, $2, $3, $4, now())
 returning id, short_link_id, token_hash, expires_at, created_at;
 
+-- name: DeleteExpiredShortLinkAccessGrants :execrows
+delete from short_link_access_grant
+where expires_at <= now();
+
 -- name: GetValidShortLinkAccessGrant :one
 select access_grant.id, access_grant.short_link_id, access_grant.token_hash,
     access_grant.expires_at, access_grant.created_at

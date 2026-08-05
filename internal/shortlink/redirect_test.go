@@ -10,6 +10,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/event"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
+	"github.com/google/uuid"
 )
 
 // TestRedirectServiceResolvesActiveShortLink verifies active links resolve to their target.
@@ -280,6 +281,49 @@ func TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit(t *testing.T) {
 	}
 	if _, err := service.Continue(ctx, "protected", grant.Token); !errors.Is(err, shortlink.ErrPasswordRequired) {
 		t.Fatalf("expected password update to invalidate old grant, got %v", err)
+	}
+}
+
+func TestRedirectServiceUnlockCleansExpiredAccessGrants(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "protected-cleanup-user", "user", []string{})
+	linkID := insertStoredShortLink(t, ctx, pool, user.ID, "protected-cleanup", "https://example.com/protected", "active", false)
+	hash, err := auth.HashPassword("correct horse")
+	if err != nil {
+		t.Fatalf("hash protected password: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `update short_link set password_hash = $2, password_updated_at = now() where id = $1`, linkID, hash); err != nil {
+		t.Fatalf("configure protected password: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into short_link_access_grant (id, short_link_id, token_hash, expires_at, created_at)
+		values ($1, $2, $3, now() - interval '1 second', now() - interval '1 minute')
+	`, uuid.New(), linkID, "expired-grant"); err != nil {
+		t.Fatalf("insert expired access grant: %v", err)
+	}
+
+	service := shortlink.NewRedirectService(pool, nil)
+	grant, err := service.Unlock(ctx, "protected-cleanup", "correct horse")
+	if err != nil || grant.Token == "" {
+		t.Fatalf("unlock protected short link: grant=%#v error=%v", grant, err)
+	}
+
+	var expiredCount int
+	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where token_hash = 'expired-grant'`).Scan(&expiredCount); err != nil {
+		t.Fatalf("query expired access grants: %v", err)
+	}
+	if expiredCount != 0 {
+		t.Fatalf("expected expired access grant to be deleted, got %d rows", expiredCount)
+	}
+
+	var activeCount int
+	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where short_link_id = $1`, linkID).Scan(&activeCount); err != nil {
+		t.Fatalf("query active access grants: %v", err)
+	}
+	if activeCount != 1 {
+		t.Fatalf("expected new access grant to remain, got %d rows", activeCount)
 	}
 }
 

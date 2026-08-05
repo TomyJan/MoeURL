@@ -287,6 +287,9 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 	if err := queries.ResetShortLinkPasswordFailures(ctx, link.ID); err != nil {
 		return AccessGrant{}, err
 	}
+	if _, err := queries.DeleteExpiredShortLinkAccessGrants(ctx); err != nil {
+		return AccessGrant{}, err
+	}
 	token, tokenHash, err := generateAccessToken()
 	if err != nil {
 		return AccessGrant{}, err

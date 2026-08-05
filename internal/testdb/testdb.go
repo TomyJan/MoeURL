@@ -19,20 +19,30 @@ import (
 
 const localAdminDatabaseURL = "postgres://postgres:postgres@127.0.0.1:5433/postgres?sslmode=disable"
 
+type cleanupErrorReporter interface {
+	Errorf(format string, args ...any)
+}
+
+func reportCleanupError(reporter cleanupErrorReporter, operation string, err error) {
+	if err != nil {
+		reporter.Errorf("%s: %v", operation, err)
+	}
+}
+
 // DatabaseURL returns a fresh PostgreSQL URL for tests.
 // It prefers Docker when available and falls back to a local PostgreSQL
 // instance when Docker cannot start on the current machine.
 func DatabaseURL(t testing.TB, ctx context.Context) string {
 	t.Helper()
 
-	databaseURL, cleanup, err := dockerDatabaseURL(ctx)
+	databaseURL, cleanup, err := dockerDatabaseURL(ctx, t)
 	if err == nil {
 		t.Cleanup(cleanup)
 		return databaseURL
 	}
 	t.Logf("falling back to local PostgreSQL for tests: %v", err)
 
-	databaseURL, cleanup, err = localDatabaseURL(ctx, t.Name())
+	databaseURL, cleanup, err = localDatabaseURL(ctx, t.Name(), t)
 	if err != nil {
 		t.Fatalf("start local PostgreSQL: %v", err)
 	}
@@ -50,7 +60,7 @@ func MigratedDatabaseURL(t testing.TB, ctx context.Context, migrationsDir string
 		t.Fatalf("open database: %v", err)
 	}
 	t.Cleanup(func() {
-		_ = database.Close()
+		reportCleanupError(t, "close test database", database.Close())
 	})
 
 	if err := goose.SetDialect("postgres"); err != nil {
@@ -63,7 +73,7 @@ func MigratedDatabaseURL(t testing.TB, ctx context.Context, migrationsDir string
 	return databaseURL
 }
 
-func dockerDatabaseURL(ctx context.Context) (string, func(), error) {
+func dockerDatabaseURL(ctx context.Context, t testing.TB) (string, func(), error) {
 	container, err := postgres.Run(ctx,
 		"postgres:18-alpine",
 		postgres.WithDatabase("moeurl_test"),
@@ -88,15 +98,13 @@ func dockerDatabaseURL(ctx context.Context) (string, func(), error) {
 	}
 
 	cleanup := func() {
-		if err := testcontainers.TerminateContainer(container); err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "terminate testcontainer: %v\n", err)
-		}
+		reportCleanupError(t, "terminate testcontainer", testcontainers.TerminateContainer(container))
 	}
 
 	return databaseURL, cleanup, nil
 }
 
-func localDatabaseURL(ctx context.Context, testName string) (string, func(), error) {
+func localDatabaseURL(ctx context.Context, testName string, t testing.TB) (string, func(), error) {
 	adminURL := os.Getenv("MOEURL_TEST_POSTGRES_ADMIN_URL")
 	if adminURL == "" {
 		adminURL = localAdminDatabaseURL
@@ -125,8 +133,11 @@ func localDatabaseURL(ctx context.Context, testName string) (string, func(), err
 	}
 
 	cleanup := func() {
-		_, _ = adminDatabase.ExecContext(context.Background(), fmt.Sprintf("DROP DATABASE IF EXISTS %s WITH (FORCE)", databaseName))
-		_ = adminDatabase.Close()
+		cleanupContext, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_, dropErr := adminDatabase.ExecContext(cleanupContext, fmt.Sprintf("DROP DATABASE IF EXISTS %s WITH (FORCE)", databaseName))
+		reportCleanupError(t, fmt.Sprintf("drop test database %s", databaseName), dropErr)
+		reportCleanupError(t, "close test database admin connection", adminDatabase.Close())
 	}
 
 	return databaseURL, cleanup, nil

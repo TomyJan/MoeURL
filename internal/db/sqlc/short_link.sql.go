@@ -168,6 +168,19 @@ func (q *Queries) CreateShortLinkAccessGrant(ctx context.Context, arg CreateShor
 	return i, err
 }
 
+const deleteExpiredShortLinkAccessGrants = `-- name: DeleteExpiredShortLinkAccessGrants :execrows
+delete from short_link_access_grant
+where expires_at <= now()
+`
+
+func (q *Queries) DeleteExpiredShortLinkAccessGrants(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredShortLinkAccessGrants)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getDatabaseTime = `-- name: GetDatabaseTime :one
 select now()::timestamptz as database_time
 `
