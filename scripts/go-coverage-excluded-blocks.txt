@@ -33,7 +33,6 @@ github.com/TomyJan/MoeURL/internal/shortlink/service.go:96.2,96.40
 
 # Create's fixed-length slug route collision, reserved-route retry, and retry exhaustion are defensive random/collision paths.
 github.com/TomyJan/MoeURL/internal/shortlink/service.go:76.17,78.4
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:79.27,80.12
 github.com/TomyJan/MoeURL/internal/shortlink/service.go:95.29,96.12
 github.com/TomyJan/MoeURL/internal/shortlink/service.go:114.2,114.40
 

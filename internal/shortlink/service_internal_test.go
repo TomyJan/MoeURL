@@ -1,19 +1,24 @@
 package shortlink
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/permission"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func TestValidatePasswordInput(t *testing.T) {
@@ -152,6 +157,59 @@ func TestInternalServiceHelpers(t *testing.T) {
 	if isUniqueViolation(errors.New("plain error")) {
 		t.Fatal("expected plain error to not be unique violation")
 	}
+}
+
+func TestCreateRetriesReservedSlug(t *testing.T) {
+	ctx := context.Background()
+	pool := internalShortLinkTestPool(t, ctx)
+	if _, err := pool.Exec(ctx, `
+		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000401', 'user', 'User', '', '[]'::jsonb, false, now(), now())
+	`); err != nil {
+		t.Fatalf("insert user group fixture: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into app_user (id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000501', 'reserved-retry-user', 'hash', 'Reserved Retry', '00000000-0000-0000-0000-000000000401', 'active', false, now(), now())
+	`); err != nil {
+		t.Fatalf("insert user fixture: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into domain (id, host, display_name, purpose, enabled, is_default, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000301', 'go.example.com', 'Default', 'short_link', true, true, now(), now())
+	`); err != nil {
+		t.Fatalf("insert domain fixture: %v", err)
+	}
+
+	originalReader := slugRandomReader
+	slugRandomReader = bytes.NewReader([]byte{
+		0, 18, 18, 4, 19, 18, // assets: reserved route
+		0, 1, 2, 27, 28, 29, // abc123: valid retry
+	})
+	t.Cleanup(func() { slugRandomReader = originalReader })
+
+	service := NewService(pool, permission.NewService())
+	result, err := service.Create(ctx, auth.CurrentUser{
+		ID:       "00000000-0000-0000-0000-000000000501",
+		GroupKey: permission.GroupUser,
+	}, CreateInput{TargetURL: "https://example.com"})
+	if err != nil {
+		t.Fatalf("create after reserved slug: %v", err)
+	}
+	if result.ShortLink.Slug != "abc123" {
+		t.Fatalf("expected reserved slug retry to produce abc123, got %q", result.ShortLink.Slug)
+	}
+}
+
+func internalShortLinkTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
+	t.Helper()
+	databaseURL := testdb.MigratedDatabaseURL(t, ctx, filepath.Join("..", "..", "migrations"))
+	pool, err := appdb.OpenPool(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("open pool: %v", err)
+	}
+	t.Cleanup(pool.Close)
+	return pool
 }
 
 // TestExpirationValuesUsesDatabaseState verifies mapping never recalculates expiration with the application clock.
