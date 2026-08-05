@@ -169,8 +169,17 @@ func (q *Queries) CreateShortLinkAccessGrant(ctx context.Context, arg CreateShor
 }
 
 const deleteExpiredShortLinkAccessGrants = `-- name: DeleteExpiredShortLinkAccessGrants :execrows
-delete from short_link_access_grant
-where expires_at <= now()
+with expired_grant as (
+    select id
+    from short_link_access_grant
+    where expires_at <= now()
+    order by expires_at
+    limit 500
+    for update skip locked
+)
+delete from short_link_access_grant as access_grant
+using expired_grant
+where access_grant.id = expired_grant.id
 `
 
 func (q *Queries) DeleteExpiredShortLinkAccessGrants(ctx context.Context) (int64, error) {

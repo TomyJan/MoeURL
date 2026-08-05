@@ -10,7 +10,6 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/event"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
-	"github.com/google/uuid"
 )
 
 // TestRedirectServiceResolvesActiveShortLink verifies active links resolve to their target.
@@ -284,7 +283,95 @@ func TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit(t *testing.T) {
 	}
 }
 
-func TestRedirectServiceUnlockCleansExpiredAccessGrants(t *testing.T) {
+func TestRedirectServicePropagatesAccessGrantQueryErrors(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "grant-query-error-user", "user", []string{})
+	linkID := insertStoredShortLink(t, ctx, pool, user.ID, "grant-query-error", "https://example.com/protected", "active", false)
+	hash, err := auth.HashPassword("correct horse")
+	if err != nil {
+		t.Fatalf("hash protected password: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `update short_link set password_hash = $2 where id = $1`, linkID, hash); err != nil {
+		t.Fatalf("configure protected password: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `drop table short_link_access_grant`); err != nil {
+		t.Fatalf("drop access grant table: %v", err)
+	}
+
+	service := shortlink.NewRedirectService(pool, nil)
+	if _, err := service.Preview(ctx, "grant-query-error", "raw-token"); err == nil {
+		t.Fatal("expected preview access grant query error")
+	}
+	if _, err := service.Continue(ctx, "grant-query-error", "raw-token"); err == nil {
+		t.Fatal("expected continue access grant query error")
+	}
+}
+
+func TestRedirectServiceUnlockMapsAccessConditions(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "unlock-conditions-user", "user", []string{})
+	hash, err := auth.HashPassword("correct horse")
+	if err != nil {
+		t.Fatalf("hash protected password: %v", err)
+	}
+
+	insertStoredShortLink(t, ctx, pool, user.ID, "unlock-unprotected", "https://example.com/unprotected", "active", false)
+	disabledID := insertStoredShortLink(t, ctx, pool, user.ID, "unlock-disabled", "https://example.com/disabled", "disabled", false)
+	expiredID := insertStoredShortLink(t, ctx, pool, user.ID, "unlock-expired", "https://example.com/expired", "active", false)
+	blockedID := insertStoredShortLink(t, ctx, pool, user.ID, "unlock-blocked", "https://example.com/blocked", "active", false)
+	for _, linkID := range []string{disabledID, expiredID, blockedID} {
+		if _, err := pool.Exec(ctx, `update short_link set password_hash = $2 where id = $1`, linkID, hash); err != nil {
+			t.Fatalf("configure protected password: %v", err)
+		}
+	}
+	if _, err := pool.Exec(ctx, `update short_link set expires_at = now() - interval '1 second' where id = $1`, expiredID); err != nil {
+		t.Fatalf("expire protected link: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `update short_link set password_blocked_until = now() + interval '1 minute' where id = $1`, blockedID); err != nil {
+		t.Fatalf("block protected link: %v", err)
+	}
+
+	service := shortlink.NewRedirectService(pool, nil)
+	tests := []struct {
+		name string
+		slug string
+		want error
+	}{
+		{name: "missing", slug: "unlock-missing", want: shortlink.ErrShortLinkMissing},
+		{name: "unprotected", slug: "unlock-unprotected", want: shortlink.ErrInvalidPassword},
+		{name: "disabled", slug: "unlock-disabled", want: shortlink.ErrShortLinkDisabled},
+		{name: "expired", slug: "unlock-expired", want: shortlink.ErrShortLinkExpired},
+		{name: "rate limited", slug: "unlock-blocked", want: shortlink.ErrPasswordRateLimited},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := service.Unlock(ctx, test.slug, "correct horse")
+			if !errors.Is(err, test.want) {
+				t.Fatalf("expected %v, got %v", test.want, err)
+			}
+		})
+	}
+}
+
+func TestRedirectServiceUnlockHandlesUnavailableDatabase(t *testing.T) {
+	ctx := context.Background()
+	if _, err := shortlink.NewRedirectService(nil, nil).Unlock(ctx, "missing", "password"); err == nil {
+		t.Fatal("expected unavailable database error")
+	}
+
+	pool := shortLinkTestPool(t, ctx)
+	service := shortlink.NewRedirectService(pool, nil)
+	pool.Close()
+	if _, err := service.Unlock(ctx, "missing", "password"); err == nil {
+		t.Fatal("expected begin transaction error")
+	}
+}
+
+func TestRedirectServiceUnlockCleansABoundedBatchOfExpiredAccessGrants(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
 	insertShortLinkDefaultDomain(t, ctx, pool)
@@ -299,8 +386,10 @@ func TestRedirectServiceUnlockCleansExpiredAccessGrants(t *testing.T) {
 	}
 	if _, err := pool.Exec(ctx, `
 		insert into short_link_access_grant (id, short_link_id, token_hash, expires_at, created_at)
-		values ($1, $2, $3, now() - interval '1 second', now() - interval '1 minute')
-	`, uuid.New(), linkID, "expired-grant"); err != nil {
+		select ('00000000-0000-0001-0000-' || lpad(value::text, 12, '0'))::uuid,
+			$1, 'expired-grant-' || value, now() - interval '1 second', now() - interval '1 minute'
+		from generate_series(1, 501) as value
+	`, linkID); err != nil {
 		t.Fatalf("insert expired access grant: %v", err)
 	}
 
@@ -311,15 +400,15 @@ func TestRedirectServiceUnlockCleansExpiredAccessGrants(t *testing.T) {
 	}
 
 	var expiredCount int
-	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where token_hash = 'expired-grant'`).Scan(&expiredCount); err != nil {
+	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where expires_at <= now()`).Scan(&expiredCount); err != nil {
 		t.Fatalf("query expired access grants: %v", err)
 	}
-	if expiredCount != 0 {
-		t.Fatalf("expected expired access grant to be deleted, got %d rows", expiredCount)
+	if expiredCount != 1 {
+		t.Fatalf("expected one expired access grant after bounded cleanup, got %d rows", expiredCount)
 	}
 
 	var activeCount int
-	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where short_link_id = $1`, linkID).Scan(&activeCount); err != nil {
+	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where short_link_id = $1 and expires_at > now()`, linkID).Scan(&activeCount); err != nil {
 		t.Fatalf("query active access grants: %v", err)
 	}
 	if activeCount != 1 {

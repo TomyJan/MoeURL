@@ -22,6 +22,9 @@ create table short_link_access_grant (
 create index short_link_access_grant_link_expiry_idx
     on short_link_access_grant(short_link_id, expires_at);
 
+create index short_link_access_grant_expiry_idx
+    on short_link_access_grant(expires_at);
+
 create table moeurl_short_link_password_permission_addition (
     user_group_id uuid not null references user_group(id) on delete cascade,
     permission text not null,

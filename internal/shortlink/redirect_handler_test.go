@@ -35,6 +35,27 @@ func TestRedirectHandlerRedirectsActiveSlug(t *testing.T) {
 	}
 }
 
+func TestRedirectHandlerAnalyticsConstructorConfiguresHandler(t *testing.T) {
+	recorder := &recordingRecorder{}
+	handler := shortlink.NewRedirectHandlerWithAnalytics(
+		&fakeRedirectService{openResult: shortlink.OpenResult{
+			RedirectMode: shortlink.RedirectModeDirect,
+			RedirectResult: shortlink.RedirectResult{
+				TargetURL:   "https://example.com/target",
+				ShortLinkID: "link-id",
+			},
+		}},
+		recorder,
+		"X-Country-Code",
+	)
+	response := httptest.NewRecorder()
+	handler.Open(response, httptest.NewRequest(http.MethodGet, "/abc123", nil), "abc123")
+
+	if response.Code != http.StatusFound {
+		t.Fatalf("expected 302, got %d", response.Code)
+	}
+}
+
 func TestRedirectHandlerRedirectsProtectedSlugToPasswordPage(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		Redirect: &fakeRedirectService{openResult: shortlink.OpenResult{RedirectMode: shortlink.RedirectModeDirect, Slug: "abc123", RequiresPassword: true}},
@@ -101,6 +122,54 @@ func TestRedirectHandlerUnlockMapsPasswordErrorsToBusinessCodes(t *testing.T) {
 				t.Fatalf("expected 200/code %d, got %d/code %d", test.code, response.Code, body.Code)
 			}
 		})
+	}
+}
+
+func TestRedirectHandlerUnlockRejectsMalformedRequest(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: &fakeRedirectService{}})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString("{"))
+
+	router.ServeHTTP(response, request)
+
+	var body struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode malformed unlock response: %v", err)
+	}
+	if response.Code != http.StatusOK || body.Code != 100001 {
+		t.Fatalf("expected status 200 code 100001, got status %d code %d", response.Code, body.Code)
+	}
+}
+
+func TestRedirectHandlerUnlockRejectsUnsupportedService(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: redirectOnlyService{}})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString(`{"slug":"abc123","password":"correct horse"}`))
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", response.Code)
+	}
+}
+
+func TestRedirectHandlerUnlockMapsSystemError(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: &fakeRedirectService{unlockErr: errors.New("database down")}})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString(`{"slug":"abc123","password":"correct horse"}`))
+
+	router.ServeHTTP(response, request)
+
+	var body struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode system unlock response: %v", err)
+	}
+	if response.Code != http.StatusInternalServerError || body.Code != 900000 {
+		t.Fatalf("expected status 500 code 900000, got status %d code %d", response.Code, body.Code)
 	}
 }
 
@@ -407,6 +476,9 @@ func TestRedirectHandlerContinueShowsLifecycleErrors(t *testing.T) {
 		{name: "disabled", err: shortlink.ErrShortLinkDisabled, code: http.StatusFound, location: "/go/middle?reason=disabled"},
 		{name: "expired", err: shortlink.ErrShortLinkExpired, code: http.StatusFound, location: "/go/middle?reason=expired"},
 		{name: "not intermediate", err: shortlink.ErrShortLinkNotIntermediate, code: http.StatusFound, location: "/go/middle?reason=not-intermediate"},
+		{name: "password required", err: shortlink.ErrPasswordRequired, code: http.StatusFound, location: "/go/middle?reason=password"},
+		{name: "invalid password", err: shortlink.ErrInvalidPassword, code: http.StatusFound, location: "/go/middle?reason=password"},
+		{name: "rate limited", err: shortlink.ErrPasswordRateLimited, code: http.StatusFound, location: "/go/middle?reason=rate-limited"},
 		{name: "system", err: errors.New("database down"), code: http.StatusInternalServerError},
 	}
 
@@ -425,6 +497,31 @@ func TestRedirectHandlerContinueShowsLifecycleErrors(t *testing.T) {
 	}
 }
 
+func TestRedirectHandlerContinuePassesScopedAccessCookie(t *testing.T) {
+	service := &fakeRedirectService{continueResult: shortlink.RedirectResult{TargetURL: "https://example.com/final", ShortLinkID: "link-id"}}
+	handler := shortlink.NewRedirectHandler(service)
+	request := httptest.NewRequest(http.MethodGet, "/go/middle/continue", nil)
+	request.AddCookie(&http.Cookie{Name: "moeurl_short_link_access", Value: "raw-token"})
+	response := httptest.NewRecorder()
+
+	handler.Continue(response, request, "middle")
+
+	if service.continueToken != "raw-token" {
+		t.Fatalf("expected scoped access token, got %q", service.continueToken)
+	}
+}
+
+func TestRedirectHandlerOpenMapsNotIntermediateError(t *testing.T) {
+	handler := shortlink.NewRedirectHandler(&fakeRedirectService{openErr: shortlink.ErrShortLinkNotIntermediate})
+	response := httptest.NewRecorder()
+
+	handler.Open(response, httptest.NewRequest(http.MethodGet, "/abc123", nil), "abc123")
+
+	if response.Code != http.StatusFound || response.Header().Get("Location") != "/go/abc123?reason=not-intermediate" {
+		t.Fatalf("expected not-intermediate state, got status %d location %q", response.Code, response.Header().Get("Location"))
+	}
+}
+
 type fakeRedirectService struct {
 	openResult     shortlink.OpenResult
 	previewResult  shortlink.PreviewResult
@@ -436,6 +533,20 @@ type fakeRedirectService struct {
 	unlockErr      error
 	continueToken  string
 	previewToken   string
+}
+
+type redirectOnlyService struct{}
+
+func (redirectOnlyService) Open(context.Context, string) (shortlink.OpenResult, error) {
+	return shortlink.OpenResult{}, nil
+}
+
+func (redirectOnlyService) Preview(context.Context, string, ...string) (shortlink.PreviewResult, error) {
+	return shortlink.PreviewResult{}, nil
+}
+
+func (redirectOnlyService) Continue(context.Context, string, ...string) (shortlink.RedirectResult, error) {
+	return shortlink.RedirectResult{}, nil
 }
 
 // Open returns the configured initial access result.

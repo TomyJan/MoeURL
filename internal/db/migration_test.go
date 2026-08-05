@@ -109,6 +109,20 @@ func TestShortLinkPasswordMigrationAddsProtectedAccessStateAndRollsBack(t *testi
 	if !grantTableExists {
 		t.Fatal("expected short_link_access_grant table")
 	}
+	var expiryIndexExists bool
+	if err := database.QueryRowContext(ctx, `
+		select exists (
+			select 1 from pg_indexes
+			where schemaname = 'public'
+				and tablename = 'short_link_access_grant'
+				and indexname = 'short_link_access_grant_expiry_idx'
+		)
+	`).Scan(&expiryIndexExists); err != nil {
+		t.Fatalf("check access grant expiry index: %v", err)
+	}
+	if !expiryIndexExists {
+		t.Fatal("expected short_link_access_grant_expiry_idx")
+	}
 	var passwordPermission bool
 	if err := database.QueryRowContext(ctx, `select permissions ? 'short_link:set_password' from user_group where key = 'user'`).Scan(&passwordPermission); err != nil {
 		t.Fatalf("query upgraded password permission: %v", err)

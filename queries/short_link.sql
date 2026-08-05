@@ -256,8 +256,17 @@ values ($1, $2, $3, $4, now())
 returning id, short_link_id, token_hash, expires_at, created_at;
 
 -- name: DeleteExpiredShortLinkAccessGrants :execrows
-delete from short_link_access_grant
-where expires_at <= now();
+with expired_grant as (
+    select id
+    from short_link_access_grant
+    where expires_at <= now()
+    order by expires_at
+    limit 500
+    for update skip locked
+)
+delete from short_link_access_grant as access_grant
+using expired_grant
+where access_grant.id = expired_grant.id;
 
 -- name: GetValidShortLinkAccessGrant :one
 select access_grant.id, access_grant.short_link_id, access_grant.token_hash,

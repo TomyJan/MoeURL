@@ -326,7 +326,7 @@ v0.2.0 在 `short_link` 追加：
 
 ### v0.3.0 schema 扩展摘要
 
-v0.3.0 在 `short_link` 追加 `password_hash`、`password_failed_attempts`、`password_window_started_at`、`password_blocked_until` 和 `password_updated_at`；新增 `short_link_access_grant` 保存短期授权令牌哈希。密码原文、哈希和授权令牌不进入公开 API 或日志，授权查询同时检查令牌过期时间和密码更新时间。migration 同步为既有内置 `user`、`admin` 用户组追加 `short_link:set_password`，`guest` 保持无权限。
+v0.3.0 在 `short_link` 追加 `password_hash`、`password_failed_attempts`、`password_window_started_at`、`password_blocked_until` 和 `password_updated_at`；新增 `short_link_access_grant` 保存短期授权令牌哈希。密码原文、哈希和授权令牌不进入公开 API 或日志，授权查询同时检查令牌过期时间和密码更新时间。过期授权清理由 `expires_at` 索引支撑，成功解锁时单次最多清理 500 条，避免请求事务执行无界删除。migration 同步为既有内置 `user`、`admin` 用户组追加 `short_link:set_password`，`guest` 保持无权限。
 
 ### 短码规则
 

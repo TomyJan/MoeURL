@@ -1083,6 +1083,7 @@ func TestServiceAccessConfigValidation(t *testing.T) {
 		{name: "never with time", input: shortlink.CreateInput{TargetURL: "https://example.com", Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeNever, ExpiresAt: &future}}, err: shortlink.ErrInvalidExpiration},
 		{name: "at without time", input: shortlink.CreateInput{TargetURL: "https://example.com", Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeAt}}, err: shortlink.ErrInvalidExpiration},
 		{name: "past expiration", input: shortlink.CreateInput{TargetURL: "https://example.com", Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeAt, ExpiresAt: &past}}, err: shortlink.ErrInvalidExpiration},
+		{name: "invalid password", input: shortlink.CreateInput{TargetURL: "https://example.com", Password: &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "short"}}, err: shortlink.ErrInvalidPasswordInput},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -1103,6 +1104,7 @@ func TestServiceAccessConfigValidation(t *testing.T) {
 		{name: "update invalid mode", input: shortlink.UpdateInput{ID: created.ShortLink.ID, RedirectMode: &invalidMode}, err: shortlink.ErrInvalidRedirectMode},
 		{name: "update invalid delay", input: shortlink.UpdateInput{ID: created.ShortLink.ID, IntermediateDelaySeconds: &invalidDelay}, err: shortlink.ErrInvalidIntermediateDelay},
 		{name: "update invalid expiration", input: shortlink.UpdateInput{ID: created.ShortLink.ID, Expiration: &shortlink.ExpirationInput{}}, err: shortlink.ErrInvalidExpiration},
+		{name: "update invalid password", input: shortlink.UpdateInput{ID: created.ShortLink.ID, Password: &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "short"}}, err: shortlink.ErrInvalidPasswordInput},
 	}
 	for _, test := range updateTests {
 		t.Run(test.name, func(t *testing.T) {
