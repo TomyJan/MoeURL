@@ -286,6 +286,7 @@ describe('ShortLinkCreatePanel', () => {
     expect(screen.queryByLabelText('shortLinkCreate.password')).toBeNull()
 
     await fireEvent.click(screen.getByLabelText('shortLinkCreate.passwordEnabled'))
+    expect(screen.getByLabelText('shortLinkCreate.password').getAttribute('autocomplete')).toBe('new-password')
     await fireEvent.update(screen.getByLabelText('shortLinkCreate.password'), 'correct horse')
     await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))

@@ -78,6 +78,7 @@
           v-if="canSetPassword && passwordEnabled"
           v-model="password"
           type="password"
+          autocomplete="new-password"
           variant="outlined"
           :disabled="pending"
           :error-messages="passwordErrorMessage"

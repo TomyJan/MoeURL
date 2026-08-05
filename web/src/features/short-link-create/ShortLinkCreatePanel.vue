@@ -100,6 +100,7 @@
                 v-if="canSetPassword && passwordEnabled"
                 v-model="password"
                 type="password"
+                autocomplete="new-password"
                 variant="outlined"
                 :label="t('shortLinkCreate.password')"
                 :error-messages="passwordErrorMessage"

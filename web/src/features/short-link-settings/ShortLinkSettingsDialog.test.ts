@@ -205,6 +205,7 @@ describe('ShortLinkSettingsDialog', () => {
 
     expect(screen.getByLabelText('shortLinkSettings.passwordEnabled')).toBeTruthy()
     await fireEvent.click(screen.getByLabelText('shortLinkSettings.passwordEnabled'))
+    expect(screen.getByLabelText('shortLinkSettings.password').getAttribute('autocomplete')).toBe('new-password')
     await fireEvent.update(screen.getByLabelText('shortLinkSettings.password'), 'correct horse')
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
 

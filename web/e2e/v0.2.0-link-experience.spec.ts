@@ -103,6 +103,12 @@ test('v0.3.0 protected access plus v0.2.0 initialization, intermediate-page, exp
   await page.route(protectedTarget, (route) => route.fulfill({ status: 200, body: 'protected target reached' }))
   await page.goto(protectedOpen.headers().location!)
   await expect(page.getByRole('heading', { name: '输入密码后继续访问' })).toBeVisible()
+  await expectPasswordLayout(page)
+  await attachScreenshot(testInfo, 'password-desktop', page)
+  await page.setViewportSize({ width: 390, height: 800 })
+  await expectPasswordLayout(page)
+  await attachScreenshot(testInfo, 'password-mobile', page)
+  await page.setViewportSize({ width: 1280, height: 720 })
   await page.getByLabel('访问密码').fill('wrong-pass')
   await page.getByRole('button', { name: '解锁并继续' }).click()
   await expect(page.getByText('密码错误，请重试。')).toBeVisible()
@@ -457,6 +463,26 @@ async function expectIntermediateLayout(page: Page) {
   }
   expect(targetBox.y + targetBox.height).toBeLessThanOrEqual(countdownBox.y + 1)
   expect(countdownBox.y + countdownBox.height).toBeLessThanOrEqual(actionsBox.y + 1)
+}
+
+async function expectPasswordLayout(page: Page) {
+  await expectNoHorizontalOverflow(page)
+  const [stateBox, passwordBox, actionsBox] = await Promise.all([
+    page.locator('.redirect-page__state').boundingBox(),
+    page.locator('.redirect-page__password').boundingBox(),
+    page.locator('.redirect-page__actions').boundingBox(),
+  ])
+  expect(stateBox).not.toBeNull()
+  expect(passwordBox).not.toBeNull()
+  expect(actionsBox).not.toBeNull()
+  const viewport = page.viewportSize()
+  expect(viewport).not.toBeNull()
+  if (!stateBox || !passwordBox || !actionsBox || !viewport) {
+    return
+  }
+  expect(stateBox.x).toBeGreaterThanOrEqual(0)
+  expect(stateBox.x + stateBox.width).toBeLessThanOrEqual(viewport.width)
+  expect(passwordBox.y + passwordBox.height).toBeLessThanOrEqual(actionsBox.y + 1)
 }
 
 async function expectSettingsDialogLayout(page: Page, dialog: Locator) {
