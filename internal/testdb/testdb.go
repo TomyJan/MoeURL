@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"os/exec"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,10 +20,16 @@ import (
 )
 
 const localAdminDatabaseURL = "postgres://postgres:postgres@127.0.0.1:5433/postgres?sslmode=disable"
+const dockerProbeTimeout = 10 * time.Second
 
 type cleanupErrorReporter interface {
 	Errorf(format string, args ...any)
 }
+
+var (
+	dockerProbeOnce sync.Once
+	dockerProbeErr  error
+)
 
 func reportCleanupError(reporter cleanupErrorReporter, operation string, err error) {
 	if err != nil {
@@ -40,6 +48,9 @@ func DatabaseURL(t testing.TB, ctx context.Context) string {
 		t.Cleanup(cleanup)
 		return databaseURL
 	}
+	if dockerRequired(os.Getenv("MOEURL_TEST_REQUIRE_DOCKER")) {
+		t.Fatalf("start PostgreSQL test container: %v", err)
+	}
 	t.Logf("falling back to local PostgreSQL for tests: %v", err)
 
 	databaseURL, cleanup, err = localDatabaseURL(ctx, t.Name(), t)
@@ -48,6 +59,11 @@ func DatabaseURL(t testing.TB, ctx context.Context) string {
 	}
 	t.Cleanup(cleanup)
 	return databaseURL
+}
+
+func dockerRequired(value string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	return normalized == "1" || normalized == "true"
 }
 
 // MigratedDatabaseURL returns a fresh PostgreSQL URL with project migrations applied.
@@ -74,6 +90,10 @@ func MigratedDatabaseURL(t testing.TB, ctx context.Context, migrationsDir string
 }
 
 func dockerDatabaseURL(ctx context.Context, t testing.TB) (string, func(), error) {
+	if err := probeDockerDaemon(ctx); err != nil {
+		return "", nil, err
+	}
+
 	container, err := postgres.Run(ctx,
 		"postgres:18-alpine",
 		postgres.WithDatabase("moeurl_test"),
@@ -102,6 +122,17 @@ func dockerDatabaseURL(ctx context.Context, t testing.TB) (string, func(), error
 	}
 
 	return databaseURL, cleanup, nil
+}
+
+func probeDockerDaemon(ctx context.Context) error {
+	dockerProbeOnce.Do(func() {
+		probeContext, cancelProbe := context.WithTimeout(ctx, dockerProbeTimeout)
+		defer cancelProbe()
+		if err := exec.CommandContext(probeContext, "docker", "info", "--format", "{{.ServerVersion}}").Run(); err != nil {
+			dockerProbeErr = fmt.Errorf("probe Docker daemon: %w", err)
+		}
+	})
+	return dockerProbeErr
 }
 
 func localDatabaseURL(ctx context.Context, testName string, t testing.TB) (string, func(), error) {

@@ -25,3 +25,20 @@ func TestReportCleanupError(t *testing.T) {
 		t.Fatalf("expected nil errors to be ignored, got %d reports", len(reporter.errors))
 	}
 }
+
+func TestDockerRequired(t *testing.T) {
+	for _, test := range []struct {
+		value string
+		want  bool
+	}{
+		{value: "1", want: true},
+		{value: " TRUE ", want: true},
+		{value: "0", want: false},
+		{value: "false", want: false},
+		{value: "", want: false},
+	} {
+		if got := dockerRequired(test.value); got != test.want {
+			t.Fatalf("dockerRequired(%q) = %t, want %t", test.value, got, test.want)
+		}
+	}
+}
