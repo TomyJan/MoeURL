@@ -84,6 +84,7 @@ func TestShortLinkPasswordMigrationAddsProtectedAccessStateAndRollsBack(t *testi
 	if err := goose.UpTo(database, migrationsDir, 6); err != nil {
 		t.Fatalf("upgrade password migration: %v", err)
 	}
+	assertShortLinkPasswordConstraintValidation(t, ctx, database, true, false)
 
 	var passwordHash sql.NullString
 	var failedAttempts int
@@ -130,6 +131,10 @@ func TestShortLinkPasswordMigrationAddsProtectedAccessStateAndRollsBack(t *testi
 	if !passwordPermission {
 		t.Fatal("expected migration to add short_link:set_password")
 	}
+	if err := goose.UpTo(database, migrationsDir, 7); err != nil {
+		t.Fatalf("validate password constraint: %v", err)
+	}
+	assertShortLinkPasswordConstraintValidation(t, ctx, database, true, true)
 
 	if err := goose.DownTo(database, migrationsDir, 5); err != nil {
 		t.Fatalf("rollback password migration: %v", err)
@@ -145,6 +150,7 @@ func TestShortLinkPasswordMigrationAddsProtectedAccessStateAndRollsBack(t *testi
 	if passwordColumnCount != 0 {
 		t.Fatalf("expected password columns to be removed, found %d", passwordColumnCount)
 	}
+	assertShortLinkPasswordConstraintValidation(t, ctx, database, false, false)
 	if err := database.QueryRowContext(ctx, `select permissions ? 'short_link:set_password' from user_group where key = 'user'`).Scan(&passwordPermission); err != nil {
 		t.Fatalf("query rolled-back password permission: %v", err)
 	}
@@ -313,6 +319,32 @@ func migrationTestDatabase(t *testing.T, ctx context.Context) *sql.DB {
 	}
 
 	return database
+}
+
+func assertShortLinkPasswordConstraintValidation(t *testing.T, ctx context.Context, database *sql.DB, expectedExists, expectedValidated bool) {
+	t.Helper()
+
+	var validated bool
+	err := database.QueryRowContext(ctx, `
+		select convalidated
+		from pg_constraint
+		where conname = 'short_link_password_failed_attempts_check'
+	`).Scan(&validated)
+	if errors.Is(err, sql.ErrNoRows) {
+		if expectedExists {
+			t.Fatal("expected short-link password constraint to exist")
+		}
+		return
+	}
+	if err != nil {
+		t.Fatalf("query short-link password constraint validation: %v", err)
+	}
+	if !expectedExists {
+		t.Fatal("expected short-link password constraint to be removed")
+	}
+	if validated != expectedValidated {
+		t.Fatalf("expected short-link password constraint validated=%t, got %t", expectedValidated, validated)
+	}
 }
 
 func assertGroupPermissions(t *testing.T, ctx context.Context, database *sql.DB, groupKey string, expectedIntermediate bool, expectedExpiration bool) {

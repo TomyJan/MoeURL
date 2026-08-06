@@ -9,7 +9,7 @@ alter table short_link
 
 alter table short_link
     add constraint short_link_password_failed_attempts_check
-        check (password_failed_attempts >= 0);
+        check (password_failed_attempts >= 0) not valid;
 
 create table short_link_access_grant (
     id uuid primary key,
