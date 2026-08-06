@@ -326,7 +326,7 @@ v0.2.0 在 `short_link` 追加：
 
 ### v0.3.0 schema 扩展摘要
 
-v0.3.0 在 `short_link` 追加 `password_hash`、`password_failed_attempts`、`password_window_started_at`、`password_blocked_until` 和 `password_updated_at`；新增 `short_link_access_grant` 保存短期授权令牌哈希。密码原文、哈希和授权令牌不进入公开 API 或日志，授权查询同时检查令牌过期时间和密码更新时间。过期授权清理由 `expires_at` 索引支撑，成功解锁时单次最多清理 500 条，避免请求事务执行无界删除。`00006` 以 `NOT VALID` 添加密码失败次数约束，`00007` 在独立 migration 中验证历史数据，避免字段迁移事务扫描全部既有短链。migration 同步为既有内置 `user`、`admin` 用户组追加 `short_link:set_password`，`guest` 保持无权限。
+v0.3.0 在 `short_link` 追加 `password_hash`、`password_failed_attempts`、`password_window_started_at`、`password_blocked_until` 和 `password_updated_at`；新增 `short_link_access_grant` 保存短期授权令牌哈希。密码原文、密码哈希和授权令牌不得进入公开 API、日志、统计事件或前端状态，授权查询同时检查令牌过期时间和密码更新时间。过期授权清理由 `expires_at` 索引支撑，成功解锁时单次最多清理 500 条，避免请求事务执行无界删除。`00006` 以 `NOT VALID` 添加密码失败次数约束，`00007` 在独立 migration 中验证历史数据，避免字段迁移事务扫描全部既有短链。migration 同步为既有内置 `user`、`admin` 用户组追加 `short_link:set_password`，`guest` 保持无权限。
 
 ### 短码规则
 
@@ -501,7 +501,7 @@ node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100 --include-from=sc
 
 后端覆盖率门禁覆盖 `scripts/go-coverage-targets.txt` 中列出的业务源码文件，必须达到 100%。`scripts/go-coverage-excluded-blocks.txt` 只允许精确列出不可稳定触发或由数据模型保证不可达的代码块，例如事务中途基础设施失败、随机短码连续冲突耗尽、静态类型值的 JSON 编码失败。数据库集成、进程入口和框架胶水仍通过 `go test ./...` 验证，但不作为业务源码覆盖率分母。
 
-数据库集成测试优先使用 Testcontainers 启动独立 PostgreSQL。当前本机 Docker 不可用时，测试基础设施允许回退到本地 PostgreSQL 管理库，默认地址为 `postgres://postgres:postgres@127.0.0.1:5433/postgres?sslmode=disable`；也可通过 `MOEURL_TEST_POSTGRES_ADMIN_URL` 覆盖。回退路径必须为每个测试创建独立数据库并在清理阶段删除，避免污染开发数据。
+数据库集成测试优先使用 Testcontainers 启动独立 PostgreSQL。当前本机 Docker 不可用时，测试基础设施允许回退到本地 PostgreSQL 管理库，默认地址为 `postgres://postgres:postgres@127.0.0.1:5433/postgres?sslmode=disable`；也可通过 `MOEURL_TEST_POSTGRES_ADMIN_URL` 覆盖。回退路径必须为每个测试创建独立数据库并在清理阶段删除，避免污染开发数据。需要强制验证 Docker 路径时设置 `MOEURL_TEST_REQUIRE_DOCKER=1`，Docker daemon 不可用必须直接使测试失败，不得回退。
 
 SQLC 生成文件必须使用文件头声明的版本重新生成，并保持零手工漂移。当前版本使用 SQLC `1.30.0`，可通过以下命令验证：
 
