@@ -196,7 +196,7 @@ API 使用 `/api/v1` 前缀：
 /go/{slug}/continue
 ```
 
-固定前端路由、公开继续路由和 API 路由必须优先于短码路由。`/go/{slug}` 用于 v0.2.0 中间页和 v0.3.0 密码页 App Shell，`/go/{slug}/continue` 在重新检查短链状态、过期时间和短期授权后写出最终目标跳转。
+固定前端路由、公开继续路由和 API 路由必须优先于短码路由。`/go/{slug}` 用于 v0.2.0 中间页和 v0.3.0 密码页 App Shell，`/go/{slug}/continue` 在重新检查短链状态、过期时间和短期授权后写出最终目标跳转。Vite 开发服务器只将 `/go/{slug}/preview` 和 `/go/{slug}/continue` 代理到后端，不能代理 `/go/{slug}` App Shell。
 
 ### API 风格
 
@@ -326,7 +326,7 @@ v0.2.0 在 `short_link` 追加：
 
 ### v0.3.0 schema 扩展摘要
 
-v0.3.0 在 `short_link` 追加 `password_hash`、`password_failed_attempts`、`password_window_started_at`、`password_blocked_until` 和 `password_updated_at`；新增 `short_link_access_grant` 保存短期授权令牌哈希。密码原文、哈希和授权令牌不进入公开 API 或日志，授权查询同时检查令牌过期时间和密码更新时间。过期授权清理由 `expires_at` 索引支撑，成功解锁时单次最多清理 500 条，避免请求事务执行无界删除。migration 同步为既有内置 `user`、`admin` 用户组追加 `short_link:set_password`，`guest` 保持无权限。
+v0.3.0 在 `short_link` 追加 `password_hash`、`password_failed_attempts`、`password_window_started_at`、`password_blocked_until` 和 `password_updated_at`；新增 `short_link_access_grant` 保存短期授权令牌哈希。密码原文、哈希和授权令牌不进入公开 API 或日志，授权查询同时检查令牌过期时间和密码更新时间。过期授权清理由 `expires_at` 索引支撑，成功解锁时单次最多清理 500 条，避免请求事务执行无界删除。`00006` 以 `NOT VALID` 添加密码失败次数约束，`00007` 在独立 migration 中验证历史数据，避免字段迁移事务扫描全部既有短链。migration 同步为既有内置 `user`、`admin` 用户组追加 `short_link:set_password`，`guest` 保持无权限。
 
 ### 短码规则
 
