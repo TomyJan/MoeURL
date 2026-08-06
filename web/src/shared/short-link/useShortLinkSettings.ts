@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 
 import type { ShortLink, UpdateShortLinkInput } from '@/entities/short-link/model'
+import { runShortLinkMutation } from './runShortLinkMutation'
 
 interface UseShortLinkSettingsOptions {
   mutationFn: (input: UpdateShortLinkInput) => Promise<unknown>
@@ -20,7 +21,7 @@ export function useShortLinkSettings(options: UseShortLinkSettingsOptions) {
   const settingsLink = ref<ShortLinkSettingsTarget | null>(null)
   const qrLink = ref<ShortLinkSettingsTarget | null>(null)
   const settingsMutation = useMutation({
-    mutationFn: options.mutationFn,
+    mutationFn: (input: UpdateShortLinkInput) => runShortLinkMutation(options.mutationFn, input),
     onSuccess(_data, variables) {
       if (settingsLink.value?.id === variables.id) {
         settingsLink.value = null

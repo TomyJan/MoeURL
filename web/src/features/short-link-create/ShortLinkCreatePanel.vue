@@ -37,6 +37,7 @@
             size="small"
             variant="text"
             :aria-expanded="advancedOpen"
+            :disabled="mutation.isPending.value"
             @click="advancedOpen = !advancedOpen"
           >
             {{ t('shortLinkCreate.advanced') }}
@@ -45,10 +46,17 @@
             <div v-if="advancedOpen" class="short-link-create-panel__advanced-controls">
               <div v-if="canUseIntermediate" class="short-link-create-panel__mode-control">
                 <span>{{ t('shortLinkCreate.redirectMode') }}</span>
-                <v-btn-toggle v-model="redirectMode" mandatory divided :aria-label="t('shortLinkCreate.redirectMode')">
+                <v-btn-toggle
+                  v-model="redirectMode"
+                  mandatory
+                  divided
+                  :aria-label="t('shortLinkCreate.redirectMode')"
+                  :disabled="mutation.isPending.value"
+                >
                   <v-btn
                     size="small"
                     :aria-pressed="redirectMode === 'direct'"
+                    :disabled="mutation.isPending.value"
                     value="direct"
                   >
                     {{ t('shortLinkCreate.redirectModes.direct') }}
@@ -56,6 +64,7 @@
                   <v-btn
                     size="small"
                     :aria-pressed="redirectMode === 'intermediate'"
+                    :disabled="mutation.isPending.value"
                     value="intermediate"
                   >
                     {{ t('shortLinkCreate.redirectModes.intermediate') }}
@@ -69,6 +78,7 @@
                 :min="3"
                 :max="10"
                 :step="1"
+                :disabled="mutation.isPending.value"
                 show-ticks="always"
                 thumb-label
               />
@@ -79,6 +89,7 @@
                 density="comfortable"
                 hide-details
                 :label="t('shortLinkCreate.expirationEnabled')"
+                :disabled="mutation.isPending.value"
               />
               <v-text-field
                 v-if="canSetExpiration && expirationEnabled"
@@ -86,6 +97,7 @@
                 type="datetime-local"
                 variant="outlined"
                 :label="t('shortLinkCreate.expiresAt')"
+                :disabled="mutation.isPending.value"
                 :error-messages="expirationErrorMessage"
               />
               <v-switch
@@ -95,6 +107,7 @@
                 density="comfortable"
                 hide-details
                 :label="t('shortLinkCreate.passwordEnabled')"
+                :disabled="mutation.isPending.value"
               />
               <v-text-field
                 v-if="canSetPassword && passwordEnabled"
@@ -103,6 +116,7 @@
                 autocomplete="new-password"
                 variant="outlined"
                 :label="t('shortLinkCreate.password')"
+                :disabled="mutation.isPending.value"
                 :error-messages="passwordErrorMessage"
               />
             </div>
@@ -151,6 +165,7 @@ import { me } from '@/entities/auth/api'
 import { createShortLink } from '@/entities/short-link/api'
 import type { CreateShortLinkInput, RedirectMode } from '@/entities/short-link/model'
 import ShortLinkQrDialog from '@/features/short-link-qr/ShortLinkQrDialog.vue'
+import { runShortLinkMutation } from '@/shared/short-link/runShortLinkMutation'
 import { futureDateTimeSchema, passwordSchema, targetUrlSchema } from '@/shared/validation/shortLinkAccess'
 
 withDefaults(
@@ -195,7 +210,7 @@ const canConfigureAccess = computed(() => canUseIntermediate.value || canSetExpi
 const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !canCreateShortLink.value)
 
 const mutation = useMutation({
-  mutationFn: createShortLink,
+  mutationFn: (input: CreateShortLinkInput) => runShortLinkMutation(createShortLink, input),
   onSuccess(result) {
     createdUrl.value = result.shortLink.url
     createdSlug.value = result.shortLink.slug

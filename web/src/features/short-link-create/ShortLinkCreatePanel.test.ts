@@ -1,13 +1,18 @@
 import { fireEvent, render, screen } from '@testing-library/vue'
 import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 
 import ShortLinkCreatePanel from './ShortLinkCreatePanel.vue'
 import { componentStubs } from '@/test/component-stubs'
 import { me } from '@/entities/auth/api'
 import { createShortLink } from '@/entities/short-link/api'
+import type { CreateShortLinkInput } from '@/entities/short-link/model'
 import type { MutationMockResult } from '@/test/mutation-mock'
+
+type CreateMutationOptions = {
+  mutationFn?: (input: CreateShortLinkInput) => Promise<unknown>
+}
 
 const state = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
@@ -136,7 +141,7 @@ describe('ShortLinkCreatePanel', () => {
     mountPanel({ mode: 'full' })
 
     expect(state.mutationOptions).toEqual(
-      expect.arrayContaining([expect.objectContaining({ mutationFn: createShortLink })]),
+      expect.arrayContaining([expect.objectContaining({ mutationFn: expect.any(Function) })]),
     )
     expect(state.queryOptions).toEqual(expect.arrayContaining([expect.objectContaining({ queryFn: me })]))
 
@@ -279,6 +284,11 @@ describe('ShortLinkCreatePanel', () => {
   it('shows password controls only with permission and submits a protected link', async () => {
     setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
     setMutationResult()
+    let sentInput: CreateShortLinkInput | undefined
+    vi.mocked(createShortLink).mockImplementation(async (request) => {
+      sentInput = structuredClone(request)
+      return { shortLink: { slug: 'abc123', url: 'https://go.example.com/abc123' } } as never
+    })
 
     mountPanel()
     await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
@@ -291,10 +301,45 @@ describe('ShortLinkCreatePanel', () => {
     await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
-    expect(createShortLink).toHaveBeenCalledWith({
+    expect(sentInput).toEqual({
       targetUrl: 'https://example.com',
       password: { mode: 'set', value: 'correct horse' },
     })
+  })
+
+  it('scrubs the password from settled creation variables after success', async () => {
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
+    mountPanel()
+    const options = state.mutationOptions[0] as CreateMutationOptions
+    const input: CreateShortLinkInput = {
+      targetUrl: 'https://example.com',
+      password: { mode: 'set', value: 'correct horse' },
+    }
+    let sentInput: CreateShortLinkInput | undefined
+    vi.mocked(createShortLink).mockImplementation(async (request) => {
+      sentInput = structuredClone(request)
+      return { shortLink: { slug: 'abc123', url: 'https://go.example.com/abc123' } } as never
+    })
+
+    await options.mutationFn?.(input)
+
+    expect(sentInput?.password).toEqual({ mode: 'set', value: 'correct horse' })
+    expect(input).not.toHaveProperty('password')
+  })
+
+  it('scrubs the password from settled creation variables after failure', async () => {
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
+    mountPanel()
+    const options = state.mutationOptions[0] as CreateMutationOptions
+    const input: CreateShortLinkInput = {
+      targetUrl: 'https://example.com',
+      password: { mode: 'set', value: 'correct horse' },
+    }
+    vi.mocked(createShortLink).mockRejectedValue(new Error('create failed'))
+
+    await expect(options.mutationFn?.(input)).rejects.toThrow('create failed')
+
+    expect(input).not.toHaveProperty('password')
   })
 
   it('rejects an invalid protected-link password before mutation', async () => {
@@ -369,6 +414,38 @@ describe('ShortLinkCreatePanel', () => {
     await fireEvent.click(submitButton)
 
     expect(mutate).not.toHaveBeenCalled()
+  })
+
+  it('disables advanced access settings while creation is pending', async () => {
+    const isPending = ref(false)
+    setQueryResult([
+      'short_link:create',
+      'domain:use_default',
+      'short_link:use_intermediate',
+      'short_link:set_expiration',
+      'short_link:set_password',
+    ])
+    setMutationResult({ isPending })
+
+    mountPanel()
+    const advancedButton = screen.getByText('shortLinkCreate.advanced') as HTMLButtonElement
+    await fireEvent.click(advancedButton)
+    await fireEvent.click(screen.getByText('shortLinkCreate.redirectModes.intermediate'))
+    await fireEvent.click(screen.getByLabelText('shortLinkCreate.expirationEnabled'))
+    await fireEvent.click(screen.getByLabelText('shortLinkCreate.passwordEnabled'))
+
+    isPending.value = true
+    await nextTick()
+
+    expect(advancedButton.disabled).toBe(true)
+    expect(screen.getByRole('radiogroup').getAttribute('disabled')).not.toBeNull()
+    expect((screen.getByText('shortLinkCreate.redirectModes.direct') as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByText('shortLinkCreate.redirectModes.intermediate') as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByLabelText('shortLinkCreate.intermediateDelay') as HTMLInputElement).disabled).toBe(true)
+    expect((screen.getByLabelText('shortLinkCreate.expirationEnabled') as HTMLInputElement).disabled).toBe(true)
+    expect((screen.getByLabelText('shortLinkCreate.expiresAt') as HTMLInputElement).disabled).toBe(true)
+    expect((screen.getByLabelText('shortLinkCreate.passwordEnabled') as HTMLInputElement).disabled).toBe(true)
+    expect((screen.getByLabelText('shortLinkCreate.password') as HTMLInputElement).disabled).toBe(true)
   })
 
   it('binds pending state into the submit button disabled expression', () => {

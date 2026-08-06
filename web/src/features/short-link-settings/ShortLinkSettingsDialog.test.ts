@@ -218,6 +218,17 @@ describe('ShortLinkSettingsDialog', () => {
     ]])
   })
 
+  it('requires a password when enabling protection on an unprotected link', async () => {
+    setPermissions(['short_link:set_password'])
+    const view = mountDialog()
+
+    await fireEvent.click(screen.getByLabelText('shortLinkSettings.passwordEnabled'))
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(screen.getByText('shortLinkSettings.passwordRequired')).toBeTruthy()
+    expect(view.emitted().save).toBeUndefined()
+  })
+
   it('omits an unchanged password while saving another field', async () => {
     setPermissions(['short_link:set_password'])
     const view = mountDialog({ link: { ...directLink, passwordEnabled: true } })

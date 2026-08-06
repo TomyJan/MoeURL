@@ -88,7 +88,9 @@ vi.mock('@/entities/short-link/api', () => ({
   listShortLinks: vi.fn(async () => ({ items: [], meta: { page: 1, pageSize: 20, total: 0 } })),
   updateAdminShortLink: vi.fn(),
   updateShortLink: vi.fn(),
-  createShortLink: vi.fn(),
+  createShortLink: vi.fn(async () => ({
+    shortLink: { slug: 'abc123', url: 'https://go.example.com/abc123' },
+  })),
   getAdminShortLinkStatistics: vi.fn(),
   getShortLinkOverview: vi.fn(async () => ({ totalLinkCount: 0, activeLinkCount: 0, visitCount: 0, todayVisitCount: 0 })),
   getShortLinkStatistics: vi.fn(),
@@ -700,7 +702,7 @@ describe('pages', () => {
     await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
-    expect(screen.getByText('https://go.example.com/abc123')).toBeTruthy()
+    expect(await screen.findByText('https://go.example.com/abc123')).toBeTruthy()
     await fireEvent.click(screen.getByText('shortLinkCreate.qrCode'))
     expect(within(screen.getByTestId('short-link-qr-dialog-stub')).getByText('abc123')).toBeTruthy()
     await fireEvent.click(screen.getByLabelText('short-link-qr-close'))

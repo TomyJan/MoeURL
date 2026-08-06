@@ -8,7 +8,10 @@ const state = vi.hoisted(() => ({
   error: undefined as unknown,
   invalidateQueries: vi.fn(),
   isError: false,
-  mutationOptions: undefined as { onSuccess?: (value?: unknown, variables?: UpdateShortLinkInput) => void } | undefined,
+  mutationOptions: undefined as {
+    mutationFn?: (input: UpdateShortLinkInput) => Promise<unknown>
+    onSuccess?: (value?: unknown, variables?: UpdateShortLinkInput) => void
+  } | undefined,
   mutate: vi.fn(),
   reset: vi.fn(),
 }))
@@ -18,7 +21,10 @@ vi.mock('vue-i18n', () => ({
 }))
 
 vi.mock('@tanstack/vue-query', () => ({
-  useMutation: (options: { onSuccess?: (value?: unknown, variables?: UpdateShortLinkInput) => void }) => {
+  useMutation: (options: {
+    mutationFn?: (input: UpdateShortLinkInput) => Promise<unknown>
+    onSuccess?: (value?: unknown, variables?: UpdateShortLinkInput) => void
+  }) => {
     state.mutationOptions = options
     return {
       error: ref(state.error),
@@ -107,6 +113,38 @@ describe('useShortLinkSettings', () => {
 
     expect(settings.settingsLink.value?.id).toBe('other-link')
     expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['short-link'] })
+  })
+
+  it('scrubs the password from settled settings variables after success', async () => {
+    let sentInput: UpdateShortLinkInput | undefined
+    const mutationFn = vi.fn(async (input: UpdateShortLinkInput) => {
+      sentInput = structuredClone(input)
+    })
+    useShortLinkSettings({ mutationFn, queryKey: ['short-link'] })
+    const input: UpdateShortLinkInput = {
+      id: 'link-id',
+      password: { mode: 'set', value: 'correct horse' },
+    }
+
+    await state.mutationOptions?.mutationFn?.(input)
+
+    expect(sentInput?.password).toEqual({ mode: 'set', value: 'correct horse' })
+    expect(input).not.toHaveProperty('password')
+  })
+
+  it('scrubs the password from settled settings variables after failure', async () => {
+    const mutationFn = vi.fn(async () => {
+      throw new Error('settings failed')
+    })
+    useShortLinkSettings({ mutationFn, queryKey: ['short-link'] })
+    const input: UpdateShortLinkInput = {
+      id: 'link-id',
+      password: { mode: 'set', value: 'correct horse' },
+    }
+
+    await expect(state.mutationOptions?.mutationFn?.(input)).rejects.toThrow('settings failed')
+
+    expect(input).not.toHaveProperty('password')
   })
 
   it('uses the translated fallback for non-Error mutation failures', () => {

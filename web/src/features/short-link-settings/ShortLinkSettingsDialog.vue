@@ -194,7 +194,12 @@ function save() {
       if (props.link.passwordEnabled) {
         input.password = { mode: 'never' }
       }
-    } else if (password.value) {
+    } else if (!password.value) {
+      if (!props.link.passwordEnabled) {
+        passwordErrorMessage.value = t('shortLinkSettings.passwordRequired')
+        return
+      }
+    } else {
       const passwordResult = passwordSchema.safeParse(password.value)
       if (!passwordResult.success) {
         passwordErrorMessage.value = t('shortLinkSettings.passwordInvalid')
