@@ -309,6 +309,7 @@ describe('ShortLinkCreatePanel', () => {
 
   it('scrubs the password from settled creation variables after success', async () => {
     setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
+    setMutationResult()
     mountPanel()
     const options = state.mutationOptions[0] as CreateMutationOptions
     const input: CreateShortLinkInput = {
@@ -329,6 +330,7 @@ describe('ShortLinkCreatePanel', () => {
 
   it('scrubs the password from settled creation variables after failure', async () => {
     setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
+    setMutationResult()
     mountPanel()
     const options = state.mutationOptions[0] as CreateMutationOptions
     const input: CreateShortLinkInput = {

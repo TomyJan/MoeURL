@@ -23,6 +23,7 @@
         </span>
         <div class="console-link-row__access">
           <span>{{ t(`shortLinkCreate.redirectModes.${link.redirectMode}`) }}</span>
+          <span v-if="link.passwordEnabled" class="console-link-row__protected">{{ t('links.passwordProtected') }}</span>
           <span v-if="link.expired" class="console-link-row__expired">{{ t('links.expired') }}</span>
           <span v-else>{{ formatExpiration(link.expiresAt) }}</span>
         </div>
@@ -225,5 +226,10 @@ function removeDocumentListeners() {
 .console-link-row__access .console-link-row__expired {
   background: color-mix(in srgb, rgb(var(--v-theme-error)) 12%, transparent);
   color: rgb(var(--v-theme-error));
+}
+
+.console-link-row__access .console-link-row__protected {
+  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 12%, transparent);
+  color: rgb(var(--v-theme-secondary));
 }
 </style>

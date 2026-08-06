@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 import { ApiClientError, apiGet, apiGetPath, apiPost } from '@/shared/api/client'
 
 import type { AdminShortLink, CreateShortLinkInput, PublicShortLinkPreview, ShortLink, ShortLinkOverview, ShortLinkStatisticsResponse, UnlockShortLinkInput, UnlockShortLinkResponse, UpdateShortLinkInput } from './model'
@@ -33,6 +35,15 @@ interface AdminShortLinkItemsResponse {
   items: AdminShortLink[]
 }
 
+const publicShortLinkPreviewSchema: z.ZodType<PublicShortLinkPreview> = z.object({
+  slug: z.string(),
+  targetHost: z.string(),
+  redirectMode: z.enum(['direct', 'intermediate']),
+  intermediateDelaySeconds: z.number(),
+  expiresAt: z.string().nullable(),
+  requiresPassword: z.boolean(),
+})
+
 export async function createShortLink(input: CreateShortLinkInput): Promise<ShortLinkResponse> {
   const response = await apiPost<ShortLinkResponse>('/short-link/create', input)
   return response.data
@@ -52,16 +63,7 @@ export async function unlockShortLink(input: UnlockShortLinkInput): Promise<Unlo
 }
 
 function isPublicShortLinkPreview(value: unknown): value is PublicShortLinkPreview {
-  if (!value || typeof value !== 'object') {
-    return false
-  }
-  const preview = value as Record<string, unknown>
-  return typeof preview.slug === 'string'
-    && typeof preview.targetHost === 'string'
-    && (preview.redirectMode === 'direct' || preview.redirectMode === 'intermediate')
-    && typeof preview.intermediateDelaySeconds === 'number'
-    && (preview.expiresAt === null || typeof preview.expiresAt === 'string')
-    && typeof preview.requiresPassword === 'boolean'
+  return publicShortLinkPreviewSchema.safeParse(value).success
 }
 
 export async function listShortLinks(input: ShortLinkListInput = {}): Promise<ShortLinkListResponse> {

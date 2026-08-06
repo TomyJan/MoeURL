@@ -246,6 +246,21 @@ describe('ShortLinkSettingsDialog', () => {
     ]])
   })
 
+  it('omits password settings without permission', async () => {
+    setPermissions([])
+    const view = mountDialog({ link: { ...directLink, passwordEnabled: true } })
+
+    expect(screen.queryByLabelText('shortLinkSettings.passwordEnabled')).toBeNull()
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(view.emitted().save).toEqual([[
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.com/original',
+      },
+    ]])
+  })
+
   it('omits a disabled password that was never configured', async () => {
     setPermissions(['short_link:set_password'])
     const view = mountDialog()

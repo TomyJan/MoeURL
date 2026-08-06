@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { ApiClientError, apiGet, apiPost } from './client'
+import { ApiClientError, apiGet, apiGetPath, apiPost } from './client'
 
 describe('api client', () => {
   it('returns decoded unified response body', async () => {
@@ -33,6 +33,14 @@ describe('api client', () => {
       },
       method: 'GET',
     })
+  })
+
+  it.each(['health', '//evil.example/health'])('rejects non-same-origin API path %s', async (path) => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(apiGetPath(path)).rejects.toThrow('API path must be a same-origin absolute path')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('throws api error for business failure response', async () => {

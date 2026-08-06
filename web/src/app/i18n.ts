@@ -111,6 +111,7 @@ export const messages = {
       disabled: '禁用',
     },
     links: {
+      passwordProtected: '密码保护',
       loadFailed: '加载失败',
       emptyTitle: '暂无短链',
       emptyOwnDescription: '从新建短链入口开始，生成后的链接会在这里集中管理。',
@@ -500,6 +501,7 @@ export const messages = {
       disabled: 'Disabled',
     },
     links: {
+      passwordProtected: 'Password protected',
       loadFailed: 'Failed to load links',
       emptyTitle: 'No short links',
       emptyOwnDescription: 'Start from the create-link entry, then manage generated links here.',
