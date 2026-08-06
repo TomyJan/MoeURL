@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"html"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -31,7 +32,10 @@ type RedirectHandler struct {
 	secureCookies bool
 }
 
-const accessCookieName = "moeurl_short_link_access"
+const (
+	accessCookieName          = "moeurl_short_link_access"
+	maxUnlockRequestBodyBytes = 4 << 10
+)
 
 // NewRedirectHandler creates a redirect handler.
 func NewRedirectHandler(service RedirectPort, recorders ...event.Recorder) *RedirectHandler {
@@ -113,7 +117,14 @@ func (h *RedirectHandler) Preview(w http.ResponseWriter, r *http.Request, pathSl
 // Unlock validates a public short-link password and sets its scoped access cookie.
 func (h *RedirectHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 	var input UnlockInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+	r.Body = http.MaxBytesReader(w, r.Body, maxUnlockRequestBodyBytes)
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&input); err != nil {
+		businessError(w, 100001, "Invalid request")
+		return
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
 		businessError(w, 100001, "Invalid request")
 		return
 	}

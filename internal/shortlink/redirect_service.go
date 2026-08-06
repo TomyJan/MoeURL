@@ -266,7 +266,11 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 	if state.PasswordBlockedUntil.Valid && now.Before(state.PasswordBlockedUntil.Time) {
 		return AccessGrant{}, ErrPasswordRateLimited
 	}
-	if !auth.VerifyPassword(password, state.PasswordHash.String) {
+	passwordMatches := false
+	if _, _, err := validatePasswordInput(&PasswordInput{Mode: PasswordModeSet, Value: password}); err == nil {
+		passwordMatches = auth.VerifyPassword(password, state.PasswordHash.String)
+	}
+	if !passwordMatches {
 		failure := nextPasswordFailure(now, state.PasswordFailedAttempts, state.PasswordWindowStartedAt)
 		if err := queries.RecordShortLinkPasswordFailure(ctx, sqlc.RecordShortLinkPasswordFailureParams{
 			ID:                      link.ID,

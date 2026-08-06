@@ -283,6 +283,42 @@ func TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit(t *testing.T) {
 	}
 }
 
+func TestRedirectServiceUnlockRejectsOutOfRangePassword(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "oversized-password-user", "user", []string{})
+	linkID := insertStoredShortLink(t, ctx, pool, user.ID, "oversized-password", "https://example.com/protected", "active", false)
+	oversizedPassword := strings.Repeat("a", 129)
+	hash, err := auth.HashPassword(oversizedPassword)
+	if err != nil {
+		t.Fatalf("hash oversized password fixture: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `update short_link set password_hash = $2, password_updated_at = now() where id = $1`, linkID, hash); err != nil {
+		t.Fatalf("configure oversized password fixture: %v", err)
+	}
+
+	service := shortlink.NewRedirectService(pool, nil)
+	for attempt := 1; attempt <= 5; attempt++ {
+		_, err := service.Unlock(ctx, "oversized-password", oversizedPassword)
+		want := shortlink.ErrInvalidPassword
+		if attempt == 5 {
+			want = shortlink.ErrPasswordRateLimited
+		}
+		if !errors.Is(err, want) {
+			t.Fatalf("attempt %d error = %v, want %v", attempt, err, want)
+		}
+	}
+
+	var grantCount int
+	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where short_link_id = $1`, linkID).Scan(&grantCount); err != nil {
+		t.Fatalf("count oversized-password grants: %v", err)
+	}
+	if grantCount != 0 {
+		t.Fatalf("expected no grant for oversized password, got %d", grantCount)
+	}
+}
+
 func TestRedirectServicePropagatesAccessGrantQueryErrors(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)

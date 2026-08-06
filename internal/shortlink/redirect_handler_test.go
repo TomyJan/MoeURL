@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -140,6 +141,58 @@ func TestRedirectHandlerUnlockRejectsMalformedRequest(t *testing.T) {
 	}
 	if response.Code != http.StatusOK || body.Code != 100001 {
 		t.Fatalf("expected status 200 code 100001, got status %d code %d", response.Code, body.Code)
+	}
+}
+
+func TestRedirectHandlerUnlockRejectsOversizedRequest(t *testing.T) {
+	service := &fakeRedirectService{}
+	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: service})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/public/short-link/unlock",
+		bytes.NewBufferString(`{"slug":"abc123","password":"`+strings.Repeat("a", 5<<10)+`"}`),
+	)
+
+	router.ServeHTTP(response, request)
+
+	var body struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode oversized unlock response: %v", err)
+	}
+	if response.Code != http.StatusOK || body.Code != 100001 {
+		t.Fatalf("expected status 200 code 100001, got status %d code %d", response.Code, body.Code)
+	}
+	if service.unlockCalls != 0 {
+		t.Fatalf("expected oversized request to stop before service call, got %d calls", service.unlockCalls)
+	}
+}
+
+func TestRedirectHandlerUnlockRejectsTrailingOversizedJSON(t *testing.T) {
+	service := &fakeRedirectService{}
+	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: service})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/public/short-link/unlock",
+		bytes.NewBufferString(`{"slug":"abc123","password":"correct horse"}`+strings.Repeat(" ", 5<<10)),
+	)
+
+	router.ServeHTTP(response, request)
+
+	var body struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode trailing oversized unlock response: %v", err)
+	}
+	if response.Code != http.StatusOK || body.Code != 100001 {
+		t.Fatalf("expected status 200 code 100001, got status %d code %d", response.Code, body.Code)
+	}
+	if service.unlockCalls != 0 {
+		t.Fatalf("expected trailing oversized request to stop before service call, got %d calls", service.unlockCalls)
 	}
 }
 
@@ -545,6 +598,7 @@ type fakeRedirectService struct {
 	continueErr    error
 	unlockGrant    shortlink.AccessGrant
 	unlockErr      error
+	unlockCalls    int
 	continueToken  string
 	previewToken   string
 }
@@ -595,6 +649,7 @@ func (f *fakeRedirectService) Continue(_ context.Context, _ string, accessTokens
 
 // Unlock returns the configured public access grant result.
 func (f *fakeRedirectService) Unlock(context.Context, string, string) (shortlink.AccessGrant, error) {
+	f.unlockCalls++
 	if f.unlockErr != nil {
 		return shortlink.AccessGrant{}, f.unlockErr
 	}
