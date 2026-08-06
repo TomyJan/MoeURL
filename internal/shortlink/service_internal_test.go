@@ -67,7 +67,7 @@ func TestShortLinkPasswordStateMarshalsOnlyEnabledFlag(t *testing.T) {
 
 func TestNormalizePasswordRequiresPermissionAndStoresOnlyHash(t *testing.T) {
 	service := &Service{permissions: permission.NewService()}
-	user := auth.CurrentUser{GroupKey: permission.GroupUser}
+	user := auth.CurrentUser{GroupKey: permission.GroupUser, Permissions: []string{permission.ShortLinkSetPassword}}
 	mode, hash, err := service.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
 	if err != nil {
 		t.Fatalf("normalize password: %v", err)
@@ -75,8 +75,18 @@ func TestNormalizePasswordRequiresPermissionAndStoresOnlyHash(t *testing.T) {
 	if mode != PasswordModeSet || !hash.Valid || !auth.VerifyPassword("correct horse", hash.String) {
 		t.Fatalf("unexpected password result: mode=%q hash=%#v", mode, hash)
 	}
-	if _, _, err := service.normalizePassword(auth.GuestUser(), &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"}); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("expected guest permission error, got %v", err)
+	limitedService := &Service{permissions: permission.NewServiceWithPermissions(nil, permission.AdminPermissions)}
+	if _, _, err := limitedService.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("expected injected capability restriction, got %v", err)
+	}
+	for _, user := range []auth.CurrentUser{
+		{GroupKey: permission.GroupUser},
+		{GroupKey: permission.GroupAdmin},
+		auth.GuestUser(),
+	} {
+		if _, _, err := service.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"}); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("expected %s permission error, got %v", user.GroupKey, err)
+		}
 	}
 }
 
