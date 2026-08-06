@@ -25,6 +25,9 @@ type LoadedViteConfig = {
       }
     }
   }
+  server?: {
+    proxy?: Record<string, unknown>
+  }
 }
 
 function configuredChunkGroups(config: LoadedViteConfig) {
@@ -55,6 +58,12 @@ describe('deployment configuration', () => {
     expect(compose).toContain('${MOEURL_POSTGRES_PORT:-5432}:5432')
     expect(config).toContain('MOEURL_E2E_POSTGRES_PORT')
     expect(config).toContain('MOEURL_POSTGRES_PORT: e2ePostgresPort')
+  })
+
+  it('keeps local Playwright browser caches out of the Docker build context', () => {
+    const dockerIgnore = readFileSync(resolve(repositoryRoot, '.dockerignore'), 'utf8')
+
+    expect(dockerIgnore.split(/\r?\n/)).toContain('web/.pw-browsers*')
   })
 
   it('keeps E2E Compose cleanup isolated from the default development project', () => {
@@ -103,6 +112,26 @@ describe('deployment configuration', () => {
   it('allows a cold Docker image build to finish before Playwright starts', () => {
     expect(playwrightConfig.webServer).not.toBeInstanceOf(Array)
     expect(playwrightConfig.webServer).toMatchObject({ timeout: 600_000 })
+  })
+
+  it('proxies only short-link preview and continue data routes during development', async () => {
+    const loadedConfig = await loadConfigFromFile(
+      { command: 'serve', mode: 'test' },
+      resolve(repositoryRoot, 'web/vite.config.ts'),
+    )
+    if (!loadedConfig) {
+      throw new Error('expected Vite configuration to load')
+    }
+    const proxy = (loadedConfig.config as LoadedViteConfig).server?.proxy
+    const goProxyEntry = Object.entries(proxy ?? {}).find(([context]) => context.startsWith('^/go/'))
+
+    expect(proxy?.['/api']).toBe('http://127.0.0.1:8080')
+    expect(goProxyEntry?.[1]).toBe('http://127.0.0.1:8080')
+    const goDataRoute = new RegExp(goProxyEntry?.[0] ?? '$.')
+    expect(goDataRoute.test('/go/abc123/preview')).toBe(true)
+    expect(goDataRoute.test('/go/abc123/continue')).toBe(true)
+    expect(goDataRoute.test('/go/abc123')).toBe(false)
+    expect(goDataRoute.test('/go/abc123/settings')).toBe(false)
   })
 
   it('registers only the Vuetify components used by the application', () => {

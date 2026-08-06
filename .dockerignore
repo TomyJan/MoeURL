@@ -7,6 +7,7 @@ docs
 web/node_modules
 web/dist
 web/.vite
+web/.pw-browsers*
 coverage.out
 coverage.html
 **/coverage.out
