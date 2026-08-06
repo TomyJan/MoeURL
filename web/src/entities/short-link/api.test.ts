@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, expectTypeOf, it, vi } from 'vitest'
 
 import {
   createShortLink,
@@ -14,8 +14,13 @@ import {
   updateAdminShortLink,
   updateShortLink,
 } from './api'
+import type { PublicShortLinkPreview } from './model'
 
 describe('short link api', () => {
+  it('requires password metadata in public preview responses', () => {
+    expectTypeOf<PublicShortLinkPreview['requiresPassword']>().toEqualTypeOf<boolean>()
+  })
+
   it('loads the current user overview', async () => {
     vi.stubGlobal(
       'fetch',
@@ -96,7 +101,7 @@ describe('short link api', () => {
           code: 0,
           message: 'OK',
           data: url.includes('/preview')
-            ? { slug: 'abc123', targetHost: 'example.com', redirectMode: 'intermediate', intermediateDelaySeconds: 5, expiresAt: null }
+            ? { slug: 'abc123', targetHost: 'example.com', redirectMode: 'intermediate', intermediateDelaySeconds: 5, expiresAt: null, requiresPassword: false }
             : { shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123' } },
           meta: {},
         }), { status: 200, headers: { 'Content-Type': 'application/json' } })
@@ -115,6 +120,7 @@ describe('short link api', () => {
       redirectMode: 'intermediate',
       intermediateDelaySeconds: 5,
       expiresAt: null,
+      requiresPassword: false,
     })
 
     const createCall = vi.mocked(fetch).mock.calls.find(([input]) => input === '/api/v1/short-link/create')
@@ -129,6 +135,52 @@ describe('short link api', () => {
       '/go/a%20b/preview',
       expect.objectContaining({ method: 'GET' }),
     )
+  })
+
+  it('loads protected public preview metadata', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({
+        code: 0,
+        message: 'OK',
+        data: {
+          slug: 'abc123',
+          targetHost: 'example.com',
+          redirectMode: 'direct',
+          intermediateDelaySeconds: 5,
+          expiresAt: '2026-08-06T09:00:00Z',
+          requiresPassword: true,
+        },
+        meta: {},
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })),
+    )
+
+    await expect(getPublicShortLinkPreview('abc123')).resolves.toMatchObject({ requiresPassword: true })
+  })
+
+  it.each([
+    ['missing data', undefined],
+    ['null data', null],
+    ['scalar data', 'invalid'],
+    ['invalid slug', { slug: 1, targetHost: 'example.com', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null, requiresPassword: false }],
+    ['invalid target host', { slug: 'abc123', targetHost: null, redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null, requiresPassword: false }],
+    ['invalid redirect mode', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'other', intermediateDelaySeconds: 5, expiresAt: null, requiresPassword: false }],
+    ['invalid delay', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'direct', intermediateDelaySeconds: '5', expiresAt: null, requiresPassword: false }],
+    ['invalid expiration', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: 1, requiresPassword: false }],
+    ['missing password metadata', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null }],
+    ['invalid password metadata', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null, requiresPassword: 'yes' }],
+  ])('rejects public preview with %s', async (_name, data) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({
+        code: 0,
+        message: 'OK',
+        data,
+        meta: {},
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })),
+    )
+
+    await expect(getPublicShortLinkPreview('abc123')).rejects.toMatchObject({ code: 100001 })
   })
 
   it('posts a public short-link unlock request', async () => {

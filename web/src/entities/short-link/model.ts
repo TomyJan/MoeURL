@@ -92,7 +92,7 @@ export interface PublicShortLinkPreview {
   redirectMode: RedirectMode
   intermediateDelaySeconds: number
   expiresAt: string | null
-  requiresPassword?: boolean
+  requiresPassword: boolean
 }
 
 export interface UnlockShortLinkInput {

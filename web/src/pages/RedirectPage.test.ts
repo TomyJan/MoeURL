@@ -53,6 +53,7 @@ describe('RedirectPage', () => {
       intermediateDelaySeconds: 5,
       expiresAt: null,
       redirectMode: 'intermediate',
+      requiresPassword: false,
     })
     vi.mocked(unlockShortLink).mockResolvedValue({ unlocked: true })
   })
@@ -103,6 +104,7 @@ describe('RedirectPage', () => {
         intermediateDelaySeconds: 3,
         expiresAt: null,
         redirectMode: 'intermediate',
+        requiresPassword: false,
       })
     const { container } = mountPage()
     await flushPreview()
@@ -365,6 +367,7 @@ describe('RedirectPage', () => {
       intermediateDelaySeconds: 1,
       expiresAt: null,
       redirectMode: 'intermediate',
+      requiresPassword: false,
     } as never)
     mountPage()
     await flushPreview()
@@ -400,6 +403,7 @@ describe('RedirectPage', () => {
       redirectMode: 'intermediate'
       intermediateDelaySeconds: number
       expiresAt: null
+      requiresPassword: false
     }>()
     const setInterval = vi.spyOn(globalThis, 'setInterval')
     vi.mocked(getPublicShortLinkPreview).mockReturnValueOnce(preview.promise)
@@ -412,6 +416,7 @@ describe('RedirectPage', () => {
       redirectMode: 'intermediate',
       intermediateDelaySeconds: 5,
       expiresAt: null,
+      requiresPassword: false,
     })
     await flushPreview()
     await vi.advanceTimersByTimeAsync(10_000)

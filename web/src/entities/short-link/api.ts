@@ -1,4 +1,4 @@
-import { apiGet, apiGetPath, apiPost } from '@/shared/api/client'
+import { ApiClientError, apiGet, apiGetPath, apiPost } from '@/shared/api/client'
 
 import type { AdminShortLink, CreateShortLinkInput, PublicShortLinkPreview, ShortLink, ShortLinkOverview, ShortLinkStatisticsResponse, UnlockShortLinkInput, UnlockShortLinkResponse, UpdateShortLinkInput } from './model'
 
@@ -39,13 +39,29 @@ export async function createShortLink(input: CreateShortLinkInput): Promise<Shor
 }
 
 export async function getPublicShortLinkPreview(slug: string): Promise<PublicShortLinkPreview> {
-  const response = await apiGetPath<PublicShortLinkPreview>(`/go/${encodeURIComponent(slug)}/preview`)
+  const response = await apiGetPath<unknown>(`/go/${encodeURIComponent(slug)}/preview`)
+  if (!isPublicShortLinkPreview(response.data)) {
+    throw new ApiClientError(100001, 'Invalid public preview response')
+  }
   return response.data
 }
 
 export async function unlockShortLink(input: UnlockShortLinkInput): Promise<UnlockShortLinkResponse> {
   const response = await apiPost<UnlockShortLinkResponse>('/public/short-link/unlock', input)
   return response.data
+}
+
+function isPublicShortLinkPreview(value: unknown): value is PublicShortLinkPreview {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+  const preview = value as Record<string, unknown>
+  return typeof preview.slug === 'string'
+    && typeof preview.targetHost === 'string'
+    && (preview.redirectMode === 'direct' || preview.redirectMode === 'intermediate')
+    && typeof preview.intermediateDelaySeconds === 'number'
+    && (preview.expiresAt === null || typeof preview.expiresAt === 'string')
+    && typeof preview.requiresPassword === 'boolean'
 }
 
 export async function listShortLinks(input: ShortLinkListInput = {}): Promise<ShortLinkListResponse> {
