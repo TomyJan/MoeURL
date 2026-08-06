@@ -85,8 +85,10 @@ func (h *RedirectHandler) Preview(w http.ResponseWriter, r *http.Request, pathSl
 	}
 
 	accessToken := ""
-	if cookie, cookieErr := r.Cookie(accessCookieName); cookieErr == nil {
-		accessToken = cookie.Value
+	if len(pathSlugs) > 0 {
+		if cookie, cookieErr := r.Cookie(accessCookieName); cookieErr == nil {
+			accessToken = cookie.Value
+		}
 	}
 	result, err := h.service.Preview(r.Context(), slug, accessToken)
 	if err != nil {

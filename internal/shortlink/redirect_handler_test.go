@@ -395,6 +395,20 @@ func TestRedirectHandlerPreviewUsesUnifiedMinimalResponse(t *testing.T) {
 	}
 }
 
+func TestRedirectHandlerPublicPreviewIgnoresAccessCookie(t *testing.T) {
+	service := &fakeRedirectService{previewResult: shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", RedirectMode: shortlink.RedirectModeIntermediate}}
+	handler := shortlink.NewRedirectHandler(service)
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/public/short-link/preview?slug=middle", nil)
+	request.AddCookie(&http.Cookie{Name: "moeurl_short_link_access", Value: "raw-token"})
+
+	handler.Preview(response, request)
+
+	if response.Code != http.StatusOK || service.previewToken != "" {
+		t.Fatalf("expected public preview to ignore access cookie, got status %d token %q", response.Code, service.previewToken)
+	}
+}
+
 func TestRedirectHandlerPreviewPassesScopedAccessCookie(t *testing.T) {
 	service := &fakeRedirectService{previewResult: shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", RedirectMode: shortlink.RedirectModeIntermediate}}
 	handler := shortlink.NewRedirectHandler(service)

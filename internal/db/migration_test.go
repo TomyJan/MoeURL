@@ -153,6 +153,49 @@ func TestShortLinkPasswordMigrationAddsProtectedAccessStateAndRollsBack(t *testi
 	}
 }
 
+func TestShortLinkPasswordMigrationPreservesGroupsCreatedAfterUpgrade(t *testing.T) {
+	ctx := context.Background()
+	database := migrationTestDatabase(t, ctx)
+	migrationsDir := filepath.Join("..", "..", "migrations")
+
+	if err := goose.UpTo(database, migrationsDir, 5); err != nil {
+		t.Fatalf("run migrations through version 5: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `
+		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000003', 'admin', 'Admin', '', '["short_link:set_password"]'::jsonb, true, now(), now())
+	`); err != nil {
+		t.Fatalf("insert pre-upgrade admin group: %v", err)
+	}
+	if err := goose.UpTo(database, migrationsDir, 6); err != nil {
+		t.Fatalf("upgrade password migration: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `
+		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000002', 'user', 'User', '', '["short_link:set_password"]'::jsonb, true, now(), now())
+	`); err != nil {
+		t.Fatalf("insert post-upgrade user group: %v", err)
+	}
+
+	if err := goose.DownTo(database, migrationsDir, 5); err != nil {
+		t.Fatalf("rollback password migration: %v", err)
+	}
+
+	var userPermission, adminPermission bool
+	if err := database.QueryRowContext(ctx, `select permissions ? 'short_link:set_password' from user_group where key = 'user'`).Scan(&userPermission); err != nil {
+		t.Fatalf("query rolled-back user permission: %v", err)
+	}
+	if err := database.QueryRowContext(ctx, `select permissions ? 'short_link:set_password' from user_group where key = 'admin'`).Scan(&adminPermission); err != nil {
+		t.Fatalf("query retained admin permission: %v", err)
+	}
+	if !userPermission {
+		t.Fatal("expected rollback to preserve password permission from the post-upgrade user group")
+	}
+	if !adminPermission {
+		t.Fatal("expected rollback to preserve the pre-upgrade admin permission")
+	}
+}
+
 func TestShortLinkExperienceMigrationUpgradesExistingDataAndRollsBack(t *testing.T) {
 	ctx := context.Background()
 	database := migrationTestDatabase(t, ctx)
