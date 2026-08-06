@@ -120,9 +120,8 @@ set target_url = coalesce(sqlc.narg('target_url'), target_url),
         when 'set' then sqlc.narg('password_hash')::text
         else password_hash
     end,
-    password_updated_at = case sqlc.arg('password_mode')::text
-        when 'never' then clock_timestamp()
-        when 'set' then clock_timestamp()
+    password_updated_at = case
+        when sqlc.arg('password_mode')::text in ('never', 'set') then clock_timestamp()
         else password_updated_at
     end,
     updated_at = now()
@@ -131,7 +130,7 @@ where short_link.id = locked.id
 returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
     short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
-    short_link.password_hash,
+    short_link.password_hash, short_link.password_updated_at,
     short_link.created_at, short_link.updated_at, short_link.deleted_at;
 
 -- name: SoftDeleteOwnShortLink :execrows
@@ -222,9 +221,8 @@ set target_url = coalesce(sqlc.narg('target_url'), target_url),
         when 'set' then sqlc.narg('password_hash')::text
         else password_hash
     end,
-    password_updated_at = case sqlc.arg('password_mode')::text
-        when 'never' then clock_timestamp()
-        when 'set' then clock_timestamp()
+    password_updated_at = case
+        when sqlc.arg('password_mode')::text in ('never', 'set') then clock_timestamp()
         else password_updated_at
     end,
     updated_at = now()
@@ -233,7 +231,7 @@ where short_link.id = locked.id
 returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
     short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
-    short_link.password_hash,
+    short_link.password_hash, short_link.password_updated_at,
     short_link.created_at, short_link.updated_at, short_link.deleted_at;
 
 -- name: SoftDeleteAnyShortLink :execrows

@@ -722,9 +722,8 @@ set target_url = coalesce($1, target_url),
         when 'set' then $8::text
         else password_hash
     end,
-    password_updated_at = case $7::text
-        when 'never' then clock_timestamp()
-        when 'set' then clock_timestamp()
+    password_updated_at = case
+        when $7::text in ('never', 'set') then clock_timestamp()
         else password_updated_at
     end,
     updated_at = now()
@@ -733,7 +732,7 @@ where short_link.id = locked.id
 returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
     short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
-    short_link.password_hash,
+    short_link.password_hash, short_link.password_updated_at,
     short_link.created_at, short_link.updated_at, short_link.deleted_at
 `
 
@@ -761,6 +760,7 @@ type UpdateAnyShortLinkRow struct {
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	Expired                  bool               `json:"expired"`
 	PasswordHash             pgtype.Text        `json:"password_hash"`
+	PasswordUpdatedAt        pgtype.Timestamptz `json:"password_updated_at"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -791,6 +791,7 @@ func (q *Queries) UpdateAnyShortLink(ctx context.Context, arg UpdateAnyShortLink
 		&i.ExpiresAt,
 		&i.Expired,
 		&i.PasswordHash,
+		&i.PasswordUpdatedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -822,9 +823,8 @@ set target_url = coalesce($1, target_url),
         when 'set' then $8::text
         else password_hash
     end,
-    password_updated_at = case $7::text
-        when 'never' then clock_timestamp()
-        when 'set' then clock_timestamp()
+    password_updated_at = case
+        when $7::text in ('never', 'set') then clock_timestamp()
         else password_updated_at
     end,
     updated_at = now()
@@ -833,7 +833,7 @@ where short_link.id = locked.id
 returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
     short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
-    short_link.password_hash,
+    short_link.password_hash, short_link.password_updated_at,
     short_link.created_at, short_link.updated_at, short_link.deleted_at
 `
 
@@ -862,6 +862,7 @@ type UpdateOwnShortLinkRow struct {
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	Expired                  bool               `json:"expired"`
 	PasswordHash             pgtype.Text        `json:"password_hash"`
+	PasswordUpdatedAt        pgtype.Timestamptz `json:"password_updated_at"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -893,6 +894,7 @@ func (q *Queries) UpdateOwnShortLink(ctx context.Context, arg UpdateOwnShortLink
 		&i.ExpiresAt,
 		&i.Expired,
 		&i.PasswordHash,
+		&i.PasswordUpdatedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,

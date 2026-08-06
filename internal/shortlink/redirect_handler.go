@@ -133,7 +133,8 @@ func (h *RedirectHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, response{Code: 900000, Message: "Internal server error", Data: nil, Meta: map[string]any{}})
 		return
 	}
-	grant, err := unlockService.Unlock(r.Context(), input.Slug, input.Password)
+	slug := strings.ToLower(strings.TrimSpace(input.Slug))
+	grant, err := unlockService.Unlock(r.Context(), slug, input.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrPasswordRequired):
@@ -151,7 +152,6 @@ func (h *RedirectHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slug := strings.ToLower(strings.TrimSpace(input.Slug))
 	http.SetCookie(w, &http.Cookie{
 		Name:     accessCookieName,
 		Value:    grant.Token,

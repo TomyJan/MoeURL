@@ -242,6 +242,7 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 	if err != nil {
 		return AccessGrant{}, err
 	}
+	// Re-read the link after acquiring the row lock so all access checks use its latest state.
 	link, err = queries.GetShortLinkBySlug(ctx, slug)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return AccessGrant{}, ErrShortLinkMissing

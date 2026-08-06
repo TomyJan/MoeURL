@@ -260,6 +260,12 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 	if updated.RedirectMode != "intermediate" || updated.IntermediateDelaySeconds != 7 || !updated.ExpiresAt.Valid {
 		t.Fatalf("status update cleared access config: %#v", updated)
 	}
+	if !updated.PasswordUpdatedAt.Valid {
+		t.Fatalf("expected initial password update timestamp, got %#v", updated.PasswordUpdatedAt)
+	}
+	if _, err := pool.Exec(ctx, `select pg_sleep(0.01)`); err != nil {
+		t.Fatalf("separate password update timestamps: %v", err)
+	}
 
 	passwordUpdated, err := queries.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
 		ID:             uuidToPgtype(configuredID),
@@ -273,6 +279,9 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 	}
 	if passwordUpdated.PasswordHash.Valid {
 		t.Fatalf("expected cleared password hash, got %#v", passwordUpdated.PasswordHash)
+	}
+	if !passwordUpdated.PasswordUpdatedAt.Valid || !passwordUpdated.PasswordUpdatedAt.Time.After(updated.PasswordUpdatedAt.Time) {
+		t.Fatalf("expected refreshed password update timestamp, got %#v after %#v", passwordUpdated.PasswordUpdatedAt, updated.PasswordUpdatedAt)
 	}
 
 	cleared, err := queries.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{

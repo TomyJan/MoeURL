@@ -70,10 +70,11 @@ func TestRedirectHandlerRedirectsProtectedSlugToPasswordPage(t *testing.T) {
 }
 
 func TestRedirectHandlerUnlockSetsScopedCookie(t *testing.T) {
+	service := &fakeRedirectService{unlockGrant: shortlink.AccessGrant{Token: "raw-token"}}
 	router := apphttp.NewRouter(apphttp.Dependencies{
-		Redirect: &fakeRedirectService{unlockGrant: shortlink.AccessGrant{Token: "raw-token"}},
+		Redirect: service,
 	})
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString(`{"slug":"abc123","password":"correct horse"}`))
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString(`{"slug":" AbC123 ","password":"correct horse"}`))
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 
@@ -92,6 +93,30 @@ func TestRedirectHandlerUnlockSetsScopedCookie(t *testing.T) {
 	cookie := response.Result().Cookies()[0]
 	if cookie.Name != "moeurl_short_link_access" || cookie.Value != "raw-token" || cookie.Path != "/go/abc123" || !cookie.HttpOnly || cookie.Secure || cookie.SameSite != http.SameSiteLaxMode || cookie.MaxAge != 900 {
 		t.Fatalf("unexpected access cookie: %#v", cookie)
+	}
+	if service.unlockSlug != "abc123" {
+		t.Fatalf("expected normalized unlock slug, got %q", service.unlockSlug)
+	}
+}
+
+func TestRedirectHandlerUnlockSetsSecureCookie(t *testing.T) {
+	handler := shortlink.NewRedirectHandlerWithAnalyticsAndSecurity(
+		&fakeRedirectService{unlockGrant: shortlink.AccessGrant{Token: "raw-token"}},
+		&recordingRecorder{},
+		"",
+		true,
+	)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString(`{"slug":"abc123","password":"correct horse"}`))
+	response := httptest.NewRecorder()
+
+	handler.Unlock(response, request)
+
+	cookies := response.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("expected one access cookie, got %d", len(cookies))
+	}
+	if !cookies[0].Secure {
+		t.Fatalf("expected secure access cookie, got %#v", cookies[0])
 	}
 }
 
@@ -599,6 +624,7 @@ type fakeRedirectService struct {
 	unlockGrant    shortlink.AccessGrant
 	unlockErr      error
 	unlockCalls    int
+	unlockSlug     string
 	continueToken  string
 	previewToken   string
 }
@@ -648,8 +674,9 @@ func (f *fakeRedirectService) Continue(_ context.Context, _ string, accessTokens
 }
 
 // Unlock returns the configured public access grant result.
-func (f *fakeRedirectService) Unlock(context.Context, string, string) (shortlink.AccessGrant, error) {
+func (f *fakeRedirectService) Unlock(_ context.Context, slug string, _ string) (shortlink.AccessGrant, error) {
 	f.unlockCalls++
+	f.unlockSlug = slug
 	if f.unlockErr != nil {
 		return shortlink.AccessGrant{}, f.unlockErr
 	}

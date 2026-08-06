@@ -36,18 +36,18 @@ github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:185.17,187.4
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:235.16,237.3
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:239.35,241.3
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:242.16,244.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:246.35,248.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:249.16,251.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:262.16,264.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:276.18,278.4
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:279.40,281.4
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:287.77,289.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:290.75,292.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:303.17,305.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:306.39,308.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:247.35,249.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:250.16,252.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:263.16,265.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:281.18,283.4
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:284.40,286.4
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:292.77,294.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:295.75,297.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:308.17,310.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:311.39,313.3
 
 # Access-token generation failure after transaction state changes remains covered at the generator boundary.
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:294.16,296.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:299.16,301.3
 
 # Password hashing failure is an Argon2id/random infrastructure path after input and permission validation.
 github.com/TomyJan/MoeURL/internal/shortlink/service.go:657.16,659.3
