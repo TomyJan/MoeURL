@@ -231,14 +231,14 @@ describe('RedirectPage', () => {
     expect(unlockShortLink).not.toHaveBeenCalled()
   })
 
-  it('does not retry unlock requests while the password is rate limited', async () => {
+  it('lets the backend re-evaluate a rate-limited unlock request', async () => {
     state.query = { reason: 'rate-limited' }
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
       intermediateDelaySeconds: 5,
       expiresAt: null,
-      redirectMode: 'intermediate',
+      redirectMode: 'direct',
       requiresPassword: true,
     })
     mountPage()
@@ -247,8 +247,11 @@ describe('RedirectPage', () => {
     await fireEvent.update(screen.getByLabelText('redirect.password'), 'correct horse')
     await fireEvent.click(screen.getByRole('button', { name: 'redirect.unlock' }))
 
-    expect(unlockShortLink).not.toHaveBeenCalled()
-    expect(screen.getByText('redirect.rateLimited')).toBeTruthy()
+    expect(unlockShortLink).toHaveBeenCalledWith({ slug: 'abc123', password: 'correct horse' })
+    expect(screen.queryByText('redirect.rateLimited')).toBeNull()
+    await vi.waitFor(() => {
+      expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
+    })
   })
 
   it.each([
