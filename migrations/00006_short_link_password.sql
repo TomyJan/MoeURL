@@ -46,11 +46,7 @@ from locked_user_group
 where not (locked_user_group.permissions ? 'short_link:set_password');
 
 update user_group
-set permissions = permissions
-        || case
-            when permissions ? 'short_link:set_password' then '[]'::jsonb
-            else '["short_link:set_password"]'::jsonb
-        end,
+set permissions = permissions || '["short_link:set_password"]'::jsonb,
     updated_at = now()
 where key in ('user', 'admin')
     and not (permissions ? 'short_link:set_password');
