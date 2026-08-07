@@ -20,7 +20,7 @@ func TestAppShutdownDrainsRequestsBeforeStoppingDependencies(t *testing.T) {
 	})}
 	shutdownStarted := make(chan struct{})
 	server.RegisterOnShutdown(func() { close(shutdownStarted) })
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen for shutdown test: %v", err)
 	}
@@ -30,8 +30,14 @@ func TestAppShutdownDrainsRequestsBeforeStoppingDependencies(t *testing.T) {
 	}()
 
 	requestDone := make(chan error, 1)
+	requestContext, cancelRequest := context.WithCancel(context.Background())
+	defer cancelRequest()
+	request, err := http.NewRequestWithContext(requestContext, http.MethodGet, "http://"+listener.Addr().String(), nil)
+	if err != nil {
+		t.Fatalf("create shutdown test request: %v", err)
+	}
 	go func() {
-		response, requestErr := http.Get("http://" + listener.Addr().String())
+		response, requestErr := http.DefaultClient.Do(request)
 		if response != nil {
 			_ = response.Body.Close()
 		}
@@ -79,6 +85,72 @@ func TestAppShutdownDrainsRequestsBeforeStoppingDependencies(t *testing.T) {
 	}
 	if err := <-requestDone; err != nil {
 		t.Fatalf("complete in-flight request: %v", err)
+	}
+	if err := <-serveDone; !errors.Is(err, http.ErrServerClosed) {
+		t.Fatalf("serve result = %v, want http.ErrServerClosed", err)
+	}
+}
+
+// TestAppShutdownFailureKeepsDependenciesRunning verifies a failed drain can be retried safely.
+func TestAppShutdownFailureKeepsDependenciesRunning(t *testing.T) {
+	requestStarted := make(chan struct{})
+	releaseRequest := make(chan struct{})
+	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		close(requestStarted)
+		<-releaseRequest
+		w.WriteHeader(http.StatusNoContent)
+	})}
+	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen for failed shutdown test: %v", err)
+	}
+	serveDone := make(chan error, 1)
+	go func() { serveDone <- server.Serve(listener) }()
+
+	requestContext, cancelRequest := context.WithCancel(context.Background())
+	defer cancelRequest()
+	request, err := http.NewRequestWithContext(requestContext, http.MethodGet, "http://"+listener.Addr().String(), nil)
+	if err != nil {
+		t.Fatalf("create failed shutdown request: %v", err)
+	}
+	requestDone := make(chan error, 1)
+	go func() {
+		response, requestErr := http.DefaultClient.Do(request)
+		if response != nil {
+			_ = response.Body.Close()
+		}
+		requestDone <- requestErr
+	}()
+	select {
+	case <-requestStarted:
+	case <-time.After(time.Second):
+		t.Fatal("request did not reach the failed shutdown test server")
+	}
+
+	cleanupCanceled := make(chan struct{})
+	cleanupDone := make(chan struct{})
+	close(cleanupDone)
+	application := &App{
+		server: server,
+		grantCleanupCancel: func() {
+			close(cleanupCanceled)
+		},
+		grantCleanupDone: cleanupDone,
+	}
+	shutdownContext, cancelShutdown := context.WithCancel(context.Background())
+	cancelShutdown()
+	if err := application.Shutdown(shutdownContext); !errors.Is(err, context.Canceled) {
+		t.Fatalf("shutdown error = %v, want context.Canceled", err)
+	}
+	select {
+	case <-cleanupCanceled:
+		t.Fatal("cleanup stopped after HTTP shutdown failed")
+	default:
+	}
+
+	close(releaseRequest)
+	if err := <-requestDone; err != nil {
+		t.Fatalf("complete failed-shutdown request: %v", err)
 	}
 	if err := <-serveDone; !errors.Is(err, http.ErrServerClosed) {
 		t.Fatalf("serve result = %v, want http.ErrServerClosed", err)

@@ -87,7 +87,9 @@ func (a *App) Run() error {
 
 // Shutdown closes database resources and gracefully stops the HTTP server.
 func (a *App) Shutdown(ctx context.Context) error {
-	shutdownErr := a.server.Shutdown(ctx)
+	if err := a.server.Shutdown(ctx); err != nil {
+		return err
+	}
 	if a.grantCleanupCancel != nil {
 		a.grantCleanupCancel()
 		<-a.grantCleanupDone
@@ -95,5 +97,5 @@ func (a *App) Shutdown(ctx context.Context) error {
 	if a.pool != nil {
 		a.pool.Close()
 	}
-	return shutdownErr
+	return nil
 }
