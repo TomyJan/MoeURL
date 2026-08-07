@@ -4,16 +4,18 @@ type PasswordMutationInput = {
   password?: PasswordInput
 }
 
-/** Runs a mutation and removes raw password material from retained mutation variables. */
+/** Runs a short-link request with password material kept outside retained mutation variables. */
 export async function runShortLinkMutation<Input extends PasswordMutationInput, Result>(
   mutationFn: (input: Input) => Promise<Result>,
-  input: Input,
+  input: Omit<Input, 'password'>,
+  password?: PasswordInput,
 ): Promise<Result> {
+  const request = (password ? { ...input, password } : input) as Input
   try {
-    return await mutationFn(input)
+    return await mutationFn(request)
   } finally {
-    if (input.password?.mode === 'set') {
-      delete input.password
+    if (request.password?.mode === 'set') {
+      delete request.password
     }
   }
 }

@@ -8,6 +8,7 @@ import { componentStubs } from '@/test/component-stubs'
 import { me } from '@/entities/auth/api'
 import { createShortLink } from '@/entities/short-link/api'
 import type { CreateShortLinkInput } from '@/entities/short-link/model'
+import { createDeferred } from '@/test/deferred'
 import type { MutationMockResult } from '@/test/mutation-mock'
 
 type CreateMutationOptions = {
@@ -41,6 +42,7 @@ vi.mock('@tanstack/vue-query', async () => {
   return {
     useMutation: createMutationMock({
       captureOptions: (options) => state.mutationOptions.push(options),
+      fields: { isError: true, variables: true },
       getResult: () => state.mutationResult as MutationMockResult,
     }),
     useQuery: vi.fn((options?: unknown) => {
@@ -76,12 +78,14 @@ function setMutationResult(value: Partial<{
   data: ReturnType<typeof ref>
   error: ReturnType<typeof ref>
   isPending: ReturnType<typeof ref>
+  variables: ReturnType<typeof ref>
   mutate: ReturnType<typeof vi.fn>
 }> = {}) {
   state.mutationResult = {
     data: value.data ?? ref(undefined),
     error: value.error ?? ref(undefined),
     isPending: value.isPending ?? ref(false),
+    variables: value.variables ?? ref(undefined),
     ...(value.mutate ? { mutate: value.mutate } : {}),
   }
 }
@@ -342,6 +346,28 @@ describe('ShortLinkCreatePanel', () => {
     await expect(options.mutationFn?.(input)).rejects.toThrow('create failed')
 
     expect(input).not.toHaveProperty('password')
+  })
+
+  it('keeps raw passwords out of pending and failed mutation variables', async () => {
+    const deferred = createDeferred<never>()
+    const variables = ref<unknown>()
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
+    setMutationResult({ variables })
+    vi.mocked(createShortLink).mockReturnValue(deferred.promise)
+
+    mountPanel()
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    await fireEvent.click(screen.getByLabelText('shortLinkCreate.passwordEnabled'))
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.password'), 'correct horse')
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+
+    expect(variables.value).toEqual({ targetUrl: 'https://example.com' })
+    deferred.reject(new Error('create failed'))
+    await vi.waitFor(() => {
+      expect(screen.getByText('create failed')).toBeTruthy()
+    })
+    expect(variables.value).toEqual({ targetUrl: 'https://example.com' })
   })
 
   it('rejects an invalid protected-link password before mutation', async () => {

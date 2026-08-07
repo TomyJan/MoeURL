@@ -194,6 +194,7 @@ const expirationEnabled = ref(false)
 const expiresAt = ref('')
 const passwordEnabled = ref(false)
 const password = ref('')
+let pendingPassword: CreateShortLinkInput['password']
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,
@@ -211,7 +212,11 @@ const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !c
 
 const mutation = useMutation({
   /** Runs creation through the shared sensitive-input cleanup boundary. */
-  mutationFn: (input: CreateShortLinkInput) => runShortLinkMutation(createShortLink, input),
+  mutationFn: (input: Omit<CreateShortLinkInput, 'password'>) => {
+    const requestPassword = pendingPassword
+    pendingPassword = undefined
+    return runShortLinkMutation(createShortLink, input, requestPassword)
+  },
   onSuccess(result) {
     createdUrl.value = result.shortLink.url
     createdSlug.value = result.shortLink.slug
@@ -276,7 +281,9 @@ function submit() {
       passwordErrorMessage.value = password.value ? t('shortLinkCreate.passwordInvalid') : t('shortLinkCreate.passwordRequired')
       return
     }
-    input.password = { mode: 'set', value: passwordResult.data }
+    pendingPassword = { mode: 'set', value: passwordResult.data }
+  } else {
+    pendingPassword = undefined
   }
   createdUrl.value = ''
   createdSlug.value = ''

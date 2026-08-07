@@ -148,6 +148,32 @@ describe('useShortLinkSettings', () => {
     expect(input).not.toHaveProperty('password')
   })
 
+  it('passes password-free settings variables while forwarding the request password', async () => {
+    let sentInput: UpdateShortLinkInput | undefined
+    const mutationFn = vi.fn(async (request: UpdateShortLinkInput) => {
+      sentInput = structuredClone(request)
+      throw new Error('settings failed')
+    })
+    const settings = useShortLinkSettings({ mutationFn, queryKey: ['short-link'] })
+    const input: UpdateShortLinkInput = {
+      id: 'link-id',
+      targetUrl: 'https://example.org',
+      password: { mode: 'set', value: 'correct horse' },
+    }
+
+    settings.saveSettings(input)
+
+    expect(state.mutate).toHaveBeenCalledWith({ id: 'link-id', targetUrl: 'https://example.org' })
+    const variables = state.mutate.mock.calls[0]?.[0] as UpdateShortLinkInput
+    await expect(state.mutationOptions?.mutationFn?.(variables)).rejects.toThrow('settings failed')
+    expect(variables).not.toHaveProperty('password')
+    expect(sentInput).toEqual({
+      id: 'link-id',
+      targetUrl: 'https://example.org',
+      password: { mode: 'set', value: 'correct horse' },
+    })
+  })
+
   it('uses the translated fallback for non-Error mutation failures', () => {
     state.error = { code: 200103 }
     state.isError = true
