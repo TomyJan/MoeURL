@@ -125,6 +125,20 @@ func TestShortLinkPasswordMigrationAddsProtectedAccessStateAndRollsBack(t *testi
 	if !expiryIndexExists {
 		t.Fatal("expected short_link_access_grant_expiry_idx")
 	}
+	var linkIndexExists bool
+	if err := database.QueryRowContext(ctx, `
+		select exists (
+			select 1 from pg_indexes
+			where schemaname = 'public'
+				and tablename = 'short_link_access_grant'
+				and indexname = 'short_link_access_grant_link_idx'
+		)
+	`).Scan(&linkIndexExists); err != nil {
+		t.Fatalf("check access grant link index: %v", err)
+	}
+	if !linkIndexExists {
+		t.Fatal("expected short_link_access_grant_link_idx")
+	}
 	var linkExpiryIndexExists bool
 	if err := database.QueryRowContext(ctx, `
 		select exists (

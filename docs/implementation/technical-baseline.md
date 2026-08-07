@@ -326,7 +326,7 @@ v0.2.0 在 `short_link` 追加：
 
 ### v0.3.0 schema 扩展摘要
 
-v0.3.0 在 `short_link` 追加 `password_hash`、`password_failed_attempts`、`password_window_started_at`、`password_blocked_until` 和 `password_updated_at`；新增 `short_link_access_grant` 保存短期授权令牌哈希。密码原文、密码哈希和授权令牌不得进入公开 API、日志、统计事件或前端状态，授权查询同时检查令牌过期时间和密码更新时间。过期授权清理由 `expires_at` 索引支撑，并由应用后台任务每分钟独立清理，每批最多删除 500 条；清理错误不影响解锁请求。`00006` 以 `NOT VALID` 添加密码失败次数约束，`00007` 在独立 migration 中验证历史数据，避免字段迁移事务扫描全部既有短链。migration 同步为既有内置 `user`、`admin` 用户组追加 `short_link:set_password`，`guest` 保持无权限。
+v0.3.0 在 `short_link` 追加 `password_hash`、`password_failed_attempts`、`password_window_started_at`、`password_blocked_until` 和 `password_updated_at`；新增 `short_link_access_grant` 保存短期授权令牌哈希。密码原文、密码哈希和授权令牌不得进入公开 API、日志、统计事件或前端状态，授权查询同时检查令牌过期时间和密码更新时间。过期授权清理由 `expires_at` 索引支撑，并由应用后台任务每分钟独立清理，每批最多删除 500 条；`short_link_id` 索引用于短链删除时的级联行定位，清理错误不影响解锁请求。`00006` 以 `NOT VALID` 添加密码失败次数约束，`00007` 在独立 migration 中验证历史数据，避免字段迁移事务扫描全部既有短链。migration 同步为既有内置 `user`、`admin` 用户组追加 `short_link:set_password`，`guest` 保持无权限。
 
 ### 短码规则
 
