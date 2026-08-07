@@ -90,7 +90,11 @@ func TestRedirectHandlerUnlockSetsScopedCookie(t *testing.T) {
 	if body.Code != 0 {
 		t.Fatalf("expected successful unlock code, got %d", body.Code)
 	}
-	cookie := response.Result().Cookies()[0]
+	cookies := response.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("expected one access cookie, got %d; response headers: %#v", len(cookies), response.Header())
+	}
+	cookie := cookies[0]
 	if cookie.Name != "moeurl_short_link_access" || cookie.Value != "raw-token" || cookie.Path != "/go/abc123" || !cookie.HttpOnly || cookie.Secure || cookie.SameSite != http.SameSiteLaxMode || cookie.MaxAge != 900 {
 		t.Fatalf("unexpected access cookie: %#v", cookie)
 	}
@@ -218,18 +222,6 @@ func TestRedirectHandlerUnlockRejectsTrailingOversizedJSON(t *testing.T) {
 	}
 	if service.unlockCalls != 0 {
 		t.Fatalf("expected trailing oversized request to stop before service call, got %d calls", service.unlockCalls)
-	}
-}
-
-func TestRedirectHandlerUnlockRejectsUnsupportedService(t *testing.T) {
-	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: redirectOnlyService{}})
-	response := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString(`{"slug":"abc123","password":"correct horse"}`))
-
-	router.ServeHTTP(response, request)
-
-	if response.Code != http.StatusInternalServerError {
-		t.Fatalf("expected 500, got %d", response.Code)
 	}
 }
 
@@ -452,7 +444,7 @@ func TestRedirectHandlerPreviewUsesUnifiedMinimalResponse(t *testing.T) {
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/public/short-link/preview?slug=middle", nil)
 
-	handler.Preview(response, request)
+	handler.PreviewPublic(response, request)
 
 	if response.Code != http.StatusOK || response.Header().Get("Content-Type") != "application/json; charset=utf-8" {
 		t.Fatalf("unexpected preview response status %d content type %q", response.Code, response.Header().Get("Content-Type"))
@@ -480,7 +472,7 @@ func TestRedirectHandlerPublicPreviewIgnoresAccessCookie(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/public/short-link/preview?slug=middle", nil)
 	request.AddCookie(&http.Cookie{Name: "moeurl_short_link_access", Value: "raw-token"})
 
-	handler.Preview(response, request)
+	handler.PreviewPublic(response, request)
 
 	if response.Code != http.StatusOK || service.previewToken != "" {
 		t.Fatalf("expected public preview to ignore access cookie, got status %d token %q", response.Code, service.previewToken)
@@ -494,7 +486,7 @@ func TestRedirectHandlerPreviewPassesScopedAccessCookie(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/go/middle/preview", nil)
 	request.AddCookie(&http.Cookie{Name: "moeurl_short_link_access", Value: "raw-token"})
 
-	handler.Preview(response, request, "middle")
+	handler.PreviewScoped(response, request, "middle")
 
 	if response.Code != http.StatusOK || service.previewToken != "raw-token" {
 		t.Fatalf("expected scoped preview token, got status %d token %q", response.Code, service.previewToken)
@@ -522,7 +514,7 @@ func TestRedirectHandlerPreviewMapsBusinessAndSystemErrors(t *testing.T) {
 			response := httptest.NewRecorder()
 			request := httptest.NewRequest(http.MethodGet, "/api/v1/public/short-link/preview?slug=middle", nil)
 
-			handler.Preview(response, request)
+			handler.PreviewPublic(response, request)
 
 			var body struct {
 				Code int `json:"code"`
@@ -543,7 +535,7 @@ func TestRedirectHandlerPreviewRejectsMissingSlug(t *testing.T) {
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/public/short-link/preview", nil)
 
-	handler.Preview(response, request)
+	handler.PreviewPublic(response, request)
 
 	var body struct {
 		Code int `json:"code"`
@@ -629,20 +621,6 @@ type fakeRedirectService struct {
 	previewToken   string
 }
 
-type redirectOnlyService struct{}
-
-func (redirectOnlyService) Open(context.Context, string) (shortlink.OpenResult, error) {
-	return shortlink.OpenResult{}, nil
-}
-
-func (redirectOnlyService) Preview(context.Context, string, ...string) (shortlink.PreviewResult, error) {
-	return shortlink.PreviewResult{}, nil
-}
-
-func (redirectOnlyService) Continue(context.Context, string, ...string) (shortlink.RedirectResult, error) {
-	return shortlink.RedirectResult{}, nil
-}
-
 // Open returns the configured initial access result.
 func (f *fakeRedirectService) Open(context.Context, string) (shortlink.OpenResult, error) {
 	if f.openErr != nil {
@@ -652,10 +630,8 @@ func (f *fakeRedirectService) Open(context.Context, string) (shortlink.OpenResul
 }
 
 // Preview returns the configured public preview result.
-func (f *fakeRedirectService) Preview(_ context.Context, _ string, accessTokens ...string) (shortlink.PreviewResult, error) {
-	if len(accessTokens) > 0 {
-		f.previewToken = accessTokens[0]
-	}
+func (f *fakeRedirectService) Preview(_ context.Context, _ string, accessToken string) (shortlink.PreviewResult, error) {
+	f.previewToken = accessToken
 	if f.previewErr != nil {
 		return shortlink.PreviewResult{}, f.previewErr
 	}

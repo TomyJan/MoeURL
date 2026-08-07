@@ -13,15 +13,12 @@ import (
 	"github.com/TomyJan/MoeURL/internal/event"
 )
 
-// RedirectPort handles the three public short-link access actions.
+// RedirectPort handles the public short-link access actions.
 type RedirectPort interface {
 	Open(ctx context.Context, slug string) (OpenResult, error)
-	Preview(ctx context.Context, slug string, accessTokens ...string) (PreviewResult, error)
-	Continue(ctx context.Context, slug string, accessTokens ...string) (RedirectResult, error)
-}
-
-type UnlockPort interface {
+	Preview(ctx context.Context, slug string, accessToken string) (PreviewResult, error)
 	Unlock(ctx context.Context, slug string, password string) (AccessGrant, error)
+	Continue(ctx context.Context, slug string, accessTokens ...string) (RedirectResult, error)
 }
 
 // RedirectHandler handles public short-link access requests.
@@ -33,7 +30,8 @@ type RedirectHandler struct {
 }
 
 const (
-	accessCookieName          = "moeurl_short_link_access"
+	accessCookieName = "moeurl_short_link_access"
+	// maxUnlockRequestBodyBytes is a security boundary that keeps oversized input out of Argon2 validation, alongside the service's 128-character password limit.
 	maxUnlockRequestBodyBytes = 4 << 10
 )
 
@@ -77,23 +75,27 @@ func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug stri
 	h.writeTargetRedirect(w, r, result.RedirectResult, result.Slug)
 }
 
-// Preview writes the minimal public data required by an intermediate page.
-func (h *RedirectHandler) Preview(w http.ResponseWriter, r *http.Request, pathSlugs ...string) {
+// PreviewPublic writes public preview data without accepting a scoped access cookie.
+func (h *RedirectHandler) PreviewPublic(w http.ResponseWriter, r *http.Request) {
 	slug := strings.TrimSpace(r.URL.Query().Get("slug"))
-	if len(pathSlugs) > 0 {
-		slug = strings.TrimSpace(pathSlugs[0])
+	h.preview(w, r, slug, "")
+}
+
+// PreviewScoped writes preview data using the access cookie scoped to the short-link page.
+func (h *RedirectHandler) PreviewScoped(w http.ResponseWriter, r *http.Request, slug string) {
+	accessToken := ""
+	if cookie, err := r.Cookie(accessCookieName); err == nil {
+		accessToken = cookie.Value
 	}
+	h.preview(w, r, strings.TrimSpace(slug), accessToken)
+}
+
+func (h *RedirectHandler) preview(w http.ResponseWriter, r *http.Request, slug string, accessToken string) {
 	if slug == "" {
 		businessError(w, 100001, "Invalid request")
 		return
 	}
 
-	accessToken := ""
-	if len(pathSlugs) > 0 {
-		if cookie, cookieErr := r.Cookie(accessCookieName); cookieErr == nil {
-			accessToken = cookie.Value
-		}
-	}
 	result, err := h.service.Preview(r.Context(), slug, accessToken)
 	if err != nil {
 		switch {
@@ -128,13 +130,8 @@ func (h *RedirectHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 		businessError(w, 100001, "Invalid request")
 		return
 	}
-	unlockService, supported := h.service.(UnlockPort)
-	if !supported {
-		writeJSON(w, http.StatusInternalServerError, response{Code: 900000, Message: "Internal server error", Data: nil, Meta: map[string]any{}})
-		return
-	}
 	slug := strings.ToLower(strings.TrimSpace(input.Slug))
-	grant, err := unlockService.Unlock(r.Context(), slug, input.Password)
+	grant, err := h.service.Unlock(r.Context(), slug, input.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrPasswordRequired):

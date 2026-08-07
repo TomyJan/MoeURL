@@ -144,7 +144,7 @@ func TestRedirectServiceReturnsDatabaseError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected open database error")
 	}
-	_, err = service.Preview(ctx, "abc123")
+	_, err = service.Preview(ctx, "abc123", "")
 	if err == nil {
 		t.Fatal("expected preview database error")
 	}
@@ -183,7 +183,7 @@ func TestRedirectServiceIntermediatePreviewAndContinue(t *testing.T) {
 	assertEvents(t, recorder.types, []string{event.ShortLinkOpened, event.AccessConditionChecked})
 
 	recorder.types = nil
-	preview, err := service.Preview(ctx, "MIDDLE")
+	preview, err := service.Preview(ctx, "MIDDLE", "")
 	if err != nil {
 		t.Fatalf("preview intermediate short link: %v", err)
 	}
@@ -197,7 +197,7 @@ func TestRedirectServiceIntermediatePreviewAndContinue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("clear intermediate expiration: %v", err)
 	}
-	preview, err = service.Preview(ctx, "middle")
+	preview, err = service.Preview(ctx, "middle", "")
 	if err != nil || preview.ExpiresAt != nil {
 		t.Fatalf("expected preview without expiration, got result %#v error %v", preview, err)
 	}
@@ -234,7 +234,7 @@ func TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit(t *testing.T) {
 	}
 	assertEvents(t, recorder.types, []string{event.ShortLinkOpened, event.AccessConditionChecked})
 	recorder.types = nil
-	preview, err := service.Preview(ctx, "protected")
+	preview, err := service.Preview(ctx, "protected", "")
 	if err != nil || !preview.RequiresPassword || preview.RedirectMode != shortlink.RedirectModeDirect || preview.TargetHost != "example.com" {
 		t.Fatalf("expected protected preview, got %#v error %v", preview, err)
 	}
@@ -468,10 +468,10 @@ func TestRedirectServicePreviewRejectsCorruptStoredTargets(t *testing.T) {
 	}
 	service := shortlink.NewRedirectService(pool, nil)
 
-	if _, err := service.Preview(ctx, "invalid1"); err == nil || !strings.Contains(err.Error(), "parse stored target URL") {
+	if _, err := service.Preview(ctx, "invalid1", ""); err == nil || !strings.Contains(err.Error(), "parse stored target URL") {
 		t.Fatalf("expected stored target parse error, got %v", err)
 	}
-	if _, err := service.Preview(ctx, "hostless"); err == nil || !strings.Contains(err.Error(), "no hostname") {
+	if _, err := service.Preview(ctx, "hostless", ""); err == nil || !strings.Contains(err.Error(), "no hostname") {
 		t.Fatalf("expected stored target hostname error, got %v", err)
 	}
 }
@@ -506,19 +506,19 @@ func TestRedirectServiceBlocksExpiredAndInvalidPreviewLinks(t *testing.T) {
 	assertEvents(t, recorder.types, []string{event.AccessConditionChecked, event.RedirectBlocked})
 
 	recorder.types = nil
-	_, err = service.Preview(ctx, "expired")
+	_, err = service.Preview(ctx, "expired", "")
 	if !errors.Is(err, shortlink.ErrShortLinkExpired) || len(recorder.types) != 0 {
 		t.Fatalf("expected event-free expired preview error, got %v events %#v", err, recorder.types)
 	}
-	_, err = service.Preview(ctx, "direct1")
+	_, err = service.Preview(ctx, "direct1", "")
 	if !errors.Is(err, shortlink.ErrShortLinkNotIntermediate) {
 		t.Fatalf("expected direct preview rejection, got %v", err)
 	}
-	_, err = service.Preview(ctx, "deleted")
+	_, err = service.Preview(ctx, "deleted", "")
 	if !errors.Is(err, shortlink.ErrShortLinkMissing) {
 		t.Fatalf("expected deleted preview to be missing, got %v", err)
 	}
-	_, err = service.Preview(ctx, "disabled2")
+	_, err = service.Preview(ctx, "disabled2", "")
 	if !errors.Is(err, shortlink.ErrShortLinkDisabled) || len(recorder.types) != 0 {
 		t.Fatalf("expected event-free disabled preview error, got %v events %#v", err, recorder.types)
 	}

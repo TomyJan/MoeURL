@@ -75,9 +75,7 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			api.Post("/admin/short-link/delete", shortLinkHandler.AdminDelete)
 		}
 		if redirectHandler != nil {
-			api.Get("/public/short-link/preview", func(w nethttp.ResponseWriter, r *nethttp.Request) {
-				redirectHandler.Preview(w, r)
-			})
+			api.Get("/public/short-link/preview", redirectHandler.PreviewPublic)
 			api.Post("/public/short-link/unlock", redirectHandler.Unlock)
 		}
 		if dependency.User != nil {
@@ -99,7 +97,7 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			redirectHandler.Continue(w, r, chi.URLParam(r, "slug"))
 		})
 		router.Get("/go/{slug}/preview", func(w nethttp.ResponseWriter, r *nethttp.Request) {
-			redirectHandler.Preview(w, r, chi.URLParam(r, "slug"))
+			redirectHandler.PreviewScoped(w, r, chi.URLParam(r, "slug"))
 		})
 	}
 	if dependency.StaticDir != "" {

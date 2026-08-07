@@ -335,15 +335,17 @@ func (service *routerRedirectService) Open(_ context.Context, slug string) (shor
 	return service.openResult, nil
 }
 
-func (service *routerRedirectService) Preview(_ context.Context, slug string, accessTokens ...string) (shortlink.PreviewResult, error) {
+func (service *routerRedirectService) Preview(_ context.Context, slug string, accessToken string) (shortlink.PreviewResult, error) {
 	service.previewSlugs = append(service.previewSlugs, slug)
-	if len(accessTokens) > 0 {
-		service.previewToken = accessTokens[0]
-	}
+	service.previewToken = accessToken
 	if service.previewResult.Slug == "" {
 		return shortlink.PreviewResult{Slug: "abc123", TargetHost: "example.com", IntermediateDelaySeconds: 5}, nil
 	}
 	return service.previewResult, nil
+}
+
+func (service *routerRedirectService) Unlock(context.Context, string, string) (shortlink.AccessGrant, error) {
+	return shortlink.AccessGrant{}, nil
 }
 
 func (service *routerRedirectService) Continue(_ context.Context, slug string, _ ...string) (shortlink.RedirectResult, error) {

@@ -111,7 +111,7 @@ func (s *RedirectService) Open(ctx context.Context, slug string) (OpenResult, er
 }
 
 // Preview returns event-free, non-sensitive data for an intermediate page.
-func (s *RedirectService) Preview(ctx context.Context, slug string, accessTokens ...string) (PreviewResult, error) {
+func (s *RedirectService) Preview(ctx context.Context, slug string, accessToken string) (PreviewResult, error) {
 	slug = strings.ToLower(slug)
 	link, err := s.queries.GetShortLinkBySlug(ctx, slug)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -126,10 +126,6 @@ func (s *RedirectService) Preview(ctx context.Context, slug string, accessTokens
 	}
 	requiresPassword := passwordEnabled
 	if passwordEnabled {
-		accessToken := ""
-		if len(accessTokens) > 0 {
-			accessToken = accessTokens[0]
-		}
 		valid, err := s.hasValidAccessGrant(ctx, link.ID, accessToken)
 		if err != nil {
 			return PreviewResult{}, err
@@ -181,11 +177,7 @@ func (s *RedirectService) Continue(ctx context.Context, slug string, accessToken
 			s.record(ctx, event.RedirectBlocked, slug, shortLinkID)
 			return RedirectResult{}, ErrPasswordRequired
 		}
-		linkUUID, err := uuid.Parse(shortLinkID)
-		if err != nil {
-			return RedirectResult{}, err
-		}
-		valid, err := s.hasValidAccessGrant(ctx, uuidToPgtype(linkUUID), accessToken)
+		valid, err := s.hasValidAccessGrant(ctx, link.ID, accessToken)
 		if err != nil {
 			return RedirectResult{}, err
 		}
