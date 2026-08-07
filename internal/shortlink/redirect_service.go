@@ -307,6 +307,7 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 	return AccessGrant{Token: token, ExpiresAt: expiresAt}, nil
 }
 
+// checkAccess records access-condition auditing around the shared validation rules.
 func (s *RedirectService) checkAccess(ctx context.Context, slug string, shortLinkID string, status string, expired bool, redirectMode string, requireIntermediate bool) error {
 	s.record(ctx, event.AccessConditionChecked, slug, shortLinkID)
 	if err := validateAccessConditions(status, expired, redirectMode, requireIntermediate); err != nil {
@@ -316,6 +317,7 @@ func (s *RedirectService) checkAccess(ctx context.Context, slug string, shortLin
 	return nil
 }
 
+// validateAccessConditions enforces enabled, unexpired, and redirect-mode requirements.
 func validateAccessConditions(status string, expired bool, redirectMode string, requireIntermediate bool) error {
 	if status != shortLinkStatusActive {
 		return ErrShortLinkDisabled
@@ -329,11 +331,13 @@ func validateAccessConditions(status string, expired bool, redirectMode string, 
 	return nil
 }
 
+// recordBlocked records a best-effort non-statistical blocked-access audit event.
 func (s *RedirectService) recordBlocked(ctx context.Context, slug string, shortLinkID string) {
 	s.record(ctx, event.AccessConditionChecked, slug, shortLinkID)
 	s.record(ctx, event.RedirectBlocked, slug, shortLinkID)
 }
 
+// optionalTime converts a nullable database timestamp into the public pointer form.
 func optionalTime(valid bool, value time.Time) *time.Time {
 	if !valid {
 		return nil

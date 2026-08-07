@@ -685,6 +685,7 @@ func validatePasswordInput(input *PasswordInput) (string, string, error) {
 	}
 }
 
+// normalizeExpiration validates an expiration update against authoritative database time.
 func (s *Service) normalizeExpiration(ctx context.Context, input *ExpirationInput) (string, pgtype.Timestamptz, error) {
 	if input == nil {
 		return expirationModeKeep, pgtype.Timestamptz{}, nil
@@ -712,14 +713,17 @@ func (s *Service) normalizeExpiration(ctx context.Context, input *ExpirationInpu
 	}
 }
 
+// isAllowedRedirectMode reports whether a redirect mode belongs to the persisted contract.
 func isAllowedRedirectMode(value string) bool {
 	return value == RedirectModeDirect || value == RedirectModeIntermediate
 }
 
+// isAllowedIntermediateDelay reports whether an intermediate delay is within product bounds.
 func isAllowedIntermediateDelay(value int16) bool {
 	return value >= minIntermediateDelay && value <= maxIntermediateDelay
 }
 
+// optionalInt2 converts an optional delay into the nullable SQLC representation.
 func optionalInt2(value *int16) pgtype.Int2 {
 	if value == nil {
 		return pgtype.Int2{}
@@ -727,6 +731,7 @@ func optionalInt2(value *int16) pgtype.Int2 {
 	return pgtype.Int2{Int16: *value, Valid: true}
 }
 
+// expirationValues maps a stored expiration and derived state into the API model.
 func expirationValues(value pgtype.Timestamptz, expired bool) (*time.Time, bool) {
 	if !value.Valid {
 		return nil, false

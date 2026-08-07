@@ -20,6 +20,7 @@ export function shouldSkipDockerCompose(envValue = process.env.MOEURL_E2E_SKIP_D
   return normalized === '1' || normalized === 'true'
 }
 
+/** Selects an installed browser channel when bundled Chromium is unavailable. */
 export function detectFallbackBrowserChannel(
   executableExists: (path: string) => boolean = existsSync,
   bundledChromiumPath = chromium.executablePath(),

@@ -176,6 +176,7 @@ func (h *RedirectHandler) Continue(w http.ResponseWriter, r *http.Request, slug 
 	h.writeTargetRedirect(w, r, result, strings.ToLower(slug))
 }
 
+// writeTargetRedirect emits the final redirect before recording a successful access event.
 func (h *RedirectHandler) writeTargetRedirect(w http.ResponseWriter, r *http.Request, result RedirectResult, slug string) {
 	w.Header().Set("Location", result.TargetURL)
 	w.WriteHeader(http.StatusFound)
@@ -186,6 +187,7 @@ func (h *RedirectHandler) writeTargetRedirect(w http.ResponseWriter, r *http.Req
 	}
 }
 
+// writePublicAccessError maps access failures to safe public redirect states.
 func writePublicAccessError(w http.ResponseWriter, r *http.Request, slug string, err error) {
 	switch {
 	case errors.Is(err, ErrShortLinkMissing):
@@ -205,6 +207,7 @@ func writePublicAccessError(w http.ResponseWriter, r *http.Request, slug string,
 	}
 }
 
+// redirectToPublicAccessState redirects visitors to a normalized client-side status route.
 func redirectToPublicAccessState(w http.ResponseWriter, r *http.Request, slug string, reason string) {
 	location := "/go/" + url.PathEscape(strings.ToLower(slug)) + "?reason=" + url.QueryEscape(reason)
 	http.Redirect(w, r, location, http.StatusFound)
