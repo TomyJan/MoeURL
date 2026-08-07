@@ -1,7 +1,6 @@
 package testdb
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -53,14 +52,8 @@ func TestDockerRequired(t *testing.T) {
 	}
 }
 
-// TestDockerProbeContextIsIndependent verifies caller cancellation cannot poison the cached Docker probe.
+// TestDockerProbeContextIsIndependent verifies Docker probing uses its own active timeout context.
 func TestDockerProbeContextIsIndependent(t *testing.T) {
-	callerContext, cancelCaller := context.WithCancel(context.Background())
-	cancelCaller()
-	if !errors.Is(callerContext.Err(), context.Canceled) {
-		t.Fatalf("expected canceled caller context, got %v", callerContext.Err())
-	}
-
 	probeContext, cancelProbe := newDockerProbeContext()
 	defer cancelProbe()
 	if err := probeContext.Err(); err != nil {
