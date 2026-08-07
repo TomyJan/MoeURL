@@ -165,6 +165,18 @@ func TestShortLinkPasswordMigrationAddsProtectedAccessStateAndRollsBack(t *testi
 	if passwordColumnCount != 0 {
 		t.Fatalf("expected password columns to be removed, found %d", passwordColumnCount)
 	}
+	var grantTableExistsAfterRollback bool
+	if err := database.QueryRowContext(ctx, `
+		select exists (
+			select 1 from information_schema.tables
+			where table_schema = 'public' and table_name = 'short_link_access_grant'
+		)
+	`).Scan(&grantTableExistsAfterRollback); err != nil {
+		t.Fatalf("check rolled-back access grant table: %v", err)
+	}
+	if grantTableExistsAfterRollback {
+		t.Fatal("expected short_link_access_grant table to be removed")
+	}
 	assertShortLinkPasswordConstraintValidation(t, ctx, database, false, false)
 	if err := database.QueryRowContext(ctx, `select permissions ? 'short_link:set_password' from user_group where key = 'user'`).Scan(&passwordPermission); err != nil {
 		t.Fatalf("query rolled-back password permission: %v", err)
