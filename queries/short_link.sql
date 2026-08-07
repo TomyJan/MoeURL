@@ -115,13 +115,16 @@ set target_url = coalesce(sqlc.narg('target_url'), target_url),
         when 'at' then sqlc.narg('expires_at')::timestamptz
         else expires_at
     end,
-    password_hash = case sqlc.arg('password_mode')::text
-        when 'never' then null
-        when 'set' then sqlc.narg('password_hash')::text
+    password_hash = case
+        when sqlc.arg('password_mode')::text = 'never' then null
+        when sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> ''
+            then sqlc.narg('password_hash')::text
         else password_hash
     end,
     password_updated_at = case
-        when sqlc.arg('password_mode')::text in ('never', 'set') then clock_timestamp()
+        when sqlc.arg('password_mode')::text = 'never'
+            or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
+            then clock_timestamp()
         else password_updated_at
     end,
     updated_at = now()
@@ -216,13 +219,16 @@ set target_url = coalesce(sqlc.narg('target_url'), target_url),
         when 'at' then sqlc.narg('expires_at')::timestamptz
         else expires_at
     end,
-    password_hash = case sqlc.arg('password_mode')::text
-        when 'never' then null
-        when 'set' then sqlc.narg('password_hash')::text
+    password_hash = case
+        when sqlc.arg('password_mode')::text = 'never' then null
+        when sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> ''
+            then sqlc.narg('password_hash')::text
         else password_hash
     end,
     password_updated_at = case
-        when sqlc.arg('password_mode')::text in ('never', 'set') then clock_timestamp()
+        when sqlc.arg('password_mode')::text = 'never'
+            or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
+            then clock_timestamp()
         else password_updated_at
     end,
     updated_at = now()

@@ -19,9 +19,6 @@ create table short_link_access_grant (
     created_at timestamptz not null
 );
 
-create index short_link_access_grant_link_expiry_idx
-    on short_link_access_grant(short_link_id, expires_at);
-
 create index short_link_access_grant_expiry_idx
     on short_link_access_grant(expires_at);
 
@@ -52,7 +49,8 @@ set permissions = permissions
             else '["short_link:set_password"]'::jsonb
         end,
     updated_at = now()
-where key in ('user', 'admin');
+where key in ('user', 'admin')
+    and not (permissions ? 'short_link:set_password');
 -- +goose StatementEnd
 
 -- +goose Down

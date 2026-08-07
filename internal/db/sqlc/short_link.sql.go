@@ -717,13 +717,16 @@ set target_url = coalesce($1, target_url),
         when 'at' then $6::timestamptz
         else expires_at
     end,
-    password_hash = case $7::text
-        when 'never' then null
-        when 'set' then $8::text
+    password_hash = case
+        when $7::text = 'never' then null
+        when $7::text = 'set' and coalesce($8::text, '') <> ''
+            then $8::text
         else password_hash
     end,
     password_updated_at = case
-        when $7::text in ('never', 'set') then clock_timestamp()
+        when $7::text = 'never'
+            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+            then clock_timestamp()
         else password_updated_at
     end,
     updated_at = now()
@@ -818,13 +821,16 @@ set target_url = coalesce($1, target_url),
         when 'at' then $6::timestamptz
         else expires_at
     end,
-    password_hash = case $7::text
-        when 'never' then null
-        when 'set' then $8::text
+    password_hash = case
+        when $7::text = 'never' then null
+        when $7::text = 'set' and coalesce($8::text, '') <> ''
+            then $8::text
         else password_hash
     end,
     password_updated_at = case
-        when $7::text in ('never', 'set') then clock_timestamp()
+        when $7::text = 'never'
+            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+            then clock_timestamp()
         else password_updated_at
     end,
     updated_at = now()

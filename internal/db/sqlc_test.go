@@ -267,6 +267,33 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 		t.Fatalf("separate password update timestamps: %v", err)
 	}
 
+	ownerEmptyPassword, err := queries.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
+		ID:             uuidToPgtype(configuredID),
+		OwnerID:        uuidToPgtype(ownerID),
+		PasswordMode:   "set",
+		PasswordHash:   pgtype.Text{},
+		ExpirationMode: "keep",
+	})
+	if err != nil {
+		t.Fatalf("ignore empty owner password hash: %v", err)
+	}
+	if !ownerEmptyPassword.PasswordHash.Valid || ownerEmptyPassword.PasswordHash.String != updated.PasswordHash.String || !ownerEmptyPassword.PasswordUpdatedAt.Time.Equal(updated.PasswordUpdatedAt.Time) {
+		t.Fatalf("empty owner password hash changed password state: %#v", ownerEmptyPassword)
+	}
+
+	adminEmptyPassword, err := queries.UpdateAnyShortLink(ctx, sqlc.UpdateAnyShortLinkParams{
+		ID:             uuidToPgtype(configuredID),
+		PasswordMode:   "set",
+		PasswordHash:   pgtype.Text{String: "", Valid: true},
+		ExpirationMode: "keep",
+	})
+	if err != nil {
+		t.Fatalf("ignore empty admin password hash: %v", err)
+	}
+	if !adminEmptyPassword.PasswordHash.Valid || adminEmptyPassword.PasswordHash.String != updated.PasswordHash.String || !adminEmptyPassword.PasswordUpdatedAt.Time.Equal(updated.PasswordUpdatedAt.Time) {
+		t.Fatalf("empty admin password hash changed password state: %#v", adminEmptyPassword)
+	}
+
 	passwordUpdated, err := queries.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
 		ID:             uuidToPgtype(configuredID),
 		OwnerID:        uuidToPgtype(ownerID),

@@ -125,6 +125,20 @@ func TestShortLinkPasswordMigrationAddsProtectedAccessStateAndRollsBack(t *testi
 	if !expiryIndexExists {
 		t.Fatal("expected short_link_access_grant_expiry_idx")
 	}
+	var linkExpiryIndexExists bool
+	if err := database.QueryRowContext(ctx, `
+		select exists (
+			select 1 from pg_indexes
+			where schemaname = 'public'
+				and tablename = 'short_link_access_grant'
+				and indexname = 'short_link_access_grant_link_expiry_idx'
+		)
+	`).Scan(&linkExpiryIndexExists); err != nil {
+		t.Fatalf("check redundant access grant index: %v", err)
+	}
+	if linkExpiryIndexExists {
+		t.Fatal("expected redundant short_link_access_grant_link_expiry_idx to be absent")
+	}
 	var passwordPermission bool
 	if err := database.QueryRowContext(ctx, `select permissions ? 'short_link:set_password' from user_group where key = 'user'`).Scan(&passwordPermission); err != nil {
 		t.Fatalf("query upgraded password permission: %v", err)
@@ -171,12 +185,20 @@ func TestShortLinkPasswordMigrationPreservesGroupsCreatedAfterUpgrade(t *testing
 	}
 	if _, err := database.ExecContext(ctx, `
 		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
-		values ('00000000-0000-0000-0000-000000000003', 'admin', 'Admin', '', '["short_link:set_password"]'::jsonb, true, now(), now())
+		values ('00000000-0000-0000-0000-000000000003', 'admin', 'Admin', '', '["short_link:set_password"]'::jsonb, true, now(), '2026-01-01T00:00:00Z')
 	`); err != nil {
 		t.Fatalf("insert pre-upgrade admin group: %v", err)
 	}
 	if err := goose.UpTo(database, migrationsDir, 6); err != nil {
 		t.Fatalf("upgrade password migration: %v", err)
+	}
+	var adminUpdatedAt time.Time
+	if err := database.QueryRowContext(ctx, `select updated_at from user_group where key = 'admin'`).Scan(&adminUpdatedAt); err != nil {
+		t.Fatalf("query unchanged admin update time: %v", err)
+	}
+	expectedAdminUpdatedAt := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	if !adminUpdatedAt.Equal(expectedAdminUpdatedAt) {
+		t.Fatalf("expected unchanged admin updated_at %s, got %s", expectedAdminUpdatedAt, adminUpdatedAt)
 	}
 	if _, err := database.ExecContext(ctx, `
 		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
