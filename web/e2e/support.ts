@@ -8,12 +8,22 @@ export function escapeRegExp(value: string): string {
 
 /** Finds a short link by slug through the authenticated list API. */
 export async function findShortLink(page: Page, slug: string) {
-  const response = await page.request.get('/api/v1/short-link/list?page=1&pageSize=20')
-  await expect(response).toBeOK()
-  const payload = await response.json() as {
-    data: { items: Array<{ id: string; passwordEnabled: boolean; slug: string }> }
+  const pageSize = 100
+  for (let pageNumber = 1; ; pageNumber += 1) {
+    const response = await page.request.get(`/api/v1/short-link/list?page=${pageNumber}&pageSize=${pageSize}`)
+    await expect(response).toBeOK()
+    const payload = await response.json() as {
+      data: { items: Array<{ id: string; passwordEnabled: boolean; slug: string }> }
+      meta: { page: number; pageSize: number; total: number }
+    }
+    const link = payload.data.items.find((item) => item.slug === slug)
+    if (link) {
+      return link
+    }
+    if (payload.meta.page * payload.meta.pageSize >= payload.meta.total) {
+      return undefined
+    }
   }
-  return payload.data.items.find((link) => link.slug === slug)
 }
 
 /** Reads the successful-redirect count for a short link. */

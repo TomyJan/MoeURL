@@ -2,11 +2,10 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { loadConfigFromFile } from 'vite'
-import { describe, expect, it } from 'vitest'
-
-import playwrightConfig from '../../playwright.config'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const repositoryRoot = resolve(__dirname, '../../..')
+let originalSkipDocker: string | undefined
 
 type RolldownChunkGroup = {
   name?: string
@@ -35,6 +34,21 @@ function configuredChunkGroups(config: LoadedViteConfig) {
 }
 
 describe('deployment configuration', () => {
+  beforeEach(() => {
+    originalSkipDocker = process.env.MOEURL_E2E_SKIP_DOCKER
+    delete process.env.MOEURL_E2E_SKIP_DOCKER
+    vi.resetModules()
+  })
+
+  afterEach(() => {
+    if (originalSkipDocker === undefined) {
+      delete process.env.MOEURL_E2E_SKIP_DOCKER
+    } else {
+      process.env.MOEURL_E2E_SKIP_DOCKER = originalSkipDocker
+    }
+    vi.resetModules()
+  })
+
   it('keeps the development PostgreSQL volume on the established mount path', () => {
     const compose = readFileSync(resolve(repositoryRoot, 'docker-compose.yml'), 'utf8')
 
@@ -109,7 +123,9 @@ describe('deployment configuration', () => {
     expect(viteConfig.build?.rolldownOptions?.output?.codeSplitting?.maxSize).toBeUndefined()
   })
 
-  it('allows a cold Docker image build to finish before Playwright starts', () => {
+  it('allows a cold Docker image build to finish before Playwright starts', async () => {
+    const { default: playwrightConfig } = await import('../../playwright.config')
+
     expect(playwrightConfig.workers).toBe(1)
     expect(playwrightConfig.webServer).not.toBeInstanceOf(Array)
     expect(playwrightConfig.webServer).toMatchObject({ timeout: 600_000 })
