@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/TomyJan/MoeURL/internal/event"
 )
@@ -18,7 +19,7 @@ type RedirectPort interface {
 	Open(ctx context.Context, slug string) (OpenResult, error)
 	Preview(ctx context.Context, slug string, accessToken string) (PreviewResult, error)
 	Unlock(ctx context.Context, slug string, password string) (AccessGrant, error)
-	Continue(ctx context.Context, slug string, accessTokens ...string) (RedirectResult, error)
+	Continue(ctx context.Context, slug string, accessToken string) (RedirectResult, error)
 }
 
 // RedirectHandler handles public short-link access requests.
@@ -150,6 +151,10 @@ func (h *RedirectHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	maxAge := int(time.Until(grant.ExpiresAt).Seconds())
+	if maxAge <= 0 {
+		maxAge = -1
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     accessCookieName,
 		Value:    grant.Token,
@@ -157,7 +162,7 @@ func (h *RedirectHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Secure:   h.secureCookies,
 		SameSite: http.SameSiteLaxMode,
-		MaxAge:   int(accessGrantTTL.Seconds()),
+		MaxAge:   maxAge,
 	})
 	ok(w, map[string]bool{"unlocked": true})
 }

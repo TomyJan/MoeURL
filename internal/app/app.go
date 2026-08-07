@@ -60,7 +60,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		grantCleanupDone = cleanupDone
 		go func() {
 			defer close(cleanupDone)
-			redirectService.RunAccessGrantCleanup(cleanupContext, accessGrantCleanupInterval)
+			redirectService.RunAccessGrantCleanup(cleanupContext, accessGrantCleanupInterval, logger)
 		}()
 	}
 	deps.StaticDir = cfg.StaticDir
@@ -87,6 +87,7 @@ func (a *App) Run() error {
 
 // Shutdown closes database resources and gracefully stops the HTTP server.
 func (a *App) Shutdown(ctx context.Context) error {
+	shutdownErr := a.server.Shutdown(ctx)
 	if a.grantCleanupCancel != nil {
 		a.grantCleanupCancel()
 		<-a.grantCleanupDone
@@ -94,5 +95,5 @@ func (a *App) Shutdown(ctx context.Context) error {
 	if a.pool != nil {
 		a.pool.Close()
 	}
-	return a.server.Shutdown(ctx)
+	return shutdownErr
 }

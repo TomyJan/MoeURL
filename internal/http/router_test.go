@@ -351,7 +351,7 @@ func (service *routerRedirectService) Unlock(context.Context, string, string) (s
 }
 
 // Continue records the slug forwarded by the fixed continue route.
-func (service *routerRedirectService) Continue(_ context.Context, slug string, _ ...string) (shortlink.RedirectResult, error) {
+func (service *routerRedirectService) Continue(_ context.Context, slug string, _ string) (shortlink.RedirectResult, error) {
 	service.continueSlugs = append(service.continueSlugs, slug)
 	if service.continueResult.TargetURL == "" {
 		return shortlink.RedirectResult{TargetURL: "https://example.com"}, nil

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/url"
 	"strings"
 	"time"
@@ -152,7 +153,7 @@ func (s *RedirectService) Preview(ctx context.Context, slug string, accessToken 
 }
 
 // Continue resolves the final target after rechecking all access conditions.
-func (s *RedirectService) Continue(ctx context.Context, slug string, accessTokens ...string) (RedirectResult, error) {
+func (s *RedirectService) Continue(ctx context.Context, slug string, accessToken string) (RedirectResult, error) {
 	slug = strings.ToLower(slug)
 	link, err := s.queries.GetShortLinkBySlug(ctx, slug)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -169,10 +170,6 @@ func (s *RedirectService) Continue(ctx context.Context, slug string, accessToken
 		return RedirectResult{}, err
 	}
 	if passwordEnabled {
-		accessToken := ""
-		if len(accessTokens) > 0 {
-			accessToken = accessTokens[0]
-		}
 		if accessToken == "" {
 			s.record(ctx, event.RedirectBlocked, slug, shortLinkID)
 			return RedirectResult{}, ErrPasswordRequired
@@ -314,7 +311,7 @@ func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context) error 
 }
 
 // RunAccessGrantCleanup removes expired grants periodically until the context is canceled.
-func (s *RedirectService) RunAccessGrantCleanup(ctx context.Context, interval time.Duration) {
+func (s *RedirectService) RunAccessGrantCleanup(ctx context.Context, interval time.Duration, logger *slog.Logger) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
@@ -322,7 +319,9 @@ func (s *RedirectService) RunAccessGrantCleanup(ctx context.Context, interval ti
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			_ = s.CleanupExpiredAccessGrants(ctx)
+			if err := s.CleanupExpiredAccessGrants(ctx); err != nil {
+				logger.ErrorContext(ctx, "access_grant_cleanup_failed", "error", err)
+			}
 		}
 	}
 }

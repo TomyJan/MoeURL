@@ -1,9 +1,12 @@
 package shortlink_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -148,7 +151,7 @@ func TestRedirectServiceReturnsDatabaseError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected preview database error")
 	}
-	_, err = service.Continue(ctx, "abc123")
+	_, err = service.Continue(ctx, "abc123", "")
 	if err == nil {
 		t.Fatal("expected continue database error")
 	}
@@ -202,7 +205,7 @@ func TestRedirectServiceIntermediatePreviewAndContinue(t *testing.T) {
 		t.Fatalf("expected preview without expiration, got result %#v error %v", preview, err)
 	}
 
-	continued, err := service.Continue(ctx, "middle")
+	continued, err := service.Continue(ctx, "middle", "")
 	if err != nil {
 		t.Fatalf("continue intermediate short link: %v", err)
 	}
@@ -242,7 +245,7 @@ func TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit(t *testing.T) {
 	if len(recorder.types) != 0 {
 		t.Fatalf("expected preview without events, got %#v", recorder.types)
 	}
-	_, err = service.Continue(ctx, "protected")
+	_, err = service.Continue(ctx, "protected", "")
 	if !errors.Is(err, shortlink.ErrPasswordRequired) {
 		t.Fatalf("expected missing grant error, got %v", err)
 	}
@@ -431,6 +434,7 @@ func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
 		t.Fatalf("configure protected password: %v", err)
 	}
 	if _, err := pool.Exec(ctx, `
+		-- 501 is the cleanup batch limit of 500 plus one remaining row.
 		insert into short_link_access_grant (id, short_link_id, token_hash, expires_at, created_at)
 		select ('00000000-0000-0001-0000-' || lpad(value::text, 12, '0'))::uuid,
 			$1, 'expired-grant-' || value, now() - interval '1 second', now() - interval '1 minute'
@@ -450,6 +454,7 @@ func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
 		t.Fatalf("query expired access grants: %v", err)
 	}
 	if expiredCount != 501 {
+		// This assertion depends on the cleanup batch limit remaining 500.
 		t.Fatalf("expected unlock to leave expired grants for background cleanup, got %d rows", expiredCount)
 	}
 	if err := service.CleanupExpiredAccessGrants(ctx); err != nil {
@@ -459,6 +464,7 @@ func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
 		t.Fatalf("query expired access grants after bounded cleanup: %v", err)
 	}
 	if expiredCount != 1 {
+		// One row remains because CleanupExpiredAccessGrants deletes at most 500 rows.
 		t.Fatalf("expected one expired access grant after bounded cleanup, got %d rows", expiredCount)
 	}
 
@@ -467,9 +473,9 @@ func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
 	defer cancelCleanup()
 	go func() {
 		defer close(cleanupDone)
-		service.RunAccessGrantCleanup(cleanupCtx, time.Millisecond)
+		service.RunAccessGrantCleanup(cleanupCtx, time.Millisecond, slog.Default())
 	}()
-	deadline := time.Now().Add(time.Second)
+	deadline := time.Now().Add(5 * time.Second)
 	for expiredCount != 0 && time.Now().Before(deadline) {
 		if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where expires_at <= now()`).Scan(&expiredCount); err != nil {
 			t.Fatalf("query periodically cleaned access grants: %v", err)
@@ -488,6 +494,30 @@ func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
 	}
 	if activeCount != 1 {
 		t.Fatalf("expected new access grant to remain, got %d rows", activeCount)
+	}
+}
+
+// TestRedirectServiceLogsAccessGrantCleanupFailures verifies background cleanup errors remain observable.
+func TestRedirectServiceLogsAccessGrantCleanupFailures(t *testing.T) {
+	logOutput := &notifyingLogWriter{written: make(chan struct{})}
+	logger := slog.New(slog.NewTextHandler(logOutput, nil))
+
+	cleanupContext, cancelCleanup := context.WithCancel(context.Background())
+	cleanupDone := make(chan struct{})
+	go func() {
+		defer close(cleanupDone)
+		shortlink.NewRedirectService(nil, nil).RunAccessGrantCleanup(cleanupContext, time.Millisecond, logger)
+	}()
+	select {
+	case <-logOutput.written:
+	case <-time.After(time.Second):
+	}
+	cancelCleanup()
+	<-cleanupDone
+
+	output := logOutput.String()
+	if !strings.Contains(output, "access_grant_cleanup_failed") || !strings.Contains(output, "redirect service database is unavailable") {
+		t.Fatalf("expected cleanup error context in log, got %q", output)
 	}
 }
 
@@ -538,7 +568,7 @@ func TestRedirectServiceBlocksExpiredAndInvalidPreviewLinks(t *testing.T) {
 	assertEvents(t, recorder.types, []string{event.ShortLinkOpened, event.AccessConditionChecked, event.RedirectBlocked})
 
 	recorder.types = nil
-	_, err = service.Continue(ctx, "expired")
+	_, err = service.Continue(ctx, "expired", "")
 	if !errors.Is(err, shortlink.ErrShortLinkExpired) {
 		t.Fatalf("expected expired continue error, got %v", err)
 	}
@@ -590,7 +620,7 @@ func TestRedirectServiceContinueRechecksEveryAccessCondition(t *testing.T) {
 			recorder := &recordingRecorder{}
 			service := shortlink.NewRedirectService(pool, recorder)
 
-			_, err := service.Continue(ctx, tt.slug)
+			_, err := service.Continue(ctx, tt.slug, "")
 			if !errors.Is(err, tt.err) {
 				t.Fatalf("expected %v, got %v", tt.err, err)
 			}
@@ -602,6 +632,19 @@ func TestRedirectServiceContinueRechecksEveryAccessCondition(t *testing.T) {
 type recordingRecorder struct {
 	types []string
 	ids   []string
+}
+
+type notifyingLogWriter struct {
+	bytes.Buffer
+	once    sync.Once
+	written chan struct{}
+}
+
+// Write captures a log line and signals the waiting cleanup test.
+func (w *notifyingLogWriter) Write(data []byte) (int, error) {
+	written, err := w.Buffer.Write(data)
+	w.once.Do(func() { close(w.written) })
+	return written, err
 }
 
 // Record captures redirect events for service assertions.

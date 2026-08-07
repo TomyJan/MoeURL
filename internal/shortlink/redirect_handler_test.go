@@ -73,7 +73,8 @@ func TestRedirectHandlerRedirectsProtectedSlugToPasswordPage(t *testing.T) {
 
 // TestRedirectHandlerUnlockSetsScopedCookie verifies successful unlocks scope grants to the requested short link.
 func TestRedirectHandlerUnlockSetsScopedCookie(t *testing.T) {
-	service := &fakeRedirectService{unlockGrant: shortlink.AccessGrant{Token: "raw-token"}}
+	grantExpiresAt := time.Now().Add(2 * time.Minute)
+	service := &fakeRedirectService{unlockGrant: shortlink.AccessGrant{Token: "raw-token", ExpiresAt: grantExpiresAt}}
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		Redirect: service,
 	})
@@ -98,7 +99,7 @@ func TestRedirectHandlerUnlockSetsScopedCookie(t *testing.T) {
 		t.Fatalf("expected one access cookie, got %d; response headers: %#v", len(cookies), response.Header())
 	}
 	cookie := cookies[0]
-	if cookie.Name != "moeurl_short_link_access" || cookie.Value != "raw-token" || cookie.Path != "/go/abc123" || !cookie.HttpOnly || cookie.Secure || cookie.SameSite != http.SameSiteLaxMode || cookie.MaxAge != 900 {
+	if cookie.Name != "moeurl_short_link_access" || cookie.Value != "raw-token" || cookie.Path != "/go/abc123" || !cookie.HttpOnly || cookie.Secure || cookie.SameSite != http.SameSiteLaxMode || cookie.MaxAge < 118 || cookie.MaxAge > 120 {
 		t.Fatalf("unexpected access cookie: %#v", cookie)
 	}
 	if service.unlockSlug != "abc123" {
@@ -109,7 +110,7 @@ func TestRedirectHandlerUnlockSetsScopedCookie(t *testing.T) {
 // TestRedirectHandlerUnlockSetsSecureCookie verifies production unlock grants require secure transport.
 func TestRedirectHandlerUnlockSetsSecureCookie(t *testing.T) {
 	handler := shortlink.NewRedirectHandlerWithAnalyticsAndSecurity(
-		&fakeRedirectService{unlockGrant: shortlink.AccessGrant{Token: "raw-token"}},
+		&fakeRedirectService{unlockGrant: shortlink.AccessGrant{Token: "raw-token", ExpiresAt: time.Now().Add(2 * time.Minute)}},
 		&recordingRecorder{},
 		"",
 		true,
@@ -125,6 +126,25 @@ func TestRedirectHandlerUnlockSetsSecureCookie(t *testing.T) {
 	}
 	if !cookies[0].Secure {
 		t.Fatalf("expected secure access cookie, got %#v", cookies[0])
+	}
+}
+
+// TestRedirectHandlerUnlockExpiresStaleCookie verifies nonpositive grant lifetimes cannot create a persistent cookie.
+func TestRedirectHandlerUnlockExpiresStaleCookie(t *testing.T) {
+	handler := shortlink.NewRedirectHandler(&fakeRedirectService{
+		unlockGrant: shortlink.AccessGrant{Token: "stale-token", ExpiresAt: time.Now().Add(-time.Second)},
+	})
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString(`{"slug":"abc123","password":"correct horse"}`))
+	response := httptest.NewRecorder()
+
+	handler.Unlock(response, request)
+
+	cookies := response.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("expected one access cookie, got %d", len(cookies))
+	}
+	if cookies[0].MaxAge != -1 {
+		t.Fatalf("expected stale access cookie to expire immediately, got %#v", cookies[0])
 	}
 }
 
@@ -652,10 +672,8 @@ func (f *fakeRedirectService) Preview(_ context.Context, _ string, accessToken s
 }
 
 // Continue returns the configured final redirect result.
-func (f *fakeRedirectService) Continue(_ context.Context, _ string, accessTokens ...string) (shortlink.RedirectResult, error) {
-	if len(accessTokens) > 0 {
-		f.continueToken = accessTokens[0]
-	}
+func (f *fakeRedirectService) Continue(_ context.Context, _ string, accessToken string) (shortlink.RedirectResult, error) {
+	f.continueToken = accessToken
 	if f.continueErr != nil {
 		return shortlink.RedirectResult{}, f.continueErr
 	}
