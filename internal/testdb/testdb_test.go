@@ -3,6 +3,8 @@ package testdb
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -13,7 +15,7 @@ type cleanupReporter struct {
 
 // Errorf captures cleanup diagnostics for assertions without failing a real test instance.
 func (r *cleanupReporter) Errorf(format string, args ...any) {
-	r.errors = append(r.errors, format)
+	r.errors = append(r.errors, fmt.Sprintf(format, args...))
 }
 
 // TestReportCleanupError verifies cleanup errors include the failed operation.
@@ -22,6 +24,9 @@ func TestReportCleanupError(t *testing.T) {
 	reportCleanupError(reporter, "drop test database", errors.New("cleanup failed"))
 	if len(reporter.errors) != 1 {
 		t.Fatalf("expected one cleanup error, got %d", len(reporter.errors))
+	}
+	if !strings.Contains(reporter.errors[0], "drop test database") {
+		t.Fatalf("expected cleanup operation in report, got %q", reporter.errors[0])
 	}
 
 	reportCleanupError(reporter, "close test database", nil)

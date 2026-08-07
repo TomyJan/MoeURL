@@ -135,12 +135,12 @@ func TestRedirectHandlerUnlockMapsPasswordErrorsToBusinessCodes(t *testing.T) {
 		err  error
 		code int
 	}{
-		{name: "required", err: shortlink.ErrPasswordRequired, code: 200111},
-		{name: "invalid", err: shortlink.ErrInvalidPassword, code: 200112},
-		{name: "missing", err: shortlink.ErrShortLinkMissing, code: 200112},
-		{name: "disabled", err: shortlink.ErrShortLinkDisabled, code: 200112},
-		{name: "expired", err: shortlink.ErrShortLinkExpired, code: 200112},
-		{name: "rate limited", err: shortlink.ErrPasswordRateLimited, code: 200113},
+		{name: "required", err: shortlink.ErrPasswordRequired, code: shortlink.CodePasswordRequired},
+		{name: "invalid", err: shortlink.ErrInvalidPassword, code: shortlink.CodeInvalidPassword},
+		{name: "missing", err: shortlink.ErrShortLinkMissing, code: shortlink.CodeInvalidPassword},
+		{name: "disabled", err: shortlink.ErrShortLinkDisabled, code: shortlink.CodeInvalidPassword},
+		{name: "expired", err: shortlink.ErrShortLinkExpired, code: shortlink.CodeInvalidPassword},
+		{name: "rate limited", err: shortlink.ErrPasswordRateLimited, code: shortlink.CodePasswordRateLimited},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			router := apphttp.NewRouter(apphttp.Dependencies{Redirect: &fakeRedirectService{unlockErr: test.err}})
