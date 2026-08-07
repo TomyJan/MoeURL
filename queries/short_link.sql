@@ -127,6 +127,24 @@ set target_url = coalesce(sqlc.narg('target_url'), target_url),
             then clock_timestamp()
         else password_updated_at
     end,
+    password_failed_attempts = case
+        when sqlc.arg('password_mode')::text = 'never'
+            or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
+            then 0
+        else password_failed_attempts
+    end,
+    password_window_started_at = case
+        when sqlc.arg('password_mode')::text = 'never'
+            or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
+            then null
+        else password_window_started_at
+    end,
+    password_blocked_until = case
+        when sqlc.arg('password_mode')::text = 'never'
+            or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
+            then null
+        else password_blocked_until
+    end,
     updated_at = now()
 from locked
 where short_link.id = locked.id
@@ -230,6 +248,24 @@ set target_url = coalesce(sqlc.narg('target_url'), target_url),
             or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
             then clock_timestamp()
         else password_updated_at
+    end,
+    password_failed_attempts = case
+        when sqlc.arg('password_mode')::text = 'never'
+            or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
+            then 0
+        else password_failed_attempts
+    end,
+    password_window_started_at = case
+        when sqlc.arg('password_mode')::text = 'never'
+            or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
+            then null
+        else password_window_started_at
+    end,
+    password_blocked_until = case
+        when sqlc.arg('password_mode')::text = 'never'
+            or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
+            then null
+        else password_blocked_until
     end,
     updated_at = now()
 from locked

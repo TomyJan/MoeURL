@@ -155,6 +155,25 @@ func TestServicePasswordConfigurationRoundTrip(t *testing.T) {
 	if !auth.VerifyPassword("correct horse", storedHash) {
 		t.Fatal("stored password hash did not verify")
 	}
+	if _, err := pool.Exec(ctx, `
+		update short_link
+		set password_failed_attempts = 5,
+			password_window_started_at = now() - interval '1 minute',
+			password_blocked_until = now() + interval '15 minutes'
+		where id = $1
+	`, created.ShortLink.ID); err != nil {
+		t.Fatalf("block protected short link: %v", err)
+	}
+	if _, err := service.Update(ctx, user, shortlink.UpdateInput{
+		ID:       created.ShortLink.ID,
+		Password: &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "updated horse"},
+	}); err != nil {
+		t.Fatalf("change blocked short link password: %v", err)
+	}
+	grant, err := shortlink.NewRedirectService(pool, nil).Unlock(ctx, created.ShortLink.Slug, "updated horse")
+	if err != nil || grant.Token == "" {
+		t.Fatalf("unlock immediately after password change: %#v, %v", grant, err)
+	}
 
 	listed, err := service.List(ctx, user, shortlink.ListInput{Page: 1, PageSize: 20})
 	if err != nil || len(listed.Items) != 1 || !listed.Items[0].PasswordEnabled {

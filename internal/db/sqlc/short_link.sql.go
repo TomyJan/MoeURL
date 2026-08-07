@@ -729,6 +729,24 @@ set target_url = coalesce($1, target_url),
             then clock_timestamp()
         else password_updated_at
     end,
+    password_failed_attempts = case
+        when $7::text = 'never'
+            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+            then 0
+        else password_failed_attempts
+    end,
+    password_window_started_at = case
+        when $7::text = 'never'
+            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+            then null
+        else password_window_started_at
+    end,
+    password_blocked_until = case
+        when $7::text = 'never'
+            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+            then null
+        else password_blocked_until
+    end,
     updated_at = now()
 from locked
 where short_link.id = locked.id
@@ -832,6 +850,24 @@ set target_url = coalesce($1, target_url),
             or ($7::text = 'set' and coalesce($8::text, '') <> '')
             then clock_timestamp()
         else password_updated_at
+    end,
+    password_failed_attempts = case
+        when $7::text = 'never'
+            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+            then 0
+        else password_failed_attempts
+    end,
+    password_window_started_at = case
+        when $7::text = 'never'
+            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+            then null
+        else password_window_started_at
+    end,
+    password_blocked_until = case
+        when $7::text = 'never'
+            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+            then null
+        else password_blocked_until
     end,
     updated_at = now()
 from locked

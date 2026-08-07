@@ -354,6 +354,30 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 	if !adminConfigured.ExpiresAt.Valid || !adminConfigured.ExpiresAt.Time.Equal(adminExpiresAt) || adminConfigured.Expired {
 		t.Fatalf("unexpected admin expiration update: %#v", adminConfigured)
 	}
+	if _, err := pool.Exec(ctx, `
+		update short_link
+		set password_failed_attempts = 5,
+			password_window_started_at = now() - interval '1 minute',
+			password_blocked_until = now() + interval '15 minutes'
+		where id = $1
+	`, configuredID); err != nil {
+		t.Fatalf("set admin password failure fixture: %v", err)
+	}
+	if _, err := queries.UpdateAnyShortLink(ctx, sqlc.UpdateAnyShortLinkParams{
+		ID:             uuidToPgtype(configuredID),
+		ExpirationMode: "keep",
+		PasswordMode:   "set",
+		PasswordHash:   pgtype.Text{String: "admin-updated-hash", Valid: true},
+	}); err != nil {
+		t.Fatalf("update admin short link password: %v", err)
+	}
+	adminPasswordState, err := queries.GetShortLinkPasswordStateForUpdate(ctx, uuidToPgtype(configuredID))
+	if err != nil {
+		t.Fatalf("read admin password failure state: %v", err)
+	}
+	if adminPasswordState.PasswordFailedAttempts != 0 || adminPasswordState.PasswordWindowStartedAt.Valid || adminPasswordState.PasswordBlockedUntil.Valid {
+		t.Fatalf("admin password update retained failure state: %#v", adminPasswordState)
+	}
 }
 
 // TestShortLinkAccessGrantUsesIssuanceTimeAfterConcurrentPasswordUpdate verifies stale grants cannot survive a password update race.
@@ -434,7 +458,17 @@ func TestShortLinkPasswordUpdateUsesLockAcquisitionTimeToInvalidateGrants(t *tes
 	if err != nil {
 		t.Fatalf("begin password update transaction: %v", err)
 	}
-	defer func() { _ = updateTx.Rollback(ctx) }()
+	updateResult := make(chan error, 1)
+	updateContext, cancelUpdate := context.WithCancel(ctx)
+	updateStarted := false
+	updateFinished := false
+	defer func() {
+		cancelUpdate()
+		if updateStarted && !updateFinished {
+			<-updateResult
+		}
+		_ = updateTx.Rollback(ctx)
+	}()
 	updateQueries := queries.WithTx(updateTx)
 	if _, err := updateQueries.GetDatabaseTime(ctx); err != nil {
 		t.Fatalf("establish password update transaction time: %v", err)
@@ -444,9 +478,9 @@ func TestShortLinkPasswordUpdateUsesLockAcquisitionTimeToInvalidateGrants(t *tes
 		t.Fatalf("read password update backend pid: %v", err)
 	}
 
-	updateResult := make(chan error, 1)
+	updateStarted = true
 	go func() {
-		_, updateErr := updateQueries.UpdateAnyShortLink(ctx, sqlc.UpdateAnyShortLinkParams{
+		_, updateErr := updateQueries.UpdateAnyShortLink(updateContext, sqlc.UpdateAnyShortLinkParams{
 			ID:             uuidToPgtype(linkID),
 			ExpirationMode: "keep",
 			PasswordMode:   "set",
@@ -466,6 +500,7 @@ func TestShortLinkPasswordUpdateUsesLockAcquisitionTimeToInvalidateGrants(t *tes
 		}
 		select {
 		case updateErr := <-updateResult:
+			updateFinished = true
 			t.Fatalf("password update returned before lock release: %v", updateErr)
 		default:
 		}
@@ -488,8 +523,10 @@ func TestShortLinkPasswordUpdateUsesLockAcquisitionTimeToInvalidateGrants(t *tes
 		t.Fatalf("commit access grant: %v", err)
 	}
 	if err := <-updateResult; err != nil {
+		updateFinished = true
 		t.Fatalf("update password after lock release: %v", err)
 	}
+	updateFinished = true
 	if err := updateTx.Commit(ctx); err != nil {
 		t.Fatalf("commit password update: %v", err)
 	}
