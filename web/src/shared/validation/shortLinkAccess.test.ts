@@ -35,6 +35,7 @@ describe('short-link access validation', () => {
     expect(passwordSchema.safeParse('密码安全长度八位').success).toBe(true)
     expect(passwordSchema.safeParse('🔒'.repeat(7)).success).toBe(false)
     expect(passwordSchema.safeParse('🔒'.repeat(8)).success).toBe(true)
+    expect(passwordSchema.safeParse('🔒'.repeat(128)).success).toBe(true)
     expect(passwordSchema.safeParse('🔒'.repeat(129)).success).toBe(false)
     expect(passwordSchema.safeParse('a'.repeat(129)).success).toBe(false)
 	})

@@ -205,7 +205,9 @@ describe('ShortLinkSettingsDialog', () => {
 
     expect(screen.getByLabelText('shortLinkSettings.passwordEnabled')).toBeTruthy()
     await fireEvent.click(screen.getByLabelText('shortLinkSettings.passwordEnabled'))
-    expect(screen.getByLabelText('shortLinkSettings.password').getAttribute('autocomplete')).toBe('new-password')
+    const passwordInput = screen.getByLabelText('shortLinkSettings.password')
+    expect(passwordInput.getAttribute('autocomplete')).toBe('new-password')
+    expect(passwordInput.closest('[data-testid="short-link-password-input"]')).toBeTruthy()
     await fireEvent.update(screen.getByLabelText('shortLinkSettings.password'), 'correct horse')
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
 
@@ -246,6 +248,27 @@ describe('ShortLinkSettingsDialog', () => {
     const view = mountDialog()
 
     await fireEvent.click(screen.getByLabelText('shortLinkSettings.passwordEnabled'))
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(screen.getByText('shortLinkSettings.passwordRequired')).toBeTruthy()
+    expect(view.emitted().save).toBeUndefined()
+  })
+
+  it('reports a missing password input instead of silently preserving protection', async () => {
+    setPermissions(['short_link:set_password'])
+    const view = mountDialog(
+      { link: { ...directLink, passwordEnabled: true } },
+      {
+        ...componentStubs,
+        VTextField: {
+          inheritAttrs: false,
+          props: ['disabled', 'errorMessages', 'label', 'modelValue', 'type'],
+          emits: ['update:modelValue'],
+          template: '<label v-bind="$attrs">{{ label }}<input v-if="type !== \'password\'" :aria-label="label" :disabled="disabled" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /><span v-if="errorMessages">{{ errorMessages }}</span></label>',
+        },
+      },
+    )
+
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
 
     expect(screen.getByText('shortLinkSettings.passwordRequired')).toBeTruthy()

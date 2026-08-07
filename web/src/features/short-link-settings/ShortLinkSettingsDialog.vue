@@ -77,6 +77,7 @@
         <v-text-field
           v-if="canSetPassword && passwordEnabled"
           ref="passwordField"
+          data-testid="short-link-password-input"
           type="password"
           autocomplete="new-password"
           variant="outlined"
@@ -200,17 +201,25 @@ function save() {
     }
   }
   if (canSetPassword.value) {
-    const password = passwordInput()?.value ?? ''
     if (!passwordEnabled.value) {
       if (props.link.passwordEnabled) {
         input.password = { mode: 'never' }
       }
-    } else if (!password) {
-      if (!props.link.passwordEnabled) {
+    } else {
+      const passwordElement = passwordInput()
+      if (!passwordElement) {
         passwordErrorMessage.value = t('shortLinkSettings.passwordRequired')
         return
       }
-    } else {
+      const password = passwordElement.value
+      if (!password) {
+        if (!props.link.passwordEnabled) {
+          passwordErrorMessage.value = t('shortLinkSettings.passwordRequired')
+          return
+        }
+        emit('save', input)
+        return
+      }
       const passwordResult = passwordSchema.safeParse(password)
       if (!passwordResult.success) {
         passwordErrorMessage.value = t('shortLinkSettings.passwordInvalid')
@@ -254,7 +263,11 @@ function resetFromLink(link: Pick<ShortLink, 'targetUrl' | 'redirectMode' | 'int
 }
 
 function passwordInput() {
-  return passwordField.value?.$el.querySelector<globalThis.HTMLInputElement>('input[type="password"]') ?? null
+  const field = passwordField.value?.$el
+  if (!field?.matches('[data-testid="short-link-password-input"]')) {
+    return null
+  }
+  return field.querySelector<globalThis.HTMLInputElement>('input')
 }
 
 function clearPasswordInput() {
