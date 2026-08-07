@@ -400,8 +400,12 @@ func TestRedirectServiceUnlockMapsAccessConditions(t *testing.T) {
 // TestRedirectServiceUnlockHandlesUnavailableDatabase verifies transaction startup failures are returned to the handler.
 func TestRedirectServiceUnlockHandlesUnavailableDatabase(t *testing.T) {
 	ctx := context.Background()
-	if _, err := shortlink.NewRedirectService(nil, nil).Unlock(ctx, "missing", "password"); err == nil {
+	unavailableService := shortlink.NewRedirectService(nil, nil)
+	if _, err := unavailableService.Unlock(ctx, "missing", "password"); err == nil {
 		t.Fatal("expected unavailable database error")
+	}
+	if err := unavailableService.CleanupExpiredAccessGrants(ctx); err == nil {
+		t.Fatal("expected unavailable cleanup database error")
 	}
 
 	pool := shortLinkTestPool(t, ctx)
@@ -412,8 +416,8 @@ func TestRedirectServiceUnlockHandlesUnavailableDatabase(t *testing.T) {
 	}
 }
 
-// TestRedirectServiceUnlockCleansABoundedBatchOfExpiredAccessGrants verifies unlock performs bounded grant cleanup.
-func TestRedirectServiceUnlockCleansABoundedBatchOfExpiredAccessGrants(t *testing.T) {
+// TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock verifies cleanup is bounded and periodic.
+func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
 	insertShortLinkDefaultDomain(t, ctx, pool)
@@ -445,8 +449,37 @@ func TestRedirectServiceUnlockCleansABoundedBatchOfExpiredAccessGrants(t *testin
 	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where expires_at <= now()`).Scan(&expiredCount); err != nil {
 		t.Fatalf("query expired access grants: %v", err)
 	}
+	if expiredCount != 501 {
+		t.Fatalf("expected unlock to leave expired grants for background cleanup, got %d rows", expiredCount)
+	}
+	if err := service.CleanupExpiredAccessGrants(ctx); err != nil {
+		t.Fatalf("clean expired access grants: %v", err)
+	}
+	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where expires_at <= now()`).Scan(&expiredCount); err != nil {
+		t.Fatalf("query expired access grants after bounded cleanup: %v", err)
+	}
 	if expiredCount != 1 {
 		t.Fatalf("expected one expired access grant after bounded cleanup, got %d rows", expiredCount)
+	}
+
+	cleanupCtx, cancelCleanup := context.WithCancel(ctx)
+	cleanupDone := make(chan struct{})
+	defer cancelCleanup()
+	go func() {
+		defer close(cleanupDone)
+		service.RunAccessGrantCleanup(cleanupCtx, time.Millisecond)
+	}()
+	deadline := time.Now().Add(time.Second)
+	for expiredCount != 0 && time.Now().Before(deadline) {
+		if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where expires_at <= now()`).Scan(&expiredCount); err != nil {
+			t.Fatalf("query periodically cleaned access grants: %v", err)
+		}
+		time.Sleep(time.Millisecond)
+	}
+	cancelCleanup()
+	<-cleanupDone
+	if expiredCount != 0 {
+		t.Fatalf("expected periodic cleanup to remove the remaining expired grant, got %d rows", expiredCount)
 	}
 
 	var activeCount int

@@ -285,9 +285,6 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 	if err := queries.ResetShortLinkPasswordFailures(ctx, link.ID); err != nil {
 		return AccessGrant{}, err
 	}
-	if _, err := queries.DeleteExpiredShortLinkAccessGrants(ctx); err != nil {
-		return AccessGrant{}, err
-	}
 	token, tokenHash, err := generateAccessToken()
 	if err != nil {
 		return AccessGrant{}, err
@@ -305,6 +302,29 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 		return AccessGrant{}, err
 	}
 	return AccessGrant{Token: token, ExpiresAt: expiresAt}, nil
+}
+
+// CleanupExpiredAccessGrants removes one bounded batch of expired access grants.
+func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context) error {
+	if s.pool == nil {
+		return errors.New("redirect service database is unavailable")
+	}
+	_, err := s.queries.DeleteExpiredShortLinkAccessGrants(ctx)
+	return err
+}
+
+// RunAccessGrantCleanup removes expired grants periodically until the context is canceled.
+func (s *RedirectService) RunAccessGrantCleanup(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			_ = s.CleanupExpiredAccessGrants(ctx)
+		}
+	}
 }
 
 // checkAccess records access-condition auditing around the shared validation rules.
