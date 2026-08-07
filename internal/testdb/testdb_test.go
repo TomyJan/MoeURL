@@ -1,8 +1,10 @@
 package testdb
 
 import (
+	"context"
 	"errors"
 	"testing"
+	"time"
 )
 
 type cleanupReporter struct {
@@ -40,5 +42,26 @@ func TestDockerRequired(t *testing.T) {
 		if got := dockerRequired(test.value); got != test.want {
 			t.Fatalf("dockerRequired(%q) = %t, want %t", test.value, got, test.want)
 		}
+	}
+}
+
+func TestDockerProbeContextIsIndependent(t *testing.T) {
+	callerContext, cancelCaller := context.WithCancel(context.Background())
+	cancelCaller()
+	if !errors.Is(callerContext.Err(), context.Canceled) {
+		t.Fatalf("expected canceled caller context, got %v", callerContext.Err())
+	}
+
+	probeContext, cancelProbe := newDockerProbeContext()
+	defer cancelProbe()
+	if err := probeContext.Err(); err != nil {
+		t.Fatalf("expected independent probe context, got %v", err)
+	}
+	deadline, ok := probeContext.Deadline()
+	if !ok {
+		t.Fatal("expected Docker probe deadline")
+	}
+	if remaining := time.Until(deadline); remaining <= 0 || remaining > dockerProbeTimeout {
+		t.Fatalf("unexpected Docker probe timeout %v", remaining)
 	}
 }

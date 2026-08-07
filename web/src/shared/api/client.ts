@@ -23,7 +23,14 @@ export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
 }
 
 export async function apiGetPath<T>(path: string): Promise<ApiResponse<T>> {
-  if (!path.startsWith('/') || path.startsWith('//')) {
+  const currentOrigin = window.location.origin
+  let resolvedURL: URL
+  try {
+    resolvedURL = new URL(path, currentOrigin)
+  } catch {
+    throw new Error('API path must be a same-origin absolute path')
+  }
+  if (!path.startsWith('/') || path.startsWith('//') || resolvedURL.origin !== currentOrigin) {
     throw new Error('API path must be a same-origin absolute path')
   }
   return getJson<T>(path)

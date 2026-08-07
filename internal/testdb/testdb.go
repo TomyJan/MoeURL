@@ -90,7 +90,7 @@ func MigratedDatabaseURL(t testing.TB, ctx context.Context, migrationsDir string
 }
 
 func dockerDatabaseURL(ctx context.Context, t testing.TB) (string, func(), error) {
-	if err := probeDockerDaemon(ctx); err != nil {
+	if err := probeDockerDaemon(); err != nil {
 		return "", nil, err
 	}
 
@@ -124,15 +124,19 @@ func dockerDatabaseURL(ctx context.Context, t testing.TB) (string, func(), error
 	return databaseURL, cleanup, nil
 }
 
-func probeDockerDaemon(ctx context.Context) error {
+func probeDockerDaemon() error {
 	dockerProbeOnce.Do(func() {
-		probeContext, cancelProbe := context.WithTimeout(ctx, dockerProbeTimeout)
+		probeContext, cancelProbe := newDockerProbeContext()
 		defer cancelProbe()
 		if err := exec.CommandContext(probeContext, "docker", "info", "--format", "{{.ServerVersion}}").Run(); err != nil {
 			dockerProbeErr = fmt.Errorf("probe Docker daemon: %w", err)
 		}
 	})
 	return dockerProbeErr
+}
+
+func newDockerProbeContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), dockerProbeTimeout)
 }
 
 func localDatabaseURL(ctx context.Context, testName string, t testing.TB) (string, func(), error) {

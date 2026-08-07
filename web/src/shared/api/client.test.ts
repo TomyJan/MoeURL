@@ -35,7 +35,7 @@ describe('api client', () => {
     })
   })
 
-  it.each(['health', '//evil.example/health'])('rejects non-same-origin API path %s', async (path) => {
+  it.each(['health', '//evil.example/health', '/\\evil.example/health', '/\\'])('rejects non-same-origin API path %s', async (path) => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
 
