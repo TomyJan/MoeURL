@@ -110,6 +110,7 @@ describe('deployment configuration', () => {
   })
 
   it('allows a cold Docker image build to finish before Playwright starts', () => {
+    expect(playwrightConfig.workers).toBe(1)
     expect(playwrightConfig.webServer).not.toBeInstanceOf(Array)
     expect(playwrightConfig.webServer).toMatchObject({ timeout: 600_000 })
   })
