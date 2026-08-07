@@ -76,7 +76,7 @@
         />
         <v-text-field
           v-if="canSetPassword && passwordEnabled"
-          v-model="password"
+          ref="passwordField"
           type="password"
           autocomplete="new-password"
           variant="outlined"
@@ -97,7 +97,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 
@@ -126,7 +126,7 @@ const expiresAt = ref('')
 const initialExpirationInput = ref('')
 const initialExpirationEnabled = ref(false)
 const passwordEnabled = ref(false)
-const password = ref('')
+const passwordField = useTemplateRef<{ $el: globalThis.Element }>('passwordField')
 const targetErrorMessage = ref('')
 const expirationErrorMessage = ref('')
 const passwordErrorMessage = ref('')
@@ -147,6 +147,15 @@ watch(
     }
   },
   { immediate: true },
+)
+
+watch(
+  () => props.pending,
+  (pending, wasPending) => {
+    if (wasPending && !pending) {
+      clearPasswordInput()
+    }
+  },
 )
 
 /** Validates editable fields and emits the permitted access-setting changes. */
@@ -191,17 +200,18 @@ function save() {
     }
   }
   if (canSetPassword.value) {
+    const password = passwordInput()?.value ?? ''
     if (!passwordEnabled.value) {
       if (props.link.passwordEnabled) {
         input.password = { mode: 'never' }
       }
-    } else if (!password.value) {
+    } else if (!password) {
       if (!props.link.passwordEnabled) {
         passwordErrorMessage.value = t('shortLinkSettings.passwordRequired')
         return
       }
     } else {
-      const passwordResult = passwordSchema.safeParse(password.value)
+      const passwordResult = passwordSchema.safeParse(password)
       if (!passwordResult.success) {
         passwordErrorMessage.value = t('shortLinkSettings.passwordInvalid')
         return
@@ -237,10 +247,21 @@ function resetFromLink(link: Pick<ShortLink, 'targetUrl' | 'redirectMode' | 'int
   initialExpirationInput.value = expiresAt.value
   initialExpirationEnabled.value = expirationEnabled.value
   passwordEnabled.value = link.passwordEnabled === true
-  password.value = ''
   targetErrorMessage.value = ''
   expirationErrorMessage.value = ''
   passwordErrorMessage.value = ''
+  void nextTick(clearPasswordInput)
+}
+
+function passwordInput() {
+  return passwordField.value?.$el.querySelector<globalThis.HTMLInputElement>('input[type="password"]') ?? null
+}
+
+function clearPasswordInput() {
+  const input = passwordInput()
+  if (input) {
+    input.value = ''
+  }
 }
 
 function toLocalDateTime(value: string | null) {

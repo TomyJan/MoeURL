@@ -17,29 +17,28 @@
         <v-btn variant="text" :to="{ path: '/' }">{{ t('redirect.backHome') }}</v-btn>
       </div>
 
-      <div v-else-if="preview && passwordRequired" class="redirect-page__state" aria-live="polite">
+      <form v-else-if="preview && passwordRequired" class="redirect-page__state" aria-live="polite" @submit.prevent="unlock">
         <p class="redirect-page__eyebrow">{{ t('redirect.protectedEyebrow') }}</p>
         <h1>{{ t('redirect.passwordTitle') }}</h1>
         <p class="redirect-page__target-label">{{ t('redirect.targetHost') }}</p>
         <strong class="redirect-page__target">{{ preview.targetHost }}</strong>
         <v-text-field
-          v-model="password"
           class="redirect-page__password"
+          name="password"
           type="password"
           autocomplete="current-password"
           :disabled="unlockPending"
           :label="t('redirect.password')"
           :error-messages="unlockErrorState ? t(`redirect.${unlockErrorState}`) : ''"
           variant="outlined"
-          @keyup.enter="unlock"
         />
         <div class="redirect-page__actions">
-          <v-btn color="primary" size="large" :loading="unlockPending" @click="unlock">
+          <v-btn type="submit" color="primary" size="large" :loading="unlockPending">
             {{ t('redirect.unlock') }}
           </v-btn>
-          <v-btn variant="text" :to="{ path: '/' }">{{ t('redirect.backHome') }}</v-btn>
+          <v-btn type="button" variant="text" :to="{ path: '/' }">{{ t('redirect.backHome') }}</v-btn>
         </div>
-      </div>
+      </form>
 
       <div v-else-if="preview" class="redirect-page__state">
         <p class="redirect-page__eyebrow">{{ t('redirect.eyebrow') }}</p>
@@ -85,7 +84,6 @@ const failureState = ref<PreviewFailureState>('')
 const continueFailed = ref(false)
 const navigating = ref(false)
 const passwordRequired = ref(false)
-const password = ref('')
 const unlockPending = ref(false)
 const unlockErrorState = ref<UnlockErrorState>('')
 let countdownTimer: ReturnType<typeof globalThis.setInterval> | null = null
@@ -112,7 +110,6 @@ async function loadPreview() {
   continueFailed.value = false
   navigating.value = false
   passwordRequired.value = false
-  password.value = ''
   unlockPending.value = false
   unlockErrorState.value = unlockErrorFromReason(route.query.reason)
 
@@ -226,12 +223,14 @@ function proceedAfterAccess() {
 }
 
 /** Submits the password and resumes navigation after a scoped grant is issued. */
-async function unlock() {
+async function unlock(event: globalThis.Event) {
+  const form = event.currentTarget as globalThis.HTMLFormElement
   const slug = preview.value?.slug ?? route.params.slug
   if (unlockPending.value || typeof slug !== 'string' || !slug) {
     return
   }
-  if (!password.value) {
+  const password = new globalThis.FormData(form).get('password') as string
+  if (!password) {
     unlockErrorState.value = 'passwordRequired'
     return
   }
@@ -239,12 +238,12 @@ async function unlock() {
   unlockPending.value = true
   unlockErrorState.value = ''
   try {
-    await unlockShortLink({ slug, password: password.value })
+    await unlockShortLink({ slug, password })
     if (!isMounted) {
       return
     }
     passwordRequired.value = false
-    password.value = ''
+    form.reset()
     proceedAfterAccess()
   } catch (error) {
     if (!isMounted) {

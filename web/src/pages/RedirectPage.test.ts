@@ -297,6 +297,29 @@ describe('RedirectPage', () => {
     expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
   })
 
+  it('reads the password from form data and resets the form after unlocking', async () => {
+    state.query = { reason: 'password' }
+    vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
+      slug: 'abc123',
+      targetHost: 'example.com',
+      intermediateDelaySeconds: 5,
+      expiresAt: null,
+      redirectMode: 'direct',
+      requiresPassword: true,
+    })
+    mountPage()
+    await flushPreview()
+
+    const passwordInput = screen.getByLabelText('redirect.password') as HTMLInputElement
+    passwordInput.value = 'correct horse'
+    const form = passwordInput.closest('form')
+    expect(form).not.toBeNull()
+    await fireEvent.submit(form!)
+
+    expect(unlockShortLink).toHaveBeenCalledWith({ slug: 'abc123', password: 'correct horse' })
+    expect(passwordInput.value).toBe('')
+  })
+
   it('falls back to the route slug when an unlock preview omits its slug', async () => {
     state.query = { reason: 'password' }
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({

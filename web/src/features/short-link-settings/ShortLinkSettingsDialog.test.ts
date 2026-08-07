@@ -218,6 +218,29 @@ describe('ShortLinkSettingsDialog', () => {
     ]])
   })
 
+  it('reads the password only on submit and clears it after the request completes', async () => {
+    setPermissions(['short_link:set_password'])
+    const view = mountDialog()
+
+    await fireEvent.click(screen.getByLabelText('shortLinkSettings.passwordEnabled'))
+    const passwordInput = screen.getByLabelText('shortLinkSettings.password') as HTMLInputElement
+    passwordInput.value = 'correct horse'
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(view.emitted().save).toEqual([[
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.com/original',
+        password: { mode: 'set', value: 'correct horse' },
+      },
+    ]])
+    expect(passwordInput.value).toBe('correct horse')
+
+    await view.rerender({ pending: true })
+    await view.rerender({ pending: false })
+    expect(passwordInput.value).toBe('')
+  })
+
   it('requires a password when enabling protection on an unprotected link', async () => {
     setPermissions(['short_link:set_password'])
     const view = mountDialog()
