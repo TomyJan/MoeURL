@@ -13,9 +13,11 @@ export async function findShortLink(page: Page, slug: string) {
     const response = await page.request.get(`/api/v1/short-link/list?page=${pageNumber}&pageSize=${pageSize}`)
     await expect(response).toBeOK()
     const payload = await response.json() as {
+      code: number
       data: { items: Array<{ id: string; passwordEnabled: boolean; slug: string }> }
       meta: { page: number; pageSize: number; total: number }
     }
+    expect(payload.code).toBe(0)
     const link = payload.data.items.find((item) => item.slug === slug)
     if (link) {
       return link
