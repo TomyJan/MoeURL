@@ -246,6 +246,8 @@ v0.2.0 使用前端 `qrcode` 库按短链公开 URL 即时生成 PNG Data URL。
 - `testify`：断言和测试辅助。
 - `testcontainers-go`：需要真实 PostgreSQL 的集成测试。
 
+同一 Go 测试进程复用一个 PostgreSQL 容器；每个测试仍创建并清理独立数据库，兼顾隔离性与启动成本。
+
 测试重点：
 
 - URL 校验。

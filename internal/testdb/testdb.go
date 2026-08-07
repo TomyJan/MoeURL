@@ -21,6 +21,7 @@ import (
 
 const localAdminDatabaseURL = "postgres://postgres:postgres@127.0.0.1:5433/postgres?sslmode=disable"
 const dockerProbeTimeout = 10 * time.Second
+const dockerContainerStartupTimeout = 60 * time.Second
 
 type cleanupErrorReporter interface {
 	Errorf(format string, args ...any)
@@ -29,6 +30,11 @@ type cleanupErrorReporter interface {
 var (
 	dockerProbeOnce sync.Once
 	dockerProbeErr  error
+
+	dockerContainerOnce     sync.Once
+	dockerContainerInstance *postgres.PostgresContainer
+	dockerContainerURL      string
+	dockerContainerErr      error
 )
 
 // reportCleanupError reports best-effort cleanup failures without hiding the primary test result.
@@ -91,40 +97,49 @@ func MigratedDatabaseURL(t testing.TB, ctx context.Context, migrationsDir string
 	return databaseURL
 }
 
-// dockerDatabaseURL starts an isolated PostgreSQL container and returns its cleanup function.
+// dockerDatabaseURL creates an isolated database in the process-wide PostgreSQL test container.
 func dockerDatabaseURL(ctx context.Context, t testing.TB) (string, func(), error) {
 	if err := probeDockerDaemon(); err != nil {
 		return "", nil, err
 	}
-
-	container, err := postgres.Run(ctx,
-		"postgres:18-alpine",
-		postgres.WithDatabase("moeurl_test"),
-		postgres.WithUsername("moeurl"),
-		postgres.WithPassword("moeurl"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(60*time.Second),
-		),
-	)
+	adminURL, err := sharedDockerDatabaseURL()
 	if err != nil {
 		return "", nil, err
 	}
+	return isolatedDatabaseURL(ctx, adminURL, t.Name(), t)
+}
 
-	databaseURL, err := container.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		if terminateErr := testcontainers.TerminateContainer(container); terminateErr != nil {
-			return "", nil, fmt.Errorf("%w: terminate container: %v", err, terminateErr)
+// sharedDockerDatabaseURL starts one PostgreSQL container per test process.
+func sharedDockerDatabaseURL() (string, error) {
+	dockerContainerOnce.Do(func() {
+		startupContext, cancelStartup := context.WithTimeout(context.Background(), dockerContainerStartupTimeout)
+		defer cancelStartup()
+		container, err := postgres.Run(startupContext,
+			"postgres:18-alpine",
+			postgres.WithDatabase("postgres"),
+			postgres.WithUsername("moeurl"),
+			postgres.WithPassword("moeurl"),
+			testcontainers.WithWaitStrategy(
+				wait.ForLog("database system is ready to accept connections").
+					WithOccurrence(2).
+					WithStartupTimeout(dockerContainerStartupTimeout),
+			),
+		)
+		if err != nil {
+			dockerContainerErr = err
+			return
 		}
-		return "", nil, err
-	}
-
-	cleanup := func() {
-		reportCleanupError(t, "terminate testcontainer", testcontainers.TerminateContainer(container))
-	}
-
-	return databaseURL, cleanup, nil
+		dockerContainerInstance = container
+		dockerContainerURL, err = container.ConnectionString(startupContext, "sslmode=disable")
+		if err != nil {
+			dockerContainerErr = err
+			if terminateErr := testcontainers.TerminateContainer(container); terminateErr != nil {
+				dockerContainerErr = fmt.Errorf("%w: terminate container: %v", err, terminateErr)
+			}
+			dockerContainerInstance = nil
+		}
+	})
+	return dockerContainerURL, dockerContainerErr
 }
 
 // probeDockerDaemon caches an independent bounded Docker availability probe.
@@ -151,6 +166,11 @@ func localDatabaseURL(ctx context.Context, testName string, t testing.TB) (strin
 		adminURL = localAdminDatabaseURL
 	}
 
+	return isolatedDatabaseURL(ctx, adminURL, testName, t)
+}
+
+// isolatedDatabaseURL provisions and cleans up one database on an existing PostgreSQL server.
+func isolatedDatabaseURL(ctx context.Context, adminURL string, testName string, t testing.TB) (string, func(), error) {
 	parsedURL, err := url.Parse(adminURL)
 	if err != nil {
 		return "", nil, err
@@ -165,11 +185,11 @@ func localDatabaseURL(ctx context.Context, testName string, t testing.TB) (strin
 		return "", nil, err
 	}
 	if _, err := adminDatabase.ExecContext(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS %s WITH (FORCE)", databaseName)); err != nil {
-		_ = adminDatabase.Close()
+		reportCleanupError(t, "close test database admin connection", adminDatabase.Close())
 		return "", nil, err
 	}
 	if _, err := adminDatabase.ExecContext(ctx, fmt.Sprintf("CREATE DATABASE %s", databaseName)); err != nil {
-		_ = adminDatabase.Close()
+		reportCleanupError(t, "close test database admin connection", adminDatabase.Close())
 		return "", nil, err
 	}
 
