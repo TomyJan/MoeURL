@@ -102,6 +102,7 @@ onBeforeUnmount(() => {
   clearCountdown()
 })
 
+/** Loads public metadata while preventing stale requests from mutating page state. */
 async function loadPreview() {
   const requestId = ++previewRequestId
   clearCountdown()
@@ -153,16 +154,19 @@ async function loadPreview() {
   }
 }
 
+/** Reports whether an asynchronous preview result still belongs to the mounted page. */
 function isCurrentRequest(requestId: number) {
   return isMounted && requestId === previewRequestId
 }
 
+/** Applies a preview state update only for the latest mounted request. */
 function whenCurrent(requestId: number, update: () => void) {
   if (isCurrentRequest(requestId)) {
     update()
   }
 }
 
+/** Maps navigation reasons into the initial preview failure state. */
 function failureStateFromReason(reason: unknown): PreviewFailureState {
   if (reason === 'disabled') {
     return 'disabled'
@@ -176,6 +180,7 @@ function failureStateFromReason(reason: unknown): PreviewFailureState {
   return ''
 }
 
+/** Maps navigation reasons into the initial password-form error state. */
 function unlockErrorFromReason(reason: unknown): UnlockErrorState {
   return reason === 'rate-limited' ? 'rateLimited' : ''
 }
@@ -197,6 +202,7 @@ function classifyPreviewError(error: unknown): PreviewFailureState {
   return 'loadFailed'
 }
 
+/** Starts the intermediate-page countdown and performs a single continuation at zero. */
 function startCountdown() {
   countdownTimer = globalThis.setInterval(() => {
     if (remainingSeconds.value > 1) {
@@ -208,6 +214,7 @@ function startCountdown() {
   }, 1_000)
 }
 
+/** Continues a granted link according to its direct or intermediate redirect mode. */
 function proceedAfterAccess() {
   const currentPreview = preview.value!
   if (currentPreview.redirectMode === 'direct') {
@@ -218,6 +225,7 @@ function proceedAfterAccess() {
   startCountdown()
 }
 
+/** Submits the password and resumes navigation after a scoped grant is issued. */
 async function unlock() {
   const slug = preview.value?.slug ?? route.params.slug
   if (unlockPending.value || typeof slug !== 'string' || !slug) {
@@ -250,6 +258,7 @@ async function unlock() {
   }
 }
 
+/** Maps unlock API failures into user-facing password states. */
 function classifyUnlockError(error: unknown): UnlockErrorState {
   const code = error instanceof ApiClientError ? error.code : 0
   if (code === 200111) {
@@ -264,6 +273,7 @@ function classifyUnlockError(error: unknown): UnlockErrorState {
   return 'unlockFailed'
 }
 
+/** Navigates through the backend continue endpoint after intermediate-page access. */
 function continueToTarget() {
   const slug = preview.value?.slug ?? route.params.slug
   if (navigating.value || typeof slug !== 'string' || !slug) {

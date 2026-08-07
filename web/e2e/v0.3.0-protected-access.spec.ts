@@ -197,6 +197,7 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
   }
 })
 
+/** Initializes the application once when the E2E database has not been seeded. */
 async function ensureInitialized(page: Page) {
   const status = await page.request.get('/api/v1/init/status')
   await expect(status).toBeOK()

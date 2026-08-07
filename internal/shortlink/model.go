@@ -125,6 +125,7 @@ type AccessConfig struct {
 	PasswordEnabled          bool       `json:"passwordEnabled"`
 }
 
+// setAccessConfig maps persisted access controls into the shared API model.
 func (config *AccessConfig) setAccessConfig(redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool, passwordHash pgtype.Text) {
 	config.RedirectMode = redirectMode
 	config.IntermediateDelaySeconds = delay

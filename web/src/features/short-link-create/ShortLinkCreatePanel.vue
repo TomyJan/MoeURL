@@ -210,6 +210,7 @@ const canConfigureAccess = computed(() => canUseIntermediate.value || canSetExpi
 const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !canCreateShortLink.value)
 
 const mutation = useMutation({
+  /** Runs creation through the shared sensitive-input cleanup boundary. */
   mutationFn: (input: CreateShortLinkInput) => runShortLinkMutation(createShortLink, input),
   onSuccess(result) {
     createdUrl.value = result.shortLink.url
@@ -231,6 +232,7 @@ const errorMessage = computed(() => {
   return ''
 })
 
+/** Validates the form and submits only access settings allowed by current permissions. */
 function submit() {
   if (!canCreateShortLink.value || mutation.isPending.value) {
     return
@@ -288,6 +290,7 @@ function resetForm() {
   qrOpen.value = false
 }
 
+/** Clears creation inputs after a successful request while preserving the generated result. */
 function resetInputFields() {
   targetUrl.value = ''
   validationErrorMessage.value = ''

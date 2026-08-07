@@ -307,6 +307,7 @@ async function selectVuetifyOption(page: Page, label: string, option: string) {
   await page.getByRole('option', { name: option }).click()
 }
 
+/** Reads the public preview business code without exposing target details. */
 async function readPublicPreviewCode(page: Page, slug: string) {
   const response = await page.request.get(`/go/${encodeURIComponent(slug)}/preview`)
   await expect(response).toBeOK()
@@ -378,6 +379,7 @@ async function expectIntermediateLayout(page: Page) {
   expect(countdownBox.y + countdownBox.height).toBeLessThanOrEqual(actionsBox.y + 1)
 }
 
+/** Verifies the settings dialog remains visible and contained at the active viewport. */
 async function expectSettingsDialogLayout(page: Page, dialog: Locator) {
   await expectNoHorizontalOverflow(page)
   const controls = dialog.locator('.short-link-settings-dialog__body > *')

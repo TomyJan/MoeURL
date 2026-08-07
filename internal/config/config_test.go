@@ -13,6 +13,7 @@ func TestLoadReadsAnalyticsCountryHeader(t *testing.T) {
 	}
 }
 
+// TestLoadPreservesEmptyEnvironmentForValidation verifies that Load does not hide an explicitly empty environment.
 func TestLoadPreservesEmptyEnvironmentForValidation(t *testing.T) {
 	t.Setenv("MOEURL_ENV", "")
 
@@ -23,6 +24,7 @@ func TestLoadPreservesEmptyEnvironmentForValidation(t *testing.T) {
 	}
 }
 
+// TestConfigValidateRequiresKnownEnvironment verifies that only supported deployment environments pass validation.
 func TestConfigValidateRequiresKnownEnvironment(t *testing.T) {
 	for _, test := range []struct {
 		name    string

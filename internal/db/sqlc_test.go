@@ -329,6 +329,7 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 	}
 }
 
+// TestShortLinkAccessGrantUsesIssuanceTimeAfterConcurrentPasswordUpdate verifies stale grants cannot survive a password update race.
 func TestShortLinkAccessGrantUsesIssuanceTimeAfterConcurrentPasswordUpdate(t *testing.T) {
 	ctx := context.Background()
 	pool := sqlcTestPool(t, ctx)
@@ -379,6 +380,7 @@ func TestShortLinkAccessGrantUsesIssuanceTimeAfterConcurrentPasswordUpdate(t *te
 	}
 }
 
+// TestShortLinkPasswordUpdateUsesLockAcquisitionTimeToInvalidateGrants verifies invalidation uses transaction serialization time.
 func TestShortLinkPasswordUpdateUsesLockAcquisitionTimeToInvalidateGrants(t *testing.T) {
 	ctx := context.Background()
 	pool := sqlcTestPool(t, ctx)

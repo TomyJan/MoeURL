@@ -49,6 +49,7 @@ export async function createShortLink(input: CreateShortLinkInput): Promise<Shor
   return response.data
 }
 
+/** Loads and validates the minimal public metadata required by the redirect page. */
 export async function getPublicShortLinkPreview(slug: string): Promise<PublicShortLinkPreview> {
   const response = await apiGetPath<unknown>(`/go/${encodeURIComponent(slug)}/preview`)
   if (!isPublicShortLinkPreview(response.data)) {
@@ -57,11 +58,13 @@ export async function getPublicShortLinkPreview(slug: string): Promise<PublicSho
   return response.data
 }
 
+/** Exchanges a valid short-link password for a scoped access grant. */
 export async function unlockShortLink(input: UnlockShortLinkInput): Promise<UnlockShortLinkResponse> {
   const response = await apiPost<UnlockShortLinkResponse>('/public/short-link/unlock', input)
   return response.data
 }
 
+/** Validates the minimal public preview payload before exposing it to the redirect page. */
 function isPublicShortLinkPreview(value: unknown): value is PublicShortLinkPreview {
   return publicShortLinkPreviewSchema.safeParse(value).success
 }

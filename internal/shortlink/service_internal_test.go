@@ -21,6 +21,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// TestValidatePasswordInput verifies password modes reject contradictory or out-of-range values.
 func TestValidatePasswordInput(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -53,6 +54,7 @@ func TestValidatePasswordInput(t *testing.T) {
 	}
 }
 
+// TestShortLinkPasswordStateMarshalsOnlyEnabledFlag verifies API JSON never exposes password material.
 func TestShortLinkPasswordStateMarshalsOnlyEnabledFlag(t *testing.T) {
 	raw, err := json.Marshal(ShortLink{AccessConfig: AccessConfig{PasswordEnabled: true}})
 	if err != nil {
@@ -66,6 +68,7 @@ func TestShortLinkPasswordStateMarshalsOnlyEnabledFlag(t *testing.T) {
 	}
 }
 
+// TestNormalizePasswordRequiresPermissionAndStoresOnlyHash verifies capability checks and one-way persistence.
 func TestNormalizePasswordRequiresPermissionAndStoresOnlyHash(t *testing.T) {
 	service := &Service{permissions: permission.NewService()}
 	user := auth.CurrentUser{GroupKey: permission.GroupUser, Permissions: []string{permission.ShortLinkSetPassword}}
@@ -170,6 +173,7 @@ func TestInternalServiceHelpers(t *testing.T) {
 	}
 }
 
+// TestCreateRetriesReservedSlug verifies generated slugs skip fixed application routes.
 func TestCreateRetriesReservedSlug(t *testing.T) {
 	ctx := context.Background()
 	pool := internalShortLinkTestPool(t, ctx)
@@ -212,6 +216,7 @@ func TestCreateRetriesReservedSlug(t *testing.T) {
 	}
 }
 
+// internalShortLinkTestPool opens an isolated migrated database for package-internal service tests.
 func internalShortLinkTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
 	databaseURL := testdb.MigratedDatabaseURL(t, ctx, filepath.Join("..", "..", "migrations"))

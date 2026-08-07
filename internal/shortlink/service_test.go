@@ -123,6 +123,7 @@ func TestServiceCreateStoresShortLinkWithGeneratedSlug(t *testing.T) {
 	}
 }
 
+// TestServicePasswordConfigurationRoundTrip verifies create and update operations preserve password state safely.
 func TestServicePasswordConfigurationRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)

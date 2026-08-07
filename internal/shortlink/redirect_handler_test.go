@@ -36,6 +36,7 @@ func TestRedirectHandlerRedirectsActiveSlug(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerAnalyticsConstructorConfiguresHandler verifies analytics dependencies are retained by the constructor.
 func TestRedirectHandlerAnalyticsConstructorConfiguresHandler(t *testing.T) {
 	recorder := &recordingRecorder{}
 	handler := shortlink.NewRedirectHandlerWithAnalytics(
@@ -57,6 +58,7 @@ func TestRedirectHandlerAnalyticsConstructorConfiguresHandler(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerRedirectsProtectedSlugToPasswordPage verifies protected direct links enter the public password flow.
 func TestRedirectHandlerRedirectsProtectedSlugToPasswordPage(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		Redirect: &fakeRedirectService{openResult: shortlink.OpenResult{RedirectMode: shortlink.RedirectModeDirect, Slug: "abc123", RequiresPassword: true}},
@@ -69,6 +71,7 @@ func TestRedirectHandlerRedirectsProtectedSlugToPasswordPage(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerUnlockSetsScopedCookie verifies successful unlocks scope grants to the requested short link.
 func TestRedirectHandlerUnlockSetsScopedCookie(t *testing.T) {
 	service := &fakeRedirectService{unlockGrant: shortlink.AccessGrant{Token: "raw-token"}}
 	router := apphttp.NewRouter(apphttp.Dependencies{
@@ -103,6 +106,7 @@ func TestRedirectHandlerUnlockSetsScopedCookie(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerUnlockSetsSecureCookie verifies production unlock grants require secure transport.
 func TestRedirectHandlerUnlockSetsSecureCookie(t *testing.T) {
 	handler := shortlink.NewRedirectHandlerWithAnalyticsAndSecurity(
 		&fakeRedirectService{unlockGrant: shortlink.AccessGrant{Token: "raw-token"}},
@@ -124,6 +128,7 @@ func TestRedirectHandlerUnlockSetsSecureCookie(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerUnlockMapsPasswordErrorsToBusinessCodes verifies public password failures retain the API error contract.
 func TestRedirectHandlerUnlockMapsPasswordErrorsToBusinessCodes(t *testing.T) {
 	for _, test := range []struct {
 		name string
@@ -155,6 +160,7 @@ func TestRedirectHandlerUnlockMapsPasswordErrorsToBusinessCodes(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerUnlockRejectsMalformedRequest verifies malformed unlock payloads are rejected before service execution.
 func TestRedirectHandlerUnlockRejectsMalformedRequest(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: &fakeRedirectService{}})
 	response := httptest.NewRecorder()
@@ -173,6 +179,7 @@ func TestRedirectHandlerUnlockRejectsMalformedRequest(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerUnlockRejectsOversizedRequest verifies the unlock body-size security boundary.
 func TestRedirectHandlerUnlockRejectsOversizedRequest(t *testing.T) {
 	service := &fakeRedirectService{}
 	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: service})
@@ -199,6 +206,7 @@ func TestRedirectHandlerUnlockRejectsOversizedRequest(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerUnlockRejectsTrailingOversizedJSON verifies trailing input cannot bypass the body-size boundary.
 func TestRedirectHandlerUnlockRejectsTrailingOversizedJSON(t *testing.T) {
 	service := &fakeRedirectService{}
 	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: service})
@@ -225,6 +233,7 @@ func TestRedirectHandlerUnlockRejectsTrailingOversizedJSON(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerUnlockMapsSystemError verifies infrastructure failures produce an HTTP 500 response.
 func TestRedirectHandlerUnlockMapsSystemError(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: &fakeRedirectService{unlockErr: errors.New("database down")}})
 	response := httptest.NewRecorder()
@@ -465,6 +474,7 @@ func TestRedirectHandlerPreviewUsesUnifiedMinimalResponse(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerPublicPreviewIgnoresAccessCookie verifies the public route never consumes scoped grant cookies.
 func TestRedirectHandlerPublicPreviewIgnoresAccessCookie(t *testing.T) {
 	service := &fakeRedirectService{previewResult: shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", RedirectMode: shortlink.RedirectModeIntermediate}}
 	handler := shortlink.NewRedirectHandler(service)
@@ -479,6 +489,7 @@ func TestRedirectHandlerPublicPreviewIgnoresAccessCookie(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerPreviewPassesScopedAccessCookie verifies the page-scoped preview forwards its access grant.
 func TestRedirectHandlerPreviewPassesScopedAccessCookie(t *testing.T) {
 	service := &fakeRedirectService{previewResult: shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", RedirectMode: shortlink.RedirectModeIntermediate}}
 	handler := shortlink.NewRedirectHandler(service)
@@ -581,6 +592,7 @@ func TestRedirectHandlerContinueShowsLifecycleErrors(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerContinuePassesScopedAccessCookie verifies continuation forwards the link-scoped access grant.
 func TestRedirectHandlerContinuePassesScopedAccessCookie(t *testing.T) {
 	service := &fakeRedirectService{continueResult: shortlink.RedirectResult{TargetURL: "https://example.com/final", ShortLinkID: "link-id"}}
 	handler := shortlink.NewRedirectHandler(service)
@@ -595,6 +607,7 @@ func TestRedirectHandlerContinuePassesScopedAccessCookie(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerOpenMapsNotIntermediateError verifies direct links cannot render the intermediate page.
 func TestRedirectHandlerOpenMapsNotIntermediateError(t *testing.T) {
 	handler := shortlink.NewRedirectHandler(&fakeRedirectService{openErr: shortlink.ErrShortLinkNotIntermediate})
 	response := httptest.NewRecorder()

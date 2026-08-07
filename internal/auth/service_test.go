@@ -261,6 +261,7 @@ func authTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	return pool
 }
 
+// migratedAuthDatabaseURL provisions an isolated migrated database for authentication tests.
 func migratedAuthDatabaseURL(t *testing.T, ctx context.Context) string {
 	t.Helper()
 	return testdb.MigratedDatabaseURL(t, ctx, filepath.Join("..", "..", "migrations"))

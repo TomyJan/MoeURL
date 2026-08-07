@@ -646,6 +646,7 @@ func (s *Service) updateAccessConfig(ctx context.Context, user auth.CurrentUser,
 	}, nil
 }
 
+// normalizePassword enforces password capability and returns only a persistence-safe hash.
 func (s *Service) normalizePassword(user auth.CurrentUser, input *PasswordInput) (string, pgtype.Text, error) {
 	if input != nil && (!s.permissions.Has(user.GroupKey, permission.ShortLinkSetPassword) ||
 		!slices.Contains(user.Permissions, permission.ShortLinkSetPassword)) {
@@ -662,6 +663,7 @@ func (s *Service) normalizePassword(user auth.CurrentUser, input *PasswordInput)
 	return mode, pgtype.Text{String: hash, Valid: true}, nil
 }
 
+// validatePasswordInput normalizes password update modes and validates raw password length.
 func validatePasswordInput(input *PasswordInput) (string, string, error) {
 	if input == nil {
 		return passwordModeKeep, "", nil

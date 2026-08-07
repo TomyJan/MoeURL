@@ -11,10 +11,12 @@ type cleanupReporter struct {
 	errors []string
 }
 
+// Errorf captures cleanup diagnostics for assertions without failing a real test instance.
 func (r *cleanupReporter) Errorf(format string, args ...any) {
 	r.errors = append(r.errors, format)
 }
 
+// TestReportCleanupError verifies cleanup errors include the failed operation.
 func TestReportCleanupError(t *testing.T) {
 	reporter := &cleanupReporter{}
 	reportCleanupError(reporter, "drop test database", errors.New("cleanup failed"))
@@ -28,6 +30,7 @@ func TestReportCleanupError(t *testing.T) {
 	}
 }
 
+// TestDockerRequired verifies only explicit truthy values disable database fallback.
 func TestDockerRequired(t *testing.T) {
 	for _, test := range []struct {
 		value string
@@ -45,6 +48,7 @@ func TestDockerRequired(t *testing.T) {
 	}
 }
 
+// TestDockerProbeContextIsIndependent verifies caller cancellation cannot poison the cached Docker probe.
 func TestDockerProbeContextIsIndependent(t *testing.T) {
 	callerContext, cancelCaller := context.WithCancel(context.Background())
 	cancelCaller()

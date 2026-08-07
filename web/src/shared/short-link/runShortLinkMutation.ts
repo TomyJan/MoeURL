@@ -4,6 +4,7 @@ type PasswordMutationInput = {
   password?: PasswordInput
 }
 
+/** Runs a mutation and removes raw password material from retained mutation variables. */
 export async function runShortLinkMutation<Input extends PasswordMutationInput, Result>(
   mutationFn: (input: Input) => Promise<Result>,
   input: Input,

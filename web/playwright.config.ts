@@ -14,6 +14,7 @@ const composeProjectName = process.env.MOEURL_E2E_COMPOSE_PROJECT ?? `moeurl-e2e
 const browserChannel = process.env.MOEURL_E2E_BROWSER_CHANNEL?.trim() || detectFallbackBrowserChannel()
 const skipDockerCompose = shouldSkipDockerCompose()
 
+/** Interprets the opt-out flag used by local E2E environments with an existing backend. */
 export function shouldSkipDockerCompose(envValue = process.env.MOEURL_E2E_SKIP_DOCKER): boolean {
   const normalized = envValue?.trim().toLowerCase()
   return normalized === '1' || normalized === 'true'

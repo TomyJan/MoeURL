@@ -149,6 +149,7 @@ watch(
   { immediate: true },
 )
 
+/** Validates editable fields and emits the permitted access-setting changes. */
 function save() {
   if (props.pending) {
     return
@@ -226,6 +227,7 @@ function handleOpenUpdate(open: boolean) {
   emit('update:open', open)
 }
 
+/** Restores editable access settings from the persisted link snapshot. */
 function resetFromLink(link: Pick<ShortLink, 'targetUrl' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'passwordEnabled'>) {
   targetUrl.value = link.targetUrl
   redirectMode.value = link.redirectMode

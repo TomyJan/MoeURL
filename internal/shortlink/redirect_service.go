@@ -191,6 +191,7 @@ func (s *RedirectService) Continue(ctx context.Context, slug string, accessToken
 	return RedirectResult{TargetURL: link.TargetUrl, ShortLinkID: shortLinkID}, nil
 }
 
+// hasValidAccessGrant verifies a scoped token against the current password revision.
 func (s *RedirectService) hasValidAccessGrant(ctx context.Context, shortLinkID pgtype.UUID, accessToken string) (bool, error) {
 	if accessToken == "" {
 		return false, nil
@@ -346,6 +347,7 @@ type passwordFailureUpdate struct {
 	blockedUntil    pgtype.Timestamptz
 }
 
+// nextPasswordFailure advances the fixed failure window and applies the lockout threshold.
 func nextPasswordFailure(now time.Time, attempts int16, windowStartedAt pgtype.Timestamptz) passwordFailureUpdate {
 	if !windowStartedAt.Valid || !now.Before(windowStartedAt.Time.Add(passwordFailureWindow)) {
 		return passwordFailureUpdate{
@@ -362,6 +364,7 @@ func nextPasswordFailure(now time.Time, attempts int16, windowStartedAt pgtype.T
 	return update
 }
 
+// generateAccessToken returns a random bearer token and the hash persisted for verification.
 func generateAccessToken() (string, string, error) {
 	random := make([]byte, accessTokenBytes)
 	if _, err := io.ReadFull(accessTokenRandomReader, random); err != nil {
@@ -371,6 +374,7 @@ func generateAccessToken() (string, string, error) {
 	return token, hashAccessToken(token), nil
 }
 
+// hashAccessToken derives the non-reversible representation stored for an access grant.
 func hashAccessToken(token string) string {
 	hash := sha256.Sum256([]byte(token))
 	return base64.RawURLEncoding.EncodeToString(hash[:])

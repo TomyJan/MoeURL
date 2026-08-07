@@ -90,6 +90,7 @@ func (h *RedirectHandler) PreviewScoped(w http.ResponseWriter, r *http.Request, 
 	h.preview(w, r, strings.TrimSpace(slug), accessToken)
 }
 
+// preview writes the minimal public metadata for a normalized preview request.
 func (h *RedirectHandler) preview(w http.ResponseWriter, r *http.Request, slug string, accessToken string) {
 	if slug == "" {
 		businessError(w, 100001, "Invalid request")

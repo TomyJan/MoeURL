@@ -21,6 +21,7 @@ vi.mock('vue-i18n', () => ({
 }))
 
 vi.mock('@tanstack/vue-query', () => ({
+  /** Captures mutation options while exposing controllable reactive test state. */
   useMutation: (options: {
     mutationFn?: (input: UpdateShortLinkInput) => Promise<unknown>
     onSuccess?: (value?: unknown, variables?: UpdateShortLinkInput) => void

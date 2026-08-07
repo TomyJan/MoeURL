@@ -65,6 +65,7 @@ func TestInitialMigrationCreatesCoreTablesAndConstraints(t *testing.T) {
 	}
 }
 
+// TestShortLinkPasswordMigrationAddsProtectedAccessStateAndRollsBack verifies the protected-access schema round trip.
 func TestShortLinkPasswordMigrationAddsProtectedAccessStateAndRollsBack(t *testing.T) {
 	ctx := context.Background()
 	database := migrationTestDatabase(t, ctx)
@@ -159,6 +160,7 @@ func TestShortLinkPasswordMigrationAddsProtectedAccessStateAndRollsBack(t *testi
 	}
 }
 
+// TestShortLinkPasswordMigrationPreservesGroupsCreatedAfterUpgrade verifies rollback only removes recorded permission additions.
 func TestShortLinkPasswordMigrationPreservesGroupsCreatedAfterUpgrade(t *testing.T) {
 	ctx := context.Background()
 	database := migrationTestDatabase(t, ctx)
@@ -321,6 +323,7 @@ func migrationTestDatabase(t *testing.T, ctx context.Context) *sql.DB {
 	return database
 }
 
+// assertShortLinkPasswordConstraintValidation checks existence and validation state for the password constraint.
 func assertShortLinkPasswordConstraintValidation(t *testing.T, ctx context.Context, database *sql.DB, expectedExists, expectedValidated bool) {
 	t.Helper()
 

@@ -31,6 +31,7 @@ var (
 	dockerProbeErr  error
 )
 
+// reportCleanupError reports best-effort cleanup failures without hiding the primary test result.
 func reportCleanupError(reporter cleanupErrorReporter, operation string, err error) {
 	if err != nil {
 		reporter.Errorf("%s: %v", operation, err)
@@ -61,6 +62,7 @@ func DatabaseURL(t testing.TB, ctx context.Context) string {
 	return databaseURL
 }
 
+// dockerRequired interprets the opt-in flag that forbids the local PostgreSQL fallback.
 func dockerRequired(value string) bool {
 	normalized := strings.ToLower(strings.TrimSpace(value))
 	return normalized == "1" || normalized == "true"
@@ -89,6 +91,7 @@ func MigratedDatabaseURL(t testing.TB, ctx context.Context, migrationsDir string
 	return databaseURL
 }
 
+// dockerDatabaseURL starts an isolated PostgreSQL container and returns its cleanup function.
 func dockerDatabaseURL(ctx context.Context, t testing.TB) (string, func(), error) {
 	if err := probeDockerDaemon(); err != nil {
 		return "", nil, err
@@ -124,6 +127,7 @@ func dockerDatabaseURL(ctx context.Context, t testing.TB) (string, func(), error
 	return databaseURL, cleanup, nil
 }
 
+// probeDockerDaemon caches an independent bounded Docker availability probe.
 func probeDockerDaemon() error {
 	dockerProbeOnce.Do(func() {
 		probeContext, cancelProbe := newDockerProbeContext()
@@ -135,10 +139,12 @@ func probeDockerDaemon() error {
 	return dockerProbeErr
 }
 
+// newDockerProbeContext creates a caller-independent context for the cached daemon probe.
 func newDockerProbeContext() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), dockerProbeTimeout)
 }
 
+// localDatabaseURL creates an isolated database on the configured local PostgreSQL server.
 func localDatabaseURL(ctx context.Context, testName string, t testing.TB) (string, func(), error) {
 	adminURL := os.Getenv("MOEURL_TEST_POSTGRES_ADMIN_URL")
 	if adminURL == "" {
@@ -178,6 +184,7 @@ func localDatabaseURL(ctx context.Context, testName string, t testing.TB) (strin
 	return databaseURL, cleanup, nil
 }
 
+// localDatabaseName derives a PostgreSQL-safe unique name from the current test.
 func localDatabaseName(testName string) string {
 	sanitized := strings.Map(func(r rune) rune {
 		switch {

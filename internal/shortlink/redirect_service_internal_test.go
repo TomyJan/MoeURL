@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// TestNextPasswordFailureUsesFixedWindowAndBlocksTheFifthFailure verifies the lockout threshold and window anchor.
 func TestNextPasswordFailureUsesFixedWindowAndBlocksTheFifthFailure(t *testing.T) {
 	now := time.Date(2026, time.August, 4, 10, 0, 0, 0, time.UTC)
 	windowStart := now.Add(-5 * time.Minute)
@@ -26,6 +27,7 @@ func TestNextPasswordFailureUsesFixedWindowAndBlocksTheFifthFailure(t *testing.T
 	}
 }
 
+// TestNextPasswordFailureStartsANewWindowAfterExpiry verifies expired counters do not leak into a new failure window.
 func TestNextPasswordFailureStartsANewWindowAfterExpiry(t *testing.T) {
 	now := time.Date(2026, time.August, 4, 10, 0, 0, 0, time.UTC)
 	update := nextPasswordFailure(now, 4, pgtype.Timestamptz{Time: now.Add(-passwordFailureWindow), Valid: true})
@@ -34,6 +36,7 @@ func TestNextPasswordFailureStartsANewWindowAfterExpiry(t *testing.T) {
 	}
 }
 
+// TestGenerateAccessTokenSeparatesRawTokenFromStoredHash verifies only a digest is suitable for persistence.
 func TestGenerateAccessTokenSeparatesRawTokenFromStoredHash(t *testing.T) {
 	token, tokenHash, err := generateAccessToken()
 	if err != nil {
@@ -54,6 +57,7 @@ func TestGenerateAccessTokenSeparatesRawTokenFromStoredHash(t *testing.T) {
 	}
 }
 
+// TestGenerateAccessTokenReturnsRandomSourceError verifies entropy failures are surfaced without issuing a token.
 func TestGenerateAccessTokenReturnsRandomSourceError(t *testing.T) {
 	expected := errors.New("random source failed")
 	original := accessTokenRandomReader

@@ -212,6 +212,7 @@ func TestRedirectServiceIntermediatePreviewAndContinue(t *testing.T) {
 	assertEvents(t, recorder.types, []string{event.AccessConditionChecked, event.RedirectInitiated})
 }
 
+// TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit verifies unlock, grant reuse, and lockout as one flow.
 func TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -283,6 +284,7 @@ func TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit(t *testing.T) {
 	}
 }
 
+// TestRedirectServiceUnlockRejectsOutOfRangePassword verifies Argon2 is never reached for invalid password lengths.
 func TestRedirectServiceUnlockRejectsOutOfRangePassword(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -319,6 +321,7 @@ func TestRedirectServiceUnlockRejectsOutOfRangePassword(t *testing.T) {
 	}
 }
 
+// TestRedirectServicePropagatesAccessGrantQueryErrors verifies storage failures are not mistaken for invalid grants.
 func TestRedirectServicePropagatesAccessGrantQueryErrors(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -345,6 +348,7 @@ func TestRedirectServicePropagatesAccessGrantQueryErrors(t *testing.T) {
 	}
 }
 
+// TestRedirectServiceUnlockMapsAccessConditions verifies unavailable links cannot issue access grants.
 func TestRedirectServiceUnlockMapsAccessConditions(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -393,6 +397,7 @@ func TestRedirectServiceUnlockMapsAccessConditions(t *testing.T) {
 	}
 }
 
+// TestRedirectServiceUnlockHandlesUnavailableDatabase verifies transaction startup failures are returned to the handler.
 func TestRedirectServiceUnlockHandlesUnavailableDatabase(t *testing.T) {
 	ctx := context.Background()
 	if _, err := shortlink.NewRedirectService(nil, nil).Unlock(ctx, "missing", "password"); err == nil {
@@ -407,6 +412,7 @@ func TestRedirectServiceUnlockHandlesUnavailableDatabase(t *testing.T) {
 	}
 }
 
+// TestRedirectServiceUnlockCleansABoundedBatchOfExpiredAccessGrants verifies unlock performs bounded grant cleanup.
 func TestRedirectServiceUnlockCleansABoundedBatchOfExpiredAccessGrants(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)

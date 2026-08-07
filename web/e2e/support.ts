@@ -1,10 +1,12 @@
 import { expect } from '@playwright/test'
 import type { Page, TestInfo } from '@playwright/test'
 
+/** Escapes user-controlled text before embedding it in an E2E regular expression. */
 export function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+/** Finds a short link by slug through the authenticated list API. */
 export async function findShortLink(page: Page, slug: string) {
   const response = await page.request.get('/api/v1/short-link/list?page=1&pageSize=20')
   await expect(response).toBeOK()
@@ -14,6 +16,7 @@ export async function findShortLink(page: Page, slug: string) {
   return payload.data.items.find((link) => link.slug === slug)
 }
 
+/** Reads the successful-redirect count for a short link. */
 export async function readVisitCount(page: Page, id: string) {
   const response = await page.request.get(`/api/v1/short-link/statistics?id=${encodeURIComponent(id)}`)
   await expect(response).toBeOK()
@@ -25,6 +28,7 @@ export async function readVisitCount(page: Page, id: string) {
   return payload.data.stats.visitCount
 }
 
+/** Verifies that the password form remains usable within the active viewport. */
 export async function expectPasswordLayout(page: Page) {
   await expectNoHorizontalOverflow(page)
   const [stateBox, passwordBox, actionsBox] = await Promise.all([
@@ -45,6 +49,7 @@ export async function expectPasswordLayout(page: Page) {
   expect(passwordBox.y + passwordBox.height).toBeLessThanOrEqual(actionsBox.y + 1)
 }
 
+/** Verifies that the rendered document does not overflow horizontally. */
 export async function expectNoHorizontalOverflow(page: Page) {
   const dimensions = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
@@ -53,6 +58,7 @@ export async function expectNoHorizontalOverflow(page: Page) {
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth)
 }
 
+/** Attaches the current page image to the Playwright report. */
 export async function attachScreenshot(testInfo: TestInfo, name: string, page: Page) {
   await testInfo.attach(name, {
     body: await page.screenshot(),

@@ -18,10 +18,12 @@ export class ApiClientError extends Error {
 
 const API_BASE = '/api/v1'
 
+/** Performs an authenticated GET request under the versioned API prefix. */
 export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
   return getJson<T>(`${API_BASE}${path}`)
 }
 
+/** Performs a GET request to a validated same-origin absolute path. */
 export async function apiGetPath<T>(path: string): Promise<ApiResponse<T>> {
   const currentOrigin = window.location.origin
   let resolvedURL: URL
@@ -36,6 +38,7 @@ export async function apiGetPath<T>(path: string): Promise<ApiResponse<T>> {
   return getJson<T>(path)
 }
 
+/** Fetches and decodes a JSON response without changing the supplied path. */
 async function getJson<T>(path: string): Promise<ApiResponse<T>> {
   const response = await fetch(path, {
     credentials: 'include',

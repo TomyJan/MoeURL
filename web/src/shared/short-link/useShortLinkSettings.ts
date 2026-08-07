@@ -15,12 +15,14 @@ type ShortLinkSettingsTarget = Pick<
   'id' | 'url' | 'slug' | 'targetUrl' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'passwordEnabled'
 >
 
+/** Coordinates shared settings and QR dialog state for short-link list pages. */
 export function useShortLinkSettings(options: UseShortLinkSettingsOptions) {
   const { t } = useI18n()
   const queryClient = useQueryClient()
   const settingsLink = ref<ShortLinkSettingsTarget | null>(null)
   const qrLink = ref<ShortLinkSettingsTarget | null>(null)
   const settingsMutation = useMutation({
+    /** Runs updates through the shared sensitive-input cleanup boundary. */
     mutationFn: (input: UpdateShortLinkInput) => runShortLinkMutation(options.mutationFn, input),
     onSuccess(_data, variables) {
       if (settingsLink.value?.id === variables.id) {
