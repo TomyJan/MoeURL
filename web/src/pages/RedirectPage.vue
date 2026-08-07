@@ -227,6 +227,9 @@ function proceedAfterAccess() {
 
 /** Submits the password and resumes navigation after a scoped grant is issued. */
 async function unlock() {
+  if (unlockErrorState.value === 'rateLimited') {
+    return
+  }
   const slug = preview.value?.slug ?? route.params.slug
   if (unlockPending.value || typeof slug !== 'string' || !slug) {
     return

@@ -44,6 +44,10 @@ const publicShortLinkPreviewSchema: z.ZodType<PublicShortLinkPreview> = z.object
   requiresPassword: z.boolean(),
 })
 
+const unlockShortLinkResponseSchema: z.ZodType<UnlockShortLinkResponse> = z.object({
+  unlocked: z.boolean(),
+})
+
 export async function createShortLink(input: CreateShortLinkInput): Promise<ShortLinkResponse> {
   const response = await apiPost<ShortLinkResponse>('/short-link/create', input)
   return response.data
@@ -60,8 +64,12 @@ export async function getPublicShortLinkPreview(slug: string): Promise<PublicSho
 
 /** Exchanges a valid short-link password for a scoped access grant. */
 export async function unlockShortLink(input: UnlockShortLinkInput): Promise<UnlockShortLinkResponse> {
-  const response = await apiPost<UnlockShortLinkResponse>('/public/short-link/unlock', input)
-  return response.data
+  const response = await apiPost<unknown>('/public/short-link/unlock', input)
+  const result = unlockShortLinkResponseSchema.safeParse(response.data)
+  if (!result.success) {
+    throw new ApiClientError(100001, 'Invalid public unlock response')
+  }
+  return result.data
 }
 
 /** Validates the minimal public preview payload before exposing it to the redirect page. */

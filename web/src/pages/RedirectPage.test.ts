@@ -231,6 +231,26 @@ describe('RedirectPage', () => {
     expect(unlockShortLink).not.toHaveBeenCalled()
   })
 
+  it('does not retry unlock requests while the password is rate limited', async () => {
+    state.query = { reason: 'rate-limited' }
+    vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
+      slug: 'abc123',
+      targetHost: 'example.com',
+      intermediateDelaySeconds: 5,
+      expiresAt: null,
+      redirectMode: 'intermediate',
+      requiresPassword: true,
+    })
+    mountPage()
+    await flushPreview()
+
+    await fireEvent.update(screen.getByLabelText('redirect.password'), 'correct horse')
+    await fireEvent.click(screen.getByRole('button', { name: 'redirect.unlock' }))
+
+    expect(unlockShortLink).not.toHaveBeenCalled()
+    expect(screen.getByText('redirect.rateLimited')).toBeTruthy()
+  })
+
   it.each([
     [new ApiClientError(200111, 'Password required'), 'redirect.passwordRequired'],
     [new Error('network failure'), 'redirect.unlockFailed'],
