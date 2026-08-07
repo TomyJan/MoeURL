@@ -146,6 +146,7 @@ describe('deployment configuration', () => {
     expect(goProxyEntry?.[1]).toBe('http://127.0.0.1:8080')
     const goDataRoute = new RegExp(goProxyEntry?.[0] ?? '$.')
     expect(goDataRoute.test('/go/abc123/preview')).toBe(true)
+    expect(goDataRoute.test('/go/abc123/preview?foo=1')).toBe(true)
     expect(goDataRoute.test('/go/abc123/continue')).toBe(true)
     expect(goDataRoute.test('/go/abc123')).toBe(false)
     expect(goDataRoute.test('/go/abc123/settings')).toBe(false)

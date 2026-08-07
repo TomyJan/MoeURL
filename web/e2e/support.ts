@@ -22,6 +22,9 @@ export async function findShortLink(page: Page, slug: string) {
     if (link) {
       return link
     }
+    if (payload.data.items.length === 0) {
+      return undefined
+    }
     if (payload.meta.page * payload.meta.pageSize >= payload.meta.total) {
       return undefined
     }
