@@ -9,7 +9,8 @@ export function escapeRegExp(value: string): string {
 /** Finds a short link by slug through the authenticated list API. */
 export async function findShortLink(page: Page, slug: string) {
   const pageSize = 100
-  for (let pageNumber = 1; ; pageNumber += 1) {
+  const maxPages = 1_000
+  for (let pageNumber = 1; pageNumber <= maxPages; pageNumber += 1) {
     const response = await page.request.get(`/api/v1/short-link/list?page=${pageNumber}&pageSize=${pageSize}`)
     await expect(response).toBeOK()
     const payload = await response.json() as {
@@ -25,10 +26,11 @@ export async function findShortLink(page: Page, slug: string) {
     if (payload.data.items.length === 0) {
       return undefined
     }
-    if (payload.meta.page * payload.meta.pageSize >= payload.meta.total) {
+    if (pageNumber * pageSize >= payload.meta.total) {
       return undefined
     }
   }
+  return undefined
 }
 
 /** Reads the successful-redirect count for a short link. */
