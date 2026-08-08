@@ -391,7 +391,7 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
-      intermediateDelaySeconds: 2,
+      intermediateDelaySeconds: 3,
       expiresAt: null,
       redirectMode: 'intermediate',
       requiresPassword: true,
@@ -401,16 +401,16 @@ describe('RedirectPage', () => {
 
     await fireEvent.update(screen.getByLabelText('redirect.password'), 'correct horse')
     await fireEvent.click(screen.getByRole('button', { name: 'redirect.unlock' }))
-    expect(screen.getByText('2')).toBeTruthy()
+    expect(screen.getByText('3')).toBeTruthy()
 
-    await vi.advanceTimersByTimeAsync(2_000)
+    await vi.advanceTimersByTimeAsync(3_000)
     expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
   })
 
   it('falls back to the route slug when an intermediate preview omits its slug', async () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       targetHost: 'example.com',
-      intermediateDelaySeconds: 1,
+      intermediateDelaySeconds: 3,
       expiresAt: null,
       redirectMode: 'intermediate',
       requiresPassword: false,
@@ -418,7 +418,7 @@ describe('RedirectPage', () => {
     mountPage()
     await flushPreview()
 
-    await vi.advanceTimersByTimeAsync(1_000)
+    await vi.advanceTimersByTimeAsync(3_000)
     expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
   })
 
