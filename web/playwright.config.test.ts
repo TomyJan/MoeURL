@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { detectFallbackBrowserChannel } from './playwright.config'
+import { detectFallbackBrowserChannel, shouldSkipDockerCompose } from './playwright.config'
 
 describe('detectFallbackBrowserChannel', () => {
   const bundledChromium = 'bundled/chromium'
@@ -24,5 +24,21 @@ describe('detectFallbackBrowserChannel', () => {
 
   it('keeps Playwright defaults when no known system browser is found', () => {
     expect(detectFallbackBrowserChannel(() => false, bundledChromium)).toBeUndefined()
+  })
+})
+
+describe('shouldSkipDockerCompose', () => {
+  it('uses Docker Compose by default', () => {
+    expect(shouldSkipDockerCompose(undefined)).toBe(false)
+  })
+
+  it('skips Docker Compose for local server mode', () => {
+    expect(shouldSkipDockerCompose('1')).toBe(true)
+    expect(shouldSkipDockerCompose(' TRUE ')).toBe(true)
+  })
+
+  it('does not skip Docker Compose for other values', () => {
+    expect(shouldSkipDockerCompose('0')).toBe(false)
+    expect(shouldSkipDockerCompose('false')).toBe(false)
   })
 })

@@ -17,7 +17,7 @@ type Config struct {
 // Load reads the application configuration from environment variables.
 func Load() Config {
 	return Config{
-		Env:                    getEnv("MOEURL_ENV", "development"),
+		Env:                    os.Getenv("MOEURL_ENV"),
 		HTTPAddr:               getEnv("MOEURL_HTTP_ADDR", ":8080"),
 		DatabaseURL:            os.Getenv("MOEURL_DATABASE_URL"),
 		StaticDir:              os.Getenv("MOEURL_STATIC_DIR"),
@@ -27,6 +27,9 @@ func Load() Config {
 
 // Validate verifies that required configuration values are present.
 func (c Config) Validate() error {
+	if c.Env != "development" && c.Env != "production" {
+		return errors.New("MOEURL_ENV must be development or production")
+	}
 	if strings.TrimSpace(c.DatabaseURL) == "" {
 		return errors.New("MOEURL_DATABASE_URL is required")
 	}

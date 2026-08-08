@@ -32,7 +32,14 @@ type Domain struct {
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
+// Tracks permissions added by migration 00004 for reversible rollback.
 type MoeurlShortLinkExperiencePermissionAddition struct {
+	UserGroupID pgtype.UUID `json:"user_group_id"`
+	Permission  string      `json:"permission"`
+}
+
+// Tracks permissions added by migration 00006 for reversible rollback.
+type MoeurlShortLinkPasswordPermissionAddition struct {
 	UserGroupID pgtype.UUID `json:"user_group_id"`
 	Permission  string      `json:"permission"`
 }
@@ -59,6 +66,19 @@ type ShortLink struct {
 	RedirectMode             string             `json:"redirect_mode"`
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	PasswordHash             pgtype.Text        `json:"password_hash"`
+	PasswordFailedAttempts   int16              `json:"password_failed_attempts"`
+	PasswordWindowStartedAt  pgtype.Timestamptz `json:"password_window_started_at"`
+	PasswordBlockedUntil     pgtype.Timestamptz `json:"password_blocked_until"`
+	PasswordUpdatedAt        pgtype.Timestamptz `json:"password_updated_at"`
+}
+
+type ShortLinkAccessGrant struct {
+	ID          pgtype.UUID        `json:"id"`
+	ShortLinkID pgtype.UUID        `json:"short_link_id"`
+	TokenHash   string             `json:"token_hash"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
 type ShortLinkEvent struct {

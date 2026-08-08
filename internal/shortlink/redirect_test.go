@@ -1,12 +1,16 @@
 package shortlink_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/event"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 )
@@ -143,11 +147,11 @@ func TestRedirectServiceReturnsDatabaseError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected open database error")
 	}
-	_, err = service.Preview(ctx, "abc123")
+	_, err = service.Preview(ctx, "abc123", "")
 	if err == nil {
 		t.Fatal("expected preview database error")
 	}
-	_, err = service.Continue(ctx, "abc123")
+	_, err = service.Continue(ctx, "abc123", "")
 	if err == nil {
 		t.Fatal("expected continue database error")
 	}
@@ -182,11 +186,11 @@ func TestRedirectServiceIntermediatePreviewAndContinue(t *testing.T) {
 	assertEvents(t, recorder.types, []string{event.ShortLinkOpened, event.AccessConditionChecked})
 
 	recorder.types = nil
-	preview, err := service.Preview(ctx, "MIDDLE")
+	preview, err := service.Preview(ctx, "MIDDLE", "")
 	if err != nil {
 		t.Fatalf("preview intermediate short link: %v", err)
 	}
-	if preview.Slug != "middle" || preview.TargetHost != "example.com" || preview.IntermediateDelaySeconds != 7 || preview.ExpiresAt == nil || !preview.ExpiresAt.Equal(expiresAt) {
+	if preview.Slug != "middle" || preview.TargetHost != "example.com" || preview.RedirectMode != shortlink.RedirectModeIntermediate || preview.IntermediateDelaySeconds != 7 || preview.ExpiresAt == nil || !preview.ExpiresAt.Equal(expiresAt) {
 		t.Fatalf("unexpected intermediate preview: %#v", preview)
 	}
 	if len(recorder.types) != 0 {
@@ -196,12 +200,12 @@ func TestRedirectServiceIntermediatePreviewAndContinue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("clear intermediate expiration: %v", err)
 	}
-	preview, err = service.Preview(ctx, "middle")
+	preview, err = service.Preview(ctx, "middle", "")
 	if err != nil || preview.ExpiresAt != nil {
 		t.Fatalf("expected preview without expiration, got result %#v error %v", preview, err)
 	}
 
-	continued, err := service.Continue(ctx, "middle")
+	continued, err := service.Continue(ctx, "middle", "")
 	if err != nil {
 		t.Fatalf("continue intermediate short link: %v", err)
 	}
@@ -209,6 +213,312 @@ func TestRedirectServiceIntermediatePreviewAndContinue(t *testing.T) {
 		t.Fatalf("unexpected continued redirect: %#v", continued)
 	}
 	assertEvents(t, recorder.types, []string{event.AccessConditionChecked, event.RedirectInitiated})
+}
+
+// TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit verifies unlock, grant reuse, and lockout as one flow.
+func TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "protected-user", "user", []string{})
+	linkID := insertStoredShortLink(t, ctx, pool, user.ID, "protected", "https://example.com/protected", "active", false)
+	hash, err := auth.HashPassword("correct horse")
+	if err != nil {
+		t.Fatalf("hash protected password: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `update short_link set password_hash = $2, password_updated_at = now() where id = $1`, linkID, hash); err != nil {
+		t.Fatalf("configure protected password: %v", err)
+	}
+	recorder := &recordingRecorder{}
+	service := shortlink.NewRedirectService(pool, recorder)
+
+	opened, err := service.Open(ctx, "PROTECTED")
+	if err != nil || !opened.RequiresPassword || opened.TargetURL != "" {
+		t.Fatalf("expected password-gated open, got %#v error %v", opened, err)
+	}
+	assertEvents(t, recorder.types, []string{event.ShortLinkOpened, event.AccessConditionChecked})
+	recorder.types = nil
+	preview, err := service.Preview(ctx, "protected", "")
+	if err != nil || !preview.RequiresPassword || preview.RedirectMode != shortlink.RedirectModeDirect || preview.TargetHost != "example.com" {
+		t.Fatalf("expected protected preview, got %#v error %v", preview, err)
+	}
+	if len(recorder.types) != 0 {
+		t.Fatalf("expected preview without events, got %#v", recorder.types)
+	}
+	_, err = service.Continue(ctx, "protected", "")
+	if !errors.Is(err, shortlink.ErrPasswordRequired) {
+		t.Fatalf("expected missing grant error, got %v", err)
+	}
+	_, err = service.Unlock(ctx, "protected", "")
+	if !errors.Is(err, shortlink.ErrPasswordRequired) {
+		t.Fatalf("expected missing password error, got %v", err)
+	}
+
+	for attempt := 1; attempt <= 5; attempt++ {
+		_, err = service.Unlock(ctx, "protected", "wrong password")
+		want := shortlink.ErrInvalidPassword
+		if attempt == 5 {
+			want = shortlink.ErrPasswordRateLimited
+		}
+		if !errors.Is(err, want) {
+			t.Fatalf("attempt %d error = %v, want %v", attempt, err, want)
+		}
+	}
+	if _, err := pool.Exec(ctx, `update short_link set password_failed_attempts = 0, password_blocked_until = null where id = $1`, linkID); err != nil {
+		t.Fatalf("clear password block fixture: %v", err)
+	}
+	grant, err := service.Unlock(ctx, "protected", "correct horse")
+	if err != nil || grant.Token == "" {
+		t.Fatalf("expected successful unlock grant, got %#v error %v", grant, err)
+	}
+	continued, err := service.Continue(ctx, "protected", grant.Token)
+	if err != nil || continued.TargetURL != "https://example.com/protected" {
+		t.Fatalf("expected granted redirect, got %#v error %v", continued, err)
+	}
+	authorizedPreview, err := service.Preview(ctx, "protected", grant.Token)
+	if err != nil || authorizedPreview.RequiresPassword {
+		t.Fatalf("expected authorized preview to skip password, got %#v error %v", authorizedPreview, err)
+	}
+	if _, err := pool.Exec(ctx, `update short_link set password_updated_at = now() where id = $1`, linkID); err != nil {
+		t.Fatalf("invalidate protected grant: %v", err)
+	}
+	if _, err := service.Continue(ctx, "protected", grant.Token); !errors.Is(err, shortlink.ErrPasswordRequired) {
+		t.Fatalf("expected password update to invalidate old grant, got %v", err)
+	}
+}
+
+// TestRedirectServiceUnlockRejectsOutOfRangePassword verifies Argon2 is never reached for invalid password lengths.
+func TestRedirectServiceUnlockRejectsOutOfRangePassword(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "oversized-password-user", "user", []string{})
+	linkID := insertStoredShortLink(t, ctx, pool, user.ID, "oversized-password", "https://example.com/protected", "active", false)
+	oversizedPassword := strings.Repeat("a", 129)
+	hash, err := auth.HashPassword(oversizedPassword)
+	if err != nil {
+		t.Fatalf("hash oversized password fixture: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `update short_link set password_hash = $2, password_updated_at = now() where id = $1`, linkID, hash); err != nil {
+		t.Fatalf("configure oversized password fixture: %v", err)
+	}
+
+	service := shortlink.NewRedirectService(pool, nil)
+	for attempt := 1; attempt <= 5; attempt++ {
+		_, err := service.Unlock(ctx, "oversized-password", oversizedPassword)
+		want := shortlink.ErrInvalidPassword
+		if attempt == 5 {
+			want = shortlink.ErrPasswordRateLimited
+		}
+		if !errors.Is(err, want) {
+			t.Fatalf("attempt %d error = %v, want %v", attempt, err, want)
+		}
+	}
+
+	var grantCount int
+	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where short_link_id = $1`, linkID).Scan(&grantCount); err != nil {
+		t.Fatalf("count oversized-password grants: %v", err)
+	}
+	if grantCount != 0 {
+		t.Fatalf("expected no grant for oversized password, got %d", grantCount)
+	}
+}
+
+// TestRedirectServicePropagatesAccessGrantQueryErrors verifies storage failures are not mistaken for invalid grants.
+func TestRedirectServicePropagatesAccessGrantQueryErrors(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "grant-query-error-user", "user", []string{})
+	linkID := insertStoredShortLink(t, ctx, pool, user.ID, "grant-query-error", "https://example.com/protected", "active", false)
+	hash, err := auth.HashPassword("correct horse")
+	if err != nil {
+		t.Fatalf("hash protected password: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `update short_link set password_hash = $2 where id = $1`, linkID, hash); err != nil {
+		t.Fatalf("configure protected password: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `drop table short_link_access_grant`); err != nil {
+		t.Fatalf("drop access grant table: %v", err)
+	}
+
+	service := shortlink.NewRedirectService(pool, nil)
+	if _, err := service.Preview(ctx, "grant-query-error", "raw-token"); err == nil {
+		t.Fatal("expected preview access grant query error")
+	}
+	if _, err := service.Continue(ctx, "grant-query-error", "raw-token"); err == nil {
+		t.Fatal("expected continue access grant query error")
+	}
+}
+
+// TestRedirectServiceUnlockMapsAccessConditions verifies unavailable links cannot issue access grants.
+func TestRedirectServiceUnlockMapsAccessConditions(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "unlock-conditions-user", "user", []string{})
+	hash, err := auth.HashPassword("correct horse")
+	if err != nil {
+		t.Fatalf("hash protected password: %v", err)
+	}
+
+	insertStoredShortLink(t, ctx, pool, user.ID, "unlock-unprotected", "https://example.com/unprotected", "active", false)
+	disabledID := insertStoredShortLink(t, ctx, pool, user.ID, "unlock-disabled", "https://example.com/disabled", "disabled", false)
+	expiredID := insertStoredShortLink(t, ctx, pool, user.ID, "unlock-expired", "https://example.com/expired", "active", false)
+	blockedID := insertStoredShortLink(t, ctx, pool, user.ID, "unlock-blocked", "https://example.com/blocked", "active", false)
+	for _, linkID := range []string{disabledID, expiredID, blockedID} {
+		if _, err := pool.Exec(ctx, `update short_link set password_hash = $2 where id = $1`, linkID, hash); err != nil {
+			t.Fatalf("configure protected password: %v", err)
+		}
+	}
+	if _, err := pool.Exec(ctx, `update short_link set expires_at = now() - interval '1 second' where id = $1`, expiredID); err != nil {
+		t.Fatalf("expire protected link: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `update short_link set password_blocked_until = now() + interval '1 minute' where id = $1`, blockedID); err != nil {
+		t.Fatalf("block protected link: %v", err)
+	}
+
+	service := shortlink.NewRedirectService(pool, nil)
+	tests := []struct {
+		name string
+		slug string
+		want error
+	}{
+		{name: "missing", slug: "unlock-missing", want: shortlink.ErrShortLinkMissing},
+		{name: "unprotected", slug: "unlock-unprotected", want: shortlink.ErrInvalidPassword},
+		{name: "disabled", slug: "unlock-disabled", want: shortlink.ErrShortLinkDisabled},
+		{name: "expired", slug: "unlock-expired", want: shortlink.ErrShortLinkExpired},
+		{name: "rate limited", slug: "unlock-blocked", want: shortlink.ErrPasswordRateLimited},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := service.Unlock(ctx, test.slug, "correct horse")
+			if !errors.Is(err, test.want) {
+				t.Fatalf("expected %v, got %v", test.want, err)
+			}
+		})
+	}
+}
+
+// TestRedirectServiceUnlockHandlesUnavailableDatabase verifies transaction startup failures are returned to the handler.
+func TestRedirectServiceUnlockHandlesUnavailableDatabase(t *testing.T) {
+	ctx := context.Background()
+	unavailableService := shortlink.NewRedirectService(nil, nil)
+	if _, err := unavailableService.Unlock(ctx, "missing", "password"); err == nil {
+		t.Fatal("expected unavailable database error")
+	}
+	if err := unavailableService.CleanupExpiredAccessGrants(ctx); err == nil {
+		t.Fatal("expected unavailable cleanup database error")
+	}
+
+	pool := shortLinkTestPool(t, ctx)
+	service := shortlink.NewRedirectService(pool, nil)
+	pool.Close()
+	if _, err := service.Unlock(ctx, "missing", "password"); err == nil {
+		t.Fatal("expected begin transaction error")
+	}
+}
+
+// TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock verifies cleanup is bounded and periodic.
+func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "protected-cleanup-user", "user", []string{})
+	linkID := insertStoredShortLink(t, ctx, pool, user.ID, "protected-cleanup", "https://example.com/protected", "active", false)
+	hash, err := auth.HashPassword("correct horse")
+	if err != nil {
+		t.Fatalf("hash protected password: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `update short_link set password_hash = $2, password_updated_at = now() where id = $1`, linkID, hash); err != nil {
+		t.Fatalf("configure protected password: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		-- 501 is the cleanup batch limit of 500 plus one remaining row.
+		insert into short_link_access_grant (id, short_link_id, token_hash, expires_at, created_at)
+		select ('00000000-0000-0001-0000-' || lpad(value::text, 12, '0'))::uuid,
+			$1, 'expired-grant-' || value, now() - interval '1 second', now() - interval '1 minute'
+		from generate_series(1, 501) as value
+	`, linkID); err != nil {
+		t.Fatalf("insert expired access grant: %v", err)
+	}
+
+	service := shortlink.NewRedirectService(pool, nil)
+	grant, err := service.Unlock(ctx, "protected-cleanup", "correct horse")
+	if err != nil || grant.Token == "" {
+		t.Fatalf("unlock protected short link: grant=%#v error=%v", grant, err)
+	}
+
+	var expiredCount int
+	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where expires_at <= now()`).Scan(&expiredCount); err != nil {
+		t.Fatalf("query expired access grants: %v", err)
+	}
+	if expiredCount != 501 {
+		// This assertion depends on the cleanup batch limit remaining 500.
+		t.Fatalf("expected unlock to leave expired grants for background cleanup, got %d rows", expiredCount)
+	}
+	if err := service.CleanupExpiredAccessGrants(ctx); err != nil {
+		t.Fatalf("clean expired access grants: %v", err)
+	}
+	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where expires_at <= now()`).Scan(&expiredCount); err != nil {
+		t.Fatalf("query expired access grants after bounded cleanup: %v", err)
+	}
+	if expiredCount != 1 {
+		// One row remains because CleanupExpiredAccessGrants deletes at most 500 rows.
+		t.Fatalf("expected one expired access grant after bounded cleanup, got %d rows", expiredCount)
+	}
+
+	cleanupCtx, cancelCleanup := context.WithCancel(ctx)
+	cleanupDone := make(chan struct{})
+	defer cancelCleanup()
+	go func() {
+		defer close(cleanupDone)
+		service.RunAccessGrantCleanup(cleanupCtx, time.Millisecond, slog.Default())
+	}()
+	deadline := time.Now().Add(5 * time.Second)
+	for expiredCount != 0 && time.Now().Before(deadline) {
+		if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where expires_at <= now()`).Scan(&expiredCount); err != nil {
+			t.Fatalf("query periodically cleaned access grants: %v", err)
+		}
+		time.Sleep(time.Millisecond)
+	}
+	cancelCleanup()
+	<-cleanupDone
+	if expiredCount != 0 {
+		t.Fatalf("expected periodic cleanup to remove the remaining expired grant, got %d rows", expiredCount)
+	}
+
+	var activeCount int
+	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where short_link_id = $1 and expires_at > now()`, linkID).Scan(&activeCount); err != nil {
+		t.Fatalf("query active access grants: %v", err)
+	}
+	if activeCount != 1 {
+		t.Fatalf("expected new access grant to remain, got %d rows", activeCount)
+	}
+}
+
+// TestRedirectServiceLogsAccessGrantCleanupFailures verifies background cleanup errors remain observable.
+func TestRedirectServiceLogsAccessGrantCleanupFailures(t *testing.T) {
+	logOutput := &notifyingLogWriter{written: make(chan struct{})}
+	logger := slog.New(slog.NewTextHandler(logOutput, nil))
+
+	cleanupContext, cancelCleanup := context.WithCancel(context.Background())
+	cleanupDone := make(chan struct{})
+	go func() {
+		defer close(cleanupDone)
+		shortlink.NewRedirectService(nil, nil).RunAccessGrantCleanup(cleanupContext, time.Millisecond, logger)
+	}()
+	select {
+	case <-logOutput.written:
+	case <-time.After(time.Second):
+	}
+	cancelCleanup()
+	<-cleanupDone
+
+	output := logOutput.String()
+	if !strings.Contains(output, "access_grant_cleanup_failed") || !strings.Contains(output, "redirect service database is unavailable") {
+		t.Fatalf("expected cleanup error context in log, got %q", output)
+	}
 }
 
 // TestRedirectServicePreviewRejectsCorruptStoredTargets verifies unexpected legacy data stays an internal error.
@@ -227,10 +537,10 @@ func TestRedirectServicePreviewRejectsCorruptStoredTargets(t *testing.T) {
 	}
 	service := shortlink.NewRedirectService(pool, nil)
 
-	if _, err := service.Preview(ctx, "invalid1"); err == nil || !strings.Contains(err.Error(), "parse stored target URL") {
+	if _, err := service.Preview(ctx, "invalid1", ""); err == nil || !strings.Contains(err.Error(), "parse stored target URL") {
 		t.Fatalf("expected stored target parse error, got %v", err)
 	}
-	if _, err := service.Preview(ctx, "hostless"); err == nil || !strings.Contains(err.Error(), "no hostname") {
+	if _, err := service.Preview(ctx, "hostless", ""); err == nil || !strings.Contains(err.Error(), "no hostname") {
 		t.Fatalf("expected stored target hostname error, got %v", err)
 	}
 }
@@ -258,26 +568,26 @@ func TestRedirectServiceBlocksExpiredAndInvalidPreviewLinks(t *testing.T) {
 	assertEvents(t, recorder.types, []string{event.ShortLinkOpened, event.AccessConditionChecked, event.RedirectBlocked})
 
 	recorder.types = nil
-	_, err = service.Continue(ctx, "expired")
+	_, err = service.Continue(ctx, "expired", "")
 	if !errors.Is(err, shortlink.ErrShortLinkExpired) {
 		t.Fatalf("expected expired continue error, got %v", err)
 	}
 	assertEvents(t, recorder.types, []string{event.AccessConditionChecked, event.RedirectBlocked})
 
 	recorder.types = nil
-	_, err = service.Preview(ctx, "expired")
+	_, err = service.Preview(ctx, "expired", "")
 	if !errors.Is(err, shortlink.ErrShortLinkExpired) || len(recorder.types) != 0 {
 		t.Fatalf("expected event-free expired preview error, got %v events %#v", err, recorder.types)
 	}
-	_, err = service.Preview(ctx, "direct1")
+	_, err = service.Preview(ctx, "direct1", "")
 	if !errors.Is(err, shortlink.ErrShortLinkNotIntermediate) {
 		t.Fatalf("expected direct preview rejection, got %v", err)
 	}
-	_, err = service.Preview(ctx, "deleted")
+	_, err = service.Preview(ctx, "deleted", "")
 	if !errors.Is(err, shortlink.ErrShortLinkMissing) {
 		t.Fatalf("expected deleted preview to be missing, got %v", err)
 	}
-	_, err = service.Preview(ctx, "disabled2")
+	_, err = service.Preview(ctx, "disabled2", "")
 	if !errors.Is(err, shortlink.ErrShortLinkDisabled) || len(recorder.types) != 0 {
 		t.Fatalf("expected event-free disabled preview error, got %v events %#v", err, recorder.types)
 	}
@@ -310,7 +620,7 @@ func TestRedirectServiceContinueRechecksEveryAccessCondition(t *testing.T) {
 			recorder := &recordingRecorder{}
 			service := shortlink.NewRedirectService(pool, recorder)
 
-			_, err := service.Continue(ctx, tt.slug)
+			_, err := service.Continue(ctx, tt.slug, "")
 			if !errors.Is(err, tt.err) {
 				t.Fatalf("expected %v, got %v", tt.err, err)
 			}
@@ -322,6 +632,19 @@ func TestRedirectServiceContinueRechecksEveryAccessCondition(t *testing.T) {
 type recordingRecorder struct {
 	types []string
 	ids   []string
+}
+
+type notifyingLogWriter struct {
+	bytes.Buffer
+	once    sync.Once
+	written chan struct{}
+}
+
+// Write captures a log line and signals the waiting cleanup test.
+func (w *notifyingLogWriter) Write(data []byte) (int, error) {
+	written, err := w.Buffer.Write(data)
+	w.once.Do(func() { close(w.written) })
+	return written, err
 }
 
 // Record captures redirect events for service assertions.

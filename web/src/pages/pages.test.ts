@@ -49,7 +49,8 @@ const defaultShortLinkAccessConfig = {
   intermediateDelaySeconds: 5,
   expiresAt: null,
   expired: false,
-} satisfies Pick<ShortLink, 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'expired'>
+  passwordEnabled: false,
+} satisfies Pick<ShortLink, 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'expired' | 'passwordEnabled'>
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -88,7 +89,9 @@ vi.mock('@/entities/short-link/api', () => ({
   listShortLinks: vi.fn(async () => ({ items: [], meta: { page: 1, pageSize: 20, total: 0 } })),
   updateAdminShortLink: vi.fn(),
   updateShortLink: vi.fn(),
-  createShortLink: vi.fn(),
+  createShortLink: vi.fn(async () => ({
+    shortLink: { slug: 'abc123', url: 'https://go.example.com/abc123' },
+  })),
   getAdminShortLinkStatistics: vi.fn(),
   getShortLinkOverview: vi.fn(async () => ({ totalLinkCount: 0, activeLinkCount: 0, visitCount: 0, todayVisitCount: 0 })),
   getShortLinkStatistics: vi.fn(),
@@ -396,29 +399,29 @@ describe('pages', () => {
   it('renders analytics data, chart, and dimension summaries for a selected link', async () => {
     state.routeQuery = { shortLinkId: 'link-id' }
     const analytics = ref<undefined | {
-		shortLink: { id: string; url: string; slug: string; targetUrl: string; status: 'active'; redirectMode: 'direct'; intermediateDelaySeconds: number; expiresAt: null; expired: false; createdAt: string }
+      shortLink: { id: string; url: string; slug: string; targetUrl: string; status: 'active'; redirectMode: 'direct'; intermediateDelaySeconds: number; expiresAt: null; expired: false; passwordEnabled: boolean; createdAt: string }
       stats: { visitCount: number; todayVisitCount: number; lastVisitedAt: string; trend: Array<{ date: string; visitCount: number }>; referrers: Array<{ value: string; visitCount: number }>; devices: Array<{ value: string; visitCount: number }>; countries: Array<{ value: string; visitCount: number }> }
     }>(undefined)
     setQueryResult({ data: analytics })
     vi.mocked(me).mockResolvedValue({ user: { permissions: [] } } as never)
     vi.mocked(getShortLinkStatistics).mockResolvedValue({
-		shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null, expired: false, createdAt: '2026-07-01T00:00:00Z' },
+      shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig, createdAt: '2026-07-01T00:00:00Z' },
       stats: { visitCount: 5, todayVisitCount: 2, lastVisitedAt: '2026-07-17T00:00:00Z', trend: [{ date: '2026-07-17', visitCount: 2 }], referrers: [{ value: 'search.example', visitCount: 3 }], devices: [{ value: 'mobile', visitCount: 4 }], countries: [{ value: 'unknown', visitCount: 1 }] },
     })
 
     mount(AnalyticsPage)
     await state.queryFns[0]?.()
     analytics.value = {
-		shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null, expired: false, createdAt: '2026-07-01T00:00:00Z' },
-        stats: {
-          visitCount: 5,
-          todayVisitCount: 2,
-          lastVisitedAt: '2026-07-17T00:00:00Z',
-          trend: [{ date: '2026-07-17', visitCount: 2 }],
-          referrers: [{ value: 'search.example', visitCount: 3 }],
-          devices: [{ value: 'mobile', visitCount: 4 }],
-          countries: [{ value: 'unknown', visitCount: 1 }],
-        },
+      shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig, createdAt: '2026-07-01T00:00:00Z' },
+      stats: {
+        visitCount: 5,
+        todayVisitCount: 2,
+        lastVisitedAt: '2026-07-17T00:00:00Z',
+        trend: [{ date: '2026-07-17', visitCount: 2 }],
+        referrers: [{ value: 'search.example', visitCount: 3 }],
+        devices: [{ value: 'mobile', visitCount: 4 }],
+        countries: [{ value: 'unknown', visitCount: 1 }],
+      },
     }
     await nextTick()
     await nextTick()
@@ -700,7 +703,7 @@ describe('pages', () => {
     await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
-    expect(screen.getByText('https://go.example.com/abc123')).toBeTruthy()
+    expect(await screen.findByText('https://go.example.com/abc123')).toBeTruthy()
     await fireEvent.click(screen.getByText('shortLinkCreate.qrCode'))
     expect(within(screen.getByTestId('short-link-qr-dialog-stub')).getByText('abc123')).toBeTruthy()
     await fireEvent.click(screen.getByLabelText('short-link-qr-close'))
@@ -903,6 +906,7 @@ describe('pages', () => {
           targetUrl: 'https://example.com',
           status: 'active',
           ...defaultShortLinkAccessConfig,
+          passwordEnabled: true,
           createdAt: '2026-08-01T00:00:00Z',
         }],
       }),
@@ -910,6 +914,7 @@ describe('pages', () => {
     mount(MyLinksPage)
 
     const row = screen.getByTestId('console-link-row')
+    expect(within(row).getByText('links.passwordProtected')).toBeTruthy()
     await fireEvent.click(within(row).getByRole('button', { name: 'links.actions.more' }))
     await fireEvent.click(within(row).getByRole('menuitem', { name: 'links.actions.disable' }))
 

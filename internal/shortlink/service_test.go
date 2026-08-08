@@ -2,7 +2,6 @@ package shortlink_test
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"path/filepath"
@@ -14,12 +13,8 @@ import (
 	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/pressly/goose/v3"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // TestServiceCreateRejectsGuest verifies guests cannot create short links.
@@ -125,6 +120,74 @@ func TestServiceCreateStoresShortLinkWithGeneratedSlug(t *testing.T) {
 	}
 	if storedTarget != result.ShortLink.TargetURL {
 		t.Fatalf("expected stored target %q, got %q", result.ShortLink.TargetURL, storedTarget)
+	}
+}
+
+// TestServicePasswordConfigurationRoundTrip verifies create and update operations preserve password state safely.
+func TestServicePasswordConfigurationRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "password-user", "user", permission.UserPermissions)
+	service := shortlink.NewService(pool, permission.NewService())
+
+	created, err := service.Create(ctx, user, shortlink.CreateInput{
+		TargetURL: "https://example.com/protected",
+		Password:  &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "correct horse"},
+	})
+	if err != nil {
+		t.Fatalf("create protected short link: %v", err)
+	}
+	if !created.ShortLink.PasswordEnabled {
+		t.Fatal("expected created short link to report enabled password")
+	}
+	encoded, err := json.Marshal(created.ShortLink)
+	if err != nil {
+		t.Fatalf("marshal protected short link: %v", err)
+	}
+	if regexp.MustCompile(`(?i)password_hash|argon2`).Match(encoded) {
+		t.Fatalf("password hash leaked in response: %s", encoded)
+	}
+	var storedHash string
+	if err := pool.QueryRow(ctx, `select password_hash from short_link where id = $1`, created.ShortLink.ID).Scan(&storedHash); err != nil {
+		t.Fatalf("query protected password hash: %v", err)
+	}
+	if !auth.VerifyPassword("correct horse", storedHash) {
+		t.Fatal("stored password hash did not verify")
+	}
+	if _, err := pool.Exec(ctx, `
+		update short_link
+		set password_failed_attempts = 5,
+			password_window_started_at = now() - interval '1 minute',
+			password_blocked_until = now() + interval '15 minutes'
+		where id = $1
+	`, created.ShortLink.ID); err != nil {
+		t.Fatalf("block protected short link: %v", err)
+	}
+	if _, err := service.Update(ctx, user, shortlink.UpdateInput{
+		ID:       created.ShortLink.ID,
+		Password: &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "updated horse"},
+	}); err != nil {
+		t.Fatalf("change blocked short link password: %v", err)
+	}
+	grant, err := shortlink.NewRedirectService(pool, nil).Unlock(ctx, created.ShortLink.Slug, "updated horse")
+	if err != nil || grant.Token == "" {
+		t.Fatalf("unlock immediately after password change: %#v, %v", grant, err)
+	}
+
+	listed, err := service.List(ctx, user, shortlink.ListInput{Page: 1, PageSize: 20})
+	if err != nil || len(listed.Items) != 1 || !listed.Items[0].PasswordEnabled {
+		t.Fatalf("expected password-enabled list result, got %#v error %v", listed, err)
+	}
+	cleared, err := service.Update(ctx, user, shortlink.UpdateInput{
+		ID:       created.ShortLink.ID,
+		Password: &shortlink.PasswordInput{Mode: shortlink.PasswordModeNever},
+	})
+	if err != nil {
+		t.Fatalf("clear short link password: %v", err)
+	}
+	if cleared.ShortLink.PasswordEnabled {
+		t.Fatal("expected cleared password to be disabled")
 	}
 }
 
@@ -1040,6 +1103,7 @@ func TestServiceAccessConfigValidation(t *testing.T) {
 		{name: "never with time", input: shortlink.CreateInput{TargetURL: "https://example.com", Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeNever, ExpiresAt: &future}}, err: shortlink.ErrInvalidExpiration},
 		{name: "at without time", input: shortlink.CreateInput{TargetURL: "https://example.com", Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeAt}}, err: shortlink.ErrInvalidExpiration},
 		{name: "past expiration", input: shortlink.CreateInput{TargetURL: "https://example.com", Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeAt, ExpiresAt: &past}}, err: shortlink.ErrInvalidExpiration},
+		{name: "invalid password", input: shortlink.CreateInput{TargetURL: "https://example.com", Password: &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "short"}}, err: shortlink.ErrInvalidPasswordInput},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -1060,6 +1124,7 @@ func TestServiceAccessConfigValidation(t *testing.T) {
 		{name: "update invalid mode", input: shortlink.UpdateInput{ID: created.ShortLink.ID, RedirectMode: &invalidMode}, err: shortlink.ErrInvalidRedirectMode},
 		{name: "update invalid delay", input: shortlink.UpdateInput{ID: created.ShortLink.ID, IntermediateDelaySeconds: &invalidDelay}, err: shortlink.ErrInvalidIntermediateDelay},
 		{name: "update invalid expiration", input: shortlink.UpdateInput{ID: created.ShortLink.ID, Expiration: &shortlink.ExpirationInput{}}, err: shortlink.ErrInvalidExpiration},
+		{name: "update invalid password", input: shortlink.UpdateInput{ID: created.ShortLink.ID, Password: &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "short"}}, err: shortlink.ErrInvalidPasswordInput},
 	}
 	for _, test := range updateTests {
 		t.Run(test.name, func(t *testing.T) {
@@ -1347,46 +1412,5 @@ func shortLinkTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 // migratedShortLinkDatabaseURL starts PostgreSQL and applies all project migrations.
 func migratedShortLinkDatabaseURL(t *testing.T, ctx context.Context) string {
 	t.Helper()
-
-	container, err := postgres.Run(ctx,
-		"postgres:18-alpine",
-		postgres.WithDatabase("moeurl_test"),
-		postgres.WithUsername("moeurl"),
-		postgres.WithPassword("moeurl"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(60*time.Second),
-		),
-	)
-	if err != nil {
-		t.Fatalf("start postgres container: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(container); err != nil {
-			t.Fatalf("terminate postgres container: %v", err)
-		}
-	})
-
-	databaseURL, err := container.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		t.Fatalf("get connection string: %v", err)
-	}
-
-	database, err := sql.Open("pgx", databaseURL)
-	if err != nil {
-		t.Fatalf("open database: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = database.Close()
-	})
-
-	if err := goose.SetDialect("postgres"); err != nil {
-		t.Fatalf("set goose dialect: %v", err)
-	}
-	if err := goose.Up(database, filepath.Join("..", "..", "migrations")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
-
-	return databaseURL
+	return testdb.MigratedDatabaseURL(t, ctx, filepath.Join("..", "..", "migrations"))
 }

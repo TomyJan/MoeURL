@@ -3,11 +3,13 @@ package auth_test
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -257,4 +259,10 @@ func authTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	}
 	t.Cleanup(pool.Close)
 	return pool
+}
+
+// migratedAuthDatabaseURL provisions an isolated migrated database for authentication tests.
+func migratedAuthDatabaseURL(t *testing.T, ctx context.Context) string {
+	t.Helper()
+	return testdb.MigratedDatabaseURL(t, ctx, filepath.Join("..", "..", "migrations"))
 }

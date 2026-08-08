@@ -37,6 +37,7 @@
             size="small"
             variant="text"
             :aria-expanded="advancedOpen"
+            :disabled="mutation.isPending.value"
             @click="advancedOpen = !advancedOpen"
           >
             {{ t('shortLinkCreate.advanced') }}
@@ -45,10 +46,17 @@
             <div v-if="advancedOpen" class="short-link-create-panel__advanced-controls">
               <div v-if="canUseIntermediate" class="short-link-create-panel__mode-control">
                 <span>{{ t('shortLinkCreate.redirectMode') }}</span>
-                <v-btn-toggle v-model="redirectMode" mandatory divided :aria-label="t('shortLinkCreate.redirectMode')">
+                <v-btn-toggle
+                  v-model="redirectMode"
+                  mandatory
+                  divided
+                  :aria-label="t('shortLinkCreate.redirectMode')"
+                  :disabled="mutation.isPending.value"
+                >
                   <v-btn
                     size="small"
                     :aria-pressed="redirectMode === 'direct'"
+                    :disabled="mutation.isPending.value"
                     value="direct"
                   >
                     {{ t('shortLinkCreate.redirectModes.direct') }}
@@ -56,6 +64,7 @@
                   <v-btn
                     size="small"
                     :aria-pressed="redirectMode === 'intermediate'"
+                    :disabled="mutation.isPending.value"
                     value="intermediate"
                   >
                     {{ t('shortLinkCreate.redirectModes.intermediate') }}
@@ -69,6 +78,7 @@
                 :min="3"
                 :max="10"
                 :step="1"
+                :disabled="mutation.isPending.value"
                 show-ticks="always"
                 thumb-label
               />
@@ -79,6 +89,7 @@
                 density="comfortable"
                 hide-details
                 :label="t('shortLinkCreate.expirationEnabled')"
+                :disabled="mutation.isPending.value"
               />
               <v-text-field
                 v-if="canSetExpiration && expirationEnabled"
@@ -86,7 +97,28 @@
                 type="datetime-local"
                 variant="outlined"
                 :label="t('shortLinkCreate.expiresAt')"
+                :disabled="mutation.isPending.value"
                 :error-messages="expirationErrorMessage"
+              />
+              <v-switch
+                v-if="canSetPassword"
+                v-model="passwordEnabled"
+                color="primary"
+                density="comfortable"
+                hide-details
+                :label="t('shortLinkCreate.passwordEnabled')"
+                :disabled="mutation.isPending.value"
+              />
+              <v-text-field
+                v-if="canSetPassword && passwordEnabled"
+                ref="passwordField"
+                data-testid="short-link-create-password-input"
+                type="password"
+                autocomplete="new-password"
+                variant="outlined"
+                :label="t('shortLinkCreate.password')"
+                :disabled="mutation.isPending.value"
+                :error-messages="passwordErrorMessage"
               />
             </div>
           </Transition>
@@ -126,7 +158,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -134,7 +166,8 @@ import { me } from '@/entities/auth/api'
 import { createShortLink } from '@/entities/short-link/api'
 import type { CreateShortLinkInput, RedirectMode } from '@/entities/short-link/model'
 import ShortLinkQrDialog from '@/features/short-link-qr/ShortLinkQrDialog.vue'
-import { futureDateTimeSchema, targetUrlSchema } from '@/shared/validation/shortLinkAccess'
+import { runShortLinkMutation } from '@/shared/short-link/runShortLinkMutation'
+import { futureDateTimeSchema, passwordSchema, targetUrlSchema } from '@/shared/validation/shortLinkAccess'
 
 withDefaults(
   defineProps<{
@@ -154,11 +187,15 @@ const qrOpen = ref(false)
 const validationErrorMessage = ref('')
 const copyErrorMessage = ref('')
 const expirationErrorMessage = ref('')
+const passwordErrorMessage = ref('')
 const advancedOpen = ref(false)
 const redirectMode = ref<RedirectMode>('direct')
 const intermediateDelaySeconds = ref(5)
 const expirationEnabled = ref(false)
 const expiresAt = ref('')
+const passwordEnabled = ref(false)
+const passwordField = useTemplateRef<{ $el: globalThis.Element }>('passwordField')
+let pendingPassword: CreateShortLinkInput['password']
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,
@@ -170,11 +207,17 @@ const canCreateShortLink = computed(() =>
 )
 const canUseIntermediate = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:use_intermediate')))
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
-const canConfigureAccess = computed(() => canUseIntermediate.value || canSetExpiration.value)
+const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
+const canConfigureAccess = computed(() => canUseIntermediate.value || canSetExpiration.value || canSetPassword.value)
 const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !canCreateShortLink.value)
 
 const mutation = useMutation({
-  mutationFn: createShortLink,
+  /** Runs creation through the shared sensitive-input cleanup boundary. */
+  mutationFn: (input: Omit<CreateShortLinkInput, 'password'>) => {
+    const requestPassword = pendingPassword
+    pendingPassword = undefined
+    return runShortLinkMutation(createShortLink, input, requestPassword)
+  },
   onSuccess(result) {
     createdUrl.value = result.shortLink.url
     createdSlug.value = result.shortLink.slug
@@ -195,6 +238,7 @@ const errorMessage = computed(() => {
   return ''
 })
 
+/** Validates the form and submits only access settings allowed by current permissions. */
 function submit() {
   if (!canCreateShortLink.value || mutation.isPending.value) {
     return
@@ -202,6 +246,7 @@ function submit() {
   validationErrorMessage.value = ''
   copyErrorMessage.value = ''
   expirationErrorMessage.value = ''
+  passwordErrorMessage.value = ''
   const targetUrlResult = targetUrlSchema.safeParse(targetUrl.value)
   if (!targetUrlResult.success) {
     validationErrorMessage.value = t('shortLinkCreate.invalidUrl')
@@ -231,9 +276,22 @@ function submit() {
   if (expiration) {
     input.expiration = expiration
   }
+  if (canSetPassword.value && passwordEnabled.value) {
+    const passwordElement = passwordInput()
+    const password = passwordElement?.value ?? ''
+    const passwordResult = passwordSchema.safeParse(password)
+    if (!passwordResult.success) {
+      passwordErrorMessage.value = password ? t('shortLinkCreate.passwordInvalid') : t('shortLinkCreate.passwordRequired')
+      return
+    }
+    pendingPassword = { mode: 'set', value: passwordResult.data }
+  } else {
+    pendingPassword = undefined
+  }
   createdUrl.value = ''
   createdSlug.value = ''
   mutation.mutate(input)
+  clearPasswordInput()
 }
 
 function resetForm() {
@@ -243,15 +301,34 @@ function resetForm() {
   qrOpen.value = false
 }
 
+/** Clears creation inputs after a successful request while preserving the generated result. */
 function resetInputFields() {
   targetUrl.value = ''
   validationErrorMessage.value = ''
   copyErrorMessage.value = ''
   expirationErrorMessage.value = ''
+  passwordErrorMessage.value = ''
   redirectMode.value = 'direct'
   intermediateDelaySeconds.value = 5
   expirationEnabled.value = false
   expiresAt.value = ''
+  clearPasswordInput()
+  passwordEnabled.value = false
+}
+
+function passwordInput() {
+  const field = passwordField.value?.$el
+  if (!field?.matches('[data-testid="short-link-create-password-input"]')) {
+    return null
+  }
+  return field.querySelector<globalThis.HTMLInputElement>('input')
+}
+
+function clearPasswordInput() {
+  const input = passwordInput()
+  if (input) {
+    input.value = ''
+  }
 }
 
 async function copyUrl(url: string) {

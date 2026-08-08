@@ -9,12 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // TestInitialMigrationCreatesCoreTablesAndConstraints verifies the baseline schema contract.
@@ -27,7 +25,7 @@ func TestInitialMigrationCreatesCoreTablesAndConstraints(t *testing.T) {
 		t.Fatalf("run migrations: %v", err)
 	}
 
-	expectedTables := []string{"system_setting", "user_group", "app_user", "session", "domain", "short_link", "short_link_event"}
+	expectedTables := []string{"system_setting", "user_group", "app_user", "session", "domain", "short_link", "short_link_event", "short_link_access_grant"}
 	for _, table := range expectedTables {
 		t.Run(fmt.Sprintf("table_%s_exists", table), func(t *testing.T) {
 			var exists bool
@@ -64,6 +62,193 @@ func TestInitialMigrationCreatesCoreTablesAndConstraints(t *testing.T) {
 	}
 	if pgErr.Code != "23505" {
 		t.Fatalf("expected unique violation code 23505, got %s", pgErr.Code)
+	}
+}
+
+// TestShortLinkPasswordMigrationAddsProtectedAccessStateAndRollsBack verifies the protected-access schema round trip.
+func TestShortLinkPasswordMigrationAddsProtectedAccessStateAndRollsBack(t *testing.T) {
+	ctx := context.Background()
+	database := migrationTestDatabase(t, ctx)
+	migrationsDir := filepath.Join("..", "..", "migrations")
+
+	if err := goose.UpTo(database, migrationsDir, 5); err != nil {
+		t.Fatalf("run migrations through version 5: %v", err)
+	}
+	insertUserGroups(t, ctx, database)
+	if _, err := database.ExecContext(ctx, `
+		insert into short_link (id, owner_id, domain_id, slug, target_url, status, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000101', 'protected', 'https://example.com', 'active', now(), now())
+	`); err != nil {
+		t.Fatalf("insert pre-password short link: %v", err)
+	}
+
+	if err := goose.UpTo(database, migrationsDir, 6); err != nil {
+		t.Fatalf("upgrade password migration: %v", err)
+	}
+	assertShortLinkPasswordConstraintValidation(t, ctx, database, true, false)
+
+	var passwordHash sql.NullString
+	var failedAttempts int
+	var windowStarted, blockedUntil, passwordUpdated sql.NullTime
+	err := database.QueryRowContext(ctx, `
+		select password_hash, password_failed_attempts, password_window_started_at,
+			password_blocked_until, password_updated_at
+		from short_link where slug = 'protected'
+	`).Scan(&passwordHash, &failedAttempts, &windowStarted, &blockedUntil, &passwordUpdated)
+	if err != nil {
+		t.Fatalf("read password defaults: %v", err)
+	}
+	if passwordHash.Valid || failedAttempts != 0 || windowStarted.Valid || blockedUntil.Valid || passwordUpdated.Valid {
+		t.Fatalf("unexpected password defaults: hash=%v attempts=%d window=%v blocked=%v updated=%v", passwordHash, failedAttempts, windowStarted, blockedUntil, passwordUpdated)
+	}
+
+	var grantTableExists bool
+	if err := database.QueryRowContext(ctx, `
+		select exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'short_link_access_grant')
+	`).Scan(&grantTableExists); err != nil {
+		t.Fatalf("check access grant table: %v", err)
+	}
+	if !grantTableExists {
+		t.Fatal("expected short_link_access_grant table")
+	}
+	var expiryIndexExists bool
+	if err := database.QueryRowContext(ctx, `
+		select exists (
+			select 1 from pg_indexes
+			where schemaname = 'public'
+				and tablename = 'short_link_access_grant'
+				and indexname = 'short_link_access_grant_expiry_idx'
+		)
+	`).Scan(&expiryIndexExists); err != nil {
+		t.Fatalf("check access grant expiry index: %v", err)
+	}
+	if !expiryIndexExists {
+		t.Fatal("expected short_link_access_grant_expiry_idx")
+	}
+	var linkIndexExists bool
+	if err := database.QueryRowContext(ctx, `
+		select exists (
+			select 1 from pg_indexes
+			where schemaname = 'public'
+				and tablename = 'short_link_access_grant'
+				and indexname = 'short_link_access_grant_link_idx'
+		)
+	`).Scan(&linkIndexExists); err != nil {
+		t.Fatalf("check access grant link index: %v", err)
+	}
+	if !linkIndexExists {
+		t.Fatal("expected short_link_access_grant_link_idx")
+	}
+	var linkExpiryIndexExists bool
+	if err := database.QueryRowContext(ctx, `
+		select exists (
+			select 1 from pg_indexes
+			where schemaname = 'public'
+				and tablename = 'short_link_access_grant'
+				and indexname = 'short_link_access_grant_link_expiry_idx'
+		)
+	`).Scan(&linkExpiryIndexExists); err != nil {
+		t.Fatalf("check redundant access grant index: %v", err)
+	}
+	if linkExpiryIndexExists {
+		t.Fatal("expected redundant short_link_access_grant_link_expiry_idx to be absent")
+	}
+	var passwordPermission bool
+	if err := database.QueryRowContext(ctx, `select permissions ? 'short_link:set_password' from user_group where key = 'user'`).Scan(&passwordPermission); err != nil {
+		t.Fatalf("query upgraded password permission: %v", err)
+	}
+	if !passwordPermission {
+		t.Fatal("expected migration to add short_link:set_password")
+	}
+	if err := goose.UpTo(database, migrationsDir, 7); err != nil {
+		t.Fatalf("validate password constraint: %v", err)
+	}
+	assertShortLinkPasswordConstraintValidation(t, ctx, database, true, true)
+
+	if err := goose.DownTo(database, migrationsDir, 5); err != nil {
+		t.Fatalf("rollback password migration: %v", err)
+	}
+	var passwordColumnCount int
+	if err := database.QueryRowContext(ctx, `
+		select count(*) from information_schema.columns
+		where table_schema = 'public' and table_name = 'short_link'
+		and column_name in ('password_hash', 'password_failed_attempts', 'password_window_started_at', 'password_blocked_until', 'password_updated_at')
+	`).Scan(&passwordColumnCount); err != nil {
+		t.Fatalf("check rolled-back password columns: %v", err)
+	}
+	if passwordColumnCount != 0 {
+		t.Fatalf("expected password columns to be removed, found %d", passwordColumnCount)
+	}
+	var grantTableExistsAfterRollback bool
+	if err := database.QueryRowContext(ctx, `
+		select exists (
+			select 1 from information_schema.tables
+			where table_schema = 'public' and table_name = 'short_link_access_grant'
+		)
+	`).Scan(&grantTableExistsAfterRollback); err != nil {
+		t.Fatalf("check rolled-back access grant table: %v", err)
+	}
+	if grantTableExistsAfterRollback {
+		t.Fatal("expected short_link_access_grant table to be removed")
+	}
+	assertShortLinkPasswordConstraintValidation(t, ctx, database, false, false)
+	if err := database.QueryRowContext(ctx, `select permissions ? 'short_link:set_password' from user_group where key = 'user'`).Scan(&passwordPermission); err != nil {
+		t.Fatalf("query rolled-back password permission: %v", err)
+	}
+	if passwordPermission {
+		t.Fatal("expected rollback to remove migration-added password permission")
+	}
+}
+
+// TestShortLinkPasswordMigrationPreservesGroupsCreatedAfterUpgrade verifies rollback only removes recorded permission additions.
+func TestShortLinkPasswordMigrationPreservesGroupsCreatedAfterUpgrade(t *testing.T) {
+	ctx := context.Background()
+	database := migrationTestDatabase(t, ctx)
+	migrationsDir := filepath.Join("..", "..", "migrations")
+
+	if err := goose.UpTo(database, migrationsDir, 5); err != nil {
+		t.Fatalf("run migrations through version 5: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `
+		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000003', 'admin', 'Admin', '', '["short_link:set_password"]'::jsonb, true, now(), '2026-01-01T00:00:00Z')
+	`); err != nil {
+		t.Fatalf("insert pre-upgrade admin group: %v", err)
+	}
+	if err := goose.UpTo(database, migrationsDir, 6); err != nil {
+		t.Fatalf("upgrade password migration: %v", err)
+	}
+	var adminUpdatedAt time.Time
+	if err := database.QueryRowContext(ctx, `select updated_at from user_group where key = 'admin'`).Scan(&adminUpdatedAt); err != nil {
+		t.Fatalf("query unchanged admin update time: %v", err)
+	}
+	expectedAdminUpdatedAt := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	if !adminUpdatedAt.Equal(expectedAdminUpdatedAt) {
+		t.Fatalf("expected unchanged admin updated_at %s, got %s", expectedAdminUpdatedAt, adminUpdatedAt)
+	}
+	if _, err := database.ExecContext(ctx, `
+		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000002', 'user', 'User', '', '["short_link:set_password"]'::jsonb, true, now(), now())
+	`); err != nil {
+		t.Fatalf("insert post-upgrade user group: %v", err)
+	}
+
+	if err := goose.DownTo(database, migrationsDir, 5); err != nil {
+		t.Fatalf("rollback password migration: %v", err)
+	}
+
+	var userPermission, adminPermission bool
+	if err := database.QueryRowContext(ctx, `select permissions ? 'short_link:set_password' from user_group where key = 'user'`).Scan(&userPermission); err != nil {
+		t.Fatalf("query rolled-back user permission: %v", err)
+	}
+	if err := database.QueryRowContext(ctx, `select permissions ? 'short_link:set_password' from user_group where key = 'admin'`).Scan(&adminPermission); err != nil {
+		t.Fatalf("query retained admin permission: %v", err)
+	}
+	if !userPermission {
+		t.Fatal("expected rollback to preserve password permission from the post-upgrade user group")
+	}
+	if !adminPermission {
+		t.Fatal("expected rollback to preserve the pre-upgrade admin permission")
 	}
 }
 
@@ -171,32 +356,7 @@ func TestShortLinkExperienceMigrationUpgradesExistingDataAndRollsBack(t *testing
 func migrationTestDatabase(t *testing.T, ctx context.Context) *sql.DB {
 	t.Helper()
 
-	container, err := postgres.Run(ctx,
-		"postgres:18-alpine",
-		postgres.WithDatabase("moeurl_test"),
-		postgres.WithUsername("moeurl"),
-		postgres.WithPassword("moeurl"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(60*time.Second),
-		),
-	)
-	if err != nil {
-		t.Fatalf("start postgres container: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(container); err != nil {
-			t.Fatalf("terminate postgres container: %v", err)
-		}
-	})
-
-	connectionString, err := container.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		t.Fatalf("get connection string: %v", err)
-	}
-
-	database, err := sql.Open("pgx", connectionString)
+	database, err := sql.Open("pgx", testdb.DatabaseURL(t, ctx))
 	if err != nil {
 		t.Fatalf("open database: %v", err)
 	}
@@ -209,6 +369,33 @@ func migrationTestDatabase(t *testing.T, ctx context.Context) *sql.DB {
 	}
 
 	return database
+}
+
+// assertShortLinkPasswordConstraintValidation checks existence and validation state for the password constraint.
+func assertShortLinkPasswordConstraintValidation(t *testing.T, ctx context.Context, database *sql.DB, expectedExists, expectedValidated bool) {
+	t.Helper()
+
+	var validated bool
+	err := database.QueryRowContext(ctx, `
+		select convalidated
+		from pg_constraint
+		where conname = 'short_link_password_failed_attempts_check'
+	`).Scan(&validated)
+	if errors.Is(err, sql.ErrNoRows) {
+		if expectedExists {
+			t.Fatal("expected short-link password constraint to exist")
+		}
+		return
+	}
+	if err != nil {
+		t.Fatalf("query short-link password constraint validation: %v", err)
+	}
+	if !expectedExists {
+		t.Fatal("expected short-link password constraint to be removed")
+	}
+	if validated != expectedValidated {
+		t.Fatalf("expected short-link password constraint validated=%t, got %t", expectedValidated, validated)
+	}
 }
 
 func assertGroupPermissions(t *testing.T, ctx context.Context, database *sql.DB, groupKey string, expectedIntermediate bool, expectedExpiration bool) {

@@ -18,17 +18,23 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+const accessGrantCleanupInterval = time.Minute
+
 type App struct {
-	config config.Config
-	logger *slog.Logger
-	server *nethttp.Server
-	pool   *pgxpool.Pool
+	config             config.Config
+	logger             *slog.Logger
+	server             *nethttp.Server
+	pool               *pgxpool.Pool
+	grantCleanupCancel context.CancelFunc
+	grantCleanupDone   <-chan struct{}
 }
 
 // New builds the application dependencies and HTTP server from configuration.
 func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, error) {
 	var pool *pgxpool.Pool
 	var deps apphttp.Dependencies
+	var grantCleanupCancel context.CancelFunc
+	var grantCleanupDone <-chan struct{}
 	if cfg.DatabaseURL != "" {
 		var err error
 		pool, err = appdb.OpenPool(ctx, cfg.DatabaseURL)
@@ -41,10 +47,21 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.CurrentUser = authService
 		deps.ShortLink = shortlink.NewService(pool, permission.NewService())
 		recorder := event.NewRecorder(pool, logger)
-		deps.Redirect = shortlink.NewRedirectService(pool, recorder)
+		redirectService := shortlink.NewRedirectService(pool, recorder)
+		deps.Redirect = redirectService
 		deps.RedirectRecorder = recorder
 		deps.AnalyticsCountryHeader = cfg.AnalyticsCountryHeader
+		deps.SecureCookies = cfg.Env == "production"
 		deps.User = user.NewService(pool, permission.NewService())
+
+		cleanupContext, cancelCleanup := context.WithCancel(context.Background())
+		cleanupDone := make(chan struct{})
+		grantCleanupCancel = cancelCleanup
+		grantCleanupDone = cleanupDone
+		go func() {
+			defer close(cleanupDone)
+			redirectService.RunAccessGrantCleanup(cleanupContext, accessGrantCleanupInterval, logger)
+		}()
 	}
 	deps.StaticDir = cfg.StaticDir
 
@@ -56,7 +73,9 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			Handler:           apphttp.NewRouter(deps),
 			ReadHeaderTimeout: 5 * time.Second,
 		},
-		pool: pool,
+		pool:               pool,
+		grantCleanupCancel: grantCleanupCancel,
+		grantCleanupDone:   grantCleanupDone,
 	}, nil
 }
 
@@ -68,8 +87,15 @@ func (a *App) Run() error {
 
 // Shutdown closes database resources and gracefully stops the HTTP server.
 func (a *App) Shutdown(ctx context.Context) error {
+	if err := a.server.Shutdown(ctx); err != nil {
+		return err
+	}
+	if a.grantCleanupCancel != nil {
+		a.grantCleanupCancel()
+		<-a.grantCleanupDone
+	}
 	if a.pool != nil {
 		a.pool.Close()
 	}
-	return a.server.Shutdown(ctx)
+	return nil
 }

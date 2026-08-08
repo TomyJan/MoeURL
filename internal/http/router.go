@@ -23,6 +23,7 @@ type Dependencies struct {
 	Redirect               shortlink.RedirectPort
 	RedirectRecorder       event.Recorder
 	AnalyticsCountryHeader string
+	SecureCookies          bool
 	User                   user.Port
 	StaticDir              string
 }
@@ -41,7 +42,7 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 	router.Use(auth.CurrentUserMiddleware(dependency.CurrentUser))
 	var redirectHandler *shortlink.RedirectHandler
 	if dependency.Redirect != nil {
-		redirectHandler = shortlink.NewRedirectHandlerWithAnalytics(dependency.Redirect, dependency.RedirectRecorder, dependency.AnalyticsCountryHeader)
+		redirectHandler = shortlink.NewRedirectHandlerWithAnalyticsAndSecurity(dependency.Redirect, dependency.RedirectRecorder, dependency.AnalyticsCountryHeader, dependency.SecureCookies)
 	}
 
 	router.Route("/api/v1", func(api chi.Router) {
@@ -74,7 +75,8 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			api.Post("/admin/short-link/delete", shortLinkHandler.AdminDelete)
 		}
 		if redirectHandler != nil {
-			api.Get("/public/short-link/preview", redirectHandler.Preview)
+			api.Get("/public/short-link/preview", redirectHandler.PreviewPublic)
+			api.Post("/public/short-link/unlock", redirectHandler.Unlock)
 		}
 		if dependency.User != nil {
 			userHandler := user.NewHandler(dependency.User)
@@ -93,6 +95,9 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 	if redirectHandler != nil {
 		router.Get("/go/{slug}/continue", func(w nethttp.ResponseWriter, r *nethttp.Request) {
 			redirectHandler.Continue(w, r, chi.URLParam(r, "slug"))
+		})
+		router.Get("/go/{slug}/preview", func(w nethttp.ResponseWriter, r *nethttp.Request) {
+			redirectHandler.PreviewScoped(w, r, chi.URLParam(r, "slug"))
 		})
 	}
 	if dependency.StaticDir != "" {

@@ -17,6 +17,29 @@
         <v-btn variant="text" :to="{ path: '/' }">{{ t('redirect.backHome') }}</v-btn>
       </div>
 
+      <form v-else-if="preview && passwordRequired" class="redirect-page__state" aria-live="polite" @submit.prevent="unlock">
+        <p class="redirect-page__eyebrow">{{ t('redirect.protectedEyebrow') }}</p>
+        <h1>{{ t('redirect.passwordTitle') }}</h1>
+        <p class="redirect-page__target-label">{{ t('redirect.targetHost') }}</p>
+        <strong class="redirect-page__target">{{ preview.targetHost }}</strong>
+        <v-text-field
+          class="redirect-page__password"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          :disabled="unlockPending"
+          :label="t('redirect.password')"
+          :error-messages="unlockErrorState ? t(`redirect.${unlockErrorState}`) : ''"
+          variant="outlined"
+        />
+        <div class="redirect-page__actions">
+          <v-btn type="submit" color="primary" size="large" :loading="unlockPending">
+            {{ t('redirect.unlock') }}
+          </v-btn>
+          <v-btn type="button" variant="text" :to="{ path: '/' }">{{ t('redirect.backHome') }}</v-btn>
+        </div>
+      </form>
+
       <div v-else-if="preview" class="redirect-page__state">
         <p class="redirect-page__eyebrow">{{ t('redirect.eyebrow') }}</p>
         <h1>{{ t('redirect.title') }}</h1>
@@ -45,11 +68,12 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
-import { getPublicShortLinkPreview } from '@/entities/short-link/api'
+import { getPublicShortLinkPreview, unlockShortLink } from '@/entities/short-link/api'
 import type { PublicShortLinkPreview } from '@/entities/short-link/model'
 import { ApiClientError } from '@/shared/api/client'
 
 type PreviewFailureState = '' | 'disabled' | 'expired' | 'loadFailed' | 'notIntermediate' | 'unavailable'
+type UnlockErrorState = '' | 'invalidPassword' | 'passwordRequired' | 'rateLimited' | 'unlockFailed'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -59,6 +83,9 @@ const loading = ref(true)
 const failureState = ref<PreviewFailureState>('')
 const continueFailed = ref(false)
 const navigating = ref(false)
+const passwordRequired = ref(false)
+const unlockPending = ref(false)
+const unlockErrorState = ref<UnlockErrorState>('')
 let countdownTimer: ReturnType<typeof globalThis.setInterval> | null = null
 let previewRequestId = 0
 let isMounted = false
@@ -73,6 +100,7 @@ onBeforeUnmount(() => {
   clearCountdown()
 })
 
+/** Loads public metadata while preventing stale requests from mutating page state. */
 async function loadPreview() {
   const requestId = ++previewRequestId
   clearCountdown()
@@ -81,6 +109,9 @@ async function loadPreview() {
   failureState.value = ''
   continueFailed.value = false
   navigating.value = false
+  passwordRequired.value = false
+  unlockPending.value = false
+  unlockErrorState.value = unlockErrorFromReason(route.query.reason)
 
   const requestedFailureState = failureStateFromReason(route.query.reason)
   if (requestedFailureState) {
@@ -104,8 +135,10 @@ async function loadPreview() {
     const result = await getPublicShortLinkPreview(slug)
     whenCurrent(requestId, () => {
       preview.value = result
-      remainingSeconds.value = result.intermediateDelaySeconds
-      startCountdown()
+      passwordRequired.value = result.requiresPassword === true
+      if (!passwordRequired.value) {
+        proceedAfterAccess()
+      }
     })
   } catch (error) {
     whenCurrent(requestId, () => {
@@ -118,16 +151,19 @@ async function loadPreview() {
   }
 }
 
+/** Reports whether an asynchronous preview result still belongs to the mounted page. */
 function isCurrentRequest(requestId: number) {
   return isMounted && requestId === previewRequestId
 }
 
+/** Applies a preview state update only for the latest mounted request. */
 function whenCurrent(requestId: number, update: () => void) {
   if (isCurrentRequest(requestId)) {
     update()
   }
 }
 
+/** Maps navigation reasons into the initial preview failure state. */
 function failureStateFromReason(reason: unknown): PreviewFailureState {
   if (reason === 'disabled') {
     return 'disabled'
@@ -139,6 +175,11 @@ function failureStateFromReason(reason: unknown): PreviewFailureState {
     return 'notIntermediate'
   }
   return ''
+}
+
+/** Maps navigation reasons into the initial password-form error state. */
+function unlockErrorFromReason(reason: unknown): UnlockErrorState {
+  return reason === 'rate-limited' ? 'rateLimited' : ''
 }
 
 function classifyPreviewError(error: unknown): PreviewFailureState {
@@ -158,6 +199,7 @@ function classifyPreviewError(error: unknown): PreviewFailureState {
   return 'loadFailed'
 }
 
+/** Starts the intermediate-page countdown and performs a single continuation at zero. */
 function startCountdown() {
   countdownTimer = globalThis.setInterval(() => {
     if (remainingSeconds.value > 1) {
@@ -169,8 +211,70 @@ function startCountdown() {
   }, 1_000)
 }
 
+/** Continues a granted link according to its direct or intermediate redirect mode. */
+function proceedAfterAccess() {
+  const currentPreview = preview.value!
+  if (currentPreview.redirectMode === 'direct') {
+    continueToTarget()
+    return
+  }
+  remainingSeconds.value = currentPreview.intermediateDelaySeconds
+  startCountdown()
+}
+
+/** Submits the password and resumes navigation after a scoped grant is issued. */
+async function unlock(event: globalThis.Event) {
+  const form = event.currentTarget as globalThis.HTMLFormElement
+  const slug = preview.value?.slug ?? route.params.slug
+  if (unlockPending.value || typeof slug !== 'string' || !slug) {
+    return
+  }
+  const password = new globalThis.FormData(form).get('password') as string
+  if (!password) {
+    unlockErrorState.value = 'passwordRequired'
+    return
+  }
+
+  unlockPending.value = true
+  unlockErrorState.value = ''
+  try {
+    await unlockShortLink({ slug, password })
+    if (!isMounted) {
+      return
+    }
+    passwordRequired.value = false
+    form.reset()
+    proceedAfterAccess()
+  } catch (error) {
+    if (!isMounted) {
+      return
+    }
+    unlockErrorState.value = classifyUnlockError(error)
+  } finally {
+    if (isMounted) {
+      unlockPending.value = false
+    }
+  }
+}
+
+/** Maps unlock API failures into user-facing password states. */
+function classifyUnlockError(error: unknown): UnlockErrorState {
+  const code = error instanceof ApiClientError ? error.code : 0
+  if (code === 200111) {
+    return 'passwordRequired'
+  }
+  if (code === 200112) {
+    return 'invalidPassword'
+  }
+  if (code === 200113) {
+    return 'rateLimited'
+  }
+  return 'unlockFailed'
+}
+
+/** Navigates through the backend continue endpoint after intermediate-page access. */
 function continueToTarget() {
-  const slug = route.params.slug
+  const slug = preview.value?.slug ?? route.params.slug
   if (navigating.value || typeof slug !== 'string' || !slug) {
     return
   }
@@ -253,6 +357,10 @@ function clearCountdown() {
   overflow-wrap: anywhere;
   color: rgb(var(--v-theme-primary));
   font-size: clamp(1.1rem, 3vw, 1.55rem);
+}
+
+.redirect-page__password {
+  width: min(360px, 100%);
 }
 
 .redirect-page__countdown {

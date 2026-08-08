@@ -34,6 +34,7 @@ const directLink: ShortLink = {
   intermediateDelaySeconds: 5,
   expiresAt: null,
   expired: false,
+  passwordEnabled: false,
   createdAt: '2026-08-01T00:00:00Z',
 }
 
@@ -196,6 +197,157 @@ describe('ShortLinkSettingsDialog', () => {
         expiration: { mode: 'at', expiresAt: new Date('2026-08-04T10:30').toISOString() },
       },
     ]])
+  })
+
+  it('shows password settings with permission and sets a new password', async () => {
+    setPermissions(['short_link:set_password'])
+    const view = mountDialog()
+
+    expect(screen.getByLabelText('shortLinkSettings.passwordEnabled')).toBeTruthy()
+    await fireEvent.click(screen.getByLabelText('shortLinkSettings.passwordEnabled'))
+    const passwordInput = screen.getByLabelText('shortLinkSettings.password')
+    expect(passwordInput.getAttribute('autocomplete')).toBe('new-password')
+    expect(passwordInput.closest('[data-testid="short-link-password-input"]')).toBeTruthy()
+    await fireEvent.update(screen.getByLabelText('shortLinkSettings.password'), 'correct horse')
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(view.emitted().save).toEqual([[
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.com/original',
+        password: { mode: 'set', value: 'correct horse' },
+      },
+    ]])
+  })
+
+  it('reads the password only on submit and clears it after the request completes', async () => {
+    setPermissions(['short_link:set_password'])
+    const view = mountDialog()
+
+    await fireEvent.click(screen.getByLabelText('shortLinkSettings.passwordEnabled'))
+    const passwordInput = screen.getByLabelText('shortLinkSettings.password') as HTMLInputElement
+    passwordInput.value = 'correct horse'
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(view.emitted().save).toEqual([[
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.com/original',
+        password: { mode: 'set', value: 'correct horse' },
+      },
+    ]])
+    expect(passwordInput.value).toBe('correct horse')
+
+    await view.rerender({ pending: true })
+    await view.rerender({ pending: false })
+    expect(passwordInput.value).toBe('')
+  })
+
+  it('requires a password when enabling protection on an unprotected link', async () => {
+    setPermissions(['short_link:set_password'])
+    const view = mountDialog()
+
+    await fireEvent.click(screen.getByLabelText('shortLinkSettings.passwordEnabled'))
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(screen.getByText('shortLinkSettings.passwordRequired')).toBeTruthy()
+    expect(view.emitted().save).toBeUndefined()
+  })
+
+  it('reports a missing password input instead of silently preserving protection', async () => {
+    setPermissions(['short_link:set_password'])
+    const view = mountDialog(
+      { link: { ...directLink, passwordEnabled: true } },
+      {
+        ...componentStubs,
+        VTextField: {
+          inheritAttrs: false,
+          props: ['disabled', 'errorMessages', 'label', 'modelValue', 'type'],
+          emits: ['update:modelValue'],
+          template: '<label v-bind="$attrs">{{ label }}<input v-if="type !== \'password\'" :aria-label="label" :disabled="disabled" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /><span v-if="errorMessages">{{ errorMessages }}</span></label>',
+        },
+      },
+    )
+
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(screen.getByText('shortLinkSettings.passwordRequired')).toBeTruthy()
+    expect(view.emitted().save).toBeUndefined()
+  })
+
+  it('omits an unchanged password while saving another field', async () => {
+    setPermissions(['short_link:set_password'])
+    const view = mountDialog({ link: { ...directLink, passwordEnabled: true } })
+
+    expect(screen.getByLabelText('shortLinkSettings.passwordEnabled')).toBeTruthy()
+    expect((screen.getByLabelText('shortLinkSettings.password') as HTMLInputElement).value).toBe('')
+    await fireEvent.update(screen.getByLabelText('shortLinkSettings.targetUrl'), 'https://example.com/updated')
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(view.emitted().save).toEqual([[
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.com/updated',
+      },
+    ]])
+  })
+
+  it('omits password settings without permission', async () => {
+    setPermissions([])
+    const view = mountDialog({ link: { ...directLink, passwordEnabled: true } })
+
+    expect(screen.queryByLabelText('shortLinkSettings.passwordEnabled')).toBeNull()
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(view.emitted().save).toEqual([[
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.com/original',
+      },
+    ]])
+  })
+
+  it('omits a disabled password that was never configured', async () => {
+    setPermissions(['short_link:set_password'])
+    const view = mountDialog()
+
+    await fireEvent.update(screen.getByLabelText('shortLinkSettings.targetUrl'), 'https://example.com/updated')
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(view.emitted().save).toEqual([[
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.com/updated',
+      },
+    ]])
+  })
+
+  it('clears a password only when the protected toggle is explicitly turned off', async () => {
+    setPermissions(['short_link:set_password'])
+    const view = mountDialog({ link: { ...directLink, passwordEnabled: true } })
+
+    await fireEvent.click(screen.getByLabelText('shortLinkSettings.passwordEnabled'))
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(view.emitted().save).toEqual([[
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.com/original',
+        password: { mode: 'never' },
+      },
+    ]])
+  })
+
+  it('rejects a password shorter than the minimum length', async () => {
+    setPermissions(['short_link:set_password'])
+    const view = mountDialog()
+
+    await fireEvent.click(screen.getByLabelText('shortLinkSettings.passwordEnabled'))
+    await fireEvent.update(screen.getByLabelText('shortLinkSettings.password'), 'short')
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(screen.getByText('shortLinkSettings.passwordInvalid')).toBeTruthy()
+    expect(view.emitted().save).toBeUndefined()
   })
 
   it('switches between direct and intermediate modes', async () => {
