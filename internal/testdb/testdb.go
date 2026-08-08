@@ -31,10 +31,9 @@ var (
 	dockerProbeOnce sync.Once
 	dockerProbeErr  error
 
-	dockerContainerOnce     sync.Once
-	dockerContainerInstance *postgres.PostgresContainer
-	dockerContainerURL      string
-	dockerContainerErr      error
+	dockerContainerOnce sync.Once
+	dockerContainerURL  string
+	dockerContainerErr  error
 )
 
 // reportCleanupError reports best-effort cleanup failures without hiding the primary test result.
@@ -129,14 +128,12 @@ func sharedDockerDatabaseURL() (string, error) {
 			dockerContainerErr = err
 			return
 		}
-		dockerContainerInstance = container
 		dockerContainerURL, err = container.ConnectionString(startupContext, "sslmode=disable")
 		if err != nil {
 			dockerContainerErr = err
 			if terminateErr := testcontainers.TerminateContainer(container); terminateErr != nil {
 				dockerContainerErr = fmt.Errorf("%w: terminate container: %v", err, terminateErr)
 			}
-			dockerContainerInstance = nil
 		}
 	})
 	return dockerContainerURL, dockerContainerErr
