@@ -58,10 +58,10 @@ GET /go/{slug}/continue
 - `short_link_access_grant` 只保存短链 ID、令牌哈希、签发时间和过期时间；短链软删除后访问查询自然失效。
 - 密码变更通过 `password_updated_at` 使旧授权立即失效，不依赖异步清理。
 - 授权 Cookie 不携带目标 URL、用户身份或密码；Cookie 名称固定，Path 绑定到 `/go/{slug}`。
-- 访问事件 `password_failed` 和 `password_verified`（如保留）仅用于非统计审计；任何事件写入失败不得阻断解锁或跳转。
 
 ## 暂不实现
 
+- `password_failed` 和 `password_verified` 非统计审计事件；本版本不落库这两类事件。
 - 访问密码分享、密码轮换历史和批量密码操作。
 - 按 IP、设备指纹或代理头区分的限流；本版本采用短链级数据库限流，后续如需要再设计可信代理配置。
 - OIDC、确认页跳转、最大访问次数、标签、批量导入导出、二维码样式和权限预设。
