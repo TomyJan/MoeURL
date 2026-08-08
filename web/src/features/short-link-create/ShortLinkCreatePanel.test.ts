@@ -358,11 +358,13 @@ describe('ShortLinkCreatePanel', () => {
     mountPanel()
     await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
     await fireEvent.click(screen.getByLabelText('shortLinkCreate.passwordEnabled'))
-    await fireEvent.update(screen.getByLabelText('shortLinkCreate.password'), 'correct horse')
+    const passwordInput = screen.getByLabelText('shortLinkCreate.password') as HTMLInputElement
+    await fireEvent.update(passwordInput, 'correct horse')
     await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
     expect(variables.value).toEqual({ targetUrl: 'https://example.com' })
+    expect(passwordInput.value).toBe('')
     deferred.reject(new Error('create failed'))
     await vi.waitFor(() => {
       expect(screen.getByText('create failed')).toBeTruthy()
@@ -394,6 +396,22 @@ describe('ShortLinkCreatePanel', () => {
     mountPanel()
     await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
     await fireEvent.click(screen.getByLabelText('shortLinkCreate.passwordEnabled'))
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+
+    expect(screen.getByText('shortLinkCreate.passwordRequired')).toBeTruthy()
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
+  it('fails safely when the password input element is unavailable', async () => {
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
+    setMutationResult({ mutate })
+
+    mountPanel()
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    await fireEvent.click(screen.getByLabelText('shortLinkCreate.passwordEnabled'))
+    screen.getByLabelText('shortLinkCreate.password').remove()
     await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 

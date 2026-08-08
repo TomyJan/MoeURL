@@ -111,7 +111,8 @@
               />
               <v-text-field
                 v-if="canSetPassword && passwordEnabled"
-                v-model="password"
+                ref="passwordField"
+                data-testid="short-link-create-password-input"
                 type="password"
                 autocomplete="new-password"
                 variant="outlined"
@@ -157,7 +158,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -193,7 +194,7 @@ const intermediateDelaySeconds = ref(5)
 const expirationEnabled = ref(false)
 const expiresAt = ref('')
 const passwordEnabled = ref(false)
-const password = ref('')
+const passwordField = useTemplateRef<{ $el: globalThis.Element }>('passwordField')
 let pendingPassword: CreateShortLinkInput['password']
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
@@ -276,9 +277,11 @@ function submit() {
     input.expiration = expiration
   }
   if (canSetPassword.value && passwordEnabled.value) {
-    const passwordResult = passwordSchema.safeParse(password.value)
+    const passwordElement = passwordInput()
+    const password = passwordElement?.value ?? ''
+    const passwordResult = passwordSchema.safeParse(password)
     if (!passwordResult.success) {
-      passwordErrorMessage.value = password.value ? t('shortLinkCreate.passwordInvalid') : t('shortLinkCreate.passwordRequired')
+      passwordErrorMessage.value = password ? t('shortLinkCreate.passwordInvalid') : t('shortLinkCreate.passwordRequired')
       return
     }
     pendingPassword = { mode: 'set', value: passwordResult.data }
@@ -288,6 +291,7 @@ function submit() {
   createdUrl.value = ''
   createdSlug.value = ''
   mutation.mutate(input)
+  clearPasswordInput()
 }
 
 function resetForm() {
@@ -308,8 +312,23 @@ function resetInputFields() {
   intermediateDelaySeconds.value = 5
   expirationEnabled.value = false
   expiresAt.value = ''
+  clearPasswordInput()
   passwordEnabled.value = false
-  password.value = ''
+}
+
+function passwordInput() {
+  const field = passwordField.value?.$el
+  if (!field?.matches('[data-testid="short-link-create-password-input"]')) {
+    return null
+  }
+  return field.querySelector<globalThis.HTMLInputElement>('input')
+}
+
+function clearPasswordInput() {
+  const input = passwordInput()
+  if (input) {
+    input.value = ''
+  }
 }
 
 async function copyUrl(url: string) {
