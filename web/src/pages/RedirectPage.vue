@@ -213,7 +213,10 @@ function startCountdown() {
 
 /** Continues a granted link according to its direct or intermediate redirect mode. */
 function proceedAfterAccess() {
-  const currentPreview = preview.value!
+  const currentPreview = preview.value
+  if (!currentPreview) {
+    return
+  }
   if (currentPreview.redirectMode === 'direct') {
     continueToTarget()
     return
@@ -229,8 +232,8 @@ async function unlock(event: globalThis.Event) {
   if (unlockPending.value || typeof slug !== 'string' || !slug) {
     return
   }
-  const password = new globalThis.FormData(form).get('password') as string
-  if (!password) {
+  const password = new globalThis.FormData(form).get('password')
+  if (typeof password !== 'string' || !password) {
     unlockErrorState.value = 'passwordRequired'
     return
   }
