@@ -32,18 +32,16 @@ github.com/TomyJan/MoeURL/internal/shortlink/service.go:95.29,96.12
 github.com/TomyJan/MoeURL/internal/shortlink/service.go:114.2,114.40
 
 # Redirect access transaction step failures are infrastructure/concurrency paths: each intermediate failure requires the database connection or row to change between locked statements.
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:225.16,227.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:230.35,232.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:233.16,235.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:246.16,248.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:264.18,266.4
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:267.40,269.4
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:275.77,277.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:288.17,290.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:291.39,293.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:231.35,233.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:234.16,236.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:247.16,249.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:265.18,267.4
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:268.40,270.4
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:276.77,278.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:292.39,294.3
 
 # Access-token generation failure after transaction state changes remains covered at the generator boundary.
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:279.16,281.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:280.16,282.3
 
 # Password hashing failure is an Argon2id/random infrastructure path after input and permission validation.
 github.com/TomyJan/MoeURL/internal/shortlink/service.go:657.16,659.3

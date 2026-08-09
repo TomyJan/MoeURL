@@ -419,6 +419,91 @@ func TestRedirectServiceUnlockHandlesUnavailableDatabase(t *testing.T) {
 	}
 }
 
+// TestRedirectServiceUnlockReturnsPasswordStateQueryError verifies locked lookup failures are surfaced.
+func TestRedirectServiceUnlockReturnsPasswordStateQueryError(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	if _, err := pool.Exec(ctx, `drop table short_link cascade`); err != nil {
+		t.Fatalf("remove short link table fixture: %v", err)
+	}
+
+	service := shortlink.NewRedirectService(pool, nil)
+	if _, err := service.Unlock(ctx, "query-error", "correct horse"); err == nil {
+		t.Fatal("expected password-state query error")
+	}
+}
+
+// TestRedirectServiceUnlockReturnsAccessGrantCreationError verifies grant persistence failures are surfaced.
+func TestRedirectServiceUnlockReturnsAccessGrantCreationError(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "grant-create-error-user", "user", []string{})
+	linkID := insertStoredShortLink(t, ctx, pool, user.ID, "grant-create-error", "https://example.com/protected", "active", false)
+	hash, err := auth.HashPassword("correct horse")
+	if err != nil {
+		t.Fatalf("hash protected password: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `update short_link set password_hash = $2 where id = $1`, linkID, hash); err != nil {
+		t.Fatalf("configure protected password: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `drop table short_link_access_grant`); err != nil {
+		t.Fatalf("remove access grant table fixture: %v", err)
+	}
+
+	service := shortlink.NewRedirectService(pool, nil)
+	if _, err := service.Unlock(ctx, "grant-create-error", "correct horse"); err == nil {
+		t.Fatal("expected access-grant creation error")
+	}
+}
+
+// TestRedirectServiceCleanupReturnsDeletionError verifies cleanup query failures are surfaced.
+func TestRedirectServiceCleanupReturnsDeletionError(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	if _, err := pool.Exec(ctx, `drop table short_link_access_grant`); err != nil {
+		t.Fatalf("remove access grant table fixture: %v", err)
+	}
+
+	service := shortlink.NewRedirectService(pool, nil)
+	if err := service.CleanupExpiredAccessGrants(ctx); err == nil {
+		t.Fatal("expected cleanup deletion error")
+	}
+	canceledContext, cancel := context.WithCancel(ctx)
+	cancel()
+	if err := service.CleanupExpiredAccessGrants(canceledContext); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cleanup canceled context error = %v, want %v", err, context.Canceled)
+	}
+}
+
+// TestRedirectServiceCleanupDefendsInvalidRuntimeParameters verifies background cleanup does not panic on invalid optional inputs.
+func TestRedirectServiceCleanupDefendsInvalidRuntimeParameters(t *testing.T) {
+	invalidIntervalDone := make(chan struct{})
+	go func() {
+		defer close(invalidIntervalDone)
+		shortlink.NewRedirectService(nil, nil).RunAccessGrantCleanup(context.Background(), 0, nil)
+	}()
+	select {
+	case <-invalidIntervalDone:
+	case <-time.After(time.Second):
+		t.Fatal("cleanup with invalid interval did not return")
+	}
+
+	cleanupContext, cancelCleanup := context.WithCancel(context.Background())
+	cleanupDone := make(chan struct{})
+	go func() {
+		defer close(cleanupDone)
+		shortlink.NewRedirectService(nil, nil).RunAccessGrantCleanup(cleanupContext, time.Millisecond, nil)
+	}()
+	time.Sleep(10 * time.Millisecond)
+	cancelCleanup()
+	select {
+	case <-cleanupDone:
+	case <-time.After(time.Second):
+		t.Fatal("cleanup with nil logger did not stop")
+	}
+}
+
 // TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock verifies cleanup drains bounded batches and remains periodic.
 func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
 	ctx := context.Background()

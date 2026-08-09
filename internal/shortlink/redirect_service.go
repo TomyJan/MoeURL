@@ -316,6 +316,12 @@ func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context) error 
 
 // RunAccessGrantCleanup removes expired grants periodically until the context is canceled.
 func (s *RedirectService) RunAccessGrantCleanup(ctx context.Context, interval time.Duration, logger *slog.Logger) {
+	if interval <= 0 {
+		return
+	}
+	if logger == nil {
+		logger = slog.Default()
+	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
