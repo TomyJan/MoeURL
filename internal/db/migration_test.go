@@ -75,6 +75,9 @@ func TestShortLinkPasswordMigrationAddsProtectedAccessStateAndRollsBack(t *testi
 		t.Fatalf("run migrations through version 5: %v", err)
 	}
 	insertUserGroups(t, ctx, database)
+	for _, groupKey := range []string{"guest", "user", "admin"} {
+		assertPasswordPermission(t, ctx, database, groupKey, false)
+	}
 	if _, err := database.ExecContext(ctx, `
 		insert into short_link (id, owner_id, domain_id, slug, target_url, status, created_at, updated_at)
 		values ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000101', 'protected', 'https://example.com', 'active', now(), now())
@@ -153,13 +156,9 @@ func TestShortLinkPasswordMigrationAddsProtectedAccessStateAndRollsBack(t *testi
 	if linkExpiryIndexExists {
 		t.Fatal("expected redundant short_link_access_grant_link_expiry_idx to be absent")
 	}
-	var passwordPermission bool
-	if err := database.QueryRowContext(ctx, `select permissions ? 'short_link:set_password' from user_group where key = 'user'`).Scan(&passwordPermission); err != nil {
-		t.Fatalf("query upgraded password permission: %v", err)
-	}
-	if !passwordPermission {
-		t.Fatal("expected migration to add short_link:set_password")
-	}
+	assertPasswordPermission(t, ctx, database, "guest", false)
+	assertPasswordPermission(t, ctx, database, "user", true)
+	assertPasswordPermission(t, ctx, database, "admin", true)
 	if err := goose.UpTo(database, migrationsDir, 7); err != nil {
 		t.Fatalf("validate password constraint: %v", err)
 	}
@@ -192,11 +191,8 @@ func TestShortLinkPasswordMigrationAddsProtectedAccessStateAndRollsBack(t *testi
 		t.Fatal("expected short_link_access_grant table to be removed")
 	}
 	assertShortLinkPasswordConstraintValidation(t, ctx, database, false, false)
-	if err := database.QueryRowContext(ctx, `select permissions ? 'short_link:set_password' from user_group where key = 'user'`).Scan(&passwordPermission); err != nil {
-		t.Fatalf("query rolled-back password permission: %v", err)
-	}
-	if passwordPermission {
-		t.Fatal("expected rollback to remove migration-added password permission")
+	for _, groupKey := range []string{"guest", "user", "admin"} {
+		assertPasswordPermission(t, ctx, database, groupKey, false)
 	}
 }
 
@@ -564,7 +560,10 @@ func insertUserGroups(t *testing.T, ctx context.Context, database *sql.DB) {
 
 	_, err := database.ExecContext(ctx, `
 		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
-		values ('00000000-0000-0000-0000-000000000001', 'user', 'User', '', '[]'::jsonb, true, now(), now());
+		values
+			('00000000-0000-0000-0000-000000000001', 'user', 'User', '', '[]'::jsonb, true, now(), now()),
+			('00000000-0000-0000-0000-000000000002', 'guest', 'Guest', '', '[]'::jsonb, true, now(), now()),
+			('00000000-0000-0000-0000-000000000003', 'admin', 'Admin', '', '[]'::jsonb, true, now(), now());
 
 		insert into app_user (id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at)
 		values ('00000000-0000-0000-0000-000000000201', 'alice', 'hash', 'Alice', '00000000-0000-0000-0000-000000000001', 'active', false, now(), now());
@@ -574,5 +573,17 @@ func insertUserGroups(t *testing.T, ctx context.Context, database *sql.DB) {
 	`)
 	if err != nil {
 		t.Fatalf("insert prerequisite rows: %v", err)
+	}
+}
+
+func assertPasswordPermission(t *testing.T, ctx context.Context, database *sql.DB, groupKey string, expected bool) {
+	t.Helper()
+
+	var actual bool
+	if err := database.QueryRowContext(ctx, `select permissions ? 'short_link:set_password' from user_group where key = $1`, groupKey).Scan(&actual); err != nil {
+		t.Fatalf("query %s password permission: %v", groupKey, err)
+	}
+	if actual != expected {
+		t.Fatalf("expected %s password permission=%t, got %t", groupKey, expected, actual)
 	}
 }
