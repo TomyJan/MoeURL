@@ -26,9 +26,9 @@ func Load() Config {
 }
 
 // Validate verifies that required configuration values are present.
-func (c Config) Validate() error {
-	environment := strings.TrimSpace(c.Env)
-	if environment != "development" && environment != "production" {
+func (c *Config) Validate() error {
+	c.Env = strings.TrimSpace(c.Env)
+	if c.Env != "development" && c.Env != "production" {
 		return errors.New("MOEURL_ENV must be development or production")
 	}
 	if strings.TrimSpace(c.DatabaseURL) == "" {

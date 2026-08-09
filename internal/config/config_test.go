@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // TestLoadReadsAnalyticsCountryHeader verifies the optional country header configuration is loaded.
 func TestLoadReadsAnalyticsCountryHeader(t *testing.T) {
@@ -52,6 +55,9 @@ func TestConfigValidateRequiresKnownEnvironment(t *testing.T) {
 			}
 			if !test.wantErr && err != nil {
 				t.Fatalf("validate environment: %v", err)
+			}
+			if !test.wantErr && config.Env != strings.TrimSpace(test.env) {
+				t.Fatalf("environment = %q, want normalized value", config.Env)
 			}
 		})
 	}

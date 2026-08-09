@@ -56,7 +56,7 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			api.Post("/init/setup", systemHandler.Setup)
 		}
 		if dependency.Auth != nil {
-			authHandler := auth.NewHandler(dependency.Auth)
+			authHandler := auth.NewHandler(dependency.Auth, dependency.SecureCookies)
 			api.Post("/auth/login", authHandler.Login)
 			api.Post("/auth/logout", authHandler.Logout)
 			api.Get("/auth/me", authHandler.Me)
