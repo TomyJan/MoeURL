@@ -383,7 +383,12 @@ async function expectIntermediateLayout(page: Page) {
 async function expectSettingsDialogLayout(page: Page, dialog: Locator) {
   await expectNoHorizontalOverflow(page)
   const controls = dialog.locator('.short-link-settings-dialog__body > *')
-  await expect(controls).toHaveCount(6)
+  await Promise.all([
+    expect(dialog.getByLabel('目标链接')).toBeVisible(),
+    expect(dialog.getByLabel('跳转方式')).toBeVisible(),
+    expect(dialog.getByLabel('设置过期时间', { exact: true })).toBeVisible(),
+    expect(dialog.getByLabel('设置访问密码', { exact: true })).toBeVisible(),
+  ])
   const [dialogBox, actionsBox, cancelBox, saveBox, controlBoxes] = await Promise.all([
     dialog.locator('.short-link-settings-dialog').boundingBox(),
     dialog.locator('.short-link-settings-dialog__actions').boundingBox(),
