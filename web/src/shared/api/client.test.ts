@@ -43,6 +43,21 @@ describe('api client', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it('requests the normalized path and query that passed same-origin validation', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ code: 0, data: null, message: 'OK', meta: {} })))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await apiGetPath('/go/abc/../def/preview?foo=1#ignored')
+
+    expect(fetchMock).toHaveBeenCalledWith('/go/def/preview?foo=1', {
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+      },
+      method: 'GET',
+    })
+  })
+
   it('throws api error for business failure response', async () => {
     vi.stubGlobal(
       'fetch',

@@ -35,7 +35,7 @@ export async function apiGetPath<T>(path: string): Promise<ApiResponse<T>> {
   if (!path.startsWith('/') || path.startsWith('//') || resolvedURL.origin !== currentOrigin) {
     throw new Error('API path must be a same-origin absolute path')
   }
-  return getJson<T>(path)
+  return getJson<T>(resolvedURL.pathname + resolvedURL.search)
 }
 
 /** Fetches and decodes a JSON response without changing the supplied path. */
