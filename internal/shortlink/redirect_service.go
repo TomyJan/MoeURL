@@ -218,14 +218,7 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	queries := sqlc.New(tx)
-	link, err := queries.GetShortLinkBySlug(ctx, slug)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return AccessGrant{}, ErrShortLinkMissing
-	}
-	if err != nil {
-		return AccessGrant{}, err
-	}
-	state, err := queries.GetShortLinkPasswordStateForUpdate(ctx, link.ID)
+	state, err := queries.GetShortLinkPasswordStateBySlugForUpdate(ctx, slug)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return AccessGrant{}, ErrShortLinkMissing
 	}
@@ -233,7 +226,7 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 		return AccessGrant{}, err
 	}
 	// Re-read the link after acquiring the row lock so all access checks use its latest state.
-	link, err = queries.GetShortLinkBySlug(ctx, slug)
+	link, err := queries.GetShortLinkBySlug(ctx, slug)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return AccessGrant{}, ErrShortLinkMissing
 	}

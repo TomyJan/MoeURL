@@ -290,6 +290,13 @@ from short_link
 where id = $1 and deleted_at is null
 for update;
 
+-- name: GetShortLinkPasswordStateBySlugForUpdate :one
+select id, password_hash, password_failed_attempts, password_window_started_at,
+    password_blocked_until, password_updated_at
+from short_link
+where slug = $1 and deleted_at is null
+for update;
+
 -- name: RecordShortLinkPasswordFailure :exec
 update short_link
 set password_failed_attempts = $2,

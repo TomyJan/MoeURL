@@ -25,6 +25,33 @@ func TestSQLCPackageExposesQueries(t *testing.T) {
 	}
 }
 
+func TestGetShortLinkPasswordStateBySlugForUpdateReturnsPasswordState(t *testing.T) {
+	ctx := context.Background()
+	pool := sqlcTestPool(t, ctx)
+	ownerID := uuid.MustParse("00000000-0000-0000-0000-000000000201")
+	domainID := uuid.MustParse("00000000-0000-0000-0000-000000000101")
+	linkID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
+	insertSQLCShortLinkFixtures(t, ctx, pool, ownerID, domainID, linkID)
+
+	if _, err := pool.Exec(ctx, `update short_link set password_hash = 'stored-hash' where id = $1`, linkID); err != nil {
+		t.Fatalf("set password fixture: %v", err)
+	}
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin password state transaction: %v", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	state, err := sqlc.New(tx).GetShortLinkPasswordStateBySlugForUpdate(ctx, "abc123")
+	if err != nil {
+		t.Fatalf("get password state by slug: %v", err)
+	}
+	if state.ID.Bytes != linkID || !state.PasswordHash.Valid || state.PasswordHash.String != "stored-hash" {
+		t.Fatalf("unexpected password state: %#v", state)
+	}
+}
+
 // TestShortLinkExpirationQueriesUseDatabaseTime locks the database-owned expiration contract.
 func TestShortLinkExpirationQueriesUseDatabaseTime(t *testing.T) {
 	ctx := context.Background()

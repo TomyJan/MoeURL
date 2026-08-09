@@ -368,6 +368,28 @@ func (q *Queries) GetShortLinkPasswordStateForUpdate(ctx context.Context, id pgt
 	return i, err
 }
 
+const getShortLinkPasswordStateBySlugForUpdate = `-- name: GetShortLinkPasswordStateBySlugForUpdate :one
+select id, password_hash, password_failed_attempts, password_window_started_at,
+    password_blocked_until, password_updated_at
+from short_link
+where slug = $1 and deleted_at is null
+for update
+`
+
+func (q *Queries) GetShortLinkPasswordStateBySlugForUpdate(ctx context.Context, slug string) (GetShortLinkPasswordStateForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getShortLinkPasswordStateBySlugForUpdate, slug)
+	var i GetShortLinkPasswordStateForUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.PasswordHash,
+		&i.PasswordFailedAttempts,
+		&i.PasswordWindowStartedAt,
+		&i.PasswordBlockedUntil,
+		&i.PasswordUpdatedAt,
+	)
+	return i, err
+}
+
 const getValidShortLinkAccessGrant = `-- name: GetValidShortLinkAccessGrant :one
 select access_grant.id, access_grant.short_link_id, access_grant.token_hash,
     access_grant.expires_at, access_grant.created_at
