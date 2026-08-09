@@ -243,6 +243,26 @@ describe('ShortLinkSettingsDialog', () => {
     expect(passwordInput.value).toBe('')
   })
 
+  it('clears the password when the dialog is externally closed', async () => {
+    setPermissions(['short_link:set_password'])
+    const view = mountDialog({}, {
+      ...componentStubs,
+      VDialog: {
+        props: ['modelValue'],
+        emits: ['update:modelValue'],
+        template: '<div><slot /></div>',
+      },
+    })
+
+    await fireEvent.click(screen.getByLabelText('shortLinkSettings.passwordEnabled'))
+    const passwordInput = screen.getByLabelText('shortLinkSettings.password') as HTMLInputElement
+    passwordInput.value = 'correct horse'
+
+    await view.rerender({ open: false })
+
+    expect(passwordInput.value).toBe('')
+  })
+
   it('requires a password when enabling protection on an unprotected link', async () => {
     setPermissions(['short_link:set_password'])
     const view = mountDialog()

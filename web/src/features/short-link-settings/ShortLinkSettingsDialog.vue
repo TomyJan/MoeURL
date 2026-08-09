@@ -151,9 +151,9 @@ watch(
 )
 
 watch(
-  () => props.pending,
-  (pending, wasPending) => {
-    if (wasPending && !pending) {
+  [() => props.pending, () => props.open],
+  ([pending, open], [wasPending, wasOpen]) => {
+    if ((wasPending && !pending) || (wasOpen && !open)) {
       clearPasswordInput()
     }
   },
