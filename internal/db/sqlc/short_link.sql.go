@@ -376,9 +376,18 @@ where slug = $1 and deleted_at is null
 for update
 `
 
-func (q *Queries) GetShortLinkPasswordStateBySlugForUpdate(ctx context.Context, slug string) (GetShortLinkPasswordStateForUpdateRow, error) {
+type GetShortLinkPasswordStateBySlugForUpdateRow struct {
+	ID                      pgtype.UUID        `json:"id"`
+	PasswordHash            pgtype.Text        `json:"password_hash"`
+	PasswordFailedAttempts  int16              `json:"password_failed_attempts"`
+	PasswordWindowStartedAt pgtype.Timestamptz `json:"password_window_started_at"`
+	PasswordBlockedUntil    pgtype.Timestamptz `json:"password_blocked_until"`
+	PasswordUpdatedAt       pgtype.Timestamptz `json:"password_updated_at"`
+}
+
+func (q *Queries) GetShortLinkPasswordStateBySlugForUpdate(ctx context.Context, slug string) (GetShortLinkPasswordStateBySlugForUpdateRow, error) {
 	row := q.db.QueryRow(ctx, getShortLinkPasswordStateBySlugForUpdate, slug)
-	var i GetShortLinkPasswordStateForUpdateRow
+	var i GetShortLinkPasswordStateBySlugForUpdateRow
 	err := row.Scan(
 		&i.ID,
 		&i.PasswordHash,
