@@ -61,10 +61,10 @@ func TestShortLinkPasswordStateMarshalsOnlyEnabledFlag(t *testing.T) {
 		t.Fatalf("marshal short link: %v", err)
 	}
 	if !strings.Contains(string(raw), `"passwordEnabled":true`) {
-		t.Fatalf("expected passwordEnabled flag, got %s", raw)
+		t.Fatal("expected passwordEnabled flag in serialized short link")
 	}
 	if strings.Contains(strings.ToLower(string(raw)), "hash") {
-		t.Fatalf("password hash leaked in response: %s", raw)
+		t.Fatal("serialized short link exposed password hash material")
 	}
 }
 
@@ -76,8 +76,9 @@ func TestNormalizePasswordRequiresPermissionAndStoresOnlyHash(t *testing.T) {
 	if err != nil {
 		t.Fatalf("normalize password: %v", err)
 	}
-	if mode != PasswordModeSet || !hash.Valid || !auth.VerifyPassword("correct horse", hash.String) {
-		t.Fatalf("unexpected password result: mode=%q hash=%#v", mode, hash)
+	verified := hash.Valid && auth.VerifyPassword("correct horse", hash.String)
+	if mode != PasswordModeSet || !verified {
+		t.Fatalf("unexpected password result: mode=%q hashValid=%t verified=%t", mode, hash.Valid, verified)
 	}
 	limitedService := &Service{permissions: permission.NewServiceWithPermissions(nil, permission.AdminPermissions)}
 	if _, _, err := limitedService.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"}); !errors.Is(err, ErrPermissionDenied) {
