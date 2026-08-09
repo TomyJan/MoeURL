@@ -419,7 +419,7 @@ func TestRedirectServiceUnlockHandlesUnavailableDatabase(t *testing.T) {
 	}
 }
 
-// TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock verifies cleanup is bounded and periodic.
+// TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock verifies cleanup drains bounded batches and remains periodic.
 func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -434,7 +434,7 @@ func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
 		t.Fatalf("configure protected password: %v", err)
 	}
 	if _, err := pool.Exec(ctx, `
-		-- 501 is the cleanup batch limit of 500 plus one remaining row.
+		-- 501 is the cleanup batch limit of 500 plus one additional row.
 		insert into short_link_access_grant (id, short_link_id, token_hash, expires_at, created_at)
 		select ('00000000-0000-0001-0000-' || lpad(value::text, 12, '0'))::uuid,
 			$1, 'expired-grant-' || value, now() - interval '1 second', now() - interval '1 minute'
@@ -461,12 +461,19 @@ func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
 		t.Fatalf("clean expired access grants: %v", err)
 	}
 	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where expires_at <= now()`).Scan(&expiredCount); err != nil {
-		t.Fatalf("query expired access grants after bounded cleanup: %v", err)
+		t.Fatalf("query expired access grants after draining cleanup: %v", err)
 	}
-	if expiredCount != 1 {
-		// One row remains because CleanupExpiredAccessGrants deletes at most 500 rows.
-		t.Fatalf("expected one expired access grant after bounded cleanup, got %d rows", expiredCount)
+	if expiredCount != 0 {
+		t.Fatalf("expected one cleanup invocation to drain expired access grants, got %d rows", expiredCount)
 	}
+	if _, err := pool.Exec(ctx, `
+		insert into short_link_access_grant (id, short_link_id, token_hash, expires_at, created_at)
+		values ('00000000-0000-0002-0000-000000000001', $1, 'periodic-expired-grant',
+			now() - interval '1 second', now() - interval '1 minute')
+	`, linkID); err != nil {
+		t.Fatalf("insert periodically cleaned access grant: %v", err)
+	}
+	expiredCount = 1
 
 	cleanupCtx, cancelCleanup := context.WithCancel(ctx)
 	cleanupDone := make(chan struct{})

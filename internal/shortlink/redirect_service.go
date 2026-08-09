@@ -23,11 +23,12 @@ import (
 )
 
 const (
-	passwordFailureWindow = 15 * time.Minute
-	passwordBlockDuration = 15 * time.Minute
-	accessGrantTTL        = 15 * time.Minute
-	accessTokenBytes      = 32
-	maxPasswordFailures   = int16(5)
+	passwordFailureWindow             = 15 * time.Minute
+	passwordBlockDuration             = 15 * time.Minute
+	accessGrantTTL                    = 15 * time.Minute
+	accessGrantCleanupBatchSize int64 = 500
+	accessTokenBytes                  = 32
+	maxPasswordFailures               = int16(5)
 )
 
 var accessTokenRandomReader io.Reader = rand.Reader
@@ -294,13 +295,23 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 	return AccessGrant{Token: token, ExpiresAt: expiresAt}, nil
 }
 
-// CleanupExpiredAccessGrants removes one bounded batch of expired access grants.
+// CleanupExpiredAccessGrants drains expired access grants in bounded batches.
 func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context) error {
 	if s.pool == nil {
 		return errors.New("redirect service database is unavailable")
 	}
-	_, err := s.queries.DeleteExpiredShortLinkAccessGrants(ctx)
-	return err
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		deleted, err := s.queries.DeleteExpiredShortLinkAccessGrants(ctx)
+		if err != nil {
+			return err
+		}
+		if deleted < accessGrantCleanupBatchSize {
+			return nil
+		}
+	}
 }
 
 // RunAccessGrantCleanup removes expired grants periodically until the context is canceled.
