@@ -206,6 +206,7 @@ func TestRouterRegistersOptionalDependencies(t *testing.T) {
 		{method: http.MethodPost, path: "/api/v1/admin/user/reset-password", body: `{}`},
 		{method: http.MethodPost, path: "/api/v1/user/profile/update", body: `{}`},
 		{method: http.MethodGet, path: "/api/v1/public/short-link/preview?slug=abc123"},
+		{method: http.MethodPost, path: "/api/v1/public/short-link/unlock", body: `{}`},
 		{method: http.MethodGet, path: "/go/abc123/continue"},
 		{method: http.MethodGet, path: "/go/abc123/preview"},
 		{method: http.MethodGet, path: "/abc123"},
