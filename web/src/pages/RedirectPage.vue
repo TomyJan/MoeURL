@@ -214,6 +214,7 @@ function startCountdown() {
 /** Continues a granted link according to its direct or intermediate redirect mode. */
 function proceedAfterAccess() {
   const currentPreview = preview.value
+  /* v8 ignore next -- callers establish a preview first; retain a defensive guard for future call sites. */
   if (!currentPreview) {
     return
   }
