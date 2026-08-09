@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"path/filepath"
 	"testing"
 
 	appdb "github.com/TomyJan/MoeURL/internal/db"
@@ -16,7 +15,7 @@ import (
 
 func TestServiceSetupInitializesBuiltInData(t *testing.T) {
 	ctx := context.Background()
-	databaseURL := migratedDatabaseURL(t, ctx)
+	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
 
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {
@@ -75,7 +74,7 @@ func TestServiceSetupInitializesBuiltInData(t *testing.T) {
 
 func TestServiceSetupRejectsReservedAdminUsername(t *testing.T) {
 	ctx := context.Background()
-	databaseURL := migratedDatabaseURL(t, ctx)
+	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
 
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {
@@ -226,16 +225,11 @@ func assertStoredGroupPermission(t *testing.T, ctx context.Context, pool *pgxpoo
 
 func systemTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
-	databaseURL := migratedDatabaseURL(t, ctx)
+	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {
 		t.Fatalf("open pool: %v", err)
 	}
 	t.Cleanup(pool.Close)
 	return pool
-}
-
-func migratedDatabaseURL(t *testing.T, ctx context.Context) string {
-	t.Helper()
-	return testdb.MigratedDatabaseURL(t, ctx, filepath.Join("..", "..", "migrations"))
 }

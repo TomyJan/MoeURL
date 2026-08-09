@@ -5,7 +5,6 @@ import (
 	"context"
 	"io"
 	"log/slog"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -220,17 +219,11 @@ func (b *lockedBuffer) String() string {
 // eventTestPool opens a migrated PostgreSQL pool for recorder integration tests.
 func eventTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
-	databaseURL := migratedEventDatabaseURL(t, ctx)
+	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {
 		t.Fatalf("open pool: %v", err)
 	}
 	t.Cleanup(pool.Close)
 	return pool
-}
-
-// migratedEventDatabaseURL starts PostgreSQL and applies all project migrations.
-func migratedEventDatabaseURL(t *testing.T, ctx context.Context) string {
-	t.Helper()
-	return testdb.MigratedDatabaseURL(t, ctx, filepath.Join("..", "..", "migrations"))
 }

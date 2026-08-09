@@ -9,13 +9,14 @@ import (
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func TestSessionServiceCreatesReadsAndRevokesSession(t *testing.T) {
 	ctx := context.Background()
-	databaseURL := migratedAuthDatabaseURL(t, ctx)
+	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
 
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {
@@ -65,7 +66,7 @@ func TestSessionServiceCreatesReadsAndRevokesSession(t *testing.T) {
 
 func TestSessionServiceRejectsMissingSession(t *testing.T) {
 	ctx := context.Background()
-	databaseURL := migratedAuthDatabaseURL(t, ctx)
+	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
 
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {
@@ -83,7 +84,7 @@ func TestSessionServiceRejectsMissingSession(t *testing.T) {
 
 func TestSessionServiceReturnsDatabaseErrors(t *testing.T) {
 	ctx := context.Background()
-	databaseURL := migratedAuthDatabaseURL(t, ctx)
+	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
 
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {

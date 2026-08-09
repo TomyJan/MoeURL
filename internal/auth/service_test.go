@@ -3,7 +3,6 @@ package auth_test
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -252,17 +251,11 @@ func insertLoginUserWithoutPassword(t *testing.T, ctx context.Context, pool *pgx
 
 func authTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
-	databaseURL := migratedAuthDatabaseURL(t, ctx)
+	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {
 		t.Fatalf("open pool: %v", err)
 	}
 	t.Cleanup(pool.Close)
 	return pool
-}
-
-// migratedAuthDatabaseURL provisions an isolated migrated database for authentication tests.
-func migratedAuthDatabaseURL(t *testing.T, ctx context.Context) string {
-	t.Helper()
-	return testdb.MigratedDatabaseURL(t, ctx, filepath.Join("..", "..", "migrations"))
 }

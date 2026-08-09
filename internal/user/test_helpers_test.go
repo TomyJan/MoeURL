@@ -3,7 +3,6 @@ package user_test
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
 	"testing"
 
 	appdb "github.com/TomyJan/MoeURL/internal/db"
@@ -13,7 +12,7 @@ import (
 
 func userTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
-	databaseURL := migratedUserDatabaseURL(t, ctx)
+	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {
 		t.Fatalf("open pool: %v", err)
@@ -39,9 +38,4 @@ func permissionsJSON(permissions []string) string {
 		panic(err)
 	}
 	return string(data)
-}
-
-func migratedUserDatabaseURL(t *testing.T, ctx context.Context) string {
-	t.Helper()
-	return testdb.MigratedDatabaseURL(t, ctx, filepath.Join("..", "..", "migrations"))
 }

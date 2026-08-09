@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -96,6 +98,16 @@ func MigratedDatabaseURL(t testing.TB, ctx context.Context, migrationsDir string
 	return databaseURL
 }
 
+// ProjectMigratedDatabaseURL returns a migrated database using the repository migrations.
+func ProjectMigratedDatabaseURL(t testing.TB, ctx context.Context) string {
+	t.Helper()
+	_, sourceFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("locate project migrations")
+	}
+	return MigratedDatabaseURL(t, ctx, filepath.Join(filepath.Dir(sourceFile), "..", "..", "migrations"))
+}
+
 // dockerDatabaseURL creates an isolated database in the process-wide PostgreSQL test container.
 func dockerDatabaseURL(ctx context.Context, t testing.TB) (string, func(), error) {
 	if err := probeDockerDaemon(); err != nil {
@@ -181,6 +193,8 @@ func isolatedDatabaseURL(ctx context.Context, adminURL string, testName string, 
 	if err != nil {
 		return "", nil, err
 	}
+	// databaseName comes from localDatabaseName's fixed prefix and [a-z0-9_] sanitizer;
+	// PostgreSQL identifiers cannot be parameterized, so keep this interpolation tied to that allowlist.
 	if _, err := adminDatabase.ExecContext(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS %s WITH (FORCE)", databaseName)); err != nil {
 		reportCleanupError(t, "close test database admin connection", adminDatabase.Close())
 		return "", nil, err
@@ -193,6 +207,7 @@ func isolatedDatabaseURL(ctx context.Context, adminURL string, testName string, 
 	cleanup := func() {
 		cleanupContext, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
+		// Keep this identifier interpolation safe by changing localDatabaseName's allowlist together with this comment.
 		_, dropErr := adminDatabase.ExecContext(cleanupContext, fmt.Sprintf("DROP DATABASE IF EXISTS %s WITH (FORCE)", databaseName))
 		reportCleanupError(t, fmt.Sprintf("drop test database %s", databaseName), dropErr)
 		reportCleanupError(t, "close test database admin connection", adminDatabase.Close())
