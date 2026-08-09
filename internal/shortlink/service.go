@@ -3,7 +3,6 @@ package shortlink
 import (
 	"context"
 	"errors"
-	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -648,8 +647,7 @@ func (s *Service) updateAccessConfig(ctx context.Context, user auth.CurrentUser,
 
 // normalizePassword enforces password capability and returns only a persistence-safe hash.
 func (s *Service) normalizePassword(user auth.CurrentUser, input *PasswordInput) (string, pgtype.Text, error) {
-	if input != nil && (!s.permissions.Has(user.GroupKey, permission.ShortLinkSetPassword) ||
-		!slices.Contains(user.Permissions, permission.ShortLinkSetPassword)) {
+	if input != nil && !s.permissions.Has(user.GroupKey, permission.ShortLinkSetPassword) {
 		return "", pgtype.Text{}, ErrPermissionDenied
 	}
 	mode, raw, err := validatePasswordInput(input)

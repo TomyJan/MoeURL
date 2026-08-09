@@ -189,6 +189,28 @@ func TestServicePasswordConfigurationRoundTrip(t *testing.T) {
 	if cleared.ShortLink.PasswordEnabled {
 		t.Fatal("expected cleared password to be disabled")
 	}
+
+	admin := auth.CurrentUser{ID: user.ID, GroupKey: permission.GroupAdmin}
+	adminCreated, err := service.Create(ctx, admin, shortlink.CreateInput{
+		TargetURL: "https://example.com/admin-protected",
+		Password:  &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "admin horse"},
+	})
+	if err != nil {
+		t.Fatalf("create protected short link with admin group: %v", err)
+	}
+	if !adminCreated.ShortLink.PasswordEnabled {
+		t.Fatal("expected admin-created password to be enabled")
+	}
+	adminCleared, err := service.Update(ctx, admin, shortlink.UpdateInput{
+		ID:       adminCreated.ShortLink.ID,
+		Password: &shortlink.PasswordInput{Mode: shortlink.PasswordModeNever},
+	})
+	if err != nil {
+		t.Fatalf("clear admin short link password: %v", err)
+	}
+	if adminCleared.ShortLink.PasswordEnabled {
+		t.Fatal("expected admin-cleared password to be disabled")
+	}
 }
 
 // TestServiceCreateReturnsDatabaseAndInputErrors verifies invalid identifiers and database failures.

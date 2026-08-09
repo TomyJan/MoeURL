@@ -85,9 +85,8 @@ func TestNormalizePasswordRequiresPermissionAndStoresOnlyHash(t *testing.T) {
 		t.Fatalf("expected injected capability restriction, got %v", err)
 	}
 	for _, user := range []auth.CurrentUser{
-		{GroupKey: permission.GroupUser},
-		{GroupKey: permission.GroupAdmin},
 		auth.GuestUser(),
+		{GroupKey: "unknown"},
 	} {
 		if _, _, err := service.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"}); !errors.Is(err, ErrPermissionDenied) {
 			t.Fatalf("expected %s permission error, got %v", user.GroupKey, err)
