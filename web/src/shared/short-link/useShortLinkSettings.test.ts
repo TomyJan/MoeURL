@@ -149,29 +149,47 @@ describe('useShortLinkSettings', () => {
   })
 
   it('passes password-free settings variables while forwarding the request password', async () => {
-    let sentInput: UpdateShortLinkInput | undefined
+    const sentInputs: UpdateShortLinkInput[] = []
     const mutationFn = vi.fn(async (request: UpdateShortLinkInput) => {
-      sentInput = structuredClone(request)
-      throw new Error('settings failed')
+      sentInputs.push(structuredClone(request))
     })
     const settings = useShortLinkSettings({ mutationFn, queryKey: ['short-link'] })
-    const input: UpdateShortLinkInput = {
+    const firstInput: UpdateShortLinkInput = {
       id: 'link-id',
       targetUrl: 'https://example.org',
-      password: { mode: 'set', value: 'correct horse' },
+      password: { mode: 'set', value: 'first password' },
+    }
+    const secondInput: UpdateShortLinkInput = {
+      id: 'link-id',
+      targetUrl: 'https://example.net',
+      password: { mode: 'set', value: 'second password' },
     }
 
-    settings.saveSettings(input)
+    settings.saveSettings(firstInput)
+    settings.saveSettings(secondInput)
 
-    expect(state.mutate).toHaveBeenCalledWith({ id: 'link-id', targetUrl: 'https://example.org' })
-    const variables = state.mutate.mock.calls[0]?.[0] as UpdateShortLinkInput
-    await expect(state.mutationOptions?.mutationFn?.(variables)).rejects.toThrow('settings failed')
-    expect(variables).not.toHaveProperty('password')
-    expect(sentInput).toEqual({
-      id: 'link-id',
-      targetUrl: 'https://example.org',
-      password: { mode: 'set', value: 'correct horse' },
-    })
+    expect(state.mutate).toHaveBeenNthCalledWith(1, { id: 'link-id', targetUrl: 'https://example.org' })
+    expect(state.mutate).toHaveBeenNthCalledWith(2, { id: 'link-id', targetUrl: 'https://example.net' })
+    const firstVariables = state.mutate.mock.calls[0]?.[0] as UpdateShortLinkInput
+    const secondVariables = state.mutate.mock.calls[1]?.[0] as UpdateShortLinkInput
+    expect(firstVariables).not.toHaveProperty('password')
+    expect(secondVariables).not.toHaveProperty('password')
+    await state.mutationOptions?.mutationFn?.(firstVariables)
+    await state.mutationOptions?.mutationFn?.(secondVariables)
+
+    expect(sentInputs).toEqual([
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.org',
+        password: { mode: 'set', value: 'first password' },
+      },
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.net',
+        password: { mode: 'set', value: 'second password' },
+      },
+    ])
+    expect(mutationFn).toHaveBeenCalledTimes(2)
   })
 
   it('uses the translated fallback for non-Error mutation failures', () => {

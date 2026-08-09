@@ -21,12 +21,12 @@ export function useShortLinkSettings(options: UseShortLinkSettingsOptions) {
   const queryClient = useQueryClient()
   const settingsLink = ref<ShortLinkSettingsTarget | null>(null)
   const qrLink = ref<ShortLinkSettingsTarget | null>(null)
-  let pendingPassword: UpdateShortLinkInput['password']
+  const pendingPasswords = new WeakMap<object, UpdateShortLinkInput['password']>()
   const settingsMutation = useMutation({
     /** Runs updates through the shared sensitive-input cleanup boundary. */
     mutationFn: (input: Omit<UpdateShortLinkInput, 'password'>) => {
-      const requestPassword = pendingPassword
-      pendingPassword = undefined
+      const requestPassword = pendingPasswords.get(input)
+      pendingPasswords.delete(input)
       return runShortLinkMutation(options.mutationFn, input, requestPassword)
     },
     onSuccess(_data, variables) {
@@ -52,7 +52,9 @@ export function useShortLinkSettings(options: UseShortLinkSettingsOptions) {
 
   function saveSettings(input: UpdateShortLinkInput) {
     const { password, ...variables } = input
-    pendingPassword = password
+    if (password) {
+      pendingPasswords.set(variables, password)
+    }
     settingsMutation.mutate(variables)
   }
 
