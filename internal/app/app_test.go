@@ -3,11 +3,29 @@ package app
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/TomyJan/MoeURL/internal/config"
 )
+
+// TestAppNewNormalizesEnvironment verifies application wiring uses the validated environment form.
+func TestAppNewNormalizesEnvironment(t *testing.T) {
+	application, err := New(context.Background(), config.Config{
+		Env:       " production ",
+		HTTPAddr:  ":0",
+		StaticDir: "web/dist",
+	}, slog.Default())
+	if err != nil {
+		t.Fatalf("build application: %v", err)
+	}
+	if application.config.Env != "production" {
+		t.Fatal("expected normalized production environment")
+	}
+}
 
 // TestAppShutdownDrainsRequestsBeforeStoppingDependencies verifies shutdown ordering.
 func TestAppShutdownDrainsRequestsBeforeStoppingDependencies(t *testing.T) {

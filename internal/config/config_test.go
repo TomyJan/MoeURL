@@ -33,6 +33,8 @@ func TestConfigValidateRequiresKnownEnvironment(t *testing.T) {
 	}{
 		{name: "development", env: "development"},
 		{name: "production", env: "production"},
+		{name: "trimmed development", env: " development "},
+		{name: "trimmed production", env: " production "},
 		{name: "empty", env: "", wantErr: true},
 		{name: "abbreviated production", env: "prod", wantErr: true},
 		{name: "capitalized production", env: "Production", wantErr: true},
