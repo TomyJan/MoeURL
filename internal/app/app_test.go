@@ -235,4 +235,12 @@ func TestAppShutdownFailureKeepsDependenciesRunning(t *testing.T) {
 	if err := <-serveDone; !errors.Is(err, http.ErrServerClosed) {
 		t.Fatalf("serve result = %v, want http.ErrServerClosed", err)
 	}
+	if err := application.Shutdown(context.Background()); err != nil {
+		t.Fatalf("retry shutdown application: %v", err)
+	}
+	select {
+	case <-cleanupCanceled:
+	default:
+		t.Fatal("cleanup remained active after successful shutdown retry")
+	}
 }

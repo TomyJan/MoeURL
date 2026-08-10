@@ -67,3 +67,25 @@ func TestDockerProbeContextIsIndependent(t *testing.T) {
 		t.Fatalf("unexpected Docker probe timeout %v", remaining)
 	}
 }
+
+// TestSharedContainerShutdownRunsOnce verifies process cleanup is idempotent and retains its result.
+func TestSharedContainerShutdownRunsOnce(t *testing.T) {
+	terminateErr := errors.New("terminate failed")
+	terminateCalls := 0
+	shutdown := sharedContainerShutdown{
+		terminate: func() error {
+			terminateCalls++
+			return terminateErr
+		},
+	}
+
+	if err := shutdown.run(); !errors.Is(err, terminateErr) {
+		t.Fatalf("first shutdown error = %v, want terminate failure", err)
+	}
+	if err := shutdown.run(); !errors.Is(err, terminateErr) {
+		t.Fatalf("second shutdown error = %v, want cached terminate failure", err)
+	}
+	if terminateCalls != 1 {
+		t.Fatalf("terminate calls = %d, want 1", terminateCalls)
+	}
+}

@@ -36,7 +36,25 @@ var (
 	dockerContainerOnce sync.Once
 	dockerContainerURL  string
 	dockerContainerErr  error
+	dockerShutdown      sharedContainerShutdown
 )
+
+// sharedContainerShutdown caches process-level container termination exactly once.
+type sharedContainerShutdown struct {
+	once      sync.Once
+	terminate func() error
+	err       error
+}
+
+// run invokes the registered termination callback at most once.
+func (s *sharedContainerShutdown) run() error {
+	s.once.Do(func() {
+		if s.terminate != nil {
+			s.err = s.terminate()
+		}
+	})
+	return s.err
+}
 
 // reportCleanupError reports best-effort cleanup failures without hiding the primary test result.
 func reportCleanupError(reporter cleanupErrorReporter, operation string, err error) {
@@ -108,6 +126,23 @@ func ProjectMigratedDatabaseURL(t testing.TB, ctx context.Context) string {
 	return MigratedDatabaseURL(t, ctx, filepath.Join(filepath.Dir(sourceFile), "..", "..", "migrations"))
 }
 
+// RunTests runs a package test suite and terminates its shared PostgreSQL container before exit.
+func RunTests(m *testing.M) int {
+	code := m.Run()
+	if err := ShutdownSharedDockerContainer(); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "terminate shared PostgreSQL test container: %v\n", err)
+		if code == 0 {
+			return 1
+		}
+	}
+	return code
+}
+
+// ShutdownSharedDockerContainer terminates the process-wide test container at most once.
+func ShutdownSharedDockerContainer() error {
+	return dockerShutdown.run()
+}
+
 // dockerDatabaseURL creates an isolated database in the process-wide PostgreSQL test container.
 func dockerDatabaseURL(ctx context.Context, t testing.TB) (string, func(), error) {
 	if err := probeDockerDaemon(); err != nil {
@@ -146,6 +181,10 @@ func sharedDockerDatabaseURL() (string, error) {
 			if terminateErr := testcontainers.TerminateContainer(container); terminateErr != nil {
 				dockerContainerErr = fmt.Errorf("%w: terminate container: %v", err, terminateErr)
 			}
+			return
+		}
+		dockerShutdown.terminate = func() error {
+			return testcontainers.TerminateContainer(container)
 		}
 	})
 	return dockerContainerURL, dockerContainerErr
@@ -195,11 +234,13 @@ func isolatedDatabaseURL(ctx context.Context, adminURL string, testName string, 
 	}
 	// databaseName comes from localDatabaseName's fixed prefix and [a-z0-9_] sanitizer;
 	// PostgreSQL identifiers cannot be parameterized, so keep this interpolation tied to that allowlist.
-	if _, err := adminDatabase.ExecContext(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS %s WITH (FORCE)", databaseName)); err != nil {
+	// ast-grep-ignore
+	if _, err := adminDatabase.ExecContext(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS %s WITH (FORCE)", databaseName)); err != nil { // nosemgrep
 		reportCleanupError(t, "close test database admin connection", adminDatabase.Close())
 		return "", nil, err
 	}
-	if _, err := adminDatabase.ExecContext(ctx, fmt.Sprintf("CREATE DATABASE %s", databaseName)); err != nil {
+	// ast-grep-ignore
+	if _, err := adminDatabase.ExecContext(ctx, fmt.Sprintf("CREATE DATABASE %s", databaseName)); err != nil { // nosemgrep
 		reportCleanupError(t, "close test database admin connection", adminDatabase.Close())
 		return "", nil, err
 	}
@@ -208,7 +249,8 @@ func isolatedDatabaseURL(ctx context.Context, adminURL string, testName string, 
 		cleanupContext, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		// Keep this identifier interpolation safe by changing localDatabaseName's allowlist together with this comment.
-		_, dropErr := adminDatabase.ExecContext(cleanupContext, fmt.Sprintf("DROP DATABASE IF EXISTS %s WITH (FORCE)", databaseName))
+		// ast-grep-ignore
+		_, dropErr := adminDatabase.ExecContext(cleanupContext, fmt.Sprintf("DROP DATABASE IF EXISTS %s WITH (FORCE)", databaseName)) // nosemgrep
 		reportCleanupError(t, fmt.Sprintf("drop test database %s", databaseName), dropErr)
 		reportCleanupError(t, "close test database admin connection", adminDatabase.Close())
 	}
