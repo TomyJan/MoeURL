@@ -200,38 +200,46 @@ function save() {
       }
     }
   }
-  if (canSetPassword.value) {
-    if (!passwordEnabled.value) {
-      if (props.link.passwordEnabled) {
-        input.password = { mode: 'never' }
-      }
-    } else {
-      const passwordElement = passwordInput()
-      if (!passwordElement) {
-        passwordErrorMessage.value = t('shortLinkSettings.passwordRequired')
-        return
-      }
-      const password = passwordElement.value
-      if (!password) {
-        if (!props.link.passwordEnabled) {
-          passwordErrorMessage.value = t('shortLinkSettings.passwordRequired')
-          return
-        }
-        emit('save', input)
-        clearPasswordInput()
-        return
-      }
-      const passwordResult = passwordSchema.safeParse(password)
-      if (!passwordResult.success) {
-        passwordErrorMessage.value = t('shortLinkSettings.passwordInvalid')
-        return
-      }
-      input.password = { mode: 'set', value: passwordResult.data }
-    }
+  if (!applyPasswordInput(input)) {
+    return
   }
 
   emit('save', input)
   clearPasswordInput()
+}
+
+/** Applies an explicit password change without retaining plaintext in component state. */
+function applyPasswordInput(input: UpdateShortLinkInput): boolean {
+  if (!canSetPassword.value) {
+    return true
+  }
+  if (!passwordEnabled.value) {
+    if (props.link.passwordEnabled) {
+      input.password = { mode: 'never' }
+    }
+    return true
+  }
+
+  const passwordElement = passwordInput()
+  if (!passwordElement) {
+    passwordErrorMessage.value = t('shortLinkSettings.passwordRequired')
+    return false
+  }
+  const password = passwordElement.value
+  if (!password) {
+    if (props.link.passwordEnabled) {
+      return true
+    }
+    passwordErrorMessage.value = t('shortLinkSettings.passwordRequired')
+    return false
+  }
+  const passwordResult = passwordSchema.safeParse(password)
+  if (!passwordResult.success) {
+    passwordErrorMessage.value = t('shortLinkSettings.passwordInvalid')
+    return false
+  }
+  input.password = { mode: 'set', value: passwordResult.data }
+  return true
 }
 
 function close() {

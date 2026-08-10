@@ -205,6 +205,7 @@ function classifyPreviewError(error: unknown): PreviewFailureState {
 
 /** Starts the intermediate-page countdown and performs a single continuation at zero. */
 function startCountdown() {
+  clearCountdown()
   countdownTimer = globalThis.setInterval(() => {
     if (remainingSeconds.value > 1) {
       remainingSeconds.value -= 1
