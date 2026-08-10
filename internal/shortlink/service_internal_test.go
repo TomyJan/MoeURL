@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -35,6 +34,7 @@ func TestValidatePasswordInput(t *testing.T) {
 		{name: "set minimum ASCII", input: &PasswordInput{Mode: PasswordModeSet, Value: "12345678"}, wantMode: PasswordModeSet, wantRaw: "12345678"},
 		{name: "set minimum Unicode", input: &PasswordInput{Mode: PasswordModeSet, Value: "\u5bc6\u7801\u5b89\u5168\u957f\u5ea6\u516b\u4f4d"}, wantMode: PasswordModeSet, wantRaw: "\u5bc6\u7801\u5b89\u5168\u957f\u5ea6\u516b\u4f4d"},
 		{name: "set maximum", input: &PasswordInput{Mode: PasswordModeSet, Value: strings.Repeat("a", 128)}, wantMode: PasswordModeSet, wantRaw: strings.Repeat("a", 128)},
+		{name: "set maximum Unicode", input: &PasswordInput{Mode: PasswordModeSet, Value: strings.Repeat("\u5bc6", 128)}, wantMode: PasswordModeSet, wantRaw: strings.Repeat("\u5bc6", 128)},
 		{name: "too short", input: &PasswordInput{Mode: PasswordModeSet, Value: "1234567"}, wantErr: ErrInvalidPasswordInput},
 		{name: "too long", input: &PasswordInput{Mode: PasswordModeSet, Value: strings.Repeat("a", 129)}, wantErr: ErrInvalidPasswordInput},
 		{name: "clear with value", input: &PasswordInput{Mode: PasswordModeNever, Value: "unexpected"}, wantErr: ErrInvalidPasswordInput},
@@ -219,7 +219,7 @@ func TestCreateRetriesReservedSlug(t *testing.T) {
 // internalShortLinkTestPool opens an isolated migrated database for package-internal service tests.
 func internalShortLinkTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
-	databaseURL := testdb.MigratedDatabaseURL(t, ctx, filepath.Join("..", "..", "migrations"))
+	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {
 		t.Fatalf("open pool: %v", err)

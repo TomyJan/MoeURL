@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
@@ -581,8 +582,10 @@ func TestRedirectServiceCleanupDrainsExpiredGrantBatchesAndLogs(t *testing.T) {
 	const testAccessGrantCleanupBatchSize = 500
 
 	fixture := newAccessGrantCleanupFixture(t)
-	// 501 grants exercise the production batch limit of 500 plus one remaining row.
-	fixture.insertExpiredGrants(t, testAccessGrantCleanupBatchSize+1)
+	totalGrantCount := testAccessGrantCleanupBatchSize + 1
+	expectedBatchCount := (totalGrantCount + testAccessGrantCleanupBatchSize - 1) / testAccessGrantCleanupBatchSize
+	// A full batch plus one remaining row exercises the cleanup batch boundary.
+	fixture.insertExpiredGrants(t, totalGrantCount)
 
 	logOutput := &bytes.Buffer{}
 	cleanupLogger := slog.New(slog.NewTextHandler(logOutput, nil))
@@ -595,8 +598,8 @@ func TestRedirectServiceCleanupDrainsExpiredGrantBatchesAndLogs(t *testing.T) {
 	cleanupLog := logOutput.String()
 	for _, field := range []string{
 		"access_grant_cleanup_completed",
-		"deleted_rows=501",
-		"batch_count=2",
+		fmt.Sprintf("deleted_rows=%d", totalGrantCount),
+		fmt.Sprintf("batch_count=%d", expectedBatchCount),
 		"duration_ms=",
 		"index=short_link_access_grant_expiry_idx",
 	} {

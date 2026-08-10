@@ -258,8 +258,8 @@ func TestRedirectHandlerCanonicalizesScopedSlugBeforeAuthorization(t *testing.T)
 			if response.Code != http.StatusFound || response.Header().Get("Location") != test.location {
 				t.Fatalf("expected lowercase redirect to %q, got status %d location %q", test.location, response.Code, response.Header().Get("Location"))
 			}
-			if service.previewToken != "" || service.continueToken != "" {
-				t.Fatal("authorization service was called before lowercase redirect")
+			if service.previewCalls != 0 || service.continueCalls != 0 {
+				t.Fatalf("authorization service was called before lowercase redirect: preview=%d continue=%d", service.previewCalls, service.continueCalls)
 			}
 		})
 	}
@@ -745,6 +745,8 @@ type fakeRedirectService struct {
 	unlockErr      error
 	unlockCalls    int
 	unlockSlug     string
+	continueCalls  int
+	previewCalls   int
 	continueToken  string
 	previewToken   string
 }
@@ -759,6 +761,7 @@ func (f *fakeRedirectService) Open(context.Context, string) (shortlink.OpenResul
 
 // Preview returns the configured public preview result.
 func (f *fakeRedirectService) Preview(_ context.Context, _ string, accessToken string) (shortlink.PreviewResult, error) {
+	f.previewCalls++
 	f.previewToken = accessToken
 	if f.previewErr != nil {
 		return shortlink.PreviewResult{}, f.previewErr
@@ -768,6 +771,7 @@ func (f *fakeRedirectService) Preview(_ context.Context, _ string, accessToken s
 
 // Continue returns the configured final redirect result.
 func (f *fakeRedirectService) Continue(_ context.Context, _ string, accessToken string) (shortlink.RedirectResult, error) {
+	f.continueCalls++
 	f.continueToken = accessToken
 	if f.continueErr != nil {
 		return shortlink.RedirectResult{}, f.continueErr

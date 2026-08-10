@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"path/filepath"
 	"regexp"
 	"testing"
 	"time"
@@ -1425,17 +1424,11 @@ func permissionsJSON(t *testing.T, permissions []string) string {
 // shortLinkTestPool opens a migrated PostgreSQL pool for service integration tests.
 func shortLinkTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
-	databaseURL := migratedShortLinkDatabaseURL(t, ctx)
+	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {
 		t.Fatalf("open pool: %v", err)
 	}
 	t.Cleanup(pool.Close)
 	return pool
-}
-
-// migratedShortLinkDatabaseURL starts PostgreSQL and applies all project migrations.
-func migratedShortLinkDatabaseURL(t *testing.T, ctx context.Context) string {
-	t.Helper()
-	return testdb.MigratedDatabaseURL(t, ctx, filepath.Join("..", "..", "migrations"))
 }
