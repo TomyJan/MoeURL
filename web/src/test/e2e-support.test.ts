@@ -30,4 +30,19 @@ describe('E2E support', () => {
     expect(result).toBeUndefined()
     expect(get).toHaveBeenCalledTimes(1)
   })
+
+  it('stops pagination when the non-empty page reaches the reported total', async () => {
+    const get = vi.fn().mockResolvedValueOnce({
+      json: vi.fn().mockResolvedValue({
+        code: 0,
+        data: { items: [{ id: 'link-1', passwordEnabled: false, slug: 'other' }] },
+        meta: { page: 1, pageSize: 100, total: 1 },
+      }),
+    })
+
+    const result = await findShortLink({ request: { get } } as never, 'missing')
+
+    expect(result).toBeUndefined()
+    expect(get).toHaveBeenCalledTimes(1)
+  })
 })

@@ -45,7 +45,7 @@ const publicShortLinkPreviewSchema: z.ZodType<PublicShortLinkPreview> = z.object
 })
 
 const unlockShortLinkResponseSchema: z.ZodType<UnlockShortLinkResponse> = z.object({
-  unlocked: z.boolean(),
+  unlocked: z.literal(true),
 })
 
 export async function createShortLink(input: CreateShortLinkInput): Promise<ShortLinkResponse> {

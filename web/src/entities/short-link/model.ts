@@ -101,5 +101,5 @@ export interface UnlockShortLinkInput {
 }
 
 export interface UnlockShortLinkResponse {
-  unlocked: boolean
+  unlocked: true
 }

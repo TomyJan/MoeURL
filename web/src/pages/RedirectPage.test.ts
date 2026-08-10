@@ -370,7 +370,7 @@ describe('RedirectPage', () => {
       redirectMode: 'direct',
       requiresPassword: true,
     })
-    const unlock = createDeferred<{ unlocked: boolean }>()
+    const unlock = createDeferred<{ unlocked: true }>()
     vi.mocked(unlockShortLink).mockReturnValueOnce(unlock.promise)
     mountPage()
     await flushPreview()
@@ -481,7 +481,7 @@ describe('RedirectPage', () => {
       redirectMode: 'direct',
       requiresPassword: true,
     })
-    const unlock = createDeferred<{ unlocked: boolean }>()
+    const unlock = createDeferred<{ unlocked: true }>()
     vi.mocked(unlockShortLink).mockReturnValueOnce(unlock.promise)
     const view = mountPage()
     await flushPreview()
@@ -505,7 +505,7 @@ describe('RedirectPage', () => {
       redirectMode: 'intermediate',
       requiresPassword: true,
     })
-    const unlock = createDeferred<{ unlocked: boolean }>()
+    const unlock = createDeferred<{ unlocked: true }>()
     vi.mocked(unlockShortLink).mockReturnValueOnce(unlock.promise)
     const view = mountPage()
     await flushPreview()
