@@ -63,7 +63,7 @@ func TestAppNewNormalizesEnvironment(t *testing.T) {
 			}); err != nil {
 				t.Fatalf("initialize application: %v", err)
 			}
-			request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{"username":"admin","password":"secure-password"}`))
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{"username":"admin","password":"secure-password"}`))
 			response := httptest.NewRecorder()
 			application.server.Handler.ServeHTTP(response, request)
 			if response.Code != http.StatusOK {
