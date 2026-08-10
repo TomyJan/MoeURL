@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -521,6 +523,35 @@ func TestRedirectHandlerPreviewPassesScopedAccessCookie(t *testing.T) {
 
 	if response.Code != http.StatusOK || service.previewToken != "raw-token" {
 		t.Fatalf("expected scoped preview token, got status %d token %q", response.Code, service.previewToken)
+	}
+}
+
+// TestRedirectHandlerAccessCookieIsIsolatedByShortLink verifies a grant for one slug is not sent to another slug path.
+func TestRedirectHandlerAccessCookieIsIsolatedByShortLink(t *testing.T) {
+	handler := shortlink.NewRedirectHandler(&fakeRedirectService{
+		unlockGrant: shortlink.AccessGrant{Token: "link-a-token", ExpiresAt: time.Now().Add(time.Minute)},
+	})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString(`{"slug":"link-a","password":"correct horse"}`))
+
+	handler.Unlock(response, request)
+
+	cookies := response.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("expected one access cookie, got %d", len(cookies))
+	}
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("create cookie jar: %v", err)
+	}
+	linkAURL := &url.URL{Scheme: "https", Host: "example.com", Path: "/go/link-a/preview"}
+	linkBURL := &url.URL{Scheme: "https", Host: "example.com", Path: "/go/link-b/preview"}
+	jar.SetCookies(linkAURL, cookies)
+	if got := jar.Cookies(linkAURL); len(got) != 1 {
+		t.Fatalf("expected link A path to receive one access cookie, got %d", len(got))
+	}
+	if got := jar.Cookies(linkBURL); len(got) != 0 {
+		t.Fatalf("expected link B path to receive no access cookies, got %d", len(got))
 	}
 }
 

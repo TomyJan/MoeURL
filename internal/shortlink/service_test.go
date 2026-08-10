@@ -146,7 +146,7 @@ func TestServicePasswordConfigurationRoundTrip(t *testing.T) {
 		t.Fatalf("marshal protected short link: %v", err)
 	}
 	if regexp.MustCompile(`(?i)password_hash|argon2`).Match(encoded) {
-		t.Fatalf("password hash leaked in response: %s", encoded)
+		t.Fatal("password hash leaked in response")
 	}
 	var storedHash string
 	if err := pool.QueryRow(ctx, `select password_hash from short_link where id = $1`, created.ShortLink.ID).Scan(&storedHash); err != nil {
@@ -171,8 +171,11 @@ func TestServicePasswordConfigurationRoundTrip(t *testing.T) {
 		t.Fatalf("change blocked short link password: %v", err)
 	}
 	grant, err := shortlink.NewRedirectService(pool, nil).Unlock(ctx, created.ShortLink.Slug, "updated horse")
-	if err != nil || grant.Token == "" {
-		t.Fatalf("unlock immediately after password change: %#v, %v", grant, err)
+	if err != nil {
+		t.Fatalf("unlock immediately after password change returned an error: %v", err)
+	}
+	if grant.Token == "" {
+		t.Fatal("unlock immediately after password change returned an empty token")
 	}
 
 	listed, err := service.List(ctx, user, shortlink.ListInput{Page: 1, PageSize: 20})
