@@ -26,7 +26,6 @@ type PasswordInput struct {
 }
 
 type UnlockInput struct {
-	Slug     string `json:"slug"`
 	Password string `json:"password"`
 }
 

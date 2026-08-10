@@ -179,7 +179,6 @@ API 使用 `/api/v1` 前缀：
 /api/v1/short-link/update
 /api/v1/short-link/delete
 /api/v1/public/short-link/preview
-/api/v1/public/short-link/unlock
 /api/v1/admin/short-link/list
 /api/v1/admin/short-link/update
 /api/v1/admin/short-link/delete
@@ -193,10 +192,11 @@ API 使用 `/api/v1` 前缀：
 /{slug}
 /go/{slug}
 /go/{slug}/preview
+/go/{slug}/unlock
 /go/{slug}/continue
 ```
 
-固定前端路由、公开继续路由和 API 路由必须优先于短码路由。`/go/{slug}` 用于 v0.2.0 中间页和 v0.3.0 密码页 App Shell，`/go/{slug}/continue` 在重新检查短链状态、过期时间和短期授权后写出最终目标跳转。Vite 开发服务器只将 `/go/{slug}/preview` 和 `/go/{slug}/continue` 代理到后端，不能代理 `/go/{slug}` App Shell。
+固定前端路由、公开解锁与继续路由和 API 路由必须优先于短码路由。`/go/{slug}` 用于 v0.2.0 中间页和 v0.3.0 密码页 App Shell，`/go/{slug}/unlock` 用密码换取路径作用域授权，`/go/{slug}/continue` 在重新检查短链状态、过期时间和短期授权后写出最终目标跳转。Vite 开发服务器只将 `/go/{slug}/preview`、`/go/{slug}/unlock` 和 `/go/{slug}/continue` 代理到后端，不能代理 `/go/{slug}` App Shell。
 
 ### API 风格
 

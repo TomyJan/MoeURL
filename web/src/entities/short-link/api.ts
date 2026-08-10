@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { ApiClientError, apiGet, apiGetPath, apiPost } from '@/shared/api/client'
+import { ApiClientError, apiGet, apiGetPath, apiPost, apiPostPath } from '@/shared/api/client'
 
 import type { AdminShortLink, CreateShortLinkInput, PublicShortLinkPreview, ShortLink, ShortLinkOverview, ShortLinkStatisticsResponse, UnlockShortLinkInput, UnlockShortLinkResponse, UpdateShortLinkInput } from './model'
 
@@ -64,7 +64,9 @@ export async function getPublicShortLinkPreview(slug: string): Promise<PublicSho
 
 /** Exchanges a valid short-link password for a scoped access grant. */
 export async function unlockShortLink(input: UnlockShortLinkInput): Promise<UnlockShortLinkResponse> {
-  const response = await apiPost<unknown>('/public/short-link/unlock', input)
+  const response = await apiPostPath<unknown>(`/go/${encodeURIComponent(input.slug)}/unlock`, {
+    password: input.password,
+  })
   const result = unlockShortLinkResponseSchema.safeParse(response.data)
   if (!result.success) {
     throw new ApiClientError(100001, 'Invalid public unlock response')

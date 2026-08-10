@@ -76,7 +76,6 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 		}
 		if redirectHandler != nil {
 			api.Get("/public/short-link/preview", redirectHandler.PreviewPublic)
-			api.Post("/public/short-link/unlock", redirectHandler.Unlock)
 		}
 		if dependency.User != nil {
 			userHandler := user.NewHandler(dependency.User)
@@ -93,6 +92,9 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 	})
 
 	if redirectHandler != nil {
+		router.Post("/go/{slug}/unlock", func(w nethttp.ResponseWriter, r *nethttp.Request) {
+			redirectHandler.Unlock(w, r, chi.URLParam(r, "slug"))
+		})
 		router.Get("/go/{slug}/continue", func(w nethttp.ResponseWriter, r *nethttp.Request) {
 			redirectHandler.Continue(w, r, chi.URLParam(r, "slug"))
 		})

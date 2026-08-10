@@ -25,6 +25,15 @@ export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
 
 /** Performs a GET request to a validated same-origin absolute path. */
 export async function apiGetPath<T>(path: string): Promise<ApiResponse<T>> {
+  return getJson<T>(resolveSameOriginPath(path))
+}
+
+/** Performs a POST request to a validated same-origin absolute path. */
+export async function apiPostPath<T>(path: string, body?: unknown): Promise<ApiResponse<T>> {
+  return postJson<T>(resolveSameOriginPath(path), body)
+}
+
+function resolveSameOriginPath(path: string): string {
   const currentOrigin = window.location.origin
   let resolvedURL: URL
   try {
@@ -35,7 +44,7 @@ export async function apiGetPath<T>(path: string): Promise<ApiResponse<T>> {
   if (!path.startsWith('/') || path.startsWith('//') || resolvedURL.origin !== currentOrigin) {
     throw new Error('API path must be a same-origin absolute path')
   }
-  return getJson<T>(resolvedURL.pathname + resolvedURL.search)
+  return resolvedURL.pathname + resolvedURL.search
 }
 
 /** Fetches and decodes a JSON response without changing the supplied path. */
@@ -52,7 +61,11 @@ async function getJson<T>(path: string): Promise<ApiResponse<T>> {
 }
 
 export async function apiPost<T>(path: string, body?: unknown): Promise<ApiResponse<T>> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  return postJson<T>(`${API_BASE}${path}`, body)
+}
+
+async function postJson<T>(path: string, body?: unknown): Promise<ApiResponse<T>> {
+  const response = await fetch(path, {
     body: body === undefined ? undefined : JSON.stringify(body),
     credentials: 'include',
     headers: {

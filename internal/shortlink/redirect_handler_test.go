@@ -80,7 +80,7 @@ func TestRedirectHandlerUnlockSetsScopedCookie(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		Redirect: service,
 	})
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString(`{"slug":" AbC123 ","password":"correct horse"}`))
+	request := httptest.NewRequest(http.MethodPost, "/go/AbC123/unlock", bytes.NewBufferString(`{"password":"correct horse"}`))
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 
@@ -117,10 +117,10 @@ func TestRedirectHandlerUnlockSetsSecureCookie(t *testing.T) {
 		"",
 		true,
 	)
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString(`{"slug":"abc123","password":"correct horse"}`))
+	request := httptest.NewRequest(http.MethodPost, "/go/abc123/unlock", bytes.NewBufferString(`{"password":"correct horse"}`))
 	response := httptest.NewRecorder()
 
-	handler.Unlock(response, request)
+	handler.Unlock(response, request, "abc123")
 
 	cookies := response.Result().Cookies()
 	if len(cookies) != 1 {
@@ -136,10 +136,10 @@ func TestRedirectHandlerUnlockExpiresStaleCookie(t *testing.T) {
 	handler := shortlink.NewRedirectHandler(&fakeRedirectService{
 		unlockGrant: shortlink.AccessGrant{Token: "stale-token", ExpiresAt: time.Now().Add(-time.Second)},
 	})
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString(`{"slug":"abc123","password":"correct horse"}`))
+	request := httptest.NewRequest(http.MethodPost, "/go/abc123/unlock", bytes.NewBufferString(`{"password":"correct horse"}`))
 	response := httptest.NewRecorder()
 
-	handler.Unlock(response, request)
+	handler.Unlock(response, request, "abc123")
 
 	cookies := response.Result().Cookies()
 	if len(cookies) != 1 {
@@ -166,7 +166,7 @@ func TestRedirectHandlerUnlockMapsPasswordErrorsToBusinessCodes(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			router := apphttp.NewRouter(apphttp.Dependencies{Redirect: &fakeRedirectService{unlockErr: test.err}})
-			request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString(`{"slug":"abc123","password":"wrong"}`))
+			request := httptest.NewRequest(http.MethodPost, "/go/abc123/unlock", bytes.NewBufferString(`{"password":"wrong"}`))
 			response := httptest.NewRecorder()
 			router.ServeHTTP(response, request)
 			var body struct {
@@ -187,7 +187,7 @@ func TestRedirectHandlerUnlockRejectsMalformedRequest(t *testing.T) {
 	service := &fakeRedirectService{}
 	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: service})
 	response := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString("{"))
+	request := httptest.NewRequest(http.MethodPost, "/go/abc123/unlock", bytes.NewBufferString("{"))
 
 	router.ServeHTTP(response, request)
 
@@ -230,6 +230,14 @@ func TestRedirectHandlerCanonicalizesScopedSlugBeforeAuthorization(t *testing.T)
 			},
 		},
 		{
+			name:     "preview rebuilds fixed suffix",
+			path:     "/go/MiDdLe/unexpected?source=test",
+			location: "/go/middle/preview?source=test",
+			serve: func(handler *shortlink.RedirectHandler, response http.ResponseWriter, request *http.Request) {
+				handler.PreviewScoped(response, request, "MiDdLe")
+			},
+		},
+		{
 			name:     "continue",
 			path:     "/go/MiDdLe/continue?source=test",
 			location: "/go/middle/continue?source=test",
@@ -264,8 +272,8 @@ func TestRedirectHandlerUnlockRejectsOversizedRequest(t *testing.T) {
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(
 		http.MethodPost,
-		"/api/v1/public/short-link/unlock",
-		bytes.NewBufferString(`{"slug":"abc123","password":"`+strings.Repeat("a", 5<<10)+`"}`),
+		"/go/abc123/unlock",
+		bytes.NewBufferString(`{"password":"`+strings.Repeat("a", 5<<10)+`"}`),
 	)
 
 	router.ServeHTTP(response, request)
@@ -291,8 +299,8 @@ func TestRedirectHandlerUnlockRejectsTrailingOversizedJSON(t *testing.T) {
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(
 		http.MethodPost,
-		"/api/v1/public/short-link/unlock",
-		bytes.NewBufferString(`{"slug":"abc123","password":"correct horse"}`+strings.Repeat(" ", 5<<10)),
+		"/go/abc123/unlock",
+		bytes.NewBufferString(`{"password":"correct horse"}`+strings.Repeat(" ", 5<<10)),
 	)
 
 	router.ServeHTTP(response, request)
@@ -315,7 +323,7 @@ func TestRedirectHandlerUnlockRejectsTrailingOversizedJSON(t *testing.T) {
 func TestRedirectHandlerUnlockMapsSystemError(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: &fakeRedirectService{unlockErr: errors.New("database down")}})
 	response := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString(`{"slug":"abc123","password":"correct horse"}`))
+	request := httptest.NewRequest(http.MethodPost, "/go/abc123/unlock", bytes.NewBufferString(`{"password":"correct horse"}`))
 
 	router.ServeHTTP(response, request)
 
@@ -588,9 +596,9 @@ func TestRedirectHandlerAccessCookieIsIsolatedByShortLink(t *testing.T) {
 		unlockGrant: shortlink.AccessGrant{Token: "link-a-token", ExpiresAt: time.Now().Add(time.Minute)},
 	})
 	response := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString(`{"slug":"link-a","password":"correct horse"}`))
+	request := httptest.NewRequest(http.MethodPost, "/go/link-a/unlock", bytes.NewBufferString(`{"password":"correct horse"}`))
 
-	handler.Unlock(response, request)
+	handler.Unlock(response, request, "link-a")
 
 	cookies := response.Result().Cookies()
 	if len(cookies) != 1 {

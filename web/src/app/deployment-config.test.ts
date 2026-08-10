@@ -139,7 +139,7 @@ describe('deployment configuration', () => {
     ]))
   })
 
-  it('proxies only short-link preview and continue data routes during development', async () => {
+  it('proxies only short-link preview, unlock, and continue data routes during development', async () => {
     const loadedConfig = await loadConfigFromFile(
       { command: 'serve', mode: 'test' },
       resolve(repositoryRoot, 'web/vite.config.ts'),
@@ -155,6 +155,7 @@ describe('deployment configuration', () => {
     const goDataRoute = new RegExp(goProxyEntry?.[0] ?? '$.')
     expect(goDataRoute.test('/go/abc123/preview')).toBe(true)
     expect(goDataRoute.test('/go/abc123/preview?foo=1')).toBe(true)
+    expect(goDataRoute.test('/go/abc123/unlock')).toBe(true)
     expect(goDataRoute.test('/go/abc123/continue')).toBe(true)
     expect(goDataRoute.test('/go/abc123')).toBe(false)
     expect(goDataRoute.test('/go/abc123/settings')).toBe(false)

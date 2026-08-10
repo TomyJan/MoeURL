@@ -38,8 +38,8 @@ GET /api/v1/public/short-link/preview?slug=...
 GET /go/{slug}/preview
   同源公共页面预览；仅用于接收 `/go/{slug}` 作用域 Cookie，携带有效授权时返回 `requiresPassword: false`
 
-POST /api/v1/public/short-link/unlock
-  request: { slug: string, password: string }
+POST /go/{slug}/unlock
+  request: { password: string }
   success: HTTP 200, code 0，并设置短链路径作用域授权 Cookie
 
 GET /{slug}

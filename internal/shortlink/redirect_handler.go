@@ -84,7 +84,7 @@ func (h *RedirectHandler) PreviewPublic(w http.ResponseWriter, r *http.Request) 
 
 // PreviewScoped writes preview data using the access cookie scoped to the short-link page.
 func (h *RedirectHandler) PreviewScoped(w http.ResponseWriter, r *http.Request, slug string) {
-	if redirectLowercaseScopedSlug(w, r, slug) {
+	if redirectLowercaseScopedSlug(w, r, slug, "/preview") {
 		return
 	}
 	accessToken := ""
@@ -122,7 +122,7 @@ func (h *RedirectHandler) preview(w http.ResponseWriter, r *http.Request, slug s
 }
 
 // Unlock validates a public short-link password and sets its scoped access cookie.
-func (h *RedirectHandler) Unlock(w http.ResponseWriter, r *http.Request) {
+func (h *RedirectHandler) Unlock(w http.ResponseWriter, r *http.Request, slug string) {
 	var input UnlockInput
 	r.Body = http.MaxBytesReader(w, r.Body, maxUnlockRequestBodyBytes)
 	decoder := json.NewDecoder(r.Body)
@@ -135,7 +135,7 @@ func (h *RedirectHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 		businessError(w, 100001, "Invalid request")
 		return
 	}
-	slug := strings.ToLower(strings.TrimSpace(input.Slug))
+	slug = strings.ToLower(strings.TrimSpace(slug))
 	grant, err := h.service.Unlock(r.Context(), slug, input.Password)
 	if err != nil {
 		switch {
@@ -172,7 +172,7 @@ func (h *RedirectHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 
 // Continue rechecks a short link and writes its final target redirect.
 func (h *RedirectHandler) Continue(w http.ResponseWriter, r *http.Request, slug string) {
-	if redirectLowercaseScopedSlug(w, r, slug) {
+	if redirectLowercaseScopedSlug(w, r, slug, "/continue") {
 		return
 	}
 	accessToken := ""
@@ -188,13 +188,12 @@ func (h *RedirectHandler) Continue(w http.ResponseWriter, r *http.Request, slug 
 }
 
 // redirectLowercaseScopedSlug canonicalizes scoped access paths before cookie-based authorization.
-func redirectLowercaseScopedSlug(w http.ResponseWriter, r *http.Request, slug string) bool {
+func redirectLowercaseScopedSlug(w http.ResponseWriter, r *http.Request, slug string, suffix string) bool {
 	normalizedSlug := strings.ToLower(slug)
 	if normalizedSlug == slug {
 		return false
 	}
-	// URL.Path is decoded before the router supplies slug, so this also handles percent-encoded casing.
-	location := strings.Replace(r.URL.Path, "/go/"+slug+"/", "/go/"+normalizedSlug+"/", 1)
+	location := "/go/" + url.PathEscape(normalizedSlug) + suffix
 	if r.URL.RawQuery != "" {
 		location += "?" + r.URL.RawQuery
 	}

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { ApiClientError, apiGet, apiGetPath, apiPost } from './client'
+import { ApiClientError, apiGet, apiGetPath, apiPost, apiPostPath } from './client'
 
 describe('api client', () => {
   it('returns decoded unified response body', async () => {
@@ -40,6 +40,7 @@ describe('api client', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(apiGetPath(path)).rejects.toThrow('API path must be a same-origin absolute path')
+    await expect(apiPostPath(path, {})).rejects.toThrow('API path must be a same-origin absolute path')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -55,6 +56,23 @@ describe('api client', () => {
         Accept: 'application/json',
       },
       method: 'GET',
+    })
+  })
+
+  it('posts to the normalized path and query that passed same-origin validation', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ code: 0, data: null, message: 'OK', meta: {} })))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await apiPostPath('/go/abc/../def/unlock?foo=1#ignored', { password: 'correct horse' })
+
+    expect(fetchMock).toHaveBeenCalledWith('/go/def/unlock?foo=1', {
+      body: JSON.stringify({ password: 'correct horse' }),
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
     })
   })
 

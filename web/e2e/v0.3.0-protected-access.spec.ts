@@ -12,6 +12,7 @@ const e2eHost = `127.0.0.1:${e2ePort}`
 const e2eHostPattern = escapeRegExp(e2eHost)
 
 test.describe.configure({ mode: 'serial' })
+test.use({ serviceWorkers: 'block' })
 
 test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
   testInfo.setTimeout(120_000)
@@ -98,14 +99,31 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
       await expect(page.getByText('密码错误，请重试。')).toBeVisible()
 
       await page.getByLabel('访问密码').fill('correct horse')
+      const continueRequestPromise = page.waitForRequest((request) => (
+        new URL(request.url()).pathname === `/go/${protectedSlug}/continue`
+        && request.method() === 'GET'
+      ))
       await Promise.all([
         page.waitForURL(protectedTarget),
         page.getByRole('button', { name: '解锁并继续' }).click(),
       ])
+      const continueRequest = await continueRequestPromise
+      expect((await continueRequest.allHeaders()).cookie).toContain('moeurl_short_link_access=')
       await expect.poll(
         () => readVisitCount(page, protectedLinkId),
         { intervals: [250, 500, 1_000], timeout: 30_000 },
       ).toBe(1)
+
+      await page.goto('/link')
+      const previewResponsePromise = page.waitForResponse((response) => (
+        new URL(response.url()).pathname === `/go/${protectedSlug}/preview`
+        && response.request().method() === 'GET'
+      ))
+      await page.evaluate(async (path) => {
+        await fetch(path, { credentials: 'include' })
+      }, `/go/${protectedSlug}/preview`)
+      const previewResponse = await previewResponsePromise
+      expect((await previewResponse.request().allHeaders()).cookie).toContain('moeurl_short_link_access=')
 
       await page.goto(`/${protectedSlug}`)
       await expect(page).toHaveURL(protectedTarget)
@@ -227,7 +245,7 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
       for (let attempt = 1; attempt <= 5; attempt += 1) {
         await page.getByLabel('访问密码').fill('wrong-pass')
         const unlockResponsePromise = page.waitForResponse((response) => (
-          response.url().endsWith('/api/v1/public/short-link/unlock')
+          response.url().endsWith(`/go/${rateLimitedSlug}/unlock`)
           && response.request().method() === 'POST'
         ))
         await page.getByRole('button', { name: '解锁并继续' }).click()

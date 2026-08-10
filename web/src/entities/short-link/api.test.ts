@@ -186,7 +186,7 @@ describe('short link api', () => {
     await expect(getPublicShortLinkPreview('abc123')).rejects.toMatchObject({ code: 100001 })
   })
 
-  it('posts a public short-link unlock request', async () => {
+  it('posts a scoped short-link unlock request without repeating the slug in the body', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { unlocked: true }, meta: {} }), {
@@ -197,8 +197,8 @@ describe('short link api', () => {
 
     await expect(unlockShortLink({ slug: 'abc123', password: 'correct horse' })).resolves.toEqual({ unlocked: true })
     const [input, init] = vi.mocked(fetch).mock.calls[0] ?? []
-    expect(input).toBe('/api/v1/public/short-link/unlock')
-    expect(JSON.parse(String(init?.body))).toEqual({ slug: 'abc123', password: 'correct horse' })
+    expect(input).toBe('/go/abc123/unlock')
+    expect(JSON.parse(String(init?.body))).toEqual({ password: 'correct horse' })
   })
 
   it('rejects an invalid public short-link unlock response', async () => {
