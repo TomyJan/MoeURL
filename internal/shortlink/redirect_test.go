@@ -13,6 +13,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/event"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const testAccessGrantCleanupBatchSize = 500
@@ -506,8 +507,17 @@ func TestRedirectServiceCleanupDefendsInvalidRuntimeParameters(t *testing.T) {
 	}
 }
 
-// TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock verifies cleanup drains bounded batches and remains periodic.
-func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
+// accessGrantCleanupFixture owns the shared link state for cleanup behavior tests.
+type accessGrantCleanupFixture struct {
+	ctx     context.Context
+	pool    *pgxpool.Pool
+	linkID  string
+	service *shortlink.RedirectService
+}
+
+// newAccessGrantCleanupFixture creates one protected link and its redirect service.
+func newAccessGrantCleanupFixture(t *testing.T) accessGrantCleanupFixture {
+	t.Helper()
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
 	insertShortLinkDefaultDomain(t, ctx, pool)
@@ -520,50 +530,65 @@ func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
 	if _, err := pool.Exec(ctx, `update short_link set password_hash = $2, password_updated_at = now() where id = $1`, linkID, hash); err != nil {
 		t.Fatalf("configure protected password: %v", err)
 	}
-	if _, err := pool.Exec(ctx, `
-		-- Insert one more row than the production cleanup batch size.
+	return accessGrantCleanupFixture{
+		ctx:     ctx,
+		pool:    pool,
+		linkID:  linkID,
+		service: shortlink.NewRedirectService(pool, nil),
+	}
+}
+
+// insertExpiredGrants adds the requested number of expired grants to the fixture link.
+func (fixture accessGrantCleanupFixture) insertExpiredGrants(t *testing.T, count int) {
+	t.Helper()
+	if _, err := fixture.pool.Exec(fixture.ctx, `
 		insert into short_link_access_grant (id, short_link_id, token_hash, expires_at, created_at)
 		select ('00000000-0000-0001-0000-' || lpad(value::text, 12, '0'))::uuid,
 			$1, 'expired-grant-' || value, now() - interval '1 second', now() - interval '1 minute'
 		from generate_series(1, $2) as value
-	`, linkID, testAccessGrantCleanupBatchSize+1); err != nil {
+	`, fixture.linkID, count); err != nil {
 		t.Fatalf("insert expired access grant: %v", err)
 	}
+}
 
-	service := shortlink.NewRedirectService(pool, nil)
-	grant, err := service.Unlock(ctx, "protected-cleanup", "correct horse")
-	if err != nil || grant.Token == "" {
-		t.Fatalf("unlock protected short link: grant=%#v error=%v", grant, err)
-	}
-
-	var expiredCount int
-	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where expires_at <= now()`).Scan(&expiredCount); err != nil {
+// expiredGrantCount returns the number of grants currently eligible for cleanup.
+func (fixture accessGrantCleanupFixture) expiredGrantCount(t *testing.T) int {
+	t.Helper()
+	var count int
+	if err := fixture.pool.QueryRow(fixture.ctx, `select count(*) from short_link_access_grant where expires_at <= now()`).Scan(&count); err != nil {
 		t.Fatalf("query expired access grants: %v", err)
 	}
-	if expiredCount != testAccessGrantCleanupBatchSize+1 {
-		t.Fatalf("expected unlock to leave cleanup batch size %d plus one expired grants, got %d rows", testAccessGrantCleanupBatchSize, expiredCount)
+	return count
+}
+
+// TestRedirectServiceUnlockDoesNotCleanExpiredAccessGrants verifies unlock stays independent from maintenance work.
+func TestRedirectServiceUnlockDoesNotCleanExpiredAccessGrants(t *testing.T) {
+	fixture := newAccessGrantCleanupFixture(t)
+	fixture.insertExpiredGrants(t, 1)
+
+	grant, err := fixture.service.Unlock(fixture.ctx, "protected-cleanup", "correct horse")
+	if err != nil {
+		t.Fatalf("unlock protected short link: %v", err)
 	}
+	if grant.Token == "" {
+		t.Fatal("unlock returned an empty access token")
+	}
+	if expiredCount := fixture.expiredGrantCount(t); expiredCount != 1 {
+		t.Fatalf("expected unlock to leave the expired grant, got %d rows", expiredCount)
+	}
+}
+
+// TestRedirectServiceCleanupDrainsExpiredGrantBatchesAndLogs verifies one cleanup drains every bounded batch.
+func TestRedirectServiceCleanupDrainsExpiredGrantBatchesAndLogs(t *testing.T) {
+	fixture := newAccessGrantCleanupFixture(t)
+	fixture.insertExpiredGrants(t, testAccessGrantCleanupBatchSize+1)
+
 	logOutput := &bytes.Buffer{}
 	cleanupLogger := slog.New(slog.NewTextHandler(logOutput, nil))
-	largeCleanupCtx, cancelLargeCleanup := context.WithCancel(ctx)
-	largeCleanupDone := make(chan struct{})
-	go func() {
-		defer close(largeCleanupDone)
-		service.RunAccessGrantCleanup(largeCleanupCtx, time.Millisecond, cleanupLogger)
-	}()
-	deadline := time.Now().Add(5 * time.Second)
-	for expiredCount != 0 && time.Now().Before(deadline) {
-		if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where expires_at <= now()`).Scan(&expiredCount); err != nil {
-			t.Fatalf("query expired access grants during large cleanup: %v", err)
-		}
-		time.Sleep(time.Millisecond)
+	if err := fixture.service.CleanupExpiredAccessGrants(fixture.ctx, cleanupLogger); err != nil {
+		t.Fatalf("clean expired access grants: %v", err)
 	}
-	cancelLargeCleanup()
-	<-largeCleanupDone
-	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where expires_at <= now()`).Scan(&expiredCount); err != nil {
-		t.Fatalf("query expired access grants after draining cleanup: %v", err)
-	}
-	if expiredCount != 0 {
+	if expiredCount := fixture.expiredGrantCount(t); expiredCount != 0 {
 		t.Fatalf("expected one cleanup invocation to drain expired access grants, got %d rows", expiredCount)
 	}
 	cleanupLog := logOutput.String()
@@ -578,27 +603,30 @@ func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
 			t.Fatalf("expected cleanup log field %q, got %q", field, cleanupLog)
 		}
 	}
-	if _, err := pool.Exec(ctx, `
-		insert into short_link_access_grant (id, short_link_id, token_hash, expires_at, created_at)
-		values ('00000000-0000-0002-0000-000000000001', $1, 'periodic-expired-grant',
-			now() - interval '1 second', now() - interval '1 minute')
-	`, linkID); err != nil {
-		t.Fatalf("insert periodically cleaned access grant: %v", err)
-	}
-	expiredCount = 1
+}
 
-	cleanupCtx, cancelCleanup := context.WithCancel(ctx)
+// TestRedirectServiceRunsPeriodicAccessGrantCleanup verifies maintenance removes expired grants and preserves active grants.
+func TestRedirectServiceRunsPeriodicAccessGrantCleanup(t *testing.T) {
+	fixture := newAccessGrantCleanupFixture(t)
+	fixture.insertExpiredGrants(t, 1)
+	grant, err := fixture.service.Unlock(fixture.ctx, "protected-cleanup", "correct horse")
+	if err != nil {
+		t.Fatalf("unlock protected short link: %v", err)
+	}
+	if grant.Token == "" {
+		t.Fatal("unlock returned an empty access token")
+	}
+
+	cleanupCtx, cancelCleanup := context.WithCancel(fixture.ctx)
 	cleanupDone := make(chan struct{})
-	defer cancelCleanup()
 	go func() {
 		defer close(cleanupDone)
-		service.RunAccessGrantCleanup(cleanupCtx, time.Millisecond, slog.Default())
+		fixture.service.RunAccessGrantCleanup(cleanupCtx, time.Millisecond, slog.Default())
 	}()
-	deadline = time.Now().Add(5 * time.Second)
+	expiredCount := 1
+	deadline := time.Now().Add(5 * time.Second)
 	for expiredCount != 0 && time.Now().Before(deadline) {
-		if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where expires_at <= now()`).Scan(&expiredCount); err != nil {
-			t.Fatalf("query periodically cleaned access grants: %v", err)
-		}
+		expiredCount = fixture.expiredGrantCount(t)
 		time.Sleep(time.Millisecond)
 	}
 	cancelCleanup()
@@ -608,7 +636,7 @@ func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
 	}
 
 	var activeCount int
-	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where short_link_id = $1 and expires_at > now()`, linkID).Scan(&activeCount); err != nil {
+	if err := fixture.pool.QueryRow(fixture.ctx, `select count(*) from short_link_access_grant where short_link_id = $1 and expires_at > now()`, fixture.linkID).Scan(&activeCount); err != nil {
 		t.Fatalf("query active access grants: %v", err)
 	}
 	if activeCount != 1 {
