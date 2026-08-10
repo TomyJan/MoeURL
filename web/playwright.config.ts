@@ -71,24 +71,27 @@ export default defineConfig({
     baseURL,
     trace: 'on-first-retry',
   },
-  ...(skipDockerCompose
-    ? {}
+  webServer: skipDockerCompose
+    ? {
+        command: 'node -e "setInterval(() => {}, 1 << 30)"',
+        reuseExistingServer: true,
+        timeout: 600_000,
+        url: `${baseURL}/api/v1/health`,
+      }
     : {
-        webServer: {
-          command:
-            'node -e "const { execFileSync } = require(\'node:child_process\'); const project = process.env.MOEURL_E2E_COMPOSE_PROJECT; try { execFileSync(\'docker\', [\'compose\', \'-p\', project, \'down\', \'-v\'], { stdio: \'inherit\' }); } catch {} execFileSync(\'docker\', [\'compose\', \'-p\', project, \'up\', \'--build\'], { stdio: \'inherit\' });"',
-          cwd: '..',
-          env: {
-            MOEURL_E2E_COMPOSE_PROJECT: composeProjectName,
-            MOEURL_ENV: 'development',
-            MOEURL_HTTP_PORT: e2ePort,
-            MOEURL_POSTGRES_PORT: e2ePostgresPort,
-          },
-          reuseExistingServer: false,
-          timeout: 600_000,
-          url: `${baseURL}/api/v1/health`,
+        command:
+          'node -e "const { execFileSync } = require(\'node:child_process\'); const project = process.env.MOEURL_E2E_COMPOSE_PROJECT; try { execFileSync(\'docker\', [\'compose\', \'-p\', project, \'down\', \'-v\'], { stdio: \'inherit\' }); } catch {} execFileSync(\'docker\', [\'compose\', \'-p\', project, \'up\', \'--build\'], { stdio: \'inherit\' });"',
+        cwd: '..',
+        env: {
+          MOEURL_E2E_COMPOSE_PROJECT: composeProjectName,
+          MOEURL_ENV: 'development',
+          MOEURL_HTTP_PORT: e2ePort,
+          MOEURL_POSTGRES_PORT: e2ePostgresPort,
         },
-      }),
+        reuseExistingServer: false,
+        timeout: 600_000,
+        url: `${baseURL}/api/v1/health`,
+      },
   projects: [
     {
       name: 'setup',
