@@ -35,6 +35,9 @@ export function useShortLinkSettings(options: UseShortLinkSettingsOptions) {
       }
       void queryClient.invalidateQueries({ queryKey: options.queryKey })
     },
+    onSettled(_data, _error, variables) {
+      pendingPasswords.delete(variables)
+    },
   })
   const settingsErrorMessage = computed(() => {
     if (!settingsMutation.isError.value) {

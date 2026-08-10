@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   isError: false,
   mutationOptions: undefined as {
     mutationFn?: (input: UpdateShortLinkInput) => Promise<unknown>
+    onSettled?: (value?: unknown, error?: unknown, variables?: UpdateShortLinkInput) => void
     onSuccess?: (value?: unknown, variables?: UpdateShortLinkInput) => void
   } | undefined,
   mutate: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock('@tanstack/vue-query', () => ({
   /** Captures mutation options while exposing controllable reactive test state. */
   useMutation: (options: {
     mutationFn?: (input: UpdateShortLinkInput) => Promise<unknown>
+    onSettled?: (value?: unknown, error?: unknown, variables?: UpdateShortLinkInput) => void
     onSuccess?: (value?: unknown, variables?: UpdateShortLinkInput) => void
   }) => {
     state.mutationOptions = options
@@ -190,6 +192,22 @@ describe('useShortLinkSettings', () => {
       },
     ])
     expect(mutationFn).toHaveBeenCalledTimes(2)
+  })
+
+  it('drops a deferred password when settings settle before the mutation function runs', async () => {
+    const mutationFn = vi.fn(async () => undefined)
+    const settings = useShortLinkSettings({ mutationFn, queryKey: ['short-link'] })
+    settings.saveSettings({
+      id: 'link-id',
+      targetUrl: 'https://example.org',
+      password: { mode: 'set', value: 'correct horse' },
+    })
+    const variables = state.mutate.mock.calls[0]?.[0] as UpdateShortLinkInput
+
+    state.mutationOptions?.onSettled?.(undefined, undefined, variables)
+    await state.mutationOptions?.mutationFn?.(variables)
+
+    expect(mutationFn).toHaveBeenCalledWith({ id: 'link-id', targetUrl: 'https://example.org' })
   })
 
   it('uses the translated fallback for non-Error mutation failures', () => {

@@ -220,7 +220,7 @@ describe('ShortLinkSettingsDialog', () => {
     ]])
   })
 
-  it('reads the password only on submit and clears it after the request completes', async () => {
+  it('reads the password only on submit and clears it immediately after save submission', async () => {
     setPermissions(['short_link:set_password'])
     const view = mountDialog()
 
@@ -236,10 +236,6 @@ describe('ShortLinkSettingsDialog', () => {
         password: { mode: 'set', value: 'correct horse' },
       },
     ]])
-    expect(passwordInput.value).toBe('correct horse')
-
-    await view.rerender({ pending: true })
-    await view.rerender({ pending: false })
     expect(passwordInput.value).toBe('')
   })
 

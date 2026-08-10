@@ -13,6 +13,7 @@ import type { MutationMockResult } from '@/test/mutation-mock'
 
 type CreateMutationOptions = {
   mutationFn?: (input: CreateShortLinkInput) => Promise<unknown>
+  onSettled?: () => void
 }
 
 const state = vi.hoisted(() => ({
@@ -346,6 +347,25 @@ describe('ShortLinkCreatePanel', () => {
     await expect(options.mutationFn?.(input)).rejects.toThrow('create failed')
 
     expect(input).not.toHaveProperty('password')
+  })
+
+  it('drops a deferred password when creation settles before the mutation function runs', async () => {
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
+    setMutationResult({ mutate })
+    mountPanel()
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    await fireEvent.click(screen.getByLabelText('shortLinkCreate.passwordEnabled'))
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.password'), 'correct horse')
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    const variables = mutate.mock.calls[0]?.[0] as CreateShortLinkInput
+    const options = state.mutationOptions[0] as CreateMutationOptions
+
+    options.onSettled?.()
+    await options.mutationFn?.(variables)
+
+    expect(createShortLink).toHaveBeenCalledWith({ targetUrl: 'https://example.com' })
   })
 
   it('keeps raw passwords out of pending and failed mutation variables', async () => {

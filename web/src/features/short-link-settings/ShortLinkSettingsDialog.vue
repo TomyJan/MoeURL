@@ -218,6 +218,7 @@ function save() {
           return
         }
         emit('save', input)
+        clearPasswordInput()
         return
       }
       const passwordResult = passwordSchema.safeParse(password)
@@ -230,6 +231,7 @@ function save() {
   }
 
   emit('save', input)
+  clearPasswordInput()
 }
 
 function close() {

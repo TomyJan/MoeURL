@@ -226,6 +226,9 @@ const mutation = useMutation({
     void queryClient.invalidateQueries({ queryKey: ['short-link'] })
     void queryClient.invalidateQueries({ queryKey: ['admin-short-link'] })
   },
+  onSettled() {
+    pendingPassword = undefined
+  },
 })
 
 const errorMessage = computed(() => {
