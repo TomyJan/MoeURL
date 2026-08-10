@@ -64,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
@@ -99,6 +99,10 @@ onBeforeUnmount(() => {
   previewRequestId += 1
   clearCountdown()
 })
+watch(
+  () => [route.params.slug, route.query.reason],
+  () => void loadPreview(),
+)
 
 /** Loads public metadata while preventing stale requests from mutating page state. */
 async function loadPreview() {
@@ -239,23 +243,25 @@ async function unlock(event: globalThis.Event) {
     return
   }
 
+  const requestIdentity = `${previewRequestId}:${String(route.params.slug)}`
+  const isCurrentUnlock = () => isMounted && requestIdentity === `${previewRequestId}:${String(route.params.slug)}`
   unlockPending.value = true
   unlockErrorState.value = ''
   try {
     await unlockShortLink({ slug, password })
-    if (!isMounted) {
+    if (!isCurrentUnlock()) {
       return
     }
     passwordRequired.value = false
     form.reset()
     proceedAfterAccess()
   } catch (error) {
-    if (!isMounted) {
+    if (!isCurrentUnlock()) {
       return
     }
     unlockErrorState.value = classifyUnlockError(error)
   } finally {
-    if (isMounted) {
+    if (isCurrentUnlock()) {
       unlockPending.value = false
     }
   }

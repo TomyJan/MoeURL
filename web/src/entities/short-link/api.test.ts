@@ -167,6 +167,7 @@ describe('short link api', () => {
     ['invalid redirect mode', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'other', intermediateDelaySeconds: 5, expiresAt: null, requiresPassword: false }],
     ['delay below minimum', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'direct', intermediateDelaySeconds: 2, expiresAt: null, requiresPassword: false }],
     ['delay above maximum', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'direct', intermediateDelaySeconds: 11, expiresAt: null, requiresPassword: false }],
+    ['fractional delay', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'direct', intermediateDelaySeconds: 5.5, expiresAt: null, requiresPassword: false }],
     ['invalid delay', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'direct', intermediateDelaySeconds: '5', expiresAt: null, requiresPassword: false }],
     ['invalid expiration', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: 1, requiresPassword: false }],
     ['missing password metadata', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null }],

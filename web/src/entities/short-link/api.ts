@@ -39,7 +39,7 @@ const publicShortLinkPreviewSchema: z.ZodType<PublicShortLinkPreview> = z.object
   slug: z.string(),
   targetHost: z.string(),
   redirectMode: z.enum(['direct', 'intermediate']),
-  intermediateDelaySeconds: z.number().min(3).max(10),
+  intermediateDelaySeconds: z.number().int().min(3).max(10),
   expiresAt: z.string().nullable(),
   requiresPassword: z.boolean(),
 })
