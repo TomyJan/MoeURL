@@ -13,7 +13,7 @@ import type { MutationMockResult } from '@/test/mutation-mock'
 
 type CreateMutationOptions = {
   mutationFn?: (input: CreateShortLinkInput) => Promise<unknown>
-  onSettled?: () => void
+  onSettled?: (data: unknown, error: unknown, variables?: CreateShortLinkInput) => void
 }
 
 const state = vi.hoisted(() => ({
@@ -362,7 +362,8 @@ describe('ShortLinkCreatePanel', () => {
     const variables = mutate.mock.calls[0]?.[0] as CreateShortLinkInput
     const options = state.mutationOptions[0] as CreateMutationOptions
 
-    options.onSettled?.()
+    options.onSettled?.(undefined, undefined)
+    options.onSettled?.(undefined, undefined, variables)
     await options.mutationFn?.(variables)
 
     expect(createShortLink).toHaveBeenCalledWith({ targetUrl: 'https://example.com' })
@@ -400,11 +401,13 @@ describe('ShortLinkCreatePanel', () => {
     mountPanel()
     await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
     await fireEvent.click(screen.getByLabelText('shortLinkCreate.passwordEnabled'))
-    await fireEvent.update(screen.getByLabelText('shortLinkCreate.password'), 'short')
+    const passwordInput = screen.getByLabelText('shortLinkCreate.password') as HTMLInputElement
+    await fireEvent.update(passwordInput, 'short')
     await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
     expect(screen.getByText('shortLinkCreate.passwordInvalid')).toBeTruthy()
+    expect(passwordInput.value).toBe('')
     expect(mutate).not.toHaveBeenCalled()
   })
 

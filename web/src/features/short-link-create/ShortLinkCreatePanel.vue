@@ -195,7 +195,7 @@ const expirationEnabled = ref(false)
 const expiresAt = ref('')
 const passwordEnabled = ref(false)
 const passwordField = useTemplateRef<{ $el: globalThis.Element }>('passwordField')
-let pendingPassword: CreateShortLinkInput['password']
+const pendingPasswords = new WeakMap<object, CreateShortLinkInput['password']>()
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,
@@ -214,8 +214,8 @@ const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !c
 const mutation = useMutation({
   /** Runs creation through the shared sensitive-input cleanup boundary. */
   mutationFn: (input: Omit<CreateShortLinkInput, 'password'>) => {
-    const requestPassword = pendingPassword
-    pendingPassword = undefined
+    const requestPassword = pendingPasswords.get(input)
+    pendingPasswords.delete(input)
     return runShortLinkMutation(createShortLink, input, requestPassword)
   },
   onSuccess(result) {
@@ -226,8 +226,10 @@ const mutation = useMutation({
     void queryClient.invalidateQueries({ queryKey: ['short-link'] })
     void queryClient.invalidateQueries({ queryKey: ['admin-short-link'] })
   },
-  onSettled() {
-    pendingPassword = undefined
+  onSettled(_data, _error, variables) {
+    if (variables) {
+      pendingPasswords.delete(variables)
+    }
   },
 })
 
@@ -246,6 +248,14 @@ function submit() {
   if (!canCreateShortLink.value || mutation.isPending.value) {
     return
   }
+  try {
+    submitValidatedInput()
+  } finally {
+    clearPasswordInput()
+  }
+}
+
+function submitValidatedInput() {
   validationErrorMessage.value = ''
   copyErrorMessage.value = ''
   expirationErrorMessage.value = ''
@@ -287,14 +297,11 @@ function submit() {
       passwordErrorMessage.value = password ? t('shortLinkCreate.passwordInvalid') : t('shortLinkCreate.passwordRequired')
       return
     }
-    pendingPassword = { mode: 'set', value: passwordResult.data }
-  } else {
-    pendingPassword = undefined
+    pendingPasswords.set(input, { mode: 'set', value: passwordResult.data })
   }
   createdUrl.value = ''
   createdSlug.value = ''
   mutation.mutate(input)
-  clearPasswordInput()
 }
 
 function resetForm() {
