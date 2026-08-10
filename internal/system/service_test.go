@@ -15,13 +15,7 @@ import (
 
 func TestServiceSetupInitializesBuiltInData(t *testing.T) {
 	ctx := context.Background()
-	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
-
-	pool, err := appdb.OpenPool(ctx, databaseURL)
-	if err != nil {
-		t.Fatalf("open pool: %v", err)
-	}
-	t.Cleanup(pool.Close)
+	pool := systemTestPool(t, ctx)
 
 	service := system.NewService(pool)
 
@@ -74,17 +68,11 @@ func TestServiceSetupInitializesBuiltInData(t *testing.T) {
 
 func TestServiceSetupRejectsReservedAdminUsername(t *testing.T) {
 	ctx := context.Background()
-	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
-
-	pool, err := appdb.OpenPool(ctx, databaseURL)
-	if err != nil {
-		t.Fatalf("open pool: %v", err)
-	}
-	t.Cleanup(pool.Close)
+	pool := systemTestPool(t, ctx)
 
 	service := system.NewService(pool)
 
-	err = service.Setup(ctx, system.SetupInput{
+	err := service.Setup(ctx, system.SetupInput{
 		AdminUsername:   "guest",
 		AdminPassword:   "secure-password",
 		AdminNickname:   "Guest Admin",
