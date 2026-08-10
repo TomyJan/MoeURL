@@ -304,7 +304,7 @@ func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context) error 
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		deleted, err := s.queries.DeleteExpiredShortLinkAccessGrants(ctx)
+		deleted, err := s.queries.DeleteExpiredShortLinkAccessGrants(ctx, accessGrantCleanupBatchSize)
 		if err != nil {
 			return err
 		}

@@ -174,7 +174,7 @@ with expired_grant as (
     from short_link_access_grant
     where expires_at <= clock_timestamp()
     order by expires_at
-    limit 500
+    limit $1::bigint
     for update skip locked
 )
 delete from short_link_access_grant as access_grant
@@ -182,8 +182,8 @@ using expired_grant
 where access_grant.id = expired_grant.id
 `
 
-func (q *Queries) DeleteExpiredShortLinkAccessGrants(ctx context.Context) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteExpiredShortLinkAccessGrants)
+func (q *Queries) DeleteExpiredShortLinkAccessGrants(ctx context.Context, batchSize int64) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredShortLinkAccessGrants, batchSize)
 	if err != nil {
 		return 0, err
 	}
@@ -337,37 +337,6 @@ func (q *Queries) GetShortLinkOverviewByOwner(ctx context.Context, ownerID pgtyp
 	return i, err
 }
 
-const getShortLinkPasswordStateForUpdate = `-- name: GetShortLinkPasswordStateForUpdate :one
-select id, password_hash, password_failed_attempts, password_window_started_at,
-    password_blocked_until, password_updated_at
-from short_link
-where id = $1 and deleted_at is null
-for update
-`
-
-type GetShortLinkPasswordStateForUpdateRow struct {
-	ID                      pgtype.UUID        `json:"id"`
-	PasswordHash            pgtype.Text        `json:"password_hash"`
-	PasswordFailedAttempts  int16              `json:"password_failed_attempts"`
-	PasswordWindowStartedAt pgtype.Timestamptz `json:"password_window_started_at"`
-	PasswordBlockedUntil    pgtype.Timestamptz `json:"password_blocked_until"`
-	PasswordUpdatedAt       pgtype.Timestamptz `json:"password_updated_at"`
-}
-
-func (q *Queries) GetShortLinkPasswordStateForUpdate(ctx context.Context, id pgtype.UUID) (GetShortLinkPasswordStateForUpdateRow, error) {
-	row := q.db.QueryRow(ctx, getShortLinkPasswordStateForUpdate, id)
-	var i GetShortLinkPasswordStateForUpdateRow
-	err := row.Scan(
-		&i.ID,
-		&i.PasswordHash,
-		&i.PasswordFailedAttempts,
-		&i.PasswordWindowStartedAt,
-		&i.PasswordBlockedUntil,
-		&i.PasswordUpdatedAt,
-	)
-	return i, err
-}
-
 const getShortLinkPasswordStateBySlugForUpdate = `-- name: GetShortLinkPasswordStateBySlugForUpdate :one
 select id, password_hash, password_failed_attempts, password_window_started_at,
     password_blocked_until, password_updated_at
@@ -388,6 +357,37 @@ type GetShortLinkPasswordStateBySlugForUpdateRow struct {
 func (q *Queries) GetShortLinkPasswordStateBySlugForUpdate(ctx context.Context, slug string) (GetShortLinkPasswordStateBySlugForUpdateRow, error) {
 	row := q.db.QueryRow(ctx, getShortLinkPasswordStateBySlugForUpdate, slug)
 	var i GetShortLinkPasswordStateBySlugForUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.PasswordHash,
+		&i.PasswordFailedAttempts,
+		&i.PasswordWindowStartedAt,
+		&i.PasswordBlockedUntil,
+		&i.PasswordUpdatedAt,
+	)
+	return i, err
+}
+
+const getShortLinkPasswordStateForUpdate = `-- name: GetShortLinkPasswordStateForUpdate :one
+select id, password_hash, password_failed_attempts, password_window_started_at,
+    password_blocked_until, password_updated_at
+from short_link
+where id = $1 and deleted_at is null
+for update
+`
+
+type GetShortLinkPasswordStateForUpdateRow struct {
+	ID                      pgtype.UUID        `json:"id"`
+	PasswordHash            pgtype.Text        `json:"password_hash"`
+	PasswordFailedAttempts  int16              `json:"password_failed_attempts"`
+	PasswordWindowStartedAt pgtype.Timestamptz `json:"password_window_started_at"`
+	PasswordBlockedUntil    pgtype.Timestamptz `json:"password_blocked_until"`
+	PasswordUpdatedAt       pgtype.Timestamptz `json:"password_updated_at"`
+}
+
+func (q *Queries) GetShortLinkPasswordStateForUpdate(ctx context.Context, id pgtype.UUID) (GetShortLinkPasswordStateForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getShortLinkPasswordStateForUpdate, id)
+	var i GetShortLinkPasswordStateForUpdateRow
 	err := row.Scan(
 		&i.ID,
 		&i.PasswordHash,

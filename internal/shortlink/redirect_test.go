@@ -15,6 +15,8 @@ import (
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 )
 
+const testAccessGrantCleanupBatchSize = 500
+
 // TestRedirectServiceResolvesActiveShortLink verifies active links resolve to their target.
 func TestRedirectServiceResolvesActiveShortLink(t *testing.T) {
 	ctx := context.Background()
@@ -519,12 +521,12 @@ func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
 		t.Fatalf("configure protected password: %v", err)
 	}
 	if _, err := pool.Exec(ctx, `
-		-- 501 is the cleanup batch limit of 500 plus one additional row.
+		-- Insert one more row than the production cleanup batch size.
 		insert into short_link_access_grant (id, short_link_id, token_hash, expires_at, created_at)
 		select ('00000000-0000-0001-0000-' || lpad(value::text, 12, '0'))::uuid,
 			$1, 'expired-grant-' || value, now() - interval '1 second', now() - interval '1 minute'
-		from generate_series(1, 501) as value
-	`, linkID); err != nil {
+		from generate_series(1, $2) as value
+	`, linkID, testAccessGrantCleanupBatchSize+1); err != nil {
 		t.Fatalf("insert expired access grant: %v", err)
 	}
 
@@ -538,9 +540,8 @@ func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
 	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where expires_at <= now()`).Scan(&expiredCount); err != nil {
 		t.Fatalf("query expired access grants: %v", err)
 	}
-	if expiredCount != 501 {
-		// This assertion depends on the cleanup batch limit remaining 500.
-		t.Fatalf("expected unlock to leave expired grants for background cleanup, got %d rows", expiredCount)
+	if expiredCount != testAccessGrantCleanupBatchSize+1 {
+		t.Fatalf("expected unlock to leave cleanup batch size %d plus one expired grants, got %d rows", testAccessGrantCleanupBatchSize, expiredCount)
 	}
 	if err := service.CleanupExpiredAccessGrants(ctx); err != nil {
 		t.Fatalf("clean expired access grants: %v", err)

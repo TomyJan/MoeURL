@@ -322,7 +322,7 @@ with expired_grant as (
     from short_link_access_grant
     where expires_at <= clock_timestamp()
     order by expires_at
-    limit 500
+    limit sqlc.arg(batch_size)::bigint
     for update skip locked
 )
 delete from short_link_access_grant as access_grant
