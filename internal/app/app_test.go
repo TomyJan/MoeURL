@@ -1,29 +1,91 @@
 package app
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/config"
+	"github.com/TomyJan/MoeURL/internal/system"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 )
 
 // TestAppNewNormalizesEnvironment verifies application wiring uses the validated environment form.
 func TestAppNewNormalizesEnvironment(t *testing.T) {
-	application, err := New(context.Background(), config.Config{
-		Env:       " production ",
-		HTTPAddr:  ":0",
-		StaticDir: "web/dist",
-	}, slog.Default())
-	if err != nil {
-		t.Fatalf("build application: %v", err)
-	}
-	if application.config.Env != "production" {
-		t.Fatal("expected normalized production environment")
+	ctx := context.Background()
+	for _, test := range []struct {
+		name       string
+		env        string
+		wantSecure bool
+	}{
+		{name: "production", env: " production ", wantSecure: true},
+		{name: "development", env: "development", wantSecure: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			cfg := config.Config{
+				Env:         test.env,
+				HTTPAddr:    ":0",
+				DatabaseURL: testdb.ProjectMigratedDatabaseURL(t, ctx),
+				StaticDir:   "web/dist",
+			}
+			if err := cfg.Validate(); err != nil {
+				t.Fatalf("validate config: %v", err)
+			}
+			application, err := New(ctx, cfg, slog.Default())
+			if err != nil {
+				t.Fatalf("build application: %v", err)
+			}
+			t.Cleanup(func() {
+				if err := application.Shutdown(context.Background()); err != nil {
+					t.Errorf("shutdown application: %v", err)
+				}
+			})
+			if application.config.Env != test.name {
+				t.Fatalf("environment = %q, want %q", application.config.Env, test.name)
+			}
+
+			if err := system.NewService(application.pool).Setup(ctx, system.SetupInput{
+				AdminUsername:   "admin",
+				AdminPassword:   "secure-password",
+				AdminNickname:   "Administrator",
+				SiteName:        "MoeURL",
+				SystemDomain:    "example.com",
+				ShortLinkDomain: "go.example.com",
+				DefaultLanguage: "zh-CN",
+				DefaultTheme:    "system",
+			}); err != nil {
+				t.Fatalf("initialize application: %v", err)
+			}
+			request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{"username":"admin","password":"secure-password"}`))
+			response := httptest.NewRecorder()
+			application.server.Handler.ServeHTTP(response, request)
+			if response.Code != http.StatusOK {
+				t.Fatalf("login status = %d", response.Code)
+			}
+			var body struct {
+				Code int `json:"code"`
+			}
+			if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+				t.Fatalf("decode login response: %v", err)
+			}
+			if body.Code != 0 {
+				t.Fatalf("login code = %d", body.Code)
+			}
+			cookies := response.Result().Cookies()
+			if len(cookies) != 1 {
+				t.Fatalf("expected one login cookie, got %d", len(cookies))
+			}
+			if cookies[0].Secure != test.wantSecure {
+				t.Fatalf("login cookie secure = %t, want %t", cookies[0].Secure, test.wantSecure)
+			}
+		})
 	}
 }
 

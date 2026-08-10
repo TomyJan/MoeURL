@@ -12,6 +12,9 @@ on:
 permissions:
   contents: read
 
+env:
+  MOEURL_ENV: development
+
 jobs:
   lint:
     name: Lint

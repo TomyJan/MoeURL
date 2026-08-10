@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	nethttp "net/http"
-	"strings"
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
@@ -32,7 +31,6 @@ type App struct {
 
 // New builds the application dependencies and HTTP server from configuration.
 func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, error) {
-	cfg.Env = strings.TrimSpace(cfg.Env)
 	var pool *pgxpool.Pool
 	var deps apphttp.Dependencies
 	var grantCleanupCancel context.CancelFunc
