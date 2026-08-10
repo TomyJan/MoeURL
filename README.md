@@ -50,7 +50,7 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 docker compose up --build
 ```
 
-可复制 `.env.example` 为 `.env` 后再按需调整 Compose 端口和运行环境；未提供 `.env` 时，Compose 使用示例中的默认值。
+可复制 `.env.example` 为 `.env` 后再按需调整 Compose 端口和运行环境；未提供 `.env` 时，Compose 使用 `compose.yaml` 中声明的插值默认值。当前这些默认值与 `.env.example` 保持一致属于项目维护约定，Compose 不会自动加载 `.env.example`。
 
 如果宿主机 `8080` 已被占用，可以临时指定宿主端口：
 
