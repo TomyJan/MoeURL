@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test'
-import type { Page } from '@playwright/test'
 import {
   attachScreenshot,
   escapeRegExp,
@@ -17,7 +16,6 @@ test.describe.configure({ mode: 'serial' })
 test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
   testInfo.setTimeout(120_000)
   page.setDefaultTimeout(10_000)
-  await ensureInitialized(page)
 
   await page.goto('/login')
   await page.getByLabel('账号').fill('admin')
@@ -242,29 +240,3 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
     },
   )
 })
-
-/** Initializes the application once when the E2E database has not been seeded. */
-async function ensureInitialized(page: Page) {
-  const status = await page.request.get('/api/v1/init/status')
-  await expect(status).toBeOK()
-  const statusPayload = await status.json() as { code: number; data: { initialized: boolean } }
-  expect(statusPayload.code).toBe(0)
-  if (statusPayload.data.initialized) {
-    return
-  }
-
-  const setup = await page.request.post('/api/v1/init/setup', {
-    data: {
-      adminUsername: 'admin',
-      adminPassword: 'admin-password',
-      adminNickname: 'Admin',
-      siteName: 'MoeURL',
-      systemDomain: e2eHost,
-      shortLinkDomain: e2eHost,
-      defaultLanguage: 'zh-CN',
-      defaultTheme: 'system',
-    },
-  })
-  await expect(setup).toBeOK()
-  expect(await setup.json()).toMatchObject({ code: 0, data: { initialized: true } })
-}

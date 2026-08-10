@@ -129,6 +129,14 @@ describe('deployment configuration', () => {
     expect(playwrightConfig.workers).toBeUndefined()
     expect(playwrightConfig.webServer).not.toBeInstanceOf(Array)
     expect(playwrightConfig.webServer).toMatchObject({ timeout: 600_000 })
+    expect(playwrightConfig.projects).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'setup', testMatch: '**/initialize.setup.ts' }),
+      expect.objectContaining({
+        name: 'chromium',
+        dependencies: ['setup'],
+        testIgnore: '**/initialize.setup.ts',
+      }),
+    ]))
   })
 
   it('proxies only short-link preview and continue data routes during development', async () => {

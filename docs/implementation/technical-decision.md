@@ -265,6 +265,8 @@ v0.2.0 使用前端 `qrcode` 库按短链公开 URL 即时生成 PNG Data URL。
 - Vue Testing Library：组件测试。
 - Playwright：端到端测试。
 
+Playwright 通过独立的 `setup` project 先完成一次初始化 UI 流程，再让业务 spec 并行执行；需要共享状态的受保护访问 spec 在文件内显式串行。
+
 测试重点：
 
 - 首页创建区域权限状态。

@@ -13,6 +13,10 @@ const baseURL = `http://127.0.0.1:${e2ePort}`
 const composeProjectName = process.env.MOEURL_E2E_COMPOSE_PROJECT ?? `moeurl-e2e-${e2ePort}`
 const browserChannel = process.env.MOEURL_E2E_BROWSER_CHANNEL?.trim() || detectFallbackBrowserChannel()
 const skipDockerCompose = shouldSkipDockerCompose()
+const browserUse = {
+  ...devices['Desktop Chrome'],
+  channel: browserChannel,
+}
 
 /** Interprets the opt-out flag used by local E2E environments with an existing backend. */
 export function shouldSkipDockerCompose(envValue = process.env.MOEURL_E2E_SKIP_DOCKER): boolean {
@@ -87,11 +91,15 @@ export default defineConfig({
       }),
   projects: [
     {
+      name: 'setup',
+      testMatch: '**/initialize.setup.ts',
+      use: browserUse,
+    },
+    {
       name: 'chromium',
-      use: {
-        ...devices['Desktop Chrome'],
-        channel: browserChannel,
-      },
+      dependencies: ['setup'],
+      testIgnore: '**/initialize.setup.ts',
+      use: browserUse,
     },
   ],
 })
