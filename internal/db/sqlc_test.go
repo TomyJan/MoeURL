@@ -215,6 +215,7 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 	domainID := uuid.MustParse("00000000-0000-0000-0000-000000000101")
 	fixtureID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
 	configuredID := uuid.MustParse("00000000-0000-0000-0000-000000000302")
+	emptyPasswordID := uuid.MustParse("00000000-0000-0000-0000-000000000303")
 	insertSQLCShortLinkFixtures(t, ctx, pool, ownerID, domainID, fixtureID)
 	var expiresAt time.Time
 	if err := pool.QueryRow(ctx, `select now() + interval '24 hours'`).Scan(&expiresAt); err != nil {
@@ -239,6 +240,31 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 	}
 	if created.RedirectMode != "intermediate" || created.IntermediateDelaySeconds != 7 || !created.ExpiresAt.Valid || !created.ExpiresAt.Time.Equal(expiresAt) || created.Expired || !created.PasswordHash.Valid {
 		t.Fatalf("unexpected created access config: %#v", created)
+	}
+
+	emptyPassword, err := queries.CreateShortLink(ctx, sqlc.CreateShortLinkParams{
+		ID:                       uuidToPgtype(emptyPasswordID),
+		OwnerID:                  uuidToPgtype(ownerID),
+		DomainID:                 uuidToPgtype(domainID),
+		Slug:                     "empty-password",
+		TargetUrl:                "https://example.com/empty-password",
+		Status:                   "active",
+		RedirectMode:             "direct",
+		IntermediateDelaySeconds: 5,
+		PasswordHash:             pgtype.Text{String: "", Valid: true},
+	})
+	if err != nil {
+		t.Fatalf("create short link with empty password hash: %v", err)
+	}
+	if emptyPassword.PasswordHash.Valid {
+		t.Fatal("empty password hash was persisted")
+	}
+	var emptyPasswordUpdatedAt pgtype.Timestamptz
+	if err := pool.QueryRow(ctx, `select password_updated_at from short_link where id = $1`, emptyPasswordID).Scan(&emptyPasswordUpdatedAt); err != nil {
+		t.Fatalf("read empty password timestamp: %v", err)
+	}
+	if emptyPasswordUpdatedAt.Valid {
+		t.Fatal("empty password hash received a password update timestamp")
 	}
 
 	bySlug, err := queries.GetShortLinkBySlug(ctx, "config")

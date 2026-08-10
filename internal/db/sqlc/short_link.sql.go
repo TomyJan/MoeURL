@@ -64,8 +64,8 @@ insert into short_link (
     password_updated_at,
     created_at, updated_at
 )
-values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-    case when $10::text is null then null else clock_timestamp() end,
+values ($1, $2, $3, $4, $5, $6, $7, $8, $9, nullif($10::text, ''),
+    case when coalesce($10::text, '') <> '' then clock_timestamp() else null end,
     now(), now())
 returning id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at,
