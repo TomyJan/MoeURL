@@ -126,7 +126,7 @@ describe('deployment configuration', () => {
   it('allows a cold Docker image build to finish before Playwright starts', async () => {
     const { default: playwrightConfig } = await import('../../playwright.config')
 
-    expect(playwrightConfig.workers).toBe(1)
+    expect(playwrightConfig.workers).toBeUndefined()
     expect(playwrightConfig.webServer).not.toBeInstanceOf(Array)
     expect(playwrightConfig.webServer).toMatchObject({ timeout: 600_000 })
   })

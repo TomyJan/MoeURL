@@ -12,6 +12,8 @@ const e2ePort = process.env.MOEURL_E2E_PORT ?? '8080'
 const e2eHost = `127.0.0.1:${e2ePort}`
 const e2eHostPattern = escapeRegExp(e2eHost)
 
+test.describe.configure({ mode: 'serial' })
+
 test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
   testInfo.setTimeout(120_000)
   page.setDefaultTimeout(10_000)
