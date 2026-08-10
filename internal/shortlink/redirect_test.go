@@ -16,8 +16,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const testAccessGrantCleanupBatchSize = 500
-
 // TestRedirectServiceResolvesActiveShortLink verifies active links resolve to their target.
 func TestRedirectServiceResolvesActiveShortLink(t *testing.T) {
 	ctx := context.Background()
@@ -580,7 +578,10 @@ func TestRedirectServiceUnlockDoesNotCleanExpiredAccessGrants(t *testing.T) {
 
 // TestRedirectServiceCleanupDrainsExpiredGrantBatchesAndLogs verifies one cleanup drains every bounded batch.
 func TestRedirectServiceCleanupDrainsExpiredGrantBatchesAndLogs(t *testing.T) {
+	const testAccessGrantCleanupBatchSize = 500
+
 	fixture := newAccessGrantCleanupFixture(t)
+	// 501 grants exercise the production batch limit of 500 plus one remaining row.
 	fixture.insertExpiredGrants(t, testAccessGrantCleanupBatchSize+1)
 
 	logOutput := &bytes.Buffer{}
