@@ -543,14 +543,40 @@ func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
 	if expiredCount != testAccessGrantCleanupBatchSize+1 {
 		t.Fatalf("expected unlock to leave cleanup batch size %d plus one expired grants, got %d rows", testAccessGrantCleanupBatchSize, expiredCount)
 	}
-	if err := service.CleanupExpiredAccessGrants(ctx); err != nil {
-		t.Fatalf("clean expired access grants: %v", err)
+	logOutput := &bytes.Buffer{}
+	cleanupLogger := slog.New(slog.NewTextHandler(logOutput, nil))
+	largeCleanupCtx, cancelLargeCleanup := context.WithCancel(ctx)
+	largeCleanupDone := make(chan struct{})
+	go func() {
+		defer close(largeCleanupDone)
+		service.RunAccessGrantCleanup(largeCleanupCtx, time.Millisecond, cleanupLogger)
+	}()
+	deadline := time.Now().Add(5 * time.Second)
+	for expiredCount != 0 && time.Now().Before(deadline) {
+		if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where expires_at <= now()`).Scan(&expiredCount); err != nil {
+			t.Fatalf("query expired access grants during large cleanup: %v", err)
+		}
+		time.Sleep(time.Millisecond)
 	}
+	cancelLargeCleanup()
+	<-largeCleanupDone
 	if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where expires_at <= now()`).Scan(&expiredCount); err != nil {
 		t.Fatalf("query expired access grants after draining cleanup: %v", err)
 	}
 	if expiredCount != 0 {
 		t.Fatalf("expected one cleanup invocation to drain expired access grants, got %d rows", expiredCount)
+	}
+	cleanupLog := logOutput.String()
+	for _, field := range []string{
+		"access_grant_cleanup_completed",
+		"deleted_rows=501",
+		"batch_count=2",
+		"duration_ms=",
+		"index=short_link_access_grant_expiry_idx",
+	} {
+		if !strings.Contains(cleanupLog, field) {
+			t.Fatalf("expected cleanup log field %q, got %q", field, cleanupLog)
+		}
 	}
 	if _, err := pool.Exec(ctx, `
 		insert into short_link_access_grant (id, short_link_id, token_hash, expires_at, created_at)
@@ -568,7 +594,7 @@ func TestRedirectServiceCleansExpiredAccessGrantsOutsideUnlock(t *testing.T) {
 		defer close(cleanupDone)
 		service.RunAccessGrantCleanup(cleanupCtx, time.Millisecond, slog.Default())
 	}()
-	deadline := time.Now().Add(5 * time.Second)
+	deadline = time.Now().Add(5 * time.Second)
 	for expiredCount != 0 && time.Now().Before(deadline) {
 		if err := pool.QueryRow(ctx, `select count(*) from short_link_access_grant where expires_at <= now()`).Scan(&expiredCount); err != nil {
 			t.Fatalf("query periodically cleaned access grants: %v", err)

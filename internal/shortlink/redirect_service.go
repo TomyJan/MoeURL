@@ -296,10 +296,13 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 }
 
 // CleanupExpiredAccessGrants drains expired access grants in bounded batches.
-func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context) error {
+func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context, loggers ...*slog.Logger) error {
 	if s.pool == nil {
 		return errors.New("redirect service database is unavailable")
 	}
+	startedAt := time.Now()
+	var deletedRows int64
+	batchCount := 0
 	for {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -308,7 +311,19 @@ func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context) error 
 		if err != nil {
 			return err
 		}
+		deletedRows += deleted
+		batchCount++
 		if deleted < accessGrantCleanupBatchSize {
+			if len(loggers) > 0 && loggers[0] != nil && deletedRows > accessGrantCleanupBatchSize {
+				loggers[0].InfoContext(
+					ctx,
+					"access_grant_cleanup_completed",
+					"deleted_rows", deletedRows,
+					"batch_count", batchCount,
+					"duration_ms", time.Since(startedAt).Milliseconds(),
+					"index", "short_link_access_grant_expiry_idx",
+				)
+			}
 			return nil
 		}
 	}
@@ -329,7 +344,7 @@ func (s *RedirectService) RunAccessGrantCleanup(ctx context.Context, interval ti
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := s.CleanupExpiredAccessGrants(ctx); err != nil {
+			if err := s.CleanupExpiredAccessGrants(ctx, logger); err != nil {
 				logger.ErrorContext(ctx, "access_grant_cleanup_failed", "error", err)
 			}
 		}
