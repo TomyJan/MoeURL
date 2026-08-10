@@ -482,6 +482,15 @@ func TestShortLinkAccessGrantUsesIssuanceTimeAfterConcurrentPasswordUpdate(t *te
 	}); err != nil {
 		t.Fatalf("expected newly issued grant to survive an earlier password update: %v", err)
 	}
+	if _, err := pool.Exec(ctx, `update short_link set deleted_at = clock_timestamp() where id = $1`, linkID); err != nil {
+		t.Fatalf("soft delete granted short link: %v", err)
+	}
+	if _, err := queries.GetValidShortLinkAccessGrant(ctx, sqlc.GetValidShortLinkAccessGrantParams{
+		ShortLinkID: uuidToPgtype(linkID),
+		TokenHash:   tokenHash,
+	}); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("soft-deleted short link grant error = %v, want pgx.ErrNoRows", err)
+	}
 }
 
 // TestShortLinkPasswordUpdateUsesLockAcquisitionTimeToInvalidateGrants verifies invalidation uses transaction serialization time.

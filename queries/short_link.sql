@@ -337,4 +337,5 @@ join short_link on short_link.id = access_grant.short_link_id
 where access_grant.short_link_id = $1
     and access_grant.token_hash = $2
     and access_grant.expires_at > clock_timestamp()
+    and short_link.deleted_at is null
     and (short_link.password_updated_at is null or access_grant.created_at >= short_link.password_updated_at);

@@ -84,6 +84,9 @@ func (h *RedirectHandler) PreviewPublic(w http.ResponseWriter, r *http.Request) 
 
 // PreviewScoped writes preview data using the access cookie scoped to the short-link page.
 func (h *RedirectHandler) PreviewScoped(w http.ResponseWriter, r *http.Request, slug string) {
+	if redirectLowercaseScopedSlug(w, r, slug) {
+		return
+	}
 	accessToken := ""
 	if cookie, err := r.Cookie(accessCookieName); err == nil {
 		accessToken = cookie.Value
@@ -169,6 +172,9 @@ func (h *RedirectHandler) Unlock(w http.ResponseWriter, r *http.Request) {
 
 // Continue rechecks a short link and writes its final target redirect.
 func (h *RedirectHandler) Continue(w http.ResponseWriter, r *http.Request, slug string) {
+	if redirectLowercaseScopedSlug(w, r, slug) {
+		return
+	}
 	accessToken := ""
 	if cookie, cookieErr := r.Cookie(accessCookieName); cookieErr == nil {
 		accessToken = cookie.Value
@@ -179,6 +185,21 @@ func (h *RedirectHandler) Continue(w http.ResponseWriter, r *http.Request, slug 
 		return
 	}
 	h.writeTargetRedirect(w, r, result, strings.ToLower(slug))
+}
+
+// redirectLowercaseScopedSlug canonicalizes scoped access paths before cookie-based authorization.
+func redirectLowercaseScopedSlug(w http.ResponseWriter, r *http.Request, slug string) bool {
+	normalizedSlug := strings.ToLower(slug)
+	if normalizedSlug == slug {
+		return false
+	}
+	// URL.Path is decoded before the router supplies slug, so this also handles percent-encoded casing.
+	location := strings.Replace(r.URL.Path, "/go/"+slug+"/", "/go/"+normalizedSlug+"/", 1)
+	if r.URL.RawQuery != "" {
+		location += "?" + r.URL.RawQuery
+	}
+	http.Redirect(w, r, location, http.StatusFound)
+	return true
 }
 
 // writeTargetRedirect emits the final redirect before recording a successful access event.

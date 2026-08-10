@@ -184,7 +184,8 @@ func TestRedirectHandlerUnlockMapsPasswordErrorsToBusinessCodes(t *testing.T) {
 
 // TestRedirectHandlerUnlockRejectsMalformedRequest verifies malformed unlock payloads are rejected before service execution.
 func TestRedirectHandlerUnlockRejectsMalformedRequest(t *testing.T) {
-	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: &fakeRedirectService{}})
+	service := &fakeRedirectService{}
+	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: service})
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/public/short-link/unlock", bytes.NewBufferString("{"))
 
@@ -198,6 +199,61 @@ func TestRedirectHandlerUnlockRejectsMalformedRequest(t *testing.T) {
 	}
 	if response.Code != http.StatusOK || body.Code != 100001 {
 		t.Fatalf("expected status 200 code 100001, got status %d code %d", response.Code, body.Code)
+	}
+	if service.unlockCalls != 0 {
+		t.Fatalf("expected malformed request to stop before service call, got %d calls", service.unlockCalls)
+	}
+}
+
+// TestRedirectHandlerCanonicalizesScopedSlugBeforeAuthorization verifies lowercase cookie paths are reached before token checks.
+func TestRedirectHandlerCanonicalizesScopedSlugBeforeAuthorization(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		path     string
+		location string
+		serve    func(*shortlink.RedirectHandler, http.ResponseWriter, *http.Request)
+	}{
+		{
+			name:     "preview",
+			path:     "/go/MiDdLe/preview?source=test",
+			location: "/go/middle/preview?source=test",
+			serve: func(handler *shortlink.RedirectHandler, response http.ResponseWriter, request *http.Request) {
+				handler.PreviewScoped(response, request, "MiDdLe")
+			},
+		},
+		{
+			name:     "preview percent-encoded",
+			path:     "/go/%4DiDdLe/preview?source=test",
+			location: "/go/middle/preview?source=test",
+			serve: func(handler *shortlink.RedirectHandler, response http.ResponseWriter, request *http.Request) {
+				handler.PreviewScoped(response, request, "MiDdLe")
+			},
+		},
+		{
+			name:     "continue",
+			path:     "/go/MiDdLe/continue?source=test",
+			location: "/go/middle/continue?source=test",
+			serve: func(handler *shortlink.RedirectHandler, response http.ResponseWriter, request *http.Request) {
+				handler.Continue(response, request, "MiDdLe")
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			service := &fakeRedirectService{}
+			handler := shortlink.NewRedirectHandler(service)
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, test.path, nil)
+			request.AddCookie(&http.Cookie{Name: "moeurl_short_link_access", Value: "uppercase-token"})
+			response := httptest.NewRecorder()
+
+			test.serve(handler, response, request)
+
+			if response.Code != http.StatusFound || response.Header().Get("Location") != test.location {
+				t.Fatalf("expected lowercase redirect to %q, got status %d location %q", test.location, response.Code, response.Header().Get("Location"))
+			}
+			if service.previewToken != "" || service.continueToken != "" {
+				t.Fatal("authorization service was called before lowercase redirect")
+			}
+		})
 	}
 }
 
