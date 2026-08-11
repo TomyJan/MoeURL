@@ -34,6 +34,9 @@ export async function apiPostPath<T>(path: string, body?: unknown): Promise<ApiR
 }
 
 function resolveSameOriginPath(path: string): string {
+  if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\')) {
+    throw new Error('API path must be a same-origin absolute path')
+  }
   const currentOrigin = window.location.origin
   let resolvedURL: URL
   try {
@@ -41,7 +44,7 @@ function resolveSameOriginPath(path: string): string {
   } catch {
     throw new Error('API path must be a same-origin absolute path')
   }
-  if (!path.startsWith('/') || path.startsWith('//') || resolvedURL.origin !== currentOrigin) {
+  if (resolvedURL.origin !== currentOrigin) {
     throw new Error('API path must be a same-origin absolute path')
   }
   return resolvedURL.pathname + resolvedURL.search

@@ -44,6 +44,49 @@ describe('api client', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it('rejects backslashes before URL normalization', async () => {
+    const NativeURL = globalThis.URL
+    let constructorCalls = 0
+    class TrackedURL extends NativeURL {
+      constructor(url: string | URL, base?: string | URL) {
+        constructorCalls += 1
+        super(url, base)
+      }
+    }
+    vi.stubGlobal('URL', TrackedURL)
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(apiGetPath('/\\')).rejects.toThrow('API path must be a same-origin absolute path')
+    await expect(apiPostPath('/\\', {})).rejects.toThrow('API path must be a same-origin absolute path')
+    expect(constructorCalls).toBe(0)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects URL parsing failures and cross-origin resolutions', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    class ThrowingURL {
+      constructor() {
+        throw new TypeError('invalid URL')
+      }
+    }
+    vi.stubGlobal('URL', ThrowingURL)
+    await expect(apiGetPath('/health')).rejects.toThrow('API path must be a same-origin absolute path')
+
+    class CrossOriginURL {
+      origin = 'https://evil.example'
+      pathname = '/health'
+      search = ''
+    }
+    vi.stubGlobal('URL', CrossOriginURL)
+    await expect(apiPostPath('/health', {})).rejects.toThrow('API path must be a same-origin absolute path')
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
   it('requests the normalized path and query that passed same-origin validation', async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ code: 0, data: null, message: 'OK', meta: {} })))
     vi.stubGlobal('fetch', fetchMock)
