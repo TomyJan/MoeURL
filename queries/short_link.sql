@@ -100,7 +100,10 @@ where short_link.owner_id = $1
 with locked as materialized (
     select short_link.id,
         (
-            sqlc.arg('password_mode')::text = 'never'
+            (
+                sqlc.arg('password_mode')::text = 'never'
+                and coalesce(short_link.password_hash, '') <> ''
+            )
             or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
         ) as password_changed
     from short_link
@@ -223,7 +226,10 @@ where short_link.deleted_at is null
 with locked as materialized (
     select short_link.id,
         (
-            sqlc.arg('password_mode')::text = 'never'
+            (
+                sqlc.arg('password_mode')::text = 'never'
+                and coalesce(short_link.password_hash, '') <> ''
+            )
             or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
         ) as password_changed
     from short_link

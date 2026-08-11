@@ -735,7 +735,10 @@ const updateAnyShortLink = `-- name: UpdateAnyShortLink :one
 with locked as materialized (
     select short_link.id,
         (
-            $7::text = 'never'
+            (
+                $7::text = 'never'
+                and coalesce(short_link.password_hash, '') <> ''
+            )
             or ($7::text = 'set' and coalesce($8::text, '') <> '')
         ) as password_changed
     from short_link
@@ -856,7 +859,10 @@ const updateOwnShortLink = `-- name: UpdateOwnShortLink :one
 with locked as materialized (
     select short_link.id,
         (
-            $7::text = 'never'
+            (
+                $7::text = 'never'
+                and coalesce(short_link.password_hash, '') <> ''
+            )
             or ($7::text = 'set' and coalesce($8::text, '') <> '')
         ) as password_changed
     from short_link
