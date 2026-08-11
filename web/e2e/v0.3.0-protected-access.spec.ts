@@ -128,7 +128,7 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
       const previewResponse = await previewResponsePromise
       expect((await previewResponse.request().allHeaders()).cookie).toContain('moeurl_short_link_access=')
 
-      await page.goto(`/${protectedSlug}`)
+      await page.goto(`/go/${protectedSlug}`)
       await expect(page).toHaveURL(protectedTarget)
       await expect.poll(
         () => readVisitCount(page, protectedLinkId),
