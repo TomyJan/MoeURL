@@ -168,7 +168,6 @@ func dockerDatabaseURL(ctx context.Context, t testing.TB) (string, func(), error
 	}
 	databaseURL, cleanup, err := isolatedDatabaseURL(ctx, adminURL, t.Name(), t)
 	if err != nil {
-		t.Fatalf("create Docker test database: %v", err)
 		return "", nil, err
 	}
 	return databaseURL, cleanup, nil

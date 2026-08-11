@@ -169,6 +169,16 @@ func TestAppShutdownDrainsRequestsBeforeStoppingDependencies(t *testing.T) {
 	if err := <-serveDone; !errors.Is(err, http.ErrServerClosed) {
 		t.Fatalf("serve result = %v, want http.ErrServerClosed", err)
 	}
+	select {
+	case <-cleanupCanceled:
+	default:
+		t.Fatal("grant cleanup was not canceled after shutdown")
+	}
+	select {
+	case <-cleanupDone:
+	default:
+		t.Fatal("grant cleanup did not finish after shutdown")
+	}
 }
 
 // TestAppShutdownFailureKeepsDependenciesRunning verifies a failed drain can be retried safely.
