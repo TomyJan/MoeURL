@@ -54,6 +54,7 @@ test('rejects configured exclusions when compiler line positions shift', () => {
 
     assert.equal(result.status, 1)
     assert.match(result.stderr, /Go coverage must be at least 100%/)
+    assert.match(result.stderr, /Unmatched configured coverage exclusions:/)
   } finally {
     rmSync(directory, { force: true, recursive: true })
   }

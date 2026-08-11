@@ -7,6 +7,7 @@ const includes = includeFrom ? readPatterns(includeFrom) : []
 const excludeBlocksFrom = readOption('--exclude-blocks-from')
 const excludedBlocks = excludeBlocksFrom ? new Set(readPatterns(excludeBlocksFrom)) : new Set()
 const excludedLineRanges = new Set([...excludedBlocks].map(toLineRange))
+const matchedExcludedBlocks = new Set()
 const blocks = readFileSync(profile, 'utf8')
   .trim()
   .split('\n')
@@ -31,6 +32,11 @@ for (const block of blocks) {
   } else {
     uncoveredBlocks.push(loc)
   }
+}
+
+const unmatchedExcludedBlocks = [...excludedBlocks].filter((location) => !matchedExcludedBlocks.has(location))
+if (unmatchedExcludedBlocks.length > 0) {
+  console.warn(`Unmatched configured coverage exclusions:\n${unmatchedExcludedBlocks.join('\n')}`)
 }
 
 const percent = total === 0 ? 100 : (covered / total) * 100
@@ -76,7 +82,20 @@ function parseBlock(line) {
 }
 
 function isExcludedBlock(location) {
-  return excludedBlocks.has(location) || excludedLineRanges.has(toLineRange(location))
+  if (excludedBlocks.has(location)) {
+    matchedExcludedBlocks.add(location)
+    return true
+  }
+  const lineRange = toLineRange(location)
+  if (!excludedLineRanges.has(lineRange)) {
+    return false
+  }
+  for (const configuredLocation of excludedBlocks) {
+    if (toLineRange(configuredLocation) === lineRange) {
+      matchedExcludedBlocks.add(configuredLocation)
+    }
+  }
+  return true
 }
 
 function toLineRange(location) {
