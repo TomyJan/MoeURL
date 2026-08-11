@@ -14,6 +14,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stretchr/testify/require"
 )
 
 // TestServiceCreateRejectsGuest verifies guests cannot create short links.
@@ -134,85 +135,56 @@ func TestServicePasswordConfigurationRoundTrip(t *testing.T) {
 		TargetURL: "https://example.com/protected",
 		Password:  &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "correct horse"},
 	})
-	if err != nil {
-		t.Fatalf("create protected short link: %v", err)
-	}
-	if !created.ShortLink.PasswordEnabled {
-		t.Fatal("expected created short link to report enabled password")
-	}
+	require.NoError(t, err)
+	require.True(t, created.ShortLink.PasswordEnabled)
 	encoded, err := json.Marshal(created.ShortLink)
-	if err != nil {
-		t.Fatalf("marshal protected short link: %v", err)
-	}
-	if regexp.MustCompile(`(?i)password_hash|argon2`).Match(encoded) {
-		t.Fatal("password hash leaked in response")
-	}
+	require.NoError(t, err)
+	require.False(t, regexp.MustCompile(`(?i)password_hash|argon2`).Match(encoded))
 	var storedHash string
-	if err := pool.QueryRow(ctx, `select password_hash from short_link where id = $1`, created.ShortLink.ID).Scan(&storedHash); err != nil {
-		t.Fatalf("query protected password hash: %v", err)
-	}
-	if !auth.VerifyPassword("correct horse", storedHash) {
-		t.Fatal("stored password hash did not verify")
-	}
-	if _, err := pool.Exec(ctx, `
+	err = pool.QueryRow(ctx, `select password_hash from short_link where id = $1`, created.ShortLink.ID).Scan(&storedHash)
+	require.NoError(t, err)
+	require.True(t, auth.VerifyPassword("correct horse", storedHash))
+	_, err = pool.Exec(ctx, `
 		update short_link
 		set password_failed_attempts = 5,
 			password_window_started_at = now() - interval '1 minute',
 			password_blocked_until = now() + interval '15 minutes'
 		where id = $1
-	`, created.ShortLink.ID); err != nil {
-		t.Fatalf("block protected short link: %v", err)
-	}
-	if _, err := service.Update(ctx, user, shortlink.UpdateInput{
+	`, created.ShortLink.ID)
+	require.NoError(t, err)
+	_, err = service.Update(ctx, user, shortlink.UpdateInput{
 		ID:       created.ShortLink.ID,
 		Password: &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "updated horse"},
-	}); err != nil {
-		t.Fatalf("change blocked short link password: %v", err)
-	}
+	})
+	require.NoError(t, err)
 	grant, err := shortlink.NewRedirectService(pool, nil).Unlock(ctx, created.ShortLink.Slug, "updated horse")
-	if err != nil {
-		t.Fatalf("unlock immediately after password change returned an error: %v", err)
-	}
-	if grant.Token == "" {
-		t.Fatal("unlock immediately after password change returned an empty token")
-	}
+	require.NoError(t, err)
+	require.NotEmpty(t, grant.Token)
 
 	listed, err := service.List(ctx, user, shortlink.ListInput{Page: 1, PageSize: 20})
-	if err != nil || len(listed.Items) != 1 || !listed.Items[0].PasswordEnabled {
-		t.Fatalf("expected password-enabled list result, got %#v error %v", listed, err)
-	}
+	require.NoError(t, err)
+	require.Len(t, listed.Items, 1)
+	require.True(t, listed.Items[0].PasswordEnabled)
 	cleared, err := service.Update(ctx, user, shortlink.UpdateInput{
 		ID:       created.ShortLink.ID,
 		Password: &shortlink.PasswordInput{Mode: shortlink.PasswordModeNever},
 	})
-	if err != nil {
-		t.Fatalf("clear short link password: %v", err)
-	}
-	if cleared.ShortLink.PasswordEnabled {
-		t.Fatal("expected cleared password to be disabled")
-	}
+	require.NoError(t, err)
+	require.False(t, cleared.ShortLink.PasswordEnabled)
 
 	admin := auth.CurrentUser{ID: user.ID, GroupKey: permission.GroupAdmin}
 	adminCreated, err := service.Create(ctx, admin, shortlink.CreateInput{
 		TargetURL: "https://example.com/admin-protected",
 		Password:  &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "admin horse"},
 	})
-	if err != nil {
-		t.Fatalf("create protected short link with admin group: %v", err)
-	}
-	if !adminCreated.ShortLink.PasswordEnabled {
-		t.Fatal("expected admin-created password to be enabled")
-	}
+	require.NoError(t, err)
+	require.True(t, adminCreated.ShortLink.PasswordEnabled)
 	adminCleared, err := service.Update(ctx, admin, shortlink.UpdateInput{
 		ID:       adminCreated.ShortLink.ID,
 		Password: &shortlink.PasswordInput{Mode: shortlink.PasswordModeNever},
 	})
-	if err != nil {
-		t.Fatalf("clear admin short link password: %v", err)
-	}
-	if adminCleared.ShortLink.PasswordEnabled {
-		t.Fatal("expected admin-cleared password to be disabled")
-	}
+	require.NoError(t, err)
+	require.False(t, adminCleared.ShortLink.PasswordEnabled)
 }
 
 // TestServiceCreateReturnsDatabaseAndInputErrors verifies invalid identifiers and database failures.

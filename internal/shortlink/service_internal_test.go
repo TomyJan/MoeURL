@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stretchr/testify/require"
 )
 
 // TestValidatePasswordInput verifies password modes reject contradictory or out-of-range values.
@@ -44,12 +45,13 @@ func TestValidatePasswordInput(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			mode, raw, err := validatePasswordInput(test.input)
-			if !errors.Is(err, test.wantErr) {
-				t.Fatalf("validatePasswordInput error = %v, want %v", err, test.wantErr)
+			if test.wantErr != nil {
+				require.ErrorIs(t, err, test.wantErr)
+			} else {
+				require.NoError(t, err)
 			}
-			if mode != test.wantMode || raw != test.wantRaw {
-				t.Fatalf("validatePasswordInput = (%q, %q), want (%q, %q)", mode, raw, test.wantMode, test.wantRaw)
-			}
+			require.Equal(t, test.wantMode, mode)
+			require.Equal(t, test.wantRaw, raw)
 		})
 	}
 }
@@ -57,15 +59,9 @@ func TestValidatePasswordInput(t *testing.T) {
 // TestShortLinkPasswordStateMarshalsOnlyEnabledFlag verifies API JSON never exposes password material.
 func TestShortLinkPasswordStateMarshalsOnlyEnabledFlag(t *testing.T) {
 	raw, err := json.Marshal(ShortLink{AccessConfig: AccessConfig{PasswordEnabled: true}})
-	if err != nil {
-		t.Fatalf("marshal short link: %v", err)
-	}
-	if !strings.Contains(string(raw), `"passwordEnabled":true`) {
-		t.Fatal("expected passwordEnabled flag in serialized short link")
-	}
-	if strings.Contains(strings.ToLower(string(raw)), "hash") {
-		t.Fatal("serialized short link exposed password hash material")
-	}
+	require.NoError(t, err)
+	require.Contains(t, string(raw), `"passwordEnabled":true`)
+	require.NotContains(t, strings.ToLower(string(raw)), "hash")
 }
 
 // TestNormalizePasswordRequiresPermissionAndStoresOnlyHash verifies capability checks and one-way persistence.
@@ -73,24 +69,19 @@ func TestNormalizePasswordRequiresPermissionAndStoresOnlyHash(t *testing.T) {
 	service := &Service{permissions: permission.NewService()}
 	user := auth.CurrentUser{GroupKey: permission.GroupUser, Permissions: []string{permission.ShortLinkSetPassword}}
 	mode, hash, err := service.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
-	if err != nil {
-		t.Fatalf("normalize password: %v", err)
-	}
+	require.NoError(t, err)
 	verified := hash.Valid && auth.VerifyPassword("correct horse", hash.String)
-	if mode != PasswordModeSet || !verified {
-		t.Fatalf("unexpected password result: mode=%q hashValid=%t verified=%t", mode, hash.Valid, verified)
-	}
+	require.Equal(t, PasswordModeSet, mode)
+	require.True(t, verified)
 	limitedService := &Service{permissions: permission.NewServiceWithPermissions(nil, permission.AdminPermissions)}
-	if _, _, err := limitedService.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"}); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("expected injected capability restriction, got %v", err)
-	}
+	_, _, err = limitedService.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
+	require.ErrorIs(t, err, ErrPermissionDenied)
 	for _, user := range []auth.CurrentUser{
 		auth.GuestUser(),
 		{GroupKey: "unknown"},
 	} {
-		if _, _, err := service.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"}); !errors.Is(err, ErrPermissionDenied) {
-			t.Fatalf("expected %s permission error, got %v", user.GroupKey, err)
-		}
+		_, _, err := service.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
+		require.ErrorIs(t, err, ErrPermissionDenied, user.GroupKey)
 	}
 }
 

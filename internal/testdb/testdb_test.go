@@ -3,9 +3,11 @@ package testdb
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type cleanupReporter struct {
@@ -21,17 +23,11 @@ func (r *cleanupReporter) Errorf(format string, args ...any) {
 func TestReportCleanupError(t *testing.T) {
 	reporter := &cleanupReporter{}
 	reportCleanupError(reporter, "drop test database", errors.New("cleanup failed"))
-	if len(reporter.errors) != 1 {
-		t.Fatalf("expected one cleanup error, got %d", len(reporter.errors))
-	}
-	if !strings.Contains(reporter.errors[0], "drop test database") {
-		t.Fatalf("expected cleanup operation in report, got %q", reporter.errors[0])
-	}
+	require.Len(t, reporter.errors, 1)
+	assert.Contains(t, reporter.errors[0], "drop test database")
 
 	reportCleanupError(reporter, "close test database", nil)
-	if len(reporter.errors) != 1 {
-		t.Fatalf("expected nil errors to be ignored, got %d reports", len(reporter.errors))
-	}
+	assert.Len(t, reporter.errors, 1)
 }
 
 // TestDockerRequired verifies only explicit truthy values disable database fallback.
@@ -46,9 +42,7 @@ func TestDockerRequired(t *testing.T) {
 		{value: "false", want: false},
 		{value: "", want: false},
 	} {
-		if got := dockerRequired(test.value); got != test.want {
-			t.Fatalf("dockerRequired(%q) = %t, want %t", test.value, got, test.want)
-		}
+		assert.Equal(t, test.want, dockerRequired(test.value), test.value)
 	}
 }
 
@@ -56,16 +50,12 @@ func TestDockerRequired(t *testing.T) {
 func TestDockerProbeContextIsIndependent(t *testing.T) {
 	probeContext, cancelProbe := newDockerProbeContext()
 	defer cancelProbe()
-	if err := probeContext.Err(); err != nil {
-		t.Fatalf("expected independent probe context, got %v", err)
-	}
+	require.NoError(t, probeContext.Err())
 	deadline, ok := probeContext.Deadline()
-	if !ok {
-		t.Fatal("expected Docker probe deadline")
-	}
-	if remaining := time.Until(deadline); remaining <= 0 || remaining > dockerProbeTimeout {
-		t.Fatalf("unexpected Docker probe timeout %v", remaining)
-	}
+	require.True(t, ok)
+	remaining := time.Until(deadline)
+	assert.Greater(t, remaining, time.Duration(0))
+	assert.LessOrEqual(t, remaining, dockerProbeTimeout)
 }
 
 // TestSharedContainerShutdownRunsOnce verifies process cleanup is idempotent and retains its result.
@@ -79,13 +69,7 @@ func TestSharedContainerShutdownRunsOnce(t *testing.T) {
 		},
 	}
 
-	if err := shutdown.run(); !errors.Is(err, terminateErr) {
-		t.Fatalf("first shutdown error = %v, want terminate failure", err)
-	}
-	if err := shutdown.run(); !errors.Is(err, terminateErr) {
-		t.Fatalf("second shutdown error = %v, want cached terminate failure", err)
-	}
-	if terminateCalls != 1 {
-		t.Fatalf("terminate calls = %d, want 1", terminateCalls)
-	}
+	require.ErrorIs(t, shutdown.run(), terminateErr)
+	require.ErrorIs(t, shutdown.run(), terminateErr)
+	assert.Equal(t, 1, terminateCalls)
 }
