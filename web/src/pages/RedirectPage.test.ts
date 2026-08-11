@@ -159,6 +159,25 @@ describe('RedirectPage', () => {
     expect(screen.queryByText('5')).toBeNull()
   })
 
+  it('keeps the password form when the protected preview requires authorization', async () => {
+    state.route!.query = { reason: 'password' }
+    vi.mocked(getPublicShortLinkPreview)
+      .mockRejectedValueOnce(new ApiClientError(200111, 'Password required'))
+      .mockResolvedValueOnce({
+        slug: 'abc123',
+        targetHost: 'example.com',
+        intermediateDelaySeconds: null,
+        expiresAt: null,
+      })
+    mountPage()
+    await flushPreview()
+
+    expect(screen.getByLabelText('redirect.password')).toBeTruthy()
+    await fireEvent.update(screen.getByLabelText('redirect.password'), 'correct horse')
+    await fireEvent.click(screen.getByRole('button', { name: 'redirect.unlock' }))
+    await vi.waitFor(() => expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue'))
+  })
+
   it('shows an invalid-password error without navigating', async () => {
     state.route!.query = { reason: 'password' }
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
@@ -182,7 +201,7 @@ describe('RedirectPage', () => {
     [{ reason: 'rate-limited' }, undefined],
     [{ reason: 'rate-limited', retryAt: 'not-a-date' }, undefined],
     [{ reason: 'password' }, new ApiClientError(200113, 'Too many attempts')],
-  ])('shows the password rate-limit state for query or unlock errors', async (query, unlockError) => {
+  ])('shows the password rate-limit state for query %s or unlock error %s', async (query, unlockError) => {
     state.route!.query = query
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
@@ -296,7 +315,7 @@ describe('RedirectPage', () => {
   it.each([
     [new ApiClientError(200111, 'Password required'), 'redirect.passwordRequired'],
     [new Error('network failure'), 'redirect.unlockFailed'],
-  ])('maps unlock errors to safe messages', async (error, messageKey) => {
+  ])('maps unlock error %s to safe message %s', async (error, messageKey) => {
     state.route!.query = { reason: 'password' }
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
@@ -448,6 +467,47 @@ describe('RedirectPage', () => {
 
     expect(screen.getByText('other.example.com')).toBeTruthy()
     expect(screen.queryByText('redirect.unlockFailed')).toBeNull()
+    expect(state.assign).not.toHaveBeenCalled()
+  })
+
+  it('ignores an authorized preview that resolves after navigating to another slug', async () => {
+    state.route!.query = { reason: 'password' }
+    const authorizedPreview = createDeferred<{
+      slug: string
+      targetHost: string
+      intermediateDelaySeconds: number
+      expiresAt: null
+    }>()
+    vi.mocked(getPublicShortLinkPreview)
+      .mockRejectedValueOnce(new ApiClientError(200111, 'Password required'))
+      .mockReturnValueOnce(authorizedPreview.promise)
+      .mockResolvedValueOnce({
+        slug: 'def456',
+        targetHost: 'other.example.com',
+        intermediateDelaySeconds: 5,
+        expiresAt: null,
+      })
+    mountPage()
+    await flushPreview()
+    await fireEvent.update(screen.getByLabelText('redirect.password'), 'correct horse')
+    await fireEvent.click(screen.getByRole('button', { name: 'redirect.unlock' }))
+    await vi.waitFor(() => expect(getPublicShortLinkPreview).toHaveBeenCalledTimes(2))
+
+    state.route!.params.slug = 'def456'
+    state.route!.query = {}
+    await vi.waitFor(() => expect(getPublicShortLinkPreview).toHaveBeenCalledTimes(3))
+    await flushPreview()
+    expect(screen.getByText('other.example.com')).toBeTruthy()
+
+    authorizedPreview.resolve({
+      slug: 'abc123',
+      targetHost: 'example.com',
+      intermediateDelaySeconds: 5,
+      expiresAt: null,
+    })
+    await flushPreview()
+
+    expect(screen.getByText('other.example.com')).toBeTruthy()
     expect(state.assign).not.toHaveBeenCalled()
   })
 

@@ -350,7 +350,7 @@ describe('ShortLinkCreatePanel', () => {
     }
     options.onSettled?.()
     expect(passwordInput.value).toBe('')
-    await expect(options.mutationFn?.({ targetUrl: 'https://example.com' })).rejects.toThrow('shortLinkCreate.failed')
+    await expect(options.mutationFn?.({ targetUrl: 'https://example.com' })).rejects.toThrow('password validation failed')
     expect(screen.getByText('shortLinkCreate.passwordRequired')).toBeTruthy()
   })
 
@@ -366,7 +366,8 @@ describe('ShortLinkCreatePanel', () => {
     await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
-    expect(screen.getByText('shortLinkCreate.passwordInvalid')).toBeTruthy()
+    await vi.waitFor(() => expect(screen.getByText('shortLinkCreate.passwordInvalid')).toBeTruthy())
+    expect(screen.queryByText('shortLinkCreate.failed')).toBeNull()
     expect(passwordInput.value).toBe('')
     expect(createShortLink).not.toHaveBeenCalled()
   })

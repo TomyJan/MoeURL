@@ -160,6 +160,9 @@ export const messages = {
       unknown: '未知',
       other: '其他',
     },
+    validation: {
+      passwordLength: '密码需包含 8 至 128 个字符',
+    },
     shortLinkCreate: {
       eyebrow: '快速生成',
       title: '快速生成短链',
@@ -550,6 +553,9 @@ export const messages = {
       emptyDimension: 'No analytics data yet',
       unknown: 'Unknown',
       other: 'Other',
+    },
+    validation: {
+      passwordLength: 'Password must contain 8 to 128 characters',
     },
     shortLinkCreate: {
       eyebrow: 'Quick create',

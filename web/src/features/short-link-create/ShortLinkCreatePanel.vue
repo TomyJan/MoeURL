@@ -222,7 +222,7 @@ const mutation = useMutation({
       passwordErrorMessage.value = requestPassword
         ? t('shortLinkCreate.passwordInvalid')
         : t('shortLinkCreate.passwordRequired')
-      return Promise.reject(new Error(t('shortLinkCreate.failed')))
+      return Promise.reject(new Error('password validation failed'))
     }
     return runShortLinkMutation(
       createShortLink,
@@ -247,6 +247,9 @@ const mutation = useMutation({
 const errorMessage = computed(() => {
   if (validationErrorMessage.value) {
     return validationErrorMessage.value
+  }
+  if (passwordErrorMessage.value) {
+    return ''
   }
   if (mutation.error.value) {
     return mutation.error.value instanceof Error ? mutation.error.value.message : t('shortLinkCreate.failed')

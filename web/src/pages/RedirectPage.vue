@@ -17,11 +17,13 @@
         <v-btn variant="text" :to="{ path: '/' }">{{ t('redirect.backHome') }}</v-btn>
       </div>
 
-      <form v-else-if="preview && passwordRequired" class="redirect-page__state" aria-live="polite" @submit.prevent="unlock">
+      <form v-else-if="passwordRequired" class="redirect-page__state" aria-live="polite" @submit.prevent="unlock">
         <p class="redirect-page__eyebrow">{{ t('redirect.protectedEyebrow') }}</p>
         <h1>{{ t('redirect.passwordTitle') }}</h1>
-        <p class="redirect-page__target-label">{{ t('redirect.targetHost') }}</p>
-        <strong class="redirect-page__target">{{ preview.targetHost }}</strong>
+        <template v-if="preview">
+          <p class="redirect-page__target-label">{{ t('redirect.targetHost') }}</p>
+          <strong class="redirect-page__target">{{ preview.targetHost }}</strong>
+        </template>
         <v-text-field
           class="redirect-page__password"
           name="password"
@@ -171,7 +173,12 @@ async function loadPreview() {
     })
   } catch (error) {
     whenCurrent(requestId, () => {
-      failureState.value = classifyPreviewError(error)
+      if (error instanceof ApiClientError && error.code === 200111) {
+        passwordRequired.value = true
+        failureState.value = ''
+      } else {
+        failureState.value = classifyPreviewError(error)
+      }
     })
   } finally {
     whenCurrent(requestId, () => {
@@ -282,6 +289,13 @@ async function unlock(event: globalThis.Event) {
     await unlockShortLink({ slug, password })
     if (!isCurrentUnlock()) {
       return
+    }
+    if (!preview.value) {
+      const authorizedPreview = await getPublicShortLinkPreview(slug)
+      if (!isCurrentUnlock()) {
+        return
+      }
+      preview.value = authorizedPreview
     }
     passwordRequired.value = false
     form.reset()

@@ -227,6 +227,7 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
         password: { mode: 'never' },
       })
       await expect(protectedSettingsDialog).toBeHidden()
+      expect((await findShortLink(page, protectedSlug))?.passwordEnabled).toBe(false)
 
       await page.goto(`/${protectedSlug}`)
       await expect(page.getByRole('heading', { name: '即将前往外部网站' })).toBeVisible()
@@ -243,14 +244,25 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
     '验证失败限流',
     /** Uses a short-lived browser fixture to verify the countdown and retry UI after the backend rate-limit response. */
     async function verifyRateLimitStep() {
+      const rateLimitedAccessToken = 'e2e-rate-token'
+      let authorizedPreviewCookieSeen = false
+      let continuationCookieSeen = false
       await page.route(`**/go/${rateLimitedSlug}/unlock`, async (route) => {
         const password = route.request().postDataJSON()?.password
         if (password === rateLimitedPassword) {
+          await page.context().addCookies([{
+            name: 'moeurl_short_link_access',
+            value: rateLimitedAccessToken,
+            domain: new URL(page.url()).hostname,
+            path: `/go/${rateLimitedSlug}`,
+            httpOnly: true,
+            sameSite: 'Lax',
+          }])
           await route.fulfill({
             body: JSON.stringify({ code: 0, data: { unlocked: true }, message: 'OK', meta: {} }),
             headers: {
               'Content-Type': 'application/json',
-              'Set-Cookie': `moeurl_short_link_access=e2e-rate-token; Path=/go/${rateLimitedSlug}; HttpOnly; SameSite=Lax`,
+              'Set-Cookie': `moeurl_short_link_access=${rateLimitedAccessToken}; Path=/go/${rateLimitedSlug}; HttpOnly; SameSite=Lax`,
             },
             status: 200,
           })
@@ -263,23 +275,52 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
         }
         await route.fulfill({ body: JSON.stringify(payload), response })
       })
-      await page.route(`**/go/${rateLimitedSlug}/continue`, (route) => route.fulfill({
-        headers: { Location: 'https://example.com/e2e-rate-limited' },
-        status: 302,
-      }))
+      await page.route(`**/go/${rateLimitedSlug}/preview`, async (route) => {
+        const cookie = await route.request().headerValue('cookie')
+        authorizedPreviewCookieSeen = cookie?.includes(`moeurl_short_link_access=${rateLimitedAccessToken}`) ?? false
+        if (!authorizedPreviewCookieSeen) {
+          await route.fallback()
+          return
+        }
+        await route.fulfill({
+          body: JSON.stringify({
+            code: 0,
+            data: {
+              expiresAt: null,
+              intermediateDelaySeconds: null,
+              slug: rateLimitedSlug,
+              targetHost: 'example.com',
+            },
+            message: 'OK',
+            meta: {},
+          }),
+          contentType: 'application/json',
+          status: 200,
+        })
+      })
+      await page.route(`**/go/${rateLimitedSlug}/continue`, async (route) => {
+        const cookie = await route.request().headerValue('cookie')
+        continuationCookieSeen = cookie?.includes(`moeurl_short_link_access=${rateLimitedAccessToken}`) ?? false
+        await route.fulfill({
+          headers: { Location: 'https://example.com/e2e-rate-limited' },
+          status: 302,
+        })
+      })
       await page.route('https://example.com/e2e-rate-limited', (route) => route.fulfill({
         body: 'rate-limited target reached',
         status: 200,
       }))
       await page.goto(`/${rateLimitedSlug}`)
       await expect(page.getByRole('heading', { name: '输入密码后继续访问' })).toBeVisible()
+      const unlockButton = page.getByRole('button', { name: '解锁并继续' })
       for (let attempt = 1; attempt <= 5; attempt += 1) {
         await page.getByLabel('访问密码').fill('wrong-pass')
+        await expect(unlockButton).toBeEnabled()
         const unlockResponsePromise = page.waitForResponse((response) => (
           response.url().endsWith(`/go/${rateLimitedSlug}/unlock`)
           && response.request().method() === 'POST'
         ))
-        await page.getByRole('button', { name: '解锁并继续' }).click()
+        await unlockButton.click()
         const unlockResponse = await unlockResponsePromise
         const payload = await unlockResponse.json() as { code: number, meta?: { retryAt?: string } }
         expect(payload.code).toBe(attempt === 5 ? 200113 : 200112)
@@ -299,6 +340,8 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
         await page.getByRole('button', { name: '解锁并继续' }).click()
         await successfulUnlockRequestPromise
         await expect(page).toHaveURL('https://example.com/e2e-rate-limited')
+        expect(authorizedPreviewCookieSeen).toBe(true)
+        expect(continuationCookieSeen).toBe(true)
 
         const realUnlockResponse = await page.request.post(`http://127.0.0.1:${e2ePort}/go/${rateLimitedSlug}/unlock`, {
           data: { password: rateLimitedPassword },
