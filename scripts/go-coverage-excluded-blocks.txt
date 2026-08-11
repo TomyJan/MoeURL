@@ -1,47 +1,47 @@
 # Go coverage profile blocks excluded from the backend business coverage gate.
 #
-# The gate first matches each configured file and source range while ignoring
-# compiler column offsets. When compiler line mappings shift for an entire file,
-# it accepts only the same number of uncovered blocks as explicitly configured.
+# The gate matches each configured file and source range while ignoring only
+# compiler column offsets. A source-line shift is reported as uncovered so an
+# exclusion cannot silently move to a different branch.
 #
 # These blocks are defensive infrastructure failure paths that are not stable or
 # meaningful to force through unit coverage: cryptographic/random failure after
 # caller validation, database failures between sequential statements, transaction
 # step failures covered by transaction integration tests, JSON marshaling of
 # statically typed values, and exhaustive short-code collision retries.
-github.com/TomyJan/MoeURL/internal/system/service.go:57.16,59.3
-github.com/TomyJan/MoeURL/internal/system/service.go:67.119,69.4
-github.com/TomyJan/MoeURL/internal/system/service.go:70.131,72.4
-github.com/TomyJan/MoeURL/internal/system/service.go:73.136,75.4
-github.com/TomyJan/MoeURL/internal/system/service.go:80.49,82.4
-github.com/TomyJan/MoeURL/internal/system/service.go:87.143,89.4
-github.com/TomyJan/MoeURL/internal/system/service.go:94.77,96.4
-github.com/TomyJan/MoeURL/internal/system/service.go:107.66,109.5
-github.com/TomyJan/MoeURL/internal/system/service.go:141.16,143.3
-github.com/TomyJan/MoeURL/internal/system/service.go:154.16,156.3
-github.com/TomyJan/MoeURL/internal/auth/service.go:48.16,50.3
-github.com/TomyJan/MoeURL/internal/auth/service.go:137.16,139.3
-github.com/TomyJan/MoeURL/internal/auth/session.go:81.16,83.3
+github.com/TomyJan/MoeURL/internal/system/service.go:60.16,62.3
+github.com/TomyJan/MoeURL/internal/system/service.go:70.119,72.4
+github.com/TomyJan/MoeURL/internal/system/service.go:73.131,75.4
+github.com/TomyJan/MoeURL/internal/system/service.go:76.136,78.4
+github.com/TomyJan/MoeURL/internal/system/service.go:83.49,85.4
+github.com/TomyJan/MoeURL/internal/system/service.go:90.143,92.4
+github.com/TomyJan/MoeURL/internal/system/service.go:97.77,99.4
+github.com/TomyJan/MoeURL/internal/system/service.go:110.66,112.5
+github.com/TomyJan/MoeURL/internal/system/service.go:146.16,148.3
+github.com/TomyJan/MoeURL/internal/system/service.go:160.16,162.3
+github.com/TomyJan/MoeURL/internal/auth/service.go:50.16,52.3
+github.com/TomyJan/MoeURL/internal/auth/service.go:144.16,146.3
+github.com/TomyJan/MoeURL/internal/auth/session.go:85.16,87.3
 # User Create password hashing failure; argon2/random failure is an infrastructure branch that is not deterministically triggerable.
-github.com/TomyJan/MoeURL/internal/user/service.go:57.16,59.3
+github.com/TomyJan/MoeURL/internal/user/service.go:60.16,62.3
 # ResetPassword password hashing failure; argon2/random failure is an infrastructure branch that is not deterministically triggerable.
-github.com/TomyJan/MoeURL/internal/user/service.go:257.16,259.3
+github.com/TomyJan/MoeURL/internal/user/service.go:270.16,272.3
 # Create's random failure, database collision retry, and retry exhaustion are defensive paths.
 github.com/TomyJan/MoeURL/internal/shortlink/service.go:76.17,78.4
 github.com/TomyJan/MoeURL/internal/shortlink/service.go:95.29,96.12
 github.com/TomyJan/MoeURL/internal/shortlink/service.go:114.2,114.40
 
 # Redirect access transaction step failures are infrastructure/concurrency paths: each intermediate failure requires the database connection or row to change between locked statements.
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:231.35,233.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:234.16,236.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:247.16,249.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:265.18,267.4
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:268.40,270.4
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:276.77,278.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:292.39,294.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:233.35,235.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:236.16,238.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:249.16,251.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:267.18,269.4
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:270.40,272.4
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:278.77,280.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:294.39,296.3
 
 # Access-token generation failure after transaction state changes remains covered at the generator boundary.
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:280.16,282.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:282.16,284.3
 
 # Password hashing failure is an Argon2id/random infrastructure path after input and permission validation.
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:657.16,659.3
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:658.16,660.3
