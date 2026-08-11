@@ -131,7 +131,7 @@ func TestRedirectHandlerUnlockSetsSecureCookie(t *testing.T) {
 	}
 }
 
-// TestRedirectHandlerUnlockExpiresStaleCookie verifies nonpositive grant lifetimes cannot create a persistent cookie.
+// TestRedirectHandlerUnlockUsesConfiguredCookieTTL verifies cookie lifetime stays fixed until database checks reject a grant.
 func TestRedirectHandlerUnlockExpiresStaleCookie(t *testing.T) {
 	handler := shortlink.NewRedirectHandler(&fakeRedirectService{
 		unlockGrant: shortlink.AccessGrant{Token: "stale-token", ExpiresAt: time.Now().Add(-time.Second)},
@@ -145,8 +145,8 @@ func TestRedirectHandlerUnlockExpiresStaleCookie(t *testing.T) {
 	if len(cookies) != 1 {
 		t.Fatalf("expected one access cookie, got %d", len(cookies))
 	}
-	if cookies[0].MaxAge != -1 {
-		t.Fatalf("expected stale access cookie to expire immediately, got %#v", cookies[0])
+	if cookies[0].MaxAge < 899 || cookies[0].MaxAge > 900 {
+		t.Fatalf("expected configured access cookie lifetime, got %#v", cookies[0])
 	}
 }
 

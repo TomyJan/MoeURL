@@ -160,9 +160,6 @@ func (h *RedirectHandler) Unlock(w http.ResponseWriter, r *http.Request, slug st
 	}
 
 	maxAge := int(accessGrantTTL / time.Second)
-	if !grant.ExpiresAt.After(time.Now()) {
-		maxAge = -1
-	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     accessCookieName,
 		Value:    grant.Token,

@@ -585,11 +585,10 @@ func TestRedirectServiceUnlockDoesNotCleanExpiredAccessGrants(t *testing.T) {
 
 // TestRedirectServiceCleanupDrainsExpiredGrantBatchesAndLogs verifies one cleanup drains every bounded batch.
 func TestRedirectServiceCleanupDrainsExpiredGrantBatchesAndLogs(t *testing.T) {
-	const testAccessGrantCleanupBatchSize = 500
-
 	fixture := newAccessGrantCleanupFixture(t)
-	totalGrantCount := testAccessGrantCleanupBatchSize + 1
-	expectedBatchCount := (totalGrantCount + testAccessGrantCleanupBatchSize - 1) / testAccessGrantCleanupBatchSize
+	cleanupBatchSize := int(shortlink.AccessGrantCleanupBatchSize)
+	totalGrantCount := cleanupBatchSize + 1
+	expectedBatchCount := (totalGrantCount + cleanupBatchSize - 1) / cleanupBatchSize
 	// A full batch plus one remaining row exercises the cleanup batch boundary.
 	fixture.insertExpiredGrants(t, totalGrantCount)
 

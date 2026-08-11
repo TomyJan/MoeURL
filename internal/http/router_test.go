@@ -116,12 +116,17 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 	}
 
 	continued := httptest.NewRecorder()
-	router.ServeHTTP(continued, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/go/middle/continue", nil))
+	continueRequest := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/go/middle/continue", nil)
+	continueRequest.AddCookie(&http.Cookie{Name: "moeurl_short_link_access", Value: "raw-token"})
+	router.ServeHTTP(continued, continueRequest)
 	if continued.Code != http.StatusFound || continued.Header().Get("Location") != "https://example.com/final" {
 		t.Fatalf("expected final redirect, got status %d location %q", continued.Code, continued.Header().Get("Location"))
 	}
 	if len(redirect.continueSlugs) != 1 || redirect.continueSlugs[0] != "middle" {
 		t.Fatalf("expected continue route slug, got %#v", redirect.continueSlugs)
+	}
+	if redirect.continueToken != "raw-token" {
+		t.Fatalf("expected continue route to pass access cookie, got %q", redirect.continueToken)
 	}
 
 	preview := httptest.NewRecorder()
@@ -325,6 +330,7 @@ type routerRedirectService struct {
 	openSlugs            []string
 	previewSlugs         []string
 	continueSlugs        []string
+	continueToken        string
 	previewToken         string
 }
 
@@ -352,8 +358,9 @@ func (service *routerRedirectService) Unlock(context.Context, string, string) (s
 }
 
 // Continue records the slug forwarded by the fixed continue route.
-func (service *routerRedirectService) Continue(_ context.Context, slug string, _ string) (shortlink.RedirectResult, error) {
+func (service *routerRedirectService) Continue(_ context.Context, slug string, accessToken string) (shortlink.RedirectResult, error) {
 	service.continueSlugs = append(service.continueSlugs, slug)
+	service.continueToken = accessToken
 	if service.continueResult.TargetURL == "" {
 		return shortlink.RedirectResult{TargetURL: "https://example.com"}, nil
 	}

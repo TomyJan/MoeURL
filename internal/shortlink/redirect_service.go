@@ -27,8 +27,10 @@ const (
 	passwordBlockDuration             = 15 * time.Minute
 	accessGrantTTL                    = 15 * time.Minute
 	accessGrantCleanupBatchSize int64 = 500
-	accessTokenBytes                  = 32
-	maxPasswordFailures               = int16(5)
+	// AccessGrantCleanupBatchSize is the maximum number of expired grants deleted per query batch.
+	AccessGrantCleanupBatchSize = accessGrantCleanupBatchSize
+	accessTokenBytes            = 32
+	maxPasswordFailures         = int16(5)
 )
 
 var accessTokenRandomReader io.Reader = rand.Reader
