@@ -7,6 +7,9 @@ import {
   readVisitCount,
 } from './support'
 
+const rateLimitedPassword = 'another correct horse'
+const rateLimitRetryDelayMs = 3_000
+
 const e2ePort = process.env.MOEURL_E2E_PORT ?? '8080'
 const e2eHost = `127.0.0.1:${e2ePort}`
 const e2eHostPattern = escapeRegExp(e2eHost)
@@ -64,7 +67,7 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
       const rateLimitedCreate = await page.request.post('/api/v1/short-link/create', {
         data: {
           targetUrl: 'https://example.com/e2e-rate-limited',
-          password: { mode: 'set', value: 'another correct horse' },
+          password: { mode: 'set', value: rateLimitedPassword },
         },
       })
       await expect(rateLimitedCreate).toBeOK()
@@ -243,7 +246,7 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
       let successfulUnlockPayload: { code: number } | undefined
       await page.route(`**/go/${rateLimitedSlug}/unlock`, async (route) => {
         const password = route.request().postDataJSON()?.password
-        if (password === 'correct horse') {
+        if (password === rateLimitedPassword) {
           successfulUnlockPayload = { code: 0 }
           await route.fulfill({
             body: JSON.stringify({ code: 0, data: { unlocked: true }, message: 'OK', meta: {} }),
@@ -258,7 +261,7 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
         const response = await route.fetch()
         const payload = await response.json() as { code: number, data: unknown, message: string, meta: Record<string, unknown> }
         if (payload.code === 200113) {
-          payload.meta = { retryAt: new Date(Date.now() + 3_000).toISOString() }
+          payload.meta = { retryAt: new Date(Date.now() + rateLimitRetryDelayMs).toISOString() }
         }
         await route.fulfill({ body: JSON.stringify(payload), response })
       })
@@ -289,9 +292,9 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
         expect(payload.meta?.retryAt).toBeTruthy()
         await expect(page.getByText(/尝试次数过多，请在 \d+ 秒后重试。/)).toBeVisible()
         await expect(page.getByRole('button', { name: '解锁并继续' })).toBeDisabled()
-        await page.waitForTimeout(3_100)
+        await page.waitForTimeout(rateLimitRetryDelayMs + 100)
         await expect(page.getByRole('button', { name: '解锁并继续' })).toBeEnabled()
-        await page.getByLabel('访问密码').fill('correct horse')
+        await page.getByLabel('访问密码').fill(rateLimitedPassword)
         const successfulUnlockRequestPromise = page.waitForRequest((request) => (
           request.url().endsWith(`/go/${rateLimitedSlug}/unlock`)
           && request.method() === 'POST'
