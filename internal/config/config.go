@@ -28,13 +28,15 @@ func Load() Config {
 // Validate verifies that required configuration values are present.
 func (c *Config) Validate() error {
 	c.Env = strings.TrimSpace(c.Env)
+	c.DatabaseURL = strings.TrimSpace(c.DatabaseURL)
+	c.StaticDir = strings.TrimSpace(c.StaticDir)
 	if c.Env != "development" && c.Env != "production" {
 		return errors.New("MOEURL_ENV must be development or production")
 	}
-	if strings.TrimSpace(c.DatabaseURL) == "" {
+	if c.DatabaseURL == "" {
 		return errors.New("MOEURL_DATABASE_URL is required")
 	}
-	if strings.TrimSpace(c.StaticDir) == "" {
+	if c.StaticDir == "" {
 		return errors.New("MOEURL_STATIC_DIR is required")
 	}
 	return nil

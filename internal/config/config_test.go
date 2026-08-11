@@ -45,8 +45,8 @@ func TestConfigValidateRequiresKnownEnvironment(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			config := Config{
 				Env:         test.env,
-				DatabaseURL: "postgres://localhost/moeurl",
-				StaticDir:   "web/dist",
+				DatabaseURL: "  postgres://localhost/moeurl  ",
+				StaticDir:   "  web/dist  ",
 			}
 
 			err := config.Validate()
@@ -58,6 +58,12 @@ func TestConfigValidateRequiresKnownEnvironment(t *testing.T) {
 			}
 			if !test.wantErr && config.Env != strings.TrimSpace(test.env) {
 				t.Fatalf("environment = %q, want normalized value", config.Env)
+			}
+			if !test.wantErr && config.DatabaseURL != "postgres://localhost/moeurl" {
+				t.Fatalf("database URL = %q, want normalized value", config.DatabaseURL)
+			}
+			if !test.wantErr && config.StaticDir != "web/dist" {
+				t.Fatalf("static dir = %q, want normalized value", config.StaticDir)
 			}
 		})
 	}
