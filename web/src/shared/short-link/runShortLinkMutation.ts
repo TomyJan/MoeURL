@@ -9,8 +9,15 @@ export async function runShortLinkMutation<Input extends PasswordMutationInput, 
   mutationFn: (input: Input) => Promise<Result>,
   input: Omit<Input, 'password'>,
   password?: PasswordInput,
+  passwordRequested = password !== undefined,
 ): Promise<Result> {
-  const request = (password ? { ...input, password } : input) as Input
+  const request = { ...input } as Input
+  if (passwordRequested && !password) {
+    throw new Error('password input was cleared before mutation execution')
+  }
+  if (password) {
+    request.password = password
+  }
   try {
     return await mutationFn(request)
   } finally {

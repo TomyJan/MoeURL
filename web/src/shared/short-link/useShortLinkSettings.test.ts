@@ -118,7 +118,7 @@ describe('useShortLinkSettings', () => {
     expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['short-link'] })
   })
 
-  it('scrubs the password from settled settings variables after success', async () => {
+  it('does not mutate settings variables while scrubbing the request copy after success', async () => {
     let sentInput: UpdateShortLinkInput | undefined
     const mutationFn = vi.fn(async (input: UpdateShortLinkInput) => {
       sentInput = structuredClone(input)
@@ -132,10 +132,10 @@ describe('useShortLinkSettings', () => {
     await state.mutationOptions?.mutationFn?.(input)
 
     expect(sentInput?.password).toEqual({ mode: 'set', value: 'correct horse' })
-    expect(input).not.toHaveProperty('password')
+    expect(input.password).toEqual({ mode: 'set', value: 'correct horse' })
   })
 
-  it('scrubs the password from settled settings variables after failure', async () => {
+  it('does not mutate settings variables while scrubbing the request copy after failure', async () => {
     const mutationFn = vi.fn(async () => {
       throw new Error('settings failed')
     })
@@ -147,7 +147,7 @@ describe('useShortLinkSettings', () => {
 
     await expect(state.mutationOptions?.mutationFn?.(input)).rejects.toThrow('settings failed')
 
-    expect(input).not.toHaveProperty('password')
+    expect(input.password).toEqual({ mode: 'set', value: 'correct horse' })
   })
 
   it('passes password-free settings variables while forwarding the request password', async () => {
@@ -205,9 +205,8 @@ describe('useShortLinkSettings', () => {
     const variables = state.mutate.mock.calls[0]?.[0] as UpdateShortLinkInput
 
     state.mutationOptions?.onSettled?.(undefined, undefined, variables)
-    await state.mutationOptions?.mutationFn?.(variables)
-
-    expect(mutationFn).toHaveBeenCalledWith({ id: 'link-id', targetUrl: 'https://example.org' })
+    await expect(state.mutationOptions?.mutationFn?.(variables)).rejects.toThrow('password input was cleared before mutation execution')
+    expect(mutationFn).not.toHaveBeenCalled()
   })
 
   it('uses the translated fallback for non-Error mutation failures', () => {

@@ -24,4 +24,12 @@ describe('runShortLinkMutation', () => {
 
     expect(request).not.toHaveProperty('password')
   })
+
+  it('rejects when a requested password was cleared before execution', async () => {
+    const mutationFn = vi.fn(async () => undefined)
+
+    await expect(runShortLinkMutation(mutationFn, { id: 'link-id' }, undefined, true))
+      .rejects.toThrow('password input was cleared before mutation execution')
+    expect(mutationFn).not.toHaveBeenCalled()
+  })
 })

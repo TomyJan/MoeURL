@@ -196,6 +196,7 @@ const expiresAt = ref('')
 const passwordEnabled = ref(false)
 const passwordField = useTemplateRef<{ $el: globalThis.Element }>('passwordField')
 const pendingPasswords = new WeakMap<object, CreateShortLinkInput['password']>()
+const passwordRequests = new WeakSet<object>()
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,
@@ -215,8 +216,9 @@ const mutation = useMutation({
   /** Runs creation through the shared sensitive-input cleanup boundary. */
   mutationFn: (input: Omit<CreateShortLinkInput, 'password'>) => {
     const requestPassword = pendingPasswords.get(input)
+    const passwordRequested = passwordRequests.delete(input)
     pendingPasswords.delete(input)
-    return runShortLinkMutation(createShortLink, input, requestPassword)
+    return runShortLinkMutation(createShortLink, input, requestPassword, passwordRequested)
   },
   onSuccess(result) {
     createdUrl.value = result.shortLink.url
@@ -297,6 +299,7 @@ function submitValidatedInput() {
       passwordErrorMessage.value = password ? t('shortLinkCreate.passwordInvalid') : t('shortLinkCreate.passwordRequired')
       return
     }
+    passwordRequests.add(input)
     pendingPasswords.set(input, { mode: 'set', value: passwordResult.data })
   }
   createdUrl.value = ''
@@ -328,7 +331,7 @@ function resetInputFields() {
 
 function passwordInput() {
   const field = passwordField.value?.$el
-  if (!field?.matches('[data-testid="short-link-create-password-input"]')) {
+  if (!(field instanceof globalThis.HTMLElement) || !field.matches('[data-testid="short-link-create-password-input"]')) {
     return null
   }
   return field.querySelector<globalThis.HTMLInputElement>('input')

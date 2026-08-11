@@ -312,7 +312,7 @@ describe('ShortLinkCreatePanel', () => {
     })
   })
 
-  it('scrubs the password from settled creation variables after success', async () => {
+  it('does not mutate creation variables while scrubbing the request copy after success', async () => {
     setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
     setMutationResult()
     mountPanel()
@@ -330,10 +330,10 @@ describe('ShortLinkCreatePanel', () => {
     await options.mutationFn?.(input)
 
     expect(sentInput?.password).toEqual({ mode: 'set', value: 'correct horse' })
-    expect(input).not.toHaveProperty('password')
+    expect(input.password).toEqual({ mode: 'set', value: 'correct horse' })
   })
 
-  it('scrubs the password from settled creation variables after failure', async () => {
+  it('does not mutate creation variables while scrubbing the request copy after failure', async () => {
     setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
     setMutationResult()
     mountPanel()
@@ -346,7 +346,7 @@ describe('ShortLinkCreatePanel', () => {
 
     await expect(options.mutationFn?.(input)).rejects.toThrow('create failed')
 
-    expect(input).not.toHaveProperty('password')
+    expect(input.password).toEqual({ mode: 'set', value: 'correct horse' })
   })
 
   it('drops a deferred password when creation settles before the mutation function runs', async () => {
@@ -364,9 +364,8 @@ describe('ShortLinkCreatePanel', () => {
 
     options.onSettled?.(undefined, undefined)
     options.onSettled?.(undefined, undefined, variables)
-    await options.mutationFn?.(variables)
-
-    expect(createShortLink).toHaveBeenCalledWith({ targetUrl: 'https://example.com' })
+    await expect(options.mutationFn?.(variables)).rejects.toThrow('password input was cleared before mutation execution')
+    expect(createShortLink).not.toHaveBeenCalled()
   })
 
   it('keeps raw passwords out of pending and failed mutation variables', async () => {
