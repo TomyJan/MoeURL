@@ -115,6 +115,9 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 	if scopedPreview.Code != http.StatusOK || len(redirect.previewSlugs) != 1 || redirect.previewSlugs[0] != "middle" {
 		t.Fatalf("expected scoped preview route, got status %d slugs %#v", scopedPreview.Code, redirect.previewSlugs)
 	}
+	if redirect.previewToken != "raw-token" {
+		t.Fatalf("expected scoped preview to pass access cookie, got %q", redirect.previewToken)
+	}
 
 	unlocked := httptest.NewRecorder()
 	unlockRequest := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/go/middle/unlock", strings.NewReader(`{"password":"correct horse"}`))
@@ -136,6 +139,7 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 	if redirect.continueToken != "raw-token" {
 		t.Fatalf("expected continue route to pass access cookie, got %q", redirect.continueToken)
 	}
+	redirect.previewToken = ""
 
 	preview := httptest.NewRecorder()
 	publicPreviewRequest := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/public/short-link/preview?slug=middle", nil)

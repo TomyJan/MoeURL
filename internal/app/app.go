@@ -95,7 +95,11 @@ func (a *App) Shutdown(ctx context.Context) error {
 		select {
 		case <-a.grantCleanupDone:
 		case <-ctx.Done():
-			return ctx.Err()
+			select {
+			case <-a.grantCleanupDone:
+			default:
+				return ctx.Err()
+			}
 		}
 	}
 	if a.pool != nil {

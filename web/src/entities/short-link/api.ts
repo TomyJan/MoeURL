@@ -35,14 +35,14 @@ interface AdminShortLinkItemsResponse {
   items: AdminShortLink[]
 }
 
-const publicShortLinkPreviewSchema: z.ZodType<PublicShortLinkPreview> = z.object({
+const publicShortLinkPreviewSchema: z.ZodType<PublicShortLinkPreview> = z.strictObject({
   slug: z.string(),
   targetHost: z.string(),
   intermediateDelaySeconds: z.number().int().min(3).max(10).nullable(),
   expiresAt: z.string().nullable(),
-}).strict()
+})
 
-const unlockShortLinkResponseSchema: z.ZodType<UnlockShortLinkResponse> = z.object({
+const unlockShortLinkResponseSchema: z.ZodType<UnlockShortLinkResponse> = z.strictObject({
   unlocked: z.literal(true),
 })
 

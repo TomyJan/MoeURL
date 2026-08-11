@@ -255,6 +255,24 @@ func TestAppShutdownFailureKeepsDependenciesRunning(t *testing.T) {
 	}
 }
 
+func TestAppShutdownPrefersCompletedCleanupWhenContextIsDone(t *testing.T) {
+	for attempt := 0; attempt < 100; attempt++ {
+		cleanupDone := make(chan struct{})
+		close(cleanupDone)
+		application := &App{
+			server:             &http.Server{},
+			grantCleanupCancel: func() {},
+			grantCleanupDone:   cleanupDone,
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		if err := application.Shutdown(ctx); err != nil {
+			t.Fatalf("attempt %d: shutdown error = %v, want nil after cleanup completed", attempt, err)
+		}
+	}
+}
+
 // TestAppShutdownStopsWaitingWhenCleanupExceedsDeadline verifies shutdown does not close the pool after cleanup times out.
 func TestAppShutdownStopsWaitingWhenCleanupExceedsDeadline(t *testing.T) {
 	cleanupCanceled := make(chan struct{})

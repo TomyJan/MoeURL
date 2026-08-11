@@ -219,6 +219,18 @@ describe('short link api', () => {
     await expect(unlockShortLink({ slug: 'abc123', password: 'correct horse' })).rejects.toMatchObject({ code: 100001 })
   })
 
+  it('rejects public short-link unlock responses with unknown fields', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { unlocked: true, extra: 'unexpected' }, meta: {} }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })),
+    )
+
+    await expect(unlockShortLink({ slug: 'abc123', password: 'correct horse' })).rejects.toMatchObject({ code: 100001 })
+  })
+
   it('loads my short links', async () => {
     vi.stubGlobal(
       'fetch',

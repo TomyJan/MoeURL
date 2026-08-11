@@ -36,7 +36,8 @@ for (const block of blocks) {
 
 const unmatchedExcludedBlocks = [...excludedBlocks].filter((location) => !matchedExcludedBlocks.has(location))
 if (unmatchedExcludedBlocks.length > 0) {
-  console.warn(`Unmatched configured coverage exclusions:\n${unmatchedExcludedBlocks.join('\n')}`)
+  console.error(`Unmatched configured coverage exclusions:\n${unmatchedExcludedBlocks.join('\n')}`)
+  process.exitCode = 1
 }
 
 const percent = total === 0 ? 100 : (covered / total) * 100

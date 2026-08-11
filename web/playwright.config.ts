@@ -73,6 +73,7 @@ export default defineConfig({
   },
   webServer: skipDockerCompose
     ? {
+        // This no-op Node process cannot satisfy the health check; Playwright waits for an existing backend and times out if absent.
         command: 'node -e "setInterval(() => {}, 1 << 30)"',
         reuseExistingServer: true,
         timeout: 15_000,

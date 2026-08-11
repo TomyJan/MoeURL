@@ -177,10 +177,6 @@ func (s *RedirectService) Continue(ctx context.Context, slug string, accessToken
 		return RedirectResult{}, err
 	}
 	if passwordEnabled {
-		if accessToken == "" {
-			s.record(ctx, event.RedirectBlocked, slug, shortLinkID)
-			return RedirectResult{}, ErrPasswordRequired
-		}
 		valid, err := s.hasValidAccessGrant(ctx, link.ID, accessToken)
 		if err != nil {
 			return RedirectResult{}, err
@@ -325,7 +321,7 @@ func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context, logger
 		deletedRows += deleted
 		batchCount++
 		if deleted < AccessGrantCleanupBatchSize {
-			if logger != nil && deletedRows > AccessGrantCleanupBatchSize {
+			if logger != nil && deletedRows > 0 {
 				logger.InfoContext(
 					ctx,
 					"access_grant_cleanup_completed",

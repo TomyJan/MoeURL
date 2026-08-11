@@ -60,6 +60,34 @@ test('rejects configured exclusions when compiler line positions shift', () => {
   }
 })
 
+test('fails otherwise-passing coverage when an exclusion is unmatched', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'moeurl-coverage-'))
+  const coveragePath = join(directory, 'coverage.out')
+  const targetsPath = join(directory, 'targets.txt')
+  const excludedPath = join(directory, 'excluded.txt')
+  const sourcePath = 'github.com/TomyJan/MoeURL/internal/auth/service.go'
+
+  writeFileSync(coveragePath, `mode: set\n${sourcePath}:48.1,50.99 1 0\n`)
+  writeFileSync(targetsPath, `${sourcePath}\n`)
+  writeFileSync(excludedPath, `${sourcePath}:48.16,50.3\n${sourcePath}:58.16,60.3\n`)
+
+  try {
+    const result = spawnSync(process.execPath, [
+      'scripts/go-coverage-threshold.mjs',
+      coveragePath,
+      '100',
+      `--include-from=${targetsPath}`,
+      `--exclude-blocks-from=${excludedPath}`,
+    ], { cwd: process.cwd(), encoding: 'utf8' })
+
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /Unmatched configured coverage exclusions:/)
+    assert.match(result.stderr, new RegExp(`${sourcePath}:58\\.16,60\\.3`))
+  } finally {
+    rmSync(directory, { force: true, recursive: true })
+  }
+})
+
 test('rejects remaining exclusions when only some locations shift', () => {
   const directory = mkdtempSync(join(tmpdir(), 'moeurl-coverage-'))
   const coveragePath = join(directory, 'coverage.out')
@@ -82,6 +110,8 @@ test('rejects remaining exclusions when only some locations shift', () => {
 
     assert.equal(result.status, 1)
     assert.match(result.stderr, /Go coverage must be at least 100%/)
+    assert.match(result.stderr, /Unmatched configured coverage exclusions:/)
+    assert.match(result.stderr, new RegExp(`${sourcePath}:58\\.16,60\\.3`))
   } finally {
     rmSync(directory, { force: true, recursive: true })
   }
