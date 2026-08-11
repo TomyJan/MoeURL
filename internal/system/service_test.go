@@ -147,10 +147,13 @@ func assertBuiltInData(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 
 	assertStoredGroupPermission(t, ctx, pool, permission.GroupGuest, permission.ShortLinkUseIntermediate, false)
 	assertStoredGroupPermission(t, ctx, pool, permission.GroupGuest, permission.ShortLinkSetExpiration, false)
+	assertStoredGroupPermission(t, ctx, pool, permission.GroupGuest, permission.ShortLinkSetPassword, false)
 	assertStoredGroupPermission(t, ctx, pool, permission.GroupUser, permission.ShortLinkUseIntermediate, true)
 	assertStoredGroupPermission(t, ctx, pool, permission.GroupUser, permission.ShortLinkSetExpiration, true)
+	assertStoredGroupPermission(t, ctx, pool, permission.GroupUser, permission.ShortLinkSetPassword, true)
 	assertStoredGroupPermission(t, ctx, pool, permission.GroupAdmin, permission.ShortLinkUseIntermediate, true)
 	assertStoredGroupPermission(t, ctx, pool, permission.GroupAdmin, permission.ShortLinkSetExpiration, true)
+	assertStoredGroupPermission(t, ctx, pool, permission.GroupAdmin, permission.ShortLinkSetPassword, true)
 
 	var guestPassword sql.NullString
 	var guestGroup string
@@ -213,7 +216,7 @@ func assertStoredGroupPermission(t *testing.T, ctx context.Context, pool *pgxpoo
 
 func systemTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
-	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
+	databaseURL := testdb.ProjectMigratedDatabaseURL(ctx, t)
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {
 		t.Fatalf("open pool: %v", err)
