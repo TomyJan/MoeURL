@@ -5,7 +5,6 @@ import { loadConfigFromFile } from 'vite'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const repositoryRoot = resolve(__dirname, '../../..')
-let originalSkipDocker: string | undefined
 
 type RolldownChunkGroup = {
   name?: string
@@ -35,17 +34,12 @@ function configuredChunkGroups(config: LoadedViteConfig) {
 
 describe('deployment configuration', () => {
   beforeEach(() => {
-    originalSkipDocker = process.env.MOEURL_E2E_SKIP_DOCKER
-    delete process.env.MOEURL_E2E_SKIP_DOCKER
+    vi.stubEnv('MOEURL_E2E_SKIP_DOCKER', '')
     vi.resetModules()
   })
 
   afterEach(() => {
-    if (originalSkipDocker === undefined) {
-      delete process.env.MOEURL_E2E_SKIP_DOCKER
-    } else {
-      process.env.MOEURL_E2E_SKIP_DOCKER = originalSkipDocker
-    }
+    vi.unstubAllEnvs()
     vi.resetModules()
   })
 
