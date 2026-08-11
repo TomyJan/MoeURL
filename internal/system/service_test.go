@@ -6,7 +6,6 @@ import (
 	"errors"
 	"testing"
 
-	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/system"
 	"github.com/TomyJan/MoeURL/internal/testdb"
@@ -216,11 +215,5 @@ func assertStoredGroupPermission(t *testing.T, ctx context.Context, pool *pgxpoo
 
 func systemTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
-	databaseURL := testdb.ProjectMigratedDatabaseURL(ctx, t)
-	pool, err := appdb.OpenPool(ctx, databaseURL)
-	if err != nil {
-		t.Fatalf("open pool: %v", err)
-	}
-	t.Cleanup(pool.Close)
-	return pool
+	return testdb.ProjectMigratedPool(ctx, t)
 }

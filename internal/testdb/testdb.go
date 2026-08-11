@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	appdb "github.com/TomyJan/MoeURL/internal/db"
+	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	"github.com/testcontainers/testcontainers-go"
@@ -124,6 +126,18 @@ func ProjectMigratedDatabaseURL(ctx context.Context, t testing.TB) string {
 		t.Fatal("locate project migrations")
 	}
 	return MigratedDatabaseURL(ctx, t, filepath.Join(filepath.Dir(sourceFile), "..", "..", "migrations"))
+}
+
+// ProjectMigratedPool opens a pool against a fresh project-migrated test database.
+func ProjectMigratedPool(ctx context.Context, t testing.TB) *pgxpool.Pool {
+	t.Helper()
+	databaseURL := ProjectMigratedDatabaseURL(ctx, t)
+	pool, err := appdb.OpenPool(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("open pool: %v", err)
+	}
+	t.Cleanup(pool.Close)
+	return pool
 }
 
 // RunTests runs a package test suite and terminates its shared PostgreSQL container before exit.

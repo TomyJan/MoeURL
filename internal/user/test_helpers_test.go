@@ -5,20 +5,13 @@ import (
 	"encoding/json"
 	"testing"
 
-	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func userTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
-	databaseURL := testdb.ProjectMigratedDatabaseURL(ctx, t)
-	pool, err := appdb.OpenPool(ctx, databaseURL)
-	if err != nil {
-		t.Fatalf("open pool: %v", err)
-	}
-	t.Cleanup(pool.Close)
-	return pool
+	return testdb.ProjectMigratedPool(ctx, t)
 }
 
 func insertUserGroup(t *testing.T, ctx context.Context, pool *pgxpool.Pool, key string, permissions []string) {
