@@ -4,6 +4,9 @@ export const targetUrlSchema = z.string().trim().pipe(z.httpUrl())
 
 export const passwordSchema = z.string().refine(
   (value) => {
+    if (value.length < 8 || value.length > 512) {
+      return false
+    }
     const length = Array.from(value).length
     return length >= 8 && length <= 128
   },

@@ -195,8 +195,6 @@ const expirationEnabled = ref(false)
 const expiresAt = ref('')
 const passwordEnabled = ref(false)
 const passwordField = useTemplateRef<{ $el: globalThis.Element }>('passwordField')
-const pendingPasswords = new WeakMap<object, CreateShortLinkInput['password']>()
-const passwordRequests = new WeakSet<object>()
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,
@@ -215,10 +213,21 @@ const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !c
 const mutation = useMutation({
   /** Runs creation through the shared sensitive-input cleanup boundary. */
   mutationFn: (input: Omit<CreateShortLinkInput, 'password'>) => {
-    const requestPassword = pendingPasswords.get(input)
-    const passwordRequested = passwordRequests.delete(input)
-    pendingPasswords.delete(input)
-    return runShortLinkMutation(createShortLink, input, requestPassword, passwordRequested)
+    const passwordFreeInput = { ...input } as CreateShortLinkInput
+    delete passwordFreeInput.password
+    const passwordRequested = canSetPassword.value && passwordEnabled.value
+    const requestPassword = passwordRequested ? passwordInput()?.value : undefined
+    clearPasswordInput()
+    const passwordResult = requestPassword === undefined ? undefined : passwordSchema.safeParse(requestPassword)
+    if (passwordRequested && (!passwordResult || !passwordResult.success)) {
+      return Promise.reject(new Error('password input was cleared before mutation execution'))
+    }
+    return runShortLinkMutation(
+      createShortLink,
+      passwordFreeInput,
+      passwordResult?.success ? { mode: 'set', value: passwordResult.data } : undefined,
+      passwordRequested,
+    )
   },
   onSuccess(result) {
     createdUrl.value = result.shortLink.url
@@ -228,10 +237,8 @@ const mutation = useMutation({
     void queryClient.invalidateQueries({ queryKey: ['short-link'] })
     void queryClient.invalidateQueries({ queryKey: ['admin-short-link'] })
   },
-  onSettled(_data, _error, variables) {
-    if (variables) {
-      pendingPasswords.delete(variables)
-    }
+  onSettled() {
+    clearPasswordInput()
   },
 })
 
@@ -250,14 +257,13 @@ function submit() {
   if (!canCreateShortLink.value || mutation.isPending.value) {
     return
   }
-  try {
-    submitValidatedInput()
-  } finally {
+  const submitted = submitValidatedInput()
+  if (!submitted) {
     clearPasswordInput()
   }
 }
 
-function submitValidatedInput() {
+function submitValidatedInput(): boolean {
   validationErrorMessage.value = ''
   copyErrorMessage.value = ''
   expirationErrorMessage.value = ''
@@ -265,7 +271,7 @@ function submitValidatedInput() {
   const targetUrlResult = targetUrlSchema.safeParse(targetUrl.value)
   if (!targetUrlResult.success) {
     validationErrorMessage.value = t('shortLinkCreate.invalidUrl')
-    return
+    return false
   }
   let expiration: CreateShortLinkInput['expiration']
   if (canSetExpiration.value) {
@@ -277,7 +283,7 @@ function submitValidatedInput() {
         expirationErrorMessage.value = expiresAt.value.trim()
           ? t('shortLinkCreate.expirationFuture')
           : t('shortLinkCreate.expirationRequired')
-        return
+        return false
       }
       expiration = { mode: 'at', expiresAt: new Date(expirationResult.data).toISOString() }
     }
@@ -294,17 +300,15 @@ function submitValidatedInput() {
   if (canSetPassword.value && passwordEnabled.value) {
     const passwordElement = passwordInput()
     const password = passwordElement?.value ?? ''
-    const passwordResult = passwordSchema.safeParse(password)
-    if (!passwordResult.success) {
+    if (!passwordSchema.safeParse(password).success) {
       passwordErrorMessage.value = password ? t('shortLinkCreate.passwordInvalid') : t('shortLinkCreate.passwordRequired')
-      return
+      return false
     }
-    passwordRequests.add(input)
-    pendingPasswords.set(input, { mode: 'set', value: passwordResult.data })
   }
   createdUrl.value = ''
   createdSlug.value = ''
   mutation.mutate(input)
+  return true
 }
 
 function resetForm() {

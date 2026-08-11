@@ -164,7 +164,7 @@ async function loadPreview() {
     const result = await getPublicShortLinkPreview(slug)
     whenCurrent(requestId, () => {
       preview.value = result
-      passwordRequired.value = result.requiresPassword === true
+      passwordRequired.value = route.query.reason === 'password' || route.query.reason === 'rate-limited'
       if (!passwordRequired.value) {
         proceedAfterAccess()
       }

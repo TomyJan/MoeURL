@@ -1,4 +1,4 @@
-import { describe, expect, expectTypeOf, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   createShortLink,
@@ -14,13 +14,8 @@ import {
   updateAdminShortLink,
   updateShortLink,
 } from './api'
-import type { PublicShortLinkPreview } from './model'
 
 describe('short link api', () => {
-  it('requires password metadata in public preview responses', () => {
-    expectTypeOf<PublicShortLinkPreview['requiresPassword']>().toEqualTypeOf<boolean>()
-  })
-
   it('loads the current user overview', async () => {
     vi.stubGlobal(
       'fetch',
@@ -101,7 +96,7 @@ describe('short link api', () => {
           code: 0,
           message: 'OK',
           data: url.includes('/preview')
-            ? { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 5, expiresAt: null, requiresPassword: false }
+            ? { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 5, expiresAt: null }
             : { shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123' } },
           meta: {},
         }), { status: 200, headers: { 'Content-Type': 'application/json' } })
@@ -119,7 +114,6 @@ describe('short link api', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 5,
       expiresAt: null,
-      requiresPassword: false,
     })
 
     const createCall = vi.mocked(fetch).mock.calls.find(([input]) => input === '/api/v1/short-link/create')
@@ -147,7 +141,6 @@ describe('short link api', () => {
           targetHost: 'example.com',
           intermediateDelaySeconds: null,
           expiresAt: '2026-08-06T09:00:00Z',
-          requiresPassword: true,
         },
         meta: {},
       }), { status: 200, headers: { 'Content-Type': 'application/json' } })),
@@ -158,7 +151,6 @@ describe('short link api', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: null,
       expiresAt: '2026-08-06T09:00:00Z',
-      requiresPassword: true,
     })
   })
 
@@ -166,16 +158,14 @@ describe('short link api', () => {
     ['missing data', undefined],
     ['null data', null],
     ['scalar data', 'invalid'],
-    ['unexpected redirect mode', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null, requiresPassword: false }],
-    ['invalid slug', { slug: 1, targetHost: 'example.com', intermediateDelaySeconds: 5, expiresAt: null, requiresPassword: false }],
-    ['invalid target host', { slug: 'abc123', targetHost: null, intermediateDelaySeconds: 5, expiresAt: null, requiresPassword: false }],
-    ['delay below minimum', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 2, expiresAt: null, requiresPassword: false }],
-    ['delay above maximum', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 11, expiresAt: null, requiresPassword: false }],
-    ['fractional delay', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 5.5, expiresAt: null, requiresPassword: false }],
-    ['invalid delay', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: '5', expiresAt: null, requiresPassword: false }],
-    ['invalid expiration', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 5, expiresAt: 1, requiresPassword: false }],
-    ['missing password metadata', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 5, expiresAt: null }],
-    ['invalid password metadata', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 5, expiresAt: null, requiresPassword: 'yes' }],
+    ['unexpected redirect mode', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null }],
+    ['invalid slug', { slug: 1, targetHost: 'example.com', intermediateDelaySeconds: 5, expiresAt: null }],
+    ['invalid target host', { slug: 'abc123', targetHost: null, intermediateDelaySeconds: 5, expiresAt: null }],
+    ['delay below minimum', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 2, expiresAt: null }],
+    ['delay above maximum', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 11, expiresAt: null }],
+    ['fractional delay', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 5.5, expiresAt: null }],
+    ['invalid delay', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: '5', expiresAt: null }],
+    ['invalid expiration', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 5, expiresAt: 1 }],
   ])('rejects public preview with %s', async (_name, data) => {
     vi.stubGlobal(
       'fetch',

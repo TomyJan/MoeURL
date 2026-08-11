@@ -91,7 +91,6 @@ export interface PublicShortLinkPreview {
   targetHost: string
   intermediateDelaySeconds: number | null
   expiresAt: string | null
-  requiresPassword: boolean
 }
 
 export interface UnlockShortLinkInput {

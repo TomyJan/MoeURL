@@ -585,7 +585,7 @@ docker compose up --build
 - 准备 PostgreSQL 数据库。
 - 使用 Goose 执行 `migrations/` 下的数据库迁移。
 - 使用 pnpm 构建 `web/dist`。
-- 设置 `MOEURL_DATABASE_URL`、`MOEURL_HTTP_ADDR` 和 `MOEURL_STATIC_DIR`。
+- 设置 `MOEURL_ENV`（`development` 或 `production`）、`MOEURL_DATABASE_URL`、`MOEURL_HTTP_ADDR` 和 `MOEURL_STATIC_DIR`。
 - 运行 `go run ./cmd/server` 或构建后的后端二进制。
 
 ## 14. 环境变量约定

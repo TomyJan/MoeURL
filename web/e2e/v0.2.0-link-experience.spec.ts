@@ -2,14 +2,13 @@ import { expect, test } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
 import {
   attachScreenshot,
+  e2eHost,
   escapeRegExp,
   expectNoHorizontalOverflow,
   findShortLink,
   readVisitCount,
 } from './support'
 
-const e2ePort = process.env.MOEURL_E2E_PORT ?? '8080'
-const e2eHost = `127.0.0.1:${e2ePort}`
 const e2eHostPattern = escapeRegExp(e2eHost)
 
 test('v0.2.0 intermediate-page, expiry, QR-code, and logout flows', async ({ page }, testInfo) => {

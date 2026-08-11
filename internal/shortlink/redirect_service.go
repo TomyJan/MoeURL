@@ -56,7 +56,6 @@ type PreviewResult struct {
 	TargetHost               string     `json:"targetHost"`
 	IntermediateDelaySeconds *int16     `json:"intermediateDelaySeconds"`
 	ExpiresAt                *time.Time `json:"expiresAt"`
-	RequiresPassword         bool       `json:"requiresPassword"`
 }
 
 // RedirectService resolves public short-link access actions.
@@ -115,7 +114,7 @@ func (s *RedirectService) Open(ctx context.Context, slug string) (OpenResult, er
 }
 
 // Preview returns event-free, non-sensitive data for an intermediate page.
-func (s *RedirectService) Preview(ctx context.Context, slug string, accessToken string) (PreviewResult, error) {
+func (s *RedirectService) Preview(ctx context.Context, slug string) (PreviewResult, error) {
 	slug = strings.ToLower(slug)
 	link, err := s.queries.GetShortLinkBySlug(ctx, slug)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -124,17 +123,8 @@ func (s *RedirectService) Preview(ctx context.Context, slug string, accessToken 
 	if err != nil {
 		return PreviewResult{}, err
 	}
-	passwordEnabled := link.PasswordHash.Valid
-	if err := validateAccessConditions(link.Status, link.Expired, link.RedirectMode, !passwordEnabled); err != nil {
+	if err := validateAccessConditions(link.Status, link.Expired, link.RedirectMode, !link.PasswordHash.Valid); err != nil {
 		return PreviewResult{}, err
-	}
-	requiresPassword := passwordEnabled
-	if passwordEnabled {
-		valid, err := s.hasValidAccessGrant(ctx, link.ID, accessToken)
-		if err != nil {
-			return PreviewResult{}, err
-		}
-		requiresPassword = !valid
 	}
 
 	target, err := url.Parse(link.TargetUrl)
@@ -154,7 +144,6 @@ func (s *RedirectService) Preview(ctx context.Context, slug string, accessToken 
 		TargetHost:               target.Hostname(),
 		IntermediateDelaySeconds: intermediateDelaySeconds,
 		ExpiresAt:                optionalTime(link.ExpiresAt.Valid, link.ExpiresAt.Time),
-		RequiresPassword:         requiresPassword,
 	}, nil
 }
 
@@ -301,7 +290,7 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 }
 
 // CleanupExpiredAccessGrants drains expired access grants in bounded batches.
-func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context, loggers ...*slog.Logger) error {
+func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context, logger *slog.Logger) error {
 	if s.pool == nil {
 		return errors.New("redirect service database is unavailable")
 	}
@@ -319,8 +308,8 @@ func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context, logger
 		deletedRows += deleted
 		batchCount++
 		if deleted < accessGrantCleanupBatchSize {
-			if len(loggers) > 0 && loggers[0] != nil && deletedRows > accessGrantCleanupBatchSize {
-				loggers[0].InfoContext(
+			if logger != nil && deletedRows > accessGrantCleanupBatchSize {
+				logger.InfoContext(
 					ctx,
 					"access_grant_cleanup_completed",
 					"deleted_rows", deletedRows,

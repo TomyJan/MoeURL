@@ -32,16 +32,16 @@ github.com/TomyJan/MoeURL/internal/shortlink/service.go:95.29,96.12
 github.com/TomyJan/MoeURL/internal/shortlink/service.go:114.2,114.40
 
 # Redirect access transaction step failures are infrastructure/concurrency paths: each intermediate failure requires the database connection or row to change between locked statements.
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:236.35,238.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:239.16,241.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:252.16,254.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:270.18,272.4
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:273.40,275.4
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:281.77,283.3
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:297.39,299.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:225.35,227.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:228.16,230.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:241.16,243.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:259.18,261.4
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:262.40,264.4
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:270.77,272.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:286.39,288.3
 
 # Access-token generation failure after transaction state changes remains covered at the generator boundary.
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:285.16,287.3
+github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:274.16,276.3
 
 # Password hashing failure is an Argon2id/random infrastructure path after input and permission validation.
 github.com/TomyJan/MoeURL/internal/shortlink/service.go:658.16,660.3

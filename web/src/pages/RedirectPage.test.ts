@@ -53,7 +53,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 5,
       expiresAt: null,
-      requiresPassword: false,
     })
     vi.mocked(unlockShortLink).mockResolvedValue({ unlocked: true })
   })
@@ -103,7 +102,6 @@ describe('RedirectPage', () => {
         targetHost: 'example.com',
         intermediateDelaySeconds: 3,
         expiresAt: null,
-        requiresPassword: false,
       })
     const { container } = mountPage()
     await flushPreview()
@@ -152,7 +150,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 5,
       expiresAt: null,
-      requiresPassword: true,
     })
     mountPage()
     await flushPreview()
@@ -169,7 +166,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 5,
       expiresAt: null,
-      requiresPassword: true,
     })
     vi.mocked(unlockShortLink).mockRejectedValueOnce(new ApiClientError(200112, 'Invalid password'))
     mountPage()
@@ -193,7 +189,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 5,
       expiresAt: null,
-      requiresPassword: true,
     })
     if (unlockError) {
       vi.mocked(unlockShortLink).mockRejectedValueOnce(unlockError)
@@ -216,7 +211,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 5,
       expiresAt: null,
-      requiresPassword: true,
     })
     mountPage()
     await flushPreview()
@@ -234,7 +228,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: null,
       expiresAt: null,
-      requiresPassword: true,
     })
     mountPage()
     await flushPreview()
@@ -256,7 +249,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: null,
       expiresAt: null,
-      requiresPassword: true,
     })
     vi.mocked(unlockShortLink)
       .mockRejectedValueOnce(new ApiClientError(200113, 'Too many attempts', {
@@ -292,7 +284,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: null,
       expiresAt: null,
-      requiresPassword: true,
     })
     mountPage()
     await flushPreview()
@@ -312,7 +303,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 5,
       expiresAt: null,
-      requiresPassword: true,
     })
     vi.mocked(unlockShortLink).mockRejectedValueOnce(error)
     mountPage()
@@ -331,7 +321,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: null,
       expiresAt: null,
-      requiresPassword: true,
     })
     mountPage()
     await flushPreview()
@@ -350,7 +339,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: null,
       expiresAt: null,
-      requiresPassword: true,
     })
     mountPage()
     await flushPreview()
@@ -371,7 +359,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: null,
       expiresAt: null,
-      requiresPassword: true,
     } as never)
     mountPage()
     await flushPreview()
@@ -391,7 +378,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: null,
       expiresAt: null,
-      requiresPassword: true,
     })
     mountPage()
     await flushPreview()
@@ -410,7 +396,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: null,
       expiresAt: null,
-      requiresPassword: true,
     })
     const unlock = createDeferred<{ unlocked: true }>()
     vi.mocked(unlockShortLink).mockReturnValueOnce(unlock.promise)
@@ -436,14 +421,12 @@ describe('RedirectPage', () => {
         targetHost: 'example.com',
         intermediateDelaySeconds: null,
         expiresAt: null,
-        requiresPassword: true,
       })
       .mockResolvedValueOnce({
         slug: 'def456',
         targetHost: 'other.example.com',
         intermediateDelaySeconds: null,
         expiresAt: null,
-        requiresPassword: true,
       })
     const unlock = createDeferred<{ unlocked: true }>()
     vi.mocked(unlockShortLink).mockReturnValueOnce(unlock.promise)
@@ -475,7 +458,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 3,
       expiresAt: null,
-      requiresPassword: true,
     })
     mountPage()
     await flushPreview()
@@ -493,7 +475,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 3,
       expiresAt: null,
-      requiresPassword: false,
     } as never)
     mountPage()
     await flushPreview()
@@ -528,7 +509,6 @@ describe('RedirectPage', () => {
       targetHost: string
       intermediateDelaySeconds: number
       expiresAt: null
-      requiresPassword: false
     }>()
     const setInterval = vi.spyOn(globalThis, 'setInterval')
     vi.mocked(getPublicShortLinkPreview).mockReturnValueOnce(preview.promise)
@@ -540,7 +520,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 5,
       expiresAt: null,
-      requiresPassword: false,
     })
     await flushPreview()
     await vi.advanceTimersByTimeAsync(10_000)
@@ -556,7 +535,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: null,
       expiresAt: null,
-      requiresPassword: true,
     })
     const unlock = createDeferred<{ unlocked: true }>()
     vi.mocked(unlockShortLink).mockReturnValueOnce(unlock.promise)
@@ -579,7 +557,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 5,
       expiresAt: null,
-      requiresPassword: true,
     })
     const unlock = createDeferred<{ unlocked: true }>()
     vi.mocked(unlockShortLink).mockReturnValueOnce(unlock.promise)

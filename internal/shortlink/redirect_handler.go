@@ -17,7 +17,7 @@ import (
 // RedirectPort handles the public short-link access actions.
 type RedirectPort interface {
 	Open(ctx context.Context, slug string) (OpenResult, error)
-	Preview(ctx context.Context, slug string, accessToken string) (PreviewResult, error)
+	Preview(ctx context.Context, slug string) (PreviewResult, error)
 	Unlock(ctx context.Context, slug string, password string) (AccessGrant, error)
 	Continue(ctx context.Context, slug string, accessToken string) (RedirectResult, error)
 }
@@ -79,29 +79,25 @@ func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug stri
 // PreviewPublic writes public preview data without accepting a scoped access cookie.
 func (h *RedirectHandler) PreviewPublic(w http.ResponseWriter, r *http.Request) {
 	slug := strings.TrimSpace(r.URL.Query().Get("slug"))
-	h.preview(w, r, slug, "")
+	h.preview(w, r, slug)
 }
 
-// PreviewScoped writes preview data using the access cookie scoped to the short-link page.
+// PreviewScoped writes public preview data for a path-scoped short-link route.
 func (h *RedirectHandler) PreviewScoped(w http.ResponseWriter, r *http.Request, slug string) {
 	if redirectLowercaseScopedSlug(w, r, slug, "/preview") {
 		return
 	}
-	accessToken := ""
-	if cookie, err := r.Cookie(accessCookieName); err == nil {
-		accessToken = cookie.Value
-	}
-	h.preview(w, r, strings.TrimSpace(slug), accessToken)
+	h.preview(w, r, strings.TrimSpace(slug))
 }
 
 // preview writes the minimal public metadata for a normalized preview request.
-func (h *RedirectHandler) preview(w http.ResponseWriter, r *http.Request, slug string, accessToken string) {
+func (h *RedirectHandler) preview(w http.ResponseWriter, r *http.Request, slug string) {
 	if slug == "" {
 		businessError(w, 100001, "Invalid request")
 		return
 	}
 
-	result, err := h.service.Preview(r.Context(), slug, accessToken)
+	result, err := h.service.Preview(r.Context(), slug)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrShortLinkMissing):
@@ -228,6 +224,11 @@ func writePublicAccessError(w http.ResponseWriter, r *http.Request, slug string,
 	case errors.Is(err, ErrPasswordRequired), errors.Is(err, ErrInvalidPassword):
 		redirectToPublicAccessState(w, r, slug, "password")
 	case errors.Is(err, ErrPasswordRateLimited):
+		var rateLimitErr *PasswordRateLimitedError
+		if errors.As(err, &rateLimitErr) && !rateLimitErr.RetryAt.IsZero() {
+			redirectToPublicAccessState(w, r, slug, "rate-limited", rateLimitErr.RetryAt)
+			return
+		}
 		redirectToPublicAccessState(w, r, slug, "rate-limited")
 	default:
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -235,7 +236,10 @@ func writePublicAccessError(w http.ResponseWriter, r *http.Request, slug string,
 }
 
 // redirectToPublicAccessState redirects visitors to a normalized client-side status route.
-func redirectToPublicAccessState(w http.ResponseWriter, r *http.Request, slug string, reason string) {
+func redirectToPublicAccessState(w http.ResponseWriter, r *http.Request, slug string, reason string, retryAt ...time.Time) {
 	location := "/go/" + url.PathEscape(strings.ToLower(slug)) + "?reason=" + url.QueryEscape(reason)
+	if len(retryAt) > 0 && !retryAt[0].IsZero() {
+		location += "&retryAt=" + url.QueryEscape(retryAt[0].UTC().Format(time.RFC3339Nano))
+	}
 	http.Redirect(w, r, location, http.StatusFound)
 }

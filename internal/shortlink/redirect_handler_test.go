@@ -583,7 +583,7 @@ func TestRedirectHandlerPreviewUsesUnifiedMinimalResponse(t *testing.T) {
 	}
 }
 
-// TestRedirectHandlerPublicPreviewIgnoresAccessCookie verifies the public route never consumes scoped grant cookies.
+// TestRedirectHandlerPublicPreviewIgnoresAccessCookie verifies preview never consumes scoped grant cookies.
 func TestRedirectHandlerPublicPreviewIgnoresAccessCookie(t *testing.T) {
 	service := &fakeRedirectService{previewResult: shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", IntermediateDelaySeconds: int16Pointer(5)}}
 	handler := shortlink.NewRedirectHandler(service)
@@ -593,13 +593,13 @@ func TestRedirectHandlerPublicPreviewIgnoresAccessCookie(t *testing.T) {
 
 	handler.PreviewPublic(response, request)
 
-	if response.Code != http.StatusOK || service.previewToken != "" {
-		t.Fatalf("expected public preview to ignore access cookie, got status %d token %q", response.Code, service.previewToken)
+	if response.Code != http.StatusOK || service.previewCalls != 1 {
+		t.Fatalf("expected public preview to ignore access cookie, got status %d calls %d", response.Code, service.previewCalls)
 	}
 }
 
-// TestRedirectHandlerPreviewPassesScopedAccessCookie verifies the page-scoped preview forwards its access grant.
-func TestRedirectHandlerPreviewPassesScopedAccessCookie(t *testing.T) {
+// TestRedirectHandlerScopedPreviewIgnoresAccessCookie verifies scoped preview only returns public metadata.
+func TestRedirectHandlerScopedPreviewIgnoresAccessCookie(t *testing.T) {
 	service := &fakeRedirectService{previewResult: shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", IntermediateDelaySeconds: int16Pointer(5)}}
 	handler := shortlink.NewRedirectHandler(service)
 	response := httptest.NewRecorder()
@@ -608,8 +608,8 @@ func TestRedirectHandlerPreviewPassesScopedAccessCookie(t *testing.T) {
 
 	handler.PreviewScoped(response, request, "middle")
 
-	if response.Code != http.StatusOK || service.previewToken != "raw-token" {
-		t.Fatalf("expected scoped preview token, got status %d token %q", response.Code, service.previewToken)
+	if response.Code != http.StatusOK || service.previewCalls != 1 {
+		t.Fatalf("expected scoped preview to ignore access cookie, got status %d calls %d", response.Code, service.previewCalls)
 	}
 }
 
@@ -730,6 +730,20 @@ func TestRedirectHandlerContinueShowsLifecycleErrors(t *testing.T) {
 	}
 }
 
+func TestRedirectHandlerContinueIncludesRateLimitRetryAt(t *testing.T) {
+	retryAt := time.Date(2026, time.August, 11, 12, 0, 0, 0, time.UTC)
+	handler := shortlink.NewRedirectHandler(&fakeRedirectService{
+		continueErr: &shortlink.PasswordRateLimitedError{RetryAt: retryAt},
+	})
+	response := httptest.NewRecorder()
+	handler.Continue(response, httptest.NewRequest(http.MethodGet, "/go/middle/continue", nil), "middle")
+
+	want := "/go/middle?reason=rate-limited&retryAt=" + url.QueryEscape(retryAt.Format(time.RFC3339Nano))
+	if response.Code != http.StatusFound || response.Header().Get("Location") != want {
+		t.Fatalf("expected retry deadline redirect %q, got status %d location %q", want, response.Code, response.Header().Get("Location"))
+	}
+}
+
 // TestRedirectHandlerContinuePassesScopedAccessCookie verifies continuation forwards the link-scoped access grant.
 func TestRedirectHandlerContinuePassesScopedAccessCookie(t *testing.T) {
 	service := &fakeRedirectService{continueResult: shortlink.RedirectResult{TargetURL: "https://example.com/final", ShortLinkID: "link-id"}}
@@ -771,7 +785,6 @@ type fakeRedirectService struct {
 	continueCalls  int
 	previewCalls   int
 	continueToken  string
-	previewToken   string
 }
 
 func int16Pointer(value int16) *int16 {
@@ -787,9 +800,8 @@ func (f *fakeRedirectService) Open(context.Context, string) (shortlink.OpenResul
 }
 
 // Preview returns the configured public preview result.
-func (f *fakeRedirectService) Preview(_ context.Context, _ string, accessToken string) (shortlink.PreviewResult, error) {
+func (f *fakeRedirectService) Preview(_ context.Context, _ string) (shortlink.PreviewResult, error) {
 	f.previewCalls++
-	f.previewToken = accessToken
 	if f.previewErr != nil {
 		return shortlink.PreviewResult{}, f.previewErr
 	}

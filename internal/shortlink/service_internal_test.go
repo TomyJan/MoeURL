@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
-	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/testdb"
@@ -210,13 +209,7 @@ func TestCreateRetriesReservedSlug(t *testing.T) {
 // internalShortLinkTestPool opens an isolated migrated database for package-internal service tests.
 func internalShortLinkTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
-	databaseURL := testdb.ProjectMigratedDatabaseURL(ctx, t)
-	pool, err := appdb.OpenPool(ctx, databaseURL)
-	if err != nil {
-		t.Fatalf("open pool: %v", err)
-	}
-	t.Cleanup(pool.Close)
-	return pool
+	return testdb.ProjectMigratedPool(ctx, t)
 }
 
 // TestExpirationValuesUsesDatabaseState verifies mapping never recalculates expiration with the application clock.

@@ -12,6 +12,9 @@ import (
 
 // TestNextPasswordFailureUsesFixedWindowAndBlocksTheFifthFailure verifies the lockout threshold and window anchor.
 func TestNextPasswordFailureUsesFixedWindowAndBlocksTheFifthFailure(t *testing.T) {
+	if passwordFailureWindow != 15*time.Minute || passwordBlockDuration != 15*time.Minute {
+		t.Fatalf("password failure window and block duration must both be 15 minutes")
+	}
 	now := time.Date(2026, time.August, 4, 10, 0, 0, 0, time.UTC)
 	windowStart := now.Add(-5 * time.Minute)
 
@@ -29,10 +32,21 @@ func TestNextPasswordFailureUsesFixedWindowAndBlocksTheFifthFailure(t *testing.T
 
 // TestNextPasswordFailureStartsANewWindowAfterExpiry verifies expired counters do not leak into a new failure window.
 func TestNextPasswordFailureStartsANewWindowAfterExpiry(t *testing.T) {
+	if passwordFailureWindow != 15*time.Minute || passwordBlockDuration != 15*time.Minute {
+		t.Fatalf("password failure window and block duration must both be 15 minutes")
+	}
 	now := time.Date(2026, time.August, 4, 10, 0, 0, 0, time.UTC)
 	update := nextPasswordFailure(now, 4, pgtype.Timestamptz{Time: now.Add(-passwordFailureWindow), Valid: true})
 	if update.attempts != 1 || !update.windowStartedAt.Time.Equal(now) || update.blockedUntil.Valid {
 		t.Fatalf("unexpected reset window update: %#v", update)
+	}
+}
+
+// TestHasValidAccessGrantRequiresToken verifies empty cookies are rejected before any database lookup.
+func TestHasValidAccessGrantRequiresToken(t *testing.T) {
+	valid, err := (&RedirectService{}).hasValidAccessGrant(t.Context(), pgtype.UUID{}, "")
+	if err != nil || valid {
+		t.Fatalf("empty access token result = %t, error %v", valid, err)
 	}
 }
 

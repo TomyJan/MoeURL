@@ -11,11 +11,6 @@ import type { CreateShortLinkInput } from '@/entities/short-link/model'
 import { createDeferred } from '@/test/deferred'
 import type { MutationMockResult } from '@/test/mutation-mock'
 
-type CreateMutationOptions = {
-  mutationFn?: (input: CreateShortLinkInput) => Promise<unknown>
-  onSettled?: (data: unknown, error: unknown, variables?: CreateShortLinkInput) => void
-}
-
 const state = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
   mutationOptions: [] as unknown[],
@@ -312,62 +307,6 @@ describe('ShortLinkCreatePanel', () => {
     })
   })
 
-  it('does not mutate creation variables while scrubbing the request copy after success', async () => {
-    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
-    setMutationResult()
-    mountPanel()
-    const options = state.mutationOptions[0] as CreateMutationOptions
-    const input: CreateShortLinkInput = {
-      targetUrl: 'https://example.com',
-      password: { mode: 'set', value: 'correct horse' },
-    }
-    let sentInput: CreateShortLinkInput | undefined
-    vi.mocked(createShortLink).mockImplementation(async (request) => {
-      sentInput = structuredClone(request)
-      return { shortLink: { slug: 'abc123', url: 'https://go.example.com/abc123' } } as never
-    })
-
-    await options.mutationFn?.(input)
-
-    expect(sentInput?.password).toEqual({ mode: 'set', value: 'correct horse' })
-    expect(input.password).toEqual({ mode: 'set', value: 'correct horse' })
-  })
-
-  it('does not mutate creation variables while scrubbing the request copy after failure', async () => {
-    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
-    setMutationResult()
-    mountPanel()
-    const options = state.mutationOptions[0] as CreateMutationOptions
-    const input: CreateShortLinkInput = {
-      targetUrl: 'https://example.com',
-      password: { mode: 'set', value: 'correct horse' },
-    }
-    vi.mocked(createShortLink).mockRejectedValue(new Error('create failed'))
-
-    await expect(options.mutationFn?.(input)).rejects.toThrow('create failed')
-
-    expect(input.password).toEqual({ mode: 'set', value: 'correct horse' })
-  })
-
-  it('drops a deferred password when creation settles before the mutation function runs', async () => {
-    const mutate = vi.fn()
-    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
-    setMutationResult({ mutate })
-    mountPanel()
-    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
-    await fireEvent.click(screen.getByLabelText('shortLinkCreate.passwordEnabled'))
-    await fireEvent.update(screen.getByLabelText('shortLinkCreate.password'), 'correct horse')
-    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
-    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
-    const variables = mutate.mock.calls[0]?.[0] as CreateShortLinkInput
-    const options = state.mutationOptions[0] as CreateMutationOptions
-
-    options.onSettled?.(undefined, undefined)
-    options.onSettled?.(undefined, undefined, variables)
-    await expect(options.mutationFn?.(variables)).rejects.toThrow('password input was cleared before mutation execution')
-    expect(createShortLink).not.toHaveBeenCalled()
-  })
-
   it('keeps raw passwords out of pending and failed mutation variables', async () => {
     const deferred = createDeferred<never>()
     const variables = ref<unknown>()
@@ -390,6 +329,30 @@ describe('ShortLinkCreatePanel', () => {
       expect(screen.getByText('create failed')).toBeTruthy()
     })
     expect(variables.value).toEqual({ targetUrl: 'https://example.com' })
+  })
+
+  it('clears a protected input before rejecting a mutation that lost its password', async () => {
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
+    setMutationResult({ mutate })
+
+    mountPanel()
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    await fireEvent.click(screen.getByLabelText('shortLinkCreate.passwordEnabled'))
+    const passwordInput = screen.getByLabelText('shortLinkCreate.password') as HTMLInputElement
+    await fireEvent.update(passwordInput, 'correct horse')
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+
+    const options = state.mutationOptions[0] as {
+      mutationFn?: (input: { targetUrl: string }) => Promise<unknown>
+      onSettled?: () => void
+    }
+    options.onSettled?.()
+    expect(passwordInput.value).toBe('')
+    await expect(options.mutationFn?.({ targetUrl: 'https://example.com' })).rejects.toThrow(
+      'password input was cleared before mutation execution',
+    )
   })
 
   it('rejects an invalid protected-link password before mutation', async () => {

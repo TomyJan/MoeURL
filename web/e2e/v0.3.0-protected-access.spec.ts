@@ -10,7 +10,7 @@ import {
 } from './support'
 
 const rateLimitedPassword = 'another correct horse'
-const rateLimitRetryDelayMs = 3_000
+const rateLimitRetryDelayMs = 8_000
 
 const e2eHostPattern = escapeRegExp(e2eHost)
 
@@ -290,7 +290,7 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
         expect(payload.meta?.retryAt).toBeTruthy()
         await expect(page.getByText(/尝试次数过多，请在 \d+ 秒后重试。/)).toBeVisible()
         await expect(page.getByRole('button', { name: '解锁并继续' })).toBeDisabled()
-        await expect(page.getByRole('button', { name: '解锁并继续' })).toBeEnabled()
+        await expect(page.getByRole('button', { name: '解锁并继续' })).toBeEnabled({ timeout: rateLimitRetryDelayMs + 5_000 })
         await page.getByLabel('访问密码').fill(rateLimitedPassword)
         const successfulUnlockRequestPromise = page.waitForRequest((request) => (
           request.url().endsWith(`/go/${rateLimitedSlug}/unlock`)
