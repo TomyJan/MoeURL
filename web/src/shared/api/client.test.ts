@@ -1,8 +1,12 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiClientError, apiGet, apiGetPath, apiPost, apiPostPath } from './client'
 
 describe('api client', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   it('returns decoded unified response body', async () => {
     vi.stubGlobal(
       'fetch',
@@ -84,7 +88,6 @@ describe('api client', () => {
     await expect(apiPostPath('/health', {})).rejects.toThrow('API path must be a same-origin absolute path')
 
     expect(fetchMock).not.toHaveBeenCalled()
-    vi.unstubAllGlobals()
   })
 
   it('requests the normalized path and query that passed same-origin validation', async () => {

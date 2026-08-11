@@ -274,7 +274,7 @@ function resetFromLink(link: Pick<ShortLink, 'targetUrl' | 'redirectMode' | 'int
 
 function passwordInput() {
   const field = passwordField.value?.$el
-  if (!field?.matches('[data-testid="short-link-password-input"]')) {
+  if (!(field instanceof globalThis.HTMLElement) || !field.matches('[data-testid="short-link-password-input"]')) {
     return null
   }
   return field.querySelector<globalThis.HTMLInputElement>('input')
