@@ -93,7 +93,7 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 		t.Fatalf("write index: %v", err)
 	}
 	redirect := &routerRedirectService{
-		previewResult:  shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", IntermediateDelaySeconds: 5},
+		previewResult:  shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", IntermediateDelaySeconds: int16Pointer(5)},
 		continueResult: shortlink.RedirectResult{TargetURL: "https://example.com/final", ShortLinkID: "link-id"},
 	}
 	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: redirect, StaticDir: staticDir})
@@ -334,6 +334,10 @@ type routerRedirectService struct {
 	previewToken         string
 }
 
+func int16Pointer(value int16) *int16 {
+	return &value
+}
+
 func (service *routerRedirectService) Open(_ context.Context, slug string) (shortlink.OpenResult, error) {
 	service.openSlugs = append(service.openSlugs, slug)
 	if !service.openResultConfigured {
@@ -347,7 +351,7 @@ func (service *routerRedirectService) Preview(_ context.Context, slug string, ac
 	service.previewSlugs = append(service.previewSlugs, slug)
 	service.previewToken = accessToken
 	if service.previewResult.Slug == "" {
-		return shortlink.PreviewResult{Slug: "abc123", TargetHost: "example.com", IntermediateDelaySeconds: 5}, nil
+		return shortlink.PreviewResult{Slug: "abc123", TargetHost: "example.com", IntermediateDelaySeconds: int16Pointer(5)}, nil
 	}
 	return service.previewResult, nil
 }

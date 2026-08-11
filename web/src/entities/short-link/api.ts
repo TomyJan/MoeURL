@@ -38,11 +38,10 @@ interface AdminShortLinkItemsResponse {
 const publicShortLinkPreviewSchema: z.ZodType<PublicShortLinkPreview> = z.object({
   slug: z.string(),
   targetHost: z.string(),
-  redirectMode: z.enum(['direct', 'intermediate']),
-  intermediateDelaySeconds: z.number().int().min(3).max(10),
+  intermediateDelaySeconds: z.number().int().min(3).max(10).nullable(),
   expiresAt: z.string().nullable(),
   requiresPassword: z.boolean(),
-})
+}).strict()
 
 const unlockShortLinkResponseSchema: z.ZodType<UnlockShortLinkResponse> = z.object({
   unlocked: z.literal(true),
@@ -56,10 +55,11 @@ export async function createShortLink(input: CreateShortLinkInput): Promise<Shor
 /** Loads and validates the minimal public metadata required by the redirect page. */
 export async function getPublicShortLinkPreview(slug: string): Promise<PublicShortLinkPreview> {
   const response = await apiGetPath<unknown>(`/go/${encodeURIComponent(slug)}/preview`)
-  if (!isPublicShortLinkPreview(response.data)) {
+  const result = publicShortLinkPreviewSchema.safeParse(response.data)
+  if (!result.success) {
     throw new ApiClientError(100001, 'Invalid public preview response')
   }
-  return response.data
+  return result.data
 }
 
 /** Exchanges a valid short-link password for a scoped access grant. */
@@ -72,11 +72,6 @@ export async function unlockShortLink(input: UnlockShortLinkInput): Promise<Unlo
     throw new ApiClientError(100001, 'Invalid public unlock response')
   }
   return result.data
-}
-
-/** Validates the minimal public preview payload before exposing it to the redirect page. */
-function isPublicShortLinkPreview(value: unknown): value is PublicShortLinkPreview {
-  return publicShortLinkPreviewSchema.safeParse(value).success
 }
 
 export async function listShortLinks(input: ShortLinkListInput = {}): Promise<ShortLinkListResponse> {

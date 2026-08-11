@@ -144,7 +144,6 @@ test('v0.2.0 intermediate-page, expiry, QR-code, and logout flows', async ({ pag
     data: {
       slug: intermediateSlug,
       targetHost: 'example.com',
-      redirectMode: 'intermediate',
       intermediateDelaySeconds: 10,
     },
   })

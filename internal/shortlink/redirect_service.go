@@ -49,12 +49,12 @@ type OpenResult struct {
 	RequiresPassword bool
 }
 
-// PreviewResult contains the minimal public data required by an intermediate page.
+// PreviewResult contains the minimal public data required by the redirect page.
+// IntermediateDelaySeconds is nil for direct links and set for intermediate links.
 type PreviewResult struct {
 	Slug                     string     `json:"slug"`
 	TargetHost               string     `json:"targetHost"`
-	RedirectMode             string     `json:"redirectMode"`
-	IntermediateDelaySeconds int16      `json:"intermediateDelaySeconds"`
+	IntermediateDelaySeconds *int16     `json:"intermediateDelaySeconds"`
 	ExpiresAt                *time.Time `json:"expiresAt"`
 	RequiresPassword         bool       `json:"requiresPassword"`
 }
@@ -145,11 +145,14 @@ func (s *RedirectService) Preview(ctx context.Context, slug string, accessToken 
 		return PreviewResult{}, errors.New("stored target URL has no hostname")
 	}
 
+	var intermediateDelaySeconds *int16
+	if link.RedirectMode == RedirectModeIntermediate {
+		intermediateDelaySeconds = &link.IntermediateDelaySeconds
+	}
 	return PreviewResult{
 		Slug:                     slug,
 		TargetHost:               target.Hostname(),
-		RedirectMode:             link.RedirectMode,
-		IntermediateDelaySeconds: link.IntermediateDelaySeconds,
+		IntermediateDelaySeconds: intermediateDelaySeconds,
 		ExpiresAt:                optionalTime(link.ExpiresAt.Valid, link.ExpiresAt.Time),
 		RequiresPassword:         requiresPassword,
 	}, nil

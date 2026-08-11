@@ -192,7 +192,7 @@ func TestRedirectServiceIntermediatePreviewAndContinue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("preview intermediate short link: %v", err)
 	}
-	if preview.Slug != "middle" || preview.TargetHost != "example.com" || preview.RedirectMode != shortlink.RedirectModeIntermediate || preview.IntermediateDelaySeconds != 7 || preview.ExpiresAt == nil || !preview.ExpiresAt.Equal(expiresAt) {
+	if preview.Slug != "middle" || preview.TargetHost != "example.com" || preview.IntermediateDelaySeconds == nil || *preview.IntermediateDelaySeconds != 7 || preview.ExpiresAt == nil || !preview.ExpiresAt.Equal(expiresAt) {
 		t.Fatalf("unexpected intermediate preview: %#v", preview)
 	}
 	if len(recorder.types) != 0 {
@@ -241,7 +241,7 @@ func TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit(t *testing.T) {
 	assertEvents(t, recorder.types, []string{event.ShortLinkOpened, event.AccessConditionChecked})
 	recorder.types = nil
 	preview, err := service.Preview(ctx, "protected", "")
-	if err != nil || !preview.RequiresPassword || preview.RedirectMode != shortlink.RedirectModeDirect || preview.TargetHost != "example.com" {
+	if err != nil || !preview.RequiresPassword || preview.IntermediateDelaySeconds != nil || preview.TargetHost != "example.com" {
 		t.Fatalf("expected protected preview, got %#v error %v", preview, err)
 	}
 	if len(recorder.types) != 0 {

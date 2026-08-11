@@ -89,8 +89,7 @@ export interface UpdateShortLinkInput {
 export interface PublicShortLinkPreview {
   slug: string
   targetHost: string
-  redirectMode: RedirectMode
-  intermediateDelaySeconds: number
+  intermediateDelaySeconds: number | null
   expiresAt: string | null
   requiresPassword: boolean
 }

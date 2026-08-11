@@ -248,7 +248,7 @@ function proceedAfterAccess() {
   if (!currentPreview) {
     return
   }
-  if (currentPreview.redirectMode === 'direct') {
+  if (currentPreview.intermediateDelaySeconds === null) {
     continueToTarget()
     return
   }

@@ -53,7 +53,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 5,
       expiresAt: null,
-      redirectMode: 'intermediate',
       requiresPassword: false,
     })
     vi.mocked(unlockShortLink).mockResolvedValue({ unlocked: true })
@@ -104,7 +103,6 @@ describe('RedirectPage', () => {
         targetHost: 'example.com',
         intermediateDelaySeconds: 3,
         expiresAt: null,
-        redirectMode: 'intermediate',
         requiresPassword: false,
       })
     const { container } = mountPage()
@@ -154,7 +152,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 5,
       expiresAt: null,
-      redirectMode: 'intermediate',
       requiresPassword: true,
     })
     mountPage()
@@ -172,7 +169,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 5,
       expiresAt: null,
-      redirectMode: 'intermediate',
       requiresPassword: true,
     })
     vi.mocked(unlockShortLink).mockRejectedValueOnce(new ApiClientError(200112, 'Invalid password'))
@@ -197,7 +193,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 5,
       expiresAt: null,
-      redirectMode: 'intermediate',
       requiresPassword: true,
     })
     if (unlockError) {
@@ -221,7 +216,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 5,
       expiresAt: null,
-      redirectMode: 'intermediate',
       requiresPassword: true,
     })
     mountPage()
@@ -238,9 +232,8 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
-      intermediateDelaySeconds: 5,
+      intermediateDelaySeconds: null,
       expiresAt: null,
-      redirectMode: 'direct',
       requiresPassword: true,
     })
     mountPage()
@@ -261,9 +254,8 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
-      intermediateDelaySeconds: 5,
+      intermediateDelaySeconds: null,
       expiresAt: null,
-      redirectMode: 'direct',
       requiresPassword: true,
     })
     vi.mocked(unlockShortLink)
@@ -298,9 +290,8 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
-      intermediateDelaySeconds: 5,
+      intermediateDelaySeconds: null,
       expiresAt: null,
-      redirectMode: 'direct',
       requiresPassword: true,
     })
     mountPage()
@@ -321,7 +312,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 5,
       expiresAt: null,
-      redirectMode: 'intermediate',
       requiresPassword: true,
     })
     vi.mocked(unlockShortLink).mockRejectedValueOnce(error)
@@ -339,9 +329,8 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
-      intermediateDelaySeconds: 5,
+      intermediateDelaySeconds: null,
       expiresAt: null,
-      redirectMode: 'direct',
       requiresPassword: true,
     })
     mountPage()
@@ -359,9 +348,8 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
-      intermediateDelaySeconds: 5,
+      intermediateDelaySeconds: null,
       expiresAt: null,
-      redirectMode: 'direct',
       requiresPassword: true,
     })
     mountPage()
@@ -381,9 +369,8 @@ describe('RedirectPage', () => {
     state.route!.query = { reason: 'password' }
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       targetHost: 'example.com',
-      intermediateDelaySeconds: 5,
+      intermediateDelaySeconds: null,
       expiresAt: null,
-      redirectMode: 'direct',
       requiresPassword: true,
     } as never)
     mountPage()
@@ -402,9 +389,8 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
-      intermediateDelaySeconds: 5,
+      intermediateDelaySeconds: null,
       expiresAt: null,
-      redirectMode: 'direct',
       requiresPassword: true,
     })
     mountPage()
@@ -422,9 +408,8 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
-      intermediateDelaySeconds: 5,
+      intermediateDelaySeconds: null,
       expiresAt: null,
-      redirectMode: 'direct',
       requiresPassword: true,
     })
     const unlock = createDeferred<{ unlocked: true }>()
@@ -449,17 +434,15 @@ describe('RedirectPage', () => {
       .mockResolvedValueOnce({
         slug: 'abc123',
         targetHost: 'example.com',
-        intermediateDelaySeconds: 5,
+        intermediateDelaySeconds: null,
         expiresAt: null,
-        redirectMode: 'direct',
         requiresPassword: true,
       })
       .mockResolvedValueOnce({
         slug: 'def456',
         targetHost: 'other.example.com',
-        intermediateDelaySeconds: 5,
+        intermediateDelaySeconds: null,
         expiresAt: null,
-        redirectMode: 'direct',
         requiresPassword: true,
       })
     const unlock = createDeferred<{ unlocked: true }>()
@@ -492,7 +475,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 3,
       expiresAt: null,
-      redirectMode: 'intermediate',
       requiresPassword: true,
     })
     mountPage()
@@ -511,7 +493,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 3,
       expiresAt: null,
-      redirectMode: 'intermediate',
       requiresPassword: false,
     } as never)
     mountPage()
@@ -545,7 +526,6 @@ describe('RedirectPage', () => {
     const preview = createDeferred<{
       slug: string
       targetHost: string
-      redirectMode: 'intermediate'
       intermediateDelaySeconds: number
       expiresAt: null
       requiresPassword: false
@@ -558,7 +538,6 @@ describe('RedirectPage', () => {
     preview.resolve({
       slug: 'abc123',
       targetHost: 'example.com',
-      redirectMode: 'intermediate',
       intermediateDelaySeconds: 5,
       expiresAt: null,
       requiresPassword: false,
@@ -575,9 +554,8 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
-      intermediateDelaySeconds: 5,
+      intermediateDelaySeconds: null,
       expiresAt: null,
-      redirectMode: 'direct',
       requiresPassword: true,
     })
     const unlock = createDeferred<{ unlocked: true }>()
@@ -601,7 +579,6 @@ describe('RedirectPage', () => {
       targetHost: 'example.com',
       intermediateDelaySeconds: 5,
       expiresAt: null,
-      redirectMode: 'intermediate',
       requiresPassword: true,
     })
     const unlock = createDeferred<{ unlocked: true }>()

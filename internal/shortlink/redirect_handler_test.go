@@ -131,7 +131,7 @@ func TestRedirectHandlerUnlockSetsSecureCookie(t *testing.T) {
 	}
 }
 
-// TestRedirectHandlerUnlockUsesConfiguredCookieTTL verifies cookie lifetime stays fixed until database checks reject a grant.
+// TestRedirectHandlerUnlockExpiresStaleCookie verifies cookie lifetime stays fixed until database checks reject a grant.
 func TestRedirectHandlerUnlockExpiresStaleCookie(t *testing.T) {
 	handler := shortlink.NewRedirectHandler(&fakeRedirectService{
 		unlockGrant: shortlink.AccessGrant{Token: "stale-token", ExpiresAt: time.Now().Add(-time.Second)},
@@ -556,8 +556,7 @@ func TestRedirectHandlerPreviewUsesUnifiedMinimalResponse(t *testing.T) {
 	handler := shortlink.NewRedirectHandler(&fakeRedirectService{previewResult: shortlink.PreviewResult{
 		Slug:                     "middle",
 		TargetHost:               "example.com",
-		RedirectMode:             shortlink.RedirectModeIntermediate,
-		IntermediateDelaySeconds: 7,
+		IntermediateDelaySeconds: int16Pointer(7),
 		ExpiresAt:                &expiresAt,
 	}})
 	response := httptest.NewRecorder()
@@ -576,17 +575,17 @@ func TestRedirectHandlerPreviewUsesUnifiedMinimalResponse(t *testing.T) {
 	if err := json.NewDecoder(bytes.NewReader(raw)).Decode(&body); err != nil {
 		t.Fatalf("decode preview response: %v", err)
 	}
-	if body.Code != 0 || body.Data.TargetHost != "example.com" || body.Data.RedirectMode != shortlink.RedirectModeIntermediate || body.Data.IntermediateDelaySeconds != 7 || body.Data.ExpiresAt == nil || !body.Data.ExpiresAt.Equal(expiresAt) {
+	if body.Code != 0 || body.Data.TargetHost != "example.com" || body.Data.IntermediateDelaySeconds == nil || *body.Data.IntermediateDelaySeconds != 7 || body.Data.ExpiresAt == nil || !body.Data.ExpiresAt.Equal(expiresAt) {
 		t.Fatalf("unexpected preview body: %#v", body)
 	}
-	if bytes.Contains(raw, []byte("https://")) || bytes.Contains(raw, []byte("http://")) || bytes.Contains(raw, []byte("targetUrl")) {
+	if bytes.Contains(raw, []byte("redirectMode")) || bytes.Contains(raw, []byte("https://")) || bytes.Contains(raw, []byte("http://")) || bytes.Contains(raw, []byte("targetUrl")) {
 		t.Fatalf("preview leaked target URL: %s", raw)
 	}
 }
 
 // TestRedirectHandlerPublicPreviewIgnoresAccessCookie verifies the public route never consumes scoped grant cookies.
 func TestRedirectHandlerPublicPreviewIgnoresAccessCookie(t *testing.T) {
-	service := &fakeRedirectService{previewResult: shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", RedirectMode: shortlink.RedirectModeIntermediate}}
+	service := &fakeRedirectService{previewResult: shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", IntermediateDelaySeconds: int16Pointer(5)}}
 	handler := shortlink.NewRedirectHandler(service)
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/public/short-link/preview?slug=middle", nil)
@@ -601,7 +600,7 @@ func TestRedirectHandlerPublicPreviewIgnoresAccessCookie(t *testing.T) {
 
 // TestRedirectHandlerPreviewPassesScopedAccessCookie verifies the page-scoped preview forwards its access grant.
 func TestRedirectHandlerPreviewPassesScopedAccessCookie(t *testing.T) {
-	service := &fakeRedirectService{previewResult: shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", RedirectMode: shortlink.RedirectModeIntermediate}}
+	service := &fakeRedirectService{previewResult: shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", IntermediateDelaySeconds: int16Pointer(5)}}
 	handler := shortlink.NewRedirectHandler(service)
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/go/middle/preview", nil)
@@ -773,6 +772,10 @@ type fakeRedirectService struct {
 	previewCalls   int
 	continueToken  string
 	previewToken   string
+}
+
+func int16Pointer(value int16) *int16 {
+	return &value
 }
 
 // Open returns the configured initial access result.
