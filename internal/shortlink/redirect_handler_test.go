@@ -38,7 +38,7 @@ func TestRedirectHandlerRedirectsActiveSlug(t *testing.T) {
 	}
 }
 
-// TestRedirectHandlerAnalyticsConstructorConfiguresHandler verifies analytics dependencies are retained by the constructor.
+// TestRedirectHandlerAnalyticsConstructorConfiguresHandler verifies analytics dependencies are retained and successful redirects are recorded.
 func TestRedirectHandlerAnalyticsConstructorConfiguresHandler(t *testing.T) {
 	recorder := &recordingRecorder{}
 	handler := shortlink.NewRedirectHandlerWithAnalytics(
@@ -58,6 +58,7 @@ func TestRedirectHandlerAnalyticsConstructorConfiguresHandler(t *testing.T) {
 	if response.Code != http.StatusFound {
 		t.Fatalf("expected 302, got %d", response.Code)
 	}
+	assertEvents(t, recorder.types, []string{event.RedirectResponseSent})
 }
 
 // TestRedirectHandlerRedirectsProtectedSlugToPasswordPage verifies protected direct links enter the public password flow.
@@ -131,8 +132,8 @@ func TestRedirectHandlerUnlockSetsSecureCookie(t *testing.T) {
 	}
 }
 
-// TestRedirectHandlerUnlockExpiresStaleCookie verifies cookie lifetime stays fixed until database checks reject a grant.
-func TestRedirectHandlerUnlockExpiresStaleCookie(t *testing.T) {
+// TestRedirectHandlerUnlockKeepsFixedCookieLifetime verifies cookie lifetime stays fixed until database checks reject a grant.
+func TestRedirectHandlerUnlockKeepsFixedCookieLifetime(t *testing.T) {
 	handler := shortlink.NewRedirectHandler(&fakeRedirectService{
 		unlockGrant: shortlink.AccessGrant{Token: "stale-token", ExpiresAt: time.Now().Add(-time.Second)},
 	})

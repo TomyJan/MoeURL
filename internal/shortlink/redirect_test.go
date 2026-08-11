@@ -629,12 +629,25 @@ func TestRedirectServiceCleanupCapsExpiredGrantBatches(t *testing.T) {
 	fixture := newAccessGrantCleanupFixture(t)
 	totalGrantCount := int(shortlink.AccessGrantCleanupBatchSize)*shortlink.AccessGrantCleanupMaxBatches + 1
 	fixture.insertExpiredGrants(t, totalGrantCount)
+	logOutput := &bytes.Buffer{}
+	cleanupLogger := slog.New(slog.NewTextHandler(logOutput, nil))
 
-	if err := fixture.service.CleanupExpiredAccessGrants(fixture.ctx, nil); err != nil {
+	if err := fixture.service.CleanupExpiredAccessGrants(fixture.ctx, cleanupLogger); err != nil {
 		t.Fatalf("clean expired access grants: %v", err)
 	}
 	if expiredCount := fixture.expiredGrantCount(t); expiredCount != 1 {
 		t.Fatalf("expected cleanup to cap at %d batches and leave one expired grant, got %d rows", shortlink.AccessGrantCleanupMaxBatches, expiredCount)
+	}
+	cleanupLog := logOutput.String()
+	for _, field := range []string{
+		"access_grant_cleanup_completed",
+		fmt.Sprintf("deleted_rows=%d", int64(shortlink.AccessGrantCleanupBatchSize)*int64(shortlink.AccessGrantCleanupMaxBatches)),
+		fmt.Sprintf("batch_count=%d", shortlink.AccessGrantCleanupMaxBatches),
+		"batch_limit_reached=true",
+	} {
+		if !strings.Contains(cleanupLog, field) {
+			t.Fatalf("expected cleanup log field %q, got %q", field, cleanupLog)
+		}
 	}
 }
 

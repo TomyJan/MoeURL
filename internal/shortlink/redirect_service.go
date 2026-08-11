@@ -303,7 +303,9 @@ func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context, logger
 	batchCount := 0
 	for batchCount < accessGrantCleanupMaxBatches {
 		if batchCount > 0 {
-			time.Sleep(accessGrantCleanupBatchPause)
+			if err := waitForAccessGrantCleanupBatchPause(ctx); err != nil {
+				return err
+			}
 		}
 		if err := ctx.Err(); err != nil {
 			return err
@@ -328,7 +330,29 @@ func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context, logger
 			return nil
 		}
 	}
+	if logger != nil {
+		logger.InfoContext(
+			ctx,
+			"access_grant_cleanup_completed",
+			"deleted_rows", deletedRows,
+			"batch_count", batchCount,
+			"batch_limit_reached", true,
+			"duration_ms", time.Since(startedAt).Milliseconds(),
+			"index", "short_link_access_grant_expiry_idx",
+		)
+	}
 	return nil
+}
+
+func waitForAccessGrantCleanupBatchPause(ctx context.Context) error {
+	timer := time.NewTimer(accessGrantCleanupBatchPause)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 // RunAccessGrantCleanup removes expired grants periodically until the context is canceled.

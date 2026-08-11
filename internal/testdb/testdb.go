@@ -39,6 +39,7 @@ var (
 	dockerContainerURL  string
 	dockerContainerErr  error
 	dockerShutdown      sharedContainerShutdown
+	gooseMigrationMu    sync.Mutex
 )
 
 // sharedContainerShutdown caches process-level container termination exactly once.
@@ -96,6 +97,8 @@ func dockerRequired(value string) bool {
 }
 
 // MigratedDatabaseURL returns a fresh PostgreSQL URL with project migrations applied.
+// Goose uses package-level dialect and migration state, so SetDialect and Up
+// must remain serialized when tests create migrated databases concurrently.
 func MigratedDatabaseURL(ctx context.Context, t testing.TB, migrationsDir string) string {
 	t.Helper()
 
@@ -108,6 +111,8 @@ func MigratedDatabaseURL(ctx context.Context, t testing.TB, migrationsDir string
 		reportCleanupError(t, "close test database", database.Close())
 	})
 
+	gooseMigrationMu.Lock()
+	defer gooseMigrationMu.Unlock()
 	if err := goose.SetDialect("postgres"); err != nil {
 		t.Fatalf("set goose dialect: %v", err)
 	}
@@ -262,15 +267,21 @@ func isolatedDatabaseURL(ctx context.Context, adminURL string, testName string, 
 		reportCleanupError(t, "close test database admin connection", adminDatabase.Close())
 		return "", nil, err
 	}
+	reportCleanupError(t, "close test database admin connection", adminDatabase.Close())
 
 	cleanup := func() {
 		cleanupContext, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
+		cleanupDatabase, openErr := sql.Open("pgx", adminURL)
+		if openErr != nil {
+			reportCleanupError(t, "open test database admin connection", openErr)
+			return
+		}
 		// Keep this identifier interpolation safe by changing localDatabaseName's allowlist together with this comment.
 		// ast-grep-ignore
-		_, dropErr := adminDatabase.ExecContext(cleanupContext, fmt.Sprintf("DROP DATABASE IF EXISTS %s WITH (FORCE)", databaseName)) // nosemgrep
+		_, dropErr := cleanupDatabase.ExecContext(cleanupContext, fmt.Sprintf("DROP DATABASE IF EXISTS %s WITH (FORCE)", databaseName)) // nosemgrep
 		reportCleanupError(t, fmt.Sprintf("drop test database %s", databaseName), dropErr)
-		reportCleanupError(t, "close test database admin connection", adminDatabase.Close())
+		reportCleanupError(t, "close test database admin connection", cleanupDatabase.Close())
 	}
 
 	return databaseURL, cleanup, nil

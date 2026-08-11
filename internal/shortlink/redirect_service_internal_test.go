@@ -1,6 +1,7 @@
 package shortlink
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"testing"
@@ -9,6 +10,16 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+// TestWaitAccessGrantCleanupBatchPauseHonorsCancellation verifies batch pauses stop promptly when cleanup is canceled.
+func TestWaitAccessGrantCleanupBatchPauseHonorsCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if err := waitForAccessGrantCleanupBatchPause(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cleanup batch pause error = %v, want %v", err, context.Canceled)
+	}
+}
 
 // TestNextPasswordFailureUsesFixedWindowAndBlocksTheFifthFailure verifies the lockout threshold and window anchor.
 func TestNextPasswordFailureUsesFixedWindowAndBlocksTheFifthFailure(t *testing.T) {

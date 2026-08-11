@@ -16,7 +16,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 )
 
@@ -166,7 +165,7 @@ func TestInternalServiceHelpers(t *testing.T) {
 // TestCreateRetriesReservedSlug verifies generated slugs skip fixed application routes.
 func TestCreateRetriesReservedSlug(t *testing.T) {
 	ctx := context.Background()
-	pool := internalShortLinkTestPool(t, ctx)
+	pool := testdb.ProjectMigratedPool(ctx, t)
 	if _, err := pool.Exec(ctx, `
 		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
 		values ('00000000-0000-0000-0000-000000000401', 'user', 'User', '', '[]'::jsonb, false, now(), now())
@@ -204,12 +203,6 @@ func TestCreateRetriesReservedSlug(t *testing.T) {
 	if result.ShortLink.Slug != "abc123" {
 		t.Fatalf("expected reserved slug retry to produce abc123, got %q", result.ShortLink.Slug)
 	}
-}
-
-// internalShortLinkTestPool opens an isolated migrated database for package-internal service tests.
-func internalShortLinkTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
-	t.Helper()
-	return testdb.ProjectMigratedPool(ctx, t)
 }
 
 // TestExpirationValuesUsesDatabaseState verifies mapping never recalculates expiration with the application clock.

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
-	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/testdb"
@@ -1395,12 +1394,5 @@ func permissionsJSON(t *testing.T, permissions []string) string {
 
 // shortLinkTestPool opens a migrated PostgreSQL pool for service integration tests.
 func shortLinkTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
-	t.Helper()
-	databaseURL := testdb.ProjectMigratedDatabaseURL(ctx, t)
-	pool, err := appdb.OpenPool(ctx, databaseURL)
-	if err != nil {
-		t.Fatalf("open pool: %v", err)
-	}
-	t.Cleanup(pool.Close)
-	return pool
+	return testdb.ProjectMigratedPool(ctx, t)
 }
