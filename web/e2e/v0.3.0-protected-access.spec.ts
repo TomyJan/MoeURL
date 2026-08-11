@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test'
 import {
   attachScreenshot,
+  e2eHost,
+  e2ePort,
   escapeRegExp,
   expectPasswordLayout,
   findShortLink,
@@ -10,8 +12,6 @@ import {
 const rateLimitedPassword = 'another correct horse'
 const rateLimitRetryDelayMs = 3_000
 
-const e2ePort = process.env.MOEURL_E2E_PORT ?? '8080'
-const e2eHost = `127.0.0.1:${e2ePort}`
 const e2eHostPattern = escapeRegExp(e2eHost)
 
 test.describe.configure({ mode: 'serial' })
@@ -299,6 +299,13 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
         await page.getByRole('button', { name: '解锁并继续' }).click()
         await successfulUnlockRequestPromise
         await expect(page).toHaveURL('https://example.com/e2e-rate-limited')
+
+        const realUnlockResponse = await page.request.post(`http://127.0.0.1:${e2ePort}/go/${rateLimitedSlug}/unlock`, {
+          data: { password: rateLimitedPassword },
+        })
+        expect(realUnlockResponse.status()).toBe(200)
+        const realUnlockPayload = await realUnlockResponse.json() as { code: number }
+        expect(realUnlockPayload.code).toBe(200113)
         return
       }
     },

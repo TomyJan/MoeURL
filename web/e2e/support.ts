@@ -1,6 +1,9 @@
 import { expect } from '@playwright/test'
 import type { Page, TestInfo } from '@playwright/test'
 
+export const e2ePort = process.env.MOEURL_E2E_PORT ?? '8080'
+export const e2eHost = `127.0.0.1:${e2ePort}`
+
 /** Escapes user-controlled text before embedding it in an E2E regular expression. */
 export function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
