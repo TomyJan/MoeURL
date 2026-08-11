@@ -782,7 +782,7 @@ set target_url = coalesce($1, target_url),
             then null
         else password_blocked_until
     end,
-    updated_at = now()
+    updated_at = clock_timestamp()
 from locked
 where short_link.id = locked.id
 returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
@@ -907,7 +907,7 @@ set target_url = coalesce($1, target_url),
             then null
         else password_blocked_until
     end,
-    updated_at = now()
+    updated_at = clock_timestamp()
 from locked
 where short_link.id = locked.id
 returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,

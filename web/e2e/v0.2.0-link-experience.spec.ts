@@ -2,6 +2,8 @@ import { expect, test } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
 import {
   attachScreenshot,
+  e2eAdminPassword,
+  e2eAdminUsername,
   e2eHost,
   escapeRegExp,
   expectNoHorizontalOverflow,
@@ -16,11 +18,11 @@ test('v0.2.0 intermediate-page, expiry, QR-code, and logout flows', async ({ pag
   page.setDefaultTimeout(10_000)
 
   await page.goto('/login')
-  await page.getByLabel('账号').fill('admin')
+  await page.getByLabel('账号').fill(e2eAdminUsername)
   await page.getByLabel('密码').fill('wrong-password')
   await page.getByRole('button', { name: '登录' }).click()
   await expect(page.getByText('登录失败，请检查账号和密码后再试。')).toBeVisible()
-  await page.getByLabel('密码').fill('admin-password')
+  await page.getByLabel('密码').fill(e2eAdminPassword)
   await page.getByRole('button', { name: '登录' }).click()
   await expect(page.getByRole('button', { name: 'Admin' })).toBeVisible()
 

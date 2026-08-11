@@ -585,33 +585,43 @@ func TestRedirectHandlerPreviewUsesUnifiedMinimalResponse(t *testing.T) {
 	}
 }
 
-// TestRedirectHandlerPublicPreviewForwardsAccessCookie verifies public preview revalidates scoped grants.
-func TestRedirectHandlerPublicPreviewForwardsAccessCookie(t *testing.T) {
-	service := &fakeRedirectService{previewResult: shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", IntermediateDelaySeconds: int16Pointer(5)}}
-	handler := shortlink.NewRedirectHandler(service)
-	response := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/public/short-link/preview?slug=middle", nil)
-	request.AddCookie(&http.Cookie{Name: "moeurl_short_link_access", Value: "raw-token"})
-
-	handler.PreviewPublic(response, request)
-
-	if response.Code != http.StatusOK || service.previewCalls != 1 || service.previewToken != "raw-token" {
-		t.Fatalf("expected public preview to forward access cookie, got status %d calls %d token %q", response.Code, service.previewCalls, service.previewToken)
+// TestRedirectHandlerPreviewForwardsAccessCookie verifies both preview entry points revalidate scoped grants.
+func TestRedirectHandlerPreviewForwardsAccessCookie(t *testing.T) {
+	tests := []struct {
+		name    string
+		path    string
+		preview func(*shortlink.RedirectHandler, http.ResponseWriter, *http.Request)
+	}{
+		{
+			name: "public",
+			path: "/api/v1/public/short-link/preview?slug=middle",
+			preview: func(handler *shortlink.RedirectHandler, response http.ResponseWriter, request *http.Request) {
+				handler.PreviewPublic(response, request)
+			},
+		},
+		{
+			name: "scoped",
+			path: "/go/middle/preview",
+			preview: func(handler *shortlink.RedirectHandler, response http.ResponseWriter, request *http.Request) {
+				handler.PreviewScoped(response, request, "middle")
+			},
+		},
 	}
-}
 
-// TestRedirectHandlerScopedPreviewForwardsAccessCookie verifies scoped preview revalidates scoped grants.
-func TestRedirectHandlerScopedPreviewForwardsAccessCookie(t *testing.T) {
-	service := &fakeRedirectService{previewResult: shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", IntermediateDelaySeconds: int16Pointer(5)}}
-	handler := shortlink.NewRedirectHandler(service)
-	response := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/go/middle/preview", nil)
-	request.AddCookie(&http.Cookie{Name: "moeurl_short_link_access", Value: "raw-token"})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service := &fakeRedirectService{previewResult: shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", IntermediateDelaySeconds: int16Pointer(5)}}
+			handler := shortlink.NewRedirectHandler(service)
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			request.AddCookie(&http.Cookie{Name: "moeurl_short_link_access", Value: "raw-token"})
 
-	handler.PreviewScoped(response, request, "middle")
+			tt.preview(handler, response, request)
 
-	if response.Code != http.StatusOK || service.previewCalls != 1 || service.previewToken != "raw-token" {
-		t.Fatalf("expected scoped preview to forward access cookie, got status %d calls %d token %q", response.Code, service.previewCalls, service.previewToken)
+			if response.Code != http.StatusOK || service.previewCalls != 1 || service.previewToken != "raw-token" {
+				t.Fatalf("expected %s preview to forward access cookie, got status %d calls %d token %q", tt.name, response.Code, service.previewCalls, service.previewToken)
+			}
+		})
 	}
 }
 

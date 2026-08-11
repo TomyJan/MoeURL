@@ -143,7 +143,6 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 
 	preview := httptest.NewRecorder()
 	publicPreviewRequest := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/public/short-link/preview?slug=middle", nil)
-	publicPreviewRequest.AddCookie(&http.Cookie{Name: "moeurl_short_link_access", Value: "raw-token"})
 	router.ServeHTTP(preview, publicPreviewRequest)
 	var body struct {
 		Code int `json:"code"`
@@ -161,8 +160,8 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 	if len(redirect.previewSlugs) != 2 || redirect.previewSlugs[0] != "middle" || redirect.previewSlugs[1] != "middle" {
 		t.Fatalf("expected both preview routes to pass slug, got %#v", redirect.previewSlugs)
 	}
-	if redirect.previewToken != "raw-token" {
-		t.Fatalf("expected public preview to pass access cookie, got %q", redirect.previewToken)
+	if redirect.previewToken != "" {
+		t.Fatalf("expected public preview without access cookie, got %q", redirect.previewToken)
 	}
 }
 

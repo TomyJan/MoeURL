@@ -308,7 +308,7 @@ func TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit(t *testing.T) {
 	}
 }
 
-// TestRedirectServiceUnlockRejectsOutOfRangePassword verifies Argon2 is never reached for invalid password lengths.
+// TestRedirectServiceUnlockRejectsOutOfRangePassword verifies invalid lengths never unlock a short link.
 func TestRedirectServiceUnlockRejectsOutOfRangePassword(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
@@ -660,17 +660,21 @@ func TestRedirectServiceCleanupReturnsCancellationDuringBatchPause(t *testing.T)
 	fixture.insertExpiredGrants(t, int(shortlink.AccessGrantCleanupBatchSize))
 	cleanupCtx, cancel := context.WithCancel(fixture.ctx)
 	defer cancel()
+	pauseEntered := make(chan struct{})
+	fixture.service.SetAccessGrantCleanupPauseHook(func(ctx context.Context) error {
+		close(pauseEntered)
+		<-ctx.Done()
+		return ctx.Err()
+	})
 	cleanupDone := make(chan error, 1)
 	go func() {
 		cleanupDone <- fixture.service.CleanupExpiredAccessGrants(cleanupCtx, nil)
 	}()
 
-	deadline := time.Now().Add(5 * time.Second)
-	for fixture.expiredGrantCount(t) != 0 {
-		if time.Now().After(deadline) {
-			t.Fatal("cleanup did not finish its first batch")
-		}
-		time.Sleep(time.Millisecond)
+	select {
+	case <-pauseEntered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("cleanup did not enter the inter-batch pause")
 	}
 	cancel()
 

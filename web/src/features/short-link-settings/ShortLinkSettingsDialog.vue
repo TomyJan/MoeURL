@@ -84,6 +84,8 @@
           :disabled="pending"
           :error-messages="passwordErrorMessage"
           :label="t('shortLinkSettings.password')"
+          @input="clearPasswordError"
+          @update:model-value="clearPasswordError"
         />
         <v-alert v-if="errorMessage" type="error" variant="tonal">{{ errorMessage }}</v-alert>
       </v-card-text>
@@ -285,6 +287,10 @@ function clearPasswordInput() {
   if (input) {
     input.value = ''
   }
+}
+
+function clearPasswordError() {
+  passwordErrorMessage.value = ''
 }
 
 function toLocalDateTime(value: string | null) {

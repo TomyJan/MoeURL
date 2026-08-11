@@ -62,9 +62,10 @@ type PreviewResult struct {
 
 // RedirectService resolves public short-link access actions.
 type RedirectService struct {
-	queries  *sqlc.Queries
-	pool     *pgxpool.Pool
-	recorder event.Recorder
+	queries          *sqlc.Queries
+	pool             *pgxpool.Pool
+	recorder         event.Recorder
+	cleanupPauseHook func(context.Context) error
 }
 
 // NewRedirectService creates a redirect service backed by PostgreSQL.
@@ -77,6 +78,11 @@ func NewRedirectService(pool *pgxpool.Pool, recorder event.Recorder) *RedirectSe
 		pool:     pool,
 		recorder: recorder,
 	}
+}
+
+// SetAccessGrantCleanupPauseHook overrides the inter-batch pause for deterministic maintenance tests.
+func (s *RedirectService) SetAccessGrantCleanupPauseHook(hook func(context.Context) error) {
+	s.cleanupPauseHook = hook
 }
 
 // Open resolves the initial public request to either a target or an intermediate page.
@@ -253,9 +259,9 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 	if state.PasswordBlockedUntil.Valid && now.Before(state.PasswordBlockedUntil.Time) {
 		return AccessGrant{}, &PasswordRateLimitedError{RetryAt: state.PasswordBlockedUntil.Time}
 	}
-	passwordMatches := false
-	if _, _, err := validatePasswordInput(&PasswordInput{Mode: PasswordModeSet, Value: password}); err == nil {
-		passwordMatches = auth.VerifyPassword(password, state.PasswordHash.String)
+	passwordMatches := auth.VerifyPassword(password, state.PasswordHash.String)
+	if _, _, err := validatePasswordInput(&PasswordInput{Mode: PasswordModeSet, Value: password}); err != nil {
+		passwordMatches = false
 	}
 	if !passwordMatches {
 		failure := nextPasswordFailure(now, state.PasswordFailedAttempts, state.PasswordWindowStartedAt)
@@ -307,7 +313,11 @@ func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context, logger
 	batchCount := 0
 	for batchCount < AccessGrantCleanupMaxBatches {
 		if batchCount > 0 {
-			if err := waitForAccessGrantCleanupBatchPause(ctx); err != nil {
+			pause := waitForAccessGrantCleanupBatchPause
+			if s.cleanupPauseHook != nil {
+				pause = s.cleanupPauseHook
+			}
+			if err := pause(ctx); err != nil {
 				return err
 			}
 		}

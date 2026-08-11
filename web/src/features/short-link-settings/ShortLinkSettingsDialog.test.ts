@@ -270,6 +270,19 @@ describe('ShortLinkSettingsDialog', () => {
     expect(view.emitted().save).toBeUndefined()
   })
 
+  it('clears the password validation error when the input changes', async () => {
+    setPermissions(['short_link:set_password'])
+    mountDialog()
+
+    await fireEvent.click(screen.getByLabelText('shortLinkSettings.passwordEnabled'))
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+    expect(screen.getByText('shortLinkSettings.passwordRequired')).toBeTruthy()
+
+    await fireEvent.update(screen.getByLabelText('shortLinkSettings.password'), 'correct horse')
+
+    expect(screen.queryByText('shortLinkSettings.passwordRequired')).toBeNull()
+  })
+
   it('reports a missing password input instead of silently preserving protection', async () => {
     setPermissions(['short_link:set_password'])
     const view = mountDialog(

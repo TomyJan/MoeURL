@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test'
 import {
   attachScreenshot,
+  e2eAdminPassword,
+  e2eAdminUsername,
   e2eHost,
   e2ePort,
   escapeRegExp,
@@ -22,8 +24,8 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
   page.setDefaultTimeout(10_000)
 
   await page.goto('/login')
-  await page.getByLabel('账号').fill('admin')
-  await page.getByLabel('密码').fill('admin-password')
+  await page.getByLabel('账号').fill(e2eAdminUsername)
+  await page.getByLabel('密码').fill(e2eAdminPassword)
   await page.getByRole('button', { name: '登录' }).click()
   await expect(page.getByRole('button', { name: 'Admin' })).toBeVisible()
 
