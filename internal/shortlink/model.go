@@ -125,11 +125,11 @@ type AccessConfig struct {
 }
 
 // setAccessConfig maps persisted access controls into the shared API model.
-func (config *AccessConfig) setAccessConfig(redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool, passwordHash pgtype.Text) {
+func (config *AccessConfig) setAccessConfig(redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool, passwordEnabled bool) {
 	config.RedirectMode = redirectMode
 	config.IntermediateDelaySeconds = delay
 	config.ExpiresAt, config.Expired = expirationValues(expiresAt, expired)
-	config.PasswordEnabled = passwordHash.Valid
+	config.PasswordEnabled = passwordEnabled
 }
 
 type ShortLink struct {

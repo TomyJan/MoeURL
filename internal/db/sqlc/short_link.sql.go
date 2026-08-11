@@ -211,7 +211,7 @@ select short_link.id,
     short_link.intermediate_delay_seconds,
     short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
-    short_link.password_hash,
+    coalesce(short_link.password_hash, '') <> '' as has_password,
     short_link.created_at,
     domain.host as domain_host
 from short_link
@@ -229,7 +229,7 @@ type GetShortLinkAnalyticsLinkRow struct {
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	Expired                  bool               `json:"expired"`
-	PasswordHash             pgtype.Text        `json:"password_hash"`
+	HasPassword              bool               `json:"has_password"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	DomainHost               string             `json:"domain_host"`
 }
@@ -247,7 +247,7 @@ func (q *Queries) GetShortLinkAnalyticsLink(ctx context.Context, id pgtype.UUID)
 		&i.IntermediateDelaySeconds,
 		&i.ExpiresAt,
 		&i.Expired,
-		&i.PasswordHash,
+		&i.HasPassword,
 		&i.CreatedAt,
 		&i.DomainHost,
 	)
@@ -440,7 +440,7 @@ select short_link.id,
     short_link.intermediate_delay_seconds,
     short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
-    short_link.password_hash,
+    coalesce(short_link.password_hash, '') <> '' as has_password,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
@@ -491,7 +491,7 @@ type ListAllShortLinksRow struct {
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	Expired                  bool               `json:"expired"`
-	PasswordHash             pgtype.Text        `json:"password_hash"`
+	HasPassword              bool               `json:"has_password"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -528,7 +528,7 @@ func (q *Queries) ListAllShortLinks(ctx context.Context, arg ListAllShortLinksPa
 			&i.IntermediateDelaySeconds,
 			&i.ExpiresAt,
 			&i.Expired,
-			&i.PasswordHash,
+			&i.HasPassword,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
@@ -560,7 +560,7 @@ select short_link.id,
     short_link.intermediate_delay_seconds,
     short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
-    short_link.password_hash,
+    coalesce(short_link.password_hash, '') <> '' as has_password,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
@@ -601,7 +601,7 @@ type ListShortLinksByOwnerRow struct {
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	Expired                  bool               `json:"expired"`
-	PasswordHash             pgtype.Text        `json:"password_hash"`
+	HasPassword              bool               `json:"has_password"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -636,7 +636,7 @@ func (q *Queries) ListShortLinksByOwner(ctx context.Context, arg ListShortLinksB
 			&i.IntermediateDelaySeconds,
 			&i.ExpiresAt,
 			&i.Expired,
-			&i.PasswordHash,
+			&i.HasPassword,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
@@ -733,7 +733,11 @@ func (q *Queries) SoftDeleteOwnShortLink(ctx context.Context, arg SoftDeleteOwnS
 
 const updateAnyShortLink = `-- name: UpdateAnyShortLink :one
 with locked as materialized (
-    select short_link.id
+    select short_link.id,
+        (
+            $7::text = 'never'
+            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+        ) as password_changed
     from short_link
     where short_link.id = $9
         and short_link.deleted_at is null
@@ -751,31 +755,27 @@ set target_url = coalesce($1, target_url),
     end,
     password_hash = case
         when $7::text = 'never' then null
-        when $7::text = 'set' and coalesce($8::text, '') <> ''
+        when locked.password_changed
             then $8::text
         else password_hash
     end,
     password_updated_at = case
-        when $7::text = 'never'
-            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+        when locked.password_changed
             then clock_timestamp()
         else password_updated_at
     end,
     password_failed_attempts = case
-        when $7::text = 'never'
-            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+        when locked.password_changed
             then 0
         else password_failed_attempts
     end,
     password_window_started_at = case
-        when $7::text = 'never'
-            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+        when locked.password_changed
             then null
         else password_window_started_at
     end,
     password_blocked_until = case
-        when $7::text = 'never'
-            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+        when locked.password_changed
             then null
         else password_blocked_until
     end,
@@ -854,7 +854,11 @@ func (q *Queries) UpdateAnyShortLink(ctx context.Context, arg UpdateAnyShortLink
 
 const updateOwnShortLink = `-- name: UpdateOwnShortLink :one
 with locked as materialized (
-    select short_link.id
+    select short_link.id,
+        (
+            $7::text = 'never'
+            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+        ) as password_changed
     from short_link
     where short_link.id = $9
         and short_link.owner_id = $10
@@ -873,31 +877,27 @@ set target_url = coalesce($1, target_url),
     end,
     password_hash = case
         when $7::text = 'never' then null
-        when $7::text = 'set' and coalesce($8::text, '') <> ''
+        when locked.password_changed
             then $8::text
         else password_hash
     end,
     password_updated_at = case
-        when $7::text = 'never'
-            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+        when locked.password_changed
             then clock_timestamp()
         else password_updated_at
     end,
     password_failed_attempts = case
-        when $7::text = 'never'
-            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+        when locked.password_changed
             then 0
         else password_failed_attempts
     end,
     password_window_started_at = case
-        when $7::text = 'never'
-            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+        when locked.password_changed
             then null
         else password_window_started_at
     end,
     password_blocked_until = case
-        when $7::text = 'never'
-            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+        when locked.password_changed
             then null
         else password_blocked_until
     end,

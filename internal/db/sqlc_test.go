@@ -288,7 +288,7 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 	for _, row := range listed {
 		if row.ID == uuidToPgtype(configuredID) {
 			found = true
-			if row.RedirectMode != "intermediate" || row.IntermediateDelaySeconds != 7 || !row.ExpiresAt.Valid || row.Expired || !row.PasswordHash.Valid {
+			if row.RedirectMode != "intermediate" || row.IntermediateDelaySeconds != 7 || !row.ExpiresAt.Valid || row.Expired || !row.HasPassword {
 				t.Fatalf("unexpected listed access config: %#v", row)
 			}
 		}

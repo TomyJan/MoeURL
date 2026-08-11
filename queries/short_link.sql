@@ -36,7 +36,7 @@ select short_link.id,
     short_link.intermediate_delay_seconds,
     short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
-    short_link.password_hash,
+    coalesce(short_link.password_hash, '') <> '' as has_password,
     short_link.created_at,
     domain.host as domain_host
 from short_link
@@ -54,7 +54,7 @@ select short_link.id,
     short_link.intermediate_delay_seconds,
     short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
-    short_link.password_hash,
+    coalesce(short_link.password_hash, '') <> '' as has_password,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
@@ -98,7 +98,11 @@ where short_link.owner_id = $1
 
 -- name: UpdateOwnShortLink :one
 with locked as materialized (
-    select short_link.id
+    select short_link.id,
+        (
+            sqlc.arg('password_mode')::text = 'never'
+            or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
+        ) as password_changed
     from short_link
     where short_link.id = sqlc.arg('id')
         and short_link.owner_id = sqlc.arg('owner_id')
@@ -117,31 +121,27 @@ set target_url = coalesce(sqlc.narg('target_url'), target_url),
     end,
     password_hash = case
         when sqlc.arg('password_mode')::text = 'never' then null
-        when sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> ''
+        when locked.password_changed
             then sqlc.narg('password_hash')::text
         else password_hash
     end,
     password_updated_at = case
-        when sqlc.arg('password_mode')::text = 'never'
-            or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
+        when locked.password_changed
             then clock_timestamp()
         else password_updated_at
     end,
     password_failed_attempts = case
-        when sqlc.arg('password_mode')::text = 'never'
-            or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
+        when locked.password_changed
             then 0
         else password_failed_attempts
     end,
     password_window_started_at = case
-        when sqlc.arg('password_mode')::text = 'never'
-            or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
+        when locked.password_changed
             then null
         else password_window_started_at
     end,
     password_blocked_until = case
-        when sqlc.arg('password_mode')::text = 'never'
-            or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
+        when locked.password_changed
             then null
         else password_blocked_until
     end,
@@ -173,7 +173,7 @@ select short_link.id,
     short_link.intermediate_delay_seconds,
     short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
-    short_link.password_hash,
+    coalesce(short_link.password_hash, '') <> '' as has_password,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
@@ -221,7 +221,11 @@ where short_link.deleted_at is null
 
 -- name: UpdateAnyShortLink :one
 with locked as materialized (
-    select short_link.id
+    select short_link.id,
+        (
+            sqlc.arg('password_mode')::text = 'never'
+            or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
+        ) as password_changed
     from short_link
     where short_link.id = sqlc.arg('id')
         and short_link.deleted_at is null
@@ -239,31 +243,27 @@ set target_url = coalesce(sqlc.narg('target_url'), target_url),
     end,
     password_hash = case
         when sqlc.arg('password_mode')::text = 'never' then null
-        when sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> ''
+        when locked.password_changed
             then sqlc.narg('password_hash')::text
         else password_hash
     end,
     password_updated_at = case
-        when sqlc.arg('password_mode')::text = 'never'
-            or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
+        when locked.password_changed
             then clock_timestamp()
         else password_updated_at
     end,
     password_failed_attempts = case
-        when sqlc.arg('password_mode')::text = 'never'
-            or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
+        when locked.password_changed
             then 0
         else password_failed_attempts
     end,
     password_window_started_at = case
-        when sqlc.arg('password_mode')::text = 'never'
-            or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
+        when locked.password_changed
             then null
         else password_window_started_at
     end,
     password_blocked_until = case
-        when sqlc.arg('password_mode')::text = 'never'
-            or (sqlc.arg('password_mode')::text = 'set' and coalesce(sqlc.narg('password_hash')::text, '') <> '')
+        when locked.password_changed
             then null
         else password_blocked_until
     end,
