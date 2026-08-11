@@ -29,11 +29,17 @@
           autocomplete="current-password"
           :disabled="unlockPending"
           :label="t('redirect.password')"
-          :error-messages="unlockErrorState ? t(`redirect.${unlockErrorState}`) : ''"
+          :error-messages="unlockErrorMessage"
           variant="outlined"
         />
         <div class="redirect-page__actions">
-          <v-btn type="submit" color="primary" size="large" :loading="unlockPending">
+          <v-btn
+            type="submit"
+            color="primary"
+            size="large"
+            :disabled="unlockPending || (unlockErrorState === 'rateLimited' && rateLimitRemainingSeconds > 0)"
+            :loading="unlockPending"
+          >
             {{ t('redirect.unlock') }}
           </v-btn>
           <v-btn type="button" variant="text" :to="{ path: '/' }">{{ t('redirect.backHome') }}</v-btn>
@@ -64,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
@@ -86,9 +92,23 @@ const navigating = ref(false)
 const passwordRequired = ref(false)
 const unlockPending = ref(false)
 const unlockErrorState = ref<UnlockErrorState>('')
+const rateLimitRemainingSeconds = ref(0)
 let countdownTimer: ReturnType<typeof globalThis.setInterval> | null = null
+let rateLimitTimer: ReturnType<typeof globalThis.setInterval> | null = null
 let previewRequestId = 0
 let isMounted = false
+
+const unlockErrorMessage = computed(() => {
+  if (!unlockErrorState.value) {
+    return ''
+  }
+  if (unlockErrorState.value === 'rateLimited') {
+    return rateLimitRemainingSeconds.value > 0
+      ? t('redirect.rateLimited', { seconds: rateLimitRemainingSeconds.value })
+      : t('redirect.rateLimitedWithoutDeadline')
+  }
+  return t(`redirect.${unlockErrorState.value}`)
+})
 
 onMounted(() => {
   isMounted = true
@@ -98,6 +118,7 @@ onBeforeUnmount(() => {
   isMounted = false
   previewRequestId += 1
   clearCountdown()
+  clearRateLimitCountdown()
 })
 watch(
   () => [route.params.slug, route.query.reason],
@@ -108,6 +129,7 @@ watch(
 async function loadPreview() {
   const requestId = ++previewRequestId
   clearCountdown()
+  clearRateLimitCountdown()
   preview.value = null
   loading.value = true
   failureState.value = ''
@@ -116,6 +138,9 @@ async function loadPreview() {
   passwordRequired.value = false
   unlockPending.value = false
   unlockErrorState.value = unlockErrorFromReason(route.query.reason)
+  if (unlockErrorState.value === 'rateLimited') {
+    startRateLimitCountdown(route.query.retryAt)
+  }
 
   const requestedFailureState = failureStateFromReason(route.query.reason)
   if (requestedFailureState) {
@@ -235,7 +260,12 @@ function proceedAfterAccess() {
 async function unlock(event: globalThis.Event) {
   const form = event.currentTarget as globalThis.HTMLFormElement
   const slug = preview.value?.slug ?? route.params.slug
-  if (unlockPending.value || typeof slug !== 'string' || !slug) {
+  if (
+    unlockPending.value
+    || (unlockErrorState.value === 'rateLimited' && rateLimitRemainingSeconds.value > 0)
+    || typeof slug !== 'string'
+    || !slug
+  ) {
     return
   }
   const password = new globalThis.FormData(form).get('password')
@@ -260,7 +290,13 @@ async function unlock(event: globalThis.Event) {
     if (!isCurrentUnlock()) {
       return
     }
-    unlockErrorState.value = classifyUnlockError(error)
+    const errorState = classifyUnlockError(error)
+    unlockErrorState.value = errorState
+    if (errorState === 'rateLimited') {
+      startRateLimitCountdown(rateLimitRetryAt(error))
+    } else {
+      clearRateLimitCountdown()
+    }
   } finally {
     if (isCurrentUnlock()) {
       unlockPending.value = false
@@ -307,6 +343,45 @@ function clearCountdown() {
   }
   globalThis.clearInterval(countdownTimer)
   countdownTimer = null
+}
+
+function rateLimitRetryAt(error: unknown): unknown {
+  /* v8 ignore next -- rateLimited is classified only from ApiClientError responses. */
+  return error instanceof ApiClientError ? error.meta.retryAt : undefined
+}
+
+function startRateLimitCountdown(retryAt: unknown) {
+  clearRateLimitCountdown()
+  if (typeof retryAt !== 'string') {
+    return
+  }
+  const retryAtMillis = Date.parse(retryAt)
+  if (!Number.isFinite(retryAtMillis)) {
+    return
+  }
+
+  const update = () => {
+    rateLimitRemainingSeconds.value = Math.max(0, Math.ceil((retryAtMillis - Date.now()) / 1_000))
+    if (rateLimitRemainingSeconds.value === 0) {
+      clearRateLimitCountdown()
+      /* v8 ignore next -- this timer is owned by the active rate-limited state. */
+      if (unlockErrorState.value === 'rateLimited') {
+        unlockErrorState.value = ''
+      }
+    }
+  }
+  update()
+  if (rateLimitRemainingSeconds.value > 0) {
+    rateLimitTimer = globalThis.setInterval(update, 1_000)
+  }
+}
+
+function clearRateLimitCountdown() {
+  if (rateLimitTimer !== null) {
+    globalThis.clearInterval(rateLimitTimer)
+    rateLimitTimer = null
+  }
+  rateLimitRemainingSeconds.value = 0
 }
 </script>
 

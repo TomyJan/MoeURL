@@ -188,6 +188,7 @@ describe('RedirectPage', () => {
 
   it.each([
     [{ reason: 'rate-limited' }, undefined],
+    [{ reason: 'rate-limited', retryAt: 'not-a-date' }, undefined],
     [{ reason: 'password' }, new ApiClientError(200113, 'Too many attempts')],
   ])('shows the password rate-limit state for query or unlock errors', async (query, unlockError) => {
     state.route!.query = query
@@ -209,7 +210,7 @@ describe('RedirectPage', () => {
       await fireEvent.update(screen.getByLabelText('redirect.password'), 'wrongpass')
       await fireEvent.click(screen.getByRole('button', { name: 'redirect.unlock' }))
     }
-    expect(screen.getByText('redirect.rateLimited')).toBeTruthy()
+    expect(screen.getByText('redirect.rateLimitedWithoutDeadline')).toBeTruthy()
     expect(state.assign).not.toHaveBeenCalled()
   })
 
@@ -249,10 +250,65 @@ describe('RedirectPage', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'redirect.unlock' }))
 
     expect(unlockShortLink).toHaveBeenCalledWith({ slug: 'abc123', password: 'correct horse' })
-    expect(screen.queryByText('redirect.rateLimited')).toBeNull()
+    expect(screen.queryByText('redirect.rateLimitedWithoutDeadline')).toBeNull()
     await vi.waitFor(() => {
       expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
     })
+  })
+
+  it('counts down the backend retry deadline before allowing another unlock', async () => {
+    state.route!.query = { reason: 'password' }
+    vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
+      slug: 'abc123',
+      targetHost: 'example.com',
+      intermediateDelaySeconds: 5,
+      expiresAt: null,
+      redirectMode: 'direct',
+      requiresPassword: true,
+    })
+    vi.mocked(unlockShortLink)
+      .mockRejectedValueOnce(new ApiClientError(200113, 'Too many attempts', {
+        retryAt: new Date(Date.now() + 3_000).toISOString(),
+      }))
+      .mockResolvedValueOnce({ unlocked: true })
+    mountPage()
+    await flushPreview()
+
+    const passwordInput = screen.getByLabelText('redirect.password')
+    const unlockButton = screen.getByRole('button', { name: 'redirect.unlock' }) as HTMLButtonElement
+    await fireEvent.update(passwordInput, 'wrongpass')
+    await fireEvent.click(unlockButton)
+
+    expect(unlockButton.disabled).toBe(true)
+    await vi.advanceTimersByTimeAsync(2_000)
+    expect(unlockButton.disabled).toBe(true)
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(unlockButton.disabled).toBe(false)
+
+    await fireEvent.update(passwordInput, 'correct horse')
+    await fireEvent.click(unlockButton)
+    await vi.waitFor(() => expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue'))
+  })
+
+  it('does not create a rate-limit timer for an expired retry deadline', async () => {
+    state.route!.query = {
+      reason: 'rate-limited',
+      retryAt: new Date(Date.now() - 1_000).toISOString(),
+    }
+    vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
+      slug: 'abc123',
+      targetHost: 'example.com',
+      intermediateDelaySeconds: 5,
+      expiresAt: null,
+      redirectMode: 'direct',
+      requiresPassword: true,
+    })
+    mountPage()
+    await flushPreview()
+
+    expect(screen.queryByText('redirect.rateLimitedWithoutDeadline')).toBeNull()
+    const unlockButton = screen.getByRole('button', { name: 'redirect.unlock' }) as HTMLButtonElement
+    expect(unlockButton.disabled).toBe(false)
   })
 
   it.each([
