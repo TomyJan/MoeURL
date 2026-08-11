@@ -27,8 +27,7 @@ export function useShortLinkSettings(options: UseShortLinkSettingsOptions) {
     /** Runs updates through the shared sensitive-input cleanup boundary. */
     mutationFn: (input: Omit<UpdateShortLinkInput, 'password'>) => {
       const requestPassword = pendingPasswords.get(input)
-      const passwordRequested = passwordRequests.delete(input)
-      pendingPasswords.delete(input)
+      const passwordRequested = passwordRequests.has(input)
       return runShortLinkMutation(options.mutationFn, input, requestPassword, passwordRequested)
     },
     onSuccess(_data, variables) {
@@ -38,6 +37,7 @@ export function useShortLinkSettings(options: UseShortLinkSettingsOptions) {
       void queryClient.invalidateQueries({ queryKey: options.queryKey })
     },
     onSettled(_data, _error, variables) {
+      passwordRequests.delete(variables)
       pendingPasswords.delete(variables)
     },
   })

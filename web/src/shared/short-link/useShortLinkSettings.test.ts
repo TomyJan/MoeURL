@@ -194,8 +194,11 @@ describe('useShortLinkSettings', () => {
     expect(mutationFn).toHaveBeenCalledTimes(2)
   })
 
-  it('drops a deferred password when settings settle before the mutation function runs', async () => {
-    const mutationFn = vi.fn(async () => undefined)
+  it('drops a deferred password after the mutation settles', async () => {
+    let sentInput: UpdateShortLinkInput | undefined
+    const mutationFn = vi.fn(async (input: UpdateShortLinkInput) => {
+      sentInput = structuredClone(input)
+    })
     const settings = useShortLinkSettings({ mutationFn, queryKey: ['short-link'] })
     settings.saveSettings({
       id: 'link-id',
@@ -204,9 +207,10 @@ describe('useShortLinkSettings', () => {
     })
     const variables = state.mutate.mock.calls[0]?.[0] as UpdateShortLinkInput
 
+    await state.mutationOptions?.mutationFn?.(variables)
     state.mutationOptions?.onSettled?.(undefined, undefined, variables)
-    await expect(state.mutationOptions?.mutationFn?.(variables)).rejects.toThrow('password input was cleared before mutation execution')
-    expect(mutationFn).not.toHaveBeenCalled()
+
+    expect(sentInput).toEqual({ id: 'link-id', targetUrl: 'https://example.org', password: { mode: 'set', value: 'correct horse' } })
   })
 
   it('uses the translated fallback for non-Error mutation failures', () => {
