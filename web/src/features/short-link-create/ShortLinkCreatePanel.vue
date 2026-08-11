@@ -220,7 +220,8 @@ const mutation = useMutation({
     clearPasswordInput()
     const passwordResult = requestPassword === undefined ? undefined : passwordSchema.safeParse(requestPassword)
     if (passwordRequested && (!passwordResult || !passwordResult.success)) {
-      return Promise.reject(new Error('password input was cleared before mutation execution'))
+      passwordErrorMessage.value = t('shortLinkCreate.passwordRequired')
+      return Promise.reject(new Error(t('shortLinkCreate.failed')))
     }
     return runShortLinkMutation(
       createShortLink,

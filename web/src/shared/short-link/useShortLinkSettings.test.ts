@@ -195,9 +195,9 @@ describe('useShortLinkSettings', () => {
   })
 
   it('drops a deferred password after the mutation settles', async () => {
-    let sentInput: UpdateShortLinkInput | undefined
+    const sentInputs: UpdateShortLinkInput[] = []
     const mutationFn = vi.fn(async (input: UpdateShortLinkInput) => {
-      sentInput = structuredClone(input)
+      sentInputs.push(structuredClone(input))
     })
     const settings = useShortLinkSettings({ mutationFn, queryKey: ['short-link'] })
     settings.saveSettings({
@@ -210,7 +210,14 @@ describe('useShortLinkSettings', () => {
     await state.mutationOptions?.mutationFn?.(variables)
     state.mutationOptions?.onSettled?.(undefined, undefined, variables)
 
-    expect(sentInput).toEqual({ id: 'link-id', targetUrl: 'https://example.org', password: { mode: 'set', value: 'correct horse' } })
+    expect(sentInputs).toEqual([
+      { id: 'link-id', targetUrl: 'https://example.org', password: { mode: 'set', value: 'correct horse' } },
+    ])
+    await expect(state.mutationOptions?.mutationFn?.(variables)).resolves.toBeUndefined()
+    expect(sentInputs).toEqual([
+      { id: 'link-id', targetUrl: 'https://example.org', password: { mode: 'set', value: 'correct horse' } },
+      { id: 'link-id', targetUrl: 'https://example.org' },
+    ])
   })
 
   it('uses the translated fallback for non-Error mutation failures', () => {

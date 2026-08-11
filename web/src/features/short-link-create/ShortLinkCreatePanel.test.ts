@@ -350,9 +350,8 @@ describe('ShortLinkCreatePanel', () => {
     }
     options.onSettled?.()
     expect(passwordInput.value).toBe('')
-    await expect(options.mutationFn?.({ targetUrl: 'https://example.com' })).rejects.toThrow(
-      'password input was cleared before mutation execution',
-    )
+    await expect(options.mutationFn?.({ targetUrl: 'https://example.com' })).rejects.toThrow('shortLinkCreate.failed')
+    expect(screen.getByText('shortLinkCreate.passwordRequired')).toBeTruthy()
   })
 
   it('rejects an invalid protected-link password before mutation', async () => {

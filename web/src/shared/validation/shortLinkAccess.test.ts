@@ -38,5 +38,6 @@ describe('short-link access validation', () => {
     expect(passwordSchema.safeParse('🔒'.repeat(128)).success).toBe(true)
     expect(passwordSchema.safeParse('🔒'.repeat(129)).success).toBe(false)
     expect(passwordSchema.safeParse('a'.repeat(129)).success).toBe(false)
+    expect(passwordSchema.safeParse('a'.repeat(513)).success).toBe(false)
 	})
 })

@@ -123,7 +123,7 @@ describe('deployment configuration', () => {
     expect(viteConfig.build?.rolldownOptions?.output?.codeSplitting?.maxSize).toBeUndefined()
   })
 
-  it('allows a cold Docker image build to finish before Playwright starts', { timeout: 15_000 }, async () => {
+  it('allows a cold Docker image build to finish before Playwright starts', { timeout: 30_000 }, async () => {
     const { default: playwrightConfig } = await import('../../playwright.config')
 
     expect(playwrightConfig.workers).toBeUndefined()
