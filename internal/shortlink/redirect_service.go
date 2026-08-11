@@ -23,14 +23,18 @@ import (
 )
 
 const (
-	passwordFailureWindow             = 15 * time.Minute
-	passwordBlockDuration             = 15 * time.Minute
-	accessGrantTTL                    = 15 * time.Minute
-	accessGrantCleanupBatchSize int64 = 500
+	passwordFailureWindow              = 15 * time.Minute
+	passwordBlockDuration              = 15 * time.Minute
+	accessGrantTTL                     = 15 * time.Minute
+	accessGrantCleanupBatchSize  int64 = 500
+	accessGrantCleanupMaxBatches       = 20
+	accessGrantCleanupBatchPause       = 50 * time.Millisecond
 	// AccessGrantCleanupBatchSize is the maximum number of expired grants deleted per query batch.
 	AccessGrantCleanupBatchSize = accessGrantCleanupBatchSize
-	accessTokenBytes            = 32
-	maxPasswordFailures         = int16(5)
+	// AccessGrantCleanupMaxBatches limits the work performed by one cleanup run.
+	AccessGrantCleanupMaxBatches = accessGrantCleanupMaxBatches
+	accessTokenBytes             = 32
+	maxPasswordFailures          = int16(5)
 )
 
 var accessTokenRandomReader io.Reader = rand.Reader
@@ -297,7 +301,10 @@ func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context, logger
 	startedAt := time.Now()
 	var deletedRows int64
 	batchCount := 0
-	for {
+	for batchCount < accessGrantCleanupMaxBatches {
+		if batchCount > 0 {
+			time.Sleep(accessGrantCleanupBatchPause)
+		}
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -321,6 +328,7 @@ func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context, logger
 			return nil
 		}
 	}
+	return nil
 }
 
 // RunAccessGrantCleanup removes expired grants periodically until the context is canceled.

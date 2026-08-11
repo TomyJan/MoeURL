@@ -254,3 +254,33 @@ func TestAppShutdownFailureKeepsDependenciesRunning(t *testing.T) {
 		t.Fatal("cleanup remained active after successful shutdown retry")
 	}
 }
+
+// TestAppShutdownStopsWaitingWhenCleanupExceedsDeadline verifies shutdown does not close the pool after cleanup times out.
+func TestAppShutdownStopsWaitingWhenCleanupExceedsDeadline(t *testing.T) {
+	cleanupCanceled := make(chan struct{})
+	cleanupDone := make(chan struct{})
+	application := &App{
+		server: &http.Server{},
+		grantCleanupCancel: func() {
+			close(cleanupCanceled)
+		},
+		grantCleanupDone: cleanupDone,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	err := application.Shutdown(ctx)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("shutdown error = %v, want context deadline exceeded", err)
+	}
+	select {
+	case <-cleanupCanceled:
+	default:
+		t.Fatal("grant cleanup was not canceled")
+	}
+	select {
+	case <-cleanupDone:
+		t.Fatal("shutdown returned before grant cleanup completed")
+	default:
+	}
+}

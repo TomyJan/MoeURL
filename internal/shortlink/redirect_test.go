@@ -624,6 +624,20 @@ func TestRedirectServiceCleanupDrainsExpiredGrantBatchesAndLogs(t *testing.T) {
 	}
 }
 
+// TestRedirectServiceCleanupCapsExpiredGrantBatches verifies one run leaves work for the next scheduled cycle after its batch limit.
+func TestRedirectServiceCleanupCapsExpiredGrantBatches(t *testing.T) {
+	fixture := newAccessGrantCleanupFixture(t)
+	totalGrantCount := int(shortlink.AccessGrantCleanupBatchSize)*shortlink.AccessGrantCleanupMaxBatches + 1
+	fixture.insertExpiredGrants(t, totalGrantCount)
+
+	if err := fixture.service.CleanupExpiredAccessGrants(fixture.ctx, nil); err != nil {
+		t.Fatalf("clean expired access grants: %v", err)
+	}
+	if expiredCount := fixture.expiredGrantCount(t); expiredCount != 1 {
+		t.Fatalf("expected cleanup to cap at %d batches and leave one expired grant, got %d rows", shortlink.AccessGrantCleanupMaxBatches, expiredCount)
+	}
+}
+
 // TestRedirectServiceRunsPeriodicAccessGrantCleanup verifies maintenance removes expired grants and preserves active grants.
 func TestRedirectServiceRunsPeriodicAccessGrantCleanup(t *testing.T) {
 	fixture := newAccessGrantCleanupFixture(t)

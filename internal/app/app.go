@@ -92,7 +92,11 @@ func (a *App) Shutdown(ctx context.Context) error {
 	}
 	if a.grantCleanupCancel != nil {
 		a.grantCleanupCancel()
-		<-a.grantCleanupDone
+		select {
+		case <-a.grantCleanupDone:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 	if a.pool != nil {
 		a.pool.Close()
