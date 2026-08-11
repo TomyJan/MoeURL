@@ -57,7 +57,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 实施层文档位于 [implementation](implementation/) 目录，用于承载技术决策、技术基线、工程计划、任务拆分和验收记录。
 
-当前优先目标是 v0.3.0 受保护短链访问。实施计划应优先覆盖 [v0.3.0 范围](product/scope-v0.3.0.md) 中的必须实现项，并遵循 [技术基线](implementation/technical-baseline.md)。涉及 v0.2.0 中间页、过期时间、二维码、既有 API、schema、权限和验收口径时，应继续参考 [v0.2.0 验收清单](implementation/v0.2.0-acceptance.md) 及 [v0.2.0 功能设计](specs/2026-08-02-v0.2.0-link-experience-design.md)。
+当前已完成到 v0.3.0 受保护短链访问；后续工作以路线图和最新版本范围文档为维护入口。涉及 v0.2.0 中间页、过期时间、二维码、既有 API、schema、权限和验收口径时，应继续参考 [v0.2.0 验收清单](implementation/v0.2.0-acceptance.md) 及 [v0.2.0 功能设计](specs/2026-08-02-v0.2.0-link-experience-design.md)。
 
 当前实施层文档包括：
 
