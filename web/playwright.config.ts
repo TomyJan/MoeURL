@@ -75,7 +75,7 @@ export default defineConfig({
     ? {
         command: 'node -e "setInterval(() => {}, 1 << 30)"',
         reuseExistingServer: true,
-        timeout: 600_000,
+        timeout: 60_000,
         url: `${baseURL}/api/v1/health`,
       }
     : {
