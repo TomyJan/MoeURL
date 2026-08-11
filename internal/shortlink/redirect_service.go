@@ -249,7 +249,7 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 	}
 	now := nowValue.Time
 	if state.PasswordBlockedUntil.Valid && now.Before(state.PasswordBlockedUntil.Time) {
-		return AccessGrant{}, ErrPasswordRateLimited
+		return AccessGrant{}, &PasswordRateLimitedError{RetryAt: state.PasswordBlockedUntil.Time}
 	}
 	passwordMatches := false
 	if _, _, err := validatePasswordInput(&PasswordInput{Mode: PasswordModeSet, Value: password}); err == nil {
@@ -269,7 +269,7 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 			return AccessGrant{}, err
 		}
 		if failure.blockedUntil.Valid {
-			return AccessGrant{}, ErrPasswordRateLimited
+			return AccessGrant{}, &PasswordRateLimitedError{RetryAt: failure.blockedUntil.Time}
 		}
 		return AccessGrant{}, ErrInvalidPassword
 	}

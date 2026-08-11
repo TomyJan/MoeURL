@@ -265,9 +265,15 @@ func TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit(t *testing.T) {
 		if !errors.Is(err, want) {
 			t.Fatalf("attempt %d error = %v, want %v", attempt, err, want)
 		}
+		if attempt == 5 {
+			var rateLimitErr *shortlink.PasswordRateLimitedError
+			if !errors.As(err, &rateLimitErr) || !rateLimitErr.RetryAt.After(time.Now()) {
+				t.Fatalf("expected rate-limit retry deadline, got %v", err)
+			}
+		}
 	}
-	if _, err := pool.Exec(ctx, `update short_link set password_failed_attempts = 0, password_blocked_until = null where id = $1`, linkID); err != nil {
-		t.Fatalf("clear password block fixture: %v", err)
+	if _, err := pool.Exec(ctx, `update short_link set password_blocked_until = now() - interval '1 second' where id = $1`, linkID); err != nil {
+		t.Fatalf("expire password block fixture: %v", err)
 	}
 	grant, err := service.Unlock(ctx, "protected", "correct horse")
 	if err != nil || grant.Token == "" {

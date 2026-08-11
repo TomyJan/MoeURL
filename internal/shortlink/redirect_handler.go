@@ -147,15 +147,20 @@ func (h *RedirectHandler) Unlock(w http.ResponseWriter, r *http.Request, slug st
 			errors.Is(err, ErrShortLinkExpired):
 			businessError(w, CodeInvalidPassword, "Invalid password")
 		case errors.Is(err, ErrPasswordRateLimited):
-			businessError(w, CodePasswordRateLimited, "Too many attempts")
+			var rateLimitErr *PasswordRateLimitedError
+			meta := map[string]any{}
+			if errors.As(err, &rateLimitErr) && !rateLimitErr.RetryAt.IsZero() {
+				meta["retryAt"] = rateLimitErr.RetryAt.UTC().Format(time.RFC3339Nano)
+			}
+			writeJSON(w, http.StatusOK, response{Code: CodePasswordRateLimited, Message: "Too many attempts", Data: nil, Meta: meta})
 		default:
 			writeJSON(w, http.StatusInternalServerError, response{Code: 900000, Message: "Internal server error", Data: nil, Meta: map[string]any{}})
 		}
 		return
 	}
 
-	maxAge := int(time.Until(grant.ExpiresAt).Seconds())
-	if maxAge <= 0 {
+	maxAge := int(accessGrantTTL / time.Second)
+	if !grant.ExpiresAt.After(time.Now()) {
 		maxAge = -1
 	}
 	http.SetCookie(w, &http.Cookie{

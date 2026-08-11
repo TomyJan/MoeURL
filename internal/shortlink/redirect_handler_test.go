@@ -101,7 +101,7 @@ func TestRedirectHandlerUnlockSetsScopedCookie(t *testing.T) {
 		t.Fatalf("expected one access cookie, got %d; response headers: %#v", len(cookies), response.Header())
 	}
 	cookie := cookies[0]
-	if cookie.Name != "moeurl_short_link_access" || cookie.Value != "raw-token" || cookie.Path != "/go/abc123" || !cookie.HttpOnly || cookie.Secure || cookie.SameSite != http.SameSiteLaxMode || cookie.MaxAge < 118 || cookie.MaxAge > 120 {
+	if cookie.Name != "moeurl_short_link_access" || cookie.Value != "raw-token" || cookie.Path != "/go/abc123" || !cookie.HttpOnly || cookie.Secure || cookie.SameSite != http.SameSiteLaxMode || cookie.MaxAge < 899 || cookie.MaxAge > 900 {
 		t.Fatalf("unexpected access cookie: %#v", cookie)
 	}
 	if service.unlockSlug != "abc123" {
@@ -147,6 +147,30 @@ func TestRedirectHandlerUnlockExpiresStaleCookie(t *testing.T) {
 	}
 	if cookies[0].MaxAge != -1 {
 		t.Fatalf("expected stale access cookie to expire immediately, got %#v", cookies[0])
+	}
+}
+
+// TestRedirectHandlerUnlockRateLimitIncludesRetryAt verifies the backend deadline reaches the public API.
+func TestRedirectHandlerUnlockRateLimitIncludesRetryAt(t *testing.T) {
+	retryAt := time.Date(2026, time.August, 11, 12, 0, 0, 0, time.UTC)
+	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: &fakeRedirectService{
+		unlockErr: &shortlink.PasswordRateLimitedError{RetryAt: retryAt},
+	}})
+	request := httptest.NewRequest(http.MethodPost, "/go/abc123/unlock", bytes.NewBufferString(`{"password":"wrong"}`))
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	var body struct {
+		Code int `json:"code"`
+		Meta struct {
+			RetryAt string `json:"retryAt"`
+		} `json:"meta"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode rate-limit response: %v", err)
+	}
+	if body.Code != shortlink.CodePasswordRateLimited || body.Meta.RetryAt != retryAt.Format(time.RFC3339Nano) {
+		t.Fatalf("expected rate-limit retry deadline, got code %d retryAt %q", body.Code, body.Meta.RetryAt)
 	}
 }
 

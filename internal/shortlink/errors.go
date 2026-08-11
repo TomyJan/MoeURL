@@ -1,6 +1,9 @@
 package shortlink
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 var (
 	ErrPermissionDenied         = errors.New("permission denied")
@@ -21,3 +24,18 @@ var (
 	ErrReservedSlug             = errors.New("reserved slug")
 	ErrInvalidShortLinkID       = errors.New("invalid short link id")
 )
+
+// PasswordRateLimitedError carries the database-authoritative time when retrying is allowed.
+type PasswordRateLimitedError struct {
+	RetryAt time.Time
+}
+
+// Error returns the stable public rate-limit error message.
+func (e *PasswordRateLimitedError) Error() string {
+	return ErrPasswordRateLimited.Error()
+}
+
+// Unwrap preserves errors.Is compatibility with ErrPasswordRateLimited.
+func (e *PasswordRateLimitedError) Unwrap() error {
+	return ErrPasswordRateLimited
+}
