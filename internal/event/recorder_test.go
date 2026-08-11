@@ -219,7 +219,7 @@ func (b *lockedBuffer) String() string {
 // eventTestPool opens a migrated PostgreSQL pool for recorder integration tests.
 func eventTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
-	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
+	databaseURL := testdb.ProjectMigratedDatabaseURL(ctx, t)
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {
 		t.Fatalf("open pool: %v", err)

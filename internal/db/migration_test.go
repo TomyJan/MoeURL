@@ -338,7 +338,7 @@ func TestShortLinkExperienceMigrationUpgradesExistingDataAndRollsBack(t *testing
 func migrationTestDatabase(t *testing.T, ctx context.Context) *sql.DB {
 	t.Helper()
 
-	database, err := sql.Open("pgx", testdb.DatabaseURL(t, ctx))
+	database, err := sql.Open("pgx", testdb.DatabaseURL(ctx, t))
 	if err != nil {
 		t.Fatalf("open database: %v", err)
 	}

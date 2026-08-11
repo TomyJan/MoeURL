@@ -210,7 +210,7 @@ func TestCreateRetriesReservedSlug(t *testing.T) {
 // internalShortLinkTestPool opens an isolated migrated database for package-internal service tests.
 func internalShortLinkTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
-	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
+	databaseURL := testdb.ProjectMigratedDatabaseURL(ctx, t)
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {
 		t.Fatalf("open pool: %v", err)

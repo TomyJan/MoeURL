@@ -16,7 +16,7 @@ import (
 
 func TestSessionServiceCreatesReadsAndRevokesSession(t *testing.T) {
 	ctx := context.Background()
-	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
+	databaseURL := testdb.ProjectMigratedDatabaseURL(ctx, t)
 
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {
@@ -66,7 +66,7 @@ func TestSessionServiceCreatesReadsAndRevokesSession(t *testing.T) {
 
 func TestSessionServiceRejectsMissingSession(t *testing.T) {
 	ctx := context.Background()
-	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
+	databaseURL := testdb.ProjectMigratedDatabaseURL(ctx, t)
 
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {
@@ -84,7 +84,7 @@ func TestSessionServiceRejectsMissingSession(t *testing.T) {
 
 func TestSessionServiceReturnsDatabaseErrors(t *testing.T) {
 	ctx := context.Background()
-	databaseURL := testdb.ProjectMigratedDatabaseURL(t, ctx)
+	databaseURL := testdb.ProjectMigratedDatabaseURL(ctx, t)
 
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {

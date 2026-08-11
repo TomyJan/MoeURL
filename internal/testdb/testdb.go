@@ -66,7 +66,7 @@ func reportCleanupError(reporter cleanupErrorReporter, operation string, err err
 // DatabaseURL returns a fresh PostgreSQL URL for tests.
 // It prefers Docker when available and falls back to a local PostgreSQL
 // instance when Docker cannot start on the current machine.
-func DatabaseURL(t testing.TB, ctx context.Context) string {
+func DatabaseURL(ctx context.Context, t testing.TB) string {
 	t.Helper()
 
 	databaseURL, cleanup, err := dockerDatabaseURL(ctx, t)
@@ -94,10 +94,10 @@ func dockerRequired(value string) bool {
 }
 
 // MigratedDatabaseURL returns a fresh PostgreSQL URL with project migrations applied.
-func MigratedDatabaseURL(t testing.TB, ctx context.Context, migrationsDir string) string {
+func MigratedDatabaseURL(ctx context.Context, t testing.TB, migrationsDir string) string {
 	t.Helper()
 
-	databaseURL := DatabaseURL(t, ctx)
+	databaseURL := DatabaseURL(ctx, t)
 	database, err := sql.Open("pgx", databaseURL)
 	if err != nil {
 		t.Fatalf("open database: %v", err)
@@ -117,13 +117,13 @@ func MigratedDatabaseURL(t testing.TB, ctx context.Context, migrationsDir string
 }
 
 // ProjectMigratedDatabaseURL returns a migrated database using the repository migrations.
-func ProjectMigratedDatabaseURL(t testing.TB, ctx context.Context) string {
+func ProjectMigratedDatabaseURL(ctx context.Context, t testing.TB) string {
 	t.Helper()
 	_, sourceFile, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("locate project migrations")
 	}
-	return MigratedDatabaseURL(t, ctx, filepath.Join(filepath.Dir(sourceFile), "..", "..", "migrations"))
+	return MigratedDatabaseURL(ctx, t, filepath.Join(filepath.Dir(sourceFile), "..", "..", "migrations"))
 }
 
 // RunTests runs a package test suite and terminates its shared PostgreSQL container before exit.
@@ -152,7 +152,12 @@ func dockerDatabaseURL(ctx context.Context, t testing.TB) (string, func(), error
 	if err != nil {
 		return "", nil, err
 	}
-	return isolatedDatabaseURL(ctx, adminURL, t.Name(), t)
+	databaseURL, cleanup, err := isolatedDatabaseURL(ctx, adminURL, t.Name(), t)
+	if err != nil {
+		t.Fatalf("create Docker test database: %v", err)
+		return "", nil, err
+	}
+	return databaseURL, cleanup, nil
 }
 
 // sharedDockerDatabaseURL starts one PostgreSQL container per test process.

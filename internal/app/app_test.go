@@ -32,7 +32,7 @@ func TestAppNewNormalizesEnvironment(t *testing.T) {
 			cfg := config.Config{
 				Env:         test.env,
 				HTTPAddr:    ":0",
-				DatabaseURL: testdb.ProjectMigratedDatabaseURL(t, ctx),
+				DatabaseURL: testdb.ProjectMigratedDatabaseURL(ctx, t),
 				StaticDir:   "web/dist",
 			}
 			if err := cfg.Validate(); err != nil {

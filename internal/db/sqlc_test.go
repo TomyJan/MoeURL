@@ -724,7 +724,7 @@ func sqlcTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 // migratedSQLCDatabaseURL starts PostgreSQL and applies all project migrations.
 func migratedSQLCDatabaseURL(t *testing.T, ctx context.Context) string {
 	t.Helper()
-	return testdb.MigratedDatabaseURL(t, ctx, filepath.Join("..", "..", "migrations"))
+	return testdb.MigratedDatabaseURL(ctx, t, filepath.Join("..", "..", "migrations"))
 }
 
 // uuidToPgtype converts a UUID into the pgx value used by generated queries.
