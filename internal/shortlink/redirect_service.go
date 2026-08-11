@@ -23,16 +23,14 @@ import (
 )
 
 const (
-	passwordFailureWindow              = 15 * time.Minute
-	passwordBlockDuration              = 15 * time.Minute
-	accessGrantTTL                     = 15 * time.Minute
-	accessGrantCleanupBatchSize  int64 = 500
-	accessGrantCleanupMaxBatches       = 20
-	accessGrantCleanupBatchPause       = 50 * time.Millisecond
+	passwordFailureWindow = 15 * time.Minute
+	passwordBlockDuration = 15 * time.Minute
+	accessGrantTTL        = 15 * time.Minute
 	// AccessGrantCleanupBatchSize is the maximum number of expired grants deleted per query batch.
-	AccessGrantCleanupBatchSize = accessGrantCleanupBatchSize
+	AccessGrantCleanupBatchSize int64 = 500
 	// AccessGrantCleanupMaxBatches limits the work performed by one cleanup run.
-	AccessGrantCleanupMaxBatches = accessGrantCleanupMaxBatches
+	AccessGrantCleanupMaxBatches = 20
+	accessGrantCleanupBatchPause = 50 * time.Millisecond
 	accessTokenBytes             = 32
 	maxPasswordFailures          = int16(5)
 )
@@ -118,7 +116,7 @@ func (s *RedirectService) Open(ctx context.Context, slug string) (OpenResult, er
 }
 
 // Preview returns event-free, non-sensitive data for an intermediate page.
-func (s *RedirectService) Preview(ctx context.Context, slug string) (PreviewResult, error) {
+func (s *RedirectService) Preview(ctx context.Context, slug string, accessToken string) (PreviewResult, error) {
 	slug = strings.ToLower(slug)
 	link, err := s.queries.GetShortLinkBySlug(ctx, slug)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -127,8 +125,18 @@ func (s *RedirectService) Preview(ctx context.Context, slug string) (PreviewResu
 	if err != nil {
 		return PreviewResult{}, err
 	}
-	if err := validateAccessConditions(link.Status, link.Expired, link.RedirectMode, !link.PasswordHash.Valid); err != nil {
+	passwordEnabled := link.PasswordHash.Valid
+	if err := validateAccessConditions(link.Status, link.Expired, link.RedirectMode, !passwordEnabled); err != nil {
 		return PreviewResult{}, err
+	}
+	if passwordEnabled {
+		valid, err := s.hasValidAccessGrant(ctx, link.ID, accessToken)
+		if err != nil {
+			return PreviewResult{}, err
+		}
+		if !valid {
+			return PreviewResult{}, ErrPasswordRequired
+		}
 	}
 
 	target, err := url.Parse(link.TargetUrl)
@@ -301,7 +309,7 @@ func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context, logger
 	startedAt := time.Now()
 	var deletedRows int64
 	batchCount := 0
-	for batchCount < accessGrantCleanupMaxBatches {
+	for batchCount < AccessGrantCleanupMaxBatches {
 		if batchCount > 0 {
 			if err := waitForAccessGrantCleanupBatchPause(ctx); err != nil {
 				return err
@@ -310,14 +318,14 @@ func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context, logger
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		deleted, err := s.queries.DeleteExpiredShortLinkAccessGrants(ctx, accessGrantCleanupBatchSize)
+		deleted, err := s.queries.DeleteExpiredShortLinkAccessGrants(ctx, AccessGrantCleanupBatchSize)
 		if err != nil {
 			return err
 		}
 		deletedRows += deleted
 		batchCount++
-		if deleted < accessGrantCleanupBatchSize {
-			if logger != nil && deletedRows > accessGrantCleanupBatchSize {
+		if deleted < AccessGrantCleanupBatchSize {
+			if logger != nil && deletedRows > AccessGrantCleanupBatchSize {
 				logger.InfoContext(
 					ctx,
 					"access_grant_cleanup_completed",

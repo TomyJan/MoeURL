@@ -138,7 +138,9 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 	}
 
 	preview := httptest.NewRecorder()
-	router.ServeHTTP(preview, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/public/short-link/preview?slug=middle", nil))
+	publicPreviewRequest := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/public/short-link/preview?slug=middle", nil)
+	publicPreviewRequest.AddCookie(&http.Cookie{Name: "moeurl_short_link_access", Value: "raw-token"})
+	router.ServeHTTP(preview, publicPreviewRequest)
 	var body struct {
 		Code int `json:"code"`
 		Data struct {
@@ -154,6 +156,9 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 	}
 	if len(redirect.previewSlugs) != 2 || redirect.previewSlugs[0] != "middle" || redirect.previewSlugs[1] != "middle" {
 		t.Fatalf("expected both preview routes to pass slug, got %#v", redirect.previewSlugs)
+	}
+	if redirect.previewToken != "raw-token" {
+		t.Fatalf("expected public preview to pass access cookie, got %q", redirect.previewToken)
 	}
 }
 
@@ -337,6 +342,7 @@ type routerRedirectService struct {
 	continueResult       shortlink.RedirectResult
 	openSlugs            []string
 	previewSlugs         []string
+	previewToken         string
 	continueSlugs        []string
 	continueToken        string
 	unlockSlugs          []string
@@ -356,8 +362,9 @@ func (service *routerRedirectService) Open(_ context.Context, slug string) (shor
 }
 
 // Preview records the slug forwarded by router preview routes.
-func (service *routerRedirectService) Preview(_ context.Context, slug string) (shortlink.PreviewResult, error) {
+func (service *routerRedirectService) Preview(_ context.Context, slug string, accessToken string) (shortlink.PreviewResult, error) {
 	service.previewSlugs = append(service.previewSlugs, slug)
+	service.previewToken = accessToken
 	if service.previewResult.Slug == "" {
 		return shortlink.PreviewResult{Slug: "abc123", TargetHost: "example.com", IntermediateDelaySeconds: int16Pointer(5)}, nil
 	}

@@ -17,7 +17,7 @@ import (
 // RedirectPort handles the public short-link access actions.
 type RedirectPort interface {
 	Open(ctx context.Context, slug string) (OpenResult, error)
-	Preview(ctx context.Context, slug string) (PreviewResult, error)
+	Preview(ctx context.Context, slug string, accessToken string) (PreviewResult, error)
 	Unlock(ctx context.Context, slug string, password string) (AccessGrant, error)
 	Continue(ctx context.Context, slug string, accessToken string) (RedirectResult, error)
 }
@@ -76,28 +76,28 @@ func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug stri
 	h.writeTargetRedirect(w, r, result.RedirectResult, result.Slug)
 }
 
-// PreviewPublic writes public preview data without accepting a scoped access cookie.
+// PreviewPublic writes public preview data after revalidating any scoped access cookie.
 func (h *RedirectHandler) PreviewPublic(w http.ResponseWriter, r *http.Request) {
 	slug := strings.TrimSpace(r.URL.Query().Get("slug"))
-	h.preview(w, r, slug)
+	h.preview(w, r, slug, accessTokenFromRequest(r))
 }
 
-// PreviewScoped writes public preview data for a path-scoped short-link route.
+// PreviewScoped writes public preview data after revalidating the path-scoped access cookie.
 func (h *RedirectHandler) PreviewScoped(w http.ResponseWriter, r *http.Request, slug string) {
 	if redirectLowercaseScopedSlug(w, r, slug, "/preview") {
 		return
 	}
-	h.preview(w, r, strings.TrimSpace(slug))
+	h.preview(w, r, strings.TrimSpace(slug), accessTokenFromRequest(r))
 }
 
 // preview writes the minimal public metadata for a normalized preview request.
-func (h *RedirectHandler) preview(w http.ResponseWriter, r *http.Request, slug string) {
+func (h *RedirectHandler) preview(w http.ResponseWriter, r *http.Request, slug string, accessToken string) {
 	if slug == "" {
 		businessError(w, 100001, "Invalid request")
 		return
 	}
 
-	result, err := h.service.Preview(r.Context(), slug)
+	result, err := h.service.Preview(r.Context(), slug, accessToken)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrShortLinkMissing):
@@ -108,6 +108,8 @@ func (h *RedirectHandler) preview(w http.ResponseWriter, r *http.Request, slug s
 			businessError(w, CodeShortLinkExpired, "Short link expired")
 		case errors.Is(err, ErrShortLinkNotIntermediate):
 			businessError(w, CodeShortLinkNotIntermediate, "Short link does not use an intermediate page")
+		case errors.Is(err, ErrPasswordRequired):
+			businessError(w, CodePasswordRequired, "Password required")
 		default:
 			writeJSON(w, http.StatusInternalServerError, response{Code: 900000, Message: "Internal server error", Data: nil, Meta: map[string]any{}})
 		}
@@ -115,6 +117,13 @@ func (h *RedirectHandler) preview(w http.ResponseWriter, r *http.Request, slug s
 	}
 
 	ok(w, result)
+}
+
+func accessTokenFromRequest(r *http.Request) string {
+	if cookie, err := r.Cookie(accessCookieName); err == nil {
+		return cookie.Value
+	}
+	return ""
 }
 
 // Unlock validates a public short-link password and sets its scoped access cookie.
@@ -173,11 +182,7 @@ func (h *RedirectHandler) Continue(w http.ResponseWriter, r *http.Request, slug 
 	if redirectLowercaseScopedSlug(w, r, slug, "/continue") {
 		return
 	}
-	accessToken := ""
-	if cookie, cookieErr := r.Cookie(accessCookieName); cookieErr == nil {
-		accessToken = cookie.Value
-	}
-	result, err := h.service.Continue(r.Context(), slug, accessToken)
+	result, err := h.service.Continue(r.Context(), slug, accessTokenFromRequest(r))
 	if err != nil {
 		writePublicAccessError(w, r, slug, err)
 		return
