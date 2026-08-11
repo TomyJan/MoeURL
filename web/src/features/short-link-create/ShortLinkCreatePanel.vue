@@ -213,19 +213,20 @@ const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !c
 const mutation = useMutation({
   /** Runs creation through the shared sensitive-input cleanup boundary. */
   mutationFn: (input: Omit<CreateShortLinkInput, 'password'>) => {
-    const passwordFreeInput = { ...input } as CreateShortLinkInput
-    delete passwordFreeInput.password
     const passwordRequested = canSetPassword.value && passwordEnabled.value
-    const requestPassword = passwordRequested ? passwordInput()?.value : undefined
+    const passwordElement = passwordRequested ? passwordInput() : null
+    const requestPassword = passwordElement?.value
     clearPasswordInput()
     const passwordResult = requestPassword === undefined ? undefined : passwordSchema.safeParse(requestPassword)
     if (passwordRequested && (!passwordResult || !passwordResult.success)) {
-      passwordErrorMessage.value = t('shortLinkCreate.passwordRequired')
+      passwordErrorMessage.value = requestPassword
+        ? t('shortLinkCreate.passwordInvalid')
+        : t('shortLinkCreate.passwordRequired')
       return Promise.reject(new Error(t('shortLinkCreate.failed')))
     }
     return runShortLinkMutation(
       createShortLink,
-      passwordFreeInput,
+      input,
       passwordResult?.success ? { mode: 'set', value: passwordResult.data } : undefined,
       passwordRequested,
     )
@@ -299,10 +300,8 @@ function submitValidatedInput(): boolean {
     input.expiration = expiration
   }
   if (canSetPassword.value && passwordEnabled.value) {
-    const passwordElement = passwordInput()
-    const password = passwordElement?.value ?? ''
-    if (!passwordSchema.safeParse(password).success) {
-      passwordErrorMessage.value = password ? t('shortLinkCreate.passwordInvalid') : t('shortLinkCreate.passwordRequired')
+    if (!passwordInput()) {
+      passwordErrorMessage.value = t('shortLinkCreate.passwordRequired')
       return false
     }
   }

@@ -355,9 +355,8 @@ describe('ShortLinkCreatePanel', () => {
   })
 
   it('rejects an invalid protected-link password before mutation', async () => {
-    const mutate = vi.fn()
     setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
-    setMutationResult({ mutate })
+    setMutationResult()
 
     mountPanel()
     await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
@@ -369,13 +368,12 @@ describe('ShortLinkCreatePanel', () => {
 
     expect(screen.getByText('shortLinkCreate.passwordInvalid')).toBeTruthy()
     expect(passwordInput.value).toBe('')
-    expect(mutate).not.toHaveBeenCalled()
+    expect(createShortLink).not.toHaveBeenCalled()
   })
 
   it('requires a password value when protection is enabled', async () => {
-    const mutate = vi.fn()
     setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_password'])
-    setMutationResult({ mutate })
+    setMutationResult()
 
     mountPanel()
     await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
@@ -384,7 +382,7 @@ describe('ShortLinkCreatePanel', () => {
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
     expect(screen.getByText('shortLinkCreate.passwordRequired')).toBeTruthy()
-    expect(mutate).not.toHaveBeenCalled()
+    expect(createShortLink).not.toHaveBeenCalled()
   })
 
   it('fails safely when the password input element is unavailable', async () => {
