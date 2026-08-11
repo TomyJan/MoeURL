@@ -13,7 +13,7 @@
 
       <div class="auth-page__form">
         <v-alert v-if="isLoading" class="auth-page__state" color="primary" variant="tonal">{{ t('setup.loading') }}</v-alert>
-        <v-alert v-else-if="data?.initialized || initialized" class="auth-page__state" type="success" variant="tonal">
+        <v-alert v-else-if="data?.initialized || initialized" class="auth-page__state" data-testid="setup-completion" type="success" variant="tonal">
           {{ t('setup.initialized') }}
         </v-alert>
 
@@ -28,9 +28,9 @@
               <h3 id="setup-admin-title">{{ t('setup.steps.admin') }}</h3>
             </div>
             <div class="auth-page__field-grid auth-page__field-grid--three">
-              <v-text-field v-model="form.adminUsername" :label="t('setup.adminUsername')" variant="outlined" />
-              <v-text-field v-model="form.adminPassword" :label="t('setup.adminPassword')" type="password" variant="outlined" />
-              <v-text-field v-model="form.adminNickname" :label="t('setup.adminNickname')" variant="outlined" />
+              <v-text-field v-model="form.adminUsername" data-testid="setup-admin-username" :label="t('setup.adminUsername')" variant="outlined" />
+              <v-text-field v-model="form.adminPassword" data-testid="setup-admin-password" :label="t('setup.adminPassword')" type="password" variant="outlined" />
+              <v-text-field v-model="form.adminNickname" data-testid="setup-admin-nickname" :label="t('setup.adminNickname')" variant="outlined" />
             </div>
           </section>
 
@@ -40,9 +40,9 @@
               <h3 id="setup-domain-title">{{ t('setup.steps.domain') }}</h3>
             </div>
             <div class="auth-page__field-grid">
-              <v-text-field v-model="form.siteName" :label="t('setup.siteName')" variant="outlined" />
-              <v-text-field v-model="form.systemDomain" :label="t('setup.systemDomain')" variant="outlined" />
-              <v-text-field v-model="form.shortLinkDomain" :label="t('setup.shortLinkDomain')" variant="outlined" />
+              <v-text-field v-model="form.siteName" data-testid="setup-site-name" :label="t('setup.siteName')" variant="outlined" />
+              <v-text-field v-model="form.systemDomain" data-testid="setup-system-domain" :label="t('setup.systemDomain')" variant="outlined" />
+              <v-text-field v-model="form.shortLinkDomain" data-testid="setup-short-link-domain" :label="t('setup.shortLinkDomain')" variant="outlined" />
             </div>
           </section>
 
@@ -62,7 +62,7 @@
           </v-alert>
 
           <div class="auth-page__actions">
-            <v-btn class="auth-page__submit" color="primary" :loading="mutation.isPending.value" type="submit">
+            <v-btn class="auth-page__submit" color="primary" data-testid="setup-submit" :loading="mutation.isPending.value" type="submit">
               {{ t('setup.submit') }}
             </v-btn>
             <p>{{ t('setup.hint') }}</p>

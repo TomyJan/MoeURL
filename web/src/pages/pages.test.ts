@@ -609,6 +609,7 @@ describe('pages', () => {
     setQueryResult({ data: ref({ initialized: true }) })
     const initialized = mount(SetupPage)
     expect(screen.getByText('setup.initialized')).toBeTruthy()
+    expect(screen.getByTestId('setup-completion')).toBeTruthy()
     initialized.unmount()
 
     const mutate = vi.fn()
@@ -624,6 +625,17 @@ describe('pages', () => {
     expect(screen.getByTestId('setup-wizard')).toBeTruthy()
     expect(screen.queryByText('setup.eyebrow')).toBeNull()
     expect(screen.getAllByTestId('setup-step-card')).toHaveLength(3)
+    for (const testId of [
+      'setup-admin-username',
+      'setup-admin-password',
+      'setup-admin-nickname',
+      'setup-site-name',
+      'setup-system-domain',
+      'setup-short-link-domain',
+      'setup-submit',
+    ]) {
+      expect(screen.getByTestId(testId)).toBeTruthy()
+    }
     expect(screen.getByText('setup.steps.admin')).toBeTruthy()
     expect(screen.getByText('setup.steps.domain')).toBeTruthy()
     expect(screen.getByText('setup.steps.preference')).toBeTruthy()
