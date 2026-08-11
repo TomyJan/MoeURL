@@ -243,11 +243,9 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
     '验证失败限流',
     /** Uses a short-lived browser fixture to verify the countdown and retry UI after the backend rate-limit response. */
     async function verifyRateLimitStep() {
-      let successfulUnlockPayload: { code: number } | undefined
       await page.route(`**/go/${rateLimitedSlug}/unlock`, async (route) => {
         const password = route.request().postDataJSON()?.password
         if (password === rateLimitedPassword) {
-          successfulUnlockPayload = { code: 0 }
           await route.fulfill({
             body: JSON.stringify({ code: 0, data: { unlocked: true }, message: 'OK', meta: {} }),
             headers: {
@@ -292,7 +290,6 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
         expect(payload.meta?.retryAt).toBeTruthy()
         await expect(page.getByText(/尝试次数过多，请在 \d+ 秒后重试。/)).toBeVisible()
         await expect(page.getByRole('button', { name: '解锁并继续' })).toBeDisabled()
-        await page.waitForTimeout(rateLimitRetryDelayMs + 100)
         await expect(page.getByRole('button', { name: '解锁并继续' })).toBeEnabled()
         await page.getByLabel('访问密码').fill(rateLimitedPassword)
         const successfulUnlockRequestPromise = page.waitForRequest((request) => (
@@ -301,7 +298,6 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
         ))
         await page.getByRole('button', { name: '解锁并继续' }).click()
         await successfulUnlockRequestPromise
-        expect(successfulUnlockPayload).toMatchObject({ code: 0 })
         await expect(page).toHaveURL('https://example.com/e2e-rate-limited')
         return
       }

@@ -51,6 +51,7 @@ describe('shouldSkipDockerCompose', () => {
 
   it('waits for an existing backend health check when Docker Compose is skipped', async () => {
     vi.stubEnv('MOEURL_E2E_SKIP_DOCKER', '1')
+    vi.stubEnv('MOEURL_E2E_PORT', '8080')
     vi.resetModules()
 
     const { default: config } = await import('./playwright.config')
@@ -58,7 +59,7 @@ describe('shouldSkipDockerCompose', () => {
     expect(config.webServer).toMatchObject({
       command: expect.stringContaining('node -e'),
       reuseExistingServer: true,
-      timeout: 60_000,
+      timeout: 15_000,
       url: 'http://127.0.0.1:8080/api/v1/health',
     })
   })
