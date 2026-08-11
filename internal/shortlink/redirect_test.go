@@ -651,6 +651,36 @@ func TestRedirectServiceCleanupCapsExpiredGrantBatches(t *testing.T) {
 	}
 }
 
+// TestRedirectServiceCleanupReturnsCancellationDuringBatchPause verifies cancellation interrupts the pause before the next batch.
+func TestRedirectServiceCleanupReturnsCancellationDuringBatchPause(t *testing.T) {
+	fixture := newAccessGrantCleanupFixture(t)
+	fixture.insertExpiredGrants(t, int(shortlink.AccessGrantCleanupBatchSize))
+	cleanupCtx, cancel := context.WithCancel(fixture.ctx)
+	defer cancel()
+	cleanupDone := make(chan error, 1)
+	go func() {
+		cleanupDone <- fixture.service.CleanupExpiredAccessGrants(cleanupCtx, nil)
+	}()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for fixture.expiredGrantCount(t) != 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("cleanup did not finish its first batch")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	cancel()
+
+	select {
+	case err := <-cleanupDone:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("cleanup cancellation error = %v, want %v", err, context.Canceled)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("cleanup did not stop during the batch pause")
+	}
+}
+
 // TestRedirectServiceRunsPeriodicAccessGrantCleanup verifies maintenance removes expired grants and preserves active grants.
 func TestRedirectServiceRunsPeriodicAccessGrantCleanup(t *testing.T) {
 	fixture := newAccessGrantCleanupFixture(t)
