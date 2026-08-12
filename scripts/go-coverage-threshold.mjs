@@ -23,7 +23,7 @@ for (const block of blocks) {
   if (includes.length > 0 && !includes.includes(file)) {
     continue
   }
-  if (isExcludedBlock(loc)) {
+  if (consumeExcludedBlock(loc)) {
     continue
   }
   total += statements
@@ -82,7 +82,7 @@ function parseBlock(line) {
   return { loc, file: loc.split(':')[0], statements, count }
 }
 
-function isExcludedBlock(location) {
+function consumeExcludedBlock(location) {
   if (excludedBlocks.has(location)) {
     matchedExcludedBlocks.add(location)
     return true

@@ -201,9 +201,11 @@ describe('RedirectPage', () => {
     expect(state.assign).not.toHaveBeenCalled()
   })
 
-  it('shows the password rate-limit state after an unlock error without a deadline', async () => {
-    const query = { reason: 'password' }
-    const unlockError = new ApiClientError(200113, 'Too many attempts')
+  it.each([
+    [{ reason: 'rate-limited' }, undefined],
+    [{ reason: 'rate-limited', retryAt: 'not-a-date' }, undefined],
+    [{ reason: 'password' }, new ApiClientError(200113, 'Too many attempts')],
+  ])('shows the password rate-limit state for query %s or unlock error %s', async (query, unlockError) => {
     state.route!.query = query
     mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
@@ -212,15 +214,14 @@ describe('RedirectPage', () => {
       intermediateDelaySeconds: 5,
       expiresAt: null,
     })
-    if (unlockError) {
-      vi.mocked(unlockShortLink).mockRejectedValueOnce(unlockError)
-    }
     mountPage()
     await flushPreview()
 
-    vi.mocked(unlockShortLink).mockRejectedValueOnce(unlockError)
-    await fireEvent.update(screen.getByLabelText('redirect.password'), 'wrongpass')
-    await fireEvent.click(screen.getByRole('button', { name: 'redirect.unlock' }))
+    if (unlockError) {
+      vi.mocked(unlockShortLink).mockRejectedValueOnce(unlockError)
+      await fireEvent.update(screen.getByLabelText('redirect.password'), 'wrongpass')
+      await fireEvent.click(screen.getByRole('button', { name: 'redirect.unlock' }))
+    }
     expect(screen.getByText('redirect.rateLimitedWithoutDeadline')).toBeTruthy()
     expect(state.assign).not.toHaveBeenCalled()
   })
@@ -399,7 +400,7 @@ describe('RedirectPage', () => {
     expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
   })
 
-  it('uses the canonical preview slug for protected access', async () => {
+  it('unlocks with the route slug and navigates with the canonical preview slug', async () => {
     state.route!.params = { slug: 'AbC123' }
     state.route!.query = { reason: 'password' }
     mockUnauthorizedPreview()

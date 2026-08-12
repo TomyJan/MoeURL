@@ -20,10 +20,6 @@
       <form v-else-if="passwordRequired" class="redirect-page__state" aria-live="polite" @submit.prevent="unlock">
         <p class="redirect-page__eyebrow">{{ t('redirect.protectedEyebrow') }}</p>
         <h1>{{ t('redirect.passwordTitle') }}</h1>
-        <template v-if="preview">
-          <p class="redirect-page__target-label">{{ t('redirect.targetHost') }}</p>
-          <strong class="redirect-page__target">{{ preview.targetHost }}</strong>
-        </template>
         <v-text-field
           class="redirect-page__password"
           name="password"
@@ -39,7 +35,7 @@
             type="submit"
             color="primary"
             size="large"
-            :disabled="unlockPending || (unlockErrorState === 'rateLimited' && rateLimitRemainingSeconds > 0)"
+            :disabled="unlockDisabled"
             :loading="unlockPending"
           >
             {{ t('redirect.unlock') }}
@@ -111,6 +107,10 @@ const unlockErrorMessage = computed(() => {
   }
   return t(`redirect.${unlockErrorState.value}`)
 })
+
+const unlockDisabled = computed(() =>
+  unlockPending.value || (unlockErrorState.value === 'rateLimited' && rateLimitRemainingSeconds.value > 0),
+)
 
 onMounted(() => {
   isMounted = true
@@ -268,8 +268,7 @@ async function unlock(event: globalThis.Event) {
   const form = event.currentTarget as globalThis.HTMLFormElement
   const slug = preview.value?.slug ?? route.params.slug
   if (
-    unlockPending.value
-    || (unlockErrorState.value === 'rateLimited' && rateLimitRemainingSeconds.value > 0)
+    unlockDisabled.value
     || typeof slug !== 'string'
     || !slug
   ) {
@@ -290,6 +289,7 @@ async function unlock(event: globalThis.Event) {
     if (!isCurrentUnlock()) {
       return
     }
+    /* v8 ignore next -- password-required state has no preview until this authorized fetch completes. */
     if (!preview.value) {
       const authorizedPreview = await getPublicShortLinkPreview(slug)
       if (!isCurrentUnlock()) {

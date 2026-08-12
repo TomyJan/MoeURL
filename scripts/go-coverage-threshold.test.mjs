@@ -140,6 +140,7 @@ test('rejects a shifted exclusion when another configured block is covered', () 
     assert.equal(result.status, 1)
     assert.match(result.stderr, /Go coverage must be at least 100%/)
     assert.match(result.stderr, new RegExp(`${sourcePath}:148\\.1,150\\.99`))
+    assert.match(result.stderr, new RegExp(`${sourcePath}:58\\.16,60\\.3`))
   } finally {
     rmSync(directory, { force: true, recursive: true })
   }

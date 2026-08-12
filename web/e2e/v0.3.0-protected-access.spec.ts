@@ -279,7 +279,7 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
       })
       await page.route(`**/go/${rateLimitedSlug}/preview`, async (route) => {
         const cookie = await route.request().headerValue('cookie')
-        authorizedPreviewCookieSeen = cookie?.includes(`moeurl_short_link_access=${rateLimitedAccessToken}`) ?? false
+        authorizedPreviewCookieSeen = authorizedPreviewCookieSeen || (cookie?.includes(`moeurl_short_link_access=${rateLimitedAccessToken}`) ?? false)
         if (!authorizedPreviewCookieSeen) {
           await route.fallback()
           return
@@ -302,7 +302,7 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
       })
       await page.route(`**/go/${rateLimitedSlug}/continue`, async (route) => {
         const cookie = await route.request().headerValue('cookie')
-        continuationCookieSeen = cookie?.includes(`moeurl_short_link_access=${rateLimitedAccessToken}`) ?? false
+        continuationCookieSeen = continuationCookieSeen || (cookie?.includes(`moeurl_short_link_access=${rateLimitedAccessToken}`) ?? false)
         await route.fulfill({
           headers: { Location: 'https://example.com/e2e-rate-limited' },
           status: 302,
