@@ -35,8 +35,6 @@ const (
 	maxPasswordFailures          = int16(5)
 )
 
-var accessTokenRandomReader io.Reader = rand.Reader
-
 // RedirectResult contains the resolved redirect target and source short link.
 type RedirectResult struct {
 	TargetURL   string
@@ -62,10 +60,11 @@ type PreviewResult struct {
 
 // RedirectService resolves public short-link access actions.
 type RedirectService struct {
-	queries          *sqlc.Queries
-	pool             *pgxpool.Pool
-	recorder         event.Recorder
-	cleanupPauseHook func(context.Context) error
+	queries                 *sqlc.Queries
+	pool                    *pgxpool.Pool
+	recorder                event.Recorder
+	accessTokenRandomReader io.Reader
+	cleanupPauseHook        func(context.Context) error
 }
 
 // NewRedirectService creates a redirect service backed by PostgreSQL.
@@ -74,9 +73,10 @@ func NewRedirectService(pool *pgxpool.Pool, recorder event.Recorder) *RedirectSe
 		recorder = event.NoopRecorder{}
 	}
 	return &RedirectService{
-		queries:  sqlc.New(pool),
-		pool:     pool,
-		recorder: recorder,
+		queries:                 sqlc.New(pool),
+		pool:                    pool,
+		recorder:                recorder,
+		accessTokenRandomReader: rand.Reader,
 	}
 }
 
@@ -281,7 +281,7 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 	if err := queries.ResetShortLinkPasswordFailures(ctx, link.ID); err != nil {
 		return AccessGrant{}, err
 	}
-	token, tokenHash, err := generateAccessToken()
+	token, tokenHash, err := s.generateAccessToken()
 	if err != nil {
 		return AccessGrant{}, err
 	}
@@ -457,9 +457,13 @@ func nextPasswordFailure(now time.Time, attempts int16, windowStartedAt pgtype.T
 }
 
 // generateAccessToken returns a random bearer token and the hash persisted for verification.
-func generateAccessToken() (string, string, error) {
+func (s *RedirectService) generateAccessToken() (string, string, error) {
 	random := make([]byte, accessTokenBytes)
-	if _, err := io.ReadFull(accessTokenRandomReader, random); err != nil {
+	reader := s.accessTokenRandomReader
+	if reader == nil {
+		reader = rand.Reader
+	}
+	if _, err := io.ReadFull(reader, random); err != nil {
 		return "", "", err
 	}
 	token := base64.RawURLEncoding.EncodeToString(random)

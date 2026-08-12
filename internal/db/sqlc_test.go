@@ -553,12 +553,18 @@ func TestShortLinkPasswordUpdateUsesLockAcquisitionTimeToInvalidateGrants(t *tes
 
 	deadline := time.Now().Add(15 * time.Second)
 	for {
-		var waitEventType pgtype.Text
-		if err := pool.QueryRow(ctx, `select wait_event_type from pg_stat_activity where pid = $1`, updatePID).Scan(&waitEventType); err != nil {
-			t.Fatalf("read password update wait state: %v", err)
-		}
-		if waitEventType.Valid && waitEventType.String == "Lock" {
+		var waitingLock int
+		err := pool.QueryRow(ctx, `
+			select 1
+			from pg_locks
+			where pid = $1 and not granted
+			limit 1
+		`, updatePID).Scan(&waitingLock)
+		if err == nil {
 			break
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			t.Fatalf("read password update lock state: %v", err)
 		}
 		select {
 		case updateErr := <-updateResult:

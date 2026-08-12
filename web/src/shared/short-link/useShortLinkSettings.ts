@@ -59,7 +59,7 @@ export function useShortLinkSettings(options: UseShortLinkSettingsOptions) {
     const { password, ...variables } = input
     if (password) {
       passwordRequests.add(variables)
-      pendingPasswords.set(variables, password)
+      pendingPasswords.set(variables, { ...password })
     }
     settingsMutation.mutate(variables)
   }

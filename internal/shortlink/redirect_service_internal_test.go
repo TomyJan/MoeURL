@@ -80,7 +80,7 @@ func TestHasValidAccessGrantRequiresToken(t *testing.T) {
 
 // TestGenerateAccessTokenSeparatesRawTokenFromStoredHash verifies only a digest is suitable for persistence.
 func TestGenerateAccessTokenSeparatesRawTokenFromStoredHash(t *testing.T) {
-	token, tokenHash, err := generateAccessToken()
+	token, tokenHash, err := (&RedirectService{}).generateAccessToken()
 	if err != nil {
 		t.Fatalf("generate access token: %v", err)
 	}
@@ -102,11 +102,9 @@ func TestGenerateAccessTokenSeparatesRawTokenFromStoredHash(t *testing.T) {
 // TestGenerateAccessTokenReturnsRandomSourceError verifies entropy failures are surfaced without issuing a token.
 func TestGenerateAccessTokenReturnsRandomSourceError(t *testing.T) {
 	expected := errors.New("random source failed")
-	original := accessTokenRandomReader
-	accessTokenRandomReader = iotest.ErrReader(expected)
-	t.Cleanup(func() { accessTokenRandomReader = original })
+	service := &RedirectService{accessTokenRandomReader: iotest.ErrReader(expected)}
 
-	token, tokenHash, err := generateAccessToken()
+	token, tokenHash, err := service.generateAccessToken()
 	if !errors.Is(err, expected) {
 		t.Fatalf("generate access token error = %v, want %v", err, expected)
 	}

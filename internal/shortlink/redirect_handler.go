@@ -66,7 +66,7 @@ func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug stri
 		return
 	}
 	if result.RequiresPassword {
-		redirectToPublicAccessState(w, r, slug, "password")
+		redirectToPublicAccessState(w, r, slug, "password", nil)
 		return
 	}
 	if result.RedirectMode == RedirectModeIntermediate {
@@ -221,30 +221,31 @@ func writePublicAccessError(w http.ResponseWriter, r *http.Request, slug string,
 	case errors.Is(err, ErrShortLinkMissing):
 		http.Error(w, "Short link not found", http.StatusNotFound)
 	case errors.Is(err, ErrShortLinkDisabled):
-		redirectToPublicAccessState(w, r, slug, "disabled")
+		redirectToPublicAccessState(w, r, slug, "disabled", nil)
 	case errors.Is(err, ErrShortLinkExpired):
-		redirectToPublicAccessState(w, r, slug, "expired")
+		redirectToPublicAccessState(w, r, slug, "expired", nil)
 	case errors.Is(err, ErrShortLinkNotIntermediate):
-		redirectToPublicAccessState(w, r, slug, "not-intermediate")
+		redirectToPublicAccessState(w, r, slug, "not-intermediate", nil)
 	case errors.Is(err, ErrPasswordRequired), errors.Is(err, ErrInvalidPassword):
-		redirectToPublicAccessState(w, r, slug, "password")
+		redirectToPublicAccessState(w, r, slug, "password", nil)
 	case errors.Is(err, ErrPasswordRateLimited):
 		var rateLimitErr *PasswordRateLimitedError
 		if errors.As(err, &rateLimitErr) && !rateLimitErr.RetryAt.IsZero() {
-			redirectToPublicAccessState(w, r, slug, "rate-limited", rateLimitErr.RetryAt)
+			retryAt := rateLimitErr.RetryAt
+			redirectToPublicAccessState(w, r, slug, "rate-limited", &retryAt)
 			return
 		}
-		redirectToPublicAccessState(w, r, slug, "rate-limited")
+		redirectToPublicAccessState(w, r, slug, "rate-limited", nil)
 	default:
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }
 
 // redirectToPublicAccessState redirects visitors to a normalized client-side status route.
-func redirectToPublicAccessState(w http.ResponseWriter, r *http.Request, slug string, reason string, retryAt ...time.Time) {
+func redirectToPublicAccessState(w http.ResponseWriter, r *http.Request, slug string, reason string, retryAt *time.Time) {
 	location := "/go/" + url.PathEscape(strings.ToLower(slug)) + "?reason=" + url.QueryEscape(reason)
-	if len(retryAt) > 0 && !retryAt[0].IsZero() {
-		location += "&retryAt=" + url.QueryEscape(retryAt[0].UTC().Format(time.RFC3339Nano))
+	if retryAt != nil && !retryAt.IsZero() {
+		location += "&retryAt=" + url.QueryEscape(retryAt.UTC().Format(time.RFC3339Nano))
 	}
 	http.Redirect(w, r, location, http.StatusFound)
 }

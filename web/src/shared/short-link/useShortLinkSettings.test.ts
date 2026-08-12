@@ -134,10 +134,13 @@ describe('useShortLinkSettings', () => {
     settings.saveSettings(input)
     const variables = state.mutate.mock.calls[0]?.[0] as PasswordFreeUpdateShortLinkInput
     expect(variables).not.toHaveProperty('password')
+    if (input.password?.mode === 'set') {
+      input.password.value = 'changed after save'
+    }
     await state.mutationOptions?.mutationFn?.(variables)
 
     expect(sentInput?.password).toEqual({ mode: 'set', value: 'correct horse' })
-    expect(input.password).toEqual({ mode: 'set', value: 'correct horse' })
+    expect(input.password).toEqual({ mode: 'set', value: 'changed after save' })
   })
 
   it('does not mutate settings variables while scrubbing the request copy after failure', async () => {
