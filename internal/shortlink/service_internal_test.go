@@ -65,12 +65,22 @@ func TestShortLinkPasswordStateMarshalsOnlyEnabledFlag(t *testing.T) {
 // TestNormalizePasswordRequiresPermissionAndStoresOnlyHash verifies capability checks and one-way persistence.
 func TestNormalizePasswordRequiresPermissionAndStoresOnlyHash(t *testing.T) {
 	service := &Service{permissions: permission.NewService()}
-	user := auth.CurrentUser{GroupKey: permission.GroupUser, Permissions: []string{permission.ShortLinkSetPassword}}
+	user := auth.CurrentUser{GroupKey: permission.GroupUser}
 	mode, hash, err := service.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
 	require.NoError(t, err)
 	verified := hash.Valid && auth.VerifyPassword("correct horse", hash.String)
 	require.Equal(t, PasswordModeSet, mode)
 	require.True(t, verified)
+	admin := auth.CurrentUser{GroupKey: permission.GroupAdmin}
+	mode, hash, err = service.normalizePassword(admin, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
+	require.NoError(t, err)
+	require.Equal(t, PasswordModeSet, mode)
+	require.True(t, hash.Valid)
+	require.True(t, auth.VerifyPassword("correct horse", hash.String))
+	mode, hash, err = service.normalizePassword(admin, &PasswordInput{Mode: PasswordModeNever})
+	require.NoError(t, err)
+	require.Equal(t, PasswordModeNever, mode)
+	require.False(t, hash.Valid)
 	limitedService := &Service{permissions: permission.NewServiceWithPermissions(nil, permission.AdminPermissions)}
 	_, _, err = limitedService.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
 	require.ErrorIs(t, err, ErrPermissionDenied)

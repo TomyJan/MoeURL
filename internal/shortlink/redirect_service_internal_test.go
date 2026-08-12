@@ -109,6 +109,10 @@ func TestGenerateAccessTokenReturnsRandomSourceError(t *testing.T) {
 		t.Fatalf("generate access token error = %v, want %v", err, expected)
 	}
 	if token != "" || tokenHash != "" {
-		t.Fatalf("failed token generation returned token=%q hash=%q", token, tokenHash)
+		t.Fatalf(
+			"failed token generation returned token_present=%t hash_present=%t",
+			token != "",
+			tokenHash != "",
+		)
 	}
 }
