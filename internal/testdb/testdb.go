@@ -3,6 +3,7 @@ package testdb
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -196,6 +197,9 @@ func sharedDockerDatabaseURL() (string, error) {
 		)
 		if err != nil {
 			dockerContainerErr = err
+			if terminateErr := testcontainers.TerminateContainer(container); terminateErr != nil {
+				dockerContainerErr = errors.Join(err, fmt.Errorf("terminate container: %w", terminateErr))
+			}
 			return
 		}
 		dockerContainerURL, err = container.ConnectionString(startupContext, "sslmode=disable")

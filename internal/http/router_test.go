@@ -115,8 +115,8 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 	if scopedPreview.Code != http.StatusOK || len(redirect.previewSlugs) != 1 || redirect.previewSlugs[0] != "middle" {
 		t.Fatalf("expected scoped preview route, got status %d slugs %#v", scopedPreview.Code, redirect.previewSlugs)
 	}
-	if redirect.previewToken != "raw-token" {
-		t.Fatalf("expected scoped preview to pass access cookie, got %q", redirect.previewToken)
+	if len(redirect.previewTokens) != 1 || redirect.previewTokens[0] != "raw-token" {
+		t.Fatalf("expected scoped preview to pass access cookie, got %#v", redirect.previewTokens)
 	}
 
 	unlocked := httptest.NewRecorder()
@@ -139,8 +139,6 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 	if redirect.continueToken != "raw-token" {
 		t.Fatalf("expected continue route to pass access cookie, got %q", redirect.continueToken)
 	}
-	redirect.previewToken = ""
-
 	preview := httptest.NewRecorder()
 	publicPreviewRequest := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/public/short-link/preview?slug=middle", nil)
 	router.ServeHTTP(preview, publicPreviewRequest)
@@ -160,8 +158,8 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 	if len(redirect.previewSlugs) != 2 || redirect.previewSlugs[0] != "middle" || redirect.previewSlugs[1] != "middle" {
 		t.Fatalf("expected both preview routes to pass slug, got %#v", redirect.previewSlugs)
 	}
-	if redirect.previewToken != "" {
-		t.Fatalf("expected public preview without access cookie, got %q", redirect.previewToken)
+	if len(redirect.previewTokens) != 2 || redirect.previewTokens[1] != "" {
+		t.Fatalf("expected public preview without access cookie, got %#v", redirect.previewTokens)
 	}
 }
 
@@ -345,7 +343,7 @@ type routerRedirectService struct {
 	continueResult       shortlink.RedirectResult
 	openSlugs            []string
 	previewSlugs         []string
-	previewToken         string
+	previewTokens        []string
 	continueSlugs        []string
 	continueToken        string
 	unlockSlugs          []string
@@ -367,7 +365,7 @@ func (service *routerRedirectService) Open(_ context.Context, slug string) (shor
 // Preview records the slug forwarded by router preview routes.
 func (service *routerRedirectService) Preview(_ context.Context, slug string, accessToken string) (shortlink.PreviewResult, error) {
 	service.previewSlugs = append(service.previewSlugs, slug)
-	service.previewToken = accessToken
+	service.previewTokens = append(service.previewTokens, accessToken)
 	if service.previewResult.Slug == "" {
 		return shortlink.PreviewResult{Slug: "abc123", TargetHost: "example.com", IntermediateDelaySeconds: int16Pointer(5)}, nil
 	}

@@ -40,6 +40,9 @@ func (c *Config) Validate() error {
 	if c.Env != "development" && c.Env != "production" {
 		return errors.New("MOEURL_ENV must be development or production")
 	}
+	if c.HTTPAddr == "" {
+		return errors.New("MOEURL_HTTP_ADDR is required")
+	}
 	if c.DatabaseURL == "" {
 		return errors.New("MOEURL_DATABASE_URL is required")
 	}

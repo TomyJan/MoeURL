@@ -914,24 +914,36 @@ describe('pages', () => {
   it('invalidates personal links after a successful status update', async () => {
     setQueryResult({
       data: ref({
-        items: [{
-          id: 'link-id',
-          url: 'https://go.example.com/abc123',
-          slug: 'abc123',
-          targetUrl: 'https://example.com',
-          status: 'active',
-          ...defaultShortLinkAccessConfig,
-          passwordEnabled: true,
-          createdAt: '2026-08-01T00:00:00Z',
-        }],
+        items: [
+          {
+            id: 'link-id',
+            url: 'https://go.example.com/abc123',
+            slug: 'abc123',
+            targetUrl: 'https://example.com',
+            status: 'active',
+            ...defaultShortLinkAccessConfig,
+            passwordEnabled: true,
+            createdAt: '2026-08-01T00:00:00Z',
+          },
+          {
+            id: 'link-unprotected',
+            url: 'https://go.example.com/public',
+            slug: 'public',
+            targetUrl: 'https://example.com/public',
+            status: 'active',
+            ...defaultShortLinkAccessConfig,
+            createdAt: '2026-08-01T00:00:00Z',
+          },
+        ],
       }),
     })
     mount(MyLinksPage)
 
-    const row = screen.getByTestId('console-link-row')
-    expect(within(row).getByText('links.passwordProtected')).toBeTruthy()
-    await fireEvent.click(within(row).getByRole('button', { name: 'links.actions.more' }))
-    await fireEvent.click(within(row).getByRole('menuitem', { name: 'links.actions.disable' }))
+    const [protectedRow, unprotectedRow] = screen.getAllByTestId('console-link-row')
+    expect(within(protectedRow!).getByText('links.passwordProtected')).toBeTruthy()
+    expect(within(unprotectedRow!).queryByText('links.passwordProtected')).toBeNull()
+    await fireEvent.click(within(protectedRow!).getByRole('button', { name: 'links.actions.more' }))
+    await fireEvent.click(within(protectedRow!).getByRole('menuitem', { name: 'links.actions.disable' }))
 
     expect(updateShortLink).toHaveBeenCalledWith({ id: 'link-id', status: 'disabled' })
     expect(state.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['short-link'] })

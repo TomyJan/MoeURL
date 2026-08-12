@@ -56,6 +56,21 @@ func TestConfigNormalizeTrimsAllFields(t *testing.T) {
 	}
 }
 
+// TestConfigValidateRequiresHTTPAddress verifies an empty normalized listen address is rejected.
+func TestConfigValidateRequiresHTTPAddress(t *testing.T) {
+	config := Config{
+		Env:         "development",
+		HTTPAddr:    "   ",
+		DatabaseURL: "postgres://localhost/moeurl",
+		StaticDir:   "web/dist",
+	}
+
+	err := config.Validate()
+	if err == nil || err.Error() != "MOEURL_HTTP_ADDR is required" {
+		t.Fatalf("validate HTTP address error = %v", err)
+	}
+}
+
 // TestConfigValidateRequiresKnownEnvironment verifies that only supported deployment environments pass validation.
 func TestConfigValidateRequiresKnownEnvironment(t *testing.T) {
 	for _, test := range []struct {
