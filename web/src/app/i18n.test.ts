@@ -46,6 +46,15 @@ describe('i18n', () => {
     expect(messages.en.shortLinkSettings.passwordInvalid).toBe('@:validation.passwordLength')
     expect(i18n.global.t('shortLinkCreate.passwordInvalid')).toBe(messages['zh-CN'].validation.passwordLength)
     expect(i18n.global.t('shortLinkSettings.passwordInvalid')).toBe(messages['zh-CN'].validation.passwordLength)
+
+    const originalLocale = i18n.global.locale.value
+    try {
+      i18n.global.locale.value = 'en'
+      expect(i18n.global.t('shortLinkCreate.passwordInvalid')).toBe(messages.en.validation.passwordLength)
+      expect(i18n.global.t('shortLinkSettings.passwordInvalid')).toBe(messages.en.validation.passwordLength)
+    } finally {
+      i18n.global.locale.value = originalLocale
+    }
   })
 
   it('keeps placeholder copy limited to capabilities that are still planned', () => {

@@ -130,6 +130,9 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 	if len(unlockCookies) != 1 {
 		t.Fatalf("expected one unlock cookie, got %d", len(unlockCookies))
 	}
+	if unlockCookies[0].Name != "moeurl_short_link_access" || unlockCookies[0].Value != "issued-token" {
+		t.Fatalf("unexpected unlock cookie identity: name %q token present %t", unlockCookies[0].Name, unlockCookies[0].Value != "")
+	}
 	if unlockCookies[0].Path != "/go/middle" || !unlockCookies[0].HttpOnly || unlockCookies[0].SameSite != http.SameSiteLaxMode {
 		t.Fatalf("unexpected unlock cookie attributes: path %q httpOnly %t sameSite %d", unlockCookies[0].Path, unlockCookies[0].HttpOnly, unlockCookies[0].SameSite)
 	}
