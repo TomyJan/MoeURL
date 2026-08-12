@@ -4,14 +4,16 @@ import { ref } from 'vue'
 import type { ShortLink, UpdateShortLinkInput } from '@/entities/short-link/model'
 import { useShortLinkSettings } from './useShortLinkSettings'
 
+type PasswordFreeUpdateShortLinkInput = Omit<UpdateShortLinkInput, 'password'>
+
 const state = vi.hoisted(() => ({
   error: undefined as unknown,
   invalidateQueries: vi.fn(),
   isError: false,
   mutationOptions: undefined as {
-    mutationFn?: (input: UpdateShortLinkInput) => Promise<unknown>
-    onSettled?: (value?: unknown, error?: unknown, variables?: UpdateShortLinkInput) => void
-    onSuccess?: (value?: unknown, variables?: UpdateShortLinkInput) => void
+    mutationFn?: (input: PasswordFreeUpdateShortLinkInput) => Promise<unknown>
+    onSettled?: (value?: unknown, error?: unknown, variables?: PasswordFreeUpdateShortLinkInput) => void
+    onSuccess?: (value?: unknown, variables?: PasswordFreeUpdateShortLinkInput) => void
   } | undefined,
   mutate: vi.fn(),
   reset: vi.fn(),
@@ -24,9 +26,9 @@ vi.mock('vue-i18n', () => ({
 vi.mock('@tanstack/vue-query', () => ({
   /** Captures mutation options while exposing controllable reactive test state. */
   useMutation: (options: {
-    mutationFn?: (input: UpdateShortLinkInput) => Promise<unknown>
-    onSettled?: (value?: unknown, error?: unknown, variables?: UpdateShortLinkInput) => void
-    onSuccess?: (value?: unknown, variables?: UpdateShortLinkInput) => void
+    mutationFn?: (input: PasswordFreeUpdateShortLinkInput) => Promise<unknown>
+    onSettled?: (value?: unknown, error?: unknown, variables?: PasswordFreeUpdateShortLinkInput) => void
+    onSuccess?: (value?: unknown, variables?: PasswordFreeUpdateShortLinkInput) => void
   }) => {
     state.mutationOptions = options
     return {
@@ -123,13 +125,16 @@ describe('useShortLinkSettings', () => {
     const mutationFn = vi.fn(async (input: UpdateShortLinkInput) => {
       sentInput = structuredClone(input)
     })
-    useShortLinkSettings({ mutationFn, queryKey: ['short-link'] })
+    const settings = useShortLinkSettings({ mutationFn, queryKey: ['short-link'] })
     const input: UpdateShortLinkInput = {
       id: 'link-id',
       password: { mode: 'set', value: 'correct horse' },
     }
 
-    await state.mutationOptions?.mutationFn?.(input)
+    settings.saveSettings(input)
+    const variables = state.mutate.mock.calls[0]?.[0] as PasswordFreeUpdateShortLinkInput
+    expect(variables).not.toHaveProperty('password')
+    await state.mutationOptions?.mutationFn?.(variables)
 
     expect(sentInput?.password).toEqual({ mode: 'set', value: 'correct horse' })
     expect(input.password).toEqual({ mode: 'set', value: 'correct horse' })
@@ -139,13 +144,16 @@ describe('useShortLinkSettings', () => {
     const mutationFn = vi.fn(async () => {
       throw new Error('settings failed')
     })
-    useShortLinkSettings({ mutationFn, queryKey: ['short-link'] })
+    const settings = useShortLinkSettings({ mutationFn, queryKey: ['short-link'] })
     const input: UpdateShortLinkInput = {
       id: 'link-id',
       password: { mode: 'set', value: 'correct horse' },
     }
 
-    await expect(state.mutationOptions?.mutationFn?.(input)).rejects.toThrow('settings failed')
+    settings.saveSettings(input)
+    const variables = state.mutate.mock.calls[0]?.[0] as PasswordFreeUpdateShortLinkInput
+    expect(variables).not.toHaveProperty('password')
+    await expect(state.mutationOptions?.mutationFn?.(variables)).rejects.toThrow('settings failed')
 
     expect(input.password).toEqual({ mode: 'set', value: 'correct horse' })
   })
@@ -172,8 +180,8 @@ describe('useShortLinkSettings', () => {
 
     expect(state.mutate).toHaveBeenNthCalledWith(1, { id: 'link-id', targetUrl: 'https://example.org' })
     expect(state.mutate).toHaveBeenNthCalledWith(2, { id: 'link-id', targetUrl: 'https://example.net' })
-    const firstVariables = state.mutate.mock.calls[0]?.[0] as UpdateShortLinkInput
-    const secondVariables = state.mutate.mock.calls[1]?.[0] as UpdateShortLinkInput
+    const firstVariables = state.mutate.mock.calls[0]?.[0] as PasswordFreeUpdateShortLinkInput
+    const secondVariables = state.mutate.mock.calls[1]?.[0] as PasswordFreeUpdateShortLinkInput
     expect(firstVariables).not.toHaveProperty('password')
     expect(secondVariables).not.toHaveProperty('password')
     await state.mutationOptions?.mutationFn?.(firstVariables)
@@ -205,7 +213,7 @@ describe('useShortLinkSettings', () => {
       targetUrl: 'https://example.org',
       password: { mode: 'set', value: 'correct horse' },
     })
-    const variables = state.mutate.mock.calls[0]?.[0] as UpdateShortLinkInput
+    const variables = state.mutate.mock.calls[0]?.[0] as PasswordFreeUpdateShortLinkInput
 
     await state.mutationOptions?.mutationFn?.(variables)
     state.mutationOptions?.onSettled?.(undefined, undefined, variables)

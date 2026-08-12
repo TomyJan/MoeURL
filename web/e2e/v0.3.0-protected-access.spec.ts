@@ -279,8 +279,9 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
       })
       await page.route(`**/go/${rateLimitedSlug}/preview`, async (route) => {
         const cookie = await route.request().headerValue('cookie')
-        authorizedPreviewCookieSeen = authorizedPreviewCookieSeen || (cookie?.includes(`moeurl_short_link_access=${rateLimitedAccessToken}`) ?? false)
-        if (!authorizedPreviewCookieSeen) {
+        const hasAuthorizedCookie = cookie?.includes(`moeurl_short_link_access=${rateLimitedAccessToken}`) ?? false
+        authorizedPreviewCookieSeen = authorizedPreviewCookieSeen || hasAuthorizedCookie
+        if (!hasAuthorizedCookie) {
           await route.fallback()
           return
         }

@@ -259,10 +259,7 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 	if state.PasswordBlockedUntil.Valid && now.Before(state.PasswordBlockedUntil.Time) {
 		return AccessGrant{}, &PasswordRateLimitedError{RetryAt: state.PasswordBlockedUntil.Time}
 	}
-	passwordMatches := auth.VerifyPassword(password, state.PasswordHash.String)
-	if _, _, err := validatePasswordInput(&PasswordInput{Mode: PasswordModeSet, Value: password}); err != nil {
-		passwordMatches = false
-	}
+	passwordMatches := passwordMatchesInput(password, state.PasswordHash.String, auth.VerifyPassword)
 	if !passwordMatches {
 		failure := nextPasswordFailure(now, state.PasswordFailedAttempts, state.PasswordWindowStartedAt)
 		if err := queries.RecordShortLinkPasswordFailure(ctx, sqlc.RecordShortLinkPasswordFailureParams{
@@ -301,6 +298,13 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 		return AccessGrant{}, err
 	}
 	return AccessGrant{Token: token, ExpiresAt: expiresAt}, nil
+}
+
+func passwordMatchesInput(password string, encodedHash string, verify func(string, string) bool) bool {
+	if _, _, err := validatePasswordInput(&PasswordInput{Mode: PasswordModeSet, Value: password}); err != nil {
+		return false
+	}
+	return verify(password, encodedHash)
 }
 
 // CleanupExpiredAccessGrants drains expired access grants in bounded batches.

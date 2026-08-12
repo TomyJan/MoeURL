@@ -4,12 +4,29 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"strings"
 	"testing"
 	"testing/iotest"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+// TestPasswordMatchesInputValidatesBeforeHashComparison verifies invalid input never reaches Argon2 verification.
+func TestPasswordMatchesInputValidatesBeforeHashComparison(t *testing.T) {
+	verifierCalled := false
+	verifier := func(string, string) bool {
+		verifierCalled = true
+		return false
+	}
+
+	if passwordMatchesInput(strings.Repeat("a", 129), "unused hash", verifier) {
+		t.Fatal("out-of-range password matched")
+	}
+	if verifierCalled {
+		t.Fatal("password verifier was called for invalid input")
+	}
+}
 
 // TestWaitAccessGrantCleanupBatchPauseHonorsCancellation verifies batch pauses stop promptly when cleanup is canceled.
 func TestWaitAccessGrantCleanupBatchPauseHonorsCancellation(t *testing.T) {

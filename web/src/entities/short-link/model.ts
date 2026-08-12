@@ -5,7 +5,9 @@ export type ExpirationInput =
   | { mode: 'at'; expiresAt: string }
 
 export type PasswordInput =
+  /** Removes password protection; on update this also invalidates existing access grants. */
   | { mode: 'never' }
+  /** Sets or replaces password protection. */
   | { mode: 'set'; value: string }
 
 export interface ShortLink {
@@ -83,6 +85,7 @@ export interface UpdateShortLinkInput {
   redirectMode?: RedirectMode
   intermediateDelaySeconds?: number
   expiration?: ExpirationInput
+  /** Omit to preserve the existing password; use `never` to clear it explicitly. */
   password?: PasswordInput
 }
 
