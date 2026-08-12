@@ -58,8 +58,13 @@ describe('api client', () => {
       }
     }
     vi.stubGlobal('URL', TrackedURL)
-    const fetchMock = vi.fn()
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ code: 0, data: null, message: 'OK', meta: {} })))
     vi.stubGlobal('fetch', fetchMock)
+
+    await apiGetPath('/health')
+    expect(constructorCalls).toBeGreaterThan(0)
+    constructorCalls = 0
+    fetchMock.mockClear()
 
     await expect(apiGetPath('/\\')).rejects.toThrow('API path must be a same-origin absolute path')
     await expect(apiPostPath('/\\', {})).rejects.toThrow('API path must be a same-origin absolute path')

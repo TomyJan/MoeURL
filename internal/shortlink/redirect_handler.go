@@ -76,7 +76,8 @@ func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug stri
 	h.writeTargetRedirect(w, r, result.RedirectResult, result.Slug)
 }
 
-// PreviewPublic writes public preview data after revalidating any scoped access cookie.
+// PreviewPublic serves the deprecated query endpoint for unprotected previews.
+// Protected links must use /go/{slug}/preview because the access cookie is path-scoped.
 func (h *RedirectHandler) PreviewPublic(w http.ResponseWriter, r *http.Request) {
 	slug := strings.TrimSpace(r.URL.Query().Get("slug"))
 	h.preview(w, r, slug, accessTokenFromRequest(r))

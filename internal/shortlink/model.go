@@ -124,12 +124,17 @@ type AccessConfig struct {
 	PasswordEnabled          bool       `json:"passwordEnabled"`
 }
 
+type accessConfigOptions struct {
+	expired         bool
+	passwordEnabled bool
+}
+
 // setAccessConfig maps persisted access controls into the shared API model.
-func (config *AccessConfig) setAccessConfig(redirectMode string, delay int16, expiresAt pgtype.Timestamptz, expired bool, passwordEnabled bool) {
+func (config *AccessConfig) setAccessConfig(redirectMode string, delay int16, expiresAt pgtype.Timestamptz, options accessConfigOptions) {
 	config.RedirectMode = redirectMode
 	config.IntermediateDelaySeconds = delay
-	config.ExpiresAt, config.Expired = expirationValues(expiresAt, expired)
-	config.PasswordEnabled = passwordEnabled
+	config.ExpiresAt, config.Expired = expirationValues(expiresAt, options.expired)
+	config.PasswordEnabled = options.passwordEnabled
 }
 
 type ShortLink struct {

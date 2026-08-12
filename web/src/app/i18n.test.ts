@@ -39,6 +39,24 @@ describe('i18n', () => {
     expect(messages.en.redirect.loadFailed).toBe('Unable to load this short link. Try again.')
   })
 
+  it('reuses the shared password-length validation copy', () => {
+    expect(messages['zh-CN'].shortLinkCreate.passwordInvalid).toBe('@:validation.passwordLength')
+    expect(messages['zh-CN'].shortLinkSettings.passwordInvalid).toBe('@:validation.passwordLength')
+    expect(messages.en.shortLinkCreate.passwordInvalid).toBe('@:validation.passwordLength')
+    expect(messages.en.shortLinkSettings.passwordInvalid).toBe('@:validation.passwordLength')
+    expect(i18n.global.t('shortLinkCreate.passwordInvalid')).toBe(messages['zh-CN'].validation.passwordLength)
+    expect(i18n.global.t('shortLinkSettings.passwordInvalid')).toBe(messages['zh-CN'].validation.passwordLength)
+
+    const originalLocale = i18n.global.locale.value
+    try {
+      i18n.global.locale.value = 'en'
+      expect(i18n.global.t('shortLinkCreate.passwordInvalid')).toBe(messages.en.validation.passwordLength)
+      expect(i18n.global.t('shortLinkSettings.passwordInvalid')).toBe(messages.en.validation.passwordLength)
+    } finally {
+      i18n.global.locale.value = originalLocale
+    }
+  })
+
   it('keeps placeholder copy limited to capabilities that are still planned', () => {
     expect(messages['zh-CN'].placeholder.overview.items).not.toHaveProperty('analytics')
     expect(messages.en.placeholder.overview.items).not.toHaveProperty('analytics')

@@ -95,6 +95,7 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 	}
 	redirect := &routerRedirectService{
 		previewResult:  shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", IntermediateDelaySeconds: int16Pointer(5)},
+		unlockResult:   shortlink.AccessGrant{Token: "issued-token"},
 		continueResult: shortlink.RedirectResult{TargetURL: "https://example.com/final", ShortLinkID: "link-id"},
 	}
 	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: redirect, StaticDir: staticDir})
@@ -124,6 +125,16 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 	router.ServeHTTP(unlocked, unlockRequest)
 	if unlocked.Code != http.StatusOK || len(redirect.unlockSlugs) != 1 || redirect.unlockSlugs[0] != "middle" || redirect.unlockPassword != "correct horse" {
 		t.Fatalf("expected fixed unlock route, got status %d slugs %#v password %q", unlocked.Code, redirect.unlockSlugs, redirect.unlockPassword)
+	}
+	unlockCookies := unlocked.Result().Cookies()
+	if len(unlockCookies) != 1 {
+		t.Fatalf("expected one unlock cookie, got %d", len(unlockCookies))
+	}
+	if unlockCookies[0].Name != "moeurl_short_link_access" || unlockCookies[0].Value != "issued-token" {
+		t.Fatalf("unexpected unlock cookie identity: name %q token present %t", unlockCookies[0].Name, unlockCookies[0].Value != "")
+	}
+	if unlockCookies[0].Path != "/go/middle" || !unlockCookies[0].HttpOnly || unlockCookies[0].SameSite != http.SameSiteLaxMode {
+		t.Fatalf("unexpected unlock cookie attributes: path %q httpOnly %t sameSite %d", unlockCookies[0].Path, unlockCookies[0].HttpOnly, unlockCookies[0].SameSite)
 	}
 
 	continued := httptest.NewRecorder()
@@ -340,6 +351,7 @@ type routerRedirectService struct {
 	openResult           shortlink.OpenResult
 	openResultConfigured bool
 	previewResult        shortlink.PreviewResult
+	unlockResult         shortlink.AccessGrant
 	continueResult       shortlink.RedirectResult
 	openSlugs            []string
 	previewSlugs         []string
@@ -376,7 +388,7 @@ func (service *routerRedirectService) Preview(_ context.Context, slug string, ac
 func (service *routerRedirectService) Unlock(_ context.Context, slug string, password string) (shortlink.AccessGrant, error) {
 	service.unlockSlugs = append(service.unlockSlugs, slug)
 	service.unlockPassword = password
-	return shortlink.AccessGrant{}, nil
+	return service.unlockResult, nil
 }
 
 // Continue records the slug forwarded by the fixed continue route.
