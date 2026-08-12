@@ -354,6 +354,7 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
         expect(realUnlockPayload.code).toBe(200113)
         return
       }
+      expect(false, 'rate-limit flow did not reach the fifth attempt').toBe(true)
     },
   )
 })

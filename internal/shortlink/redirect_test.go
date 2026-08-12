@@ -278,7 +278,7 @@ func TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit(t *testing.T) {
 	}
 	grant, err := service.Unlock(ctx, "protected", "correct horse")
 	if err != nil || grant.Token == "" {
-		t.Fatalf("expected successful unlock grant, got %#v error %v", grant, err)
+		t.Fatalf("expected successful unlock grant, token_present=%t error %v", grant.Token != "", err)
 	}
 	var failedAttempts int32
 	var windowStartedAt pgtype.Timestamptz
