@@ -178,11 +178,12 @@ API 使用 `/api/v1` 前缀：
 /api/v1/short-link/list
 /api/v1/short-link/update
 /api/v1/short-link/delete
-/api/v1/public/short-link/preview
 /api/v1/admin/short-link/list
 /api/v1/admin/short-link/update
 /api/v1/admin/short-link/delete
 ```
+
+公开预览的规范入口为 `/go/{slug}/preview`；旧的 `/api/v1/public/short-link/preview` 仅保留为兼容入口并已弃用。
 
 `GET /api/v1/short-link/overview` 返回当前用户拥有且未软删除短链的总数、启用数、总访问量和今日访问量。该接口使用 `short_link:read_own`，管理员调用时同样只返回个人数据；全站概览应使用后续独立的管理员接口。
 

@@ -15,8 +15,8 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-// TestInitialMigrationCreatesCoreTablesAndConstraints verifies the baseline schema contract.
-func TestInitialMigrationCreatesCoreTablesAndConstraints(t *testing.T) {
+// TestMigrationsCreateCoreTablesAndConstraints verifies the fully migrated schema contract.
+func TestMigrationsCreateCoreTablesAndConstraints(t *testing.T) {
 	ctx := context.Background()
 	database := migrationTestDatabase(t, ctx)
 
@@ -362,6 +362,7 @@ func assertShortLinkPasswordConstraintValidation(t *testing.T, ctx context.Conte
 		select convalidated
 		from pg_constraint
 		where conname = 'short_link_password_failed_attempts_check'
+			and conrelid = 'short_link'::regclass
 	`).Scan(&validated)
 	if errors.Is(err, sql.ErrNoRows) {
 		if expectedExists {

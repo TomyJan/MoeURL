@@ -166,10 +166,10 @@ async function loadPreview() {
     const result = await getPublicShortLinkPreview(slug)
     whenCurrent(requestId, () => {
       preview.value = result
-      passwordRequired.value = route.query.reason === 'password' || route.query.reason === 'rate-limited'
-      if (!passwordRequired.value) {
-        proceedAfterAccess()
-      }
+      passwordRequired.value = false
+      unlockErrorState.value = ''
+      clearRateLimitCountdown()
+      proceedAfterAccess()
     })
   } catch (error) {
     whenCurrent(requestId, () => {

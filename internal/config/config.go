@@ -25,11 +25,18 @@ func Load() Config {
 	}
 }
 
-// Validate verifies that required configuration values are present.
-func (c *Config) Validate() error {
+// Normalize trims surrounding whitespace from configuration values.
+func (c *Config) Normalize() {
 	c.Env = strings.TrimSpace(c.Env)
+	c.HTTPAddr = strings.TrimSpace(c.HTTPAddr)
 	c.DatabaseURL = strings.TrimSpace(c.DatabaseURL)
 	c.StaticDir = strings.TrimSpace(c.StaticDir)
+	c.AnalyticsCountryHeader = strings.TrimSpace(c.AnalyticsCountryHeader)
+}
+
+// Validate normalizes and verifies that required configuration values are present.
+func (c *Config) Validate() error {
+	c.Normalize()
 	if c.Env != "development" && c.Env != "production" {
 		return errors.New("MOEURL_ENV must be development or production")
 	}

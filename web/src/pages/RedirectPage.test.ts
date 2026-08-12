@@ -35,6 +35,10 @@ function mountPage() {
   })
 }
 
+function mockUnauthorizedPreview() {
+  vi.mocked(getPublicShortLinkPreview).mockRejectedValueOnce(new ApiClientError(200111, 'Password required'))
+}
+
 async function flushPreview() {
   await Promise.resolve()
   await nextTick()
@@ -143,20 +147,19 @@ describe('RedirectPage', () => {
     expect(screen.queryByRole('button', { name: 'redirect.retry' })).toBeNull()
   })
 
-  it('shows a password form for protected previews', async () => {
-    state.route!.query = { reason: 'password' }
+  it.each(['password', 'rate-limited'])('continues after an authorized preview despite reason %s', async (reason) => {
+    state.route!.query = { reason }
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
-      intermediateDelaySeconds: 5,
+      intermediateDelaySeconds: null,
       expiresAt: null,
     })
     mountPage()
     await flushPreview()
 
-    expect(screen.getByLabelText('redirect.password')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'redirect.unlock' })).toBeTruthy()
-    expect(screen.queryByText('5')).toBeNull()
+    expect(screen.queryByLabelText('redirect.password')).toBeNull()
+    expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
   })
 
   it('keeps the password form when the protected preview requires authorization', async () => {
@@ -180,6 +183,7 @@ describe('RedirectPage', () => {
 
   it('shows an invalid-password error without navigating', async () => {
     state.route!.query = { reason: 'password' }
+    mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
@@ -197,12 +201,11 @@ describe('RedirectPage', () => {
     expect(state.assign).not.toHaveBeenCalled()
   })
 
-  it.each([
-    [{ reason: 'rate-limited' }, undefined],
-    [{ reason: 'rate-limited', retryAt: 'not-a-date' }, undefined],
-    [{ reason: 'password' }, new ApiClientError(200113, 'Too many attempts')],
-  ])('shows the password rate-limit state for query %s or unlock error %s', async (query, unlockError) => {
+  it('shows the password rate-limit state after an unlock error without a deadline', async () => {
+    const query = { reason: 'password' }
+    const unlockError = new ApiClientError(200113, 'Too many attempts')
     state.route!.query = query
+    mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
@@ -215,16 +218,16 @@ describe('RedirectPage', () => {
     mountPage()
     await flushPreview()
 
-    if (unlockError) {
-      await fireEvent.update(screen.getByLabelText('redirect.password'), 'wrongpass')
-      await fireEvent.click(screen.getByRole('button', { name: 'redirect.unlock' }))
-    }
+    vi.mocked(unlockShortLink).mockRejectedValueOnce(unlockError)
+    await fireEvent.update(screen.getByLabelText('redirect.password'), 'wrongpass')
+    await fireEvent.click(screen.getByRole('button', { name: 'redirect.unlock' }))
     expect(screen.getByText('redirect.rateLimitedWithoutDeadline')).toBeTruthy()
     expect(state.assign).not.toHaveBeenCalled()
   })
 
   it('requires a non-empty password before sending an unlock request', async () => {
     state.route!.query = { reason: 'password' }
+    mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
@@ -242,6 +245,7 @@ describe('RedirectPage', () => {
 
   it('lets the backend re-evaluate a rate-limited unlock request', async () => {
     state.route!.query = { reason: 'rate-limited' }
+    mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
@@ -263,6 +267,7 @@ describe('RedirectPage', () => {
 
   it('counts down the backend retry deadline before allowing another unlock', async () => {
     state.route!.query = { reason: 'password' }
+    mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
@@ -298,6 +303,7 @@ describe('RedirectPage', () => {
       reason: 'rate-limited',
       retryAt: new Date(Date.now() - 1_000).toISOString(),
     }
+    mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
@@ -317,6 +323,7 @@ describe('RedirectPage', () => {
     [new Error('network failure'), 'redirect.unlockFailed'],
   ])('maps unlock error %s to safe message %s', async (error, messageKey) => {
     state.route!.query = { reason: 'password' }
+    mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
@@ -335,6 +342,7 @@ describe('RedirectPage', () => {
 
   it('continues directly after unlocking a protected direct link', async () => {
     state.route!.query = { reason: 'password' }
+    mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
@@ -353,6 +361,7 @@ describe('RedirectPage', () => {
 
   it('reads the password from form data and resets the form after unlocking', async () => {
     state.route!.query = { reason: 'password' }
+    mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
@@ -374,6 +383,7 @@ describe('RedirectPage', () => {
 
   it('falls back to the route slug when an unlock preview omits its slug', async () => {
     state.route!.query = { reason: 'password' }
+    mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       targetHost: 'example.com',
       intermediateDelaySeconds: null,
@@ -392,6 +402,7 @@ describe('RedirectPage', () => {
   it('uses the canonical preview slug for protected access', async () => {
     state.route!.params = { slug: 'AbC123' }
     state.route!.query = { reason: 'password' }
+    mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
@@ -404,12 +415,13 @@ describe('RedirectPage', () => {
     await fireEvent.update(screen.getByLabelText('redirect.password'), 'correct horse')
     await fireEvent.click(screen.getByRole('button', { name: 'redirect.unlock' }))
 
-    expect(unlockShortLink).toHaveBeenCalledWith({ slug: 'abc123', password: 'correct horse' })
+    expect(unlockShortLink).toHaveBeenCalledWith({ slug: 'AbC123', password: 'correct horse' })
     expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
   })
 
   it('ignores duplicate unlock submissions while the first request is pending', async () => {
     state.route!.query = { reason: 'password' }
+    mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
@@ -434,17 +446,12 @@ describe('RedirectPage', () => {
 
   it.each(['success', 'failure'])('ignores a stale %s unlock after navigating to another slug', async (outcome) => {
     state.route!.query = { reason: 'password' }
+    mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview)
-      .mockResolvedValueOnce({
-        slug: 'abc123',
-        targetHost: 'example.com',
-        intermediateDelaySeconds: null,
-        expiresAt: null,
-      })
       .mockResolvedValueOnce({
         slug: 'def456',
         targetHost: 'other.example.com',
-        intermediateDelaySeconds: null,
+        intermediateDelaySeconds: 5,
         expiresAt: null,
       })
     const unlock = createDeferred<{ unlocked: true }>()
@@ -455,8 +462,7 @@ describe('RedirectPage', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'redirect.unlock' }))
 
     state.route!.params.slug = 'def456'
-    await flushPreview()
-    expect(screen.getByText('other.example.com')).toBeTruthy()
+    await vi.waitFor(() => expect(screen.getByText('other.example.com')).toBeTruthy())
 
     if (outcome === 'success') {
       unlock.resolve({ unlocked: true })
@@ -513,6 +519,7 @@ describe('RedirectPage', () => {
 
   it('starts the intermediate countdown after unlocking', async () => {
     state.route!.query = { reason: 'password' }
+    mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
@@ -524,7 +531,7 @@ describe('RedirectPage', () => {
 
     await fireEvent.update(screen.getByLabelText('redirect.password'), 'correct horse')
     await fireEvent.click(screen.getByRole('button', { name: 'redirect.unlock' }))
-    expect(screen.getByText('3')).toBeTruthy()
+    await vi.waitFor(() => expect(screen.getByText('3')).toBeTruthy())
 
     await vi.advanceTimersByTimeAsync(3_000)
     expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
@@ -590,6 +597,7 @@ describe('RedirectPage', () => {
 
   it('ignores a successful unlock that resolves after unmount', async () => {
     state.route!.query = { reason: 'password' }
+    mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
@@ -612,6 +620,7 @@ describe('RedirectPage', () => {
 
   it('ignores a failed unlock that rejects after unmount', async () => {
     state.route!.query = { reason: 'password' }
+    mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',

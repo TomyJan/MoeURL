@@ -27,6 +27,35 @@ func TestLoadPreservesEmptyEnvironmentForValidation(t *testing.T) {
 	}
 }
 
+// TestConfigNormalizeTrimsAllFields verifies configuration normalization is independent from validation.
+func TestConfigNormalizeTrimsAllFields(t *testing.T) {
+	config := Config{
+		Env:                    " development ",
+		HTTPAddr:               " :8080 ",
+		DatabaseURL:            " postgres://localhost/moeurl ",
+		StaticDir:              " web/dist ",
+		AnalyticsCountryHeader: " CF-IPCountry ",
+	}
+
+	config.Normalize()
+
+	if config.Env != "development" {
+		t.Fatalf("environment = %q, want normalized value", config.Env)
+	}
+	if config.HTTPAddr != ":8080" {
+		t.Fatalf("HTTP address = %q, want normalized value", config.HTTPAddr)
+	}
+	if config.DatabaseURL != "postgres://localhost/moeurl" {
+		t.Fatalf("database URL = %q, want normalized value", config.DatabaseURL)
+	}
+	if config.StaticDir != "web/dist" {
+		t.Fatalf("static dir = %q, want normalized value", config.StaticDir)
+	}
+	if config.AnalyticsCountryHeader != "CF-IPCountry" {
+		t.Fatalf("analytics country header = %q, want normalized value", config.AnalyticsCountryHeader)
+	}
+}
+
 // TestConfigValidateRequiresKnownEnvironment verifies that only supported deployment environments pass validation.
 func TestConfigValidateRequiresKnownEnvironment(t *testing.T) {
 	for _, test := range []struct {
@@ -44,9 +73,11 @@ func TestConfigValidateRequiresKnownEnvironment(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			config := Config{
-				Env:         test.env,
-				DatabaseURL: "  postgres://localhost/moeurl  ",
-				StaticDir:   "  web/dist  ",
+				Env:                    test.env,
+				HTTPAddr:               " :8080 ",
+				DatabaseURL:            "  postgres://localhost/moeurl  ",
+				StaticDir:              "  web/dist  ",
+				AnalyticsCountryHeader: " CF-IPCountry ",
 			}
 
 			err := config.Validate()
@@ -64,6 +95,12 @@ func TestConfigValidateRequiresKnownEnvironment(t *testing.T) {
 			}
 			if !test.wantErr && config.StaticDir != "web/dist" {
 				t.Fatalf("static dir = %q, want normalized value", config.StaticDir)
+			}
+			if !test.wantErr && config.HTTPAddr != ":8080" {
+				t.Fatalf("HTTP address = %q, want normalized value", config.HTTPAddr)
+			}
+			if !test.wantErr && config.AnalyticsCountryHeader != "CF-IPCountry" {
+				t.Fatalf("analytics country header = %q, want normalized value", config.AnalyticsCountryHeader)
 			}
 		})
 	}

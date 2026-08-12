@@ -201,7 +201,7 @@ test('v0.2.0 intermediate-page, expiry, QR-code, and logout flows', async ({ pag
   await expect(intermediateRow.getByText(updatedIntermediateTarget, { exact: true })).toBeVisible()
 
   await expect.poll(
-    () => readPublicPreviewCode(page, intermediateSlug),
+    () => readScopedPreviewCode(page, intermediateSlug),
     { intervals: [250, 500, 1_000], timeout: 30_000 },
   ).toBe(200109)
   const expiredRedirect = await page.request.get(`/${intermediateSlug}`, { maxRedirects: 0 })
@@ -289,8 +289,8 @@ async function selectVuetifyOption(page: Page, label: string, option: string) {
   await page.getByRole('option', { name: option }).click()
 }
 
-/** Reads the public preview business code without exposing target details. */
-async function readPublicPreviewCode(page: Page, slug: string) {
+/** Reads the scoped preview business code after applying path-scoped access authorization. */
+async function readScopedPreviewCode(page: Page, slug: string) {
   const response = await page.request.get(`/go/${encodeURIComponent(slug)}/preview`)
   await expect(response).toBeOK()
   const payload = await response.json() as { code: number }

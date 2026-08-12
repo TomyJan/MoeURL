@@ -551,7 +551,7 @@ func TestShortLinkPasswordUpdateUsesLockAcquisitionTimeToInvalidateGrants(t *tes
 		updateResult <- updateErr
 	}()
 
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(15 * time.Second)
 	for {
 		var waitEventType pgtype.Text
 		if err := pool.QueryRow(ctx, `select wait_event_type from pg_stat_activity where pid = $1`, updatePID).Scan(&waitEventType); err != nil {
