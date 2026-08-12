@@ -107,7 +107,10 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 			Status:    created.Status,
 			CreatedAt: created.CreatedAt.Time,
 		}
-		shortLink.setAccessConfig(created.RedirectMode, created.IntermediateDelaySeconds, created.ExpiresAt, created.Expired, created.PasswordHash.Valid)
+		shortLink.setAccessConfig(created.RedirectMode, created.IntermediateDelaySeconds, created.ExpiresAt, accessConfigOptions{
+			expired:         created.Expired,
+			passwordEnabled: created.PasswordHash.Valid,
+		})
 		return CreateResult{ShortLink: shortLink}, nil
 	}
 
@@ -179,7 +182,10 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 			CreatedAt: row.CreatedAt.Time,
 			Stats:     statsFromRow(row.VisitCount, row.TodayVisitCount, row.LastVisitedAt),
 		}
-		shortLink.setAccessConfig(row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired, row.HasPassword)
+		shortLink.setAccessConfig(row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, accessConfigOptions{
+			expired:         row.Expired,
+			passwordEnabled: row.HasPassword,
+		})
 		items = append(items, shortLink)
 	}
 
@@ -246,7 +252,10 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 		Status:    updated.Status,
 		CreatedAt: updated.CreatedAt.Time,
 	}
-	shortLink.setAccessConfig(updated.RedirectMode, updated.IntermediateDelaySeconds, updated.ExpiresAt, updated.Expired, updated.PasswordHash.Valid)
+	shortLink.setAccessConfig(updated.RedirectMode, updated.IntermediateDelaySeconds, updated.ExpiresAt, accessConfigOptions{
+		expired:         updated.Expired,
+		passwordEnabled: updated.PasswordHash.Valid,
+	})
 	return CreateResult{ShortLink: shortLink}, nil
 }
 
@@ -352,7 +361,10 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 				Nickname: row.OwnerNickname,
 			},
 		}
-		shortLink.setAccessConfig(row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired, row.HasPassword)
+		shortLink.setAccessConfig(row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, accessConfigOptions{
+			expired:         row.Expired,
+			passwordEnabled: row.HasPassword,
+		})
 		items = append(items, shortLink)
 	}
 
@@ -417,7 +429,10 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 		Status:    updated.Status,
 		CreatedAt: updated.CreatedAt.Time,
 	}
-	shortLink.setAccessConfig(updated.RedirectMode, updated.IntermediateDelaySeconds, updated.ExpiresAt, updated.Expired, updated.PasswordHash.Valid)
+	shortLink.setAccessConfig(updated.RedirectMode, updated.IntermediateDelaySeconds, updated.ExpiresAt, accessConfigOptions{
+		expired:         updated.Expired,
+		passwordEnabled: updated.PasswordHash.Valid,
+	})
 	return CreateResult{ShortLink: shortLink}, nil
 }
 
@@ -470,7 +485,10 @@ func (s *Service) analyticsLink(ctx context.Context, linkID uuid.UUID) (analytic
 		Status:    row.Status,
 		CreatedAt: row.CreatedAt.Time,
 	}
-	shortLink.setAccessConfig(row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired, row.HasPassword)
+	shortLink.setAccessConfig(row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, accessConfigOptions{
+		expired:         row.Expired,
+		passwordEnabled: row.HasPassword,
+	})
 	return analyticsLinkResult{
 		ownerID:   uuid.UUID(row.OwnerID.Bytes),
 		shortLink: shortLink,
