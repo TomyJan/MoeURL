@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 
 import type { ShortLink, UpdateShortLinkInput } from '@/entities/short-link/model'
+import { runShortLinkMutation } from './runShortLinkMutation'
 
 interface UseShortLinkSettingsOptions {
   mutationFn: (input: UpdateShortLinkInput) => Promise<unknown>
@@ -11,21 +12,33 @@ interface UseShortLinkSettingsOptions {
 
 type ShortLinkSettingsTarget = Pick<
   ShortLink,
-  'id' | 'url' | 'slug' | 'targetUrl' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt'
+  'id' | 'url' | 'slug' | 'targetUrl' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'passwordEnabled'
 >
 
+/** Coordinates shared settings and QR dialog state for short-link list pages. */
 export function useShortLinkSettings(options: UseShortLinkSettingsOptions) {
   const { t } = useI18n()
   const queryClient = useQueryClient()
   const settingsLink = ref<ShortLinkSettingsTarget | null>(null)
   const qrLink = ref<ShortLinkSettingsTarget | null>(null)
+  const pendingPasswords = new WeakMap<object, UpdateShortLinkInput['password']>()
+  const passwordRequests = new WeakSet<object>()
   const settingsMutation = useMutation({
-    mutationFn: options.mutationFn,
+    /** Runs updates through the shared sensitive-input cleanup boundary. */
+    mutationFn: (input: Omit<UpdateShortLinkInput, 'password'>) => {
+      const requestPassword = pendingPasswords.get(input)
+      const passwordRequested = passwordRequests.has(input)
+      return runShortLinkMutation(options.mutationFn, input, requestPassword, passwordRequested)
+    },
     onSuccess(_data, variables) {
       if (settingsLink.value?.id === variables.id) {
         settingsLink.value = null
       }
       void queryClient.invalidateQueries({ queryKey: options.queryKey })
+    },
+    onSettled(_data, _error, variables) {
+      passwordRequests.delete(variables)
+      pendingPasswords.delete(variables)
     },
   })
   const settingsErrorMessage = computed(() => {
@@ -43,7 +56,12 @@ export function useShortLinkSettings(options: UseShortLinkSettingsOptions) {
   }
 
   function saveSettings(input: UpdateShortLinkInput) {
-    settingsMutation.mutate(input)
+    const { password, ...variables } = input
+    if (password) {
+      passwordRequests.add(variables)
+      pendingPasswords.set(variables, { ...password })
+    }
+    settingsMutation.mutate(variables)
   }
 
   function closeSettings(open: boolean) {

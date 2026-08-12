@@ -8,6 +8,7 @@ import (
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -250,7 +251,7 @@ func insertLoginUserWithoutPassword(t *testing.T, ctx context.Context, pool *pgx
 
 func authTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
-	databaseURL := migratedAuthDatabaseURL(t, ctx)
+	databaseURL := testdb.ProjectMigratedDatabaseURL(ctx, t)
 	pool, err := appdb.OpenPool(ctx, databaseURL)
 	if err != nil {
 		t.Fatalf("open pool: %v", err)

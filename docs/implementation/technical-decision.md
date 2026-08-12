@@ -72,6 +72,8 @@ v0.0.4 开始使用 PostgreSQL 持久化 `short_link_event` 访问事件表，�
 
 v0.2.0 在 `short_link` 增加跳转模式、中间页倒计时和可选过期时间。既有记录通过数据库默认值继续使用直接跳转，过期状态在访问时动态计算，不写回短链状态字段。
 
+v0.3.0 在 `short_link` 增加 Argon2id 密码哈希、数据库失败窗口和密码更新时间，并新增短期访问授权表。授权令牌只以 SHA-256 哈希存储，公开访问通过 `HttpOnly`、`SameSite=Lax` 的 Cookie 传递，生产环境启用 `Secure`，TTL 为 15 分钟，并按短链限定为 `Path=/go/{slug}`；不使用 JWT 或登录 session 代替访客授权。解锁使用同源 `POST /go/{slug}/unlock`，短码由路径提供，请求体只传密码，使授权签发与后续预览、继续访问处于同一路径作用域。授权表分别按 `expires_at` 和 `short_link_id` 建立索引，支撑分批过期清理和短链删除时的级联行定位。失败窗口按短链行锁保护，保证多实例部署的一致性。密码失败次数约束先由 `00006` 以 `NOT VALID` 添加，再由 `00007` 独立验证，避免升级大表时在字段迁移事务中扫描全部历史数据。
+
 ### SQLC
 
 SQLC 用于根据 SQL 生成类型安全的 Go 数据访问代码。
@@ -244,6 +246,8 @@ v0.2.0 使用前端 `qrcode` 库按短链公开 URL 即时生成 PNG Data URL。
 - `testify`：断言和测试辅助。
 - `testcontainers-go`：需要真实 PostgreSQL 的集成测试。
 
+同一 Go 测试进程复用一个 PostgreSQL 容器；每个测试仍创建并清理独立数据库，兼顾隔离性与启动成本。
+
 测试重点：
 
 - URL 校验。
@@ -260,6 +264,8 @@ v0.2.0 使用前端 `qrcode` 库按短链公开 URL 即时生成 PNG Data URL。
 - Vitest：单元测试。
 - Vue Testing Library：组件测试。
 - Playwright：端到端测试。
+
+Playwright 通过独立的 `setup` project 先完成一次初始化 UI 流程，再让业务 spec 并行执行；需要共享状态的受保护访问 spec 在文件内显式串行。
 
 测试重点：
 

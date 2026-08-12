@@ -4,30 +4,17 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"path/filepath"
 	"testing"
-	"time"
 
-	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/system"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/pressly/goose/v3"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 func TestServiceSetupInitializesBuiltInData(t *testing.T) {
 	ctx := context.Background()
-	databaseURL := migratedDatabaseURL(t, ctx)
-
-	pool, err := appdb.OpenPool(ctx, databaseURL)
-	if err != nil {
-		t.Fatalf("open pool: %v", err)
-	}
-	t.Cleanup(pool.Close)
+	pool := systemTestPool(t, ctx)
 
 	service := system.NewService(pool)
 
@@ -80,17 +67,11 @@ func TestServiceSetupInitializesBuiltInData(t *testing.T) {
 
 func TestServiceSetupRejectsReservedAdminUsername(t *testing.T) {
 	ctx := context.Background()
-	databaseURL := migratedDatabaseURL(t, ctx)
-
-	pool, err := appdb.OpenPool(ctx, databaseURL)
-	if err != nil {
-		t.Fatalf("open pool: %v", err)
-	}
-	t.Cleanup(pool.Close)
+	pool := systemTestPool(t, ctx)
 
 	service := system.NewService(pool)
 
-	err = service.Setup(ctx, system.SetupInput{
+	err := service.Setup(ctx, system.SetupInput{
 		AdminUsername:   "guest",
 		AdminPassword:   "secure-password",
 		AdminNickname:   "Guest Admin",
@@ -165,10 +146,13 @@ func assertBuiltInData(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 
 	assertStoredGroupPermission(t, ctx, pool, permission.GroupGuest, permission.ShortLinkUseIntermediate, false)
 	assertStoredGroupPermission(t, ctx, pool, permission.GroupGuest, permission.ShortLinkSetExpiration, false)
+	assertStoredGroupPermission(t, ctx, pool, permission.GroupGuest, permission.ShortLinkSetPassword, false)
 	assertStoredGroupPermission(t, ctx, pool, permission.GroupUser, permission.ShortLinkUseIntermediate, true)
 	assertStoredGroupPermission(t, ctx, pool, permission.GroupUser, permission.ShortLinkSetExpiration, true)
+	assertStoredGroupPermission(t, ctx, pool, permission.GroupUser, permission.ShortLinkSetPassword, true)
 	assertStoredGroupPermission(t, ctx, pool, permission.GroupAdmin, permission.ShortLinkUseIntermediate, true)
 	assertStoredGroupPermission(t, ctx, pool, permission.GroupAdmin, permission.ShortLinkSetExpiration, true)
+	assertStoredGroupPermission(t, ctx, pool, permission.GroupAdmin, permission.ShortLinkSetPassword, true)
 
 	var guestPassword sql.NullString
 	var guestGroup string
@@ -231,57 +215,5 @@ func assertStoredGroupPermission(t *testing.T, ctx context.Context, pool *pgxpoo
 
 func systemTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
-	databaseURL := migratedDatabaseURL(t, ctx)
-	pool, err := appdb.OpenPool(ctx, databaseURL)
-	if err != nil {
-		t.Fatalf("open pool: %v", err)
-	}
-	t.Cleanup(pool.Close)
-	return pool
-}
-
-func migratedDatabaseURL(t *testing.T, ctx context.Context) string {
-	t.Helper()
-
-	container, err := postgres.Run(ctx,
-		"postgres:18-alpine",
-		postgres.WithDatabase("moeurl_test"),
-		postgres.WithUsername("moeurl"),
-		postgres.WithPassword("moeurl"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(60*time.Second),
-		),
-	)
-	if err != nil {
-		t.Fatalf("start postgres container: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(container); err != nil {
-			t.Fatalf("terminate postgres container: %v", err)
-		}
-	})
-
-	databaseURL, err := container.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		t.Fatalf("get connection string: %v", err)
-	}
-
-	database, err := sql.Open("pgx", databaseURL)
-	if err != nil {
-		t.Fatalf("open database: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = database.Close()
-	})
-
-	if err := goose.SetDialect("postgres"); err != nil {
-		t.Fatalf("set goose dialect: %v", err)
-	}
-	if err := goose.Up(database, filepath.Join("..", "..", "migrations")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
-
-	return databaseURL
+	return testdb.ProjectMigratedPool(ctx, t)
 }

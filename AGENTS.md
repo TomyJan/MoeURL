@@ -4,7 +4,7 @@
 
 MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
 
-当前已完成到 v0.2.0 短链访问体验与生命周期闭环。后续版本设计和实施应以 `docs/product/overview.md`、`docs/product/roadmap.md` 和对应版本范围文档为准。
+当前已完成到 v0.3.0 受保护短链访问闭环。后续版本设计和实施应以 `docs/product/overview.md`、`docs/product/roadmap.md` 和对应版本范围文档为准。
 
 ## 工作入口
 
@@ -12,7 +12,7 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 1. `docs/README.md`
 2. `docs/product/overview.md`
-3. `docs/product/scope-v0.2.0.md`
+3. `docs/product/scope-v0.3.0.md`
 
 如果任务涉及新版本设计、跨模块功能开发、生产化交付或要求 Agent 自主完成设计、文档、开发、测试和提交，必须继续阅读 `docs/implementation/agent-delivery-guidelines.md`。
 
@@ -24,9 +24,11 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 1. `docs/implementation/technical-decision.md`
 2. `docs/implementation/technical-baseline.md`
-3. `docs/implementation/v0.2.0-plan.md`
-4. `docs/implementation/v0.2.0-tasks.md`
-5. `docs/implementation/v0.2.0-acceptance.md`
+3. `docs/specs/2026-08-04-v0.3.0-protected-link-access-design.md`
+4. `docs/implementation/v0.3.0-plan.md`
+5. `docs/implementation/v0.3.0-detailed-plan.md`
+6. `docs/implementation/v0.3.0-tasks.md`
+7. `docs/implementation/v0.3.0-acceptance.md`
 
 如果任务涉及 v0.2.0 中间页、过期时间、二维码、访问配置或继续访问路由，必须继续阅读：
 
@@ -141,6 +143,16 @@ MoeURL 当前技术栈固定为：
 - 二维码只编码公开短链 URL，在浏览器即时生成，不保存到数据库，也不包含目标 URL 或账号信息。
 - `/go/{slug}` 和 `/go/{slug}/continue` 是固定路由，优先级必须高于 `/{slug}`，`go` 必须保留为不可生成短码。
 - E2E 必须从真实 `/{slug}` 入口验证中间页和访问量，覆盖桌面与移动端的中间页、访问设置和二维码布局。生产构建允许既有基线的大分块警告，但禁止新增警告、扩大受影响分块范围或提高既有阈值；如采用等效规则，须经双方共同确认。
+
+## v0.3.0 受保护短链实施规则
+
+- v0.3.0 只实现访问密码、数据库一致失败限流和短期访问授权，不实现确认页、最大访问次数、标签、OIDC 或权限预设。
+- 密码只保存 Argon2id 哈希；`password_hash`、原始密码和授权令牌不得出现在公开 API、日志、统计事件或前端状态中。
+- 访问密码由 `short_link:set_password` 权限控制；创建和编辑请求省略密码字段时保留现有值，显式 `never` 才清除。
+- 同一短链 15 分钟内连续 5 次失败后限流 15 分钟，失败窗口由数据库行锁保护，不能依赖进程内状态或未经验证的代理 IP 头。
+- 解锁成功授权有效 15 分钟，令牌哈希存储于数据库，Cookie 必须 `HttpOnly`、`SameSite=Lax`，生产环境启用 `Secure`，Path 限定为 `/go/{slug}`。
+- `Open`、`Preview`、`Continue` 都必须重新检查密码访问条件；浏览器页面通过同源 `/go/{slug}/preview` 读取路径作用域授权，密码修改通过 `password_updated_at` 使旧授权立即失效。
+- 访问量仍只统计最终成功写出目标跳转响应的 `redirect_response_sent`；密码失败、限流和授权检查不得计入成功访问量，事件写入失败不得阻断访问流程。
 
 ## 实施原则
 

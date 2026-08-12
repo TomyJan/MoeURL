@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
@@ -26,6 +27,9 @@ const (
 	minIntermediateDelay     = int16(3)
 	maxIntermediateDelay     = int16(10)
 	expirationModeKeep       = "keep"
+	passwordModeKeep         = "keep"
+	minPasswordLength        = 8
+	maxPasswordLength        = 128
 )
 
 type Service struct {
@@ -86,6 +90,7 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 			RedirectMode:             accessConfig.redirectMode,
 			IntermediateDelaySeconds: accessConfig.intermediateDelaySeconds,
 			ExpiresAt:                accessConfig.expiresAt,
+			PasswordHash:             accessConfig.passwordHash,
 		})
 		if isUniqueViolation(err) {
 			continue
@@ -102,7 +107,7 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 			Status:    created.Status,
 			CreatedAt: created.CreatedAt.Time,
 		}
-		shortLink.setAccessConfig(created.RedirectMode, created.IntermediateDelaySeconds, created.ExpiresAt, created.Expired)
+		shortLink.setAccessConfig(created.RedirectMode, created.IntermediateDelaySeconds, created.ExpiresAt, created.Expired, created.PasswordHash.Valid)
 		return CreateResult{ShortLink: shortLink}, nil
 	}
 
@@ -174,7 +179,7 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 			CreatedAt: row.CreatedAt.Time,
 			Stats:     statsFromRow(row.VisitCount, row.TodayVisitCount, row.LastVisitedAt),
 		}
-		shortLink.setAccessConfig(row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired)
+		shortLink.setAccessConfig(row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired, row.HasPassword)
 		items = append(items, shortLink)
 	}
 
@@ -218,6 +223,8 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 		IntermediateDelaySeconds: accessConfig.intermediateDelaySeconds,
 		ExpirationMode:           accessConfig.expirationMode,
 		ExpiresAt:                accessConfig.expiresAt,
+		PasswordMode:             accessConfig.passwordMode,
+		PasswordHash:             accessConfig.passwordHash,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return CreateResult{}, ErrShortLinkMissing
@@ -239,7 +246,7 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 		Status:    updated.Status,
 		CreatedAt: updated.CreatedAt.Time,
 	}
-	shortLink.setAccessConfig(updated.RedirectMode, updated.IntermediateDelaySeconds, updated.ExpiresAt, updated.Expired)
+	shortLink.setAccessConfig(updated.RedirectMode, updated.IntermediateDelaySeconds, updated.ExpiresAt, updated.Expired, updated.PasswordHash.Valid)
 	return CreateResult{ShortLink: shortLink}, nil
 }
 
@@ -345,7 +352,7 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 				Nickname: row.OwnerNickname,
 			},
 		}
-		shortLink.setAccessConfig(row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired)
+		shortLink.setAccessConfig(row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired, row.HasPassword)
 		items = append(items, shortLink)
 	}
 
@@ -387,6 +394,8 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 		IntermediateDelaySeconds: accessConfig.intermediateDelaySeconds,
 		ExpirationMode:           accessConfig.expirationMode,
 		ExpiresAt:                accessConfig.expiresAt,
+		PasswordMode:             accessConfig.passwordMode,
+		PasswordHash:             accessConfig.passwordHash,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return CreateResult{}, ErrShortLinkMissing
@@ -408,7 +417,7 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 		Status:    updated.Status,
 		CreatedAt: updated.CreatedAt.Time,
 	}
-	shortLink.setAccessConfig(updated.RedirectMode, updated.IntermediateDelaySeconds, updated.ExpiresAt, updated.Expired)
+	shortLink.setAccessConfig(updated.RedirectMode, updated.IntermediateDelaySeconds, updated.ExpiresAt, updated.Expired, updated.PasswordHash.Valid)
 	return CreateResult{ShortLink: shortLink}, nil
 }
 
@@ -461,7 +470,7 @@ func (s *Service) analyticsLink(ctx context.Context, linkID uuid.UUID) (analytic
 		Status:    row.Status,
 		CreatedAt: row.CreatedAt.Time,
 	}
-	shortLink.setAccessConfig(row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired)
+	shortLink.setAccessConfig(row.RedirectMode, row.IntermediateDelaySeconds, row.ExpiresAt, row.Expired, row.HasPassword)
 	return analyticsLinkResult{
 		ownerID:   uuid.UUID(row.OwnerID.Bytes),
 		shortLink: shortLink,
@@ -550,6 +559,7 @@ type createAccessConfigParams struct {
 	redirectMode             string
 	intermediateDelaySeconds int16
 	expiresAt                pgtype.Timestamptz
+	passwordHash             pgtype.Text
 }
 
 type updateAccessConfigParams struct {
@@ -557,6 +567,8 @@ type updateAccessConfigParams struct {
 	intermediateDelaySeconds pgtype.Int2
 	expirationMode           string
 	expiresAt                pgtype.Timestamptz
+	passwordMode             string
+	passwordHash             pgtype.Text
 }
 
 // createAccessConfig normalizes defaults and validates advanced creation settings.
@@ -587,10 +599,15 @@ func (s *Service) createAccessConfig(ctx context.Context, user auth.CurrentUser,
 	if err != nil {
 		return createAccessConfigParams{}, err
 	}
+	_, passwordHash, err := s.normalizePassword(user, input.Password)
+	if err != nil {
+		return createAccessConfigParams{}, err
+	}
 	return createAccessConfigParams{
 		redirectMode:             redirectMode,
 		intermediateDelaySeconds: delay,
 		expiresAt:                expiresAt,
+		passwordHash:             passwordHash,
 	}, nil
 }
 
@@ -614,14 +631,59 @@ func (s *Service) updateAccessConfig(ctx context.Context, user auth.CurrentUser,
 	if err != nil {
 		return updateAccessConfigParams{}, err
 	}
+	passwordMode, passwordHash, err := s.normalizePassword(user, input.Password)
+	if err != nil {
+		return updateAccessConfigParams{}, err
+	}
 	return updateAccessConfigParams{
 		redirectMode:             optionalText(input.RedirectMode),
 		intermediateDelaySeconds: optionalInt2(input.IntermediateDelaySeconds),
 		expirationMode:           expirationMode,
 		expiresAt:                expiresAt,
+		passwordMode:             passwordMode,
+		passwordHash:             passwordHash,
 	}, nil
 }
 
+// normalizePassword enforces password capability and returns only a persistence-safe hash.
+func (s *Service) normalizePassword(user auth.CurrentUser, input *PasswordInput) (string, pgtype.Text, error) {
+	if input != nil && !s.permissions.Has(user.GroupKey, permission.ShortLinkSetPassword) {
+		return "", pgtype.Text{}, ErrPermissionDenied
+	}
+	mode, raw, err := validatePasswordInput(input)
+	if err != nil || mode != PasswordModeSet {
+		return mode, pgtype.Text{}, err
+	}
+	hash, err := auth.HashPassword(raw)
+	if err != nil {
+		return "", pgtype.Text{}, err
+	}
+	return mode, pgtype.Text{String: hash, Valid: true}, nil
+}
+
+// validatePasswordInput normalizes password update modes and validates raw password length.
+func validatePasswordInput(input *PasswordInput) (string, string, error) {
+	if input == nil {
+		return passwordModeKeep, "", nil
+	}
+	switch input.Mode {
+	case PasswordModeNever:
+		if input.Value != "" {
+			return "", "", ErrInvalidPasswordInput
+		}
+		return PasswordModeNever, "", nil
+	case PasswordModeSet:
+		length := utf8.RuneCountInString(input.Value)
+		if length < minPasswordLength || length > maxPasswordLength {
+			return "", "", ErrInvalidPasswordInput
+		}
+		return PasswordModeSet, input.Value, nil
+	default:
+		return "", "", ErrInvalidPasswordInput
+	}
+}
+
+// normalizeExpiration validates an expiration update against authoritative database time.
 func (s *Service) normalizeExpiration(ctx context.Context, input *ExpirationInput) (string, pgtype.Timestamptz, error) {
 	if input == nil {
 		return expirationModeKeep, pgtype.Timestamptz{}, nil
@@ -649,14 +711,17 @@ func (s *Service) normalizeExpiration(ctx context.Context, input *ExpirationInpu
 	}
 }
 
+// isAllowedRedirectMode reports whether a redirect mode belongs to the persisted contract.
 func isAllowedRedirectMode(value string) bool {
 	return value == RedirectModeDirect || value == RedirectModeIntermediate
 }
 
+// isAllowedIntermediateDelay reports whether an intermediate delay is within product bounds.
 func isAllowedIntermediateDelay(value int16) bool {
 	return value >= minIntermediateDelay && value <= maxIntermediateDelay
 }
 
+// optionalInt2 converts an optional delay into the nullable SQLC representation.
 func optionalInt2(value *int16) pgtype.Int2 {
 	if value == nil {
 		return pgtype.Int2{}
@@ -664,6 +729,7 @@ func optionalInt2(value *int16) pgtype.Int2 {
 	return pgtype.Int2{Int16: *value, Valid: true}
 }
 
+// expirationValues maps a stored expiration and derived state into the API model.
 func expirationValues(value pgtype.Timestamptz, expired bool) (*time.Time, bool) {
 	if !value.Valid {
 		return nil, false

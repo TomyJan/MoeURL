@@ -7,15 +7,13 @@ const includes = includeFrom ? readPatterns(includeFrom) : []
 const excludeBlocksFrom = readOption('--exclude-blocks-from')
 const excludedBlocks = excludeBlocksFrom ? new Set(readPatterns(excludeBlocksFrom)) : new Set()
 const excludedLineRanges = new Set([...excludedBlocks].map(toLineRange))
-const excludedBlocksByFile = groupBlocksByFile(excludedBlocks)
+const matchedExcludedBlocks = new Set()
 const blocks = readFileSync(profile, 'utf8')
   .trim()
   .split('\n')
   .slice(1)
   .map(parseBlock)
   .filter(Boolean)
-const fallbackExcludedBlocks = findFallbackExcludedBlocks(blocks, excludedBlocksByFile)
-
 let covered = 0
 let total = 0
 const uncoveredBlocks = []
@@ -25,7 +23,7 @@ for (const block of blocks) {
   if (includes.length > 0 && !includes.includes(file)) {
     continue
   }
-  if (isExcludedBlock(loc) || fallbackExcludedBlocks.has(loc)) {
+  if (consumeExcludedBlock(loc)) {
     continue
   }
   total += statements
@@ -34,6 +32,12 @@ for (const block of blocks) {
   } else {
     uncoveredBlocks.push(loc)
   }
+}
+
+const unmatchedExcludedBlocks = [...excludedBlocks].filter((location) => !matchedExcludedBlocks.has(location))
+if (unmatchedExcludedBlocks.length > 0) {
+  console.error(`Unmatched configured coverage exclusions:\n${unmatchedExcludedBlocks.join('\n')}`)
+  process.exitCode = 1
 }
 
 const percent = total === 0 ? 100 : (covered / total) * 100
@@ -78,34 +82,21 @@ function parseBlock(line) {
   return { loc, file: loc.split(':')[0], statements, count }
 }
 
-function groupBlocksByFile(blocks) {
-  const grouped = new Map()
-  for (const block of blocks) {
-    const file = block.split(':')[0]
-    grouped.set(file, (grouped.get(file) ?? 0) + 1)
+function consumeExcludedBlock(location) {
+  if (excludedBlocks.has(location)) {
+    matchedExcludedBlocks.add(location)
+    return true
   }
-  return grouped
-}
-
-function findFallbackExcludedBlocks(blocks, configuredCounts) {
-  const fallback = new Set()
-  for (const [file, configuredCount] of configuredCounts) {
-    const fileBlocks = blocks.filter((block) => block.file === file)
-    const uncovered = fileBlocks.filter((block) => block.count === 0)
-    const unmatched = uncovered.filter((block) => !isExcludedBlock(block.loc))
-    const remainingConfiguredCount = configuredCount - fileBlocks.filter((block) => isExcludedBlock(block.loc)).length
-    if (unmatched.length === 0 || remainingConfiguredCount <= 0) {
-      continue
-    }
-    if (unmatched.length === remainingConfiguredCount) {
-      for (const block of unmatched) fallback.add(block.loc)
+  const lineRange = toLineRange(location)
+  if (!excludedLineRanges.has(lineRange)) {
+    return false
+  }
+  for (const configuredLocation of excludedBlocks) {
+    if (toLineRange(configuredLocation) === lineRange) {
+      matchedExcludedBlocks.add(configuredLocation)
     }
   }
-  return fallback
-}
-
-function isExcludedBlock(location) {
-  return excludedBlocks.has(location) || excludedLineRanges.has(toLineRange(location))
+  return true
 }
 
 function toLineRange(location) {

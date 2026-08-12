@@ -65,6 +65,28 @@
           :error-messages="expirationErrorMessage"
           :label="t('shortLinkSettings.expiresAt')"
         />
+        <v-switch
+          v-if="canSetPassword"
+          v-model="passwordEnabled"
+          color="primary"
+          density="comfortable"
+          hide-details
+          :disabled="pending"
+          :label="t('shortLinkSettings.passwordEnabled')"
+        />
+        <v-text-field
+          v-if="canSetPassword && passwordEnabled"
+          ref="passwordField"
+          data-testid="short-link-password-input"
+          type="password"
+          autocomplete="new-password"
+          variant="outlined"
+          :disabled="pending"
+          :error-messages="passwordErrorMessage"
+          :label="t('shortLinkSettings.password')"
+          @input="clearPasswordError"
+          @update:model-value="clearPasswordError"
+        />
         <v-alert v-if="errorMessage" type="error" variant="tonal">{{ errorMessage }}</v-alert>
       </v-card-text>
       <v-card-actions class="short-link-settings-dialog__actions">
@@ -78,17 +100,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 
 import { me } from '@/entities/auth/api'
 import type { RedirectMode, ShortLink, UpdateShortLinkInput } from '@/entities/short-link/model'
-import { futureDateTimeSchema, targetUrlSchema } from '@/shared/validation/shortLinkAccess'
+import { futureDateTimeSchema, passwordSchema, targetUrlSchema } from '@/shared/validation/shortLinkAccess'
 
 const props = defineProps<{
   errorMessage?: string
-  link: Pick<ShortLink, 'id' | 'targetUrl' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt'>
+  link: Pick<ShortLink, 'id' | 'targetUrl' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'passwordEnabled'>
   open: boolean
   pending: boolean
 }>()
@@ -106,8 +128,11 @@ const expirationEnabled = ref(false)
 const expiresAt = ref('')
 const initialExpirationInput = ref('')
 const initialExpirationEnabled = ref(false)
+const passwordEnabled = ref(false)
+const passwordField = useTemplateRef<{ $el: globalThis.Element }>('passwordField')
 const targetErrorMessage = ref('')
 const expirationErrorMessage = ref('')
+const passwordErrorMessage = ref('')
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,
@@ -115,6 +140,7 @@ const currentUserQuery = useQuery({
 const currentUser = computed(() => currentUserQuery.data.value?.user)
 const canUseIntermediate = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:use_intermediate')))
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
+const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
 
 watch(
   () => props.open,
@@ -126,12 +152,23 @@ watch(
   { immediate: true },
 )
 
+watch(
+  [() => props.pending, () => props.open],
+  ([pending, open], [wasPending, wasOpen]) => {
+    if ((wasPending && !pending) || (wasOpen && !open)) {
+      clearPasswordInput()
+    }
+  },
+)
+
+/** Validates editable fields and emits the permitted access-setting changes. */
 function save() {
   if (props.pending) {
     return
   }
   targetErrorMessage.value = ''
   expirationErrorMessage.value = ''
+  passwordErrorMessage.value = ''
 
   const targetResult = targetUrlSchema.safeParse(targetUrl.value)
   if (!targetResult.success) {
@@ -165,8 +202,46 @@ function save() {
       }
     }
   }
+  if (!applyPasswordInput(input)) {
+    return
+  }
 
   emit('save', input)
+  clearPasswordInput()
+}
+
+/** Applies an explicit password change without retaining plaintext in component state. */
+function applyPasswordInput(input: UpdateShortLinkInput): boolean {
+  if (!canSetPassword.value) {
+    return true
+  }
+  if (!passwordEnabled.value) {
+    if (props.link.passwordEnabled) {
+      input.password = { mode: 'never' }
+    }
+    return true
+  }
+
+  const passwordElement = passwordInput()
+  if (!passwordElement) {
+    passwordErrorMessage.value = t('shortLinkSettings.passwordRequired')
+    return false
+  }
+  const password = passwordElement.value
+  if (!password) {
+    if (props.link.passwordEnabled) {
+      return true
+    }
+    passwordErrorMessage.value = t('shortLinkSettings.passwordRequired')
+    return false
+  }
+  const passwordResult = passwordSchema.safeParse(password)
+  if (!passwordResult.success) {
+    passwordErrorMessage.value = t('shortLinkSettings.passwordInvalid')
+    return false
+  }
+  input.password = { mode: 'set', value: passwordResult.data }
+  return true
 }
 
 function close() {
@@ -183,7 +258,8 @@ function handleOpenUpdate(open: boolean) {
   emit('update:open', open)
 }
 
-function resetFromLink(link: Pick<ShortLink, 'targetUrl' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt'>) {
+/** Restores editable access settings from the persisted link snapshot. */
+function resetFromLink(link: Pick<ShortLink, 'targetUrl' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'passwordEnabled'>) {
   targetUrl.value = link.targetUrl
   redirectMode.value = link.redirectMode
   intermediateDelaySeconds.value = link.intermediateDelaySeconds
@@ -191,8 +267,31 @@ function resetFromLink(link: Pick<ShortLink, 'targetUrl' | 'redirectMode' | 'int
   expiresAt.value = toLocalDateTime(link.expiresAt)
   initialExpirationInput.value = expiresAt.value
   initialExpirationEnabled.value = expirationEnabled.value
+  passwordEnabled.value = link.passwordEnabled === true
   targetErrorMessage.value = ''
   expirationErrorMessage.value = ''
+  passwordErrorMessage.value = ''
+  void nextTick(clearPasswordInput)
+}
+
+function passwordInput() {
+  const field = passwordField.value?.$el
+  if (!(field instanceof globalThis.HTMLElement) || !field.matches('[data-testid="short-link-password-input"]')) {
+    return null
+  }
+  return field.querySelector<globalThis.HTMLInputElement>('input')
+}
+
+function clearPasswordInput() {
+  const input = passwordInput()
+  if (input) {
+    input.value = ''
+    input.dispatchEvent(new globalThis.Event('input', { bubbles: true }))
+  }
+}
+
+function clearPasswordError() {
+  passwordErrorMessage.value = ''
 }
 
 function toLocalDateTime(value: string | null) {

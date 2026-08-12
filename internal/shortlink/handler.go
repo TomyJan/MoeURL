@@ -22,6 +22,9 @@ const (
 	CodeInvalidExpiration        = 200108
 	CodeShortLinkExpired         = 200109
 	CodeShortLinkNotIntermediate = 200110
+	CodePasswordRequired         = 200111
+	CodeInvalidPassword          = 200112
+	CodePasswordRateLimited      = 200113
 )
 
 type Port interface {
@@ -221,6 +224,8 @@ func writeBusinessOrSystemError(w http.ResponseWriter, err error) {
 		businessError(w, CodeInvalidIntermediateDelay, "Invalid intermediate delay")
 	case errors.Is(err, ErrInvalidExpiration):
 		businessError(w, CodeInvalidExpiration, "Invalid expiration")
+	case errors.Is(err, ErrInvalidPasswordInput):
+		businessError(w, 100001, "Invalid request")
 	case errors.Is(err, ErrInvalidShortLinkID):
 		businessError(w, 100001, "Invalid request")
 	case errors.Is(err, ErrShortLinkMissing):

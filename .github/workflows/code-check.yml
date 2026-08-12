@@ -12,6 +12,9 @@ on:
 permissions:
   contents: read
 
+env:
+  MOEURL_ENV: development
+
 jobs:
   lint:
     name: Lint
@@ -160,6 +163,8 @@ jobs:
         run: |
           node --test scripts/go-coverage-threshold.test.mjs
           go test \
+            -p=1 \
+            -count=1 \
             ./internal/auth \
             ./internal/db \
             ./internal/event \

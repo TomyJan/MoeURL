@@ -1,6 +1,8 @@
-import { apiGet, apiPost } from '@/shared/api/client'
+import { z } from 'zod'
 
-import type { AdminShortLink, CreateShortLinkInput, PublicShortLinkPreview, ShortLink, ShortLinkOverview, ShortLinkStatisticsResponse, UpdateShortLinkInput } from './model'
+import { ApiClientError, apiGet, apiGetPath, apiPost, apiPostPath } from '@/shared/api/client'
+
+import type { AdminShortLink, CreateShortLinkInput, PublicShortLinkPreview, ShortLink, ShortLinkOverview, ShortLinkStatisticsResponse, UnlockShortLinkInput, UnlockShortLinkResponse, UpdateShortLinkInput } from './model'
 
 export interface ShortLinkResponse {
   shortLink: ShortLink
@@ -33,14 +35,42 @@ interface AdminShortLinkItemsResponse {
   items: AdminShortLink[]
 }
 
+const publicShortLinkPreviewSchema: z.ZodType<PublicShortLinkPreview> = z.strictObject({
+  slug: z.string(),
+  targetHost: z.string(),
+  intermediateDelaySeconds: z.number().int().min(3).max(10).nullable(),
+  expiresAt: z.string().nullable(),
+})
+
+const unlockShortLinkResponseSchema: z.ZodType<UnlockShortLinkResponse> = z.strictObject({
+  unlocked: z.literal(true),
+})
+
 export async function createShortLink(input: CreateShortLinkInput): Promise<ShortLinkResponse> {
   const response = await apiPost<ShortLinkResponse>('/short-link/create', input)
   return response.data
 }
 
+/** Loads and validates the minimal public metadata required by the redirect page. */
 export async function getPublicShortLinkPreview(slug: string): Promise<PublicShortLinkPreview> {
-	const response = await apiGet<PublicShortLinkPreview>(`/public/short-link/preview?slug=${encodeURIComponent(slug)}`)
-	return response.data
+  const response = await apiGetPath<unknown>(`/go/${encodeURIComponent(slug)}/preview`)
+  const result = publicShortLinkPreviewSchema.safeParse(response.data)
+  if (!result.success) {
+    throw new ApiClientError(100001, 'Invalid public preview response')
+  }
+  return result.data
+}
+
+/** Exchanges a valid short-link password for a scoped access grant. */
+export async function unlockShortLink(input: UnlockShortLinkInput): Promise<UnlockShortLinkResponse> {
+  const response = await apiPostPath<unknown>(`/go/${encodeURIComponent(input.slug)}/unlock`, {
+    password: input.password,
+  })
+  const result = unlockShortLinkResponseSchema.safeParse(response.data)
+  if (!result.success) {
+    throw new ApiClientError(100001, 'Invalid public unlock response')
+  }
+  return result.data
 }
 
 export async function listShortLinks(input: ShortLinkListInput = {}): Promise<ShortLinkListResponse> {

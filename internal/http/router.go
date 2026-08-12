@@ -23,6 +23,7 @@ type Dependencies struct {
 	Redirect               shortlink.RedirectPort
 	RedirectRecorder       event.Recorder
 	AnalyticsCountryHeader string
+	SecureCookies          bool
 	User                   user.Port
 	StaticDir              string
 }
@@ -41,7 +42,7 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 	router.Use(auth.CurrentUserMiddleware(dependency.CurrentUser))
 	var redirectHandler *shortlink.RedirectHandler
 	if dependency.Redirect != nil {
-		redirectHandler = shortlink.NewRedirectHandlerWithAnalytics(dependency.Redirect, dependency.RedirectRecorder, dependency.AnalyticsCountryHeader)
+		redirectHandler = shortlink.NewRedirectHandlerWithAnalyticsAndSecurity(dependency.Redirect, dependency.RedirectRecorder, dependency.AnalyticsCountryHeader, dependency.SecureCookies)
 	}
 
 	router.Route("/api/v1", func(api chi.Router) {
@@ -55,7 +56,7 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			api.Post("/init/setup", systemHandler.Setup)
 		}
 		if dependency.Auth != nil {
-			authHandler := auth.NewHandler(dependency.Auth)
+			authHandler := auth.NewHandler(dependency.Auth, dependency.SecureCookies)
 			api.Post("/auth/login", authHandler.Login)
 			api.Post("/auth/logout", authHandler.Logout)
 			api.Get("/auth/me", authHandler.Me)
@@ -74,7 +75,7 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			api.Post("/admin/short-link/delete", shortLinkHandler.AdminDelete)
 		}
 		if redirectHandler != nil {
-			api.Get("/public/short-link/preview", redirectHandler.Preview)
+			api.Get("/public/short-link/preview", redirectHandler.PreviewPublic)
 		}
 		if dependency.User != nil {
 			userHandler := user.NewHandler(dependency.User)
@@ -91,8 +92,14 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 	})
 
 	if redirectHandler != nil {
+		router.Post("/go/{slug}/unlock", func(w nethttp.ResponseWriter, r *nethttp.Request) {
+			redirectHandler.Unlock(w, r, chi.URLParam(r, "slug"))
+		})
 		router.Get("/go/{slug}/continue", func(w nethttp.ResponseWriter, r *nethttp.Request) {
 			redirectHandler.Continue(w, r, chi.URLParam(r, "slug"))
+		})
+		router.Get("/go/{slug}/preview", func(w nethttp.ResponseWriter, r *nethttp.Request) {
+			redirectHandler.PreviewScoped(w, r, chi.URLParam(r, "slug"))
 		})
 	}
 	if dependency.StaticDir != "" {

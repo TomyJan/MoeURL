@@ -1,8 +1,12 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiClientError, apiGet, apiPost } from './client'
+import { ApiClientError, apiGet, apiGetPath, apiPost, apiPostPath } from './client'
 
 describe('api client', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   it('returns decoded unified response body', async () => {
     vi.stubGlobal(
       'fetch',
@@ -32,6 +36,89 @@ describe('api client', () => {
         Accept: 'application/json',
       },
       method: 'GET',
+    })
+  })
+
+  it.each(['health', '//evil.example/health', '/\\evil.example/health', '/\\'])('rejects non-same-origin API path %s', async (path) => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(apiGetPath(path)).rejects.toThrow('API path must be a same-origin absolute path')
+    await expect(apiPostPath(path, {})).rejects.toThrow('API path must be a same-origin absolute path')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects backslashes before URL normalization', async () => {
+    const NativeURL = globalThis.URL
+    let constructorCalls = 0
+    class TrackedURL extends NativeURL {
+      constructor(url: string | URL, base?: string | URL) {
+        constructorCalls += 1
+        super(url, base)
+      }
+    }
+    vi.stubGlobal('URL', TrackedURL)
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(apiGetPath('/\\')).rejects.toThrow('API path must be a same-origin absolute path')
+    await expect(apiPostPath('/\\', {})).rejects.toThrow('API path must be a same-origin absolute path')
+    expect(constructorCalls).toBe(0)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects URL parsing failures and cross-origin resolutions', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    class ThrowingURL {
+      constructor() {
+        throw new TypeError('invalid URL')
+      }
+    }
+    vi.stubGlobal('URL', ThrowingURL)
+    await expect(apiGetPath('/health')).rejects.toThrow('API path must be a same-origin absolute path')
+
+    class CrossOriginURL {
+      origin = 'https://evil.example'
+      pathname = '/health'
+      search = ''
+    }
+    vi.stubGlobal('URL', CrossOriginURL)
+    await expect(apiPostPath('/health', {})).rejects.toThrow('API path must be a same-origin absolute path')
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('requests the normalized path and query that passed same-origin validation', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ code: 0, data: null, message: 'OK', meta: {} })))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await apiGetPath('/go/abc/../def/preview?foo=1#ignored')
+
+    expect(fetchMock).toHaveBeenCalledWith('/go/def/preview?foo=1', {
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+      },
+      method: 'GET',
+    })
+  })
+
+  it('posts to the normalized path and query that passed same-origin validation', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ code: 0, data: null, message: 'OK', meta: {} })))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await apiPostPath('/go/abc/../def/unlock?foo=1#ignored', { password: 'correct horse' })
+
+    expect(fetchMock).toHaveBeenCalledWith('/go/def/unlock?foo=1', {
+      body: JSON.stringify({ password: 'correct horse' }),
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
     })
   })
 

@@ -5,7 +5,8 @@ import {
   deleteAdminShortLink,
   deleteShortLink,
   getAdminShortLinkStatistics,
-	getPublicShortLinkPreview,
+  getPublicShortLinkPreview,
+  unlockShortLink,
   getShortLinkOverview,
   getShortLinkStatistics,
   listAdminShortLinks,
@@ -86,48 +87,149 @@ describe('short link api', () => {
     expect(fetch).toHaveBeenCalledWith('/api/v1/short-link/create', expect.objectContaining({ method: 'POST' }))
   })
 
-	it('posts access configuration and loads the minimal public preview', async () => {
-		vi.stubGlobal(
-			'fetch',
-			vi.fn(async (request: RequestInfo | URL) => {
-				const url = String(request)
-				return new Response(JSON.stringify({
-					code: 0,
-					message: 'OK',
-					data: url.includes('/preview')
-						? { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 5, expiresAt: null }
-						: { shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123' } },
-					meta: {},
-				}), { status: 200, headers: { 'Content-Type': 'application/json' } })
-			}),
-		)
+  it('posts access configuration and loads the minimal public preview', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (request: RequestInfo | URL) => {
+        const url = String(request)
+        return new Response(JSON.stringify({
+          code: 0,
+          message: 'OK',
+          data: url.includes('/preview')
+            ? { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 5, expiresAt: null }
+            : { shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123' } },
+          meta: {},
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }),
+    )
 
-		await createShortLink({
-			targetUrl: 'https://example.com/docs',
-			redirectMode: 'intermediate',
-			intermediateDelaySeconds: 5,
-			expiration: { mode: 'never' },
-		})
-		await expect(getPublicShortLinkPreview('a b')).resolves.toEqual({
-			slug: 'abc123',
-			targetHost: 'example.com',
-			intermediateDelaySeconds: 5,
-			expiresAt: null,
-		})
+    await createShortLink({
+      targetUrl: 'https://example.com/docs',
+      redirectMode: 'intermediate',
+      intermediateDelaySeconds: 5,
+      expiration: { mode: 'never' },
+    })
+    await expect(getPublicShortLinkPreview('a b')).resolves.toEqual({
+      slug: 'abc123',
+      targetHost: 'example.com',
+      intermediateDelaySeconds: 5,
+      expiresAt: null,
+    })
 
-		const createCall = vi.mocked(fetch).mock.calls.find(([input]) => input === '/api/v1/short-link/create')
-		expect(createCall).toBeDefined()
-		expect(JSON.parse(String(createCall?.[1]?.body))).toEqual({
-			targetUrl: 'https://example.com/docs',
-			redirectMode: 'intermediate',
-			intermediateDelaySeconds: 5,
-			expiration: { mode: 'never' },
-		})
-		expect(fetch).toHaveBeenCalledWith(
-			'/api/v1/public/short-link/preview?slug=a%20b',
-			expect.objectContaining({ method: 'GET' }),
-		)
-	})
+    const createCall = vi.mocked(fetch).mock.calls.find(([input]) => input === '/api/v1/short-link/create')
+    expect(createCall).toBeDefined()
+    expect(JSON.parse(String(createCall?.[1]?.body))).toEqual({
+      targetUrl: 'https://example.com/docs',
+      redirectMode: 'intermediate',
+      intermediateDelaySeconds: 5,
+      expiration: { mode: 'never' },
+    })
+    expect(fetch).toHaveBeenCalledWith(
+      '/go/a%20b/preview',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('loads protected public preview metadata', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({
+        code: 0,
+        message: 'OK',
+        data: {
+          slug: 'abc123',
+          targetHost: 'example.com',
+          intermediateDelaySeconds: null,
+          expiresAt: '2026-08-06T09:00:00Z',
+        },
+        meta: {},
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })),
+    )
+
+    await expect(getPublicShortLinkPreview('abc123')).resolves.toEqual({
+      slug: 'abc123',
+      targetHost: 'example.com',
+      intermediateDelaySeconds: null,
+      expiresAt: '2026-08-06T09:00:00Z',
+    })
+  })
+
+  it.each([
+    ['missing data', undefined],
+    ['null data', null],
+    ['scalar data', 'invalid'],
+    ['unexpected redirect mode', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null }],
+    ['invalid slug', { slug: 1, targetHost: 'example.com', intermediateDelaySeconds: 5, expiresAt: null }],
+    ['invalid target host', { slug: 'abc123', targetHost: null, intermediateDelaySeconds: 5, expiresAt: null }],
+    ['delay below minimum', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 2, expiresAt: null }],
+    ['delay above maximum', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 11, expiresAt: null }],
+    ['fractional delay', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 5.5, expiresAt: null }],
+    ['invalid delay', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: '5', expiresAt: null }],
+    ['invalid expiration', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 5, expiresAt: 1 }],
+  ])('rejects public preview with %s', async (_name, data) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({
+        code: 0,
+        message: 'OK',
+        data,
+        meta: {},
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })),
+    )
+
+    await expect(getPublicShortLinkPreview('abc123')).rejects.toMatchObject({ code: 100001 })
+  })
+
+  it('posts a scoped short-link unlock request without repeating the slug in the body', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { unlocked: true }, meta: {} }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })),
+    )
+
+    await expect(unlockShortLink({ slug: 'abc123', password: 'correct horse' })).resolves.toEqual({ unlocked: true })
+    const [input, init] = vi.mocked(fetch).mock.calls[0] ?? []
+    expect(input).toBe('/go/abc123/unlock')
+    expect(JSON.parse(String(init?.body))).toEqual({ password: 'correct horse' })
+  })
+
+  it('rejects an invalid public short-link unlock response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { unlocked: 'yes' }, meta: {} }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })),
+    )
+
+    await expect(unlockShortLink({ slug: 'abc123', password: 'correct horse' })).rejects.toMatchObject({ code: 100001 })
+  })
+
+  it('rejects an unsuccessful public short-link unlock response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { unlocked: false }, meta: {} }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })),
+    )
+
+    await expect(unlockShortLink({ slug: 'abc123', password: 'correct horse' })).rejects.toMatchObject({ code: 100001 })
+  })
+
+  it('rejects public short-link unlock responses with unknown fields', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { unlocked: true, extra: 'unexpected' }, meta: {} }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })),
+    )
+
+    await expect(unlockShortLink({ slug: 'abc123', password: 'correct horse' })).rejects.toMatchObject({ code: 100001 })
+  })
 
   it('loads my short links', async () => {
     vi.stubGlobal(

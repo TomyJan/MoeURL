@@ -4,16 +4,23 @@ export type ExpirationInput =
   | { mode: 'never' }
   | { mode: 'at'; expiresAt: string }
 
+export type PasswordInput =
+  /** Removes password protection; on update this also invalidates existing access grants. */
+  | { mode: 'never' }
+  /** Sets or replaces password protection. */
+  | { mode: 'set'; value: string }
+
 export interface ShortLink {
   id: string
   url: string
   slug: string
   targetUrl: string
   status: 'active' | 'disabled'
-	redirectMode: RedirectMode
-	intermediateDelaySeconds: number
-	expiresAt: string | null
-	expired: boolean
+  redirectMode: RedirectMode
+  intermediateDelaySeconds: number
+  expiresAt: string | null
+  expired: boolean
+  passwordEnabled: boolean
   createdAt: string
   stats?: ShortLinkStats
 }
@@ -65,23 +72,35 @@ export interface AdminShortLink extends ShortLink {
 
 export interface CreateShortLinkInput {
   targetUrl: string
-	redirectMode?: RedirectMode
-	intermediateDelaySeconds?: number
-	expiration?: ExpirationInput
+  redirectMode?: RedirectMode
+  intermediateDelaySeconds?: number
+  expiration?: ExpirationInput
+  password?: PasswordInput
 }
 
 export interface UpdateShortLinkInput {
   id: string
   targetUrl?: string
   status?: ShortLink['status']
-	redirectMode?: RedirectMode
-	intermediateDelaySeconds?: number
-	expiration?: ExpirationInput
+  redirectMode?: RedirectMode
+  intermediateDelaySeconds?: number
+  expiration?: ExpirationInput
+  /** Omit to preserve the existing password; use `never` to clear it explicitly. */
+  password?: PasswordInput
 }
 
 export interface PublicShortLinkPreview {
-	slug: string
-	targetHost: string
-	intermediateDelaySeconds: number
-	expiresAt: string | null
+  slug: string
+  targetHost: string
+  intermediateDelaySeconds: number | null
+  expiresAt: string | null
+}
+
+export interface UnlockShortLinkInput {
+  slug: string
+  password: string
+}
+
+export interface UnlockShortLinkResponse {
+  unlocked: true
 }

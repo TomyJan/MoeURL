@@ -1,36 +1,28 @@
 import { expect, test } from '@playwright/test'
-import type { Locator, Page, TestInfo } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
+import {
+  attachScreenshot,
+  e2eAdminPassword,
+  e2eAdminUsername,
+  e2eHost,
+  escapeRegExp,
+  expectNoHorizontalOverflow,
+  findShortLink,
+  readVisitCount,
+} from './support'
 
-const e2ePort = process.env.MOEURL_E2E_PORT ?? '8080'
-const e2eHost = `127.0.0.1:${e2ePort}`
 const e2eHostPattern = escapeRegExp(e2eHost)
 
-test('v0.2.0 initialization, intermediate-page, expiry, QR-code, and logout flows', async ({ page }, testInfo) => {
+test('v0.2.0 intermediate-page, expiry, QR-code, and logout flows', async ({ page }, testInfo) => {
   testInfo.setTimeout(120_000)
   page.setDefaultTimeout(10_000)
-  const status = await page.request.get('/api/v1/init/status')
-  await expect(status).toBeOK()
-  expect(await status.json()).toMatchObject({
-    code: 0,
-    data: { initialized: false },
-  })
-
-  await page.goto('/setup')
-  await page.getByLabel('管理员账号').fill('admin')
-  await page.getByLabel('管理员密码').fill('admin-password')
-  await page.getByLabel('管理员昵称').fill('Admin')
-  await page.getByLabel('站点名称').fill('MoeURL')
-  await page.getByLabel('系统访问域名').fill(e2eHost)
-  await page.getByLabel('短链访问域名').fill(e2eHost)
-  await page.getByRole('button', { name: '初始化' }).click()
-  await expect(page.getByText('已完成初始化')).toBeVisible()
 
   await page.goto('/login')
-  await page.getByLabel('账号').fill('admin')
+  await page.getByLabel('账号').fill(e2eAdminUsername)
   await page.getByLabel('密码').fill('wrong-password')
   await page.getByRole('button', { name: '登录' }).click()
   await expect(page.getByText('登录失败，请检查账号和密码后再试。')).toBeVisible()
-  await page.getByLabel('密码').fill('admin-password')
+  await page.getByLabel('密码').fill(e2eAdminPassword)
   await page.getByRole('button', { name: '登录' }).click()
   await expect(page.getByRole('button', { name: 'Admin' })).toBeVisible()
 
@@ -79,7 +71,7 @@ test('v0.2.0 initialization, intermediate-page, expiry, QR-code, and logout flow
 
   const slug = new URL(createdUrl ?? '').pathname.slice(1)
 
-  await page.getByRole('button', { name: '继续创建' }).click()
+  await page.goto('/')
   await page.getByRole('button', { name: '高级设置' }).click()
   await page.getByRole('button', { name: '中间页', exact: true }).click()
   const delaySlider = page.locator('.short-link-create-panel__advanced-controls').getByRole('slider')
@@ -138,7 +130,7 @@ test('v0.2.0 initialization, intermediate-page, expiry, QR-code, and logout flow
   expect(continueProbe.headers().location).toBe(continueProbeTarget)
 
   const previewResponsePromise = page.waitForResponse((response) =>
-    response.url().includes(`/api/v1/public/short-link/preview?slug=${intermediateSlug}`),
+    response.url().endsWith(`/go/${intermediateSlug}/preview`),
   )
   await page.route(intermediateTarget, (route) => route.fulfill({ status: 200, body: 'target reached' }))
   await page.goto(`/go/${intermediateSlug}`)
@@ -209,7 +201,7 @@ test('v0.2.0 initialization, intermediate-page, expiry, QR-code, and logout flow
   await expect(intermediateRow.getByText(updatedIntermediateTarget, { exact: true })).toBeVisible()
 
   await expect.poll(
-    () => readPublicPreviewCode(page, intermediateSlug),
+    () => readScopedPreviewCode(page, intermediateSlug),
     { intervals: [250, 500, 1_000], timeout: 30_000 },
   ).toBe(200109)
   const expiredRedirect = await page.request.get(`/${intermediateSlug}`, { maxRedirects: 0 })
@@ -292,37 +284,14 @@ test('v0.2.0 initialization, intermediate-page, expiry, QR-code, and logout flow
   await expect(page.getByRole('button', { name: '创建短链' })).toBeDisabled()
 })
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
 async function selectVuetifyOption(page: Page, label: string, option: string) {
   await page.getByLabel(label).locator('xpath=ancestor::*[contains(@class, "v-input")][1]').click()
   await page.getByRole('option', { name: option }).click()
 }
 
-async function findShortLink(page: Page, slug: string) {
-  const response = await page.request.get('/api/v1/short-link/list?page=1&pageSize=20')
-  await expect(response).toBeOK()
-  const payload = await response.json() as {
-    data: { items: Array<{ id: string; slug: string }> }
-  }
-  return payload.data.items.find((link) => link.slug === slug)
-}
-
-async function readVisitCount(page: Page, id: string) {
-  const response = await page.request.get(`/api/v1/short-link/statistics?id=${encodeURIComponent(id)}`)
-  await expect(response).toBeOK()
-  const payload = await response.json() as {
-    code: number
-    data: { stats: { visitCount: number } }
-  }
-  expect(payload.code).toBe(0)
-  return payload.data.stats.visitCount
-}
-
-async function readPublicPreviewCode(page: Page, slug: string) {
-  const response = await page.request.get(`/api/v1/public/short-link/preview?slug=${encodeURIComponent(slug)}`)
+/** Reads the scoped preview business code after applying path-scoped access authorization. */
+async function readScopedPreviewCode(page: Page, slug: string) {
+  const response = await page.request.get(`/go/${encodeURIComponent(slug)}/preview`)
   await expect(response).toBeOK()
   const payload = await response.json() as { code: number }
   return payload.code
@@ -392,10 +361,16 @@ async function expectIntermediateLayout(page: Page) {
   expect(countdownBox.y + countdownBox.height).toBeLessThanOrEqual(actionsBox.y + 1)
 }
 
+/** Verifies the settings dialog remains visible and contained at the active viewport. */
 async function expectSettingsDialogLayout(page: Page, dialog: Locator) {
   await expectNoHorizontalOverflow(page)
   const controls = dialog.locator('.short-link-settings-dialog__body > *')
-  await expect(controls).toHaveCount(5)
+  await Promise.all([
+    expect(dialog.getByLabel('目标链接')).toBeVisible(),
+    expect(dialog.getByLabel('跳转方式')).toBeVisible(),
+    expect(dialog.getByLabel('设置过期时间', { exact: true })).toBeVisible(),
+    expect(dialog.getByLabel('设置访问密码', { exact: true })).toBeVisible(),
+  ])
   const [dialogBox, actionsBox, cancelBox, saveBox, controlBoxes] = await Promise.all([
     dialog.locator('.short-link-settings-dialog').boundingBox(),
     dialog.locator('.short-link-settings-dialog__actions').boundingBox(),
@@ -427,19 +402,4 @@ async function expectSettingsDialogLayout(page: Page, dialog: Locator) {
   }
   expect(controlBoxes.at(-1)?.y).toBeLessThan(actionsBox.y)
   expect(cancelBox.x + cancelBox.width).toBeLessThanOrEqual(saveBox.x + 1)
-}
-
-async function expectNoHorizontalOverflow(page: Page) {
-  const dimensions = await page.evaluate(() => ({
-    clientWidth: document.documentElement.clientWidth,
-    scrollWidth: document.documentElement.scrollWidth,
-  }))
-  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth)
-}
-
-async function attachScreenshot(testInfo: TestInfo, name: string, page: Page) {
-  await testInfo.attach(name, {
-    body: await page.screenshot(),
-    contentType: 'image/png',
-  })
 }

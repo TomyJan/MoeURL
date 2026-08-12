@@ -178,11 +178,12 @@ API 使用 `/api/v1` 前缀：
 /api/v1/short-link/list
 /api/v1/short-link/update
 /api/v1/short-link/delete
-/api/v1/public/short-link/preview
 /api/v1/admin/short-link/list
 /api/v1/admin/short-link/update
 /api/v1/admin/short-link/delete
 ```
+
+公开预览的规范入口为 `/go/{slug}/preview`；旧的 `/api/v1/public/short-link/preview` 仅保留为兼容入口并已弃用。
 
 `GET /api/v1/short-link/overview` 返回当前用户拥有且未软删除短链的总数、启用数、总访问量和今日访问量。该接口使用 `short_link:read_own`，管理员调用时同样只返回个人数据；全站概览应使用后续独立的管理员接口。
 
@@ -191,10 +192,12 @@ API 使用 `/api/v1` 前缀：
 ```text
 /{slug}
 /go/{slug}
+/go/{slug}/preview
+/go/{slug}/unlock
 /go/{slug}/continue
 ```
 
-固定前端路由、公开继续路由和 API 路由必须优先于短码路由。`/go/{slug}` 用于 v0.2.0 中间页 App Shell，`/go/{slug}/continue` 在重新检查短链状态和过期时间后写出最终目标跳转。
+固定前端路由、公开解锁与继续路由和 API 路由必须优先于短码路由。`/go/{slug}` 用于 v0.2.0 中间页和 v0.3.0 密码页 App Shell，`/go/{slug}/unlock` 用密码换取路径作用域授权，`/go/{slug}/continue` 在重新检查短链状态、过期时间和短期授权后写出最终目标跳转。Vite 开发服务器只将 `/go/{slug}/preview`、`/go/{slug}/unlock` 和 `/go/{slug}/continue` 代理到后端，不能代理 `/go/{slug}` App Shell。
 
 ### API 风格
 
@@ -322,6 +325,10 @@ v0.2.0 在 `short_link` 追加：
 
 过期是访问时根据数据库时间判断的动态状态，不复用 `disabled`，也不修改持久化状态。migration 同步为既有内置 `user`、`admin` 用户组追加 v0.2.0 权限，并在回滚时删除这些权限。
 
+### v0.3.0 schema 扩展摘要
+
+v0.3.0 在 `short_link` 追加 `password_hash`、`password_failed_attempts`、`password_window_started_at`、`password_blocked_until` 和 `password_updated_at`；新增 `short_link_access_grant` 保存短期授权令牌哈希。密码原文、密码哈希和授权令牌不得进入公开 API、日志、统计事件或前端状态，授权查询同时检查令牌过期时间和密码更新时间。解锁授权 Cookie 有效期为 15 分钟，必须设置 `HttpOnly` 和 `SameSite=Lax`，生产环境启用 `Secure`，并将 `Path` 限定为 `/go/{slug}`。过期授权清理由 `expires_at` 索引支撑，并由应用后台任务每分钟独立清理，每批最多删除 500 条；`short_link_id` 索引用于短链删除时的级联行定位，清理错误不影响解锁请求。`00006` 以 `NOT VALID` 添加密码失败次数约束，`00007` 在独立 migration 中验证历史数据，避免字段迁移事务扫描全部既有短链。migration 同步为既有内置 `user`、`admin` 用户组追加 `short_link:set_password`，`guest` 保持无权限。
+
 ### 短码规则
 
 - v0.0.1 默认生成 6 位随机短码。
@@ -352,6 +359,7 @@ short_link:delete_all
 domain:use_default
 short_link:use_intermediate
 short_link:set_expiration
+short_link:set_password
 admin:access
 ```
 
@@ -494,6 +502,8 @@ node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100 --include-from=sc
 
 后端覆盖率门禁覆盖 `scripts/go-coverage-targets.txt` 中列出的业务源码文件，必须达到 100%。`scripts/go-coverage-excluded-blocks.txt` 只允许精确列出不可稳定触发或由数据模型保证不可达的代码块，例如事务中途基础设施失败、随机短码连续冲突耗尽、静态类型值的 JSON 编码失败。数据库集成、进程入口和框架胶水仍通过 `go test ./...` 验证，但不作为业务源码覆盖率分母。
 
+数据库集成测试优先使用 Testcontainers，并在同一 Go 测试进程内复用一个 PostgreSQL 容器。每个测试必须创建并在清理阶段删除独立数据库，不能复用业务数据。当前本机 Docker 不可用时，测试基础设施允许回退到本地 PostgreSQL 管理库，默认地址为 `postgres://postgres:postgres@127.0.0.1:5433/postgres?sslmode=disable`；也可通过 `MOEURL_TEST_POSTGRES_ADMIN_URL` 覆盖。需要强制验证 Docker 路径时设置 `MOEURL_TEST_REQUIRE_DOCKER=1`，Docker daemon 不可用必须直接使测试失败，不得回退。
+
 SQLC 生成文件必须使用文件头声明的版本重新生成，并保持零手工漂移。当前版本使用 SQLC `1.30.0`，可通过以下命令验证：
 
 ```bash
@@ -520,11 +530,15 @@ cd web && pnpm test:e2e
 
 前端单元和组件测试覆盖率门禁针对 `vitest.config.ts` 中 `coverage.include` 覆盖的应用配置、实体 API、页面组件和共享工具代码执行，必须达到 100%。`main.ts` 启动入口、类型声明和纯类型模型由构建、类型检查和 E2E 覆盖，不计入单元覆盖率门禁。
 
-v0.2.0 将新增的短链创建、访问配置和二维码组件纳入覆盖率门禁。二维码测试必须验证编码输入、有效图片结果和生成失败状态，不允许只断言 mock 调用次数。
+v0.2.0 将新增的短链创建、访问配置和二维码组件纳入覆盖率门禁。v0.3.0 还将密码设置、公开解锁和密码页纳入覆盖率门禁；测试必须验证哈希不泄露、错误/限流/成功状态和授权失效，不允许只断言 mock 调用次数。
 
-Playwright E2E 通过 `web/playwright.config.ts` 启动 Docker Compose 测试环境。E2E 必须使用独立的 Compose project name，默认由 `MOEURL_E2E_PORT` 派生，也可通过 `MOEURL_E2E_COMPOSE_PROJECT` 显式指定。E2E 同时通过 `MOEURL_E2E_PORT` 和 `MOEURL_E2E_POSTGRES_PORT` 隔离应用宿主端口与 PostgreSQL 宿主端口，避免和日常 Compose 或本机 PostgreSQL 端口冲突。E2E 显式以 `MOEURL_ENV=development` 运行测试应用，避免本地 HTTP 流程受 Secure Cookie 影响。E2E 可以在该隔离测试项目内执行 `down -v` 清理测试卷，但不得清理日常 `docker compose up --build` 使用的默认开发数据库卷。
+Playwright E2E 默认通过 `web/playwright.config.ts` 启动 Docker Compose 测试环境。E2E 必须使用独立的 Compose project name，默认由 `MOEURL_E2E_PORT` 派生，也可通过 `MOEURL_E2E_COMPOSE_PROJECT` 显式指定。E2E 同时通过 `MOEURL_E2E_PORT` 和 `MOEURL_E2E_POSTGRES_PORT` 隔离应用宿主端口与 PostgreSQL 宿主端口，避免和日常 Compose 或本机 PostgreSQL 端口冲突。E2E 显式以 `MOEURL_ENV=development` 运行测试应用，避免本地 HTTP 流程受 Secure Cookie 影响。E2E 可以在该隔离测试项目内执行 `down -v` 清理测试卷，但不得清理日常 `docker compose up --build` 使用的默认开发数据库卷。
 
-v0.2.0 访问体验 E2E 必须覆盖真实 `/{slug}` 入口、进入中间页前访问量为 0、继续路由目标 `302`、真实 UI 继续访问后访问量为 1，以及过期访问不增加访问量。中间页、访问设置和二维码对话框必须同时在 `1280 x 720` 与 `390 x 800` 视口验证控件顺序、操作区几何和横向溢出；异步流程使用条件等待，不允许使用固定 `waitForTimeout`。
+初始化 UI 流程由 `web/e2e/initialize.setup.ts` 的 Playwright `setup` project 先执行；业务 spec 依赖该 project 后可并行运行，受保护访问 spec 仍在文件内显式串行。
+
+当 Docker Desktop 不可用但需要验证同一套 Playwright 用例时，可先用干净数据库和当前 `web/dist` 启动本地服务，再设置 `MOEURL_E2E_SKIP_DOCKER=1` 和对应的 `MOEURL_E2E_PORT` 执行 `pnpm test:e2e`。该模式只跳过环境拉起步骤，不跳过任何浏览器断言；执行者必须确保数据库从未初始化状态开始。
+
+v0.2.0 访问体验 E2E 必须覆盖真实 `/{slug}` 入口、进入中间页前访问量为 0、继续路由目标 `302`、真实 UI 继续访问后访问量为 1，以及过期访问不增加访问量。v0.3.0 还必须覆盖真实密码页、错误密码、有效授权、密码变更吊销旧授权和访问量口径。中间页、密码页、访问设置和二维码对话框必须同时在 `1280 x 720` 与 `390 x 800` 视口验证控件顺序、操作区几何和横向溢出；异步流程使用条件等待，不允许使用固定 `waitForTimeout`。
 
 ### 质量检查工作流
 
@@ -572,7 +586,7 @@ docker compose up --build
 - 准备 PostgreSQL 数据库。
 - 使用 Goose 执行 `migrations/` 下的数据库迁移。
 - 使用 pnpm 构建 `web/dist`。
-- 设置 `MOEURL_DATABASE_URL`、`MOEURL_HTTP_ADDR` 和 `MOEURL_STATIC_DIR`。
+- 设置 `MOEURL_ENV`（`development` 或 `production`）、`MOEURL_DATABASE_URL`、`MOEURL_HTTP_ADDR` 和 `MOEURL_STATIC_DIR`。
 - 运行 `go run ./cmd/server` 或构建后的后端二进制。
 
 ## 14. 环境变量约定

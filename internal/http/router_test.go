@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -93,7 +94,7 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 		t.Fatalf("write index: %v", err)
 	}
 	redirect := &routerRedirectService{
-		previewResult:  shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", IntermediateDelaySeconds: 5},
+		previewResult:  shortlink.PreviewResult{Slug: "middle", TargetHost: "example.com", IntermediateDelaySeconds: int16Pointer(5)},
 		continueResult: shortlink.RedirectResult{TargetURL: "https://example.com/final", ShortLinkID: "link-id"},
 	}
 	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: redirect, StaticDir: staticDir})
@@ -107,17 +108,40 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 		t.Fatalf("expected app shell not to resolve a short link, got %#v", redirect.openSlugs)
 	}
 
+	scopedPreview := httptest.NewRecorder()
+	scopedPreviewRequest := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/go/middle/preview", nil)
+	scopedPreviewRequest.AddCookie(&http.Cookie{Name: "moeurl_short_link_access", Value: "raw-token"})
+	router.ServeHTTP(scopedPreview, scopedPreviewRequest)
+	if scopedPreview.Code != http.StatusOK || len(redirect.previewSlugs) != 1 || redirect.previewSlugs[0] != "middle" {
+		t.Fatalf("expected scoped preview route, got status %d slugs %#v", scopedPreview.Code, redirect.previewSlugs)
+	}
+	if len(redirect.previewTokens) != 1 || redirect.previewTokens[0] != "raw-token" {
+		t.Fatalf("expected scoped preview to pass access cookie, got %#v", redirect.previewTokens)
+	}
+
+	unlocked := httptest.NewRecorder()
+	unlockRequest := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/go/middle/unlock", strings.NewReader(`{"password":"correct horse"}`))
+	router.ServeHTTP(unlocked, unlockRequest)
+	if unlocked.Code != http.StatusOK || len(redirect.unlockSlugs) != 1 || redirect.unlockSlugs[0] != "middle" || redirect.unlockPassword != "correct horse" {
+		t.Fatalf("expected fixed unlock route, got status %d slugs %#v password %q", unlocked.Code, redirect.unlockSlugs, redirect.unlockPassword)
+	}
+
 	continued := httptest.NewRecorder()
-	router.ServeHTTP(continued, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/go/middle/continue", nil))
+	continueRequest := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/go/middle/continue", nil)
+	continueRequest.AddCookie(&http.Cookie{Name: "moeurl_short_link_access", Value: "raw-token"})
+	router.ServeHTTP(continued, continueRequest)
 	if continued.Code != http.StatusFound || continued.Header().Get("Location") != "https://example.com/final" {
 		t.Fatalf("expected final redirect, got status %d location %q", continued.Code, continued.Header().Get("Location"))
 	}
 	if len(redirect.continueSlugs) != 1 || redirect.continueSlugs[0] != "middle" {
 		t.Fatalf("expected continue route slug, got %#v", redirect.continueSlugs)
 	}
-
+	if redirect.continueToken != "raw-token" {
+		t.Fatalf("expected continue route to pass access cookie, got %q", redirect.continueToken)
+	}
 	preview := httptest.NewRecorder()
-	router.ServeHTTP(preview, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/public/short-link/preview?slug=middle", nil))
+	publicPreviewRequest := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/public/short-link/preview?slug=middle", nil)
+	router.ServeHTTP(preview, publicPreviewRequest)
 	var body struct {
 		Code int `json:"code"`
 		Data struct {
@@ -131,8 +155,11 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 	if preview.Code != http.StatusOK || body.Code != 0 || body.Data.TargetHost != "example.com" || body.Data.TargetURL != nil {
 		t.Fatalf("unexpected preview response: status %d body %#v", preview.Code, body)
 	}
-	if len(redirect.previewSlugs) != 1 || redirect.previewSlugs[0] != "middle" {
-		t.Fatalf("expected preview route slug, got %#v", redirect.previewSlugs)
+	if len(redirect.previewSlugs) != 2 || redirect.previewSlugs[0] != "middle" || redirect.previewSlugs[1] != "middle" {
+		t.Fatalf("expected both preview routes to pass slug, got %#v", redirect.previewSlugs)
+	}
+	if len(redirect.previewTokens) != 2 || redirect.previewTokens[1] != "" {
+		t.Fatalf("expected public preview without access cookie, got %#v", redirect.previewTokens)
 	}
 }
 
@@ -198,7 +225,9 @@ func TestRouterRegistersOptionalDependencies(t *testing.T) {
 		{method: http.MethodPost, path: "/api/v1/admin/user/reset-password", body: `{}`},
 		{method: http.MethodPost, path: "/api/v1/user/profile/update", body: `{}`},
 		{method: http.MethodGet, path: "/api/v1/public/short-link/preview?slug=abc123"},
+		{method: http.MethodPost, path: "/go/abc123/unlock", body: `{}`},
 		{method: http.MethodGet, path: "/go/abc123/continue"},
+		{method: http.MethodGet, path: "/go/abc123/preview"},
 		{method: http.MethodGet, path: "/abc123"},
 	}
 
@@ -314,7 +343,15 @@ type routerRedirectService struct {
 	continueResult       shortlink.RedirectResult
 	openSlugs            []string
 	previewSlugs         []string
+	previewTokens        []string
 	continueSlugs        []string
+	continueToken        string
+	unlockSlugs          []string
+	unlockPassword       string
+}
+
+func int16Pointer(value int16) *int16 {
+	return &value
 }
 
 func (service *routerRedirectService) Open(_ context.Context, slug string) (shortlink.OpenResult, error) {
@@ -325,16 +362,27 @@ func (service *routerRedirectService) Open(_ context.Context, slug string) (shor
 	return service.openResult, nil
 }
 
-func (service *routerRedirectService) Preview(_ context.Context, slug string) (shortlink.PreviewResult, error) {
+// Preview records the slug forwarded by router preview routes.
+func (service *routerRedirectService) Preview(_ context.Context, slug string, accessToken string) (shortlink.PreviewResult, error) {
 	service.previewSlugs = append(service.previewSlugs, slug)
+	service.previewTokens = append(service.previewTokens, accessToken)
 	if service.previewResult.Slug == "" {
-		return shortlink.PreviewResult{Slug: "abc123", TargetHost: "example.com", IntermediateDelaySeconds: 5}, nil
+		return shortlink.PreviewResult{Slug: "abc123", TargetHost: "example.com", IntermediateDelaySeconds: int16Pointer(5)}, nil
 	}
 	return service.previewResult, nil
 }
 
-func (service *routerRedirectService) Continue(_ context.Context, slug string) (shortlink.RedirectResult, error) {
+// Unlock satisfies the redirect contract for router tests that do not exercise password verification.
+func (service *routerRedirectService) Unlock(_ context.Context, slug string, password string) (shortlink.AccessGrant, error) {
+	service.unlockSlugs = append(service.unlockSlugs, slug)
+	service.unlockPassword = password
+	return shortlink.AccessGrant{}, nil
+}
+
+// Continue records the slug forwarded by the fixed continue route.
+func (service *routerRedirectService) Continue(_ context.Context, slug string, accessToken string) (shortlink.RedirectResult, error) {
 	service.continueSlugs = append(service.continueSlugs, slug)
+	service.continueToken = accessToken
 	if service.continueResult.TargetURL == "" {
 		return shortlink.RedirectResult{TargetURL: "https://example.com"}, nil
 	}

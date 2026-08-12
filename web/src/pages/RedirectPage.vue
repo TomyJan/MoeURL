@@ -17,6 +17,33 @@
         <v-btn variant="text" :to="{ path: '/' }">{{ t('redirect.backHome') }}</v-btn>
       </div>
 
+      <form v-else-if="passwordRequired" class="redirect-page__state" aria-live="polite" @submit.prevent="unlock">
+        <p class="redirect-page__eyebrow">{{ t('redirect.protectedEyebrow') }}</p>
+        <h1>{{ t('redirect.passwordTitle') }}</h1>
+        <v-text-field
+          class="redirect-page__password"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          :disabled="unlockPending"
+          :label="t('redirect.password')"
+          :error-messages="unlockErrorMessage"
+          variant="outlined"
+        />
+        <div class="redirect-page__actions">
+          <v-btn
+            type="submit"
+            color="primary"
+            size="large"
+            :disabled="unlockDisabled"
+            :loading="unlockPending"
+          >
+            {{ t('redirect.unlock') }}
+          </v-btn>
+          <v-btn type="button" variant="text" :to="{ path: '/' }">{{ t('redirect.backHome') }}</v-btn>
+        </div>
+      </form>
+
       <div v-else-if="preview" class="redirect-page__state">
         <p class="redirect-page__eyebrow">{{ t('redirect.eyebrow') }}</p>
         <h1>{{ t('redirect.title') }}</h1>
@@ -41,15 +68,16 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
-import { getPublicShortLinkPreview } from '@/entities/short-link/api'
+import { getPublicShortLinkPreview, unlockShortLink } from '@/entities/short-link/api'
 import type { PublicShortLinkPreview } from '@/entities/short-link/model'
 import { ApiClientError } from '@/shared/api/client'
 
 type PreviewFailureState = '' | 'disabled' | 'expired' | 'loadFailed' | 'notIntermediate' | 'unavailable'
+type UnlockErrorState = '' | 'invalidPassword' | 'passwordRequired' | 'rateLimited' | 'unlockFailed'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -59,9 +87,30 @@ const loading = ref(true)
 const failureState = ref<PreviewFailureState>('')
 const continueFailed = ref(false)
 const navigating = ref(false)
+const passwordRequired = ref(false)
+const unlockPending = ref(false)
+const unlockErrorState = ref<UnlockErrorState>('')
+const rateLimitRemainingSeconds = ref(0)
 let countdownTimer: ReturnType<typeof globalThis.setInterval> | null = null
+let rateLimitTimer: ReturnType<typeof globalThis.setInterval> | null = null
 let previewRequestId = 0
 let isMounted = false
+
+const unlockErrorMessage = computed(() => {
+  if (!unlockErrorState.value) {
+    return ''
+  }
+  if (unlockErrorState.value === 'rateLimited') {
+    return rateLimitRemainingSeconds.value > 0
+      ? t('redirect.rateLimited', { seconds: rateLimitRemainingSeconds.value })
+      : t('redirect.rateLimitedWithoutDeadline')
+  }
+  return t(`redirect.${unlockErrorState.value}`)
+})
+
+const unlockDisabled = computed(() =>
+  unlockPending.value || (unlockErrorState.value === 'rateLimited' && rateLimitRemainingSeconds.value > 0),
+)
 
 onMounted(() => {
   isMounted = true
@@ -71,16 +120,29 @@ onBeforeUnmount(() => {
   isMounted = false
   previewRequestId += 1
   clearCountdown()
+  clearRateLimitCountdown()
 })
+watch(
+  () => [route.params.slug, route.query.reason],
+  () => void loadPreview(),
+)
 
+/** Loads public metadata while preventing stale requests from mutating page state. */
 async function loadPreview() {
   const requestId = ++previewRequestId
   clearCountdown()
+  clearRateLimitCountdown()
   preview.value = null
   loading.value = true
   failureState.value = ''
   continueFailed.value = false
   navigating.value = false
+  passwordRequired.value = false
+  unlockPending.value = false
+  unlockErrorState.value = unlockErrorFromReason(route.query.reason)
+  if (unlockErrorState.value === 'rateLimited') {
+    startRateLimitCountdown(route.query.retryAt)
+  }
 
   const requestedFailureState = failureStateFromReason(route.query.reason)
   if (requestedFailureState) {
@@ -104,12 +166,19 @@ async function loadPreview() {
     const result = await getPublicShortLinkPreview(slug)
     whenCurrent(requestId, () => {
       preview.value = result
-      remainingSeconds.value = result.intermediateDelaySeconds
-      startCountdown()
+      passwordRequired.value = false
+      unlockErrorState.value = ''
+      clearRateLimitCountdown()
+      proceedAfterAccess()
     })
   } catch (error) {
     whenCurrent(requestId, () => {
-      failureState.value = classifyPreviewError(error)
+      if (error instanceof ApiClientError && error.code === 200111) {
+        passwordRequired.value = true
+        failureState.value = ''
+      } else {
+        failureState.value = classifyPreviewError(error)
+      }
     })
   } finally {
     whenCurrent(requestId, () => {
@@ -118,16 +187,19 @@ async function loadPreview() {
   }
 }
 
+/** Reports whether an asynchronous preview result still belongs to the mounted page. */
 function isCurrentRequest(requestId: number) {
   return isMounted && requestId === previewRequestId
 }
 
+/** Applies a preview state update only for the latest mounted request. */
 function whenCurrent(requestId: number, update: () => void) {
   if (isCurrentRequest(requestId)) {
     update()
   }
 }
 
+/** Maps navigation reasons into the initial preview failure state. */
 function failureStateFromReason(reason: unknown): PreviewFailureState {
   if (reason === 'disabled') {
     return 'disabled'
@@ -139,6 +211,11 @@ function failureStateFromReason(reason: unknown): PreviewFailureState {
     return 'notIntermediate'
   }
   return ''
+}
+
+/** Maps navigation reasons into the initial password-form error state. */
+function unlockErrorFromReason(reason: unknown): UnlockErrorState {
+  return reason === 'rate-limited' ? 'rateLimited' : ''
 }
 
 function classifyPreviewError(error: unknown): PreviewFailureState {
@@ -158,7 +235,9 @@ function classifyPreviewError(error: unknown): PreviewFailureState {
   return 'loadFailed'
 }
 
+/** Starts the intermediate-page countdown and performs a single continuation at zero. */
 function startCountdown() {
+  clearCountdown()
   countdownTimer = globalThis.setInterval(() => {
     if (remainingSeconds.value > 1) {
       remainingSeconds.value -= 1
@@ -169,8 +248,95 @@ function startCountdown() {
   }, 1_000)
 }
 
+/** Continues a granted link according to its direct or intermediate redirect mode. */
+function proceedAfterAccess() {
+  const currentPreview = preview.value
+  /* v8 ignore next -- callers establish a preview first; retain a defensive guard for future call sites. */
+  if (!currentPreview) {
+    return
+  }
+  if (currentPreview.intermediateDelaySeconds === null) {
+    continueToTarget()
+    return
+  }
+  remainingSeconds.value = currentPreview.intermediateDelaySeconds
+  startCountdown()
+}
+
+/** Submits the password and resumes navigation after a scoped grant is issued. */
+async function unlock(event: globalThis.Event) {
+  const form = event.currentTarget as globalThis.HTMLFormElement
+  const slug = preview.value?.slug ?? route.params.slug
+  if (
+    unlockDisabled.value
+    || typeof slug !== 'string'
+    || !slug
+  ) {
+    return
+  }
+  const password = new globalThis.FormData(form).get('password')
+  if (typeof password !== 'string' || !password) {
+    unlockErrorState.value = 'passwordRequired'
+    return
+  }
+
+  const requestIdentity = `${previewRequestId}:${String(route.params.slug)}`
+  const isCurrentUnlock = () => isMounted && requestIdentity === `${previewRequestId}:${String(route.params.slug)}`
+  unlockPending.value = true
+  unlockErrorState.value = ''
+  try {
+    await unlockShortLink({ slug, password })
+    if (!isCurrentUnlock()) {
+      return
+    }
+    /* v8 ignore next -- password-required state has no preview until this authorized fetch completes. */
+    if (!preview.value) {
+      const authorizedPreview = await getPublicShortLinkPreview(slug)
+      if (!isCurrentUnlock()) {
+        return
+      }
+      preview.value = authorizedPreview
+    }
+    clearRateLimitCountdown()
+    passwordRequired.value = false
+    form.reset()
+    proceedAfterAccess()
+  } catch (error) {
+    if (!isCurrentUnlock()) {
+      return
+    }
+    const errorState = classifyUnlockError(error)
+    unlockErrorState.value = errorState
+    if (errorState === 'rateLimited') {
+      startRateLimitCountdown(rateLimitRetryAt(error))
+    } else {
+      clearRateLimitCountdown()
+    }
+  } finally {
+    if (isCurrentUnlock()) {
+      unlockPending.value = false
+    }
+  }
+}
+
+/** Maps unlock API failures into user-facing password states. */
+function classifyUnlockError(error: unknown): UnlockErrorState {
+  const code = error instanceof ApiClientError ? error.code : 0
+  if (code === 200111) {
+    return 'passwordRequired'
+  }
+  if (code === 200112) {
+    return 'invalidPassword'
+  }
+  if (code === 200113) {
+    return 'rateLimited'
+  }
+  return 'unlockFailed'
+}
+
+/** Navigates through the backend continue endpoint after intermediate-page access. */
 function continueToTarget() {
-  const slug = route.params.slug
+  const slug = preview.value?.slug ?? route.params.slug
   if (navigating.value || typeof slug !== 'string' || !slug) {
     return
   }
@@ -192,6 +358,45 @@ function clearCountdown() {
   }
   globalThis.clearInterval(countdownTimer)
   countdownTimer = null
+}
+
+function rateLimitRetryAt(error: unknown): unknown {
+  /* v8 ignore next -- rateLimited is classified only from ApiClientError responses. */
+  return error instanceof ApiClientError ? error.meta.retryAt : undefined
+}
+
+function startRateLimitCountdown(retryAt: unknown) {
+  clearRateLimitCountdown()
+  if (typeof retryAt !== 'string') {
+    return
+  }
+  const retryAtMillis = Date.parse(retryAt)
+  if (!Number.isFinite(retryAtMillis)) {
+    return
+  }
+
+  const update = () => {
+    rateLimitRemainingSeconds.value = Math.max(0, Math.ceil((retryAtMillis - Date.now()) / 1_000))
+    if (rateLimitRemainingSeconds.value === 0) {
+      clearRateLimitCountdown()
+      /* v8 ignore next -- this timer is owned by the active rate-limited state. */
+      if (unlockErrorState.value === 'rateLimited') {
+        unlockErrorState.value = ''
+      }
+    }
+  }
+  update()
+  if (rateLimitRemainingSeconds.value > 0) {
+    rateLimitTimer = globalThis.setInterval(update, 1_000)
+  }
+}
+
+function clearRateLimitCountdown() {
+  if (rateLimitTimer !== null) {
+    globalThis.clearInterval(rateLimitTimer)
+    rateLimitTimer = null
+  }
+  rateLimitRemainingSeconds.value = 0
 }
 </script>
 
@@ -253,6 +458,10 @@ function clearCountdown() {
   overflow-wrap: anywhere;
   color: rgb(var(--v-theme-primary));
   font-size: clamp(1.1rem, 3vw, 1.55rem);
+}
+
+.redirect-page__password {
+  width: min(360px, 100%);
 }
 
 .redirect-page__countdown {

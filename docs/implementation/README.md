@@ -43,6 +43,13 @@ v0.2.0 实施文档包括：
 - [v0.2.0 任务级实施清单](v0.2.0-tasks.md)：将中间页、过期时间、二维码、配置编辑和发布收尾拆分为可执行任务。
 - [v0.2.0 验收清单](v0.2.0-acceptance.md)：用于数据库、权限、公共访问、页面和发布质量验收。
 
+v0.3.0 实施文档包括：
+
+- [v0.3.0 实施计划](v0.3.0-plan.md)：定义受保护短链访问的阶段、边界和生产验收要求。
+- [v0.3.0 详细实现计划](v0.3.0-detailed-plan.md)：按文件和红绿循环拆分密码配置、公开解锁、授权与发布验证步骤。
+- [v0.3.0 任务级实施清单](v0.3.0-tasks.md)：将数据库、后端、前端和发布收尾拆分为可执行任务。
+- [v0.3.0 验收清单](v0.3.0-acceptance.md)：用于密码安全、访问授权、页面和发布质量验收。
+
 建议阅读顺序：
 
 ```text
@@ -52,6 +59,22 @@ technical-baseline.md
   ↓
 agent-delivery-guidelines.md
   ↓
+../product/scope-v0.3.0.md
+  ↓
+../specs/2026-08-04-v0.3.0-protected-link-access-design.md
+  ↓
+v0.3.0-plan.md
+  ↓
+v0.3.0-detailed-plan.md
+  ↓
+v0.3.0-tasks.md
+  ↓
+v0.3.0-acceptance.md
+```
+
+回看 v0.2.0 实施基线时，继续阅读：
+
+```text
 ../product/scope-v0.2.0.md
   ↓
 ../specs/2026-08-02-v0.2.0-link-experience-design.md

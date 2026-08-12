@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"os"
 	"time"
 )
 
@@ -22,12 +21,13 @@ type Port interface {
 }
 
 type Handler struct {
-	service Port
+	service       Port
+	secureCookies bool
 }
 
 // NewHandler creates an HTTP handler backed by the authentication service.
-func NewHandler(service Port) *Handler {
-	return &Handler{service: service}
+func NewHandler(service Port, secureCookies bool) *Handler {
+	return &Handler{service: service, secureCookies: secureCookies}
 }
 
 // Login authenticates credentials and sets the resulting session cookie.
@@ -51,7 +51,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, sessionCookie(result.Session.ID, result.Session.ExpiresAt))
+	http.SetCookie(w, sessionCookie(result.Session.ID, result.Session.ExpiresAt, h.secureCookies))
 	ok(w, map[string]any{"user": result.User})
 }
 
@@ -61,7 +61,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		_ = h.service.Logout(r.Context(), cookie.Value)
 	}
 
-	http.SetCookie(w, clearSessionCookie())
+	http.SetCookie(w, clearSessionCookie(h.secureCookies))
 	ok(w, map[string]bool{"loggedOut": true})
 }
 
@@ -81,34 +81,29 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 }
 
 // sessionCookie builds the secure session cookie for a newly created session.
-func sessionCookie(value string, expiresAt time.Time) *http.Cookie {
+func sessionCookie(value string, expiresAt time.Time, secure bool) *http.Cookie {
 	return &http.Cookie{
 		Name:     SessionCookieName,
 		Value:    value,
 		Path:     "/",
 		Expires:  expiresAt,
 		HttpOnly: true,
-		Secure:   isProduction(),
+		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
 	}
 }
 
 // clearSessionCookie builds an expired session cookie.
-func clearSessionCookie() *http.Cookie {
+func clearSessionCookie(secure bool) *http.Cookie {
 	return &http.Cookie{
 		Name:     SessionCookieName,
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
-		Secure:   isProduction(),
+		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
 	}
-}
-
-// isProduction reports whether the process runs in the production environment.
-func isProduction() bool {
-	return os.Getenv("MOEURL_ENV") == "production"
 }
 
 type response struct {

@@ -18,8 +18,41 @@ export class ApiClientError extends Error {
 
 const API_BASE = '/api/v1'
 
+/** Performs an authenticated GET request under the versioned API prefix. */
 export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  return getJson<T>(`${API_BASE}${path}`)
+}
+
+/** Performs a GET request to a validated same-origin absolute path. */
+export async function apiGetPath<T>(path: string): Promise<ApiResponse<T>> {
+  return getJson<T>(resolveSameOriginPath(path))
+}
+
+/** Performs a POST request to a validated same-origin absolute path. */
+export async function apiPostPath<T>(path: string, body?: unknown): Promise<ApiResponse<T>> {
+  return postJson<T>(resolveSameOriginPath(path), body)
+}
+
+function resolveSameOriginPath(path: string): string {
+  if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\')) {
+    throw new Error('API path must be a same-origin absolute path')
+  }
+  const currentOrigin = window.location.origin
+  let resolvedURL: URL
+  try {
+    resolvedURL = new URL(path, currentOrigin)
+  } catch {
+    throw new Error('API path must be a same-origin absolute path')
+  }
+  if (resolvedURL.origin !== currentOrigin) {
+    throw new Error('API path must be a same-origin absolute path')
+  }
+  return resolvedURL.pathname + resolvedURL.search
+}
+
+/** Fetches and decodes a JSON response without changing the supplied path. */
+async function getJson<T>(path: string): Promise<ApiResponse<T>> {
+  const response = await fetch(path, {
     credentials: 'include',
     headers: {
       Accept: 'application/json',
@@ -31,7 +64,11 @@ export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
 }
 
 export async function apiPost<T>(path: string, body?: unknown): Promise<ApiResponse<T>> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  return postJson<T>(`${API_BASE}${path}`, body)
+}
+
+async function postJson<T>(path: string, body?: unknown): Promise<ApiResponse<T>> {
+  const response = await fetch(path, {
     body: body === undefined ? undefined : JSON.stringify(body),
     credentials: 'include',
     headers: {

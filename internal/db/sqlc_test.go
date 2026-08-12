@@ -2,7 +2,7 @@ package db_test
 
 import (
 	"context"
-	"database/sql"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
@@ -10,15 +10,11 @@ import (
 	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/event"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/pressly/goose/v3"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // TestSQLCPackageExposesQueries verifies that generated queries can be constructed.
@@ -26,6 +22,33 @@ func TestSQLCPackageExposesQueries(t *testing.T) {
 	queries := sqlc.New(nil)
 	if queries == nil {
 		t.Fatal("expected generated queries")
+	}
+}
+
+func TestGetShortLinkPasswordStateBySlugForUpdateReturnsPasswordState(t *testing.T) {
+	ctx := context.Background()
+	pool := sqlcTestPool(t, ctx)
+	ownerID := uuid.MustParse("00000000-0000-0000-0000-000000000201")
+	domainID := uuid.MustParse("00000000-0000-0000-0000-000000000101")
+	linkID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
+	insertSQLCShortLinkFixtures(t, ctx, pool, ownerID, domainID, linkID)
+
+	if _, err := pool.Exec(ctx, `update short_link set password_hash = 'stored-hash' where id = $1`, linkID); err != nil {
+		t.Fatalf("set password fixture: %v", err)
+	}
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin password state transaction: %v", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	state, err := sqlc.New(tx).GetShortLinkPasswordStateBySlugForUpdate(ctx, "abc123")
+	if err != nil {
+		t.Fatalf("get password state by slug: %v", err)
+	}
+	if state.ID.Bytes != linkID || !state.PasswordHash.Valid || state.PasswordHash.String != "stored-hash" {
+		t.Fatalf("unexpected password state: %#v", state)
 	}
 }
 
@@ -192,6 +215,7 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 	domainID := uuid.MustParse("00000000-0000-0000-0000-000000000101")
 	fixtureID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
 	configuredID := uuid.MustParse("00000000-0000-0000-0000-000000000302")
+	emptyPasswordID := uuid.MustParse("00000000-0000-0000-0000-000000000303")
 	insertSQLCShortLinkFixtures(t, ctx, pool, ownerID, domainID, fixtureID)
 	var expiresAt time.Time
 	if err := pool.QueryRow(ctx, `select now() + interval '24 hours'`).Scan(&expiresAt); err != nil {
@@ -209,19 +233,45 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 		RedirectMode:             "intermediate",
 		IntermediateDelaySeconds: 7,
 		ExpiresAt:                pgtype.Timestamptz{Time: expiresAt, Valid: true},
+		PasswordHash:             pgtype.Text{String: "$argon2id$v=19$m=1,t=1,p=1$test", Valid: true},
 	})
 	if err != nil {
 		t.Fatalf("create configured short link: %v", err)
 	}
-	if created.RedirectMode != "intermediate" || created.IntermediateDelaySeconds != 7 || !created.ExpiresAt.Valid || !created.ExpiresAt.Time.Equal(expiresAt) || created.Expired {
+	if created.RedirectMode != "intermediate" || created.IntermediateDelaySeconds != 7 || !created.ExpiresAt.Valid || !created.ExpiresAt.Time.Equal(expiresAt) || created.Expired || !created.PasswordHash.Valid {
 		t.Fatalf("unexpected created access config: %#v", created)
+	}
+
+	emptyPassword, err := queries.CreateShortLink(ctx, sqlc.CreateShortLinkParams{
+		ID:                       uuidToPgtype(emptyPasswordID),
+		OwnerID:                  uuidToPgtype(ownerID),
+		DomainID:                 uuidToPgtype(domainID),
+		Slug:                     "empty-password",
+		TargetUrl:                "https://example.com/empty-password",
+		Status:                   "active",
+		RedirectMode:             "direct",
+		IntermediateDelaySeconds: 5,
+		PasswordHash:             pgtype.Text{String: "", Valid: true},
+	})
+	if err != nil {
+		t.Fatalf("create short link with empty password hash: %v", err)
+	}
+	if emptyPassword.PasswordHash.Valid {
+		t.Fatal("empty password hash was persisted")
+	}
+	var emptyPasswordUpdatedAt pgtype.Timestamptz
+	if err := pool.QueryRow(ctx, `select password_updated_at from short_link where id = $1`, emptyPasswordID).Scan(&emptyPasswordUpdatedAt); err != nil {
+		t.Fatalf("read empty password timestamp: %v", err)
+	}
+	if emptyPasswordUpdatedAt.Valid {
+		t.Fatal("empty password hash received a password update timestamp")
 	}
 
 	bySlug, err := queries.GetShortLinkBySlug(ctx, "config")
 	if err != nil {
 		t.Fatalf("get configured short link: %v", err)
 	}
-	if bySlug.RedirectMode != "intermediate" || bySlug.IntermediateDelaySeconds != 7 || !bySlug.ExpiresAt.Valid || bySlug.Expired {
+	if bySlug.RedirectMode != "intermediate" || bySlug.IntermediateDelaySeconds != 7 || !bySlug.ExpiresAt.Valid || bySlug.Expired || !bySlug.PasswordHash.Valid {
 		t.Fatalf("unexpected slug access config: %#v", bySlug)
 	}
 
@@ -238,7 +288,7 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 	for _, row := range listed {
 		if row.ID == uuidToPgtype(configuredID) {
 			found = true
-			if row.RedirectMode != "intermediate" || row.IntermediateDelaySeconds != 7 || !row.ExpiresAt.Valid || row.Expired {
+			if row.RedirectMode != "intermediate" || row.IntermediateDelaySeconds != 7 || !row.ExpiresAt.Valid || row.Expired || !row.HasPassword {
 				t.Fatalf("unexpected listed access config: %#v", row)
 			}
 		}
@@ -262,6 +312,56 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 	}
 	if updated.RedirectMode != "intermediate" || updated.IntermediateDelaySeconds != 7 || !updated.ExpiresAt.Valid {
 		t.Fatalf("status update cleared access config: %#v", updated)
+	}
+	if !updated.PasswordUpdatedAt.Valid {
+		t.Fatalf("expected initial password update timestamp, got %#v", updated.PasswordUpdatedAt)
+	}
+	if _, err := pool.Exec(ctx, `select pg_sleep(0.01)`); err != nil {
+		t.Fatalf("separate password update timestamps: %v", err)
+	}
+
+	ownerEmptyPassword, err := queries.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
+		ID:             uuidToPgtype(configuredID),
+		OwnerID:        uuidToPgtype(ownerID),
+		PasswordMode:   "set",
+		PasswordHash:   pgtype.Text{},
+		ExpirationMode: "keep",
+	})
+	if err != nil {
+		t.Fatalf("ignore empty owner password hash: %v", err)
+	}
+	if !ownerEmptyPassword.PasswordHash.Valid || ownerEmptyPassword.PasswordHash.String != updated.PasswordHash.String || !ownerEmptyPassword.PasswordUpdatedAt.Time.Equal(updated.PasswordUpdatedAt.Time) {
+		t.Fatalf("empty owner password hash changed password state: %#v", ownerEmptyPassword)
+	}
+
+	adminEmptyPassword, err := queries.UpdateAnyShortLink(ctx, sqlc.UpdateAnyShortLinkParams{
+		ID:             uuidToPgtype(configuredID),
+		PasswordMode:   "set",
+		PasswordHash:   pgtype.Text{String: "", Valid: true},
+		ExpirationMode: "keep",
+	})
+	if err != nil {
+		t.Fatalf("ignore empty admin password hash: %v", err)
+	}
+	if !adminEmptyPassword.PasswordHash.Valid || adminEmptyPassword.PasswordHash.String != updated.PasswordHash.String || !adminEmptyPassword.PasswordUpdatedAt.Time.Equal(updated.PasswordUpdatedAt.Time) {
+		t.Fatalf("empty admin password hash changed password state: %#v", adminEmptyPassword)
+	}
+
+	passwordUpdated, err := queries.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
+		ID:             uuidToPgtype(configuredID),
+		OwnerID:        uuidToPgtype(ownerID),
+		PasswordMode:   "never",
+		PasswordHash:   pgtype.Text{},
+		ExpirationMode: "keep",
+	})
+	if err != nil {
+		t.Fatalf("clear short link password: %v", err)
+	}
+	if passwordUpdated.PasswordHash.Valid {
+		t.Fatalf("expected cleared password hash, got %#v", passwordUpdated.PasswordHash)
+	}
+	if !passwordUpdated.PasswordUpdatedAt.Valid || !passwordUpdated.PasswordUpdatedAt.Time.After(updated.PasswordUpdatedAt.Time) {
+		t.Fatalf("expected refreshed password update timestamp, got %#v after %#v", passwordUpdated.PasswordUpdatedAt, updated.PasswordUpdatedAt)
 	}
 
 	cleared, err := queries.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
@@ -306,6 +406,214 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 	}
 	if !adminConfigured.ExpiresAt.Valid || !adminConfigured.ExpiresAt.Time.Equal(adminExpiresAt) || adminConfigured.Expired {
 		t.Fatalf("unexpected admin expiration update: %#v", adminConfigured)
+	}
+	if _, err := pool.Exec(ctx, `
+		update short_link
+		set password_failed_attempts = 5,
+			password_window_started_at = now() - interval '1 minute',
+			password_blocked_until = now() + interval '15 minutes'
+		where id = $1
+	`, configuredID); err != nil {
+		t.Fatalf("set admin password failure fixture: %v", err)
+	}
+	if _, err := queries.UpdateAnyShortLink(ctx, sqlc.UpdateAnyShortLinkParams{
+		ID:             uuidToPgtype(configuredID),
+		ExpirationMode: "keep",
+		PasswordMode:   "set",
+		PasswordHash:   pgtype.Text{String: "admin-updated-hash", Valid: true},
+	}); err != nil {
+		t.Fatalf("update admin short link password: %v", err)
+	}
+	adminPasswordState, err := queries.GetShortLinkPasswordStateForUpdate(ctx, uuidToPgtype(configuredID))
+	if err != nil {
+		t.Fatalf("read admin password failure state: %v", err)
+	}
+	if adminPasswordState.PasswordFailedAttempts != 0 || adminPasswordState.PasswordWindowStartedAt.Valid || adminPasswordState.PasswordBlockedUntil.Valid {
+		t.Fatalf("admin password update retained failure state: %#v", adminPasswordState)
+	}
+}
+
+// TestShortLinkAccessGrantUsesIssuanceTimeAfterConcurrentPasswordUpdate verifies stale grants cannot survive a password update race.
+func TestShortLinkAccessGrantUsesIssuanceTimeAfterConcurrentPasswordUpdate(t *testing.T) {
+	ctx := context.Background()
+	pool := sqlcTestPool(t, ctx)
+	queries := sqlc.New(pool)
+	ownerID := uuid.MustParse("00000000-0000-0000-0000-000000000201")
+	domainID := uuid.MustParse("00000000-0000-0000-0000-000000000101")
+	linkID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
+	insertSQLCShortLinkFixtures(t, ctx, pool, ownerID, domainID, linkID)
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin grant transaction: %v", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	txQueries := queries.WithTx(tx)
+	if _, err := txQueries.GetDatabaseTime(ctx); err != nil {
+		t.Fatalf("establish grant transaction time: %v", err)
+	}
+	if _, err := tx.Exec(ctx, `select pg_sleep(0.01)`); err != nil {
+		t.Fatalf("separate transaction timestamps: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		update short_link
+		set password_hash = 'updated-hash', password_updated_at = clock_timestamp()
+		where id = $1
+	`, linkID); err != nil {
+		t.Fatalf("update password after grant transaction started: %v", err)
+	}
+
+	tokenHash := "concurrent-password-update-token"
+	if _, err := txQueries.CreateShortLinkAccessGrant(ctx, sqlc.CreateShortLinkAccessGrantParams{
+		ID:          uuidToPgtype(uuid.New()),
+		ShortLinkID: uuidToPgtype(linkID),
+		TokenHash:   tokenHash,
+		ExpiresAt:   pgtype.Timestamptz{Time: time.Now().Add(time.Hour), Valid: true},
+	}); err != nil {
+		t.Fatalf("create access grant: %v", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatalf("commit access grant: %v", err)
+	}
+
+	if _, err := queries.GetValidShortLinkAccessGrant(ctx, sqlc.GetValidShortLinkAccessGrantParams{
+		ShortLinkID: uuidToPgtype(linkID),
+		TokenHash:   tokenHash,
+	}); err != nil {
+		t.Fatalf("expected newly issued grant to survive an earlier password update: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `update short_link set deleted_at = clock_timestamp() where id = $1`, linkID); err != nil {
+		t.Fatalf("soft delete granted short link: %v", err)
+	}
+	if _, err := queries.GetValidShortLinkAccessGrant(ctx, sqlc.GetValidShortLinkAccessGrantParams{
+		ShortLinkID: uuidToPgtype(linkID),
+		TokenHash:   tokenHash,
+	}); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("soft-deleted short link grant error = %v, want pgx.ErrNoRows", err)
+	}
+}
+
+// TestShortLinkPasswordUpdateUsesLockAcquisitionTimeToInvalidateGrants verifies invalidation uses transaction serialization time.
+func TestShortLinkPasswordUpdateUsesLockAcquisitionTimeToInvalidateGrants(t *testing.T) {
+	ctx := context.Background()
+	pool := sqlcTestPool(t, ctx)
+	queries := sqlc.New(pool)
+	ownerID := uuid.MustParse("00000000-0000-0000-0000-000000000201")
+	domainID := uuid.MustParse("00000000-0000-0000-0000-000000000101")
+	linkID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
+	insertSQLCShortLinkFixtures(t, ctx, pool, ownerID, domainID, linkID)
+	if _, err := pool.Exec(ctx, `update short_link set password_hash = 'initial-hash', password_updated_at = clock_timestamp() where id = $1`, linkID); err != nil {
+		t.Fatalf("set initial password state: %v", err)
+	}
+
+	grantTx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin grant transaction: %v", err)
+	}
+	defer func() { _ = grantTx.Rollback(ctx) }()
+	grantQueries := queries.WithTx(grantTx)
+	if _, err := grantQueries.GetShortLinkPasswordStateForUpdate(ctx, uuidToPgtype(linkID)); err != nil {
+		t.Fatalf("lock short link for grant: %v", err)
+	}
+
+	updateTx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin password update transaction: %v", err)
+	}
+	updateResult := make(chan error, 1)
+	updateContext, cancelUpdate := context.WithCancel(ctx)
+	updateStarted := false
+	updateFinished := false
+	defer func() {
+		cancelUpdate()
+		if updateStarted && !updateFinished {
+			<-updateResult
+		}
+		_ = updateTx.Rollback(ctx)
+	}()
+	updateQueries := queries.WithTx(updateTx)
+	if _, err := updateQueries.GetDatabaseTime(ctx); err != nil {
+		t.Fatalf("establish password update transaction time: %v", err)
+	}
+	var updatePID int32
+	if err := updateTx.QueryRow(ctx, `select pg_backend_pid()`).Scan(&updatePID); err != nil {
+		t.Fatalf("read password update backend pid: %v", err)
+	}
+
+	updateStarted = true
+	go func() {
+		_, updateErr := updateQueries.UpdateAnyShortLink(updateContext, sqlc.UpdateAnyShortLinkParams{
+			ID:             uuidToPgtype(linkID),
+			ExpirationMode: "keep",
+			PasswordMode:   "set",
+			PasswordHash:   pgtype.Text{String: "updated-hash", Valid: true},
+		})
+		updateResult <- updateErr
+	}()
+
+	deadline := time.Now().Add(15 * time.Second)
+	for {
+		var waitingLock int
+		err := pool.QueryRow(ctx, `
+			select 1
+			from pg_locks
+			where pid = $1 and not granted
+			limit 1
+		`, updatePID).Scan(&waitingLock)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			t.Fatalf("read password update lock state: %v", err)
+		}
+		select {
+		case updateErr := <-updateResult:
+			updateFinished = true
+			t.Fatalf("password update returned before lock release: %v", updateErr)
+		default:
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("password update did not wait for the short-link lock")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	tokenHash := "grant-created-before-waiting-update"
+	if _, err := grantQueries.CreateShortLinkAccessGrant(ctx, sqlc.CreateShortLinkAccessGrantParams{
+		ID:          uuidToPgtype(uuid.New()),
+		ShortLinkID: uuidToPgtype(linkID),
+		TokenHash:   tokenHash,
+		ExpiresAt:   pgtype.Timestamptz{Time: time.Now().Add(time.Hour), Valid: true},
+	}); err != nil {
+		t.Fatalf("create access grant while password update waits: %v", err)
+	}
+	if err := grantTx.Commit(ctx); err != nil {
+		t.Fatalf("commit access grant: %v", err)
+	}
+	if err := <-updateResult; err != nil {
+		updateFinished = true
+		t.Fatalf("update password after lock release: %v", err)
+	}
+	updateFinished = true
+	if err := updateTx.Commit(ctx); err != nil {
+		t.Fatalf("commit password update: %v", err)
+	}
+	var createdAt, passwordUpdatedAt time.Time
+	if err := pool.QueryRow(ctx, `
+		select access_grant.created_at, short_link.password_updated_at
+		from short_link_access_grant as access_grant
+		join short_link on short_link.id = access_grant.short_link_id
+		where access_grant.token_hash = $1
+	`, tokenHash).Scan(&createdAt, &passwordUpdatedAt); err != nil {
+		t.Fatalf("read grant timestamps: %v", err)
+	}
+	t.Logf("grant created at %s, password updated at %s", createdAt.Format(time.RFC3339Nano), passwordUpdatedAt.Format(time.RFC3339Nano))
+
+	if _, err := queries.GetValidShortLinkAccessGrant(ctx, sqlc.GetValidShortLinkAccessGrantParams{
+		ShortLinkID: uuidToPgtype(linkID),
+		TokenHash:   tokenHash,
+	}); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("expected password update to invalidate the earlier grant, got %v", err)
 	}
 }
 
@@ -422,48 +730,7 @@ func sqlcTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 // migratedSQLCDatabaseURL starts PostgreSQL and applies all project migrations.
 func migratedSQLCDatabaseURL(t *testing.T, ctx context.Context) string {
 	t.Helper()
-
-	container, err := postgres.Run(ctx,
-		"postgres:18-alpine",
-		postgres.WithDatabase("moeurl_test"),
-		postgres.WithUsername("moeurl"),
-		postgres.WithPassword("moeurl"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(60*time.Second),
-		),
-	)
-	if err != nil {
-		t.Fatalf("start postgres container: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(container); err != nil {
-			t.Fatalf("terminate postgres container: %v", err)
-		}
-	})
-
-	databaseURL, err := container.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		t.Fatalf("get connection string: %v", err)
-	}
-
-	database, err := sql.Open("pgx", databaseURL)
-	if err != nil {
-		t.Fatalf("open database: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = database.Close()
-	})
-
-	if err := goose.SetDialect("postgres"); err != nil {
-		t.Fatalf("set goose dialect: %v", err)
-	}
-	if err := goose.Up(database, filepath.Join("..", "..", "migrations")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
-
-	return databaseURL
+	return testdb.MigratedDatabaseURL(ctx, t, filepath.Join("..", "..", "migrations"))
 }
 
 // uuidToPgtype converts a UUID into the pgx value used by generated queries.

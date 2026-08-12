@@ -1,0 +1,360 @@
+import { expect, test } from '@playwright/test'
+import {
+  attachScreenshot,
+  e2eAdminPassword,
+  e2eAdminUsername,
+  e2eHost,
+  e2ePort,
+  escapeRegExp,
+  expectPasswordLayout,
+  findShortLink,
+  readVisitCount,
+} from './support'
+
+const rateLimitedPassword = 'another correct horse'
+const rateLimitRetryDelayMs = 8_000
+
+const e2eHostPattern = escapeRegExp(e2eHost)
+
+test.describe.configure({ mode: 'serial' })
+test.use({ serviceWorkers: 'block' })
+
+test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
+  testInfo.setTimeout(120_000)
+  page.setDefaultTimeout(10_000)
+
+  await page.goto('/login')
+  await page.getByLabel('账号').fill(e2eAdminUsername)
+  await page.getByLabel('密码').fill(e2eAdminPassword)
+  await page.getByRole('button', { name: '登录' }).click()
+  await expect(page.getByRole('button', { name: 'Admin' })).toBeVisible()
+
+  const protectedTarget = 'https://example.com/e2e-protected'
+  let protectedUrl = ''
+  let protectedSlug = ''
+  let protectedLinkId = ''
+  let rateLimitedSlug = ''
+
+  await test.step(
+    '创建受保护链接',
+    /** Creates the protected and rate-limit fixtures used by the remaining flow. */
+    async function createProtectedLinksStep() {
+      await page.goto('/')
+      await page.getByRole('button', { name: '高级设置' }).click()
+      await page.getByLabel('设置访问密码', { exact: true }).click()
+      await page.getByLabel('访问密码', { exact: true }).fill('correct horse')
+      await page.getByLabel('输入链接').fill(protectedTarget)
+      const protectedCreateResponsePromise = page.waitForResponse('**/api/v1/short-link/create')
+      await page.getByRole('button', { name: '创建短链' }).click()
+      const protectedCreateResponse = await protectedCreateResponsePromise
+      expect(protectedCreateResponse.status()).toBe(200)
+      expect(protectedCreateResponse.request().postDataJSON()).toMatchObject({
+        targetUrl: protectedTarget,
+        password: { mode: 'set', value: 'correct horse' },
+      })
+      expect(await protectedCreateResponse.json()).toMatchObject({ code: 0 })
+      const protectedCreatedLink = page.getByRole('link', { name: new RegExp(`${e2eHostPattern}\\/[a-z0-9]{6}`) })
+      await expect(protectedCreatedLink).toBeVisible()
+      protectedUrl = await protectedCreatedLink.getAttribute('href') ?? ''
+      expect(protectedUrl).toMatch(new RegExp(`^https?:\\/\\/${e2eHostPattern}\\/[a-z0-9]{6}$`))
+      protectedSlug = new URL(protectedUrl).pathname.slice(1)
+      const protectedLink = await findShortLink(page, protectedSlug)
+      expect(protectedLink).toBeDefined()
+      if (!protectedLink) {
+        throw new Error('protected short link was not returned by the personal list')
+      }
+      protectedLinkId = protectedLink.id
+      expect(await readVisitCount(page, protectedLinkId)).toBe(0)
+
+      const rateLimitedCreate = await page.request.post('/api/v1/short-link/create', {
+        data: {
+          targetUrl: 'https://example.com/e2e-rate-limited',
+          password: { mode: 'set', value: rateLimitedPassword },
+        },
+      })
+      await expect(rateLimitedCreate).toBeOK()
+      const rateLimitedPayload = await rateLimitedCreate.json() as {
+        code: number
+        data: { shortLink: { slug: string } }
+      }
+      expect(rateLimitedPayload.code).toBe(0)
+      rateLimitedSlug = rateLimitedPayload.data.shortLink.slug
+    },
+  )
+
+  await test.step(
+    '解锁并验证访问计数',
+    /** Exercises invalid and valid unlocks, grant reuse, and visit accounting. */
+    async function unlockAndCountVisitsStep() {
+      const protectedOpen = await page.request.get(`/${protectedSlug}`, { maxRedirects: 0 })
+      expect(protectedOpen.status()).toBe(302)
+      expect(protectedOpen.headers().location).toBe(`/go/${protectedSlug}?reason=password`)
+
+      await page.route(protectedTarget, (route) => route.fulfill({ status: 200, body: 'protected target reached' }))
+      await page.goto(protectedOpen.headers().location!)
+      await expect(page.getByRole('heading', { name: '输入密码后继续访问' })).toBeVisible()
+      await expectPasswordLayout(page)
+      await attachScreenshot(testInfo, 'password-desktop', page)
+      await page.setViewportSize({ width: 390, height: 800 })
+      await expectPasswordLayout(page)
+      await attachScreenshot(testInfo, 'password-mobile', page)
+      await page.setViewportSize({ width: 1280, height: 720 })
+      await page.getByLabel('访问密码').fill('wrong-pass')
+      await page.getByRole('button', { name: '解锁并继续' }).click()
+      await expect(page.getByText('密码错误，请重试。')).toBeVisible()
+
+      await page.getByLabel('访问密码').fill('correct horse')
+      const continueRequestPromise = page.waitForRequest((request) => (
+        new URL(request.url()).pathname === `/go/${protectedSlug}/continue`
+        && request.method() === 'GET'
+      ))
+      await Promise.all([
+        page.waitForURL(protectedTarget),
+        page.getByRole('button', { name: '解锁并继续' }).click(),
+      ])
+      const continueRequest = await continueRequestPromise
+      expect((await continueRequest.allHeaders()).cookie).toContain('moeurl_short_link_access=')
+      await expect.poll(
+        () => readVisitCount(page, protectedLinkId),
+        { intervals: [250, 500, 1_000], timeout: 30_000 },
+      ).toBe(1)
+
+      await page.goto('/link')
+      const previewResponsePromise = page.waitForResponse((response) => (
+        new URL(response.url()).pathname === `/go/${protectedSlug}/preview`
+        && response.request().method() === 'GET'
+      ))
+      await page.evaluate(async (path) => {
+        await fetch(path, { credentials: 'include' })
+      }, `/go/${protectedSlug}/preview`)
+      const previewResponse = await previewResponsePromise
+      expect((await previewResponse.request().allHeaders()).cookie).toContain('moeurl_short_link_access=')
+
+      await page.goto(`/go/${protectedSlug}`)
+      await expect(page).toHaveURL(protectedTarget)
+      await expect.poll(
+        () => readVisitCount(page, protectedLinkId),
+        { intervals: [250, 500, 1_000], timeout: 30_000 },
+      ).toBe(2)
+    },
+  )
+
+  await test.step(
+    '保存时保留密码',
+    /** Confirms unrelated settings saves do not overwrite the stored password. */
+    async function preservePasswordStep() {
+      await page.goto('/link')
+      const protectedRow = page.getByTestId('console-link-row').filter({ hasText: protectedUrl })
+      await expect(protectedRow).toBeVisible()
+      await protectedRow.getByRole('button', { name: '更多操作' }).click()
+      await protectedRow.getByRole('menuitem', { name: '访问配置' }).click()
+      const protectedSettingsDialog = page.getByRole('dialog')
+      await expect(protectedSettingsDialog.getByLabel('设置访问密码', { exact: true })).toBeChecked()
+      const preservedPasswordRequestPromise = page.waitForRequest('**/api/v1/short-link/update')
+      const preservedPasswordResponsePromise = page.waitForResponse('**/api/v1/short-link/update')
+      await protectedSettingsDialog.getByRole('button', { name: '保存' }).click()
+      const [preservedPasswordRequest, preservedPasswordResponse] = await Promise.all([
+        preservedPasswordRequestPromise,
+        preservedPasswordResponsePromise,
+      ])
+      expect(preservedPasswordResponse.status()).toBe(200)
+      expect(await preservedPasswordResponse.json()).toMatchObject({ code: 0 })
+      expect(preservedPasswordRequest.postDataJSON()).not.toHaveProperty('password')
+      await expect(protectedSettingsDialog).toBeHidden()
+      expect((await findShortLink(page, protectedSlug))?.passwordEnabled).toBe(true)
+    },
+  )
+
+  await test.step(
+    '更新密码并切换中间页',
+    /** Updates the password and verifies the protected intermediate redirect flow. */
+    async function updatePasswordAndModeStep() {
+      const protectedRow = page.getByTestId('console-link-row').filter({ hasText: protectedUrl })
+
+      await protectedRow.getByRole('button', { name: '更多操作' }).click()
+      await protectedRow.getByRole('menuitem', { name: '访问配置' }).click()
+      const protectedSettingsDialog = page.getByRole('dialog')
+      await protectedSettingsDialog.getByRole('button', { name: '中间页', exact: true }).click()
+      await protectedSettingsDialog.getByLabel('新访问密码', { exact: true }).fill('new correct horse')
+      const passwordUpdateRequestPromise = page.waitForRequest('**/api/v1/short-link/update')
+      const passwordUpdateResponsePromise = page.waitForResponse('**/api/v1/short-link/update')
+      await protectedSettingsDialog.getByRole('button', { name: '保存' }).click()
+      const [passwordUpdateRequest, passwordUpdateResponse] = await Promise.all([
+        passwordUpdateRequestPromise,
+        passwordUpdateResponsePromise,
+      ])
+      expect(passwordUpdateResponse.status()).toBe(200)
+      expect(await passwordUpdateResponse.json()).toMatchObject({ code: 0 })
+      expect(passwordUpdateRequest.postDataJSON()).toMatchObject({
+        redirectMode: 'intermediate',
+        password: { mode: 'set', value: 'new correct horse' },
+      })
+      await expect(protectedSettingsDialog).toBeHidden()
+
+      await page.goto(`/${protectedSlug}`)
+      await expect(page.getByRole('heading', { name: '输入密码后继续访问' })).toBeVisible()
+      await page.getByLabel('访问密码').fill('new correct horse')
+      await page.getByRole('button', { name: '解锁并继续' }).click()
+      await expect(page.getByRole('heading', { name: '即将前往外部网站' })).toBeVisible()
+      await expect(page.getByRole('button', { name: '立即前往' })).toBeVisible()
+      await Promise.all([page.waitForURL(protectedTarget), page.getByRole('button', { name: '立即前往' }).click()])
+      await expect.poll(
+        () => readVisitCount(page, protectedLinkId),
+        { intervals: [250, 500, 1_000], timeout: 30_000 },
+      ).toBe(3)
+    },
+  )
+
+  await test.step(
+    '清除密码',
+    /** Clears password protection while preserving the intermediate redirect behavior. */
+    async function clearPasswordStep() {
+      await page.goto('/link')
+      const protectedRow = page.getByTestId('console-link-row').filter({ hasText: protectedUrl })
+      await protectedRow.getByRole('button', { name: '更多操作' }).click()
+      await protectedRow.getByRole('menuitem', { name: '访问配置' }).click()
+      const protectedSettingsDialog = page.getByRole('dialog')
+      await protectedSettingsDialog.getByLabel('设置访问密码', { exact: true }).click()
+      await expect(protectedSettingsDialog.getByLabel('新访问密码', { exact: true })).toHaveCount(0)
+      const clearPasswordRequestPromise = page.waitForRequest('**/api/v1/short-link/update')
+      const clearPasswordResponsePromise = page.waitForResponse('**/api/v1/short-link/update')
+      await protectedSettingsDialog.getByRole('button', { name: '保存' }).click()
+      const [clearPasswordRequest, clearPasswordResponse] = await Promise.all([
+        clearPasswordRequestPromise,
+        clearPasswordResponsePromise,
+      ])
+      expect(clearPasswordResponse.status()).toBe(200)
+      expect(await clearPasswordResponse.json()).toMatchObject({ code: 0 })
+      expect(clearPasswordRequest.postDataJSON()).toMatchObject({
+        password: { mode: 'never' },
+      })
+      await expect(protectedSettingsDialog).toBeHidden()
+      expect((await findShortLink(page, protectedSlug))?.passwordEnabled).toBe(false)
+
+      await page.goto(`/${protectedSlug}`)
+      await expect(page.getByRole('heading', { name: '即将前往外部网站' })).toBeVisible()
+      await expect(page.getByLabel('访问密码')).toHaveCount(0)
+      await Promise.all([page.waitForURL(protectedTarget), page.getByRole('button', { name: '立即前往' }).click()])
+      await expect.poll(
+        () => readVisitCount(page, protectedLinkId),
+        { intervals: [250, 500, 1_000], timeout: 30_000 },
+      ).toBe(4)
+    },
+  )
+
+  await test.step(
+    '验证失败限流',
+    /** Uses a short-lived browser fixture to verify the countdown and retry UI after the backend rate-limit response. */
+    async function verifyRateLimitStep() {
+      const rateLimitedAccessToken = 'e2e-rate-token'
+      let authorizedPreviewCookieSeen = false
+      let continuationCookieSeen = false
+      await page.route(`**/go/${rateLimitedSlug}/unlock`, async (route) => {
+        const password = route.request().postDataJSON()?.password
+        if (password === rateLimitedPassword) {
+          await page.context().addCookies([{
+            name: 'moeurl_short_link_access',
+            value: rateLimitedAccessToken,
+            domain: new URL(page.url()).hostname,
+            path: `/go/${rateLimitedSlug}`,
+            httpOnly: true,
+            sameSite: 'Lax',
+          }])
+          await route.fulfill({
+            body: JSON.stringify({ code: 0, data: { unlocked: true }, message: 'OK', meta: {} }),
+            headers: {
+              'Content-Type': 'application/json',
+              'Set-Cookie': `moeurl_short_link_access=${rateLimitedAccessToken}; Path=/go/${rateLimitedSlug}; HttpOnly; SameSite=Lax`,
+            },
+            status: 200,
+          })
+          return
+        }
+        const response = await route.fetch()
+        const payload = await response.json() as { code: number, data: unknown, message: string, meta: Record<string, unknown> }
+        if (payload.code === 200113) {
+          payload.meta = { retryAt: new Date(Date.now() + rateLimitRetryDelayMs).toISOString() }
+        }
+        await route.fulfill({ body: JSON.stringify(payload), response })
+      })
+      await page.route(`**/go/${rateLimitedSlug}/preview`, async (route) => {
+        const cookie = await route.request().headerValue('cookie')
+        const hasAuthorizedCookie = cookie?.includes(`moeurl_short_link_access=${rateLimitedAccessToken}`) ?? false
+        authorizedPreviewCookieSeen = authorizedPreviewCookieSeen || hasAuthorizedCookie
+        if (!hasAuthorizedCookie) {
+          await route.fallback()
+          return
+        }
+        await route.fulfill({
+          body: JSON.stringify({
+            code: 0,
+            data: {
+              expiresAt: null,
+              intermediateDelaySeconds: null,
+              slug: rateLimitedSlug,
+              targetHost: 'example.com',
+            },
+            message: 'OK',
+            meta: {},
+          }),
+          contentType: 'application/json',
+          status: 200,
+        })
+      })
+      await page.route(`**/go/${rateLimitedSlug}/continue`, async (route) => {
+        const cookie = await route.request().headerValue('cookie')
+        continuationCookieSeen = continuationCookieSeen || (cookie?.includes(`moeurl_short_link_access=${rateLimitedAccessToken}`) ?? false)
+        await route.fulfill({
+          headers: { Location: 'https://example.com/e2e-rate-limited' },
+          status: 302,
+        })
+      })
+      await page.route('https://example.com/e2e-rate-limited', (route) => route.fulfill({
+        body: 'rate-limited target reached',
+        status: 200,
+      }))
+      await page.goto(`/${rateLimitedSlug}`)
+      await expect(page.getByRole('heading', { name: '输入密码后继续访问' })).toBeVisible()
+      const unlockButton = page.getByRole('button', { name: '解锁并继续' })
+      for (let attempt = 1; attempt <= 5; attempt += 1) {
+        await page.getByLabel('访问密码').fill('wrong-pass')
+        await expect(unlockButton).toBeEnabled()
+        const unlockResponsePromise = page.waitForResponse((response) => (
+          response.url().endsWith(`/go/${rateLimitedSlug}/unlock`)
+          && response.request().method() === 'POST'
+        ))
+        await unlockButton.click()
+        const unlockResponse = await unlockResponsePromise
+        const payload = await unlockResponse.json() as { code: number, meta?: { retryAt?: string } }
+        expect(payload.code).toBe(attempt === 5 ? 200113 : 200112)
+        if (attempt < 5) {
+          await expect(page.getByText('密码错误，请重试。')).toBeVisible()
+          continue
+        }
+        expect(payload.meta?.retryAt).toBeTruthy()
+        await expect(page.getByText(/尝试次数过多，请在 \d+ 秒后重试。/)).toBeVisible()
+        await expect(page.getByRole('button', { name: '解锁并继续' })).toBeDisabled()
+        await expect(page.getByRole('button', { name: '解锁并继续' })).toBeEnabled({ timeout: rateLimitRetryDelayMs + 5_000 })
+        await page.getByLabel('访问密码').fill(rateLimitedPassword)
+        const successfulUnlockRequestPromise = page.waitForRequest((request) => (
+          request.url().endsWith(`/go/${rateLimitedSlug}/unlock`)
+          && request.method() === 'POST'
+        ))
+        await page.getByRole('button', { name: '解锁并继续' }).click()
+        await successfulUnlockRequestPromise
+        await expect(page).toHaveURL('https://example.com/e2e-rate-limited')
+        expect(authorizedPreviewCookieSeen).toBe(true)
+        expect(continuationCookieSeen).toBe(true)
+
+        const realUnlockResponse = await page.request.post(`http://127.0.0.1:${e2ePort}/go/${rateLimitedSlug}/unlock`, {
+          data: { password: rateLimitedPassword },
+        })
+        expect(realUnlockResponse.status()).toBe(200)
+        const realUnlockPayload = await realUnlockResponse.json() as { code: number }
+        expect(realUnlockPayload.code).toBe(200113)
+        return
+      }
+      expect(false, 'rate-limit flow did not reach the fifth attempt').toBe(true)
+    },
+  )
+})

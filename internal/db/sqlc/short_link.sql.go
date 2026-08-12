@@ -60,13 +60,17 @@ func (q *Queries) CountShortLinksByOwner(ctx context.Context, arg CountShortLink
 const createShortLink = `-- name: CreateShortLink :one
 insert into short_link (
     id, owner_id, domain_id, slug, target_url, status,
-    redirect_mode, intermediate_delay_seconds, expires_at,
+    redirect_mode, intermediate_delay_seconds, expires_at, password_hash,
+    password_updated_at,
     created_at, updated_at
 )
-values ($1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
+values ($1, $2, $3, $4, $5, $6, $7, $8, $9, nullif($10::text, ''),
+    case when coalesce($10::text, '') <> '' then clock_timestamp() else null end,
+    now(), now())
 returning id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at,
-    coalesce(expires_at <= now(), false)::boolean as expired,
+    coalesce(expires_at <= clock_timestamp(), false)::boolean as expired,
+    password_hash,
     created_at, updated_at, deleted_at
 `
 
@@ -80,6 +84,7 @@ type CreateShortLinkParams struct {
 	RedirectMode             string             `json:"redirect_mode"`
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	PasswordHash             pgtype.Text        `json:"password_hash"`
 }
 
 type CreateShortLinkRow struct {
@@ -93,6 +98,7 @@ type CreateShortLinkRow struct {
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	Expired                  bool               `json:"expired"`
+	PasswordHash             pgtype.Text        `json:"password_hash"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -109,6 +115,7 @@ func (q *Queries) CreateShortLink(ctx context.Context, arg CreateShortLinkParams
 		arg.RedirectMode,
 		arg.IntermediateDelaySeconds,
 		arg.ExpiresAt,
+		arg.PasswordHash,
 	)
 	var i CreateShortLinkRow
 	err := row.Scan(
@@ -122,6 +129,7 @@ func (q *Queries) CreateShortLink(ctx context.Context, arg CreateShortLinkParams
 		&i.IntermediateDelaySeconds,
 		&i.ExpiresAt,
 		&i.Expired,
+		&i.PasswordHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -129,8 +137,61 @@ func (q *Queries) CreateShortLink(ctx context.Context, arg CreateShortLinkParams
 	return i, err
 }
 
+const createShortLinkAccessGrant = `-- name: CreateShortLinkAccessGrant :one
+insert into short_link_access_grant (id, short_link_id, token_hash, expires_at, created_at)
+values ($1, $2, $3, $4, clock_timestamp())
+returning id, short_link_id, token_hash, expires_at, created_at
+`
+
+type CreateShortLinkAccessGrantParams struct {
+	ID          pgtype.UUID        `json:"id"`
+	ShortLinkID pgtype.UUID        `json:"short_link_id"`
+	TokenHash   string             `json:"token_hash"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+}
+
+func (q *Queries) CreateShortLinkAccessGrant(ctx context.Context, arg CreateShortLinkAccessGrantParams) (ShortLinkAccessGrant, error) {
+	row := q.db.QueryRow(ctx, createShortLinkAccessGrant,
+		arg.ID,
+		arg.ShortLinkID,
+		arg.TokenHash,
+		arg.ExpiresAt,
+	)
+	var i ShortLinkAccessGrant
+	err := row.Scan(
+		&i.ID,
+		&i.ShortLinkID,
+		&i.TokenHash,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const deleteExpiredShortLinkAccessGrants = `-- name: DeleteExpiredShortLinkAccessGrants :execrows
+with expired_grant as (
+    select id
+    from short_link_access_grant
+    where expires_at <= clock_timestamp()
+    order by expires_at
+    limit $1::bigint
+    for update skip locked
+)
+delete from short_link_access_grant as access_grant
+using expired_grant
+where access_grant.id = expired_grant.id
+`
+
+func (q *Queries) DeleteExpiredShortLinkAccessGrants(ctx context.Context, batchSize int64) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredShortLinkAccessGrants, batchSize)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getDatabaseTime = `-- name: GetDatabaseTime :one
-select now()::timestamptz as database_time
+select clock_timestamp()::timestamptz as database_time
 `
 
 func (q *Queries) GetDatabaseTime(ctx context.Context) (pgtype.Timestamptz, error) {
@@ -149,7 +210,8 @@ select short_link.id,
     short_link.redirect_mode,
     short_link.intermediate_delay_seconds,
     short_link.expires_at,
-    coalesce(short_link.expires_at <= now(), false)::boolean as expired,
+    coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
+    coalesce(short_link.password_hash, '') <> '' as has_password,
     short_link.created_at,
     domain.host as domain_host
 from short_link
@@ -167,6 +229,7 @@ type GetShortLinkAnalyticsLinkRow struct {
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	Expired                  bool               `json:"expired"`
+	HasPassword              bool               `json:"has_password"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	DomainHost               string             `json:"domain_host"`
 }
@@ -184,6 +247,7 @@ func (q *Queries) GetShortLinkAnalyticsLink(ctx context.Context, id pgtype.UUID)
 		&i.IntermediateDelaySeconds,
 		&i.ExpiresAt,
 		&i.Expired,
+		&i.HasPassword,
 		&i.CreatedAt,
 		&i.DomainHost,
 	)
@@ -193,7 +257,8 @@ func (q *Queries) GetShortLinkAnalyticsLink(ctx context.Context, id pgtype.UUID)
 const getShortLinkBySlug = `-- name: GetShortLinkBySlug :one
 select id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at,
-    coalesce(expires_at <= now(), false)::boolean as expired,
+    coalesce(expires_at <= clock_timestamp(), false)::boolean as expired,
+    password_hash,
     created_at, updated_at, deleted_at
 from short_link
 where slug = $1 and deleted_at is null
@@ -210,6 +275,7 @@ type GetShortLinkBySlugRow struct {
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	Expired                  bool               `json:"expired"`
+	PasswordHash             pgtype.Text        `json:"password_hash"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -229,6 +295,7 @@ func (q *Queries) GetShortLinkBySlug(ctx context.Context, slug string) (GetShort
 		&i.IntermediateDelaySeconds,
 		&i.ExpiresAt,
 		&i.Expired,
+		&i.PasswordHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -270,6 +337,98 @@ func (q *Queries) GetShortLinkOverviewByOwner(ctx context.Context, ownerID pgtyp
 	return i, err
 }
 
+const getShortLinkPasswordStateBySlugForUpdate = `-- name: GetShortLinkPasswordStateBySlugForUpdate :one
+select id, password_hash, password_failed_attempts, password_window_started_at,
+    password_blocked_until, password_updated_at
+from short_link
+where slug = $1 and deleted_at is null
+for update
+`
+
+type GetShortLinkPasswordStateBySlugForUpdateRow struct {
+	ID                      pgtype.UUID        `json:"id"`
+	PasswordHash            pgtype.Text        `json:"password_hash"`
+	PasswordFailedAttempts  int16              `json:"password_failed_attempts"`
+	PasswordWindowStartedAt pgtype.Timestamptz `json:"password_window_started_at"`
+	PasswordBlockedUntil    pgtype.Timestamptz `json:"password_blocked_until"`
+	PasswordUpdatedAt       pgtype.Timestamptz `json:"password_updated_at"`
+}
+
+func (q *Queries) GetShortLinkPasswordStateBySlugForUpdate(ctx context.Context, slug string) (GetShortLinkPasswordStateBySlugForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getShortLinkPasswordStateBySlugForUpdate, slug)
+	var i GetShortLinkPasswordStateBySlugForUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.PasswordHash,
+		&i.PasswordFailedAttempts,
+		&i.PasswordWindowStartedAt,
+		&i.PasswordBlockedUntil,
+		&i.PasswordUpdatedAt,
+	)
+	return i, err
+}
+
+const getShortLinkPasswordStateForUpdate = `-- name: GetShortLinkPasswordStateForUpdate :one
+select id, password_hash, password_failed_attempts, password_window_started_at,
+    password_blocked_until, password_updated_at
+from short_link
+where id = $1 and deleted_at is null
+for update
+`
+
+type GetShortLinkPasswordStateForUpdateRow struct {
+	ID                      pgtype.UUID        `json:"id"`
+	PasswordHash            pgtype.Text        `json:"password_hash"`
+	PasswordFailedAttempts  int16              `json:"password_failed_attempts"`
+	PasswordWindowStartedAt pgtype.Timestamptz `json:"password_window_started_at"`
+	PasswordBlockedUntil    pgtype.Timestamptz `json:"password_blocked_until"`
+	PasswordUpdatedAt       pgtype.Timestamptz `json:"password_updated_at"`
+}
+
+func (q *Queries) GetShortLinkPasswordStateForUpdate(ctx context.Context, id pgtype.UUID) (GetShortLinkPasswordStateForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getShortLinkPasswordStateForUpdate, id)
+	var i GetShortLinkPasswordStateForUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.PasswordHash,
+		&i.PasswordFailedAttempts,
+		&i.PasswordWindowStartedAt,
+		&i.PasswordBlockedUntil,
+		&i.PasswordUpdatedAt,
+	)
+	return i, err
+}
+
+const getValidShortLinkAccessGrant = `-- name: GetValidShortLinkAccessGrant :one
+select access_grant.id, access_grant.short_link_id, access_grant.token_hash,
+    access_grant.expires_at, access_grant.created_at
+from short_link_access_grant as access_grant
+join short_link on short_link.id = access_grant.short_link_id
+where access_grant.short_link_id = $1
+    and access_grant.token_hash = $2
+    and access_grant.expires_at > clock_timestamp()
+    and short_link.deleted_at is null
+    and (short_link.password_updated_at is null or access_grant.created_at >= short_link.password_updated_at)
+`
+
+type GetValidShortLinkAccessGrantParams struct {
+	ShortLinkID pgtype.UUID `json:"short_link_id"`
+	TokenHash   string      `json:"token_hash"`
+}
+
+func (q *Queries) GetValidShortLinkAccessGrant(ctx context.Context, arg GetValidShortLinkAccessGrantParams) (ShortLinkAccessGrant, error) {
+	row := q.db.QueryRow(ctx, getValidShortLinkAccessGrant, arg.ShortLinkID, arg.TokenHash)
+	var i ShortLinkAccessGrant
+	err := row.Scan(
+		&i.ID,
+		&i.ShortLinkID,
+		&i.TokenHash,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const listAllShortLinks = `-- name: ListAllShortLinks :many
 select short_link.id,
     short_link.owner_id,
@@ -280,7 +439,8 @@ select short_link.id,
     short_link.redirect_mode,
     short_link.intermediate_delay_seconds,
     short_link.expires_at,
-    coalesce(short_link.expires_at <= now(), false)::boolean as expired,
+    coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
+    coalesce(short_link.password_hash, '') <> '' as has_password,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
@@ -331,6 +491,7 @@ type ListAllShortLinksRow struct {
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	Expired                  bool               `json:"expired"`
+	HasPassword              bool               `json:"has_password"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -367,6 +528,7 @@ func (q *Queries) ListAllShortLinks(ctx context.Context, arg ListAllShortLinksPa
 			&i.IntermediateDelaySeconds,
 			&i.ExpiresAt,
 			&i.Expired,
+			&i.HasPassword,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
@@ -397,7 +559,8 @@ select short_link.id,
     short_link.redirect_mode,
     short_link.intermediate_delay_seconds,
     short_link.expires_at,
-    coalesce(short_link.expires_at <= now(), false)::boolean as expired,
+    coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
+    coalesce(short_link.password_hash, '') <> '' as has_password,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
@@ -438,6 +601,7 @@ type ListShortLinksByOwnerRow struct {
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	Expired                  bool               `json:"expired"`
+	HasPassword              bool               `json:"has_password"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -472,6 +636,7 @@ func (q *Queries) ListShortLinksByOwner(ctx context.Context, arg ListShortLinksB
 			&i.IntermediateDelaySeconds,
 			&i.ExpiresAt,
 			&i.Expired,
+			&i.HasPassword,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
@@ -488,6 +653,44 @@ func (q *Queries) ListShortLinksByOwner(ctx context.Context, arg ListShortLinksB
 		return nil, err
 	}
 	return items, nil
+}
+
+const recordShortLinkPasswordFailure = `-- name: RecordShortLinkPasswordFailure :exec
+update short_link
+set password_failed_attempts = $2,
+    password_window_started_at = $3,
+    password_blocked_until = $4
+where id = $1 and deleted_at is null
+`
+
+type RecordShortLinkPasswordFailureParams struct {
+	ID                      pgtype.UUID        `json:"id"`
+	PasswordFailedAttempts  int16              `json:"password_failed_attempts"`
+	PasswordWindowStartedAt pgtype.Timestamptz `json:"password_window_started_at"`
+	PasswordBlockedUntil    pgtype.Timestamptz `json:"password_blocked_until"`
+}
+
+func (q *Queries) RecordShortLinkPasswordFailure(ctx context.Context, arg RecordShortLinkPasswordFailureParams) error {
+	_, err := q.db.Exec(ctx, recordShortLinkPasswordFailure,
+		arg.ID,
+		arg.PasswordFailedAttempts,
+		arg.PasswordWindowStartedAt,
+		arg.PasswordBlockedUntil,
+	)
+	return err
+}
+
+const resetShortLinkPasswordFailures = `-- name: ResetShortLinkPasswordFailures :exec
+update short_link
+set password_failed_attempts = 0,
+    password_window_started_at = null,
+    password_blocked_until = null
+where id = $1 and deleted_at is null
+`
+
+func (q *Queries) ResetShortLinkPasswordFailures(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, resetShortLinkPasswordFailures, id)
+	return err
 }
 
 const softDeleteAnyShortLink = `-- name: SoftDeleteAnyShortLink :execrows
@@ -529,6 +732,20 @@ func (q *Queries) SoftDeleteOwnShortLink(ctx context.Context, arg SoftDeleteOwnS
 }
 
 const updateAnyShortLink = `-- name: UpdateAnyShortLink :one
+with locked as materialized (
+    select short_link.id,
+        (
+            (
+                $7::text = 'never'
+                and coalesce(short_link.password_hash, '') <> ''
+            )
+            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+        ) as password_changed
+    from short_link
+    where short_link.id = $9
+        and short_link.deleted_at is null
+    for update
+)
 update short_link
 set target_url = coalesce($1, target_url),
     status = coalesce($2, status),
@@ -539,13 +756,40 @@ set target_url = coalesce($1, target_url),
         when 'at' then $6::timestamptz
         else expires_at
     end,
-    updated_at = now()
-where id = $7
-    and deleted_at is null
-returning id, owner_id, domain_id, slug, target_url, status,
-    redirect_mode, intermediate_delay_seconds, expires_at,
-    coalesce(expires_at <= now(), false)::boolean as expired,
-    created_at, updated_at, deleted_at
+    password_hash = case
+        when $7::text = 'never' then null
+        when locked.password_changed
+            then $8::text
+        else password_hash
+    end,
+    password_updated_at = case
+        when locked.password_changed
+            then clock_timestamp()
+        else password_updated_at
+    end,
+    password_failed_attempts = case
+        when locked.password_changed
+            then 0
+        else password_failed_attempts
+    end,
+    password_window_started_at = case
+        when locked.password_changed
+            then null
+        else password_window_started_at
+    end,
+    password_blocked_until = case
+        when locked.password_changed
+            then null
+        else password_blocked_until
+    end,
+    updated_at = clock_timestamp()
+from locked
+where short_link.id = locked.id
+returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
+    short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
+    coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
+    short_link.password_hash, short_link.password_updated_at,
+    short_link.created_at, short_link.updated_at, short_link.deleted_at
 `
 
 type UpdateAnyShortLinkParams struct {
@@ -555,6 +799,8 @@ type UpdateAnyShortLinkParams struct {
 	IntermediateDelaySeconds pgtype.Int2        `json:"intermediate_delay_seconds"`
 	ExpirationMode           string             `json:"expiration_mode"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	PasswordMode             string             `json:"password_mode"`
+	PasswordHash             pgtype.Text        `json:"password_hash"`
 	ID                       pgtype.UUID        `json:"id"`
 }
 
@@ -569,6 +815,8 @@ type UpdateAnyShortLinkRow struct {
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	Expired                  bool               `json:"expired"`
+	PasswordHash             pgtype.Text        `json:"password_hash"`
+	PasswordUpdatedAt        pgtype.Timestamptz `json:"password_updated_at"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -582,6 +830,8 @@ func (q *Queries) UpdateAnyShortLink(ctx context.Context, arg UpdateAnyShortLink
 		arg.IntermediateDelaySeconds,
 		arg.ExpirationMode,
 		arg.ExpiresAt,
+		arg.PasswordMode,
+		arg.PasswordHash,
 		arg.ID,
 	)
 	var i UpdateAnyShortLinkRow
@@ -596,6 +846,8 @@ func (q *Queries) UpdateAnyShortLink(ctx context.Context, arg UpdateAnyShortLink
 		&i.IntermediateDelaySeconds,
 		&i.ExpiresAt,
 		&i.Expired,
+		&i.PasswordHash,
+		&i.PasswordUpdatedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -604,6 +856,21 @@ func (q *Queries) UpdateAnyShortLink(ctx context.Context, arg UpdateAnyShortLink
 }
 
 const updateOwnShortLink = `-- name: UpdateOwnShortLink :one
+with locked as materialized (
+    select short_link.id,
+        (
+            (
+                $7::text = 'never'
+                and coalesce(short_link.password_hash, '') <> ''
+            )
+            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+        ) as password_changed
+    from short_link
+    where short_link.id = $9
+        and short_link.owner_id = $10
+        and short_link.deleted_at is null
+    for update
+)
 update short_link
 set target_url = coalesce($1, target_url),
     status = coalesce($2, status),
@@ -614,14 +881,40 @@ set target_url = coalesce($1, target_url),
         when 'at' then $6::timestamptz
         else expires_at
     end,
-    updated_at = now()
-where id = $7
-    and owner_id = $8
-    and deleted_at is null
-returning id, owner_id, domain_id, slug, target_url, status,
-    redirect_mode, intermediate_delay_seconds, expires_at,
-    coalesce(expires_at <= now(), false)::boolean as expired,
-    created_at, updated_at, deleted_at
+    password_hash = case
+        when $7::text = 'never' then null
+        when locked.password_changed
+            then $8::text
+        else password_hash
+    end,
+    password_updated_at = case
+        when locked.password_changed
+            then clock_timestamp()
+        else password_updated_at
+    end,
+    password_failed_attempts = case
+        when locked.password_changed
+            then 0
+        else password_failed_attempts
+    end,
+    password_window_started_at = case
+        when locked.password_changed
+            then null
+        else password_window_started_at
+    end,
+    password_blocked_until = case
+        when locked.password_changed
+            then null
+        else password_blocked_until
+    end,
+    updated_at = clock_timestamp()
+from locked
+where short_link.id = locked.id
+returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
+    short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
+    coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
+    short_link.password_hash, short_link.password_updated_at,
+    short_link.created_at, short_link.updated_at, short_link.deleted_at
 `
 
 type UpdateOwnShortLinkParams struct {
@@ -631,6 +924,8 @@ type UpdateOwnShortLinkParams struct {
 	IntermediateDelaySeconds pgtype.Int2        `json:"intermediate_delay_seconds"`
 	ExpirationMode           string             `json:"expiration_mode"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	PasswordMode             string             `json:"password_mode"`
+	PasswordHash             pgtype.Text        `json:"password_hash"`
 	ID                       pgtype.UUID        `json:"id"`
 	OwnerID                  pgtype.UUID        `json:"owner_id"`
 }
@@ -646,6 +941,8 @@ type UpdateOwnShortLinkRow struct {
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	Expired                  bool               `json:"expired"`
+	PasswordHash             pgtype.Text        `json:"password_hash"`
+	PasswordUpdatedAt        pgtype.Timestamptz `json:"password_updated_at"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -659,6 +956,8 @@ func (q *Queries) UpdateOwnShortLink(ctx context.Context, arg UpdateOwnShortLink
 		arg.IntermediateDelaySeconds,
 		arg.ExpirationMode,
 		arg.ExpiresAt,
+		arg.PasswordMode,
+		arg.PasswordHash,
 		arg.ID,
 		arg.OwnerID,
 	)
@@ -674,6 +973,8 @@ func (q *Queries) UpdateOwnShortLink(ctx context.Context, arg UpdateOwnShortLink
 		&i.IntermediateDelaySeconds,
 		&i.ExpiresAt,
 		&i.Expired,
+		&i.PasswordHash,
+		&i.PasswordUpdatedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,

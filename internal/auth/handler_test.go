@@ -15,7 +15,6 @@ import (
 )
 
 func TestAuthHandlerLoginSetsSessionCookie(t *testing.T) {
-	t.Setenv("MOEURL_ENV", "production")
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		Auth: &fakeAuthService{
 			loginResult: auth.LoginResult{
@@ -33,6 +32,7 @@ func TestAuthHandlerLoginSetsSessionCookie(t *testing.T) {
 				},
 			},
 		},
+		SecureCookies: true,
 	})
 	response := httptest.NewRecorder()
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{
@@ -228,7 +228,8 @@ func TestAuthHandlerMeUsesSessionCookieAndFallsBackOnError(t *testing.T) {
 
 func TestAuthHandlerLogoutClearsCookie(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
-		Auth: &fakeAuthService{},
+		Auth:          &fakeAuthService{},
+		SecureCookies: true,
 	})
 	response := httptest.NewRecorder()
 	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/auth/logout", nil)
@@ -242,6 +243,9 @@ func TestAuthHandlerLogoutClearsCookie(t *testing.T) {
 	}
 	if cookie.MaxAge != -1 {
 		t.Fatalf("expected clearing cookie max age -1, got %d", cookie.MaxAge)
+	}
+	if !cookie.Secure {
+		t.Fatal("expected Secure clearing cookie in production")
 	}
 }
 
