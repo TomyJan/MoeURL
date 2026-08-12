@@ -222,11 +222,20 @@ describe('ShortLinkSettingsDialog', () => {
 
   it('reads the password only on submit and clears it immediately after save submission', async () => {
     setPermissions(['short_link:set_password'])
-    const view = mountDialog()
+    const view = mountDialog({}, {
+      ...componentStubs,
+      VTextField: {
+        inheritAttrs: false,
+        props: ['disabled', 'errorMessages', 'label', 'type'],
+        emits: ['input', 'update:modelValue'],
+        data: () => ({ internalValue: '' }),
+        template: '<label v-bind="$attrs">{{ label }}<input :aria-label="label" :disabled="disabled" :type="type || \'text\'" :value="internalValue" @input="internalValue = $event.target.value; $emit(\'input\', $event); $emit(\'update:modelValue\', internalValue)" /><span v-if="errorMessages">{{ errorMessages }}</span></label>',
+      },
+    })
 
     await fireEvent.click(screen.getByLabelText('shortLinkSettings.passwordEnabled'))
     const passwordInput = screen.getByLabelText('shortLinkSettings.password') as HTMLInputElement
-    passwordInput.value = 'correct horse'
+    await fireEvent.update(passwordInput, 'correct horse')
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
 
     expect(view.emitted().save).toEqual([[
@@ -236,6 +245,8 @@ describe('ShortLinkSettingsDialog', () => {
         password: { mode: 'set', value: 'correct horse' },
       },
     ]])
+    expect(passwordInput.value).toBe('')
+    await view.rerender({ pending: true })
     expect(passwordInput.value).toBe('')
   })
 

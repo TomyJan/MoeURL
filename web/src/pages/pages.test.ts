@@ -911,7 +911,7 @@ describe('pages', () => {
     view.unmount()
   })
 
-  it('invalidates personal links after a successful status update', async () => {
+  it('renders password protection state and invalidates personal links after a successful status update', async () => {
     setQueryResult({
       data: ref({
         items: [

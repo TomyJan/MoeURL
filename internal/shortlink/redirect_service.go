@@ -381,6 +381,9 @@ func (s *RedirectService) RunAccessGrantCleanup(ctx context.Context, interval ti
 	if logger == nil {
 		logger = slog.Default()
 	}
+	if err := s.CleanupExpiredAccessGrants(ctx, logger); err != nil {
+		logger.ErrorContext(ctx, "access_grant_cleanup_failed", "error", err)
+	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {

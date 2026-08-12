@@ -286,6 +286,7 @@ function clearPasswordInput() {
   const input = passwordInput()
   if (input) {
     input.value = ''
+    input.dispatchEvent(new globalThis.Event('input', { bubbles: true }))
   }
 }
 

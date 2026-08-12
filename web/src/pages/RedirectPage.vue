@@ -297,6 +297,7 @@ async function unlock(event: globalThis.Event) {
       }
       preview.value = authorizedPreview
     }
+    clearRateLimitCountdown()
     passwordRequired.value = false
     form.reset()
     proceedAfterAccess()

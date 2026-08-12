@@ -688,7 +688,7 @@ func TestRedirectServiceCleanupReturnsCancellationDuringBatchPause(t *testing.T)
 	}
 }
 
-// TestRedirectServiceRunsPeriodicAccessGrantCleanup verifies maintenance removes expired grants and preserves active grants.
+// TestRedirectServiceRunsPeriodicAccessGrantCleanup verifies maintenance runs at startup and preserves active grants.
 func TestRedirectServiceRunsPeriodicAccessGrantCleanup(t *testing.T) {
 	fixture := newAccessGrantCleanupFixture(t)
 	fixture.insertExpiredGrants(t, 1)
@@ -704,7 +704,7 @@ func TestRedirectServiceRunsPeriodicAccessGrantCleanup(t *testing.T) {
 	cleanupDone := make(chan struct{})
 	go func() {
 		defer close(cleanupDone)
-		fixture.service.RunAccessGrantCleanup(cleanupCtx, time.Millisecond, slog.Default())
+		fixture.service.RunAccessGrantCleanup(cleanupCtx, time.Hour, slog.Default())
 	}()
 	expiredCount := 1
 	deadline := time.Now().Add(5 * time.Second)

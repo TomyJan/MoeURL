@@ -186,6 +186,54 @@ func TestServicePasswordConfigurationRoundTrip(t *testing.T) {
 	require.False(t, adminCleared.ShortLink.PasswordEnabled)
 }
 
+// TestServicePasswordUpdatesInvalidateExistingAccessGrants verifies both owner and admin updates revoke old grants.
+func TestServicePasswordUpdatesInvalidateExistingAccessGrants(t *testing.T) {
+	tests := []struct {
+		name   string
+		update func(context.Context, *shortlink.Service, auth.CurrentUser, shortlink.UpdateInput) (shortlink.CreateResult, error)
+	}{
+		{
+			name: "owner update",
+			update: func(ctx context.Context, service *shortlink.Service, user auth.CurrentUser, input shortlink.UpdateInput) (shortlink.CreateResult, error) {
+				return service.Update(ctx, user, input)
+			},
+		},
+		{
+			name: "admin update",
+			update: func(ctx context.Context, service *shortlink.Service, _ auth.CurrentUser, input shortlink.UpdateInput) (shortlink.CreateResult, error) {
+				return service.AdminUpdate(ctx, auth.CurrentUser{GroupKey: permission.GroupAdmin}, input)
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			pool := shortLinkTestPool(t, ctx)
+			insertShortLinkDefaultDomain(t, ctx, pool)
+			user := insertShortLinkUser(t, ctx, pool, "grant-owner", permission.GroupUser, permission.UserPermissions)
+			service := shortlink.NewService(pool, permission.NewService())
+			redirectService := shortlink.NewRedirectService(pool, nil)
+
+			created, err := service.Create(ctx, user, shortlink.CreateInput{
+				TargetURL: "https://example.com/protected",
+				Password:  &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "correct horse"},
+			})
+			require.NoError(t, err)
+			grant, err := redirectService.Unlock(ctx, created.ShortLink.Slug, "correct horse")
+			require.NoError(t, err)
+
+			_, err = test.update(ctx, service, user, shortlink.UpdateInput{
+				ID:       created.ShortLink.ID,
+				Password: &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "updated horse"},
+			})
+			require.NoError(t, err)
+			_, err = redirectService.Continue(ctx, created.ShortLink.Slug, grant.Token)
+			require.ErrorIs(t, err, shortlink.ErrPasswordRequired)
+		})
+	}
+}
+
 // TestServiceCreateReturnsDatabaseAndInputErrors verifies invalid identifiers and database failures.
 func TestServiceCreateReturnsDatabaseAndInputErrors(t *testing.T) {
 	ctx := context.Background()
