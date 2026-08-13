@@ -21,7 +21,7 @@ const (
 	CodeInvalidIntermediateDelay = 200107
 	CodeInvalidExpiration        = 200108
 	CodeShortLinkExpired         = 200109
-	CodeShortLinkNotIntermediate = 200110
+	CodeShortLinkNotInteractive  = 200110
 	CodePasswordRequired         = 200111
 	CodeInvalidPassword          = 200112
 	CodePasswordRateLimited      = 200113

@@ -50,10 +50,11 @@ type OpenResult struct {
 }
 
 // PreviewResult contains the minimal public data required by the redirect page.
-// IntermediateDelaySeconds is nil for direct links and set for intermediate links.
+// IntermediateDelaySeconds is set only for intermediate links.
 type PreviewResult struct {
 	Slug                     string     `json:"slug"`
 	TargetHost               string     `json:"targetHost"`
+	RedirectMode             string     `json:"redirectMode"`
 	IntermediateDelaySeconds *int16     `json:"intermediateDelaySeconds"`
 	ExpiresAt                *time.Time `json:"expiresAt"`
 }
@@ -112,7 +113,7 @@ func (s *RedirectService) Open(ctx context.Context, slug string) (OpenResult, er
 	if result.RequiresPassword {
 		return result, nil
 	}
-	if link.RedirectMode == RedirectModeIntermediate {
+	if isInteractiveRedirectMode(link.RedirectMode) {
 		return result, nil
 	}
 
@@ -160,6 +161,7 @@ func (s *RedirectService) Preview(ctx context.Context, slug string, accessToken 
 	return PreviewResult{
 		Slug:                     slug,
 		TargetHost:               target.Hostname(),
+		RedirectMode:             link.RedirectMode,
 		IntermediateDelaySeconds: intermediateDelaySeconds,
 		ExpiresAt:                optionalTime(link.ExpiresAt.Valid, link.ExpiresAt.Time),
 	}, nil
@@ -193,6 +195,9 @@ func (s *RedirectService) Continue(ctx context.Context, slug string, accessToken
 		}
 	}
 
+	if link.RedirectMode == RedirectModeConfirmation {
+		s.record(ctx, event.ConfirmationClicked, slug, shortLinkID)
+	}
 	s.record(ctx, event.RedirectInitiated, slug, shortLinkID)
 	return RedirectResult{TargetURL: link.TargetUrl, ShortLinkID: shortLinkID}, nil
 }
@@ -399,9 +404,9 @@ func (s *RedirectService) RunAccessGrantCleanup(ctx context.Context, interval ti
 }
 
 // checkAccess records access-condition auditing around the shared validation rules.
-func (s *RedirectService) checkAccess(ctx context.Context, slug string, shortLinkID string, status string, expired bool, redirectMode string, requireIntermediate bool) error {
+func (s *RedirectService) checkAccess(ctx context.Context, slug string, shortLinkID string, status string, expired bool, redirectMode string, requireInteractive bool) error {
 	s.record(ctx, event.AccessConditionChecked, slug, shortLinkID)
-	if err := validateAccessConditions(status, expired, redirectMode, requireIntermediate); err != nil {
+	if err := validateAccessConditions(status, expired, redirectMode, requireInteractive); err != nil {
 		s.record(ctx, event.RedirectBlocked, slug, shortLinkID)
 		return err
 	}
@@ -409,17 +414,21 @@ func (s *RedirectService) checkAccess(ctx context.Context, slug string, shortLin
 }
 
 // validateAccessConditions enforces enabled, unexpired, and redirect-mode requirements.
-func validateAccessConditions(status string, expired bool, redirectMode string, requireIntermediate bool) error {
+func validateAccessConditions(status string, expired bool, redirectMode string, requireInteractive bool) error {
 	if status != shortLinkStatusActive {
 		return ErrShortLinkDisabled
 	}
 	if expired {
 		return ErrShortLinkExpired
 	}
-	if requireIntermediate && redirectMode != RedirectModeIntermediate {
-		return ErrShortLinkNotIntermediate
+	if requireInteractive && !isInteractiveRedirectMode(redirectMode) {
+		return ErrShortLinkNotInteractive
 	}
 	return nil
+}
+
+func isInteractiveRedirectMode(redirectMode string) bool {
+	return redirectMode == RedirectModeIntermediate || redirectMode == RedirectModeConfirmation
 }
 
 // recordBlocked records a best-effort non-statistical blocked-access audit event.

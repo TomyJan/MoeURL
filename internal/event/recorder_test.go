@@ -69,14 +69,15 @@ func TestRecorderIgnoresNonVisitEvents(t *testing.T) {
 	insertEventRecorderFixtures(t, ctx, pool, linkID)
 	recorder := event.NewRecorder(pool, discardLogger())
 
-	err := recorder.Record(ctx, event.Event{Type: event.RedirectInitiated, ShortLinkID: linkID.String()})
-	if err != nil {
-		t.Fatalf("record non-visit event: %v", err)
+	for _, eventType := range []string{event.RedirectInitiated, event.ConfirmationClicked} {
+		if err := recorder.Record(ctx, event.Event{Type: eventType, ShortLinkID: linkID.String()}); err != nil {
+			t.Fatalf("record non-visit event %s: %v", eventType, err)
+		}
 	}
 	time.Sleep(100 * time.Millisecond)
 
 	var count int
-	err = pool.QueryRow(ctx, `select count(*) from short_link_event`).Scan(&count)
+	err := pool.QueryRow(ctx, `select count(*) from short_link_event`).Scan(&count)
 	if err != nil {
 		t.Fatalf("query recorded events: %v", err)
 	}

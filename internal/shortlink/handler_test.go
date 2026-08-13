@@ -175,7 +175,7 @@ func TestShortLinkBusinessErrorCodesRemainStable(t *testing.T) {
 		"invalid intermediate delay": shortlink.CodeInvalidIntermediateDelay,
 		"invalid expiration":         shortlink.CodeInvalidExpiration,
 		"expired":                    shortlink.CodeShortLinkExpired,
-		"not intermediate":           shortlink.CodeShortLinkNotIntermediate,
+		"not interactive":            shortlink.CodeShortLinkNotInteractive,
 	}
 	expected := map[string]int{
 		"slug conflict":              200101,
@@ -187,7 +187,7 @@ func TestShortLinkBusinessErrorCodesRemainStable(t *testing.T) {
 		"invalid intermediate delay": 200107,
 		"invalid expiration":         200108,
 		"expired":                    200109,
-		"not intermediate":           200110,
+		"not interactive":            200110,
 	}
 	for name, code := range codes {
 		if code != expected[name] {

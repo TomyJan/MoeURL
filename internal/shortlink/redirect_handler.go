@@ -58,7 +58,7 @@ func NewRedirectHandlerWithAnalyticsAndSecurity(service RedirectPort, recorder e
 	return handler
 }
 
-// Open writes either the direct target redirect or the internal intermediate-page redirect.
+// Open writes either the direct target redirect or an internal interactive-page redirect.
 func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug string) {
 	result, err := h.service.Open(r.Context(), slug)
 	if err != nil {
@@ -69,7 +69,7 @@ func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug stri
 		redirectToPublicAccessState(w, r, slug, "password", nil)
 		return
 	}
-	if result.RedirectMode == RedirectModeIntermediate {
+	if isInteractiveRedirectMode(result.RedirectMode) {
 		http.Redirect(w, r, "/go/"+url.PathEscape(result.Slug), http.StatusFound)
 		return
 	}
@@ -107,8 +107,8 @@ func (h *RedirectHandler) preview(w http.ResponseWriter, r *http.Request, slug s
 			businessError(w, CodeShortLinkDisabled, "Short link disabled")
 		case errors.Is(err, ErrShortLinkExpired):
 			businessError(w, CodeShortLinkExpired, "Short link expired")
-		case errors.Is(err, ErrShortLinkNotIntermediate):
-			businessError(w, CodeShortLinkNotIntermediate, "Short link does not use an intermediate page")
+		case errors.Is(err, ErrShortLinkNotInteractive):
+			businessError(w, CodeShortLinkNotInteractive, "Short link does not use an interactive access page")
 		case errors.Is(err, ErrPasswordRequired):
 			businessError(w, CodePasswordRequired, "Password required")
 		default:
@@ -225,8 +225,8 @@ func writePublicAccessError(w http.ResponseWriter, r *http.Request, slug string,
 		redirectToPublicAccessState(w, r, slug, "disabled", nil)
 	case errors.Is(err, ErrShortLinkExpired):
 		redirectToPublicAccessState(w, r, slug, "expired", nil)
-	case errors.Is(err, ErrShortLinkNotIntermediate):
-		redirectToPublicAccessState(w, r, slug, "not-intermediate", nil)
+	case errors.Is(err, ErrShortLinkNotInteractive):
+		redirectToPublicAccessState(w, r, slug, "not-interactive", nil)
 	case errors.Is(err, ErrPasswordRequired), errors.Is(err, ErrInvalidPassword):
 		redirectToPublicAccessState(w, r, slug, "password", nil)
 	case errors.Is(err, ErrPasswordRateLimited):
