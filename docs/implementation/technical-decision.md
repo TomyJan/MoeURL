@@ -74,7 +74,7 @@ v0.2.0 在 `short_link` 增加跳转模式、中间页倒计时和可选过期�
 
 v0.3.0 在 `short_link` 增加 Argon2id 密码哈希、数据库失败窗口和密码更新时间，并新增短期访问授权表。授权令牌只以 SHA-256 哈希存储，公开访问通过 `HttpOnly`、`SameSite=Lax` 的 Cookie 传递，生产环境启用 `Secure`，TTL 为 15 分钟，并按短链限定为 `Path=/go/{slug}`；不使用 JWT 或登录 session 代替访客授权。解锁使用同源 `POST /go/{slug}/unlock`，短码由路径提供，请求体只传密码，使授权签发与后续预览、继续访问处于同一路径作用域。授权表分别按 `expires_at` 和 `short_link_id` 建立索引，支撑分批过期清理和短链删除时的级联行定位。失败窗口按短链行锁保护，保证多实例部署的一致性。密码失败次数约束先由 `00006` 以 `NOT VALID` 添加，再由 `00007` 独立验证，避免升级大表时在字段迁移事务中扫描全部历史数据。
 
-v0.4.0 将确认页建模为第三种 `confirmation` 跳转模式，而不是独立布尔访问条件或确认令牌。该模式复用 `/go/{slug}`、同源预览和 `/go/{slug}/continue`，公开预览显式返回 `redirectMode`，前端据此选择自动倒计时或等待主动确认。migration 只扩展 `redirect_mode` 约束并追加 `short_link:use_confirmation` 权限，不新增确认状态字段；确认点击属于非统计事件，最终访问量仍只统计成功写出的 `redirect_response_sent`。
+v0.4.0 将确认页建模为第三种 `confirmation` 跳转模式，而不是独立布尔访问条件或确认令牌。该模式复用 `/go/{slug}`、同源预览和 `/go/{slug}/continue`，公开预览显式返回 `redirectMode`，前端据此选择自动倒计时或等待主动确认。migration 只扩展 `redirect_mode` 约束并追加 `short_link:use_confirmation` 权限，不新增确认状态字段；确认点击属于非统计事件，最终访问量仍只统计成功写出的 `redirect_response_sent`。短链生产 Service 按请求从 `user_group.permissions` 解析当前 `GroupKey` 的权限快照，不缓存跨请求权限，保证数据库撤权立即成为后端安全边界。Continue 的未知基础设施错误通过 `reason=continue-failed` 回流到公共页面并重新读取最小预览，避免顶层导航落入纯文本 500，同时不把目标 URL 暴露给客户端。
 
 ### SQLC
 

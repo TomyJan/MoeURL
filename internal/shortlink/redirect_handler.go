@@ -185,10 +185,24 @@ func (h *RedirectHandler) Continue(w http.ResponseWriter, r *http.Request, slug 
 	}
 	result, err := h.service.Continue(r.Context(), slug, accessTokenFromRequest(r))
 	if err != nil {
-		writePublicAccessError(w, r, slug, err)
+		if isPublicAccessError(err) {
+			writePublicAccessError(w, r, slug, err)
+		} else {
+			redirectToPublicAccessState(w, r, slug, "continue-failed", nil)
+		}
 		return
 	}
 	h.writeTargetRedirect(w, r, result, strings.ToLower(slug))
+}
+
+func isPublicAccessError(err error) bool {
+	return errors.Is(err, ErrShortLinkMissing) ||
+		errors.Is(err, ErrShortLinkDisabled) ||
+		errors.Is(err, ErrShortLinkExpired) ||
+		errors.Is(err, ErrShortLinkNotInteractive) ||
+		errors.Is(err, ErrPasswordRequired) ||
+		errors.Is(err, ErrInvalidPassword) ||
+		errors.Is(err, ErrPasswordRateLimited)
 }
 
 // redirectLowercaseScopedSlug canonicalizes scoped access paths before cookie-based authorization.

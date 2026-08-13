@@ -187,6 +187,36 @@ describe('RedirectPage', () => {
 
   it('waits for an explicit click on a confirmation preview', async () => {
     const setInterval = vi.spyOn(globalThis, 'setInterval')
+    const expiresAt = '2026-08-14T02:30:00Z'
+    vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
+      slug: 'abc123',
+      targetHost: 'example.com',
+      redirectMode: 'confirmation',
+      intermediateDelaySeconds: null,
+      expiresAt,
+    })
+
+    const { container } = mountPage()
+    await flushPreview()
+
+    expect(screen.getByText('redirect.confirmationTitle')).toBeTruthy()
+    expect(screen.getByText('redirect.confirmationDescription')).toBeTruthy()
+    expect(screen.getByText('abc123')).toBeTruthy()
+    expect(screen.getByText('redirect.shortCode')).toBeTruthy()
+    expect(screen.getByText('redirect.expiresAt')).toBeTruthy()
+    expect(container.querySelector(`time[datetime="${expiresAt}"]`)).toBeTruthy()
+    expect(container.querySelector('.redirect-page__countdown')).toBeNull()
+    expect(setInterval).not.toHaveBeenCalled()
+    expect(state.assign).not.toHaveBeenCalled()
+
+    const continueButton = screen.getByRole('button', { name: 'redirect.confirmationContinue' })
+    await fireEvent.click(continueButton)
+    await fireEvent.click(continueButton)
+    expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
+    expect(state.assign).toHaveBeenCalledTimes(1)
+  })
+
+  it('omits expiration metadata from confirmation previews without an expiration', async () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
@@ -198,17 +228,83 @@ describe('RedirectPage', () => {
     const { container } = mountPage()
     await flushPreview()
 
-    expect(screen.getByText('redirect.confirmationTitle')).toBeTruthy()
-    expect(screen.getByText('redirect.confirmationDescription')).toBeTruthy()
-    expect(container.querySelector('.redirect-page__countdown')).toBeNull()
-    expect(setInterval).not.toHaveBeenCalled()
-    expect(state.assign).not.toHaveBeenCalled()
+    expect(screen.getByText('abc123')).toBeTruthy()
+    expect(screen.queryByText('redirect.expiresAt')).toBeNull()
+    expect(container.querySelector('time')).toBeNull()
+  })
 
-    const continueButton = screen.getByRole('button', { name: 'redirect.confirmationContinue' })
-    await fireEvent.click(continueButton)
-    await fireEvent.click(continueButton)
+  it('falls back to the raw expiration value when preview time formatting fails', async () => {
+    vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
+      slug: 'abc123',
+      targetHost: 'example.com',
+      redirectMode: 'confirmation',
+      intermediateDelaySeconds: null,
+      expiresAt: 'invalid-time',
+    })
+
+    const { container } = mountPage()
+    await flushPreview()
+
+    expect(screen.getByText('invalid-time')).toBeTruthy()
+    expect(container.querySelector('time')?.getAttribute('datetime')).toBe('invalid-time')
+  })
+
+  it('reloads a confirmation preview after a continue failure and allows retry', async () => {
+    state.route!.query = { reason: 'continue-failed' }
+    vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
+      slug: 'abc123',
+      targetHost: 'example.com',
+      redirectMode: 'confirmation',
+      intermediateDelaySeconds: null,
+      expiresAt: null,
+    })
+
+    mountPage()
+    await flushPreview()
+
+    expect(getPublicShortLinkPreview).toHaveBeenCalledWith('abc123')
+    expect(screen.getByText('redirect.continueFailed')).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: 'redirect.confirmationContinue' }))
     expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
-    expect(state.assign).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not automatically retry a direct preview after a continue failure', async () => {
+    state.route!.query = { reason: 'continue-failed' }
+    vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
+      slug: 'abc123',
+      targetHost: 'example.com',
+      redirectMode: 'direct',
+      intermediateDelaySeconds: null,
+      expiresAt: null,
+    })
+
+    mountPage()
+    await flushPreview()
+
+    expect(screen.getByText('redirect.continueFailed')).toBeTruthy()
+    expect(state.assign).not.toHaveBeenCalled()
+    await fireEvent.click(screen.getByRole('button', { name: 'redirect.continue' }))
+    expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
+  })
+
+  it('does not restart an intermediate countdown after a continue failure', async () => {
+    state.route!.query = { reason: 'continue-failed' }
+    const setInterval = vi.spyOn(globalThis, 'setInterval')
+    vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
+      slug: 'abc123',
+      targetHost: 'example.com',
+      redirectMode: 'intermediate',
+      intermediateDelaySeconds: 5,
+      expiresAt: null,
+    })
+
+    mountPage()
+    await flushPreview()
+
+    expect(screen.getByText('redirect.continueFailed')).toBeTruthy()
+    expect(setInterval).not.toHaveBeenCalled()
+    await fireEvent.click(screen.getByRole('button', { name: 'redirect.continue' }))
+    expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
   })
 
   it('keeps a protected confirmation preview waiting after unlock', async () => {

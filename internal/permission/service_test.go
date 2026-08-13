@@ -1,6 +1,7 @@
 package permission_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/TomyJan/MoeURL/internal/permission"
@@ -65,5 +66,23 @@ func TestBuiltInGroupPermissions(t *testing.T) {
 	}
 	if !service.Has(permission.GroupAdmin, permission.ShortLinkUseConfirmation) {
 		t.Fatal("expected admin to use confirmation redirects")
+	}
+}
+
+func TestStaticPermissionSnapshots(t *testing.T) {
+	service := permission.NewService()
+	userPermissions, err := service.Resolve(context.Background(), permission.GroupUser)
+	if err != nil {
+		t.Fatalf("resolve user permissions: %v", err)
+	}
+	if !userPermissions.Has(permission.ShortLinkUseConfirmation) {
+		t.Fatal("expected user snapshot to include confirmation permission")
+	}
+	unknownPermissions, err := service.Resolve(context.Background(), "unknown")
+	if err != nil {
+		t.Fatalf("resolve unknown permissions: %v", err)
+	}
+	if unknownPermissions.Has(permission.ShortLinkUseConfirmation) {
+		t.Fatal("expected unknown snapshot to deny confirmation permission")
 	}
 }

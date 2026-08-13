@@ -15,7 +15,6 @@
           <span>{{ t('shortLinkSettings.redirectMode') }}</span>
           <v-btn-toggle :model-value="redirectMode" mandatory divided :aria-label="t('shortLinkSettings.redirectMode')">
             <v-btn
-              v-if="canUseIntermediate"
               size="small"
               value="direct"
               :disabled="pending"
@@ -154,7 +153,9 @@ const canUseIntermediate = computed(() => Boolean(currentUser.value?.permissions
 const canUseConfirmation = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:use_confirmation')))
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
 const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
-const canConfigureRedirect = computed(() => canUseIntermediate.value || canUseConfirmation.value)
+const canConfigureRedirect = computed(() =>
+  canUseIntermediate.value || canUseConfirmation.value || props.link.redirectMode !== 'direct',
+)
 
 watch(
   () => props.open,

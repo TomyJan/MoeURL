@@ -750,7 +750,7 @@ func TestRedirectHandlerContinueShowsLifecycleErrors(t *testing.T) {
 		{name: "password required", err: shortlink.ErrPasswordRequired, code: http.StatusFound, location: "/go/middle?reason=password"},
 		{name: "invalid password", err: shortlink.ErrInvalidPassword, code: http.StatusFound, location: "/go/middle?reason=password"},
 		{name: "rate limited", err: shortlink.ErrPasswordRateLimited, code: http.StatusFound, location: "/go/middle?reason=rate-limited"},
-		{name: "system", err: errors.New("database down"), code: http.StatusInternalServerError},
+		{name: "system", err: errors.New("database down"), code: http.StatusFound, location: "/go/middle?reason=continue-failed"},
 	}
 
 	for _, tt := range tests {

@@ -168,7 +168,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -221,6 +221,12 @@ const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.inc
 const canConfigureRedirect = computed(() => canUseIntermediate.value || canUseConfirmation.value)
 const canConfigureAccess = computed(() => canConfigureRedirect.value || canSetExpiration.value || canSetPassword.value)
 const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !canCreateShortLink.value)
+
+watch([canUseIntermediate, canUseConfirmation], () => {
+  if (!canSubmitRedirectMode(redirectMode.value)) {
+    redirectMode.value = 'direct'
+  }
+})
 
 const mutation = useMutation({
   /** Runs creation through the shared sensitive-input cleanup boundary. */
@@ -307,7 +313,7 @@ function submitValidatedInput(): boolean {
   }
 
   const input: CreateShortLinkInput = { targetUrl: targetUrlResult.data }
-  if (canConfigureRedirect.value) {
+  if (canSubmitRedirectMode(redirectMode.value)) {
     input.redirectMode = redirectMode.value
   }
   if (canUseIntermediate.value && redirectMode.value === 'intermediate') {
@@ -326,6 +332,12 @@ function submitValidatedInput(): boolean {
   createdSlug.value = ''
   mutation.mutate(input)
   return true
+}
+
+function canSubmitRedirectMode(mode: RedirectMode) {
+  return canConfigureRedirect.value && (mode === 'direct'
+    || (mode === 'intermediate' && canUseIntermediate.value)
+    || (mode === 'confirmation' && canUseConfirmation.value))
 }
 
 function resetForm() {

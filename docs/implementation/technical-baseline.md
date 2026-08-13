@@ -153,6 +153,8 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 - 管理事务边界。
 - 返回明确业务错误。
 
+短链 Service 的生产权限解析使用数据库中的 `user_group.permissions`。每次业务调用按当前用户 `GroupKey` 读取一次并形成权限快照，调用内的基础权限和高级能力权限必须使用同一快照；不允许用编译期内置权限替代生产校验，也不允许在权限读取失败时放行。短链模块的静态权限解析器仅用于隔离测试。
+
 ### SQLC 查询层
 
 职责：
@@ -197,7 +199,7 @@ API 使用 `/api/v1` 前缀：
 /go/{slug}/continue
 ```
 
-固定前端路由、公开解锁与继续路由和 API 路由必须优先于短码路由。`/go/{slug}` 用于中间页、密码页和确认页 App Shell，`/go/{slug}/unlock` 用密码换取路径作用域授权，`/go/{slug}/continue` 在重新检查短链状态、过期时间、跳转模式和短期授权后写出最终目标跳转。Vite 开发服务器只将 `/go/{slug}/preview`、`/go/{slug}/unlock` 和 `/go/{slug}/continue` 代理到后端，不能代理 `/go/{slug}` App Shell。
+固定前端路由、公开解锁与继续路由和 API 路由必须优先于短码路由。`/go/{slug}` 用于中间页、密码页和确认页 App Shell，`/go/{slug}/unlock` 用密码换取路径作用域授权，`/go/{slug}/continue` 在重新检查短链状态、过期时间、跳转模式和短期授权后写出最终目标跳转。Continue 的未知基础设施错误重定向到 `/go/{slug}?reason=continue-failed`，页面重新读取最小预览并等待手动重试；Open 和 Preview 的基础设施错误仍按原约定返回 HTTP 500。Vite 开发服务器只将 `/go/{slug}/preview`、`/go/{slug}/unlock` 和 `/go/{slug}/continue` 代理到后端，不能代理 `/go/{slug}` App Shell。
 
 ### API 风格
 

@@ -64,6 +64,12 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
   })
 
   await test.step('确认后才跳转并记录一次访问', async () => {
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    const expirationUpdate = await page.request.post('/api/v1/short-link/update', {
+      data: { id: confirmationLinkId, expiration: { mode: 'at', expiresAt } },
+    })
+    await expect(expirationUpdate).toBeOK()
+    expect(await expirationUpdate.json()).toMatchObject({ code: 0 })
     const previewResponsePromise = page.waitForResponse((response) => (
       new URL(response.url()).pathname === `/go/${confirmationSlug}/preview`
       && response.request().method() === 'GET'
@@ -72,6 +78,18 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
       body: 'confirmation target reached',
       status: 200,
     }))
+    let continueAttempts = 0
+    await page.route(`**/go/${confirmationSlug}/continue`, async (route) => {
+      continueAttempts += 1
+      if (continueAttempts === 1) {
+        await route.fulfill({
+          headers: { location: `/go/${confirmationSlug}?reason=continue-failed` },
+          status: 302,
+        })
+        return
+      }
+      await route.continue()
+    })
     await page.goto(`/${confirmationSlug}`)
     const previewResponse = await previewResponsePromise
     expect(previewResponse.status()).toBe(200)
@@ -88,10 +106,16 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
         targetHost: 'example.com',
       },
     })
+    const previewExpiresAt = String(previewPayload.data.expiresAt)
+    expect(Date.parse(previewExpiresAt)).toBe(Date.parse(expiresAt))
     expect(previewPayload.data).not.toHaveProperty('targetUrl')
     expect(JSON.stringify(previewPayload)).not.toContain('https://example.com/e2e-confirmation')
     await expect(page).toHaveURL(new RegExp(`/go/${confirmationSlug}$`))
     await expect(page.getByRole('heading', { name: '确认访问外部网站' })).toBeVisible()
+    await expect(page.getByText('短码')).toBeVisible()
+    await expect(page.getByText(confirmationSlug, { exact: true })).toBeVisible()
+    await expect(page.getByText('有效期至')).toBeVisible()
+    await expect(page.locator(`time[datetime="${previewExpiresAt}"]`)).toBeVisible()
     await expect(page.getByRole('button', { name: '继续访问' })).toBeVisible()
     await expect(page.locator('.redirect-page__countdown')).toHaveCount(0)
     expect(await readVisitCount(page, confirmationLinkId)).toBe(0)
@@ -102,6 +126,16 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
     await expectConfirmationLayout(page)
     await attachScreenshot(testInfo, 'confirmation-mobile', page)
     await page.setViewportSize({ width: 1280, height: 720 })
+
+    const failedContinueRequest = page.waitForRequest((request) => (
+      new URL(request.url()).pathname === `/go/${confirmationSlug}/continue`
+      && request.method() === 'GET'
+    ))
+    await page.getByRole('button', { name: '继续访问' }).click()
+    await failedContinueRequest
+    await expect(page).toHaveURL(new RegExp(`/go/${confirmationSlug}[?]reason=continue-failed$`))
+    await expect(page.getByText('暂时无法继续访问，请重试。')).toBeVisible()
+    expect(await readVisitCount(page, confirmationLinkId)).toBe(0)
 
     const continueRequestPromise = page.waitForRequest((request) => (
       new URL(request.url()).pathname === `/go/${confirmationSlug}/continue`
@@ -260,16 +294,18 @@ async function expectConfirmationLayout(page: Page) {
   await expectNoHorizontalOverflow(page)
   const elements = [
     page.locator('.redirect-page__description'),
+    page.locator('.redirect-page__metadata'),
     page.locator('.redirect-page__target'),
     page.locator('.redirect-page__actions'),
   ]
   const boxes = await Promise.all(elements.map((element) => element.boundingBox()))
   expect(boxes.every(Boolean)).toBe(true)
-  const [descriptionBox, targetBox, actionsBox] = boxes
-  if (!descriptionBox || !targetBox || !actionsBox) {
+  const [descriptionBox, metadataBox, targetBox, actionsBox] = boxes
+  if (!descriptionBox || !metadataBox || !targetBox || !actionsBox) {
     return
   }
-  expect(descriptionBox.y + descriptionBox.height).toBeLessThanOrEqual(targetBox.y + 1)
+  expect(descriptionBox.y + descriptionBox.height).toBeLessThanOrEqual(metadataBox.y + 1)
+  expect(metadataBox.y + metadataBox.height).toBeLessThanOrEqual(targetBox.y + 1)
   expect(targetBox.y + targetBox.height).toBeLessThanOrEqual(actionsBox.y + 1)
   const viewport = page.viewportSize()
   expect(viewport).not.toBeNull()

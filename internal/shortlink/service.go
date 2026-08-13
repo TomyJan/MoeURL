@@ -34,11 +34,11 @@ const (
 
 type Service struct {
 	queries     *sqlc.Queries
-	permissions *permission.Service
+	permissions permission.Resolver
 }
 
 // NewService creates a short link service backed by SQLC queries and permissions.
-func NewService(pool *pgxpool.Pool, permissions *permission.Service) *Service {
+func NewService(pool *pgxpool.Pool, permissions permission.Resolver) *Service {
 	if permissions == nil {
 		permissions = permission.NewService()
 	}
@@ -50,13 +50,17 @@ func NewService(pool *pgxpool.Pool, permissions *permission.Service) *Service {
 
 // Create validates a target URL and creates an active short link for the caller.
 func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input CreateInput) (CreateResult, error) {
-	if !s.permissions.Has(user.GroupKey, permission.ShortLinkCreate) || !s.permissions.Has(user.GroupKey, permission.DomainUseDefault) {
+	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
+	if err != nil {
+		return CreateResult{}, err
+	}
+	if !permissions.Has(permission.ShortLinkCreate) || !permissions.Has(permission.DomainUseDefault) {
 		return CreateResult{}, ErrPermissionDenied
 	}
 	if err := validateTargetURL(input.TargetURL); err != nil {
 		return CreateResult{}, err
 	}
-	accessConfig, err := s.createAccessConfig(ctx, user, input)
+	accessConfig, err := s.createAccessConfig(ctx, permissions, input)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -119,7 +123,11 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 
 // Overview returns aggregate metrics for short links owned by the caller.
 func (s *Service) Overview(ctx context.Context, user auth.CurrentUser) (OverviewResult, error) {
-	if !s.permissions.Has(user.GroupKey, permission.ShortLinkReadOwn) {
+	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
+	if err != nil {
+		return OverviewResult{}, err
+	}
+	if !permissions.Has(permission.ShortLinkReadOwn) {
 		return OverviewResult{}, ErrPermissionDenied
 	}
 	ownerID, err := uuid.Parse(user.ID)
@@ -140,7 +148,11 @@ func (s *Service) Overview(ctx context.Context, user auth.CurrentUser) (Overview
 
 // List returns a paginated view of short links owned by the caller.
 func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInput) (ListResult, error) {
-	if !s.permissions.Has(user.GroupKey, permission.ShortLinkReadOwn) {
+	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
+	if err != nil {
+		return ListResult{}, err
+	}
+	if !permissions.Has(permission.ShortLinkReadOwn) {
 		return ListResult{}, ErrPermissionDenied
 	}
 	if input.Status != "" && !isAllowedStatus(input.Status) {
@@ -199,7 +211,11 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 
 // Update changes the target URL or status of a short link owned by the caller.
 func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input UpdateInput) (CreateResult, error) {
-	if !s.permissions.Has(user.GroupKey, permission.ShortLinkUpdateOwn) {
+	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
+	if err != nil {
+		return CreateResult{}, err
+	}
+	if !permissions.Has(permission.ShortLinkUpdateOwn) {
 		return CreateResult{}, ErrPermissionDenied
 	}
 	if input.TargetURL != nil {
@@ -210,7 +226,7 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 	if input.Status != nil && !isAllowedStatus(*input.Status) {
 		return CreateResult{}, ErrInvalidStatus
 	}
-	accessConfig, err := s.updateAccessConfig(ctx, user, input)
+	accessConfig, err := s.updateAccessConfig(ctx, permissions, input)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -261,7 +277,11 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 
 // Delete soft-deletes a short link owned by the caller.
 func (s *Service) Delete(ctx context.Context, user auth.CurrentUser, input DeleteInput) error {
-	if !s.permissions.Has(user.GroupKey, permission.ShortLinkDeleteOwn) {
+	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
+	if err != nil {
+		return err
+	}
+	if !permissions.Has(permission.ShortLinkDeleteOwn) {
 		return ErrPermissionDenied
 	}
 
@@ -285,7 +305,11 @@ func (s *Service) Delete(ctx context.Context, user auth.CurrentUser, input Delet
 
 // Statistics returns analytics for a short link owned by the current user.
 func (s *Service) Statistics(ctx context.Context, user auth.CurrentUser, input StatisticsInput) (StatisticsResult, error) {
-	if !s.permissions.Has(user.GroupKey, permission.ShortLinkReadOwn) {
+	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
+	if err != nil {
+		return StatisticsResult{}, err
+	}
+	if !permissions.Has(permission.ShortLinkReadOwn) {
 		return StatisticsResult{}, ErrPermissionDenied
 	}
 	linkID, ownerID, err := parseLinkAndOwnerIDs(input.ID, user.ID)
@@ -304,7 +328,11 @@ func (s *Service) Statistics(ctx context.Context, user auth.CurrentUser, input S
 
 // AdminStatistics returns analytics for a short link visible to an administrator.
 func (s *Service) AdminStatistics(ctx context.Context, user auth.CurrentUser, input StatisticsInput) (StatisticsResult, error) {
-	if !s.hasAdminPermission(user, permission.ShortLinkReadAll) {
+	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
+	if err != nil {
+		return StatisticsResult{}, err
+	}
+	if !hasAdminPermission(permissions, permission.ShortLinkReadAll) {
 		return StatisticsResult{}, ErrPermissionDenied
 	}
 	linkID, err := uuid.Parse(input.ID)
@@ -320,7 +348,11 @@ func (s *Service) AdminStatistics(ctx context.Context, user auth.CurrentUser, in
 
 // AdminList returns a paginated, filterable view of all short links.
 func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input ListInput) (AdminListResult, error) {
-	if !s.hasAdminPermission(user, permission.ShortLinkReadAll) {
+	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
+	if err != nil {
+		return AdminListResult{}, err
+	}
+	if !hasAdminPermission(permissions, permission.ShortLinkReadAll) {
 		return AdminListResult{}, ErrPermissionDenied
 	}
 	if input.Status != "" && !isAllowedStatus(input.Status) {
@@ -378,7 +410,11 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 
 // AdminUpdate changes the target URL or status of any short link.
 func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input UpdateInput) (CreateResult, error) {
-	if !s.hasAdminPermission(user, permission.ShortLinkUpdateAll) {
+	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
+	if err != nil {
+		return CreateResult{}, err
+	}
+	if !hasAdminPermission(permissions, permission.ShortLinkUpdateAll) {
 		return CreateResult{}, ErrPermissionDenied
 	}
 	if input.TargetURL != nil {
@@ -389,7 +425,7 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 	if input.Status != nil && !isAllowedStatus(*input.Status) {
 		return CreateResult{}, ErrInvalidStatus
 	}
-	accessConfig, err := s.updateAccessConfig(ctx, user, input)
+	accessConfig, err := s.updateAccessConfig(ctx, permissions, input)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -438,7 +474,11 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 
 // AdminDelete soft-deletes any short link.
 func (s *Service) AdminDelete(ctx context.Context, user auth.CurrentUser, input DeleteInput) error {
-	if !s.hasAdminPermission(user, permission.ShortLinkDeleteAll) {
+	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
+	if err != nil {
+		return err
+	}
+	if !hasAdminPermission(permissions, permission.ShortLinkDeleteAll) {
 		return ErrPermissionDenied
 	}
 	linkID, err := uuid.Parse(input.ID)
@@ -590,7 +630,7 @@ type updateAccessConfigParams struct {
 }
 
 // createAccessConfig normalizes defaults and validates advanced creation settings.
-func (s *Service) createAccessConfig(ctx context.Context, user auth.CurrentUser, input CreateInput) (createAccessConfigParams, error) {
+func (s *Service) createAccessConfig(ctx context.Context, permissions permission.Snapshot, input CreateInput) (createAccessConfigParams, error) {
 	redirectMode := input.RedirectMode
 	if redirectMode == "" {
 		redirectMode = RedirectModeDirect
@@ -606,21 +646,21 @@ func (s *Service) createAccessConfig(ctx context.Context, user auth.CurrentUser,
 	if !isAllowedIntermediateDelay(delay) {
 		return createAccessConfigParams{}, ErrInvalidIntermediateDelay
 	}
-	if required := redirectModePermission(redirectMode); required != "" && !s.permissions.Has(user.GroupKey, required) {
+	if required := redirectModePermission(redirectMode); required != "" && !permissions.Has(required) {
 		return createAccessConfigParams{}, ErrPermissionDenied
 	}
-	if delay != defaultIntermediateDelay && !s.permissions.Has(user.GroupKey, permission.ShortLinkUseIntermediate) {
+	if delay != defaultIntermediateDelay && !permissions.Has(permission.ShortLinkUseIntermediate) {
 		return createAccessConfigParams{}, ErrPermissionDenied
 	}
 
-	if input.Expiration != nil && !s.permissions.Has(user.GroupKey, permission.ShortLinkSetExpiration) {
+	if input.Expiration != nil && !permissions.Has(permission.ShortLinkSetExpiration) {
 		return createAccessConfigParams{}, ErrPermissionDenied
 	}
 	_, expiresAt, err := s.normalizeExpiration(ctx, input.Expiration)
 	if err != nil {
 		return createAccessConfigParams{}, err
 	}
-	_, passwordHash, err := s.normalizePassword(user, input.Password)
+	_, passwordHash, err := normalizePassword(permissions, input.Password)
 	if err != nil {
 		return createAccessConfigParams{}, err
 	}
@@ -633,7 +673,7 @@ func (s *Service) createAccessConfig(ctx context.Context, user auth.CurrentUser,
 }
 
 // updateAccessConfig validates only fields explicitly present in an update request.
-func (s *Service) updateAccessConfig(ctx context.Context, user auth.CurrentUser, input UpdateInput) (updateAccessConfigParams, error) {
+func (s *Service) updateAccessConfig(ctx context.Context, permissions permission.Snapshot, input UpdateInput) (updateAccessConfigParams, error) {
 	if input.RedirectMode != nil && !isAllowedRedirectMode(*input.RedirectMode) {
 		return updateAccessConfigParams{}, ErrInvalidRedirectMode
 	}
@@ -642,14 +682,14 @@ func (s *Service) updateAccessConfig(ctx context.Context, user auth.CurrentUser,
 	}
 	if input.RedirectMode != nil {
 		required := redirectModePermission(*input.RedirectMode)
-		if required != "" && !s.permissions.Has(user.GroupKey, required) {
+		if required != "" && !permissions.Has(required) {
 			return updateAccessConfigParams{}, ErrPermissionDenied
 		}
 	}
-	if input.IntermediateDelaySeconds != nil && !s.permissions.Has(user.GroupKey, permission.ShortLinkUseIntermediate) {
+	if input.IntermediateDelaySeconds != nil && !permissions.Has(permission.ShortLinkUseIntermediate) {
 		return updateAccessConfigParams{}, ErrPermissionDenied
 	}
-	if input.Expiration != nil && !s.permissions.Has(user.GroupKey, permission.ShortLinkSetExpiration) {
+	if input.Expiration != nil && !permissions.Has(permission.ShortLinkSetExpiration) {
 		return updateAccessConfigParams{}, ErrPermissionDenied
 	}
 
@@ -657,7 +697,7 @@ func (s *Service) updateAccessConfig(ctx context.Context, user auth.CurrentUser,
 	if err != nil {
 		return updateAccessConfigParams{}, err
 	}
-	passwordMode, passwordHash, err := s.normalizePassword(user, input.Password)
+	passwordMode, passwordHash, err := normalizePassword(permissions, input.Password)
 	if err != nil {
 		return updateAccessConfigParams{}, err
 	}
@@ -672,8 +712,8 @@ func (s *Service) updateAccessConfig(ctx context.Context, user auth.CurrentUser,
 }
 
 // normalizePassword enforces password capability and returns only a persistence-safe hash.
-func (s *Service) normalizePassword(user auth.CurrentUser, input *PasswordInput) (string, pgtype.Text, error) {
-	if input != nil && !s.permissions.Has(user.GroupKey, permission.ShortLinkSetPassword) {
+func normalizePassword(permissions permission.Snapshot, input *PasswordInput) (string, pgtype.Text, error) {
+	if input != nil && !permissions.Has(permission.ShortLinkSetPassword) {
 		return "", pgtype.Text{}, ErrPermissionDenied
 	}
 	mode, raw, err := validatePasswordInput(input)
@@ -777,8 +817,8 @@ func expirationValues(value pgtype.Timestamptz, expired bool) (*time.Time, bool)
 }
 
 // hasAdminPermission checks both administrative access and the requested permission.
-func (s *Service) hasAdminPermission(user auth.CurrentUser, required string) bool {
-	return s.permissions.Has(user.GroupKey, permission.AdminAccess) && s.permissions.Has(user.GroupKey, required)
+func hasAdminPermission(permissions permission.Snapshot, required string) bool {
+	return permissions.Has(permission.AdminAccess) && permissions.Has(required)
 }
 
 // normalizePagination applies default and maximum bounds to pagination input.

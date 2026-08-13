@@ -184,6 +184,7 @@ describe('ShortLinkSettingsDialog', () => {
     const view = mountDialog()
 
     expect(screen.queryByRole('button', { name: 'shortLinkSettings.intermediate' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'shortLinkSettings.direct' })).toBeTruthy()
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.confirmation' }))
     expect(screen.queryByLabelText('shortLinkSettings.intermediateDelay')).toBeNull()
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
@@ -216,6 +217,23 @@ describe('ShortLinkSettingsDialog', () => {
       targetUrl: 'https://example.com/original',
       redirectMode: 'direct',
     }])
+  })
+
+  it('allows a persisted confirmation mode to be downgraded after all redirect permissions are removed', async () => {
+    setPermissions([])
+    const view = mountDialog({ link: { ...directLink, redirectMode: 'confirmation' } })
+
+    expect(screen.queryByRole('button', { name: 'shortLinkSettings.confirmation' })).toBeNull()
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.direct' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(view.emitted().save).toEqual([[
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.com/original',
+        redirectMode: 'direct',
+      },
+    ]])
   })
 
   it('submits only expiration when intermediate permission is absent', async () => {

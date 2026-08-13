@@ -15,6 +15,7 @@ v0.4.0 在 v0.3.0 的公共访问页、访问密码和短期授权基础上，�
 - 公开预览显式返回 `redirectMode`，不再通过倒计时字段推断确认页；只有 `intermediate` 返回 3 至 10 秒倒计时，其余模式返回 `null`。
 - 无密码的 `confirmation` 短链从 `/{slug}` 进入确认页；受密码保护的短链先完成现有密码解锁，再按实际模式进入直接跳转、中间页倒计时或确认页。
 - `/go/{slug}/continue` 每次重新检查短链状态、软删除、过期时间、密码授权和跳转模式；无密码的 `direct` 短链不能借该路由绕过规范入口。
+- `/go/{slug}/continue` 遇到基础设施错误时回到公共访问页，重新读取最小预览并等待访问者重试；不得以自动重试形成跳转循环，也不得向前端返回目标 URL。
 - 确认动作可以发出非统计的 `confirmation_clicked` 事件，但不持久化为访问量；只有最终目标 `302` 成功写出后记录一次 `redirect_response_sent`。
 - 创建面板、访问设置、短链列表和公共访问页补齐中英文文案、权限状态、桌面与移动布局。
 - E2E 从真实 `/{slug}` 入口覆盖无密码确认页、受密码保护确认页、主动继续、访问条件二次检查和访问量口径，并在 `1280 x 720` 与 `390 x 800` 视口验证布局。
@@ -42,6 +43,7 @@ GET /go/{slug}/continue
   confirmation 且访问条件有效 → 目标 302
   受保护短链需要有效授权
   无密码 direct → 302 /go/{slug}?reason=not-interactive
+  基础设施错误 → 302 /go/{slug}?reason=continue-failed
 ```
 
 旧的 `/api/v1/public/short-link/preview` 继续作为弃用兼容入口，返回与同源预览相同的最小字段；新前端只使用 `/go/{slug}/preview`。
@@ -52,7 +54,7 @@ GET /go/{slug}/continue
 - migration 升级不改写既有数据；回滚时将 `confirmation` 记录降级为 `direct`，再恢复旧约束，保证 Down 可执行。
 - `short_link:use_confirmation` 只控制创建和编辑确认页模式，不控制公开访问者点击继续。
 - 修改为 `direct` 不需要确认页或中间页能力；修改为 `intermediate` 和自定义倒计时要求 `short_link:use_intermediate`；修改为 `confirmation` 要求 `short_link:use_confirmation`。
-- 前端权限控制只负责体验，后端权限服务按当前用户 `GroupKey` 执行最终校验。
+- 前端权限控制只负责体验，后端权限服务按当前用户 `GroupKey` 从数据库读取当前用户组权限，并对一次业务操作使用同一份权限快照执行最终校验。
 - 确认页不得接收目标 URL、确认令牌或客户端声明的访问状态；目标地址只由服务端最终跳转响应提供。
 
 ## 暂不实现

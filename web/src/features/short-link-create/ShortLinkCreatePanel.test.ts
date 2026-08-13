@@ -244,6 +244,57 @@ describe('ShortLinkCreatePanel', () => {
     })
   })
 
+  it('falls back to direct when the selected redirect permission is removed', async () => {
+    const mutate = vi.fn()
+    const currentUser = ref({
+      user: {
+        permissions: [
+          'short_link:create',
+          'domain:use_default',
+          'short_link:use_intermediate',
+          'short_link:use_confirmation',
+        ],
+      },
+    })
+    state.queryResult = { data: currentUser }
+    setMutationResult({ mutate })
+    mountPanel()
+
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    await fireEvent.click(screen.getByText('shortLinkCreate.redirectModes.confirmation'))
+    currentUser.value = {
+      user: {
+        permissions: [
+          'short_link:create',
+          'domain:use_default',
+          'short_link:use_confirmation',
+        ],
+      },
+    }
+    await nextTick()
+    expect(screen.getByText('shortLinkCreate.redirectModes.confirmation').getAttribute('aria-pressed')).toBe('true')
+
+    currentUser.value = {
+      user: {
+        permissions: [
+          'short_link:create',
+          'domain:use_default',
+          'short_link:use_intermediate',
+        ],
+      },
+    }
+    await nextTick()
+
+    expect(screen.queryByText('shortLinkCreate.redirectModes.confirmation')).toBeNull()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com/changed')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+
+    expect(mutate).toHaveBeenCalledWith({
+      targetUrl: 'https://example.com/changed',
+      redirectMode: 'direct',
+    })
+  })
+
   it('submits intermediate and future expiration settings then resets defaults', async () => {
     setQueryResult([
       'short_link:create',

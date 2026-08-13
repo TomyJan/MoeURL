@@ -50,6 +50,16 @@
         <p v-if="preview.redirectMode === 'confirmation'" class="redirect-page__description">
           {{ t('redirect.confirmationDescription') }}
         </p>
+        <dl v-if="preview.redirectMode === 'confirmation'" class="redirect-page__metadata">
+          <div>
+            <dt>{{ t('redirect.shortCode') }}</dt>
+            <dd>{{ preview.slug }}</dd>
+          </div>
+          <div v-if="preview.expiresAt">
+            <dt>{{ t('redirect.expiresAt') }}</dt>
+            <dd><time :datetime="preview.expiresAt">{{ formatDateTime(preview.expiresAt) }}</time></dd>
+          </div>
+        </dl>
         <p class="redirect-page__target-label">{{ t('redirect.targetHost') }}</p>
         <strong class="redirect-page__target">{{ preview.targetHost }}</strong>
         <div v-if="preview.redirectMode === 'intermediate'" class="redirect-page__countdown" aria-live="off">
@@ -138,7 +148,7 @@ async function loadPreview() {
   preview.value = null
   loading.value = true
   failureState.value = ''
-  continueFailed.value = false
+  continueFailed.value = route.query.reason === 'continue-failed'
   navigating.value = false
   passwordRequired.value = false
   unlockPending.value = false
@@ -172,7 +182,7 @@ async function loadPreview() {
       passwordRequired.value = false
       unlockErrorState.value = ''
       clearRateLimitCountdown()
-      proceedAfterAccess()
+      proceedAfterAccess(continueFailed.value)
     })
   } catch (error) {
     whenCurrent(requestId, () => {
@@ -252,21 +262,33 @@ function startCountdown() {
 }
 
 /** Continues direct links, starts intermediate countdowns, and leaves confirmation links idle. */
-function proceedAfterAccess() {
+function proceedAfterAccess(waitForRetry = false) {
   const currentPreview = preview.value
   /* v8 ignore next -- callers establish a preview first; retain a defensive guard for future call sites. */
   if (!currentPreview) {
     return
   }
   if (currentPreview.redirectMode === 'direct') {
-    continueToTarget()
+    if (!waitForRetry) {
+      continueToTarget()
+    }
     return
   }
   if (currentPreview.redirectMode === 'confirmation') {
     return
   }
   remainingSeconds.value = currentPreview.intermediateDelaySeconds
-  startCountdown()
+  if (!waitForRetry) {
+    startCountdown()
+  }
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
 }
 
 /** Submits the password and resumes navigation after a scoped grant is issued. */
@@ -464,6 +486,32 @@ function clearRateLimitCountdown() {
   margin: 0;
   color: rgb(var(--v-theme-on-surface-variant));
   line-height: 1.65;
+}
+
+.redirect-page__metadata {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px 24px;
+  margin: 0;
+}
+
+.redirect-page__metadata div {
+  display: grid;
+  gap: 4px;
+}
+
+.redirect-page__metadata dt {
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.redirect-page__metadata dd {
+  margin: 0;
+  color: rgb(var(--v-theme-on-surface));
+  font-weight: 850;
+  overflow-wrap: anywhere;
 }
 
 .redirect-page__target {

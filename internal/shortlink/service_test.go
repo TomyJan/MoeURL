@@ -1377,6 +1377,47 @@ func TestServiceConfirmationModeRequiresTargetCapability(t *testing.T) {
 	}
 }
 
+// TestServiceConfirmationPermissionTracksDatabaseChanges verifies production authorization does not cache built-in permissions.
+func TestServiceConfirmationPermissionTracksDatabaseChanges(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "dynamic-confirmation-user", permission.GroupUser, permission.UserPermissions)
+	service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
+
+	created, err := service.Create(ctx, user, shortlink.CreateInput{
+		TargetURL:    "https://example.com/dynamic-confirmation",
+		RedirectMode: shortlink.RedirectModeConfirmation,
+	})
+	require.NoError(t, err)
+
+	userPermissions := removePermission(permission.UserPermissions, permission.ShortLinkUseConfirmation)
+	_, err = pool.Exec(ctx, `update user_group set permissions = $1::jsonb where key = $2`, permissionsJSON(t, userPermissions), permission.GroupUser)
+	require.NoError(t, err)
+	_, err = service.Create(ctx, user, shortlink.CreateInput{
+		TargetURL:    "https://example.com/denied-after-revoke",
+		RedirectMode: shortlink.RedirectModeConfirmation,
+	})
+	require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
+
+	confirmation := shortlink.RedirectModeConfirmation
+	_, err = service.Update(ctx, user, shortlink.UpdateInput{ID: created.ShortLink.ID, RedirectMode: &confirmation})
+	require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
+	direct := shortlink.RedirectModeDirect
+	_, err = service.Update(ctx, user, shortlink.UpdateInput{ID: created.ShortLink.ID, RedirectMode: &direct})
+	require.NoError(t, err)
+
+	adminPermissions := removePermission(permission.AdminPermissions, permission.ShortLinkUseConfirmation)
+	_, err = pool.Exec(ctx, `
+		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000402', $1, 'Admin', '', $2::jsonb, true, now(), now())
+	`, permission.GroupAdmin, permissionsJSON(t, adminPermissions))
+	require.NoError(t, err)
+	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: permission.GroupAdmin}
+	_, err = service.AdminUpdate(ctx, admin, shortlink.UpdateInput{ID: created.ShortLink.ID, RedirectMode: &confirmation})
+	require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
+}
+
 func removePermission(permissions []string, removed string) []string {
 	result := make([]string, 0, len(permissions))
 	for _, current := range permissions {

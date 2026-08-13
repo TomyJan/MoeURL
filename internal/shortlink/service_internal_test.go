@@ -19,6 +19,45 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type failingPermissionResolver struct {
+	err error
+}
+
+func (r failingPermissionResolver) Resolve(context.Context, string) (permission.Snapshot, error) {
+	return permission.Snapshot{}, r.err
+}
+
+// TestServicePermissionResolutionFailuresPropagate verifies authorization infrastructure errors never become permission grants.
+func TestServicePermissionResolutionFailuresPropagate(t *testing.T) {
+	wantErr := errors.New("permission database down")
+	service := &Service{permissions: failingPermissionResolver{err: wantErr}}
+	ctx := context.Background()
+	user := auth.CurrentUser{GroupKey: permission.GroupUser}
+	admin := auth.CurrentUser{GroupKey: permission.GroupAdmin}
+
+	tests := []struct {
+		name string
+		call func() error
+	}{
+		{name: "create", call: func() error { _, err := service.Create(ctx, user, CreateInput{}); return err }},
+		{name: "overview", call: func() error { _, err := service.Overview(ctx, user); return err }},
+		{name: "list", call: func() error { _, err := service.List(ctx, user, ListInput{}); return err }},
+		{name: "update", call: func() error { _, err := service.Update(ctx, user, UpdateInput{}); return err }},
+		{name: "delete", call: func() error { return service.Delete(ctx, user, DeleteInput{}) }},
+		{name: "statistics", call: func() error { _, err := service.Statistics(ctx, user, StatisticsInput{}); return err }},
+		{name: "admin statistics", call: func() error { _, err := service.AdminStatistics(ctx, admin, StatisticsInput{}); return err }},
+		{name: "admin list", call: func() error { _, err := service.AdminList(ctx, admin, ListInput{}); return err }},
+		{name: "admin update", call: func() error { _, err := service.AdminUpdate(ctx, admin, UpdateInput{}); return err }},
+		{name: "admin delete", call: func() error { return service.AdminDelete(ctx, admin, DeleteInput{}) }},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			require.ErrorIs(t, test.call(), wantErr)
+		})
+	}
+}
+
 // TestValidatePasswordInput verifies password modes reject contradictory or out-of-range values.
 func TestValidatePasswordInput(t *testing.T) {
 	tests := []struct {
@@ -64,32 +103,37 @@ func TestShortLinkPasswordStateMarshalsOnlyEnabledFlag(t *testing.T) {
 
 // TestNormalizePasswordRequiresPermissionAndStoresOnlyHash verifies capability checks and one-way persistence.
 func TestNormalizePasswordRequiresPermissionAndStoresOnlyHash(t *testing.T) {
-	service := &Service{permissions: permission.NewService()}
-	user := auth.CurrentUser{GroupKey: permission.GroupUser}
-	mode, hash, err := service.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
+	service := permission.NewService()
+	userPermissions, err := service.Resolve(context.Background(), permission.GroupUser)
+	require.NoError(t, err)
+	mode, hash, err := normalizePassword(userPermissions, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
 	require.NoError(t, err)
 	verified := hash.Valid && auth.VerifyPassword("correct horse", hash.String)
 	require.Equal(t, PasswordModeSet, mode)
 	require.True(t, verified)
-	admin := auth.CurrentUser{GroupKey: permission.GroupAdmin}
-	mode, hash, err = service.normalizePassword(admin, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
+	adminPermissions, err := service.Resolve(context.Background(), permission.GroupAdmin)
+	require.NoError(t, err)
+	mode, hash, err = normalizePassword(adminPermissions, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
 	require.NoError(t, err)
 	require.Equal(t, PasswordModeSet, mode)
 	require.True(t, hash.Valid)
 	require.True(t, auth.VerifyPassword("correct horse", hash.String))
-	mode, hash, err = service.normalizePassword(admin, &PasswordInput{Mode: PasswordModeNever})
+	mode, hash, err = normalizePassword(adminPermissions, &PasswordInput{Mode: PasswordModeNever})
 	require.NoError(t, err)
 	require.Equal(t, PasswordModeNever, mode)
 	require.False(t, hash.Valid)
-	limitedService := &Service{permissions: permission.NewServiceWithPermissions(nil, permission.AdminPermissions)}
-	_, _, err = limitedService.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
+	limitedPermissions, err := permission.NewServiceWithPermissions(nil, permission.AdminPermissions).Resolve(context.Background(), permission.GroupUser)
+	require.NoError(t, err)
+	_, _, err = normalizePassword(limitedPermissions, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
 	require.ErrorIs(t, err, ErrPermissionDenied)
-	for _, user := range []auth.CurrentUser{
-		auth.GuestUser(),
-		{GroupKey: "unknown"},
+	for _, groupKey := range []string{
+		permission.GroupGuest,
+		"unknown",
 	} {
-		_, _, err := service.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
-		require.ErrorIs(t, err, ErrPermissionDenied, user.GroupKey)
+		permissions, resolveErr := service.Resolve(context.Background(), groupKey)
+		require.NoError(t, resolveErr)
+		_, _, err := normalizePassword(permissions, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
+		require.ErrorIs(t, err, ErrPermissionDenied, groupKey)
 	}
 }
 
