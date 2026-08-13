@@ -32,6 +32,8 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 - [文档总览](./docs/README.md)
 - [产品总览](./docs/product/overview.md)
+- [v0.4.0 下一步范围](./docs/product/scope-v0.4.0.md)
+- [v0.4.0 确认页访问设计](./docs/specs/2026-08-13-v0.4.0-confirmation-page-access-design.md)
 - [v0.3.0 范围](./docs/product/scope-v0.3.0.md)
 - [v0.3.0 受保护短链访问设计](./docs/specs/2026-08-04-v0.3.0-protected-link-access-design.md)
 - [短链规格](./docs/specs/short-links.md)

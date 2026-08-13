@@ -197,7 +197,7 @@ API 使用 `/api/v1` 前缀：
 /go/{slug}/continue
 ```
 
-固定前端路由、公开解锁与继续路由和 API 路由必须优先于短码路由。`/go/{slug}` 用于 v0.2.0 中间页和 v0.3.0 密码页 App Shell，`/go/{slug}/unlock` 用密码换取路径作用域授权，`/go/{slug}/continue` 在重新检查短链状态、过期时间和短期授权后写出最终目标跳转。Vite 开发服务器只将 `/go/{slug}/preview`、`/go/{slug}/unlock` 和 `/go/{slug}/continue` 代理到后端，不能代理 `/go/{slug}` App Shell。
+固定前端路由、公开解锁与继续路由和 API 路由必须优先于短码路由。`/go/{slug}` 用于中间页、密码页和确认页 App Shell，`/go/{slug}/unlock` 用密码换取路径作用域授权，`/go/{slug}/continue` 在重新检查短链状态、过期时间、跳转模式和短期授权后写出最终目标跳转。Vite 开发服务器只将 `/go/{slug}/preview`、`/go/{slug}/unlock` 和 `/go/{slug}/continue` 代理到后端，不能代理 `/go/{slug}` App Shell。
 
 ### API 风格
 
@@ -329,6 +329,10 @@ v0.2.0 在 `short_link` 追加：
 
 v0.3.0 在 `short_link` 追加 `password_hash`、`password_failed_attempts`、`password_window_started_at`、`password_blocked_until` 和 `password_updated_at`；新增 `short_link_access_grant` 保存短期授权令牌哈希。密码原文、密码哈希和授权令牌不得进入公开 API、日志、统计事件或前端状态，授权查询同时检查令牌过期时间和密码更新时间。解锁授权 Cookie 有效期为 15 分钟，必须设置 `HttpOnly` 和 `SameSite=Lax`，生产环境启用 `Secure`，并将 `Path` 限定为 `/go/{slug}`。过期授权清理由 `expires_at` 索引支撑，并由应用后台任务每分钟独立清理，每批最多删除 500 条；`short_link_id` 索引用于短链删除时的级联行定位，清理错误不影响解锁请求。`00006` 以 `NOT VALID` 添加密码失败次数约束，`00007` 在独立 migration 中验证历史数据，避免字段迁移事务扫描全部既有短链。migration 同步为既有内置 `user`、`admin` 用户组追加 `short_link:set_password`，`guest` 保持无权限。
 
+### v0.4.0 schema 扩展摘要
+
+v0.4.0 不新增数据列，只将 `short_link.redirect_mode` 的约束扩展为 `direct`、`intermediate`、`confirmation`。`00008` 使用 `NOT VALID` 替换旧约束并为内置 `user`、`admin` 用户组追加 `short_link:use_confirmation`，`00009` 独立验证新约束。回滚时先将 confirmation 记录降级为 direct，再恢复旧约束；权限跟踪表只移除 migration 实际新增的权限。
+
 ### 短码规则
 
 - v0.0.1 默认生成 6 位随机短码。
@@ -358,6 +362,7 @@ short_link:update_all
 short_link:delete_all
 domain:use_default
 short_link:use_intermediate
+short_link:use_confirmation
 short_link:set_expiration
 short_link:set_password
 admin:access
@@ -530,7 +535,7 @@ cd web && pnpm test:e2e
 
 前端单元和组件测试覆盖率门禁针对 `vitest.config.ts` 中 `coverage.include` 覆盖的应用配置、实体 API、页面组件和共享工具代码执行，必须达到 100%。`main.ts` 启动入口、类型声明和纯类型模型由构建、类型检查和 E2E 覆盖，不计入单元覆盖率门禁。
 
-v0.2.0 将新增的短链创建、访问配置和二维码组件纳入覆盖率门禁。v0.3.0 还将密码设置、公开解锁和密码页纳入覆盖率门禁；测试必须验证哈希不泄露、错误/限流/成功状态和授权失效，不允许只断言 mock 调用次数。
+v0.2.0 将新增的短链创建、访问配置和二维码组件纳入覆盖率门禁。v0.3.0 还将密码设置、公开解锁和密码页纳入覆盖率门禁；v0.4.0 继续将确认模式权限矩阵、公开预览契约和确认页状态纳入门禁。测试必须验证敏感数据不泄露、错误/限流/成功状态、授权失效和确认页不自动跳转，不允许只断言 mock 调用次数。
 
 Playwright E2E 默认通过 `web/playwright.config.ts` 启动 Docker Compose 测试环境。E2E 必须使用独立的 Compose project name，默认由 `MOEURL_E2E_PORT` 派生，也可通过 `MOEURL_E2E_COMPOSE_PROJECT` 显式指定。E2E 同时通过 `MOEURL_E2E_PORT` 和 `MOEURL_E2E_POSTGRES_PORT` 隔离应用宿主端口与 PostgreSQL 宿主端口，避免和日常 Compose 或本机 PostgreSQL 端口冲突。E2E 显式以 `MOEURL_ENV=development` 运行测试应用，避免本地 HTTP 流程受 Secure Cookie 影响。E2E 可以在该隔离测试项目内执行 `down -v` 清理测试卷，但不得清理日常 `docker compose up --build` 使用的默认开发数据库卷。
 
@@ -538,7 +543,7 @@ Playwright E2E 默认通过 `web/playwright.config.ts` 启动 Docker Compose 测
 
 当 Docker Desktop 不可用但需要验证同一套 Playwright 用例时，可先用干净数据库和当前 `web/dist` 启动本地服务，再设置 `MOEURL_E2E_SKIP_DOCKER=1` 和对应的 `MOEURL_E2E_PORT` 执行 `pnpm test:e2e`。该模式只跳过环境拉起步骤，不跳过任何浏览器断言；执行者必须确保数据库从未初始化状态开始。
 
-v0.2.0 访问体验 E2E 必须覆盖真实 `/{slug}` 入口、进入中间页前访问量为 0、继续路由目标 `302`、真实 UI 继续访问后访问量为 1，以及过期访问不增加访问量。v0.3.0 还必须覆盖真实密码页、错误密码、有效授权、密码变更吊销旧授权和访问量口径。中间页、密码页、访问设置和二维码对话框必须同时在 `1280 x 720` 与 `390 x 800` 视口验证控件顺序、操作区几何和横向溢出；异步流程使用条件等待，不允许使用固定 `waitForTimeout`。
+v0.2.0 访问体验 E2E 必须覆盖真实 `/{slug}` 入口、进入中间页前访问量为 0、继续路由目标 `302`、真实 UI 继续访问后访问量为 1，以及过期访问不增加访问量。v0.3.0 还必须覆盖真实密码页、错误密码、有效授权、密码变更吊销旧授权和访问量口径。v0.4.0 还必须覆盖无密码与受密码保护确认页、主动继续、二次访问条件检查和最终访问量。中间页、密码页、确认页、访问设置和二维码对话框必须同时在 `1280 x 720` 与 `390 x 800` 视口验证控件顺序、操作区几何和横向溢出；异步流程使用条件等待，不允许使用固定 `waitForTimeout`。
 
 ### 质量检查工作流
 

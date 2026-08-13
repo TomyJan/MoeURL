@@ -7,18 +7,20 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 建议按以下顺序阅读：
 
 1. [产品总览](product/overview.md)：了解 MoeURL 的定位、目标和核心原则。
-2. [v0.3.0 范围](product/scope-v0.3.0.md)：确认受保护短链访问的实现边界。
-3. [v0.3.0 功能设计](specs/2026-08-04-v0.3.0-protected-link-access-design.md)：确认密码、限流、授权和访问流程设计。
-4. [v0.2.0 范围](product/scope-v0.2.0.md)：回看短链访问体验与生命周期的实现边界。
-5. [v0.2.0 功能设计](specs/2026-08-02-v0.2.0-link-experience-design.md)：回看中间页、过期时间、二维码和事件设计。
-6. [统计与事件](specs/statistics-and-events.md)：确认短链访问事件、基础统计和维度统计口径。
-7. [短链](specs/short-links.md)：确认短链访问、状态和事件记录调用点。
-8. [跳转模式](specs/redirect-modes.md)：确认直接跳转、中间页和后续模式边界。
-9. [功能规格](specs/)：按模块查看权限、短链、用户、域名、页面、跳转、统计、主题和后台设计。
-10. [技术选型决策](implementation/technical-decision.md)：确认 Go + Vue 技术栈和选型理由。
-11. [技术基线](implementation/technical-baseline.md)：确认仓库结构、模块边界、API、数据库、测试和部署约定。
-12. [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)：确认新版本、跨模块和生产化任务的统一执行约定。
-13. [实施文档](implementation/)：查看工程计划、阶段任务和验收记录。
+2. [v0.4.0 范围](product/scope-v0.4.0.md)：确认下一步确认页访问的实现边界。
+3. [v0.4.0 功能设计](specs/2026-08-13-v0.4.0-confirmation-page-access-design.md)：确认模式、权限、访问状态机和统计口径。
+4. [v0.3.0 范围](product/scope-v0.3.0.md)：回看受保护短链访问的实现边界。
+5. [v0.3.0 功能设计](specs/2026-08-04-v0.3.0-protected-link-access-design.md)：回看密码、限流、授权和访问流程设计。
+6. [v0.2.0 范围](product/scope-v0.2.0.md)：回看短链访问体验与生命周期的实现边界。
+7. [v0.2.0 功能设计](specs/2026-08-02-v0.2.0-link-experience-design.md)：回看中间页、过期时间、二维码和事件设计。
+8. [统计与事件](specs/statistics-and-events.md)：确认短链访问事件、基础统计和维度统计口径。
+9. [短链](specs/short-links.md)：确认短链访问、状态和事件记录调用点。
+10. [跳转模式](specs/redirect-modes.md)：确认直接跳转、中间页和确认页边界。
+11. [功能规格](specs/)：按模块查看权限、短链、用户、域名、页面、跳转、统计、主题和后台设计。
+12. [技术选型决策](implementation/technical-decision.md)：确认 Go + Vue 技术栈和选型理由。
+13. [技术基线](implementation/technical-baseline.md)：确认仓库结构、模块边界、API、数据库、测试和部署约定。
+14. [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)：确认新版本、跨模块和生产化任务的统一执行约定。
+15. [实施文档](implementation/)：查看工程计划、阶段任务和验收记录。
 
 ## 文档分层
 
@@ -36,6 +38,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 - [v0.1.2 范围](product/scope-v0.1.2.md)
 - [v0.2.0 范围](product/scope-v0.2.0.md)
 - [v0.3.0 范围](product/scope-v0.3.0.md)
+- [v0.4.0 范围](product/scope-v0.4.0.md)
 - [路线图](product/roadmap.md)
 
 ### 功能规格层
@@ -43,6 +46,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 功能规格层文档位于 [specs](specs/) 目录，用于描述各模块的稳定产品规格。实施计划应引用这些文档，而不是在计划中重复定义产品规则。
 
 - [权限模型](specs/permissions.md)
+- [v0.4.0 确认页访问设计](specs/2026-08-13-v0.4.0-confirmation-page-access-design.md)
 - [v0.3.0 受保护短链访问设计](specs/2026-08-04-v0.3.0-protected-link-access-design.md)
 - [用户与认证](specs/users-and-auth.md)
 - [短链](specs/short-links.md)
@@ -57,7 +61,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 实施层文档位于 [implementation](implementation/) 目录，用于承载技术决策、技术基线、工程计划、任务拆分和验收记录。
 
-当前已完成到 v0.3.0 受保护短链访问；后续工作以路线图和最新版本范围文档为维护入口。涉及 v0.2.0 中间页、过期时间、二维码、既有 API、schema、权限和验收口径时，应继续参考 [v0.2.0 验收清单](implementation/v0.2.0-acceptance.md) 及 [v0.2.0 功能设计](specs/2026-08-02-v0.2.0-link-experience-design.md)。
+当前已完成到 v0.3.0 受保护短链访问，v0.4.0 确认页访问已进入设计与实施阶段。涉及 v0.3.0 密码授权或 v0.2.0 中间页、过期时间、二维码、既有 API、schema、权限和验收口径时，应继续参考对应范围、设计与验收文档。
 
 当前实施层文档包括：
 
@@ -72,6 +76,10 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 - [v0.3.0 详细实现计划](implementation/v0.3.0-detailed-plan.md)
 - [v0.3.0 任务级实施清单](implementation/v0.3.0-tasks.md)
 - [v0.3.0 验收清单](implementation/v0.3.0-acceptance.md)
+- [v0.4.0 实施计划](implementation/v0.4.0-plan.md)
+- [v0.4.0 详细实现计划](implementation/v0.4.0-detailed-plan.md)
+- [v0.4.0 任务级实施清单](implementation/v0.4.0-tasks.md)
+- [v0.4.0 验收清单](implementation/v0.4.0-acceptance.md)
 - [v0.0.1 工程实施合同](implementation/v0.0.1-implementation-contract.md)
 - [v0.0.1 实施规划](implementation/v0.0.1-plan.md)
 - [v0.0.1 工程实施计划](implementation/v0.0.1-engineering-plan.md)

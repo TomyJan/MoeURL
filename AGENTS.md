@@ -4,7 +4,7 @@
 
 MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
 
-当前已完成到 v0.3.0 受保护短链访问闭环。后续版本设计和实施应以 `docs/product/overview.md`、`docs/product/roadmap.md` 和对应版本范围文档为准。
+当前已完成到 v0.3.0 受保护短链访问闭环，v0.4.0 确认页访问已进入设计与实施阶段。后续版本设计和实施应以 `docs/product/overview.md`、`docs/product/roadmap.md` 和对应版本范围文档为准。
 
 ## 工作入口
 
@@ -12,7 +12,7 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 1. `docs/README.md`
 2. `docs/product/overview.md`
-3. `docs/product/scope-v0.3.0.md`
+3. `docs/product/scope-v0.4.0.md`
 
 如果任务涉及新版本设计、跨模块功能开发、生产化交付或要求 Agent 自主完成设计、文档、开发、测试和提交，必须继续阅读 `docs/implementation/agent-delivery-guidelines.md`。
 
@@ -24,11 +24,13 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 1. `docs/implementation/technical-decision.md`
 2. `docs/implementation/technical-baseline.md`
-3. `docs/specs/2026-08-04-v0.3.0-protected-link-access-design.md`
-4. `docs/implementation/v0.3.0-plan.md`
-5. `docs/implementation/v0.3.0-detailed-plan.md`
-6. `docs/implementation/v0.3.0-tasks.md`
-7. `docs/implementation/v0.3.0-acceptance.md`
+3. `docs/specs/2026-08-13-v0.4.0-confirmation-page-access-design.md`
+4. `docs/implementation/v0.4.0-plan.md`
+5. `docs/implementation/v0.4.0-detailed-plan.md`
+6. `docs/implementation/v0.4.0-tasks.md`
+7. `docs/implementation/v0.4.0-acceptance.md`
+8. `docs/specs/2026-08-04-v0.3.0-protected-link-access-design.md`
+9. `docs/implementation/v0.3.0-acceptance.md`
 
 如果任务涉及 v0.2.0 中间页、过期时间、二维码、访问配置或继续访问路由，必须继续阅读：
 
@@ -153,6 +155,17 @@ MoeURL 当前技术栈固定为：
 - 解锁成功授权有效 15 分钟，令牌哈希存储于数据库，Cookie 必须 `HttpOnly`、`SameSite=Lax`，生产环境启用 `Secure`，Path 限定为 `/go/{slug}`。
 - `Open`、`Preview`、`Continue` 都必须重新检查密码访问条件；浏览器页面通过同源 `/go/{slug}/preview` 读取路径作用域授权，密码修改通过 `password_updated_at` 使旧授权立即失效。
 - 访问量仍只统计最终成功写出目标跳转响应的 `redirect_response_sent`；密码失败、限流和授权检查不得计入成功访问量，事件写入失败不得阻断访问流程。
+
+## v0.4.0 确认页访问实施规则
+
+- v0.4.0 只实现 `confirmation` 跳转模式和确认页访问闭环，不实现最大访问次数、风险审核、确认令牌、模板或权限预设。
+- 确认页模式由 `short_link:use_confirmation` 权限控制；内置 `user`、`admin` 默认拥有，`guest` 不拥有。
+- `redirect_mode` 允许 `direct`、`intermediate`、`confirmation`；既有短链保持原值，回滚时 confirmation 降级为 direct。
+- 公开预览必须显式返回 `redirectMode`，只返回短码、目标主机名、模式、可选倒计时和过期时间，不返回完整目标 URL、密码状态或授权状态。
+- 确认页复用 `/go/{slug}`，不自动跳转；密码解锁后按实际模式进入直接跳转、中间页倒计时或确认页。
+- `/go/{slug}/continue` 必须重新检查状态、软删除、过期、模式和密码授权；无密码 direct 不得借 continue 绕过规范入口。
+- `confirmation_clicked` 是非统计事件，进入或点击确认页不增加访问量；只有最终目标 `302` 成功写出后记录 `redirect_response_sent`。
+- E2E 必须从真实 `/{slug}` 入口覆盖无密码和受密码保护确认页、主动继续、二次访问条件检查、访问量及桌面/移动布局。
 
 ## 实施原则
 
