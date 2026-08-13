@@ -219,6 +219,31 @@ describe('ShortLinkCreatePanel', () => {
     expect(mutate.mock.calls[0]?.[0]).not.toHaveProperty('expiration')
   })
 
+  it('submits confirmation without an intermediate delay when only confirmation access is allowed', async () => {
+    const mutate = vi.fn()
+    setQueryResult([
+      'short_link:create',
+      'domain:use_default',
+      'short_link:use_confirmation',
+    ])
+    setMutationResult({ mutate })
+
+    mountPanel()
+
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    expect(screen.queryByText('shortLinkCreate.redirectModes.intermediate')).toBeNull()
+    expect(screen.getByText('shortLinkCreate.redirectModes.confirmation')).toBeTruthy()
+    await fireEvent.click(screen.getByText('shortLinkCreate.redirectModes.confirmation'))
+    expect(screen.queryByLabelText('shortLinkCreate.intermediateDelay')).toBeNull()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com/confirm')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+
+    expect(mutate).toHaveBeenCalledWith({
+      targetUrl: 'https://example.com/confirm',
+      redirectMode: 'confirmation',
+    })
+  })
+
   it('submits intermediate and future expiration settings then resets defaults', async () => {
     setQueryResult([
       'short_link:create',

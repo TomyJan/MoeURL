@@ -55,6 +55,7 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValue({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'intermediate',
       intermediateDelaySeconds: 5,
       expiresAt: null,
     })
@@ -104,6 +105,7 @@ describe('RedirectPage', () => {
       .mockResolvedValueOnce({
         slug: 'abc123',
         targetHost: 'example.com',
+        redirectMode: 'intermediate',
         intermediateDelaySeconds: 3,
         expiresAt: null,
       })
@@ -123,7 +125,7 @@ describe('RedirectPage', () => {
     [200104, 'redirect.unavailable'],
     [200105, 'redirect.disabled'],
     [200109, 'redirect.expired'],
-    [200110, 'redirect.notIntermediate'],
+    [200110, 'redirect.notInteractive'],
   ])('shows a non-retryable state for public business error %i', async (code, messageKey) => {
     vi.mocked(getPublicShortLinkPreview).mockRejectedValueOnce(new ApiClientError(code, 'unavailable'))
     mountPage()
@@ -136,7 +138,7 @@ describe('RedirectPage', () => {
   it.each([
     ['disabled', 'redirect.disabled'],
     ['expired', 'redirect.expired'],
-    ['not-intermediate', 'redirect.notIntermediate'],
+    ['not-interactive', 'redirect.notInteractive'],
   ])('renders the localized public status for redirect reason %s', async (reason, messageKey) => {
     state.route!.query = { reason }
     mountPage()
@@ -152,6 +154,7 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'direct',
       intermediateDelaySeconds: null,
       expiresAt: null,
     })
@@ -169,6 +172,7 @@ describe('RedirectPage', () => {
       .mockResolvedValueOnce({
         slug: 'abc123',
         targetHost: 'example.com',
+        redirectMode: 'direct',
         intermediateDelaySeconds: null,
         expiresAt: null,
       })
@@ -181,12 +185,61 @@ describe('RedirectPage', () => {
     await vi.waitFor(() => expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue'))
   })
 
+  it('waits for an explicit click on a confirmation preview', async () => {
+    const setInterval = vi.spyOn(globalThis, 'setInterval')
+    vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
+      slug: 'abc123',
+      targetHost: 'example.com',
+      redirectMode: 'confirmation',
+      intermediateDelaySeconds: null,
+      expiresAt: null,
+    })
+
+    const { container } = mountPage()
+    await flushPreview()
+
+    expect(screen.getByText('redirect.confirmationTitle')).toBeTruthy()
+    expect(screen.getByText('redirect.confirmationDescription')).toBeTruthy()
+    expect(container.querySelector('.redirect-page__countdown')).toBeNull()
+    expect(setInterval).not.toHaveBeenCalled()
+    expect(state.assign).not.toHaveBeenCalled()
+
+    const continueButton = screen.getByRole('button', { name: 'redirect.confirmationContinue' })
+    await fireEvent.click(continueButton)
+    await fireEvent.click(continueButton)
+    expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
+    expect(state.assign).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a protected confirmation preview waiting after unlock', async () => {
+    state.route!.query = { reason: 'password' }
+    mockUnauthorizedPreview()
+    vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
+      slug: 'abc123',
+      targetHost: 'example.com',
+      redirectMode: 'confirmation',
+      intermediateDelaySeconds: null,
+      expiresAt: null,
+    })
+    mountPage()
+    await flushPreview()
+
+    await fireEvent.update(screen.getByLabelText('redirect.password'), 'correct horse')
+    await fireEvent.click(screen.getByRole('button', { name: 'redirect.unlock' }))
+    await vi.waitFor(() => expect(screen.getByText('redirect.confirmationTitle')).toBeTruthy())
+
+    expect(state.assign).not.toHaveBeenCalled()
+    await fireEvent.click(screen.getByRole('button', { name: 'redirect.confirmationContinue' }))
+    expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
+  })
+
   it('shows an invalid-password error without navigating', async () => {
     state.route!.query = { reason: 'password' }
     mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'intermediate',
       intermediateDelaySeconds: 5,
       expiresAt: null,
     })
@@ -211,6 +264,7 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'intermediate',
       intermediateDelaySeconds: 5,
       expiresAt: null,
     })
@@ -232,6 +286,7 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'intermediate',
       intermediateDelaySeconds: 5,
       expiresAt: null,
     })
@@ -250,6 +305,7 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'direct',
       intermediateDelaySeconds: null,
       expiresAt: null,
     })
@@ -272,6 +328,7 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'direct',
       intermediateDelaySeconds: null,
       expiresAt: null,
     })
@@ -308,6 +365,7 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'direct',
       intermediateDelaySeconds: null,
       expiresAt: null,
     })
@@ -328,6 +386,7 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'intermediate',
       intermediateDelaySeconds: 5,
       expiresAt: null,
     })
@@ -347,6 +406,7 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'direct',
       intermediateDelaySeconds: null,
       expiresAt: null,
     })
@@ -366,6 +426,7 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'direct',
       intermediateDelaySeconds: null,
       expiresAt: null,
     })
@@ -387,6 +448,7 @@ describe('RedirectPage', () => {
     mockUnauthorizedPreview()
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       targetHost: 'example.com',
+      redirectMode: 'direct',
       intermediateDelaySeconds: null,
       expiresAt: null,
     } as never)
@@ -407,6 +469,7 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'direct',
       intermediateDelaySeconds: null,
       expiresAt: null,
     })
@@ -426,6 +489,7 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'direct',
       intermediateDelaySeconds: null,
       expiresAt: null,
     })
@@ -452,6 +516,7 @@ describe('RedirectPage', () => {
       .mockResolvedValueOnce({
         slug: 'def456',
         targetHost: 'other.example.com',
+        redirectMode: 'intermediate',
         intermediateDelaySeconds: 5,
         expiresAt: null,
       })
@@ -482,6 +547,7 @@ describe('RedirectPage', () => {
     const authorizedPreview = createDeferred<{
       slug: string
       targetHost: string
+      redirectMode: 'intermediate'
       intermediateDelaySeconds: number
       expiresAt: null
     }>()
@@ -491,6 +557,7 @@ describe('RedirectPage', () => {
       .mockResolvedValueOnce({
         slug: 'def456',
         targetHost: 'other.example.com',
+        redirectMode: 'intermediate',
         intermediateDelaySeconds: 5,
         expiresAt: null,
       })
@@ -509,6 +576,7 @@ describe('RedirectPage', () => {
     authorizedPreview.resolve({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'intermediate',
       intermediateDelaySeconds: 5,
       expiresAt: null,
     })
@@ -524,6 +592,7 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'intermediate',
       intermediateDelaySeconds: 3,
       expiresAt: null,
     })
@@ -541,6 +610,7 @@ describe('RedirectPage', () => {
   it('falls back to the route slug when an intermediate preview omits its slug', async () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       targetHost: 'example.com',
+      redirectMode: 'intermediate',
       intermediateDelaySeconds: 3,
       expiresAt: null,
     } as never)
@@ -575,6 +645,7 @@ describe('RedirectPage', () => {
     const preview = createDeferred<{
       slug: string
       targetHost: string
+      redirectMode: 'intermediate'
       intermediateDelaySeconds: number
       expiresAt: null
     }>()
@@ -586,6 +657,7 @@ describe('RedirectPage', () => {
     preview.resolve({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'intermediate',
       intermediateDelaySeconds: 5,
       expiresAt: null,
     })
@@ -602,6 +674,7 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'direct',
       intermediateDelaySeconds: null,
       expiresAt: null,
     })
@@ -625,6 +698,7 @@ describe('RedirectPage', () => {
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'intermediate',
       intermediateDelaySeconds: 5,
       expiresAt: null,
     })

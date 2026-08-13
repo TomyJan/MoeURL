@@ -11,10 +11,11 @@
           variant="outlined"
         />
 
-        <div v-if="canUseIntermediate" class="short-link-settings-dialog__mode">
+        <div v-if="canConfigureRedirect" class="short-link-settings-dialog__mode">
           <span>{{ t('shortLinkSettings.redirectMode') }}</span>
           <v-btn-toggle :model-value="redirectMode" mandatory divided :aria-label="t('shortLinkSettings.redirectMode')">
             <v-btn
+              v-if="canUseIntermediate"
               size="small"
               value="direct"
               :disabled="pending"
@@ -24,6 +25,7 @@
               {{ t('shortLinkSettings.direct') }}
             </v-btn>
             <v-btn
+              v-if="canUseIntermediate"
               size="small"
               value="intermediate"
               :disabled="pending"
@@ -31,6 +33,16 @@
               @click="redirectMode = 'intermediate'"
             >
               {{ t('shortLinkSettings.intermediate') }}
+            </v-btn>
+            <v-btn
+              v-if="canUseConfirmation"
+              size="small"
+              value="confirmation"
+              :disabled="pending"
+              :aria-pressed="redirectMode === 'confirmation'"
+              @click="redirectMode = 'confirmation'"
+            >
+              {{ t('shortLinkSettings.confirmation') }}
             </v-btn>
           </v-btn-toggle>
         </div>
@@ -139,8 +151,10 @@ const currentUserQuery = useQuery({
 })
 const currentUser = computed(() => currentUserQuery.data.value?.user)
 const canUseIntermediate = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:use_intermediate')))
+const canUseConfirmation = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:use_confirmation')))
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
 const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
+const canConfigureRedirect = computed(() => canUseIntermediate.value || canUseConfirmation.value)
 
 watch(
   () => props.open,
@@ -180,8 +194,10 @@ function save() {
     id: props.link.id,
     targetUrl: targetResult.data,
   }
-  if (canUseIntermediate.value) {
+  if (canSubmitRedirectMode(redirectMode.value)) {
     input.redirectMode = redirectMode.value
+  }
+  if (canUseIntermediate.value && redirectMode.value === 'intermediate') {
     input.intermediateDelaySeconds = intermediateDelaySeconds.value
   }
   if (canSetExpiration.value) {
@@ -272,6 +288,12 @@ function resetFromLink(link: Pick<ShortLink, 'targetUrl' | 'redirectMode' | 'int
   expirationErrorMessage.value = ''
   passwordErrorMessage.value = ''
   void nextTick(clearPasswordInput)
+}
+
+function canSubmitRedirectMode(mode: RedirectMode) {
+  return canConfigureRedirect.value && (mode === 'direct'
+    || (mode === 'intermediate' && canUseIntermediate.value)
+    || (mode === 'confirmation' && canUseConfirmation.value))
 }
 
 function passwordInput() {

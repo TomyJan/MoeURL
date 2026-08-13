@@ -44,7 +44,7 @@
           </v-btn>
           <Transition name="moe-layout">
             <div v-if="advancedOpen" class="short-link-create-panel__advanced-controls">
-              <div v-if="canUseIntermediate" class="short-link-create-panel__mode-control">
+              <div v-if="canConfigureRedirect" class="short-link-create-panel__mode-control">
                 <span>{{ t('shortLinkCreate.redirectMode') }}</span>
                 <v-btn-toggle
                   v-model="redirectMode"
@@ -62,12 +62,22 @@
                     {{ t('shortLinkCreate.redirectModes.direct') }}
                   </v-btn>
                   <v-btn
+                    v-if="canUseIntermediate"
                     size="small"
                     :aria-pressed="redirectMode === 'intermediate'"
                     :disabled="mutation.isPending.value"
                     value="intermediate"
                   >
                     {{ t('shortLinkCreate.redirectModes.intermediate') }}
+                  </v-btn>
+                  <v-btn
+                    v-if="canUseConfirmation"
+                    size="small"
+                    :aria-pressed="redirectMode === 'confirmation'"
+                    :disabled="mutation.isPending.value"
+                    value="confirmation"
+                  >
+                    {{ t('shortLinkCreate.redirectModes.confirmation') }}
                   </v-btn>
                 </v-btn-toggle>
               </div>
@@ -205,9 +215,11 @@ const canCreateShortLink = computed(() =>
   Boolean(currentUser.value?.permissions.includes('short_link:create') && currentUser.value?.permissions.includes('domain:use_default')),
 )
 const canUseIntermediate = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:use_intermediate')))
+const canUseConfirmation = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:use_confirmation')))
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
 const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
-const canConfigureAccess = computed(() => canUseIntermediate.value || canSetExpiration.value || canSetPassword.value)
+const canConfigureRedirect = computed(() => canUseIntermediate.value || canUseConfirmation.value)
+const canConfigureAccess = computed(() => canConfigureRedirect.value || canSetExpiration.value || canSetPassword.value)
 const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !canCreateShortLink.value)
 
 const mutation = useMutation({
@@ -295,8 +307,10 @@ function submitValidatedInput(): boolean {
   }
 
   const input: CreateShortLinkInput = { targetUrl: targetUrlResult.data }
-  if (canUseIntermediate.value) {
+  if (canConfigureRedirect.value) {
     input.redirectMode = redirectMode.value
+  }
+  if (canUseIntermediate.value && redirectMode.value === 'intermediate') {
     input.intermediateDelaySeconds = intermediateDelaySeconds.value
   }
   if (expiration) {

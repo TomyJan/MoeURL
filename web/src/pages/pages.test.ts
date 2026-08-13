@@ -805,6 +805,19 @@ describe('pages', () => {
             expired: true,
             stats: { visitCount: 0, todayVisitCount: 0, lastVisitedAt: 'invalid-date' },
           },
+          {
+            id: 'link-confirmation',
+            url: 'https://go.example.com/confirm1',
+            slug: 'confirm1',
+            targetUrl: 'https://example.net/confirm',
+            status: 'active',
+            ...defaultShortLinkAccessConfig,
+            redirectMode: 'confirmation',
+            intermediateDelaySeconds: 5,
+            expiresAt: null,
+            expired: false,
+            stats: { visitCount: 0, todayVisitCount: 0, lastVisitedAt: null },
+          },
         ],
       }),
     })
@@ -828,6 +841,7 @@ describe('pages', () => {
     expect(within(activeRow).getByText('links.stats.lastVisitedAt')).toBeTruthy()
     expect(within(disabledRow).getByText('links.stats.neverVisited')).toBeTruthy()
     expect(within(activeRow).getByText('shortLinkCreate.redirectModes.intermediate')).toBeTruthy()
+    expect(screen.getByText('shortLinkCreate.redirectModes.confirmation')).toBeTruthy()
     const expiration = new Date('2026-08-10T00:00:00Z')
     const expirationText = `${expiration.getFullYear()}-${String(expiration.getMonth() + 1).padStart(2, '0')}-${String(expiration.getDate()).padStart(2, '0')} ${String(expiration.getHours()).padStart(2, '0')}:${String(expiration.getMinutes()).padStart(2, '0')}`
     expect(within(activeRow).getByText(expirationText)).toBeTruthy()
@@ -896,7 +910,6 @@ describe('pages', () => {
       id: 'link-id',
       targetUrl: 'https://example.com/updated',
       redirectMode: 'direct',
-      intermediateDelaySeconds: 5,
       expiration: { mode: 'never' },
     })
     expect((screen.getByRole('button', { name: 'shortLinkSettings.save' }) as HTMLButtonElement).disabled).toBe(true)
@@ -1252,7 +1265,6 @@ describe('pages', () => {
       id: 'link-id',
       targetUrl: 'https://example.com/admin-updated',
       redirectMode: 'direct',
-      intermediateDelaySeconds: 5,
       expiration: { mode: 'never' },
     })
     expect((screen.getByRole('button', { name: 'shortLinkSettings.save' }) as HTMLButtonElement).disabled).toBe(true)

@@ -96,7 +96,7 @@ describe('short link api', () => {
           code: 0,
           message: 'OK',
           data: url.includes('/preview')
-            ? { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 5, expiresAt: null }
+            ? { slug: 'abc123', targetHost: 'example.com', redirectMode: 'intermediate', intermediateDelaySeconds: 5, expiresAt: null }
             : { shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123' } },
           meta: {},
         }), { status: 200, headers: { 'Content-Type': 'application/json' } })
@@ -112,6 +112,7 @@ describe('short link api', () => {
     await expect(getPublicShortLinkPreview('a b')).resolves.toEqual({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'intermediate',
       intermediateDelaySeconds: 5,
       expiresAt: null,
     })
@@ -139,6 +140,7 @@ describe('short link api', () => {
         data: {
           slug: 'abc123',
           targetHost: 'example.com',
+          redirectMode: 'direct',
           intermediateDelaySeconds: null,
           expiresAt: '2026-08-06T09:00:00Z',
         },
@@ -149,6 +151,7 @@ describe('short link api', () => {
     await expect(getPublicShortLinkPreview('abc123')).resolves.toEqual({
       slug: 'abc123',
       targetHost: 'example.com',
+      redirectMode: 'direct',
       intermediateDelaySeconds: null,
       expiresAt: '2026-08-06T09:00:00Z',
     })
@@ -158,14 +161,19 @@ describe('short link api', () => {
     ['missing data', undefined],
     ['null data', null],
     ['scalar data', 'invalid'],
-    ['unexpected redirect mode', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null }],
-    ['invalid slug', { slug: 1, targetHost: 'example.com', intermediateDelaySeconds: 5, expiresAt: null }],
-    ['invalid target host', { slug: 'abc123', targetHost: null, intermediateDelaySeconds: 5, expiresAt: null }],
-    ['delay below minimum', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 2, expiresAt: null }],
-    ['delay above maximum', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 11, expiresAt: null }],
-    ['fractional delay', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 5.5, expiresAt: null }],
-    ['invalid delay', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: '5', expiresAt: null }],
-    ['invalid expiration', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 5, expiresAt: 1 }],
+    ['missing redirect mode', { slug: 'abc123', targetHost: 'example.com', intermediateDelaySeconds: 5, expiresAt: null }],
+    ['unknown redirect mode', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'unknown', intermediateDelaySeconds: 5, expiresAt: null }],
+    ['sensitive target url', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'confirmation', intermediateDelaySeconds: null, expiresAt: null, targetUrl: 'https://example.com/private' }],
+    ['invalid slug', { slug: 1, targetHost: 'example.com', redirectMode: 'intermediate', intermediateDelaySeconds: 5, expiresAt: null }],
+    ['invalid target host', { slug: 'abc123', targetHost: null, redirectMode: 'intermediate', intermediateDelaySeconds: 5, expiresAt: null }],
+    ['delay below minimum', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'intermediate', intermediateDelaySeconds: 2, expiresAt: null }],
+    ['delay above maximum', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'intermediate', intermediateDelaySeconds: 11, expiresAt: null }],
+    ['fractional delay', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'intermediate', intermediateDelaySeconds: 5.5, expiresAt: null }],
+    ['invalid delay', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'intermediate', intermediateDelaySeconds: '5', expiresAt: null }],
+    ['missing intermediate delay', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'intermediate', intermediateDelaySeconds: null, expiresAt: null }],
+    ['direct delay', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null }],
+    ['confirmation delay', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'confirmation', intermediateDelaySeconds: 5, expiresAt: null }],
+    ['invalid expiration', { slug: 'abc123', targetHost: 'example.com', redirectMode: 'intermediate', intermediateDelaySeconds: 5, expiresAt: 1 }],
   ])('rejects public preview with %s', async (_name, data) => {
     vi.stubGlobal(
       'fetch',

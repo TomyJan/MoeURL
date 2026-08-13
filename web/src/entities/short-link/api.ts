@@ -35,12 +35,21 @@ interface AdminShortLinkItemsResponse {
   items: AdminShortLink[]
 }
 
-const publicShortLinkPreviewSchema: z.ZodType<PublicShortLinkPreview> = z.strictObject({
+const publicShortLinkPreviewBaseSchema = {
   slug: z.string(),
   targetHost: z.string(),
-  intermediateDelaySeconds: z.number().int().min(3).max(10).nullable(),
   expiresAt: z.string().nullable(),
-})
+}
+
+const publicShortLinkPreviewSchema: z.ZodType<PublicShortLinkPreview> = z.discriminatedUnion('redirectMode', [
+  z.strictObject({ ...publicShortLinkPreviewBaseSchema, redirectMode: z.literal('direct'), intermediateDelaySeconds: z.null() }),
+  z.strictObject({
+    ...publicShortLinkPreviewBaseSchema,
+    redirectMode: z.literal('intermediate'),
+    intermediateDelaySeconds: z.number().int().min(3).max(10),
+  }),
+  z.strictObject({ ...publicShortLinkPreviewBaseSchema, redirectMode: z.literal('confirmation'), intermediateDelaySeconds: z.null() }),
+])
 
 const unlockShortLinkResponseSchema: z.ZodType<UnlockShortLinkResponse> = z.strictObject({
   unlocked: z.literal(true),

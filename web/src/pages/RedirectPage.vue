@@ -46,10 +46,13 @@
 
       <div v-else-if="preview" class="redirect-page__state">
         <p class="redirect-page__eyebrow">{{ t('redirect.eyebrow') }}</p>
-        <h1>{{ t('redirect.title') }}</h1>
+        <h1>{{ t(preview.redirectMode === 'confirmation' ? 'redirect.confirmationTitle' : 'redirect.title') }}</h1>
+        <p v-if="preview.redirectMode === 'confirmation'" class="redirect-page__description">
+          {{ t('redirect.confirmationDescription') }}
+        </p>
         <p class="redirect-page__target-label">{{ t('redirect.targetHost') }}</p>
         <strong class="redirect-page__target">{{ preview.targetHost }}</strong>
-        <div class="redirect-page__countdown" aria-live="off">
+        <div v-if="preview.redirectMode === 'intermediate'" class="redirect-page__countdown" aria-live="off">
           <strong>{{ remainingSeconds }}</strong>
           <span>{{ t('redirect.seconds') }}</span>
         </div>
@@ -58,7 +61,7 @@
         </v-alert>
         <div class="redirect-page__actions">
           <v-btn color="primary" size="large" :loading="navigating" @click="continueToTarget">
-            {{ t('redirect.continue') }}
+            {{ t(preview.redirectMode === 'confirmation' ? 'redirect.confirmationContinue' : 'redirect.continue') }}
           </v-btn>
           <v-btn variant="text" :to="{ path: '/' }">{{ t('redirect.backHome') }}</v-btn>
         </div>
@@ -76,7 +79,7 @@ import { getPublicShortLinkPreview, unlockShortLink } from '@/entities/short-lin
 import type { PublicShortLinkPreview } from '@/entities/short-link/model'
 import { ApiClientError } from '@/shared/api/client'
 
-type PreviewFailureState = '' | 'disabled' | 'expired' | 'loadFailed' | 'notIntermediate' | 'unavailable'
+type PreviewFailureState = '' | 'disabled' | 'expired' | 'loadFailed' | 'notInteractive' | 'unavailable'
 type UnlockErrorState = '' | 'invalidPassword' | 'passwordRequired' | 'rateLimited' | 'unlockFailed'
 
 const { t } = useI18n()
@@ -207,8 +210,8 @@ function failureStateFromReason(reason: unknown): PreviewFailureState {
   if (reason === 'expired') {
     return 'expired'
   }
-  if (reason === 'not-intermediate') {
-    return 'notIntermediate'
+  if (reason === 'not-interactive') {
+    return 'notInteractive'
   }
   return ''
 }
@@ -230,7 +233,7 @@ function classifyPreviewError(error: unknown): PreviewFailureState {
     return 'disabled'
   }
   if (code === 200110) {
-    return 'notIntermediate'
+    return 'notInteractive'
   }
   return 'loadFailed'
 }
@@ -248,15 +251,18 @@ function startCountdown() {
   }, 1_000)
 }
 
-/** Continues a granted link according to its direct or intermediate redirect mode. */
+/** Continues direct links, starts intermediate countdowns, and leaves confirmation links idle. */
 function proceedAfterAccess() {
   const currentPreview = preview.value
   /* v8 ignore next -- callers establish a preview first; retain a defensive guard for future call sites. */
   if (!currentPreview) {
     return
   }
-  if (currentPreview.intermediateDelaySeconds === null) {
+  if (currentPreview.redirectMode === 'direct') {
     continueToTarget()
+    return
+  }
+  if (currentPreview.redirectMode === 'confirmation') {
     return
   }
   remainingSeconds.value = currentPreview.intermediateDelaySeconds
@@ -451,6 +457,13 @@ function clearRateLimitCountdown() {
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.82rem;
   font-weight: 850;
+}
+
+.redirect-page__description {
+  max-width: 46ch;
+  margin: 0;
+  color: rgb(var(--v-theme-on-surface-variant));
+  line-height: 1.65;
 }
 
 .redirect-page__target {

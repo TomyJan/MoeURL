@@ -90,7 +90,6 @@ describe('ShortLinkSettingsDialog', () => {
         id: 'link-id',
         targetUrl: 'https://example.com/updated',
         redirectMode: 'direct',
-        intermediateDelaySeconds: 5,
         expiration: { mode: 'never' },
       },
     ]])
@@ -141,7 +140,6 @@ describe('ShortLinkSettingsDialog', () => {
         id: 'link-id',
         targetUrl: 'https://example.com/updated',
         redirectMode: 'direct',
-        intermediateDelaySeconds: 5,
       },
     ]])
   })
@@ -179,6 +177,45 @@ describe('ShortLinkSettingsDialog', () => {
         intermediateDelaySeconds: 5,
       },
     ]])
+  })
+
+  it('submits confirmation without an intermediate delay when only confirmation permission is present', async () => {
+    setPermissions(['short_link:use_confirmation'])
+    const view = mountDialog()
+
+    expect(screen.queryByRole('button', { name: 'shortLinkSettings.intermediate' })).toBeNull()
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.confirmation' }))
+    expect(screen.queryByLabelText('shortLinkSettings.intermediateDelay')).toBeNull()
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(view.emitted().save).toEqual([[
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.com/original',
+        redirectMode: 'confirmation',
+      },
+    ]])
+  })
+
+  it('does not submit a persisted confirmation mode after confirmation permission is removed', async () => {
+    setPermissions(['short_link:use_intermediate'])
+    const view = mountDialog({ link: { ...directLink, redirectMode: 'confirmation' } })
+
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+    expect(view.emitted().save).toEqual([[
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.com/original',
+      },
+    ]])
+
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.direct' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+    expect(view.emitted().save?.[1]).toEqual([{
+      id: 'link-id',
+      targetUrl: 'https://example.com/original',
+      redirectMode: 'direct',
+    }])
   })
 
   it('submits only expiration when intermediate permission is absent', async () => {
