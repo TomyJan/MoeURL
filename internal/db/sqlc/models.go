@@ -32,6 +32,12 @@ type Domain struct {
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
+// Tracks permissions added by migration 00008 for reversible rollback.
+type MoeurlShortLinkConfirmationPermissionAddition struct {
+	UserGroupID pgtype.UUID `json:"user_group_id"`
+	Permission  string      `json:"permission"`
+}
+
 // Tracks permissions added by migration 00004 for reversible rollback.
 type MoeurlShortLinkExperiencePermissionAddition struct {
 	UserGroupID pgtype.UUID `json:"user_group_id"`

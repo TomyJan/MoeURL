@@ -33,6 +33,9 @@ func TestBuiltInGroupPermissions(t *testing.T) {
 	if !service.Has(permission.GroupUser, permission.ShortLinkSetPassword) {
 		t.Fatal("expected user to set short link password")
 	}
+	if !service.Has(permission.GroupUser, permission.ShortLinkUseConfirmation) {
+		t.Fatal("expected user to use confirmation redirects")
+	}
 	if service.Has(permission.GroupGuest, permission.ShortLinkUseIntermediate) {
 		t.Fatal("expected guest to have no intermediate redirect permission")
 	}
@@ -41,6 +44,9 @@ func TestBuiltInGroupPermissions(t *testing.T) {
 	}
 	if service.Has(permission.GroupGuest, permission.ShortLinkSetPassword) {
 		t.Fatal("expected guest to have no short link password permission")
+	}
+	if service.Has(permission.GroupGuest, permission.ShortLinkUseConfirmation) {
+		t.Fatal("expected guest to have no confirmation redirect permission")
 	}
 	if !service.Has(permission.GroupAdmin, permission.AdminAccess) {
 		t.Fatal("expected admin access permission")
@@ -56,5 +62,8 @@ func TestBuiltInGroupPermissions(t *testing.T) {
 	}
 	if !service.Has(permission.GroupAdmin, permission.ShortLinkSetPassword) {
 		t.Fatal("expected admin to set short link password")
+	}
+	if !service.Has(permission.GroupAdmin, permission.ShortLinkUseConfirmation) {
+		t.Fatal("expected admin to use confirmation redirects")
 	}
 }

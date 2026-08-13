@@ -25,6 +25,86 @@ func TestSQLCPackageExposesQueries(t *testing.T) {
 	}
 }
 
+// TestShortLinkConfirmationQueriesRoundTrip verifies existing SQLC queries preserve confirmation mode.
+func TestShortLinkConfirmationQueriesRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	pool := sqlcTestPool(t, ctx)
+	queries := sqlc.New(pool)
+	ownerID := uuid.MustParse("00000000-0000-0000-0000-000000000201")
+	domainID := uuid.MustParse("00000000-0000-0000-0000-000000000101")
+	fixtureID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
+	confirmationID := uuid.MustParse("00000000-0000-0000-0000-000000000302")
+	insertSQLCShortLinkFixtures(t, ctx, pool, ownerID, domainID, fixtureID)
+
+	created, err := queries.CreateShortLink(ctx, sqlc.CreateShortLinkParams{
+		ID:                       uuidToPgtype(confirmationID),
+		OwnerID:                  uuidToPgtype(ownerID),
+		DomainID:                 uuidToPgtype(domainID),
+		Slug:                     "confirm1",
+		TargetUrl:                "https://example.com/confirmation",
+		Status:                   "active",
+		RedirectMode:             "confirmation",
+		IntermediateDelaySeconds: 5,
+	})
+	if err != nil || created.RedirectMode != "confirmation" {
+		t.Fatalf("create confirmation short link: %v, %#v", err, created)
+	}
+
+	bySlug, err := queries.GetShortLinkBySlug(ctx, "confirm1")
+	if err != nil || bySlug.RedirectMode != "confirmation" {
+		t.Fatalf("get confirmation short link by slug: %v, %#v", err, bySlug)
+	}
+	ownerRows, err := queries.ListShortLinksByOwner(ctx, sqlc.ListShortLinksByOwnerParams{
+		OwnerID: uuidToPgtype(ownerID),
+		Limit:   20,
+	})
+	if err != nil || findOwnerRedirectMode(ownerRows, confirmationID) != "confirmation" {
+		t.Fatalf("list owner confirmation short link: %v, %#v", err, ownerRows)
+	}
+	adminRows, err := queries.ListAllShortLinks(ctx, sqlc.ListAllShortLinksParams{Limit: 20})
+	if err != nil || findAdminRedirectMode(adminRows, confirmationID) != "confirmation" {
+		t.Fatalf("list admin confirmation short link: %v, %#v", err, adminRows)
+	}
+
+	updated, err := queries.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
+		ID:             uuidToPgtype(confirmationID),
+		OwnerID:        uuidToPgtype(ownerID),
+		RedirectMode:   pgtype.Text{String: "direct", Valid: true},
+		ExpirationMode: "unchanged",
+		PasswordMode:   "unchanged",
+	})
+	if err != nil || updated.RedirectMode != "direct" {
+		t.Fatalf("update owner confirmation mode: %v, %#v", err, updated)
+	}
+	adminUpdated, err := queries.UpdateAnyShortLink(ctx, sqlc.UpdateAnyShortLinkParams{
+		ID:             uuidToPgtype(confirmationID),
+		RedirectMode:   pgtype.Text{String: "confirmation", Valid: true},
+		ExpirationMode: "unchanged",
+		PasswordMode:   "unchanged",
+	})
+	if err != nil || adminUpdated.RedirectMode != "confirmation" {
+		t.Fatalf("update admin confirmation mode: %v, %#v", err, adminUpdated)
+	}
+}
+
+func findOwnerRedirectMode(rows []sqlc.ListShortLinksByOwnerRow, id uuid.UUID) string {
+	for _, row := range rows {
+		if row.ID.Valid && uuid.UUID(row.ID.Bytes) == id {
+			return row.RedirectMode
+		}
+	}
+	return ""
+}
+
+func findAdminRedirectMode(rows []sqlc.ListAllShortLinksRow, id uuid.UUID) string {
+	for _, row := range rows {
+		if row.ID.Valid && uuid.UUID(row.ID.Bytes) == id {
+			return row.RedirectMode
+		}
+	}
+	return ""
+}
+
 func TestGetShortLinkPasswordStateBySlugForUpdateReturnsPasswordState(t *testing.T) {
 	ctx := context.Background()
 	pool := sqlcTestPool(t, ctx)
