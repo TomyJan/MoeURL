@@ -262,9 +262,12 @@ test('v0.2.0 intermediate-page, expiry, QR-code, and logout flows', async ({ pag
 
   await page.goto('/link')
   await selectVuetifyOption(page, '状态筛选', '禁用')
-  await expect(page.getByRole('link', { name: createdUrl ?? '' })).toBeVisible()
-  await expect(page.getByRole('button', { name: '复制' })).toBeVisible()
-  await expect(page.getByRole('link', { name: '打开' })).toHaveAttribute('href', createdUrl ?? '')
+  const disabledLinkRow = page
+    .getByTestId('console-link-row')
+    .filter({ has: page.getByRole('link', { name: createdUrl ?? '' }) })
+  await expect(disabledLinkRow).toHaveCount(1)
+  await expect(disabledLinkRow.getByRole('button', { name: '复制' })).toBeVisible()
+  await expect(disabledLinkRow.getByRole('link', { name: '打开' })).toHaveAttribute('href', createdUrl ?? '')
 
   await page.goto('/admin/link')
   await selectVuetifyOption(page, '状态筛选', '禁用')
