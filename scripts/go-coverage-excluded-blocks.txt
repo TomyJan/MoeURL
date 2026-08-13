@@ -32,7 +32,6 @@ github.com/TomyJan/MoeURL/internal/shortlink/service.go:99.29,100.12
 github.com/TomyJan/MoeURL/internal/shortlink/service.go:121.2,121.40
 
 # Redirect access transaction step failures are infrastructure/concurrency paths: each intermediate failure requires the database connection or row to change between locked statements.
-github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:239.35,241.3
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:244.35,246.3
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:247.16,249.3
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:260.16,262.3

@@ -92,7 +92,7 @@ import { ApiClientError } from '@/shared/api/client'
 type PreviewFailureState = '' | 'disabled' | 'expired' | 'loadFailed' | 'notInteractive' | 'unavailable'
 type UnlockErrorState = '' | 'invalidPassword' | 'passwordRequired' | 'rateLimited' | 'unlockFailed'
 
-const { t } = useI18n()
+const { locale, t } = useI18n()
 const route = useRoute()
 const preview = ref<PublicShortLinkPreview | null>(null)
 const remainingSeconds = ref(0)
@@ -285,7 +285,7 @@ function proceedAfterAccess(waitForRetry = false) {
 
 function formatDateTime(value: string) {
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(undefined, {
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(locale.value, {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date)

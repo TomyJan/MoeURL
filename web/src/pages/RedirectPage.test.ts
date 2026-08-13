@@ -10,6 +10,7 @@ import { createDeferred } from '@/test/deferred'
 
 const state = vi.hoisted(() => ({
   assign: vi.fn(),
+  locale: { value: 'zh-CN' },
   route: undefined as undefined | {
     params: Record<string, unknown>
     query: Record<string, unknown>
@@ -17,7 +18,7 @@ const state = vi.hoisted(() => ({
 }))
 
 vi.mock('vue-i18n', () => ({
-  useI18n: () => ({ t: (key: string) => key }),
+  useI18n: () => ({ locale: state.locale, t: (key: string) => key }),
 }))
 
 vi.mock('vue-router', () => ({
@@ -48,6 +49,7 @@ describe('RedirectPage', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     state.assign.mockReset()
+    state.locale.value = 'zh-CN'
     state.route = reactive({ params: { slug: 'abc123' }, query: {} })
     vi.stubGlobal('location', { assign: state.assign })
     vi.mocked(getPublicShortLinkPreview).mockReset()
@@ -64,6 +66,7 @@ describe('RedirectPage', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    vi.restoreAllMocks()
     vi.unstubAllGlobals()
   })
 
@@ -214,6 +217,26 @@ describe('RedirectPage', () => {
     await fireEvent.click(continueButton)
     expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
     expect(state.assign).toHaveBeenCalledTimes(1)
+  })
+
+  it('formats confirmation expiration with the active application locale', async () => {
+    state.locale.value = 'en'
+    const dateTimeFormat = vi.spyOn(Intl, 'DateTimeFormat')
+    vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
+      slug: 'abc123',
+      targetHost: 'example.com',
+      redirectMode: 'confirmation',
+      intermediateDelaySeconds: null,
+      expiresAt: '2026-08-14T02:30:00Z',
+    })
+
+    mountPage()
+    await flushPreview()
+
+    expect(dateTimeFormat).toHaveBeenCalledWith('en', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    })
   })
 
   it('omits expiration metadata from confirmation previews without an expiration', async () => {
