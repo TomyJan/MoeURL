@@ -291,6 +291,7 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
             data: {
               expiresAt: null,
               intermediateDelaySeconds: null,
+              redirectMode: 'direct',
               slug: rateLimitedSlug,
               targetHost: 'example.com',
             },
