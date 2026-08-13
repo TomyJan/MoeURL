@@ -1327,6 +1327,14 @@ func TestServiceConfirmationModeRequiresTargetCapability(t *testing.T) {
 	}
 	assertAccessConfig(t, confirmationCreated.ShortLink, shortlink.RedirectModeConfirmation, 5, nil, false)
 	_, err = confirmationService.Create(ctx, user, shortlink.CreateInput{
+		TargetURL:                "https://example.com/confirmation-with-delay",
+		RedirectMode:             shortlink.RedirectModeConfirmation,
+		IntermediateDelaySeconds: 6,
+	})
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected custom delay permission denial for confirmation mode, got %v", err)
+	}
+	_, err = confirmationService.Create(ctx, user, shortlink.CreateInput{
 		TargetURL:    "https://example.com/intermediate-denied",
 		RedirectMode: shortlink.RedirectModeIntermediate,
 	})
