@@ -9,6 +9,7 @@ import (
 const (
 	RedirectModeDirect       = "direct"
 	RedirectModeIntermediate = "intermediate"
+	RedirectModeConfirmation = "confirmation"
 	ExpirationModeNever      = "never"
 	ExpirationModeAt         = "at"
 	PasswordModeNever        = "never"

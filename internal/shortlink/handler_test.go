@@ -70,7 +70,7 @@ func TestHandlerCreateShortLinkReturnsCreatedLink(t *testing.T) {
 	}
 }
 
-// TestHandlerDecodesAccessConfigInputs verifies create and update JSON preserve explicit expiration semantics.
+// TestHandlerDecodesAccessConfigInputs verifies create and update JSON preserve explicit access semantics.
 func TestHandlerDecodesAccessConfigInputs(t *testing.T) {
 	service := &fakeShortLinkService{}
 	router := apphttp.NewRouter(apphttp.Dependencies{
@@ -83,15 +83,14 @@ func TestHandlerDecodesAccessConfigInputs(t *testing.T) {
 	createResponse := httptest.NewRecorder()
 	createRequest := httptest.NewRequest(http.MethodPost, "/api/v1/short-link/create", bytes.NewBufferString(fmt.Sprintf(`{
 		"targetUrl":"https://example.com/docs",
-		"redirectMode":"intermediate",
-		"intermediateDelaySeconds":7,
+		"redirectMode":"confirmation",
 		"expiration":{"mode":"at","expiresAt":%q}
 	}`, future.Format(time.RFC3339))))
 	router.ServeHTTP(createResponse, createRequest)
 	if createResponse.Code != http.StatusOK {
 		t.Fatalf("unexpected create response: %d %s", createResponse.Code, createResponse.Body.String())
 	}
-	if service.createInput.RedirectMode != shortlink.RedirectModeIntermediate || service.createInput.IntermediateDelaySeconds != 7 {
+	if service.createInput.RedirectMode != shortlink.RedirectModeConfirmation || service.createInput.IntermediateDelaySeconds != 0 {
 		t.Fatalf("unexpected create access config: %#v", service.createInput)
 	}
 	if service.createInput.Expiration == nil || service.createInput.Expiration.Mode != shortlink.ExpirationModeAt || service.createInput.Expiration.ExpiresAt == nil || !service.createInput.Expiration.ExpiresAt.Equal(future) {

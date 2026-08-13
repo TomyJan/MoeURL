@@ -606,7 +606,10 @@ func (s *Service) createAccessConfig(ctx context.Context, user auth.CurrentUser,
 	if !isAllowedIntermediateDelay(delay) {
 		return createAccessConfigParams{}, ErrInvalidIntermediateDelay
 	}
-	if (redirectMode == RedirectModeIntermediate || delay != defaultIntermediateDelay) && !s.permissions.Has(user.GroupKey, permission.ShortLinkUseIntermediate) {
+	if required := redirectModePermission(redirectMode); required != "" && !s.permissions.Has(user.GroupKey, required) {
+		return createAccessConfigParams{}, ErrPermissionDenied
+	}
+	if delay != defaultIntermediateDelay && !s.permissions.Has(user.GroupKey, permission.ShortLinkUseIntermediate) {
 		return createAccessConfigParams{}, ErrPermissionDenied
 	}
 
@@ -637,8 +640,13 @@ func (s *Service) updateAccessConfig(ctx context.Context, user auth.CurrentUser,
 	if input.IntermediateDelaySeconds != nil && !isAllowedIntermediateDelay(*input.IntermediateDelaySeconds) {
 		return updateAccessConfigParams{}, ErrInvalidIntermediateDelay
 	}
-	changesIntermediateConfig := input.RedirectMode != nil || input.IntermediateDelaySeconds != nil
-	if changesIntermediateConfig && !s.permissions.Has(user.GroupKey, permission.ShortLinkUseIntermediate) {
+	if input.RedirectMode != nil {
+		required := redirectModePermission(*input.RedirectMode)
+		if required != "" && !s.permissions.Has(user.GroupKey, required) {
+			return updateAccessConfigParams{}, ErrPermissionDenied
+		}
+	}
+	if input.IntermediateDelaySeconds != nil && !s.permissions.Has(user.GroupKey, permission.ShortLinkUseIntermediate) {
 		return updateAccessConfigParams{}, ErrPermissionDenied
 	}
 	if input.Expiration != nil && !s.permissions.Has(user.GroupKey, permission.ShortLinkSetExpiration) {
@@ -731,7 +739,19 @@ func (s *Service) normalizeExpiration(ctx context.Context, input *ExpirationInpu
 
 // isAllowedRedirectMode reports whether a redirect mode belongs to the persisted contract.
 func isAllowedRedirectMode(value string) bool {
-	return value == RedirectModeDirect || value == RedirectModeIntermediate
+	return value == RedirectModeDirect || value == RedirectModeIntermediate || value == RedirectModeConfirmation
+}
+
+// redirectModePermission returns the capability required by an interactive mode.
+func redirectModePermission(value string) string {
+	switch value {
+	case RedirectModeIntermediate:
+		return permission.ShortLinkUseIntermediate
+	case RedirectModeConfirmation:
+		return permission.ShortLinkUseConfirmation
+	default:
+		return ""
+	}
 }
 
 // isAllowedIntermediateDelay reports whether an intermediate delay is within product bounds.
