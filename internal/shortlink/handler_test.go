@@ -90,7 +90,7 @@ func TestHandlerDecodesAccessConfigInputs(t *testing.T) {
 	if createResponse.Code != http.StatusOK {
 		t.Fatalf("unexpected create response: %d %s", createResponse.Code, createResponse.Body.String())
 	}
-	if service.createInput.RedirectMode != shortlink.RedirectModeConfirmation || service.createInput.IntermediateDelaySeconds != 0 {
+	if service.createInput.RedirectMode != shortlink.RedirectModeConfirmation || service.createInput.IntermediateDelaySeconds != nil {
 		t.Fatalf("unexpected create access config: %#v", service.createInput)
 	}
 	if service.createInput.Expiration == nil || service.createInput.Expiration.Mode != shortlink.ExpirationModeAt || service.createInput.Expiration.ExpiresAt == nil || !service.createInput.Expiration.ExpiresAt.Equal(future) {

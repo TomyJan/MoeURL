@@ -997,7 +997,7 @@ func TestServiceAccessConfigCreateListAndUpdate(t *testing.T) {
 	created, err := service.Create(ctx, user, shortlink.CreateInput{
 		TargetURL:                "https://example.com/docs",
 		RedirectMode:             shortlink.RedirectModeIntermediate,
-		IntermediateDelaySeconds: 7,
+		IntermediateDelaySeconds: int16Pointer(7),
 		Expiration: &shortlink.ExpirationInput{
 			Mode:      shortlink.ExpirationModeAt,
 			ExpiresAt: &future,
@@ -1140,8 +1140,8 @@ func TestServiceAccessConfigValidation(t *testing.T) {
 		err   error
 	}{
 		{name: "invalid mode", input: shortlink.CreateInput{TargetURL: "https://example.com", RedirectMode: "confirm"}, err: shortlink.ErrInvalidRedirectMode},
-		{name: "delay below range", input: shortlink.CreateInput{TargetURL: "https://example.com", IntermediateDelaySeconds: 2}, err: shortlink.ErrInvalidIntermediateDelay},
-		{name: "delay above range", input: shortlink.CreateInput{TargetURL: "https://example.com", IntermediateDelaySeconds: 11}, err: shortlink.ErrInvalidIntermediateDelay},
+		{name: "delay below range", input: shortlink.CreateInput{TargetURL: "https://example.com", IntermediateDelaySeconds: int16Pointer(2)}, err: shortlink.ErrInvalidIntermediateDelay},
+		{name: "delay above range", input: shortlink.CreateInput{TargetURL: "https://example.com", IntermediateDelaySeconds: int16Pointer(11)}, err: shortlink.ErrInvalidIntermediateDelay},
 		{name: "missing expiration mode", input: shortlink.CreateInput{TargetURL: "https://example.com", Expiration: &shortlink.ExpirationInput{}}, err: shortlink.ErrInvalidExpiration},
 		{name: "never with time", input: shortlink.CreateInput{TargetURL: "https://example.com", Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeNever, ExpiresAt: &future}}, err: shortlink.ErrInvalidExpiration},
 		{name: "at without time", input: shortlink.CreateInput{TargetURL: "https://example.com", Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeAt}}, err: shortlink.ErrInvalidExpiration},
@@ -1187,7 +1187,7 @@ func TestServiceAccessConfigValidation(t *testing.T) {
 	lowerBoundary, err := service.Create(ctx, user, shortlink.CreateInput{
 		TargetURL:                "https://example.com/lower-boundary",
 		RedirectMode:             shortlink.RedirectModeIntermediate,
-		IntermediateDelaySeconds: 3,
+		IntermediateDelaySeconds: int16Pointer(3),
 	})
 	if err != nil {
 		t.Fatalf("create with minimum intermediate delay: %v", err)
@@ -1327,9 +1327,17 @@ func TestServiceConfirmationModeRequiresTargetCapability(t *testing.T) {
 	}
 	assertAccessConfig(t, confirmationCreated.ShortLink, shortlink.RedirectModeConfirmation, 5, nil, false)
 	_, err = confirmationService.Create(ctx, user, shortlink.CreateInput{
+		TargetURL:                "https://example.com/confirmation-with-explicit-default-delay",
+		RedirectMode:             shortlink.RedirectModeConfirmation,
+		IntermediateDelaySeconds: int16Pointer(5),
+	})
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected explicit default delay permission denial for confirmation mode, got %v", err)
+	}
+	_, err = confirmationService.Create(ctx, user, shortlink.CreateInput{
 		TargetURL:                "https://example.com/confirmation-with-delay",
 		RedirectMode:             shortlink.RedirectModeConfirmation,
-		IntermediateDelaySeconds: 6,
+		IntermediateDelaySeconds: int16Pointer(6),
 	})
 	if !errors.Is(err, shortlink.ErrPermissionDenied) {
 		t.Fatalf("expected custom delay permission denial for confirmation mode, got %v", err)

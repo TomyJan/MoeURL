@@ -639,9 +639,9 @@ func (s *Service) createAccessConfig(ctx context.Context, permissions permission
 		return createAccessConfigParams{}, ErrInvalidRedirectMode
 	}
 
-	delay := input.IntermediateDelaySeconds
-	if delay == 0 {
-		delay = defaultIntermediateDelay
+	delay := defaultIntermediateDelay
+	if input.IntermediateDelaySeconds != nil {
+		delay = *input.IntermediateDelaySeconds
 	}
 	if !isAllowedIntermediateDelay(delay) {
 		return createAccessConfigParams{}, ErrInvalidIntermediateDelay
@@ -649,7 +649,7 @@ func (s *Service) createAccessConfig(ctx context.Context, permissions permission
 	if required := redirectModePermission(redirectMode); required != "" && !permissions.Has(required) {
 		return createAccessConfigParams{}, ErrPermissionDenied
 	}
-	if delay != defaultIntermediateDelay && !permissions.Has(permission.ShortLinkUseIntermediate) {
+	if input.IntermediateDelaySeconds != nil && !permissions.Has(permission.ShortLinkUseIntermediate) {
 		return createAccessConfigParams{}, ErrPermissionDenied
 	}
 
