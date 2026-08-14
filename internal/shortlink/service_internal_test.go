@@ -137,6 +137,114 @@ func TestNormalizePasswordRequiresPermissionAndStoresOnlyHash(t *testing.T) {
 	}
 }
 
+// TestAccessConfigDefaultsPreserveCreateAndUpdateSemantics locks the distinct omitted-field persistence shapes.
+func TestAccessConfigDefaultsPreserveCreateAndUpdateSemantics(t *testing.T) {
+	ctx := context.Background()
+	permissions, err := permission.NewServiceWithPermissions(nil, permission.AdminPermissions).Resolve(ctx, permission.GroupUser)
+	require.NoError(t, err)
+	service := &Service{}
+
+	createConfig, err := service.createAccessConfig(ctx, permissions, CreateInput{})
+	require.NoError(t, err)
+	require.Equal(t, RedirectModeDirect, createConfig.redirectMode)
+	require.Equal(t, defaultIntermediateDelay, createConfig.intermediateDelaySeconds)
+	require.False(t, createConfig.expiresAt.Valid)
+	require.False(t, createConfig.passwordHash.Valid)
+
+	updateConfig, err := service.updateAccessConfig(ctx, permissions, UpdateInput{})
+	require.NoError(t, err)
+	require.False(t, updateConfig.redirectMode.Valid)
+	require.False(t, updateConfig.intermediateDelaySeconds.Valid)
+	require.Equal(t, expirationModeKeep, updateConfig.expirationMode)
+	require.False(t, updateConfig.expiresAt.Valid)
+	require.Equal(t, passwordModeKeep, updateConfig.passwordMode)
+	require.False(t, updateConfig.passwordHash.Valid)
+}
+
+// TestAccessConfigAuthorizationMatchesCreateAndUpdate locks shared permission results and error precedence.
+func TestAccessConfigAuthorizationMatchesCreateAndUpdate(t *testing.T) {
+	confirmationMode := RedirectModeConfirmation
+	directMode := RedirectModeDirect
+	invalidMode := "invalid"
+	validDelay := defaultIntermediateDelay
+	invalidDelay := minIntermediateDelay - 1
+	clearExpiration := &ExpirationInput{Mode: ExpirationModeNever}
+	invalidExpiration := &ExpirationInput{Mode: ExpirationModeAt}
+	clearPassword := &PasswordInput{Mode: PasswordModeNever}
+	setPassword := &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"}
+	allAccessPermissions := []string{
+		permission.ShortLinkUseIntermediate,
+		permission.ShortLinkSetExpiration,
+		permission.ShortLinkSetPassword,
+		permission.ShortLinkUseConfirmation,
+	}
+
+	tests := []struct {
+		name         string
+		permissions  []string
+		redirectMode *string
+		delay        *int16
+		expiration   *ExpirationInput
+		password     *PasswordInput
+		wantErr      error
+	}{
+		{
+			name:         "authorized",
+			permissions:  allAccessPermissions,
+			redirectMode: &confirmationMode,
+			delay:        &validDelay,
+			expiration:   clearExpiration,
+			password:     clearPassword,
+		},
+		{name: "invalid redirect mode first", redirectMode: &invalidMode, wantErr: ErrInvalidRedirectMode},
+		{name: "invalid delay first", redirectMode: &directMode, delay: &invalidDelay, wantErr: ErrInvalidIntermediateDelay},
+		{name: "redirect mode permission", redirectMode: &confirmationMode, wantErr: ErrPermissionDenied},
+		{name: "explicit delay permission", redirectMode: &directMode, delay: &validDelay, wantErr: ErrPermissionDenied},
+		{name: "expiration permission", redirectMode: &directMode, expiration: clearExpiration, wantErr: ErrPermissionDenied},
+		{
+			name:         "expiration validation before password permission",
+			permissions:  []string{permission.ShortLinkSetExpiration},
+			redirectMode: &directMode,
+			expiration:   invalidExpiration,
+			password:     setPassword,
+			wantErr:      ErrInvalidExpiration,
+		},
+		{name: "password permission", redirectMode: &directMode, password: clearPassword, wantErr: ErrPermissionDenied},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			permissions, err := permission.NewServiceWithPermissions(test.permissions, permission.AdminPermissions).Resolve(ctx, permission.GroupUser)
+			require.NoError(t, err)
+			service := &Service{}
+			createInput := CreateInput{
+				IntermediateDelaySeconds: test.delay,
+				Expiration:               test.expiration,
+				Password:                 test.password,
+			}
+			if test.redirectMode != nil {
+				createInput.RedirectMode = *test.redirectMode
+			}
+			_, createErr := service.createAccessConfig(ctx, permissions, createInput)
+			_, updateErr := service.updateAccessConfig(ctx, permissions, UpdateInput{
+				RedirectMode:             test.redirectMode,
+				IntermediateDelaySeconds: test.delay,
+				Expiration:               test.expiration,
+				Password:                 test.password,
+			})
+
+			if test.wantErr == nil {
+				require.NoError(t, createErr)
+				require.NoError(t, updateErr)
+				return
+			}
+			require.ErrorIs(t, createErr, test.wantErr)
+			require.ErrorIs(t, updateErr, test.wantErr)
+		})
+	}
+}
+
 // TestAnalyticsWithQueriesPropagatesAggregateFailures verifies every aggregate query failure is returned.
 func TestAnalyticsWithQueriesPropagatesAggregateFailures(t *testing.T) {
 	linkID := uuid.New()

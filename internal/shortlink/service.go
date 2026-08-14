@@ -629,85 +629,105 @@ type updateAccessConfigParams struct {
 	passwordHash             pgtype.Text
 }
 
+type accessConfigAuthorizationInput struct {
+	redirectMode                 *string
+	intermediateDelaySeconds     *int16
+	intermediateDelayWasExplicit bool
+	expiration                   *ExpirationInput
+	password                     *PasswordInput
+}
+
+type accessConfigAuthorization struct {
+	expirationMode string
+	expiresAt      pgtype.Timestamptz
+	passwordMode   string
+	passwordHash   pgtype.Text
+}
+
 // createAccessConfig normalizes defaults and validates advanced creation settings.
 func (s *Service) createAccessConfig(ctx context.Context, permissions permission.Snapshot, input CreateInput) (createAccessConfigParams, error) {
 	redirectMode := input.RedirectMode
 	if redirectMode == "" {
 		redirectMode = RedirectModeDirect
 	}
-	if !isAllowedRedirectMode(redirectMode) {
-		return createAccessConfigParams{}, ErrInvalidRedirectMode
-	}
-
 	delay := defaultIntermediateDelay
 	if input.IntermediateDelaySeconds != nil {
 		delay = *input.IntermediateDelaySeconds
 	}
-	if !isAllowedIntermediateDelay(delay) {
-		return createAccessConfigParams{}, ErrInvalidIntermediateDelay
-	}
-	if required := redirectModePermission(redirectMode); required != "" && !permissions.Has(required) {
-		return createAccessConfigParams{}, ErrPermissionDenied
-	}
-	if input.IntermediateDelaySeconds != nil && !permissions.Has(permission.ShortLinkUseIntermediate) {
-		return createAccessConfigParams{}, ErrPermissionDenied
-	}
-
-	if input.Expiration != nil && !permissions.Has(permission.ShortLinkSetExpiration) {
-		return createAccessConfigParams{}, ErrPermissionDenied
-	}
-	_, expiresAt, err := s.normalizeExpiration(ctx, input.Expiration)
-	if err != nil {
-		return createAccessConfigParams{}, err
-	}
-	_, passwordHash, err := normalizePassword(permissions, input.Password)
+	authorization, err := s.authorizeAccessConfig(ctx, permissions, accessConfigAuthorizationInput{
+		redirectMode:                 &redirectMode,
+		intermediateDelaySeconds:     &delay,
+		intermediateDelayWasExplicit: input.IntermediateDelaySeconds != nil,
+		expiration:                   input.Expiration,
+		password:                     input.Password,
+	})
 	if err != nil {
 		return createAccessConfigParams{}, err
 	}
 	return createAccessConfigParams{
 		redirectMode:             redirectMode,
 		intermediateDelaySeconds: delay,
-		expiresAt:                expiresAt,
-		passwordHash:             passwordHash,
+		expiresAt:                authorization.expiresAt,
+		passwordHash:             authorization.passwordHash,
 	}, nil
 }
 
 // updateAccessConfig validates only fields explicitly present in an update request.
 func (s *Service) updateAccessConfig(ctx context.Context, permissions permission.Snapshot, input UpdateInput) (updateAccessConfigParams, error) {
-	if input.RedirectMode != nil && !isAllowedRedirectMode(*input.RedirectMode) {
-		return updateAccessConfigParams{}, ErrInvalidRedirectMode
-	}
-	if input.IntermediateDelaySeconds != nil && !isAllowedIntermediateDelay(*input.IntermediateDelaySeconds) {
-		return updateAccessConfigParams{}, ErrInvalidIntermediateDelay
-	}
-	if input.RedirectMode != nil {
-		required := redirectModePermission(*input.RedirectMode)
-		if required != "" && !permissions.Has(required) {
-			return updateAccessConfigParams{}, ErrPermissionDenied
-		}
-	}
-	if input.IntermediateDelaySeconds != nil && !permissions.Has(permission.ShortLinkUseIntermediate) {
-		return updateAccessConfigParams{}, ErrPermissionDenied
-	}
-	if input.Expiration != nil && !permissions.Has(permission.ShortLinkSetExpiration) {
-		return updateAccessConfigParams{}, ErrPermissionDenied
-	}
-
-	expirationMode, expiresAt, err := s.normalizeExpiration(ctx, input.Expiration)
-	if err != nil {
-		return updateAccessConfigParams{}, err
-	}
-	passwordMode, passwordHash, err := normalizePassword(permissions, input.Password)
+	authorization, err := s.authorizeAccessConfig(ctx, permissions, accessConfigAuthorizationInput{
+		redirectMode:                 input.RedirectMode,
+		intermediateDelaySeconds:     input.IntermediateDelaySeconds,
+		intermediateDelayWasExplicit: input.IntermediateDelaySeconds != nil,
+		expiration:                   input.Expiration,
+		password:                     input.Password,
+	})
 	if err != nil {
 		return updateAccessConfigParams{}, err
 	}
 	return updateAccessConfigParams{
 		redirectMode:             optionalText(input.RedirectMode),
 		intermediateDelaySeconds: optionalInt2(input.IntermediateDelaySeconds),
-		expirationMode:           expirationMode,
-		expiresAt:                expiresAt,
-		passwordMode:             passwordMode,
-		passwordHash:             passwordHash,
+		expirationMode:           authorization.expirationMode,
+		expiresAt:                authorization.expiresAt,
+		passwordMode:             authorization.passwordMode,
+		passwordHash:             authorization.passwordHash,
+	}, nil
+}
+
+// authorizeAccessConfig validates access settings and preserves their permission and normalization order.
+func (s *Service) authorizeAccessConfig(ctx context.Context, permissions permission.Snapshot, input accessConfigAuthorizationInput) (accessConfigAuthorization, error) {
+	if input.redirectMode != nil && !isAllowedRedirectMode(*input.redirectMode) {
+		return accessConfigAuthorization{}, ErrInvalidRedirectMode
+	}
+	if input.intermediateDelaySeconds != nil && !isAllowedIntermediateDelay(*input.intermediateDelaySeconds) {
+		return accessConfigAuthorization{}, ErrInvalidIntermediateDelay
+	}
+	if input.redirectMode != nil {
+		required := redirectModePermission(*input.redirectMode)
+		if required != "" && !permissions.Has(required) {
+			return accessConfigAuthorization{}, ErrPermissionDenied
+		}
+	}
+	if input.intermediateDelayWasExplicit && !permissions.Has(permission.ShortLinkUseIntermediate) {
+		return accessConfigAuthorization{}, ErrPermissionDenied
+	}
+	if input.expiration != nil && !permissions.Has(permission.ShortLinkSetExpiration) {
+		return accessConfigAuthorization{}, ErrPermissionDenied
+	}
+
+	expirationMode, expiresAt, err := s.normalizeExpiration(ctx, input.expiration)
+	if err != nil {
+		return accessConfigAuthorization{}, err
+	}
+	passwordMode, passwordHash, err := normalizePassword(permissions, input.password)
+	if err != nil {
+		return accessConfigAuthorization{}, err
+	}
+	return accessConfigAuthorization{
+		expirationMode: expirationMode,
+		expiresAt:      expiresAt,
+		passwordMode:   passwordMode,
+		passwordHash:   passwordHash,
 	}, nil
 }
 

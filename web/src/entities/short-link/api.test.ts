@@ -157,6 +157,32 @@ describe('short link api', () => {
     })
   })
 
+  it('loads confirmation-mode public preview metadata', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({
+        code: 0,
+        message: 'OK',
+        data: {
+          slug: 'confirm2',
+          targetHost: 'example.com',
+          redirectMode: 'confirmation',
+          intermediateDelaySeconds: null,
+          expiresAt: null,
+        },
+        meta: {},
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })),
+    )
+
+    await expect(getPublicShortLinkPreview('confirm2')).resolves.toEqual({
+      slug: 'confirm2',
+      targetHost: 'example.com',
+      redirectMode: 'confirmation',
+      intermediateDelaySeconds: null,
+      expiresAt: null,
+    })
+  })
+
   it.each([
     ['missing data', undefined],
     ['null data', null],
