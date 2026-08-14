@@ -1375,8 +1375,7 @@ func TestServiceConfirmationModeRequiresTargetCapability(t *testing.T) {
 		t.Fatalf("expected explicit delay update permission denial, got %v", err)
 	}
 
-	adminWithoutConfirmation := append([]string{}, permission.AdminPermissions...)
-	adminWithoutConfirmation = removePermission(adminWithoutConfirmation, permission.ShortLinkUseConfirmation)
+	adminWithoutConfirmation := removePermission(permission.AdminPermissions, permission.ShortLinkUseConfirmation)
 	adminService := shortlink.NewService(pool, permission.NewServiceWithPermissions(permission.UserPermissions, adminWithoutConfirmation))
 	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: permission.GroupAdmin}
 	_, err = adminService.AdminUpdate(ctx, admin, shortlink.UpdateInput{ID: created.ShortLink.ID, RedirectMode: &confirmation})
