@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick, reactive } from 'vue'
+import { nextTick, reactive, ref, type Ref } from 'vue'
 
 import RedirectPage from './RedirectPage.vue'
 import { getPublicShortLinkPreview, unlockShortLink } from '@/entities/short-link/api'
@@ -10,7 +10,7 @@ import { createDeferred } from '@/test/deferred'
 
 const state = vi.hoisted(() => ({
   assign: vi.fn(),
-  locale: { value: 'zh-CN' },
+  locale: undefined as unknown as Ref<string>,
   route: undefined as undefined | {
     params: Record<string, unknown>
     query: Record<string, unknown>
@@ -49,7 +49,7 @@ describe('RedirectPage', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     state.assign.mockReset()
-    state.locale.value = 'zh-CN'
+    state.locale = ref('zh-CN')
     state.route = reactive({ params: { slug: 'abc123' }, query: {} })
     vi.stubGlobal('location', { assign: state.assign })
     vi.mocked(getPublicShortLinkPreview).mockReset()
@@ -219,24 +219,30 @@ describe('RedirectPage', () => {
     expect(state.assign).toHaveBeenCalledTimes(1)
   })
 
-  it('formats confirmation expiration with the active application locale', async () => {
-    state.locale.value = 'en'
-    const dateTimeFormat = vi.spyOn(Intl, 'DateTimeFormat')
+  it('updates confirmation expiration when the application locale changes', async () => {
+    const expiresAt = '2026-08-14T02:30:00Z'
+    const formatOptions = {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    } as const
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
       redirectMode: 'confirmation',
       intermediateDelaySeconds: null,
-      expiresAt: '2026-08-14T02:30:00Z',
+      expiresAt,
     })
 
-    mountPage()
+    const { container } = mountPage()
     await flushPreview()
 
-    expect(dateTimeFormat).toHaveBeenCalledWith('en', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    })
+    const expiration = container.querySelector(`time[datetime="${expiresAt}"]`)
+    expect(expiration?.textContent).toBe(new Intl.DateTimeFormat('zh-CN', formatOptions).format(new Date(expiresAt)))
+
+    state.locale.value = 'en'
+    await nextTick()
+
+    expect(expiration?.textContent).toBe(new Intl.DateTimeFormat('en', formatOptions).format(new Date(expiresAt)))
   })
 
   it('omits expiration metadata from confirmation previews without an expiration', async () => {

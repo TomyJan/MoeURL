@@ -215,7 +215,7 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
     await page.goto(`/${created.slug}`)
     await expect(page.getByRole('heading', { name: '确认访问外部网站' })).toBeVisible()
 
-    const expiresAt = new Date(Date.now() + 3_000).toISOString()
+    const expiresAt = new Date(Date.now() + 8_000).toISOString()
     const update = await page.request.post('/api/v1/short-link/update', {
       data: { id: created.id, expiration: { mode: 'at', expiresAt } },
     })
