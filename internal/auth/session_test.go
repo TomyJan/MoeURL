@@ -14,6 +14,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+// TestSessionServiceCreatesReadsAndRevokesSession verifies session service creates reads and revokes session.
 func TestSessionServiceCreatesReadsAndRevokesSession(t *testing.T) {
 	ctx := context.Background()
 	databaseURL := testdb.ProjectMigratedDatabaseURL(ctx, t)
@@ -64,6 +65,7 @@ func TestSessionServiceCreatesReadsAndRevokesSession(t *testing.T) {
 	}
 }
 
+// TestSessionServiceRejectsMissingSession verifies session service rejects missing session.
 func TestSessionServiceRejectsMissingSession(t *testing.T) {
 	ctx := context.Background()
 	databaseURL := testdb.ProjectMigratedDatabaseURL(ctx, t)
@@ -82,6 +84,7 @@ func TestSessionServiceRejectsMissingSession(t *testing.T) {
 	}
 }
 
+// TestSessionServiceReturnsDatabaseErrors verifies session service returns database errors.
 func TestSessionServiceReturnsDatabaseErrors(t *testing.T) {
 	ctx := context.Background()
 	databaseURL := testdb.ProjectMigratedDatabaseURL(ctx, t)
@@ -105,6 +108,7 @@ func TestSessionServiceReturnsDatabaseErrors(t *testing.T) {
 	}
 }
 
+// insertAuthUser inserts the database fixture required by the surrounding tests.
 func insertAuthUser(t *testing.T, ctx context.Context, pool *pgxpool.Pool, userID string) {
 	t.Helper()
 

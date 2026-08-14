@@ -87,6 +87,7 @@ func TestShortLinkConfirmationQueriesRoundTrip(t *testing.T) {
 	}
 }
 
+// findOwnerRedirectMode returns the fixture value used by the surrounding assertions.
 func findOwnerRedirectMode(rows []sqlc.ListShortLinksByOwnerRow, id uuid.UUID) string {
 	for _, row := range rows {
 		if row.ID.Valid && uuid.UUID(row.ID.Bytes) == id {
@@ -96,6 +97,7 @@ func findOwnerRedirectMode(rows []sqlc.ListShortLinksByOwnerRow, id uuid.UUID) s
 	return ""
 }
 
+// findAdminRedirectMode returns the fixture value used by the surrounding assertions.
 func findAdminRedirectMode(rows []sqlc.ListAllShortLinksRow, id uuid.UUID) string {
 	for _, row := range rows {
 		if row.ID.Valid && uuid.UUID(row.ID.Bytes) == id {
@@ -105,6 +107,7 @@ func findAdminRedirectMode(rows []sqlc.ListAllShortLinksRow, id uuid.UUID) strin
 	return ""
 }
 
+// TestGetShortLinkPasswordStateBySlugForUpdateReturnsPasswordState verifies get short link password state by slug for update returns password state.
 func TestGetShortLinkPasswordStateBySlugForUpdateReturnsPasswordState(t *testing.T) {
 	ctx := context.Background()
 	pool := sqlcTestPool(t, ctx)

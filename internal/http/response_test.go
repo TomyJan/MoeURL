@@ -9,6 +9,7 @@ import (
 	apphttp "github.com/TomyJan/MoeURL/internal/http"
 )
 
+// TestWriteJSONReturnsUnifiedJSONWhenEncodingFails verifies write json returns unified json when encoding fails.
 func TestWriteJSONReturnsUnifiedJSONWhenEncodingFails(t *testing.T) {
 	response := httptest.NewRecorder()
 

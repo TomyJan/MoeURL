@@ -19,6 +19,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/user"
 )
 
+// TestRouterHealthReturnsOK verifies router health returns ok.
 func TestRouterHealthReturnsOK(t *testing.T) {
 	router := apphttp.NewRouter()
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/health", nil)
@@ -50,6 +51,7 @@ func TestRouterHealthReturnsOK(t *testing.T) {
 	}
 }
 
+// TestRouterServesSPAFixedRoutesFromStaticDir verifies router serves spa fixed routes from static dir.
 func TestRouterServesSPAFixedRoutesFromStaticDir(t *testing.T) {
 	staticDir := t.TempDir()
 	err := os.WriteFile(filepath.Join(staticDir, "index.html"), []byte("<!doctype html><title>MoeURL</title>"), 0o644)
@@ -88,6 +90,7 @@ func TestRouterServesSPAFixedRoutesFromStaticDir(t *testing.T) {
 	}
 }
 
+// TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect verifies router intermediate fixed routes take priority over slug redirect.
 func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T) {
 	staticDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(staticDir, "index.html"), []byte("<!doctype html><title>MoeURL</title>"), 0o644); err != nil {
@@ -174,6 +177,7 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 	}
 }
 
+// TestRouterUnknownAPIUsesUnifiedResponse verifies router unknown api uses unified response.
 func TestRouterUnknownAPIUsesUnifiedResponse(t *testing.T) {
 	router := apphttp.NewRouter()
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/missing", nil)
@@ -202,6 +206,7 @@ func TestRouterUnknownAPIUsesUnifiedResponse(t *testing.T) {
 	}
 }
 
+// TestRouterRegistersOptionalDependencies verifies router registers optional dependencies.
 func TestRouterRegistersOptionalDependencies(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		System:      &routerSystemService{},
@@ -256,6 +261,7 @@ func TestRouterRegistersOptionalDependencies(t *testing.T) {
 	}
 }
 
+// TestRouterRedirectServiceKeepsConfiguredIntermediateResultWithEmptyTarget verifies router redirect service keeps configured intermediate result with empty target.
 func TestRouterRedirectServiceKeepsConfiguredIntermediateResultWithEmptyTarget(t *testing.T) {
 	redirect := &routerRedirectService{
 		openResult:           shortlink.OpenResult{RedirectMode: shortlink.RedirectModeIntermediate, Slug: "middle"},
@@ -274,16 +280,19 @@ func TestRouterRedirectServiceKeepsConfiguredIntermediateResultWithEmptyTarget(t
 
 type routerSystemService struct{}
 
+// IsInitialized implements the corresponding operation for the surrounding test double.
 func (routerSystemService) IsInitialized(context.Context) (bool, error) {
 	return false, nil
 }
 
+// Setup implements the corresponding operation for the surrounding test double.
 func (routerSystemService) Setup(context.Context, system.SetupInput) error {
 	return nil
 }
 
 type routerAuthService struct{}
 
+// Login implements the corresponding operation for the surrounding test double.
 func (routerAuthService) Login(context.Context, auth.LoginInput) (auth.LoginResult, error) {
 	return auth.LoginResult{
 		User:    auth.GuestUser(),
@@ -291,58 +300,71 @@ func (routerAuthService) Login(context.Context, auth.LoginInput) (auth.LoginResu
 	}, nil
 }
 
+// Logout implements the corresponding operation for the surrounding test double.
 func (routerAuthService) Logout(context.Context, string) error {
 	return nil
 }
 
+// Me implements the corresponding operation for the surrounding test double.
 func (routerAuthService) Me(context.Context, string) (auth.CurrentUser, error) {
 	return auth.GuestUser(), nil
 }
 
 type routerCurrentUserResolver struct{}
 
+// ResolveCurrentUser implements the corresponding operation for the surrounding test double.
 func (routerCurrentUserResolver) ResolveCurrentUser(context.Context, string) (auth.CurrentUser, error) {
 	return auth.GuestUser(), nil
 }
 
 type routerShortLinkService struct{}
 
+// Overview implements the corresponding operation for the surrounding test double.
 func (routerShortLinkService) Overview(context.Context, auth.CurrentUser) (shortlink.OverviewResult, error) {
 	return shortlink.OverviewResult{}, nil
 }
 
+// Create implements the corresponding operation for the surrounding test double.
 func (routerShortLinkService) Create(context.Context, auth.CurrentUser, shortlink.CreateInput) (shortlink.CreateResult, error) {
 	return shortlink.CreateResult{}, nil
 }
 
+// List implements the corresponding operation for the surrounding test double.
 func (routerShortLinkService) List(context.Context, auth.CurrentUser, shortlink.ListInput) (shortlink.ListResult, error) {
 	return shortlink.ListResult{}, nil
 }
 
+// Update implements the corresponding operation for the surrounding test double.
 func (routerShortLinkService) Update(context.Context, auth.CurrentUser, shortlink.UpdateInput) (shortlink.CreateResult, error) {
 	return shortlink.CreateResult{}, nil
 }
 
+// Delete implements the corresponding operation for the surrounding test double.
 func (routerShortLinkService) Delete(context.Context, auth.CurrentUser, shortlink.DeleteInput) error {
 	return nil
 }
 
+// Statistics implements the corresponding operation for the surrounding test double.
 func (routerShortLinkService) Statistics(context.Context, auth.CurrentUser, shortlink.StatisticsInput) (shortlink.StatisticsResult, error) {
 	return shortlink.StatisticsResult{}, nil
 }
 
+// AdminList implements the corresponding operation for the surrounding test double.
 func (routerShortLinkService) AdminList(context.Context, auth.CurrentUser, shortlink.ListInput) (shortlink.AdminListResult, error) {
 	return shortlink.AdminListResult{}, nil
 }
 
+// AdminStatistics implements the corresponding operation for the surrounding test double.
 func (routerShortLinkService) AdminStatistics(context.Context, auth.CurrentUser, shortlink.StatisticsInput) (shortlink.StatisticsResult, error) {
 	return shortlink.StatisticsResult{}, nil
 }
 
+// AdminUpdate implements the corresponding operation for the surrounding test double.
 func (routerShortLinkService) AdminUpdate(context.Context, auth.CurrentUser, shortlink.UpdateInput) (shortlink.CreateResult, error) {
 	return shortlink.CreateResult{}, nil
 }
 
+// AdminDelete implements the corresponding operation for the surrounding test double.
 func (routerShortLinkService) AdminDelete(context.Context, auth.CurrentUser, shortlink.DeleteInput) error {
 	return nil
 }
@@ -362,10 +384,12 @@ type routerRedirectService struct {
 	unlockPassword       string
 }
 
+// int16Pointer returns a pointer to the supplied fixture value.
 func int16Pointer(value int16) *int16 {
 	return &value
 }
 
+// Open implements the corresponding operation for the surrounding test double.
 func (service *routerRedirectService) Open(_ context.Context, slug string) (shortlink.OpenResult, error) {
 	service.openSlugs = append(service.openSlugs, slug)
 	if !service.openResultConfigured {
@@ -403,22 +427,27 @@ func (service *routerRedirectService) Continue(_ context.Context, slug string, a
 
 type routerUserService struct{}
 
+// Create implements the corresponding operation for the surrounding test double.
 func (routerUserService) Create(context.Context, auth.CurrentUser, user.CreateInput) (user.CreateResult, error) {
 	return user.CreateResult{}, nil
 }
 
+// List implements the corresponding operation for the surrounding test double.
 func (routerUserService) List(context.Context, auth.CurrentUser, user.ListInput) (user.ListResult, error) {
 	return user.ListResult{}, nil
 }
 
+// Update implements the corresponding operation for the surrounding test double.
 func (routerUserService) Update(context.Context, auth.CurrentUser, user.UpdateInput) (user.UpdateResult, error) {
 	return user.UpdateResult{}, nil
 }
 
+// UpdateProfile implements the corresponding operation for the surrounding test double.
 func (routerUserService) UpdateProfile(context.Context, auth.CurrentUser, user.UpdateProfileInput) (user.UpdateProfileResult, error) {
 	return user.UpdateProfileResult{}, nil
 }
 
+// ResetPassword implements the corresponding operation for the surrounding test double.
 func (routerUserService) ResetPassword(context.Context, auth.CurrentUser, user.ResetPasswordInput) error {
 	return nil
 }

@@ -9,10 +9,12 @@ import (
 
 type sessionErrReader struct{}
 
+// Read returns the configured entropy-source failure for the test double.
 func (sessionErrReader) Read([]byte) (int, error) {
 	return 0, errors.New("random failed")
 }
 
+// TestSessionServiceCreateReturnsRandomError verifies session service create returns random error.
 func TestSessionServiceCreateReturnsRandomError(t *testing.T) {
 	original := sessionRandomReader
 	sessionRandomReader = sessionErrReader{}

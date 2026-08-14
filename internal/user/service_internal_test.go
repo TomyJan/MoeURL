@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// TestFormatTimeHandlesInvalidAndValidValues verifies format time handles invalid and valid values.
 func TestFormatTimeHandlesInvalidAndValidValues(t *testing.T) {
 	if formatTime(pgtype.Timestamptz{}) != "" {
 		t.Fatal("expected invalid timestamp to become empty string")
@@ -19,6 +20,7 @@ func TestFormatTimeHandlesInvalidAndValidValues(t *testing.T) {
 	}
 }
 
+// TestUUIDFromPgtypeReturnsEmptyForInvalidValue verifies uuid from pgtype returns empty for invalid value.
 func TestUUIDFromPgtypeReturnsEmptyForInvalidValue(t *testing.T) {
 	if uuidFromPgtype(pgtype.UUID{}) != "" {
 		t.Fatal("expected invalid pgtype UUID to become empty string")

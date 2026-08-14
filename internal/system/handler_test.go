@@ -13,6 +13,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/system"
 )
 
+// TestHandlerStatusReturnsInitializedFlag verifies handler status returns initialized flag.
 func TestHandlerStatusReturnsInitializedFlag(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		System: &fakeSystemService{initialized: true},
@@ -39,6 +40,7 @@ func TestHandlerStatusReturnsInitializedFlag(t *testing.T) {
 	}
 }
 
+// TestHandlerStatusMapsSystemError verifies handler status maps system error.
 func TestHandlerStatusMapsSystemError(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		System: &fakeSystemService{statusErr: errors.New("database down")},
@@ -53,6 +55,7 @@ func TestHandlerStatusMapsSystemError(t *testing.T) {
 	}
 }
 
+// TestHandlerSetupMapsAlreadyInitializedToBusinessCode verifies handler setup maps already initialized to business code.
 func TestHandlerSetupMapsAlreadyInitializedToBusinessCode(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		System: &fakeSystemService{setupErr: system.ErrAlreadyInitialized},
@@ -87,6 +90,7 @@ func TestHandlerSetupMapsAlreadyInitializedToBusinessCode(t *testing.T) {
 	}
 }
 
+// TestHandlerSetupMapsInvalidInputAndSystemErrors verifies handler setup maps invalid input and system errors.
 func TestHandlerSetupMapsInvalidInputAndSystemErrors(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -126,6 +130,7 @@ func TestHandlerSetupMapsInvalidInputAndSystemErrors(t *testing.T) {
 	}
 }
 
+// TestHandlerSetupDecodesCamelCaseJSON verifies handler setup decodes camel case json.
 func TestHandlerSetupDecodesCamelCaseJSON(t *testing.T) {
 	service := &fakeSystemService{}
 	router := apphttp.NewRouter(apphttp.Dependencies{
@@ -164,6 +169,7 @@ type fakeSystemService struct {
 	setupInput  system.SetupInput
 }
 
+// IsInitialized implements the corresponding operation for the surrounding test double.
 func (f *fakeSystemService) IsInitialized(context.Context) (bool, error) {
 	if f.statusErr != nil {
 		return false, f.statusErr
@@ -171,6 +177,7 @@ func (f *fakeSystemService) IsInitialized(context.Context) (bool, error) {
 	return f.initialized, nil
 }
 
+// Setup implements the corresponding operation for the surrounding test double.
 func (f *fakeSystemService) Setup(_ context.Context, input system.SetupInput) error {
 	f.setupInput = input
 	if f.setupErr != nil {
@@ -179,6 +186,7 @@ func (f *fakeSystemService) Setup(_ context.Context, input system.SetupInput) er
 	return nil
 }
 
+// setupBody encodes a representative system setup request body.
 func setupBody() string {
 	return `{
 		"adminUsername": "admin",

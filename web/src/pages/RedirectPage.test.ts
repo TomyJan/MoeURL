@@ -30,16 +30,19 @@ vi.mock('@/entities/short-link/api', () => ({
   unlockShortLink: vi.fn(),
 }))
 
+/** Mounts the public redirect page with shared component stubs. */
 function mountPage() {
   return render(RedirectPage, {
     global: { stubs: componentStubs },
   })
 }
 
+/** Configures the next preview request to require password authorization. */
 function mockUnauthorizedPreview() {
   vi.mocked(getPublicShortLinkPreview).mockRejectedValueOnce(new ApiClientError(200111, 'Password required'))
 }
 
+/** Flushes the preview promise and its reactive DOM update. */
 async function flushPreview() {
   await Promise.resolve()
   await nextTick()

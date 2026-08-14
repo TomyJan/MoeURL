@@ -81,6 +81,7 @@ vi.mock('@tanstack/vue-query', () => ({
     const isPending = ref(false)
     const error = ref<unknown>(undefined)
     const variables = ref<unknown>(undefined)
+    /** Runs the captured profile mutation and its matching callback. */
     async function runMutation(input: { nickname: string }) {
       variables.value = input
       isPending.value = true
@@ -128,6 +129,7 @@ vi.mock('@/entities/user/api', () => ({
   })),
 }))
 
+/** Mounts the profile page with shared component stubs. */
 function mountProfilePage() {
   return render(ProfilePage, {
     global: {

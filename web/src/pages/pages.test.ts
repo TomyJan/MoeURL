@@ -163,6 +163,7 @@ vi.mock('@tanstack/vue-query', async () => {
   }
 })
 
+/** Mounts a page component with the shared router and component stubs. */
 function mount(component: object) {
   return render(component, {
     global: {
@@ -171,6 +172,7 @@ function mount(component: object) {
   })
 }
 
+/** Configures one query result returned by the page test mock. */
 function setQueryResult(value: Partial<{
   data: ReturnType<typeof ref>
   isError: ReturnType<typeof ref>
@@ -187,6 +189,7 @@ function setQueryResult(value: Partial<{
   }
 }
 
+/** Configures an ordered sequence of query results for one page render. */
 function setQueryResults(...values: Array<Parameters<typeof setQueryResult>[0]>) {
   state.queryResults = values.map((value) => ({
     data: value.data ?? ref(undefined),
@@ -197,6 +200,7 @@ function setQueryResults(...values: Array<Parameters<typeof setQueryResult>[0]>)
   }))
 }
 
+/** Configures the shared mutation result returned by page tests. */
 function setMutationResult(value: Partial<{
   data: ReturnType<typeof ref>
   error: ReturnType<typeof ref>

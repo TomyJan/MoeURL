@@ -164,6 +164,7 @@ func TestHandlerCreateShortLinkMapsBusinessErrors(t *testing.T) {
 	}
 }
 
+// TestShortLinkBusinessErrorCodesRemainStable verifies short link business error codes remain stable.
 func TestShortLinkBusinessErrorCodesRemainStable(t *testing.T) {
 	codes := map[string]int{
 		"slug conflict":              shortlink.CodeSlugConflict,

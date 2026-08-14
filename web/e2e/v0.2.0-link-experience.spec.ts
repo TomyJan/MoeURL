@@ -287,6 +287,7 @@ test('v0.2.0 intermediate-page, expiry, QR-code, and logout flows', async ({ pag
   await expect(page.getByRole('button', { name: '创建短链' })).toBeDisabled()
 })
 
+/** Selects one visible option from a Vuetify combobox. */
 async function selectVuetifyOption(page: Page, label: string, option: string) {
   await page.getByLabel(label).locator('xpath=ancestor::*[contains(@class, "v-input")][1]').click()
   await page.getByRole('option', { name: option }).click()
@@ -300,6 +301,7 @@ async function readScopedPreviewCode(page: Page, slug: string) {
   return payload.code
 }
 
+/** Sets a datetime-local control while preserving browser input semantics. */
 async function setDateTimeLocalValue(locator: Locator, value: string) {
   await locator.evaluate((element, dateTime) => {
     const input = element as HTMLInputElement
@@ -309,7 +311,9 @@ async function setDateTimeLocalValue(locator: Locator, value: string) {
   }, value)
 }
 
+/** Formats a Date for a datetime-local input value. */
 function toLocalDateTimeValue(value: Date) {
+  /** Pads one local date component to two digits. */
   const pad = (part: number) => String(part).padStart(2, '0')
   return [
     value.getFullYear(),
@@ -326,6 +330,7 @@ function toLocalDateTimeValue(value: Date) {
   ].join('')
 }
 
+/** Verifies the QR dialog remains usable in the active viewport. */
 async function expectQrDialogLayout(page: Page, dialog: Locator, image: Locator) {
   await expectNoHorizontalOverflow(page)
   const [dialogBox, imageBox, urlBox, actionsBox] = await Promise.all([
@@ -347,6 +352,7 @@ async function expectQrDialogLayout(page: Page, dialog: Locator, image: Locator)
   expect(urlBox.y + urlBox.height).toBeLessThanOrEqual(actionsBox.y + 1)
 }
 
+/** Verifies the intermediate redirect page remains usable in the active viewport. */
 async function expectIntermediateLayout(page: Page) {
   await expectNoHorizontalOverflow(page)
   const elements = [

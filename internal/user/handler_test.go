@@ -15,6 +15,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/user"
 )
 
+// TestHandlerCreateUserReturnsCreatedUser verifies handler create user returns created user.
 func TestHandlerCreateUserReturnsCreatedUser(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		CurrentUser: &fakeCurrentUserResolver{user: auth.CurrentUser{ID: "admin-id", Username: "admin", GroupKey: "admin", Permissions: permission.AdminPermissions}},
@@ -51,6 +52,7 @@ func TestHandlerCreateUserReturnsCreatedUser(t *testing.T) {
 	}
 }
 
+// TestHandlerCreateUserMapsBusinessErrors verifies handler create user maps business errors.
 func TestHandlerCreateUserMapsBusinessErrors(t *testing.T) {
 	tests := []struct {
 		name string
@@ -92,6 +94,7 @@ func TestHandlerCreateUserMapsBusinessErrors(t *testing.T) {
 	}
 }
 
+// TestHandlerCreateUserRejectsInvalidJSONAndMapsSystemError verifies handler create user rejects invalid json and maps system error.
 func TestHandlerCreateUserRejectsInvalidJSONAndMapsSystemError(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -131,6 +134,7 @@ func TestHandlerCreateUserRejectsInvalidJSONAndMapsSystemError(t *testing.T) {
 	}
 }
 
+// TestHandlerListUsersReturnsItemsAndMeta verifies handler list users returns items and meta.
 func TestHandlerListUsersReturnsItemsAndMeta(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		CurrentUser: &fakeCurrentUserResolver{user: auth.CurrentUser{ID: "admin-id", Username: "admin", GroupKey: "admin", Permissions: permission.AdminPermissions}},
@@ -166,6 +170,7 @@ func TestHandlerListUsersReturnsItemsAndMeta(t *testing.T) {
 	}
 }
 
+// TestHandlerListUsersUsesDefaultPaginationForInvalidQuery verifies handler list users uses default pagination for invalid query.
 func TestHandlerListUsersUsesDefaultPaginationForInvalidQuery(t *testing.T) {
 	service := &fakeUserService{}
 	router := apphttp.NewRouter(apphttp.Dependencies{
@@ -182,6 +187,7 @@ func TestHandlerListUsersUsesDefaultPaginationForInvalidQuery(t *testing.T) {
 	}
 }
 
+// TestHandlerUpdateUserAndResetPassword verifies handler update user and reset password.
 func TestHandlerUpdateUserAndResetPassword(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		CurrentUser: &fakeCurrentUserResolver{user: auth.CurrentUser{ID: "admin-id", Username: "admin", GroupKey: "admin", Permissions: permission.AdminPermissions}},
@@ -230,6 +236,7 @@ func TestHandlerUpdateUserAndResetPassword(t *testing.T) {
 	}
 }
 
+// TestHandlerUpdateProfile verifies handler update profile.
 func TestHandlerUpdateProfile(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		CurrentUser: &fakeCurrentUserResolver{user: auth.CurrentUser{ID: "user-id", Username: "alice", Nickname: "Alice", GroupKey: "user", Permissions: permission.UserPermissions}},
@@ -265,6 +272,7 @@ func TestHandlerUpdateProfile(t *testing.T) {
 	}
 }
 
+// TestHandlerUpdateAndResetRejectInvalidJSON verifies handler update and reset reject invalid json.
 func TestHandlerUpdateAndResetRejectInvalidJSON(t *testing.T) {
 	tests := []struct {
 		name string
@@ -302,6 +310,7 @@ func TestHandlerUpdateAndResetRejectInvalidJSON(t *testing.T) {
 	}
 }
 
+// TestHandlerUserManagementMapsErrors verifies handler user management maps errors.
 func TestHandlerUserManagementMapsErrors(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -361,23 +370,28 @@ type fakeUserService struct {
 	err                 error
 }
 
+// Create implements the corresponding operation for the surrounding test double.
 func (f *fakeUserService) Create(context.Context, auth.CurrentUser, user.CreateInput) (user.CreateResult, error) {
 	return f.result, f.err
 }
 
+// List implements the corresponding operation for the surrounding test double.
 func (f *fakeUserService) List(_ context.Context, _ auth.CurrentUser, input user.ListInput) (user.ListResult, error) {
 	f.listInput = input
 	return f.listResult, f.err
 }
 
+// Update implements the corresponding operation for the surrounding test double.
 func (f *fakeUserService) Update(context.Context, auth.CurrentUser, user.UpdateInput) (user.UpdateResult, error) {
 	return f.updateResult, f.err
 }
 
+// UpdateProfile implements the corresponding operation for the surrounding test double.
 func (f *fakeUserService) UpdateProfile(context.Context, auth.CurrentUser, user.UpdateProfileInput) (user.UpdateProfileResult, error) {
 	return f.updateProfileResult, f.err
 }
 
+// ResetPassword implements the corresponding operation for the surrounding test double.
 func (f *fakeUserService) ResetPassword(context.Context, auth.CurrentUser, user.ResetPasswordInput) error {
 	return f.err
 }
@@ -387,6 +401,7 @@ type fakeCurrentUserResolver struct {
 	err  error
 }
 
+// ResolveCurrentUser implements the corresponding operation for the surrounding test double.
 func (f *fakeCurrentUserResolver) ResolveCurrentUser(context.Context, string) (auth.CurrentUser, error) {
 	if f.err != nil {
 		return auth.GuestUser(), f.err

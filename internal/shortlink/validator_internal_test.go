@@ -5,12 +5,14 @@ import (
 	"testing"
 )
 
+// TestValidateTargetURLAcceptsPublicHTTPURLs verifies validate target url accepts public httpur ls.
 func TestValidateTargetURLAcceptsPublicHTTPURLs(t *testing.T) {
 	if err := validateTargetURL("https://example.com/path?q=1"); err != nil {
 		t.Fatalf("expected public URL to pass, got %v", err)
 	}
 }
 
+// TestValidateTargetURLRejectsInvalidAndUnsafeURLs verifies validate target url rejects invalid and unsafe ur ls.
 func TestValidateTargetURLRejectsInvalidAndUnsafeURLs(t *testing.T) {
 	tests := []string{
 		"://broken",
@@ -29,6 +31,7 @@ func TestValidateTargetURLRejectsInvalidAndUnsafeURLs(t *testing.T) {
 	}
 }
 
+// TestIsBlockedTargetIPCoversPrivateAndExplicitPrefixes verifies is blocked target ip covers private and explicit prefixes.
 func TestIsBlockedTargetIPCoversPrivateAndExplicitPrefixes(t *testing.T) {
 	tests := []struct {
 		name    string

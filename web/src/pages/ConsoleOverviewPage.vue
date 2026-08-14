@@ -120,14 +120,17 @@ const metrics = computed(() => [
   { key: 'todayVisitCount', value: overview.value?.todayVisitCount ?? 0 },
 ])
 
+/** Refetches the overview metrics after a recoverable loading failure. */
 function retryOverview() {
   void overviewQuery.refetch()
 }
 
+/** Refetches the recent-link list after a recoverable loading failure. */
 function retryRecentLinks() {
   void recentLinksQuery.refetch()
 }
 
+/** Formats a recent-link timestamp using the active interface locale. */
 function formatDate(value: string) {
   const timestamp = Date.parse(value)
   if (Number.isNaN(timestamp)) {

@@ -74,8 +74,6 @@ func TestRecorderIgnoresNonVisitEvents(t *testing.T) {
 			t.Fatalf("record non-visit event %s: %v", eventType, err)
 		}
 	}
-	time.Sleep(100 * time.Millisecond)
-
 	var count int
 	err := pool.QueryRow(ctx, `select count(*) from short_link_event`).Scan(&count)
 	if err != nil {

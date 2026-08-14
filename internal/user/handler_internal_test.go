@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// TestWriteJSONReturnsInternalServerErrorForEncodingFailure verifies write json returns internal server error for encoding failure.
 func TestWriteJSONReturnsInternalServerErrorForEncodingFailure(t *testing.T) {
 	responseWriter := httptest.NewRecorder()
 

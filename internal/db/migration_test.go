@@ -332,6 +332,7 @@ func TestShortLinkConfirmationMigrationPreservesUntrackedPermissions(t *testing.
 	assertConfirmationPermission(t, ctx, database, "admin", true)
 }
 
+// TestShortLinkExperienceMigrationUpgradesExistingDataAndRollsBack verifies short link experience migration upgrades existing data and rolls back.
 func TestShortLinkExperienceMigrationUpgradesExistingDataAndRollsBack(t *testing.T) {
 	ctx := context.Background()
 	database := migrationTestDatabase(t, ctx)
@@ -433,6 +434,7 @@ func TestShortLinkExperienceMigrationUpgradesExistingDataAndRollsBack(t *testing
 	assertShortLinkExperienceConstraintValidation(t, ctx, database, true)
 }
 
+// migrationTestDatabase opens the isolated PostgreSQL database used by its test package.
 func migrationTestDatabase(t *testing.T, ctx context.Context) *sql.DB {
 	t.Helper()
 
@@ -479,6 +481,7 @@ func assertShortLinkPasswordConstraintValidation(t *testing.T, ctx context.Conte
 	}
 }
 
+// assertGroupPermissions checks the database state expected by the surrounding tests.
 func assertGroupPermissions(t *testing.T, ctx context.Context, database *sql.DB, groupKey string, expectedIntermediate bool, expectedExpiration bool) {
 	t.Helper()
 
@@ -511,6 +514,7 @@ func assertGroupPermissions(t *testing.T, ctx context.Context, database *sql.DB,
 	}
 }
 
+// assertShortLinkExperienceDefaults checks the database state expected by the surrounding tests.
 func assertShortLinkExperienceDefaults(t *testing.T, ctx context.Context, database *sql.DB, shortLinkID string) {
 	t.Helper()
 
@@ -536,6 +540,7 @@ func assertShortLinkExperienceDefaults(t *testing.T, ctx context.Context, databa
 	}
 }
 
+// assertShortLinkExperienceConstraints checks the database state expected by the surrounding tests.
 func assertShortLinkExperienceConstraints(t *testing.T, ctx context.Context, database *sql.DB, shortLinkID string) {
 	t.Helper()
 
@@ -569,6 +574,7 @@ func assertShortLinkExperienceConstraints(t *testing.T, ctx context.Context, dat
 	}
 }
 
+// assertShortLinkExperienceConstraintValidation checks the database state expected by the surrounding tests.
 func assertShortLinkExperienceConstraintValidation(t *testing.T, ctx context.Context, database *sql.DB, expected bool) {
 	t.Helper()
 
@@ -605,6 +611,7 @@ func assertShortLinkExperienceConstraintValidation(t *testing.T, ctx context.Con
 	}
 }
 
+// assertShortLinkExpirationRoundTrip checks the database state expected by the surrounding tests.
 func assertShortLinkExpirationRoundTrip(t *testing.T, ctx context.Context, database *sql.DB, shortLinkID string) {
 	t.Helper()
 
@@ -661,6 +668,7 @@ func insertUserGroups(t *testing.T, ctx context.Context, database *sql.DB) {
 	}
 }
 
+// assertPasswordPermission checks the database state expected by the surrounding tests.
 func assertPasswordPermission(t *testing.T, ctx context.Context, database *sql.DB, groupKey string, expected bool) {
 	t.Helper()
 
@@ -673,6 +681,7 @@ func assertPasswordPermission(t *testing.T, ctx context.Context, database *sql.D
 	}
 }
 
+// assertConfirmationPermission checks the database state expected by the surrounding tests.
 func assertConfirmationPermission(t *testing.T, ctx context.Context, database *sql.DB, groupKey string, expected bool) {
 	t.Helper()
 
@@ -685,6 +694,7 @@ func assertConfirmationPermission(t *testing.T, ctx context.Context, database *s
 	}
 }
 
+// assertConfirmationConstraintValidation checks the database state expected by the surrounding tests.
 func assertConfirmationConstraintValidation(t *testing.T, ctx context.Context, database *sql.DB, expected bool) {
 	t.Helper()
 

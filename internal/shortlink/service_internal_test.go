@@ -23,6 +23,7 @@ type failingPermissionResolver struct {
 	err error
 }
 
+// Resolve implements the corresponding operation for the surrounding test double.
 func (r failingPermissionResolver) Resolve(context.Context, string) (permission.Snapshot, error) {
 	return permission.Snapshot{}, r.err
 }
@@ -276,26 +277,32 @@ type analyticsQueryStub struct {
 	countryErr  error
 }
 
+// GetShortLinkAnalyticsSummary implements the corresponding operation for the surrounding test double.
 func (s analyticsQueryStub) GetShortLinkAnalyticsSummary(context.Context, pgtype.UUID) (sqlc.GetShortLinkAnalyticsSummaryRow, error) {
 	return sqlc.GetShortLinkAnalyticsSummaryRow{}, s.summaryErr
 }
 
+// ListShortLinkDailyVisits implements the corresponding operation for the surrounding test double.
 func (s analyticsQueryStub) ListShortLinkDailyVisits(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkDailyVisitsRow, error) {
 	return nil, s.trendErr
 }
 
+// ListShortLinkReferrerStats implements the corresponding operation for the surrounding test double.
 func (s analyticsQueryStub) ListShortLinkReferrerStats(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkReferrerStatsRow, error) {
 	return nil, s.referrerErr
 }
 
+// ListShortLinkDeviceStats implements the corresponding operation for the surrounding test double.
 func (s analyticsQueryStub) ListShortLinkDeviceStats(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkDeviceStatsRow, error) {
 	return nil, s.deviceErr
 }
 
+// ListShortLinkCountryStats implements the corresponding operation for the surrounding test double.
 func (s analyticsQueryStub) ListShortLinkCountryStats(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkCountryStatsRow, error) {
 	return nil, s.countryErr
 }
 
+// TestInternalServiceHelpers verifies internal service helpers.
 func TestInternalServiceHelpers(t *testing.T) {
 	if uuidFromPgtype(pgtype.UUID{}) != "" {
 		t.Fatal("expected invalid pgtype UUID to become empty string")
@@ -387,6 +394,7 @@ func TestExpirationValuesUsesDatabaseState(t *testing.T) {
 	}
 }
 
+// TestReservedSlugsIncludeSingularPageRoutes verifies reserved slugs include singular page routes.
 func TestReservedSlugsIncludeSingularPageRoutes(t *testing.T) {
 	for _, slug := range []string{"api", "assets", "setup", "login", "profile", "console", "link", "links", "analytics", "admin", "go", "PROFILE", "GO"} {
 		if !isReservedSlug(slug) {

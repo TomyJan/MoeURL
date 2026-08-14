@@ -40,6 +40,7 @@ const currentUser = computed(() => currentUserQuery.data.value?.user)
 const currentUserName = computed(() => currentUser.value?.nickname || currentUser.value?.username || 'guest')
 const isGuest = computed(() => currentUser.value?.group === 'guest' || !currentUser.value)
 
+/** Opens the signed-in user's profile page. */
 function goProfile() {
   void router.push('/profile')
 }

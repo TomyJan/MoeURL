@@ -82,6 +82,7 @@ describe('i18n', () => {
   })
 
   it('keeps locale message trees aligned', () => {
+    /** Flattens nested locale messages into comparable dotted keys. */
     function flattenKeys(value: unknown, prefix = ''): string[] {
       if (!value || typeof value !== 'object') {
         return [prefix]

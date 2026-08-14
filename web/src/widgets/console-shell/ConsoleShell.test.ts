@@ -107,6 +107,7 @@ vi.mock('@tanstack/vue-query', () => ({
   }),
 }))
 
+/** Mounts the console shell with the shared query and router stubs. */
 function mountShell() {
   return render(ConsoleShell, {
     slots: {
@@ -118,6 +119,7 @@ function mountShell() {
   })
 }
 
+/** Configures the current-user query result for the next shell render. */
 function setCurrentUser(user: {
   username: string
   nickname?: string

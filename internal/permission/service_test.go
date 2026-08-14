@@ -7,6 +7,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/permission"
 )
 
+// TestBuiltInGroupPermissions verifies built in group permissions.
 func TestBuiltInGroupPermissions(t *testing.T) {
 	service := permission.NewService()
 
@@ -69,6 +70,7 @@ func TestBuiltInGroupPermissions(t *testing.T) {
 	}
 }
 
+// TestStaticPermissionSnapshots verifies static permission snapshots.
 func TestStaticPermissionSnapshots(t *testing.T) {
 	service := permission.NewService()
 	userPermissions, err := service.Resolve(context.Background(), permission.GroupUser)

@@ -255,6 +255,7 @@ func TestAppShutdownFailureKeepsDependenciesRunning(t *testing.T) {
 	}
 }
 
+// TestAppShutdownPrefersCompletedCleanupWhenContextIsDone verifies app shutdown prefers completed cleanup when context is done.
 func TestAppShutdownPrefersCompletedCleanupWhenContextIsDone(t *testing.T) {
 	for attempt := 0; attempt < 100; attempt++ {
 		cleanupDone := make(chan struct{})

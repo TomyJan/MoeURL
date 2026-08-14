@@ -539,6 +539,7 @@ func TestRedirectHandlerContinuesToTargetAndRecordsSuccess(t *testing.T) {
 	assertEvents(t, recorder.types, []string{event.RedirectResponseSent})
 }
 
+// TestRedirectHandlerContinueWriteFailureDoesNotRecordSuccess verifies redirect handler continue write failure does not record success.
 func TestRedirectHandlerContinueWriteFailureDoesNotRecordSuccess(t *testing.T) {
 	recorder := &recordingRecorder{}
 	handler := shortlink.NewRedirectHandler(
@@ -630,6 +631,7 @@ func TestRedirectHandlerPreviewForwardsAccessCookie(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerPreviewRejectsUnauthorizedProtectedPreview verifies redirect handler preview rejects unauthorized protected preview.
 func TestRedirectHandlerPreviewRejectsUnauthorizedProtectedPreview(t *testing.T) {
 	service := &fakeRedirectService{previewErr: shortlink.ErrPasswordRequired}
 	handler := shortlink.NewRedirectHandler(service)
@@ -768,6 +770,7 @@ func TestRedirectHandlerContinueShowsLifecycleErrors(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerContinueIncludesRateLimitRetryAt verifies redirect handler continue includes rate limit retry at.
 func TestRedirectHandlerContinueIncludesRateLimitRetryAt(t *testing.T) {
 	retryAt := time.Date(2026, time.August, 11, 12, 0, 0, 0, time.UTC)
 	handler := shortlink.NewRedirectHandler(&fakeRedirectService{
@@ -826,6 +829,7 @@ type fakeRedirectService struct {
 	continueToken  string
 }
 
+// int16Pointer returns a pointer to the supplied fixture value.
 func int16Pointer(value int16) *int16 {
 	return &value
 }

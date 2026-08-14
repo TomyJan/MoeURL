@@ -8,10 +8,12 @@ import (
 
 type errReader struct{}
 
+// Read returns the configured entropy-source failure for the test double.
 func (errReader) Read([]byte) (int, error) {
 	return 0, errors.New("random failed")
 }
 
+// TestHashPasswordReturnsRandomError verifies hash password returns random error.
 func TestHashPasswordReturnsRandomError(t *testing.T) {
 	original := passwordRandomReader
 	passwordRandomReader = errReader{}
@@ -25,6 +27,7 @@ func TestHashPasswordReturnsRandomError(t *testing.T) {
 	}
 }
 
+// TestVerifyPasswordRejectsMalformedHashes verifies verify password rejects malformed hashes.
 func TestVerifyPasswordRejectsMalformedHashes(t *testing.T) {
 	tests := []string{
 		"not-argon",
@@ -42,6 +45,7 @@ func TestVerifyPasswordRejectsMalformedHashes(t *testing.T) {
 	}
 }
 
+// TestVerifyPasswordParsesFallbackArgonParams verifies verify password parses fallback argon params.
 func TestVerifyPasswordParsesFallbackArgonParams(t *testing.T) {
 	encoded, err := HashPassword("secret")
 	if err != nil {

@@ -38,6 +38,7 @@ const directLink: ShortLink = {
   createdAt: '2026-08-01T00:00:00Z',
 }
 
+/** Mounts the settings dialog with shared link and permission defaults. */
 function mountDialog(props: Partial<{
   errorMessage: string
   link: ShortLink
@@ -58,6 +59,7 @@ function mountDialog(props: Partial<{
   })
 }
 
+/** Configures the permission query mock for settings tests. */
 function setPermissions(permissions: string[]) {
   state.queryResult = {
     data: ref({

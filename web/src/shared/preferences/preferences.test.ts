@@ -106,6 +106,7 @@ describe('preferences', () => {
   })
 })
 
+/** Creates an in-memory Storage implementation for preference tests. */
 function createTestStorage(): Storage {
   const entries = new Map<string, string>()
 
@@ -113,18 +114,23 @@ function createTestStorage(): Storage {
     get length() {
       return entries.size
     },
+    /** Removes all stored preference values. */
     clear() {
       entries.clear()
     },
+    /** Returns one stored preference value or null. */
     getItem(key: string) {
       return entries.get(key) ?? null
     },
+    /** Returns the storage key at the requested index. */
     key(index: number) {
       return Array.from(entries.keys())[index] ?? null
     },
+    /** Removes one stored preference value. */
     removeItem(key: string) {
       entries.delete(key)
     },
+    /** Stores one preference value using Storage string semantics. */
     setItem(key: string, value: string) {
       entries.set(key, value)
     },

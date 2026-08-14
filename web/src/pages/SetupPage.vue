@@ -110,11 +110,13 @@ const themeItems = computed(() => [
 ])
 const mutation = useMutation({
   mutationFn: setupSystem,
+  /** Marks the setup flow complete from the server-authoritative result. */
   onSuccess(result) {
     initialized.value = result.initialized
   },
 })
 
+/** Submits a snapshot of the system initialization form. */
 function submit() {
   mutation.mutate({ ...form })
 }

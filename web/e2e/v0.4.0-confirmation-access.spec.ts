@@ -192,6 +192,67 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
     ).toBe(1)
   })
 
+  await test.step('受保护直达失败后等待手动重试', async () => {
+    const target = 'https://example.net/e2e-protected-direct-retry'
+    const password = 'direct retry horse'
+    const response = await page.request.post('/api/v1/short-link/create', {
+      data: {
+        password: { mode: 'set', value: password },
+        redirectMode: 'direct',
+        targetUrl: target,
+      },
+    })
+    await expect(response).toBeOK()
+    const payload = await response.json() as {
+      code: number
+      data: { shortLink: { id: string; slug: string } }
+    }
+    expect(payload.code).toBe(0)
+    const created = payload.data.shortLink
+    expect(await readVisitCount(page, created.id)).toBe(0)
+
+    await page.route(target, (route) => route.fulfill({ body: 'protected direct reached', status: 200 }))
+    let continueAttempts = 0
+    await page.route(`**/go/${created.slug}/continue`, async (route) => {
+      continueAttempts += 1
+      if (continueAttempts === 1) {
+        await route.fulfill({
+          headers: { location: `/go/${created.slug}?reason=continue-failed` },
+          status: 302,
+        })
+        return
+      }
+      await route.continue()
+    })
+
+    const open = await page.request.get(`/${created.slug}`, { maxRedirects: 0 })
+    expect(open.status()).toBe(302)
+    expect(open.headers().location).toBe(`/go/${created.slug}?reason=password`)
+    await page.goto(open.headers().location!)
+    await page.getByLabel('访问密码').fill(password)
+    const retryPreview = page.waitForResponse((previewResponse) => (
+      new URL(previewResponse.url()).pathname === `/go/${created.slug}/preview`
+      && previewResponse.request().method() === 'GET'
+    ))
+    await page.getByRole('button', { name: '解锁并继续' }).click()
+    await retryPreview
+
+    await expect(page).toHaveURL(new RegExp(`/go/${created.slug}[?]reason=continue-failed$`))
+    await expect(page.getByText('暂时无法继续访问，请重试。')).toBeVisible()
+    expect(continueAttempts).toBe(1)
+    expect(await readVisitCount(page, created.id)).toBe(0)
+
+    await Promise.all([
+      page.waitForURL(target),
+      page.getByRole('button', { name: '立即前往' }).click(),
+    ])
+    expect(continueAttempts).toBe(2)
+    await expect.poll(
+      () => readVisitCount(page, created.id),
+      { intervals: [250, 500, 1_000], timeout: 30_000 },
+    ).toBe(1)
+  })
+
   await test.step('继续前停用会阻止跳转', async () => {
     const target = 'https://example.org/e2e-disabled-confirmation'
     const created = await createConfirmationFixture(page, { targetUrl: target })
@@ -233,6 +294,7 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
   })
 })
 
+/** Creates a confirmation link through the public creation UI. */
 async function createConfirmationLink(page: Page, targetUrl: string, password?: string) {
   await page.goto('/')
   await page.getByRole('button', { name: '高级设置' }).click()
@@ -270,6 +332,7 @@ async function createConfirmationLink(page: Page, targetUrl: string, password?: 
   }
 }
 
+/** Creates a confirmation-link fixture through the authenticated API. */
 async function createConfirmationFixture(page: Page, input: { targetUrl: string }) {
   const response = await page.request.post('/api/v1/short-link/create', {
     data: { ...input, redirectMode: 'confirmation' },
@@ -283,6 +346,7 @@ async function createConfirmationFixture(page: Page, input: { targetUrl: string 
   return payload.data.shortLink
 }
 
+/** Reads the business code returned by a scoped public preview. */
 async function readScopedPreviewCode(page: Page, slug: string) {
   const response = await page.request.get(`/go/${encodeURIComponent(slug)}/preview`)
   await expect(response).toBeOK()
@@ -290,6 +354,7 @@ async function readScopedPreviewCode(page: Page, slug: string) {
   return payload.code
 }
 
+/** Verifies the confirmation page remains usable in the active viewport. */
 async function expectConfirmationLayout(page: Page) {
   await expectNoHorizontalOverflow(page)
   const elements = [
@@ -315,6 +380,7 @@ async function expectConfirmationLayout(page: Page) {
   }
 }
 
+/** Verifies the confirmation settings dialog remains usable in the active viewport. */
 async function expectSettingsDialogLayout(page: Page, dialog: Locator) {
   await expectNoHorizontalOverflow(page)
   await Promise.all([

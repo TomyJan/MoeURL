@@ -175,7 +175,7 @@ const logoutMutation = useMutation({
   onError() {
     logoutErrorVisible.value = true
   },
-  /** Clears cached identity state and returns the user to login after logout. */
+  /** Invalidates auth/me so Vue Query can refetch it for the current query state before returning to login. */
   onSuccess() {
     logoutErrorVisible.value = false
     void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })

@@ -63,12 +63,14 @@ if (percent + Number.EPSILON < threshold) {
   process.exit(1)
 }
 
+/** Reads one --name=value command-line option. */
 function readOption(name) {
   const prefix = `${name}=`
   const value = process.argv.find((argument) => argument.startsWith(prefix))
   return value?.slice(prefix.length)
 }
 
+/** Loads non-empty, non-comment coverage target patterns. */
 function readPatterns(path) {
   return readFileSync(path, 'utf8')
     .split('\n')
@@ -76,6 +78,7 @@ function readPatterns(path) {
     .filter((line) => line !== '' && !line.startsWith('#'))
 }
 
+/** Parses one Go coverage profile block into its location and counters. */
 function parseBlock(line) {
   const parts = line.trim().split(/\s+/)
   if (parts.length !== 3) return null
@@ -88,6 +91,7 @@ function parseBlock(line) {
   return { loc, file: loc.split(':')[0], statements, count }
 }
 
+/** Consumes one uniquely matched configured exclusion and tracks its coverage. */
 function consumeExcludedBlock(location, count) {
   if (excludedBlocks.has(location)) {
     matchedExcludedBlocks.add(location)
@@ -105,6 +109,7 @@ function consumeExcludedBlock(location, count) {
   return true
 }
 
+/** Groups coverage locations that collapse to the same source line range. */
 function groupLocationsByLineRange(locations) {
   const grouped = new Map()
   for (const location of locations) {
@@ -116,6 +121,7 @@ function groupLocationsByLineRange(locations) {
   return grouped
 }
 
+/** Removes statement columns from a Go coverage location. */
 function toLineRange(location) {
   const match = /^(.*):(\d+)\.\d+,(\d+)\.\d+$/.exec(location)
   return match ? `${match[1]}:${match[2]},${match[3]}` : location

@@ -51,6 +51,7 @@ vi.mock('@tanstack/vue-query', async () => {
   }
 })
 
+/** Mounts the creation panel with shared test defaults. */
 function mountPanel(props: Record<string, unknown> = {}) {
   return render(ShortLinkCreatePanel, {
     props,
@@ -60,6 +61,7 @@ function mountPanel(props: Record<string, unknown> = {}) {
   })
 }
 
+/** Configures the permission query mock for the next panel render. */
 function setQueryResult(permissions: string[]) {
   state.queryResult = {
     data: ref({
@@ -70,6 +72,7 @@ function setQueryResult(permissions: string[]) {
   }
 }
 
+/** Configures the creation mutation mock for the next panel render. */
 function setMutationResult(value: Partial<{
   data: ReturnType<typeof ref>
   error: ReturnType<typeof ref>

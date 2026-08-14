@@ -1426,6 +1426,7 @@ func TestServiceConfirmationPermissionTracksDatabaseChanges(t *testing.T) {
 	require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
 }
 
+// removePermission removes the requested fixture state for permission tests.
 func removePermission(permissions []string, removed string) []string {
 	result := make([]string, 0, len(permissions))
 	for _, current := range permissions {
@@ -1436,6 +1437,7 @@ func removePermission(permissions []string, removed string) []string {
 	return result
 }
 
+// assertAccessConfig checks the database state expected by the surrounding tests.
 func assertAccessConfig(t *testing.T, link shortlink.ShortLink, mode string, delay int16, expiresAt *time.Time, expired bool) {
 	t.Helper()
 	if link.RedirectMode != mode || link.IntermediateDelaySeconds != delay || link.Expired != expired {

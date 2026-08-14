@@ -14,6 +14,7 @@ import (
 	apphttp "github.com/TomyJan/MoeURL/internal/http"
 )
 
+// TestAuthHandlerLoginSetsSessionCookie verifies auth handler login sets session cookie.
 func TestAuthHandlerLoginSetsSessionCookie(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		Auth: &fakeAuthService{
@@ -85,6 +86,7 @@ func TestAuthHandlerLoginSetsSessionCookie(t *testing.T) {
 	}
 }
 
+// TestAuthHandlerLoginMapsInvalidCredentials verifies auth handler login maps invalid credentials.
 func TestAuthHandlerLoginMapsInvalidCredentials(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		Auth: &fakeAuthService{loginErr: auth.ErrInvalidCredentials},
@@ -108,6 +110,7 @@ func TestAuthHandlerLoginMapsInvalidCredentials(t *testing.T) {
 	}
 }
 
+// TestAuthHandlerLoginMapsDisabledAndSystemErrors verifies auth handler login maps disabled and system errors.
 func TestAuthHandlerLoginMapsDisabledAndSystemErrors(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -148,6 +151,7 @@ func TestAuthHandlerLoginMapsDisabledAndSystemErrors(t *testing.T) {
 	}
 }
 
+// TestAuthHandlerLoginRejectsInvalidJSON verifies auth handler login rejects invalid json.
 func TestAuthHandlerLoginRejectsInvalidJSON(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{Auth: &fakeAuthService{}})
 	response := httptest.NewRecorder()
@@ -166,6 +170,7 @@ func TestAuthHandlerLoginRejectsInvalidJSON(t *testing.T) {
 	}
 }
 
+// TestAuthHandlerMeReturnsGuestWithoutSession verifies auth handler me returns guest without session.
 func TestAuthHandlerMeReturnsGuestWithoutSession(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		Auth: &fakeAuthService{},
@@ -198,6 +203,7 @@ func TestAuthHandlerMeReturnsGuestWithoutSession(t *testing.T) {
 	}
 }
 
+// TestAuthHandlerMeUsesSessionCookieAndFallsBackOnError verifies auth handler me uses session cookie and falls back on error.
 func TestAuthHandlerMeUsesSessionCookieAndFallsBackOnError(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		Auth: &fakeAuthService{
@@ -226,6 +232,7 @@ func TestAuthHandlerMeUsesSessionCookieAndFallsBackOnError(t *testing.T) {
 	}
 }
 
+// TestAuthHandlerLogoutClearsCookie verifies auth handler logout clears cookie.
 func TestAuthHandlerLogoutClearsCookie(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		Auth:          &fakeAuthService{},
@@ -254,14 +261,17 @@ type fakeAuthService struct {
 	loginErr    error
 }
 
+// Login implements the corresponding operation for the surrounding test double.
 func (f *fakeAuthService) Login(context.Context, auth.LoginInput) (auth.LoginResult, error) {
 	return f.loginResult, f.loginErr
 }
 
+// Logout implements the corresponding operation for the surrounding test double.
 func (f *fakeAuthService) Logout(context.Context, string) error {
 	return nil
 }
 
+// Me implements the corresponding operation for the surrounding test double.
 func (f *fakeAuthService) Me(context.Context, string) (auth.CurrentUser, error) {
 	if f.loginErr != nil {
 		return auth.GuestUser(), f.loginErr

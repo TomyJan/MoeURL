@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// TestNewDatabaseService verifies new database service.
 func TestNewDatabaseService(t *testing.T) {
 	service := NewDatabaseService(&pgxpool.Pool{})
 	if service == nil || service.queries == nil {
@@ -22,10 +23,12 @@ type groupQueryStub struct {
 	err   error
 }
 
+// GetUserGroupByKey implements the corresponding operation for the surrounding test double.
 func (s groupQueryStub) GetUserGroupByKey(context.Context, string) (sqlc.UserGroup, error) {
 	return s.group, s.err
 }
 
+// TestDatabaseServiceResolve verifies database service resolve.
 func TestDatabaseServiceResolve(t *testing.T) {
 	tests := []struct {
 		name        string

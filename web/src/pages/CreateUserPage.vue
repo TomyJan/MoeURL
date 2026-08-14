@@ -70,12 +70,14 @@ const statusOptions = computed(() => [
 
 const mutation = useMutation({
   mutationFn: createUser,
+  /** Displays the created account and clears the submitted form. */
   onSuccess(result) {
     createdUsername.value = result.user.username
     resetForm()
   },
 })
 
+/** Submits the current account fields to the user-creation mutation. */
 function submit() {
   createdUsername.value = ''
   mutation.mutate({
@@ -87,6 +89,7 @@ function submit() {
   })
 }
 
+/** Restores the user-creation form to its defaults. */
 function resetForm() {
   username.value = ''
   password.value = ''
