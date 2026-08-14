@@ -269,6 +269,8 @@ v0.2.0 使用前端 `qrcode` 库按短链公开 URL 即时生成 PNG Data URL。
 
 Playwright 通过独立的 `setup` project 先完成一次初始化 UI 流程，再让业务 spec 并行执行；需要共享状态的受保护访问 spec 在文件内显式串行。
 
+Playwright 默认使用隔离的 Docker Compose 环境。仅当 Docker Desktop 或外部镜像仓库不可用，且已保留原始失败证据时，才允许改用干净数据库、当前 Go 实现和当前前端产物运行同一套浏览器断言；回退不得掩盖应用构建、迁移或启动错误。
+
 测试重点：
 
 - 首页创建区域权限状态。

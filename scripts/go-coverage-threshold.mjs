@@ -6,7 +6,6 @@ const includeFrom = readOption('--include-from')
 const includes = includeFrom ? readPatterns(includeFrom) : []
 const excludeBlocksFrom = readOption('--exclude-blocks-from')
 const excludedBlocks = excludeBlocksFrom ? new Set(readPatterns(excludeBlocksFrom)) : new Set()
-const excludedLineRanges = new Set([...excludedBlocks].map(toLineRange))
 const matchedExcludedBlocks = new Set()
 const coveredExcludedBlocks = new Set()
 const blocks = readFileSync(profile, 'utf8')
@@ -15,6 +14,8 @@ const blocks = readFileSync(profile, 'utf8')
   .slice(1)
   .map(parseBlock)
   .filter(Boolean)
+const coverageLocationsByLineRange = groupLocationsByLineRange(blocks.map(({ loc }) => loc))
+const excludedLocationsByLineRange = groupLocationsByLineRange([...excludedBlocks])
 let covered = 0
 let total = 0
 const uncoveredBlocks = []
@@ -94,16 +95,25 @@ function consumeExcludedBlock(location, count) {
     return true
   }
   const lineRange = toLineRange(location)
-  if (!excludedLineRanges.has(lineRange)) {
+  const coverageLocations = coverageLocationsByLineRange.get(lineRange) ?? []
+  const configuredLocations = excludedLocationsByLineRange.get(lineRange) ?? []
+  if (coverageLocations.length !== 1 || configuredLocations.length !== 1) {
     return false
   }
-  for (const configuredLocation of excludedBlocks) {
-    if (toLineRange(configuredLocation) === lineRange) {
-      matchedExcludedBlocks.add(configuredLocation)
-    }
-  }
+  matchedExcludedBlocks.add(configuredLocations[0])
   if (count > 0) coveredExcludedBlocks.add(location)
   return true
+}
+
+function groupLocationsByLineRange(locations) {
+  const grouped = new Map()
+  for (const location of locations) {
+    const lineRange = toLineRange(location)
+    const matches = grouped.get(lineRange) ?? []
+    matches.push(location)
+    grouped.set(lineRange, matches)
+  }
+  return grouped
 }
 
 function toLineRange(location) {

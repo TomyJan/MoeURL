@@ -280,7 +280,7 @@ func TestRedirectServiceProtectedConfirmationKeepsModeAfterUnlock(t *testing.T) 
 	pool := shortLinkTestPool(t, ctx)
 	insertShortLinkDefaultDomain(t, ctx, pool)
 	user := insertShortLinkUser(t, ctx, pool, "protected-confirmation-user", "user", []string{})
-	linkID := insertStoredShortLink(t, ctx, pool, user.ID, "secure-confirm", "https://example.com/protected-confirmation", "active", false)
+	linkID := insertStoredShortLink(t, ctx, pool, user.ID, "confirm2", "https://example.com/protected-confirmation", "active", false)
 	hash, err := auth.HashPassword("correct horse")
 	if err != nil {
 		t.Fatalf("hash protected confirmation password: %v", err)
@@ -295,20 +295,20 @@ func TestRedirectServiceProtectedConfirmationKeepsModeAfterUnlock(t *testing.T) 
 	recorder := &recordingRecorder{}
 	service := shortlink.NewRedirectService(pool, recorder)
 
-	opened, err := service.Open(ctx, "secure-confirm")
+	opened, err := service.Open(ctx, "confirm2")
 	if err != nil || !opened.RequiresPassword || opened.RedirectMode != shortlink.RedirectModeConfirmation {
 		t.Fatalf("expected protected confirmation open, got %#v error %v", opened, err)
 	}
-	grant, err := service.Unlock(ctx, "secure-confirm", "correct horse")
+	grant, err := service.Unlock(ctx, "confirm2", "correct horse")
 	if err != nil {
 		t.Fatalf("unlock protected confirmation: %v", err)
 	}
-	preview, err := service.Preview(ctx, "secure-confirm", grant.Token)
+	preview, err := service.Preview(ctx, "confirm2", grant.Token)
 	if err != nil || preview.RedirectMode != shortlink.RedirectModeConfirmation || preview.IntermediateDelaySeconds != nil {
 		t.Fatalf("expected authorized confirmation preview, got %#v error %v", preview, err)
 	}
 	recorder.types = nil
-	continued, err := service.Continue(ctx, "secure-confirm", grant.Token)
+	continued, err := service.Continue(ctx, "confirm2", grant.Token)
 	if err != nil || continued.TargetURL != "https://example.com/protected-confirmation" {
 		t.Fatalf("continue protected confirmation: %#v error %v", continued, err)
 	}

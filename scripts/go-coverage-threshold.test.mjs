@@ -60,6 +60,74 @@ test('rejects exclusions that hide covered blocks', () => {
   }
 })
 
+test('rejects ambiguous fallback when sibling coverage blocks share a line range', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'moeurl-coverage-'))
+  const coveragePath = join(directory, 'coverage.out')
+  const targetsPath = join(directory, 'targets.txt')
+  const excludedPath = join(directory, 'excluded.txt')
+  const sourcePath = 'github.com/TomyJan/MoeURL/internal/auth/service.go'
+
+  writeFileSync(
+    coveragePath,
+    `mode: set\n${sourcePath}:48.1,50.40 1 1\n${sourcePath}:48.41,50.99 1 0\n`,
+  )
+  writeFileSync(targetsPath, `${sourcePath}\n`)
+  writeFileSync(excludedPath, `${sourcePath}:48.16,50.3\n`)
+
+  try {
+    const result = spawnSync(process.execPath, [
+      'scripts/go-coverage-threshold.mjs',
+      coveragePath,
+      '100',
+      `--include-from=${targetsPath}`,
+      `--exclude-blocks-from=${excludedPath}`,
+    ], { cwd: process.cwd(), encoding: 'utf8' })
+
+    assert.equal(result.status, 1)
+    assert.match(result.stdout, /Go coverage: 50\.00%/)
+    assert.match(result.stderr, /Unmatched configured coverage exclusions:/)
+    assert.match(result.stderr, new RegExp(`${sourcePath}:48\\.16,50\\.3`))
+    assert.match(result.stderr, new RegExp(`${sourcePath}:48\\.41,50\\.99`))
+    assert.doesNotMatch(result.stderr, /Coverage exclusions matched covered blocks:/)
+  } finally {
+    rmSync(directory, { force: true, recursive: true })
+  }
+})
+
+test('rejects ambiguous fallback when configured exclusions share a line range', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'moeurl-coverage-'))
+  const coveragePath = join(directory, 'coverage.out')
+  const targetsPath = join(directory, 'targets.txt')
+  const excludedPath = join(directory, 'excluded.txt')
+  const sourcePath = 'github.com/TomyJan/MoeURL/internal/auth/service.go'
+
+  writeFileSync(coveragePath, `mode: set\n${sourcePath}:48.1,50.99 1 0\n`)
+  writeFileSync(targetsPath, `${sourcePath}\n`)
+  writeFileSync(
+    excludedPath,
+    `${sourcePath}:48.16,50.3\n${sourcePath}:48.20,50.4\n`,
+  )
+
+  try {
+    const result = spawnSync(process.execPath, [
+      'scripts/go-coverage-threshold.mjs',
+      coveragePath,
+      '100',
+      `--include-from=${targetsPath}`,
+      `--exclude-blocks-from=${excludedPath}`,
+    ], { cwd: process.cwd(), encoding: 'utf8' })
+
+    assert.equal(result.status, 1)
+    assert.match(result.stdout, /Go coverage: 0\.00%/)
+    assert.match(result.stderr, /Unmatched configured coverage exclusions:/)
+    assert.match(result.stderr, new RegExp(`${sourcePath}:48\\.16,50\\.3`))
+    assert.match(result.stderr, new RegExp(`${sourcePath}:48\\.20,50\\.4`))
+    assert.match(result.stderr, new RegExp(`${sourcePath}:48\\.1,50\\.99`))
+  } finally {
+    rmSync(directory, { force: true, recursive: true })
+  }
+})
+
 test('rejects configured exclusions when compiler line positions shift', () => {
   const directory = mkdtempSync(join(tmpdir(), 'moeurl-coverage-'))
   const coveragePath = join(directory, 'coverage.out')

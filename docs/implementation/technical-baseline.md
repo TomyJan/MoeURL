@@ -543,7 +543,7 @@ Playwright E2E 默认通过 `web/playwright.config.ts` 启动 Docker Compose 测
 
 初始化 UI 流程由 `web/e2e/initialize.setup.ts` 的 Playwright `setup` project 先执行；业务 spec 依赖该 project 后可并行运行，受保护访问 spec 仍在文件内显式串行。
 
-当 Docker Desktop 不可用但需要验证同一套 Playwright 用例时，可先用干净数据库和当前 `web/dist` 启动本地服务，再设置 `MOEURL_E2E_SKIP_DOCKER=1` 和对应的 `MOEURL_E2E_PORT` 执行 `pnpm test:e2e`。该模式只跳过环境拉起步骤，不跳过任何浏览器断言；执行者必须确保数据库从未初始化状态开始。
+当 Docker Desktop 不可用，或隔离 Compose 环境因外部镜像仓库不可用而无法拉取、构建或启动时，可先记录原始失败命令和错误，再用干净数据库、当前 Go 实现和当前 `web/dist` 启动本机服务，设置 `MOEURL_E2E_SKIP_DOCKER=1` 和对应的 `MOEURL_E2E_PORT` 执行 `pnpm test:e2e`。该回退不得用于绕过应用构建、迁移或启动错误，只跳过 Playwright 的环境拉起步骤，不跳过任何浏览器断言；执行者必须确保数据库从未初始化状态开始，并在验收记录中写明 Docker 状态、端口、环境变量和完整命令。
 
 v0.2.0 访问体验 E2E 必须覆盖真实 `/{slug}` 入口、进入中间页前访问量为 0、继续路由目标 `302`、真实 UI 继续访问后访问量为 1，以及过期访问不增加访问量。v0.3.0 还必须覆盖真实密码页、错误密码、有效授权、密码变更吊销旧授权和访问量口径。v0.4.0 还必须覆盖无密码与受密码保护确认页、主动继续、二次访问条件检查和最终访问量。中间页、密码页、确认页、访问设置和二维码对话框必须同时在 `1280 x 720` 与 `390 x 800` 视口验证控件顺序、操作区几何和横向溢出；异步流程使用条件等待，不允许使用固定 `waitForTimeout`。
 
