@@ -274,8 +274,8 @@ func TestRedirectServiceConfirmationPreviewAndContinue(t *testing.T) {
 	assertEvents(t, recorder.types, []string{event.AccessConditionChecked, event.RedirectBlocked})
 }
 
-// TestRedirectServiceProtectedConfirmationKeepsModeAfterUnlock verifies a grant does not bypass confirmation.
-func TestRedirectServiceProtectedConfirmationKeepsModeAfterUnlock(t *testing.T) {
+// TestRedirectServiceProtectedConfirmationRequiresGrantAndKeepsModeAfterUnlock verifies authorization remains mandatory before confirmation.
+func TestRedirectServiceProtectedConfirmationRequiresGrantAndKeepsModeAfterUnlock(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
 	insertShortLinkDefaultDomain(t, ctx, pool)
@@ -298,6 +298,9 @@ func TestRedirectServiceProtectedConfirmationKeepsModeAfterUnlock(t *testing.T) 
 	opened, err := service.Open(ctx, "confirm2")
 	if err != nil || !opened.RequiresPassword || opened.RedirectMode != shortlink.RedirectModeConfirmation {
 		t.Fatalf("expected protected confirmation open, got %#v error %v", opened, err)
+	}
+	if _, err := service.Continue(ctx, "confirm2", ""); !errors.Is(err, shortlink.ErrPasswordRequired) {
+		t.Fatalf("expected protected confirmation continue to require authorization, got %v", err)
 	}
 	grant, err := service.Unlock(ctx, "confirm2", "correct horse")
 	if err != nil {

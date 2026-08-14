@@ -44,4 +44,4 @@ github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:302.39,304.3
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:290.16,292.3
 
 # Password hashing failure is an Argon2id/random infrastructure path after input and permission validation.
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:724.16,726.3
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:744.16,746.3
