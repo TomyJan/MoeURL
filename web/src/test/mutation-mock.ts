@@ -28,7 +28,7 @@ interface CreateMutationMockOptions {
   resolveSynchronousResult?: (result: unknown, input: unknown) => unknown
 }
 
-/** Creates a reactive mutation double that runs configured lifecycle callbacks. */
+/** Creates a reactive mutation double that runs the configured success callback. */
 export function createMutationMock(config: CreateMutationMockOptions) {
   return vi.fn((options?: MutationMockCallOptions) => {
     config.captureOptions?.(options)
@@ -53,7 +53,7 @@ export function createMutationMock(config: CreateMutationMockOptions) {
       data.value = value
       options?.onSuccess?.(value, input)
     }
-    /** Applies a failed result and invokes the configured error callback. */
+    /** Applies a failed result to the reactive error state. */
     const fail = (reason: unknown) => {
       error.value = reason
       if (config.fields?.isError) {

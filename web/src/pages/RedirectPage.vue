@@ -331,7 +331,7 @@ async function unlock(event: globalThis.Event) {
     clearRateLimitCountdown()
     passwordRequired.value = false
     form.reset()
-    proceedAfterAccess()
+    proceedAfterAccess(continueFailed.value)
   } catch (error) {
     if (!isCurrentUnlock()) {
       return

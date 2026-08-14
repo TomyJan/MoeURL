@@ -339,6 +339,32 @@ describe('RedirectPage', () => {
     expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
   })
 
+  it.each([
+    { redirectMode: 'direct' as const, intermediateDelaySeconds: null },
+    { redirectMode: 'intermediate' as const, intermediateDelaySeconds: 5 },
+  ])('waits for a manual retry after password reauthorization in $redirectMode mode', async (preview) => {
+    state.route!.query = { reason: 'continue-failed' }
+    const setInterval = vi.spyOn(globalThis, 'setInterval')
+    mockUnauthorizedPreview()
+    vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
+      slug: 'abc123',
+      targetHost: 'example.com',
+      expiresAt: null,
+      ...preview,
+    })
+
+    mountPage()
+    await flushPreview()
+    await fireEvent.update(screen.getByLabelText('redirect.password'), 'correct horse')
+    await fireEvent.click(screen.getByRole('button', { name: 'redirect.unlock' }))
+    await vi.waitFor(() => expect(screen.getByText('redirect.continueFailed')).toBeTruthy())
+
+    expect(state.assign).not.toHaveBeenCalled()
+    expect(setInterval.mock.calls.some(([, delay]) => delay === 1_000)).toBe(false)
+    await fireEvent.click(screen.getByRole('button', { name: 'redirect.continue' }))
+    expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
+  })
+
   it('keeps a protected confirmation preview waiting after unlock', async () => {
     state.route!.query = { reason: 'password' }
     mockUnauthorizedPreview()

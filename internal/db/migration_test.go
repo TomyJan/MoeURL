@@ -256,6 +256,8 @@ func TestShortLinkConfirmationMigrationAddsModeAndPermissionAndRollsBack(t *test
 	if err := goose.UpTo(database, migrationsDir, 8); err != nil {
 		t.Fatalf("upgrade confirmation migration: %v", err)
 	}
+	assertRelationExists(t, ctx, database, "short_link_confirmation_permission_addition", true)
+	assertRelationExists(t, ctx, database, "moeurl_short_link_confirmation_permission_addition", false)
 	assertConfirmationConstraintValidation(t, ctx, database, false)
 	assertConfirmationPermission(t, ctx, database, "guest", false)
 	assertConfirmationPermission(t, ctx, database, "user", true)
@@ -275,6 +277,7 @@ func TestShortLinkConfirmationMigrationAddsModeAndPermissionAndRollsBack(t *test
 	if err := goose.DownTo(database, migrationsDir, 7); err != nil {
 		t.Fatalf("rollback confirmation migrations: %v", err)
 	}
+	assertRelationExists(t, ctx, database, "short_link_confirmation_permission_addition", false)
 	assertConfirmationConstraintValidation(t, ctx, database, true)
 	for _, groupKey := range []string{"guest", "user", "admin"} {
 		assertConfirmationPermission(t, ctx, database, groupKey, false)
@@ -691,6 +694,19 @@ func assertConfirmationPermission(t *testing.T, ctx context.Context, database *s
 	}
 	if actual != expected {
 		t.Fatalf("expected %s confirmation permission=%t, got %t", groupKey, expected, actual)
+	}
+}
+
+// assertRelationExists checks whether a PostgreSQL relation is visible on the current search path.
+func assertRelationExists(t *testing.T, ctx context.Context, database *sql.DB, relation string, expected bool) {
+	t.Helper()
+
+	var actual bool
+	if err := database.QueryRowContext(ctx, `select to_regclass($1) is not null`, relation).Scan(&actual); err != nil {
+		t.Fatalf("query relation %s: %v", relation, err)
+	}
+	if actual != expected {
+		t.Fatalf("expected relation %s existence=%t, got %t", relation, expected, actual)
 	}
 }
 

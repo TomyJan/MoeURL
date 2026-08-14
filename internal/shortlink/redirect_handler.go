@@ -6,6 +6,7 @@ import (
 	"errors"
 	"html"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -189,6 +190,7 @@ func (h *RedirectHandler) Continue(w http.ResponseWriter, r *http.Request, slug 
 		if isPublicAccessError(err) {
 			writePublicAccessError(w, r, slug, err)
 		} else {
+			slog.ErrorContext(r.Context(), "short_link_continue_failed", "slug", strings.ToLower(slug), "error", err)
 			redirectToPublicAccessState(w, r, slug, "continue-failed", nil)
 		}
 		return
@@ -196,15 +198,41 @@ func (h *RedirectHandler) Continue(w http.ResponseWriter, r *http.Request, slug 
 	h.writeTargetRedirect(w, r, result, strings.ToLower(slug))
 }
 
+type publicAccessErrorKind uint8
+
+const (
+	publicAccessErrorUnknown publicAccessErrorKind = iota
+	publicAccessErrorMissing
+	publicAccessErrorDisabled
+	publicAccessErrorExpired
+	publicAccessErrorNotInteractive
+	publicAccessErrorPassword
+	publicAccessErrorRateLimited
+)
+
 // isPublicAccessError reports whether an access error is safe to expose as a business response.
 func isPublicAccessError(err error) bool {
-	return errors.Is(err, ErrShortLinkMissing) ||
-		errors.Is(err, ErrShortLinkDisabled) ||
-		errors.Is(err, ErrShortLinkExpired) ||
-		errors.Is(err, ErrShortLinkNotInteractive) ||
-		errors.Is(err, ErrPasswordRequired) ||
-		errors.Is(err, ErrInvalidPassword) ||
-		errors.Is(err, ErrPasswordRateLimited)
+	return classifyPublicAccessError(err) != publicAccessErrorUnknown
+}
+
+// classifyPublicAccessError maps access failures to their safe public response category.
+func classifyPublicAccessError(err error) publicAccessErrorKind {
+	switch {
+	case errors.Is(err, ErrShortLinkMissing):
+		return publicAccessErrorMissing
+	case errors.Is(err, ErrShortLinkDisabled):
+		return publicAccessErrorDisabled
+	case errors.Is(err, ErrShortLinkExpired):
+		return publicAccessErrorExpired
+	case errors.Is(err, ErrShortLinkNotInteractive):
+		return publicAccessErrorNotInteractive
+	case errors.Is(err, ErrPasswordRequired), errors.Is(err, ErrInvalidPassword):
+		return publicAccessErrorPassword
+	case errors.Is(err, ErrPasswordRateLimited):
+		return publicAccessErrorRateLimited
+	default:
+		return publicAccessErrorUnknown
+	}
 }
 
 // redirectLowercaseScopedSlug canonicalizes scoped access paths before cookie-based authorization.
@@ -234,18 +262,18 @@ func (h *RedirectHandler) writeTargetRedirect(w http.ResponseWriter, r *http.Req
 
 // writePublicAccessError maps access failures to safe public redirect states.
 func writePublicAccessError(w http.ResponseWriter, r *http.Request, slug string, err error) {
-	switch {
-	case errors.Is(err, ErrShortLinkMissing):
+	switch classifyPublicAccessError(err) {
+	case publicAccessErrorMissing:
 		http.Error(w, "Short link not found", http.StatusNotFound)
-	case errors.Is(err, ErrShortLinkDisabled):
+	case publicAccessErrorDisabled:
 		redirectToPublicAccessState(w, r, slug, "disabled", nil)
-	case errors.Is(err, ErrShortLinkExpired):
+	case publicAccessErrorExpired:
 		redirectToPublicAccessState(w, r, slug, "expired", nil)
-	case errors.Is(err, ErrShortLinkNotInteractive):
+	case publicAccessErrorNotInteractive:
 		redirectToPublicAccessState(w, r, slug, "not-interactive", nil)
-	case errors.Is(err, ErrPasswordRequired), errors.Is(err, ErrInvalidPassword):
+	case publicAccessErrorPassword:
 		redirectToPublicAccessState(w, r, slug, "password", nil)
-	case errors.Is(err, ErrPasswordRateLimited):
+	case publicAccessErrorRateLimited:
 		var rateLimitErr *PasswordRateLimitedError
 		if errors.As(err, &rateLimitErr) && !rateLimitErr.RetryAt.IsZero() {
 			retryAt := rateLimitErr.RetryAt

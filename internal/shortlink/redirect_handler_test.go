@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -767,6 +768,31 @@ func TestRedirectHandlerContinueShowsLifecycleErrors(t *testing.T) {
 				t.Fatalf("expected status %d location %q, got %d location %q", tt.code, tt.location, response.Code, response.Header().Get("Location"))
 			}
 		})
+	}
+}
+
+// TestRedirectHandlerContinueLogsUnexpectedErrors verifies infrastructure failures retain their original cause in logs.
+func TestRedirectHandlerContinueLogsUnexpectedErrors(t *testing.T) {
+	logOutput := &bytes.Buffer{}
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(logOutput, nil)))
+	t.Cleanup(func() {
+		slog.SetDefault(previousLogger)
+	})
+
+	handler := shortlink.NewRedirectHandler(&fakeRedirectService{continueErr: errors.New("database down")})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/go/middle/continue", nil)
+
+	handler.Continue(response, request, "middle")
+
+	for _, field := range []string{"short_link_continue_failed", "slug=middle", "database down"} {
+		if !strings.Contains(logOutput.String(), field) {
+			t.Fatalf("expected continue failure log field %q, got %q", field, logOutput.String())
+		}
+	}
+	if response.Code != http.StatusFound || response.Header().Get("Location") != "/go/middle?reason=continue-failed" {
+		t.Fatalf("expected continue-failed redirect, got status %d location %q", response.Code, response.Header().Get("Location"))
 	}
 }
 
