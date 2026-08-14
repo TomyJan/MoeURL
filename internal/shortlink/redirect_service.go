@@ -305,6 +305,7 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 	return AccessGrant{Token: token, ExpiresAt: expiresAt}, nil
 }
 
+// passwordMatchesInput rejects invalid password input before invoking hash verification.
 func passwordMatchesInput(password string, encodedHash string, verify func(string, string) bool) bool {
 	if _, _, err := validatePasswordInput(&PasswordInput{Mode: PasswordModeSet, Value: password}); err != nil {
 		return false
@@ -367,6 +368,7 @@ func (s *RedirectService) CleanupExpiredAccessGrants(ctx context.Context, logger
 	return nil
 }
 
+// waitForAccessGrantCleanupBatchPause waits between cleanup batches or returns on cancellation.
 func waitForAccessGrantCleanupBatchPause(ctx context.Context) error {
 	timer := time.NewTimer(accessGrantCleanupBatchPause)
 	defer timer.Stop()
@@ -427,6 +429,7 @@ func validateAccessConditions(status string, expired bool, redirectMode string, 
 	return nil
 }
 
+// isInteractiveRedirectMode reports whether a redirect requires the public go flow.
 func isInteractiveRedirectMode(redirectMode string) bool {
 	return redirectMode == RedirectModeIntermediate || redirectMode == RedirectModeConfirmation
 }

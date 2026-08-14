@@ -231,6 +231,7 @@ function unlockErrorFromReason(reason: unknown): UnlockErrorState {
   return reason === 'rate-limited' ? 'rateLimited' : ''
 }
 
+/** Maps public preview API failures into non-sensitive page states. */
 function classifyPreviewError(error: unknown): PreviewFailureState {
   const code = error instanceof ApiClientError ? error.code : 0
   if (code === 200109) {
@@ -283,6 +284,7 @@ function proceedAfterAccess(waitForRetry = false) {
   }
 }
 
+/** Formats a timestamp with the currently active interface locale. */
 function formatDateTime(value: string) {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(locale.value, {
@@ -309,6 +311,7 @@ async function unlock(event: globalThis.Event) {
   }
 
   const requestIdentity = `${previewRequestId}:${String(route.params.slug)}`
+  /** Reports whether this unlock attempt still belongs to the mounted route request. */
   const isCurrentUnlock = () => isMounted && requestIdentity === `${previewRequestId}:${String(route.params.slug)}`
   unlockPending.value = true
   unlockErrorState.value = ''
@@ -380,6 +383,7 @@ function continueToTarget() {
   }
 }
 
+/** Stops the intermediate redirect countdown and releases its timer handle. */
 function clearCountdown() {
   if (countdownTimer === null) {
     return
@@ -388,11 +392,13 @@ function clearCountdown() {
   countdownTimer = null
 }
 
+/** Extracts the server-authoritative retry deadline from a rate-limit error. */
 function rateLimitRetryAt(error: unknown): unknown {
   /* v8 ignore next -- rateLimited is classified only from ApiClientError responses. */
   return error instanceof ApiClientError ? error.meta.retryAt : undefined
 }
 
+/** Starts a client display countdown from a validated server retry deadline. */
 function startRateLimitCountdown(retryAt: unknown) {
   clearRateLimitCountdown()
   if (typeof retryAt !== 'string') {
@@ -403,6 +409,7 @@ function startRateLimitCountdown(retryAt: unknown) {
     return
   }
 
+  /** Recomputes remaining lockout time and clears expired rate-limit state. */
   const update = () => {
     rateLimitRemainingSeconds.value = Math.max(0, Math.ceil((retryAtMillis - Date.now()) / 1_000))
     if (rateLimitRemainingSeconds.value === 0) {
@@ -419,6 +426,7 @@ function startRateLimitCountdown(retryAt: unknown) {
   }
 }
 
+/** Stops the rate-limit countdown and resets its displayed value. */
 function clearRateLimitCountdown() {
   if (rateLimitTimer !== null) {
     globalThis.clearInterval(rateLimitTimer)

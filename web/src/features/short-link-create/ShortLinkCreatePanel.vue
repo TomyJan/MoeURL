@@ -249,6 +249,7 @@ const mutation = useMutation({
       passwordRequested,
     )
   },
+  /** Stores the generated link and refreshes list consumers after creation. */
   onSuccess(result) {
     createdUrl.value = result.shortLink.url
     createdSlug.value = result.shortLink.slug
@@ -257,6 +258,7 @@ const mutation = useMutation({
     void queryClient.invalidateQueries({ queryKey: ['short-link'] })
     void queryClient.invalidateQueries({ queryKey: ['admin-short-link'] })
   },
+  /** Removes any residual plaintext password after every mutation outcome. */
   onSettled() {
     clearPasswordInput()
   },
@@ -286,6 +288,7 @@ function submit() {
   }
 }
 
+/** Validates visible fields and builds a permission-scoped creation request. */
 function submitValidatedInput(): boolean {
   validationErrorMessage.value = ''
   copyErrorMessage.value = ''
@@ -334,12 +337,14 @@ function submitValidatedInput(): boolean {
   return true
 }
 
+/** Reports whether the current user may submit the selected redirect mode. */
 function canSubmitRedirectMode(mode: RedirectMode) {
   return canConfigureRedirect.value && (mode === 'direct'
     || (mode === 'intermediate' && canUseIntermediate.value)
     || (mode === 'confirmation' && canUseConfirmation.value))
 }
 
+/** Clears both the creation form and its generated-link result. */
 function resetForm() {
   resetInputFields()
   createdUrl.value = ''
@@ -362,6 +367,7 @@ function resetInputFields() {
   passwordEnabled.value = false
 }
 
+/** Resolves the transient native password input without copying it into reactive state. */
 function passwordInput() {
   const field = passwordField.value?.$el
   if (!(field instanceof globalThis.HTMLElement) || !field.matches('[data-testid="short-link-create-password-input"]')) {
@@ -370,6 +376,7 @@ function passwordInput() {
   return field.querySelector<globalThis.HTMLInputElement>('input')
 }
 
+/** Clears plaintext password data from the rendered input when present. */
 function clearPasswordInput() {
   const input = passwordInput()
   if (input) {
@@ -377,6 +384,7 @@ function clearPasswordInput() {
   }
 }
 
+/** Copies a generated short-link URL and surfaces clipboard failures inline. */
 async function copyUrl(url: string) {
   copyErrorMessage.value = ''
   try {

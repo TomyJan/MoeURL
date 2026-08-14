@@ -16,6 +16,7 @@ let preferencesLoaded = false
 let systemThemeListenerInstalled = false
 let activeThemeName: { value: string } | undefined
 
+/** Provides the shared language and theme state synchronized with vue-i18n and Vuetify. */
 export function useAppPreferences() {
   const { locale } = useI18n()
   const theme = useTheme()
@@ -32,12 +33,14 @@ export function useAppPreferences() {
   theme.global.name.value = resolveVuetifyTheme(themeMode.value)
   installSystemThemeListener()
 
+  /** Updates and persists the active interface language. */
   function setLanguage(value: LanguagePreference) {
     language.value = value
     locale.value = value
     saveLanguagePreference(value)
   }
 
+  /** Updates and persists the active interface theme mode. */
   function setTheme(value: ThemePreference) {
     themeMode.value = value
     theme.global.name.value = resolveVuetifyTheme(value)
@@ -52,6 +55,7 @@ export function useAppPreferences() {
   }
 }
 
+/** Keeps system theme mode synchronized with operating-system preference changes. */
 function installSystemThemeListener() {
   if (systemThemeListenerInstalled) {
     return

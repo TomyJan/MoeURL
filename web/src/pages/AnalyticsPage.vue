@@ -111,12 +111,14 @@ watch([statistics, () => theme.global.current.value.colors.primary], async ([val
 
 onBeforeUnmount(() => chart?.destroy())
 
+/** Formats the last-visit date while handling absent or invalid timestamps. */
 function formatVisitedAt(value: string | null) {
   if (!value) return t('links.stats.neverVisited')
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? t('links.stats.neverVisited') : date.toLocaleDateString()
 }
 
+/** Localizes reserved analytics buckets while preserving concrete values. */
 function dimensionLabel(value: string) {
   if (value === 'unknown') return t('analytics.unknown')
   if (value === 'other') return t('analytics.other')

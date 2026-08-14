@@ -261,6 +261,7 @@ function applyPasswordInput(input: UpdateShortLinkInput): boolean {
   return true
 }
 
+/** Closes the dialog unless an update is still pending. */
 function close() {
   if (props.pending) {
     return
@@ -268,6 +269,7 @@ function close() {
   emit('update:open', false)
 }
 
+/** Applies external dialog state changes while protecting an in-flight save. */
 function handleOpenUpdate(open: boolean) {
   if (props.pending && !open) {
     return
@@ -291,12 +293,14 @@ function resetFromLink(link: Pick<ShortLink, 'targetUrl' | 'redirectMode' | 'int
   void nextTick(clearPasswordInput)
 }
 
+/** Reports whether the current user may submit the selected redirect mode. */
 function canSubmitRedirectMode(mode: RedirectMode) {
   return canConfigureRedirect.value && (mode === 'direct'
     || (mode === 'intermediate' && canUseIntermediate.value)
     || (mode === 'confirmation' && canUseConfirmation.value))
 }
 
+/** Resolves the transient native password input without copying it into reactive state. */
 function passwordInput() {
   const field = passwordField.value?.$el
   if (!(field instanceof globalThis.HTMLElement) || !field.matches('[data-testid="short-link-password-input"]')) {
@@ -305,6 +309,7 @@ function passwordInput() {
   return field.querySelector<globalThis.HTMLInputElement>('input')
 }
 
+/** Clears plaintext password data from the rendered input when present. */
 function clearPasswordInput() {
   const input = passwordInput()
   if (input) {
@@ -313,10 +318,12 @@ function clearPasswordInput() {
   }
 }
 
+/** Clears stale password validation feedback after the password controls change. */
 function clearPasswordError() {
   passwordErrorMessage.value = ''
 }
 
+/** Converts an ISO timestamp to the local value expected by datetime-local inputs. */
 function toLocalDateTime(value: string | null) {
   if (!value) {
     return ''

@@ -33,6 +33,7 @@ export async function apiPostPath<T>(path: string, body?: unknown): Promise<ApiR
   return postJson<T>(resolveSameOriginPath(path), body)
 }
 
+/** Resolves a path while rejecting cross-origin and scheme-relative inputs. */
 function resolveSameOriginPath(path: string): string {
   if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\')) {
     throw new Error('API path must be a same-origin absolute path')
@@ -63,10 +64,12 @@ async function getJson<T>(path: string): Promise<ApiResponse<T>> {
   return decodeResponse<T>(response)
 }
 
+/** Performs an authenticated POST request under the versioned API prefix. */
 export async function apiPost<T>(path: string, body?: unknown): Promise<ApiResponse<T>> {
   return postJson<T>(`${API_BASE}${path}`, body)
 }
 
+/** Serializes an optional JSON body and posts it to an already resolved path. */
 async function postJson<T>(path: string, body?: unknown): Promise<ApiResponse<T>> {
   const response = await fetch(path, {
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -81,6 +84,7 @@ async function postJson<T>(path: string, body?: unknown): Promise<ApiResponse<T>
   return decodeResponse<T>(response)
 }
 
+/** Decodes the response envelope and maps transport or business failures to ApiClientError. */
 async function decodeResponse<T>(response: Response): Promise<ApiResponse<T>> {
   const text = await response.text()
   const payload = parsePayload<T>(text)
@@ -96,6 +100,7 @@ async function decodeResponse<T>(response: Response): Promise<ApiResponse<T>> {
   return payload
 }
 
+/** Parses a response envelope without allowing malformed JSON to escape as a syntax error. */
 function parsePayload<T>(text: string): ApiResponse<T> | null {
   try {
     return JSON.parse(text) as ApiResponse<T>

@@ -1,5 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 
+/** Derives a stable one-character avatar label from a reactive display name. */
 export function useAvatarText(displayName: MaybeRefOrGetter<string | null | undefined>) {
   return computed(() => {
     const resolvedName = toValue(displayName)

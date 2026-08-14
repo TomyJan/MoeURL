@@ -18,11 +18,13 @@ export const SetupInputSchema = z.object({
 
 export type SetupInput = z.infer<typeof SetupInputSchema>
 
+/** Loads whether the initial system setup has completed. */
 export async function getInitStatus(): Promise<InitStatus> {
   const response = await apiGet<InitStatus>('/init/status')
   return response.data
 }
 
+/** Validates and submits the one-time system setup payload. */
 export async function setupSystem(input: SetupInput): Promise<InitStatus> {
   const response = await apiPost<InitStatus>('/init/setup', SetupInputSchema.parse(input))
   return response.data

@@ -120,6 +120,7 @@ func (h *RedirectHandler) preview(w http.ResponseWriter, r *http.Request, slug s
 	ok(w, result)
 }
 
+// accessTokenFromRequest reads the path-scoped access grant cookie from a request.
 func accessTokenFromRequest(r *http.Request) string {
 	if cookie, err := r.Cookie(accessCookieName); err == nil {
 		return cookie.Value
@@ -195,6 +196,7 @@ func (h *RedirectHandler) Continue(w http.ResponseWriter, r *http.Request, slug 
 	h.writeTargetRedirect(w, r, result, strings.ToLower(slug))
 }
 
+// isPublicAccessError reports whether an access error is safe to expose as a business response.
 func isPublicAccessError(err error) bool {
 	return errors.Is(err, ErrShortLinkMissing) ||
 		errors.Is(err, ErrShortLinkDisabled) ||

@@ -142,6 +142,7 @@ const UserAvatarText = defineComponent({
       required: true,
     },
   },
+  /** Provides a reactive one-character avatar label for the supplied username. */
   setup(props) {
     const avatarText = useAvatarText(toRef(props, 'username'))
     return () => avatarText.value
@@ -168,6 +169,7 @@ const resetMutation = useMutation({
   onSuccess: invalidateUsers,
 })
 
+/** Toggles a managed user's active state while preserving their nickname. */
 function toggleStatus(item: UserSummary) {
   updateMutation.mutate({
     id: item.id,
@@ -176,6 +178,7 @@ function toggleStatus(item: UserSummary) {
   })
 }
 
+/** Persists the edited nickname while preserving the user's current status. */
 function saveNickname(item: UserSummary) {
   updateMutation.mutate({
     id: item.id,
@@ -184,6 +187,7 @@ function saveNickname(item: UserSummary) {
   })
 }
 
+/** Validates and submits a replacement password for a managed user. */
 function resetPassword(item: UserSummary) {
   const password = draftPasswords[item.id]?.trim()
   if (!password) {
@@ -201,6 +205,7 @@ function resetPassword(item: UserSummary) {
   })
 }
 
+/** Toggles a user's edit panel and closes the competing actions panel. */
 function toggleEdit(id: string) {
   editingUserId.value = editingUserId.value === id ? '' : id
   if (editingUserId.value) {
@@ -208,6 +213,7 @@ function toggleEdit(id: string) {
   }
 }
 
+/** Toggles a user's actions panel and closes the competing edit panel. */
 function toggleMore(id: string) {
   moreUserId.value = moreUserId.value === id ? '' : id
   if (moreUserId.value) {
@@ -215,18 +221,22 @@ function toggleMore(id: string) {
   }
 }
 
+/** Refreshes cached administrative user lists after a mutation. */
 function invalidateUsers() {
   void queryClient.invalidateQueries({ queryKey: ['admin-user'] })
 }
 
+/** Reports whether the update mutation currently targets a specific user. */
 function isUpdatingUser(id: string) {
   return updateMutation.isPending.value && updateMutation.variables.value?.id === id
 }
 
+/** Reports whether the password-reset mutation currently targets a specific user. */
 function isResettingUser(id: string) {
   return resetMutation.isPending.value && resetMutation.variables.value?.id === id
 }
 
+/** Formats a valid timestamp as a stable local calendar date. */
 function formatDate(value: string) {
   const timestamp = Date.parse(value)
   if (Number.isNaN(timestamp)) {
@@ -239,10 +249,12 @@ function formatDate(value: string) {
   return `${year}-${month}-${day}`
 }
 
+/** Builds the stable DOM identifier for a user's edit panel. */
 function userEditPanelId(id: string) {
   return `console-user-edit-${id}`
 }
 
+/** Builds the stable DOM identifier for a user's actions panel. */
 function userMorePanelId(id: string) {
   return `console-user-more-${id}`
 }

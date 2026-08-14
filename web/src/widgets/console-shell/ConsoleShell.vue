@@ -171,9 +171,11 @@ const navGroups = computed<ConsoleNavGroup[]>(() => {
 
 const logoutMutation = useMutation({
   mutationFn: logout,
+  /** Makes logout failure feedback visible without changing the current route. */
   onError() {
     logoutErrorVisible.value = true
   },
+  /** Clears cached identity state and returns the user to login after logout. */
   onSuccess() {
     logoutErrorVisible.value = false
     void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
@@ -223,12 +225,14 @@ onBeforeUnmount(() => {
   }
 })
 
+/** Opens the mobile navigation and transfers focus into its overlay. */
 function openMobileNav() {
   rememberOverlayOpener()
   mobileNavOpen.value = true
   void focusActiveOverlay()
 }
 
+/** Closes mobile navigation and optionally restores its opener's focus. */
 function closeMobileNav(options: { restoreFocus?: boolean } = {}) {
   mobileNavOpen.value = false
   if (options.restoreFocus !== false) {
@@ -236,6 +240,7 @@ function closeMobileNav(options: { restoreFocus?: boolean } = {}) {
   }
 }
 
+/** Opens the creation overlay while preserving the correct focus fallback chain. */
 function openCreatePanel() {
   const previousOverlayOpener = overlayOpener
   rememberOverlayOpener()
@@ -245,11 +250,13 @@ function openCreatePanel() {
   void focusActiveOverlay()
 }
 
+/** Closes the creation overlay and restores focus to its opener. */
 function closeCreatePanel() {
   createPanelOpen.value = false
   restoreOverlayFocus()
 }
 
+/** Closes every console overlay and restores focus once when needed. */
 function closeOverlays() {
   const hadOverlay = overlaysOpen.value
   mobileNavOpen.value = false
@@ -259,11 +266,13 @@ function closeOverlays() {
   }
 }
 
+/** Clears stale logout feedback and starts the logout mutation. */
 function submitLogout() {
   logoutErrorVisible.value = false
   logoutMutation.mutate()
 }
 
+/** Routes Tab and Escape keyboard input through the active overlay controls. */
 function handleKeyDown(event: globalThis.KeyboardEvent) {
   if (event.key === 'Tab') {
     trapOverlayFocus(event)
@@ -274,11 +283,13 @@ function handleKeyDown(event: globalThis.KeyboardEvent) {
   }
 }
 
+/** Captures the focused element so an overlay can restore focus on close. */
 function rememberOverlayOpener() {
   const activeElement = globalThis.document?.activeElement
   overlayOpener = activeElement instanceof globalThis.HTMLElement ? activeElement : null
 }
 
+/** Moves focus to the first usable control in the active overlay after rendering. */
 async function focusActiveOverlay() {
   await nextTick()
   const panel = activeOverlayPanel.value
@@ -289,6 +300,7 @@ async function focusActiveOverlay() {
   firstFocusable.focus()
 }
 
+/** Restores focus to a connected opener and clears the stored focus chain. */
 function restoreOverlayFocus() {
   const opener = overlayOpener?.isConnected ? overlayOpener : fallbackOverlayOpener?.isConnected ? fallbackOverlayOpener : null
   overlayOpener = null
@@ -298,6 +310,7 @@ function restoreOverlayFocus() {
   }
 }
 
+/** Keeps Tab navigation within the active modal overlay. */
 function trapOverlayFocus(event: globalThis.KeyboardEvent) {
   const panel = activeOverlayPanel.value
   if (!panel) {
@@ -328,6 +341,7 @@ function trapOverlayFocus(event: globalThis.KeyboardEvent) {
   }
 }
 
+/** Returns enabled, keyboard-focusable descendants in document order. */
 function getFocusableElements(root: globalThis.HTMLElement) {
   return Array.from(
     root.querySelectorAll<globalThis.HTMLElement>(
