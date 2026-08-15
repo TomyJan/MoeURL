@@ -8,11 +8,12 @@ alter table short_link
 create table short_link_confirmation_permission_addition (
     user_group_id uuid not null references user_group(id) on delete cascade,
     permission text not null,
+    permission_updated_at timestamptz not null,
     primary key (user_group_id, permission)
 );
 
 comment on table short_link_confirmation_permission_addition is
-    'Tracks permissions added by migration 00008 for reversible rollback.';
+    'Tracks permissions and update times added by migration 00008 for reversible rollback.';
 
 with locked_user_group as materialized (
     select id, permissions
@@ -20,8 +21,8 @@ with locked_user_group as materialized (
     where key in ('user', 'admin')
     for update
 )
-insert into short_link_confirmation_permission_addition (user_group_id, permission)
-select locked_user_group.id, 'short_link:use_confirmation'
+insert into short_link_confirmation_permission_addition (user_group_id, permission, permission_updated_at)
+select locked_user_group.id, 'short_link:use_confirmation', now()
 from locked_user_group
 where not (locked_user_group.permissions ? 'short_link:use_confirmation');
 
@@ -57,6 +58,8 @@ where exists (
     select 1
     from short_link_confirmation_permission_addition as addition
     where addition.user_group_id = user_group.id
+        and addition.permission_updated_at = user_group.updated_at
+        and user_group.permissions ? addition.permission
 );
 
 drop table if exists short_link_confirmation_permission_addition;

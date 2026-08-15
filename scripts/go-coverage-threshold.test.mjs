@@ -54,7 +54,7 @@ test('rejects exclusions that hide covered blocks', () => {
 
     assert.equal(result.status, 1)
     assert.match(result.stderr, /Coverage exclusions matched covered blocks:/)
-    assert.match(result.stderr, new RegExp(`${sourcePath}:48\\.1,50\\.99`))
+    assert.match(result.stderr, new RegExp(`${sourcePath}:48\\.16,50\\.3`))
   } finally {
     rmSync(directory, { force: true, recursive: true })
   }

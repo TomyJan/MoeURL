@@ -335,6 +335,57 @@ func TestShortLinkConfirmationMigrationPreservesUntrackedPermissions(t *testing.
 	assertConfirmationPermission(t, ctx, database, "admin", true)
 }
 
+// TestShortLinkConfirmationMigrationPreservesReaddedPermission verifies rollback retains a permission restored after migration.
+func TestShortLinkConfirmationMigrationPreservesReaddedPermission(t *testing.T) {
+	ctx := context.Background()
+	database := migrationTestDatabase(t, ctx)
+	migrationsDir := filepath.Join("..", "..", "migrations")
+
+	if err := goose.UpTo(database, migrationsDir, 7); err != nil {
+		t.Fatalf("run migrations through version 7: %v", err)
+	}
+	insertUserGroups(t, ctx, database)
+	if err := goose.UpTo(database, migrationsDir, 8); err != nil {
+		t.Fatalf("upgrade confirmation migration: %v", err)
+	}
+
+	var permissionUpdatedAt, groupUpdatedAt time.Time
+	if err := database.QueryRowContext(ctx, `
+		select addition.permission_updated_at, user_group.updated_at
+		from short_link_confirmation_permission_addition as addition
+		join user_group on user_group.id = addition.user_group_id
+		where user_group.key = 'user'
+	`).Scan(&permissionUpdatedAt, &groupUpdatedAt); err != nil {
+		t.Fatalf("query tracked confirmation permission update time: %v", err)
+	}
+	if !permissionUpdatedAt.Equal(groupUpdatedAt) {
+		t.Fatalf("tracked permission update time %s does not match user group update time %s", permissionUpdatedAt, groupUpdatedAt)
+	}
+
+	if _, err := database.ExecContext(ctx, `
+		update user_group
+		set permissions = permissions - 'short_link:use_confirmation',
+			updated_at = '2030-01-01T00:00:00Z'
+		where key = 'user'
+	`); err != nil {
+		t.Fatalf("remove migrated confirmation permission: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `
+		update user_group
+		set permissions = permissions || '["short_link:use_confirmation"]'::jsonb,
+			updated_at = '2030-01-02T00:00:00Z'
+		where key = 'user'
+	`); err != nil {
+		t.Fatalf("restore confirmation permission: %v", err)
+	}
+
+	if err := goose.DownTo(database, migrationsDir, 7); err != nil {
+		t.Fatalf("rollback confirmation migration: %v", err)
+	}
+	assertConfirmationPermission(t, ctx, database, "user", true)
+	assertConfirmationPermission(t, ctx, database, "admin", false)
+}
+
 // TestShortLinkExperienceMigrationUpgradesExistingDataAndRollsBack verifies short link experience migration upgrades existing data and rolls back.
 func TestShortLinkExperienceMigrationUpgradesExistingDataAndRollsBack(t *testing.T) {
 	ctx := context.Background()

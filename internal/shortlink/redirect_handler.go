@@ -27,6 +27,7 @@ type RedirectPort interface {
 type RedirectHandler struct {
 	service       RedirectPort
 	recorder      event.Recorder
+	logger        *slog.Logger
 	countryHeader string
 	secureCookies bool
 }
@@ -43,17 +44,20 @@ func NewRedirectHandler(service RedirectPort, recorders ...event.Recorder) *Redi
 	if len(recorders) > 0 && recorders[0] != nil {
 		recorder = recorders[0]
 	}
-	return &RedirectHandler{service: service, recorder: recorder}
+	return &RedirectHandler{service: service, recorder: recorder, logger: slog.Default()}
 }
 
 // NewRedirectHandlerWithAnalytics creates a redirect handler configured for anonymous analytics dimensions.
 func NewRedirectHandlerWithAnalytics(service RedirectPort, recorder event.Recorder, countryHeader string) *RedirectHandler {
-	return NewRedirectHandlerWithAnalyticsAndSecurity(service, recorder, countryHeader, false)
+	return NewRedirectHandlerWithAnalyticsAndSecurity(service, recorder, countryHeader, false, slog.Default())
 }
 
 // NewRedirectHandlerWithAnalyticsAndSecurity creates a redirect handler with cookie security settings.
-func NewRedirectHandlerWithAnalyticsAndSecurity(service RedirectPort, recorder event.Recorder, countryHeader string, secureCookies bool) *RedirectHandler {
+func NewRedirectHandlerWithAnalyticsAndSecurity(service RedirectPort, recorder event.Recorder, countryHeader string, secureCookies bool, logger *slog.Logger) *RedirectHandler {
 	handler := NewRedirectHandler(service, recorder)
+	if logger != nil {
+		handler.logger = logger
+	}
 	handler.countryHeader = countryHeader
 	handler.secureCookies = secureCookies
 	return handler
@@ -190,7 +194,7 @@ func (h *RedirectHandler) Continue(w http.ResponseWriter, r *http.Request, slug 
 		if isPublicAccessError(err) {
 			writePublicAccessError(w, r, slug, err)
 		} else {
-			slog.ErrorContext(r.Context(), "short_link_continue_failed", "slug", strings.ToLower(slug), "error", err)
+			h.logger.ErrorContext(r.Context(), "short_link_continue_failed", "slug", strings.ToLower(slug), "error", err)
 			redirectToPublicAccessState(w, r, slug, "continue-failed", nil)
 		}
 		return

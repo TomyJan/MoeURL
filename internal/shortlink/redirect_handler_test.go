@@ -118,6 +118,7 @@ func TestRedirectHandlerUnlockSetsSecureCookie(t *testing.T) {
 		&recordingRecorder{},
 		"",
 		true,
+		slog.Default(),
 	)
 	request := httptest.NewRequest(http.MethodPost, "/go/abc123/unlock", bytes.NewBufferString(`{"password":"correct horse"}`))
 	response := httptest.NewRecorder()
@@ -774,17 +775,15 @@ func TestRedirectHandlerContinueShowsLifecycleErrors(t *testing.T) {
 // TestRedirectHandlerContinueLogsUnexpectedErrors verifies infrastructure failures retain their original cause in logs.
 func TestRedirectHandlerContinueLogsUnexpectedErrors(t *testing.T) {
 	logOutput := &bytes.Buffer{}
-	previousLogger := slog.Default()
-	slog.SetDefault(slog.New(slog.NewTextHandler(logOutput, nil)))
-	t.Cleanup(func() {
-		slog.SetDefault(previousLogger)
+	logger := slog.New(slog.NewTextHandler(logOutput, nil))
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		Redirect: &fakeRedirectService{continueErr: errors.New("database down")},
+		Logger:   logger,
 	})
-
-	handler := shortlink.NewRedirectHandler(&fakeRedirectService{continueErr: errors.New("database down")})
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/go/middle/continue", nil)
 
-	handler.Continue(response, request, "middle")
+	router.ServeHTTP(response, request)
 
 	for _, field := range []string{"short_link_continue_failed", "slug=middle", "database down"} {
 		if !strings.Contains(logOutput.String(), field) {

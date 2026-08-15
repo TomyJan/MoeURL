@@ -105,7 +105,7 @@ function consumeExcludedBlock(location, count) {
     return false
   }
   matchedExcludedBlocks.add(configuredLocations[0])
-  if (count > 0) coveredExcludedBlocks.add(location)
+  if (count > 0) coveredExcludedBlocks.add(configuredLocations[0])
   return true
 }
 

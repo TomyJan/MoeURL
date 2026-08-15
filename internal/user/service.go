@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -34,6 +35,11 @@ type Service struct {
 // NewService creates a user service backed by SQLC queries and permissions.
 func NewService(pool *pgxpool.Pool, permissions permission.Resolver) *Service {
 	if permissions == nil {
+		slog.Warn(
+			"user_permission_resolver_fallback",
+			"resolver",
+			"permission.NewService",
+		)
 		permissions = permission.NewService()
 	}
 	return &Service{
