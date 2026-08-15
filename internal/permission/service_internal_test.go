@@ -43,7 +43,7 @@ func TestDatabaseServiceResolve(t *testing.T) {
 			permission:  ShortLinkUseConfirmation,
 			wantAllowed: true,
 		},
-		{name: "missing group", queries: groupQueryStub{err: pgx.ErrNoRows}},
+		{name: "missing group", queries: groupQueryStub{err: pgx.ErrNoRows}, permission: ShortLinkUseConfirmation},
 		{name: "invalid json", queries: groupQueryStub{group: sqlc.UserGroup{Permissions: []byte(`{`)}}, wantErr: true},
 		{name: "query failure", queries: groupQueryStub{err: errors.New("database down")}, wantErr: true},
 	}
