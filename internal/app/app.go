@@ -45,14 +45,15 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		authService := auth.NewService(pool, 24*time.Hour)
 		deps.Auth = authService
 		deps.CurrentUser = authService
-		deps.ShortLink = shortlink.NewService(pool, permission.NewDatabaseService(pool))
+		permissionService := permission.NewDatabaseService(pool)
+		deps.ShortLink = shortlink.NewService(pool, permissionService)
 		recorder := event.NewRecorder(pool, logger)
 		redirectService := shortlink.NewRedirectService(pool, recorder)
 		deps.Redirect = redirectService
 		deps.RedirectRecorder = recorder
 		deps.AnalyticsCountryHeader = cfg.AnalyticsCountryHeader
 		deps.SecureCookies = cfg.Env == "production"
-		deps.User = user.NewService(pool, permission.NewService())
+		deps.User = user.NewService(pool, permissionService)
 
 		cleanupContext, cancelCleanup := context.WithCancel(context.Background())
 		cleanupDone := make(chan struct{})

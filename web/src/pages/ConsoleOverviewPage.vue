@@ -130,7 +130,7 @@ function retryRecentLinks() {
   void recentLinksQuery.refetch()
 }
 
-/** Formats a recent-link timestamp using the active interface locale. */
+/** Formats a parsed recent-link timestamp as YYYY-MM-DD. */
 function formatDate(value: string) {
   const timestamp = Date.parse(value)
   if (Number.isNaN(timestamp)) {

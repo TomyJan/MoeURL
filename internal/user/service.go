@@ -28,11 +28,11 @@ const (
 type Service struct {
 	pool        *pgxpool.Pool
 	queries     *sqlc.Queries
-	permissions *permission.Service
+	permissions permission.Resolver
 }
 
 // NewService creates a user service backed by SQLC queries and permissions.
-func NewService(pool *pgxpool.Pool, permissions *permission.Service) *Service {
+func NewService(pool *pgxpool.Pool, permissions permission.Resolver) *Service {
 	if permissions == nil {
 		permissions = permission.NewService()
 	}
@@ -45,8 +45,8 @@ func NewService(pool *pgxpool.Pool, permissions *permission.Service) *Service {
 
 // Create adds an administrator-managed user after validating its input.
 func (s *Service) Create(ctx context.Context, actor auth.CurrentUser, input CreateInput) (CreateResult, error) {
-	if !s.permissions.Has(actor.GroupKey, permission.AdminAccess) {
-		return CreateResult{}, ErrPermissionDenied
+	if err := s.authorizeAdmin(ctx, actor); err != nil {
+		return CreateResult{}, err
 	}
 	if input.Username == "" || input.Password == "" || input.Nickname == "" || input.GroupKey == "" || !validStatus(input.Status) {
 		return CreateResult{}, ErrInvalidInput
@@ -90,8 +90,8 @@ func (s *Service) Create(ctx context.Context, actor auth.CurrentUser, input Crea
 
 // List returns a paginated list of users for administrators.
 func (s *Service) List(ctx context.Context, actor auth.CurrentUser, input ListInput) (ListResult, error) {
-	if !s.permissions.Has(actor.GroupKey, permission.AdminAccess) {
-		return ListResult{}, ErrPermissionDenied
+	if err := s.authorizeAdmin(ctx, actor); err != nil {
+		return ListResult{}, err
 	}
 
 	page, pageSize := normalizePagination(input)
@@ -126,8 +126,8 @@ func (s *Service) List(ctx context.Context, actor auth.CurrentUser, input ListIn
 
 // Update changes an administrator-managed user's profile and status.
 func (s *Service) Update(ctx context.Context, actor auth.CurrentUser, input UpdateInput) (UpdateResult, error) {
-	if !s.permissions.Has(actor.GroupKey, permission.AdminAccess) {
-		return UpdateResult{}, ErrPermissionDenied
+	if err := s.authorizeAdmin(ctx, actor); err != nil {
+		return UpdateResult{}, err
 	}
 	if input.ID == "" || input.Nickname == "" || !validStatus(input.Status) {
 		return UpdateResult{}, ErrInvalidInput
@@ -245,8 +245,8 @@ func (s *Service) UpdateProfile(ctx context.Context, actor auth.CurrentUser, inp
 
 // ResetPassword replaces the password of a non-built-in user.
 func (s *Service) ResetPassword(ctx context.Context, actor auth.CurrentUser, input ResetPasswordInput) error {
-	if !s.permissions.Has(actor.GroupKey, permission.AdminAccess) {
-		return ErrPermissionDenied
+	if err := s.authorizeAdmin(ctx, actor); err != nil {
+		return err
 	}
 	if input.ID == "" || input.Password == "" {
 		return ErrInvalidInput
@@ -279,6 +279,18 @@ func (s *Service) ResetPassword(ctx context.Context, actor auth.CurrentUser, inp
 	}
 	if rows == 0 {
 		return ErrUserNotFound
+	}
+	return nil
+}
+
+// authorizeAdmin resolves one permission snapshot for a managed-user operation.
+func (s *Service) authorizeAdmin(ctx context.Context, actor auth.CurrentUser) error {
+	permissions, err := s.permissions.Resolve(ctx, actor.GroupKey)
+	if err != nil {
+		return err
+	}
+	if !permissions.Has(permission.AdminAccess) {
+		return ErrPermissionDenied
 	}
 	return nil
 }

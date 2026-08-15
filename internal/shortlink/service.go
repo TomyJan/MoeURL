@@ -3,6 +3,7 @@ package shortlink
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -40,6 +41,7 @@ type Service struct {
 // NewService creates a short link service backed by SQLC queries and permissions.
 func NewService(pool *pgxpool.Pool, permissions permission.Resolver) *Service {
 	if permissions == nil {
+		slog.Warn("short_link_permission_resolver_fallback", "resolver", "permission.NewService")
 		permissions = permission.NewService()
 	}
 	return &Service{

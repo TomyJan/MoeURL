@@ -13,6 +13,59 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+type failingPermissionResolver struct {
+	err      error
+	calls    int
+	groupKey string
+}
+
+// Resolve records the requested group and returns the configured infrastructure error.
+func (r *failingPermissionResolver) Resolve(_ context.Context, groupKey string) (permission.Snapshot, error) {
+	r.calls++
+	r.groupKey = groupKey
+	return permission.Snapshot{}, r.err
+}
+
+// TestServiceAdminOperationsResolvePermissionsOnce verifies authorization lookup failures propagate from every managed-user operation.
+func TestServiceAdminOperationsResolvePermissionsOnce(t *testing.T) {
+	wantErr := errors.New("permission database down")
+	actor := auth.CurrentUser{GroupKey: permission.GroupAdmin}
+	tests := []struct {
+		name string
+		call func(*user.Service) error
+	}{
+		{name: "create", call: func(service *user.Service) error {
+			_, err := service.Create(t.Context(), actor, user.CreateInput{})
+			return err
+		}},
+		{name: "list", call: func(service *user.Service) error {
+			_, err := service.List(t.Context(), actor, user.ListInput{})
+			return err
+		}},
+		{name: "update", call: func(service *user.Service) error {
+			_, err := service.Update(t.Context(), actor, user.UpdateInput{})
+			return err
+		}},
+		{name: "reset password", call: func(service *user.Service) error {
+			return service.ResetPassword(t.Context(), actor, user.ResetPasswordInput{})
+		}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resolver := &failingPermissionResolver{err: wantErr}
+			service := user.NewService(nil, resolver)
+
+			if err := test.call(service); !errors.Is(err, wantErr) {
+				t.Fatalf("operation error = %v, want %v", err, wantErr)
+			}
+			if resolver.calls != 1 || resolver.groupKey != permission.GroupAdmin {
+				t.Fatalf("Resolve calls = %d for group %q, want one call for %q", resolver.calls, resolver.groupKey, permission.GroupAdmin)
+			}
+		})
+	}
+}
+
 // TestServiceCreateUserByAdmin verifies service create user by admin.
 func TestServiceCreateUserByAdmin(t *testing.T) {
 	ctx := context.Background()

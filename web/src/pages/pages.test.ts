@@ -817,7 +817,7 @@ describe('pages', () => {
             status: 'active',
             ...defaultShortLinkAccessConfig,
             redirectMode: 'confirmation',
-            intermediateDelaySeconds: 5,
+            intermediateDelaySeconds: null,
             expiresAt: null,
             expired: false,
             stats: { visitCount: 0, todayVisitCount: 0, lastVisitedAt: null },

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
 )
+
+// TestNewServiceLogsStaticPermissionFallback verifies degraded constructor wiring is observable.
+func TestNewServiceLogsStaticPermissionFallback(t *testing.T) {
+	var logOutput bytes.Buffer
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logOutput, nil)))
+	t.Cleanup(func() { slog.SetDefault(previousLogger) })
+
+	NewService(nil, nil)
+
+	require.Contains(t, logOutput.String(), "short_link_permission_resolver_fallback")
+	require.Contains(t, logOutput.String(), "permission.NewService")
+}
 
 type failingPermissionResolver struct {
 	err error

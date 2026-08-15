@@ -15,6 +15,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/config"
 	"github.com/TomyJan/MoeURL/internal/system"
 	"github.com/TomyJan/MoeURL/internal/testdb"
+	"github.com/TomyJan/MoeURL/internal/user"
 )
 
 // TestAppNewNormalizesEnvironment verifies application wiring uses the validated environment form.
@@ -86,6 +87,77 @@ func TestAppNewNormalizesEnvironment(t *testing.T) {
 				t.Fatalf("login cookie secure = %t, want %t", cookies[0].Secure, test.wantSecure)
 			}
 		})
+	}
+}
+
+// TestAppNewUsesDatabasePermissionsForUserService verifies application wiring applies user-group revocations to managed-user APIs.
+func TestAppNewUsesDatabasePermissionsForUserService(t *testing.T) {
+	ctx := context.Background()
+	cfg := config.Config{
+		Env:         "development",
+		HTTPAddr:    ":0",
+		DatabaseURL: testdb.ProjectMigratedDatabaseURL(ctx, t),
+		StaticDir:   "web/dist",
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate config: %v", err)
+	}
+	application, err := New(ctx, cfg, slog.Default())
+	if err != nil {
+		t.Fatalf("build application: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := application.Shutdown(context.Background()); err != nil {
+			t.Errorf("shutdown application: %v", err)
+		}
+	})
+	if err := system.NewService(application.pool).Setup(ctx, system.SetupInput{
+		AdminUsername:   "admin",
+		AdminPassword:   "secure-password",
+		AdminNickname:   "Administrator",
+		SiteName:        "MoeURL",
+		SystemDomain:    "example.com",
+		ShortLinkDomain: "go.example.com",
+		DefaultLanguage: "zh-CN",
+		DefaultTheme:    "system",
+	}); err != nil {
+		t.Fatalf("initialize application: %v", err)
+	}
+
+	loginRequest := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{"username":"admin","password":"secure-password"}`))
+	loginResponse := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(loginResponse, loginRequest)
+	cookies := loginResponse.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("expected one login cookie, got %d", len(cookies))
+	}
+
+	listCode := func() int {
+		t.Helper()
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/admin/user/list", nil)
+		request.AddCookie(cookies[0])
+		response := httptest.NewRecorder()
+		application.server.Handler.ServeHTTP(response, request)
+		var body struct {
+			Code int `json:"code"`
+		}
+		if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+			t.Fatalf("decode user list response: %v", err)
+		}
+		return body.Code
+	}
+	if code := listCode(); code != 0 {
+		t.Fatalf("initial user list code = %d, want 0", code)
+	}
+	if _, err := application.pool.Exec(ctx, `
+		update user_group
+		set permissions = permissions - 'admin:access'
+		where key = 'admin'
+	`); err != nil {
+		t.Fatalf("revoke admin access: %v", err)
+	}
+	if code := listCode(); code != user.CodePermissionDenied {
+		t.Fatalf("revoked user list code = %d, want %d", code, user.CodePermissionDenied)
 	}
 }
 
