@@ -175,7 +175,7 @@ const logoutMutation = useMutation({
   onError() {
     logoutErrorVisible.value = true
   },
-  /** Invalidates auth/me so Vue Query can refetch it for the current query state before returning to login. */
+  /** Invalidates auth/me and starts login navigation without waiting for its current-state refetch. */
   onSuccess() {
     logoutErrorVisible.value = false
     void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })

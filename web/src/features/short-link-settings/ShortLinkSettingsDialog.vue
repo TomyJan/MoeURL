@@ -24,20 +24,20 @@
               {{ t('shortLinkSettings.direct') }}
             </v-btn>
             <v-btn
-              v-if="canUseIntermediate"
+              v-if="canUseIntermediate || redirectMode === 'intermediate'"
               size="small"
               value="intermediate"
-              :disabled="pending"
+              :disabled="pending || !canUseIntermediate"
               :aria-pressed="redirectMode === 'intermediate'"
               @click="redirectMode = 'intermediate'"
             >
               {{ t('shortLinkSettings.intermediate') }}
             </v-btn>
             <v-btn
-              v-if="canUseConfirmation"
+              v-if="canUseConfirmation || redirectMode === 'confirmation'"
               size="small"
               value="confirmation"
-              :disabled="pending"
+              :disabled="pending || !canUseConfirmation"
               :aria-pressed="redirectMode === 'confirmation'"
               @click="redirectMode = 'confirmation'"
             >

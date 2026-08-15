@@ -221,11 +221,16 @@ describe('ShortLinkSettingsDialog', () => {
     }])
   })
 
-  it('allows a persisted confirmation mode to be downgraded after all redirect permissions are removed', async () => {
+  it.each([
+    ['intermediate', 'shortLinkSettings.intermediate'],
+    ['confirmation', 'shortLinkSettings.confirmation'],
+  ] as const)('allows a persisted %s mode to be downgraded after its permission is removed', async (redirectMode, label) => {
     setPermissions([])
-    const view = mountDialog({ link: { ...directLink, redirectMode: 'confirmation' } })
+    const view = mountDialog({ link: { ...directLink, redirectMode } })
 
-    expect(screen.queryByRole('button', { name: 'shortLinkSettings.confirmation' })).toBeNull()
+    const currentModeButton = screen.getByRole('button', { name: label }) as HTMLButtonElement
+    expect(currentModeButton.disabled).toBe(true)
+    expect(currentModeButton.getAttribute('aria-pressed')).toBe('true')
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.direct' }))
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
 

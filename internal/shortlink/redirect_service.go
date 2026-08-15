@@ -50,11 +50,11 @@ type OpenResult struct {
 }
 
 // PreviewResult contains the minimal public data required by the redirect page.
-// IntermediateDelaySeconds is set only for intermediate links.
 type PreviewResult struct {
-	Slug                     string     `json:"slug"`
-	TargetHost               string     `json:"targetHost"`
-	RedirectMode             string     `json:"redirectMode"`
+	Slug         string `json:"slug"`
+	TargetHost   string `json:"targetHost"`
+	RedirectMode string `json:"redirectMode"`
+	// IntermediateDelaySeconds is set only for intermediate links.
 	IntermediateDelaySeconds *int16     `json:"intermediateDelaySeconds"`
 	ExpiresAt                *time.Time `json:"expiresAt"`
 }

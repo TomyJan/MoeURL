@@ -293,6 +293,16 @@ func TestShortLinkConfirmationMigrationAddsModeAndPermissionAndRollsBack(t *test
 	if directMode != "direct" || intermediateMode != "intermediate" {
 		t.Fatalf("unexpected rolled-back modes: direct1=%s middle1=%s", directMode, intermediateMode)
 	}
+
+	if err := goose.UpTo(database, migrationsDir, 8); err != nil {
+		t.Fatalf("reapply confirmation migration: %v", err)
+	}
+	if err := goose.DownTo(database, migrationsDir, 7); err != nil {
+		t.Fatalf("rollback reapplied confirmation migration: %v", err)
+	}
+	for _, groupKey := range []string{"guest", "user", "admin"} {
+		assertConfirmationPermission(t, ctx, database, groupKey, false)
+	}
 }
 
 // TestShortLinkConfirmationMigrationPreservesUntrackedPermissions verifies rollback removes only recorded additions.
@@ -349,34 +359,43 @@ func TestShortLinkConfirmationMigrationPreservesReaddedPermission(t *testing.T) 
 		t.Fatalf("upgrade confirmation migration: %v", err)
 	}
 
-	var permissionUpdatedAt, groupUpdatedAt time.Time
+	var permissionRevision int64
 	if err := database.QueryRowContext(ctx, `
-		select addition.permission_updated_at, user_group.updated_at
+		select addition.permission_revision
 		from short_link_confirmation_permission_addition as addition
 		join user_group on user_group.id = addition.user_group_id
 		where user_group.key = 'user'
-	`).Scan(&permissionUpdatedAt, &groupUpdatedAt); err != nil {
-		t.Fatalf("query tracked confirmation permission update time: %v", err)
+	`).Scan(&permissionRevision); err != nil {
+		t.Fatalf("query tracked confirmation permission revision: %v", err)
 	}
-	if !permissionUpdatedAt.Equal(groupUpdatedAt) {
-		t.Fatalf("tracked permission update time %s does not match user group update time %s", permissionUpdatedAt, groupUpdatedAt)
+	if permissionRevision != 0 {
+		t.Fatalf("expected initial confirmation permission revision 0, got %d", permissionRevision)
 	}
 
 	if _, err := database.ExecContext(ctx, `
 		update user_group
-		set permissions = permissions - 'short_link:use_confirmation',
-			updated_at = '2030-01-01T00:00:00Z'
+		set permissions = permissions - 'short_link:use_confirmation'
 		where key = 'user'
 	`); err != nil {
 		t.Fatalf("remove migrated confirmation permission: %v", err)
 	}
 	if _, err := database.ExecContext(ctx, `
 		update user_group
-		set permissions = permissions || '["short_link:use_confirmation"]'::jsonb,
-			updated_at = '2030-01-02T00:00:00Z'
+		set permissions = permissions || '["short_link:use_confirmation"]'::jsonb
 		where key = 'user'
 	`); err != nil {
 		t.Fatalf("restore confirmation permission: %v", err)
+	}
+	if err := database.QueryRowContext(ctx, `
+		select addition.permission_revision
+		from short_link_confirmation_permission_addition as addition
+		join user_group on user_group.id = addition.user_group_id
+		where user_group.key = 'user'
+	`).Scan(&permissionRevision); err != nil {
+		t.Fatalf("query restored confirmation permission revision: %v", err)
+	}
+	if permissionRevision != 2 {
+		t.Fatalf("expected restored confirmation permission revision 2, got %d", permissionRevision)
 	}
 
 	if err := goose.DownTo(database, migrationsDir, 7); err != nil {
@@ -384,6 +403,61 @@ func TestShortLinkConfirmationMigrationPreservesReaddedPermission(t *testing.T) 
 	}
 	assertConfirmationPermission(t, ctx, database, "user", true)
 	assertConfirmationPermission(t, ctx, database, "admin", false)
+}
+
+// TestShortLinkConfirmationMigrationIgnoresUnrelatedGroupChanges verifies unrelated edits do not preserve a migration-owned permission.
+func TestShortLinkConfirmationMigrationIgnoresUnrelatedGroupChanges(t *testing.T) {
+	ctx := context.Background()
+	database := migrationTestDatabase(t, ctx)
+	migrationsDir := filepath.Join("..", "..", "migrations")
+
+	if err := goose.UpTo(database, migrationsDir, 7); err != nil {
+		t.Fatalf("run migrations through version 7: %v", err)
+	}
+	insertUserGroups(t, ctx, database)
+	if err := goose.UpTo(database, migrationsDir, 8); err != nil {
+		t.Fatalf("upgrade confirmation migration: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `
+		update user_group
+		set name = 'Updated User',
+			permissions = permissions || '["short_link:unrelated"]'::jsonb,
+			updated_at = '2030-01-01T00:00:00Z'
+		where key = 'user'
+	`); err != nil {
+		t.Fatalf("update unrelated user group state: %v", err)
+	}
+
+	var permissionRevision int64
+	if err := database.QueryRowContext(ctx, `
+		select addition.permission_revision
+		from short_link_confirmation_permission_addition as addition
+		join user_group on user_group.id = addition.user_group_id
+		where user_group.key = 'user'
+	`).Scan(&permissionRevision); err != nil {
+		t.Fatalf("query confirmation permission revision after unrelated changes: %v", err)
+	}
+	if permissionRevision != 0 {
+		t.Fatalf("expected unrelated changes to retain revision 0, got %d", permissionRevision)
+	}
+
+	if err := goose.DownTo(database, migrationsDir, 7); err != nil {
+		t.Fatalf("rollback confirmation migration: %v", err)
+	}
+	assertConfirmationPermission(t, ctx, database, "user", false)
+
+	var name string
+	var unrelatedPermission bool
+	if err := database.QueryRowContext(ctx, `
+		select name, permissions ? 'short_link:unrelated'
+		from user_group
+		where key = 'user'
+	`).Scan(&name, &unrelatedPermission); err != nil {
+		t.Fatalf("query unrelated user group state after rollback: %v", err)
+	}
+	if name != "Updated User" || !unrelatedPermission {
+		t.Fatalf("unexpected unrelated user group state after rollback: name=%q permission=%t", name, unrelatedPermission)
+	}
 }
 
 // TestShortLinkExperienceMigrationUpgradesExistingDataAndRollsBack verifies short link experience migration upgrades existing data and rolls back.
