@@ -27,9 +27,9 @@ github.com/TomyJan/MoeURL/internal/user/service.go:66.16,68.3
 # ResetPassword password hashing failure; argon2/random failure is an infrastructure branch that is not deterministically triggerable.
 github.com/TomyJan/MoeURL/internal/user/service.go:276.16,278.3
 # Create's random failure, database collision retry, and retry exhaustion are defensive paths.
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:79.17,81.4
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:98.29,99.12
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:120.2,120.40
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:84.17,86.4
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:103.29,104.12
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:125.2,125.40
 
 # Redirect access transaction step failures are infrastructure/concurrency paths: each intermediate failure requires the database connection or row to change between locked statements.
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:244.35,246.3
@@ -44,4 +44,4 @@ github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:302.39,304.3
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:290.16,292.3
 
 # Password hashing failure is an Argon2id/random infrastructure path after input and permission validation.
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:709.16,711.3
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:714.16,716.3

@@ -81,10 +81,11 @@ type ShortLinkAccessGrant struct {
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
-// Tracks permissions added by migration 00008 for reversible rollback.
+// Tracks permissions and membership revisions added by migration 00008 for reversible rollback.
 type ShortLinkConfirmationPermissionAddition struct {
-	UserGroupID pgtype.UUID `json:"user_group_id"`
-	Permission  string      `json:"permission"`
+	UserGroupID        pgtype.UUID `json:"user_group_id"`
+	Permission         string      `json:"permission"`
+	PermissionRevision int64       `json:"permission_revision"`
 }
 
 type ShortLinkEvent struct {

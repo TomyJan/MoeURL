@@ -20,14 +20,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestNewServiceLogsStaticPermissionFallback verifies degraded constructor wiring is observable.
-func TestNewServiceLogsStaticPermissionFallback(t *testing.T) {
+// TestNewServiceLogsPermissionFallbackWithInjectedLogger verifies degraded constructor wiring is observable.
+func TestNewServiceLogsPermissionFallbackWithInjectedLogger(t *testing.T) {
 	var logOutput bytes.Buffer
-	previousLogger := slog.Default()
-	slog.SetDefault(slog.New(slog.NewTextHandler(&logOutput, nil)))
-	t.Cleanup(func() { slog.SetDefault(previousLogger) })
+	logger := slog.New(slog.NewTextHandler(&logOutput, nil))
 
-	NewService(nil, nil)
+	NewServiceWithLogger(nil, nil, logger)
 
 	require.Contains(t, logOutput.String(), "short_link_permission_resolver_fallback")
 	require.Contains(t, logOutput.String(), "permission.NewService")

@@ -46,7 +46,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.Auth = authService
 		deps.CurrentUser = authService
 		permissionService := permission.NewDatabaseService(pool)
-		deps.ShortLink = shortlink.NewService(pool, permissionService)
+		deps.ShortLink = shortlink.NewServiceWithLogger(pool, permissionService, logger)
 		recorder := event.NewRecorder(pool, logger)
 		redirectService := shortlink.NewRedirectService(pool, recorder)
 		deps.Redirect = redirectService

@@ -23,6 +23,10 @@ func TestSQLCPackageExposesQueries(t *testing.T) {
 	if queries == nil {
 		t.Fatal("expected generated queries")
 	}
+	permissionAddition := sqlc.ShortLinkConfirmationPermissionAddition{PermissionRevision: 1}
+	if permissionAddition.PermissionRevision != 1 {
+		t.Fatal("expected generated confirmation permission revision")
+	}
 }
 
 // TestShortLinkConfirmationQueriesRoundTrip verifies existing SQLC queries preserve confirmation mode.
