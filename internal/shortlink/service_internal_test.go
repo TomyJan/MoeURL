@@ -42,6 +42,125 @@ func (r failingPermissionResolver) Resolve(context.Context, string) (permission.
 	return permission.Snapshot{}, r.err
 }
 
+type recordingPermissionResolver struct {
+	delegate permission.Resolver
+	err      error
+	calls    int
+	groupKey string
+}
+
+// Resolve records each authorization lookup before delegating or returning the configured error.
+func (r *recordingPermissionResolver) Resolve(ctx context.Context, groupKey string) (permission.Snapshot, error) {
+	r.calls++
+	r.groupKey = groupKey
+	if r.err != nil {
+		return permission.Snapshot{}, r.err
+	}
+	return r.delegate.Resolve(ctx, groupKey)
+}
+
+// TestServiceAuthorizeResolvesOneReusableSnapshot verifies regular authorization checks every required permission in one lookup.
+func TestServiceAuthorizeResolvesOneReusableSnapshot(t *testing.T) {
+	wantErr := errors.New("permission database down")
+	tests := []struct {
+		name     string
+		resolver *recordingPermissionResolver
+		wantErr  error
+	}{
+		{
+			name: "authorized",
+			resolver: &recordingPermissionResolver{
+				delegate: permission.NewService(),
+			},
+		},
+		{
+			name: "missing required permission",
+			resolver: &recordingPermissionResolver{
+				delegate: permission.NewServiceWithPermissions([]string{permission.ShortLinkCreate}, permission.AdminPermissions),
+			},
+			wantErr: ErrPermissionDenied,
+		},
+		{
+			name:     "resolver failure",
+			resolver: &recordingPermissionResolver{err: wantErr},
+			wantErr:  wantErr,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			service := &Service{permissions: test.resolver}
+			permissions, err := service.authorize(
+				t.Context(),
+				auth.CurrentUser{GroupKey: permission.GroupUser},
+				permission.ShortLinkCreate,
+				permission.DomainUseDefault,
+			)
+
+			require.ErrorIs(t, err, test.wantErr)
+			require.Equal(t, 1, test.resolver.calls)
+			require.Equal(t, permission.GroupUser, test.resolver.groupKey)
+			if test.wantErr == nil {
+				require.True(t, permissions.Has(permission.ShortLinkUseConfirmation))
+			}
+		})
+	}
+}
+
+// TestServiceAuthorizeAdminCombinesRequiredPermissions verifies administrator authorization uses one reusable snapshot.
+func TestServiceAuthorizeAdminCombinesRequiredPermissions(t *testing.T) {
+	wantErr := errors.New("permission database down")
+	tests := []struct {
+		name     string
+		resolver *recordingPermissionResolver
+		wantErr  error
+	}{
+		{
+			name: "authorized",
+			resolver: &recordingPermissionResolver{
+				delegate: permission.NewService(),
+			},
+		},
+		{
+			name: "missing admin access",
+			resolver: &recordingPermissionResolver{
+				delegate: permission.NewServiceWithPermissions(permission.UserPermissions, []string{permission.ShortLinkReadAll}),
+			},
+			wantErr: ErrPermissionDenied,
+		},
+		{
+			name: "missing action permission",
+			resolver: &recordingPermissionResolver{
+				delegate: permission.NewServiceWithPermissions(permission.UserPermissions, []string{permission.AdminAccess}),
+			},
+			wantErr: ErrPermissionDenied,
+		},
+		{
+			name:     "resolver failure",
+			resolver: &recordingPermissionResolver{err: wantErr},
+			wantErr:  wantErr,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			service := &Service{permissions: test.resolver}
+			permissions, err := service.authorizeAdmin(
+				t.Context(),
+				auth.CurrentUser{GroupKey: permission.GroupAdmin},
+				permission.ShortLinkReadAll,
+			)
+
+			require.ErrorIs(t, err, test.wantErr)
+			require.Equal(t, 1, test.resolver.calls)
+			require.Equal(t, permission.GroupAdmin, test.resolver.groupKey)
+			if test.wantErr == nil {
+				require.True(t, permissions.Has(permission.ShortLinkUseConfirmation))
+			}
+		})
+	}
+}
+
 // TestServicePermissionResolutionFailuresPropagate verifies authorization infrastructure errors never become permission grants.
 func TestServicePermissionResolutionFailuresPropagate(t *testing.T) {
 	wantErr := errors.New("permission database down")

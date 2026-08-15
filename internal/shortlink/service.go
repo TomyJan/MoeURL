@@ -52,12 +52,9 @@ func NewService(pool *pgxpool.Pool, permissions permission.Resolver) *Service {
 
 // Create validates a target URL and creates an active short link for the caller.
 func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input CreateInput) (CreateResult, error) {
-	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
+	permissions, err := s.authorize(ctx, user, permission.ShortLinkCreate, permission.DomainUseDefault)
 	if err != nil {
 		return CreateResult{}, err
-	}
-	if !permissions.Has(permission.ShortLinkCreate) || !permissions.Has(permission.DomainUseDefault) {
-		return CreateResult{}, ErrPermissionDenied
 	}
 	if err := validateTargetURL(input.TargetURL); err != nil {
 		return CreateResult{}, err
@@ -125,12 +122,8 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 
 // Overview returns aggregate metrics for short links owned by the caller.
 func (s *Service) Overview(ctx context.Context, user auth.CurrentUser) (OverviewResult, error) {
-	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
-	if err != nil {
+	if _, err := s.authorize(ctx, user, permission.ShortLinkReadOwn); err != nil {
 		return OverviewResult{}, err
-	}
-	if !permissions.Has(permission.ShortLinkReadOwn) {
-		return OverviewResult{}, ErrPermissionDenied
 	}
 	ownerID, err := uuid.Parse(user.ID)
 	if err != nil {
@@ -150,12 +143,8 @@ func (s *Service) Overview(ctx context.Context, user auth.CurrentUser) (Overview
 
 // List returns a paginated view of short links owned by the caller.
 func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInput) (ListResult, error) {
-	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
-	if err != nil {
+	if _, err := s.authorize(ctx, user, permission.ShortLinkReadOwn); err != nil {
 		return ListResult{}, err
-	}
-	if !permissions.Has(permission.ShortLinkReadOwn) {
-		return ListResult{}, ErrPermissionDenied
 	}
 	if input.Status != "" && !isAllowedStatus(input.Status) {
 		return ListResult{}, ErrInvalidStatus
@@ -213,12 +202,9 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 
 // Update changes the target URL or status of a short link owned by the caller.
 func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input UpdateInput) (CreateResult, error) {
-	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
+	permissions, err := s.authorize(ctx, user, permission.ShortLinkUpdateOwn)
 	if err != nil {
 		return CreateResult{}, err
-	}
-	if !permissions.Has(permission.ShortLinkUpdateOwn) {
-		return CreateResult{}, ErrPermissionDenied
 	}
 	if input.TargetURL != nil {
 		if err := validateTargetURL(*input.TargetURL); err != nil {
@@ -279,12 +265,8 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 
 // Delete soft-deletes a short link owned by the caller.
 func (s *Service) Delete(ctx context.Context, user auth.CurrentUser, input DeleteInput) error {
-	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
-	if err != nil {
+	if _, err := s.authorize(ctx, user, permission.ShortLinkDeleteOwn); err != nil {
 		return err
-	}
-	if !permissions.Has(permission.ShortLinkDeleteOwn) {
-		return ErrPermissionDenied
 	}
 
 	linkID, ownerID, err := parseLinkAndOwnerIDs(input.ID, user.ID)
@@ -307,12 +289,8 @@ func (s *Service) Delete(ctx context.Context, user auth.CurrentUser, input Delet
 
 // Statistics returns analytics for a short link owned by the current user.
 func (s *Service) Statistics(ctx context.Context, user auth.CurrentUser, input StatisticsInput) (StatisticsResult, error) {
-	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
-	if err != nil {
+	if _, err := s.authorize(ctx, user, permission.ShortLinkReadOwn); err != nil {
 		return StatisticsResult{}, err
-	}
-	if !permissions.Has(permission.ShortLinkReadOwn) {
-		return StatisticsResult{}, ErrPermissionDenied
 	}
 	linkID, ownerID, err := parseLinkAndOwnerIDs(input.ID, user.ID)
 	if err != nil {
@@ -330,12 +308,8 @@ func (s *Service) Statistics(ctx context.Context, user auth.CurrentUser, input S
 
 // AdminStatistics returns analytics for a short link visible to an administrator.
 func (s *Service) AdminStatistics(ctx context.Context, user auth.CurrentUser, input StatisticsInput) (StatisticsResult, error) {
-	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
-	if err != nil {
+	if _, err := s.authorizeAdmin(ctx, user, permission.ShortLinkReadAll); err != nil {
 		return StatisticsResult{}, err
-	}
-	if !hasAdminPermission(permissions, permission.ShortLinkReadAll) {
-		return StatisticsResult{}, ErrPermissionDenied
 	}
 	linkID, err := uuid.Parse(input.ID)
 	if err != nil {
@@ -350,12 +324,8 @@ func (s *Service) AdminStatistics(ctx context.Context, user auth.CurrentUser, in
 
 // AdminList returns a paginated, filterable view of all short links.
 func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input ListInput) (AdminListResult, error) {
-	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
-	if err != nil {
+	if _, err := s.authorizeAdmin(ctx, user, permission.ShortLinkReadAll); err != nil {
 		return AdminListResult{}, err
-	}
-	if !hasAdminPermission(permissions, permission.ShortLinkReadAll) {
-		return AdminListResult{}, ErrPermissionDenied
 	}
 	if input.Status != "" && !isAllowedStatus(input.Status) {
 		return AdminListResult{}, ErrInvalidStatus
@@ -412,12 +382,9 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 
 // AdminUpdate changes the target URL or status of any short link.
 func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input UpdateInput) (CreateResult, error) {
-	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
+	permissions, err := s.authorizeAdmin(ctx, user, permission.ShortLinkUpdateAll)
 	if err != nil {
 		return CreateResult{}, err
-	}
-	if !hasAdminPermission(permissions, permission.ShortLinkUpdateAll) {
-		return CreateResult{}, ErrPermissionDenied
 	}
 	if input.TargetURL != nil {
 		if err := validateTargetURL(*input.TargetURL); err != nil {
@@ -476,12 +443,8 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 
 // AdminDelete soft-deletes any short link.
 func (s *Service) AdminDelete(ctx context.Context, user auth.CurrentUser, input DeleteInput) error {
-	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
-	if err != nil {
+	if _, err := s.authorizeAdmin(ctx, user, permission.ShortLinkDeleteAll); err != nil {
 		return err
-	}
-	if !hasAdminPermission(permissions, permission.ShortLinkDeleteAll) {
-		return ErrPermissionDenied
 	}
 	linkID, err := uuid.Parse(input.ID)
 	if err != nil {
@@ -838,9 +801,23 @@ func expirationValues(value pgtype.Timestamptz, expired bool) (*time.Time, bool)
 	return &expiresAt, expired
 }
 
-// hasAdminPermission checks both administrative access and the requested permission.
-func hasAdminPermission(permissions permission.Snapshot, required string) bool {
-	return permissions.Has(permission.AdminAccess) && permissions.Has(required)
+// authorize resolves one reusable permission snapshot and checks every requested capability.
+func (s *Service) authorize(ctx context.Context, user auth.CurrentUser, requiredPermissions ...string) (permission.Snapshot, error) {
+	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
+	if err != nil {
+		return permission.Snapshot{}, err
+	}
+	for _, required := range requiredPermissions {
+		if !permissions.Has(required) {
+			return permission.Snapshot{}, ErrPermissionDenied
+		}
+	}
+	return permissions, nil
+}
+
+// authorizeAdmin resolves one snapshot and checks administrative access plus the requested capability.
+func (s *Service) authorizeAdmin(ctx context.Context, user auth.CurrentUser, required string) (permission.Snapshot, error) {
+	return s.authorize(ctx, user, permission.AdminAccess, required)
 }
 
 // normalizePagination applies default and maximum bounds to pagination input.
