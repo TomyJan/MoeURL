@@ -78,18 +78,7 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
       body: 'confirmation target reached',
       status: 200,
     }))
-    let continueAttempts = 0
-    await page.route(`**/go/${confirmationSlug}/continue`, async (route) => {
-      continueAttempts += 1
-      if (continueAttempts === 1) {
-        await route.fulfill({
-          headers: { location: `/go/${confirmationSlug}?reason=continue-failed` },
-          status: 302,
-        })
-        return
-      }
-      await route.continue()
-    })
+    const readContinueAttempts = await interceptFirstContinueFailure(page, confirmationSlug)
     await page.goto(`/${confirmationSlug}`)
     const previewResponse = await previewResponsePromise
     expect(previewResponse.status()).toBe(200)
@@ -133,6 +122,7 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
     ))
     await page.getByRole('button', { name: '继续访问' }).click()
     await failedContinueRequest
+    expect(readContinueAttempts()).toBe(1)
     await expect(page).toHaveURL(new RegExp(`/go/${confirmationSlug}[?]reason=continue-failed$`))
     await expect(page.getByText('暂时无法继续访问，请重试。')).toBeVisible()
     expect(await readVisitCount(page, confirmationLinkId)).toBe(0)
@@ -146,6 +136,7 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
       page.getByRole('button', { name: '继续访问' }).click(),
     ])
     await continueRequestPromise
+    expect(readContinueAttempts()).toBe(2)
     await expect.poll(
       () => readVisitCount(page, confirmationLinkId),
       { intervals: [250, 500, 1_000], timeout: 30_000 },
@@ -212,18 +203,7 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
     expect(await readVisitCount(page, created.id)).toBe(0)
 
     await page.route(target, (route) => route.fulfill({ body: 'protected direct reached', status: 200 }))
-    let continueAttempts = 0
-    await page.route(`**/go/${created.slug}/continue`, async (route) => {
-      continueAttempts += 1
-      if (continueAttempts === 1) {
-        await route.fulfill({
-          headers: { location: `/go/${created.slug}?reason=continue-failed` },
-          status: 302,
-        })
-        return
-      }
-      await route.continue()
-    })
+    const readContinueAttempts = await interceptFirstContinueFailure(page, created.slug)
 
     const open = await page.request.get(`/${created.slug}`, { maxRedirects: 0 })
     expect(open.status()).toBe(302)
@@ -239,14 +219,14 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
 
     await expect(page).toHaveURL(new RegExp(`/go/${created.slug}[?]reason=continue-failed$`))
     await expect(page.getByText('暂时无法继续访问，请重试。')).toBeVisible()
-    expect(continueAttempts).toBe(1)
+    expect(readContinueAttempts()).toBe(1)
     expect(await readVisitCount(page, created.id)).toBe(0)
 
     await Promise.all([
       page.waitForURL(target),
       page.getByRole('button', { name: '立即前往' }).click(),
     ])
-    expect(continueAttempts).toBe(2)
+    expect(readContinueAttempts()).toBe(2)
     await expect.poll(
       () => readVisitCount(page, created.id),
       { intervals: [250, 500, 1_000], timeout: 30_000 },
@@ -293,6 +273,23 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
     expect(await readVisitCount(page, created.id)).toBe(0)
   })
 })
+
+/** Fails the first continue request and reports how many attempts were intercepted. */
+async function interceptFirstContinueFailure(page: Page, slug: string) {
+  let attempts = 0
+  await page.route(`**/go/${slug}/continue`, async (route) => {
+    attempts += 1
+    if (attempts === 1) {
+      await route.fulfill({
+        headers: { location: `/go/${slug}?reason=continue-failed` },
+        status: 302,
+      })
+      return
+    }
+    await route.continue()
+  })
+  return () => attempts
+}
 
 /** Creates a confirmation link through the public creation UI. */
 async function createConfirmationLink(page: Page, targetUrl: string, password?: string) {
