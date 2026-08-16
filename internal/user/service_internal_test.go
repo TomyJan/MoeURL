@@ -1,33 +1,21 @@
 package user
 
 import (
-	"bytes"
-	"log/slog"
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// TestNewServiceLogsPermissionFallback verifies missing permission dependencies produce an observable warning.
-func TestNewServiceLogsPermissionFallback(t *testing.T) {
-	var output bytes.Buffer
-	previousLogger := slog.Default()
-	slog.SetDefault(slog.New(slog.NewTextHandler(&output, nil)))
-	t.Cleanup(func() {
-		slog.SetDefault(previousLogger)
-	})
-
+// TestNewServiceFailsClosedWithoutPermissionResolver verifies missing permission wiring never grants static defaults.
+func TestNewServiceFailsClosedWithoutPermissionResolver(t *testing.T) {
 	service := NewService(nil, nil)
-	if service.permissions == nil {
-		t.Fatal("expected fallback permission resolver")
-	}
-	for _, field := range []string{"user_permission_resolver_fallback", "resolver=permission.NewService"} {
-		if !strings.Contains(output.String(), field) {
-			t.Fatalf("expected fallback log field %q, got %q", field, output.String())
-		}
+
+	_, err := service.permissions.Resolve(t.Context(), permission.GroupAdmin)
+	if err == nil || err.Error() != "user permission resolver is required" {
+		t.Fatalf("expected missing resolver error, got %v", err)
 	}
 }
 

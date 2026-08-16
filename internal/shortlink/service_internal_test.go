@@ -31,6 +31,15 @@ func TestNewServiceLogsPermissionFallbackWithInjectedLogger(t *testing.T) {
 	require.Contains(t, logOutput.String(), "permission.NewService")
 }
 
+// TestNewServiceWithLoggerUsesDefaultLoggerWhenNil verifies fallback wiring accepts an omitted logger.
+func TestNewServiceWithLoggerUsesDefaultLoggerWhenNil(t *testing.T) {
+	service := NewServiceWithLogger(nil, nil, nil)
+
+	permissions, err := service.permissions.Resolve(t.Context(), permission.GroupUser)
+	require.NoError(t, err)
+	require.True(t, permissions.Has(permission.ShortLinkCreate))
+}
+
 type failingPermissionResolver struct {
 	err error
 }

@@ -54,6 +54,8 @@ execute function track_short_link_confirmation_permission_revision();
 
 -- +goose Down
 -- +goose StatementBegin
+-- Rollback permanently converts confirmation links to direct mode. Export the
+-- affected short-link IDs before Down when later restoration is required.
 update short_link
 set redirect_mode = 'direct',
     updated_at = now()
@@ -62,9 +64,7 @@ where redirect_mode = 'confirmation';
 alter table short_link
     drop constraint if exists short_link_redirect_mode_check,
     add constraint short_link_redirect_mode_check
-        check (redirect_mode in ('direct', 'intermediate')) not valid;
-
-alter table short_link validate constraint short_link_redirect_mode_check;
+        check (redirect_mode in ('direct', 'intermediate'));
 
 drop trigger if exists short_link_confirmation_permission_revision on user_group;
 drop function if exists track_short_link_confirmation_permission_revision();

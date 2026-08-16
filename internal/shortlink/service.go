@@ -45,6 +45,9 @@ func NewService(pool *pgxpool.Pool, permissions permission.Resolver) *Service {
 
 // NewServiceWithLogger creates a short link service with an explicit fallback logger.
 func NewServiceWithLogger(pool *pgxpool.Pool, permissions permission.Resolver, logger *slog.Logger) *Service {
+	if logger == nil {
+		logger = slog.Default()
+	}
 	if permissions == nil {
 		logger.Warn("short_link_permission_resolver_fallback", "resolver", "permission.NewService")
 		permissions = permission.NewService()

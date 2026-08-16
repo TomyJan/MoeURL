@@ -130,7 +130,7 @@ func TestServiceCreateRejectsInvalidInputAndReturnsErrors(t *testing.T) {
 	insertUserGroup(t, ctx, pool, "admin", permission.AdminPermissions)
 	insertUserGroup(t, ctx, pool, "user", permission.UserPermissions)
 	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: "admin"}
-	service := user.NewService(pool, nil)
+	service := user.NewService(pool, permission.NewService())
 
 	_, err := service.Create(ctx, admin, user.CreateInput{Username: "", Password: "secure-password", Nickname: "Alice", GroupKey: "user", Status: "active"})
 	if !errors.Is(err, user.ErrInvalidInput) {
