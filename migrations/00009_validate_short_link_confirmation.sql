@@ -24,15 +24,10 @@ $$;
 
 -- +goose Down
 -- +goose StatementBegin
--- Rollback permanently converts confirmation links to direct mode. Export the
--- affected short-link IDs before Down when later restoration is required.
-update short_link
-set redirect_mode = 'direct',
-    updated_at = now()
-where redirect_mode = 'confirmation';
-
+-- Restore the v8 schema state without changing redirect_mode data. The
+-- irreversible confirmation-to-direct conversion belongs to 00008 Down.
 alter table short_link
     drop constraint if exists short_link_redirect_mode_check,
     add constraint short_link_redirect_mode_check
-        check (redirect_mode in ('direct', 'intermediate')) not valid;
+        check (redirect_mode in ('direct', 'intermediate', 'confirmation')) not valid;
 -- +goose StatementEnd

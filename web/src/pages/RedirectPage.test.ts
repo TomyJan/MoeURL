@@ -228,6 +228,10 @@ describe('RedirectPage', () => {
       dateStyle: 'medium',
       timeStyle: 'short',
     } as const
+    const date = new Date(expiresAt)
+    const zhExpiration = new Intl.DateTimeFormat('zh-CN', formatOptions).format(date)
+    const enExpiration = new Intl.DateTimeFormat('en', formatOptions).format(date)
+    expect(zhExpiration).not.toBe(enExpiration)
     vi.mocked(getPublicShortLinkPreview).mockResolvedValueOnce({
       slug: 'abc123',
       targetHost: 'example.com',
@@ -240,12 +244,12 @@ describe('RedirectPage', () => {
     await flushPreview()
 
     const expiration = container.querySelector(`time[datetime="${expiresAt}"]`)
-    expect(expiration?.textContent).toBe(new Intl.DateTimeFormat('zh-CN', formatOptions).format(new Date(expiresAt)))
+    expect(expiration?.textContent).toBe(zhExpiration)
 
     state.locale.value = 'en'
     await nextTick()
 
-    expect(expiration?.textContent).toBe(new Intl.DateTimeFormat('en', formatOptions).format(new Date(expiresAt)))
+    expect(expiration?.textContent).toBe(enExpiration)
   })
 
   it('omits expiration metadata from confirmation previews without an expiration', async () => {

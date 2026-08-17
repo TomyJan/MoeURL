@@ -295,11 +295,14 @@ func TestShortLinkConfirmationMigrationAddsModeAndPermissionAndRollsBack(t *test
 	if err := database.QueryRowContext(ctx, `select redirect_mode from short_link where slug = 'direct1'`).Scan(&directMode); err != nil {
 		t.Fatalf("read staged confirmation link: %v", err)
 	}
-	if directMode != "direct" {
-		t.Fatalf("expected staged rollback to normalize confirmation mode, got %s", directMode)
+	if directMode != "confirmation" {
+		t.Fatalf("expected staged rollback to preserve confirmation mode, got %s", directMode)
 	}
-	if _, err := database.ExecContext(ctx, `update short_link set redirect_mode = 'confirmation' where slug = 'direct1'`); err == nil {
-		t.Fatal("expected staged rollback constraint to reject confirmation mode")
+	if _, err := database.ExecContext(ctx, `update short_link set redirect_mode = 'confirmation' where slug = 'middle1'`); err != nil {
+		t.Fatalf("expected staged rollback constraint to allow confirmation mode: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `update short_link set redirect_mode = 'intermediate' where slug = 'middle1'`); err != nil {
+		t.Fatalf("restore intermediate mode after staged rollback: %v", err)
 	}
 
 	if err := goose.UpTo(database, migrationsDir, 9); err != nil {
