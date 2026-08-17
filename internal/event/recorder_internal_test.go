@@ -53,6 +53,8 @@ func TestDBRecorderSkipsNonStatisticalEvents(t *testing.T) {
 		release: make(chan struct{}),
 		done:    make(chan struct{}),
 	}
+	releaseWriter := sync.OnceFunc(func() { close(writer.release) })
+	t.Cleanup(releaseWriter)
 	recorder := newDBRecorder(writer, slog.New(slog.NewTextHandler(&synchronizedLogBuffer{}, nil)), 1)
 
 	for _, eventType := range []string{RedirectInitiated, ConfirmationClicked} {
@@ -62,10 +64,10 @@ func TestDBRecorderSkipsNonStatisticalEvents(t *testing.T) {
 	}
 	select {
 	case <-writer.entered:
-		close(writer.release)
+		releaseWriter()
 		<-writer.done
 		t.Fatal("expected non-statistical events to skip the writer")
-	case <-time.After(25 * time.Millisecond):
+	default:
 	}
 
 	if occupiedSlots := len(recorder.writeSlots); occupiedSlots != 0 {
