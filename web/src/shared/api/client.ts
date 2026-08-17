@@ -64,7 +64,7 @@ async function getJson<T>(path: string): Promise<ApiResponse<T>> {
   return decodeResponse<T>(response)
 }
 
-/** Performs an authenticated POST request under the versioned API prefix. */
+/** Performs a POST request under the versioned API prefix; authentication is endpoint-specific. */
 export async function apiPost<T>(path: string, body?: unknown): Promise<ApiResponse<T>> {
   return postJson<T>(`${API_BASE}${path}`, body)
 }

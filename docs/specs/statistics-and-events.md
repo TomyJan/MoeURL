@@ -55,12 +55,12 @@ v0.0.1 必须预留以下事件类型：
 | `redirect_response_sent` | 系统已成功写出跳转响应。 |
 | `redirect_blocked` | 短链因不存在、软删除、禁用或访问条件被阻止。 |
 
-以下事件属于后续能力落地时再启用的扩展事件，不属于 v0.0.1 必须预留范围：
+以下扩展事件不属于 v0.0.1 必须预留范围，其启用状态随对应能力演进：
 
-| 事件 | 对应后续能力 |
+| 事件 | 状态或对应能力 |
 | --- | --- |
-| `password_verified` | 访问密码。 |
-| `confirmation_clicked` | 确认页跳转。 |
+| `password_verified` | 后续访问密码事件。 |
+| `confirmation_clicked` | v0.4.0 已启用；确认页主动继续时发出，但数据库 Recorder 不持久化。 |
 
 `redirect_response_sent` 只表示 MoeURL 已成功写出自身可确认的跳转响应，不代表访问者浏览器一定完成跳转，也不代表目标页面实际加载成功。
 

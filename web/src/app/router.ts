@@ -21,7 +21,7 @@ function createLoginRedirect(fullPath?: string): RouteLocationRaw {
   return { path: '/login', query: { redirect: fullPath } }
 }
 
-/** Wraps a current-user decision in a router guard that fails closed to login. */
+/** Applies the supplied access decision after identity loading and redirects loading failures to login. */
 function createAccessGuard(loadCurrentUser = me, decideAccess: AccessDecisionPredicate): AccessGuard {
   /** Resolves identity once and applies the supplied access decision. */
   const guard = async (to?: { fullPath?: string }) => {

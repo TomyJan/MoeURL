@@ -20,24 +20,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestNewServiceLogsPermissionFallbackWithInjectedLogger verifies degraded constructor wiring is observable.
-func TestNewServiceLogsPermissionFallbackWithInjectedLogger(t *testing.T) {
+// TestNewServiceFailsClosedWithoutPermissionResolver verifies missing permission wiring is observable and denied.
+func TestNewServiceFailsClosedWithoutPermissionResolver(t *testing.T) {
 	var logOutput bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&logOutput, nil))
 
-	NewServiceWithLogger(nil, nil, logger)
+	service := NewServiceWithLogger(nil, nil, logger)
+	_, err := service.permissions.Resolve(t.Context(), permission.GroupAdmin)
 
-	require.Contains(t, logOutput.String(), "short_link_permission_resolver_fallback")
-	require.Contains(t, logOutput.String(), "permission.NewService")
+	require.EqualError(t, err, "short link permission resolver is required")
+	require.Contains(t, logOutput.String(), "short_link_permission_resolver_required")
 }
 
-// TestNewServiceWithLoggerUsesDefaultLoggerWhenNil verifies fallback wiring accepts an omitted logger.
+// TestNewServiceWithLoggerUsesDefaultLoggerWhenNil verifies missing dependency logging accepts an omitted logger.
 func TestNewServiceWithLoggerUsesDefaultLoggerWhenNil(t *testing.T) {
 	service := NewServiceWithLogger(nil, nil, nil)
 
-	permissions, err := service.permissions.Resolve(t.Context(), permission.GroupUser)
-	require.NoError(t, err)
-	require.True(t, permissions.Has(permission.ShortLinkCreate))
+	_, err := service.permissions.Resolve(t.Context(), permission.GroupAdmin)
+	require.ErrorIs(t, err, errPermissionResolverRequired)
 }
 
 type failingPermissionResolver struct {

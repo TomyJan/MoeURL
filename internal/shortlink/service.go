@@ -43,14 +43,14 @@ func NewService(pool *pgxpool.Pool, permissions permission.Resolver) *Service {
 	return NewServiceWithLogger(pool, permissions, slog.Default())
 }
 
-// NewServiceWithLogger creates a short link service with an explicit fallback logger.
+// NewServiceWithLogger creates a short link service with an injectable logger.
 func NewServiceWithLogger(pool *pgxpool.Pool, permissions permission.Resolver, logger *slog.Logger) *Service {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	if permissions == nil {
-		logger.Warn("short_link_permission_resolver_fallback", "resolver", "permission.NewService")
-		permissions = permission.NewService()
+		logger.Error("short_link_permission_resolver_required")
+		permissions = missingPermissionResolver{}
 	}
 	return &Service{
 		queries:     sqlc.New(pool),
@@ -918,4 +918,13 @@ func isUniqueViolation(err error) bool {
 	}
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+}
+
+var errPermissionResolverRequired = errors.New("short link permission resolver is required")
+
+type missingPermissionResolver struct{}
+
+// Resolve rejects permission checks when the service dependency is missing.
+func (missingPermissionResolver) Resolve(context.Context, string) (permission.Snapshot, error) {
+	return permission.Snapshot{}, errPermissionResolverRequired
 }

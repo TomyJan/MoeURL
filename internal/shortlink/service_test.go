@@ -30,11 +30,11 @@ func TestServiceCreateRejectsGuest(t *testing.T) {
 	}
 }
 
-// TestServiceConstructorsUseDefaultPermissions verifies nil permissions use built-in defaults.
-func TestServiceConstructorsUseDefaultPermissions(t *testing.T) {
+// TestServiceConstructorUsesExplicitPermissions verifies constructor callers can inject isolated permissions.
+func TestServiceConstructorUsesExplicitPermissions(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
-	service := shortlink.NewService(pool, nil)
+	service := shortlink.NewService(pool, permission.NewService())
 
 	_, err := service.List(ctx, auth.GuestUser(), shortlink.ListInput{})
 	if !errors.Is(err, shortlink.ErrPermissionDenied) {
