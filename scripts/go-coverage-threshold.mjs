@@ -8,6 +8,7 @@ const excludeBlocksFrom = readOption('--exclude-blocks-from')
 const excludedBlocks = excludeBlocksFrom ? new Set(readPatterns(excludeBlocksFrom)) : new Set()
 const matchedExcludedBlocks = new Set()
 const coveredExcludedBlocks = new Set()
+const coveredCoverageBlocks = new Set()
 const blocks = readFileSync(profile, 'utf8')
   .trim()
   .split('\n')
@@ -42,7 +43,8 @@ if (unmatchedExcludedBlocks.length > 0) {
   process.exitCode = 1
 }
 if (coveredExcludedBlocks.size > 0) {
-  console.error(`Coverage exclusions matched covered blocks:\n${[...coveredExcludedBlocks].join('\n')}`)
+  const reportedLocations = new Set([...coveredExcludedBlocks, ...coveredCoverageBlocks])
+  console.error(`Coverage exclusions matched covered blocks:\n${[...reportedLocations].join('\n')}`)
   process.exitCode = 1
 }
 
@@ -105,7 +107,10 @@ function consumeExcludedBlock(location, count) {
     return false
   }
   matchedExcludedBlocks.add(configuredLocations[0])
-  if (count > 0) coveredExcludedBlocks.add(configuredLocations[0])
+  if (count > 0) {
+    coveredExcludedBlocks.add(configuredLocations[0])
+    coveredCoverageBlocks.add(location)
+  }
   return true
 }
 
