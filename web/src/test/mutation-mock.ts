@@ -28,7 +28,7 @@ interface CreateMutationMockOptions {
   resolveSynchronousResult?: (result: unknown, input: unknown) => unknown
 }
 
-/** Creates a reactive mutation double that runs the configured success callback. */
+/** Creates a reactive mutation double whose default mutate implementation runs the configured success callback. */
 export function createMutationMock(config: CreateMutationMockOptions) {
   return vi.fn((options?: MutationMockCallOptions) => {
     config.captureOptions?.(options)
