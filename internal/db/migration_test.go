@@ -270,9 +270,18 @@ func TestShortLinkConfirmationMigrationAddsModeAndPermissionAndRollsBack(t *test
 	}
 
 	if err := goose.UpTo(database, migrationsDir, 9); err != nil {
+		t.Fatalf("stage confirmation constraint validation: %v", err)
+	}
+	assertConfirmationConstraintValidation(t, ctx, database, false)
+	if err := goose.UpTo(database, migrationsDir, 10); err != nil {
 		t.Fatalf("validate confirmation constraint: %v", err)
 	}
 	assertConfirmationConstraintValidation(t, ctx, database, true)
+
+	if err := goose.DownTo(database, migrationsDir, 9); err != nil {
+		t.Fatalf("rollback validation phase: %v", err)
+	}
+	assertConfirmationConstraintValidation(t, ctx, database, false)
 
 	if err := goose.DownTo(database, migrationsDir, 8); err != nil {
 		t.Fatalf("stage confirmation rollback: %v", err)
@@ -294,7 +303,11 @@ func TestShortLinkConfirmationMigrationAddsModeAndPermissionAndRollsBack(t *test
 	}
 
 	if err := goose.UpTo(database, migrationsDir, 9); err != nil {
-		t.Fatalf("resume confirmation migration from staged rollback: %v", err)
+		t.Fatalf("resume confirmation constraint stage from staged rollback: %v", err)
+	}
+	assertConfirmationConstraintValidation(t, ctx, database, false)
+	if err := goose.UpTo(database, migrationsDir, 10); err != nil {
+		t.Fatalf("resume confirmation validation from staged rollback: %v", err)
 	}
 	assertConfirmationConstraintValidation(t, ctx, database, true)
 	if _, err := database.ExecContext(ctx, `update short_link set redirect_mode = 'confirmation' where slug = 'direct1'`); err != nil {

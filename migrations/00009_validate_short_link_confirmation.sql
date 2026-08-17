@@ -1,7 +1,7 @@
 -- +goose Up
 -- +goose StatementBegin
--- Resuming Up from a staged rollback restores the v0.4.0 constraint before
--- validation. A normal v8 upgrade already has this definition and skips DDL.
+-- This is the first phase of the confirmation constraint migration. A normal
+-- v8 upgrade already has this definition and skips the staged replacement.
 do $$
 begin
     if exists (
@@ -20,8 +20,6 @@ begin
     end if;
 end;
 $$;
-
-alter table short_link validate constraint short_link_redirect_mode_check;
 -- +goose StatementEnd
 
 -- +goose Down
