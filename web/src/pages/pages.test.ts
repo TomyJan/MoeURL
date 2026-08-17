@@ -835,7 +835,8 @@ describe('pages', () => {
     const rows = screen.getAllByTestId('console-link-row')
     const activeRow = rows.find((row) => within(row).queryByText('https://go.example.com/abc123'))
     const disabledRow = rows.find((row) => within(row).queryByText('https://go.example.com/def456'))
-    if (!activeRow || !disabledRow) {
+    const confirmationRow = rows.find((row) => within(row).queryByText('https://go.example.com/confirm1'))
+    if (!activeRow || !disabledRow || !confirmationRow) {
       throw new Error('expected short link rows')
     }
     expect(within(activeRow).getByText('links.stats.visitCount')).toBeTruthy()
@@ -845,7 +846,7 @@ describe('pages', () => {
     expect(within(activeRow).getByText('links.stats.lastVisitedAt')).toBeTruthy()
     expect(within(disabledRow).getByText('links.stats.neverVisited')).toBeTruthy()
     expect(within(activeRow).getByText('shortLinkCreate.redirectModes.intermediate')).toBeTruthy()
-    expect(screen.getByText('shortLinkCreate.redirectModes.confirmation')).toBeTruthy()
+    expect(within(confirmationRow).getByText('shortLinkCreate.redirectModes.confirmation')).toBeTruthy()
     const expiration = new Date('2026-08-10T00:00:00Z')
     const expirationText = `${expiration.getFullYear()}-${String(expiration.getMonth() + 1).padStart(2, '0')}-${String(expiration.getDate()).padStart(2, '0')} ${String(expiration.getHours()).padStart(2, '0')}:${String(expiration.getMinutes()).padStart(2, '0')}`
     expect(within(activeRow).getByText(expirationText)).toBeTruthy()

@@ -1,6 +1,7 @@
 package user
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -14,8 +15,8 @@ func TestNewServiceFailsClosedWithoutPermissionResolver(t *testing.T) {
 	service := NewService(nil, nil)
 
 	_, err := service.permissions.Resolve(t.Context(), permission.GroupAdmin)
-	if err == nil || err.Error() != "user permission resolver is required" {
-		t.Fatalf("expected missing resolver error, got %v", err)
+	if !errors.Is(err, errPermissionResolverRequired) {
+		t.Fatalf("expected missing resolver sentinel, got %v", err)
 	}
 }
 

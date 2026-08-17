@@ -795,6 +795,32 @@ func TestRedirectHandlerContinueLogsUnexpectedErrors(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerOpenLogsUnexpectedErrors verifies initial public failures retain request context in logs.
+func TestRedirectHandlerOpenLogsUnexpectedErrors(t *testing.T) {
+	logOutput := &bytes.Buffer{}
+	logger := slog.New(slog.NewTextHandler(logOutput, nil))
+	handler := shortlink.NewRedirectHandlerWithAnalyticsAndSecurity(
+		&fakeRedirectService{openErr: errors.New("database down")},
+		event.NoopRecorder{},
+		"",
+		false,
+		logger,
+	)
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/MiDdLe", nil)
+
+	handler.Open(response, request, "MiDdLe")
+
+	for _, field := range []string{"short_link_open_failed", "slug=middle", "database down"} {
+		if !strings.Contains(logOutput.String(), field) {
+			t.Fatalf("expected open failure log field %q, got %q", field, logOutput.String())
+		}
+	}
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d", response.Code)
+	}
+}
+
 // TestRedirectHandlerContinueIncludesRateLimitRetryAt verifies redirect handler continue includes rate limit retry at.
 func TestRedirectHandlerContinueIncludesRateLimitRetryAt(t *testing.T) {
 	retryAt := time.Date(2026, time.August, 11, 12, 0, 0, 0, time.UTC)

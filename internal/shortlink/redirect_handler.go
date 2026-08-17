@@ -67,7 +67,7 @@ func NewRedirectHandlerWithAnalyticsAndSecurity(service RedirectPort, recorder e
 func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug string) {
 	result, err := h.service.Open(r.Context(), slug)
 	if err != nil {
-		writePublicAccessError(w, r, slug, err)
+		h.writePublicAccessError(w, r, slug, err, "short_link_open_failed")
 		return
 	}
 	if result.RequiresPassword {
@@ -192,7 +192,7 @@ func (h *RedirectHandler) Continue(w http.ResponseWriter, r *http.Request, slug 
 	result, err := h.service.Continue(r.Context(), slug, accessTokenFromRequest(r))
 	if err != nil {
 		if isPublicAccessError(err) {
-			writePublicAccessError(w, r, slug, err)
+			h.writePublicAccessError(w, r, slug, err, "short_link_continue_failed")
 		} else {
 			h.logger.ErrorContext(r.Context(), "short_link_continue_failed", "slug", strings.ToLower(slug), "error", err)
 			redirectToPublicAccessState(w, r, slug, "continue-failed", nil)
@@ -265,7 +265,7 @@ func (h *RedirectHandler) writeTargetRedirect(w http.ResponseWriter, r *http.Req
 }
 
 // writePublicAccessError maps access failures to safe public redirect states.
-func writePublicAccessError(w http.ResponseWriter, r *http.Request, slug string, err error) {
+func (h *RedirectHandler) writePublicAccessError(w http.ResponseWriter, r *http.Request, slug string, err error, failureLogMessage string) {
 	switch classifyPublicAccessError(err) {
 	case publicAccessErrorMissing:
 		http.Error(w, "Short link not found", http.StatusNotFound)
@@ -286,6 +286,7 @@ func writePublicAccessError(w http.ResponseWriter, r *http.Request, slug string,
 		}
 		redirectToPublicAccessState(w, r, slug, "rate-limited", nil)
 	default:
+		h.logger.ErrorContext(r.Context(), failureLogMessage, "slug", strings.ToLower(strings.TrimSpace(slug)), "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }

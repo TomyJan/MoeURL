@@ -54,17 +54,32 @@ execute function track_short_link_confirmation_permission_revision();
 
 -- +goose Down
 -- +goose StatementBegin
--- Rollback permanently converts confirmation links to direct mode. Export the
--- affected short-link IDs before Down when later restoration is required.
-update short_link
-set redirect_mode = 'direct',
-    updated_at = now()
-where redirect_mode = 'confirmation';
+-- A normal rollback arrives here after 00009 Down committed the old NOT VALID
+-- constraint. Direct rollback from an unvalidated v8 installation prepares the
+-- same state here so that both version states remain safely reversible.
+do $$
+begin
+    if exists (
+        select 1
+        from pg_constraint
+        where conname = 'short_link_redirect_mode_check'
+            and conrelid = 'short_link'::regclass
+            and pg_get_constraintdef(oid) like '%confirmation%'
+    ) then
+        update short_link
+        set redirect_mode = 'direct',
+            updated_at = now()
+        where redirect_mode = 'confirmation';
 
-alter table short_link
-    drop constraint if exists short_link_redirect_mode_check,
-    add constraint short_link_redirect_mode_check
-        check (redirect_mode in ('direct', 'intermediate'));
+        execute 'alter table short_link drop constraint short_link_redirect_mode_check';
+        execute $constraint$
+            alter table short_link
+                add constraint short_link_redirect_mode_check
+                    check (redirect_mode in ('direct', 'intermediate')) not valid
+        $constraint$;
+    end if;
+end;
+$$;
 
 drop trigger if exists short_link_confirmation_permission_revision on user_group;
 drop function if exists track_short_link_confirmation_permission_revision();
@@ -87,4 +102,7 @@ where exists (
 );
 
 drop table if exists short_link_confirmation_permission_addition;
+
+-- Keep validation last so its lock is held only until this transaction commits.
+alter table short_link validate constraint short_link_redirect_mode_check;
 -- +goose StatementEnd

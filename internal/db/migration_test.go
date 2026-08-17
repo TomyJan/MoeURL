@@ -274,6 +274,37 @@ func TestShortLinkConfirmationMigrationAddsModeAndPermissionAndRollsBack(t *test
 	}
 	assertConfirmationConstraintValidation(t, ctx, database, true)
 
+	if err := goose.DownTo(database, migrationsDir, 8); err != nil {
+		t.Fatalf("stage confirmation rollback: %v", err)
+	}
+	assertConfirmationConstraintValidation(t, ctx, database, false)
+	assertRelationExists(t, ctx, database, "short_link_confirmation_permission_addition", true)
+	assertConfirmationPermission(t, ctx, database, "user", true)
+	assertConfirmationPermission(t, ctx, database, "admin", true)
+
+	var directMode, intermediateMode string
+	if err := database.QueryRowContext(ctx, `select redirect_mode from short_link where slug = 'direct1'`).Scan(&directMode); err != nil {
+		t.Fatalf("read staged confirmation link: %v", err)
+	}
+	if directMode != "direct" {
+		t.Fatalf("expected staged rollback to normalize confirmation mode, got %s", directMode)
+	}
+	if _, err := database.ExecContext(ctx, `update short_link set redirect_mode = 'confirmation' where slug = 'direct1'`); err == nil {
+		t.Fatal("expected staged rollback constraint to reject confirmation mode")
+	}
+
+	if err := goose.UpTo(database, migrationsDir, 9); err != nil {
+		t.Fatalf("resume confirmation migration from staged rollback: %v", err)
+	}
+	assertConfirmationConstraintValidation(t, ctx, database, true)
+	if _, err := database.ExecContext(ctx, `update short_link set redirect_mode = 'confirmation' where slug = 'direct1'`); err != nil {
+		t.Fatalf("restore confirmation mode after resumed migration: %v", err)
+	}
+	if err := goose.DownTo(database, migrationsDir, 8); err != nil {
+		t.Fatalf("restage confirmation rollback: %v", err)
+	}
+	assertConfirmationConstraintValidation(t, ctx, database, false)
+
 	if err := goose.DownTo(database, migrationsDir, 7); err != nil {
 		t.Fatalf("rollback confirmation migrations: %v", err)
 	}
@@ -283,7 +314,6 @@ func TestShortLinkConfirmationMigrationAddsModeAndPermissionAndRollsBack(t *test
 		assertConfirmationPermission(t, ctx, database, groupKey, false)
 	}
 
-	var directMode, intermediateMode string
 	if err := database.QueryRowContext(ctx, `select redirect_mode from short_link where slug = 'direct1'`).Scan(&directMode); err != nil {
 		t.Fatalf("read rolled-back confirmation link: %v", err)
 	}

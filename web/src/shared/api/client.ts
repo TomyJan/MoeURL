@@ -84,7 +84,7 @@ async function postJson<T>(path: string, body?: unknown): Promise<ApiResponse<T>
   return decodeResponse<T>(response)
 }
 
-/** Decodes the response envelope and maps transport or business failures to ApiClientError. */
+/** Decodes the response envelope and maps HTTP, malformed-response, or business failures to ApiClientError. */
 async function decodeResponse<T>(response: Response): Promise<ApiResponse<T>> {
   const text = await response.text()
   const payload = parsePayload<T>(text)

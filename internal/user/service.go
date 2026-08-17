@@ -35,7 +35,7 @@ type missingPermissionResolver struct{}
 
 // Resolve rejects permission checks when the service dependency is missing.
 func (missingPermissionResolver) Resolve(context.Context, string) (permission.Snapshot, error) {
-	return permission.Snapshot{}, errors.New("user permission resolver is required")
+	return permission.Snapshot{}, errPermissionResolverRequired
 }
 
 // NewService creates a user service backed by SQLC queries and permissions.
@@ -352,3 +352,5 @@ func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
+
+var errPermissionResolverRequired = errors.New("user permission resolver is required")
