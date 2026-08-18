@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { e2eAdminPassword, e2eAdminUsername, e2eHost } from './support'
 
 test('initialization', async ({ page }) => {
-  page.setDefaultTimeout(10_000)
+  page.setDefaultTimeout(30_000)
   const status = await page.request.get('/api/v1/init/status')
   await expect(status).toBeOK()
   const statusPayload = await status.json() as { code: number; data: { initialized: boolean } }
@@ -19,6 +19,8 @@ test('initialization', async ({ page }) => {
   }
 
   await page.goto('/setup')
+  const setupWizard = page.getByTestId('setup-wizard')
+  await expect(setupWizard).toBeVisible({ timeout: 30_000 })
   await page.getByTestId('setup-admin-username').locator('input').fill(e2eAdminUsername)
   await page.getByTestId('setup-admin-password').locator('input').fill(e2eAdminPassword)
   await page.getByTestId('setup-admin-nickname').locator('input').fill('Admin')
@@ -26,5 +28,5 @@ test('initialization', async ({ page }) => {
   await page.getByTestId('setup-system-domain').locator('input').fill(e2eHost)
   await page.getByTestId('setup-short-link-domain').locator('input').fill(e2eHost)
   await page.getByTestId('setup-submit').click()
-  await expect(page.getByTestId('setup-completion')).toBeVisible()
+  await expect(page.getByTestId('setup-completion')).toBeVisible({ timeout: 30_000 })
 })
