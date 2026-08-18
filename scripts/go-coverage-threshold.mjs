@@ -97,7 +97,10 @@ function parseBlock(line) {
 function consumeExcludedBlock(location, count) {
   if (excludedBlocks.has(location)) {
     matchedExcludedBlocks.add(location)
-    if (count > 0) coveredExcludedBlocks.add(location)
+    if (count > 0) {
+      coveredExcludedBlocks.add(location)
+      coveredCoverageBlocks.add(location)
+    }
     return true
   }
   const lineRange = toLineRange(location)

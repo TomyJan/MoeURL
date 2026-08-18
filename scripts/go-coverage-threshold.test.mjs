@@ -32,6 +32,35 @@ test('accepts excluded blocks when compiler column positions differ', () => {
   }
 })
 
+test('reports covered blocks for exact exclusion matches', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'moeurl-coverage-'))
+  const coveragePath = join(directory, 'coverage.out')
+  const targetsPath = join(directory, 'targets.txt')
+  const excludedPath = join(directory, 'excluded.txt')
+  const sourcePath = 'github.com/TomyJan/MoeURL/internal/auth/service.go'
+  const location = `${sourcePath}:48.1,50.99`
+
+  writeFileSync(coveragePath, `mode: set\n${location} 1 1\n`)
+  writeFileSync(targetsPath, `${sourcePath}\n`)
+  writeFileSync(excludedPath, `${location}\n`)
+
+  try {
+    const result = spawnSync(process.execPath, [
+      'scripts/go-coverage-threshold.mjs',
+      coveragePath,
+      '100',
+      `--include-from=${targetsPath}`,
+      `--exclude-blocks-from=${excludedPath}`,
+    ], { cwd: process.cwd(), encoding: 'utf8' })
+
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, new RegExp(`Covered configured exclusions:\\n${location}`))
+    assert.match(result.stderr, new RegExp(`Covered coverage blocks:\\n${location}`))
+  } finally {
+    rmSync(directory, { force: true, recursive: true })
+  }
+})
+
 test('rejects exclusions that hide covered blocks', () => {
   const directory = mkdtempSync(join(tmpdir(), 'moeurl-coverage-'))
   const coveragePath = join(directory, 'coverage.out')

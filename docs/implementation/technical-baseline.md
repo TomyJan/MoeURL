@@ -335,7 +335,7 @@ v0.3.0 在 `short_link` 追加 `password_hash`、`password_failed_attempts`、`p
 
 ### v0.4.0 schema 扩展摘要
 
-v0.4.0 不新增数据列，只将 `short_link.redirect_mode` 的约束扩展为 `direct`、`intermediate`、`confirmation`。`00008` 使用 `NOT VALID` 替换旧约束并为内置 `user`、`admin` 用户组追加 `short_link:use_confirmation`，`00009` 提交确认模式约束替换，`00010` 在独立事务中验证新约束。正常回滚由 `00009 Down` 将 confirmation 记录降级为 direct，并提交旧的 `NOT VALID` 约束；`00008 Down` 保留权限跟踪状态到最后一个事务，在清理后立即验证旧约束。停在 v9 时可由 `00010 Up` 安全重试验证，停在 v8 时也可沿原方向安全重试或由 `00009 Up` 恢复确认模式约束；权限跟踪表只移除 migration 实际新增的权限。
+v0.4.0 不新增数据列，只将 `short_link.redirect_mode` 的约束扩展为 `direct`、`intermediate`、`confirmation`。`00008 Up` 使用 `NOT VALID` 替换旧约束，并为内置 `user`、`admin` 用户组追加 `short_link:use_confirmation`；`00009 Up` 是兼容性重试步骤，正常 v8 路径已经由 `00008 Up` 完成约束替换，因此会跳过替换，只有检测到旧约束残留时才补做替换；`00010 Up` 在独立事务中验证新约束。正常回滚由 `00009 Down` 恢复 v8 状态的 `NOT VALID` 约束但不改写数据，随后由 `00008 Down` 将 confirmation 记录降级为 direct、清理 migration 实际新增的权限并恢复、验证旧约束。停在 v9 时可由 `00010 Up` 安全重试验证；停在 v8 时可安全重试 `00009 Up`（正常状态下跳过已完成的替换），再由 `00010 Up` 完成验证。权限跟踪表只移除 migration 实际新增且未被人工修改的权限。
 
 ### 短码规则
 

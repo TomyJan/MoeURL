@@ -20,7 +20,7 @@ test('initialization', async ({ page }) => {
 
   await page.goto('/setup')
   const setupWizard = page.getByTestId('setup-wizard')
-  await expect(setupWizard).toBeVisible({ timeout: 30_000 })
+  await expect(setupWizard).toBeVisible()
   await page.getByTestId('setup-admin-username').locator('input').fill(e2eAdminUsername)
   await page.getByTestId('setup-admin-password').locator('input').fill(e2eAdminPassword)
   await page.getByTestId('setup-admin-nickname').locator('input').fill('Admin')
@@ -28,5 +28,5 @@ test('initialization', async ({ page }) => {
   await page.getByTestId('setup-system-domain').locator('input').fill(e2eHost)
   await page.getByTestId('setup-short-link-domain').locator('input').fill(e2eHost)
   await page.getByTestId('setup-submit').click()
-  await expect(page.getByTestId('setup-completion')).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByTestId('setup-completion')).toBeVisible()
 })
