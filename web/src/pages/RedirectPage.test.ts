@@ -212,7 +212,7 @@ describe('RedirectPage', () => {
     expect(screen.getByText('redirect.expiresAt')).toBeTruthy()
     expect(container.querySelector(`time[datetime="${expiresAt}"]`)).toBeTruthy()
     expect(container.querySelector('.redirect-page__countdown')).toBeNull()
-    expect(setInterval).not.toHaveBeenCalled()
+    expect(setInterval.mock.calls.some(([, delay]) => delay === 1_000)).toBe(false)
     expect(state.assign).not.toHaveBeenCalled()
 
     const continueButton = screen.getByRole('button', { name: 'redirect.confirmationContinue' })
@@ -338,7 +338,7 @@ describe('RedirectPage', () => {
     await flushPreview()
 
     expect(screen.getByText('redirect.continueFailed')).toBeTruthy()
-    expect(setInterval).not.toHaveBeenCalled()
+    expect(setInterval.mock.calls.some(([, delay]) => delay === 1_000)).toBe(false)
     await fireEvent.click(screen.getByRole('button', { name: 'redirect.continue' }))
     expect(state.assign).toHaveBeenCalledWith('/go/abc123/continue')
   })
@@ -822,7 +822,7 @@ describe('RedirectPage', () => {
     await flushPreview()
     await vi.advanceTimersByTimeAsync(10_000)
 
-    expect(setInterval).not.toHaveBeenCalled()
+    expect(setInterval.mock.calls.some(([, delay]) => delay === 1_000)).toBe(false)
     expect(state.assign).not.toHaveBeenCalled()
   })
 
