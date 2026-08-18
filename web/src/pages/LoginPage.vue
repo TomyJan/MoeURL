@@ -60,7 +60,7 @@ const loginErrorSnackbarOpen = ref(false)
 const INVALID_CREDENTIAL_ERROR_CODE = 110101
 const mutation = useMutation({
   mutationFn: login,
-  /** Refreshes identity state and resumes the requested route after login. */
+  /** Updates cached identity data, starts auth/me invalidation, and restores the requested route. */
   onSuccess(data) {
     queryClient.setQueryData(['auth', 'me'], data)
     void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })

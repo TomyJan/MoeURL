@@ -177,6 +177,7 @@ import { createShortLink } from '@/entities/short-link/api'
 import type { CreateShortLinkInput, RedirectMode } from '@/entities/short-link/model'
 import ShortLinkQrDialog from '@/features/short-link-qr/ShortLinkQrDialog.vue'
 import { runShortLinkMutation } from '@/shared/short-link/runShortLinkMutation'
+import { useRedirectModePermissions } from '@/shared/short-link/useRedirectModePermissions'
 import { futureDateTimeSchema, passwordSchema, targetUrlSchema } from '@/shared/validation/shortLinkAccess'
 
 withDefaults(
@@ -214,8 +215,7 @@ const hasResolvedCurrentUser = computed(() => currentUserQuery.data.value !== un
 const canCreateShortLink = computed(() =>
   Boolean(currentUser.value?.permissions.includes('short_link:create') && currentUser.value?.permissions.includes('domain:use_default')),
 )
-const canUseIntermediate = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:use_intermediate')))
-const canUseConfirmation = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:use_confirmation')))
+const { canUseIntermediate, canUseConfirmation, canSubmitRedirectMode } = useRedirectModePermissions(currentUser)
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
 const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
 const canConfigureRedirect = computed(() => canUseIntermediate.value || canUseConfirmation.value)
@@ -335,13 +335,6 @@ function submitValidatedInput(): boolean {
   createdSlug.value = ''
   mutation.mutate(input)
   return true
-}
-
-/** Reports whether the current user may submit the selected redirect mode. */
-function canSubmitRedirectMode(mode: RedirectMode) {
-  return canConfigureRedirect.value && (mode === 'direct'
-    || (mode === 'intermediate' && canUseIntermediate.value)
-    || (mode === 'confirmation' && canUseConfirmation.value))
 }
 
 /** Clears both the creation form and its generated-link result. */

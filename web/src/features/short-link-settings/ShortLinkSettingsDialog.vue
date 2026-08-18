@@ -117,6 +117,7 @@ import { useQuery } from '@tanstack/vue-query'
 
 import { me } from '@/entities/auth/api'
 import type { RedirectMode, ShortLink, UpdateShortLinkInput } from '@/entities/short-link/model'
+import { useRedirectModePermissions } from '@/shared/short-link/useRedirectModePermissions'
 import { futureDateTimeSchema, passwordSchema, targetUrlSchema } from '@/shared/validation/shortLinkAccess'
 
 const props = defineProps<{
@@ -149,8 +150,7 @@ const currentUserQuery = useQuery({
   queryFn: me,
 })
 const currentUser = computed(() => currentUserQuery.data.value?.user)
-const canUseIntermediate = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:use_intermediate')))
-const canUseConfirmation = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:use_confirmation')))
+const { canUseIntermediate, canUseConfirmation, canSubmitRedirectMode } = useRedirectModePermissions(currentUser)
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
 const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
 const canConfigureRedirect = computed(() =>
@@ -195,7 +195,7 @@ function save() {
     id: props.link.id,
     targetUrl: targetResult.data,
   }
-  if (canSubmitRedirectMode(redirectMode.value)) {
+  if (canSubmitRedirectMode(redirectMode.value, canConfigureRedirect.value)) {
     input.redirectMode = redirectMode.value
   }
   if (canUseIntermediate.value && redirectMode.value === 'intermediate') {
@@ -291,13 +291,6 @@ function resetFromLink(link: Pick<ShortLink, 'targetUrl' | 'redirectMode' | 'int
   expirationErrorMessage.value = ''
   passwordErrorMessage.value = ''
   void nextTick(clearPasswordInput)
-}
-
-/** Reports whether the current user may submit the selected redirect mode. */
-function canSubmitRedirectMode(mode: RedirectMode) {
-  return canConfigureRedirect.value && (mode === 'direct'
-    || (mode === 'intermediate' && canUseIntermediate.value)
-    || (mode === 'confirmation' && canUseConfirmation.value))
 }
 
 /** Resolves the transient native password input without copying it into reactive state. */
