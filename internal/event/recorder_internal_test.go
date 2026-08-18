@@ -67,7 +67,7 @@ func TestDBRecorderSkipsNonStatisticalEvents(t *testing.T) {
 		releaseWriter()
 		<-writer.done
 		t.Fatal("expected non-statistical events to skip the writer")
-	default:
+	case <-time.After(time.Second):
 	}
 
 	if occupiedSlots := len(recorder.writeSlots); occupiedSlots != 0 {

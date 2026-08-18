@@ -53,9 +53,10 @@ test('rejects exclusions that hide covered blocks', () => {
     ], { cwd: process.cwd(), encoding: 'utf8' })
 
     assert.equal(result.status, 1)
-    assert.match(result.stderr, /Coverage exclusions matched covered blocks:/)
-    assert.match(result.stderr, new RegExp(`${sourcePath}:48\\.16,50\\.3`))
-    assert.match(result.stderr, new RegExp(`${sourcePath}:48\\.1,50\\.99`))
+    assert.match(result.stderr, /Covered configured exclusions:/)
+    assert.match(result.stderr, /Covered coverage blocks:/)
+    assert.match(result.stderr, new RegExp(`Covered configured exclusions:\\n${sourcePath}:48\\.16,50\\.3`))
+    assert.match(result.stderr, new RegExp(`Covered coverage blocks:\\n${sourcePath}:48\\.1,50\\.99`))
     assert.doesNotMatch(result.stderr, new RegExp(`${sourcePath}:48\\.1,50\\.40`))
   } finally {
     rmSync(directory, { force: true, recursive: true })
@@ -90,7 +91,7 @@ test('rejects ambiguous fallback when sibling coverage blocks share a line range
     assert.match(result.stderr, /Unmatched configured coverage exclusions:/)
     assert.match(result.stderr, new RegExp(`${sourcePath}:48\\.16,50\\.3`))
     assert.match(result.stderr, new RegExp(`${sourcePath}:48\\.41,50\\.99`))
-    assert.doesNotMatch(result.stderr, /Coverage exclusions matched covered blocks:/)
+    assert.doesNotMatch(result.stderr, /Covered configured exclusions:/)
   } finally {
     rmSync(directory, { force: true, recursive: true })
   }

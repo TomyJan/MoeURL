@@ -43,8 +43,8 @@ if (unmatchedExcludedBlocks.length > 0) {
   process.exitCode = 1
 }
 if (coveredExcludedBlocks.size > 0) {
-  const reportedLocations = new Set([...coveredExcludedBlocks, ...coveredCoverageBlocks])
-  console.error(`Coverage exclusions matched covered blocks:\n${[...reportedLocations].join('\n')}`)
+  console.error(`Covered configured exclusions:\n${[...coveredExcludedBlocks].join('\n')}`)
+  console.error(`Covered coverage blocks:\n${[...coveredCoverageBlocks].join('\n')}`)
   process.exitCode = 1
 }
 

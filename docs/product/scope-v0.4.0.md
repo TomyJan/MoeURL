@@ -41,8 +41,11 @@ GET /{slug}
 
 GET /go/{slug}/continue
   confirmation 且访问条件有效 → 目标 302
-  受保护短链需要有效授权
+  intermediate 且访问条件有效 → 目标 302
+  受保护 direct 且已获得有效授权 → 目标 302
+  受保护短链未授权或授权失效 → 既有密码要求失败状态
   无密码 direct → 302 /go/{slug}?reason=not-interactive
+  disabled、expired 或 missing → 保持既有失败状态
   基础设施错误 → 302 /go/{slug}?reason=continue-failed
 ```
 
