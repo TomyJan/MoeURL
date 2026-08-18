@@ -7,6 +7,6 @@ export function useAvatarText(displayName: MaybeRefOrGetter<string | null | unde
     const normalizedName = typeof resolvedName === 'string' ? resolvedName.trim() : ''
     const firstCharacter = Array.from(normalizedName)[0]
     const uppercaseCharacter = firstCharacter?.toUpperCase()
-    return uppercaseCharacter ? Array.from(uppercaseCharacter)[0] ?? 'M' : 'M'
+    return uppercaseCharacter ? Array.from(uppercaseCharacter)[0]! : 'M'
   })
 }
