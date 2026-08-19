@@ -38,6 +38,7 @@ const directLink: ShortLink = {
   createdAt: '2026-08-01T00:00:00Z',
 }
 
+/** Mounts the settings dialog with shared link and permission defaults. */
 function mountDialog(props: Partial<{
   errorMessage: string
   link: ShortLink
@@ -58,6 +59,7 @@ function mountDialog(props: Partial<{
   })
 }
 
+/** Configures the permission query mock for settings tests. */
 function setPermissions(permissions: string[]) {
   state.queryResult = {
     data: ref({
@@ -90,7 +92,6 @@ describe('ShortLinkSettingsDialog', () => {
         id: 'link-id',
         targetUrl: 'https://example.com/updated',
         redirectMode: 'direct',
-        intermediateDelaySeconds: 5,
         expiration: { mode: 'never' },
       },
     ]])
@@ -141,7 +142,6 @@ describe('ShortLinkSettingsDialog', () => {
         id: 'link-id',
         targetUrl: 'https://example.com/updated',
         redirectMode: 'direct',
-        intermediateDelaySeconds: 5,
       },
     ]])
   })
@@ -177,6 +177,68 @@ describe('ShortLinkSettingsDialog', () => {
         targetUrl: 'https://example.com/original',
         redirectMode: 'intermediate',
         intermediateDelaySeconds: 5,
+      },
+    ]])
+  })
+
+  it('submits confirmation without an intermediate delay when only confirmation permission is present', async () => {
+    setPermissions(['short_link:use_confirmation'])
+    const view = mountDialog()
+
+    expect(screen.queryByRole('button', { name: 'shortLinkSettings.intermediate' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'shortLinkSettings.direct' })).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.confirmation' }))
+    expect(screen.queryByLabelText('shortLinkSettings.intermediateDelay')).toBeNull()
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(view.emitted().save).toEqual([[
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.com/original',
+        redirectMode: 'confirmation',
+      },
+    ]])
+  })
+
+  it('does not submit a persisted confirmation mode after confirmation permission is removed', async () => {
+    setPermissions(['short_link:use_intermediate'])
+    const view = mountDialog({ link: { ...directLink, redirectMode: 'confirmation' } })
+
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+    expect(view.emitted().save).toEqual([[
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.com/original',
+      },
+    ]])
+
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.direct' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+    expect(view.emitted().save?.[1]).toEqual([{
+      id: 'link-id',
+      targetUrl: 'https://example.com/original',
+      redirectMode: 'direct',
+    }])
+  })
+
+  it.each([
+    ['intermediate', 'shortLinkSettings.intermediate'],
+    ['confirmation', 'shortLinkSettings.confirmation'],
+  ] as const)('allows a persisted %s mode to be downgraded after its permission is removed', async (redirectMode, label) => {
+    setPermissions([])
+    const view = mountDialog({ link: { ...directLink, redirectMode } })
+
+    const currentModeButton = screen.getByRole('button', { name: label }) as HTMLButtonElement
+    expect(currentModeButton.disabled).toBe(true)
+    expect(currentModeButton.getAttribute('aria-pressed')).toBe('true')
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.direct' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
+
+    expect(view.emitted().save).toEqual([[
+      {
+        id: 'link-id',
+        targetUrl: 'https://example.com/original',
+        redirectMode: 'direct',
       },
     ]])
   })

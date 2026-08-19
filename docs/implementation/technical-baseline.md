@@ -20,7 +20,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 | 后端语言 | Go 1.25+ |
 | HTTP 路由 | Chi |
 | 数据库 | PostgreSQL |
-| 数据访问 | SQLC |
+| 数据访问 | SQLC 1.30.0 |
 | 数据库迁移 | Goose |
 | 后端日志 | `log/slog` |
 | 后端配置 | `cleanenv` 或同类库 |
@@ -40,6 +40,8 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 | 后端测试 | go test + testify + testcontainers-go |
 | 前端测试 | Vitest + Vue Testing Library + Playwright |
 | 部署 | Docker + Docker Compose（支持裸机运行） |
+
+v0.4.0 继续以 Go 1.25+ 为最低语言版本，`go.mod` 当前声明为 Go 1.25.7。`Dockerfile` 的前端和后端构建阶段统一使用 `golang:1.26.5`；构建镜像版本只约束构建环境，不提高项目的最低 Go 版本。
 
 ## 3. 仓库目录结构
 
@@ -153,6 +155,8 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 - 管理事务边界。
 - 返回明确业务错误。
 
+短链和用户管理 Service 的生产权限解析共享数据库中的 `user_group.permissions`。每次需要授权的业务调用按当前用户 `GroupKey` 读取一次并形成权限快照，调用内的权限判断必须使用同一快照；不允许用编译期内置权限替代生产校验，不允许在权限读取失败时放行，也不允许用跨请求缓存延迟数据库撤权生效。静态权限解析器仅用于隔离测试；短链或用户服务缺少权限 Resolver 时必须返回错误并拒绝授权，不得降级为静态权限，短链服务同时通过注入的 logger 记录装配错误。
+
 ### SQLC 查询层
 
 职责：
@@ -197,7 +201,7 @@ API 使用 `/api/v1` 前缀：
 /go/{slug}/continue
 ```
 
-固定前端路由、公开解锁与继续路由和 API 路由必须优先于短码路由。`/go/{slug}` 用于 v0.2.0 中间页和 v0.3.0 密码页 App Shell，`/go/{slug}/unlock` 用密码换取路径作用域授权，`/go/{slug}/continue` 在重新检查短链状态、过期时间和短期授权后写出最终目标跳转。Vite 开发服务器只将 `/go/{slug}/preview`、`/go/{slug}/unlock` 和 `/go/{slug}/continue` 代理到后端，不能代理 `/go/{slug}` App Shell。
+固定前端路由、公开解锁与继续路由和 API 路由必须优先于短码路由。`/go/{slug}` 用于中间页、密码页和确认页 App Shell，`/go/{slug}/unlock` 用密码换取路径作用域授权，`/go/{slug}/continue` 在重新检查短链状态、过期时间、跳转模式和短期授权后写出最终目标跳转。Continue 的未知基础设施错误重定向到 `/go/{slug}?reason=continue-failed`，页面重新读取最小预览并等待手动重试；Open 和 Preview 的基础设施错误仍按原约定返回 HTTP 500。Vite 开发服务器只将 `/go/{slug}/preview`、`/go/{slug}/unlock` 和 `/go/{slug}/continue` 代理到后端，不能代理 `/go/{slug}` App Shell。
 
 ### API 风格
 
@@ -329,6 +333,10 @@ v0.2.0 在 `short_link` 追加：
 
 v0.3.0 在 `short_link` 追加 `password_hash`、`password_failed_attempts`、`password_window_started_at`、`password_blocked_until` 和 `password_updated_at`；新增 `short_link_access_grant` 保存短期授权令牌哈希。密码原文、密码哈希和授权令牌不得进入公开 API、日志、统计事件或前端状态，授权查询同时检查令牌过期时间和密码更新时间。解锁授权 Cookie 有效期为 15 分钟，必须设置 `HttpOnly` 和 `SameSite=Lax`，生产环境启用 `Secure`，并将 `Path` 限定为 `/go/{slug}`。过期授权清理由 `expires_at` 索引支撑，并由应用后台任务每分钟独立清理，每批最多删除 500 条；`short_link_id` 索引用于短链删除时的级联行定位，清理错误不影响解锁请求。`00006` 以 `NOT VALID` 添加密码失败次数约束，`00007` 在独立 migration 中验证历史数据，避免字段迁移事务扫描全部既有短链。migration 同步为既有内置 `user`、`admin` 用户组追加 `short_link:set_password`，`guest` 保持无权限。
 
+### v0.4.0 schema 扩展摘要
+
+v0.4.0 不新增数据列，只将 `short_link.redirect_mode` 的约束扩展为 `direct`、`intermediate`、`confirmation`。`00008 Up` 使用 `NOT VALID` 替换旧约束，并为内置 `user`、`admin` 用户组追加 `short_link:use_confirmation`；`00009 Up` 是兼容性重试步骤，正常 v8 路径已经由 `00008 Up` 完成约束替换，因此会跳过替换，只有检测到旧约束残留时才补做替换；`00010 Up` 在独立事务中验证新约束。正常回滚由 `00009 Down` 恢复 v8 状态的 `NOT VALID` 约束但不改写数据，随后由 `00008 Down` 将 confirmation 记录降级为 direct、清理 migration 实际新增的权限并恢复、验证旧约束。停在 v9 时可由 `00010 Up` 安全重试验证；停在 v8 时可安全重试 `00009 Up`（正常状态下跳过已完成的替换），再由 `00010 Up` 完成验证。权限跟踪表只移除 migration 实际新增且未被人工修改的权限。
+
 ### 短码规则
 
 - v0.0.1 默认生成 6 位随机短码。
@@ -358,6 +366,7 @@ short_link:update_all
 short_link:delete_all
 domain:use_default
 short_link:use_intermediate
+short_link:use_confirmation
 short_link:set_expiration
 short_link:set_password
 admin:access
@@ -500,7 +509,7 @@ go test -p=1 ./internal/auth ./internal/db ./internal/event ./internal/http ./in
 node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100 --include-from=scripts/go-coverage-targets.txt --exclude-blocks-from=scripts/go-coverage-excluded-blocks.txt
 ```
 
-后端覆盖率门禁覆盖 `scripts/go-coverage-targets.txt` 中列出的业务源码文件，必须达到 100%。`scripts/go-coverage-excluded-blocks.txt` 只允许精确列出不可稳定触发或由数据模型保证不可达的代码块，例如事务中途基础设施失败、随机短码连续冲突耗尽、静态类型值的 JSON 编码失败。数据库集成、进程入口和框架胶水仍通过 `go test ./...` 验证，但不作为业务源码覆盖率分母。
+后端覆盖率门禁覆盖 `scripts/go-coverage-targets.txt` 中列出的业务源码文件，必须达到 100%。`scripts/go-coverage-excluded-blocks.txt` 只允许精确列出不可稳定触发或由数据模型保证不可达的代码块，例如事务中途基础设施失败、随机短码连续冲突耗尽、静态类型值的 JSON 编码失败。门禁必须拒绝未匹配的排除项，以及命中已执行代码块的排除项，避免旧坐标或多余豁免掩盖测试回退。数据库集成、进程入口和框架胶水仍通过 `go test ./...` 验证，但不作为业务源码覆盖率分母。
 
 数据库集成测试优先使用 Testcontainers，并在同一 Go 测试进程内复用一个 PostgreSQL 容器。每个测试必须创建并在清理阶段删除独立数据库，不能复用业务数据。当前本机 Docker 不可用时，测试基础设施允许回退到本地 PostgreSQL 管理库，默认地址为 `postgres://postgres:postgres@127.0.0.1:5433/postgres?sslmode=disable`；也可通过 `MOEURL_TEST_POSTGRES_ADMIN_URL` 覆盖。需要强制验证 Docker 路径时设置 `MOEURL_TEST_REQUIRE_DOCKER=1`，Docker daemon 不可用必须直接使测试失败，不得回退。
 
@@ -530,15 +539,15 @@ cd web && pnpm test:e2e
 
 前端单元和组件测试覆盖率门禁针对 `vitest.config.ts` 中 `coverage.include` 覆盖的应用配置、实体 API、页面组件和共享工具代码执行，必须达到 100%。`main.ts` 启动入口、类型声明和纯类型模型由构建、类型检查和 E2E 覆盖，不计入单元覆盖率门禁。
 
-v0.2.0 将新增的短链创建、访问配置和二维码组件纳入覆盖率门禁。v0.3.0 还将密码设置、公开解锁和密码页纳入覆盖率门禁；测试必须验证哈希不泄露、错误/限流/成功状态和授权失效，不允许只断言 mock 调用次数。
+v0.2.0 将新增的短链创建、访问配置和二维码组件纳入覆盖率门禁。v0.3.0 还将密码设置、公开解锁和密码页纳入覆盖率门禁；v0.4.0 继续将确认模式权限矩阵、公开预览契约和确认页状态纳入门禁。测试必须验证敏感数据不泄露、错误/限流/成功状态、授权失效和确认页不自动跳转，不允许只断言 mock 调用次数。
 
 Playwright E2E 默认通过 `web/playwright.config.ts` 启动 Docker Compose 测试环境。E2E 必须使用独立的 Compose project name，默认由 `MOEURL_E2E_PORT` 派生，也可通过 `MOEURL_E2E_COMPOSE_PROJECT` 显式指定。E2E 同时通过 `MOEURL_E2E_PORT` 和 `MOEURL_E2E_POSTGRES_PORT` 隔离应用宿主端口与 PostgreSQL 宿主端口，避免和日常 Compose 或本机 PostgreSQL 端口冲突。E2E 显式以 `MOEURL_ENV=development` 运行测试应用，避免本地 HTTP 流程受 Secure Cookie 影响。E2E 可以在该隔离测试项目内执行 `down -v` 清理测试卷，但不得清理日常 `docker compose up --build` 使用的默认开发数据库卷。
 
 初始化 UI 流程由 `web/e2e/initialize.setup.ts` 的 Playwright `setup` project 先执行；业务 spec 依赖该 project 后可并行运行，受保护访问 spec 仍在文件内显式串行。
 
-当 Docker Desktop 不可用但需要验证同一套 Playwright 用例时，可先用干净数据库和当前 `web/dist` 启动本地服务，再设置 `MOEURL_E2E_SKIP_DOCKER=1` 和对应的 `MOEURL_E2E_PORT` 执行 `pnpm test:e2e`。该模式只跳过环境拉起步骤，不跳过任何浏览器断言；执行者必须确保数据库从未初始化状态开始。
+当 Docker Desktop 不可用，或隔离 Compose 环境因外部镜像仓库不可用而无法拉取、构建或启动时，可先记录原始失败命令和错误，再用干净数据库、当前 Go 实现和当前 `web/dist` 启动本机服务，设置 `MOEURL_E2E_SKIP_DOCKER=1` 和对应的 `MOEURL_E2E_PORT` 执行 `pnpm test:e2e`。该回退不得用于绕过应用构建、迁移或启动错误，只跳过 Playwright 的环境拉起步骤，不跳过任何浏览器断言；执行者必须确保数据库从未初始化状态开始，并在验收记录中写明 Docker 状态、端口、环境变量和完整命令。
 
-v0.2.0 访问体验 E2E 必须覆盖真实 `/{slug}` 入口、进入中间页前访问量为 0、继续路由目标 `302`、真实 UI 继续访问后访问量为 1，以及过期访问不增加访问量。v0.3.0 还必须覆盖真实密码页、错误密码、有效授权、密码变更吊销旧授权和访问量口径。中间页、密码页、访问设置和二维码对话框必须同时在 `1280 x 720` 与 `390 x 800` 视口验证控件顺序、操作区几何和横向溢出；异步流程使用条件等待，不允许使用固定 `waitForTimeout`。
+v0.2.0 访问体验 E2E 必须覆盖真实 `/{slug}` 入口、进入中间页前访问量为 0、继续路由目标 `302`、真实 UI 继续访问后访问量为 1，以及过期访问不增加访问量。v0.3.0 还必须覆盖真实密码页、错误密码、有效授权、密码变更吊销旧授权和访问量口径。v0.4.0 还必须覆盖无密码与受密码保护确认页、主动继续、二次访问条件检查和最终访问量。中间页、密码页、确认页、访问设置和二维码对话框必须同时在 `1280 x 720` 与 `390 x 800` 视口验证控件顺序、操作区几何和横向溢出；异步流程使用条件等待，不允许使用固定 `waitForTimeout`。
 
 ### 质量检查工作流
 

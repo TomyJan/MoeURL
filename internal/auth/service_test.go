@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// TestAuthServiceLoginCreatesSession verifies auth service login creates session.
 func TestAuthServiceLoginCreatesSession(t *testing.T) {
 	ctx := context.Background()
 	pool := authTestPool(t, ctx)
@@ -35,6 +36,7 @@ func TestAuthServiceLoginCreatesSession(t *testing.T) {
 	}
 }
 
+// TestAuthServiceRejectsWrongPasswordAndDisabledUser verifies auth service rejects wrong password and disabled user.
 func TestAuthServiceRejectsWrongPasswordAndDisabledUser(t *testing.T) {
 	ctx := context.Background()
 	pool := authTestPool(t, ctx)
@@ -55,6 +57,7 @@ func TestAuthServiceRejectsWrongPasswordAndDisabledUser(t *testing.T) {
 	}
 }
 
+// TestAuthServiceMeLogoutAndResolveCurrentUser verifies auth service me logout and resolve current user.
 func TestAuthServiceMeLogoutAndResolveCurrentUser(t *testing.T) {
 	ctx := context.Background()
 	pool := authTestPool(t, ctx)
@@ -96,6 +99,7 @@ func TestAuthServiceMeLogoutAndResolveCurrentUser(t *testing.T) {
 	}
 }
 
+// TestAuthServiceMeRejectsDisabledSessionUser verifies auth service me rejects disabled session user.
 func TestAuthServiceMeRejectsDisabledSessionUser(t *testing.T) {
 	ctx := context.Background()
 	pool := authTestPool(t, ctx)
@@ -118,6 +122,7 @@ func TestAuthServiceMeRejectsDisabledSessionUser(t *testing.T) {
 	}
 }
 
+// TestAuthServiceFindUserErrorBranches verifies auth service find user error branches.
 func TestAuthServiceFindUserErrorBranches(t *testing.T) {
 	ctx := context.Background()
 	pool := authTestPool(t, ctx)
@@ -147,6 +152,7 @@ func TestAuthServiceFindUserErrorBranches(t *testing.T) {
 	}
 }
 
+// TestAuthServiceFindUserByIDErrorBranches verifies auth service find user by id error branches.
 func TestAuthServiceFindUserByIDErrorBranches(t *testing.T) {
 	ctx := context.Background()
 	pool := authTestPool(t, ctx)
@@ -186,6 +192,7 @@ func TestAuthServiceFindUserByIDErrorBranches(t *testing.T) {
 	}
 }
 
+// TestAuthServiceReturnsDatabaseErrors verifies auth service returns database errors.
 func TestAuthServiceReturnsDatabaseErrors(t *testing.T) {
 	ctx := context.Background()
 	pool := authTestPool(t, ctx)
@@ -211,6 +218,7 @@ func TestAuthServiceReturnsDatabaseErrors(t *testing.T) {
 	}
 }
 
+// insertLoginGroup inserts the database fixture required by the surrounding tests.
 func insertLoginGroup(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	t.Helper()
 	_, err := pool.Exec(ctx, `
@@ -222,6 +230,7 @@ func insertLoginGroup(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	}
 }
 
+// insertLoginUser inserts the database fixture required by the surrounding tests.
 func insertLoginUser(t *testing.T, ctx context.Context, pool *pgxpool.Pool, username string, password string, status string) {
 	t.Helper()
 	hash, err := auth.HashPassword(password)
@@ -238,6 +247,7 @@ func insertLoginUser(t *testing.T, ctx context.Context, pool *pgxpool.Pool, user
 	}
 }
 
+// insertLoginUserWithoutPassword inserts the database fixture required by the surrounding tests.
 func insertLoginUserWithoutPassword(t *testing.T, ctx context.Context, pool *pgxpool.Pool, username string) {
 	t.Helper()
 	_, err := pool.Exec(ctx, `
@@ -249,6 +259,7 @@ func insertLoginUserWithoutPassword(t *testing.T, ctx context.Context, pool *pgx
 	}
 }
 
+// authTestPool opens the isolated PostgreSQL database used by its test package.
 func authTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
 	databaseURL := testdb.ProjectMigratedDatabaseURL(ctx, t)

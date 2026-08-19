@@ -11,6 +11,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/middleware"
 )
 
+// TestRequestLoggerRecordsStatusAndResponseSize verifies request logger records status and response size.
 func TestRequestLoggerRecordsStatusAndResponseSize(t *testing.T) {
 	var logs bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{}))
@@ -31,6 +32,7 @@ func TestRequestLoggerRecordsStatusAndResponseSize(t *testing.T) {
 	}
 }
 
+// TestRequestLoggerRecordsImplicitOKStatusAndResponseSize verifies request logger records implicit ok status and response size.
 func TestRequestLoggerRecordsImplicitOKStatusAndResponseSize(t *testing.T) {
 	var logs bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{}))
@@ -50,6 +52,7 @@ func TestRequestLoggerRecordsImplicitOKStatusAndResponseSize(t *testing.T) {
 	}
 }
 
+// TestRequestLoggerKeepsImplicitOKWhenWriteHeaderIsCalledAfterWrite verifies request logger keeps implicit ok when write header is called after write.
 func TestRequestLoggerKeepsImplicitOKWhenWriteHeaderIsCalledAfterWrite(t *testing.T) {
 	var logs bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{}))

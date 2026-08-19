@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// TestServiceSetupInitializesBuiltInData verifies service setup initializes built in data.
 func TestServiceSetupInitializesBuiltInData(t *testing.T) {
 	ctx := context.Background()
 	pool := systemTestPool(t, ctx)
@@ -65,6 +66,7 @@ func TestServiceSetupInitializesBuiltInData(t *testing.T) {
 	}
 }
 
+// TestServiceSetupRejectsReservedAdminUsername verifies service setup rejects reserved admin username.
 func TestServiceSetupRejectsReservedAdminUsername(t *testing.T) {
 	ctx := context.Background()
 	pool := systemTestPool(t, ctx)
@@ -86,6 +88,7 @@ func TestServiceSetupRejectsReservedAdminUsername(t *testing.T) {
 	}
 }
 
+// TestServiceSetupRejectsBlankRequiredFields verifies service setup rejects blank required fields.
 func TestServiceSetupRejectsBlankRequiredFields(t *testing.T) {
 	ctx := context.Background()
 	pool := systemTestPool(t, ctx)
@@ -106,6 +109,7 @@ func TestServiceSetupRejectsBlankRequiredFields(t *testing.T) {
 	}
 }
 
+// TestServiceReturnsDatabaseErrors verifies service returns database errors.
 func TestServiceReturnsDatabaseErrors(t *testing.T) {
 	ctx := context.Background()
 	pool := systemTestPool(t, ctx)
@@ -132,6 +136,7 @@ func TestServiceReturnsDatabaseErrors(t *testing.T) {
 	}
 }
 
+// assertBuiltInData checks the database state expected by the surrounding tests.
 func assertBuiltInData(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	t.Helper()
 
@@ -200,6 +205,7 @@ func assertBuiltInData(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	}
 }
 
+// assertStoredGroupPermission checks the database state expected by the surrounding tests.
 func assertStoredGroupPermission(t *testing.T, ctx context.Context, pool *pgxpool.Pool, groupKey string, permissionName string, expected bool) {
 	t.Helper()
 
@@ -213,6 +219,7 @@ func assertStoredGroupPermission(t *testing.T, ctx context.Context, pool *pgxpoo
 	}
 }
 
+// systemTestPool opens the isolated PostgreSQL database used by its test package.
 func systemTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
 	return testdb.ProjectMigratedPool(ctx, t)

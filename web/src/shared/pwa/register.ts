@@ -1,3 +1,4 @@
+/** Registers the PWA service worker after page load when the browser supports it. */
 export function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) {
     return

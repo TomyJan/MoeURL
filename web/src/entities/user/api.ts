@@ -68,11 +68,13 @@ export interface ResetPasswordResponse {
   reset: boolean
 }
 
+/** Creates a managed user account through the administrative API. */
 export async function createUser(input: CreateUserInput): Promise<CreateUserResponse> {
   const response = await apiPost<CreateUserResponse>('/admin/user/create', input)
   return response.data
 }
 
+/** Lists managed users with normalized pagination metadata. */
 export async function listUsers(input: ListUsersInput = {}): Promise<ListUsersResponse> {
   const page = input.page ?? 1
   const pageSize = input.pageSize ?? 20
@@ -91,16 +93,19 @@ export async function listUsers(input: ListUsersInput = {}): Promise<ListUsersRe
   }
 }
 
+/** Updates an account's editable administrative fields. */
 export async function updateUser(input: UpdateUserInput): Promise<UpdateUserResponse> {
   const response = await apiPost<UpdateUserResponse>('/admin/user/update', input)
   return response.data
 }
 
+/** Updates the signed-in user's profile fields. */
 export async function updateProfile(input: UpdateProfileInput): Promise<UpdateProfileResponse> {
   const response = await apiPost<UpdateProfileResponse>('/user/profile/update', input)
   return response.data
 }
 
+/** Replaces a managed user's password through the administrative API. */
 export async function resetUserPassword(input: ResetPasswordInput): Promise<ResetPasswordResponse> {
   const response = await apiPost<ResetPasswordResponse>('/admin/user/reset-password', input)
   return response.data

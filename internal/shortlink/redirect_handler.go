@@ -6,6 +6,7 @@ import (
 	"errors"
 	"html"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -26,6 +27,7 @@ type RedirectPort interface {
 type RedirectHandler struct {
 	service       RedirectPort
 	recorder      event.Recorder
+	logger        *slog.Logger
 	countryHeader string
 	secureCookies bool
 }
@@ -42,34 +44,37 @@ func NewRedirectHandler(service RedirectPort, recorders ...event.Recorder) *Redi
 	if len(recorders) > 0 && recorders[0] != nil {
 		recorder = recorders[0]
 	}
-	return &RedirectHandler{service: service, recorder: recorder}
+	return &RedirectHandler{service: service, recorder: recorder, logger: slog.Default()}
 }
 
 // NewRedirectHandlerWithAnalytics creates a redirect handler configured for anonymous analytics dimensions.
 func NewRedirectHandlerWithAnalytics(service RedirectPort, recorder event.Recorder, countryHeader string) *RedirectHandler {
-	return NewRedirectHandlerWithAnalyticsAndSecurity(service, recorder, countryHeader, false)
+	return NewRedirectHandlerWithAnalyticsAndSecurity(service, recorder, countryHeader, false, slog.Default())
 }
 
 // NewRedirectHandlerWithAnalyticsAndSecurity creates a redirect handler with cookie security settings.
-func NewRedirectHandlerWithAnalyticsAndSecurity(service RedirectPort, recorder event.Recorder, countryHeader string, secureCookies bool) *RedirectHandler {
+func NewRedirectHandlerWithAnalyticsAndSecurity(service RedirectPort, recorder event.Recorder, countryHeader string, secureCookies bool, logger *slog.Logger) *RedirectHandler {
 	handler := NewRedirectHandler(service, recorder)
+	if logger != nil {
+		handler.logger = logger
+	}
 	handler.countryHeader = countryHeader
 	handler.secureCookies = secureCookies
 	return handler
 }
 
-// Open writes either the direct target redirect or the internal intermediate-page redirect.
+// Open writes either the direct target redirect or an internal interactive-page redirect.
 func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug string) {
 	result, err := h.service.Open(r.Context(), slug)
 	if err != nil {
-		writePublicAccessError(w, r, slug, err)
+		h.writePublicAccessError(w, r, slug, err, "short_link_open_failed")
 		return
 	}
 	if result.RequiresPassword {
 		redirectToPublicAccessState(w, r, slug, "password", nil)
 		return
 	}
-	if result.RedirectMode == RedirectModeIntermediate {
+	if isInteractiveRedirectMode(result.RedirectMode) {
 		http.Redirect(w, r, "/go/"+url.PathEscape(result.Slug), http.StatusFound)
 		return
 	}
@@ -107,8 +112,8 @@ func (h *RedirectHandler) preview(w http.ResponseWriter, r *http.Request, slug s
 			businessError(w, CodeShortLinkDisabled, "Short link disabled")
 		case errors.Is(err, ErrShortLinkExpired):
 			businessError(w, CodeShortLinkExpired, "Short link expired")
-		case errors.Is(err, ErrShortLinkNotIntermediate):
-			businessError(w, CodeShortLinkNotIntermediate, "Short link does not use an intermediate page")
+		case errors.Is(err, ErrShortLinkNotInteractive):
+			businessError(w, CodeShortLinkNotInteractive, "Short link does not use an interactive access page")
 		case errors.Is(err, ErrPasswordRequired):
 			businessError(w, CodePasswordRequired, "Password required")
 		default:
@@ -120,6 +125,7 @@ func (h *RedirectHandler) preview(w http.ResponseWriter, r *http.Request, slug s
 	ok(w, result)
 }
 
+// accessTokenFromRequest reads the path-scoped access grant cookie from a request.
 func accessTokenFromRequest(r *http.Request) string {
 	if cookie, err := r.Cookie(accessCookieName); err == nil {
 		return cookie.Value
@@ -185,10 +191,52 @@ func (h *RedirectHandler) Continue(w http.ResponseWriter, r *http.Request, slug 
 	}
 	result, err := h.service.Continue(r.Context(), slug, accessTokenFromRequest(r))
 	if err != nil {
-		writePublicAccessError(w, r, slug, err)
+		if isPublicAccessError(err) {
+			h.writePublicAccessError(w, r, slug, err, "short_link_continue_failed")
+		} else {
+			h.logger.ErrorContext(r.Context(), "short_link_continue_failed", "slug", strings.ToLower(slug), "error", err)
+			redirectToPublicAccessState(w, r, slug, "continue-failed", nil)
+		}
 		return
 	}
 	h.writeTargetRedirect(w, r, result, strings.ToLower(slug))
+}
+
+type publicAccessErrorKind uint8
+
+const (
+	publicAccessErrorUnknown publicAccessErrorKind = iota
+	publicAccessErrorMissing
+	publicAccessErrorDisabled
+	publicAccessErrorExpired
+	publicAccessErrorNotInteractive
+	publicAccessErrorPassword
+	publicAccessErrorRateLimited
+)
+
+// isPublicAccessError reports whether an access error is safe to expose as a business response.
+func isPublicAccessError(err error) bool {
+	return classifyPublicAccessError(err) != publicAccessErrorUnknown
+}
+
+// classifyPublicAccessError maps access failures to their safe public response category.
+func classifyPublicAccessError(err error) publicAccessErrorKind {
+	switch {
+	case errors.Is(err, ErrShortLinkMissing):
+		return publicAccessErrorMissing
+	case errors.Is(err, ErrShortLinkDisabled):
+		return publicAccessErrorDisabled
+	case errors.Is(err, ErrShortLinkExpired):
+		return publicAccessErrorExpired
+	case errors.Is(err, ErrShortLinkNotInteractive):
+		return publicAccessErrorNotInteractive
+	case errors.Is(err, ErrPasswordRequired), errors.Is(err, ErrInvalidPassword):
+		return publicAccessErrorPassword
+	case errors.Is(err, ErrPasswordRateLimited):
+		return publicAccessErrorRateLimited
+	default:
+		return publicAccessErrorUnknown
+	}
 }
 
 // redirectLowercaseScopedSlug canonicalizes scoped access paths before cookie-based authorization.
@@ -217,19 +265,19 @@ func (h *RedirectHandler) writeTargetRedirect(w http.ResponseWriter, r *http.Req
 }
 
 // writePublicAccessError maps access failures to safe public redirect states.
-func writePublicAccessError(w http.ResponseWriter, r *http.Request, slug string, err error) {
-	switch {
-	case errors.Is(err, ErrShortLinkMissing):
+func (h *RedirectHandler) writePublicAccessError(w http.ResponseWriter, r *http.Request, slug string, err error, failureLogMessage string) {
+	switch classifyPublicAccessError(err) {
+	case publicAccessErrorMissing:
 		http.Error(w, "Short link not found", http.StatusNotFound)
-	case errors.Is(err, ErrShortLinkDisabled):
+	case publicAccessErrorDisabled:
 		redirectToPublicAccessState(w, r, slug, "disabled", nil)
-	case errors.Is(err, ErrShortLinkExpired):
+	case publicAccessErrorExpired:
 		redirectToPublicAccessState(w, r, slug, "expired", nil)
-	case errors.Is(err, ErrShortLinkNotIntermediate):
-		redirectToPublicAccessState(w, r, slug, "not-intermediate", nil)
-	case errors.Is(err, ErrPasswordRequired), errors.Is(err, ErrInvalidPassword):
+	case publicAccessErrorNotInteractive:
+		redirectToPublicAccessState(w, r, slug, "not-interactive", nil)
+	case publicAccessErrorPassword:
 		redirectToPublicAccessState(w, r, slug, "password", nil)
-	case errors.Is(err, ErrPasswordRateLimited):
+	case publicAccessErrorRateLimited:
 		var rateLimitErr *PasswordRateLimitedError
 		if errors.As(err, &rateLimitErr) && !rateLimitErr.RetryAt.IsZero() {
 			retryAt := rateLimitErr.RetryAt
@@ -238,6 +286,7 @@ func writePublicAccessError(w http.ResponseWriter, r *http.Request, slug string,
 		}
 		redirectToPublicAccessState(w, r, slug, "rate-limited", nil)
 	default:
+		h.logger.ErrorContext(r.Context(), failureLogMessage, "slug", strings.ToLower(strings.TrimSpace(slug)), "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }

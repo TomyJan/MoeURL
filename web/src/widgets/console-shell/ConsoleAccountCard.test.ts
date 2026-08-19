@@ -10,6 +10,7 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
+/** Mounts the account card with representative identity details. */
 function mountAccountCard(displayName: string, username = 'alice') {
   return render(ConsoleAccountCard, {
     props: {

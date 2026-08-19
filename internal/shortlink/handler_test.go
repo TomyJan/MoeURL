@@ -70,7 +70,7 @@ func TestHandlerCreateShortLinkReturnsCreatedLink(t *testing.T) {
 	}
 }
 
-// TestHandlerDecodesAccessConfigInputs verifies create and update JSON preserve explicit expiration semantics.
+// TestHandlerDecodesAccessConfigInputs verifies create and update JSON preserve explicit access semantics.
 func TestHandlerDecodesAccessConfigInputs(t *testing.T) {
 	service := &fakeShortLinkService{}
 	router := apphttp.NewRouter(apphttp.Dependencies{
@@ -83,15 +83,14 @@ func TestHandlerDecodesAccessConfigInputs(t *testing.T) {
 	createResponse := httptest.NewRecorder()
 	createRequest := httptest.NewRequest(http.MethodPost, "/api/v1/short-link/create", bytes.NewBufferString(fmt.Sprintf(`{
 		"targetUrl":"https://example.com/docs",
-		"redirectMode":"intermediate",
-		"intermediateDelaySeconds":7,
+		"redirectMode":"confirmation",
 		"expiration":{"mode":"at","expiresAt":%q}
 	}`, future.Format(time.RFC3339))))
 	router.ServeHTTP(createResponse, createRequest)
 	if createResponse.Code != http.StatusOK {
 		t.Fatalf("unexpected create response: %d %s", createResponse.Code, createResponse.Body.String())
 	}
-	if service.createInput.RedirectMode != shortlink.RedirectModeIntermediate || service.createInput.IntermediateDelaySeconds != 7 {
+	if service.createInput.RedirectMode != shortlink.RedirectModeConfirmation || service.createInput.IntermediateDelaySeconds != nil {
 		t.Fatalf("unexpected create access config: %#v", service.createInput)
 	}
 	if service.createInput.Expiration == nil || service.createInput.Expiration.Mode != shortlink.ExpirationModeAt || service.createInput.Expiration.ExpiresAt == nil || !service.createInput.Expiration.ExpiresAt.Equal(future) {
@@ -165,6 +164,7 @@ func TestHandlerCreateShortLinkMapsBusinessErrors(t *testing.T) {
 	}
 }
 
+// TestShortLinkBusinessErrorCodesRemainStable verifies short link business error codes remain stable.
 func TestShortLinkBusinessErrorCodesRemainStable(t *testing.T) {
 	codes := map[string]int{
 		"slug conflict":              shortlink.CodeSlugConflict,
@@ -176,7 +176,7 @@ func TestShortLinkBusinessErrorCodesRemainStable(t *testing.T) {
 		"invalid intermediate delay": shortlink.CodeInvalidIntermediateDelay,
 		"invalid expiration":         shortlink.CodeInvalidExpiration,
 		"expired":                    shortlink.CodeShortLinkExpired,
-		"not intermediate":           shortlink.CodeShortLinkNotIntermediate,
+		"not interactive":            shortlink.CodeShortLinkNotInteractive,
 	}
 	expected := map[string]int{
 		"slug conflict":              200101,
@@ -188,7 +188,7 @@ func TestShortLinkBusinessErrorCodesRemainStable(t *testing.T) {
 		"invalid intermediate delay": 200107,
 		"invalid expiration":         200108,
 		"expired":                    200109,
-		"not intermediate":           200110,
+		"not interactive":            200110,
 	}
 	for name, code := range codes {
 		if code != expected[name] {

@@ -60,15 +60,18 @@ const accountOpen = ref(false)
 const displayName = computed(() => props.displayName)
 const avatarText = useAvatarText(displayName)
 
+/** Closes the account menu before forwarding a logout request. */
 function submitLogout() {
   accountOpen.value = false
   emit('logout')
 }
 
+/** Closes the account actions menu. */
 function closeAccountMenu() {
   accountOpen.value = false
 }
 
+/** Closes the account menu for pointer events outside its container. */
 function handlePointerDown(event: globalThis.PointerEvent) {
   const target = event.target
   if (target instanceof globalThis.Node && accountRef.value?.contains(target)) {
@@ -77,6 +80,7 @@ function handlePointerDown(event: globalThis.PointerEvent) {
   closeAccountMenu()
 }
 
+/** Closes the account menu when Escape is pressed. */
 function handleKeyDown(event: globalThis.KeyboardEvent) {
   if (event.key === 'Escape') {
     closeAccountMenu()

@@ -60,6 +60,7 @@ const loginErrorSnackbarOpen = ref(false)
 const INVALID_CREDENTIAL_ERROR_CODE = 110101
 const mutation = useMutation({
   mutationFn: login,
+  /** Updates cached identity data, starts auth/me invalidation, and restores the requested route. */
   onSuccess(data) {
     queryClient.setQueryData(['auth', 'me'], data)
     void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
@@ -88,14 +89,17 @@ const loginRedirectTarget = computed(() => {
   return typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/'
 })
 
+/** Submits the current credentials to the login mutation. */
 function submit() {
   mutation.mutate({ username: username.value, password: password.value })
 }
 
+/** Synchronizes the login error snackbar's controlled open state. */
 function setLoginErrorSnackbarOpen(value: boolean) {
   loginErrorSnackbarOpen.value = value
 }
 
+/** Reports whether an API failure represents invalid login credentials. */
 function isInvalidCredentialError(error: unknown) {
   return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: number }).code === INVALID_CREDENTIAL_ERROR_CODE
 }

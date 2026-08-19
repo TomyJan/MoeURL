@@ -30,11 +30,11 @@ func TestServiceCreateRejectsGuest(t *testing.T) {
 	}
 }
 
-// TestServiceConstructorsUseDefaultPermissions verifies nil permissions use built-in defaults.
-func TestServiceConstructorsUseDefaultPermissions(t *testing.T) {
+// TestServiceConstructorUsesExplicitPermissions verifies constructor callers can inject isolated permissions.
+func TestServiceConstructorUsesExplicitPermissions(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
-	service := shortlink.NewService(pool, nil)
+	service := shortlink.NewService(pool, permission.NewService())
 
 	_, err := service.List(ctx, auth.GuestUser(), shortlink.ListInput{})
 	if !errors.Is(err, shortlink.ErrPermissionDenied) {
@@ -997,7 +997,7 @@ func TestServiceAccessConfigCreateListAndUpdate(t *testing.T) {
 	created, err := service.Create(ctx, user, shortlink.CreateInput{
 		TargetURL:                "https://example.com/docs",
 		RedirectMode:             shortlink.RedirectModeIntermediate,
-		IntermediateDelaySeconds: 7,
+		IntermediateDelaySeconds: int16Pointer(7),
 		Expiration: &shortlink.ExpirationInput{
 			Mode:      shortlink.ExpirationModeAt,
 			ExpiresAt: &future,
@@ -1140,8 +1140,8 @@ func TestServiceAccessConfigValidation(t *testing.T) {
 		err   error
 	}{
 		{name: "invalid mode", input: shortlink.CreateInput{TargetURL: "https://example.com", RedirectMode: "confirm"}, err: shortlink.ErrInvalidRedirectMode},
-		{name: "delay below range", input: shortlink.CreateInput{TargetURL: "https://example.com", IntermediateDelaySeconds: 2}, err: shortlink.ErrInvalidIntermediateDelay},
-		{name: "delay above range", input: shortlink.CreateInput{TargetURL: "https://example.com", IntermediateDelaySeconds: 11}, err: shortlink.ErrInvalidIntermediateDelay},
+		{name: "delay below range", input: shortlink.CreateInput{TargetURL: "https://example.com", IntermediateDelaySeconds: int16Pointer(2)}, err: shortlink.ErrInvalidIntermediateDelay},
+		{name: "delay above range", input: shortlink.CreateInput{TargetURL: "https://example.com", IntermediateDelaySeconds: int16Pointer(11)}, err: shortlink.ErrInvalidIntermediateDelay},
 		{name: "missing expiration mode", input: shortlink.CreateInput{TargetURL: "https://example.com", Expiration: &shortlink.ExpirationInput{}}, err: shortlink.ErrInvalidExpiration},
 		{name: "never with time", input: shortlink.CreateInput{TargetURL: "https://example.com", Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeNever, ExpiresAt: &future}}, err: shortlink.ErrInvalidExpiration},
 		{name: "at without time", input: shortlink.CreateInput{TargetURL: "https://example.com", Expiration: &shortlink.ExpirationInput{Mode: shortlink.ExpirationModeAt}}, err: shortlink.ErrInvalidExpiration},
@@ -1187,7 +1187,7 @@ func TestServiceAccessConfigValidation(t *testing.T) {
 	lowerBoundary, err := service.Create(ctx, user, shortlink.CreateInput{
 		TargetURL:                "https://example.com/lower-boundary",
 		RedirectMode:             shortlink.RedirectModeIntermediate,
-		IntermediateDelaySeconds: 3,
+		IntermediateDelaySeconds: int16Pointer(3),
 	})
 	if err != nil {
 		t.Fatalf("create with minimum intermediate delay: %v", err)
@@ -1267,10 +1267,11 @@ func TestServiceAccessConfigRequiresCapabilities(t *testing.T) {
 
 	delay := int16(6)
 	direct := shortlink.RedirectModeDirect
-	_, err = limitedService.Update(ctx, user, shortlink.UpdateInput{ID: created.ShortLink.ID, RedirectMode: &direct})
-	if !errors.Is(err, shortlink.ErrPermissionDenied) {
-		t.Fatalf("expected redirect mode update permission denial, got %v", err)
+	directUpdated, err := limitedService.Update(ctx, user, shortlink.UpdateInput{ID: created.ShortLink.ID, RedirectMode: &direct})
+	if err != nil {
+		t.Fatalf("switch to direct with limited capabilities: %v", err)
 	}
+	assertAccessConfig(t, directUpdated.ShortLink, shortlink.RedirectModeDirect, 5, nil, false)
 	_, err = limitedService.Update(ctx, user, shortlink.UpdateInput{ID: created.ShortLink.ID, IntermediateDelaySeconds: &delay})
 	if !errors.Is(err, shortlink.ErrPermissionDenied) {
 		t.Fatalf("expected intermediate update permission denial, got %v", err)
@@ -1291,6 +1292,151 @@ func TestServiceAccessConfigRequiresCapabilities(t *testing.T) {
 	assertAccessConfig(t, updated.ShortLink, shortlink.RedirectModeDirect, 5, nil, false)
 }
 
+// TestServiceConfirmationModeRequiresTargetCapability verifies each interactive mode has an independent permission.
+func TestServiceConfirmationModeRequiresTargetCapability(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "alice", "user", permission.UserPermissions)
+	fullService := shortlink.NewService(pool, permission.NewService())
+
+	created, err := fullService.Create(ctx, user, shortlink.CreateInput{
+		TargetURL:    "https://example.com/confirmation",
+		RedirectMode: shortlink.RedirectModeConfirmation,
+	})
+	if err != nil {
+		t.Fatalf("create confirmation short link: %v", err)
+	}
+	assertAccessConfig(t, created.ShortLink, shortlink.RedirectModeConfirmation, 5, nil, false)
+
+	confirmationPermissions := []string{
+		permission.ShortLinkCreate,
+		permission.ShortLinkReadOwn,
+		permission.ShortLinkUpdateOwn,
+		permission.ShortLinkDeleteOwn,
+		permission.ShortLinkUseConfirmation,
+		permission.DomainUseDefault,
+	}
+	confirmationService := shortlink.NewService(pool, permission.NewServiceWithPermissions(confirmationPermissions, permission.AdminPermissions))
+	confirmationCreated, err := confirmationService.Create(ctx, user, shortlink.CreateInput{
+		TargetURL:    "https://example.com/confirmation-only",
+		RedirectMode: shortlink.RedirectModeConfirmation,
+	})
+	if err != nil {
+		t.Fatalf("create with confirmation-only capability: %v", err)
+	}
+	assertAccessConfig(t, confirmationCreated.ShortLink, shortlink.RedirectModeConfirmation, 5, nil, false)
+	_, err = confirmationService.Create(ctx, user, shortlink.CreateInput{
+		TargetURL:                "https://example.com/confirmation-with-explicit-default-delay",
+		RedirectMode:             shortlink.RedirectModeConfirmation,
+		IntermediateDelaySeconds: int16Pointer(5),
+	})
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected explicit default delay permission denial for confirmation mode, got %v", err)
+	}
+	_, err = confirmationService.Create(ctx, user, shortlink.CreateInput{
+		TargetURL:                "https://example.com/confirmation-with-delay",
+		RedirectMode:             shortlink.RedirectModeConfirmation,
+		IntermediateDelaySeconds: int16Pointer(6),
+	})
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected custom delay permission denial for confirmation mode, got %v", err)
+	}
+	_, err = confirmationService.Create(ctx, user, shortlink.CreateInput{
+		TargetURL:    "https://example.com/intermediate-denied",
+		RedirectMode: shortlink.RedirectModeIntermediate,
+	})
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected intermediate permission denial, got %v", err)
+	}
+
+	limitedPermissions := []string{
+		permission.ShortLinkCreate,
+		permission.ShortLinkReadOwn,
+		permission.ShortLinkUpdateOwn,
+		permission.ShortLinkDeleteOwn,
+		permission.DomainUseDefault,
+	}
+	limitedService := shortlink.NewService(pool, permission.NewServiceWithPermissions(limitedPermissions, permission.AdminPermissions))
+	confirmation := shortlink.RedirectModeConfirmation
+	_, err = limitedService.Update(ctx, user, shortlink.UpdateInput{ID: created.ShortLink.ID, RedirectMode: &confirmation})
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected confirmation update permission denial, got %v", err)
+	}
+	direct := shortlink.RedirectModeDirect
+	directUpdated, err := limitedService.Update(ctx, user, shortlink.UpdateInput{ID: created.ShortLink.ID, RedirectMode: &direct})
+	if err != nil {
+		t.Fatalf("switch confirmation link to direct without advanced capabilities: %v", err)
+	}
+	assertAccessConfig(t, directUpdated.ShortLink, shortlink.RedirectModeDirect, 5, nil, false)
+	delay := int16(6)
+	_, err = limitedService.Update(ctx, user, shortlink.UpdateInput{ID: created.ShortLink.ID, IntermediateDelaySeconds: &delay})
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected explicit delay update permission denial, got %v", err)
+	}
+
+	adminWithoutConfirmation := removePermission(permission.AdminPermissions, permission.ShortLinkUseConfirmation)
+	adminService := shortlink.NewService(pool, permission.NewServiceWithPermissions(permission.UserPermissions, adminWithoutConfirmation))
+	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: permission.GroupAdmin}
+	_, err = adminService.AdminUpdate(ctx, admin, shortlink.UpdateInput{ID: created.ShortLink.ID, RedirectMode: &confirmation})
+	if !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("expected current admin group confirmation permission denial, got %v", err)
+	}
+}
+
+// TestServiceConfirmationPermissionTracksDatabaseChanges verifies production authorization does not cache built-in permissions.
+func TestServiceConfirmationPermissionTracksDatabaseChanges(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "dynamic-confirmation-user", permission.GroupUser, permission.UserPermissions)
+	service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
+
+	created, err := service.Create(ctx, user, shortlink.CreateInput{
+		TargetURL:    "https://example.com/dynamic-confirmation",
+		RedirectMode: shortlink.RedirectModeConfirmation,
+	})
+	require.NoError(t, err)
+
+	userPermissions := removePermission(permission.UserPermissions, permission.ShortLinkUseConfirmation)
+	_, err = pool.Exec(ctx, `update user_group set permissions = $1::jsonb where key = $2`, permissionsJSON(t, userPermissions), permission.GroupUser)
+	require.NoError(t, err)
+	_, err = service.Create(ctx, user, shortlink.CreateInput{
+		TargetURL:    "https://example.com/denied-after-revoke",
+		RedirectMode: shortlink.RedirectModeConfirmation,
+	})
+	require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
+
+	confirmation := shortlink.RedirectModeConfirmation
+	_, err = service.Update(ctx, user, shortlink.UpdateInput{ID: created.ShortLink.ID, RedirectMode: &confirmation})
+	require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
+	direct := shortlink.RedirectModeDirect
+	_, err = service.Update(ctx, user, shortlink.UpdateInput{ID: created.ShortLink.ID, RedirectMode: &direct})
+	require.NoError(t, err)
+
+	adminPermissions := removePermission(permission.AdminPermissions, permission.ShortLinkUseConfirmation)
+	_, err = pool.Exec(ctx, `
+		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000402', $1, 'Admin', '', $2::jsonb, true, now(), now())
+	`, permission.GroupAdmin, permissionsJSON(t, adminPermissions))
+	require.NoError(t, err)
+	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: permission.GroupAdmin}
+	_, err = service.AdminUpdate(ctx, admin, shortlink.UpdateInput{ID: created.ShortLink.ID, RedirectMode: &confirmation})
+	require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
+}
+
+// removePermission removes the requested fixture state for permission tests.
+func removePermission(permissions []string, removed string) []string {
+	result := make([]string, 0, len(permissions))
+	for _, current := range permissions {
+		if current != removed {
+			result = append(result, current)
+		}
+	}
+	return result
+}
+
+// assertAccessConfig checks the database state expected by the surrounding tests.
 func assertAccessConfig(t *testing.T, link shortlink.ShortLink, mode string, delay int16, expiresAt *time.Time, expired bool) {
 	t.Helper()
 	if link.RedirectMode != mode || link.IntermediateDelaySeconds != delay || link.Expired != expired {

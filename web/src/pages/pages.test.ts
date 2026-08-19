@@ -163,6 +163,7 @@ vi.mock('@tanstack/vue-query', async () => {
   }
 })
 
+/** Mounts a page component with the shared router and component stubs. */
 function mount(component: object) {
   return render(component, {
     global: {
@@ -171,6 +172,7 @@ function mount(component: object) {
   })
 }
 
+/** Configures one query result returned by the page test mock. */
 function setQueryResult(value: Partial<{
   data: ReturnType<typeof ref>
   isError: ReturnType<typeof ref>
@@ -187,6 +189,7 @@ function setQueryResult(value: Partial<{
   }
 }
 
+/** Configures an ordered sequence of query results for one page render. */
 function setQueryResults(...values: Array<Parameters<typeof setQueryResult>[0]>) {
   state.queryResults = values.map((value) => ({
     data: value.data ?? ref(undefined),
@@ -197,6 +200,7 @@ function setQueryResults(...values: Array<Parameters<typeof setQueryResult>[0]>)
   }))
 }
 
+/** Configures the shared mutation result returned by page tests. */
 function setMutationResult(value: Partial<{
   data: ReturnType<typeof ref>
   error: ReturnType<typeof ref>
@@ -805,6 +809,19 @@ describe('pages', () => {
             expired: true,
             stats: { visitCount: 0, todayVisitCount: 0, lastVisitedAt: 'invalid-date' },
           },
+          {
+            id: 'link-confirmation',
+            url: 'https://go.example.com/confirm1',
+            slug: 'confirm1',
+            targetUrl: 'https://example.net/confirm',
+            status: 'active',
+            ...defaultShortLinkAccessConfig,
+            redirectMode: 'confirmation',
+            intermediateDelaySeconds: null,
+            expiresAt: null,
+            expired: false,
+            stats: { visitCount: 0, todayVisitCount: 0, lastVisitedAt: null },
+          },
         ],
       }),
     })
@@ -818,7 +835,8 @@ describe('pages', () => {
     const rows = screen.getAllByTestId('console-link-row')
     const activeRow = rows.find((row) => within(row).queryByText('https://go.example.com/abc123'))
     const disabledRow = rows.find((row) => within(row).queryByText('https://go.example.com/def456'))
-    if (!activeRow || !disabledRow) {
+    const confirmationRow = rows.find((row) => within(row).queryByText('https://go.example.com/confirm1'))
+    if (!activeRow || !disabledRow || !confirmationRow) {
       throw new Error('expected short link rows')
     }
     expect(within(activeRow).getByText('links.stats.visitCount')).toBeTruthy()
@@ -828,6 +846,7 @@ describe('pages', () => {
     expect(within(activeRow).getByText('links.stats.lastVisitedAt')).toBeTruthy()
     expect(within(disabledRow).getByText('links.stats.neverVisited')).toBeTruthy()
     expect(within(activeRow).getByText('shortLinkCreate.redirectModes.intermediate')).toBeTruthy()
+    expect(within(confirmationRow).getByText('shortLinkCreate.redirectModes.confirmation')).toBeTruthy()
     const expiration = new Date('2026-08-10T00:00:00Z')
     const expirationText = `${expiration.getFullYear()}-${String(expiration.getMonth() + 1).padStart(2, '0')}-${String(expiration.getDate()).padStart(2, '0')} ${String(expiration.getHours()).padStart(2, '0')}:${String(expiration.getMinutes()).padStart(2, '0')}`
     expect(within(activeRow).getByText(expirationText)).toBeTruthy()
@@ -896,7 +915,6 @@ describe('pages', () => {
       id: 'link-id',
       targetUrl: 'https://example.com/updated',
       redirectMode: 'direct',
-      intermediateDelaySeconds: 5,
       expiration: { mode: 'never' },
     })
     expect((screen.getByRole('button', { name: 'shortLinkSettings.save' }) as HTMLButtonElement).disabled).toBe(true)
@@ -1252,7 +1270,6 @@ describe('pages', () => {
       id: 'link-id',
       targetUrl: 'https://example.com/admin-updated',
       redirectMode: 'direct',
-      intermediateDelaySeconds: 5,
       expiration: { mode: 'never' },
     })
     expect((screen.getByRole('button', { name: 'shortLinkSettings.save' }) as HTMLButtonElement).disabled).toBe(true)

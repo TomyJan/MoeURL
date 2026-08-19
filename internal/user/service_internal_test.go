@@ -1,13 +1,26 @@
 package user
 
 import (
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// TestNewServiceFailsClosedWithoutPermissionResolver verifies missing permission wiring never grants static defaults.
+func TestNewServiceFailsClosedWithoutPermissionResolver(t *testing.T) {
+	service := NewService(nil, nil)
+
+	_, err := service.permissions.Resolve(t.Context(), permission.GroupAdmin)
+	if !errors.Is(err, errPermissionResolverRequired) {
+		t.Fatalf("expected missing resolver sentinel, got %v", err)
+	}
+}
+
+// TestFormatTimeHandlesInvalidAndValidValues verifies format time handles invalid and valid values.
 func TestFormatTimeHandlesInvalidAndValidValues(t *testing.T) {
 	if formatTime(pgtype.Timestamptz{}) != "" {
 		t.Fatal("expected invalid timestamp to become empty string")
@@ -19,6 +32,7 @@ func TestFormatTimeHandlesInvalidAndValidValues(t *testing.T) {
 	}
 }
 
+// TestUUIDFromPgtypeReturnsEmptyForInvalidValue verifies uuid from pgtype returns empty for invalid value.
 func TestUUIDFromPgtypeReturnsEmptyForInvalidValue(t *testing.T) {
 	if uuidFromPgtype(pgtype.UUID{}) != "" {
 		t.Fatal("expected invalid pgtype UUID to become empty string")

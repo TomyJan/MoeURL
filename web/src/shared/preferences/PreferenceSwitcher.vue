@@ -127,6 +127,7 @@ const themeChoices = computed<Array<{ description: string; label: string; value:
   { description: t('preferences.darkDescription'), label: t('preferences.dark'), value: 'dark' },
 ])
 
+/** Toggles the language menu while keeping preference menus mutually exclusive. */
 function toggleLanguageMenu() {
   languageOpen.value = !languageOpen.value
   if (languageOpen.value) {
@@ -134,6 +135,7 @@ function toggleLanguageMenu() {
   }
 }
 
+/** Toggles the theme menu while keeping preference menus mutually exclusive. */
 function toggleThemeMenu() {
   themeOpen.value = !themeOpen.value
   if (themeOpen.value) {
@@ -141,21 +143,25 @@ function toggleThemeMenu() {
   }
 }
 
+/** Applies a language preference and closes its menu. */
 function selectLanguage(value: LanguagePreference) {
   setLanguage(value)
   languageOpen.value = false
 }
 
+/** Applies a theme preference and closes its menu. */
 function selectTheme(value: ThemePreference) {
   setTheme(value)
   themeOpen.value = false
 }
 
+/** Closes every open preference menu. */
 function closeMenus() {
   languageOpen.value = false
   themeOpen.value = false
 }
 
+/** Closes preference menus when a pointer event occurs outside the switcher. */
 function handlePointerDown(event: globalThis.PointerEvent) {
   const target = event.target
   if (target instanceof globalThis.Node && switcherRef.value?.contains(target)) {
@@ -164,6 +170,7 @@ function handlePointerDown(event: globalThis.PointerEvent) {
   closeMenus()
 }
 
+/** Closes preference menus when Escape is pressed. */
 function handleKeyDown(event: globalThis.KeyboardEvent) {
   if (event.key === 'Escape') {
     closeMenus()

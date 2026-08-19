@@ -46,6 +46,38 @@ func TestDBRecorderDropsEventsWhenConcurrentWritesReachLimit(t *testing.T) {
 	<-writer.done
 }
 
+// TestDBRecorderSkipsNonStatisticalEvents verifies filtered events never enter the asynchronous writer path.
+func TestDBRecorderSkipsNonStatisticalEvents(t *testing.T) {
+	writer := &blockingEventWriter{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+		done:    make(chan struct{}),
+	}
+	releaseWriter := sync.OnceFunc(func() { close(writer.release) })
+	t.Cleanup(releaseWriter)
+	recorder := newDBRecorder(writer, slog.New(slog.NewTextHandler(&synchronizedLogBuffer{}, nil)), 1)
+
+	for _, eventType := range []string{RedirectInitiated, ConfirmationClicked} {
+		if err := recorder.Record(context.Background(), Event{Type: eventType, ShortLinkID: "00000000-0000-0000-0000-000000000301"}); err != nil {
+			t.Fatalf("record non-statistical event %s: %v", eventType, err)
+		}
+	}
+	select {
+	case <-writer.entered:
+		releaseWriter()
+		<-writer.done
+		t.Fatal("expected non-statistical events to skip the writer")
+	case <-time.After(time.Second):
+	}
+
+	if occupiedSlots := len(recorder.writeSlots); occupiedSlots != 0 {
+		t.Fatalf("expected no queued writes, got %d", occupiedSlots)
+	}
+	if calls := writer.CallCount(); calls != 0 {
+		t.Fatalf("expected the writer to remain unused, got %d calls", calls)
+	}
+}
+
 // blockingEventWriter blocks persistence until the test releases it.
 type blockingEventWriter struct {
 	entered chan struct{}

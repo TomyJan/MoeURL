@@ -11,7 +11,7 @@
           variant="outlined"
         />
 
-        <div v-if="canUseIntermediate" class="short-link-settings-dialog__mode">
+        <div v-if="canConfigureRedirect" class="short-link-settings-dialog__mode">
           <span>{{ t('shortLinkSettings.redirectMode') }}</span>
           <v-btn-toggle :model-value="redirectMode" mandatory divided :aria-label="t('shortLinkSettings.redirectMode')">
             <v-btn
@@ -24,13 +24,24 @@
               {{ t('shortLinkSettings.direct') }}
             </v-btn>
             <v-btn
+              v-if="canUseIntermediate || redirectMode === 'intermediate'"
               size="small"
               value="intermediate"
-              :disabled="pending"
+              :disabled="pending || !canUseIntermediate"
               :aria-pressed="redirectMode === 'intermediate'"
               @click="redirectMode = 'intermediate'"
             >
               {{ t('shortLinkSettings.intermediate') }}
+            </v-btn>
+            <v-btn
+              v-if="canUseConfirmation || redirectMode === 'confirmation'"
+              size="small"
+              value="confirmation"
+              :disabled="pending || !canUseConfirmation"
+              :aria-pressed="redirectMode === 'confirmation'"
+              @click="redirectMode = 'confirmation'"
+            >
+              {{ t('shortLinkSettings.confirmation') }}
             </v-btn>
           </v-btn-toggle>
         </div>
@@ -106,6 +117,7 @@ import { useQuery } from '@tanstack/vue-query'
 
 import { me } from '@/entities/auth/api'
 import type { RedirectMode, ShortLink, UpdateShortLinkInput } from '@/entities/short-link/model'
+import { useRedirectModePermissions } from '@/shared/short-link/useRedirectModePermissions'
 import { futureDateTimeSchema, passwordSchema, targetUrlSchema } from '@/shared/validation/shortLinkAccess'
 
 const props = defineProps<{
@@ -138,9 +150,12 @@ const currentUserQuery = useQuery({
   queryFn: me,
 })
 const currentUser = computed(() => currentUserQuery.data.value?.user)
-const canUseIntermediate = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:use_intermediate')))
+const { canUseIntermediate, canUseConfirmation, canSubmitRedirectMode } = useRedirectModePermissions(currentUser)
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
 const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
+const canConfigureRedirect = computed(() =>
+  canUseIntermediate.value || canUseConfirmation.value || props.link.redirectMode !== 'direct',
+)
 
 watch(
   () => props.open,
@@ -180,8 +195,10 @@ function save() {
     id: props.link.id,
     targetUrl: targetResult.data,
   }
-  if (canUseIntermediate.value) {
+  if (canSubmitRedirectMode(redirectMode.value, canConfigureRedirect.value)) {
     input.redirectMode = redirectMode.value
+  }
+  if (canUseIntermediate.value && redirectMode.value === 'intermediate') {
     input.intermediateDelaySeconds = intermediateDelaySeconds.value
   }
   if (canSetExpiration.value) {
@@ -244,6 +261,7 @@ function applyPasswordInput(input: UpdateShortLinkInput): boolean {
   return true
 }
 
+/** Closes the dialog unless an update is still pending. */
 function close() {
   if (props.pending) {
     return
@@ -251,6 +269,7 @@ function close() {
   emit('update:open', false)
 }
 
+/** Applies external dialog state changes while protecting an in-flight save. */
 function handleOpenUpdate(open: boolean) {
   if (props.pending && !open) {
     return
@@ -274,6 +293,7 @@ function resetFromLink(link: Pick<ShortLink, 'targetUrl' | 'redirectMode' | 'int
   void nextTick(clearPasswordInput)
 }
 
+/** Resolves the transient native password input without copying it into reactive state. */
 function passwordInput() {
   const field = passwordField.value?.$el
   if (!(field instanceof globalThis.HTMLElement) || !field.matches('[data-testid="short-link-password-input"]')) {
@@ -282,6 +302,7 @@ function passwordInput() {
   return field.querySelector<globalThis.HTMLInputElement>('input')
 }
 
+/** Clears plaintext password data from the rendered input when present. */
 function clearPasswordInput() {
   const input = passwordInput()
   if (input) {
@@ -290,10 +311,12 @@ function clearPasswordInput() {
   }
 }
 
+/** Clears stale password validation feedback after the password controls change. */
 function clearPasswordError() {
   passwordErrorMessage.value = ''
 }
 
+/** Converts an ISO timestamp to the local value expected by datetime-local inputs. */
 function toLocalDateTime(value: string | null) {
   if (!value) {
     return ''

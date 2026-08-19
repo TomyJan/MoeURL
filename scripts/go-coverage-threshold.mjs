@@ -6,14 +6,17 @@ const includeFrom = readOption('--include-from')
 const includes = includeFrom ? readPatterns(includeFrom) : []
 const excludeBlocksFrom = readOption('--exclude-blocks-from')
 const excludedBlocks = excludeBlocksFrom ? new Set(readPatterns(excludeBlocksFrom)) : new Set()
-const excludedLineRanges = new Set([...excludedBlocks].map(toLineRange))
 const matchedExcludedBlocks = new Set()
+const coveredExcludedBlocks = new Set()
+const coveredCoverageBlocks = new Set()
 const blocks = readFileSync(profile, 'utf8')
   .trim()
   .split('\n')
   .slice(1)
   .map(parseBlock)
   .filter(Boolean)
+const coverageLocationsByLineRange = groupLocationsByLineRange(blocks.map(({ loc }) => loc))
+const excludedLocationsByLineRange = groupLocationsByLineRange([...excludedBlocks])
 let covered = 0
 let total = 0
 const uncoveredBlocks = []
@@ -23,7 +26,7 @@ for (const block of blocks) {
   if (includes.length > 0 && !includes.includes(file)) {
     continue
   }
-  if (consumeExcludedBlock(loc)) {
+  if (consumeExcludedBlock(loc, count)) {
     continue
   }
   total += statements
@@ -37,6 +40,11 @@ for (const block of blocks) {
 const unmatchedExcludedBlocks = [...excludedBlocks].filter((location) => !matchedExcludedBlocks.has(location))
 if (unmatchedExcludedBlocks.length > 0) {
   console.error(`Unmatched configured coverage exclusions:\n${unmatchedExcludedBlocks.join('\n')}`)
+  process.exitCode = 1
+}
+if (coveredExcludedBlocks.size > 0) {
+  console.error(`Covered configured exclusions:\n${[...coveredExcludedBlocks].join('\n')}`)
+  console.error(`Covered coverage blocks:\n${[...coveredCoverageBlocks].join('\n')}`)
   process.exitCode = 1
 }
 
@@ -57,12 +65,14 @@ if (percent + Number.EPSILON < threshold) {
   process.exit(1)
 }
 
+/** Reads one --name=value command-line option. */
 function readOption(name) {
   const prefix = `${name}=`
   const value = process.argv.find((argument) => argument.startsWith(prefix))
   return value?.slice(prefix.length)
 }
 
+/** Loads non-empty, non-comment coverage target patterns. */
 function readPatterns(path) {
   return readFileSync(path, 'utf8')
     .split('\n')
@@ -70,6 +80,7 @@ function readPatterns(path) {
     .filter((line) => line !== '' && !line.startsWith('#'))
 }
 
+/** Parses one Go coverage profile block into its location and counters. */
 function parseBlock(line) {
   const parts = line.trim().split(/\s+/)
   if (parts.length !== 3) return null
@@ -82,23 +93,43 @@ function parseBlock(line) {
   return { loc, file: loc.split(':')[0], statements, count }
 }
 
-function consumeExcludedBlock(location) {
+/** Consumes one uniquely matched configured exclusion and tracks its coverage. */
+function consumeExcludedBlock(location, count) {
   if (excludedBlocks.has(location)) {
     matchedExcludedBlocks.add(location)
+    if (count > 0) {
+      coveredExcludedBlocks.add(location)
+      coveredCoverageBlocks.add(location)
+    }
     return true
   }
   const lineRange = toLineRange(location)
-  if (!excludedLineRanges.has(lineRange)) {
+  const coverageLocations = coverageLocationsByLineRange.get(lineRange) ?? []
+  const configuredLocations = excludedLocationsByLineRange.get(lineRange) ?? []
+  if (coverageLocations.length !== 1 || configuredLocations.length !== 1) {
     return false
   }
-  for (const configuredLocation of excludedBlocks) {
-    if (toLineRange(configuredLocation) === lineRange) {
-      matchedExcludedBlocks.add(configuredLocation)
-    }
+  matchedExcludedBlocks.add(configuredLocations[0])
+  if (count > 0) {
+    coveredExcludedBlocks.add(configuredLocations[0])
+    coveredCoverageBlocks.add(location)
   }
   return true
 }
 
+/** Groups coverage locations that collapse to the same source line range. */
+function groupLocationsByLineRange(locations) {
+  const grouped = new Map()
+  for (const location of locations) {
+    const lineRange = toLineRange(location)
+    const matches = grouped.get(lineRange) ?? []
+    matches.push(location)
+    grouped.set(lineRange, matches)
+  }
+  return grouped
+}
+
+/** Removes statement columns from a Go coverage location. */
 function toLineRange(location) {
   const match = /^(.*):(\d+)\.\d+,(\d+)\.\d+$/.exec(location)
   return match ? `${match[1]}:${match[2]},${match[3]}` : location

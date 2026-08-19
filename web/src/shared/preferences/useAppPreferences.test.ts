@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 
 const sourcePath = resolve(__dirname, 'useAppPreferences.ts')
 
+/** Configures i18n, theme, storage, and media-query mocks for preference tests. */
 function mockPreferenceRuntime(
   themePreference: string,
   matchMediaValue: (query: string) => {

@@ -5,7 +5,7 @@
 MoeURL 采用以下技术栈作为 v0.0.1 及后续演进的技术基线：
 
 ```text
-后端： Go 1.25+ + Chi + SQLC + Goose + PostgreSQL
+后端：Go 1.25+ + Chi + SQLC 1.30.0 + Goose + PostgreSQL
 前端：Vue 3 + Vite + TypeScript + Vuetify 4
 前端包管理： pnpm
 状态：Pinia + TanStack Query for Vue
@@ -33,7 +33,7 @@ PWA：Web App Manifest + Service Worker
 
 ### Go
 
-v0.0.1 的最低 Go 版本为 Go 1.25。
+最低 Go 版本保持为 Go 1.25+；v0.4.0 的 `go.mod` 当前声明为 Go 1.25.7。
 
 Go 作为后端语言，适合 MoeURL 的 API、认证、权限、短链跳转和后台任务场景。
 
@@ -74,9 +74,11 @@ v0.2.0 在 `short_link` 增加跳转模式、中间页倒计时和可选过期�
 
 v0.3.0 在 `short_link` 增加 Argon2id 密码哈希、数据库失败窗口和密码更新时间，并新增短期访问授权表。授权令牌只以 SHA-256 哈希存储，公开访问通过 `HttpOnly`、`SameSite=Lax` 的 Cookie 传递，生产环境启用 `Secure`，TTL 为 15 分钟，并按短链限定为 `Path=/go/{slug}`；不使用 JWT 或登录 session 代替访客授权。解锁使用同源 `POST /go/{slug}/unlock`，短码由路径提供，请求体只传密码，使授权签发与后续预览、继续访问处于同一路径作用域。授权表分别按 `expires_at` 和 `short_link_id` 建立索引，支撑分批过期清理和短链删除时的级联行定位。失败窗口按短链行锁保护，保证多实例部署的一致性。密码失败次数约束先由 `00006` 以 `NOT VALID` 添加，再由 `00007` 独立验证，避免升级大表时在字段迁移事务中扫描全部历史数据。
 
+v0.4.0 将确认页建模为第三种 `confirmation` 跳转模式，而不是独立布尔访问条件或确认令牌。该模式复用 `/go/{slug}`、同源预览和 `/go/{slug}/continue`，公开预览显式返回 `redirectMode`；前端状态机在 `intermediate` 模式进入自动倒计时，在 `confirmation` 模式等待访问者主动确认，在 `direct` 模式的密码解锁成功后立即进入 Continue 流程。三种模式遇到 `reason=continue-failed` 时均等待手动重试，不自动再次调用 Continue。migration 只扩展 `redirect_mode` 约束并追加 `short_link:use_confirmation` 权限，不新增确认状态字段；正常路径由 `00008 Up` 以 `NOT VALID` 完成约束替换，`00009 Up` 仅在旧约束仍残留时执行兼容性重试，`00010` 在独立 Goose 事务中验证，正常回滚仍在各阶段事务内保持原子性。确认点击属于非统计事件，最终访问量仍只统计成功写出的 `redirect_response_sent`。短链和用户管理生产 Service 共享数据库权限 Resolver，每次业务操作从 `user_group.permissions` 解析当前 `GroupKey` 的权限快照，不缓存跨请求权限，保证数据库撤权立即成为后端安全边界；任一 Service 缺少 Resolver 时均拒绝授权，不降级为静态权限。Continue 的未知基础设施错误通过 `reason=continue-failed` 回流到公共页面并重新读取最小预览，避免顶层导航落入纯文本 500，同时不把目标 URL 暴露给客户端。
+
 ### SQLC
 
-SQLC 用于根据 SQL 生成类型安全的 Go 数据访问代码。
+SQLC 用于根据 SQL 生成类型安全的 Go 数据访问代码。v0.4.0 统一使用 SQLC `1.30.0` 生成并校验代码。
 
 选择原因：
 
@@ -267,6 +269,8 @@ v0.2.0 使用前端 `qrcode` 库按短链公开 URL 即时生成 PNG Data URL。
 
 Playwright 通过独立的 `setup` project 先完成一次初始化 UI 流程，再让业务 spec 并行执行；需要共享状态的受保护访问 spec 在文件内显式串行。
 
+Playwright 默认使用隔离的 Docker Compose 环境。仅当 Docker Desktop 或外部镜像仓库不可用，且已保留原始失败证据时，才允许改用干净数据库、当前 Go 实现和当前前端产物运行同一套浏览器断言；回退不得掩盖应用构建、迁移或启动错误。
+
 测试重点：
 
 - 首页创建区域权限状态。
@@ -293,6 +297,8 @@ PostgreSQL
 ```
 
 生产环境优先提供 Docker 和 Docker Compose。
+
+`Dockerfile` 的前端和后端构建阶段统一使用 `golang:1.26.5`。该版本是构建环境约定，不改变 Go 1.25+ 的最低语言版本。
 
 推荐方式：
 

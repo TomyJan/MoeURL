@@ -92,6 +92,7 @@ describe('App', () => {
     const routeFullPath = ref('/')
     const routeMatchedPath = ref('/console')
     const RoutedComponent = defineComponent({
+      /** Tracks routed component mounts across initialization-state changes. */
       setup() {
         onMounted(() => {
           mountCount.value += 1
@@ -106,6 +107,7 @@ describe('App', () => {
           ...componentStubs,
           RouterView: {
             components: { RoutedComponent },
+            /** Renders the routed test component through the supplied slot. */
             setup(_, { slots }) {
               return () =>
                 h(

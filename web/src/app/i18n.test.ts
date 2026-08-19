@@ -21,11 +21,13 @@ describe('i18n', () => {
   it('defines bilingual advanced short-link settings', () => {
     expect(messages['zh-CN'].shortLinkCreate.advanced).toBe('高级设置')
     expect(messages['zh-CN'].shortLinkCreate.redirectModes.intermediate).toBe('中间页')
+    expect(messages['zh-CN'].shortLinkCreate.redirectModes.confirmation).toBe('确认页')
     expect(messages['zh-CN'].shortLinkCreate.expiresAt).toBe('过期时间（本地时间）')
     expect(messages['zh-CN'].shortLinkSettings.expiresAt).toBe('过期时间（本地时间）')
     expect(messages['zh-CN'].shortLinkCreate.expirationFuture).toBe('过期时间必须晚于当前时间')
     expect(messages.en.shortLinkCreate.advanced).toBe('Advanced settings')
     expect(messages.en.shortLinkCreate.redirectModes.intermediate).toBe('Intermediate page')
+    expect(messages.en.shortLinkCreate.redirectModes.confirmation).toBe('Confirmation page')
     expect(messages.en.shortLinkCreate.expiresAt).toBe('Expiration time (local time)')
     expect(messages.en.shortLinkSettings.expiresAt).toBe('Expiration time (local time)')
     expect(messages.en.shortLinkCreate.expirationFuture).toBe('Expiration must be in the future')
@@ -35,6 +37,12 @@ describe('i18n', () => {
     expect(messages.en.shortLinkQr.generateFailed).toBe('Failed to generate the QR code. Try again.')
     expect(messages['zh-CN'].redirect.continue).toBe('立即前往')
     expect(messages['zh-CN'].redirect.expired).toBe('该短链已过期。')
+    expect(messages['zh-CN'].redirect.confirmationTitle).toBe('确认访问外部网站')
+    expect(messages['zh-CN'].redirect.shortCode).toBe('短码')
+    expect(messages['zh-CN'].redirect.expiresAt).toBe('有效期至')
+    expect(messages.en.redirect.confirmationContinue).toBe('Continue to site')
+    expect(messages.en.redirect.shortCode).toBe('Short code')
+    expect(messages.en.redirect.expiresAt).toBe('Expires at')
     expect(messages.en.redirect.unavailable).toBe('This short link is no longer available.')
     expect(messages.en.redirect.loadFailed).toBe('Unable to load this short link. Try again.')
   })
@@ -74,6 +82,7 @@ describe('i18n', () => {
   })
 
   it('keeps locale message trees aligned', () => {
+    /** Flattens nested locale messages into comparable dotted keys. */
     function flattenKeys(value: unknown, prefix = ''): string[] {
       if (!value || typeof value !== 'object') {
         return [prefix]

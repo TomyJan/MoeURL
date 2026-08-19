@@ -24,6 +24,16 @@ describe('useAvatarText', () => {
     expect(avatarText.value).toBe('M')
   })
 
+  it('truncates uppercase expansions to one Unicode code point', () => {
+    const displayName = ref('\u00DFeta')
+    const avatarText = useAvatarText(displayName)
+
+    expect(avatarText.value).toBe('S')
+
+    displayName.value = '\uFB03ligature'
+    expect(avatarText.value).toBe('F')
+  })
+
   it('falls back for missing display names', () => {
     const displayName = ref<string | null | undefined>(null)
     const avatarText = useAvatarText(displayName)

@@ -29,6 +29,7 @@ interface HomeHeaderTestProps {
   onAccountClick?: () => void
 }
 
+/** Mounts the home header with the supplied identity state. */
 function mountHeader(props: HomeHeaderTestProps) {
   return render(HomeHeader, {
     props,

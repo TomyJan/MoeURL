@@ -10,6 +10,7 @@ vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key }),
 }))
 
+/** Mounts the QR dialog with a representative short-link fixture. */
 function mountDialog(
   props: Partial<{ open: boolean; slug: string; url: string }> = {},
   stubs = componentStubs,
@@ -25,6 +26,7 @@ function mountDialog(
   })
 }
 
+/** Installs a deterministic QR encoder spy for rendering assertions. */
 function spyOnToDataURL() {
   return vi.spyOn(
     QRCode as unknown as { toDataURL: (text: string, options?: unknown) => Promise<string> },
@@ -32,6 +34,7 @@ function spyOnToDataURL() {
   )
 }
 
+/** Flushes the delayed QR generation used by stale-result tests. */
 async function flushStaleGeneration() {
   await Promise.resolve()
   await Promise.resolve()

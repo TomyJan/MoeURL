@@ -118,6 +118,7 @@ watch(
 
 const updateProfileMutation = useMutation({
   mutationFn: updateProfile,
+  /** Reconciles the saved profile with the form and cached identity. */
   onSuccess(result) {
     const user = result.user
     saveErrorVisible.value = false
@@ -127,12 +128,14 @@ const updateProfileMutation = useMutation({
     queryClient.setQueryData(['auth', 'me'], { user })
     void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
   },
+  /** Displays profile-save feedback while retaining the draft nickname. */
   onError() {
     saveSuccessVisible.value = false
     saveErrorVisible.value = true
   },
 })
 
+/** Maps profile update failures to a localized, non-sensitive message. */
 function resolveSaveErrorMessage(error: unknown) {
   if (!(error instanceof ApiClientError)) {
     return t('profile.saveFailed')
@@ -146,6 +149,7 @@ function resolveSaveErrorMessage(error: unknown) {
   return t('profile.saveFailed')
 }
 
+/** Validates and submits the trimmed nickname draft. */
 function submit() {
   const nickname = draftNickname.value.trim()
   if (!nickname) {

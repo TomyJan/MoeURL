@@ -16,6 +16,7 @@ import (
 )
 
 type Dependencies struct {
+	Logger                 *slog.Logger
 	System                 system.ServicePort
 	Auth                   auth.Port
 	CurrentUser            auth.CurrentUserResolver
@@ -35,14 +36,17 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 		dependency = deps[0]
 	}
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := dependency.Logger
+	if logger == nil {
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	}
 
 	router := chi.NewRouter()
 	router.Use(middleware.RequestLogger(logger))
 	router.Use(auth.CurrentUserMiddleware(dependency.CurrentUser))
 	var redirectHandler *shortlink.RedirectHandler
 	if dependency.Redirect != nil {
-		redirectHandler = shortlink.NewRedirectHandlerWithAnalyticsAndSecurity(dependency.Redirect, dependency.RedirectRecorder, dependency.AnalyticsCountryHeader, dependency.SecureCookies)
+		redirectHandler = shortlink.NewRedirectHandlerWithAnalyticsAndSecurity(dependency.Redirect, dependency.RedirectRecorder, dependency.AnalyticsCountryHeader, dependency.SecureCookies, logger)
 	}
 
 	router.Route("/api/v1", func(api chi.Router) {

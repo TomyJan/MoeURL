@@ -13,6 +13,60 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+type failingPermissionResolver struct {
+	err      error
+	calls    int
+	groupKey string
+}
+
+// Resolve records the requested group and returns the configured infrastructure error.
+func (r *failingPermissionResolver) Resolve(_ context.Context, groupKey string) (permission.Snapshot, error) {
+	r.calls++
+	r.groupKey = groupKey
+	return permission.Snapshot{}, r.err
+}
+
+// TestServiceAdminOperationsResolvePermissionsOnce verifies authorization lookup failures propagate from every managed-user operation.
+func TestServiceAdminOperationsResolvePermissionsOnce(t *testing.T) {
+	wantErr := errors.New("permission database down")
+	actor := auth.CurrentUser{GroupKey: permission.GroupAdmin}
+	tests := []struct {
+		name string
+		call func(*user.Service) error
+	}{
+		{name: "create", call: func(service *user.Service) error {
+			_, err := service.Create(t.Context(), actor, user.CreateInput{})
+			return err
+		}},
+		{name: "list", call: func(service *user.Service) error {
+			_, err := service.List(t.Context(), actor, user.ListInput{})
+			return err
+		}},
+		{name: "update", call: func(service *user.Service) error {
+			_, err := service.Update(t.Context(), actor, user.UpdateInput{})
+			return err
+		}},
+		{name: "reset password", call: func(service *user.Service) error {
+			return service.ResetPassword(t.Context(), actor, user.ResetPasswordInput{})
+		}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resolver := &failingPermissionResolver{err: wantErr}
+			service := user.NewService(nil, resolver)
+
+			if err := test.call(service); !errors.Is(err, wantErr) {
+				t.Fatalf("operation error = %v, want %v", err, wantErr)
+			}
+			if resolver.calls != 1 || resolver.groupKey != permission.GroupAdmin {
+				t.Fatalf("Resolve calls = %d for group %q, want one call for %q", resolver.calls, resolver.groupKey, permission.GroupAdmin)
+			}
+		})
+	}
+}
+
+// TestServiceCreateUserByAdmin verifies service create user by admin.
 func TestServiceCreateUserByAdmin(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -45,6 +99,7 @@ func TestServiceCreateUserByAdmin(t *testing.T) {
 	}
 }
 
+// TestServiceCreateUserRejectsPermissionAndDuplicateUsername verifies service create user rejects permission and duplicate username.
 func TestServiceCreateUserRejectsPermissionAndDuplicateUsername(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -68,13 +123,14 @@ func TestServiceCreateUserRejectsPermissionAndDuplicateUsername(t *testing.T) {
 	}
 }
 
+// TestServiceCreateRejectsInvalidInputAndReturnsErrors verifies service create rejects invalid input and returns errors.
 func TestServiceCreateRejectsInvalidInputAndReturnsErrors(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
 	insertUserGroup(t, ctx, pool, "admin", permission.AdminPermissions)
 	insertUserGroup(t, ctx, pool, "user", permission.UserPermissions)
 	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: "admin"}
-	service := user.NewService(pool, nil)
+	service := user.NewService(pool, permission.NewService())
 
 	_, err := service.Create(ctx, admin, user.CreateInput{Username: "", Password: "secure-password", Nickname: "Alice", GroupKey: "user", Status: "active"})
 	if !errors.Is(err, user.ErrInvalidInput) {
@@ -96,6 +152,7 @@ func TestServiceCreateRejectsInvalidInputAndReturnsErrors(t *testing.T) {
 	}
 }
 
+// TestServiceCreateReturnsDatabaseError verifies service create returns database error.
 func TestServiceCreateReturnsDatabaseError(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -111,6 +168,7 @@ func TestServiceCreateReturnsDatabaseError(t *testing.T) {
 	}
 }
 
+// TestServiceListUsersRequiresAdminAccess verifies service list users requires admin access.
 func TestServiceListUsersRequiresAdminAccess(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -124,6 +182,7 @@ func TestServiceListUsersRequiresAdminAccess(t *testing.T) {
 	}
 }
 
+// TestServiceListUsersReturnsUserSummaries verifies service list users returns user summaries.
 func TestServiceListUsersReturnsUserSummaries(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -168,6 +227,7 @@ func TestServiceListUsersReturnsUserSummaries(t *testing.T) {
 	}
 }
 
+// TestServiceListUsersReturnsDatabaseErrors verifies service list users returns database errors.
 func TestServiceListUsersReturnsDatabaseErrors(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -187,6 +247,7 @@ func TestServiceListUsersReturnsDatabaseErrors(t *testing.T) {
 	}
 }
 
+// TestServiceListUsersReturnsCountError verifies service list users returns count error.
 func TestServiceListUsersReturnsCountError(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -200,6 +261,7 @@ func TestServiceListUsersReturnsCountError(t *testing.T) {
 	}
 }
 
+// TestServiceUpdateRejectsBuiltinUserAndUpdatesRegularUser verifies service update rejects builtin user and updates regular user.
 func TestServiceUpdateRejectsBuiltinUserAndUpdatesRegularUser(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -224,6 +286,7 @@ func TestServiceUpdateRejectsBuiltinUserAndUpdatesRegularUser(t *testing.T) {
 	}
 }
 
+// TestServiceUpdateRejectsInvalidInputPermissionAndMissingUser verifies service update rejects invalid input permission and missing user.
 func TestServiceUpdateRejectsInvalidInputPermissionAndMissingUser(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -253,6 +316,7 @@ func TestServiceUpdateRejectsInvalidInputPermissionAndMissingUser(t *testing.T) 
 	}
 }
 
+// TestServiceUpdateReturnsDatabaseError verifies service update returns database error.
 func TestServiceUpdateReturnsDatabaseError(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -266,6 +330,7 @@ func TestServiceUpdateReturnsDatabaseError(t *testing.T) {
 	}
 }
 
+// TestServiceUpdateReturnsMutationAndGroupLookupErrors verifies service update returns mutation and group lookup errors.
 func TestServiceUpdateReturnsMutationAndGroupLookupErrors(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -311,6 +376,7 @@ func TestServiceUpdateReturnsMutationAndGroupLookupErrors(t *testing.T) {
 	}
 }
 
+// TestServiceUpdateReturnsGroupLookupError verifies service update returns group lookup error.
 func TestServiceUpdateReturnsGroupLookupError(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -335,6 +401,7 @@ func TestServiceUpdateReturnsGroupLookupError(t *testing.T) {
 	}
 }
 
+// TestServiceUpdateProfileUpdatesOwnNickname verifies service update profile updates own nickname.
 func TestServiceUpdateProfileUpdatesOwnNickname(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -376,6 +443,7 @@ func TestServiceUpdateProfileUpdatesOwnNickname(t *testing.T) {
 	}
 }
 
+// TestServiceUpdateProfileRejectsPermissionInputBuiltinAndMissingUser verifies service update profile rejects permission input builtin and missing user.
 func TestServiceUpdateProfileRejectsPermissionInputBuiltinAndMissingUser(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -416,6 +484,7 @@ func TestServiceUpdateProfileRejectsPermissionInputBuiltinAndMissingUser(t *test
 	}
 }
 
+// TestServiceUpdateProfileRejectsTooLongNickname verifies service update profile rejects too long nickname.
 func TestServiceUpdateProfileRejectsTooLongNickname(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -437,6 +506,7 @@ func TestServiceUpdateProfileRejectsTooLongNickname(t *testing.T) {
 	}
 }
 
+// TestServiceUpdateProfileReturnsDatabaseError verifies service update profile returns database error.
 func TestServiceUpdateProfileReturnsDatabaseError(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -458,6 +528,7 @@ func TestServiceUpdateProfileReturnsDatabaseError(t *testing.T) {
 	}
 }
 
+// TestServiceUpdateProfileReturnsMissingWhenUpdateSkipsRow verifies service update profile returns missing when update skips row.
 func TestServiceUpdateProfileReturnsMissingWhenUpdateSkipsRow(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -491,6 +562,7 @@ func TestServiceUpdateProfileReturnsMissingWhenUpdateSkipsRow(t *testing.T) {
 	}
 }
 
+// TestServiceUpdateProfileReturnsMutationGroupAndPermissionErrors verifies service update profile returns mutation group and permission errors.
 func TestServiceUpdateProfileReturnsMutationGroupAndPermissionErrors(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -564,6 +636,7 @@ func TestServiceUpdateProfileReturnsMutationGroupAndPermissionErrors(t *testing.
 	}
 }
 
+// TestServiceResetPasswordRejectsBuiltinUserAndChangesPasswordHash verifies service reset password rejects builtin user and changes password hash.
 func TestServiceResetPasswordRejectsBuiltinUserAndChangesPasswordHash(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -600,6 +673,7 @@ func TestServiceResetPasswordRejectsBuiltinUserAndChangesPasswordHash(t *testing
 	}
 }
 
+// TestServiceResetPasswordRejectsInvalidInputPermissionAndMissingUser verifies service reset password rejects invalid input permission and missing user.
 func TestServiceResetPasswordRejectsInvalidInputPermissionAndMissingUser(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -629,6 +703,7 @@ func TestServiceResetPasswordRejectsInvalidInputPermissionAndMissingUser(t *test
 	}
 }
 
+// TestServiceResetPasswordReturnsDatabaseError verifies service reset password returns database error.
 func TestServiceResetPasswordReturnsDatabaseError(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -642,6 +717,7 @@ func TestServiceResetPasswordReturnsDatabaseError(t *testing.T) {
 	}
 }
 
+// TestServiceResetPasswordReturnsMutationErrors verifies service reset password returns mutation errors.
 func TestServiceResetPasswordReturnsMutationErrors(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -669,6 +745,7 @@ func TestServiceResetPasswordReturnsMutationErrors(t *testing.T) {
 	}
 }
 
+// TestServiceResetPasswordReturnsMissingWhenUpdateSkipsRow verifies service reset password returns missing when update skips row.
 func TestServiceResetPasswordReturnsMissingWhenUpdateSkipsRow(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
@@ -696,6 +773,7 @@ func TestServiceResetPasswordReturnsMissingWhenUpdateSkipsRow(t *testing.T) {
 	}
 }
 
+// insertAppUser inserts the database fixture required by the surrounding tests.
 func insertAppUser(t *testing.T, ctx context.Context, pool *pgxpool.Pool, username string, passwordHash string, nickname string, groupKey string, status string, builtin bool) string {
 	t.Helper()
 	var id string
@@ -712,6 +790,7 @@ func insertAppUser(t *testing.T, ctx context.Context, pool *pgxpool.Pool, userna
 	return id
 }
 
+// nullableText converts a string into an optional pgx text fixture.
 func nullableText(value string) pgtype.Text {
 	if value == "" {
 		return pgtype.Text{}
@@ -719,6 +798,7 @@ func nullableText(value string) pgtype.Text {
 	return pgtype.Text{String: value, Valid: true}
 }
 
+// containsString reports whether a fixture slice contains the requested value.
 func containsString(values []string, target string) bool {
 	for _, value := range values {
 		if value == target {

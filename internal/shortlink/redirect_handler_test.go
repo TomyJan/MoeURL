@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -117,6 +118,7 @@ func TestRedirectHandlerUnlockSetsSecureCookie(t *testing.T) {
 		&recordingRecorder{},
 		"",
 		true,
+		slog.Default(),
 	)
 	request := httptest.NewRequest(http.MethodPost, "/go/abc123/unlock", bytes.NewBufferString(`{"password":"correct horse"}`))
 	response := httptest.NewRecorder()
@@ -497,23 +499,27 @@ func TestRedirectHandlerShowsBlockedStatus(t *testing.T) {
 	}
 }
 
-// TestRedirectHandlerOpensIntermediatePageWithoutSuccessEvent verifies initial opens stay internal and uncounted.
-func TestRedirectHandlerOpensIntermediatePageWithoutSuccessEvent(t *testing.T) {
-	recorder := &recordingRecorder{}
-	handler := shortlink.NewRedirectHandler(
-		&fakeRedirectService{openResult: shortlink.OpenResult{RedirectMode: shortlink.RedirectModeIntermediate, Slug: "middle"}},
-		recorder,
-	)
-	response := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/middle", nil)
+// TestRedirectHandlerOpensInteractivePageWithoutSuccessEvent verifies both public pages stay internal and uncounted.
+func TestRedirectHandlerOpensInteractivePageWithoutSuccessEvent(t *testing.T) {
+	for _, mode := range []string{shortlink.RedirectModeIntermediate, shortlink.RedirectModeConfirmation} {
+		t.Run(mode, func(t *testing.T) {
+			recorder := &recordingRecorder{}
+			handler := shortlink.NewRedirectHandler(
+				&fakeRedirectService{openResult: shortlink.OpenResult{RedirectMode: mode, Slug: "middle"}},
+				recorder,
+			)
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodGet, "/middle", nil)
 
-	handler.Open(response, request, "middle")
+			handler.Open(response, request, "middle")
 
-	if response.Code != http.StatusFound || response.Header().Get("Location") != "/go/middle" {
-		t.Fatalf("expected internal intermediate redirect, got status %d location %q", response.Code, response.Header().Get("Location"))
-	}
-	if len(recorder.types) != 0 {
-		t.Fatalf("expected no successful response event, got %#v", recorder.types)
+			if response.Code != http.StatusFound || response.Header().Get("Location") != "/go/middle" {
+				t.Fatalf("expected internal interactive redirect, got status %d location %q", response.Code, response.Header().Get("Location"))
+			}
+			if len(recorder.types) != 0 {
+				t.Fatalf("expected no successful response event, got %#v", recorder.types)
+			}
+		})
 	}
 }
 
@@ -535,6 +541,7 @@ func TestRedirectHandlerContinuesToTargetAndRecordsSuccess(t *testing.T) {
 	assertEvents(t, recorder.types, []string{event.RedirectResponseSent})
 }
 
+// TestRedirectHandlerContinueWriteFailureDoesNotRecordSuccess verifies redirect handler continue write failure does not record success.
 func TestRedirectHandlerContinueWriteFailureDoesNotRecordSuccess(t *testing.T) {
 	recorder := &recordingRecorder{}
 	handler := shortlink.NewRedirectHandler(
@@ -557,6 +564,7 @@ func TestRedirectHandlerPreviewUsesUnifiedMinimalResponse(t *testing.T) {
 	handler := shortlink.NewRedirectHandler(&fakeRedirectService{previewResult: shortlink.PreviewResult{
 		Slug:                     "middle",
 		TargetHost:               "example.com",
+		RedirectMode:             shortlink.RedirectModeIntermediate,
 		IntermediateDelaySeconds: int16Pointer(7),
 		ExpiresAt:                &expiresAt,
 	}})
@@ -577,10 +585,10 @@ func TestRedirectHandlerPreviewUsesUnifiedMinimalResponse(t *testing.T) {
 	if err := json.NewDecoder(bytes.NewReader(raw)).Decode(&body); err != nil {
 		t.Fatalf("decode preview response: %v", err)
 	}
-	if body.Code != 0 || body.Data.TargetHost != "example.com" || body.Data.IntermediateDelaySeconds == nil || *body.Data.IntermediateDelaySeconds != 7 || body.Data.ExpiresAt == nil || !body.Data.ExpiresAt.Equal(expiresAt) {
+	if body.Code != 0 || body.Data.TargetHost != "example.com" || body.Data.RedirectMode != shortlink.RedirectModeIntermediate || body.Data.IntermediateDelaySeconds == nil || *body.Data.IntermediateDelaySeconds != 7 || body.Data.ExpiresAt == nil || !body.Data.ExpiresAt.Equal(expiresAt) {
 		t.Fatalf("unexpected preview body: %#v", body)
 	}
-	if bytes.Contains(raw, []byte("redirectMode")) || bytes.Contains(raw, []byte("https://")) || bytes.Contains(raw, []byte("http://")) || bytes.Contains(raw, []byte("targetUrl")) {
+	if !bytes.Contains(raw, []byte(`"redirectMode":"intermediate"`)) || bytes.Contains(raw, []byte("https://")) || bytes.Contains(raw, []byte("http://")) || bytes.Contains(raw, []byte("targetUrl")) {
 		t.Fatalf("preview leaked target URL: %s", raw)
 	}
 }
@@ -625,6 +633,7 @@ func TestRedirectHandlerPreviewForwardsAccessCookie(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerPreviewRejectsUnauthorizedProtectedPreview verifies redirect handler preview rejects unauthorized protected preview.
 func TestRedirectHandlerPreviewRejectsUnauthorizedProtectedPreview(t *testing.T) {
 	service := &fakeRedirectService{previewErr: shortlink.ErrPasswordRequired}
 	handler := shortlink.NewRedirectHandler(service)
@@ -685,7 +694,7 @@ func TestRedirectHandlerPreviewMapsBusinessAndSystemErrors(t *testing.T) {
 		{name: "missing", err: shortlink.ErrShortLinkMissing, httpStatus: http.StatusOK, code: shortlink.CodeShortLinkMissing},
 		{name: "disabled", err: shortlink.ErrShortLinkDisabled, httpStatus: http.StatusOK, code: shortlink.CodeShortLinkDisabled},
 		{name: "expired", err: shortlink.ErrShortLinkExpired, httpStatus: http.StatusOK, code: shortlink.CodeShortLinkExpired},
-		{name: "not intermediate", err: shortlink.ErrShortLinkNotIntermediate, httpStatus: http.StatusOK, code: shortlink.CodeShortLinkNotIntermediate},
+		{name: "not interactive", err: shortlink.ErrShortLinkNotInteractive, httpStatus: http.StatusOK, code: shortlink.CodeShortLinkNotInteractive},
 		{name: "password required", err: shortlink.ErrPasswordRequired, httpStatus: http.StatusOK, code: shortlink.CodePasswordRequired},
 		{name: "system", err: errors.New("database down"), httpStatus: http.StatusInternalServerError, code: 900000},
 	}
@@ -741,11 +750,11 @@ func TestRedirectHandlerContinueShowsLifecycleErrors(t *testing.T) {
 		{name: "missing", err: shortlink.ErrShortLinkMissing, code: http.StatusNotFound},
 		{name: "disabled", err: shortlink.ErrShortLinkDisabled, code: http.StatusFound, location: "/go/middle?reason=disabled"},
 		{name: "expired", err: shortlink.ErrShortLinkExpired, code: http.StatusFound, location: "/go/middle?reason=expired"},
-		{name: "not intermediate", err: shortlink.ErrShortLinkNotIntermediate, code: http.StatusFound, location: "/go/middle?reason=not-intermediate"},
+		{name: "not interactive", err: shortlink.ErrShortLinkNotInteractive, code: http.StatusFound, location: "/go/middle?reason=not-interactive"},
 		{name: "password required", err: shortlink.ErrPasswordRequired, code: http.StatusFound, location: "/go/middle?reason=password"},
 		{name: "invalid password", err: shortlink.ErrInvalidPassword, code: http.StatusFound, location: "/go/middle?reason=password"},
 		{name: "rate limited", err: shortlink.ErrPasswordRateLimited, code: http.StatusFound, location: "/go/middle?reason=rate-limited"},
-		{name: "system", err: errors.New("database down"), code: http.StatusInternalServerError},
+		{name: "system", err: errors.New("database down"), code: http.StatusFound, location: "/go/middle?reason=continue-failed"},
 	}
 
 	for _, tt := range tests {
@@ -763,6 +772,56 @@ func TestRedirectHandlerContinueShowsLifecycleErrors(t *testing.T) {
 	}
 }
 
+// TestRedirectHandlerContinueLogsUnexpectedErrors verifies infrastructure failures retain their original cause in logs.
+func TestRedirectHandlerContinueLogsUnexpectedErrors(t *testing.T) {
+	logOutput := &bytes.Buffer{}
+	logger := slog.New(slog.NewTextHandler(logOutput, nil))
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		Redirect: &fakeRedirectService{continueErr: errors.New("database down")},
+		Logger:   logger,
+	})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/go/middle/continue", nil)
+
+	router.ServeHTTP(response, request)
+
+	for _, field := range []string{"short_link_continue_failed", "slug=middle", "database down"} {
+		if !strings.Contains(logOutput.String(), field) {
+			t.Fatalf("expected continue failure log field %q, got %q", field, logOutput.String())
+		}
+	}
+	if response.Code != http.StatusFound || response.Header().Get("Location") != "/go/middle?reason=continue-failed" {
+		t.Fatalf("expected continue-failed redirect, got status %d location %q", response.Code, response.Header().Get("Location"))
+	}
+}
+
+// TestRedirectHandlerOpenLogsUnexpectedErrors verifies initial public failures retain request context in logs.
+func TestRedirectHandlerOpenLogsUnexpectedErrors(t *testing.T) {
+	logOutput := &bytes.Buffer{}
+	logger := slog.New(slog.NewTextHandler(logOutput, nil))
+	handler := shortlink.NewRedirectHandlerWithAnalyticsAndSecurity(
+		&fakeRedirectService{openErr: errors.New("database down")},
+		event.NoopRecorder{},
+		"",
+		false,
+		logger,
+	)
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/MiDdLe", nil)
+
+	handler.Open(response, request, "MiDdLe")
+
+	for _, field := range []string{"short_link_open_failed", "slug=middle", "database down"} {
+		if !strings.Contains(logOutput.String(), field) {
+			t.Fatalf("expected open failure log field %q, got %q", field, logOutput.String())
+		}
+	}
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d", response.Code)
+	}
+}
+
+// TestRedirectHandlerContinueIncludesRateLimitRetryAt verifies redirect handler continue includes rate limit retry at.
 func TestRedirectHandlerContinueIncludesRateLimitRetryAt(t *testing.T) {
 	retryAt := time.Date(2026, time.August, 11, 12, 0, 0, 0, time.UTC)
 	handler := shortlink.NewRedirectHandler(&fakeRedirectService{
@@ -792,15 +851,15 @@ func TestRedirectHandlerContinuePassesScopedAccessCookie(t *testing.T) {
 	}
 }
 
-// TestRedirectHandlerOpenMapsNotIntermediateError verifies direct links cannot render the intermediate page.
-func TestRedirectHandlerOpenMapsNotIntermediateError(t *testing.T) {
-	handler := shortlink.NewRedirectHandler(&fakeRedirectService{openErr: shortlink.ErrShortLinkNotIntermediate})
+// TestRedirectHandlerOpenMapsNotInteractiveError verifies direct links cannot render an interactive page.
+func TestRedirectHandlerOpenMapsNotInteractiveError(t *testing.T) {
+	handler := shortlink.NewRedirectHandler(&fakeRedirectService{openErr: shortlink.ErrShortLinkNotInteractive})
 	response := httptest.NewRecorder()
 
 	handler.Open(response, httptest.NewRequest(http.MethodGet, "/abc123", nil), "abc123")
 
-	if response.Code != http.StatusFound || response.Header().Get("Location") != "/go/abc123?reason=not-intermediate" {
-		t.Fatalf("expected not-intermediate state, got status %d location %q", response.Code, response.Header().Get("Location"))
+	if response.Code != http.StatusFound || response.Header().Get("Location") != "/go/abc123?reason=not-interactive" {
+		t.Fatalf("expected not-interactive state, got status %d location %q", response.Code, response.Header().Get("Location"))
 	}
 }
 
@@ -821,6 +880,7 @@ type fakeRedirectService struct {
 	continueToken  string
 }
 
+// int16Pointer returns a pointer to the supplied fixture value.
 func int16Pointer(value int16) *int16 {
 	return &value
 }

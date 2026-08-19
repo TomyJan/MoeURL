@@ -46,10 +46,23 @@
 
       <div v-else-if="preview" class="redirect-page__state">
         <p class="redirect-page__eyebrow">{{ t('redirect.eyebrow') }}</p>
-        <h1>{{ t('redirect.title') }}</h1>
+        <h1>{{ t(preview.redirectMode === 'confirmation' ? 'redirect.confirmationTitle' : 'redirect.title') }}</h1>
+        <p v-if="preview.redirectMode === 'confirmation'" class="redirect-page__description">
+          {{ t('redirect.confirmationDescription') }}
+        </p>
+        <dl v-if="preview.redirectMode === 'confirmation'" class="redirect-page__metadata">
+          <div>
+            <dt>{{ t('redirect.shortCode') }}</dt>
+            <dd>{{ preview.slug }}</dd>
+          </div>
+          <div v-if="preview.expiresAt">
+            <dt>{{ t('redirect.expiresAt') }}</dt>
+            <dd><time :datetime="preview.expiresAt">{{ formatDateTime(preview.expiresAt) }}</time></dd>
+          </div>
+        </dl>
         <p class="redirect-page__target-label">{{ t('redirect.targetHost') }}</p>
         <strong class="redirect-page__target">{{ preview.targetHost }}</strong>
-        <div class="redirect-page__countdown" aria-live="off">
+        <div v-if="preview.redirectMode === 'intermediate'" class="redirect-page__countdown" aria-live="off">
           <strong>{{ remainingSeconds }}</strong>
           <span>{{ t('redirect.seconds') }}</span>
         </div>
@@ -58,7 +71,7 @@
         </v-alert>
         <div class="redirect-page__actions">
           <v-btn color="primary" size="large" :loading="navigating" @click="continueToTarget">
-            {{ t('redirect.continue') }}
+            {{ t(preview.redirectMode === 'confirmation' ? 'redirect.confirmationContinue' : 'redirect.continue') }}
           </v-btn>
           <v-btn variant="text" :to="{ path: '/' }">{{ t('redirect.backHome') }}</v-btn>
         </div>
@@ -76,10 +89,10 @@ import { getPublicShortLinkPreview, unlockShortLink } from '@/entities/short-lin
 import type { PublicShortLinkPreview } from '@/entities/short-link/model'
 import { ApiClientError } from '@/shared/api/client'
 
-type PreviewFailureState = '' | 'disabled' | 'expired' | 'loadFailed' | 'notIntermediate' | 'unavailable'
+type PreviewFailureState = '' | 'disabled' | 'expired' | 'loadFailed' | 'notInteractive' | 'unavailable'
 type UnlockErrorState = '' | 'invalidPassword' | 'passwordRequired' | 'rateLimited' | 'unlockFailed'
 
-const { t } = useI18n()
+const { locale, t } = useI18n()
 const route = useRoute()
 const preview = ref<PublicShortLinkPreview | null>(null)
 const remainingSeconds = ref(0)
@@ -135,7 +148,7 @@ async function loadPreview() {
   preview.value = null
   loading.value = true
   failureState.value = ''
-  continueFailed.value = false
+  continueFailed.value = route.query.reason === 'continue-failed'
   navigating.value = false
   passwordRequired.value = false
   unlockPending.value = false
@@ -169,7 +182,7 @@ async function loadPreview() {
       passwordRequired.value = false
       unlockErrorState.value = ''
       clearRateLimitCountdown()
-      proceedAfterAccess()
+      proceedAfterAccess(continueFailed.value)
     })
   } catch (error) {
     whenCurrent(requestId, () => {
@@ -207,8 +220,8 @@ function failureStateFromReason(reason: unknown): PreviewFailureState {
   if (reason === 'expired') {
     return 'expired'
   }
-  if (reason === 'not-intermediate') {
-    return 'notIntermediate'
+  if (reason === 'not-interactive') {
+    return 'notInteractive'
   }
   return ''
 }
@@ -218,6 +231,7 @@ function unlockErrorFromReason(reason: unknown): UnlockErrorState {
   return reason === 'rate-limited' ? 'rateLimited' : ''
 }
 
+/** Maps public preview API failures into non-sensitive page states. */
 function classifyPreviewError(error: unknown): PreviewFailureState {
   const code = error instanceof ApiClientError ? error.code : 0
   if (code === 200109) {
@@ -230,7 +244,7 @@ function classifyPreviewError(error: unknown): PreviewFailureState {
     return 'disabled'
   }
   if (code === 200110) {
-    return 'notIntermediate'
+    return 'notInteractive'
   }
   return 'loadFailed'
 }
@@ -248,19 +262,35 @@ function startCountdown() {
   }, 1_000)
 }
 
-/** Continues a granted link according to its direct or intermediate redirect mode. */
-function proceedAfterAccess() {
+/** Continues direct links, starts intermediate countdowns, and leaves confirmation links idle. */
+function proceedAfterAccess(waitForRetry = false) {
   const currentPreview = preview.value
   /* v8 ignore next -- callers establish a preview first; retain a defensive guard for future call sites. */
   if (!currentPreview) {
     return
   }
-  if (currentPreview.intermediateDelaySeconds === null) {
-    continueToTarget()
+  if (currentPreview.redirectMode === 'direct') {
+    if (!waitForRetry) {
+      continueToTarget()
+    }
+    return
+  }
+  if (currentPreview.redirectMode === 'confirmation') {
     return
   }
   remainingSeconds.value = currentPreview.intermediateDelaySeconds
-  startCountdown()
+  if (!waitForRetry) {
+    startCountdown()
+  }
+}
+
+/** Formats a timestamp with the currently active interface locale. */
+function formatDateTime(value: string) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(locale.value, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
 }
 
 /** Submits the password and resumes navigation after a scoped grant is issued. */
@@ -281,6 +311,7 @@ async function unlock(event: globalThis.Event) {
   }
 
   const requestIdentity = `${previewRequestId}:${String(route.params.slug)}`
+  /** Reports whether this unlock attempt still belongs to the mounted route request. */
   const isCurrentUnlock = () => isMounted && requestIdentity === `${previewRequestId}:${String(route.params.slug)}`
   unlockPending.value = true
   unlockErrorState.value = ''
@@ -300,7 +331,7 @@ async function unlock(event: globalThis.Event) {
     clearRateLimitCountdown()
     passwordRequired.value = false
     form.reset()
-    proceedAfterAccess()
+    proceedAfterAccess(continueFailed.value)
   } catch (error) {
     if (!isCurrentUnlock()) {
       return
@@ -352,6 +383,7 @@ function continueToTarget() {
   }
 }
 
+/** Stops the intermediate redirect countdown and releases its timer handle. */
 function clearCountdown() {
   if (countdownTimer === null) {
     return
@@ -360,11 +392,13 @@ function clearCountdown() {
   countdownTimer = null
 }
 
+/** Extracts the server-authoritative retry deadline from a rate-limit error. */
 function rateLimitRetryAt(error: unknown): unknown {
   /* v8 ignore next -- rateLimited is classified only from ApiClientError responses. */
   return error instanceof ApiClientError ? error.meta.retryAt : undefined
 }
 
+/** Starts a client display countdown from a validated server retry deadline. */
 function startRateLimitCountdown(retryAt: unknown) {
   clearRateLimitCountdown()
   if (typeof retryAt !== 'string') {
@@ -375,6 +409,7 @@ function startRateLimitCountdown(retryAt: unknown) {
     return
   }
 
+  /** Recomputes remaining lockout time and clears expired rate-limit state. */
   const update = () => {
     rateLimitRemainingSeconds.value = Math.max(0, Math.ceil((retryAtMillis - Date.now()) / 1_000))
     if (rateLimitRemainingSeconds.value === 0) {
@@ -391,6 +426,7 @@ function startRateLimitCountdown(retryAt: unknown) {
   }
 }
 
+/** Stops the rate-limit countdown and resets its displayed value. */
 function clearRateLimitCountdown() {
   if (rateLimitTimer !== null) {
     globalThis.clearInterval(rateLimitTimer)
@@ -451,6 +487,39 @@ function clearRateLimitCountdown() {
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.82rem;
   font-weight: 850;
+}
+
+.redirect-page__description {
+  max-width: 46ch;
+  margin: 0;
+  color: rgb(var(--v-theme-on-surface-variant));
+  line-height: 1.65;
+}
+
+.redirect-page__metadata {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px 24px;
+  margin: 0;
+}
+
+.redirect-page__metadata div {
+  display: grid;
+  gap: 4px;
+}
+
+.redirect-page__metadata dt {
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.redirect-page__metadata dd {
+  margin: 0;
+  color: rgb(var(--v-theme-on-surface));
+  font-weight: 850;
+  overflow-wrap: anywhere;
 }
 
 .redirect-page__target {

@@ -234,6 +234,279 @@ func TestShortLinkPasswordMigrationPreservesGroupsCreatedAfterUpgrade(t *testing
 	}
 }
 
+// TestShortLinkConfirmationMigrationAddsModeAndPermissionAndRollsBack verifies the confirmation schema round trip.
+func TestShortLinkConfirmationMigrationAddsModeAndPermissionAndRollsBack(t *testing.T) {
+	ctx := context.Background()
+	database := migrationTestDatabase(t, ctx)
+	migrationsDir := filepath.Join("..", "..", "migrations")
+
+	if err := goose.UpTo(database, migrationsDir, 7); err != nil {
+		t.Fatalf("run migrations through version 7: %v", err)
+	}
+	insertUserGroups(t, ctx, database)
+	if _, err := database.ExecContext(ctx, `
+		insert into short_link (id, owner_id, domain_id, slug, target_url, status, redirect_mode, created_at, updated_at)
+		values
+			('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000101', 'direct1', 'https://example.com/direct', 'active', 'direct', now(), now()),
+			('00000000-0000-0000-0000-000000000302', '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000101', 'middle1', 'https://example.com/middle', 'active', 'intermediate', now(), now())
+	`); err != nil {
+		t.Fatalf("insert pre-confirmation short links: %v", err)
+	}
+
+	if err := goose.UpTo(database, migrationsDir, 8); err != nil {
+		t.Fatalf("upgrade confirmation migration: %v", err)
+	}
+	assertRelationExists(t, ctx, database, "short_link_confirmation_permission_addition", true)
+	assertRelationExists(t, ctx, database, "moeurl_short_link_confirmation_permission_addition", false)
+	assertConfirmationConstraintValidation(t, ctx, database, false)
+	assertConfirmationPermission(t, ctx, database, "guest", false)
+	assertConfirmationPermission(t, ctx, database, "user", true)
+	assertConfirmationPermission(t, ctx, database, "admin", true)
+	if _, err := database.ExecContext(ctx, `update short_link set redirect_mode = 'confirmation' where slug = 'direct1'`); err != nil {
+		t.Fatalf("set confirmation redirect mode: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `update short_link set redirect_mode = 'invalid' where slug = 'middle1'`); err == nil {
+		t.Fatal("expected invalid redirect mode to violate confirmation constraint")
+	}
+
+	if err := goose.UpTo(database, migrationsDir, 9); err != nil {
+		t.Fatalf("stage confirmation constraint validation: %v", err)
+	}
+	assertConfirmationConstraintValidation(t, ctx, database, false)
+	if err := goose.UpTo(database, migrationsDir, 10); err != nil {
+		t.Fatalf("validate confirmation constraint: %v", err)
+	}
+	assertConfirmationConstraintValidation(t, ctx, database, true)
+
+	if err := goose.DownTo(database, migrationsDir, 9); err != nil {
+		t.Fatalf("rollback validation phase: %v", err)
+	}
+	assertConfirmationConstraintValidation(t, ctx, database, false)
+
+	if err := goose.DownTo(database, migrationsDir, 8); err != nil {
+		t.Fatalf("stage confirmation rollback: %v", err)
+	}
+	assertConfirmationConstraintValidation(t, ctx, database, false)
+	assertRelationExists(t, ctx, database, "short_link_confirmation_permission_addition", true)
+	assertConfirmationPermission(t, ctx, database, "user", true)
+	assertConfirmationPermission(t, ctx, database, "admin", true)
+
+	var directMode, intermediateMode string
+	if err := database.QueryRowContext(ctx, `select redirect_mode from short_link where slug = 'direct1'`).Scan(&directMode); err != nil {
+		t.Fatalf("read staged confirmation link: %v", err)
+	}
+	if directMode != "confirmation" {
+		t.Fatalf("expected staged rollback to preserve confirmation mode, got %s", directMode)
+	}
+	if _, err := database.ExecContext(ctx, `update short_link set redirect_mode = 'confirmation' where slug = 'middle1'`); err != nil {
+		t.Fatalf("expected staged rollback constraint to allow confirmation mode: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `update short_link set redirect_mode = 'intermediate' where slug = 'middle1'`); err != nil {
+		t.Fatalf("restore intermediate mode after staged rollback: %v", err)
+	}
+
+	if err := goose.UpTo(database, migrationsDir, 9); err != nil {
+		t.Fatalf("resume confirmation constraint stage from staged rollback: %v", err)
+	}
+	assertConfirmationConstraintValidation(t, ctx, database, false)
+	if err := goose.UpTo(database, migrationsDir, 10); err != nil {
+		t.Fatalf("resume confirmation validation from staged rollback: %v", err)
+	}
+	assertConfirmationConstraintValidation(t, ctx, database, true)
+	if _, err := database.ExecContext(ctx, `update short_link set redirect_mode = 'confirmation' where slug = 'direct1'`); err != nil {
+		t.Fatalf("restore confirmation mode after resumed migration: %v", err)
+	}
+	if err := goose.DownTo(database, migrationsDir, 8); err != nil {
+		t.Fatalf("restage confirmation rollback: %v", err)
+	}
+	assertConfirmationConstraintValidation(t, ctx, database, false)
+
+	if err := goose.DownTo(database, migrationsDir, 7); err != nil {
+		t.Fatalf("rollback confirmation migrations: %v", err)
+	}
+	assertRelationExists(t, ctx, database, "short_link_confirmation_permission_addition", false)
+	assertConfirmationConstraintValidation(t, ctx, database, true)
+	for _, groupKey := range []string{"guest", "user", "admin"} {
+		assertConfirmationPermission(t, ctx, database, groupKey, false)
+	}
+
+	if err := database.QueryRowContext(ctx, `select redirect_mode from short_link where slug = 'direct1'`).Scan(&directMode); err != nil {
+		t.Fatalf("read rolled-back confirmation link: %v", err)
+	}
+	if err := database.QueryRowContext(ctx, `select redirect_mode from short_link where slug = 'middle1'`).Scan(&intermediateMode); err != nil {
+		t.Fatalf("read retained intermediate link: %v", err)
+	}
+	if directMode != "direct" || intermediateMode != "intermediate" {
+		t.Fatalf("unexpected rolled-back modes: direct1=%s middle1=%s", directMode, intermediateMode)
+	}
+
+	if err := goose.UpTo(database, migrationsDir, 8); err != nil {
+		t.Fatalf("reapply confirmation migration: %v", err)
+	}
+	if err := goose.DownTo(database, migrationsDir, 7); err != nil {
+		t.Fatalf("rollback reapplied confirmation migration: %v", err)
+	}
+	for _, groupKey := range []string{"guest", "user", "admin"} {
+		assertConfirmationPermission(t, ctx, database, groupKey, false)
+	}
+}
+
+// TestShortLinkConfirmationMigrationPreservesUntrackedPermissions verifies rollback removes only recorded additions.
+func TestShortLinkConfirmationMigrationPreservesUntrackedPermissions(t *testing.T) {
+	ctx := context.Background()
+	database := migrationTestDatabase(t, ctx)
+	migrationsDir := filepath.Join("..", "..", "migrations")
+
+	if err := goose.UpTo(database, migrationsDir, 7); err != nil {
+		t.Fatalf("run migrations through version 7: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `
+		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000003', 'admin', 'Admin', '', '["short_link:use_confirmation"]'::jsonb, true, now(), '2026-01-01T00:00:00Z')
+	`); err != nil {
+		t.Fatalf("insert pre-upgrade admin group: %v", err)
+	}
+	if err := goose.UpTo(database, migrationsDir, 8); err != nil {
+		t.Fatalf("upgrade confirmation migration: %v", err)
+	}
+	var adminUpdatedAt time.Time
+	if err := database.QueryRowContext(ctx, `select updated_at from user_group where key = 'admin'`).Scan(&adminUpdatedAt); err != nil {
+		t.Fatalf("query unchanged admin update time: %v", err)
+	}
+	expectedAdminUpdatedAt := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	if !adminUpdatedAt.Equal(expectedAdminUpdatedAt) {
+		t.Fatalf("expected unchanged admin updated_at %s, got %s", expectedAdminUpdatedAt, adminUpdatedAt)
+	}
+	if _, err := database.ExecContext(ctx, `
+		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000002', 'user', 'User', '', '["short_link:use_confirmation"]'::jsonb, true, now(), now())
+	`); err != nil {
+		t.Fatalf("insert post-upgrade user group: %v", err)
+	}
+
+	if err := goose.DownTo(database, migrationsDir, 7); err != nil {
+		t.Fatalf("rollback confirmation migration: %v", err)
+	}
+	assertConfirmationPermission(t, ctx, database, "user", true)
+	assertConfirmationPermission(t, ctx, database, "admin", true)
+}
+
+// TestShortLinkConfirmationMigrationPreservesReaddedPermission verifies rollback retains a permission restored after migration.
+func TestShortLinkConfirmationMigrationPreservesReaddedPermission(t *testing.T) {
+	ctx := context.Background()
+	database := migrationTestDatabase(t, ctx)
+	migrationsDir := filepath.Join("..", "..", "migrations")
+
+	if err := goose.UpTo(database, migrationsDir, 7); err != nil {
+		t.Fatalf("run migrations through version 7: %v", err)
+	}
+	insertUserGroups(t, ctx, database)
+	if err := goose.UpTo(database, migrationsDir, 8); err != nil {
+		t.Fatalf("upgrade confirmation migration: %v", err)
+	}
+
+	var permissionRevision int64
+	if err := database.QueryRowContext(ctx, `
+		select addition.permission_revision
+		from short_link_confirmation_permission_addition as addition
+		join user_group on user_group.id = addition.user_group_id
+		where user_group.key = 'user'
+	`).Scan(&permissionRevision); err != nil {
+		t.Fatalf("query tracked confirmation permission revision: %v", err)
+	}
+	if permissionRevision != 0 {
+		t.Fatalf("expected initial confirmation permission revision 0, got %d", permissionRevision)
+	}
+
+	if _, err := database.ExecContext(ctx, `
+		update user_group
+		set permissions = permissions - 'short_link:use_confirmation'
+		where key = 'user'
+	`); err != nil {
+		t.Fatalf("remove migrated confirmation permission: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `
+		update user_group
+		set permissions = permissions || '["short_link:use_confirmation"]'::jsonb
+		where key = 'user'
+	`); err != nil {
+		t.Fatalf("restore confirmation permission: %v", err)
+	}
+	if err := database.QueryRowContext(ctx, `
+		select addition.permission_revision
+		from short_link_confirmation_permission_addition as addition
+		join user_group on user_group.id = addition.user_group_id
+		where user_group.key = 'user'
+	`).Scan(&permissionRevision); err != nil {
+		t.Fatalf("query restored confirmation permission revision: %v", err)
+	}
+	if permissionRevision != 2 {
+		t.Fatalf("expected restored confirmation permission revision 2, got %d", permissionRevision)
+	}
+
+	if err := goose.DownTo(database, migrationsDir, 7); err != nil {
+		t.Fatalf("rollback confirmation migration: %v", err)
+	}
+	assertConfirmationPermission(t, ctx, database, "user", true)
+	assertConfirmationPermission(t, ctx, database, "admin", false)
+}
+
+// TestShortLinkConfirmationMigrationIgnoresUnrelatedGroupChanges verifies unrelated edits do not preserve a migration-owned permission.
+func TestShortLinkConfirmationMigrationIgnoresUnrelatedGroupChanges(t *testing.T) {
+	ctx := context.Background()
+	database := migrationTestDatabase(t, ctx)
+	migrationsDir := filepath.Join("..", "..", "migrations")
+
+	if err := goose.UpTo(database, migrationsDir, 7); err != nil {
+		t.Fatalf("run migrations through version 7: %v", err)
+	}
+	insertUserGroups(t, ctx, database)
+	if err := goose.UpTo(database, migrationsDir, 8); err != nil {
+		t.Fatalf("upgrade confirmation migration: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `
+		update user_group
+		set name = 'Updated User',
+			permissions = permissions || '["short_link:unrelated"]'::jsonb,
+			updated_at = '2030-01-01T00:00:00Z'
+		where key = 'user'
+	`); err != nil {
+		t.Fatalf("update unrelated user group state: %v", err)
+	}
+
+	var permissionRevision int64
+	if err := database.QueryRowContext(ctx, `
+		select addition.permission_revision
+		from short_link_confirmation_permission_addition as addition
+		join user_group on user_group.id = addition.user_group_id
+		where user_group.key = 'user'
+	`).Scan(&permissionRevision); err != nil {
+		t.Fatalf("query confirmation permission revision after unrelated changes: %v", err)
+	}
+	if permissionRevision != 0 {
+		t.Fatalf("expected unrelated changes to retain revision 0, got %d", permissionRevision)
+	}
+
+	if err := goose.DownTo(database, migrationsDir, 7); err != nil {
+		t.Fatalf("rollback confirmation migration: %v", err)
+	}
+	assertConfirmationPermission(t, ctx, database, "user", false)
+
+	var name string
+	var unrelatedPermission bool
+	if err := database.QueryRowContext(ctx, `
+		select name, permissions ? 'short_link:unrelated'
+		from user_group
+		where key = 'user'
+	`).Scan(&name, &unrelatedPermission); err != nil {
+		t.Fatalf("query unrelated user group state after rollback: %v", err)
+	}
+	if name != "Updated User" || !unrelatedPermission {
+		t.Fatalf("unexpected unrelated user group state after rollback: name=%q permission=%t", name, unrelatedPermission)
+	}
+}
+
+// TestShortLinkExperienceMigrationUpgradesExistingDataAndRollsBack verifies short link experience migration upgrades existing data and rolls back.
 func TestShortLinkExperienceMigrationUpgradesExistingDataAndRollsBack(t *testing.T) {
 	ctx := context.Background()
 	database := migrationTestDatabase(t, ctx)
@@ -335,6 +608,7 @@ func TestShortLinkExperienceMigrationUpgradesExistingDataAndRollsBack(t *testing
 	assertShortLinkExperienceConstraintValidation(t, ctx, database, true)
 }
 
+// migrationTestDatabase opens the isolated PostgreSQL database used by its test package.
 func migrationTestDatabase(t *testing.T, ctx context.Context) *sql.DB {
 	t.Helper()
 
@@ -381,6 +655,7 @@ func assertShortLinkPasswordConstraintValidation(t *testing.T, ctx context.Conte
 	}
 }
 
+// assertGroupPermissions checks the database state expected by the surrounding tests.
 func assertGroupPermissions(t *testing.T, ctx context.Context, database *sql.DB, groupKey string, expectedIntermediate bool, expectedExpiration bool) {
 	t.Helper()
 
@@ -413,6 +688,7 @@ func assertGroupPermissions(t *testing.T, ctx context.Context, database *sql.DB,
 	}
 }
 
+// assertShortLinkExperienceDefaults checks the database state expected by the surrounding tests.
 func assertShortLinkExperienceDefaults(t *testing.T, ctx context.Context, database *sql.DB, shortLinkID string) {
 	t.Helper()
 
@@ -438,6 +714,7 @@ func assertShortLinkExperienceDefaults(t *testing.T, ctx context.Context, databa
 	}
 }
 
+// assertShortLinkExperienceConstraints checks the database state expected by the surrounding tests.
 func assertShortLinkExperienceConstraints(t *testing.T, ctx context.Context, database *sql.DB, shortLinkID string) {
 	t.Helper()
 
@@ -471,6 +748,7 @@ func assertShortLinkExperienceConstraints(t *testing.T, ctx context.Context, dat
 	}
 }
 
+// assertShortLinkExperienceConstraintValidation checks the database state expected by the surrounding tests.
 func assertShortLinkExperienceConstraintValidation(t *testing.T, ctx context.Context, database *sql.DB, expected bool) {
 	t.Helper()
 
@@ -507,6 +785,7 @@ func assertShortLinkExperienceConstraintValidation(t *testing.T, ctx context.Con
 	}
 }
 
+// assertShortLinkExpirationRoundTrip checks the database state expected by the surrounding tests.
 func assertShortLinkExpirationRoundTrip(t *testing.T, ctx context.Context, database *sql.DB, shortLinkID string) {
 	t.Helper()
 
@@ -563,6 +842,7 @@ func insertUserGroups(t *testing.T, ctx context.Context, database *sql.DB) {
 	}
 }
 
+// assertPasswordPermission checks the database state expected by the surrounding tests.
 func assertPasswordPermission(t *testing.T, ctx context.Context, database *sql.DB, groupKey string, expected bool) {
 	t.Helper()
 
@@ -572,5 +852,49 @@ func assertPasswordPermission(t *testing.T, ctx context.Context, database *sql.D
 	}
 	if actual != expected {
 		t.Fatalf("expected %s password permission=%t, got %t", groupKey, expected, actual)
+	}
+}
+
+// assertConfirmationPermission checks the database state expected by the surrounding tests.
+func assertConfirmationPermission(t *testing.T, ctx context.Context, database *sql.DB, groupKey string, expected bool) {
+	t.Helper()
+
+	var actual bool
+	if err := database.QueryRowContext(ctx, `select permissions ? 'short_link:use_confirmation' from user_group where key = $1`, groupKey).Scan(&actual); err != nil {
+		t.Fatalf("query %s confirmation permission: %v", groupKey, err)
+	}
+	if actual != expected {
+		t.Fatalf("expected %s confirmation permission=%t, got %t", groupKey, expected, actual)
+	}
+}
+
+// assertRelationExists checks whether a PostgreSQL relation is visible on the current search path.
+func assertRelationExists(t *testing.T, ctx context.Context, database *sql.DB, relation string, expected bool) {
+	t.Helper()
+
+	var actual bool
+	if err := database.QueryRowContext(ctx, `select to_regclass($1) is not null`, relation).Scan(&actual); err != nil {
+		t.Fatalf("query relation %s: %v", relation, err)
+	}
+	if actual != expected {
+		t.Fatalf("expected relation %s existence=%t, got %t", relation, expected, actual)
+	}
+}
+
+// assertConfirmationConstraintValidation checks the database state expected by the surrounding tests.
+func assertConfirmationConstraintValidation(t *testing.T, ctx context.Context, database *sql.DB, expected bool) {
+	t.Helper()
+
+	var validated bool
+	if err := database.QueryRowContext(ctx, `
+		select convalidated
+		from pg_constraint
+		where conname = 'short_link_redirect_mode_check'
+			and conrelid = 'short_link'::regclass
+	`).Scan(&validated); err != nil {
+		t.Fatalf("query confirmation constraint validation: %v", err)
+	}
+	if validated != expected {
+		t.Fatalf("expected confirmation constraint validated=%t, got %t", expected, validated)
 	}
 }

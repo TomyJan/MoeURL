@@ -50,6 +50,13 @@ v0.3.0 实施文档包括：
 - [v0.3.0 任务级实施清单](v0.3.0-tasks.md)：将数据库、后端、前端和发布收尾拆分为可执行任务。
 - [v0.3.0 验收清单](v0.3.0-acceptance.md)：用于密码安全、访问授权、页面和发布质量验收。
 
+v0.4.0 实施文档包括：
+
+- [v0.4.0 实施计划](v0.4.0-plan.md)：定义确认页访问的阶段、边界和生产验收要求。
+- [v0.4.0 详细实现计划](v0.4.0-detailed-plan.md)：按 TDD 切片拆分数据库、后端状态机、前端确认页和发布验证步骤。
+- [v0.4.0 任务级实施清单](v0.4.0-tasks.md)：将权限、模式契约、公共访问、前端和发布收尾拆分为可执行任务。
+- [v0.4.0 验收清单](v0.4.0-acceptance.md)：用于确认页权限、访问行为、页面和发布质量验收。
+
 建议阅读顺序：
 
 ```text
@@ -59,6 +66,22 @@ technical-baseline.md
   ↓
 agent-delivery-guidelines.md
   ↓
+../product/scope-v0.4.0.md
+  ↓
+../specs/2026-08-13-v0.4.0-confirmation-page-access-design.md
+  ↓
+v0.4.0-plan.md
+  ↓
+v0.4.0-detailed-plan.md
+  ↓
+v0.4.0-tasks.md
+  ↓
+v0.4.0-acceptance.md
+```
+
+回看 v0.3.0 受保护访问基线时，继续阅读：
+
+```text
 ../product/scope-v0.3.0.md
   ↓
 ../specs/2026-08-04-v0.3.0-protected-link-access-design.md

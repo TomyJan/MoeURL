@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,185 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
 )
+
+// TestNewServiceFailsClosedWithoutPermissionResolver verifies missing permission wiring is observable and denied.
+func TestNewServiceFailsClosedWithoutPermissionResolver(t *testing.T) {
+	var logOutput bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logOutput, nil))
+
+	service := NewServiceWithLogger(nil, nil, logger)
+	_, err := service.permissions.Resolve(t.Context(), permission.GroupAdmin)
+
+	require.EqualError(t, err, "short link permission resolver is required")
+	require.Contains(t, logOutput.String(), "short_link_permission_resolver_required")
+}
+
+// TestNewServiceWithLoggerUsesDefaultLoggerWhenNil verifies missing dependency logging accepts an omitted logger.
+func TestNewServiceWithLoggerUsesDefaultLoggerWhenNil(t *testing.T) {
+	service := NewServiceWithLogger(nil, nil, nil)
+
+	_, err := service.permissions.Resolve(t.Context(), permission.GroupAdmin)
+	require.ErrorIs(t, err, errPermissionResolverRequired)
+}
+
+type failingPermissionResolver struct {
+	err error
+}
+
+// Resolve implements the corresponding operation for the surrounding test double.
+func (r failingPermissionResolver) Resolve(context.Context, string) (permission.Snapshot, error) {
+	return permission.Snapshot{}, r.err
+}
+
+type recordingPermissionResolver struct {
+	delegate permission.Resolver
+	err      error
+	calls    int
+	groupKey string
+}
+
+// Resolve records each authorization lookup before delegating or returning the configured error.
+func (r *recordingPermissionResolver) Resolve(ctx context.Context, groupKey string) (permission.Snapshot, error) {
+	r.calls++
+	r.groupKey = groupKey
+	if r.err != nil {
+		return permission.Snapshot{}, r.err
+	}
+	return r.delegate.Resolve(ctx, groupKey)
+}
+
+// TestServiceAuthorizeResolvesOneReusableSnapshot verifies regular authorization checks every required permission in one lookup.
+func TestServiceAuthorizeResolvesOneReusableSnapshot(t *testing.T) {
+	wantErr := errors.New("permission database down")
+	tests := []struct {
+		name     string
+		resolver *recordingPermissionResolver
+		wantErr  error
+	}{
+		{
+			name: "authorized",
+			resolver: &recordingPermissionResolver{
+				delegate: permission.NewService(),
+			},
+		},
+		{
+			name: "missing required permission",
+			resolver: &recordingPermissionResolver{
+				delegate: permission.NewServiceWithPermissions([]string{permission.ShortLinkCreate}, permission.AdminPermissions),
+			},
+			wantErr: ErrPermissionDenied,
+		},
+		{
+			name:     "resolver failure",
+			resolver: &recordingPermissionResolver{err: wantErr},
+			wantErr:  wantErr,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			service := &Service{permissions: test.resolver}
+			permissions, err := service.authorize(
+				t.Context(),
+				auth.CurrentUser{GroupKey: permission.GroupUser},
+				permission.ShortLinkCreate,
+				permission.DomainUseDefault,
+			)
+
+			require.ErrorIs(t, err, test.wantErr)
+			require.Equal(t, 1, test.resolver.calls)
+			require.Equal(t, permission.GroupUser, test.resolver.groupKey)
+			if test.wantErr == nil {
+				require.True(t, permissions.Has(permission.ShortLinkUseConfirmation))
+			}
+		})
+	}
+}
+
+// TestServiceAuthorizeAdminCombinesRequiredPermissions verifies administrator authorization uses one reusable snapshot.
+func TestServiceAuthorizeAdminCombinesRequiredPermissions(t *testing.T) {
+	wantErr := errors.New("permission database down")
+	tests := []struct {
+		name     string
+		resolver *recordingPermissionResolver
+		wantErr  error
+	}{
+		{
+			name: "authorized",
+			resolver: &recordingPermissionResolver{
+				delegate: permission.NewService(),
+			},
+		},
+		{
+			name: "missing admin access",
+			resolver: &recordingPermissionResolver{
+				delegate: permission.NewServiceWithPermissions(permission.UserPermissions, []string{permission.ShortLinkReadAll}),
+			},
+			wantErr: ErrPermissionDenied,
+		},
+		{
+			name: "missing action permission",
+			resolver: &recordingPermissionResolver{
+				delegate: permission.NewServiceWithPermissions(permission.UserPermissions, []string{permission.AdminAccess}),
+			},
+			wantErr: ErrPermissionDenied,
+		},
+		{
+			name:     "resolver failure",
+			resolver: &recordingPermissionResolver{err: wantErr},
+			wantErr:  wantErr,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			service := &Service{permissions: test.resolver}
+			permissions, err := service.authorizeAdmin(
+				t.Context(),
+				auth.CurrentUser{GroupKey: permission.GroupAdmin},
+				permission.ShortLinkReadAll,
+			)
+
+			require.ErrorIs(t, err, test.wantErr)
+			require.Equal(t, 1, test.resolver.calls)
+			require.Equal(t, permission.GroupAdmin, test.resolver.groupKey)
+			if test.wantErr == nil {
+				require.True(t, permissions.Has(permission.ShortLinkUseConfirmation))
+			}
+		})
+	}
+}
+
+// TestServicePermissionResolutionFailuresPropagate verifies authorization infrastructure errors never become permission grants.
+func TestServicePermissionResolutionFailuresPropagate(t *testing.T) {
+	wantErr := errors.New("permission database down")
+	service := &Service{permissions: failingPermissionResolver{err: wantErr}}
+	ctx := context.Background()
+	user := auth.CurrentUser{GroupKey: permission.GroupUser}
+	admin := auth.CurrentUser{GroupKey: permission.GroupAdmin}
+
+	tests := []struct {
+		name string
+		call func() error
+	}{
+		{name: "create", call: func() error { _, err := service.Create(ctx, user, CreateInput{}); return err }},
+		{name: "overview", call: func() error { _, err := service.Overview(ctx, user); return err }},
+		{name: "list", call: func() error { _, err := service.List(ctx, user, ListInput{}); return err }},
+		{name: "update", call: func() error { _, err := service.Update(ctx, user, UpdateInput{}); return err }},
+		{name: "delete", call: func() error { return service.Delete(ctx, user, DeleteInput{}) }},
+		{name: "statistics", call: func() error { _, err := service.Statistics(ctx, user, StatisticsInput{}); return err }},
+		{name: "admin statistics", call: func() error { _, err := service.AdminStatistics(ctx, admin, StatisticsInput{}); return err }},
+		{name: "admin list", call: func() error { _, err := service.AdminList(ctx, admin, ListInput{}); return err }},
+		{name: "admin update", call: func() error { _, err := service.AdminUpdate(ctx, admin, UpdateInput{}); return err }},
+		{name: "admin delete", call: func() error { return service.AdminDelete(ctx, admin, DeleteInput{}) }},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			require.ErrorIs(t, test.call(), wantErr)
+		})
+	}
+}
 
 // TestValidatePasswordInput verifies password modes reject contradictory or out-of-range values.
 func TestValidatePasswordInput(t *testing.T) {
@@ -64,32 +244,145 @@ func TestShortLinkPasswordStateMarshalsOnlyEnabledFlag(t *testing.T) {
 
 // TestNormalizePasswordRequiresPermissionAndStoresOnlyHash verifies capability checks and one-way persistence.
 func TestNormalizePasswordRequiresPermissionAndStoresOnlyHash(t *testing.T) {
-	service := &Service{permissions: permission.NewService()}
-	user := auth.CurrentUser{GroupKey: permission.GroupUser}
-	mode, hash, err := service.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
+	service := permission.NewService()
+	userPermissions, err := service.Resolve(context.Background(), permission.GroupUser)
+	require.NoError(t, err)
+	mode, hash, err := normalizePassword(userPermissions, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
 	require.NoError(t, err)
 	verified := hash.Valid && auth.VerifyPassword("correct horse", hash.String)
 	require.Equal(t, PasswordModeSet, mode)
 	require.True(t, verified)
-	admin := auth.CurrentUser{GroupKey: permission.GroupAdmin}
-	mode, hash, err = service.normalizePassword(admin, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
+	adminPermissions, err := service.Resolve(context.Background(), permission.GroupAdmin)
+	require.NoError(t, err)
+	mode, hash, err = normalizePassword(adminPermissions, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
 	require.NoError(t, err)
 	require.Equal(t, PasswordModeSet, mode)
 	require.True(t, hash.Valid)
 	require.True(t, auth.VerifyPassword("correct horse", hash.String))
-	mode, hash, err = service.normalizePassword(admin, &PasswordInput{Mode: PasswordModeNever})
+	mode, hash, err = normalizePassword(adminPermissions, &PasswordInput{Mode: PasswordModeNever})
 	require.NoError(t, err)
 	require.Equal(t, PasswordModeNever, mode)
 	require.False(t, hash.Valid)
-	limitedService := &Service{permissions: permission.NewServiceWithPermissions(nil, permission.AdminPermissions)}
-	_, _, err = limitedService.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
+	limitedPermissions, err := permission.NewServiceWithPermissions(nil, permission.AdminPermissions).Resolve(context.Background(), permission.GroupUser)
+	require.NoError(t, err)
+	_, _, err = normalizePassword(limitedPermissions, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
 	require.ErrorIs(t, err, ErrPermissionDenied)
-	for _, user := range []auth.CurrentUser{
-		auth.GuestUser(),
-		{GroupKey: "unknown"},
+	for _, groupKey := range []string{
+		permission.GroupGuest,
+		"unknown",
 	} {
-		_, _, err := service.normalizePassword(user, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
-		require.ErrorIs(t, err, ErrPermissionDenied, user.GroupKey)
+		permissions, resolveErr := service.Resolve(context.Background(), groupKey)
+		require.NoError(t, resolveErr)
+		_, _, err := normalizePassword(permissions, &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"})
+		require.ErrorIs(t, err, ErrPermissionDenied, groupKey)
+	}
+}
+
+// TestAccessConfigDefaultsPreserveCreateAndUpdateSemantics locks the distinct omitted-field persistence shapes.
+func TestAccessConfigDefaultsPreserveCreateAndUpdateSemantics(t *testing.T) {
+	ctx := context.Background()
+	permissions, err := permission.NewServiceWithPermissions(nil, permission.AdminPermissions).Resolve(ctx, permission.GroupUser)
+	require.NoError(t, err)
+	service := &Service{}
+
+	createConfig, err := service.createAccessConfig(ctx, permissions, CreateInput{})
+	require.NoError(t, err)
+	require.Equal(t, RedirectModeDirect, createConfig.redirectMode)
+	require.Equal(t, defaultIntermediateDelay, createConfig.intermediateDelaySeconds)
+	require.False(t, createConfig.expiresAt.Valid)
+	require.False(t, createConfig.passwordHash.Valid)
+
+	updateConfig, err := service.updateAccessConfig(ctx, permissions, UpdateInput{})
+	require.NoError(t, err)
+	require.False(t, updateConfig.redirectMode.Valid)
+	require.False(t, updateConfig.intermediateDelaySeconds.Valid)
+	require.Equal(t, expirationModeKeep, updateConfig.expirationMode)
+	require.False(t, updateConfig.expiresAt.Valid)
+	require.Equal(t, passwordModeKeep, updateConfig.passwordMode)
+	require.False(t, updateConfig.passwordHash.Valid)
+}
+
+// TestAccessConfigAuthorizationMatchesCreateAndUpdate locks shared permission results and error precedence.
+func TestAccessConfigAuthorizationMatchesCreateAndUpdate(t *testing.T) {
+	confirmationMode := RedirectModeConfirmation
+	directMode := RedirectModeDirect
+	invalidMode := "invalid"
+	validDelay := defaultIntermediateDelay
+	invalidDelay := minIntermediateDelay - 1
+	clearExpiration := &ExpirationInput{Mode: ExpirationModeNever}
+	invalidExpiration := &ExpirationInput{Mode: ExpirationModeAt}
+	clearPassword := &PasswordInput{Mode: PasswordModeNever}
+	setPassword := &PasswordInput{Mode: PasswordModeSet, Value: "correct horse"}
+	allAccessPermissions := []string{
+		permission.ShortLinkUseIntermediate,
+		permission.ShortLinkSetExpiration,
+		permission.ShortLinkSetPassword,
+		permission.ShortLinkUseConfirmation,
+	}
+
+	tests := []struct {
+		name         string
+		permissions  []string
+		redirectMode *string
+		delay        *int16
+		expiration   *ExpirationInput
+		password     *PasswordInput
+		wantErr      error
+	}{
+		{
+			name:         "authorized",
+			permissions:  allAccessPermissions,
+			redirectMode: &confirmationMode,
+			delay:        &validDelay,
+			expiration:   clearExpiration,
+			password:     clearPassword,
+		},
+		{name: "invalid redirect mode first", redirectMode: &invalidMode, wantErr: ErrInvalidRedirectMode},
+		{name: "invalid delay first", redirectMode: &directMode, delay: &invalidDelay, wantErr: ErrInvalidIntermediateDelay},
+		{name: "redirect mode permission", redirectMode: &confirmationMode, wantErr: ErrPermissionDenied},
+		{name: "explicit delay permission", redirectMode: &directMode, delay: &validDelay, wantErr: ErrPermissionDenied},
+		{name: "expiration permission", redirectMode: &directMode, expiration: clearExpiration, wantErr: ErrPermissionDenied},
+		{
+			name:         "expiration validation before password permission",
+			permissions:  []string{permission.ShortLinkSetExpiration},
+			redirectMode: &directMode,
+			expiration:   invalidExpiration,
+			password:     setPassword,
+			wantErr:      ErrInvalidExpiration,
+		},
+		{name: "password permission", redirectMode: &directMode, password: clearPassword, wantErr: ErrPermissionDenied},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			permissions, err := permission.NewServiceWithPermissions(test.permissions, permission.AdminPermissions).Resolve(ctx, permission.GroupUser)
+			require.NoError(t, err)
+			service := &Service{}
+			createInput := CreateInput{
+				IntermediateDelaySeconds: test.delay,
+				Expiration:               test.expiration,
+				Password:                 test.password,
+			}
+			if test.redirectMode != nil {
+				createInput.RedirectMode = *test.redirectMode
+			}
+			_, createErr := service.createAccessConfig(ctx, permissions, createInput)
+			_, updateErr := service.updateAccessConfig(ctx, permissions, UpdateInput{
+				RedirectMode:             test.redirectMode,
+				IntermediateDelaySeconds: test.delay,
+				Expiration:               test.expiration,
+				Password:                 test.password,
+			})
+
+			if test.wantErr == nil {
+				require.NoError(t, createErr)
+				require.NoError(t, updateErr)
+				return
+			}
+			require.ErrorIs(t, createErr, test.wantErr)
+			require.ErrorIs(t, updateErr, test.wantErr)
+		})
 	}
 }
 
@@ -124,26 +417,32 @@ type analyticsQueryStub struct {
 	countryErr  error
 }
 
+// GetShortLinkAnalyticsSummary implements the corresponding operation for the surrounding test double.
 func (s analyticsQueryStub) GetShortLinkAnalyticsSummary(context.Context, pgtype.UUID) (sqlc.GetShortLinkAnalyticsSummaryRow, error) {
 	return sqlc.GetShortLinkAnalyticsSummaryRow{}, s.summaryErr
 }
 
+// ListShortLinkDailyVisits implements the corresponding operation for the surrounding test double.
 func (s analyticsQueryStub) ListShortLinkDailyVisits(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkDailyVisitsRow, error) {
 	return nil, s.trendErr
 }
 
+// ListShortLinkReferrerStats implements the corresponding operation for the surrounding test double.
 func (s analyticsQueryStub) ListShortLinkReferrerStats(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkReferrerStatsRow, error) {
 	return nil, s.referrerErr
 }
 
+// ListShortLinkDeviceStats implements the corresponding operation for the surrounding test double.
 func (s analyticsQueryStub) ListShortLinkDeviceStats(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkDeviceStatsRow, error) {
 	return nil, s.deviceErr
 }
 
+// ListShortLinkCountryStats implements the corresponding operation for the surrounding test double.
 func (s analyticsQueryStub) ListShortLinkCountryStats(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkCountryStatsRow, error) {
 	return nil, s.countryErr
 }
 
+// TestInternalServiceHelpers verifies internal service helpers.
 func TestInternalServiceHelpers(t *testing.T) {
 	if uuidFromPgtype(pgtype.UUID{}) != "" {
 		t.Fatal("expected invalid pgtype UUID to become empty string")
@@ -235,6 +534,7 @@ func TestExpirationValuesUsesDatabaseState(t *testing.T) {
 	}
 }
 
+// TestReservedSlugsIncludeSingularPageRoutes verifies reserved slugs include singular page routes.
 func TestReservedSlugsIncludeSingularPageRoutes(t *testing.T) {
 	for _, slug := range []string{"api", "assets", "setup", "login", "profile", "console", "link", "links", "analytics", "admin", "go", "PROFILE", "GO"} {
 		if !isReservedSlug(slug) {

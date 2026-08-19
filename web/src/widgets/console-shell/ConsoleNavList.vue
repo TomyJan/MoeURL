@@ -104,6 +104,7 @@ watchEffect(() => {
   expandedGroups.value = nextExpandedGroups
 })
 
+/** Toggles one expandable navigation group without mutating the existing set. */
 function toggleGroup(labelKey: string) {
   const nextExpandedGroups = new Set(expandedGroups.value)
   if (nextExpandedGroups.has(labelKey)) {
@@ -115,6 +116,7 @@ function toggleGroup(labelKey: string) {
   expandedGroups.value = nextExpandedGroups
 }
 
+/** Builds the stable DOM identifier referenced by a group's ARIA controls. */
 function navChildrenId(labelKey: string) {
   return `console-nav-children-${labelKey.replaceAll('.', '-')}`
 }

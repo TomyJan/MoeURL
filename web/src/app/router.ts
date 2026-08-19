@@ -13,6 +13,7 @@ type AccessGuard = NavigationGuard & (() => Promise<true | string | RouteLocatio
 type AccessDecision = true | string | RouteLocationRaw
 type AccessDecisionPredicate = (user: CurrentUser, loginRedirect: RouteLocationRaw) => AccessDecision
 
+/** Builds a login route that preserves the originally requested console path. */
 function createLoginRedirect(fullPath?: string): RouteLocationRaw {
   if (!fullPath) {
     return '/login'
@@ -20,7 +21,9 @@ function createLoginRedirect(fullPath?: string): RouteLocationRaw {
   return { path: '/login', query: { redirect: fullPath } }
 }
 
+/** Applies the supplied access decision after identity loading and redirects loading failures to login. */
 function createAccessGuard(loadCurrentUser = me, decideAccess: AccessDecisionPredicate): AccessGuard {
+  /** Resolves identity once and applies the supplied access decision. */
   const guard = async (to?: { fullPath?: string }) => {
     const loginRedirect = createLoginRedirect(to?.fullPath)
     try {
@@ -33,6 +36,7 @@ function createAccessGuard(loadCurrentUser = me, decideAccess: AccessDecisionPre
   return guard as AccessGuard
 }
 
+/** Creates a guard that admits signed-in users with personal short-link access. */
 export function createRequireConsoleAccess(loadCurrentUser = me): AccessGuard {
   return createAccessGuard(loadCurrentUser, (user, loginRedirect) => {
     if (user.group === 'guest') {
@@ -42,6 +46,7 @@ export function createRequireConsoleAccess(loadCurrentUser = me): AccessGuard {
   })
 }
 
+/** Creates a guard that rejects the built-in guest identity. */
 export function createRequireSignedIn(loadCurrentUser = me): AccessGuard {
   return createAccessGuard(loadCurrentUser, (user, loginRedirect) => {
     if (user.group === 'guest') {
@@ -51,6 +56,7 @@ export function createRequireSignedIn(loadCurrentUser = me): AccessGuard {
   })
 }
 
+/** Creates a guard that requires the administrative access permission. */
 export function createRequireAdminAccess(loadCurrentUser = me): AccessGuard {
   return createAccessGuard(loadCurrentUser, (user, loginRedirect) => {
     if (user.permissions.includes('admin:access')) {

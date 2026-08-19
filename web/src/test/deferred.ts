@@ -1,3 +1,4 @@
+/** Creates a promise whose resolution can be controlled by a test. */
 export function createDeferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (reason?: unknown) => void

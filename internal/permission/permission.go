@@ -12,6 +12,7 @@ const (
 	ShortLinkUseIntermediate = "short_link:use_intermediate"
 	ShortLinkSetExpiration   = "short_link:set_expiration"
 	ShortLinkSetPassword     = "short_link:set_password"
+	ShortLinkUseConfirmation = "short_link:use_confirmation"
 	ShortLinkReadAll         = "short_link:read_all"
 	ShortLinkUpdateAll       = "short_link:update_all"
 	ShortLinkDeleteAll       = "short_link:delete_all"
@@ -27,6 +28,7 @@ var UserPermissions = []string{
 	ShortLinkUseIntermediate,
 	ShortLinkSetExpiration,
 	ShortLinkSetPassword,
+	ShortLinkUseConfirmation,
 	DomainUseDefault,
 }
 
@@ -38,6 +40,7 @@ var AdminPermissions = []string{
 	ShortLinkUseIntermediate,
 	ShortLinkSetExpiration,
 	ShortLinkSetPassword,
+	ShortLinkUseConfirmation,
 	ShortLinkReadAll,
 	ShortLinkUpdateAll,
 	ShortLinkDeleteAll,

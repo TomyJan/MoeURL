@@ -100,18 +100,22 @@ const deleteMutation = useMutation({
 const updatingId = useMutationTargetId(statusMutation, (variables) => variables?.id)
 const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof variables === 'string' ? variables : undefined))
 
+/** Toggles an owned short link through the personal update mutation. */
 function toggleStatus(link: ConsoleLinkListItem) {
   statusMutation.mutate({ id: link.id, status: link.status === 'active' ? 'disabled' : 'active' })
 }
 
+/** Starts a soft-delete for the selected owned short link. */
 function remove(id: string) {
   deleteMutation.mutate(id)
 }
 
+/** Copies a public short-link URL when the Clipboard API is available. */
 function copyUrl(url: string) {
   void navigator.clipboard?.writeText(url)
 }
 
+/** Refreshes every cached personal short-link list after a mutation. */
 function invalidateLinks() {
   void queryClient.invalidateQueries({ queryKey: ['short-link'] })
 }

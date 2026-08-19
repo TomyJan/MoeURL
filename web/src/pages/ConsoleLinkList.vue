@@ -136,28 +136,34 @@ watch(openedMoreId, (id, _oldId, onCleanup) => {
 
 onBeforeUnmount(removeDocumentListeners)
 
+/** Toggles the overflow actions for one short-link row. */
 function toggleMore(id: string) {
   openedMoreId.value = openedMoreId.value === id ? '' : id
 }
 
+/** Closes the active row's overflow actions. */
 function closeMore() {
   openedMoreId.value = ''
 }
 
+/** Closes row actions before forwarding a settings request. */
 function openSettings(link: ConsoleLinkListItem) {
   closeMore()
   emit('configure', link)
 }
 
+/** Closes row actions before forwarding a QR-code request. */
 function openQr(link: ConsoleLinkListItem) {
   closeMore()
   emit('qr', link)
 }
 
+/** Formats an optional last-visit date with the product fallback label. */
 function formatVisitedAt(value?: string | null) {
   return formatLocalDate(value, t('links.stats.neverVisited'))
 }
 
+/** Formats an expiration timestamp with local date and minute precision. */
 function formatExpiration(value: string | null) {
   if (!value) {
     return t('links.neverExpires')
@@ -169,6 +175,7 @@ function formatExpiration(value: string | null) {
   return `${formatLocalDate(value, t('links.neverExpires'))} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
+/** Formats a valid timestamp as YYYY-MM-DD or returns the supplied fallback. */
 function formatLocalDate(value: string | null | undefined, fallback: string) {
   if (!value) {
     return fallback
@@ -184,6 +191,7 @@ function formatLocalDate(value: string | null | undefined, fallback: string) {
   ].join('-')
 }
 
+/** Closes row actions for pointer events outside the active actions container. */
 function handleDocumentPointerDown(event: globalThis.PointerEvent) {
   const target = event.target
   const activeActions = globalThis.document?.querySelector(`[data-link-more-id="${openedMoreId.value}"]`)
@@ -193,12 +201,14 @@ function handleDocumentPointerDown(event: globalThis.PointerEvent) {
   closeMore()
 }
 
+/** Closes row actions when Escape is pressed. */
 function handleDocumentKeyDown(event: globalThis.KeyboardEvent) {
   if (event.key === 'Escape') {
     closeMore()
   }
 }
 
+/** Removes document listeners owned by the active row-actions watcher. */
 function removeDocumentListeners() {
   globalThis.document?.removeEventListener('pointerdown', handleDocumentPointerDown)
   globalThis.document?.removeEventListener('keydown', handleDocumentKeyDown)

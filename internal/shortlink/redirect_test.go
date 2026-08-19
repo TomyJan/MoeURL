@@ -196,6 +196,9 @@ func TestRedirectServiceIntermediatePreviewAndContinue(t *testing.T) {
 	if preview.Slug != "middle" || preview.TargetHost != "example.com" || preview.IntermediateDelaySeconds == nil || *preview.IntermediateDelaySeconds != 7 || preview.ExpiresAt == nil || !preview.ExpiresAt.Equal(expiresAt) {
 		t.Fatalf("unexpected intermediate preview: %#v", preview)
 	}
+	if preview.RedirectMode != shortlink.RedirectModeIntermediate {
+		t.Fatalf("expected explicit intermediate preview mode, got %#v", preview)
+	}
 	if len(recorder.types) != 0 {
 		t.Fatalf("expected preview not to write events, got %#v", recorder.types)
 	}
@@ -216,6 +219,103 @@ func TestRedirectServiceIntermediatePreviewAndContinue(t *testing.T) {
 		t.Fatalf("unexpected continued redirect: %#v", continued)
 	}
 	assertEvents(t, recorder.types, []string{event.AccessConditionChecked, event.RedirectInitiated})
+}
+
+// TestRedirectServiceConfirmationPreviewAndContinue verifies confirmation waits for an explicit final action.
+func TestRedirectServiceConfirmationPreviewAndContinue(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "confirmation-user", "user", []string{})
+	linkID := insertStoredShortLink(t, ctx, pool, user.ID, "confirm1", "https://example.com/confirm/path", "active", false)
+	if _, err := pool.Exec(ctx, `update short_link set redirect_mode = 'confirmation' where id = $1`, linkID); err != nil {
+		t.Fatalf("configure confirmation short link: %v", err)
+	}
+	recorder := &recordingRecorder{}
+	service := shortlink.NewRedirectService(pool, recorder)
+
+	opened, err := service.Open(ctx, "CoNfIrM1")
+	if err != nil {
+		t.Fatalf("open confirmation short link: %v", err)
+	}
+	if opened.RedirectMode != shortlink.RedirectModeConfirmation || opened.Slug != "confirm1" || opened.TargetURL != "" || opened.ShortLinkID == "" {
+		t.Fatalf("unexpected confirmation open result: %#v", opened)
+	}
+	assertEvents(t, recorder.types, []string{event.ShortLinkOpened, event.AccessConditionChecked})
+
+	recorder.types = nil
+	preview, err := service.Preview(ctx, "CONFIRM1", "")
+	if err != nil {
+		t.Fatalf("preview confirmation short link: %v", err)
+	}
+	if preview.Slug != "confirm1" || preview.TargetHost != "example.com" || preview.RedirectMode != shortlink.RedirectModeConfirmation || preview.IntermediateDelaySeconds != nil {
+		t.Fatalf("unexpected confirmation preview: %#v", preview)
+	}
+	if len(recorder.types) != 0 {
+		t.Fatalf("expected confirmation preview not to write events, got %#v", recorder.types)
+	}
+
+	continued, err := service.Continue(ctx, "confirm1", "")
+	if err != nil {
+		t.Fatalf("continue confirmation short link: %v", err)
+	}
+	if continued.TargetURL != "https://example.com/confirm/path" || continued.ShortLinkID == "" {
+		t.Fatalf("unexpected confirmation redirect: %#v", continued)
+	}
+	assertEvents(t, recorder.types, []string{event.AccessConditionChecked, event.ConfirmationClicked, event.RedirectInitiated})
+
+	recorder.types = nil
+	if _, err := pool.Exec(ctx, `update short_link set status = 'disabled' where id = $1`, linkID); err != nil {
+		t.Fatalf("disable confirmation short link: %v", err)
+	}
+	if _, err := service.Continue(ctx, "confirm1", ""); !errors.Is(err, shortlink.ErrShortLinkDisabled) {
+		t.Fatalf("expected disabled confirmation continue rejection, got %v", err)
+	}
+	assertEvents(t, recorder.types, []string{event.AccessConditionChecked, event.RedirectBlocked})
+}
+
+// TestRedirectServiceProtectedConfirmationRequiresGrantAndKeepsModeAfterUnlock verifies authorization remains mandatory before confirmation.
+func TestRedirectServiceProtectedConfirmationRequiresGrantAndKeepsModeAfterUnlock(t *testing.T) {
+	ctx := context.Background()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "protected-confirmation-user", "user", []string{})
+	linkID := insertStoredShortLink(t, ctx, pool, user.ID, "confirm2", "https://example.com/protected-confirmation", "active", false)
+	hash, err := auth.HashPassword("correct horse")
+	if err != nil {
+		t.Fatalf("hash protected confirmation password: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		update short_link
+		set redirect_mode = 'confirmation', password_hash = $2, password_updated_at = now()
+		where id = $1
+	`, linkID, hash); err != nil {
+		t.Fatalf("configure protected confirmation short link: %v", err)
+	}
+	recorder := &recordingRecorder{}
+	service := shortlink.NewRedirectService(pool, recorder)
+
+	opened, err := service.Open(ctx, "confirm2")
+	if err != nil || !opened.RequiresPassword || opened.RedirectMode != shortlink.RedirectModeConfirmation {
+		t.Fatalf("expected protected confirmation open, got %#v error %v", opened, err)
+	}
+	if _, err := service.Continue(ctx, "confirm2", ""); !errors.Is(err, shortlink.ErrPasswordRequired) {
+		t.Fatalf("expected protected confirmation continue to require authorization, got %v", err)
+	}
+	grant, err := service.Unlock(ctx, "confirm2", "correct horse")
+	if err != nil {
+		t.Fatalf("unlock protected confirmation: %v", err)
+	}
+	preview, err := service.Preview(ctx, "confirm2", grant.Token)
+	if err != nil || preview.RedirectMode != shortlink.RedirectModeConfirmation || preview.IntermediateDelaySeconds != nil {
+		t.Fatalf("expected authorized confirmation preview, got %#v error %v", preview, err)
+	}
+	recorder.types = nil
+	continued, err := service.Continue(ctx, "confirm2", grant.Token)
+	if err != nil || continued.TargetURL != "https://example.com/protected-confirmation" {
+		t.Fatalf("continue protected confirmation: %#v error %v", continued, err)
+	}
+	assertEvents(t, recorder.types, []string{event.AccessConditionChecked, event.ConfirmationClicked, event.RedirectInitiated})
 }
 
 // TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit verifies unlock, grant reuse, and lockout as one flow.
@@ -810,7 +910,7 @@ func TestRedirectServiceBlocksExpiredAndInvalidPreviewLinks(t *testing.T) {
 		t.Fatalf("expected event-free expired preview error, got %v events %#v", err, recorder.types)
 	}
 	_, err = service.Preview(ctx, "direct1", "")
-	if !errors.Is(err, shortlink.ErrShortLinkNotIntermediate) {
+	if !errors.Is(err, shortlink.ErrShortLinkNotInteractive) {
 		t.Fatalf("expected direct preview rejection, got %v", err)
 	}
 	_, err = service.Preview(ctx, "deleted", "")
@@ -841,7 +941,7 @@ func TestRedirectServiceContinueRechecksEveryAccessCondition(t *testing.T) {
 	}{
 		{name: "missing", slug: "missing2", err: shortlink.ErrShortLinkMissing, events: []string{event.AccessConditionChecked, event.RedirectBlocked}},
 		{name: "disabled", slug: "disabled3", err: shortlink.ErrShortLinkDisabled, events: []string{event.AccessConditionChecked, event.RedirectBlocked}},
-		{name: "direct", slug: "direct2", err: shortlink.ErrShortLinkNotIntermediate, events: []string{event.AccessConditionChecked, event.RedirectBlocked}},
+		{name: "direct", slug: "direct2", err: shortlink.ErrShortLinkNotInteractive, events: []string{event.AccessConditionChecked, event.RedirectBlocked}},
 		{name: "deleted", slug: "deleted3", err: shortlink.ErrShortLinkMissing, events: []string{event.AccessConditionChecked, event.RedirectBlocked}},
 	}
 

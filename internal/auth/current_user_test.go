@@ -9,6 +9,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 )
 
+// TestCurrentUserMiddlewareUsesGuestWithoutSession verifies current user middleware uses guest without session.
 func TestCurrentUserMiddlewareUsesGuestWithoutSession(t *testing.T) {
 	middleware := auth.CurrentUserMiddleware(&fakeCurrentUserResolver{})
 	var current auth.CurrentUser
@@ -29,6 +30,7 @@ func TestCurrentUserMiddlewareUsesGuestWithoutSession(t *testing.T) {
 	}
 }
 
+// TestUserFromContextFallsBackToGuest verifies user from context falls back to guest.
 func TestUserFromContextFallsBackToGuest(t *testing.T) {
 	current := auth.UserFromContext(context.Background())
 
@@ -40,6 +42,7 @@ func TestUserFromContextFallsBackToGuest(t *testing.T) {
 	}
 }
 
+// TestCurrentUserMiddlewareResolvesSessionUser verifies current user middleware resolves session user.
 func TestCurrentUserMiddlewareResolvesSessionUser(t *testing.T) {
 	middleware := auth.CurrentUserMiddleware(&fakeCurrentUserResolver{
 		user: auth.CurrentUser{
@@ -71,6 +74,7 @@ type fakeCurrentUserResolver struct {
 	user auth.CurrentUser
 }
 
+// ResolveCurrentUser implements the corresponding operation for the surrounding test double.
 func (f *fakeCurrentUserResolver) ResolveCurrentUser(ctx context.Context, sessionID string) (auth.CurrentUser, error) {
 	if f.user.Username == "" {
 		return auth.GuestUser(), nil

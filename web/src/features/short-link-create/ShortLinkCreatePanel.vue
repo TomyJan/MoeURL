@@ -44,7 +44,7 @@
           </v-btn>
           <Transition name="moe-layout">
             <div v-if="advancedOpen" class="short-link-create-panel__advanced-controls">
-              <div v-if="canUseIntermediate" class="short-link-create-panel__mode-control">
+              <div v-if="canConfigureRedirect" class="short-link-create-panel__mode-control">
                 <span>{{ t('shortLinkCreate.redirectMode') }}</span>
                 <v-btn-toggle
                   v-model="redirectMode"
@@ -62,12 +62,22 @@
                     {{ t('shortLinkCreate.redirectModes.direct') }}
                   </v-btn>
                   <v-btn
+                    v-if="canUseIntermediate"
                     size="small"
                     :aria-pressed="redirectMode === 'intermediate'"
                     :disabled="mutation.isPending.value"
                     value="intermediate"
                   >
                     {{ t('shortLinkCreate.redirectModes.intermediate') }}
+                  </v-btn>
+                  <v-btn
+                    v-if="canUseConfirmation"
+                    size="small"
+                    :aria-pressed="redirectMode === 'confirmation'"
+                    :disabled="mutation.isPending.value"
+                    value="confirmation"
+                  >
+                    {{ t('shortLinkCreate.redirectModes.confirmation') }}
                   </v-btn>
                 </v-btn-toggle>
               </div>
@@ -158,7 +168,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -167,6 +177,7 @@ import { createShortLink } from '@/entities/short-link/api'
 import type { CreateShortLinkInput, RedirectMode } from '@/entities/short-link/model'
 import ShortLinkQrDialog from '@/features/short-link-qr/ShortLinkQrDialog.vue'
 import { runShortLinkMutation } from '@/shared/short-link/runShortLinkMutation'
+import { useRedirectModePermissions } from '@/shared/short-link/useRedirectModePermissions'
 import { futureDateTimeSchema, passwordSchema, targetUrlSchema } from '@/shared/validation/shortLinkAccess'
 
 withDefaults(
@@ -204,11 +215,18 @@ const hasResolvedCurrentUser = computed(() => currentUserQuery.data.value !== un
 const canCreateShortLink = computed(() =>
   Boolean(currentUser.value?.permissions.includes('short_link:create') && currentUser.value?.permissions.includes('domain:use_default')),
 )
-const canUseIntermediate = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:use_intermediate')))
+const { canUseIntermediate, canUseConfirmation, canSubmitRedirectMode } = useRedirectModePermissions(currentUser)
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
 const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
-const canConfigureAccess = computed(() => canUseIntermediate.value || canSetExpiration.value || canSetPassword.value)
+const canConfigureRedirect = computed(() => canUseIntermediate.value || canUseConfirmation.value)
+const canConfigureAccess = computed(() => canConfigureRedirect.value || canSetExpiration.value || canSetPassword.value)
 const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !canCreateShortLink.value)
+
+watch([canUseIntermediate, canUseConfirmation], () => {
+  if (!canSubmitRedirectMode(redirectMode.value)) {
+    redirectMode.value = 'direct'
+  }
+})
 
 const mutation = useMutation({
   /** Runs creation through the shared sensitive-input cleanup boundary. */
@@ -231,6 +249,7 @@ const mutation = useMutation({
       passwordRequested,
     )
   },
+  /** Stores the generated link and refreshes list consumers after creation. */
   onSuccess(result) {
     createdUrl.value = result.shortLink.url
     createdSlug.value = result.shortLink.slug
@@ -239,6 +258,7 @@ const mutation = useMutation({
     void queryClient.invalidateQueries({ queryKey: ['short-link'] })
     void queryClient.invalidateQueries({ queryKey: ['admin-short-link'] })
   },
+  /** Removes any residual plaintext password after every mutation outcome. */
   onSettled() {
     clearPasswordInput()
   },
@@ -268,6 +288,7 @@ function submit() {
   }
 }
 
+/** Validates visible fields and builds a permission-scoped creation request. */
 function submitValidatedInput(): boolean {
   validationErrorMessage.value = ''
   copyErrorMessage.value = ''
@@ -295,8 +316,10 @@ function submitValidatedInput(): boolean {
   }
 
   const input: CreateShortLinkInput = { targetUrl: targetUrlResult.data }
-  if (canUseIntermediate.value) {
+  if (canSubmitRedirectMode(redirectMode.value)) {
     input.redirectMode = redirectMode.value
+  }
+  if (canUseIntermediate.value && redirectMode.value === 'intermediate') {
     input.intermediateDelaySeconds = intermediateDelaySeconds.value
   }
   if (expiration) {
@@ -314,6 +337,7 @@ function submitValidatedInput(): boolean {
   return true
 }
 
+/** Clears both the creation form and its generated-link result. */
 function resetForm() {
   resetInputFields()
   createdUrl.value = ''
@@ -336,6 +360,7 @@ function resetInputFields() {
   passwordEnabled.value = false
 }
 
+/** Resolves the transient native password input without copying it into reactive state. */
 function passwordInput() {
   const field = passwordField.value?.$el
   if (!(field instanceof globalThis.HTMLElement) || !field.matches('[data-testid="short-link-create-password-input"]')) {
@@ -344,6 +369,7 @@ function passwordInput() {
   return field.querySelector<globalThis.HTMLInputElement>('input')
 }
 
+/** Clears plaintext password data from the rendered input when present. */
 function clearPasswordInput() {
   const input = passwordInput()
   if (input) {
@@ -351,6 +377,7 @@ function clearPasswordInput() {
   }
 }
 
+/** Copies a generated short-link URL and surfaces clipboard failures inline. */
 async function copyUrl(url: string) {
   copyErrorMessage.value = ''
   try {

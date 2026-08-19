@@ -1,4 +1,4 @@
-export type RedirectMode = 'direct' | 'intermediate'
+export type RedirectMode = 'direct' | 'intermediate' | 'confirmation'
 
 export type ExpirationInput =
   | { mode: 'never' }
@@ -89,12 +89,17 @@ export interface UpdateShortLinkInput {
   password?: PasswordInput
 }
 
-export interface PublicShortLinkPreview {
+interface PublicShortLinkPreviewBase {
   slug: string
   targetHost: string
-  intermediateDelaySeconds: number | null
   expiresAt: string | null
 }
+
+export type PublicShortLinkPreview = PublicShortLinkPreviewBase & (
+  | { redirectMode: 'direct'; intermediateDelaySeconds: null }
+  | { redirectMode: 'intermediate'; intermediateDelaySeconds: number }
+  | { redirectMode: 'confirmation'; intermediateDelaySeconds: null }
+)
 
 export interface UnlockShortLinkInput {
   slug: string

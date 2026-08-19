@@ -2,7 +2,7 @@
 
 MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
 
-当前已完成 v0.3.0 受保护短链访问闭环：在短链管理、统计分析和访问体验基础上，提供中间页、可选过期时间、二维码、访问密码、数据库一致失败限流和短期访问授权。
+当前已完成 v0.4.0 确认页访问闭环：在短链管理、统计分析和访问体验基础上，提供直接跳转、中间页和确认页三种模式，并支持可选过期时间、二维码、访问密码、数据库一致失败限流和短期访问授权。
 
 ## 功能概览
 
@@ -12,9 +12,11 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 - 创建、查看、筛选、禁用和软删除短链。
 - 管理员全站短链管理、用户创建和用户维护入口。
 - 控制台个人概览、最近短链和个人昵称设置。
-- 短链支持直接跳转和中间页跳转，短码全系统唯一。
+- 短链支持直接跳转、中间页和确认页三种模式，短码全系统唯一。
 - 支持可选过期时间、访问配置编辑和浏览器即时生成二维码。
 - 支持 Argon2id 访问密码、短链级数据库一致失败限流和 15 分钟短期访问授权。
+- 确认页模式的创建和编辑受 `short_link:use_confirmation` 权限控制；该权限不控制访客在密码解锁后的继续访问，解锁后仍等待访问者主动继续。
+- continue 路由会重新检查状态、软删除、过期、模式和密码授权；无密码 direct 短链不允许通过 Continue 绕过规范入口，只有最终目标 `302` 成功写出后才计入访问量。
 - 短链列表展示总访问量、今日访问量和最近访问时间。
 - 按短链展示近 7 天趋势、来源、设备和地区聚合，不保存原始 IP、完整 User-Agent 或完整 Referer。
 - Vue 3 + Vuetify 4 前端，支持主题、国际化和 PWA 基础能力。
@@ -32,6 +34,10 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 - [文档总览](./docs/README.md)
 - [产品总览](./docs/product/overview.md)
+- [v0.4.0 范围](./docs/product/scope-v0.4.0.md)
+- [v0.4.0 确认页访问设计](./docs/specs/2026-08-13-v0.4.0-confirmation-page-access-design.md)
+- [v0.4.0 实施计划](./docs/implementation/v0.4.0-plan.md)
+- [v0.4.0 验收清单](./docs/implementation/v0.4.0-acceptance.md)
 - [v0.3.0 范围](./docs/product/scope-v0.3.0.md)
 - [v0.3.0 受保护短链访问设计](./docs/specs/2026-08-04-v0.3.0-protected-link-access-design.md)
 - [短链规格](./docs/specs/short-links.md)
@@ -39,8 +45,6 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 - [统计与事件规格](./docs/specs/statistics-and-events.md)
 - [技术选型决策](./docs/implementation/technical-decision.md)
 - [技术基线](./docs/implementation/technical-baseline.md)
-- [v0.3.0 实施计划](./docs/implementation/v0.3.0-plan.md)
-- [v0.3.0 验收清单](./docs/implementation/v0.3.0-acceptance.md)
 
 ## 环境要求
 

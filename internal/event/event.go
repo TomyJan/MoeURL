@@ -6,6 +6,7 @@ const (
 	ShortLinkOpened        = "short_link_opened"
 	AccessConditionChecked = "access_condition_checked"
 	RedirectInitiated      = "redirect_initiated"
+	ConfirmationClicked    = "confirmation_clicked"
 	RedirectResponseSent   = "redirect_response_sent"
 	RedirectBlocked        = "redirect_blocked"
 )

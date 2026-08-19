@@ -5,6 +5,7 @@ interface MutationTargetSource<TVariables> {
   variables: Ref<TVariables | undefined>
 }
 
+/** Exposes the target identifier only while the supplied mutation is pending. */
 export function useMutationTargetId<TVariables>(
   mutation: MutationTargetSource<TVariables>,
   extractId: (variables: TVariables | undefined) => string | undefined,

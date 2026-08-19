@@ -32,7 +32,7 @@ type App struct {
 // New builds the application dependencies and HTTP server from configuration.
 func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, error) {
 	var pool *pgxpool.Pool
-	var deps apphttp.Dependencies
+	deps := apphttp.Dependencies{Logger: logger}
 	var grantCleanupCancel context.CancelFunc
 	var grantCleanupDone <-chan struct{}
 	if cfg.DatabaseURL != "" {
@@ -45,14 +45,15 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		authService := auth.NewService(pool, 24*time.Hour)
 		deps.Auth = authService
 		deps.CurrentUser = authService
-		deps.ShortLink = shortlink.NewService(pool, permission.NewService())
+		permissionService := permission.NewDatabaseService(pool)
+		deps.ShortLink = shortlink.NewServiceWithLogger(pool, permissionService, logger)
 		recorder := event.NewRecorder(pool, logger)
 		redirectService := shortlink.NewRedirectService(pool, recorder)
 		deps.Redirect = redirectService
 		deps.RedirectRecorder = recorder
 		deps.AnalyticsCountryHeader = cfg.AnalyticsCountryHeader
 		deps.SecureCookies = cfg.Env == "production"
-		deps.User = user.NewService(pool, permission.NewService())
+		deps.User = user.NewService(pool, permissionService)
 
 		cleanupContext, cancelCleanup := context.WithCancel(context.Background())
 		cleanupDone := make(chan struct{})

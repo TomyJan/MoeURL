@@ -28,6 +28,7 @@ type LoadedViteConfig = {
   }
 }
 
+/** Returns configured manual chunk groups in a normalized assertion shape. */
 function configuredChunkGroups(config: LoadedViteConfig) {
   return config.build?.rolldownOptions?.output?.codeSplitting?.groups
 }

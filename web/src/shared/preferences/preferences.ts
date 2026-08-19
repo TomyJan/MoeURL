@@ -12,6 +12,7 @@ export const themeOptions: ThemePreference[] = ['system', 'light', 'dark']
 const languageStorageKey = 'moeurl.language'
 const themeStorageKey = 'moeurl.theme'
 
+/** Loads validated UI preferences, falling back to product defaults. */
 export function loadPreferences(): UserPreferences {
   const storage = globalThis.window?.localStorage
   const storedLanguage = storage?.getItem(languageStorageKey)
@@ -22,14 +23,17 @@ export function loadPreferences(): UserPreferences {
   }
 }
 
+/** Persists the selected interface language for future sessions. */
 export function saveLanguagePreference(language: LanguagePreference): void {
   globalThis.window?.localStorage?.setItem(languageStorageKey, language)
 }
 
+/** Persists the selected theme mode for future sessions. */
 export function saveThemePreference(theme: ThemePreference): void {
   globalThis.window?.localStorage?.setItem(themeStorageKey, theme)
 }
 
+/** Maps a preference to a concrete Vuetify theme, including system mode. */
 export function resolveVuetifyTheme(theme: ThemePreference): 'moeurlLight' | 'moeurlDark' {
   if (theme === 'light') {
     return 'moeurlLight'
