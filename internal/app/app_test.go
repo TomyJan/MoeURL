@@ -12,7 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/config"
+	"github.com/TomyJan/MoeURL/internal/permission"
+	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/system"
 	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/TomyJan/MoeURL/internal/user"
@@ -249,6 +252,175 @@ func TestAppNewUsesDatabasePermissionsForUserGroupService(t *testing.T) {
 	}
 	if code := listCode(); code != usergroup.CodePermissionDenied {
 		t.Fatalf("revoked user-group list code = %d, want %d", code, usergroup.CodePermissionDenied)
+	}
+}
+
+// TestAppAppliesUserPermissionChangesToNewRequests verifies runtime revocation and restoration use fresh database snapshots.
+func TestAppAppliesUserPermissionChangesToNewRequests(t *testing.T) {
+	ctx := context.Background()
+	cfg := config.Config{
+		Env:         "development",
+		HTTPAddr:    ":0",
+		DatabaseURL: testdb.ProjectMigratedDatabaseURL(ctx, t),
+		StaticDir:   "web/dist",
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate config: %v", err)
+	}
+	application, err := New(ctx, cfg, slog.Default())
+	if err != nil {
+		t.Fatalf("build application: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := application.Shutdown(context.Background()); err != nil {
+			t.Errorf("shutdown application: %v", err)
+		}
+	})
+	if err := system.NewService(application.pool).Setup(ctx, system.SetupInput{
+		AdminUsername:   "admin",
+		AdminPassword:   "secure-password",
+		AdminNickname:   "Administrator",
+		SiteName:        "MoeURL",
+		SystemDomain:    "example.com",
+		ShortLinkDomain: "go.example.com",
+		DefaultLanguage: "zh-CN",
+		DefaultTheme:    "system",
+	}); err != nil {
+		t.Fatalf("initialize application: %v", err)
+	}
+
+	login := func(username string, password string) (*http.Cookie, auth.CurrentUser) {
+		t.Helper()
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{"username":"`+username+`","password":"`+password+`"}`))
+		response := httptest.NewRecorder()
+		application.server.Handler.ServeHTTP(response, request)
+		var body struct {
+			Code int `json:"code"`
+			Data struct {
+				User auth.CurrentUser `json:"user"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+			t.Fatalf("decode %s login response: %v", username, err)
+		}
+		if response.Code != http.StatusOK || body.Code != 0 {
+			t.Fatalf("%s login response = HTTP %d, code %d", username, response.Code, body.Code)
+		}
+		cookies := response.Result().Cookies()
+		if len(cookies) != 1 {
+			t.Fatalf("%s login cookies = %d, want 1", username, len(cookies))
+		}
+		return cookies[0], body.Data.User
+	}
+
+	adminCookie, adminActor := login("admin", "secure-password")
+	createUserRequest := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/admin/user/create", bytes.NewBufferString(`{
+		"username":"member",
+		"password":"member-password",
+		"nickname":"Member",
+		"groupKey":"user",
+		"status":"active"
+	}`))
+	createUserRequest.AddCookie(adminCookie)
+	createUserResponse := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(createUserResponse, createUserRequest)
+	var createUserBody struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(createUserResponse.Body).Decode(&createUserBody); err != nil {
+		t.Fatalf("decode user create response: %v", err)
+	}
+	if createUserResponse.Code != http.StatusOK || createUserBody.Code != 0 {
+		t.Fatalf("user create response = HTTP %d, code %d", createUserResponse.Code, createUserBody.Code)
+	}
+	memberCookie, _ := login("member", "member-password")
+
+	createIntermediateCode := func(targetURL string) int {
+		t.Helper()
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/short-link/create", bytes.NewBufferString(`{
+			"targetUrl":"`+targetURL+`",
+			"redirectMode":"intermediate",
+			"intermediateDelaySeconds":3
+		}`))
+		request.AddCookie(memberCookie)
+		response := httptest.NewRecorder()
+		application.server.Handler.ServeHTTP(response, request)
+		var body struct {
+			Code int `json:"code"`
+		}
+		if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+			t.Fatalf("decode short-link create response: %v", err)
+		}
+		if response.Code != http.StatusOK {
+			t.Fatalf("short-link create HTTP status = %d", response.Code)
+		}
+		return body.Code
+	}
+	if code := createIntermediateCode("https://example.com/before-revocation"); code != 0 {
+		t.Fatalf("initial short-link create code = %d, want 0", code)
+	}
+
+	groupService := usergroup.NewService(application.pool, permission.NewDatabaseService(application.pool))
+	listGroups := func(ctx context.Context) usergroup.ListResult {
+		t.Helper()
+		result, err := groupService.List(ctx, adminActor)
+		if err != nil {
+			t.Fatalf("list user groups: %v", err)
+		}
+		return result
+	}
+	findUserGroup := func(result usergroup.ListResult) usergroup.UserGroup {
+		t.Helper()
+		for _, group := range result.Groups {
+			if group.Key == permission.GroupUser {
+				return group
+			}
+		}
+		t.Fatal("user group was not returned")
+		return usergroup.UserGroup{}
+	}
+	originalGroup := findUserGroup(listGroups(t.Context()))
+	restorePermissions := func() {
+		restoreContext, cancelRestore := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelRestore()
+		latest := findUserGroup(listGroups(restoreContext))
+		if _, err := groupService.UpdatePermissions(restoreContext, adminActor, usergroup.UpdatePermissionsInput{
+			GroupKey:          permission.GroupUser,
+			Permissions:       originalGroup.Permissions,
+			ExpectedUpdatedAt: latest.UpdatedAt,
+		}); err != nil {
+			t.Errorf("restore user permissions: %v", err)
+		}
+	}
+	t.Cleanup(restorePermissions)
+
+	revokedPermissions := make([]string, 0, len(originalGroup.Permissions)-1)
+	for _, permissionKey := range originalGroup.Permissions {
+		if permissionKey != permission.ShortLinkUseIntermediate {
+			revokedPermissions = append(revokedPermissions, permissionKey)
+		}
+	}
+	revoked, err := groupService.UpdatePermissions(t.Context(), adminActor, usergroup.UpdatePermissionsInput{
+		GroupKey:          permission.GroupUser,
+		Permissions:       revokedPermissions,
+		ExpectedUpdatedAt: originalGroup.UpdatedAt,
+	})
+	if err != nil {
+		t.Fatalf("revoke intermediate permission: %v", err)
+	}
+	if code := createIntermediateCode("https://example.com/after-revocation"); code != shortlink.CodePermissionDenied {
+		t.Fatalf("revoked short-link create code = %d, want %d", code, shortlink.CodePermissionDenied)
+	}
+
+	if _, err := groupService.UpdatePermissions(t.Context(), adminActor, usergroup.UpdatePermissionsInput{
+		GroupKey:          permission.GroupUser,
+		Permissions:       originalGroup.Permissions,
+		ExpectedUpdatedAt: revoked.Group.UpdatedAt,
+	}); err != nil {
+		t.Fatalf("restore intermediate permission: %v", err)
+	}
+	if code := createIntermediateCode("https://example.com/after-restoration"); code != 0 {
+		t.Fatalf("restored short-link create code = %d, want 0", code)
 	}
 }
 
