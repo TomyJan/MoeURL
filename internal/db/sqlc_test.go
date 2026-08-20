@@ -2,8 +2,10 @@ package db_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
@@ -26,6 +28,89 @@ func TestSQLCPackageExposesQueries(t *testing.T) {
 	permissionAddition := sqlc.ShortLinkConfirmationPermissionAddition{PermissionRevision: 1}
 	if permissionAddition.PermissionRevision != 1 {
 		t.Fatal("expected generated confirmation permission revision")
+	}
+}
+
+// TestBuiltinUserGroupPermissionQueries verifies stable listing and optimistic permission updates.
+func TestBuiltinUserGroupPermissionQueries(t *testing.T) {
+	ctx := context.Background()
+	pool := sqlcTestPool(t, ctx)
+	queries := sqlc.New(pool)
+	_, err := pool.Exec(ctx, `
+		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+		values
+			('00000000-0000-0000-0000-000000000011', 'admin', 'Admin', 'Administrators', '["admin:access"]'::jsonb, true, clock_timestamp(), clock_timestamp()),
+			('00000000-0000-0000-0000-000000000012', 'custom', 'Custom', 'Other built-in group', '[]'::jsonb, true, clock_timestamp(), clock_timestamp()),
+			('00000000-0000-0000-0000-000000000013', 'guest', 'Guest', 'Guests', '[]'::jsonb, true, clock_timestamp(), clock_timestamp()),
+			('00000000-0000-0000-0000-000000000014', 'user', 'User', 'Users', '["short_link:create"]'::jsonb, true, clock_timestamp(), clock_timestamp())
+	`)
+	if err != nil {
+		t.Fatalf("insert user group fixtures: %v", err)
+	}
+
+	groups, err := queries.ListBuiltinUserGroups(ctx)
+	if err != nil {
+		t.Fatalf("list built-in user groups: %v", err)
+	}
+	if got := userGroupKeys(groups); !reflect.DeepEqual(got, []string{"guest", "user", "admin"}) {
+		t.Fatalf("built-in group keys = %#v, want guest/user/admin", got)
+	}
+
+	user := groups[1]
+	firstPermissions := []byte(`["short_link:create","domain:use_default"]`)
+	updated, err := queries.UpdateBuiltinUserGroupPermissions(ctx, sqlc.UpdateBuiltinUserGroupPermissionsParams{
+		GroupKey:          "user",
+		Permissions:       firstPermissions,
+		ExpectedUpdatedAt: user.UpdatedAt,
+	})
+	if err != nil {
+		t.Fatalf("update built-in user group permissions: %v", err)
+	}
+	if updated.Key != "user" || !updated.Builtin {
+		t.Fatalf("unexpected updated group: %#v", updated)
+	}
+	if !updated.UpdatedAt.Valid || !user.UpdatedAt.Valid || !updated.UpdatedAt.Time.After(user.UpdatedAt.Time) {
+		t.Fatalf("updated_at did not strictly increase: before %#v, after %#v", user.UpdatedAt, updated.UpdatedAt)
+	}
+	assertJSONPermissions(t, updated.Permissions, []string{"short_link:create", "domain:use_default"})
+
+	_, err = queries.UpdateBuiltinUserGroupPermissions(ctx, sqlc.UpdateBuiltinUserGroupPermissionsParams{
+		GroupKey:          "user",
+		Permissions:       []byte(`["short_link:read_own"]`),
+		ExpectedUpdatedAt: user.UpdatedAt,
+	})
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("stale update error = %v, want pgx.ErrNoRows", err)
+	}
+
+	persisted, err := queries.GetUserGroupByKey(ctx, "user")
+	if err != nil {
+		t.Fatalf("read persisted user group: %v", err)
+	}
+	if !persisted.UpdatedAt.Time.Equal(updated.UpdatedAt.Time) {
+		t.Fatalf("stale update changed updated_at: got %#v, want %#v", persisted.UpdatedAt, updated.UpdatedAt)
+	}
+	assertJSONPermissions(t, persisted.Permissions, []string{"short_link:create", "domain:use_default"})
+}
+
+// userGroupKeys extracts user group keys for stable-order assertions.
+func userGroupKeys(groups []sqlc.UserGroup) []string {
+	keys := make([]string, len(groups))
+	for index, group := range groups {
+		keys[index] = group.Key
+	}
+	return keys
+}
+
+// assertJSONPermissions compares a JSONB permission array with its expected values.
+func assertJSONPermissions(t *testing.T, raw []byte, want []string) {
+	t.Helper()
+	var got []string
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("decode permissions %q: %v", raw, err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("permissions = %#v, want %#v", got, want)
 	}
 }
 
