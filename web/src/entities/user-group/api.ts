@@ -74,7 +74,7 @@ const permissionPresetSchema: z.ZodType<PermissionPreset> = z.strictObject({
 })
 
 const userGroupListSchema: z.ZodType<UserGroupListResponse> = z.strictObject({
-  groups: z.array(userGroupSchema).length(3).refine((groups) => hasExactKeys(groups, ['guest', 'user', 'admin'])),
+  groups: z.array(userGroupSchema).refine((groups) => groups.length === 0 || hasExactKeys(groups, ['guest', 'user', 'admin'])),
   permissions: z.array(permissionDefinitionSchema).refine((permissions) => isUnique(permissions.map(({ key }) => key))),
   presets: z.array(permissionPresetSchema).length(3).refine((presets) => hasExactKeys(presets, ['restricted', 'basic', 'standard'])),
 }).superRefine((result, context) => {

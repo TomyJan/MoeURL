@@ -147,13 +147,13 @@ v0.3.0 新增 `short_link:set_password`：允许创建或编辑受密码保护�
 - 管理登录、安全和访问策略。
 - 查看审计日志和操作记录。
 
-v0.5.0 将 `admin:access`、`short_link:read_all`、`short_link:update_all`、`short_link:delete_all` 定义为受保护管理权限：`admin` 必须拥有，`guest` 和 `user` 必须不拥有。保护规则只约束权限配置写入；所有管理业务仍按当前权限快照检查 `admin:access` 和对应能力，不能按用户组标识直接放行。
+v0.5.0 已将 `admin:access`、`short_link:read_all`、`short_link:update_all`、`short_link:delete_all` 定义为受保护管理权限：`admin` 必须拥有，`guest` 和 `user` 必须不拥有。保护规则只约束权限配置写入；所有管理业务仍按当前权限快照检查 `admin:access` 和对应能力，不能按用户组标识直接放行。
 
 ## 权限预设
 
 为了降低管理员的配置心智负担，系统可以提供预置权限模型，用于快速套用常见部署场景。
 
-v0.5.0 首次交付三个内置预设：
+v0.5.0 已交付三个内置预设：
 
 - `restricted`：不包含可配置业务权限。
 - `basic`：允许创建、查看、更新和删除自己的短链，并允许使用默认域名。

@@ -41,6 +41,16 @@ describe('user group api', () => {
     expect(fetch).toHaveBeenCalledWith('/api/v1/admin/user-group/list', expect.objectContaining({ method: 'GET' }))
   })
 
+  it('accepts an empty group list for the page empty state', async () => {
+    const data = { ...responseData, groups: [] }
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data, meta: {} }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })))
+
+    await expect(listUserGroups()).resolves.toEqual(data)
+  })
+
   it.each([
     ['unknown category', { ...responseData, permissions: [{ key: 'short_link:create', category: 'unknown', protected: false }] }],
     ['missing editable', { ...responseData, groups: responseData.groups.map((group, index) => index === 1 ? omitEditable(group) : group) }],
