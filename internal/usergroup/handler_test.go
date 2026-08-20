@@ -1,0 +1,309 @@
+package usergroup
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/TomyJan/MoeURL/internal/auth"
+	"github.com/TomyJan/MoeURL/internal/permission"
+)
+
+type fakeUserGroupService struct {
+	listResult   ListResult
+	listErr      error
+	updateResult UpdatePermissionsResult
+	updateErr    error
+
+	listCalls   int
+	updateCalls int
+	listActor   auth.CurrentUser
+	updateActor auth.CurrentUser
+	updateInput UpdatePermissionsInput
+}
+
+func (f *fakeUserGroupService) List(_ context.Context, actor auth.CurrentUser) (ListResult, error) {
+	f.listCalls++
+	f.listActor = actor
+	return f.listResult, f.listErr
+}
+
+func (f *fakeUserGroupService) UpdatePermissions(_ context.Context, actor auth.CurrentUser, input UpdatePermissionsInput) (UpdatePermissionsResult, error) {
+	f.updateCalls++
+	f.updateActor = actor
+	f.updateInput = input
+	return f.updateResult, f.updateErr
+}
+
+type handlerCurrentUserResolver struct {
+	actor auth.CurrentUser
+}
+
+func (r handlerCurrentUserResolver) ResolveCurrentUser(context.Context, string) (auth.CurrentUser, error) {
+	return r.actor, nil
+}
+
+type handlerEnvelope struct {
+	Code    int             `json:"code"`
+	Message string          `json:"message"`
+	Data    json.RawMessage `json:"data"`
+	Meta    map[string]any  `json:"meta"`
+}
+
+func serveUserGroupHandler(t *testing.T, handler http.Handler, actor auth.CurrentUser, request *http.Request) *httptest.ResponseRecorder {
+	t.Helper()
+	request.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session-secret-value"})
+	response := httptest.NewRecorder()
+	auth.CurrentUserMiddleware(handlerCurrentUserResolver{actor: actor})(handler).ServeHTTP(response, request)
+	return response
+}
+
+func decodeHandlerEnvelope(t *testing.T, response *httptest.ResponseRecorder) handlerEnvelope {
+	t.Helper()
+	var envelope handlerEnvelope
+	if err := json.NewDecoder(response.Body).Decode(&envelope); err != nil {
+		t.Fatalf("decode response: %v; body=%q", err, response.Body.String())
+	}
+	return envelope
+}
+
+func TestHandlerListReturnsUnifiedResultAndActor(t *testing.T) {
+	actor := auth.CurrentUser{ID: "admin-id", Username: "admin", GroupKey: permission.GroupAdmin}
+	service := &fakeUserGroupService{listResult: ListResult{
+		Groups: []UserGroup{{Key: permission.GroupGuest, Permissions: []string{}, UpdatedAt: "2026-08-20T03:04:05Z"}},
+	}}
+	handler := NewHandler(service, slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	response := serveUserGroupHandler(t, http.HandlerFunc(handler.List), actor, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/admin/user-group/list", nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", response.Code)
+	}
+	envelope := decodeHandlerEnvelope(t, response)
+	if envelope.Code != 0 || envelope.Message != "OK" || envelope.Meta == nil {
+		t.Fatalf("unexpected envelope: %#v", envelope)
+	}
+	var result ListResult
+	if err := json.Unmarshal(envelope.Data, &result); err != nil {
+		t.Fatalf("decode list data: %v", err)
+	}
+	if len(result.Groups) != 1 || result.Groups[0].Key != permission.GroupGuest {
+		t.Fatalf("unexpected list data: %#v", result)
+	}
+	if service.listCalls != 1 || service.listActor.ID != actor.ID || service.listActor.GroupKey != actor.GroupKey {
+		t.Fatalf("service actor = %#v after %d calls, want %#v", service.listActor, service.listCalls, actor)
+	}
+}
+
+func TestHandlerUpdatePermissionsDecodesInputAndReturnsGroup(t *testing.T) {
+	actor := auth.CurrentUser{ID: "admin-id", GroupKey: permission.GroupAdmin}
+	service := &fakeUserGroupService{updateResult: UpdatePermissionsResult{Group: UserGroup{
+		Key: permission.GroupUser, Editable: true, Permissions: []string{permission.ShortLinkCreate}, UpdatedAt: "2026-08-20T03:04:06.123456Z",
+	}}}
+	handler := NewHandler(service, nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/admin/user-group/update-permissions", strings.NewReader(`{
+		"groupKey":"user",
+		"permissions":["short_link:create"],
+		"expectedUpdatedAt":"2026-08-20T03:04:05.123456Z"
+	}`))
+
+	response := serveUserGroupHandler(t, http.HandlerFunc(handler.UpdatePermissions), actor, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", response.Code)
+	}
+	envelope := decodeHandlerEnvelope(t, response)
+	if envelope.Code != 0 || envelope.Meta == nil {
+		t.Fatalf("unexpected envelope: %#v", envelope)
+	}
+	var result UpdatePermissionsResult
+	if err := json.Unmarshal(envelope.Data, &result); err != nil {
+		t.Fatalf("decode update data: %v", err)
+	}
+	if result.Group.Key != permission.GroupUser || result.Group.UpdatedAt != "2026-08-20T03:04:06.123456Z" {
+		t.Fatalf("unexpected update data: %#v", result)
+	}
+	if service.updateCalls != 1 || service.updateActor.ID != actor.ID {
+		t.Fatalf("service actor = %#v after %d calls", service.updateActor, service.updateCalls)
+	}
+	if service.updateInput.GroupKey != permission.GroupUser || len(service.updateInput.Permissions) != 1 || service.updateInput.ExpectedUpdatedAt != "2026-08-20T03:04:05.123456Z" {
+		t.Fatalf("service input = %#v", service.updateInput)
+	}
+}
+
+func TestHandlerUpdatePermissionsRejectsInvalidJSON(t *testing.T) {
+	service := &fakeUserGroupService{}
+	handler := NewHandler(service, nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/admin/user-group/update-permissions", strings.NewReader("{"))
+
+	response := serveUserGroupHandler(t, http.HandlerFunc(handler.UpdatePermissions), auth.CurrentUser{ID: "admin-id", GroupKey: permission.GroupAdmin}, request)
+	envelope := decodeHandlerEnvelope(t, response)
+	if response.Code != http.StatusOK || envelope.Code != 100001 || service.updateCalls != 0 {
+		t.Fatalf("status=%d code=%d calls=%d, want 200,100001,0", response.Code, envelope.Code, service.updateCalls)
+	}
+}
+
+func TestHandlerUpdatePermissionsRejectsTrailingJSONAndOversizedBodies(t *testing.T) {
+	validBody := `{"groupKey":"user","permissions":[],"expectedUpdatedAt":"2026-08-20T03:04:05Z"}`
+	tests := []struct {
+		name string
+		body string
+	}{
+		{name: "trailing JSON", body: validBody + `{}`},
+		{name: "oversized", body: `{"groupKey":"` + strings.Repeat("x", 70<<10) + `","permissions":[],"expectedUpdatedAt":"2026-08-20T03:04:05Z"}`},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			service := &fakeUserGroupService{}
+			handler := NewHandler(service, nil)
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/admin/user-group/update-permissions", strings.NewReader(test.body))
+
+			response := serveUserGroupHandler(t, http.HandlerFunc(handler.UpdatePermissions), auth.CurrentUser{ID: "admin-id", GroupKey: permission.GroupAdmin}, request)
+			envelope := decodeHandlerEnvelope(t, response)
+			if response.Code != http.StatusOK || envelope.Code != CodeInvalidRequest || service.updateCalls != 0 {
+				t.Fatalf("status=%d code=%d update calls=%d, want 200,%d,0", response.Code, envelope.Code, service.updateCalls, CodeInvalidRequest)
+			}
+		})
+	}
+}
+
+func TestHandlerUpdatePermissionsRejectsMissingOrNullPermissionsArray(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+	}{
+		{name: "missing", body: `{"groupKey":"user","expectedUpdatedAt":"2026-08-20T03:04:05Z"}`},
+		{name: "null", body: `{"groupKey":"user","permissions":null,"expectedUpdatedAt":"2026-08-20T03:04:05Z"}`},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			queries := &fakeGroupQueries{}
+			handler := NewHandler(testService(queries, adminResolver()), nil)
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/admin/user-group/update-permissions", strings.NewReader(test.body))
+
+			response := serveUserGroupHandler(t, http.HandlerFunc(handler.UpdatePermissions), auth.CurrentUser{ID: "admin-id", GroupKey: permission.GroupAdmin}, request)
+			envelope := decodeHandlerEnvelope(t, response)
+			if response.Code != http.StatusOK || envelope.Code != CodeInvalidRequest || queries.updateCalls != 0 {
+				t.Fatalf("status=%d code=%d update calls=%d, want 200,%d,0", response.Code, envelope.Code, queries.updateCalls, CodeInvalidRequest)
+			}
+		})
+	}
+}
+
+func TestHandlerMapsAllUserGroupErrors(t *testing.T) {
+	tests := []struct {
+		name       string
+		err        error
+		httpStatus int
+		code       int
+	}{
+		{name: "invalid", err: ErrInvalidInput, httpStatus: http.StatusOK, code: 100001},
+		{name: "permission denied", err: ErrPermissionDenied, httpStatus: http.StatusOK, code: 120001},
+		{name: "not found", err: ErrUserGroupNotFound, httpStatus: http.StatusOK, code: 300201},
+		{name: "conflict", err: ErrPermissionConflict, httpStatus: http.StatusOK, code: 300202},
+		{name: "protected", err: ErrProtectedPermission, httpStatus: http.StatusOK, code: 300203},
+		{name: "resolver missing", err: ErrPermissionResolverNeeded, httpStatus: http.StatusInternalServerError, code: 900000},
+		{name: "database", err: errTestInfrastructure, httpStatus: http.StatusInternalServerError, code: 900000},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			service := &fakeUserGroupService{updateErr: test.err}
+			var logs bytes.Buffer
+			handler := NewHandler(service, slog.New(slog.NewJSONHandler(&logs, nil)))
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/admin/user-group/update-permissions", strings.NewReader(`{
+				"groupKey":"user",
+				"permissions":["permission-not-for-logs"],
+				"expectedUpdatedAt":"2026-08-20T03:04:05Z"
+			}`))
+			response := serveUserGroupHandler(t, http.HandlerFunc(handler.UpdatePermissions), auth.CurrentUser{ID: "admin-sensitive-id", GroupKey: permission.GroupAdmin}, request)
+			envelope := decodeHandlerEnvelope(t, response)
+			if response.Code != test.httpStatus || envelope.Code != test.code || envelope.Meta == nil {
+				t.Fatalf("status=%d code=%d meta=%#v, want %d,%d,non-nil", response.Code, envelope.Code, envelope.Meta, test.httpStatus, test.code)
+			}
+			if test.httpStatus == http.StatusInternalServerError {
+				logOutput := logs.String()
+				for _, required := range []string{"admin-sensitive-id", permission.GroupUser, "error_category"} {
+					if !strings.Contains(logOutput, required) {
+						t.Fatalf("infrastructure log %q does not contain %q", logOutput, required)
+					}
+				}
+				for _, forbidden := range []string{"session-secret-value", "permission-not-for-logs", "permissions", errTestInfrastructure.Error()} {
+					if strings.Contains(logOutput, forbidden) {
+						t.Fatalf("infrastructure log leaked %q: %s", forbidden, logOutput)
+					}
+				}
+			} else if logs.Len() != 0 {
+				t.Fatalf("business error produced infrastructure log: %s", logs.String())
+			}
+		})
+	}
+}
+
+func TestHandlerInfrastructureLogOmitsUnvalidatedGroupKey(t *testing.T) {
+	service := &fakeUserGroupService{updateErr: errTestInfrastructure}
+	var logs bytes.Buffer
+	handler := NewHandler(service, slog.New(slog.NewJSONHandler(&logs, nil)))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/admin/user-group/update-permissions", strings.NewReader(`{
+		"groupKey":"untrusted-secret-group",
+		"permissions":[],
+		"expectedUpdatedAt":"2026-08-20T03:04:05Z"
+	}`))
+
+	response := serveUserGroupHandler(t, http.HandlerFunc(handler.UpdatePermissions), auth.CurrentUser{ID: "admin-id", GroupKey: permission.GroupAdmin}, request)
+	envelope := decodeHandlerEnvelope(t, response)
+	if response.Code != http.StatusInternalServerError || envelope.Code != CodeInternalServerError {
+		t.Fatalf("status=%d code=%d, want 500,%d", response.Code, envelope.Code, CodeInternalServerError)
+	}
+	if logOutput := logs.String(); strings.Contains(logOutput, "untrusted-secret-group") || strings.Contains(logOutput, "group_key") {
+		t.Fatalf("infrastructure log included unvalidated group key: %s", logOutput)
+	}
+}
+
+func TestHandlerListLogsInfrastructureWithoutUpdateGroupKey(t *testing.T) {
+	service := &fakeUserGroupService{listErr: errTestInfrastructure}
+	var logs bytes.Buffer
+	handler := NewHandler(service, slog.New(slog.NewJSONHandler(&logs, nil)))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/admin/user-group/list", nil)
+
+	response := serveUserGroupHandler(t, http.HandlerFunc(handler.List), auth.CurrentUser{ID: "admin-id", GroupKey: permission.GroupAdmin}, request)
+	envelope := decodeHandlerEnvelope(t, response)
+	if response.Code != http.StatusInternalServerError || envelope.Code != 900000 {
+		t.Fatalf("status=%d code=%d, want 500,900000", response.Code, envelope.Code)
+	}
+	if logOutput := logs.String(); !strings.Contains(logOutput, "admin-id") || strings.Contains(logOutput, "group_key") {
+		t.Fatalf("unexpected list infrastructure log: %s", logOutput)
+	}
+}
+
+func TestHandlerEncodingFailureUsesSafeInternalEnvelope(t *testing.T) {
+	originalEncode := encodeResponse
+	encodeResponse = func(io.Writer, response) error {
+		return errors.New("encoding unavailable")
+	}
+	t.Cleanup(func() { encodeResponse = originalEncode })
+	var logs bytes.Buffer
+	handler := NewHandler(&fakeUserGroupService{}, slog.New(slog.NewJSONHandler(&logs, nil)))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/admin/user-group/list", nil)
+
+	response := serveUserGroupHandler(t, http.HandlerFunc(handler.List), auth.CurrentUser{ID: "admin-id", GroupKey: permission.GroupAdmin}, request)
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", response.Code)
+	}
+	var envelope struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&envelope); err != nil {
+		t.Fatalf("decode fallback response: %v", err)
+	}
+	if envelope.Code != 900000 || !strings.Contains(logs.String(), "response_encoding") || !strings.Contains(logs.String(), "admin-id") {
+		t.Fatalf("fallback code=%d logs=%q", envelope.Code, logs.String())
+	}
+}

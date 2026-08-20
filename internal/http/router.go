@@ -12,6 +12,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/system"
 	"github.com/TomyJan/MoeURL/internal/user"
+	"github.com/TomyJan/MoeURL/internal/usergroup"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -26,6 +27,7 @@ type Dependencies struct {
 	AnalyticsCountryHeader string
 	SecureCookies          bool
 	User                   user.Port
+	UserGroup              usergroup.Port
 	StaticDir              string
 }
 
@@ -88,6 +90,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			api.Post("/admin/user/update", userHandler.Update)
 			api.Post("/user/profile/update", userHandler.UpdateProfile)
 			api.Post("/admin/user/reset-password", userHandler.ResetPassword)
+		}
+		if dependency.UserGroup != nil {
+			userGroupHandler := usergroup.NewHandler(dependency.UserGroup, logger)
+			api.Get("/admin/user-group/list", userGroupHandler.List)
+			api.Post("/admin/user-group/update-permissions", userGroupHandler.UpdatePermissions)
 		}
 
 		api.NotFound(func(w nethttp.ResponseWriter, r *nethttp.Request) {
