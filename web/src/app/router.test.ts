@@ -80,6 +80,15 @@ describe('router', () => {
     expect(loadedPage.default).toBeTruthy()
   })
 
+  it('loads the real user-group permission page instead of a placeholder', async () => {
+    const consoleRoute = routes.find((route) => route.children)
+    const userGroupRoute = consoleRoute?.children?.find((route) => route.path === '/admin/user/group')
+
+    expect(userGroupRoute?.props).toBeUndefined()
+    const loadedPage = await (userGroupRoute?.component as () => Promise<{ default: { __name?: string } }>)()
+    expect(loadedPage.default.__name).toBe('AdminUserGroupsPage')
+  })
+
   it('resolves the public root path to home before the console shell parent', async () => {
     await router.push('/')
     await router.isReady()

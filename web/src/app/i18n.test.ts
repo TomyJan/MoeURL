@@ -81,6 +81,26 @@ describe('i18n', () => {
     )
   })
 
+  it('defines the complete bilingual user-group permission interface', () => {
+    for (const locale of ['zh-CN', 'en'] as const) {
+      const userGroups = messages[locale].userGroups
+      expect(userGroups.title).toBeTruthy()
+      expect(userGroups.builtin).toBeTruthy()
+      expect(userGroups.dataStale).toBeTruthy()
+      expect(userGroups.conflictReloadFailed).toBeTruthy()
+      expect(userGroups.categories.short_link_basic).toBeTruthy()
+      expect(userGroups.categories.short_link_access).toBeTruthy()
+      expect(userGroups.categories.domain).toBeTruthy()
+      expect(userGroups.categories.administration).toBeTruthy()
+      expect(userGroups.presets.restricted).toBeTruthy()
+      expect(userGroups.presets.basic).toBeTruthy()
+      expect(userGroups.presets.standard).toBeTruthy()
+      expect(Object.keys(userGroups.permissions)).toHaveLength(13)
+      expect(userGroups.conflict).toBeTruthy()
+      expect(userGroups.saveSuccess).toBeTruthy()
+    }
+  })
+
   it('keeps locale message trees aligned', () => {
     /** Flattens nested locale messages into comparable dotted keys. */
     function flattenKeys(value: unknown, prefix = ''): string[] {

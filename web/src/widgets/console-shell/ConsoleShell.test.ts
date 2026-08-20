@@ -194,7 +194,7 @@ describe('ConsoleShell', () => {
     expect(screen.getByText('nav.users')).toBeTruthy()
     expect(screen.getByText('nav.userGroups')).toBeTruthy()
     expect(screen.getAllByTestId('console-nav-child-item').length).toBeGreaterThan(1)
-    expect(screen.getAllByTestId('console-nav-planned-badge').length).toBe(2)
+    expect(screen.getAllByTestId('console-nav-planned-badge').length).toBe(1)
     expect(screen.queryByText('page.createUser')).toBeNull()
     expect(screen.getByText('nav.analytics')).toBeTruthy()
     expect(screen.getByText('nav.settings')).toBeTruthy()
