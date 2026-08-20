@@ -76,6 +76,8 @@ v0.3.0 在 `short_link` 增加 Argon2id 密码哈希、数据库失败窗口和�
 
 v0.4.0 将确认页建模为第三种 `confirmation` 跳转模式，而不是独立布尔访问条件或确认令牌。该模式复用 `/go/{slug}`、同源预览和 `/go/{slug}/continue`，公开预览显式返回 `redirectMode`；前端状态机在 `intermediate` 模式进入自动倒计时，在 `confirmation` 模式等待访问者主动确认，在 `direct` 模式的密码解锁成功后立即进入 Continue 流程。三种模式遇到 `reason=continue-failed` 时均等待手动重试，不自动再次调用 Continue。migration 只扩展 `redirect_mode` 约束并追加 `short_link:use_confirmation` 权限，不新增确认状态字段；正常路径由 `00008 Up` 以 `NOT VALID` 完成约束替换，`00009 Up` 仅在旧约束仍残留时执行兼容性重试，`00010` 在独立 Goose 事务中验证，正常回滚仍在各阶段事务内保持原子性。确认点击属于非统计事件，最终访问量仍只统计成功写出的 `redirect_response_sent`。短链和用户管理生产 Service 共享数据库权限 Resolver，每次业务操作从 `user_group.permissions` 解析当前 `GroupKey` 的权限快照，不缓存跨请求权限，保证数据库撤权立即成为后端安全边界；任一 Service 缺少 Resolver 时均拒绝授权，不降级为静态权限。Continue 的未知基础设施错误通过 `reason=continue-failed` 回流到公共页面并重新读取最小预览，避免顶层导航落入纯文本 500，同时不把目标 URL 暴露给客户端。
 
+v0.5.0 计划在现有 `user_group.permissions` 上交付内置用户组权限管理，不增加新的授权层或 schema 字段。服务端维护覆盖当前权限常量的稳定目录和三个静态预设，数据库仍只保存最终权限数组；`admin:access` 与三项全站短链管理权限固定属于 `admin`，防止管理员自锁和把依赖后台入口的无效组合授予其他内置组。匿名 `guest` 缺少可持久化所有者 ID，因此在访客短链归属和滥用防护实现前保持只读空权限，只允许编辑 `user` 和 `admin`。权限更新使用 `updated_at` 条件写入实现乐观并发，冲突拒绝覆盖；成功更新后的业务请求继续通过无跨请求缓存的数据库 Resolver 立即读取新权限。自定义用户组、成员迁移、多用户组和审计日志不进入 v0.5.0。
+
 ### SQLC
 
 SQLC 用于根据 SQL 生成类型安全的 Go 数据访问代码。v0.4.0 统一使用 SQLC `1.30.0` 生成并校验代码。

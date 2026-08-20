@@ -4,7 +4,7 @@
 
 MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
 
-当前已完成到 v0.4.0 确认页访问闭环。后续版本设计和实施应以 `docs/product/overview.md`、`docs/product/roadmap.md` 和对应版本范围文档为准。
+当前已完成到 v0.4.0 确认页访问闭环。v0.5.0 用户组权限管理已完成范围和实施设计，尚未开始工程实现；当前新功能工作以 v0.5.0 文档为准。
 
 ## 工作入口
 
@@ -12,7 +12,8 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 1. `docs/README.md`
 2. `docs/product/overview.md`
-3. `docs/product/scope-v0.4.0.md`
+3. `docs/product/scope-v0.5.0.md`
+4. `docs/specs/2026-08-20-v0.5.0-user-group-permission-management-design.md`
 
 如果任务涉及新版本设计、跨模块功能开发、生产化交付或要求 Agent 自主完成设计、文档、开发、测试和提交，必须继续阅读 `docs/implementation/agent-delivery-guidelines.md`。
 
@@ -24,13 +25,14 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 1. `docs/implementation/technical-decision.md`
 2. `docs/implementation/technical-baseline.md`
-3. `docs/specs/2026-08-13-v0.4.0-confirmation-page-access-design.md`
-4. `docs/implementation/v0.4.0-plan.md`
-5. `docs/implementation/v0.4.0-detailed-plan.md`
-6. `docs/implementation/v0.4.0-tasks.md`
-7. `docs/implementation/v0.4.0-acceptance.md`
-8. `docs/specs/2026-08-04-v0.3.0-protected-link-access-design.md`
-9. `docs/implementation/v0.3.0-acceptance.md`
+3. `docs/implementation/v0.5.0-plan.md`
+4. `docs/implementation/v0.5.0-detailed-plan.md`
+5. `docs/implementation/v0.5.0-tasks.md`
+6. `docs/implementation/v0.5.0-acceptance.md`
+7. `docs/specs/2026-08-13-v0.4.0-confirmation-page-access-design.md`
+8. `docs/implementation/v0.4.0-acceptance.md`
+9. `docs/specs/2026-08-04-v0.3.0-protected-link-access-design.md`
+10. `docs/implementation/v0.3.0-acceptance.md`
 
 如果任务涉及 v0.2.0 中间页、过期时间、二维码、访问配置或继续访问路由，必须继续阅读：
 
@@ -166,6 +168,17 @@ MoeURL 当前技术栈固定为：
 - `/go/{slug}/continue` 必须重新检查状态、软删除、过期、模式和密码授权；无密码 direct 不得借 continue 绕过规范入口。
 - `confirmation_clicked` 是非统计事件，进入或点击确认页不增加访问量；只有最终目标 `302` 成功写出后记录 `redirect_response_sent`。
 - E2E 必须从真实 `/{slug}` 入口覆盖无密码和受密码保护确认页、主动继续、二次访问条件检查、访问量及桌面/移动布局。
+
+## v0.5.0 用户组权限管理实施规则
+
+- v0.5.0 展示 `guest`、`user`、`admin` 三个内置用户组，只编辑 `user` 和 `admin`；`guest` 在访客资源归属和滥用防护实现前固定为空权限并保持只读。
+- v0.5.0 不实现自定义用户组、成员迁移、多用户组、域名授权、配额或审计日志。
+- 权限目录必须覆盖当前全部权限常量；未知权限、重复权限和客户端声明的保护状态不得写入数据库。
+- `admin:access`、`short_link:read_all`、`short_link:update_all`、`short_link:delete_all` 固定属于 `admin`，不得移除或授予其他内置组；业务逻辑仍必须逐项检查权限。
+- `restricted`、`basic`、`standard` 预设只生成可配置权限集合，不成为新的授权层或数据库字段，套用后必须由管理员主动保存。
+- 权限更新必须按 `key`、`builtin` 和 `updated_at` 执行乐观并发；冲突不得静默覆盖或自动重试写入。
+- 权限保存成功后前端刷新用户组和 `auth/me`，后端后续请求继续直接从 `user_group.permissions` 解析，不增加跨请求缓存。
+- `/admin/user/group` 必须替换为真实页面，覆盖加载、空数据、失败、冲突、成功和桌面/移动布局，不保留规划中标识或假操作。
 
 ## 实施原则
 

@@ -4,6 +4,8 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 当前已完成 v0.4.0 确认页访问闭环：在短链管理、统计分析和访问体验基础上，提供直接跳转、中间页和确认页三种模式，并支持可选过期时间、二维码、访问密码、数据库一致失败限流和短期访问授权。
 
+下一版本 v0.5.0 已完成用户组权限管理的范围与实施设计，工程能力尚未合入当前功能清单。
+
 ## 功能概览
 
 - 首次初始化站点和管理员账号。
@@ -34,6 +36,9 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 - [文档总览](./docs/README.md)
 - [产品总览](./docs/product/overview.md)
+- [v0.5.0 范围](./docs/product/scope-v0.5.0.md)
+- [v0.5.0 用户组权限管理设计](./docs/specs/2026-08-20-v0.5.0-user-group-permission-management-design.md)
+- [v0.5.0 实施计划](./docs/implementation/v0.5.0-plan.md)
 - [v0.4.0 范围](./docs/product/scope-v0.4.0.md)
 - [v0.4.0 确认页访问设计](./docs/specs/2026-08-13-v0.4.0-confirmation-page-access-design.md)
 - [v0.4.0 实施计划](./docs/implementation/v0.4.0-plan.md)

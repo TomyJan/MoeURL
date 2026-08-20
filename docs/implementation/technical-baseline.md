@@ -155,7 +155,7 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 - 管理事务边界。
 - 返回明确业务错误。
 
-短链和用户管理 Service 的生产权限解析共享数据库中的 `user_group.permissions`。每次需要授权的业务调用按当前用户 `GroupKey` 读取一次并形成权限快照，调用内的权限判断必须使用同一快照；不允许用编译期内置权限替代生产校验，不允许在权限读取失败时放行，也不允许用跨请求缓存延迟数据库撤权生效。静态权限解析器仅用于隔离测试；短链或用户服务缺少权限 Resolver 时必须返回错误并拒绝授权，不得降级为静态权限，短链服务同时通过注入的 logger 记录装配错误。
+短链和用户管理 Service 的生产权限解析共享数据库中的 `user_group.permissions`。每次需要授权的业务调用按当前用户 `GroupKey` 读取一次并形成权限快照，调用内的权限判断必须使用同一快照；不允许用编译期内置权限替代生产校验，不允许在权限读取失败时放行，也不允许用跨请求缓存延迟数据库撤权生效。静态权限解析器仅用于隔离测试；短链或用户服务缺少权限 Resolver 时必须返回错误并拒绝授权，不得降级为静态权限，短链服务同时通过注入的 logger 记录装配错误。v0.5.0 计划新增的用户组管理 Service 必须复用同一生产 Resolver，并保持相同的失败关闭规则。
 
 ### SQLC 查询层
 
@@ -337,6 +337,12 @@ v0.3.0 在 `short_link` 追加 `password_hash`、`password_failed_attempts`、`p
 
 v0.4.0 不新增数据列，只将 `short_link.redirect_mode` 的约束扩展为 `direct`、`intermediate`、`confirmation`。`00008 Up` 使用 `NOT VALID` 替换旧约束，并为内置 `user`、`admin` 用户组追加 `short_link:use_confirmation`；`00009 Up` 是兼容性重试步骤，正常 v8 路径已经由 `00008 Up` 完成约束替换，因此会跳过替换，只有检测到旧约束残留时才补做替换；`00010 Up` 在独立事务中验证新约束。正常回滚由 `00009 Down` 恢复 v8 状态的 `NOT VALID` 约束但不改写数据，随后由 `00008 Down` 将 confirmation 记录降级为 direct、清理 migration 实际新增的权限并恢复、验证旧约束。停在 v9 时可由 `00010 Up` 安全重试验证；停在 v8 时可安全重试 `00009 Up`（正常状态下跳过已完成的替换），再由 `00010 Up` 完成验证。权限跟踪表只移除 migration 实际新增且未被人工修改的权限。
 
+### v0.5.0 权限管理数据约定
+
+v0.5.0 计划复用 `user_group.permissions` 和 `user_group.updated_at`，不新增 schema 或 Goose migration。SQLC 只增加三个内置用户组的稳定列表查询，以及按 `key`、`builtin = true`、`updated_at` 条件更新权限的查询。成功更新必须产生严格递增的 `updated_at`，并发请求使用旧值时返回零行，由 Service 映射为业务冲突，不能静默覆盖。
+
+权限数组由服务端目录校验并按固定顺序编码。未知项、重复项、非内置用户组和受保护权限归属变化都不得写入数据库。更新查询只允许 `user` 和 `admin`；`guest` 在访客资源归属实现前固定为空权限并保持只读。权限预设不持久化为字段，只用于生成最终权限数组。
+
 ### 短码规则
 
 - v0.0.1 默认生成 6 位随机短码。
@@ -379,6 +385,10 @@ admin:access
 - 管理入口访问。
 
 前端隐藏或置灰只用于体验，后端权限判断才是安全边界。
+
+v0.5.0 计划将 `admin:access`、`short_link:read_all`、`short_link:update_all`、`short_link:delete_all` 设为权限配置写入的受保护集合：`admin` 必须拥有，`guest` 和 `user` 必须不拥有。该保护不替代业务授权；后台操作仍必须解析当前数据库权限快照并检查所需权限。
+
+用户组权限管理写入必须使用乐观并发。权限更新成功后，前端刷新用户组查询和 `auth/me`；后端 Service 对后续业务请求直接读取数据库，不以刷新前端缓存作为安全保障。
 
 ### Cookie Session 安全规范
 
@@ -539,7 +549,7 @@ cd web && pnpm test:e2e
 
 前端单元和组件测试覆盖率门禁针对 `vitest.config.ts` 中 `coverage.include` 覆盖的应用配置、实体 API、页面组件和共享工具代码执行，必须达到 100%。`main.ts` 启动入口、类型声明和纯类型模型由构建、类型检查和 E2E 覆盖，不计入单元覆盖率门禁。
 
-v0.2.0 将新增的短链创建、访问配置和二维码组件纳入覆盖率门禁。v0.3.0 还将密码设置、公开解锁和密码页纳入覆盖率门禁；v0.4.0 继续将确认模式权限矩阵、公开预览契约和确认页状态纳入门禁。测试必须验证敏感数据不泄露、错误/限流/成功状态、授权失效和确认页不自动跳转，不允许只断言 mock 调用次数。
+v0.2.0 将新增的短链创建、访问配置和二维码组件纳入覆盖率门禁。v0.3.0 还将密码设置、公开解锁和密码页纳入覆盖率门禁；v0.4.0 继续将确认模式权限矩阵、公开预览契约和确认页状态纳入门禁。v0.5.0 实现时还必须将权限目录、预设、独立草稿、保护规则、冲突恢复和用户组管理页面纳入门禁。测试必须验证敏感数据不泄露、错误/限流/成功状态、授权失效、确认页不自动跳转和权限更新即时生效，不允许只断言 mock 调用次数。
 
 Playwright E2E 默认通过 `web/playwright.config.ts` 启动 Docker Compose 测试环境。E2E 必须使用独立的 Compose project name，默认由 `MOEURL_E2E_PORT` 派生，也可通过 `MOEURL_E2E_COMPOSE_PROJECT` 显式指定。E2E 同时通过 `MOEURL_E2E_PORT` 和 `MOEURL_E2E_POSTGRES_PORT` 隔离应用宿主端口与 PostgreSQL 宿主端口，避免和日常 Compose 或本机 PostgreSQL 端口冲突。E2E 显式以 `MOEURL_ENV=development` 运行测试应用，避免本地 HTTP 流程受 Secure Cookie 影响。E2E 可以在该隔离测试项目内执行 `down -v` 清理测试卷，但不得清理日常 `docker compose up --build` 使用的默认开发数据库卷。
 
