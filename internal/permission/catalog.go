@@ -30,8 +30,8 @@ type Preset struct {
 	Permissions      []string `json:"permissions"`
 }
 
-var catalogDefinitions = expectedDefinitions()
-var catalogPresets = expectedPresets()
+var catalogDefinitions = newCatalogDefinitions()
+var catalogPresets = newCatalogPresets()
 
 // Definitions returns an independent copy of the stable permission catalog.
 func Definitions() []Definition {
@@ -119,39 +119,137 @@ func NormalizeForGroup(groupKey string, values []string) ([]string, error) {
 	return result, nil
 }
 
-// validateCatalog compares supplied values with the fixed catalog contract.
+// validateCatalog verifies catalog structure against the active authorization baselines.
 func validateCatalog(definitions []Definition, presets []Preset) error {
-	wantDefinitions := expectedDefinitions()
-	if len(definitions) != len(wantDefinitions) {
-		return fmt.Errorf("permission definitions length = %d, want %d", len(definitions), len(wantDefinitions))
+	definitionKeys := make(map[string]struct{}, len(definitions))
+	definitionByKey := make(map[string]Definition, len(definitions))
+	for _, definition := range definitions {
+		if _, exists := definitionKeys[definition.Key]; exists {
+			return fmt.Errorf("duplicate permission definition: %s", definition.Key)
+		}
+		if !validCategory(definition.Category) {
+			return fmt.Errorf("invalid permission category for %s: %s", definition.Key, definition.Category)
+		}
+		definitionKeys[definition.Key] = struct{}{}
+		definitionByKey[definition.Key] = definition
 	}
-	for index, definition := range definitions {
-		if definition != wantDefinitions[index] {
-			return fmt.Errorf("permission definition %d = %#v, want %#v", index, definition, wantDefinitions[index])
+
+	adminKeys, err := uniqueStringSet("admin permission baseline", AdminPermissions)
+	if err != nil {
+		return err
+	}
+	if !equalStringSets(definitionKeys, adminKeys) {
+		return fmt.Errorf("permission definitions do not match admin permission baseline")
+	}
+
+	protectedKeys := map[string]struct{}{
+		AdminAccess:        {},
+		ShortLinkReadAll:   {},
+		ShortLinkUpdateAll: {},
+		ShortLinkDeleteAll: {},
+	}
+	configurableKeys := make(map[string]struct{}, len(definitions)-len(protectedKeys))
+	for _, definition := range definitions {
+		_, protected := protectedKeys[definition.Key]
+		if definition.Protected != protected {
+			return fmt.Errorf("invalid protected state for permission: %s", definition.Key)
+		}
+		if !protected {
+			configurableKeys[definition.Key] = struct{}{}
 		}
 	}
 
-	wantPresets := expectedPresets()
-	if len(presets) != len(wantPresets) {
-		return fmt.Errorf("permission presets length = %d, want %d", len(presets), len(wantPresets))
+	userKeys, err := uniqueStringSet("user permission baseline", UserPermissions)
+	if err != nil {
+		return err
 	}
-	for index, preset := range presets {
-		want := wantPresets[index]
-		if preset.Key != want.Key {
-			return fmt.Errorf("permission preset %d key = %q, want %q", index, preset.Key, want.Key)
+	if !equalStringSets(configurableKeys, userKeys) {
+		return fmt.Errorf("configurable permissions do not match user permission baseline")
+	}
+
+	requiredPresetKeys := map[string]struct{}{"restricted": {}, "basic": {}, "standard": {}}
+	requiredGroups := map[string]struct{}{GroupUser: {}, GroupAdmin: {}}
+	presetKeys := make(map[string]struct{}, len(presets))
+	for _, preset := range presets {
+		if _, exists := presetKeys[preset.Key]; exists {
+			return fmt.Errorf("duplicate permission preset: %s", preset.Key)
 		}
-		if !equalStrings(preset.ApplicableGroups, want.ApplicableGroups) {
-			return fmt.Errorf("permission preset %q applicable groups = %#v, want %#v", preset.Key, preset.ApplicableGroups, want.ApplicableGroups)
+		if _, required := requiredPresetKeys[preset.Key]; !required {
+			return fmt.Errorf("unknown permission preset: %s", preset.Key)
 		}
-		if !equalStrings(preset.Permissions, want.Permissions) {
-			return fmt.Errorf("permission preset %q permissions = %#v, want %#v", preset.Key, preset.Permissions, want.Permissions)
+		presetKeys[preset.Key] = struct{}{}
+
+		groups, err := uniqueStringSet("preset applicable groups", preset.ApplicableGroups)
+		if err != nil {
+			return fmt.Errorf("preset %s: %w", preset.Key, err)
 		}
+		if !equalStringSets(groups, requiredGroups) {
+			return fmt.Errorf("preset %s must apply to user and admin", preset.Key)
+		}
+
+		permissions, err := uniqueStringSet("preset permissions", preset.Permissions)
+		if err != nil {
+			return fmt.Errorf("preset %s: %w", preset.Key, err)
+		}
+		for permissionKey := range permissions {
+			definition, exists := definitionByKey[permissionKey]
+			if !exists {
+				return fmt.Errorf("preset %s contains unknown permission: %s", preset.Key, permissionKey)
+			}
+			if definition.Protected {
+				return fmt.Errorf("preset %s contains protected permission: %s", preset.Key, permissionKey)
+			}
+		}
+		if preset.Key == "restricted" && len(permissions) != 0 {
+			return fmt.Errorf("restricted preset must not contain permissions")
+		}
+		if preset.Key == "standard" && !equalStringSets(permissions, userKeys) {
+			return fmt.Errorf("standard preset does not match user permission baseline")
+		}
+	}
+	if !equalStringSets(presetKeys, requiredPresetKeys) {
+		return fmt.Errorf("permission presets are incomplete")
 	}
 	return nil
 }
 
-// expectedDefinitions constructs the canonical catalog without exposing mutable state.
-func expectedDefinitions() []Definition {
+// validCategory reports whether a category belongs to the public catalog contract.
+func validCategory(category string) bool {
+	switch category {
+	case "short_link_basic", "short_link_access", "domain", "administration":
+		return true
+	default:
+		return false
+	}
+}
+
+// uniqueStringSet converts unique values into a set or reports a duplicate.
+func uniqueStringSet(subject string, values []string) (map[string]struct{}, error) {
+	result := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if _, exists := result[value]; exists {
+			return nil, fmt.Errorf("duplicate %s value: %s", subject, value)
+		}
+		result[value] = struct{}{}
+	}
+	return result, nil
+}
+
+// equalStringSets reports whether two sets contain exactly the same keys.
+func equalStringSets(left map[string]struct{}, right map[string]struct{}) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for value := range left {
+		if _, exists := right[value]; !exists {
+			return false
+		}
+	}
+	return true
+}
+
+// newCatalogDefinitions constructs the package catalog without exposing mutable state.
+func newCatalogDefinitions() []Definition {
 	return []Definition{
 		{Key: ShortLinkCreate, Category: "short_link_basic"},
 		{Key: ShortLinkReadOwn, Category: "short_link_basic"},
@@ -169,8 +267,8 @@ func expectedDefinitions() []Definition {
 	}
 }
 
-// expectedPresets constructs the canonical presets without exposing mutable state.
-func expectedPresets() []Preset {
+// newCatalogPresets constructs the package presets without exposing mutable state.
+func newCatalogPresets() []Preset {
 	return []Preset{
 		{Key: "restricted", ApplicableGroups: []string{GroupUser, GroupAdmin}, Permissions: []string{}},
 		{
@@ -207,17 +305,4 @@ func cloneStrings(values []string) []string {
 	result := make([]string, len(values))
 	copy(result, values)
 	return result
-}
-
-// equalStrings reports whether two string slices have identical ordered values.
-func equalStrings(left []string, right []string) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for index := range left {
-		if left[index] != right[index] {
-			return false
-		}
-	}
-	return true
 }

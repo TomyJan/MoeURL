@@ -3,6 +3,7 @@ package permission
 import (
 	"errors"
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -152,33 +153,131 @@ func TestProtectedPermissionNormalization(t *testing.T) {
 	}
 }
 
-// TestCatalogValidationRejectsInvalidDefinitionsAndPresets verifies static catalog self-check failures.
-func TestCatalogValidationRejectsInvalidDefinitionsAndPresets(t *testing.T) {
-	validDefinitions := Definitions()
-	validPresets := Presets()
+// TestCatalogValidationRejectsStructuralViolations verifies each catalog invariant independently.
+func TestCatalogValidationRejectsStructuralViolations(t *testing.T) {
 	tests := []struct {
-		name        string
-		definitions []Definition
-		presets     []Preset
+		name   string
+		mutate func(*[]Definition, *[]Preset)
 	}{
-		{name: "missing definition", definitions: validDefinitions[:len(validDefinitions)-1], presets: validPresets},
-		{name: "unexpected definition key", definitions: replaceDefinition(validDefinitions, 0, Definition{Key: "unknown", Category: "short_link_basic"}), presets: validPresets},
-		{name: "duplicate definition", definitions: replaceDefinition(validDefinitions, 1, validDefinitions[0]), presets: validPresets},
-		{name: "wrong category", definitions: replaceDefinition(validDefinitions, 0, Definition{Key: ShortLinkCreate, Category: "wrong"}), presets: validPresets},
-		{name: "wrong protection", definitions: replaceDefinition(validDefinitions, 0, Definition{Key: ShortLinkCreate, Category: "short_link_basic", Protected: true}), presets: validPresets},
-		{name: "missing preset", definitions: validDefinitions, presets: validPresets[:len(validPresets)-1]},
-		{name: "wrong preset key", definitions: validDefinitions, presets: replacePreset(validPresets, 0, Preset{Key: "unknown", ApplicableGroups: []string{GroupUser, GroupAdmin}})},
-		{name: "wrong applicable groups", definitions: validDefinitions, presets: replacePreset(validPresets, 0, Preset{Key: "restricted", ApplicableGroups: []string{GroupGuest, GroupAdmin}})},
-		{name: "unknown preset permission", definitions: validDefinitions, presets: replacePreset(validPresets, 1, Preset{Key: "basic", ApplicableGroups: []string{GroupUser, GroupAdmin}, Permissions: []string{"unknown"}})},
-		{name: "duplicate preset permission", definitions: validDefinitions, presets: replacePreset(validPresets, 1, Preset{Key: "basic", ApplicableGroups: []string{GroupUser, GroupAdmin}, Permissions: []string{ShortLinkCreate, ShortLinkCreate}})},
-		{name: "protected preset permission", definitions: validDefinitions, presets: replacePreset(validPresets, 1, Preset{Key: "basic", ApplicableGroups: []string{GroupUser, GroupAdmin}, Permissions: []string{AdminAccess}})},
+		{name: "missing catalog key", mutate: func(definitions *[]Definition, _ *[]Preset) {
+			*definitions = (*definitions)[:len(*definitions)-1]
+		}},
+		{name: "unknown catalog key", mutate: func(definitions *[]Definition, _ *[]Preset) {
+			(*definitions)[0].Key = "unknown"
+		}},
+		{name: "duplicate catalog key", mutate: func(definitions *[]Definition, _ *[]Preset) {
+			(*definitions)[1].Key = (*definitions)[0].Key
+		}},
+		{name: "empty category", mutate: func(definitions *[]Definition, _ *[]Preset) {
+			(*definitions)[0].Category = ""
+		}},
+		{name: "unknown category", mutate: func(definitions *[]Definition, _ *[]Preset) {
+			(*definitions)[0].Category = "unknown"
+		}},
+		{name: "missing protected permission", mutate: func(definitions *[]Definition, _ *[]Preset) {
+			(*definitions)[9].Protected = false
+		}},
+		{name: "extra protected permission", mutate: func(definitions *[]Definition, _ *[]Preset) {
+			(*definitions)[0].Protected = true
+		}},
+		{name: "missing preset key", mutate: func(_ *[]Definition, presets *[]Preset) {
+			*presets = (*presets)[:len(*presets)-1]
+		}},
+		{name: "unknown preset key", mutate: func(_ *[]Definition, presets *[]Preset) {
+			(*presets)[0].Key = "unknown"
+		}},
+		{name: "duplicate preset key", mutate: func(_ *[]Definition, presets *[]Preset) {
+			(*presets)[1].Key = (*presets)[0].Key
+		}},
+		{name: "missing applicable group", mutate: func(_ *[]Definition, presets *[]Preset) {
+			(*presets)[0].ApplicableGroups = []string{GroupUser}
+		}},
+		{name: "duplicate applicable group", mutate: func(_ *[]Definition, presets *[]Preset) {
+			(*presets)[0].ApplicableGroups = []string{GroupUser, GroupUser}
+		}},
+		{name: "unexpected applicable group", mutate: func(_ *[]Definition, presets *[]Preset) {
+			(*presets)[0].ApplicableGroups = []string{GroupUser, GroupGuest}
+		}},
+		{name: "restricted permission", mutate: func(_ *[]Definition, presets *[]Preset) {
+			(*presets)[0].Permissions = []string{ShortLinkCreate}
+		}},
+		{name: "unknown preset permission", mutate: func(_ *[]Definition, presets *[]Preset) {
+			(*presets)[1].Permissions = []string{"unknown"}
+		}},
+		{name: "duplicate preset permission", mutate: func(_ *[]Definition, presets *[]Preset) {
+			(*presets)[1].Permissions = []string{ShortLinkCreate, ShortLinkCreate}
+		}},
+		{name: "protected preset permission", mutate: func(_ *[]Definition, presets *[]Preset) {
+			(*presets)[1].Permissions = []string{AdminAccess}
+		}},
+		{name: "standard differs from user baseline", mutate: func(_ *[]Definition, presets *[]Preset) {
+			(*presets)[2].Permissions = (*presets)[2].Permissions[:len((*presets)[2].Permissions)-1]
+		}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if err := validateCatalog(test.definitions, test.presets); err == nil {
+			definitions := Definitions()
+			presets := Presets()
+			test.mutate(&definitions, &presets)
+			if err := validateCatalog(definitions, presets); err == nil {
 				t.Fatal("expected catalog validation error")
 			}
 		})
+	}
+}
+
+// TestCatalogValidationUsesAuthorizationBaselines verifies catalog integrity follows real grant baselines.
+func TestCatalogValidationUsesAuthorizationBaselines(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func()
+	}{
+		{name: "admin missing permission", mutate: func() { AdminPermissions = AdminPermissions[:len(AdminPermissions)-1] }},
+		{name: "admin duplicate permission", mutate: func() { AdminPermissions = append(AdminPermissions, AdminPermissions[0]) }},
+		{name: "admin unknown permission", mutate: func() { AdminPermissions = append(AdminPermissions, "unknown") }},
+		{name: "user missing permission", mutate: func() { UserPermissions = UserPermissions[:len(UserPermissions)-1] }},
+		{name: "user duplicate permission", mutate: func() { UserPermissions = append(UserPermissions, UserPermissions[0]) }},
+		{name: "user protected permission", mutate: func() { UserPermissions = append(UserPermissions, AdminAccess) }},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			originalUser := UserPermissions
+			originalAdmin := AdminPermissions
+			UserPermissions = slices.Clone(UserPermissions)
+			AdminPermissions = slices.Clone(AdminPermissions)
+			defer func() {
+				UserPermissions = originalUser
+				AdminPermissions = originalAdmin
+			}()
+
+			test.mutate()
+			if err := validateCatalog(Definitions(), Presets()); err == nil {
+				t.Fatal("expected authorization baseline validation error")
+			}
+		})
+	}
+}
+
+// TestCatalogValidationTreatsSetsAsOrderIndependent verifies structural checks do not rely on slice order.
+func TestCatalogValidationTreatsSetsAsOrderIndependent(t *testing.T) {
+	originalUser := UserPermissions
+	originalAdmin := AdminPermissions
+	UserPermissions = slices.Clone(UserPermissions)
+	AdminPermissions = slices.Clone(AdminPermissions)
+	defer func() {
+		UserPermissions = originalUser
+		AdminPermissions = originalAdmin
+	}()
+	slices.Reverse(UserPermissions)
+	slices.Reverse(AdminPermissions)
+
+	presets := Presets()
+	for index := range presets {
+		slices.Reverse(presets[index].ApplicableGroups)
+	}
+	slices.Reverse(presets[2].Permissions)
+	if err := validateCatalog(Definitions(), presets); err != nil {
+		t.Fatalf("validate reordered catalog sets: %v", err)
 	}
 }
 
@@ -215,26 +314,5 @@ func normalizedKeys(group string, values []string) []string {
 			result = append(result, definition.Key)
 		}
 	}
-	return result
-}
-
-// replaceDefinition returns a copied definition list with one replacement.
-func replaceDefinition(values []Definition, index int, value Definition) []Definition {
-	result := append([]Definition(nil), values...)
-	result[index] = value
-	return result
-}
-
-// replacePreset returns a deeply copied preset list with one replacement.
-func replacePreset(values []Preset, index int, value Preset) []Preset {
-	result := make([]Preset, len(values))
-	for current, preset := range values {
-		result[current] = Preset{
-			Key:              preset.Key,
-			ApplicableGroups: append([]string(nil), preset.ApplicableGroups...),
-			Permissions:      append([]string(nil), preset.Permissions...),
-		}
-	}
-	result[index] = value
 	return result
 }

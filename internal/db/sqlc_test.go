@@ -1,6 +1,7 @@
 package db_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -91,6 +92,67 @@ func TestBuiltinUserGroupPermissionQueries(t *testing.T) {
 		t.Fatalf("stale update changed updated_at: got %#v, want %#v", persisted.UpdatedAt, updated.UpdatedAt)
 	}
 	assertJSONPermissions(t, persisted.Permissions, []string{"short_link:create", "domain:use_default"})
+
+	admin := groups[2]
+	adminPermissions := []byte(`["admin:access","short_link:read_all","short_link:update_all","short_link:delete_all"]`)
+	adminUpdated, err := queries.UpdateBuiltinUserGroupPermissions(ctx, sqlc.UpdateBuiltinUserGroupPermissionsParams{
+		GroupKey:          "admin",
+		Permissions:       adminPermissions,
+		ExpectedUpdatedAt: admin.UpdatedAt,
+	})
+	if err != nil {
+		t.Fatalf("update built-in admin group permissions: %v", err)
+	}
+	if !adminUpdated.UpdatedAt.Valid || !admin.UpdatedAt.Valid || !adminUpdated.UpdatedAt.Time.After(admin.UpdatedAt.Time) {
+		t.Fatalf("admin updated_at did not strictly increase: before %#v, after %#v", admin.UpdatedAt, adminUpdated.UpdatedAt)
+	}
+	assertJSONPermissions(t, adminUpdated.Permissions, []string{"admin:access", "short_link:read_all", "short_link:update_all", "short_link:delete_all"})
+
+	t.Run("reject guest", func(t *testing.T) {
+		assertUserGroupPermissionUpdateRejected(t, ctx, queries, groups[0], []byte(`["short_link:create"]`))
+	})
+	custom, err := queries.GetUserGroupByKey(ctx, "custom")
+	if err != nil {
+		t.Fatalf("read custom group before rejected update: %v", err)
+	}
+	t.Run("reject custom built-in group", func(t *testing.T) {
+		assertUserGroupPermissionUpdateRejected(t, ctx, queries, custom, []byte(`["short_link:create"]`))
+	})
+
+	if _, err := pool.Exec(ctx, `update user_group set builtin = false where key = 'user'`); err != nil {
+		t.Fatalf("make user group non-built-in: %v", err)
+	}
+	t.Run("reject non-built-in user group", func(t *testing.T) {
+		nonBuiltin := assertUserGroupPermissionUpdateRejected(t, ctx, queries, persisted, []byte(`["short_link:read_own"]`))
+		if nonBuiltin.Builtin {
+			t.Fatal("expected rejected update fixture to remain non-built-in")
+		}
+	})
+}
+
+// assertUserGroupPermissionUpdateRejected verifies a denied update leaves permission state unchanged.
+func assertUserGroupPermissionUpdateRejected(t *testing.T, ctx context.Context, queries *sqlc.Queries, before sqlc.UserGroup, attempted []byte) sqlc.UserGroup {
+	t.Helper()
+	_, err := queries.UpdateBuiltinUserGroupPermissions(ctx, sqlc.UpdateBuiltinUserGroupPermissionsParams{
+		GroupKey:          before.Key,
+		Permissions:       attempted,
+		ExpectedUpdatedAt: before.UpdatedAt,
+	})
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("update group %q error = %v, want pgx.ErrNoRows", before.Key, err)
+	}
+
+	after, err := queries.GetUserGroupByKey(ctx, before.Key)
+	if err != nil {
+		t.Fatalf("read group %q after rejected update: %v", before.Key, err)
+	}
+	if !bytes.Equal(after.Permissions, before.Permissions) {
+		t.Fatalf("rejected update changed %q permissions: got %q, want %q", before.Key, after.Permissions, before.Permissions)
+	}
+	if after.UpdatedAt.Valid != before.UpdatedAt.Valid || !after.UpdatedAt.Time.Equal(before.UpdatedAt.Time) {
+		t.Fatalf("rejected update changed %q updated_at: got %#v, want %#v", before.Key, after.UpdatedAt, before.UpdatedAt)
+	}
+	return after
 }
 
 // userGroupKeys extracts user group keys for stable-order assertions.
