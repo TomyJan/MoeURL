@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { ApiClientError, apiGet, apiPost } from '@/shared/api/client'
+import { INVALID_REQUEST_CODE } from '@/shared/api/error-codes'
 
 export type UserGroupKey = 'guest' | 'user' | 'admin'
 export type EditableUserGroupKey = Exclude<UserGroupKey, 'guest'>
@@ -69,14 +70,14 @@ const permissionDefinitionSchema: z.ZodType<PermissionDefinition> = z.strictObje
 
 const permissionPresetSchema: z.ZodType<PermissionPreset> = z.strictObject({
   key: z.enum(['restricted', 'basic', 'standard']),
-  applicableGroups: z.array(z.enum(['user', 'admin'])).length(2).refine(isUnique),
+  applicableGroups: z.array(z.enum(['user', 'admin'])).min(1).refine(isUnique),
   permissions: z.array(z.string()).refine(isUnique),
 })
 
 const userGroupListSchema: z.ZodType<UserGroupListResponse> = z.strictObject({
   groups: z.array(userGroupSchema).refine((groups) => groups.length === 0 || hasExactKeys(groups, ['guest', 'user', 'admin'])),
   permissions: z.array(permissionDefinitionSchema).refine((permissions) => isUnique(permissions.map(({ key }) => key))),
-  presets: z.array(permissionPresetSchema).length(3).refine((presets) => hasExactKeys(presets, ['restricted', 'basic', 'standard'])),
+  presets: z.array(permissionPresetSchema).refine((presets) => hasExactKeys(presets, ['restricted', 'basic', 'standard'])),
 }).superRefine((result, context) => {
   const permissionKeys = new Set(result.permissions.map(({ key }) => key))
   for (const group of result.groups) {
@@ -115,7 +116,7 @@ function parseResponse<T>(schema: z.ZodType<T>, value: unknown): T {
     const message = import.meta.env.DEV
       ? `Invalid user group response (schema path: ${issuePath})`
       : 'Invalid user group response'
-    throw new ApiClientError(100001, message)
+    throw new ApiClientError(INVALID_REQUEST_CODE, message)
   }
   return result.data
 }

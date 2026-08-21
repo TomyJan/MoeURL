@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { INVALID_REQUEST_CODE } from '@/shared/api/error-codes'
+
 import { listUserGroups, updateUserGroupPermissions } from './api'
 
 const responseData = {
@@ -52,6 +54,22 @@ describe('user group api', () => {
     await expect(listUserGroups()).resolves.toEqual(data)
   })
 
+  it('accepts presets that each target one editable group', async () => {
+    const data = {
+      ...responseData,
+      presets: responseData.presets.map((preset, index) => ({
+        ...preset,
+        applicableGroups: [index === 1 ? 'admin' : 'user'],
+      })),
+    }
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data, meta: {} }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })))
+
+    await expect(listUserGroups()).resolves.toEqual(data)
+  })
+
   it.each([
     ['unknown category', { ...responseData, permissions: [{ key: 'short_link:create', category: 'unknown', protected: false }] }],
     ['missing editable', { ...responseData, groups: responseData.groups.map((group, index) => index === 1 ? omitEditable(group) : group) }],
@@ -60,7 +78,11 @@ describe('user group api', () => {
     ['duplicate permission key', { ...responseData, permissions: [responseData.permissions[0], responseData.permissions[0]] }],
     ['unknown group permission', { ...responseData, groups: responseData.groups.map((group, index) => index === 1 ? { ...group, permissions: ['unknown'] } : group) }],
     ['duplicate preset key', { ...responseData, presets: [responseData.presets[0], responseData.presets[1], { ...responseData.presets[2], key: 'basic' }] }],
+    ['missing preset key', { ...responseData, presets: responseData.presets.slice(0, 2) }],
+    ['unknown preset key', { ...responseData, presets: responseData.presets.map((preset, index) => index === 0 ? { ...preset, key: 'custom' } : preset) }],
     ['invalid applicable groups', { ...responseData, presets: responseData.presets.map((preset, index) => index === 0 ? { ...preset, applicableGroups: ['guest'] } : preset) }],
+    ['empty applicable groups', { ...responseData, presets: responseData.presets.map((preset, index) => index === 0 ? { ...preset, applicableGroups: [] } : preset) }],
+    ['duplicate applicable group', { ...responseData, presets: responseData.presets.map((preset, index) => index === 0 ? { ...preset, applicableGroups: ['user', 'user'] } : preset) }],
     ['unknown preset permission', { ...responseData, presets: responseData.presets.map((preset, index) => index === 0 ? { ...preset, permissions: ['unknown'] } : preset) }],
     ['invalid updatedAt', { ...responseData, groups: responseData.groups.map((group, index) => index === 1 ? { ...group, updatedAt: 'invalid' } : group) }],
   ])('rejects an invalid %s response', async (_name, data) => {
@@ -69,7 +91,7 @@ describe('user group api', () => {
       headers: { 'Content-Type': 'application/json' },
     })))
 
-    await expect(listUserGroups()).rejects.toEqual(expect.objectContaining({ code: 100001 }))
+    await expect(listUserGroups()).rejects.toEqual(expect.objectContaining({ code: INVALID_REQUEST_CODE }))
   })
 
   it('includes the first schema issue path in development diagnostics', async () => {
@@ -80,7 +102,7 @@ describe('user group api', () => {
     })))
 
     await expect(listUserGroups()).rejects.toEqual(expect.objectContaining({
-      code: 100001,
+      code: INVALID_REQUEST_CODE,
       message: expect.stringContaining('groups.1.editable'),
     }))
   })
@@ -94,7 +116,7 @@ describe('user group api', () => {
     })))
 
     await expect(listUserGroups()).rejects.toEqual(expect.objectContaining({
-      code: 100001,
+      code: INVALID_REQUEST_CODE,
       message: 'Invalid user group response',
     }))
   })

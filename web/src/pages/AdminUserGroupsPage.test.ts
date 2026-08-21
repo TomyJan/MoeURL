@@ -153,6 +153,24 @@ describe('AdminUserGroupsPage', () => {
     expect((screen.getByLabelText('userGroups.permissions.short_link:create.label') as HTMLInputElement).checked).toBe(true)
   })
 
+  it('preserves a valid active group and falls back when that group disappears', async () => {
+    mountPage()
+    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
+    state.queryData.value = {
+      ...data,
+      groups: data.groups.map((group) => ({ ...group, updatedAt: `${group.key}-v2` })),
+    }
+    await nextTick()
+    expect(screen.getByTestId('user-group-summary').textContent).toContain('user')
+
+    state.queryData.value = {
+      ...data,
+      groups: data.groups.filter(({ key }) => key !== 'user'),
+    }
+    await nextTick()
+    expect(screen.getByTestId('user-group-summary').textContent).toContain('guest')
+  })
+
   it('resets a dirty draft when its server version changes', async () => {
     mountPage()
     await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
@@ -324,6 +342,44 @@ describe('AdminUserGroupsPage', () => {
     expect(screen.getByText('userGroups.dataStale')).toBeTruthy()
   })
 
+  it('keeps automatic synchronization suspended until overlapping conflict refreshes finish', async () => {
+    const firstRefresh = deferred<undefined>()
+    const secondRefresh = deferred<undefined>()
+    state.refetch
+      .mockImplementationOnce(() => firstRefresh.promise)
+      .mockImplementationOnce(() => secondRefresh.promise)
+    mountPage()
+    await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
+    await fireEvent.click(screen.getByLabelText('userGroups.permissions.short_link:create.label'))
+    const mutationOptions = vi.mocked(useMutation).mock.calls[0]?.[0] as unknown as {
+      onError: (error: unknown, input: { groupKey: 'user'; permissions: string[]; expectedUpdatedAt: string }) => Promise<void>
+    }
+    const input = { groupKey: 'user' as const, permissions: [], expectedUpdatedAt: 'user-v1' }
+    const conflict = new ApiClientError(USER_GROUP_PERMISSION_CONFLICT_CODE, 'Permission conflict')
+
+    const firstFlow = mutationOptions.onError(conflict, input)
+    const secondFlow = mutationOptions.onError(conflict, input)
+    await waitFor(() => expect(state.refetch).toHaveBeenCalledTimes(2))
+    state.queryData.value = {
+      ...data,
+      groups: data.groups.map((group) => group.key === 'user' ? { ...group, updatedAt: 'user-v2' } : group),
+    }
+    await nextTick()
+    firstRefresh.resolve(undefined)
+    await firstFlow
+
+    state.queryData.value = {
+      ...data,
+      groups: data.groups.map((group) => group.key === 'admin' ? { ...group, updatedAt: 'admin-v2' } : group),
+    }
+    await nextTick()
+    secondRefresh.resolve(undefined)
+    await secondFlow
+
+    expect((screen.getByLabelText('userGroups.permissions.short_link:create.label') as HTMLInputElement).checked).toBe(true)
+    expect(screen.getByText('userGroups.dataStale')).toBeTruthy()
+  })
+
   it('shows a non-conflict save failure without refetching', async () => {
     vi.mocked(updateUserGroupPermissions).mockRejectedValue(new Error('failed'))
     mountPage()
@@ -335,7 +391,7 @@ describe('AdminUserGroupsPage', () => {
     expect(state.refetch).not.toHaveBeenCalled()
   })
 
-  it('keeps conflict feedback when the refreshed target group is unavailable', async () => {
+  it('falls back without showing conflict feedback when the refreshed target group is unavailable', async () => {
     vi.mocked(updateUserGroupPermissions).mockRejectedValue(new ApiClientError(USER_GROUP_PERMISSION_CONFLICT_CODE, 'Permission conflict'))
     state.refetch.mockImplementation(async () => {
       state.queryData.value = { ...data, groups: data.groups.filter(({ key }) => key !== 'user') }
@@ -345,7 +401,8 @@ describe('AdminUserGroupsPage', () => {
     await fireEvent.update(screen.getByLabelText('userGroups.preset'), 'restricted')
     await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
 
-    await waitFor(() => expect(screen.getByText('userGroups.conflict')).toBeTruthy())
+    await waitFor(() => expect(screen.getByTestId('user-group-summary').textContent).toContain('guest'))
+    expect(screen.queryByText('userGroups.conflict')).toBeNull()
     expect(updateUserGroupPermissions).toHaveBeenCalledOnce()
   })
 

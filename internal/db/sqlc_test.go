@@ -119,12 +119,16 @@ func TestBuiltinUserGroupPermissionQueries(t *testing.T) {
 		assertUserGroupPermissionUpdateRejected(t, ctx, queries, custom, []byte(`["short_link:create"]`))
 	})
 
-	if _, err := pool.Exec(ctx, `update user_group set builtin = false where key = 'user'`); err != nil {
-		t.Fatalf("make user group non-built-in: %v", err)
-	}
 	t.Run("reject non-built-in user group", func(t *testing.T) {
-		nonBuiltin := assertUserGroupPermissionUpdateRejected(t, ctx, queries, persisted, []byte(`["short_link:read_own"]`))
-		if nonBuiltin.Builtin {
+		if _, err := pool.Exec(ctx, `update user_group set builtin = false where key = 'user'`); err != nil {
+			t.Fatalf("make user group non-built-in: %v", err)
+		}
+		before, err := queries.GetUserGroupByKey(ctx, "user")
+		if err != nil {
+			t.Fatalf("read non-built-in user group before rejected update: %v", err)
+		}
+		after := assertUserGroupPermissionUpdateRejected(t, ctx, queries, before, []byte(`["short_link:read_own"]`))
+		if after.Builtin {
 			t.Fatal("expected rejected update fixture to remain non-built-in")
 		}
 	})

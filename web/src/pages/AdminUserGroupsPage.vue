@@ -76,7 +76,7 @@ const activeGroupKey = ref<UserGroupKey>('guest')
 const feedback = ref<Feedback>('')
 const knownVersions = new Map<UserGroupKey, string>()
 const staleGroupKeys = reactive(new Set<UserGroupKey>())
-let automaticGroupSyncSuspended = false
+let pendingConflictRefreshes = 0
 /** Exposes the validated catalog while preserving its initial absent state. */
 const catalog = computed<UserGroupListResponse | undefined>(() => query.data.value)
 /** Resolves the active visible group without asserting that it exists. */
@@ -85,7 +85,7 @@ const activeGroup = computed<UserGroup | undefined>(() => displayedGroups.value.
 watch(
   () => query.data.value,
   (result) => {
-    if (automaticGroupSyncSuspended) {
+    if (pendingConflictRefreshes > 0) {
       return
     }
     if (!result) {
@@ -125,7 +125,7 @@ const mutation = useMutation({
   /** Reloads a conflicting group once without retrying the rejected write. */
   async onError(error, input) {
     if (error instanceof ApiClientError && error.code === USER_GROUP_PERMISSION_CONFLICT_CODE) {
-      automaticGroupSyncSuspended = true
+      pendingConflictRefreshes += 1
       let refreshFailed = false
       try {
         await query.refetch({ throwOnError: true })
@@ -133,13 +133,16 @@ const mutation = useMutation({
         refreshFailed = true
         staleGroupKeys.add(input.groupKey)
       } finally {
-        await nextTick()
-        const result = query.data.value
-        if (result) {
-          syncServerGroups(result, input.groupKey)
+        try {
           await nextTick()
+          const result = query.data.value
+          if (result) {
+            syncServerGroups(result, input.groupKey)
+            await nextTick()
+          }
+        } finally {
+          pendingConflictRefreshes -= 1
         }
-        automaticGroupSyncSuspended = false
       }
       if (input.groupKey === activeGroupKey.value) {
         feedback.value = refreshFailed ? 'reload-error' : 'conflict'
@@ -155,6 +158,10 @@ const mutation = useMutation({
 /** Copies refreshed groups and preserves unrelated drafts during a conflict refresh. */
 function syncServerGroups(result: UserGroupListResponse, conflictGroupKey?: UserGroupKey) {
   displayedGroups.value = result.groups.map((group) => ({ ...group, permissions: [...group.permissions] }))
+  const firstGroup = displayedGroups.value[0]
+  if (firstGroup && !displayedGroups.value.some(({ key }) => key === activeGroupKey.value)) {
+    activeGroupKey.value = firstGroup.key
+  }
   for (const group of displayedGroups.value) {
     if (knownVersions.get(group.key) === group.updatedAt) {
       continue
