@@ -86,6 +86,17 @@ function mountPage() {
   return render(AdminUserGroupsPage, { global: { stubs } })
 }
 
+/** Creates a manually settled promise for mutation timing tests. */
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, reject, resolve }
+}
+
 beforeEach(() => {
   state.mutationPending = ref(false)
   state.queryData = ref<unknown>(data)
@@ -179,6 +190,59 @@ describe('AdminUserGroupsPage', () => {
 
     await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
     expect(screen.queryByText('userGroups.saveSuccess')).toBeNull()
+  })
+
+  it('syncs a completed save without showing success on a newly active group', async () => {
+    const request = deferred<Awaited<ReturnType<typeof updateUserGroupPermissions>>>()
+    vi.mocked(updateUserGroupPermissions).mockReturnValue(request.promise)
+    mountPage()
+    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
+    await fireEvent.update(screen.getByLabelText('userGroups.preset'), 'restricted')
+    await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
+    await waitFor(() => expect(updateUserGroupPermissions).toHaveBeenCalledOnce())
+    await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
+
+    request.resolve({ group: { ...data.groups[1], permissions: [], updatedAt: 'user-v2' } })
+
+    await waitFor(() => expect(state.invalidateQueries).toHaveBeenCalledTimes(2))
+    expect(state.setQueryData).toHaveBeenCalledOnce()
+    expect(screen.queryByText('userGroups.saveSuccess')).toBeNull()
+    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
+    expect((screen.getByRole('button', { name: 'userGroups.save' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('refreshes a conflicting save without showing conflict on a newly active group', async () => {
+    const request = deferred<Awaited<ReturnType<typeof updateUserGroupPermissions>>>()
+    vi.mocked(updateUserGroupPermissions).mockReturnValue(request.promise)
+    mountPage()
+    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
+    await fireEvent.update(screen.getByLabelText('userGroups.preset'), 'restricted')
+    await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
+    await waitFor(() => expect(updateUserGroupPermissions).toHaveBeenCalledOnce())
+    await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
+
+    request.reject(new ApiClientError(USER_GROUP_PERMISSION_CONFLICT_CODE, 'Permission conflict'))
+
+    await waitFor(() => expect(state.refetch).toHaveBeenCalledOnce())
+    await waitFor(() => expect(state.mutationPending.value).toBe(false))
+    expect(screen.queryByText('userGroups.conflict')).toBeNull()
+    expect(screen.queryByText('userGroups.conflictReloadFailed')).toBeNull()
+  })
+
+  it('suppresses a failed save alert on a newly active group', async () => {
+    const request = deferred<Awaited<ReturnType<typeof updateUserGroupPermissions>>>()
+    vi.mocked(updateUserGroupPermissions).mockReturnValue(request.promise)
+    mountPage()
+    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
+    await fireEvent.update(screen.getByLabelText('userGroups.preset'), 'restricted')
+    await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
+    await waitFor(() => expect(updateUserGroupPermissions).toHaveBeenCalledOnce())
+    await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
+
+    request.reject(new Error('failed'))
+
+    await waitFor(() => expect(state.mutationPending.value).toBe(false))
+    expect(screen.queryByText('userGroups.saveFailed')).toBeNull()
   })
 
   it('locks controls while saving', async () => {

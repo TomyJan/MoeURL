@@ -106,7 +106,6 @@ const mutation = useMutation({
   retry: false,
   /** Replaces current state from the response, then awaits both required cache refreshes. */
   async onSuccess(result) {
-    feedback.value = 'success'
     replaceDisplayedGroup(result.group)
     draft.resetGroup(result.group)
     knownVersions.set(result.group.key, result.group.updatedAt)
@@ -115,6 +114,9 @@ const mutation = useMutation({
       ...current,
       groups: current.groups.map((group) => group.key === result.group.key ? { ...result.group, permissions: [...result.group.permissions] } : group),
     } : current)
+    if (result.group.key === activeGroupKey.value) {
+      feedback.value = 'success'
+    }
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: userGroupQueryKey }),
       queryClient.invalidateQueries({ queryKey: ['auth', 'me'] }),
@@ -139,10 +141,14 @@ const mutation = useMutation({
         }
         automaticGroupSyncSuspended = false
       }
-      feedback.value = refreshFailed ? 'reload-error' : 'conflict'
+      if (input.groupKey === activeGroupKey.value) {
+        feedback.value = refreshFailed ? 'reload-error' : 'conflict'
+      }
       return
     }
-    feedback.value = 'error'
+    if (input.groupKey === activeGroupKey.value) {
+      feedback.value = 'error'
+    }
   },
 })
 
