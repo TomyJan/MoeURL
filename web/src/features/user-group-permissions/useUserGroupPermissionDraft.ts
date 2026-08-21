@@ -69,7 +69,7 @@ export function useUserGroupPermissionDraft() {
     const draft = ensureDraft(group)
     const protectedKeys = new Set(definitions.filter(({ protected: fixed }) => fixed).map(({ key }) => key))
     const preserved = draft.permissions.filter((permission) => protectedKeys.has(permission))
-    draft.permissions = [...preset.permissions, ...preserved]
+    draft.permissions = [...new Set([...preset.permissions, ...preserved])]
     return true
   }
 

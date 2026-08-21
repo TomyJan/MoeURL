@@ -94,6 +94,10 @@ watch(
   { immediate: true },
 )
 
+watch(activeGroupKey, () => {
+  feedback.value = ''
+})
+
 const mutation = useMutation({
   mutationFn: updateUserGroupPermissions,
   retry: false,

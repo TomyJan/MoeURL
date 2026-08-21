@@ -48,6 +48,18 @@ describe('useUserGroupPermissionDraft', () => {
     })
   })
 
+  it('deduplicates permissions when a preset overlaps preserved protected state', () => {
+    const draft = useUserGroupPermissionDraft()
+    draft.reset(groups)
+    const overlappingPreset: PermissionPreset = {
+      ...basic,
+      permissions: ['short_link:create', 'admin:access'],
+    }
+
+    expect(draft.applyPreset(groups[2], overlappingPreset, definitions)).toBe(true)
+    expect(draft.permissionsFor('admin')).toEqual(['short_link:create', 'admin:access'])
+  })
+
   it('keeps guest read-only and ignores protected permission toggles', () => {
     const draft = useUserGroupPermissionDraft()
     draft.reset(groups)

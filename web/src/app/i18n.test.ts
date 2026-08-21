@@ -1,6 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import { listUserGroups } from '@/entities/user-group/api'
 
 import { i18n, messages } from './i18n'
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('i18n', () => {
   it('defines default and fallback locales', () => {
@@ -81,22 +87,39 @@ describe('i18n', () => {
     )
   })
 
-  it('defines the complete bilingual user-group permission interface', () => {
-    const permissionKeys = [
-      'short_link:create',
-      'short_link:read_own',
-      'short_link:update_own',
-      'short_link:delete_own',
-      'short_link:use_intermediate',
-      'short_link:set_expiration',
-      'short_link:set_password',
-      'short_link:use_confirmation',
-      'domain:use_default',
-      'admin:access',
-      'short_link:read_all',
-      'short_link:update_all',
-      'short_link:delete_all',
+  it('defines the complete bilingual user-group permission interface', async () => {
+    const permissions = [
+      { key: 'short_link:create', category: 'short_link_basic', protected: false },
+      { key: 'short_link:read_own', category: 'short_link_basic', protected: false },
+      { key: 'short_link:update_own', category: 'short_link_basic', protected: false },
+      { key: 'short_link:delete_own', category: 'short_link_basic', protected: false },
+      { key: 'short_link:use_intermediate', category: 'short_link_access', protected: false },
+      { key: 'short_link:set_expiration', category: 'short_link_access', protected: false },
+      { key: 'short_link:set_password', category: 'short_link_access', protected: false },
+      { key: 'short_link:use_confirmation', category: 'short_link_access', protected: false },
+      { key: 'domain:use_default', category: 'domain', protected: false },
+      { key: 'admin:access', category: 'administration', protected: true },
+      { key: 'short_link:read_all', category: 'administration', protected: true },
+      { key: 'short_link:update_all', category: 'administration', protected: true },
+      { key: 'short_link:delete_all', category: 'administration', protected: true },
     ]
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      code: 0,
+      message: 'OK',
+      data: {
+        groups: [],
+        permissions,
+        presets: [
+          { key: 'restricted', applicableGroups: ['user', 'admin'], permissions: [] },
+          { key: 'basic', applicableGroups: ['user', 'admin'], permissions: [] },
+          { key: 'standard', applicableGroups: ['user', 'admin'], permissions: [] },
+        ],
+      },
+      meta: {},
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })))
+    const catalog = await listUserGroups()
+    const permissionKeys = new Set(catalog.permissions.map(({ key }) => key))
+
     for (const locale of ['zh-CN', 'en'] as const) {
       const userGroups = messages[locale].userGroups
       expect(userGroups.title).toBeTruthy()
@@ -110,7 +133,7 @@ describe('i18n', () => {
       expect(userGroups.presets.restricted).toBeTruthy()
       expect(userGroups.presets.basic).toBeTruthy()
       expect(userGroups.presets.standard).toBeTruthy()
-      expect(Object.keys(userGroups.permissions)).toEqual(permissionKeys)
+      expect(new Set(Object.keys(userGroups.permissions))).toEqual(permissionKeys)
       for (const permission of Object.values(userGroups.permissions)) {
         expect(permission.label).toBeTruthy()
         expect(permission.description).toBeTruthy()

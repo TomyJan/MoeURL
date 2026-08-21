@@ -137,7 +137,7 @@ func TestProtectedPermissionNormalization(t *testing.T) {
 				t.Fatalf("NormalizeForGroup() error = %v, want %v", err, test.want)
 			}
 			if err == nil {
-				want := normalizedKeys(test.group, test.values)
+				want := normalizedKeys(test.values)
 				if !reflect.DeepEqual(got, want) {
 					t.Fatalf("NormalizeForGroup() = %#v, want %#v", got, want)
 				}
@@ -175,7 +175,12 @@ func TestCatalogValidationRejectsStructuralViolations(t *testing.T) {
 			(*definitions)[0].Category = "unknown"
 		}},
 		{name: "missing protected permission", mutate: func(definitions *[]Definition, _ *[]Preset) {
-			(*definitions)[9].Protected = false
+			for index, definition := range *definitions {
+				if definition.Key == AdminAccess {
+					(*definitions)[index].Protected = false
+					return
+				}
+			}
 		}},
 		{name: "extra protected permission", mutate: func(definitions *[]Definition, _ *[]Preset) {
 			(*definitions)[0].Protected = true
@@ -303,7 +308,7 @@ func findDefinition(t *testing.T, key string) Definition {
 }
 
 // normalizedKeys returns the expected stable subset for successful test cases.
-func normalizedKeys(group string, values []string) []string {
+func normalizedKeys(values []string) []string {
 	selected := make(map[string]struct{}, len(values))
 	for _, value := range values {
 		selected[value] = struct{}{}

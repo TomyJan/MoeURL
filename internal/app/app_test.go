@@ -22,6 +22,22 @@ import (
 	"github.com/TomyJan/MoeURL/internal/usergroup"
 )
 
+// TestAppNewRejectsInvalidPermissionCatalog verifies startup stops before dependency wiring when catalog validation fails.
+func TestAppNewRejectsInvalidPermissionCatalog(t *testing.T) {
+	wantErr := errors.New("invalid permission catalog")
+	originalValidate := validatePermissionCatalog
+	validatePermissionCatalog = func() error { return wantErr }
+	t.Cleanup(func() { validatePermissionCatalog = originalValidate })
+
+	application, err := New(context.Background(), config.Config{HTTPAddr: ":0"}, slog.Default())
+	if application != nil {
+		t.Fatal("New() returned an application for an invalid permission catalog")
+	}
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("New() error = %v, want wrapped %v", err, wantErr)
+	}
+}
+
 // TestAppNewNormalizesEnvironment verifies application wiring uses the validated environment form.
 func TestAppNewNormalizesEnvironment(t *testing.T) {
 	ctx := context.Background()

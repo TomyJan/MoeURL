@@ -173,6 +173,9 @@ describe('AdminUserGroupsPage', () => {
     expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['auth', 'me'] })
     expect(screen.getByText('userGroups.saveSuccess')).toBeTruthy()
     expect((screen.getByRole('button', { name: 'userGroups.save' }) as HTMLButtonElement).disabled).toBe(true)
+
+    await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
+    expect(screen.queryByText('userGroups.saveSuccess')).toBeNull()
   })
 
   it('locks controls while saving', async () => {

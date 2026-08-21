@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	nethttp "net/http"
 	"time"
@@ -21,6 +22,9 @@ import (
 
 const accessGrantCleanupInterval = time.Minute
 
+// validatePermissionCatalog allows startup validation failures to be exercised without mutating package catalog state.
+var validatePermissionCatalog = permission.ValidateCatalog
+
 type App struct {
 	config             config.Config
 	logger             *slog.Logger
@@ -32,6 +36,9 @@ type App struct {
 
 // New builds the application dependencies and HTTP server from configuration.
 func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, error) {
+	if err := validatePermissionCatalog(); err != nil {
+		return nil, fmt.Errorf("validate permission catalog: %w", err)
+	}
 	var pool *pgxpool.Pool
 	deps := apphttp.Dependencies{Logger: logger}
 	var grantCleanupCancel context.CancelFunc
