@@ -210,18 +210,19 @@ func TestHandlerUpdatePermissionsRejectsMissingOrNullPermissionsArray(t *testing
 // TestHandlerMapsAllUserGroupErrors verifies public codes and infrastructure logging boundaries.
 func TestHandlerMapsAllUserGroupErrors(t *testing.T) {
 	tests := []struct {
-		name       string
-		err        error
-		httpStatus int
-		code       int
+		name          string
+		err           error
+		httpStatus    int
+		code          int
+		errorCategory string
 	}{
 		{name: "invalid", err: ErrInvalidInput, httpStatus: http.StatusOK, code: 100001},
 		{name: "permission denied", err: ErrPermissionDenied, httpStatus: http.StatusOK, code: 120001},
 		{name: "not found", err: ErrUserGroupNotFound, httpStatus: http.StatusOK, code: 300201},
 		{name: "conflict", err: ErrPermissionConflict, httpStatus: http.StatusOK, code: 300202},
 		{name: "protected", err: ErrProtectedPermission, httpStatus: http.StatusOK, code: 300203},
-		{name: "resolver missing", err: ErrPermissionResolverNeeded, httpStatus: http.StatusInternalServerError, code: 900000},
-		{name: "database", err: errTestInfrastructure, httpStatus: http.StatusInternalServerError, code: 900000},
+		{name: "resolver missing", err: ErrPermissionResolverNeeded, httpStatus: http.StatusInternalServerError, code: 900000, errorCategory: "permission_resolver"},
+		{name: "database", err: errTestInfrastructure, httpStatus: http.StatusInternalServerError, code: 900000, errorCategory: "infrastructure"},
 	}
 
 	for _, test := range tests {
@@ -241,10 +242,16 @@ func TestHandlerMapsAllUserGroupErrors(t *testing.T) {
 			}
 			if test.httpStatus == http.StatusInternalServerError {
 				logOutput := logs.String()
-				for _, required := range []string{"admin-sensitive-id", permission.GroupUser, "error_category"} {
-					if !strings.Contains(logOutput, required) {
-						t.Fatalf("infrastructure log %q does not contain %q", logOutput, required)
-					}
+				var entry struct {
+					ActorID       string `json:"actor_id"`
+					GroupKey      string `json:"group_key"`
+					ErrorCategory string `json:"error_category"`
+				}
+				if err := json.Unmarshal(logs.Bytes(), &entry); err != nil {
+					t.Fatalf("decode infrastructure log %q: %v", logOutput, err)
+				}
+				if entry.ActorID != "admin-sensitive-id" || entry.GroupKey != permission.GroupUser || entry.ErrorCategory != test.errorCategory {
+					t.Fatalf("infrastructure log fields = %#v, want actor_id=%q group_key=%q error_category=%q", entry, "admin-sensitive-id", permission.GroupUser, test.errorCategory)
 				}
 				for _, forbidden := range []string{"session-secret-value", "permission-not-for-logs", "permissions", errTestInfrastructure.Error()} {
 					if strings.Contains(logOutput, forbidden) {

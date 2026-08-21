@@ -1,24 +1,13 @@
-import { execFileSync } from 'node:child_process'
-import { tmpdir } from 'node:os'
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { i18n, messages } from './i18n'
 
-/** Loads permission keys from the backend catalog used by the live user-group API. */
+/** Loads the checked-in snapshot generated from the backend permission catalog. */
 function readBackendPermissionCatalog(): Array<{ key: string }> {
-  const repositoryRoot = resolve(__dirname, '../../..')
-  const output = execFileSync('go', ['run', 'scripts/permission-catalog-fixture.go'], {
-    cwd: repositoryRoot,
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      GOCACHE: process.env.GOCACHE ?? resolve(tmpdir(), 'moeurl-go-build-cache'),
-      GOTELEMETRY: 'off',
-    },
-    windowsHide: true,
-  })
-  return JSON.parse(output) as Array<{ key: string }>
+  const snapshot = readFileSync(resolve(__dirname, '../test/fixtures/permission-catalog.json'), 'utf8')
+  return JSON.parse(snapshot) as Array<{ key: string }>
 }
 
 describe('i18n', () => {
@@ -124,7 +113,7 @@ describe('i18n', () => {
       expect(userGroups.conflict).toBeTruthy()
       expect(userGroups.saveSuccess).toBeTruthy()
     }
-  }, 30_000)
+  })
 
   it('keeps locale message trees aligned', () => {
     /** Flattens nested locale messages into comparable dotted keys. */

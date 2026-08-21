@@ -1,7 +1,10 @@
 package permission
 
 import (
+	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"testing"
@@ -34,6 +37,21 @@ func TestCatalogDefinitionsCoverPermissionConstants(t *testing.T) {
 	}
 	if err := ValidateCatalog(); err != nil {
 		t.Fatalf("validate catalog: %v", err)
+	}
+}
+
+// TestCatalogDefinitionsMatchFrontendSnapshot verifies the checked-in frontend fixture tracks the backend catalog.
+func TestCatalogDefinitionsMatchFrontendSnapshot(t *testing.T) {
+	contents, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "test", "fixtures", "permission-catalog.json"))
+	if err != nil {
+		t.Fatalf("read frontend permission catalog snapshot: %v", err)
+	}
+	var snapshot []Definition
+	if err := json.Unmarshal(contents, &snapshot); err != nil {
+		t.Fatalf("decode frontend permission catalog snapshot: %v", err)
+	}
+	if !reflect.DeepEqual(snapshot, Definitions()) {
+		t.Fatalf("frontend permission catalog snapshot = %#v, want %#v", snapshot, Definitions())
 	}
 }
 
