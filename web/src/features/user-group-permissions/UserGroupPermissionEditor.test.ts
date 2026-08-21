@@ -3,10 +3,14 @@ import { describe, expect, it, vi } from 'vitest'
 
 import type { PermissionDefinition, PermissionPreset, UserGroup } from '@/entities/user-group/api'
 
-import editorSource from './UserGroupPermissionEditor.vue?raw'
 import UserGroupPermissionEditor from './UserGroupPermissionEditor.vue'
 
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({
+    locale: { value: 'zh-CN' },
+    t: (key: string, params?: unknown) => params ? `${key}:${JSON.stringify(params)}` : key,
+  }),
+}))
 
 const definitions: PermissionDefinition[] = [
   { key: 'short_link:create', category: 'short_link_basic', protected: false },
@@ -21,7 +25,7 @@ const presets: PermissionPreset[] = [
 ]
 const admin: UserGroup = {
   key: 'admin', name: 'Admin', description: 'Administrators', builtin: true, editable: true,
-  permissions: ['short_link:create', 'admin:access'], updatedAt: 'admin-v1',
+  permissions: ['short_link:create', 'admin:access'], updatedAt: '2026-08-20T12:34:00Z',
 }
 
 const stubs = {
@@ -40,6 +44,7 @@ const stubs = {
   },
 }
 
+/** Mounts the permission editor with concise defaults for interaction tests. */
 function mountEditor(group = admin, draftPermissions = admin.permissions, dirty = false, pending = false, dataValid = true) {
   return render(UserGroupPermissionEditor, {
     props: { dataValid, definitions, dirty, draftPermissions, group, pending, presets },
@@ -71,11 +76,14 @@ describe('UserGroupPermissionEditor', () => {
     const view = mountEditor()
 
     await fireEvent.update(screen.getByLabelText('userGroups.preset'), 'basic')
-    await fireEvent.update(screen.getByLabelText('userGroups.preset'), '')
+    expect((screen.getByLabelText('userGroups.preset') as HTMLSelectElement).value).toBe('basic')
     await fireEvent.click(screen.getByLabelText('userGroups.permissions.short_link:create.label'))
 
     expect(view.emitted('apply-preset')).toEqual([['basic']])
     expect(view.emitted('set-permission')).toEqual([['short_link:create', false]])
+    expect((screen.getByLabelText('userGroups.preset') as HTMLSelectElement).value).toBe('')
+    await fireEvent.update(screen.getByLabelText('userGroups.preset'), '')
+    expect(view.emitted('apply-preset')).toEqual([['basic']])
     expect(view.emitted('save')).toBeUndefined()
     expect((screen.getByRole('button', { name: 'userGroups.save' }) as HTMLButtonElement).disabled).toBe(true)
   })
@@ -118,8 +126,11 @@ describe('UserGroupPermissionEditor', () => {
     ])
   })
 
-  it('resets the preset flex basis at the mobile breakpoint', () => {
-    const mobileStyles = editorSource.slice(editorSource.indexOf('@media (max-width: 700px)'))
-    expect(mobileStyles).toMatch(/permission-editor__preset\s+:deep\(\.v-input\)[\s\S]*?flex:\s*0 1 auto/)
+  it('formats the permission version using the active interface locale', () => {
+    mountEditor()
+    const expected = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(admin.updatedAt))
+
+    expect(screen.getByText(`userGroups.updatedAt:${JSON.stringify({ value: expected })}`)).toBeTruthy()
+    expect(screen.queryByText(`userGroups.updatedAt:${JSON.stringify({ value: admin.updatedAt })}`)).toBeNull()
   })
 })

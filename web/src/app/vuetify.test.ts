@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { vi } from 'vitest'
 
+/** Holds the hoisted Vuetify factory used by module mocks. */
 const mocks = vi.hoisted(() => ({
   createVuetify: vi.fn((options: unknown) => ({
     install: vi.fn(),

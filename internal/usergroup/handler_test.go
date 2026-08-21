@@ -29,12 +29,14 @@ type fakeUserGroupService struct {
 	updateInput UpdatePermissionsInput
 }
 
+// List records the actor and returns the configured list result.
 func (f *fakeUserGroupService) List(_ context.Context, actor auth.CurrentUser) (ListResult, error) {
 	f.listCalls++
 	f.listActor = actor
 	return f.listResult, f.listErr
 }
 
+// UpdatePermissions records the actor and input before returning the configured result.
 func (f *fakeUserGroupService) UpdatePermissions(_ context.Context, actor auth.CurrentUser, input UpdatePermissionsInput) (UpdatePermissionsResult, error) {
 	f.updateCalls++
 	f.updateActor = actor
@@ -46,6 +48,7 @@ type handlerCurrentUserResolver struct {
 	actor auth.CurrentUser
 }
 
+// ResolveCurrentUser returns the actor configured for a handler test.
 func (r handlerCurrentUserResolver) ResolveCurrentUser(context.Context, string) (auth.CurrentUser, error) {
 	return r.actor, nil
 }
@@ -57,6 +60,7 @@ type handlerEnvelope struct {
 	Meta    map[string]any  `json:"meta"`
 }
 
+// serveUserGroupHandler executes a request with an authenticated test actor.
 func serveUserGroupHandler(t *testing.T, handler http.Handler, actor auth.CurrentUser, request *http.Request) *httptest.ResponseRecorder {
 	t.Helper()
 	request.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session-secret-value"})
@@ -65,6 +69,7 @@ func serveUserGroupHandler(t *testing.T, handler http.Handler, actor auth.Curren
 	return response
 }
 
+// decodeHandlerEnvelope parses the unified response envelope or fails the test.
 func decodeHandlerEnvelope(t *testing.T, response *httptest.ResponseRecorder) handlerEnvelope {
 	t.Helper()
 	var envelope handlerEnvelope
@@ -74,6 +79,7 @@ func decodeHandlerEnvelope(t *testing.T, response *httptest.ResponseRecorder) ha
 	return envelope
 }
 
+// TestHandlerListReturnsUnifiedResultAndActor verifies list response and actor forwarding.
 func TestHandlerListReturnsUnifiedResultAndActor(t *testing.T) {
 	actor := auth.CurrentUser{ID: "admin-id", Username: "admin", GroupKey: permission.GroupAdmin}
 	service := &fakeUserGroupService{listResult: ListResult{
@@ -101,6 +107,7 @@ func TestHandlerListReturnsUnifiedResultAndActor(t *testing.T) {
 	}
 }
 
+// TestHandlerUpdatePermissionsDecodesInputAndReturnsGroup verifies update request and response mapping.
 func TestHandlerUpdatePermissionsDecodesInputAndReturnsGroup(t *testing.T) {
 	actor := auth.CurrentUser{ID: "admin-id", GroupKey: permission.GroupAdmin}
 	service := &fakeUserGroupService{updateResult: UpdatePermissionsResult{Group: UserGroup{
@@ -136,6 +143,7 @@ func TestHandlerUpdatePermissionsDecodesInputAndReturnsGroup(t *testing.T) {
 	}
 }
 
+// TestHandlerUpdatePermissionsRejectsInvalidJSON verifies malformed input is rejected before service use.
 func TestHandlerUpdatePermissionsRejectsInvalidJSON(t *testing.T) {
 	service := &fakeUserGroupService{}
 	handler := NewHandler(service, nil)
@@ -148,6 +156,7 @@ func TestHandlerUpdatePermissionsRejectsInvalidJSON(t *testing.T) {
 	}
 }
 
+// TestHandlerUpdatePermissionsRejectsTrailingJSONAndOversizedBodies verifies request framing limits.
 func TestHandlerUpdatePermissionsRejectsTrailingJSONAndOversizedBodies(t *testing.T) {
 	validBody := `{"groupKey":"user","permissions":[],"expectedUpdatedAt":"2026-08-20T03:04:05Z"}`
 	tests := []struct {
@@ -173,6 +182,7 @@ func TestHandlerUpdatePermissionsRejectsTrailingJSONAndOversizedBodies(t *testin
 	}
 }
 
+// TestHandlerUpdatePermissionsRejectsMissingOrNullPermissionsArray verifies the complete-array contract.
 func TestHandlerUpdatePermissionsRejectsMissingOrNullPermissionsArray(t *testing.T) {
 	tests := []struct {
 		name string
@@ -197,6 +207,7 @@ func TestHandlerUpdatePermissionsRejectsMissingOrNullPermissionsArray(t *testing
 	}
 }
 
+// TestHandlerMapsAllUserGroupErrors verifies public codes and infrastructure logging boundaries.
 func TestHandlerMapsAllUserGroupErrors(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -247,6 +258,7 @@ func TestHandlerMapsAllUserGroupErrors(t *testing.T) {
 	}
 }
 
+// TestHandlerInfrastructureLogOmitsUnvalidatedGroupKey verifies untrusted group keys are not logged.
 func TestHandlerInfrastructureLogOmitsUnvalidatedGroupKey(t *testing.T) {
 	service := &fakeUserGroupService{updateErr: errTestInfrastructure}
 	var logs bytes.Buffer
@@ -267,6 +279,7 @@ func TestHandlerInfrastructureLogOmitsUnvalidatedGroupKey(t *testing.T) {
 	}
 }
 
+// TestHandlerListLogsInfrastructureWithoutUpdateGroupKey verifies list failures omit update-only fields.
 func TestHandlerListLogsInfrastructureWithoutUpdateGroupKey(t *testing.T) {
 	service := &fakeUserGroupService{listErr: errTestInfrastructure}
 	var logs bytes.Buffer
@@ -283,6 +296,7 @@ func TestHandlerListLogsInfrastructureWithoutUpdateGroupKey(t *testing.T) {
 	}
 }
 
+// TestHandlerEncodingFailureUsesSafeInternalEnvelope verifies encoding failures return the fallback envelope.
 func TestHandlerEncodingFailureUsesSafeInternalEnvelope(t *testing.T) {
 	originalEncode := encodeResponse
 	encodeResponse = func(io.Writer, response) error {

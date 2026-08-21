@@ -25,6 +25,7 @@ type PermissionPreset = {
 
 type UserGroupCatalog = {
   groups: UserGroup[]
+  permissions: Array<{ key: string }>
   presets: PermissionPreset[]
 }
 
@@ -39,7 +40,6 @@ type PermissionFixtures = {
 
 const test = base.extend<PermissionFixtures>({
   memberContext: [async ({ browser, page }, use, testInfo) => {
-    await login(page, e2eAdminUsername, e2eAdminPassword)
     await restoreUserStandard(page)
     const baseURL = testInfo.project.use.baseURL
     if (typeof baseURL !== 'string') {
@@ -77,7 +77,8 @@ test('v0.5.0 built-in user-group permissions apply to subsequent requests', asyn
     await expect(editor.getByRole('button', { name: '保存权限' })).toBeDisabled()
 
     const checkboxes = editor.getByRole('checkbox')
-    await expect(checkboxes).toHaveCount(13)
+    const catalog = await readUserGroupCatalog(page)
+    await expect(checkboxes).toHaveCount(catalog.permissions.length)
     for (const checkbox of await checkboxes.all()) {
       await expect(checkbox).toBeDisabled()
     }

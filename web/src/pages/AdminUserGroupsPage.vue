@@ -30,7 +30,7 @@
       <v-alert v-else-if="feedback === 'error'" type="error" variant="tonal">{{ t('userGroups.saveFailed') }}</v-alert>
 
       <UserGroupPermissionEditor
-        v-if="activeGroup"
+        v-if="activeGroup && catalog"
         :data-valid="!staleGroupKeys.has(activeGroup.key)"
         :definitions="catalog.permissions"
         :dirty="draft.isDirty(activeGroup)"
@@ -40,7 +40,7 @@
         :presets="catalog.presets"
         @apply-preset="applyPreset(activeGroup, $event)"
         @save="saveCurrentGroup(activeGroup)"
-        @set-permission="(permissionKey, selected) => setPermission(activeGroup, permissionKey, selected)"
+        @set-permission="(permissionKey, selected) => activeGroup && setPermission(activeGroup, permissionKey, selected)"
       />
     </template>
   </section>
@@ -63,6 +63,7 @@ import {
 import UserGroupPermissionEditor from '@/features/user-group-permissions/UserGroupPermissionEditor.vue'
 import { useUserGroupPermissionDraft } from '@/features/user-group-permissions/useUserGroupPermissionDraft'
 import { ApiClientError } from '@/shared/api/client'
+import { USER_GROUP_PERMISSION_CONFLICT_CODE } from '@/shared/api/error-codes'
 
 type Feedback = '' | 'success' | 'conflict' | 'reload-error' | 'error'
 
@@ -76,8 +77,10 @@ const feedback = ref<Feedback>('')
 const knownVersions = new Map<UserGroupKey, string>()
 const staleGroupKeys = reactive(new Set<UserGroupKey>())
 let conflictRefreshGroupKey: UserGroupKey | null = null
-const catalog = computed<UserGroupListResponse>(() => query.data.value as UserGroupListResponse)
-const activeGroup = computed<UserGroup>(() => displayedGroups.value.find(({ key }) => key === activeGroupKey.value) as UserGroup)
+/** Exposes the validated catalog while preserving its initial absent state. */
+const catalog = computed<UserGroupListResponse | undefined>(() => query.data.value)
+/** Resolves the active visible group without asserting that it exists. */
+const activeGroup = computed<UserGroup | undefined>(() => displayedGroups.value.find(({ key }) => key === activeGroupKey.value))
 
 watch(
   () => query.data.value,
@@ -112,7 +115,7 @@ const mutation = useMutation({
   },
   /** Reloads a conflicting group once without retrying the rejected write. */
   async onError(error, input) {
-    if (error instanceof ApiClientError && error.code === 300202) {
+    if (error instanceof ApiClientError && error.code === USER_GROUP_PERMISSION_CONFLICT_CODE) {
       feedback.value = 'conflict'
       conflictRefreshGroupKey = input.groupKey
       try {
@@ -163,21 +166,34 @@ function replaceDisplayedGroup(group: UserGroup) {
 
 /** Applies a server-defined preset to the current local draft. */
 function applyPreset(group: UserGroup, presetKey: PermissionPresetKey) {
-  const preset = catalog.value.presets.find(({ key }) => key === presetKey) as NonNullable<UserGroupListResponse['presets'][number]>
+  const currentCatalog = catalog.value
+  const preset = currentCatalog?.presets.find(({ key }) => key === presetKey)
+  if (!currentCatalog || !preset) {
+    feedback.value = 'error'
+    return
+  }
   feedback.value = ''
-  draft.applyPreset(group, preset, catalog.value.permissions)
+  draft.applyPreset(group, preset, currentCatalog.permissions)
 }
 
 /** Updates one configurable permission in the current local draft. */
 function setPermission(group: UserGroup, permissionKey: string, selected: boolean) {
-  const definition = catalog.value.permissions.find(({ key }) => key === permissionKey) as NonNullable<UserGroupListResponse['permissions'][number]>
+  const definition = catalog.value?.permissions.find(({ key }) => key === permissionKey)
+  if (!definition) {
+    feedback.value = 'error'
+    return
+  }
   feedback.value = ''
   draft.setPermission(group, definition, selected)
 }
 
 /** Starts one complete optimistic update for the active editable group. */
 function saveCurrentGroup(group: UserGroup) {
-  const input = draft.toUpdateInput(group) as NonNullable<ReturnType<typeof draft.toUpdateInput>>
+  const input = draft.toUpdateInput(group)
+  if (!input) {
+    feedback.value = 'error'
+    return
+  }
   feedback.value = ''
   mutation.mutate(input)
 }

@@ -107,11 +107,15 @@ export async function updateUserGroupPermissions(input: UpdateUserGroupPermissio
   return parseResponse(updateResponseSchema, response.data)
 }
 
-/** Converts schema failures into the shared invalid-response error contract. */
+/** Converts schema failures into the shared error contract with development-only diagnostics. */
 function parseResponse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value)
   if (!result.success) {
-    throw new ApiClientError(100001, 'Invalid user group response')
+    const issuePath = result.error.issues[0]?.path.map(String).join('.') || '<root>'
+    const message = import.meta.env.DEV
+      ? `Invalid user group response (schema path: ${issuePath})`
+      : 'Invalid user group response'
+    throw new ApiClientError(100001, message)
   }
   return result.data
 }

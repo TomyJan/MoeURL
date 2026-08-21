@@ -28,6 +28,7 @@ function omitEditable(group: (typeof responseData.groups)[number]) {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
 })
 
 describe('user group api', () => {
@@ -68,6 +69,33 @@ describe('user group api', () => {
     })))
 
     await expect(listUserGroups()).rejects.toEqual(expect.objectContaining({ code: 100001 }))
+  })
+
+  it('includes the first schema issue path in development diagnostics', async () => {
+    const data = { ...responseData, groups: responseData.groups.map((group, index) => index === 1 ? omitEditable(group) : group) }
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data, meta: {} }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })))
+
+    await expect(listUserGroups()).rejects.toEqual(expect.objectContaining({
+      code: 100001,
+      message: expect.stringContaining('groups.1.editable'),
+    }))
+  })
+
+  it('keeps schema diagnostics out of the production error message', async () => {
+    vi.stubEnv('DEV', false)
+    const data = { ...responseData, groups: responseData.groups.map((group, index) => index === 1 ? omitEditable(group) : group) }
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data, meta: {} }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })))
+
+    await expect(listUserGroups()).rejects.toEqual(expect.objectContaining({
+      code: 100001,
+      message: 'Invalid user group response',
+    }))
   })
 
   it('posts the complete optimistic update and parses the returned group', async () => {

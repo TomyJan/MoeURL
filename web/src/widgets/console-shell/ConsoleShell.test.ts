@@ -5,6 +5,7 @@ import { nextTick, ref } from 'vue'
 import ConsoleShell from './ConsoleShell.vue'
 import { componentStubs } from '@/test/component-stubs'
 
+/** Holds mutable query, mutation, and router state shared by shell tests. */
 const state = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
   createShortLinkRequest: vi.fn(() => ({ shortLink: { url: 'https://go.example.com/new' } })),

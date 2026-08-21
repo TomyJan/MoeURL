@@ -37,7 +37,7 @@
               :label="t(`userGroups.permissions.${definition.key}.label`)"
               :model-value="draftPermissions.includes(definition.key)"
               hide-details
-              @update:model-value="emit('set-permission', definition.key, Boolean($event))"
+              @update:model-value="setPermission(definition.key, Boolean($event))"
             />
             <p :id="permissionDescriptionId(definition.key)">{{ t(`userGroups.permissions.${definition.key}.description`) }}</p>
             <span v-if="definition.protected" :id="permissionProtectedId(definition.key)">{{ t('userGroups.protected') }}</span>
@@ -47,7 +47,7 @@
     </div>
 
     <footer class="permission-editor__actions" data-testid="user-group-actions">
-      <span>{{ t('userGroups.updatedAt', { value: group.updatedAt }) }}</span>
+      <span>{{ t('userGroups.updatedAt', { value: formattedUpdatedAt }) }}</span>
       <v-btn
         color="primary"
         :disabled="!group.editable || !dataValid || !dirty || pending"
@@ -89,13 +89,17 @@ const emit = defineEmits<{
   'set-permission': [permissionKey: string, selected: boolean]
 }>()
 
-const { t } = useI18n()
+const { locale, t } = useI18n()
 const categoryOrder: PermissionCategory[] = ['short_link_basic', 'short_link_access', 'domain', 'administration']
 const selectedPreset = ref<PermissionPresetKey | ''>('')
+/** Formats the current permission version whenever its value or locale changes. */
+const formattedUpdatedAt = computed(() => formatUpdatedAt(props.group.updatedAt, locale.value))
+/** Groups permission definitions in their stable interface order. */
 const categories = computed(() => categoryOrder.map((key) => ({
   key,
   definitions: props.definitions.filter((definition) => definition.category === key),
 })).filter(({ definitions }) => definitions.length > 0))
+/** Builds the presets available to the active built-in group. */
 const presetItems = computed(() => {
   if (!props.group.editable) {
     return [{ title: t('userGroups.presets.restricted'), value: 'restricted' }]
@@ -139,6 +143,21 @@ function applyPreset(value: PermissionPresetKey | '' | null) {
   }
   selectedPreset.value = value
   emit('apply-preset', value)
+}
+
+/** Clears the preset source once a user adjusts an individual permission. */
+function setPermission(permissionKey: string, selected: boolean) {
+  selectedPreset.value = ''
+  emit('set-permission', permissionKey, selected)
+}
+
+/** Formats an RFC3339 permission version in the active locale. */
+function formatUpdatedAt(value: string, activeLocale: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+  return new Intl.DateTimeFormat(activeLocale, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
 }
 </script>
 

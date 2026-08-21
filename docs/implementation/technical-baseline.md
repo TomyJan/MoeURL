@@ -41,7 +41,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 | 前端测试 | Vitest + Vue Testing Library + Playwright |
 | 部署 | Docker + Docker Compose（支持裸机运行） |
 
-当前继续以 Go 1.25+ 为最低语言版本，`go.mod` 声明为 Go 1.25.7。`Dockerfile` 的前端和后端构建阶段统一使用 `golang:1.27rc2`；构建镜像版本只约束构建环境，不提高项目的最低 Go 版本。
+当前继续以 Go 1.25+ 为最低语言版本，`go.mod` 声明为 Go 1.25.7。`Dockerfile` 的前端和后端构建阶段统一使用稳定镜像 `golang:1.27.0`；构建镜像版本只约束构建环境，不提高项目的最低 Go 版本。
 
 ## 3. 仓库目录结构
 

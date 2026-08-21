@@ -82,6 +82,21 @@ describe('i18n', () => {
   })
 
   it('defines the complete bilingual user-group permission interface', () => {
+    const permissionKeys = [
+      'short_link:create',
+      'short_link:read_own',
+      'short_link:update_own',
+      'short_link:delete_own',
+      'short_link:use_intermediate',
+      'short_link:set_expiration',
+      'short_link:set_password',
+      'short_link:use_confirmation',
+      'domain:use_default',
+      'admin:access',
+      'short_link:read_all',
+      'short_link:update_all',
+      'short_link:delete_all',
+    ]
     for (const locale of ['zh-CN', 'en'] as const) {
       const userGroups = messages[locale].userGroups
       expect(userGroups.title).toBeTruthy()
@@ -95,7 +110,11 @@ describe('i18n', () => {
       expect(userGroups.presets.restricted).toBeTruthy()
       expect(userGroups.presets.basic).toBeTruthy()
       expect(userGroups.presets.standard).toBeTruthy()
-      expect(Object.keys(userGroups.permissions)).toHaveLength(13)
+      expect(Object.keys(userGroups.permissions)).toEqual(permissionKeys)
+      for (const permission of Object.values(userGroups.permissions)) {
+        expect(permission.label).toBeTruthy()
+        expect(permission.description).toBeTruthy()
+      }
       expect(userGroups.conflict).toBeTruthy()
       expect(userGroups.saveSuccess).toBeTruthy()
     }

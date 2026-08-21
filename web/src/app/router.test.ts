@@ -84,8 +84,9 @@ describe('router', () => {
     const consoleRoute = routes.find((route) => route.children)
     const userGroupRoute = consoleRoute?.children?.find((route) => route.path === '/admin/user/group')
 
-    expect(userGroupRoute?.props).toBeUndefined()
-    const loadedPage = await (userGroupRoute?.component as () => Promise<{ default: { __name?: string } }>)()
+    expect(userGroupRoute).toBeDefined()
+    expect(userGroupRoute!.props).toBeUndefined()
+    const loadedPage = await (userGroupRoute!.component as () => Promise<{ default: { __name?: string } }>)()
     expect(loadedPage.default.__name).toBe('AdminUserGroupsPage')
   })
 

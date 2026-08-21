@@ -394,7 +394,7 @@ func TestAppAppliesUserPermissionChangesToNewRequests(t *testing.T) {
 	}
 	t.Cleanup(restorePermissions)
 
-	revokedPermissions := make([]string, 0, len(originalGroup.Permissions)-1)
+	revokedPermissions := make([]string, 0, len(originalGroup.Permissions))
 	for _, permissionKey := range originalGroup.Permissions {
 		if permissionKey != permission.ShortLinkUseIntermediate {
 			revokedPermissions = append(revokedPermissions, permissionKey)

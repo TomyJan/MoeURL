@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
 
 import { ApiClientError } from '@/shared/api/client'
+import { USER_GROUP_PERMISSION_CONFLICT_CODE } from '@/shared/api/error-codes'
 import { listUserGroups, updateUserGroupPermissions } from '@/entities/user-group/api'
 import type { UserGroupListResponse } from '@/entities/user-group/api'
 
 import AdminUserGroupsPage from './AdminUserGroupsPage.vue'
 
+/** Holds mutable query and mutation state shared by page tests. */
 const state = vi.hoisted(() => ({
   invalidateQueries: vi.fn(async () => undefined),
   setQueryData: vi.fn(),
@@ -18,7 +20,12 @@ const state = vi.hoisted(() => ({
   refetch: vi.fn(async () => undefined),
 }))
 
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, params?: unknown) => params ? `${key}:${JSON.stringify(params)}` : key }) }))
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({
+    locale: { value: 'en' },
+    t: (key: string, params?: unknown) => params ? `${key}:${JSON.stringify(params)}` : key,
+  }),
+}))
 vi.mock('@/entities/user-group/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/entities/user-group/api')>()
   return { ...actual, listUserGroups: vi.fn(), updateUserGroupPermissions: vi.fn() }
@@ -73,6 +80,7 @@ const stubs = {
   VTabs: { props: ['modelValue'], emits: ['update:modelValue'], template: '<div role="tablist" @click="$emit(\'update:modelValue\', $event.target.dataset.value)"><slot /></div>' },
 }
 
+/** Mounts the user-group administration page with controlled component stubs. */
 function mountPage() {
   return render(AdminUserGroupsPage, { global: { stubs } })
 }
@@ -175,8 +183,44 @@ describe('AdminUserGroupsPage', () => {
     expect(screen.getAllByRole('checkbox').every((checkbox) => (checkbox as HTMLInputElement).disabled)).toBe(true)
   })
 
+  it('fails safely when a selected preset disappears during a catalog refresh', async () => {
+    mountPage()
+    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
+    const preset = screen.getByLabelText('userGroups.preset') as HTMLSelectElement
+    state.queryData.value = { ...data, presets: [] }
+    preset.value = 'basic'
+    preset.dispatchEvent(new Event('change', { bubbles: true }))
+    await nextTick()
+
+    expect(screen.getByText('userGroups.saveFailed')).toBeTruthy()
+    expect(updateUserGroupPermissions).not.toHaveBeenCalled()
+  })
+
+  it('fails safely when a permission definition disappears during a catalog refresh', async () => {
+    mountPage()
+    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
+    const checkbox = screen.getByLabelText('userGroups.permissions.short_link:create.label') as HTMLInputElement
+    state.queryData.value = { ...data, permissions: [] }
+    checkbox.checked = true
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }))
+    await nextTick()
+
+    expect(screen.getByText('userGroups.saveFailed')).toBeTruthy()
+    expect(updateUserGroupPermissions).not.toHaveBeenCalled()
+  })
+
+  it('does not submit when an immutable group emits a stale save event', async () => {
+    mountPage()
+    const save = screen.getByRole('button', { name: 'userGroups.save' })
+    save.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await nextTick()
+
+    expect(screen.getByText('userGroups.saveFailed')).toBeTruthy()
+    expect(updateUserGroupPermissions).not.toHaveBeenCalled()
+  })
+
   it('reloads server-changed drafts without retrying the conflicting mutation', async () => {
-    vi.mocked(updateUserGroupPermissions).mockRejectedValue(new ApiClientError(300202, 'Permission conflict'))
+    vi.mocked(updateUserGroupPermissions).mockRejectedValue(new ApiClientError(USER_GROUP_PERMISSION_CONFLICT_CODE, 'Permission conflict'))
     state.refetch.mockImplementation(async () => {
       state.queryData.value = {
         ...data,
@@ -222,7 +266,7 @@ describe('AdminUserGroupsPage', () => {
   })
 
   it('keeps conflict feedback when the refreshed target group is unavailable', async () => {
-    vi.mocked(updateUserGroupPermissions).mockRejectedValue(new ApiClientError(300202, 'Permission conflict'))
+    vi.mocked(updateUserGroupPermissions).mockRejectedValue(new ApiClientError(USER_GROUP_PERMISSION_CONFLICT_CODE, 'Permission conflict'))
     state.refetch.mockImplementation(async () => {
       state.queryData.value = { ...data, groups: data.groups.filter(({ key }) => key !== 'user') }
     })
@@ -236,7 +280,7 @@ describe('AdminUserGroupsPage', () => {
   })
 
   it('keeps the stale conflict draft locked when reloading latest state fails', async () => {
-    vi.mocked(updateUserGroupPermissions).mockRejectedValue(new ApiClientError(300202, 'Permission conflict'))
+    vi.mocked(updateUserGroupPermissions).mockRejectedValue(new ApiClientError(USER_GROUP_PERMISSION_CONFLICT_CODE, 'Permission conflict'))
     state.refetch.mockImplementation(async () => {
       state.queryError.value = true
       throw new Error('reload failed')

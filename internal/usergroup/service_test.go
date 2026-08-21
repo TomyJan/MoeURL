@@ -31,17 +31,20 @@ type fakeGroupQueries struct {
 	updateInput sqlc.UpdateBuiltinUserGroupPermissionsParams
 }
 
+// ListBuiltinUserGroups records a list query and returns the configured result.
 func (f *fakeGroupQueries) ListBuiltinUserGroups(context.Context) ([]sqlc.UserGroup, error) {
 	f.listCalls++
 	return f.listResult, f.listErr
 }
 
+// UpdateBuiltinUserGroupPermissions records an update query and returns the configured result.
 func (f *fakeGroupQueries) UpdateBuiltinUserGroupPermissions(_ context.Context, input sqlc.UpdateBuiltinUserGroupPermissionsParams) (sqlc.UserGroup, error) {
 	f.updateCalls++
 	f.updateInput = input
 	return f.updateResult, f.updateErr
 }
 
+// GetUserGroupByKey records a lookup query and returns the configured result.
 func (f *fakeGroupQueries) GetUserGroupByKey(context.Context, string) (sqlc.UserGroup, error) {
 	f.getCalls++
 	return f.getResult, f.getErr
@@ -54,6 +57,7 @@ type recordingResolver struct {
 	groupKey string
 }
 
+// Resolve records permission resolution before delegating or returning an error.
 func (r *recordingResolver) Resolve(ctx context.Context, groupKey string) (permission.Snapshot, error) {
 	r.calls++
 	r.groupKey = groupKey
@@ -63,22 +67,27 @@ func (r *recordingResolver) Resolve(ctx context.Context, groupKey string) (permi
 	return r.delegate.Resolve(ctx, groupKey)
 }
 
+// adminResolver returns a recording resolver with the built-in administrator permissions.
 func adminResolver() *recordingResolver {
 	return &recordingResolver{delegate: permission.NewService()}
 }
 
+// nonAdminResolver returns a recording resolver without administrator access.
 func nonAdminResolver() *recordingResolver {
 	return &recordingResolver{delegate: permission.NewServiceWithPermissions(nil, nil)}
 }
 
+// testService constructs a service from controlled query and permission dependencies.
 func testService(queries groupQueries, resolver permission.Resolver) *Service {
 	return &Service{queries: queries, permissions: resolver}
 }
 
+// testActor returns a stable authenticated actor in the requested group.
 func testActor(groupKey string) auth.CurrentUser {
 	return auth.CurrentUser{ID: "actor-id", GroupKey: groupKey}
 }
 
+// databaseGroup builds a database row fixture with encoded permissions.
 func databaseGroup(key string, permissions []string, builtin bool, updatedAt time.Time) sqlc.UserGroup {
 	encoded, err := json.Marshal(permissions)
 	if err != nil {
@@ -94,6 +103,7 @@ func databaseGroup(key string, permissions []string, builtin bool, updatedAt tim
 	}
 }
 
+// TestServiceListReturnsNormalizedBuiltinGroupsAndCatalog verifies the complete normalized list contract.
 func TestServiceListReturnsNormalizedBuiltinGroupsAndCatalog(t *testing.T) {
 	updatedAt := time.Date(2026, time.August, 20, 11, 12, 13, 123456789, time.FixedZone("offset", 8*60*60))
 	queries := &fakeGroupQueries{listResult: []sqlc.UserGroup{
@@ -135,6 +145,7 @@ func TestServiceListReturnsNormalizedBuiltinGroupsAndCatalog(t *testing.T) {
 	}
 }
 
+// TestServiceListRejectsNonAdministratorBeforeQuery verifies authorization precedes database access.
 func TestServiceListRejectsNonAdministratorBeforeQuery(t *testing.T) {
 	queries := &fakeGroupQueries{}
 	resolver := nonAdminResolver()
@@ -148,6 +159,7 @@ func TestServiceListRejectsNonAdministratorBeforeQuery(t *testing.T) {
 	}
 }
 
+// TestServiceListPropagatesResolverErrorBeforeQuery verifies resolver failures stop list queries.
 func TestServiceListPropagatesResolverErrorBeforeQuery(t *testing.T) {
 	queries := &fakeGroupQueries{}
 	resolver := &recordingResolver{err: errTestInfrastructure}
@@ -161,6 +173,7 @@ func TestServiceListPropagatesResolverErrorBeforeQuery(t *testing.T) {
 	}
 }
 
+// TestServiceListRejectsMissingResolver verifies the service fails closed without permissions.
 func TestServiceListRejectsMissingResolver(t *testing.T) {
 	service := NewService(nil, nil)
 
@@ -170,6 +183,7 @@ func TestServiceListRejectsMissingResolver(t *testing.T) {
 	}
 }
 
+// TestServiceListPropagatesQueryError verifies list infrastructure errors are preserved.
 func TestServiceListPropagatesQueryError(t *testing.T) {
 	queries := &fakeGroupQueries{listErr: errTestInfrastructure}
 
@@ -179,6 +193,7 @@ func TestServiceListPropagatesQueryError(t *testing.T) {
 	}
 }
 
+// TestServiceListTreatsStoredPermissionViolationsAsInfrastructureErrors verifies corrupt rows fail closed.
 func TestServiceListTreatsStoredPermissionViolationsAsInfrastructureErrors(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -208,6 +223,7 @@ func TestServiceListTreatsStoredPermissionViolationsAsInfrastructureErrors(t *te
 	}
 }
 
+// TestServiceUpdatePermissionsNormalizesAndReturnsFullTimestampPrecision verifies update normalization and versions.
 func TestServiceUpdatePermissionsNormalizesAndReturnsFullTimestampPrecision(t *testing.T) {
 	expectedAt := "2026-08-20T03:04:05.123456789Z"
 	updatedAt := time.Date(2026, time.August, 20, 3, 4, 5, 987654321, time.UTC)
@@ -252,6 +268,7 @@ func TestServiceUpdatePermissionsNormalizesAndReturnsFullTimestampPrecision(t *t
 	}
 }
 
+// TestServiceUpdatePermissionsAcceptsAdminGroupWithProtectedPermissions verifies valid protected ownership.
 func TestServiceUpdatePermissionsAcceptsAdminGroupWithProtectedPermissions(t *testing.T) {
 	updatedAt := time.Date(2026, time.August, 20, 3, 4, 6, 123456000, time.UTC)
 	queries := &fakeGroupQueries{updateResult: databaseGroup(permission.GroupAdmin, permission.AdminPermissions, true, updatedAt)}
@@ -269,6 +286,7 @@ func TestServiceUpdatePermissionsAcceptsAdminGroupWithProtectedPermissions(t *te
 	}
 }
 
+// TestServiceUpdatePermissionsPropagatesPermissionEncodingError verifies serialization failures stop updates.
 func TestServiceUpdatePermissionsPropagatesPermissionEncodingError(t *testing.T) {
 	originalMarshal := marshalPermissions
 	marshalPermissions = func(any) ([]byte, error) {
@@ -290,6 +308,7 @@ func TestServiceUpdatePermissionsPropagatesPermissionEncodingError(t *testing.T)
 	}
 }
 
+// TestServiceUpdatePermissionsAuthorizesBeforeValidationAndQuery verifies authorization is the first boundary.
 func TestServiceUpdatePermissionsAuthorizesBeforeValidationAndQuery(t *testing.T) {
 	queries := &fakeGroupQueries{}
 	resolver := nonAdminResolver()
@@ -303,6 +322,7 @@ func TestServiceUpdatePermissionsAuthorizesBeforeValidationAndQuery(t *testing.T
 	}
 }
 
+// TestServiceUpdatePermissionsPropagatesResolverErrorBeforeValidation verifies resolver errors are preserved.
 func TestServiceUpdatePermissionsPropagatesResolverErrorBeforeValidation(t *testing.T) {
 	queries := &fakeGroupQueries{}
 	resolver := &recordingResolver{err: errTestInfrastructure}
@@ -316,6 +336,7 @@ func TestServiceUpdatePermissionsPropagatesResolverErrorBeforeValidation(t *test
 	}
 }
 
+// TestServiceUpdatePermissionsRejectsMissingResolver verifies updates fail closed without permissions.
 func TestServiceUpdatePermissionsRejectsMissingResolver(t *testing.T) {
 	_, err := NewService(nil, nil).UpdatePermissions(context.Background(), testActor(permission.GroupAdmin), UpdatePermissionsInput{})
 	if !errors.Is(err, ErrPermissionResolverNeeded) {
@@ -323,6 +344,7 @@ func TestServiceUpdatePermissionsRejectsMissingResolver(t *testing.T) {
 	}
 }
 
+// TestServiceUpdatePermissionsValidatesInputAndProtectionRules verifies update contract and protected permissions.
 func TestServiceUpdatePermissionsValidatesInputAndProtectionRules(t *testing.T) {
 	validTime := "2026-08-20T03:04:05.123456Z"
 	tests := []struct {
@@ -356,6 +378,7 @@ func TestServiceUpdatePermissionsValidatesInputAndProtectionRules(t *testing.T) 
 	}
 }
 
+// TestServiceUpdatePermissionsMapsConditionalMiss verifies not-found and optimistic-conflict classification.
 func TestServiceUpdatePermissionsMapsConditionalMiss(t *testing.T) {
 	input := UpdatePermissionsInput{
 		GroupKey:          permission.GroupUser,
@@ -388,6 +411,7 @@ func TestServiceUpdatePermissionsMapsConditionalMiss(t *testing.T) {
 	}
 }
 
+// TestServiceUpdatePermissionsPropagatesUpdateErrorWithoutLookup verifies non-conditional failures skip lookup.
 func TestServiceUpdatePermissionsPropagatesUpdateErrorWithoutLookup(t *testing.T) {
 	queries := &fakeGroupQueries{updateErr: errTestInfrastructure}
 
@@ -404,6 +428,7 @@ func TestServiceUpdatePermissionsPropagatesUpdateErrorWithoutLookup(t *testing.T
 	}
 }
 
+// TestServiceUpdatePermissionsTreatsReturnedGroupViolationAsInfrastructureError verifies corrupt results fail closed.
 func TestServiceUpdatePermissionsTreatsReturnedGroupViolationAsInfrastructureError(t *testing.T) {
 	queries := &fakeGroupQueries{updateResult: sqlc.UserGroup{
 		Key:         permission.GroupUser,
