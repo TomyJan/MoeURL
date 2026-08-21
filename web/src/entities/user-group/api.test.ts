@@ -58,6 +58,7 @@ describe('user group api', () => {
     ['inconsistent editable', { ...responseData, groups: responseData.groups.map((group, index) => index === 0 ? { ...group, editable: true } : group) }],
     ['duplicate group key', { ...responseData, groups: [responseData.groups[0], responseData.groups[1], { ...responseData.groups[2], key: 'user' }] }],
     ['duplicate permission key', { ...responseData, permissions: [responseData.permissions[0], responseData.permissions[0]] }],
+    ['unknown group permission', { ...responseData, groups: responseData.groups.map((group, index) => index === 1 ? { ...group, permissions: ['unknown'] } : group) }],
     ['duplicate preset key', { ...responseData, presets: [responseData.presets[0], responseData.presets[1], { ...responseData.presets[2], key: 'basic' }] }],
     ['invalid applicable groups', { ...responseData, presets: responseData.presets.map((preset, index) => index === 0 ? { ...preset, applicableGroups: ['guest'] } : preset) }],
     ['unknown preset permission', { ...responseData, presets: responseData.presets.map((preset, index) => index === 0 ? { ...preset, permissions: ['unknown'] } : preset) }],

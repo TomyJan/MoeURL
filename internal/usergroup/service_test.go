@@ -223,10 +223,10 @@ func TestServiceListTreatsStoredPermissionViolationsAsInfrastructureErrors(t *te
 	}
 }
 
-// TestServiceUpdatePermissionsNormalizesAndReturnsFullTimestampPrecision verifies update normalization and versions.
-func TestServiceUpdatePermissionsNormalizesAndReturnsFullTimestampPrecision(t *testing.T) {
-	expectedAt := "2026-08-20T03:04:05.123456789Z"
-	updatedAt := time.Date(2026, time.August, 20, 3, 4, 5, 987654321, time.UTC)
+// TestServiceUpdatePermissionsNormalizesAndPreservesDatabaseTimestampPrecision verifies update normalization and versions.
+func TestServiceUpdatePermissionsNormalizesAndPreservesDatabaseTimestampPrecision(t *testing.T) {
+	expectedAt := "2026-08-20T03:04:05.123456Z"
+	updatedAt := time.Date(2026, time.August, 20, 3, 4, 5, 987654000, time.UTC)
 	queries := &fakeGroupQueries{updateResult: databaseGroup(
 		permission.GroupUser,
 		[]string{permission.DomainUseDefault, permission.ShortLinkCreate},
@@ -261,7 +261,7 @@ func TestServiceUpdatePermissionsNormalizesAndReturnsFullTimestampPrecision(t *t
 		t.Fatalf("expected timestamp = %#v, want %s", queries.updateInput.ExpectedUpdatedAt, expectedAt)
 	}
 	if result.Group.UpdatedAt != updatedAt.Format(time.RFC3339Nano) {
-		t.Fatalf("updated result timestamp = %q, want full precision", result.Group.UpdatedAt)
+		t.Fatalf("updated result timestamp = %q, want database precision", result.Group.UpdatedAt)
 	}
 	if !reflect.DeepEqual(result.Group.Permissions, wantPermissions) {
 		t.Fatalf("result permissions = %#v, want %#v", result.Group.Permissions, wantPermissions)

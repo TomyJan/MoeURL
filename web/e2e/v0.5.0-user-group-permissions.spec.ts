@@ -1,5 +1,6 @@
 import { expect, test as base } from '@playwright/test'
 import type { BrowserContext, Locator, Page } from '@playwright/test'
+import type { PermissionDefinition, PermissionPreset, UserGroup } from '../src/entities/user-group/api'
 
 import {
   attachScreenshot,
@@ -12,20 +13,9 @@ const memberUsername = 'permissione2e'
 const memberPassword = 'permission-e2e-password'
 const intermediatePermission = 'short_link:use_intermediate'
 
-type UserGroup = {
-  key: 'guest' | 'user' | 'admin'
-  permissions: string[]
-  updatedAt: string
-}
-
-type PermissionPreset = {
-  key: 'restricted' | 'basic' | 'standard'
-  permissions: string[]
-}
-
 type UserGroupCatalog = {
   groups: UserGroup[]
-  permissions: Array<{ key: string }>
+  permissions: PermissionDefinition[]
   presets: PermissionPreset[]
 }
 

@@ -38,6 +38,43 @@ func TestAppNewRejectsInvalidPermissionCatalog(t *testing.T) {
 	}
 }
 
+// newTestApplication builds and initializes an application while keeping its pool alive for later test cleanups.
+func newTestApplication(t *testing.T) *App {
+	t.Helper()
+	ctx := t.Context()
+	cfg := config.Config{
+		Env:         "development",
+		HTTPAddr:    ":0",
+		DatabaseURL: testdb.ProjectMigratedDatabaseURL(ctx, t),
+		StaticDir:   "web/dist",
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate config: %v", err)
+	}
+	application, err := New(ctx, cfg, slog.Default())
+	if err != nil {
+		t.Fatalf("build application: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := application.Shutdown(context.Background()); err != nil {
+			t.Errorf("shutdown application: %v", err)
+		}
+	})
+	if err := system.NewService(application.pool).Setup(ctx, system.SetupInput{
+		AdminUsername:   "admin",
+		AdminPassword:   "secure-password",
+		AdminNickname:   "Administrator",
+		SiteName:        "MoeURL",
+		SystemDomain:    "example.com",
+		ShortLinkDomain: "go.example.com",
+		DefaultLanguage: "zh-CN",
+		DefaultTheme:    "system",
+	}); err != nil {
+		t.Fatalf("initialize application: %v", err)
+	}
+	return application
+}
+
 // TestAppNewNormalizesEnvironment verifies application wiring uses the validated environment form.
 func TestAppNewNormalizesEnvironment(t *testing.T) {
 	ctx := context.Background()
@@ -183,37 +220,8 @@ func TestAppNewUsesDatabasePermissionsForUserService(t *testing.T) {
 
 // TestAppNewUsesDatabasePermissionsForUserGroupService verifies user-group authorization is resolved for every new request.
 func TestAppNewUsesDatabasePermissionsForUserGroupService(t *testing.T) {
-	ctx := context.Background()
-	cfg := config.Config{
-		Env:         "development",
-		HTTPAddr:    ":0",
-		DatabaseURL: testdb.ProjectMigratedDatabaseURL(ctx, t),
-		StaticDir:   "web/dist",
-	}
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("validate config: %v", err)
-	}
-	application, err := New(ctx, cfg, slog.Default())
-	if err != nil {
-		t.Fatalf("build application: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := application.Shutdown(context.Background()); err != nil {
-			t.Errorf("shutdown application: %v", err)
-		}
-	})
-	if err := system.NewService(application.pool).Setup(ctx, system.SetupInput{
-		AdminUsername:   "admin",
-		AdminPassword:   "secure-password",
-		AdminNickname:   "Administrator",
-		SiteName:        "MoeURL",
-		SystemDomain:    "example.com",
-		ShortLinkDomain: "go.example.com",
-		DefaultLanguage: "zh-CN",
-		DefaultTheme:    "system",
-	}); err != nil {
-		t.Fatalf("initialize application: %v", err)
-	}
+	ctx := t.Context()
+	application := newTestApplication(t)
 
 	var originalPermissions []byte
 	var originalUpdatedAt time.Time
@@ -237,6 +245,15 @@ func TestAppNewUsesDatabasePermissionsForUserGroupService(t *testing.T) {
 	loginRequest := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{"username":"admin","password":"secure-password"}`))
 	loginResponse := httptest.NewRecorder()
 	application.server.Handler.ServeHTTP(loginResponse, loginRequest)
+	var loginBody struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(loginResponse.Body).Decode(&loginBody); err != nil {
+		t.Fatalf("decode admin login response: %v", err)
+	}
+	if loginResponse.Code != http.StatusOK || loginBody.Code != 0 {
+		t.Fatalf("admin login response = HTTP %d, code %d", loginResponse.Code, loginBody.Code)
+	}
 	cookies := loginResponse.Result().Cookies()
 	if len(cookies) != 1 {
 		t.Fatalf("expected one login cookie, got %d", len(cookies))
@@ -273,37 +290,7 @@ func TestAppNewUsesDatabasePermissionsForUserGroupService(t *testing.T) {
 
 // TestAppAppliesUserPermissionChangesToNewRequests verifies runtime revocation and restoration use fresh database snapshots.
 func TestAppAppliesUserPermissionChangesToNewRequests(t *testing.T) {
-	ctx := context.Background()
-	cfg := config.Config{
-		Env:         "development",
-		HTTPAddr:    ":0",
-		DatabaseURL: testdb.ProjectMigratedDatabaseURL(ctx, t),
-		StaticDir:   "web/dist",
-	}
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("validate config: %v", err)
-	}
-	application, err := New(ctx, cfg, slog.Default())
-	if err != nil {
-		t.Fatalf("build application: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := application.Shutdown(context.Background()); err != nil {
-			t.Errorf("shutdown application: %v", err)
-		}
-	})
-	if err := system.NewService(application.pool).Setup(ctx, system.SetupInput{
-		AdminUsername:   "admin",
-		AdminPassword:   "secure-password",
-		AdminNickname:   "Administrator",
-		SiteName:        "MoeURL",
-		SystemDomain:    "example.com",
-		ShortLinkDomain: "go.example.com",
-		DefaultLanguage: "zh-CN",
-		DefaultTheme:    "system",
-	}); err != nil {
-		t.Fatalf("initialize application: %v", err)
-	}
+	application := newTestApplication(t)
 
 	login := func(username string, password string) (*http.Cookie, auth.CurrentUser) {
 		t.Helper()

@@ -1,12 +1,25 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-
-import { listUserGroups } from '@/entities/user-group/api'
+import { execFileSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
+import { resolve } from 'node:path'
+import { describe, expect, it } from 'vitest'
 
 import { i18n, messages } from './i18n'
 
-afterEach(() => {
-  vi.unstubAllGlobals()
-})
+/** Loads permission keys from the backend catalog used by the live user-group API. */
+function readBackendPermissionCatalog(): Array<{ key: string }> {
+  const repositoryRoot = resolve(__dirname, '../../..')
+  const output = execFileSync('go', ['run', 'scripts/permission-catalog-fixture.go'], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      GOCACHE: process.env.GOCACHE ?? resolve(tmpdir(), 'moeurl-go-build-cache'),
+      GOTELEMETRY: 'off',
+    },
+    windowsHide: true,
+  })
+  return JSON.parse(output) as Array<{ key: string }>
+}
 
 describe('i18n', () => {
   it('defines default and fallback locales', () => {
@@ -87,38 +100,8 @@ describe('i18n', () => {
     )
   })
 
-  it('defines the complete bilingual user-group permission interface', async () => {
-    const permissions = [
-      { key: 'short_link:create', category: 'short_link_basic', protected: false },
-      { key: 'short_link:read_own', category: 'short_link_basic', protected: false },
-      { key: 'short_link:update_own', category: 'short_link_basic', protected: false },
-      { key: 'short_link:delete_own', category: 'short_link_basic', protected: false },
-      { key: 'short_link:use_intermediate', category: 'short_link_access', protected: false },
-      { key: 'short_link:set_expiration', category: 'short_link_access', protected: false },
-      { key: 'short_link:set_password', category: 'short_link_access', protected: false },
-      { key: 'short_link:use_confirmation', category: 'short_link_access', protected: false },
-      { key: 'domain:use_default', category: 'domain', protected: false },
-      { key: 'admin:access', category: 'administration', protected: true },
-      { key: 'short_link:read_all', category: 'administration', protected: true },
-      { key: 'short_link:update_all', category: 'administration', protected: true },
-      { key: 'short_link:delete_all', category: 'administration', protected: true },
-    ]
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
-      code: 0,
-      message: 'OK',
-      data: {
-        groups: [],
-        permissions,
-        presets: [
-          { key: 'restricted', applicableGroups: ['user', 'admin'], permissions: [] },
-          { key: 'basic', applicableGroups: ['user', 'admin'], permissions: [] },
-          { key: 'standard', applicableGroups: ['user', 'admin'], permissions: [] },
-        ],
-      },
-      meta: {},
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } })))
-    const catalog = await listUserGroups()
-    const permissionKeys = new Set(catalog.permissions.map(({ key }) => key))
+  it('defines the complete bilingual user-group permission interface', () => {
+    const permissionKeys = new Set(readBackendPermissionCatalog().map(({ key }) => key))
 
     for (const locale of ['zh-CN', 'en'] as const) {
       const userGroups = messages[locale].userGroups
@@ -141,7 +124,7 @@ describe('i18n', () => {
       expect(userGroups.conflict).toBeTruthy()
       expect(userGroups.saveSuccess).toBeTruthy()
     }
-  })
+  }, 30_000)
 
   it('keeps locale message trees aligned', () => {
     /** Flattens nested locale messages into comparable dotted keys. */

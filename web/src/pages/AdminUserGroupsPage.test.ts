@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
+import { useMutation } from '@tanstack/vue-query'
 
 import { ApiClientError } from '@/shared/api/client'
 import { USER_GROUP_PERMISSION_CONFLICT_CODE } from '@/shared/api/error-codes'
@@ -98,6 +99,7 @@ beforeEach(() => {
   })
   state.refetch.mockReset()
   state.refetch.mockResolvedValue(undefined)
+  vi.mocked(useMutation).mockClear()
   vi.mocked(listUserGroups).mockReset()
   vi.mocked(listUserGroups).mockResolvedValue(data)
   vi.mocked(updateUserGroupPermissions).mockReset()
@@ -159,6 +161,7 @@ describe('AdminUserGroupsPage', () => {
   it('applies a preset locally, disables unchanged saves, and submits the complete draft', async () => {
     vi.mocked(updateUserGroupPermissions).mockResolvedValue({ group: { ...data.groups[1], permissions: ['short_link:create'], updatedAt: 'user-v2' } })
     mountPage()
+    expect(useMutation).toHaveBeenCalledWith(expect.objectContaining({ retry: false }))
     await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
 
     expect((screen.getByRole('button', { name: 'userGroups.save' }) as HTMLButtonElement).disabled).toBe(true)
@@ -282,13 +285,38 @@ describe('AdminUserGroupsPage', () => {
     expect(updateUserGroupPermissions).toHaveBeenCalledOnce()
   })
 
-  it('keeps the stale conflict draft locked when reloading latest state fails', async () => {
+  it('keeps conflict feedback when a successful refresh returns no catalog data', async () => {
     vi.mocked(updateUserGroupPermissions).mockRejectedValue(new ApiClientError(USER_GROUP_PERMISSION_CONFLICT_CODE, 'Permission conflict'))
     state.refetch.mockImplementation(async () => {
-      state.queryError.value = true
-      throw new Error('reload failed')
+      state.queryData.value = undefined
     })
     mountPage()
+    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
+    await fireEvent.update(screen.getByLabelText('userGroups.preset'), 'restricted')
+    await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
+
+    await waitFor(() => expect(screen.getByText('userGroups.conflict')).toBeTruthy())
+    expect(state.refetch).toHaveBeenCalledOnce()
+    expect(updateUserGroupPermissions).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the stale conflict draft locked when reloading latest state fails', async () => {
+    vi.mocked(updateUserGroupPermissions).mockRejectedValue(new ApiClientError(USER_GROUP_PERMISSION_CONFLICT_CODE, 'Permission conflict'))
+    state.refetch.mockImplementation(() => {
+      queueMicrotask(() => {
+        state.queryData.value = {
+          ...data,
+          groups: data.groups.map((group) => group.key === 'admin'
+            ? { ...group, updatedAt: 'admin-v2' }
+            : group),
+        }
+      })
+      state.queryError.value = true
+      return Promise.reject(new Error('reload failed'))
+    })
+    mountPage()
+    await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
+    await fireEvent.click(screen.getByLabelText('userGroups.permissions.short_link:create.label'))
     await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
     await fireEvent.update(screen.getByLabelText('userGroups.preset'), 'basic')
     await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
@@ -298,5 +326,8 @@ describe('AdminUserGroupsPage', () => {
     expect((screen.getByLabelText('userGroups.permissions.short_link:create.label') as HTMLInputElement).checked).toBe(true)
     expect((screen.getByRole('button', { name: 'userGroups.save' }) as HTMLButtonElement).disabled).toBe(true)
     expect(updateUserGroupPermissions).toHaveBeenCalledOnce()
+
+    await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
+    expect((screen.getByLabelText('userGroups.permissions.short_link:create.label') as HTMLInputElement).checked).toBe(true)
   })
 })
