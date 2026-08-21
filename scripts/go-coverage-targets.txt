@@ -11,6 +11,7 @@ github.com/TomyJan/MoeURL/internal/event/recorder.go
 github.com/TomyJan/MoeURL/internal/http/response.go
 github.com/TomyJan/MoeURL/internal/http/router.go
 github.com/TomyJan/MoeURL/internal/middleware/request_logger.go
+github.com/TomyJan/MoeURL/internal/permission/catalog.go
 github.com/TomyJan/MoeURL/internal/permission/service.go
 github.com/TomyJan/MoeURL/internal/shortlink/handler.go
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_handler.go
@@ -22,3 +23,5 @@ github.com/TomyJan/MoeURL/internal/system/handler.go
 github.com/TomyJan/MoeURL/internal/system/service.go
 github.com/TomyJan/MoeURL/internal/user/handler.go
 github.com/TomyJan/MoeURL/internal/user/service.go
+github.com/TomyJan/MoeURL/internal/usergroup/handler.go
+github.com/TomyJan/MoeURL/internal/usergroup/service.go

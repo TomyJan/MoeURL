@@ -1,6 +1,14 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { i18n, messages } from './i18n'
+
+/** Loads the checked-in snapshot generated from the backend permission catalog. */
+function readBackendPermissionCatalog(): Array<{ key: string }> {
+  const snapshot = readFileSync(resolve(__dirname, '../test/fixtures/permission-catalog.json'), 'utf8')
+  return JSON.parse(snapshot) as Array<{ key: string }>
+}
 
 describe('i18n', () => {
   it('defines default and fallback locales', () => {
@@ -79,6 +87,32 @@ describe('i18n', () => {
     expect(messages.en.placeholder.settings.description).toBe(
       'The settings page does not expose forms yet. Domains remain managed through setup or deployment configuration, while theme preferences stay in the frontend with system, light, and dark modes.',
     )
+  })
+
+  it('defines the complete bilingual user-group permission interface', () => {
+    const permissionKeys = new Set(readBackendPermissionCatalog().map(({ key }) => key))
+
+    for (const locale of ['zh-CN', 'en'] as const) {
+      const userGroups = messages[locale].userGroups
+      expect(userGroups.title).toBeTruthy()
+      expect(userGroups.builtin).toBeTruthy()
+      expect(userGroups.dataStale).toBeTruthy()
+      expect(userGroups.conflictReloadFailed).toBeTruthy()
+      expect(userGroups.categories.short_link_basic).toBeTruthy()
+      expect(userGroups.categories.short_link_access).toBeTruthy()
+      expect(userGroups.categories.domain).toBeTruthy()
+      expect(userGroups.categories.administration).toBeTruthy()
+      expect(userGroups.presets.restricted).toBeTruthy()
+      expect(userGroups.presets.basic).toBeTruthy()
+      expect(userGroups.presets.standard).toBeTruthy()
+      expect(new Set(Object.keys(userGroups.permissions))).toEqual(permissionKeys)
+      for (const permission of Object.values(userGroups.permissions)) {
+        expect(permission.label).toBeTruthy()
+        expect(permission.description).toBeTruthy()
+      }
+      expect(userGroups.conflict).toBeTruthy()
+      expect(userGroups.saveSuccess).toBeTruthy()
+    }
   })
 
   it('keeps locale message trees aligned', () => {

@@ -41,7 +41,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 | 前端测试 | Vitest + Vue Testing Library + Playwright |
 | 部署 | Docker + Docker Compose（支持裸机运行） |
 
-v0.4.0 继续以 Go 1.25+ 为最低语言版本，`go.mod` 当前声明为 Go 1.25.7。`Dockerfile` 的前端和后端构建阶段统一使用 `golang:1.26.5`；构建镜像版本只约束构建环境，不提高项目的最低 Go 版本。
+当前继续以 Go 1.25+ 为最低语言版本，`go.mod` 声明为 Go 1.25.7。`Dockerfile` 的前端和后端构建阶段统一使用稳定镜像 `golang:1.27.0`；构建镜像版本只约束构建环境，不提高项目的最低 Go 版本。
 
 ## 3. 仓库目录结构
 
@@ -61,6 +61,7 @@ v0.4.0 继续以 Go 1.25+ 为最低语言版本，`go.mod` 当前声明为 Go 1.
 │  ├─ auth/
 │  ├─ permission/
 │  ├─ user/
+│  ├─ usergroup/
 │  ├─ domain/
 │  ├─ shortlink/
 │  ├─ system/
@@ -96,7 +97,8 @@ v0.4.0 继续以 Go 1.25+ 为最低语言版本，`go.mod` 当前声明为 Go 1.
 - `internal/middleware/`：日志、恢复、会话、当前用户、权限等中间件。
 - `internal/auth/`：登录、退出、会话、密码哈希。
 - `internal/permission/`：权限常量、权限计算和权限判断。
-- `internal/user/`：用户、用户组和用户资料相关业务。
+- `internal/user/`：用户账号、用户资料和管理员用户维护业务。
+- `internal/usergroup/`：内置用户组权限目录、预设、并发更新和管理 API 业务。
 - `internal/domain/`：系统访问域名和短链访问域名相关业务。
 - `internal/shortlink/`：短链创建、状态、软删除和访问跳转。
 - `internal/system/`：初始化流程、系统设置和站点配置。
@@ -155,7 +157,7 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 - 管理事务边界。
 - 返回明确业务错误。
 
-短链和用户管理 Service 的生产权限解析共享数据库中的 `user_group.permissions`。每次需要授权的业务调用按当前用户 `GroupKey` 读取一次并形成权限快照，调用内的权限判断必须使用同一快照；不允许用编译期内置权限替代生产校验，不允许在权限读取失败时放行，也不允许用跨请求缓存延迟数据库撤权生效。静态权限解析器仅用于隔离测试；短链或用户服务缺少权限 Resolver 时必须返回错误并拒绝授权，不得降级为静态权限，短链服务同时通过注入的 logger 记录装配错误。
+短链、用户和用户组管理 Service 的生产权限解析共享数据库中的 `user_group.permissions`。每次需要授权的业务调用按当前用户 `GroupKey` 读取一次并形成权限快照，调用内的权限判断必须使用同一快照；不允许用编译期内置权限替代生产校验，不允许在权限读取失败时放行，也不允许用跨请求缓存延迟数据库撤权生效。静态权限解析器仅用于隔离测试；任一 Service 缺少权限 Resolver 时必须返回错误并拒绝授权，不得降级为静态权限，短链服务同时通过注入的 logger 记录装配错误。
 
 ### SQLC 查询层
 
@@ -185,6 +187,8 @@ API 使用 `/api/v1` 前缀：
 /api/v1/admin/short-link/list
 /api/v1/admin/short-link/update
 /api/v1/admin/short-link/delete
+/api/v1/admin/user-group/list
+/api/v1/admin/user-group/update-permissions
 ```
 
 公开预览的规范入口为 `/go/{slug}/preview`；旧的 `/api/v1/public/short-link/preview` 仅保留为兼容入口并已弃用。
@@ -337,6 +341,12 @@ v0.3.0 在 `short_link` 追加 `password_hash`、`password_failed_attempts`、`p
 
 v0.4.0 不新增数据列，只将 `short_link.redirect_mode` 的约束扩展为 `direct`、`intermediate`、`confirmation`。`00008 Up` 使用 `NOT VALID` 替换旧约束，并为内置 `user`、`admin` 用户组追加 `short_link:use_confirmation`；`00009 Up` 是兼容性重试步骤，正常 v8 路径已经由 `00008 Up` 完成约束替换，因此会跳过替换，只有检测到旧约束残留时才补做替换；`00010 Up` 在独立事务中验证新约束。正常回滚由 `00009 Down` 恢复 v8 状态的 `NOT VALID` 约束但不改写数据，随后由 `00008 Down` 将 confirmation 记录降级为 direct、清理 migration 实际新增的权限并恢复、验证旧约束。停在 v9 时可由 `00010 Up` 安全重试验证；停在 v8 时可安全重试 `00009 Up`（正常状态下跳过已完成的替换），再由 `00010 Up` 完成验证。权限跟踪表只移除 migration 实际新增且未被人工修改的权限。
 
+### v0.5.0 权限管理数据约定
+
+v0.5.0 复用 `user_group.permissions` 和 `user_group.updated_at`，不新增 schema 或 Goose migration。SQLC 增加三个内置用户组的稳定列表查询，以及按 `key`、`builtin = true`、`updated_at` 条件更新权限的查询。成功更新产生严格递增的 `updated_at`，并发请求使用旧值时返回零行，由 Service 映射为业务冲突，不能静默覆盖。
+
+权限数组由服务端目录校验并按固定顺序编码。未知项、重复项、非内置用户组和受保护权限归属变化都不得写入数据库。更新查询只允许 `user` 和 `admin`；`guest` 在访客资源归属实现前固定为空权限并保持只读。权限预设不持久化为字段，只用于生成最终权限数组。
+
 ### 短码规则
 
 - v0.0.1 默认生成 6 位随机短码。
@@ -379,6 +389,10 @@ admin:access
 - 管理入口访问。
 
 前端隐藏或置灰只用于体验，后端权限判断才是安全边界。
+
+v0.5.0 将 `admin:access`、`short_link:read_all`、`short_link:update_all`、`short_link:delete_all` 设为权限配置写入的受保护集合：`admin` 必须拥有，`guest` 和 `user` 必须不拥有。该保护不替代业务授权；后台操作仍必须解析当前数据库权限快照并检查所需权限。
+
+用户组权限管理写入必须使用乐观并发。权限更新成功后，前端刷新用户组查询和 `auth/me`；后端 Service 对后续业务请求直接读取数据库，不以刷新前端缓存作为安全保障。
 
 ### Cookie Session 安全规范
 
@@ -505,7 +519,8 @@ go test ./...
 覆盖率门禁：
 
 ```bash
-go test -p=1 ./internal/auth ./internal/db ./internal/event ./internal/http ./internal/middleware ./internal/permission ./internal/shortlink ./internal/system ./internal/user -coverprofile="$PWD/coverage.out" -count=1
+node --test scripts/go-coverage-threshold.test.mjs
+go test -p=1 -count=1 -coverprofile="$PWD/coverage.out" ./internal/auth ./internal/db ./internal/event ./internal/http ./internal/middleware ./internal/permission ./internal/shortlink ./internal/system ./internal/user ./internal/usergroup
 node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100 --include-from=scripts/go-coverage-targets.txt --exclude-blocks-from=scripts/go-coverage-excluded-blocks.txt
 ```
 
@@ -539,7 +554,7 @@ cd web && pnpm test:e2e
 
 前端单元和组件测试覆盖率门禁针对 `vitest.config.ts` 中 `coverage.include` 覆盖的应用配置、实体 API、页面组件和共享工具代码执行，必须达到 100%。`main.ts` 启动入口、类型声明和纯类型模型由构建、类型检查和 E2E 覆盖，不计入单元覆盖率门禁。
 
-v0.2.0 将新增的短链创建、访问配置和二维码组件纳入覆盖率门禁。v0.3.0 还将密码设置、公开解锁和密码页纳入覆盖率门禁；v0.4.0 继续将确认模式权限矩阵、公开预览契约和确认页状态纳入门禁。测试必须验证敏感数据不泄露、错误/限流/成功状态、授权失效和确认页不自动跳转，不允许只断言 mock 调用次数。
+v0.2.0 将新增的短链创建、访问配置和二维码组件纳入覆盖率门禁。v0.3.0 还将密码设置、公开解锁和密码页纳入覆盖率门禁；v0.4.0 继续将确认模式权限矩阵、公开预览契约和确认页状态纳入门禁。v0.5.0 已将权限目录、预设、独立草稿、保护规则、冲突恢复和用户组管理页面纳入门禁。测试必须验证敏感数据不泄露、错误/限流/成功状态、授权失效、确认页不自动跳转和权限更新即时生效，不允许只断言 mock 调用次数。
 
 Playwright E2E 默认通过 `web/playwright.config.ts` 启动 Docker Compose 测试环境。E2E 必须使用独立的 Compose project name，默认由 `MOEURL_E2E_PORT` 派生，也可通过 `MOEURL_E2E_COMPOSE_PROJECT` 显式指定。E2E 同时通过 `MOEURL_E2E_PORT` 和 `MOEURL_E2E_POSTGRES_PORT` 隔离应用宿主端口与 PostgreSQL 宿主端口，避免和日常 Compose 或本机 PostgreSQL 端口冲突。E2E 显式以 `MOEURL_ENV=development` 运行测试应用，避免本地 HTTP 流程受 Secure Cookie 影响。E2E 可以在该隔离测试项目内执行 `down -v` 清理测试卷，但不得清理日常 `docker compose up --build` 使用的默认开发数据库卷。
 
@@ -547,16 +562,17 @@ Playwright E2E 默认通过 `web/playwright.config.ts` 启动 Docker Compose 测
 
 当 Docker Desktop 不可用，或隔离 Compose 环境因外部镜像仓库不可用而无法拉取、构建或启动时，可先记录原始失败命令和错误，再用干净数据库、当前 Go 实现和当前 `web/dist` 启动本机服务，设置 `MOEURL_E2E_SKIP_DOCKER=1` 和对应的 `MOEURL_E2E_PORT` 执行 `pnpm test:e2e`。该回退不得用于绕过应用构建、迁移或启动错误，只跳过 Playwright 的环境拉起步骤，不跳过任何浏览器断言；执行者必须确保数据库从未初始化状态开始，并在验收记录中写明 Docker 状态、端口、环境变量和完整命令。
 
-v0.2.0 访问体验 E2E 必须覆盖真实 `/{slug}` 入口、进入中间页前访问量为 0、继续路由目标 `302`、真实 UI 继续访问后访问量为 1，以及过期访问不增加访问量。v0.3.0 还必须覆盖真实密码页、错误密码、有效授权、密码变更吊销旧授权和访问量口径。v0.4.0 还必须覆盖无密码与受密码保护确认页、主动继续、二次访问条件检查和最终访问量。中间页、密码页、确认页、访问设置和二维码对话框必须同时在 `1280 x 720` 与 `390 x 800` 视口验证控件顺序、操作区几何和横向溢出；异步流程使用条件等待，不允许使用固定 `waitForTimeout`。
+v0.2.0 访问体验 E2E 必须覆盖真实 `/{slug}` 入口、进入中间页前访问量为 0、继续路由目标 `302`、真实 UI 继续访问后访问量为 1，以及过期访问不增加访问量。v0.3.0 还必须覆盖真实密码页、错误密码、有效授权、密码变更吊销旧授权和访问量口径。v0.4.0 还必须覆盖无密码与受密码保护确认页、主动继续、二次访问条件检查和最终访问量。v0.5.0 还必须覆盖真实用户组页面、权限保存前后差异、后端动态撤权、基线恢复和双视口布局。中间页、密码页、确认页、访问设置、二维码对话框和用户组权限管理页必须同时在 `1280 x 720` 与 `390 x 800` 视口验证控件顺序、操作区几何和横向溢出；异步流程使用条件等待，不允许使用固定 `waitForTimeout`。
 
 ### 质量检查工作流
 
-GitHub Actions 使用单个 `Check Code` 工作流文件。该工作流包含 5 个互相独立的并行任务：
+GitHub Actions 使用单个 `Check Code` 工作流文件。该工作流包含 6 个互相独立的并行任务：
 
 - `Lint`
 - `Typecheck`
 - `Test`
 - `Test Coverage`
+- `E2E`
 - `Build`
 
 工作流支持手动触发，在提交到 `master` 和面向 `master` 的 PR 时触发。外部贡献者 PR 是否自动运行由仓库 Actions 安全策略控制，工作流本身不使用 `pull_request_target`。

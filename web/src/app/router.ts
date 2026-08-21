@@ -113,8 +113,7 @@ export const routes: RouteRecordRaw[] = [
       },
       {
         path: '/admin/user/group',
-        component: () => import('@/pages/ConsolePlaceholderPage.vue'),
-        props: { kind: 'userGroups' },
+        component: () => import('@/pages/AdminUserGroupsPage.vue'),
         meta: { requiresConsole: true, requiresAdmin: true },
         beforeEnter: requireAdminAccess,
       },
