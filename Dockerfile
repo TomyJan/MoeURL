@@ -1,4 +1,4 @@
-FROM golang:1.27rc2 AS web-build
+FROM golang:1.27rc3 AS web-build
 ARG NODE_VERSION=26.5.1
 ARG TARGETARCH
 WORKDIR /workspace/web
@@ -21,7 +21,7 @@ RUN pnpm install --frozen-lockfile --config.dangerously-allow-all-builds=true
 COPY web/ ./
 RUN pnpm build
 
-FROM golang:1.27rc2 AS go-build
+FROM golang:1.27rc3 AS go-build
 WORKDIR /workspace
 COPY go.mod go.sum ./
 RUN go mod download
