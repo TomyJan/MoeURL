@@ -17,6 +17,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/system"
 	"github.com/TomyJan/MoeURL/internal/user"
+	"github.com/TomyJan/MoeURL/internal/usergroup"
 )
 
 // TestRouterHealthReturnsOK verifies router health returns ok.
@@ -208,6 +209,7 @@ func TestRouterUnknownAPIUsesUnifiedResponse(t *testing.T) {
 
 // TestRouterRegistersOptionalDependencies verifies router registers optional dependencies.
 func TestRouterRegistersOptionalDependencies(t *testing.T) {
+	userGroupService := &routerUserGroupService{}
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		System:      &routerSystemService{},
 		Auth:        &routerAuthService{},
@@ -215,6 +217,7 @@ func TestRouterRegistersOptionalDependencies(t *testing.T) {
 		ShortLink:   &routerShortLinkService{},
 		Redirect:    &routerRedirectService{},
 		User:        &routerUserService{},
+		UserGroup:   userGroupService,
 	})
 
 	tests := []struct {
@@ -239,6 +242,8 @@ func TestRouterRegistersOptionalDependencies(t *testing.T) {
 		{method: http.MethodGet, path: "/api/v1/admin/user/list"},
 		{method: http.MethodPost, path: "/api/v1/admin/user/update", body: `{}`},
 		{method: http.MethodPost, path: "/api/v1/admin/user/reset-password", body: `{}`},
+		{method: http.MethodGet, path: "/api/v1/admin/user-group/list"},
+		{method: http.MethodPost, path: "/api/v1/admin/user-group/update-permissions", body: `{}`},
 		{method: http.MethodPost, path: "/api/v1/user/profile/update", body: `{}`},
 		{method: http.MethodGet, path: "/api/v1/public/short-link/preview?slug=abc123"},
 		{method: http.MethodPost, path: "/go/abc123/unlock", body: `{}`},
@@ -258,6 +263,9 @@ func TestRouterRegistersOptionalDependencies(t *testing.T) {
 				t.Fatalf("expected registered route, got status %d body %q", response.Code, response.Body.String())
 			}
 		})
+	}
+	if userGroupService.listCalls != 1 || userGroupService.updateCalls != 1 {
+		t.Fatalf("user-group route calls = list %d update %d, want 1 and 1", userGroupService.listCalls, userGroupService.updateCalls)
 	}
 }
 
@@ -450,4 +458,21 @@ func (routerUserService) UpdateProfile(context.Context, auth.CurrentUser, user.U
 // ResetPassword implements the corresponding operation for the surrounding test double.
 func (routerUserService) ResetPassword(context.Context, auth.CurrentUser, user.ResetPasswordInput) error {
 	return nil
+}
+
+type routerUserGroupService struct {
+	listCalls   int
+	updateCalls int
+}
+
+// List records user-group list route dispatch.
+func (service *routerUserGroupService) List(context.Context, auth.CurrentUser) (usergroup.ListResult, error) {
+	service.listCalls++
+	return usergroup.ListResult{}, nil
+}
+
+// UpdatePermissions records user-group update route dispatch.
+func (service *routerUserGroupService) UpdatePermissions(context.Context, auth.CurrentUser, usergroup.UpdatePermissionsInput) (usergroup.UpdatePermissionsResult, error) {
+	service.updateCalls++
+	return usergroup.UpdatePermissionsResult{}, nil
 }

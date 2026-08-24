@@ -4,6 +4,7 @@ import {
   VApp,
   VBtn,
   VBtnToggle,
+  VCheckbox,
   VCard,
   VCardActions,
   VCardText,
@@ -19,6 +20,8 @@ import {
   VSlider,
   VSnackbar,
   VSwitch,
+  VTab,
+  VTabs,
   VTextField,
 } from 'vuetify/components'
 import * as directives from 'vuetify/directives'
@@ -101,6 +104,7 @@ export const vuetify = createVuetify({
     VApp,
     VBtn,
     VBtnToggle,
+    VCheckbox,
     VCard,
     VCardActions,
     VCardText,
@@ -116,6 +120,8 @@ export const vuetify = createVuetify({
     VSlider,
     VSnackbar,
     VSwitch,
+    VTab,
+    VTabs,
     VTextField,
   },
   defaults: {

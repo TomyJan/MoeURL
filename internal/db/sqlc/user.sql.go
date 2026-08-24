@@ -276,6 +276,47 @@ func (q *Queries) ListAppUsers(ctx context.Context, arg ListAppUsersParams) ([]L
 	return items, nil
 }
 
+const listBuiltinUserGroups = `-- name: ListBuiltinUserGroups :many
+select id, key, name, description, permissions, builtin, created_at, updated_at
+from user_group
+where builtin = true
+	and key in ('guest', 'user', 'admin')
+order by case key
+	when 'guest' then 1
+	when 'user' then 2
+	when 'admin' then 3
+end
+`
+
+func (q *Queries) ListBuiltinUserGroups(ctx context.Context) ([]UserGroup, error) {
+	rows, err := q.db.Query(ctx, listBuiltinUserGroups)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []UserGroup{}
+	for rows.Next() {
+		var i UserGroup
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.Name,
+			&i.Description,
+			&i.Permissions,
+			&i.Builtin,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateAppUserNickname = `-- name: UpdateAppUserNickname :one
 update app_user
 set nickname = $2,
@@ -356,6 +397,39 @@ func (q *Queries) UpdateAppUserProfile(ctx context.Context, arg UpdateAppUserPro
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const updateBuiltinUserGroupPermissions = `-- name: UpdateBuiltinUserGroupPermissions :one
+update user_group
+set permissions = $1::jsonb,
+	updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
+where key = $2
+	and builtin = true
+	and key in ('user', 'admin')
+	and updated_at = $3
+returning id, key, name, description, permissions, builtin, created_at, updated_at
+`
+
+type UpdateBuiltinUserGroupPermissionsParams struct {
+	Permissions       []byte             `json:"permissions"`
+	GroupKey          string             `json:"group_key"`
+	ExpectedUpdatedAt pgtype.Timestamptz `json:"expected_updated_at"`
+}
+
+func (q *Queries) UpdateBuiltinUserGroupPermissions(ctx context.Context, arg UpdateBuiltinUserGroupPermissionsParams) (UserGroup, error) {
+	row := q.db.QueryRow(ctx, updateBuiltinUserGroupPermissions, arg.Permissions, arg.GroupKey, arg.ExpectedUpdatedAt)
+	var i UserGroup
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Name,
+		&i.Description,
+		&i.Permissions,
+		&i.Builtin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

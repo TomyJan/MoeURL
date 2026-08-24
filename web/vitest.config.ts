@@ -16,7 +16,7 @@ export default defineConfig({
       include: [
         'src/app/**/*.{ts,vue}',
         'src/entities/**/*.ts',
-        'src/features/**/*.vue',
+        'src/features/**/*.{ts,vue}',
         'src/pages/**/*.vue',
         'src/shared/**/*.ts',
       ],

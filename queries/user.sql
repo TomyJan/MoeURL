@@ -13,6 +13,27 @@ select id, key, name, description, permissions, builtin, created_at, updated_at
 from user_group
 where id = $1;
 
+-- name: ListBuiltinUserGroups :many
+select id, key, name, description, permissions, builtin, created_at, updated_at
+from user_group
+where builtin = true
+	and key in ('guest', 'user', 'admin')
+order by case key
+	when 'guest' then 1
+	when 'user' then 2
+	when 'admin' then 3
+end;
+
+-- name: UpdateBuiltinUserGroupPermissions :one
+update user_group
+set permissions = sqlc.arg(permissions)::jsonb,
+	updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
+where key = sqlc.arg(group_key)
+	and builtin = true
+	and key in ('user', 'admin')
+	and updated_at = sqlc.arg(expected_updated_at)
+returning id, key, name, description, permissions, builtin, created_at, updated_at;
+
 -- name: CreateUserGroup :one
 insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
 values ($1, $2, $3, $4, $5, $6, now(), now())

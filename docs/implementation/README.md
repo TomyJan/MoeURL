@@ -57,7 +57,36 @@ v0.4.0 实施文档包括：
 - [v0.4.0 任务级实施清单](v0.4.0-tasks.md)：将权限、模式契约、公共访问、前端和发布收尾拆分为可执行任务。
 - [v0.4.0 验收清单](v0.4.0-acceptance.md)：用于确认页权限、访问行为、页面和发布质量验收。
 
+v0.5.0 实施文档包括：
+
+- [v0.5.0 实施计划](v0.5.0-plan.md)：定义内置用户组权限管理的阶段、边界和生产验收要求。
+- [v0.5.0 详细实现计划](v0.5.0-detailed-plan.md)：按 TDD 切片拆分权限目录、并发更新、管理 API、前端页面和发布验证步骤。
+- [v0.5.0 任务级实施清单](v0.5.0-tasks.md)：将权限目录、预设、后端管理、前端交互和发布收尾拆分为可执行任务。
+- [v0.5.0 验收清单](v0.5.0-acceptance.md)：记录权限保护、并发冲突、即时生效、页面和发布质量的实际验收证据。
+
 建议阅读顺序：
+
+```text
+technical-decision.md
+  ↓
+technical-baseline.md
+  ↓
+agent-delivery-guidelines.md
+  ↓
+../product/scope-v0.5.0.md
+  ↓
+../specs/2026-08-20-v0.5.0-user-group-permission-management-design.md
+  ↓
+v0.5.0-plan.md
+  ↓
+v0.5.0-detailed-plan.md
+  ↓
+v0.5.0-tasks.md
+  ↓
+v0.5.0-acceptance.md
+```
+
+回看 v0.4.0 确认页访问基线时，继续阅读：
 
 ```text
 technical-decision.md
