@@ -120,15 +120,22 @@ const currentUserQuery = useQuery({
   queryFn: me,
 })
 
+/** Exposes the current authenticated identity when the query has resolved. */
 const currentUser = computed(() => currentUserQuery.data.value?.user)
+/** Reports whether the shell is rendering its restricted guest fallback. */
 const isGuestFallback = computed(() => {
   const user = currentUser.value
   return user ? user.group === 'guest' || user.username === 'guest' : false
 })
+/** Resolves the preferred account label for navigation and profile controls. */
 const displayName = computed(() => currentUser.value?.nickname || currentUser.value?.username || 'guest')
+/** Resolves the stable account name used by the shell. */
 const username = computed(() => currentUser.value?.username || 'guest')
+/** Exposes the active identity permission set with an empty fallback. */
 const permissions = computed(() => currentUser.value?.permissions ?? [])
+/** Reports whether either mobile overlay is currently open. */
 const overlaysOpen = computed(() => mobileNavOpen.value || createPanelOpen.value)
+/** Resolves the overlay that currently owns focus trapping. */
 const activeOverlayPanel = computed(() => {
   if (createPanelOpen.value) {
     return createDialogPanelRef.value
@@ -138,6 +145,7 @@ const activeOverlayPanel = computed(() => {
   }
   return null
 })
+/** Builds navigation groups from the active identity permissions. */
 const navGroups = computed<ConsoleNavGroup[]>(() => {
   const groups: ConsoleNavGroup[] = []
   if (permissions.value.includes('short_link:read_own')) {
@@ -159,7 +167,7 @@ const navGroups = computed<ConsoleNavGroup[]>(() => {
           labelKey: 'console.nav.userManagement',
           children: [
             { labelKey: 'nav.users', level: 2, to: '/admin/user' },
-            { labelKey: 'nav.userGroups', level: 2, planned: true, to: '/admin/user/group' },
+            { labelKey: 'nav.userGroups', level: 2, to: '/admin/user/group' },
           ],
         },
         { labelKey: 'nav.settings', planned: true, to: '/admin/setting' },

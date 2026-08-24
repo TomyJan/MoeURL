@@ -2,7 +2,7 @@
 
 MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
 
-当前已完成 v0.4.0 确认页访问闭环：在短链管理、统计分析和访问体验基础上，提供直接跳转、中间页和确认页三种模式，并支持可选过期时间、二维码、访问密码、数据库一致失败限流和短期访问授权。
+当前已完成到 v0.5.0 用户组权限管理闭环：在短链管理、统计分析和三种跳转模式基础上，管理员可以查看三个内置用户组，并通过稳定权限目录、三个预设和乐观并发安全编辑 `user`、`admin` 权限。
 
 ## 功能概览
 
@@ -11,6 +11,7 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 - 内置 `guest`、`user`、`admin` 用户组和权限判断。
 - 创建、查看、筛选、禁用和软删除短链。
 - 管理员全站短链管理、用户创建和用户维护入口。
+- 内置用户组权限管理，支持 `restricted`、`basic`、`standard` 预设、受保护管理权限和并发冲突提示。
 - 控制台个人概览、最近短链和个人昵称设置。
 - 短链支持直接跳转、中间页和确认页三种模式，短码全系统唯一。
 - 支持可选过期时间、访问配置编辑和浏览器即时生成二维码。
@@ -34,6 +35,11 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 - [文档总览](./docs/README.md)
 - [产品总览](./docs/product/overview.md)
+- [v0.5.0 范围](./docs/product/scope-v0.5.0.md)
+- [v0.5.0 用户组权限管理设计](./docs/specs/2026-08-20-v0.5.0-user-group-permission-management-design.md)
+- [v0.5.0 实施计划](./docs/implementation/v0.5.0-plan.md)
+- [v0.5.0 任务级实施清单](./docs/implementation/v0.5.0-tasks.md)
+- [v0.5.0 验收清单](./docs/implementation/v0.5.0-acceptance.md)
 - [v0.4.0 范围](./docs/product/scope-v0.4.0.md)
 - [v0.4.0 确认页访问设计](./docs/specs/2026-08-13-v0.4.0-confirmation-page-access-design.md)
 - [v0.4.0 实施计划](./docs/implementation/v0.4.0-plan.md)
@@ -176,14 +182,16 @@ gofmt -l .
 go vet ./...
 go test ./...
 $coverageProfile = Join-Path (Get-Location) "coverage.out"
-go test ./internal/auth ./internal/db ./internal/event ./internal/http ./internal/middleware ./internal/permission ./internal/shortlink ./internal/system ./internal/user "-coverprofile=$coverageProfile"
+node --test scripts/go-coverage-threshold.test.mjs
+go test -p=1 -count=1 "-coverprofile=$coverageProfile" ./internal/auth ./internal/db ./internal/event ./internal/http ./internal/middleware ./internal/permission ./internal/shortlink ./internal/system ./internal/user ./internal/usergroup
 node scripts/go-coverage-threshold.mjs $coverageProfile 100 --include-from=scripts/go-coverage-targets.txt --exclude-blocks-from=scripts/go-coverage-excluded-blocks.txt
 ```
 
 Linux/macOS：
 
 ```bash
-go test ./internal/auth ./internal/db ./internal/event ./internal/http ./internal/middleware ./internal/permission ./internal/shortlink ./internal/system ./internal/user -coverprofile="$PWD/coverage.out"
+node --test scripts/go-coverage-threshold.test.mjs
+go test -p=1 -count=1 -coverprofile="$PWD/coverage.out" ./internal/auth ./internal/db ./internal/event ./internal/http ./internal/middleware ./internal/permission ./internal/shortlink ./internal/system ./internal/user ./internal/usergroup
 node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100 --include-from=scripts/go-coverage-targets.txt --exclude-blocks-from=scripts/go-coverage-excluded-blocks.txt
 ```
 

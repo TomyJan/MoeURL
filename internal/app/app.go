@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	nethttp "net/http"
 	"time"
@@ -15,10 +16,14 @@ import (
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/system"
 	"github.com/TomyJan/MoeURL/internal/user"
+	"github.com/TomyJan/MoeURL/internal/usergroup"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const accessGrantCleanupInterval = time.Minute
+
+// validatePermissionCatalog allows startup validation failures to be exercised without mutating package catalog state.
+var validatePermissionCatalog = permission.ValidateCatalog
 
 type App struct {
 	config             config.Config
@@ -31,6 +36,9 @@ type App struct {
 
 // New builds the application dependencies and HTTP server from configuration.
 func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, error) {
+	if err := validatePermissionCatalog(); err != nil {
+		return nil, fmt.Errorf("validate permission catalog: %w", err)
+	}
 	var pool *pgxpool.Pool
 	deps := apphttp.Dependencies{Logger: logger}
 	var grantCleanupCancel context.CancelFunc
@@ -54,6 +62,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.AnalyticsCountryHeader = cfg.AnalyticsCountryHeader
 		deps.SecureCookies = cfg.Env == "production"
 		deps.User = user.NewService(pool, permissionService)
+		deps.UserGroup = usergroup.NewService(pool, permissionService)
 
 		cleanupContext, cancelCleanup := context.WithCancel(context.Background())
 		cleanupDone := make(chan struct{})

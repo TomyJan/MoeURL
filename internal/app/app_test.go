@@ -12,15 +12,78 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/config"
+	"github.com/TomyJan/MoeURL/internal/permission"
+	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/system"
 	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/TomyJan/MoeURL/internal/user"
+	"github.com/TomyJan/MoeURL/internal/usergroup"
 )
+
+// TestAppNewRejectsInvalidPermissionCatalog verifies startup stops before dependency wiring when catalog validation fails.
+func TestAppNewRejectsInvalidPermissionCatalog(t *testing.T) {
+	wantErr := errors.New("invalid permission catalog")
+	originalValidate := validatePermissionCatalog
+	validatePermissionCatalog = func() error { return wantErr }
+	t.Cleanup(func() { validatePermissionCatalog = originalValidate })
+
+	application, err := New(context.Background(), config.Config{HTTPAddr: ":0"}, slog.Default())
+	if application != nil {
+		t.Fatal("New() returned an application for an invalid permission catalog")
+	}
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("New() error = %v, want wrapped %v", err, wantErr)
+	}
+}
+
+// newTestApplication builds and initializes an application with an optional environment override.
+func newTestApplication(t *testing.T, environments ...string) *App {
+	t.Helper()
+	if len(environments) > 1 {
+		t.Fatalf("newTestApplication environments = %d, want at most 1", len(environments))
+	}
+	environment := "development"
+	if len(environments) == 1 {
+		environment = environments[0]
+	}
+	ctx := t.Context()
+	cfg := config.Config{
+		Env:         environment,
+		HTTPAddr:    ":0",
+		DatabaseURL: testdb.ProjectMigratedDatabaseURL(ctx, t),
+		StaticDir:   "web/dist",
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate config: %v", err)
+	}
+	application, err := New(ctx, cfg, slog.Default())
+	if err != nil {
+		t.Fatalf("build application: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := application.Shutdown(context.Background()); err != nil {
+			t.Errorf("shutdown application: %v", err)
+		}
+	})
+	if err := system.NewService(application.pool).Setup(ctx, system.SetupInput{
+		AdminUsername:   "admin",
+		AdminPassword:   "secure-password",
+		AdminNickname:   "Administrator",
+		SiteName:        "MoeURL",
+		SystemDomain:    "example.com",
+		ShortLinkDomain: "go.example.com",
+		DefaultLanguage: "zh-CN",
+		DefaultTheme:    "system",
+	}); err != nil {
+		t.Fatalf("initialize application: %v", err)
+	}
+	return application
+}
 
 // TestAppNewNormalizesEnvironment verifies application wiring uses the validated environment form.
 func TestAppNewNormalizesEnvironment(t *testing.T) {
-	ctx := context.Background()
 	for _, test := range []struct {
 		name       string
 		env        string
@@ -30,39 +93,9 @@ func TestAppNewNormalizesEnvironment(t *testing.T) {
 		{name: "development", env: "development", wantSecure: false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			cfg := config.Config{
-				Env:         test.env,
-				HTTPAddr:    ":0",
-				DatabaseURL: testdb.ProjectMigratedDatabaseURL(ctx, t),
-				StaticDir:   "web/dist",
-			}
-			if err := cfg.Validate(); err != nil {
-				t.Fatalf("validate config: %v", err)
-			}
-			application, err := New(ctx, cfg, slog.Default())
-			if err != nil {
-				t.Fatalf("build application: %v", err)
-			}
-			t.Cleanup(func() {
-				if err := application.Shutdown(context.Background()); err != nil {
-					t.Errorf("shutdown application: %v", err)
-				}
-			})
+			application := newTestApplication(t, test.env)
 			if application.config.Env != test.name {
 				t.Fatalf("environment = %q, want %q", application.config.Env, test.name)
-			}
-
-			if err := system.NewService(application.pool).Setup(ctx, system.SetupInput{
-				AdminUsername:   "admin",
-				AdminPassword:   "secure-password",
-				AdminNickname:   "Administrator",
-				SiteName:        "MoeURL",
-				SystemDomain:    "example.com",
-				ShortLinkDomain: "go.example.com",
-				DefaultLanguage: "zh-CN",
-				DefaultTheme:    "system",
-			}); err != nil {
-				t.Fatalf("initialize application: %v", err)
 			}
 			request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{"username":"admin","password":"secure-password"}`))
 			response := httptest.NewRecorder()
@@ -92,37 +125,8 @@ func TestAppNewNormalizesEnvironment(t *testing.T) {
 
 // TestAppNewUsesDatabasePermissionsForUserService verifies application wiring applies user-group revocations to managed-user APIs.
 func TestAppNewUsesDatabasePermissionsForUserService(t *testing.T) {
-	ctx := context.Background()
-	cfg := config.Config{
-		Env:         "development",
-		HTTPAddr:    ":0",
-		DatabaseURL: testdb.ProjectMigratedDatabaseURL(ctx, t),
-		StaticDir:   "web/dist",
-	}
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("validate config: %v", err)
-	}
-	application, err := New(ctx, cfg, slog.Default())
-	if err != nil {
-		t.Fatalf("build application: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := application.Shutdown(context.Background()); err != nil {
-			t.Errorf("shutdown application: %v", err)
-		}
-	})
-	if err := system.NewService(application.pool).Setup(ctx, system.SetupInput{
-		AdminUsername:   "admin",
-		AdminPassword:   "secure-password",
-		AdminNickname:   "Administrator",
-		SiteName:        "MoeURL",
-		SystemDomain:    "example.com",
-		ShortLinkDomain: "go.example.com",
-		DefaultLanguage: "zh-CN",
-		DefaultTheme:    "system",
-	}); err != nil {
-		t.Fatalf("initialize application: %v", err)
-	}
+	ctx := t.Context()
+	application := newTestApplication(t)
 
 	loginRequest := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{"username":"admin","password":"secure-password"}`))
 	loginResponse := httptest.NewRecorder()
@@ -158,6 +162,215 @@ func TestAppNewUsesDatabasePermissionsForUserService(t *testing.T) {
 	}
 	if code := listCode(); code != user.CodePermissionDenied {
 		t.Fatalf("revoked user list code = %d, want %d", code, user.CodePermissionDenied)
+	}
+}
+
+// TestAppNewUsesDatabasePermissionsForUserGroupService verifies user-group authorization is resolved for every new request.
+func TestAppNewUsesDatabasePermissionsForUserGroupService(t *testing.T) {
+	ctx := t.Context()
+	application := newTestApplication(t)
+
+	var originalPermissions []byte
+	var originalUpdatedAt time.Time
+	if err := application.pool.QueryRow(ctx, `
+		select permissions, updated_at
+		from user_group
+		where key = 'admin'
+	`).Scan(&originalPermissions, &originalUpdatedAt); err != nil {
+		t.Fatalf("read original admin group: %v", err)
+	}
+	t.Cleanup(func() {
+		if _, err := application.pool.Exec(context.Background(), `
+			update user_group
+			set permissions = $1::jsonb, updated_at = $2
+			where key = 'admin'
+		`, originalPermissions, originalUpdatedAt); err != nil {
+			t.Errorf("restore admin group: %v", err)
+		}
+	})
+
+	loginRequest := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{"username":"admin","password":"secure-password"}`))
+	loginResponse := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(loginResponse, loginRequest)
+	var loginBody struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(loginResponse.Body).Decode(&loginBody); err != nil {
+		t.Fatalf("decode admin login response: %v", err)
+	}
+	if loginResponse.Code != http.StatusOK || loginBody.Code != 0 {
+		t.Fatalf("admin login response = HTTP %d, code %d", loginResponse.Code, loginBody.Code)
+	}
+	cookies := loginResponse.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("expected one login cookie, got %d", len(cookies))
+	}
+
+	listCode := func() int {
+		t.Helper()
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/admin/user-group/list", nil)
+		request.AddCookie(cookies[0])
+		response := httptest.NewRecorder()
+		application.server.Handler.ServeHTTP(response, request)
+		var body struct {
+			Code int `json:"code"`
+		}
+		if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+			t.Fatalf("decode user-group list response: %v", err)
+		}
+		return body.Code
+	}
+	if code := listCode(); code != 0 {
+		t.Fatalf("initial user-group list code = %d, want 0", code)
+	}
+	if _, err := application.pool.Exec(ctx, `
+		update user_group
+		set permissions = permissions - 'admin:access'
+		where key = 'admin'
+	`); err != nil {
+		t.Fatalf("revoke admin access: %v", err)
+	}
+	if code := listCode(); code != usergroup.CodePermissionDenied {
+		t.Fatalf("revoked user-group list code = %d, want %d", code, usergroup.CodePermissionDenied)
+	}
+}
+
+// TestAppAppliesUserPermissionChangesToNewRequests verifies runtime revocation and restoration use fresh database snapshots.
+func TestAppAppliesUserPermissionChangesToNewRequests(t *testing.T) {
+	application := newTestApplication(t)
+
+	login := func(username string, password string) (*http.Cookie, auth.CurrentUser) {
+		t.Helper()
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{"username":"`+username+`","password":"`+password+`"}`))
+		response := httptest.NewRecorder()
+		application.server.Handler.ServeHTTP(response, request)
+		var body struct {
+			Code int `json:"code"`
+			Data struct {
+				User auth.CurrentUser `json:"user"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+			t.Fatalf("decode %s login response: %v", username, err)
+		}
+		if response.Code != http.StatusOK || body.Code != 0 {
+			t.Fatalf("%s login response = HTTP %d, code %d", username, response.Code, body.Code)
+		}
+		cookies := response.Result().Cookies()
+		if len(cookies) != 1 {
+			t.Fatalf("%s login cookies = %d, want 1", username, len(cookies))
+		}
+		return cookies[0], body.Data.User
+	}
+
+	adminCookie, adminActor := login("admin", "secure-password")
+	createUserRequest := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/admin/user/create", bytes.NewBufferString(`{
+		"username":"member",
+		"password":"member-password",
+		"nickname":"Member",
+		"groupKey":"user",
+		"status":"active"
+	}`))
+	createUserRequest.AddCookie(adminCookie)
+	createUserResponse := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(createUserResponse, createUserRequest)
+	var createUserBody struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(createUserResponse.Body).Decode(&createUserBody); err != nil {
+		t.Fatalf("decode user create response: %v", err)
+	}
+	if createUserResponse.Code != http.StatusOK || createUserBody.Code != 0 {
+		t.Fatalf("user create response = HTTP %d, code %d", createUserResponse.Code, createUserBody.Code)
+	}
+	memberCookie, _ := login("member", "member-password")
+
+	createIntermediateCode := func(targetURL string) int {
+		t.Helper()
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/short-link/create", bytes.NewBufferString(`{
+			"targetUrl":"`+targetURL+`",
+			"redirectMode":"intermediate",
+			"intermediateDelaySeconds":3
+		}`))
+		request.AddCookie(memberCookie)
+		response := httptest.NewRecorder()
+		application.server.Handler.ServeHTTP(response, request)
+		var body struct {
+			Code int `json:"code"`
+		}
+		if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+			t.Fatalf("decode short-link create response: %v", err)
+		}
+		if response.Code != http.StatusOK {
+			t.Fatalf("short-link create HTTP status = %d", response.Code)
+		}
+		return body.Code
+	}
+	if code := createIntermediateCode("https://example.com/before-revocation"); code != 0 {
+		t.Fatalf("initial short-link create code = %d, want 0", code)
+	}
+
+	groupService := usergroup.NewService(application.pool, permission.NewDatabaseService(application.pool))
+	listGroups := func(ctx context.Context) usergroup.ListResult {
+		t.Helper()
+		result, err := groupService.List(ctx, adminActor)
+		if err != nil {
+			t.Fatalf("list user groups: %v", err)
+		}
+		return result
+	}
+	findUserGroup := func(result usergroup.ListResult) usergroup.UserGroup {
+		t.Helper()
+		for _, group := range result.Groups {
+			if group.Key == permission.GroupUser {
+				return group
+			}
+		}
+		t.Fatal("user group was not returned")
+		return usergroup.UserGroup{}
+	}
+	originalGroup := findUserGroup(listGroups(t.Context()))
+	restorePermissions := func() {
+		restoreContext, cancelRestore := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelRestore()
+		latest := findUserGroup(listGroups(restoreContext))
+		if _, err := groupService.UpdatePermissions(restoreContext, adminActor, usergroup.UpdatePermissionsInput{
+			GroupKey:          permission.GroupUser,
+			Permissions:       originalGroup.Permissions,
+			ExpectedUpdatedAt: latest.UpdatedAt,
+		}); err != nil {
+			t.Errorf("restore user permissions: %v", err)
+		}
+	}
+	t.Cleanup(restorePermissions)
+
+	revokedPermissions := make([]string, 0, len(originalGroup.Permissions))
+	for _, permissionKey := range originalGroup.Permissions {
+		if permissionKey != permission.ShortLinkUseIntermediate {
+			revokedPermissions = append(revokedPermissions, permissionKey)
+		}
+	}
+	revoked, err := groupService.UpdatePermissions(t.Context(), adminActor, usergroup.UpdatePermissionsInput{
+		GroupKey:          permission.GroupUser,
+		Permissions:       revokedPermissions,
+		ExpectedUpdatedAt: originalGroup.UpdatedAt,
+	})
+	if err != nil {
+		t.Fatalf("revoke intermediate permission: %v", err)
+	}
+	if code := createIntermediateCode("https://example.com/after-revocation"); code != shortlink.CodePermissionDenied {
+		t.Fatalf("revoked short-link create code = %d, want %d", code, shortlink.CodePermissionDenied)
+	}
+
+	if _, err := groupService.UpdatePermissions(t.Context(), adminActor, usergroup.UpdatePermissionsInput{
+		GroupKey:          permission.GroupUser,
+		Permissions:       originalGroup.Permissions,
+		ExpectedUpdatedAt: revoked.Group.UpdatedAt,
+	}); err != nil {
+		t.Fatalf("restore intermediate permission: %v", err)
+	}
+	if code := createIntermediateCode("https://example.com/after-restoration"); code != 0 {
+		t.Fatalf("restored short-link create code = %d, want 0", code)
 	}
 }
 
