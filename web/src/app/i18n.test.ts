@@ -105,6 +105,7 @@ describe('i18n', () => {
       expect(userGroups.presets.restricted).toBeTruthy()
       expect(userGroups.presets.basic).toBeTruthy()
       expect(userGroups.presets.standard).toBeTruthy()
+      expect(userGroups.protected).toBe(locale === 'zh-CN' ? '受保护，不可编辑' : 'Protected, cannot be edited')
       expect(new Set(Object.keys(userGroups.permissions))).toEqual(permissionKeys)
       for (const permission of Object.values(userGroups.permissions)) {
         expect(permission.label).toBeTruthy()

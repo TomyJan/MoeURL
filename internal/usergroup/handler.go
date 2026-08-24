@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -111,7 +112,7 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, actor auth.
 		if errors.Is(err, ErrPermissionResolverNeeded) {
 			category = "permission_resolver"
 		}
-		h.logInfrastructure(r, actor, groupKey, category)
+		h.logInfrastructure(r, actor, groupKey, category, err)
 		h.writeResponse(w, r, actor, groupKey, http.StatusInternalServerError, response{Code: CodeInternalServerError, Message: "Internal server error", Data: nil, Meta: map[string]any{}})
 	}
 }
@@ -120,7 +121,7 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, actor auth.
 func (h *Handler) writeResponse(w http.ResponseWriter, r *http.Request, actor auth.CurrentUser, groupKey string, status int, body response) {
 	var buffer bytes.Buffer
 	if err := encodeResponse(&buffer, body); err != nil {
-		h.logInfrastructure(r, actor, groupKey, "response_encoding")
+		h.logInfrastructure(r, actor, groupKey, "response_encoding", err)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(`{"code":900000,"message":"Internal server error","data":null,"meta":{}}` + "\n"))
@@ -131,11 +132,12 @@ func (h *Handler) writeResponse(w http.ResponseWriter, r *http.Request, actor au
 	_, _ = w.Write(buffer.Bytes())
 }
 
-// logInfrastructure records only bounded request identity and a stable error category.
-func (h *Handler) logInfrastructure(r *http.Request, actor auth.CurrentUser, groupKey string, category string) {
+// logInfrastructure records bounded request identity, a stable category, and the diagnostic error type.
+func (h *Handler) logInfrastructure(r *http.Request, actor auth.CurrentUser, groupKey string, category string, err error) {
 	attributes := []any{
 		"actor_id", actor.ID,
 		"error_category", category,
+		"error_type", fmt.Sprintf("%T", err),
 	}
 	if groupKey = stableGroupKey(groupKey); groupKey != "" {
 		attributes = append(attributes, "group_key", groupKey)

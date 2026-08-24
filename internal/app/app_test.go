@@ -38,12 +38,19 @@ func TestAppNewRejectsInvalidPermissionCatalog(t *testing.T) {
 	}
 }
 
-// newTestApplication builds and initializes an application while keeping its pool alive for later test cleanups.
-func newTestApplication(t *testing.T) *App {
+// newTestApplication builds and initializes an application with an optional environment override.
+func newTestApplication(t *testing.T, environments ...string) *App {
 	t.Helper()
+	if len(environments) > 1 {
+		t.Fatalf("newTestApplication environments = %d, want at most 1", len(environments))
+	}
+	environment := "development"
+	if len(environments) == 1 {
+		environment = environments[0]
+	}
 	ctx := t.Context()
 	cfg := config.Config{
-		Env:         "development",
+		Env:         environment,
 		HTTPAddr:    ":0",
 		DatabaseURL: testdb.ProjectMigratedDatabaseURL(ctx, t),
 		StaticDir:   "web/dist",
@@ -77,7 +84,6 @@ func newTestApplication(t *testing.T) *App {
 
 // TestAppNewNormalizesEnvironment verifies application wiring uses the validated environment form.
 func TestAppNewNormalizesEnvironment(t *testing.T) {
-	ctx := context.Background()
 	for _, test := range []struct {
 		name       string
 		env        string
@@ -87,39 +93,9 @@ func TestAppNewNormalizesEnvironment(t *testing.T) {
 		{name: "development", env: "development", wantSecure: false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			cfg := config.Config{
-				Env:         test.env,
-				HTTPAddr:    ":0",
-				DatabaseURL: testdb.ProjectMigratedDatabaseURL(ctx, t),
-				StaticDir:   "web/dist",
-			}
-			if err := cfg.Validate(); err != nil {
-				t.Fatalf("validate config: %v", err)
-			}
-			application, err := New(ctx, cfg, slog.Default())
-			if err != nil {
-				t.Fatalf("build application: %v", err)
-			}
-			t.Cleanup(func() {
-				if err := application.Shutdown(context.Background()); err != nil {
-					t.Errorf("shutdown application: %v", err)
-				}
-			})
+			application := newTestApplication(t, test.env)
 			if application.config.Env != test.name {
 				t.Fatalf("environment = %q, want %q", application.config.Env, test.name)
-			}
-
-			if err := system.NewService(application.pool).Setup(ctx, system.SetupInput{
-				AdminUsername:   "admin",
-				AdminPassword:   "secure-password",
-				AdminNickname:   "Administrator",
-				SiteName:        "MoeURL",
-				SystemDomain:    "example.com",
-				ShortLinkDomain: "go.example.com",
-				DefaultLanguage: "zh-CN",
-				DefaultTheme:    "system",
-			}); err != nil {
-				t.Fatalf("initialize application: %v", err)
 			}
 			request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{"username":"admin","password":"secure-password"}`))
 			response := httptest.NewRecorder()
@@ -149,37 +125,8 @@ func TestAppNewNormalizesEnvironment(t *testing.T) {
 
 // TestAppNewUsesDatabasePermissionsForUserService verifies application wiring applies user-group revocations to managed-user APIs.
 func TestAppNewUsesDatabasePermissionsForUserService(t *testing.T) {
-	ctx := context.Background()
-	cfg := config.Config{
-		Env:         "development",
-		HTTPAddr:    ":0",
-		DatabaseURL: testdb.ProjectMigratedDatabaseURL(ctx, t),
-		StaticDir:   "web/dist",
-	}
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("validate config: %v", err)
-	}
-	application, err := New(ctx, cfg, slog.Default())
-	if err != nil {
-		t.Fatalf("build application: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := application.Shutdown(context.Background()); err != nil {
-			t.Errorf("shutdown application: %v", err)
-		}
-	})
-	if err := system.NewService(application.pool).Setup(ctx, system.SetupInput{
-		AdminUsername:   "admin",
-		AdminPassword:   "secure-password",
-		AdminNickname:   "Administrator",
-		SiteName:        "MoeURL",
-		SystemDomain:    "example.com",
-		ShortLinkDomain: "go.example.com",
-		DefaultLanguage: "zh-CN",
-		DefaultTheme:    "system",
-	}); err != nil {
-		t.Fatalf("initialize application: %v", err)
-	}
+	ctx := t.Context()
+	application := newTestApplication(t)
 
 	loginRequest := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{"username":"admin","password":"secure-password"}`))
 	loginResponse := httptest.NewRecorder()

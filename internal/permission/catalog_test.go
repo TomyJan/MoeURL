@@ -81,9 +81,9 @@ func TestCatalogAccessorsReturnIndependentCopies(t *testing.T) {
 // TestPresetDefinitions verifies the three presets contain only configurable permissions.
 func TestPresetDefinitions(t *testing.T) {
 	want := []Preset{
-		{Key: "restricted", ApplicableGroups: []string{GroupUser, GroupAdmin}, Permissions: []string{}},
+		{Key: presetRestricted, ApplicableGroups: []string{GroupUser, GroupAdmin}, Permissions: []string{}},
 		{
-			Key:              "basic",
+			Key:              presetBasic,
 			ApplicableGroups: []string{GroupUser, GroupAdmin},
 			Permissions: []string{
 				ShortLinkCreate,
@@ -93,7 +93,7 @@ func TestPresetDefinitions(t *testing.T) {
 				DomainUseDefault,
 			},
 		},
-		{Key: "standard", ApplicableGroups: []string{GroupUser, GroupAdmin}, Permissions: append([]string(nil), UserPermissions...)},
+		{Key: presetStandard, ApplicableGroups: []string{GroupUser, GroupAdmin}, Permissions: append([]string(nil), UserPermissions...)},
 	}
 
 	if got := Presets(); !reflect.DeepEqual(got, want) {

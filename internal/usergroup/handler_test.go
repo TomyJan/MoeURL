@@ -5,10 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -151,8 +154,8 @@ func TestHandlerUpdatePermissionsRejectsInvalidJSON(t *testing.T) {
 
 	response := serveUserGroupHandler(t, http.HandlerFunc(handler.UpdatePermissions), auth.CurrentUser{ID: "admin-id", GroupKey: permission.GroupAdmin}, request)
 	envelope := decodeHandlerEnvelope(t, response)
-	if response.Code != http.StatusOK || envelope.Code != 100001 || service.updateCalls != 0 {
-		t.Fatalf("status=%d code=%d calls=%d, want 200,100001,0", response.Code, envelope.Code, service.updateCalls)
+	if response.Code != http.StatusOK || envelope.Code != CodeInvalidRequest || service.updateCalls != 0 {
+		t.Fatalf("status=%d code=%d calls=%d, want 200,%d,0", response.Code, envelope.Code, service.updateCalls, CodeInvalidRequest)
 	}
 }
 
@@ -216,13 +219,13 @@ func TestHandlerMapsAllUserGroupErrors(t *testing.T) {
 		code          int
 		errorCategory string
 	}{
-		{name: "invalid", err: ErrInvalidInput, httpStatus: http.StatusOK, code: 100001},
-		{name: "permission denied", err: ErrPermissionDenied, httpStatus: http.StatusOK, code: 120001},
-		{name: "not found", err: ErrUserGroupNotFound, httpStatus: http.StatusOK, code: 300201},
-		{name: "conflict", err: ErrPermissionConflict, httpStatus: http.StatusOK, code: 300202},
-		{name: "protected", err: ErrProtectedPermission, httpStatus: http.StatusOK, code: 300203},
-		{name: "resolver missing", err: ErrPermissionResolverNeeded, httpStatus: http.StatusInternalServerError, code: 900000, errorCategory: "permission_resolver"},
-		{name: "database", err: errTestInfrastructure, httpStatus: http.StatusInternalServerError, code: 900000, errorCategory: "infrastructure"},
+		{name: "invalid", err: ErrInvalidInput, httpStatus: http.StatusOK, code: CodeInvalidRequest},
+		{name: "permission denied", err: ErrPermissionDenied, httpStatus: http.StatusOK, code: CodePermissionDenied},
+		{name: "not found", err: ErrUserGroupNotFound, httpStatus: http.StatusOK, code: CodeUserGroupNotFound},
+		{name: "conflict", err: ErrPermissionConflict, httpStatus: http.StatusOK, code: CodePermissionConflict},
+		{name: "protected", err: ErrProtectedPermission, httpStatus: http.StatusOK, code: CodeProtectedPermission},
+		{name: "resolver missing", err: ErrPermissionResolverNeeded, httpStatus: http.StatusInternalServerError, code: CodeInternalServerError, errorCategory: "permission_resolver"},
+		{name: "database", err: errTestInfrastructure, httpStatus: http.StatusInternalServerError, code: CodeInternalServerError, errorCategory: "infrastructure"},
 	}
 
 	for _, test := range tests {
@@ -246,12 +249,13 @@ func TestHandlerMapsAllUserGroupErrors(t *testing.T) {
 					ActorID       string `json:"actor_id"`
 					GroupKey      string `json:"group_key"`
 					ErrorCategory string `json:"error_category"`
+					ErrorType     string `json:"error_type"`
 				}
 				if err := json.Unmarshal(logs.Bytes(), &entry); err != nil {
 					t.Fatalf("decode infrastructure log %q: %v", logOutput, err)
 				}
-				if entry.ActorID != "admin-sensitive-id" || entry.GroupKey != permission.GroupUser || entry.ErrorCategory != test.errorCategory {
-					t.Fatalf("infrastructure log fields = %#v, want actor_id=%q group_key=%q error_category=%q", entry, "admin-sensitive-id", permission.GroupUser, test.errorCategory)
+				if entry.ActorID != "admin-sensitive-id" || entry.GroupKey != permission.GroupUser || entry.ErrorCategory != test.errorCategory || entry.ErrorType != fmt.Sprintf("%T", test.err) {
+					t.Fatalf("infrastructure log fields = %#v, want actor_id=%q group_key=%q error_category=%q error_type=%q", entry, "admin-sensitive-id", permission.GroupUser, test.errorCategory, fmt.Sprintf("%T", test.err))
 				}
 				for _, forbidden := range []string{"session-secret-value", "permission-not-for-logs", "permissions", errTestInfrastructure.Error()} {
 					if strings.Contains(logOutput, forbidden) {
@@ -295,8 +299,8 @@ func TestHandlerListLogsInfrastructureWithoutUpdateGroupKey(t *testing.T) {
 
 	response := serveUserGroupHandler(t, http.HandlerFunc(handler.List), auth.CurrentUser{ID: "admin-id", GroupKey: permission.GroupAdmin}, request)
 	envelope := decodeHandlerEnvelope(t, response)
-	if response.Code != http.StatusInternalServerError || envelope.Code != 900000 {
-		t.Fatalf("status=%d code=%d, want 500,900000", response.Code, envelope.Code)
+	if response.Code != http.StatusInternalServerError || envelope.Code != CodeInternalServerError {
+		t.Fatalf("status=%d code=%d, want 500,%d", response.Code, envelope.Code, CodeInternalServerError)
 	}
 	if logOutput := logs.String(); !strings.Contains(logOutput, "admin-id") || strings.Contains(logOutput, "group_key") {
 		t.Fatalf("unexpected list infrastructure log: %s", logOutput)
@@ -305,9 +309,10 @@ func TestHandlerListLogsInfrastructureWithoutUpdateGroupKey(t *testing.T) {
 
 // TestHandlerEncodingFailureUsesSafeInternalEnvelope verifies encoding failures return the fallback envelope.
 func TestHandlerEncodingFailureUsesSafeInternalEnvelope(t *testing.T) {
+	encodingErr := errors.New("encoding unavailable")
 	originalEncode := encodeResponse
 	encodeResponse = func(io.Writer, response) error {
-		return errors.New("encoding unavailable")
+		return encodingErr
 	}
 	t.Cleanup(func() { encodeResponse = originalEncode })
 	var logs bytes.Buffer
@@ -324,7 +329,25 @@ func TestHandlerEncodingFailureUsesSafeInternalEnvelope(t *testing.T) {
 	if err := json.NewDecoder(response.Body).Decode(&envelope); err != nil {
 		t.Fatalf("decode fallback response: %v", err)
 	}
-	if envelope.Code != 900000 || !strings.Contains(logs.String(), "response_encoding") || !strings.Contains(logs.String(), "admin-id") {
+	if envelope.Code != CodeInternalServerError || !strings.Contains(logs.String(), "response_encoding") || !strings.Contains(logs.String(), "admin-id") || !strings.Contains(logs.String(), fmt.Sprintf(`"error_type":"%T"`, encodingErr)) {
 		t.Fatalf("fallback code=%d logs=%q", envelope.Code, logs.String())
+	}
+}
+
+// TestHandlerErrorCodesMatchFrontendContract verifies both layers use the checked-in user-group error-code contract.
+func TestHandlerErrorCodesMatchFrontendContract(t *testing.T) {
+	contents, err := os.ReadFile(filepath.Join("..", "..", "web", "src", "test", "fixtures", "user-group-error-codes.json"))
+	if err != nil {
+		t.Fatalf("read frontend user-group error-code contract: %v", err)
+	}
+	var contract struct {
+		InvalidRequest     int `json:"invalidRequest"`
+		PermissionConflict int `json:"permissionConflict"`
+	}
+	if err := json.Unmarshal(contents, &contract); err != nil {
+		t.Fatalf("decode frontend user-group error-code contract: %v", err)
+	}
+	if contract.InvalidRequest != CodeInvalidRequest || contract.PermissionConflict != CodePermissionConflict {
+		t.Fatalf("frontend error-code contract = %#v, want invalid=%d conflict=%d", contract, CodeInvalidRequest, CodePermissionConflict)
 	}
 }

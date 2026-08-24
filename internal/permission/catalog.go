@@ -16,6 +16,12 @@ var (
 	ErrProtectedPermission = errors.New("protected permission ownership changed")
 )
 
+const (
+	presetRestricted = "restricted"
+	presetBasic      = "basic"
+	presetStandard   = "standard"
+)
+
 // Definition describes one permission exposed by the stable server catalog.
 type Definition struct {
 	Key       string `json:"key"`
@@ -167,7 +173,7 @@ func validateCatalog(definitions []Definition, presets []Preset) error {
 		return fmt.Errorf("configurable permissions do not match user permission baseline")
 	}
 
-	requiredPresetKeys := map[string]struct{}{"restricted": {}, "basic": {}, "standard": {}}
+	requiredPresetKeys := map[string]struct{}{presetRestricted: {}, presetBasic: {}, presetStandard: {}}
 	requiredGroups := map[string]struct{}{GroupUser: {}, GroupAdmin: {}}
 	presetKeys := make(map[string]struct{}, len(presets))
 	for _, preset := range presets {
@@ -200,10 +206,10 @@ func validateCatalog(definitions []Definition, presets []Preset) error {
 				return fmt.Errorf("preset %s contains protected permission: %s", preset.Key, permissionKey)
 			}
 		}
-		if preset.Key == "restricted" && len(permissions) != 0 {
+		if preset.Key == presetRestricted && len(permissions) != 0 {
 			return fmt.Errorf("restricted preset must not contain permissions")
 		}
-		if preset.Key == "standard" && !equalStringSets(permissions, userKeys) {
+		if preset.Key == presetStandard && !equalStringSets(permissions, userKeys) {
 			return fmt.Errorf("standard preset does not match user permission baseline")
 		}
 	}
@@ -270,9 +276,9 @@ func newCatalogDefinitions() []Definition {
 // newCatalogPresets constructs the package presets without exposing mutable state.
 func newCatalogPresets() []Preset {
 	return []Preset{
-		{Key: "restricted", ApplicableGroups: []string{GroupUser, GroupAdmin}, Permissions: []string{}},
+		{Key: presetRestricted, ApplicableGroups: []string{GroupUser, GroupAdmin}, Permissions: []string{}},
 		{
-			Key:              "basic",
+			Key:              presetBasic,
 			ApplicableGroups: []string{GroupUser, GroupAdmin},
 			Permissions: []string{
 				ShortLinkCreate,
@@ -283,7 +289,7 @@ func newCatalogPresets() []Preset {
 			},
 		},
 		{
-			Key:              "standard",
+			Key:              presetStandard,
 			ApplicableGroups: []string{GroupUser, GroupAdmin},
 			Permissions: []string{
 				ShortLinkCreate,

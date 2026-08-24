@@ -1,5 +1,5 @@
-/** The request or decoded response does not satisfy the API contract. */
+/** Matches internal/usergroup.CodeInvalidRequest in internal/usergroup/handler.go. */
 export const INVALID_REQUEST_CODE = 100001
 
-/** User-group permissions changed after the submitted optimistic version. */
+/** Matches internal/usergroup.CodePermissionConflict in internal/usergroup/handler.go. */
 export const USER_GROUP_PERMISSION_CONFLICT_CODE = 300202
