@@ -123,6 +123,11 @@ func TestBuiltinUserGroupPermissionQueries(t *testing.T) {
 		if _, err := pool.Exec(ctx, `update user_group set builtin = false where key = 'user'`); err != nil {
 			t.Fatalf("make user group non-built-in: %v", err)
 		}
+		t.Cleanup(func() {
+			if _, err := pool.Exec(context.Background(), `update user_group set builtin = true where key = 'user'`); err != nil {
+				t.Errorf("restore user group builtin state: %v", err)
+			}
+		})
 		before, err := queries.GetUserGroupByKey(ctx, "user")
 		if err != nil {
 			t.Fatalf("read non-built-in user group before rejected update: %v", err)

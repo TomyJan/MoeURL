@@ -1,13 +1,12 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+
+import permissionCatalog from '@/test/fixtures/permission-catalog.json'
 
 import { i18n, messages } from './i18n'
 
 /** Loads the checked-in snapshot generated from the backend permission catalog. */
 function readBackendPermissionCatalog(): Array<{ key: string }> {
-  const snapshot = readFileSync(resolve(__dirname, '../test/fixtures/permission-catalog.json'), 'utf8')
-  return JSON.parse(snapshot) as Array<{ key: string }>
+  return permissionCatalog
 }
 
 describe('i18n', () => {
