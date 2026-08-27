@@ -21,7 +21,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 13. [功能规格](specs/)：按模块查看权限、短链、用户、域名、页面、跳转、统计、主题和后台设计。
 14. [技术选型决策](implementation/technical-decision.md)：确认 Go + Vue 技术栈和选型理由。
 15. [技术基线](implementation/technical-baseline.md)：确认仓库结构、模块边界、API、数据库、测试和部署约定。
-16. [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)：确认新版本、跨模块和生产化任务的统一执行约定。
+16. [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)：确认新版本、跨模块、review 修复、CI 门禁和生产化任务的统一执行约定。
 17. [实施文档](implementation/)：查看工程计划、阶段任务和验收记录。
 
 ## 文档分层

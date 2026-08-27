@@ -6,7 +6,7 @@
 
 技术基线文档包括：
 
-- [Agent 自主交付规范](agent-delivery-guidelines.md)：定义新版本、跨模块和生产化任务的自主设计、文档、开发、测试、提交和交付报告约定。
+- [Agent 自主交付规范](agent-delivery-guidelines.md)：定义新版本、跨模块、review 修复和生产化任务的上下文验证、证据管理、开发、测试、提交与交付报告约定。
 - [技术选型决策](technical-decision.md)：记录后端、前端、数据库、测试和部署技术栈的选择原因。
 - [技术基线](technical-baseline.md)：定义仓库结构、模块边界、API、数据库、权限、前端结构、测试和部署约定。
 
