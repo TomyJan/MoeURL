@@ -68,7 +68,7 @@ func TestBodyLimitAllowsExactBoundary(t *testing.T) {
 }
 
 func TestBodyLimitLeavesReadOnlyMethodsUnrestricted(t *testing.T) {
-	for _, method := range []string{http.MethodGet, http.MethodHead, http.MethodOptions} {
+	for _, method := range []string{http.MethodGet, http.MethodHead} {
 		t.Run(method, func(t *testing.T) {
 			var readErr error
 			handler := middleware.BodyLimit(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -87,6 +87,33 @@ func TestBodyLimitLeavesReadOnlyMethodsUnrestricted(t *testing.T) {
 				t.Fatalf("response status = %d, want handler response", response.Code)
 			}
 		})
+	}
+}
+
+func TestBodyLimitRejectsOversizedOptionsBeforeHandler(t *testing.T) {
+	handlerCalled := false
+	handler := middleware.BodyLimit(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		handlerCalled = true
+	}))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/api/v1/example", strings.NewReader(strings.Repeat("a", testJSONBodyLimit+1)))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if handlerCalled {
+		t.Fatal("handler was called for oversized OPTIONS body")
+	}
+	if response.Code != http.StatusOK {
+		t.Fatalf("response status = %d, want business HTTP 200", response.Code)
+	}
+	var body struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode oversized OPTIONS response: %v", err)
+	}
+	if body.Code != 100001 {
+		t.Fatalf("response code = %d, want 100001", body.Code)
 	}
 }
 

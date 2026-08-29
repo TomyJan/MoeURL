@@ -4,11 +4,11 @@ import "net/http"
 
 const maxJSONBodyBytes int64 = 1 << 20
 
-// BodyLimit bounds request bodies for methods that can mutate application state.
+// BodyLimit bounds request bodies for every method except GET and HEAD.
 func BodyLimit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
-		case http.MethodGet, http.MethodHead, http.MethodOptions:
+		case http.MethodGet, http.MethodHead:
 			next.ServeHTTP(w, r)
 			return
 		}

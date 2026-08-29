@@ -3,12 +3,9 @@ package middleware
 import (
 	"context"
 	"crypto/rand"
-	"encoding/binary"
 	"encoding/hex"
 	"io"
 	"net/http"
-	"sync/atomic"
-	"time"
 )
 
 const (
@@ -17,8 +14,6 @@ const (
 )
 
 type requestIDContextKey struct{}
-
-var fallbackRequestIDSequence atomic.Uint64
 
 // RequestID validates or creates a request ID and exposes it on the response and request context.
 func RequestID(next http.Handler) http.Handler {
@@ -30,7 +25,12 @@ func requestIDWithReader(random io.Reader) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestID := r.Header.Get(requestIDHeader)
 			if !isSafeRequestID(requestID) {
-				requestID = newRequestID(random)
+				var err error
+				requestID, err = newRequestID(random)
+				if err != nil {
+					writeMiddlewareError(w, http.StatusInternalServerError, 900000, "Internal server error")
+					return
+				}
 			}
 
 			w.Header().Set(requestIDHeader, requestID)
@@ -58,11 +58,10 @@ func isSafeRequestID(requestID string) bool {
 	return true
 }
 
-func newRequestID(random io.Reader) string {
+func newRequestID(random io.Reader) (string, error) {
 	var value [16]byte
 	if _, err := io.ReadFull(random, value[:]); err != nil {
-		binary.BigEndian.PutUint64(value[:8], uint64(time.Now().UnixNano()))
-		binary.BigEndian.PutUint64(value[8:], fallbackRequestIDSequence.Add(1))
+		return "", err
 	}
-	return "req-" + hex.EncodeToString(value[:])
+	return "req-" + hex.EncodeToString(value[:]), nil
 }

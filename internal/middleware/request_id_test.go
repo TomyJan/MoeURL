@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -90,21 +91,38 @@ func TestRequestIDReplacesMissingOrUnsafeValues(t *testing.T) {
 	}
 }
 
-func TestRequestIDRandomFailureUsesSafeFallback(t *testing.T) {
+func TestRequestIDRandomFailureFailsClosed(t *testing.T) {
 	reader := failingRequestIDReader{}
-	var contextValue string
+	handlerCalled := false
 	handler := requestIDWithReader(reader)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		contextValue = RequestIDFromContext(r.Context())
+		handlerCalled = true
 	}))
 	response := httptest.NewRecorder()
 
 	handler.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/example", nil))
 
-	if !generatedRequestIDPattern.MatchString(contextValue) {
-		t.Fatalf("fallback request ID = %q, want generated stable format", contextValue)
+	if handlerCalled {
+		t.Fatal("handler was called after request ID generation failed")
 	}
-	if response.Header().Get("X-Request-ID") != contextValue {
-		t.Fatalf("response request ID did not use fallback %q", contextValue)
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("response status = %d, want 500", response.Code)
+	}
+	if requestID := response.Header().Get("X-Request-ID"); requestID != "" {
+		t.Fatalf("response request ID = %q, want no predictable fallback", requestID)
+	}
+	responseBody := response.Body.String()
+	var body struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(responseBody), &body); err != nil {
+		t.Fatalf("decode failure response: %v", err)
+	}
+	if body.Code != 900000 || body.Message != "Internal server error" {
+		t.Fatalf("failure response = code %d message %q", body.Code, body.Message)
+	}
+	if strings.Contains(responseBody, "random source unavailable") {
+		t.Fatalf("failure response leaked entropy error: %s", responseBody)
 	}
 }
 

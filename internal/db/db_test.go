@@ -63,6 +63,31 @@ func TestOpenPoolPingsBeforeReturning(t *testing.T) {
 	}
 }
 
+func TestOpenPoolWrapsCreateFailureWithoutLeakingDiagnostics(t *testing.T) {
+	originalCreate := createConfiguredPool
+	t.Cleanup(func() { createConfiguredPool = originalCreate })
+	const sensitiveDiagnostic = "create pool for postgres://user:top-secret@database.internal/moeurl: failed"
+	wantErr := errors.New(sensitiveDiagnostic)
+	createConfiguredPool = func(context.Context, *pgxpool.Config) (*configuredPool, error) {
+		return nil, wantErr
+	}
+
+	pool, err := OpenPool(t.Context(), testDatabaseURL)
+
+	if pool != nil {
+		t.Fatal("OpenPool returned a pool after pool creation failed")
+	}
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("OpenPool error = %v, want wrapped pool creation failure", err)
+	}
+	if !strings.Contains(err.Error(), "create database pool") {
+		t.Fatalf("OpenPool error = %v, want operation context", err)
+	}
+	if strings.Contains(err.Error(), sensitiveDiagnostic) || strings.Contains(err.Error(), "top-secret") || strings.Contains(err.Error(), testDatabaseURL) {
+		t.Fatalf("OpenPool error leaked sensitive diagnostics: %v", err)
+	}
+}
+
 func TestOpenPoolClosesPoolWhenPingFails(t *testing.T) {
 	originalCreate := createConfiguredPool
 	t.Cleanup(func() { createConfiguredPool = originalCreate })
