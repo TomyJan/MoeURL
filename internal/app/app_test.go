@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -23,7 +25,10 @@ import (
 	"github.com/TomyJan/MoeURL/internal/usergroup"
 )
 
-const testSetupToken = "0123456789abcdef0123456789abcdef"
+const (
+	testSetupToken       = "0123456789abcdef0123456789abcdef"
+	testLifecycleTimeout = 5 * time.Second
+)
 
 // TestAppNewRejectsInvalidPermissionCatalog verifies startup stops before dependency wiring when catalog validation fails.
 func TestAppNewRejectsInvalidPermissionCatalog(t *testing.T) {
@@ -571,24 +576,17 @@ func TestAppShutdownDrainsRequestsBeforeStoppingDependencies(t *testing.T) {
 		}
 		requestDone <- requestErr
 	}()
-	select {
-	case <-requestStarted:
-	case <-time.After(time.Second):
-		t.Fatal("request did not reach the test server")
-	}
+	waitForAppTestSignal(t, requestStarted, "request to reach the test server")
 
 	cleanupCanceled := make(chan struct{})
-	cleanupDone := make(chan struct{})
-	go func() {
-		<-cleanupCanceled
-		close(cleanupDone)
-	}()
+	cancelBackground, backgroundDone := startBackgroundTasks(func(ctx context.Context) {
+		<-ctx.Done()
+		close(cleanupCanceled)
+	})
 	application := &App{
-		server: server,
-		grantCleanupCancel: func() {
-			close(cleanupCanceled)
-		},
-		grantCleanupDone: cleanupDone,
+		server:           server,
+		backgroundCancel: cancelBackground,
+		backgroundDone:   backgroundDone,
 	}
 	shutdownContext, cancelShutdown := context.WithTimeout(context.Background(), time.Second)
 	defer cancelShutdown()
@@ -597,157 +595,231 @@ func TestAppShutdownDrainsRequestsBeforeStoppingDependencies(t *testing.T) {
 		shutdownDone <- application.Shutdown(shutdownContext)
 	}()
 
-	select {
-	case <-cleanupCanceled:
-		t.Fatal("cleanup stopped before HTTP shutdown started")
-	case <-shutdownStarted:
-	}
-	select {
-	case <-cleanupCanceled:
-		t.Fatal("cleanup stopped while the in-flight request was running")
-	default:
-	}
+	waitForAppTestSignal(t, shutdownStarted, "HTTP shutdown to start")
+	assertAppTestSignalPending(t, cleanupCanceled, "cleanup cancellation while the in-flight request was running")
 	close(releaseRequest)
-	if err := <-shutdownDone; err != nil {
+	if err := waitForAppTestValue(t, shutdownDone, "application shutdown"); err != nil {
 		t.Fatalf("shutdown application: %v", err)
 	}
-	if err := <-requestDone; err != nil {
+	if err := waitForAppTestValue(t, requestDone, "in-flight request completion"); err != nil {
 		t.Fatalf("complete in-flight request: %v", err)
 	}
-	if err := <-serveDone; !errors.Is(err, http.ErrServerClosed) {
+	if err := waitForAppTestValue(t, serveDone, "HTTP Server exit"); !errors.Is(err, http.ErrServerClosed) {
 		t.Fatalf("serve result = %v, want http.ErrServerClosed", err)
 	}
-	select {
-	case <-cleanupCanceled:
-	default:
-		t.Fatal("grant cleanup was not canceled after shutdown")
+	waitForAppTestSignal(t, cleanupCanceled, "grant cleanup cancellation")
+	waitForAppTestSignal(t, backgroundDone, "background task group completion")
+}
+
+// TestAppShutdownFailureStillCleansDependencies verifies an HTTP drain failure cannot skip later lifecycle stages.
+func TestAppShutdownFailureStillCleansDependencies(t *testing.T) {
+	httpFailure := errors.New("drain failed")
+	var eventsMu sync.Mutex
+	var events []string
+	record := func(event string) {
+		eventsMu.Lock()
+		defer eventsMu.Unlock()
+		events = append(events, event)
 	}
-	select {
-	case <-cleanupDone:
-	default:
-		t.Fatal("grant cleanup did not finish after shutdown")
+	cancelBackground, backgroundDone := startBackgroundTasks(func(ctx context.Context) {
+		<-ctx.Done()
+		record("cancel background")
+		record("wait background")
+	})
+	application := &App{
+		backgroundCancel: cancelBackground,
+		backgroundDone:   backgroundDone,
+		shutdownHTTP: func(context.Context) error {
+			record("drain HTTP")
+			return httpFailure
+		},
+		closePool: func() {
+			record("close pool")
+		},
+	}
+
+	err := application.Shutdown(context.Background())
+	if !errors.Is(err, httpFailure) {
+		t.Fatalf("shutdown error = %v, want HTTP drain failure", err)
+	}
+	eventsMu.Lock()
+	defer eventsMu.Unlock()
+	want := []string{"drain HTTP", "cancel background", "wait background", "close pool"}
+	if len(events) != len(want) {
+		t.Fatalf("shutdown events = %v, want %v", events, want)
+	}
+	for index := range want {
+		if events[index] != want[index] {
+			t.Fatalf("shutdown events = %v, want %v", events, want)
+		}
 	}
 }
 
-// TestAppShutdownFailureKeepsDependenciesRunning verifies a failed drain can be retried safely.
-func TestAppShutdownFailureKeepsDependenciesRunning(t *testing.T) {
-	requestStarted := make(chan struct{})
-	releaseRequest := make(chan struct{})
-	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		close(requestStarted)
-		<-releaseRequest
-		w.WriteHeader(http.StatusNoContent)
-	})}
-	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen for failed shutdown test: %v", err)
+// TestAppShutdownWaitsForAllBackgroundTasks verifies Pool closure follows every task exit.
+func TestAppShutdownWaitsForAllBackgroundTasks(t *testing.T) {
+	taskCanceled := []chan struct{}{make(chan struct{}), make(chan struct{})}
+	releaseTask := []chan struct{}{make(chan struct{}), make(chan struct{})}
+	taskExited := []chan struct{}{make(chan struct{}), make(chan struct{})}
+	tasks := make([]func(context.Context), 0, len(taskCanceled))
+	for index := range taskCanceled {
+		index := index
+		tasks = append(tasks, func(ctx context.Context) {
+			<-ctx.Done()
+			close(taskCanceled[index])
+			<-releaseTask[index]
+			close(taskExited[index])
+		})
 	}
-	serveDone := make(chan error, 1)
-	go func() { serveDone <- server.Serve(listener) }()
-
-	requestContext, cancelRequest := context.WithCancel(context.Background())
-	defer cancelRequest()
-	request, err := http.NewRequestWithContext(requestContext, http.MethodGet, "http://"+listener.Addr().String(), nil)
-	if err != nil {
-		t.Fatalf("create failed shutdown request: %v", err)
-	}
-	requestDone := make(chan error, 1)
-	go func() {
-		response, requestErr := http.DefaultClient.Do(request)
-		if response != nil {
-			_ = response.Body.Close()
-		}
-		requestDone <- requestErr
-	}()
-	select {
-	case <-requestStarted:
-	case <-time.After(time.Second):
-		t.Fatal("request did not reach the failed shutdown test server")
-	}
-
-	cleanupCanceled := make(chan struct{})
-	cleanupDone := make(chan struct{})
-	close(cleanupDone)
+	cancelBackground, backgroundDone := startBackgroundTasks(tasks...)
+	poolClosed := make(chan struct{})
 	application := &App{
-		server: server,
-		grantCleanupCancel: func() {
-			close(cleanupCanceled)
+		backgroundCancel: cancelBackground,
+		backgroundDone:   backgroundDone,
+		shutdownHTTP:     func(context.Context) error { return nil },
+		closePool:        func() { close(poolClosed) },
+	}
+	shutdownResult := make(chan error, 1)
+	go func() { shutdownResult <- application.Shutdown(context.Background()) }()
+
+	for index := range taskCanceled {
+		waitForAppTestSignal(t, taskCanceled[index], fmt.Sprintf("background task %d cancellation", index))
+	}
+	assertAppTestSignalPending(t, poolClosed, "Pool closure before all background tasks exited")
+	for index := range releaseTask {
+		close(releaseTask[index])
+	}
+	if err := waitForAppTestValue(t, shutdownResult, "application shutdown"); err != nil {
+		t.Fatalf("shutdown application: %v", err)
+	}
+	for index := range taskExited {
+		waitForAppTestSignal(t, taskExited[index], fmt.Sprintf("background task %d exit", index))
+	}
+	waitForAppTestSignal(t, poolClosed, "Pool closure after all background tasks exited")
+}
+
+// TestAppShutdownIsIdempotent verifies repeated calls execute lifecycle effects once and return the same result.
+func TestAppShutdownIsIdempotent(t *testing.T) {
+	shutdownFailure := errors.New("drain failed")
+	backgroundDone := make(chan struct{})
+	close(backgroundDone)
+	var drainCalls int
+	var cancelCalls int
+	var poolCloseCalls int
+	application := &App{
+		backgroundCancel: func() { cancelCalls++ },
+		backgroundDone:   backgroundDone,
+		shutdownHTTP: func(context.Context) error {
+			drainCalls++
+			return shutdownFailure
 		},
-		grantCleanupDone: cleanupDone,
-	}
-	shutdownContext, cancelShutdown := context.WithCancel(context.Background())
-	cancelShutdown()
-	if err := application.Shutdown(shutdownContext); !errors.Is(err, context.Canceled) {
-		t.Fatalf("shutdown error = %v, want context.Canceled", err)
-	}
-	select {
-	case <-cleanupCanceled:
-		t.Fatal("cleanup stopped after HTTP shutdown failed")
-	default:
+		closePool: func() { poolCloseCalls++ },
 	}
 
-	close(releaseRequest)
-	if err := <-requestDone; err != nil {
-		t.Fatalf("complete failed-shutdown request: %v", err)
+	first := application.Shutdown(context.Background())
+	second := application.Shutdown(context.Background())
+	if first != second {
+		t.Fatalf("repeated shutdown errors differ: first %v, second %v", first, second)
 	}
-	if err := <-serveDone; !errors.Is(err, http.ErrServerClosed) {
-		t.Fatalf("serve result = %v, want http.ErrServerClosed", err)
+	if !errors.Is(first, shutdownFailure) {
+		t.Fatalf("shutdown error = %v, want drain failure", first)
+	}
+	if drainCalls != 1 || cancelCalls != 1 || poolCloseCalls != 1 {
+		t.Fatalf("lifecycle calls = drain %d, cancel %d, pool %d; want each once", drainCalls, cancelCalls, poolCloseCalls)
+	}
+}
+
+// TestAppShutdownAllowsPartialInitialization verifies nil lifecycle dependencies are safe and repeatable.
+func TestAppShutdownAllowsPartialInitialization(t *testing.T) {
+	application := &App{}
+	if err := application.Shutdown(context.Background()); err != nil {
+		t.Fatalf("shutdown partial application: %v", err)
 	}
 	if err := application.Shutdown(context.Background()); err != nil {
-		t.Fatalf("retry shutdown application: %v", err)
-	}
-	select {
-	case <-cleanupCanceled:
-	default:
-		t.Fatal("cleanup remained active after successful shutdown retry")
+		t.Fatalf("repeat shutdown partial application: %v", err)
 	}
 }
 
-// TestAppShutdownPrefersCompletedCleanupWhenContextIsDone verifies app shutdown prefers completed cleanup when context is done.
-func TestAppShutdownPrefersCompletedCleanupWhenContextIsDone(t *testing.T) {
+// TestAppShutdownPrefersCompletedBackgroundTasksWhenContextIsDone verifies a finished group does not manufacture a timeout error.
+func TestAppShutdownPrefersCompletedBackgroundTasksWhenContextIsDone(t *testing.T) {
 	for attempt := 0; attempt < 100; attempt++ {
-		cleanupDone := make(chan struct{})
-		close(cleanupDone)
+		backgroundDone := make(chan struct{})
+		close(backgroundDone)
 		application := &App{
-			server:             &http.Server{},
-			grantCleanupCancel: func() {},
-			grantCleanupDone:   cleanupDone,
+			backgroundCancel: func() {},
+			backgroundDone:   backgroundDone,
+			shutdownHTTP:     func(context.Context) error { return nil },
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
 		if err := application.Shutdown(ctx); err != nil {
-			t.Fatalf("attempt %d: shutdown error = %v, want nil after cleanup completed", attempt, err)
+			t.Fatalf("attempt %d: shutdown error = %v, want nil after background completion", attempt, err)
 		}
 	}
 }
 
-// TestAppShutdownStopsWaitingWhenCleanupExceedsDeadline verifies shutdown does not close the pool after cleanup times out.
-func TestAppShutdownStopsWaitingWhenCleanupExceedsDeadline(t *testing.T) {
-	cleanupCanceled := make(chan struct{})
-	cleanupDone := make(chan struct{})
+// TestAppShutdownTimeoutStillClosesPool verifies deadline errors remain inspectable and cannot skip Pool closure.
+func TestAppShutdownTimeoutStillClosesPool(t *testing.T) {
+	httpFailure := errors.New("drain failed")
+	backgroundStarted := make(chan struct{})
+	backgroundCanceled := make(chan struct{})
+	releaseBackground := make(chan struct{})
+	cancelBackground, backgroundDone := startBackgroundTasks(func(ctx context.Context) {
+		close(backgroundStarted)
+		<-ctx.Done()
+		close(backgroundCanceled)
+		<-releaseBackground
+	})
+	poolClosed := make(chan struct{})
 	application := &App{
-		server: &http.Server{},
-		grantCleanupCancel: func() {
-			close(cleanupCanceled)
-		},
-		grantCleanupDone: cleanupDone,
+		backgroundCancel: cancelBackground,
+		backgroundDone:   backgroundDone,
+		shutdownHTTP:     func(context.Context) error { return httpFailure },
+		closePool:        func() { close(poolClosed) },
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
+	waitForAppTestSignal(t, backgroundStarted, "background task start")
 
 	err := application.Shutdown(ctx)
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("shutdown error = %v, want context deadline exceeded", err)
+	if !errors.Is(err, httpFailure) || !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("shutdown error = %v, want joined drain failure and context deadline exceeded", err)
 	}
+	waitForAppTestSignal(t, backgroundCanceled, "background task cancellation")
+	waitForAppTestSignal(t, poolClosed, "Pool closure after background wait timeout")
+	close(releaseBackground)
+	waitForAppTestSignal(t, backgroundDone, "background task completion")
+}
+
+// waitForAppTestSignal waits for a required lifecycle event without relying on the package timeout.
+func waitForAppTestSignal(t *testing.T, signal <-chan struct{}, operation string) {
+	t.Helper()
 	select {
-	case <-cleanupCanceled:
-	default:
-		t.Fatal("grant cleanup was not canceled")
+	case <-signal:
+	case <-time.After(testLifecycleTimeout):
+		t.Fatalf("timed out waiting for %s", operation)
 	}
+}
+
+// waitForAppTestValue waits for a required lifecycle result without relying on the package timeout.
+func waitForAppTestValue[T any](t *testing.T, values <-chan T, operation string) T {
+	t.Helper()
 	select {
-	case <-cleanupDone:
-		t.Fatal("shutdown returned before grant cleanup completed")
+	case value := <-values:
+		return value
+	case <-time.After(testLifecycleTimeout):
+		t.Fatalf("timed out waiting for %s", operation)
+		var zero T
+		return zero
+	}
+}
+
+// assertAppTestSignalPending checks non-occurrence only after the caller establishes a synchronization point.
+func assertAppTestSignalPending(t *testing.T, signal <-chan struct{}, operation string) {
+	t.Helper()
+	select {
+	case <-signal:
+		t.Fatalf("unexpected %s", operation)
 	default:
 	}
 }

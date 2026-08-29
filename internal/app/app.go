@@ -2,9 +2,11 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	nethttp "net/http"
+	"sync"
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
@@ -25,13 +27,18 @@ const accessGrantCleanupInterval = time.Minute
 // validatePermissionCatalog allows startup validation failures to be exercised without mutating package catalog state.
 var validatePermissionCatalog = permission.ValidateCatalog
 
+// App owns the HTTP server, database Pool, and process-scoped background work.
 type App struct {
-	config             config.Config
-	logger             *slog.Logger
-	server             *nethttp.Server
-	pool               *pgxpool.Pool
-	grantCleanupCancel context.CancelFunc
-	grantCleanupDone   <-chan struct{}
+	config           config.Config
+	logger           *slog.Logger
+	server           *nethttp.Server
+	pool             *pgxpool.Pool
+	backgroundCancel context.CancelFunc
+	backgroundDone   <-chan struct{}
+	shutdownOnce     sync.Once
+	shutdownErr      error
+	shutdownHTTP     func(context.Context) error
+	closePool        func()
 }
 
 // New builds the application dependencies and HTTP server from configuration.
@@ -45,8 +52,8 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 	}
 	var pool *pgxpool.Pool
 	deps := apphttp.Dependencies{Logger: logger}
-	var grantCleanupCancel context.CancelFunc
-	var grantCleanupDone <-chan struct{}
+	var backgroundCancel context.CancelFunc
+	var backgroundDone <-chan struct{}
 	if cfg.DatabaseURL != "" {
 		pool, err = appdb.OpenPool(ctx, cfg.DatabaseURL)
 		if err != nil {
@@ -68,14 +75,11 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.User = user.NewService(pool, permissionService)
 		deps.UserGroup = usergroup.NewService(pool, permissionService)
 
-		cleanupContext, cancelCleanup := context.WithCancel(context.Background())
-		cleanupDone := make(chan struct{})
-		grantCleanupCancel = cancelCleanup
-		grantCleanupDone = cleanupDone
-		go func() {
-			defer close(cleanupDone)
-			redirectService.RunAccessGrantCleanup(cleanupContext, accessGrantCleanupInterval, logger)
-		}()
+		backgroundCancel, backgroundDone = startBackgroundTasks(
+			func(ctx context.Context) {
+				redirectService.RunAccessGrantCleanup(ctx, accessGrantCleanupInterval, logger)
+			},
+		)
 	}
 	deps.StaticDir = cfg.StaticDir
 
@@ -91,10 +95,29 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			IdleTimeout:       60 * time.Second,
 			MaxHeaderBytes:    1 << 20,
 		},
-		pool:               pool,
-		grantCleanupCancel: grantCleanupCancel,
-		grantCleanupDone:   grantCleanupDone,
+		pool:             pool,
+		backgroundCancel: backgroundCancel,
+		backgroundDone:   backgroundDone,
 	}, nil
+}
+
+// startBackgroundTasks runs process-scoped tasks under one cancellation and completion boundary.
+func startBackgroundTasks(tasks ...func(context.Context)) (context.CancelFunc, <-chan struct{}) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var tasksWaitGroup sync.WaitGroup
+	for _, task := range tasks {
+		tasksWaitGroup.Add(1)
+		go func(task func(context.Context)) {
+			defer tasksWaitGroup.Done()
+			task(ctx)
+		}(task)
+	}
+	done := make(chan struct{})
+	go func() {
+		tasksWaitGroup.Wait()
+		close(done)
+	}()
+	return cancel, done
 }
 
 // Run starts the configured HTTP server.
@@ -103,25 +126,66 @@ func (a *App) Run() error {
 	return a.server.ListenAndServe()
 }
 
-// Shutdown closes database resources and gracefully stops the HTTP server.
+// Shutdown drains HTTP traffic, stops background work, and closes the database Pool exactly once.
 func (a *App) Shutdown(ctx context.Context) error {
-	if err := a.server.Shutdown(ctx); err != nil {
-		return err
-	}
-	if a.grantCleanupCancel != nil {
-		a.grantCleanupCancel()
-		select {
-		case <-a.grantCleanupDone:
-		case <-ctx.Done():
-			select {
-			case <-a.grantCleanupDone:
-			default:
-				return ctx.Err()
-			}
+	a.shutdownOnce.Do(func() {
+		var shutdownErrors []error
+		if err := a.shutdownHTTPServer(ctx); err != nil {
+			shutdownErrors = append(shutdownErrors, fmt.Errorf("shutdown HTTP server: %w", err))
 		}
+		if a.backgroundCancel != nil {
+			a.backgroundCancel()
+		}
+		if err := waitForBackgroundTasks(ctx, a.backgroundDone); err != nil {
+			shutdownErrors = append(shutdownErrors, fmt.Errorf("wait for background tasks: %w", err))
+		}
+		a.closeDatabasePool()
+		a.shutdownErr = errors.Join(shutdownErrors...)
+	})
+	return a.shutdownErr
+}
+
+// shutdownHTTPServer invokes the lifecycle hook or drains the concrete HTTP server when present.
+func (a *App) shutdownHTTPServer(ctx context.Context) error {
+	if a.shutdownHTTP != nil {
+		return a.shutdownHTTP(ctx)
+	}
+	if a.server == nil {
+		return nil
+	}
+	return a.server.Shutdown(ctx)
+}
+
+// waitForBackgroundTasks waits for group completion while preferring an already completed group over Context cancellation.
+func waitForBackgroundTasks(ctx context.Context, done <-chan struct{}) error {
+	if done == nil {
+		return nil
+	}
+	select {
+	case <-done:
+		return nil
+	default:
+	}
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		select {
+		case <-done:
+			return nil
+		default:
+			return ctx.Err()
+		}
+	}
+}
+
+// closeDatabasePool invokes the lifecycle hook or closes the concrete Pool when present.
+func (a *App) closeDatabasePool() {
+	if a.closePool != nil {
+		a.closePool()
+		return
 	}
 	if a.pool != nil {
 		a.pool.Close()
 	}
-	return nil
 }
