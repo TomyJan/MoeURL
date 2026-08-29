@@ -2,7 +2,7 @@
 
 MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
 
-当前已完成到 v0.5.0 用户组权限管理闭环：在短链管理、统计分析和三种跳转模式基础上，管理员可以查看三个内置用户组，并通过稳定权限目录、三个预设和乐观并发安全编辑 `user`、`admin` 权限。
+当前已完成到 v0.5.0 用户组权限管理闭环：在短链管理、统计分析和三种跳转模式基础上，管理员可以查看三个内置用户组，并通过稳定权限目录、三个预设和乐观并发安全编辑 `user`、`admin` 权限。v0.6.0 已进入生产就绪设计阶段，目标部署形态为单机 Docker Compose + 外部 TLS 反向代理。
 
 ## 功能概览
 
@@ -35,6 +35,8 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 - [文档总览](./docs/README.md)
 - [产品总览](./docs/product/overview.md)
+- [v0.6.0 范围](./docs/product/scope-v0.6.0.md)
+- [v0.6.0 生产就绪设计](./docs/specs/2026-08-29-v0.6.0-production-readiness-design.md)
 - [v0.5.0 范围](./docs/product/scope-v0.5.0.md)
 - [v0.5.0 用户组权限管理设计](./docs/specs/2026-08-20-v0.5.0-user-group-permission-management-design.md)
 - [v0.5.0 实施计划](./docs/implementation/v0.5.0-plan.md)
@@ -62,11 +64,13 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 ## Docker 运行
 
+> 当前 v0.5.0 的默认 Compose 用于本地运行和验证，尚未完成 v0.6.0 生产硬化：它包含固定数据库密码、默认映射 PostgreSQL 宿主机端口，并将应用端口绑定到所有宿主机地址。生产部署应等待 [v0.6.0 生产就绪范围](./docs/product/scope-v0.6.0.md) 实现并验收，或由部署者自行提供等价的凭据、网络、健康检查、反向代理和备份保护。
+
 ```bash
 docker compose up --build
 ```
 
-可复制 `.env.example` 为 `.env` 后再按需调整 Compose 端口和运行环境；未提供 `.env` 时，Compose 使用 `docker-compose.yml` 中声明的生产语义插值默认值。`.env.example` 中的 `MOEURL_ENV` 为 `development`，两者存在实际差异；Compose 不会自动加载 `.env.example`。
+可复制 `.env.example` 为 `.env` 后再按需调整 Compose 端口和运行环境；未提供 `.env` 时，Compose 使用 `docker-compose.yml` 中的当前插值默认值。默认 `MOEURL_ENV=production` 只启用 Secure Cookie 等运行语义，不代表当前 Compose 已满足完整生产安全要求。`.env.example` 中的 `MOEURL_ENV` 为 `development`，Compose 不会自动加载 `.env.example`。
 
 如果宿主机 `8080` 已被占用，可以临时指定宿主端口：
 
@@ -108,7 +112,7 @@ docker compose down
 docker compose down -v
 ```
 
-当前 Compose 使用 PostgreSQL 18，数据卷挂载在 `/var/lib/postgresql`。默认 Compose 环境按生产语义运行，登录 Cookie 在该模式下会设置 `Secure`；本地 HTTP 调试如需非 Secure Cookie，应显式设置 `MOEURL_ENV=development`。普通 `docker compose up --build`、`docker compose down` 和再次启动不会重置数据库。`docker compose down -v` 会删除默认 Compose 项目的数据库卷，执行后需要重新初始化管理员账号。
+当前 Compose 使用 PostgreSQL 18，数据卷挂载在 `/var/lib/postgresql`。默认 Compose 设置 `MOEURL_ENV=production`，登录 Cookie 因此带有 `Secure`；端口、凭据和健康检查仍保持 v0.5.0 的本地运行基线。本地 HTTP 调试如需非 Secure Cookie，应显式设置 `MOEURL_ENV=development`。普通 `docker compose up --build`、`docker compose down` 和再次启动不会重置数据库。`docker compose down -v` 会删除默认 Compose 项目的数据库卷，执行后需要重新初始化管理员账号。
 
 ## 裸机运行
 

@@ -94,7 +94,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 - `internal/config/`：配置结构和环境变量读取。
 - `internal/db/`：数据库连接、事务和 SQLC 生成代码承载位置。
 - `internal/http/`：HTTP 路由注册、请求响应工具和错误映射。
-- `internal/middleware/`：日志、恢复、会话、当前用户、权限等中间件。
+- `internal/middleware/`：当前承载请求日志；v0.6.0 设计在此增加请求 ID、panic 恢复、安全响应头和请求体限制。当前用户解析继续位于 `internal/auth/`，权限解析继续位于 `internal/permission/`。
 - `internal/auth/`：登录、退出、会话、密码哈希。
 - `internal/permission/`：权限常量、权限计算和权限判断。
 - `internal/user/`：用户账号、用户资料和管理员用户维护业务。
@@ -579,7 +579,11 @@ GitHub Actions 使用单个 `Check Code` 工作流文件。该工作流包含 6 
 
 ## 13. 部署约定
 
-生产部署优先使用 Docker Compose，同时支持裸机运行：
+截至 v0.5.0，仓库提供的默认 Docker Compose 主要用于本地运行、E2E 和部署验证：它仍使用固定数据库密码、默认映射 PostgreSQL 宿主机端口，并将应用端口绑定到所有宿主机地址，不能单凭 `MOEURL_ENV=production` 视为已经完成生产安全加固。
+
+v0.6.0 的首个生产支持边界为单机 Docker Compose + 外部 TLS 反向代理，实施目标见 [v0.6.0 范围](../product/scope-v0.6.0.md) 和 [生产就绪设计](../specs/2026-08-29-v0.6.0-production-readiness-design.md)。在该版本验收前，当前 Compose 的实际行为仍以本节后续说明和 `docker-compose.yml` 为准。
+
+部署结构为：
 
 ```text
 moeurl-app
@@ -602,7 +606,7 @@ Go 服务负责：
 docker compose up --build
 ```
 
-该命令应启动应用服务和 PostgreSQL，并允许通过 `/api/v1/health` 验证服务状态。默认 Compose 环境使用 `MOEURL_ENV=production`，确保 Cookie `Secure` 语义和生产部署一致；本地 HTTP 调试或裸机开发如需非 Secure Cookie，应显式使用开发环境变量启动后端。
+该命令应启动应用服务和 PostgreSQL，并允许通过 `/api/v1/health` 验证服务状态。默认 Compose 环境使用 `MOEURL_ENV=production`，启用 Cookie `Secure` 语义；这不代表当前端口、凭据、健康检查和备份边界已经满足生产要求。本地 HTTP 调试或裸机开发如需非 Secure Cookie，应显式使用开发环境变量启动后端。
 
 默认 Compose 项目的 PostgreSQL 数据保存在命名卷 `postgres-data` 中，挂载点保持为 `/var/lib/postgresql`。PostgreSQL 宿主端口默认映射为 `5432`，可通过 `MOEURL_POSTGRES_PORT` 改写；容器内应用连接仍固定使用 `postgres:5432`。普通 `docker compose up --build`、`docker compose down` 和再次启动不得重置数据库、管理员账号或短链数据；只有显式执行 `docker compose down -v` 才会删除默认开发数据卷。
 
@@ -616,17 +620,17 @@ docker compose up --build
 
 ## 14. 环境变量约定
 
-建议环境变量：
+当前应用实际读取的环境变量：
 
 ```text
 MOEURL_ENV
 MOEURL_HTTP_ADDR
 MOEURL_DATABASE_URL
-MOEURL_SESSION_SECRET
-MOEURL_PUBLIC_BASE_URL
-MOEURL_DEFAULT_LANGUAGE
-MOEURL_DEFAULT_THEME
+MOEURL_STATIC_DIR
+MOEURL_ANALYTICS_COUNTRY_HEADER
 ```
+
+v0.6.0 设计新增 `MOEURL_SETUP_TOKEN`，只有对应实现合入并通过配置测试后才成为现行契约。Compose 使用的宿主端口和数据库变量属于部署插值，不等同于 Go 应用直接读取的配置。
 
 敏感配置不得提交到仓库。
 
