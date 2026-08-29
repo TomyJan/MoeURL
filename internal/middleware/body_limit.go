@@ -1,6 +1,10 @@
 package middleware
 
-import "net/http"
+import (
+	"bytes"
+	"io"
+	"net/http"
+)
 
 const maxJSONBodyBytes int64 = 1 << 20
 
@@ -19,7 +23,15 @@ func BodyLimit(next http.Handler) http.Handler {
 			return
 		}
 		if r.Body != nil {
-			r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
+			limitedBody := http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
+			body, err := io.ReadAll(limitedBody)
+			_ = limitedBody.Close()
+			if err != nil {
+				writeMiddlewareError(w, http.StatusOK, 100001, "Invalid request")
+				return
+			}
+			r.Body = io.NopCloser(bytes.NewReader(body))
+			r.ContentLength = int64(len(body))
 		}
 		next.ServeHTTP(w, r)
 	})

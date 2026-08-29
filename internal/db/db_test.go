@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -120,5 +121,104 @@ func TestOpenPoolClosesPoolWhenPingFails(t *testing.T) {
 	}
 	if closeCalls != 1 {
 		t.Fatalf("pool close calls = %d, want 1", closeCalls)
+	}
+}
+
+func TestOpenPoolWithTimeoutBoundsCreateAndPing(t *testing.T) {
+	originalCreate := createConfiguredPool
+	t.Cleanup(func() { createConfiguredPool = originalCreate })
+	const timeout = 250 * time.Millisecond
+	var createDeadline time.Time
+	var createObservedAt time.Time
+	var pingDeadline time.Time
+	createConfiguredPool = func(ctx context.Context, _ *pgxpool.Config) (*configuredPool, error) {
+		createObservedAt = time.Now()
+		var ok bool
+		createDeadline, ok = ctx.Deadline()
+		if !ok {
+			t.Fatal("pool creation context has no deadline")
+		}
+		return &configuredPool{
+			pool: &pgxpool.Pool{},
+			ping: func(ctx context.Context) error {
+				pingDeadline, ok = ctx.Deadline()
+				if !ok {
+					t.Fatal("Ping context has no deadline")
+				}
+				return nil
+			},
+			close: func() {},
+		}, nil
+	}
+	pool, err := openPoolWithTimeout(t.Context(), testDatabaseURL, timeout)
+
+	if err != nil || pool == nil {
+		t.Fatalf("openPoolWithTimeout = pool %p error %v", pool, err)
+	}
+	if !createDeadline.Equal(pingDeadline) {
+		t.Fatalf("create deadline %s and Ping deadline %s differ", createDeadline, pingDeadline)
+	}
+	remaining := createDeadline.Sub(createObservedAt)
+	if remaining <= 0 || remaining > timeout {
+		t.Fatalf("startup deadline after %s, want (0, %s]", remaining, timeout)
+	}
+}
+
+func TestOpenPoolWithTimeoutPreservesDeadlineFailureAndClosesPoolOnce(t *testing.T) {
+	originalCreate := createConfiguredPool
+	t.Cleanup(func() { createConfiguredPool = originalCreate })
+	closeCalls := 0
+	createConfiguredPool = func(context.Context, *pgxpool.Config) (*configuredPool, error) {
+		return &configuredPool{
+			pool: &pgxpool.Pool{},
+			ping: func(ctx context.Context) error {
+				<-ctx.Done()
+				return ctx.Err()
+			},
+			close: func() { closeCalls++ },
+		}, nil
+	}
+
+	pool, err := openPoolWithTimeout(t.Context(), testDatabaseURL, time.Millisecond)
+
+	if pool != nil {
+		t.Fatal("openPoolWithTimeout returned a pool after Ping timed out")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("openPoolWithTimeout error = %v, want deadline exceeded", err)
+	}
+	if !strings.Contains(err.Error(), "verify database connection") {
+		t.Fatalf("openPoolWithTimeout error = %v, want Ping operation context", err)
+	}
+	if closeCalls != 1 {
+		t.Fatalf("pool close calls = %d, want 1", closeCalls)
+	}
+}
+
+func TestOpenPoolWithTimeoutUsesEarlierParentDeadline(t *testing.T) {
+	originalCreate := createConfiguredPool
+	t.Cleanup(func() { createConfiguredPool = originalCreate })
+	parent, cancel := context.WithTimeout(t.Context(), 250*time.Millisecond)
+	t.Cleanup(cancel)
+	parentDeadline, ok := parent.Deadline()
+	if !ok {
+		t.Fatal("parent context has no deadline")
+	}
+	var createDeadline time.Time
+	createConfiguredPool = func(ctx context.Context, _ *pgxpool.Config) (*configuredPool, error) {
+		createDeadline, ok = ctx.Deadline()
+		if !ok {
+			t.Fatal("pool creation context has no deadline")
+		}
+		return &configuredPool{pool: &pgxpool.Pool{}, ping: func(context.Context) error { return nil }, close: func() {}}, nil
+	}
+
+	pool, err := openPoolWithTimeout(parent, testDatabaseURL, time.Hour)
+
+	if err != nil || pool == nil {
+		t.Fatalf("openPoolWithTimeout = pool %p error %v", pool, err)
+	}
+	if !createDeadline.Equal(parentDeadline) {
+		t.Fatalf("startup deadline = %s, want earlier parent deadline %s", createDeadline, parentDeadline)
 	}
 }

@@ -9,16 +9,16 @@
 # caller validation, database failures between sequential statements, transaction
 # step failures covered by transaction integration tests, JSON marshaling of
 # statically typed values, and exhaustive short-code collision retries.
-github.com/TomyJan/MoeURL/internal/system/service.go:60.16,62.3
-github.com/TomyJan/MoeURL/internal/system/service.go:70.119,72.4
-github.com/TomyJan/MoeURL/internal/system/service.go:73.131,75.4
-github.com/TomyJan/MoeURL/internal/system/service.go:76.136,78.4
-github.com/TomyJan/MoeURL/internal/system/service.go:83.49,85.4
-github.com/TomyJan/MoeURL/internal/system/service.go:90.143,92.4
-github.com/TomyJan/MoeURL/internal/system/service.go:97.77,99.4
-github.com/TomyJan/MoeURL/internal/system/service.go:110.66,112.5
-github.com/TomyJan/MoeURL/internal/system/service.go:146.16,148.3
-github.com/TomyJan/MoeURL/internal/system/service.go:160.16,162.3
+github.com/TomyJan/MoeURL/internal/system/service.go:88.16,90.3
+github.com/TomyJan/MoeURL/internal/system/service.go:98.119,100.4
+github.com/TomyJan/MoeURL/internal/system/service.go:101.131,103.4
+github.com/TomyJan/MoeURL/internal/system/service.go:104.136,106.4
+github.com/TomyJan/MoeURL/internal/system/service.go:111.49,113.4
+github.com/TomyJan/MoeURL/internal/system/service.go:118.143,120.4
+github.com/TomyJan/MoeURL/internal/system/service.go:125.77,127.4
+github.com/TomyJan/MoeURL/internal/system/service.go:138.66,140.5
+github.com/TomyJan/MoeURL/internal/system/service.go:181.16,183.3
+github.com/TomyJan/MoeURL/internal/system/service.go:195.16,197.3
 github.com/TomyJan/MoeURL/internal/auth/service.go:50.16,52.3
 github.com/TomyJan/MoeURL/internal/auth/service.go:144.16,146.3
 github.com/TomyJan/MoeURL/internal/auth/session.go:85.16,87.3

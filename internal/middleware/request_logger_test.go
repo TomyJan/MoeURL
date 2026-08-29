@@ -163,12 +163,14 @@ func TestRequestLoggerUsesDefaultLoggerWhenNil(t *testing.T) {
 }
 
 type optionalResponseWriter struct {
-	header http.Header
-	body   bytes.Buffer
+	header    http.Header
+	body      bytes.Buffer
+	hijackErr error
+	hijacked  bool
 }
 
 func newOptionalResponseWriter() *optionalResponseWriter {
-	return &optionalResponseWriter{header: make(http.Header)}
+	return &optionalResponseWriter{header: make(http.Header), hijackErr: errors.New("test hijack")}
 }
 
 func (w *optionalResponseWriter) Header() http.Header {
@@ -183,8 +185,9 @@ func (w *optionalResponseWriter) Write(data []byte) (int, error) {
 
 func (*optionalResponseWriter) Flush() {}
 
-func (*optionalResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	return nil, nil, errors.New("test hijack")
+func (w *optionalResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	w.hijacked = w.hijackErr == nil
+	return nil, nil, w.hijackErr
 }
 
 func (*optionalResponseWriter) Push(string, *http.PushOptions) error {

@@ -31,6 +31,7 @@ func NewHealthHandler(checker HealthChecker, logger *slog.Logger) *HealthHandler
 	return newHealthHandler(checker, logger, readinessTimeout)
 }
 
+// newHealthHandler injects a bounded readiness timeout and a safe logger fallback.
 func newHealthHandler(checker HealthChecker, logger *slog.Logger, timeout time.Duration) *HealthHandler {
 	if logger == nil {
 		logger = slog.Default()
@@ -58,7 +59,7 @@ func (handler *HealthHandler) Ready(w nethttp.ResponseWriter, r *nethttp.Request
 
 	handler.logger.ErrorContext(r.Context(), "database_readiness_failed",
 		"request_id", middleware.RequestIDFromContext(r.Context()),
-		"error", err,
+		"error_category", readinessErrorCategory(err),
 	)
 	WriteJSON(w, nethttp.StatusServiceUnavailable, Response{
 		Code:    900000,
@@ -66,4 +67,12 @@ func (handler *HealthHandler) Ready(w nethttp.ResponseWriter, r *nethttp.Request
 		Data:    map[string]string{"status": "unavailable"},
 		Meta:    nil,
 	})
+}
+
+// readinessErrorCategory maps dependency failures to stable, non-sensitive log categories.
+func readinessErrorCategory(err error) string {
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return "timeout"
+	}
+	return "dependency"
 }

@@ -14,22 +14,34 @@ func Recovery(logger *slog.Logger) func(http.Handler) http.Handler {
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			writer := newCommitAwareResponseWriter(w, r.ProtoMajor)
+			defer writer.complete()
 			defer func() {
-				if recovered := recover(); recovered != nil {
-					logger.ErrorContext(r.Context(), "http_panic_recovered",
-						"request_id", RequestIDFromContext(r.Context()),
-						"method", r.Method,
-						"path", r.URL.Path,
-						"stack", string(debug.Stack()),
-					)
-					writeMiddlewareError(w, http.StatusInternalServerError, 900000, "Internal server error")
+				recovered := recover()
+				if recovered == nil {
+					return
 				}
+				if recoveredError, ok := recovered.(error); ok && recoveredError == http.ErrAbortHandler {
+					panic(recovered)
+				}
+				logger.ErrorContext(r.Context(), "http_panic_recovered",
+					"request_id", RequestIDFromContext(r.Context()),
+					"method", r.Method,
+					"path", r.URL.Path,
+					"stack", string(debug.Stack()),
+				)
+				if !writer.Committed() {
+					writeMiddlewareError(writer, http.StatusInternalServerError, 900000, "Internal server error")
+					return
+				}
+				panic(http.ErrAbortHandler)
 			}()
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(writer, r)
 		})
 	}
 }
 
+// writeMiddlewareError writes the stable JSON envelope used by infrastructure middleware.
 func writeMiddlewareError(w http.ResponseWriter, status int, code int, message string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)

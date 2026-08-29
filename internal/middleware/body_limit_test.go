@@ -3,7 +3,6 @@ package middleware_test
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -46,6 +45,7 @@ func TestBodyLimitRejectsKnownOversizeBeforeHandler(t *testing.T) {
 func TestBodyLimitAllowsExactBoundary(t *testing.T) {
 	body := bytes.Repeat([]byte{'a'}, testJSONBodyLimit)
 	readBytes := 0
+	originalBody := &trackingReadCloser{Reader: bytes.NewReader(body)}
 	handler := middleware.BodyLimit(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		read, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -54,7 +54,9 @@ func TestBodyLimitAllowsExactBoundary(t *testing.T) {
 		readBytes = len(read)
 		w.WriteHeader(http.StatusNoContent)
 	}))
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/example", bytes.NewReader(body))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/example", nil)
+	request.Body = originalBody
+	request.ContentLength = int64(len(body))
 	response := httptest.NewRecorder()
 
 	handler.ServeHTTP(response, request)
@@ -64,6 +66,9 @@ func TestBodyLimitAllowsExactBoundary(t *testing.T) {
 	}
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("response status = %d, want 204", response.Code)
+	}
+	if !originalBody.closed {
+		t.Fatal("original boundary body was not closed before handler execution")
 	}
 }
 
@@ -117,18 +122,67 @@ func TestBodyLimitRejectsOversizedOptionsBeforeHandler(t *testing.T) {
 	}
 }
 
+func TestBodyLimitRejectsOversizedBodyWithUnknownOrForgedLengthBeforeHandler(t *testing.T) {
+	const validJSON = `{"value":"ok"}`
+	payload := validJSON + strings.Repeat(" ", testJSONBodyLimit)
+	tests := []struct {
+		name             string
+		contentLength    int64
+		transferEncoding []string
+	}{
+		{name: "unknown_chunked_length", contentLength: -1, transferEncoding: []string{"chunked"}},
+		{name: "forged_small_length", contentLength: int64(len(validJSON))},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			handlerCalled := false
+			handler := middleware.BodyLimit(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+				handlerCalled = true
+			}))
+			originalBody := &trackingReadCloser{Reader: strings.NewReader(payload)}
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/example", nil)
+			request.Body = originalBody
+			request.ContentLength = test.contentLength
+			request.TransferEncoding = test.transferEncoding
+			response := httptest.NewRecorder()
+
+			handler.ServeHTTP(response, request)
+
+			if handlerCalled {
+				t.Fatal("handler was called for oversized body")
+			}
+			if !originalBody.closed {
+				t.Fatal("original oversized body was not closed")
+			}
+			if response.Code != http.StatusOK {
+				t.Fatalf("response status = %d, want business HTTP 200", response.Code)
+			}
+			var body struct {
+				Code int `json:"code"`
+			}
+			if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+				t.Fatalf("decode oversized response: %v", err)
+			}
+			if body.Code != 100001 {
+				t.Fatalf("response code = %d, want 100001", body.Code)
+			}
+		})
+	}
+}
+
 func TestBodyLimitConstrainsUnknownChunkedLengthBeforeBusinessOperation(t *testing.T) {
-	var decodeErr error
+	handlerCalls := 0
 	businessCalls := 0
 	handler := middleware.BodyLimit(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlerCalls++
 		var payload string
-		decodeErr = json.NewDecoder(r.Body).Decode(&payload)
-		if decodeErr == nil {
-			businessCalls++
-			apphttp.OK(w, nil)
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			apphttp.BusinessError(w, 100001, "Invalid request")
 			return
 		}
-		apphttp.BusinessError(w, 100001, "Invalid request")
+		businessCalls++
+		apphttp.OK(w, nil)
 	}))
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/example", strings.NewReader(`"`+strings.Repeat("a", testJSONBodyLimit)+`"`))
 	request.ContentLength = -1
@@ -137,9 +191,8 @@ func TestBodyLimitConstrainsUnknownChunkedLengthBeforeBusinessOperation(t *testi
 
 	handler.ServeHTTP(response, request)
 
-	var maxBytesErr *http.MaxBytesError
-	if !errors.As(decodeErr, &maxBytesErr) {
-		t.Fatalf("decode error = %v, want MaxBytesError", decodeErr)
+	if handlerCalls != 0 {
+		t.Fatalf("handler calls = %d, want 0", handlerCalls)
 	}
 	if businessCalls != 0 {
 		t.Fatalf("business operation calls = %d, want 0", businessCalls)
@@ -153,6 +206,52 @@ func TestBodyLimitConstrainsUnknownChunkedLengthBeforeBusinessOperation(t *testi
 	if response.Code != http.StatusOK || body.Code != 100001 {
 		t.Fatalf("oversized chunked response = HTTP %d code %d", response.Code, body.Code)
 	}
+}
+
+func TestBodyLimitRejectsBodyReadFailureAndClosesOriginal(t *testing.T) {
+	handlerCalled := false
+	handler := middleware.BodyLimit(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		handlerCalled = true
+	}))
+	originalBody := &trackingReadCloser{Reader: failingBodyReader{}}
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/example", nil)
+	request.Body = originalBody
+	request.ContentLength = -1
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if handlerCalled {
+		t.Fatal("handler was called after body read failed")
+	}
+	if !originalBody.closed {
+		t.Fatal("original failed body was not closed")
+	}
+	var body struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode failed-read response: %v", err)
+	}
+	if response.Code != http.StatusOK || body.Code != 100001 {
+		t.Fatalf("failed-read response = HTTP %d code %d", response.Code, body.Code)
+	}
+}
+
+type trackingReadCloser struct {
+	io.Reader
+	closed bool
+}
+
+func (body *trackingReadCloser) Close() error {
+	body.closed = true
+	return nil
+}
+
+type failingBodyReader struct{}
+
+func (failingBodyReader) Read([]byte) (int, error) {
+	return 0, io.ErrUnexpectedEOF
 }
 
 func TestBodyLimitAllowsNilBody(t *testing.T) {

@@ -68,23 +68,32 @@ func TestHealthReadySanitizesFailureAndLogsRequestID(t *testing.T) {
 		t.Fatalf("readiness response leaked database diagnostics: %q", response.Body.String())
 	}
 	output := logs.String()
-	if !strings.Contains(output, "msg=database_readiness_failed") || !strings.Contains(output, "request_id=health-request-id") {
+	if !strings.Contains(output, "msg=database_readiness_failed") || !strings.Contains(output, "request_id=health-request-id") || !strings.Contains(output, "error_category=dependency") {
 		t.Fatalf("readiness log missing event or request ID: %q", output)
+	}
+	for _, sensitive := range []string{diagnostic, "secret", "db.internal", "postgres://"} {
+		if strings.Contains(output, sensitive) {
+			t.Fatalf("readiness log leaked %q: %q", sensitive, output)
+		}
 	}
 }
 
 func TestHealthReadyTimesOutAndNilDependencyFailsClosed(t *testing.T) {
 	t.Run("timeout", func(t *testing.T) {
+		var logs bytes.Buffer
 		checker := &healthCheckerStub{ping: func(ctx context.Context) error {
 			<-ctx.Done()
 			return ctx.Err()
 		}}
-		handler := newHealthHandler(checker, slog.Default(), 10*time.Millisecond)
+		handler := newHealthHandler(checker, slog.New(slog.NewTextHandler(&logs, nil)), 10*time.Millisecond)
 		response := httptest.NewRecorder()
 
 		handler.Ready(response, httptest.NewRequestWithContext(t.Context(), nethttp.MethodGet, "/api/v1/health/ready", nil))
 
 		assertHealthResponse(t, response, nethttp.StatusServiceUnavailable, 900000, "unavailable")
+		if output := logs.String(); !strings.Contains(output, "error_category=timeout") || strings.Contains(output, "deadline exceeded") {
+			t.Fatalf("readiness timeout log = %q, want safe timeout category", output)
+		}
 	})
 
 	t.Run("nil_dependency", func(t *testing.T) {
