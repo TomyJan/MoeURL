@@ -13,30 +13,45 @@ import (
 	"github.com/TomyJan/MoeURL/internal/system"
 )
 
-// TestHandlerStatusReturnsInitializedFlag verifies handler status returns initialized flag.
-func TestHandlerStatusReturnsInitializedFlag(t *testing.T) {
-	router := apphttp.NewRouter(apphttp.Dependencies{
-		System: &fakeSystemService{initialized: true},
-	})
-	response := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/init/status", nil)
+// TestHandlerStatusReturnsInitializationPolicy verifies status exposes only safe initialization state.
+func TestHandlerStatusReturnsInitializationPolicy(t *testing.T) {
+	for _, test := range []struct {
+		name         string
+		required     bool
+		wantRequired bool
+	}{
+		{name: "optional", required: false, wantRequired: false},
+		{name: "required", required: true, wantRequired: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			router := apphttp.NewRouter(apphttp.Dependencies{
+				System: &fakeSystemService{initialized: true, setupTokenRequired: test.required},
+			})
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodGet, "/api/v1/init/status", nil)
 
-	router.ServeHTTP(response, request)
+			router.ServeHTTP(response, request)
 
-	var body struct {
-		Code int `json:"code"`
-		Data struct {
-			Initialized bool `json:"initialized"`
-		} `json:"data"`
-	}
-	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if body.Code != 0 {
-		t.Fatalf("expected code 0, got %d", body.Code)
-	}
-	if !body.Data.Initialized {
-		t.Fatal("expected initialized true")
+			var body struct {
+				Code int             `json:"code"`
+				Data map[string]bool `json:"data"`
+			}
+			if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if body.Code != 0 {
+				t.Fatalf("expected code 0, got %d", body.Code)
+			}
+			if !body.Data["initialized"] {
+				t.Fatal("expected initialized true")
+			}
+			if body.Data["setupTokenRequired"] != test.wantRequired {
+				t.Fatalf("setupTokenRequired = %t, want %t", body.Data["setupTokenRequired"], test.wantRequired)
+			}
+			if len(body.Data) != 2 {
+				t.Fatalf("status data fields = %d, want 2", len(body.Data))
+			}
+		})
 	}
 }
 
@@ -87,6 +102,44 @@ func TestHandlerSetupMapsAlreadyInitializedToBusinessCode(t *testing.T) {
 	}
 	if decoded.Code != 900101 {
 		t.Fatalf("expected code 900101, got %d", decoded.Code)
+	}
+}
+
+// TestHandlerSetupMapsInvalidSetupTokenWithoutEcho verifies token failures are neutral business errors.
+func TestHandlerSetupMapsInvalidSetupTokenWithoutEcho(t *testing.T) {
+	const submittedToken = "submitted-secret-token-that-must-not-leak"
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		System: &fakeSystemService{setupErr: system.ErrInvalidSetupToken},
+	})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/init/setup", bytes.NewBufferString(`{
+		"adminUsername": "admin",
+		"adminPassword": "secure-password",
+		"adminNickname": "Administrator",
+		"siteName": "MoeURL",
+		"systemDomain": "example.com",
+		"shortLinkDomain": "go.example.com",
+		"defaultLanguage": "zh-CN",
+		"defaultTheme": "system",
+		"setupToken": "`+submittedToken+`"
+	}`))
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected http 200, got %d", response.Code)
+	}
+	if bytes.Contains(response.Body.Bytes(), []byte(submittedToken)) {
+		t.Fatal("response exposed the submitted setup token")
+	}
+	var decoded struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&decoded); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if decoded.Code != system.CodeInvalidSetupToken {
+		t.Fatalf("expected code %d, got %d", system.CodeInvalidSetupToken, decoded.Code)
 	}
 }
 
@@ -144,7 +197,8 @@ func TestHandlerSetupDecodesCamelCaseJSON(t *testing.T) {
 		"systemDomain": "example.com",
 		"shortLinkDomain": "go.example.com",
 		"defaultLanguage": "zh-CN",
-		"defaultTheme": "system"
+		"defaultTheme": "system",
+		"setupToken": "setup-secret"
 	}`)
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/init/setup", body)
@@ -160,13 +214,17 @@ func TestHandlerSetupDecodesCamelCaseJSON(t *testing.T) {
 	if service.setupInput.ShortLinkDomain != "go.example.com" {
 		t.Fatalf("expected camelCase short link domain to decode, got %q", service.setupInput.ShortLinkDomain)
 	}
+	if service.setupInput.SetupToken != "setup-secret" {
+		t.Fatal("expected camelCase setup token to decode")
+	}
 }
 
 type fakeSystemService struct {
-	initialized bool
-	statusErr   error
-	setupErr    error
-	setupInput  system.SetupInput
+	initialized        bool
+	statusErr          error
+	setupErr           error
+	setupInput         system.SetupInput
+	setupTokenRequired bool
 }
 
 // IsInitialized implements the corresponding operation for the surrounding test double.
@@ -175,6 +233,11 @@ func (f *fakeSystemService) IsInitialized(context.Context) (bool, error) {
 		return false, f.statusErr
 	}
 	return f.initialized, nil
+}
+
+// SetupTokenRequired reports whether the setup request must carry a deployment token.
+func (f *fakeSystemService) SetupTokenRequired() bool {
+	return f.setupTokenRequired
 }
 
 // Setup implements the corresponding operation for the surrounding test double.

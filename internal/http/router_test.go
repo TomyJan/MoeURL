@@ -293,6 +293,11 @@ func (routerSystemService) IsInitialized(context.Context) (bool, error) {
 	return false, nil
 }
 
+// SetupTokenRequired implements the setup policy query for router wiring tests.
+func (routerSystemService) SetupTokenRequired() bool {
+	return false
+}
+
 // Setup implements the corresponding operation for the surrounding test double.
 func (routerSystemService) Setup(context.Context, system.SetupInput) error {
 	return nil

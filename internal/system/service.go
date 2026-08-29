@@ -2,6 +2,8 @@ package system
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/json"
 	"strings"
 	"time"
@@ -17,12 +19,27 @@ import (
 const initializedSettingKey = "site.initialized"
 
 type Service struct {
-	pool *pgxpool.Pool
+	pool        *pgxpool.Pool
+	setupPolicy SetupPolicy
+}
+
+type SetupPolicy struct {
+	Required bool
+	Token    string
 }
 
 // NewService creates the system-initialization service.
-func NewService(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool}
+func NewService(pool *pgxpool.Pool, policies ...SetupPolicy) *Service {
+	var policy SetupPolicy
+	if len(policies) > 0 {
+		policy = policies[0]
+	}
+	return &Service{pool: pool, setupPolicy: policy}
+}
+
+// SetupTokenRequired reports whether setup requests require a deployment token.
+func (s *Service) SetupTokenRequired() bool {
+	return s.setupPolicy.Required
 }
 
 // IsInitialized reports whether the initial administrator account exists.
@@ -54,6 +71,9 @@ func (s *Service) Setup(ctx context.Context, input SetupInput) error {
 	}
 	if initialized {
 		return ErrAlreadyInitialized
+	}
+	if s.setupPolicy.Required && !setupTokensEqual(input.SetupToken, s.setupPolicy.Token) {
+		return ErrInvalidSetupToken
 	}
 
 	passwordHash, err := auth.HashPassword(input.AdminPassword)
@@ -114,6 +134,13 @@ func (s *Service) Setup(ctx context.Context, input SetupInput) error {
 
 		return nil
 	})
+}
+
+// setupTokensEqual compares fixed-size digests so input length does not affect the comparison.
+func setupTokensEqual(submitted string, configured string) bool {
+	submittedHash := sha256.Sum256([]byte(submitted))
+	configuredHash := sha256.Sum256([]byte(configured))
+	return subtle.ConstantTimeCompare(submittedHash[:], configuredHash[:]) == 1
 }
 
 // validateSetupInput verifies the required initial-system setup fields.

@@ -22,6 +22,8 @@ import (
 	"github.com/TomyJan/MoeURL/internal/usergroup"
 )
 
+const testSetupToken = "0123456789abcdef0123456789abcdef"
+
 // TestAppNewRejectsInvalidPermissionCatalog verifies startup stops before dependency wiring when catalog validation fails.
 func TestAppNewRejectsInvalidPermissionCatalog(t *testing.T) {
 	wantErr := errors.New("invalid permission catalog")
@@ -55,6 +57,9 @@ func newTestApplication(t *testing.T, environments ...string) *App {
 		DatabaseURL: testdb.ProjectMigratedDatabaseURL(ctx, t),
 		StaticDir:   "web/dist",
 	}
+	if environment == "production" || environment == " production " {
+		cfg.SetupToken = testSetupToken
+	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("validate config: %v", err)
 	}
@@ -67,7 +72,10 @@ func newTestApplication(t *testing.T, environments ...string) *App {
 			t.Errorf("shutdown application: %v", err)
 		}
 	})
-	if err := system.NewService(application.pool).Setup(ctx, system.SetupInput{
+	if err := system.NewService(application.pool, system.SetupPolicy{
+		Required: cfg.Env == "production",
+		Token:    cfg.SetupToken,
+	}).Setup(ctx, system.SetupInput{
 		AdminUsername:   "admin",
 		AdminPassword:   "secure-password",
 		AdminNickname:   "Administrator",
@@ -76,10 +84,73 @@ func newTestApplication(t *testing.T, environments ...string) *App {
 		ShortLinkDomain: "go.example.com",
 		DefaultLanguage: "zh-CN",
 		DefaultTheme:    "system",
+		SetupToken:      cfg.SetupToken,
 	}); err != nil {
 		t.Fatalf("initialize application: %v", err)
 	}
 	return application
+}
+
+// TestAppNewInjectsProductionSetupPolicy verifies app wiring enforces the validated deployment token.
+func TestAppNewInjectsProductionSetupPolicy(t *testing.T) {
+	ctx := t.Context()
+	cfg := config.Config{
+		Env:         "production",
+		HTTPAddr:    ":0",
+		DatabaseURL: testdb.ProjectMigratedDatabaseURL(ctx, t),
+		StaticDir:   "web/dist",
+		SetupToken:  testSetupToken,
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate config: %v", err)
+	}
+	application, err := New(ctx, cfg, slog.Default())
+	if err != nil {
+		t.Fatalf("build application: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := application.Shutdown(context.Background()); err != nil {
+			t.Errorf("shutdown application: %v", err)
+		}
+	})
+
+	statusResponse := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(statusResponse, httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/init/status", nil))
+	var statusBody struct {
+		Code int `json:"code"`
+		Data struct {
+			SetupTokenRequired bool `json:"setupTokenRequired"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(statusResponse.Body).Decode(&statusBody); err != nil {
+		t.Fatalf("decode status response: %v", err)
+	}
+	if statusBody.Code != 0 || !statusBody.Data.SetupTokenRequired {
+		t.Fatalf("status code = %d, setupTokenRequired = %t", statusBody.Code, statusBody.Data.SetupTokenRequired)
+	}
+
+	setupResponse := httptest.NewRecorder()
+	setupRequest := httptest.NewRequestWithContext(ctx, http.MethodPost, "/api/v1/init/setup", bytes.NewBufferString(`{
+		"adminUsername":"admin",
+		"adminPassword":"secure-password",
+		"adminNickname":"Administrator",
+		"siteName":"MoeURL",
+		"systemDomain":"example.com",
+		"shortLinkDomain":"go.example.com",
+		"defaultLanguage":"zh-CN",
+		"defaultTheme":"system",
+		"setupToken":"`+testSetupToken+`"
+	}`))
+	application.server.Handler.ServeHTTP(setupResponse, setupRequest)
+	var setupBody struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(setupResponse.Body).Decode(&setupBody); err != nil {
+		t.Fatalf("decode setup response: %v", err)
+	}
+	if setupResponse.Code != http.StatusOK || setupBody.Code != 0 {
+		t.Fatalf("setup response = HTTP %d, code %d", setupResponse.Code, setupBody.Code)
+	}
 }
 
 // TestAppNewNormalizesEnvironment verifies application wiring uses the validated environment form.

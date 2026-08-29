@@ -9,6 +9,7 @@ import (
 
 const (
 	CodeAlreadyInitialized = 900101
+	CodeInvalidSetupToken  = 900102
 )
 
 type Handler struct {
@@ -17,6 +18,7 @@ type Handler struct {
 
 type ServicePort interface {
 	IsInitialized(ctx context.Context) (bool, error)
+	SetupTokenRequired() bool
 	Setup(ctx context.Context, input SetupInput) error
 }
 
@@ -33,7 +35,10 @@ func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok(w, map[string]bool{"initialized": initialized})
+	ok(w, map[string]bool{
+		"initialized":        initialized,
+		"setupTokenRequired": h.service.SetupTokenRequired(),
+	})
 }
 
 // Setup validates and submits the initial system configuration.
@@ -50,6 +55,8 @@ func (h *Handler) Setup(w http.ResponseWriter, r *http.Request) {
 			businessError(w, CodeAlreadyInitialized, "System already initialized")
 		case errors.Is(err, ErrInvalidSetupInput):
 			businessError(w, 100001, "Invalid request")
+		case errors.Is(err, ErrInvalidSetupToken):
+			businessError(w, CodeInvalidSetupToken, "Setup authentication failed")
 		default:
 			writeJSON(w, http.StatusInternalServerError, response{Code: 900000, Message: "Internal server error", Data: nil, Meta: map[string]any{}})
 		}

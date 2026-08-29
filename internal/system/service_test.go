@@ -109,6 +109,69 @@ func TestServiceSetupRejectsBlankRequiredFields(t *testing.T) {
 	}
 }
 
+// TestServiceSetupValidatesRequiredToken verifies required setup tokens gate initialization.
+func TestServiceSetupValidatesRequiredToken(t *testing.T) {
+	const configuredToken = "configured-setup-token-0123456789"
+
+	for _, test := range []struct {
+		name    string
+		token   string
+		wantErr error
+	}{
+		{name: "wrong token", token: "wrong-token", wantErr: system.ErrInvalidSetupToken},
+		{name: "correct token", token: configuredToken},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			pool := systemTestPool(t, ctx)
+			service := system.NewService(pool, system.SetupPolicy{Required: true, Token: configuredToken})
+
+			err := service.Setup(ctx, validSetupInput(test.token))
+			if test.wantErr != nil {
+				if !errors.Is(err, test.wantErr) {
+					t.Fatalf("setup error = %v, want %v", err, test.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("setup: %v", err)
+			}
+		})
+	}
+}
+
+// TestServiceSetupValidatesOrdinaryInputBeforeToken verifies field errors keep priority.
+func TestServiceSetupValidatesOrdinaryInputBeforeToken(t *testing.T) {
+	ctx := context.Background()
+	pool := systemTestPool(t, ctx)
+	service := system.NewService(pool, system.SetupPolicy{Required: true, Token: "configured-setup-token-0123456789"})
+	input := validSetupInput("wrong-token")
+	input.SiteName = ""
+
+	err := service.Setup(ctx, input)
+
+	if !errors.Is(err, system.ErrInvalidSetupInput) {
+		t.Fatalf("setup error = %v, want ErrInvalidSetupInput", err)
+	}
+}
+
+// TestServiceSetupChecksAlreadyInitializedBeforeToken verifies one-time setup semantics keep priority.
+func TestServiceSetupChecksAlreadyInitializedBeforeToken(t *testing.T) {
+	const configuredToken = "configured-setup-token-0123456789"
+	ctx := context.Background()
+	pool := systemTestPool(t, ctx)
+	service := system.NewService(pool, system.SetupPolicy{Required: true, Token: configuredToken})
+	if err := service.Setup(ctx, validSetupInput(configuredToken)); err != nil {
+		t.Fatalf("initial setup: %v", err)
+	}
+
+	err := service.Setup(ctx, validSetupInput("wrong-token"))
+
+	if !errors.Is(err, system.ErrAlreadyInitialized) {
+		t.Fatalf("second setup error = %v, want ErrAlreadyInitialized", err)
+	}
+}
+
 // TestServiceReturnsDatabaseErrors verifies service returns database errors.
 func TestServiceReturnsDatabaseErrors(t *testing.T) {
 	ctx := context.Background()
@@ -223,4 +286,19 @@ func assertStoredGroupPermission(t *testing.T, ctx context.Context, pool *pgxpoo
 func systemTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
 	return testdb.ProjectMigratedPool(ctx, t)
+}
+
+// validSetupInput returns a complete setup request with the supplied deployment token.
+func validSetupInput(setupToken string) system.SetupInput {
+	return system.SetupInput{
+		AdminUsername:   "admin",
+		AdminPassword:   "secure-password",
+		AdminNickname:   "Administrator",
+		SiteName:        "MoeURL",
+		SystemDomain:    "example.com",
+		ShortLinkDomain: "go.example.com",
+		DefaultLanguage: "zh-CN",
+		DefaultTheme:    "system",
+		SetupToken:      setupToken,
+	}
 }

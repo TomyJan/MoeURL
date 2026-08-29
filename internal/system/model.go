@@ -9,4 +9,5 @@ type SetupInput struct {
 	ShortLinkDomain string `json:"shortLinkDomain"`
 	DefaultLanguage string `json:"defaultLanguage"`
 	DefaultTheme    string `json:"defaultTheme"`
+	SetupToken      string `json:"setupToken"`
 }

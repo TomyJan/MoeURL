@@ -49,7 +49,10 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		if err != nil {
 			return nil, err
 		}
-		deps.System = system.NewService(pool)
+		deps.System = system.NewService(pool, system.SetupPolicy{
+			Required: cfg.Env == "production",
+			Token:    cfg.SetupToken,
+		})
 		authService := auth.NewService(pool, 24*time.Hour)
 		deps.Auth = authService
 		deps.CurrentUser = authService
