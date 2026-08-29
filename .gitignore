@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 .pnpm-store/
+.gocache/
+.tmp/
+.codex-screenshots/
 
 # Build outputs
 dist/
