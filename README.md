@@ -2,7 +2,7 @@
 
 MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
 
-当前已完成到 v0.5.0 用户组权限管理闭环：在短链管理、统计分析和三种跳转模式基础上，管理员可以查看三个内置用户组，并通过稳定权限目录、三个预设和乐观并发安全编辑 `user`、`admin` 权限。v0.6.0 已进入生产就绪设计阶段，目标部署形态为单机 Docker Compose + 外部 TLS 反向代理。
+当前已完成到 v0.5.0 用户组权限管理闭环：在短链管理、统计分析和三种跳转模式基础上，管理员可以查看三个内置用户组，并通过稳定权限目录、三个预设和乐观并发安全编辑 `user`、`admin` 权限。v0.6.0 已进入生产就绪实施阶段，目标部署形态为单机 Docker Compose + 外部 TLS 反向代理。
 
 ## 功能概览
 
@@ -37,6 +37,10 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 - [产品总览](./docs/product/overview.md)
 - [v0.6.0 范围](./docs/product/scope-v0.6.0.md)
 - [v0.6.0 生产就绪设计](./docs/specs/2026-08-29-v0.6.0-production-readiness-design.md)
+- [v0.6.0 实施计划](./docs/implementation/v0.6.0-plan.md)
+- [v0.6.0 详细实现计划](./docs/implementation/v0.6.0-detailed-plan.md)
+- [v0.6.0 任务级实施清单](./docs/implementation/v0.6.0-tasks.md)
+- [v0.6.0 验收清单](./docs/implementation/v0.6.0-acceptance.md)
 - [v0.5.0 范围](./docs/product/scope-v0.5.0.md)
 - [v0.5.0 用户组权限管理设计](./docs/specs/2026-08-20-v0.5.0-user-group-permission-management-design.md)
 - [v0.5.0 实施计划](./docs/implementation/v0.5.0-plan.md)

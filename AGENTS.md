@@ -4,7 +4,7 @@
 
 MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
 
-当前已完成到 v0.5.0 用户组权限管理闭环，v0.6.0 已进入生产就绪设计阶段。v0.6.0 实施应以 `docs/product/scope-v0.6.0.md` 和对应生产就绪设计为范围，以 v0.5.0 文档和代码作为当前功能基线。
+当前已完成到 v0.5.0 用户组权限管理闭环，v0.6.0 已进入生产就绪实施阶段。v0.6.0 实施应以 `docs/product/scope-v0.6.0.md`、对应生产就绪设计和 `docs/implementation/v0.6.0-detailed-plan.md` 为范围，以 v0.5.0 文档和代码作为当前功能基线。
 
 ## 工作入口
 
@@ -29,14 +29,18 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 1. `docs/implementation/technical-decision.md`
 2. `docs/implementation/technical-baseline.md`
-3. `docs/implementation/v0.5.0-plan.md`
-4. `docs/implementation/v0.5.0-detailed-plan.md`
-5. `docs/implementation/v0.5.0-tasks.md`
-6. `docs/implementation/v0.5.0-acceptance.md`
-7. `docs/specs/2026-08-13-v0.4.0-confirmation-page-access-design.md`
-8. `docs/implementation/v0.4.0-acceptance.md`
-9. `docs/specs/2026-08-04-v0.3.0-protected-link-access-design.md`
-10. `docs/implementation/v0.3.0-acceptance.md`
+3. `docs/implementation/v0.6.0-plan.md`
+4. `docs/implementation/v0.6.0-detailed-plan.md`
+5. `docs/implementation/v0.6.0-tasks.md`
+6. `docs/implementation/v0.6.0-acceptance.md`
+7. `docs/implementation/v0.5.0-plan.md`
+8. `docs/implementation/v0.5.0-detailed-plan.md`
+9. `docs/implementation/v0.5.0-tasks.md`
+10. `docs/implementation/v0.5.0-acceptance.md`
+11. `docs/specs/2026-08-13-v0.4.0-confirmation-page-access-design.md`
+12. `docs/implementation/v0.4.0-acceptance.md`
+13. `docs/specs/2026-08-04-v0.3.0-protected-link-access-design.md`
+14. `docs/implementation/v0.3.0-acceptance.md`
 
 如果任务涉及 v0.2.0 中间页、过期时间、二维码、访问配置或继续访问路由，必须继续阅读：
 

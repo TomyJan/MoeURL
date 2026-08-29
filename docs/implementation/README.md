@@ -64,12 +64,14 @@ v0.5.0 实施文档包括：
 - [v0.5.0 任务级实施清单](v0.5.0-tasks.md)：将权限目录、预设、后端管理、前端交互和发布收尾拆分为可执行任务。
 - [v0.5.0 验收清单](v0.5.0-acceptance.md)：记录权限保护、并发冲突、即时生效、页面和发布质量的实际验收证据。
 
-v0.6.0 当前设计入口：
+v0.6.0 实施文档包括：
 
 - [v0.6.0 范围](../product/scope-v0.6.0.md)：定义单机生产部署的必须实现项、非目标和完成标准。
 - [v0.6.0 生产就绪设计](../specs/2026-08-29-v0.6.0-production-readiness-design.md)：定义部署拓扑、生命周期、安全、健康检查、运维和 CI 方案。
-
-v0.6.0 实施计划、详细计划、任务和验收文档应在设计审查通过后创建，不能在实现前把验收项标记为完成。
+- [v0.6.0 实施计划](v0.6.0-plan.md)：定义生产就绪闭环的阶段、兼容边界和发布证据要求。
+- [v0.6.0 详细实现计划](v0.6.0-detailed-plan.md)：按 TDD 切片拆分配置、HTTP、生命周期、认证、Session、前端、Compose 和安全门禁。
+- [v0.6.0 任务级实施清单](v0.6.0-tasks.md)：跟踪生产化工程切片的实际完成状态。
+- [v0.6.0 验收清单](v0.6.0-acceptance.md)：用于记录生产部署、安全、恢复和目标 CI 的真实验收证据。
 
 建议阅读顺序：
 
@@ -83,6 +85,14 @@ agent-delivery-guidelines.md
 ../product/scope-v0.6.0.md
   ↓
 ../specs/2026-08-29-v0.6.0-production-readiness-design.md
+  ↓
+v0.6.0-plan.md
+  ↓
+v0.6.0-detailed-plan.md
+  ↓
+v0.6.0-tasks.md
+  ↓
+v0.6.0-acceptance.md
   ↓
 ../product/scope-v0.5.0.md
   ↓
