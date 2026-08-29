@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -37,6 +38,26 @@ func TestAppNewRejectsInvalidPermissionCatalog(t *testing.T) {
 	}
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("New() error = %v, want wrapped %v", err, wantErr)
+	}
+}
+
+// TestAppNewRejectsInvalidSetupPolicyBeforeOpeningDatabase verifies invalid production policy fails closed.
+func TestAppNewRejectsInvalidSetupPolicyBeforeOpeningDatabase(t *testing.T) {
+	const invalidToken = "setup-token-shorter-than-32"
+	application, err := New(context.Background(), config.Config{
+		Env:         "production",
+		DatabaseURL: "not-a-database-url",
+		SetupToken:  invalidToken,
+	}, slog.Default())
+
+	if application != nil {
+		t.Fatal("New() returned an application for an invalid setup policy")
+	}
+	if !errors.Is(err, system.ErrInvalidSetupPolicy) {
+		t.Fatalf("New() error = %v, want ErrInvalidSetupPolicy", err)
+	}
+	if strings.Contains(err.Error(), invalidToken) {
+		t.Fatal("New() error exposed the setup token")
 	}
 }
 
@@ -72,10 +93,11 @@ func newTestApplication(t *testing.T, environments ...string) *App {
 			t.Errorf("shutdown application: %v", err)
 		}
 	})
-	if err := system.NewService(application.pool, system.SetupPolicy{
-		Required: cfg.Env == "production",
-		Token:    cfg.SetupToken,
-	}).Setup(ctx, system.SetupInput{
+	setupPolicy, err := system.NewSetupPolicy(cfg.Env == "production", cfg.SetupToken)
+	if err != nil {
+		t.Fatalf("create setup policy: %v", err)
+	}
+	if err := system.NewService(application.pool, setupPolicy).Setup(ctx, system.SetupInput{
 		AdminUsername:   "admin",
 		AdminPassword:   "secure-password",
 		AdminNickname:   "Administrator",

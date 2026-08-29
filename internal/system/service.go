@@ -24,22 +24,30 @@ type Service struct {
 }
 
 type SetupPolicy struct {
-	Required bool
-	Token    string
+	required bool
+	token    string
 }
 
-// NewService creates the system-initialization service.
-func NewService(pool *pgxpool.Pool, policies ...SetupPolicy) *Service {
-	var policy SetupPolicy
-	if len(policies) > 0 {
-		policy = policies[0]
+// NewSetupPolicy validates and creates an initialization security policy.
+func NewSetupPolicy(required bool, token string) (SetupPolicy, error) {
+	token = strings.TrimSpace(token)
+	if !required {
+		return SetupPolicy{}, nil
 	}
+	if len(token) < 32 {
+		return SetupPolicy{}, ErrInvalidSetupPolicy
+	}
+	return SetupPolicy{required: true, token: token}, nil
+}
+
+// NewService creates the system-initialization service with an explicit setup policy.
+func NewService(pool *pgxpool.Pool, policy SetupPolicy) *Service {
 	return &Service{pool: pool, setupPolicy: policy}
 }
 
 // SetupTokenRequired reports whether setup requests require a deployment token.
 func (s *Service) SetupTokenRequired() bool {
-	return s.setupPolicy.Required
+	return s.setupPolicy.required
 }
 
 // IsInitialized reports whether the initial administrator account exists.
@@ -72,7 +80,7 @@ func (s *Service) Setup(ctx context.Context, input SetupInput) error {
 	if initialized {
 		return ErrAlreadyInitialized
 	}
-	if s.setupPolicy.Required && !setupTokensEqual(input.SetupToken, s.setupPolicy.Token) {
+	if s.setupPolicy.required && !setupTokensEqual(input.SetupToken, s.setupPolicy.token) {
 		return ErrInvalidSetupToken
 	}
 
