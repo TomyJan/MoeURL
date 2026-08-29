@@ -52,6 +52,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		if err != nil {
 			return nil, err
 		}
+		deps.Health = pool
 		deps.System = system.NewService(pool, setupPolicy)
 		authService := auth.NewService(pool, 24*time.Hour)
 		deps.Auth = authService
@@ -85,6 +86,10 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			Addr:              cfg.HTTPAddr,
 			Handler:           apphttp.NewRouter(deps),
 			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       15 * time.Second,
+			WriteTimeout:      30 * time.Second,
+			IdleTimeout:       60 * time.Second,
+			MaxHeaderBytes:    1 << 20,
 		},
 		pool:               pool,
 		grantCleanupCancel: grantCleanupCancel,

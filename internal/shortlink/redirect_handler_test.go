@@ -454,6 +454,7 @@ func TestRedirectHandlerDoesNotOverrideStaticAssetRoutes(t *testing.T) {
 func TestRedirectHandlerDoesNotOverrideFixedRoutes(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		Redirect: &fakeRedirectService{openResult: shortlink.OpenResult{RedirectMode: shortlink.RedirectModeDirect, RedirectResult: shortlink.RedirectResult{TargetURL: "https://example.com/target"}}},
+		Health:   healthyRouterChecker{},
 	})
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
@@ -463,6 +464,12 @@ func TestRedirectHandlerDoesNotOverrideFixedRoutes(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected API route to win, got %d", response.Code)
 	}
+}
+
+type healthyRouterChecker struct{}
+
+func (healthyRouterChecker) Ping(context.Context) error {
+	return nil
 }
 
 // TestRedirectHandlerShowsBlockedStatus verifies blocked links use localized public states.

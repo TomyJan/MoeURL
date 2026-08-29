@@ -22,7 +22,7 @@ import (
 
 // TestRouterHealthReturnsOK verifies router health returns ok.
 func TestRouterHealthReturnsOK(t *testing.T) {
-	router := apphttp.NewRouter()
+	router := apphttp.NewRouter(apphttp.Dependencies{Health: &routerHealthChecker{}})
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/health", nil)
 	response := httptest.NewRecorder()
 
@@ -49,6 +49,55 @@ func TestRouterHealthReturnsOK(t *testing.T) {
 	}
 	if body.Data["status"] != "ok" {
 		t.Fatalf("expected status ok, got %q", body.Data["status"])
+	}
+}
+
+// TestRouterHealthRoutesBypassCurrentUser verifies health checks never resolve session identity.
+func TestRouterHealthRoutesBypassCurrentUser(t *testing.T) {
+	checker := &routerHealthChecker{}
+	resolver := &recordingRouterCurrentUserResolver{}
+	router := apphttp.NewRouter(apphttp.Dependencies{Health: checker, CurrentUser: resolver})
+
+	for _, path := range []string{"/api/v1/health/live", "/api/v1/health/ready", "/api/v1/health"} {
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
+		request.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session-id"})
+		response := httptest.NewRecorder()
+
+		router.ServeHTTP(response, request)
+
+		if response.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want 200", path, response.Code)
+		}
+	}
+	if resolver.calls != 0 {
+		t.Fatalf("health route CurrentUser calls = %d, want 0", resolver.calls)
+	}
+	if checker.calls != 2 {
+		t.Fatalf("health Ping calls = %d, want ready and compatibility only", checker.calls)
+	}
+}
+
+// TestRouterReadinessWithoutDependencyFailsClosed verifies an isolated router never reports false readiness.
+func TestRouterReadinessWithoutDependencyFailsClosed(t *testing.T) {
+	router := apphttp.NewRouter()
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/health/ready", nil))
+
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("readiness status = %d, want 503", response.Code)
+	}
+	var body struct {
+		Code int `json:"code"`
+		Data struct {
+			Status string `json:"status"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode readiness response: %v", err)
+	}
+	if body.Code != 900000 || body.Data.Status != "unavailable" {
+		t.Fatalf("readiness response = code %d status %q", body.Code, body.Data.Status)
 	}
 }
 
@@ -328,6 +377,25 @@ type routerCurrentUserResolver struct{}
 // ResolveCurrentUser implements the corresponding operation for the surrounding test double.
 func (routerCurrentUserResolver) ResolveCurrentUser(context.Context, string) (auth.CurrentUser, error) {
 	return auth.GuestUser(), nil
+}
+
+type recordingRouterCurrentUserResolver struct {
+	calls int
+}
+
+func (resolver *recordingRouterCurrentUserResolver) ResolveCurrentUser(context.Context, string) (auth.CurrentUser, error) {
+	resolver.calls++
+	return auth.GuestUser(), nil
+}
+
+type routerHealthChecker struct {
+	calls int
+	err   error
+}
+
+func (checker *routerHealthChecker) Ping(context.Context) error {
+	checker.calls++
+	return checker.err
 }
 
 type routerShortLinkService struct{}

@@ -18,6 +18,7 @@ import (
 
 type Dependencies struct {
 	Logger                 *slog.Logger
+	Health                 HealthChecker
 	System                 system.ServicePort
 	Auth                   auth.Port
 	CurrentUser            auth.CurrentUserResolver
@@ -44,83 +45,93 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 	}
 
 	router := chi.NewRouter()
+	router.Use(middleware.RequestID)
+	router.Use(middleware.Recovery(logger))
+	router.Use(middleware.SecurityHeaders)
+	router.Use(middleware.BodyLimit)
 	router.Use(middleware.RequestLogger(logger))
-	router.Use(auth.CurrentUserMiddleware(dependency.CurrentUser))
 	var redirectHandler *shortlink.RedirectHandler
 	if dependency.Redirect != nil {
 		redirectHandler = shortlink.NewRedirectHandlerWithAnalyticsAndSecurity(dependency.Redirect, dependency.RedirectRecorder, dependency.AnalyticsCountryHeader, dependency.SecureCookies, logger)
 	}
 
 	router.Route("/api/v1", func(api chi.Router) {
-		api.Get("/health", func(w nethttp.ResponseWriter, r *nethttp.Request) {
-			OK(w, map[string]string{"status": "ok"})
-		})
+		healthHandler := NewHealthHandler(dependency.Health, logger)
+		api.Get("/health/live", healthHandler.Live)
+		api.Get("/health/ready", healthHandler.Ready)
+		api.Get("/health", healthHandler.Ready)
 
-		if dependency.System != nil {
-			systemHandler := system.NewHandler(dependency.System)
-			api.Get("/init/status", systemHandler.Status)
-			api.Post("/init/setup", systemHandler.Setup)
-		}
-		if dependency.Auth != nil {
-			authHandler := auth.NewHandler(dependency.Auth, dependency.SecureCookies)
-			api.Post("/auth/login", authHandler.Login)
-			api.Post("/auth/logout", authHandler.Logout)
-			api.Get("/auth/me", authHandler.Me)
-		}
-		if dependency.ShortLink != nil {
-			shortLinkHandler := shortlink.NewHandler(dependency.ShortLink)
-			api.Post("/short-link/create", shortLinkHandler.Create)
-			api.Get("/short-link/overview", shortLinkHandler.Overview)
-			api.Get("/short-link/list", shortLinkHandler.List)
-			api.Get("/short-link/statistics", shortLinkHandler.Statistics)
-			api.Post("/short-link/update", shortLinkHandler.Update)
-			api.Post("/short-link/delete", shortLinkHandler.Delete)
-			api.Get("/admin/short-link/list", shortLinkHandler.AdminList)
-			api.Get("/admin/short-link/statistics", shortLinkHandler.AdminStatistics)
-			api.Post("/admin/short-link/update", shortLinkHandler.AdminUpdate)
-			api.Post("/admin/short-link/delete", shortLinkHandler.AdminDelete)
-		}
-		if redirectHandler != nil {
-			api.Get("/public/short-link/preview", redirectHandler.PreviewPublic)
-		}
-		if dependency.User != nil {
-			userHandler := user.NewHandler(dependency.User)
-			api.Post("/admin/user/create", userHandler.Create)
-			api.Get("/admin/user/list", userHandler.List)
-			api.Post("/admin/user/update", userHandler.Update)
-			api.Post("/user/profile/update", userHandler.UpdateProfile)
-			api.Post("/admin/user/reset-password", userHandler.ResetPassword)
-		}
-		if dependency.UserGroup != nil {
-			userGroupHandler := usergroup.NewHandler(dependency.UserGroup, logger)
-			api.Get("/admin/user-group/list", userGroupHandler.List)
-			api.Post("/admin/user-group/update-permissions", userGroupHandler.UpdatePermissions)
-		}
+		api.Group(func(businessAPI chi.Router) {
+			businessAPI.Use(auth.CurrentUserMiddleware(dependency.CurrentUser))
+			if dependency.System != nil {
+				systemHandler := system.NewHandler(dependency.System)
+				businessAPI.Get("/init/status", systemHandler.Status)
+				businessAPI.Post("/init/setup", systemHandler.Setup)
+			}
+			if dependency.Auth != nil {
+				authHandler := auth.NewHandler(dependency.Auth, dependency.SecureCookies)
+				businessAPI.Post("/auth/login", authHandler.Login)
+				businessAPI.Post("/auth/logout", authHandler.Logout)
+				businessAPI.Get("/auth/me", authHandler.Me)
+			}
+			if dependency.ShortLink != nil {
+				shortLinkHandler := shortlink.NewHandler(dependency.ShortLink)
+				businessAPI.Post("/short-link/create", shortLinkHandler.Create)
+				businessAPI.Get("/short-link/overview", shortLinkHandler.Overview)
+				businessAPI.Get("/short-link/list", shortLinkHandler.List)
+				businessAPI.Get("/short-link/statistics", shortLinkHandler.Statistics)
+				businessAPI.Post("/short-link/update", shortLinkHandler.Update)
+				businessAPI.Post("/short-link/delete", shortLinkHandler.Delete)
+				businessAPI.Get("/admin/short-link/list", shortLinkHandler.AdminList)
+				businessAPI.Get("/admin/short-link/statistics", shortLinkHandler.AdminStatistics)
+				businessAPI.Post("/admin/short-link/update", shortLinkHandler.AdminUpdate)
+				businessAPI.Post("/admin/short-link/delete", shortLinkHandler.AdminDelete)
+			}
+			if redirectHandler != nil {
+				businessAPI.Get("/public/short-link/preview", redirectHandler.PreviewPublic)
+			}
+			if dependency.User != nil {
+				userHandler := user.NewHandler(dependency.User)
+				businessAPI.Post("/admin/user/create", userHandler.Create)
+				businessAPI.Get("/admin/user/list", userHandler.List)
+				businessAPI.Post("/admin/user/update", userHandler.Update)
+				businessAPI.Post("/user/profile/update", userHandler.UpdateProfile)
+				businessAPI.Post("/admin/user/reset-password", userHandler.ResetPassword)
+			}
+			if dependency.UserGroup != nil {
+				userGroupHandler := usergroup.NewHandler(dependency.UserGroup, logger)
+				businessAPI.Get("/admin/user-group/list", userGroupHandler.List)
+				businessAPI.Post("/admin/user-group/update-permissions", userGroupHandler.UpdatePermissions)
+			}
 
-		api.NotFound(func(w nethttp.ResponseWriter, r *nethttp.Request) {
-			BusinessError(w, CodeInvalidRequest, "API not found")
+			businessAPI.NotFound(func(w nethttp.ResponseWriter, r *nethttp.Request) {
+				BusinessError(w, CodeInvalidRequest, "API not found")
+			})
 		})
 	})
 
-	if redirectHandler != nil {
-		router.Post("/go/{slug}/unlock", func(w nethttp.ResponseWriter, r *nethttp.Request) {
-			redirectHandler.Unlock(w, r, chi.URLParam(r, "slug"))
-		})
-		router.Get("/go/{slug}/continue", func(w nethttp.ResponseWriter, r *nethttp.Request) {
-			redirectHandler.Continue(w, r, chi.URLParam(r, "slug"))
-		})
-		router.Get("/go/{slug}/preview", func(w nethttp.ResponseWriter, r *nethttp.Request) {
-			redirectHandler.PreviewScoped(w, r, chi.URLParam(r, "slug"))
-		})
-	}
-	if dependency.StaticDir != "" {
-		registerStaticRoutes(router, dependency.StaticDir)
-	}
-	if redirectHandler != nil {
-		router.Get("/{slug}", func(w nethttp.ResponseWriter, r *nethttp.Request) {
-			redirectHandler.Open(w, r, chi.URLParam(r, "slug"))
-		})
-	}
+	router.Group(func(business chi.Router) {
+		business.Use(auth.CurrentUserMiddleware(dependency.CurrentUser))
+		if redirectHandler != nil {
+			business.Post("/go/{slug}/unlock", func(w nethttp.ResponseWriter, r *nethttp.Request) {
+				redirectHandler.Unlock(w, r, chi.URLParam(r, "slug"))
+			})
+			business.Get("/go/{slug}/continue", func(w nethttp.ResponseWriter, r *nethttp.Request) {
+				redirectHandler.Continue(w, r, chi.URLParam(r, "slug"))
+			})
+			business.Get("/go/{slug}/preview", func(w nethttp.ResponseWriter, r *nethttp.Request) {
+				redirectHandler.PreviewScoped(w, r, chi.URLParam(r, "slug"))
+			})
+		}
+		if dependency.StaticDir != "" {
+			registerStaticRoutes(business, dependency.StaticDir)
+		}
+		if redirectHandler != nil {
+			business.Get("/{slug}", func(w nethttp.ResponseWriter, r *nethttp.Request) {
+				redirectHandler.Open(w, r, chi.URLParam(r, "slug"))
+			})
+		}
+	})
 
 	return router
 }

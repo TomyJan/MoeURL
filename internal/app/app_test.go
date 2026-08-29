@@ -61,6 +61,76 @@ func TestAppNewRejectsInvalidSetupPolicyBeforeOpeningDatabase(t *testing.T) {
 	}
 }
 
+// TestAppNewPropagatesOpenPoolError verifies database startup errors retain their safe operation context.
+func TestAppNewPropagatesOpenPoolError(t *testing.T) {
+	application, err := New(context.Background(), config.Config{
+		Env:         "development",
+		HTTPAddr:    ":0",
+		DatabaseURL: "postgres://user:top-secret@database.internal:invalid/moeurl",
+	}, slog.Default())
+
+	if application != nil {
+		t.Fatal("New returned an application after OpenPool failed")
+	}
+	if err == nil || !strings.Contains(err.Error(), "parse database configuration") {
+		t.Fatalf("New error = %v, want OpenPool parse context", err)
+	}
+	if strings.Contains(err.Error(), "top-secret") {
+		t.Fatalf("New error leaked database credentials: %v", err)
+	}
+}
+
+// TestAppNewConfiguresHTTPServerBoundaries verifies every production HTTP server limit.
+func TestAppNewConfiguresHTTPServerBoundaries(t *testing.T) {
+	application, err := New(context.Background(), config.Config{
+		Env:      "development",
+		HTTPAddr: ":8080",
+	}, slog.Default())
+	if err != nil {
+		t.Fatalf("build application: %v", err)
+	}
+
+	if application.server.ReadHeaderTimeout != 5*time.Second {
+		t.Fatalf("ReadHeaderTimeout = %s, want 5s", application.server.ReadHeaderTimeout)
+	}
+	if application.server.ReadTimeout != 15*time.Second {
+		t.Fatalf("ReadTimeout = %s, want 15s", application.server.ReadTimeout)
+	}
+	if application.server.WriteTimeout != 30*time.Second {
+		t.Fatalf("WriteTimeout = %s, want 30s", application.server.WriteTimeout)
+	}
+	if application.server.IdleTimeout != 60*time.Second {
+		t.Fatalf("IdleTimeout = %s, want 60s", application.server.IdleTimeout)
+	}
+	if application.server.MaxHeaderBytes != 1<<20 {
+		t.Fatalf("MaxHeaderBytes = %d, want %d", application.server.MaxHeaderBytes, 1<<20)
+	}
+}
+
+// TestAppNewInjectsPoolAsReadinessChecker verifies production wiring reports the connected pool ready.
+func TestAppNewInjectsPoolAsReadinessChecker(t *testing.T) {
+	application := newTestApplication(t)
+	response := httptest.NewRecorder()
+
+	application.server.Handler.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/health/ready", nil))
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("readiness status = %d, want 200", response.Code)
+	}
+	var body struct {
+		Code int `json:"code"`
+		Data struct {
+			Status string `json:"status"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode readiness response: %v", err)
+	}
+	if body.Code != 0 || body.Data.Status != "ok" {
+		t.Fatalf("readiness response = code %d status %q", body.Code, body.Data.Status)
+	}
+}
+
 // newTestApplication builds and initializes an application with an optional environment override.
 func newTestApplication(t *testing.T, environments ...string) *App {
 	t.Helper()
