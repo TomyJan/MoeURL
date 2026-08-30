@@ -16,11 +16,13 @@ import NotFoundPage from './NotFoundPage.vue'
 import SetupPage from './SetupPage.vue'
 import { componentStubs } from '@/test/component-stubs'
 import { login, me } from '@/entities/auth/api'
+import { setupSystem } from '@/entities/system/api'
 import { getAdminShortLinkStatistics, getShortLinkOverview, getShortLinkStatistics, listAdminShortLinks, listShortLinks, updateAdminShortLink, updateShortLink } from '@/entities/short-link/api'
 import type { ShortLink } from '@/entities/short-link/model'
 import { updateUser } from '@/entities/user/api'
 import { createDeferred } from '@/test/deferred'
 import type { MutationMockResult } from '@/test/mutation-mock'
+import { ApiClientError } from '@/shared/api/client'
 
 const state = vi.hoisted(() => ({
   queryResult: {},
@@ -117,7 +119,7 @@ vi.mock('chart.js', () => {
 })
 
 vi.mock('@/entities/system/api', () => ({
-  getInitStatus: vi.fn(async () => ({ initialized: false })),
+  getInitStatus: vi.fn(async () => ({ initialized: false, setupTokenRequired: false })),
   setupSystem: vi.fn(),
 }))
 
@@ -240,6 +242,7 @@ describe('pages', () => {
     vi.mocked(updateUser).mockReset()
     vi.mocked(login).mockReset()
     vi.mocked(me).mockReset()
+    vi.mocked(setupSystem).mockReset()
     vi.mocked(me).mockResolvedValue({ user: { permissions: [] } } as never)
     state.theme = {
       global: {
@@ -671,6 +674,61 @@ describe('pages', () => {
 
     expect(screen.queryByText('setup.initialized')).toBeNull()
     expect(mutate).toHaveBeenCalledWith(expect.objectContaining({ adminUsername: 'admin', defaultLanguage: 'en', defaultTheme: 'dark' }))
+  })
+
+  it('shows the password setup-token field only when required by status', () => {
+    setQueryResult({ data: ref({ initialized: false, setupTokenRequired: true }) })
+    const production = mount(SetupPage)
+
+    const tokenInput = screen.getByLabelText('setup.setupToken') as HTMLInputElement
+    expect(screen.getByTestId('setup-token')).toBeTruthy()
+    expect(screen.getByTestId('setup-token-help')).toBeTruthy()
+    expect(tokenInput.type).toBe('password')
+    production.unmount()
+
+    setQueryResult({ data: ref({ initialized: false, setupTokenRequired: false }) })
+    mount(SetupPage)
+    expect(screen.queryByTestId('setup-token')).toBeNull()
+    expect(screen.queryByText('setup.setupTokenHelp')).toBeNull()
+  })
+
+  it('submits the setup-token snapshot and clears the form and mutation variables after success', async () => {
+    const deferred = createDeferred<{ initialized: boolean }>()
+    const variables = ref<unknown>(undefined)
+    vi.mocked(setupSystem).mockReturnValueOnce(deferred.promise)
+    setQueryResult({ data: ref({ initialized: false, setupTokenRequired: true }) })
+    setMutationResult({ variables })
+    mount(SetupPage)
+
+    const tokenInput = screen.getByLabelText('setup.setupToken') as HTMLInputElement
+    await fireEvent.update(tokenInput, 'correct-production-token')
+    await fireEvent.click(screen.getByText('setup.submit'))
+
+    expect(setupSystem).toHaveBeenCalledWith(expect.objectContaining({ setupToken: 'correct-production-token' }))
+    expect(variables.value).toEqual(expect.objectContaining({ setupToken: 'correct-production-token' }))
+
+    deferred.resolve({ initialized: false })
+    await vi.waitFor(() => expect(tokenInput.value).toBe(''))
+    expect(variables.value).not.toHaveProperty('setupToken')
+  })
+
+  it.each([
+    ['business', new ApiClientError(900102, 'Setup authentication failed')],
+    ['infrastructure', new Error('network unavailable')],
+  ])('clears setup-token state after a %s failure while retaining the error UI', async (_kind, error) => {
+    const variables = ref<unknown>(undefined)
+    vi.mocked(setupSystem).mockRejectedValueOnce(error)
+    setQueryResult({ data: ref({ initialized: false, setupTokenRequired: true }) })
+    setMutationResult({ variables })
+    mount(SetupPage)
+
+    const tokenInput = screen.getByLabelText('setup.setupToken') as HTMLInputElement
+    await fireEvent.update(tokenInput, 'failed-production-token')
+    await fireEvent.click(screen.getByText('setup.submit'))
+
+    await vi.waitFor(() => expect(tokenInput.value).toBe(''))
+    expect(variables.value).not.toHaveProperty('setupToken')
+    expect(screen.getByText(error instanceof ApiClientError ? 'setup.setupTokenInvalid' : error.message)).toBeTruthy()
   })
 
   it('uses primary color semantics for setup step indexes', () => {
