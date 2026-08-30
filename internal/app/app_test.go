@@ -136,27 +136,35 @@ func TestAppNewInjectsPoolAsReadinessChecker(t *testing.T) {
 	}
 }
 
-// TestAppNewStartsAndWaitsForBothCleanupTasks verifies production wiring shares one cancellation and completion boundary.
-func TestAppNewStartsAndWaitsForBothCleanupTasks(t *testing.T) {
+// TestAppNewStartsAndWaitsForAllCleanupTasks verifies production wiring shares one cancellation and completion boundary.
+func TestAppNewStartsAndWaitsForAllCleanupTasks(t *testing.T) {
 	originalAccessGrantRunner := runAccessGrantCleanup
 	originalLoginAttemptRunner := runLoginAttemptCleanup
+	originalSessionRunner := runSessionCleanup
 	t.Cleanup(func() {
 		runAccessGrantCleanup = originalAccessGrantRunner
 		runLoginAttemptCleanup = originalLoginAttemptRunner
+		runSessionCleanup = originalSessionRunner
 	})
 
 	accessStarted := make(chan time.Duration, 1)
 	loginStarted := make(chan time.Duration, 1)
+	sessionStarted := make(chan time.Duration, 1)
 	accessCanceled := make(chan struct{})
 	loginCanceled := make(chan struct{})
+	sessionCanceled := make(chan struct{})
 	releaseAccess := make(chan struct{})
 	releaseLogin := make(chan struct{})
+	releaseSession := make(chan struct{})
 	var releaseAccessOnce sync.Once
 	var releaseLoginOnce sync.Once
+	var releaseSessionOnce sync.Once
 	releaseAccessTask := func() { releaseAccessOnce.Do(func() { close(releaseAccess) }) }
 	releaseLoginTask := func() { releaseLoginOnce.Do(func() { close(releaseLogin) }) }
+	releaseSessionTask := func() { releaseSessionOnce.Do(func() { close(releaseSession) }) }
 	t.Cleanup(releaseAccessTask)
 	t.Cleanup(releaseLoginTask)
+	t.Cleanup(releaseSessionTask)
 	runAccessGrantCleanup = func(_ *shortlink.RedirectService, ctx context.Context, interval time.Duration, _ *slog.Logger) {
 		accessStarted <- interval
 		<-ctx.Done()
@@ -168,6 +176,12 @@ func TestAppNewStartsAndWaitsForBothCleanupTasks(t *testing.T) {
 		<-ctx.Done()
 		close(loginCanceled)
 		<-releaseLogin
+	}
+	runSessionCleanup = func(_ *auth.SessionService, ctx context.Context, interval time.Duration, _ *slog.Logger) {
+		sessionStarted <- interval
+		<-ctx.Done()
+		close(sessionCanceled)
+		<-releaseSession
 	}
 
 	ctx, cancel := context.WithTimeout(t.Context(), testLifecycleTimeout)
@@ -195,6 +209,10 @@ func TestAppNewStartsAndWaitsForBothCleanupTasks(t *testing.T) {
 	if loginInterval != loginAttemptCleanupInterval {
 		t.Fatalf("login-attempt cleanup interval = %s, want %s", loginInterval, loginAttemptCleanupInterval)
 	}
+	sessionInterval := waitForAppTestValue(t, sessionStarted, "session cleanup startup")
+	if sessionInterval != sessionCleanupInterval {
+		t.Fatalf("session cleanup interval = %s, want %s", sessionInterval, sessionCleanupInterval)
+	}
 
 	shutdownResult := make(chan error, 1)
 	go func() {
@@ -202,11 +220,14 @@ func TestAppNewStartsAndWaitsForBothCleanupTasks(t *testing.T) {
 	}()
 	waitForAppTestSignal(t, accessCanceled, "access-grant cleanup cancellation")
 	waitForAppTestSignal(t, loginCanceled, "login-attempt cleanup cancellation")
-	assertAppTestValuePending(t, shutdownResult, "shutdown completion before both cleanup tasks exit")
+	waitForAppTestSignal(t, sessionCanceled, "session cleanup cancellation")
+	assertAppTestValuePending(t, shutdownResult, "shutdown completion before cleanup tasks exit")
 	releaseAccessTask()
-	assertAppTestValuePending(t, shutdownResult, "shutdown completion before login-attempt cleanup exits")
+	assertAppTestValuePending(t, shutdownResult, "shutdown completion before login-attempt and session cleanup exit")
 	releaseLoginTask()
-	if err := waitForAppTestValue(t, shutdownResult, "shutdown after both cleanup tasks exit"); err != nil {
+	assertAppTestValuePending(t, shutdownResult, "shutdown completion before session cleanup exits")
+	releaseSessionTask()
+	if err := waitForAppTestValue(t, shutdownResult, "shutdown after all cleanup tasks exit"); err != nil {
 		t.Fatalf("shutdown application: %v", err)
 	}
 }

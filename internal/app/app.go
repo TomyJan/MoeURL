@@ -25,6 +25,7 @@ import (
 const (
 	accessGrantCleanupInterval  = time.Minute
 	loginAttemptCleanupInterval = 15 * time.Minute
+	sessionCleanupInterval      = 15 * time.Minute
 )
 
 // validatePermissionCatalog allows startup validation failures to be exercised without mutating package catalog state.
@@ -36,6 +37,10 @@ var runAccessGrantCleanup = func(service *shortlink.RedirectService, ctx context
 
 var runLoginAttemptCleanup = func(service *auth.Service, ctx context.Context, interval time.Duration, logger *slog.Logger) {
 	service.RunLoginAttemptCleanup(ctx, interval, logger)
+}
+
+var runSessionCleanup = func(service *auth.SessionService, ctx context.Context, interval time.Duration, logger *slog.Logger) {
+	service.RunCleanup(ctx, interval, logger)
 }
 
 // App owns the HTTP server, database Pool, and process-scoped background work.
@@ -73,6 +78,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.Health = pool
 		deps.System = system.NewService(pool, setupPolicy)
 		authService := auth.NewService(pool, 24*time.Hour)
+		sessionService := auth.NewSessionService(pool, 24*time.Hour)
 		deps.Auth = authService
 		deps.CurrentUser = authService
 		permissionService := permission.NewDatabaseService(pool)
@@ -92,6 +98,9 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			},
 			func(ctx context.Context) {
 				runLoginAttemptCleanup(authService, ctx, loginAttemptCleanupInterval, logger)
+			},
+			func(ctx context.Context) {
+				runSessionCleanup(sessionService, ctx, sessionCleanupInterval, logger)
 			},
 		)
 	}

@@ -11,6 +11,29 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const cleanupSessions = `-- name: CleanupSessions :execrows
+with cleanup_candidate as (
+    select active_session.id
+    from session as active_session
+    where active_session.expires_at <= clock_timestamp()
+        or active_session.revoked_at is not null
+    order by active_session.expires_at, active_session.id
+    limit 500
+    for update of active_session skip locked
+)
+delete from session as active_session
+using cleanup_candidate
+where active_session.id = cleanup_candidate.id
+`
+
+func (q *Queries) CleanupSessions(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, cleanupSessions)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const createAuthSession = `-- name: CreateAuthSession :exec
 insert into session (id, user_id, expires_at, last_seen_at, created_at)
 values (

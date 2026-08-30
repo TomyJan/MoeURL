@@ -87,3 +87,17 @@ values (
     clock_timestamp(),
     clock_timestamp()
 );
+
+-- name: CleanupSessions :execrows
+with cleanup_candidate as (
+    select active_session.id
+    from session as active_session
+    where active_session.expires_at <= clock_timestamp()
+        or active_session.revoked_at is not null
+    order by active_session.expires_at, active_session.id
+    limit 500
+    for update of active_session skip locked
+)
+delete from session as active_session
+using cleanup_candidate
+where active_session.id = cleanup_candidate.id;

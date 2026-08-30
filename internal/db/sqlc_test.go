@@ -284,6 +284,89 @@ func TestDeleteStaleAuthLoginAttemptsBoundsAndProtectsActiveState(t *testing.T) 
 	}
 }
 
+// TestCleanupSessionsBoundsAndPreservesValidSessions verifies cleanup eligibility, stable batching, and its fixed limit.
+func TestCleanupSessionsBoundsAndPreservesValidSessions(t *testing.T) {
+	ctx := context.Background()
+	pool := sqlcTestPool(t, ctx)
+	queries := sqlc.New(pool)
+	groupID := uuid.New()
+	userID := uuid.New()
+	if _, err := pool.Exec(ctx, `
+		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+		values ($1, 'session-cleanup-user', 'Session cleanup user', '', '[]'::jsonb, false, now(), now())
+	`, groupID); err != nil {
+		t.Fatalf("insert session cleanup group fixture: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into app_user (id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at)
+		values ($1, 'session-cleanup-user', 'hash', 'Session cleanup user', $2, 'active', false, now(), now())
+	`, userID, groupID); err != nil {
+		t.Fatalf("insert session cleanup user fixture: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into session (id, user_id, expires_at, last_seen_at, revoked_at, created_at)
+		values
+			('session-valid', $1, clock_timestamp() + interval '1 hour', clock_timestamp(), null, clock_timestamp()),
+			('session-expired', $1, clock_timestamp() - interval '2 hours', clock_timestamp(), null, clock_timestamp()),
+			('session-revoked', $1, clock_timestamp() + interval '1 hour', clock_timestamp(), clock_timestamp(), clock_timestamp())
+	`, userID); err != nil {
+		t.Fatalf("insert session cleanup state fixtures: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into session (id, user_id, expires_at, last_seen_at, revoked_at, created_at)
+		select 'session-expired-' || lpad(value::text, 4, '0'),
+			$1,
+			clock_timestamp() - interval '1 hour',
+			clock_timestamp(),
+			null,
+			clock_timestamp()
+		from generate_series(1, 499) as value
+	`, userID); err != nil {
+		t.Fatalf("insert session cleanup batch fixtures: %v", err)
+	}
+
+	deleted, err := queries.CleanupSessions(ctx)
+	if err != nil {
+		t.Fatalf("cleanup sessions: %v", err)
+	}
+	if deleted != 500 {
+		t.Fatalf("deleted sessions = %d, want batch limit 500", deleted)
+	}
+	var validCount int
+	if err := pool.QueryRow(ctx, `select count(*) from session where id = 'session-valid'`).Scan(&validCount); err != nil {
+		t.Fatalf("count valid sessions: %v", err)
+	}
+	if validCount != 1 {
+		t.Fatalf("valid sessions = %d, want 1", validCount)
+	}
+	var eligibleCount int
+	if err := pool.QueryRow(ctx, `
+		select count(*)
+		from session
+		where expires_at <= clock_timestamp() or revoked_at is not null
+	`).Scan(&eligibleCount); err != nil {
+		t.Fatalf("count remaining cleanup-eligible sessions: %v", err)
+	}
+	if eligibleCount != 1 {
+		t.Fatalf("remaining cleanup-eligible sessions = %d, want 1", eligibleCount)
+	}
+
+	deleted, err = queries.CleanupSessions(ctx)
+	if err != nil {
+		t.Fatalf("cleanup remaining session: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("remaining deleted sessions = %d, want 1", deleted)
+	}
+	var remainingCount int
+	if err := pool.QueryRow(ctx, `select count(*) from session`).Scan(&remainingCount); err != nil {
+		t.Fatalf("count remaining sessions: %v", err)
+	}
+	if remainingCount != 1 {
+		t.Fatalf("remaining sessions = %d, want only the valid record", remainingCount)
+	}
+}
+
 // waitForBackendLock waits until PostgreSQL reports that a backend is blocked on a lock.
 func waitForBackendLock(t *testing.T, ctx context.Context, pool *pgxpool.Pool, backendPID int32) {
 	t.Helper()
