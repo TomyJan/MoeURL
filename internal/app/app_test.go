@@ -136,6 +136,81 @@ func TestAppNewInjectsPoolAsReadinessChecker(t *testing.T) {
 	}
 }
 
+// TestAppNewStartsAndWaitsForBothCleanupTasks verifies production wiring shares one cancellation and completion boundary.
+func TestAppNewStartsAndWaitsForBothCleanupTasks(t *testing.T) {
+	originalAccessGrantRunner := runAccessGrantCleanup
+	originalLoginAttemptRunner := runLoginAttemptCleanup
+	t.Cleanup(func() {
+		runAccessGrantCleanup = originalAccessGrantRunner
+		runLoginAttemptCleanup = originalLoginAttemptRunner
+	})
+
+	accessStarted := make(chan time.Duration, 1)
+	loginStarted := make(chan time.Duration, 1)
+	accessCanceled := make(chan struct{})
+	loginCanceled := make(chan struct{})
+	releaseAccess := make(chan struct{})
+	releaseLogin := make(chan struct{})
+	var releaseAccessOnce sync.Once
+	var releaseLoginOnce sync.Once
+	releaseAccessTask := func() { releaseAccessOnce.Do(func() { close(releaseAccess) }) }
+	releaseLoginTask := func() { releaseLoginOnce.Do(func() { close(releaseLogin) }) }
+	t.Cleanup(releaseAccessTask)
+	t.Cleanup(releaseLoginTask)
+	runAccessGrantCleanup = func(_ *shortlink.RedirectService, ctx context.Context, interval time.Duration, _ *slog.Logger) {
+		accessStarted <- interval
+		<-ctx.Done()
+		close(accessCanceled)
+		<-releaseAccess
+	}
+	runLoginAttemptCleanup = func(_ *auth.Service, ctx context.Context, interval time.Duration, _ *slog.Logger) {
+		loginStarted <- interval
+		<-ctx.Done()
+		close(loginCanceled)
+		<-releaseLogin
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), testLifecycleTimeout)
+	defer cancel()
+	application, err := New(ctx, config.Config{
+		Env:         "development",
+		HTTPAddr:    ":0",
+		DatabaseURL: testdb.ProjectMigratedDatabaseURL(ctx, t),
+	}, slog.Default())
+	if err != nil {
+		t.Fatalf("build application with cleanup tasks: %v", err)
+	}
+	t.Cleanup(func() {
+		cleanupContext, cancelCleanup := context.WithTimeout(context.Background(), testLifecycleTimeout)
+		defer cancelCleanup()
+		if err := application.Shutdown(cleanupContext); err != nil {
+			t.Errorf("cleanup application: %v", err)
+		}
+	})
+	accessInterval := waitForAppTestValue(t, accessStarted, "access-grant cleanup startup")
+	if accessInterval != accessGrantCleanupInterval {
+		t.Fatalf("access-grant cleanup interval = %s, want %s", accessInterval, accessGrantCleanupInterval)
+	}
+	loginInterval := waitForAppTestValue(t, loginStarted, "login-attempt cleanup startup")
+	if loginInterval != loginAttemptCleanupInterval {
+		t.Fatalf("login-attempt cleanup interval = %s, want %s", loginInterval, loginAttemptCleanupInterval)
+	}
+
+	shutdownResult := make(chan error, 1)
+	go func() {
+		shutdownResult <- application.Shutdown(ctx)
+	}()
+	waitForAppTestSignal(t, accessCanceled, "access-grant cleanup cancellation")
+	waitForAppTestSignal(t, loginCanceled, "login-attempt cleanup cancellation")
+	assertAppTestValuePending(t, shutdownResult, "shutdown completion before both cleanup tasks exit")
+	releaseAccessTask()
+	assertAppTestValuePending(t, shutdownResult, "shutdown completion before login-attempt cleanup exits")
+	releaseLoginTask()
+	if err := waitForAppTestValue(t, shutdownResult, "shutdown after both cleanup tasks exit"); err != nil {
+		t.Fatalf("shutdown application: %v", err)
+	}
+}
+
 // newTestApplication builds and initializes an application with an optional environment override.
 func newTestApplication(t *testing.T, environments ...string) *App {
 	t.Helper()
@@ -819,6 +894,16 @@ func assertAppTestSignalPending(t *testing.T, signal <-chan struct{}, operation 
 	t.Helper()
 	select {
 	case <-signal:
+		t.Fatalf("unexpected %s", operation)
+	default:
+	}
+}
+
+// assertAppTestValuePending checks non-occurrence after the caller establishes a synchronization point.
+func assertAppTestValuePending[T any](t *testing.T, values <-chan T, operation string) {
+	t.Helper()
+	select {
+	case <-values:
 		t.Fatalf("unexpected %s", operation)
 	default:
 	}

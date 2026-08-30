@@ -58,6 +58,7 @@ const username = ref('')
 const password = ref('')
 const loginErrorSnackbarOpen = ref(false)
 const INVALID_CREDENTIAL_ERROR_CODE = 110101
+const LOGIN_RATE_LIMITED_ERROR_CODE = 110103
 const mutation = useMutation({
   mutationFn: login,
   /** Updates cached identity data, starts auth/me invalidation, and restores the requested route. */
@@ -81,6 +82,9 @@ const loginErrorMessage = computed(() => {
   if (isInvalidCredentialError(error)) {
     return t('auth.loginFailed')
   }
+  if (hasBusinessErrorCode(error, LOGIN_RATE_LIMITED_ERROR_CODE)) {
+    return t('auth.loginRateLimited')
+  }
   return error instanceof Error ? error.message : t('auth.loginFailed')
 })
 
@@ -101,7 +105,12 @@ function setLoginErrorSnackbarOpen(value: boolean) {
 
 /** Reports whether an API failure represents invalid login credentials. */
 function isInvalidCredentialError(error: unknown) {
-  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: number }).code === INVALID_CREDENTIAL_ERROR_CODE
+  return hasBusinessErrorCode(error, INVALID_CREDENTIAL_ERROR_CODE)
+}
+
+/** Reports whether an API failure has the requested stable business code. */
+function hasBusinessErrorCode(error: unknown, code: number) {
+  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: number }).code === code
 }
 </script>
 

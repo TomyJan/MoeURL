@@ -22,10 +22,21 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const accessGrantCleanupInterval = time.Minute
+const (
+	accessGrantCleanupInterval  = time.Minute
+	loginAttemptCleanupInterval = 15 * time.Minute
+)
 
 // validatePermissionCatalog allows startup validation failures to be exercised without mutating package catalog state.
 var validatePermissionCatalog = permission.ValidateCatalog
+
+var runAccessGrantCleanup = func(service *shortlink.RedirectService, ctx context.Context, interval time.Duration, logger *slog.Logger) {
+	service.RunAccessGrantCleanup(ctx, interval, logger)
+}
+
+var runLoginAttemptCleanup = func(service *auth.Service, ctx context.Context, interval time.Duration, logger *slog.Logger) {
+	service.RunLoginAttemptCleanup(ctx, interval, logger)
+}
 
 // App owns the HTTP server, database Pool, and process-scoped background work.
 type App struct {
@@ -77,7 +88,10 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 
 		backgroundCancel, backgroundDone = startBackgroundTasks(
 			func(ctx context.Context) {
-				redirectService.RunAccessGrantCleanup(ctx, accessGrantCleanupInterval, logger)
+				runAccessGrantCleanup(redirectService, ctx, accessGrantCleanupInterval, logger)
+			},
+			func(ctx context.Context) {
+				runLoginAttemptCleanup(authService, ctx, loginAttemptCleanupInterval, logger)
 			},
 		)
 	}

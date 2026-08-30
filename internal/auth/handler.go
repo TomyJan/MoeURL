@@ -9,9 +9,14 @@ import (
 )
 
 const (
-	CodeInvalidRequest     = 100001
+	// CodeInvalidRequest identifies malformed authentication input.
+	CodeInvalidRequest = 100001
+	// CodeInvalidCredentials identifies a neutral credential failure.
 	CodeInvalidCredentials = 110101
-	CodeUserDisabled       = 110102
+	// CodeUserDisabled identifies a correctly authenticated disabled account.
+	CodeUserDisabled = 110102
+	// CodeLoginRateLimited identifies a temporary account-level login block.
+	CodeLoginRateLimited = 110103
 )
 
 type Port interface {
@@ -45,6 +50,8 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 			businessError(w, CodeInvalidCredentials, "Invalid username or password")
 		case errors.Is(err, ErrUserDisabled):
 			businessError(w, CodeUserDisabled, "User disabled")
+		case errors.Is(err, ErrLoginRateLimited):
+			businessError(w, CodeLoginRateLimited, "Login temporarily unavailable")
 		default:
 			writeJSON(w, http.StatusInternalServerError, response{Code: 900000, Message: "Internal server error", Data: nil, Meta: map[string]any{}})
 		}

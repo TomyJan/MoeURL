@@ -19,8 +19,6 @@ github.com/TomyJan/MoeURL/internal/system/service.go:125.77,127.4
 github.com/TomyJan/MoeURL/internal/system/service.go:138.66,140.5
 github.com/TomyJan/MoeURL/internal/system/service.go:181.16,183.3
 github.com/TomyJan/MoeURL/internal/system/service.go:195.16,197.3
-github.com/TomyJan/MoeURL/internal/auth/service.go:50.16,52.3
-github.com/TomyJan/MoeURL/internal/auth/service.go:144.16,146.3
 github.com/TomyJan/MoeURL/internal/auth/session.go:85.16,87.3
 # User Create password hashing failure; argon2/random failure is an infrastructure branch that is not deterministically triggerable.
 github.com/TomyJan/MoeURL/internal/user/service.go:67.16,69.3

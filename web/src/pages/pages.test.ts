@@ -567,11 +567,26 @@ describe('pages', () => {
     expect(screen.queryByTestId('auth-error-toast')).toBeNull()
   })
 
+  it('localizes the login rate-limit business error', () => {
+    const rateLimitError = Object.assign(new Error('Login temporarily unavailable'), { code: 110103 })
+    setMutationResult({
+      error: ref(rateLimitError),
+      isError: ref(true),
+      mutate: vi.fn(),
+    })
+    mount(LoginPage)
+
+    expect(screen.getByText('auth.loginRateLimited')).toBeTruthy()
+    expect(screen.queryByText('Login temporarily unavailable')).toBeNull()
+  })
+
   it('keeps login business error codes named', () => {
     const source = readFileSync('src/pages/LoginPage.vue', 'utf8')
 
     expect(source).toContain('INVALID_CREDENTIAL_ERROR_CODE')
+    expect(source).toContain('LOGIN_RATE_LIMITED_ERROR_CODE')
     expect(source).not.toContain('=== 110101')
+    expect(source).not.toContain('=== 110103')
   })
 
   it('shows non-auth login errors and ignores unsafe redirect targets', async () => {

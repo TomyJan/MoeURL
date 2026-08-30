@@ -108,18 +108,23 @@ func TestAuthHandlerLoginMapsInvalidCredentials(t *testing.T) {
 	if body.Code != 110101 {
 		t.Fatalf("expected code 110101, got %d", body.Code)
 	}
+	if cookies := response.Result().Cookies(); len(cookies) != 0 {
+		t.Fatalf("invalid credentials set %d cookies", len(cookies))
+	}
 }
 
-// TestAuthHandlerLoginMapsDisabledAndSystemErrors verifies auth handler login maps disabled and system errors.
-func TestAuthHandlerLoginMapsDisabledAndSystemErrors(t *testing.T) {
+// TestAuthHandlerLoginMapsRateLimitDisabledAndSystemErrors verifies login failures keep stable HTTP and cookie semantics.
+func TestAuthHandlerLoginMapsRateLimitDisabledAndSystemErrors(t *testing.T) {
 	tests := []struct {
 		name       string
 		err        error
 		httpStatus int
 		code       int
+		message    string
 	}{
-		{name: "disabled", err: auth.ErrUserDisabled, httpStatus: http.StatusOK, code: 110102},
-		{name: "system", err: errors.New("database down"), httpStatus: http.StatusInternalServerError, code: 900000},
+		{name: "rate limited", err: auth.ErrLoginRateLimited, httpStatus: http.StatusOK, code: 110103, message: "Login temporarily unavailable"},
+		{name: "disabled", err: auth.ErrUserDisabled, httpStatus: http.StatusOK, code: 110102, message: "User disabled"},
+		{name: "system", err: errors.New("database down"), httpStatus: http.StatusInternalServerError, code: 900000, message: "Internal server error"},
 	}
 
 	for _, tt := range tests {
@@ -139,13 +144,20 @@ func TestAuthHandlerLoginMapsDisabledAndSystemErrors(t *testing.T) {
 				t.Fatalf("expected http %d, got %d", tt.httpStatus, response.Code)
 			}
 			var body struct {
-				Code int `json:"code"`
+				Code    int    `json:"code"`
+				Message string `json:"message"`
 			}
 			if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
 				t.Fatalf("decode response: %v", err)
 			}
 			if body.Code != tt.code {
 				t.Fatalf("expected code %d, got %d", tt.code, body.Code)
+			}
+			if body.Message != tt.message {
+				t.Fatalf("expected message %q, got %q", tt.message, body.Message)
+			}
+			if cookies := response.Result().Cookies(); len(cookies) != 0 {
+				t.Fatalf("%s failure set %d cookies", tt.name, len(cookies))
 			}
 		})
 	}
