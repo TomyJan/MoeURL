@@ -159,10 +159,12 @@ func (a *App) Shutdown(ctx context.Context) error {
 		if a.backgroundCancel != nil {
 			a.backgroundCancel()
 		}
-		if err := waitForBackgroundTasks(ctx, a.backgroundDone); err != nil {
+		if err := waitForLifecycleCompletion(ctx, a.backgroundDone); err != nil {
 			shutdownErrors = append(shutdownErrors, fmt.Errorf("wait for background tasks: %w", err))
 		}
-		a.closeDatabasePool()
+		if err := a.closeDatabasePool(ctx); err != nil {
+			shutdownErrors = append(shutdownErrors, fmt.Errorf("close database pool: %w", err))
+		}
 		a.shutdownErr = errors.Join(shutdownErrors...)
 	})
 	return a.shutdownErr
@@ -179,8 +181,8 @@ func (a *App) shutdownHTTPServer(ctx context.Context) error {
 	return a.server.Shutdown(ctx)
 }
 
-// waitForBackgroundTasks waits for group completion while preferring an already completed group over Context cancellation.
-func waitForBackgroundTasks(ctx context.Context, done <-chan struct{}) error {
+// waitForLifecycleCompletion waits for completion while preferring an already completed operation over Context cancellation.
+func waitForLifecycleCompletion(ctx context.Context, done <-chan struct{}) error {
 	if done == nil {
 		return nil
 	}
@@ -202,13 +204,20 @@ func waitForBackgroundTasks(ctx context.Context, done <-chan struct{}) error {
 	}
 }
 
-// closeDatabasePool invokes the lifecycle hook or closes the concrete Pool when present.
-func (a *App) closeDatabasePool() {
-	if a.closePool != nil {
-		a.closePool()
-		return
+// closeDatabasePool starts Pool closure and bounds how long shutdown waits for borrowed connections to return.
+func (a *App) closeDatabasePool(ctx context.Context) error {
+	closePool := a.closePool
+	if closePool == nil {
+		if a.pool == nil {
+			return nil
+		}
+		closePool = a.pool.Close
 	}
-	if a.pool != nil {
-		a.pool.Close()
-	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		closePool()
+	}()
+	return waitForLifecycleCompletion(ctx, done)
 }

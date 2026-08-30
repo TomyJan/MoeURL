@@ -887,6 +887,35 @@ func TestAppShutdownTimeoutStillClosesPool(t *testing.T) {
 	waitForAppTestSignal(t, backgroundDone, "background task completion")
 }
 
+// TestAppShutdownBoundsPoolCloseWait verifies a borrowed connection cannot extend process shutdown beyond its deadline.
+func TestAppShutdownBoundsPoolCloseWait(t *testing.T) {
+	poolCloseStarted := make(chan struct{})
+	releasePoolClose := make(chan struct{})
+	poolCloseFinished := make(chan struct{})
+	t.Cleanup(func() {
+		close(releasePoolClose)
+		waitForAppTestSignal(t, poolCloseFinished, "Pool closure completion")
+	})
+	application := &App{
+		shutdownHTTP: func(context.Context) error { return nil },
+		closePool: func() {
+			close(poolCloseStarted)
+			<-releasePoolClose
+			close(poolCloseFinished)
+		},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	shutdownResult := make(chan error, 1)
+	go func() { shutdownResult <- application.Shutdown(ctx) }()
+
+	waitForAppTestSignal(t, poolCloseStarted, "Pool closure start")
+	err := waitForAppTestValue(t, shutdownResult, "bounded Pool closure wait")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("shutdown error = %v, want context deadline exceeded", err)
+	}
+}
+
 // waitForAppTestSignal waits for a required lifecycle event without relying on the package timeout.
 func waitForAppTestSignal(t *testing.T, signal <-chan struct{}, operation string) {
 	t.Helper()

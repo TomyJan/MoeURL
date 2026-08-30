@@ -203,7 +203,11 @@ func (h *RedirectHandler) Continue(w http.ResponseWriter, r *http.Request, slug 
 		if isPublicAccessError(err) {
 			h.writePublicAccessError(w, r, slug, err, "short_link_continue_failed")
 		} else {
-			h.logger.ErrorContext(r.Context(), "short_link_continue_failed", "slug", strings.ToLower(slug), "error", err)
+			h.logger.ErrorContext(r.Context(), "short_link_continue_failed",
+				"request_id", middleware.RequestIDFromContext(r.Context()),
+				"slug", strings.ToLower(slug),
+				"error", err,
+			)
 			redirectToPublicAccessState(w, r, slug, "continue-failed", nil)
 		}
 		return
@@ -295,7 +299,11 @@ func (h *RedirectHandler) writePublicAccessError(w http.ResponseWriter, r *http.
 		}
 		redirectToPublicAccessState(w, r, slug, "rate-limited", nil)
 	default:
-		h.logger.ErrorContext(r.Context(), failureLogMessage, "slug", strings.ToLower(strings.TrimSpace(slug)), "error", err)
+		h.logger.ErrorContext(r.Context(), failureLogMessage,
+			"request_id", middleware.RequestIDFromContext(r.Context()),
+			"slug", strings.ToLower(strings.TrimSpace(slug)),
+			"error", err,
+		)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }
