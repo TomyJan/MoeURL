@@ -32,7 +32,9 @@ RUN CGO_ENABLED=0 go install github.com/pressly/goose/v3/cmd/goose@v3.27.3
 
 FROM alpine:3.24
 WORKDIR /app
-RUN apk add --no-cache ca-certificates && addgroup -S moeurl && adduser -S -G moeurl moeurl
+RUN apk add --no-cache ca-certificates \
+    && addgroup -S -g 10001 moeurl \
+    && adduser -S -D -H -u 10001 -G moeurl moeurl
 COPY --from=go-build /out/moeurl /app/moeurl
 COPY --from=go-build /go/bin/goose /app/goose
 COPY --from=web-build /workspace/web/dist /app/web

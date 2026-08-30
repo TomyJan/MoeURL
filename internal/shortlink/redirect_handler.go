@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/event"
+	"github.com/TomyJan/MoeURL/internal/middleware"
 )
 
 // RedirectPort handles the public short-link access actions.
@@ -117,6 +118,10 @@ func (h *RedirectHandler) preview(w http.ResponseWriter, r *http.Request, slug s
 		case errors.Is(err, ErrPasswordRequired):
 			businessError(w, CodePasswordRequired, "Password required")
 		default:
+			h.logger.ErrorContext(r.Context(), "short_link_preview_failed",
+				"request_id", middleware.RequestIDFromContext(r.Context()),
+				"error", err,
+			)
 			writeJSON(w, http.StatusInternalServerError, response{Code: 900000, Message: "Internal server error", Data: nil, Meta: map[string]any{}})
 		}
 		return
@@ -166,6 +171,10 @@ func (h *RedirectHandler) Unlock(w http.ResponseWriter, r *http.Request, slug st
 			}
 			writeJSON(w, http.StatusOK, response{Code: CodePasswordRateLimited, Message: "Too many attempts", Data: nil, Meta: meta})
 		default:
+			h.logger.ErrorContext(r.Context(), "short_link_unlock_failed",
+				"request_id", middleware.RequestIDFromContext(r.Context()),
+				"error", err,
+			)
 			writeJSON(w, http.StatusInternalServerError, response{Code: 900000, Message: "Internal server error", Data: nil, Meta: map[string]any{}})
 		}
 		return

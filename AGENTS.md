@@ -4,7 +4,7 @@
 
 MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
 
-当前已完成到 v0.5.0 用户组权限管理闭环，v0.6.0 已进入生产就绪实施阶段。v0.6.0 实施应以 `docs/product/scope-v0.6.0.md`、对应生产就绪设计和 `docs/implementation/v0.6.0-detailed-plan.md` 为范围，以 v0.5.0 文档和代码作为当前功能基线。
+当前已完成到 v0.5.0 用户组权限管理闭环，v0.6.0 生产就绪代码实现已完成、生产验收待目标环境证据。v0.6.0 收尾应以 `docs/product/scope-v0.6.0.md`、对应生产就绪设计、`docs/implementation/v0.6.0-detailed-plan.md` 和验收清单为准，以 v0.5.0 文档和代码作为功能基线；缺少目标 Node.js 26.x CI、race、安全扫描、全量 Playwright、Compose smoke 或隔离恢复证据时不得声明版本可发布。
 
 ## 工作入口
 

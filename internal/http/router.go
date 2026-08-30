@@ -62,20 +62,20 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 		api.Get("/health", healthHandler.Ready)
 
 		api.Group(func(businessAPI chi.Router) {
-			businessAPI.Use(auth.CurrentUserMiddleware(dependency.CurrentUser))
+			businessAPI.Use(auth.CurrentUserMiddlewareWithLogger(dependency.CurrentUser, logger))
 			if dependency.System != nil {
-				systemHandler := system.NewHandler(dependency.System)
+				systemHandler := system.NewHandlerWithLogger(dependency.System, logger)
 				businessAPI.Get("/init/status", systemHandler.Status)
 				businessAPI.Post("/init/setup", systemHandler.Setup)
 			}
 			if dependency.Auth != nil {
-				authHandler := auth.NewHandler(dependency.Auth, dependency.SecureCookies)
+				authHandler := auth.NewHandlerWithLogger(dependency.Auth, dependency.SecureCookies, logger)
 				businessAPI.Post("/auth/login", authHandler.Login)
 				businessAPI.Post("/auth/logout", authHandler.Logout)
 				businessAPI.Get("/auth/me", authHandler.Me)
 			}
 			if dependency.ShortLink != nil {
-				shortLinkHandler := shortlink.NewHandler(dependency.ShortLink)
+				shortLinkHandler := shortlink.NewHandlerWithLogger(dependency.ShortLink, logger)
 				businessAPI.Post("/short-link/create", shortLinkHandler.Create)
 				businessAPI.Get("/short-link/overview", shortLinkHandler.Overview)
 				businessAPI.Get("/short-link/list", shortLinkHandler.List)
@@ -91,7 +91,7 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				businessAPI.Get("/public/short-link/preview", redirectHandler.PreviewPublic)
 			}
 			if dependency.User != nil {
-				userHandler := user.NewHandler(dependency.User)
+				userHandler := user.NewHandlerWithLogger(dependency.User, logger)
 				businessAPI.Post("/admin/user/create", userHandler.Create)
 				businessAPI.Get("/admin/user/list", userHandler.List)
 				businessAPI.Post("/admin/user/update", userHandler.Update)
@@ -111,7 +111,7 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 	})
 
 	router.Group(func(business chi.Router) {
-		business.Use(auth.CurrentUserMiddleware(dependency.CurrentUser))
+		business.Use(auth.CurrentUserMiddlewareWithLogger(dependency.CurrentUser, logger))
 		if redirectHandler != nil {
 			business.Post("/go/{slug}/unlock", func(w nethttp.ResponseWriter, r *nethttp.Request) {
 				redirectHandler.Unlock(w, r, chi.URLParam(r, "slug"))

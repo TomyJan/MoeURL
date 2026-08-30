@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	"github.com/TomyJan/MoeURL/internal/middleware"
 )
 
 const (
@@ -29,11 +30,20 @@ type Port interface {
 
 type Handler struct {
 	service Port
+	logger  *slog.Logger
 }
 
 // NewHandler creates an HTTP handler backed by the user service.
 func NewHandler(service Port) *Handler {
-	return &Handler{service: service}
+	return NewHandlerWithLogger(service, nil)
+}
+
+// NewHandlerWithLogger creates a user handler using the shared application logger.
+func NewHandlerWithLogger(service Port, logger *slog.Logger) *Handler {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return &Handler{service: service, logger: logger}
 }
 
 // Create validates and creates a user account.
@@ -54,6 +64,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrInvalidInput):
 			businessError(w, 100001, "Invalid request")
 		default:
+			logUserInfrastructureError(h.logger, r, err)
 			writeJSON(w, http.StatusInternalServerError, response{Code: 900000, Message: "Internal server error", Data: nil, Meta: map[string]any{}})
 		}
 		return
@@ -69,7 +80,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		PageSize: queryInt32WithDefault(r, "pageSize", defaultPageSize),
 	})
 	if err != nil {
-		writeUserError(w, err)
+		writeUserError(w, r, h.logger, err)
 		return
 	}
 
@@ -95,7 +106,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.service.Update(r.Context(), auth.UserFromContext(r.Context()), input)
 	if err != nil {
-		writeUserError(w, err)
+		writeUserError(w, r, h.logger, err)
 		return
 	}
 	ok(w, result)
@@ -111,7 +122,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.service.UpdateProfile(r.Context(), auth.UserFromContext(r.Context()), input)
 	if err != nil {
-		writeUserError(w, err)
+		writeUserError(w, r, h.logger, err)
 		return
 	}
 	ok(w, result)
@@ -127,14 +138,14 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 
 	err := h.service.ResetPassword(r.Context(), auth.UserFromContext(r.Context()), input)
 	if err != nil {
-		writeUserError(w, err)
+		writeUserError(w, r, h.logger, err)
 		return
 	}
 	ok(w, map[string]bool{"reset": true})
 }
 
-// writeUserError maps user-service errors to business or server responses.
-func writeUserError(w http.ResponseWriter, err error) {
+// writeUserError maps user-service errors and records unknown infrastructure failures.
+func writeUserError(w http.ResponseWriter, r *http.Request, logger *slog.Logger, err error) {
 	switch {
 	case errors.Is(err, ErrPermissionDenied):
 		businessError(w, CodePermissionDenied, "Permission denied")
@@ -147,8 +158,17 @@ func writeUserError(w http.ResponseWriter, err error) {
 	case errors.Is(err, ErrUserNotFound):
 		businessError(w, CodeUserNotFound, "User not found")
 	default:
+		logUserInfrastructureError(logger, r, err)
 		writeJSON(w, http.StatusInternalServerError, response{Code: 900000, Message: "Internal server error", Data: nil, Meta: map[string]any{}})
 	}
+}
+
+// logUserInfrastructureError records bounded request metadata for an unknown user-service failure.
+func logUserInfrastructureError(logger *slog.Logger, r *http.Request, err error) {
+	logger.ErrorContext(r.Context(), "user_request_failed",
+		"request_id", middleware.RequestIDFromContext(r.Context()),
+		"error", err,
+	)
 }
 
 type response struct {

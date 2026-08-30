@@ -13,6 +13,13 @@ import (
 	"github.com/TomyJan/MoeURL/internal/system"
 )
 
+// TestNewHandlerUsesDefaultLogger verifies the compatibility constructor remains safe without explicit logger wiring.
+func TestNewHandlerUsesDefaultLogger(t *testing.T) {
+	if handler := system.NewHandler(&fakeSystemService{}); handler == nil {
+		t.Fatal("expected handler")
+	}
+}
+
 // TestHandlerStatusReturnsInitializationPolicy verifies status exposes only safe initialization state.
 func TestHandlerStatusReturnsInitializationPolicy(t *testing.T) {
 	for _, test := range []struct {

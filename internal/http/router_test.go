@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -318,6 +320,94 @@ func TestRouterRegistersOptionalDependencies(t *testing.T) {
 	}
 }
 
+// TestRouterLogsUnknownInfrastructureErrorsWithInjectedLogger verifies every routed service uses the shared request logger for diagnostics.
+func TestRouterLogsUnknownInfrastructureErrorsWithInjectedLogger(t *testing.T) {
+	infrastructureErr := errors.New("database unavailable diagnostic")
+	tests := []struct {
+		name         string
+		dependencies apphttp.Dependencies
+		method       string
+		path         string
+		body         string
+		cookie       bool
+		logMessage   string
+	}{
+		{
+			name:         "current user",
+			dependencies: apphttp.Dependencies{CurrentUser: &routerCurrentUserResolver{err: infrastructureErr}, System: &routerSystemService{}},
+			method:       http.MethodGet,
+			path:         "/api/v1/init/status",
+			cookie:       true,
+			logMessage:   "auth_request_failed",
+		},
+		{
+			name:         "system",
+			dependencies: apphttp.Dependencies{System: &routerSystemService{err: infrastructureErr}},
+			method:       http.MethodGet,
+			path:         "/api/v1/init/status",
+			logMessage:   "system_request_failed",
+		},
+		{
+			name:         "authentication",
+			dependencies: apphttp.Dependencies{Auth: &routerAuthService{err: infrastructureErr}},
+			method:       http.MethodPost,
+			path:         "/api/v1/auth/login",
+			body:         `{}`,
+			logMessage:   "auth_request_failed",
+		},
+		{
+			name:         "short link",
+			dependencies: apphttp.Dependencies{ShortLink: &routerShortLinkService{err: infrastructureErr}},
+			method:       http.MethodGet,
+			path:         "/api/v1/short-link/overview",
+			logMessage:   "short_link_request_failed",
+		},
+		{
+			name:         "public preview",
+			dependencies: apphttp.Dependencies{Redirect: &routerRedirectService{err: infrastructureErr}},
+			method:       http.MethodGet,
+			path:         "/api/v1/public/short-link/preview?slug=abc123",
+			logMessage:   "short_link_preview_failed",
+		},
+		{
+			name:         "user",
+			dependencies: apphttp.Dependencies{User: &routerUserService{err: infrastructureErr}},
+			method:       http.MethodGet,
+			path:         "/api/v1/admin/user/list",
+			logMessage:   "user_request_failed",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var logs bytes.Buffer
+			test.dependencies.Logger = slog.New(slog.NewTextHandler(&logs, nil))
+			router := apphttp.NewRouter(test.dependencies)
+			request := httptest.NewRequestWithContext(t.Context(), test.method, test.path, bytes.NewBufferString(test.body))
+			request.Header.Set("X-Request-ID", "request-123")
+			if test.cookie {
+				request.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session-id"})
+			}
+			response := httptest.NewRecorder()
+
+			router.ServeHTTP(response, request)
+
+			if response.Code != http.StatusInternalServerError {
+				t.Fatalf("status = %d, want 500; body %q", response.Code, response.Body.String())
+			}
+			if strings.Contains(response.Body.String(), infrastructureErr.Error()) {
+				t.Fatalf("response exposed infrastructure error: %q", response.Body.String())
+			}
+			output := logs.String()
+			for _, expected := range []string{"msg=" + test.logMessage, "request_id=request-123", infrastructureErr.Error()} {
+				if !strings.Contains(output, expected) {
+					t.Fatalf("log missing %q: %q", expected, output)
+				}
+			}
+		})
+	}
+}
+
 // TestRouterRedirectServiceKeepsConfiguredIntermediateResultWithEmptyTarget verifies router redirect service keeps configured intermediate result with empty target.
 func TestRouterRedirectServiceKeepsConfiguredIntermediateResultWithEmptyTarget(t *testing.T) {
 	redirect := &routerRedirectService{
@@ -335,11 +425,13 @@ func TestRouterRedirectServiceKeepsConfiguredIntermediateResultWithEmptyTarget(t
 	}
 }
 
-type routerSystemService struct{}
+type routerSystemService struct {
+	err error
+}
 
 // IsInitialized implements the corresponding operation for the surrounding test double.
-func (routerSystemService) IsInitialized(context.Context) (bool, error) {
-	return false, nil
+func (service routerSystemService) IsInitialized(context.Context) (bool, error) {
+	return false, service.err
 }
 
 // SetupTokenRequired implements the setup policy query for router wiring tests.
@@ -348,14 +440,19 @@ func (routerSystemService) SetupTokenRequired() bool {
 }
 
 // Setup implements the corresponding operation for the surrounding test double.
-func (routerSystemService) Setup(context.Context, system.SetupInput) error {
-	return nil
+func (service routerSystemService) Setup(context.Context, system.SetupInput) error {
+	return service.err
 }
 
-type routerAuthService struct{}
+type routerAuthService struct {
+	err error
+}
 
 // Login implements the corresponding operation for the surrounding test double.
-func (routerAuthService) Login(context.Context, auth.LoginInput) (auth.LoginResult, error) {
+func (service routerAuthService) Login(context.Context, auth.LoginInput) (auth.LoginResult, error) {
+	if service.err != nil {
+		return auth.LoginResult{}, service.err
+	}
 	return auth.LoginResult{
 		User:    auth.GuestUser(),
 		Session: auth.Session{ID: "session-id", ExpiresAt: time.Now().Add(time.Hour)},
@@ -363,20 +460,22 @@ func (routerAuthService) Login(context.Context, auth.LoginInput) (auth.LoginResu
 }
 
 // Logout implements the corresponding operation for the surrounding test double.
-func (routerAuthService) Logout(context.Context, string) error {
-	return nil
+func (service routerAuthService) Logout(context.Context, string) error {
+	return service.err
 }
 
 // Me implements the corresponding operation for the surrounding test double.
-func (routerAuthService) Me(context.Context, string) (auth.CurrentUser, error) {
-	return auth.GuestUser(), nil
+func (service routerAuthService) Me(context.Context, string) (auth.CurrentUser, error) {
+	return auth.GuestUser(), service.err
 }
 
-type routerCurrentUserResolver struct{}
+type routerCurrentUserResolver struct {
+	err error
+}
 
 // ResolveCurrentUser implements the corresponding operation for the surrounding test double.
-func (routerCurrentUserResolver) ResolveCurrentUser(context.Context, string) (auth.CurrentUser, error) {
-	return auth.GuestUser(), nil
+func (resolver routerCurrentUserResolver) ResolveCurrentUser(context.Context, string) (auth.CurrentUser, error) {
+	return auth.GuestUser(), resolver.err
 }
 
 type recordingRouterCurrentUserResolver struct {
@@ -398,59 +497,62 @@ func (checker *routerHealthChecker) Ping(context.Context) error {
 	return checker.err
 }
 
-type routerShortLinkService struct{}
+type routerShortLinkService struct {
+	err error
+}
 
 // Overview implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) Overview(context.Context, auth.CurrentUser) (shortlink.OverviewResult, error) {
-	return shortlink.OverviewResult{}, nil
+func (service routerShortLinkService) Overview(context.Context, auth.CurrentUser) (shortlink.OverviewResult, error) {
+	return shortlink.OverviewResult{}, service.err
 }
 
 // Create implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) Create(context.Context, auth.CurrentUser, shortlink.CreateInput) (shortlink.CreateResult, error) {
-	return shortlink.CreateResult{}, nil
+func (service routerShortLinkService) Create(context.Context, auth.CurrentUser, shortlink.CreateInput) (shortlink.CreateResult, error) {
+	return shortlink.CreateResult{}, service.err
 }
 
 // List implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) List(context.Context, auth.CurrentUser, shortlink.ListInput) (shortlink.ListResult, error) {
-	return shortlink.ListResult{}, nil
+func (service routerShortLinkService) List(context.Context, auth.CurrentUser, shortlink.ListInput) (shortlink.ListResult, error) {
+	return shortlink.ListResult{}, service.err
 }
 
 // Update implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) Update(context.Context, auth.CurrentUser, shortlink.UpdateInput) (shortlink.CreateResult, error) {
-	return shortlink.CreateResult{}, nil
+func (service routerShortLinkService) Update(context.Context, auth.CurrentUser, shortlink.UpdateInput) (shortlink.CreateResult, error) {
+	return shortlink.CreateResult{}, service.err
 }
 
 // Delete implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) Delete(context.Context, auth.CurrentUser, shortlink.DeleteInput) error {
-	return nil
+func (service routerShortLinkService) Delete(context.Context, auth.CurrentUser, shortlink.DeleteInput) error {
+	return service.err
 }
 
 // Statistics implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) Statistics(context.Context, auth.CurrentUser, shortlink.StatisticsInput) (shortlink.StatisticsResult, error) {
-	return shortlink.StatisticsResult{}, nil
+func (service routerShortLinkService) Statistics(context.Context, auth.CurrentUser, shortlink.StatisticsInput) (shortlink.StatisticsResult, error) {
+	return shortlink.StatisticsResult{}, service.err
 }
 
 // AdminList implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) AdminList(context.Context, auth.CurrentUser, shortlink.ListInput) (shortlink.AdminListResult, error) {
-	return shortlink.AdminListResult{}, nil
+func (service routerShortLinkService) AdminList(context.Context, auth.CurrentUser, shortlink.ListInput) (shortlink.AdminListResult, error) {
+	return shortlink.AdminListResult{}, service.err
 }
 
 // AdminStatistics implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) AdminStatistics(context.Context, auth.CurrentUser, shortlink.StatisticsInput) (shortlink.StatisticsResult, error) {
-	return shortlink.StatisticsResult{}, nil
+func (service routerShortLinkService) AdminStatistics(context.Context, auth.CurrentUser, shortlink.StatisticsInput) (shortlink.StatisticsResult, error) {
+	return shortlink.StatisticsResult{}, service.err
 }
 
 // AdminUpdate implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) AdminUpdate(context.Context, auth.CurrentUser, shortlink.UpdateInput) (shortlink.CreateResult, error) {
-	return shortlink.CreateResult{}, nil
+func (service routerShortLinkService) AdminUpdate(context.Context, auth.CurrentUser, shortlink.UpdateInput) (shortlink.CreateResult, error) {
+	return shortlink.CreateResult{}, service.err
 }
 
 // AdminDelete implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) AdminDelete(context.Context, auth.CurrentUser, shortlink.DeleteInput) error {
-	return nil
+func (service routerShortLinkService) AdminDelete(context.Context, auth.CurrentUser, shortlink.DeleteInput) error {
+	return service.err
 }
 
 type routerRedirectService struct {
+	err                  error
 	openResult           shortlink.OpenResult
 	openResultConfigured bool
 	previewResult        shortlink.PreviewResult
@@ -473,6 +575,9 @@ func int16Pointer(value int16) *int16 {
 // Open implements the corresponding operation for the surrounding test double.
 func (service *routerRedirectService) Open(_ context.Context, slug string) (shortlink.OpenResult, error) {
 	service.openSlugs = append(service.openSlugs, slug)
+	if service.err != nil {
+		return shortlink.OpenResult{}, service.err
+	}
 	if !service.openResultConfigured {
 		return shortlink.OpenResult{RedirectMode: shortlink.RedirectModeDirect, RedirectResult: shortlink.RedirectResult{TargetURL: "https://example.com"}}, nil
 	}
@@ -483,6 +588,9 @@ func (service *routerRedirectService) Open(_ context.Context, slug string) (shor
 func (service *routerRedirectService) Preview(_ context.Context, slug string, accessToken string) (shortlink.PreviewResult, error) {
 	service.previewSlugs = append(service.previewSlugs, slug)
 	service.previewTokens = append(service.previewTokens, accessToken)
+	if service.err != nil {
+		return shortlink.PreviewResult{}, service.err
+	}
 	if service.previewResult.Slug == "" {
 		return shortlink.PreviewResult{Slug: "abc123", TargetHost: "example.com", IntermediateDelaySeconds: int16Pointer(5)}, nil
 	}
@@ -493,6 +601,9 @@ func (service *routerRedirectService) Preview(_ context.Context, slug string, ac
 func (service *routerRedirectService) Unlock(_ context.Context, slug string, password string) (shortlink.AccessGrant, error) {
 	service.unlockSlugs = append(service.unlockSlugs, slug)
 	service.unlockPassword = password
+	if service.err != nil {
+		return shortlink.AccessGrant{}, service.err
+	}
 	return service.unlockResult, nil
 }
 
@@ -500,37 +611,42 @@ func (service *routerRedirectService) Unlock(_ context.Context, slug string, pas
 func (service *routerRedirectService) Continue(_ context.Context, slug string, accessToken string) (shortlink.RedirectResult, error) {
 	service.continueSlugs = append(service.continueSlugs, slug)
 	service.continueToken = accessToken
+	if service.err != nil {
+		return shortlink.RedirectResult{}, service.err
+	}
 	if service.continueResult.TargetURL == "" {
 		return shortlink.RedirectResult{TargetURL: "https://example.com"}, nil
 	}
 	return service.continueResult, nil
 }
 
-type routerUserService struct{}
+type routerUserService struct {
+	err error
+}
 
 // Create implements the corresponding operation for the surrounding test double.
-func (routerUserService) Create(context.Context, auth.CurrentUser, user.CreateInput) (user.CreateResult, error) {
-	return user.CreateResult{}, nil
+func (service routerUserService) Create(context.Context, auth.CurrentUser, user.CreateInput) (user.CreateResult, error) {
+	return user.CreateResult{}, service.err
 }
 
 // List implements the corresponding operation for the surrounding test double.
-func (routerUserService) List(context.Context, auth.CurrentUser, user.ListInput) (user.ListResult, error) {
-	return user.ListResult{}, nil
+func (service routerUserService) List(context.Context, auth.CurrentUser, user.ListInput) (user.ListResult, error) {
+	return user.ListResult{}, service.err
 }
 
 // Update implements the corresponding operation for the surrounding test double.
-func (routerUserService) Update(context.Context, auth.CurrentUser, user.UpdateInput) (user.UpdateResult, error) {
-	return user.UpdateResult{}, nil
+func (service routerUserService) Update(context.Context, auth.CurrentUser, user.UpdateInput) (user.UpdateResult, error) {
+	return user.UpdateResult{}, service.err
 }
 
 // UpdateProfile implements the corresponding operation for the surrounding test double.
-func (routerUserService) UpdateProfile(context.Context, auth.CurrentUser, user.UpdateProfileInput) (user.UpdateProfileResult, error) {
-	return user.UpdateProfileResult{}, nil
+func (service routerUserService) UpdateProfile(context.Context, auth.CurrentUser, user.UpdateProfileInput) (user.UpdateProfileResult, error) {
+	return user.UpdateProfileResult{}, service.err
 }
 
 // ResetPassword implements the corresponding operation for the surrounding test double.
-func (routerUserService) ResetPassword(context.Context, auth.CurrentUser, user.ResetPasswordInput) error {
-	return nil
+func (service routerUserService) ResetPassword(context.Context, auth.CurrentUser, user.ResetPasswordInput) error {
+	return service.err
 }
 
 type routerUserGroupService struct {

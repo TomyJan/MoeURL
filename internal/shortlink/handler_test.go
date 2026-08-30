@@ -17,6 +17,13 @@ import (
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 )
 
+// TestNewHandlerUsesDefaultLogger verifies the compatibility constructor remains safe without explicit logger wiring.
+func TestNewHandlerUsesDefaultLogger(t *testing.T) {
+	if handler := shortlink.NewHandler(&fakeShortLinkService{}); handler == nil {
+		t.Fatal("expected handler")
+	}
+}
+
 // TestHandlerCreateShortLinkReturnsCreatedLink verifies the create response payload.
 func TestHandlerCreateShortLinkReturnsCreatedLink(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{

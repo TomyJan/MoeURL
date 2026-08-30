@@ -9,7 +9,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 1. [产品总览](product/overview.md)：了解 MoeURL 的定位、目标和核心原则。
 2. [v0.6.0 范围](product/scope-v0.6.0.md)：确认当前生产就绪版本的边界、部署目标和非目标。
 3. [v0.6.0 生产就绪设计](specs/2026-08-29-v0.6.0-production-readiness-design.md)：确认单机 Compose、外部 TLS 反向代理、安全、生命周期和运维设计。
-4. [v0.6.0 详细实现计划](implementation/v0.6.0-detailed-plan.md)：按 TDD 顺序实施生产就绪闭环。
+4. [v0.6.0 详细实现计划](implementation/v0.6.0-detailed-plan.md)：回看生产就绪闭环的 TDD 切片，并在 [v0.6.0 验收清单](implementation/v0.6.0-acceptance.md) 查看本机门禁和仍待目标环境验证的生产门禁。
 5. [v0.5.0 范围](product/scope-v0.5.0.md)：回看已完成的内置用户组权限管理边界。
 6. [v0.5.0 功能设计](specs/2026-08-20-v0.5.0-user-group-permission-management-design.md)：回看权限目录、预设、保护规则、并发和页面状态。
 7. [v0.4.0 范围](product/scope-v0.4.0.md)：回看已完成的确认页访问边界。
@@ -26,6 +26,12 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 18. [技术基线](implementation/technical-baseline.md)：确认仓库结构、模块边界、API、数据库、测试和部署约定。
 19. [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)：确认新版本、跨模块、review 修复、CI 门禁和生产化任务的统一执行约定。
 20. [实施文档](implementation/)：查看工程计划、阶段任务和验收记录。
+
+## 部署与运维
+
+- [单机 Docker Compose 部署](deployment/single-host-compose.md)：准备秘密、首次启动、Caddy/Nginx TLS 和来源级限流。
+- [PostgreSQL 备份与隔离恢复](deployment/backup-and-restore.md)：创建自定义格式备份并在隔离 project 验证恢复。
+- [升级、回退与灾难恢复](deployment/upgrade-and-recovery.md)：执行升级前检查、显式 migration、失败回退和主机丢失演练。
 
 ## 文档分层
 
@@ -70,7 +76,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 实施层文档位于 [implementation](implementation/) 目录，用于承载技术决策、技术基线、工程计划、任务拆分和验收记录。
 
-当前已完成到 v0.5.0 用户组权限管理，v0.6.0 生产就绪闭环已进入实施阶段。涉及生产部署时先阅读 v0.6.0 范围、设计和详细实现计划；涉及权限管理、确认页、v0.3.0 密码授权或 v0.2.0 中间页、过期时间、二维码、既有 API、schema、权限和验收口径时，继续参考对应范围、设计与验收文档。
+当前已完成到 v0.5.0 用户组权限管理，v0.6.0 生产就绪闭环的代码实现已完成、生产验收待目标环境证据。涉及生产部署时先阅读 v0.6.0 范围、设计、详细实现计划和验收清单；涉及权限管理、确认页、v0.3.0 密码授权或 v0.2.0 中间页、过期时间、二维码、既有 API、schema、权限和验收口径时，继续参考对应范围、设计与验收文档。
 
 当前实施层文档包括：
 

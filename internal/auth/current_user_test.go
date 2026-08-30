@@ -2,8 +2,10 @@ package auth_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
@@ -70,12 +72,40 @@ func TestCurrentUserMiddlewareResolvesSessionUser(t *testing.T) {
 	}
 }
 
+// TestCurrentUserMiddlewareRejectsUnknownResolverErrors verifies identity infrastructure failures cannot silently become guest access.
+func TestCurrentUserMiddlewareRejectsUnknownResolverErrors(t *testing.T) {
+	middleware := auth.CurrentUserMiddleware(&fakeCurrentUserResolver{err: errors.New("database down")})
+	nextCalled := false
+	handler := middleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		nextCalled = true
+	}))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
+	request.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session-id"})
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", response.Code)
+	}
+	if nextCalled {
+		t.Fatal("identity infrastructure failure reached the protected handler")
+	}
+	if strings.Contains(response.Body.String(), "database down") {
+		t.Fatalf("response exposed resolver error: %q", response.Body.String())
+	}
+}
+
 type fakeCurrentUserResolver struct {
 	user auth.CurrentUser
+	err  error
 }
 
 // ResolveCurrentUser implements the corresponding operation for the surrounding test double.
 func (f *fakeCurrentUserResolver) ResolveCurrentUser(ctx context.Context, sessionID string) (auth.CurrentUser, error) {
+	if f.err != nil {
+		return auth.GuestUser(), f.err
+	}
 	if f.user.Username == "" {
 		return auth.GuestUser(), nil
 	}

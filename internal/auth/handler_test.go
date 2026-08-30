@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -244,6 +246,23 @@ func TestAuthHandlerMeUsesSessionCookieAndFallsBackOnError(t *testing.T) {
 	}
 }
 
+// TestAuthHandlerDefaultConstructorAndMeInfrastructureFailure verifies safe logger fallback and sanitized failure handling.
+func TestAuthHandlerDefaultConstructorAndMeInfrastructureFailure(t *testing.T) {
+	serviceErr := errors.New("database down")
+	handler := auth.NewHandler(&fakeAuthService{loginErr: serviceErr}, false)
+	response := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/auth/me", nil)
+
+	handler.Me(response, request)
+
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", response.Code)
+	}
+	if strings.Contains(response.Body.String(), serviceErr.Error()) {
+		t.Fatalf("response exposed service error: %q", response.Body.String())
+	}
+}
+
 // TestAuthHandlerLogoutClearsCookie verifies auth handler logout clears cookie.
 func TestAuthHandlerLogoutClearsCookie(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
@@ -268,9 +287,38 @@ func TestAuthHandlerLogoutClearsCookie(t *testing.T) {
 	}
 }
 
+// TestAuthHandlerLogoutReportsRevocationFailure verifies logout does not discard the only cookie that can retry a failed revocation.
+func TestAuthHandlerLogoutReportsRevocationFailure(t *testing.T) {
+	var logs bytes.Buffer
+	serviceErr := errors.New("session store unavailable")
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		Logger: slog.New(slog.NewTextHandler(&logs, nil)),
+		Auth:   &fakeAuthService{logoutErr: serviceErr},
+	})
+	response := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/logout", nil)
+	request.Header.Set("X-Request-ID", "logout-request")
+	request.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session-id"})
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", response.Code)
+	}
+	if cookies := response.Result().Cookies(); len(cookies) != 0 {
+		t.Fatalf("failed logout changed %d cookies", len(cookies))
+	}
+	for _, expected := range []string{"msg=auth_request_failed", "operation=logout", "request_id=logout-request", serviceErr.Error()} {
+		if !strings.Contains(logs.String(), expected) {
+			t.Fatalf("log missing %q: %q", expected, logs.String())
+		}
+	}
+}
+
 type fakeAuthService struct {
 	loginResult auth.LoginResult
 	loginErr    error
+	logoutErr   error
 }
 
 // Login implements the corresponding operation for the surrounding test double.
@@ -280,7 +328,7 @@ func (f *fakeAuthService) Login(context.Context, auth.LoginInput) (auth.LoginRes
 
 // Logout implements the corresponding operation for the surrounding test double.
 func (f *fakeAuthService) Logout(context.Context, string) error {
-	return nil
+	return f.logoutErr
 }
 
 // Me implements the corresponding operation for the surrounding test double.

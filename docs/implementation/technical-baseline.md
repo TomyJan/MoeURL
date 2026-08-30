@@ -80,8 +80,11 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 │     ├─ entities/
 │     └─ shared/
 ├─ docs/
+│  └─ deployment/
 ├─ docker-compose.yml
+├─ docker-compose.dev.yml
 ├─ Dockerfile
+├─ scripts/
 ├─ go.mod
 ├─ go.sum
 └─ sqlc.yaml
@@ -106,6 +109,8 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 - `migrations/`：Goose 数据库迁移文件。
 - `queries/`：SQLC 查询定义。
 - `web/`：Vue 前端应用。
+- `docs/deployment/`：单机 Compose 部署、备份恢复、升级和灾难演练手册。
+- `scripts/compose-smoke.sh`：隔离验证 production Compose 配置、初始化和重启保留边界。
 
 ## 4. 后端分层规则
 
@@ -533,6 +538,7 @@ SQLC 生成文件必须使用文件头声明的版本重新生成，并保持零
 ```bash
 docker run --rm -v "$PWD:/src" -w /src sqlc/sqlc:1.30.0 generate
 git diff --exit-code -- internal/db/sqlc
+test -z "$(git ls-files --others --exclude-standard -- internal/db/sqlc)"
 ```
 
 ### 前端测试
@@ -556,7 +562,7 @@ cd web && pnpm test:e2e
 
 v0.2.0 将新增的短链创建、访问配置和二维码组件纳入覆盖率门禁。v0.3.0 还将密码设置、公开解锁和密码页纳入覆盖率门禁；v0.4.0 继续将确认模式权限矩阵、公开预览契约和确认页状态纳入门禁。v0.5.0 已将权限目录、预设、独立草稿、保护规则、冲突恢复和用户组管理页面纳入门禁。测试必须验证敏感数据不泄露、错误/限流/成功状态、授权失效、确认页不自动跳转和权限更新即时生效，不允许只断言 mock 调用次数。
 
-Playwright E2E 默认通过 `web/playwright.config.ts` 启动 Docker Compose 测试环境。E2E 必须使用独立的 Compose project name，默认由 `MOEURL_E2E_PORT` 派生，也可通过 `MOEURL_E2E_COMPOSE_PROJECT` 显式指定。E2E 同时通过 `MOEURL_E2E_PORT` 和 `MOEURL_E2E_POSTGRES_PORT` 隔离应用宿主端口与 PostgreSQL 宿主端口，避免和日常 Compose 或本机 PostgreSQL 端口冲突。E2E 显式以 `MOEURL_ENV=development` 运行测试应用，避免本地 HTTP 流程受 Secure Cookie 影响。E2E 可以在该隔离测试项目内执行 `down -v` 清理测试卷，但不得清理日常 `docker compose up --build` 使用的默认开发数据库卷。
+Playwright E2E 默认通过 `web/playwright.config.ts` 启动 Docker Compose 测试环境。E2E 必须使用独立的 Compose project name，默认由 `MOEURL_E2E_PORT` 派生，也可通过 `MOEURL_E2E_COMPOSE_PROJECT` 显式指定；最终名称必须使用带非空后缀的 `moeurl-e2e-` 保留前缀，生产和日常开发 project 不得使用该命名空间。E2E 通过 `MOEURL_E2E_PORT` 隔离应用宿主端口，并为内部 PostgreSQL 生成本次运行专用密码；默认 Compose 不再映射 PostgreSQL 宿主端口。E2E 显式以 `MOEURL_ENV=development` 运行测试应用，避免本地 HTTP 流程受 Secure Cookie 影响。E2E 可以在该隔离测试项目内执行 `down -v` 清理测试卷，但不得清理日常生产或开发数据库卷。
 
 初始化 UI 流程由 `web/e2e/initialize.setup.ts` 的 Playwright `setup` project 先执行；业务 spec 依赖该 project 后可并行运行，受保护访问 spec 仍在文件内显式串行。
 
@@ -566,22 +572,23 @@ v0.2.0 访问体验 E2E 必须覆盖真实 `/{slug}` 入口、进入中间页前
 
 ### 质量检查工作流
 
-GitHub Actions 使用单个 `Check Code` 工作流文件。该工作流包含 6 个互相独立的并行任务：
+GitHub Actions 使用单个 `Check Code` 工作流文件。该工作流包含 9 个互相独立的并行任务：
 
 - `Lint`
 - `Typecheck`
 - `Test`
 - `Test Coverage`
+- `Backend Security`
 - `E2E`
 - `Build`
+- `Image Security`
+- `Compose Smoke`
 
 工作流支持手动触发，在提交到 `master` 和面向 `master` 的 PR 时触发。外部贡献者 PR 是否自动运行由仓库 Actions 安全策略控制，工作流本身不使用 `pull_request_target`。
 
 ## 13. 部署约定
 
-截至 v0.5.0，仓库提供的默认 Docker Compose 主要用于本地运行、E2E 和部署验证：它仍使用固定数据库密码、默认映射 PostgreSQL 宿主机端口，并将应用端口绑定到所有宿主机地址，不能单凭 `MOEURL_ENV=production` 视为已经完成生产安全加固。
-
-v0.6.0 的首个生产支持边界为单机 Docker Compose + 外部 TLS 反向代理，实施目标见 [v0.6.0 范围](../product/scope-v0.6.0.md) 和 [生产就绪设计](../specs/2026-08-29-v0.6.0-production-readiness-design.md)。在该版本验收前，当前 Compose 的实际行为仍以本节后续说明和 `docker-compose.yml` 为准。
+v0.6.0 的首个生产支持边界为单机 Docker Compose + 外部 TLS 反向代理，详细步骤见 [单机 Docker Compose 部署](../deployment/single-host-compose.md)。该边界不包含内置代理、高可用、Kubernetes 或跨主机故障转移。
 
 部署结构为：
 
@@ -600,15 +607,18 @@ Go 服务负责：
 
 前端构建产物应复制到 Go 服务镜像中。
 
-标准本地部署命令：
+标准部署命令：
 
 ```bash
-docker compose up --build
+docker compose --env-file .env config >/dev/null
+docker compose --env-file .env up --build -d
 ```
 
-该命令应启动应用服务和 PostgreSQL，并允许通过 `/api/v1/health` 验证服务状态。默认 Compose 环境使用 `MOEURL_ENV=production`，启用 Cookie `Secure` 语义；这不代表当前端口、凭据、健康检查和备份边界已经满足生产要求。本地 HTTP 调试或裸机开发如需非 Secure Cookie，应显式使用开发环境变量启动后端。
+默认 Compose 要求显式提供 `MOEURL_POSTGRES_PASSWORD`。PostgreSQL 不映射宿主机端口；App 默认仅绑定 `127.0.0.1:8080`，以 UID/GID `10001:10001` 运行，并启用只读根文件系统、`/tmp` tmpfs、init、readiness healthcheck 和 `unless-stopped` 重启策略。App 的 `stop_grace_period` 固定为 20 秒，必须长于应用内部 15 秒统一关闭期限。production 还由应用启动校验强制要求 `MOEURL_SETUP_TOKEN`。外部 TLS 代理负责公网 HTTPS、HSTS、可信转发头和登录、初始化、公开解锁端点的来源级限流。
 
-默认 Compose 项目的 PostgreSQL 数据保存在命名卷 `postgres-data` 中，挂载点保持为 `/var/lib/postgresql`。PostgreSQL 宿主端口默认映射为 `5432`，可通过 `MOEURL_POSTGRES_PORT` 改写；容器内应用连接仍固定使用 `postgres:5432`。普通 `docker compose up --build`、`docker compose down` 和再次启动不得重置数据库、管理员账号或短链数据；只有显式执行 `docker compose down -v` 才会删除默认开发数据卷。
+默认 Compose 项目的 PostgreSQL 数据保存在命名卷 `postgres-data` 中，挂载点保持为 `/var/lib/postgresql`。普通 `up`、`down` 和再次启动不得重置数据库、管理员账号或短链数据；`down -v` 会永久删除目标 project 的数据库，执行前必须确认 project 并验证卷外备份。本地确需直连数据库时显式叠加 `docker-compose.dev.yml`，该覆盖只把 PostgreSQL 绑定到宿主机回环地址。
+
+逻辑备份使用 PostgreSQL 自定义格式并保存到卷外；恢复必须先在隔离数据库或隔离 Compose project 验证 migration 版本、内置组、管理员登录、样例短链和访问配置。详细流程见 [备份与隔离恢复](../deployment/backup-and-restore.md) 和 [升级、回退与灾难恢复](../deployment/upgrade-and-recovery.md)。
 
 裸机运行时应先完成以下步骤：
 
@@ -628,9 +638,10 @@ MOEURL_HTTP_ADDR
 MOEURL_DATABASE_URL
 MOEURL_STATIC_DIR
 MOEURL_ANALYTICS_COUNTRY_HEADER
+MOEURL_SETUP_TOKEN
 ```
 
-v0.6.0 设计新增 `MOEURL_SETUP_TOKEN`，只有对应实现合入并通过配置测试后才成为现行契约。Compose 使用的宿主端口和数据库变量属于部署插值，不等同于 Go 应用直接读取的配置。
+Compose 还读取 `MOEURL_HTTP_HOST`、`MOEURL_HTTP_PORT` 和 `MOEURL_POSTGRES_PASSWORD`；只有叠加开发覆盖文件时才读取 `MOEURL_POSTGRES_HOST` 与 `MOEURL_POSTGRES_PORT`。这些变量属于部署插值，不等同于 Go 应用直接读取的配置。production 的 `MOEURL_SETUP_TOKEN` 至少为 32 个字符，初始化完成后仍必须保留用于后续启动校验。
 
 敏感配置不得提交到仓库。
 

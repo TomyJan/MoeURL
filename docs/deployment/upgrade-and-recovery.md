@@ -1,0 +1,192 @@
+# 升级、回退与灾难恢复
+
+## 1. 升级原则
+
+MoeURL App 启动前会自动运行 Goose migration。数据库迁移可能先于新进程监听端口，因此每次升级都必须先创建并校验卷外逻辑备份。不要把容器镜像回退等同于数据库回退；只有确认旧代码与新 schema 兼容，或明确执行了经过测试的 migration Down，才能完成整体回退。
+
+生产升级应安排维护窗口，记录当前 Git 提交、镜像 ID、Compose 解析结果、数据库 migration 版本和备份校验和。升级前还必须保存当前加固 Compose 的原始模板；不能保存 `docker compose config` 的渲染输出，因为其中包含数据库密码和初始化 Token。
+
+## 2. 升级前检查
+
+先在受保护的部署状态目录保存升级前 SHA、当前未渲染的加固 Compose 和正在运行的 App 镜像。以下变量需要在同一维护 Shell 中保留；重新登录后应从相同目录和值恢复：
+
+```bash
+DEPLOY_ROOT="$(pwd -P)"
+DEPLOY_PROJECT=moeurl
+DEPLOY_STATE=/var/lib/moeurl/deployment-state
+DEPLOY_COMPOSE="$DEPLOY_ROOT/docker-compose.yml"
+DEPLOY_ENV="$DEPLOY_ROOT/.env"
+sudo install -d -m 700 -o "$(id -un)" -g "$(id -gn)" "$DEPLOY_STATE"
+ROLLBACK_COMPOSE="$DEPLOY_STATE/docker-compose.rollback.yml"
+install -m 600 "$DEPLOY_COMPOSE" "$ROLLBACK_COMPOSE"
+git -C "$DEPLOY_ROOT" rev-parse HEAD > "$DEPLOY_STATE/upgrade-from-commit"
+printf '%s\n' "$DEPLOY_PROJECT" > "$DEPLOY_STATE/project-name"
+chmod 600 "$DEPLOY_STATE/upgrade-from-commit"
+chmod 600 "$DEPLOY_STATE/project-name"
+grep -F '${MOEURL_POSTGRES_PASSWORD:?required}' "$ROLLBACK_COMPOSE" >/dev/null
+
+production_compose() {
+  docker compose \
+    --project-name "$DEPLOY_PROJECT" \
+    --project-directory "$DEPLOY_ROOT" \
+    --env-file "$DEPLOY_ENV" \
+    -f "$DEPLOY_COMPOSE" \
+    "$@"
+}
+production_compose config >/dev/null
+app_container_id="$(production_compose ps -q app)"
+test -n "$app_container_id"
+app_project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$app_container_id")"
+test "$app_project" = "$DEPLOY_PROJECT"
+
+service_image_ref="$(docker inspect -f '{{.Config.Image}}' "$app_container_id")"
+running_image_id="$(docker inspect -f '{{.Image}}' "$app_container_id")"
+test -n "$service_image_ref"
+test -n "$running_image_id"
+rollback_suffix="$(printf '%s' "$running_image_id" | sed 's/^sha256://' | cut -c1-12)"
+rollback_image_tag="moeurl-rollback:${DEPLOY_PROJECT}-$(date -u +%Y%m%dT%H%M%SZ)-$rollback_suffix"
+docker image tag "$running_image_id" "$rollback_image_tag"
+test "$(docker image inspect -f '{{.Id}}' "$rollback_image_tag")" = "$running_image_id"
+
+printf '%s\n' "$rollback_image_tag" > "$DEPLOY_STATE/rollback-image-tag"
+printf '%s\n' "$running_image_id" > "$DEPLOY_STATE/rollback-image-id"
+printf '%s\n' "$service_image_ref" > "$DEPLOY_STATE/service-image-ref"
+chmod 600 \
+  "$DEPLOY_STATE/rollback-image-tag" \
+  "$DEPLOY_STATE/rollback-image-id" \
+  "$DEPLOY_STATE/service-image-ref"
+```
+
+`DEPLOY_PROJECT` 必须与 `docker compose ls` 显示的现有生产 project 及 App 容器标签完全一致；不是 `moeurl` 时先替换示例值。`ROLLBACK_COMPOSE` 只复制仓库中的插值模板，不执行重定向到文件的 `docker compose config`，因此不会把 `.env` 中的秘密落盘。唯一的 `rollback_image_tag` 绑定升级前实际运行的 image ID，应视为本次维护窗口的不可变资产，不得覆盖或复用。维护、回退验收和备份确认全部结束前，不得执行 `docker image prune`、系统自动镜像清理或删除该 tag。
+
+这些文件只保存非秘密的部署身份和镜像身份，但仍放在权限为 `700` 的状态目录中，防止被非部署账号篡改。前向升级必须使用目标提交自己的 `docker-compose.yml`，以便目标版本新增的配置和镜像约定生效。
+
+升级前使用当前提交的 Compose 检查同一 project：
+
+```bash
+git -C "$DEPLOY_ROOT" rev-parse HEAD
+production_compose images
+production_compose ps
+production_compose config >/dev/null
+production_compose config --volumes | grep -Fx postgres-data >/dev/null
+curl --fail --silent https://go.example.com/api/v1/health/ready
+```
+
+按照 [备份与隔离恢复](backup-and-restore.md) 创建自定义格式备份，至少完成 `test -s`、`pg_restore --list` 和 SHA-256 校验。高风险升级应先用候选代码在隔离 project 恢复该备份并跑完恢复验收。
+
+## 3. 构建、迁移和切换
+
+检出已经审核的目标提交后，使用目标提交的 Compose 离线解析与构建，不停止当前服务：
+
+```bash
+git -C "$DEPLOY_ROOT" checkout --detach '<target-commit-sha>'
+TARGET_COMPOSE="$DEPLOY_ROOT/docker-compose.yml"
+target_compose() {
+  docker compose \
+    --project-name "$DEPLOY_PROJECT" \
+    --project-directory "$DEPLOY_ROOT" \
+    --env-file "$DEPLOY_ROOT/.env" \
+    -f "$TARGET_COMPOSE" \
+    "$@"
+}
+target_compose config >/dev/null
+target_compose config --volumes | grep -Fx postgres-data >/dev/null
+target_compose build --pull app
+```
+
+确认 PostgreSQL 健康，再用一次性 App 容器显式执行 migration：
+
+```bash
+target_compose up -d postgres
+postgres_id="$(target_compose ps -q postgres)"
+test -n "$postgres_id"
+deadline=$(( $(date +%s) + 120 ))
+until [ "$(docker inspect -f '{{.State.Health.Status}}' "$postgres_id")" = healthy ]; do
+  [ "$(date +%s)" -lt "$deadline" ] || { echo 'postgres health timeout' >&2; exit 1; }
+  sleep 1
+done
+target_compose run --rm --no-deps \
+  --entrypoint /bin/sh app -c \
+  'exec /app/goose -dir /app/migrations postgres "$MOEURL_DATABASE_URL" up'
+```
+
+该命令成功后切换 App：
+
+```bash
+target_compose up -d --no-deps app
+```
+
+使用有界轮询等待 readiness，并检查日志：
+
+```bash
+deadline=$(( $(date +%s) + 120 ))
+until curl --fail --silent http://127.0.0.1:8080/api/v1/health/ready >/dev/null; do
+  [ "$(date +%s)" -lt "$deadline" ] || { echo 'readiness timeout' >&2; exit 1; }
+  sleep 1
+done
+target_compose logs --since 10m app
+```
+
+最后通过公网 HTTPS 验证管理员登录、短链创建/列表、样例 direct、intermediate、confirmation 跳转及统计。确认代理仍发送 HSTS，登录、初始化和公开解锁限流仍生效。
+
+## 4. 失败处理与回退
+
+若构建失败或 migration 尚未执行，保持旧容器运行，修复后重试即可。若 migration 成功但新 App 未就绪：
+
+1. 保存 App 日志、容器状态和 readiness 响应。
+2. 查阅目标 migration 的 Down 数据影响。
+3. 优先使用与新 schema 兼容的旧镜像临时恢复服务。
+4. 仅在确认必须回退 schema 时，停止 App、再次备份当前失败状态，然后执行精确 migration Down。
+
+v0.6.0 的 `00011` Down 会删除登录失败临时状态并解除相应临时阻断，但不修改用户、Session 或短链数据。其他历史 migration 可能有不可逆规范化，不能批量执行未知数量的 Down。
+
+首选回退路径直接恢复升级前保存的镜像，不依赖源码 checkout、依赖下载或再次构建。保存的加固 Compose 继续提供当前数据库密码、私有 PostgreSQL 网络和回环 App 绑定：
+
+```bash
+UPGRADE_FROM_COMMIT="$(cat "$DEPLOY_STATE/upgrade-from-commit")"
+DEPLOY_PROJECT="$(cat "$DEPLOY_STATE/project-name")"
+rollback_image_tag="$(cat "$DEPLOY_STATE/rollback-image-tag")"
+running_image_id="$(cat "$DEPLOY_STATE/rollback-image-id")"
+service_image_ref="$(cat "$DEPLOY_STATE/service-image-ref")"
+rollback_compose() {
+  docker compose \
+    --project-name "$DEPLOY_PROJECT" \
+    --project-directory "$DEPLOY_ROOT" \
+    --env-file "$DEPLOY_ROOT/.env" \
+    -f "$ROLLBACK_COMPOSE" \
+    "$@"
+}
+rollback_compose config >/dev/null
+rollback_compose config --volumes | grep -Fx postgres-data >/dev/null
+test "$(docker image inspect -f '{{.Id}}' "$rollback_image_tag")" = "$running_image_id"
+docker image tag "$rollback_image_tag" "$service_image_ref"
+test "$(docker image inspect -f '{{.Id}}' "$service_image_ref")" = "$running_image_id"
+rollback_compose up --detach --no-build --force-recreate --no-deps app
+```
+
+只有当保存的 tag 和 image ID 已无法从本机镜像存储恢复时，才使用 `UPGRADE_FROM_COMMIT` 检出升级前提交并通过 `rollback_compose build app` 重建；该路径依赖源码、构建依赖和外部下载，不是首选回退方式。不能依赖浮动分支名，也不得改用旧提交中的 `docker-compose.yml`，否则会重新引入旧部署默认值。重建完成后仍应记录新 image ID，再使用 `--force-recreate --no-deps` 只替换 App。
+
+前向和回退命令使用相同的 `--project-name`、`--project-directory`，并在切换前验证相同的 `postgres-data` 逻辑卷键，因此继续操作同一 Compose project 与数据库命名卷。回退 App 后重复 readiness 和业务验收。若需要恢复升级前备份：
+
+> **数据破坏警告：** 用备份覆盖生产数据库会丢失备份创建之后的全部写入。执行前必须停止 App、确认 Compose project、保存当前失败数据库的独立备份，并由负责人确认恢复点目标。
+
+先在隔离 project 证明备份可恢复，再按维护窗口的恢复方案重建生产数据库。不得在仍接收流量的数据库上直接使用 `pg_restore --clean`。
+
+## 5. 灾难恢复演练
+
+至少定期模拟以下场景：
+
+- 应用容器丢失，但 PostgreSQL 卷仍在：重建 App，验证 migration、readiness 和数据保留。
+- 整台主机丢失：在另一台干净主机准备 Docker、Compose、受保护的 `.env` 和卷外备份。
+- PostgreSQL 卷不可用：按 [备份与隔离恢复](backup-and-restore.md) 在新卷恢复，不复用损坏卷。
+
+主机丢失演练的验收项：
+
+1. `goose_db_version` 的最大已应用版本为 `11`。
+2. `guest`、`user`、`admin` 三个内置组存在。
+3. 恢复出的管理员可以登录。
+4. 预先登记的样例短链、跳转模式、倒计时、过期时间和密码启用状态一致。
+5. 外部 HTTPS、HSTS、可信转发头和三个敏感端点的来源级限流有效。
+6. 演练结束后只清理隔离 project，生产容器、网络和卷不受影响。
+
+每次演练记录恢复点目标（RPO）、实际恢复耗时（RTO）、备份校验和、软件版本、失败步骤和改进项。v0.6.0 不承诺自动故障转移，实际 RPO/RTO 由备份频率、备份传输和人工恢复流程决定。

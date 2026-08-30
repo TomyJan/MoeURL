@@ -2,7 +2,7 @@
 
 MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
 
-当前已完成到 v0.5.0 用户组权限管理闭环：在短链管理、统计分析和三种跳转模式基础上，管理员可以查看三个内置用户组，并通过稳定权限目录、三个预设和乐观并发安全编辑 `user`、`admin` 权限。v0.6.0 已进入生产就绪实施阶段，目标部署形态为单机 Docker Compose + 外部 TLS 反向代理。
+当前已完成到 v0.5.0 用户组权限管理闭环：在短链管理、统计分析和三种跳转模式基础上，管理员可以查看三个内置用户组，并通过稳定权限目录、三个预设和乐观并发安全编辑 `user`、`admin` 权限。v0.6.0 的生产就绪代码实现已完成，目标部署形态为单机 Docker Compose + 外部 TLS 反向代理；目标运行时、安全扫描、真实容器 smoke、隔离恢复和远程 CI 证据补齐前，版本仍处于生产验收阶段。
 
 ## 功能概览
 
@@ -29,7 +29,7 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 - 状态：Pinia、TanStack Query for Vue。
 - 包管理：pnpm。
 - 测试：go test、Vitest、Playwright、testcontainers-go。
-- 部署：Docker、Docker Compose，也支持裸机运行。
+- 部署：生产支持单机 Docker Compose + 外部 TLS 反向代理；开发环境可裸机运行。
 
 ## 文档
 
@@ -41,6 +41,9 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 - [v0.6.0 详细实现计划](./docs/implementation/v0.6.0-detailed-plan.md)
 - [v0.6.0 任务级实施清单](./docs/implementation/v0.6.0-tasks.md)
 - [v0.6.0 验收清单](./docs/implementation/v0.6.0-acceptance.md)
+- [单机 Docker Compose 部署](./docs/deployment/single-host-compose.md)
+- [PostgreSQL 备份与隔离恢复](./docs/deployment/backup-and-restore.md)
+- [升级、回退与灾难恢复](./docs/deployment/upgrade-and-recovery.md)
 - [v0.5.0 范围](./docs/product/scope-v0.5.0.md)
 - [v0.5.0 用户组权限管理设计](./docs/specs/2026-08-20-v0.5.0-user-group-permission-management-design.md)
 - [v0.5.0 实施计划](./docs/implementation/v0.5.0-plan.md)
@@ -68,55 +71,50 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 ## Docker 运行
 
-> 当前 v0.5.0 的默认 Compose 用于本地运行和验证，尚未完成 v0.6.0 生产硬化：它包含固定数据库密码、默认映射 PostgreSQL 宿主机端口，并将应用端口绑定到所有宿主机地址。生产部署应等待 [v0.6.0 生产就绪范围](./docs/product/scope-v0.6.0.md) 实现并验收，或由部署者自行提供等价的凭据、网络、健康检查、反向代理和备份保护。
+默认 Compose 面向单机生产拓扑：PostgreSQL 不映射宿主机端口，App 默认只绑定 `127.0.0.1:8080`，由外部 TLS 反向代理提供公网 HTTPS、HSTS 和来源级限流。生产使用前请完整阅读 [单机 Docker Compose 部署](./docs/deployment/single-host-compose.md)。
+
+先创建权限受限的 `.env`，并为数据库密码和初始化 Token 生成独立的至少 32 字符随机值。`.env.example` 只提供变量入口，不提供可用的默认秘密：
 
 ```bash
-docker compose up --build
+set +x
+umask 077
+{
+  printf 'MOEURL_ENV=production\n'
+  printf 'MOEURL_HTTP_HOST=127.0.0.1\n'
+  printf 'MOEURL_HTTP_PORT=8080\n'
+  printf 'MOEURL_POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 32)"
+  printf 'MOEURL_SETUP_TOKEN=%s\n' "$(openssl rand -hex 32)"
+} > .env
+chmod 600 .env
 ```
-
-可复制 `.env.example` 为 `.env` 后再按需调整 Compose 端口和运行环境；未提供 `.env` 时，Compose 使用 `docker-compose.yml` 中的当前插值默认值。默认 `MOEURL_ENV=production` 只启用 Secure Cookie 等运行语义，不代表当前 Compose 已满足完整生产安全要求。`.env.example` 中的 `MOEURL_ENV` 为 `development`，Compose 不会自动加载 `.env.example`。
-
-如果宿主机 `8080` 已被占用，可以临时指定宿主端口：
 
 ```bash
-$env:MOEURL_HTTP_PORT="18080"
-docker compose up --build
+docker compose --env-file .env config >/dev/null
+docker compose --env-file .env up --build -d
+docker compose --env-file .env ps
 ```
 
-如果宿主机 `5432` 已被其他 PostgreSQL 服务占用，可以临时指定 PostgreSQL 宿主端口：
+启动后在宿主机检查 readiness：
 
 ```bash
-$env:MOEURL_POSTGRES_PORT="15432"
-docker compose up --build
+curl --fail http://127.0.0.1:8080/api/v1/health/ready
 ```
 
-启动后访问：
-
-```text
-http://localhost:8080
-http://localhost:8080/api/v1/health
-```
-
-如果设置了 `MOEURL_HTTP_PORT`，请把示例中的宿主端口替换为该变量的值。例如 `MOEURL_HTTP_PORT=18080` 时访问：
-
-```text
-http://localhost:18080
-http://localhost:18080/api/v1/health
-```
+通过外部 HTTPS 入口访问 `/setup`，使用 `.env` 中的初始化 Token 完成首次配置。初始化后仍需保留 `MOEURL_SETUP_TOKEN`，production 启动会继续校验它。
 
 停止容器但保留数据库数据：
 
 ```bash
-docker compose down
+docker compose --env-file .env down
 ```
 
-只有确认要重置本地数据库、管理员账号和短链数据时，才清理本地数据卷：
+本地开发确需直连 PostgreSQL 时，显式叠加开发覆盖文件；数据库仍只绑定本机回环地址：
 
 ```bash
-docker compose down -v
+docker compose --env-file .env -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
 
-当前 Compose 使用 PostgreSQL 18，数据卷挂载在 `/var/lib/postgresql`。默认 Compose 设置 `MOEURL_ENV=production`，登录 Cookie 因此带有 `Secure`；端口、凭据和健康检查仍保持 v0.5.0 的本地运行基线。本地 HTTP 调试如需非 Secure Cookie，应显式设置 `MOEURL_ENV=development`。普通 `docker compose up --build`、`docker compose down` 和再次启动不会重置数据库。`docker compose down -v` 会删除默认 Compose 项目的数据库卷，执行后需要重新初始化管理员账号。
+普通 `down` 和再次启动会保留 `/var/lib/postgresql` 上的命名卷。`docker compose down -v` 会永久删除目标 project 的管理员、短链和全部数据库内容；只有在核对 project、验证卷外备份并明确需要销毁数据时才能执行。备份与恢复步骤见 [PostgreSQL 备份与隔离恢复](./docs/deployment/backup-and-restore.md)，升级步骤见 [升级、回退与灾难恢复](./docs/deployment/upgrade-and-recovery.md)。
 
 ## 裸机运行
 
@@ -231,23 +229,16 @@ $env:MOEURL_E2E_PORT="18080"
 pnpm test:e2e
 ```
 
-如果宿主机 `5432` 也已被默认 Compose 或本地 PostgreSQL 占用，可同时指定 E2E PostgreSQL 宿主端口：
-
-```bash
-cd web
-$env:MOEURL_E2E_PORT="18080"
-$env:MOEURL_E2E_POSTGRES_PORT="15432"
-pnpm test:e2e
-```
-
-E2E 会使用独立的 Compose project name、独立应用宿主端口和独立 PostgreSQL 宿主端口，并显式以 `MOEURL_ENV=development` 运行测试应用，避免本地 HTTP 测试受 Secure Cookie 影响。E2E 只清理该测试项目的数据卷，不会删除日常 `docker compose up --build` 使用的默认开发数据库卷。如需指定测试项目名，可设置 `MOEURL_E2E_COMPOSE_PROJECT`。
+E2E 会使用独立的 Compose project name、独立应用宿主端口和本次运行专用数据库密码，并显式以 `MOEURL_ENV=development` 运行测试应用，避免本地 HTTP 测试受 Secure Cookie 影响。PostgreSQL 不映射宿主机端口。E2E 只清理该测试 project 的数据卷，不会删除日常生产或开发数据库卷。如需指定测试 project 名，可设置 `MOEURL_E2E_COMPOSE_PROJECT`；最终名称必须使用带非空后缀的 `moeurl-e2e-` 保留前缀，日常开发和生产 project 不得使用该命名空间。
 
 项目要求后端和前端测试覆盖率均达到 100%。当前 CI 已配置覆盖率门禁，未达到 100% 时会失败。
 
 Docker Compose 验证：
 
 ```bash
-docker compose up --build
+docker compose --env-file .env config >/dev/null
+bash scripts/compose-smoke.sh --config-only
+bash scripts/compose-smoke.sh
 ```
 
 启动后访问：
@@ -257,6 +248,6 @@ http://localhost:8080/api/v1/health
 http://localhost:8080/setup
 ```
 
-如果通过 `MOEURL_HTTP_PORT` 指定了应用宿主端口，请使用对应端口访问。例如 `MOEURL_HTTP_PORT=18080` 时访问 `http://localhost:18080/api/v1/health` 和 `http://localhost:18080/setup`。如果通过 `MOEURL_POSTGRES_PORT` 指定了 PostgreSQL 宿主端口，只影响宿主机访问数据库，容器内应用仍通过 `postgres:5432` 连接。
+如果通过 `MOEURL_HTTP_PORT` 指定了应用宿主端口，请使用对应端口访问。例如 `MOEURL_HTTP_PORT=18080` 时访问 `http://localhost:18080/api/v1/health` 和 `http://localhost:18080/setup`。生产 Compose 不提供 PostgreSQL 宿主端口；本地直连必须显式叠加 `docker-compose.dev.yml`。
 
 `/api/v1/health` 应返回 `code` 为 `0` 且 `status` 为 `ok` 的响应。未初始化环境访问 `/setup` 应进入首次初始化流程。
