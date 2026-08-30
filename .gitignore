@@ -3,6 +3,9 @@ node_modules/
 .pnpm-store/
 .gocache/
 .tmp/
+.tmp-go-cache-task4/
+
+# Local visual verification screenshots
 .codex-screenshots/
 
 # Build outputs
@@ -26,5 +29,3 @@ web/coverage/
 # Local brainstorming prototypes
 .superpowers/brainstorm/
 
-# Local visual verification screenshots
-.codex-screenshots/
