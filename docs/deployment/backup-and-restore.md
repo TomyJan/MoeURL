@@ -39,8 +39,9 @@ test "$postgres_project" = "$DEPLOY_PROJECT"
 
 ```bash
 umask 077
-install -d -m 700 "$DEPLOY_ROOT/backups"
-backup_file="$DEPLOY_ROOT/backups/moeurl-$(date -u +%Y%m%dT%H%M%SZ).dump"
+BACKUP_ROOT=/var/lib/moeurl/backups
+install -d -m 700 "$BACKUP_ROOT"
+backup_file="$BACKUP_ROOT/moeurl-$(date -u +%Y%m%dT%H%M%SZ).dump"
 production_compose exec -T postgres \
   pg_dump -U moeurl -d moeurl -Fc > "$backup_file"
 chmod 600 "$backup_file"
@@ -50,7 +51,7 @@ chmod 600 "$backup_file"
 
 ```bash
 test -s "$backup_file"
-docker run --rm -v "$DEPLOY_ROOT/backups:/backup:ro" postgres:18-alpine \
+docker run --rm -v "$BACKUP_ROOT:/backup:ro" postgres:18-alpine \
   pg_restore --list "/backup/$(basename "$backup_file")" >/dev/null
 sha256sum "$backup_file" > "$backup_file.sha256"
 sha256sum --check "$backup_file.sha256"
@@ -62,12 +63,13 @@ sha256sum --check "$backup_file.sha256"
 
 ## 3. 隔离恢复演练
 
-恢复测试不得指向生产 project 或生产数据库。以下示例使用固定隔离 project `moeurl-restore-drill` 和独立宿主端口。先创建权限为 `600` 的 `restore.env`，使用新生成的数据库密码与至少 32 字符的初始化 Token：
+恢复测试不得指向生产 project 或生产数据库。以下示例使用固定隔离 project `moeurl-restore-drill` 和独立宿主端口。所有备份和恢复临时文件都放在仓库外的受保护运维目录，避免进入 Git 或 Docker 构建上下文。先创建权限为 `600` 的恢复环境文件，使用新生成的数据库密码与至少 32 字符的初始化 Token：
 
 先显式选择并校验要恢复的备份；不要依赖创建备份章节遗留的 Shell 变量：
 
 ```bash
-backup_file='./backups/moeurl-<UTC-timestamp>.dump'
+BACKUP_ROOT=/var/lib/moeurl/backups
+backup_file="$BACKUP_ROOT/moeurl-<UTC-timestamp>.dump"
 test -s "$backup_file"
 sha256sum --check "$backup_file.sha256"
 ```
@@ -75,14 +77,16 @@ sha256sum --check "$backup_file.sha256"
 ```bash
 set +x
 umask 077
+RESTORE_STATE=/var/lib/moeurl/restore-drill
+install -d -m 700 "$RESTORE_STATE"
 {
   printf 'MOEURL_ENV=production\n'
   printf 'MOEURL_HTTP_HOST=127.0.0.1\n'
   printf 'MOEURL_HTTP_PORT=18082\n'
   printf 'MOEURL_POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 32)"
   printf 'MOEURL_SETUP_TOKEN=%s\n' "$(openssl rand -hex 32)"
-} > restore.env
-chmod 600 restore.env
+} > "$RESTORE_STATE/restore.env"
+chmod 600 "$RESTORE_STATE/restore.env"
 ```
 
 确认没有同名隔离资源；若存在，先人工判断是否为正在进行的演练，不要直接删除：
@@ -91,7 +95,7 @@ chmod 600 restore.env
 RESTORE_PROJECT=moeurl-restore-drill
 RESTORE_ROOT="$(pwd -P)"
 RESTORE_COMPOSE="$RESTORE_ROOT/docker-compose.yml"
-RESTORE_ENV="$RESTORE_ROOT/restore.env"
+RESTORE_ENV="$RESTORE_STATE/restore.env"
 restore_compose() {
   docker compose \
     --project-name "$RESTORE_PROJECT" \
@@ -184,7 +188,8 @@ docker volume ls --filter "label=com.docker.compose.project=$RESTORE_PROJECT"
 ```bash
 test "$RESTORE_PROJECT" = moeurl-restore-drill
 restore_compose down -v --remove-orphans
-rm -f restore.env
+rm -f "$RESTORE_STATE/restore.env"
+rmdir "$RESTORE_STATE"
 ```
 
 最后确认同 project 标签的容器、网络和卷均为空。备份文件及校验文件应按保留策略继续保存，不能随演练环境删除。

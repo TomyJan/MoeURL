@@ -22,6 +22,8 @@ web/coverage/
 .env
 .env.*
 !.env.example
+backups/
+restore.env
 
 # Logs
 *.log
