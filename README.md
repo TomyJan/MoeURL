@@ -136,7 +136,7 @@ cd ..
 执行数据库迁移：
 
 ```bash
-go install github.com/pressly/goose/v3/cmd/goose@v3.27.3
+go install github.com/pressly/goose/v3/cmd/goose@v3.28.0
 goose -dir migrations postgres "postgres://moeurl:moeurl@127.0.0.1:5432/moeurl?sslmode=disable" up
 ```
 

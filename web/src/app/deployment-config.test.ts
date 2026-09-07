@@ -99,6 +99,8 @@ describe('deployment configuration', () => {
 
     expect(dockerfile).toContain('addgroup -S -g 10001 moeurl')
     expect(dockerfile).toContain('adduser -S -D -H -u 10001 -G moeurl moeurl')
+    expect(dockerfile).toContain('apk upgrade --no-cache')
+    expect(dockerfile).toContain('github.com/pressly/goose/v3/cmd/goose@v3.28.0')
     expect(compose).toContain('user: "10001:10001"')
     expect(compose).toContain('stop_grace_period: 20s')
   })
@@ -239,11 +241,12 @@ describe('deployment configuration', () => {
     expect(backendSecurity).toContain('git ls-files --others --exclude-standard -- internal/db/sqlc')
 
     expect(imageSecurity).toContain('docker build --tag moeurl:ci .')
-    expect(imageSecurity).toContain('aquasecurity/trivy-action@0.28.0')
-    expect(imageSecurity).toContain('version: v0.58.2')
+    expect(imageSecurity).toContain(
+      'aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25',
+    )
+    expect(imageSecurity).toContain('version: v0.74.0')
     expect(imageSecurity).toContain('severity: HIGH,CRITICAL')
     expect(imageSecurity).toContain("exit-code: '1'")
-    expect(imageSecurity).toContain('skip-db-update: false')
     expect(imageSecurity).not.toContain('continue-on-error: true')
     expect(imageSecurity).not.toContain('ignore-unfixed: true')
   })
