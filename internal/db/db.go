@@ -2,8 +2,11 @@ package db
 
 import (
 	"context"
+	"errors"
+	"log/slog"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -25,15 +28,43 @@ var createConfiguredPool = func(ctx context.Context, config *pgxpool.Config) (*c
 	return &configuredPool{pool: pool, ping: pool.Ping, close: pool.Close}, nil
 }
 
-// databaseOperationError redacts driver details while preserving the underlying error chain.
+// databaseOperationError redacts driver details while preserving safe diagnostics and the underlying error chain.
 type databaseOperationError struct {
 	operation string
+	category  string
+	sqlState  string
 	cause     error
+}
+
+// newDatabaseOperationError captures only stable diagnostics that are safe to serialize.
+func newDatabaseOperationError(operation string, cause error) *databaseOperationError {
+	category := "database"
+	if errors.Is(cause, context.DeadlineExceeded) || errors.Is(cause, context.Canceled) {
+		category = "timeout"
+	}
+	var postgresError *pgconn.PgError
+	if errors.As(cause, &postgresError) {
+		category = "postgresql"
+		return &databaseOperationError{operation: operation, category: category, sqlState: postgresError.SQLState(), cause: cause}
+	}
+	return &databaseOperationError{operation: operation, category: category, cause: cause}
 }
 
 // Error returns a stable startup-stage message without exposing connection details.
 func (err *databaseOperationError) Error() string {
 	return err.operation + ": failed"
+}
+
+// LogValue exposes only the operation and safe error classification to structured loggers.
+func (err *databaseOperationError) LogValue() slog.Value {
+	attributes := []slog.Attr{
+		slog.String("operation", err.operation),
+		slog.String("category", err.category),
+	}
+	if err.sqlState != "" {
+		attributes = append(attributes, slog.String("sqlstate", err.sqlState))
+	}
+	return slog.GroupValue(attributes...)
 }
 
 // Unwrap exposes the underlying cause for errors.Is and errors.As inspection.
@@ -50,18 +81,18 @@ func OpenPool(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 func openPoolWithTimeout(ctx context.Context, databaseURL string, timeout time.Duration) (*pgxpool.Pool, error) {
 	config, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {
-		return nil, &databaseOperationError{operation: "parse database configuration", cause: err}
+		return nil, newDatabaseOperationError("parse database configuration", err)
 	}
 
 	startupContext, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	configured, err := createConfiguredPool(startupContext, config)
 	if err != nil {
-		return nil, &databaseOperationError{operation: "create database pool", cause: err}
+		return nil, newDatabaseOperationError("create database pool", err)
 	}
 	if err := configured.ping(startupContext); err != nil {
 		configured.close()
-		return nil, &databaseOperationError{operation: "verify database connection", cause: err}
+		return nil, newDatabaseOperationError("verify database connection", err)
 	}
 	return configured.pool, nil
 }

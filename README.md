@@ -73,20 +73,25 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 默认 Compose 面向单机生产拓扑：PostgreSQL 不映射宿主机端口，App 默认只绑定 `127.0.0.1:8080`，由外部 TLS 反向代理提供公网 HTTPS、HSTS 和来源级限流。生产使用前请完整阅读 [单机 Docker Compose 部署](./docs/deployment/single-host-compose.md)。
 
-先创建权限受限的 `.env`，并为数据库密码和初始化 Token 生成独立的至少 32 字符随机值。`.env.example` 只提供变量入口，不提供可用的默认秘密：
+先创建权限受限的 `.env`，并为数据库密码和初始化 Token 生成独立的至少 32 字符随机值。App 接收完整、已编码的 `MOEURL_DATABASE_URL`，避免 Compose 把原始密码拼入 URI。`.env.example` 只提供变量入口，不提供可用的默认秘密：
 
 ```bash
 set +x
 umask 077
+database_password="$(openssl rand -hex 32)"
 {
   printf 'MOEURL_ENV=production\n'
   printf 'MOEURL_HTTP_HOST=127.0.0.1\n'
   printf 'MOEURL_HTTP_PORT=8080\n'
-  printf 'MOEURL_POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 32)"
+  printf 'MOEURL_POSTGRES_PASSWORD=%s\n' "$database_password"
+  printf 'MOEURL_DATABASE_URL=postgres://moeurl:%s@postgres:5432/moeurl?sslmode=disable\n' "$database_password"
   printf 'MOEURL_SETUP_TOKEN=%s\n' "$(openssl rand -hex 32)"
 } > .env
+unset database_password
 chmod 600 .env
 ```
+
+若自行设置含 `/`、`?`、`#`、`%` 等 URI 保留字符的密码，`MOEURL_POSTGRES_PASSWORD` 保留原值，`MOEURL_DATABASE_URL` 中的密码部分必须百分号编码。默认 `sslmode=disable` 仅用于受信的单机私有 Compose 网络；数据库链路经过不受信网络时应改用 `sslmode=verify-full` 并配置可验证的服务端证书和 CA。
 
 ```bash
 docker compose --env-file .env config >/dev/null

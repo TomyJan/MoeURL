@@ -1,12 +1,16 @@
 package db
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -221,4 +225,65 @@ func TestOpenPoolWithTimeoutUsesEarlierParentDeadline(t *testing.T) {
 	if !createDeadline.Equal(parentDeadline) {
 		t.Fatalf("startup deadline = %s, want earlier parent deadline %s", createDeadline, parentDeadline)
 	}
+}
+
+// TestDatabaseOperationErrorLogsSafePostgreSQLClassification verifies SQLSTATE logging without driver diagnostics.
+func TestDatabaseOperationErrorLogsSafePostgreSQLClassification(t *testing.T) {
+	const sensitiveDiagnostic = "password authentication failed for postgres://user:top-secret@database.internal/moeurl"
+	err := newDatabaseOperationError("verify database connection", &pgconn.PgError{
+		Code:    "28P01",
+		Message: sensitiveDiagnostic,
+	})
+
+	entry := logDatabaseOperationError(t, err)
+	errorFields, ok := entry["error"].(map[string]any)
+	if !ok {
+		t.Fatalf("logged error = %#v, want structured fields", entry["error"])
+	}
+	if errorFields["operation"] != "verify database connection" || errorFields["category"] != "postgresql" || errorFields["sqlstate"] != "28P01" {
+		t.Fatalf("logged error fields = %#v", errorFields)
+	}
+	if output := marshalTestJSON(t, entry); strings.Contains(output, sensitiveDiagnostic) || strings.Contains(output, "top-secret") {
+		t.Fatalf("structured log leaked sensitive diagnostic: %s", output)
+	}
+}
+
+// TestDatabaseOperationErrorLogsSafeDeadlineClassification verifies timeout logging without a synthetic SQLSTATE.
+func TestDatabaseOperationErrorLogsSafeDeadlineClassification(t *testing.T) {
+	err := newDatabaseOperationError("verify database connection", context.DeadlineExceeded)
+
+	entry := logDatabaseOperationError(t, err)
+	errorFields, ok := entry["error"].(map[string]any)
+	if !ok {
+		t.Fatalf("logged error = %#v, want structured fields", entry["error"])
+	}
+	if errorFields["category"] != "timeout" {
+		t.Fatalf("logged error category = %#v, want timeout", errorFields["category"])
+	}
+	if _, exists := errorFields["sqlstate"]; exists {
+		t.Fatalf("deadline log unexpectedly contains SQLSTATE: %#v", errorFields)
+	}
+}
+
+// logDatabaseOperationError serializes one error through the production slog value path.
+func logDatabaseOperationError(t *testing.T, err error) map[string]any {
+	t.Helper()
+	var output bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&output, nil))
+	logger.Error("app_initialization_failed", "error", err)
+	var entry map[string]any
+	if decodeErr := json.Unmarshal(output.Bytes(), &entry); decodeErr != nil {
+		t.Fatalf("decode log entry: %v", decodeErr)
+	}
+	return entry
+}
+
+// marshalTestJSON returns a stable string for sensitive-substring assertions.
+func marshalTestJSON(t *testing.T, value any) string {
+	t.Helper()
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		t.Fatalf("encode test value: %v", err)
+	}
+	return string(encoded)
 }

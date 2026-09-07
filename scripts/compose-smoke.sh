@@ -46,6 +46,7 @@ run_compose() {
     -u MOEURL_HTTP_PORT \
     -u MOEURL_ANALYTICS_COUNTRY_HEADER \
     -u MOEURL_POSTGRES_PASSWORD \
+    -u MOEURL_DATABASE_URL \
     -u MOEURL_SETUP_TOKEN \
     -u MOEURL_POSTGRES_HOST \
     -u MOEURL_POSTGRES_PORT \
@@ -53,10 +54,13 @@ run_compose() {
 }
 
 write_config_env() {
+  database_password='compose/reserved?password#100%'
+  encoded_password=$(node -e "process.stdout.write(encodeURIComponent(process.argv[1]))" "$database_password")
   umask 077
-  cat >"$CONFIG_ENV" <<'EOF'
+  cat >"$CONFIG_ENV" <<EOF
 MOEURL_ENV=production
-MOEURL_POSTGRES_PASSWORD=config-validation-password
+MOEURL_POSTGRES_PASSWORD=$database_password
+MOEURL_DATABASE_URL=postgres://moeurl:$encoded_password@postgres:5432/moeurl?sslmode=disable
 MOEURL_SETUP_TOKEN=config-validation-token-with-32-characters
 MOEURL_ANALYTICS_COUNTRY_HEADER=X-MoeURL-Country-Code
 EOF
@@ -64,13 +68,29 @@ EOF
 
 assert_missing_password_fails() {
   missing_env="$WORK_DIR/missing-password.env"
-  : >"$missing_env"
+  cat >"$missing_env" <<'EOF'
+MOEURL_DATABASE_URL=postgres://moeurl:encoded@postgres:5432/moeurl?sslmode=disable
+EOF
   if run_compose \
     --project-name "$PROJECT_NAME" \
     --env-file "$missing_env" \
     --file "$COMPOSE_FILE" \
     config --format json >"$WORK_DIR/missing-password.json" 2>"$WORK_DIR/missing-password.stderr"; then
     fail "docker compose config accepted a missing database password"
+  fi
+}
+
+assert_missing_database_url_fails() {
+  missing_env="$WORK_DIR/missing-database-url.env"
+  cat >"$missing_env" <<'EOF'
+MOEURL_POSTGRES_PASSWORD=config-validation-password
+EOF
+  if run_compose \
+    --project-name "$PROJECT_NAME" \
+    --env-file "$missing_env" \
+    --file "$COMPOSE_FILE" \
+    config --format json >"$WORK_DIR/missing-database-url.json" 2>"$WORK_DIR/missing-database-url.stderr"; then
+    fail "docker compose config accepted a missing database URL"
   fi
 }
 
@@ -97,8 +117,8 @@ function assert(condition, message) {
 assert(app && postgres, 'app and postgres services must exist')
 assert(app.environment?.MOEURL_ENV === 'production', 'app must use the production environment')
 assert(!postgres.ports || postgres.ports.length === 0, 'postgres must not publish a host port')
-assert(postgres.environment?.POSTGRES_PASSWORD === 'config-validation-password', 'postgres must use the required deployment password')
-assert(app.environment?.MOEURL_DATABASE_URL?.includes(':config-validation-password@postgres:5432/'), 'app database URL must use the deployment password')
+assert(postgres.environment?.POSTGRES_PASSWORD === 'compose/reserved?password#100%', 'postgres must preserve reserved password characters')
+assert(app.environment?.MOEURL_DATABASE_URL === 'postgres://moeurl:compose%2Freserved%3Fpassword%23100%25@postgres:5432/moeurl?sslmode=disable', 'app must receive the complete encoded database URL')
 assert(app.environment?.MOEURL_ANALYTICS_COUNTRY_HEADER === 'X-MoeURL-Country-Code', 'app must receive the configured trusted country header')
 
 const appPort = (app.ports || []).find((port) => Number(port.target) === 8080)
@@ -197,7 +217,8 @@ generate_secret() {
 }
 
 write_runtime_env() {
-  database_password=$(generate_secret)
+  database_password='compose/reserved?password#100%'
+  encoded_password=$(node -e "process.stdout.write(encodeURIComponent(process.argv[1]))" "$database_password")
   setup_token=$(generate_secret)
   admin_password=$(generate_secret)
   runtime_port=${MOEURL_SMOKE_HTTP_PORT:-18081}
@@ -208,6 +229,7 @@ MOEURL_ENV=production
 MOEURL_HTTP_HOST=127.0.0.1
 MOEURL_HTTP_PORT=$runtime_port
 MOEURL_POSTGRES_PASSWORD=$database_password
+MOEURL_DATABASE_URL=postgres://moeurl:$encoded_password@postgres:5432/moeurl?sslmode=disable
 MOEURL_SETUP_TOKEN=$setup_token
 EOF
   # curl treats localhost as a secure cookie context, so production Secure
@@ -374,6 +396,7 @@ require_command docker
 require_command node
 write_config_env
 assert_missing_password_fails
+assert_missing_database_url_fails
 assert_production_config
 assert_development_override
 

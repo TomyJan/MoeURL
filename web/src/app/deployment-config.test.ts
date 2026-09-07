@@ -84,7 +84,18 @@ describe('deployment configuration', () => {
     expect(developmentCompose).toContain('${MOEURL_POSTGRES_HOST:-127.0.0.1}:${MOEURL_POSTGRES_PORT:-5432}:5432')
     expect(config).toContain('MOEURL_E2E_POSTGRES_PASSWORD')
     expect(config).toContain('MOEURL_POSTGRES_PASSWORD: e2ePostgresPassword')
+    expect(config).toContain('MOEURL_DATABASE_URL: e2eDatabaseURL')
     expect(config).not.toContain('MOEURL_E2E_POSTGRES_PORT')
+  })
+
+  it('injects a complete encoded database URL instead of interpolating a raw password', () => {
+    const compose = readFileSync(resolve(repositoryRoot, 'docker-compose.yml'), 'utf8')
+    const smokeScript = readFileSync(resolve(repositoryRoot, 'scripts/compose-smoke.sh'), 'utf8')
+
+    expect(compose).toContain('MOEURL_DATABASE_URL: ${MOEURL_DATABASE_URL:?required}')
+    expect(compose).not.toContain('postgres://moeurl:${MOEURL_POSTGRES_PASSWORD')
+    expect(smokeScript).toContain("database_password='compose/reserved?password#100%'")
+    expect(smokeScript).toContain('encodeURIComponent(process.argv[1])')
   })
 
   it('leaves the setup token optional for development Compose processes', () => {
@@ -262,6 +273,7 @@ describe('deployment configuration', () => {
     expect(composeSmoke).not.toContain('continue-on-error: true')
     expect(smokeScript).toContain('env -u MOEURL_ENV')
     expect(smokeScript).toContain('-u MOEURL_POSTGRES_PASSWORD')
+    expect(smokeScript).toContain('-u MOEURL_DATABASE_URL')
     expect(smokeScript).toContain('-u MOEURL_SETUP_TOKEN')
     expect(smokeScript).toContain("assert(app.environment?.MOEURL_ENV === 'production'")
   })

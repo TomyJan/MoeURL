@@ -48,8 +48,8 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Recovery(logger))
 	router.Use(middleware.SecurityHeaders)
-	router.Use(middleware.BodyLimit)
 	router.Use(middleware.RequestLogger(logger))
+	router.Use(middleware.BodyLimit)
 	var redirectHandler *shortlink.RedirectHandler
 	if dependency.Redirect != nil {
 		redirectHandler = shortlink.NewRedirectHandlerWithAnalyticsAndSecurity(dependency.Redirect, dependency.RedirectRecorder, dependency.AnalyticsCountryHeader, dependency.SecureCookies, logger)

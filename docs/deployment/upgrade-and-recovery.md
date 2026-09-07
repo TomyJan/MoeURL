@@ -8,6 +8,8 @@ MoeURL App 启动前会自动运行 Goose migration。数据库迁移可能先�
 
 ## 2. 升级前检查
 
+目标版本的 Compose 要求 `.env` 同时包含原始 `MOEURL_POSTGRES_PASSWORD` 和完整、已编码的 `MOEURL_DATABASE_URL`。从旧版升级时，应在切换目标提交前补齐 URL；此前按文档生成的十六进制密码可以直接放入密码段，自定义密码中的 URI 保留字符必须先做百分号编码。两项必须对应同一个 PostgreSQL 角色密码，且不得把包含秘密的渲染后 Compose 配置保存到部署状态目录。
+
 先在受保护的部署状态目录保存升级前 SHA、当前未渲染的加固 Compose 和正在运行的 App 镜像。以下变量需要在同一维护 Shell 中保留；重新登录后应从相同目录和值恢复：
 
 ```bash
@@ -24,6 +26,7 @@ printf '%s\n' "$DEPLOY_PROJECT" > "$DEPLOY_STATE/project-name"
 chmod 600 "$DEPLOY_STATE/upgrade-from-commit"
 chmod 600 "$DEPLOY_STATE/project-name"
 grep -F '${MOEURL_POSTGRES_PASSWORD:?required}' "$ROLLBACK_COMPOSE" >/dev/null
+grep -F '${MOEURL_DATABASE_URL:?required}' "$ROLLBACK_COMPOSE" >/dev/null
 
 production_compose() {
   docker compose \

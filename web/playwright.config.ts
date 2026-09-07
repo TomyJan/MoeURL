@@ -10,6 +10,7 @@ type BrowserCandidate = {
 
 const e2ePort = process.env.MOEURL_E2E_PORT ?? '8080'
 const e2ePostgresPassword = process.env.MOEURL_E2E_POSTGRES_PASSWORD ?? randomBytes(32).toString('hex')
+const e2eDatabaseURL = `postgres://moeurl:${encodeURIComponent(e2ePostgresPassword)}@postgres:5432/moeurl?sslmode=disable`
 const baseURL = `http://127.0.0.1:${e2ePort}`
 const composeProjectName = resolveE2EComposeProjectName(process.env.MOEURL_E2E_COMPOSE_PROJECT, e2ePort)
 const browserChannel = process.env.MOEURL_E2E_BROWSER_CHANNEL?.trim() || detectFallbackBrowserChannel()
@@ -98,6 +99,7 @@ export default defineConfig({
           MOEURL_ENV: 'development',
           MOEURL_HTTP_PORT: e2ePort,
           MOEURL_POSTGRES_PASSWORD: e2ePostgresPassword,
+          MOEURL_DATABASE_URL: e2eDatabaseURL,
         },
         reuseExistingServer: false,
         timeout: 600_000,

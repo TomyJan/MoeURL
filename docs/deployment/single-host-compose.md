@@ -23,18 +23,21 @@ docker compose version
 
 ## 3. 准备部署秘密
 
-`.env` 包含数据库密码和初始化 Token，必须排除在版本控制、工单、聊天记录和命令跟踪之外。以下命令生成只包含十六进制字符的秘密，既满足长度要求，也可安全放入 PostgreSQL 连接 URL：
+`.env` 包含数据库密码、完整数据库连接 URL 和初始化 Token，必须排除在版本控制、工单、聊天记录和命令跟踪之外。Compose 不再把原始密码拼接进 URL；`MOEURL_POSTGRES_PASSWORD` 交给 PostgreSQL 初始化，`MOEURL_DATABASE_URL` 作为已经正确编码的完整连接配置交给 App。以下命令使用只包含十六进制字符的随机密码，因此可以安全地同时生成两项：
 
 ```bash
 set +x
 umask 077
+database_password="$(openssl rand -hex 32)"
 {
   printf 'MOEURL_ENV=production\n'
   printf 'MOEURL_HTTP_HOST=127.0.0.1\n'
   printf 'MOEURL_HTTP_PORT=8080\n'
-  printf 'MOEURL_POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 32)"
+  printf 'MOEURL_POSTGRES_PASSWORD=%s\n' "$database_password"
+  printf 'MOEURL_DATABASE_URL=postgres://moeurl:%s@postgres:5432/moeurl?sslmode=disable\n' "$database_password"
   printf 'MOEURL_SETUP_TOKEN=%s\n' "$(openssl rand -hex 32)"
 } > .env
+unset database_password
 chmod 600 .env
 ```
 
@@ -44,7 +47,9 @@ chmod 600 .env
 stat -c '%a %U:%G %n' .env
 ```
 
-`MOEURL_SETUP_TOKEN` 至少为 32 个字符。初始化完成后仍需保留该变量，因为 production 应用每次启动都会校验配置。轮换数据库密码需要同时修改 PostgreSQL 角色密码和 `.env`，不能只改 Compose 插值。
+`MOEURL_SETUP_TOKEN` 至少为 32 个字符。初始化完成后仍需保留该变量，因为 production 应用每次启动都会校验配置。自定义数据库密码包含 `/`、`?`、`#`、`%` 等 URI 保留字符时，必须先对密码部分做百分号编码，再写入 `MOEURL_DATABASE_URL`；`MOEURL_POSTGRES_PASSWORD` 仍保存原始值。轮换数据库密码需要同时修改 PostgreSQL 角色密码和这两个 `.env` 条目，不能只改其中一项。
+
+默认 `sslmode=disable` 只适用于 PostgreSQL 不发布端口、Compose 网络仅包含受信容器的单机边界，这是本部署模式明确接受的风险。若数据库链路经过不受信网络，应把 `MOEURL_DATABASE_URL` 改为 `sslmode=verify-full`，使用与连接主机名匹配的服务端证书，并确保签发 CA 已进入 App 容器的系统信任库或通过受审查的 Compose override 只读挂载后由 `sslrootcert` 指定。PostgreSQL 服务端证书配置和 CA 生命周期不由默认 Compose 管理；无法建立该信任链时不得把数据库开放给不受信网络。
 
 ## 4. 首次启动
 

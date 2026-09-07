@@ -614,7 +614,9 @@ docker compose --env-file .env config >/dev/null
 docker compose --env-file .env up --build -d
 ```
 
-默认 Compose 要求显式提供 `MOEURL_POSTGRES_PASSWORD`。PostgreSQL 不映射宿主机端口；App 默认仅绑定 `127.0.0.1:8080`，以 UID/GID `10001:10001` 运行，并启用只读根文件系统、`/tmp` tmpfs、init、readiness healthcheck 和 `unless-stopped` 重启策略。App 的 `stop_grace_period` 固定为 20 秒，必须长于应用内部 15 秒统一关闭期限。production 还由应用启动校验强制要求 `MOEURL_SETUP_TOKEN`。外部 TLS 代理负责公网 HTTPS、HSTS、可信转发头和登录、初始化、公开解锁端点的来源级限流。
+默认 Compose 要求显式提供原始 `MOEURL_POSTGRES_PASSWORD` 和完整、已编码的 `MOEURL_DATABASE_URL`，不得在 Compose 中把原始密码拼接进 URI。PostgreSQL 不映射宿主机端口；App 默认仅绑定 `127.0.0.1:8080`，以 UID/GID `10001:10001` 运行，并启用只读根文件系统、`/tmp` tmpfs、init、readiness healthcheck 和 `unless-stopped` 重启策略。App 的 `stop_grace_period` 固定为 20 秒，必须长于应用内部 15 秒统一关闭期限。production 还由应用启动校验强制要求 `MOEURL_SETUP_TOKEN`。外部 TLS 代理负责公网 HTTPS、HSTS、可信转发头和登录、初始化、公开解锁端点的来源级限流。
+
+单机私有 Compose 网络只允许受信容器加入，默认数据库连接明确接受 `sslmode=disable`。数据库链路经过不受信网络时必须在 `MOEURL_DATABASE_URL` 中选择 `sslmode=verify-full`，并为 App 提供可验证的服务端证书信任链；默认 Compose 不管理 PostgreSQL 证书或 CA 生命周期。
 
 默认 Compose 项目的 PostgreSQL 数据保存在命名卷 `postgres-data` 中，挂载点保持为 `/var/lib/postgresql`。普通 `up`、`down` 和再次启动不得重置数据库、管理员账号或短链数据；`down -v` 会永久删除目标 project 的数据库，执行前必须确认 project 并验证卷外备份。本地确需直连数据库时显式叠加 `docker-compose.dev.yml`，该覆盖只把 PostgreSQL 绑定到宿主机回环地址。
 
@@ -641,7 +643,7 @@ MOEURL_ANALYTICS_COUNTRY_HEADER
 MOEURL_SETUP_TOKEN
 ```
 
-Compose 还读取 `MOEURL_HTTP_HOST`、`MOEURL_HTTP_PORT` 和 `MOEURL_POSTGRES_PASSWORD`；只有叠加开发覆盖文件时才读取 `MOEURL_POSTGRES_HOST` 与 `MOEURL_POSTGRES_PORT`。这些变量属于部署插值，不等同于 Go 应用直接读取的配置。production 的 `MOEURL_SETUP_TOKEN` 至少为 32 个字符，初始化完成后仍必须保留用于后续启动校验。
+Compose 还读取 `MOEURL_HTTP_HOST`、`MOEURL_HTTP_PORT` 和 `MOEURL_POSTGRES_PASSWORD`，并把必填的 `MOEURL_DATABASE_URL` 原样注入 App；只有叠加开发覆盖文件时才读取 `MOEURL_POSTGRES_HOST` 与 `MOEURL_POSTGRES_PORT`。其中数据库密码是 PostgreSQL 容器初始化值，数据库 URL 是 Go 应用的完整连接配置，两者不得混为自动拼接关系。production 的 `MOEURL_SETUP_TOKEN` 至少为 32 个字符，初始化完成后仍必须保留用于后续启动校验。
 
 敏感配置不得提交到仓库。
 

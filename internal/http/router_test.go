@@ -103,6 +103,29 @@ func TestRouterReadinessWithoutDependencyFailsClosed(t *testing.T) {
 	}
 }
 
+// TestRouterLogsOversizedRequests verifies request logging wraps the global body limit.
+func TestRouterLogsOversizedRequests(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	router := apphttp.NewRouter(apphttp.Dependencies{Logger: logger})
+	request := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"/api/v1/auth/login",
+		strings.NewReader(strings.Repeat("a", (1<<20)+1)),
+	)
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("oversized response status = %d, want 200", response.Code)
+	}
+	if output := logs.String(); !strings.Contains(output, "msg=http_request") || !strings.Contains(output, "path=/api/v1/auth/login") {
+		t.Fatalf("oversized request log = %q, want http_request path", output)
+	}
+}
+
 // TestRouterServesSPAFixedRoutesFromStaticDir verifies router serves spa fixed routes from static dir.
 func TestRouterServesSPAFixedRoutesFromStaticDir(t *testing.T) {
 	staticDir := t.TempDir()

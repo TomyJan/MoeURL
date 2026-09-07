@@ -8,13 +8,21 @@ MoeURL 使用 PostgreSQL 逻辑备份作为单机部署的可移植恢复基线�
 
 ## 2. 创建与校验备份
 
-先固定生产部署目录、project、Compose 文件和环境文件。后续生产命令必须通过同一 helper 执行，不能依赖当前目录或 Compose 自动推断的 project：
+先把必填的 `MOEURL_DEPLOY_ROOT` 设置为绝对部署根目录，再固定 project、Compose 文件和环境文件。后续生产命令必须通过同一 helper 执行，不能依赖当前目录或 Compose 自动推断的 project：
 
 ```bash
-DEPLOY_ROOT="$(pwd -P)"
+: "${MOEURL_DEPLOY_ROOT:?set MOEURL_DEPLOY_ROOT to the absolute deployment root}"
+case "$MOEURL_DEPLOY_ROOT" in
+  /*) ;;
+  *) echo 'MOEURL_DEPLOY_ROOT must be an absolute path' >&2; exit 1 ;;
+esac
+DEPLOY_ROOT="$(CDPATH= cd -- "$MOEURL_DEPLOY_ROOT" && pwd -P)" || exit 1
 DEPLOY_PROJECT=moeurl
 DEPLOY_COMPOSE="$DEPLOY_ROOT/docker-compose.yml"
 DEPLOY_ENV="$DEPLOY_ROOT/.env"
+test -d "$DEPLOY_ROOT"
+test -r "$DEPLOY_COMPOSE"
+test -r "$DEPLOY_ENV"
 production_compose() {
   docker compose \
     --project-name "$DEPLOY_PROJECT" \
@@ -38,24 +46,35 @@ test "$postgres_project" = "$DEPLOY_PROJECT"
 创建宿主机备份目录并限制权限：
 
 ```bash
+set -eu
 umask 077
 BACKUP_ROOT=/var/lib/moeurl/backups
 install -d -m 700 "$BACKUP_ROOT"
 backup_file="$BACKUP_ROOT/moeurl-$(date -u +%Y%m%dT%H%M%SZ).dump"
-production_compose exec -T postgres \
-  pg_dump -U moeurl -d moeurl -Fc > "$backup_file"
-chmod 600 "$backup_file"
-```
-
-确认命令退出成功、文件非空，再校验自定义格式目录：
-
-```bash
-test -s "$backup_file"
+backup_temp="$(mktemp "$BACKUP_ROOT/.moeurl-backup.XXXXXX")"
+cleanup_unpublished_backup() {
+  test -z "${backup_temp:-}" || rm -f -- "$backup_temp"
+}
+trap cleanup_unpublished_backup EXIT
+trap 'cleanup_unpublished_backup; exit 1' HUP INT TERM
+if ! production_compose exec -T postgres \
+  pg_dump -U moeurl -d moeurl -Fc > "$backup_temp"; then
+  echo 'pg_dump failed; backup was not published' >&2
+  exit 1
+fi
+test -s "$backup_temp"
+chmod 600 "$backup_temp"
 docker run --rm -v "$BACKUP_ROOT:/backup:ro" postgres:18-alpine \
-  pg_restore --list "/backup/$(basename "$backup_file")" >/dev/null
+  pg_restore --list "/backup/$(basename "$backup_temp")" >/dev/null
+ln "$backup_temp" "$backup_file"
+rm -f -- "$backup_temp"
+backup_temp=
+trap - EXIT HUP INT TERM
 sha256sum "$backup_file" > "$backup_file.sha256"
 sha256sum --check "$backup_file.sha256"
 ```
+
+临时文件必须创建在最终备份目录中，使 `ln` 在同一文件系统内以不可覆盖方式原子发布目录项。`pg_dump`、非空检查或目录校验失败时，trap 只清理未发布的临时文件；同名最终文件已存在时 `ln` 失败，不会覆盖既有备份。
 
 将 `.dump` 和 `.sha256` 一起复制到受访问控制的远端或离线存储。建议至少保留多代日、周、月备份，并定期抽取不同代际执行恢复演练。清理旧备份前先输出候选列表并由运维人员复核；不要把自动 `find -delete` 作为未经确认的默认命令。
 
@@ -79,13 +98,16 @@ set +x
 umask 077
 RESTORE_STATE=/var/lib/moeurl/restore-drill
 install -d -m 700 "$RESTORE_STATE"
+restore_database_password="$(openssl rand -hex 32)"
 {
   printf 'MOEURL_ENV=production\n'
   printf 'MOEURL_HTTP_HOST=127.0.0.1\n'
   printf 'MOEURL_HTTP_PORT=18082\n'
-  printf 'MOEURL_POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 32)"
+  printf 'MOEURL_POSTGRES_PASSWORD=%s\n' "$restore_database_password"
+  printf 'MOEURL_DATABASE_URL=postgres://moeurl:%s@postgres:5432/moeurl?sslmode=disable\n' "$restore_database_password"
   printf 'MOEURL_SETUP_TOKEN=%s\n' "$(openssl rand -hex 32)"
 } > "$RESTORE_STATE/restore.env"
+unset restore_database_password
 chmod 600 "$RESTORE_STATE/restore.env"
 ```
 
@@ -93,9 +115,17 @@ chmod 600 "$RESTORE_STATE/restore.env"
 
 ```bash
 RESTORE_PROJECT=moeurl-restore-drill
-RESTORE_ROOT="$(pwd -P)"
+: "${MOEURL_DEPLOY_ROOT:?set MOEURL_DEPLOY_ROOT to the absolute deployment root}"
+case "$MOEURL_DEPLOY_ROOT" in
+  /*) ;;
+  *) echo 'MOEURL_DEPLOY_ROOT must be an absolute path' >&2; exit 1 ;;
+esac
+RESTORE_ROOT="$(CDPATH= cd -- "$MOEURL_DEPLOY_ROOT" && pwd -P)" || exit 1
 RESTORE_COMPOSE="$RESTORE_ROOT/docker-compose.yml"
 RESTORE_ENV="$RESTORE_STATE/restore.env"
+test -d "$RESTORE_ROOT"
+test -r "$RESTORE_COMPOSE"
+test -r "$RESTORE_ENV"
 restore_compose() {
   docker compose \
     --project-name "$RESTORE_PROJECT" \
