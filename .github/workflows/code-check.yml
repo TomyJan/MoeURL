@@ -310,16 +310,15 @@ jobs:
         run: docker build --tag moeurl:ci .
 
       - name: Scan final image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: moeurl:ci
-          version: v0.58.2
+          version: v0.74.0
           format: table
           scanners: vuln
           severity: HIGH,CRITICAL
           exit-code: '1'
           ignore-unfixed: false
-          skip-db-update: false
 
   compose-smoke:
     name: Compose Smoke

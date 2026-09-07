@@ -5,7 +5,7 @@
 MoeURL 采用以下技术栈作为 v0.0.1 及后续演进的技术基线：
 
 ```text
-后端：Go 1.25+ + Chi + SQLC 1.30.0 + Goose + PostgreSQL
+后端：Go 1.26.8+ + Chi + SQLC 1.30.0 + Goose + PostgreSQL
 前端：Vue 3 + Vite + TypeScript + Vuetify 4
 前端包管理： pnpm
 状态：Pinia + TanStack Query for Vue
@@ -33,7 +33,7 @@ PWA：Web App Manifest + Service Worker
 
 ### Go
 
-最低 Go 版本保持为 Go 1.25+；当前 `go.mod` 声明为 Go 1.25.7。
+最低 Go 版本为 Go 1.26.8+；当前 `go.mod` 声明为 Go 1.26.8。
 
 Go 作为后端语言，适合 MoeURL 的 API、认证、权限、短链跳转和后台任务场景。
 
@@ -300,7 +300,7 @@ PostgreSQL
 
 生产环境优先提供 Docker 和 Docker Compose。
 
-`Dockerfile` 的前端和后端构建阶段统一使用稳定镜像 `golang:1.27.0`。该版本是构建环境约定，不改变 Go 1.25+ 的最低语言版本。
+`Dockerfile` 的前端和后端构建阶段统一使用稳定镜像 `golang:1.27.1`。该版本是构建环境约定，不改变 Go 1.26.8+ 的最低语言版本。
 
 推荐方式：
 

@@ -97,7 +97,7 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 MoeURL 当前技术栈固定为：
 
-- 后端： Go 1.25+、Chi、SQLC、Goose、PostgreSQL。
+- 后端： Go 1.26.8+、Chi、SQLC、Goose、PostgreSQL。
 - 前端： Vue 3、Vite、TypeScript、Vuetify 4。
 - 前端包管理： pnpm。
 - 状态：Pinia、TanStack Query for Vue。
