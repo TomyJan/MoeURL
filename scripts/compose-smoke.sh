@@ -36,6 +36,13 @@ fail() {
   exit 1
 }
 
+CONFIG_ONLY=0
+case "$#" in
+  0) ;;
+  1) [ "$1" = "--config-only" ] || fail "usage: scripts/compose-smoke.sh [--config-only]"; CONFIG_ONLY=1 ;;
+  *) fail "usage: scripts/compose-smoke.sh [--config-only]" ;;
+esac
+
 require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "required command is unavailable: $1"
 }
@@ -400,12 +407,9 @@ assert_missing_database_url_fails
 assert_production_config
 assert_development_override
 
-if [ "${1:-}" = "--config-only" ]; then
+if [ "$CONFIG_ONLY" -eq 1 ]; then
   printf 'Compose configuration assertions passed.\n'
   exit 0
-fi
-if [ "$#" -ne 0 ]; then
-  fail "usage: scripts/compose-smoke.sh [--config-only]"
 fi
 
 run_full_smoke

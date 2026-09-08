@@ -160,6 +160,31 @@ describe('deployment configuration', () => {
     expect(deploymentGuide).toContain('不得将未重定向的配置输出记录到终端、CI 日志或工单')
   })
 
+  it('requires an empty restore project before destructive database restore', () => {
+    const restoreGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/backup-and-restore.md'),
+      'utf8',
+    )
+
+    for (const resource of ['restore_container_ids', 'restore_volume_names', 'restore_network_ids']) {
+      expect(restoreGuide).toContain(`${resource}="$(docker`)
+      expect(restoreGuide).toContain(`test -z "$${resource}"`)
+    }
+    expect(restoreGuide).toContain("echo 'restore project resources already exist' >&2")
+    expect(restoreGuide).toContain('exit 1')
+  })
+
+  it('rejects extra Compose smoke arguments before reporting config-only success', () => {
+    const smokeScript = readFileSync(resolve(repositoryRoot, 'scripts/compose-smoke.sh'), 'utf8')
+    const argumentValidation = smokeScript.indexOf('case "$#" in')
+    const configSuccess = smokeScript.indexOf("printf 'Compose configuration assertions passed.\\n'")
+
+    expect(argumentValidation).toBeGreaterThanOrEqual(0)
+    expect(argumentValidation).toBeLessThan(configSuccess)
+    expect(smokeScript).toContain('1) [ "$1" = "--config-only" ] || fail')
+    expect(smokeScript).toContain('*) fail "usage: scripts/compose-smoke.sh [--config-only]" ;;')
+  })
+
   it('does not rely on local Vuetify declarations for public exports', () => {
     const declarations = readFileSync(resolve(repositoryRoot, 'web/src/vuetify.d.ts'), 'utf8')
 

@@ -20,10 +20,10 @@ import (
 var loginDummyPasswordHash = "$argon2id$v=19$" + accountArgonProfile() + "$Br1VkWYfZh4At1JIZgluRg$oo5ZbILTTrshpMQUQxgjSWh7sJJWbxt8i+KrE+Vu2sI"
 
 const (
-	defaultLoginOperationTimeout                 = 10 * time.Second
-	defaultLoginRollbackTimeout                  = 2 * time.Second
-	defaultPasswordVerificationConcurrency       = 2
-	loginAttemptCleanupBatchSize           int64 = 500
+	defaultLoginOperationTimeout       = 10 * time.Second
+	defaultLoginRollbackTimeout        = 2 * time.Second
+	defaultLoginConcurrency            = 2
+	loginAttemptCleanupBatchSize int64 = 500
 )
 
 // PasswordVerifier compares a candidate password with an encoded account hash.
@@ -40,14 +40,14 @@ type LoginResult struct {
 }
 
 type Service struct {
-	pool                      *pgxpool.Pool
-	sessions                  *SessionService
-	verifyPassword            PasswordVerifier
-	passwordVerificationSlots chan struct{}
-	sessionIDGenerator        func() (string, error)
-	loginOperationTimeout     time.Duration
-	loginRollbackTimeout      time.Duration
-	deleteStaleLoginAttempts  func(context.Context, int64) (int64, error)
+	pool                     *pgxpool.Pool
+	sessions                 *SessionService
+	verifyPassword           PasswordVerifier
+	loginSlots               chan struct{}
+	sessionIDGenerator       func() (string, error)
+	loginOperationTimeout    time.Duration
+	loginRollbackTimeout     time.Duration
+	deleteStaleLoginAttempts func(context.Context, int64) (int64, error)
 }
 
 // NewService creates an authentication service with database-backed sessions.
@@ -61,13 +61,13 @@ func NewServiceWithPasswordVerifier(pool *pgxpool.Pool, sessionTTL time.Duration
 		verifier = VerifyPassword
 	}
 	service := &Service{
-		pool:                      pool,
-		sessions:                  NewSessionService(pool, sessionTTL),
-		verifyPassword:            verifier,
-		passwordVerificationSlots: make(chan struct{}, defaultPasswordVerificationConcurrency),
-		sessionIDGenerator:        generateSessionID,
-		loginOperationTimeout:     defaultLoginOperationTimeout,
-		loginRollbackTimeout:      defaultLoginRollbackTimeout,
+		pool:                  pool,
+		sessions:              NewSessionService(pool, sessionTTL),
+		verifyPassword:        verifier,
+		loginSlots:            make(chan struct{}, defaultLoginConcurrency),
+		sessionIDGenerator:    generateSessionID,
+		loginOperationTimeout: defaultLoginOperationTimeout,
+		loginRollbackTimeout:  defaultLoginRollbackTimeout,
 	}
 	if pool != nil {
 		service.deleteStaleLoginAttempts = sqlc.New(pool).DeleteStaleAuthLoginAttempts
@@ -79,6 +79,12 @@ func NewServiceWithPasswordVerifier(pool *pgxpool.Pool, sessionTTL time.Duration
 func (s *Service) Login(ctx context.Context, input LoginInput) (LoginResult, error) {
 	username := strings.TrimSpace(input.Username)
 	usernameHash := hashLoginUsername(username)
+	select {
+	case s.loginSlots <- struct{}{}:
+		defer func() { <-s.loginSlots }()
+	default:
+		return LoginResult{}, ErrLoginRateLimited
+	}
 	operationContext, cancelOperation := context.WithTimeout(context.WithoutCancel(ctx), s.loginOperationTimeout)
 	defer cancelOperation()
 	tx, err := s.pool.Begin(operationContext)
@@ -123,10 +129,7 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (LoginResult, err
 		}
 	}
 
-	passwordMatches, err := s.verifyPasswordWithinLimit(operationContext, input.Password, passwordHash)
-	if err != nil {
-		return LoginResult{}, err
-	}
+	passwordMatches := s.verifyPassword(input.Password, passwordHash)
 	if !userFound || !passwordHashUsable || !passwordMatches {
 		failure, recordErr := queries.RecordAuthLoginFailure(operationContext, usernameHash)
 		if recordErr != nil {
@@ -167,17 +170,6 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (LoginResult, err
 	}
 
 	return LoginResult{User: user, Session: Session{ID: sessionID, UserID: user.ID, ExpiresAt: expiresAt}}, nil
-}
-
-// verifyPasswordWithinLimit bounds concurrent Argon2 work and respects the login operation deadline while waiting.
-func (s *Service) verifyPasswordWithinLimit(ctx context.Context, password string, encodedHash string) (bool, error) {
-	select {
-	case s.passwordVerificationSlots <- struct{}{}:
-		defer func() { <-s.passwordVerificationSlots }()
-	case <-ctx.Done():
-		return false, ctx.Err()
-	}
-	return s.verifyPassword(password, encodedHash), nil
 }
 
 // lockOrCreateLoginAttempt locks an existing attempt before creating and locking a missing row.

@@ -134,9 +134,15 @@ restore_compose() {
     -f "$RESTORE_COMPOSE" \
     "$@"
 }
-docker ps -a --filter "label=com.docker.compose.project=$RESTORE_PROJECT"
-docker volume ls --filter "label=com.docker.compose.project=$RESTORE_PROJECT"
-docker network ls --filter "label=com.docker.compose.project=$RESTORE_PROJECT"
+restore_container_ids="$(docker ps -aq --filter "label=com.docker.compose.project=$RESTORE_PROJECT")" || exit 1
+restore_volume_names="$(docker volume ls -q --filter "label=com.docker.compose.project=$RESTORE_PROJECT")" || exit 1
+restore_network_ids="$(docker network ls -q --filter "label=com.docker.compose.project=$RESTORE_PROJECT")" || exit 1
+if ! test -z "$restore_container_ids" ||
+   ! test -z "$restore_volume_names" ||
+   ! test -z "$restore_network_ids"; then
+  echo 'restore project resources already exist' >&2
+  exit 1
+fi
 ```
 
 启动空 PostgreSQL，轮询健康状态后恢复：

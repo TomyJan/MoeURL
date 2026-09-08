@@ -601,28 +601,30 @@ func TestAuthServiceLoginConcurrentServicesShareRateLimit(t *testing.T) {
 		auth.NewServiceWithPasswordVerifier(pool, 24*time.Hour, verifier),
 	}
 
-	start := make(chan struct{})
 	results := make(chan error, 10)
-	var waitGroup sync.WaitGroup
-	for index := range 10 {
-		waitGroup.Add(1)
-		go func(service *auth.Service) {
-			defer waitGroup.Done()
-			<-start
-			_, err := service.Login(ctx, auth.LoginInput{Username: "alice", Password: "wrong-password"})
-			results <- err
-		}(services[index%len(services)])
-	}
-	close(start)
-	workersDone := make(chan struct{})
-	go func() {
-		waitGroup.Wait()
-		close(workersDone)
-	}()
-	select {
-	case <-workersDone:
-	case <-ctx.Done():
-		t.Fatalf("timed out waiting for concurrent logins: %v", ctx.Err())
+	for range 5 {
+		start := make(chan struct{})
+		var waitGroup sync.WaitGroup
+		for _, service := range services {
+			waitGroup.Add(1)
+			go func(service *auth.Service) {
+				defer waitGroup.Done()
+				<-start
+				_, err := service.Login(ctx, auth.LoginInput{Username: "alice", Password: "wrong-password"})
+				results <- err
+			}(service)
+		}
+		close(start)
+		workersDone := make(chan struct{})
+		go func() {
+			waitGroup.Wait()
+			close(workersDone)
+		}()
+		select {
+		case <-workersDone:
+		case <-ctx.Done():
+			t.Fatalf("timed out waiting for concurrent logins: %v", ctx.Err())
+		}
 	}
 	close(results)
 
