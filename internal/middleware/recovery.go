@@ -31,6 +31,8 @@ func Recovery(logger *slog.Logger) func(http.Handler) http.Handler {
 					"stack", string(debug.Stack()),
 				)
 				if !writer.Committed() {
+					writer.Header().Del("Content-Length")
+					writer.Header().Del("Content-Encoding")
 					writeMiddlewareError(writer, http.StatusInternalServerError, 900000, "Internal server error")
 					return
 				}

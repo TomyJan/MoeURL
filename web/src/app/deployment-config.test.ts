@@ -174,6 +174,27 @@ describe('deployment configuration', () => {
     expect(restoreGuide).toContain('exit 1')
   })
 
+  it('requires a validated absolute deployment root before upgrade Compose checks', () => {
+    const upgradeGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/upgrade-and-recovery.md'),
+      'utf8',
+    )
+    const requiredRoot = upgradeGuide.indexOf(': "${MOEURL_DEPLOY_ROOT:?')
+    const absoluteRoot = upgradeGuide.indexOf('case "$MOEURL_DEPLOY_ROOT" in')
+    const resolvedRoot = upgradeGuide.indexOf('DEPLOY_ROOT="$(CDPATH= cd -- "$MOEURL_DEPLOY_ROOT" && pwd -P)"')
+    const directoryCheck = upgradeGuide.indexOf('test -d "$MOEURL_DEPLOY_ROOT"')
+    const composeFileCheck = upgradeGuide.indexOf('test -f "$DEPLOY_COMPOSE"')
+    const envFileCheck = upgradeGuide.indexOf('test -f "$DEPLOY_ENV"')
+    const composeCheck = upgradeGuide.indexOf('test -r "$DEPLOY_COMPOSE"')
+    const envCheck = upgradeGuide.indexOf('test -r "$DEPLOY_ENV"')
+    const composeHelper = upgradeGuide.indexOf('production_compose()')
+
+    for (const marker of [requiredRoot, absoluteRoot, resolvedRoot, directoryCheck, composeFileCheck, envFileCheck, composeCheck, envCheck]) {
+      expect(marker).toBeGreaterThanOrEqual(0)
+      expect(marker).toBeLessThan(composeHelper)
+    }
+  })
+
   it('rejects extra Compose smoke arguments before reporting config-only success', () => {
     const smokeScript = readFileSync(resolve(repositoryRoot, 'scripts/compose-smoke.sh'), 'utf8')
     const argumentValidation = smokeScript.indexOf('case "$#" in')

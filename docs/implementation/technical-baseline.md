@@ -97,7 +97,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 - `internal/config/`：配置结构和环境变量读取。
 - `internal/db/`：数据库连接、事务和 SQLC 生成代码承载位置。
 - `internal/http/`：HTTP 路由注册、请求响应工具和错误映射。
-- `internal/middleware/`：当前承载请求日志；v0.6.0 设计在此增加请求 ID、panic 恢复、安全响应头和请求体限制。当前用户解析继续位于 `internal/auth/`，权限解析继续位于 `internal/permission/`。
+- `internal/middleware/`：承载请求日志、请求 ID、panic 恢复、安全响应头和请求体限制。当前用户解析位于 `internal/auth/`，权限解析位于 `internal/permission/`。
 - `internal/auth/`：登录、退出、会话、密码哈希。
 - `internal/permission/`：权限常量、权限计算和权限判断。
 - `internal/user/`：用户账号、用户资料和管理员用户维护业务。

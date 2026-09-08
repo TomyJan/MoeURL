@@ -69,6 +69,36 @@ func TestRecoveryReturnsSanitizedJSONAndLogsRequestContext(t *testing.T) {
 	}
 }
 
+func TestRecoveryClearsUncommittedRepresentationHeaders(t *testing.T) {
+	handler := middleware.Recovery(slog.New(slog.NewTextHandler(io.Discard, nil)))(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Length", "1")
+		w.Header().Set("Content-Encoding", "gzip")
+		panic("panic after preparing response headers")
+	}))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/panic-with-headers", nil))
+
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("response status = %d, want 500", response.Code)
+	}
+	if contentLength := response.Header().Get("Content-Length"); contentLength != "" {
+		t.Fatalf("content length = %q, want empty", contentLength)
+	}
+	if contentEncoding := response.Header().Get("Content-Encoding"); contentEncoding != "" {
+		t.Fatalf("content encoding = %q, want empty", contentEncoding)
+	}
+	var body struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode recovery response: %v", err)
+	}
+	if body.Code != 900000 {
+		t.Fatalf("response code = %d, want 900000", body.Code)
+	}
+}
+
 func TestRecoveryHandlesInvalidWriteHeaderStatusBeforeCommit(t *testing.T) {
 	for _, status := range []int{99, 1000} {
 		t.Run(strconv.Itoa(status), func(t *testing.T) {

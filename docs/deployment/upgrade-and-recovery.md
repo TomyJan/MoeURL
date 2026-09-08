@@ -13,11 +13,19 @@ MoeURL App 启动前会自动运行 Goose migration。数据库迁移可能先�
 先在受保护的部署状态目录保存升级前 SHA、当前未渲染的加固 Compose 和正在运行的 App 镜像。以下变量需要在同一维护 Shell 中保留；重新登录后应从相同目录和值恢复：
 
 ```bash
-DEPLOY_ROOT="$(pwd -P)"
+: "${MOEURL_DEPLOY_ROOT:?set MOEURL_DEPLOY_ROOT to the absolute deployment root}"
+case "$MOEURL_DEPLOY_ROOT" in
+  /*) ;;
+  *) echo 'MOEURL_DEPLOY_ROOT must be an absolute path' >&2; exit 1 ;;
+esac
+test -d "$MOEURL_DEPLOY_ROOT" || { echo 'deployment root does not exist' >&2; exit 1; }
+DEPLOY_ROOT="$(CDPATH= cd -- "$MOEURL_DEPLOY_ROOT" && pwd -P)" || exit 1
 DEPLOY_PROJECT=moeurl
 DEPLOY_STATE=/var/lib/moeurl/deployment-state
 DEPLOY_COMPOSE="$DEPLOY_ROOT/docker-compose.yml"
 DEPLOY_ENV="$DEPLOY_ROOT/.env"
+test -f "$DEPLOY_COMPOSE" && test -r "$DEPLOY_COMPOSE" || { echo 'deployment docker-compose.yml is missing or unreadable' >&2; exit 1; }
+test -f "$DEPLOY_ENV" && test -r "$DEPLOY_ENV" || { echo 'deployment .env is missing or unreadable' >&2; exit 1; }
 sudo install -d -m 700 -o "$(id -un)" -g "$(id -gn)" "$DEPLOY_STATE"
 ROLLBACK_COMPOSE="$DEPLOY_STATE/docker-compose.rollback.yml"
 install -m 600 "$DEPLOY_COMPOSE" "$ROLLBACK_COMPOSE"
@@ -61,6 +69,8 @@ chmod 600 \
 ```
 
 `DEPLOY_PROJECT` 必须与 `docker compose ls` 显示的现有生产 project 及 App 容器标签完全一致；不是 `moeurl` 时先替换示例值。`ROLLBACK_COMPOSE` 只复制仓库中的插值模板，不执行重定向到文件的 `docker compose config`，因此不会把 `.env` 中的秘密落盘。唯一的 `rollback_image_tag` 绑定升级前实际运行的 image ID，应视为本次维护窗口的不可变资产，不得覆盖或复用。维护、回退验收和备份确认全部结束前，不得执行 `docker image prune`、系统自动镜像清理或删除该 tag。
+
+`MOEURL_DEPLOY_ROOT` 必须由部署者设置为包含当前生产 `docker-compose.yml` 和 `.env` 的绝对目录。脚本在执行任何 Compose 命令前解析并校验该目录；不得依赖维护 Shell 的当前工作目录推断生产部署位置。
 
 这些文件只保存非秘密的部署身份和镜像身份，但仍放在权限为 `700` 的状态目录中，防止被非部署账号篡改。前向升级必须使用目标提交自己的 `docker-compose.yml`，以便目标版本新增的配置和镜像约定生效。
 
