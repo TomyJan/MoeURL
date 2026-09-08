@@ -91,7 +91,7 @@ unset database_password
 chmod 600 .env
 ```
 
-若自行设置含 `/`、`?`、`#`、`%` 等 URI 保留字符的密码，`MOEURL_POSTGRES_PASSWORD` 保留原值，`MOEURL_DATABASE_URL` 中的密码部分必须百分号编码。默认 `sslmode=disable` 仅用于受信的单机私有 Compose 网络；数据库链路经过不受信网络时应改用 `sslmode=verify-full` 并配置可验证的服务端证书和 CA。
+若自行设置含 `/`、`?`、`#`、`%` 或 `$` 等 URI 保留字符的密码，`.env` 中 `MOEURL_POSTGRES_PASSWORD` 的完整值使用单引号包裹，避免 Compose 将 `$VAR` 或 `${VAR}` 解释为变量插值；`MOEURL_DATABASE_URL` 中的密码部分必须百分号编码，其中 `$` 编码为 `%24`。默认 `sslmode=disable` 仅用于受信的单机私有 Compose 网络；数据库链路经过不受信网络时应改用 `sslmode=verify-full` 并配置可验证的服务端证书和 CA。
 
 ```bash
 docker compose --env-file .env config >/dev/null

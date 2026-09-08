@@ -161,7 +161,10 @@ done
 > **数据覆盖警告：** 下列 `pg_restore --clean` 会删除并重建目标数据库中的现有对象。执行前必须确认 `RESTORE_PROJECT=moeurl-restore-drill`、容器带有相同 Compose project 标签，且目标是本次演练新建的隔离数据库；严禁指向生产 project。
 
 ```bash
-test "$RESTORE_PROJECT" = moeurl-restore-drill
+test "$RESTORE_PROJECT" = moeurl-restore-drill || {
+  echo 'restore project must be moeurl-restore-drill before pg_restore --clean' >&2
+  exit 1
+}
 restore_compose exec -T postgres \
   pg_restore -U moeurl -d moeurl --clean --if-exists --exit-on-error < "$backup_file"
 ```
@@ -222,7 +225,10 @@ docker volume ls --filter "label=com.docker.compose.project=$RESTORE_PROJECT"
 > **数据破坏警告：** 下列命令永久删除 `moeurl-restore-drill` 的恢复数据库卷。它只能用于已经完成验收的隔离演练，绝不能把 `RESTORE_PROJECT` 改成生产 project。
 
 ```bash
-test "$RESTORE_PROJECT" = moeurl-restore-drill
+test "$RESTORE_PROJECT" = moeurl-restore-drill || {
+  echo 'restore project must be moeurl-restore-drill before down -v' >&2
+  exit 1
+}
 restore_compose down -v --remove-orphans
 rm -f "$RESTORE_STATE/restore.env"
 rmdir "$RESTORE_STATE"

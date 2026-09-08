@@ -199,39 +199,7 @@ func (s *Service) CleanupStaleLoginAttempts(ctx context.Context) error {
 
 // RunLoginAttemptCleanup removes stale login-failure state immediately and periodically until cancellation.
 func (s *Service) RunLoginAttemptCleanup(ctx context.Context, interval time.Duration, logger *slog.Logger) {
-	if interval <= 0 {
-		return
-	}
-	if logger == nil {
-		logger = slog.Default()
-	}
-	if ctx.Err() != nil {
-		return
-	}
-	cleanup := func() bool {
-		if err := s.CleanupStaleLoginAttempts(ctx); err != nil {
-			if ctx.Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
-				return false
-			}
-			logger.ErrorContext(ctx, "login_attempt_cleanup_failed", "error", err)
-		}
-		return true
-	}
-	if !cleanup() {
-		return
-	}
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if !cleanup() {
-				return
-			}
-		}
-	}
+	runPeriodicCleanup(ctx, interval, logger, s.CleanupStaleLoginAttempts, "login_attempt_cleanup_failed")
 }
 
 // Logout revokes a non-empty session identifier.

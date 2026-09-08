@@ -106,6 +106,11 @@ func (s *SessionService) CleanupSessions(ctx context.Context) error {
 
 // RunCleanup removes expired or revoked sessions immediately and periodically until cancellation.
 func (s *SessionService) RunCleanup(ctx context.Context, interval time.Duration, logger *slog.Logger) {
+	runPeriodicCleanup(ctx, interval, logger, s.CleanupSessions, "session_cleanup_failed", "task", "session_cleanup")
+}
+
+// runPeriodicCleanup executes maintenance immediately and on each interval until cancellation.
+func runPeriodicCleanup(ctx context.Context, interval time.Duration, logger *slog.Logger, cleanup func(context.Context) error, failureEvent string, attributes ...any) {
 	if interval <= 0 {
 		return
 	}
@@ -115,16 +120,16 @@ func (s *SessionService) RunCleanup(ctx context.Context, interval time.Duration,
 	if ctx.Err() != nil {
 		return
 	}
-	cleanup := func() bool {
-		if err := s.CleanupSessions(ctx); err != nil {
+	runOnce := func() bool {
+		if err := cleanup(ctx); err != nil {
 			if ctx.Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
 				return false
 			}
-			logger.ErrorContext(ctx, "session_cleanup_failed", "task", "session_cleanup", "error", err)
+			logger.ErrorContext(ctx, failureEvent, append(attributes, "error", err)...)
 		}
 		return true
 	}
-	if !cleanup() {
+	if !runOnce() {
 		return
 	}
 	ticker := time.NewTicker(interval)
@@ -134,7 +139,7 @@ func (s *SessionService) RunCleanup(ctx context.Context, interval time.Duration,
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if !cleanup() {
+			if !runOnce() {
 				return
 			}
 		}

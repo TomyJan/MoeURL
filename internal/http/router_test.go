@@ -277,6 +277,36 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 	}
 }
 
+// TestRouterContinueResponsesAreNeverCached verifies access changes are rechecked instead of reusing a prior redirect.
+func TestRouterContinueResponsesAreNeverCached(t *testing.T) {
+	redirect := &routerRedirectService{
+		continueResult: shortlink.RedirectResult{TargetURL: "https://example.com/final", ShortLinkID: "link-id"},
+	}
+	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: redirect})
+
+	allowed := httptest.NewRecorder()
+	router.ServeHTTP(allowed, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/go/protected/continue", nil))
+	if allowed.Code != http.StatusFound || allowed.Header().Get("Location") != "https://example.com/final" {
+		t.Fatalf("allowed continue response = status %d location %q", allowed.Code, allowed.Header().Get("Location"))
+	}
+	if cacheControl := allowed.Header().Get("Cache-Control"); cacheControl != "no-store" {
+		t.Fatalf("allowed continue Cache-Control = %q, want no-store", cacheControl)
+	}
+
+	redirect.err = shortlink.ErrPasswordRequired
+	denied := httptest.NewRecorder()
+	router.ServeHTTP(denied, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/go/protected/continue", nil))
+	if denied.Code != http.StatusFound || denied.Header().Get("Location") != "/go/protected?reason=password" {
+		t.Fatalf("denied continue response = status %d location %q", denied.Code, denied.Header().Get("Location"))
+	}
+	if cacheControl := denied.Header().Get("Cache-Control"); cacheControl != "no-store" {
+		t.Fatalf("denied continue Cache-Control = %q, want no-store", cacheControl)
+	}
+	if len(redirect.continueSlugs) != 2 {
+		t.Fatalf("continue calls = %d, want 2", len(redirect.continueSlugs))
+	}
+}
+
 // TestRouterUnknownAPIUsesUnifiedResponse verifies router unknown api uses unified response.
 func TestRouterUnknownAPIUsesUnifiedResponse(t *testing.T) {
 	router := apphttp.NewRouter()

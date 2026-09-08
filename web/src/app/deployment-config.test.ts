@@ -90,12 +90,18 @@ describe('deployment configuration', () => {
 
   it('injects a complete encoded database URL instead of interpolating a raw password', () => {
     const compose = readFileSync(resolve(repositoryRoot, 'docker-compose.yml'), 'utf8')
+    const readme = readFileSync(resolve(repositoryRoot, 'README.md'), 'utf8')
     const smokeScript = readFileSync(resolve(repositoryRoot, 'scripts/compose-smoke.sh'), 'utf8')
 
     expect(compose).toContain('MOEURL_DATABASE_URL: ${MOEURL_DATABASE_URL:?required}')
     expect(compose).not.toContain('postgres://moeurl:${MOEURL_POSTGRES_PASSWORD')
     expect(smokeScript).toContain("database_password='compose/reserved?password#100%'")
     expect(smokeScript).toContain('encodeURIComponent(process.argv[1])')
+    expect(readme).toContain('MOEURL_POSTGRES_PASSWORD')
+    expect(readme).toContain('完整值使用单引号')
+    expect(readme).toContain('$VAR')
+    expect(readme).toContain('$' + '{VAR}')
+    expect(readme).toContain('%24')
   })
 
   it('leaves the setup token optional for development Compose processes', () => {
@@ -172,6 +178,12 @@ describe('deployment configuration', () => {
     }
     expect(restoreGuide).toContain("echo 'restore project resources already exist' >&2")
     expect(restoreGuide).toContain('exit 1')
+    expect(restoreGuide).toContain(
+      "test \"$RESTORE_PROJECT\" = moeurl-restore-drill || {\n  echo 'restore project must be moeurl-restore-drill before pg_restore --clean' >&2\n  exit 1\n}",
+    )
+    expect(restoreGuide).toContain(
+      "test \"$RESTORE_PROJECT\" = moeurl-restore-drill || {\n  echo 'restore project must be moeurl-restore-drill before down -v' >&2\n  exit 1\n}",
+    )
   })
 
   it('requires a validated absolute deployment root before upgrade Compose checks', () => {
