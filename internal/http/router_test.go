@@ -103,6 +103,31 @@ func TestRouterReadinessWithoutDependencyFailsClosed(t *testing.T) {
 	}
 }
 
+// TestRouterBusinessAPIDisablesCachingWithoutChangingStaticResponses verifies session-scoped API data is never cacheable.
+func TestRouterBusinessAPIDisablesCachingWithoutChangingStaticResponses(t *testing.T) {
+	staticDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(staticDir, "index.html"), []byte("<!doctype html><title>MoeURL</title>"), 0o644); err != nil {
+		t.Fatalf("write index: %v", err)
+	}
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		Auth:        &routerAuthService{},
+		CurrentUser: &routerCurrentUserResolver{},
+		StaticDir:   staticDir,
+	})
+
+	apiResponse := httptest.NewRecorder()
+	router.ServeHTTP(apiResponse, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/auth/me", nil))
+	if got := apiResponse.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("auth/me Cache-Control = %q, want no-store", got)
+	}
+
+	staticResponse := httptest.NewRecorder()
+	router.ServeHTTP(staticResponse, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
+	if got := staticResponse.Header().Get("Cache-Control"); got == "no-store" {
+		t.Fatalf("static response Cache-Control = %q, want existing cache behavior", got)
+	}
+}
+
 // TestRouterLogsOversizedRequests verifies request logging wraps the global body limit.
 func TestRouterLogsOversizedRequests(t *testing.T) {
 	var logs bytes.Buffer

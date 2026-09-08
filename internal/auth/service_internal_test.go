@@ -27,6 +27,89 @@ func TestNewServiceWithNilPasswordVerifierUsesDefault(t *testing.T) {
 	}
 }
 
+// TestPasswordVerificationConcurrencyIsBounded verifies waiting verifications respect the operation deadline and release their slot.
+func TestPasswordVerificationConcurrencyIsBounded(t *testing.T) {
+	verificationEntered := make(chan struct{}, 2)
+	releaseVerification := make(chan struct{})
+	verificationReleased := false
+	t.Cleanup(func() {
+		if !verificationReleased {
+			close(releaseVerification)
+		}
+	})
+	service := NewServiceWithPasswordVerifier(nil, time.Hour, func(string, string) bool {
+		verificationEntered <- struct{}{}
+		<-releaseVerification
+		return true
+	})
+	service.passwordVerificationSlots = make(chan struct{}, 1)
+
+	firstResult := make(chan error, 1)
+	go func() {
+		_, err := service.verifyPasswordWithinLimit(t.Context(), "candidate", loginDummyPasswordHash)
+		firstResult <- err
+	}()
+	select {
+	case <-verificationEntered:
+	case <-t.Context().Done():
+		t.Fatalf("first password verification did not start: %v", t.Context().Err())
+	}
+
+	waitContext, cancelWait := context.WithTimeout(t.Context(), 25*time.Millisecond)
+	defer cancelWait()
+	if _, err := service.verifyPasswordWithinLimit(waitContext, "candidate", loginDummyPasswordHash); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("waiting verification error = %v, want context deadline exceeded", err)
+	}
+	select {
+	case <-verificationEntered:
+		t.Fatal("waiting verification entered verifier without an available slot")
+	default:
+	}
+
+	close(releaseVerification)
+	verificationReleased = true
+	if err := <-firstResult; err != nil {
+		t.Fatalf("first password verification error = %v", err)
+	}
+	if matched, err := service.verifyPasswordWithinLimit(t.Context(), "candidate", loginDummyPasswordHash); err != nil || !matched {
+		t.Fatalf("verification after release = matched %t error %v, want true and nil", matched, err)
+	}
+	select {
+	case <-verificationEntered:
+	default:
+		t.Fatal("verification did not reuse the released slot")
+	}
+}
+
+// TestLoginPasswordVerificationQuotaTimeoutRollsBack verifies quota waits return the operation deadline without persisting attempt state.
+func TestLoginPasswordVerificationQuotaTimeoutRollsBack(t *testing.T) {
+	pool := authInternalTestPool(t, t.Context(), 1)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	insertInternalLoginFixtures(t, ctx, pool, false)
+
+	service := NewServiceWithPasswordVerifier(pool, time.Hour, func(string, string) bool {
+		t.Fatal("password verifier ran without an available quota slot")
+		return false
+	})
+	service.passwordVerificationSlots = make(chan struct{}, 1)
+	service.passwordVerificationSlots <- struct{}{}
+	service.loginOperationTimeout = 250 * time.Millisecond
+
+	if _, err := service.Login(ctx, LoginInput{Username: "alice", Password: "candidate"}); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("login error = %v, want context deadline exceeded", err)
+	}
+	<-service.passwordVerificationSlots
+
+	var attemptCount int
+	if err := pool.QueryRow(ctx, `select count(*) from auth_login_attempt`).Scan(&attemptCount); err != nil {
+		t.Fatalf("count login attempts after quota timeout: %v", err)
+	}
+	if attemptCount != 0 {
+		t.Fatalf("login attempt count = %d, want 0 after rollback", attemptCount)
+	}
+}
+
 // TestLoginRandomFailureRollsBack verifies entropy failure cannot clear attempts or persist a Session.
 func TestLoginRandomFailureRollsBack(t *testing.T) {
 	ctx := context.Background()

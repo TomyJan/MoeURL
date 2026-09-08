@@ -47,3 +47,22 @@ func TestSecurityHeadersSetsBrowserProtectionsWithoutHSTS(t *testing.T) {
 		t.Fatalf("application emitted HSTS on plaintext boundary: %q", got)
 	}
 }
+
+// TestNoStoreDisablesResponseCaching verifies the API cache policy is set before calling the next handler.
+func TestNoStoreDisablesResponseCaching(t *testing.T) {
+	nextCalled := false
+	handler := middleware.NoStore(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		nextCalled = true
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/auth/me", nil))
+
+	if got := response.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
+	if !nextCalled {
+		t.Fatal("NoStore did not call the next handler")
+	}
+}

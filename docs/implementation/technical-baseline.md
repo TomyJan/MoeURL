@@ -407,6 +407,7 @@ v0.5.0 将 `admin:access`、`short_link:read_all`、`short_link:update_all`、`s
 - 生产环境必须设置 `Secure`。
 - Cookie Path 使用 `/`。
 - 登录成功后生成新的加密随机 session ID。
+- 单个 Auth Service 最多并发执行 2 次 Argon2id 密码验证，配额等待受登录操作 Context 的 10 秒上限约束。
 - 退出登录必须撤销服务端 session 并清理 Cookie。
 - 每次授权操作必须重新检查用户状态和权限。
 - 用户被禁用后，不得继续执行授权操作。
@@ -496,6 +497,7 @@ v0.0.1 应至少定义：
 
 - v0.0.1 只缓存 App Shell 和静态资源。
 - 不缓存登录态 API、短链业务数据和权限相关响应。
+- `/api/v1` 下经过身份解析的业务响应统一设置 `Cache-Control: no-store`；静态页面和资源不继承该响应头。
 - Service Worker 更新后应能让用户获得新版本资源。
 
 可验证要求：

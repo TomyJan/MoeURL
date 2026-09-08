@@ -311,7 +311,7 @@ PostgreSQL
 
 这种方式适合自托管用户，部署简单，也保留未来前后端分离部署的可能。
 
-v0.6.0 将首个生产支持边界收敛为单机 Docker Compose + 外部 TLS 反向代理。默认 Compose 强制部署者提供数据库密码，PostgreSQL 不开放宿主端口，App 只绑定宿主回环地址并使用非 root、只读根文件系统、`tmpfs`、init、healthcheck 和重启策略。显式开发覆盖文件只恢复本机 PostgreSQL 直连，不弱化生产文件。反向代理负责 TLS、HSTS 和来源级限流；MoeURL 负责应用级请求防护、健康检查、优雅退出、初始化与登录保护。该边界不承诺高可用、Kubernetes、内置证书管理或完整可观测平台，详细设计见 [v0.6.0 生产就绪设计](../specs/2026-08-29-v0.6.0-production-readiness-design.md)，运维入口见 [单机 Docker Compose 部署](../deployment/single-host-compose.md)。
+v0.6.0 将首个生产支持边界收敛为单机 Docker Compose + 外部 TLS 反向代理。默认 Compose 强制部署者提供数据库密码，PostgreSQL 不开放宿主端口，App 只绑定宿主回环地址并使用非 root、只读根文件系统、`tmpfs`、init、healthcheck 和重启策略。显式开发覆盖文件只恢复本机 PostgreSQL 直连，不弱化生产文件。反向代理负责 TLS、HSTS 和来源级限流；MoeURL 负责应用级请求防护、健康检查、优雅退出、初始化与登录保护。业务 API 统一返回 `Cache-Control: no-store`，静态资源保持独立缓存策略；单个 Auth Service 通过容量为 2 的实例级槽位限制 Argon2id 密码验证并发，配额等待沿用登录操作超时。该边界不承诺高可用、Kubernetes、内置证书管理或完整可观测平台，详细设计见 [v0.6.0 生产就绪设计](../specs/2026-08-29-v0.6.0-production-readiness-design.md)，运维入口见 [单机 Docker Compose 部署](../deployment/single-host-compose.md)。
 
 ## 7. 不采用的方案
 

@@ -62,6 +62,7 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 		api.Get("/health", healthHandler.Ready)
 
 		api.Group(func(businessAPI chi.Router) {
+			businessAPI.Use(middleware.NoStore)
 			businessAPI.Use(auth.CurrentUserMiddlewareWithLogger(dependency.CurrentUser, logger))
 			if dependency.System != nil {
 				systemHandler := system.NewHandlerWithLogger(dependency.System, logger)

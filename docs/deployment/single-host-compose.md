@@ -210,7 +210,7 @@ docker compose --env-file .env -f docker-compose.yml -f docker-compose.dev.yml u
 
 不要在生产启动命令中加入 `docker-compose.dev.yml`。
 
-> **数据破坏警告：** `docker compose down -v` 会永久删除该 Compose project 的 PostgreSQL 卷、管理员、短链和配置。执行前必须完成并验证卷外备份，且先用 `docker compose ls`、`docker compose --env-file .env config --format json` 和资源标签确认 project。生产日常停止不得使用 `-v`。
+> **数据破坏警告：** `docker compose down -v` 会永久删除该 Compose project 的 PostgreSQL 卷、管理员、短链和配置。执行前必须完成并验证卷外备份，且先用 `docker compose ls` 和资源标签确认 project。配置可用性只通过 `docker compose --env-file .env config >/dev/null` 验证；渲染结果可能包含秘密，不得将未重定向的配置输出记录到终端、CI 日志或工单。生产日常停止不得使用 `-v`。
 
 隔离 Compose 自动验收入口：
 

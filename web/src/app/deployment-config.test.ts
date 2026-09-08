@@ -148,6 +148,18 @@ describe('deployment configuration', () => {
     }
   })
 
+  it('documents safe Compose project verification without logging rendered secrets', () => {
+    const deploymentGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/single-host-compose.md'),
+      'utf8',
+    )
+
+    expect(deploymentGuide).not.toContain('config --format json')
+    expect(deploymentGuide).toContain('docker compose ls')
+    expect(deploymentGuide).toContain('docker compose --env-file .env config >/dev/null')
+    expect(deploymentGuide).toContain('不得将未重定向的配置输出记录到终端、CI 日志或工单')
+  })
+
   it('does not rely on local Vuetify declarations for public exports', () => {
     const declarations = readFileSync(resolve(repositoryRoot, 'web/src/vuetify.d.ts'), 'utf8')
 
