@@ -97,6 +97,14 @@ target_compose config --volumes | grep -Fx postgres-data >/dev/null
 target_compose build --pull app
 ```
 
+执行目标 migration 前，必须结合目标 migration、旧 App 的 SQL 及写入行为，确认旧 App 能在目标 schema 上继续安全运行。优先在隔离恢复环境中用升级前镜像与目标 migration 验证该兼容性；不能提供兼容性证据时，不得在旧 App 仍接收流量时迁移。应先从反向代理摘除旧 App，等待在途请求排空，再停止 App：
+
+```bash
+target_compose stop app
+```
+
+此路径属于维护窗口，会产生短暂不可用；停止完成后再执行下述 migration，并仅在 migration 成功后启动目标 App。
+
 确认 PostgreSQL 健康，再用一次性 App 容器显式执行 migration：
 
 ```bash

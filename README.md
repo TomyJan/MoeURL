@@ -249,10 +249,10 @@ bash scripts/compose-smoke.sh
 启动后访问：
 
 ```text
-http://localhost:8080/api/v1/health
-http://localhost:8080/setup
+http://127.0.0.1:8080/api/v1/health
+http://127.0.0.1:8080/setup
 ```
 
-如果通过 `MOEURL_HTTP_PORT` 指定了应用宿主端口，请使用对应端口访问。例如 `MOEURL_HTTP_PORT=18080` 时访问 `http://localhost:18080/api/v1/health` 和 `http://localhost:18080/setup`。生产 Compose 不提供 PostgreSQL 宿主端口；本地直连必须显式叠加 `docker-compose.dev.yml`。
+如果通过 `MOEURL_HTTP_PORT` 指定了应用宿主端口，请使用对应端口访问。例如 `MOEURL_HTTP_PORT=18080` 时访问 `http://127.0.0.1:18080/api/v1/health` 和 `http://127.0.0.1:18080/setup`。生产 Compose 不提供 PostgreSQL 宿主端口；本地直连必须显式叠加 `docker-compose.dev.yml`。
 
 `/api/v1/health` 应返回 `code` 为 `0` 且 `status` 为 `ok` 的响应。未初始化环境访问 `/setup` 应进入首次初始化流程。

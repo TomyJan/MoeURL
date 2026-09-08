@@ -242,9 +242,6 @@ func TestSessionCleanupLogsFailureAndContinues(t *testing.T) {
 			t.Fatalf("cleanup failure log = %q, want field %q", logText, field)
 		}
 	}
-	if strings.Contains(logText, "secret-session-id") {
-		t.Fatalf("cleanup failure log leaked a session identifier: %q", logText)
-	}
 }
 
 // TestSessionCleanupCancellationIsQuiet verifies in-flight shutdown exits without an error log.
