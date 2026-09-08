@@ -1,9 +1,10 @@
-# Dependencies
+# Dependencies and cache
 node_modules/
 .pnpm-store/
 .gocache/
 .tmp/
 .tmp-go-cache-task4/
+.cache/
 
 # Local visual verification screenshots
 .codex-screenshots/
