@@ -162,8 +162,43 @@ describe('deployment configuration', () => {
 
     expect(deploymentGuide).not.toContain('config --format json')
     expect(deploymentGuide).toContain('docker compose ls')
-    expect(deploymentGuide).toContain('docker compose --env-file .env config >/dev/null')
+    expect(deploymentGuide).toContain('production_compose config >/dev/null')
     expect(deploymentGuide).toContain('不得将未重定向的配置输出记录到终端、CI 日志或工单')
+  })
+
+  it('anchors single-host Compose operations to one validated deployment root and project', () => {
+    const deploymentGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/single-host-compose.md'),
+      'utf8',
+    )
+    const composeHelper = deploymentGuide.indexOf('production_compose()')
+
+    for (const marker of [
+      ': "${MOEURL_DEPLOY_ROOT:?',
+      'case "$MOEURL_DEPLOY_ROOT" in',
+      'DEPLOY_ROOT="$(CDPATH= cd -- "$MOEURL_DEPLOY_ROOT" && pwd -P)"',
+      'DEPLOY_PROJECT=moeurl',
+      'DEPLOY_COMPOSE="$DEPLOY_ROOT/docker-compose.yml"',
+      'DEPLOY_ENV="$DEPLOY_ROOT/.env"',
+      'DEPLOY_DEV_COMPOSE="$DEPLOY_ROOT/docker-compose.dev.yml"',
+      'test -r "$DEPLOY_COMPOSE"',
+      'test -r "$DEPLOY_ENV"',
+    ]) {
+      const position = deploymentGuide.indexOf(marker)
+      expect(position).toBeGreaterThanOrEqual(0)
+      expect(position).toBeLessThan(composeHelper)
+    }
+
+    expect(deploymentGuide).toContain('--project-name "$DEPLOY_PROJECT"')
+    expect(deploymentGuide).toContain('--project-directory "$DEPLOY_ROOT"')
+    expect(deploymentGuide).toContain('--env-file "$DEPLOY_ENV"')
+    expect(deploymentGuide).toContain('-f "$DEPLOY_COMPOSE"')
+    expect(deploymentGuide).toContain('production_compose config >/dev/null')
+    expect(deploymentGuide).toContain('production_compose up --build -d')
+    expect(deploymentGuide).toContain('production_compose down')
+    expect(deploymentGuide).toContain('production_compose down -v')
+    expect(deploymentGuide).toContain('production_compose -f "$DEPLOY_DEV_COMPOSE" up --build')
+    expect(deploymentGuide).not.toContain('docker compose --env-file .env')
   })
 
   it('requires an empty restore project before destructive database restore', () => {

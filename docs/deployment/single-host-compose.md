@@ -23,6 +23,28 @@ docker compose version
 
 ## 3. 准备部署秘密
 
+所有生产 Compose 操作先固定到一个绝对部署根目录和明确的 project。不要依赖调用命令时的当前目录：
+
+```bash
+: "${MOEURL_DEPLOY_ROOT:?set MOEURL_DEPLOY_ROOT to the absolute deployment root}"
+case "$MOEURL_DEPLOY_ROOT" in
+  /*) ;;
+  *) echo 'MOEURL_DEPLOY_ROOT must be an absolute path' >&2; exit 1 ;;
+esac
+test -d "$MOEURL_DEPLOY_ROOT" || { echo 'deployment root does not exist' >&2; exit 1; }
+DEPLOY_ROOT="$(CDPATH= cd -- "$MOEURL_DEPLOY_ROOT" && pwd -P)" || exit 1
+DEPLOY_PROJECT=moeurl
+DEPLOY_COMPOSE="$DEPLOY_ROOT/docker-compose.yml"
+DEPLOY_ENV="$DEPLOY_ROOT/.env"
+DEPLOY_DEV_COMPOSE="$DEPLOY_ROOT/docker-compose.dev.yml"
+test -f "$DEPLOY_COMPOSE" && test -r "$DEPLOY_COMPOSE" || {
+  echo 'deployment docker-compose.yml is missing or unreadable' >&2
+  exit 1
+}
+```
+
+`DEPLOY_PROJECT` 固定为本指南使用的生产 project 名；若现有部署使用其他名称，必须在维护窗口前统一修改该值并用容器的 `com.docker.compose.project` 标签核对，不能临时依赖目录名推导。后续命令必须在保留这些变量和 `production_compose` 函数的同一 Shell 会话中执行；重新登录后先重新执行本节初始化与校验。
+
 `.env` 包含数据库密码、完整数据库连接 URL 和初始化 Token，必须排除在版本控制、工单、聊天记录和命令跟踪之外。Compose 不再把原始密码拼接进 URL；`MOEURL_POSTGRES_PASSWORD` 交给 PostgreSQL 初始化，`MOEURL_DATABASE_URL` 作为已经正确编码的完整连接配置交给 App。以下命令使用只包含十六进制字符的随机密码，因此可以安全地同时生成两项：
 
 ```bash
@@ -36,15 +58,28 @@ database_password="$(openssl rand -hex 32)"
   printf 'MOEURL_POSTGRES_PASSWORD=%s\n' "$database_password"
   printf 'MOEURL_DATABASE_URL=postgres://moeurl:%s@postgres:5432/moeurl?sslmode=disable\n' "$database_password"
   printf 'MOEURL_SETUP_TOKEN=%s\n' "$(openssl rand -hex 32)"
-} > .env
+} > "$DEPLOY_ENV"
 unset database_password
-chmod 600 .env
+chmod 600 "$DEPLOY_ENV"
 ```
 
 确认文件只对部署账号可读：
 
 ```bash
-stat -c '%a %U:%G %n' .env
+test -f "$DEPLOY_ENV" && test -r "$DEPLOY_ENV" || {
+  echo 'deployment .env is missing or unreadable' >&2
+  exit 1
+}
+stat -c '%a %U:%G %n' "$DEPLOY_ENV"
+
+production_compose() {
+  docker compose \
+    --project-name "$DEPLOY_PROJECT" \
+    --project-directory "$DEPLOY_ROOT" \
+    --env-file "$DEPLOY_ENV" \
+    -f "$DEPLOY_COMPOSE" \
+    "$@"
+}
 ```
 
 `MOEURL_SETUP_TOKEN` 至少为 32 个字符。初始化完成后仍需保留该变量，因为 production 应用每次启动都会校验配置。自定义数据库密码包含 `/`、`?`、`#`、`%` 等 URI 保留字符时，必须先对密码部分做百分号编码，再写入 `MOEURL_DATABASE_URL`；`MOEURL_POSTGRES_PASSWORD` 仍保存原始值。轮换数据库密码需要同时修改 PostgreSQL 角色密码和这两个 `.env` 条目，不能只改其中一项。
@@ -56,14 +91,14 @@ stat -c '%a %U:%G %n' .env
 先解析最终配置。该命令缺少数据库密码时必须失败；缺少初始化 Token 的 production 容器必须在应用配置校验阶段拒绝启动：
 
 ```bash
-docker compose --env-file .env config >/dev/null
+production_compose config >/dev/null
 ```
 
 构建并启动：
 
 ```bash
-docker compose --env-file .env up --build -d
-docker compose --env-file .env ps
+production_compose up --build -d
+production_compose ps
 ```
 
 使用有超时的轮询等待 readiness，不要用一次固定等待代替状态检查：
@@ -199,24 +234,28 @@ map $geoip2_data_country_code $moeurl_country_code {
 普通停止保留 PostgreSQL 命名卷：
 
 ```bash
-docker compose --env-file .env down
+production_compose down
 ```
 
 本地确需直连 PostgreSQL 时，显式叠加开发覆盖文件；它只把数据库绑定到本机回环地址：
 
 ```bash
-docker compose --env-file .env -f docker-compose.yml -f docker-compose.dev.yml up --build
+test -f "$DEPLOY_DEV_COMPOSE" && test -r "$DEPLOY_DEV_COMPOSE" || {
+  echo 'development Compose override is missing or unreadable' >&2
+  exit 1
+}
+production_compose -f "$DEPLOY_DEV_COMPOSE" up --build
 ```
 
 不要在生产启动命令中加入 `docker-compose.dev.yml`。
 
-> **数据破坏警告：** `docker compose down -v` 会永久删除该 Compose project 的 PostgreSQL 卷、管理员、短链和配置。执行前必须完成并验证卷外备份，且先用 `docker compose ls` 和资源标签确认 project。配置可用性只通过 `docker compose --env-file .env config >/dev/null` 验证；渲染结果可能包含秘密，不得将未重定向的配置输出记录到终端、CI 日志或工单。生产日常停止不得使用 `-v`。
+> **数据破坏警告：** `production_compose down -v` 会永久删除 `DEPLOY_PROJECT` 对应的 PostgreSQL 卷、管理员、短链和配置。执行前必须完成并验证卷外备份，且先用 `docker compose ls` 和资源标签确认 project。配置可用性只通过 `production_compose config >/dev/null` 验证；渲染结果可能包含秘密，不得将未重定向的配置输出记录到终端、CI 日志或工单。生产日常停止不得使用 `-v`。
 
 隔离 Compose 自动验收入口：
 
 ```bash
-bash scripts/compose-smoke.sh --config-only
-bash scripts/compose-smoke.sh
+bash "$DEPLOY_ROOT/scripts/compose-smoke.sh" --config-only
+bash "$DEPLOY_ROOT/scripts/compose-smoke.sh"
 ```
 
 两种 smoke 模式都使用 Node.js 解析 Compose JSON；`--config-only` 也必须提供 Node.js。完整 smoke 还必须使用项目目标运行时 Node.js 26.x，固定使用 `moeurl-compose-smoke` project；检测到同名资源时会拒绝复用。脚本只清理带该 project 标签的容器、网络和卷。

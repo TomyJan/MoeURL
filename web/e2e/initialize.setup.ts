@@ -1,5 +1,10 @@
 import { expect, test } from '@playwright/test'
-import { e2eAdminPassword, e2eAdminUsername, e2eHost } from './support'
+import {
+  e2eAdminPassword,
+  e2eAdminUsername,
+  e2eHost,
+  serializedPayloadIncludesSecret,
+} from './support'
 
 const invalidSetupTokenCode = 900102
 
@@ -131,7 +136,7 @@ function requiredSetupToken(): string {
 /** Checks response serialization without exposing the credential in assertion output. */
 function expectTokenAbsentFromResponse(payload: unknown, setupToken: string) {
   expect(
-    JSON.stringify(payload).includes(setupToken),
+    serializedPayloadIncludesSecret(payload, setupToken),
     'API response serialization must not include the setup token',
   ).toBe(false)
 }
