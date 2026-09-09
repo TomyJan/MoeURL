@@ -89,8 +89,14 @@ sha256sum --check "$backup_file.sha256"
 ```bash
 BACKUP_ROOT=/var/lib/moeurl/backups
 backup_file="$BACKUP_ROOT/moeurl-<UTC-timestamp>.dump"
-test -s "$backup_file"
-sha256sum --check "$backup_file.sha256"
+test -s "$backup_file" || {
+  echo 'restore backup file is missing or empty' >&2
+  exit 1
+}
+sha256sum --check "$backup_file.sha256" || {
+  echo 'restore backup checksum verification failed' >&2
+  exit 1
+}
 ```
 
 ```bash

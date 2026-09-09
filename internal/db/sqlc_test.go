@@ -136,7 +136,10 @@ func TestAuthLoginAttemptFailureWindowAndBlock(t *testing.T) {
 		`, usernameHash); err != nil {
 			t.Fatalf("insert expired-window attempt: %v", err)
 		}
-		attempt, err := queries.RecordAuthLoginFailure(ctx, usernameHash)
+		attempt, err := queries.RecordAuthLoginFailure(ctx, sqlc.RecordAuthLoginFailureParams{
+			UsernameHash:     usernameHash,
+			FailureThreshold: 10,
+		})
 		if err != nil {
 			t.Fatalf("record reset login failure: %v", err)
 		}
@@ -148,21 +151,24 @@ func TestAuthLoginAttemptFailureWindowAndBlock(t *testing.T) {
 		}
 	})
 
-	t.Run("tenth failure blocks for fifteen minutes", func(t *testing.T) {
-		const usernameHash = "tenth-failure"
+	t.Run("configured failure threshold blocks for fifteen minutes", func(t *testing.T) {
+		const usernameHash = "configured-threshold"
 		if _, err := pool.Exec(ctx, `
 			insert into auth_login_attempt (
 				username_hash, failed_attempts, window_started_at, blocked_until, updated_at
-			) values ($1, 9, clock_timestamp() - interval '1 minute', null, clock_timestamp())
+			) values ($1, 2, clock_timestamp() - interval '1 minute', null, clock_timestamp())
 		`, usernameHash); err != nil {
-			t.Fatalf("insert ninth login failure: %v", err)
+			t.Fatalf("insert prior login failures: %v", err)
 		}
-		attempt, err := queries.RecordAuthLoginFailure(ctx, usernameHash)
+		attempt, err := queries.RecordAuthLoginFailure(ctx, sqlc.RecordAuthLoginFailureParams{
+			UsernameHash:     usernameHash,
+			FailureThreshold: 3,
+		})
 		if err != nil {
-			t.Fatalf("record tenth login failure: %v", err)
+			t.Fatalf("record configured-threshold login failure: %v", err)
 		}
-		if attempt.FailedAttempts != 10 || !attempt.BlockedUntil.Valid {
-			t.Fatalf("tenth failure result = %#v, want blocked attempt", attempt)
+		if attempt.FailedAttempts != 3 || !attempt.BlockedUntil.Valid {
+			t.Fatalf("configured-threshold failure result = %#v, want blocked attempt", attempt)
 		}
 		if got := attempt.BlockedUntil.Time.Sub(attempt.UpdatedAt.Time); got != 15*time.Minute {
 			t.Fatalf("blocked duration = %s, want 15m", got)
@@ -188,7 +194,10 @@ func TestAuthLoginAttemptConcurrentFailures(t *testing.T) {
 		waitGroup.Add(1)
 		go func() {
 			defer waitGroup.Done()
-			_, err := queries.RecordAuthLoginFailure(ctx, usernameHash)
+			_, err := queries.RecordAuthLoginFailure(ctx, sqlc.RecordAuthLoginFailureParams{
+				UsernameHash:     usernameHash,
+				FailureThreshold: 10,
+			})
 			errorsChannel <- err
 		}()
 	}

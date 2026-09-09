@@ -186,6 +186,20 @@ describe('deployment configuration', () => {
     )
   })
 
+  it('stops restore before destructive work when backup validation fails', () => {
+    const restoreGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/backup-and-restore.md'),
+      'utf8',
+    )
+
+    expect(restoreGuide).toContain(
+      "test -s \"$backup_file\" || {\n  echo 'restore backup file is missing or empty' >&2\n  exit 1\n}",
+    )
+    expect(restoreGuide).toContain(
+      "sha256sum --check \"$backup_file.sha256\" || {\n  echo 'restore backup checksum verification failed' >&2\n  exit 1\n}",
+    )
+  })
+
   it('requires a validated absolute deployment root before upgrade Compose checks', () => {
     const upgradeGuide = readFileSync(
       resolve(repositoryRoot, 'docs/deployment/upgrade-and-recovery.md'),

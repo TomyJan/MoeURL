@@ -36,12 +36,12 @@ set failed_attempts = case
     end,
     blocked_until = case
         when attempt.window_started_at <= database_clock.value - interval '15 minutes' then null
-        when attempt.failed_attempts + 1 >= 10 then database_clock.value + interval '15 minutes'
+        when attempt.failed_attempts + 1 >= sqlc.arg(failure_threshold)::smallint then database_clock.value + interval '15 minutes'
         else attempt.blocked_until
     end,
     updated_at = database_clock.value
 from database_clock
-where attempt.username_hash = $1
+where attempt.username_hash = sqlc.arg(username_hash)
 returning attempt.*;
 
 -- name: DeleteAuthLoginAttempt :execrows

@@ -24,6 +24,8 @@ const (
 	defaultLoginRollbackTimeout        = 2 * time.Second
 	defaultLoginConcurrency            = 2
 	loginAttemptCleanupBatchSize int64 = 500
+	// LoginFailureThreshold is the database-enforced number of failures that starts a login block.
+	LoginFailureThreshold int16 = 10
 )
 
 // PasswordVerifier compares a candidate password with an encoded account hash.
@@ -131,14 +133,17 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (LoginResult, err
 
 	passwordMatches := s.verifyPassword(input.Password, passwordHash)
 	if !userFound || !passwordHashUsable || !passwordMatches {
-		failure, recordErr := queries.RecordAuthLoginFailure(operationContext, usernameHash)
+		failure, recordErr := queries.RecordAuthLoginFailure(operationContext, sqlc.RecordAuthLoginFailureParams{
+			UsernameHash:     usernameHash,
+			FailureThreshold: LoginFailureThreshold,
+		})
 		if recordErr != nil {
 			return LoginResult{}, recordErr
 		}
 		if err := tx.Commit(operationContext); err != nil {
 			return LoginResult{}, err
 		}
-		if failure.FailedAttempts >= 10 && failure.BlockedUntil.Valid {
+		if failure.FailedAttempts >= LoginFailureThreshold && failure.BlockedUntil.Valid {
 			return LoginResult{}, ErrLoginRateLimited
 		}
 		return LoginResult{}, ErrInvalidCredentials

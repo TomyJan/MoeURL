@@ -307,6 +307,42 @@ func TestRouterContinueResponsesAreNeverCached(t *testing.T) {
 	}
 }
 
+// TestRouterScopedPreviewResponsesAreNeverCached verifies authorization changes are rechecked for cookie-scoped previews.
+func TestRouterScopedPreviewResponsesAreNeverCached(t *testing.T) {
+	redirect := &routerRedirectService{
+		previewResult: shortlink.PreviewResult{Slug: "protected", TargetHost: "example.com"},
+	}
+	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: redirect})
+
+	allowed := httptest.NewRecorder()
+	router.ServeHTTP(allowed, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/go/protected/preview", nil))
+	if allowed.Code != http.StatusOK || allowed.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("allowed preview response = status %d Cache-Control %q", allowed.Code, allowed.Header().Get("Cache-Control"))
+	}
+	var allowedBody struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(allowed.Body).Decode(&allowedBody); err != nil || allowedBody.Code != 0 {
+		t.Fatalf("allowed preview body = %#v, decode error %v", allowedBody, err)
+	}
+
+	redirect.err = shortlink.ErrPasswordRequired
+	denied := httptest.NewRecorder()
+	router.ServeHTTP(denied, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/go/protected/preview", nil))
+	if denied.Code != http.StatusOK || denied.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("denied preview response = status %d Cache-Control %q", denied.Code, denied.Header().Get("Cache-Control"))
+	}
+	var deniedBody struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(denied.Body).Decode(&deniedBody); err != nil || deniedBody.Code != shortlink.CodePasswordRequired {
+		t.Fatalf("denied preview body = %#v, decode error %v", deniedBody, err)
+	}
+	if len(redirect.previewSlugs) != 2 {
+		t.Fatalf("preview calls = %d, want 2", len(redirect.previewSlugs))
+	}
+}
+
 // TestRouterUnknownAPIUsesUnifiedResponse verifies router unknown api uses unified response.
 func TestRouterUnknownAPIUsesUnifiedResponse(t *testing.T) {
 	router := apphttp.NewRouter()

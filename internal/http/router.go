@@ -120,7 +120,7 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			business.With(middleware.NoStore).Get("/go/{slug}/continue", func(w nethttp.ResponseWriter, r *nethttp.Request) {
 				redirectHandler.Continue(w, r, chi.URLParam(r, "slug"))
 			})
-			business.Get("/go/{slug}/preview", func(w nethttp.ResponseWriter, r *nethttp.Request) {
+			business.With(middleware.NoStore).Get("/go/{slug}/preview", func(w nethttp.ResponseWriter, r *nethttp.Request) {
 				redirectHandler.PreviewScoped(w, r, chi.URLParam(r, "slug"))
 			})
 		}

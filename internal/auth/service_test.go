@@ -213,7 +213,7 @@ func TestAuthServiceLoginRateLimitUsesDatabaseState(t *testing.T) {
 		verifierCalls.Add(1)
 		return false
 	})
-	for attempt := 1; attempt <= 9; attempt++ {
+	for attempt := int16(1); attempt < auth.LoginFailureThreshold; attempt++ {
 		_, err := service.Login(ctx, auth.LoginInput{Username: "alice", Password: "wrong-password"})
 		if !errors.Is(err, auth.ErrInvalidCredentials) {
 			t.Fatalf("failure %d error = %v, want ErrInvalidCredentials", attempt, err)
@@ -227,8 +227,8 @@ func TestAuthServiceLoginRateLimitUsesDatabaseState(t *testing.T) {
 	if !errors.Is(err, auth.ErrLoginRateLimited) {
 		t.Fatalf("blocked login error = %v, want ErrLoginRateLimited", err)
 	}
-	if got := verifierCalls.Load(); got != 10 {
-		t.Fatalf("password verifier calls = %d, want 10 before direct blocking", got)
+	if got := verifierCalls.Load(); got != int32(auth.LoginFailureThreshold) {
+		t.Fatalf("password verifier calls = %d, want %d before direct blocking", got, auth.LoginFailureThreshold)
 	}
 
 	var failedAttempts int16
@@ -241,8 +241,8 @@ func TestAuthServiceLoginRateLimitUsesDatabaseState(t *testing.T) {
 	`, testLoginUsernameHash("alice")).Scan(&failedAttempts, &blockedUntil, &updatedAt); err != nil {
 		t.Fatalf("read blocked login attempt: %v", err)
 	}
-	if blockedFor := blockedUntil.Sub(updatedAt); failedAttempts != 10 || blockedFor != 15*time.Minute {
-		t.Fatalf("blocked state = attempts %d duration %s, want 10 and 15m", failedAttempts, blockedFor)
+	if blockedFor := blockedUntil.Sub(updatedAt); failedAttempts != auth.LoginFailureThreshold || blockedFor != 15*time.Minute {
+		t.Fatalf("blocked state = attempts %d duration %s, want %d and 15m", failedAttempts, blockedFor, auth.LoginFailureThreshold)
 	}
 }
 

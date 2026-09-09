@@ -712,7 +712,7 @@ describe('pages', () => {
     expect(variables.value).not.toHaveProperty('setupToken')
   })
 
-  it.each([
+  it.each<[string, Error]>([
     ['business', new ApiClientError(900102, 'Setup authentication failed')],
     ['infrastructure', new Error('network unavailable')],
   ])('clears setup-token state after a %s failure while retaining the error UI', async (_kind, error) => {
