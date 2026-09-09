@@ -104,6 +104,7 @@ describe('deployment configuration', () => {
 
   it('injects a complete encoded database URL instead of interpolating a raw password', () => {
     const compose = readFileSync(resolve(repositoryRoot, 'docker-compose.yml'), 'utf8')
+    const exampleEnv = readFileSync(resolve(repositoryRoot, '.env.example'), 'utf8')
     const readme = readFileSync(resolve(repositoryRoot, 'README.md'), 'utf8')
     const smokeScript = readFileSync(resolve(repositoryRoot, 'scripts/compose-smoke.sh'), 'utf8')
 
@@ -116,6 +117,11 @@ describe('deployment configuration', () => {
     expect(readme).toContain('$VAR')
     expect(readme).toContain('$' + '{VAR}')
     expect(readme).toContain('%24')
+    expect(exampleEnv).toContain('complete password value in single quotes')
+    expect(exampleEnv).toContain('$VAR')
+    expect(exampleEnv).toContain('$' + '{VAR}')
+    expect(exampleEnv).toContain('MOEURL_DATABASE_URL')
+    expect(exampleEnv).toContain('%24')
   })
 
   it('leaves the setup token optional for development Compose processes', () => {
@@ -342,6 +348,37 @@ describe('deployment configuration', () => {
     expect(restoreGuide).toContain(
       "sha256sum --check \"$backup_file.sha256\" || {\n  echo 'restore backup checksum verification failed' >&2\n  exit 1\n}",
     )
+  })
+
+  it('stops maintenance workflows when critical restore or migration commands fail', () => {
+    const restoreGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/backup-and-restore.md'),
+      'utf8',
+    )
+    const upgradeGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/upgrade-and-recovery.md'),
+      'utf8',
+    )
+
+    expect(restoreGuide).toContain(
+      "if ! restore_compose exec -T postgres \\\n  pg_restore -U moeurl -d moeurl --clean --if-exists --exit-on-error < \"$backup_file\"; then\n  echo 'pg_restore failed; restored app was not started' >&2\n  exit 1\nfi",
+    )
+    expect(upgradeGuide).toContain(
+      "target_compose stop app || {\n  echo 'target app failed to stop; migration was not started' >&2\n  exit 1\n}",
+    )
+    expect(upgradeGuide).toContain(
+      "if ! target_compose run --rm --no-deps \\\n  --entrypoint /bin/sh app -c \\\n  'exec /app/goose -dir /app/migrations postgres \"$MOEURL_DATABASE_URL\" up'; then\n  echo 'target migration failed; target app was not started' >&2\n  exit 1\nfi",
+    )
+  })
+
+  it('quotes the Nginx GeoIP country-code regular expression', () => {
+    const deploymentGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/single-host-compose.md'),
+      'utf8',
+    )
+
+    expect(deploymentGuide).toContain('"~^[A-Z]{2}$" $geoip2_data_country_code;')
+    expect(deploymentGuide).not.toContain('\n    ~^[A-Z]{2}$ $geoip2_data_country_code;')
   })
 
   it('requires a validated absolute deployment root before upgrade Compose checks', () => {

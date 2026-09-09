@@ -213,7 +213,7 @@ Nginx 使用本机可信 GeoIP2 数据时，可以在 `http` 块先规范化模�
 ```nginx
 map $geoip2_data_country_code $moeurl_country_code {
     default "";
-    ~^[A-Z]{2}$ $geoip2_data_country_code;
+    "~^[A-Z]{2}$" $geoip2_data_country_code;
 }
 ```
 

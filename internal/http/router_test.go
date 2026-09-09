@@ -132,12 +132,14 @@ func TestRouterBusinessAPIDisablesCachingWithoutChangingStaticResponses(t *testi
 func TestRouterLogsOversizedRequests(t *testing.T) {
 	var logs bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&logs, nil))
-	router := apphttp.NewRouter(apphttp.Dependencies{Logger: logger})
+	authService := &recordingRouterAuthService{}
+	router := apphttp.NewRouter(apphttp.Dependencies{Auth: authService, Logger: logger})
+	body := `{"username":"alice","password":"` + strings.Repeat("a", 1<<20) + `"}`
 	request := httptest.NewRequestWithContext(
 		t.Context(),
 		http.MethodPost,
 		"/api/v1/auth/login",
-		strings.NewReader(strings.Repeat("a", (1<<20)+1)),
+		strings.NewReader(body),
 	)
 	response := httptest.NewRecorder()
 
@@ -146,8 +148,45 @@ func TestRouterLogsOversizedRequests(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("oversized response status = %d, want 200", response.Code)
 	}
+	var responseBody struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&responseBody); err != nil {
+		t.Fatalf("decode oversized response: %v", err)
+	}
+	if responseBody.Code != 100001 {
+		t.Fatalf("oversized response code = %d, want 100001", responseBody.Code)
+	}
+	if authService.loginCalls != 0 {
+		t.Fatalf("oversized request Login calls = %d, want 0", authService.loginCalls)
+	}
 	if output := logs.String(); !strings.Contains(output, "msg=http_request") || !strings.Contains(output, "path=/api/v1/auth/login") {
 		t.Fatalf("oversized request log = %q, want http_request path", output)
+	}
+}
+
+// TestRouterStaticRoutesBypassCurrentUser verifies public application assets do not resolve session identity.
+func TestRouterStaticRoutesBypassCurrentUser(t *testing.T) {
+	staticDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(staticDir, "index.html"), []byte("<!doctype html><title>MoeURL</title>"), 0o644); err != nil {
+		t.Fatalf("write index: %v", err)
+	}
+	resolver := &recordingRouterCurrentUserResolver{}
+	router := apphttp.NewRouter(apphttp.Dependencies{CurrentUser: resolver, StaticDir: staticDir})
+
+	for _, path := range []string{"/", "/go/example"} {
+		response := httptest.NewRecorder()
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
+		request.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session-id"})
+
+		router.ServeHTTP(response, request)
+
+		if response.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want 200", path, response.Code)
+		}
+	}
+	if resolver.calls != 0 {
+		t.Fatalf("static route CurrentUser calls = %d, want 0", resolver.calls)
 	}
 }
 
@@ -562,6 +601,29 @@ type routerAuthService struct {
 	err error
 }
 
+type recordingRouterAuthService struct {
+	loginCalls int
+}
+
+// Login records invocation before returning a successful test session.
+func (service *recordingRouterAuthService) Login(context.Context, auth.LoginInput) (auth.LoginResult, error) {
+	service.loginCalls++
+	return auth.LoginResult{
+		User:    auth.GuestUser(),
+		Session: auth.Session{ID: "session-id", ExpiresAt: time.Now().Add(time.Hour)},
+	}, nil
+}
+
+// Logout implements the corresponding operation for the recording test double.
+func (*recordingRouterAuthService) Logout(context.Context, string) error {
+	return nil
+}
+
+// Me implements the corresponding operation for the recording test double.
+func (*recordingRouterAuthService) Me(context.Context, string) (auth.CurrentUser, error) {
+	return auth.GuestUser(), nil
+}
+
 // Login implements the corresponding operation for the surrounding test double.
 func (service routerAuthService) Login(context.Context, auth.LoginInput) (auth.LoginResult, error) {
 	if service.err != nil {
@@ -596,6 +658,7 @@ type recordingRouterCurrentUserResolver struct {
 	calls int
 }
 
+// ResolveCurrentUser records each attempted session identity resolution.
 func (resolver *recordingRouterCurrentUserResolver) ResolveCurrentUser(context.Context, string) (auth.CurrentUser, error) {
 	resolver.calls++
 	return auth.GuestUser(), nil

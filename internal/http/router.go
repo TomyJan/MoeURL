@@ -124,15 +124,15 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				redirectHandler.PreviewScoped(w, r, chi.URLParam(r, "slug"))
 			})
 		}
-		if dependency.StaticDir != "" {
-			registerStaticRoutes(business, dependency.StaticDir)
-		}
 		if redirectHandler != nil {
 			business.Get("/{slug}", func(w nethttp.ResponseWriter, r *nethttp.Request) {
 				redirectHandler.Open(w, r, chi.URLParam(r, "slug"))
 			})
 		}
 	})
+	if dependency.StaticDir != "" {
+		registerStaticRoutes(router, dependency.StaticDir)
+	}
 
 	return router
 }

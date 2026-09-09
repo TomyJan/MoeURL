@@ -183,8 +183,11 @@ test "$RESTORE_PROJECT" = moeurl-restore-drill || {
   echo 'restore project must be moeurl-restore-drill before pg_restore --clean' >&2
   exit 1
 }
-restore_compose exec -T postgres \
-  pg_restore -U moeurl -d moeurl --clean --if-exists --exit-on-error < "$backup_file"
+if ! restore_compose exec -T postgres \
+  pg_restore -U moeurl -d moeurl --clean --if-exists --exit-on-error < "$backup_file"; then
+  echo 'pg_restore failed; restored app was not started' >&2
+  exit 1
+fi
 ```
 
 启动 App。入口脚本会把较旧备份迁移到当前 schema：
