@@ -407,7 +407,7 @@ v0.5.0 将 `admin:access`、`short_link:read_all`、`short_link:update_all`、`s
 - 生产环境必须设置 `Secure`。
 - Cookie Path 使用 `/`。
 - 登录成功后生成新的加密随机 session ID。
-- 单个 Auth Service 使用容量为 2 的进程内登录准入槽位；满额时立即返回登录限流错误，不开启数据库事务或调用 Argon2id 密码校验器。
+- 单个 Auth Service 使用容量为 8 的进程内登录事务准入槽位，并使用独立的容量为 2 的密码验证槽位；事务准入满额时不打开数据库事务，密码验证满额时不调用 Argon2id 校验器，两者均立即返回登录限流错误。
 - 退出登录必须撤销服务端 session 并清理 Cookie。
 - 每次授权操作必须重新检查用户状态和权限。
 - 用户被禁用后，不得继续执行授权操作。

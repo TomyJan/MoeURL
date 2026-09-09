@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -37,6 +38,9 @@ func TestLoginGlobalAdmissionRejectsBeforeDatabaseAndVerifier(t *testing.T) {
 	if capacity := cap(service.loginSlots); capacity != defaultLoginConcurrency {
 		t.Fatalf("login admission capacity = %d, want %d", capacity, defaultLoginConcurrency)
 	}
+	if capacity := cap(service.loginSlots); capacity <= 2 {
+		t.Fatalf("login admission capacity = %d, want more than password-verification capacity 2", capacity)
+	}
 	for range cap(service.loginSlots) {
 		service.loginSlots <- struct{}{}
 	}
@@ -46,6 +50,54 @@ func TestLoginGlobalAdmissionRejectsBeforeDatabaseAndVerifier(t *testing.T) {
 	}
 	if verifierCalled {
 		t.Fatal("saturated login reached the password verifier")
+	}
+}
+
+// TestLoginPasswordVerificationAdmissionRejectsBeforeVerifier verifies Argon2 work has an independent capacity-two boundary.
+func TestLoginPasswordVerificationAdmissionRejectsBeforeVerifier(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	pool := authInternalTestPool(t, ctx, 4)
+	verifierEntered := make(chan struct{}, 3)
+	releaseVerifier := make(chan struct{})
+	var releaseOnce sync.Once
+	t.Cleanup(func() { releaseOnce.Do(func() { close(releaseVerifier) }) })
+	service := NewServiceWithPasswordVerifier(pool, time.Hour, func(string, string) bool {
+		verifierEntered <- struct{}{}
+		<-releaseVerifier
+		return false
+	})
+	results := make(chan error, 3)
+	login := func(username string) {
+		_, err := service.Login(ctx, LoginInput{Username: username, Password: "candidate"})
+		results <- err
+	}
+
+	go login("first-unknown-user")
+	go login("second-unknown-user")
+	waitForInternalAuthSignal(t, ctx, verifierEntered, "first password verifier")
+	waitForInternalAuthSignal(t, ctx, verifierEntered, "second password verifier")
+	go login("third-unknown-user")
+
+	select {
+	case <-verifierEntered:
+		t.Fatal("saturated password-verification admission reached the verifier")
+	case err := <-results:
+		if !errors.Is(err, ErrLoginRateLimited) {
+			t.Fatalf("saturated password-verification login error = %v, want ErrLoginRateLimited", err)
+		}
+	case <-ctx.Done():
+		t.Fatalf("timed out waiting for password-verification admission: %v", ctx.Err())
+	}
+
+	releaseOnce.Do(func() { close(releaseVerifier) })
+	for range 2 {
+		if err := waitForInternalAuthValue(t, ctx, results, "admitted login result"); !errors.Is(err, ErrInvalidCredentials) {
+			t.Fatalf("admitted login error = %v, want ErrInvalidCredentials", err)
+		}
+	}
+	if _, err := service.Login(ctx, LoginInput{Username: "fourth-unknown-user", Password: "candidate"}); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("login after verifier release error = %v, want ErrInvalidCredentials", err)
 	}
 }
 

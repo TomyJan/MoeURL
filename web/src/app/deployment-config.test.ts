@@ -41,7 +41,7 @@ function workflowJob(workflow: string, jobName: string) {
     return ''
   }
   const remainder = workflow.slice(start + marker.length)
-  const nextJobMatch = /\r?\n {2}[a-z0-9-]+:\r?\n/.exec(remainder)
+  const nextJobMatch = /\r?\n {2}[A-Za-z0-9_-]+:\r?\n/.exec(remainder)
   const end = nextJobMatch
     ? start + marker.length + nextJobMatch.index
     : workflow.length
@@ -86,6 +86,20 @@ describe('deployment configuration', () => {
     expect(config).toContain('MOEURL_POSTGRES_PASSWORD: e2ePostgresPassword')
     expect(config).toContain('MOEURL_DATABASE_URL: e2eDatabaseURL')
     expect(config).not.toContain('MOEURL_E2E_POSTGRES_PORT')
+  })
+
+  it('splits workflow jobs whose identifiers contain uppercase letters or underscores', () => {
+    const workflow = [
+      'jobs:',
+      '  first-job:',
+      '    runs-on: ubuntu-latest',
+      '  NEXT_JOB:',
+      '    runs-on: windows-latest',
+      '',
+    ].join('\n')
+
+    expect(workflowJob(workflow, 'first-job')).toContain('runs-on: ubuntu-latest')
+    expect(workflowJob(workflow, 'first-job')).not.toContain('NEXT_JOB')
   })
 
   it('injects a complete encoded database URL instead of interpolating a raw password', () => {
@@ -225,6 +239,10 @@ describe('deployment configuration', () => {
       resolve(repositoryRoot, 'docs/deployment/upgrade-and-recovery.md'),
       'utf8',
     )
+    const restoreGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/backup-and-restore.md'),
+      'utf8',
+    )
     const curlOptions = '--fail --silent --show-error --connect-timeout 2 --max-time 5'
 
     expect(singleHostGuide).toContain(
@@ -235,6 +253,9 @@ describe('deployment configuration', () => {
     )
     expect(upgradeGuide).toContain(
       `curl ${curlOptions} https://go.example.com/api/v1/health/ready`,
+    )
+    expect(restoreGuide).toContain(
+      `until curl ${curlOptions} http://127.0.0.1:18082/api/v1/health/ready >/dev/null; do`,
     )
   })
 
