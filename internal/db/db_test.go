@@ -128,23 +128,23 @@ func TestOpenPoolClosesPoolWhenPingFails(t *testing.T) {
 	}
 }
 
-func TestOpenPoolWithTimeoutBoundsCreateAndPing(t *testing.T) {
+func TestOpenPoolWithTimeoutUsesLifetimeContextForCreateAndTimeoutForPing(t *testing.T) {
 	originalCreate := createConfiguredPool
 	t.Cleanup(func() { createConfiguredPool = originalCreate })
 	const timeout = 250 * time.Millisecond
-	var createDeadline time.Time
-	var createObservedAt time.Time
+	poolContext, cancelPool := context.WithCancel(t.Context())
+	t.Cleanup(cancelPool)
 	var pingDeadline time.Time
+	var pingObservedAt time.Time
 	createConfiguredPool = func(ctx context.Context, _ *pgxpool.Config) (*configuredPool, error) {
-		createObservedAt = time.Now()
-		var ok bool
-		createDeadline, ok = ctx.Deadline()
-		if !ok {
-			t.Fatal("pool creation context has no deadline")
+		if ctx != poolContext {
+			t.Fatal("pool creation did not receive the application-lifetime context")
 		}
 		return &configuredPool{
 			pool: &pgxpool.Pool{},
 			ping: func(ctx context.Context) error {
+				pingObservedAt = time.Now()
+				var ok bool
 				pingDeadline, ok = ctx.Deadline()
 				if !ok {
 					t.Fatal("Ping context has no deadline")
@@ -154,17 +154,19 @@ func TestOpenPoolWithTimeoutBoundsCreateAndPing(t *testing.T) {
 			close: func() {},
 		}, nil
 	}
-	pool, err := openPoolWithTimeout(t.Context(), testDatabaseURL, timeout)
+	pool, err := openPoolWithTimeout(poolContext, testDatabaseURL, timeout)
 
 	if err != nil || pool == nil {
 		t.Fatalf("openPoolWithTimeout = pool %p error %v", pool, err)
 	}
-	if !createDeadline.Equal(pingDeadline) {
-		t.Fatalf("create deadline %s and Ping deadline %s differ", createDeadline, pingDeadline)
-	}
-	remaining := createDeadline.Sub(createObservedAt)
+	remaining := pingDeadline.Sub(pingObservedAt)
 	if remaining <= 0 || remaining > timeout {
-		t.Fatalf("startup deadline after %s, want (0, %s]", remaining, timeout)
+		t.Fatalf("Ping deadline after %s, want (0, %s]", remaining, timeout)
+	}
+	select {
+	case <-poolContext.Done():
+		t.Fatal("pool creation context was canceled when OpenPool returned")
+	default:
 	}
 }
 

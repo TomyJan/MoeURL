@@ -350,10 +350,24 @@ NODE
 }
 
 assert_database_state() {
+  expected_migration_version=$(node - "$REPOSITORY_ROOT/migrations" <<'NODE'
+const fs = require('node:fs')
+
+const versions = fs.readdirSync(process.argv[2])
+  .map((name) => /^(\d+)_.*\.sql$/.exec(name))
+  .filter(Boolean)
+  .map((match) => Number(match[1]))
+if (versions.length === 0 || versions.some((version) => !Number.isSafeInteger(version))) {
+  throw new Error('migration directory does not contain valid numbered migrations')
+}
+process.stdout.write(String(Math.max(...versions)))
+NODE
+  ) || fail "could not determine the expected migration version"
   migration_version=$(run_compose --project-name "$PROJECT_NAME" --env-file "$RUNTIME_ENV" --file "$COMPOSE_FILE" \
     exec -T postgres psql -U moeurl -d moeurl -Atc \
     "select max(version_id) from goose_db_version where is_applied" | tr -d '\r')
-  [ "$migration_version" = "11" ] || fail "database migration version is not 11"
+  [ "$migration_version" = "$expected_migration_version" ] || \
+    fail "database migration version is not $expected_migration_version"
 
   builtin_groups=$(run_compose --project-name "$PROJECT_NAME" --env-file "$RUNTIME_ENV" --file "$COMPOSE_FILE" \
     exec -T postgres psql -U moeurl -d moeurl -Atc \

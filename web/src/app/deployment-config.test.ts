@@ -516,7 +516,7 @@ describe('deployment configuration', () => {
 
     expect(backendSecurity).toContain('go-version-file: go.mod')
     expect(backendSecurity).toContain('go test -race ./... -count=1')
-    expect(backendSecurity).toContain('golang.org/x/vuln/cmd/govulncheck@v1.1.4')
+    expect(backendSecurity).toContain('golang.org/x/vuln/cmd/govulncheck@v1.8.0')
     expect(backendSecurity).toContain('govulncheck ./...')
     expect(backendSecurity).toContain('github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0')
     expect(backendSecurity).toContain('git diff --exit-code -- internal/db/sqlc')
@@ -547,6 +547,10 @@ describe('deployment configuration', () => {
     expect(smokeScript).toContain('-u MOEURL_DATABASE_URL')
     expect(smokeScript).toContain('-u MOEURL_SETUP_TOKEN')
     expect(smokeScript).toContain("assert(app.environment?.MOEURL_ENV === 'production'")
+    expect(smokeScript).toContain('expected_migration_version=')
+    expect(smokeScript).toContain('"$migration_version" = "$expected_migration_version"')
+    expect(smokeScript).not.toContain('[ "$migration_version" = "11" ]')
+    expect(smokeScript).not.toContain('database migration version is not 11')
   })
 
   it('keeps target-runtime acceptance pending until remote evidence exists', () => {

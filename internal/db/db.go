@@ -77,19 +77,19 @@ func OpenPool(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	return openPoolWithTimeout(ctx, databaseURL, databaseStartupTimeout)
 }
 
-// openPoolWithTimeout parses, creates, and verifies a pool within a bounded startup window.
+// openPoolWithTimeout creates a lifecycle-bound pool and verifies initial connectivity within a bounded window.
 func openPoolWithTimeout(ctx context.Context, databaseURL string, timeout time.Duration) (*pgxpool.Pool, error) {
 	config, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {
 		return nil, newDatabaseOperationError("parse database configuration", err)
 	}
 
-	startupContext, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	configured, err := createConfiguredPool(startupContext, config)
+	configured, err := createConfiguredPool(ctx, config)
 	if err != nil {
 		return nil, newDatabaseOperationError("create database pool", err)
 	}
+	startupContext, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	if err := configured.ping(startupContext); err != nil {
 		configured.close()
 		return nil, newDatabaseOperationError("verify database connection", err)
