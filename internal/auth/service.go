@@ -20,11 +20,11 @@ import (
 var loginDummyPasswordHash = "$argon2id$v=19$" + accountArgonProfile() + "$Br1VkWYfZh4At1JIZgluRg$oo5ZbILTTrshpMQUQxgjSWh7sJJWbxt8i+KrE+Vu2sI"
 
 const (
-	defaultLoginOperationTimeout                 = 10 * time.Second
-	defaultLoginRollbackTimeout                  = 2 * time.Second
-	defaultLoginConcurrency                      = 8
-	defaultPasswordVerificationConcurrency       = 2
-	loginAttemptCleanupBatchSize           int64 = 500
+	defaultLoginOperationTimeout           = 10 * time.Second
+	defaultLoginRollbackTimeout            = 2 * time.Second
+	defaultLoginConcurrency                = 8
+	defaultPasswordVerificationConcurrency = 2
+	loginAttemptCleanupBatchSize           = maintenanceCleanupBatchSize
 	// LoginFailureThreshold is the database-enforced number of failures that starts a login block.
 	LoginFailureThreshold int16 = 10
 )
@@ -205,12 +205,11 @@ func lockOrCreateLoginAttempt(ctx context.Context, queries *sqlc.Queries, userna
 }
 
 // CleanupStaleLoginAttempts removes one bounded batch of inactive login-failure state.
-func (s *Service) CleanupStaleLoginAttempts(ctx context.Context) error {
+func (s *Service) CleanupStaleLoginAttempts(ctx context.Context) (int64, error) {
 	if s.deleteStaleLoginAttempts == nil {
-		return errors.New("auth service database is unavailable")
+		return 0, errors.New("auth service database is unavailable")
 	}
-	_, err := s.deleteStaleLoginAttempts(ctx, loginAttemptCleanupBatchSize)
-	return err
+	return s.deleteStaleLoginAttempts(ctx, loginAttemptCleanupBatchSize)
 }
 
 // RunLoginAttemptCleanup removes stale login-failure state immediately and periodically until cancellation.

@@ -1068,14 +1068,21 @@ func testLoginUsernameHash(username string) string {
 func assertLoginAttemptCount(t *testing.T, ctx context.Context, pool *pgxpool.Pool, username string, expected int16) {
 	t.Helper()
 	var actual int16
-	if err := pool.QueryRow(ctx, `
+	err := pool.QueryRow(ctx, `
 		select failed_attempts
 		from auth_login_attempt
 		where username_hash = $1
-	`, testLoginUsernameHash(username)).Scan(&actual); err != nil {
-		if expected == 0 && errors.Is(err, pgx.ErrNoRows) {
+	`, testLoginUsernameHash(username)).Scan(&actual)
+	if expected == 0 {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return
 		}
+		if err == nil {
+			t.Fatalf("login-attempt row exists with count %d, want no row", actual)
+		}
+		t.Fatalf("read login-attempt count: %v", err)
+	}
+	if err != nil {
 		t.Fatalf("read login-attempt count: %v", err)
 	}
 	if actual != expected {

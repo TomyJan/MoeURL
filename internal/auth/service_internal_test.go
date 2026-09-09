@@ -324,8 +324,12 @@ func TestCleanupStaleLoginAttemptsUsesOneFixedBatch(t *testing.T) {
 		},
 	}
 
-	if err := service.CleanupStaleLoginAttempts(ctx); err != nil {
+	deleted, err := service.CleanupStaleLoginAttempts(ctx)
+	if err != nil {
 		t.Fatalf("cleanup stale login attempts: %v", err)
+	}
+	if deleted != loginAttemptCleanupBatchSize {
+		t.Fatalf("deleted login attempts = %d, want %d", deleted, loginAttemptCleanupBatchSize)
 	}
 	if calls != 1 {
 		t.Fatalf("cleanup calls = %d, want 1", calls)
@@ -334,9 +338,42 @@ func TestCleanupStaleLoginAttemptsUsesOneFixedBatch(t *testing.T) {
 
 // TestCleanupStaleLoginAttemptsRejectsUnavailableDatabase verifies missing production cleanup dependencies fail safely.
 func TestCleanupStaleLoginAttemptsRejectsUnavailableDatabase(t *testing.T) {
-	if err := (&Service{}).CleanupStaleLoginAttempts(t.Context()); err == nil || !strings.Contains(err.Error(), "database is unavailable") {
+	if _, err := (&Service{}).CleanupStaleLoginAttempts(t.Context()); err == nil || !strings.Contains(err.Error(), "database is unavailable") {
 		t.Fatalf("cleanup error = %v, want unavailable database", err)
 	}
+}
+
+// TestRunLoginAttemptCleanupProcessesFollowUpBatch verifies the scheduler preserves deletion counts.
+func TestRunLoginAttemptCleanupProcessesFollowUpBatch(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	runnerContext, cancelRunner := context.WithCancel(ctx)
+	calls := make(chan int, 2)
+	callCount := 0
+	service := &Service{
+		deleteStaleLoginAttempts: func(context.Context, int64) (int64, error) {
+			callCount++
+			calls <- callCount
+			if callCount == 1 {
+				return loginAttemptCleanupBatchSize, nil
+			}
+			return 1, nil
+		},
+	}
+	runnerDone := make(chan struct{})
+	go func() {
+		defer close(runnerDone)
+		service.RunLoginAttemptCleanup(runnerContext, time.Hour, slog.Default())
+	}()
+
+	if call := waitForInternalAuthValue(t, ctx, calls, "full login-attempt cleanup batch"); call != 1 {
+		t.Fatalf("first cleanup call = %d, want 1", call)
+	}
+	if call := waitForInternalAuthValue(t, ctx, calls, "short login-attempt cleanup batch"); call != 2 {
+		t.Fatalf("second cleanup call = %d, want 2", call)
+	}
+	cancelRunner()
+	waitForInternalAuthSignal(t, ctx, runnerDone, "login-attempt follow-up cleanup cancellation")
 }
 
 // TestRunLoginAttemptCleanupDefendsInvalidRuntimeParameters verifies invalid optional inputs cannot panic or start work.

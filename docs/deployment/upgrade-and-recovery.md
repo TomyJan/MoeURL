@@ -235,7 +235,7 @@ rollback_compose up --detach --no-build --force-recreate --no-deps app || {
 
 主机丢失演练的验收项：
 
-1. `goose_db_version` 的最大已应用版本为 `11`。
+1. `goose_db_version` 的最大已应用版本与 `migrations/` 目录中按编号计算出的当前最大 migration 版本一致。
 2. `guest`、`user`、`admin` 三个内置组存在。
 3. 恢复出的管理员可以登录。
 4. 预先登记的样例短链、跳转模式、倒计时、过期时间和密码启用状态一致。

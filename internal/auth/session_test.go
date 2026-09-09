@@ -121,8 +121,12 @@ func TestSessionCleanupUsesOneFixedBatch(t *testing.T) {
 		},
 	}
 
-	if err := service.CleanupSessions(ctx); err != nil {
+	deleted, err := service.CleanupSessions(ctx)
+	if err != nil {
 		t.Fatalf("cleanup sessions: %v", err)
+	}
+	if deleted != 500 {
+		t.Fatalf("deleted sessions = %d, want 500", deleted)
 	}
 	if calls != 1 {
 		t.Fatalf("cleanup calls = %d, want 1", calls)
@@ -131,8 +135,40 @@ func TestSessionCleanupUsesOneFixedBatch(t *testing.T) {
 
 // TestSessionCleanupRejectsUnavailableDatabase verifies missing production cleanup dependencies fail safely.
 func TestSessionCleanupRejectsUnavailableDatabase(t *testing.T) {
-	if err := NewSessionService(nil, time.Hour).CleanupSessions(t.Context()); err == nil || !strings.Contains(err.Error(), "database is unavailable") {
+	if _, err := NewSessionService(nil, time.Hour).CleanupSessions(t.Context()); err == nil || !strings.Contains(err.Error(), "database is unavailable") {
 		t.Fatalf("cleanup error = %v, want unavailable database", err)
+	}
+}
+
+// TestPeriodicCleanupProcessesFullBatchesUntilShortBatch verifies one cycle drains bounded follow-up batches.
+func TestPeriodicCleanupProcessesFullBatchesUntilShortBatch(t *testing.T) {
+	results := []int64{maintenanceCleanupBatchSize, maintenanceCleanupBatchSize, 1}
+	calls := 0
+
+	if keepRunning := runCleanupCycle(t.Context(), func(context.Context) (int64, error) {
+		result := results[calls]
+		calls++
+		return result, nil
+	}, slog.Default(), "cleanup_failed"); !keepRunning {
+		t.Fatal("cleanup cycle stopped unexpectedly")
+	}
+	if calls != len(results) {
+		t.Fatalf("cleanup calls = %d, want %d", calls, len(results))
+	}
+}
+
+// TestPeriodicCleanupCapsFullBatches verifies one cycle cannot drain unbounded maintenance work.
+func TestPeriodicCleanupCapsFullBatches(t *testing.T) {
+	calls := 0
+
+	if keepRunning := runCleanupCycle(t.Context(), func(context.Context) (int64, error) {
+		calls++
+		return maintenanceCleanupBatchSize, nil
+	}, slog.Default(), "cleanup_failed"); !keepRunning {
+		t.Fatal("cleanup cycle stopped unexpectedly")
+	}
+	if calls != maxCleanupBatchesPerCycle {
+		t.Fatalf("cleanup calls = %d, want %d", calls, maxCleanupBatchesPerCycle)
 	}
 }
 

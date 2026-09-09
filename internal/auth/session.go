@@ -14,7 +14,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const SessionCookieName = "moeurl_session"
+const (
+	SessionCookieName           = "moeurl_session"
+	maintenanceCleanupBatchSize = int64(500)
+	maxCleanupBatchesPerCycle   = 4
+)
 
 var ErrInvalidSession = errors.New("invalid session")
 
@@ -96,12 +100,11 @@ func (s *SessionService) Revoke(ctx context.Context, sessionID string) error {
 }
 
 // CleanupSessions removes one bounded batch of expired or revoked sessions.
-func (s *SessionService) CleanupSessions(ctx context.Context) error {
+func (s *SessionService) CleanupSessions(ctx context.Context) (int64, error) {
 	if s.cleanupSessions == nil {
-		return errors.New("session service database is unavailable")
+		return 0, errors.New("session service database is unavailable")
 	}
-	_, err := s.cleanupSessions(ctx)
-	return err
+	return s.cleanupSessions(ctx)
 }
 
 // RunCleanup removes expired or revoked sessions immediately and periodically until cancellation.
@@ -110,7 +113,7 @@ func (s *SessionService) RunCleanup(ctx context.Context, interval time.Duration,
 }
 
 // runPeriodicCleanup executes maintenance immediately and on each interval until cancellation.
-func runPeriodicCleanup(ctx context.Context, interval time.Duration, logger *slog.Logger, cleanup func(context.Context) error, failureEvent string, attributes ...any) {
+func runPeriodicCleanup(ctx context.Context, interval time.Duration, logger *slog.Logger, cleanup func(context.Context) (int64, error), failureEvent string, attributes ...any) {
 	if interval <= 0 {
 		return
 	}
@@ -120,16 +123,7 @@ func runPeriodicCleanup(ctx context.Context, interval time.Duration, logger *slo
 	if ctx.Err() != nil {
 		return
 	}
-	runOnce := func() bool {
-		if err := cleanup(ctx); err != nil {
-			if ctx.Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
-				return false
-			}
-			logger.ErrorContext(ctx, failureEvent, append(attributes, "error", err)...)
-		}
-		return true
-	}
-	if !runOnce() {
+	if !runCleanupCycle(ctx, cleanup, logger, failureEvent, attributes...) {
 		return
 	}
 	ticker := time.NewTicker(interval)
@@ -139,11 +133,32 @@ func runPeriodicCleanup(ctx context.Context, interval time.Duration, logger *slo
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if !runOnce() {
+			if !runCleanupCycle(ctx, cleanup, logger, failureEvent, attributes...) {
 				return
 			}
 		}
 	}
+}
+
+// runCleanupCycle processes a bounded number of full batches and stops after a short batch.
+func runCleanupCycle(ctx context.Context, cleanup func(context.Context) (int64, error), logger *slog.Logger, failureEvent string, attributes ...any) bool {
+	for range maxCleanupBatchesPerCycle {
+		if ctx.Err() != nil {
+			return false
+		}
+		deleted, err := cleanup(ctx)
+		if err != nil {
+			if ctx.Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
+				return false
+			}
+			logger.ErrorContext(ctx, failureEvent, append(attributes, "error", err)...)
+			return true
+		}
+		if deleted < maintenanceCleanupBatchSize {
+			return true
+		}
+	}
+	return true
 }
 
 // sessionCleanupForPool builds the generated cleanup operation when a database is available.

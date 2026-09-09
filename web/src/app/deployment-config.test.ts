@@ -596,6 +596,16 @@ describe('deployment configuration', () => {
     expect(smokeScript).not.toContain('database migration version is not 11')
   })
 
+  it('documents disaster-recovery migration checks without a fixed version', () => {
+    const upgradeGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/upgrade-and-recovery.md'),
+      'utf8',
+    )
+
+    expect(upgradeGuide).toContain('`migrations/` 目录中按编号计算出的当前最大 migration 版本')
+    expect(upgradeGuide).not.toContain('最大已应用版本为 `11`')
+  })
+
   it('keeps target-runtime acceptance pending until remote evidence exists', () => {
     const acceptance = readFileSync(
       resolve(repositoryRoot, 'docs/implementation/v0.6.0-acceptance.md'),
