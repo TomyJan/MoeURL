@@ -211,7 +211,10 @@ rollback_compose config --volumes | grep -Fx postgres-data >/dev/null
 test "$(docker image inspect -f '{{.Id}}' "$rollback_image_tag")" = "$running_image_id"
 docker image tag "$rollback_image_tag" "$service_image_ref"
 test "$(docker image inspect -f '{{.Id}}' "$service_image_ref")" = "$running_image_id"
-rollback_compose up --detach --no-build --force-recreate --no-deps app
+rollback_compose up --detach --no-build --force-recreate --no-deps app || {
+  echo 'rollback app failed to start' >&2
+  exit 1
+}
 ```
 
 只有当保存的 tag 和 image ID 已无法从本机镜像存储恢复时，才使用 `UPGRADE_FROM_COMMIT` 检出升级前提交并通过 `rollback_compose build app` 重建；该路径依赖源码、构建依赖和外部下载，不是首选回退方式。不能依赖浮动分支名，也不得改用旧提交中的 `docker-compose.yml`，否则会重新引入旧部署默认值。重建完成后仍应记录新 image ID，再使用 `--force-recreate --no-deps` 只替换 App。

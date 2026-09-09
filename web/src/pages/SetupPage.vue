@@ -13,6 +13,10 @@
 
       <div class="auth-page__form">
         <v-alert v-if="isLoading" class="auth-page__state" color="primary" variant="tonal">{{ t('setup.loading') }}</v-alert>
+        <v-alert v-else-if="isError || !data" class="auth-page__state" data-testid="setup-status-error" type="error" variant="tonal">
+          <span>{{ t('setup.loadFailed') }}</span>
+          <v-btn variant="text" @click="retryStatus">{{ t('setup.retry') }}</v-btn>
+        </v-alert>
         <v-alert v-else-if="data?.initialized || initialized" class="auth-page__state" data-testid="setup-completion" type="success" variant="tonal">
           {{ t('setup.initialized') }}
         </v-alert>
@@ -90,7 +94,7 @@ import { ApiClientError } from '@/shared/api/client'
 const INVALID_SETUP_TOKEN_ERROR_CODE = 900102
 
 const { t } = useI18n()
-const { data, isLoading } = useQuery({
+const { data, isError, isLoading, refetch } = useQuery({
   queryKey: ['init-status'],
   queryFn: getInitStatus,
 })
@@ -138,11 +142,19 @@ const errorMessage = computed(() => {
 
 /** Submits a snapshot of the system initialization form. */
 function submit() {
+  if (!data.value || isError.value) {
+    return
+  }
   const input = { ...form }
-  if (!data.value?.setupTokenRequired) {
+  if (!data.value.setupTokenRequired) {
     delete input.setupToken
   }
   mutation.mutate(input)
+}
+
+/** Retries loading the server-authoritative initialization status. */
+function retryStatus() {
+  void refetch()
 }
 </script>
 

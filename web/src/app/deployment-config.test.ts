@@ -221,6 +221,21 @@ describe('deployment configuration', () => {
     expect(deploymentGuide).not.toContain('docker compose --env-file .env')
   })
 
+  it('refuses to overwrite an existing production environment before generating secrets', () => {
+    const deploymentGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/single-host-compose.md'),
+      'utf8',
+    )
+    const existingEnvironmentCheck = deploymentGuide.indexOf('test ! -e "$DEPLOY_ENV" || {')
+    const passwordGeneration = deploymentGuide.indexOf('database_password="$(openssl rand -hex 32)"')
+    const environmentWrite = deploymentGuide.indexOf('} > "$DEPLOY_ENV"')
+
+    expect(existingEnvironmentCheck).toBeGreaterThanOrEqual(0)
+    expect(existingEnvironmentCheck).toBeLessThan(passwordGeneration)
+    expect(existingEnvironmentCheck).toBeLessThan(environmentWrite)
+    expect(deploymentGuide).toContain('数据库密码轮换必须使用独立维护流程')
+  })
+
   it('bounds both production readiness probes with the same transport timeouts', () => {
     const singleHostGuide = readFileSync(
       resolve(repositoryRoot, 'docs/deployment/single-host-compose.md'),
@@ -385,6 +400,9 @@ describe('deployment configuration', () => {
     )
     expect(upgradeGuide).toContain(
       "target_compose up -d --no-deps app || {\n  echo 'target app failed to start' >&2\n  exit 1\n}",
+    )
+    expect(upgradeGuide).toContain(
+      "rollback_compose up --detach --no-build --force-recreate --no-deps app || {\n  echo 'rollback app failed to start' >&2\n  exit 1\n}",
     )
     expect(upgradeGuide).toContain('app_port_mapping="$(target_compose port app 8080)" || {')
     expect(upgradeGuide).toContain('app_host_port="${app_port_mapping##*:}"')

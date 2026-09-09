@@ -676,6 +676,42 @@ describe('pages', () => {
     expect(mutate).toHaveBeenCalledWith(expect.objectContaining({ adminUsername: 'admin', defaultLanguage: 'en', defaultTheme: 'dark' }))
   })
 
+  it('keeps setup unavailable and exposes retry when initialization status fails', async () => {
+    const refetch = vi.fn()
+    const mutate = vi.fn()
+    setQueryResult({ data: ref(undefined), isError: ref(true), refetch })
+    setMutationResult({ mutate })
+    mount(SetupPage)
+
+    expect(screen.getByText('setup.loadFailed')).toBeTruthy()
+    expect(screen.queryByTestId('setup-wizard')).toBeNull()
+    expect(screen.queryByTestId('setup-submit')).toBeNull()
+    expect(mutate).not.toHaveBeenCalled()
+
+    await fireEvent.click(screen.getByRole('button', { name: 'setup.retry' }))
+    expect(refetch).toHaveBeenCalledTimes(1)
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
+  it('rejects submission when a previously loaded initialization status becomes unavailable', async () => {
+    const status = ref<{ initialized: boolean; setupTokenRequired: boolean } | undefined>({
+      initialized: false,
+      setupTokenRequired: false,
+    })
+    const mutate = vi.fn()
+    setQueryResult({ data: status })
+    setMutationResult({ mutate })
+    mount(SetupPage)
+    const form = screen.getByTestId('setup-wizard')
+
+    status.value = undefined
+    await fireEvent.submit(form)
+
+    expect(mutate).not.toHaveBeenCalled()
+    expect(screen.getByText('setup.loadFailed')).toBeTruthy()
+    expect(screen.queryByTestId('setup-wizard')).toBeNull()
+  })
+
   it('shows the password setup-token field only when required by status', () => {
     setQueryResult({ data: ref({ initialized: false, setupTokenRequired: true }) })
     const production = mount(SetupPage)
