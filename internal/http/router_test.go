@@ -60,22 +60,30 @@ func TestRouterHealthRoutesBypassCurrentUser(t *testing.T) {
 	resolver := &recordingRouterCurrentUserResolver{}
 	router := apphttp.NewRouter(apphttp.Dependencies{Health: checker, CurrentUser: resolver})
 
-	for _, path := range []string{"/api/v1/health/live", "/api/v1/health/ready", "/api/v1/health"} {
-		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
+	for _, testCase := range []struct {
+		path          string
+		wantPingCalls int
+	}{
+		{path: "/api/v1/health/live", wantPingCalls: 0},
+		{path: "/api/v1/health/ready", wantPingCalls: 1},
+		{path: "/api/v1/health", wantPingCalls: 1},
+	} {
+		checker.calls = 0
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, testCase.path, nil)
 		request.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session-id"})
 		response := httptest.NewRecorder()
 
 		router.ServeHTTP(response, request)
 
 		if response.Code != http.StatusOK {
-			t.Fatalf("%s status = %d, want 200", path, response.Code)
+			t.Fatalf("%s status = %d, want 200", testCase.path, response.Code)
+		}
+		if checker.calls != testCase.wantPingCalls {
+			t.Fatalf("%s Ping calls = %d, want %d", testCase.path, checker.calls, testCase.wantPingCalls)
 		}
 	}
 	if resolver.calls != 0 {
 		t.Fatalf("health route CurrentUser calls = %d, want 0", resolver.calls)
-	}
-	if checker.calls != 2 {
-		t.Fatalf("health Ping calls = %d, want ready and compatibility only", checker.calls)
 	}
 }
 

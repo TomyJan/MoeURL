@@ -193,7 +193,10 @@ fi
 启动 App。入口脚本会把较旧备份迁移到当前 schema：
 
 ```bash
-restore_compose up --build -d app
+restore_compose up --build -d app || {
+  echo 'restored app failed to start' >&2
+  exit 1
+}
 deadline=$(( $(date +%s) + 120 ))
 until curl --fail --silent --show-error --connect-timeout 2 --max-time 5 http://127.0.0.1:18082/api/v1/health/ready >/dev/null; do
   [ "$(date +%s)" -lt "$deadline" ] || { echo 'app readiness timeout' >&2; exit 1; }

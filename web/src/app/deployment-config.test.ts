@@ -363,8 +363,14 @@ describe('deployment configuration', () => {
     expect(restoreGuide).toContain(
       "if ! restore_compose exec -T postgres \\\n  pg_restore -U moeurl -d moeurl --clean --if-exists --exit-on-error < \"$backup_file\"; then\n  echo 'pg_restore failed; restored app was not started' >&2\n  exit 1\nfi",
     )
+    expect(restoreGuide).toContain(
+      "restore_compose up --build -d app || {\n  echo 'restored app failed to start' >&2\n  exit 1\n}",
+    )
     expect(upgradeGuide).toContain(
       "target_compose stop app || {\n  echo 'target app failed to stop; migration was not started' >&2\n  exit 1\n}",
+    )
+    expect(upgradeGuide).toContain(
+      "target_compose up -d postgres || {\n  echo 'target postgres container failed to start' >&2\n  exit 1\n}",
     )
     expect(upgradeGuide).toContain(
       "if ! target_compose run --rm --no-deps \\\n  --entrypoint /bin/sh app -c \\\n  'exec /app/goose -dir /app/migrations postgres \"$MOEURL_DATABASE_URL\" up'; then\n  echo 'target migration failed; target app was not started' >&2\n  exit 1\nfi",

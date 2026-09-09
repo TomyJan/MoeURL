@@ -121,7 +121,10 @@ target_compose stop app || {
 确认 PostgreSQL 健康，再用一次性 App 容器显式执行 migration：
 
 ```bash
-target_compose up -d postgres
+target_compose up -d postgres || {
+  echo 'target postgres container failed to start' >&2
+  exit 1
+}
 postgres_id="$(target_compose ps -q postgres)"
 test -n "$postgres_id"
 deadline=$(( $(date +%s) + 120 ))
