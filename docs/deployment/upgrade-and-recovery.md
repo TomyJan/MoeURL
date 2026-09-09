@@ -14,9 +14,15 @@ MoeURL App 启动前会自动运行 Goose migration。数据库迁移可能先�
 
 ```bash
 : "${MOEURL_DEPLOY_ROOT:?set MOEURL_DEPLOY_ROOT to the absolute deployment root}"
+: "${MOEURL_PUBLIC_BASE_URL:?set MOEURL_PUBLIC_BASE_URL from protected deployment configuration}"
 case "$MOEURL_DEPLOY_ROOT" in
   /*) ;;
   *) echo 'MOEURL_DEPLOY_ROOT must be an absolute path' >&2; exit 1 ;;
+esac
+PUBLIC_BASE_URL="${MOEURL_PUBLIC_BASE_URL%/}"
+case "$PUBLIC_BASE_URL" in
+  https://?*) ;;
+  *) echo 'MOEURL_PUBLIC_BASE_URL must use https' >&2; exit 1 ;;
 esac
 test -d "$MOEURL_DEPLOY_ROOT" || { echo 'deployment root does not exist' >&2; exit 1; }
 DEPLOY_ROOT="$(CDPATH= cd -- "$MOEURL_DEPLOY_ROOT" && pwd -P)" || exit 1
@@ -70,7 +76,7 @@ chmod 600 \
 
 `DEPLOY_PROJECT` 必须与 `docker compose ls` 显示的现有生产 project 及 App 容器标签完全一致；不是 `moeurl` 时先替换示例值。`ROLLBACK_COMPOSE` 只复制仓库中的插值模板，不执行重定向到文件的 `docker compose config`，因此不会把 `.env` 中的秘密落盘。唯一的 `rollback_image_tag` 绑定升级前实际运行的 image ID，应视为本次维护窗口的不可变资产，不得覆盖或复用。维护、回退验收和备份确认全部结束前，不得执行 `docker image prune`、系统自动镜像清理或删除该 tag。
 
-`MOEURL_DEPLOY_ROOT` 必须由部署者设置为包含当前生产 `docker-compose.yml` 和 `.env` 的绝对目录。脚本在执行任何 Compose 命令前解析并校验该目录；不得依赖维护 Shell 的当前工作目录推断生产部署位置。
+`MOEURL_DEPLOY_ROOT` 必须由部署者设置为包含当前生产 `docker-compose.yml` 和 `.env` 的绝对目录。`MOEURL_PUBLIC_BASE_URL` 必须从受保护的部署配置注入为实际公网 HTTPS 基础地址，例如 `https://go.example.com`，不得把占位域名用于生产检查。脚本在执行任何 Compose 命令前解析并校验部署目录与公网地址；不得依赖维护 Shell 的当前工作目录推断生产部署位置。
 
 这些文件只保存非秘密的部署身份和镜像身份，但仍放在权限为 `700` 的状态目录中，防止被非部署账号篡改。前向升级必须使用目标提交自己的 `docker-compose.yml`，以便目标版本新增的配置和镜像约定生效。
 
@@ -82,7 +88,7 @@ production_compose images
 production_compose ps
 production_compose config >/dev/null
 production_compose config --volumes | grep -Fx postgres-data >/dev/null
-curl --fail --silent --show-error --connect-timeout 2 --max-time 5 https://go.example.com/api/v1/health/ready
+curl --fail --silent --show-error --connect-timeout 2 --max-time 5 "$PUBLIC_BASE_URL/api/v1/health/ready"
 ```
 
 按照 [备份与隔离恢复](backup-and-restore.md) 创建自定义格式备份，至少完成 `test -s`、`pg_restore --list` 和 SHA-256 校验。高风险升级应先用候选代码在隔离 project 恢复该备份并跑完恢复验收。
@@ -143,14 +149,25 @@ fi
 该命令成功后切换 App：
 
 ```bash
-target_compose up -d --no-deps app
+target_compose up -d --no-deps app || {
+  echo 'target app failed to start' >&2
+  exit 1
+}
 ```
 
 使用有界轮询等待 readiness，并检查日志：
 
 ```bash
+app_port_mapping="$(target_compose port app 8080)" || {
+  echo 'target app port mapping could not be resolved' >&2
+  exit 1
+}
+app_host_port="${app_port_mapping##*:}"
+case "$app_host_port" in
+  ''|*[!0-9]*) echo 'target app host port is invalid' >&2; exit 1 ;;
+esac
 deadline=$(( $(date +%s) + 120 ))
-until curl --fail --silent --show-error --connect-timeout 2 --max-time 5 http://127.0.0.1:8080/api/v1/health/ready >/dev/null; do
+until curl --fail --silent --show-error --connect-timeout 2 --max-time 5 "http://127.0.0.1:$app_host_port/api/v1/health/ready" >/dev/null; do
   [ "$(date +%s)" -lt "$deadline" ] || { echo 'readiness timeout' >&2; exit 1; }
   sleep 1
 done
@@ -161,7 +178,7 @@ target_compose logs --since 10m app
 
 ## 4. 失败处理与回退
 
-若构建失败或 migration 尚未执行，保持旧容器运行，修复后重试即可。若 migration 成功但新 App 未就绪：
+若构建失败，或在摘流并执行 `target_compose stop app` 之前中止且 migration 尚未执行，旧容器仍可运行，修复后重试即可。若旧 App 已停止，而 PostgreSQL 启动失败或健康检查超时，则旧服务已经不可用；按下述首选回退路径恢复升级前镜像并确认 readiness，再重新开始升级。若 migration 成功但新 App 未就绪：
 
 1. 保存 App 日志、容器状态和 readiness 响应。
 2. 查阅目标 migration 的 Down 数据影响。

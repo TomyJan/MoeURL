@@ -152,11 +152,12 @@ limit_req_zone $binary_remote_addr zone=moeurl_setup:10m rate=2r/m;
 limit_req_zone $binary_remote_addr zone=moeurl_unlock:10m rate=10r/m;
 ```
 
-站点配置示例：
+站点配置示例使用 Nginx 1.25.1 及更高版本的独立 HTTP/2 指令：
 
 ```nginx
 server {
-    listen 443 ssl http2;
+    listen 443 ssl;
+    http2 on;
     server_name go.example.com;
 
     ssl_certificate /etc/letsencrypt/live/go.example.com/fullchain.pem;

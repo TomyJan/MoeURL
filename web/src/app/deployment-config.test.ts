@@ -230,10 +230,10 @@ describe('deployment configuration', () => {
       resolve(repositoryRoot, 'docs/deployment/upgrade-and-recovery.md'),
       'utf8',
     )
-    const readinessProbe = 'curl --fail --silent --show-error --connect-timeout 2 --max-time 5 http://127.0.0.1:8080/api/v1/health/ready >/dev/null'
+    const curlOptions = '--fail --silent --show-error --connect-timeout 2 --max-time 5'
 
-    expect(singleHostGuide).toContain(`until ${readinessProbe}; do`)
-    expect(upgradeGuide).toContain(`until ${readinessProbe}; do`)
+    expect(singleHostGuide).toContain(`until curl ${curlOptions} http://127.0.0.1:8080/api/v1/health/ready >/dev/null; do`)
+    expect(upgradeGuide).toContain(`until curl ${curlOptions} "http://127.0.0.1:$app_host_port/api/v1/health/ready" >/dev/null; do`)
   })
 
   it('uses bounded curl probes for external deployment health checks', () => {
@@ -257,7 +257,12 @@ describe('deployment configuration', () => {
     expect(singleHostGuide).toContain(
       `curl ${curlOptions} https://go.example.com/api/v1/health/ready`,
     )
+    expect(upgradeGuide).toContain(': "${MOEURL_PUBLIC_BASE_URL:?')
+    expect(upgradeGuide).toContain('PUBLIC_BASE_URL="${MOEURL_PUBLIC_BASE_URL%/}"')
     expect(upgradeGuide).toContain(
+      `curl ${curlOptions} "$PUBLIC_BASE_URL/api/v1/health/ready"`,
+    )
+    expect(upgradeGuide).not.toContain(
       `curl ${curlOptions} https://go.example.com/api/v1/health/ready`,
     )
     expect(restoreGuide).toContain(
@@ -375,6 +380,12 @@ describe('deployment configuration', () => {
     expect(upgradeGuide).toContain(
       "if ! target_compose run --rm --no-deps \\\n  --entrypoint /bin/sh app -c \\\n  'exec /app/goose -dir /app/migrations postgres \"$MOEURL_DATABASE_URL\" up'; then\n  echo 'target migration failed; target app was not started' >&2\n  exit 1\nfi",
     )
+    expect(upgradeGuide).toContain(
+      "target_compose up -d --no-deps app || {\n  echo 'target app failed to start' >&2\n  exit 1\n}",
+    )
+    expect(upgradeGuide).toContain('app_port_mapping="$(target_compose port app 8080)" || {')
+    expect(upgradeGuide).toContain('app_host_port="${app_port_mapping##*:}"')
+    expect(upgradeGuide).not.toContain('http://127.0.0.1:8080/api/v1/health/ready')
   })
 
   it('quotes the Nginx GeoIP country-code regular expression', () => {
@@ -385,6 +396,17 @@ describe('deployment configuration', () => {
 
     expect(deploymentGuide).toContain('"~^[A-Z]{2}$" $geoip2_data_country_code;')
     expect(deploymentGuide).not.toContain('\n    ~^[A-Z]{2}$ $geoip2_data_country_code;')
+  })
+
+  it('uses the Nginx 1.25.1 and newer HTTP/2 directive syntax', () => {
+    const deploymentGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/single-host-compose.md'),
+      'utf8',
+    )
+
+    expect(deploymentGuide).toContain('listen 443 ssl;')
+    expect(deploymentGuide).toContain('http2 on;')
+    expect(deploymentGuide).not.toContain('listen 443 ssl http2;')
   })
 
   it('requires a validated absolute deployment root before upgrade Compose checks', () => {
@@ -564,6 +586,8 @@ describe('deployment configuration', () => {
     expect(acceptance).toContain('- [ ] `cd web && pnpm test:e2e` 全量通过。')
     expect(acceptance).toContain('- [ ] 最终 Docker 镜像 HIGH、CRITICAL 漏洞扫描通过。')
     expect(acceptance).toContain('- [ ] production Compose smoke 和隔离恢复演练通过。')
+    expect(acceptance).toContain('`GOTOOLCHAIN=auto`')
+    expect(acceptance).toContain('`GOVERSION=go1.26.8`')
   })
 
   it('keeps the detailed plan and local runtime evidence aligned with completed work', () => {

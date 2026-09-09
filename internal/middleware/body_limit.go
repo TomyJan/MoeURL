@@ -6,7 +6,8 @@ import (
 	"net/http"
 )
 
-const maxJSONBodyBytes int64 = 1 << 20
+// MaxJSONBodyBytes is the maximum accepted body size for non-read-only requests.
+const MaxJSONBodyBytes = 1 << 20
 
 // BodyLimit bounds request bodies for every method except GET and HEAD.
 func BodyLimit(next http.Handler) http.Handler {
@@ -17,13 +18,13 @@ func BodyLimit(next http.Handler) http.Handler {
 			return
 		}
 
-		if r.ContentLength > maxJSONBodyBytes {
+		if r.ContentLength > MaxJSONBodyBytes {
 			_ = r.Body.Close()
 			writeMiddlewareError(w, http.StatusOK, 100001, "Invalid request")
 			return
 		}
 		if r.Body != nil {
-			limitedBody := http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
+			limitedBody := http.MaxBytesReader(w, r.Body, MaxJSONBodyBytes)
 			body, err := io.ReadAll(limitedBody)
 			_ = limitedBody.Close()
 			if err != nil {

@@ -13,14 +13,12 @@ import (
 	"github.com/TomyJan/MoeURL/internal/middleware"
 )
 
-const testJSONBodyLimit = 1 << 20
-
 func TestBodyLimitRejectsKnownOversizeBeforeHandler(t *testing.T) {
 	handlerCalled := false
 	handler := middleware.BodyLimit(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		handlerCalled = true
 	}))
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/example", strings.NewReader(strings.Repeat("a", testJSONBodyLimit+1)))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/example", strings.NewReader(strings.Repeat("a", middleware.MaxJSONBodyBytes+1)))
 	response := httptest.NewRecorder()
 
 	handler.ServeHTTP(response, request)
@@ -43,7 +41,7 @@ func TestBodyLimitRejectsKnownOversizeBeforeHandler(t *testing.T) {
 }
 
 func TestBodyLimitAllowsExactBoundary(t *testing.T) {
-	body := bytes.Repeat([]byte{'a'}, testJSONBodyLimit)
+	body := bytes.Repeat([]byte{'a'}, middleware.MaxJSONBodyBytes)
 	readBytes := 0
 	originalBody := &trackingReadCloser{Reader: bytes.NewReader(body)}
 	handler := middleware.BodyLimit(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -61,8 +59,8 @@ func TestBodyLimitAllowsExactBoundary(t *testing.T) {
 
 	handler.ServeHTTP(response, request)
 
-	if readBytes != testJSONBodyLimit {
-		t.Fatalf("read bytes = %d, want %d", readBytes, testJSONBodyLimit)
+	if readBytes != middleware.MaxJSONBodyBytes {
+		t.Fatalf("read bytes = %d, want %d", readBytes, middleware.MaxJSONBodyBytes)
 	}
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("response status = %d, want 204", response.Code)
@@ -80,7 +78,7 @@ func TestBodyLimitLeavesReadOnlyMethodsUnrestricted(t *testing.T) {
 				_, readErr = io.Copy(io.Discard, r.Body)
 				w.WriteHeader(http.StatusNoContent)
 			}))
-			request := httptest.NewRequestWithContext(t.Context(), method, "/api/v1/example", strings.NewReader(strings.Repeat("a", testJSONBodyLimit+1)))
+			request := httptest.NewRequestWithContext(t.Context(), method, "/api/v1/example", strings.NewReader(strings.Repeat("a", middleware.MaxJSONBodyBytes+1)))
 			response := httptest.NewRecorder()
 
 			handler.ServeHTTP(response, request)
@@ -100,7 +98,7 @@ func TestBodyLimitRejectsOversizedOptionsBeforeHandler(t *testing.T) {
 	handler := middleware.BodyLimit(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		handlerCalled = true
 	}))
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/api/v1/example", strings.NewReader(strings.Repeat("a", testJSONBodyLimit+1)))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/api/v1/example", strings.NewReader(strings.Repeat("a", middleware.MaxJSONBodyBytes+1)))
 	response := httptest.NewRecorder()
 
 	handler.ServeHTTP(response, request)
@@ -124,7 +122,7 @@ func TestBodyLimitRejectsOversizedOptionsBeforeHandler(t *testing.T) {
 
 func TestBodyLimitRejectsOversizedBodyWithUnknownOrForgedLengthBeforeHandler(t *testing.T) {
 	const validJSON = `{"value":"ok"}`
-	payload := validJSON + strings.Repeat(" ", testJSONBodyLimit)
+	payload := validJSON + strings.Repeat(" ", middleware.MaxJSONBodyBytes)
 	tests := []struct {
 		name             string
 		contentLength    int64
@@ -184,7 +182,7 @@ func TestBodyLimitConstrainsUnknownChunkedLengthBeforeBusinessOperation(t *testi
 		businessCalls++
 		apphttp.OK(w, nil)
 	}))
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/example", strings.NewReader(`"`+strings.Repeat("a", testJSONBodyLimit)+`"`))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/example", strings.NewReader(`"`+strings.Repeat("a", middleware.MaxJSONBodyBytes)+`"`))
 	request.ContentLength = -1
 	request.TransferEncoding = []string{"chunked"}
 	response := httptest.NewRecorder()
