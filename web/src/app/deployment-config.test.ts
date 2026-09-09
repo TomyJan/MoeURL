@@ -372,6 +372,9 @@ describe('deployment configuration', () => {
       "restore_compose up --build -d app || {\n  echo 'restored app failed to start' >&2\n  exit 1\n}",
     )
     expect(upgradeGuide).toContain(
+      "target_compose build --pull app || {\n  echo 'target app image build failed; migration was not started' >&2\n  exit 1\n}",
+    )
+    expect(upgradeGuide).toContain(
       "target_compose stop app || {\n  echo 'target app failed to stop; migration was not started' >&2\n  exit 1\n}",
     )
     expect(upgradeGuide).toContain(

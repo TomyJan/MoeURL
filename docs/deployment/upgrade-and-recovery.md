@@ -110,7 +110,10 @@ target_compose() {
 }
 target_compose config >/dev/null
 target_compose config --volumes | grep -Fx postgres-data >/dev/null
-target_compose build --pull app
+target_compose build --pull app || {
+  echo 'target app image build failed; migration was not started' >&2
+  exit 1
+}
 ```
 
 执行目标 migration 前，必须结合目标 migration、旧 App 的 SQL 及写入行为，确认旧 App 能在目标 schema 上继续安全运行。优先在隔离恢复环境中用升级前镜像与目标 migration 验证该兼容性；不能提供兼容性证据时，不得在旧 App 仍接收流量时迁移。应先从反向代理摘除旧 App，等待在途请求排空，再停止 App：
