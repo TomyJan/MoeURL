@@ -141,7 +141,7 @@ target_compose up -d --no-deps app
 
 ```bash
 deadline=$(( $(date +%s) + 120 ))
-until curl --fail --silent http://127.0.0.1:8080/api/v1/health/ready >/dev/null; do
+until curl --fail --silent --show-error --connect-timeout 2 --max-time 5 http://127.0.0.1:8080/api/v1/health/ready >/dev/null; do
   [ "$(date +%s)" -lt "$deadline" ] || { echo 'readiness timeout' >&2; exit 1; }
   sleep 1
 done

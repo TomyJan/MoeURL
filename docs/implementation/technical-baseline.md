@@ -609,11 +609,11 @@ Go 服务负责：
 
 前端构建产物应复制到 Go 服务镜像中。
 
-标准部署命令：
+标准部署命令必须先按 [单机 Docker Compose 部署](../deployment/single-host-compose.md) 校验绝对 `DEPLOY_ROOT`，并初始化固定 Compose 文件、环境文件和 project 的 `production_compose` helper：
 
 ```bash
-docker compose --env-file .env config >/dev/null
-docker compose --env-file .env up --build -d
+production_compose config >/dev/null
+production_compose up --build -d
 ```
 
 默认 Compose 要求显式提供原始 `MOEURL_POSTGRES_PASSWORD` 和完整、已编码的 `MOEURL_DATABASE_URL`，不得在 Compose 中把原始密码拼接进 URI。PostgreSQL 不映射宿主机端口；App 默认仅绑定 `127.0.0.1:8080`，以 UID/GID `10001:10001` 运行，并启用只读根文件系统、`/tmp` tmpfs、init、readiness healthcheck 和 `unless-stopped` 重启策略。App 的 `stop_grace_period` 固定为 20 秒，必须长于应用内部 15 秒统一关闭期限。production 还由应用启动校验强制要求 `MOEURL_SETUP_TOKEN`。外部 TLS 代理负责公网 HTTPS、HSTS、可信转发头和登录、初始化、公开解锁端点的来源级限流。

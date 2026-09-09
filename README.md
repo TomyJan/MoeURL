@@ -76,6 +76,10 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 先创建权限受限的 `.env`，并为数据库密码和初始化 Token 生成独立的至少 32 字符随机值。App 接收完整、已编码的 `MOEURL_DATABASE_URL`，避免 Compose 把原始密码拼入 URI。`.env.example` 只提供变量入口，不提供可用的默认秘密：
 
 ```bash
+test ! -e .env || {
+  echo '.env already exists; preserve it or move it explicitly before creating a new file' >&2
+  exit 1
+}
 set +x
 umask 077
 database_password="$(openssl rand -hex 32)"

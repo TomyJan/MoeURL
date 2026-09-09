@@ -201,6 +201,58 @@ describe('deployment configuration', () => {
     expect(deploymentGuide).not.toContain('docker compose --env-file .env')
   })
 
+  it('bounds both production readiness probes with the same transport timeouts', () => {
+    const singleHostGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/single-host-compose.md'),
+      'utf8',
+    )
+    const upgradeGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/upgrade-and-recovery.md'),
+      'utf8',
+    )
+    const readinessProbe = 'curl --fail --silent --show-error --connect-timeout 2 --max-time 5 http://127.0.0.1:8080/api/v1/health/ready >/dev/null'
+
+    expect(singleHostGuide).toContain(`until ${readinessProbe}; do`)
+    expect(upgradeGuide).toContain(`until ${readinessProbe}; do`)
+  })
+
+  it('stops backup before pg_dump when the production PostgreSQL identity is invalid', () => {
+    const backupGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/backup-and-restore.md'),
+      'utf8',
+    )
+
+    expect(backupGuide).toContain(
+      `test -n "$postgres_id" || {\n  echo 'production postgres container was not found' >&2\n  exit 1\n}`,
+    )
+    expect(backupGuide).toContain(
+      `test "$postgres_project" = "$DEPLOY_PROJECT" || {\n  echo 'production postgres container project does not match DEPLOY_PROJECT' >&2\n  exit 1\n}`,
+    )
+  })
+
+  it('keeps the technical baseline Compose commands independent of the working directory', () => {
+    const baseline = readFileSync(
+      resolve(repositoryRoot, 'docs/implementation/technical-baseline.md'),
+      'utf8',
+    )
+
+    expect(baseline).toContain('[单机 Docker Compose 部署](../deployment/single-host-compose.md)')
+    expect(baseline).toContain('production_compose config >/dev/null')
+    expect(baseline).toContain('production_compose up --build -d')
+    expect(baseline).not.toContain('docker compose --env-file .env config >/dev/null')
+    expect(baseline).not.toContain('docker compose --env-file .env up --build -d')
+  })
+
+  it('refuses to overwrite an existing README deployment environment file', () => {
+    const readme = readFileSync(resolve(repositoryRoot, 'README.md'), 'utf8')
+    const existenceCheck = readme.indexOf('test ! -e .env || {')
+    const environmentWrite = readme.indexOf('} > .env')
+
+    expect(existenceCheck).toBeGreaterThanOrEqual(0)
+    expect(existenceCheck).toBeLessThan(environmentWrite)
+    expect(readme).toContain("echo '.env already exists; preserve it or move it explicitly before creating a new file' >&2")
+  })
+
   it('requires an empty restore project before destructive database restore', () => {
     const restoreGuide = readFileSync(
       resolve(repositoryRoot, 'docs/deployment/backup-and-restore.md'),

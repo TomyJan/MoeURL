@@ -36,9 +36,15 @@ docker compose ls
 production_compose config >/dev/null
 production_compose ps postgres
 postgres_id="$(production_compose ps -q postgres)"
-test -n "$postgres_id"
+test -n "$postgres_id" || {
+  echo 'production postgres container was not found' >&2
+  exit 1
+}
 postgres_project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$postgres_id")"
-test "$postgres_project" = "$DEPLOY_PROJECT"
+test "$postgres_project" = "$DEPLOY_PROJECT" || {
+  echo 'production postgres container project does not match DEPLOY_PROJECT' >&2
+  exit 1
+}
 ```
 
 `DEPLOY_PROJECT` 必须与现有生产容器的 `com.docker.compose.project` 标签完全一致。标签校验失败时停止操作，先确认部署目录和 project；不得对名称相近的其他 Compose 环境执行备份。
