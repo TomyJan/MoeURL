@@ -87,6 +87,8 @@ import { getInitStatus, setupSystem } from '@/entities/system/api'
 import type { SetupInput } from '@/entities/system/api'
 import { ApiClientError } from '@/shared/api/client'
 
+const INVALID_SETUP_TOKEN_ERROR_CODE = 900102
+
 const { t } = useI18n()
 const { data, isLoading } = useQuery({
   queryKey: ['init-status'],
@@ -128,7 +130,7 @@ const mutation = useMutation({
 })
 const errorMessage = computed(() => {
   const error = mutation.error.value
-  if (error instanceof ApiClientError && error.code === 900102) {
+  if (error instanceof ApiClientError && error.code === INVALID_SETUP_TOKEN_ERROR_CODE) {
     return t('setup.setupTokenInvalid')
   }
   return error instanceof Error ? error.message : t('setup.failed')

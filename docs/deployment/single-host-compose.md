@@ -114,8 +114,8 @@ done
 随后通过 HTTPS 打开 `/setup`，输入 `.env` 中的初始化 Token，创建站点和管理员。完成后验证：
 
 ```bash
-curl --fail --silent https://go.example.com/api/v1/health/live
-curl --fail --silent https://go.example.com/api/v1/health/ready
+curl --fail --silent --show-error --connect-timeout 2 --max-time 5 https://go.example.com/api/v1/health/live
+curl --fail --silent --show-error --connect-timeout 2 --max-time 5 https://go.example.com/api/v1/health/ready
 ```
 
 不要把 Token 放到 URL、Shell 参数、截图或代理访问日志中。初始化请求必须使用 JSON 请求体并经 HTTPS 发送。

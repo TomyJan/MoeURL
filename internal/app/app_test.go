@@ -136,6 +136,13 @@ func TestAppNewInjectsPoolAsReadinessChecker(t *testing.T) {
 	}
 }
 
+// TestSessionCleanupIntervalSupportsBoundedBacklogDrain verifies bounded cleanup runs frequently enough for the supported deployment scale.
+func TestSessionCleanupIntervalSupportsBoundedBacklogDrain(t *testing.T) {
+	if sessionCleanupInterval != time.Minute {
+		t.Fatalf("session cleanup interval = %s, want %s", sessionCleanupInterval, time.Minute)
+	}
+}
+
 // TestAppNewStartsAndWaitsForAllCleanupTasks verifies production wiring shares one cancellation and completion boundary.
 func TestAppNewStartsAndWaitsForAllCleanupTasks(t *testing.T) {
 	originalAccessGrantRunner := runAccessGrantCleanup

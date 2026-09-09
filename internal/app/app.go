@@ -25,7 +25,7 @@ import (
 const (
 	accessGrantCleanupInterval  = time.Minute
 	loginAttemptCleanupInterval = 15 * time.Minute
-	sessionCleanupInterval      = 15 * time.Minute
+	sessionCleanupInterval      = time.Minute
 )
 
 // validatePermissionCatalog allows startup validation failures to be exercised without mutating package catalog state.

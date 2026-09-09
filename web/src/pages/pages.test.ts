@@ -731,6 +731,13 @@ describe('pages', () => {
     expect(screen.getByText(error instanceof ApiClientError ? 'setup.setupTokenInvalid' : error.message)).toBeTruthy()
   })
 
+  it('uses a named business error code for an invalid setup token', () => {
+    const source = readFileSync('src/pages/SetupPage.vue', 'utf8')
+
+    expect(source).toContain('INVALID_SETUP_TOKEN_ERROR_CODE')
+    expect(source).not.toContain('error.code === 900102')
+  })
+
   it('uses primary color semantics for setup step indexes', () => {
     const source = readFileSync('src/pages/SetupPage.vue', 'utf8')
     const stepIndexBlock = source.match(/\.setup-wizard__step-index\s*{[^}]+}/)?.[0] ?? ''

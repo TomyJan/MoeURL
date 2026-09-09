@@ -216,6 +216,42 @@ describe('deployment configuration', () => {
     expect(upgradeGuide).toContain(`until ${readinessProbe}; do`)
   })
 
+  it('uses bounded curl probes for external deployment health checks', () => {
+    const singleHostGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/single-host-compose.md'),
+      'utf8',
+    )
+    const upgradeGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/upgrade-and-recovery.md'),
+      'utf8',
+    )
+    const curlOptions = '--fail --silent --show-error --connect-timeout 2 --max-time 5'
+
+    expect(singleHostGuide).toContain(
+      `curl ${curlOptions} https://go.example.com/api/v1/health/live`,
+    )
+    expect(singleHostGuide).toContain(
+      `curl ${curlOptions} https://go.example.com/api/v1/health/ready`,
+    )
+    expect(upgradeGuide).toContain(
+      `curl ${curlOptions} https://go.example.com/api/v1/health/ready`,
+    )
+  })
+
+  it('stops restore before health polling when PostgreSQL cannot start', () => {
+    const restoreGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/backup-and-restore.md'),
+      'utf8',
+    )
+
+    expect(restoreGuide).toContain(
+      "restore_compose up -d postgres || {\n  echo 'restore postgres container failed to start' >&2\n  exit 1\n}",
+    )
+    expect(restoreGuide).toContain(
+      "test -n \"$postgres_id\" || {\n  echo 'restore postgres container was not found' >&2\n  exit 1\n}",
+    )
+  })
+
   it('stops backup before pg_dump when the production PostgreSQL identity is invalid', () => {
     const backupGuide = readFileSync(
       resolve(repositoryRoot, 'docs/deployment/backup-and-restore.md'),

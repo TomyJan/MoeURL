@@ -82,7 +82,7 @@ production_compose images
 production_compose ps
 production_compose config >/dev/null
 production_compose config --volumes | grep -Fx postgres-data >/dev/null
-curl --fail --silent https://go.example.com/api/v1/health/ready
+curl --fail --silent --show-error --connect-timeout 2 --max-time 5 https://go.example.com/api/v1/health/ready
 ```
 
 按照 [备份与隔离恢复](backup-and-restore.md) 创建自定义格式备份，至少完成 `test -s`、`pg_restore --list` 和 SHA-256 校验。高风险升级应先用候选代码在隔离 project 恢复该备份并跑完恢复验收。

@@ -160,9 +160,15 @@ fi
 启动空 PostgreSQL，轮询健康状态后恢复：
 
 ```bash
-restore_compose up -d postgres
+restore_compose up -d postgres || {
+  echo 'restore postgres container failed to start' >&2
+  exit 1
+}
 postgres_id="$(restore_compose ps -q postgres)"
-test -n "$postgres_id"
+test -n "$postgres_id" || {
+  echo 'restore postgres container was not found' >&2
+  exit 1
+}
 deadline=$(( $(date +%s) + 120 ))
 until [ "$(docker inspect -f '{{.State.Health.Status}}' "$postgres_id")" = healthy ]; do
   [ "$(date +%s)" -lt "$deadline" ] || { echo 'postgres health timeout' >&2; exit 1; }
