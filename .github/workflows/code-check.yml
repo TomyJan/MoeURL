@@ -208,12 +208,10 @@ jobs:
         working-directory: web
         run: pnpm install --frozen-lockfile
 
-      - name: Install Chromium
-        working-directory: web
-        run: pnpm exec playwright install --with-deps chromium
-
       - name: Run E2E
         working-directory: web
+        env:
+          MOEURL_E2E_BROWSER_CHANNEL: chrome
         run: pnpm test:e2e
 
       - name: Upload Playwright report
