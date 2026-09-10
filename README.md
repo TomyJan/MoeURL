@@ -97,10 +97,12 @@ chmod 600 .env
 
 若自行设置含 `/`、`?`、`#`、`%` 或 `$` 等 URI 保留字符的密码，`.env` 中 `MOEURL_POSTGRES_PASSWORD` 的完整值使用单引号包裹，避免 Compose 将 `$VAR` 或 `${VAR}` 解释为变量插值；`MOEURL_DATABASE_URL` 中的密码部分必须百分号编码，其中 `$` 编码为 `%24`。默认 `sslmode=disable` 仅用于受信的单机私有 Compose 网络；数据库链路经过不受信网络时应改用 `sslmode=verify-full` 并配置可验证的服务端证书和 CA。
 
+执行生产 Compose 命令前，先按 [单机 Docker Compose 部署](./docs/deployment/single-host-compose.md)校验绝对部署根目录、生产 Compose 文件、`.env` 和 project name，并在同一 Shell 会话中初始化 `production_compose` helper：
+
 ```bash
-docker compose --env-file .env config >/dev/null
-docker compose --env-file .env up --build -d
-docker compose --env-file .env ps
+production_compose config >/dev/null
+production_compose up --build -d
+production_compose ps
 ```
 
 启动后在宿主机检查 readiness：
@@ -114,7 +116,7 @@ curl --fail http://127.0.0.1:8080/api/v1/health/ready
 停止容器但保留数据库数据：
 
 ```bash
-docker compose --env-file .env down
+production_compose down
 ```
 
 本地开发确需直连 PostgreSQL 时，显式叠加开发覆盖文件；数据库仍只绑定本机回环地址：
@@ -242,10 +244,10 @@ E2E 会使用独立的 Compose project name、独立应用宿主端口和本次�
 
 项目要求后端和前端测试覆盖率均达到 100%。当前 CI 已配置覆盖率门禁，未达到 100% 时会失败。
 
-Docker Compose 验证：
+Docker Compose 验证；生产配置检查仍需在已初始化 `production_compose` 的部署 Shell 中执行：
 
 ```bash
-docker compose --env-file .env config >/dev/null
+production_compose config >/dev/null
 bash scripts/compose-smoke.sh --config-only
 bash scripts/compose-smoke.sh
 ```

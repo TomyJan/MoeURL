@@ -167,8 +167,12 @@ describe('deployment configuration', () => {
     }).resolveE2EComposeProjectName
 
     expect(resolveProjectName).toBeTypeOf('function')
-    expect(resolveProjectName?.(undefined, '18081')).toBe('moeurl-e2e-18081')
-    expect(resolveProjectName?.('moeurl-e2e-review_42', '18081')).toBe('moeurl-e2e-review_42')
+    const firstDefaultProject = resolveProjectName?.(undefined, '18081')
+    const secondDefaultProject = resolveProjectName?.(undefined, '18081')
+    expect(firstDefaultProject).toMatch(/^moeurl-e2e-18081-[a-f0-9]{12}$/)
+    expect(secondDefaultProject).toMatch(/^moeurl-e2e-18081-[a-f0-9]{12}$/)
+    expect(secondDefaultProject).not.toBe(firstDefaultProject)
+    expect(resolveProjectName?.('  moeurl-e2e-review_42  ', '18081')).toBe('moeurl-e2e-review_42')
     for (const unsafeName of ['moeurl', 'moeurl-dev', 'production', 'moeurl-e2e-', 'MoeURL-e2e-review']) {
       expect(() => resolveProjectName?.(unsafeName, '18081')).toThrow(/isolated E2E Compose project/)
     }
@@ -184,6 +188,27 @@ describe('deployment configuration', () => {
     expect(deploymentGuide).toContain('docker compose ls')
     expect(deploymentGuide).toContain('production_compose config >/dev/null')
     expect(deploymentGuide).toContain('不得将未重定向的配置输出记录到终端、CI 日志或工单')
+  })
+
+  it('anchors README production Compose commands to the deployment helper', () => {
+    const readme = readFileSync(resolve(repositoryRoot, 'README.md'), 'utf8')
+    const dockerSection = readme.slice(
+      readme.indexOf('## Docker 运行'),
+      readme.indexOf('## 裸机运行'),
+    )
+
+    for (const command of [
+      'production_compose config >/dev/null',
+      'production_compose up --build -d',
+      'production_compose ps',
+      'production_compose down',
+    ]) {
+      expect(dockerSection).toContain(command)
+    }
+    expect(dockerSection).not.toContain('docker compose --env-file .env config >/dev/null')
+    expect(dockerSection).not.toContain('docker compose --env-file .env up --build -d')
+    expect(dockerSection).not.toContain('docker compose --env-file .env ps')
+    expect(dockerSection).not.toContain('docker compose --env-file .env down')
   })
 
   it('anchors single-host Compose operations to one validated deployment root and project', () => {

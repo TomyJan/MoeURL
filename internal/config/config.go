@@ -4,6 +4,8 @@ import (
 	"errors"
 	"os"
 	"strings"
+
+	"github.com/TomyJan/MoeURL/internal/setuptoken"
 )
 
 type Config struct {
@@ -52,7 +54,7 @@ func (c *Config) Validate() error {
 	if c.StaticDir == "" {
 		return errors.New("MOEURL_STATIC_DIR is required")
 	}
-	if c.Env == "production" && len(c.SetupToken) < 32 {
+	if c.Env == "production" && !setuptoken.HasMinimumCharacters(c.SetupToken) {
 		return errors.New("MOEURL_SETUP_TOKEN must contain at least 32 characters in production")
 	}
 	return nil

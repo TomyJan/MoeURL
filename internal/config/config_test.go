@@ -84,6 +84,8 @@ func TestConfigValidateSetupTokenByEnvironment(t *testing.T) {
 		{name: "production whitespace", env: "production", token: "   ", wantErr: true},
 		{name: "production 31 characters", env: "production", token: strings.Repeat("a", 31), wantErr: true},
 		{name: "production 32 characters", env: "production", token: strings.Repeat("a", 32)},
+		{name: "production 31 Unicode characters", env: "production", token: strings.Repeat("界", 31), wantErr: true},
+		{name: "production 32 Unicode characters", env: "production", token: strings.Repeat("界", 32)},
 	}
 
 	for _, test := range tests {

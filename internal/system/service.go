@@ -11,6 +11,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/permission"
+	"github.com/TomyJan/MoeURL/internal/setuptoken"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -34,7 +35,7 @@ func NewSetupPolicy(required bool, token string) (SetupPolicy, error) {
 	if !required {
 		return SetupPolicy{}, nil
 	}
-	if len(token) < 32 {
+	if !setuptoken.HasMinimumCharacters(token) {
 		return SetupPolicy{}, ErrInvalidSetupPolicy
 	}
 	return SetupPolicy{required: true, token: token}, nil

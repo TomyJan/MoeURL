@@ -28,7 +28,7 @@ export function shouldSkipDockerCompose(envValue = process.env.MOEURL_E2E_SKIP_D
 
 /** Resolves a project name reserved for destructive, isolated E2E Compose cleanup. */
 export function resolveE2EComposeProjectName(value: string | undefined, port: string): string {
-  const projectName = value?.trim() || `moeurl-e2e-${port.trim()}`
+  const projectName = value?.trim() || `moeurl-e2e-${port.trim()}-${randomBytes(6).toString('hex')}`
   if (!/^moeurl-e2e-[a-z0-9][a-z0-9_-]*$/.test(projectName)) {
     throw new Error('MOEURL_E2E_COMPOSE_PROJECT must name an isolated E2E Compose project using the moeurl-e2e- prefix')
   }

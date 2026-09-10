@@ -24,6 +24,8 @@ func TestNewSetupPolicyValidatesRequiredToken(t *testing.T) {
 		{name: "whitespace", token: "   ", wantErr: true},
 		{name: "31 trimmed characters", token: " " + strings.Repeat("a", 31) + " ", wantErr: true},
 		{name: "32 trimmed characters", token: " " + strings.Repeat("a", 32) + " "},
+		{name: "31 trimmed Unicode characters", token: " " + strings.Repeat("界", 31) + " ", wantErr: true},
+		{name: "32 trimmed Unicode characters", token: " " + strings.Repeat("界", 32) + " "},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			policy, err := system.NewSetupPolicy(true, test.token)
