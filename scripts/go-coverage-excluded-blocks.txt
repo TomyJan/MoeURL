@@ -9,19 +9,18 @@
 # caller validation, database failures between sequential statements, transaction
 # step failures covered by transaction integration tests, JSON marshaling of
 # statically typed values, and exhaustive short-code collision retries.
-github.com/TomyJan/MoeURL/internal/system/service.go:60.16,62.3
-github.com/TomyJan/MoeURL/internal/system/service.go:70.119,72.4
-github.com/TomyJan/MoeURL/internal/system/service.go:73.131,75.4
-github.com/TomyJan/MoeURL/internal/system/service.go:76.136,78.4
-github.com/TomyJan/MoeURL/internal/system/service.go:83.49,85.4
-github.com/TomyJan/MoeURL/internal/system/service.go:90.143,92.4
-github.com/TomyJan/MoeURL/internal/system/service.go:97.77,99.4
-github.com/TomyJan/MoeURL/internal/system/service.go:110.66,112.5
-github.com/TomyJan/MoeURL/internal/system/service.go:146.16,148.3
-github.com/TomyJan/MoeURL/internal/system/service.go:160.16,162.3
-github.com/TomyJan/MoeURL/internal/auth/service.go:50.16,52.3
-github.com/TomyJan/MoeURL/internal/auth/service.go:144.16,146.3
-github.com/TomyJan/MoeURL/internal/auth/session.go:85.16,87.3
+github.com/TomyJan/MoeURL/internal/system/service.go:89.16,91.3
+github.com/TomyJan/MoeURL/internal/system/service.go:99.119,101.4
+github.com/TomyJan/MoeURL/internal/system/service.go:102.131,104.4
+github.com/TomyJan/MoeURL/internal/system/service.go:105.136,107.4
+github.com/TomyJan/MoeURL/internal/system/service.go:112.49,114.4
+github.com/TomyJan/MoeURL/internal/system/service.go:119.143,121.4
+github.com/TomyJan/MoeURL/internal/system/service.go:126.77,128.4
+github.com/TomyJan/MoeURL/internal/system/service.go:139.66,141.5
+github.com/TomyJan/MoeURL/internal/system/service.go:182.16,184.3
+github.com/TomyJan/MoeURL/internal/system/service.go:196.16,198.3
+# Resolve's last-seen update can fail only after a successful query; forcing that transition requires a connection-pool race.
+github.com/TomyJan/MoeURL/internal/auth/session.go:89.16,91.3
 # User Create password hashing failure; argon2/random failure is an infrastructure branch that is not deterministically triggerable.
 github.com/TomyJan/MoeURL/internal/user/service.go:67.16,69.3
 # ResetPassword password hashing failure; argon2/random failure is an infrastructure branch that is not deterministically triggerable.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/TomyJan/MoeURL/internal/permission"
@@ -12,12 +13,47 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// TestNewSetupPolicyValidatesRequiredToken verifies invalid required policies fail during construction.
+func TestNewSetupPolicyValidatesRequiredToken(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		token   string
+		wantErr bool
+	}{
+		{name: "missing", wantErr: true},
+		{name: "whitespace", token: "   ", wantErr: true},
+		{name: "31 trimmed characters", token: " " + strings.Repeat("a", 31) + " ", wantErr: true},
+		{name: "32 trimmed characters", token: " " + strings.Repeat("a", 32) + " "},
+		{name: "31 trimmed Unicode characters", token: " " + strings.Repeat("界", 31) + " ", wantErr: true},
+		{name: "32 trimmed Unicode characters", token: " " + strings.Repeat("界", 32) + " "},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			policy, err := system.NewSetupPolicy(true, test.token)
+			if test.wantErr {
+				if !errors.Is(err, system.ErrInvalidSetupPolicy) {
+					t.Fatalf("policy error = %v, want ErrInvalidSetupPolicy", err)
+				}
+				if test.token != "" && strings.Contains(err.Error(), test.token) {
+					t.Fatal("policy error exposed the setup token")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("create setup policy: %v", err)
+			}
+			if !system.NewService(nil, policy).SetupTokenRequired() {
+				t.Fatal("valid required policy was not marked required")
+			}
+		})
+	}
+}
+
 // TestServiceSetupInitializesBuiltInData verifies service setup initializes built in data.
 func TestServiceSetupInitializesBuiltInData(t *testing.T) {
 	ctx := context.Background()
 	pool := systemTestPool(t, ctx)
 
-	service := system.NewService(pool)
+	service := system.NewService(pool, mustSetupPolicy(t, false, ""))
 
 	initialized, err := service.IsInitialized(ctx)
 	if err != nil {
@@ -71,7 +107,7 @@ func TestServiceSetupRejectsReservedAdminUsername(t *testing.T) {
 	ctx := context.Background()
 	pool := systemTestPool(t, ctx)
 
-	service := system.NewService(pool)
+	service := system.NewService(pool, mustSetupPolicy(t, false, ""))
 
 	err := service.Setup(ctx, system.SetupInput{
 		AdminUsername:   "guest",
@@ -92,7 +128,7 @@ func TestServiceSetupRejectsReservedAdminUsername(t *testing.T) {
 func TestServiceSetupRejectsBlankRequiredFields(t *testing.T) {
 	ctx := context.Background()
 	pool := systemTestPool(t, ctx)
-	service := system.NewService(pool)
+	service := system.NewService(pool, mustSetupPolicy(t, false, ""))
 
 	err := service.Setup(ctx, system.SetupInput{
 		AdminUsername:   "admin",
@@ -109,11 +145,74 @@ func TestServiceSetupRejectsBlankRequiredFields(t *testing.T) {
 	}
 }
 
+// TestServiceSetupValidatesRequiredToken verifies required setup tokens gate initialization.
+func TestServiceSetupValidatesRequiredToken(t *testing.T) {
+	const configuredToken = "configured-setup-token-0123456789"
+
+	for _, test := range []struct {
+		name    string
+		token   string
+		wantErr error
+	}{
+		{name: "wrong token", token: "wrong-token", wantErr: system.ErrInvalidSetupToken},
+		{name: "correct token", token: configuredToken},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			pool := systemTestPool(t, ctx)
+			service := system.NewService(pool, mustSetupPolicy(t, true, configuredToken))
+
+			err := service.Setup(ctx, validSetupInput(test.token))
+			if test.wantErr != nil {
+				if !errors.Is(err, test.wantErr) {
+					t.Fatalf("setup error = %v, want %v", err, test.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("setup: %v", err)
+			}
+		})
+	}
+}
+
+// TestServiceSetupValidatesOrdinaryInputBeforeToken verifies field errors keep priority.
+func TestServiceSetupValidatesOrdinaryInputBeforeToken(t *testing.T) {
+	ctx := context.Background()
+	pool := systemTestPool(t, ctx)
+	service := system.NewService(pool, mustSetupPolicy(t, true, "configured-setup-token-0123456789"))
+	input := validSetupInput("wrong-token")
+	input.SiteName = ""
+
+	err := service.Setup(ctx, input)
+
+	if !errors.Is(err, system.ErrInvalidSetupInput) {
+		t.Fatalf("setup error = %v, want ErrInvalidSetupInput", err)
+	}
+}
+
+// TestServiceSetupChecksAlreadyInitializedBeforeToken verifies one-time setup semantics keep priority.
+func TestServiceSetupChecksAlreadyInitializedBeforeToken(t *testing.T) {
+	const configuredToken = "configured-setup-token-0123456789"
+	ctx := context.Background()
+	pool := systemTestPool(t, ctx)
+	service := system.NewService(pool, mustSetupPolicy(t, true, configuredToken))
+	if err := service.Setup(ctx, validSetupInput(configuredToken)); err != nil {
+		t.Fatalf("initial setup: %v", err)
+	}
+
+	err := service.Setup(ctx, validSetupInput("wrong-token"))
+
+	if !errors.Is(err, system.ErrAlreadyInitialized) {
+		t.Fatalf("second setup error = %v, want ErrAlreadyInitialized", err)
+	}
+}
+
 // TestServiceReturnsDatabaseErrors verifies service returns database errors.
 func TestServiceReturnsDatabaseErrors(t *testing.T) {
 	ctx := context.Background()
 	pool := systemTestPool(t, ctx)
-	service := system.NewService(pool)
+	service := system.NewService(pool, mustSetupPolicy(t, false, ""))
 	pool.Close()
 
 	_, err := service.IsInitialized(ctx)
@@ -223,4 +322,29 @@ func assertStoredGroupPermission(t *testing.T, ctx context.Context, pool *pgxpoo
 func systemTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
 	return testdb.ProjectMigratedPool(ctx, t)
+}
+
+// validSetupInput returns a complete setup request with the supplied deployment token.
+func validSetupInput(setupToken string) system.SetupInput {
+	return system.SetupInput{
+		AdminUsername:   "admin",
+		AdminPassword:   "secure-password",
+		AdminNickname:   "Administrator",
+		SiteName:        "MoeURL",
+		SystemDomain:    "example.com",
+		ShortLinkDomain: "go.example.com",
+		DefaultLanguage: "zh-CN",
+		DefaultTheme:    "system",
+		SetupToken:      setupToken,
+	}
+}
+
+// mustSetupPolicy creates the explicit setup policy required by service tests.
+func mustSetupPolicy(t *testing.T, required bool, token string) system.SetupPolicy {
+	t.Helper()
+	policy, err := system.NewSetupPolicy(required, token)
+	if err != nil {
+		t.Fatalf("create setup policy: %v", err)
+	}
+	return policy
 }

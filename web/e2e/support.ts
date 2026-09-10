@@ -6,6 +6,12 @@ export const e2eHost = `127.0.0.1:${e2ePort}`
 export const e2eAdminUsername = process.env.MOEURL_E2E_ADMIN_USERNAME ?? 'admin'
 export const e2eAdminPassword = process.env.MOEURL_E2E_ADMIN_PASSWORD ?? 'admin-password'
 
+/** Reports whether JSON serialization contains the escaped representation of a secret. */
+export function serializedPayloadIncludesSecret(payload: unknown, secret: string): boolean {
+  const serializedSecret = JSON.stringify(secret).slice(1, -1)
+  return JSON.stringify(payload).includes(serializedSecret)
+}
+
 /** Escapes user-controlled text before embedding it in an E2E regular expression. */
 export function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

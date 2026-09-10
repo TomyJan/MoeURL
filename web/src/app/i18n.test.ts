@@ -88,6 +88,15 @@ describe('i18n', () => {
     )
   })
 
+  it('defines bilingual setup-token guidance and errors', () => {
+    expect(messages['zh-CN'].setup.setupToken).toBe('初始化 Token')
+    expect(messages['zh-CN'].setup.setupTokenHelp).toBeTruthy()
+    expect(messages['zh-CN'].setup.setupTokenInvalid).toBeTruthy()
+    expect(messages.en.setup.setupToken).toBe('Setup token')
+    expect(messages.en.setup.setupTokenHelp).toBeTruthy()
+    expect(messages.en.setup.setupTokenInvalid).toBeTruthy()
+  })
+
   it('defines the complete bilingual user-group permission interface', () => {
     const permissionKeys = new Set(readBackendPermissionCatalog().map(({ key }) => key))
 

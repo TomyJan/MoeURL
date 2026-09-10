@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
 import { chromium, defineConfig, devices } from '@playwright/test'
 
 type BrowserChannel = 'chrome' | 'msedge'
@@ -8,9 +9,10 @@ type BrowserCandidate = {
 }
 
 const e2ePort = process.env.MOEURL_E2E_PORT ?? '8080'
-const e2ePostgresPort = process.env.MOEURL_E2E_POSTGRES_PORT ?? '15432'
+const e2ePostgresPassword = process.env.MOEURL_E2E_POSTGRES_PASSWORD ?? randomBytes(32).toString('hex')
+const e2eDatabaseURL = `postgres://moeurl:${encodeURIComponent(e2ePostgresPassword)}@postgres:5432/moeurl?sslmode=disable`
 const baseURL = `http://127.0.0.1:${e2ePort}`
-const composeProjectName = process.env.MOEURL_E2E_COMPOSE_PROJECT ?? `moeurl-e2e-${e2ePort}`
+const composeProjectName = resolveE2EComposeProjectName(process.env.MOEURL_E2E_COMPOSE_PROJECT, e2ePort)
 const browserChannel = process.env.MOEURL_E2E_BROWSER_CHANNEL?.trim() || detectFallbackBrowserChannel()
 const skipDockerCompose = shouldSkipDockerCompose()
 const browserUse = {
@@ -22,6 +24,15 @@ const browserUse = {
 export function shouldSkipDockerCompose(envValue = process.env.MOEURL_E2E_SKIP_DOCKER): boolean {
   const normalized = envValue?.trim().toLowerCase()
   return normalized === '1' || normalized === 'true'
+}
+
+/** Resolves a project name reserved for destructive, isolated E2E Compose cleanup. */
+export function resolveE2EComposeProjectName(value: string | undefined, port: string): string {
+  const projectName = value?.trim() || `moeurl-e2e-${port.trim()}-${randomBytes(6).toString('hex')}`
+  if (!/^moeurl-e2e-[a-z0-9][a-z0-9_-]*$/.test(projectName)) {
+    throw new Error('MOEURL_E2E_COMPOSE_PROJECT must name an isolated E2E Compose project using the moeurl-e2e- prefix')
+  }
+  return projectName
 }
 
 /** Selects an installed browser channel when bundled Chromium is unavailable. */
@@ -81,13 +92,14 @@ export default defineConfig({
       }
     : {
         command:
-          'node -e "const { execFileSync } = require(\'node:child_process\'); const project = process.env.MOEURL_E2E_COMPOSE_PROJECT; try { execFileSync(\'docker\', [\'compose\', \'-p\', project, \'down\', \'-v\'], { stdio: \'inherit\' }); } catch {} execFileSync(\'docker\', [\'compose\', \'-p\', project, \'up\', \'--build\'], { stdio: \'inherit\' });"',
+          'node -e "const { execFileSync } = require(\'node:child_process\'); const project = process.env.MOEURL_E2E_COMPOSE_PROJECT; execFileSync(\'docker\', [\'compose\', \'-p\', project, \'down\', \'-v\'], { stdio: \'inherit\' }); execFileSync(\'docker\', [\'compose\', \'-p\', project, \'up\', \'--build\'], { stdio: \'inherit\' });"',
         cwd: '..',
         env: {
           MOEURL_E2E_COMPOSE_PROJECT: composeProjectName,
           MOEURL_ENV: 'development',
           MOEURL_HTTP_PORT: e2ePort,
-          MOEURL_POSTGRES_PORT: e2ePostgresPort,
+          MOEURL_POSTGRES_PASSWORD: e2ePostgresPassword,
+          MOEURL_DATABASE_URL: e2eDatabaseURL,
         },
         reuseExistingServer: false,
         timeout: 600_000,

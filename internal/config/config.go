@@ -4,6 +4,8 @@ import (
 	"errors"
 	"os"
 	"strings"
+
+	"github.com/TomyJan/MoeURL/internal/setuptoken"
 )
 
 type Config struct {
@@ -12,6 +14,7 @@ type Config struct {
 	DatabaseURL            string
 	StaticDir              string
 	AnalyticsCountryHeader string
+	SetupToken             string
 }
 
 // Load reads the application configuration from environment variables.
@@ -22,6 +25,7 @@ func Load() Config {
 		DatabaseURL:            os.Getenv("MOEURL_DATABASE_URL"),
 		StaticDir:              os.Getenv("MOEURL_STATIC_DIR"),
 		AnalyticsCountryHeader: os.Getenv("MOEURL_ANALYTICS_COUNTRY_HEADER"),
+		SetupToken:             os.Getenv("MOEURL_SETUP_TOKEN"),
 	}
 }
 
@@ -32,6 +36,7 @@ func (c *Config) Normalize() {
 	c.DatabaseURL = strings.TrimSpace(c.DatabaseURL)
 	c.StaticDir = strings.TrimSpace(c.StaticDir)
 	c.AnalyticsCountryHeader = strings.TrimSpace(c.AnalyticsCountryHeader)
+	c.SetupToken = strings.TrimSpace(c.SetupToken)
 }
 
 // Validate normalizes and verifies that required configuration values are present.
@@ -48,6 +53,9 @@ func (c *Config) Validate() error {
 	}
 	if c.StaticDir == "" {
 		return errors.New("MOEURL_STATIC_DIR is required")
+	}
+	if c.Env == "production" && !setuptoken.HasMinimumCharacters(c.SetupToken) {
+		return errors.New("MOEURL_SETUP_TOKEN must contain at least 32 characters in production")
 	}
 	return nil
 }

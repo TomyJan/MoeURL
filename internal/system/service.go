@@ -2,6 +2,8 @@ package system
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/json"
 	"strings"
 	"time"
@@ -9,6 +11,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/permission"
+	"github.com/TomyJan/MoeURL/internal/setuptoken"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -17,12 +20,35 @@ import (
 const initializedSettingKey = "site.initialized"
 
 type Service struct {
-	pool *pgxpool.Pool
+	pool        *pgxpool.Pool
+	setupPolicy SetupPolicy
 }
 
-// NewService creates the system-initialization service.
-func NewService(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool}
+type SetupPolicy struct {
+	required bool
+	token    string
+}
+
+// NewSetupPolicy validates and creates an initialization security policy.
+func NewSetupPolicy(required bool, token string) (SetupPolicy, error) {
+	token = strings.TrimSpace(token)
+	if !required {
+		return SetupPolicy{}, nil
+	}
+	if !setuptoken.HasMinimumCharacters(token) {
+		return SetupPolicy{}, ErrInvalidSetupPolicy
+	}
+	return SetupPolicy{required: true, token: token}, nil
+}
+
+// NewService creates the system-initialization service with an explicit setup policy.
+func NewService(pool *pgxpool.Pool, policy SetupPolicy) *Service {
+	return &Service{pool: pool, setupPolicy: policy}
+}
+
+// SetupTokenRequired reports whether setup requests require a deployment token.
+func (s *Service) SetupTokenRequired() bool {
+	return s.setupPolicy.required
 }
 
 // IsInitialized reports whether the initial administrator account exists.
@@ -54,6 +80,9 @@ func (s *Service) Setup(ctx context.Context, input SetupInput) error {
 	}
 	if initialized {
 		return ErrAlreadyInitialized
+	}
+	if s.setupPolicy.required && !setupTokensEqual(input.SetupToken, s.setupPolicy.token) {
+		return ErrInvalidSetupToken
 	}
 
 	passwordHash, err := auth.HashPassword(input.AdminPassword)
@@ -114,6 +143,13 @@ func (s *Service) Setup(ctx context.Context, input SetupInput) error {
 
 		return nil
 	})
+}
+
+// setupTokensEqual compares fixed-size digests so input length does not affect the comparison.
+func setupTokensEqual(submitted string, configured string) bool {
+	submittedHash := sha256.Sum256([]byte(submitted))
+	configuredHash := sha256.Sum256([]byte(configured))
+	return subtle.ConstantTimeCompare(submittedHash[:], configuredHash[:]) == 1
 }
 
 // validateSetupInput verifies the required initial-system setup fields.

@@ -13,6 +13,10 @@
 
       <div class="auth-page__form">
         <v-alert v-if="isLoading" class="auth-page__state" color="primary" variant="tonal">{{ t('setup.loading') }}</v-alert>
+        <v-alert v-else-if="isError || !data" class="auth-page__state" data-testid="setup-status-error" type="error" variant="tonal">
+          <span>{{ t('setup.loadFailed') }}</span>
+          <v-btn variant="text" @click="retryStatus">{{ t('setup.retry') }}</v-btn>
+        </v-alert>
         <v-alert v-else-if="data?.initialized || initialized" class="auth-page__state" data-testid="setup-completion" type="success" variant="tonal">
           {{ t('setup.initialized') }}
         </v-alert>
@@ -31,6 +35,10 @@
               <v-text-field v-model="form.adminUsername" data-testid="setup-admin-username" :label="t('setup.adminUsername')" variant="outlined" />
               <v-text-field v-model="form.adminPassword" data-testid="setup-admin-password" :label="t('setup.adminPassword')" type="password" variant="outlined" />
               <v-text-field v-model="form.adminNickname" data-testid="setup-admin-nickname" :label="t('setup.adminNickname')" variant="outlined" />
+              <div v-if="data?.setupTokenRequired" class="setup-wizard__token-field">
+                <v-text-field v-model="form.setupToken" autocomplete="off" data-testid="setup-token" :label="t('setup.setupToken')" type="password" variant="outlined" />
+                <p data-testid="setup-token-help">{{ t('setup.setupTokenHelp') }}</p>
+              </div>
             </div>
           </section>
 
@@ -58,7 +66,7 @@
           </section>
 
           <v-alert v-if="mutation.isError.value" class="auth-page__alert" type="error" variant="tonal">
-            {{ mutation.error.value?.message || t('setup.failed') }}
+            {{ errorMessage }}
           </v-alert>
 
           <div class="auth-page__actions">
@@ -81,9 +89,12 @@ import { useMutation, useQuery } from '@tanstack/vue-query'
 
 import { getInitStatus, setupSystem } from '@/entities/system/api'
 import type { SetupInput } from '@/entities/system/api'
+import { ApiClientError } from '@/shared/api/client'
+
+const INVALID_SETUP_TOKEN_ERROR_CODE = 900102
 
 const { t } = useI18n()
-const { data, isLoading } = useQuery({
+const { data, isError, isLoading, refetch } = useQuery({
   queryKey: ['init-status'],
   queryFn: getInitStatus,
 })
@@ -97,6 +108,7 @@ const form = reactive<SetupInput>({
   shortLinkDomain: '127.0.0.1:8080',
   defaultLanguage: 'zh-CN',
   defaultTheme: 'system',
+  setupToken: '',
 })
 
 const languageItems = computed(() => [
@@ -114,11 +126,35 @@ const mutation = useMutation({
   onSuccess(result) {
     initialized.value = result.initialized
   },
+  /** Removes the deployment credential without resetting retained mutation errors. */
+  onSettled(_result, _error, variables) {
+    form.setupToken = ''
+    delete variables.setupToken
+  },
+})
+const errorMessage = computed(() => {
+  const error = mutation.error.value
+  if (error instanceof ApiClientError && error.code === INVALID_SETUP_TOKEN_ERROR_CODE) {
+    return t('setup.setupTokenInvalid')
+  }
+  return error instanceof Error ? error.message : t('setup.failed')
 })
 
 /** Submits a snapshot of the system initialization form. */
 function submit() {
-  mutation.mutate({ ...form })
+  if (!data.value || isError.value) {
+    return
+  }
+  const input = { ...form }
+  if (!data.value.setupTokenRequired) {
+    delete input.setupToken
+  }
+  mutation.mutate(input)
+}
+
+/** Retries loading the server-authoritative initialization status. */
+function retryStatus() {
+  void refetch()
 }
 </script>
 
@@ -277,6 +313,18 @@ function submit() {
 
 .auth-page__field-grid--three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.setup-wizard__token-field {
+  min-width: 0;
+  grid-column: 1 / -1;
+}
+
+.setup-wizard__token-field p {
+  margin: -12px 0 16px;
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 0.84rem;
+  line-height: 1.5;
 }
 
 .auth-page__alert {

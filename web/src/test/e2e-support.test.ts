@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { findShortLink } from '../../e2e/support'
+import { findShortLink, serializedPayloadIncludesSecret } from '../../e2e/support'
 
 vi.mock('@playwright/test', () => ({
   expect: (actual: unknown) => ({
@@ -29,6 +29,13 @@ vi.mock('@playwright/test', () => ({
 }))
 
 describe('E2E support', () => {
+  it('detects a secret after JSON escaping changes its serialized representation', () => {
+    const secret = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"\\\n`
+
+    expect(serializedPayloadIncludesSecret({ leaked: secret }, secret)).toBe(true)
+    expect(serializedPayloadIncludesSecret({ leaked: 'redacted' }, secret)).toBe(false)
+  })
+
   it('stops pagination when the API returns an empty page', async () => {
     const get = vi.fn()
       .mockResolvedValueOnce({

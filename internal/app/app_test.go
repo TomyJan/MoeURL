@@ -5,10 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,6 +23,11 @@ import (
 	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/TomyJan/MoeURL/internal/user"
 	"github.com/TomyJan/MoeURL/internal/usergroup"
+)
+
+const (
+	testSetupToken       = "0123456789abcdef0123456789abcdef"
+	testLifecycleTimeout = 5 * time.Second
 )
 
 // TestAppNewRejectsInvalidPermissionCatalog verifies startup stops before dependency wiring when catalog validation fails.
@@ -35,6 +43,199 @@ func TestAppNewRejectsInvalidPermissionCatalog(t *testing.T) {
 	}
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("New() error = %v, want wrapped %v", err, wantErr)
+	}
+}
+
+// TestAppNewRejectsInvalidSetupPolicyBeforeOpeningDatabase verifies invalid production policy fails closed.
+func TestAppNewRejectsInvalidSetupPolicyBeforeOpeningDatabase(t *testing.T) {
+	const invalidToken = "setup-token-shorter-than-32"
+	application, err := New(context.Background(), config.Config{
+		Env:         "production",
+		DatabaseURL: "not-a-database-url",
+		SetupToken:  invalidToken,
+	}, slog.Default())
+
+	if application != nil {
+		t.Fatal("New() returned an application for an invalid setup policy")
+	}
+	if !errors.Is(err, system.ErrInvalidSetupPolicy) {
+		t.Fatalf("New() error = %v, want ErrInvalidSetupPolicy", err)
+	}
+	if strings.Contains(err.Error(), invalidToken) {
+		t.Fatal("New() error exposed the setup token")
+	}
+}
+
+// TestAppNewPropagatesOpenPoolError verifies database startup errors retain their safe operation context.
+func TestAppNewPropagatesOpenPoolError(t *testing.T) {
+	application, err := New(context.Background(), config.Config{
+		Env:         "development",
+		HTTPAddr:    ":0",
+		DatabaseURL: "postgres://user:top-secret@database.internal:invalid/moeurl",
+	}, slog.Default())
+
+	if application != nil {
+		t.Fatal("New returned an application after OpenPool failed")
+	}
+	if err == nil || !strings.Contains(err.Error(), "parse database configuration") {
+		t.Fatalf("New error = %v, want OpenPool parse context", err)
+	}
+	if strings.Contains(err.Error(), "top-secret") {
+		t.Fatalf("New error leaked database credentials: %v", err)
+	}
+}
+
+// TestAppNewConfiguresHTTPServerBoundaries verifies every production HTTP server limit.
+func TestAppNewConfiguresHTTPServerBoundaries(t *testing.T) {
+	application, err := New(context.Background(), config.Config{
+		Env:      "development",
+		HTTPAddr: ":8080",
+	}, slog.Default())
+	if err != nil {
+		t.Fatalf("build application: %v", err)
+	}
+
+	if application.server.ReadHeaderTimeout != 5*time.Second {
+		t.Fatalf("ReadHeaderTimeout = %s, want 5s", application.server.ReadHeaderTimeout)
+	}
+	if application.server.ReadTimeout != 15*time.Second {
+		t.Fatalf("ReadTimeout = %s, want 15s", application.server.ReadTimeout)
+	}
+	if application.server.WriteTimeout != 30*time.Second {
+		t.Fatalf("WriteTimeout = %s, want 30s", application.server.WriteTimeout)
+	}
+	if application.server.IdleTimeout != 60*time.Second {
+		t.Fatalf("IdleTimeout = %s, want 60s", application.server.IdleTimeout)
+	}
+	if application.server.MaxHeaderBytes != 1<<20 {
+		t.Fatalf("MaxHeaderBytes = %d, want %d", application.server.MaxHeaderBytes, 1<<20)
+	}
+}
+
+// TestAppNewInjectsPoolAsReadinessChecker verifies production wiring reports the connected pool ready.
+func TestAppNewInjectsPoolAsReadinessChecker(t *testing.T) {
+	application := newTestApplication(t)
+	response := httptest.NewRecorder()
+
+	application.server.Handler.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/health/ready", nil))
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("readiness status = %d, want 200", response.Code)
+	}
+	var body struct {
+		Code int `json:"code"`
+		Data struct {
+			Status string `json:"status"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode readiness response: %v", err)
+	}
+	if body.Code != 0 || body.Data.Status != "ok" {
+		t.Fatalf("readiness response = code %d status %q", body.Code, body.Data.Status)
+	}
+}
+
+// TestSessionCleanupIntervalSupportsBoundedBacklogDrain verifies bounded cleanup runs frequently enough for the supported deployment scale.
+func TestSessionCleanupIntervalSupportsBoundedBacklogDrain(t *testing.T) {
+	if sessionCleanupInterval != time.Minute {
+		t.Fatalf("session cleanup interval = %s, want %s", sessionCleanupInterval, time.Minute)
+	}
+}
+
+// TestAppNewStartsAndWaitsForAllCleanupTasks verifies production wiring shares one cancellation and completion boundary.
+func TestAppNewStartsAndWaitsForAllCleanupTasks(t *testing.T) {
+	originalAccessGrantRunner := runAccessGrantCleanup
+	originalLoginAttemptRunner := runLoginAttemptCleanup
+	originalSessionRunner := runSessionCleanup
+	t.Cleanup(func() {
+		runAccessGrantCleanup = originalAccessGrantRunner
+		runLoginAttemptCleanup = originalLoginAttemptRunner
+		runSessionCleanup = originalSessionRunner
+	})
+
+	accessStarted := make(chan time.Duration, 1)
+	loginStarted := make(chan time.Duration, 1)
+	sessionStarted := make(chan time.Duration, 1)
+	accessCanceled := make(chan struct{})
+	loginCanceled := make(chan struct{})
+	sessionCanceled := make(chan struct{})
+	releaseAccess := make(chan struct{})
+	releaseLogin := make(chan struct{})
+	releaseSession := make(chan struct{})
+	var releaseAccessOnce sync.Once
+	var releaseLoginOnce sync.Once
+	var releaseSessionOnce sync.Once
+	releaseAccessTask := func() { releaseAccessOnce.Do(func() { close(releaseAccess) }) }
+	releaseLoginTask := func() { releaseLoginOnce.Do(func() { close(releaseLogin) }) }
+	releaseSessionTask := func() { releaseSessionOnce.Do(func() { close(releaseSession) }) }
+	t.Cleanup(releaseAccessTask)
+	t.Cleanup(releaseLoginTask)
+	t.Cleanup(releaseSessionTask)
+	runAccessGrantCleanup = func(_ *shortlink.RedirectService, ctx context.Context, interval time.Duration, _ *slog.Logger) {
+		accessStarted <- interval
+		<-ctx.Done()
+		close(accessCanceled)
+		<-releaseAccess
+	}
+	runLoginAttemptCleanup = func(_ *auth.Service, ctx context.Context, interval time.Duration, _ *slog.Logger) {
+		loginStarted <- interval
+		<-ctx.Done()
+		close(loginCanceled)
+		<-releaseLogin
+	}
+	runSessionCleanup = func(_ *auth.SessionService, ctx context.Context, interval time.Duration, _ *slog.Logger) {
+		sessionStarted <- interval
+		<-ctx.Done()
+		close(sessionCanceled)
+		<-releaseSession
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), testLifecycleTimeout)
+	defer cancel()
+	application, err := New(ctx, config.Config{
+		Env:         "development",
+		HTTPAddr:    ":0",
+		DatabaseURL: testdb.ProjectMigratedDatabaseURL(ctx, t),
+	}, slog.Default())
+	if err != nil {
+		t.Fatalf("build application with cleanup tasks: %v", err)
+	}
+	t.Cleanup(func() {
+		cleanupContext, cancelCleanup := context.WithTimeout(context.Background(), testLifecycleTimeout)
+		defer cancelCleanup()
+		if err := application.Shutdown(cleanupContext); err != nil {
+			t.Errorf("cleanup application: %v", err)
+		}
+	})
+	accessInterval := waitForAppTestValue(t, accessStarted, "access-grant cleanup startup")
+	if accessInterval != accessGrantCleanupInterval {
+		t.Fatalf("access-grant cleanup interval = %s, want %s", accessInterval, accessGrantCleanupInterval)
+	}
+	loginInterval := waitForAppTestValue(t, loginStarted, "login-attempt cleanup startup")
+	if loginInterval != loginAttemptCleanupInterval {
+		t.Fatalf("login-attempt cleanup interval = %s, want %s", loginInterval, loginAttemptCleanupInterval)
+	}
+	sessionInterval := waitForAppTestValue(t, sessionStarted, "session cleanup startup")
+	if sessionInterval != sessionCleanupInterval {
+		t.Fatalf("session cleanup interval = %s, want %s", sessionInterval, sessionCleanupInterval)
+	}
+
+	shutdownResult := make(chan error, 1)
+	go func() {
+		shutdownResult <- application.Shutdown(ctx)
+	}()
+	waitForAppTestSignal(t, accessCanceled, "access-grant cleanup cancellation")
+	waitForAppTestSignal(t, loginCanceled, "login-attempt cleanup cancellation")
+	waitForAppTestSignal(t, sessionCanceled, "session cleanup cancellation")
+	assertAppTestValuePending(t, shutdownResult, "shutdown completion before cleanup tasks exit")
+	releaseAccessTask()
+	assertAppTestValuePending(t, shutdownResult, "shutdown completion before login-attempt and session cleanup exit")
+	releaseLoginTask()
+	assertAppTestValuePending(t, shutdownResult, "shutdown completion before session cleanup exits")
+	releaseSessionTask()
+	if err := waitForAppTestValue(t, shutdownResult, "shutdown after all cleanup tasks exit"); err != nil {
+		t.Fatalf("shutdown application: %v", err)
 	}
 }
 
@@ -55,6 +256,9 @@ func newTestApplication(t *testing.T, environments ...string) *App {
 		DatabaseURL: testdb.ProjectMigratedDatabaseURL(ctx, t),
 		StaticDir:   "web/dist",
 	}
+	if environment == "production" || environment == " production " {
+		cfg.SetupToken = testSetupToken
+	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("validate config: %v", err)
 	}
@@ -67,7 +271,11 @@ func newTestApplication(t *testing.T, environments ...string) *App {
 			t.Errorf("shutdown application: %v", err)
 		}
 	})
-	if err := system.NewService(application.pool).Setup(ctx, system.SetupInput{
+	setupPolicy, err := system.NewSetupPolicy(cfg.Env == "production", cfg.SetupToken)
+	if err != nil {
+		t.Fatalf("create setup policy: %v", err)
+	}
+	if err := system.NewService(application.pool, setupPolicy).Setup(ctx, system.SetupInput{
 		AdminUsername:   "admin",
 		AdminPassword:   "secure-password",
 		AdminNickname:   "Administrator",
@@ -76,10 +284,73 @@ func newTestApplication(t *testing.T, environments ...string) *App {
 		ShortLinkDomain: "go.example.com",
 		DefaultLanguage: "zh-CN",
 		DefaultTheme:    "system",
+		SetupToken:      cfg.SetupToken,
 	}); err != nil {
 		t.Fatalf("initialize application: %v", err)
 	}
 	return application
+}
+
+// TestAppNewInjectsProductionSetupPolicy verifies app wiring enforces the validated deployment token.
+func TestAppNewInjectsProductionSetupPolicy(t *testing.T) {
+	ctx := t.Context()
+	cfg := config.Config{
+		Env:         "production",
+		HTTPAddr:    ":0",
+		DatabaseURL: testdb.ProjectMigratedDatabaseURL(ctx, t),
+		StaticDir:   "web/dist",
+		SetupToken:  testSetupToken,
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate config: %v", err)
+	}
+	application, err := New(ctx, cfg, slog.Default())
+	if err != nil {
+		t.Fatalf("build application: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := application.Shutdown(context.Background()); err != nil {
+			t.Errorf("shutdown application: %v", err)
+		}
+	})
+
+	statusResponse := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(statusResponse, httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/init/status", nil))
+	var statusBody struct {
+		Code int `json:"code"`
+		Data struct {
+			SetupTokenRequired bool `json:"setupTokenRequired"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(statusResponse.Body).Decode(&statusBody); err != nil {
+		t.Fatalf("decode status response: %v", err)
+	}
+	if statusBody.Code != 0 || !statusBody.Data.SetupTokenRequired {
+		t.Fatalf("status code = %d, setupTokenRequired = %t", statusBody.Code, statusBody.Data.SetupTokenRequired)
+	}
+
+	setupResponse := httptest.NewRecorder()
+	setupRequest := httptest.NewRequestWithContext(ctx, http.MethodPost, "/api/v1/init/setup", bytes.NewBufferString(`{
+		"adminUsername":"admin",
+		"adminPassword":"secure-password",
+		"adminNickname":"Administrator",
+		"siteName":"MoeURL",
+		"systemDomain":"example.com",
+		"shortLinkDomain":"go.example.com",
+		"defaultLanguage":"zh-CN",
+		"defaultTheme":"system",
+		"setupToken":"`+testSetupToken+`"
+	}`))
+	application.server.Handler.ServeHTTP(setupResponse, setupRequest)
+	var setupBody struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(setupResponse.Body).Decode(&setupBody); err != nil {
+		t.Fatalf("decode setup response: %v", err)
+	}
+	if setupResponse.Code != http.StatusOK || setupBody.Code != 0 {
+		t.Fatalf("setup response = HTTP %d, code %d", setupResponse.Code, setupBody.Code)
+	}
 }
 
 // TestAppNewNormalizesEnvironment verifies application wiring uses the validated environment form.
@@ -408,24 +679,17 @@ func TestAppShutdownDrainsRequestsBeforeStoppingDependencies(t *testing.T) {
 		}
 		requestDone <- requestErr
 	}()
-	select {
-	case <-requestStarted:
-	case <-time.After(time.Second):
-		t.Fatal("request did not reach the test server")
-	}
+	waitForAppTestSignal(t, requestStarted, "request to reach the test server")
 
 	cleanupCanceled := make(chan struct{})
-	cleanupDone := make(chan struct{})
-	go func() {
-		<-cleanupCanceled
-		close(cleanupDone)
-	}()
+	cancelBackground, backgroundDone := startBackgroundTasks(func(ctx context.Context) {
+		<-ctx.Done()
+		close(cleanupCanceled)
+	})
 	application := &App{
-		server: server,
-		grantCleanupCancel: func() {
-			close(cleanupCanceled)
-		},
-		grantCleanupDone: cleanupDone,
+		server:           server,
+		backgroundCancel: cancelBackground,
+		backgroundDone:   backgroundDone,
 	}
 	shutdownContext, cancelShutdown := context.WithTimeout(context.Background(), time.Second)
 	defer cancelShutdown()
@@ -434,157 +698,270 @@ func TestAppShutdownDrainsRequestsBeforeStoppingDependencies(t *testing.T) {
 		shutdownDone <- application.Shutdown(shutdownContext)
 	}()
 
-	select {
-	case <-cleanupCanceled:
-		t.Fatal("cleanup stopped before HTTP shutdown started")
-	case <-shutdownStarted:
-	}
-	select {
-	case <-cleanupCanceled:
-		t.Fatal("cleanup stopped while the in-flight request was running")
-	default:
-	}
+	waitForAppTestSignal(t, shutdownStarted, "HTTP shutdown to start")
+	assertAppTestSignalPending(t, cleanupCanceled, "cleanup cancellation while the in-flight request was running")
 	close(releaseRequest)
-	if err := <-shutdownDone; err != nil {
+	if err := waitForAppTestValue(t, shutdownDone, "application shutdown"); err != nil {
 		t.Fatalf("shutdown application: %v", err)
 	}
-	if err := <-requestDone; err != nil {
+	if err := waitForAppTestValue(t, requestDone, "in-flight request completion"); err != nil {
 		t.Fatalf("complete in-flight request: %v", err)
 	}
-	if err := <-serveDone; !errors.Is(err, http.ErrServerClosed) {
+	if err := waitForAppTestValue(t, serveDone, "HTTP Server exit"); !errors.Is(err, http.ErrServerClosed) {
 		t.Fatalf("serve result = %v, want http.ErrServerClosed", err)
 	}
-	select {
-	case <-cleanupCanceled:
-	default:
-		t.Fatal("grant cleanup was not canceled after shutdown")
+	waitForAppTestSignal(t, cleanupCanceled, "grant cleanup cancellation")
+	waitForAppTestSignal(t, backgroundDone, "background task group completion")
+}
+
+// TestAppShutdownFailureStillCleansDependencies verifies an HTTP drain failure cannot skip later lifecycle stages.
+func TestAppShutdownFailureStillCleansDependencies(t *testing.T) {
+	httpFailure := errors.New("drain failed")
+	var eventsMu sync.Mutex
+	var events []string
+	record := func(event string) {
+		eventsMu.Lock()
+		defer eventsMu.Unlock()
+		events = append(events, event)
 	}
-	select {
-	case <-cleanupDone:
-	default:
-		t.Fatal("grant cleanup did not finish after shutdown")
+	cancelBackground, backgroundDone := startBackgroundTasks(func(ctx context.Context) {
+		<-ctx.Done()
+		record("cancel background")
+		record("wait background")
+	})
+	application := &App{
+		backgroundCancel: cancelBackground,
+		backgroundDone:   backgroundDone,
+		shutdownHTTP: func(context.Context) error {
+			record("drain HTTP")
+			return httpFailure
+		},
+		closePool: func() {
+			record("close pool")
+		},
+	}
+
+	err := application.Shutdown(context.Background())
+	if !errors.Is(err, httpFailure) {
+		t.Fatalf("shutdown error = %v, want HTTP drain failure", err)
+	}
+	eventsMu.Lock()
+	defer eventsMu.Unlock()
+	want := []string{"drain HTTP", "cancel background", "wait background", "close pool"}
+	if len(events) != len(want) {
+		t.Fatalf("shutdown events = %v, want %v", events, want)
+	}
+	for index := range want {
+		if events[index] != want[index] {
+			t.Fatalf("shutdown events = %v, want %v", events, want)
+		}
 	}
 }
 
-// TestAppShutdownFailureKeepsDependenciesRunning verifies a failed drain can be retried safely.
-func TestAppShutdownFailureKeepsDependenciesRunning(t *testing.T) {
-	requestStarted := make(chan struct{})
-	releaseRequest := make(chan struct{})
-	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		close(requestStarted)
-		<-releaseRequest
-		w.WriteHeader(http.StatusNoContent)
-	})}
-	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen for failed shutdown test: %v", err)
+// TestAppShutdownWaitsForAllBackgroundTasks verifies Pool closure follows every task exit.
+func TestAppShutdownWaitsForAllBackgroundTasks(t *testing.T) {
+	taskCanceled := []chan struct{}{make(chan struct{}), make(chan struct{})}
+	releaseTask := []chan struct{}{make(chan struct{}), make(chan struct{})}
+	taskExited := []chan struct{}{make(chan struct{}), make(chan struct{})}
+	tasks := make([]func(context.Context), 0, len(taskCanceled))
+	for index := range taskCanceled {
+		index := index
+		tasks = append(tasks, func(ctx context.Context) {
+			<-ctx.Done()
+			close(taskCanceled[index])
+			<-releaseTask[index]
+			close(taskExited[index])
+		})
 	}
-	serveDone := make(chan error, 1)
-	go func() { serveDone <- server.Serve(listener) }()
-
-	requestContext, cancelRequest := context.WithCancel(context.Background())
-	defer cancelRequest()
-	request, err := http.NewRequestWithContext(requestContext, http.MethodGet, "http://"+listener.Addr().String(), nil)
-	if err != nil {
-		t.Fatalf("create failed shutdown request: %v", err)
-	}
-	requestDone := make(chan error, 1)
-	go func() {
-		response, requestErr := http.DefaultClient.Do(request)
-		if response != nil {
-			_ = response.Body.Close()
-		}
-		requestDone <- requestErr
-	}()
-	select {
-	case <-requestStarted:
-	case <-time.After(time.Second):
-		t.Fatal("request did not reach the failed shutdown test server")
-	}
-
-	cleanupCanceled := make(chan struct{})
-	cleanupDone := make(chan struct{})
-	close(cleanupDone)
+	cancelBackground, backgroundDone := startBackgroundTasks(tasks...)
+	poolClosed := make(chan struct{})
 	application := &App{
-		server: server,
-		grantCleanupCancel: func() {
-			close(cleanupCanceled)
+		backgroundCancel: cancelBackground,
+		backgroundDone:   backgroundDone,
+		shutdownHTTP:     func(context.Context) error { return nil },
+		closePool:        func() { close(poolClosed) },
+	}
+	shutdownResult := make(chan error, 1)
+	go func() { shutdownResult <- application.Shutdown(context.Background()) }()
+
+	for index := range taskCanceled {
+		waitForAppTestSignal(t, taskCanceled[index], fmt.Sprintf("background task %d cancellation", index))
+	}
+	assertAppTestSignalPending(t, poolClosed, "Pool closure before all background tasks exited")
+	for index := range releaseTask {
+		close(releaseTask[index])
+	}
+	if err := waitForAppTestValue(t, shutdownResult, "application shutdown"); err != nil {
+		t.Fatalf("shutdown application: %v", err)
+	}
+	for index := range taskExited {
+		waitForAppTestSignal(t, taskExited[index], fmt.Sprintf("background task %d exit", index))
+	}
+	waitForAppTestSignal(t, poolClosed, "Pool closure after all background tasks exited")
+}
+
+// TestAppShutdownIsIdempotent verifies repeated calls execute lifecycle effects once and return the same result.
+func TestAppShutdownIsIdempotent(t *testing.T) {
+	shutdownFailure := errors.New("drain failed")
+	backgroundDone := make(chan struct{})
+	close(backgroundDone)
+	var drainCalls int
+	var cancelCalls int
+	var poolCloseCalls int
+	application := &App{
+		backgroundCancel: func() { cancelCalls++ },
+		backgroundDone:   backgroundDone,
+		shutdownHTTP: func(context.Context) error {
+			drainCalls++
+			return shutdownFailure
 		},
-		grantCleanupDone: cleanupDone,
-	}
-	shutdownContext, cancelShutdown := context.WithCancel(context.Background())
-	cancelShutdown()
-	if err := application.Shutdown(shutdownContext); !errors.Is(err, context.Canceled) {
-		t.Fatalf("shutdown error = %v, want context.Canceled", err)
-	}
-	select {
-	case <-cleanupCanceled:
-		t.Fatal("cleanup stopped after HTTP shutdown failed")
-	default:
+		closePool: func() { poolCloseCalls++ },
 	}
 
-	close(releaseRequest)
-	if err := <-requestDone; err != nil {
-		t.Fatalf("complete failed-shutdown request: %v", err)
+	first := application.Shutdown(context.Background())
+	second := application.Shutdown(context.Background())
+	if first != second {
+		t.Fatalf("repeated shutdown errors differ: first %v, second %v", first, second)
 	}
-	if err := <-serveDone; !errors.Is(err, http.ErrServerClosed) {
-		t.Fatalf("serve result = %v, want http.ErrServerClosed", err)
+	if !errors.Is(first, shutdownFailure) {
+		t.Fatalf("shutdown error = %v, want drain failure", first)
+	}
+	if drainCalls != 1 || cancelCalls != 1 || poolCloseCalls != 1 {
+		t.Fatalf("lifecycle calls = drain %d, cancel %d, pool %d; want each once", drainCalls, cancelCalls, poolCloseCalls)
+	}
+}
+
+// TestAppShutdownAllowsPartialInitialization verifies nil lifecycle dependencies are safe and repeatable.
+func TestAppShutdownAllowsPartialInitialization(t *testing.T) {
+	application := &App{}
+	if err := application.Shutdown(context.Background()); err != nil {
+		t.Fatalf("shutdown partial application: %v", err)
 	}
 	if err := application.Shutdown(context.Background()); err != nil {
-		t.Fatalf("retry shutdown application: %v", err)
-	}
-	select {
-	case <-cleanupCanceled:
-	default:
-		t.Fatal("cleanup remained active after successful shutdown retry")
+		t.Fatalf("repeat shutdown partial application: %v", err)
 	}
 }
 
-// TestAppShutdownPrefersCompletedCleanupWhenContextIsDone verifies app shutdown prefers completed cleanup when context is done.
-func TestAppShutdownPrefersCompletedCleanupWhenContextIsDone(t *testing.T) {
+// TestAppShutdownPrefersCompletedBackgroundTasksWhenContextIsDone verifies a finished group does not manufacture a timeout error.
+func TestAppShutdownPrefersCompletedBackgroundTasksWhenContextIsDone(t *testing.T) {
 	for attempt := 0; attempt < 100; attempt++ {
-		cleanupDone := make(chan struct{})
-		close(cleanupDone)
+		backgroundDone := make(chan struct{})
+		close(backgroundDone)
 		application := &App{
-			server:             &http.Server{},
-			grantCleanupCancel: func() {},
-			grantCleanupDone:   cleanupDone,
+			backgroundCancel: func() {},
+			backgroundDone:   backgroundDone,
+			shutdownHTTP:     func(context.Context) error { return nil },
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
 		if err := application.Shutdown(ctx); err != nil {
-			t.Fatalf("attempt %d: shutdown error = %v, want nil after cleanup completed", attempt, err)
+			t.Fatalf("attempt %d: shutdown error = %v, want nil after background completion", attempt, err)
 		}
 	}
 }
 
-// TestAppShutdownStopsWaitingWhenCleanupExceedsDeadline verifies shutdown does not close the pool after cleanup times out.
-func TestAppShutdownStopsWaitingWhenCleanupExceedsDeadline(t *testing.T) {
-	cleanupCanceled := make(chan struct{})
-	cleanupDone := make(chan struct{})
+// TestAppShutdownTimeoutStillClosesPool verifies deadline errors remain inspectable and cannot skip Pool closure.
+func TestAppShutdownTimeoutStillClosesPool(t *testing.T) {
+	httpFailure := errors.New("drain failed")
+	backgroundStarted := make(chan struct{})
+	backgroundCanceled := make(chan struct{})
+	releaseBackground := make(chan struct{})
+	cancelBackground, backgroundDone := startBackgroundTasks(func(ctx context.Context) {
+		close(backgroundStarted)
+		<-ctx.Done()
+		close(backgroundCanceled)
+		<-releaseBackground
+	})
+	poolClosed := make(chan struct{})
 	application := &App{
-		server: &http.Server{},
-		grantCleanupCancel: func() {
-			close(cleanupCanceled)
-		},
-		grantCleanupDone: cleanupDone,
+		backgroundCancel: cancelBackground,
+		backgroundDone:   backgroundDone,
+		shutdownHTTP:     func(context.Context) error { return httpFailure },
+		closePool:        func() { close(poolClosed) },
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
+	waitForAppTestSignal(t, backgroundStarted, "background task start")
 
 	err := application.Shutdown(ctx)
+	if !errors.Is(err, httpFailure) || !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("shutdown error = %v, want joined drain failure and context deadline exceeded", err)
+	}
+	waitForAppTestSignal(t, backgroundCanceled, "background task cancellation")
+	waitForAppTestSignal(t, poolClosed, "Pool closure after background wait timeout")
+	close(releaseBackground)
+	waitForAppTestSignal(t, backgroundDone, "background task completion")
+}
+
+// TestAppShutdownBoundsPoolCloseWait verifies a borrowed connection cannot extend process shutdown beyond its deadline.
+func TestAppShutdownBoundsPoolCloseWait(t *testing.T) {
+	poolCloseStarted := make(chan struct{})
+	releasePoolClose := make(chan struct{})
+	poolCloseFinished := make(chan struct{})
+	t.Cleanup(func() {
+		close(releasePoolClose)
+		waitForAppTestSignal(t, poolCloseFinished, "Pool closure completion")
+	})
+	application := &App{
+		shutdownHTTP: func(context.Context) error { return nil },
+		closePool: func() {
+			close(poolCloseStarted)
+			<-releasePoolClose
+			close(poolCloseFinished)
+		},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	shutdownResult := make(chan error, 1)
+	go func() { shutdownResult <- application.Shutdown(ctx) }()
+
+	waitForAppTestSignal(t, poolCloseStarted, "Pool closure start")
+	err := waitForAppTestValue(t, shutdownResult, "bounded Pool closure wait")
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("shutdown error = %v, want context deadline exceeded", err)
 	}
+}
+
+// waitForAppTestSignal waits for a required lifecycle event without relying on the package timeout.
+func waitForAppTestSignal(t *testing.T, signal <-chan struct{}, operation string) {
+	t.Helper()
 	select {
-	case <-cleanupCanceled:
-	default:
-		t.Fatal("grant cleanup was not canceled")
+	case <-signal:
+	case <-time.After(testLifecycleTimeout):
+		t.Fatalf("timed out waiting for %s", operation)
 	}
+}
+
+// waitForAppTestValue waits for a required lifecycle result without relying on the package timeout.
+func waitForAppTestValue[T any](t *testing.T, values <-chan T, operation string) T {
+	t.Helper()
 	select {
-	case <-cleanupDone:
-		t.Fatal("shutdown returned before grant cleanup completed")
+	case value := <-values:
+		return value
+	case <-time.After(testLifecycleTimeout):
+		t.Fatalf("timed out waiting for %s", operation)
+		var zero T
+		return zero
+	}
+}
+
+// assertAppTestSignalPending checks non-occurrence only after the caller establishes a synchronization point.
+func assertAppTestSignalPending(t *testing.T, signal <-chan struct{}, operation string) {
+	t.Helper()
+	select {
+	case <-signal:
+		t.Fatalf("unexpected %s", operation)
+	default:
+	}
+}
+
+// assertAppTestValuePending checks non-occurrence after the caller establishes a synchronization point.
+func assertAppTestValuePending[T any](t *testing.T, values <-chan T, operation string) {
+	t.Helper()
+	select {
+	case <-values:
+		t.Fatalf("unexpected %s", operation)
 	default:
 	}
 }

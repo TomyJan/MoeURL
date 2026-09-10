@@ -16,11 +16,13 @@ import NotFoundPage from './NotFoundPage.vue'
 import SetupPage from './SetupPage.vue'
 import { componentStubs } from '@/test/component-stubs'
 import { login, me } from '@/entities/auth/api'
+import { setupSystem } from '@/entities/system/api'
 import { getAdminShortLinkStatistics, getShortLinkOverview, getShortLinkStatistics, listAdminShortLinks, listShortLinks, updateAdminShortLink, updateShortLink } from '@/entities/short-link/api'
 import type { ShortLink } from '@/entities/short-link/model'
 import { updateUser } from '@/entities/user/api'
 import { createDeferred } from '@/test/deferred'
 import type { MutationMockResult } from '@/test/mutation-mock'
+import { ApiClientError } from '@/shared/api/client'
 
 const state = vi.hoisted(() => ({
   queryResult: {},
@@ -117,7 +119,7 @@ vi.mock('chart.js', () => {
 })
 
 vi.mock('@/entities/system/api', () => ({
-  getInitStatus: vi.fn(async () => ({ initialized: false })),
+  getInitStatus: vi.fn(async () => ({ initialized: false, setupTokenRequired: false })),
   setupSystem: vi.fn(),
 }))
 
@@ -240,6 +242,7 @@ describe('pages', () => {
     vi.mocked(updateUser).mockReset()
     vi.mocked(login).mockReset()
     vi.mocked(me).mockReset()
+    vi.mocked(setupSystem).mockReset()
     vi.mocked(me).mockResolvedValue({ user: { permissions: [] } } as never)
     state.theme = {
       global: {
@@ -567,11 +570,26 @@ describe('pages', () => {
     expect(screen.queryByTestId('auth-error-toast')).toBeNull()
   })
 
+  it('localizes the login rate-limit business error', () => {
+    const rateLimitError = Object.assign(new Error('Login temporarily unavailable'), { code: 110103 })
+    setMutationResult({
+      error: ref(rateLimitError),
+      isError: ref(true),
+      mutate: vi.fn(),
+    })
+    mount(LoginPage)
+
+    expect(screen.getByText('auth.loginRateLimited')).toBeTruthy()
+    expect(screen.queryByText('Login temporarily unavailable')).toBeNull()
+  })
+
   it('keeps login business error codes named', () => {
     const source = readFileSync('src/pages/LoginPage.vue', 'utf8')
 
     expect(source).toContain('INVALID_CREDENTIAL_ERROR_CODE')
+    expect(source).toContain('LOGIN_RATE_LIMITED_ERROR_CODE')
     expect(source).not.toContain('=== 110101')
+    expect(source).not.toContain('=== 110103')
   })
 
   it('shows non-auth login errors and ignores unsafe redirect targets', async () => {
@@ -656,6 +674,104 @@ describe('pages', () => {
 
     expect(screen.queryByText('setup.initialized')).toBeNull()
     expect(mutate).toHaveBeenCalledWith(expect.objectContaining({ adminUsername: 'admin', defaultLanguage: 'en', defaultTheme: 'dark' }))
+  })
+
+  it('keeps setup unavailable and exposes retry when initialization status fails', async () => {
+    const refetch = vi.fn()
+    const mutate = vi.fn()
+    setQueryResult({ data: ref(undefined), isError: ref(true), refetch })
+    setMutationResult({ mutate })
+    mount(SetupPage)
+
+    expect(screen.getByText('setup.loadFailed')).toBeTruthy()
+    expect(screen.queryByTestId('setup-wizard')).toBeNull()
+    expect(screen.queryByTestId('setup-submit')).toBeNull()
+    expect(mutate).not.toHaveBeenCalled()
+
+    await fireEvent.click(screen.getByRole('button', { name: 'setup.retry' }))
+    expect(refetch).toHaveBeenCalledTimes(1)
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
+  it('rejects submission when a previously loaded initialization status becomes unavailable', async () => {
+    const status = ref<{ initialized: boolean; setupTokenRequired: boolean } | undefined>({
+      initialized: false,
+      setupTokenRequired: false,
+    })
+    const mutate = vi.fn()
+    setQueryResult({ data: status })
+    setMutationResult({ mutate })
+    mount(SetupPage)
+    const form = screen.getByTestId('setup-wizard')
+
+    status.value = undefined
+    await fireEvent.submit(form)
+
+    expect(mutate).not.toHaveBeenCalled()
+    expect(screen.getByText('setup.loadFailed')).toBeTruthy()
+    expect(screen.queryByTestId('setup-wizard')).toBeNull()
+  })
+
+  it('shows the password setup-token field only when required by status', () => {
+    setQueryResult({ data: ref({ initialized: false, setupTokenRequired: true }) })
+    const production = mount(SetupPage)
+
+    const tokenInput = screen.getByLabelText('setup.setupToken') as HTMLInputElement
+    expect(screen.getByTestId('setup-token')).toBeTruthy()
+    expect(screen.getByTestId('setup-token-help')).toBeTruthy()
+    expect(tokenInput.type).toBe('password')
+    production.unmount()
+
+    setQueryResult({ data: ref({ initialized: false, setupTokenRequired: false }) })
+    mount(SetupPage)
+    expect(screen.queryByTestId('setup-token')).toBeNull()
+    expect(screen.queryByText('setup.setupTokenHelp')).toBeNull()
+  })
+
+  it('submits the setup-token snapshot and clears the form and mutation variables after success', async () => {
+    const deferred = createDeferred<{ initialized: boolean }>()
+    const variables = ref<unknown>(undefined)
+    vi.mocked(setupSystem).mockReturnValueOnce(deferred.promise)
+    setQueryResult({ data: ref({ initialized: false, setupTokenRequired: true }) })
+    setMutationResult({ variables })
+    mount(SetupPage)
+
+    const tokenInput = screen.getByLabelText('setup.setupToken') as HTMLInputElement
+    await fireEvent.update(tokenInput, 'correct-production-token')
+    await fireEvent.click(screen.getByText('setup.submit'))
+
+    expect(setupSystem).toHaveBeenCalledWith(expect.objectContaining({ setupToken: 'correct-production-token' }))
+    expect(variables.value).toEqual(expect.objectContaining({ setupToken: 'correct-production-token' }))
+
+    deferred.resolve({ initialized: false })
+    await vi.waitFor(() => expect(tokenInput.value).toBe(''))
+    expect(variables.value).not.toHaveProperty('setupToken')
+  })
+
+  it.each<[string, Error]>([
+    ['business', new ApiClientError(900102, 'Setup authentication failed')],
+    ['infrastructure', new Error('network unavailable')],
+  ])('clears setup-token state after a %s failure while retaining the error UI', async (_kind, error) => {
+    const variables = ref<unknown>(undefined)
+    vi.mocked(setupSystem).mockRejectedValueOnce(error)
+    setQueryResult({ data: ref({ initialized: false, setupTokenRequired: true }) })
+    setMutationResult({ variables })
+    mount(SetupPage)
+
+    const tokenInput = screen.getByLabelText('setup.setupToken') as HTMLInputElement
+    await fireEvent.update(tokenInput, 'failed-production-token')
+    await fireEvent.click(screen.getByText('setup.submit'))
+
+    await vi.waitFor(() => expect(tokenInput.value).toBe(''))
+    expect(variables.value).not.toHaveProperty('setupToken')
+    expect(screen.getByText(error instanceof ApiClientError ? 'setup.setupTokenInvalid' : error.message)).toBeTruthy()
+  })
+
+  it('uses a named business error code for an invalid setup token', () => {
+    const source = readFileSync('src/pages/SetupPage.vue', 'utf8')
+
+    expect(source).toContain('INVALID_SETUP_TOKEN_ERROR_CODE')
+    expect(source).not.toContain('error.code === 900102')
   })
 
   it('uses primary color semantics for setup step indexes', () => {
