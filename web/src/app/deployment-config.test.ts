@@ -557,6 +557,7 @@ describe('deployment configuration', () => {
     const backendSecurity = workflowJob(workflow, 'backend-security')
     const imageSecurity = workflowJob(workflow, 'image-security')
 
+    expect(backendSecurity).toContain('timeout-minutes: 20')
     expect(backendSecurity).toContain('go-version-file: go.mod')
     expect(backendSecurity).toContain('go test -race ./... -count=1')
     expect(backendSecurity).toContain('golang.org/x/vuln/cmd/govulncheck@v1.8.0')
@@ -566,6 +567,7 @@ describe('deployment configuration', () => {
     expect(backendSecurity).toContain('git ls-files --others --exclude-standard -- internal/db/sqlc')
 
     expect(imageSecurity).toContain('docker build --tag moeurl:ci .')
+    expect(imageSecurity).toContain('timeout-minutes: 20')
     expect(imageSecurity).toContain(
       'aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25',
     )
@@ -592,6 +594,9 @@ describe('deployment configuration', () => {
     expect(smokeScript).toContain("assert(app.environment?.MOEURL_ENV === 'production'")
     expect(smokeScript).toContain('expected_migration_version=')
     expect(smokeScript).toContain('"$migration_version" = "$expected_migration_version"')
+    expect(smokeScript).toMatch(
+      /curl --fail --silent --show-error --connect-timeout 2 --max-time 5 \\\s+"\$BASE_URL\/api\/v1\/health\/ready"/,
+    )
     expect(smokeScript).not.toContain('[ "$migration_version" = "11" ]')
     expect(smokeScript).not.toContain('database migration version is not 11')
   })
@@ -604,6 +609,20 @@ describe('deployment configuration', () => {
 
     expect(upgradeGuide).toContain('`migrations/` 目录中按编号计算出的当前最大 migration 版本')
     expect(upgradeGuide).not.toContain('最大已应用版本为 `11`')
+  })
+
+  it('keeps cleanup throughput limits aligned across production-readiness documents', () => {
+    const documents = [
+      'docs/specs/2026-08-29-v0.6.0-production-readiness-design.md',
+      'docs/implementation/v0.6.0-detailed-plan.md',
+      'docs/implementation/v0.6.0-tasks.md',
+    ].map(path => readFileSync(resolve(repositoryRoot, path), 'utf8'))
+
+    for (const document of documents) {
+      expect(document).toContain('每个周期最多处理 4 个 500 行批次')
+      expect(document).toContain('最多删除 2000 条')
+      expect(document).toContain('任一批次少于 500 条时提前结束')
+    }
   })
 
   it('keeps target-runtime acceptance pending until remote evidence exists', () => {

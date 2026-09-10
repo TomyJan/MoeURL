@@ -248,7 +248,8 @@ EOF
 wait_for_readiness() {
   deadline=$(( $(date +%s) + 120 ))
   while [ "$(date +%s)" -lt "$deadline" ]; do
-    if curl --fail --silent --show-error "$BASE_URL/api/v1/health/ready" >"$WORK_DIR/readiness.json" 2>/dev/null \
+    if curl --fail --silent --show-error --connect-timeout 2 --max-time 5 \
+      "$BASE_URL/api/v1/health/ready" >"$WORK_DIR/readiness.json" 2>/dev/null \
       && node -e "const r=require(process.argv[1]);process.exit(r.code===0&&r.data?.status==='ok'?0:1)" "$WORK_DIR/readiness.json"; then
       return 0
     fi

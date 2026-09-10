@@ -185,6 +185,7 @@ jobs:
   backend-security:
     name: Backend Security
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -299,6 +300,7 @@ jobs:
   image-security:
     name: Image Security
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
