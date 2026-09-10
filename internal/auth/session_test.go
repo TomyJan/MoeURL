@@ -172,6 +172,23 @@ func TestPeriodicCleanupCapsFullBatches(t *testing.T) {
 	}
 }
 
+// TestPeriodicCleanupStopsBetweenBatchesAfterCancellation verifies shutdown prevents another bounded batch from starting.
+func TestPeriodicCleanupStopsBetweenBatchesAfterCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	calls := 0
+
+	if keepRunning := runCleanupCycle(ctx, func(context.Context) (int64, error) {
+		calls++
+		cancel()
+		return maintenanceCleanupBatchSize, nil
+	}, slog.Default(), "cleanup_failed"); keepRunning {
+		t.Fatal("cleanup cycle continued after cancellation")
+	}
+	if calls != 1 {
+		t.Fatalf("cleanup calls = %d, want 1", calls)
+	}
+}
+
 // TestSessionCleanupRunsImmediately verifies startup cleanup does not wait for the first interval.
 func TestSessionCleanupRunsImmediately(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
