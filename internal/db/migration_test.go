@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,7 +27,7 @@ func TestMigrationsCreateCoreTablesAndConstraints(t *testing.T) {
 		t.Fatalf("run migrations: %v", err)
 	}
 
-	expectedTables := []string{"system_setting", "user_group", "app_user", "session", "domain", "short_link", "short_link_event", "short_link_access_grant"}
+	expectedTables := []string{"system_setting", "user_group", "app_user", "session", "domain", "short_link", "short_link_event", "short_link_access_grant", "auth_login_attempt"}
 	for _, table := range expectedTables {
 		t.Run(fmt.Sprintf("table_%s_exists", table), func(t *testing.T) {
 			var exists bool
@@ -62,6 +64,86 @@ func TestMigrationsCreateCoreTablesAndConstraints(t *testing.T) {
 	}
 	if pgErr.Code != "23505" {
 		t.Fatalf("expected unique violation code 23505, got %s", pgErr.Code)
+	}
+}
+
+// TestAuthLoginAttemptMigrationRoundTrip verifies login-attempt state is isolated and safely recreatable.
+func TestAuthLoginAttemptMigrationRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	database := migrationTestDatabase(t, ctx)
+	migrationsDir := filepath.Join("..", "..", "migrations")
+
+	if err := goose.UpTo(database, migrationsDir, 10); err != nil {
+		t.Fatalf("run migrations through version 10: %v", err)
+	}
+	insertUserGroups(t, ctx, database)
+	if _, err := database.ExecContext(ctx, `
+		insert into session (id, user_id, expires_at, last_seen_at, created_at)
+		values ('preserved-session', '00000000-0000-0000-0000-000000000201', now() + interval '1 day', now(), now());
+
+		insert into short_link (id, owner_id, domain_id, slug, target_url, status, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000101', 'preserved', 'https://example.com', 'active', now(), now());
+	`); err != nil {
+		t.Fatalf("insert preserved fixtures: %v", err)
+	}
+
+	if err := goose.UpTo(database, migrationsDir, 11); err != nil {
+		t.Fatalf("upgrade login-attempt migration: %v", err)
+	}
+	assertAuthLoginAttemptSchema(t, ctx, database)
+	if _, err := database.ExecContext(ctx, `
+		insert into auth_login_attempt (
+			username_hash, failed_attempts, window_started_at, blocked_until, updated_at
+		) values ('digest', 9, clock_timestamp(), null, clock_timestamp())
+	`); err != nil {
+		t.Fatalf("insert login-attempt state: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `
+		insert into auth_login_attempt (
+			username_hash, failed_attempts, window_started_at, blocked_until, updated_at
+		) values ('digest', 1, clock_timestamp(), null, clock_timestamp())
+	`); err == nil {
+		t.Fatal("expected username_hash primary key to reject duplicates")
+	}
+	if _, err := database.ExecContext(ctx, `
+		insert into auth_login_attempt (
+			username_hash, failed_attempts, window_started_at, blocked_until, updated_at
+		) values ('missing-window', 1, null, null, clock_timestamp())
+	`); err == nil {
+		t.Fatal("expected window_started_at to be required")
+	}
+
+	if err := goose.DownTo(database, migrationsDir, 10); err != nil {
+		t.Fatalf("rollback login-attempt migration: %v", err)
+	}
+	assertRelationExists(t, ctx, database, "auth_login_attempt", false)
+	for table, predicate := range map[string]string{
+		"app_user":   "username = 'alice'",
+		"session":    "id = 'preserved-session'",
+		"short_link": "slug = 'preserved'",
+	} {
+		var count int
+		if err := database.QueryRowContext(ctx, `select count(*) from `+table+` where `+predicate).Scan(&count); err != nil {
+			t.Fatalf("count preserved %s rows: %v", table, err)
+		}
+		if count != 1 {
+			t.Fatalf("expected preserved %s row, got %d", table, count)
+		}
+	}
+
+	if err := goose.UpTo(database, migrationsDir, 11); err != nil {
+		t.Fatalf("reapply login-attempt migration: %v", err)
+	}
+	if err := goose.UpTo(database, migrationsDir, 11); err != nil {
+		t.Fatalf("retry completed login-attempt migration: %v", err)
+	}
+	assertAuthLoginAttemptSchema(t, ctx, database)
+	if _, err := database.ExecContext(ctx, `
+		insert into auth_login_attempt (
+			username_hash, failed_attempts, window_started_at, blocked_until, updated_at
+		) values ('recreated', 0, clock_timestamp(), null, clock_timestamp())
+	`); err != nil {
+		t.Fatalf("use recreated login-attempt table: %v", err)
 	}
 }
 
@@ -625,6 +707,91 @@ func migrationTestDatabase(t *testing.T, ctx context.Context) *sql.DB {
 	}
 
 	return database
+}
+
+// assertAuthLoginAttemptSchema verifies the login-attempt table exposes only the specified state columns and types.
+func assertAuthLoginAttemptSchema(t *testing.T, ctx context.Context, database *sql.DB) {
+	t.Helper()
+
+	rows, err := database.QueryContext(ctx, `
+		select column_name, data_type, is_nullable
+		from information_schema.columns
+		where table_schema = 'public' and table_name = 'auth_login_attempt'
+		order by ordinal_position
+	`)
+	if err != nil {
+		t.Fatalf("query login-attempt columns: %v", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	type column struct {
+		name     string
+		dataType string
+		nullable string
+	}
+	var actual []column
+	for rows.Next() {
+		var current column
+		if err := rows.Scan(&current.name, &current.dataType, &current.nullable); err != nil {
+			t.Fatalf("scan login-attempt column: %v", err)
+		}
+		actual = append(actual, current)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate login-attempt columns: %v", err)
+	}
+	want := []column{
+		{name: "username_hash", dataType: "text", nullable: "NO"},
+		{name: "failed_attempts", dataType: "smallint", nullable: "NO"},
+		{name: "window_started_at", dataType: "timestamp with time zone", nullable: "NO"},
+		{name: "blocked_until", dataType: "timestamp with time zone", nullable: "YES"},
+		{name: "updated_at", dataType: "timestamp with time zone", nullable: "NO"},
+	}
+	if !reflect.DeepEqual(actual, want) {
+		t.Fatalf("login-attempt columns = %#v, want %#v", actual, want)
+	}
+
+	var primaryKeyColumns []string
+	primaryRows, err := database.QueryContext(ctx, `
+		select attribute.attname
+		from pg_constraint as pg_constraint_row
+		join unnest(pg_constraint_row.conkey) with ordinality as key(attnum, position) on true
+		join pg_attribute as attribute
+			on attribute.attrelid = pg_constraint_row.conrelid and attribute.attnum = key.attnum
+		where pg_constraint_row.conrelid = 'auth_login_attempt'::regclass and pg_constraint_row.contype = 'p'
+		order by key.position
+	`)
+	if err != nil {
+		t.Fatalf("query login-attempt primary key: %v", err)
+	}
+	defer func() { _ = primaryRows.Close() }()
+	for primaryRows.Next() {
+		var name string
+		if err := primaryRows.Scan(&name); err != nil {
+			t.Fatalf("scan login-attempt primary key: %v", err)
+		}
+		primaryKeyColumns = append(primaryKeyColumns, name)
+	}
+	if err := primaryRows.Err(); err != nil {
+		t.Fatalf("iterate login-attempt primary key: %v", err)
+	}
+	if !reflect.DeepEqual(primaryKeyColumns, []string{"username_hash"}) {
+		t.Fatalf("login-attempt primary key = %#v, want username_hash", primaryKeyColumns)
+	}
+
+	var cleanupIndexDefinition string
+	if err := database.QueryRowContext(ctx, `
+		select indexdef
+		from pg_indexes
+		where schemaname = 'public'
+			and tablename = 'auth_login_attempt'
+			and indexname = 'auth_login_attempt_updated_at_idx'
+	`).Scan(&cleanupIndexDefinition); err != nil {
+		t.Fatalf("query login-attempt cleanup index: %v", err)
+	}
+	if !strings.Contains(cleanupIndexDefinition, "(updated_at)") {
+		t.Fatalf("login-attempt cleanup index = %q, want updated_at", cleanupIndexDefinition)
+	}
 }
 
 // assertShortLinkPasswordConstraintValidation checks existence and validation state for the password constraint.

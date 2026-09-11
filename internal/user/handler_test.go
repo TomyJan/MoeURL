@@ -15,6 +15,13 @@ import (
 	"github.com/TomyJan/MoeURL/internal/user"
 )
 
+// TestNewHandlerUsesDefaultLogger verifies the compatibility constructor remains safe without explicit logger wiring.
+func TestNewHandlerUsesDefaultLogger(t *testing.T) {
+	if handler := user.NewHandler(&fakeUserService{}); handler == nil {
+		t.Fatal("expected handler")
+	}
+}
+
 // TestHandlerCreateUserReturnsCreatedUser verifies handler create user returns created user.
 func TestHandlerCreateUserReturnsCreatedUser(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{

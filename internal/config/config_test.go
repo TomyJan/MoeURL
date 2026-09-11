@@ -16,6 +16,17 @@ func TestLoadReadsAnalyticsCountryHeader(t *testing.T) {
 	}
 }
 
+// TestLoadReadsSetupToken verifies the deployment-only setup credential is loaded.
+func TestLoadReadsSetupToken(t *testing.T) {
+	t.Setenv("MOEURL_SETUP_TOKEN", "setup-token")
+
+	config := Load()
+
+	if config.SetupToken != "setup-token" {
+		t.Fatalf("setup token was not loaded")
+	}
+}
+
 // TestLoadPreservesEmptyEnvironmentForValidation verifies that Load does not hide an explicitly empty environment.
 func TestLoadPreservesEmptyEnvironmentForValidation(t *testing.T) {
 	t.Setenv("MOEURL_ENV", "")
@@ -35,6 +46,7 @@ func TestConfigNormalizeTrimsAllFields(t *testing.T) {
 		DatabaseURL:            " postgres://localhost/moeurl ",
 		StaticDir:              " web/dist ",
 		AnalyticsCountryHeader: " CF-IPCountry ",
+		SetupToken:             " setup-token-with-more-than-32-characters ",
 	}
 
 	config.Normalize()
@@ -53,6 +65,50 @@ func TestConfigNormalizeTrimsAllFields(t *testing.T) {
 	}
 	if config.AnalyticsCountryHeader != "CF-IPCountry" {
 		t.Fatalf("analytics country header = %q, want normalized value", config.AnalyticsCountryHeader)
+	}
+	if config.SetupToken != "setup-token-with-more-than-32-characters" {
+		t.Fatal("setup token was not normalized")
+	}
+}
+
+// TestConfigValidateSetupTokenByEnvironment verifies production-only setup token boundaries.
+func TestConfigValidateSetupTokenByEnvironment(t *testing.T) {
+	tests := []struct {
+		name    string
+		env     string
+		token   string
+		wantErr bool
+	}{
+		{name: "development omitted", env: "development"},
+		{name: "production omitted", env: "production", wantErr: true},
+		{name: "production whitespace", env: "production", token: "   ", wantErr: true},
+		{name: "production 31 characters", env: "production", token: strings.Repeat("a", 31), wantErr: true},
+		{name: "production 32 characters", env: "production", token: strings.Repeat("a", 32)},
+		{name: "production 31 Unicode characters", env: "production", token: strings.Repeat("界", 31), wantErr: true},
+		{name: "production 32 Unicode characters", env: "production", token: strings.Repeat("界", 32)},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			config := Config{
+				Env:         test.env,
+				HTTPAddr:    ":8080",
+				DatabaseURL: "postgres://localhost/moeurl",
+				StaticDir:   "web/dist",
+				SetupToken:  test.token,
+			}
+
+			err := config.Validate()
+			if test.wantErr && err == nil {
+				t.Fatal("expected setup token validation error")
+			}
+			if !test.wantErr && err != nil {
+				t.Fatalf("validate config: %v", err)
+			}
+			if err != nil && test.token != "" && strings.Contains(err.Error(), test.token) {
+				t.Fatal("validation error exposed the setup token")
+			}
+		})
 	}
 }
 
@@ -93,6 +149,7 @@ func TestConfigValidateRequiresKnownEnvironment(t *testing.T) {
 				DatabaseURL:            "  postgres://localhost/moeurl  ",
 				StaticDir:              "  web/dist  ",
 				AnalyticsCountryHeader: " CF-IPCountry ",
+				SetupToken:             strings.Repeat("a", 32),
 			}
 
 			err := config.Validate()

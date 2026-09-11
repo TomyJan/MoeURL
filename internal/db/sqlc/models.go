@@ -21,6 +21,14 @@ type AppUser struct {
 	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type AuthLoginAttempt struct {
+	UsernameHash    string             `json:"username_hash"`
+	FailedAttempts  int16              `json:"failed_attempts"`
+	WindowStartedAt pgtype.Timestamptz `json:"window_started_at"`
+	BlockedUntil    pgtype.Timestamptz `json:"blocked_until"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Domain struct {
 	ID          pgtype.UUID        `json:"id"`
 	Host        string             `json:"host"`

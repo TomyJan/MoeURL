@@ -1,6 +1,12 @@
-# Dependencies
+# Dependencies and cache
 node_modules/
 .pnpm-store/
+.gocache/
+.tmp/
+.cache/
+
+# Local visual verification screenshots
+.codex-screenshots/
 
 # Build outputs
 dist/
@@ -16,12 +22,11 @@ web/coverage/
 .env
 .env.*
 !.env.example
+backups/
+restore.env
 
 # Logs
 *.log
 
 # Local brainstorming prototypes
 .superpowers/brainstorm/
-
-# Local visual verification screenshots
-.codex-screenshots/

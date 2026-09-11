@@ -5,7 +5,7 @@
 MoeURL 采用以下技术栈作为 v0.0.1 及后续演进的技术基线：
 
 ```text
-后端：Go 1.25+ + Chi + SQLC 1.30.0 + Goose + PostgreSQL
+后端：Go 1.26.8+ + Chi + SQLC 1.30.0 + Goose + PostgreSQL
 前端：Vue 3 + Vite + TypeScript + Vuetify 4
 前端包管理： pnpm
 状态：Pinia + TanStack Query for Vue
@@ -33,7 +33,7 @@ PWA：Web App Manifest + Service Worker
 
 ### Go
 
-最低 Go 版本保持为 Go 1.25+；当前 `go.mod` 声明为 Go 1.25.7。
+最低 Go 版本为 Go 1.26.8+；当前 `go.mod` 声明为 Go 1.26.8。
 
 Go 作为后端语言，适合 MoeURL 的 API、认证、权限、短链跳转和后台任务场景。
 
@@ -300,7 +300,7 @@ PostgreSQL
 
 生产环境优先提供 Docker 和 Docker Compose。
 
-`Dockerfile` 的前端和后端构建阶段统一使用稳定镜像 `golang:1.27.0`。该版本是构建环境约定，不改变 Go 1.25+ 的最低语言版本。
+`Dockerfile` 的前端和后端构建阶段统一使用稳定镜像 `golang:1.27.1`。该版本是构建环境约定，不改变 Go 1.26.8+ 的最低语言版本。
 
 推荐方式：
 
@@ -310,6 +310,8 @@ PostgreSQL
 - PostgreSQL 作为独立服务运行。
 
 这种方式适合自托管用户，部署简单，也保留未来前后端分离部署的可能。
+
+v0.6.0 将首个生产支持边界收敛为单机 Docker Compose + 外部 TLS 反向代理。默认 Compose 强制部署者提供数据库密码，PostgreSQL 不开放宿主端口，App 只绑定宿主回环地址并使用非 root、只读根文件系统、`tmpfs`、init、healthcheck 和重启策略。显式开发覆盖文件只恢复本机 PostgreSQL 直连，不弱化生产文件。反向代理负责 TLS、HSTS 和来源级限流；MoeURL 负责应用级请求防护、健康检查、优雅退出、初始化与登录保护。业务 API 统一返回 `Cache-Control: no-store`，静态资源保持独立缓存策略；单个 Auth Service 通过容量为 8 的进程内槽位限制登录事务，通过独立的容量为 2 的槽位只限制 Argon2id 密码验证，各层满额时复用登录限流错误并立即拒绝。该边界不承诺高可用、Kubernetes、内置证书管理或完整可观测平台，详细设计见 [v0.6.0 生产就绪设计](../specs/2026-08-29-v0.6.0-production-readiness-design.md)，运维入口见 [单机 Docker Compose 部署](../deployment/single-host-compose.md)。
 
 ## 7. 不采用的方案
 

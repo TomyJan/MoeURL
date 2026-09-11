@@ -3,6 +3,7 @@ import { vi } from 'vitest'
 
 export interface MutationMockCallOptions {
   mutationFn?: (input: unknown) => unknown
+  onSettled?: (value: unknown, reason: unknown, variables: unknown) => void
   onSuccess?: (value: unknown, variables: unknown) => void
 }
 
@@ -52,13 +53,15 @@ export function createMutationMock(config: CreateMutationMockOptions) {
     const succeed = (value: unknown, input: unknown) => {
       data.value = value
       options?.onSuccess?.(value, input)
+      options?.onSettled?.(value, null, input)
     }
     /** Applies a failed result to the reactive error state. */
-    const fail = (reason: unknown) => {
+    const fail = (reason: unknown, input: unknown) => {
       error.value = reason
       if (config.fields?.isError) {
         isError.value = true
       }
+      options?.onSettled?.(undefined, reason, input)
     }
     const mutate = vi.fn((input: unknown) => {
       if (config.fields?.variables) {
@@ -78,7 +81,7 @@ export function createMutationMock(config: CreateMutationMockOptions) {
           isPending.value = true
           void Promise.resolve(result)
             .then((value) => succeed(value, input))
-            .catch(fail)
+            .catch((reason) => fail(reason, input))
             .finally(() => {
               isPending.value = false
             })
@@ -86,7 +89,7 @@ export function createMutationMock(config: CreateMutationMockOptions) {
         }
         succeed(config.resolveSynchronousResult?.(result, input) ?? result, input)
       } catch (reason) {
-        fail(reason)
+        fail(reason, input)
       }
     })
 

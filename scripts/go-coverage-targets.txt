@@ -8,9 +8,15 @@ github.com/TomyJan/MoeURL/internal/auth/service.go
 github.com/TomyJan/MoeURL/internal/auth/session.go
 github.com/TomyJan/MoeURL/internal/event/event.go
 github.com/TomyJan/MoeURL/internal/event/recorder.go
+github.com/TomyJan/MoeURL/internal/http/health.go
 github.com/TomyJan/MoeURL/internal/http/response.go
 github.com/TomyJan/MoeURL/internal/http/router.go
+github.com/TomyJan/MoeURL/internal/middleware/body_limit.go
+github.com/TomyJan/MoeURL/internal/middleware/recovery.go
+github.com/TomyJan/MoeURL/internal/middleware/request_id.go
 github.com/TomyJan/MoeURL/internal/middleware/request_logger.go
+github.com/TomyJan/MoeURL/internal/middleware/response_writer.go
+github.com/TomyJan/MoeURL/internal/middleware/security_headers.go
 github.com/TomyJan/MoeURL/internal/permission/catalog.go
 github.com/TomyJan/MoeURL/internal/permission/service.go
 github.com/TomyJan/MoeURL/internal/shortlink/handler.go

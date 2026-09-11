@@ -7,6 +7,7 @@ import (
 	"errors"
 	"path/filepath"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -29,6 +30,376 @@ func TestSQLCPackageExposesQueries(t *testing.T) {
 	permissionAddition := sqlc.ShortLinkConfirmationPermissionAddition{PermissionRevision: 1}
 	if permissionAddition.PermissionRevision != 1 {
 		t.Fatal("expected generated confirmation permission revision")
+	}
+}
+
+// TestAuthLoginAttemptQueriesCreateLockAndDelete verifies attempt rows serialize callers and can be cleared on success.
+func TestAuthLoginAttemptQueriesCreateLockAndDelete(t *testing.T) {
+	pool := sqlcTestPool(t, t.Context())
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	queries := sqlc.New(pool)
+	const usernameHash = "login-attempt-lock"
+	if err := queries.EnsureAuthLoginAttempt(ctx, usernameHash); err != nil {
+		t.Fatalf("ensure login attempt: %v", err)
+	}
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin locking transaction: %v", err)
+	}
+	defer func() {
+		cleanupContext, cleanupCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cleanupCancel()
+		_ = tx.Rollback(cleanupContext)
+	}()
+	txQueries := queries.WithTx(tx)
+	locked, err := txQueries.GetAuthLoginAttemptForUpdate(ctx, usernameHash)
+	if err != nil {
+		t.Fatalf("lock login attempt: %v", err)
+	}
+	if locked.UsernameHash != usernameHash || locked.FailedAttempts != 0 || !locked.DatabaseTime.Valid {
+		t.Fatalf("unexpected initial locked attempt: %#v", locked)
+	}
+
+	waitingTx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin waiting transaction: %v", err)
+	}
+	defer func() {
+		cleanupContext, cleanupCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cleanupCancel()
+		_ = waitingTx.Rollback(cleanupContext)
+	}()
+	var waitingPID int32
+	if err := waitingTx.QueryRow(ctx, `select pg_backend_pid()`).Scan(&waitingPID); err != nil {
+		t.Fatalf("read waiting backend pid: %v", err)
+	}
+	type lockResult struct {
+		attempt sqlc.GetAuthLoginAttemptForUpdateRow
+		err     error
+	}
+	resultChannel := make(chan lockResult, 1)
+	go func() {
+		attempt, queryErr := queries.WithTx(waitingTx).GetAuthLoginAttemptForUpdate(ctx, usernameHash)
+		resultChannel <- lockResult{attempt: attempt, err: queryErr}
+	}()
+	waitForBackendLock(t, ctx, pool, waitingPID)
+	select {
+	case result := <-resultChannel:
+		t.Fatalf("row lock returned before release: %#v", result)
+	default:
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatalf("commit locking transaction: %v", err)
+	}
+	select {
+	case result := <-resultChannel:
+		if result.err != nil {
+			t.Fatalf("lock attempt after release: %v", result.err)
+		}
+		if result.attempt.UsernameHash != usernameHash {
+			t.Fatalf("waiting lock returned hash %q", result.attempt.UsernameHash)
+		}
+	case <-ctx.Done():
+		t.Fatalf("waiting login-attempt lock did not complete: %v", ctx.Err())
+	}
+	if err := waitingTx.Commit(ctx); err != nil {
+		t.Fatalf("commit waiting transaction: %v", err)
+	}
+
+	deleted, err := queries.DeleteAuthLoginAttempt(ctx, usernameHash)
+	if err != nil {
+		t.Fatalf("delete login attempt: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("deleted login attempts = %d, want 1", deleted)
+	}
+	if _, err := queries.GetAuthLoginAttemptForUpdate(ctx, usernameHash); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("deleted login attempt error = %v, want pgx.ErrNoRows", err)
+	}
+}
+
+// TestAuthLoginAttemptFailureWindowAndBlock verifies database time controls reset and blocking boundaries.
+func TestAuthLoginAttemptFailureWindowAndBlock(t *testing.T) {
+	ctx := context.Background()
+	pool := sqlcTestPool(t, ctx)
+	queries := sqlc.New(pool)
+
+	t.Run("expired window resets to first failure", func(t *testing.T) {
+		const usernameHash = "expired-window"
+		if _, err := pool.Exec(ctx, `
+			insert into auth_login_attempt (
+				username_hash, failed_attempts, window_started_at, blocked_until, updated_at
+			) values ($1, 9, clock_timestamp() - interval '15 minutes', null, clock_timestamp())
+		`, usernameHash); err != nil {
+			t.Fatalf("insert expired-window attempt: %v", err)
+		}
+		attempt, err := queries.RecordAuthLoginFailure(ctx, sqlc.RecordAuthLoginFailureParams{
+			UsernameHash:     usernameHash,
+			FailureThreshold: 10,
+		})
+		if err != nil {
+			t.Fatalf("record reset login failure: %v", err)
+		}
+		if attempt.FailedAttempts != 1 || attempt.BlockedUntil.Valid {
+			t.Fatalf("expired window result = %#v, want one unblocked failure", attempt)
+		}
+		if !attempt.WindowStartedAt.Time.Equal(attempt.UpdatedAt.Time) {
+			t.Fatalf("reset window start %s != update time %s", attempt.WindowStartedAt.Time, attempt.UpdatedAt.Time)
+		}
+	})
+
+	t.Run("configured failure threshold blocks for fifteen minutes", func(t *testing.T) {
+		const usernameHash = "configured-threshold"
+		if _, err := pool.Exec(ctx, `
+			insert into auth_login_attempt (
+				username_hash, failed_attempts, window_started_at, blocked_until, updated_at
+			) values ($1, 2, clock_timestamp() - interval '1 minute', null, clock_timestamp())
+		`, usernameHash); err != nil {
+			t.Fatalf("insert prior login failures: %v", err)
+		}
+		attempt, err := queries.RecordAuthLoginFailure(ctx, sqlc.RecordAuthLoginFailureParams{
+			UsernameHash:     usernameHash,
+			FailureThreshold: 3,
+		})
+		if err != nil {
+			t.Fatalf("record configured-threshold login failure: %v", err)
+		}
+		if attempt.FailedAttempts != 3 || !attempt.BlockedUntil.Valid {
+			t.Fatalf("configured-threshold failure result = %#v, want blocked attempt", attempt)
+		}
+		if got := attempt.BlockedUntil.Time.Sub(attempt.UpdatedAt.Time); got != 15*time.Minute {
+			t.Fatalf("blocked duration = %s, want 15m", got)
+		}
+	})
+}
+
+// TestAuthLoginAttemptConcurrentFailures verifies PostgreSQL serializes increments without process-local state.
+func TestAuthLoginAttemptConcurrentFailures(t *testing.T) {
+	pool := sqlcTestPool(t, t.Context())
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	queries := sqlc.New(pool)
+	const usernameHash = "concurrent-failures"
+	if err := queries.EnsureAuthLoginAttempt(ctx, usernameHash); err != nil {
+		t.Fatalf("ensure concurrent login attempt: %v", err)
+	}
+
+	const workers = 10
+	errorsChannel := make(chan error, workers)
+	var waitGroup sync.WaitGroup
+	for range workers {
+		waitGroup.Add(1)
+		go func() {
+			defer waitGroup.Done()
+			_, err := queries.RecordAuthLoginFailure(ctx, sqlc.RecordAuthLoginFailureParams{
+				UsernameHash:     usernameHash,
+				FailureThreshold: 10,
+			})
+			errorsChannel <- err
+		}()
+	}
+	workersDone := make(chan struct{})
+	go func() {
+		waitGroup.Wait()
+		close(workersDone)
+	}()
+	select {
+	case <-workersDone:
+	case <-ctx.Done():
+		t.Fatalf("timed out waiting for concurrent login failures: %v", ctx.Err())
+	}
+	close(errorsChannel)
+	for err := range errorsChannel {
+		if err != nil {
+			t.Fatalf("record concurrent login failure: %v", err)
+		}
+	}
+
+	attempt, err := queries.GetAuthLoginAttemptForUpdate(ctx, usernameHash)
+	if err != nil {
+		t.Fatalf("read concurrent login attempt: %v", err)
+	}
+	if attempt.FailedAttempts != workers || !attempt.BlockedUntil.Valid {
+		t.Fatalf("concurrent login attempt = %#v, want ten blocked failures", attempt)
+	}
+}
+
+// TestDeleteStaleAuthLoginAttemptsBoundsAndProtectsActiveState verifies cleanup eligibility and its fixed batch boundary.
+func TestDeleteStaleAuthLoginAttemptsBoundsAndProtectsActiveState(t *testing.T) {
+	ctx := context.Background()
+	pool := sqlcTestPool(t, ctx)
+	queries := sqlc.New(pool)
+	if _, err := pool.Exec(ctx, `
+		insert into auth_login_attempt (
+			username_hash, failed_attempts, window_started_at, blocked_until, updated_at
+		) values
+			('active-window', 2, clock_timestamp() - interval '14 minutes', null, clock_timestamp() - interval '14 minutes'),
+			('still-blocked', 10, clock_timestamp() - interval '30 minutes', clock_timestamp() + interval '1 minute', clock_timestamp() - interval '30 minutes'),
+			('stale-unblocked', 1, clock_timestamp() - interval '30 minutes', null, clock_timestamp() - interval '30 minutes'),
+			('stale-expired-block', 10, clock_timestamp() - interval '29 minutes', clock_timestamp() - interval '1 minute', clock_timestamp() - interval '29 minutes');
+
+		insert into auth_login_attempt (
+			username_hash, failed_attempts, window_started_at, blocked_until, updated_at
+		)
+		select 'stale-' || lpad(value::text, 4, '0'),
+			1,
+			clock_timestamp() - interval '20 minutes',
+			null,
+			clock_timestamp() - interval '20 minutes'
+		from generate_series(1, 500) as value
+	`); err != nil {
+		t.Fatalf("insert login-attempt cleanup fixtures: %v", err)
+	}
+
+	deleted, err := queries.DeleteStaleAuthLoginAttempts(ctx, 500)
+	if err != nil {
+		t.Fatalf("delete stale login attempts: %v", err)
+	}
+	if deleted != 500 {
+		t.Fatalf("deleted login attempts = %d, want batch limit 500", deleted)
+	}
+	var protectedCount int
+	if err := pool.QueryRow(ctx, `
+		select count(*)
+		from auth_login_attempt
+		where username_hash in ('active-window', 'still-blocked')
+	`).Scan(&protectedCount); err != nil {
+		t.Fatalf("count protected login attempts: %v", err)
+	}
+	if protectedCount != 2 {
+		t.Fatalf("protected login attempts = %d, want 2", protectedCount)
+	}
+	var deletedSpecialCount int
+	if err := pool.QueryRow(ctx, `
+		select count(*)
+		from auth_login_attempt
+		where username_hash in ('stale-unblocked', 'stale-expired-block')
+	`).Scan(&deletedSpecialCount); err != nil {
+		t.Fatalf("count stale special login attempts: %v", err)
+	}
+	if deletedSpecialCount != 0 {
+		t.Fatalf("stale special login attempts = %d, want 0", deletedSpecialCount)
+	}
+
+	deleted, err = queries.DeleteStaleAuthLoginAttempts(ctx, 500)
+	if err != nil {
+		t.Fatalf("delete remaining stale login attempts: %v", err)
+	}
+	if deleted != 2 {
+		t.Fatalf("remaining deleted login attempts = %d, want 2", deleted)
+	}
+}
+
+// TestCleanupSessionsBoundsAndPreservesValidSessions verifies cleanup eligibility, stable batching, and its fixed limit.
+func TestCleanupSessionsBoundsAndPreservesValidSessions(t *testing.T) {
+	ctx := context.Background()
+	pool := sqlcTestPool(t, ctx)
+	queries := sqlc.New(pool)
+	groupID := uuid.New()
+	userID := uuid.New()
+	if _, err := pool.Exec(ctx, `
+		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+		values ($1, 'session-cleanup-user', 'Session cleanup user', '', '[]'::jsonb, false, now(), now())
+	`, groupID); err != nil {
+		t.Fatalf("insert session cleanup group fixture: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into app_user (id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at)
+		values ($1, 'session-cleanup-user', 'hash', 'Session cleanup user', $2, 'active', false, now(), now())
+	`, userID, groupID); err != nil {
+		t.Fatalf("insert session cleanup user fixture: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into session (id, user_id, expires_at, last_seen_at, revoked_at, created_at)
+		values
+			('session-valid', $1, clock_timestamp() + interval '1 hour', clock_timestamp(), null, clock_timestamp()),
+			('session-expired', $1, clock_timestamp() - interval '2 hours', clock_timestamp(), null, clock_timestamp()),
+			('session-revoked', $1, clock_timestamp() + interval '1 hour', clock_timestamp(), clock_timestamp(), clock_timestamp())
+	`, userID); err != nil {
+		t.Fatalf("insert session cleanup state fixtures: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into session (id, user_id, expires_at, last_seen_at, revoked_at, created_at)
+		select 'session-expired-' || lpad(value::text, 4, '0'),
+			$1,
+			clock_timestamp() - interval '1 hour',
+			clock_timestamp(),
+			null,
+			clock_timestamp()
+		from generate_series(1, 499) as value
+	`, userID); err != nil {
+		t.Fatalf("insert session cleanup batch fixtures: %v", err)
+	}
+
+	deleted, err := queries.CleanupSessions(ctx)
+	if err != nil {
+		t.Fatalf("cleanup sessions: %v", err)
+	}
+	if deleted != 500 {
+		t.Fatalf("deleted sessions = %d, want batch limit 500", deleted)
+	}
+	var validCount int
+	if err := pool.QueryRow(ctx, `select count(*) from session where id = 'session-valid'`).Scan(&validCount); err != nil {
+		t.Fatalf("count valid sessions: %v", err)
+	}
+	if validCount != 1 {
+		t.Fatalf("valid sessions = %d, want 1", validCount)
+	}
+	var eligibleCount int
+	if err := pool.QueryRow(ctx, `
+		select count(*)
+		from session
+		where expires_at <= clock_timestamp() or revoked_at is not null
+	`).Scan(&eligibleCount); err != nil {
+		t.Fatalf("count remaining cleanup-eligible sessions: %v", err)
+	}
+	if eligibleCount != 1 {
+		t.Fatalf("remaining cleanup-eligible sessions = %d, want 1", eligibleCount)
+	}
+
+	deleted, err = queries.CleanupSessions(ctx)
+	if err != nil {
+		t.Fatalf("cleanup remaining session: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("remaining deleted sessions = %d, want 1", deleted)
+	}
+	var remainingCount int
+	if err := pool.QueryRow(ctx, `select count(*) from session`).Scan(&remainingCount); err != nil {
+		t.Fatalf("count remaining sessions: %v", err)
+	}
+	if remainingCount != 1 {
+		t.Fatalf("remaining sessions = %d, want only the valid record", remainingCount)
+	}
+}
+
+// waitForBackendLock waits until PostgreSQL reports that a backend is blocked on a lock.
+func waitForBackendLock(t *testing.T, ctx context.Context, pool *pgxpool.Pool, backendPID int32) {
+	t.Helper()
+	ticker := time.NewTicker(2 * time.Millisecond)
+	defer ticker.Stop()
+	timeout := time.NewTimer(5 * time.Second)
+	defer timeout.Stop()
+	for {
+		var waiting bool
+		if err := pool.QueryRow(ctx, `
+			select exists (
+				select 1 from pg_locks where pid = $1 and not granted
+			)
+		`, backendPID).Scan(&waiting); err != nil {
+			t.Fatalf("query backend lock state: %v", err)
+		}
+		if waiting {
+			return
+		}
+		select {
+		case <-ticker.C:
+		case <-timeout.C:
+			t.Fatal("backend did not wait on login-attempt row lock")
+		}
 	}
 }
 

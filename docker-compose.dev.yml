@@ -1,0 +1,4 @@
+services:
+  postgres:
+    ports:
+      - "${MOEURL_POSTGRES_HOST:-127.0.0.1}:${MOEURL_POSTGRES_PORT:-5432}:5432"

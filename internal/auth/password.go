@@ -61,6 +61,25 @@ func VerifyPassword(password string, encodedHash string) bool {
 	return subtle.ConstantTimeCompare(actual, expected) == 1
 }
 
+// isSupportedPasswordHash reports whether a stored account hash has the current encoded Argon2id shape.
+func isSupportedPasswordHash(encodedHash string) bool {
+	parts := strings.Split(encodedHash, "$")
+	if len(parts) != 6 || parts[1] != "argon2id" || parts[2] != "v=19" || parts[3] != accountArgonProfile() {
+		return false
+	}
+	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
+	if err != nil || len(salt) != saltLen {
+		return false
+	}
+	key, err := base64.RawStdEncoding.DecodeString(parts[5])
+	return err == nil && len(key) == int(argonKeyLen)
+}
+
+// accountArgonProfile returns the only Argon2id cost profile accepted for account login.
+func accountArgonProfile() string {
+	return fmt.Sprintf("m=%d,t=%d,p=%d", argonMemory, argonTime, argonThreads)
+}
+
 // parseArgonParams parses the time, memory, and parallelism values in a hash.
 func parseArgonParams(value string) (uint32, uint32, uint8) {
 	memory := argonMemory

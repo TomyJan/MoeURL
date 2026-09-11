@@ -454,6 +454,7 @@ func TestRedirectHandlerDoesNotOverrideStaticAssetRoutes(t *testing.T) {
 func TestRedirectHandlerDoesNotOverrideFixedRoutes(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
 		Redirect: &fakeRedirectService{openResult: shortlink.OpenResult{RedirectMode: shortlink.RedirectModeDirect, RedirectResult: shortlink.RedirectResult{TargetURL: "https://example.com/target"}}},
+		Health:   healthyRouterChecker{},
 	})
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
@@ -463,6 +464,12 @@ func TestRedirectHandlerDoesNotOverrideFixedRoutes(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected API route to win, got %d", response.Code)
 	}
+}
+
+type healthyRouterChecker struct{}
+
+func (healthyRouterChecker) Ping(context.Context) error {
+	return nil
 }
 
 // TestRedirectHandlerShowsBlockedStatus verifies blocked links use localized public states.
@@ -782,12 +789,14 @@ func TestRedirectHandlerContinueLogsUnexpectedErrors(t *testing.T) {
 	})
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/go/middle/continue", nil)
+	request.Header.Set("X-Request-ID", "req-continue-log")
 
 	router.ServeHTTP(response, request)
 
-	for _, field := range []string{"short_link_continue_failed", "slug=middle", "database down"} {
-		if !strings.Contains(logOutput.String(), field) {
-			t.Fatalf("expected continue failure log field %q, got %q", field, logOutput.String())
+	failureLog := logLineContaining(logOutput.String(), "short_link_continue_failed")
+	for _, field := range []string{"short_link_continue_failed", "request_id=req-continue-log", "slug=middle", "database down"} {
+		if !strings.Contains(failureLog, field) {
+			t.Fatalf("expected continue failure log field %q, got %q", field, failureLog)
 		}
 	}
 	if response.Code != http.StatusFound || response.Header().Get("Location") != "/go/middle?reason=continue-failed" {
@@ -799,26 +808,35 @@ func TestRedirectHandlerContinueLogsUnexpectedErrors(t *testing.T) {
 func TestRedirectHandlerOpenLogsUnexpectedErrors(t *testing.T) {
 	logOutput := &bytes.Buffer{}
 	logger := slog.New(slog.NewTextHandler(logOutput, nil))
-	handler := shortlink.NewRedirectHandlerWithAnalyticsAndSecurity(
-		&fakeRedirectService{openErr: errors.New("database down")},
-		event.NoopRecorder{},
-		"",
-		false,
-		logger,
-	)
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		Redirect: &fakeRedirectService{openErr: errors.New("database down")},
+		Logger:   logger,
+	})
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/MiDdLe", nil)
+	request.Header.Set("X-Request-ID", "req-open-log")
 
-	handler.Open(response, request, "MiDdLe")
+	router.ServeHTTP(response, request)
 
-	for _, field := range []string{"short_link_open_failed", "slug=middle", "database down"} {
-		if !strings.Contains(logOutput.String(), field) {
-			t.Fatalf("expected open failure log field %q, got %q", field, logOutput.String())
+	failureLog := logLineContaining(logOutput.String(), "short_link_open_failed")
+	for _, field := range []string{"short_link_open_failed", "request_id=req-open-log", "slug=middle", "database down"} {
+		if !strings.Contains(failureLog, field) {
+			t.Fatalf("expected open failure log field %q, got %q", field, failureLog)
 		}
 	}
 	if response.Code != http.StatusInternalServerError {
 		t.Fatalf("expected status 500, got %d", response.Code)
 	}
+}
+
+// logLineContaining returns the structured log record containing a required message.
+func logLineContaining(output string, message string) string {
+	for _, line := range strings.Split(output, "\n") {
+		if strings.Contains(line, message) {
+			return line
+		}
+	}
+	return ""
 }
 
 // TestRedirectHandlerContinueIncludesRateLimitRetryAt verifies redirect handler continue includes rate limit retry at.

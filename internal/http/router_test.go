@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -22,7 +24,7 @@ import (
 
 // TestRouterHealthReturnsOK verifies router health returns ok.
 func TestRouterHealthReturnsOK(t *testing.T) {
-	router := apphttp.NewRouter()
+	router := apphttp.NewRouter(apphttp.Dependencies{Health: &routerHealthChecker{}})
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/health", nil)
 	response := httptest.NewRecorder()
 
@@ -49,6 +51,150 @@ func TestRouterHealthReturnsOK(t *testing.T) {
 	}
 	if body.Data["status"] != "ok" {
 		t.Fatalf("expected status ok, got %q", body.Data["status"])
+	}
+}
+
+// TestRouterHealthRoutesBypassCurrentUser verifies health checks never resolve session identity.
+func TestRouterHealthRoutesBypassCurrentUser(t *testing.T) {
+	checker := &routerHealthChecker{}
+	resolver := &recordingRouterCurrentUserResolver{}
+	router := apphttp.NewRouter(apphttp.Dependencies{Health: checker, CurrentUser: resolver})
+
+	for _, testCase := range []struct {
+		path          string
+		wantPingCalls int
+	}{
+		{path: "/api/v1/health/live", wantPingCalls: 0},
+		{path: "/api/v1/health/ready", wantPingCalls: 1},
+		{path: "/api/v1/health", wantPingCalls: 1},
+	} {
+		checker.calls = 0
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, testCase.path, nil)
+		request.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session-id"})
+		response := httptest.NewRecorder()
+
+		router.ServeHTTP(response, request)
+
+		if response.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want 200", testCase.path, response.Code)
+		}
+		if checker.calls != testCase.wantPingCalls {
+			t.Fatalf("%s Ping calls = %d, want %d", testCase.path, checker.calls, testCase.wantPingCalls)
+		}
+	}
+	if resolver.calls != 0 {
+		t.Fatalf("health route CurrentUser calls = %d, want 0", resolver.calls)
+	}
+}
+
+// TestRouterReadinessWithoutDependencyFailsClosed verifies an isolated router never reports false readiness.
+func TestRouterReadinessWithoutDependencyFailsClosed(t *testing.T) {
+	router := apphttp.NewRouter()
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/health/ready", nil))
+
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("readiness status = %d, want 503", response.Code)
+	}
+	var body struct {
+		Code int `json:"code"`
+		Data struct {
+			Status string `json:"status"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode readiness response: %v", err)
+	}
+	if body.Code != 900000 || body.Data.Status != "unavailable" {
+		t.Fatalf("readiness response = code %d status %q", body.Code, body.Data.Status)
+	}
+}
+
+// TestRouterBusinessAPIDisablesCachingWithoutChangingStaticResponses verifies session-scoped API data is never cacheable.
+func TestRouterBusinessAPIDisablesCachingWithoutChangingStaticResponses(t *testing.T) {
+	staticDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(staticDir, "index.html"), []byte("<!doctype html><title>MoeURL</title>"), 0o644); err != nil {
+		t.Fatalf("write index: %v", err)
+	}
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		Auth:        &routerAuthService{},
+		CurrentUser: &routerCurrentUserResolver{},
+		StaticDir:   staticDir,
+	})
+
+	apiResponse := httptest.NewRecorder()
+	router.ServeHTTP(apiResponse, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/auth/me", nil))
+	if got := apiResponse.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("auth/me Cache-Control = %q, want no-store", got)
+	}
+
+	staticResponse := httptest.NewRecorder()
+	router.ServeHTTP(staticResponse, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
+	if got := staticResponse.Header().Get("Cache-Control"); got == "no-store" {
+		t.Fatalf("static response Cache-Control = %q, want existing cache behavior", got)
+	}
+}
+
+// TestRouterLogsOversizedRequests verifies request logging wraps the global body limit.
+func TestRouterLogsOversizedRequests(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	authService := &recordingRouterAuthService{}
+	router := apphttp.NewRouter(apphttp.Dependencies{Auth: authService, Logger: logger})
+	body := `{"username":"alice","password":"` + strings.Repeat("a", 1<<20) + `"}`
+	request := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"/api/v1/auth/login",
+		strings.NewReader(body),
+	)
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("oversized response status = %d, want 200", response.Code)
+	}
+	var responseBody struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&responseBody); err != nil {
+		t.Fatalf("decode oversized response: %v", err)
+	}
+	if responseBody.Code != 100001 {
+		t.Fatalf("oversized response code = %d, want 100001", responseBody.Code)
+	}
+	if authService.loginCalls != 0 {
+		t.Fatalf("oversized request Login calls = %d, want 0", authService.loginCalls)
+	}
+	if output := logs.String(); !strings.Contains(output, "msg=http_request") || !strings.Contains(output, "path=/api/v1/auth/login") {
+		t.Fatalf("oversized request log = %q, want http_request path", output)
+	}
+}
+
+// TestRouterStaticRoutesBypassCurrentUser verifies public application assets do not resolve session identity.
+func TestRouterStaticRoutesBypassCurrentUser(t *testing.T) {
+	staticDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(staticDir, "index.html"), []byte("<!doctype html><title>MoeURL</title>"), 0o644); err != nil {
+		t.Fatalf("write index: %v", err)
+	}
+	resolver := &recordingRouterCurrentUserResolver{}
+	router := apphttp.NewRouter(apphttp.Dependencies{CurrentUser: resolver, StaticDir: staticDir})
+
+	for _, path := range []string{"/", "/go/example"} {
+		response := httptest.NewRecorder()
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
+		request.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session-id"})
+
+		router.ServeHTTP(response, request)
+
+		if response.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want 200", path, response.Code)
+		}
+	}
+	if resolver.calls != 0 {
+		t.Fatalf("static route CurrentUser calls = %d, want 0", resolver.calls)
 	}
 }
 
@@ -178,6 +324,72 @@ func TestRouterIntermediateFixedRoutesTakePriorityOverSlugRedirect(t *testing.T)
 	}
 }
 
+// TestRouterContinueResponsesAreNeverCached verifies access changes are rechecked instead of reusing a prior redirect.
+func TestRouterContinueResponsesAreNeverCached(t *testing.T) {
+	redirect := &routerRedirectService{
+		continueResult: shortlink.RedirectResult{TargetURL: "https://example.com/final", ShortLinkID: "link-id"},
+	}
+	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: redirect})
+
+	allowed := httptest.NewRecorder()
+	router.ServeHTTP(allowed, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/go/protected/continue", nil))
+	if allowed.Code != http.StatusFound || allowed.Header().Get("Location") != "https://example.com/final" {
+		t.Fatalf("allowed continue response = status %d location %q", allowed.Code, allowed.Header().Get("Location"))
+	}
+	if cacheControl := allowed.Header().Get("Cache-Control"); cacheControl != "no-store" {
+		t.Fatalf("allowed continue Cache-Control = %q, want no-store", cacheControl)
+	}
+
+	redirect.err = shortlink.ErrPasswordRequired
+	denied := httptest.NewRecorder()
+	router.ServeHTTP(denied, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/go/protected/continue", nil))
+	if denied.Code != http.StatusFound || denied.Header().Get("Location") != "/go/protected?reason=password" {
+		t.Fatalf("denied continue response = status %d location %q", denied.Code, denied.Header().Get("Location"))
+	}
+	if cacheControl := denied.Header().Get("Cache-Control"); cacheControl != "no-store" {
+		t.Fatalf("denied continue Cache-Control = %q, want no-store", cacheControl)
+	}
+	if len(redirect.continueSlugs) != 2 {
+		t.Fatalf("continue calls = %d, want 2", len(redirect.continueSlugs))
+	}
+}
+
+// TestRouterScopedPreviewResponsesAreNeverCached verifies authorization changes are rechecked for cookie-scoped previews.
+func TestRouterScopedPreviewResponsesAreNeverCached(t *testing.T) {
+	redirect := &routerRedirectService{
+		previewResult: shortlink.PreviewResult{Slug: "protected", TargetHost: "example.com"},
+	}
+	router := apphttp.NewRouter(apphttp.Dependencies{Redirect: redirect})
+
+	allowed := httptest.NewRecorder()
+	router.ServeHTTP(allowed, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/go/protected/preview", nil))
+	if allowed.Code != http.StatusOK || allowed.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("allowed preview response = status %d Cache-Control %q", allowed.Code, allowed.Header().Get("Cache-Control"))
+	}
+	var allowedBody struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(allowed.Body).Decode(&allowedBody); err != nil || allowedBody.Code != 0 {
+		t.Fatalf("allowed preview body = %#v, decode error %v", allowedBody, err)
+	}
+
+	redirect.err = shortlink.ErrPasswordRequired
+	denied := httptest.NewRecorder()
+	router.ServeHTTP(denied, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/go/protected/preview", nil))
+	if denied.Code != http.StatusOK || denied.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("denied preview response = status %d Cache-Control %q", denied.Code, denied.Header().Get("Cache-Control"))
+	}
+	var deniedBody struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(denied.Body).Decode(&deniedBody); err != nil || deniedBody.Code != shortlink.CodePasswordRequired {
+		t.Fatalf("denied preview body = %#v, decode error %v", deniedBody, err)
+	}
+	if len(redirect.previewSlugs) != 2 {
+		t.Fatalf("preview calls = %d, want 2", len(redirect.previewSlugs))
+	}
+}
+
 // TestRouterUnknownAPIUsesUnifiedResponse verifies router unknown api uses unified response.
 func TestRouterUnknownAPIUsesUnifiedResponse(t *testing.T) {
 	router := apphttp.NewRouter()
@@ -269,6 +481,94 @@ func TestRouterRegistersOptionalDependencies(t *testing.T) {
 	}
 }
 
+// TestRouterLogsUnknownInfrastructureErrorsWithInjectedLogger verifies every routed service uses the shared request logger for diagnostics.
+func TestRouterLogsUnknownInfrastructureErrorsWithInjectedLogger(t *testing.T) {
+	infrastructureErr := errors.New("database unavailable diagnostic")
+	tests := []struct {
+		name         string
+		dependencies apphttp.Dependencies
+		method       string
+		path         string
+		body         string
+		cookie       bool
+		logMessage   string
+	}{
+		{
+			name:         "current user",
+			dependencies: apphttp.Dependencies{CurrentUser: &routerCurrentUserResolver{err: infrastructureErr}, System: &routerSystemService{}},
+			method:       http.MethodGet,
+			path:         "/api/v1/init/status",
+			cookie:       true,
+			logMessage:   "auth_request_failed",
+		},
+		{
+			name:         "system",
+			dependencies: apphttp.Dependencies{System: &routerSystemService{err: infrastructureErr}},
+			method:       http.MethodGet,
+			path:         "/api/v1/init/status",
+			logMessage:   "system_request_failed",
+		},
+		{
+			name:         "authentication",
+			dependencies: apphttp.Dependencies{Auth: &routerAuthService{err: infrastructureErr}},
+			method:       http.MethodPost,
+			path:         "/api/v1/auth/login",
+			body:         `{}`,
+			logMessage:   "auth_request_failed",
+		},
+		{
+			name:         "short link",
+			dependencies: apphttp.Dependencies{ShortLink: &routerShortLinkService{err: infrastructureErr}},
+			method:       http.MethodGet,
+			path:         "/api/v1/short-link/overview",
+			logMessage:   "short_link_request_failed",
+		},
+		{
+			name:         "public preview",
+			dependencies: apphttp.Dependencies{Redirect: &routerRedirectService{err: infrastructureErr}},
+			method:       http.MethodGet,
+			path:         "/api/v1/public/short-link/preview?slug=abc123",
+			logMessage:   "short_link_preview_failed",
+		},
+		{
+			name:         "user",
+			dependencies: apphttp.Dependencies{User: &routerUserService{err: infrastructureErr}},
+			method:       http.MethodGet,
+			path:         "/api/v1/admin/user/list",
+			logMessage:   "user_request_failed",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var logs bytes.Buffer
+			test.dependencies.Logger = slog.New(slog.NewTextHandler(&logs, nil))
+			router := apphttp.NewRouter(test.dependencies)
+			request := httptest.NewRequestWithContext(t.Context(), test.method, test.path, bytes.NewBufferString(test.body))
+			request.Header.Set("X-Request-ID", "request-123")
+			if test.cookie {
+				request.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session-id"})
+			}
+			response := httptest.NewRecorder()
+
+			router.ServeHTTP(response, request)
+
+			if response.Code != http.StatusInternalServerError {
+				t.Fatalf("status = %d, want 500; body %q", response.Code, response.Body.String())
+			}
+			if strings.Contains(response.Body.String(), infrastructureErr.Error()) {
+				t.Fatalf("response exposed infrastructure error: %q", response.Body.String())
+			}
+			output := logs.String()
+			for _, expected := range []string{"msg=" + test.logMessage, "request_id=request-123", infrastructureErr.Error()} {
+				if !strings.Contains(output, expected) {
+					t.Fatalf("log missing %q: %q", expected, output)
+				}
+			}
+		})
+	}
+}
+
 // TestRouterRedirectServiceKeepsConfiguredIntermediateResultWithEmptyTarget verifies router redirect service keeps configured intermediate result with empty target.
 func TestRouterRedirectServiceKeepsConfiguredIntermediateResultWithEmptyTarget(t *testing.T) {
 	redirect := &routerRedirectService{
@@ -286,22 +586,57 @@ func TestRouterRedirectServiceKeepsConfiguredIntermediateResultWithEmptyTarget(t
 	}
 }
 
-type routerSystemService struct{}
+type routerSystemService struct {
+	err error
+}
 
 // IsInitialized implements the corresponding operation for the surrounding test double.
-func (routerSystemService) IsInitialized(context.Context) (bool, error) {
-	return false, nil
+func (service routerSystemService) IsInitialized(context.Context) (bool, error) {
+	return false, service.err
+}
+
+// SetupTokenRequired implements the setup policy query for router wiring tests.
+func (routerSystemService) SetupTokenRequired() bool {
+	return false
 }
 
 // Setup implements the corresponding operation for the surrounding test double.
-func (routerSystemService) Setup(context.Context, system.SetupInput) error {
+func (service routerSystemService) Setup(context.Context, system.SetupInput) error {
+	return service.err
+}
+
+type routerAuthService struct {
+	err error
+}
+
+type recordingRouterAuthService struct {
+	loginCalls int
+}
+
+// Login records invocation before returning a successful test session.
+func (service *recordingRouterAuthService) Login(context.Context, auth.LoginInput) (auth.LoginResult, error) {
+	service.loginCalls++
+	return auth.LoginResult{
+		User:    auth.GuestUser(),
+		Session: auth.Session{ID: "session-id", ExpiresAt: time.Now().Add(time.Hour)},
+	}, nil
+}
+
+// Logout implements the corresponding operation for the recording test double.
+func (*recordingRouterAuthService) Logout(context.Context, string) error {
 	return nil
 }
 
-type routerAuthService struct{}
+// Me implements the corresponding operation for the recording test double.
+func (*recordingRouterAuthService) Me(context.Context, string) (auth.CurrentUser, error) {
+	return auth.GuestUser(), nil
+}
 
 // Login implements the corresponding operation for the surrounding test double.
-func (routerAuthService) Login(context.Context, auth.LoginInput) (auth.LoginResult, error) {
+func (service routerAuthService) Login(context.Context, auth.LoginInput) (auth.LoginResult, error) {
+	if service.err != nil {
+		return auth.LoginResult{}, service.err
+	}
 	return auth.LoginResult{
 		User:    auth.GuestUser(),
 		Session: auth.Session{ID: "session-id", ExpiresAt: time.Now().Add(time.Hour)},
@@ -309,75 +644,100 @@ func (routerAuthService) Login(context.Context, auth.LoginInput) (auth.LoginResu
 }
 
 // Logout implements the corresponding operation for the surrounding test double.
-func (routerAuthService) Logout(context.Context, string) error {
-	return nil
+func (service routerAuthService) Logout(context.Context, string) error {
+	return service.err
 }
 
 // Me implements the corresponding operation for the surrounding test double.
-func (routerAuthService) Me(context.Context, string) (auth.CurrentUser, error) {
-	return auth.GuestUser(), nil
+func (service routerAuthService) Me(context.Context, string) (auth.CurrentUser, error) {
+	return auth.GuestUser(), service.err
 }
 
-type routerCurrentUserResolver struct{}
+type routerCurrentUserResolver struct {
+	err error
+}
 
 // ResolveCurrentUser implements the corresponding operation for the surrounding test double.
-func (routerCurrentUserResolver) ResolveCurrentUser(context.Context, string) (auth.CurrentUser, error) {
+func (resolver routerCurrentUserResolver) ResolveCurrentUser(context.Context, string) (auth.CurrentUser, error) {
+	return auth.GuestUser(), resolver.err
+}
+
+type recordingRouterCurrentUserResolver struct {
+	calls int
+}
+
+// ResolveCurrentUser records each attempted session identity resolution.
+func (resolver *recordingRouterCurrentUserResolver) ResolveCurrentUser(context.Context, string) (auth.CurrentUser, error) {
+	resolver.calls++
 	return auth.GuestUser(), nil
 }
 
-type routerShortLinkService struct{}
+type routerHealthChecker struct {
+	calls int
+	err   error
+}
+
+func (checker *routerHealthChecker) Ping(context.Context) error {
+	checker.calls++
+	return checker.err
+}
+
+type routerShortLinkService struct {
+	err error
+}
 
 // Overview implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) Overview(context.Context, auth.CurrentUser) (shortlink.OverviewResult, error) {
-	return shortlink.OverviewResult{}, nil
+func (service routerShortLinkService) Overview(context.Context, auth.CurrentUser) (shortlink.OverviewResult, error) {
+	return shortlink.OverviewResult{}, service.err
 }
 
 // Create implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) Create(context.Context, auth.CurrentUser, shortlink.CreateInput) (shortlink.CreateResult, error) {
-	return shortlink.CreateResult{}, nil
+func (service routerShortLinkService) Create(context.Context, auth.CurrentUser, shortlink.CreateInput) (shortlink.CreateResult, error) {
+	return shortlink.CreateResult{}, service.err
 }
 
 // List implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) List(context.Context, auth.CurrentUser, shortlink.ListInput) (shortlink.ListResult, error) {
-	return shortlink.ListResult{}, nil
+func (service routerShortLinkService) List(context.Context, auth.CurrentUser, shortlink.ListInput) (shortlink.ListResult, error) {
+	return shortlink.ListResult{}, service.err
 }
 
 // Update implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) Update(context.Context, auth.CurrentUser, shortlink.UpdateInput) (shortlink.CreateResult, error) {
-	return shortlink.CreateResult{}, nil
+func (service routerShortLinkService) Update(context.Context, auth.CurrentUser, shortlink.UpdateInput) (shortlink.CreateResult, error) {
+	return shortlink.CreateResult{}, service.err
 }
 
 // Delete implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) Delete(context.Context, auth.CurrentUser, shortlink.DeleteInput) error {
-	return nil
+func (service routerShortLinkService) Delete(context.Context, auth.CurrentUser, shortlink.DeleteInput) error {
+	return service.err
 }
 
 // Statistics implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) Statistics(context.Context, auth.CurrentUser, shortlink.StatisticsInput) (shortlink.StatisticsResult, error) {
-	return shortlink.StatisticsResult{}, nil
+func (service routerShortLinkService) Statistics(context.Context, auth.CurrentUser, shortlink.StatisticsInput) (shortlink.StatisticsResult, error) {
+	return shortlink.StatisticsResult{}, service.err
 }
 
 // AdminList implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) AdminList(context.Context, auth.CurrentUser, shortlink.ListInput) (shortlink.AdminListResult, error) {
-	return shortlink.AdminListResult{}, nil
+func (service routerShortLinkService) AdminList(context.Context, auth.CurrentUser, shortlink.ListInput) (shortlink.AdminListResult, error) {
+	return shortlink.AdminListResult{}, service.err
 }
 
 // AdminStatistics implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) AdminStatistics(context.Context, auth.CurrentUser, shortlink.StatisticsInput) (shortlink.StatisticsResult, error) {
-	return shortlink.StatisticsResult{}, nil
+func (service routerShortLinkService) AdminStatistics(context.Context, auth.CurrentUser, shortlink.StatisticsInput) (shortlink.StatisticsResult, error) {
+	return shortlink.StatisticsResult{}, service.err
 }
 
 // AdminUpdate implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) AdminUpdate(context.Context, auth.CurrentUser, shortlink.UpdateInput) (shortlink.CreateResult, error) {
-	return shortlink.CreateResult{}, nil
+func (service routerShortLinkService) AdminUpdate(context.Context, auth.CurrentUser, shortlink.UpdateInput) (shortlink.CreateResult, error) {
+	return shortlink.CreateResult{}, service.err
 }
 
 // AdminDelete implements the corresponding operation for the surrounding test double.
-func (routerShortLinkService) AdminDelete(context.Context, auth.CurrentUser, shortlink.DeleteInput) error {
-	return nil
+func (service routerShortLinkService) AdminDelete(context.Context, auth.CurrentUser, shortlink.DeleteInput) error {
+	return service.err
 }
 
 type routerRedirectService struct {
+	err                  error
 	openResult           shortlink.OpenResult
 	openResultConfigured bool
 	previewResult        shortlink.PreviewResult
@@ -400,6 +760,9 @@ func int16Pointer(value int16) *int16 {
 // Open implements the corresponding operation for the surrounding test double.
 func (service *routerRedirectService) Open(_ context.Context, slug string) (shortlink.OpenResult, error) {
 	service.openSlugs = append(service.openSlugs, slug)
+	if service.err != nil {
+		return shortlink.OpenResult{}, service.err
+	}
 	if !service.openResultConfigured {
 		return shortlink.OpenResult{RedirectMode: shortlink.RedirectModeDirect, RedirectResult: shortlink.RedirectResult{TargetURL: "https://example.com"}}, nil
 	}
@@ -410,6 +773,9 @@ func (service *routerRedirectService) Open(_ context.Context, slug string) (shor
 func (service *routerRedirectService) Preview(_ context.Context, slug string, accessToken string) (shortlink.PreviewResult, error) {
 	service.previewSlugs = append(service.previewSlugs, slug)
 	service.previewTokens = append(service.previewTokens, accessToken)
+	if service.err != nil {
+		return shortlink.PreviewResult{}, service.err
+	}
 	if service.previewResult.Slug == "" {
 		return shortlink.PreviewResult{Slug: "abc123", TargetHost: "example.com", IntermediateDelaySeconds: int16Pointer(5)}, nil
 	}
@@ -420,6 +786,9 @@ func (service *routerRedirectService) Preview(_ context.Context, slug string, ac
 func (service *routerRedirectService) Unlock(_ context.Context, slug string, password string) (shortlink.AccessGrant, error) {
 	service.unlockSlugs = append(service.unlockSlugs, slug)
 	service.unlockPassword = password
+	if service.err != nil {
+		return shortlink.AccessGrant{}, service.err
+	}
 	return service.unlockResult, nil
 }
 
@@ -427,37 +796,42 @@ func (service *routerRedirectService) Unlock(_ context.Context, slug string, pas
 func (service *routerRedirectService) Continue(_ context.Context, slug string, accessToken string) (shortlink.RedirectResult, error) {
 	service.continueSlugs = append(service.continueSlugs, slug)
 	service.continueToken = accessToken
+	if service.err != nil {
+		return shortlink.RedirectResult{}, service.err
+	}
 	if service.continueResult.TargetURL == "" {
 		return shortlink.RedirectResult{TargetURL: "https://example.com"}, nil
 	}
 	return service.continueResult, nil
 }
 
-type routerUserService struct{}
+type routerUserService struct {
+	err error
+}
 
 // Create implements the corresponding operation for the surrounding test double.
-func (routerUserService) Create(context.Context, auth.CurrentUser, user.CreateInput) (user.CreateResult, error) {
-	return user.CreateResult{}, nil
+func (service routerUserService) Create(context.Context, auth.CurrentUser, user.CreateInput) (user.CreateResult, error) {
+	return user.CreateResult{}, service.err
 }
 
 // List implements the corresponding operation for the surrounding test double.
-func (routerUserService) List(context.Context, auth.CurrentUser, user.ListInput) (user.ListResult, error) {
-	return user.ListResult{}, nil
+func (service routerUserService) List(context.Context, auth.CurrentUser, user.ListInput) (user.ListResult, error) {
+	return user.ListResult{}, service.err
 }
 
 // Update implements the corresponding operation for the surrounding test double.
-func (routerUserService) Update(context.Context, auth.CurrentUser, user.UpdateInput) (user.UpdateResult, error) {
-	return user.UpdateResult{}, nil
+func (service routerUserService) Update(context.Context, auth.CurrentUser, user.UpdateInput) (user.UpdateResult, error) {
+	return user.UpdateResult{}, service.err
 }
 
 // UpdateProfile implements the corresponding operation for the surrounding test double.
-func (routerUserService) UpdateProfile(context.Context, auth.CurrentUser, user.UpdateProfileInput) (user.UpdateProfileResult, error) {
-	return user.UpdateProfileResult{}, nil
+func (service routerUserService) UpdateProfile(context.Context, auth.CurrentUser, user.UpdateProfileInput) (user.UpdateProfileResult, error) {
+	return user.UpdateProfileResult{}, service.err
 }
 
 // ResetPassword implements the corresponding operation for the surrounding test double.
-func (routerUserService) ResetPassword(context.Context, auth.CurrentUser, user.ResetPasswordInput) error {
-	return nil
+func (service routerUserService) ResetPassword(context.Context, auth.CurrentUser, user.ResetPasswordInput) error {
+	return service.err
 }
 
 type routerUserGroupService struct {

@@ -6,13 +6,19 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
+	"log/slog"
 	"time"
 
+	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const SessionCookieName = "moeurl_session"
+const (
+	SessionCookieName           = "moeurl_session"
+	maintenanceCleanupBatchSize = int64(500)
+	maxCleanupBatchesPerCycle   = 4
+)
 
 var ErrInvalidSession = errors.New("invalid session")
 
@@ -25,13 +31,14 @@ type Session struct {
 }
 
 type SessionService struct {
-	pool *pgxpool.Pool
-	ttl  time.Duration
+	pool            *pgxpool.Pool
+	ttl             time.Duration
+	cleanupSessions func(context.Context) (int64, error)
 }
 
 // NewSessionService creates a session service with the supplied lifetime.
 func NewSessionService(pool *pgxpool.Pool, ttl time.Duration) *SessionService {
-	return &SessionService{pool: pool, ttl: ttl}
+	return &SessionService{pool: pool, ttl: ttl, cleanupSessions: sessionCleanupForPool(pool)}
 }
 
 // Create persists a new session for a user and returns its token and expiry.
@@ -41,7 +48,6 @@ func (s *SessionService) Create(ctx context.Context, userID string) (Session, er
 		return Session{}, err
 	}
 	expiresAt := time.Now().UTC().Add(s.ttl)
-
 	_, err = s.pool.Exec(ctx, `
 		insert into session (id, user_id, expires_at, last_seen_at, created_at)
 		values ($1, $2, $3, now(), now())
@@ -49,7 +55,6 @@ func (s *SessionService) Create(ctx context.Context, userID string) (Session, er
 	if err != nil {
 		return Session{}, err
 	}
-
 	return Session{ID: sessionID, UserID: userID, ExpiresAt: expiresAt}, nil
 }
 
@@ -80,7 +85,6 @@ func (s *SessionService) Resolve(ctx context.Context, sessionID string) (Session
 	if revokedAt != nil || !session.ExpiresAt.After(time.Now().UTC()) {
 		return Session{}, ErrInvalidSession
 	}
-
 	_, err = s.pool.Exec(ctx, `update session set last_seen_at = now() where id = $1`, sessionID)
 	if err != nil {
 		return Session{}, err
@@ -93,4 +97,74 @@ func (s *SessionService) Resolve(ctx context.Context, sessionID string) (Session
 func (s *SessionService) Revoke(ctx context.Context, sessionID string) error {
 	_, err := s.pool.Exec(ctx, `update session set revoked_at = now() where id = $1`, sessionID)
 	return err
+}
+
+// CleanupSessions removes one bounded batch of expired or revoked sessions.
+func (s *SessionService) CleanupSessions(ctx context.Context) (int64, error) {
+	if s.cleanupSessions == nil {
+		return 0, errors.New("session service database is unavailable")
+	}
+	return s.cleanupSessions(ctx)
+}
+
+// RunCleanup removes expired or revoked sessions immediately and periodically until cancellation.
+func (s *SessionService) RunCleanup(ctx context.Context, interval time.Duration, logger *slog.Logger) {
+	runPeriodicCleanup(ctx, interval, logger, s.CleanupSessions, "session_cleanup_failed", "task", "session_cleanup")
+}
+
+// runPeriodicCleanup executes maintenance immediately and on each interval until cancellation.
+func runPeriodicCleanup(ctx context.Context, interval time.Duration, logger *slog.Logger, cleanup func(context.Context) (int64, error), failureEvent string, attributes ...any) {
+	if interval <= 0 {
+		return
+	}
+	if logger == nil {
+		logger = slog.Default()
+	}
+	if ctx.Err() != nil {
+		return
+	}
+	if !runCleanupCycle(ctx, cleanup, logger, failureEvent, attributes...) {
+		return
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if !runCleanupCycle(ctx, cleanup, logger, failureEvent, attributes...) {
+				return
+			}
+		}
+	}
+}
+
+// runCleanupCycle processes a bounded number of full batches and stops after a short batch.
+func runCleanupCycle(ctx context.Context, cleanup func(context.Context) (int64, error), logger *slog.Logger, failureEvent string, attributes ...any) bool {
+	for range maxCleanupBatchesPerCycle {
+		if ctx.Err() != nil {
+			return false
+		}
+		deleted, err := cleanup(ctx)
+		if err != nil {
+			if ctx.Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
+				return false
+			}
+			logger.ErrorContext(ctx, failureEvent, append(attributes, "error", err)...)
+			return true
+		}
+		if deleted < maintenanceCleanupBatchSize {
+			return true
+		}
+	}
+	return true
+}
+
+// sessionCleanupForPool builds the generated cleanup operation when a database is available.
+func sessionCleanupForPool(pool *pgxpool.Pool) func(context.Context) (int64, error) {
+	if pool == nil {
+		return nil
+	}
+	return sqlc.New(pool).CleanupSessions
 }

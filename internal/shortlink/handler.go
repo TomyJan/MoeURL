@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	"github.com/TomyJan/MoeURL/internal/middleware"
 )
 
 const (
@@ -42,11 +44,20 @@ type Port interface {
 
 type Handler struct {
 	service Port
+	logger  *slog.Logger
 }
 
 // NewHandler creates an HTTP handler backed by the short-link service.
 func NewHandler(service Port) *Handler {
-	return &Handler{service: service}
+	return NewHandlerWithLogger(service, nil)
+}
+
+// NewHandlerWithLogger creates a short-link handler using the shared application logger.
+func NewHandlerWithLogger(service Port, logger *slog.Logger) *Handler {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return &Handler{service: service, logger: logger}
 }
 
 // Create validates a short-link request and returns the created link.
@@ -59,7 +70,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.service.Create(r.Context(), auth.UserFromContext(r.Context()), input)
 	if err != nil {
-		writeBusinessOrSystemError(w, err)
+		writeBusinessOrSystemError(w, r, h.logger, err)
 		return
 	}
 
@@ -70,7 +81,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Overview(w http.ResponseWriter, r *http.Request) {
 	result, err := h.service.Overview(r.Context(), auth.UserFromContext(r.Context()))
 	if err != nil {
-		writeBusinessOrSystemError(w, err)
+		writeBusinessOrSystemError(w, r, h.logger, err)
 		return
 	}
 	ok(w, result)
@@ -84,7 +95,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		Status:   r.URL.Query().Get("status"),
 	})
 	if err != nil {
-		writeBusinessOrSystemError(w, err)
+		writeBusinessOrSystemError(w, r, h.logger, err)
 		return
 	}
 
@@ -110,7 +121,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.service.Update(r.Context(), auth.UserFromContext(r.Context()), input)
 	if err != nil {
-		writeBusinessOrSystemError(w, err)
+		writeBusinessOrSystemError(w, r, h.logger, err)
 		return
 	}
 
@@ -127,7 +138,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	err := h.service.Delete(r.Context(), auth.UserFromContext(r.Context()), input)
 	if err != nil {
-		writeBusinessOrSystemError(w, err)
+		writeBusinessOrSystemError(w, r, h.logger, err)
 		return
 	}
 
@@ -138,7 +149,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Statistics(w http.ResponseWriter, r *http.Request) {
 	result, err := h.service.Statistics(r.Context(), auth.UserFromContext(r.Context()), StatisticsInput{ID: r.URL.Query().Get("id")})
 	if err != nil {
-		writeBusinessOrSystemError(w, err)
+		writeBusinessOrSystemError(w, r, h.logger, err)
 		return
 	}
 	ok(w, result)
@@ -153,7 +164,7 @@ func (h *Handler) AdminList(w http.ResponseWriter, r *http.Request) {
 		Query:    r.URL.Query().Get("q"),
 	})
 	if err != nil {
-		writeBusinessOrSystemError(w, err)
+		writeBusinessOrSystemError(w, r, h.logger, err)
 		return
 	}
 
@@ -173,7 +184,7 @@ func (h *Handler) AdminList(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) AdminStatistics(w http.ResponseWriter, r *http.Request) {
 	result, err := h.service.AdminStatistics(r.Context(), auth.UserFromContext(r.Context()), StatisticsInput{ID: r.URL.Query().Get("id")})
 	if err != nil {
-		writeBusinessOrSystemError(w, err)
+		writeBusinessOrSystemError(w, r, h.logger, err)
 		return
 	}
 	ok(w, result)
@@ -188,7 +199,7 @@ func (h *Handler) AdminUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := h.service.AdminUpdate(r.Context(), auth.UserFromContext(r.Context()), input)
 	if err != nil {
-		writeBusinessOrSystemError(w, err)
+		writeBusinessOrSystemError(w, r, h.logger, err)
 		return
 	}
 	ok(w, result)
@@ -203,14 +214,14 @@ func (h *Handler) AdminDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	err := h.service.AdminDelete(r.Context(), auth.UserFromContext(r.Context()), input)
 	if err != nil {
-		writeBusinessOrSystemError(w, err)
+		writeBusinessOrSystemError(w, r, h.logger, err)
 		return
 	}
 	ok(w, map[string]bool{"deleted": true})
 }
 
-// writeBusinessOrSystemError maps service errors to business or server responses.
-func writeBusinessOrSystemError(w http.ResponseWriter, err error) {
+// writeBusinessOrSystemError maps service errors and records unknown infrastructure failures.
+func writeBusinessOrSystemError(w http.ResponseWriter, r *http.Request, logger *slog.Logger, err error) {
 	switch {
 	case errors.Is(err, ErrPermissionDenied):
 		businessError(w, CodePermissionDenied, "Permission denied")
@@ -235,6 +246,10 @@ func writeBusinessOrSystemError(w http.ResponseWriter, err error) {
 	case errors.Is(err, ErrReservedSlug):
 		businessError(w, CodeReservedSlug, "Reserved short code")
 	default:
+		logger.ErrorContext(r.Context(), "short_link_request_failed",
+			"request_id", middleware.RequestIDFromContext(r.Context()),
+			"error", err,
+		)
 		writeJSON(w, http.StatusInternalServerError, response{Code: 900000, Message: "Internal server error", Data: nil, Meta: map[string]any{}})
 	}
 }

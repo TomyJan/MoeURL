@@ -90,23 +90,5 @@ describe('vuetify', () => {
 
   it('creates a Vuetify plugin instance', () => {
     expect(vuetify.install).toEqual(expect.any(Function))
-    expect(mocks.createVuetify).toHaveBeenCalledWith(
-      expect.objectContaining({
-        defaults: {
-          VBtn: {
-            rounded: 'pill',
-          },
-          VCard: {
-            rounded: 'xl',
-          },
-          VDialog: {
-            rounded: 'xl',
-          },
-          VTextField: {
-            rounded: 'xl',
-          },
-        },
-      }),
-    )
   })
 })

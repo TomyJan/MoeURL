@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"errors"
+	"log/slog"
 	"net/http"
 )
 
@@ -31,6 +33,11 @@ func GuestUser() CurrentUser {
 
 // CurrentUserMiddleware resolves the request user and stores it in the context.
 func CurrentUserMiddleware(resolver CurrentUserResolver) func(http.Handler) http.Handler {
+	return CurrentUserMiddlewareWithLogger(resolver, nil)
+}
+
+// CurrentUserMiddlewareWithLogger resolves request identity and reports unknown resolver failures through the application logger.
+func CurrentUserMiddlewareWithLogger(resolver CurrentUserResolver, logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			current := GuestUser()
@@ -38,6 +45,10 @@ func CurrentUserMiddleware(resolver CurrentUserResolver) func(http.Handler) http
 				resolved, err := resolver.ResolveCurrentUser(r.Context(), cookie.Value)
 				if err == nil {
 					current = resolved
+				} else if !isExpectedIdentityError(err) {
+					logAuthInfrastructureError(logger, r, "resolve_current_user", err)
+					writeJSON(w, http.StatusInternalServerError, response{Code: 900000, Message: "Internal server error", Data: nil, Meta: map[string]any{}})
+					return
 				}
 			}
 
@@ -45,6 +56,11 @@ func CurrentUserMiddleware(resolver CurrentUserResolver) func(http.Handler) http
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+// isExpectedIdentityError identifies authentication failures that safely map to the guest identity.
+func isExpectedIdentityError(err error) bool {
+	return errors.Is(err, ErrInvalidSession) || errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrUserDisabled)
 }
 
 // UserFromContext returns the request user or the guest identity when absent.

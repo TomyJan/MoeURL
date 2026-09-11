@@ -1,13 +1,15 @@
-package auth_test
+package auth
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/TomyJan/MoeURL/internal/auth"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -28,7 +30,7 @@ func TestSessionServiceCreatesReadsAndRevokesSession(t *testing.T) {
 	userID := "00000000-0000-0000-0000-000000000201"
 	insertAuthUser(t, ctx, pool, userID)
 
-	service := auth.NewSessionService(pool, 24*time.Hour)
+	service := NewSessionService(pool, 24*time.Hour)
 
 	session, err := service.Create(ctx, userID)
 	if err != nil {
@@ -76,10 +78,10 @@ func TestSessionServiceRejectsMissingSession(t *testing.T) {
 	}
 	t.Cleanup(pool.Close)
 
-	service := auth.NewSessionService(pool, 24*time.Hour)
+	service := NewSessionService(pool, 24*time.Hour)
 
 	_, err = service.Resolve(ctx, "missing")
-	if !errors.Is(err, auth.ErrInvalidSession) {
+	if !errors.Is(err, ErrInvalidSession) {
 		t.Fatalf("expected ErrInvalidSession, got %v", err)
 	}
 }
@@ -95,7 +97,7 @@ func TestSessionServiceReturnsDatabaseErrors(t *testing.T) {
 	}
 	pool.Close()
 
-	service := auth.NewSessionService(pool, 24*time.Hour)
+	service := NewSessionService(pool, 24*time.Hour)
 
 	_, err = service.Create(ctx, "00000000-0000-0000-0000-000000000201")
 	if err == nil {
@@ -105,6 +107,308 @@ func TestSessionServiceReturnsDatabaseErrors(t *testing.T) {
 	_, err = service.Resolve(ctx, "missing")
 	if err == nil {
 		t.Fatal("expected resolve database error")
+	}
+}
+
+// TestSessionCleanupUsesOneFixedBatch verifies one maintenance cycle never drains unbounded work.
+func TestSessionCleanupUsesOneFixedBatch(t *testing.T) {
+	ctx := t.Context()
+	calls := 0
+	service := &SessionService{
+		cleanupSessions: func(context.Context) (int64, error) {
+			calls++
+			return 500, nil
+		},
+	}
+
+	deleted, err := service.CleanupSessions(ctx)
+	if err != nil {
+		t.Fatalf("cleanup sessions: %v", err)
+	}
+	if deleted != 500 {
+		t.Fatalf("deleted sessions = %d, want 500", deleted)
+	}
+	if calls != 1 {
+		t.Fatalf("cleanup calls = %d, want 1", calls)
+	}
+}
+
+// TestSessionCleanupRejectsUnavailableDatabase verifies missing production cleanup dependencies fail safely.
+func TestSessionCleanupRejectsUnavailableDatabase(t *testing.T) {
+	if _, err := NewSessionService(nil, time.Hour).CleanupSessions(t.Context()); err == nil || !strings.Contains(err.Error(), "database is unavailable") {
+		t.Fatalf("cleanup error = %v, want unavailable database", err)
+	}
+}
+
+// TestPeriodicCleanupProcessesFullBatchesUntilShortBatch verifies one cycle drains bounded follow-up batches.
+func TestPeriodicCleanupProcessesFullBatchesUntilShortBatch(t *testing.T) {
+	results := []int64{maintenanceCleanupBatchSize, maintenanceCleanupBatchSize, 1}
+	calls := 0
+
+	if keepRunning := runCleanupCycle(t.Context(), func(context.Context) (int64, error) {
+		result := results[calls]
+		calls++
+		return result, nil
+	}, slog.Default(), "cleanup_failed"); !keepRunning {
+		t.Fatal("cleanup cycle stopped unexpectedly")
+	}
+	if calls != len(results) {
+		t.Fatalf("cleanup calls = %d, want %d", calls, len(results))
+	}
+}
+
+// TestPeriodicCleanupCapsFullBatches verifies one cycle cannot drain unbounded maintenance work.
+func TestPeriodicCleanupCapsFullBatches(t *testing.T) {
+	calls := 0
+
+	if keepRunning := runCleanupCycle(t.Context(), func(context.Context) (int64, error) {
+		calls++
+		return maintenanceCleanupBatchSize, nil
+	}, slog.Default(), "cleanup_failed"); !keepRunning {
+		t.Fatal("cleanup cycle stopped unexpectedly")
+	}
+	if calls != maxCleanupBatchesPerCycle {
+		t.Fatalf("cleanup calls = %d, want %d", calls, maxCleanupBatchesPerCycle)
+	}
+}
+
+// TestPeriodicCleanupStopsBetweenBatchesAfterCancellation verifies shutdown prevents another bounded batch from starting.
+func TestPeriodicCleanupStopsBetweenBatchesAfterCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	calls := 0
+
+	if keepRunning := runCleanupCycle(ctx, func(context.Context) (int64, error) {
+		calls++
+		cancel()
+		return maintenanceCleanupBatchSize, nil
+	}, slog.Default(), "cleanup_failed"); keepRunning {
+		t.Fatal("cleanup cycle continued after cancellation")
+	}
+	if calls != 1 {
+		t.Fatalf("cleanup calls = %d, want 1", calls)
+	}
+}
+
+// TestSessionCleanupRunsImmediately verifies startup cleanup does not wait for the first interval.
+func TestSessionCleanupRunsImmediately(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	runnerContext, cancelRunner := context.WithCancel(ctx)
+	cleanupCalled := make(chan struct{}, 1)
+	service := &SessionService{
+		cleanupSessions: func(cleanupContext context.Context) (int64, error) {
+			select {
+			case cleanupCalled <- struct{}{}:
+				return 0, nil
+			case <-cleanupContext.Done():
+				return 0, cleanupContext.Err()
+			}
+		},
+	}
+	runnerDone := make(chan struct{})
+	go func() {
+		defer close(runnerDone)
+		service.RunCleanup(runnerContext, time.Hour, nil)
+	}()
+
+	waitForSessionCleanupSignal(t, ctx, cleanupCalled, "immediate cleanup")
+	cancelRunner()
+	waitForSessionCleanupSignal(t, ctx, runnerDone, "immediate cleanup cancellation")
+}
+
+// TestSessionCleanupRunsPeriodically verifies later intervals continue after startup work.
+func TestSessionCleanupRunsPeriodically(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	runnerContext, cancelRunner := context.WithCancel(ctx)
+	cleanupCalls := make(chan int, 2)
+	calls := 0
+	service := &SessionService{
+		cleanupSessions: func(cleanupContext context.Context) (int64, error) {
+			calls++
+			select {
+			case cleanupCalls <- calls:
+				return 0, nil
+			case <-cleanupContext.Done():
+				return 0, cleanupContext.Err()
+			}
+		},
+	}
+	runnerDone := make(chan struct{})
+	go func() {
+		defer close(runnerDone)
+		service.RunCleanup(runnerContext, time.Millisecond, slog.Default())
+	}()
+
+	if call := waitForSessionCleanupValue(t, ctx, cleanupCalls, "startup cleanup"); call != 1 {
+		t.Fatalf("startup cleanup call = %d, want 1", call)
+	}
+	if call := waitForSessionCleanupValue(t, ctx, cleanupCalls, "periodic cleanup"); call != 2 {
+		t.Fatalf("periodic cleanup call = %d, want 2", call)
+	}
+	cancelRunner()
+	waitForSessionCleanupSignal(t, ctx, runnerDone, "periodic cleanup cancellation")
+}
+
+// TestSessionCleanupLogsFailureAndContinues verifies one failed cycle cannot stop later maintenance.
+func TestSessionCleanupLogsFailureAndContinues(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	runnerContext, cancelRunner := context.WithCancel(ctx)
+	cleanupFailure := errors.New("forced cleanup failure")
+	cleanupCalls := make(chan int, 2)
+	calls := 0
+	service := &SessionService{
+		cleanupSessions: func(cleanupContext context.Context) (int64, error) {
+			calls++
+			select {
+			case cleanupCalls <- calls:
+			case <-cleanupContext.Done():
+				return 0, cleanupContext.Err()
+			}
+			if calls == 1 {
+				return 0, cleanupFailure
+			}
+			return 1, nil
+		},
+	}
+	logOutput := &bytes.Buffer{}
+	logger := slog.New(slog.NewTextHandler(logOutput, nil))
+	runnerDone := make(chan struct{})
+	go func() {
+		defer close(runnerDone)
+		service.RunCleanup(runnerContext, time.Millisecond, logger)
+	}()
+
+	if call := waitForSessionCleanupValue(t, ctx, cleanupCalls, "failed cleanup cycle"); call != 1 {
+		t.Fatalf("failed cleanup call = %d, want 1", call)
+	}
+	if call := waitForSessionCleanupValue(t, ctx, cleanupCalls, "recovered cleanup cycle"); call != 2 {
+		t.Fatalf("recovered cleanup call = %d, want 2", call)
+	}
+	cancelRunner()
+	waitForSessionCleanupSignal(t, ctx, runnerDone, "cleanup runner after recovery")
+
+	logText := logOutput.String()
+	for _, field := range []string{"session_cleanup_failed", "task=session_cleanup", cleanupFailure.Error()} {
+		if !strings.Contains(logText, field) {
+			t.Fatalf("cleanup failure log = %q, want field %q", logText, field)
+		}
+	}
+}
+
+// TestSessionCleanupCancellationIsQuiet verifies in-flight shutdown exits without an error log.
+func TestSessionCleanupCancellationIsQuiet(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	runnerContext, cancelRunner := context.WithCancel(ctx)
+	cleanupStarted := make(chan struct{})
+	service := &SessionService{
+		cleanupSessions: func(cleanupContext context.Context) (int64, error) {
+			close(cleanupStarted)
+			<-cleanupContext.Done()
+			return 0, cleanupContext.Err()
+		},
+	}
+	logOutput := &bytes.Buffer{}
+	logger := slog.New(slog.NewTextHandler(logOutput, nil))
+	runnerDone := make(chan struct{})
+	go func() {
+		defer close(runnerDone)
+		service.RunCleanup(runnerContext, time.Hour, logger)
+	}()
+
+	waitForSessionCleanupSignal(t, ctx, cleanupStarted, "in-flight cleanup")
+	cancelRunner()
+	waitForSessionCleanupSignal(t, ctx, runnerDone, "canceled cleanup runner")
+	if strings.Contains(logOutput.String(), "session_cleanup_failed") {
+		t.Fatalf("task cancellation logged as cleanup failure: %q", logOutput.String())
+	}
+}
+
+// TestSessionCleanupPeriodicCancellationIsQuiet verifies shutdown also interrupts a ticker-triggered database operation.
+func TestSessionCleanupPeriodicCancellationIsQuiet(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	runnerContext, cancelRunner := context.WithCancel(ctx)
+	cleanupCalls := make(chan int, 2)
+	calls := 0
+	service := &SessionService{
+		cleanupSessions: func(cleanupContext context.Context) (int64, error) {
+			calls++
+			cleanupCalls <- calls
+			if calls == 1 {
+				return 0, nil
+			}
+			<-cleanupContext.Done()
+			return 0, cleanupContext.Err()
+		},
+	}
+	logOutput := &bytes.Buffer{}
+	logger := slog.New(slog.NewTextHandler(logOutput, nil))
+	runnerDone := make(chan struct{})
+	go func() {
+		defer close(runnerDone)
+		service.RunCleanup(runnerContext, time.Millisecond, logger)
+	}()
+
+	if call := waitForSessionCleanupValue(t, ctx, cleanupCalls, "startup cleanup before cancellation"); call != 1 {
+		t.Fatalf("startup cleanup call = %d, want 1", call)
+	}
+	if call := waitForSessionCleanupValue(t, ctx, cleanupCalls, "periodic cleanup before cancellation"); call != 2 {
+		t.Fatalf("periodic cleanup call = %d, want 2", call)
+	}
+	cancelRunner()
+	waitForSessionCleanupSignal(t, ctx, runnerDone, "periodically canceled cleanup runner")
+	if strings.Contains(logOutput.String(), "session_cleanup_failed") {
+		t.Fatalf("periodic task cancellation logged as cleanup failure: %q", logOutput.String())
+	}
+}
+
+// TestSessionCleanupSkipsInvalidOrCanceledRuns verifies shutdown and invalid intervals cannot start database work.
+func TestSessionCleanupSkipsInvalidOrCanceledRuns(t *testing.T) {
+	calls := 0
+	service := &SessionService{
+		cleanupSessions: func(context.Context) (int64, error) {
+			calls++
+			return 0, nil
+		},
+	}
+	service.RunCleanup(t.Context(), 0, nil)
+
+	runnerContext, cancelRunner := context.WithCancel(t.Context())
+	cancelRunner()
+	logOutput := &bytes.Buffer{}
+	service.RunCleanup(runnerContext, time.Hour, slog.New(slog.NewTextHandler(logOutput, nil)))
+
+	if calls != 0 {
+		t.Fatalf("skipped cleanup calls = %d, want 0", calls)
+	}
+	if logOutput.Len() != 0 {
+		t.Fatalf("pre-canceled cleanup log = %q, want empty", logOutput.String())
+	}
+}
+
+// waitForSessionCleanupSignal waits for a required maintenance event with a caller-owned timeout.
+func waitForSessionCleanupSignal(t *testing.T, ctx context.Context, signal <-chan struct{}, operation string) {
+	t.Helper()
+	select {
+	case <-signal:
+	case <-ctx.Done():
+		t.Fatalf("timed out waiting for %s: %v", operation, ctx.Err())
+	}
+}
+
+// waitForSessionCleanupValue waits for a required maintenance result with a caller-owned timeout.
+func waitForSessionCleanupValue[T any](t *testing.T, ctx context.Context, values <-chan T, operation string) T {
+	t.Helper()
+	select {
+	case value := <-values:
+		return value
+	case <-ctx.Done():
+		t.Fatalf("timed out waiting for %s: %v", operation, ctx.Err())
+		var zero T
+		return zero
 	}
 }
 
