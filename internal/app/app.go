@@ -92,13 +92,13 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.Redirect = redirectService
 		deps.RedirectRecorder = recorder
 		oidcQueries := sqlc.New(pool)
-		enabledOIDCProviders, countErr := oidcQueries.CountEnabledOIDCProviders(ctx)
-		if countErr != nil {
+		enabledOIDCProviders, inspectErr := oidcQueries.ListEnabledOIDCProviderRuntime(ctx)
+		if inspectErr != nil {
 			pool.Close()
-			return nil, fmt.Errorf("inspect OIDC providers: %w", countErr)
+			return nil, fmt.Errorf("inspect OIDC providers: %w", inspectErr)
 		}
 		oidcConfigured := cfg.PublicBaseURL != "" && cfg.OIDCEncryptionKey != ""
-		if enabledOIDCProviders > 0 && !oidcConfigured {
+		if len(enabledOIDCProviders) > 0 && !oidcConfigured {
 			pool.Close()
 			return nil, errors.New("enabled OIDC providers require MOEURL_PUBLIC_BASE_URL and MOEURL_OIDC_ENCRYPTION_KEY")
 		}
@@ -109,6 +109,10 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			if err != nil {
 				pool.Close()
 				return nil, fmt.Errorf("initialize OIDC encryption: %w", err)
+			}
+			if err := oidc.ValidateEnabledProviderRuntime(enabledOIDCProviders, secretBox, cfg.Env == "development"); err != nil {
+				pool.Close()
+				return nil, fmt.Errorf("validate enabled OIDC providers: %w", err)
 			}
 			oidcHTTPClient := newOIDCHTTPClient()
 			discoverer = oidc.NewHTTPDiscoverer(oidcHTTPClient, cfg.Env == "development")

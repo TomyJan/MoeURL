@@ -61,7 +61,7 @@ github.com/TomyJan/MoeURL/internal/oidc/identity_resolver.go:110.35,112.3
 
 # Provider domains are validated []string values, so encoding/json cannot fail while marshaling them.
 github.com/TomyJan/MoeURL/internal/oidc/provider_service.go:137.16,139.3
-github.com/TomyJan/MoeURL/internal/oidc/provider_service.go:210.16,212.3
+github.com/TomyJan/MoeURL/internal/oidc/provider_service.go:215.16,217.3
 
 # AES-256 keys are length-checked before construction; the standard AES and GCM constructors cannot reject this configuration.
 github.com/TomyJan/MoeURL/internal/oidc/secret.go:40.16,42.3

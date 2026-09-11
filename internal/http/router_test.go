@@ -900,7 +900,8 @@ func (service *routerOIDCLoginService) Start(context.Context, string, string) (o
 	return oidc.LoginStart{Location: "https://id.example.com/authorize"}, nil
 }
 
-func (*routerOIDCLoginService) Callback(context.Context, string, string, string) (oidc.LoginCallback, error) {
+// Callback returns a stable browser-login result for router integration tests.
+func (*routerOIDCLoginService) Callback(context.Context, string, string, string, string) (oidc.LoginCallback, error) {
 	return oidc.LoginCallback{}, oidc.ErrLoginFailed
 }
 

@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/middleware"
@@ -31,7 +32,7 @@ const (
 // LoginPort exposes the public OIDC browser flow.
 type LoginPort interface {
 	Start(context.Context, string, string) (LoginStart, error)
-	Callback(context.Context, string, string, string) (LoginCallback, error)
+	Callback(context.Context, string, string, string, string) (LoginCallback, error)
 }
 
 // Handler serves public OIDC login and administrative provider endpoints.
@@ -77,6 +78,7 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		h.redirectLoginError(w, r, "provider_unavailable")
 		return
 	}
+	h.setBrowserBindingCookie(w, providerKey, result)
 	http.Redirect(w, r, result.Location, http.StatusFound)
 }
 
@@ -84,7 +86,14 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	h.noStore(w)
 	providerKey := chi.URLParam(r, "providerKey")
-	result, err := h.login.Callback(r.Context(), providerKey, r.URL.Query().Get("code"), r.URL.Query().Get("state"))
+	state := r.URL.Query().Get("state")
+	bindingCookieName := browserBindingCookieName(state)
+	browserBinding := ""
+	if cookie, cookieErr := r.Cookie(bindingCookieName); cookieErr == nil {
+		browserBinding = cookie.Value
+	}
+	h.clearBrowserBindingCookie(w, providerKey, bindingCookieName)
+	result, err := h.login.Callback(r.Context(), providerKey, r.URL.Query().Get("code"), state, browserBinding)
 	if err != nil {
 		h.logFailure(r, "callback", providerKey, err)
 		errorCode := "login_failed"
@@ -101,6 +110,27 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true, Secure: h.secureCookies, SameSite: http.SameSiteLaxMode,
 	})
 	http.Redirect(w, r, result.ReturnPath, http.StatusSeeOther)
+}
+
+// setBrowserBindingCookie binds one authorization attempt to the initiating browser.
+func (h *Handler) setBrowserBindingCookie(w http.ResponseWriter, providerKey string, result LoginStart) {
+	http.SetCookie(w, &http.Cookie{
+		Name: result.BindingCookieName, Value: result.BrowserBinding, Path: oidcCallbackPath(providerKey), Expires: result.ExpiresAt,
+		HttpOnly: true, Secure: h.secureCookies, SameSite: http.SameSiteLaxMode,
+	})
+}
+
+// clearBrowserBindingCookie removes the one-time browser proof on every callback outcome.
+func (h *Handler) clearBrowserBindingCookie(w http.ResponseWriter, providerKey string, name string) {
+	http.SetCookie(w, &http.Cookie{
+		Name: name, Value: "", Path: oidcCallbackPath(providerKey), Expires: time.Unix(1, 0), MaxAge: -1,
+		HttpOnly: true, Secure: h.secureCookies, SameSite: http.SameSiteLaxMode,
+	})
+}
+
+// oidcCallbackPath returns the narrow cookie scope for one provider callback.
+func oidcCallbackPath(providerKey string) string {
+	return "/api/v1/auth/oidc/" + providerKey + "/callback"
 }
 
 // List returns active provider configuration to administrators.

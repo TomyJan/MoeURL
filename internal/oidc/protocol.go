@@ -2,11 +2,17 @@ package oidc
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net/http"
 
 	coreoidc "github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
 )
+
+const maxProtocolResponseBytes int64 = 1 << 20
+
+var errOIDCResponseTooLarge = errors.New("OIDC response exceeds limit")
 
 // StandardProtocol implements Authorization Code flow, PKCE, and signed ID Token verification.
 type StandardProtocol struct {
@@ -18,7 +24,9 @@ func NewStandardProtocol(client *http.Client) *StandardProtocol {
 	if client == nil {
 		client = http.DefaultClient
 	}
-	return &StandardProtocol{client: client}
+	boundedClient := *client
+	boundedClient.Transport = newBoundedOIDCTransport(client.Transport)
+	return &StandardProtocol{client: &boundedClient}
 }
 
 // AuthorizationURL builds a standard OIDC authorization request with PKCE S256.
@@ -49,6 +57,9 @@ func (p *StandardProtocol) ExchangeAndVerify(ctx context.Context, provider Runti
 	if err != nil {
 		return IdentityClaims{}, ErrLoginFailed
 	}
+	if len(idToken.Audience) != 1 || idToken.Audience[0] != provider.ClientID {
+		return IdentityClaims{}, ErrLoginFailed
+	}
 	var claims struct {
 		Subject           string `json:"sub"`
 		Email             string `json:"email"`
@@ -56,11 +67,12 @@ func (p *StandardProtocol) ExchangeAndVerify(ctx context.Context, provider Runti
 		Name              string `json:"name"`
 		PreferredUsername string `json:"preferred_username"`
 		Nonce             string `json:"nonce"`
+		AuthorizedParty   string `json:"azp"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
 		return IdentityClaims{}, ErrLoginFailed
 	}
-	if claims.Subject == "" {
+	if claims.Subject == "" || (claims.AuthorizedParty != "" && claims.AuthorizedParty != provider.ClientID) {
 		return IdentityClaims{}, ErrLoginFailed
 	}
 	return IdentityClaims{
@@ -76,6 +88,54 @@ func (p *StandardProtocol) oauthConfig(provider RuntimeProvider, redirectURI str
 		Endpoint: oauth2.Endpoint{AuthURL: provider.AuthorizationEndpoint, TokenURL: provider.TokenEndpoint},
 		Scopes:   []string{coreoidc.ScopeOpenID, "email", "profile"},
 	}
+}
+
+type boundedOIDCTransport struct {
+	base http.RoundTripper
+}
+
+// newBoundedOIDCTransport limits token and JWKS response bodies before protocol libraries decode them.
+func newBoundedOIDCTransport(base http.RoundTripper) http.RoundTripper {
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	return &boundedOIDCTransport{base: base}
+}
+
+// RoundTrip wraps successful response bodies with a hard read limit.
+func (t *boundedOIDCTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	response, err := t.base.RoundTrip(request)
+	if err != nil || response == nil || response.Body == nil {
+		return response, err
+	}
+	response.Body = &boundedOIDCResponseBody{body: response.Body, remaining: maxProtocolResponseBytes}
+	return response, nil
+}
+
+type boundedOIDCResponseBody struct {
+	body      io.ReadCloser
+	remaining int64
+}
+
+// Read returns a stable error as soon as a response exceeds the permitted body size.
+func (b *boundedOIDCResponseBody) Read(buffer []byte) (int, error) {
+	if b.remaining < 0 {
+		return 0, errOIDCResponseTooLarge
+	}
+	if int64(len(buffer)) > b.remaining+1 {
+		buffer = buffer[:b.remaining+1]
+	}
+	read, err := b.body.Read(buffer)
+	b.remaining -= int64(read)
+	if b.remaining < 0 {
+		return read, errOIDCResponseTooLarge
+	}
+	return read, err
+}
+
+// Close releases the underlying network response.
+func (b *boundedOIDCResponseBody) Close() error {
+	return b.body.Close()
 }
 
 var _ Protocol = (*StandardProtocol)(nil)

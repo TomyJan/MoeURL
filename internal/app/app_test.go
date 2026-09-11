@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/config"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
+	"github.com/TomyJan/MoeURL/internal/oidc"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/system"
@@ -96,6 +98,38 @@ func TestAppRejectsEnabledOIDCProviderWithoutRuntimeConfiguration(t *testing.T) 
 	}
 	application, err := New(t.Context(), config.Config{Env: "development", HTTPAddr: ":0", DatabaseURL: databaseURL}, slog.Default())
 	if application != nil || err == nil || !strings.Contains(err.Error(), "enabled OIDC providers require") {
+		t.Fatalf("New = application %#v, error %v", application, err)
+	}
+}
+
+// TestAppRejectsEnabledOIDCProviderWithWrongEncryptionKey verifies restore-time key mismatches fail startup.
+func TestAppRejectsEnabledOIDCProviderWithWrongEncryptionKey(t *testing.T) {
+	databaseURL := testdb.ProjectMigratedDatabaseURL(t.Context(), t)
+	pool, err := appdb.OpenPool(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("open provider fixture database: %v", err)
+	}
+	providerID := "00000000-0000-0000-0000-000000000701"
+	originalKey := base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{1}, 32))
+	originalBox, err := oidc.NewSecretBox(originalKey)
+	if err != nil {
+		t.Fatalf("create original secret box: %v", err)
+	}
+	ciphertext, err := originalBox.Seal("provider-secret", providerID, []byte("client-secret"))
+	if err != nil {
+		t.Fatalf("seal provider secret: %v", err)
+	}
+	_, err = pool.Exec(t.Context(), `insert into oidc_provider (id, key, display_name, issuer_url, client_id, client_secret_ciphertext, authorization_endpoint, token_endpoint, jwks_uri, allowed_email_domains, enabled, created_at, updated_at) values ($1, 'company', 'Company', 'https://id.example.com', 'client', $2, 'https://id.example.com/auth', 'https://id.example.com/token', 'https://id.example.com/jwks', '["example.com"]', true, now(), now())`, providerID, ciphertext)
+	pool.Close()
+	if err != nil {
+		t.Fatalf("seed enabled provider: %v", err)
+	}
+	wrongKey := base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{2}, 32))
+	application, err := New(t.Context(), config.Config{
+		Env: "development", HTTPAddr: ":0", DatabaseURL: databaseURL,
+		PublicBaseURL: "https://links.example.com", OIDCEncryptionKey: wrongKey,
+	}, slog.Default())
+	if application != nil || !errors.Is(err, oidc.ErrRuntimeUnavailable) {
 		t.Fatalf("New = application %#v, error %v", application, err)
 	}
 }

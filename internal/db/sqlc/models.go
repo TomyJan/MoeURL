@@ -64,6 +64,7 @@ type OidcLoginAttempt struct {
 	StateHash          []byte             `json:"state_hash"`
 	ProviderID         pgtype.UUID        `json:"provider_id"`
 	NonceHash          []byte             `json:"nonce_hash"`
+	BrowserBindingHash []byte             `json:"browser_binding_hash"`
 	VerifierCiphertext []byte             `json:"verifier_ciphertext"`
 	ReturnPath         string             `json:"return_path"`
 	ExpiresAt          pgtype.Timestamptz `json:"expires_at"`

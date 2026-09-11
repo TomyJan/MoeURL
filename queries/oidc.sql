@@ -10,10 +10,11 @@ from oidc_provider
 where enabled and deleted_at is null
 order by display_name, key;
 
--- name: CountEnabledOIDCProviders :one
-select count(*)
+-- name: ListEnabledOIDCProviderRuntime :many
+select *
 from oidc_provider
-where enabled and deleted_at is null;
+where enabled and deleted_at is null
+order by key;
 
 -- name: GetOIDCProviderByID :one
 select *
@@ -89,6 +90,7 @@ insert into oidc_login_attempt (
     state_hash,
     provider_id,
     nonce_hash,
+    browser_binding_hash,
     verifier_ciphertext,
     return_path,
     expires_at,
@@ -97,6 +99,7 @@ insert into oidc_login_attempt (
     sqlc.arg(state_hash),
     sqlc.arg(provider_id),
     sqlc.arg(nonce_hash),
+    sqlc.arg(browser_binding_hash),
     sqlc.arg(verifier_ciphertext),
     sqlc.arg(return_path),
     sqlc.arg(expires_at),

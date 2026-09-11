@@ -92,8 +92,8 @@ func TestOIDCMigrationRoundTrip(t *testing.T) {
 		insertOIDCProvider(t, ctx, database)
 		if _, err := database.ExecContext(ctx, `
 			insert into oidc_login_attempt (
-				state_hash, provider_id, nonce_hash, verifier_ciphertext, return_path, expires_at, created_at
-			) values (decode(repeat('01', 32), 'hex'), '00000000-0000-0000-0000-000000000701', decode(repeat('02', 32), 'hex'), decode('03', 'hex'), '/console', now() + interval '5 minutes', now())
+				state_hash, provider_id, nonce_hash, browser_binding_hash, verifier_ciphertext, return_path, expires_at, created_at
+			) values (decode(repeat('01', 32), 'hex'), '00000000-0000-0000-0000-000000000701', decode(repeat('02', 32), 'hex'), decode(repeat('03', 32), 'hex'), decode('04', 'hex'), '/console', now() + interval '5 minutes', now())
 		`); err != nil {
 			t.Fatalf("insert OIDC login attempt: %v", err)
 		}
@@ -179,6 +179,16 @@ func assertOIDCConstraints(t *testing.T, ctx context.Context, database *sql.DB) 
 	}
 	if _, err := database.ExecContext(ctx, `update oidc_provider set allowed_email_domains = '[]'::jsonb where key = 'company'`); err == nil {
 		t.Fatal("expected empty email domain list to violate check constraint")
+	}
+	if _, err := database.ExecContext(ctx, `
+		insert into oidc_login_attempt (
+			state_hash, provider_id, nonce_hash, browser_binding_hash, verifier_ciphertext, return_path, expires_at, created_at
+		) values (
+			decode(repeat('01', 32), 'hex'), '00000000-0000-0000-0000-000000000701',
+			decode(repeat('02', 32), 'hex'), decode('03', 'hex'), decode('04', 'hex'), '/console', now() + interval '5 minutes', now()
+		)
+	`); err == nil {
+		t.Fatal("expected short browser binding digest to violate check constraint")
 	}
 	if _, err := database.ExecContext(ctx, `
 		insert into external_identity (provider_id, subject, user_id, created_at, last_login_at)

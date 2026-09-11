@@ -22,7 +22,7 @@ func TestLoginServiceStartPersistsBoundStateAndBuildsPKCEAuthorization(t *testin
 	provider := testRuntimeProviderRow(t, box)
 	store := &loginStoreStub{provider: provider}
 	protocol := &protocolStub{authorizationLocation: "https://id.example.com/authorize?request=1"}
-	service := newLoginService(store, protocol, &identityResolverStub{}, &sessionCreatorStub{}, box, "https://links.example.com", bytes.NewReader(bytes.Repeat([]byte{7}, 96)))
+	service := newLoginService(store, protocol, &identityResolverStub{}, &sessionCreatorStub{}, box, "https://links.example.com", bytes.NewReader(bytes.Repeat([]byte{7}, 128)))
 	service.now = func() time.Time { return time.Date(2026, time.September, 11, 1, 2, 3, 0, time.UTC) }
 
 	result, err := service.Start(t.Context(), "company", "/analytics?shortLinkId=abc")
@@ -57,6 +57,13 @@ func TestLoginServiceStartPersistsBoundStateAndBuildsPKCEAuthorization(t *testin
 	if !store.createdAttempt.ExpiresAt.Time.Equal(service.now().Add(loginAttemptTTL)) {
 		t.Fatalf("attempt expiry = %s", store.createdAttempt.ExpiresAt.Time)
 	}
+	wantBindingHash := sha256.Sum256([]byte(result.BrowserBinding))
+	if result.BrowserBinding == "" || !bytes.Equal(store.createdAttempt.BrowserBindingHash, wantBindingHash[:]) {
+		t.Fatalf("browser binding was not persisted as a digest: result=%q stored=%x", result.BrowserBinding, store.createdAttempt.BrowserBindingHash)
+	}
+	if result.BindingCookieName != browserBindingCookieName(protocol.state) {
+		t.Fatalf("binding cookie name = %q", result.BindingCookieName)
+	}
 }
 
 // TestLoginServiceStartFallsBackFromUnsafeReturnPaths verifies authorization cannot create an open redirect.
@@ -65,7 +72,7 @@ func TestLoginServiceStartFallsBackFromUnsafeReturnPaths(t *testing.T) {
 		t.Run(returnPath, func(t *testing.T) {
 			box := testSecretBox(t)
 			store := &loginStoreStub{provider: testRuntimeProviderRow(t, box)}
-			service := newLoginService(store, &protocolStub{authorizationLocation: "https://id.example.com"}, &identityResolverStub{}, &sessionCreatorStub{}, box, "https://links.example.com", bytes.NewReader(bytes.Repeat([]byte{3}, 96)))
+			service := newLoginService(store, &protocolStub{authorizationLocation: "https://id.example.com"}, &identityResolverStub{}, &sessionCreatorStub{}, box, "https://links.example.com", bytes.NewReader(bytes.Repeat([]byte{3}, 128)))
 			if _, err := service.Start(t.Context(), "company", returnPath); err != nil {
 				t.Fatalf("start OIDC login: %v", err)
 			}
@@ -94,7 +101,7 @@ func TestLoginServiceStartRejectsSaturatedAdmission(t *testing.T) {
 
 // TestLoginServiceStartStopsOnRandomnessEncryptionAndPersistenceFailures verifies partial attempts never proceed.
 func TestLoginServiceStartStopsOnRandomnessEncryptionAndPersistenceFailures(t *testing.T) {
-	for _, size := range []int{0, loginRandomBytes, 2 * loginRandomBytes} {
+	for _, size := range []int{0, loginRandomBytes, 2 * loginRandomBytes, 3 * loginRandomBytes} {
 		box := testSecretBox(t)
 		store := &loginStoreStub{provider: testRuntimeProviderRow(t, box)}
 		service := newLoginService(store, &protocolStub{}, &identityResolverStub{}, &sessionCreatorStub{}, box, "https://links.example.com", bytes.NewReader(bytes.Repeat([]byte{1}, size)))
@@ -116,13 +123,13 @@ func TestLoginServiceStartStopsOnRandomnessEncryptionAndPersistenceFailures(t *t
 		t.Fatalf("create failing box: %v", err)
 	}
 	store := &loginStoreStub{provider: testRuntimeProviderRow(t, validBox)}
-	service := newLoginService(store, &protocolStub{}, &identityResolverStub{}, &sessionCreatorStub{}, failingBox, "https://links.example.com", bytes.NewReader(bytes.Repeat([]byte{1}, 96)))
+	service := newLoginService(store, &protocolStub{}, &identityResolverStub{}, &sessionCreatorStub{}, failingBox, "https://links.example.com", bytes.NewReader(bytes.Repeat([]byte{1}, 128)))
 	if _, err := service.Start(t.Context(), "company", "/console"); !errors.Is(err, ErrSecretUnavailable) {
 		t.Fatalf("encryption error = %v", err)
 	}
 
 	store = &loginStoreStub{provider: testRuntimeProviderRow(t, validBox), createErr: errors.New("database unavailable")}
-	service = newLoginService(store, &protocolStub{}, &identityResolverStub{}, &sessionCreatorStub{}, validBox, "https://links.example.com", bytes.NewReader(bytes.Repeat([]byte{1}, 96)))
+	service = newLoginService(store, &protocolStub{}, &identityResolverStub{}, &sessionCreatorStub{}, validBox, "https://links.example.com", bytes.NewReader(bytes.Repeat([]byte{1}, 128)))
 	if _, err := service.Start(t.Context(), "company", "/console"); !errors.Is(err, store.createErr) {
 		t.Fatalf("persistence error = %v", err)
 	}
@@ -132,7 +139,7 @@ func TestLoginServiceStartStopsOnRandomnessEncryptionAndPersistenceFailures(t *t
 func TestLoginServiceCallbackConsumesStateVerifiesNonceAndCreatesSession(t *testing.T) {
 	fixture := newCallbackFixture(t)
 
-	result, err := fixture.service.Callback(t.Context(), "company", "authorization-code", fixture.state)
+	result, err := fixture.service.Callback(t.Context(), "company", "authorization-code", fixture.state, fixture.browserBinding)
 	if err != nil {
 		t.Fatalf("complete OIDC callback: %v", err)
 	}
@@ -154,7 +161,7 @@ func TestLoginServiceCallbackConsumesStateVerifiesNonceAndCreatesSession(t *test
 func TestLoginServiceCallbackRejectsInvalidOrReplayedState(t *testing.T) {
 	fixture := newCallbackFixture(t)
 	fixture.store.consumeErr = pgx.ErrNoRows
-	if _, err := fixture.service.Callback(t.Context(), "company", "code", fixture.state); !errors.Is(err, ErrLoginFailed) {
+	if _, err := fixture.service.Callback(t.Context(), "company", "code", fixture.state, fixture.browserBinding); !errors.Is(err, ErrLoginFailed) {
 		t.Fatalf("missing state callback error = %v", err)
 	}
 	if fixture.protocol.exchangeCalls != 0 {
@@ -178,7 +185,7 @@ func TestLoginServiceCallbackRejectsExpiredProviderMismatchAndNonceMismatch(t *t
 		t.Run(test.name, func(t *testing.T) {
 			fixture := newCallbackFixture(t)
 			test.mutate(fixture)
-			if _, err := fixture.service.Callback(t.Context(), "company", "code", fixture.state); !errors.Is(err, ErrLoginFailed) {
+			if _, err := fixture.service.Callback(t.Context(), "company", "code", fixture.state, fixture.browserBinding); !errors.Is(err, ErrLoginFailed) {
 				t.Fatalf("callback error = %v", err)
 			}
 			if fixture.sessions.calls != 0 {
@@ -188,13 +195,26 @@ func TestLoginServiceCallbackRejectsExpiredProviderMismatchAndNonceMismatch(t *t
 	}
 }
 
+// TestLoginServiceCallbackRejectsMissingOrMismatchedBrowserBinding verifies a callback is bound to its initiating browser.
+func TestLoginServiceCallbackRejectsMissingOrMismatchedBrowserBinding(t *testing.T) {
+	for _, binding := range []string{"", "binding-from-another-browser"} {
+		fixture := newCallbackFixture(t)
+		if _, err := fixture.service.Callback(t.Context(), "company", "code", fixture.state, binding); !errors.Is(err, ErrLoginFailed) {
+			t.Fatalf("binding %q callback error = %v", binding, err)
+		}
+		if fixture.store.consumeCalls != 1 || fixture.protocol.exchangeCalls != 0 || fixture.sessions.calls != 0 {
+			t.Fatalf("invalid binding reached dependencies: consume=%d exchange=%d session=%d", fixture.store.consumeCalls, fixture.protocol.exchangeCalls, fixture.sessions.calls)
+		}
+	}
+}
+
 // TestLoginServiceCallbackRejectsSaturatedAdmission verifies callback overload is rejected before state consumption.
 func TestLoginServiceCallbackRejectsSaturatedAdmission(t *testing.T) {
 	fixture := newCallbackFixture(t)
 	fixture.service.callbackSlots = make(chan struct{}, 1)
 	fixture.service.callbackSlots <- struct{}{}
 
-	if _, err := fixture.service.Callback(t.Context(), "company", "code", fixture.state); !errors.Is(err, ErrLoginFailed) {
+	if _, err := fixture.service.Callback(t.Context(), "company", "code", fixture.state, fixture.browserBinding); !errors.Is(err, ErrLoginFailed) {
 		t.Fatalf("saturated callback error = %v", err)
 	}
 	if fixture.store.consumeCalls != 0 || fixture.protocol.exchangeCalls != 0 || fixture.sessions.calls != 0 {
@@ -223,7 +243,7 @@ func TestLoginServiceCallbackStopsAtEachFailedBoundary(t *testing.T) {
 			if test.mutate != nil {
 				test.mutate(fixture)
 			}
-			_, err := fixture.service.Callback(t.Context(), "company", test.code, test.state)
+			_, err := fixture.service.Callback(t.Context(), "company", test.code, test.state, fixture.browserBinding)
 			if test.want != nil && !errors.Is(err, test.want) {
 				t.Fatalf("callback error = %v, want %v", err, test.want)
 			}
@@ -259,6 +279,31 @@ func TestLoginServiceRejectsUnavailableProviderData(t *testing.T) {
 	}
 }
 
+// TestValidateEnabledProviderRuntimeRejectsCorruptedRows verifies startup validation covers every persisted runtime boundary.
+func TestValidateEnabledProviderRuntimeRejectsCorruptedRows(t *testing.T) {
+	box := testSecretBox(t)
+	valid := testRuntimeProviderRow(t, box)
+	if err := ValidateEnabledProviderRuntime(nil, box, false); err != nil {
+		t.Fatalf("validate empty provider list: %v", err)
+	}
+	if err := ValidateEnabledProviderRuntime([]sqlc.OidcProvider{valid}, box, false); err != nil {
+		t.Fatalf("validate provider runtime: %v", err)
+	}
+	for _, mutate := range []func(*sqlc.OidcProvider){
+		func(row *sqlc.OidcProvider) { row.ID.Valid = false },
+		func(row *sqlc.OidcProvider) { row.AllowedEmailDomains = []byte(`{}`) },
+		func(row *sqlc.OidcProvider) { row.ClientID = "" },
+		func(row *sqlc.OidcProvider) { row.JwksUri = "http://remote.example.com/jwks" },
+		func(row *sqlc.OidcProvider) { row.ClientSecretCiphertext = []byte{1} },
+	} {
+		row := valid
+		mutate(&row)
+		if err := ValidateEnabledProviderRuntime([]sqlc.OidcProvider{row}, box, false); !errors.Is(err, ErrRuntimeUnavailable) {
+			t.Fatalf("invalid provider %#v error = %v", row, err)
+		}
+	}
+}
+
 // TestNewLoginServiceUsesProductionDefaults verifies the exported constructor establishes bounded state.
 func TestNewLoginServiceUsesProductionDefaults(t *testing.T) {
 	service := NewLoginService(nil, &protocolStub{}, &identityResolverStub{}, &sessionCreatorStub{}, testSecretBox(t), "https://links.example.com/")
@@ -268,13 +313,14 @@ func TestNewLoginServiceUsesProductionDefaults(t *testing.T) {
 }
 
 type callbackFixture struct {
-	service    *LoginService
-	store      *loginStoreStub
-	protocol   *protocolStub
-	identities *identityResolverStub
-	sessions   *sessionCreatorStub
-	state      string
-	verifier   string
+	service        *LoginService
+	store          *loginStoreStub
+	protocol       *protocolStub
+	identities     *identityResolverStub
+	sessions       *sessionCreatorStub
+	state          string
+	verifier       string
+	browserBinding string
 }
 
 // newCallbackFixture assembles a valid consumed-attempt callback scenario.
@@ -287,6 +333,8 @@ func newCallbackFixture(t *testing.T) *callbackFixture {
 	nonce := "callback-nonce"
 	nonceHash := sha256.Sum256([]byte(nonce))
 	verifier := "callback-verifier"
+	browserBinding := "callback-browser-binding"
+	browserBindingHash := sha256.Sum256([]byte(browserBinding))
 	recordID := base64.RawURLEncoding.EncodeToString(stateHash[:])
 	ciphertext, err := box.Seal(loginVerifierPurpose, recordID, []byte(verifier))
 	if err != nil {
@@ -297,7 +345,7 @@ func newCallbackFixture(t *testing.T) *callbackFixture {
 		provider: provider,
 		attempt: sqlc.OidcLoginAttempt{
 			StateHash: stateHash[:], ProviderID: provider.ID, NonceHash: nonceHash[:],
-			VerifierCiphertext: ciphertext, ReturnPath: "/console",
+			VerifierCiphertext: ciphertext, BrowserBindingHash: browserBindingHash[:], ReturnPath: "/console",
 			ExpiresAt: pgtype.Timestamptz{Time: now.Add(time.Minute), Valid: true},
 		},
 	}
@@ -309,7 +357,7 @@ func newCallbackFixture(t *testing.T) *callbackFixture {
 	sessions := &sessionCreatorStub{session: auth.Session{ID: "session-id", UserID: "user-id", ExpiresAt: now.Add(time.Hour)}}
 	service := newLoginService(store, protocol, identities, sessions, box, "https://links.example.com", bytes.NewReader(bytes.Repeat([]byte{4}, 96)))
 	service.now = func() time.Time { return now }
-	return &callbackFixture{service: service, store: store, protocol: protocol, identities: identities, sessions: sessions, state: state, verifier: verifier}
+	return &callbackFixture{service: service, store: store, protocol: protocol, identities: identities, sessions: sessions, state: state, verifier: verifier, browserBinding: browserBinding}
 }
 
 // testRuntimeProviderRow returns one encrypted provider row accepted by the login service.

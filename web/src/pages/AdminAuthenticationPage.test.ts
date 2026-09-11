@@ -19,6 +19,7 @@ const PROVIDER_CONFLICT_CODE = 340102
 
 const state = vi.hoisted(() => ({
   invalidateQueries: vi.fn(async () => undefined),
+  mutationInputs: [] as unknown[],
   mutationPending: undefined as unknown as ReturnType<typeof ref<boolean>>,
   queryData: undefined as unknown as ReturnType<typeof ref<unknown>>,
   queryError: undefined as unknown as ReturnType<typeof ref<boolean>>,
@@ -47,15 +48,20 @@ vi.mock('@tanstack/vue-query', () => ({
   useMutation: vi.fn((options: {
     mutationFn: (input: unknown) => Promise<unknown>
     onError?: (error: unknown, input: unknown) => unknown
+    onSettled?: (result: unknown, error: unknown, input: unknown) => unknown
     onSuccess?: (result: unknown, input: unknown) => unknown
   }) => ({
     isPending: state.mutationPending,
     mutate: (input: unknown) => {
+      state.mutationInputs.push(input)
       state.mutationPending.value = true
       void options.mutationFn(input)
         .then((result) => options.onSuccess?.(result, input))
         .catch((error) => options.onError?.(error, input))
-        .finally(() => { state.mutationPending.value = false })
+        .finally(() => {
+          state.mutationPending.value = false
+          options.onSettled?.(undefined, undefined, input)
+        })
     },
   })),
 }))
@@ -96,6 +102,7 @@ function deferred<T>() {
 
 beforeEach(() => {
   state.mutationPending = ref(false)
+  state.mutationInputs = []
   state.queryData = ref<unknown>({ providers: [company, team] })
   state.queryError = ref(false)
   state.queryPending = ref(false)
@@ -160,6 +167,7 @@ describe('AdminAuthenticationPage', () => {
     await fireEvent.update(screen.getByLabelText('oidc.clientSecret'), 'top-secret')
     await fireEvent.update(screen.getByLabelText('oidc.allowedDomains'), 'example.com')
     await fireEvent.click(screen.getByRole('button', { name: 'oidc.save' }))
+    expect(JSON.stringify(state.mutationInputs)).not.toContain('top-secret')
     expect(createOIDCProvider).toHaveBeenCalledWith(expect.objectContaining({ key: 'new-team', clientSecret: 'top-secret', allowedEmailDomains: ['example.com'] }))
     await waitFor(() => expect(screen.queryByDisplayValue('top-secret')).toBeNull())
     expect(screen.getByText('oidc.saveSuccess')).toBeTruthy()

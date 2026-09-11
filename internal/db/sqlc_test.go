@@ -62,6 +62,13 @@ func TestOIDCQueriesEnforceVisibilityConcurrencyAndSingleUse(t *testing.T) {
 	if len(methods) != 1 || methods[0].Key != "company" || methods[0].DisplayName != "Company SSO" {
 		t.Fatalf("enabled providers = %#v", methods)
 	}
+	runtimeProviders, err := queries.ListEnabledOIDCProviderRuntime(ctx)
+	if err != nil {
+		t.Fatalf("list enabled provider runtime: %v", err)
+	}
+	if len(runtimeProviders) != 1 || runtimeProviders[0].ID != provider.ID || !bytes.Equal(runtimeProviders[0].ClientSecretCiphertext, provider.ClientSecretCiphertext) {
+		t.Fatalf("enabled provider runtime = %#v", runtimeProviders)
+	}
 
 	_, err = queries.UpdateOIDCProvider(ctx, sqlc.UpdateOIDCProviderParams{
 		DisplayName:            provider.DisplayName,
@@ -88,7 +95,8 @@ func TestOIDCQueriesEnforceVisibilityConcurrencyAndSingleUse(t *testing.T) {
 		StateHash:          stateHash,
 		ProviderID:         provider.ID,
 		NonceHash:          bytes.Repeat([]byte{2}, 32),
-		VerifierCiphertext: []byte{3},
+		BrowserBindingHash: bytes.Repeat([]byte{3}, 32),
+		VerifierCiphertext: []byte{4},
 		ReturnPath:         "/console",
 		ExpiresAt:          pgtype.Timestamptz{Time: time.Now().UTC().Add(time.Minute), Valid: true},
 	}); err != nil {
@@ -98,7 +106,7 @@ func TestOIDCQueriesEnforceVisibilityConcurrencyAndSingleUse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("consume OIDC login attempt: %v", err)
 	}
-	if attempt.ReturnPath != "/console" || attempt.ProviderID != provider.ID {
+	if attempt.ReturnPath != "/console" || attempt.ProviderID != provider.ID || !bytes.Equal(attempt.BrowserBindingHash, bytes.Repeat([]byte{3}, 32)) {
 		t.Fatalf("consumed attempt = %#v", attempt)
 	}
 	if _, err := queries.ConsumeOIDCLoginAttempt(ctx, stateHash); !errors.Is(err, pgx.ErrNoRows) {

@@ -6,9 +6,11 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,6 +36,50 @@ func TestStandardProtocolAuthorizationURLBuildsStandardOIDCRequest(t *testing.T)
 	} {
 		if got := query.Get(key); got != want {
 			t.Fatalf("%s = %q, want %q", key, got, want)
+		}
+	}
+}
+
+// TestBoundedOIDCTransportRejectsOversizedResponse verifies JWKS-style responses cannot be read without a byte bound.
+func TestBoundedOIDCTransportRejectsOversizedResponse(t *testing.T) {
+	transport := newBoundedOIDCTransport(protocolRoundTripper(func(*http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader(strings.Repeat("x", int(maxProtocolResponseBytes+1)))),
+		}, nil
+	}))
+	response, err := transport.RoundTrip(httptest.NewRequest(http.MethodGet, "https://id.example.com/jwks", nil))
+	if err != nil {
+		t.Fatalf("round trip response: %v", err)
+	}
+	defer response.Body.Close()
+	_, err = io.ReadAll(response.Body)
+	if !errors.Is(err, errOIDCResponseTooLarge) {
+		t.Fatalf("read oversized response error = %v", err)
+	}
+	if _, err := response.Body.Read(make([]byte, 1)); !errors.Is(err, errOIDCResponseTooLarge) {
+		t.Fatalf("repeat oversized response read error = %v", err)
+	}
+}
+
+// TestBoundedOIDCTransportPreservesTransportFailures verifies response wrapping does not hide base transport outcomes.
+func TestBoundedOIDCTransportPreservesTransportFailures(t *testing.T) {
+	wantErr := errors.New("transport unavailable")
+	for _, result := range []struct {
+		response *http.Response
+		err      error
+	}{
+		{err: wantErr},
+		{},
+		{response: &http.Response{StatusCode: http.StatusNoContent}},
+	} {
+		transport := newBoundedOIDCTransport(protocolRoundTripper(func(*http.Request) (*http.Response, error) {
+			return result.response, result.err
+		}))
+		response, err := transport.RoundTrip(httptest.NewRequest(http.MethodGet, "https://id.example.com/jwks", nil))
+		if response != result.response || !errors.Is(err, result.err) {
+			t.Fatalf("round trip = response %#v error %v", response, err)
 		}
 	}
 }
@@ -107,9 +153,21 @@ func TestStandardProtocolRejectsTokenResponseWithoutIDToken(t *testing.T) {
 	}
 }
 
+// TestStandardProtocolRejectsUntrustedAudienceAndAuthorizedParty verifies tokens are exclusively issued to this client.
+func TestStandardProtocolRejectsUntrustedAudienceAndAuthorizedParty(t *testing.T) {
+	for _, claims := range []map[string]any{
+		{"aud": []string{"client-id", "other-client"}},
+		{"aud": "client-id", "azp": "other-client"},
+	} {
+		if err := exchangeProtocolTokenWithClaims(t, claims); !errors.Is(err, ErrLoginFailed) {
+			t.Fatalf("claims %#v error = %v, want ErrLoginFailed", claims, err)
+		}
+	}
+}
+
 // TestStandardProtocolRejectsInvalidTokenAndClaimResponses verifies every untrusted token boundary fails closed.
 func TestStandardProtocolRejectsInvalidTokenAndClaimResponses(t *testing.T) {
-	if NewStandardProtocol(nil).client != http.DefaultClient {
+	if NewStandardProtocol(nil).client == nil {
 		t.Fatal("nil protocol client was not defaulted")
 	}
 	for _, test := range []struct {
@@ -180,4 +238,56 @@ func TestStandardProtocolRejectsInvalidTokenAndClaimResponses(t *testing.T) {
 			}
 		})
 	}
+}
+
+// exchangeProtocolTokenWithClaims signs one otherwise valid token with selected audience claims.
+func exchangeProtocolTokenWithClaims(t *testing.T, overrides map[string]any) error {
+	t.Helper()
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate signing key: %v", err)
+	}
+	const keyID = "test-key"
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/token":
+			claims := map[string]any{
+				"iss": server.URL, "aud": "client-id", "sub": "subject", "exp": time.Now().Add(time.Hour).Unix(),
+				"iat": time.Now().Add(-time.Minute).Unix(), "nonce": "nonce", "email": "person@example.com", "email_verified": true,
+			}
+			for key, value := range overrides {
+				claims[key] = value
+			}
+			signer, signErr := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: privateKey}, &jose.SignerOptions{ExtraHeaders: map[jose.HeaderKey]any{jose.HeaderKey("kid"): keyID}})
+			if signErr != nil {
+				t.Fatalf("create signer: %v", signErr)
+			}
+			raw, signErr := jwt.Signed(signer).Claims(claims).Serialize()
+			if signErr != nil {
+				t.Fatalf("sign ID token: %v", signErr)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"access_token": "token", "token_type": "Bearer", "id_token": raw})
+		case "/jwks":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{{Key: &privateKey.PublicKey, KeyID: keyID, Algorithm: string(jose.RS256), Use: "sig"}}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	_, err = NewStandardProtocol(server.Client()).ExchangeAndVerify(t.Context(), RuntimeProvider{
+		IssuerURL: server.URL, ClientID: "client-id", ClientSecret: "secret",
+		TokenEndpoint: server.URL + "/token", JWKSURI: server.URL + "/jwks",
+	}, "https://links.example.com/callback", "code", "verifier")
+	return err
+}
+
+type protocolRoundTripper func(*http.Request) (*http.Response, error)
+
+// RoundTrip adapts a function into an HTTP transport for protocol tests.
+func (f protocolRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+	return f(request)
 }

@@ -23,8 +23,8 @@ v0.7.0 在现有本地账号、Cookie Session 和数据库权限模型之上补�
 
 - 登录页读取当前可用登录方式，并展示所有已启用的 OIDC 提供商。
 - OIDC 登录使用 Authorization Code Flow、PKCE S256、随机 `state` 和随机 `nonce`。
-- 登录尝试保存在服务端，`state` 只保存摘要，PKCE verifier 加密保存，且只能消费一次。
-- 回调严格校验提供商、Issuer、Audience、签名、过期时间、`nonce` 和一次性状态。
+- 登录尝试保存在服务端，`state` 和浏览器关联令牌只保存摘要，PKCE verifier 加密保存，且只能消费一次。
+- 回调严格校验发起浏览器、提供商、Issuer、唯一 Audience、可选 `azp`、签名、过期时间、`nonce` 和一次性状态。
 - 登录完成后签发现有 `moeurl_session` Cookie，并只恢复经过验证的站内相对路径。
 - 提供商停用、登录尝试过期或重放、用户禁用、声明不完整和外部协议失败均关闭失败，不泄露 Token、Secret 或底层响应。
 
@@ -51,7 +51,7 @@ v0.7.0 在现有本地账号、Cookie Session 和数据库权限模型之上补�
 - `/admin/setting` 从纯占位页升级为本版本的“身份认证”管理页面，但不开放其他系统设置表单。
 - 管理页覆盖加载、空状态、保存、冲突、发现失败、停用、删除和 Secret 保留/替换状态。
 - 页面支持简体中文和英语，并适配桌面与移动端。
-- Client Secret 不进入长期响应、查询缓存或可复用响应对象；提交完成后立即清空输入。
+- Client Secret 不进入长期响应、查询缓存、Mutation variables 或可复用响应对象；提交完成后立即清空输入并释放短期载荷。
 
 ## 数据与 API 影响
 

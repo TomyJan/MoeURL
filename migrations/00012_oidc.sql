@@ -44,12 +44,14 @@ create table oidc_login_attempt (
     state_hash bytea primary key,
     provider_id uuid not null references oidc_provider(id) on delete cascade,
     nonce_hash bytea not null,
+    browser_binding_hash bytea not null,
     verifier_ciphertext bytea not null,
     return_path text not null,
     expires_at timestamptz not null,
     created_at timestamptz not null,
     constraint oidc_login_attempt_state_hash_check check (octet_length(state_hash) = 32),
     constraint oidc_login_attempt_nonce_hash_check check (octet_length(nonce_hash) = 32),
+    constraint oidc_login_attempt_browser_binding_hash_check check (octet_length(browser_binding_hash) = 32),
     constraint oidc_login_attempt_verifier_check check (octet_length(verifier_ciphertext) > 0),
     constraint oidc_login_attempt_return_path_check check (
         char_length(return_path) between 1 and 2048

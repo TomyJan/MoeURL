@@ -185,6 +185,11 @@ func (s *ProviderService) Update(ctx context.Context, actor auth.CurrentUser, in
 		if input.ClientSecret.Value != "" {
 			return ProviderResult{}, ErrInvalidInput
 		}
+		if !current.Enabled && input.Enabled {
+			if _, err := s.secrets.Open(providerSecretPurpose, id.String(), ciphertext); err != nil {
+				return ProviderResult{}, ErrRuntimeUnavailable
+			}
+		}
 	case SecretSet:
 		if len(input.ClientSecret.Value) == 0 || len(input.ClientSecret.Value) > maxClientSecretBytes {
 			return ProviderResult{}, ErrInvalidInput

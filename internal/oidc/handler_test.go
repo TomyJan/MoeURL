@@ -18,7 +18,10 @@ import (
 
 // TestHandlerStartsOIDCLoginWithNoStoreRedirect verifies start responses are non-cacheable browser redirects.
 func TestHandlerStartsOIDCLoginWithNoStoreRedirect(t *testing.T) {
-	login := &loginPortStub{start: LoginStart{Location: "https://id.example.com/authorize"}}
+	login := &loginPortStub{start: LoginStart{
+		Location: "https://id.example.com/authorize", BrowserBinding: "browser-binding",
+		BindingCookieName: "moeurl_oidc_attempt", ExpiresAt: time.Now().Add(loginAttemptTTL),
+	}}
 	handler := NewHandler(&providerPortStub{}, login, false, nil)
 	router := chi.NewRouter()
 	router.Get("/auth/oidc/{providerKey}/start", handler.Start)
@@ -30,6 +33,10 @@ func TestHandlerStartsOIDCLoginWithNoStoreRedirect(t *testing.T) {
 	if response.Header().Get("Cache-Control") != "no-store" || login.providerKey != "company" || login.returnPath != "/analytics" {
 		t.Fatalf("start metadata = cache %q provider %q return %q", response.Header().Get("Cache-Control"), login.providerKey, login.returnPath)
 	}
+	cookies := response.Result().Cookies()
+	if len(cookies) != 1 || cookies[0].Name != login.start.BindingCookieName || cookies[0].Value != login.start.BrowserBinding || cookies[0].Path != "/api/v1/auth/oidc/company/callback" || !cookies[0].HttpOnly || cookies[0].SameSite != http.SameSiteLaxMode {
+		t.Fatalf("start cookies = %#v", cookies)
+	}
 }
 
 // TestHandlerCompletesOIDCLoginWithSessionCookie verifies callback redirects only to the stored local path.
@@ -40,13 +47,18 @@ func TestHandlerCompletesOIDCLoginWithSessionCookie(t *testing.T) {
 	router := chi.NewRouter()
 	router.Get("/auth/oidc/{providerKey}/callback", handler.Callback)
 	response := httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/auth/oidc/company/callback?code=secret-code&state=secret-state", nil))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/auth/oidc/company/callback?code=secret-code&state=secret-state", nil)
+	request.AddCookie(&http.Cookie{Name: browserBindingCookieName("secret-state"), Value: "browser-binding"})
+	router.ServeHTTP(response, request)
 	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/console" {
 		t.Fatalf("callback response = status %d location %q", response.Code, response.Header().Get("Location"))
 	}
 	cookies := response.Result().Cookies()
-	if len(cookies) != 1 || cookies[0].Name != auth.SessionCookieName || cookies[0].Value != "session-id" || !cookies[0].HttpOnly || !cookies[0].Secure || cookies[0].SameSite != http.SameSiteLaxMode {
+	if len(cookies) != 2 || cookies[0].Name != browserBindingCookieName("secret-state") || cookies[0].MaxAge >= 0 || cookies[1].Name != auth.SessionCookieName || cookies[1].Value != "session-id" || !cookies[1].HttpOnly || !cookies[1].Secure || cookies[1].SameSite != http.SameSiteLaxMode {
 		t.Fatalf("callback cookies = %#v", cookies)
+	}
+	if login.browserBinding != "browser-binding" {
+		t.Fatalf("callback browser binding = %q", login.browserBinding)
 	}
 	if response.Header().Get("Cache-Control") != "no-store" {
 		t.Fatalf("callback Cache-Control = %q", response.Header().Get("Cache-Control"))
@@ -95,13 +107,19 @@ func TestHandlerMapsBrowserLoginFailures(t *testing.T) {
 			router := chi.NewRouter()
 			router.Get("/auth/oidc/{providerKey}/callback", handler.Callback)
 			response := httptest.NewRecorder()
-			router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/auth/oidc/company/callback?code=secret-code&state=secret-state", nil))
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/auth/oidc/company/callback?code=secret-code&state=secret-state", nil)
+			request.AddCookie(&http.Cookie{Name: browserBindingCookieName("secret-state"), Value: "browser-binding"})
+			router.ServeHTTP(response, request)
 
 			if response.Code != http.StatusSeeOther || response.Header().Get("Location") != test.location {
 				t.Fatalf("callback failure = status %d location %q", response.Code, response.Header().Get("Location"))
 			}
 			if strings.Contains(logs.String(), "secret-code") || strings.Contains(logs.String(), "secret-state") {
 				t.Fatalf("callback log exposed query secret: %s", logs.String())
+			}
+			cookies := response.Result().Cookies()
+			if len(cookies) != 1 || cookies[0].Name != browserBindingCookieName("secret-state") || cookies[0].MaxAge >= 0 {
+				t.Fatalf("failed callback did not clear browser binding: %#v", cookies)
 			}
 		})
 	}
@@ -205,12 +223,13 @@ func TestHandlerFallsBackWhenJSONEncodingFails(t *testing.T) {
 }
 
 type loginPortStub struct {
-	start       LoginStart
-	startErr    error
-	callback    LoginCallback
-	callbackErr error
-	providerKey string
-	returnPath  string
+	start          LoginStart
+	startErr       error
+	callback       LoginCallback
+	callbackErr    error
+	providerKey    string
+	returnPath     string
+	browserBinding string
 }
 
 func (s *loginPortStub) Start(_ context.Context, providerKey string, returnPath string) (LoginStart, error) {
@@ -218,7 +237,9 @@ func (s *loginPortStub) Start(_ context.Context, providerKey string, returnPath 
 	return s.start, s.startErr
 }
 
-func (s *loginPortStub) Callback(context.Context, string, string, string) (LoginCallback, error) {
+// Callback captures the browser binding passed by the HTTP handler.
+func (s *loginPortStub) Callback(_ context.Context, _ string, _ string, _ string, browserBinding string) (LoginCallback, error) {
+	s.browserBinding = browserBinding
 	return s.callback, s.callbackErr
 }
 

@@ -199,11 +199,11 @@ MoeURL 当前技术栈固定为：
 ## v0.7.0 OIDC 登录实施规则
 
 - v0.7.0 实现数据库管理的多提供商 OIDC 登录，不实现禁用本地登录、账号自动合并、组映射、SAML、LDAP、SCIM 或 Passkey。
-- OIDC 使用 Authorization Code Flow、PKCE S256、随机 state 与 nonce；Discovery、Token 交换和 ID Token 签名、Issuer、Audience、时间校验必须由成熟协议库完成。
-- state 只保存 SHA-256 摘要并通过单条删除查询消费一次；PKCE verifier 与 provider Client Secret 使用 `MOEURL_OIDC_ENCRYPTION_KEY` 对应的 AES-256-GCM 密钥加密。
+- OIDC 使用 Authorization Code Flow、PKCE S256、随机 state 与 nonce；Discovery、Token 交换和 ID Token 签名、Issuer、唯一 Audience、可选 `azp`、时间校验必须由成熟协议库完成。
+- state 和浏览器关联令牌只保存 SHA-256 摘要；state 通过单条删除查询消费一次，callback 必须校验短期、窄路径、`HttpOnly` 浏览器关联 Cookie。PKCE verifier 与 provider Client Secret 使用 `MOEURL_OIDC_ENCRYPTION_KEY` 对应的 AES-256-GCM 密钥加密。
 - `MOEURL_PUBLIC_BASE_URL` 与 OIDC 加密密钥必须成对配置。production 只接受无用户信息、路径、查询和片段的 HTTPS Origin；development 仅对回环 HTTP 放宽。
 - 外部身份只按 `(provider_id, subject)` 绑定本地用户，不按邮箱自动连接既有账号。首次供应必须有已验证邮箱并精确匹配 IDNA 规范化后的域名白名单，且固定进入内置 `user` 组。
-- provider 管理受 `admin:access` 保护，列表不得返回 Secret。更新使用 `updated_at` 乐观并发；停用不得依赖上游 Discovery 可用，重新启用或修改协议运行参数必须重新 Discovery。
+- provider 管理受 `admin:access` 保护，列表不得返回 Secret。更新使用 `updated_at` 乐观并发；停用不得依赖上游 Discovery 可用，重新启用或修改协议运行参数必须重新 Discovery，使用保留 Secret 重新启用时必须验证密文可解密。应用启动时必须验证全部已启用 provider 的运行配置和密文。
 - OIDC 成功后复用现有 `moeurl_session`、用户禁用检查和数据库权限解析，不建立第二套会话或授权模型。
 - 回调日志和响应不得包含 Client Secret、authorization code、access/refresh/ID Token、state、nonce、verifier、subject、email、完整查询或上游响应正文。
 - 数据库备份必须配套独立保护的 OIDC 加密密钥；`00012 Down` 在存在 external identity 时必须安全失败，禁止丢失绑定。

@@ -111,13 +111,15 @@ let loadedProviderUpdatedAt = ''
 
 type ProviderDraft = typeof draft
 type ProviderValues = Pick<ProviderDraft, 'key' | 'displayName' | 'issuerUrl' | 'clientId' | 'clientSecret' | 'allowedDomains' | 'enabled'>
+type ProviderMutationValues = Omit<ProviderValues, 'clientSecret'>
 type ProviderOperation =
-  | { type: 'create'; values: ProviderValues }
-  | { type: 'update'; provider: OIDCProvider; values: ProviderValues }
+  | { type: 'create'; values: ProviderMutationValues }
+  | { type: 'update'; provider: OIDCProvider; values: ProviderMutationValues }
   | { type: 'delete'; provider: OIDCProvider }
 type ProviderMutationResult =
   | { type: 'saved'; provider: OIDCProvider }
   | { type: 'delete'; providerID: string }
+const pendingClientSecrets = new WeakMap<object, string>()
 
 const mutation = useMutation({
   retry: false,
@@ -127,15 +129,16 @@ const mutation = useMutation({
       return { type: 'delete', providerID: operation.provider.id }
     }
     const values = operation.values
+    const clientSecret = pendingClientSecrets.get(operation) ?? ''
     const allowedEmailDomains = splitDomains(values.allowedDomains)
     if (operation.type === 'create') {
-      const result = await createOIDCProvider({ key: values.key.trim(), displayName: values.displayName.trim(), issuerUrl: values.issuerUrl.trim(), clientId: values.clientId.trim(), clientSecret: values.clientSecret, allowedEmailDomains, enabled: values.enabled })
+      const result = await createOIDCProvider({ key: values.key.trim(), displayName: values.displayName.trim(), issuerUrl: values.issuerUrl.trim(), clientId: values.clientId.trim(), clientSecret, allowedEmailDomains, enabled: values.enabled })
       return { type: 'saved', provider: result.provider }
     }
     const result = await updateOIDCProvider({
       id: operation.provider.id,
       displayName: values.displayName.trim(), issuerUrl: values.issuerUrl.trim(), clientId: values.clientId.trim(),
-      clientSecret: values.clientSecret ? { mode: 'set', value: values.clientSecret } : { mode: 'preserve' },
+      clientSecret: clientSecret ? { mode: 'set', value: clientSecret } : { mode: 'preserve' },
       allowedEmailDomains, enabled: values.enabled, expectedUpdatedAt: operation.provider.updatedAt,
     })
     return { type: 'saved', provider: result.provider }
@@ -183,6 +186,9 @@ const mutation = useMutation({
         suspendedDraftSync.delete(providerID)
       }
     }
+  },
+  onSettled(_data, _error, operation) {
+    pendingClientSecrets.delete(operation)
   },
 })
 
@@ -235,9 +241,16 @@ function save() {
     return
   }
   feedback.value = ''
-  const values = { ...draft }
-  if (creating.value) mutation.mutate({ type: 'create', values })
-  else if (selectedProvider.value) mutation.mutate({ type: 'update', provider: selectedProvider.value, values })
+  const { clientSecret, ...values } = draft
+  if (creating.value) {
+    const operation: ProviderOperation = { type: 'create', values: { ...values } }
+    pendingClientSecrets.set(operation, clientSecret)
+    mutation.mutate(operation)
+  } else if (selectedProvider.value) {
+    const operation: ProviderOperation = { type: 'update', provider: selectedProvider.value, values: { ...values } }
+    if (clientSecret) pendingClientSecrets.set(operation, clientSecret)
+    mutation.mutate(operation)
+  }
 }
 
 function confirmDelete() {

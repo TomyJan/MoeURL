@@ -188,6 +188,37 @@ func TestProviderServiceAllowsDisablingWithoutDiscovery(t *testing.T) {
 	}
 }
 
+// TestProviderServiceRejectsEnablingWithUnavailablePreservedSecret verifies re-enabling cannot publish an unusable provider.
+func TestProviderServiceRejectsEnablingWithUnavailablePreservedSecret(t *testing.T) {
+	row := testProviderRow()
+	row.Enabled = false
+	providerID := uuidString(row.ID)
+	originalBox := testSecretBox(t)
+	ciphertext, err := originalBox.Seal(providerSecretPurpose, providerID, []byte("client-secret"))
+	if err != nil {
+		t.Fatalf("seal provider secret: %v", err)
+	}
+	row.ClientSecretCiphertext = ciphertext
+	store := &providerStoreStub{provider: row}
+	wrongBox, err := NewSecretBox(base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{8}, 32)))
+	if err != nil {
+		t.Fatalf("create wrong secret box: %v", err)
+	}
+	service := newProviderService(store, permission.NewService(), &discovererStub{metadata: testDiscoveryMetadata()}, wrongBox, "https://links.example.com", false)
+
+	_, err = service.Update(t.Context(), adminActor(), UpdateProviderInput{
+		ID: providerID, DisplayName: row.DisplayName, IssuerURL: row.IssuerUrl, ClientID: row.ClientID,
+		ClientSecret: SecretChange{Mode: SecretPreserve}, AllowedEmailDomains: []string{"example.com"}, Enabled: true,
+		ExpectedUpdatedAt: row.UpdatedAt.Time.Format(time.RFC3339Nano),
+	})
+	if !errors.Is(err, ErrRuntimeUnavailable) {
+		t.Fatalf("enable provider error = %v, want ErrRuntimeUnavailable", err)
+	}
+	if store.updated.ID.Valid {
+		t.Fatalf("unavailable provider reached persistence: %#v", store.updated)
+	}
+}
+
 // TestProviderServiceFailsClosedForMissingPermissionsAndStoreErrors verifies administrative reads never fall back open.
 func TestProviderServiceFailsClosedForMissingPermissionsAndStoreErrors(t *testing.T) {
 	store := &providerStoreStub{}

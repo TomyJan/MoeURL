@@ -55,9 +55,12 @@ type RuntimeProvider struct {
 	AllowedEmailDomains   []string
 }
 
-// LoginStart contains the trusted upstream authorization location.
+// LoginStart contains the trusted upstream location and short-lived browser correlation data.
 type LoginStart struct {
-	Location string
+	Location          string
+	BrowserBinding    string
+	BindingCookieName string
+	ExpiresAt         time.Time
 }
 
 // LoginCallback contains the local session and validated return path.
@@ -144,8 +147,13 @@ func (s *LoginService) Start(ctx context.Context, providerKey string, returnPath
 	if err != nil {
 		return LoginStart{}, ErrLoginFailed
 	}
+	browserBinding, err := s.randomToken()
+	if err != nil {
+		return LoginStart{}, ErrLoginFailed
+	}
 	stateHash := sha256.Sum256([]byte(state))
 	nonceHash := sha256.Sum256([]byte(nonce))
+	browserBindingHash := sha256.Sum256([]byte(browserBinding))
 	recordID := base64.RawURLEncoding.EncodeToString(stateHash[:])
 	ciphertext, err := s.secrets.Seal(loginVerifierPurpose, recordID, []byte(verifier))
 	if err != nil {
@@ -154,33 +162,41 @@ func (s *LoginService) Start(ctx context.Context, providerKey string, returnPath
 	if !isSafeReturnPath(returnPath) {
 		returnPath = defaultOIDCReturnPath
 	}
+	expiresAt := s.now().Add(loginAttemptTTL)
 	err = s.store.CreateOIDCLoginAttempt(ctx, sqlc.CreateOIDCLoginAttemptParams{
-		StateHash: stateHash[:], ProviderID: provider.ID, NonceHash: nonceHash[:],
+		StateHash: stateHash[:], ProviderID: provider.ID, NonceHash: nonceHash[:], BrowserBindingHash: browserBindingHash[:],
 		VerifierCiphertext: ciphertext, ReturnPath: returnPath,
-		ExpiresAt: pgtype.Timestamptz{Time: s.now().Add(loginAttemptTTL), Valid: true},
+		ExpiresAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},
 	})
 	if err != nil {
 		return LoginStart{}, err
 	}
 	challengeHash := sha256.Sum256([]byte(verifier))
 	location := s.protocol.AuthorizationURL(provider, s.callbackURL(provider.Key), state, nonce, base64.RawURLEncoding.EncodeToString(challengeHash[:]))
-	return LoginStart{Location: location}, nil
+	return LoginStart{
+		Location: location, BrowserBinding: browserBinding, BindingCookieName: browserBindingCookieName(state),
+		ExpiresAt: expiresAt,
+	}, nil
 }
 
 // Callback consumes one state before exchanging the code and creating a local session.
-func (s *LoginService) Callback(ctx context.Context, providerKey string, code string, state string) (LoginCallback, error) {
+func (s *LoginService) Callback(ctx context.Context, providerKey string, code string, state string, browserBinding string) (LoginCallback, error) {
 	if !acquireLoginSlot(s.callbackSlots) {
 		return LoginCallback{}, ErrLoginFailed
 	}
 	defer releaseLoginSlot(s.callbackSlots)
 	ctx, cancel := context.WithTimeout(ctx, loginOperationTimeout)
 	defer cancel()
-	if state == "" || code == "" {
+	if state == "" {
 		return LoginCallback{}, ErrLoginFailed
 	}
 	stateHash := sha256.Sum256([]byte(state))
 	attempt, err := s.store.ConsumeOIDCLoginAttempt(ctx, stateHash[:])
 	if err != nil {
+		return LoginCallback{}, ErrLoginFailed
+	}
+	browserBindingHash := sha256.Sum256([]byte(browserBinding))
+	if code == "" || browserBinding == "" || len(attempt.BrowserBindingHash) != sha256.Size || subtle.ConstantTimeCompare(attempt.BrowserBindingHash, browserBindingHash[:]) != 1 {
 		return LoginCallback{}, ErrLoginFailed
 	}
 	provider, err := s.loadProvider(ctx, providerKey)
@@ -211,25 +227,62 @@ func (s *LoginService) Callback(ctx context.Context, providerKey string, code st
 	return LoginCallback{Session: session, ReturnPath: attempt.ReturnPath}, nil
 }
 
+// browserBindingCookieName derives a collision-resistant cookie name for one state value.
+func browserBindingCookieName(state string) string {
+	digest := sha256.Sum256([]byte(state))
+	return "moeurl_oidc_" + base64.RawURLEncoding.EncodeToString(digest[:12])
+}
+
 // loadProvider decrypts one enabled provider into a request-scoped runtime value.
 func (s *LoginService) loadProvider(ctx context.Context, providerKey string) (RuntimeProvider, error) {
 	row, err := s.store.GetEnabledOIDCProviderByKey(ctx, providerKey)
 	if err != nil || !row.ID.Valid {
 		return RuntimeProvider{}, ErrProviderNotFound
 	}
-	id := uuid.UUID(row.ID.Bytes).String()
-	secret, err := s.secrets.Open(providerSecretPurpose, id, row.ClientSecretCiphertext)
-	if err != nil {
-		return RuntimeProvider{}, err
+	return runtimeProviderFromRow(row, s.secrets, true)
+}
+
+// ValidateEnabledProviderRuntime ensures every publicly advertised provider can be used with the active runtime key.
+func ValidateEnabledProviderRuntime(rows []sqlc.OidcProvider, secrets *SecretBox, allowInsecureLoopback bool) error {
+	for _, row := range rows {
+		if _, err := runtimeProviderFromRow(row, secrets, allowInsecureLoopback); err != nil {
+			return ErrRuntimeUnavailable
+		}
+	}
+	return nil
+}
+
+// runtimeProviderFromRow validates and decrypts one persisted provider without exposing its secret on failure.
+func runtimeProviderFromRow(row sqlc.OidcProvider, secrets *SecretBox, allowInsecureLoopback bool) (RuntimeProvider, error) {
+	if !row.ID.Valid {
+		return RuntimeProvider{}, ErrRuntimeUnavailable
 	}
 	var domains []string
 	if err := json.Unmarshal(row.AllowedEmailDomains, &domains); err != nil {
 		return RuntimeProvider{}, ErrRuntimeUnavailable
 	}
+	normalized, err := normalizeProviderInput(providerInput{
+		Key: row.Key, DisplayName: row.DisplayName, IssuerURL: row.IssuerUrl,
+		ClientID: row.ClientID, AllowedEmailDomains: domains,
+	}, allowInsecureLoopback)
+	if err != nil {
+		return RuntimeProvider{}, ErrRuntimeUnavailable
+	}
+	if err := validateDiscoveryMetadata(row.IssuerUrl, DiscoveryMetadata{
+		Issuer: row.IssuerUrl, AuthorizationEndpoint: row.AuthorizationEndpoint,
+		TokenEndpoint: row.TokenEndpoint, JWKSURI: row.JwksUri,
+	}, allowInsecureLoopback); err != nil {
+		return RuntimeProvider{}, ErrRuntimeUnavailable
+	}
+	id := uuid.UUID(row.ID.Bytes).String()
+	secret, err := secrets.Open(providerSecretPurpose, id, row.ClientSecretCiphertext)
+	if err != nil {
+		return RuntimeProvider{}, ErrSecretUnavailable
+	}
 	return RuntimeProvider{
-		ID: row.ID, Key: row.Key, DisplayName: row.DisplayName, IssuerURL: row.IssuerUrl,
-		ClientID: row.ClientID, ClientSecret: string(secret), AuthorizationEndpoint: row.AuthorizationEndpoint,
-		TokenEndpoint: row.TokenEndpoint, JWKSURI: row.JwksUri, AllowedEmailDomains: domains,
+		ID: row.ID, Key: normalized.Key, DisplayName: normalized.DisplayName, IssuerURL: normalized.IssuerURL,
+		ClientID: normalized.ClientID, ClientSecret: string(secret), AuthorizationEndpoint: row.AuthorizationEndpoint,
+		TokenEndpoint: row.TokenEndpoint, JWKSURI: row.JwksUri, AllowedEmailDomains: normalized.AllowedEmailDomains,
 	}, nil
 }
 

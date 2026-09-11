@@ -14,7 +14,7 @@ import (
 const consumeOIDCLoginAttempt = `-- name: ConsumeOIDCLoginAttempt :one
 delete from oidc_login_attempt
 where state_hash = $1
-returning state_hash, provider_id, nonce_hash, verifier_ciphertext, return_path, expires_at, created_at
+returning state_hash, provider_id, nonce_hash, browser_binding_hash, verifier_ciphertext, return_path, expires_at, created_at
 `
 
 func (q *Queries) ConsumeOIDCLoginAttempt(ctx context.Context, stateHash []byte) (OidcLoginAttempt, error) {
@@ -24,25 +24,13 @@ func (q *Queries) ConsumeOIDCLoginAttempt(ctx context.Context, stateHash []byte)
 		&i.StateHash,
 		&i.ProviderID,
 		&i.NonceHash,
+		&i.BrowserBindingHash,
 		&i.VerifierCiphertext,
 		&i.ReturnPath,
 		&i.ExpiresAt,
 		&i.CreatedAt,
 	)
 	return i, err
-}
-
-const countEnabledOIDCProviders = `-- name: CountEnabledOIDCProviders :one
-select count(*)
-from oidc_provider
-where enabled and deleted_at is null
-`
-
-func (q *Queries) CountEnabledOIDCProviders(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countEnabledOIDCProviders)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
 }
 
 const createExternalIdentity = `-- name: CreateExternalIdentity :exec
@@ -66,6 +54,7 @@ insert into oidc_login_attempt (
     state_hash,
     provider_id,
     nonce_hash,
+    browser_binding_hash,
     verifier_ciphertext,
     return_path,
     expires_at,
@@ -77,6 +66,7 @@ insert into oidc_login_attempt (
     $4,
     $5,
     $6,
+    $7,
     clock_timestamp()
 )
 `
@@ -85,6 +75,7 @@ type CreateOIDCLoginAttemptParams struct {
 	StateHash          []byte             `json:"state_hash"`
 	ProviderID         pgtype.UUID        `json:"provider_id"`
 	NonceHash          []byte             `json:"nonce_hash"`
+	BrowserBindingHash []byte             `json:"browser_binding_hash"`
 	VerifierCiphertext []byte             `json:"verifier_ciphertext"`
 	ReturnPath         string             `json:"return_path"`
 	ExpiresAt          pgtype.Timestamptz `json:"expires_at"`
@@ -95,6 +86,7 @@ func (q *Queries) CreateOIDCLoginAttempt(ctx context.Context, arg CreateOIDCLogi
 		arg.StateHash,
 		arg.ProviderID,
 		arg.NonceHash,
+		arg.BrowserBindingHash,
 		arg.VerifierCiphertext,
 		arg.ReturnPath,
 		arg.ExpiresAt,
@@ -341,6 +333,48 @@ func (q *Queries) GetOIDCProviderByID(ctx context.Context, id pgtype.UUID) (Oidc
 		&i.DeletedAt,
 	)
 	return i, err
+}
+
+const listEnabledOIDCProviderRuntime = `-- name: ListEnabledOIDCProviderRuntime :many
+select id, key, display_name, issuer_url, client_id, client_secret_ciphertext, authorization_endpoint, token_endpoint, jwks_uri, allowed_email_domains, enabled, created_at, updated_at, deleted_at
+from oidc_provider
+where enabled and deleted_at is null
+order by key
+`
+
+func (q *Queries) ListEnabledOIDCProviderRuntime(ctx context.Context) ([]OidcProvider, error) {
+	rows, err := q.db.Query(ctx, listEnabledOIDCProviderRuntime)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []OidcProvider{}
+	for rows.Next() {
+		var i OidcProvider
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.DisplayName,
+			&i.IssuerUrl,
+			&i.ClientID,
+			&i.ClientSecretCiphertext,
+			&i.AuthorizationEndpoint,
+			&i.TokenEndpoint,
+			&i.JwksUri,
+			&i.AllowedEmailDomains,
+			&i.Enabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listEnabledOIDCProviders = `-- name: ListEnabledOIDCProviders :many
