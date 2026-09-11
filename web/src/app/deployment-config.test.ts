@@ -235,6 +235,24 @@ describe('deployment configuration', () => {
     expect(deploymentGuide).toContain('不得将未重定向的配置输出记录到终端、CI 日志或工单')
   })
 
+  it('rate limits OIDC browser endpoints and excludes callback queries from proxy logs', () => {
+    const deploymentGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/single-host-compose.md'),
+      'utf8',
+    )
+
+    expect(deploymentGuide).toContain('zone=moeurl_oidc_start:10m')
+    expect(deploymentGuide).toContain('zone=moeurl_oidc_callback:10m')
+    expect(deploymentGuide).toContain('limit_req zone=moeurl_oidc_start')
+    expect(deploymentGuide).toContain('limit_req zone=moeurl_oidc_callback')
+    expect(deploymentGuide).toContain('GET /api/v1/auth/oidc/*/start')
+    expect(deploymentGuide).toContain('GET /api/v1/auth/oidc/*/callback')
+    expect(deploymentGuide).toContain('log_format moeurl_path_only')
+    expect(deploymentGuide).toContain('$request_method $uri $server_protocol')
+    expect(deploymentGuide).toContain('access_log /var/log/nginx/access.log moeurl_path_only;')
+    expect(deploymentGuide).toContain('OIDC callback 的访问日志不得记录查询参数')
+  })
+
   it('anchors README production Compose commands to the deployment helper', () => {
     const readme = readFileSync(resolve(repositoryRoot, 'README.md'), 'utf8')
     const dockerSection = readme.slice(

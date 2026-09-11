@@ -6,7 +6,7 @@
         <h1>{{ t('oidc.title') }}</h1>
         <span>{{ t('oidc.description') }}</span>
       </div>
-      <v-btn color="primary" prepend-icon="mdi-plus" @click="beginCreate">{{ t('oidc.addProvider') }}</v-btn>
+      <v-btn color="primary" prepend-icon="mdi-plus" :disabled="mutation.isPending.value" @click="beginCreate">{{ t('oidc.addProvider') }}</v-btn>
     </header>
 
     <v-progress-linear v-if="query.isPending.value" indeterminate />

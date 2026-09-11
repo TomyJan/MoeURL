@@ -173,6 +173,27 @@ describe('AdminAuthenticationPage', () => {
     expect(screen.getByText('oidc.saveSuccess')).toBeTruthy()
   })
 
+  it('prevents starting another provider draft while a create request is pending', async () => {
+    const request = deferred<{ provider: OIDCProvider }>()
+    vi.mocked(createOIDCProvider).mockReturnValue(request.promise)
+    mountPage()
+    const addProvider = screen.getByRole('button', { name: 'oidc.addProvider' }) as HTMLButtonElement
+
+    await fireEvent.click(addProvider)
+    await fireEvent.update(screen.getByLabelText('oidc.key'), 'new-team')
+    await fireEvent.update(screen.getByLabelText('oidc.displayName'), 'Pending provider')
+    await fireEvent.update(screen.getByLabelText('oidc.issuerUrl'), 'https://team.example.com')
+    await fireEvent.update(screen.getByLabelText('oidc.clientId'), 'client')
+    await fireEvent.update(screen.getByLabelText('oidc.clientSecret'), 'top-secret')
+    await fireEvent.update(screen.getByLabelText('oidc.allowedDomains'), 'example.com')
+    await fireEvent.click(screen.getByRole('button', { name: 'oidc.save' }))
+
+    await waitFor(() => expect(createOIDCProvider).toHaveBeenCalledOnce())
+    expect(addProvider.disabled).toBe(true)
+    request.resolve({ provider: { ...team, key: 'new-team', displayName: 'Pending provider' } })
+    await waitFor(() => expect(addProvider.disabled).toBe(false))
+  })
+
   it('creates into an initially empty query cache and ignores refreshes while drafting', async () => {
     state.queryData.value = undefined
     vi.mocked(createOIDCProvider).mockResolvedValue({ provider: company })

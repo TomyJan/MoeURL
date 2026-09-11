@@ -137,7 +137,7 @@ curl --fail --silent --show-error --connect-timeout 2 --max-time 5 https://go.ex
 https://<公网域名>/api/v1/auth/oidc/<provider-key>/callback
 ```
 
-反向代理必须保留外部 HTTPS 地址语义，且不得把 OIDC callback 的查询参数写入公开工单或调试日志。MoeURL 只使用配置的公共地址生成 callback，不信任请求 `Host`。加密密钥不得在线随意轮换；丢失或更换后，既有 Client Secret 无法解密，必须停用 provider 并用受控流程重新录入。数据库恢复时必须同时恢复原加密密钥，详见 [PostgreSQL 备份与隔离恢复](backup-and-restore.md)。
+反向代理必须保留外部 HTTPS 地址语义。OIDC callback 的访问日志不得记录查询参数，公开工单和调试日志同样不得包含 `code` 或 `state`；只记录请求方法、路径、状态码和必要的运维字段。MoeURL 只使用配置的公共地址生成 callback，不信任请求 `Host`。加密密钥不得在线随意轮换；丢失或更换后，既有 Client Secret 无法解密，必须停用 provider 并用受控流程重新录入。数据库恢复时必须同时恢复原加密密钥，详见 [PostgreSQL 备份与隔离恢复](backup-and-restore.md)。
 
 ## 5. 外部 TLS 反向代理
 
@@ -159,6 +159,8 @@ go.example.com {
 
 Caddy 标准发行版不提供通用请求限流指令。公网部署必须在到达 Caddy 前使用受信边缘代理或防火墙实施本节 5.4 的来源级限流，或者使用经过固定版本、审查和升级验证的限流模块。不能因为使用 Caddy 而省略限流。
 
+若启用 Caddy 或上游边缘代理的访问日志，必须为 OIDC callback 删除查询参数或使用只记录路径的日志字段，确认导出的日志不包含 `code` 和 `state` 后才可接入集中日志系统。
+
 只有在该域名及其所有子域都长期强制 HTTPS 后才启用示例中的 `includeSubDomains`；否则应先使用不包含该参数的 HSTS 策略。
 
 ### 5.2 Nginx
@@ -169,6 +171,9 @@ Caddy 标准发行版不提供通用请求限流指令。公网部署必须在�
 limit_req_zone $binary_remote_addr zone=moeurl_login:10m rate=5r/m;
 limit_req_zone $binary_remote_addr zone=moeurl_setup:10m rate=2r/m;
 limit_req_zone $binary_remote_addr zone=moeurl_unlock:10m rate=10r/m;
+limit_req_zone $binary_remote_addr zone=moeurl_oidc_start:10m rate=10r/m;
+limit_req_zone $binary_remote_addr zone=moeurl_oidc_callback:10m rate=10r/m;
+log_format moeurl_path_only '$remote_addr [$time_local] "$request_method $uri $server_protocol" $status $body_bytes_sent';
 ```
 
 站点配置示例使用 Nginx 1.25.1 及更高版本的独立 HTTP/2 指令：
@@ -198,6 +203,19 @@ server {
 
     location ~ ^/go/[^/]+/unlock$ {
         limit_req zone=moeurl_unlock burst=10 nodelay;
+        proxy_pass http://127.0.0.1:8080;
+        include /etc/nginx/snippets/moeurl-proxy-headers.conf;
+    }
+
+    location ~ ^/api/v1/auth/oidc/[^/]+/start$ {
+        limit_req zone=moeurl_oidc_start burst=10 nodelay;
+        proxy_pass http://127.0.0.1:8080;
+        include /etc/nginx/snippets/moeurl-proxy-headers.conf;
+    }
+
+    location ~ ^/api/v1/auth/oidc/[^/]+/callback$ {
+        limit_req zone=moeurl_oidc_callback burst=10 nodelay;
+        access_log /var/log/nginx/access.log moeurl_path_only;
         proxy_pass http://127.0.0.1:8080;
         include /etc/nginx/snippets/moeurl-proxy-headers.conf;
     }
@@ -246,8 +264,10 @@ map $geoip2_data_country_code $moeurl_country_code {
 - `POST /api/v1/auth/login`
 - `POST /api/v1/init/setup`
 - `POST /go/*/unlock`
+- `GET /api/v1/auth/oidc/*/start`
+- `GET /api/v1/auth/oidc/*/callback`
 
-应用内账号级登录保护和短链级密码保护不能替代来源级限流。限额应根据正常用户流量调整，并对 HTTP `429`、异常峰值和代理错误率建立监控。
+应用内账号级登录保护、短链级密码保护和 OIDC 进程并发槽位不能替代来源级限流。限额应根据正常用户流量调整，并对 HTTP `429`、异常峰值和代理错误率建立监控。
 
 ## 6. 日常操作与开发覆盖
 
