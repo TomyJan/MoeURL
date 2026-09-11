@@ -4,9 +4,12 @@ import { apiGet, apiPost } from '@/shared/api/client'
 
 const providerKeySchema = z.string().regex(/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/)
 const loginProviderSchema = z.object({ key: providerKeySchema, displayName: z.string().min(1).max(100) }).strict()
+const domainLabelPattern = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
+const emailDomainSchema = z.string().max(253).refine(isCanonicalEmailDomain)
+const emailDomainsSchema = z.array(emailDomainSchema).min(1).max(100).refine((domains) => hasUniqueValues(domains))
 const loginMethodsSchema = z.object({
   local: z.object({ enabled: z.boolean() }).strict(),
-  oidc: z.array(loginProviderSchema),
+  oidc: z.array(loginProviderSchema).refine((providers) => hasUniqueValues(providers.map((provider) => provider.key))),
 }).strict()
 const providerSchema = z.object({
   id: z.uuid(),
@@ -15,12 +18,17 @@ const providerSchema = z.object({
   issuerUrl: z.url(),
   clientId: z.string().min(1).max(512),
   clientSecretConfigured: z.boolean(),
-  allowedEmailDomains: z.array(z.string().min(1)).min(1),
+  allowedEmailDomains: emailDomainsSchema,
   enabled: z.boolean(),
   callbackUrl: z.url(),
   updatedAt: z.iso.datetime({ offset: true }),
 }).strict()
-const providerListSchema = z.object({ providers: z.array(providerSchema) }).strict()
+const providerListSchema = z.object({
+  providers: z.array(providerSchema).refine((providers) => (
+    hasUniqueValues(providers.map((provider) => provider.id))
+    && hasUniqueValues(providers.map((provider) => provider.key))
+  )),
+}).strict()
 const providerResultSchema = z.object({ provider: providerSchema }).strict()
 const deleteProviderResultSchema = z.object({ deleted: z.literal(true) }).strict()
 
@@ -46,6 +54,17 @@ export interface UpdateOIDCProviderInput {
   allowedEmailDomains: string[]
   enabled: boolean
   expectedUpdatedAt: string
+}
+
+function hasUniqueValues(values: string[]): boolean {
+  return new Set(values).size === values.length
+}
+
+function isCanonicalEmailDomain(value: string): boolean {
+  const labels = value.split('.')
+  if (!labels.every((label) => domainLabelPattern.test(label))) return false
+  if (labels.length !== 4 || !labels.every((label) => /^\d+$/.test(label))) return true
+  return labels.some((label) => Number(label) > 255)
 }
 
 /** Loads currently available authentication methods without caching secrets or configuration. */

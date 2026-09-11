@@ -13,11 +13,36 @@ import {
 
 vi.mock('@/shared/api/client', () => ({ apiGet: vi.fn(), apiPost: vi.fn() }))
 
+const provider = {
+  id: '00000000-0000-4000-8000-000000000701',
+  key: 'company',
+  displayName: 'Company SSO',
+  issuerUrl: 'https://id.example.com',
+  clientId: 'moeurl',
+  clientSecretConfigured: true,
+  allowedEmailDomains: ['example.com'],
+  enabled: true,
+  callbackUrl: 'https://links.example.com/api/v1/auth/oidc/company/callback',
+  updatedAt: '2026-09-11T00:00:00Z',
+}
+
 describe('OIDC API', () => {
   it('accepts only the public login-method projection', async () => {
     vi.mocked(apiGet).mockResolvedValue({ code: 0, message: 'OK', meta: {}, data: { local: { enabled: true }, oidc: [{ key: 'company', displayName: 'Company SSO' }] } })
     await expect(getLoginMethods()).resolves.toEqual({ local: { enabled: true }, oidc: [{ key: 'company', displayName: 'Company SSO' }] })
     vi.mocked(apiGet).mockResolvedValue({ code: 0, message: 'OK', meta: {}, data: { local: { enabled: true }, oidc: [{ key: 'company', displayName: 'Company', issuerUrl: 'https://secret.example' }] } })
+    await expect(getLoginMethods()).rejects.toBeTruthy()
+  })
+
+  it('rejects duplicate public login providers', async () => {
+    const duplicate = { key: 'company', displayName: 'Duplicate Company SSO' }
+    vi.mocked(apiGet).mockResolvedValue({
+      code: 0,
+      message: 'OK',
+      meta: {},
+      data: { local: { enabled: true }, oidc: [{ key: 'company', displayName: 'Company SSO' }, duplicate] },
+    })
+
     await expect(getLoginMethods()).rejects.toBeTruthy()
   })
 
@@ -27,18 +52,6 @@ describe('OIDC API', () => {
   })
 
   it('uses the versioned administrator endpoints and parses secret-free providers', async () => {
-    const provider = {
-      id: '00000000-0000-4000-8000-000000000701',
-      key: 'company',
-      displayName: 'Company SSO',
-      issuerUrl: 'https://id.example.com',
-      clientId: 'moeurl',
-      clientSecretConfigured: true,
-      allowedEmailDomains: ['example.com'],
-      enabled: true,
-      callbackUrl: 'https://links.example.com/api/v1/auth/oidc/company/callback',
-      updatedAt: '2026-09-11T00:00:00Z',
-    }
     vi.mocked(apiGet).mockResolvedValue({ code: 0, message: 'OK', meta: {}, data: { providers: [provider] } })
     await expect(listOIDCProviders()).resolves.toEqual({ providers: [provider] })
     expect(apiGet).toHaveBeenLastCalledWith('/admin/oidc/provider/list')
@@ -70,5 +83,17 @@ describe('OIDC API', () => {
     await expect(listOIDCProviders()).rejects.toBeTruthy()
     vi.mocked(apiPost).mockResolvedValue({ code: 0, message: 'OK', meta: {}, data: { deleted: false } })
     await expect(deleteOIDCProvider({ id: '00000000-0000-4000-8000-000000000701', expectedUpdatedAt: '2026-09-11T00:00:00Z' })).rejects.toBeTruthy()
+  })
+
+  it.each([
+    ['an invalid domain', [{ ...provider, allowedEmailDomains: ['bad_label.example'] }]],
+    ['an IP address instead of a domain', [{ ...provider, allowedEmailDomains: ['127.0.0.1'] }]],
+    ['duplicate domains', [{ ...provider, allowedEmailDomains: ['example.com', 'example.com'] }]],
+    ['a duplicate provider ID', [provider, { ...provider, key: 'team', displayName: 'Team SSO' }]],
+    ['a duplicate provider key', [provider, { ...provider, id: '00000000-0000-4000-8000-000000000702', displayName: 'Duplicate Company SSO' }]],
+  ])('rejects provider lists containing %s', async (_name, providers) => {
+    vi.mocked(apiGet).mockResolvedValue({ code: 0, message: 'OK', meta: {}, data: { providers } })
+
+    await expect(listOIDCProviders()).rejects.toBeTruthy()
   })
 })
