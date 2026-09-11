@@ -170,7 +170,7 @@ const navGroups = computed<ConsoleNavGroup[]>(() => {
             { labelKey: 'nav.userGroups', level: 2, to: '/admin/user/group' },
           ],
         },
-        { labelKey: 'nav.settings', planned: true, to: '/admin/setting' },
+        { labelKey: 'nav.settings', to: '/admin/setting' },
       ],
     })
   }

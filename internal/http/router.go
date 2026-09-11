@@ -9,6 +9,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/event"
 	"github.com/TomyJan/MoeURL/internal/middleware"
+	"github.com/TomyJan/MoeURL/internal/oidc"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/system"
 	"github.com/TomyJan/MoeURL/internal/user"
@@ -29,6 +30,8 @@ type Dependencies struct {
 	SecureCookies          bool
 	User                   user.Port
 	UserGroup              usergroup.Port
+	OIDCProvider           oidc.ProviderPort
+	OIDCLogin              oidc.LoginPort
 	StaticDir              string
 }
 
@@ -60,6 +63,15 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 		api.Get("/health/live", healthHandler.Live)
 		api.Get("/health/ready", healthHandler.Ready)
 		api.Get("/health", healthHandler.Ready)
+
+		if dependency.OIDCProvider != nil {
+			oidcHandler := oidc.NewHandler(dependency.OIDCProvider, dependency.OIDCLogin, dependency.SecureCookies, logger)
+			api.With(middleware.NoStore).Get("/auth/methods", oidcHandler.Methods)
+			if dependency.OIDCLogin != nil {
+				api.With(middleware.NoStore).Get("/auth/oidc/{providerKey}/start", oidcHandler.Start)
+				api.With(middleware.NoStore).Get("/auth/oidc/{providerKey}/callback", oidcHandler.Callback)
+			}
+		}
 
 		api.Group(func(businessAPI chi.Router) {
 			businessAPI.Use(middleware.NoStore)
@@ -103,6 +115,13 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				userGroupHandler := usergroup.NewHandler(dependency.UserGroup, logger)
 				businessAPI.Get("/admin/user-group/list", userGroupHandler.List)
 				businessAPI.Post("/admin/user-group/update-permissions", userGroupHandler.UpdatePermissions)
+			}
+			if dependency.OIDCProvider != nil {
+				oidcHandler := oidc.NewHandler(dependency.OIDCProvider, dependency.OIDCLogin, dependency.SecureCookies, logger)
+				businessAPI.Get("/admin/oidc/provider/list", oidcHandler.List)
+				businessAPI.Post("/admin/oidc/provider/create", oidcHandler.Create)
+				businessAPI.Post("/admin/oidc/provider/update", oidcHandler.Update)
+				businessAPI.Post("/admin/oidc/provider/delete", oidcHandler.Delete)
 			}
 
 			businessAPI.NotFound(func(w nethttp.ResponseWriter, r *nethttp.Request) {

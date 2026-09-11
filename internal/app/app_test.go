@@ -17,6 +17,7 @@ import (
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/config"
+	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/system"
@@ -29,6 +30,75 @@ const (
 	testSetupToken       = "0123456789abcdef0123456789abcdef"
 	testLifecycleTimeout = 5 * time.Second
 )
+
+type appRoundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f appRoundTripperFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return f(request)
+}
+
+// TestNewOIDCHTTPClientHandlesCustomDefaultTransport verifies host instrumentation cannot panic during startup.
+func TestNewOIDCHTTPClientHandlesCustomDefaultTransport(t *testing.T) {
+	original := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = original })
+	http.DefaultTransport = appRoundTripperFunc(func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("not called")
+	})
+
+	client := newOIDCHTTPClient()
+	if client == nil || client.Transport == nil || client.Timeout != 8*time.Second {
+		t.Fatalf("OIDC HTTP client = %#v", client)
+	}
+}
+
+// TestNewOIDCHTTPClientRejectsRedirects verifies validated OIDC endpoints cannot redirect sensitive requests elsewhere.
+func TestNewOIDCHTTPClientRejectsRedirects(t *testing.T) {
+	client := newOIDCHTTPClient()
+	request := httptest.NewRequest(http.MethodGet, "https://id.example.com/redirect", nil)
+	if err := client.CheckRedirect(request, nil); !errors.Is(err, http.ErrUseLastResponse) {
+		t.Fatalf("CheckRedirect error = %v, want %v", err, http.ErrUseLastResponse)
+	}
+}
+
+// TestAppExposesLocalAuthenticationMethodWithoutOIDCConfiguration verifies existing deployments retain local login.
+func TestAppExposesLocalAuthenticationMethodWithoutOIDCConfiguration(t *testing.T) {
+	application := newTestApplication(t)
+	response := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/auth/methods", nil))
+	var body struct {
+		Code int `json:"code"`
+		Data struct {
+			Local struct {
+				Enabled bool `json:"enabled"`
+			} `json:"local"`
+			OIDC []any `json:"oidc"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode authentication methods: %v", err)
+	}
+	if body.Code != 0 || !body.Data.Local.Enabled || len(body.Data.OIDC) != 0 {
+		t.Fatalf("authentication methods = %#v", body)
+	}
+}
+
+// TestAppRejectsEnabledOIDCProviderWithoutRuntimeConfiguration verifies startup fails closed.
+func TestAppRejectsEnabledOIDCProviderWithoutRuntimeConfiguration(t *testing.T) {
+	databaseURL := testdb.ProjectMigratedDatabaseURL(t.Context(), t)
+	pool, err := appdb.OpenPool(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("open provider fixture database: %v", err)
+	}
+	_, err = pool.Exec(t.Context(), `insert into oidc_provider (id, key, display_name, issuer_url, client_id, client_secret_ciphertext, authorization_endpoint, token_endpoint, jwks_uri, allowed_email_domains, enabled, created_at, updated_at) values ('00000000-0000-0000-0000-000000000701', 'company', 'Company', 'https://id.example.com', 'client', '\x01', 'https://id.example.com/auth', 'https://id.example.com/token', 'https://id.example.com/jwks', '["example.com"]', true, now(), now())`)
+	pool.Close()
+	if err != nil {
+		t.Fatalf("seed enabled provider: %v", err)
+	}
+	application, err := New(t.Context(), config.Config{Env: "development", HTTPAddr: ":0", DatabaseURL: databaseURL}, slog.Default())
+	if application != nil || err == nil || !strings.Contains(err.Error(), "enabled OIDC providers require") {
+		t.Fatalf("New = application %#v, error %v", application, err)
+	}
+}
 
 // TestAppNewRejectsInvalidPermissionCatalog verifies startup stops before dependency wiring when catalog validation fails.
 func TestAppNewRejectsInvalidPermissionCatalog(t *testing.T) {

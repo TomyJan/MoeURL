@@ -45,7 +45,7 @@ test -f "$DEPLOY_COMPOSE" && test -r "$DEPLOY_COMPOSE" || {
 
 `DEPLOY_PROJECT` 固定为本指南使用的生产 project 名；若现有部署使用其他名称，必须在维护窗口前统一修改该值并用容器的 `com.docker.compose.project` 标签核对，不能临时依赖目录名推导。后续命令必须在保留这些变量和 `production_compose` 函数的同一 Shell 会话中执行；重新登录后先重新执行本节初始化与校验。
 
-`.env` 包含数据库密码、完整数据库连接 URL 和初始化 Token，必须排除在版本控制、工单、聊天记录和命令跟踪之外。Compose 不再把原始密码拼接进 URL；`MOEURL_POSTGRES_PASSWORD` 交给 PostgreSQL 初始化，`MOEURL_DATABASE_URL` 作为已经正确编码的完整连接配置交给 App。以下命令使用只包含十六进制字符的随机密码，因此可以安全地同时生成两项：
+`.env` 包含数据库密码、完整数据库连接 URL、初始化 Token 和 OIDC 加密密钥，必须排除在版本控制、工单、聊天记录和命令跟踪之外。Compose 不再把原始密码拼接进 URL；`MOEURL_POSTGRES_PASSWORD` 交给 PostgreSQL 初始化，`MOEURL_DATABASE_URL` 作为已经正确编码的完整连接配置交给 App。以下命令使用只包含十六进制字符的随机数据库密码，并为 OIDC 生成独立的 Base64 密钥。执行前将公共地址替换为实际公网 HTTPS Origin：
 
 ```bash
 test ! -e "$DEPLOY_ENV" || {
@@ -55,6 +55,7 @@ test ! -e "$DEPLOY_ENV" || {
 set +x
 umask 077
 database_password="$(openssl rand -hex 32)"
+oidc_encryption_key="$(openssl rand -base64 32)"
 {
   printf 'MOEURL_ENV=production\n'
   printf 'MOEURL_HTTP_HOST=127.0.0.1\n'
@@ -62,8 +63,10 @@ database_password="$(openssl rand -hex 32)"
   printf 'MOEURL_POSTGRES_PASSWORD=%s\n' "$database_password"
   printf 'MOEURL_DATABASE_URL=postgres://moeurl:%s@postgres:5432/moeurl?sslmode=disable\n' "$database_password"
   printf 'MOEURL_SETUP_TOKEN=%s\n' "$(openssl rand -hex 32)"
+  printf 'MOEURL_PUBLIC_BASE_URL=https://go.example.com\n'
+  printf 'MOEURL_OIDC_ENCRYPTION_KEY=%s\n' "$oidc_encryption_key"
 } > "$DEPLOY_ENV"
-unset database_password
+unset database_password oidc_encryption_key
 chmod 600 "$DEPLOY_ENV"
 ```
 
@@ -123,6 +126,18 @@ curl --fail --silent --show-error --connect-timeout 2 --max-time 5 https://go.ex
 ```
 
 不要把 Token 放到 URL、Shell 参数、截图或代理访问日志中。初始化请求必须使用 JSON 请求体并经 HTTPS 发送。
+
+### 4.1 启用 OIDC
+
+`MOEURL_PUBLIC_BASE_URL` 必须与用户实际访问的公网 HTTPS Origin 完全一致，只包含 scheme、host 和可选端口。`MOEURL_OIDC_ENCRYPTION_KEY` 必须是 Base64 编码的 32 字节随机值。两项配置必须同时存在；若数据库中已有启用的 provider，缺少任一项时 App 会拒绝启动。
+
+管理员在「身份认证」页面创建 provider 后，到身份提供商登记以下固定回调地址：
+
+```text
+https://<公网域名>/api/v1/auth/oidc/<provider-key>/callback
+```
+
+反向代理必须保留外部 HTTPS 地址语义，且不得把 OIDC callback 的查询参数写入公开工单或调试日志。MoeURL 只使用配置的公共地址生成 callback，不信任请求 `Host`。加密密钥不得在线随意轮换；丢失或更换后，既有 Client Secret 无法解密，必须停用 provider 并用受控流程重新录入。数据库恢复时必须同时恢复原加密密钥，详见 [PostgreSQL 备份与隔离恢复](backup-and-restore.md)。
 
 ## 5. 外部 TLS 反向代理
 

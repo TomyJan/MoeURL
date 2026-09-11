@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	nethttp "net/http"
 	"sync"
 	"time"
@@ -12,8 +13,10 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/config"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
+	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/event"
 	apphttp "github.com/TomyJan/MoeURL/internal/http"
+	"github.com/TomyJan/MoeURL/internal/oidc"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/system"
@@ -26,6 +29,7 @@ const (
 	accessGrantCleanupInterval  = time.Minute
 	loginAttemptCleanupInterval = 15 * time.Minute
 	sessionCleanupInterval      = time.Minute
+	oidcAttemptCleanupInterval  = time.Minute
 )
 
 // validatePermissionCatalog allows startup validation failures to be exercised without mutating package catalog state.
@@ -87,22 +91,60 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		redirectService := shortlink.NewRedirectService(pool, recorder)
 		deps.Redirect = redirectService
 		deps.RedirectRecorder = recorder
+		oidcQueries := sqlc.New(pool)
+		enabledOIDCProviders, countErr := oidcQueries.CountEnabledOIDCProviders(ctx)
+		if countErr != nil {
+			pool.Close()
+			return nil, fmt.Errorf("inspect OIDC providers: %w", countErr)
+		}
+		oidcConfigured := cfg.PublicBaseURL != "" && cfg.OIDCEncryptionKey != ""
+		if enabledOIDCProviders > 0 && !oidcConfigured {
+			pool.Close()
+			return nil, errors.New("enabled OIDC providers require MOEURL_PUBLIC_BASE_URL and MOEURL_OIDC_ENCRYPTION_KEY")
+		}
+		var discoverer oidc.Discoverer
+		var secretBox *oidc.SecretBox
+		if oidcConfigured {
+			secretBox, err = oidc.NewSecretBox(cfg.OIDCEncryptionKey)
+			if err != nil {
+				pool.Close()
+				return nil, fmt.Errorf("initialize OIDC encryption: %w", err)
+			}
+			oidcHTTPClient := newOIDCHTTPClient()
+			discoverer = oidc.NewHTTPDiscoverer(oidcHTTPClient, cfg.Env == "development")
+			identityResolver := oidc.NewDatabaseIdentityResolver(pool)
+			loginService := oidc.NewLoginService(pool, oidc.NewStandardProtocol(oidcHTTPClient), identityResolver, sessionService, secretBox, cfg.PublicBaseURL)
+			deps.OIDCLogin = loginService
+			backgroundCancel, backgroundDone = startBackgroundTasks(
+				func(ctx context.Context) {
+					runAccessGrantCleanup(redirectService, ctx, accessGrantCleanupInterval, logger)
+				},
+				func(ctx context.Context) {
+					runLoginAttemptCleanup(authService, ctx, loginAttemptCleanupInterval, logger)
+				},
+				func(ctx context.Context) { runSessionCleanup(sessionService, ctx, sessionCleanupInterval, logger) },
+				func(ctx context.Context) {
+					loginService.RunLoginAttemptCleanup(ctx, oidcAttemptCleanupInterval, logger)
+				},
+			)
+		}
+		deps.OIDCProvider = oidc.NewProviderService(pool, permissionService, discoverer, secretBox, cfg.PublicBaseURL, cfg.Env == "development")
 		deps.AnalyticsCountryHeader = cfg.AnalyticsCountryHeader
 		deps.SecureCookies = cfg.Env == "production"
 		deps.User = user.NewService(pool, permissionService)
 		deps.UserGroup = usergroup.NewService(pool, permissionService)
 
-		backgroundCancel, backgroundDone = startBackgroundTasks(
-			func(ctx context.Context) {
-				runAccessGrantCleanup(redirectService, ctx, accessGrantCleanupInterval, logger)
-			},
-			func(ctx context.Context) {
-				runLoginAttemptCleanup(authService, ctx, loginAttemptCleanupInterval, logger)
-			},
-			func(ctx context.Context) {
-				runSessionCleanup(sessionService, ctx, sessionCleanupInterval, logger)
-			},
-		)
+		if !oidcConfigured {
+			backgroundCancel, backgroundDone = startBackgroundTasks(
+				func(ctx context.Context) {
+					runAccessGrantCleanup(redirectService, ctx, accessGrantCleanupInterval, logger)
+				},
+				func(ctx context.Context) {
+					runLoginAttemptCleanup(authService, ctx, loginAttemptCleanupInterval, logger)
+				},
+				func(ctx context.Context) { runSessionCleanup(sessionService, ctx, sessionCleanupInterval, logger) },
+			)
+		}
 	}
 	deps.StaticDir = cfg.StaticDir
 
@@ -122,6 +164,24 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		backgroundCancel: backgroundCancel,
 		backgroundDone:   backgroundDone,
 	}, nil
+}
+
+func newOIDCHTTPClient() *nethttp.Client {
+	transport := nethttp.DefaultTransport
+	if baseTransport, ok := transport.(*nethttp.Transport); ok {
+		configuredTransport := baseTransport.Clone()
+		configuredTransport.DialContext = (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext
+		configuredTransport.TLSHandshakeTimeout = 5 * time.Second
+		configuredTransport.ResponseHeaderTimeout = 5 * time.Second
+		configuredTransport.ExpectContinueTimeout = time.Second
+		transport = configuredTransport
+	}
+	return &nethttp.Client{Transport: transport, Timeout: 8 * time.Second, CheckRedirect: rejectOIDCRedirect}
+}
+
+// rejectOIDCRedirect keeps Discovery, Token, and JWKS requests on their validated endpoints.
+func rejectOIDCRedirect(*nethttp.Request, []*nethttp.Request) error {
+	return nethttp.ErrUseLastResponse
 }
 
 // startBackgroundTasks runs process-scoped tasks under one cancellation and completion boundary.

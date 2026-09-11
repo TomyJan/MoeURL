@@ -1,10 +1,15 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync as readRawFile } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { loadConfigFromFile } from 'vite'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const repositoryRoot = resolve(__dirname, '../../..')
+
+/** Reads repository text with stable newlines across developer and CI platforms. */
+function readFileSync(path: string, encoding: BufferEncoding): string {
+  return readRawFile(path, encoding).replaceAll('\r\n', '\n')
+}
 
 type RolldownChunkGroup = {
   name?: string
@@ -130,6 +135,17 @@ describe('deployment configuration', () => {
     expect(compose).toContain('MOEURL_SETUP_TOKEN: ${MOEURL_SETUP_TOKEN:-}')
   })
 
+  it('passes optional OIDC runtime configuration through Compose', () => {
+    const compose = readFileSync(resolve(repositoryRoot, 'docker-compose.yml'), 'utf8')
+    const exampleEnv = readFileSync(resolve(repositoryRoot, '.env.example'), 'utf8')
+
+    expect(compose).toContain('MOEURL_PUBLIC_BASE_URL: ${MOEURL_PUBLIC_BASE_URL:-}')
+    expect(compose).toContain('MOEURL_OIDC_ENCRYPTION_KEY: ${MOEURL_OIDC_ENCRYPTION_KEY:-}')
+    expect(exampleEnv).toContain('MOEURL_PUBLIC_BASE_URL=')
+    expect(exampleEnv).toContain('MOEURL_OIDC_ENCRYPTION_KEY=')
+    expect(exampleEnv).toContain('openssl rand -base64 32')
+  })
+
   it('aligns the production container identity and shutdown budget', () => {
     const compose = readFileSync(resolve(repositoryRoot, 'docker-compose.yml'), 'utf8')
     const dockerfile = readFileSync(resolve(repositoryRoot, 'Dockerfile'), 'utf8')
@@ -176,6 +192,35 @@ describe('deployment configuration', () => {
     for (const unsafeName of ['moeurl', 'moeurl-dev', 'production', 'moeurl-e2e-', 'MoeURL-e2e-review']) {
       expect(() => resolveProjectName?.(unsafeName, '18081')).toThrow(/isolated E2E Compose project/)
     }
+  })
+
+  it('tears down only the isolated Compose project after Playwright finishes', async () => {
+    const teardown = await import('../../e2e/compose-teardown')
+    const run = vi.fn()
+
+    teardown.cleanupE2ECompose('moeurl-e2e-18081-review', false, run)
+
+    expect(run).toHaveBeenCalledOnce()
+    expect(run).toHaveBeenCalledWith(
+      'docker',
+      [
+        'compose',
+        '-p',
+        'moeurl-e2e-18081-review',
+        '-f',
+        'docker-compose.yml',
+        '-f',
+        'docker-compose.e2e.yml',
+        'down',
+        '-v',
+      ],
+      expect.objectContaining({ stdio: 'inherit' }),
+    )
+
+    run.mockClear()
+    teardown.cleanupE2ECompose('moeurl-e2e-18081-review', true, run)
+    expect(run).not.toHaveBeenCalled()
+    expect(() => teardown.cleanupE2ECompose('production', false, run)).toThrow(/isolated E2E Compose project/)
   })
 
   it('documents safe Compose project verification without logging rendered secrets', () => {

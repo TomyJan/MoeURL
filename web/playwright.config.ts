@@ -12,6 +12,8 @@ const e2ePort = process.env.MOEURL_E2E_PORT ?? '8080'
 const e2ePostgresPassword = process.env.MOEURL_E2E_POSTGRES_PASSWORD ?? randomBytes(32).toString('hex')
 const e2eDatabaseURL = `postgres://moeurl:${encodeURIComponent(e2ePostgresPassword)}@postgres:5432/moeurl?sslmode=disable`
 const baseURL = `http://127.0.0.1:${e2ePort}`
+const e2eOIDCPort = process.env.MOEURL_E2E_OIDC_PORT ?? '19000'
+const oidcEncryptionKey = randomBytes(32).toString('base64')
 const composeProjectName = resolveE2EComposeProjectName(process.env.MOEURL_E2E_COMPOSE_PROJECT, e2ePort)
 const browserChannel = process.env.MOEURL_E2E_BROWSER_CHANNEL?.trim() || detectFallbackBrowserChannel()
 const skipDockerCompose = shouldSkipDockerCompose()
@@ -74,6 +76,11 @@ export function detectFallbackBrowserChannel(
 
 export default defineConfig({
   testDir: './e2e',
+  globalTeardown: './e2e/compose-teardown.ts',
+  metadata: {
+    e2eComposeProjectName: composeProjectName,
+    e2eSkipDockerCompose: skipDockerCompose,
+  },
   timeout: 60_000,
   expect: {
     timeout: 10_000,
@@ -92,7 +99,7 @@ export default defineConfig({
       }
     : {
         command:
-          'node -e "const { execFileSync } = require(\'node:child_process\'); const project = process.env.MOEURL_E2E_COMPOSE_PROJECT; execFileSync(\'docker\', [\'compose\', \'-p\', project, \'down\', \'-v\'], { stdio: \'inherit\' }); execFileSync(\'docker\', [\'compose\', \'-p\', project, \'up\', \'--build\'], { stdio: \'inherit\' });"',
+          'node -e "const { execFileSync } = require(\'node:child_process\'); const project = process.env.MOEURL_E2E_COMPOSE_PROJECT; const args = [\'compose\', \'-p\', project, \'-f\', \'docker-compose.yml\', \'-f\', \'docker-compose.e2e.yml\']; execFileSync(\'docker\', [...args, \'down\', \'-v\'], { stdio: \'inherit\' }); execFileSync(\'docker\', [...args, \'up\', \'--build\'], { stdio: \'inherit\' });"',
         cwd: '..',
         env: {
           MOEURL_E2E_COMPOSE_PROJECT: composeProjectName,
@@ -100,6 +107,9 @@ export default defineConfig({
           MOEURL_HTTP_PORT: e2ePort,
           MOEURL_POSTGRES_PASSWORD: e2ePostgresPassword,
           MOEURL_DATABASE_URL: e2eDatabaseURL,
+          MOEURL_E2E_OIDC_PORT: e2eOIDCPort,
+          MOEURL_PUBLIC_BASE_URL: baseURL,
+          MOEURL_OIDC_ENCRYPTION_KEY: oidcEncryptionKey,
         },
         reuseExistingServer: false,
         timeout: 600_000,

@@ -83,6 +83,7 @@ test ! -e .env || {
 set +x
 umask 077
 database_password="$(openssl rand -hex 32)"
+oidc_encryption_key="$(openssl rand -base64 32)"
 {
   printf 'MOEURL_ENV=production\n'
   printf 'MOEURL_HTTP_HOST=127.0.0.1\n'
@@ -90,12 +91,16 @@ database_password="$(openssl rand -hex 32)"
   printf 'MOEURL_POSTGRES_PASSWORD=%s\n' "$database_password"
   printf 'MOEURL_DATABASE_URL=postgres://moeurl:%s@postgres:5432/moeurl?sslmode=disable\n' "$database_password"
   printf 'MOEURL_SETUP_TOKEN=%s\n' "$(openssl rand -hex 32)"
+  printf 'MOEURL_PUBLIC_BASE_URL=https://go.example.com\n'
+  printf 'MOEURL_OIDC_ENCRYPTION_KEY=%s\n' "$oidc_encryption_key"
 } > .env
-unset database_password
+unset database_password oidc_encryption_key
 chmod 600 .env
 ```
 
 若自行设置含 `/`、`?`、`#`、`%` 或 `$` 等 URI 保留字符的密码，`.env` 中 `MOEURL_POSTGRES_PASSWORD` 的完整值使用单引号包裹，避免 Compose 将 `$VAR` 或 `${VAR}` 解释为变量插值；`MOEURL_DATABASE_URL` 中的密码部分必须百分号编码，其中 `$` 编码为 `%24`。默认 `sslmode=disable` 仅用于受信的单机私有 Compose 网络；数据库链路经过不受信网络时应改用 `sslmode=verify-full` 并配置可验证的服务端证书和 CA。
+
+将示例中的 `https://go.example.com` 替换为实际公网 HTTPS Origin，不得包含路径、查询或片段。每个提供商登记的回调地址为 `https://<公网域名>/api/v1/auth/oidc/<provider-key>/callback`。`MOEURL_OIDC_ENCRYPTION_KEY` 必须作为长期部署秘密保存并独立备份；丢失或更换该值会使已保存的 Client Secret 和未完成的登录尝试无法解密。未使用 OIDC 时可将公共地址与加密密钥同时留空。
 
 执行生产 Compose 命令前，先按 [单机 Docker Compose 部署](./docs/deployment/single-host-compose.md)校验绝对部署根目录、生产 Compose 文件、`.env` 和 project name，并在同一 Shell 会话中初始化 `production_compose` helper：
 

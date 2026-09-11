@@ -110,9 +110,11 @@ v0.0.1 使用 Cookie Session + 服务端会话存储。
 - 自托管 Web 系统更适合 Cookie Session。
 - 服务端可主动撤销会话。
 - 用户禁用、退出登录、权限变更后更容易生效。
-- 后续接入 OIDC 时可继续绑定本地用户和服务端会话。
+- OIDC 外部身份登录继续绑定本地用户并签发现有服务端会话。
 
 JWT 不作为 v0.0.1 的主会话方案。
+
+v0.7.0 在该会话模型上实现多提供商 OIDC Authorization Code Flow。标准协议处理使用 `coreos/go-oidc` 与 `x/oauth2`，包括 Discovery、PKCE S256、签名、Issuer、Audience 和时间声明校验；业务层额外负责一次性 state、nonce、邮箱域名策略、外部身份绑定和本地用户状态。共享 OIDC HTTP Client 使用有界连接与响应超时，并拒绝自动跟随重定向，确保 Discovery、Token 和 JWKS 请求停留在已校验端点。Client Secret 与 PKCE verifier 使用部署级 AES-256-GCM 密钥加密，成功后仍签发 `moeurl_session`，不建立第二套会话或权限系统。
 
 ### 后端辅助库
 
@@ -325,7 +327,7 @@ GORM 使用广泛，但隐式行为较多。MoeURL 的权限、短链、统计�
 
 ### 不采用 JWT 作为主会话方案
 
-JWT 适合开放 API 和多服务认证场景。MoeURL v0.0.1 是自托管 Web 系统，Cookie Session 更适合用户禁用、登出、权限变更和 OIDC 后续接入。
+JWT 适合开放 API 和多服务认证场景。MoeURL 是自托管 Web 系统，Cookie Session 更适合用户禁用、登出、权限变更和已经实现的 OIDC 外部身份接入。
 
 ### 不采用 Ant Design 系 UI
 

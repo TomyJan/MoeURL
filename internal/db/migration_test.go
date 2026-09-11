@@ -27,7 +27,7 @@ func TestMigrationsCreateCoreTablesAndConstraints(t *testing.T) {
 		t.Fatalf("run migrations: %v", err)
 	}
 
-	expectedTables := []string{"system_setting", "user_group", "app_user", "session", "domain", "short_link", "short_link_event", "short_link_access_grant", "auth_login_attempt"}
+	expectedTables := []string{"system_setting", "user_group", "app_user", "session", "domain", "short_link", "short_link_event", "short_link_access_grant", "auth_login_attempt", "oidc_provider", "external_identity", "oidc_login_attempt"}
 	for _, table := range expectedTables {
 		t.Run(fmt.Sprintf("table_%s_exists", table), func(t *testing.T) {
 			var exists bool
@@ -64,6 +64,132 @@ func TestMigrationsCreateCoreTablesAndConstraints(t *testing.T) {
 	}
 	if pgErr.Code != "23505" {
 		t.Fatalf("expected unique violation code 23505, got %s", pgErr.Code)
+	}
+}
+
+// TestOIDCMigrationRoundTrip verifies OIDC state constraints and the identity-aware rollback guard.
+func TestOIDCMigrationRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	database := migrationTestDatabase(t, ctx)
+	migrationsDir := filepath.Join("..", "..", "migrations")
+
+	if err := goose.UpTo(database, migrationsDir, 11); err != nil {
+		t.Fatalf("run migrations through version 11: %v", err)
+	}
+	insertUserGroups(t, ctx, database)
+
+	t.Run("upgrade", func(t *testing.T) {
+		if err := goose.UpTo(database, migrationsDir, 12); err != nil {
+			t.Fatalf("upgrade OIDC migration: %v", err)
+		}
+		for _, relation := range []string{"oidc_provider", "external_identity", "oidc_login_attempt", "oidc_login_attempt_expires_at_idx"} {
+			assertRelationExists(t, ctx, database, relation, true)
+		}
+		assertOIDCConstraints(t, ctx, database)
+	})
+
+	t.Run("empty identity rollback", func(t *testing.T) {
+		insertOIDCProvider(t, ctx, database)
+		if _, err := database.ExecContext(ctx, `
+			insert into oidc_login_attempt (
+				state_hash, provider_id, nonce_hash, verifier_ciphertext, return_path, expires_at, created_at
+			) values (decode(repeat('01', 32), 'hex'), '00000000-0000-0000-0000-000000000701', decode(repeat('02', 32), 'hex'), decode('03', 'hex'), '/console', now() + interval '5 minutes', now())
+		`); err != nil {
+			t.Fatalf("insert OIDC login attempt: %v", err)
+		}
+		if err := goose.DownTo(database, migrationsDir, 11); err != nil {
+			t.Fatalf("rollback empty OIDC migration: %v", err)
+		}
+		for _, relation := range []string{"oidc_login_attempt", "external_identity", "oidc_provider"} {
+			assertRelationExists(t, ctx, database, relation, false)
+		}
+	})
+
+	t.Run("identity guarded rollback", func(t *testing.T) {
+		if err := goose.UpTo(database, migrationsDir, 12); err != nil {
+			t.Fatalf("reapply OIDC migration: %v", err)
+		}
+		insertOIDCProvider(t, ctx, database)
+		if _, err := database.ExecContext(ctx, `
+			insert into external_identity (provider_id, subject, user_id, created_at, last_login_at)
+			values ('00000000-0000-0000-0000-000000000701', 'external-subject', '00000000-0000-0000-0000-000000000201', now(), now())
+		`); err != nil {
+			t.Fatalf("insert external identity: %v", err)
+		}
+		if err := goose.DownTo(database, migrationsDir, 11); err == nil || !strings.Contains(err.Error(), "external identity bindings exist") {
+			t.Fatalf("guarded rollback error = %v", err)
+		}
+		for _, relation := range []string{"oidc_login_attempt", "external_identity", "oidc_provider"} {
+			assertRelationExists(t, ctx, database, relation, true)
+		}
+	})
+
+	t.Run("resume rollback and reapply", func(t *testing.T) {
+		if _, err := database.ExecContext(ctx, `delete from external_identity`); err != nil {
+			t.Fatalf("remove external identity: %v", err)
+		}
+		if err := goose.DownTo(database, migrationsDir, 11); err != nil {
+			t.Fatalf("resume OIDC rollback: %v", err)
+		}
+		if err := goose.UpTo(database, migrationsDir, 12); err != nil {
+			t.Fatalf("reapply OIDC migration after rollback: %v", err)
+		}
+		assertOIDCConstraints(t, ctx, database)
+	})
+}
+
+// insertOIDCProvider inserts one valid provider fixture for migration assertions.
+func insertOIDCProvider(t *testing.T, ctx context.Context, database *sql.DB) {
+	t.Helper()
+	_, err := database.ExecContext(ctx, `
+		insert into oidc_provider (
+			id, key, display_name, issuer_url, client_id, client_secret_ciphertext,
+			authorization_endpoint, token_endpoint, jwks_uri, allowed_email_domains,
+			enabled, created_at, updated_at
+		) values (
+			'00000000-0000-0000-0000-000000000701', 'company', 'Company SSO',
+			'https://id.example.com', 'moeurl', decode('01', 'hex'),
+			'https://id.example.com/authorize', 'https://id.example.com/token',
+			'https://id.example.com/jwks', '["example.com"]'::jsonb,
+			true, now(), now()
+		)
+	`)
+	if err != nil {
+		t.Fatalf("insert OIDC provider: %v", err)
+	}
+}
+
+// assertOIDCConstraints verifies stable provider keys, domain lists, and identity uniqueness.
+func assertOIDCConstraints(t *testing.T, ctx context.Context, database *sql.DB) {
+	t.Helper()
+	insertOIDCProvider(t, ctx, database)
+	if _, err := database.ExecContext(ctx, `
+		insert into oidc_provider (
+			id, key, display_name, issuer_url, client_id, client_secret_ciphertext,
+			authorization_endpoint, token_endpoint, jwks_uri, allowed_email_domains,
+			enabled, created_at, updated_at
+		) values (
+			'00000000-0000-0000-0000-000000000702', 'Invalid_Key', 'Invalid',
+			'https://id.example.com', 'client', decode('01', 'hex'),
+			'https://id.example.com/authorize', 'https://id.example.com/token',
+			'https://id.example.com/jwks', '["example.com"]'::jsonb, false, now(), now()
+		)
+	`); err == nil {
+		t.Fatal("expected invalid provider key to violate check constraint")
+	}
+	if _, err := database.ExecContext(ctx, `update oidc_provider set allowed_email_domains = '[]'::jsonb where key = 'company'`); err == nil {
+		t.Fatal("expected empty email domain list to violate check constraint")
+	}
+	if _, err := database.ExecContext(ctx, `
+		insert into external_identity (provider_id, subject, user_id, created_at, last_login_at)
+		values
+			('00000000-0000-0000-0000-000000000701', 'subject-a', '00000000-0000-0000-0000-000000000201', now(), now()),
+			('00000000-0000-0000-0000-000000000701', 'subject-b', '00000000-0000-0000-0000-000000000201', now(), now())
+	`); err == nil {
+		t.Fatal("expected one identity per user and provider")
+	}
+	if _, err := database.ExecContext(ctx, `delete from external_identity; delete from oidc_provider`); err != nil {
+		t.Fatalf("clear OIDC constraint fixtures: %v", err)
 	}
 }
 

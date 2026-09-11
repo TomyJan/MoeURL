@@ -90,7 +90,10 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
       expect(protectedOpen.status()).toBe(302)
       expect(protectedOpen.headers().location).toBe(`/go/${protectedSlug}?reason=password`)
 
-      await page.route(protectedTarget, (route) => route.fulfill({ status: 200, body: 'protected target reached' }))
+      await page.route('https://example.com/e2e-protected*', (route) => route.fulfill({
+        status: 200,
+        body: 'protected target reached',
+      }))
       await page.goto(protectedOpen.headers().location!)
       await expect(page.getByRole('heading', { name: '输入密码后继续访问' })).toBeVisible()
       await expectPasswordLayout(page)

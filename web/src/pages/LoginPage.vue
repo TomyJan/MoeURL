@@ -37,6 +37,24 @@
         <v-btn class="auth-page__submit" color="primary" :loading="mutation.isPending.value" type="submit">
           {{ t('auth.loginSubmit') }}
         </v-btn>
+        <div v-if="methodsQuery.isPending.value" class="auth-page__oidc-loading" role="progressbar" />
+        <div v-else-if="oidcProviders.length" class="auth-page__oidc" data-testid="oidc-login-methods">
+          <div class="auth-page__divider"><span>{{ t('auth.orContinueWith') }}</span></div>
+          <v-btn
+            v-for="provider in oidcProviders"
+            :key="provider.key"
+            block
+            :href="oidcStartURL(provider.key, loginRedirectTarget)"
+            prepend-icon="mdi-shield-account-outline"
+            type="button"
+            variant="outlined"
+          >
+            {{ provider.displayName }}
+          </v-btn>
+        </div>
+        <v-alert v-if="oidcErrorMessage" type="error" variant="tonal">
+          {{ oidcErrorMessage }}
+        </v-alert>
       </form>
     </section>
   </main>
@@ -46,9 +64,10 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { useMutation } from '@tanstack/vue-query'
+import { useMutation, useQuery } from '@tanstack/vue-query'
 
 import { login } from '@/entities/auth/api'
+import { getLoginMethods, oidcStartURL } from '@/entities/oidc/api'
 import { queryClient } from '@/app/query'
 
 const { t } = useI18n()
@@ -59,6 +78,8 @@ const password = ref('')
 const loginErrorSnackbarOpen = ref(false)
 const INVALID_CREDENTIAL_ERROR_CODE = 110101
 const LOGIN_RATE_LIMITED_ERROR_CODE = 110103
+const methodsQuery = useQuery({ queryKey: ['auth', 'methods'], queryFn: getLoginMethods, retry: false })
+const oidcProviders = computed(() => methodsQuery.data.value?.oidc ?? [])
 const mutation = useMutation({
   mutationFn: login,
   /** Updates cached identity data, starts auth/me invalidation, and restores the requested route. */
@@ -91,6 +112,17 @@ const loginErrorMessage = computed(() => {
 const loginRedirectTarget = computed(() => {
   const redirect = route.query.redirect
   return typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/'
+})
+
+const oidcErrorMessage = computed(() => {
+  const code = route.query.oidcError
+  const keys: Record<string, string> = {
+    provider_unavailable: 'auth.oidcErrors.providerUnavailable',
+    login_failed: 'auth.oidcErrors.loginFailed',
+    identity_not_allowed: 'auth.oidcErrors.identityNotAllowed',
+    user_disabled: 'auth.oidcErrors.userDisabled',
+  }
+  return typeof code === 'string' && keys[code] ? t(keys[code]) : ''
 })
 
 /** Submits the current credentials to the login mutation. */
@@ -216,6 +248,31 @@ function hasBusinessErrorCode(error: unknown, code: number) {
 .auth-page__submit {
   min-height: 52px;
   border-radius: var(--moeurl-radius-pill);
+}
+
+.auth-page__oidc {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-page__oidc-loading {
+  height: 52px;
+}
+
+.auth-page__divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 0.82rem;
+}
+
+.auth-page__divider::before,
+.auth-page__divider::after {
+  flex: 1;
+  height: 1px;
+  background: var(--moeurl-outline);
+  content: '';
 }
 
 @media (max-width: 620px) {
