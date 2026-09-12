@@ -40,7 +40,7 @@ createServer(async (request, response) => {
     const state = url.searchParams.get('state') ?? ''
     const nonce = url.searchParams.get('nonce') ?? ''
     const codeChallenge = url.searchParams.get('code_challenge') ?? ''
-    if (!identities[clientID] || !redirectURI || !state || !nonce || !codeChallenge || url.searchParams.get('code_challenge_method') !== 'S256') {
+    if (!identities[clientID] || !redirectURI || !state || !nonce || !codeChallenge || url.searchParams.get('response_type') !== 'code' || url.searchParams.get('code_challenge_method') !== 'S256') {
       return json(response, 400, { error: 'invalid_request' })
     }
     const code = randomBytes(24).toString('base64url')
@@ -58,7 +58,7 @@ createServer(async (request, response) => {
     const credentials = clientCredentials(request, body)
     const verifier = body.get('code_verifier') ?? ''
     const challenge = createHash('sha256').update(verifier).digest('base64url')
-    if (!attempt || attempt.expiresAt <= Date.now() || credentials.secret !== clientSecret || credentials.id !== attempt.clientID || body.get('redirect_uri') !== attempt.redirectURI || challenge !== attempt.codeChallenge) {
+    if (!attempt || attempt.expiresAt <= Date.now() || body.get('grant_type') !== 'authorization_code' || credentials.secret !== clientSecret || credentials.id !== attempt.clientID || body.get('redirect_uri') !== attempt.redirectURI || challenge !== attempt.codeChallenge) {
       return json(response, 400, { error: 'invalid_grant' })
     }
     codes.delete(code)

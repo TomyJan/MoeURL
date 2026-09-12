@@ -52,19 +52,33 @@ func TestLoginServiceRunLoginAttemptCleanupRunsImmediatelyAndOnTicker(t *testing
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan struct{})
 	calls := 0
+	entered := make(chan int, 2)
 	store := &cleanupLoginStore{loginStoreStub: &loginStoreStub{}}
-	store.cleanup = func(context.Context, int32) (int64, error) {
+	store.cleanup = func(cleanupContext context.Context, _ int32) (int64, error) {
 		calls++
+		entered <- calls
 		if calls == 2 {
-			cancel()
+			<-cleanupContext.Done()
+			return 0, cleanupContext.Err()
 		}
 		return 0, nil
 	}
 	service := &LoginService{store: store}
 	go func() {
 		defer close(done)
-		service.RunLoginAttemptCleanup(ctx, time.Millisecond, nil)
+		service.RunLoginAttemptCleanup(ctx, 10*time.Millisecond, nil)
 	}()
+	for want := 1; want <= 2; want++ {
+		select {
+		case got := <-entered:
+			if got != want {
+				t.Fatalf("cleanup call = %d, want %d", got, want)
+			}
+		case <-time.After(time.Second):
+			t.Fatalf("cleanup call %d did not start", want)
+		}
+	}
+	cancel()
 	select {
 	case <-done:
 	case <-time.After(time.Second):

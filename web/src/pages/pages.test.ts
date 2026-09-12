@@ -574,6 +574,27 @@ describe('pages', () => {
     expect(screen.queryByText('identity_not_allowed')).toBeNull()
   })
 
+  it('keeps local login available and retries when OIDC methods fail to load', async () => {
+    const refetch = vi.fn()
+    setQueryResult({ isError: ref(true), refetch })
+    mount(LoginPage)
+
+    expect(screen.getByText('auth.oidcErrors.providerUnavailable')).toBeTruthy()
+    expect(screen.getByLabelText('auth.username')).toBeTruthy()
+    expect(screen.getByLabelText('auth.password')).toBeTruthy()
+
+    await fireEvent.click(screen.getByRole('button', { name: 'oidc.retry' }))
+    expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores inherited OIDC callback error keys', () => {
+    state.routeQuery = { oidcError: 'constructor' }
+    mount(LoginPage)
+
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByText('constructor')).toBeNull()
+  })
+
 	it('shows progress while authentication methods are loading', () => {
 		setQueryResult({ isPending: ref(true) })
 		mount(LoginPage)

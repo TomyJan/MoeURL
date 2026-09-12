@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"sync"
 
 	coreoidc "github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
@@ -16,7 +17,9 @@ var errOIDCResponseTooLarge = errors.New("OIDC response exceeds limit")
 
 // StandardProtocol implements Authorization Code flow, PKCE, and signed ID Token verification.
 type StandardProtocol struct {
-	client *http.Client
+	client        *http.Client
+	keySetsMu     sync.Mutex
+	remoteKeySets map[string]*coreoidc.RemoteKeySet
 }
 
 // NewStandardProtocol creates a protocol client with the supplied bounded HTTP transport.
@@ -26,7 +29,7 @@ func NewStandardProtocol(client *http.Client) *StandardProtocol {
 	}
 	boundedClient := *client
 	boundedClient.Transport = newBoundedOIDCTransport(client.Transport)
-	return &StandardProtocol{client: &boundedClient}
+	return &StandardProtocol{client: &boundedClient, remoteKeySets: make(map[string]*coreoidc.RemoteKeySet)}
 }
 
 // AuthorizationURL builds a standard OIDC authorization request with PKCE S256.
@@ -51,7 +54,7 @@ func (p *StandardProtocol) ExchangeAndVerify(ctx context.Context, provider Runti
 	if !ok || rawIDToken == "" {
 		return IdentityClaims{}, ErrLoginFailed
 	}
-	keySet := coreoidc.NewRemoteKeySet(ctx, provider.JWKSURI)
+	keySet := p.remoteKeySet(provider.JWKSURI)
 	verifier := coreoidc.NewVerifier(provider.IssuerURL, keySet, &coreoidc.Config{ClientID: provider.ClientID})
 	idToken, err := verifier.Verify(ctx, rawIDToken)
 	if err != nil {
@@ -79,6 +82,18 @@ func (p *StandardProtocol) ExchangeAndVerify(ctx context.Context, provider Runti
 		Subject: claims.Subject, Email: claims.Email, EmailVerified: claims.EmailVerified,
 		Name: claims.Name, PreferredUsername: claims.PreferredUsername, Nonce: claims.Nonce,
 	}, nil
+}
+
+// remoteKeySet returns the long-lived signing-key cache for one trusted JWKS endpoint.
+func (p *StandardProtocol) remoteKeySet(jwksURI string) *coreoidc.RemoteKeySet {
+	p.keySetsMu.Lock()
+	defer p.keySetsMu.Unlock()
+	if keySet := p.remoteKeySets[jwksURI]; keySet != nil {
+		return keySet
+	}
+	keySet := coreoidc.NewRemoteKeySet(coreoidc.ClientContext(context.Background(), p.client), jwksURI)
+	p.remoteKeySets[jwksURI] = keySet
+	return keySet
 }
 
 // oauthConfig maps trusted provider metadata into an OAuth 2.0 client configuration.

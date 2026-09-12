@@ -38,6 +38,10 @@
           {{ t('auth.loginSubmit') }}
         </v-btn>
         <div v-if="methodsQuery.isPending.value" class="auth-page__oidc-loading" role="progressbar" />
+        <v-alert v-else-if="methodsQuery.isError.value" type="error" variant="tonal">
+          {{ t('auth.oidcErrors.providerUnavailable') }}
+          <v-btn type="button" variant="text" @click="methodsQuery.refetch()">{{ t('oidc.retry') }}</v-btn>
+        </v-alert>
         <div v-else-if="oidcProviders.length" class="auth-page__oidc" data-testid="oidc-login-methods">
           <div class="auth-page__divider"><span>{{ t('auth.orContinueWith') }}</span></div>
           <v-btn
@@ -122,7 +126,7 @@ const oidcErrorMessage = computed(() => {
     identity_not_allowed: 'auth.oidcErrors.identityNotAllowed',
     user_disabled: 'auth.oidcErrors.userDisabled',
   }
-  return typeof code === 'string' && keys[code] ? t(keys[code]) : ''
+  return typeof code === 'string' && Object.hasOwn(keys, code) ? t(keys[code]!) : ''
 })
 
 /** Submits the current credentials to the login mutation. */
