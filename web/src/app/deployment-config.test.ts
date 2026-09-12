@@ -1,10 +1,15 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync as readRawFile } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { loadConfigFromFile } from 'vite'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const repositoryRoot = resolve(__dirname, '../../..')
+
+/** Reads repository text with stable newlines across developer and CI platforms. */
+function readFileSync(path: string, encoding: BufferEncoding): string {
+  return readRawFile(path, encoding).replaceAll('\r\n', '\n')
+}
 
 type RolldownChunkGroup = {
   name?: string
@@ -130,6 +135,17 @@ describe('deployment configuration', () => {
     expect(compose).toContain('MOEURL_SETUP_TOKEN: ${MOEURL_SETUP_TOKEN:-}')
   })
 
+  it('passes optional OIDC runtime configuration through Compose', () => {
+    const compose = readFileSync(resolve(repositoryRoot, 'docker-compose.yml'), 'utf8')
+    const exampleEnv = readFileSync(resolve(repositoryRoot, '.env.example'), 'utf8')
+
+    expect(compose).toContain('MOEURL_PUBLIC_BASE_URL: ${MOEURL_PUBLIC_BASE_URL:-}')
+    expect(compose).toContain('MOEURL_OIDC_ENCRYPTION_KEY: ${MOEURL_OIDC_ENCRYPTION_KEY:-}')
+    expect(exampleEnv).toContain('MOEURL_PUBLIC_BASE_URL=')
+    expect(exampleEnv).toContain('MOEURL_OIDC_ENCRYPTION_KEY=')
+    expect(exampleEnv).toContain('openssl rand -base64 32')
+  })
+
   it('aligns the production container identity and shutdown budget', () => {
     const compose = readFileSync(resolve(repositoryRoot, 'docker-compose.yml'), 'utf8')
     const dockerfile = readFileSync(resolve(repositoryRoot, 'Dockerfile'), 'utf8')
@@ -178,6 +194,35 @@ describe('deployment configuration', () => {
     }
   })
 
+  it('tears down only the isolated Compose project after Playwright finishes', async () => {
+    const teardown = await import('../../e2e/compose-teardown')
+    const run = vi.fn()
+
+    teardown.cleanupE2ECompose('moeurl-e2e-18081-review', false, run)
+
+    expect(run).toHaveBeenCalledOnce()
+    expect(run).toHaveBeenCalledWith(
+      'docker',
+      [
+        'compose',
+        '-p',
+        'moeurl-e2e-18081-review',
+        '-f',
+        'docker-compose.yml',
+        '-f',
+        'docker-compose.e2e.yml',
+        'down',
+        '-v',
+      ],
+      expect.objectContaining({ stdio: 'inherit' }),
+    )
+
+    run.mockClear()
+    teardown.cleanupE2ECompose('moeurl-e2e-18081-review', true, run)
+    expect(run).not.toHaveBeenCalled()
+    expect(() => teardown.cleanupE2ECompose('production', false, run)).toThrow(/isolated E2E Compose project/)
+  })
+
   it('documents safe Compose project verification without logging rendered secrets', () => {
     const deploymentGuide = readFileSync(
       resolve(repositoryRoot, 'docs/deployment/single-host-compose.md'),
@@ -188,6 +233,39 @@ describe('deployment configuration', () => {
     expect(deploymentGuide).toContain('docker compose ls')
     expect(deploymentGuide).toContain('production_compose config >/dev/null')
     expect(deploymentGuide).toContain('不得将未重定向的配置输出记录到终端、CI 日志或工单')
+  })
+
+  it('rate limits OIDC browser endpoints and excludes callback queries from proxy logs', () => {
+    const deploymentGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/single-host-compose.md'),
+      'utf8',
+    )
+
+    expect(deploymentGuide).toContain('zone=moeurl_oidc_start:10m')
+    expect(deploymentGuide).toContain('zone=moeurl_oidc_callback:10m')
+    expect(deploymentGuide).toContain('limit_req zone=moeurl_oidc_start')
+    expect(deploymentGuide).toContain('limit_req zone=moeurl_oidc_callback')
+    expect(deploymentGuide).toContain('GET /api/v1/auth/oidc/*/start')
+    expect(deploymentGuide).toContain('GET /api/v1/auth/oidc/*/callback')
+    expect(deploymentGuide).toContain('log_format moeurl_path_only')
+    expect(deploymentGuide).toContain('$request_method $uri $server_protocol')
+    expect(deploymentGuide).toContain('access_log /var/log/nginx/access.log moeurl_path_only;')
+    expect(deploymentGuide).toContain('error_log /var/log/nginx/error.log crit;')
+    expect(deploymentGuide).toContain('OIDC callback 的访问日志不得记录查询参数')
+  })
+
+  it('restores OIDC secrets while using a drill-specific public HTTPS origin', () => {
+    const restoreGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/backup-and-restore.md'),
+      'utf8',
+    )
+
+    expect(restoreGuide).toContain(': "${MOEURL_RESTORE_OIDC_ENCRYPTION_KEY:?')
+    expect(restoreGuide).toContain(': "${MOEURL_RESTORE_PUBLIC_BASE_URL:?')
+    expect(restoreGuide).toContain(String.raw`printf 'MOEURL_OIDC_ENCRYPTION_KEY=%s\n' "$MOEURL_RESTORE_OIDC_ENCRYPTION_KEY"`)
+    expect(restoreGuide).toContain(String.raw`printf 'MOEURL_PUBLIC_BASE_URL=%s\n' "$MOEURL_RESTORE_PUBLIC_BASE_URL"`)
+    expect(restoreGuide).toContain('演练环境可达的 HTTPS Origin')
+    expect(restoreGuide).toContain('身份提供商允许的回调地址')
   })
 
   it('anchors README production Compose commands to the deployment helper', () => {

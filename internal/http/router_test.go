@@ -16,11 +16,36 @@ import (
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	apphttp "github.com/TomyJan/MoeURL/internal/http"
+	"github.com/TomyJan/MoeURL/internal/oidc"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/system"
 	"github.com/TomyJan/MoeURL/internal/user"
 	"github.com/TomyJan/MoeURL/internal/usergroup"
 )
+
+// TestRouterRegistersOIDCPublicAndAdministrativeRoutes verifies OIDC routes retain their cache and identity boundaries.
+func TestRouterRegistersOIDCPublicAndAdministrativeRoutes(t *testing.T) {
+	providers := &routerOIDCProviderService{}
+	login := &routerOIDCLoginService{}
+	router := apphttp.NewRouter(apphttp.Dependencies{OIDCProvider: providers, OIDCLogin: login})
+	for _, path := range []string{
+		"/api/v1/auth/methods",
+		"/api/v1/auth/oidc/company/start?returnTo=%2Fconsole",
+		"/api/v1/admin/oidc/provider/list",
+	} {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil))
+		if response.Code == http.StatusNotFound {
+			t.Fatalf("OIDC route %s was not registered", path)
+		}
+		if response.Header().Get("Cache-Control") != "no-store" {
+			t.Fatalf("OIDC route %s Cache-Control = %q", path, response.Header().Get("Cache-Control"))
+		}
+	}
+	if login.startCalls != 1 || providers.methodCalls != 1 || providers.listCalls != 1 {
+		t.Fatalf("OIDC calls = start %d methods %d list %d", login.startCalls, providers.methodCalls, providers.listCalls)
+	}
+}
 
 // TestRouterHealthReturnsOK verifies router health returns ok.
 func TestRouterHealthReturnsOK(t *testing.T) {
@@ -837,6 +862,47 @@ func (service routerUserService) ResetPassword(context.Context, auth.CurrentUser
 type routerUserGroupService struct {
 	listCalls   int
 	updateCalls int
+}
+
+type routerOIDCProviderService struct {
+	methodCalls int
+	listCalls   int
+}
+
+func (service *routerOIDCProviderService) Methods(context.Context) (oidc.LoginMethods, error) {
+	service.methodCalls++
+	return oidc.LoginMethods{}, nil
+}
+
+func (service *routerOIDCProviderService) List(context.Context, auth.CurrentUser) (oidc.ProviderList, error) {
+	service.listCalls++
+	return oidc.ProviderList{}, nil
+}
+
+func (*routerOIDCProviderService) Create(context.Context, auth.CurrentUser, oidc.CreateProviderInput) (oidc.ProviderResult, error) {
+	return oidc.ProviderResult{}, nil
+}
+
+func (*routerOIDCProviderService) Update(context.Context, auth.CurrentUser, oidc.UpdateProviderInput) (oidc.ProviderResult, error) {
+	return oidc.ProviderResult{}, nil
+}
+
+func (*routerOIDCProviderService) Delete(context.Context, auth.CurrentUser, oidc.DeleteProviderInput) (oidc.DeleteProviderResult, error) {
+	return oidc.DeleteProviderResult{}, nil
+}
+
+type routerOIDCLoginService struct {
+	startCalls int
+}
+
+func (service *routerOIDCLoginService) Start(context.Context, string, string) (oidc.LoginStart, error) {
+	service.startCalls++
+	return oidc.LoginStart{Location: "https://id.example.com/authorize"}, nil
+}
+
+// Callback returns a stable browser-login result for router integration tests.
+func (*routerOIDCLoginService) Callback(context.Context, string, string, string, string) (oidc.LoginCallback, error) {
+	return oidc.LoginCallback{}, oidc.ErrLoginFailed
 }
 
 // List records user-group list route dispatch.

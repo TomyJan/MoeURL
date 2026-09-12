@@ -27,6 +27,8 @@ services:
       MOEURL_ANALYTICS_COUNTRY_HEADER: ${MOEURL_ANALYTICS_COUNTRY_HEADER:-}
       MOEURL_DATABASE_URL: ${MOEURL_DATABASE_URL:?required}
       MOEURL_SETUP_TOKEN: ${MOEURL_SETUP_TOKEN:-}
+      MOEURL_PUBLIC_BASE_URL: ${MOEURL_PUBLIC_BASE_URL:-}
+      MOEURL_OIDC_ENCRYPTION_KEY: ${MOEURL_OIDC_ENCRYPTION_KEY:-}
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/api/v1/health/ready"]
       interval: 10s

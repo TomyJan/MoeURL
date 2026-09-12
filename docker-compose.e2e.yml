@@ -1,0 +1,17 @@
+services:
+  app:
+    environment:
+      MOEURL_PUBLIC_BASE_URL: ${MOEURL_PUBLIC_BASE_URL:?required}
+      MOEURL_OIDC_ENCRYPTION_KEY: ${MOEURL_OIDC_ENCRYPTION_KEY:?required}
+    ports:
+      - "127.0.0.1:${MOEURL_E2E_OIDC_PORT:-19000}:${MOEURL_E2E_OIDC_PORT:-19000}"
+
+  oidc-test:
+    image: node:26-alpine
+    command: ["node", "/test/oidc-provider.mjs"]
+    environment:
+      OIDC_PORT: ${MOEURL_E2E_OIDC_PORT:-19000}
+    network_mode: "service:app"
+    restart: unless-stopped
+    volumes:
+      - ./web/e2e/oidc-provider.mjs:/test/oidc-provider.mjs:ro

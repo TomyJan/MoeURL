@@ -190,12 +190,12 @@ describe('ConsoleShell', () => {
     expect(screen.getAllByTestId('console-nav-primary-item').length).toBeGreaterThan(4)
     expect(screen.getAllByTestId('console-nav-parent-item').length).toBeGreaterThan(0)
     expect(screen.queryByText('nav.users')).toBeNull()
-    expect(screen.getAllByTestId('console-nav-planned-badge').length).toBe(1)
+    expect(screen.queryByTestId('console-nav-planned-badge')).toBeNull()
     await fireEvent.click(screen.getAllByRole('button', { name: 'console.nav.userManagement' })[0])
     expect(screen.getByText('nav.users')).toBeTruthy()
     expect(screen.getByText('nav.userGroups')).toBeTruthy()
     expect(screen.getAllByTestId('console-nav-child-item').length).toBeGreaterThan(1)
-    expect(screen.getAllByTestId('console-nav-planned-badge').length).toBe(1)
+    expect(screen.queryByTestId('console-nav-planned-badge')).toBeNull()
     expect(screen.queryByText('page.createUser')).toBeNull()
     expect(screen.getByText('nav.analytics')).toBeTruthy()
     expect(screen.getByText('nav.settings')).toBeTruthy()
@@ -420,7 +420,7 @@ describe('ConsoleShell', () => {
     expect(within(parent).getByText('console.nav.userManagement')).toBeTruthy()
     expect(screen.getByText('nav.users')).toBeTruthy()
     expect(screen.getByText('nav.userGroups')).toBeTruthy()
-    expect(screen.getAllByTestId('console-nav-planned-badge').length).toBeGreaterThan(0)
+    expect(screen.queryByTestId('console-nav-planned-badge')).toBeNull()
   })
 
   it('rebuilds expanded navigation groups from the current route instead of accumulating old matches', async () => {

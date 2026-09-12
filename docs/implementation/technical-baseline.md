@@ -59,6 +59,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 │  ├─ http/
 │  ├─ middleware/
 │  ├─ auth/
+│  ├─ oidc/
 │  ├─ permission/
 │  ├─ user/
 │  ├─ usergroup/
@@ -99,6 +100,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 - `internal/http/`：HTTP 路由注册、请求响应工具和错误映射。
 - `internal/middleware/`：承载请求日志、请求 ID、panic 恢复、安全响应头和请求体限制。当前用户解析位于 `internal/auth/`，权限解析位于 `internal/permission/`。
 - `internal/auth/`：登录、退出、会话、密码哈希。
+- `internal/oidc/`：OIDC provider 管理、Discovery、登录协议、外部身份供应、敏感值加密和登录尝试清理。
 - `internal/permission/`：权限常量、权限计算和权限判断。
 - `internal/user/`：用户账号、用户资料和管理员用户维护业务。
 - `internal/usergroup/`：内置用户组权限目录、预设、并发更新和管理 API 业务。
@@ -184,6 +186,9 @@ API 使用 `/api/v1` 前缀：
 /api/v1/auth/login
 /api/v1/auth/logout
 /api/v1/auth/me
+/api/v1/auth/methods
+/api/v1/auth/oidc/{providerKey}/start
+/api/v1/auth/oidc/{providerKey}/callback
 /api/v1/short-link/create
 /api/v1/short-link/overview
 /api/v1/short-link/list
@@ -194,6 +199,10 @@ API 使用 `/api/v1` 前缀：
 /api/v1/admin/short-link/delete
 /api/v1/admin/user-group/list
 /api/v1/admin/user-group/update-permissions
+/api/v1/admin/oidc/provider/list
+/api/v1/admin/oidc/provider/create
+/api/v1/admin/oidc/provider/update
+/api/v1/admin/oidc/provider/delete
 ```
 
 公开预览的规范入口为 `/go/{slug}/preview`；旧的 `/api/v1/public/short-link/preview` 仅保留为兼容入口并已弃用。
@@ -352,6 +361,12 @@ v0.5.0 复用 `user_group.permissions` 和 `user_group.updated_at`，不新增 s
 
 权限数组由服务端目录校验并按固定顺序编码。未知项、重复项、非内置用户组和受保护权限归属变化都不得写入数据库。更新查询只允许 `user` 和 `admin`；`guest` 在访客资源归属实现前固定为空权限并保持只读。权限预设不持久化为字段，只用于生成最终权限数组。
 
+### v0.7.0 OIDC schema 扩展摘要
+
+v0.7.0 新增 `oidc_provider`、`external_identity` 和 `oidc_login_attempt`。provider 保存经 Discovery 校验的端点、加密 Client Secret、精确邮箱域名白名单、启用状态、软删除时间和乐观并发时间戳；外部身份以 `(provider_id, subject)` 唯一绑定本地用户；登录尝试只保存 state/nonce 摘要、加密 PKCE verifier、受控站内返回路径和五分钟过期时间。
+
+登录尝试通过 `DELETE ... RETURNING` 原子消费，过期记录每分钟执行至多 4 个 500 行批次并在短批次提前结束。首次身份供应在事务内使用 provider 与 subject 派生的 advisory lock，固定创建内置 `user` 组账号，不按邮箱自动连接既有用户。`00012 Down` 仅在不存在 external identity 时删除 OIDC schema；存在绑定时安全失败，避免不可逆丢失登录归属。
+
 ### 短码规则
 
 - v0.0.1 默认生成 6 位随机短码。
@@ -412,6 +427,8 @@ v0.5.0 将 `admin:access`、`short_link:read_all`、`short_link:update_all`、`s
 - 每次授权操作必须重新检查用户状态和权限。
 - 用户被禁用后，不得继续执行授权操作。
 - v0.0.1 不要求单独实现 CSRF Token；默认依赖 `SameSite=Lax` 和 JSON API 边界，后续如开放跨站嵌入或第三方表单再补充 CSRF 机制。
+
+OIDC start 和 callback 分别使用独立的进程内有界并发槽位。state、nonce 和 PKCE verifier 使用密码学安全随机源；state 仅以 SHA-256 摘要持久化且单次消费，nonce 在已验证 ID Token 后常量时间比较。外部身份登录成功后复用同一 `moeurl_session` Cookie、用户禁用检查和数据库权限解析。
 
 ## 8. 前端结构约定
 
@@ -527,7 +544,7 @@ go test ./...
 
 ```bash
 node --test scripts/go-coverage-threshold.test.mjs
-go test -p=1 -count=1 -coverprofile="$PWD/coverage.out" ./internal/auth ./internal/db ./internal/event ./internal/http ./internal/middleware ./internal/permission ./internal/shortlink ./internal/system ./internal/user ./internal/usergroup
+go test -p=1 -count=1 -coverprofile="$PWD/coverage.out" ./internal/auth ./internal/db ./internal/event ./internal/http ./internal/middleware ./internal/oidc ./internal/permission ./internal/shortlink ./internal/system ./internal/user ./internal/usergroup
 node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100 --include-from=scripts/go-coverage-targets.txt --exclude-blocks-from=scripts/go-coverage-excluded-blocks.txt
 ```
 
@@ -564,13 +581,13 @@ cd web && pnpm test:e2e
 
 v0.2.0 将新增的短链创建、访问配置和二维码组件纳入覆盖率门禁。v0.3.0 还将密码设置、公开解锁和密码页纳入覆盖率门禁；v0.4.0 继续将确认模式权限矩阵、公开预览契约和确认页状态纳入门禁。v0.5.0 已将权限目录、预设、独立草稿、保护规则、冲突恢复和用户组管理页面纳入门禁。测试必须验证敏感数据不泄露、错误/限流/成功状态、授权失效、确认页不自动跳转和权限更新即时生效，不允许只断言 mock 调用次数。
 
-Playwright E2E 默认通过 `web/playwright.config.ts` 启动 Docker Compose 测试环境。E2E 必须使用独立的 Compose project name，默认由 `MOEURL_E2E_PORT` 派生，也可通过 `MOEURL_E2E_COMPOSE_PROJECT` 显式指定；最终名称必须使用带非空后缀的 `moeurl-e2e-` 保留前缀，生产和日常开发 project 不得使用该命名空间。E2E 通过 `MOEURL_E2E_PORT` 隔离应用宿主端口，并为内部 PostgreSQL 生成本次运行专用密码；默认 Compose 不再映射 PostgreSQL 宿主端口。E2E 显式以 `MOEURL_ENV=development` 运行测试应用，避免本地 HTTP 流程受 Secure Cookie 影响。E2E 可以在该隔离测试项目内执行 `down -v` 清理测试卷，但不得清理日常生产或开发数据库卷。
+Playwright E2E 默认通过 `web/playwright.config.ts` 启动 Docker Compose 测试环境。E2E 必须使用独立的 Compose project name，默认名称由 `MOEURL_E2E_PORT` 和每次配置加载时生成的随机后缀组成，也可通过 `MOEURL_E2E_COMPOSE_PROJECT` 显式指定；最终名称必须使用带非空后缀的 `moeurl-e2e-` 保留前缀，生产和日常开发 project 不得使用该命名空间。E2E 通过 `MOEURL_E2E_PORT` 隔离应用宿主端口，并为内部 PostgreSQL 生成本次运行专用密码；默认 Compose 不再映射 PostgreSQL 宿主端口。E2E 显式以 `MOEURL_ENV=development` 运行测试应用，避免本地 HTTP 流程受 Secure Cookie 影响。全局 teardown 只接受该保留前缀并对本次 project 执行 `down -v --remove-orphans`；不得清理日常生产或开发数据库卷。
 
 初始化 UI 流程由 `web/e2e/initialize.setup.ts` 的 Playwright `setup` project 先执行；业务 spec 依赖该 project 后可并行运行，受保护访问 spec 仍在文件内显式串行。
 
 当 Docker Desktop 不可用，或隔离 Compose 环境因外部镜像仓库不可用而无法拉取、构建或启动时，可先记录原始失败命令和错误，再用干净数据库、当前 Go 实现和当前 `web/dist` 启动本机服务，设置 `MOEURL_E2E_SKIP_DOCKER=1` 和对应的 `MOEURL_E2E_PORT` 执行 `pnpm test:e2e`。该回退不得用于绕过应用构建、迁移或启动错误，只跳过 Playwright 的环境拉起步骤，不跳过任何浏览器断言；执行者必须确保数据库从未初始化状态开始，并在验收记录中写明 Docker 状态、端口、环境变量和完整命令。
 
-v0.2.0 访问体验 E2E 必须覆盖真实 `/{slug}` 入口、进入中间页前访问量为 0、继续路由目标 `302`、真实 UI 继续访问后访问量为 1，以及过期访问不增加访问量。v0.3.0 还必须覆盖真实密码页、错误密码、有效授权、密码变更吊销旧授权和访问量口径。v0.4.0 还必须覆盖无密码与受密码保护确认页、主动继续、二次访问条件检查和最终访问量。v0.5.0 还必须覆盖真实用户组页面、权限保存前后差异、后端动态撤权、基线恢复和双视口布局。中间页、密码页、确认页、访问设置、二维码对话框和用户组权限管理页必须同时在 `1280 x 720` 与 `390 x 800` 视口验证控件顺序、操作区几何和横向溢出；异步流程使用条件等待，不允许使用固定 `waitForTimeout`。
+v0.2.0 访问体验 E2E 必须覆盖真实 `/{slug}` 入口、进入中间页前访问量为 0、继续路由目标 `302`、真实 UI 继续访问后访问量为 1，以及过期访问不增加访问量。v0.3.0 还必须覆盖真实密码页、错误密码、有效授权、密码变更吊销旧授权和访问量口径。v0.4.0 还必须覆盖无密码与受密码保护确认页、主动继续、二次访问条件检查和最终访问量。v0.5.0 还必须覆盖真实用户组页面、权限保存前后差异、后端动态撤权、基线恢复和双视口布局。v0.7.0 还必须使用本地签名测试 IdP 覆盖 provider 创建、首次与重复登录、域名拒绝、停用和本地登录回归。中间页、密码页、确认页、访问设置、二维码对话框和管理页面必须同时在 `1280 x 720` 与 `390 x 800` 视口验证控件顺序、操作区几何和横向溢出；异步流程使用条件等待，不允许使用固定 `waitForTimeout`。
 
 ### 质量检查工作流
 
@@ -643,9 +660,13 @@ MOEURL_DATABASE_URL
 MOEURL_STATIC_DIR
 MOEURL_ANALYTICS_COUNTRY_HEADER
 MOEURL_SETUP_TOKEN
+MOEURL_PUBLIC_BASE_URL
+MOEURL_OIDC_ENCRYPTION_KEY
 ```
 
 Compose 还读取 `MOEURL_HTTP_HOST`、`MOEURL_HTTP_PORT` 和 `MOEURL_POSTGRES_PASSWORD`，并把必填的 `MOEURL_DATABASE_URL` 原样注入 App；只有叠加开发覆盖文件时才读取 `MOEURL_POSTGRES_HOST` 与 `MOEURL_POSTGRES_PORT`。其中数据库密码是 PostgreSQL 容器初始化值，数据库 URL 是 Go 应用的完整连接配置，两者不得混为自动拼接关系。production 的 `MOEURL_SETUP_TOKEN` 至少为 32 个字符，初始化完成后仍必须保留用于后续启动校验。
+
+OIDC 运行时配置成对出现：`MOEURL_PUBLIC_BASE_URL` 是无用户信息、路径、查询和片段的公网 HTTPS Origin，development 仅允许回环 HTTP；`MOEURL_OIDC_ENCRYPTION_KEY` 是 Base64 编码的 32 字节长期部署密钥。未使用 OIDC 时两项可同时留空；一旦数据库存在启用的 provider，缺少任一项都会使应用启动失败。加密密钥必须随生产秘密独立备份，不能只备份 PostgreSQL。
 
 敏感配置不得提交到仓库。
 

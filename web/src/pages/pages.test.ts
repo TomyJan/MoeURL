@@ -16,6 +16,7 @@ import NotFoundPage from './NotFoundPage.vue'
 import SetupPage from './SetupPage.vue'
 import { componentStubs } from '@/test/component-stubs'
 import { login, me } from '@/entities/auth/api'
+import { getLoginMethods } from '@/entities/oidc/api'
 import { setupSystem } from '@/entities/system/api'
 import { getAdminShortLinkStatistics, getShortLinkOverview, getShortLinkStatistics, listAdminShortLinks, listShortLinks, updateAdminShortLink, updateShortLink } from '@/entities/short-link/api'
 import type { ShortLink } from '@/entities/short-link/model'
@@ -83,6 +84,11 @@ vi.mock('@/entities/auth/api', () => ({
   login: vi.fn(),
   me: vi.fn(async () => ({ user: { permissions: [] } })),
 }))
+
+vi.mock('@/entities/oidc/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/entities/oidc/api')>()
+  return { ...actual, getLoginMethods: vi.fn() }
+})
 
 vi.mock('@/entities/short-link/api', () => ({
   deleteAdminShortLink: vi.fn(),
@@ -238,6 +244,8 @@ describe('pages', () => {
     vi.mocked(getShortLinkOverview).mockClear()
     vi.mocked(getShortLinkStatistics).mockReset()
     vi.mocked(updateAdminShortLink).mockReset()
+    vi.mocked(getLoginMethods).mockReset()
+    vi.mocked(getLoginMethods).mockResolvedValue({ local: { enabled: true }, oidc: [] })
     vi.mocked(updateShortLink).mockReset()
     vi.mocked(updateUser).mockReset()
     vi.mocked(login).mockReset()
@@ -553,6 +561,45 @@ describe('pages', () => {
     )
     expect(state.routerPush).toHaveBeenCalledWith('/admin/user')
   })
+
+  it('shows enabled OIDC providers and maps only bounded callback errors', () => {
+    setQueryResult({ data: ref({ local: { enabled: true }, oidc: [{ key: 'company', displayName: 'Company SSO' }] }) })
+    state.routeQuery = { redirect: '/analytics?shortLinkId=abc', oidcError: 'identity_not_allowed' }
+    mount(LoginPage)
+
+    expect(screen.getByRole('button', { name: 'Company SSO' }).getAttribute('data-href')).toBe(
+      '/api/v1/auth/oidc/company/start?returnTo=%2Fanalytics%3FshortLinkId%3Dabc',
+    )
+    expect(screen.getByText('auth.oidcErrors.identityNotAllowed')).toBeTruthy()
+    expect(screen.queryByText('identity_not_allowed')).toBeNull()
+  })
+
+  it('keeps local login available and retries when OIDC methods fail to load', async () => {
+    const refetch = vi.fn()
+    setQueryResult({ isError: ref(true), refetch })
+    mount(LoginPage)
+
+    expect(screen.getByText('auth.oidcErrors.providerUnavailable')).toBeTruthy()
+    expect(screen.getByLabelText('auth.username')).toBeTruthy()
+    expect(screen.getByLabelText('auth.password')).toBeTruthy()
+
+    await fireEvent.click(screen.getByRole('button', { name: 'oidc.retry' }))
+    expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores inherited OIDC callback error keys', () => {
+    state.routeQuery = { oidcError: 'constructor' }
+    mount(LoginPage)
+
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByText('constructor')).toBeNull()
+  })
+
+	it('shows progress while authentication methods are loading', () => {
+		setQueryResult({ isPending: ref(true) })
+		mount(LoginPage)
+		expect(screen.getByRole('progressbar')).toBeTruthy()
+	})
 
   it('lets users dismiss the login error toast without clearing form state', async () => {
     setMutationResult({
