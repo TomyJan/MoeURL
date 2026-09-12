@@ -155,11 +155,24 @@ func TestStandardProtocolRejectsTokenResponseWithoutIDToken(t *testing.T) {
 	}
 }
 
-// TestStandardProtocolRejectsUntrustedAudienceAndAuthorizedParty verifies tokens are exclusively issued to this client.
-func TestStandardProtocolRejectsUntrustedAudienceAndAuthorizedParty(t *testing.T) {
+// TestStandardProtocolAcceptsTrustedMultiAudience verifies standard multi-client tokens retain this client audience.
+func TestStandardProtocolAcceptsTrustedMultiAudience(t *testing.T) {
 	for _, claims := range []map[string]any{
 		{"aud": []string{"client-id", "other-client"}},
+		{"aud": []string{"other-client", "client-id"}, "azp": "client-id"},
+	} {
+		if err := exchangeProtocolTokenWithClaims(t, claims); err != nil {
+			t.Fatalf("claims %#v error = %v", claims, err)
+		}
+	}
+}
+
+// TestStandardProtocolRejectsUntrustedAudienceAndAuthorizedParty verifies tokens must include this client and use a matching azp.
+func TestStandardProtocolRejectsUntrustedAudienceAndAuthorizedParty(t *testing.T) {
+	for _, claims := range []map[string]any{
+		{"aud": []string{"other-client", "another-client"}},
 		{"aud": "client-id", "azp": "other-client"},
+		{"aud": []string{"client-id", "other-client"}, "azp": "other-client"},
 	} {
 		if err := exchangeProtocolTokenWithClaims(t, claims); !errors.Is(err, ErrLoginFailed) {
 			t.Fatalf("claims %#v error = %v, want ErrLoginFailed", claims, err)

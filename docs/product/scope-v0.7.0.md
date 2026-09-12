@@ -14,6 +14,7 @@ v0.7.0 在现有本地账号、Cookie Session 和数据库权限模型之上补�
 
 - 管理员可以查看、新增、编辑、启停和软删除多个 OIDC 提供商。
 - 提供商包含稳定键、显示名称、Issuer URL、Client ID、Client Secret、允许的邮箱域名、启用状态和乐观并发时间戳。
+- 提供商出现外部身份绑定后，Issuer URL 与 Client ID 不再允许修改，避免既有 subject 被重新解释到另一身份命名空间。
 - 保存或启用提供商时通过 OIDC Discovery 校验 Issuer、授权端点、Token 端点和 JWKS 地址。
 - Client Secret 使用部署密钥加密后保存；列表与详情 API 只返回是否已配置，不回传明文或密文。
 - 软删除保留既有外部身份归属，提供商键不得被另一提供商复用。
@@ -24,7 +25,7 @@ v0.7.0 在现有本地账号、Cookie Session 和数据库权限模型之上补�
 - 登录页读取当前可用登录方式，并展示所有已启用的 OIDC 提供商。
 - OIDC 登录使用 Authorization Code Flow、PKCE S256、随机 `state` 和随机 `nonce`。
 - 登录尝试保存在服务端，`state` 和浏览器关联令牌只保存摘要，PKCE verifier 加密保存，且只能消费一次。
-- 回调严格校验发起浏览器、提供商、Issuer、唯一 Audience、可选 `azp`、签名、过期时间、`nonce` 和一次性状态。
+- 回调严格校验发起浏览器、提供商、Issuer、包含当前 Client ID 的 Audience、可选 `azp`、签名、过期时间、`nonce` 和一次性状态。
 - 登录完成后签发现有 `moeurl_session` Cookie，并只恢复经过验证的站内相对路径。
 - 提供商停用、登录尝试过期或重放、用户禁用、声明不完整和外部协议失败均关闭失败，不泄露 Token、Secret 或底层响应。
 

@@ -98,7 +98,7 @@ func (c *Config) validateOIDCConfiguration() error {
 	if baseURL.User != nil {
 		return errors.New("MOEURL_PUBLIC_BASE_URL must not contain userinfo")
 	}
-	if baseURL.RawQuery != "" {
+	if baseURL.ForceQuery || baseURL.RawQuery != "" {
 		return errors.New("MOEURL_PUBLIC_BASE_URL must not contain a query")
 	}
 	if baseURL.Fragment != "" {

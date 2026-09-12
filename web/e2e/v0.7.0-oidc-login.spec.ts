@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto'
+
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 
@@ -11,109 +13,141 @@ import {
 
 const clientSecret = 'e2e-client-secret'
 const issuerURL = `http://127.0.0.1:${e2eOIDCPort}`
-const allowedProviderKey = 'company'
-const deniedProviderKey = 'outside'
-let oidcUserID = ''
-
-test.describe.configure({ mode: 'serial' })
 
 test('configures multiple OIDC providers from the authentication page', async ({ page }) => {
-  await expect.poll(async () => (await page.request.get(`${issuerURL}/.well-known/openid-configuration`)).status()).toBe(200)
-  await localLogin(page)
-  await page.goto('/admin/setting')
-  await expect(page.getByTestId('admin-authentication-page')).toBeVisible()
+  const allowedProviderKey = uniqueProviderKey('company')
+  const deniedProviderKey = uniqueProviderKey('outside')
+  try {
+    await expect.poll(async () => (await page.request.get(`${issuerURL}/.well-known/openid-configuration`)).status()).toBe(200)
+    await localLogin(page)
+    await page.goto('/admin/setting')
+    await expect(page.getByTestId('admin-authentication-page')).toBeVisible()
 
-  await page.getByRole('button', { name: '新增提供商' }).click()
-  await page.getByLabel('提供商标识').fill(allowedProviderKey)
-  await page.getByLabel('显示名称').fill('Company SSO')
-  await page.getByLabel('Issuer URL').fill(issuerURL)
-  await page.getByLabel('Client ID').fill('moeurl-allowed')
-  await page.getByLabel('Client Secret').fill(clientSecret)
-  await page.getByLabel('允许的邮箱域名').fill('example.com')
-  await page.getByRole('button', { name: '保存' }).click()
-  await expect(page.getByText('身份认证配置已保存。')).toBeVisible()
-  await expectNoHorizontalOverflow(page)
+    await page.getByRole('button', { name: '新增提供商' }).click()
+    await page.getByLabel('提供商标识').fill(allowedProviderKey)
+    await page.getByLabel('显示名称').fill('Company SSO')
+    await page.getByLabel('Issuer URL').fill(issuerURL)
+    await page.getByLabel('Client ID').fill('moeurl-allowed')
+    await page.getByLabel('Client Secret').fill(clientSecret)
+    await page.getByLabel('允许的邮箱域名').fill('example.com')
+    await page.getByRole('button', { name: '保存' }).click()
+    await expect(page.getByText('身份认证配置已保存。')).toBeVisible()
+    await expectNoHorizontalOverflow(page)
 
-  const denied = await createProvider(page, {
-    key: deniedProviderKey,
-    displayName: 'Outside SSO',
-    clientId: 'moeurl-denied',
-  })
-  expect(denied.code).toBe(0)
-  expect(serializedPayloadIncludesSecret(denied, clientSecret)).toBe(false)
+    const denied = await createProvider(page, {
+      key: deniedProviderKey,
+      displayName: 'Outside SSO',
+      clientId: 'moeurl-denied',
+    })
+    expect(denied.code).toBe(0)
+    expect(serializedPayloadIncludesSecret(denied, clientSecret)).toBe(false)
 
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.reload()
-  await expect(page.getByRole('button', { name: /^Company SSO/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: /^Outside SSO/ })).toBeVisible()
-  await expectNoHorizontalOverflow(page)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.reload()
+    await expect(page.getByRole('button', { name: /^Company SSO/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Outside SSO/ })).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+  } finally {
+    await cleanupProviders(page, [allowedProviderKey, deniedProviderKey])
+  }
 })
 
-test('creates a local user on the first allowed OIDC login', async ({ page }) => {
-  await page.goto('/login?redirect=/console')
-  await page.getByText('Company SSO', { exact: true }).click()
-  await expect(page).toHaveURL(/\/console$/)
+test('creates and reuses one local identity for repeated OIDC login', async ({ page }) => {
+  const providerKey = uniqueProviderKey('repeat')
+  const displayName = `Repeat SSO ${providerKey}`
+  try {
+    await localLogin(page)
+    expect((await createProvider(page, { key: providerKey, displayName, clientId: 'moeurl-allowed' })).code).toBe(0)
+    await logout(page)
 
-  const current = await currentUser(page)
-  expect(current.group).toBe('user')
-  expect(current.nickname).toBe('OIDC Person')
-  expect(current.username).toMatch(/^oidc-company-[a-z2-7]{20}$/)
-  oidcUserID = current.id
-})
+    await page.goto('/login?redirect=/console')
+    await page.getByText(displayName, { exact: true }).click()
+    await expect(page).toHaveURL(/\/console$/)
 
-test('reuses the same local identity on a repeated OIDC login', async ({ page }) => {
-  await logout(page)
-  await page.goto('/login?redirect=/console')
-  await page.getByText('Company SSO', { exact: true }).click()
-  await expect(page).toHaveURL(/\/console$/)
+    const firstLogin = await currentUser(page)
+    expect(firstLogin.group).toBe('user')
+    expect(firstLogin.nickname).toBe('OIDC Person')
+    expect(firstLogin.username).toMatch(new RegExp(`^oidc-${providerKey}-[a-z2-7]{20}$`))
 
-  expect((await currentUser(page)).id).toBe(oidcUserID)
+    await logout(page)
+    await page.goto('/login?redirect=/console')
+    await page.getByText(displayName, { exact: true }).click()
+    await expect(page).toHaveURL(/\/console$/)
+    expect((await currentUser(page)).id).toBe(firstLogin.id)
+  } finally {
+    await cleanupProviders(page, [providerKey])
+  }
 })
 
 test('rejects a verified identity outside the provider domain allowlist', async ({ page }) => {
-  await logout(page)
-  await page.goto('/login')
-  await page.getByText('Outside SSO', { exact: true }).click()
-  await expect(page).toHaveURL(/\/login\?oidcError=identity_not_allowed$/)
-  await expect(page.getByText('当前身份不符合该登录方式的访问规则。')).toBeVisible()
+  const providerKey = uniqueProviderKey('denied')
+  const displayName = `Outside SSO ${providerKey}`
+  try {
+    await localLogin(page)
+    expect((await createProvider(page, { key: providerKey, displayName, clientId: 'moeurl-denied' })).code).toBe(0)
+    await logout(page)
 
-  await localLogin(page)
-  expect(await userNicknames(page)).not.toContain('Denied Person')
+    await page.goto('/login')
+    await page.getByText(displayName, { exact: true }).click()
+    await expect(page).toHaveURL(/\/login\?oidcError=identity_not_allowed$/)
+    await expect(page.getByText('当前身份不符合该登录方式的访问规则。')).toBeVisible()
+
+    await localLogin(page)
+    expect(await userNicknames(page)).not.toContain('Denied Person')
+  } finally {
+    await cleanupProviders(page, [providerKey])
+  }
 })
 
 test('removes a disabled provider from login and rejects direct start attempts', async ({ page }) => {
-  await localLogin(page)
-  const listed = await providerList(page)
-  const company = listed.providers.find(({ key }) => key === allowedProviderKey)
-  expect(company).toBeTruthy()
-  if (!company) return
+  const providerKey = uniqueProviderKey('disabled')
+  const displayName = `Disabled SSO ${providerKey}`
+  try {
+    await localLogin(page)
+    expect((await createProvider(page, { key: providerKey, displayName, clientId: 'moeurl-allowed' })).code).toBe(0)
+    const listed = await providerList(page)
+    const provider = listed.providers.find(({ key }) => key === providerKey)
+    expect(provider).toBeTruthy()
+    if (!provider) return
 
-  const response = await page.request.post('/api/v1/admin/oidc/provider/update', {
-    data: {
-      id: company.id,
-      displayName: company.displayName,
-      issuerUrl: company.issuerUrl,
-      clientId: company.clientId,
-      clientSecret: { mode: 'preserve' },
-      allowedEmailDomains: company.allowedEmailDomains,
-      enabled: false,
-      expectedUpdatedAt: company.updatedAt,
-    },
-  })
-  expect((await response.json() as { code: number }).code).toBe(0)
-  await logout(page)
-  await page.goto('/login')
-  await expect(page.getByText('Company SSO', { exact: true })).toHaveCount(0)
+    const response = await page.request.post('/api/v1/admin/oidc/provider/update', {
+      data: {
+        id: provider.id,
+        displayName: provider.displayName,
+        issuerUrl: provider.issuerUrl,
+        clientId: provider.clientId,
+        clientSecret: { mode: 'preserve' },
+        allowedEmailDomains: provider.allowedEmailDomains,
+        enabled: false,
+        expectedUpdatedAt: provider.updatedAt,
+      },
+    })
+    expect((await response.json() as { code: number }).code).toBe(0)
+    await logout(page)
+    await page.goto('/login')
+    await expect(page.getByText(displayName, { exact: true })).toHaveCount(0)
 
-  const rejected = await page.request.get(`/api/v1/auth/oidc/${allowedProviderKey}/start`, { maxRedirects: 0 })
-  expect(rejected.status()).toBe(303)
-  expect(rejected.headers().location).toBe('/login?oidcError=provider_unavailable')
+    const rejected = await page.request.get(`/api/v1/auth/oidc/${providerKey}/start`, { maxRedirects: 0 })
+    expect(rejected.status()).toBe(303)
+    expect(rejected.headers().location).toBe('/login?oidcError=provider_unavailable')
+  } finally {
+    await cleanupProviders(page, [providerKey])
+  }
 })
 
 test('keeps local account login available after OIDC is configured', async ({ page }) => {
-  await localLogin(page)
-  await expect(page).toHaveURL(/\/$/)
-  expect((await currentUser(page)).username).toBe(e2eAdminUsername)
+  const providerKey = uniqueProviderKey('local')
+  try {
+    await localLogin(page)
+    expect((await createProvider(page, { key: providerKey, displayName: 'Local Login SSO', clientId: 'moeurl-allowed' })).code).toBe(0)
+    await logout(page)
+
+    await localLogin(page)
+    await expect(page).toHaveURL(/\/$/)
+    expect((await currentUser(page)).username).toBe(e2eAdminUsername)
+  } finally {
+    await cleanupProviders(page, [providerKey])
+  }
 })
 
 async function localLogin(page: Page) {
@@ -167,4 +201,22 @@ async function createProvider(page: Page, input: { key: string; displayName: str
     },
   })
   return response.json() as Promise<{ code: number; data: unknown }>
+}
+
+async function cleanupProviders(page: Page, providerKeys: string[]) {
+  await page.request.post('/api/v1/auth/logout', { data: {} })
+  await localLogin(page)
+  const listed = await providerList(page)
+  for (const providerKey of providerKeys) {
+    const provider = listed.providers.find(({ key }) => key === providerKey)
+    if (!provider) continue
+    const response = await page.request.post('/api/v1/admin/oidc/provider/delete', {
+      data: { id: provider.id, expectedUpdatedAt: provider.updatedAt },
+    })
+    expect((await response.json() as { code: number }).code).toBe(0)
+  }
+}
+
+function uniqueProviderKey(prefix: string): string {
+  return `${prefix}-${randomBytes(4).toString('hex')}`
 }

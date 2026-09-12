@@ -529,6 +529,14 @@ set display_name = $1,
 where id = $10
   and updated_at = $11
   and deleted_at is null
+  and (
+    (issuer_url = $2 and client_id = $3)
+    or not exists (
+      select 1
+      from external_identity
+      where external_identity.provider_id = oidc_provider.id
+    )
+  )
 returning id, key, display_name, issuer_url, client_id, client_secret_ciphertext, authorization_endpoint, token_endpoint, jwks_uri, allowed_email_domains, enabled, created_at, updated_at, deleted_at
 `
 

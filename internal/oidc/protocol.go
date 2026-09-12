@@ -60,9 +60,6 @@ func (p *StandardProtocol) ExchangeAndVerify(ctx context.Context, provider Runti
 	if err != nil {
 		return IdentityClaims{}, ErrLoginFailed
 	}
-	if len(idToken.Audience) != 1 || idToken.Audience[0] != provider.ClientID {
-		return IdentityClaims{}, ErrLoginFailed
-	}
 	var claims struct {
 		Subject           string `json:"sub"`
 		Email             string `json:"email"`

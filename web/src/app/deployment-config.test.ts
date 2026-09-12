@@ -262,10 +262,21 @@ describe('deployment configuration', () => {
 
     expect(restoreGuide).toContain(': "${MOEURL_RESTORE_OIDC_ENCRYPTION_KEY:?')
     expect(restoreGuide).toContain(': "${MOEURL_RESTORE_PUBLIC_BASE_URL:?')
+    expect(restoreGuide).toContain('RESTORE_PUBLIC_BASE_URL="${MOEURL_RESTORE_PUBLIC_BASE_URL%/}"')
+    expect(restoreGuide).toContain('RESTORE_PUBLIC_BASE_URL_AUTHORITY="${RESTORE_PUBLIC_BASE_URL#https://}"')
+    expect(restoreGuide).toContain(`*'?'*`)
+    expect(restoreGuide).toContain(`*'@'*`)
     expect(restoreGuide).toContain(String.raw`printf 'MOEURL_OIDC_ENCRYPTION_KEY=%s\n' "$MOEURL_RESTORE_OIDC_ENCRYPTION_KEY"`)
-    expect(restoreGuide).toContain(String.raw`printf 'MOEURL_PUBLIC_BASE_URL=%s\n' "$MOEURL_RESTORE_PUBLIC_BASE_URL"`)
+    expect(restoreGuide).toContain(String.raw`printf 'MOEURL_PUBLIC_BASE_URL=%s\n' "$RESTORE_PUBLIC_BASE_URL"`)
     expect(restoreGuide).toContain('演练环境可达的 HTTPS Origin')
     expect(restoreGuide).toContain('身份提供商允许的回调地址')
+  })
+
+  it('documents an OIDC callback formula using the normalized public base URL', () => {
+    const readme = readFileSync(resolve(repositoryRoot, 'README.md'), 'utf8')
+
+    expect(readme).toContain('PUBLIC_BASE_URL="${MOEURL_PUBLIC_BASE_URL%/}"')
+    expect(readme).toContain('`${PUBLIC_BASE_URL}/api/v1/auth/oidc/<provider-key>/callback`')
   })
 
   it('anchors README production Compose commands to the deployment helper', () => {

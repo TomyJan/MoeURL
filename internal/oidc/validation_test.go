@@ -2,6 +2,7 @@ package oidc
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -65,7 +66,7 @@ func TestNormalizeProviderInputRejectsInvalidValues(t *testing.T) {
 		{name: "too many domains", mutate: func(value *providerInput) {
 			value.AllowedEmailDomains = make([]string, 101)
 			for index := range value.AllowedEmailDomains {
-				value.AllowedEmailDomains[index] = "domain" + string(rune('a'+index%26)) + ".example"
+				value.AllowedEmailDomains[index] = fmt.Sprintf("domain-%03d.example", index)
 			}
 		}},
 		{name: "invalid domain label", mutate: func(value *providerInput) { value.AllowedEmailDomains = []string{"bad_label.example"} }},

@@ -120,6 +120,7 @@ func TestConfigValidateOIDCConfiguration(t *testing.T) {
 		{name: "relative URL", env: "development", baseURL: "/moeurl", key: validKey, wantError: "absolute URL"},
 		{name: "path", env: "production", baseURL: "https://links.example.com/moeurl", key: validKey, wantError: "root path"},
 		{name: "query", env: "production", baseURL: "https://links.example.com?tenant=a", key: validKey, wantError: "query"},
+		{name: "empty query delimiter", env: "production", baseURL: "https://links.example.com?", key: validKey, wantError: "query"},
 		{name: "fragment", env: "production", baseURL: "https://links.example.com/#callback", key: validKey, wantError: "fragment"},
 		{name: "userinfo", env: "production", baseURL: "https://user@links.example.com", key: validKey, wantError: "userinfo"},
 	}

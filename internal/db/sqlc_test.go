@@ -69,6 +69,41 @@ func TestOIDCQueriesEnforceVisibilityConcurrencyAndSingleUse(t *testing.T) {
 	if len(runtimeProviders) != 1 || runtimeProviders[0].ID != provider.ID || !bytes.Equal(runtimeProviders[0].ClientSecretCiphertext, provider.ClientSecretCiphertext) {
 		t.Fatalf("enabled provider runtime = %#v", runtimeProviders)
 	}
+	if _, err := pool.Exec(ctx, `
+		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000001', 'user', 'User', '', '[]'::jsonb, true, now(), now())
+	`); err != nil {
+		t.Fatalf("create OIDC user group fixture: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into app_user (id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000201', 'oidc-user', null, 'OIDC User', '00000000-0000-0000-0000-000000000001', 'active', false, now(), now())
+	`); err != nil {
+		t.Fatalf("create bound OIDC user: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into external_identity (provider_id, subject, user_id, created_at, last_login_at)
+		values ($1, 'bound-subject', '00000000-0000-0000-0000-000000000201', now(), now())
+	`, provider.ID); err != nil {
+		t.Fatalf("create bound OIDC identity: %v", err)
+	}
+	for _, mutation := range []struct {
+		issuerURL string
+		clientID  string
+	}{
+		{issuerURL: "https://other.example.com", clientID: provider.ClientID},
+		{issuerURL: provider.IssuerUrl, clientID: "other-client"},
+	} {
+		_, err = queries.UpdateOIDCProvider(ctx, sqlc.UpdateOIDCProviderParams{
+			DisplayName: provider.DisplayName, IssuerUrl: mutation.issuerURL, ClientID: mutation.clientID,
+			ClientSecretCiphertext: provider.ClientSecretCiphertext, AuthorizationEndpoint: provider.AuthorizationEndpoint,
+			TokenEndpoint: provider.TokenEndpoint, JwksUri: provider.JwksUri, AllowedEmailDomains: provider.AllowedEmailDomains,
+			Enabled: provider.Enabled, ID: provider.ID, ExpectedUpdatedAt: provider.UpdatedAt,
+		})
+		if !errors.Is(err, pgx.ErrNoRows) {
+			t.Fatalf("bound provider namespace update error = %v, want pgx.ErrNoRows", err)
+		}
+	}
 
 	_, err = queries.UpdateOIDCProvider(ctx, sqlc.UpdateOIDCProviderParams{
 		DisplayName:            provider.DisplayName,

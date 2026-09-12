@@ -73,6 +73,14 @@ set display_name = sqlc.arg(display_name),
 where id = sqlc.arg(id)
   and updated_at = sqlc.arg(expected_updated_at)
   and deleted_at is null
+  and (
+    (issuer_url = sqlc.arg(issuer_url) and client_id = sqlc.arg(client_id))
+    or not exists (
+      select 1
+      from external_identity
+      where external_identity.provider_id = oidc_provider.id
+    )
+  )
 returning *;
 
 -- name: SoftDeleteOIDCProvider :one

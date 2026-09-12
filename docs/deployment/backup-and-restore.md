@@ -110,9 +110,17 @@ set +x
 umask 077
 : "${MOEURL_RESTORE_OIDC_ENCRYPTION_KEY:?restore the original OIDC encryption key from protected backup}"
 : "${MOEURL_RESTORE_PUBLIC_BASE_URL:?set the drill environment reachable HTTPS origin}"
-case "$MOEURL_RESTORE_PUBLIC_BASE_URL" in
+RESTORE_PUBLIC_BASE_URL="${MOEURL_RESTORE_PUBLIC_BASE_URL%/}"
+case "$RESTORE_PUBLIC_BASE_URL" in
   https://*) ;;
   *) echo 'MOEURL_RESTORE_PUBLIC_BASE_URL must be an HTTPS origin allowed by the identity provider' >&2; exit 1 ;;
+esac
+RESTORE_PUBLIC_BASE_URL_AUTHORITY="${RESTORE_PUBLIC_BASE_URL#https://}"
+case "$RESTORE_PUBLIC_BASE_URL_AUTHORITY" in
+  ''|*'/'*|*'?'*|*'#'*|*'@'*|*[[:space:]]*)
+    echo 'MOEURL_RESTORE_PUBLIC_BASE_URL must contain only an HTTPS scheme, host, and optional port' >&2
+    exit 1
+    ;;
 esac
 RESTORE_STATE=/var/lib/moeurl/restore-drill
 install -d -m 700 "$RESTORE_STATE"
@@ -124,7 +132,7 @@ restore_database_password="$(openssl rand -hex 32)"
   printf 'MOEURL_POSTGRES_PASSWORD=%s\n' "$restore_database_password"
   printf 'MOEURL_DATABASE_URL=postgres://moeurl:%s@postgres:5432/moeurl?sslmode=disable\n' "$restore_database_password"
   printf 'MOEURL_SETUP_TOKEN=%s\n' "$(openssl rand -hex 32)"
-  printf 'MOEURL_PUBLIC_BASE_URL=%s\n' "$MOEURL_RESTORE_PUBLIC_BASE_URL"
+  printf 'MOEURL_PUBLIC_BASE_URL=%s\n' "$RESTORE_PUBLIC_BASE_URL"
   printf 'MOEURL_OIDC_ENCRYPTION_KEY=%s\n' "$MOEURL_RESTORE_OIDC_ENCRYPTION_KEY"
 } > "$RESTORE_STATE/restore.env"
 unset restore_database_password
