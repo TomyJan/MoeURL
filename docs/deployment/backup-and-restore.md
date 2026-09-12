@@ -88,7 +88,7 @@ sha256sum --check "$backup_file.sha256"
 
 ## 3. 隔离恢复演练
 
-恢复测试不得指向生产 project 或生产数据库。以下示例使用固定隔离 project `moeurl-restore-drill` 和独立宿主端口。所有备份和恢复临时文件都放在仓库外的受保护运维目录，避免进入 Git 或 Docker 构建上下文。先创建权限为 `600` 的恢复环境文件，使用新生成的数据库密码与至少 32 字符的初始化 Token：
+恢复测试不得指向生产 project 或生产数据库。以下示例使用固定隔离 project `moeurl-restore-drill` 和独立宿主端口。所有备份和恢复临时文件都放在仓库外的受保护运维目录，避免进入 Git 或 Docker 构建上下文。先从受保护配置备份导出原始 OIDC 加密密钥，并把演练公共地址设置为身份提供商已允许回调的、演练环境可达的 HTTPS Origin；随后创建权限为 `600` 的恢复环境文件，使用新生成的数据库密码与至少 32 字符的初始化 Token：
 
 先显式选择并校验要恢复的备份；不要依赖创建备份章节遗留的 Shell 变量：
 
@@ -108,6 +108,12 @@ sha256sum --check "$backup_file.sha256" || {
 ```bash
 set +x
 umask 077
+: "${MOEURL_RESTORE_OIDC_ENCRYPTION_KEY:?restore the original OIDC encryption key from protected backup}"
+: "${MOEURL_RESTORE_PUBLIC_BASE_URL:?set the drill environment reachable HTTPS origin}"
+case "$MOEURL_RESTORE_PUBLIC_BASE_URL" in
+  https://*) ;;
+  *) echo 'MOEURL_RESTORE_PUBLIC_BASE_URL must be an HTTPS origin allowed by the identity provider' >&2; exit 1 ;;
+esac
 RESTORE_STATE=/var/lib/moeurl/restore-drill
 install -d -m 700 "$RESTORE_STATE"
 restore_database_password="$(openssl rand -hex 32)"
@@ -118,6 +124,8 @@ restore_database_password="$(openssl rand -hex 32)"
   printf 'MOEURL_POSTGRES_PASSWORD=%s\n' "$restore_database_password"
   printf 'MOEURL_DATABASE_URL=postgres://moeurl:%s@postgres:5432/moeurl?sslmode=disable\n' "$restore_database_password"
   printf 'MOEURL_SETUP_TOKEN=%s\n' "$(openssl rand -hex 32)"
+  printf 'MOEURL_PUBLIC_BASE_URL=%s\n' "$MOEURL_RESTORE_PUBLIC_BASE_URL"
+  printf 'MOEURL_OIDC_ENCRYPTION_KEY=%s\n' "$MOEURL_RESTORE_OIDC_ENCRYPTION_KEY"
 } > "$RESTORE_STATE/restore.env"
 unset restore_database_password
 chmod 600 "$RESTORE_STATE/restore.env"

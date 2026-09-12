@@ -64,3 +64,24 @@ describe('shouldSkipDockerCompose', () => {
     })
   })
 })
+
+describe('OIDC E2E port configuration', () => {
+  it.each(['', '0', 'not-a-port', '1.5', '65536', ' 19000 '])('rejects invalid port %j', async (value) => {
+    vi.stubEnv('MOEURL_E2E_OIDC_PORT', value)
+    vi.resetModules()
+
+    await expect(import('./e2e/support')).rejects.toThrow(/MOEURL_E2E_OIDC_PORT/)
+  })
+
+  it('shares one validated port with the Playwright Compose environment', async () => {
+    vi.stubEnv('MOEURL_E2E_OIDC_PORT', '65535')
+    vi.resetModules()
+
+    const support = await import('./e2e/support')
+    const { default: config } = await import('./playwright.config')
+    const webServer = config.webServer as { env?: Record<string, string> }
+
+    expect(support.e2eOIDCPort).toBe('65535')
+    expect(webServer.env?.MOEURL_E2E_OIDC_PORT).toBe(support.e2eOIDCPort)
+  })
+})

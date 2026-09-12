@@ -198,6 +198,16 @@ func assertOIDCConstraints(t *testing.T, ctx context.Context, database *sql.DB) 
 	`); err == nil {
 		t.Fatal("expected one identity per user and provider")
 	}
+	_, err := database.ExecContext(ctx, `
+		insert into external_identity (provider_id, subject, user_id, created_at, last_login_at)
+		values
+			('00000000-0000-0000-0000-000000000701', 'shared-subject', '00000000-0000-0000-0000-000000000201', now(), now()),
+			('00000000-0000-0000-0000-000000000701', 'shared-subject', '00000000-0000-0000-0000-000000000202', now(), now())
+	`)
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || pgErr.Code != "23505" {
+		t.Fatalf("duplicate provider subject error = %T %v, want PostgreSQL 23505", err, err)
+	}
 	if _, err := database.ExecContext(ctx, `delete from external_identity; delete from oidc_provider`); err != nil {
 		t.Fatalf("clear OIDC constraint fixtures: %v", err)
 	}
@@ -742,7 +752,9 @@ func TestShortLinkExperienceMigrationUpgradesExistingDataAndRollsBack(t *testing
 			('00000000-0000-0000-0000-000000000003', 'admin', 'Admin', '', '["admin:access"]'::jsonb, true, now(), now());
 
 		insert into app_user (id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at)
-		values ('00000000-0000-0000-0000-000000000201', 'alice', 'hash', 'Alice', '00000000-0000-0000-0000-000000000002', 'active', false, now(), now());
+		values
+			('00000000-0000-0000-0000-000000000201', 'alice', 'hash', 'Alice', '00000000-0000-0000-0000-000000000002', 'active', false, now(), now()),
+			('00000000-0000-0000-0000-000000000202', 'bob', 'hash', 'Bob', '00000000-0000-0000-0000-000000000002', 'active', false, now(), now());
 
 		insert into domain (id, host, display_name, purpose, enabled, is_default, created_at, updated_at)
 		values ('00000000-0000-0000-0000-000000000101', 'go.example.com', 'Default', 'short_link', true, true, now(), now());

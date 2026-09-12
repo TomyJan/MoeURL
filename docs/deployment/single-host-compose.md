@@ -216,6 +216,7 @@ server {
     location ~ ^/api/v1/auth/oidc/[^/]+/callback$ {
         limit_req zone=moeurl_oidc_callback burst=10 nodelay;
         access_log /var/log/nginx/access.log moeurl_path_only;
+        error_log /var/log/nginx/error.log crit;
         proxy_pass http://127.0.0.1:8080;
         include /etc/nginx/snippets/moeurl-proxy-headers.conf;
     }

@@ -2,6 +2,8 @@ import { existsSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
 import { chromium, defineConfig, devices } from '@playwright/test'
 
+import { e2eOIDCPort } from './e2e/support'
+
 type BrowserChannel = 'chrome' | 'msedge'
 type BrowserCandidate = {
   channel: BrowserChannel
@@ -12,7 +14,6 @@ const e2ePort = process.env.MOEURL_E2E_PORT ?? '8080'
 const e2ePostgresPassword = process.env.MOEURL_E2E_POSTGRES_PASSWORD ?? randomBytes(32).toString('hex')
 const e2eDatabaseURL = `postgres://moeurl:${encodeURIComponent(e2ePostgresPassword)}@postgres:5432/moeurl?sslmode=disable`
 const baseURL = `http://127.0.0.1:${e2ePort}`
-const e2eOIDCPort = process.env.MOEURL_E2E_OIDC_PORT ?? '19000'
 const oidcEncryptionKey = randomBytes(32).toString('base64')
 const composeProjectName = resolveE2EComposeProjectName(process.env.MOEURL_E2E_COMPOSE_PROJECT, e2ePort)
 const browserChannel = process.env.MOEURL_E2E_BROWSER_CHANNEL?.trim() || detectFallbackBrowserChannel()

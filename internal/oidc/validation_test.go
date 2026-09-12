@@ -69,6 +69,7 @@ func TestNormalizeProviderInputRejectsInvalidValues(t *testing.T) {
 			}
 		}},
 		{name: "invalid domain label", mutate: func(value *providerInput) { value.AllowedEmailDomains = []string{"bad_label.example"} }},
+		{name: "overlong domain label", mutate: func(value *providerInput) { value.AllowedEmailDomains = []string{strings.Repeat("a", 64) + ".example"} }},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

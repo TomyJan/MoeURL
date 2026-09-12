@@ -250,7 +250,22 @@ describe('deployment configuration', () => {
     expect(deploymentGuide).toContain('log_format moeurl_path_only')
     expect(deploymentGuide).toContain('$request_method $uri $server_protocol')
     expect(deploymentGuide).toContain('access_log /var/log/nginx/access.log moeurl_path_only;')
+    expect(deploymentGuide).toContain('error_log /var/log/nginx/error.log crit;')
     expect(deploymentGuide).toContain('OIDC callback 的访问日志不得记录查询参数')
+  })
+
+  it('restores OIDC secrets while using a drill-specific public HTTPS origin', () => {
+    const restoreGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/backup-and-restore.md'),
+      'utf8',
+    )
+
+    expect(restoreGuide).toContain(': "${MOEURL_RESTORE_OIDC_ENCRYPTION_KEY:?')
+    expect(restoreGuide).toContain(': "${MOEURL_RESTORE_PUBLIC_BASE_URL:?')
+    expect(restoreGuide).toContain(String.raw`printf 'MOEURL_OIDC_ENCRYPTION_KEY=%s\n' "$MOEURL_RESTORE_OIDC_ENCRYPTION_KEY"`)
+    expect(restoreGuide).toContain(String.raw`printf 'MOEURL_PUBLIC_BASE_URL=%s\n' "$MOEURL_RESTORE_PUBLIC_BASE_URL"`)
+    expect(restoreGuide).toContain('演练环境可达的 HTTPS Origin')
+    expect(restoreGuide).toContain('身份提供商允许的回调地址')
   })
 
   it('anchors README production Compose commands to the deployment helper', () => {

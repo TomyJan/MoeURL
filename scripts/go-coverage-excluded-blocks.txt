@@ -66,6 +66,3 @@ github.com/TomyJan/MoeURL/internal/oidc/provider_service.go:215.16,217.3
 # AES-256 keys are length-checked before construction; the standard AES and GCM constructors cannot reject this configuration.
 github.com/TomyJan/MoeURL/internal/oidc/secret.go:40.16,42.3
 github.com/TomyJan/MoeURL/internal/oidc/secret.go:44.16,46.3
-
-# IDNA Lookup validation already rejects labels outside the subsequent conservative DNS-label expression.
-github.com/TomyJan/MoeURL/internal/oidc/validation.go:63.46,65.5
