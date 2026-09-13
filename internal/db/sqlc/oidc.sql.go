@@ -14,11 +14,17 @@ import (
 const consumeOIDCLoginAttempt = `-- name: ConsumeOIDCLoginAttempt :one
 delete from oidc_login_attempt
 where state_hash = $1
+  and browser_binding_hash = $2
 returning state_hash, provider_id, nonce_hash, browser_binding_hash, verifier_ciphertext, return_path, expires_at, created_at
 `
 
-func (q *Queries) ConsumeOIDCLoginAttempt(ctx context.Context, stateHash []byte) (OidcLoginAttempt, error) {
-	row := q.db.QueryRow(ctx, consumeOIDCLoginAttempt, stateHash)
+type ConsumeOIDCLoginAttemptParams struct {
+	StateHash          []byte `json:"state_hash"`
+	BrowserBindingHash []byte `json:"browser_binding_hash"`
+}
+
+func (q *Queries) ConsumeOIDCLoginAttempt(ctx context.Context, arg ConsumeOIDCLoginAttemptParams) (OidcLoginAttempt, error) {
+	row := q.db.QueryRow(ctx, consumeOIDCLoginAttempt, arg.StateHash, arg.BrowserBindingHash)
 	var i OidcLoginAttempt
 	err := row.Scan(
 		&i.StateHash,

@@ -400,6 +400,7 @@ export const messages = {
     },
     oidc: {
       title: '身份认证',
+      providerListLabel: 'OIDC 提供商列表',
       description: '管理用于登录 MoeURL 的 OIDC 提供商，本地账号登录始终保留。',
       addProvider: '新增提供商',
       loadFailed: '身份认证配置加载失败。',
@@ -890,6 +891,7 @@ export const messages = {
     },
     oidc: {
       title: 'Authentication',
+      providerListLabel: 'OIDC providers',
       description: 'Manage OIDC providers used to sign in to MoeURL. Local account sign-in remains available.',
       addProvider: 'Add provider',
       loadFailed: 'Authentication configuration could not be loaded.',

@@ -16,7 +16,7 @@
     </v-alert>
 
     <div v-else class="identity-page__workspace">
-      <aside class="identity-page__providers" aria-label="OIDC providers">
+      <aside class="identity-page__providers" :aria-label="t('oidc.providerListLabel')">
         <button
           v-for="provider in providers"
           :key="provider.id"

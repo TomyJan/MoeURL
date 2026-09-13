@@ -137,14 +137,22 @@ func TestOIDCQueriesEnforceVisibilityConcurrencyAndSingleUse(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create OIDC login attempt: %v", err)
 	}
-	attempt, err := queries.ConsumeOIDCLoginAttempt(ctx, stateHash)
+	if _, err := queries.ConsumeOIDCLoginAttempt(ctx, sqlc.ConsumeOIDCLoginAttemptParams{
+		StateHash: stateHash, BrowserBindingHash: bytes.Repeat([]byte{9}, 32),
+	}); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("wrong browser consumption error = %v, want pgx.ErrNoRows", err)
+	}
+	consumeInput := sqlc.ConsumeOIDCLoginAttemptParams{
+		StateHash: stateHash, BrowserBindingHash: bytes.Repeat([]byte{3}, 32),
+	}
+	attempt, err := queries.ConsumeOIDCLoginAttempt(ctx, consumeInput)
 	if err != nil {
 		t.Fatalf("consume OIDC login attempt: %v", err)
 	}
 	if attempt.ReturnPath != "/console" || attempt.ProviderID != provider.ID || !bytes.Equal(attempt.BrowserBindingHash, bytes.Repeat([]byte{3}, 32)) {
 		t.Fatalf("consumed attempt = %#v", attempt)
 	}
-	if _, err := queries.ConsumeOIDCLoginAttempt(ctx, stateHash); !errors.Is(err, pgx.ErrNoRows) {
+	if _, err := queries.ConsumeOIDCLoginAttempt(ctx, consumeInput); !errors.Is(err, pgx.ErrNoRows) {
 		t.Fatalf("replayed OIDC attempt error = %v, want pgx.ErrNoRows", err)
 	}
 

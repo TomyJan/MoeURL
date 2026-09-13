@@ -72,7 +72,7 @@ type LoginCallback struct {
 type loginStore interface {
 	GetEnabledOIDCProviderByKey(context.Context, string) (sqlc.OidcProvider, error)
 	CreateOIDCLoginAttempt(context.Context, sqlc.CreateOIDCLoginAttemptParams) error
-	ConsumeOIDCLoginAttempt(context.Context, []byte) (sqlc.OidcLoginAttempt, error)
+	ConsumeOIDCLoginAttempt(context.Context, sqlc.ConsumeOIDCLoginAttemptParams) (sqlc.OidcLoginAttempt, error)
 }
 
 // Protocol performs standards-compliant authorization and verified token exchange.
@@ -187,16 +187,18 @@ func (s *LoginService) Callback(ctx context.Context, providerKey string, code st
 	defer releaseLoginSlot(s.callbackSlots)
 	ctx, cancel := context.WithTimeout(ctx, loginOperationTimeout)
 	defer cancel()
-	if state == "" {
+	if state == "" || browserBinding == "" {
 		return LoginCallback{}, ErrLoginFailed
 	}
 	stateHash := sha256.Sum256([]byte(state))
-	attempt, err := s.store.ConsumeOIDCLoginAttempt(ctx, stateHash[:])
+	browserBindingHash := sha256.Sum256([]byte(browserBinding))
+	attempt, err := s.store.ConsumeOIDCLoginAttempt(ctx, sqlc.ConsumeOIDCLoginAttemptParams{
+		StateHash: stateHash[:], BrowserBindingHash: browserBindingHash[:],
+	})
 	if err != nil {
 		return LoginCallback{}, ErrLoginFailed
 	}
-	browserBindingHash := sha256.Sum256([]byte(browserBinding))
-	if code == "" || browserBinding == "" || len(attempt.BrowserBindingHash) != sha256.Size || subtle.ConstantTimeCompare(attempt.BrowserBindingHash, browserBindingHash[:]) != 1 {
+	if code == "" {
 		return LoginCallback{}, ErrLoginFailed
 	}
 	provider, err := s.loadProvider(ctx, providerKey)

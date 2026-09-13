@@ -68,6 +68,7 @@ create index oidc_login_attempt_expires_at_idx on oidc_login_attempt (expires_at
 
 -- +goose Down
 -- +goose StatementBegin
+lock table external_identity in share mode;
 do $$
 begin
     if exists (select 1 from external_identity) then

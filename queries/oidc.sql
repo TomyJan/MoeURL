@@ -116,7 +116,8 @@ insert into oidc_login_attempt (
 
 -- name: ConsumeOIDCLoginAttempt :one
 delete from oidc_login_attempt
-where state_hash = $1
+where state_hash = sqlc.arg(state_hash)
+  and browser_binding_hash = sqlc.arg(browser_binding_hash)
 returning *;
 
 -- name: DeleteExpiredOIDCLoginAttempts :execrows

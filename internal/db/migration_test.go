@@ -138,6 +138,66 @@ func TestOIDCMigrationRoundTrip(t *testing.T) {
 	})
 }
 
+// TestOIDCRollbackWaitsForConcurrentIdentityInsert verifies the guard observes committed in-flight bindings.
+func TestOIDCRollbackWaitsForConcurrentIdentityInsert(t *testing.T) {
+	ctx := t.Context()
+	database := migrationTestDatabase(t, ctx)
+	migrationsDir := filepath.Join("..", "..", "migrations")
+	if err := goose.UpTo(database, migrationsDir, 12); err != nil {
+		t.Fatalf("upgrade OIDC migration: %v", err)
+	}
+	insertUserGroups(t, ctx, database)
+	insertOIDCProvider(t, ctx, database)
+
+	tx, err := database.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin identity insert: %v", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, `
+		insert into external_identity (provider_id, subject, user_id, created_at, last_login_at)
+		values ('00000000-0000-0000-0000-000000000701', 'pending-binding', '00000000-0000-0000-0000-000000000201', now(), now())
+	`); err != nil {
+		t.Fatalf("insert pending identity: %v", err)
+	}
+
+	result := make(chan error, 1)
+	go func() { result <- goose.DownTo(database, migrationsDir, 11) }()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		var waiting bool
+		if err := database.QueryRowContext(ctx, `
+			select exists (select 1 from pg_locks
+				where relation = 'external_identity'::regclass and mode = 'ShareLock' and not granted)
+		`).Scan(&waiting); err != nil {
+			t.Fatalf("inspect rollback lock: %v", err)
+		}
+		if waiting {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("rollback did not request the identity guard lock")
+		}
+		select {
+		case err := <-result:
+			t.Fatalf("rollback finished before pending insert committed: %v", err)
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("commit identity insert: %v", err)
+	}
+	select {
+	case err := <-result:
+		if err == nil || !strings.Contains(err.Error(), "external identity bindings exist") {
+			t.Fatalf("guarded rollback error = %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("rollback did not finish after identity insert committed")
+	}
+	assertRelationExists(t, ctx, database, "external_identity", true)
+}
+
 // insertOIDCProvider inserts one valid provider fixture for migration assertions.
 func insertOIDCProvider(t *testing.T, ctx context.Context, database *sql.DB) {
 	t.Helper()

@@ -150,6 +150,7 @@ describe('AdminAuthenticationPage', () => {
 
   it('renders configured providers without exposing a stored secret', () => {
     mountPage()
+    expect(screen.getByRole('complementary', { name: 'oidc.providerListLabel' })).toBeTruthy()
     expect(screen.getByRole('button', { name: /^Company SSO/ })).toBeTruthy()
     expect(screen.getByDisplayValue('https://id.example.com')).toBeTruthy()
     expect(screen.queryByDisplayValue('client-secret')).toBeNull()

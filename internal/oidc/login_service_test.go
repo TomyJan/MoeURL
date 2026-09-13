@@ -202,9 +202,24 @@ func TestLoginServiceCallbackRejectsMissingOrMismatchedBrowserBinding(t *testing
 		if _, err := fixture.service.Callback(t.Context(), "company", "code", fixture.state, binding); !errors.Is(err, ErrLoginFailed) {
 			t.Fatalf("binding %q callback error = %v", binding, err)
 		}
-		if fixture.store.consumeCalls != 1 || fixture.protocol.exchangeCalls != 0 || fixture.sessions.calls != 0 {
+		wantConsumeCalls := 1
+		if binding == "" {
+			wantConsumeCalls = 0
+		}
+		if fixture.store.consumeCalls != wantConsumeCalls || fixture.protocol.exchangeCalls != 0 || fixture.sessions.calls != 0 {
 			t.Fatalf("invalid binding reached dependencies: consume=%d exchange=%d session=%d", fixture.store.consumeCalls, fixture.protocol.exchangeCalls, fixture.sessions.calls)
 		}
+	}
+}
+
+// TestLoginServiceCallbackWrongBrowserCannotConsumeState ensures the initiating browser can still complete login.
+func TestLoginServiceCallbackWrongBrowserCannotConsumeState(t *testing.T) {
+	fixture := newCallbackFixture(t)
+	if _, err := fixture.service.Callback(t.Context(), "company", "code", fixture.state, "other-browser"); !errors.Is(err, ErrLoginFailed) {
+		t.Fatalf("wrong browser callback error = %v", err)
+	}
+	if _, err := fixture.service.Callback(t.Context(), "company", "code", fixture.state, fixture.browserBinding); err != nil {
+		t.Fatalf("initiating browser callback error = %v", err)
 	}
 }
 
@@ -381,6 +396,7 @@ type loginStoreStub struct {
 	createErr      error
 	createdAttempt sqlc.CreateOIDCLoginAttemptParams
 	consumeCalls   int
+	consumed       bool
 }
 
 func (s *loginStoreStub) GetEnabledOIDCProviderByKey(context.Context, string) (sqlc.OidcProvider, error) {
@@ -392,8 +408,15 @@ func (s *loginStoreStub) CreateOIDCLoginAttempt(_ context.Context, input sqlc.Cr
 	return s.createErr
 }
 
-func (s *loginStoreStub) ConsumeOIDCLoginAttempt(context.Context, []byte) (sqlc.OidcLoginAttempt, error) {
+func (s *loginStoreStub) ConsumeOIDCLoginAttempt(_ context.Context, input sqlc.ConsumeOIDCLoginAttemptParams) (sqlc.OidcLoginAttempt, error) {
 	s.consumeCalls++
+	if !bytes.Equal(input.StateHash, s.attempt.StateHash) || !bytes.Equal(input.BrowserBindingHash, s.attempt.BrowserBindingHash) {
+		return sqlc.OidcLoginAttempt{}, pgx.ErrNoRows
+	}
+	if s.consumed {
+		return sqlc.OidcLoginAttempt{}, pgx.ErrNoRows
+	}
+	s.consumed = true
 	return s.attempt, s.consumeErr
 }
 
