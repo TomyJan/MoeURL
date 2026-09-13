@@ -1207,7 +1207,9 @@ func insertUserGroups(t *testing.T, ctx context.Context, database *sql.DB) {
 			('00000000-0000-0000-0000-000000000003', 'admin', 'Admin', '', '[]'::jsonb, true, now(), now());
 
 		insert into app_user (id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at)
-		values ('00000000-0000-0000-0000-000000000201', 'alice', 'hash', 'Alice', '00000000-0000-0000-0000-000000000002', 'active', false, now(), now());
+		values
+			('00000000-0000-0000-0000-000000000201', 'alice', 'hash', 'Alice', '00000000-0000-0000-0000-000000000002', 'active', false, now(), now()),
+			('00000000-0000-0000-0000-000000000202', 'bob', 'hash', 'Bob', '00000000-0000-0000-0000-000000000002', 'active', false, now(), now());
 
 		insert into domain (id, host, display_name, purpose, enabled, is_default, created_at, updated_at)
 		values ('00000000-0000-0000-0000-000000000101', 'go.example.com', 'Default', 'short_link', true, true, now(), now());

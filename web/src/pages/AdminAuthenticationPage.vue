@@ -61,7 +61,7 @@
           {{ feedbackMessage }}
         </v-alert>
         <div class="identity-page__actions">
-          <v-btn v-if="!creating" color="error" variant="text" :disabled="mutation.isPending.value" @click="deleteDialog = true">{{ t('oidc.delete') }}</v-btn>
+          <v-btn v-if="!creating" color="error" variant="text" :disabled="mutation.isPending.value" @click="openDeleteDialog">{{ t('oidc.delete') }}</v-btn>
           <span />
           <v-btn v-if="creating" variant="text" :disabled="mutation.isPending.value" @click="cancelCreate">{{ t('oidc.cancel') }}</v-btn>
           <v-btn color="primary" type="submit" :loading="mutation.isPending.value">{{ t('oidc.save') }}</v-btn>
@@ -101,6 +101,7 @@ const query = useQuery({ queryKey: ['admin', 'oidc', 'providers'], queryFn: list
 const selectedID = ref('')
 const creating = ref(false)
 const deleteDialog = ref(false)
+const deleteTarget = ref<OIDCProvider | null>(null)
 const feedback = ref<'success' | 'conflict' | 'error' | ''>('')
 const draft = reactive({ key: '', displayName: '', issuerUrl: '', clientId: '', clientSecret: '', allowedDomains: '', enabled: true })
 const providers = computed(() => query.data.value?.providers ?? [])
@@ -166,8 +167,8 @@ const mutation = useMutation({
     if (active) {
       draft.clientSecret = ''
       feedback.value = 'success'
-      deleteDialog.value = false
     }
+    if (result.type === 'delete' && deleteTarget.value?.id === result.providerID) deleteDialog.value = false
     void queryClient.invalidateQueries({ queryKey: ['admin', 'oidc', 'providers'] })
     void queryClient.invalidateQueries({ queryKey: ['auth', 'methods'] })
   },
@@ -194,6 +195,10 @@ const mutation = useMutation({
 })
 
 const feedbackMessage = computed(() => feedback.value === 'success' ? t('oidc.saveSuccess') : feedback.value === 'conflict' ? t('oidc.conflict') : t('oidc.saveFailed'))
+
+watch(deleteDialog, (open) => {
+  if (!open) deleteTarget.value = null
+})
 
 watch(providers, (items) => {
   if (creating.value) return
@@ -260,8 +265,15 @@ function save() {
   }
 }
 
+function openDeleteDialog() {
+  if (!selectedProvider.value) return
+  deleteTarget.value = { ...selectedProvider.value }
+  deleteDialog.value = true
+}
+
 function confirmDelete() {
-  if (selectedProvider.value) mutation.mutate({ type: 'delete', provider: selectedProvider.value })
+  // The dialog is only opened after capturing a provider snapshot.
+  mutation.mutate({ type: 'delete', provider: deleteTarget.value! })
 }
 
 function splitDomains(value: string) {

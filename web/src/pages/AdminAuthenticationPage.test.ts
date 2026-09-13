@@ -298,6 +298,18 @@ describe('AdminAuthenticationPage', () => {
     expect(screen.getByText('oidc.saveSuccess')).toBeTruthy()
   })
 
+  it('deletes the provider selected when the dialog opened even after switching tabs', async () => {
+    vi.mocked(deleteOIDCProvider).mockResolvedValue(undefined)
+    mountPage()
+    await fireEvent.click(screen.getByRole('button', { name: 'oidc.delete' }))
+    await fireEvent.click(screen.getByRole('button', { name: /^Team SSO/ }))
+    await fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'oidc.delete' }))
+
+    await waitFor(() => expect(deleteOIDCProvider).toHaveBeenCalledWith({ id: company.id, expectedUpdatedAt: company.updatedAt }))
+    expect(deleteOIDCProvider).toHaveBeenCalledOnce()
+    expect(screen.getByDisplayValue('Team SSO')).toBeTruthy()
+  })
+
   it('does not show an earlier failure after switching providers', async () => {
     const request = deferred<{ provider: OIDCProvider }>()
     vi.mocked(updateOIDCProvider).mockReturnValue(request.promise)
@@ -403,6 +415,25 @@ describe('AdminAuthenticationPage', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
+  it('uses the new selection when opening a delete dialog after cancellation', async () => {
+    vi.mocked(deleteOIDCProvider).mockResolvedValue(undefined)
+    mountPage()
+    await fireEvent.click(screen.getByRole('button', { name: 'oidc.delete' }))
+    await fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'oidc.cancel' }))
+    await fireEvent.click(screen.getByRole('button', { name: /^Team SSO/ }))
+    await fireEvent.click(screen.getByRole('button', { name: 'oidc.delete' }))
+    await fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'oidc.delete' }))
+    await waitFor(() => expect(deleteOIDCProvider).toHaveBeenCalledWith({ id: team.id, expectedUpdatedAt: team.updatedAt }))
+  })
+
+  it('does not open a stale delete action after its provider disappeared', async () => {
+    mountPage()
+    const deleteButton = screen.getByRole('button', { name: 'oidc.delete' })
+    state.queryData.value = { providers: [] }
+    await fireEvent.click(deleteButton)
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
   it('clears selection when a server refresh returns no providers', async () => {
     mountPage()
     state.queryData.value = { providers: [] }
@@ -437,13 +468,13 @@ describe('AdminAuthenticationPage', () => {
     expect(state.queryData.value).toEqual({ providers: [] })
   })
 
-  it('ignores confirmation after the selected provider disappears', async () => {
+  it('keeps the original delete target after the selected provider disappears', async () => {
     mountPage()
     await fireEvent.click(screen.getByRole('button', { name: 'oidc.delete' }))
     state.queryData.value = { providers: [] }
     await nextTick()
     await fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'oidc.delete' }))
-    expect(deleteOIDCProvider).not.toHaveBeenCalled()
+    await waitFor(() => expect(deleteOIDCProvider).toHaveBeenCalledWith({ id: company.id, expectedUpdatedAt: company.updatedAt }))
   })
 
   it('ignores a stale form submit after its provider disappears', () => {

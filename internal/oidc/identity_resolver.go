@@ -54,7 +54,7 @@ func (r *DatabaseIdentityResolver) ResolveOrCreate(ctx context.Context, provider
 		}
 		row, err := queries.GetExternalIdentityUser(ctx, sqlc.GetExternalIdentityUserParams{ProviderID: provider.ID, Subject: claims.Subject})
 		if err == nil {
-			if row.Status != "active" {
+			if row.Status != "active" || row.DeletedAt.Valid {
 				return ErrUserDisabled
 			}
 			if err := queries.TouchExternalIdentity(ctx, sqlc.TouchExternalIdentityParams{ProviderID: provider.ID, Subject: claims.Subject}); err != nil {

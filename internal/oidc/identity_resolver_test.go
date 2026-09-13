@@ -88,6 +88,35 @@ func TestDatabaseIdentityResolverRejectsDisabledBoundUser(t *testing.T) {
 	}
 }
 
+// TestDatabaseIdentityResolverRejectsDeletedBoundUser prevents re-provisioning a soft-deleted identity.
+func TestDatabaseIdentityResolverRejectsDeletedBoundUser(t *testing.T) {
+	pool := testdb.ProjectMigratedPool(t.Context(), t)
+	seedOIDCIdentityTestCatalog(t, pool)
+	provider := identityTestProvider(t, pool)
+	resolver := NewDatabaseIdentityResolver(pool)
+	claims := IdentityClaims{Subject: "deleted-subject", Email: "person@example.com", EmailVerified: true}
+	user, err := resolver.ResolveOrCreate(t.Context(), provider, claims)
+	if err != nil {
+		t.Fatalf("create identity: %v", err)
+	}
+	if _, err := pool.Exec(t.Context(), `update app_user set deleted_at = now() where id = $1`, user.ID); err != nil {
+		t.Fatalf("soft-delete user: %v", err)
+	}
+	if _, err := resolver.ResolveOrCreate(t.Context(), provider, claims); !errors.Is(err, ErrUserDisabled) {
+		t.Fatalf("deleted login error = %v, want ErrUserDisabled", err)
+	}
+	var users, identities int
+	if err := pool.QueryRow(t.Context(), `select count(*) from app_user`).Scan(&users); err != nil {
+		t.Fatalf("count users: %v", err)
+	}
+	if err := pool.QueryRow(t.Context(), `select count(*) from external_identity`).Scan(&identities); err != nil {
+		t.Fatalf("count identities: %v", err)
+	}
+	if users != 1 || identities != 1 {
+		t.Fatalf("deleted login changed row counts: users=%d identities=%d", users, identities)
+	}
+}
+
 // TestDatabaseIdentityResolverRejectsChangedNamespace prevents a stale login attempt from binding under new provider credentials.
 func TestDatabaseIdentityResolverRejectsChangedNamespace(t *testing.T) {
 	pool := testdb.ProjectMigratedPool(t.Context(), t)

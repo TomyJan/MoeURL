@@ -275,6 +275,7 @@ select app_user.id::text as user_id,
     app_user.username,
     app_user.nickname,
     app_user.status,
+    app_user.deleted_at,
     user_group.key as group_key,
     user_group.permissions
 from external_identity
@@ -282,7 +283,6 @@ join app_user on app_user.id = external_identity.user_id
 join user_group on user_group.id = app_user.group_id
 where external_identity.provider_id = $1
   and external_identity.subject = $2
-  and app_user.deleted_at is null
 `
 
 type GetExternalIdentityUserParams struct {
@@ -291,12 +291,13 @@ type GetExternalIdentityUserParams struct {
 }
 
 type GetExternalIdentityUserRow struct {
-	UserID      string `json:"user_id"`
-	Username    string `json:"username"`
-	Nickname    string `json:"nickname"`
-	Status      string `json:"status"`
-	GroupKey    string `json:"group_key"`
-	Permissions []byte `json:"permissions"`
+	UserID      string             `json:"user_id"`
+	Username    string             `json:"username"`
+	Nickname    string             `json:"nickname"`
+	Status      string             `json:"status"`
+	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
+	GroupKey    string             `json:"group_key"`
+	Permissions []byte             `json:"permissions"`
 }
 
 func (q *Queries) GetExternalIdentityUser(ctx context.Context, arg GetExternalIdentityUserParams) (GetExternalIdentityUserRow, error) {
@@ -307,6 +308,7 @@ func (q *Queries) GetExternalIdentityUser(ctx context.Context, arg GetExternalId
 		&i.Username,
 		&i.Nickname,
 		&i.Status,
+		&i.DeletedAt,
 		&i.GroupKey,
 		&i.Permissions,
 	)

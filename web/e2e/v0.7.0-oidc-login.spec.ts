@@ -14,6 +14,18 @@ import {
 const clientSecret = 'e2e-client-secret'
 const issuerURL = `http://127.0.0.1:${e2eOIDCPort}`
 
+test('test identity provider requires the openid authorization scope', async ({ request }) => {
+  const params = new URLSearchParams({
+    client_id: 'moeurl-allowed', redirect_uri: 'http://127.0.0.1/callback',
+    response_type: 'code', state: 'state', nonce: 'nonce', code_challenge: 'challenge', code_challenge_method: 'S256',
+  })
+  const invalid = await request.get(`${issuerURL}/authorize?${params}`)
+  expect(invalid.status()).toBe(400)
+  params.set('scope', 'email openid profile')
+  const valid = await request.get(`${issuerURL}/authorize?${params}`, { maxRedirects: 0 })
+  expect(valid.status()).toBe(302)
+})
+
 test('configures multiple OIDC providers from the authentication page', async ({ page }) => {
   const allowedProviderKey = uniqueProviderKey('company')
   const deniedProviderKey = uniqueProviderKey('outside')

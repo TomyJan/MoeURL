@@ -141,14 +141,14 @@ select app_user.id::text as user_id,
     app_user.username,
     app_user.nickname,
     app_user.status,
+    app_user.deleted_at,
     user_group.key as group_key,
     user_group.permissions
 from external_identity
 join app_user on app_user.id = external_identity.user_id
 join user_group on user_group.id = app_user.group_id
 where external_identity.provider_id = sqlc.arg(provider_id)
-  and external_identity.subject = sqlc.arg(subject)
-  and app_user.deleted_at is null;
+  and external_identity.subject = sqlc.arg(subject);
 
 -- name: CreateOIDCUser :one
 insert into app_user (

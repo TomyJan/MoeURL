@@ -40,7 +40,7 @@ createServer(async (request, response) => {
     const state = url.searchParams.get('state') ?? ''
     const nonce = url.searchParams.get('nonce') ?? ''
     const codeChallenge = url.searchParams.get('code_challenge') ?? ''
-    if (!identities[clientID] || !redirectURI || !state || !nonce || !codeChallenge || url.searchParams.get('response_type') !== 'code' || url.searchParams.get('code_challenge_method') !== 'S256') {
+    if (!identities[clientID] || !redirectURI || !state || !nonce || !codeChallenge || !url.searchParams.get('scope')?.split(/\s+/).includes('openid') || url.searchParams.get('response_type') !== 'code' || url.searchParams.get('code_challenge_method') !== 'S256') {
       return json(response, 400, { error: 'invalid_request' })
     }
     const code = randomBytes(24).toString('base64url')

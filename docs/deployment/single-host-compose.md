@@ -131,10 +131,11 @@ curl --fail --silent --show-error --connect-timeout 2 --max-time 5 https://go.ex
 
 `MOEURL_PUBLIC_BASE_URL` 必须与用户实际访问的公网 HTTPS Origin 完全一致，只包含 scheme、host 和可选端口。`MOEURL_OIDC_ENCRYPTION_KEY` 必须是 Base64 编码的 32 字节随机值。两项配置必须同时存在；若数据库中已有启用的 provider，缺少任一项时 App 会拒绝启动。
 
-管理员在「身份认证」页面创建 provider 后，到身份提供商登记以下固定回调地址：
+管理员在「身份认证」页面创建 provider 后，使用已规范化的 `MOEURL_PUBLIC_BASE_URL` 登记固定回调地址。若原值以 `/` 结尾，先去除末尾斜杠；保留其中配置的非默认 HTTPS 端口：
 
-```text
-https://<公网域名>/api/v1/auth/oidc/<provider-key>/callback
+```bash
+PUBLIC_BASE_URL="${MOEURL_PUBLIC_BASE_URL%/}"
+printf '%s/api/v1/auth/oidc/<provider-key>/callback\n' "$PUBLIC_BASE_URL"
 ```
 
 反向代理必须保留外部 HTTPS 地址语义。OIDC callback 的访问日志不得记录查询参数，公开工单和调试日志同样不得包含 `code` 或 `state`；只记录请求方法、路径、状态码和必要的运维字段。MoeURL 只使用配置的公共地址生成 callback，不信任请求 `Host`。`ValidateEnabledProviderRuntime` 通过 `SecretBox.Open` 解密已启用 provider 的 `ClientSecretCiphertext`；原始 `MOEURL_OIDC_ENCRYPTION_KEY` 不可用时，没有受支持的在线绕过流程。要保留既有 provider 和 `external_identity`，唯一受支持的恢复路径是从受保护备份恢复原始密钥；数据库恢复时必须同时恢复该密钥，详见 [PostgreSQL 备份与隔离恢复](backup-and-restore.md)。
