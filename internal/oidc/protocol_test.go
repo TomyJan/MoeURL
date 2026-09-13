@@ -78,7 +78,7 @@ func TestBoundedOIDCTransportPreservesTransportFailures(t *testing.T) {
 	}{
 		{err: wantErr},
 		{},
-		{response: &http.Response{StatusCode: http.StatusNoContent}},
+		{response: &http.Response{StatusCode: http.StatusNoContent, Body: io.NopCloser(strings.NewReader("response"))}},
 	} {
 		transport := newBoundedOIDCTransport(protocolRoundTripper(func(*http.Request) (*http.Response, error) {
 			return result.response, result.err
@@ -86,6 +86,11 @@ func TestBoundedOIDCTransportPreservesTransportFailures(t *testing.T) {
 		response, err := transport.RoundTrip(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://id.example.com/jwks", nil))
 		if response != result.response || !errors.Is(err, result.err) {
 			t.Fatalf("round trip = response %#v error %v", response, err)
+		}
+		if response != nil && response.Body != nil {
+			if err := response.Body.Close(); err != nil {
+				t.Fatalf("close transport response: %v", err)
+			}
 		}
 	}
 }

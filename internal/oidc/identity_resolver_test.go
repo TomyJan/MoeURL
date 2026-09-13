@@ -11,6 +11,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -193,6 +194,110 @@ func TestProviderNamespaceUpdateRejectsExistingBinding(t *testing.T) {
 	current, err := sqlc.New(pool).GetOIDCProviderByID(t.Context(), provider.ID)
 	if err != nil || current.ClientID != stored.ClientID {
 		t.Fatalf("provider namespace changed: client=%q err=%v", current.ClientID, err)
+	}
+}
+
+// TestIdentityResolverPropagatesDatabaseFailures verifies transactional storage faults never create a session identity.
+func TestIdentityResolverPropagatesDatabaseFailures(t *testing.T) {
+	for _, test := range []struct {
+		name         string
+		seedGroup    bool
+		setup        []string
+		want         error
+		wantSQLState string
+	}{
+		{name: "lookup fails", seedGroup: true, wantSQLState: "42P01", setup: []string{`alter table external_identity rename to unavailable_identity`}},
+		{name: "user group missing", want: pgx.ErrNoRows},
+		{name: "identity insert fails", seedGroup: true, wantSQLState: "P0001", setup: []string{
+			`create function fail_identity_insert() returns trigger language plpgsql as $$ begin raise exception 'identity storage unavailable'; end $$`,
+			`create trigger fail_identity_insert before insert on external_identity for each row execute function fail_identity_insert()`,
+		}},
+		{name: "identity disappears after insert", seedGroup: true, want: pgx.ErrNoRows, setup: []string{
+			`create function remove_identity_after_insert() returns trigger language plpgsql as $$ begin delete from external_identity where provider_id = new.provider_id and subject = new.subject; return new; end $$`,
+			`create trigger remove_identity_after_insert after insert on external_identity for each row execute function remove_identity_after_insert()`,
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			pool := testdb.ProjectMigratedPool(t.Context(), t)
+			if test.seedGroup {
+				seedOIDCIdentityTestCatalog(t, pool)
+			}
+			provider := identityTestProvider(t, pool)
+			for _, statement := range test.setup {
+				if _, err := pool.Exec(t.Context(), statement); err != nil {
+					t.Fatalf("prepare database fault: %v", err)
+				}
+			}
+			_, err := NewDatabaseIdentityResolver(pool).ResolveOrCreate(t.Context(), provider, IdentityClaims{
+				Subject: "subject", Email: "person@example.com", EmailVerified: true,
+			})
+			if err == nil || (test.want != nil && !errors.Is(err, test.want)) {
+				t.Fatalf("database failure = %v, want %v", err, test.want)
+			}
+			if test.wantSQLState != "" {
+				var pgErr *pgconn.PgError
+				if !errors.As(err, &pgErr) || pgErr.Code != test.wantSQLState {
+					t.Fatalf("database failure = %v, want SQLSTATE %s", err, test.wantSQLState)
+				}
+			}
+			var users int
+			if err := pool.QueryRow(t.Context(), `select count(*) from app_user`).Scan(&users); err != nil || users != 0 {
+				t.Fatalf("users after failed binding = %d, err=%v", users, err)
+			}
+		})
+	}
+}
+
+// TestIdentityResolverPropagatesBoundIdentityUpdateFailure verifies a failed last-login write rolls back.
+func TestIdentityResolverPropagatesBoundIdentityUpdateFailure(t *testing.T) {
+	pool := testdb.ProjectMigratedPool(t.Context(), t)
+	seedOIDCIdentityTestCatalog(t, pool)
+	provider := identityTestProvider(t, pool)
+	claims := IdentityClaims{Subject: "subject", Email: "person@example.com", EmailVerified: true}
+	resolver := NewDatabaseIdentityResolver(pool)
+	if _, err := resolver.ResolveOrCreate(t.Context(), provider, claims); err != nil {
+		t.Fatalf("bind identity: %v", err)
+	}
+	if _, err := pool.Exec(t.Context(), `create function fail_identity_touch() returns trigger language plpgsql as $$ begin raise exception 'identity touch unavailable'; end $$`); err != nil {
+		t.Fatalf("create update fault: %v", err)
+	}
+	if _, err := pool.Exec(t.Context(), `create trigger fail_identity_touch before update on external_identity for each row execute function fail_identity_touch()`); err != nil {
+		t.Fatalf("install update fault: %v", err)
+	}
+	if _, err := resolver.ResolveOrCreate(t.Context(), provider, claims); err == nil {
+		t.Fatal("bound identity update failure was ignored")
+	} else {
+		var pgErr *pgconn.PgError
+		if !errors.As(err, &pgErr) || pgErr.Code != "P0001" {
+			t.Fatalf("bound identity update error = %v, want trigger failure", err)
+		}
+	}
+}
+
+// TestIdentityResolverPropagatesAdvisoryLockFailure verifies a canceled lock wait does not create a user.
+func TestIdentityResolverPropagatesAdvisoryLockFailure(t *testing.T) {
+	pool := testdb.ProjectMigratedPool(t.Context(), t)
+	seedOIDCIdentityTestCatalog(t, pool)
+	provider := identityTestProvider(t, pool)
+	lock, err := pool.Begin(t.Context())
+	if err != nil {
+		t.Fatalf("begin advisory lock: %v", err)
+	}
+	defer func() { _ = lock.Rollback(context.Background()) }()
+	lockKey := uuid.UUID(provider.ID.Bytes).String() + ":subject"
+	if _, err := lock.Exec(t.Context(), `select pg_advisory_xact_lock(hashtextextended($1, 0))`, lockKey); err != nil {
+		t.Fatalf("hold subject lock: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+	defer cancel()
+	if _, err := NewDatabaseIdentityResolver(pool).ResolveOrCreate(ctx, provider, IdentityClaims{
+		Subject: "subject", Email: "person@example.com", EmailVerified: true,
+	}); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("advisory lock wait error = %v, want deadline exceeded", err)
+	}
+	var users int
+	if err := pool.QueryRow(t.Context(), `select count(*) from app_user`).Scan(&users); err != nil || users != 0 {
+		t.Fatalf("users after failed lock = %d, err=%v", users, err)
 	}
 }
 

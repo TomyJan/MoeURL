@@ -363,7 +363,7 @@ v0.5.0 复用 `user_group.permissions` 和 `user_group.updated_at`，不新增 s
 
 ### v0.7.0 OIDC schema 扩展摘要
 
-v0.7.0 新增 `oidc_provider`、`external_identity` 和 `oidc_login_attempt`。provider 保存经 Discovery 校验的端点、加密 Client Secret、精确邮箱域名白名单、启用状态、软删除时间和乐观并发时间戳；外部身份以 `(provider_id, subject)` 唯一绑定本地用户；登录尝试只保存 state/nonce 摘要、加密 PKCE verifier、受控站内返回路径和五分钟过期时间。
+v0.7.0 新增 `oidc_provider`、`external_identity` 和 `oidc_login_attempt`。provider 保存经 Discovery 校验的端点、加密 Client Secret、精确邮箱域名白名单、启用状态、软删除时间和乐观并发时间戳；外部身份以 `(provider_id, subject)` 唯一绑定本地用户；登录尝试只保存 state/nonce 摘要、发起浏览器关联令牌的 `browser_binding_hash` 摘要、加密 PKCE verifier、受控站内返回路径和五分钟过期时间。callback 原子消费登录尝试，仅在一次性浏览器关联校验通过后继续，拒绝跨浏览器回调。
 
 登录尝试通过 `DELETE ... RETURNING` 原子消费，过期记录每分钟执行至多 4 个 500 行批次并在短批次提前结束。首次身份供应在事务内使用 provider 与 subject 派生的 advisory lock，固定创建内置 `user` 组账号，不按邮箱自动连接既有用户。`00012 Down` 仅在不存在 external identity 时删除 OIDC schema；存在绑定时安全失败，避免不可逆丢失登录归属。
 

@@ -42,6 +42,7 @@ export function cleanupE2ECompose(
       cwd: repositoryRoot,
       env: {
         ...process.env,
+        // These placeholders only satisfy Compose required-variable interpolation for down -v; they are not credentials or runtime configuration.
         MOEURL_DATABASE_URL: 'postgres://cleanup',
         MOEURL_OIDC_ENCRYPTION_KEY: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
         MOEURL_POSTGRES_PASSWORD: 'cleanup',

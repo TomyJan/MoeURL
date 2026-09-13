@@ -12,10 +12,12 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/permission"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // TestProviderServiceCreateValidatesAuthorizationDiscoveryAndSecretStorage verifies the complete provider creation boundary.
@@ -157,6 +159,69 @@ func TestProviderServiceUpdatePreservesSecretAndClassifiesConflicts(t *testing.T
 	store.providerErr = pgx.ErrNoRows
 	if _, err := service.Update(t.Context(), adminActor(), input); !errors.Is(err, ErrProviderNotFound) {
 		t.Fatalf("missing update error = %v", err)
+	}
+}
+
+// TestTransactionalProviderStoreUpdate verifies locked reads, binding checks, and optimistic writes against PostgreSQL.
+func TestTransactionalProviderStoreUpdate(t *testing.T) {
+	for _, test := range []struct {
+		name         string
+		setup        func(*testing.T, *pgxpool.Pool, *sqlc.UpdateOIDCProviderParams)
+		want         error
+		wantSQLState string
+	}{
+		{name: "missing provider row", setup: func(_ *testing.T, _ *pgxpool.Pool, input *sqlc.UpdateOIDCProviderParams) {
+			input.ID = uuidToPGUUID(uuid.New())
+		}, want: pgx.ErrNoRows},
+		{name: "binding lookup fails", wantSQLState: "42P01", setup: func(t *testing.T, pool *pgxpool.Pool, input *sqlc.UpdateOIDCProviderParams) {
+			input.ClientID = "new-client"
+			if _, err := pool.Exec(t.Context(), `alter table external_identity rename to unavailable_identity`); err != nil {
+				t.Fatalf("prepare binding lookup failure: %v", err)
+			}
+		}},
+		{name: "stale timestamp", setup: func(_ *testing.T, _ *pgxpool.Pool, input *sqlc.UpdateOIDCProviderParams) {
+			input.ExpectedUpdatedAt.Time = input.ExpectedUpdatedAt.Time.Add(-time.Second)
+		}, want: pgx.ErrNoRows},
+		{name: "change namespace without bindings", setup: func(_ *testing.T, _ *pgxpool.Pool, input *sqlc.UpdateOIDCProviderParams) {
+			input.ClientID = "new-client"
+		}},
+		{name: "update display name", setup: func(_ *testing.T, _ *pgxpool.Pool, input *sqlc.UpdateOIDCProviderParams) {
+			input.DisplayName = "Renamed SSO"
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			pool := testdb.ProjectMigratedPool(t.Context(), t)
+			provider := identityTestProvider(t, pool)
+			stored, err := sqlc.New(pool).GetOIDCProviderByID(t.Context(), provider.ID)
+			if err != nil {
+				t.Fatalf("load provider: %v", err)
+			}
+			input := sqlc.UpdateOIDCProviderParams{
+				DisplayName: stored.DisplayName, IssuerUrl: stored.IssuerUrl, ClientID: stored.ClientID,
+				ClientSecretCiphertext: stored.ClientSecretCiphertext, AuthorizationEndpoint: stored.AuthorizationEndpoint,
+				TokenEndpoint: stored.TokenEndpoint, JwksUri: stored.JwksUri,
+				AllowedEmailDomains: stored.AllowedEmailDomains, Enabled: stored.Enabled,
+				ID: stored.ID, ExpectedUpdatedAt: stored.UpdatedAt,
+			}
+			test.setup(t, pool, &input)
+			updated, err := (&transactionalProviderStore{Queries: sqlc.New(pool), pool: pool}).UpdateOIDCProvider(t.Context(), input)
+			if test.want != nil {
+				if !errors.Is(err, test.want) {
+					t.Fatalf("update error = %v, want %v", err, test.want)
+				}
+				return
+			}
+			if test.wantSQLState != "" {
+				var pgErr *pgconn.PgError
+				if !errors.As(err, &pgErr) || pgErr.Code != test.wantSQLState {
+					t.Fatalf("binding lookup error = %v, want SQLSTATE %s", err, test.wantSQLState)
+				}
+				return
+			}
+			if err != nil || updated.ClientID != input.ClientID || updated.DisplayName != input.DisplayName {
+				t.Fatalf("updated provider = %#v, err=%v", updated, err)
+			}
+		})
 	}
 }
 
