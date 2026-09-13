@@ -22,7 +22,11 @@ func TestLoginServiceStartPersistsBoundStateAndBuildsPKCEAuthorization(t *testin
 	provider := testRuntimeProviderRow(t, box)
 	store := &loginStoreStub{provider: provider}
 	protocol := &protocolStub{authorizationLocation: "https://id.example.com/authorize?request=1"}
-	service := newLoginService(store, protocol, &identityResolverStub{}, &sessionCreatorStub{}, box, "https://links.example.com", bytes.NewReader(bytes.Repeat([]byte{7}, 128)))
+	randomValues := make([]byte, 0, 4*loginRandomBytes)
+	for _, value := range []byte{1, 2, 3, 4} {
+		randomValues = append(randomValues, bytes.Repeat([]byte{value}, loginRandomBytes)...)
+	}
+	service := newLoginService(store, protocol, &identityResolverStub{}, &sessionCreatorStub{}, box, "https://links.example.com", bytes.NewReader(randomValues))
 	service.now = func() time.Time { return time.Date(2026, time.September, 11, 1, 2, 3, 0, time.UTC) }
 
 	result, err := service.Start(t.Context(), "company", "/analytics?shortLinkId=abc")
@@ -35,6 +39,24 @@ func TestLoginServiceStartPersistsBoundStateAndBuildsPKCEAuthorization(t *testin
 	if protocol.redirectURI != "https://links.example.com/api/v1/auth/oidc/company/callback" || protocol.state == "" || protocol.nonce == "" || protocol.codeChallenge == "" {
 		t.Fatalf("authorization inputs = %#v", protocol)
 	}
+	for _, token := range []struct {
+		name  string
+		got   string
+		value byte
+	}{
+		{name: "state", got: protocol.state, value: 1},
+		{name: "nonce", got: protocol.nonce, value: 2},
+		{name: "browser binding", got: result.BrowserBinding, value: 4},
+	} {
+		want := base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{token.value}, loginRandomBytes))
+		if token.got != want {
+			t.Fatalf("%s = %q, want %q", token.name, token.got, want)
+		}
+	}
+	wantNonceHash := sha256.Sum256([]byte(protocol.nonce))
+	if !bytes.Equal(store.createdAttempt.NonceHash, wantNonceHash[:]) {
+		t.Fatalf("stored nonce hash = %x", store.createdAttempt.NonceHash)
+	}
 	wantStateHash := sha256.Sum256([]byte(protocol.state))
 	if !bytes.Equal(store.createdAttempt.StateHash, wantStateHash[:]) {
 		t.Fatalf("stored state hash = %x", store.createdAttempt.StateHash)
@@ -43,6 +65,10 @@ func TestLoginServiceStartPersistsBoundStateAndBuildsPKCEAuthorization(t *testin
 	verifier, err := box.Open(loginVerifierPurpose, recordID, store.createdAttempt.VerifierCiphertext)
 	if err != nil {
 		t.Fatalf("open stored verifier: value=%q err=%v", verifier, err)
+	}
+	wantVerifier := base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{3}, loginRandomBytes))
+	if string(verifier) != wantVerifier {
+		t.Fatalf("stored verifier = %q, want %q", verifier, wantVerifier)
 	}
 	if bytes.Contains(store.createdAttempt.VerifierCiphertext, verifier) {
 		t.Fatal("stored verifier contains plaintext")

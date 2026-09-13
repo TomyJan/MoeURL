@@ -84,6 +84,25 @@ func TestValidateDiscoveryMetadataRejectsUnsafeOrIncompleteEndpoints(t *testing.
 	}
 }
 
+// TestValidateDiscoveryMetadataAllowsEndpointQueries keeps issuer and endpoint URL rules distinct.
+func TestValidateDiscoveryMetadataAllowsEndpointQueries(t *testing.T) {
+	metadata := DiscoveryMetadata{
+		Issuer:                "https://id.example.com",
+		AuthorizationEndpoint: "https://id.example.com/authorize?tenant=one",
+		TokenEndpoint:         "https://id.example.com/token?tenant=one",
+		JWKSURI:               "https://id.example.com/jwks?version=2",
+	}
+	if err := validateDiscoveryMetadata(metadata.Issuer, metadata, false); err != nil {
+		t.Fatalf("validate endpoints with query: %v", err)
+	}
+	for _, invalid := range []string{"https://id.example.com/jwks#fragment", "https://id.example.com/jwks#", "https://user@id.example.com/jwks"} {
+		metadata.JWKSURI = invalid
+		if err := validateDiscoveryMetadata(metadata.Issuer, metadata, false); !errors.Is(err, ErrDiscoveryUnavailable) {
+			t.Fatalf("unsafe endpoint %q error = %v", invalid, err)
+		}
+	}
+}
+
 // TestHTTPDiscovererRejectsUntrustedResponses verifies bounded failure for malformed provider metadata.
 func TestHTTPDiscovererRejectsUntrustedResponses(t *testing.T) {
 	if NewHTTPDiscoverer(nil, false).client == nil {

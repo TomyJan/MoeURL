@@ -137,7 +137,7 @@ curl --fail --silent --show-error --connect-timeout 2 --max-time 5 https://go.ex
 https://<公网域名>/api/v1/auth/oidc/<provider-key>/callback
 ```
 
-反向代理必须保留外部 HTTPS 地址语义。OIDC callback 的访问日志不得记录查询参数，公开工单和调试日志同样不得包含 `code` 或 `state`；只记录请求方法、路径、状态码和必要的运维字段。MoeURL 只使用配置的公共地址生成 callback，不信任请求 `Host`。加密密钥不得在线随意轮换；丢失或更换后，既有 Client Secret 无法解密，必须停用 provider 并用受控流程重新录入。数据库恢复时必须同时恢复原加密密钥，详见 [PostgreSQL 备份与隔离恢复](backup-and-restore.md)。
+反向代理必须保留外部 HTTPS 地址语义。OIDC callback 的访问日志不得记录查询参数，公开工单和调试日志同样不得包含 `code` 或 `state`；只记录请求方法、路径、状态码和必要的运维字段。MoeURL 只使用配置的公共地址生成 callback，不信任请求 `Host`。`ValidateEnabledProviderRuntime` 通过 `SecretBox.Open` 解密已启用 provider 的 `ClientSecretCiphertext`；原始 `MOEURL_OIDC_ENCRYPTION_KEY` 不可用时，没有受支持的在线绕过流程。要保留既有 provider 和 `external_identity`，唯一受支持的恢复路径是从受保护备份恢复原始密钥；数据库恢复时必须同时恢复该密钥，详见 [PostgreSQL 备份与隔离恢复](backup-and-restore.md)。
 
 ## 5. 外部 TLS 反向代理
 

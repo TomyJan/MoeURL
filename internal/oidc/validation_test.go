@@ -55,6 +55,7 @@ func TestNormalizeProviderInputRejectsInvalidValues(t *testing.T) {
 		{name: "long display name", mutate: func(value *providerInput) { value.DisplayName = strings.Repeat("界", 101) }},
 		{name: "long client ID", mutate: func(value *providerInput) { value.ClientID = strings.Repeat("a", 513) }},
 		{name: "issuer query", mutate: func(value *providerInput) { value.IssuerURL += "?tenant=a" }},
+		{name: "issuer empty query", mutate: func(value *providerInput) { value.IssuerURL += "?" }},
 		{name: "issuer fragment", mutate: func(value *providerInput) { value.IssuerURL += "#fragment" }},
 		{name: "issuer userinfo", mutate: func(value *providerInput) { value.IssuerURL = "https://user@id.example.com" }},
 		{name: "production HTTP", mutate: func(value *providerInput) { value.IssuerURL = "http://127.0.0.1:8080" }},

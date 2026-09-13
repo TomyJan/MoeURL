@@ -31,7 +31,7 @@ func normalizeProviderInput(input providerInput, allowInsecureLoopback bool) (pr
 	if input.ClientID == "" || len(input.ClientID) > 512 {
 		return providerInput{}, ErrInvalidInput
 	}
-	if err := validateOIDCURL(input.IssuerURL, allowInsecureLoopback); err != nil || len(input.IssuerURL) > 2048 {
+	if err := validateOIDCURL(input.IssuerURL, allowInsecureLoopback, false); err != nil || len(input.IssuerURL) > 2048 {
 		return providerInput{}, ErrInvalidInput
 	}
 
@@ -74,10 +74,10 @@ func normalizeEmailDomains(values []string) ([]string, error) {
 	return result, nil
 }
 
-// validateOIDCURL requires an absolute credential-free HTTPS URL or a development loopback HTTP URL.
-func validateOIDCURL(value string, allowInsecureLoopback bool) error {
+// validateOIDCURL validates an issuer or endpoint URL, allowing query parameters only for endpoints.
+func validateOIDCURL(value string, allowInsecureLoopback bool, allowQuery bool) error {
 	parsed, err := url.Parse(value)
-	if err != nil || !parsed.IsAbs() || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+	if err != nil || !parsed.IsAbs() || parsed.Host == "" || parsed.User != nil || (!allowQuery && (parsed.RawQuery != "" || parsed.ForceQuery)) || strings.Contains(value, "#") {
 		return ErrInvalidInput
 	}
 	if parsed.Scheme == "https" {
@@ -104,7 +104,7 @@ func validateDiscoveryMetadata(expectedIssuer string, metadata DiscoveryMetadata
 		return ErrDiscoveryUnavailable
 	}
 	for _, endpoint := range []string{metadata.AuthorizationEndpoint, metadata.TokenEndpoint, metadata.JWKSURI} {
-		if endpoint == "" || len(endpoint) > 2048 || validateOIDCURL(endpoint, allowInsecureLoopback) != nil {
+		if endpoint == "" || len(endpoint) > 2048 || validateOIDCURL(endpoint, allowInsecureLoopback, true) != nil {
 			return ErrDiscoveryUnavailable
 		}
 	}

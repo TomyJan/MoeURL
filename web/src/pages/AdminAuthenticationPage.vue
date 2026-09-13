@@ -112,9 +112,10 @@ let loadedProviderUpdatedAt = ''
 type ProviderDraft = typeof draft
 type ProviderValues = Pick<ProviderDraft, 'key' | 'displayName' | 'issuerUrl' | 'clientId' | 'clientSecret' | 'allowedDomains' | 'enabled'>
 type ProviderMutationValues = Omit<ProviderValues, 'clientSecret'>
+let draftBaseline: ProviderValues | null = null
 type ProviderOperation =
   | { type: 'create'; values: ProviderMutationValues }
-  | { type: 'update'; provider: OIDCProvider; values: ProviderMutationValues }
+  | { type: 'update'; provider: OIDCProvider; expectedUpdatedAt: string; values: ProviderMutationValues }
   | { type: 'delete'; provider: OIDCProvider }
 type ProviderMutationResult =
   | { type: 'saved'; provider: OIDCProvider }
@@ -139,7 +140,7 @@ const mutation = useMutation({
       id: operation.provider.id,
       displayName: values.displayName.trim(), issuerUrl: values.issuerUrl.trim(), clientId: values.clientId.trim(),
       clientSecret: clientSecret ? { mode: 'set', value: clientSecret } : { mode: 'preserve' },
-      allowedEmailDomains, enabled: values.enabled, expectedUpdatedAt: operation.provider.updatedAt,
+      allowedEmailDomains, enabled: values.enabled, expectedUpdatedAt: operation.expectedUpdatedAt,
     })
     return { type: 'saved', provider: result.provider }
   },
@@ -200,7 +201,7 @@ watch(providers, (items) => {
   if (current) {
     const selectionChanged = selectedID.value !== current.id
     selectedID.value = current.id
-    if (selectionChanged || (loadedProviderUpdatedAt !== current.updatedAt && !suspendedDraftSync.has(current.id))) {
+    if (selectionChanged || (loadedProviderUpdatedAt !== current.updatedAt && !suspendedDraftSync.has(current.id) && !draftHasUnsavedChanges())) {
       fillDraft(current)
     }
   } else {
@@ -211,7 +212,13 @@ watch(providers, (items) => {
 
 function fillDraft(provider: OIDCProvider) {
   Object.assign(draft, { key: provider.key, displayName: provider.displayName, issuerUrl: provider.issuerUrl, clientId: provider.clientId, clientSecret: '', allowedDomains: provider.allowedEmailDomains.join(', '), enabled: provider.enabled })
+  draftBaseline = { ...draft }
   loadedProviderUpdatedAt = provider.updatedAt
+}
+
+function draftHasUnsavedChanges() {
+  const baseline = draftBaseline
+  return baseline !== null && (Object.keys(baseline) as Array<keyof ProviderValues>).some((key) => draft[key] !== baseline[key])
 }
 
 function selectProvider(provider: OIDCProvider) {
@@ -247,7 +254,7 @@ function save() {
     pendingClientSecrets.set(operation, clientSecret)
     mutation.mutate(operation)
   } else if (selectedProvider.value) {
-    const operation: ProviderOperation = { type: 'update', provider: selectedProvider.value, values: { ...values } }
+    const operation: ProviderOperation = { type: 'update', provider: selectedProvider.value, expectedUpdatedAt: loadedProviderUpdatedAt, values: { ...values } }
     if (clientSecret) pendingClientSecrets.set(operation, clientSecret)
     mutation.mutate(operation)
   }

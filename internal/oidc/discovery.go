@@ -31,7 +31,7 @@ func NewHTTPDiscoverer(client *http.Client, allowInsecureLoopback bool) *HTTPDis
 
 // Discover loads one bounded discovery document and rejects mismatched or unsafe endpoints.
 func (d *HTTPDiscoverer) Discover(ctx context.Context, issuer string) (DiscoveryMetadata, error) {
-	if validateOIDCURL(issuer, d.allowInsecureLoopback) != nil {
+	if validateOIDCURL(issuer, d.allowInsecureLoopback, false) != nil {
 		return DiscoveryMetadata{}, ErrDiscoveryUnavailable
 	}
 	discoveryURL := strings.TrimSuffix(issuer, "/") + "/.well-known/openid-configuration"

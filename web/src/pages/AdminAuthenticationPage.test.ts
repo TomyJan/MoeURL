@@ -262,6 +262,30 @@ describe('AdminAuthenticationPage', () => {
     expect(screen.getByDisplayValue('My draft')).toBeTruthy()
   })
 
+  it('keeps an unsaved draft and its original revision after a background refresh', async () => {
+    vi.mocked(updateOIDCProvider).mockRejectedValue(new ApiClientError(PROVIDER_CONFLICT_CODE, 'conflict'))
+    mountPage()
+    await fireEvent.update(screen.getByLabelText('oidc.displayName'), 'My draft')
+    state.queryData.value = { providers: [{ ...company, displayName: 'Server value', updatedAt: '2026-09-11T01:00:00Z' }, team] }
+    await nextTick()
+    expect(screen.getByDisplayValue('My draft')).toBeTruthy()
+
+    await fireEvent.click(screen.getByRole('button', { name: 'oidc.save' }))
+    await waitFor(() => expect(updateOIDCProvider).toHaveBeenCalledOnce())
+    expect(vi.mocked(updateOIDCProvider).mock.calls[0]?.[0]).toMatchObject({
+      displayName: 'My draft', expectedUpdatedAt: company.updatedAt,
+    })
+    await waitFor(() => expect(screen.getByText('oidc.conflict')).toBeTruthy())
+    expect(screen.getByDisplayValue('My draft')).toBeTruthy()
+  })
+
+  it('refreshes a clean provider draft when the server revision changes', async () => {
+    mountPage()
+    state.queryData.value = { providers: [{ ...company, displayName: 'Server value', updatedAt: '2026-09-11T01:00:00Z' }, team] }
+    await nextTick()
+    expect(screen.getByDisplayValue('Server value')).toBeTruthy()
+  })
+
   it('removes a deleted provider from query data and selects the next provider', async () => {
     vi.mocked(deleteOIDCProvider).mockResolvedValue(undefined)
     mountPage()
