@@ -51,11 +51,15 @@ func TestBoundedOIDCTransportRejectsOversizedResponse(t *testing.T) {
 			Body:       io.NopCloser(strings.NewReader(strings.Repeat("x", int(maxProtocolResponseBytes+1)))),
 		}, nil
 	}))
-	response, err := transport.RoundTrip(httptest.NewRequest(http.MethodGet, "https://id.example.com/jwks", nil))
+	response, err := transport.RoundTrip(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://id.example.com/jwks", nil))
 	if err != nil {
 		t.Fatalf("round trip response: %v", err)
 	}
-	defer response.Body.Close()
+	t.Cleanup(func() {
+		if err := response.Body.Close(); err != nil {
+			t.Errorf("close response body: %v", err)
+		}
+	})
 	_, err = io.ReadAll(response.Body)
 	if !errors.Is(err, errOIDCResponseTooLarge) {
 		t.Fatalf("read oversized response error = %v", err)
@@ -79,7 +83,7 @@ func TestBoundedOIDCTransportPreservesTransportFailures(t *testing.T) {
 		transport := newBoundedOIDCTransport(protocolRoundTripper(func(*http.Request) (*http.Response, error) {
 			return result.response, result.err
 		}))
-		response, err := transport.RoundTrip(httptest.NewRequest(http.MethodGet, "https://id.example.com/jwks", nil))
+		response, err := transport.RoundTrip(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://id.example.com/jwks", nil))
 		if response != result.response || !errors.Is(err, result.err) {
 			t.Fatalf("round trip = response %#v error %v", response, err)
 		}

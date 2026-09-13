@@ -1,14 +1,17 @@
 package oidc
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -84,6 +87,115 @@ func TestDatabaseIdentityResolverRejectsDisabledBoundUser(t *testing.T) {
 	}
 }
 
+// TestDatabaseIdentityResolverRejectsChangedNamespace prevents a stale login attempt from binding under new provider credentials.
+func TestDatabaseIdentityResolverRejectsChangedNamespace(t *testing.T) {
+	pool := testdb.ProjectMigratedPool(t.Context(), t)
+	seedOIDCIdentityTestCatalog(t, pool)
+	provider := identityTestProvider(t, pool)
+	if _, err := pool.Exec(t.Context(), `update oidc_provider set client_id = 'different-client' where id = $1`, provider.ID); err != nil {
+		t.Fatalf("change provider client: %v", err)
+	}
+	_, err := NewDatabaseIdentityResolver(pool).ResolveOrCreate(t.Context(), provider, IdentityClaims{
+		Subject: "subject", Email: "person@example.com", EmailVerified: true,
+	})
+	if !errors.Is(err, ErrLoginFailed) {
+		t.Fatalf("changed namespace error = %v, want ErrLoginFailed", err)
+	}
+	var identities int
+	if err := pool.QueryRow(t.Context(), `select count(*) from external_identity`).Scan(&identities); err != nil || identities != 0 {
+		t.Fatalf("identities after rejected login = %d, err=%v", identities, err)
+	}
+}
+
+// TestIdentityBindingSerializesProviderNamespaceUpdate verifies binding holds the provider lock until commit.
+func TestIdentityBindingSerializesProviderNamespaceUpdate(t *testing.T) {
+	pool := testdb.ProjectMigratedPool(t.Context(), t)
+	seedOIDCIdentityTestCatalog(t, pool)
+	provider := identityTestProvider(t, pool)
+	lock, err := pool.Begin(t.Context())
+	if err != nil {
+		t.Fatalf("begin advisory lock: %v", err)
+	}
+	defer func() { _ = lock.Rollback(context.Background()) }()
+	lockKey := uuid.UUID(provider.ID.Bytes).String() + ":subject"
+	if _, err := lock.Exec(t.Context(), `select pg_advisory_xact_lock(hashtextextended($1, 0))`, lockKey); err != nil {
+		t.Fatalf("hold subject lock: %v", err)
+	}
+	loginDone := make(chan error, 1)
+	go func() {
+		_, err := NewDatabaseIdentityResolver(pool).ResolveOrCreate(t.Context(), provider, IdentityClaims{
+			Subject: "subject", Email: "person@example.com", EmailVerified: true,
+		})
+		loginDone <- err
+	}()
+	deadline, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		var id pgtype.UUID
+		err := pool.QueryRow(deadline, `select id from oidc_provider where id = $1 for update nowait`, provider.ID).Scan(&id)
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "55P03" {
+			break
+		}
+		if err != nil {
+			t.Fatalf("inspect provider row lock: %v", err)
+		}
+		select {
+		case <-deadline.Done():
+			t.Fatal("identity binding did not lock provider row")
+		case <-ticker.C:
+		}
+	}
+	updateContext, stopUpdate := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer stopUpdate()
+	if _, err := pool.Exec(updateContext, `update oidc_provider set client_id = 'different-client' where id = $1`, provider.ID); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("concurrent namespace update error = %v, want deadline", err)
+	}
+	if err := lock.Rollback(t.Context()); err != nil {
+		t.Fatalf("release subject lock: %v", err)
+	}
+	if err := <-loginDone; err != nil {
+		t.Fatalf("finish identity binding: %v", err)
+	}
+	var clientID string
+	if err := pool.QueryRow(t.Context(), `select client_id from oidc_provider where id = $1`, provider.ID).Scan(&clientID); err != nil || clientID != "client" {
+		t.Fatalf("provider namespace after binding = %q, err=%v", clientID, err)
+	}
+}
+
+// TestProviderNamespaceUpdateRejectsExistingBinding verifies the transactional update preserves bound subjects.
+func TestProviderNamespaceUpdateRejectsExistingBinding(t *testing.T) {
+	pool := testdb.ProjectMigratedPool(t.Context(), t)
+	seedOIDCIdentityTestCatalog(t, pool)
+	provider := identityTestProvider(t, pool)
+	if _, err := NewDatabaseIdentityResolver(pool).ResolveOrCreate(t.Context(), provider, IdentityClaims{
+		Subject: "subject", Email: "person@example.com", EmailVerified: true,
+	}); err != nil {
+		t.Fatalf("bind identity: %v", err)
+	}
+	stored, err := sqlc.New(pool).GetOIDCProviderByID(t.Context(), provider.ID)
+	if err != nil {
+		t.Fatalf("read provider: %v", err)
+	}
+	store := &transactionalProviderStore{Queries: sqlc.New(pool), pool: pool}
+	_, err = store.UpdateOIDCProvider(t.Context(), sqlc.UpdateOIDCProviderParams{
+		DisplayName: stored.DisplayName, IssuerUrl: stored.IssuerUrl, ClientID: "different-client",
+		ClientSecretCiphertext: stored.ClientSecretCiphertext, AuthorizationEndpoint: stored.AuthorizationEndpoint,
+		TokenEndpoint: stored.TokenEndpoint, JwksUri: stored.JwksUri,
+		AllowedEmailDomains: stored.AllowedEmailDomains, Enabled: stored.Enabled,
+		ID: stored.ID, ExpectedUpdatedAt: stored.UpdatedAt,
+	})
+	if !errors.Is(err, ErrProviderConflict) {
+		t.Fatalf("bound namespace update error = %v, want ErrProviderConflict", err)
+	}
+	current, err := sqlc.New(pool).GetOIDCProviderByID(t.Context(), provider.ID)
+	if err != nil || current.ClientID != stored.ClientID {
+		t.Fatalf("provider namespace changed: client=%q err=%v", current.ClientID, err)
+	}
+}
+
 // TestFirstLoginAllowedRejectsMalformedAddresses verifies only exact verified mailbox domains are accepted.
 func TestFirstLoginAllowedRejectsMalformedAddresses(t *testing.T) {
 	if !firstLoginAllowed(IdentityClaims{Email: "person@EXAMPLE.com", EmailVerified: true}, []string{"example.com"}) {
@@ -149,5 +261,5 @@ func identityTestProvider(t *testing.T, pool *pgxpool.Pool) RuntimeProvider {
 	if err != nil {
 		t.Fatalf("seed provider: %v", err)
 	}
-	return RuntimeProvider{ID: uuidToPGUUID(id), Key: "company", DisplayName: "Company", AllowedEmailDomains: []string{"example.com"}}
+	return RuntimeProvider{ID: uuidToPGUUID(id), Key: "company", DisplayName: "Company", IssuerURL: "https://id.example.com", ClientID: "client", AllowedEmailDomains: []string{"example.com"}}
 }

@@ -222,9 +222,9 @@ done
 
 ## 4. 恢复验收
 
-目标 v0.6.0 必须完成以下检查，不能只以容器健康代替数据验证。
+目标 v0.7.0 必须完成以下检查，不能只以容器健康代替数据验证。
 
-验证 migration 版本为 `11`：
+验证 migration 版本为 `12`：
 
 ```bash
 restore_compose exec -T postgres \

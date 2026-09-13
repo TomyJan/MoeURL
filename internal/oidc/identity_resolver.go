@@ -15,6 +15,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -38,15 +39,19 @@ func (r *DatabaseIdentityResolver) ResolveOrCreate(ctx context.Context, provider
 	var result auth.CurrentUser
 	err := appdb.WithTx(ctx, r.pool, func(tx pgx.Tx) error {
 		queries := sqlc.New(tx)
+		var currentID pgtype.UUID
+		var issuerURL, clientID string
+		err := tx.QueryRow(ctx, `
+			select id, issuer_url, client_id from oidc_provider
+			where key = $1 and enabled and deleted_at is null for update
+		`, provider.Key).Scan(&currentID, &issuerURL, &clientID)
+		if err != nil || !sameUUID(currentID, provider.ID) || issuerURL != provider.IssuerURL || clientID != provider.ClientID {
+			return ErrLoginFailed
+		}
 		lockKey := uuid.UUID(provider.ID.Bytes).String() + ":" + claims.Subject
 		if err := queries.LockExternalIdentityKey(ctx, lockKey); err != nil {
 			return err
 		}
-		currentProvider, err := queries.GetEnabledOIDCProviderByKey(ctx, provider.Key)
-		if err != nil || !sameUUID(currentProvider.ID, provider.ID) {
-			return ErrLoginFailed
-		}
-
 		row, err := queries.GetExternalIdentityUser(ctx, sqlc.GetExternalIdentityUserParams{ProviderID: provider.ID, Subject: claims.Subject})
 		if err == nil {
 			if row.Status != "active" {

@@ -56,7 +56,7 @@ func TestNewOIDCHTTPClientHandlesCustomDefaultTransport(t *testing.T) {
 // TestNewOIDCHTTPClientRejectsRedirects verifies validated OIDC endpoints cannot redirect sensitive requests elsewhere.
 func TestNewOIDCHTTPClientRejectsRedirects(t *testing.T) {
 	client := newOIDCHTTPClient()
-	request := httptest.NewRequest(http.MethodGet, "https://id.example.com/redirect", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://id.example.com/redirect", nil)
 	if err := client.CheckRedirect(request, nil); !errors.Is(err, http.ErrUseLastResponse) {
 		t.Fatalf("CheckRedirect error = %v, want %v", err, http.ErrUseLastResponse)
 	}

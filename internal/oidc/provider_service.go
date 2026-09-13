@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
@@ -51,6 +52,36 @@ type providerStore interface {
 	SoftDeleteOIDCProvider(context.Context, sqlc.SoftDeleteOIDCProviderParams) (sqlc.OidcProvider, error)
 }
 
+// transactionalProviderStore serializes namespace changes with identity binding on the provider row.
+type transactionalProviderStore struct {
+	*sqlc.Queries
+	pool *pgxpool.Pool
+}
+
+// UpdateOIDCProvider locks and rechecks bindings in a fresh transaction snapshot before updating.
+func (s *transactionalProviderStore) UpdateOIDCProvider(ctx context.Context, input sqlc.UpdateOIDCProviderParams) (sqlc.OidcProvider, error) {
+	var updated sqlc.OidcProvider
+	err := appdb.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		var issuerURL, clientID string
+		if err := tx.QueryRow(ctx, `select issuer_url, client_id from oidc_provider where id = $1 and deleted_at is null for update`, input.ID).Scan(&issuerURL, &clientID); err != nil {
+			return err
+		}
+		if issuerURL != input.IssuerUrl || clientID != input.ClientID {
+			var bound bool
+			if err := tx.QueryRow(ctx, `select exists(select 1 from external_identity where provider_id = $1)`, input.ID).Scan(&bound); err != nil {
+				return err
+			}
+			if bound {
+				return ErrProviderConflict
+			}
+		}
+		var err error
+		updated, err = sqlc.New(tx).UpdateOIDCProvider(ctx, input)
+		return err
+	})
+	return updated, err
+}
+
 type missingPermissionResolver struct{}
 
 // Resolve fails closed when provider management lacks a permission resolver.
@@ -60,7 +91,7 @@ func (missingPermissionResolver) Resolve(context.Context, string) (permission.Sn
 
 // NewProviderService creates the production provider service from database-backed dependencies.
 func NewProviderService(pool *pgxpool.Pool, permissions permission.Resolver, discoverer Discoverer, secrets *SecretBox, publicBaseURL string, allowInsecureLoopback bool) *ProviderService {
-	return newProviderService(sqlc.New(pool), permissions, discoverer, secrets, publicBaseURL, allowInsecureLoopback)
+	return newProviderService(&transactionalProviderStore{Queries: sqlc.New(pool), pool: pool}, permissions, discoverer, secrets, publicBaseURL, allowInsecureLoopback)
 }
 
 // newProviderService creates a provider service with an injected store for deterministic tests.
