@@ -1,13 +1,17 @@
 package domain_test
 
 import (
+	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/domain"
 	"github.com/TomyJan/MoeURL/internal/permission"
+	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -222,5 +226,102 @@ func TestServiceSerializesEquivalentAuthorityRegistration(t *testing.T) {
 	}
 	if success != 1 || conflict != 1 {
 		t.Fatalf("concurrent registration = %d successes, %d conflicts", success, conflict)
+	}
+}
+
+func TestDefaultSwitchAndConcurrentCreationUseTheNewDefault(t *testing.T) {
+	service, pool, admin, user := domainFixture(t)
+	ctx := t.Context()
+	if _, err := pool.Exec(ctx, `update user_group set permissions = permissions || '["short_link:create"]'::jsonb where key = 'user'`); err != nil {
+		t.Fatalf("grant create permission: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into app_user (id, username, nickname, group_id, status, builtin, created_at, updated_at)
+		select $1, 'switch-creator', 'Creator', id, 'active', false, now(), now() from user_group where key = 'user'
+	`, user.ID); err != nil {
+		t.Fatalf("prepare creator: %v", err)
+	}
+	next, err := service.Create(ctx, admin, domain.CreateInput{
+		Host: "https://next.example.com", DisplayName: "Next", AllowedGroups: []string{"user"}, Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("prepare next default: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into system_setting (key, value, created_at, updated_at)
+		values ('site.default_short_link_domain', '"go.example.com"'::jsonb, now(), now())
+	`); err != nil {
+		t.Fatalf("prepare default mirror: %v", err)
+	}
+	gate, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin mirror lock: %v", err)
+	}
+	defer func() { _ = gate.Rollback(ctx) }()
+	if _, err := gate.Exec(ctx, `select value from system_setting where key = 'site.default_short_link_domain' for update`); err != nil {
+		t.Fatalf("lock default mirror: %v", err)
+	}
+	changed := make(chan error, 1)
+	go func() {
+		_, err := service.SetDefault(ctx, admin, domain.ChangeInput{ID: next.ID, ExpectedUpdatedAt: next.UpdatedAt})
+		changed <- err
+	}()
+	waitForDomainLockWaiters(t, pool, 1)
+	creation := make(chan struct {
+		url string
+		err error
+	}, 1)
+	go func() {
+		result, err := shortlink.NewService(pool, permission.NewDatabaseService(pool)).Create(ctx, user, shortlink.CreateInput{TargetURL: "https://target.example.com"})
+		creation <- struct {
+			url string
+			err error
+		}{result.ShortLink.URL, err}
+	}()
+	waitForDomainLockWaiters(t, pool, 2)
+	if err := gate.Commit(ctx); err != nil {
+		t.Fatalf("release default mirror: %v", err)
+	}
+	select {
+	case err := <-changed:
+		if err != nil {
+			t.Fatalf("switch default: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("default switch did not complete")
+	}
+	select {
+	case result := <-creation:
+		if result.err != nil || !strings.HasPrefix(result.url, "https://next.example.com/") {
+			t.Fatalf("create during default switch = %q, %v", result.url, result.err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("short-link creation did not complete")
+	}
+}
+
+func waitForDomainLockWaiters(t *testing.T, pool *pgxpool.Pool, want int) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		var count int
+		err := pool.QueryRow(ctx, `
+			select count(*) from pg_stat_activity
+			where datname = current_database() and wait_event_type = 'Lock' and pid <> pg_backend_pid()
+		`).Scan(&count)
+		if err != nil {
+			t.Fatalf("inspect lock waiters: %v", err)
+		}
+		if count >= want {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("waiting for %d lock waiters: %v", want, ctx.Err())
+		case <-ticker.C:
+		}
 	}
 }

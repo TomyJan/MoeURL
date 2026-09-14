@@ -11,6 +11,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
+	"github.com/TomyJan/MoeURL/internal/domain"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -102,6 +103,9 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 
 		var result CreateResult
 		err = appdb.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+			if err := domain.LockShortLinkCreation(ctx, tx); err != nil {
+				return err
+			}
 			queries := s.queries.WithTx(tx)
 			domain, err := queries.GetGrantedShortLinkDomainForCreate(ctx, sqlc.GetGrantedShortLinkDomainForCreateParams{
 				GroupKey: user.GroupKey, RequiredPermission: required,

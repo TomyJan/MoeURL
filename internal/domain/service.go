@@ -336,6 +336,13 @@ func lockDomainWrites(ctx context.Context, tx pgx.Tx) error {
 	return err
 }
 
+// LockShortLinkCreation waits for domain writes before reading the current default.
+// The shared transaction lock remains held until the short link is committed.
+func LockShortLinkCreation(ctx context.Context, tx pgx.Tx) error {
+	_, err := tx.Exec(ctx, `select pg_advisory_xact_lock_shared($1)`, domainWriteLockKey)
+	return err
+}
+
 func checkAuthorityConflict(ctx context.Context, queries *sqlc.Queries, host string, currentID uuid.UUID) error {
 	wanted, err := Authority(host)
 	if err != nil {
