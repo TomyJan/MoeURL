@@ -40,7 +40,7 @@ v0.7.0 在现有本地账号、Cookie Session 和数据库权限模型之上补�
 
 ### 配置与运维
 
-- 新增 `MOEURL_PUBLIC_BASE_URL`，用于生成固定 OIDC 回调地址；启用 OIDC 时必须为无用户信息、无查询和片段的绝对 HTTPS 地址，开发环境允许回环 HTTP。
+- 新增 `MOEURL_PUBLIC_BASE_URL`，用于生成固定 OIDC 回调地址；启用 OIDC 时必须配置为 Origin：仅允许具有非空主机名的绝对 HTTPS 地址（开发环境允许回环 HTTP），不得包含用户信息、查询、片段或非根路径。根路径 `/` 可配置，并在校验后归一化为空路径。
 - 新增 `MOEURL_OIDC_ENCRYPTION_KEY`，使用 Base64 编码的 32 字节密钥；存在 OIDC 配置时缺失或非法应使相关能力关闭失败。
 - 既有未配置 OIDC 的部署可以继续启动并使用本地登录。
 - 新增有界的过期 OIDC 登录尝试清理任务，并纳入应用退出等待。
