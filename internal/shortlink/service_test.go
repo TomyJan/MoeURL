@@ -157,7 +157,7 @@ func TestServicePasswordConfigurationRoundTrip(t *testing.T) {
 		Password: &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "updated horse"},
 	})
 	require.NoError(t, err)
-	grant, err := shortlink.NewRedirectService(pool, nil).Unlock(ctx, created.ShortLink.Slug, "updated horse")
+	grant, err := shortlink.NewRedirectService(pool, nil).Unlock(ctx, created.ShortLink.Slug, "updated horse", "go.example.com")
 	require.NoError(t, err)
 	require.NotEmpty(t, grant.Token)
 
@@ -234,7 +234,7 @@ func TestServicePasswordUpdatesInvalidateExistingAccessGrants(t *testing.T) {
 				Password:  &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "correct horse"},
 			})
 			require.NoError(t, err)
-			grant, err := redirectService.Unlock(ctx, created.ShortLink.Slug, "correct horse")
+			grant, err := redirectService.Unlock(ctx, created.ShortLink.Slug, "correct horse", "go.example.com")
 			require.NoError(t, err)
 
 			_, err = test.update(ctx, service, user, shortlink.UpdateInput{
@@ -242,7 +242,7 @@ func TestServicePasswordUpdatesInvalidateExistingAccessGrants(t *testing.T) {
 				Password: &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "updated horse"},
 			})
 			require.NoError(t, err)
-			_, err = redirectService.Continue(ctx, created.ShortLink.Slug, grant.Token)
+			_, err = redirectService.Continue(ctx, created.ShortLink.Slug, grant.Token, "go.example.com")
 			require.ErrorIs(t, err, shortlink.ErrPasswordRequired)
 		})
 	}

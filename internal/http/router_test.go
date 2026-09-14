@@ -838,7 +838,7 @@ func int16Pointer(value int16) *int16 {
 }
 
 // Open implements the corresponding operation for the surrounding test double.
-func (service *routerRedirectService) Open(_ context.Context, slug string) (shortlink.OpenResult, error) {
+func (service *routerRedirectService) Open(_ context.Context, slug string, _ string) (shortlink.OpenResult, error) {
 	service.openSlugs = append(service.openSlugs, slug)
 	if service.err != nil {
 		return shortlink.OpenResult{}, service.err
@@ -850,7 +850,7 @@ func (service *routerRedirectService) Open(_ context.Context, slug string) (shor
 }
 
 // Preview records the slug forwarded by router preview routes.
-func (service *routerRedirectService) Preview(_ context.Context, slug string, accessToken string) (shortlink.PreviewResult, error) {
+func (service *routerRedirectService) Preview(_ context.Context, slug string, accessToken string, _ string) (shortlink.PreviewResult, error) {
 	service.previewSlugs = append(service.previewSlugs, slug)
 	service.previewTokens = append(service.previewTokens, accessToken)
 	if service.err != nil {
@@ -863,7 +863,7 @@ func (service *routerRedirectService) Preview(_ context.Context, slug string, ac
 }
 
 // Unlock satisfies the redirect contract for router tests that do not exercise password verification.
-func (service *routerRedirectService) Unlock(_ context.Context, slug string, password string) (shortlink.AccessGrant, error) {
+func (service *routerRedirectService) Unlock(_ context.Context, slug string, password string, _ string) (shortlink.AccessGrant, error) {
 	service.unlockSlugs = append(service.unlockSlugs, slug)
 	service.unlockPassword = password
 	if service.err != nil {
@@ -873,7 +873,7 @@ func (service *routerRedirectService) Unlock(_ context.Context, slug string, pas
 }
 
 // Continue records the slug forwarded by the fixed continue route.
-func (service *routerRedirectService) Continue(_ context.Context, slug string, accessToken string) (shortlink.RedirectResult, error) {
+func (service *routerRedirectService) Continue(_ context.Context, slug string, accessToken string, _ string) (shortlink.RedirectResult, error) {
 	service.continueSlugs = append(service.continueSlugs, slug)
 	service.continueToken = accessToken
 	if service.err != nil {

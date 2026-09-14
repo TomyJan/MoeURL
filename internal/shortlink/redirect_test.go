@@ -18,6 +18,44 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+func TestRedirectServiceRequiresTheStoredEnabledDomainOnEveryPublicAction(t *testing.T) {
+	ctx := t.Context()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "host-owner", "user", []string{})
+	insertStoredShortLink(t, ctx, pool, user.ID, "host-only", "https://target.example.com", "active", false)
+	service := shortlink.NewRedirectService(pool, nil)
+	assertMissing := func(t *testing.T, host string) {
+		t.Helper()
+		if _, err := service.Open(ctx, "host-only", host); !errors.Is(err, shortlink.ErrShortLinkMissing) {
+			t.Fatalf("Open on %s = %v", host, err)
+		}
+		if _, err := service.Preview(ctx, "host-only", "", host); !errors.Is(err, shortlink.ErrShortLinkMissing) {
+			t.Fatalf("Preview on %s = %v", host, err)
+		}
+		if _, err := service.Unlock(ctx, "host-only", "guess", host); !errors.Is(err, shortlink.ErrShortLinkMissing) {
+			t.Fatalf("Unlock on %s = %v", host, err)
+		}
+		if _, err := service.Continue(ctx, "host-only", "", host); !errors.Is(err, shortlink.ErrShortLinkMissing) {
+			t.Fatalf("Continue on %s = %v", host, err)
+		}
+	}
+	assertMissing(t, "wrong.example.com")
+	if _, err := service.Open(ctx, "host-only", "GO.example.com:443"); err != nil {
+		t.Fatalf("legacy host with default port: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `update domain set enabled = false where host = 'go.example.com'`); err != nil {
+		t.Fatalf("disable domain: %v", err)
+	}
+	assertMissing(t, "go.example.com")
+	if _, err := pool.Exec(ctx, `update domain set enabled = true where host = 'go.example.com'`); err != nil {
+		t.Fatalf("re-enable domain: %v", err)
+	}
+	if _, err := service.Open(ctx, "host-only", "go.example.com"); err != nil {
+		t.Fatalf("access after domain restored: %v", err)
+	}
+}
+
 // TestRedirectServiceResolvesActiveShortLink verifies active links resolve to their target.
 func TestRedirectServiceResolvesActiveShortLink(t *testing.T) {
 	ctx := context.Background()
@@ -28,7 +66,7 @@ func TestRedirectServiceResolvesActiveShortLink(t *testing.T) {
 	recorder := &recordingRecorder{}
 	service := shortlink.NewRedirectService(pool, recorder)
 
-	result, err := service.Open(ctx, "abc123")
+	result, err := service.Open(ctx, "abc123", "go.example.com")
 	if err != nil {
 		t.Fatalf("resolve redirect: %v", err)
 	}
@@ -57,7 +95,7 @@ func TestRedirectServiceNormalizesSlugBeforeLookup(t *testing.T) {
 	insertStoredShortLink(t, ctx, pool, user.ID, "abc123", "https://example.com/target", "active", false)
 	service := shortlink.NewRedirectService(pool, nil)
 
-	result, err := service.Open(ctx, "AbC123")
+	result, err := service.Open(ctx, "AbC123", "go.example.com")
 	if err != nil {
 		t.Fatalf("resolve mixed-case slug: %v", err)
 	}
@@ -106,7 +144,7 @@ func TestRedirectServiceBlocksMissingAndDisabledShortLink(t *testing.T) {
 			recorder := &recordingRecorder{}
 			service := shortlink.NewRedirectService(pool, recorder)
 
-			_, err := service.Open(ctx, tt.slug)
+			_, err := service.Open(ctx, tt.slug, "go.example.com")
 			if !errors.Is(err, tt.err) {
 				t.Fatalf("expected %v, got %v", tt.err, err)
 			}
@@ -124,7 +162,7 @@ func TestRedirectServiceDoesNotRecordSuccessfulResponseEvent(t *testing.T) {
 	insertStoredShortLink(t, ctx, pool, user.ID, "active1", "https://example.com/target", "active", false)
 	service := shortlink.NewRedirectService(pool, nil)
 
-	_, err := service.Open(ctx, "active1")
+	_, err := service.Open(ctx, "active1", "go.example.com")
 	if err != nil {
 		t.Fatalf("resolve active link: %v", err)
 	}
@@ -146,15 +184,15 @@ func TestRedirectServiceReturnsDatabaseError(t *testing.T) {
 	service := shortlink.NewRedirectService(pool, nil)
 	pool.Close()
 
-	_, err := service.Open(ctx, "abc123")
+	_, err := service.Open(ctx, "abc123", "go.example.com")
 	if err == nil {
 		t.Fatal("expected open database error")
 	}
-	_, err = service.Preview(ctx, "abc123", "")
+	_, err = service.Preview(ctx, "abc123", "", "go.example.com")
 	if err == nil {
 		t.Fatal("expected preview database error")
 	}
-	_, err = service.Continue(ctx, "abc123", "")
+	_, err = service.Continue(ctx, "abc123", "", "go.example.com")
 	if err == nil {
 		t.Fatal("expected continue database error")
 	}
@@ -179,7 +217,7 @@ func TestRedirectServiceIntermediatePreviewAndContinue(t *testing.T) {
 	recorder := &recordingRecorder{}
 	service := shortlink.NewRedirectService(pool, recorder)
 
-	opened, err := service.Open(ctx, "MiDdLe")
+	opened, err := service.Open(ctx, "MiDdLe", "go.example.com")
 	if err != nil {
 		t.Fatalf("open intermediate short link: %v", err)
 	}
@@ -189,7 +227,7 @@ func TestRedirectServiceIntermediatePreviewAndContinue(t *testing.T) {
 	assertEvents(t, recorder.types, []string{event.ShortLinkOpened, event.AccessConditionChecked})
 
 	recorder.types = nil
-	preview, err := service.Preview(ctx, "MIDDLE", "")
+	preview, err := service.Preview(ctx, "MIDDLE", "", "go.example.com")
 	if err != nil {
 		t.Fatalf("preview intermediate short link: %v", err)
 	}
@@ -206,12 +244,12 @@ func TestRedirectServiceIntermediatePreviewAndContinue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("clear intermediate expiration: %v", err)
 	}
-	preview, err = service.Preview(ctx, "middle", "")
+	preview, err = service.Preview(ctx, "middle", "", "go.example.com")
 	if err != nil || preview.ExpiresAt != nil {
 		t.Fatalf("expected preview without expiration, got result %#v error %v", preview, err)
 	}
 
-	continued, err := service.Continue(ctx, "middle", "")
+	continued, err := service.Continue(ctx, "middle", "", "go.example.com")
 	if err != nil {
 		t.Fatalf("continue intermediate short link: %v", err)
 	}
@@ -234,7 +272,7 @@ func TestRedirectServiceConfirmationPreviewAndContinue(t *testing.T) {
 	recorder := &recordingRecorder{}
 	service := shortlink.NewRedirectService(pool, recorder)
 
-	opened, err := service.Open(ctx, "CoNfIrM1")
+	opened, err := service.Open(ctx, "CoNfIrM1", "go.example.com")
 	if err != nil {
 		t.Fatalf("open confirmation short link: %v", err)
 	}
@@ -244,7 +282,7 @@ func TestRedirectServiceConfirmationPreviewAndContinue(t *testing.T) {
 	assertEvents(t, recorder.types, []string{event.ShortLinkOpened, event.AccessConditionChecked})
 
 	recorder.types = nil
-	preview, err := service.Preview(ctx, "CONFIRM1", "")
+	preview, err := service.Preview(ctx, "CONFIRM1", "", "go.example.com")
 	if err != nil {
 		t.Fatalf("preview confirmation short link: %v", err)
 	}
@@ -255,7 +293,7 @@ func TestRedirectServiceConfirmationPreviewAndContinue(t *testing.T) {
 		t.Fatalf("expected confirmation preview not to write events, got %#v", recorder.types)
 	}
 
-	continued, err := service.Continue(ctx, "confirm1", "")
+	continued, err := service.Continue(ctx, "confirm1", "", "go.example.com")
 	if err != nil {
 		t.Fatalf("continue confirmation short link: %v", err)
 	}
@@ -268,7 +306,7 @@ func TestRedirectServiceConfirmationPreviewAndContinue(t *testing.T) {
 	if _, err := pool.Exec(ctx, `update short_link set status = 'disabled' where id = $1`, linkID); err != nil {
 		t.Fatalf("disable confirmation short link: %v", err)
 	}
-	if _, err := service.Continue(ctx, "confirm1", ""); !errors.Is(err, shortlink.ErrShortLinkDisabled) {
+	if _, err := service.Continue(ctx, "confirm1", "", "go.example.com"); !errors.Is(err, shortlink.ErrShortLinkDisabled) {
 		t.Fatalf("expected disabled confirmation continue rejection, got %v", err)
 	}
 	assertEvents(t, recorder.types, []string{event.AccessConditionChecked, event.RedirectBlocked})
@@ -295,23 +333,23 @@ func TestRedirectServiceProtectedConfirmationRequiresGrantAndKeepsModeAfterUnloc
 	recorder := &recordingRecorder{}
 	service := shortlink.NewRedirectService(pool, recorder)
 
-	opened, err := service.Open(ctx, "confirm2")
+	opened, err := service.Open(ctx, "confirm2", "go.example.com")
 	if err != nil || !opened.RequiresPassword || opened.RedirectMode != shortlink.RedirectModeConfirmation {
 		t.Fatalf("expected protected confirmation open, got %#v error %v", opened, err)
 	}
-	if _, err := service.Continue(ctx, "confirm2", ""); !errors.Is(err, shortlink.ErrPasswordRequired) {
+	if _, err := service.Continue(ctx, "confirm2", "", "go.example.com"); !errors.Is(err, shortlink.ErrPasswordRequired) {
 		t.Fatalf("expected protected confirmation continue to require authorization, got %v", err)
 	}
-	grant, err := service.Unlock(ctx, "confirm2", "correct horse")
+	grant, err := service.Unlock(ctx, "confirm2", "correct horse", "go.example.com")
 	if err != nil {
 		t.Fatalf("unlock protected confirmation: %v", err)
 	}
-	preview, err := service.Preview(ctx, "confirm2", grant.Token)
+	preview, err := service.Preview(ctx, "confirm2", grant.Token, "go.example.com")
 	if err != nil || preview.RedirectMode != shortlink.RedirectModeConfirmation || preview.IntermediateDelaySeconds != nil {
 		t.Fatalf("expected authorized confirmation preview, got %#v error %v", preview, err)
 	}
 	recorder.types = nil
-	continued, err := service.Continue(ctx, "confirm2", grant.Token)
+	continued, err := service.Continue(ctx, "confirm2", grant.Token, "go.example.com")
 	if err != nil || continued.TargetURL != "https://example.com/protected-confirmation" {
 		t.Fatalf("continue protected confirmation: %#v error %v", continued, err)
 	}
@@ -335,30 +373,30 @@ func TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit(t *testing.T) {
 	recorder := &recordingRecorder{}
 	service := shortlink.NewRedirectService(pool, recorder)
 
-	opened, err := service.Open(ctx, "PROTECTED")
+	opened, err := service.Open(ctx, "PROTECTED", "go.example.com")
 	if err != nil || !opened.RequiresPassword || opened.TargetURL != "" {
 		t.Fatalf("expected password-gated open, got %#v error %v", opened, err)
 	}
 	assertEvents(t, recorder.types, []string{event.ShortLinkOpened, event.AccessConditionChecked})
 	recorder.types = nil
-	preview, err := service.Preview(ctx, "protected", "")
+	preview, err := service.Preview(ctx, "protected", "", "go.example.com")
 	if !errors.Is(err, shortlink.ErrPasswordRequired) || preview != (shortlink.PreviewResult{}) {
 		t.Fatalf("expected protected preview to require authorization, got %#v error %v", preview, err)
 	}
 	if len(recorder.types) != 0 {
 		t.Fatalf("expected preview without events, got %#v", recorder.types)
 	}
-	_, err = service.Continue(ctx, "protected", "")
+	_, err = service.Continue(ctx, "protected", "", "go.example.com")
 	if !errors.Is(err, shortlink.ErrPasswordRequired) {
 		t.Fatalf("expected missing grant error, got %v", err)
 	}
-	_, err = service.Unlock(ctx, "protected", "")
+	_, err = service.Unlock(ctx, "protected", "", "go.example.com")
 	if !errors.Is(err, shortlink.ErrPasswordRequired) {
 		t.Fatalf("expected missing password error, got %v", err)
 	}
 
 	for attempt := 1; attempt <= 5; attempt++ {
-		_, err = service.Unlock(ctx, "protected", "wrong password")
+		_, err = service.Unlock(ctx, "protected", "wrong password", "go.example.com")
 		want := shortlink.ErrInvalidPassword
 		if attempt == 5 {
 			want = shortlink.ErrPasswordRateLimited
@@ -376,7 +414,7 @@ func TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit(t *testing.T) {
 	if _, err := pool.Exec(ctx, `update short_link set password_blocked_until = now() - interval '1 second' where id = $1`, linkID); err != nil {
 		t.Fatalf("expire password block fixture: %v", err)
 	}
-	grant, err := service.Unlock(ctx, "protected", "correct horse")
+	grant, err := service.Unlock(ctx, "protected", "correct horse", "go.example.com")
 	if err != nil || grant.Token == "" {
 		t.Fatalf("expected successful unlock grant, token_present=%t error %v", grant.Token != "", err)
 	}
@@ -392,18 +430,18 @@ func TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit(t *testing.T) {
 	if failedAttempts != 0 || windowStartedAt.Valid || blockedUntil.Valid {
 		t.Fatalf("successful unlock did not reset password failure state")
 	}
-	continued, err := service.Continue(ctx, "protected", grant.Token)
+	continued, err := service.Continue(ctx, "protected", grant.Token, "go.example.com")
 	if err != nil || continued.TargetURL != "https://example.com/protected" {
 		t.Fatalf("expected granted redirect, got %#v error %v", continued, err)
 	}
-	authorizedPreview, err := service.Preview(ctx, "protected", grant.Token)
+	authorizedPreview, err := service.Preview(ctx, "protected", grant.Token, "go.example.com")
 	if err != nil || authorizedPreview.TargetHost != "example.com" {
 		t.Fatalf("expected protected preview metadata, got %#v error %v", authorizedPreview, err)
 	}
 	if _, err := pool.Exec(ctx, `update short_link set password_updated_at = now() where id = $1`, linkID); err != nil {
 		t.Fatalf("invalidate protected grant: %v", err)
 	}
-	if _, err := service.Continue(ctx, "protected", grant.Token); !errors.Is(err, shortlink.ErrPasswordRequired) {
+	if _, err := service.Continue(ctx, "protected", grant.Token, "go.example.com"); !errors.Is(err, shortlink.ErrPasswordRequired) {
 		t.Fatalf("expected password update to invalidate old grant, got %v", err)
 	}
 }
@@ -426,7 +464,7 @@ func TestRedirectServiceUnlockRejectsOutOfRangePassword(t *testing.T) {
 
 	service := shortlink.NewRedirectService(pool, nil)
 	for attempt := 1; attempt <= 5; attempt++ {
-		_, err := service.Unlock(ctx, "oversized-password", oversizedPassword)
+		_, err := service.Unlock(ctx, "oversized-password", oversizedPassword, "go.example.com")
 		want := shortlink.ErrInvalidPassword
 		if attempt == 5 {
 			want = shortlink.ErrPasswordRateLimited
@@ -464,10 +502,10 @@ func TestRedirectServicePropagatesAccessGrantQueryErrors(t *testing.T) {
 	}
 
 	service := shortlink.NewRedirectService(pool, nil)
-	if _, err := service.Preview(ctx, "grant-query-error", "raw-token"); err == nil {
+	if _, err := service.Preview(ctx, "grant-query-error", "raw-token", "go.example.com"); err == nil {
 		t.Fatal("expected preview access grant query error")
 	}
-	if _, err := service.Continue(ctx, "grant-query-error", "raw-token"); err == nil {
+	if _, err := service.Continue(ctx, "grant-query-error", "raw-token", "go.example.com"); err == nil {
 		t.Fatal("expected continue access grant query error")
 	}
 }
@@ -513,7 +551,7 @@ func TestRedirectServiceUnlockMapsAccessConditions(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := service.Unlock(ctx, test.slug, "correct horse")
+			_, err := service.Unlock(ctx, test.slug, "correct horse", "go.example.com")
 			if !errors.Is(err, test.want) {
 				t.Fatalf("expected %v, got %v", test.want, err)
 			}
@@ -525,7 +563,7 @@ func TestRedirectServiceUnlockMapsAccessConditions(t *testing.T) {
 func TestRedirectServiceUnlockHandlesUnavailableDatabase(t *testing.T) {
 	ctx := context.Background()
 	unavailableService := shortlink.NewRedirectService(nil, nil)
-	if _, err := unavailableService.Unlock(ctx, "missing", "password"); err == nil {
+	if _, err := unavailableService.Unlock(ctx, "missing", "password", "go.example.com"); err == nil {
 		t.Fatal("expected unavailable database error")
 	}
 	if err := unavailableService.CleanupExpiredAccessGrants(ctx, nil); err == nil {
@@ -535,7 +573,7 @@ func TestRedirectServiceUnlockHandlesUnavailableDatabase(t *testing.T) {
 	pool := shortLinkTestPool(t, ctx)
 	service := shortlink.NewRedirectService(pool, nil)
 	pool.Close()
-	if _, err := service.Unlock(ctx, "missing", "password"); err == nil {
+	if _, err := service.Unlock(ctx, "missing", "password", "go.example.com"); err == nil {
 		t.Fatal("expected begin transaction error")
 	}
 }
@@ -549,7 +587,7 @@ func TestRedirectServiceUnlockReturnsPasswordStateQueryError(t *testing.T) {
 	}
 
 	service := shortlink.NewRedirectService(pool, nil)
-	if _, err := service.Unlock(ctx, "query-error", "correct horse"); err == nil {
+	if _, err := service.Unlock(ctx, "query-error", "correct horse", "go.example.com"); err == nil {
 		t.Fatal("expected password-state query error")
 	}
 }
@@ -573,7 +611,7 @@ func TestRedirectServiceUnlockReturnsAccessGrantCreationError(t *testing.T) {
 	}
 
 	service := shortlink.NewRedirectService(pool, nil)
-	if _, err := service.Unlock(ctx, "grant-create-error", "correct horse"); err == nil {
+	if _, err := service.Unlock(ctx, "grant-create-error", "correct horse", "go.example.com"); err == nil {
 		t.Fatal("expected access-grant creation error")
 	}
 }
@@ -684,7 +722,7 @@ func TestRedirectServiceUnlockDoesNotCleanExpiredAccessGrants(t *testing.T) {
 	fixture := newAccessGrantCleanupFixture(t)
 	fixture.insertExpiredGrants(t, 1)
 
-	grant, err := fixture.service.Unlock(fixture.ctx, "protected-cleanup", "correct horse")
+	grant, err := fixture.service.Unlock(fixture.ctx, "protected-cleanup", "correct horse", "go.example.com")
 	if err != nil {
 		t.Fatalf("unlock protected short link: %v", err)
 	}
@@ -792,7 +830,7 @@ func TestRedirectServiceCleanupReturnsCancellationDuringBatchPause(t *testing.T)
 func TestRedirectServiceRunsPeriodicAccessGrantCleanup(t *testing.T) {
 	fixture := newAccessGrantCleanupFixture(t)
 	fixture.insertExpiredGrants(t, 1)
-	grant, err := fixture.service.Unlock(fixture.ctx, "protected-cleanup", "correct horse")
+	grant, err := fixture.service.Unlock(fixture.ctx, "protected-cleanup", "correct horse", "go.example.com")
 	if err != nil {
 		t.Fatalf("unlock protected short link: %v", err)
 	}
@@ -867,10 +905,10 @@ func TestRedirectServicePreviewRejectsCorruptStoredTargets(t *testing.T) {
 	}
 	service := shortlink.NewRedirectService(pool, nil)
 
-	if _, err := service.Preview(ctx, "invalid1", ""); err == nil || !strings.Contains(err.Error(), "parse stored target URL") {
+	if _, err := service.Preview(ctx, "invalid1", "", "go.example.com"); err == nil || !strings.Contains(err.Error(), "parse stored target URL") {
 		t.Fatalf("expected stored target parse error, got %v", err)
 	}
-	if _, err := service.Preview(ctx, "hostless", ""); err == nil || !strings.Contains(err.Error(), "no hostname") {
+	if _, err := service.Preview(ctx, "hostless", "", "go.example.com"); err == nil || !strings.Contains(err.Error(), "no hostname") {
 		t.Fatalf("expected stored target hostname error, got %v", err)
 	}
 }
@@ -891,33 +929,33 @@ func TestRedirectServiceBlocksExpiredAndInvalidPreviewLinks(t *testing.T) {
 	}
 	recorder := &recordingRecorder{}
 	service := shortlink.NewRedirectService(pool, recorder)
-	_, err = service.Open(ctx, "expired")
+	_, err = service.Open(ctx, "expired", "go.example.com")
 	if !errors.Is(err, shortlink.ErrShortLinkExpired) {
 		t.Fatalf("expected expired open error, got %v", err)
 	}
 	assertEvents(t, recorder.types, []string{event.ShortLinkOpened, event.AccessConditionChecked, event.RedirectBlocked})
 
 	recorder.types = nil
-	_, err = service.Continue(ctx, "expired", "")
+	_, err = service.Continue(ctx, "expired", "", "go.example.com")
 	if !errors.Is(err, shortlink.ErrShortLinkExpired) {
 		t.Fatalf("expected expired continue error, got %v", err)
 	}
 	assertEvents(t, recorder.types, []string{event.AccessConditionChecked, event.RedirectBlocked})
 
 	recorder.types = nil
-	_, err = service.Preview(ctx, "expired", "")
+	_, err = service.Preview(ctx, "expired", "", "go.example.com")
 	if !errors.Is(err, shortlink.ErrShortLinkExpired) || len(recorder.types) != 0 {
 		t.Fatalf("expected event-free expired preview error, got %v events %#v", err, recorder.types)
 	}
-	_, err = service.Preview(ctx, "direct1", "")
+	_, err = service.Preview(ctx, "direct1", "", "go.example.com")
 	if !errors.Is(err, shortlink.ErrShortLinkNotInteractive) {
 		t.Fatalf("expected direct preview rejection, got %v", err)
 	}
-	_, err = service.Preview(ctx, "deleted", "")
+	_, err = service.Preview(ctx, "deleted", "", "go.example.com")
 	if !errors.Is(err, shortlink.ErrShortLinkMissing) {
 		t.Fatalf("expected deleted preview to be missing, got %v", err)
 	}
-	_, err = service.Preview(ctx, "disabled2", "")
+	_, err = service.Preview(ctx, "disabled2", "", "go.example.com")
 	if !errors.Is(err, shortlink.ErrShortLinkDisabled) || len(recorder.types) != 0 {
 		t.Fatalf("expected event-free disabled preview error, got %v events %#v", err, recorder.types)
 	}
@@ -950,7 +988,7 @@ func TestRedirectServiceContinueRechecksEveryAccessCondition(t *testing.T) {
 			recorder := &recordingRecorder{}
 			service := shortlink.NewRedirectService(pool, recorder)
 
-			_, err := service.Continue(ctx, tt.slug, "")
+			_, err := service.Continue(ctx, tt.slug, "", "go.example.com")
 			if !errors.Is(err, tt.err) {
 				t.Fatalf("expected %v, got %v", tt.err, err)
 			}

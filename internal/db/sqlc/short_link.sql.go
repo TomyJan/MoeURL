@@ -255,13 +255,15 @@ func (q *Queries) GetShortLinkAnalyticsLink(ctx context.Context, id pgtype.UUID)
 }
 
 const getShortLinkBySlug = `-- name: GetShortLinkBySlug :one
-select id, owner_id, domain_id, slug, target_url, status,
-    redirect_mode, intermediate_delay_seconds, expires_at,
-    coalesce(expires_at <= clock_timestamp(), false)::boolean as expired,
-    password_hash,
-    created_at, updated_at, deleted_at
+select short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
+    short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
+    coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
+    short_link.password_hash,
+    short_link.created_at, short_link.updated_at, short_link.deleted_at,
+    domain.host as domain_host, domain.enabled as domain_enabled, domain.purpose as domain_purpose
 from short_link
-where slug = $1 and deleted_at is null
+join domain on domain.id = short_link.domain_id
+where short_link.slug = $1 and short_link.deleted_at is null
 `
 
 type GetShortLinkBySlugRow struct {
@@ -279,6 +281,9 @@ type GetShortLinkBySlugRow struct {
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
+	DomainHost               string             `json:"domain_host"`
+	DomainEnabled            bool               `json:"domain_enabled"`
+	DomainPurpose            string             `json:"domain_purpose"`
 }
 
 func (q *Queries) GetShortLinkBySlug(ctx context.Context, slug string) (GetShortLinkBySlugRow, error) {
@@ -299,6 +304,9 @@ func (q *Queries) GetShortLinkBySlug(ctx context.Context, slug string) (GetShort
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.DomainHost,
+		&i.DomainEnabled,
+		&i.DomainPurpose,
 	)
 	return i, err
 }

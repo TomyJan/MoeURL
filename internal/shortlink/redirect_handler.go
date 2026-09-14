@@ -18,10 +18,10 @@ import (
 
 // RedirectPort handles the public short-link access actions.
 type RedirectPort interface {
-	Open(ctx context.Context, slug string) (OpenResult, error)
-	Preview(ctx context.Context, slug string, accessToken string) (PreviewResult, error)
-	Unlock(ctx context.Context, slug string, password string) (AccessGrant, error)
-	Continue(ctx context.Context, slug string, accessToken string) (RedirectResult, error)
+	Open(ctx context.Context, slug string, requestHost string) (OpenResult, error)
+	Preview(ctx context.Context, slug string, accessToken string, requestHost string) (PreviewResult, error)
+	Unlock(ctx context.Context, slug string, password string, requestHost string) (AccessGrant, error)
+	Continue(ctx context.Context, slug string, accessToken string, requestHost string) (RedirectResult, error)
 }
 
 // RedirectHandler handles public short-link access requests.
@@ -66,7 +66,7 @@ func NewRedirectHandlerWithAnalyticsAndSecurity(service RedirectPort, recorder e
 
 // Open writes either the direct target redirect or an internal interactive-page redirect.
 func (h *RedirectHandler) Open(w http.ResponseWriter, r *http.Request, slug string) {
-	result, err := h.service.Open(r.Context(), slug)
+	result, err := h.service.Open(r.Context(), slug, r.Host)
 	if err != nil {
 		h.writePublicAccessError(w, r, slug, err, "short_link_open_failed")
 		return
@@ -104,7 +104,7 @@ func (h *RedirectHandler) preview(w http.ResponseWriter, r *http.Request, slug s
 		return
 	}
 
-	result, err := h.service.Preview(r.Context(), slug, accessToken)
+	result, err := h.service.Preview(r.Context(), slug, accessToken, r.Host)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrShortLinkMissing):
@@ -153,7 +153,7 @@ func (h *RedirectHandler) Unlock(w http.ResponseWriter, r *http.Request, slug st
 		return
 	}
 	slug = strings.ToLower(strings.TrimSpace(slug))
-	grant, err := h.service.Unlock(r.Context(), slug, input.Password)
+	grant, err := h.service.Unlock(r.Context(), slug, input.Password, r.Host)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrPasswordRequired):
@@ -198,7 +198,7 @@ func (h *RedirectHandler) Continue(w http.ResponseWriter, r *http.Request, slug 
 	if redirectLowercaseScopedSlug(w, r, slug, "/continue") {
 		return
 	}
-	result, err := h.service.Continue(r.Context(), slug, accessTokenFromRequest(r))
+	result, err := h.service.Continue(r.Context(), slug, accessTokenFromRequest(r), r.Host)
 	if err != nil {
 		if isPublicAccessError(err) {
 			h.writePublicAccessError(w, r, slug, err, "short_link_continue_failed")
