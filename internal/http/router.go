@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	"github.com/TomyJan/MoeURL/internal/domain"
 	"github.com/TomyJan/MoeURL/internal/event"
 	"github.com/TomyJan/MoeURL/internal/middleware"
 	"github.com/TomyJan/MoeURL/internal/oidc"
@@ -24,6 +25,7 @@ type Dependencies struct {
 	Auth                   auth.Port
 	CurrentUser            auth.CurrentUserResolver
 	ShortLink              shortlink.Port
+	Domain                 domain.Port
 	Redirect               shortlink.RedirectPort
 	RedirectRecorder       event.Recorder
 	AnalyticsCountryHeader string
@@ -99,6 +101,15 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				businessAPI.Get("/admin/short-link/statistics", shortLinkHandler.AdminStatistics)
 				businessAPI.Post("/admin/short-link/update", shortLinkHandler.AdminUpdate)
 				businessAPI.Post("/admin/short-link/delete", shortLinkHandler.AdminDelete)
+			}
+			if dependency.Domain != nil {
+				domainHandler := domain.NewHandler(dependency.Domain, logger)
+				businessAPI.Get("/domain/available", domainHandler.Available)
+				businessAPI.Get("/admin/domain/list", domainHandler.List)
+				businessAPI.Post("/admin/domain/create", domainHandler.Create)
+				businessAPI.Post("/admin/domain/update", domainHandler.Update)
+				businessAPI.Post("/admin/domain/set-default", domainHandler.SetDefault)
+				businessAPI.Post("/admin/domain/delete", domainHandler.Delete)
 			}
 			if redirectHandler != nil {
 				businessAPI.Get("/public/short-link/preview", redirectHandler.PreviewPublic)
