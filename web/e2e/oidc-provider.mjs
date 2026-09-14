@@ -4,6 +4,8 @@ import { createServer } from 'node:http'
 import process from 'node:process'
 import { URLSearchParams } from 'node:url'
 
+import { clientCredentials } from './oidc-client-auth.mjs'
+
 const port = Number.parseInt(process.env.OIDC_PORT ?? '19000', 10)
 const issuer = `http://127.0.0.1:${port}`
 const clientSecret = 'e2e-client-secret'
@@ -29,6 +31,7 @@ createServer(async (request, response) => {
       subject_types_supported: ['public'],
       id_token_signing_alg_values_supported: ['RS256'],
       code_challenge_methods_supported: ['S256'],
+      token_endpoint_auth_methods_supported: ['client_secret_basic'],
     })
   }
   if (request.method === 'GET' && url.pathname === '/jwks') {
@@ -55,7 +58,7 @@ createServer(async (request, response) => {
     const body = new URLSearchParams(await readBody(request))
     const code = body.get('code') ?? ''
     const attempt = codes.get(code)
-    const credentials = clientCredentials(request, body)
+    const credentials = clientCredentials(request)
     const verifier = body.get('code_verifier') ?? ''
     const challenge = createHash('sha256').update(verifier).digest('base64url')
     if (!attempt || attempt.expiresAt <= Date.now() || body.get('grant_type') !== 'authorization_code' || credentials.secret !== clientSecret || credentials.id !== attempt.clientID || body.get('redirect_uri') !== attempt.redirectURI || challenge !== attempt.codeChallenge) {
@@ -93,19 +96,4 @@ async function readBody(request) {
   const chunks = []
   for await (const chunk of request) chunks.push(chunk)
   return Buffer.concat(chunks).toString('utf8')
-}
-
-function clientCredentials(request, body) {
-  const authorization = request.headers.authorization ?? ''
-  if (authorization.startsWith('Basic ')) {
-    const decoded = Buffer.from(authorization.slice('Basic '.length), 'base64').toString('utf8')
-    const separator = decoded.indexOf(':')
-    if (separator >= 0) {
-      return {
-        id: decodeURIComponent(decoded.slice(0, separator)),
-        secret: decodeURIComponent(decoded.slice(separator + 1)),
-      }
-    }
-  }
-  return { id: body.get('client_id') ?? '', secret: body.get('client_secret') ?? '' }
 }

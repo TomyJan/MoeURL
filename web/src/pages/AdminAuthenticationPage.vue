@@ -183,7 +183,19 @@ const mutation = useMutation({
     if (conflict) {
       if (active) suspendedDraftSync.add(providerID)
       try {
-        await query.refetch()
+        const refreshed = await query.refetch()
+        if (refreshed?.isSuccess && refreshed.data) {
+          const latest = refreshed.data.providers.find((provider) => provider.id === providerID)
+          if (latest) {
+            if (selectedID.value === providerID) loadedProviderUpdatedAt = latest.updatedAt
+            if (deleteTarget.value?.id === providerID) deleteTarget.value = { ...latest }
+          } else {
+            if (deleteTarget.value?.id === providerID) {
+              deleteDialog.value = false
+              deleteTarget.value = null
+            }
+          }
+        }
       } finally {
         suspendedDraftSync.delete(providerID)
       }
