@@ -118,6 +118,7 @@ func TestConfigValidateOIDCConfiguration(t *testing.T) {
 		{name: "production HTTP", env: "production", baseURL: "http://links.example.com", key: validKey, wantError: "must use HTTPS"},
 		{name: "development remote HTTP", env: "development", baseURL: "http://links.example.com", key: validKey, wantError: "loopback"},
 		{name: "relative URL", env: "development", baseURL: "/moeurl", key: validKey, wantError: "absolute URL"},
+		{name: "empty HTTPS hostname", env: "production", baseURL: "https://:443", key: validKey, wantError: "absolute URL"},
 		{name: "path", env: "production", baseURL: "https://links.example.com/moeurl", key: validKey, wantError: "root path"},
 		{name: "query", env: "production", baseURL: "https://links.example.com?tenant=a", key: validKey, wantError: "query"},
 		{name: "empty query delimiter", env: "production", baseURL: "https://links.example.com?", key: validKey, wantError: "query"},

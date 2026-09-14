@@ -89,6 +89,60 @@ func TestLoginServiceRunLoginAttemptCleanupRunsImmediatelyAndOnTicker(t *testing
 	}
 }
 
+// TestLoginServiceRunLoginAttemptCleanupBoundsEachCycle verifies batches share a canceled, timed cycle context.
+func TestLoginServiceRunLoginAttemptCleanupBoundsEachCycle(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	done := make(chan struct{})
+	contexts := make(chan context.Context, 2)
+	calls := 0
+	store := &cleanupLoginStore{loginStoreStub: &loginStoreStub{}}
+	store.cleanup = func(cycleContext context.Context, _ int32) (int64, error) {
+		calls++
+		contexts <- cycleContext
+		if calls == 1 {
+			return int64(loginAttemptCleanupBatchSize), nil
+		}
+		return 0, nil
+	}
+	go func() {
+		defer close(done)
+		(&LoginService{store: store}).RunLoginAttemptCleanup(ctx, time.Hour, nil)
+	}()
+	var first, second context.Context
+	select {
+	case first = <-contexts:
+	case <-time.After(time.Second):
+		t.Fatal("first cleanup batch did not start")
+	}
+	select {
+	case second = <-contexts:
+	case <-time.After(time.Second):
+		t.Fatal("second cleanup batch did not start")
+	}
+	deadline, bounded := first.Deadline()
+	if !bounded || time.Until(deadline) <= 0 || time.Until(deadline) > time.Minute {
+		t.Fatalf("cleanup cycle deadline = %v, bounded = %t", deadline, bounded)
+	}
+	if first != second {
+		t.Fatal("cleanup batches did not share the cycle context")
+	}
+	select {
+	case <-first.Done():
+	case <-time.After(time.Second):
+		t.Fatal("finished cleanup cycle context was not canceled")
+	}
+	if ctx.Err() != nil {
+		t.Fatal("cleanup cycle canceled its parent context")
+	}
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("cleanup scheduler did not stop")
+	}
+}
+
 // TestLoginServiceRunLoginAttemptCleanupRejectsInvalidDependencies verifies startup failures are bounded and logged.
 func TestLoginServiceRunLoginAttemptCleanupRejectsInvalidDependencies(t *testing.T) {
 	for _, test := range []struct {

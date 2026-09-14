@@ -11,6 +11,8 @@ type loginAttemptCleanupStore interface {
 	DeleteExpiredOIDCLoginAttempts(context.Context, int32) (int64, error)
 }
 
+const loginAttemptCleanupCycleTimeout = 10 * time.Second
+
 // RunLoginAttemptCleanup removes expired one-time attempts immediately and periodically until cancellation.
 func (s *LoginService) RunLoginAttemptCleanup(ctx context.Context, interval time.Duration, logger *slog.Logger) {
 	if logger == nil {
@@ -26,7 +28,9 @@ func (s *LoginService) RunLoginAttemptCleanup(ctx context.Context, interval time
 		return
 	}
 	run := func() {
-		if err := runLoginAttemptCleanupCycle(ctx, cleanupStore.DeleteExpiredOIDCLoginAttempts); err != nil && !errors.Is(err, context.Canceled) {
+		cycleContext, cancel := context.WithTimeout(ctx, loginAttemptCleanupCycleTimeout)
+		defer cancel()
+		if err := runLoginAttemptCleanupCycle(cycleContext, cleanupStore.DeleteExpiredOIDCLoginAttempts); err != nil && !errors.Is(err, context.Canceled) {
 			logger.ErrorContext(ctx, "oidc_login_attempt_cleanup_failed", "error_type", "database")
 		}
 	}

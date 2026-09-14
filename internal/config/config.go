@@ -92,7 +92,7 @@ func (c *Config) validateOIDCConfiguration() error {
 	}
 
 	baseURL, err := url.Parse(c.PublicBaseURL)
-	if err != nil || !baseURL.IsAbs() || baseURL.Host == "" {
+	if err != nil || !baseURL.IsAbs() || baseURL.Host == "" || baseURL.Hostname() == "" {
 		return errors.New("MOEURL_PUBLIC_BASE_URL must be an absolute URL")
 	}
 	if baseURL.User != nil {

@@ -195,6 +195,16 @@ describe('AdminAuthenticationPage', () => {
     await waitFor(() => expect(addProvider.disabled).toBe(false))
   })
 
+  it('preserves an unsaved new-provider draft when add is clicked again', async () => {
+    mountPage()
+    const addProvider = screen.getByRole('button', { name: 'oidc.addProvider' }) as HTMLButtonElement
+    await fireEvent.click(addProvider)
+    await fireEvent.update(screen.getByLabelText('oidc.displayName'), 'Unsaved provider')
+    expect(addProvider.disabled).toBe(true)
+    await fireEvent.click(addProvider)
+    expect(screen.getByDisplayValue('Unsaved provider')).toBeTruthy()
+  })
+
   it('creates into an initially empty query cache and ignores refreshes while drafting', async () => {
     state.queryData.value = undefined
     vi.mocked(createOIDCProvider).mockResolvedValue({ provider: company })
