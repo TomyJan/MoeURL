@@ -96,12 +96,34 @@ describe('AdminDomainsPage', () => {
     await waitFor(() => expect(setDefaultDomain).toHaveBeenCalledWith({ id: secondary.id, expectedUpdatedAt: secondary.updatedAt }))
   })
 
+  it('keeps unsaved edits when setting the default and saves against its new revision', async () => {
+    const selected = { ...secondary, isDefault: true, updatedAt: '2026-09-14T01:00:00Z' }
+    vi.mocked(setDefaultDomain).mockResolvedValue({ domain: selected })
+    vi.mocked(updateDomain).mockResolvedValue({ domain: { ...selected, displayName: 'My unsaved name', allowedGroups: ['admin'] } })
+    mount()
+    await fireEvent.click(screen.getByRole('button', { name: /Secondary/ }))
+    await fireEvent.update(screen.getByLabelText('domains.displayName'), 'My unsaved name')
+    await fireEvent.click(screen.getByLabelText('domains.groups.user'))
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.setDefault' }))
+    await waitFor(() => expect(state.setQueryData).toHaveBeenCalled())
+    await nextTick()
+    await waitFor(() => expect(screen.getByText('domains.saved')).toBeTruthy())
+    expect(updateDomain).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'My unsaved name')
+    expect(screen.getByLabelText('domains.groups.user')).toHaveProperty('checked', false)
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.save' }))
+    await waitFor(() => expect(updateDomain).toHaveBeenCalledWith(expect.objectContaining({
+      id: secondary.id, expectedUpdatedAt: selected.updatedAt, displayName: 'My unsaved name', allowedGroups: ['admin'],
+    })))
+  })
+
   it('confirms deletion of only the captured unreferenced domain', async () => {
     vi.mocked(deleteDomain).mockResolvedValue(undefined)
     mount()
     await fireEvent.click(screen.getByRole('button', { name: /Secondary/ }))
     await fireEvent.click(screen.getByRole('button', { name: 'domains.delete' }))
     expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(updateDomain).not.toHaveBeenCalled()
     await fireEvent.click(screen.getByRole('button', { name: 'domains.confirmDelete' }))
     await waitFor(() => expect(deleteDomain).toHaveBeenCalledWith({ id: secondary.id, expectedUpdatedAt: secondary.updatedAt }))
   })
@@ -131,6 +153,7 @@ describe('AdminDomainsPage', () => {
     expect(createDomain).not.toHaveBeenCalled()
     await fireEvent.click(screen.getByRole('button', { name: 'domains.cancel' }))
     expect(screen.getByLabelText('domains.host')).toHaveProperty('value', primary.host)
+    expect(createDomain).not.toHaveBeenCalled()
   })
 
   it('closes a fresh create form even when no domains exist', async () => {

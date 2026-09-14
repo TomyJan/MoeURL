@@ -39,9 +39,9 @@
           {{ t(feedback === 'success' ? 'domains.saved' : feedback === 'conflict' ? 'domains.conflict' : 'domains.saveFailed') }}
         </v-alert>
         <div class="domains-page__actions">
-          <v-btn v-if="!creating && !selectedDomain?.isDefault" variant="text" :disabled="mutation.isPending.value || !selectedDomain?.enabled" @click="setDefault">{{ t('domains.setDefault') }}</v-btn>
-          <v-btn v-if="!creating" color="error" variant="text" :disabled="mutation.isPending.value || selectedDomain?.isDefault || selectedDomain?.referenced" @click="openDelete">{{ t('domains.delete') }}</v-btn>
-          <v-btn v-if="creating" variant="text" @click="cancelCreate">{{ t('domains.cancel') }}</v-btn>
+          <v-btn v-if="!creating && !selectedDomain?.isDefault" type="button" variant="text" :disabled="mutation.isPending.value || !selectedDomain?.enabled" @click="setDefault">{{ t('domains.setDefault') }}</v-btn>
+          <v-btn v-if="!creating" type="button" color="error" variant="text" :disabled="mutation.isPending.value || selectedDomain?.isDefault || selectedDomain?.referenced" @click="openDelete">{{ t('domains.delete') }}</v-btn>
+          <v-btn v-if="creating" type="button" variant="text" @click="cancelCreate">{{ t('domains.cancel') }}</v-btn>
           <v-btn color="primary" type="submit" :loading="mutation.isPending.value">{{ t('domains.save') }}</v-btn>
         </div>
       </form>
@@ -120,7 +120,12 @@ const mutation = useMutation({
     if (active) {
       feedback.value = 'success'
       if (result.type === 'deleted') selectedID.value = ''
-      else { creating.value = false; selectedID.value = result.domain.id; fillDraft(result.domain) }
+      else {
+        creating.value = false
+        selectedID.value = result.domain.id
+        if (operation.type === 'default' && dirty()) expectedUpdatedAt = result.domain.updatedAt
+        else fillDraft(result.domain)
+      }
     }
     if (result.type === 'deleted' && deleteTarget.value?.id === result.id) deleteDialog.value = false
     void queryClient.invalidateQueries({ queryKey: managedDomainQueryKey })
