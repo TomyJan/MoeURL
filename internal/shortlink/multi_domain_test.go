@@ -87,6 +87,28 @@ func TestCreateSelectsOnlyAnEnabledGrantedDomain(t *testing.T) {
 	}
 }
 
+func TestCreateRechecksCreatePermissionInsideDomainTransaction(t *testing.T) {
+	ctx := t.Context()
+	pool := testdb.ProjectMigratedPool(ctx, t)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "revoked-create", "user", permission.UserPermissions)
+	// The service's initial snapshot still permits creation, but the stored group
+	// loses that permission before the write transaction begins.
+	service := shortlink.NewService(pool, permission.NewService())
+	if _, err := pool.Exec(ctx, `
+		update user_group set permissions = permissions - 'short_link:create' where key = 'user'
+	`); err != nil {
+		t.Fatalf("revoke stored create permission: %v", err)
+	}
+	if _, err := service.Create(ctx, user, shortlink.CreateInput{TargetURL: "https://target.example.com"}); !errors.Is(err, shortlink.ErrDomainUnavailable) {
+		t.Fatalf("create after stored permission revocation = %v, want ErrDomainUnavailable", err)
+	}
+	var count int
+	if err := pool.QueryRow(ctx, `select count(*) from short_link`).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("short links after revoked create = %d, error = %v", count, err)
+	}
+}
+
 func TestUpdateRetainsStoredDomainAfterDefaultChanges(t *testing.T) {
 	ctx := t.Context()
 	pool := testdb.ProjectMigratedPool(ctx, t)

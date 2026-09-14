@@ -11,6 +11,7 @@ join domain_user_group on domain_user_group.domain_id = domain.id
 join user_group on user_group.id = domain_user_group.user_group_id
 where domain.enabled and domain.purpose = 'short_link'
   and user_group.key = sqlc.arg(group_key) and user_group.builtin
+  and user_group.permissions ? 'short_link:create'
   and user_group.permissions ? sqlc.arg(required_permission)::text
   and ((sqlc.arg(use_default)::boolean and domain.is_default)
        or (not sqlc.arg(use_default)::boolean and domain.id = sqlc.arg(domain_id)::uuid))

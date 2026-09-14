@@ -128,6 +128,7 @@ join domain_user_group on domain_user_group.domain_id = domain.id
 join user_group on user_group.id = domain_user_group.user_group_id
 where domain.enabled and domain.purpose = 'short_link'
   and user_group.key = $1 and user_group.builtin
+  and user_group.permissions ? 'short_link:create'
   and user_group.permissions ? $2::text
   and (($3::boolean and domain.is_default)
        or (not $3::boolean and domain.id = $4::uuid))

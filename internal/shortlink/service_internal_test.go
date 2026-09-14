@@ -477,7 +477,7 @@ func TestCreateRetriesReservedSlug(t *testing.T) {
 	pool := testdb.ProjectMigratedPool(ctx, t)
 	if _, err := pool.Exec(ctx, `
 		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
-		values ('00000000-0000-0000-0000-000000000401', 'user', 'User', '', '["domain:use_default"]'::jsonb, true, now(), now())
+			values ('00000000-0000-0000-0000-000000000401', 'user', 'User', '', '["short_link:create","domain:use_default"]'::jsonb, true, now(), now())
 	`); err != nil {
 		t.Fatalf("insert user group fixture: %v", err)
 	}
