@@ -170,6 +170,7 @@ jobs:
             ./internal/event \
             ./internal/http \
             ./internal/middleware \
+            ./internal/oidc \
             ./internal/permission \
             ./internal/shortlink \
             ./internal/system \

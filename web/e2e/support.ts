@@ -3,8 +3,22 @@ import type { Page, TestInfo } from '@playwright/test'
 
 export const e2ePort = process.env.MOEURL_E2E_PORT ?? '8080'
 export const e2eHost = `127.0.0.1:${e2ePort}`
+export const e2eOIDCPort = parseE2EOIDCPort(process.env.MOEURL_E2E_OIDC_PORT)
 export const e2eAdminUsername = process.env.MOEURL_E2E_ADMIN_USERNAME ?? 'admin'
 export const e2eAdminPassword = process.env.MOEURL_E2E_ADMIN_PASSWORD ?? 'admin-password'
+
+/** Parses the isolated test provider port without accepting partial or ambiguous numeric values. */
+export function parseE2EOIDCPort(value: string | undefined): string {
+  const raw = value ?? '19000'
+  if (!/^[0-9]+$/.test(raw)) {
+    throw new Error('MOEURL_E2E_OIDC_PORT must be a decimal port between 1 and 65535')
+  }
+  const port = Number(raw)
+  if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) {
+    throw new Error('MOEURL_E2E_OIDC_PORT must be a decimal port between 1 and 65535')
+  }
+  return String(port)
+}
 
 /** Reports whether JSON serialization contains the escaped representation of a secret. */
 export function serializedPayloadIncludesSecret(payload: unknown, secret: string): boolean {

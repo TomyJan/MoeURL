@@ -45,7 +45,7 @@ test -f "$DEPLOY_COMPOSE" && test -r "$DEPLOY_COMPOSE" || {
 
 `DEPLOY_PROJECT` 固定为本指南使用的生产 project 名；若现有部署使用其他名称，必须在维护窗口前统一修改该值并用容器的 `com.docker.compose.project` 标签核对，不能临时依赖目录名推导。后续命令必须在保留这些变量和 `production_compose` 函数的同一 Shell 会话中执行；重新登录后先重新执行本节初始化与校验。
 
-`.env` 包含数据库密码、完整数据库连接 URL 和初始化 Token，必须排除在版本控制、工单、聊天记录和命令跟踪之外。Compose 不再把原始密码拼接进 URL；`MOEURL_POSTGRES_PASSWORD` 交给 PostgreSQL 初始化，`MOEURL_DATABASE_URL` 作为已经正确编码的完整连接配置交给 App。以下命令使用只包含十六进制字符的随机密码，因此可以安全地同时生成两项：
+`.env` 包含数据库密码、完整数据库连接 URL、初始化 Token 和 OIDC 加密密钥，必须排除在版本控制、工单、聊天记录和命令跟踪之外。Compose 不再把原始密码拼接进 URL；`MOEURL_POSTGRES_PASSWORD` 交给 PostgreSQL 初始化，`MOEURL_DATABASE_URL` 作为已经正确编码的完整连接配置交给 App。以下命令使用只包含十六进制字符的随机数据库密码，并为 OIDC 生成独立的 Base64 密钥。执行前将公共地址替换为实际公网 HTTPS Origin：
 
 ```bash
 test ! -e "$DEPLOY_ENV" || {
@@ -55,6 +55,7 @@ test ! -e "$DEPLOY_ENV" || {
 set +x
 umask 077
 database_password="$(openssl rand -hex 32)"
+oidc_encryption_key="$(openssl rand -base64 32)"
 {
   printf 'MOEURL_ENV=production\n'
   printf 'MOEURL_HTTP_HOST=127.0.0.1\n'
@@ -62,8 +63,10 @@ database_password="$(openssl rand -hex 32)"
   printf 'MOEURL_POSTGRES_PASSWORD=%s\n' "$database_password"
   printf 'MOEURL_DATABASE_URL=postgres://moeurl:%s@postgres:5432/moeurl?sslmode=disable\n' "$database_password"
   printf 'MOEURL_SETUP_TOKEN=%s\n' "$(openssl rand -hex 32)"
+  printf 'MOEURL_PUBLIC_BASE_URL=https://go.example.com\n'
+  printf 'MOEURL_OIDC_ENCRYPTION_KEY=%s\n' "$oidc_encryption_key"
 } > "$DEPLOY_ENV"
-unset database_password
+unset database_password oidc_encryption_key
 chmod 600 "$DEPLOY_ENV"
 ```
 
@@ -124,6 +127,21 @@ curl --fail --silent --show-error --connect-timeout 2 --max-time 5 https://go.ex
 
 不要把 Token 放到 URL、Shell 参数、截图或代理访问日志中。初始化请求必须使用 JSON 请求体并经 HTTPS 发送。
 
+### 4.1 启用 OIDC
+
+`MOEURL_PUBLIC_BASE_URL` 必须与用户实际访问的公网 HTTPS Origin 完全一致，只包含 scheme、host 和可选端口。`MOEURL_OIDC_ENCRYPTION_KEY` 必须是 Base64 编码的 32 字节随机值。两项配置必须同时存在；若数据库中已有启用的 provider，缺少任一项时 App 会拒绝启动。
+
+管理员在「身份认证」页面创建 provider 后，使用已规范化的 `MOEURL_PUBLIC_BASE_URL` 登记固定回调地址。若原值以 `/` 结尾，先去除末尾斜杠；保留其中配置的非默认 HTTPS 端口：
+
+```bash
+PUBLIC_BASE_URL="$(sed -n 's/^MOEURL_PUBLIC_BASE_URL=//p' "$DEPLOY_ENV")" || exit 1
+test -n "$PUBLIC_BASE_URL" || { echo 'MOEURL_PUBLIC_BASE_URL is missing from deployment .env' >&2; exit 1; }
+PUBLIC_BASE_URL="${PUBLIC_BASE_URL%/}"
+printf '%s/api/v1/auth/oidc/<provider-key>/callback\n' "$PUBLIC_BASE_URL"
+```
+
+反向代理必须保留外部 HTTPS 地址语义。OIDC callback 的访问日志不得记录查询参数，公开工单和调试日志同样不得包含 `code` 或 `state`；只记录请求方法、路径、状态码和必要的运维字段。MoeURL 只使用配置的公共地址生成 callback，不信任请求 `Host`。`ValidateEnabledProviderRuntime` 通过 `SecretBox.Open` 解密已启用 provider 的 `ClientSecretCiphertext`；原始 `MOEURL_OIDC_ENCRYPTION_KEY` 不可用时，没有受支持的在线绕过流程。要保留既有 provider 和 `external_identity`，唯一受支持的恢复路径是从受保护备份恢复原始密钥；数据库恢复时必须同时恢复该密钥，详见 [PostgreSQL 备份与隔离恢复](backup-and-restore.md)。
+
 ## 5. 外部 TLS 反向代理
 
 ### 5.1 Caddy
@@ -144,6 +162,8 @@ go.example.com {
 
 Caddy 标准发行版不提供通用请求限流指令。公网部署必须在到达 Caddy 前使用受信边缘代理或防火墙实施本节 5.4 的来源级限流，或者使用经过固定版本、审查和升级验证的限流模块。不能因为使用 Caddy 而省略限流。
 
+若启用 Caddy 或上游边缘代理的访问日志，必须为 OIDC callback 删除查询参数或使用只记录路径的日志字段，确认导出的日志不包含 `code` 和 `state` 后才可接入集中日志系统。
+
 只有在该域名及其所有子域都长期强制 HTTPS 后才启用示例中的 `includeSubDomains`；否则应先使用不包含该参数的 HSTS 策略。
 
 ### 5.2 Nginx
@@ -154,6 +174,9 @@ Caddy 标准发行版不提供通用请求限流指令。公网部署必须在�
 limit_req_zone $binary_remote_addr zone=moeurl_login:10m rate=5r/m;
 limit_req_zone $binary_remote_addr zone=moeurl_setup:10m rate=2r/m;
 limit_req_zone $binary_remote_addr zone=moeurl_unlock:10m rate=10r/m;
+limit_req_zone $binary_remote_addr zone=moeurl_oidc_start:10m rate=10r/m;
+limit_req_zone $binary_remote_addr zone=moeurl_oidc_callback:10m rate=10r/m;
+log_format moeurl_path_only '$remote_addr [$time_local] "$request_method $uri $server_protocol" $status $body_bytes_sent';
 ```
 
 站点配置示例使用 Nginx 1.25.1 及更高版本的独立 HTTP/2 指令：
@@ -183,6 +206,20 @@ server {
 
     location ~ ^/go/[^/]+/unlock$ {
         limit_req zone=moeurl_unlock burst=10 nodelay;
+        proxy_pass http://127.0.0.1:8080;
+        include /etc/nginx/snippets/moeurl-proxy-headers.conf;
+    }
+
+    location ~ ^/api/v1/auth/oidc/[^/]+/start$ {
+        limit_req zone=moeurl_oidc_start burst=10 nodelay;
+        proxy_pass http://127.0.0.1:8080;
+        include /etc/nginx/snippets/moeurl-proxy-headers.conf;
+    }
+
+    location ~ ^/api/v1/auth/oidc/[^/]+/callback$ {
+        limit_req zone=moeurl_oidc_callback burst=10 nodelay;
+        access_log /var/log/nginx/access.log moeurl_path_only;
+        error_log /var/log/nginx/error.log crit;
         proxy_pass http://127.0.0.1:8080;
         include /etc/nginx/snippets/moeurl-proxy-headers.conf;
     }
@@ -231,8 +268,10 @@ map $geoip2_data_country_code $moeurl_country_code {
 - `POST /api/v1/auth/login`
 - `POST /api/v1/init/setup`
 - `POST /go/*/unlock`
+- `GET /api/v1/auth/oidc/*/start`
+- `GET /api/v1/auth/oidc/*/callback`
 
-应用内账号级登录保护和短链级密码保护不能替代来源级限流。限额应根据正常用户流量调整，并对 HTTP `429`、异常峰值和代理错误率建立监控。
+应用内账号级登录保护、短链级密码保护和 OIDC 进程并发槽位不能替代来源级限流。限额应根据正常用户流量调整，并对 HTTP `429`、异常峰值和代理错误率建立监控。
 
 ## 6. 日常操作与开发覆盖
 

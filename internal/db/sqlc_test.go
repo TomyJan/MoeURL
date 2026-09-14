@@ -33,6 +33,148 @@ func TestSQLCPackageExposesQueries(t *testing.T) {
 	}
 }
 
+// TestOIDCQueriesEnforceVisibilityConcurrencyAndSingleUse verifies the generated OIDC persistence contract.
+func TestOIDCQueriesEnforceVisibilityConcurrencyAndSingleUse(t *testing.T) {
+	ctx := t.Context()
+	pool := sqlcTestPool(t, ctx)
+	queries := sqlc.New(pool)
+	providerID := uuid.New()
+	provider, err := queries.CreateOIDCProvider(ctx, sqlc.CreateOIDCProviderParams{
+		ID:                     uuidToPgtype(providerID),
+		Key:                    "company",
+		DisplayName:            "Company SSO",
+		IssuerUrl:              "https://id.example.com",
+		ClientID:               "moeurl",
+		ClientSecretCiphertext: []byte{1, 2, 3},
+		AuthorizationEndpoint:  "https://id.example.com/authorize",
+		TokenEndpoint:          "https://id.example.com/token",
+		JwksUri:                "https://id.example.com/jwks",
+		AllowedEmailDomains:    []byte(`["example.com"]`),
+		Enabled:                true,
+	})
+	if err != nil {
+		t.Fatalf("create OIDC provider: %v", err)
+	}
+	methods, err := queries.ListEnabledOIDCProviders(ctx)
+	if err != nil {
+		t.Fatalf("list enabled OIDC providers: %v", err)
+	}
+	if len(methods) != 1 || methods[0].Key != "company" || methods[0].DisplayName != "Company SSO" {
+		t.Fatalf("enabled providers = %#v", methods)
+	}
+	runtimeProviders, err := queries.ListEnabledOIDCProviderRuntime(ctx)
+	if err != nil {
+		t.Fatalf("list enabled provider runtime: %v", err)
+	}
+	if len(runtimeProviders) != 1 || runtimeProviders[0].ID != provider.ID || !bytes.Equal(runtimeProviders[0].ClientSecretCiphertext, provider.ClientSecretCiphertext) {
+		t.Fatalf("enabled provider runtime = %#v", runtimeProviders)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000001', 'user', 'User', '', '[]'::jsonb, true, now(), now())
+	`); err != nil {
+		t.Fatalf("create OIDC user group fixture: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into app_user (id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000201', 'oidc-user', null, 'OIDC User', '00000000-0000-0000-0000-000000000001', 'active', false, now(), now())
+	`); err != nil {
+		t.Fatalf("create bound OIDC user: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into external_identity (provider_id, subject, user_id, created_at, last_login_at)
+		values ($1, 'bound-subject', '00000000-0000-0000-0000-000000000201', now(), now())
+	`, provider.ID); err != nil {
+		t.Fatalf("create bound OIDC identity: %v", err)
+	}
+	for _, mutation := range []struct {
+		issuerURL string
+		clientID  string
+	}{
+		{issuerURL: "https://other.example.com", clientID: provider.ClientID},
+		{issuerURL: provider.IssuerUrl, clientID: "other-client"},
+	} {
+		_, err = queries.UpdateOIDCProvider(ctx, sqlc.UpdateOIDCProviderParams{
+			DisplayName: provider.DisplayName, IssuerUrl: mutation.issuerURL, ClientID: mutation.clientID,
+			ClientSecretCiphertext: provider.ClientSecretCiphertext, AuthorizationEndpoint: provider.AuthorizationEndpoint,
+			TokenEndpoint: provider.TokenEndpoint, JwksUri: provider.JwksUri, AllowedEmailDomains: provider.AllowedEmailDomains,
+			Enabled: provider.Enabled, ID: provider.ID, ExpectedUpdatedAt: provider.UpdatedAt,
+		})
+		if !errors.Is(err, pgx.ErrNoRows) {
+			t.Fatalf("bound provider namespace update error = %v, want pgx.ErrNoRows", err)
+		}
+	}
+
+	_, err = queries.UpdateOIDCProvider(ctx, sqlc.UpdateOIDCProviderParams{
+		DisplayName:            provider.DisplayName,
+		IssuerUrl:              provider.IssuerUrl,
+		ClientID:               provider.ClientID,
+		ClientSecretCiphertext: provider.ClientSecretCiphertext,
+		AuthorizationEndpoint:  provider.AuthorizationEndpoint,
+		TokenEndpoint:          provider.TokenEndpoint,
+		JwksUri:                provider.JwksUri,
+		AllowedEmailDomains:    provider.AllowedEmailDomains,
+		Enabled:                provider.Enabled,
+		ID:                     provider.ID,
+		ExpectedUpdatedAt: pgtype.Timestamptz{
+			Time:  provider.UpdatedAt.Time.Add(-time.Second),
+			Valid: true,
+		},
+	})
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("stale provider update error = %v, want pgx.ErrNoRows", err)
+	}
+
+	stateHash := bytes.Repeat([]byte{1}, 32)
+	if err := queries.CreateOIDCLoginAttempt(ctx, sqlc.CreateOIDCLoginAttemptParams{
+		StateHash:          stateHash,
+		ProviderID:         provider.ID,
+		NonceHash:          bytes.Repeat([]byte{2}, 32),
+		BrowserBindingHash: bytes.Repeat([]byte{3}, 32),
+		VerifierCiphertext: []byte{4},
+		ReturnPath:         "/console",
+		ExpiresAt:          pgtype.Timestamptz{Time: time.Now().UTC().Add(time.Minute), Valid: true},
+	}); err != nil {
+		t.Fatalf("create OIDC login attempt: %v", err)
+	}
+	if _, err := queries.ConsumeOIDCLoginAttempt(ctx, sqlc.ConsumeOIDCLoginAttemptParams{
+		StateHash: stateHash, BrowserBindingHash: bytes.Repeat([]byte{9}, 32),
+	}); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("wrong browser consumption error = %v, want pgx.ErrNoRows", err)
+	}
+	consumeInput := sqlc.ConsumeOIDCLoginAttemptParams{
+		StateHash: stateHash, BrowserBindingHash: bytes.Repeat([]byte{3}, 32),
+	}
+	attempt, err := queries.ConsumeOIDCLoginAttempt(ctx, consumeInput)
+	if err != nil {
+		t.Fatalf("consume OIDC login attempt: %v", err)
+	}
+	if attempt.ReturnPath != "/console" || attempt.ProviderID != provider.ID || !bytes.Equal(attempt.BrowserBindingHash, bytes.Repeat([]byte{3}, 32)) {
+		t.Fatalf("consumed attempt = %#v", attempt)
+	}
+	if _, err := queries.ConsumeOIDCLoginAttempt(ctx, consumeInput); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("replayed OIDC attempt error = %v, want pgx.ErrNoRows", err)
+	}
+
+	deleted, err := queries.SoftDeleteOIDCProvider(ctx, sqlc.SoftDeleteOIDCProviderParams{
+		ID:                provider.ID,
+		ExpectedUpdatedAt: provider.UpdatedAt,
+	})
+	if err != nil {
+		t.Fatalf("soft delete OIDC provider: %v", err)
+	}
+	if deleted.Enabled || !deleted.DeletedAt.Valid {
+		t.Fatalf("deleted provider = %#v", deleted)
+	}
+	methods, err = queries.ListEnabledOIDCProviders(ctx)
+	if err != nil {
+		t.Fatalf("list providers after deletion: %v", err)
+	}
+	if len(methods) != 0 {
+		t.Fatalf("enabled providers after deletion = %#v", methods)
+	}
+}
+
 // TestAuthLoginAttemptQueriesCreateLockAndDelete verifies attempt rows serialize callers and can be cleared on success.
 func TestAuthLoginAttemptQueriesCreateLockAndDelete(t *testing.T) {
 	pool := sqlcTestPool(t, t.Context())

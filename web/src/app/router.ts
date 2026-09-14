@@ -119,8 +119,7 @@ export const routes: RouteRecordRaw[] = [
       },
       {
         path: '/admin/setting',
-        component: () => import('@/pages/ConsolePlaceholderPage.vue'),
-        props: { kind: 'settings' },
+        component: () => import('@/pages/AdminAuthenticationPage.vue'),
         meta: { requiresConsole: true, requiresAdmin: true },
         beforeEnter: requireAdminAccess,
       },

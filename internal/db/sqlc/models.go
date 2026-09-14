@@ -40,6 +40,14 @@ type Domain struct {
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
+type ExternalIdentity struct {
+	ProviderID  pgtype.UUID        `json:"provider_id"`
+	Subject     string             `json:"subject"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	LastLoginAt pgtype.Timestamptz `json:"last_login_at"`
+}
+
 // Tracks permissions added by migration 00004 for reversible rollback.
 type MoeurlShortLinkExperiencePermissionAddition struct {
 	UserGroupID pgtype.UUID `json:"user_group_id"`
@@ -50,6 +58,34 @@ type MoeurlShortLinkExperiencePermissionAddition struct {
 type MoeurlShortLinkPasswordPermissionAddition struct {
 	UserGroupID pgtype.UUID `json:"user_group_id"`
 	Permission  string      `json:"permission"`
+}
+
+type OidcLoginAttempt struct {
+	StateHash          []byte             `json:"state_hash"`
+	ProviderID         pgtype.UUID        `json:"provider_id"`
+	NonceHash          []byte             `json:"nonce_hash"`
+	BrowserBindingHash []byte             `json:"browser_binding_hash"`
+	VerifierCiphertext []byte             `json:"verifier_ciphertext"`
+	ReturnPath         string             `json:"return_path"`
+	ExpiresAt          pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+}
+
+type OidcProvider struct {
+	ID                     pgtype.UUID        `json:"id"`
+	Key                    string             `json:"key"`
+	DisplayName            string             `json:"display_name"`
+	IssuerUrl              string             `json:"issuer_url"`
+	ClientID               string             `json:"client_id"`
+	ClientSecretCiphertext []byte             `json:"client_secret_ciphertext"`
+	AuthorizationEndpoint  string             `json:"authorization_endpoint"`
+	TokenEndpoint          string             `json:"token_endpoint"`
+	JwksUri                string             `json:"jwks_uri"`
+	AllowedEmailDomains    []byte             `json:"allowed_email_domains"`
+	Enabled                bool               `json:"enabled"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt              pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type Session struct {

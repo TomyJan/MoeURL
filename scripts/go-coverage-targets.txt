@@ -17,6 +17,15 @@ github.com/TomyJan/MoeURL/internal/middleware/request_id.go
 github.com/TomyJan/MoeURL/internal/middleware/request_logger.go
 github.com/TomyJan/MoeURL/internal/middleware/response_writer.go
 github.com/TomyJan/MoeURL/internal/middleware/security_headers.go
+github.com/TomyJan/MoeURL/internal/oidc/cleanup.go
+github.com/TomyJan/MoeURL/internal/oidc/discovery.go
+github.com/TomyJan/MoeURL/internal/oidc/handler.go
+github.com/TomyJan/MoeURL/internal/oidc/identity_resolver.go
+github.com/TomyJan/MoeURL/internal/oidc/login_service.go
+github.com/TomyJan/MoeURL/internal/oidc/protocol.go
+github.com/TomyJan/MoeURL/internal/oidc/provider_service.go
+github.com/TomyJan/MoeURL/internal/oidc/secret.go
+github.com/TomyJan/MoeURL/internal/oidc/validation.go
 github.com/TomyJan/MoeURL/internal/permission/catalog.go
 github.com/TomyJan/MoeURL/internal/permission/service.go
 github.com/TomyJan/MoeURL/internal/shortlink/handler.go

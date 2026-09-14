@@ -4,7 +4,7 @@
 
 MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
 
-当前已完成到 v0.5.0 用户组权限管理闭环，v0.6.0 生产就绪代码实现已完成、生产验收待目标环境证据。v0.6.0 收尾应以 `docs/product/scope-v0.6.0.md`、对应生产就绪设计、`docs/implementation/v0.6.0-detailed-plan.md` 和验收清单为准，以 v0.5.0 文档和代码作为功能基线；缺少目标 Node.js 26.x CI、race、安全扫描、全量 Playwright、Compose smoke 或隔离恢复证据时不得声明版本可发布。
+当前已完成到 v0.7.0 多提供商 OIDC 登录的功能实现与本地可执行门禁；v0.6.0 生产验收及 v0.7.0 目标 CI、race、外部 OIDC 互操作和生产发布验收仍待目标环境证据。v0.7.0 工作应以 `docs/product/scope-v0.7.0.md`、对应 OIDC 设计、`docs/implementation/v0.7.0-detailed-plan.md` 和验收清单为准，以 v0.6.0 代码作为生产基线；缺少目标 Node.js 26.x CI、race、安全扫描、全量 Playwright、Compose smoke、隔离恢复或外部 OIDC 互操作证据时不得声明版本可发布。
 
 ## 工作入口
 
@@ -12,10 +12,12 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 1. `docs/README.md`
 2. `docs/product/overview.md`
-3. `docs/product/scope-v0.6.0.md`
-4. `docs/specs/2026-08-29-v0.6.0-production-readiness-design.md`
-5. `docs/product/scope-v0.5.0.md`
-6. `docs/specs/2026-08-20-v0.5.0-user-group-permission-management-design.md`
+3. `docs/product/scope-v0.7.0.md`
+4. `docs/specs/2026-09-11-v0.7.0-oidc-login-design.md`
+5. `docs/product/scope-v0.6.0.md`
+6. `docs/specs/2026-08-29-v0.6.0-production-readiness-design.md`
+7. `docs/product/scope-v0.5.0.md`
+8. `docs/specs/2026-08-20-v0.5.0-user-group-permission-management-design.md`
 
 如果任务涉及新版本设计、跨模块功能开发、生产化交付或要求 Agent 自主完成设计、文档、开发、测试和提交，必须继续阅读 `docs/implementation/agent-delivery-guidelines.md`。
 
@@ -29,18 +31,22 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 1. `docs/implementation/technical-decision.md`
 2. `docs/implementation/technical-baseline.md`
-3. `docs/implementation/v0.6.0-plan.md`
-4. `docs/implementation/v0.6.0-detailed-plan.md`
-5. `docs/implementation/v0.6.0-tasks.md`
-6. `docs/implementation/v0.6.0-acceptance.md`
-7. `docs/implementation/v0.5.0-plan.md`
-8. `docs/implementation/v0.5.0-detailed-plan.md`
-9. `docs/implementation/v0.5.0-tasks.md`
-10. `docs/implementation/v0.5.0-acceptance.md`
-11. `docs/specs/2026-08-13-v0.4.0-confirmation-page-access-design.md`
-12. `docs/implementation/v0.4.0-acceptance.md`
-13. `docs/specs/2026-08-04-v0.3.0-protected-link-access-design.md`
-14. `docs/implementation/v0.3.0-acceptance.md`
+3. `docs/implementation/v0.7.0-plan.md`
+4. `docs/implementation/v0.7.0-detailed-plan.md`
+5. `docs/implementation/v0.7.0-tasks.md`
+6. `docs/implementation/v0.7.0-acceptance.md`
+7. `docs/implementation/v0.6.0-plan.md`
+8. `docs/implementation/v0.6.0-detailed-plan.md`
+9. `docs/implementation/v0.6.0-tasks.md`
+10. `docs/implementation/v0.6.0-acceptance.md`
+11. `docs/implementation/v0.5.0-plan.md`
+12. `docs/implementation/v0.5.0-detailed-plan.md`
+13. `docs/implementation/v0.5.0-tasks.md`
+14. `docs/implementation/v0.5.0-acceptance.md`
+15. `docs/specs/2026-08-13-v0.4.0-confirmation-page-access-design.md`
+16. `docs/implementation/v0.4.0-acceptance.md`
+17. `docs/specs/2026-08-04-v0.3.0-protected-link-access-design.md`
+18. `docs/implementation/v0.3.0-acceptance.md`
 
 如果任务涉及 v0.2.0 中间页、过期时间、二维码、访问配置或继续访问路由，必须继续阅读：
 
@@ -189,6 +195,18 @@ MoeURL 当前技术栈固定为：
 - 权限更新必须按 `key`、`builtin` 和 `updated_at` 执行乐观并发；冲突不得静默覆盖或自动重试写入。
 - 权限保存成功后前端刷新用户组和 `auth/me`，后端后续请求继续直接从 `user_group.permissions` 解析，不增加跨请求缓存。
 - `/admin/user/group` 必须替换为真实页面，覆盖加载、空数据、失败、冲突、成功和桌面/移动布局，不保留规划中标识或假操作。
+
+## v0.7.0 OIDC 登录实施规则
+
+- v0.7.0 实现数据库管理的多提供商 OIDC 登录，不实现禁用本地登录、账号自动合并、组映射、SAML、LDAP、SCIM 或 Passkey。
+- OIDC 使用 Authorization Code Flow、PKCE S256、随机 state 与 nonce；Discovery、Token 交换和 ID Token 签名、Issuer、唯一 Audience、可选 `azp`、时间校验必须由成熟协议库完成。
+- state 和浏览器关联令牌只保存 SHA-256 摘要；state 通过单条删除查询消费一次，callback 必须校验短期、窄路径、`HttpOnly` 浏览器关联 Cookie。PKCE verifier 与 provider Client Secret 使用 `MOEURL_OIDC_ENCRYPTION_KEY` 对应的 AES-256-GCM 密钥加密。
+- `MOEURL_PUBLIC_BASE_URL` 与 OIDC 加密密钥必须成对配置。production 只接受无用户信息、路径、查询和片段的 HTTPS Origin；development 仅对回环 HTTP 放宽。
+- 外部身份只按 `(provider_id, subject)` 绑定本地用户，不按邮箱自动连接既有账号。首次供应必须有已验证邮箱并精确匹配 IDNA 规范化后的域名白名单，且固定进入内置 `user` 组。
+- provider 管理受 `admin:access` 保护，列表不得返回 Secret。更新使用 `updated_at` 乐观并发；停用不得依赖上游 Discovery 可用，重新启用或修改协议运行参数必须重新 Discovery，使用保留 Secret 重新启用时必须验证密文可解密。应用启动时必须验证全部已启用 provider 的运行配置和密文。
+- OIDC 成功后复用现有 `moeurl_session`、用户禁用检查和数据库权限解析，不建立第二套会话或授权模型。
+- 回调日志和响应不得包含 Client Secret、authorization code、access/refresh/ID Token、state、nonce、verifier、subject、email、完整查询或上游响应正文。
+- 数据库备份必须配套独立保护的 OIDC 加密密钥；`00012 Down` 在存在 external identity 时必须安全失败，禁止丢失绑定。
 
 ## 实施原则
 

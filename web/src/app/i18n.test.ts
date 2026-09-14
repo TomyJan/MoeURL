@@ -10,6 +10,10 @@ function readBackendPermissionCatalog(): Array<{ key: string }> {
 }
 
 describe('i18n', () => {
+  it('labels the OIDC provider list in both supported locales', () => {
+    expect(messages['zh-CN'].oidc.providerListLabel).toBe('OIDC 提供商列表')
+    expect(messages.en.oidc.providerListLabel).toBe('OIDC providers')
+  })
   it('defines default and fallback locales', () => {
     expect(i18n.global.locale.value).toBe('zh-CN')
     expect(i18n.global.fallbackLocale.value).toBe('en')
