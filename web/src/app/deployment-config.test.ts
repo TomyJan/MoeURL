@@ -235,6 +235,13 @@ describe('deployment configuration', () => {
     expect(deploymentGuide).toContain('不得将未重定向的配置输出记录到终端、CI 日志或工单')
   })
 
+  it('keeps the incoming Host port in both documented TLS proxy examples', () => {
+    const deploymentGuide = readFileSync(resolve(repositoryRoot, 'docs/deployment/single-host-compose.md'), 'utf8')
+
+    expect(deploymentGuide).toContain('header_up Host {hostport}')
+    expect(deploymentGuide).toContain('proxy_set_header Host $http_host;')
+  })
+
   it('rate limits OIDC browser endpoints and excludes callback queries from proxy logs', () => {
     const deploymentGuide = readFileSync(
       resolve(repositoryRoot, 'docs/deployment/single-host-compose.md'),
@@ -610,7 +617,6 @@ describe('deployment configuration', () => {
   it('allows a cold Docker image build to finish before Playwright starts', { timeout: 30_000 }, async () => {
     const { default: playwrightConfig } = await import('../../playwright.config')
 
-    expect(playwrightConfig.workers).toBeUndefined()
     expect(playwrightConfig.webServer).not.toBeInstanceOf(Array)
     expect(playwrightConfig.webServer).toMatchObject({ timeout: 600_000 })
     expect(playwrightConfig.projects).toEqual(expect.arrayContaining([
@@ -690,6 +696,20 @@ describe('deployment configuration', () => {
     expect(imageSecurity).toContain("exit-code: '1'")
     expect(imageSecurity).not.toContain('continue-on-error: true')
     expect(imageSecurity).not.toContain('ignore-unfixed: true')
+  })
+
+  it('includes every backend coverage target package in the CI coverage command', () => {
+    const workflow = readFileSync(resolve(repositoryRoot, '.github/workflows/code-check.yml'), 'utf8')
+    const targetList = readFileSync(resolve(repositoryRoot, 'scripts/go-coverage-targets.txt'), 'utf8')
+    const coverageJob = workflowJob(workflow, 'test-coverage')
+    const coverageCommand = coverageJob.split('go test \\')[1]?.split('-coverprofile=')[0] ?? ''
+    const targetPackages = new Set([...targetList.matchAll(/^github\.com\/TomyJan\/MoeURL\/(internal\/[^/]+)\//gm)]
+      .map((match) => `./${match[1]}`))
+
+    expect(targetPackages.size).toBeGreaterThan(0)
+    for (const packageName of targetPackages) {
+      expect(coverageCommand).toContain(packageName)
+    }
   })
 
   it('runs the complete Compose smoke with the target Node runtime', () => {

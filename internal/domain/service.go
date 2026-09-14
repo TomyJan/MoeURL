@@ -184,6 +184,11 @@ func (s *Service) Update(ctx context.Context, actor auth.CurrentUser, input Upda
 		if err := replaceGrants(ctx, q, row.ID, groups); err != nil {
 			return err
 		}
+		if row.IsDefault {
+			if err := syncDefaultHostSetting(ctx, q, row.Host); err != nil {
+				return err
+			}
+		}
 		updated = domainFromRow(row, groups, referenced)
 		return nil
 	})
@@ -219,16 +224,12 @@ func (s *Service) SetDefault(ctx context.Context, actor auth.CurrentUser, input 
 			if err := q.ClearDefaultShortLinkDomain(ctx); err != nil {
 				return err
 			}
-			current, err = q.MakeDefaultShortLinkDomain(ctx, sqlc.MakeDefaultShortLinkDomainParams{ID: current.ID, UpdatedAt: current.UpdatedAt})
-			if err != nil {
-				return mapNotFound(err)
-			}
 		}
-		value, err := json.Marshal(current.Host)
+		current, err = q.MakeDefaultShortLinkDomain(ctx, sqlc.MakeDefaultShortLinkDomainParams{ID: current.ID, UpdatedAt: current.UpdatedAt})
 		if err != nil {
-			return err
+			return mapNotFound(err)
 		}
-		if _, err := q.UpsertSystemSetting(ctx, sqlc.UpsertSystemSettingParams{Key: "site.default_short_link_domain", Value: value}); err != nil {
+		if err := syncDefaultHostSetting(ctx, q, current.Host); err != nil {
 			return err
 		}
 		groups, err := q.ListDomainGrantKeys(ctx, current.ID)
@@ -239,6 +240,15 @@ func (s *Service) SetDefault(ctx context.Context, actor auth.CurrentUser, input 
 		return nil
 	})
 	return selected, err
+}
+
+func syncDefaultHostSetting(ctx context.Context, q *sqlc.Queries, host string) error {
+	value, err := json.Marshal(host)
+	if err != nil {
+		return err
+	}
+	_, err = q.UpsertSystemSetting(ctx, sqlc.UpsertSystemSettingParams{Key: "site.default_short_link_domain", Value: value})
+	return err
 }
 
 // Delete removes only non-default domains without any short-link references.

@@ -4,6 +4,8 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 当前已完成到 v0.5.0 用户组权限管理闭环：在短链管理、统计分析和三种跳转模式基础上，管理员可以查看三个内置用户组，并通过稳定权限目录、三个预设和乐观并发安全编辑 `user`、`admin` 权限。v0.6.0 的生产就绪代码实现已完成，目标部署形态为单机 Docker Compose + 外部 TLS 反向代理；目标运行时、安全扫描、真实容器 smoke、隔离恢复和远程 CI 证据补齐前，版本仍处于生产验收阶段。
 
+v0.7.0 多提供商 OIDC 的功能实现和本地门禁已完成，目标 CI、外部互操作与生产发布证据仍待补齐。v0.8.0 多域名管理的功能实现及本地门禁已完成：域名管理、组授权、创建选择、按真实 Host 限定访问和隔离双 Host E2E 已验证；目标 CI、race、安全扫描、真实 DNS/TLS、恢复演练和生产发布验收仍待对应证据。
+
 ## 功能概览
 
 - 首次初始化站点和管理员账号。
@@ -12,6 +14,7 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 - 创建、查看、筛选、禁用和软删除短链。
 - 管理员全站短链管理、用户创建和用户维护入口。
 - 内置用户组权限管理，支持 `restricted`、`basic`、`standard` 预设、受保护管理权限和并发冲突提示。
+- 多域名管理：管理员授权域名和设置全局默认，用户创建时选择获授权域名，已发布短链的 URL 不随默认值切换。
 - 控制台个人概览、最近短链和个人昵称设置。
 - 短链支持直接跳转、中间页和确认页三种模式，短码全系统唯一。
 - 支持可选过期时间、访问配置编辑和浏览器即时生成二维码。
@@ -34,6 +37,9 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 ## 文档
 
 - [文档总览](./docs/README.md)
+- [v0.8.0 多域名范围](./docs/product/scope-v0.8.0.md)
+- [域名规格](./docs/specs/domains.md)
+- [v0.8.0 验收清单](./docs/implementation/v0.8.0-acceptance.md)
 - [产品总览](./docs/product/overview.md)
 - [v0.6.0 范围](./docs/product/scope-v0.6.0.md)
 - [v0.6.0 生产就绪设计](./docs/specs/2026-08-29-v0.6.0-production-readiness-design.md)
@@ -101,6 +107,8 @@ chmod 600 .env
 若自行设置含 `/`、`?`、`#`、`%` 或 `$` 等 URI 保留字符的密码，`.env` 中 `MOEURL_POSTGRES_PASSWORD` 的完整值使用单引号包裹，避免 Compose 将 `$VAR` 或 `${VAR}` 解释为变量插值；`MOEURL_DATABASE_URL` 中的密码部分必须百分号编码，其中 `$` 编码为 `%24`。默认 `sslmode=disable` 仅用于受信的单机私有 Compose 网络；数据库链路经过不受信网络时应改用 `sslmode=verify-full` 并配置可验证的服务端证书和 CA。
 
 将示例中的 `https://go.example.com` 替换为实际公网 HTTPS Origin，不得包含路径、查询或片段。应用会将根路径末尾的 `/` 规范化移除；按 `PUBLIC_BASE_URL="${MOEURL_PUBLIC_BASE_URL%/}"` 取得规范化值后，每个提供商登记的回调地址为 `${PUBLIC_BASE_URL}/api/v1/auth/oidc/<provider-key>/callback`，因此会保留公共地址中配置的 HTTPS 端口。`MOEURL_OIDC_ENCRYPTION_KEY` 必须作为长期部署秘密保存并独立备份；丢失或更换该值会使已保存的 Client Secret 和未完成的登录尝试无法解密。未使用 OIDC 时可将公共地址与加密密钥同时留空。
+
+v0.8.0 启用多个短链域名前，逐一为域名配置 DNS、有效 HTTPS 证书及到同一 App 的代理路由。代理必须保留原始 Host 和非默认端口，不能把所有入口改写为主站 Host；短链只能在其保存的启用域名访问。升级前核对已发布短链实际使用的别名，具体流程见 [多域名上线检查](./docs/deployment/single-host-compose.md#55-v080-多短链域名上线检查)。
 
 执行生产 Compose 命令前，先按 [单机 Docker Compose 部署](./docs/deployment/single-host-compose.md)校验绝对部署根目录、生产 Compose 文件、`.env` 和 project name，并在同一 Shell 会话中初始化 `production_compose` helper：
 
@@ -205,7 +213,7 @@ go vet ./...
 go test ./...
 $coverageProfile = Join-Path (Get-Location) "coverage.out"
 node --test scripts/go-coverage-threshold.test.mjs
-go test -p=1 -count=1 "-coverprofile=$coverageProfile" ./internal/auth ./internal/db ./internal/event ./internal/http ./internal/middleware ./internal/oidc ./internal/permission ./internal/shortlink ./internal/system ./internal/user ./internal/usergroup
+go test -p=1 -count=1 "-coverprofile=$coverageProfile" ./internal/auth ./internal/db ./internal/domain ./internal/event ./internal/http ./internal/middleware ./internal/oidc ./internal/permission ./internal/shortlink ./internal/system ./internal/user ./internal/usergroup
 node scripts/go-coverage-threshold.mjs $coverageProfile 100 --include-from=scripts/go-coverage-targets.txt --exclude-blocks-from=scripts/go-coverage-excluded-blocks.txt
 ```
 
@@ -213,7 +221,7 @@ Linux/macOS：
 
 ```bash
 node --test scripts/go-coverage-threshold.test.mjs
-go test -p=1 -count=1 -coverprofile="$PWD/coverage.out" ./internal/auth ./internal/db ./internal/event ./internal/http ./internal/middleware ./internal/oidc ./internal/permission ./internal/shortlink ./internal/system ./internal/user ./internal/usergroup
+go test -p=1 -count=1 -coverprofile="$PWD/coverage.out" ./internal/auth ./internal/db ./internal/domain ./internal/event ./internal/http ./internal/middleware ./internal/oidc ./internal/permission ./internal/shortlink ./internal/system ./internal/user ./internal/usergroup
 node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100 --include-from=scripts/go-coverage-targets.txt --exclude-blocks-from=scripts/go-coverage-excluded-blocks.txt
 ```
 

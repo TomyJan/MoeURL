@@ -33,7 +33,7 @@
         </div>
         <v-select
           v-if="availableDomains.length > 1"
-          v-model="selectedDomainId"
+          v-model="domainChoice"
           :items="domainOptions"
           :label="t('shortLinkCreate.domainLabel')"
           :disabled="mutation.isPending.value || domainQuery.isError.value"
@@ -227,7 +227,17 @@ const hasResolvedCurrentUser = computed(() => currentUserQuery.data.value !== un
 const canCreateWithPermissions = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:create') &&
   (currentUser.value?.permissions.includes('domain:use_default') || currentUser.value?.permissions.includes('domain:use_assigned'))))
 const availableDomains = computed(() => domainQuery.isError.value ? [] : domainQuery.data.value?.items ?? [])
-const domainOptions = computed(() => availableDomains.value.map((item) => ({ title: `${item.displayName} (${item.host})`, value: item.isDefault ? '' : item.id })))
+const canUseDefaultDomain = computed(() => Boolean(currentUser.value?.permissions.includes('domain:use_default')))
+const domainOptions = computed(() => availableDomains.value.map((item) => ({ title: `${item.displayName} (${item.host})`, value: item.isDefault && canUseDefaultDomain.value ? '' : item.id })))
+const fallbackDomainId = computed(() => {
+  if (canUseDefaultDomain.value && availableDomains.value.some((item) => item.isDefault)) return ''
+  // The selector and submission path are only active when at least one domain is available.
+  return (availableDomains.value.find((item) => item.isDefault) ?? availableDomains.value[0])!.id
+})
+const domainChoice = computed({
+  get: () => availableDomains.value.some((item) => item.id === selectedDomainId.value) ? selectedDomainId.value : fallbackDomainId.value,
+  set: (id: string) => { selectedDomainId.value = id },
+})
 const canCreateShortLink = computed(() => canCreateWithPermissions.value && availableDomains.value.length > 0)
 const { canUseIntermediate, canUseConfirmation, canSubmitRedirectMode } = useRedirectModePermissions(currentUser)
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
@@ -333,8 +343,7 @@ function submitValidatedInput(): boolean {
   }
 
   const input: CreateShortLinkInput = { targetUrl: targetUrlResult.data }
-  if (selectedDomainId.value) input.domainId = selectedDomainId.value
-  else if (!availableDomains.value.some((item) => item.isDefault)) input.domainId = availableDomains.value[0]!.id
+  if (domainChoice.value) input.domainId = domainChoice.value
   if (canSubmitRedirectMode(redirectMode.value)) {
     input.redirectMode = redirectMode.value
   }

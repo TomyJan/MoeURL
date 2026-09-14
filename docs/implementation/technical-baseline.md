@@ -104,7 +104,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 - `internal/permission/`：权限常量、权限计算和权限判断。
 - `internal/user/`：用户账号、用户资料和管理员用户维护业务。
 - `internal/usergroup/`：内置用户组权限目录、预设、并发更新和管理 API 业务。
-- `internal/domain/`：系统访问域名和短链访问域名相关业务。
+- `internal/domain/`：v0.8.0 短链域名规范化、组授权、管理事务及 API；系统访问域名仍只由初始化配置。
 - `internal/shortlink/`：短链创建、状态、软删除和访问跳转。
 - `internal/system/`：初始化流程、系统设置和站点配置。
 - `internal/event/`：访问事件和操作记录扩展点。
@@ -275,7 +275,7 @@ API 使用 `/api/v1` 前缀：
 | `100000`-`109999` | 通用请求、参数和校验错误。 |
 | `110000`-`119999` | 认证和会话错误。 |
 | `120000`-`129999` | 权限错误。 |
-| `200000`-`299999` | 短链错误。 |
+| `200000`-`299999` | 短链错误；`210101`-`210105` 用于 v0.8.0 域名管理业务错误。 |
 | `300000`-`399999` | 用户错误。 |
 | `400000`-`499999` | 域名错误。 |
 | `900000`-`999999` | 系统和初始化错误。 |
@@ -367,6 +367,14 @@ v0.7.0 新增 `oidc_provider`、`external_identity` 和 `oidc_login_attempt`。p
 
 登录尝试通过 `DELETE ... RETURNING` 原子消费，过期记录每分钟执行至多 4 个 500 行批次并在短批次提前结束。首次身份供应在事务内使用 provider 与 subject 派生的 advisory lock，固定创建内置 `user` 组账号，不按邮箱自动连接既有用户。`00012 Down` 仅在不存在 external identity 时删除 OIDC schema；存在绑定时安全失败，避免不可逆丢失登录归属。
 
+### v0.8.0 短链域名扩展摘要
+
+`00013` 新增 `domain_user_group` 关系，并为已有默认短链域名及新初始化域名写入内置 `user`、`admin` 授权；`guest` 不获授权。升级只向原本拥有 `domain:use_default` 的组追加 `domain:use_assigned`，`domain:manage` 固定属于 `admin`。权限撤回跟踪只覆盖迁移实际新增且未被管理员后续改动的权限，Down 保留原有域名及短链。`domain.is_default` 是单一启用全局默认域名的权威来源，`system_setting` 中的地址镜像在相同事务内更新。
+
+管理接口为 `GET /api/v1/admin/domain/list`、`POST /api/v1/admin/domain/{create,update,set-default,delete}`，登录用户的授权候选接口为 `GET /api/v1/domain/available`。创建短链可传 `domainId`；默认和显式选择分别需要对应权限与域名组授权。管理写入用 `expectedUpdatedAt` 进行乐观并发，引用过的域名不能改地址或删除，默认域名不能停用。已有短链的列表、更新和统计 URL 始终来自其保存的域名，不随默认值切换。
+
+短链公开 `/{slug}`、公开预览、路径作用域预览、解锁和继续访问都比较请求的真实 `Host` authority 与关联域名并检查 `enabled`。错误 Host 或域名停用按短链不存在处理，恢复启用后原链接重新生效。代理必须保留外部 Host（含非默认端口），不信任 `X-Forwarded-Host`。该版本不自动管理 DNS、TLS 或现有短链迁移。
+
 ### 短码规则
 
 - v0.0.1 默认生成 6 位随机短码。
@@ -395,6 +403,8 @@ short_link:read_all
 short_link:update_all
 short_link:delete_all
 domain:use_default
+domain:use_assigned
+domain:manage
 short_link:use_intermediate
 short_link:use_confirmation
 short_link:set_expiration
@@ -544,7 +554,7 @@ go test ./...
 
 ```bash
 node --test scripts/go-coverage-threshold.test.mjs
-go test -p=1 -count=1 -coverprofile="$PWD/coverage.out" ./internal/auth ./internal/db ./internal/event ./internal/http ./internal/middleware ./internal/oidc ./internal/permission ./internal/shortlink ./internal/system ./internal/user ./internal/usergroup
+go test -p=1 -count=1 -coverprofile="$PWD/coverage.out" ./internal/auth ./internal/db ./internal/domain ./internal/event ./internal/http ./internal/middleware ./internal/oidc ./internal/permission ./internal/shortlink ./internal/system ./internal/user ./internal/usergroup
 node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100 --include-from=scripts/go-coverage-targets.txt --exclude-blocks-from=scripts/go-coverage-excluded-blocks.txt
 ```
 
@@ -588,6 +598,8 @@ Playwright E2E 默认通过 `web/playwright.config.ts` 启动 Docker Compose 测
 当 Docker Desktop 不可用，或隔离 Compose 环境因外部镜像仓库不可用而无法拉取、构建或启动时，可先记录原始失败命令和错误，再用干净数据库、当前 Go 实现和当前 `web/dist` 启动本机服务，设置 `MOEURL_E2E_SKIP_DOCKER=1` 和对应的 `MOEURL_E2E_PORT` 执行 `pnpm test:e2e`。该回退不得用于绕过应用构建、迁移或启动错误，只跳过 Playwright 的环境拉起步骤，不跳过任何浏览器断言；执行者必须确保数据库从未初始化状态开始，并在验收记录中写明 Docker 状态、端口、环境变量和完整命令。
 
 v0.2.0 访问体验 E2E 必须覆盖真实 `/{slug}` 入口、进入中间页前访问量为 0、继续路由目标 `302`、真实 UI 继续访问后访问量为 1，以及过期访问不增加访问量。v0.3.0 还必须覆盖真实密码页、错误密码、有效授权、密码变更吊销旧授权和访问量口径。v0.4.0 还必须覆盖无密码与受密码保护确认页、主动继续、二次访问条件检查和最终访问量。v0.5.0 还必须覆盖真实用户组页面、权限保存前后差异、后端动态撤权、基线恢复和双视口布局。v0.7.0 还必须使用本地签名测试 IdP 覆盖 provider 创建、首次与重复登录、域名拒绝、停用和本地登录回归。中间页、密码页、确认页、访问设置、二维码对话框和管理页面必须同时在 `1280 x 720` 与 `390 x 800` 视口验证控件顺序、操作区几何和横向溢出；异步流程使用条件等待，不允许使用固定 `waitForTimeout`。
+
+v0.8.0 多域名 E2E 使用隔离 Compose 数据库和两个 loopback authority，验证授权、创建选择、错误 Host、切换默认后旧 URL 保持、停用及重新启用。因软删除短链仍引用域名，含访问记录的测试域名不能在同一数据库中删除；全局 teardown 只清理本次独立 project。目标公网 DNS/TLS 的可达性和代理 Host 保真必须在真实部署环境另行验证。
 
 ### 质量检查工作流
 

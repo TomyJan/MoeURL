@@ -110,6 +110,8 @@ v0.3.0 新增 `short_link:set_password`：允许创建或编辑受密码保护�
 
 ### 域名权限
 
+v0.8.0 已实现 `domain:use_default`（省略域名选择）、可配置的 `domain:use_assigned`（显式选择）和受保护的 `domain:manage`。使用权限必须和 `domain_user_group` 中该域名对当前内置组的授权同时成立；`guest` 保持只读无创建能力。管理员管理接口还检查 `admin:access`。`basic` 预设保持默认域名使用权，`standard` 增加显式选择权；预设只生成权限草稿，不自动授予具体域名。个人默认域名和以下其他目标能力尚未实现。
+
 - 使用指定域名。
 - 设置个人默认域名。
 - 管理域名。

@@ -7,7 +7,8 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 建议按以下顺序阅读：
 
 1. [产品总览](product/overview.md)：了解 MoeURL 的定位、目标和核心原则。
-2. [v0.8.0 范围](product/scope-v0.8.0.md)：确认正在实施的多域名管理范围及升级边界。
+2. [v0.8.0 范围](product/scope-v0.8.0.md)：确认已完成本地功能验证的多域名管理范围及升级边界。
+   工程推进参见 [v0.8.0 实施计划](implementation/v0.8.0-plan.md)、[任务清单](implementation/v0.8.0-tasks.md) 与 [验收清单](implementation/v0.8.0-acceptance.md)。
 3. [v0.7.0 范围](product/scope-v0.7.0.md)：确认多提供商 OIDC 登录的范围、账号供应规则和非目标。
 4. [v0.7.0 OIDC 登录设计](specs/2026-09-11-v0.7.0-oidc-login-design.md)：确认协议、密钥、外部身份、并发和回滚设计。
 5. [v0.7.0 详细实现计划](implementation/v0.7.0-detailed-plan.md)：查看 OIDC 的 TDD 切片，并在 [v0.7.0 验收清单](implementation/v0.7.0-acceptance.md) 跟踪真实证据。
@@ -82,13 +83,16 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 实施层文档位于 [implementation](implementation/) 目录，用于承载技术决策、技术基线、工程计划、任务拆分和验收记录。
 
-当前 v0.8.0 多域名管理正在实施，不能视为已发布能力。v0.7.0 多提供商 OIDC 登录的功能实现与本地可执行门禁已完成，目标 CI、race、外部 OIDC 互操作和生产发布验收仍待证据；v0.6.0 生产就绪闭环的代码实现已完成、生产验收仍待目标环境证据。涉及认证扩展时先阅读 v0.7.0 范围、设计、详细实现计划和验收清单；涉及生产部署时继续阅读 v0.6.0 对应文档。
+v0.8.0 多域名管理的功能实现与本地可执行门禁已完成，目标 CI、race、安全扫描、真实 DNS/TLS、隔离恢复和发布验收仍待证据，不能视为已发布能力。v0.7.0 多提供商 OIDC 登录的功能实现与本地门禁已完成，目标 CI、race、外部互操作和发布验收仍待证据；v0.6.0 生产就绪闭环的代码实现已完成、生产验收仍待目标环境证据。涉及认证扩展时先阅读 v0.7.0 范围、设计、详细实现计划和验收清单；涉及生产部署时继续阅读 v0.6.0 对应文档。
 
 当前实施层文档包括：
 
 - [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)
 - [技术选型决策](implementation/technical-decision.md)
 - [技术基线](implementation/technical-baseline.md)
+- [v0.8.0 实施计划](implementation/v0.8.0-plan.md)
+- [v0.8.0 任务级实施清单](implementation/v0.8.0-tasks.md)
+- [v0.8.0 验收清单](implementation/v0.8.0-acceptance.md)
 - [v0.7.0 实施计划](implementation/v0.7.0-plan.md)
 - [v0.7.0 详细实现计划](implementation/v0.7.0-detailed-plan.md)
 - [v0.7.0 任务级实施清单](implementation/v0.7.0-tasks.md)

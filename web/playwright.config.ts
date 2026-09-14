@@ -83,6 +83,8 @@ export default defineConfig({
     e2eSkipDockerCompose: skipDockerCompose,
   },
   timeout: 60_000,
+  // The disposable Compose database is shared, including tests that change built-in user-group permissions.
+  workers: 1,
   expect: {
     timeout: 10_000,
   },

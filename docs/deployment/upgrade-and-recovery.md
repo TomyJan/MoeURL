@@ -93,6 +93,8 @@ curl --fail --silent --show-error --connect-timeout 2 --max-time 5 "$PUBLIC_BASE
 
 按照 [备份与隔离恢复](backup-and-restore.md) 创建自定义格式备份，至少完成 `test -s`、`pg_restore --list` 和 SHA-256 校验。高风险升级应先用候选代码在隔离 project 恢复该备份并跑完恢复验收。
 
+升级到 v0.8.0 前还须按 [多域名上线检查](single-host-compose.md#55-v080-多短链域名上线检查) 盘点旧短链实际使用的 Host、端口和公开别名，核实代理会保留原始 authority。旧版允许的别名若与 `domain.host` 不同，新版将按不存在处理；没有可用的正式地址和 DNS/TLS 路由时，不得执行切换。迁移只补已有默认域名的内置组授权，不会替历史短链修改所属域名或公开 URL。
+
 ## 3. 构建、迁移和切换
 
 检出已经审核的目标提交后，使用目标提交的 Compose 离线解析与构建，不停止当前服务：
@@ -190,7 +192,9 @@ target_compose logs --since 10m app
 
 v0.6.0 的 `00011` Down 会删除登录失败临时状态并解除相应临时阻断，但不修改用户、Session 或短链数据。其他历史 migration 可能有不可逆规范化，不能批量执行未知数量的 Down。
 
-首选回退路径直接恢复升级前保存的镜像，不依赖源码 checkout、依赖下载或再次构建。保存的加固 Compose 继续提供当前数据库密码、私有 PostgreSQL 网络和回环 App 绑定：
+v0.8.0 多域名流量不能直接交给此前不校验短链所属 Host 与域名启用状态的旧 App：即使数据库和短链 URL 保留，旧镜像仍可能在错误 Host 或已停用域名上放行跳转。普通代理 Host 允许列表无法按每条短链的 `domain_id` 判断归属。只有确认所有公开短链仍只属于升级前唯一域名、代理也只接入该域名，且已验证错误 Host 和停用域名不可达，才可考虑旧镜像回退；升级后已在第二域名创建短链或依赖停用状态时，应停止公开短链流量，改用保留相同校验能力的兼容镜像或向前修复，不得直接暴露旧镜像。该限制不因 `00013` Down 而消失。
+
+在确认上述访问边界后，首选回退路径直接恢复升级前保存的镜像，不依赖源码 checkout、依赖下载或再次构建。保存的加固 Compose 继续提供当前数据库密码、私有 PostgreSQL 网络和回环 App 绑定：
 
 ```bash
 UPGRADE_FROM_COMMIT="$(cat "$DEPLOY_STATE/upgrade-from-commit")"
@@ -219,7 +223,7 @@ rollback_compose up --detach --no-build --force-recreate --no-deps app || {
 
 只有当保存的 tag 和 image ID 已无法从本机镜像存储恢复时，才使用 `UPGRADE_FROM_COMMIT` 检出升级前提交并通过 `rollback_compose build app` 重建；该路径依赖源码、构建依赖和外部下载，不是首选回退方式。不能依赖浮动分支名，也不得改用旧提交中的 `docker-compose.yml`，否则会重新引入旧部署默认值。重建完成后仍应记录新 image ID，再使用 `--force-recreate --no-deps` 只替换 App。
 
-前向和回退命令使用相同的 `--project-name`、`--project-directory`，并在切换前验证相同的 `postgres-data` 逻辑卷键，因此继续操作同一 Compose project 与数据库命名卷。回退 App 后重复 readiness 和业务验收。若需要恢复升级前备份：
+前向和回退命令使用相同的 `--project-name`、`--project-directory`，并在切换前验证相同的 `postgres-data` 逻辑卷键，因此继续操作同一 Compose project 与数据库命名卷。回退 App 后重复 readiness 和业务验收，包含正确 Host 可达、错误 Host 与已停用域名不可达的检查。若需要恢复升级前备份：
 
 > **数据破坏警告：** 用备份覆盖生产数据库会丢失备份创建之后的全部写入。执行前必须停止 App、确认 Compose project、保存当前失败数据库的独立备份，并由负责人确认恢复点目标。
 

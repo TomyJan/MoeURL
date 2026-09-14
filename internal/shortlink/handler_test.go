@@ -151,6 +151,8 @@ func TestHandlerCreateShortLinkMapsBusinessErrors(t *testing.T) {
 		{name: "invalid redirect mode", err: shortlink.ErrInvalidRedirectMode, code: 200106},
 		{name: "invalid intermediate delay", err: shortlink.ErrInvalidIntermediateDelay, code: 200107},
 		{name: "invalid expiration", err: shortlink.ErrInvalidExpiration, code: 200108},
+		{name: "invalid domain ID", err: shortlink.ErrInvalidDomainID, code: 100001},
+		{name: "unavailable domain", err: shortlink.ErrDomainUnavailable, code: shortlink.CodeDomainUnavailable},
 		{name: "slug conflict", err: shortlink.ErrSlugConflict, code: 200101},
 		{name: "reserved slug", err: shortlink.ErrReservedSlug, code: 200102},
 	}

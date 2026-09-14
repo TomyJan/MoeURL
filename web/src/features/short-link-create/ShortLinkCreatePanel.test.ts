@@ -209,6 +209,23 @@ describe('ShortLinkCreatePanel', () => {
     expect(mutate).toHaveBeenCalledWith({ targetUrl: 'https://example.com' })
   })
 
+  it('submits the default domain ID when only assigned-domain permission is granted', async () => {
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_assigned'])
+    state.domainQueryResult = {
+      data: ref({ items: [
+        { id: '00000000-0000-4000-8000-000000000802', host: 'https://links.example.com', displayName: 'Second', isDefault: false },
+        { id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true },
+      ] }), isPending: ref(false), isError: ref(false),
+    }
+    setMutationResult({ mutate })
+    mountPanel()
+    expect((screen.getByLabelText('shortLinkCreate.domainLabel') as HTMLSelectElement).value).toBe('00000000-0000-4000-8000-000000000801')
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(mutate).toHaveBeenCalledWith({ targetUrl: 'https://example.com', domainId: '00000000-0000-4000-8000-000000000801' })
+  })
+
   it('submits the sole assigned domain explicitly when no default grant is available', async () => {
     const mutate = vi.fn()
     setQueryResult(['short_link:create', 'domain:use_assigned'])

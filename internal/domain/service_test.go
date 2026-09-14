@@ -96,7 +96,14 @@ func TestServiceManagesDomainsWithAuthorizationAndOptimisticConcurrency(t *testi
 	if err := pool.QueryRow(ctx, `select value #>> '{}' from system_setting where key = 'site.default_short_link_domain'`).Scan(&mirrored); err != nil || mirrored != selected.Host {
 		t.Fatalf("mirrored default = %q, error = %v", mirrored, err)
 	}
-	if err := service.Delete(ctx, admin, domain.ChangeInput{ID: selected.ID, ExpectedUpdatedAt: selected.UpdatedAt}); !errors.Is(err, domain.ErrDomainProtected) {
+	repeated, err := service.SetDefault(ctx, admin, domain.ChangeInput{ID: selected.ID, ExpectedUpdatedAt: selected.UpdatedAt})
+	if err != nil || repeated.UpdatedAt <= selected.UpdatedAt {
+		t.Fatalf("repeated default version = %q after %q, error = %v", repeated.UpdatedAt, selected.UpdatedAt, err)
+	}
+	if _, err := service.SetDefault(ctx, admin, domain.ChangeInput{ID: selected.ID, ExpectedUpdatedAt: selected.UpdatedAt}); !errors.Is(err, domain.ErrVersionConflict) {
+		t.Fatalf("stale repeated default error = %v", err)
+	}
+	if err := service.Delete(ctx, admin, domain.ChangeInput{ID: repeated.ID, ExpectedUpdatedAt: repeated.UpdatedAt}); !errors.Is(err, domain.ErrDomainProtected) {
 		t.Fatalf("delete default error = %v", err)
 	}
 }
@@ -155,6 +162,31 @@ func TestServiceUpdatesLegacyDefaultWithoutRewritingItsAddress(t *testing.T) {
 	})
 	if err != nil || updated.Host != "go.example.com" || updated.DisplayName != "Renamed legacy" {
 		t.Fatalf("legacy metadata update = %#v, %v", updated, err)
+	}
+}
+
+func TestServiceUpdatesUnreferencedDefaultAddressAndSettingMirror(t *testing.T) {
+	service, pool, admin, _ := domainFixture(t)
+	listing, err := service.List(t.Context(), admin)
+	if err != nil || len(listing.Items) != 1 {
+		t.Fatalf("list default = %#v, error = %v", listing, err)
+	}
+	current, err := service.SetDefault(t.Context(), admin, domain.ChangeInput{
+		ID: listing.Items[0].ID, ExpectedUpdatedAt: listing.Items[0].UpdatedAt,
+	})
+	if err != nil {
+		t.Fatalf("initialize default mirror: %v", err)
+	}
+	updated, err := service.Update(t.Context(), admin, domain.UpdateInput{
+		ID: current.ID, Host: "https://new-default.example.com", DisplayName: current.DisplayName,
+		Enabled: true, AllowedGroups: current.AllowedGroups, ExpectedUpdatedAt: current.UpdatedAt,
+	})
+	if err != nil || updated.Host != "https://new-default.example.com" {
+		t.Fatalf("update default address = %#v, error = %v", updated, err)
+	}
+	var mirrored string
+	if err := pool.QueryRow(t.Context(), `select value #>> '{}' from system_setting where key = 'site.default_short_link_domain'`).Scan(&mirrored); err != nil || mirrored != updated.Host {
+		t.Fatalf("mirrored default = %q, want %q, error = %v", mirrored, updated.Host, err)
 	}
 }
 
