@@ -170,6 +170,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 	}, nil
 }
 
+// newOIDCHTTPClient bounds Discovery, Token, and JWKS requests and refuses redirects.
 func newOIDCHTTPClient() *nethttp.Client {
 	transport := nethttp.DefaultTransport
 	if baseTransport, ok := transport.(*nethttp.Transport); ok {

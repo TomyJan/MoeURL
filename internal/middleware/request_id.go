@@ -20,6 +20,7 @@ func RequestID(next http.Handler) http.Handler {
 	return requestIDWithReader(rand.Reader)(next)
 }
 
+// requestIDWithReader preserves safe incoming IDs and injects entropy for invalid ones; generation failures stop the request.
 func requestIDWithReader(random io.Reader) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -46,6 +47,7 @@ func RequestIDFromContext(ctx context.Context) string {
 	return requestID
 }
 
+// isSafeRequestID accepts only bounded visible ASCII to keep IDs safe in headers and structured logs.
 func isSafeRequestID(requestID string) bool {
 	if requestID == "" || len(requestID) > maxRequestIDLength {
 		return false
@@ -58,6 +60,7 @@ func isSafeRequestID(requestID string) bool {
 	return true
 }
 
+// newRequestID derives a prefixed identifier from 128 bits of entropy and propagates reader failures.
 func newRequestID(random io.Reader) (string, error) {
 	var value [16]byte
 	if _, err := io.ReadFull(random, value[:]); err != nil {

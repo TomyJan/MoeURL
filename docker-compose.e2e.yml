@@ -15,3 +15,4 @@ services:
     restart: unless-stopped
     volumes:
       - ./web/e2e/oidc-provider.mjs:/test/oidc-provider.mjs:ro
+      - ./web/e2e/oidc-client-auth.mjs:/test/oidc-client-auth.mjs:ro

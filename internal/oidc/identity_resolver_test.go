@@ -178,10 +178,21 @@ func TestIdentityBindingSerializesProviderNamespaceUpdate(t *testing.T) {
 		case <-ticker.C:
 		}
 	}
-	updateContext, stopUpdate := context.WithTimeout(t.Context(), 100*time.Millisecond)
-	defer stopUpdate()
-	if _, err := pool.Exec(updateContext, `update oidc_provider set client_id = 'different-client' where id = $1`, provider.ID); !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("concurrent namespace update error = %v, want deadline", err)
+	updateTx, err := pool.Begin(t.Context())
+	if err != nil {
+		t.Fatalf("begin namespace update: %v", err)
+	}
+	defer func() { _ = updateTx.Rollback(context.Background()) }()
+	if _, err := updateTx.Exec(t.Context(), `set local lock_timeout = '200ms'`); err != nil {
+		t.Fatalf("set update lock timeout: %v", err)
+	}
+	_, err = updateTx.Exec(t.Context(), `update oidc_provider set client_id = 'different-client' where id = $1`, provider.ID)
+	var updateErr *pgconn.PgError
+	if !errors.As(err, &updateErr) || updateErr.Code != "55P03" {
+		t.Fatalf("concurrent namespace update error = %v, want lock timeout", err)
+	}
+	if err := updateTx.Rollback(t.Context()); err != nil {
+		t.Fatalf("rollback blocked namespace update: %v", err)
 	}
 	if err := lock.Rollback(t.Context()); err != nil {
 		t.Fatalf("release subject lock: %v", err)
