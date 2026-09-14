@@ -72,7 +72,7 @@ func (p *StandardProtocol) ExchangeAndVerify(ctx context.Context, provider Runti
 	if err := idToken.Claims(&claims); err != nil {
 		return IdentityClaims{}, ErrLoginFailed
 	}
-	if claims.Subject == "" || (claims.AuthorizedParty != "" && claims.AuthorizedParty != provider.ClientID) {
+	if claims.Subject == "" || idToken.IssuedAt.IsZero() || (claims.AuthorizedParty != "" && claims.AuthorizedParty != provider.ClientID) {
 		return IdentityClaims{}, ErrLoginFailed
 	}
 	return IdentityClaims{

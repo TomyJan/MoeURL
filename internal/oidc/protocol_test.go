@@ -203,6 +203,7 @@ func TestStandardProtocolRejectsInvalidTokenAndClaimResponses(t *testing.T) {
 		{name: "invalid ID token", tokenMode: "invalid"},
 		{name: "missing expiry", tokenMode: "missing-exp"},
 		{name: "expired token", tokenMode: "expired-exp"},
+		{name: "missing issued at", tokenMode: "missing-iat"},
 		{name: "invalid claim type", tokenMode: "claim-type"},
 		{name: "empty subject", tokenMode: "empty-subject"},
 	} {
@@ -224,7 +225,7 @@ func TestStandardProtocolRejectsInvalidTokenAndClaimResponses(t *testing.T) {
 					switch test.tokenMode {
 					case "non-string":
 						raw = 42
-					case "missing-exp", "expired-exp", "claim-type", "empty-subject":
+					case "missing-exp", "expired-exp", "missing-iat", "claim-type", "empty-subject":
 						claims := map[string]any{
 							"iss": server.URL, "aud": "client-id", "sub": "subject",
 							"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Add(-time.Minute).Unix(),
@@ -235,6 +236,8 @@ func TestStandardProtocolRejectsInvalidTokenAndClaimResponses(t *testing.T) {
 							delete(claims, "exp")
 						case "expired-exp":
 							claims["exp"] = time.Now().Add(-time.Hour).Unix()
+						case "missing-iat":
+							delete(claims, "iat")
 						case "claim-type":
 							claims["email_verified"] = "yes"
 						case "empty-subject":
