@@ -302,6 +302,46 @@ func assertBuiltInData(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	if defaultHost != "go.example.com" {
 		t.Fatalf("expected default domain go.example.com, got %s", defaultHost)
 	}
+	var grantedGroups []string
+	if err := pool.QueryRow(ctx, `
+		select array_agg(user_group.key order by user_group.key)
+		from domain_user_group
+		join user_group on user_group.id = domain_user_group.user_group_id
+		join domain on domain.id = domain_user_group.domain_id
+		where domain.host = 'go.example.com'
+	`).Scan(&grantedGroups); err != nil {
+		t.Fatalf("get initial domain grants: %v", err)
+	}
+	if strings.Join(grantedGroups, ",") != "admin,user" {
+		t.Fatalf("initial domain grants = %v, want admin and user", grantedGroups)
+	}
+}
+
+// TestServiceSetupRollsBackWhenDomainGrantFails verifies setup cannot leave partial identities.
+func TestServiceSetupRollsBackWhenDomainGrantFails(t *testing.T) {
+	ctx := t.Context()
+	pool := systemTestPool(t, ctx)
+	if _, err := pool.Exec(ctx, `
+		create function reject_domain_grant() returns trigger language plpgsql as $$
+		begin raise exception 'domain grant unavailable'; end; $$;
+		create trigger reject_domain_grant before insert on domain_user_group
+		for each row execute function reject_domain_grant();
+	`); err != nil {
+		t.Fatalf("install domain grant failure: %v", err)
+	}
+	service := system.NewService(pool, mustSetupPolicy(t, false, ""))
+	if err := service.Setup(ctx, validSetupInput("")); err == nil {
+		t.Fatal("expected domain grant failure")
+	}
+	for _, table := range []string{"user_group", "app_user", "domain", "system_setting", "domain_user_group"} {
+		var count int
+		if err := pool.QueryRow(ctx, `select count(*) from `+table).Scan(&count); err != nil {
+			t.Fatalf("count rolled-back %s: %v", table, err)
+		}
+		if count != 0 {
+			t.Fatalf("partial setup left %d %s rows", count, table)
+		}
+	}
 }
 
 // assertStoredGroupPermission checks the database state expected by the surrounding tests.
