@@ -22,6 +22,8 @@ func TestCatalogDefinitionsCoverPermissionConstants(t *testing.T) {
 		{Key: ShortLinkSetPassword, Category: "short_link_access"},
 		{Key: ShortLinkUseConfirmation, Category: "short_link_access"},
 		{Key: DomainUseDefault, Category: "domain"},
+		{Key: DomainUseAssigned, Category: "domain"},
+		{Key: DomainManage, Category: "administration", Protected: true},
 		{Key: AdminAccess, Category: "administration", Protected: true},
 		{Key: ShortLinkReadAll, Category: "administration", Protected: true},
 		{Key: ShortLinkUpdateAll, Category: "administration", Protected: true},
@@ -115,11 +117,13 @@ func TestProtectedPermissionNormalization(t *testing.T) {
 		ShortLinkDeleteAll,
 		ShortLinkCreate,
 		ShortLinkReadAll,
+		DomainManage,
 		AdminAccess,
 		ShortLinkUpdateAll,
 	}
 	wantAdmin := []string{
 		ShortLinkCreate,
+		DomainManage,
 		AdminAccess,
 		ShortLinkReadAll,
 		ShortLinkUpdateAll,
@@ -141,7 +145,8 @@ func TestProtectedPermissionNormalization(t *testing.T) {
 	}{
 		{name: "guest empty", group: GroupGuest, values: nil},
 		{name: "guest permission", group: GroupGuest, values: []string{ShortLinkCreate}, want: ErrProtectedPermission},
-		{name: "user configurable", group: GroupUser, values: []string{DomainUseDefault, ShortLinkCreate}},
+		{name: "user configurable", group: GroupUser, values: []string{DomainUseDefault, DomainUseAssigned, ShortLinkCreate}},
+		{name: "user domain management", group: GroupUser, values: []string{DomainManage}, want: ErrProtectedPermission},
 		{name: "user protected", group: GroupUser, values: []string{AdminAccess}, want: ErrProtectedPermission},
 		{name: "admin missing protected", group: GroupAdmin, values: []string{ShortLinkCreate}, want: ErrProtectedPermission},
 		{name: "unknown group", group: "custom", values: nil, want: ErrUnknownGroup},

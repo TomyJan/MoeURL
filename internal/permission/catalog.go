@@ -149,6 +149,7 @@ func validateCatalog(definitions []Definition, presets []Preset) error {
 	}
 
 	protectedKeys := map[string]struct{}{
+		DomainManage:       {},
 		AdminAccess:        {},
 		ShortLinkReadAll:   {},
 		ShortLinkUpdateAll: {},
@@ -266,6 +267,8 @@ func newCatalogDefinitions() []Definition {
 		{Key: ShortLinkSetPassword, Category: "short_link_access"},
 		{Key: ShortLinkUseConfirmation, Category: "short_link_access"},
 		{Key: DomainUseDefault, Category: "domain"},
+		{Key: DomainUseAssigned, Category: "domain"},
+		{Key: DomainManage, Category: "administration", Protected: true},
 		{Key: AdminAccess, Category: "administration", Protected: true},
 		{Key: ShortLinkReadAll, Category: "administration", Protected: true},
 		{Key: ShortLinkUpdateAll, Category: "administration", Protected: true},
@@ -301,6 +304,7 @@ func newCatalogPresets() []Preset {
 				ShortLinkSetPassword,
 				ShortLinkUseConfirmation,
 				DomainUseDefault,
+				DomainUseAssigned,
 			},
 		},
 	}
