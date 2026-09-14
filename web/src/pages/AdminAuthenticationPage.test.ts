@@ -290,6 +290,40 @@ describe('AdminAuthenticationPage', () => {
     expect(vi.mocked(updateOIDCProvider).mock.calls[1]?.[0]).toMatchObject({ expectedUpdatedAt: latest.updatedAt, displayName: 'My draft' })
   })
 
+  it('uses a later successful query after conflict refetch fails without replacing a dirty draft', async () => {
+    const latest = { ...company, displayName: 'Server value', updatedAt: '2026-09-11T02:00:00Z' }
+    vi.mocked(updateOIDCProvider).mockRejectedValueOnce(new ApiClientError(PROVIDER_CONFLICT_CODE, 'conflict'))
+    state.refetch.mockImplementationOnce(async () => {
+      state.queryError.value = true
+      return { isSuccess: false, data: state.queryData.value }
+    })
+    mountPage()
+    await fireEvent.update(screen.getByLabelText('oidc.displayName'), 'My draft')
+    await fireEvent.click(screen.getByRole('button', { name: 'oidc.save' }))
+    await waitFor(() => expect(state.mutationPending.value).toBe(false))
+    state.queryError.value = false
+    await nextTick()
+    expect(screen.getByDisplayValue('My draft')).toBeTruthy()
+    state.queryData.value = { providers: [latest, team] }
+    await nextTick()
+    await fireEvent.click(screen.getByRole('button', { name: 'oidc.save' }))
+    await waitFor(() => expect(updateOIDCProvider).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(updateOIDCProvider).mock.calls[1]?.[0]).toMatchObject({ expectedUpdatedAt: latest.updatedAt, displayName: 'My draft' })
+  })
+
+  it('refreshes a clean editor after a conflicting update', async () => {
+    const latest = { ...company, displayName: 'Server value', updatedAt: '2026-09-11T02:00:00Z' }
+    vi.mocked(updateOIDCProvider).mockRejectedValueOnce(new ApiClientError(PROVIDER_CONFLICT_CODE, 'conflict'))
+    state.refetch.mockImplementation(async () => {
+      state.queryData.value = { providers: [latest, team] }
+      return { isSuccess: true, data: state.queryData.value }
+    })
+    mountPage()
+    await fireEvent.click(screen.getByRole('button', { name: 'oidc.save' }))
+    await waitFor(() => expect(state.mutationPending.value).toBe(false))
+    expect(screen.getByDisplayValue('Server value')).toBeTruthy()
+  })
+
   it('keeps an unsaved draft and its original revision after a background refresh', async () => {
     vi.mocked(updateOIDCProvider).mockRejectedValue(new ApiClientError(PROVIDER_CONFLICT_CODE, 'conflict'))
     mountPage()
@@ -405,16 +439,58 @@ describe('AdminAuthenticationPage', () => {
     expect(screen.getByDisplayValue('Team SSO')).toBeTruthy()
   })
 
+  it('closes a delete dialog when a later successful query finds the conflicted provider missing', async () => {
+    vi.mocked(deleteOIDCProvider).mockRejectedValueOnce(new ApiClientError(PROVIDER_CONFLICT_CODE, 'conflict'))
+    state.refetch.mockImplementationOnce(async () => {
+      state.queryError.value = true
+      return { isSuccess: false, data: state.queryData.value }
+    })
+    mountPage()
+    await fireEvent.click(screen.getByRole('button', { name: 'oidc.delete' }))
+    await fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'oidc.delete' }))
+    await waitFor(() => expect(state.mutationPending.value).toBe(false))
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    state.queryData.value = { providers: [team] }
+    state.queryError.value = false
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.getByDisplayValue('Team SSO')).toBeTruthy()
+  })
+
+  it('updates the delete target after a later successful query following a failed conflict refresh', async () => {
+    const latest = { ...company, updatedAt: '2026-09-11T02:00:00Z' }
+    vi.mocked(deleteOIDCProvider).mockRejectedValueOnce(new ApiClientError(PROVIDER_CONFLICT_CODE, 'conflict'))
+    state.refetch.mockImplementationOnce(async () => {
+      state.queryError.value = true
+      return { isSuccess: false, data: state.queryData.value }
+    })
+    mountPage()
+    await fireEvent.click(screen.getByRole('button', { name: 'oidc.delete' }))
+    await fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'oidc.delete' }))
+    await waitFor(() => expect(state.mutationPending.value).toBe(false))
+    state.queryData.value = { providers: [latest, team] }
+    state.queryError.value = false
+    await nextTick()
+    await fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'oidc.delete' }))
+    await waitFor(() => expect(deleteOIDCProvider).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(deleteOIDCProvider).mock.calls[1]?.[0]).toEqual({ id: company.id, expectedUpdatedAt: latest.updatedAt })
+  })
+
   it('refreshes an earlier conflicting provider without changing the active feedback', async () => {
     const request = deferred<{ provider: OIDCProvider }>()
+    const latest = { ...company, displayName: 'Company SSO updated', updatedAt: '2026-09-11T02:00:00Z' }
     vi.mocked(updateOIDCProvider).mockReturnValue(request.promise)
-    state.refetch.mockImplementation(async () => ({ isSuccess: true, data: { providers: [company, team] } }))
+    state.refetch.mockImplementation(async () => {
+      state.queryData.value = { providers: [latest, team] }
+      return { isSuccess: true, data: state.queryData.value }
+    })
     mountPage()
     await fireEvent.click(screen.getByRole('button', { name: 'oidc.save' }))
     await fireEvent.click(screen.getByRole('button', { name: /^Team SSO/ }))
     request.reject(new ApiClientError(PROVIDER_CONFLICT_CODE, 'conflict'))
     await waitFor(() => expect(state.refetch).toHaveBeenCalledOnce())
     expect(screen.queryByText('oidc.conflict')).toBeNull()
+    expect(screen.getByDisplayValue('Team SSO')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^Company SSO updated/ })).toBeTruthy()
   })
 
   it('clears a deleted provider selection on conflict without a delete dialog', async () => {

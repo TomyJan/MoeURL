@@ -134,7 +134,9 @@ curl --fail --silent --show-error --connect-timeout 2 --max-time 5 https://go.ex
 管理员在「身份认证」页面创建 provider 后，使用已规范化的 `MOEURL_PUBLIC_BASE_URL` 登记固定回调地址。若原值以 `/` 结尾，先去除末尾斜杠；保留其中配置的非默认 HTTPS 端口：
 
 ```bash
-PUBLIC_BASE_URL="${MOEURL_PUBLIC_BASE_URL%/}"
+PUBLIC_BASE_URL="$(sed -n 's/^MOEURL_PUBLIC_BASE_URL=//p' "$DEPLOY_ENV")" || exit 1
+test -n "$PUBLIC_BASE_URL" || { echo 'MOEURL_PUBLIC_BASE_URL is missing from deployment .env' >&2; exit 1; }
+PUBLIC_BASE_URL="${PUBLIC_BASE_URL%/}"
 printf '%s/api/v1/auth/oidc/<provider-key>/callback\n' "$PUBLIC_BASE_URL"
 ```
 

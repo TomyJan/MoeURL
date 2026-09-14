@@ -108,6 +108,7 @@ const providers = computed(() => query.data.value?.providers ?? [])
 const selectedProvider = computed(() => providers.value.find((provider) => provider.id === selectedID.value))
 const PROVIDER_CONFLICT_CODE = 340102
 const suspendedDraftSync = new Set<string>()
+const pendingConflictRevisions = new Map<string, string>()
 let loadedProviderUpdatedAt = ''
 
 type ProviderDraft = typeof draft
@@ -180,22 +181,12 @@ const mutation = useMutation({
       draft.clientSecret = ''
       feedback.value = conflict ? 'conflict' : 'error'
     }
-    if (conflict) {
+    if (conflict && operation.type !== 'create') {
+      pendingConflictRevisions.set(providerID, operation.type === 'update' ? operation.expectedUpdatedAt : operation.provider.updatedAt)
       if (active) suspendedDraftSync.add(providerID)
       try {
         const refreshed = await query.refetch()
-        if (refreshed?.isSuccess && refreshed.data) {
-          const latest = refreshed.data.providers.find((provider) => provider.id === providerID)
-          if (latest) {
-            if (selectedID.value === providerID) loadedProviderUpdatedAt = latest.updatedAt
-            if (deleteTarget.value?.id === providerID) deleteTarget.value = { ...latest }
-          } else {
-            if (deleteTarget.value?.id === providerID) {
-              deleteDialog.value = false
-              deleteTarget.value = null
-            }
-          }
-        }
+        if (refreshed?.isSuccess && refreshed.data) syncPendingConflicts(refreshed.data.providers)
       } finally {
         suspendedDraftSync.delete(providerID)
       }
@@ -212,7 +203,8 @@ watch(deleteDialog, (open) => {
   if (!open) deleteTarget.value = null
 })
 
-watch(providers, (items) => {
+watch([providers, () => query.isError.value], ([items]) => {
+  if (!query.isError.value) syncPendingConflicts(items)
   if (creating.value) return
   const current = items.find((provider) => provider.id === selectedID.value) ?? items[0]
   if (current) {
@@ -226,6 +218,24 @@ watch(providers, (items) => {
     loadedProviderUpdatedAt = ''
   }
 }, { immediate: true })
+
+function syncPendingConflicts(items: OIDCProvider[]) {
+  for (const [providerID, expectedUpdatedAt] of pendingConflictRevisions) {
+    const latest = items.find((provider) => provider.id === providerID)
+    if (latest?.updatedAt === expectedUpdatedAt) continue
+    pendingConflictRevisions.delete(providerID)
+    if (latest) {
+      if (selectedID.value === providerID) {
+        if (draftHasUnsavedChanges()) loadedProviderUpdatedAt = latest.updatedAt
+        else fillDraft(latest)
+      }
+      if (deleteTarget.value?.id === providerID) deleteTarget.value = { ...latest }
+    } else if (deleteTarget.value?.id === providerID) {
+      deleteDialog.value = false
+      deleteTarget.value = null
+    }
+  }
+}
 
 function fillDraft(provider: OIDCProvider) {
   Object.assign(draft, { key: provider.key, displayName: provider.displayName, issuerUrl: provider.issuerUrl, clientId: provider.clientId, clientSecret: '', allowedDomains: provider.allowedEmailDomains.join(', '), enabled: provider.enabled })
