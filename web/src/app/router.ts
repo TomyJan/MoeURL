@@ -118,6 +118,12 @@ export const routes: RouteRecordRaw[] = [
         beforeEnter: requireAdminAccess,
       },
       {
+        path: '/admin/domain',
+        component: () => import('@/pages/AdminDomainsPage.vue'),
+        meta: { requiresConsole: true, requiresAdmin: true },
+        beforeEnter: requireAdminAccess,
+      },
+      {
         path: '/admin/setting',
         component: () => import('@/pages/AdminAuthenticationPage.vue'),
         meta: { requiresConsole: true, requiresAdmin: true },

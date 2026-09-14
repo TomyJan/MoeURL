@@ -185,6 +185,7 @@ func registerStaticRoutes(router chi.Router, staticDir string) {
 		"/admin/link",
 		"/admin/user",
 		"/admin/user/group",
+		"/admin/domain",
 		"/admin/setting",
 		"/admin/user/new",
 	} {

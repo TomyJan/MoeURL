@@ -299,6 +299,7 @@ func TestRouterServesSPAFixedRoutesFromStaticDir(t *testing.T) {
 		"/admin/user",
 		"/admin/user/group",
 		"/admin/setting",
+		"/admin/domain",
 		"/admin/user/new",
 	} {
 		t.Run(path, func(t *testing.T) {

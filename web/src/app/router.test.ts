@@ -34,6 +34,7 @@ describe('router', () => {
         '/admin/link',
         '/admin/user',
         '/admin/user/group',
+        '/admin/domain',
         '/admin/setting',
         '/admin/user/new',
         '/:pathMatch(.*)*',
@@ -45,7 +46,7 @@ describe('router', () => {
     const consoleRoute = routes.find((route) => route.children)
     const adminRoutes = consoleRoute?.children?.filter((route) => route.path.startsWith('/admin/')) ?? []
 
-    expect(adminRoutes).toHaveLength(5)
+    expect(adminRoutes).toHaveLength(6)
     expect(adminRoutes.every((route) => route.meta?.requiresAdmin === true)).toBe(true)
   })
 
@@ -88,6 +89,14 @@ describe('router', () => {
     expect(userGroupRoute!.props).toBeUndefined()
     const loadedPage = await (userGroupRoute!.component as () => Promise<{ default: { __name?: string } }>)()
     expect(loadedPage.default.__name).toBe('AdminUserGroupsPage')
+  })
+
+  it('loads a guarded domain management page', async () => {
+    const domainRoute = routes.find((route) => route.children)?.children?.find((route) => route.path === '/admin/domain')
+    expect(domainRoute?.beforeEnter).toBe(requireAdminAccess)
+    expect(domainRoute?.meta?.requiresAdmin).toBe(true)
+    const loaded = await (domainRoute?.component as () => Promise<{ default: { __name?: string } }>)()
+    expect(loaded.default.__name).toBe('AdminDomainsPage')
   })
 
   it('resolves the public root path to home before the console shell parent', async () => {

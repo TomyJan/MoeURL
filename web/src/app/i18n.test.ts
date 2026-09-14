@@ -10,6 +10,12 @@ function readBackendPermissionCatalog(): Array<{ key: string }> {
 }
 
 describe('i18n', () => {
+  it('labels domain administration and selection in both locales', () => {
+    expect(messages['zh-CN'].domains.title).toBeTruthy()
+    expect(messages.en.domains.title).toBeTruthy()
+    expect(messages['zh-CN'].shortLinkCreate.domainLabel).toBeTruthy()
+    expect(messages.en.shortLinkCreate.domainLabel).toBeTruthy()
+  })
   it('labels the OIDC provider list in both supported locales', () => {
     expect(messages['zh-CN'].oidc.providerListLabel).toBe('OIDC 提供商列表')
     expect(messages.en.oidc.providerListLabel).toBe('OIDC providers')
