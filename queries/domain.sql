@@ -4,6 +4,21 @@ from domain
 where enabled = true and is_default = true
 limit 1;
 
+-- name: GetGrantedShortLinkDomainForCreate :one
+select domain.id, domain.host
+from domain
+join domain_user_group on domain_user_group.domain_id = domain.id
+join user_group on user_group.id = domain_user_group.user_group_id
+where domain.enabled and domain.purpose = 'short_link'
+  and user_group.key = sqlc.arg(group_key) and user_group.builtin
+  and user_group.permissions ? sqlc.arg(required_permission)::text
+  and ((sqlc.arg(use_default)::boolean and domain.is_default)
+       or (not sqlc.arg(use_default)::boolean and domain.id = sqlc.arg(domain_id)::uuid))
+for share of domain, domain_user_group, user_group;
+
+-- name: GetShortLinkDomainByID :one
+select id, host from domain where id = $1;
+
 -- name: CreateDomain :one
 insert into domain (id, host, display_name, purpose, enabled, is_default, created_at, updated_at)
 values ($1, $2, $3, $4, $5, $6, now(), now())

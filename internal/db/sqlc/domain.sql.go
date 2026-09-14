@@ -121,6 +121,43 @@ func (q *Queries) GetDefaultShortLinkDomain(ctx context.Context) (Domain, error)
 	return i, err
 }
 
+const getGrantedShortLinkDomainForCreate = `-- name: GetGrantedShortLinkDomainForCreate :one
+select domain.id, domain.host
+from domain
+join domain_user_group on domain_user_group.domain_id = domain.id
+join user_group on user_group.id = domain_user_group.user_group_id
+where domain.enabled and domain.purpose = 'short_link'
+  and user_group.key = $1 and user_group.builtin
+  and user_group.permissions ? $2::text
+  and (($3::boolean and domain.is_default)
+       or (not $3::boolean and domain.id = $4::uuid))
+for share of domain, domain_user_group, user_group
+`
+
+type GetGrantedShortLinkDomainForCreateParams struct {
+	GroupKey           string      `json:"group_key"`
+	RequiredPermission string      `json:"required_permission"`
+	UseDefault         bool        `json:"use_default"`
+	DomainID           pgtype.UUID `json:"domain_id"`
+}
+
+type GetGrantedShortLinkDomainForCreateRow struct {
+	ID   pgtype.UUID `json:"id"`
+	Host string      `json:"host"`
+}
+
+func (q *Queries) GetGrantedShortLinkDomainForCreate(ctx context.Context, arg GetGrantedShortLinkDomainForCreateParams) (GetGrantedShortLinkDomainForCreateRow, error) {
+	row := q.db.QueryRow(ctx, getGrantedShortLinkDomainForCreate,
+		arg.GroupKey,
+		arg.RequiredPermission,
+		arg.UseDefault,
+		arg.DomainID,
+	)
+	var i GetGrantedShortLinkDomainForCreateRow
+	err := row.Scan(&i.ID, &i.Host)
+	return i, err
+}
+
 const getManagedDomainForUpdate = `-- name: GetManagedDomainForUpdate :one
 select id, host, display_name, purpose, enabled, is_default, created_at, updated_at
 from domain where id = $1 and purpose = 'short_link' for update
@@ -139,6 +176,22 @@ func (q *Queries) GetManagedDomainForUpdate(ctx context.Context, id pgtype.UUID)
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
+	return i, err
+}
+
+const getShortLinkDomainByID = `-- name: GetShortLinkDomainByID :one
+select id, host from domain where id = $1
+`
+
+type GetShortLinkDomainByIDRow struct {
+	ID   pgtype.UUID `json:"id"`
+	Host string      `json:"host"`
+}
+
+func (q *Queries) GetShortLinkDomainByID(ctx context.Context, id pgtype.UUID) (GetShortLinkDomainByIDRow, error) {
+	row := q.db.QueryRow(ctx, getShortLinkDomainByID, id)
+	var i GetShortLinkDomainByIDRow
+	err := row.Scan(&i.ID, &i.Host)
 	return i, err
 }
 

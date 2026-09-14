@@ -477,7 +477,7 @@ func TestCreateRetriesReservedSlug(t *testing.T) {
 	pool := testdb.ProjectMigratedPool(ctx, t)
 	if _, err := pool.Exec(ctx, `
 		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
-		values ('00000000-0000-0000-0000-000000000401', 'user', 'User', '', '[]'::jsonb, false, now(), now())
+		values ('00000000-0000-0000-0000-000000000401', 'user', 'User', '', '["domain:use_default"]'::jsonb, true, now(), now())
 	`); err != nil {
 		t.Fatalf("insert user group fixture: %v", err)
 	}
@@ -492,6 +492,12 @@ func TestCreateRetriesReservedSlug(t *testing.T) {
 		values ('00000000-0000-0000-0000-000000000301', 'go.example.com', 'Default', 'short_link', true, true, now(), now())
 	`); err != nil {
 		t.Fatalf("insert domain fixture: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into domain_user_group (domain_id, user_group_id)
+		values ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000401')
+	`); err != nil {
+		t.Fatalf("grant default domain fixture: %v", err)
 	}
 
 	originalReader := slugRandomReader
