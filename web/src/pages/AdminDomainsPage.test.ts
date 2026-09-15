@@ -279,6 +279,28 @@ describe('AdminDomainsPage', () => {
     expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'Local edits')
   })
 
+  it('keeps another domain conflict pending when an unrelated save updates the cache', async () => {
+    const latestA = { ...secondary, displayName: 'Remote A', updatedAt: '2026-09-14T02:00:00Z' }
+    const latestB = { ...primary, displayName: 'Saved B', updatedAt: '2026-09-14T01:00:00Z' }
+    vi.mocked(deleteDomain).mockRejectedValueOnce(new ApiClientError(210103, 'conflict')).mockResolvedValueOnce(undefined)
+    vi.mocked(updateDomain).mockResolvedValue({ domain: latestB })
+    state.refetch.mockRejectedValueOnce(new Error('offline'))
+    mount()
+    await fireEvent.click(screen.getByRole('button', { name: /Secondary/ }))
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.delete' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.confirmDelete' }))
+    await waitFor(() => expect(state.refetch).toHaveBeenCalledOnce())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'domains.confirmDelete' })).toHaveProperty('disabled', false))
+    await fireEvent.click(screen.getByRole('button', { name: /Primary/ }))
+    await fireEvent.update(screen.getByLabelText('domains.displayName'), latestB.displayName)
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.save' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: /Saved B/ })).toBeTruthy())
+    state.data.value = { items: [latestB, latestA] }
+    await nextTick()
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.confirmDelete' }))
+    await waitFor(() => expect(deleteDomain).toHaveBeenLastCalledWith({ id: secondary.id, expectedUpdatedAt: latestA.updatedAt }))
+  })
+
   it('closes a delete confirmation when a conflict refresh finds its target removed', async () => {
     vi.mocked(deleteDomain).mockRejectedValue(new ApiClientError(210103, 'conflict'))
     state.refetch.mockImplementation(async () => {

@@ -91,7 +91,7 @@ const draft = reactive<DomainDraftInput>({ host: '', displayName: '', allowedGro
 const selectedDomain = computed(() => domains.value.find(({ id }) => id === selectedID.value))
 let baseline: DomainDraftInput | null = null
 let expectedUpdatedAt = ''
-const pendingConflicts = new Set<string>()
+const pendingConflicts = new Map<string, string>()
 const defaultRefreshRequired = ref(false)
 const VERSION_CONFLICT_CODE = 210103
 
@@ -142,7 +142,7 @@ const mutation = useMutation({
     const conflict = error instanceof ApiClientError && error.code === VERSION_CONFLICT_CODE && operation.type !== 'create'
     if (active) feedback.value = conflict ? 'conflict' : 'error'
     if (conflict) {
-      pendingConflicts.add(operation.domain.id)
+      pendingConflicts.set(operation.domain.id, operation.type === 'update' ? operation.expectedUpdatedAt : operation.domain.updatedAt)
       try {
         const refreshed = await query.refetch()
         if (refreshed.isSuccess) syncPendingConflicts(refreshed.data.items)
@@ -165,9 +165,9 @@ watch(domains, (items) => {
 
 /** Keeps dirty local edits based on their original revision after a conflicting refresh. */
 function syncPendingConflicts(items: ManagedDomain[]) {
-  for (const id of pendingConflicts) {
+  for (const [id, conflictRevision] of pendingConflicts) {
     const latest = items.find((item) => item.id === id)
-    if (latest && latest.updatedAt === expectedUpdatedAt) continue
+    if (latest && latest.updatedAt === conflictRevision) continue
     pendingConflicts.delete(id)
     if (deleteTarget.value?.id === id) {
       if (latest) deleteTarget.value = { ...latest }
