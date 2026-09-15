@@ -904,7 +904,7 @@ type fakeRedirectService struct {
 
 func TestRedirectHandlerPassesRealHostForEveryPublicAction(t *testing.T) {
 	service := &fakeRedirectService{
-		openResult: shortlink.OpenResult{RequiresPassword: true, Slug: "hosted"},
+		openResult:     shortlink.OpenResult{RequiresPassword: true, Slug: "hosted"},
 		continueResult: shortlink.RedirectResult{TargetURL: "https://target.example.com"},
 	}
 	handler := shortlink.NewRedirectHandler(service)
