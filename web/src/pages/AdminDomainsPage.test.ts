@@ -213,6 +213,47 @@ describe('AdminDomainsPage', () => {
     expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'My changes')
   })
 
+  it('keeps an edited deleted domain until the pending switch is confirmed', async () => {
+    mount()
+    await fireEvent.click(screen.getByRole('button', { name: /Secondary/ }))
+    await fireEvent.update(screen.getByLabelText('domains.displayName'), 'Keep my draft')
+    await fireEvent.click(screen.getByRole('button', { name: /Primary/ }))
+    state.data.value = { items: [primary] }
+    await nextTick()
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'Keep my draft')
+    expect(screen.getByText('domains.removedDraft')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'domains.save' })).toHaveProperty('disabled', true)
+    await fireEvent.submit(screen.getByLabelText('domains.displayName').closest('form')!)
+    expect(updateDomain).not.toHaveBeenCalled()
+    await fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'domains.cancel' }))
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'Keep my draft')
+    state.data.value = { items: [] }
+    await nextTick()
+    expect(screen.getByText('domains.empty')).toBeTruthy()
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'Keep my draft')
+    state.data.value = { items: [primary] }
+    await nextTick()
+    await fireEvent.click(screen.getByRole('button', { name: /Primary/ }))
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.confirmDiscard' }))
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', primary.displayName)
+    expect(updateDomain).not.toHaveBeenCalled()
+  })
+
+  it('preserves a draft when a conflict refresh removes its domain', async () => {
+    vi.mocked(updateDomain).mockRejectedValue(new ApiClientError(210103, 'conflict'))
+    state.refetch.mockImplementation(async () => {
+      state.data.value = { items: [primary] }
+      return { isSuccess: true, data: state.data.value }
+    })
+    mount()
+    await fireEvent.click(screen.getByRole('button', { name: /Secondary/ }))
+    await fireEvent.update(screen.getByLabelText('domains.displayName'), 'Keep after conflict')
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.save' }))
+    await waitFor(() => expect(screen.getByText('domains.removedDraft')).toBeTruthy())
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'Keep after conflict')
+    expect(screen.getByRole('button', { name: 'domains.save' })).toHaveProperty('disabled', true)
+  })
+
   it('closes the discard dialog without dropping edits', async () => {
     render(AdminDomainsPage, { global: { stubs: {
       ...componentStubs,

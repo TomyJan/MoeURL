@@ -35,15 +35,16 @@
           </label>
         </fieldset>
         <v-switch v-model="draft.enabled" :label="t('domains.enabled')" :disabled="writesBlocked || (!creating && selectedDomain?.isDefault)" />
-        <v-alert v-if="feedback" :type="feedback === 'success' ? 'success' : 'error'" variant="tonal">
+        <v-alert v-if="selectionRemoved" type="error" variant="tonal">{{ t('domains.removedDraft') }}</v-alert>
+        <v-alert v-else-if="feedback" :type="feedback === 'success' ? 'success' : 'error'" variant="tonal">
           {{ t(feedback === 'success' ? 'domains.saved' : feedback === 'conflict' ? 'domains.conflict' : 'domains.saveFailed') }}
         </v-alert>
         <div class="domains-page__actions">
-          <v-btn v-if="!creating && feedback === 'conflict' && dirty()" type="button" variant="text" :disabled="writesBlocked" @click="requestDiscard(selectedID)">{{ t('domains.reloadDraft') }}</v-btn>
-          <v-btn v-if="!creating && !selectedDomain?.isDefault" type="button" variant="text" :disabled="writesBlocked || !selectedDomain?.enabled" @click="setDefault">{{ t('domains.setDefault') }}</v-btn>
-          <v-btn v-if="!creating" type="button" color="error" variant="text" :disabled="writesBlocked || selectedDomain?.isDefault || selectedDomain?.referenced" @click="openDelete">{{ t('domains.delete') }}</v-btn>
+          <v-btn v-if="!creating && !selectionRemoved && feedback === 'conflict' && dirty()" type="button" variant="text" :disabled="writesBlocked" @click="requestDiscard(selectedID)">{{ t('domains.reloadDraft') }}</v-btn>
+          <v-btn v-if="!creating && !selectedDomain?.isDefault" type="button" variant="text" :disabled="writesBlocked || selectionRemoved || !selectedDomain?.enabled" @click="setDefault">{{ t('domains.setDefault') }}</v-btn>
+          <v-btn v-if="!creating" type="button" color="error" variant="text" :disabled="writesBlocked || selectionRemoved || selectedDomain?.isDefault || selectedDomain?.referenced" @click="openDelete">{{ t('domains.delete') }}</v-btn>
           <v-btn v-if="creating" type="button" variant="text" @click="cancelCreate">{{ t('domains.cancel') }}</v-btn>
-          <v-btn color="primary" type="submit" :disabled="writesBlocked" :loading="mutation.isPending.value">{{ t('domains.save') }}</v-btn>
+          <v-btn color="primary" type="submit" :disabled="writesBlocked || selectionRemoved" :loading="mutation.isPending.value">{{ t('domains.save') }}</v-btn>
         </div>
       </form>
     </div>
@@ -102,7 +103,10 @@ const discardDialog = ref(false)
 const discardTarget = ref('')
 const discardReloading = ref(false)
 const draft = reactive<DomainDraftInput>({ host: '', displayName: '', allowedGroups: [], enabled: true })
-const selectedDomain = computed(() => domains.value.find(({ id }) => id === selectedID.value))
+const selectedSnapshot = ref<ManagedDomain | null>(null)
+const selectionRemoved = computed(() => !creating.value && !!selectedID.value && query.data.value !== undefined && !domains.value.some(({ id }) => id === selectedID.value))
+const selectedDomain = computed(() => domains.value.find(({ id }) => id === selectedID.value) ??
+  (selectionRemoved.value && dirty() && selectedSnapshot.value?.id === selectedID.value ? selectedSnapshot.value : undefined))
 let baseline: DomainDraftInput | null = null
 let expectedUpdatedAt = ''
 const pendingConflicts = new Map<string, string>()
@@ -171,8 +175,9 @@ watch(discardDialog, (open) => { if (!open) discardTarget.value = '' })
 watch(domains, (items) => {
   syncPendingConflicts(items)
   if (creating.value) return
+  if (selectedID.value && !items.some(({ id }) => id === selectedID.value) && dirty()) return
   const current = items.find(({ id }) => id === selectedID.value) ?? items[0]
-  if (!current) { selectedID.value = ''; baseline = null; return }
+  if (!current) { selectedID.value = ''; selectedSnapshot.value = null; baseline = null; return }
   const changed = selectedID.value !== current.id
   selectedID.value = current.id
   if (changed || (expectedUpdatedAt !== current.updatedAt && !dirty())) fillDraft(current)
@@ -188,12 +193,13 @@ function syncPendingConflicts(items: ManagedDomain[]) {
       if (latest) deleteTarget.value = { ...latest }
       else { deleteDialog.value = false; deleteTarget.value = null }
     }
-    if (!latest && selectedID.value === id) { selectedID.value = ''; baseline = null }
+    if (!latest && selectedID.value === id && !dirty()) { selectedID.value = ''; selectedSnapshot.value = null; baseline = null }
     else if (latest && selectedID.value === id && !dirty()) fillDraft(latest)
   }
 }
 
 function fillDraft(item: ManagedDomain) {
+  selectedSnapshot.value = { ...item }
   Object.assign(draft, { host: item.host, displayName: item.displayName, allowedGroups: [...item.allowedGroups], enabled: item.enabled })
   baseline = { ...draft, allowedGroups: [...draft.allowedGroups] }
   expectedUpdatedAt = item.updatedAt
@@ -255,6 +261,7 @@ function toggleGroup(group: DomainGroupKey, event: globalThis.Event) {
   draft.allowedGroups = enabled ? [...new Set([...draft.allowedGroups, group])] : draft.allowedGroups.filter((item) => item !== group)
 }
 function save() {
+  if (selectionRemoved.value) return
   if (writesBlocked.value || !draft.host.trim() || !draft.displayName.trim()) { feedback.value = 'error'; return }
   const values = { ...draft, host: draft.host.trim(), displayName: draft.displayName.trim(), allowedGroups: [...draft.allowedGroups] }
   feedback.value = ''
