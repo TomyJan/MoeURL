@@ -6,13 +6,13 @@
         <h1>{{ t('domains.title') }}</h1>
         <span>{{ t('domains.description') }}</span>
       </div>
-      <v-btn color="primary" :disabled="creating || mutation.isPending.value" @click="beginCreate">{{ t('domains.add') }}</v-btn>
+      <v-btn color="primary" :disabled="creating || writesBlocked" @click="beginCreate">{{ t('domains.add') }}</v-btn>
     </header>
 
     <v-progress-linear v-if="query.isPending.value" indeterminate />
-    <v-alert v-else-if="query.isError.value" type="error" variant="tonal">
+    <v-alert v-else-if="query.isError.value || (defaultRefreshRequired && !mutation.isPending.value)" type="error" variant="tonal">
       {{ t('domains.loadFailed') }}
-      <template #append><v-btn variant="text" @click="query.refetch()">{{ t('domains.retry') }}</v-btn></template>
+      <template #append><v-btn variant="text" @click="retryDomains">{{ t('domains.retry') }}</v-btn></template>
     </v-alert>
     <div v-else class="domains-page__workspace">
       <aside class="domains-page__list" :aria-label="t('domains.listLabel')">
@@ -24,25 +24,25 @@
       </aside>
       <form v-if="creating || selectedDomain" class="domains-page__editor" @submit.prevent="save">
         <h2>{{ creating ? t('domains.createTitle') : selectedDomain?.displayName }}</h2>
-        <v-text-field v-model="draft.host" :label="t('domains.host')" :disabled="mutation.isPending.value || (!creating && selectedDomain?.referenced)" variant="outlined" />
+        <v-text-field v-model="draft.host" :label="t('domains.host')" :disabled="writesBlocked || (!creating && selectedDomain?.referenced)" variant="outlined" />
         <p v-if="selectedDomain?.referenced">{{ t('domains.addressLocked') }}</p>
-        <v-text-field v-model="draft.displayName" :label="t('domains.displayName')" :disabled="mutation.isPending.value" variant="outlined" />
-        <fieldset class="domains-page__groups" :disabled="mutation.isPending.value">
+        <v-text-field v-model="draft.displayName" :label="t('domains.displayName')" :disabled="writesBlocked" variant="outlined" />
+        <fieldset class="domains-page__groups" :disabled="writesBlocked">
           <legend>{{ t('domains.allowedGroups') }}</legend>
           <label v-for="group in groupKeys" :key="group">
             <input type="checkbox" :checked="draft.allowedGroups.includes(group)" @change="toggleGroup(group, $event)" />
             {{ t(`domains.groups.${group}`) }}
           </label>
         </fieldset>
-        <v-switch v-model="draft.enabled" :label="t('domains.enabled')" :disabled="mutation.isPending.value || (!creating && selectedDomain?.isDefault)" />
+        <v-switch v-model="draft.enabled" :label="t('domains.enabled')" :disabled="writesBlocked || (!creating && selectedDomain?.isDefault)" />
         <v-alert v-if="feedback" :type="feedback === 'success' ? 'success' : 'error'" variant="tonal">
           {{ t(feedback === 'success' ? 'domains.saved' : feedback === 'conflict' ? 'domains.conflict' : 'domains.saveFailed') }}
         </v-alert>
         <div class="domains-page__actions">
-          <v-btn v-if="!creating && !selectedDomain?.isDefault" type="button" variant="text" :disabled="mutation.isPending.value || !selectedDomain?.enabled" @click="setDefault">{{ t('domains.setDefault') }}</v-btn>
-          <v-btn v-if="!creating" type="button" color="error" variant="text" :disabled="mutation.isPending.value || selectedDomain?.isDefault || selectedDomain?.referenced" @click="openDelete">{{ t('domains.delete') }}</v-btn>
+          <v-btn v-if="!creating && !selectedDomain?.isDefault" type="button" variant="text" :disabled="writesBlocked || !selectedDomain?.enabled" @click="setDefault">{{ t('domains.setDefault') }}</v-btn>
+          <v-btn v-if="!creating" type="button" color="error" variant="text" :disabled="writesBlocked || selectedDomain?.isDefault || selectedDomain?.referenced" @click="openDelete">{{ t('domains.delete') }}</v-btn>
           <v-btn v-if="creating" type="button" variant="text" @click="cancelCreate">{{ t('domains.cancel') }}</v-btn>
-          <v-btn color="primary" type="submit" :loading="mutation.isPending.value">{{ t('domains.save') }}</v-btn>
+          <v-btn color="primary" type="submit" :disabled="writesBlocked" :loading="mutation.isPending.value">{{ t('domains.save') }}</v-btn>
         </div>
       </form>
     </div>
@@ -53,7 +53,7 @@
         <v-card-text>{{ t('domains.deleteWarning') }}</v-card-text>
         <v-card-actions>
           <v-btn variant="text" @click="deleteDialog = false">{{ t('domains.cancel') }}</v-btn>
-          <v-btn color="error" :loading="mutation.isPending.value" @click="confirmDelete">{{ t('domains.confirmDelete') }}</v-btn>
+          <v-btn color="error" :disabled="writesBlocked" :loading="mutation.isPending.value" @click="confirmDelete">{{ t('domains.confirmDelete') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -92,6 +92,7 @@ const selectedDomain = computed(() => domains.value.find(({ id }) => id === sele
 let baseline: DomainDraftInput | null = null
 let expectedUpdatedAt = ''
 const pendingConflicts = new Set<string>()
+const defaultRefreshRequired = ref(false)
 const VERSION_CONFLICT_CODE = 210103
 
 const mutation = useMutation({
@@ -108,7 +109,7 @@ const mutation = useMutation({
         : await setDefaultDomain({ id: operation.domain.id, expectedUpdatedAt: operation.domain.updatedAt })
     return { type: 'saved', domain: result.domain }
   },
-  onSuccess(result, operation) {
+  async onSuccess(result, operation) {
     const active = targetsCurrentSelection(operation)
     queryClient.setQueryData<{ items: ManagedDomain[] }>(managedDomainQueryKey, (current) => {
       const items = current?.items ?? []
@@ -128,7 +129,12 @@ const mutation = useMutation({
       }
     }
     if (result.type === 'deleted' && deleteTarget.value?.id === result.id) deleteDialog.value = false
-    void queryClient.invalidateQueries({ queryKey: managedDomainQueryKey })
+    if (operation.type === 'default') {
+      defaultRefreshRequired.value = true
+      await retryDomains()
+    } else {
+      void queryClient.invalidateQueries({ queryKey: managedDomainQueryKey })
+    }
     void queryClient.invalidateQueries({ queryKey: ['domain', 'available'] })
   },
   async onError(error, operation) {
@@ -144,6 +150,7 @@ const mutation = useMutation({
     }
   },
 })
+const writesBlocked = computed(() => mutation.isPending.value || defaultRefreshRequired.value)
 
 watch(deleteDialog, (open) => { if (!open) deleteTarget.value = null })
 watch(domains, (items) => {
@@ -182,6 +189,12 @@ function dirty(): boolean {
     draft.allowedGroups.length !== baseline.allowedGroups.length || draft.allowedGroups.some((group) => !baseline?.allowedGroups.includes(group)))
 }
 
+async function retryDomains() {
+  const refreshed = await query.refetch()
+  if (refreshed.isSuccess) defaultRefreshRequired.value = false
+  return refreshed
+}
+
 function selectDomain(item: ManagedDomain) { creating.value = false; selectedID.value = item.id; feedback.value = ''; fillDraft(item) }
 function beginCreate() {
   creating.value = true; selectedID.value = ''; feedback.value = ''
@@ -198,7 +211,7 @@ function toggleGroup(group: DomainGroupKey, event: globalThis.Event) {
   draft.allowedGroups = enabled ? [...new Set([...draft.allowedGroups, group])] : draft.allowedGroups.filter((item) => item !== group)
 }
 function save() {
-  if (mutation.isPending.value || !draft.host.trim() || !draft.displayName.trim()) { feedback.value = 'error'; return }
+  if (writesBlocked.value || !draft.host.trim() || !draft.displayName.trim()) { feedback.value = 'error'; return }
   const values = { ...draft, host: draft.host.trim(), displayName: draft.displayName.trim(), allowedGroups: [...draft.allowedGroups] }
   feedback.value = ''
   if (creating.value) mutation.mutate({ type: 'create', values })

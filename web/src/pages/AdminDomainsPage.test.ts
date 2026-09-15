@@ -28,11 +28,19 @@ vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('@tanstack/vue-query', () => ({
   useQuery: () => ({ data: state.data, isPending: state.pending, isError: state.error, refetch: state.refetch }),
   useQueryClient: () => ({ invalidateQueries: state.invalidate, setQueryData: state.setQueryData }),
-  useMutation: (options: { mutationFn: (input: unknown) => Promise<unknown>; onSuccess: (result: unknown, input: unknown) => void; onError: (error: unknown, input: unknown) => Promise<void> }) => ({
-    isPending: ref(false), mutate: (input: unknown) => {
-      void options.mutationFn(input).then((result) => options.onSuccess(result, input)).catch((error) => options.onError(error, input))
-    },
-  }),
+  useMutation: (options: { mutationFn: (input: unknown) => Promise<unknown>; onSuccess: (result: unknown, input: unknown) => void | Promise<void>; onError: (error: unknown, input: unknown) => Promise<void> }) => {
+    const isPending = ref(false)
+    return {
+      isPending,
+      mutate: (input: unknown) => {
+        isPending.value = true
+        void options.mutationFn(input)
+          .then((result) => options.onSuccess(result, input))
+          .catch((error) => options.onError(error, input))
+          .finally(() => { isPending.value = false })
+      },
+    }
+  },
 }))
 
 function mount() { return render(AdminDomainsPage, { global: { stubs: componentStubs } }) }
@@ -42,6 +50,7 @@ beforeEach(() => {
   state.pending = ref(false)
   state.error = ref(false)
   state.refetch.mockReset()
+  state.refetch.mockImplementation(async () => ({ isSuccess: true, data: state.data.value }))
   state.invalidate.mockReset()
   state.setQueryData.mockReset()
   state.setQueryData.mockImplementation((_key, updater) => { state.data.value = updater(state.data.value) })
@@ -84,6 +93,7 @@ describe('AdminDomainsPage', () => {
     await waitFor(() => expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'My draft'))
     await waitFor(() => expect(screen.getByText('domains.conflict')).toBeTruthy())
     expect(vi.mocked(updateDomain).mock.calls[0]?.[0]).toMatchObject({ expectedUpdatedAt: secondary.updatedAt, displayName: 'My draft' })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'domains.save' })).toHaveProperty('disabled', false))
     await fireEvent.click(screen.getByRole('button', { name: 'domains.save' }))
     expect(vi.mocked(updateDomain).mock.calls[1]?.[0]).toMatchObject({ expectedUpdatedAt: secondary.updatedAt })
   })
@@ -111,10 +121,58 @@ describe('AdminDomainsPage', () => {
     expect(updateDomain).not.toHaveBeenCalled()
     expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'My unsaved name')
     expect(screen.getByLabelText('domains.groups.user')).toHaveProperty('checked', false)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'domains.save' })).toHaveProperty('disabled', false))
     await fireEvent.click(screen.getByRole('button', { name: 'domains.save' }))
     await waitFor(() => expect(updateDomain).toHaveBeenCalledWith(expect.objectContaining({
       id: secondary.id, expectedUpdatedAt: selected.updatedAt, displayName: 'My unsaved name', allowedGroups: ['admin'],
     })))
+  })
+
+  it('blocks writes to the former default until the authoritative list refresh completes', async () => {
+    const promoted = { ...secondary, isDefault: true, updatedAt: '2026-09-14T01:00:00Z' }
+    const formerDefault = { ...primary, isDefault: false, updatedAt: '2026-09-14T01:00:01Z' }
+    let resolveRefresh!: (result: { isSuccess: true; data: { items: typeof primary[] } }) => void
+    state.refetch.mockImplementation(() => new Promise((resolve) => { resolveRefresh = resolve }))
+    vi.mocked(setDefaultDomain).mockResolvedValue({ domain: promoted })
+    vi.mocked(updateDomain).mockResolvedValue({ domain: { ...formerDefault, displayName: 'Former default' } })
+
+    mount()
+    await fireEvent.click(screen.getByRole('button', { name: /Secondary/ }))
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.setDefault' }))
+    await waitFor(() => expect(state.refetch).toHaveBeenCalledTimes(1))
+    await fireEvent.click(screen.getByRole('button', { name: /Primary/ }))
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'domains.save' })).toHaveProperty('disabled', true)
+
+    state.data.value = { items: [promoted, formerDefault] }
+    resolveRefresh({ isSuccess: true, data: state.data.value })
+    await waitFor(() => expect(screen.getByLabelText('domains.displayName')).toHaveProperty('disabled', false))
+    await fireEvent.update(screen.getByLabelText('domains.displayName'), 'Former default')
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.save' }))
+    await waitFor(() => expect(updateDomain).toHaveBeenCalledWith(expect.objectContaining({
+      id: formerDefault.id, expectedUpdatedAt: formerDefault.updatedAt, displayName: 'Former default',
+    })))
+  })
+
+  it('keeps domain writes blocked after a failed default refresh until retry succeeds', async () => {
+    const promoted = { ...secondary, isDefault: true, updatedAt: '2026-09-14T01:00:00Z' }
+    const formerDefault = { ...primary, isDefault: false, updatedAt: '2026-09-14T01:00:01Z' }
+    state.refetch.mockResolvedValueOnce({ isSuccess: false, data: undefined })
+    vi.mocked(setDefaultDomain).mockResolvedValue({ domain: promoted })
+
+    render(AdminDomainsPage, { global: { stubs: { ...componentStubs, VAlert: { template: '<div role="alert"><slot /><slot name="append" /></div>' } } } })
+    await fireEvent.click(screen.getByRole('button', { name: /Secondary/ }))
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.setDefault' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'domains.retry' })).toBeTruthy())
+    expect(screen.getByRole('button', { name: 'domains.add' })).toHaveProperty('disabled', true)
+
+    state.refetch.mockImplementationOnce(async () => {
+      state.data.value = { items: [promoted, formerDefault] }
+      return { isSuccess: true, data: state.data.value }
+    })
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.retry' }))
+    await waitFor(() => expect(screen.getByLabelText('domains.displayName')).toHaveProperty('disabled', false))
+    expect(state.refetch).toHaveBeenCalledTimes(2)
   })
 
   it('confirms deletion of only the captured unreferenced domain', async () => {
