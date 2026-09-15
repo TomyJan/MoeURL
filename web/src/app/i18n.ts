@@ -443,6 +443,7 @@ export const messages = {
       setDefault: '设为默认', delete: '删除', deleteTitle: '删除域名',
       deleteWarning: '仅能删除没有短链引用的非默认域名。', confirmDelete: '确认删除', cancel: '取消', save: '保存',
       saved: '域名设置已保存。', saveFailed: '操作失败，请检查配置后重试。', conflict: '服务端配置已改变，当前草稿已保留；请核对后重新载入。',
+      reloadDraft: '重新载入最新配置', discardTitle: '丢弃当前草稿？', discardWarning: '未保存的修改将被丢弃。确认后才会载入所选域名的配置。', confirmDiscard: '丢弃并载入',
     },
     adminUsers: {
       createUser: '创建用户',
@@ -952,6 +953,7 @@ export const messages = {
       setDefault: 'Set as default', delete: 'Delete', deleteTitle: 'Delete domain',
       deleteWarning: 'Only a non-default domain without links can be deleted.', confirmDelete: 'Confirm deletion', cancel: 'Cancel', save: 'Save',
       saved: 'Domain settings saved.', saveFailed: 'Operation failed. Check the settings and try again.', conflict: 'The server changed. Your draft is preserved; review and reload before saving again.',
+      reloadDraft: 'Reload latest settings', discardTitle: 'Discard your draft?', discardWarning: 'Unsaved changes will be lost. Confirm to load the selected domain settings.', confirmDiscard: 'Discard and load',
     },
     adminUsers: {
       createUser: 'Create user',

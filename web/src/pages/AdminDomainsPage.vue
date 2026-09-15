@@ -39,6 +39,7 @@
           {{ t(feedback === 'success' ? 'domains.saved' : feedback === 'conflict' ? 'domains.conflict' : 'domains.saveFailed') }}
         </v-alert>
         <div class="domains-page__actions">
+          <v-btn v-if="!creating && feedback === 'conflict' && dirty()" type="button" variant="text" :disabled="writesBlocked" @click="requestDiscard(selectedID)">{{ t('domains.reloadDraft') }}</v-btn>
           <v-btn v-if="!creating && !selectedDomain?.isDefault" type="button" variant="text" :disabled="writesBlocked || !selectedDomain?.enabled" @click="setDefault">{{ t('domains.setDefault') }}</v-btn>
           <v-btn v-if="!creating" type="button" color="error" variant="text" :disabled="writesBlocked || selectedDomain?.isDefault || selectedDomain?.referenced" @click="openDelete">{{ t('domains.delete') }}</v-btn>
           <v-btn v-if="creating" type="button" variant="text" @click="cancelCreate">{{ t('domains.cancel') }}</v-btn>
@@ -54,6 +55,16 @@
         <v-card-actions>
           <v-btn variant="text" @click="deleteDialog = false">{{ t('domains.cancel') }}</v-btn>
           <v-btn color="error" :disabled="writesBlocked" :loading="mutation.isPending.value" @click="confirmDelete">{{ t('domains.confirmDelete') }}</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+    <v-dialog v-model="discardDialog" max-width="440">
+      <v-card>
+        <v-card-title>{{ t('domains.discardTitle') }}</v-card-title>
+        <v-card-text>{{ t('domains.discardWarning') }}</v-card-text>
+        <v-card-actions>
+          <v-btn variant="text" @click="discardDialog = false">{{ t('domains.cancel') }}</v-btn>
+          <v-btn color="error" :disabled="discardReloading" :loading="discardReloading" @click="confirmDiscard">{{ t('domains.confirmDiscard') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -87,6 +98,9 @@ const creating = ref(false)
 const feedback = ref<'success' | 'conflict' | 'error' | ''>('')
 const deleteDialog = ref(false)
 const deleteTarget = ref<ManagedDomain | null>(null)
+const discardDialog = ref(false)
+const discardTarget = ref('')
+const discardReloading = ref(false)
 const draft = reactive<DomainDraftInput>({ host: '', displayName: '', allowedGroups: [], enabled: true })
 const selectedDomain = computed(() => domains.value.find(({ id }) => id === selectedID.value))
 let baseline: DomainDraftInput | null = null
@@ -153,6 +167,7 @@ const mutation = useMutation({
 const writesBlocked = computed(() => mutation.isPending.value || defaultRefreshRequired.value)
 
 watch(deleteDialog, (open) => { if (!open) deleteTarget.value = null })
+watch(discardDialog, (open) => { if (!open) discardTarget.value = '' })
 watch(domains, (items) => {
   syncPendingConflicts(items)
   if (creating.value) return
@@ -185,6 +200,7 @@ function fillDraft(item: ManagedDomain) {
 }
 
 function dirty(): boolean {
+  if (creating.value) return Boolean(draft.host || draft.displayName || draft.allowedGroups.length || !draft.enabled)
   return baseline !== null && (draft.host !== baseline.host || draft.displayName !== baseline.displayName || draft.enabled !== baseline.enabled ||
     draft.allowedGroups.length !== baseline.allowedGroups.length || draft.allowedGroups.some((group) => !baseline?.allowedGroups.includes(group)))
 }
@@ -195,8 +211,36 @@ async function retryDomains() {
   return refreshed
 }
 
-function selectDomain(item: ManagedDomain) { creating.value = false; selectedID.value = item.id; feedback.value = ''; fillDraft(item) }
+function selectDomain(item: ManagedDomain) {
+  if (dirty()) { requestDiscard(item.id); return }
+  selectDomainNow(item)
+}
+function selectDomainNow(item: ManagedDomain) { creating.value = false; selectedID.value = item.id; feedback.value = ''; fillDraft(item) }
+function requestDiscard(target: string) { discardTarget.value = target; discardDialog.value = true }
+async function confirmDiscard() {
+  const target = discardTarget.value
+  if (target === selectedID.value && feedback.value === 'conflict') {
+    discardReloading.value = true
+    try {
+      const refreshed = await query.refetch()
+      if (!refreshed.isSuccess) return
+    } catch { return }
+    finally { discardReloading.value = false }
+  }
+  if (discardTarget.value !== target) return
+  if (target === 'create') beginCreateNow()
+  else {
+    const latest = domains.value.find(({ id }) => id === target)
+    if (!latest) return
+    selectDomainNow(latest)
+  }
+  discardDialog.value = false
+}
 function beginCreate() {
+  if (dirty()) { requestDiscard('create'); return }
+  beginCreateNow()
+}
+function beginCreateNow() {
   creating.value = true; selectedID.value = ''; feedback.value = ''
   Object.assign(draft, { host: '', displayName: '', allowedGroups: [], enabled: true })
   baseline = null

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
 
@@ -96,6 +96,133 @@ describe('AdminDomainsPage', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'domains.save' })).toHaveProperty('disabled', false))
     await fireEvent.click(screen.getByRole('button', { name: 'domains.save' }))
     expect(vi.mocked(updateDomain).mock.calls[1]?.[0]).toMatchObject({ expectedUpdatedAt: secondary.updatedAt })
+  })
+
+  it('requires explicit confirmation before replacing a conflicted draft and reloads the latest revision', async () => {
+    const latest = { ...secondary, displayName: 'Remote edit', updatedAt: '2026-09-14T01:00:00Z' }
+    vi.mocked(updateDomain).mockRejectedValueOnce(new ApiClientError(210103, 'conflict')).mockResolvedValueOnce({ domain: { ...latest, displayName: 'Confirmed edit' } })
+    state.refetch.mockImplementation(async () => {
+      state.data.value = { items: [primary, latest] }
+      return { isSuccess: true, data: state.data.value }
+    })
+    mount()
+    await fireEvent.click(screen.getByRole('button', { name: /Secondary/ }))
+    await fireEvent.update(screen.getByLabelText('domains.displayName'), 'Local edit')
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.save' }))
+    await waitFor(() => expect(screen.getByText('domains.conflict')).toBeTruthy())
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.reloadDraft' }))
+    await fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'domains.cancel' }))
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'Local edit')
+    await fireEvent.click(screen.getByRole('button', { name: /Remote edit/ }))
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'Local edit')
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.confirmDiscard' }))
+    await waitFor(() => expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'Remote edit'))
+    await fireEvent.update(screen.getByLabelText('domains.displayName'), 'Confirmed edit')
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.save' }))
+    await waitFor(() => expect(updateDomain).toHaveBeenLastCalledWith(expect.objectContaining({ expectedUpdatedAt: latest.updatedAt, displayName: 'Confirmed edit' })))
+  })
+
+  it('keeps unsaved changes when switching domains is canceled', async () => {
+    mount()
+    await fireEvent.click(screen.getByRole('button', { name: /Secondary/ }))
+    await fireEvent.update(screen.getByLabelText('domains.displayName'), 'My unsaved changes')
+    await fireEvent.click(screen.getByRole('button', { name: /Primary/ }))
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.cancel' }))
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'My unsaved changes')
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.save' }))
+    await waitFor(() => expect(updateDomain).toHaveBeenCalledWith(expect.objectContaining({ id: secondary.id, expectedUpdatedAt: secondary.updatedAt })))
+  })
+
+  it('asks before replacing an edited domain with a new-domain form', async () => {
+    mount()
+    await fireEvent.update(screen.getByLabelText('domains.displayName'), 'My changes')
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.add' }))
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'My changes')
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.confirmDiscard' }))
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', '')
+  })
+
+  it.each(['host', 'displayName', 'allowedGroups', 'enabled'] as const)('does not drop a new-domain %s draft when selecting a domain', async (field) => {
+    mount()
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.add' }))
+    if (field === 'host') await fireEvent.update(screen.getByLabelText('domains.host'), 'https://new.example.com')
+    if (field === 'displayName') await fireEvent.update(screen.getByLabelText('domains.displayName'), 'New domain')
+    if (field === 'allowedGroups') await fireEvent.click(screen.getByLabelText('domains.groups.user'))
+    if (field === 'enabled') await fireEvent.click(screen.getByLabelText('domains.enabled'))
+    await fireEvent.click(screen.getByRole('button', { name: /Secondary/ }))
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    await fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'domains.cancel' }))
+    expect(screen.getByText('domains.createTitle')).toBeTruthy()
+  })
+
+  it('keeps a conflicted draft when another reload fails, until a later confirmation succeeds', async () => {
+    const latest = { ...secondary, updatedAt: '2026-09-14T02:00:00Z' }
+    vi.mocked(updateDomain).mockRejectedValue(new ApiClientError(210103, 'conflict'))
+    state.refetch.mockRejectedValueOnce(new Error('offline')).mockRejectedValueOnce(new Error('still offline'))
+      .mockResolvedValueOnce({ isSuccess: false, data: undefined })
+      .mockImplementationOnce(async () => { state.data.value = { items: [primary, latest] }; return { isSuccess: true, data: state.data.value } })
+    mount()
+    await fireEvent.click(screen.getByRole('button', { name: /Secondary/ }))
+    await fireEvent.update(screen.getByLabelText('domains.displayName'), 'Keep this')
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.save' }))
+    await waitFor(() => expect(state.refetch).toHaveBeenCalledOnce())
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.reloadDraft' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.confirmDiscard' }))
+    await waitFor(() => expect(state.refetch).toHaveBeenCalledTimes(2))
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'Keep this')
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.confirmDiscard' }))
+    await waitFor(() => expect(state.refetch).toHaveBeenCalledTimes(3))
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.confirmDiscard' }))
+    await waitFor(() => expect(state.refetch).toHaveBeenCalledTimes(4))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('does not discard a conflicted draft when the confirmation is canceled during refresh', async () => {
+    let resolveRefresh!: (result: { isSuccess: true; data: { items: typeof primary[] } }) => void
+    const latest = { ...secondary, updatedAt: '2026-09-14T03:00:00Z' }
+    vi.mocked(updateDomain).mockRejectedValue(new ApiClientError(210103, 'conflict'))
+    state.refetch.mockRejectedValueOnce(new Error('offline')).mockImplementationOnce(() => new Promise((resolve) => { resolveRefresh = resolve }))
+    mount()
+    await fireEvent.click(screen.getByRole('button', { name: /Secondary/ }))
+    await fireEvent.update(screen.getByLabelText('domains.displayName'), 'Retain this')
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.save' }))
+    await waitFor(() => expect(state.refetch).toHaveBeenCalledOnce())
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.reloadDraft' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.confirmDiscard' }))
+    await waitFor(() => expect(state.refetch).toHaveBeenCalledTimes(2))
+    await fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'domains.cancel' }))
+    state.data.value = { items: [primary, latest] }
+    resolveRefresh({ isSuccess: true, data: state.data.value })
+    await nextTick()
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'Retain this')
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('keeps the draft if the selected domain disappears before discard confirmation', async () => {
+    mount()
+    await fireEvent.update(screen.getByLabelText('domains.displayName'), 'My changes')
+    await fireEvent.click(screen.getByRole('button', { name: /Secondary/ }))
+    state.data.value = { items: [primary] }
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.confirmDiscard' }))
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'My changes')
+  })
+
+  it('closes the discard dialog without dropping edits', async () => {
+    render(AdminDomainsPage, { global: { stubs: {
+      ...componentStubs,
+      VDialog: { props: ['modelValue'], emits: ['update:modelValue'], template: '<div v-if="modelValue" role="dialog"><button aria-label="close-discard" @click="$emit(\'update:modelValue\', false)" /><slot /></div>' },
+    } } })
+    await fireEvent.update(screen.getByLabelText('domains.displayName'), 'Keep me')
+    await fireEvent.click(screen.getByRole('button', { name: /Secondary/ }))
+    await fireEvent.click(screen.getByRole('button', { name: 'close-discard' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'Keep me')
   })
 
   it('switches the default using the selected domain revision', async () => {
