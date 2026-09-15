@@ -173,6 +173,26 @@ func TestServiceUpdatesLegacyDefaultWithoutRewritingItsAddress(t *testing.T) {
 	}
 }
 
+func TestServiceUpdatesUnparseableLegacyAddressMetadata(t *testing.T) {
+	service, pool, admin, _ := domainFixture(t)
+	ctx := t.Context()
+	if _, err := pool.Exec(ctx, `update domain set host = 'legacy_host' where is_default`); err != nil {
+		t.Fatalf("prepare legacy address: %v", err)
+	}
+	listing, err := service.List(ctx, admin)
+	if err != nil || len(listing.Items) != 1 {
+		t.Fatalf("list legacy address = %#v, %v", listing, err)
+	}
+	legacy := listing.Items[0]
+	updated, err := service.Update(ctx, admin, domain.UpdateInput{
+		ID: legacy.ID, Host: legacy.Host, DisplayName: "Renamed legacy", Enabled: true,
+		AllowedGroups: []string{"admin"}, ExpectedUpdatedAt: legacy.UpdatedAt,
+	})
+	if err != nil || updated.Host != legacy.Host || updated.DisplayName != "Renamed legacy" {
+		t.Fatalf("legacy metadata update = %#v, %v", updated, err)
+	}
+}
+
 func TestServiceUpdatesUnreferencedDefaultAddressAndSettingMirror(t *testing.T) {
 	service, pool, admin, _ := domainFixture(t)
 	listing, err := service.List(t.Context(), admin)

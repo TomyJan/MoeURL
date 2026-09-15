@@ -348,10 +348,7 @@ func LockShortLinkCreation(ctx context.Context, tx pgx.Tx) error {
 }
 
 func checkAuthorityConflict(ctx context.Context, queries *sqlc.Queries, host string, currentID uuid.UUID) error {
-	wanted, err := Authority(host)
-	if err != nil {
-		return err
-	}
+	wanted, wantedErr := Authority(host)
 	rows, err := queries.ListDomainHosts(ctx)
 	if err != nil {
 		return err
@@ -361,7 +358,7 @@ func checkAuthorityConflict(ctx context.Context, queries *sqlc.Queries, host str
 			continue
 		}
 		stored, err := Authority(row.Host)
-		if (err == nil && stored == wanted) || row.Host == host {
+		if (wantedErr == nil && err == nil && stored == wanted) || row.Host == host {
 			return ErrDomainConflict
 		}
 	}
