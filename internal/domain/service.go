@@ -62,11 +62,11 @@ func (s *Service) List(ctx context.Context, actor auth.CurrentUser) (ListResult,
 	return result, nil
 }
 
-// Available returns the permission-and-group-grant intersection for an authenticated user.
+// Available returns the permission-and-group-grant intersection or an empty selection for guests.
 func (s *Service) Available(ctx context.Context, actor auth.CurrentUser) (AvailableResult, error) {
 	result := AvailableResult{Items: []AvailableDomain{}}
 	if actor.ID == "" || actor.GroupKey == permission.GroupGuest {
-		return result, ErrPermissionDenied
+		return result, nil
 	}
 	if s.permissions == nil {
 		return result, ErrPermissionDenied

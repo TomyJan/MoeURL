@@ -44,6 +44,36 @@ func domainFixture(t *testing.T) (*domain.Service, *pgxpool.Pool, auth.CurrentUs
 		auth.CurrentUser{ID: uuid.NewString(), GroupKey: permission.GroupUser}
 }
 
+func TestAvailableDomainsReturnsEmptyForIneligibleActors(t *testing.T) {
+	_, pool, _, user := domainFixture(t)
+	service := domain.NewService(pool, permission.NewDatabaseService(pool))
+	for _, test := range []struct {
+		name  string
+		actor auth.CurrentUser
+	}{
+		{name: "anonymous", actor: auth.CurrentUser{}},
+		{name: "guest", actor: auth.CurrentUser{ID: uuid.NewString(), GroupKey: permission.GroupGuest}},
+		{name: "missing create permission", actor: user},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := service.Available(t.Context(), test.actor)
+			if err != nil || result.Items == nil || len(result.Items) != 0 {
+				t.Fatalf("available = %#v, error = %v", result, err)
+			}
+		})
+	}
+	if _, err := pool.Exec(t.Context(), `update user_group set permissions = '["short_link:create","domain:use_default"]' where key = 'user'`); err != nil {
+		t.Fatalf("grant create permission: %v", err)
+	}
+	if _, err := pool.Exec(t.Context(), `delete from domain_user_group where user_group_id = (select id from user_group where key = 'user')`); err != nil {
+		t.Fatalf("remove domain grants: %v", err)
+	}
+	result, err := service.Available(t.Context(), user)
+	if err != nil || result.Items == nil || len(result.Items) != 0 {
+		t.Fatalf("no granted domains = %#v, error = %v", result, err)
+	}
+}
+
 func TestServiceManagesDomainsWithAuthorizationAndOptimisticConcurrency(t *testing.T) {
 	service, pool, admin, user := domainFixture(t)
 	ctx := t.Context()
