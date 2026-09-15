@@ -97,9 +97,9 @@ export const messages = {
       settings: {
         panelTitle: '系统设置先沉淀边界',
         description:
-          '系统设置页暂不开放表单；域名仍通过初始化或部署配置维护，主题偏好由前端控制，并保留跟随系统、浅色和深色模式切换。',
+          '系统设置页暂不开放表单；短链域名可在域名管理页维护，系统访问域名仍通过初始化或部署配置维护。主题偏好由前端控制，并保留跟随系统、浅色和深色模式切换。',
         items: {
-          domains: '域名配置仍通过初始化和部署配置维护。',
+          domains: '短链域名可在域名管理页维护；系统访问域名仍通过初始化或部署配置维护。',
           preferences: '语言和主题偏好继续使用前端偏好组件。',
           deployment: '部署相关能力保留给后续版本完善。',
         },
@@ -608,9 +608,9 @@ export const messages = {
       settings: {
         panelTitle: 'System settings start as a clear boundary',
         description:
-          'The settings page does not expose forms yet. Domains remain managed through setup or deployment configuration, while theme preferences stay in the frontend with system, light, and dark modes.',
+          'The settings page does not expose forms yet. Short-link domains are managed on the domain management page; the system access domain remains configured during setup or deployment. Theme preferences stay in the frontend with system, light, and dark modes.',
         items: {
-          domains: 'Domain configuration still lives in setup and deployment config.',
+          domains: 'Short-link domains are managed on the domain management page; the system access domain remains configured during setup or deployment.',
           preferences: 'Language and theme preferences keep using shared frontend controls.',
           deployment: 'Deployment settings are reserved for later releases.',
         },
