@@ -39,7 +39,13 @@
           :disabled="mutation.isPending.value || domainQuery.isError.value"
           variant="outlined"
         />
-        <p v-if="domainQuery.isError.value && canCreateWithPermissions" role="alert">{{ t('shortLinkCreate.domainLoadFailed') }}</p>
+        <div v-if="domainQuery.isError.value && canCreateWithPermissions" role="alert">
+          {{ t('shortLinkCreate.domainLoadFailed') }}
+          <v-btn variant="text" @click="domainQuery.refetch()">{{ t('shortLinkCreate.retryDomains') }}</v-btn>
+        </div>
+        <p v-else-if="domainQuery.data.value && availableDomains.length === 0 && canCreateWithPermissions" role="status">
+          {{ t('shortLinkCreate.noAvailableDomains') }}
+        </p>
         <div v-if="canConfigureAccess" class="short-link-create-panel__advanced">
           <v-btn
             class="short-link-create-panel__advanced-toggle"
@@ -244,7 +250,7 @@ const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.i
 const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
 const canConfigureRedirect = computed(() => canUseIntermediate.value || canUseConfirmation.value)
 const canConfigureAccess = computed(() => canConfigureRedirect.value || canSetExpiration.value || canSetPassword.value)
-const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !canCreateShortLink.value)
+const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !canCreateWithPermissions.value)
 
 watch([canUseIntermediate, canUseConfirmation], () => {
   if (!canSubmitRedirectMode(redirectMode.value)) {

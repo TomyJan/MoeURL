@@ -176,6 +176,35 @@ describe('ShortLinkCreatePanel', () => {
     expect(screen.queryByText('https://go.example.com/abc123')).toBeNull()
   })
 
+  it('shows no permission warning while an authorized user waits for domains', () => {
+    setQueryResult(['short_link:create', 'domain:use_default'])
+    state.domainQueryResult = { data: ref(undefined), isPending: ref(true), isError: ref(false) }
+    mountPanel()
+    expect(screen.queryByText('shortLinkCreate.permissionRequired')).toBeNull()
+    expect(screen.queryByText('shortLinkCreate.noAvailableDomains')).toBeNull()
+    expect(screen.getByLabelText('shortLinkCreate.targetLabel')).toHaveProperty('disabled', true)
+  })
+
+  it('offers a retry rather than a permission warning when domains fail to load', async () => {
+    const refetch = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_default'])
+    state.domainQueryResult = { data: ref(undefined), isPending: ref(false), isError: ref(true), refetch }
+    mountPanel()
+    expect(screen.getByRole('alert').textContent).toContain('shortLinkCreate.domainLoadFailed')
+    expect(screen.queryByText('shortLinkCreate.permissionRequired')).toBeNull()
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkCreate.retryDomains' }))
+    expect(refetch).toHaveBeenCalledOnce()
+    expect(screen.getByLabelText('shortLinkCreate.targetLabel')).toHaveProperty('disabled', true)
+  })
+
+  it('explains an empty successful domain list without implying missing permissions', () => {
+    setQueryResult(['short_link:create', 'domain:use_default'])
+    state.domainQueryResult = { data: ref({ items: [] }), isPending: ref(false), isError: ref(false) }
+    mountPanel()
+    expect(screen.getByText('shortLinkCreate.noAvailableDomains')).toBeTruthy()
+    expect(screen.queryByText('shortLinkCreate.permissionRequired')).toBeNull()
+  })
+
   it('sends an explicit domain ID only when another authorized domain is selected', async () => {
     const mutate = vi.fn()
     setQueryResult(['short_link:create', 'domain:use_default', 'domain:use_assigned'])
