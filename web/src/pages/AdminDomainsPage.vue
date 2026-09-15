@@ -142,8 +142,10 @@ const mutation = useMutation({
       else {
         creating.value = false
         selectedID.value = result.domain.id
-        if (operation.type === 'default' && dirty()) expectedUpdatedAt = result.domain.updatedAt
-        else fillDraft(result.domain)
+        if (operation.type === 'default' && dirty()) {
+          draft.enabled = result.domain.enabled
+          expectedUpdatedAt = result.domain.updatedAt
+        } else fillDraft(result.domain)
       }
     }
     if (result.type === 'deleted' && deleteTarget.value?.id === result.id) deleteDialog.value = false

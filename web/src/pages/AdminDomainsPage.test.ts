@@ -296,6 +296,27 @@ describe('AdminDomainsPage', () => {
     })))
   })
 
+  it('reconciles a pending disable edit when its domain becomes the default', async () => {
+    const promoted = { ...secondary, isDefault: true, updatedAt: '2026-09-14T01:00:00Z' }
+    vi.mocked(setDefaultDomain).mockResolvedValue({ domain: promoted })
+    vi.mocked(updateDomain).mockResolvedValue({ domain: { ...promoted, displayName: 'Keep this name' } })
+    mount()
+    await fireEvent.click(screen.getByRole('button', { name: /Secondary/ }))
+    await fireEvent.update(screen.getByLabelText('domains.displayName'), 'Keep this name')
+    await fireEvent.click(screen.getByLabelText('domains.enabled'))
+    expect(screen.getByLabelText('domains.enabled')).toHaveProperty('checked', false)
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.setDefault' }))
+    await waitFor(() => expect(screen.getByText('domains.saved')).toBeTruthy())
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'Keep this name')
+    expect(screen.getByLabelText('domains.enabled')).toHaveProperty('checked', true)
+    expect(screen.getByLabelText('domains.enabled')).toHaveProperty('disabled', true)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'domains.save' })).toHaveProperty('disabled', false))
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.save' }))
+    await waitFor(() => expect(updateDomain).toHaveBeenCalledWith(expect.objectContaining({
+      id: secondary.id, expectedUpdatedAt: promoted.updatedAt, displayName: 'Keep this name', enabled: true,
+    })))
+  })
+
   it('blocks writes to the former default until the authoritative list refresh completes', async () => {
     const promoted = { ...secondary, isDefault: true, updatedAt: '2026-09-14T01:00:00Z' }
     const formerDefault = { ...primary, isDefault: false, updatedAt: '2026-09-14T01:00:01Z' }
