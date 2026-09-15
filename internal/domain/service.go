@@ -236,7 +236,11 @@ func (s *Service) SetDefault(ctx context.Context, actor auth.CurrentUser, input 
 		if err != nil {
 			return err
 		}
-		selected = domainFromRow(current, groups, false)
+		referenced, err := q.DomainHasReferences(ctx, current.ID)
+		if err != nil {
+			return err
+		}
+		selected = domainFromRow(current, groups, referenced)
 		return nil
 	})
 	return selected, err

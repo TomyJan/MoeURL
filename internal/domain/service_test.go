@@ -151,6 +151,10 @@ func TestServiceKeepsReferencedAddressAndDeletesOnlyUnreferencedDomain(t *testin
 	if err := service.Delete(t.Context(), admin, domain.ChangeInput{ID: unreferenced.ID, ExpectedUpdatedAt: unreferenced.UpdatedAt}); err != nil {
 		t.Fatalf("delete unused domain: %v", err)
 	}
+	selected, err := service.SetDefault(t.Context(), admin, domain.ChangeInput{ID: created.ID, ExpectedUpdatedAt: created.UpdatedAt})
+	if err != nil || !selected.Referenced {
+		t.Fatalf("set referenced domain as default = %#v, error = %v", selected, err)
+	}
 }
 
 func TestServiceUpdatesLegacyDefaultWithoutRewritingItsAddress(t *testing.T) {
