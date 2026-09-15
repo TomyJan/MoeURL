@@ -66,9 +66,20 @@ export function createRequireAdminAccess(loadCurrentUser = me): AccessGuard {
   })
 }
 
+/** Requires both administrative access and permission to manage domains. */
+function createRequireDomainManageAccess(loadCurrentUser = me): AccessGuard {
+  return createAccessGuard(loadCurrentUser, (user, loginRedirect) => {
+    if (user.permissions.includes('admin:access') && user.permissions.includes('domain:manage')) {
+      return true
+    }
+    return user.group === 'guest' ? loginRedirect : '/'
+  })
+}
+
 export const requireConsoleAccess = createRequireConsoleAccess()
 export const requireSignedIn = createRequireSignedIn()
 export const requireAdminAccess = createRequireAdminAccess()
+const requireDomainManageAccess = createRequireDomainManageAccess()
 
 export const routes: RouteRecordRaw[] = [
   // Keep the public homepage before the ConsoleShell parent: both records use '/', and vue-router resolves by definition order.
@@ -120,8 +131,8 @@ export const routes: RouteRecordRaw[] = [
       {
         path: '/admin/domain',
         component: () => import('@/pages/AdminDomainsPage.vue'),
-        meta: { requiresConsole: true, requiresAdmin: true },
-        beforeEnter: requireAdminAccess,
+        meta: { requiresConsole: true, requiresAdmin: true, requiresDomainManage: true },
+        beforeEnter: requireDomainManageAccess,
       },
       {
         path: '/admin/setting',
