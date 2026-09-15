@@ -218,6 +218,7 @@ func TestMultiDomainMigrationRoundTrip(t *testing.T) {
 		permission string
 		want       bool
 	}{
+		{group: "user", permission: "short_link:create", want: true},
 		{group: "user", permission: "domain:use_assigned", want: true},
 		{group: "admin", permission: "domain:use_assigned", want: true},
 		{group: "admin", permission: "domain:manage"},
