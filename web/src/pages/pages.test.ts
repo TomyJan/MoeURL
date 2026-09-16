@@ -155,6 +155,9 @@ vi.mock('@tanstack/vue-query', async () => {
     }),
     useQuery: vi.fn((options?: { enabled?: unknown; queryFn?: () => unknown; queryKey?: unknown }) => {
       state.queryKeys.push(options?.queryKey)
+      if (Array.isArray(options?.queryKey) && options.queryKey[0] === 'domain' && options.queryKey[1] === 'available') {
+        return { data: ref({ items: [{ id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true }] }), isError: ref(false), isPending: ref(false) }
+      }
       if (isRef(options?.queryKey)) {
         void options.queryKey.value
       }

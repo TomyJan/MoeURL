@@ -15,6 +15,7 @@ import (
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
+	"github.com/TomyJan/MoeURL/internal/domain"
 	"github.com/TomyJan/MoeURL/internal/event"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -87,7 +88,7 @@ func (s *RedirectService) SetAccessGrantCleanupPauseHook(hook func(context.Conte
 }
 
 // Open resolves the initial public request to either a target or an intermediate page.
-func (s *RedirectService) Open(ctx context.Context, slug string) (OpenResult, error) {
+func (s *RedirectService) Open(ctx context.Context, slug string, requestHost string) (OpenResult, error) {
 	slug = strings.ToLower(slug)
 	link, err := s.queries.GetShortLinkBySlug(ctx, slug)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -96,6 +97,9 @@ func (s *RedirectService) Open(ctx context.Context, slug string) (OpenResult, er
 	}
 	if err != nil {
 		return OpenResult{}, err
+	}
+	if !publicDomainMatches(link.DomainHost, link.DomainEnabled, link.DomainPurpose, requestHost) {
+		return OpenResult{}, ErrShortLinkMissing
 	}
 
 	shortLinkID := uuidFromPgtype(link.ID)
@@ -123,7 +127,7 @@ func (s *RedirectService) Open(ctx context.Context, slug string) (OpenResult, er
 }
 
 // Preview returns event-free, non-sensitive data for an intermediate page.
-func (s *RedirectService) Preview(ctx context.Context, slug string, accessToken string) (PreviewResult, error) {
+func (s *RedirectService) Preview(ctx context.Context, slug string, accessToken string, requestHost string) (PreviewResult, error) {
 	slug = strings.ToLower(slug)
 	link, err := s.queries.GetShortLinkBySlug(ctx, slug)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -131,6 +135,9 @@ func (s *RedirectService) Preview(ctx context.Context, slug string, accessToken 
 	}
 	if err != nil {
 		return PreviewResult{}, err
+	}
+	if !publicDomainMatches(link.DomainHost, link.DomainEnabled, link.DomainPurpose, requestHost) {
+		return PreviewResult{}, ErrShortLinkMissing
 	}
 	passwordEnabled := link.PasswordHash.Valid
 	if err := validateAccessConditions(link.Status, link.Expired, link.RedirectMode, !passwordEnabled); err != nil {
@@ -168,7 +175,7 @@ func (s *RedirectService) Preview(ctx context.Context, slug string, accessToken 
 }
 
 // Continue resolves the final target after rechecking all access conditions.
-func (s *RedirectService) Continue(ctx context.Context, slug string, accessToken string) (RedirectResult, error) {
+func (s *RedirectService) Continue(ctx context.Context, slug string, accessToken string, requestHost string) (RedirectResult, error) {
 	slug = strings.ToLower(slug)
 	link, err := s.queries.GetShortLinkBySlug(ctx, slug)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -177,6 +184,9 @@ func (s *RedirectService) Continue(ctx context.Context, slug string, accessToken
 	}
 	if err != nil {
 		return RedirectResult{}, err
+	}
+	if !publicDomainMatches(link.DomainHost, link.DomainEnabled, link.DomainPurpose, requestHost) {
+		return RedirectResult{}, ErrShortLinkMissing
 	}
 
 	shortLinkID := uuidFromPgtype(link.ID)
@@ -221,7 +231,7 @@ func (s *RedirectService) hasValidAccessGrant(ctx context.Context, shortLinkID p
 }
 
 // Unlock validates a password and returns a short-lived access grant.
-func (s *RedirectService) Unlock(ctx context.Context, slug string, password string) (AccessGrant, error) {
+func (s *RedirectService) Unlock(ctx context.Context, slug string, password string, requestHost string) (AccessGrant, error) {
 	if s.pool == nil {
 		return AccessGrant{}, errors.New("redirect service database is unavailable")
 	}
@@ -246,6 +256,9 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 	}
 	if err != nil {
 		return AccessGrant{}, err
+	}
+	if !publicDomainMatches(link.DomainHost, link.DomainEnabled, link.DomainPurpose, requestHost) {
+		return AccessGrant{}, ErrShortLinkMissing
 	}
 	if err := validateAccessConditions(link.Status, link.Expired, link.RedirectMode, false); err != nil {
 		return AccessGrant{}, err
@@ -303,6 +316,11 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 		return AccessGrant{}, err
 	}
 	return AccessGrant{Token: token, ExpiresAt: expiresAt}, nil
+}
+
+// publicDomainMatches refuses aliases and disabled domains without exposing the stored address.
+func publicDomainMatches(host string, enabled bool, purpose string, requestHost string) bool {
+	return enabled && purpose == "short_link" && domain.MatchesHost(host, requestHost)
 }
 
 // passwordMatchesInput rejects invalid password input before invoking hash verification.

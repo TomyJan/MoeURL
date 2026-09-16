@@ -167,6 +167,7 @@ jobs:
             -count=1 \
             ./internal/auth \
             ./internal/db \
+            ./internal/domain \
             ./internal/event \
             ./internal/http \
             ./internal/middleware \

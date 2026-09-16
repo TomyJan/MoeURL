@@ -95,6 +95,7 @@ func (s *Service) Setup(ctx context.Context, input SetupInput) error {
 		guestGroupID := uuid.New()
 		userGroupID := uuid.New()
 		adminGroupID := uuid.New()
+		domainID := uuid.New()
 
 		if err := insertGroup(ctx, tx, guestGroupID, "guest", "Guest", "Built-in guest group", []string{}, now); err != nil {
 			return err
@@ -123,7 +124,13 @@ func (s *Service) Setup(ctx context.Context, input SetupInput) error {
 		if _, err := tx.Exec(ctx, `
 			insert into domain (id, host, display_name, purpose, enabled, is_default, created_at, updated_at)
 			values ($1, $2, $2, 'short_link', true, true, $3, $3)
-		`, uuid.New(), strings.TrimSpace(input.ShortLinkDomain), now); err != nil {
+		`, domainID, strings.TrimSpace(input.ShortLinkDomain), now); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `
+			insert into domain_user_group (domain_id, user_group_id)
+			values ($1, $2), ($1, $3)
+		`, domainID, userGroupID, adminGroupID); err != nil {
 			return err
 		}
 

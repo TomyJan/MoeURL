@@ -896,6 +896,37 @@ type fakeRedirectService struct {
 	previewCalls   int
 	previewToken   string
 	continueToken  string
+	openHost       string
+	previewHost    string
+	unlockHost     string
+	continueHost   string
+}
+
+func TestRedirectHandlerPassesRealHostForEveryPublicAction(t *testing.T) {
+	service := &fakeRedirectService{
+		openResult:     shortlink.OpenResult{RequiresPassword: true, Slug: "hosted"},
+		continueResult: shortlink.RedirectResult{TargetURL: "https://target.example.com"},
+	}
+	handler := shortlink.NewRedirectHandler(service)
+	request := func(method, path, body string) *http.Request {
+		req := httptest.NewRequestWithContext(t.Context(), method, path, strings.NewReader(body))
+		req.Host = "go.example.com:8443"
+		req.Header.Set("X-Forwarded-Host", "attacker.example.com")
+		return req
+	}
+	handler.Open(httptest.NewRecorder(), request(http.MethodGet, "/hosted", ""), "hosted")
+	handler.PreviewPublic(httptest.NewRecorder(), request(http.MethodGet, "/api/v1/public/short-link/preview?slug=hosted", ""))
+	handler.PreviewScoped(httptest.NewRecorder(), request(http.MethodGet, "/go/hosted/preview", ""), "hosted")
+	handler.Unlock(httptest.NewRecorder(), request(http.MethodPost, "/go/hosted/unlock", `{"password":"guess"}`), "hosted")
+	handler.Continue(httptest.NewRecorder(), request(http.MethodGet, "/go/hosted/continue", ""), "hosted")
+	for name, got := range map[string]string{
+		"open": service.openHost, "preview": service.previewHost,
+		"unlock": service.unlockHost, "continue": service.continueHost,
+	} {
+		if got != "go.example.com:8443" {
+			t.Fatalf("%s request host = %q", name, got)
+		}
+	}
 }
 
 // int16Pointer returns a pointer to the supplied fixture value.
@@ -904,7 +935,8 @@ func int16Pointer(value int16) *int16 {
 }
 
 // Open returns the configured initial access result.
-func (f *fakeRedirectService) Open(context.Context, string) (shortlink.OpenResult, error) {
+func (f *fakeRedirectService) Open(_ context.Context, _ string, requestHost string) (shortlink.OpenResult, error) {
+	f.openHost = requestHost
 	if f.openErr != nil {
 		return shortlink.OpenResult{}, f.openErr
 	}
@@ -912,8 +944,9 @@ func (f *fakeRedirectService) Open(context.Context, string) (shortlink.OpenResul
 }
 
 // Preview returns the configured public preview result.
-func (f *fakeRedirectService) Preview(_ context.Context, _ string, accessToken string) (shortlink.PreviewResult, error) {
+func (f *fakeRedirectService) Preview(_ context.Context, _ string, accessToken string, requestHost string) (shortlink.PreviewResult, error) {
 	f.previewCalls++
+	f.previewHost = requestHost
 	f.previewToken = accessToken
 	if f.previewErr != nil {
 		return shortlink.PreviewResult{}, f.previewErr
@@ -922,8 +955,9 @@ func (f *fakeRedirectService) Preview(_ context.Context, _ string, accessToken s
 }
 
 // Continue returns the configured final redirect result.
-func (f *fakeRedirectService) Continue(_ context.Context, _ string, accessToken string) (shortlink.RedirectResult, error) {
+func (f *fakeRedirectService) Continue(_ context.Context, _ string, accessToken string, requestHost string) (shortlink.RedirectResult, error) {
 	f.continueCalls++
+	f.continueHost = requestHost
 	f.continueToken = accessToken
 	if f.continueErr != nil {
 		return shortlink.RedirectResult{}, f.continueErr
@@ -932,8 +966,9 @@ func (f *fakeRedirectService) Continue(_ context.Context, _ string, accessToken 
 }
 
 // Unlock returns the configured public access grant result.
-func (f *fakeRedirectService) Unlock(_ context.Context, slug string, _ string) (shortlink.AccessGrant, error) {
+func (f *fakeRedirectService) Unlock(_ context.Context, slug string, _ string, requestHost string) (shortlink.AccessGrant, error) {
 	f.unlockCalls++
+	f.unlockHost = requestHost
 	f.unlockSlug = slug
 	if f.unlockErr != nil {
 		return shortlink.AccessGrant{}, f.unlockErr

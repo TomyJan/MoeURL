@@ -9,7 +9,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
+	"github.com/TomyJan/MoeURL/internal/domain"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -34,6 +36,7 @@ const (
 )
 
 type Service struct {
+	pool        *pgxpool.Pool
 	queries     *sqlc.Queries
 	permissions permission.Resolver
 }
@@ -53,6 +56,7 @@ func NewServiceWithLogger(pool *pgxpool.Pool, permissions permission.Resolver, l
 		permissions = missingPermissionResolver{}
 	}
 	return &Service{
+		pool:        pool,
 		queries:     sqlc.New(pool),
 		permissions: permissions,
 	}
@@ -60,7 +64,18 @@ func NewServiceWithLogger(pool *pgxpool.Pool, permissions permission.Resolver, l
 
 // Create validates a target URL and creates an active short link for the caller.
 func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input CreateInput) (CreateResult, error) {
-	permissions, err := s.authorize(ctx, user, permission.ShortLinkCreate, permission.DomainUseDefault)
+	useDefault := input.DomainID == nil
+	required := permission.DomainUseDefault
+	domainID := uuid.Nil
+	if !useDefault {
+		required = permission.DomainUseAssigned
+		parsed, err := uuid.Parse(*input.DomainID)
+		if err != nil {
+			return CreateResult{}, ErrInvalidDomainID
+		}
+		domainID = parsed
+	}
+	permissions, err := s.authorize(ctx, user, permission.ShortLinkCreate, required)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -68,11 +83,6 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 		return CreateResult{}, err
 	}
 	accessConfig, err := s.createAccessConfig(ctx, permissions, input)
-	if err != nil {
-		return CreateResult{}, err
-	}
-
-	domain, err := s.queries.GetDefaultShortLinkDomain(ctx)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -91,17 +101,50 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 			continue
 		}
 
-		created, err := s.queries.CreateShortLink(ctx, sqlc.CreateShortLinkParams{
-			ID:                       uuidToPgtype(uuid.New()),
-			OwnerID:                  uuidToPgtype(ownerID),
-			DomainID:                 domain.ID,
-			Slug:                     slug,
-			TargetUrl:                input.TargetURL,
-			Status:                   shortLinkStatusActive,
-			RedirectMode:             accessConfig.redirectMode,
-			IntermediateDelaySeconds: accessConfig.intermediateDelaySeconds,
-			ExpiresAt:                accessConfig.expiresAt,
-			PasswordHash:             accessConfig.passwordHash,
+		var result CreateResult
+		err = appdb.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+			if err := domain.LockShortLinkCreation(ctx, tx); err != nil {
+				return err
+			}
+			queries := s.queries.WithTx(tx)
+			domain, err := queries.GetGrantedShortLinkDomainForCreate(ctx, sqlc.GetGrantedShortLinkDomainForCreateParams{
+				GroupKey: user.GroupKey, RequiredPermission: required,
+				UseDefault: useDefault, DomainID: uuidToPgtype(domainID),
+			})
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrDomainUnavailable
+			}
+			if err != nil {
+				return err
+			}
+			created, err := queries.CreateShortLink(ctx, sqlc.CreateShortLinkParams{
+				ID:                       uuidToPgtype(uuid.New()),
+				OwnerID:                  uuidToPgtype(ownerID),
+				DomainID:                 domain.ID,
+				Slug:                     slug,
+				TargetUrl:                input.TargetURL,
+				Status:                   shortLinkStatusActive,
+				RedirectMode:             accessConfig.redirectMode,
+				IntermediateDelaySeconds: accessConfig.intermediateDelaySeconds,
+				ExpiresAt:                accessConfig.expiresAt,
+				PasswordHash:             accessConfig.passwordHash,
+			})
+			if err != nil {
+				return err
+			}
+			shortLink := ShortLink{
+				ID:        uuidFromPgtype(created.ID),
+				URL:       buildShortLinkURL(domain.Host, created.Slug),
+				Slug:      created.Slug,
+				TargetURL: created.TargetUrl,
+				Status:    created.Status,
+				CreatedAt: created.CreatedAt.Time,
+			}
+			shortLink.setAccessConfig(created.RedirectMode, created.IntermediateDelaySeconds, created.ExpiresAt, accessConfigOptions{
+				expired: created.Expired, passwordEnabled: created.PasswordHash.Valid,
+			})
+			result = CreateResult{ShortLink: shortLink}
+			return nil
 		})
 		if isUniqueViolation(err) {
 			continue
@@ -109,20 +152,7 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 		if err != nil {
 			return CreateResult{}, err
 		}
-
-		shortLink := ShortLink{
-			ID:        uuidFromPgtype(created.ID),
-			URL:       buildShortLinkURL(domain.Host, created.Slug),
-			Slug:      created.Slug,
-			TargetURL: created.TargetUrl,
-			Status:    created.Status,
-			CreatedAt: created.CreatedAt.Time,
-		}
-		shortLink.setAccessConfig(created.RedirectMode, created.IntermediateDelaySeconds, created.ExpiresAt, accessConfigOptions{
-			expired:         created.Expired,
-			passwordEnabled: created.PasswordHash.Valid,
-		})
-		return CreateResult{ShortLink: shortLink}, nil
+		return result, nil
 	}
 
 	return CreateResult{}, ErrSlugConflict
@@ -251,7 +281,7 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 		return CreateResult{}, err
 	}
 
-	domain, err := s.queries.GetDefaultShortLinkDomain(ctx)
+	domain, err := s.queries.GetShortLinkDomainByID(ctx, updated.DomainID)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -429,7 +459,7 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 		return CreateResult{}, err
 	}
 
-	domain, err := s.queries.GetDefaultShortLinkDomain(ctx)
+	domain, err := s.queries.GetShortLinkDomainByID(ctx, updated.DomainID)
 	if err != nil {
 		return CreateResult{}, err
 	}

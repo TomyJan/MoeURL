@@ -17,6 +17,8 @@ const (
 	ShortLinkUpdateAll       = "short_link:update_all"
 	ShortLinkDeleteAll       = "short_link:delete_all"
 	DomainUseDefault         = "domain:use_default"
+	DomainUseAssigned        = "domain:use_assigned"
+	DomainManage             = "domain:manage"
 	AdminAccess              = "admin:access"
 )
 
@@ -30,6 +32,7 @@ var UserPermissions = []string{
 	ShortLinkSetPassword,
 	ShortLinkUseConfirmation,
 	DomainUseDefault,
+	DomainUseAssigned,
 }
 
 var AdminPermissions = []string{
@@ -45,5 +48,7 @@ var AdminPermissions = []string{
 	ShortLinkUpdateAll,
 	ShortLinkDeleteAll,
 	DomainUseDefault,
+	DomainUseAssigned,
+	DomainManage,
 	AdminAccess,
 }

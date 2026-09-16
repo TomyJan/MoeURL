@@ -37,6 +37,7 @@ type AccessGrant struct {
 
 type CreateInput struct {
 	TargetURL                string           `json:"targetUrl"`
+	DomainID                 *string          `json:"domainId,omitempty"`
 	RedirectMode             string           `json:"redirectMode"`
 	IntermediateDelaySeconds *int16           `json:"intermediateDelaySeconds"`
 	Expiration               *ExpirationInput `json:"expiration"`

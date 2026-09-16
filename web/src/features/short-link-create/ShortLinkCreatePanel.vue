@@ -31,6 +31,21 @@
             {{ t('shortLinkCreate.submit') }}
           </v-btn>
         </div>
+        <v-select
+          v-if="availableDomains.length > 1"
+          v-model="domainChoice"
+          :items="domainOptions"
+          :label="t('shortLinkCreate.domainLabel')"
+          :disabled="mutation.isPending.value || domainQuery.isError.value"
+          variant="outlined"
+        />
+        <div v-if="domainQuery.isError.value && canCreateWithPermissions" role="alert">
+          {{ t('shortLinkCreate.domainLoadFailed') }}
+          <v-btn variant="text" @click="domainQuery.refetch()">{{ t('shortLinkCreate.retryDomains') }}</v-btn>
+        </div>
+        <p v-else-if="domainQuery.data.value && availableDomains.length === 0 && canCreateWithPermissions" role="status">
+          {{ t('shortLinkCreate.noAvailableDomains') }}
+        </p>
         <div v-if="canConfigureAccess" class="short-link-create-panel__advanced">
           <v-btn
             class="short-link-create-panel__advanced-toggle"
@@ -173,6 +188,7 @@ import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { me } from '@/entities/auth/api'
+import { availableDomainQueryKey, listAvailableDomains } from '@/entities/domain/api'
 import { createShortLink } from '@/entities/short-link/api'
 import type { CreateShortLinkInput, RedirectMode } from '@/entities/short-link/model'
 import ShortLinkQrDialog from '@/features/short-link-qr/ShortLinkQrDialog.vue'
@@ -205,27 +221,44 @@ const intermediateDelaySeconds = ref(5)
 const expirationEnabled = ref(false)
 const expiresAt = ref('')
 const passwordEnabled = ref(false)
+const selectedDomainId = ref('')
 const passwordField = useTemplateRef<{ $el: globalThis.Element }>('passwordField')
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,
 })
+const domainQuery = useQuery({ queryKey: availableDomainQueryKey, queryFn: listAvailableDomains, retry: false })
 const currentUser = computed(() => currentUserQuery.data.value?.user)
 const hasResolvedCurrentUser = computed(() => currentUserQuery.data.value !== undefined)
-const canCreateShortLink = computed(() =>
-  Boolean(currentUser.value?.permissions.includes('short_link:create') && currentUser.value?.permissions.includes('domain:use_default')),
-)
+const canCreateWithPermissions = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:create') &&
+  (currentUser.value?.permissions.includes('domain:use_default') || currentUser.value?.permissions.includes('domain:use_assigned'))))
+const availableDomains = computed(() => domainQuery.data.value?.items ?? [])
+const canUseDefaultDomain = computed(() => Boolean(currentUser.value?.permissions.includes('domain:use_default')))
+const domainOptions = computed(() => availableDomains.value.map((item) => ({ title: `${item.displayName} (${item.host})`, value: item.isDefault && canUseDefaultDomain.value ? '' : item.id })))
+const fallbackDomainId = computed(() => {
+  if (canUseDefaultDomain.value && availableDomains.value.some((item) => item.isDefault)) return ''
+  // The selector and submission path are only active when at least one domain is available.
+  return (availableDomains.value.find((item) => item.isDefault) ?? availableDomains.value[0])!.id
+})
+const domainChoice = computed({
+  get: () => availableDomains.value.some((item) => item.id === selectedDomainId.value) ? selectedDomainId.value : fallbackDomainId.value,
+  set: (id: string) => { selectedDomainId.value = id },
+})
+const canCreateShortLink = computed(() => canCreateWithPermissions.value && !domainQuery.isError.value && availableDomains.value.length > 0)
 const { canUseIntermediate, canUseConfirmation, canSubmitRedirectMode } = useRedirectModePermissions(currentUser)
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
 const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
 const canConfigureRedirect = computed(() => canUseIntermediate.value || canUseConfirmation.value)
 const canConfigureAccess = computed(() => canConfigureRedirect.value || canSetExpiration.value || canSetPassword.value)
-const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !canCreateShortLink.value)
+const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !canCreateWithPermissions.value)
 
 watch([canUseIntermediate, canUseConfirmation], () => {
   if (!canSubmitRedirectMode(redirectMode.value)) {
     redirectMode.value = 'direct'
   }
+})
+watch(availableDomains, (items) => {
+  if (selectedDomainId.value && !items.some(({ id }) => id === selectedDomainId.value)) selectedDomainId.value = ''
 })
 
 const mutation = useMutation({
@@ -316,6 +349,7 @@ function submitValidatedInput(): boolean {
   }
 
   const input: CreateShortLinkInput = { targetUrl: targetUrlResult.data }
+  if (domainChoice.value) input.domainId = domainChoice.value
   if (canSubmitRedirectMode(redirectMode.value)) {
     input.redirectMode = redirectMode.value
   }
@@ -358,6 +392,7 @@ function resetInputFields() {
   expiresAt.value = ''
   clearPasswordInput()
   passwordEnabled.value = false
+  selectedDomainId.value = ''
 }
 
 /** Resolves the transient native password input without copying it into reactive state. */

@@ -10,6 +10,12 @@ function readBackendPermissionCatalog(): Array<{ key: string }> {
 }
 
 describe('i18n', () => {
+  it('labels domain administration and selection in both locales', () => {
+    expect(messages['zh-CN'].domains.title).toBeTruthy()
+    expect(messages.en.domains.title).toBeTruthy()
+    expect(messages['zh-CN'].shortLinkCreate.domainLabel).toBeTruthy()
+    expect(messages.en.shortLinkCreate.domainLabel).toBeTruthy()
+  })
   it('labels the OIDC provider list in both supported locales', () => {
     expect(messages['zh-CN'].oidc.providerListLabel).toBe('OIDC 提供商列表')
     expect(messages.en.oidc.providerListLabel).toBe('OIDC providers')
@@ -85,11 +91,13 @@ describe('i18n', () => {
 
   it('keeps deployment-managed domains separate from frontend theme preferences', () => {
     expect(messages['zh-CN'].placeholder.settings.description).toBe(
-      '系统设置页暂不开放表单；域名仍通过初始化或部署配置维护，主题偏好由前端控制，并保留跟随系统、浅色和深色模式切换。',
+      '系统设置页暂不开放表单；短链域名可在域名管理页维护，系统访问域名仍通过初始化或部署配置维护。主题偏好由前端控制，并保留跟随系统、浅色和深色模式切换。',
     )
     expect(messages.en.placeholder.settings.description).toBe(
-      'The settings page does not expose forms yet. Domains remain managed through setup or deployment configuration, while theme preferences stay in the frontend with system, light, and dark modes.',
+      'The settings page does not expose forms yet. Short-link domains are managed on the domain management page; the system access domain remains configured during setup or deployment. Theme preferences stay in the frontend with system, light, and dark modes.',
     )
+    expect(messages['zh-CN'].placeholder.settings.items.domains).toBe('短链域名可在域名管理页维护；系统访问域名仍通过初始化或部署配置维护。')
+    expect(messages.en.placeholder.settings.items.domains).toBe('Short-link domains are managed on the domain management page; the system access domain remains configured during setup or deployment.')
   })
 
   it('defines bilingual setup-token guidance and errors', () => {
