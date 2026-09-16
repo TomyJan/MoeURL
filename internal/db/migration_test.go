@@ -169,20 +169,16 @@ func TestMultiDomainMigrationRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read default domain grants: %v", err)
 	}
+	defer rows.Close()
 	for rows.Next() {
 		var key string
 		if err := rows.Scan(&key); err != nil {
-			_ = rows.Close()
 			t.Fatalf("scan default domain grant: %v", err)
 		}
 		groupKeys = append(groupKeys, key)
 	}
 	if err := rows.Err(); err != nil {
-		_ = rows.Close()
 		t.Fatalf("iterate default domain grants: %v", err)
-	}
-	if err := rows.Close(); err != nil {
-		t.Fatalf("close default domain grants: %v", err)
 	}
 	if !reflect.DeepEqual(groupKeys, []string{"admin", "user"}) {
 		t.Fatalf("default domain grants = %v, want admin and user", groupKeys)
