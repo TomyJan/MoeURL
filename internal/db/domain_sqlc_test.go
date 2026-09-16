@@ -133,12 +133,12 @@ func TestDomainQueriesProtectDefaultAndReferences(t *testing.T) {
 	if referenced, err := queries.DomainHasReferences(ctx, old.ID); err != nil || !referenced {
 		t.Fatalf("soft-deleted link reference = %v, %v", referenced, err)
 	}
-	if count, err := queries.DeleteManagedDomain(ctx, sqlc.DeleteManagedDomainParams{ID: old.ID, UpdatedAt: old.UpdatedAt}); err != nil || count != 0 {
-		t.Fatalf("delete referenced domain = %d, %v", count, err)
-	}
 	currentOld, err := queries.GetManagedDomainForUpdate(ctx, old.ID)
 	if err != nil {
 		t.Fatalf("load former default: %v", err)
+	}
+	if count, err := queries.DeleteManagedDomain(ctx, sqlc.DeleteManagedDomainParams{ID: old.ID, UpdatedAt: currentOld.UpdatedAt}); err != nil || count != 0 {
+		t.Fatalf("delete referenced domain = %d, %v", count, err)
 	}
 	if _, err := queries.MakeDefaultShortLinkDomain(ctx, sqlc.MakeDefaultShortLinkDomainParams{
 		ID: old.ID, UpdatedAt: currentOld.UpdatedAt,
