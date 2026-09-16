@@ -213,7 +213,35 @@ rollback_compose() {
     "$@"
 }
 rollback_compose config >/dev/null
-rollback_compose config --volumes | grep -Fx postgres-data >/dev/null
+command -v jq >/dev/null 2>&1 || {
+  echo 'jq is required to compare the target and rollback postgres-data configuration' >&2
+  exit 1
+}
+set -o pipefail
+resolved_postgres_storage() {
+  compose_command="$1"
+  compose_label="$2"
+  "$compose_command" config --format json | jq -e -cS '
+    [.services.postgres.volumes[]? | select(.target == "/var/lib/postgresql")] as $mounts
+    | select(
+        (.volumes | type == "object")
+        and (.volumes | has("postgres-data"))
+        and (($mounts | length) == 1)
+        and ($mounts[0].type == "volume")
+        and ($mounts[0].source == "postgres-data")
+      )
+    | {volume: .volumes["postgres-data"], mount: $mounts[0]}
+  ' || {
+    echo "$compose_label compose postgres-data configuration could not be validated" >&2
+    return 1
+  }
+}
+target_postgres_storage="$(resolved_postgres_storage target_compose target)" || exit 1
+rollback_postgres_storage="$(resolved_postgres_storage rollback_compose rollback)" || exit 1
+test "$target_postgres_storage" = "$rollback_postgres_storage" || {
+  echo 'target and rollback postgres-data configurations differ' >&2
+  exit 1
+}
 test "$(docker image inspect -f '{{.Id}}' "$rollback_image_tag")" = "$running_image_id"
 docker image tag "$rollback_image_tag" "$service_image_ref"
 test "$(docker image inspect -f '{{.Id}}' "$service_image_ref")" = "$running_image_id"
@@ -225,7 +253,7 @@ rollback_compose up --detach --no-build --force-recreate --no-deps app || {
 
 只有当保存的 tag 和 image ID 已无法从本机镜像存储恢复时，才使用 `UPGRADE_FROM_COMMIT` 检出升级前提交并通过 `rollback_compose build app` 重建；该路径依赖源码、构建依赖和外部下载，不是首选回退方式。不能依赖浮动分支名，也不得改用旧提交中的 `docker-compose.yml`，否则会重新引入旧部署默认值。重建完成后仍应记录新 image ID，再使用 `--force-recreate --no-deps` 只替换 App。
 
-前向和回退命令使用相同的 `--project-name`、`--project-directory`，并在切换前验证相同的 `postgres-data` 逻辑卷键，因此继续操作同一 Compose project 与数据库命名卷。回退 App 后重复 readiness 和业务验收，包含正确 Host 可达、错误 Host 与已停用域名不可达的检查。若需要恢复升级前备份：
+前向和回退命令使用相同的 `--project-name`、`--project-directory`。切换前通过 `config --format json` 核对两者解析后的顶层 `postgres-data` 卷定义，以及 PostgreSQL 服务挂载到 `/var/lib/postgresql` 的完整卷配置；只有安全字段的规范化结果完全一致时才继续，完整渲染配置不得输出到终端或写入日志。回退 App 后重复 readiness 和业务验收，包含正确 Host 可达、错误 Host 与已停用域名不可达的检查。若需要恢复升级前备份：
 
 > **数据破坏警告：** 用备份覆盖生产数据库会丢失备份创建之后的全部写入。执行前必须停止 App、确认 Compose project、保存当前失败数据库的独立备份，并由负责人确认恢复点目标。
 
