@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { apiGet, apiPost } from '@/shared/api/client'
+import { INVALID_REQUEST_CODE } from '@/shared/api/error-codes'
 import { availableDomainQueryKey, createDomain, deleteDomain, listAvailableDomains, listDomains, setDefaultDomain, updateDomain } from './api'
 import type { DomainDraftInput } from './api'
 
-vi.mock('@/shared/api/client', () => ({ apiGet: vi.fn(), apiPost: vi.fn() }))
+vi.mock('@/shared/api/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/shared/api/client')>()
+  return { ...actual, apiGet: vi.fn(), apiPost: vi.fn() }
+})
 
 const domain = {
   id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary',
@@ -31,7 +35,7 @@ describe('domain API', () => {
     [{ ...domain, allowedGroups: ['user', 'user'] }],
   ])('rejects malformed, duplicate or ambiguous managed domains', async (...items) => {
     vi.mocked(apiGet).mockResolvedValue({ code: 0, message: 'OK', meta: {}, data: { items } })
-    await expect(listDomains()).rejects.toBeTruthy()
+    await expect(listDomains()).rejects.toEqual(expect.objectContaining({ code: INVALID_REQUEST_CODE }))
   })
 
   it('parses the available domain projection and rejects duplicated choices', async () => {
@@ -41,7 +45,7 @@ describe('domain API', () => {
     expect(apiGet).toHaveBeenCalledWith('/domain/available')
     expect(availableDomainQueryKey).toEqual(['domain', 'available'])
     vi.mocked(apiGet).mockResolvedValue({ code: 0, message: 'OK', meta: {}, data: { items: [available, available] } })
-    await expect(listAvailableDomains()).rejects.toBeTruthy()
+    await expect(listAvailableDomains()).rejects.toEqual(expect.objectContaining({ code: INVALID_REQUEST_CODE }))
   })
 
   it('preserves legacy stored hosts and detects ambiguous invalid legacy authorities', async () => {
@@ -51,7 +55,7 @@ describe('domain API', () => {
       { ...domain, host: '%invalid' },
       { ...domain, id: '00000000-0000-4000-8000-000000000802', host: '%INVALID' },
     ] } })
-    await expect(listDomains()).rejects.toBeTruthy()
+    await expect(listDomains()).rejects.toEqual(expect.objectContaining({ code: INVALID_REQUEST_CODE }))
   })
 
   it('sends optimistic mutations and validates their responses', async () => {
@@ -69,6 +73,6 @@ describe('domain API', () => {
     await expect(deleteDomain(change)).resolves.toBeUndefined()
     expect(apiPost).toHaveBeenLastCalledWith('/admin/domain/delete', change)
     vi.mocked(apiPost).mockResolvedValue({ code: 0, message: 'OK', meta: {}, data: { deleted: false } })
-    await expect(deleteDomain(change)).rejects.toBeTruthy()
+    await expect(deleteDomain(change)).rejects.toEqual(expect.objectContaining({ code: INVALID_REQUEST_CODE }))
   })
 })
