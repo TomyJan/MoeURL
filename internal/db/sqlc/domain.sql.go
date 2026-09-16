@@ -131,7 +131,8 @@ where domain.enabled and domain.purpose = 'short_link'
   and user_group.permissions ? 'short_link:create'
   and user_group.permissions ? $2::text
   and (($3::boolean and domain.is_default)
-       or (not $3::boolean and domain.id = $4::uuid))
+       or (not $3::boolean and not domain.is_default
+           and domain.id = $4::uuid))
 for share of domain, domain_user_group, user_group
 `
 
@@ -222,7 +223,8 @@ join user_group on user_group.id = domain_user_group.user_group_id
 where user_group.key = $1
   and user_group.builtin = true
   and domain.enabled = true and domain.purpose = 'short_link'
-  and ((domain.is_default and $2::boolean) or $3::boolean)
+  and ((domain.is_default and $2::boolean)
+       or (not domain.is_default and $3::boolean))
 order by domain.is_default desc, domain.created_at, domain.id
 `
 

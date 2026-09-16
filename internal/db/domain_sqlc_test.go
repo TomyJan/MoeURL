@@ -21,7 +21,7 @@ func TestDomainQueriesFilterGrantsAndReferences(t *testing.T) {
 	assignedID := uuid.New()
 	if _, err := pool.Exec(ctx, `
 		insert into user_group (id, key, name, permissions, builtin, created_at, updated_at)
-		values ($1, 'user', 'User', '["domain:use_default","domain:use_assigned"]'::jsonb, true, now(), now())
+		values ($1, 'user', 'User', '["short_link:create","domain:use_default","domain:use_assigned"]'::jsonb, true, now(), now())
 	`, userGroupID); err != nil {
 		t.Fatalf("prepare user group: %v", err)
 	}
@@ -50,8 +50,21 @@ func TestDomainQueriesFilterGrantsAndReferences(t *testing.T) {
 	available, err = queries.ListAvailableShortLinkDomains(ctx, sqlc.ListAvailableShortLinkDomainsParams{
 		GroupKey: "user", CanDefault: false, CanAssigned: true,
 	})
-	if err != nil || len(available) != 2 {
+	if err != nil || len(available) != 1 || available[0].ID != uuidToPgtype(assignedID) {
 		t.Fatalf("explicitly selectable domains = %#v, error = %v", available, err)
+	}
+	if _, err := queries.GetGrantedShortLinkDomainForCreate(ctx, sqlc.GetGrantedShortLinkDomainForCreateParams{
+		GroupKey: "user", RequiredPermission: "domain:use_assigned", UseDefault: false,
+		DomainID: uuidToPgtype(defaultID),
+	}); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("explicit default selection error = %v, want pgx.ErrNoRows", err)
+	}
+	selected, err := queries.GetGrantedShortLinkDomainForCreate(ctx, sqlc.GetGrantedShortLinkDomainForCreateParams{
+		GroupKey: "user", RequiredPermission: "domain:use_assigned", UseDefault: false,
+		DomainID: uuidToPgtype(assignedID),
+	})
+	if err != nil || selected.ID != uuidToPgtype(assignedID) {
+		t.Fatalf("explicit assigned selection = %#v, error = %v", selected, err)
 	}
 	grants, err := queries.ListDomainGrantKeys(ctx, uuidToPgtype(assignedID))
 	if err != nil || len(grants) != 1 || grants[0] != "user" {
@@ -63,7 +76,7 @@ func TestDomainQueriesFilterGrantsAndReferences(t *testing.T) {
 	available, err = queries.ListAvailableShortLinkDomains(ctx, sqlc.ListAvailableShortLinkDomainsParams{
 		GroupKey: "user", CanDefault: false, CanAssigned: true,
 	})
-	if err != nil || len(available) != 1 || available[0].ID != uuidToPgtype(defaultID) {
+	if err != nil || len(available) != 0 {
 		t.Fatalf("ungranted domain should be unavailable: %#v, %v", available, err)
 	}
 }

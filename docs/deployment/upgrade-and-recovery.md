@@ -242,6 +242,15 @@ DEPLOY_PROJECT="$(cat "$DEPLOY_STATE/project-name")"
 rollback_image_tag="$(cat "$DEPLOY_STATE/rollback-image-tag")"
 running_image_id="$(cat "$DEPLOY_STATE/rollback-image-id")"
 service_image_ref="$(cat "$DEPLOY_STATE/service-image-ref")"
+TARGET_COMPOSE="$DEPLOY_ROOT/docker-compose.yml"
+target_compose() {
+  docker compose \
+    --project-name "$DEPLOY_PROJECT" \
+    --project-directory "$DEPLOY_ROOT" \
+    --env-file "$DEPLOY_ROOT/.env" \
+    -f "$TARGET_COMPOSE" \
+    "$@"
+}
 rollback_compose() {
   docker compose \
     --project-name "$DEPLOY_PROJECT" \

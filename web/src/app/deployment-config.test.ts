@@ -553,6 +553,27 @@ describe('deployment configuration', () => {
     expect(storageComparison).toBeLessThan(stopApp)
   })
 
+  it('recreates the target compose helper in the standalone rollback snippet', () => {
+    const upgradeGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/upgrade-and-recovery.md'),
+      'utf8',
+    )
+    const rollbackSnippet = upgradeGuide.indexOf('UPGRADE_FROM_COMMIT="$(cat "$DEPLOY_STATE/upgrade-from-commit")"')
+    const targetFile = upgradeGuide.indexOf('TARGET_COMPOSE="$DEPLOY_ROOT/docker-compose.yml"', rollbackSnippet)
+    const targetHelper = upgradeGuide.indexOf('target_compose()', rollbackSnippet)
+    const targetStorage = upgradeGuide.indexOf(
+      'target_postgres_storage="$(resolved_postgres_storage target_compose target)"',
+      rollbackSnippet,
+    )
+
+    for (const marker of [rollbackSnippet, targetFile, targetHelper, targetStorage]) {
+      expect(marker).toBeGreaterThanOrEqual(0)
+    }
+    expect(rollbackSnippet).toBeLessThan(targetFile)
+    expect(targetFile).toBeLessThan(targetHelper)
+    expect(targetHelper).toBeLessThan(targetStorage)
+  })
+
   it('quotes the Nginx GeoIP country-code regular expression', () => {
     const deploymentGuide = readFileSync(
       resolve(repositoryRoot, 'docs/deployment/single-host-compose.md'),

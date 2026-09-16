@@ -14,7 +14,8 @@ where domain.enabled and domain.purpose = 'short_link'
   and user_group.permissions ? 'short_link:create'
   and user_group.permissions ? sqlc.arg(required_permission)::text
   and ((sqlc.arg(use_default)::boolean and domain.is_default)
-       or (not sqlc.arg(use_default)::boolean and domain.id = sqlc.arg(domain_id)::uuid))
+       or (not sqlc.arg(use_default)::boolean and not domain.is_default
+           and domain.id = sqlc.arg(domain_id)::uuid))
 for share of domain, domain_user_group, user_group;
 
 -- name: GetShortLinkDomainByID :one
@@ -41,7 +42,8 @@ join user_group on user_group.id = domain_user_group.user_group_id
 where user_group.key = sqlc.arg(group_key)
   and user_group.builtin = true
   and domain.enabled = true and domain.purpose = 'short_link'
-  and ((domain.is_default and sqlc.arg(can_default)::boolean) or sqlc.arg(can_assigned)::boolean)
+  and ((domain.is_default and sqlc.arg(can_default)::boolean)
+       or (not domain.is_default and sqlc.arg(can_assigned)::boolean))
 order by domain.is_default desc, domain.created_at, domain.id;
 
 -- name: ListDomainGrantKeys :many
