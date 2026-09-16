@@ -74,6 +74,102 @@ func TestAvailableDomainsReturnsEmptyForIneligibleActors(t *testing.T) {
 	}
 }
 
+func TestServiceRejectsUnauthorizedInvalidAndMissingDomainOperations(t *testing.T) {
+	service, _, admin, user := domainFixture(t)
+	ctx := t.Context()
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+
+	if _, err := service.Create(ctx, user, domain.CreateInput{}); !errors.Is(err, domain.ErrPermissionDenied) {
+		t.Fatalf("unauthorized create error = %v", err)
+	}
+	for _, input := range []domain.CreateInput{
+		{Host: "http://public.example.com", DisplayName: "Invalid", AllowedGroups: []string{}},
+		{Host: "https://valid.example.com", DisplayName: "", AllowedGroups: []string{}},
+		{Host: "https://valid.example.com", DisplayName: "Valid", AllowedGroups: nil},
+		{Host: "https://valid.example.com", DisplayName: "Valid", AllowedGroups: []string{"user", "admin", "guest"}},
+		{Host: "https://valid.example.com", DisplayName: "Valid", AllowedGroups: []string{"user", "user"}},
+		{Host: "https://valid.example.com", DisplayName: "Valid", AllowedGroups: []string{"guest"}},
+	} {
+		if _, err := service.Create(ctx, admin, input); !errors.Is(err, domain.ErrInvalidInput) {
+			t.Fatalf("invalid create %#v error = %v", input, err)
+		}
+	}
+
+	if _, err := service.Update(ctx, user, domain.UpdateInput{}); !errors.Is(err, domain.ErrPermissionDenied) {
+		t.Fatalf("unauthorized update error = %v", err)
+	}
+	for _, input := range []domain.UpdateInput{
+		{ID: "invalid", ExpectedUpdatedAt: now},
+		{ID: uuid.NewString(), ExpectedUpdatedAt: "invalid"},
+	} {
+		if _, err := service.Update(ctx, admin, input); !errors.Is(err, domain.ErrInvalidInput) {
+			t.Fatalf("invalid update %#v error = %v", input, err)
+		}
+	}
+	missing := domain.UpdateInput{
+		ID: uuid.NewString(), Host: "https://missing.example.com", DisplayName: "Missing",
+		AllowedGroups: []string{}, Enabled: true, ExpectedUpdatedAt: now,
+	}
+	if _, err := service.Update(ctx, admin, missing); !errors.Is(err, domain.ErrDomainNotFound) {
+		t.Fatalf("missing update error = %v", err)
+	}
+	listing, err := service.List(ctx, admin)
+	if err != nil || len(listing.Items) != 1 {
+		t.Fatalf("list default = %#v, error = %v", listing, err)
+	}
+	current := listing.Items[0]
+	for _, input := range []domain.UpdateInput{
+		{ID: current.ID, Host: "http://public.example.com", DisplayName: current.DisplayName, AllowedGroups: current.AllowedGroups, Enabled: true, ExpectedUpdatedAt: current.UpdatedAt},
+		{ID: current.ID, Host: current.Host, DisplayName: "", AllowedGroups: current.AllowedGroups, Enabled: true, ExpectedUpdatedAt: current.UpdatedAt},
+	} {
+		if _, err := service.Update(ctx, admin, input); !errors.Is(err, domain.ErrInvalidInput) {
+			t.Fatalf("invalid existing update %#v error = %v", input, err)
+		}
+	}
+	conflicting, err := service.Create(ctx, admin, domain.CreateInput{
+		Host: "https://conflict.example.com", DisplayName: "Conflict", AllowedGroups: []string{}, Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("create conflict fixture: %v", err)
+	}
+	if _, err := service.Update(ctx, admin, domain.UpdateInput{
+		ID: conflicting.ID, Host: "https://go.example.com", DisplayName: conflicting.DisplayName,
+		AllowedGroups: conflicting.AllowedGroups, Enabled: true, ExpectedUpdatedAt: conflicting.UpdatedAt,
+	}); !errors.Is(err, domain.ErrDomainConflict) {
+		t.Fatalf("conflicting update error = %v", err)
+	}
+
+	if _, err := service.SetDefault(ctx, user, domain.ChangeInput{}); !errors.Is(err, domain.ErrPermissionDenied) {
+		t.Fatalf("unauthorized set-default error = %v", err)
+	}
+	if _, err := service.SetDefault(ctx, admin, domain.ChangeInput{ID: "invalid", ExpectedUpdatedAt: now}); !errors.Is(err, domain.ErrInvalidInput) {
+		t.Fatalf("invalid set-default error = %v", err)
+	}
+	if _, err := service.SetDefault(ctx, admin, domain.ChangeInput{ID: uuid.NewString(), ExpectedUpdatedAt: now}); !errors.Is(err, domain.ErrDomainNotFound) {
+		t.Fatalf("missing set-default error = %v", err)
+	}
+
+	if err := service.Delete(ctx, user, domain.ChangeInput{}); !errors.Is(err, domain.ErrPermissionDenied) {
+		t.Fatalf("unauthorized delete error = %v", err)
+	}
+	if err := service.Delete(ctx, admin, domain.ChangeInput{ID: "invalid", ExpectedUpdatedAt: now}); !errors.Is(err, domain.ErrInvalidInput) {
+		t.Fatalf("invalid delete error = %v", err)
+	}
+	if err := service.Delete(ctx, admin, domain.ChangeInput{ID: uuid.NewString(), ExpectedUpdatedAt: now}); !errors.Is(err, domain.ErrDomainNotFound) {
+		t.Fatalf("missing delete error = %v", err)
+	}
+	updated, err := service.Update(ctx, admin, domain.UpdateInput{
+		ID: conflicting.ID, Host: conflicting.Host, DisplayName: "Changed", AllowedGroups: conflicting.AllowedGroups,
+		Enabled: true, ExpectedUpdatedAt: conflicting.UpdatedAt,
+	})
+	if err != nil {
+		t.Fatalf("update stale-delete fixture: %v", err)
+	}
+	if err := service.Delete(ctx, admin, domain.ChangeInput{ID: updated.ID, ExpectedUpdatedAt: conflicting.UpdatedAt}); !errors.Is(err, domain.ErrVersionConflict) {
+		t.Fatalf("stale delete error = %v", err)
+	}
+}
+
 func TestServiceManagesDomainsWithAuthorizationAndOptimisticConcurrency(t *testing.T) {
 	service, pool, admin, user := domainFixture(t)
 	ctx := t.Context()
