@@ -12,6 +12,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/testdb"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 )
@@ -156,7 +157,7 @@ func TestServicePasswordConfigurationRoundTrip(t *testing.T) {
 		Password: &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "updated horse"},
 	})
 	require.NoError(t, err)
-	grant, err := shortlink.NewRedirectService(pool, nil).Unlock(ctx, created.ShortLink.Slug, "updated horse")
+	grant, err := shortlink.NewRedirectService(pool, nil).Unlock(ctx, created.ShortLink.Slug, "updated horse", "go.example.com")
 	require.NoError(t, err)
 	require.NotEmpty(t, grant.Token)
 
@@ -171,7 +172,20 @@ func TestServicePasswordConfigurationRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, cleared.ShortLink.PasswordEnabled)
 
-	admin := auth.CurrentUser{ID: user.ID, GroupKey: permission.GroupAdmin}
+	adminGroupID := uuid.NewString()
+	if _, err := pool.Exec(ctx, `
+		insert into user_group (id, key, name, permissions, builtin, created_at, updated_at)
+		values ($1, 'admin', 'Admin', $2::jsonb, true, now(), now())
+	`, adminGroupID, permissionsJSON(t, permission.AdminPermissions)); err != nil {
+		t.Fatalf("prepare admin group: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into domain_user_group (domain_id, user_group_id)
+		select id, $1 from domain where is_default
+	`, adminGroupID); err != nil {
+		t.Fatalf("grant default domain to admin: %v", err)
+	}
+	admin := insertShortLinkUserForGroup(t, ctx, pool, "password-admin", adminGroupID, uuid.NewString(), permission.GroupAdmin, permission.AdminPermissions)
 	adminCreated, err := service.Create(ctx, admin, shortlink.CreateInput{
 		TargetURL: "https://example.com/admin-protected",
 		Password:  &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "admin horse"},
@@ -220,7 +234,7 @@ func TestServicePasswordUpdatesInvalidateExistingAccessGrants(t *testing.T) {
 				Password:  &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "correct horse"},
 			})
 			require.NoError(t, err)
-			grant, err := redirectService.Unlock(ctx, created.ShortLink.Slug, "correct horse")
+			grant, err := redirectService.Unlock(ctx, created.ShortLink.Slug, "correct horse", "go.example.com")
 			require.NoError(t, err)
 
 			_, err = test.update(ctx, service, user, shortlink.UpdateInput{
@@ -228,7 +242,7 @@ func TestServicePasswordUpdatesInvalidateExistingAccessGrants(t *testing.T) {
 				Password: &shortlink.PasswordInput{Mode: shortlink.PasswordModeSet, Value: "updated horse"},
 			})
 			require.NoError(t, err)
-			_, err = redirectService.Continue(ctx, created.ShortLink.Slug, grant.Token)
+			_, err = redirectService.Continue(ctx, created.ShortLink.Slug, grant.Token, "go.example.com")
 			require.ErrorIs(t, err, shortlink.ErrPasswordRequired)
 		})
 	}
@@ -495,8 +509,8 @@ func TestServiceUpdateOwnShortLink(t *testing.T) {
 	assertCreatedAt(t, result.ShortLink)
 }
 
-// TestServiceUpdateReturnsDefaultDomainError verifies updates require the default domain.
-func TestServiceUpdateReturnsDefaultDomainError(t *testing.T) {
+// TestServiceUpdateKeepsOriginalDomainWhenDisabled verifies metadata updates do not depend on the current default.
+func TestServiceUpdateKeepsOriginalDomainWhenDisabled(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
 	insertShortLinkDefaultDomain(t, ctx, pool)
@@ -509,9 +523,9 @@ func TestServiceUpdateReturnsDefaultDomainError(t *testing.T) {
 	status := "disabled"
 	service := shortlink.NewService(pool, permission.NewService())
 
-	_, err = service.Update(ctx, user, shortlink.UpdateInput{ID: linkID, Status: &status})
-	if err == nil {
-		t.Fatal("expected default domain error")
+	updated, err := service.Update(ctx, user, shortlink.UpdateInput{ID: linkID, Status: &status})
+	if err != nil || updated.ShortLink.URL != "https://go.example.com/alice1" {
+		t.Fatalf("update URL after default disabled = %#v, %v", updated, err)
 	}
 }
 
@@ -771,8 +785,8 @@ func TestServiceAdminUpdateAndDeleteAnyShortLink(t *testing.T) {
 	}
 }
 
-// TestServiceAdminUpdateReturnsDefaultDomainError verifies admin updates require the default domain.
-func TestServiceAdminUpdateReturnsDefaultDomainError(t *testing.T) {
+// TestServiceAdminUpdateKeepsOriginalDomainWhenDisabled verifies administrator updates retain the published address.
+func TestServiceAdminUpdateKeepsOriginalDomainWhenDisabled(t *testing.T) {
 	ctx := context.Background()
 	pool := shortLinkTestPool(t, ctx)
 	insertShortLinkDefaultDomain(t, ctx, pool)
@@ -786,9 +800,9 @@ func TestServiceAdminUpdateReturnsDefaultDomainError(t *testing.T) {
 	status := "disabled"
 	service := shortlink.NewService(pool, permission.NewService())
 
-	_, err = service.AdminUpdate(ctx, admin, shortlink.UpdateInput{ID: linkID, Status: &status})
-	if err == nil {
-		t.Fatal("expected default domain error")
+	updated, err := service.AdminUpdate(ctx, admin, shortlink.UpdateInput{ID: linkID, Status: &status})
+	if err != nil || updated.ShortLink.URL != "https://go.example.com/alice1" {
+		t.Fatalf("admin update URL after default disabled = %#v, %v", updated, err)
 	}
 }
 
@@ -1471,10 +1485,16 @@ func insertShortLinkUser(t *testing.T, ctx context.Context, pool *pgxpool.Pool, 
 	groupID := "00000000-0000-0000-0000-000000000401"
 	_, err := pool.Exec(ctx, `
 		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
-		values ($1, $2, $2, '', $3::jsonb, false, now(), now())
+		values ($1, $2, $2, '', $3::jsonb, true, now(), now())
 	`, groupID, groupKey, permissionsJSON(t, permissions))
 	if err != nil {
 		t.Fatalf("insert user group: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into domain_user_group (domain_id, user_group_id)
+		select domain.id, $1 from domain where domain.is_default and domain.purpose = 'short_link'
+	`, groupID); err != nil {
+		t.Fatalf("grant default domain to test group: %v", err)
 	}
 
 	return insertShortLinkUserForGroup(t, ctx, pool, username, groupID, "00000000-0000-0000-0000-000000000501", groupKey, permissions)

@@ -72,6 +72,7 @@ export interface AdminShortLink extends ShortLink {
 
 export interface CreateShortLinkInput {
   targetUrl: string
+  domainId?: string
   redirectMode?: RedirectMode
   intermediateDelaySeconds?: number
   expiration?: ExpirationInput

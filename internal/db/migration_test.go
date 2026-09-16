@@ -27,7 +27,7 @@ func TestMigrationsCreateCoreTablesAndConstraints(t *testing.T) {
 		t.Fatalf("run migrations: %v", err)
 	}
 
-	expectedTables := []string{"system_setting", "user_group", "app_user", "session", "domain", "short_link", "short_link_event", "short_link_access_grant", "auth_login_attempt", "oidc_provider", "external_identity", "oidc_login_attempt"}
+	expectedTables := []string{"system_setting", "user_group", "app_user", "session", "domain", "domain_user_group", "short_link", "short_link_event", "short_link_access_grant", "auth_login_attempt", "oidc_provider", "external_identity", "oidc_login_attempt"}
 	for _, table := range expectedTables {
 		t.Run(fmt.Sprintf("table_%s_exists", table), func(t *testing.T) {
 			var exists bool
@@ -136,6 +136,117 @@ func TestOIDCMigrationRoundTrip(t *testing.T) {
 		}
 		assertOIDCConstraints(t, ctx, database)
 	})
+}
+
+// TestMultiDomainMigrationRoundTrip verifies grants and rollback never rewrite published links.
+func TestMultiDomainMigrationRoundTrip(t *testing.T) {
+	ctx := t.Context()
+	database := migrationTestDatabase(t, ctx)
+	migrationsDir := filepath.Join("..", "..", "migrations")
+	if err := goose.UpTo(database, migrationsDir, 12); err != nil {
+		t.Fatalf("upgrade through OIDC: %v", err)
+	}
+	insertUserGroups(t, ctx, database)
+	completeUserUpdatedAt := time.Date(2030, time.January, 1, 0, 0, 0, 0, time.UTC)
+	if _, err := database.ExecContext(ctx, `
+		update user_group set permissions = '["domain:use_default","domain:use_assigned"]'::jsonb,
+			updated_at = '2030-01-01T00:00:00Z' where key = 'user';
+		update user_group set permissions = '["domain:use_default","domain:use_assigned"]'::jsonb where key = 'admin';
+		insert into short_link (id, owner_id, domain_id, slug, target_url, status, created_at, updated_at)
+		values ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000201',
+			'00000000-0000-0000-0000-000000000101', 'preserved', 'https://example.com', 'active', now(), now());
+	`); err != nil {
+		t.Fatalf("prepare existing domain and link: %v", err)
+	}
+	if err := goose.UpTo(database, migrationsDir, 13); err != nil {
+		t.Fatalf("upgrade multi-domain migration: %v", err)
+	}
+	var userUpdatedAt time.Time
+	if err := database.QueryRowContext(ctx, `select updated_at from user_group where key = 'user'`).Scan(&userUpdatedAt); err != nil {
+		t.Fatalf("read complete user-group version: %v", err)
+	}
+	if !userUpdatedAt.Equal(completeUserUpdatedAt) {
+		t.Fatalf("complete user-group updated_at = %s, want unchanged %s", userUpdatedAt, completeUserUpdatedAt)
+	}
+	assertRelationExists(t, ctx, database, "domain_user_group", true)
+	var groupKeys []string
+	rows, err := database.QueryContext(ctx, `
+		select user_group.key from domain_user_group
+		join user_group on user_group.id = domain_user_group.user_group_id
+		order by user_group.key
+	`)
+	if err != nil {
+		t.Fatalf("read default domain grants: %v", err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			t.Fatalf("scan default domain grant: %v", err)
+		}
+		groupKeys = append(groupKeys, key)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate default domain grants: %v", err)
+	}
+	if !reflect.DeepEqual(groupKeys, []string{"admin", "user"}) {
+		t.Fatalf("default domain grants = %v, want admin and user", groupKeys)
+	}
+	for _, check := range []struct {
+		group      string
+		permission string
+		want       bool
+	}{
+		{group: "guest", permission: "domain:use_assigned"},
+		{group: "user", permission: "domain:use_assigned", want: true},
+		{group: "admin", permission: "domain:use_assigned", want: true},
+		{group: "admin", permission: "domain:manage", want: true},
+	} {
+		var got bool
+		if err := database.QueryRowContext(ctx, `select permissions ? $2 from user_group where key = $1`, check.group, check.permission).Scan(&got); err != nil {
+			t.Fatalf("read %s permission %s: %v", check.group, check.permission, err)
+		}
+		if got != check.want {
+			t.Fatalf("%s has %s = %t, want %t", check.group, check.permission, got, check.want)
+		}
+	}
+	// A later administrator edit must not be undone by the migration rollback.
+	if _, err := database.ExecContext(ctx, `update user_group set permissions = permissions || '["short_link:create"]'::jsonb where key = 'user'`); err != nil {
+		t.Fatalf("edit user permissions after migration: %v", err)
+	}
+	if err := goose.DownTo(database, migrationsDir, 12); err != nil {
+		t.Fatalf("rollback multi-domain migration: %v", err)
+	}
+	assertRelationExists(t, ctx, database, "domain_user_group", false)
+	for _, check := range []struct {
+		group      string
+		permission string
+		want       bool
+	}{
+		{group: "user", permission: "short_link:create", want: true},
+		{group: "user", permission: "domain:use_assigned", want: true},
+		{group: "admin", permission: "domain:use_assigned", want: true},
+		{group: "admin", permission: "domain:manage"},
+	} {
+		var got bool
+		if err := database.QueryRowContext(ctx, `select permissions ? $2 from user_group where key = $1`, check.group, check.permission).Scan(&got); err != nil {
+			t.Fatalf("read rolled-back permission: %v", err)
+		}
+		if got != check.want {
+			t.Fatalf("rolled-back %s has %s = %t, want %t", check.group, check.permission, got, check.want)
+		}
+	}
+	var preservedDomain string
+	if err := database.QueryRowContext(ctx, `
+		select domain.host from short_link join domain on domain.id = short_link.domain_id
+		where short_link.slug = 'preserved'
+	`).Scan(&preservedDomain); err != nil || preservedDomain != "go.example.com" {
+		t.Fatalf("preserved link domain = %q, error = %v", preservedDomain, err)
+	}
+	if err := goose.UpTo(database, migrationsDir, 13); err != nil {
+		t.Fatalf("reapply multi-domain migration: %v", err)
+	}
+	assertRelationExists(t, ctx, database, "domain_user_group", true)
 }
 
 // TestOIDCRollbackWaitsForConcurrentIdentityInsert verifies the guard observes committed in-flight bindings.

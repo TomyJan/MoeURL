@@ -34,6 +34,7 @@ describe('router', () => {
         '/admin/link',
         '/admin/user',
         '/admin/user/group',
+        '/admin/domain',
         '/admin/setting',
         '/admin/user/new',
         '/:pathMatch(.*)*',
@@ -45,7 +46,7 @@ describe('router', () => {
     const consoleRoute = routes.find((route) => route.children)
     const adminRoutes = consoleRoute?.children?.filter((route) => route.path.startsWith('/admin/')) ?? []
 
-    expect(adminRoutes).toHaveLength(5)
+    expect(adminRoutes).toHaveLength(6)
     expect(adminRoutes.every((route) => route.meta?.requiresAdmin === true)).toBe(true)
   })
 
@@ -88,6 +89,36 @@ describe('router', () => {
     expect(userGroupRoute!.props).toBeUndefined()
     const loadedPage = await (userGroupRoute!.component as () => Promise<{ default: { __name?: string } }>)()
     expect(loadedPage.default.__name).toBe('AdminUserGroupsPage')
+  })
+
+  it('loads a guarded domain management page', async () => {
+    const domainRoute = routes.find((route) => route.children)?.children?.find((route) => route.path === '/admin/domain')
+    expect(domainRoute?.meta?.requiresAdmin).toBe(true)
+    expect(domainRoute?.meta?.requiresDomainManage).toBe(true)
+    const loaded = await (domainRoute?.component as () => Promise<{ default: { __name?: string } }>)()
+    expect(loaded.default.__name).toBe('AdminDomainsPage')
+  })
+
+  it.each([
+    { permissions: ['admin:access'], decision: '/' },
+    { permissions: ['domain:manage'], decision: '/' },
+    { permissions: ['admin:access', 'domain:manage'], decision: true },
+  ])('guards domain management with both permissions: $permissions', async ({ permissions, decision }) => {
+    const domainRoute = routes.find((route) => route.children)?.children?.find((route) => route.path === '/admin/domain')
+    vi.mocked(me).mockResolvedValueOnce({
+      user: { id: 'admin-id', username: 'admin', nickname: 'Admin', group: 'admin', permissions },
+    })
+    await expect((domainRoute!.beforeEnter as () => Promise<unknown>)()).resolves.toEqual(decision)
+  })
+
+  it('sends guests to login with the requested domain management path', async () => {
+    const domainRoute = routes.find((route) => route.children)?.children?.find((route) => route.path === '/admin/domain')
+    vi.mocked(me).mockResolvedValueOnce({
+      user: { id: 'guest-id', username: 'guest', nickname: 'Guest', group: 'guest', permissions: [] },
+    })
+    await expect((domainRoute!.beforeEnter as (to: { fullPath: string }) => Promise<unknown>)({ fullPath: '/admin/domain' })).resolves.toEqual({
+      path: '/login', query: { redirect: '/admin/domain' },
+    })
   })
 
   it('resolves the public root path to home before the console shell parent', async () => {

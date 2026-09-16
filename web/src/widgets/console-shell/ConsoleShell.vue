@@ -171,6 +171,7 @@ const navGroups = computed<ConsoleNavGroup[]>(() => {
           ],
         },
         { labelKey: 'nav.settings', to: '/admin/setting' },
+        ...(permissions.value.includes('domain:manage') ? [{ labelKey: 'nav.domains', to: '/admin/domain' }] : []),
       ],
     })
   }

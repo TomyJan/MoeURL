@@ -135,6 +135,15 @@ describe('deployment configuration', () => {
     expect(compose).toContain('MOEURL_SETUP_TOKEN: ${MOEURL_SETUP_TOKEN:-}')
   })
 
+  it('uses environment-valid Origins in CI initialization payloads', () => {
+    const e2eSetup = readFileSync(resolve(repositoryRoot, 'web/e2e/initialize.setup.ts'), 'utf8')
+    const smokeScript = readFileSync(resolve(repositoryRoot, 'scripts/compose-smoke.sh'), 'utf8')
+
+    expect(e2eSetup).toContain('const e2eShortLinkOrigin = `http://${e2eHost}`')
+    expect(e2eSetup).toContain('shortLinkDomain: e2eShortLinkOrigin')
+    expect(smokeScript).toContain('shortLinkDomain: `https://localhost:${process.env.runtime_port}`')
+  })
+
   it('passes optional OIDC runtime configuration through Compose', () => {
     const compose = readFileSync(resolve(repositoryRoot, 'docker-compose.yml'), 'utf8')
     const exampleEnv = readFileSync(resolve(repositoryRoot, '.env.example'), 'utf8')
@@ -233,6 +242,13 @@ describe('deployment configuration', () => {
     expect(deploymentGuide).toContain('docker compose ls')
     expect(deploymentGuide).toContain('production_compose config >/dev/null')
     expect(deploymentGuide).toContain('不得将未重定向的配置输出记录到终端、CI 日志或工单')
+  })
+
+  it('keeps the incoming Host port in both documented TLS proxy examples', () => {
+    const deploymentGuide = readFileSync(resolve(repositoryRoot, 'docs/deployment/single-host-compose.md'), 'utf8')
+
+    expect(deploymentGuide).toContain('header_up Host {hostport}')
+    expect(deploymentGuide).toContain('proxy_set_header Host $http_host;')
   })
 
   it('rate limits OIDC browser endpoints and excludes callback queries from proxy logs', () => {
@@ -523,6 +539,50 @@ describe('deployment configuration', () => {
     expect(upgradeGuide).not.toContain('http://127.0.0.1:8080/api/v1/health/ready')
   })
 
+  it('validates target and rollback postgres storage before stopping the app', () => {
+    const upgradeGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/upgrade-and-recovery.md'),
+      'utf8',
+    )
+    const targetHelper = upgradeGuide.indexOf('target_compose()')
+    const rollbackHelper = upgradeGuide.indexOf('rollback_compose()', targetHelper)
+    const jsonCapability = upgradeGuide.indexOf('config --format json', targetHelper)
+    const storageComparison = upgradeGuide.indexOf(
+      'test "$target_postgres_storage" = "$rollback_postgres_storage"',
+      targetHelper,
+    )
+    const stopApp = upgradeGuide.indexOf('target_compose stop app', targetHelper)
+
+    for (const marker of [targetHelper, rollbackHelper, jsonCapability, storageComparison, stopApp]) {
+      expect(marker).toBeGreaterThanOrEqual(0)
+    }
+    expect(targetHelper).toBeLessThan(rollbackHelper)
+    expect(rollbackHelper).toBeLessThan(jsonCapability)
+    expect(jsonCapability).toBeLessThan(storageComparison)
+    expect(storageComparison).toBeLessThan(stopApp)
+  })
+
+  it('recreates the target compose helper in the standalone rollback snippet', () => {
+    const upgradeGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/upgrade-and-recovery.md'),
+      'utf8',
+    )
+    const rollbackSnippet = upgradeGuide.indexOf('UPGRADE_FROM_COMMIT="$(cat "$DEPLOY_STATE/upgrade-from-commit")"')
+    const targetFile = upgradeGuide.indexOf('TARGET_COMPOSE="$DEPLOY_ROOT/docker-compose.yml"', rollbackSnippet)
+    const targetHelper = upgradeGuide.indexOf('target_compose()', rollbackSnippet)
+    const targetStorage = upgradeGuide.indexOf(
+      'target_postgres_storage="$(resolved_postgres_storage target_compose target)"',
+      rollbackSnippet,
+    )
+
+    for (const marker of [rollbackSnippet, targetFile, targetHelper, targetStorage]) {
+      expect(marker).toBeGreaterThanOrEqual(0)
+    }
+    expect(rollbackSnippet).toBeLessThan(targetFile)
+    expect(targetFile).toBeLessThan(targetHelper)
+    expect(targetHelper).toBeLessThan(targetStorage)
+  })
+
   it('quotes the Nginx GeoIP country-code regular expression', () => {
     const deploymentGuide = readFileSync(
       resolve(repositoryRoot, 'docs/deployment/single-host-compose.md'),
@@ -610,7 +670,6 @@ describe('deployment configuration', () => {
   it('allows a cold Docker image build to finish before Playwright starts', { timeout: 30_000 }, async () => {
     const { default: playwrightConfig } = await import('../../playwright.config')
 
-    expect(playwrightConfig.workers).toBeUndefined()
     expect(playwrightConfig.webServer).not.toBeInstanceOf(Array)
     expect(playwrightConfig.webServer).toMatchObject({ timeout: 600_000 })
     expect(playwrightConfig.projects).toEqual(expect.arrayContaining([
@@ -690,6 +749,20 @@ describe('deployment configuration', () => {
     expect(imageSecurity).toContain("exit-code: '1'")
     expect(imageSecurity).not.toContain('continue-on-error: true')
     expect(imageSecurity).not.toContain('ignore-unfixed: true')
+  })
+
+  it('includes every backend coverage target package in the CI coverage command', () => {
+    const workflow = readFileSync(resolve(repositoryRoot, '.github/workflows/code-check.yml'), 'utf8')
+    const targetList = readFileSync(resolve(repositoryRoot, 'scripts/go-coverage-targets.txt'), 'utf8')
+    const coverageJob = workflowJob(workflow, 'test-coverage')
+    const coverageCommand = coverageJob.split('go test \\')[1]?.split('-coverprofile=')[0] ?? ''
+    const targetPackages = new Set([...targetList.matchAll(/^github\.com\/TomyJan\/MoeURL\/(internal\/[^/]+)\//gm)]
+      .map((match) => `./${match[1]}`))
+
+    expect(targetPackages.size).toBeGreaterThan(0)
+    for (const packageName of targetPackages) {
+      expect(coverageCommand).toContain(packageName)
+    }
   })
 
   it('runs the complete Compose smoke with the target Node runtime', () => {

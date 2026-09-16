@@ -242,7 +242,7 @@ EOF
   # curl treats localhost as a secure cookie context, so production Secure
   # Session cookies remain usable without weakening MOEURL_ENV.
   BASE_URL="http://localhost:$runtime_port"
-  export setup_token admin_password
+  export setup_token admin_password runtime_port
 }
 
 wait_for_readiness() {
@@ -272,7 +272,8 @@ const setup = {
   adminNickname: 'Smoke Admin',
   siteName: 'MoeURL Smoke',
   systemDomain: '127.0.0.1',
-  shortLinkDomain: '127.0.0.1',
+  // Initialization accepts a root Origin; redirect Host checks later use its authority.
+  shortLinkDomain: `https://localhost:${process.env.runtime_port}`,
   defaultLanguage: 'zh-CN',
   defaultTheme: 'system',
 }

@@ -15,6 +15,7 @@ const state = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
   mutationOptions: [] as unknown[],
   queryResult: {},
+  domainQueryResult: {},
   queryOptions: [] as unknown[],
   mutationResult: {},
 }))
@@ -41,9 +42,9 @@ vi.mock('@tanstack/vue-query', async () => {
       fields: { isError: true, variables: true },
       getResult: () => state.mutationResult as MutationMockResult,
     }),
-    useQuery: vi.fn((options?: unknown) => {
+    useQuery: vi.fn((options?: { queryKey?: readonly string[] }) => {
       state.queryOptions.push(options)
-      return state.queryResult
+      return options?.queryKey?.[0] === 'domain' ? state.domainQueryResult : state.queryResult
     }),
     useQueryClient: () => ({
       invalidateQueries: state.invalidateQueries,
@@ -99,6 +100,10 @@ describe('ShortLinkCreatePanel', () => {
       shortLink: { slug: 'abc123', url: 'https://go.example.com/abc123' },
     } as never)
     setQueryResult([])
+    state.domainQueryResult = {
+      data: ref({ items: [{ id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true }] }),
+      isPending: ref(false), isError: ref(false),
+    }
     setMutationResult()
     Object.defineProperty(window.navigator, 'clipboard', {
       configurable: true,
@@ -169,6 +174,187 @@ describe('ShortLinkCreatePanel', () => {
 
     await fireEvent.click(screen.getByText('shortLinkCreate.reset'))
     expect(screen.queryByText('https://go.example.com/abc123')).toBeNull()
+  })
+
+  it('shows no permission warning while an authorized user waits for domains', () => {
+    setQueryResult(['short_link:create', 'domain:use_default'])
+    state.domainQueryResult = { data: ref(undefined), isPending: ref(true), isError: ref(false) }
+    mountPanel()
+    expect(screen.queryByText('shortLinkCreate.permissionRequired')).toBeNull()
+    expect(screen.queryByText('shortLinkCreate.noAvailableDomains')).toBeNull()
+    expect(screen.getByLabelText('shortLinkCreate.targetLabel')).toHaveProperty('disabled', true)
+  })
+
+  it('offers a retry rather than a permission warning when domains fail to load', async () => {
+    const refetch = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_default'])
+    state.domainQueryResult = { data: ref(undefined), isPending: ref(false), isError: ref(true), refetch }
+    mountPanel()
+    expect(screen.getByRole('alert').textContent).toContain('shortLinkCreate.domainLoadFailed')
+    expect(screen.queryByText('shortLinkCreate.permissionRequired')).toBeNull()
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkCreate.retryDomains' }))
+    expect(refetch).toHaveBeenCalledOnce()
+    expect(screen.getByLabelText('shortLinkCreate.targetLabel')).toHaveProperty('disabled', true)
+  })
+
+  it('explains an empty successful domain list without implying missing permissions', () => {
+    setQueryResult(['short_link:create', 'domain:use_default'])
+    state.domainQueryResult = { data: ref({ items: [] }), isPending: ref(false), isError: ref(false) }
+    mountPanel()
+    expect(screen.getByText('shortLinkCreate.noAvailableDomains')).toBeTruthy()
+    expect(screen.queryByText('shortLinkCreate.permissionRequired')).toBeNull()
+  })
+
+  it('sends an explicit domain ID only when another authorized domain is selected', async () => {
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_default', 'domain:use_assigned'])
+    state.domainQueryResult = {
+      data: ref({ items: [
+        { id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true },
+        { id: '00000000-0000-4000-8000-000000000802', host: 'https://links.example.com', displayName: 'Second', isDefault: false },
+      ] }), isPending: ref(false), isError: ref(false),
+    }
+    setMutationResult({ mutate })
+    mountPanel()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.domainLabel'), '00000000-0000-4000-8000-000000000802')
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(mutate).toHaveBeenCalledWith({ targetUrl: 'https://example.com', domainId: '00000000-0000-4000-8000-000000000802' })
+  })
+
+  it('uses the server default without a domain ID even when it is not first in the list', async () => {
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_default', 'domain:use_assigned'])
+    state.domainQueryResult = {
+      data: ref({ items: [
+        { id: '00000000-0000-4000-8000-000000000802', host: 'https://links.example.com', displayName: 'Second', isDefault: false },
+        { id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true },
+      ] }), isPending: ref(false), isError: ref(false),
+    }
+    setMutationResult({ mutate })
+    mountPanel()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(mutate).toHaveBeenCalledWith({ targetUrl: 'https://example.com' })
+  })
+
+  it('submits the default domain ID when only assigned-domain permission is granted', async () => {
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_assigned'])
+    state.domainQueryResult = {
+      data: ref({ items: [
+        { id: '00000000-0000-4000-8000-000000000802', host: 'https://links.example.com', displayName: 'Second', isDefault: false },
+        { id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true },
+      ] }), isPending: ref(false), isError: ref(false),
+    }
+    setMutationResult({ mutate })
+    mountPanel()
+    expect((screen.getByLabelText('shortLinkCreate.domainLabel') as HTMLSelectElement).value).toBe('00000000-0000-4000-8000-000000000801')
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(mutate).toHaveBeenCalledWith({ targetUrl: 'https://example.com', domainId: '00000000-0000-4000-8000-000000000801' })
+  })
+
+  it('submits the sole assigned domain explicitly when no default grant is available', async () => {
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_assigned'])
+    state.domainQueryResult = {
+      data: ref({ items: [{ id: '00000000-0000-4000-8000-000000000802', host: 'https://links.example.com', displayName: 'Second', isDefault: false }] }),
+      isPending: ref(false), isError: ref(false),
+    }
+    setMutationResult({ mutate })
+    mountPanel()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(mutate).toHaveBeenCalledWith({ targetUrl: 'https://example.com', domainId: '00000000-0000-4000-8000-000000000802' })
+  })
+
+  it('clears an assigned choice when a later authorization response removes it', async () => {
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_default', 'domain:use_assigned'])
+    const data = ref({ items: [
+      { id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true },
+      { id: '00000000-0000-4000-8000-000000000802', host: 'https://links.example.com', displayName: 'Second', isDefault: false },
+    ] })
+    state.domainQueryResult = { data, isPending: ref(false), isError: ref(false) }
+    setMutationResult({ mutate })
+    mountPanel()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.domainLabel'), '00000000-0000-4000-8000-000000000802')
+    data.value = { items: [data.value.items[0]!] }
+    await nextTick()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(mutate).toHaveBeenCalledWith({ targetUrl: 'https://example.com' })
+  })
+
+  it('keeps an explicit choice when a refreshed domain list still authorizes it', async () => {
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_default', 'domain:use_assigned'])
+    const data = ref({ items: [
+      { id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true },
+      { id: '00000000-0000-4000-8000-000000000802', host: 'https://links.example.com', displayName: 'Second', isDefault: false },
+    ] })
+    state.domainQueryResult = { data, isPending: ref(false), isError: ref(false) }
+    setMutationResult({ mutate })
+    mountPanel()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.domainLabel'), '00000000-0000-4000-8000-000000000802')
+    data.value = { items: [data.value.items[0]!, { ...data.value.items[1]!, displayName: 'Renamed' }] }
+    await nextTick()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(mutate).toHaveBeenCalledWith({ targetUrl: 'https://example.com', domainId: data.value.items[1]?.id })
+  })
+
+  it('waits for available domains and rejects create permission without either domain grant', () => {
+    setQueryResult(['short_link:create'])
+    state.domainQueryResult = { data: ref(undefined), isPending: ref(true), isError: ref(false) }
+    mountPanel()
+    expect(screen.getByLabelText('shortLinkCreate.targetLabel')).toHaveProperty('disabled', true)
+  })
+
+  it('does not submit a stale explicit domain selection after its query fails', async () => {
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_default', 'domain:use_assigned'])
+    const data = ref({ items: [
+      { id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true },
+      { id: '00000000-0000-4000-8000-000000000802', host: 'https://links.example.com', displayName: 'Second', isDefault: false },
+    ] })
+    const isError = ref(false)
+    state.domainQueryResult = { data, isPending: ref(false), isError }
+    setMutationResult({ mutate })
+    mountPanel()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.domainLabel'), '00000000-0000-4000-8000-000000000802')
+    isError.value = true
+    await nextTick()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
+  it('preserves an explicit domain selection across a failed refetch without allowing submission', async () => {
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_default', 'domain:use_assigned'])
+    const data = ref({ items: [
+      { id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true },
+      { id: '00000000-0000-4000-8000-000000000802', host: 'https://links.example.com', displayName: 'Second', isDefault: false },
+    ] })
+    const isError = ref(false)
+    state.domainQueryResult = { data, isPending: ref(false), isError }
+    setMutationResult({ mutate })
+    mountPanel()
+    const selector = screen.getByLabelText('shortLinkCreate.domainLabel') as HTMLSelectElement
+    await fireEvent.update(selector, data.value.items[1]!.id)
+    isError.value = true
+    await nextTick()
+    expect(selector.value).toBe(data.value.items[1]!.id)
+    expect(screen.getByLabelText('shortLinkCreate.targetLabel')).toHaveProperty('disabled', true)
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(mutate).not.toHaveBeenCalled()
+    isError.value = false
+    await nextTick()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(mutate).toHaveBeenCalledWith({ targetUrl: 'https://example.com', domainId: data.value.items[1]!.id })
   })
 
   it('does not run the real mutation or success flow when a custom mutate is provided', async () => {

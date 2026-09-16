@@ -76,7 +76,7 @@ chmod 600 \
 
 `DEPLOY_PROJECT` 必须与 `docker compose ls` 显示的现有生产 project 及 App 容器标签完全一致；不是 `moeurl` 时先替换示例值。`ROLLBACK_COMPOSE` 只复制仓库中的插值模板，不执行重定向到文件的 `docker compose config`，因此不会把 `.env` 中的秘密落盘。唯一的 `rollback_image_tag` 绑定升级前实际运行的 image ID，应视为本次维护窗口的不可变资产，不得覆盖或复用。维护、回退验收和备份确认全部结束前，不得执行 `docker image prune`、系统自动镜像清理或删除该 tag。
 
-`MOEURL_DEPLOY_ROOT` 必须由部署者设置为包含当前生产 `docker-compose.yml` 和 `.env` 的绝对目录。`MOEURL_PUBLIC_BASE_URL` 必须从受保护的部署配置注入为实际公网 HTTPS 基础地址，例如 `https://go.example.com`，不得把占位域名用于生产检查。脚本在执行任何 Compose 命令前解析并校验部署目录与公网地址；不得依赖维护 Shell 的当前工作目录推断生产部署位置。
+`MOEURL_DEPLOY_ROOT` 必须由部署者设置为包含当前生产 `docker-compose.yml` 和 `.env` 的绝对目录。`MOEURL_PUBLIC_BASE_URL` 必须从受保护的部署配置注入为实际公网 HTTPS 基础地址，例如 `https://go.example.com`，不得把占位域名用于生产检查。脚本在执行任何 Compose 命令前解析并校验部署目录与公网地址；不得依赖维护 Shell 的当前工作目录推断生产部署位置。维护主机还必须提供 `jq`，且其 Docker Compose v2 必须支持 `config --format json`；下述目标与回退配置预检会直接探测该能力，不支持、输出无效 JSON 或解析失败时均须在停止 App 前退出。完整渲染配置不得输出到终端、CI 日志或工单中。
 
 这些文件只保存非秘密的部署身份和镜像身份，但仍放在权限为 `700` 的状态目录中，防止被非部署账号篡改。前向升级必须使用目标提交自己的 `docker-compose.yml`，以便目标版本新增的配置和镜像约定生效。
 
@@ -92,6 +92,8 @@ curl --fail --silent --show-error --connect-timeout 2 --max-time 5 "$PUBLIC_BASE
 ```
 
 按照 [备份与隔离恢复](backup-and-restore.md) 创建自定义格式备份，至少完成 `test -s`、`pg_restore --list` 和 SHA-256 校验。高风险升级应先用候选代码在隔离 project 恢复该备份并跑完恢复验收。
+
+升级到 v0.8.0 前还须按 [多域名上线检查](single-host-compose.md#55-v080-多短链域名上线检查) 盘点旧短链实际使用的 Host、端口和公开别名，核实代理会保留原始 authority。旧版允许的别名若与 `domain.host` 不同，新版将按不存在处理；没有可用的正式地址和 DNS/TLS 路由时，不得执行切换。迁移只补已有默认域名的内置组授权，不会替历史短链修改所属域名或公开 URL。
 
 ## 3. 构建、迁移和切换
 
@@ -114,9 +116,47 @@ target_compose build --pull app || {
   echo 'target app image build failed; migration was not started' >&2
   exit 1
 }
+
+rollback_compose() {
+  docker compose \
+    --project-name "$DEPLOY_PROJECT" \
+    --project-directory "$DEPLOY_ROOT" \
+    --env-file "$DEPLOY_ROOT/.env" \
+    -f "$ROLLBACK_COMPOSE" \
+    "$@"
+}
+command -v jq >/dev/null 2>&1 || {
+  echo 'jq is required to compare the target and rollback postgres-data configuration' >&2
+  exit 1
+}
+set -o pipefail
+resolved_postgres_storage() {
+  compose_command="$1"
+  compose_label="$2"
+  "$compose_command" config --format json | jq -e -cS '
+    [.services.postgres.volumes[]? | select(.target == "/var/lib/postgresql")] as $mounts
+    | select(
+        (.volumes | type == "object")
+        and (.volumes | has("postgres-data"))
+        and (($mounts | length) == 1)
+        and ($mounts[0].type == "volume")
+        and ($mounts[0].source == "postgres-data")
+      )
+    | {volume: .volumes["postgres-data"], mount: $mounts[0]}
+  ' || {
+    echo "$compose_label compose postgres-data configuration could not be validated" >&2
+    return 1
+  }
+}
+target_postgres_storage="$(resolved_postgres_storage target_compose target)" || exit 1
+rollback_postgres_storage="$(resolved_postgres_storage rollback_compose rollback)" || exit 1
+test "$target_postgres_storage" = "$rollback_postgres_storage" || {
+  echo 'target and rollback postgres-data configurations differ' >&2
+  exit 1
+}
 ```
 
-执行目标 migration 前，必须结合目标 migration、旧 App 的 SQL 及写入行为，确认旧 App 能在目标 schema 上继续安全运行。优先在隔离恢复环境中用升级前镜像与目标 migration 验证该兼容性；不能提供兼容性证据时，不得在旧 App 仍接收流量时迁移。应先从反向代理摘除旧 App，等待在途请求排空，再停止 App：
+上述预检仅让 `jq` 输出 PostgreSQL 卷定义与挂载的规范化安全子集，不保存或显示包含秘密的完整 Compose JSON。执行目标 migration 前，必须结合目标 migration、旧 App 的 SQL 及写入行为，确认旧 App 能在目标 schema 上继续安全运行。优先在隔离恢复环境中用升级前镜像与目标 migration 验证该兼容性；不能提供兼容性证据时，不得在旧 App 仍接收流量时迁移。应先从反向代理摘除旧 App，等待在途请求排空，再停止 App：
 
 ```bash
 target_compose stop app || {
@@ -190,7 +230,11 @@ target_compose logs --since 10m app
 
 v0.6.0 的 `00011` Down 会删除登录失败临时状态并解除相应临时阻断，但不修改用户、Session 或短链数据。其他历史 migration 可能有不可逆规范化，不能批量执行未知数量的 Down。
 
-首选回退路径直接恢复升级前保存的镜像，不依赖源码 checkout、依赖下载或再次构建。保存的加固 Compose 继续提供当前数据库密码、私有 PostgreSQL 网络和回环 App 绑定：
+`00013` Down 会删除整张 `domain_user_group` 授权表，包括管理员后来为非默认域名配置的授权；它保留 `domain` 和 `short_link.domain_id`，但再次 Up 只会为**当时的全局默认域名**回填内置 `user`、`admin` 组，不能恢复其他域名的授权。执行 Down 前必须保存并验证受保护的数据库备份，另行记录每个域名的授权；如果以后重新升级，先核对全部域名的授权并通过管理页面重新配置缺失项，再开放短链创建流量。无法确认这些授权时不要以再次 Up 视为配置恢复，应优先前向修复或从已验证备份按隔离恢复流程恢复；不要直接修改生产数据库绕过管理接口。
+
+v0.8.0 多域名流量不能直接交给此前不校验短链所属 Host 与域名启用状态的旧 App：即使数据库和短链 URL 保留，旧镜像仍可能在错误 Host 或已停用域名上放行跳转。普通代理 Host 允许列表无法按每条短链的 `domain_id` 判断归属。只有确认所有公开短链仍只属于升级前唯一域名、代理也只接入该域名，且已验证错误 Host 和停用域名不可达，才可考虑旧镜像回退；升级后已在第二域名创建短链或依赖停用状态时，应停止公开短链流量，改用保留相同校验能力的兼容镜像或向前修复，不得直接暴露旧镜像。该限制不因 `00013` Down 而消失。
+
+在确认上述访问边界后，首选回退路径直接恢复升级前保存的镜像，不依赖源码 checkout、依赖下载或再次构建。保存的加固 Compose 继续提供当前数据库密码、私有 PostgreSQL 网络和回环 App 绑定：
 
 ```bash
 UPGRADE_FROM_COMMIT="$(cat "$DEPLOY_STATE/upgrade-from-commit")"
@@ -198,6 +242,15 @@ DEPLOY_PROJECT="$(cat "$DEPLOY_STATE/project-name")"
 rollback_image_tag="$(cat "$DEPLOY_STATE/rollback-image-tag")"
 running_image_id="$(cat "$DEPLOY_STATE/rollback-image-id")"
 service_image_ref="$(cat "$DEPLOY_STATE/service-image-ref")"
+TARGET_COMPOSE="$DEPLOY_ROOT/docker-compose.yml"
+target_compose() {
+  docker compose \
+    --project-name "$DEPLOY_PROJECT" \
+    --project-directory "$DEPLOY_ROOT" \
+    --env-file "$DEPLOY_ROOT/.env" \
+    -f "$TARGET_COMPOSE" \
+    "$@"
+}
 rollback_compose() {
   docker compose \
     --project-name "$DEPLOY_PROJECT" \
@@ -207,7 +260,35 @@ rollback_compose() {
     "$@"
 }
 rollback_compose config >/dev/null
-rollback_compose config --volumes | grep -Fx postgres-data >/dev/null
+command -v jq >/dev/null 2>&1 || {
+  echo 'jq is required to compare the target and rollback postgres-data configuration' >&2
+  exit 1
+}
+set -o pipefail
+resolved_postgres_storage() {
+  compose_command="$1"
+  compose_label="$2"
+  "$compose_command" config --format json | jq -e -cS '
+    [.services.postgres.volumes[]? | select(.target == "/var/lib/postgresql")] as $mounts
+    | select(
+        (.volumes | type == "object")
+        and (.volumes | has("postgres-data"))
+        and (($mounts | length) == 1)
+        and ($mounts[0].type == "volume")
+        and ($mounts[0].source == "postgres-data")
+      )
+    | {volume: .volumes["postgres-data"], mount: $mounts[0]}
+  ' || {
+    echo "$compose_label compose postgres-data configuration could not be validated" >&2
+    return 1
+  }
+}
+target_postgres_storage="$(resolved_postgres_storage target_compose target)" || exit 1
+rollback_postgres_storage="$(resolved_postgres_storage rollback_compose rollback)" || exit 1
+test "$target_postgres_storage" = "$rollback_postgres_storage" || {
+  echo 'target and rollback postgres-data configurations differ' >&2
+  exit 1
+}
 test "$(docker image inspect -f '{{.Id}}' "$rollback_image_tag")" = "$running_image_id"
 docker image tag "$rollback_image_tag" "$service_image_ref"
 test "$(docker image inspect -f '{{.Id}}' "$service_image_ref")" = "$running_image_id"
@@ -219,7 +300,7 @@ rollback_compose up --detach --no-build --force-recreate --no-deps app || {
 
 只有当保存的 tag 和 image ID 已无法从本机镜像存储恢复时，才使用 `UPGRADE_FROM_COMMIT` 检出升级前提交并通过 `rollback_compose build app` 重建；该路径依赖源码、构建依赖和外部下载，不是首选回退方式。不能依赖浮动分支名，也不得改用旧提交中的 `docker-compose.yml`，否则会重新引入旧部署默认值。重建完成后仍应记录新 image ID，再使用 `--force-recreate --no-deps` 只替换 App。
 
-前向和回退命令使用相同的 `--project-name`、`--project-directory`，并在切换前验证相同的 `postgres-data` 逻辑卷键，因此继续操作同一 Compose project 与数据库命名卷。回退 App 后重复 readiness 和业务验收。若需要恢复升级前备份：
+前向和回退命令使用相同的 `--project-name`、`--project-directory`。切换前通过 `config --format json` 核对两者解析后的顶层 `postgres-data` 卷定义，以及 PostgreSQL 服务挂载到 `/var/lib/postgresql` 的完整卷配置；只有安全字段的规范化结果完全一致时才继续，完整渲染配置不得输出到终端或写入日志。回退 App 后重复 readiness 和业务验收，包含正确 Host 可达、错误 Host 与已停用域名不可达的检查。若需要恢复升级前备份：
 
 > **数据破坏警告：** 用备份覆盖生产数据库会丢失备份创建之后的全部写入。执行前必须停止 App、确认 Compose project、保存当前失败数据库的独立备份，并由负责人确认恢复点目标。
 

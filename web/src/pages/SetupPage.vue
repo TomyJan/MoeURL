@@ -105,7 +105,7 @@ const form = reactive<SetupInput>({
   adminNickname: '',
   siteName: 'MoeURL',
   systemDomain: '127.0.0.1:8080',
-  shortLinkDomain: '127.0.0.1:8080',
+  shortLinkDomain: 'http://127.0.0.1:8080',
   defaultLanguage: 'zh-CN',
   defaultTheme: 'system',
   setupToken: '',

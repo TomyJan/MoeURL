@@ -14,6 +14,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/config"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
+	"github.com/TomyJan/MoeURL/internal/domain"
 	"github.com/TomyJan/MoeURL/internal/event"
 	apphttp "github.com/TomyJan/MoeURL/internal/http"
 	"github.com/TomyJan/MoeURL/internal/oidc"
@@ -80,12 +81,13 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			return nil, err
 		}
 		deps.Health = pool
-		deps.System = system.NewService(pool, setupPolicy)
+		deps.System = system.NewServiceWithDevelopment(pool, setupPolicy, cfg.Env == "development")
 		authService := auth.NewService(pool, 24*time.Hour)
 		sessionService := auth.NewSessionService(pool, 24*time.Hour)
 		deps.Auth = authService
 		deps.CurrentUser = authService
 		permissionService := permission.NewDatabaseService(pool)
+		deps.Domain = domain.NewServiceWithDevelopment(pool, permissionService, cfg.Env == "development")
 		deps.ShortLink = shortlink.NewServiceWithLogger(pool, permissionService, logger)
 		recorder := event.NewRecorder(pool, logger)
 		redirectService := shortlink.NewRedirectService(pool, recorder)

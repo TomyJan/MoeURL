@@ -23,6 +23,8 @@ var (
 	ErrSlugConflict             = errors.New("slug conflict")
 	ErrReservedSlug             = errors.New("reserved slug")
 	ErrInvalidShortLinkID       = errors.New("invalid short link id")
+	ErrInvalidDomainID          = errors.New("invalid domain id")
+	ErrDomainUnavailable        = errors.New("domain unavailable")
 )
 
 // PasswordRateLimitedError carries the database-authoritative time when retrying is allowed.

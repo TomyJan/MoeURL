@@ -18,13 +18,15 @@ returning id, owner_id, domain_id, slug, target_url, status,
     created_at, updated_at, deleted_at;
 
 -- name: GetShortLinkBySlug :one
-select id, owner_id, domain_id, slug, target_url, status,
-    redirect_mode, intermediate_delay_seconds, expires_at,
-    coalesce(expires_at <= clock_timestamp(), false)::boolean as expired,
-    password_hash,
-    created_at, updated_at, deleted_at
+select short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
+    short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
+    coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
+    short_link.password_hash,
+    short_link.created_at, short_link.updated_at, short_link.deleted_at,
+    domain.host as domain_host, domain.enabled as domain_enabled, domain.purpose as domain_purpose
 from short_link
-where slug = $1 and deleted_at is null;
+join domain on domain.id = short_link.domain_id
+where short_link.slug = $1 and short_link.deleted_at is null;
 
 -- name: GetShortLinkAnalyticsLink :one
 select short_link.id,

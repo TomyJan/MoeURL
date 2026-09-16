@@ -24,6 +24,19 @@ func TestNewHandlerUsesDefaultLogger(t *testing.T) {
 	}
 }
 
+// TestHandlerCreatePassesExplicitDomainID verifies optional domain selection reaches the service.
+func TestHandlerCreatePassesExplicitDomainID(t *testing.T) {
+	service := &fakeShortLinkService{}
+	handler := shortlink.NewHandler(service)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/short-link/create",
+		bytes.NewBufferString(`{"targetUrl":"https://target.example.com","domainId":"00000000-0000-0000-0000-000000000301"}`))
+	response := httptest.NewRecorder()
+	handler.Create(response, request)
+	if service.createInput.DomainID == nil || *service.createInput.DomainID != "00000000-0000-0000-0000-000000000301" {
+		t.Fatalf("decoded domain ID = %v", service.createInput.DomainID)
+	}
+}
+
 // TestHandlerCreateShortLinkReturnsCreatedLink verifies the create response payload.
 func TestHandlerCreateShortLinkReturnsCreatedLink(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{
@@ -138,6 +151,8 @@ func TestHandlerCreateShortLinkMapsBusinessErrors(t *testing.T) {
 		{name: "invalid redirect mode", err: shortlink.ErrInvalidRedirectMode, code: 200106},
 		{name: "invalid intermediate delay", err: shortlink.ErrInvalidIntermediateDelay, code: 200107},
 		{name: "invalid expiration", err: shortlink.ErrInvalidExpiration, code: 200108},
+		{name: "invalid domain ID", err: shortlink.ErrInvalidDomainID, code: 100001},
+		{name: "unavailable domain", err: shortlink.ErrDomainUnavailable, code: shortlink.CodeDomainUnavailable},
 		{name: "slug conflict", err: shortlink.ErrSlugConflict, code: 200101},
 		{name: "reserved slug", err: shortlink.ErrReservedSlug, code: 200102},
 	}

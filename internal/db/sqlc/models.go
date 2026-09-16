@@ -40,12 +40,23 @@ type Domain struct {
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
+type DomainUserGroup struct {
+	DomainID    pgtype.UUID `json:"domain_id"`
+	UserGroupID pgtype.UUID `json:"user_group_id"`
+}
+
 type ExternalIdentity struct {
 	ProviderID  pgtype.UUID        `json:"provider_id"`
 	Subject     string             `json:"subject"`
 	UserID      pgtype.UUID        `json:"user_id"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	LastLoginAt pgtype.Timestamptz `json:"last_login_at"`
+}
+
+type MoeurlMultiDomainPermissionAddition struct {
+	UserGroupID pgtype.UUID `json:"user_group_id"`
+	Permission  string      `json:"permission"`
+	Revision    int64       `json:"revision"`
 }
 
 // Tracks permissions added by migration 00004 for reversible rollback.

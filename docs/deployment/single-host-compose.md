@@ -152,7 +152,7 @@ printf '%s/api/v1/auth/oidc/<provider-key>/callback\n' "$PUBLIC_BASE_URL"
 go.example.com {
     header Strict-Transport-Security "max-age=31536000; includeSubDomains"
     reverse_proxy 127.0.0.1:8080 {
-        header_up Host {host}
+        header_up Host {hostport}
         header_up X-Forwarded-Proto {scheme}
         header_up X-Forwarded-Host {host}
         header_up -X-MoeURL-Country-Code
@@ -234,7 +234,7 @@ server {
 `/etc/nginx/snippets/moeurl-proxy-headers.conf`：
 
 ```nginx
-proxy_set_header Host $host;
+proxy_set_header Host $http_host;
 proxy_set_header X-Real-IP $remote_addr;
 proxy_set_header X-Forwarded-For $remote_addr;
 proxy_set_header X-Forwarded-Proto $scheme;
@@ -272,6 +272,14 @@ map $geoip2_data_country_code $moeurl_country_code {
 - `GET /api/v1/auth/oidc/*/callback`
 
 应用内账号级登录保护、短链级密码保护和 OIDC 进程并发槽位不能替代来源级限流。限额应根据正常用户流量调整，并对 HTTP `429`、异常峰值和代理错误率建立监控。
+
+### 5.5 v0.8.0 多短链域名上线检查
+
+应用只根据真实到达的 `Host` 匹配短链保存的域名，不接受 `X-Forwarded-Host` 替代。上述 Caddy 与 Nginx 示例均需保留原始 Host authority，包括非默认 HTTPS 端口；不要改写为统一的主站域名或仅主机名。对每个启用的短链域名分别配置 DNS 解析、有效证书和到同一 App 的反向代理入口；多域名可以复用代理配置，但证书必须覆盖各自名称。OIDC 的 `MOEURL_PUBLIC_BASE_URL` 仍是登录回调的唯一公共 Origin，不因短链默认域名切换而自动改变。
+
+升级前列出生产库中已登记的 `domain.host`、当前发布的短链 URL 和代理接受的所有公开别名，逐个核查完整 Host 与端口。新版本只接受短链所属域名：旧版即使允许从别名访问，升级后该别名也返回不存在；必须先选择受支持的正式域名并通知使用者，不能在代理中默默改写 Host 绕过校验。登记第二域名前先确认其 HTTPS 和路由可用，再通过管理页启用、授权；切换默认值只影响今后省略域名选择的新建短链。被短链引用的域名停用时，其所有旧短链暂时不可访问，重新启用后按原地址恢复，软删除的短链引用也会阻止删除域名。
+
+验收时分别从每个公网 HTTPS Origin 访问一条属于该域名的测试短链，确认成功跳转；用另一个 Host 访问同一短码必须返回 `404`。同时核对直接访问、预览、解锁和继续访问不绕过域名边界，验证默认切换前后旧短链 URL 不变。测试必须走真实代理和有效证书；本地 loopback 双 Host E2E 不能作为公网 DNS/TLS 证据。
 
 ## 6. 日常操作与开发覆盖
 

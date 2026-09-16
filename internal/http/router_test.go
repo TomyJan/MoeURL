@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	"github.com/TomyJan/MoeURL/internal/domain"
 	apphttp "github.com/TomyJan/MoeURL/internal/http"
 	"github.com/TomyJan/MoeURL/internal/oidc"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
@@ -22,6 +23,60 @@ import (
 	"github.com/TomyJan/MoeURL/internal/user"
 	"github.com/TomyJan/MoeURL/internal/usergroup"
 )
+
+type routerDomainPort struct{ domain.Port }
+
+func (routerDomainPort) List(context.Context, auth.CurrentUser) (domain.ListResult, error) {
+	return domain.ListResult{Items: []domain.Domain{}}, nil
+}
+
+func (routerDomainPort) Available(context.Context, auth.CurrentUser) (domain.AvailableResult, error) {
+	return domain.AvailableResult{Items: []domain.AvailableDomain{}}, nil
+}
+
+func (routerDomainPort) Create(context.Context, auth.CurrentUser, domain.CreateInput) (domain.Domain, error) {
+	return domain.Domain{}, domain.ErrPermissionDenied
+}
+
+func (routerDomainPort) Update(context.Context, auth.CurrentUser, domain.UpdateInput) (domain.Domain, error) {
+	return domain.Domain{}, nil
+}
+
+func (routerDomainPort) SetDefault(context.Context, auth.CurrentUser, domain.ChangeInput) (domain.Domain, error) {
+	return domain.Domain{}, nil
+}
+
+func (routerDomainPort) Delete(context.Context, auth.CurrentUser, domain.ChangeInput) error {
+	return nil
+}
+
+func TestRouterRegistersDomainRoutesWithNoStore(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.Dependencies{Domain: routerDomainPort{}})
+	for _, entry := range []struct {
+		method, path string
+		wantCode     int
+	}{
+		{http.MethodGet, "/api/v1/domain/available", 0},
+		{http.MethodGet, "/api/v1/admin/domain/list", 0},
+		{http.MethodPost, "/api/v1/admin/domain/create", domain.CodePermissionDenied},
+		{http.MethodPost, "/api/v1/admin/domain/update", 0},
+		{http.MethodPost, "/api/v1/admin/domain/set-default", 0},
+		{http.MethodPost, "/api/v1/admin/domain/delete", 0},
+	} {
+		request := httptest.NewRequestWithContext(t.Context(), entry.method, entry.path, strings.NewReader(`{}`))
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		var body struct {
+			Code int `json:"code"`
+		}
+		if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+			t.Fatalf("decode %s: %v", entry.path, err)
+		}
+		if response.Code != http.StatusOK || body.Code != entry.wantCode || response.Header().Get("Cache-Control") != "no-store" {
+			t.Fatalf("%s %s status = %d, cache = %q", entry.method, entry.path, response.Code, response.Header().Get("Cache-Control"))
+		}
+	}
+}
 
 // TestRouterRegistersOIDCPublicAndAdministrativeRoutes verifies OIDC routes retain their cache and identity boundaries.
 func TestRouterRegistersOIDCPublicAndAdministrativeRoutes(t *testing.T) {
@@ -244,6 +299,7 @@ func TestRouterServesSPAFixedRoutesFromStaticDir(t *testing.T) {
 		"/admin/user",
 		"/admin/user/group",
 		"/admin/setting",
+		"/admin/domain",
 		"/admin/user/new",
 	} {
 		t.Run(path, func(t *testing.T) {
@@ -783,7 +839,7 @@ func int16Pointer(value int16) *int16 {
 }
 
 // Open implements the corresponding operation for the surrounding test double.
-func (service *routerRedirectService) Open(_ context.Context, slug string) (shortlink.OpenResult, error) {
+func (service *routerRedirectService) Open(_ context.Context, slug string, _ string) (shortlink.OpenResult, error) {
 	service.openSlugs = append(service.openSlugs, slug)
 	if service.err != nil {
 		return shortlink.OpenResult{}, service.err
@@ -795,7 +851,7 @@ func (service *routerRedirectService) Open(_ context.Context, slug string) (shor
 }
 
 // Preview records the slug forwarded by router preview routes.
-func (service *routerRedirectService) Preview(_ context.Context, slug string, accessToken string) (shortlink.PreviewResult, error) {
+func (service *routerRedirectService) Preview(_ context.Context, slug string, accessToken string, _ string) (shortlink.PreviewResult, error) {
 	service.previewSlugs = append(service.previewSlugs, slug)
 	service.previewTokens = append(service.previewTokens, accessToken)
 	if service.err != nil {
@@ -808,7 +864,7 @@ func (service *routerRedirectService) Preview(_ context.Context, slug string, ac
 }
 
 // Unlock satisfies the redirect contract for router tests that do not exercise password verification.
-func (service *routerRedirectService) Unlock(_ context.Context, slug string, password string) (shortlink.AccessGrant, error) {
+func (service *routerRedirectService) Unlock(_ context.Context, slug string, password string, _ string) (shortlink.AccessGrant, error) {
 	service.unlockSlugs = append(service.unlockSlugs, slug)
 	service.unlockPassword = password
 	if service.err != nil {
@@ -818,7 +874,7 @@ func (service *routerRedirectService) Unlock(_ context.Context, slug string, pas
 }
 
 // Continue records the slug forwarded by the fixed continue route.
-func (service *routerRedirectService) Continue(_ context.Context, slug string, accessToken string) (shortlink.RedirectResult, error) {
+func (service *routerRedirectService) Continue(_ context.Context, slug string, accessToken string, _ string) (shortlink.RedirectResult, error) {
 	service.continueSlugs = append(service.continueSlugs, slug)
 	service.continueToken = accessToken
 	if service.err != nil {

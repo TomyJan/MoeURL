@@ -102,7 +102,9 @@ vi.mock('@tanstack/vue-query', () => ({
       }
     },
   ),
-  useQuery: vi.fn(() => state.queryResult),
+  useQuery: vi.fn((options?: { queryKey?: readonly string[] }) => options?.queryKey?.[0] === 'domain'
+    ? { data: ref({ items: [{ id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true }] }), isError: ref(false), isPending: ref(false) }
+    : state.queryResult),
   useQueryClient: () => ({
     invalidateQueries: state.invalidateQueries,
   }),
@@ -178,7 +180,7 @@ describe('ConsoleShell', () => {
       username: 'admin',
       nickname: 'Admin',
       group: 'admin',
-      permissions: ['short_link:create', 'domain:use_default', 'short_link:read_own', 'admin:access'],
+      permissions: ['short_link:create', 'domain:use_default', 'short_link:read_own', 'admin:access', 'domain:manage'],
     })
 
     mountShell()
@@ -199,6 +201,20 @@ describe('ConsoleShell', () => {
     expect(screen.queryByText('page.createUser')).toBeNull()
     expect(screen.getByText('nav.analytics')).toBeTruthy()
     expect(screen.getByText('nav.settings')).toBeTruthy()
+    expect(screen.getByText('nav.domains')).toBeTruthy()
+  })
+
+  it.each([
+    ['admin:access'],
+    ['domain:manage'],
+  ])('hides domain management navigation when either permission is missing: %s', (permission) => {
+    setCurrentUser({
+      username: 'admin',
+      group: 'admin',
+      permissions: ['short_link:read_own', permission],
+    })
+    mountShell()
+    expect(screen.queryByText('nav.domains')).toBeNull()
   })
 
   it('expands the matching two-level navigation group for child routes', () => {
