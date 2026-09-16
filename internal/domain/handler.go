@@ -44,6 +44,7 @@ func NewHandler(service Port, logger *slog.Logger) *Handler {
 	return &Handler{service: service, logger: logger}
 }
 
+// List returns the complete managed-domain view for an authorized administrator.
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	result, err := h.service.List(r.Context(), auth.UserFromContext(r.Context()))
 	if err != nil {
@@ -53,6 +54,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	ok(w, result)
 }
 
+// Available returns the enabled domains the current user may select for a short link.
 func (h *Handler) Available(w http.ResponseWriter, r *http.Request) {
 	result, err := h.service.Available(r.Context(), auth.UserFromContext(r.Context()))
 	if err != nil {
@@ -62,6 +64,7 @@ func (h *Handler) Available(w http.ResponseWriter, r *http.Request) {
 	ok(w, result)
 }
 
+// Create validates one management request and returns the newly registered domain.
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var input CreateInput
 	if !decodeInput(w, r, &input) {
@@ -75,6 +78,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]Domain{"domain": result})
 }
 
+// Update applies an optimistic domain change and returns the refreshed representation.
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	var input UpdateInput
 	if !decodeInput(w, r, &input) {
@@ -88,6 +92,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]Domain{"domain": result})
 }
 
+// SetDefault atomically selects the requested domain as the global short-link default.
 func (h *Handler) SetDefault(w http.ResponseWriter, r *http.Request) {
 	var input ChangeInput
 	if !decodeInput(w, r, &input) {
@@ -101,6 +106,7 @@ func (h *Handler) SetDefault(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]Domain{"domain": result})
 }
 
+// Delete removes an unreferenced non-default domain using optimistic concurrency.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	var input ChangeInput
 	if !decodeInput(w, r, &input) {
@@ -113,6 +119,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]bool{"deleted": true})
 }
 
+// decodeInput parses one JSON request body and emits the standard invalid-request response on failure.
 func decodeInput(w http.ResponseWriter, r *http.Request, target any) bool {
 	if err := json.NewDecoder(r.Body).Decode(target); err != nil {
 		businessError(w, 100001, "Invalid request")
@@ -121,6 +128,7 @@ func decodeInput(w http.ResponseWriter, r *http.Request, target any) bool {
 	return true
 }
 
+// writeError maps domain errors to stable business responses and sanitizes infrastructure failures.
 func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, ErrPermissionDenied):
@@ -158,14 +166,17 @@ type response struct {
 	Meta    any    `json:"meta"`
 }
 
+// ok writes the standard successful API envelope.
 func ok(w http.ResponseWriter, data any) {
 	writeJSON(w, http.StatusOK, response{Code: 0, Message: "OK", Data: data, Meta: map[string]any{}})
 }
 
+// businessError writes a domain business failure using the HTTP 200 API contract.
 func businessError(w http.ResponseWriter, code int, message string) {
 	writeJSON(w, http.StatusOK, response{Code: code, Message: message, Data: nil, Meta: map[string]any{}})
 }
 
+// writeJSON serializes one response envelope with the requested HTTP status.
 func writeJSON(w http.ResponseWriter, status int, body response) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)

@@ -246,6 +246,7 @@ func (s *Service) SetDefault(ctx context.Context, actor auth.CurrentUser, input 
 	return selected, err
 }
 
+// syncDefaultHostSetting updates the legacy default-host setting inside the caller's transaction.
 func syncDefaultHostSetting(ctx context.Context, q *sqlc.Queries, host string) error {
 	value, err := json.Marshal(host)
 	if err != nil {
@@ -297,6 +298,7 @@ func (s *Service) Delete(ctx context.Context, actor auth.CurrentUser, input Chan
 	})
 }
 
+// authorizeAdmin requires both console administration and domain-management permissions.
 func (s *Service) authorizeAdmin(ctx context.Context, actor auth.CurrentUser) error {
 	if s.permissions == nil {
 		return ErrPermissionDenied
@@ -311,6 +313,7 @@ func (s *Service) authorizeAdmin(ctx context.Context, actor auth.CurrentUser) er
 	return nil
 }
 
+// validateInput normalizes a new domain Origin and validates its editable metadata.
 func (s *Service) validateInput(host, displayName string, groupKeys []string) (string, string, []string, error) {
 	normalized, err := NormalizeOrigin(host, s.allowLoopbackHTTP)
 	if err != nil {
@@ -320,6 +323,7 @@ func (s *Service) validateInput(host, displayName string, groupKeys []string) (s
 	return normalized, displayName, groups, err
 }
 
+// validateNameAndGroups enforces display-name and built-in group assignment constraints.
 func validateNameAndGroups(displayName string, groupKeys []string) (string, []string, error) {
 	displayName = strings.TrimSpace(displayName)
 	if displayName == "" || len([]rune(displayName)) > 80 || groupKeys == nil || len(groupKeys) > 2 {
@@ -335,6 +339,7 @@ func validateNameAndGroups(displayName string, groupKeys []string) (string, []st
 	return displayName, groupKeys, nil
 }
 
+// lockDomainWrites serializes domain mutations with short-link creation transactions.
 func lockDomainWrites(ctx context.Context, tx pgx.Tx) error {
 	_, err := tx.Exec(ctx, `select pg_advisory_xact_lock($1)`, domainWriteLockKey)
 	return err
@@ -347,6 +352,7 @@ func LockShortLinkCreation(ctx context.Context, tx pgx.Tx) error {
 	return err
 }
 
+// checkAuthorityConflict rejects exact or normalized authority collisions outside the current row.
 func checkAuthorityConflict(ctx context.Context, queries *sqlc.Queries, host string, currentID uuid.UUID) error {
 	wanted, wantedErr := Authority(host)
 	rows, err := queries.ListDomainHosts(ctx)
@@ -365,6 +371,7 @@ func checkAuthorityConflict(ctx context.Context, queries *sqlc.Queries, host str
 	return nil
 }
 
+// replaceGrants replaces all built-in group assignments and rejects unknown group keys.
 func replaceGrants(ctx context.Context, queries *sqlc.Queries, domainID pgtype.UUID, keys []string) error {
 	if err := queries.DeleteDomainGrants(ctx, domainID); err != nil {
 		return err
@@ -381,6 +388,7 @@ func replaceGrants(ctx context.Context, queries *sqlc.Queries, domainID pgtype.U
 	return nil
 }
 
+// parseChange validates an optimistic-change identity and normalizes its timestamp to UTC.
 func parseChange(id, updatedAt string) (uuid.UUID, time.Time, error) {
 	parsedID, err := uuid.Parse(id)
 	if err != nil {
@@ -393,20 +401,24 @@ func parseChange(id, updatedAt string) (uuid.UUID, time.Time, error) {
 	return parsedID, parsedTime.UTC(), nil
 }
 
+// domainFromRow converts the persisted domain and related state into the API model.
 func domainFromRow(row sqlc.Domain, groups []string, referenced bool) Domain {
 	return Domain{ID: uuid.UUID(row.ID.Bytes).String(), Host: row.Host, DisplayName: row.DisplayName,
 		Purpose: row.Purpose, Enabled: row.Enabled, IsDefault: row.IsDefault,
 		AllowedGroups: groups, Referenced: referenced, UpdatedAt: formatUpdatedAt(row.UpdatedAt)}
 }
 
+// formatUpdatedAt renders a database timestamp in the API's stable RFC 3339 form.
 func formatUpdatedAt(value pgtype.Timestamptz) string {
 	return value.Time.UTC().Format(time.RFC3339Nano)
 }
 
+// pgUUID converts a validated UUID into the SQLC PostgreSQL representation.
 func pgUUID(id uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{Bytes: id, Valid: true}
 }
 
+// mapNotFound converts a missing database row into the domain not-found contract.
 func mapNotFound(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrDomainNotFound
@@ -414,6 +426,7 @@ func mapNotFound(err error) error {
 	return err
 }
 
+// mapUniqueConflict converts PostgreSQL uniqueness failures into the domain conflict contract.
 func mapUniqueConflict(err error) error {
 	pgErr := new(pgconn.PgError)
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
