@@ -135,6 +135,15 @@ describe('deployment configuration', () => {
     expect(compose).toContain('MOEURL_SETUP_TOKEN: ${MOEURL_SETUP_TOKEN:-}')
   })
 
+  it('uses environment-valid Origins in CI initialization payloads', () => {
+    const e2eSetup = readFileSync(resolve(repositoryRoot, 'web/e2e/initialize.setup.ts'), 'utf8')
+    const smokeScript = readFileSync(resolve(repositoryRoot, 'scripts/compose-smoke.sh'), 'utf8')
+
+    expect(e2eSetup).toContain('const e2eShortLinkOrigin = `http://${e2eHost}`')
+    expect(e2eSetup).toContain('shortLinkDomain: e2eShortLinkOrigin')
+    expect(smokeScript).toContain('shortLinkDomain: `https://localhost:${process.env.runtime_port}`')
+  })
+
   it('passes optional OIDC runtime configuration through Compose', () => {
     const compose = readFileSync(resolve(repositoryRoot, 'docker-compose.yml'), 'utf8')
     const exampleEnv = readFileSync(resolve(repositoryRoot, '.env.example'), 'utf8')

@@ -272,8 +272,8 @@ const setup = {
   adminNickname: 'Smoke Admin',
   siteName: 'MoeURL Smoke',
   systemDomain: '127.0.0.1',
-  // The public request Host is localhost:<mapped port>; domain checks must use that authority.
-  shortLinkDomain: `localhost:${process.env.runtime_port}`,
+  // Initialization accepts a root Origin; redirect Host checks later use its authority.
+  shortLinkDomain: `https://localhost:${process.env.runtime_port}`,
   defaultLanguage: 'zh-CN',
   defaultTheme: 'system',
 }

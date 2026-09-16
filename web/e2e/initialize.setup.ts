@@ -7,6 +7,7 @@ import {
 } from './support'
 
 const invalidSetupTokenCode = 900102
+const e2eShortLinkOrigin = `http://${e2eHost}`
 
 test.use({ trace: 'off' })
 
@@ -58,7 +59,7 @@ test('initialization', async ({ page }) => {
     adminNickname: 'Admin',
     siteName: 'MoeURL',
     systemDomain: e2eHost,
-    shortLinkDomain: e2eHost,
+    shortLinkDomain: e2eShortLinkOrigin,
     defaultLanguage: 'zh-CN',
     defaultTheme: 'system',
   }
@@ -93,7 +94,7 @@ test('initialization', async ({ page }) => {
   await page.getByTestId('setup-admin-nickname').locator('input').fill('Admin')
   await page.getByTestId('setup-site-name').locator('input').fill('MoeURL')
   await page.getByTestId('setup-system-domain').locator('input').fill(e2eHost)
-  await page.getByTestId('setup-short-link-domain').locator('input').fill(e2eHost)
+  await page.getByTestId('setup-short-link-domain').locator('input').fill(e2eShortLinkOrigin)
   if (setupToken) {
     await page.getByTestId('setup-token').locator('input').evaluate((element, value) => {
       const input = element as HTMLInputElement
