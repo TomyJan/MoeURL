@@ -10,6 +10,7 @@ import (
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
+	"github.com/TomyJan/MoeURL/internal/domain"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/setuptoken"
 	"github.com/google/uuid"
@@ -20,8 +21,9 @@ import (
 const initializedSettingKey = "site.initialized"
 
 type Service struct {
-	pool        *pgxpool.Pool
-	setupPolicy SetupPolicy
+	pool              *pgxpool.Pool
+	setupPolicy       SetupPolicy
+	allowLoopbackHTTP bool
 }
 
 type SetupPolicy struct {
@@ -43,7 +45,12 @@ func NewSetupPolicy(required bool, token string) (SetupPolicy, error) {
 
 // NewService creates the system-initialization service with an explicit setup policy.
 func NewService(pool *pgxpool.Pool, policy SetupPolicy) *Service {
-	return &Service{pool: pool, setupPolicy: policy}
+	return NewServiceWithDevelopment(pool, policy, false)
+}
+
+// NewServiceWithDevelopment explicitly permits loopback HTTP Origins during development setup.
+func NewServiceWithDevelopment(pool *pgxpool.Pool, policy SetupPolicy, allowLoopbackHTTP bool) *Service {
+	return &Service{pool: pool, setupPolicy: policy, allowLoopbackHTTP: allowLoopbackHTTP}
 }
 
 // SetupTokenRequired reports whether setup requests require a deployment token.
@@ -83,6 +90,10 @@ func (s *Service) Setup(ctx context.Context, input SetupInput) error {
 	}
 	if s.setupPolicy.required && !setupTokensEqual(input.SetupToken, s.setupPolicy.token) {
 		return ErrInvalidSetupToken
+	}
+	shortLinkDomain, err := domain.NormalizeOrigin(input.ShortLinkDomain, s.allowLoopbackHTTP)
+	if err != nil {
+		return ErrInvalidSetupInput
 	}
 
 	passwordHash, err := auth.HashPassword(input.AdminPassword)
@@ -124,7 +135,7 @@ func (s *Service) Setup(ctx context.Context, input SetupInput) error {
 		if _, err := tx.Exec(ctx, `
 			insert into domain (id, host, display_name, purpose, enabled, is_default, created_at, updated_at)
 			values ($1, $2, $2, 'short_link', true, true, $3, $3)
-		`, domainID, strings.TrimSpace(input.ShortLinkDomain), now); err != nil {
+		`, domainID, shortLinkDomain, now); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `
@@ -138,7 +149,7 @@ func (s *Service) Setup(ctx context.Context, input SetupInput) error {
 			"site.name":                      strings.TrimSpace(input.SiteName),
 			"site.initialized":               true,
 			"site.system_domain":             strings.TrimSpace(input.SystemDomain),
-			"site.default_short_link_domain": strings.TrimSpace(input.ShortLinkDomain),
+			"site.default_short_link_domain": shortLinkDomain,
 			"site.default_language":          strings.TrimSpace(input.DefaultLanguage),
 			"site.default_theme":             strings.TrimSpace(input.DefaultTheme),
 		}

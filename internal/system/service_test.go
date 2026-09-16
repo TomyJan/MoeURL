@@ -69,7 +69,7 @@ func TestServiceSetupInitializesBuiltInData(t *testing.T) {
 		AdminNickname:   "Administrator",
 		SiteName:        "MoeURL",
 		SystemDomain:    "example.com",
-		ShortLinkDomain: "go.example.com",
+		ShortLinkDomain: "https://go.example.com",
 		DefaultLanguage: "zh-CN",
 		DefaultTheme:    "system",
 	})
@@ -93,12 +93,86 @@ func TestServiceSetupInitializesBuiltInData(t *testing.T) {
 		AdminNickname:   "Administrator",
 		SiteName:        "MoeURL",
 		SystemDomain:    "example.com",
-		ShortLinkDomain: "go.example.com",
+		ShortLinkDomain: "https://go.example.com",
 		DefaultLanguage: "zh-CN",
 		DefaultTheme:    "system",
 	})
 	if !errors.Is(err, system.ErrAlreadyInitialized) {
 		t.Fatalf("expected ErrAlreadyInitialized, got %v", err)
+	}
+}
+
+// TestServiceSetupNormalizesShortLinkOrigin verifies setup stores one canonical Origin in both mirrors.
+func TestServiceSetupNormalizesShortLinkOrigin(t *testing.T) {
+	ctx := t.Context()
+	pool := systemTestPool(t, ctx)
+	service := system.NewService(pool, mustSetupPolicy(t, false, ""))
+	input := validSetupInput("")
+	input.ShortLinkDomain = "https://GO.Example.com.:443/"
+
+	if err := service.Setup(ctx, input); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	var domainHost string
+	if err := pool.QueryRow(ctx, `select host from domain where is_default = true`).Scan(&domainHost); err != nil {
+		t.Fatalf("read default domain: %v", err)
+	}
+	var mirroredHost string
+	if err := pool.QueryRow(ctx, `select value #>> '{}' from system_setting where key = 'site.default_short_link_domain'`).Scan(&mirroredHost); err != nil {
+		t.Fatalf("read default domain setting: %v", err)
+	}
+	if domainHost != "https://go.example.com" || mirroredHost != domainHost {
+		t.Fatalf("stored domain = %q, mirrored domain = %q", domainHost, mirroredHost)
+	}
+}
+
+// TestServiceSetupRejectsInvalidShortLinkOriginBeforePersistence verifies invalid Origins leave no setup data.
+func TestServiceSetupRejectsInvalidShortLinkOriginBeforePersistence(t *testing.T) {
+	for _, shortLinkDomain := range []string{"https://go.example.com/path", " https://go.example.com "} {
+		t.Run(shortLinkDomain, func(t *testing.T) {
+			ctx := t.Context()
+			pool := systemTestPool(t, ctx)
+			service := system.NewService(pool, mustSetupPolicy(t, false, ""))
+			input := validSetupInput("")
+			input.ShortLinkDomain = shortLinkDomain
+
+			err := service.Setup(ctx, input)
+
+			if !errors.Is(err, system.ErrInvalidSetupInput) {
+				t.Fatalf("setup error = %v, want ErrInvalidSetupInput", err)
+			}
+			for _, table := range []string{"user_group", "app_user", "domain", "system_setting", "domain_user_group"} {
+				var count int
+				if err := pool.QueryRow(ctx, `select count(*) from `+table).Scan(&count); err != nil {
+					t.Fatalf("count %s: %v", table, err)
+				}
+				if count != 0 {
+					t.Fatalf("invalid setup left %d %s rows", count, table)
+				}
+			}
+		})
+	}
+}
+
+// TestServiceSetupAllowsNormalizedLoopbackHTTPInDevelopment verifies setup shares domain-management development policy.
+func TestServiceSetupAllowsNormalizedLoopbackHTTPInDevelopment(t *testing.T) {
+	ctx := t.Context()
+	pool := systemTestPool(t, ctx)
+	service := system.NewServiceWithDevelopment(pool, mustSetupPolicy(t, false, ""), true)
+	input := validSetupInput("")
+	input.ShortLinkDomain = "http://LOCALHOST:80/"
+
+	if err := service.Setup(ctx, input); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	var domainHost string
+	if err := pool.QueryRow(ctx, `select host from domain where is_default = true`).Scan(&domainHost); err != nil {
+		t.Fatalf("read default domain: %v", err)
+	}
+	if domainHost != "http://localhost" {
+		t.Fatalf("stored domain = %q, want http://localhost", domainHost)
 	}
 }
 
@@ -115,7 +189,7 @@ func TestServiceSetupRejectsReservedAdminUsername(t *testing.T) {
 		AdminNickname:   "Guest Admin",
 		SiteName:        "MoeURL",
 		SystemDomain:    "example.com",
-		ShortLinkDomain: "go.example.com",
+		ShortLinkDomain: "https://go.example.com",
 		DefaultLanguage: "zh-CN",
 		DefaultTheme:    "system",
 	})
@@ -136,7 +210,7 @@ func TestServiceSetupRejectsBlankRequiredFields(t *testing.T) {
 		AdminNickname:   "Administrator",
 		SiteName:        "",
 		SystemDomain:    "example.com",
-		ShortLinkDomain: "go.example.com",
+		ShortLinkDomain: "https://go.example.com",
 		DefaultLanguage: "zh-CN",
 		DefaultTheme:    "system",
 	})
@@ -226,7 +300,7 @@ func TestServiceReturnsDatabaseErrors(t *testing.T) {
 		AdminNickname:   "Administrator",
 		SiteName:        "MoeURL",
 		SystemDomain:    "example.com",
-		ShortLinkDomain: "go.example.com",
+		ShortLinkDomain: "https://go.example.com",
 		DefaultLanguage: "zh-CN",
 		DefaultTheme:    "system",
 	})
@@ -299,8 +373,8 @@ func assertBuiltInData(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	if err != nil {
 		t.Fatalf("get default domain: %v", err)
 	}
-	if defaultHost != "go.example.com" {
-		t.Fatalf("expected default domain go.example.com, got %s", defaultHost)
+	if defaultHost != "https://go.example.com" {
+		t.Fatalf("expected default domain https://go.example.com, got %s", defaultHost)
 	}
 	var grantedGroups []string
 	if err := pool.QueryRow(ctx, `
@@ -308,7 +382,7 @@ func assertBuiltInData(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 		from domain_user_group
 		join user_group on user_group.id = domain_user_group.user_group_id
 		join domain on domain.id = domain_user_group.domain_id
-		where domain.host = 'go.example.com'
+		where domain.host = 'https://go.example.com'
 	`).Scan(&grantedGroups); err != nil {
 		t.Fatalf("get initial domain grants: %v", err)
 	}
@@ -372,7 +446,7 @@ func validSetupInput(setupToken string) system.SetupInput {
 		AdminNickname:   "Administrator",
 		SiteName:        "MoeURL",
 		SystemDomain:    "example.com",
-		ShortLinkDomain: "go.example.com",
+		ShortLinkDomain: "https://go.example.com",
 		DefaultLanguage: "zh-CN",
 		DefaultTheme:    "system",
 		SetupToken:      setupToken,

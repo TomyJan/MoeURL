@@ -530,6 +530,29 @@ describe('deployment configuration', () => {
     expect(upgradeGuide).not.toContain('http://127.0.0.1:8080/api/v1/health/ready')
   })
 
+  it('validates target and rollback postgres storage before stopping the app', () => {
+    const upgradeGuide = readFileSync(
+      resolve(repositoryRoot, 'docs/deployment/upgrade-and-recovery.md'),
+      'utf8',
+    )
+    const targetHelper = upgradeGuide.indexOf('target_compose()')
+    const rollbackHelper = upgradeGuide.indexOf('rollback_compose()', targetHelper)
+    const jsonCapability = upgradeGuide.indexOf('config --format json', targetHelper)
+    const storageComparison = upgradeGuide.indexOf(
+      'test "$target_postgres_storage" = "$rollback_postgres_storage"',
+      targetHelper,
+    )
+    const stopApp = upgradeGuide.indexOf('target_compose stop app', targetHelper)
+
+    for (const marker of [targetHelper, rollbackHelper, jsonCapability, storageComparison, stopApp]) {
+      expect(marker).toBeGreaterThanOrEqual(0)
+    }
+    expect(targetHelper).toBeLessThan(rollbackHelper)
+    expect(rollbackHelper).toBeLessThan(jsonCapability)
+    expect(jsonCapability).toBeLessThan(storageComparison)
+    expect(storageComparison).toBeLessThan(stopApp)
+  })
+
   it('quotes the Nginx GeoIP country-code regular expression', () => {
     const deploymentGuide = readFileSync(
       resolve(repositoryRoot, 'docs/deployment/single-host-compose.md'),

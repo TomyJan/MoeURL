@@ -9,16 +9,16 @@
 # caller validation, database failures between sequential statements, transaction
 # step failures covered by transaction integration tests, JSON marshaling of
 # statically typed values, and exhaustive short-code collision retries.
-github.com/TomyJan/MoeURL/internal/system/service.go:89.16,91.3
-github.com/TomyJan/MoeURL/internal/system/service.go:100.119,102.4
-github.com/TomyJan/MoeURL/internal/system/service.go:103.131,105.4
-github.com/TomyJan/MoeURL/internal/system/service.go:106.136,108.4
-github.com/TomyJan/MoeURL/internal/system/service.go:113.49,115.4
-github.com/TomyJan/MoeURL/internal/system/service.go:120.143,122.4
-github.com/TomyJan/MoeURL/internal/system/service.go:127.75,129.4
-github.com/TomyJan/MoeURL/internal/system/service.go:146.66,148.5
-github.com/TomyJan/MoeURL/internal/system/service.go:189.16,191.3
-github.com/TomyJan/MoeURL/internal/system/service.go:203.16,205.3
+github.com/TomyJan/MoeURL/internal/system/service.go:100.16,102.3
+github.com/TomyJan/MoeURL/internal/system/service.go:111.119,113.4
+github.com/TomyJan/MoeURL/internal/system/service.go:114.131,116.4
+github.com/TomyJan/MoeURL/internal/system/service.go:117.136,119.4
+github.com/TomyJan/MoeURL/internal/system/service.go:124.49,126.4
+github.com/TomyJan/MoeURL/internal/system/service.go:131.143,133.4
+github.com/TomyJan/MoeURL/internal/system/service.go:138.50,140.4
+github.com/TomyJan/MoeURL/internal/system/service.go:157.66,159.5
+github.com/TomyJan/MoeURL/internal/system/service.go:200.16,202.3
+github.com/TomyJan/MoeURL/internal/system/service.go:214.16,216.3
 # Resolve's last-seen update can fail only after a successful query; forcing that transition requires a connection-pool race.
 github.com/TomyJan/MoeURL/internal/auth/session.go:89.16,91.3
 # User Create password hashing failure; argon2/random failure is an infrastructure branch that is not deterministically triggerable.

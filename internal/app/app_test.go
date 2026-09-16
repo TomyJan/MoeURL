@@ -385,7 +385,7 @@ func newTestApplication(t *testing.T, environments ...string) *App {
 		AdminNickname:   "Administrator",
 		SiteName:        "MoeURL",
 		SystemDomain:    "example.com",
-		ShortLinkDomain: "go.example.com",
+		ShortLinkDomain: "https://go.example.com",
 		DefaultLanguage: "zh-CN",
 		DefaultTheme:    "system",
 		SetupToken:      cfg.SetupToken,
@@ -440,7 +440,7 @@ func TestAppNewInjectsProductionSetupPolicy(t *testing.T) {
 		"adminNickname":"Administrator",
 		"siteName":"MoeURL",
 		"systemDomain":"example.com",
-		"shortLinkDomain":"go.example.com",
+		"shortLinkDomain":"https://go.example.com",
 		"defaultLanguage":"zh-CN",
 		"defaultTheme":"system",
 		"setupToken":"`+testSetupToken+`"
