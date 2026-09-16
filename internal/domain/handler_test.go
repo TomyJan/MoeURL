@@ -153,6 +153,31 @@ func TestDomainHandlerMapsBusinessAndSanitizesInfrastructureErrors(t *testing.T)
 	}
 }
 
+func TestDomainHandlerRejectsTrailingJSONBeforeCallingService(t *testing.T) {
+	called := false
+	handler := domain.NewHandler(domainPortStub{create: func(context.Context, auth.CurrentUser, domain.CreateInput) (domain.Domain, error) {
+		called = true
+		return domain.Domain{}, nil
+	}}, nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/admin/domain/create", strings.NewReader(`{} {}`))
+	response := httptest.NewRecorder()
+
+	handler.Create(response, request)
+
+	var body struct {
+		Code int `json:"code"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Code != http.StatusOK || body.Code != 100001 {
+		t.Fatalf("response = %d/%d, want 200/100001", response.Code, body.Code)
+	}
+	if called {
+		t.Fatal("service was called for a request with trailing JSON")
+	}
+}
+
 func TestDomainHandlerCoversEndpointSuccessFailureAndInvalidInput(t *testing.T) {
 	managed := domain.Domain{ID: "00000000-0000-4000-8000-000000000801", Host: "https://go.example.com"}
 	success := domainPortStub{

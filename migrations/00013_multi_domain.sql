@@ -40,7 +40,9 @@ set permissions = permissions
         || case when key = 'admin' and not permissions ? 'domain:manage'
             then '["domain:manage"]'::jsonb else '[]'::jsonb end,
     updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
-where builtin and key in ('user', 'admin');
+where builtin and key in ('user', 'admin')
+    and ((permissions ? 'domain:use_default' and not permissions ? 'domain:use_assigned')
+        or (key = 'admin' and not permissions ? 'domain:manage'));
 
 create function track_multi_domain_permission_edits() returns trigger
 language plpgsql as $$

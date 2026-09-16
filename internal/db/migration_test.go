@@ -147,8 +147,10 @@ func TestMultiDomainMigrationRoundTrip(t *testing.T) {
 		t.Fatalf("upgrade through OIDC: %v", err)
 	}
 	insertUserGroups(t, ctx, database)
+	completeUserUpdatedAt := time.Date(2030, time.January, 1, 0, 0, 0, 0, time.UTC)
 	if _, err := database.ExecContext(ctx, `
-		update user_group set permissions = '["domain:use_default"]'::jsonb where key = 'user';
+		update user_group set permissions = '["domain:use_default","domain:use_assigned"]'::jsonb,
+			updated_at = '2030-01-01T00:00:00Z' where key = 'user';
 		update user_group set permissions = '["domain:use_default","domain:use_assigned"]'::jsonb where key = 'admin';
 		insert into short_link (id, owner_id, domain_id, slug, target_url, status, created_at, updated_at)
 		values ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000201',
@@ -158,6 +160,13 @@ func TestMultiDomainMigrationRoundTrip(t *testing.T) {
 	}
 	if err := goose.UpTo(database, migrationsDir, 13); err != nil {
 		t.Fatalf("upgrade multi-domain migration: %v", err)
+	}
+	var userUpdatedAt time.Time
+	if err := database.QueryRowContext(ctx, `select updated_at from user_group where key = 'user'`).Scan(&userUpdatedAt); err != nil {
+		t.Fatalf("read complete user-group version: %v", err)
+	}
+	if !userUpdatedAt.Equal(completeUserUpdatedAt) {
+		t.Fatalf("complete user-group updated_at = %s, want unchanged %s", userUpdatedAt, completeUserUpdatedAt)
 	}
 	assertRelationExists(t, ctx, database, "domain_user_group", true)
 	var groupKeys []string
@@ -169,7 +178,7 @@ func TestMultiDomainMigrationRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read default domain grants: %v", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var key string
 		if err := rows.Scan(&key); err != nil {

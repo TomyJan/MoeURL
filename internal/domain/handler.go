@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 
@@ -121,7 +122,13 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // decodeInput parses one JSON request body and emits the standard invalid-request response on failure.
 func decodeInput(w http.ResponseWriter, r *http.Request, target any) bool {
-	if err := json.NewDecoder(r.Body).Decode(target); err != nil {
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(target); err != nil {
+		businessError(w, 100001, "Invalid request")
+		return false
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
 		businessError(w, 100001, "Invalid request")
 		return false
 	}

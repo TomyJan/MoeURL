@@ -915,12 +915,21 @@ func TestRedirectHandlerPassesRealHostForEveryPublicAction(t *testing.T) {
 		return req
 	}
 	handler.Open(httptest.NewRecorder(), request(http.MethodGet, "/hosted", ""), "hosted")
+	if service.openHost != "go.example.com:8443" {
+		t.Fatalf("open request host = %q", service.openHost)
+	}
 	handler.PreviewPublic(httptest.NewRecorder(), request(http.MethodGet, "/api/v1/public/short-link/preview?slug=hosted", ""))
+	if service.previewHost != "go.example.com:8443" {
+		t.Fatalf("public preview request host = %q", service.previewHost)
+	}
+	service.previewHost = ""
 	handler.PreviewScoped(httptest.NewRecorder(), request(http.MethodGet, "/go/hosted/preview", ""), "hosted")
+	if service.previewHost != "go.example.com:8443" {
+		t.Fatalf("scoped preview request host = %q", service.previewHost)
+	}
 	handler.Unlock(httptest.NewRecorder(), request(http.MethodPost, "/go/hosted/unlock", `{"password":"guess"}`), "hosted")
 	handler.Continue(httptest.NewRecorder(), request(http.MethodGet, "/go/hosted/continue", ""), "hosted")
 	for name, got := range map[string]string{
-		"open": service.openHost, "preview": service.previewHost,
 		"unlock": service.unlockHost, "continue": service.continueHost,
 	} {
 		if got != "go.example.com:8443" {
