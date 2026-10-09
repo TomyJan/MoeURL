@@ -80,6 +80,10 @@ v0.5.0 在现有 `user_group.permissions` 上实现内置用户组权限管理�
 
 v0.8.0 在原有 `domain` 和 `short_link.domain_id` 上增加 `domain_user_group` 授权关系，不为个人或用户组引入默认域名字段。默认创建需要 `domain:use_default`，显式选择需要 `domain:use_assigned`；两者均与内置用户组对目标域名的授权取交集。管理员域名写入另需受保护的 `domain:manage` 和 `admin:access`。域名地址输入规范化为根 Origin，旧裸 authority 原样保留；同义地址冲突、乐观并发、默认切换和引用保护在事务中检查。公开访问从短链保存的域名构造 URL，并在每个访问入口按真实请求 `Host` 与启用状态重新校验，不以转发头扩大访问范围。`00013` 回填旧默认域名授权，不改写已发布短链；DNS/TLS 仍由外部代理提供。
 
+v0.9.0 继续使用 `system_setting` 承载站点名称、默认语言、默认主题、纯文本页脚、Powered by 开关和本地登录策略，不引入第二张通用配置表。完整设置表单以 `site.settings_revision.updated_at` 作为统一乐观并发版本，并在单一事务中更新全部可编辑键。公开配置接口只暴露渲染所需的非敏感字段；本地登录状态只通过认证方式接口和受保护管理接口返回。
+
+本地登录关闭与 OIDC Provider 变更共享数据库策略行锁。关闭本地登录、停用或删除 Provider 前，事务内必须确认最终集合仍至少包含一个运行配置完整且 Secret 可解密的 Provider；Discovery 等网络调用在加锁前完成，避免持锁等待外部服务。`system:manage` 与 `admin:access` 共同保护系统设置和 Provider 管理，前端路由与导航遵循同一权限组合。关闭开关不删除密码或撤销现有 Session，使管理员可以在保留已登录恢复通道的同时验证 OIDC；应用启动仍执行最终不变量校验，拒绝进入无登录入口状态。
+
 ### SQLC
 
 SQLC 用于根据 SQL 生成类型安全的 Go 数据访问代码。自 v0.4.0 起统一使用 SQLC `1.30.0` 生成并校验代码。

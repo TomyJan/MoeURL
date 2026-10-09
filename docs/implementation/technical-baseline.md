@@ -100,6 +100,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 - `internal/http/`：HTTP 路由注册、请求响应工具和错误映射。
 - `internal/middleware/`：承载请求日志、请求 ID、panic 恢复、安全响应头和请求体限制。当前用户解析位于 `internal/auth/`，权限解析位于 `internal/permission/`。
 - `internal/auth/`：登录、退出、会话、密码哈希。
+- `internal/loginpolicy/`：读取和事务锁定本地登录策略，校验至少保留一个可用 OIDC 登录入口。
 - `internal/oidc/`：OIDC provider 管理、Discovery、登录协议、外部身份供应、敏感值加密和登录尝试清理。
 - `internal/permission/`：权限常量、权限计算和权限判断。
 - `internal/user/`：用户账号、用户资料和管理员用户维护业务。
@@ -189,6 +190,7 @@ API 使用 `/api/v1` 前缀：
 /api/v1/auth/methods
 /api/v1/auth/oidc/{providerKey}/start
 /api/v1/auth/oidc/{providerKey}/callback
+/api/v1/system/public-config
 /api/v1/short-link/create
 /api/v1/short-link/overview
 /api/v1/short-link/list
@@ -203,6 +205,8 @@ API 使用 `/api/v1` 前缀：
 /api/v1/admin/oidc/provider/create
 /api/v1/admin/oidc/provider/update
 /api/v1/admin/oidc/provider/delete
+/api/v1/admin/system/settings
+/api/v1/admin/system/settings/update
 ```
 
 公开预览的规范入口为 `/go/{slug}/preview`；旧的 `/api/v1/public/short-link/preview` 仅保留为兼容入口并已弃用。
@@ -312,7 +316,7 @@ v0.0.4 创建 `short_link_event` 表，用于持久化已成功写出跳转响�
 
 v0.0.1 的字段级 schema 以 [v0.0.1 工程实施合同](./v0.0.1-implementation-contract.md#4-数据库-schema-合同) 为准。最小表结构必须覆盖：
 
-- `system_setting`：保存站点名称、初始化状态、系统访问域名、默认短链访问域名、默认语言和默认主题。
+- `system_setting`：保存站点名称、初始化状态、系统访问域名、默认短链访问域名、默认语言、默认主题、纯文本页脚、Powered by 开关、本地登录策略和统一设置修订行。
 - `user_group`：保存 `guest`、`user`、`admin` 用户组及其权限数组。
 - `app_user`：保存本地用户、内置 `guest` 用户、主用户组、账号状态和密码哈希。
 - `session`：保存加密随机会话 ID、过期时间、最近访问时间和撤销时间。
@@ -374,6 +378,12 @@ v0.7.0 新增 `oidc_provider`、`external_identity` 和 `oidc_login_attempt`。p
 
 短链公开 `/{slug}`、公开预览、路径作用域预览、解锁和继续访问都比较请求的真实 `Host` authority 与关联域名并检查 `enabled`。错误 Host 或域名停用按短链不存在处理，恢复启用后原链接重新生效。代理必须保留外部 Host（含非默认端口），不信任 `X-Forwarded-Host`。该版本不自动管理 DNS、TLS 或现有短链迁移。
 
+### v0.9.0 系统设置扩展摘要
+
+`00014` 在既有 `system_setting` 中补齐 `site.footer_text`、`site.show_powered_by`、`auth.local_login_enabled` 和 `site.settings_revision` 默认值，并把受保护权限 `system:manage` 加入内置 `admin`。设置值继续使用 JSONB；`site.settings_revision.updated_at` 是管理页面完整草稿的统一乐观并发版本，单次更新在同一事务内写入全部可编辑键并推进统一时间戳。Down 保留设置键和管理员选择，只撤回 migration 实际新增且未被后续修改的权限；旧 App 不会消费保留的本地登录策略，回退必须按运维手册单独验收登录入口。
+
+公开接口 `GET /api/v1/system/public-config` 只返回站点名称、默认语言、默认主题、页脚文本和 Powered by 开关。管理接口 `GET /api/v1/admin/system/settings` 与 `POST /api/v1/admin/system/settings/update` 同时要求 `admin:access` 和 `system:manage`；更新本地登录策略时先锁定策略行，并与 OIDC Provider 更新、停用和删除共享最终登录入口检查。本地登录关闭不撤销已有 Session，也不删除本地账号或密码；`GET /api/v1/auth/methods` 返回持久化后的真实状态，密码登录在进入并发槽位、事务和 Argon2id 校验前拒绝。
+
 ### 短码规则
 
 - v0.0.1 默认生成 6 位随机短码。
@@ -404,6 +414,7 @@ short_link:delete_all
 domain:use_default
 domain:use_assigned
 domain:manage
+system:manage
 short_link:use_intermediate
 short_link:use_confirmation
 short_link:set_expiration
@@ -419,7 +430,7 @@ admin:access
 
 前端隐藏或置灰只用于体验，后端权限判断才是安全边界。
 
-v0.5.0 将 `admin:access`、`short_link:read_all`、`short_link:update_all`、`short_link:delete_all` 设为权限配置写入的受保护集合：`admin` 必须拥有，`guest` 和 `user` 必须不拥有。该保护不替代业务授权；后台操作仍必须解析当前数据库权限快照并检查所需权限。
+v0.5.0 将 `admin:access`、`short_link:read_all`、`short_link:update_all`、`short_link:delete_all` 设为权限配置写入的受保护集合；v0.8.0 增加 `domain:manage`，v0.9.0 增加 `system:manage`。这些权限必须属于 `admin`，`guest` 和 `user` 必须不拥有。该保护不替代业务授权；后台操作仍必须解析当前数据库权限快照并检查所需权限。
 
 用户组权限管理写入必须使用乐观并发。权限更新成功后，前端刷新用户组查询和 `auth/me`；后端 Service 对后续业务请求直接读取数据库，不以刷新前端缓存作为安全保障。
 
@@ -438,6 +449,8 @@ v0.5.0 将 `admin:access`、`short_link:read_all`、`short_link:update_all`、`s
 - v0.0.1 不要求单独实现 CSRF Token；默认依赖 `SameSite=Lax` 和 JSON API 边界，后续如开放跨站嵌入或第三方表单再补充 CSRF 机制。
 
 OIDC start 和 callback 分别使用独立的进程内有界并发槽位。state、nonce 和 PKCE verifier 使用密码学安全随机源；state 仅以 SHA-256 摘要持久化且单次消费，nonce 在已验证 ID Token 后常量时间比较。外部身份登录成功后复用同一 `moeurl_session` Cookie、用户禁用检查和数据库权限解析。
+
+本地登录策略由 `auth.local_login_enabled` 持久化。关闭本地登录要求事务内至少存在一个未删除、已启用、运行配置完整且 Client Secret 可用原始部署密钥解密的 OIDC Provider；不在持锁事务中执行 Discovery 网络请求。Provider 变更与设置更新使用同一策略行锁，防止并发移除最后登录入口；应用启动时再次校验该不变量。关闭开关只影响后续本地密码登录，不撤销现有 Session，不影响 Setup、Me、Logout 或 OIDC 登录。
 
 ## 8. 前端结构约定
 
@@ -600,6 +613,8 @@ v0.2.0 访问体验 E2E 必须覆盖真实 `/{slug}` 入口、进入中间页前
 
 v0.8.0 多域名 E2E 使用隔离 Compose 数据库和两个 loopback authority，验证授权、创建选择、错误 Host、切换默认后旧 URL 保持、停用及重新启用。只要存在短链引用（包括软删除和未产生访问记录的短链），所属域名就不能删除；全局 teardown 只清理本次独立 project。目标公网 DNS/TLS 的可达性和代理 Host 保真必须在真实部署环境另行验证。
 
+v0.9.0 系统设置 E2E 在单个隔离场景中创建并清理专用 OIDC Provider，验证品牌、页面标题、页脚、默认语言和默认主题、本地登录关闭、最后 Provider 保护、现有 Session 保留、OIDC 首次与重复登录，以及本地登录恢复。测试不得依赖其他 spec 创建的 Provider、用户或设置状态；清理失败不得覆盖场景原始错误。公开配置解析、偏好优先级、设置草稿与冲突、权限守卫和登录方式错误状态继续纳入前端单元覆盖率门禁。
+
 ### 质量检查工作流
 
 GitHub Actions 使用单个 `Check Code` 工作流文件。该工作流包含 9 个互相独立的并行任务：
@@ -651,6 +666,8 @@ production_compose up --build -d
 默认 Compose 项目的 PostgreSQL 数据保存在命名卷 `postgres-data` 中，挂载点保持为 `/var/lib/postgresql`。普通 `up`、`down` 和再次启动不得重置数据库、管理员账号或短链数据；`down -v` 会永久删除目标 project 的数据库，执行前必须确认 project 并验证卷外备份。本地确需直连数据库时显式叠加 `docker-compose.dev.yml`，该覆盖只把 PostgreSQL 绑定到宿主机回环地址。
 
 逻辑备份使用 PostgreSQL 自定义格式并保存到卷外；恢复必须先在隔离数据库或隔离 Compose project 验证 migration 版本、内置组、管理员登录、样例短链和访问配置。详细流程见 [备份与隔离恢复](../deployment/backup-and-restore.md) 和 [升级、回退与灾难恢复](../deployment/upgrade-and-recovery.md)。
+
+v0.9.0 部署验收还必须核对公开品牌配置、管理设置、本地登录状态和 OIDC Provider 集合。数据库备份已包含 `system_setting` 和 provider 配置，但不包含 `.env` 中的原始 OIDC 加密密钥；恢复启用了 OIDC 或关闭本地登录的数据库时，必须同步恢复原始密钥并确认至少一个 Provider 可用，否则 App 会拒绝启动。回退到不理解 `auth.local_login_enabled` 的旧镜像前必须单独评估登录策略：旧版本可能重新开放本地密码入口，也可能无法维持 v0.9.0 的最后 Provider 保护，不能把镜像回退视为策略等价。
 
 裸机运行时应先完成以下步骤：
 

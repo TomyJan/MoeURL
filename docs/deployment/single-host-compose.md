@@ -281,6 +281,20 @@ map $geoip2_data_country_code $moeurl_country_code {
 
 验收时分别从每个公网 HTTPS Origin 访问一条属于该域名的测试短链，确认成功跳转；用另一个 Host 访问同一短码必须返回 `404`。同时核对直接访问、预览、解锁和继续访问不绕过域名边界，验证默认切换前后旧短链 URL 不变。测试必须走真实代理和有效证书；本地 loopback 双 Host E2E 不能作为公网 DNS/TLS 证据。
 
+### 5.6 v0.9.0 系统设置与登录入口上线检查
+
+升级后先通过公网 HTTPS 读取 `GET /api/v1/system/public-config`，确认只返回站点名称、默认语言、默认主题、纯文本页脚和 Powered by 开关；再登录管理页面验证 `/admin/setting` 的常规设置与身份认证区域。站点名称和页脚不得包含 HTML，系统默认语言和主题只影响没有浏览器本地偏好的用户。
+
+关闭本地登录前必须先创建、启用并实际验证至少一个 OIDC Provider。App 会在设置更新、Provider 更新/停用/删除和进程启动时检查最终登录入口，但部署者仍需从无现有 Session 的独立浏览器完成一次真实 OIDC 登录，再关闭本地登录。关闭后确认：
+
+- `GET /api/v1/auth/methods` 返回 `local.enabled=false`，并继续列出可用 OIDC Provider。
+- 本地密码登录返回稳定业务错误且不泄露账号是否存在。
+- 关闭前已有的管理员 Session 仍可使用，OIDC 首次与重复登录均可建立普通 Session。
+- 最后一个可用 Provider 不能被停用、删除或修改为不可运行状态。
+- 重新启用本地登录后，已有本地账号可以再次登录。
+
+`MOEURL_OIDC_ENCRYPTION_KEY` 是保持 Provider Secret 可解密的长期部署秘密。关闭本地登录的部署若丢失原始密钥，App 会在启动校验中拒绝进入无可用登录入口状态；不要通过直接修改数据库绕过该保护。数据库和受保护 `.env` 的备份、恢复及回退必须作为同一变更窗口验收。
+
 ## 6. 日常操作与开发覆盖
 
 普通停止保留 PostgreSQL 命名卷：

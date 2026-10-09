@@ -228,14 +228,17 @@ done
 
 ## 4. 恢复验收
 
-目标 v0.7.0 必须完成以下检查，不能只以容器健康代替数据验证。
+目标 v0.9.0 必须完成以下检查，不能只以容器健康代替数据验证。
 
-验证 migration 版本为 `12`：
+从当前 `migrations/` 目录计算最大 migration 版本，并确认恢复数据库一致：
 
 ```bash
-restore_compose exec -T postgres \
-  psql -U moeurl -d moeurl -Atc \
-  "select max(version_id) from goose_db_version where is_applied"
+expected_migration_version="$(find "$RESTORE_ROOT/migrations" -maxdepth 1 -type f -name '[0-9][0-9][0-9][0-9][0-9]_*.sql' -printf '%f\n' | sed -E 's/^0*([0-9]+)_.*/\1/' | sort -n | tail -1)"
+actual_migration_version="$(restore_compose exec -T postgres psql -U moeurl -d moeurl -Atc 'select max(version_id) from goose_db_version where is_applied')"
+test -n "$expected_migration_version" && test "$actual_migration_version" = "$expected_migration_version" || {
+  echo 'restored migration version does not match the current migrations directory' >&2
+  exit 1
+}
 ```
 
 验证 `guest`、`user`、`admin` 三个内置组：
@@ -257,6 +260,20 @@ restore_compose exec -T postgres \
 ```
 
 随后通过隔离 App 访问该短码，按其 direct、intermediate 或 confirmation 模式验证公开流程。若短链受密码保护，还应验证错误密码被拒绝、正确密码授权和最终跳转。记录备份校验和、恢复开始/结束时间、镜像版本、migration 版本、样例短码和每项结果。
+
+继续核对 v0.9.0 设置与登录入口：
+
+```bash
+restore_compose exec -T postgres \
+  psql -U moeurl -d moeurl -P pager=off -c \
+  "select key, value from system_setting where key in ('site.name', 'site.default_language', 'site.default_theme', 'site.footer_text', 'site.show_powered_by', 'auth.local_login_enabled', 'site.settings_revision') order by key"
+
+restore_compose exec -T postgres \
+  psql -U moeurl -d moeurl -P pager=off -c \
+  "select key, display_name, enabled, deleted_at is null as active from oidc_provider order by key"
+```
+
+通过 `GET /api/v1/system/public-config` 核对站点品牌，通过 `GET /api/v1/auth/methods` 核对本地登录状态和可用 Provider。若恢复数据关闭了本地登录，必须已经向 `restore.env` 注入原始 `MOEURL_OIDC_ENCRYPTION_KEY`，并使用身份提供商允许的演练 Origin 完成真实 OIDC 登录；不能只依赖恢复前保留的 Session。若本地登录仍启用，应同时验证管理员本地登录。记录设置值、登录方式、Provider 集合和密钥恢复来源，但不得记录 Secret 明文。
 
 ## 5. 清理演练环境
 
