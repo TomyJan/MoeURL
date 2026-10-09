@@ -1,6 +1,6 @@
 # v0.9.0 系统设置与站点品牌基础闭环范围
 
-状态：功能实现完成；当前环境可执行的本地门禁已完成复验，目标 Node.js、完整 Compose smoke、目标 CI、Linux race、安全扫描、外部真实 OIDC 互操作和生产发布验收仍待目标环境证据。
+状态：功能实现完成；功能提交 `900037d` 的 Go、前端单元覆盖率、静态检查、构建、SQLC 和 Compose 配置门禁已完成复验。该提交的全量 Playwright、目标 Node.js、完整 Compose smoke、目标 CI、Linux race、安全扫描、外部真实 OIDC 互操作和生产发布验收仍待目标环境证据。
 
 ## 目标
 
