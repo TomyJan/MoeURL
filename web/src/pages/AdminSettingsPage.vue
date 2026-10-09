@@ -63,8 +63,8 @@ const feedback = ref<'success' | 'conflict' | 'noProvider' | 'error' | ''>('')
 let baseline: typeof draft | null = null
 let preserveDraftDuringRefresh = false
 let conflictLatest: Settings | null = null
-const languageItems = [{ title: t('setup.languages.zhCn'), value: 'zh-CN' }, { title: t('setup.languages.en'), value: 'en' }]
-const themeItems = [{ title: t('preferences.system'), value: 'system' }, { title: t('preferences.light'), value: 'light' }, { title: t('preferences.dark'), value: 'dark' }]
+const languageItems = computed(() => [{ title: t('setup.languages.zhCn'), value: 'zh-CN' }, { title: t('setup.languages.en'), value: 'en' }])
+const themeItems = computed(() => [{ title: t('preferences.system'), value: 'system' }, { title: t('preferences.light'), value: 'light' }, { title: t('preferences.dark'), value: 'dark' }])
 
 watch(query.data, (settings) => {
   if (!settings) return

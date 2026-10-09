@@ -1699,6 +1699,7 @@ describe('pages', () => {
     await fireEvent.click(screen.getByText('setup.submit'))
 
     expect(screen.getByText('setup.initialized')).toBeTruthy()
+    expect(state.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['system', 'public-config'] })
   })
 
   it('renders fallback error messages', () => {

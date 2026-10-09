@@ -12,6 +12,7 @@ const settings = {
   footerText: '', showPoweredBy: true, localLoginEnabled: true, updatedAt: '2026-10-09T00:00:00Z',
 }
 const state = vi.hoisted(() => ({
+  locale: undefined as unknown as ReturnType<typeof ref<string>>,
   data: undefined as unknown as ReturnType<typeof ref<unknown>>,
   error: undefined as unknown as ReturnType<typeof ref<boolean>>,
   pending: undefined as unknown as ReturnType<typeof ref<boolean>>,
@@ -19,7 +20,11 @@ const state = vi.hoisted(() => ({
   mutationPending: undefined as unknown as ReturnType<typeof ref<boolean>>,
 }))
 
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({
+    t: (key: string) => state.locale.value === 'zh-CN' ? key : `en.${key}`,
+  }),
+}))
 vi.mock('@/entities/system/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/entities/system/api')>()
   return { ...actual, getAdminSettings: vi.fn(), updateAdminSettings: vi.fn() }
@@ -42,6 +47,7 @@ function mountPage() {
 
 describe('AdminSettingsPage', () => {
   beforeEach(() => {
+    state.locale = ref('zh-CN')
     state.data = ref<unknown>()
     state.error = ref(false)
     state.pending = ref(false)
@@ -61,6 +67,18 @@ describe('AdminSettingsPage', () => {
     expect(screen.getByTestId('admin-settings-page')).toBeTruthy()
     expect((screen.getByLabelText('settings.siteName') as HTMLInputElement).value).toBe('MoeURL')
     expect(screen.getByTestId('authentication-settings')).toBeTruthy()
+  })
+
+  it('updates language and theme option labels when the interface language changes', async () => {
+    mountPage()
+    expect(screen.getByRole('option', { name: 'setup.languages.en' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'preferences.dark' })).toBeTruthy()
+
+    state.locale.value = 'en'
+    await nextTick()
+
+    expect(screen.getByRole('option', { name: 'en.setup.languages.en' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'en.preferences.dark' })).toBeTruthy()
   })
 
   it('submits a trimmed optimistic update and refreshes public configuration', async () => {

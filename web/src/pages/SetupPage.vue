@@ -85,7 +85,7 @@
 import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import { useMutation, useQuery } from '@tanstack/vue-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { getInitStatus, setupSystem } from '@/entities/system/api'
 import type { SetupInput } from '@/entities/system/api'
@@ -94,6 +94,7 @@ import { useSiteConfig } from '@/shared/site/useSiteConfig'
 
 const INVALID_SETUP_TOKEN_ERROR_CODE = 900102
 const { config } = useSiteConfig()
+const queryClient = useQueryClient()
 
 const { t } = useI18n()
 const { data, isError, isLoading, refetch } = useQuery({
@@ -125,8 +126,9 @@ const themeItems = computed(() => [
 const mutation = useMutation({
   mutationFn: setupSystem,
   /** Marks the setup flow complete from the server-authoritative result. */
-  onSuccess(result) {
+  async onSuccess(result) {
     initialized.value = result.initialized
+    await queryClient.invalidateQueries({ queryKey: ['system', 'public-config'] })
   },
   /** Removes the deployment credential without resetting retained mutation errors. */
   onSettled(_result, _error, variables) {
