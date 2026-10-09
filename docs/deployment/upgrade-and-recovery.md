@@ -217,6 +217,8 @@ done
 target_compose logs --since 10m app
 ```
 
+`00014` 会把旧版本允许保存、但超过 v0.9.0 上限的站点名称按 Unicode 字符截取为前 64 个字符，避免 migration 成功后新 App 因启动校验失败而无法就绪。升级前如需保留完整旧名称，应先从受保护备份或管理记录中单独留存；升级后再通过 `/admin/setting` 设置符合新约束的名称。该兼容处理不放宽其他设置校验，空值、错误 JSON 类型和不支持的语言或主题仍会阻止新 App 启动。
+
 最后通过公网 HTTPS 验证管理员登录、短链创建/列表、样例 direct、intermediate、confirmation 跳转及统计。v0.9.0 还要核对公开站点品牌、`/admin/setting`、`GET /api/v1/auth/methods` 的本地登录状态、OIDC Provider 集合和现有 Session 行为。确认代理仍发送 HSTS，登录、初始化和公开解锁限流仍生效。
 
 ## 4. 失败处理与回退

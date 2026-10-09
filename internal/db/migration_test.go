@@ -258,10 +258,13 @@ func TestSystemSettingsMigrationRoundTrip(t *testing.T) {
 		t.Fatalf("upgrade through multi-domain: %v", err)
 	}
 	insertUserGroups(t, ctx, database)
+	legacySiteName := strings.Repeat("\u754c", 65)
 	if _, err := database.ExecContext(ctx, `
 		insert into system_setting (key, value, created_at, updated_at)
-		values ('site.footer_text', '"Existing footer"'::jsonb, now(), now())
-	`); err != nil {
+		values
+			('site.name', to_jsonb($1::text), now(), now()),
+			('site.footer_text', '"Existing footer"'::jsonb, now(), now())
+	`, legacySiteName); err != nil {
 		t.Fatalf("prepare existing setting: %v", err)
 	}
 
@@ -269,7 +272,7 @@ func TestSystemSettingsMigrationRoundTrip(t *testing.T) {
 		t.Fatalf("upgrade system settings migration: %v", err)
 	}
 	for key, want := range map[string]string{
-		"site.name":                "MoeURL",
+		"site.name":                strings.Repeat("\u754c", 64),
 		"site.default_language":    "zh-CN",
 		"site.default_theme":       "system",
 		"site.footer_text":         "Existing footer",

@@ -11,6 +11,15 @@ values
     ('site.settings_revision', '1'::jsonb, now(), now())
 on conflict (key) do nothing;
 
+-- v0.8.0 accepted any non-empty site name. Keep those installations bootable
+-- under v0.9.0's 64-character contract without masking other corrupt values.
+update system_setting
+set value = to_jsonb(left(btrim(value #>> '{}'), 64)),
+    updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
+where key = 'site.name'
+    and jsonb_typeof(value) = 'string'
+    and char_length(btrim(value #>> '{}')) > 64;
+
 create table moeurl_system_settings_permission_addition (
     user_group_id uuid primary key references user_group(id) on delete cascade,
     permission_revision bigint not null default 0
