@@ -112,7 +112,7 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
         && request.method() === 'GET'
       ))
       await Promise.all([
-        page.waitForURL(protectedTarget),
+        page.waitForURL(protectedTarget, { waitUntil: 'commit' }),
         page.getByRole('button', { name: '解锁并继续' }).click(),
       ])
       const continueRequest = await continueRequestPromise
@@ -200,7 +200,10 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
       await page.getByRole('button', { name: '解锁并继续' }).click()
       await expect(page.getByRole('heading', { name: '即将前往外部网站' })).toBeVisible()
       await expect(page.getByRole('button', { name: '立即前往' })).toBeVisible()
-      await Promise.all([page.waitForURL(protectedTarget), page.getByRole('button', { name: '立即前往' }).click()])
+      await Promise.all([
+        page.waitForURL(protectedTarget, { waitUntil: 'commit' }),
+        page.getByRole('button', { name: '立即前往' }).click(),
+      ])
       await expect.poll(
         () => readVisitCount(page, protectedLinkId),
         { intervals: [250, 500, 1_000], timeout: 30_000 },

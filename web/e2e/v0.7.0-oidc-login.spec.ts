@@ -42,7 +42,7 @@ test('configures multiple OIDC providers from the authentication page', async ({
     await page.getByLabel('Client ID').fill('moeurl-allowed')
     await page.getByLabel('Client Secret').fill(clientSecret)
     await page.getByLabel('允许的邮箱域名').fill('example.com')
-    await page.getByRole('button', { name: '保存' }).click()
+    await page.getByTestId('admin-authentication-page').getByRole('button', { name: '保存', exact: true }).click()
     await expect(page.getByText('身份认证配置已保存。')).toBeVisible()
     await expectNoHorizontalOverflow(page)
 
