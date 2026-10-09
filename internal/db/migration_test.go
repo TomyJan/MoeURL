@@ -249,6 +249,70 @@ func TestMultiDomainMigrationRoundTrip(t *testing.T) {
 	assertRelationExists(t, ctx, database, "domain_user_group", true)
 }
 
+// TestSystemSettingsMigrationRoundTrip verifies defaults persist while migration-owned permissions roll back safely.
+func TestSystemSettingsMigrationRoundTrip(t *testing.T) {
+	ctx := t.Context()
+	database := migrationTestDatabase(t, ctx)
+	migrationsDir := filepath.Join("..", "..", "migrations")
+	if err := goose.UpTo(database, migrationsDir, 13); err != nil {
+		t.Fatalf("upgrade through multi-domain: %v", err)
+	}
+	insertUserGroups(t, ctx, database)
+	if _, err := database.ExecContext(ctx, `
+		insert into system_setting (key, value, created_at, updated_at)
+		values ('site.footer_text', '"Existing footer"'::jsonb, now(), now())
+	`); err != nil {
+		t.Fatalf("prepare existing setting: %v", err)
+	}
+
+	if err := goose.UpTo(database, migrationsDir, 14); err != nil {
+		t.Fatalf("upgrade system settings migration: %v", err)
+	}
+	for key, want := range map[string]string{
+		"site.footer_text":         "Existing footer",
+		"site.show_powered_by":     "true",
+		"auth.local_login_enabled": "true",
+		"site.settings_revision":   "1",
+	} {
+		var got string
+		if err := database.QueryRowContext(ctx, `select value #>> '{}' from system_setting where key = $1`, key).Scan(&got); err != nil {
+			t.Fatalf("read migrated setting %s: %v", key, err)
+		}
+		if got != want {
+			t.Fatalf("migrated setting %s = %q, want %q", key, got, want)
+		}
+	}
+	var adminHasPermission bool
+	if err := database.QueryRowContext(ctx, `select permissions ? 'system:manage' from user_group where key = 'admin'`).Scan(&adminHasPermission); err != nil {
+		t.Fatalf("read migrated admin permission: %v", err)
+	}
+	if !adminHasPermission {
+		t.Fatal("expected admin to receive system:manage")
+	}
+
+	if err := goose.DownTo(database, migrationsDir, 13); err != nil {
+		t.Fatalf("rollback system settings migration: %v", err)
+	}
+	if err := database.QueryRowContext(ctx, `select permissions ? 'system:manage' from user_group where key = 'admin'`).Scan(&adminHasPermission); err != nil {
+		t.Fatalf("read rolled-back admin permission: %v", err)
+	}
+	if adminHasPermission {
+		t.Fatal("expected rollback to remove migration-owned system:manage")
+	}
+	for _, key := range []string{"site.footer_text", "site.show_powered_by", "auth.local_login_enabled", "site.settings_revision"} {
+		var exists bool
+		if err := database.QueryRowContext(ctx, `select exists(select 1 from system_setting where key = $1)`, key).Scan(&exists); err != nil {
+			t.Fatalf("read retained setting %s: %v", key, err)
+		}
+		if !exists {
+			t.Fatalf("rollback removed setting %s", key)
+		}
+	}
+	if err := goose.UpTo(database, migrationsDir, 14); err != nil {
+		t.Fatalf("reapply system settings migration: %v", err)
+	}
+}
+
 // TestOIDCRollbackWaitsForConcurrentIdentityInsert verifies the guard observes committed in-flight bindings.
 func TestOIDCRollbackWaitsForConcurrentIdentityInsert(t *testing.T) {
 	ctx := t.Context()

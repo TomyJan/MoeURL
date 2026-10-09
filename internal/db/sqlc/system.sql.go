@@ -7,6 +7,8 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const getSystemSetting = `-- name: GetSystemSetting :one
@@ -17,6 +19,83 @@ where key = $1
 
 func (q *Queries) GetSystemSetting(ctx context.Context, key string) (SystemSetting, error) {
 	row := q.db.QueryRow(ctx, getSystemSetting, key)
+	var i SystemSetting
+	err := row.Scan(
+		&i.Key,
+		&i.Value,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getSystemSettingForUpdate = `-- name: GetSystemSettingForUpdate :one
+select key, value, created_at, updated_at
+from system_setting
+where key = $1
+for update
+`
+
+func (q *Queries) GetSystemSettingForUpdate(ctx context.Context, key string) (SystemSetting, error) {
+	row := q.db.QueryRow(ctx, getSystemSettingForUpdate, key)
+	var i SystemSetting
+	err := row.Scan(
+		&i.Key,
+		&i.Value,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listSystemSettings = `-- name: ListSystemSettings :many
+select key, value, created_at, updated_at
+from system_setting
+where key = any($1::text[])
+order by key
+`
+
+func (q *Queries) ListSystemSettings(ctx context.Context, dollar_1 []string) ([]SystemSetting, error) {
+	rows, err := q.db.Query(ctx, listSystemSettings, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SystemSetting{}
+	for rows.Next() {
+		var i SystemSetting
+		if err := rows.Scan(
+			&i.Key,
+			&i.Value,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateSystemSettingValue = `-- name: UpdateSystemSettingValue :one
+update system_setting
+set value = $2,
+    updated_at = $3
+where key = $1
+returning key, value, created_at, updated_at
+`
+
+type UpdateSystemSettingValueParams struct {
+	Key       string             `json:"key"`
+	Value     []byte             `json:"value"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) UpdateSystemSettingValue(ctx context.Context, arg UpdateSystemSettingValueParams) (SystemSetting, error) {
+	row := q.db.QueryRow(ctx, updateSystemSettingValue, arg.Key, arg.Value, arg.UpdatedAt)
 	var i SystemSetting
 	err := row.Scan(
 		&i.Key,

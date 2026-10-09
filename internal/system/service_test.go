@@ -331,6 +331,22 @@ func assertBuiltInData(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	assertStoredGroupPermission(t, ctx, pool, permission.GroupAdmin, permission.ShortLinkUseIntermediate, true)
 	assertStoredGroupPermission(t, ctx, pool, permission.GroupAdmin, permission.ShortLinkSetExpiration, true)
 	assertStoredGroupPermission(t, ctx, pool, permission.GroupAdmin, permission.ShortLinkSetPassword, true)
+	assertStoredGroupPermission(t, ctx, pool, permission.GroupAdmin, permission.SystemManage, true)
+
+	for key, want := range map[string]string{
+		"site.footer_text":         "",
+		"site.show_powered_by":     "true",
+		"auth.local_login_enabled": "true",
+		"site.settings_revision":   "1",
+	} {
+		var got string
+		if err := pool.QueryRow(ctx, `select value #>> '{}' from system_setting where key = $1`, key).Scan(&got); err != nil {
+			t.Fatalf("read initial setting %s: %v", key, err)
+		}
+		if got != want {
+			t.Fatalf("initial setting %s = %q, want %q", key, got, want)
+		}
+	}
 
 	var guestPassword sql.NullString
 	var guestGroup string

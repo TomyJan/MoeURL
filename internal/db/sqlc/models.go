@@ -71,6 +71,11 @@ type MoeurlShortLinkPasswordPermissionAddition struct {
 	Permission  string      `json:"permission"`
 }
 
+type MoeurlSystemSettingsPermissionAddition struct {
+	UserGroupID        pgtype.UUID `json:"user_group_id"`
+	PermissionRevision int64       `json:"permission_revision"`
+}
+
 type OidcLoginAttempt struct {
 	StateHash          []byte             `json:"state_hash"`
 	ProviderID         pgtype.UUID        `json:"provider_id"`

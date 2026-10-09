@@ -19,6 +19,7 @@ const (
 	DomainUseDefault         = "domain:use_default"
 	DomainUseAssigned        = "domain:use_assigned"
 	DomainManage             = "domain:manage"
+	SystemManage             = "system:manage"
 	AdminAccess              = "admin:access"
 )
 
@@ -50,5 +51,6 @@ var AdminPermissions = []string{
 	DomainUseDefault,
 	DomainUseAssigned,
 	DomainManage,
+	SystemManage,
 	AdminAccess,
 }
