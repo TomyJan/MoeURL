@@ -97,17 +97,21 @@ func TestServiceValidateStartupEnforcesEntryPointInvariant(t *testing.T) {
 
 // TestServiceRejectsCorruptPolicyValue verifies malformed persisted settings fail closed.
 func TestServiceRejectsCorruptPolicyValue(t *testing.T) {
-	ctx := t.Context()
-	pool := testdb.ProjectMigratedPool(ctx, t)
-	if _, err := pool.Exec(ctx, `update system_setting set value = '"invalid"'::jsonb where key = 'auth.local_login_enabled'`); err != nil {
-		t.Fatalf("corrupt local-login setting: %v", err)
-	}
-	service := loginpolicy.NewService(pool, func([]sqlc.OidcProvider) error { return nil })
-	if _, err := service.LocalLoginEnabled(ctx); !errors.Is(err, loginpolicy.ErrInvalidPolicy) {
-		t.Fatalf("corrupt policy error = %v", err)
-	}
-	if err := service.ValidateStartup(ctx); !errors.Is(err, loginpolicy.ErrInvalidPolicy) {
-		t.Fatalf("corrupt startup policy error = %v", err)
+	for _, value := range []string{`'"invalid"'::jsonb`, `'null'::jsonb`} {
+		t.Run(value, func(t *testing.T) {
+			ctx := t.Context()
+			pool := testdb.ProjectMigratedPool(ctx, t)
+			if _, err := pool.Exec(ctx, `update system_setting set value = `+value+` where key = 'auth.local_login_enabled'`); err != nil {
+				t.Fatalf("corrupt local-login setting: %v", err)
+			}
+			service := loginpolicy.NewService(pool, func([]sqlc.OidcProvider) error { return nil })
+			if _, err := service.LocalLoginEnabled(ctx); !errors.Is(err, loginpolicy.ErrInvalidPolicy) {
+				t.Fatalf("corrupt policy error = %v", err)
+			}
+			if err := service.ValidateStartup(ctx); !errors.Is(err, loginpolicy.ErrInvalidPolicy) {
+				t.Fatalf("corrupt startup policy error = %v", err)
+			}
+		})
 	}
 }
 

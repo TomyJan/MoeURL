@@ -86,6 +86,16 @@ func TestSettingsServiceUpdatesAtomicallyAndDetectsConflicts(t *testing.T) {
 	if updated.UpdatedAt == current.UpdatedAt || policy.lockCalls != 1 || policy.requireCalls != 1 {
 		t.Fatalf("updatedAt=%q lockCalls=%d requireCalls=%d", updated.UpdatedAt, policy.lockCalls, policy.requireCalls)
 	}
+	second := input
+	second.SiteName = "再次保存"
+	second.ExpectedUpdatedAt = updated.UpdatedAt
+	resaved, err := service.UpdateSettings(ctx, admin, second)
+	if err != nil {
+		t.Fatalf("update settings with returned revision: %v", err)
+	}
+	if resaved.SiteName != second.SiteName || resaved.UpdatedAt == updated.UpdatedAt {
+		t.Fatalf("resaved settings = %#v", resaved)
+	}
 	if _, err := service.UpdateSettings(ctx, admin, input); !errors.Is(err, system.ErrSettingsConflict) {
 		t.Fatalf("stale update error = %v", err)
 	}
@@ -168,6 +178,30 @@ func TestSettingsServiceHandlesReadFailures(t *testing.T) {
 		}},
 		{name: "corrupt value", prepare: func(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
 			_, err := pool.Exec(ctx, `update system_setting set value = '"bad"'::jsonb where key = 'site.show_powered_by'`)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}, want: system.ErrCorruptSettings},
+		{name: "null value", prepare: func(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
+			_, err := pool.Exec(ctx, `update system_setting set value = 'null'::jsonb where key = 'site.footer_text'`)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}, want: system.ErrCorruptSettings},
+		{name: "unsupported value", prepare: func(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
+			_, err := pool.Exec(ctx, `update system_setting set value = '"fr"'::jsonb where key = 'site.default_language'`)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}, want: system.ErrCorruptSettings},
+		{name: "invalid revision value", prepare: func(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
+			_, err := pool.Exec(ctx, "update system_setting set value = '0'::jsonb where key = 'site.settings_revision'")
+			if err != nil {
+				t.Fatal(err)
+			}
+		}, want: system.ErrCorruptSettings},
+		{name: "missing editable value", prepare: func(ctx context.Context, t *testing.T, pool *pgxpool.Pool) {
+			_, err := pool.Exec(ctx, `delete from system_setting where key = 'site.footer_text'`)
 			if err != nil {
 				t.Fatal(err)
 			}

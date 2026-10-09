@@ -31,6 +31,16 @@ type SettingsHandler struct {
 	logger  *slog.Logger
 }
 
+type updateSettingsRequest struct {
+	SiteName          *string `json:"siteName"`
+	DefaultLanguage   *string `json:"defaultLanguage"`
+	DefaultTheme      *string `json:"defaultTheme"`
+	FooterText        *string `json:"footerText"`
+	ShowPoweredBy     *bool   `json:"showPoweredBy"`
+	LocalLoginEnabled *bool   `json:"localLoginEnabled"`
+	ExpectedUpdatedAt *string `json:"expectedUpdatedAt"`
+}
+
 // NewSettingsHandler creates a settings HTTP handler.
 func NewSettingsHandler(service SettingsPort, logger *slog.Logger) *SettingsHandler {
 	if logger == nil {
@@ -61,14 +71,20 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // Update strictly decodes and applies one complete optimistic settings update.
 func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
-	var input UpdateSettingsInput
+	var request updateSettingsRequest
 	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&input); err != nil {
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil {
 		businessError(w, CodeInvalidSettings, "Invalid settings")
 		return
 	}
 	var trailing any
 	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		businessError(w, CodeInvalidSettings, "Invalid settings")
+		return
+	}
+	input, complete := request.input()
+	if !complete {
 		businessError(w, CodeInvalidSettings, "Invalid settings")
 		return
 	}
@@ -78,6 +94,19 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, result)
+}
+
+// input converts a complete wire request into the domain update model.
+func (r updateSettingsRequest) input() (UpdateSettingsInput, bool) {
+	if r.SiteName == nil || r.DefaultLanguage == nil || r.DefaultTheme == nil || r.FooterText == nil ||
+		r.ShowPoweredBy == nil || r.LocalLoginEnabled == nil || r.ExpectedUpdatedAt == nil {
+		return UpdateSettingsInput{}, false
+	}
+	return UpdateSettingsInput{
+		SiteName: *r.SiteName, DefaultLanguage: *r.DefaultLanguage, DefaultTheme: *r.DefaultTheme,
+		FooterText: *r.FooterText, ShowPoweredBy: *r.ShowPoweredBy,
+		LocalLoginEnabled: *r.LocalLoginEnabled, ExpectedUpdatedAt: *r.ExpectedUpdatedAt,
+	}, true
 }
 
 func (h *SettingsHandler) writeError(w http.ResponseWriter, r *http.Request, operation string, err error) {

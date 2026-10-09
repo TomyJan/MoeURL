@@ -94,9 +94,9 @@ func (s *Service) validateProviders(rows []sqlc.OidcProvider) error {
 }
 
 func parseEnabled(value []byte) (bool, error) {
-	var enabled bool
-	if err := json.Unmarshal(value, &enabled); err != nil {
+	var enabled *bool
+	if err := json.Unmarshal(value, &enabled); err != nil || enabled == nil {
 		return false, ErrInvalidPolicy
 	}
-	return enabled, nil
+	return *enabled, nil
 }

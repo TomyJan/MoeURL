@@ -2,6 +2,9 @@
 -- +goose StatementBegin
 insert into system_setting (key, value, created_at, updated_at)
 values
+    ('site.name', '"MoeURL"'::jsonb, now(), now()),
+    ('site.default_language', '"zh-CN"'::jsonb, now(), now()),
+    ('site.default_theme', '"system"'::jsonb, now(), now()),
     ('site.footer_text', '""'::jsonb, now(), now()),
     ('site.show_powered_by', 'true'::jsonb, now(), now()),
     ('auth.local_login_enabled', 'true'::jsonb, now(), now()),

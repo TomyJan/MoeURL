@@ -96,7 +96,7 @@ func (s *SettingsService) UpdateSettings(ctx context.Context, actor auth.Current
 				return fmt.Errorf("%w: %w", ErrNoLoginProvider, err)
 			}
 		}
-		next := time.Now().UTC()
+		next := time.Now().UTC().Truncate(time.Microsecond)
 		if !next.After(revision.UpdatedAt.Time) {
 			next = revision.UpdatedAt.Time.Add(time.Microsecond)
 		}
@@ -106,19 +106,24 @@ func (s *SettingsService) UpdateSettings(ctx context.Context, actor auth.Current
 			settingShowPoweredBy: normalized.ShowPoweredBy, settingLocalLoginEnabled: normalized.LocalLoginEnabled,
 			settingRevision: 1,
 		}
+		var persistedRevision time.Time
 		for _, key := range editableSettingKeys {
 			value, _ := json.Marshal(values[key])
-			if _, updateErr := queries.UpdateSystemSettingValue(ctx, sqlc.UpdateSystemSettingValueParams{
+			updated, updateErr := queries.UpdateSystemSettingValue(ctx, sqlc.UpdateSystemSettingValueParams{
 				Key: key, Value: value, UpdatedAt: pgtype.Timestamptz{Time: next, Valid: true},
-			}); updateErr != nil {
+			})
+			if updateErr != nil {
 				return updateErr
+			}
+			if key == settingRevision {
+				persistedRevision = updated.UpdatedAt.Time.UTC()
 			}
 		}
 		result = Settings{PublicConfig: PublicConfig{
 			SiteName: normalized.SiteName, DefaultLanguage: normalized.DefaultLanguage,
 			DefaultTheme: normalized.DefaultTheme, FooterText: normalized.FooterText,
 			ShowPoweredBy: normalized.ShowPoweredBy,
-		}, LocalLoginEnabled: normalized.LocalLoginEnabled, UpdatedAt: next.Format(time.RFC3339Nano)}
+		}, LocalLoginEnabled: normalized.LocalLoginEnabled, UpdatedAt: persistedRevision.Format(time.RFC3339Nano)}
 		return nil
 	})
 	return result, err
@@ -147,36 +152,62 @@ func (s *SettingsService) readSettings(ctx context.Context, queries settingsQuer
 	if err != nil {
 		return Settings{}, err
 	}
+	if len(rows) != len(editableSettingKeys) {
+		return Settings{}, ErrCorruptSettings
+	}
 	result := Settings{PublicConfig: PublicConfig{
 		SiteName: "MoeURL", DefaultLanguage: "zh-CN", DefaultTheme: "system", ShowPoweredBy: true,
 	}, LocalLoginEnabled: true}
 	for _, row := range rows {
 		switch row.Key {
 		case settingSiteName:
-			err = json.Unmarshal(row.Value, &result.SiteName)
+			err = decodeRequiredSetting(row.Value, &result.SiteName)
 		case settingDefaultLanguage:
-			err = json.Unmarshal(row.Value, &result.DefaultLanguage)
+			err = decodeRequiredSetting(row.Value, &result.DefaultLanguage)
 		case settingDefaultTheme:
-			err = json.Unmarshal(row.Value, &result.DefaultTheme)
+			err = decodeRequiredSetting(row.Value, &result.DefaultTheme)
 		case settingFooterText:
-			err = json.Unmarshal(row.Value, &result.FooterText)
+			err = decodeRequiredSetting(row.Value, &result.FooterText)
 		case settingShowPoweredBy:
-			err = json.Unmarshal(row.Value, &result.ShowPoweredBy)
+			err = decodeRequiredSetting(row.Value, &result.ShowPoweredBy)
 		case settingLocalLoginEnabled:
-			err = json.Unmarshal(row.Value, &result.LocalLoginEnabled)
+			err = decodeRequiredSetting(row.Value, &result.LocalLoginEnabled)
 		case settingRevision:
 			var revision int
-			err = json.Unmarshal(row.Value, &revision)
+			err = decodeRequiredSetting(row.Value, &revision)
+			if err == nil && revision < 1 {
+				err = ErrCorruptSettings
+			}
 			result.UpdatedAt = row.UpdatedAt.Time.UTC().Format(time.RFC3339Nano)
 		}
 		if err != nil {
 			return Settings{}, ErrCorruptSettings
 		}
 	}
-	if result.UpdatedAt == "" {
+	if !validPersistedSettings(result) {
 		return Settings{}, ErrCorruptSettings
 	}
 	return result, nil
+}
+
+// decodeRequiredSetting rejects JSON null and values whose type does not match the setting schema.
+func decodeRequiredSetting[T any](value []byte, destination *T) error {
+	var decoded *T
+	if err := json.Unmarshal(value, &decoded); err != nil || decoded == nil {
+		return ErrCorruptSettings
+	}
+	*destination = *decoded
+	return nil
+}
+
+// validPersistedSettings applies the public constraints and canonical string form to stored values.
+func validPersistedSettings(settings Settings) bool {
+	normalized, _, err := normalizeSettingsInput(UpdateSettingsInput{
+		SiteName: settings.SiteName, DefaultLanguage: settings.DefaultLanguage, DefaultTheme: settings.DefaultTheme,
+		FooterText: settings.FooterText, ShowPoweredBy: settings.ShowPoweredBy,
+		LocalLoginEnabled: settings.LocalLoginEnabled, ExpectedUpdatedAt: settings.UpdatedAt,
+	})
+	return err == nil && normalized.SiteName == settings.SiteName && normalized.FooterText == settings.FooterText
 }
 
 func normalizeSettingsInput(input UpdateSettingsInput) (UpdateSettingsInput, time.Time, error) {

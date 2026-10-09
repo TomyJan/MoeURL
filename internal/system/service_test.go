@@ -149,7 +149,7 @@ func TestServiceSetupRejectsInvalidShortLinkOriginBeforePersistence(t *testing.T
 				}
 				want := 0
 				if table == "system_setting" {
-					want = 4
+					want = 7
 				}
 				if count != want {
 					t.Fatalf("invalid setup left %d %s rows, want migration baseline %d", count, table, want)
@@ -434,7 +434,7 @@ func TestServiceSetupRollsBackWhenDomainGrantFails(t *testing.T) {
 		}
 		want := 0
 		if table == "system_setting" {
-			want = 4
+			want = 7
 		}
 		if count != want {
 			t.Fatalf("partial setup left %d %s rows, want migration baseline %d", count, table, want)

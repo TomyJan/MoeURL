@@ -269,6 +269,9 @@ func TestSystemSettingsMigrationRoundTrip(t *testing.T) {
 		t.Fatalf("upgrade system settings migration: %v", err)
 	}
 	for key, want := range map[string]string{
+		"site.name":                "MoeURL",
+		"site.default_language":    "zh-CN",
+		"site.default_theme":       "system",
 		"site.footer_text":         "Existing footer",
 		"site.show_powered_by":     "true",
 		"auth.local_login_enabled": "true",
@@ -299,7 +302,10 @@ func TestSystemSettingsMigrationRoundTrip(t *testing.T) {
 	if adminHasPermission {
 		t.Fatal("expected rollback to remove migration-owned system:manage")
 	}
-	for _, key := range []string{"site.footer_text", "site.show_powered_by", "auth.local_login_enabled", "site.settings_revision"} {
+	for _, key := range []string{
+		"site.name", "site.default_language", "site.default_theme", "site.footer_text",
+		"site.show_powered_by", "auth.local_login_enabled", "site.settings_revision",
+	} {
 		var exists bool
 		if err := database.QueryRowContext(ctx, `select exists(select 1 from system_setting where key = $1)`, key).Scan(&exists); err != nil {
 			t.Fatalf("read retained setting %s: %v", key, err)

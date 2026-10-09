@@ -69,6 +69,18 @@ func TestSettingsHandlerUpdatesAndRejectsTrailingJSON(t *testing.T) {
 	if err := json.NewDecoder(response.Body).Decode(&body); err != nil || body.Code != system.CodeInvalidSettings {
 		t.Fatalf("malformed JSON code=%d error=%v", body.Code, err)
 	}
+
+	for _, payload := range []string{
+		`{"siteName":"MoeURL","defaultLanguage":"en","defaultTheme":"dark","showPoweredBy":true,"localLoginEnabled":true,"expectedUpdatedAt":"2026-10-09T00:00:00Z"}`,
+		`{"siteName":"MoeURL","defaultLanguage":"en","defaultTheme":"dark","footerText":"","showPoweredBy":true,"expectedUpdatedAt":"2026-10-09T00:00:00Z"}`,
+		`{"siteName":"MoeURL","defaultLanguage":"en","defaultTheme":"dark","footerText":"","showPoweredBy":true,"localLoginEnabled":true,"expectedUpdatedAt":"2026-10-09T00:00:00Z","unexpected":true}`,
+	} {
+		response = httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/v1/admin/system/settings/update", bytes.NewBufferString(payload)))
+		if err := json.NewDecoder(response.Body).Decode(&body); err != nil || body.Code != system.CodeInvalidSettings {
+			t.Fatalf("incomplete or unknown settings payload %s code=%d error=%v", payload, body.Code, err)
+		}
+	}
 }
 
 // TestSettingsHandlerMapsReadErrors verifies both read endpoints sanitize failures.
