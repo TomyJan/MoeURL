@@ -17,8 +17,8 @@ github.com/TomyJan/MoeURL/internal/system/service.go:124.49,126.4
 github.com/TomyJan/MoeURL/internal/system/service.go:131.143,133.4
 github.com/TomyJan/MoeURL/internal/system/service.go:138.50,140.4
 github.com/TomyJan/MoeURL/internal/system/service.go:161.66,163.5
-github.com/TomyJan/MoeURL/internal/system/service.go:204.16,206.3
-github.com/TomyJan/MoeURL/internal/system/service.go:218.16,220.3
+github.com/TomyJan/MoeURL/internal/system/service.go:212.16,214.3
+github.com/TomyJan/MoeURL/internal/system/service.go:226.16,228.3
 # Resolve's last-seen update can fail only after a successful query; forcing that transition requires a connection-pool race.
 github.com/TomyJan/MoeURL/internal/auth/session.go:89.16,91.3
 # User Create password hashing failure; argon2/random failure is an infrastructure branch that is not deterministically triggerable.

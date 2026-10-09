@@ -37,6 +37,23 @@ func TestSettingsServiceReadsPublicAndAdministrativeViews(t *testing.T) {
 	}
 }
 
+// TestSettingsServiceValidateStartup verifies startup accepts canonical settings and rejects persisted corruption.
+func TestSettingsServiceValidateStartup(t *testing.T) {
+	ctx := t.Context()
+	pool := systemTestPool(t, ctx)
+	service := system.NewSettingsService(pool, permission.NewService(), &settingsPolicyStub{})
+
+	if err := service.ValidateStartup(ctx); err != nil {
+		t.Fatalf("validate canonical startup settings: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `update system_setting set value = '"fr"'::jsonb where key = 'site.default_language'`); err != nil {
+		t.Fatalf("corrupt startup setting: %v", err)
+	}
+	if err := service.ValidateStartup(ctx); !errors.Is(err, system.ErrCorruptSettings) {
+		t.Fatalf("validate corrupt startup settings error = %v", err)
+	}
+}
+
 // TestSettingsServiceRequiresBothManagementPermissions verifies authorization is enforced in the service.
 func TestSettingsServiceRequiresBothManagementPermissions(t *testing.T) {
 	ctx := t.Context()

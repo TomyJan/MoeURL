@@ -213,7 +213,7 @@ go vet ./...
 go test ./...
 $coverageProfile = Join-Path (Get-Location) "coverage.out"
 node --test scripts/go-coverage-threshold.test.mjs
-go test -p=1 -count=1 "-coverprofile=$coverageProfile" ./internal/auth ./internal/db ./internal/domain ./internal/event ./internal/http ./internal/middleware ./internal/oidc ./internal/permission ./internal/shortlink ./internal/system ./internal/user ./internal/usergroup
+go test -p=1 -count=1 "-coverprofile=$coverageProfile" ./internal/auth ./internal/db ./internal/domain ./internal/event ./internal/http ./internal/loginpolicy ./internal/middleware ./internal/oidc ./internal/permission ./internal/shortlink ./internal/system ./internal/user ./internal/usergroup
 node scripts/go-coverage-threshold.mjs $coverageProfile 100 --include-from=scripts/go-coverage-targets.txt --exclude-blocks-from=scripts/go-coverage-excluded-blocks.txt
 ```
 
@@ -221,7 +221,7 @@ Linux/macOS：
 
 ```bash
 node --test scripts/go-coverage-threshold.test.mjs
-go test -p=1 -count=1 -coverprofile="$PWD/coverage.out" ./internal/auth ./internal/db ./internal/domain ./internal/event ./internal/http ./internal/middleware ./internal/oidc ./internal/permission ./internal/shortlink ./internal/system ./internal/user ./internal/usergroup
+go test -p=1 -count=1 -coverprofile="$PWD/coverage.out" ./internal/auth ./internal/db ./internal/domain ./internal/event ./internal/http ./internal/loginpolicy ./internal/middleware ./internal/oidc ./internal/permission ./internal/shortlink ./internal/system ./internal/user ./internal/usergroup
 node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100 --include-from=scripts/go-coverage-targets.txt --exclude-blocks-from=scripts/go-coverage-excluded-blocks.txt
 ```
 

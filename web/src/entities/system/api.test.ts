@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { getAdminSettings, getInitStatus, getPublicConfig, PublicConfigSchema, setupSystem, updateAdminSettings } from './api'
+import { getAdminSettings, getInitStatus, getPublicConfig, PublicConfigSchema, setupSystem, updateAdminSettings, type SetupInput } from './api'
 
 describe('system api', () => {
   afterEach(() => {
@@ -116,7 +116,7 @@ describe('system api', () => {
     ))
     vi.stubGlobal('fetch', fetch)
 
-    await expect(setupSystem({
+    const invalidInput = {
       adminUsername: 'admin',
       adminPassword: 'admin-password',
       adminNickname: 'Admin',
@@ -126,7 +126,9 @@ describe('system api', () => {
       defaultLanguage: 'zh-CN',
       defaultTheme: 'system',
       ...override,
-    })).rejects.toThrow()
+    } as unknown as SetupInput
+
+    await expect(setupSystem(invalidInput)).rejects.toThrow()
     expect(fetch).not.toHaveBeenCalled()
   })
 
