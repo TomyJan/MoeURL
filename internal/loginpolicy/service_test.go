@@ -1,0 +1,183 @@
+package loginpolicy_test
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	appdb "github.com/TomyJan/MoeURL/internal/db"
+	"github.com/TomyJan/MoeURL/internal/db/sqlc"
+	"github.com/TomyJan/MoeURL/internal/loginpolicy"
+	"github.com/TomyJan/MoeURL/internal/testdb"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+)
+
+// TestServiceReadsAndLocksLocalLogin verifies the shared setting is parsed and locked transactionally.
+func TestServiceReadsAndLocksLocalLogin(t *testing.T) {
+	ctx := t.Context()
+	pool := testdb.ProjectMigratedPool(ctx, t)
+	service := loginpolicy.NewService(pool, func([]sqlc.OidcProvider) error { return nil })
+
+	enabled, err := service.LocalLoginEnabled(ctx)
+	if err != nil || !enabled {
+		t.Fatalf("default local login = %t, error = %v", enabled, err)
+	}
+	if _, err := pool.Exec(ctx, `update system_setting set value = 'false'::jsonb where key = 'auth.local_login_enabled'`); err != nil {
+		t.Fatalf("disable local login: %v", err)
+	}
+
+	err = appdb.WithTx(ctx, pool, func(tx pgx.Tx) error {
+		locked, err := service.LockLocalLogin(ctx, tx)
+		if err != nil || locked {
+			t.Fatalf("locked local login = %t, error = %v", locked, err)
+		}
+		blockedCtx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+		defer cancel()
+		_, updateErr := pool.Exec(blockedCtx, `update system_setting set value = 'true'::jsonb where key = 'auth.local_login_enabled'`)
+		if !errors.Is(updateErr, context.DeadlineExceeded) {
+			t.Fatalf("concurrent update error = %v, want deadline exceeded", updateErr)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("lock local login transaction: %v", err)
+	}
+}
+
+// TestServiceRequiresAvailableProvider verifies disabled local login has one valid persisted OIDC entry point.
+func TestServiceRequiresAvailableProvider(t *testing.T) {
+	ctx := t.Context()
+	pool := testdb.ProjectMigratedPool(ctx, t)
+	validated := 0
+	service := loginpolicy.NewService(pool, func(rows []sqlc.OidcProvider) error {
+		validated = len(rows)
+		return nil
+	})
+
+	err := appdb.WithTx(ctx, pool, func(tx pgx.Tx) error {
+		return service.RequireAvailableProvider(ctx, tx)
+	})
+	if !errors.Is(err, loginpolicy.ErrNoAvailableProvider) {
+		t.Fatalf("empty provider error = %v", err)
+	}
+	insertEnabledProvider(t, ctx, pool)
+	if err := appdb.WithTx(ctx, pool, func(tx pgx.Tx) error {
+		return service.RequireAvailableProvider(ctx, tx)
+	}); err != nil {
+		t.Fatalf("validate available provider: %v", err)
+	}
+	if validated != 1 {
+		t.Fatalf("validated provider count = %d, want 1", validated)
+	}
+}
+
+// TestServiceValidateStartupEnforcesEntryPointInvariant verifies startup only requires OIDC when local login is disabled.
+func TestServiceValidateStartupEnforcesEntryPointInvariant(t *testing.T) {
+	ctx := t.Context()
+	pool := testdb.ProjectMigratedPool(ctx, t)
+	validationErr := errors.New("invalid provider runtime")
+	service := loginpolicy.NewService(pool, func([]sqlc.OidcProvider) error { return validationErr })
+
+	if err := service.ValidateStartup(ctx); err != nil {
+		t.Fatalf("enabled local login startup: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `update system_setting set value = 'false'::jsonb where key = 'auth.local_login_enabled'`); err != nil {
+		t.Fatalf("disable local login: %v", err)
+	}
+	if err := service.ValidateStartup(ctx); !errors.Is(err, loginpolicy.ErrNoAvailableProvider) {
+		t.Fatalf("startup without provider error = %v", err)
+	}
+	insertEnabledProvider(t, ctx, pool)
+	if err := service.ValidateStartup(ctx); !errors.Is(err, loginpolicy.ErrNoAvailableProvider) || !errors.Is(err, validationErr) {
+		t.Fatalf("invalid provider startup error = %v", err)
+	}
+}
+
+// TestServiceRejectsCorruptPolicyValue verifies malformed persisted settings fail closed.
+func TestServiceRejectsCorruptPolicyValue(t *testing.T) {
+	ctx := t.Context()
+	pool := testdb.ProjectMigratedPool(ctx, t)
+	if _, err := pool.Exec(ctx, `update system_setting set value = '"invalid"'::jsonb where key = 'auth.local_login_enabled'`); err != nil {
+		t.Fatalf("corrupt local-login setting: %v", err)
+	}
+	service := loginpolicy.NewService(pool, func([]sqlc.OidcProvider) error { return nil })
+	if _, err := service.LocalLoginEnabled(ctx); !errors.Is(err, loginpolicy.ErrInvalidPolicy) {
+		t.Fatalf("corrupt policy error = %v", err)
+	}
+	if err := service.ValidateStartup(ctx); !errors.Is(err, loginpolicy.ErrInvalidPolicy) {
+		t.Fatalf("corrupt startup policy error = %v", err)
+	}
+}
+
+// TestServiceHandlesMissingRowsAndDatabaseFailures verifies safe defaults and infrastructure error propagation.
+func TestServiceHandlesMissingRowsAndDatabaseFailures(t *testing.T) {
+	t.Run("missing policy defaults enabled", func(t *testing.T) {
+		ctx := t.Context()
+		pool := testdb.ProjectMigratedPool(ctx, t)
+		if _, err := pool.Exec(ctx, `delete from system_setting where key = 'auth.local_login_enabled'`); err != nil {
+			t.Fatalf("delete local-login setting: %v", err)
+		}
+		service := loginpolicy.NewService(pool, func([]sqlc.OidcProvider) error { return nil })
+		enabled, err := service.LocalLoginEnabled(ctx)
+		if err != nil || !enabled {
+			t.Fatalf("missing local-login setting = %t, error = %v", enabled, err)
+		}
+		if err := appdb.WithTx(ctx, pool, func(tx pgx.Tx) error {
+			_, err := service.LockLocalLogin(ctx, tx)
+			return err
+		}); err == nil {
+			t.Fatal("expected missing locked policy row to fail")
+		}
+	})
+
+	t.Run("policy query failure", func(t *testing.T) {
+		ctx := t.Context()
+		pool := testdb.ProjectMigratedPool(ctx, t)
+		service := loginpolicy.NewService(pool, func([]sqlc.OidcProvider) error { return nil })
+		if _, err := pool.Exec(ctx, `drop table system_setting`); err != nil {
+			t.Fatalf("drop system settings: %v", err)
+		}
+		if _, err := service.LocalLoginEnabled(ctx); err == nil {
+			t.Fatal("expected policy query failure")
+		}
+	})
+
+	t.Run("provider query failure", func(t *testing.T) {
+		ctx := t.Context()
+		pool := testdb.ProjectMigratedPool(ctx, t)
+		service := loginpolicy.NewService(pool, func([]sqlc.OidcProvider) error { return nil })
+		if _, err := pool.Exec(ctx, `update system_setting set value = 'false'::jsonb where key = 'auth.local_login_enabled'; drop table oidc_provider cascade`); err != nil {
+			t.Fatalf("break provider storage: %v", err)
+		}
+		if err := service.ValidateStartup(ctx); err == nil {
+			t.Fatal("expected startup provider query failure")
+		}
+		if err := appdb.WithTx(ctx, pool, func(tx pgx.Tx) error {
+			return service.RequireAvailableProvider(ctx, tx)
+		}); err == nil {
+			t.Fatal("expected transactional provider query failure")
+		}
+	})
+}
+
+func insertEnabledProvider(t *testing.T, ctx context.Context, pool interface {
+	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+}) {
+	t.Helper()
+	if _, err := pool.Exec(ctx, `
+		insert into oidc_provider (
+			id, key, display_name, issuer_url, client_id, client_secret_ciphertext,
+			authorization_endpoint, token_endpoint, jwks_uri, allowed_email_domains,
+			enabled, created_at, updated_at
+		) values (
+			'00000000-0000-0000-0000-000000000901', 'company', 'Company SSO',
+			'https://id.example.com', 'client', decode('01', 'hex'),
+			'https://id.example.com/authorize', 'https://id.example.com/token',
+			'https://id.example.com/jwks', '["example.com"]'::jsonb, true, now(), now()
+		)
+	`); err != nil {
+		t.Fatalf("insert enabled provider: %v", err)
+	}
+}
