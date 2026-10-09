@@ -40,7 +40,7 @@ v0.9.0 范围和安全边界以 `docs/product/scope-v0.9.0.md`、系统设置设
 3. `docs/implementation/v0.9.0-plan.md`
 4. `docs/implementation/v0.9.0-tasks.md`
 5. `docs/implementation/v0.9.0-acceptance.md`
-6. `docs/superpowers/plans/2026-10-09-v0.9.0-system-settings.md`
+6. `docs/implementation/v0.9.0-detailed-plan.md`
 7. `docs/implementation/v0.8.0-plan.md`
 8. `docs/implementation/v0.8.0-tasks.md`
 9. `docs/implementation/v0.8.0-acceptance.md`
