@@ -55,16 +55,25 @@ const { config } = useSiteConfig()
 
 .home-header__brand {
   display: inline-flex;
+  flex: 1 1 auto;
   align-items: center;
   gap: 10px;
+  min-width: 0;
   color: rgb(var(--v-theme-on-background));
   font-weight: 900;
   text-decoration: none;
 }
 
+.home-header__brand span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .home-header__logo,
 .home-header__avatar {
   display: inline-grid;
+  flex: 0 0 auto;
   width: 36px;
   height: 36px;
   place-items: center;
@@ -76,6 +85,7 @@ const { config } = useSiteConfig()
 
 .home-header__actions {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 10px;
   padding: 0;

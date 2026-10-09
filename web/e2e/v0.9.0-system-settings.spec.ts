@@ -38,8 +38,8 @@ test('applies system branding while preserving a recoverable OIDC-only login pat
 
   const providerKey = `settings-${randomBytes(4).toString('hex')}`
   const providerName = `Settings SSO ${providerKey}`
-  const siteName = `MoeURL Settings ${providerKey}`
-  const footerText = `System settings E2E ${providerKey}`
+  const siteName = `${providerKey}${'S'.repeat(64 - providerKey.length)}`
+  const footerText = `${providerKey}${'F'.repeat(200 - providerKey.length)}`
   let originalSettings: Settings | undefined
   let providerCreated = false
   let visitorContext: BrowserContext | undefined
@@ -76,14 +76,18 @@ test('applies system branding while preserving a recoverable OIDC-only login pat
     visitorContext = await browser.newContext({
       baseURL,
       locale: 'fr-FR',
-      viewport: { width: 1280, height: 720 },
+      viewport: { width: 320, height: 720 },
     })
     const visitor = await visitorContext.newPage()
+    await visitor.goto('/')
+    await expect(visitor.getByText(siteName, { exact: true })).toBeVisible()
+    await expect.poll(async () => visitor.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
     await visitor.goto('/login?redirect=/console')
     await expect(visitor).toHaveTitle(siteName)
     await expect(visitor.getByText(siteName, { exact: true })).toBeVisible()
     await expect(visitor.getByText(footerText, { exact: true })).toBeVisible()
     await expect(visitor.getByText('Powered by MoeURL', { exact: true })).toBeVisible()
+    await expect.poll(async () => visitor.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
     await expect(visitor.locator('.v-application')).toHaveClass(/v-theme--moeurlDark/)
     await expect(visitor.getByLabel('Username')).toHaveCount(0)
     await expect(visitor.getByLabel('Password')).toHaveCount(0)
