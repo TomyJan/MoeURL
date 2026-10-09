@@ -15,11 +15,13 @@ const { config } = useSiteConfig()
 <style scoped>
 .site-footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 4px;
   padding: 18px 16px 24px;
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.82rem;
+  overflow-wrap: anywhere;
   text-align: center;
 }
 </style>
