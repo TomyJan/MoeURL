@@ -19,7 +19,7 @@
           <v-text-field v-model="username" :label="t('auth.username')" variant="outlined" />
           <v-text-field v-model="password" :label="t('auth.password')" type="password" variant="outlined" />
         </template>
-        <Transition v-if="localLoginEnabled" name="moe-overlay">
+        <Transition v-if="localLoginEnabled || localLoginRejected" name="moe-overlay">
           <v-snackbar
             v-if="loginErrorSnackbarOpen"
             class="auth-page__toast"
@@ -89,7 +89,6 @@ const LOGIN_RATE_LIMITED_ERROR_CODE = 110103
 const LOGIN_METHOD_UNAVAILABLE_ERROR_CODE = 110104
 const methodsQuery = useQuery({ queryKey: ['auth', 'methods'], queryFn: getLoginMethods, retry: false })
 const oidcProviders = computed(() => methodsQuery.data.value?.oidc ?? [])
-const localLoginEnabled = computed(() => methodsQuery.data.value?.local.enabled === true)
 const mutation = useMutation({
   mutationFn: login,
   /** Updates cached identity data, starts auth/me invalidation, and restores the requested route. */
@@ -99,11 +98,26 @@ const mutation = useMutation({
     void router.push(loginRedirectTarget.value)
   },
 })
+const localLoginRejected = computed(() => hasBusinessErrorCode(mutation.error.value, LOGIN_METHOD_UNAVAILABLE_ERROR_CODE))
+const localLoginEnabled = computed(
+  () => !methodsQuery.isError.value && !localLoginRejected.value && methodsQuery.data.value?.local.enabled === true,
+)
+
+/** Refreshes authentication methods after the server rejects a stale local-login form. */
+async function refreshLoginMethodsAfterPolicyChange() {
+  const result = await methodsQuery.refetch()
+  if (!result.isError) {
+    mutation.reset()
+  }
+}
 
 watch(
   () => [mutation.isError.value, mutation.error.value] as const,
-  ([isError]) => {
+  ([isError, error]) => {
     loginErrorSnackbarOpen.value = isError
+    if (isError && hasBusinessErrorCode(error, LOGIN_METHOD_UNAVAILABLE_ERROR_CODE)) {
+      void refreshLoginMethodsAfterPolicyChange()
+    }
   },
   { immediate: true },
 )
@@ -140,7 +154,7 @@ const oidcErrorMessage = computed(() => {
 
 /** Submits the current credentials to the login mutation. */
 function submit() {
-  if (!localLoginEnabled.value || methodsQuery.isError.value) return
+  if (!localLoginEnabled.value) return
   mutation.mutate({ username: username.value, password: password.value })
 }
 

@@ -170,8 +170,9 @@ func TestProviderServiceMethodsUsesConsistentSnapshot(t *testing.T) {
 
 // providerPolicyStub supplies deterministic login-policy decisions to provider tests.
 type providerPolicyStub struct {
-	enabled bool
-	err     error
+	enabled    bool
+	err        error
+	requireErr error
 }
 
 // LocalLoginEnabled returns the configured public login decision.
@@ -183,7 +184,12 @@ func (s providerPolicyStub) LockLocalLogin(context.Context, pgx.Tx) (bool, error
 }
 
 // RequireAvailableProvider returns the configured final-provider validation result.
-func (s providerPolicyStub) RequireAvailableProvider(context.Context, pgx.Tx) error { return s.err }
+func (s providerPolicyStub) RequireAvailableProvider(context.Context, pgx.Tx) error {
+	if s.requireErr != nil {
+		return s.requireErr
+	}
+	return s.err
+}
 
 type providerSnapshotPolicyStub struct {
 	providerPolicyStub
@@ -376,6 +382,39 @@ func TestTransactionalProviderStorePreservesLoginEntry(t *testing.T) {
 				}
 			} else if enabled || (test.mutation == "delete" && !deletedAt.Valid) {
 				t.Fatalf("allowed mutation missing: enabled=%v deleted=%v", enabled, deletedAt.Valid)
+			}
+		})
+	}
+}
+
+// TestTransactionalProviderStorePropagatesProviderQueryFailure verifies infrastructure errors are not reclassified as business failures.
+func TestTransactionalProviderStorePropagatesProviderQueryFailure(t *testing.T) {
+	for _, mutation := range []string{"update", "delete"} {
+		t.Run(mutation, func(t *testing.T) {
+			ctx := t.Context()
+			pool := testdb.ProjectMigratedPool(ctx, t)
+			provider := identityTestProvider(t, pool)
+			stored, err := sqlc.New(pool).GetOIDCProviderByID(ctx, provider.ID)
+			if err != nil {
+				t.Fatalf("load provider: %v", err)
+			}
+			policyErr := errors.New("provider query failed")
+			store := &transactionalProviderStore{
+				Queries: sqlc.New(pool), pool: pool,
+				loginPolicy: providerPolicyStub{enabled: false, requireErr: policyErr},
+			}
+			switch mutation {
+			case "update":
+				_, err = store.UpdateOIDCProvider(ctx, providerUpdateParams(stored, false))
+			case "delete":
+				_, err = store.SoftDeleteOIDCProvider(ctx, sqlc.SoftDeleteOIDCProviderParams{ID: stored.ID, ExpectedUpdatedAt: stored.UpdatedAt})
+			}
+			if !errors.Is(err, policyErr) || errors.Is(err, ErrRuntimeUnavailable) {
+				t.Fatalf("provider query error = %v", err)
+			}
+			current, readErr := sqlc.New(pool).GetOIDCProviderByID(ctx, provider.ID)
+			if readErr != nil || !current.Enabled || current.DeletedAt.Valid {
+				t.Fatalf("provider changed after query failure: %#v err=%v", current, readErr)
 			}
 		})
 	}

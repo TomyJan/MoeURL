@@ -11,10 +11,7 @@ order by key;
 
 -- name: GetLoginMethodsSnapshot :one
 select
-    coalesce(
-        (select value from system_setting where key = 'auth.local_login_enabled'),
-        'true'::jsonb
-    )::jsonb as local_login_enabled,
+    local_login.value::jsonb as local_login_enabled,
     coalesce(
         (select array_agg(key order by key) from oidc_provider where enabled and deleted_at is null),
         array[]::text[]
@@ -22,7 +19,9 @@ select
     coalesce(
         (select array_agg(display_name order by key) from oidc_provider where enabled and deleted_at is null),
         array[]::text[]
-    )::text[] as provider_display_names;
+    )::text[] as provider_display_names
+from system_setting as local_login
+where local_login.key = 'auth.local_login_enabled';
 
 -- name: GetSystemSettingForUpdate :one
 select key, value, created_at, updated_at

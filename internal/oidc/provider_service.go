@@ -11,6 +11,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
+	"github.com/TomyJan/MoeURL/internal/loginpolicy"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -122,7 +123,10 @@ func (s *transactionalProviderStore) UpdateOIDCProvider(ctx context.Context, inp
 		}
 		if !localEnabled {
 			if err := policy.RequireAvailableProvider(ctx, tx); err != nil {
-				return fmt.Errorf("%w: %w", ErrRuntimeUnavailable, err)
+				if errors.Is(err, loginpolicy.ErrNoAvailableProvider) {
+					return fmt.Errorf("%w: %w", ErrRuntimeUnavailable, err)
+				}
+				return err
 			}
 		}
 		return nil
@@ -145,7 +149,10 @@ func (s *transactionalProviderStore) SoftDeleteOIDCProvider(ctx context.Context,
 		}
 		if !localEnabled {
 			if err := policy.RequireAvailableProvider(ctx, tx); err != nil {
-				return fmt.Errorf("%w: %w", ErrRuntimeUnavailable, err)
+				if errors.Is(err, loginpolicy.ErrNoAvailableProvider) {
+					return fmt.Errorf("%w: %w", ErrRuntimeUnavailable, err)
+				}
+				return err
 			}
 		}
 		return nil

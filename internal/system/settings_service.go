@@ -12,6 +12,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
+	"github.com/TomyJan/MoeURL/internal/loginpolicy"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -99,7 +100,10 @@ func (s *SettingsService) UpdateSettings(ctx context.Context, actor auth.Current
 		}
 		if !normalized.LocalLoginEnabled {
 			if err := s.loginPolicy.RequireAvailableProvider(ctx, tx); err != nil {
-				return fmt.Errorf("%w: %w", ErrNoLoginProvider, err)
+				if errors.Is(err, loginpolicy.ErrNoAvailableProvider) {
+					return fmt.Errorf("%w: %w", ErrNoLoginProvider, err)
+				}
+				return err
 			}
 		}
 		next := time.Now().UTC().Truncate(time.Microsecond)

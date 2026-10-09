@@ -44,7 +44,7 @@ func NewService(pool *pgxpool.Pool, validator RuntimeValidator) *Service {
 func (s *Service) LocalLoginEnabled(ctx context.Context) (bool, error) {
 	setting, err := s.queries.GetSystemSetting(ctx, localLoginSettingKey)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return true, nil
+		return false, ErrInvalidPolicy
 	}
 	if err != nil {
 		return false, err
@@ -55,6 +55,9 @@ func (s *Service) LocalLoginEnabled(ctx context.Context) (bool, error) {
 // LoginMethodsSnapshot reads the local policy and enabled providers from one database statement snapshot.
 func (s *Service) LoginMethodsSnapshot(ctx context.Context) (bool, []sqlc.ListEnabledOIDCProvidersRow, error) {
 	row, err := s.queries.GetLoginMethodsSnapshot(ctx)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil, ErrInvalidPolicy
+	}
 	if err != nil {
 		return false, nil, err
 	}

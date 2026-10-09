@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	"github.com/TomyJan/MoeURL/internal/loginpolicy"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/system"
 	"github.com/jackc/pgx/v5"
@@ -279,28 +280,44 @@ func TestSettingsServiceAdvancesFutureRevision(t *testing.T) {
 	}
 }
 
-// TestSettingsServiceRollsBackWhenProviderInvariantFails verifies failed login-policy checks persist nothing.
+// TestSettingsServiceRollsBackWhenProviderInvariantFails verifies policy failures retain their error category and persist nothing.
 func TestSettingsServiceRollsBackWhenProviderInvariantFails(t *testing.T) {
-	ctx := t.Context()
-	pool := systemTestPool(t, ctx)
-	seedEditableSettings(t, ctx, pool)
-	policy := &settingsPolicyStub{requireErr: errors.New("no provider")}
-	service := system.NewSettingsService(pool, permission.NewService(), policy)
-	admin := auth.CurrentUser{GroupKey: permission.GroupAdmin}
-	current, err := service.GetSettings(ctx, admin)
-	if err != nil {
-		t.Fatalf("read current settings: %v", err)
-	}
-	input := system.UpdateSettingsInput{
-		SiteName: "Changed", DefaultLanguage: "en", DefaultTheme: "light",
-		ShowPoweredBy: true, LocalLoginEnabled: false, ExpectedUpdatedAt: current.UpdatedAt,
-	}
-	if _, err := service.UpdateSettings(ctx, admin, input); !errors.Is(err, system.ErrNoLoginProvider) {
-		t.Fatalf("provider invariant error = %v", err)
-	}
-	after, err := service.GetSettings(ctx, admin)
-	if err != nil || after.SiteName != current.SiteName || after.UpdatedAt != current.UpdatedAt {
-		t.Fatalf("settings changed after rollback: before=%#v after=%#v err=%v", current, after, err)
+	for _, test := range []struct {
+		name         string
+		policyErr    error
+		wantBusiness bool
+	}{
+		{name: "no available provider", policyErr: loginpolicy.ErrNoAvailableProvider, wantBusiness: true},
+		{name: "provider query failure", policyErr: errors.New("provider query failed")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := t.Context()
+			pool := systemTestPool(t, ctx)
+			seedEditableSettings(t, ctx, pool)
+			policy := &settingsPolicyStub{requireErr: test.policyErr}
+			service := system.NewSettingsService(pool, permission.NewService(), policy)
+			admin := auth.CurrentUser{GroupKey: permission.GroupAdmin}
+			current, err := service.GetSettings(ctx, admin)
+			if err != nil {
+				t.Fatalf("read current settings: %v", err)
+			}
+			input := system.UpdateSettingsInput{
+				SiteName: "Changed", DefaultLanguage: "en", DefaultTheme: "light",
+				ShowPoweredBy: true, LocalLoginEnabled: false, ExpectedUpdatedAt: current.UpdatedAt,
+			}
+			_, err = service.UpdateSettings(ctx, admin, input)
+			if test.wantBusiness {
+				if !errors.Is(err, system.ErrNoLoginProvider) || !errors.Is(err, test.policyErr) {
+					t.Fatalf("provider invariant error = %v", err)
+				}
+			} else if !errors.Is(err, test.policyErr) || errors.Is(err, system.ErrNoLoginProvider) {
+				t.Fatalf("provider infrastructure error = %v", err)
+			}
+			after, readErr := service.GetSettings(ctx, admin)
+			if readErr != nil || after.SiteName != current.SiteName || after.UpdatedAt != current.UpdatedAt {
+				t.Fatalf("settings changed after rollback: before=%#v after=%#v err=%v", current, after, readErr)
+			}
+		})
 	}
 }
 

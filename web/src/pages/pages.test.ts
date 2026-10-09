@@ -16,7 +16,7 @@ import NotFoundPage from './NotFoundPage.vue'
 import SetupPage from './SetupPage.vue'
 import { componentStubs } from '@/test/component-stubs'
 import { login, me } from '@/entities/auth/api'
-import { getLoginMethods } from '@/entities/oidc/api'
+import { getLoginMethods, type LoginMethods } from '@/entities/oidc/api'
 import { setupSystem } from '@/entities/system/api'
 import { getAdminShortLinkStatistics, getShortLinkOverview, getShortLinkStatistics, listAdminShortLinks, listShortLinks, updateAdminShortLink, updateShortLink } from '@/entities/short-link/api'
 import type { ShortLink } from '@/entities/short-link/model'
@@ -649,10 +649,16 @@ describe('pages', () => {
     expect(screen.queryByText('Login temporarily unavailable')).toBeNull()
   })
 
-  it('localizes disabled local login and blocks a stale form submission', () => {
-    const methods = ref({ local: { enabled: true }, oidc: [] })
+  it('refreshes methods after disabled local login and replaces the stale form', async () => {
+    const methods = ref<LoginMethods>({ local: { enabled: true }, oidc: [] })
+    const refresh = createDeferred<{ isError: boolean }>()
+    const refetch = vi.fn(async () => {
+      const result = await refresh.promise
+      methods.value = { local: { enabled: false }, oidc: [{ key: 'company', displayName: 'Company SSO' }] }
+      return result
+    })
     const mutate = vi.fn()
-    setQueryResult({ data: methods })
+    setQueryResult({ data: methods, refetch })
     setMutationResult({
       error: ref(Object.assign(new Error('disabled'), { code: 110104 })),
       isError: ref(true),
@@ -660,10 +666,32 @@ describe('pages', () => {
     })
     mount(LoginPage)
 
+    await vi.waitFor(() => expect(refetch).toHaveBeenCalledTimes(1))
     expect(screen.getByText('auth.localLoginUnavailable')).toBeTruthy()
-    const submit = screen.getByText('auth.loginSubmit') as HTMLButtonElement
-    methods.value = { local: { enabled: false }, oidc: [] }
-    submit.click()
+    expect(screen.queryByLabelText('auth.username')).toBeNull()
+    refresh.resolve({ isError: false })
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Company SSO' })).toBeTruthy())
+    expect(screen.queryByLabelText('auth.username')).toBeNull()
+    expect(screen.queryByText('auth.loginSubmit')).toBeNull()
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
+  it('keeps the stale local-login form closed when methods refresh fails', async () => {
+    const refetch = vi.fn(async () => ({ isError: true }))
+    const mutate = vi.fn()
+    setQueryResult({ data: ref<LoginMethods>({ local: { enabled: true }, oidc: [] }), refetch })
+    setMutationResult({
+      error: ref(Object.assign(new Error('disabled'), { code: 110104 })),
+      isError: ref(true),
+      mutate,
+    })
+    mount(LoginPage)
+
+    await vi.waitFor(() => expect(refetch).toHaveBeenCalledTimes(1))
+    expect(screen.getByText('auth.localLoginUnavailable')).toBeTruthy()
+    expect(screen.queryByLabelText('auth.username')).toBeNull()
+    expect(screen.queryByText('auth.loginSubmit')).toBeNull()
+    await fireEvent.submit(document.querySelector('form')!)
     expect(mutate).not.toHaveBeenCalled()
   })
 

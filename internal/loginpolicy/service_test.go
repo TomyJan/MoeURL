@@ -134,22 +134,23 @@ func TestServiceRejectsCorruptPolicyValue(t *testing.T) {
 	}
 }
 
-// TestServiceHandlesMissingRowsAndDatabaseFailures verifies safe defaults and infrastructure error propagation.
+// TestServiceHandlesMissingRowsAndDatabaseFailures verifies missing policy and storage failures fail closed.
 func TestServiceHandlesMissingRowsAndDatabaseFailures(t *testing.T) {
-	t.Run("missing policy defaults enabled", func(t *testing.T) {
+	t.Run("missing policy is invalid", func(t *testing.T) {
 		ctx := t.Context()
 		pool := testdb.ProjectMigratedPool(ctx, t)
 		if _, err := pool.Exec(ctx, `delete from system_setting where key = 'auth.local_login_enabled'`); err != nil {
 			t.Fatalf("delete local-login setting: %v", err)
 		}
 		service := loginpolicy.NewService(pool, func([]sqlc.OidcProvider) error { return nil })
-		enabled, err := service.LocalLoginEnabled(ctx)
-		if err != nil || !enabled {
+		if enabled, err := service.LocalLoginEnabled(ctx); enabled || !errors.Is(err, loginpolicy.ErrInvalidPolicy) {
 			t.Fatalf("missing local-login setting = %t, error = %v", enabled, err)
 		}
-		snapshotEnabled, providers, err := service.LoginMethodsSnapshot(ctx)
-		if err != nil || !snapshotEnabled || len(providers) != 0 {
+		if snapshotEnabled, providers, err := service.LoginMethodsSnapshot(ctx); snapshotEnabled || providers != nil || !errors.Is(err, loginpolicy.ErrInvalidPolicy) {
 			t.Fatalf("missing snapshot setting enabled=%t providers=%#v error=%v", snapshotEnabled, providers, err)
+		}
+		if err := service.ValidateStartup(ctx); !errors.Is(err, loginpolicy.ErrInvalidPolicy) {
+			t.Fatalf("missing startup policy error = %v", err)
 		}
 		if err := appdb.WithTx(ctx, pool, func(tx pgx.Tx) error {
 			_, err := service.LockLocalLogin(ctx, tx)
