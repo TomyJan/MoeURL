@@ -36,7 +36,10 @@ vi.mock('@tanstack/vue-query', () => ({
     isPending: state.mutationPending,
     mutate: (input: unknown) => {
       state.mutate(input)
-      void options.mutationFn(input).then(options.onSuccess).catch(options.onError)
+      state.mutationPending.value = true
+      void options.mutationFn(input).then(options.onSuccess).catch(options.onError).finally(() => {
+        state.mutationPending.value = false
+      })
     },
   }),
 }))
@@ -113,6 +116,32 @@ describe('AdminSettingsPage', () => {
     expect(state.setQueryData).toHaveBeenCalledWith(['system', 'public-config'], expect.objectContaining({ siteName: 'New site' }))
     expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['auth', 'methods'] })
     expect(screen.getByText('settings.saveSuccess')).toBeTruthy()
+  })
+
+  it('disables the form and ignores repeated submits while an update is pending', async () => {
+    let resolveUpdate: ((value: typeof settings) => void) | undefined
+    vi.mocked(updateAdminSettings).mockImplementation(() => new Promise((resolve) => {
+      resolveUpdate = resolve
+    }))
+    mountPage()
+
+    const saveButton = screen.getByRole('button', { name: 'settings.save' })
+    await fireEvent.click(saveButton)
+    await waitFor(() => expect(updateAdminSettings).toHaveBeenCalledTimes(1))
+    expect((screen.getByLabelText('settings.siteName') as HTMLInputElement).disabled).toBe(true)
+    expect((screen.getByLabelText('settings.footerText') as HTMLTextAreaElement).disabled).toBe(true)
+    expect((screen.getByLabelText('settings.showPoweredBy') as HTMLInputElement).disabled).toBe(true)
+    expect((screen.getByLabelText('settings.defaultLanguage') as HTMLSelectElement).disabled).toBe(true)
+    expect((screen.getByLabelText('settings.defaultTheme') as HTMLSelectElement).disabled).toBe(true)
+    expect((screen.getByLabelText('settings.localLoginEnabled') as HTMLInputElement).disabled).toBe(true)
+
+    const form = saveButton.closest('form')
+    if (!form) throw new Error('settings form not found')
+    await fireEvent.submit(form)
+    expect(updateAdminSettings).toHaveBeenCalledTimes(1)
+
+    resolveUpdate?.({ ...settings })
+    await waitFor(() => expect(state.mutationPending.value).toBe(false))
   })
 
   it('renders loading and retryable query failures', async () => {
