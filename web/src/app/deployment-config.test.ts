@@ -731,7 +731,7 @@ describe('deployment configuration', () => {
     const imageSecurity = workflowJob(workflow, 'image-security')
 
     expect(backendSecurity).toContain('timeout-minutes: 20')
-    expect(backendSecurity).toContain('go-version-file: go.mod')
+    expect(backendSecurity).toContain("go-version: '1.26.9'")
     expect(backendSecurity).toContain('go test -race ./... -count=1')
     expect(backendSecurity).toContain('golang.org/x/vuln/cmd/govulncheck@v1.8.0')
     expect(backendSecurity).toContain('govulncheck ./...')
