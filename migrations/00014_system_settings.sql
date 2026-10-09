@@ -34,6 +34,15 @@ where builtin and key = 'admin' and not (permissions ? 'system:manage');
 create function track_system_settings_permission_edits() returns trigger
 language plpgsql as $$
 begin
+    if tg_op = 'INSERT' then
+        if new.builtin and new.key = 'admin' and new.permissions ? 'system:manage' then
+            insert into moeurl_system_settings_permission_addition (user_group_id)
+            values (new.id)
+            on conflict (user_group_id) do nothing;
+        end if;
+        return new;
+    end if;
+
     if (old.permissions ? 'system:manage') is distinct from (new.permissions ? 'system:manage') then
         update moeurl_system_settings_permission_addition
         set permission_revision = permission_revision + 1
@@ -43,14 +52,19 @@ begin
 end;
 $$;
 
-create trigger track_system_settings_permission_edits
+create trigger track_inserted_system_settings_permission
+after insert on user_group
+for each row execute function track_system_settings_permission_edits();
+
+create trigger track_updated_system_settings_permission
 after update of permissions on user_group
 for each row execute function track_system_settings_permission_edits();
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-drop trigger track_system_settings_permission_edits on user_group;
+drop trigger track_inserted_system_settings_permission on user_group;
+drop trigger track_updated_system_settings_permission on user_group;
 drop function track_system_settings_permission_edits();
 
 update user_group

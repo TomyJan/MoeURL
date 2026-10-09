@@ -319,6 +319,46 @@ func TestSystemSettingsMigrationRoundTrip(t *testing.T) {
 	}
 }
 
+// TestSystemSettingsRollbackRemovesPermissionFromPostMigrationAdmin verifies fresh installs remain compatible with v0.8.0.
+func TestSystemSettingsRollbackRemovesPermissionFromPostMigrationAdmin(t *testing.T) {
+	ctx := t.Context()
+	database := migrationTestDatabase(t, ctx)
+	migrationsDir := filepath.Join("..", "..", "migrations")
+
+	if err := goose.UpTo(database, migrationsDir, 14); err != nil {
+		t.Fatalf("upgrade empty database through system settings: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `
+		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+		values (
+			'00000000-0000-0000-0000-000000000003', 'admin', 'Admin', '',
+			'["admin:access","system:manage"]'::jsonb, true, now(), now()
+		)
+	`); err != nil {
+		t.Fatalf("insert post-migration admin group: %v", err)
+	}
+
+	if err := goose.DownTo(database, migrationsDir, 13); err != nil {
+		t.Fatalf("rollback system settings migration: %v", err)
+	}
+	var adminHasPermission bool
+	if err := database.QueryRowContext(ctx, `select permissions ? 'system:manage' from user_group where key = 'admin'`).Scan(&adminHasPermission); err != nil {
+		t.Fatalf("read rolled-back post-migration admin permission: %v", err)
+	}
+	if adminHasPermission {
+		t.Fatal("expected rollback to remove system:manage from post-migration admin")
+	}
+	if err := goose.UpTo(database, migrationsDir, 14); err != nil {
+		t.Fatalf("reapply system settings migration: %v", err)
+	}
+	if err := database.QueryRowContext(ctx, `select permissions ? 'system:manage' from user_group where key = 'admin'`).Scan(&adminHasPermission); err != nil {
+		t.Fatalf("read re-upgraded post-migration admin permission: %v", err)
+	}
+	if !adminHasPermission {
+		t.Fatal("expected re-upgrade to restore system:manage")
+	}
+}
+
 // TestOIDCRollbackWaitsForConcurrentIdentityInsert verifies the guard observes committed in-flight bindings.
 func TestOIDCRollbackWaitsForConcurrentIdentityInsert(t *testing.T) {
 	ctx := t.Context()
