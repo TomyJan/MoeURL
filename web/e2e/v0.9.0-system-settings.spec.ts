@@ -44,6 +44,8 @@ test('applies system branding while preserving a recoverable OIDC-only login pat
   let providerCreated = false
   let visitorContext: BrowserContext | undefined
   let restoredContext: BrowserContext | undefined
+  let scenarioFailed = false
+  let scenarioError: unknown
 
   try {
     await expect.poll(async () => (await page.request.get(`${issuerURL}/.well-known/openid-configuration`)).status()).toBe(200)
@@ -109,17 +111,44 @@ test('applies system branding while preserving a recoverable OIDC-only login pat
     const restored = await restoredContext.newPage()
     await localLogin(restored, 'zh-CN')
     expect((await currentUser(restored)).username).toBe(e2eAdminUsername)
-  } finally {
+  } catch (error) {
+    scenarioFailed = true
+    scenarioError = error
+  }
+
+  const cleanupErrors: unknown[] = []
+  await collectCleanupError(cleanupErrors, async () => {
     if (originalSettings) {
       await restoreSettings(page, originalSettings)
     }
+  })
+  await collectCleanupError(cleanupErrors, async () => {
     if (providerCreated) {
       await removeProviderIfPresent(page, providerKey)
     }
-    await visitorContext?.close()
-    await restoredContext?.close()
+  })
+  await collectCleanupError(cleanupErrors, async () => visitorContext?.close())
+  await collectCleanupError(cleanupErrors, async () => restoredContext?.close())
+
+  if (scenarioFailed) {
+    if (cleanupErrors.length) {
+      throw new AggregateError([scenarioError, ...cleanupErrors], 'System-settings scenario and cleanup failed')
+    }
+    throw scenarioError
+  }
+  if (cleanupErrors.length) {
+    throw new AggregateError(cleanupErrors, 'System-settings cleanup failed')
   }
 })
+
+/** Runs one cleanup action without preventing later cleanup steps. */
+async function collectCleanupError(errors: unknown[], action: () => Promise<unknown>) {
+  try {
+    await action()
+  } catch (error) {
+    errors.push(error)
+  }
+}
 
 /** Authenticates through the real local-login form in the requested locale. */
 async function localLogin(page: Page, locale: 'zh-CN' | 'en') {
