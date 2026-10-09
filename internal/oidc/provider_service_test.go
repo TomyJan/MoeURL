@@ -141,6 +141,33 @@ func TestProviderServiceMethodsUsesLocalLoginPolicy(t *testing.T) {
 	}
 }
 
+// TestProviderServiceMethodsUsesConsistentSnapshot verifies production-capable policies supply both method sets atomically.
+func TestProviderServiceMethodsUsesConsistentSnapshot(t *testing.T) {
+	storeErr := errors.New("separate provider read should not run")
+	store := &providerStoreStub{methodsErr: storeErr}
+	policy := &providerSnapshotPolicyStub{
+		providerPolicyStub: providerPolicyStub{enabled: true},
+		enabled:            false,
+		methods:            []sqlc.ListEnabledOIDCProvidersRow{{Key: "company", DisplayName: "Company SSO"}},
+	}
+	service := newProviderServiceWithLoginPolicy(store, permission.NewService(), &discovererStub{}, testSecretBox(t), "https://links.example.com", false, policy)
+
+	methods, err := service.Methods(t.Context())
+	if err != nil {
+		t.Fatalf("read snapshot login methods: %v", err)
+	}
+	if methods.Local.Enabled || !reflect.DeepEqual(methods.OIDC, []LoginProvider{{Key: "company", DisplayName: "Company SSO"}}) {
+		t.Fatalf("snapshot login methods = %#v", methods)
+	}
+	if policy.calls != 1 {
+		t.Fatalf("snapshot calls = %d, want 1", policy.calls)
+	}
+	policy.err = errors.New("snapshot unavailable")
+	if _, err := service.Methods(t.Context()); !errors.Is(err, policy.err) {
+		t.Fatalf("snapshot error = %v, want %v", err, policy.err)
+	}
+}
+
 // providerPolicyStub supplies deterministic login-policy decisions to provider tests.
 type providerPolicyStub struct {
 	enabled bool
@@ -157,6 +184,20 @@ func (s providerPolicyStub) LockLocalLogin(context.Context, pgx.Tx) (bool, error
 
 // RequireAvailableProvider returns the configured final-provider validation result.
 func (s providerPolicyStub) RequireAvailableProvider(context.Context, pgx.Tx) error { return s.err }
+
+type providerSnapshotPolicyStub struct {
+	providerPolicyStub
+	enabled bool
+	methods []sqlc.ListEnabledOIDCProvidersRow
+	err     error
+	calls   int
+}
+
+// LoginMethodsSnapshot returns one deterministic public-method snapshot.
+func (s *providerSnapshotPolicyStub) LoginMethodsSnapshot(context.Context) (bool, []sqlc.ListEnabledOIDCProvidersRow, error) {
+	s.calls++
+	return s.enabled, s.methods, s.err
+}
 
 // TestProviderServiceRejectsInvalidStoredProviders verifies corrupted provider rows never reach the API.
 func TestProviderServiceRejectsInvalidStoredProviders(t *testing.T) {

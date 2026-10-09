@@ -46,6 +46,22 @@ func TestServiceReadsAndLocksLocalLogin(t *testing.T) {
 	}
 }
 
+// TestServiceReadsLoginMethodsSnapshot verifies the public login policy and providers share one database snapshot.
+func TestServiceReadsLoginMethodsSnapshot(t *testing.T) {
+	ctx := t.Context()
+	pool := testdb.ProjectMigratedPool(ctx, t)
+	insertEnabledProvider(t, ctx, pool)
+	service := loginpolicy.NewService(pool, func([]sqlc.OidcProvider) error { return nil })
+
+	enabled, providers, err := service.LoginMethodsSnapshot(ctx)
+	if err != nil {
+		t.Fatalf("read login methods snapshot: %v", err)
+	}
+	if !enabled || len(providers) != 1 || providers[0].Key != "company" {
+		t.Fatalf("login methods snapshot enabled=%t providers=%#v", enabled, providers)
+	}
+}
+
 // TestServiceRequiresAvailableProvider verifies disabled local login has one valid persisted OIDC entry point.
 func TestServiceRequiresAvailableProvider(t *testing.T) {
 	ctx := t.Context()
@@ -108,6 +124,9 @@ func TestServiceRejectsCorruptPolicyValue(t *testing.T) {
 			if _, err := service.LocalLoginEnabled(ctx); !errors.Is(err, loginpolicy.ErrInvalidPolicy) {
 				t.Fatalf("corrupt policy error = %v", err)
 			}
+			if _, _, err := service.LoginMethodsSnapshot(ctx); !errors.Is(err, loginpolicy.ErrInvalidPolicy) {
+				t.Fatalf("corrupt methods snapshot error = %v", err)
+			}
 			if err := service.ValidateStartup(ctx); !errors.Is(err, loginpolicy.ErrInvalidPolicy) {
 				t.Fatalf("corrupt startup policy error = %v", err)
 			}
@@ -128,6 +147,10 @@ func TestServiceHandlesMissingRowsAndDatabaseFailures(t *testing.T) {
 		if err != nil || !enabled {
 			t.Fatalf("missing local-login setting = %t, error = %v", enabled, err)
 		}
+		snapshotEnabled, providers, err := service.LoginMethodsSnapshot(ctx)
+		if err != nil || !snapshotEnabled || len(providers) != 0 {
+			t.Fatalf("missing snapshot setting enabled=%t providers=%#v error=%v", snapshotEnabled, providers, err)
+		}
 		if err := appdb.WithTx(ctx, pool, func(tx pgx.Tx) error {
 			_, err := service.LockLocalLogin(ctx, tx)
 			return err
@@ -146,6 +169,9 @@ func TestServiceHandlesMissingRowsAndDatabaseFailures(t *testing.T) {
 		if _, err := service.LocalLoginEnabled(ctx); err == nil {
 			t.Fatal("expected policy query failure")
 		}
+		if _, _, err := service.LoginMethodsSnapshot(ctx); err == nil {
+			t.Fatal("expected methods snapshot query failure")
+		}
 	})
 
 	t.Run("provider query failure", func(t *testing.T) {
@@ -157,6 +183,9 @@ func TestServiceHandlesMissingRowsAndDatabaseFailures(t *testing.T) {
 		}
 		if err := service.ValidateStartup(ctx); err == nil {
 			t.Fatal("expected startup provider query failure")
+		}
+		if _, _, err := service.LoginMethodsSnapshot(ctx); err == nil {
+			t.Fatal("expected methods snapshot provider query failure")
 		}
 		if err := appdb.WithTx(ctx, pool, func(tx pgx.Tx) error {
 			return service.RequireAvailableProvider(ctx, tx)

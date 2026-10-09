@@ -52,6 +52,10 @@ type ProviderLoginPolicy interface {
 	RequireAvailableProvider(context.Context, pgx.Tx) error
 }
 
+type loginMethodsSnapshotReader interface {
+	LoginMethodsSnapshot(context.Context) (bool, []sqlc.ListEnabledOIDCProvidersRow, error)
+}
+
 // enabledProviderLoginPolicy preserves provider-management behavior for legacy constructors.
 type enabledProviderLoginPolicy struct{}
 
@@ -193,11 +197,17 @@ func newProviderServiceWithLoginPolicy(store providerStore, permissions permissi
 
 // Methods returns the enabled login providers without administrative configuration.
 func (s *ProviderService) Methods(ctx context.Context) (LoginMethods, error) {
-	localEnabled, err := s.loginPolicy.LocalLoginEnabled(ctx)
-	if err != nil {
-		return LoginMethods{}, err
+	var localEnabled bool
+	var rows []sqlc.ListEnabledOIDCProvidersRow
+	var err error
+	if snapshotReader, ok := s.loginPolicy.(loginMethodsSnapshotReader); ok {
+		localEnabled, rows, err = snapshotReader.LoginMethodsSnapshot(ctx)
+	} else {
+		localEnabled, err = s.loginPolicy.LocalLoginEnabled(ctx)
+		if err == nil {
+			rows, err = s.store.ListEnabledOIDCProviders(ctx)
+		}
 	}
-	rows, err := s.store.ListEnabledOIDCProviders(ctx)
 	if err != nil {
 		return LoginMethods{}, err
 	}

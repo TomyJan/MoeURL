@@ -11,6 +11,35 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const getLoginMethodsSnapshot = `-- name: GetLoginMethodsSnapshot :one
+select
+    coalesce(
+        (select value from system_setting where key = 'auth.local_login_enabled'),
+        'true'::jsonb
+    )::jsonb as local_login_enabled,
+    coalesce(
+        (select array_agg(key order by key) from oidc_provider where enabled and deleted_at is null),
+        array[]::text[]
+    )::text[] as provider_keys,
+    coalesce(
+        (select array_agg(display_name order by key) from oidc_provider where enabled and deleted_at is null),
+        array[]::text[]
+    )::text[] as provider_display_names
+`
+
+type GetLoginMethodsSnapshotRow struct {
+	LocalLoginEnabled    []byte   `json:"local_login_enabled"`
+	ProviderKeys         []string `json:"provider_keys"`
+	ProviderDisplayNames []string `json:"provider_display_names"`
+}
+
+func (q *Queries) GetLoginMethodsSnapshot(ctx context.Context) (GetLoginMethodsSnapshotRow, error) {
+	row := q.db.QueryRow(ctx, getLoginMethodsSnapshot)
+	var i GetLoginMethodsSnapshotRow
+	err := row.Scan(&i.LocalLoginEnabled, &i.ProviderKeys, &i.ProviderDisplayNames)
+	return i, err
+}
+
 const getSystemSetting = `-- name: GetSystemSetting :one
 select key, value, created_at, updated_at
 from system_setting

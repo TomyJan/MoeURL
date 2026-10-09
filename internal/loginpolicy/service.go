@@ -52,6 +52,26 @@ func (s *Service) LocalLoginEnabled(ctx context.Context) (bool, error) {
 	return parseEnabled(setting.Value)
 }
 
+// LoginMethodsSnapshot reads the local policy and enabled providers from one database statement snapshot.
+func (s *Service) LoginMethodsSnapshot(ctx context.Context) (bool, []sqlc.ListEnabledOIDCProvidersRow, error) {
+	row, err := s.queries.GetLoginMethodsSnapshot(ctx)
+	if err != nil {
+		return false, nil, err
+	}
+	enabled, err := parseEnabled(row.LocalLoginEnabled)
+	if err != nil {
+		return false, nil, err
+	}
+	providers := make([]sqlc.ListEnabledOIDCProvidersRow, len(row.ProviderKeys))
+	for index := range row.ProviderKeys {
+		providers[index] = sqlc.ListEnabledOIDCProvidersRow{
+			Key:         row.ProviderKeys[index],
+			DisplayName: row.ProviderDisplayNames[index],
+		}
+	}
+	return enabled, providers, nil
+}
+
 // LockLocalLogin locks and returns the local-login policy inside an existing transaction.
 func (s *Service) LockLocalLogin(ctx context.Context, tx pgx.Tx) (bool, error) {
 	setting, err := s.queries.WithTx(tx).GetSystemSettingForUpdate(ctx, localLoginSettingKey)
