@@ -6,20 +6,24 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 当前已完成到 v0.8.0 多域名管理的功能实现；合并提交 `f818a7e8` 对应的 PR 合并验证已通过全量 CI、Linux race、安全扫描、Playwright 与 Compose smoke。v0.6.0 生产验收、v0.7.0 外部 OIDC 互操作，以及 v0.8.0 真实 DNS/TLS、隔离恢复和生产发布验收仍待目标环境证据。v0.8.0 工作以 `docs/product/scope-v0.8.0.md`、域名规格、设计、实施计划和验收清单为准；自动化门禁通过不替代目标环境发布证据。
 
+v0.9.0 系统设置与站点品牌基础闭环处于设计阶段，范围和安全边界以 `docs/product/scope-v0.9.0.md` 与 `docs/superpowers/specs/2026-10-09-v0.9.0-system-settings-design.md` 为准；在实施和验收完成前不得视为已具备该能力。
+
 ## 工作入口
 
 开始任何产品、文档或实现工作前，优先阅读：
 
 1. `docs/README.md`
 2. `docs/product/overview.md`
-3. `docs/product/scope-v0.8.0.md`
-4. `docs/specs/domains.md`
-5. `docs/product/scope-v0.7.0.md`
-6. `docs/specs/2026-09-11-v0.7.0-oidc-login-design.md`
-7. `docs/product/scope-v0.6.0.md`
-8. `docs/specs/2026-08-29-v0.6.0-production-readiness-design.md`
-9. `docs/product/scope-v0.5.0.md`
-10. `docs/specs/2026-08-20-v0.5.0-user-group-permission-management-design.md`
+3. `docs/product/scope-v0.9.0.md`
+4. `docs/superpowers/specs/2026-10-09-v0.9.0-system-settings-design.md`
+5. `docs/product/scope-v0.8.0.md`
+6. `docs/specs/domains.md`
+7. `docs/product/scope-v0.7.0.md`
+8. `docs/specs/2026-09-11-v0.7.0-oidc-login-design.md`
+9. `docs/product/scope-v0.6.0.md`
+10. `docs/specs/2026-08-29-v0.6.0-production-readiness-design.md`
+11. `docs/product/scope-v0.5.0.md`
+12. `docs/specs/2026-08-20-v0.5.0-user-group-permission-management-design.md`
 
 如果任务涉及新版本设计、跨模块功能开发、生产化交付或要求 Agent 自主完成设计、文档、开发、测试和提交，必须继续阅读 `docs/implementation/agent-delivery-guidelines.md`。
 

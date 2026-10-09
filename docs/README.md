@@ -7,29 +7,31 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 建议按以下顺序阅读：
 
 1. [产品总览](product/overview.md)：了解 MoeURL 的定位、目标和核心原则。
-2. [v0.8.0 范围](product/scope-v0.8.0.md)：确认已完成本地功能验证的多域名管理范围及升级边界。
+2. [v0.9.0 范围](product/scope-v0.9.0.md)：确认系统设置、站点品牌和本地登录开关的当前设计边界。
+   详细技术设计见 [v0.9.0 系统设置与站点品牌基础闭环设计](superpowers/specs/2026-10-09-v0.9.0-system-settings-design.md)。
+3. [v0.8.0 范围](product/scope-v0.8.0.md)：确认已完成本地功能验证的多域名管理范围及升级边界。
    工程推进参见 [v0.8.0 实施计划](implementation/v0.8.0-plan.md)、[任务清单](implementation/v0.8.0-tasks.md) 与 [验收清单](implementation/v0.8.0-acceptance.md)。
-3. [v0.7.0 范围](product/scope-v0.7.0.md)：确认多提供商 OIDC 登录的范围、账号供应规则和非目标。
-4. [v0.7.0 OIDC 登录设计](specs/2026-09-11-v0.7.0-oidc-login-design.md)：确认协议、密钥、外部身份、并发和回滚设计。
-5. [v0.7.0 详细实现计划](implementation/v0.7.0-detailed-plan.md)：查看 OIDC 的 TDD 切片，并在 [v0.7.0 验收清单](implementation/v0.7.0-acceptance.md) 跟踪真实证据。
-6. [v0.6.0 范围](product/scope-v0.6.0.md)：回看生产就绪版本的边界、部署目标和仍待补齐的目标环境证据。
-7. [v0.6.0 生产就绪设计](specs/2026-08-29-v0.6.0-production-readiness-design.md)：确认单机 Compose、外部 TLS 反向代理、安全、生命周期和运维设计。
-8. [v0.5.0 范围](product/scope-v0.5.0.md)：回看已完成的内置用户组权限管理边界。
-9. [v0.5.0 功能设计](specs/2026-08-20-v0.5.0-user-group-permission-management-design.md)：回看权限目录、预设、保护规则、并发和页面状态。
-10. [v0.4.0 范围](product/scope-v0.4.0.md)：回看已完成的确认页访问边界。
-11. [v0.4.0 功能设计](specs/2026-08-13-v0.4.0-confirmation-page-access-design.md)：回看模式、权限、访问状态机和统计口径。
-12. [v0.3.0 范围](product/scope-v0.3.0.md)：回看受保护短链访问的实现边界。
-13. [v0.3.0 功能设计](specs/2026-08-04-v0.3.0-protected-link-access-design.md)：回看密码、限流、授权和访问流程设计。
-14. [v0.2.0 范围](product/scope-v0.2.0.md)：回看短链访问体验与生命周期的实现边界。
-15. [v0.2.0 功能设计](specs/2026-08-02-v0.2.0-link-experience-design.md)：回看中间页、过期时间、二维码和事件设计。
-16. [统计与事件](specs/statistics-and-events.md)：确认短链访问事件、基础统计和维度统计口径。
-17. [短链](specs/short-links.md)：确认短链访问、状态和事件记录调用点。
-18. [跳转模式](specs/redirect-modes.md)：确认直接跳转、中间页和确认页边界。
-19. [功能规格](specs/)：按模块查看权限、短链、用户、域名、页面、跳转、统计、主题和后台设计。
-20. [技术选型决策](implementation/technical-decision.md)：确认 Go + Vue 技术栈和选型理由。
-21. [技术基线](implementation/technical-baseline.md)：确认仓库结构、模块边界、API、数据库、测试和部署约定。
-22. [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)：确认新版本、跨模块、review 修复、CI 门禁和生产化任务的统一执行约定。
-23. [实施文档](implementation/)：查看工程计划、阶段任务和验收记录。
+4. [v0.7.0 范围](product/scope-v0.7.0.md)：确认多提供商 OIDC 登录的范围、账号供应规则和非目标。
+5. [v0.7.0 OIDC 登录设计](specs/2026-09-11-v0.7.0-oidc-login-design.md)：确认协议、密钥、外部身份、并发和回滚设计。
+6. [v0.7.0 详细实现计划](implementation/v0.7.0-detailed-plan.md)：查看 OIDC 的 TDD 切片，并在 [v0.7.0 验收清单](implementation/v0.7.0-acceptance.md) 跟踪真实证据。
+7. [v0.6.0 范围](product/scope-v0.6.0.md)：回看生产就绪版本的边界、部署目标和仍待补齐的目标环境证据。
+8. [v0.6.0 生产就绪设计](specs/2026-08-29-v0.6.0-production-readiness-design.md)：确认单机 Compose、外部 TLS 反向代理、安全、生命周期和运维设计。
+9. [v0.5.0 范围](product/scope-v0.5.0.md)：回看已完成的内置用户组权限管理边界。
+10. [v0.5.0 功能设计](specs/2026-08-20-v0.5.0-user-group-permission-management-design.md)：回看权限目录、预设、保护规则、并发和页面状态。
+11. [v0.4.0 范围](product/scope-v0.4.0.md)：回看已完成的确认页访问边界。
+12. [v0.4.0 功能设计](specs/2026-08-13-v0.4.0-confirmation-page-access-design.md)：回看模式、权限、访问状态机和统计口径。
+13. [v0.3.0 范围](product/scope-v0.3.0.md)：回看受保护短链访问的实现边界。
+14. [v0.3.0 功能设计](specs/2026-08-04-v0.3.0-protected-link-access-design.md)：回看密码、限流、授权和访问流程设计。
+15. [v0.2.0 范围](product/scope-v0.2.0.md)：回看短链访问体验与生命周期的实现边界。
+16. [v0.2.0 功能设计](specs/2026-08-02-v0.2.0-link-experience-design.md)：回看中间页、过期时间、二维码和事件设计。
+17. [统计与事件](specs/statistics-and-events.md)：确认短链访问事件、基础统计和维度统计口径。
+18. [短链](specs/short-links.md)：确认短链访问、状态和事件记录调用点。
+19. [跳转模式](specs/redirect-modes.md)：确认直接跳转、中间页和确认页边界。
+20. [功能规格](specs/)：按模块查看权限、短链、用户、域名、页面、跳转、统计、主题和后台设计。
+21. [技术选型决策](implementation/technical-decision.md)：确认 Go + Vue 技术栈和选型理由。
+22. [技术基线](implementation/technical-baseline.md)：确认仓库结构、模块边界、API、数据库、测试和部署约定。
+23. [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)：确认新版本、跨模块、review 修复、CI 门禁和生产化任务的统一执行约定。
+24. [实施文档](implementation/)：查看工程计划、阶段任务和验收记录。
 
 ## 部署与运维
 
@@ -58,6 +60,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 - [v0.6.0 范围](product/scope-v0.6.0.md)
 - [v0.7.0 范围](product/scope-v0.7.0.md)
 - [v0.8.0 范围](product/scope-v0.8.0.md)
+- [v0.9.0 范围](product/scope-v0.9.0.md)
 - [路线图](product/roadmap.md)
 
 ### 功能规格层
@@ -65,6 +68,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 功能规格层文档位于 [specs](specs/) 目录，用于描述各模块的稳定产品规格。实施计划应引用这些文档，而不是在计划中重复定义产品规则。
 
 - [权限模型](specs/permissions.md)
+- [v0.9.0 系统设置与站点品牌基础闭环设计](superpowers/specs/2026-10-09-v0.9.0-system-settings-design.md)
 - [v0.7.0 多提供商 OIDC 登录设计](specs/2026-09-11-v0.7.0-oidc-login-design.md)
 - [v0.6.0 生产就绪设计](specs/2026-08-29-v0.6.0-production-readiness-design.md)
 - [v0.5.0 用户组权限管理设计](specs/2026-08-20-v0.5.0-user-group-permission-management-design.md)
