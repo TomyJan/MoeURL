@@ -20,6 +20,8 @@ const (
 	CodeUserDisabled = 110102
 	// CodeLoginRateLimited identifies a temporary account-level login block.
 	CodeLoginRateLimited = 110103
+	// CodeLoginMethodUnavailable identifies a disabled local-password login method.
+	CodeLoginMethodUnavailable = 110104
 )
 
 type Port interface {
@@ -64,6 +66,8 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 			businessError(w, CodeUserDisabled, "User disabled")
 		case errors.Is(err, ErrLoginRateLimited):
 			businessError(w, CodeLoginRateLimited, "Login temporarily unavailable")
+		case errors.Is(err, ErrLoginMethodUnavailable):
+			businessError(w, CodeLoginMethodUnavailable, "Local login unavailable")
 		default:
 			h.writeInfrastructureError(w, r, "login", err)
 		}

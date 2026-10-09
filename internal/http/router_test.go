@@ -26,6 +26,48 @@ import (
 
 type routerDomainPort struct{ domain.Port }
 
+// routerSettingsPort supplies deterministic settings responses to route-registration tests.
+type routerSettingsPort struct{ system.SettingsPort }
+
+// PublicConfig returns a stable public settings fixture.
+func (routerSettingsPort) PublicConfig(context.Context) (system.PublicConfig, error) {
+	return system.PublicConfig{SiteName: "MoeURL", DefaultLanguage: "zh-CN", DefaultTheme: "system", ShowPoweredBy: true}, nil
+}
+
+// GetSettings returns a stable administrative settings fixture.
+func (routerSettingsPort) GetSettings(context.Context, auth.CurrentUser) (system.Settings, error) {
+	return system.Settings{PublicConfig: system.PublicConfig{SiteName: "MoeURL"}, LocalLoginEnabled: true, UpdatedAt: "2026-10-09T00:00:00Z"}, nil
+}
+
+// UpdateSettings returns the submitted settings as the updated fixture.
+func (routerSettingsPort) UpdateSettings(_ context.Context, _ auth.CurrentUser, input system.UpdateSettingsInput) (system.Settings, error) {
+	return system.Settings{PublicConfig: system.PublicConfig{
+		SiteName: input.SiteName, DefaultLanguage: input.DefaultLanguage, DefaultTheme: input.DefaultTheme,
+		FooterText: input.FooterText, ShowPoweredBy: input.ShowPoweredBy,
+	}, LocalLoginEnabled: input.LocalLoginEnabled, UpdatedAt: input.ExpectedUpdatedAt}, nil
+}
+
+// TestRouterRegistersSystemSettingsRoutes verifies public and administrative settings routes are cache-safe.
+func TestRouterRegistersSystemSettingsRoutes(t *testing.T) {
+	router := apphttp.NewRouter(apphttp.Dependencies{SystemSettings: routerSettingsPort{}})
+	for _, entry := range []struct {
+		method string
+		path   string
+		body   string
+	}{
+		{method: http.MethodGet, path: "/api/v1/system/public-config"},
+		{method: http.MethodGet, path: "/api/v1/admin/system/settings"},
+		{method: http.MethodPost, path: "/api/v1/admin/system/settings/update", body: `{"siteName":"MoeURL","defaultLanguage":"zh-CN","defaultTheme":"system","footerText":"","showPoweredBy":true,"localLoginEnabled":true,"expectedUpdatedAt":"2026-10-09T00:00:00Z"}`},
+	} {
+		response := httptest.NewRecorder()
+		request := httptest.NewRequestWithContext(t.Context(), entry.method, entry.path, strings.NewReader(entry.body))
+		router.ServeHTTP(response, request)
+		if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" {
+			t.Fatalf("%s %s status=%d cache=%q", entry.method, entry.path, response.Code, response.Header().Get("Cache-Control"))
+		}
+	}
+}
+
 func (routerDomainPort) List(context.Context, auth.CurrentUser) (domain.ListResult, error) {
 	return domain.ListResult{Items: []domain.Domain{}}, nil
 }

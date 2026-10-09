@@ -125,6 +125,7 @@ func TestAuthHandlerLoginMapsRateLimitDisabledAndSystemErrors(t *testing.T) {
 		message    string
 	}{
 		{name: "rate limited", err: auth.ErrLoginRateLimited, httpStatus: http.StatusOK, code: 110103, message: "Login temporarily unavailable"},
+		{name: "method unavailable", err: auth.ErrLoginMethodUnavailable, httpStatus: http.StatusOK, code: 110104, message: "Local login unavailable"},
 		{name: "disabled", err: auth.ErrUserDisabled, httpStatus: http.StatusOK, code: 110102, message: "User disabled"},
 		{name: "system", err: errors.New("database down"), httpStatus: http.StatusInternalServerError, code: 900000, message: "Internal server error"},
 	}

@@ -170,6 +170,7 @@ jobs:
             ./internal/domain \
             ./internal/event \
             ./internal/http \
+            ./internal/loginpolicy \
             ./internal/middleware \
             ./internal/oidc \
             ./internal/permission \

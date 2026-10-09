@@ -11,6 +11,7 @@ import (
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
+	"github.com/TomyJan/MoeURL/internal/loginpolicy"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/google/uuid"
@@ -72,6 +73,21 @@ func TestProviderServiceRequiresAdminAndRuntime(t *testing.T) {
 	if _, err := service.Create(t.Context(), auth.CurrentUser{GroupKey: permission.GroupUser}, input); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("user create error = %v", err)
 	}
+	for _, test := range []struct {
+		name        string
+		permissions []string
+	}{
+		{name: "admin access only", permissions: []string{permission.AdminAccess}},
+		{name: "system manage only", permissions: []string{permission.SystemManage}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			resolver := permission.NewServiceWithPermissions(nil, test.permissions)
+			service := newProviderService(store, resolver, &discovererStub{metadata: testDiscoveryMetadata()}, testSecretBox(t), "https://links.example.com", false)
+			if _, err := service.Create(t.Context(), adminActor(), input); !errors.Is(err, ErrPermissionDenied) {
+				t.Fatalf("create error = %v", err)
+			}
+		})
+	}
 	if store.createCalls != 0 {
 		t.Fatalf("store create calls = %d", store.createCalls)
 	}
@@ -106,6 +122,41 @@ func TestProviderServiceListAndMethodsExposeOnlyPublicFields(t *testing.T) {
 		t.Fatalf("login methods = %#v", methods)
 	}
 }
+
+// TestProviderServiceMethodsUsesLocalLoginPolicy verifies public methods reflect the shared admission policy.
+func TestProviderServiceMethodsUsesLocalLoginPolicy(t *testing.T) {
+	store := &providerStoreStub{methods: []sqlc.ListEnabledOIDCProvidersRow{{Key: "company", DisplayName: "Company SSO"}}}
+	service := newProviderServiceWithLoginPolicy(store, permission.NewService(), &discovererStub{}, testSecretBox(t), "https://links.example.com", false, providerPolicyStub{enabled: false})
+	methods, err := service.Methods(t.Context())
+	if err != nil {
+		t.Fatalf("read login methods: %v", err)
+	}
+	if methods.Local.Enabled || len(methods.OIDC) != 1 {
+		t.Fatalf("login methods = %#v", methods)
+	}
+	policyErr := errors.New("policy unavailable")
+	service = newProviderServiceWithLoginPolicy(store, permission.NewService(), &discovererStub{}, testSecretBox(t), "https://links.example.com", false, providerPolicyStub{err: policyErr})
+	if _, err := service.Methods(t.Context()); !errors.Is(err, policyErr) {
+		t.Fatalf("methods policy error = %v", err)
+	}
+}
+
+// providerPolicyStub supplies deterministic login-policy decisions to provider tests.
+type providerPolicyStub struct {
+	enabled bool
+	err     error
+}
+
+// LocalLoginEnabled returns the configured public login decision.
+func (s providerPolicyStub) LocalLoginEnabled(context.Context) (bool, error) { return s.enabled, s.err }
+
+// LockLocalLogin returns the configured transactional policy decision.
+func (s providerPolicyStub) LockLocalLogin(context.Context, pgx.Tx) (bool, error) {
+	return s.enabled, s.err
+}
+
+// RequireAvailableProvider returns the configured final-provider validation result.
+func (s providerPolicyStub) RequireAvailableProvider(context.Context, pgx.Tx) error { return s.err }
 
 // TestProviderServiceRejectsInvalidStoredProviders verifies corrupted provider rows never reach the API.
 func TestProviderServiceRejectsInvalidStoredProviders(t *testing.T) {
@@ -222,6 +273,123 @@ func TestTransactionalProviderStoreUpdate(t *testing.T) {
 				t.Fatalf("updated provider = %#v, err=%v", updated, err)
 			}
 		})
+	}
+}
+
+// TestTransactionalProviderStorePreservesLoginEntry verifies provider writes cannot remove the final login method.
+func TestTransactionalProviderStorePreservesLoginEntry(t *testing.T) {
+	for _, test := range []struct {
+		name         string
+		localEnabled bool
+		second       bool
+		mutation     string
+		wantRejected bool
+	}{
+		{name: "reject disabling final provider", mutation: "disable", wantRejected: true},
+		{name: "reject deleting final provider", mutation: "delete", wantRejected: true},
+		{name: "allow disabling with backup provider", second: true, mutation: "disable"},
+		{name: "allow deleting with backup provider", second: true, mutation: "delete"},
+		{name: "allow disabling final provider while local login enabled", localEnabled: true, mutation: "disable"},
+		{name: "allow deleting final provider while local login enabled", localEnabled: true, mutation: "delete"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			pool := testdb.ProjectMigratedPool(t.Context(), t)
+			provider := identityTestProvider(t, pool)
+			if _, err := pool.Exec(t.Context(), `update system_setting set value = $1::jsonb where key = 'auth.local_login_enabled'`, test.localEnabled); err != nil {
+				t.Fatalf("set local login policy: %v", err)
+			}
+			if test.second {
+				if _, err := pool.Exec(t.Context(), `insert into oidc_provider (id, key, display_name, issuer_url, client_id, client_secret_ciphertext, authorization_endpoint, token_endpoint, jwks_uri, allowed_email_domains, enabled, created_at, updated_at) values ($1, 'backup', 'Backup', 'https://backup.example.com', 'backup-client', '\x02', 'https://backup.example.com/auth', 'https://backup.example.com/token', 'https://backup.example.com/jwks', '["example.com"]', true, now(), now())`, uuid.New()); err != nil {
+					t.Fatalf("seed backup provider: %v", err)
+				}
+			}
+			stored, err := sqlc.New(pool).GetOIDCProviderByID(t.Context(), provider.ID)
+			if err != nil {
+				t.Fatalf("load provider: %v", err)
+			}
+			policy := loginpolicy.NewService(pool, func([]sqlc.OidcProvider) error { return nil })
+			store := &transactionalProviderStore{Queries: sqlc.New(pool), pool: pool, loginPolicy: policy}
+			switch test.mutation {
+			case "disable":
+				_, err = store.UpdateOIDCProvider(t.Context(), providerUpdateParams(stored, false))
+			case "delete":
+				_, err = store.SoftDeleteOIDCProvider(t.Context(), sqlc.SoftDeleteOIDCProviderParams{ID: stored.ID, ExpectedUpdatedAt: stored.UpdatedAt})
+			default:
+				t.Fatalf("unknown mutation %q", test.mutation)
+			}
+			if test.wantRejected {
+				if !errors.Is(err, ErrRuntimeUnavailable) || !errors.Is(err, loginpolicy.ErrNoAvailableProvider) {
+					t.Fatalf("mutation error = %v, want runtime unavailable", err)
+				}
+			} else if err != nil {
+				t.Fatalf("mutation error = %v", err)
+			}
+			var enabled bool
+			var deletedAt pgtype.Timestamptz
+			if err := pool.QueryRow(t.Context(), `select enabled, deleted_at from oidc_provider where id = $1`, provider.ID).Scan(&enabled, &deletedAt); err != nil {
+				t.Fatalf("read provider after mutation: %v", err)
+			}
+			if test.wantRejected {
+				if !enabled || deletedAt.Valid {
+					t.Fatalf("rejected mutation persisted: enabled=%v deleted=%v", enabled, deletedAt.Valid)
+				}
+			} else if enabled || (test.mutation == "delete" && !deletedAt.Valid) {
+				t.Fatalf("allowed mutation missing: enabled=%v deleted=%v", enabled, deletedAt.Valid)
+			}
+		})
+	}
+}
+
+// TestTransactionalProviderStorePropagatesPolicyLockFailure verifies provider writes stop before mutation when policy locking fails.
+func TestTransactionalProviderStorePropagatesPolicyLockFailure(t *testing.T) {
+	pool := testdb.ProjectMigratedPool(t.Context(), t)
+	provider := identityTestProvider(t, pool)
+	stored, err := sqlc.New(pool).GetOIDCProviderByID(t.Context(), provider.ID)
+	if err != nil {
+		t.Fatalf("load provider: %v", err)
+	}
+	policyErr := errors.New("policy lock failed")
+	store := &transactionalProviderStore{Queries: sqlc.New(pool), pool: pool, loginPolicy: providerPolicyStub{err: policyErr}}
+	if _, err := store.UpdateOIDCProvider(t.Context(), providerUpdateParams(stored, false)); !errors.Is(err, policyErr) {
+		t.Fatalf("policy lock error = %v", err)
+	}
+	if _, err := store.SoftDeleteOIDCProvider(t.Context(), sqlc.SoftDeleteOIDCProviderParams{ID: stored.ID, ExpectedUpdatedAt: stored.UpdatedAt}); !errors.Is(err, policyErr) {
+		t.Fatalf("delete policy lock error = %v", err)
+	}
+	current, err := sqlc.New(pool).GetOIDCProviderByID(t.Context(), provider.ID)
+	if err != nil || !current.Enabled {
+		t.Fatalf("provider changed after lock failure: enabled=%v err=%v", current.Enabled, err)
+	}
+}
+
+// TestTransactionalProviderStorePropagatesDeleteWriteFailure verifies optimistic delete errors roll back unchanged rows.
+func TestTransactionalProviderStorePropagatesDeleteWriteFailure(t *testing.T) {
+	pool := testdb.ProjectMigratedPool(t.Context(), t)
+	provider := identityTestProvider(t, pool)
+	stored, err := sqlc.New(pool).GetOIDCProviderByID(t.Context(), provider.ID)
+	if err != nil {
+		t.Fatalf("load provider: %v", err)
+	}
+	store := &transactionalProviderStore{Queries: sqlc.New(pool), pool: pool}
+	stale := stored.UpdatedAt
+	stale.Time = stale.Time.Add(-time.Second)
+	if _, err := store.SoftDeleteOIDCProvider(t.Context(), sqlc.SoftDeleteOIDCProviderParams{ID: stored.ID, ExpectedUpdatedAt: stale}); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("stale delete error = %v", err)
+	}
+	current, err := sqlc.New(pool).GetOIDCProviderByID(t.Context(), provider.ID)
+	if err != nil || !current.Enabled || current.DeletedAt.Valid {
+		t.Fatalf("provider changed after stale delete: %#v err=%v", current, err)
+	}
+}
+
+// providerUpdateParams copies a stored provider into one optimistic update request.
+func providerUpdateParams(stored sqlc.OidcProvider, enabled bool) sqlc.UpdateOIDCProviderParams {
+	return sqlc.UpdateOIDCProviderParams{
+		DisplayName: stored.DisplayName, IssuerUrl: stored.IssuerUrl, ClientID: stored.ClientID,
+		ClientSecretCiphertext: stored.ClientSecretCiphertext, AuthorizationEndpoint: stored.AuthorizationEndpoint,
+		TokenEndpoint: stored.TokenEndpoint, JwksUri: stored.JwksUri,
+		AllowedEmailDomains: stored.AllowedEmailDomains, Enabled: enabled,
+		ID: stored.ID, ExpectedUpdatedAt: stored.UpdatedAt,
 	}
 }
 
@@ -485,6 +653,26 @@ func TestProviderServiceProductionConstructorWiresDatabaseStore(t *testing.T) {
 	service := NewProviderService(nil, permission.NewService(), nil, nil, " https://links.example.com/ ", false)
 	if service == nil || service.store == nil || service.publicBaseURL != "https://links.example.com" {
 		t.Fatalf("production service = %#v", service)
+	}
+	service = NewProviderServiceWithLoginPolicy(nil, permission.NewService(), nil, nil, "https://links.example.com", false, nil)
+	if _, ok := service.loginPolicy.(enabledProviderLoginPolicy); !ok {
+		t.Fatalf("production default login policy = %T", service.loginPolicy)
+	}
+}
+
+// TestProviderServiceDefaultsInjectedLoginPolicy verifies test constructors preserve local-login compatibility.
+func TestProviderServiceDefaultsInjectedLoginPolicy(t *testing.T) {
+	service := newProviderServiceWithLoginPolicy(&providerStoreStub{}, permission.NewService(), nil, nil, "https://links.example.com", false, nil)
+	methods, err := service.Methods(t.Context())
+	if err != nil || !methods.Local.Enabled {
+		t.Fatalf("default policy methods = %#v, err=%v", methods, err)
+	}
+	policy := enabledProviderLoginPolicy{}
+	if enabled, err := policy.LockLocalLogin(t.Context(), nil); err != nil || !enabled {
+		t.Fatalf("default lock policy = %v, %v", enabled, err)
+	}
+	if err := policy.RequireAvailableProvider(t.Context(), nil); err != nil {
+		t.Fatalf("default provider policy = %v", err)
 	}
 }
 

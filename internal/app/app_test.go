@@ -19,6 +19,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/config"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
+	"github.com/TomyJan/MoeURL/internal/loginpolicy"
 	"github.com/TomyJan/MoeURL/internal/oidc"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
@@ -80,6 +81,88 @@ func TestAppExposesLocalAuthenticationMethodWithoutOIDCConfiguration(t *testing.
 		t.Fatalf("decode authentication methods: %v", err)
 	}
 	if body.Code != 0 || !body.Data.Local.Enabled || len(body.Data.OIDC) != 0 {
+		t.Fatalf("authentication methods = %#v", body)
+	}
+}
+
+// TestAppRejectsDisabledLocalLoginWithoutProvider verifies startup cannot publish an unreachable login surface.
+func TestAppRejectsDisabledLocalLoginWithoutProvider(t *testing.T) {
+	databaseURL := testdb.ProjectMigratedDatabaseURL(t.Context(), t)
+	pool, err := appdb.OpenPool(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("open policy fixture database: %v", err)
+	}
+	if _, err := pool.Exec(t.Context(), `update system_setting set value = 'false'::jsonb where key = 'auth.local_login_enabled'`); err != nil {
+		pool.Close()
+		t.Fatalf("disable local login: %v", err)
+	}
+	pool.Close()
+
+	application, err := New(t.Context(), config.Config{Env: "development", HTTPAddr: ":0", DatabaseURL: databaseURL}, slog.Default())
+	if application != nil || !errors.Is(err, loginpolicy.ErrNoAvailableProvider) {
+		t.Fatalf("New = application %#v, error %v", application, err)
+	}
+}
+
+// TestAppExposesDisabledLocalLoginWithValidProvider verifies shared policy wiring reaches public login methods.
+func TestAppExposesDisabledLocalLoginWithValidProvider(t *testing.T) {
+	databaseURL := testdb.ProjectMigratedDatabaseURL(t.Context(), t)
+	pool, err := appdb.OpenPool(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("open provider fixture database: %v", err)
+	}
+	providerID := "00000000-0000-0000-0000-000000000709"
+	encryptionKey := base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{9}, 32))
+	box, err := oidc.NewSecretBox(encryptionKey)
+	if err != nil {
+		pool.Close()
+		t.Fatalf("create provider secret box: %v", err)
+	}
+	ciphertext, err := box.Seal("provider-secret", providerID, []byte("client-secret"))
+	if err != nil {
+		pool.Close()
+		t.Fatalf("seal provider secret: %v", err)
+	}
+	if _, err := pool.Exec(t.Context(), `update system_setting set value = 'false'::jsonb where key = 'auth.local_login_enabled'`); err != nil {
+		pool.Close()
+		t.Fatalf("disable local login: %v", err)
+	}
+	_, err = pool.Exec(t.Context(), `insert into oidc_provider (id, key, display_name, issuer_url, client_id, client_secret_ciphertext, authorization_endpoint, token_endpoint, jwks_uri, allowed_email_domains, enabled, created_at, updated_at) values ($1, 'company', 'Company', 'https://id.example.com', 'client', $2, 'https://id.example.com/auth', 'https://id.example.com/token', 'https://id.example.com/jwks', '["example.com"]', true, now(), now())`, providerID, ciphertext)
+	pool.Close()
+	if err != nil {
+		t.Fatalf("seed enabled provider: %v", err)
+	}
+
+	application, err := New(t.Context(), config.Config{
+		Env: "development", HTTPAddr: ":0", DatabaseURL: databaseURL,
+		PublicBaseURL: "https://links.example.com", OIDCEncryptionKey: encryptionKey,
+	}, slog.Default())
+	if err != nil {
+		t.Fatalf("build application: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := application.Shutdown(context.Background()); err != nil {
+			t.Errorf("shutdown application: %v", err)
+		}
+	})
+
+	response := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/auth/methods", nil))
+	var body struct {
+		Code int `json:"code"`
+		Data struct {
+			Local struct {
+				Enabled bool `json:"enabled"`
+			} `json:"local"`
+			OIDC []struct {
+				Key string `json:"key"`
+			} `json:"oidc"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode authentication methods: %v", err)
+	}
+	if body.Code != 0 || body.Data.Local.Enabled || len(body.Data.OIDC) != 1 || body.Data.OIDC[0].Key != "company" {
 		t.Fatalf("authentication methods = %#v", body)
 	}
 }

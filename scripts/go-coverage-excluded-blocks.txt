@@ -16,9 +16,9 @@ github.com/TomyJan/MoeURL/internal/system/service.go:117.136,119.4
 github.com/TomyJan/MoeURL/internal/system/service.go:124.49,126.4
 github.com/TomyJan/MoeURL/internal/system/service.go:131.143,133.4
 github.com/TomyJan/MoeURL/internal/system/service.go:138.50,140.4
-github.com/TomyJan/MoeURL/internal/system/service.go:157.66,159.5
-github.com/TomyJan/MoeURL/internal/system/service.go:200.16,202.3
-github.com/TomyJan/MoeURL/internal/system/service.go:214.16,216.3
+github.com/TomyJan/MoeURL/internal/system/service.go:161.66,163.5
+github.com/TomyJan/MoeURL/internal/system/service.go:204.16,206.3
+github.com/TomyJan/MoeURL/internal/system/service.go:218.16,220.3
 # Resolve's last-seen update can fail only after a successful query; forcing that transition requires a connection-pool race.
 github.com/TomyJan/MoeURL/internal/auth/session.go:89.16,91.3
 # User Create password hashing failure; argon2/random failure is an infrastructure branch that is not deterministically triggerable.
@@ -68,8 +68,8 @@ github.com/TomyJan/MoeURL/internal/oidc/discovery.go:39.16,41.3
 github.com/TomyJan/MoeURL/internal/oidc/identity_resolver.go:115.35,117.3
 
 # Provider domains are validated []string values, so encoding/json cannot fail while marshaling them.
-github.com/TomyJan/MoeURL/internal/oidc/provider_service.go:168.16,170.3
-github.com/TomyJan/MoeURL/internal/oidc/provider_service.go:246.16,248.3
+github.com/TomyJan/MoeURL/internal/oidc/provider_service.go:257.16,259.3
+github.com/TomyJan/MoeURL/internal/oidc/provider_service.go:335.16,337.3
 
 # AES-256 keys are length-checked before construction; the standard AES and GCM constructors cannot reject this configuration.
 github.com/TomyJan/MoeURL/internal/oidc/secret.go:40.16,42.3
