@@ -321,6 +321,38 @@ if (response.includes(process.env.setup_token)) {
 NODE
 }
 
+assert_system_settings_defaults() {
+  curl --fail --silent --show-error --connect-timeout 2 --max-time 5 \
+    "$BASE_URL/api/v1/system/public-config" >"$WORK_DIR/public-config-response.json"
+  curl --fail --silent --show-error --connect-timeout 2 --max-time 5 \
+    "$BASE_URL/api/v1/auth/methods" >"$WORK_DIR/auth-methods-response.json"
+  node - "$WORK_DIR/public-config-response.json" "$WORK_DIR/auth-methods-response.json" <<'NODE'
+const fs = require('node:fs')
+const publicPayload = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
+const methodsPayload = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'))
+const publicKeys = Object.keys(publicPayload.data || {}).sort().join(',')
+const expectedPublicKeys = ['defaultLanguage', 'defaultTheme', 'footerText', 'showPoweredBy', 'siteName'].sort().join(',')
+
+const validPublicConfig = publicPayload.code === 0
+  && publicPayload.data?.siteName === 'MoeURL Smoke'
+  && publicPayload.data?.defaultLanguage === 'zh-CN'
+  && publicPayload.data?.defaultTheme === 'system'
+  && publicPayload.data?.footerText === ''
+  && publicPayload.data?.showPoweredBy === true
+  && publicKeys === expectedPublicKeys
+if (!validPublicConfig) {
+  throw new Error('public system settings do not match initialized defaults')
+}
+
+const validMethods = methodsPayload.code === 0
+  && methodsPayload.data?.local?.enabled === true
+  && methodsPayload.data?.oidc?.length === 0
+if (!validMethods) {
+  throw new Error('default login methods do not preserve local login')
+}
+NODE
+}
+
 login_admin() {
   post_json "$WORK_DIR/login.json" "$WORK_DIR/login-response.json" \
     --cookie-jar "$WORK_DIR/cookies.txt" "$BASE_URL/api/v1/auth/login"
@@ -399,6 +431,7 @@ run_full_smoke() {
   assert_response_code "$WORK_DIR/setup-valid-response.json" 0
   assert_secret_absent "$WORK_DIR/setup-valid-response.json"
 
+  assert_system_settings_defaults
   login_admin
   post_json "$WORK_DIR/short-link.json" "$WORK_DIR/short-link-response.json" \
     --cookie "$WORK_DIR/cookies.txt" "$BASE_URL/api/v1/short-link/create"
