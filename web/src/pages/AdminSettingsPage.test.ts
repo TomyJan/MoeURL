@@ -247,4 +247,27 @@ describe('AdminSettingsPage', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'settings.reload' }))
     expect((screen.getByLabelText('settings.siteName') as HTMLInputElement).value).toBe('Latest site')
   })
+
+  it('does not reuse an earlier conflict snapshot after a later refresh fails', async () => {
+    const firstConflict = { ...settings, siteName: 'First conflict', updatedAt: '2026-10-09T03:00:00Z' }
+    const latest = { ...settings, siteName: 'Latest site', updatedAt: '2026-10-09T04:00:00Z' }
+    vi.mocked(updateAdminSettings).mockRejectedValue(new ApiClientError(900202, 'conflict'))
+    state.refetch
+      .mockResolvedValueOnce({ isSuccess: true, data: firstConflict })
+      .mockResolvedValueOnce({ isSuccess: false })
+      .mockResolvedValueOnce({ isSuccess: true, data: latest })
+    mountPage()
+    await fireEvent.update(screen.getByLabelText('settings.siteName'), 'Local draft')
+
+    await fireEvent.click(screen.getByRole('button', { name: 'settings.save' }))
+    await waitFor(() => expect(state.refetch).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect((screen.getByRole('button', { name: 'settings.save' }) as HTMLButtonElement).disabled).toBe(false))
+    await fireEvent.click(screen.getByRole('button', { name: 'settings.save' }))
+    await waitFor(() => expect(state.refetch).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect((screen.getByRole('button', { name: 'settings.save' }) as HTMLButtonElement).disabled).toBe(false))
+    await fireEvent.click(screen.getByRole('button', { name: 'settings.reload' }))
+
+    await waitFor(() => expect(state.refetch).toHaveBeenCalledTimes(3))
+    expect((screen.getByLabelText('settings.siteName') as HTMLInputElement).value).toBe('Latest site')
+  })
 })

@@ -111,6 +111,71 @@ func TestServiceValidateStartupEnforcesEntryPointInvariant(t *testing.T) {
 	}
 }
 
+// TestServiceValidateStartupUsesOneSnapshot verifies concurrent policy changes cannot create a torn startup decision.
+func TestServiceValidateStartupUsesOneSnapshot(t *testing.T) {
+	ctx := t.Context()
+	pool := testdb.ProjectMigratedPool(ctx, t)
+	if _, err := pool.Exec(ctx, `update system_setting set value = 'false'::jsonb where key = 'auth.local_login_enabled'`); err != nil {
+		t.Fatalf("disable local login: %v", err)
+	}
+	insertEnabledProvider(t, ctx, pool)
+
+	locker, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin provider lock: %v", err)
+	}
+	defer func() { _ = locker.Rollback(ctx) }()
+	if _, err := locker.Exec(ctx, `lock table oidc_provider in access exclusive mode`); err != nil {
+		t.Fatalf("lock provider table: %v", err)
+	}
+
+	validatedProviders := 0
+	service := loginpolicy.NewService(pool, func(rows []sqlc.OidcProvider) error {
+		validatedProviders = len(rows)
+		return nil
+	})
+	result := make(chan error, 1)
+	go func() { result <- service.ValidateStartup(ctx) }()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var waiting int
+		if err := pool.QueryRow(ctx, `
+			select count(*)
+			from pg_locks
+			where relation = 'oidc_provider'::regclass
+				and mode = 'AccessShareLock'
+				and not granted
+		`).Scan(&waiting); err != nil {
+			t.Fatalf("inspect blocked startup query: %v", err)
+		}
+		if waiting > 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("startup validation did not reach the provider query")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	if _, err := locker.Exec(ctx, `
+		update system_setting set value = 'true'::jsonb where key = 'auth.local_login_enabled';
+		delete from oidc_provider;
+	`); err != nil {
+		t.Fatalf("switch login entry while startup is blocked: %v", err)
+	}
+	if err := locker.Commit(ctx); err != nil {
+		t.Fatalf("commit login-entry switch: %v", err)
+	}
+
+	if err := <-result; err != nil {
+		t.Fatalf("validate consistent startup snapshot: %v", err)
+	}
+	if validatedProviders != 1 {
+		t.Fatalf("validated provider count = %d, want 1 from the startup snapshot", validatedProviders)
+	}
+}
+
 // TestServiceRejectsCorruptPolicyValue verifies malformed persisted settings fail closed.
 func TestServiceRejectsCorruptPolicyValue(t *testing.T) {
 	for _, value := range []string{`'"invalid"'::jsonb`, `'null'::jsonb`} {

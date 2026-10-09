@@ -31,13 +31,14 @@ type Reader interface {
 
 // Service reads and locks the shared login-entry policy.
 type Service struct {
+	pool      *pgxpool.Pool
 	queries   *sqlc.Queries
 	validator RuntimeValidator
 }
 
 // NewService creates a policy service backed by the application database.
 func NewService(pool *pgxpool.Pool, validator RuntimeValidator) *Service {
-	return &Service{queries: sqlc.New(pool), validator: validator}
+	return &Service{pool: pool, queries: sqlc.New(pool), validator: validator}
 }
 
 // LocalLoginEnabled reports whether new password-login attempts are admitted.
@@ -95,13 +96,36 @@ func (s *Service) RequireAvailableProvider(ctx context.Context, tx pgx.Tx) error
 
 // ValidateStartup rejects an application state with no usable login entry point.
 func (s *Service) ValidateStartup(ctx context.Context) error {
-	enabled, err := s.LocalLoginEnabled(ctx)
-	if err != nil || enabled {
-		return err
-	}
-	rows, err := s.queries.ListEnabledOIDCProviderRuntime(ctx)
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
 	if err != nil {
 		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := s.queries.WithTx(tx)
+	setting, err := q.GetSystemSetting(ctx, localLoginSettingKey)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrInvalidPolicy
+	}
+	if err != nil {
+		return err
+	}
+	enabled, err := parseEnabled(setting.Value)
+	if err != nil {
+		return err
+	}
+	var rows []sqlc.OidcProvider
+	if !enabled {
+		rows, err = q.ListEnabledOIDCProviderRuntime(ctx)
+		if err != nil {
+			return err
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	if enabled {
+		return nil
 	}
 	return s.validateProviders(rows)
 }

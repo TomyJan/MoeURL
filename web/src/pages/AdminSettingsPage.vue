@@ -88,6 +88,7 @@ const mutation = useMutation({
       return
     }
     feedback.value = 'conflict'
+    conflictLatest = null
     preserveDraftDuringRefresh = true
     try {
       const refreshed = await query.refetch()

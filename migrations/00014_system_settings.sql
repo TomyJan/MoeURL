@@ -20,6 +20,24 @@ where key = 'site.name'
     and jsonb_typeof(value) = 'string'
     and char_length(btrim(value #>> '{}')) > 64;
 
+-- Earlier versions did not constrain language and theme values. Normalize only
+-- legacy strings so structurally corrupt JSON continues to fail startup checks.
+update system_setting
+set value = '"zh-CN"'::jsonb,
+    updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
+where key = 'site.default_language'
+    and jsonb_typeof(value) = 'string'
+    and btrim(value #>> '{}') <> ''
+    and value #>> '{}' not in ('zh-CN', 'en');
+
+update system_setting
+set value = '"system"'::jsonb,
+    updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
+where key = 'site.default_theme'
+    and jsonb_typeof(value) = 'string'
+    and btrim(value #>> '{}') <> ''
+    and value #>> '{}' not in ('system', 'light', 'dark');
+
 create table moeurl_system_settings_permission_addition (
     user_group_id uuid primary key references user_group(id) on delete cascade,
     permission_revision bigint not null default 0

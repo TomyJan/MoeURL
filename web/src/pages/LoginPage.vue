@@ -194,12 +194,15 @@ function hasBusinessErrorCode(error: unknown, code: number) {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  max-width: calc(100vw - 48px);
+  min-width: 0;
   color: rgb(var(--v-theme-on-background));
   text-decoration: none;
 }
 
 .auth-page__brand span {
   display: grid;
+  flex: 0 0 auto;
   width: 38px;
   height: 38px;
   place-items: center;
@@ -207,6 +210,13 @@ function hasBusinessErrorCode(error: unknown, code: number) {
   background: rgb(var(--v-theme-primary));
   color: rgb(var(--v-theme-on-primary));
   font-weight: 900;
+}
+
+.auth-page__brand strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .auth-page__panel {
@@ -313,6 +323,7 @@ function hasBusinessErrorCode(error: unknown, code: number) {
     top: 18px;
     left: 18px;
     gap: 9px;
+    max-width: calc(100vw - 36px);
     font-size: 1.18rem;
   }
 

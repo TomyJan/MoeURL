@@ -85,6 +85,7 @@ test('applies system branding while preserving a recoverable OIDC-only login pat
     await visitor.goto('/login?redirect=/console')
     await expect(visitor).toHaveTitle(siteName)
     await expect(visitor.getByText(siteName, { exact: true })).toBeVisible()
+    await expectBrandWithinViewport(visitor)
     await expect(visitor.getByText(footerText, { exact: true })).toBeVisible()
     await expect(visitor.getByText('Powered by MoeURL', { exact: true })).toBeVisible()
     await expect.poll(async () => visitor.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
@@ -92,6 +93,9 @@ test('applies system branding while preserving a recoverable OIDC-only login pat
     await expect(visitor.getByLabel('Username')).toHaveCount(0)
     await expect(visitor.getByLabel('Password')).toHaveCount(0)
     await expect(visitor.getByRole('button', { name: 'Sign in' })).toHaveCount(0)
+    await visitor.goto('/setup')
+    await expectBrandWithinViewport(visitor)
+    await visitor.goto('/login?redirect=/console')
     await visitor.getByText(providerName, { exact: true }).click()
     await expect(visitor).toHaveURL(/\/console$/)
 
@@ -157,6 +161,13 @@ test('applies system branding while preserving a recoverable OIDC-only login pat
     throw new AggregateError(cleanupErrors, 'System-settings cleanup failed')
   }
 })
+
+async function expectBrandWithinViewport(page: Page) {
+  await expect.poll(async () => page.locator('.auth-page__brand').evaluate((element) => {
+    const bounds = element.getBoundingClientRect()
+    return bounds.left >= 0 && bounds.right <= window.innerWidth
+  })).toBe(true)
+}
 
 /** Runs one cleanup action without preventing later cleanup steps. */
 async function collectCleanupError(errors: unknown[], action: () => Promise<unknown>) {
