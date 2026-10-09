@@ -147,8 +147,12 @@ func TestServiceSetupRejectsInvalidShortLinkOriginBeforePersistence(t *testing.T
 				if err := pool.QueryRow(ctx, `select count(*) from `+table).Scan(&count); err != nil {
 					t.Fatalf("count %s: %v", table, err)
 				}
-				if count != 0 {
-					t.Fatalf("invalid setup left %d %s rows", count, table)
+				want := 0
+				if table == "system_setting" {
+					want = 4
+				}
+				if count != want {
+					t.Fatalf("invalid setup left %d %s rows, want migration baseline %d", count, table, want)
 				}
 			}
 		})
@@ -428,8 +432,12 @@ func TestServiceSetupRollsBackWhenDomainGrantFails(t *testing.T) {
 		if err := pool.QueryRow(ctx, `select count(*) from `+table).Scan(&count); err != nil {
 			t.Fatalf("count rolled-back %s: %v", table, err)
 		}
-		if count != 0 {
-			t.Fatalf("partial setup left %d %s rows", count, table)
+		want := 0
+		if table == "system_setting" {
+			want = 4
+		}
+		if count != want {
+			t.Fatalf("partial setup left %d %s rows, want migration baseline %d", count, table, want)
 		}
 	}
 }
