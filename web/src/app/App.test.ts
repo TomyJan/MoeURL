@@ -1,9 +1,12 @@
-import { render, screen } from '@testing-library/vue'
+import { render, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, onMounted, ref } from 'vue'
+import { VueQueryPlugin } from '@tanstack/vue-query'
+import { queryClient } from './query'
 
 import App from './App.vue'
 import { componentStubs } from '@/test/component-stubs'
+import { getPublicConfig } from '@/entities/system/api'
 
 const state = vi.hoisted(() => ({
   routePath: { value: '/' },
@@ -38,6 +41,13 @@ const preferenceSpies = vi.hoisted(() => ({
   saveThemePreference: vi.fn(),
 }))
 
+vi.mock('@/entities/system/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/entities/system/api')>()
+  return { ...actual, getPublicConfig: vi.fn() }
+})
+
+const queryPlugin: [typeof VueQueryPlugin, { queryClient: typeof queryClient }] = [VueQueryPlugin, { queryClient }]
+
 vi.mock('@/shared/preferences/preferences', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/shared/preferences/preferences')>()
   return {
@@ -51,6 +61,16 @@ vi.mock('@/shared/preferences/preferences', async (importOriginal) => {
 describe('App', () => {
   beforeEach(() => {
     state.routePath.value = '/'
+    queryClient.clear()
+    document.title = 'MoeURL'
+    vi.mocked(getPublicConfig).mockReset()
+    vi.mocked(getPublicConfig).mockResolvedValue({
+      siteName: 'Configured site',
+      defaultLanguage: 'en',
+      defaultTheme: 'dark',
+      footerText: '',
+      showPoweredBy: true,
+    })
     preferenceSpies.saveLanguagePreference.mockReset()
     preferenceSpies.saveThemePreference.mockReset()
   })
@@ -58,6 +78,7 @@ describe('App', () => {
   it('renders the route outlet without global product navigation', () => {
     render(App, {
       global: {
+        plugins: [queryPlugin],
         stubs: {
           ...componentStubs,
           RouterView: {
@@ -74,7 +95,7 @@ describe('App', () => {
   })
 
   it('leaves preference controls to page layouts instead of floating globally', () => {
-    render(App, { global: { stubs: componentStubs } })
+    render(App, { global: { plugins: [queryPlugin], stubs: componentStubs } })
 
     expect(screen.queryByLabelText('preferences.groupLabel')).toBeNull()
     expect(screen.queryByRole('button', { name: '切换语言' })).toBeNull()
@@ -82,9 +103,15 @@ describe('App', () => {
   })
 
   it('wraps route changes with a reusable transition boundary', () => {
-    render(App, { global: { stubs: componentStubs } })
+    render(App, { global: { plugins: [queryPlugin], stubs: componentStubs } })
 
     expect(screen.getByTestId('app-route-transition')).toBeTruthy()
+  })
+
+  it('applies the loaded public brand and server defaults', async () => {
+    render(App, { global: { plugins: [queryPlugin], stubs: componentStubs } })
+
+    await waitFor(() => expect(document.title).toBe('Configured site'))
   })
 
   it('keeps the routed shell mounted when only the nested full path changes', async () => {
@@ -103,6 +130,7 @@ describe('App', () => {
 
     render(App, {
       global: {
+        plugins: [queryPlugin],
         stubs: {
           ...componentStubs,
           RouterView: {

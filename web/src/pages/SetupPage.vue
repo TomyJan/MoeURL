@@ -2,7 +2,7 @@
   <main class="auth-page auth-page--setup" data-testid="auth-page-setup">
     <RouterLink class="auth-page__brand" to="/">
       <span>M</span>
-      <strong>MoeURL</strong>
+      <strong>{{ config.siteName }}</strong>
     </RouterLink>
 
     <section class="auth-page__panel auth-page__panel--wide" data-testid="auth-panel">
@@ -90,8 +90,10 @@ import { useMutation, useQuery } from '@tanstack/vue-query'
 import { getInitStatus, setupSystem } from '@/entities/system/api'
 import type { SetupInput } from '@/entities/system/api'
 import { ApiClientError } from '@/shared/api/client'
+import { useSiteConfig } from '@/shared/site/useSiteConfig'
 
 const INVALID_SETUP_TOKEN_ERROR_CODE = 900102
+const { config } = useSiteConfig()
 
 const { t } = useI18n()
 const { data, isError, isLoading, refetch } = useQuery({

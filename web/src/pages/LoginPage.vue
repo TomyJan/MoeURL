@@ -2,7 +2,7 @@
   <main class="auth-page auth-page--login" data-testid="auth-page-login">
     <RouterLink class="auth-page__brand" to="/">
       <span>M</span>
-      <strong>MoeURL</strong>
+      <strong>{{ config.siteName }}</strong>
     </RouterLink>
 
     <section class="auth-page__panel" data-testid="auth-panel">
@@ -15,9 +15,11 @@
         <div class="auth-page__form-heading">
           <h2>{{ t('page.login') }}</h2>
         </div>
-        <v-text-field v-model="username" :label="t('auth.username')" variant="outlined" />
-        <v-text-field v-model="password" :label="t('auth.password')" type="password" variant="outlined" />
-        <Transition name="moe-overlay">
+        <template v-if="localLoginEnabled">
+          <v-text-field v-model="username" :label="t('auth.username')" variant="outlined" />
+          <v-text-field v-model="password" :label="t('auth.password')" type="password" variant="outlined" />
+        </template>
+        <Transition v-if="localLoginEnabled" name="moe-overlay">
           <v-snackbar
             v-if="loginErrorSnackbarOpen"
             class="auth-page__toast"
@@ -34,7 +36,7 @@
             </template>
           </v-snackbar>
         </Transition>
-        <v-btn class="auth-page__submit" color="primary" :loading="mutation.isPending.value" type="submit">
+        <v-btn v-if="localLoginEnabled" class="auth-page__submit" color="primary" :loading="mutation.isPending.value" type="submit">
           {{ t('auth.loginSubmit') }}
         </v-btn>
         <div v-if="methodsQuery.isPending.value" class="auth-page__oidc-loading" role="progressbar" />
@@ -73,8 +75,10 @@ import { useMutation, useQuery } from '@tanstack/vue-query'
 import { login } from '@/entities/auth/api'
 import { getLoginMethods, oidcStartURL } from '@/entities/oidc/api'
 import { queryClient } from '@/app/query'
+import { useSiteConfig } from '@/shared/site/useSiteConfig'
 
 const { t } = useI18n()
+const { config } = useSiteConfig()
 const router = useRouter()
 const route = useRoute()
 const username = ref('')
@@ -82,8 +86,10 @@ const password = ref('')
 const loginErrorSnackbarOpen = ref(false)
 const INVALID_CREDENTIAL_ERROR_CODE = 110101
 const LOGIN_RATE_LIMITED_ERROR_CODE = 110103
+const LOGIN_METHOD_UNAVAILABLE_ERROR_CODE = 110104
 const methodsQuery = useQuery({ queryKey: ['auth', 'methods'], queryFn: getLoginMethods, retry: false })
 const oidcProviders = computed(() => methodsQuery.data.value?.oidc ?? [])
+const localLoginEnabled = computed(() => methodsQuery.data.value?.local.enabled === true)
 const mutation = useMutation({
   mutationFn: login,
   /** Updates cached identity data, starts auth/me invalidation, and restores the requested route. */
@@ -110,6 +116,9 @@ const loginErrorMessage = computed(() => {
   if (hasBusinessErrorCode(error, LOGIN_RATE_LIMITED_ERROR_CODE)) {
     return t('auth.loginRateLimited')
   }
+  if (hasBusinessErrorCode(error, LOGIN_METHOD_UNAVAILABLE_ERROR_CODE)) {
+    return t('auth.localLoginUnavailable')
+  }
   return error instanceof Error ? error.message : t('auth.loginFailed')
 })
 
@@ -131,6 +140,7 @@ const oidcErrorMessage = computed(() => {
 
 /** Submits the current credentials to the login mutation. */
 function submit() {
+  if (!localLoginEnabled.value || methodsQuery.isError.value) return
   mutation.mutate({ username: username.value, password: password.value })
 }
 

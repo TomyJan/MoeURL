@@ -9,10 +9,12 @@ import {
 
 describe('preferences', () => {
   beforeEach(() => {
+    vi.unstubAllGlobals()
     Object.defineProperty(window, 'localStorage', {
       value: createTestStorage(),
       configurable: true,
     })
+    Object.defineProperty(window.navigator, 'language', { value: 'zh-CN', configurable: true })
   })
 
   it('loads defaults when storage is empty', () => {
@@ -63,6 +65,16 @@ describe('preferences', () => {
     window.localStorage.setItem('moeurl.theme', 'sepia')
 
     expect(loadPreferences()).toEqual({ language: 'zh-CN', theme: 'system' })
+  })
+
+  it('uses a supported browser language before the product fallback', () => {
+    Object.defineProperty(window.navigator, 'language', { value: 'en-US', configurable: true })
+    expect(loadPreferences().language).toBe('en')
+  })
+
+  it('uses the product language when the browser language is unsupported', () => {
+    Object.defineProperty(window.navigator, 'language', { value: 'fr-FR', configurable: true })
+    expect(loadPreferences().language).toBe('zh-CN')
   })
 
   it('loads the explicit zh-CN language preference', () => {

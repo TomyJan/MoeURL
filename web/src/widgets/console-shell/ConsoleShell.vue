@@ -30,7 +30,7 @@
           tabindex="-1"
         >
           <div class="console-shell__mobile-head">
-            <RouterLink class="console-shell__mobile-brand" to="/" @click="closeMobileNav()">MoeURL</RouterLink>
+            <RouterLink class="console-shell__mobile-brand" to="/" @click="closeMobileNav()">{{ config.siteName }}</RouterLink>
             <button class="console-shell__mobile-close" type="button" @click="closeMobileNav()">
               {{ t('console.closeMenu') }}
             </button>
@@ -105,8 +105,10 @@ import ConsoleNavList from './ConsoleNavList.vue'
 import ConsoleSidebar from './ConsoleSidebar.vue'
 import ConsoleTopbar from './ConsoleTopbar.vue'
 import type { ConsoleNavGroup } from './ConsoleNavList.vue'
+import { useSiteConfig } from '@/shared/site/useSiteConfig'
 
 const { t } = useI18n()
+const { config } = useSiteConfig()
 const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
@@ -170,7 +172,7 @@ const navGroups = computed<ConsoleNavGroup[]>(() => {
             { labelKey: 'nav.userGroups', level: 2, to: '/admin/user/group' },
           ],
         },
-        { labelKey: 'nav.settings', to: '/admin/setting' },
+        ...(permissions.value.includes('system:manage') ? [{ labelKey: 'nav.settings', to: '/admin/setting' }] : []),
         ...(permissions.value.includes('domain:manage') ? [{ labelKey: 'nav.domains', to: '/admin/domain' }] : []),
       ],
     })

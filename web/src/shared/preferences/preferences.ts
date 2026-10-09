@@ -12,13 +12,31 @@ export const themeOptions: ThemePreference[] = ['system', 'light', 'dark']
 const languageStorageKey = 'moeurl.language'
 const themeStorageKey = 'moeurl.theme'
 
+export function hasStoredLanguagePreference(): boolean {
+  const stored = globalThis.window?.localStorage?.getItem(languageStorageKey)
+  return languageOptions.includes(stored as LanguagePreference)
+}
+
+export function hasStoredThemePreference(): boolean {
+  const stored = globalThis.window?.localStorage?.getItem(themeStorageKey)
+  return themeOptions.includes(stored as ThemePreference)
+}
+
+/** Resolves a supported browser language without persisting an inferred choice. */
+export function browserLanguagePreference(): LanguagePreference | undefined {
+  const language = globalThis.window?.navigator?.language?.toLowerCase()
+  if (language?.startsWith('zh')) return 'zh-CN'
+  if (language?.startsWith('en')) return 'en'
+  return undefined
+}
+
 /** Loads validated UI preferences, falling back to product defaults. */
 export function loadPreferences(): UserPreferences {
   const storage = globalThis.window?.localStorage
   const storedLanguage = storage?.getItem(languageStorageKey)
   const storedTheme = storage?.getItem(themeStorageKey)
   return {
-    language: languageOptions.includes(storedLanguage as LanguagePreference) ? (storedLanguage as LanguagePreference) : 'zh-CN',
+    language: languageOptions.includes(storedLanguage as LanguagePreference) ? (storedLanguage as LanguagePreference) : (browserLanguagePreference() ?? 'zh-CN'),
     theme: themeOptions.includes(storedTheme as ThemePreference) ? (storedTheme as ThemePreference) : 'system',
   }
 }

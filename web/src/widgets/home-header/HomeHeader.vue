@@ -2,7 +2,7 @@
   <header class="home-header">
     <RouterLink class="home-header__brand" to="/">
       <span class="home-header__logo">M</span>
-      <span>MoeURL</span>
+      <span>{{ config.siteName }}</span>
     </RouterLink>
 
     <nav class="home-header__actions">
@@ -23,6 +23,7 @@ import { useI18n } from 'vue-i18n'
 
 import PreferenceSwitcher from '@/shared/preferences/PreferenceSwitcher.vue'
 import { useAvatarText } from '@/shared/user/useAvatarText'
+import { useSiteConfig } from '@/shared/site/useSiteConfig'
 
 const props = defineProps<{
   displayName: string
@@ -36,6 +37,7 @@ defineEmits<{
 const { t } = useI18n()
 const displayName = toRef(props, 'displayName')
 const avatarText = useAvatarText(displayName)
+const { config } = useSiteConfig()
 </script>
 
 <style scoped>

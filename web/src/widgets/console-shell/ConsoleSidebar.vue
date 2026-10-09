@@ -3,7 +3,7 @@
     <RouterLink class="console-sidebar__brand" to="/">
       <span class="console-sidebar__logo">M</span>
       <span class="console-sidebar__brand-text">
-        <strong>MoeURL</strong>
+        <strong>{{ config.siteName }}</strong>
       </span>
     </RouterLink>
 
@@ -51,6 +51,7 @@ import MoeIcon from '@/shared/ui/MoeIcon.vue'
 import ConsoleAccountCard from './ConsoleAccountCard.vue'
 import ConsoleNavList from './ConsoleNavList.vue'
 import type { ConsoleNavGroup } from './ConsoleNavList.vue'
+import { useSiteConfig } from '@/shared/site/useSiteConfig'
 
 defineProps<{
   displayName: string
@@ -65,6 +66,7 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { config } = useSiteConfig()
 </script>
 
 <style scoped>

@@ -180,7 +180,7 @@ describe('ConsoleShell', () => {
       username: 'admin',
       nickname: 'Admin',
       group: 'admin',
-      permissions: ['short_link:create', 'domain:use_default', 'short_link:read_own', 'admin:access', 'domain:manage'],
+      permissions: ['short_link:create', 'domain:use_default', 'short_link:read_own', 'admin:access', 'domain:manage', 'system:manage'],
     })
 
     mountShell()
@@ -215,6 +215,15 @@ describe('ConsoleShell', () => {
     })
     mountShell()
     expect(screen.queryByText('nav.domains')).toBeNull()
+  })
+
+  it.each([
+    ['admin:access'],
+    ['system:manage'],
+  ])('hides system settings navigation when either permission is missing: %s', (permission) => {
+    setCurrentUser({ username: 'admin', group: 'admin', permissions: ['short_link:read_own', permission] })
+    mountShell()
+    expect(screen.queryByText('nav.settings')).toBeNull()
   })
 
   it('expands the matching two-level navigation group for child routes', () => {

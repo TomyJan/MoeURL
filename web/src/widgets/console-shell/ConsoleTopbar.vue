@@ -3,7 +3,7 @@
     <button class="console-topbar__menu" type="button" :aria-label="t('console.openMenu')" @click="$emit('openMenu')">
       <MoeIcon name="menu" data-testid="console-icon-menu" />
     </button>
-    <RouterLink class="console-topbar__brand" to="/">MoeURL</RouterLink>
+    <RouterLink class="console-topbar__brand" to="/">{{ config.siteName }}</RouterLink>
     <PreferenceSwitcher class="console-topbar__preferences" density="compact" placement="topbar" />
     <v-btn color="primary" variant="flat" @click="$emit('createShortLink')">{{ t('console.newShortLink') }}</v-btn>
     <div ref="accountRef" class="console-topbar__account">
@@ -42,6 +42,7 @@ import { useI18n } from 'vue-i18n'
 import PreferenceSwitcher from '@/shared/preferences/PreferenceSwitcher.vue'
 import MoeIcon from '@/shared/ui/MoeIcon.vue'
 import { useAvatarText } from '@/shared/user/useAvatarText'
+import { useSiteConfig } from '@/shared/site/useSiteConfig'
 
 const props = defineProps<{
   displayName: string
@@ -59,6 +60,7 @@ const accountRef = ref<globalThis.HTMLElement | null>(null)
 const accountOpen = ref(false)
 const displayName = computed(() => props.displayName)
 const avatarText = useAvatarText(displayName)
+const { config } = useSiteConfig()
 
 /** Closes the account menu before forwarding a logout request. */
 function submitLogout() {
