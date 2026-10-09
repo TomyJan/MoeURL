@@ -134,10 +134,14 @@ onBeforeUnmount(() => {
 }
 
 .console-topbar__brand {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
   color: rgb(var(--v-theme-on-background));
   font-weight: 900;
   text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .console-topbar__account {

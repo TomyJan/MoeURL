@@ -422,9 +422,14 @@ function getFocusableElements(root: globalThis.HTMLElement) {
 }
 
 .console-shell__mobile-brand {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
   color: rgb(var(--v-theme-on-surface));
   font-weight: 900;
   text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .console-shell__mobile-quick {
@@ -505,6 +510,10 @@ function getFocusableElements(root: globalThis.HTMLElement) {
   background: transparent;
   color: rgb(var(--v-theme-on-surface-variant));
   cursor: pointer;
+}
+
+.console-shell__mobile-close {
+  flex: 0 0 auto;
 }
 
 .console-shell__dialog {

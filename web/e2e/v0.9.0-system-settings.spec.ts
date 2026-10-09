@@ -97,6 +97,19 @@ test('applies system branding while preserving a recoverable OIDC-only login pat
 
     const firstOIDCUser = await currentUser(visitor)
     expect(firstOIDCUser.group).toBe('user')
+    await expect.poll(async () => visitor.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+    await visitor.getByRole('button', { name: 'Open console menu' }).click()
+    const mobilePanel = visitor.getByTestId('console-drawer-transition')
+    await expect(mobilePanel).toBeVisible()
+    await expect.poll(async () => mobilePanel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+    await visitor.getByRole('button', { name: 'Close menu' }).click()
+
+    await visitor.setViewportSize({ width: 1280, height: 720 })
+    const sidebar = visitor.locator('.console-sidebar')
+    await expect(sidebar).toBeVisible()
+    await expect.poll(async () => sidebar.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+    await expect.poll(async () => visitor.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+
     await logout(visitor)
     await visitor.goto('/login?redirect=/console')
     await visitor.getByText(providerName, { exact: true }).click()

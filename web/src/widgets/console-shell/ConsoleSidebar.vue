@@ -87,17 +87,28 @@ const { config } = useSiteConfig()
 .console-sidebar__brand {
   display: inline-flex;
   align-items: center;
+  min-width: 0;
   gap: 10px;
   color: rgb(var(--v-theme-on-surface));
   text-decoration: none;
 }
 
+.console-sidebar__brand-text {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .console-sidebar__brand-text strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 950;
 }
 
 .console-sidebar__logo {
   display: inline-grid;
+  flex: 0 0 auto;
   width: 38px;
   height: 38px;
   place-items: center;
