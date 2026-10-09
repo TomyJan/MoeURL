@@ -52,6 +52,12 @@ func NewSettingsService(pool *pgxpool.Pool, permissions permission.Resolver, log
 	return &SettingsService{pool: pool, queries: sqlc.New(pool), permissions: permissions, loginPolicy: loginPolicy}
 }
 
+// ValidateStartup rejects missing, malformed, non-canonical, or otherwise invalid managed settings.
+func (s *SettingsService) ValidateStartup(ctx context.Context) error {
+	_, err := s.readSettings(ctx, s.queries)
+	return err
+}
+
 // PublicConfig returns only settings safe to expose before authentication.
 func (s *SettingsService) PublicConfig(ctx context.Context) (PublicConfig, error) {
 	settings, err := s.readSettings(ctx, s.queries)
@@ -211,23 +217,38 @@ func validPersistedSettings(settings Settings) bool {
 }
 
 func normalizeSettingsInput(input UpdateSettingsInput) (UpdateSettingsInput, time.Time, error) {
-	input.SiteName = strings.TrimSpace(input.SiteName)
-	input.FooterText = strings.TrimSpace(input.FooterText)
-	if count := utf8.RuneCountInString(input.SiteName); count < 1 || count > 64 {
-		return UpdateSettingsInput{}, time.Time{}, ErrInvalidSettings
-	}
-	if utf8.RuneCountInString(input.FooterText) > 200 {
-		return UpdateSettingsInput{}, time.Time{}, ErrInvalidSettings
-	}
-	if input.DefaultLanguage != "zh-CN" && input.DefaultLanguage != "en" {
-		return UpdateSettingsInput{}, time.Time{}, ErrInvalidSettings
-	}
-	if input.DefaultTheme != "system" && input.DefaultTheme != "light" && input.DefaultTheme != "dark" {
-		return UpdateSettingsInput{}, time.Time{}, ErrInvalidSettings
+	var err error
+	input.SiteName, input.FooterText, err = normalizeManagedSettingValues(
+		input.SiteName,
+		input.DefaultLanguage,
+		input.DefaultTheme,
+		input.FooterText,
+	)
+	if err != nil {
+		return UpdateSettingsInput{}, time.Time{}, err
 	}
 	expected, err := time.Parse(time.RFC3339Nano, input.ExpectedUpdatedAt)
 	if err != nil {
 		return UpdateSettingsInput{}, time.Time{}, ErrInvalidSettings
 	}
 	return input, expected.UTC(), nil
+}
+
+// normalizeManagedSettingValues applies the shared initialization and update constraints.
+func normalizeManagedSettingValues(siteName string, defaultLanguage string, defaultTheme string, footerText string) (string, string, error) {
+	siteName = strings.TrimSpace(siteName)
+	footerText = strings.TrimSpace(footerText)
+	if count := utf8.RuneCountInString(siteName); count < 1 || count > 64 {
+		return "", "", ErrInvalidSettings
+	}
+	if utf8.RuneCountInString(footerText) > 200 {
+		return "", "", ErrInvalidSettings
+	}
+	if defaultLanguage != "zh-CN" && defaultLanguage != "en" {
+		return "", "", ErrInvalidSettings
+	}
+	if defaultTheme != "system" && defaultTheme != "light" && defaultTheme != "dark" {
+		return "", "", ErrInvalidSettings
+	}
+	return siteName, footerText, nil
 }

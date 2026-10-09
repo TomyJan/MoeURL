@@ -131,10 +131,15 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			pool.Close()
 			return nil, fmt.Errorf("validate login entry policy: %w", err)
 		}
+		settingsService := system.NewSettingsService(pool, permissionService, loginPolicy)
+		if err := settingsService.ValidateStartup(ctx); err != nil {
+			pool.Close()
+			return nil, fmt.Errorf("validate system settings: %w", err)
+		}
 		authService := auth.NewServiceWithLoginPolicy(pool, 24*time.Hour, loginPolicy)
 		deps.Auth = authService
 		deps.CurrentUser = authService
-		deps.SystemSettings = system.NewSettingsService(pool, permissionService, loginPolicy)
+		deps.SystemSettings = settingsService
 		deps.OIDCProvider = oidc.NewProviderServiceWithLoginPolicy(pool, permissionService, discoverer, secretBox, cfg.PublicBaseURL, cfg.Env == "development", loginPolicy)
 		deps.AnalyticsCountryHeader = cfg.AnalyticsCountryHeader
 		deps.SecureCookies = cfg.Env == "production"

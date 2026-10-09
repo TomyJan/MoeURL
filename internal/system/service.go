@@ -195,6 +195,14 @@ func validateSetupInput(input SetupInput) error {
 	if adminUsername == "guest" {
 		return ErrInvalidSetupInput
 	}
+	if _, _, err := normalizeManagedSettingValues(
+		input.SiteName,
+		strings.TrimSpace(input.DefaultLanguage),
+		strings.TrimSpace(input.DefaultTheme),
+		"",
+	); err != nil {
+		return ErrInvalidSetupInput
+	}
 	return nil
 }
 

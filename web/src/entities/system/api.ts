@@ -14,10 +14,14 @@ const SetupResultSchema = z.object({
 
 export type SetupResult = z.infer<typeof SetupResultSchema>
 
+const SiteNameSchema = z.string().trim().min(1).max(64)
+const DefaultLanguageSchema = z.enum(['zh-CN', 'en'])
+const DefaultThemeSchema = z.enum(['system', 'light', 'dark'])
+
 export const PublicConfigSchema = z.object({
-  siteName: z.string().trim().min(1).max(64),
-  defaultLanguage: z.enum(['zh-CN', 'en']),
-  defaultTheme: z.enum(['system', 'light', 'dark']),
+  siteName: SiteNameSchema,
+  defaultLanguage: DefaultLanguageSchema,
+  defaultTheme: DefaultThemeSchema,
   footerText: z.string().max(200),
   showPoweredBy: z.boolean(),
 }).strict()
@@ -39,11 +43,11 @@ export const SetupInputSchema = z.object({
   adminUsername: z.string().trim().min(1),
   adminPassword: z.string().min(8),
   adminNickname: z.string().trim().min(1),
-  siteName: z.string().trim().min(1),
+  siteName: SiteNameSchema,
   systemDomain: z.string().trim().min(1),
   shortLinkDomain: z.string().trim().min(1),
-  defaultLanguage: z.string().trim().min(1),
-  defaultTheme: z.string().trim().min(1),
+  defaultLanguage: DefaultLanguageSchema,
+  defaultTheme: DefaultThemeSchema,
   setupToken: z.string().optional(),
 }).strict()
 

@@ -223,6 +223,61 @@ func TestServiceSetupRejectsBlankRequiredFields(t *testing.T) {
 	}
 }
 
+// TestServiceSetupRejectsInvalidManagedSettingsBeforePersistence verifies initialization shares the settings contract.
+func TestServiceSetupRejectsInvalidManagedSettingsBeforePersistence(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		mutate func(*system.SetupInput)
+	}{
+		{name: "site name too long", mutate: func(input *system.SetupInput) { input.SiteName = strings.Repeat("x", 65) }},
+		{name: "unsupported language", mutate: func(input *system.SetupInput) { input.DefaultLanguage = "fr" }},
+		{name: "unsupported theme", mutate: func(input *system.SetupInput) { input.DefaultTheme = "sepia" }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := t.Context()
+			pool := systemTestPool(t, ctx)
+			service := system.NewService(pool, mustSetupPolicy(t, false, ""))
+			input := validSetupInput("")
+			test.mutate(&input)
+
+			err := service.Setup(ctx, input)
+
+			if !errors.Is(err, system.ErrInvalidSetupInput) {
+				t.Fatalf("setup error = %v, want ErrInvalidSetupInput", err)
+			}
+			for _, table := range []string{"user_group", "app_user", "domain", "domain_user_group"} {
+				var count int
+				if err := pool.QueryRow(ctx, `select count(*) from `+table).Scan(&count); err != nil {
+					t.Fatalf("count %s: %v", table, err)
+				}
+				if count != 0 {
+					t.Fatalf("invalid setup left %d %s rows", count, table)
+				}
+			}
+		})
+	}
+}
+
+// TestServiceSetupAcceptsUnicodeSiteNameBoundary verifies the limit counts Unicode characters rather than bytes.
+func TestServiceSetupAcceptsUnicodeSiteNameBoundary(t *testing.T) {
+	ctx := t.Context()
+	pool := systemTestPool(t, ctx)
+	service := system.NewService(pool, mustSetupPolicy(t, false, ""))
+	input := validSetupInput("")
+	input.SiteName = strings.Repeat("界", 64)
+
+	if err := service.Setup(ctx, input); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+	var stored string
+	if err := pool.QueryRow(ctx, `select value #>> '{}' from system_setting where key = 'site.name'`).Scan(&stored); err != nil {
+		t.Fatalf("read site name: %v", err)
+	}
+	if stored != input.SiteName {
+		t.Fatalf("stored site name = %q, want %q", stored, input.SiteName)
+	}
+}
+
 // TestServiceSetupValidatesRequiredToken verifies required setup tokens gate initialization.
 func TestServiceSetupValidatesRequiredToken(t *testing.T) {
 	const configuredToken = "configured-setup-token-0123456789"

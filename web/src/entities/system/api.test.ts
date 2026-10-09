@@ -105,6 +105,31 @@ describe('system api', () => {
     })).rejects.toThrow()
   })
 
+  it.each([
+    ['site name length', { siteName: 'x'.repeat(65) }],
+    ['language', { defaultLanguage: 'fr' }],
+    ['theme', { defaultTheme: 'sepia' }],
+  ] as const)('rejects invalid setup %s before sending a request', async (_name, override) => {
+    const fetch = vi.fn(async () => new Response(
+      JSON.stringify({ code: 0, message: 'OK', data: { initialized: true }, meta: {} }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    ))
+    vi.stubGlobal('fetch', fetch)
+
+    await expect(setupSystem({
+      adminUsername: 'admin',
+      adminPassword: 'admin-password',
+      adminNickname: 'Admin',
+      siteName: 'MoeURL',
+      systemDomain: '127.0.0.1:8080',
+      shortLinkDomain: '127.0.0.1:8080',
+      defaultLanguage: 'zh-CN',
+      defaultTheme: 'system',
+      ...override,
+    })).rejects.toThrow()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
   it('strictly parses public configuration', async () => {
     mockSuccess({ siteName: 'Example', defaultLanguage: 'en', defaultTheme: 'dark', footerText: 'Footer', showPoweredBy: false })
 

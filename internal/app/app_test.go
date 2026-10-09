@@ -104,6 +104,31 @@ func TestAppRejectsDisabledLocalLoginWithoutProvider(t *testing.T) {
 	}
 }
 
+// TestAppRejectsCorruptSystemSettings verifies startup fails closed before serving inconsistent branding settings.
+func TestAppRejectsCorruptSystemSettings(t *testing.T) {
+	databaseURL := testdb.ProjectMigratedDatabaseURL(t.Context(), t)
+	pool, err := appdb.OpenPool(t.Context(), databaseURL)
+	if err != nil {
+		t.Fatalf("open settings fixture database: %v", err)
+	}
+	if _, err := pool.Exec(t.Context(), `update system_setting set value = '"fr"'::jsonb where key = 'site.default_language'`); err != nil {
+		pool.Close()
+		t.Fatalf("corrupt default language: %v", err)
+	}
+	pool.Close()
+
+	application, err := New(t.Context(), config.Config{Env: "development", HTTPAddr: ":0", DatabaseURL: databaseURL}, slog.Default())
+	if application != nil {
+		if shutdownErr := application.Shutdown(context.Background()); shutdownErr != nil {
+			t.Fatalf("shutdown unexpected application: %v", shutdownErr)
+		}
+		t.Fatal("New returned an application for corrupt system settings")
+	}
+	if !errors.Is(err, system.ErrCorruptSettings) {
+		t.Fatalf("New error = %v, want ErrCorruptSettings", err)
+	}
+}
+
 // TestAppExposesDisabledLocalLoginWithValidProvider verifies shared policy wiring reaches public login methods.
 func TestAppExposesDisabledLocalLoginWithValidProvider(t *testing.T) {
 	databaseURL := testdb.ProjectMigratedDatabaseURL(t.Context(), t)
