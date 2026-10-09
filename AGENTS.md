@@ -37,25 +37,29 @@ v0.9.0 系统设置与站点品牌基础闭环处于设计阶段，范围和安�
 
 1. `docs/implementation/technical-decision.md`
 2. `docs/implementation/technical-baseline.md`
-3. `docs/implementation/v0.8.0-plan.md`
-4. `docs/implementation/v0.8.0-tasks.md`
-5. `docs/implementation/v0.8.0-acceptance.md`
-6. `docs/implementation/v0.7.0-plan.md`
-7. `docs/implementation/v0.7.0-detailed-plan.md`
-8. `docs/implementation/v0.7.0-tasks.md`
-9. `docs/implementation/v0.7.0-acceptance.md`
-10. `docs/implementation/v0.6.0-plan.md`
-11. `docs/implementation/v0.6.0-detailed-plan.md`
-12. `docs/implementation/v0.6.0-tasks.md`
-13. `docs/implementation/v0.6.0-acceptance.md`
-14. `docs/implementation/v0.5.0-plan.md`
-15. `docs/implementation/v0.5.0-detailed-plan.md`
-16. `docs/implementation/v0.5.0-tasks.md`
-17. `docs/implementation/v0.5.0-acceptance.md`
-18. `docs/specs/2026-08-13-v0.4.0-confirmation-page-access-design.md`
-19. `docs/implementation/v0.4.0-acceptance.md`
-20. `docs/specs/2026-08-04-v0.3.0-protected-link-access-design.md`
-21. `docs/implementation/v0.3.0-acceptance.md`
+3. `docs/implementation/v0.9.0-plan.md`
+4. `docs/implementation/v0.9.0-tasks.md`
+5. `docs/implementation/v0.9.0-acceptance.md`
+6. `docs/superpowers/plans/2026-10-09-v0.9.0-system-settings.md`
+7. `docs/implementation/v0.8.0-plan.md`
+8. `docs/implementation/v0.8.0-tasks.md`
+9. `docs/implementation/v0.8.0-acceptance.md`
+10. `docs/implementation/v0.7.0-plan.md`
+11. `docs/implementation/v0.7.0-detailed-plan.md`
+12. `docs/implementation/v0.7.0-tasks.md`
+13. `docs/implementation/v0.7.0-acceptance.md`
+14. `docs/implementation/v0.6.0-plan.md`
+15. `docs/implementation/v0.6.0-detailed-plan.md`
+16. `docs/implementation/v0.6.0-tasks.md`
+17. `docs/implementation/v0.6.0-acceptance.md`
+18. `docs/implementation/v0.5.0-plan.md`
+19. `docs/implementation/v0.5.0-detailed-plan.md`
+20. `docs/implementation/v0.5.0-tasks.md`
+21. `docs/implementation/v0.5.0-acceptance.md`
+22. `docs/specs/2026-08-13-v0.4.0-confirmation-page-access-design.md`
+23. `docs/implementation/v0.4.0-acceptance.md`
+24. `docs/specs/2026-08-04-v0.3.0-protected-link-access-design.md`
+25. `docs/implementation/v0.3.0-acceptance.md`
 
 如果任务涉及 v0.2.0 中间页、过期时间、二维码、访问配置或继续访问路由，必须继续阅读：
 

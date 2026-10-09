@@ -9,6 +9,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 1. [产品总览](product/overview.md)：了解 MoeURL 的定位、目标和核心原则。
 2. [v0.9.0 范围](product/scope-v0.9.0.md)：确认系统设置、站点品牌和本地登录开关的当前设计边界。
    详细技术设计见 [v0.9.0 系统设置与站点品牌基础闭环设计](superpowers/specs/2026-10-09-v0.9.0-system-settings-design.md)。
+   工程推进参见 [v0.9.0 实施计划](implementation/v0.9.0-plan.md)、[任务清单](implementation/v0.9.0-tasks.md)、[任务级实施计划](superpowers/plans/2026-10-09-v0.9.0-system-settings.md) 与 [验收清单](implementation/v0.9.0-acceptance.md)。
 3. [v0.8.0 范围](product/scope-v0.8.0.md)：确认已完成本地功能验证的多域名管理范围及升级边界。
    工程推进参见 [v0.8.0 实施计划](implementation/v0.8.0-plan.md)、[任务清单](implementation/v0.8.0-tasks.md) 与 [验收清单](implementation/v0.8.0-acceptance.md)。
 4. [v0.7.0 范围](product/scope-v0.7.0.md)：确认多提供商 OIDC 登录的范围、账号供应规则和非目标。
@@ -94,6 +95,10 @@ v0.8.0 多域名管理的功能实现已完成；合并提交 `f818a7e8` 对应�
 - [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)
 - [技术选型决策](implementation/technical-decision.md)
 - [技术基线](implementation/technical-baseline.md)
+- [v0.9.0 实施计划](implementation/v0.9.0-plan.md)
+- [v0.9.0 任务级实施清单](implementation/v0.9.0-tasks.md)
+- [v0.9.0 验收清单](implementation/v0.9.0-acceptance.md)
+- [v0.9.0 任务级实施计划](superpowers/plans/2026-10-09-v0.9.0-system-settings.md)
 - [v0.8.0 实施计划](implementation/v0.8.0-plan.md)
 - [v0.8.0 任务级实施清单](implementation/v0.8.0-tasks.md)
 - [v0.8.0 验收清单](implementation/v0.8.0-acceptance.md)
