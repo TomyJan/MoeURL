@@ -137,6 +137,30 @@ func TestNoopRecorderIgnoresEvents(t *testing.T) {
 	}
 }
 
+// TestNotifyingEventWriterDoesNotBlockOnFullResults verifies test notifications remain best effort.
+func TestNotifyingEventWriterDoesNotBlockOnFullResults(t *testing.T) {
+	results := make(chan error, 1)
+	results <- nil
+	wantErr := context.DeadlineExceeded
+	writer := &notifyingEventWriter{
+		writer:  staticEventWriter{err: wantErr},
+		results: results,
+	}
+	done := make(chan error, 1)
+	go func() {
+		done <- writer.CreateShortLinkEvent(t.Context(), sqlc.CreateShortLinkEventParams{})
+	}()
+
+	select {
+	case err := <-done:
+		if err != wantErr {
+			t.Fatalf("CreateShortLinkEvent error = %v, want %v", err, wantErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("CreateShortLinkEvent blocked while reporting to a full results channel")
+	}
+}
+
 // discardLogger creates a logger that suppresses expected test diagnostics.
 func discardLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -196,10 +220,23 @@ type notifyingEventWriter struct {
 	results chan<- error
 }
 
+// staticEventWriter returns one configured result without external effects.
+type staticEventWriter struct {
+	err error
+}
+
+// CreateShortLinkEvent returns the configured result.
+func (w staticEventWriter) CreateShortLinkEvent(context.Context, sqlc.CreateShortLinkEventParams) error {
+	return w.err
+}
+
 // CreateShortLinkEvent persists the event and reports the result to the test.
 func (w *notifyingEventWriter) CreateShortLinkEvent(ctx context.Context, params sqlc.CreateShortLinkEventParams) error {
 	err := w.writer.CreateShortLinkEvent(ctx, params)
-	w.results <- err
+	select {
+	case w.results <- err:
+	default:
+	}
 	return err
 }
 
