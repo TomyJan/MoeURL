@@ -1,4 +1,4 @@
-package event_test
+package event
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"time"
 
 	appdb "github.com/TomyJan/MoeURL/internal/db"
-	"github.com/TomyJan/MoeURL/internal/event"
+	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -23,10 +23,16 @@ func TestRecorderPersistsShortLinkEvent(t *testing.T) {
 	pool := eventTestPool(t, ctx)
 	linkID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
 	insertEventRecorderFixtures(t, ctx, pool, linkID)
-	recorder := event.NewRecorder(pool, discardLogger())
+	writeResults := make(chan error, 1)
+	recorder := newDBRecorder(
+		&notifyingEventWriter{writer: sqlc.New(pool), results: writeResults},
+		discardLogger(),
+		recordConcurrentLimit,
+		5*time.Second,
+	)
 
-	err := recorder.Record(ctx, event.Event{
-		Type:        event.RedirectResponseSent,
+	err := recorder.Record(ctx, Event{
+		Type:        RedirectResponseSent,
 		ShortLinkID: linkID.String(),
 		Slug:        "abc123",
 	})
@@ -34,7 +40,16 @@ func TestRecorderPersistsShortLinkEvent(t *testing.T) {
 		t.Fatalf("record event: %v", err)
 	}
 
-	count := waitForEventCount(t, ctx, pool, linkID, event.RedirectResponseSent)
+	select {
+	case err := <-writeResults:
+		if err != nil {
+			t.Fatalf("persist event: %v", err)
+		}
+	case <-time.After(6 * time.Second):
+		t.Fatal("timed out waiting for event persistence")
+	}
+
+	count := eventCount(t, ctx, pool, linkID, RedirectResponseSent)
 	if count != 1 {
 		t.Fatalf("expected 1 event, got %d", count)
 	}
@@ -44,9 +59,9 @@ func TestRecorderPersistsShortLinkEvent(t *testing.T) {
 func TestRecorderIgnoresEventsWithoutShortLinkID(t *testing.T) {
 	ctx := context.Background()
 	pool := eventTestPool(t, ctx)
-	recorder := event.NewRecorder(pool, discardLogger())
+	recorder := NewRecorder(pool, discardLogger())
 
-	err := recorder.Record(ctx, event.Event{Type: event.RedirectBlocked, Slug: "missing"})
+	err := recorder.Record(ctx, Event{Type: RedirectBlocked, Slug: "missing"})
 	if err != nil {
 		t.Fatalf("record event without short link id: %v", err)
 	}
@@ -67,10 +82,10 @@ func TestRecorderIgnoresNonVisitEvents(t *testing.T) {
 	pool := eventTestPool(t, ctx)
 	linkID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
 	insertEventRecorderFixtures(t, ctx, pool, linkID)
-	recorder := event.NewRecorder(pool, discardLogger())
+	recorder := NewRecorder(pool, discardLogger())
 
-	for _, eventType := range []string{event.RedirectInitiated, event.ConfirmationClicked} {
-		if err := recorder.Record(ctx, event.Event{Type: eventType, ShortLinkID: linkID.String()}); err != nil {
+	for _, eventType := range []string{RedirectInitiated, ConfirmationClicked} {
+		if err := recorder.Record(ctx, Event{Type: eventType, ShortLinkID: linkID.String()}); err != nil {
 			t.Fatalf("record non-visit event %s: %v", eventType, err)
 		}
 	}
@@ -88,9 +103,9 @@ func TestRecorderIgnoresNonVisitEvents(t *testing.T) {
 func TestRecorderReturnsInvalidShortLinkIDError(t *testing.T) {
 	ctx := context.Background()
 	pool := eventTestPool(t, ctx)
-	recorder := event.NewRecorder(pool, discardLogger())
+	recorder := NewRecorder(pool, discardLogger())
 
-	err := recorder.Record(ctx, event.Event{Type: event.RedirectResponseSent, ShortLinkID: "bad-id"})
+	err := recorder.Record(ctx, Event{Type: RedirectResponseSent, ShortLinkID: "bad-id"})
 	if err == nil {
 		t.Fatal("expected invalid short link id error")
 	}
@@ -101,11 +116,11 @@ func TestRecorderDropsWriteFailures(t *testing.T) {
 	ctx := context.Background()
 	pool := eventTestPool(t, ctx)
 	logOutput := &lockedBuffer{}
-	recorder := event.NewRecorder(pool, slog.New(slog.NewTextHandler(logOutput, nil)))
+	recorder := NewRecorder(pool, slog.New(slog.NewTextHandler(logOutput, nil)))
 	pool.Close()
 
-	err := recorder.Record(ctx, event.Event{
-		Type:        event.RedirectResponseSent,
+	err := recorder.Record(ctx, Event{
+		Type:        RedirectResponseSent,
 		ShortLinkID: "00000000-0000-0000-0000-000000000301",
 	})
 	if err != nil {
@@ -116,7 +131,7 @@ func TestRecorderDropsWriteFailures(t *testing.T) {
 
 // TestNoopRecorderIgnoresEvents verifies the no-op recorder always succeeds.
 func TestNoopRecorderIgnoresEvents(t *testing.T) {
-	err := (event.NoopRecorder{}).Record(context.Background(), event.Event{Type: event.RedirectBlocked, Slug: "missing"})
+	err := (NoopRecorder{}).Record(context.Background(), Event{Type: RedirectBlocked, Slug: "missing"})
 	if err != nil {
 		t.Fatalf("expected noop recorder to ignore event, got %v", err)
 	}
@@ -160,25 +175,32 @@ func insertEventRecorderFixtures(t *testing.T, ctx context.Context, pool *pgxpoo
 	}
 }
 
-// waitForEventCount waits for a best-effort write to become visible in PostgreSQL.
-func waitForEventCount(t *testing.T, ctx context.Context, pool *pgxpool.Pool, linkID uuid.UUID, eventType string) int {
+// eventCount returns the number of matching persisted events.
+func eventCount(t *testing.T, ctx context.Context, pool *pgxpool.Pool, linkID uuid.UUID, eventType string) int {
 	t.Helper()
-	deadline := time.Now().Add(2 * time.Second)
 	var count int
-	for {
-		err := pool.QueryRow(ctx, `
+	err := pool.QueryRow(ctx, `
 			select count(*)
 			from short_link_event
 			where short_link_id = $1 and event_type = $2
 		`, linkID, eventType).Scan(&count)
-		if err != nil {
-			t.Fatalf("query recorded event: %v", err)
-		}
-		if count > 0 || time.Now().After(deadline) {
-			return count
-		}
-		time.Sleep(10 * time.Millisecond)
+	if err != nil {
+		t.Fatalf("query recorded event: %v", err)
 	}
+	return count
+}
+
+// notifyingEventWriter reports completion after delegating a real database write.
+type notifyingEventWriter struct {
+	writer  shortLinkEventWriter
+	results chan<- error
+}
+
+// CreateShortLinkEvent persists the event and reports the result to the test.
+func (w *notifyingEventWriter) CreateShortLinkEvent(ctx context.Context, params sqlc.CreateShortLinkEventParams) error {
+	err := w.writer.CreateShortLinkEvent(ctx, params)
+	w.results <- err
+	return err
 }
 
 // waitForLogMessage waits for the asynchronous recorder to emit a diagnostic.
