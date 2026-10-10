@@ -129,6 +129,21 @@ const isGuestFallback = computed(() => {
   const user = currentUser.value
   return user ? user.group === 'guest' || user.username === 'guest' : false
 })
+/** Reports whether refreshed identity permissions no longer admit the active route. */
+const currentRouteAccessDenied = computed(() => {
+  const user = currentUser.value
+  if (!user || isGuestFallback.value) return false
+
+  if (route.meta.requiresSystemManage) {
+    return !user.permissions.includes('admin:access') || !user.permissions.includes('system:manage')
+  }
+  if (route.meta.requiresDomainManage) {
+    return !user.permissions.includes('admin:access') || !user.permissions.includes('domain:manage')
+  }
+  if (route.meta.requiresAdmin) return !user.permissions.includes('admin:access')
+  if (route.meta.requiresConsole) return !user.permissions.includes('short_link:read_own')
+  return false
+})
 /** Resolves the preferred account label for navigation and profile controls. */
 const displayName = computed(() => currentUser.value?.nickname || currentUser.value?.username || 'guest')
 /** Resolves the stable account name used by the shell. */
@@ -199,11 +214,13 @@ let overlayOpener: globalThis.HTMLElement | null = null
 let fallbackOverlayOpener: globalThis.HTMLElement | null = null
 
 watch(
-  () => [currentUserQuery.isError.value, isGuestFallback.value] as const,
-  ([isError, isGuest]) => {
+  () => [currentUserQuery.isError.value, isGuestFallback.value, currentRouteAccessDenied.value] as const,
+  ([isError, isGuest, accessDenied]) => {
     if (isError || isGuest) {
       void router.push({ path: '/login', query: { redirect: route.fullPath } })
+      return
     }
+    if (accessDenied) void router.push('/')
   },
   { immediate: true },
 )

@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
   routerPush: vi.fn(),
   queryResult: {},
   routePath: undefined as unknown as { value: string },
+  routeMeta: undefined as unknown as { value: Record<string, boolean> },
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -35,6 +36,7 @@ vi.mock('vue-router', async () => {
   const { componentStubs } = await import('@/test/component-stubs')
   const { ref } = await import('vue')
   state.routePath = ref('/link')
+  state.routeMeta = ref({})
   return {
     RouterLink: componentStubs.RouterLink,
     RouterView: { template: '<div data-testid="router-view" />' },
@@ -44,6 +46,9 @@ vi.mock('vue-router', async () => {
       },
       get path() {
         return state.routePath.value
+      },
+      get meta() {
+        return state.routeMeta.value
       },
     }),
     useRouter: () => ({
@@ -129,11 +134,13 @@ function setCurrentUser(user: {
   group: string
   permissions: string[]
 }) {
+  const data = ref({ user })
   state.queryResult = {
-    data: ref({ user }),
+    data,
     isError: ref(false),
     isPending: ref(false),
   }
+  return data
 }
 
 describe('ConsoleShell', () => {
@@ -147,6 +154,7 @@ describe('ConsoleShell', () => {
     state.logoutMutate.mockReset()
     state.routerPush.mockReset()
     state.routePath.value = '/link'
+    state.routeMeta.value = {}
     setCurrentUser({
       username: 'alice',
       nickname: 'Alice',
@@ -423,6 +431,37 @@ describe('ConsoleShell', () => {
       path: '/login',
       query: { redirect: '/link?status=active' },
     })
+  })
+
+  it.each([
+    ['admin:access'],
+    ['system:manage'],
+  ])('leaves system settings when refreshed identity loses %s', async (revokedPermission) => {
+    state.routePath.value = '/admin/setting'
+    state.routeMeta.value = {
+      requiresConsole: true,
+      requiresAdmin: true,
+      requiresSystemManage: true,
+    }
+    const permissions = ['short_link:read_own', 'admin:access', 'system:manage']
+    const currentUserData = setCurrentUser({
+      username: 'admin',
+      group: 'admin',
+      permissions,
+    })
+
+    mountShell()
+    expect(state.routerPush).not.toHaveBeenCalled()
+
+    currentUserData.value = {
+      user: {
+        username: 'admin',
+        group: 'admin',
+        permissions: permissions.filter((permission) => permission !== revokedPermission),
+      },
+    }
+
+    await waitFor(() => expect(state.routerPush).toHaveBeenCalledWith('/'))
   })
 
   it('keeps parent expansion visually separate from active child navigation', () => {
