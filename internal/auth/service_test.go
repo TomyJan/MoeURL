@@ -18,8 +18,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// TestAuthServiceRejectsDisabledLocalLoginBeforeAdmission verifies policy is checked before slots, database, or Argon2 work.
-func TestAuthServiceRejectsDisabledLocalLoginBeforeAdmission(t *testing.T) {
+// TestAuthServiceRejectsDisabledLocalLoginBeforeDatabaseAndVerifier verifies admitted requests stop before database or Argon2 work.
+func TestAuthServiceRejectsDisabledLocalLoginBeforeDatabaseAndVerifier(t *testing.T) {
 	verifierCalls := 0
 	service := auth.NewServiceWithLoginPolicyAndPasswordVerifier(nil, time.Hour, authPolicyStub{enabled: false}, func(string, string) bool {
 		verifierCalls++
