@@ -22,6 +22,7 @@ type Dependencies struct {
 	Logger                 *slog.Logger
 	Health                 HealthChecker
 	System                 system.ServicePort
+	SystemSettings         system.SettingsPort
 	Auth                   auth.Port
 	CurrentUser            auth.CurrentUserResolver
 	ShortLink              shortlink.Port
@@ -65,6 +66,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 		api.Get("/health/live", healthHandler.Live)
 		api.Get("/health/ready", healthHandler.Ready)
 		api.Get("/health", healthHandler.Ready)
+		if dependency.SystemSettings != nil {
+			settingsHandler := system.NewSettingsHandler(dependency.SystemSettings, logger)
+			api.With(middleware.NoStore).Get("/system/public-config", settingsHandler.PublicConfig)
+		}
 
 		if dependency.OIDCProvider != nil {
 			oidcHandler := oidc.NewHandler(dependency.OIDCProvider, dependency.OIDCLogin, dependency.SecureCookies, logger)
@@ -82,6 +87,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				systemHandler := system.NewHandlerWithLogger(dependency.System, logger)
 				businessAPI.Get("/init/status", systemHandler.Status)
 				businessAPI.Post("/init/setup", systemHandler.Setup)
+			}
+			if dependency.SystemSettings != nil {
+				settingsHandler := system.NewSettingsHandler(dependency.SystemSettings, logger)
+				businessAPI.Get("/admin/system/settings", settingsHandler.Get)
+				businessAPI.Post("/admin/system/settings/update", settingsHandler.Update)
 			}
 			if dependency.Auth != nil {
 				authHandler := auth.NewHandlerWithLogger(dependency.Auth, dependency.SecureCookies, logger)

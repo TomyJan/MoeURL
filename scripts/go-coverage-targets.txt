@@ -14,6 +14,7 @@ github.com/TomyJan/MoeURL/internal/event/recorder.go
 github.com/TomyJan/MoeURL/internal/http/health.go
 github.com/TomyJan/MoeURL/internal/http/response.go
 github.com/TomyJan/MoeURL/internal/http/router.go
+github.com/TomyJan/MoeURL/internal/loginpolicy/service.go
 github.com/TomyJan/MoeURL/internal/middleware/body_limit.go
 github.com/TomyJan/MoeURL/internal/middleware/recovery.go
 github.com/TomyJan/MoeURL/internal/middleware/request_id.go
@@ -39,6 +40,8 @@ github.com/TomyJan/MoeURL/internal/shortlink/slug.go
 github.com/TomyJan/MoeURL/internal/shortlink/validator.go
 github.com/TomyJan/MoeURL/internal/system/handler.go
 github.com/TomyJan/MoeURL/internal/system/service.go
+github.com/TomyJan/MoeURL/internal/system/settings_handler.go
+github.com/TomyJan/MoeURL/internal/system/settings_service.go
 github.com/TomyJan/MoeURL/internal/user/handler.go
 github.com/TomyJan/MoeURL/internal/user/service.go
 github.com/TomyJan/MoeURL/internal/usergroup/handler.go

@@ -30,7 +30,7 @@
           tabindex="-1"
         >
           <div class="console-shell__mobile-head">
-            <RouterLink class="console-shell__mobile-brand" to="/" @click="closeMobileNav()">MoeURL</RouterLink>
+            <RouterLink class="console-shell__mobile-brand" to="/" @click="closeMobileNav()">{{ config.siteName }}</RouterLink>
             <button class="console-shell__mobile-close" type="button" @click="closeMobileNav()">
               {{ t('console.closeMenu') }}
             </button>
@@ -105,8 +105,10 @@ import ConsoleNavList from './ConsoleNavList.vue'
 import ConsoleSidebar from './ConsoleSidebar.vue'
 import ConsoleTopbar from './ConsoleTopbar.vue'
 import type { ConsoleNavGroup } from './ConsoleNavList.vue'
+import { useSiteConfig } from '@/shared/site/useSiteConfig'
 
 const { t } = useI18n()
+const { config } = useSiteConfig()
 const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
@@ -126,6 +128,21 @@ const currentUser = computed(() => currentUserQuery.data.value?.user)
 const isGuestFallback = computed(() => {
   const user = currentUser.value
   return user ? user.group === 'guest' || user.username === 'guest' : false
+})
+/** Reports whether refreshed identity permissions no longer admit the active route. */
+const currentRouteAccessDenied = computed(() => {
+  const user = currentUser.value
+  if (!user || isGuestFallback.value) return false
+
+  if (route.meta.requiresSystemManage) {
+    return !user.permissions.includes('admin:access') || !user.permissions.includes('system:manage')
+  }
+  if (route.meta.requiresDomainManage) {
+    return !user.permissions.includes('admin:access') || !user.permissions.includes('domain:manage')
+  }
+  if (route.meta.requiresAdmin) return !user.permissions.includes('admin:access')
+  if (route.meta.requiresConsole) return !user.permissions.includes('short_link:read_own')
+  return false
 })
 /** Resolves the preferred account label for navigation and profile controls. */
 const displayName = computed(() => currentUser.value?.nickname || currentUser.value?.username || 'guest')
@@ -170,7 +187,7 @@ const navGroups = computed<ConsoleNavGroup[]>(() => {
             { labelKey: 'nav.userGroups', level: 2, to: '/admin/user/group' },
           ],
         },
-        { labelKey: 'nav.settings', to: '/admin/setting' },
+        ...(permissions.value.includes('system:manage') ? [{ labelKey: 'nav.settings', to: '/admin/setting' }] : []),
         ...(permissions.value.includes('domain:manage') ? [{ labelKey: 'nav.domains', to: '/admin/domain' }] : []),
       ],
     })
@@ -197,11 +214,13 @@ let overlayOpener: globalThis.HTMLElement | null = null
 let fallbackOverlayOpener: globalThis.HTMLElement | null = null
 
 watch(
-  () => [currentUserQuery.isError.value, isGuestFallback.value] as const,
-  ([isError, isGuest]) => {
+  () => [currentUserQuery.isError.value, isGuestFallback.value, currentRouteAccessDenied.value] as const,
+  ([isError, isGuest, accessDenied]) => {
     if (isError || isGuest) {
       void router.push({ path: '/login', query: { redirect: route.fullPath } })
+      return
     }
+    if (accessDenied) void router.push('/')
   },
   { immediate: true },
 )
@@ -417,12 +436,18 @@ function getFocusableElements(root: globalThis.HTMLElement) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
 }
 
 .console-shell__mobile-brand {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
   color: rgb(var(--v-theme-on-surface));
   font-weight: 900;
   text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .console-shell__mobile-quick {
@@ -503,6 +528,10 @@ function getFocusableElements(root: globalThis.HTMLElement) {
   background: transparent;
   color: rgb(var(--v-theme-on-surface-variant));
   cursor: pointer;
+}
+
+.console-shell__mobile-close {
+  flex: 0 0 auto;
 }
 
 .console-shell__dialog {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createRequireAdminAccess, createRequireConsoleAccess, createRequireSignedIn, requireAdminAccess, requireConsoleAccess, requireSignedIn, router, routes } from './router'
+import { createRequireAdminAccess, createRequireConsoleAccess, createRequireSignedIn, createRequireSystemManageAccess, requireAdminAccess, requireConsoleAccess, requireSignedIn, router, routes } from './router'
 import { me } from '@/entities/auth/api'
 import HomePage from '@/pages/HomePage.vue'
 
@@ -97,6 +97,31 @@ describe('router', () => {
     expect(domainRoute?.meta?.requiresDomainManage).toBe(true)
     const loaded = await (domainRoute?.component as () => Promise<{ default: { __name?: string } }>)()
     expect(loaded.default.__name).toBe('AdminDomainsPage')
+  })
+
+  it('loads the real settings page and requires both settings permissions', async () => {
+    const settingsRoute = routes.find((route) => route.children)?.children?.find((route) => route.path === '/admin/setting')
+    expect(settingsRoute?.meta?.requiresSystemManage).toBe(true)
+    const loaded = await (settingsRoute?.component as () => Promise<{ default: { __name?: string } }>)()
+    expect(loaded.default.__name).toBe('AdminSettingsPage')
+
+    for (const permissions of [['admin:access'], ['system:manage']]) {
+      const load = vi.fn(async () => ({ user: { id: 'admin-id', username: 'admin', nickname: 'Admin', group: 'admin', permissions } }))
+      await expect(createRequireSystemManageAccess(load)()).resolves.toBe('/')
+    }
+    const allowed = vi.fn(async () => ({ user: { id: 'admin-id', username: 'admin', nickname: 'Admin', group: 'admin', permissions: ['admin:access', 'system:manage'] } }))
+    await expect(createRequireSystemManageAccess(allowed)()).resolves.toBe(true)
+  })
+
+  it('sends guests to login with the requested system settings path', async () => {
+    const load = vi.fn(async () => ({
+      user: { id: 'guest-id', username: 'guest', nickname: 'Guest', group: 'guest', permissions: [] },
+    }))
+
+    const guard = createRequireSystemManageAccess(load) as (to: { fullPath: string }) => Promise<unknown>
+    await expect(guard({ fullPath: '/admin/setting' })).resolves.toEqual({
+      path: '/login', query: { redirect: '/admin/setting' },
+    })
   })
 
   it.each([

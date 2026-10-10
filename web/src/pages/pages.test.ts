@@ -16,7 +16,7 @@ import NotFoundPage from './NotFoundPage.vue'
 import SetupPage from './SetupPage.vue'
 import { componentStubs } from '@/test/component-stubs'
 import { login, me } from '@/entities/auth/api'
-import { getLoginMethods } from '@/entities/oidc/api'
+import { getLoginMethods, type LoginMethods } from '@/entities/oidc/api'
 import { setupSystem } from '@/entities/system/api'
 import { getAdminShortLinkStatistics, getShortLinkOverview, getShortLinkStatistics, listAdminShortLinks, listShortLinks, updateAdminShortLink, updateShortLink } from '@/entities/short-link/api'
 import type { ShortLink } from '@/entities/short-link/model'
@@ -527,6 +527,7 @@ describe('pages', () => {
   })
 
   it('submits login credentials, maps invalid credentials, and follows redirect query after success', async () => {
+    setQueryResult({ data: ref({ local: { enabled: true }, oidc: [] }) })
     const mutate = vi.fn()
     state.routeQuery = { redirect: '/admin/user' }
     setMutationResult({
@@ -551,6 +552,7 @@ describe('pages', () => {
     expect(state.routerPush).not.toHaveBeenCalled()
 
     invalid.unmount()
+    setQueryResult({ data: ref({ local: { enabled: true }, oidc: [] }) })
     setMutationResult()
     mount(LoginPage)
     await fireEvent.update(screen.getByLabelText('auth.username'), 'alice')
@@ -577,17 +579,28 @@ describe('pages', () => {
     expect(screen.queryByText('identity_not_allowed')).toBeNull()
   })
 
-  it('keeps local login available and retries when OIDC methods fail to load', async () => {
+  it('keeps local login unavailable until methods load and retries failures', async () => {
     const refetch = vi.fn()
     setQueryResult({ isError: ref(true), refetch })
     mount(LoginPage)
 
     expect(screen.getByText('auth.oidcErrors.providerUnavailable')).toBeTruthy()
-    expect(screen.getByLabelText('auth.username')).toBeTruthy()
-    expect(screen.getByLabelText('auth.password')).toBeTruthy()
+    expect(screen.queryByLabelText('auth.username')).toBeNull()
+    expect(screen.queryByLabelText('auth.password')).toBeNull()
+    expect(screen.queryByText('auth.loginSubmit')).toBeNull()
 
     await fireEvent.click(screen.getByRole('button', { name: 'oidc.retry' }))
     expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows only configured OIDC methods when local login is disabled', () => {
+    setQueryResult({ data: ref({ local: { enabled: false }, oidc: [{ key: 'company', displayName: 'Company SSO' }] }) })
+    mount(LoginPage)
+
+    expect(screen.queryByLabelText('auth.username')).toBeNull()
+    expect(screen.queryByLabelText('auth.password')).toBeNull()
+    expect(screen.queryByText('auth.loginSubmit')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Company SSO' })).toBeTruthy()
   })
 
   it('ignores inherited OIDC callback error keys', () => {
@@ -602,9 +615,11 @@ describe('pages', () => {
 		setQueryResult({ isPending: ref(true) })
 		mount(LoginPage)
 		expect(screen.getByRole('progressbar')).toBeTruthy()
+		expect(screen.queryByText('auth.loginSubmit')).toBeNull()
 	})
 
   it('lets users dismiss the login error toast without clearing form state', async () => {
+    setQueryResult({ data: ref({ local: { enabled: true }, oidc: [] }) })
     setMutationResult({
       error: ref({ code: 110101, message: 'Invalid username or password' }),
       isError: ref(true),
@@ -621,6 +636,7 @@ describe('pages', () => {
   })
 
   it('localizes the login rate-limit business error', () => {
+    setQueryResult({ data: ref({ local: { enabled: true }, oidc: [] }) })
     const rateLimitError = Object.assign(new Error('Login temporarily unavailable'), { code: 110103 })
     setMutationResult({
       error: ref(rateLimitError),
@@ -633,16 +649,65 @@ describe('pages', () => {
     expect(screen.queryByText('Login temporarily unavailable')).toBeNull()
   })
 
+  it('refreshes methods after disabled local login and replaces the stale form', async () => {
+    const methods = ref<LoginMethods>({ local: { enabled: true }, oidc: [] })
+    const refresh = createDeferred<{ isError: boolean }>()
+    const refetch = vi.fn(async () => {
+      const result = await refresh.promise
+      methods.value = { local: { enabled: false }, oidc: [{ key: 'company', displayName: 'Company SSO' }] }
+      return result
+    })
+    const mutate = vi.fn()
+    setQueryResult({ data: methods, refetch })
+    setMutationResult({
+      error: ref(Object.assign(new Error('disabled'), { code: 110104 })),
+      isError: ref(true),
+      mutate,
+    })
+    mount(LoginPage)
+
+    await vi.waitFor(() => expect(refetch).toHaveBeenCalledTimes(1))
+    expect(screen.getByText('auth.localLoginUnavailable')).toBeTruthy()
+    expect(screen.queryByLabelText('auth.username')).toBeNull()
+    refresh.resolve({ isError: false })
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Company SSO' })).toBeTruthy())
+    expect(screen.queryByLabelText('auth.username')).toBeNull()
+    expect(screen.queryByText('auth.loginSubmit')).toBeNull()
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
+  it('keeps the stale local-login form closed when methods refresh fails', async () => {
+    const refetch = vi.fn(async () => ({ isError: true }))
+    const mutate = vi.fn()
+    setQueryResult({ data: ref<LoginMethods>({ local: { enabled: true }, oidc: [] }), refetch })
+    setMutationResult({
+      error: ref(Object.assign(new Error('disabled'), { code: 110104 })),
+      isError: ref(true),
+      mutate,
+    })
+    mount(LoginPage)
+
+    await vi.waitFor(() => expect(refetch).toHaveBeenCalledTimes(1))
+    expect(screen.getByText('auth.localLoginUnavailable')).toBeTruthy()
+    expect(screen.queryByLabelText('auth.username')).toBeNull()
+    expect(screen.queryByText('auth.loginSubmit')).toBeNull()
+    await fireEvent.submit(document.querySelector('form')!)
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
   it('keeps login business error codes named', () => {
     const source = readFileSync('src/pages/LoginPage.vue', 'utf8')
 
     expect(source).toContain('INVALID_CREDENTIAL_ERROR_CODE')
     expect(source).toContain('LOGIN_RATE_LIMITED_ERROR_CODE')
+    expect(source).toContain('LOGIN_METHOD_UNAVAILABLE_ERROR_CODE')
     expect(source).not.toContain('=== 110101')
     expect(source).not.toContain('=== 110103')
+    expect(source).not.toContain('=== 110104')
   })
 
   it('shows non-auth login errors and ignores unsafe redirect targets', async () => {
+    setQueryResult({ data: ref({ local: { enabled: true }, oidc: [] }) })
     const mutate = vi.fn()
     state.routeQuery = { redirect: 'https://evil.example' }
     setMutationResult({
@@ -661,6 +726,7 @@ describe('pages', () => {
     expect(state.routerPush).not.toHaveBeenCalled()
 
     failed.unmount()
+    setQueryResult({ data: ref({ local: { enabled: true }, oidc: [] }) })
     state.routerPush.mockReset()
     setMutationResult()
     state.routeQuery = { redirect: '//evil.example' }
@@ -1633,9 +1699,11 @@ describe('pages', () => {
     await fireEvent.click(screen.getByText('setup.submit'))
 
     expect(screen.getByText('setup.initialized')).toBeTruthy()
+    expect(state.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['system', 'public-config'] })
   })
 
   it('renders fallback error messages', () => {
+    setQueryResult({ data: ref({ local: { enabled: true }, oidc: [] }) })
     setMutationResult({
       error: ref({}),
       isError: ref(true),

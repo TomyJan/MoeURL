@@ -3,10 +3,15 @@ import { useI18n } from 'vue-i18n'
 import { useTheme } from 'vuetify'
 
 import {
+  browserLanguagePreference,
+  hasStoredLanguagePreference,
+  hasStoredThemePreference,
+  languageOptions,
   loadPreferences,
   resolveVuetifyTheme,
   saveLanguagePreference,
   saveThemePreference,
+  themeOptions,
 } from './preferences'
 import type { LanguagePreference, ThemePreference } from './preferences'
 
@@ -47,10 +52,23 @@ export function useAppPreferences() {
     saveThemePreference(value)
   }
 
+  /** Applies server defaults only when the user has not chosen a local preference. */
+  function applyServerDefaults(languageDefault: LanguagePreference, themeDefault: ThemePreference) {
+    if (!hasStoredLanguagePreference() && !browserLanguagePreference() && languageOptions.includes(languageDefault) && language.value !== languageDefault) {
+      language.value = languageDefault
+      locale.value = languageDefault
+    }
+    if (!hasStoredThemePreference() && themeOptions.includes(themeDefault) && themeMode.value !== themeDefault) {
+      themeMode.value = themeDefault
+      theme.global.name.value = resolveVuetifyTheme(themeDefault)
+    }
+  }
+
   return {
     language,
     setLanguage,
     setTheme,
+    applyServerDefaults,
     themeMode,
   }
 }

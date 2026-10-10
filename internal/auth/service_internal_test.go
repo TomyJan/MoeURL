@@ -17,6 +17,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+type internalLoginPolicyFunc func(context.Context) (bool, error)
+
+// LocalLoginEnabled evaluates the injected policy function.
+func (policy internalLoginPolicyFunc) LocalLoginEnabled(ctx context.Context) (bool, error) {
+	return policy(ctx)
+}
+
 // TestNewServiceWithNilPasswordVerifierUsesDefault verifies nil injection keeps the production verifier.
 func TestNewServiceWithNilPasswordVerifierUsesDefault(t *testing.T) {
 	service := NewServiceWithPasswordVerifier(nil, time.Hour, nil)
@@ -30,8 +37,12 @@ func TestNewServiceWithNilPasswordVerifierUsesDefault(t *testing.T) {
 
 // TestLoginGlobalAdmissionRejectsBeforeDatabaseAndVerifier verifies saturation sheds work before opening a transaction.
 func TestLoginGlobalAdmissionRejectsBeforeDatabaseAndVerifier(t *testing.T) {
+	policyCalls := 0
 	verifierCalled := false
-	service := NewServiceWithPasswordVerifier(nil, time.Hour, func(string, string) bool {
+	service := NewServiceWithLoginPolicyAndPasswordVerifier(nil, time.Hour, internalLoginPolicyFunc(func(context.Context) (bool, error) {
+		policyCalls++
+		return true, nil
+	}), func(string, string) bool {
 		verifierCalled = true
 		return false
 	})
@@ -50,6 +61,26 @@ func TestLoginGlobalAdmissionRejectsBeforeDatabaseAndVerifier(t *testing.T) {
 	}
 	if verifierCalled {
 		t.Fatal("saturated login reached the password verifier")
+	}
+	if policyCalls != 0 {
+		t.Fatalf("saturated login policy calls = %d, want 0", policyCalls)
+	}
+}
+
+// TestLoginPolicyUsesOperationContext verifies policy storage cannot outlive the bounded login operation.
+func TestLoginPolicyUsesOperationContext(t *testing.T) {
+	missingDeadline := errors.New("login policy context has no deadline")
+	service := NewServiceWithLoginPolicyAndPasswordVerifier(nil, time.Hour, internalLoginPolicyFunc(func(ctx context.Context) (bool, error) {
+		if _, ok := ctx.Deadline(); !ok {
+			return false, missingDeadline
+		}
+		<-ctx.Done()
+		return false, ctx.Err()
+	}), nil)
+	service.loginOperationTimeout = time.Millisecond
+
+	if _, err := service.Login(t.Context(), LoginInput{}); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("login policy error = %v, want context deadline exceeded", err)
 	}
 }
 

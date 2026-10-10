@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { getInitStatus, setupSystem } from './api'
+import { getAdminSettings, getInitStatus, getPublicConfig, PublicConfigSchema, setupSystem, updateAdminSettings, type SetupInput } from './api'
 
 describe('system api', () => {
   afterEach(() => {
@@ -104,4 +104,70 @@ describe('system api', () => {
       defaultTheme: 'system',
     })).rejects.toThrow()
   })
+
+  it.each([
+    ['site name length', { siteName: 'x'.repeat(65) }],
+    ['language', { defaultLanguage: 'fr' }],
+    ['theme', { defaultTheme: 'sepia' }],
+  ] as const)('rejects invalid setup %s before sending a request', async (_name, override) => {
+    const fetch = vi.fn(async () => new Response(
+      JSON.stringify({ code: 0, message: 'OK', data: { initialized: true }, meta: {} }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    ))
+    vi.stubGlobal('fetch', fetch)
+
+    const invalidInput = {
+      adminUsername: 'admin',
+      adminPassword: 'admin-password',
+      adminNickname: 'Admin',
+      siteName: 'MoeURL',
+      systemDomain: '127.0.0.1:8080',
+      shortLinkDomain: '127.0.0.1:8080',
+      defaultLanguage: 'zh-CN',
+      defaultTheme: 'system',
+      ...override,
+    } as unknown as SetupInput
+
+    await expect(setupSystem(invalidInput)).rejects.toThrow()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('strictly parses public configuration', async () => {
+    mockSuccess({ siteName: 'Example', defaultLanguage: 'en', defaultTheme: 'dark', footerText: 'Footer', showPoweredBy: false })
+
+    await expect(getPublicConfig()).resolves.toEqual({ siteName: 'Example', defaultLanguage: 'en', defaultTheme: 'dark', footerText: 'Footer', showPoweredBy: false })
+    expect(fetch).toHaveBeenCalledWith('/api/v1/system/public-config', expect.objectContaining({ method: 'GET' }))
+  })
+
+  it('rejects invalid public configuration instead of leaking unchecked defaults', async () => {
+    mockSuccess({ siteName: '', defaultLanguage: 'fr', defaultTheme: 'dark', footerText: '', showPoweredBy: true })
+    await expect(getPublicConfig()).rejects.toThrow()
+  })
+
+  it('counts site and footer limits by Unicode characters', () => {
+    const base = { defaultLanguage: 'zh-CN', defaultTheme: 'system', showPoweredBy: true } as const
+
+    expect(PublicConfigSchema.safeParse({ ...base, siteName: '😀'.repeat(64), footerText: '😀'.repeat(200) }).success).toBe(true)
+    expect(PublicConfigSchema.safeParse({ ...base, siteName: '😀'.repeat(65), footerText: '' }).success).toBe(false)
+    expect(PublicConfigSchema.safeParse({ ...base, siteName: 'MoeURL', footerText: '😀'.repeat(201) }).success).toBe(false)
+  })
+
+  it('loads and updates the complete administrative settings document', async () => {
+    const settings = { siteName: 'Example', defaultLanguage: 'zh-CN' as const, defaultTheme: 'system' as const, footerText: '', showPoweredBy: true, localLoginEnabled: false, updatedAt: '2026-10-09T00:00:00Z' }
+    mockSuccess(settings)
+    await expect(getAdminSettings()).resolves.toEqual(settings)
+
+    mockSuccess({ ...settings, siteName: 'Changed' })
+    const { updatedAt, ...values } = settings
+    await expect(updateAdminSettings({ ...values, expectedUpdatedAt: updatedAt })).resolves.toEqual({ ...settings, siteName: 'Changed' })
+    expect(fetch).toHaveBeenLastCalledWith('/api/v1/admin/system/settings/update', expect.objectContaining({ method: 'POST' }))
+  })
 })
+
+/** Installs one successful API envelope for the next request. */
+function mockSuccess(data: unknown) {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(
+    JSON.stringify({ code: 0, message: 'OK', data, meta: {} }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } },
+  )))
+}

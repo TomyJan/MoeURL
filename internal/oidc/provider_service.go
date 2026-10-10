@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
+	"github.com/TomyJan/MoeURL/internal/loginpolicy"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -41,7 +43,33 @@ type ProviderService struct {
 	secrets               *SecretBox
 	publicBaseURL         string
 	allowInsecureLoopback bool
+	loginPolicy           ProviderLoginPolicy
 }
+
+// ProviderLoginPolicy coordinates public method visibility and provider mutations with local-login policy.
+type ProviderLoginPolicy interface {
+	LocalLoginEnabled(context.Context) (bool, error)
+	LockLocalLogin(context.Context, pgx.Tx) (bool, error)
+	RequireAvailableProvider(context.Context, pgx.Tx) error
+}
+
+type loginMethodsSnapshotReader interface {
+	LoginMethodsSnapshot(context.Context) (bool, []sqlc.ListEnabledOIDCProvidersRow, error)
+}
+
+// enabledProviderLoginPolicy preserves provider-management behavior for legacy constructors.
+type enabledProviderLoginPolicy struct{}
+
+// LocalLoginEnabled reports the compatibility default of enabled local login.
+func (enabledProviderLoginPolicy) LocalLoginEnabled(context.Context) (bool, error) { return true, nil }
+
+// LockLocalLogin reports the compatibility default without acquiring an external policy row.
+func (enabledProviderLoginPolicy) LockLocalLogin(context.Context, pgx.Tx) (bool, error) {
+	return true, nil
+}
+
+// RequireAvailableProvider accepts mutations because local login remains available.
+func (enabledProviderLoginPolicy) RequireAvailableProvider(context.Context, pgx.Tx) error { return nil }
 
 type providerStore interface {
 	ListOIDCProviders(context.Context) ([]sqlc.OidcProvider, error)
@@ -55,13 +83,27 @@ type providerStore interface {
 // transactionalProviderStore serializes namespace changes with identity binding on the provider row.
 type transactionalProviderStore struct {
 	*sqlc.Queries
-	pool *pgxpool.Pool
+	pool        *pgxpool.Pool
+	loginPolicy ProviderLoginPolicy
+}
+
+// effectiveLoginPolicy preserves the historical provider-store behavior for direct test construction.
+func (s *transactionalProviderStore) effectiveLoginPolicy() ProviderLoginPolicy {
+	if s.loginPolicy == nil {
+		return enabledProviderLoginPolicy{}
+	}
+	return s.loginPolicy
 }
 
 // UpdateOIDCProvider locks and rechecks bindings in a fresh transaction snapshot before updating.
 func (s *transactionalProviderStore) UpdateOIDCProvider(ctx context.Context, input sqlc.UpdateOIDCProviderParams) (sqlc.OidcProvider, error) {
 	var updated sqlc.OidcProvider
 	err := appdb.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		policy := s.effectiveLoginPolicy()
+		localEnabled, err := policy.LockLocalLogin(ctx, tx)
+		if err != nil {
+			return err
+		}
 		var issuerURL, clientID string
 		if err := tx.QueryRow(ctx, `select issuer_url, client_id from oidc_provider where id = $1 and deleted_at is null for update`, input.ID).Scan(&issuerURL, &clientID); err != nil {
 			return err
@@ -75,11 +117,47 @@ func (s *transactionalProviderStore) UpdateOIDCProvider(ctx context.Context, inp
 				return ErrProviderConflict
 			}
 		}
-		var err error
 		updated, err = sqlc.New(tx).UpdateOIDCProvider(ctx, input)
-		return err
+		if err != nil {
+			return err
+		}
+		if !localEnabled {
+			if err := policy.RequireAvailableProvider(ctx, tx); err != nil {
+				if errors.Is(err, loginpolicy.ErrNoAvailableProvider) {
+					return fmt.Errorf("%w: %w", ErrRuntimeUnavailable, err)
+				}
+				return err
+			}
+		}
+		return nil
 	})
 	return updated, err
+}
+
+// SoftDeleteOIDCProvider locks the shared login policy and validates the final provider set.
+func (s *transactionalProviderStore) SoftDeleteOIDCProvider(ctx context.Context, input sqlc.SoftDeleteOIDCProviderParams) (sqlc.OidcProvider, error) {
+	var deleted sqlc.OidcProvider
+	err := appdb.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		policy := s.effectiveLoginPolicy()
+		localEnabled, err := policy.LockLocalLogin(ctx, tx)
+		if err != nil {
+			return err
+		}
+		deleted, err = sqlc.New(tx).SoftDeleteOIDCProvider(ctx, input)
+		if err != nil {
+			return err
+		}
+		if !localEnabled {
+			if err := policy.RequireAvailableProvider(ctx, tx); err != nil {
+				if errors.Is(err, loginpolicy.ErrNoAvailableProvider) {
+					return fmt.Errorf("%w: %w", ErrRuntimeUnavailable, err)
+				}
+				return err
+			}
+		}
+		return nil
+	})
+	return deleted, err
 }
 
 type missingPermissionResolver struct{}
@@ -91,29 +169,57 @@ func (missingPermissionResolver) Resolve(context.Context, string) (permission.Sn
 
 // NewProviderService creates the production provider service from database-backed dependencies.
 func NewProviderService(pool *pgxpool.Pool, permissions permission.Resolver, discoverer Discoverer, secrets *SecretBox, publicBaseURL string, allowInsecureLoopback bool) *ProviderService {
-	return newProviderService(&transactionalProviderStore{Queries: sqlc.New(pool), pool: pool}, permissions, discoverer, secrets, publicBaseURL, allowInsecureLoopback)
+	return NewProviderServiceWithLoginPolicy(pool, permissions, discoverer, secrets, publicBaseURL, allowInsecureLoopback, enabledProviderLoginPolicy{})
+}
+
+// NewProviderServiceWithLoginPolicy creates the production provider service with shared login-entry protection.
+func NewProviderServiceWithLoginPolicy(pool *pgxpool.Pool, permissions permission.Resolver, discoverer Discoverer, secrets *SecretBox, publicBaseURL string, allowInsecureLoopback bool, loginPolicy ProviderLoginPolicy) *ProviderService {
+	if loginPolicy == nil {
+		loginPolicy = enabledProviderLoginPolicy{}
+	}
+	store := &transactionalProviderStore{Queries: sqlc.New(pool), pool: pool, loginPolicy: loginPolicy}
+	return newProviderServiceWithLoginPolicy(store, permissions, discoverer, secrets, publicBaseURL, allowInsecureLoopback, loginPolicy)
 }
 
 // newProviderService creates a provider service with an injected store for deterministic tests.
 func newProviderService(store providerStore, permissions permission.Resolver, discoverer Discoverer, secrets *SecretBox, publicBaseURL string, allowInsecureLoopback bool) *ProviderService {
+	return newProviderServiceWithLoginPolicy(store, permissions, discoverer, secrets, publicBaseURL, allowInsecureLoopback, enabledProviderLoginPolicy{})
+}
+
+// newProviderServiceWithLoginPolicy creates an injected provider service for policy-aware tests.
+func newProviderServiceWithLoginPolicy(store providerStore, permissions permission.Resolver, discoverer Discoverer, secrets *SecretBox, publicBaseURL string, allowInsecureLoopback bool, loginPolicy ProviderLoginPolicy) *ProviderService {
 	if permissions == nil {
 		permissions = missingPermissionResolver{}
+	}
+	if loginPolicy == nil {
+		loginPolicy = enabledProviderLoginPolicy{}
 	}
 	return &ProviderService{
 		store: store, permissions: permissions, discoverer: discoverer, secrets: secrets,
 		publicBaseURL:         strings.TrimSuffix(strings.TrimSpace(publicBaseURL), "/"),
 		allowInsecureLoopback: allowInsecureLoopback,
+		loginPolicy:           loginPolicy,
 	}
 }
 
 // Methods returns the enabled login providers without administrative configuration.
 func (s *ProviderService) Methods(ctx context.Context) (LoginMethods, error) {
-	rows, err := s.store.ListEnabledOIDCProviders(ctx)
+	var localEnabled bool
+	var rows []sqlc.ListEnabledOIDCProvidersRow
+	var err error
+	if snapshotReader, ok := s.loginPolicy.(loginMethodsSnapshotReader); ok {
+		localEnabled, rows, err = snapshotReader.LoginMethodsSnapshot(ctx)
+	} else {
+		localEnabled, err = s.loginPolicy.LocalLoginEnabled(ctx)
+		if err == nil {
+			rows, err = s.store.ListEnabledOIDCProviders(ctx)
+		}
+	}
 	if err != nil {
 		return LoginMethods{}, err
 	}
 	result := LoginMethods{OIDC: make([]LoginProvider, 0, len(rows))}
-	result.Local.Enabled = true
+	result.Local.Enabled = localEnabled
 	for _, row := range rows {
 		result.OIDC = append(result.OIDC, LoginProvider{Key: row.Key, DisplayName: row.DisplayName})
 	}
@@ -290,7 +396,7 @@ func (s *ProviderService) authorize(ctx context.Context, actor auth.CurrentUser)
 	if err != nil {
 		return err
 	}
-	if !snapshot.Has(permission.AdminAccess) {
+	if !snapshot.Has(permission.AdminAccess) || !snapshot.Has(permission.SystemManage) {
 		return ErrPermissionDenied
 	}
 	return nil

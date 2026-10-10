@@ -23,19 +23,25 @@ type shortLinkEventWriter interface {
 
 // DBRecorder records short link visit events in PostgreSQL.
 type DBRecorder struct {
-	writer     shortLinkEventWriter
-	logger     *slog.Logger
-	writeSlots chan struct{}
+	writer       shortLinkEventWriter
+	logger       *slog.Logger
+	writeSlots   chan struct{}
+	writeTimeout time.Duration
 }
 
 // NewRecorder creates a database-backed event recorder.
 func NewRecorder(pool *pgxpool.Pool, logger *slog.Logger) *DBRecorder {
-	return newDBRecorder(sqlc.New(pool), logger, recordConcurrentLimit)
+	return newDBRecorder(sqlc.New(pool), logger, recordConcurrentLimit, recordTimeout)
 }
 
 // newDBRecorder creates a recorder with a bounded number of concurrent writes.
-func newDBRecorder(writer shortLinkEventWriter, logger *slog.Logger, concurrentLimit int) *DBRecorder {
-	return &DBRecorder{writer: writer, logger: logger, writeSlots: make(chan struct{}, concurrentLimit)}
+func newDBRecorder(writer shortLinkEventWriter, logger *slog.Logger, concurrentLimit int, writeTimeout time.Duration) *DBRecorder {
+	return &DBRecorder{
+		writer:       writer,
+		logger:       logger,
+		writeSlots:   make(chan struct{}, concurrentLimit),
+		writeTimeout: writeTimeout,
+	}
 }
 
 // Record validates and queues a short link visit event for best-effort persistence.
@@ -70,7 +76,7 @@ func (r *DBRecorder) Record(_ context.Context, event Event) error {
 	}
 	go func() {
 		defer func() { <-r.writeSlots }()
-		writeCtx, cancel := context.WithTimeout(context.Background(), recordTimeout)
+		writeCtx, cancel := context.WithTimeout(context.Background(), r.writeTimeout)
 		defer cancel()
 		if err := r.writer.CreateShortLinkEvent(writeCtx, params); err != nil {
 			r.logger.Warn("short_link_event_record_failed",

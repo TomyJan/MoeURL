@@ -21,6 +21,7 @@ const skipDockerCompose = shouldSkipDockerCompose()
 const browserUse = {
   ...devices['Desktop Chrome'],
   channel: browserChannel,
+  locale: 'zh-CN',
 }
 
 /** Interprets the opt-out flag used by local E2E environments with an existing backend. */

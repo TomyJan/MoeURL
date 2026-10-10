@@ -1,4 +1,4 @@
-FROM golang:1.27.1 AS web-build
+FROM golang:1.27.2 AS web-build
 ARG NODE_VERSION=26.5.1
 ARG TARGETARCH
 WORKDIR /workspace/web
@@ -21,14 +21,20 @@ RUN pnpm install --frozen-lockfile --config.dangerously-allow-all-builds=true
 COPY web/ ./
 RUN pnpm build
 
-FROM golang:1.27.1 AS go-build
+FROM golang:1.27.2 AS go-build
 WORKDIR /workspace
 COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/moeurl ./cmd/server
-RUN CGO_ENABLED=0 go install github.com/pressly/goose/v3/cmd/goose@v3.28.0
+RUN mkdir -p /tmp/goose-build \
+    && cd /tmp/goose-build \
+    && go mod init moeurl/goose-build \
+    && go get github.com/pressly/goose/v3/cmd/goose@v3.28.0 \
+    && go get golang.org/x/net@v0.60.0 \
+    && CGO_ENABLED=0 go install github.com/pressly/goose/v3/cmd/goose \
+    && rm -rf /tmp/goose-build
 
 FROM alpine:3.24
 WORKDIR /app

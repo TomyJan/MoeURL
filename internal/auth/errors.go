@@ -9,4 +9,6 @@ var (
 	ErrUserDisabled = errors.New("user disabled")
 	// ErrLoginRateLimited indicates the normalized username is temporarily blocked.
 	ErrLoginRateLimited = errors.New("login rate limited")
+	// ErrLoginMethodUnavailable indicates password login is disabled by system policy.
+	ErrLoginMethodUnavailable = errors.New("local login unavailable")
 )

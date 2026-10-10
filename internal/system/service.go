@@ -152,6 +152,10 @@ func (s *Service) Setup(ctx context.Context, input SetupInput) error {
 			"site.default_short_link_domain": shortLinkDomain,
 			"site.default_language":          strings.TrimSpace(input.DefaultLanguage),
 			"site.default_theme":             strings.TrimSpace(input.DefaultTheme),
+			"site.footer_text":               "",
+			"site.show_powered_by":           true,
+			"auth.local_login_enabled":       true,
+			"site.settings_revision":         1,
 		}
 		for key, value := range settings {
 			if err := upsertSetting(ctx, tx, key, value, now); err != nil {
@@ -189,6 +193,14 @@ func validateSetupInput(input SetupInput) error {
 	}
 	adminUsername := strings.ToLower(strings.TrimSpace(input.AdminUsername))
 	if adminUsername == "guest" {
+		return ErrInvalidSetupInput
+	}
+	if _, _, err := normalizeManagedSettingValues(
+		input.SiteName,
+		strings.TrimSpace(input.DefaultLanguage),
+		strings.TrimSpace(input.DefaultTheme),
+		"",
+	); err != nil {
 		return ErrInvalidSetupInput
 	}
 	return nil

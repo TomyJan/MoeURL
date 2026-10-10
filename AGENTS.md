@@ -4,7 +4,9 @@
 
 MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
 
-当前已完成到 v0.8.0 多域名管理的功能实现，分阶段本地验证已有记录；当前提交的全量 Playwright 与 Compose smoke 仍待复验。v0.6.0 生产验收、v0.7.0 目标 CI/race/外部 OIDC 互操作，以及 v0.8.0 目标 CI/race/安全扫描/真实 DNS/TLS/隔离恢复和生产发布验收仍待目标环境证据。v0.8.0 工作以 `docs/product/scope-v0.8.0.md`、域名规格、设计、实施计划和验收清单为准；历史本地通过结果不替代当前提交的完整门禁或目标环境发布证据。
+当前已完成到 v0.9.0 系统设置与站点品牌基础闭环的功能实现；功能提交 `900037d` 的 Go、前端单元覆盖率、静态检查、构建、SQLC 和 Compose 配置门禁已完成复验，该提交的全量 Playwright、目标 Node.js 26、完整 Compose smoke、目标 CI、Linux race、安全扫描、外部真实 OIDC 和生产发布验收仍待补齐。v0.8.0 合并提交 `f818a7e8` 对应的 PR 合并验证已通过全量 CI、Linux race、安全扫描、Playwright 与 Compose smoke，但真实 DNS/TLS、隔离恢复和生产发布验收仍待目标环境证据。v0.6.0 生产验收和 v0.7.0 外部 OIDC 互操作同样仍待证据；自动化门禁通过不替代目标环境发布证据。
+
+v0.9.0 范围和安全边界以 `docs/product/scope-v0.9.0.md`、系统设置设计、实施计划、任务清单和验收清单为准；功能实现完成不等于正式发布，缺少的目标环境证据必须保持待验证。
 
 ## 工作入口
 
@@ -12,14 +14,16 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 1. `docs/README.md`
 2. `docs/product/overview.md`
-3. `docs/product/scope-v0.8.0.md`
-4. `docs/specs/domains.md`
-5. `docs/product/scope-v0.7.0.md`
-6. `docs/specs/2026-09-11-v0.7.0-oidc-login-design.md`
-7. `docs/product/scope-v0.6.0.md`
-8. `docs/specs/2026-08-29-v0.6.0-production-readiness-design.md`
-9. `docs/product/scope-v0.5.0.md`
-10. `docs/specs/2026-08-20-v0.5.0-user-group-permission-management-design.md`
+3. `docs/product/scope-v0.9.0.md`
+4. `docs/superpowers/specs/2026-10-09-v0.9.0-system-settings-design.md`
+5. `docs/product/scope-v0.8.0.md`
+6. `docs/specs/domains.md`
+7. `docs/product/scope-v0.7.0.md`
+8. `docs/specs/2026-09-11-v0.7.0-oidc-login-design.md`
+9. `docs/product/scope-v0.6.0.md`
+10. `docs/specs/2026-08-29-v0.6.0-production-readiness-design.md`
+11. `docs/product/scope-v0.5.0.md`
+12. `docs/specs/2026-08-20-v0.5.0-user-group-permission-management-design.md`
 
 如果任务涉及新版本设计、跨模块功能开发、生产化交付或要求 Agent 自主完成设计、文档、开发、测试和提交，必须继续阅读 `docs/implementation/agent-delivery-guidelines.md`。
 
@@ -33,25 +37,29 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 1. `docs/implementation/technical-decision.md`
 2. `docs/implementation/technical-baseline.md`
-3. `docs/implementation/v0.8.0-plan.md`
-4. `docs/implementation/v0.8.0-tasks.md`
-5. `docs/implementation/v0.8.0-acceptance.md`
-6. `docs/implementation/v0.7.0-plan.md`
-7. `docs/implementation/v0.7.0-detailed-plan.md`
-8. `docs/implementation/v0.7.0-tasks.md`
-9. `docs/implementation/v0.7.0-acceptance.md`
-10. `docs/implementation/v0.6.0-plan.md`
-11. `docs/implementation/v0.6.0-detailed-plan.md`
-12. `docs/implementation/v0.6.0-tasks.md`
-13. `docs/implementation/v0.6.0-acceptance.md`
-14. `docs/implementation/v0.5.0-plan.md`
-15. `docs/implementation/v0.5.0-detailed-plan.md`
-16. `docs/implementation/v0.5.0-tasks.md`
-17. `docs/implementation/v0.5.0-acceptance.md`
-18. `docs/specs/2026-08-13-v0.4.0-confirmation-page-access-design.md`
-19. `docs/implementation/v0.4.0-acceptance.md`
-20. `docs/specs/2026-08-04-v0.3.0-protected-link-access-design.md`
-21. `docs/implementation/v0.3.0-acceptance.md`
+3. `docs/implementation/v0.9.0-plan.md`
+4. `docs/implementation/v0.9.0-tasks.md`
+5. `docs/implementation/v0.9.0-acceptance.md`
+6. `docs/implementation/v0.9.0-detailed-plan.md`
+7. `docs/implementation/v0.8.0-plan.md`
+8. `docs/implementation/v0.8.0-tasks.md`
+9. `docs/implementation/v0.8.0-acceptance.md`
+10. `docs/implementation/v0.7.0-plan.md`
+11. `docs/implementation/v0.7.0-detailed-plan.md`
+12. `docs/implementation/v0.7.0-tasks.md`
+13. `docs/implementation/v0.7.0-acceptance.md`
+14. `docs/implementation/v0.6.0-plan.md`
+15. `docs/implementation/v0.6.0-detailed-plan.md`
+16. `docs/implementation/v0.6.0-tasks.md`
+17. `docs/implementation/v0.6.0-acceptance.md`
+18. `docs/implementation/v0.5.0-plan.md`
+19. `docs/implementation/v0.5.0-detailed-plan.md`
+20. `docs/implementation/v0.5.0-tasks.md`
+21. `docs/implementation/v0.5.0-acceptance.md`
+22. `docs/specs/2026-08-13-v0.4.0-confirmation-page-access-design.md`
+23. `docs/implementation/v0.4.0-acceptance.md`
+24. `docs/specs/2026-08-04-v0.3.0-protected-link-access-design.md`
+25. `docs/implementation/v0.3.0-acceptance.md`
 
 如果任务涉及 v0.2.0 中间页、过期时间、二维码、访问配置或继续访问路由，必须继续阅读：
 

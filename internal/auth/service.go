@@ -32,6 +32,17 @@ const (
 // PasswordVerifier compares a candidate password with an encoded account hash.
 type PasswordVerifier func(password string, encodedHash string) bool
 
+// LoginPolicy reports whether new local password-login attempts are admitted.
+type LoginPolicy interface {
+	LocalLoginEnabled(context.Context) (bool, error)
+}
+
+// enabledLoginPolicy preserves password login for callers that do not inject dynamic policy.
+type enabledLoginPolicy struct{}
+
+// LocalLoginEnabled reports the compatibility default of enabled local login.
+func (enabledLoginPolicy) LocalLoginEnabled(context.Context) (bool, error) { return true, nil }
+
 type LoginInput struct {
 	Username string
 	Password string
@@ -52,17 +63,31 @@ type Service struct {
 	loginOperationTimeout     time.Duration
 	loginRollbackTimeout      time.Duration
 	deleteStaleLoginAttempts  func(context.Context, int64) (int64, error)
+	loginPolicy               LoginPolicy
 }
 
 // NewService creates an authentication service with database-backed sessions.
 func NewService(pool *pgxpool.Pool, sessionTTL time.Duration) *Service {
-	return NewServiceWithPasswordVerifier(pool, sessionTTL, VerifyPassword)
+	return NewServiceWithLoginPolicyAndPasswordVerifier(pool, sessionTTL, enabledLoginPolicy{}, VerifyPassword)
+}
+
+// NewServiceWithLoginPolicy creates an authentication service using the shared local-login policy.
+func NewServiceWithLoginPolicy(pool *pgxpool.Pool, sessionTTL time.Duration, policy LoginPolicy) *Service {
+	return NewServiceWithLoginPolicyAndPasswordVerifier(pool, sessionTTL, policy, VerifyPassword)
 }
 
 // NewServiceWithPasswordVerifier creates a service with an instance-scoped verifier for deterministic credential-path tests.
 func NewServiceWithPasswordVerifier(pool *pgxpool.Pool, sessionTTL time.Duration, verifier PasswordVerifier) *Service {
+	return NewServiceWithLoginPolicyAndPasswordVerifier(pool, sessionTTL, enabledLoginPolicy{}, verifier)
+}
+
+// NewServiceWithLoginPolicyAndPasswordVerifier creates a service with explicit policy and verifier dependencies.
+func NewServiceWithLoginPolicyAndPasswordVerifier(pool *pgxpool.Pool, sessionTTL time.Duration, policy LoginPolicy, verifier PasswordVerifier) *Service {
 	if verifier == nil {
 		verifier = VerifyPassword
+	}
+	if policy == nil {
+		policy = enabledLoginPolicy{}
 	}
 	service := &Service{
 		pool:                      pool,
@@ -73,6 +98,7 @@ func NewServiceWithPasswordVerifier(pool *pgxpool.Pool, sessionTTL time.Duration
 		sessionIDGenerator:        generateSessionID,
 		loginOperationTimeout:     defaultLoginOperationTimeout,
 		loginRollbackTimeout:      defaultLoginRollbackTimeout,
+		loginPolicy:               policy,
 	}
 	if pool != nil {
 		service.deleteStaleLoginAttempts = sqlc.New(pool).DeleteStaleAuthLoginAttempts
@@ -82,8 +108,6 @@ func NewServiceWithPasswordVerifier(pool *pgxpool.Pool, sessionTTL time.Duration
 
 // Login verifies credentials and creates a session for an active user.
 func (s *Service) Login(ctx context.Context, input LoginInput) (LoginResult, error) {
-	username := strings.TrimSpace(input.Username)
-	usernameHash := hashLoginUsername(username)
 	select {
 	case s.loginSlots <- struct{}{}:
 		defer func() { <-s.loginSlots }()
@@ -92,6 +116,15 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (LoginResult, err
 	}
 	operationContext, cancelOperation := context.WithTimeout(context.WithoutCancel(ctx), s.loginOperationTimeout)
 	defer cancelOperation()
+	enabled, err := s.loginPolicy.LocalLoginEnabled(operationContext)
+	if err != nil {
+		return LoginResult{}, err
+	}
+	if !enabled {
+		return LoginResult{}, ErrLoginMethodUnavailable
+	}
+	username := strings.TrimSpace(input.Username)
+	usernameHash := hashLoginUsername(username)
 	tx, err := s.pool.Begin(operationContext)
 	if err != nil {
 		return LoginResult{}, err

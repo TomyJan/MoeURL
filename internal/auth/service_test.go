@@ -18,6 +18,50 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// TestAuthServiceRejectsDisabledLocalLoginBeforeDatabaseAndVerifier verifies admitted requests stop before database or Argon2 work.
+func TestAuthServiceRejectsDisabledLocalLoginBeforeDatabaseAndVerifier(t *testing.T) {
+	verifierCalls := 0
+	service := auth.NewServiceWithLoginPolicyAndPasswordVerifier(nil, time.Hour, authPolicyStub{enabled: false}, func(string, string) bool {
+		verifierCalls++
+		return true
+	})
+	for _, username := range []string{"existing", "missing"} {
+		if _, err := service.Login(t.Context(), auth.LoginInput{Username: username, Password: "secret"}); !errors.Is(err, auth.ErrLoginMethodUnavailable) {
+			t.Fatalf("login %q error = %v", username, err)
+		}
+	}
+	if verifierCalls != 0 {
+		t.Fatalf("password verifier called %d times", verifierCalls)
+	}
+}
+
+// TestAuthServicePropagatesLocalLoginPolicyFailure verifies policy storage errors remain infrastructure failures.
+func TestAuthServicePropagatesLocalLoginPolicyFailure(t *testing.T) {
+	policyErr := errors.New("policy unavailable")
+	service := auth.NewServiceWithLoginPolicy(nil, time.Hour, authPolicyStub{err: policyErr})
+	if _, err := service.Login(t.Context(), auth.LoginInput{}); !errors.Is(err, policyErr) {
+		t.Fatalf("login policy error = %v", err)
+	}
+}
+
+// TestAuthServiceDefaultsNilDependencies verifies compatibility constructors retain secure production defaults.
+func TestAuthServiceDefaultsNilDependencies(t *testing.T) {
+	if service := auth.NewServiceWithLoginPolicyAndPasswordVerifier(nil, time.Hour, nil, nil); service == nil {
+		t.Fatal("service is nil")
+	}
+}
+
+// authPolicyStub returns deterministic local-login decisions for service tests.
+type authPolicyStub struct {
+	enabled bool
+	err     error
+}
+
+// LocalLoginEnabled returns the configured test decision.
+func (s authPolicyStub) LocalLoginEnabled(context.Context) (bool, error) {
+	return s.enabled, s.err
+}
+
 // TestAuthServiceLoginUsesConstantPasswordVerificationPaths verifies indistinguishable credential failures verify exactly once.
 func TestAuthServiceLoginUsesConstantPasswordVerificationPaths(t *testing.T) {
 	ctx := context.Background()

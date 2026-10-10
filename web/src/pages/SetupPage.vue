@@ -2,7 +2,7 @@
   <main class="auth-page auth-page--setup" data-testid="auth-page-setup">
     <RouterLink class="auth-page__brand" to="/">
       <span>M</span>
-      <strong>MoeURL</strong>
+      <strong>{{ config.siteName }}</strong>
     </RouterLink>
 
     <section class="auth-page__panel auth-page__panel--wide" data-testid="auth-panel">
@@ -85,13 +85,16 @@
 import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import { useMutation, useQuery } from '@tanstack/vue-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { getInitStatus, setupSystem } from '@/entities/system/api'
 import type { SetupInput } from '@/entities/system/api'
 import { ApiClientError } from '@/shared/api/client'
+import { useSiteConfig } from '@/shared/site/useSiteConfig'
 
 const INVALID_SETUP_TOKEN_ERROR_CODE = 900102
+const { config } = useSiteConfig()
+const queryClient = useQueryClient()
 
 const { t } = useI18n()
 const { data, isError, isLoading, refetch } = useQuery({
@@ -123,8 +126,9 @@ const themeItems = computed(() => [
 const mutation = useMutation({
   mutationFn: setupSystem,
   /** Marks the setup flow complete from the server-authoritative result. */
-  onSuccess(result) {
+  async onSuccess(result) {
     initialized.value = result.initialized
+    await queryClient.invalidateQueries({ queryKey: ['system', 'public-config'] })
   },
   /** Removes the deployment credential without resetting retained mutation errors. */
   onSettled(_result, _error, variables) {
@@ -178,12 +182,15 @@ function retryStatus() {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  max-width: calc(100vw - 48px);
+  min-width: 0;
   color: rgb(var(--v-theme-on-background));
   text-decoration: none;
 }
 
 .auth-page__brand span {
   display: grid;
+  flex: 0 0 auto;
   width: 38px;
   height: 38px;
   place-items: center;
@@ -191,6 +198,13 @@ function retryStatus() {
   background: rgb(var(--v-theme-primary));
   color: rgb(var(--v-theme-on-primary));
   font-weight: 900;
+}
+
+.auth-page__brand strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .auth-page__panel {
@@ -359,6 +373,7 @@ function retryStatus() {
     top: 18px;
     left: 18px;
     gap: 9px;
+    max-width: calc(100vw - 36px);
     font-size: 1.18rem;
   }
 

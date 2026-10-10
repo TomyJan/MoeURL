@@ -8,7 +8,7 @@ export const componentStubs: Record<string, Component> = {
     emits: ['update:open'],
     template: '<div v-if="open" data-testid="short-link-qr-dialog-stub"><span>{{ slug }}</span><span>{{ url }}</span><button aria-label="short-link-qr-close" @click="$emit(\'update:open\', false)" /></div>',
   },
-  VAlert: { props: ['type', 'variant', 'color'], template: '<div role="alert"><slot /></div>' },
+  VAlert: { props: ['type', 'variant', 'color'], template: '<div role="alert"><slot /><slot name="append" /></div>' },
   VApp: { template: '<div><slot /></div>' },
   VAppBar: { template: '<nav><slot /></nav>' },
   VAppBarTitle: { template: '<strong><slot /></strong>' },
@@ -62,5 +62,10 @@ export const componentStubs: Record<string, Component> = {
     props: ['autocomplete', 'disabled', 'errorMessages', 'label', 'modelValue', 'name', 'placeholder', 'step', 'type'],
     emits: ['update:modelValue', 'keyup'],
     template: '<label>{{ label }}<input :aria-label="label" :autocomplete="autocomplete" :disabled="disabled" :name="name" :placeholder="placeholder" :step="step" :type="type || \'text\'" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" @keyup="$emit(\'keyup\', $event)" /><span v-if="errorMessages">{{ errorMessages }}</span></label>',
+  },
+  VTextarea: {
+    props: ['disabled', 'label', 'modelValue'],
+    emits: ['update:modelValue'],
+    template: '<label>{{ label }}<textarea :aria-label="label" :disabled="disabled" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /></label>',
   },
 }

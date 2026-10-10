@@ -147,8 +147,12 @@ func TestServiceSetupRejectsInvalidShortLinkOriginBeforePersistence(t *testing.T
 				if err := pool.QueryRow(ctx, `select count(*) from `+table).Scan(&count); err != nil {
 					t.Fatalf("count %s: %v", table, err)
 				}
-				if count != 0 {
-					t.Fatalf("invalid setup left %d %s rows", count, table)
+				want := 0
+				if table == "system_setting" {
+					want = 7
+				}
+				if count != want {
+					t.Fatalf("invalid setup left %d %s rows, want migration baseline %d", count, table, want)
 				}
 			}
 		})
@@ -216,6 +220,61 @@ func TestServiceSetupRejectsBlankRequiredFields(t *testing.T) {
 	})
 	if !errors.Is(err, system.ErrInvalidSetupInput) {
 		t.Fatalf("expected ErrInvalidSetupInput, got %v", err)
+	}
+}
+
+// TestServiceSetupRejectsInvalidManagedSettingsBeforePersistence verifies initialization shares the settings contract.
+func TestServiceSetupRejectsInvalidManagedSettingsBeforePersistence(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		mutate func(*system.SetupInput)
+	}{
+		{name: "site name too long", mutate: func(input *system.SetupInput) { input.SiteName = strings.Repeat("x", 65) }},
+		{name: "unsupported language", mutate: func(input *system.SetupInput) { input.DefaultLanguage = "fr" }},
+		{name: "unsupported theme", mutate: func(input *system.SetupInput) { input.DefaultTheme = "sepia" }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := t.Context()
+			pool := systemTestPool(t, ctx)
+			service := system.NewService(pool, mustSetupPolicy(t, false, ""))
+			input := validSetupInput("")
+			test.mutate(&input)
+
+			err := service.Setup(ctx, input)
+
+			if !errors.Is(err, system.ErrInvalidSetupInput) {
+				t.Fatalf("setup error = %v, want ErrInvalidSetupInput", err)
+			}
+			for _, table := range []string{"user_group", "app_user", "domain", "domain_user_group"} {
+				var count int
+				if err := pool.QueryRow(ctx, `select count(*) from `+table).Scan(&count); err != nil {
+					t.Fatalf("count %s: %v", table, err)
+				}
+				if count != 0 {
+					t.Fatalf("invalid setup left %d %s rows", count, table)
+				}
+			}
+		})
+	}
+}
+
+// TestServiceSetupAcceptsUnicodeSiteNameBoundary verifies the limit counts Unicode characters rather than bytes.
+func TestServiceSetupAcceptsUnicodeSiteNameBoundary(t *testing.T) {
+	ctx := t.Context()
+	pool := systemTestPool(t, ctx)
+	service := system.NewService(pool, mustSetupPolicy(t, false, ""))
+	input := validSetupInput("")
+	input.SiteName = strings.Repeat("界", 64)
+
+	if err := service.Setup(ctx, input); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+	var stored string
+	if err := pool.QueryRow(ctx, `select value #>> '{}' from system_setting where key = 'site.name'`).Scan(&stored); err != nil {
+		t.Fatalf("read site name: %v", err)
+	}
+	if stored != input.SiteName {
+		t.Fatalf("stored site name = %q, want %q", stored, input.SiteName)
 	}
 }
 
@@ -331,6 +390,22 @@ func assertBuiltInData(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	assertStoredGroupPermission(t, ctx, pool, permission.GroupAdmin, permission.ShortLinkUseIntermediate, true)
 	assertStoredGroupPermission(t, ctx, pool, permission.GroupAdmin, permission.ShortLinkSetExpiration, true)
 	assertStoredGroupPermission(t, ctx, pool, permission.GroupAdmin, permission.ShortLinkSetPassword, true)
+	assertStoredGroupPermission(t, ctx, pool, permission.GroupAdmin, permission.SystemManage, true)
+
+	for key, want := range map[string]string{
+		"site.footer_text":         "",
+		"site.show_powered_by":     "true",
+		"auth.local_login_enabled": "true",
+		"site.settings_revision":   "1",
+	} {
+		var got string
+		if err := pool.QueryRow(ctx, `select value #>> '{}' from system_setting where key = $1`, key).Scan(&got); err != nil {
+			t.Fatalf("read initial setting %s: %v", key, err)
+		}
+		if got != want {
+			t.Fatalf("initial setting %s = %q, want %q", key, got, want)
+		}
+	}
 
 	var guestPassword sql.NullString
 	var guestGroup string
@@ -412,8 +487,12 @@ func TestServiceSetupRollsBackWhenDomainGrantFails(t *testing.T) {
 		if err := pool.QueryRow(ctx, `select count(*) from `+table).Scan(&count); err != nil {
 			t.Fatalf("count rolled-back %s: %v", table, err)
 		}
-		if count != 0 {
-			t.Fatalf("partial setup left %d %s rows", count, table)
+		want := 0
+		if table == "system_setting" {
+			want = 7
+		}
+		if count != want {
+			t.Fatalf("partial setup left %d %s rows, want migration baseline %d", count, table, want)
 		}
 	}
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/domain"
 	"github.com/TomyJan/MoeURL/internal/event"
 	apphttp "github.com/TomyJan/MoeURL/internal/http"
+	"github.com/TomyJan/MoeURL/internal/loginpolicy"
 	"github.com/TomyJan/MoeURL/internal/oidc"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
@@ -82,10 +83,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		}
 		deps.Health = pool
 		deps.System = system.NewServiceWithDevelopment(pool, setupPolicy, cfg.Env == "development")
-		authService := auth.NewService(pool, 24*time.Hour)
 		sessionService := auth.NewSessionService(pool, 24*time.Hour)
-		deps.Auth = authService
-		deps.CurrentUser = authService
 		permissionService := permission.NewDatabaseService(pool)
 		deps.Domain = domain.NewServiceWithDevelopment(pool, permissionService, cfg.Env == "development")
 		deps.ShortLink = shortlink.NewServiceWithLogger(pool, permissionService, logger)
@@ -106,18 +104,49 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		}
 		var discoverer oidc.Discoverer
 		var secretBox *oidc.SecretBox
+		var oidcHTTPClient *nethttp.Client
 		if oidcConfigured {
 			secretBox, err = oidc.NewSecretBox(cfg.OIDCEncryptionKey)
 			if err != nil {
 				pool.Close()
 				return nil, fmt.Errorf("initialize OIDC encryption: %w", err)
 			}
-			if err := oidc.ValidateEnabledProviderRuntime(enabledOIDCProviders, secretBox, cfg.Env == "development"); err != nil {
+			oidcHTTPClient = newOIDCHTTPClient()
+			discoverer = oidc.NewHTTPDiscoverer(oidcHTTPClient, cfg.Env == "development")
+		}
+		validateOIDCRuntime := func(rows []sqlc.OidcProvider) error {
+			if secretBox == nil {
+				return oidc.ErrRuntimeUnavailable
+			}
+			return oidc.ValidateEnabledProviderRuntime(rows, secretBox, cfg.Env == "development")
+		}
+		if len(enabledOIDCProviders) > 0 {
+			if err := validateOIDCRuntime(enabledOIDCProviders); err != nil {
 				pool.Close()
 				return nil, fmt.Errorf("validate enabled OIDC providers: %w", err)
 			}
-			oidcHTTPClient := newOIDCHTTPClient()
-			discoverer = oidc.NewHTTPDiscoverer(oidcHTTPClient, cfg.Env == "development")
+		}
+		loginPolicy := loginpolicy.NewService(pool, validateOIDCRuntime)
+		if err := loginPolicy.ValidateStartup(ctx); err != nil {
+			pool.Close()
+			return nil, fmt.Errorf("validate login entry policy: %w", err)
+		}
+		settingsService := system.NewSettingsService(pool, permissionService, loginPolicy)
+		if err := settingsService.ValidateStartup(ctx); err != nil {
+			pool.Close()
+			return nil, fmt.Errorf("validate system settings: %w", err)
+		}
+		authService := auth.NewServiceWithLoginPolicy(pool, 24*time.Hour, loginPolicy)
+		deps.Auth = authService
+		deps.CurrentUser = authService
+		deps.SystemSettings = settingsService
+		deps.OIDCProvider = oidc.NewProviderServiceWithLoginPolicy(pool, permissionService, discoverer, secretBox, cfg.PublicBaseURL, cfg.Env == "development", loginPolicy)
+		deps.AnalyticsCountryHeader = cfg.AnalyticsCountryHeader
+		deps.SecureCookies = cfg.Env == "production"
+		deps.User = user.NewService(pool, permissionService)
+		deps.UserGroup = usergroup.NewService(pool, permissionService)
+
+		if oidcConfigured {
 			identityResolver := oidc.NewDatabaseIdentityResolver(pool)
 			loginService := oidc.NewLoginService(pool, oidc.NewStandardProtocol(oidcHTTPClient), identityResolver, sessionService, secretBox, cfg.PublicBaseURL)
 			deps.OIDCLogin = loginService
@@ -133,14 +162,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 					loginService.RunLoginAttemptCleanup(ctx, oidcAttemptCleanupInterval, logger)
 				},
 			)
-		}
-		deps.OIDCProvider = oidc.NewProviderService(pool, permissionService, discoverer, secretBox, cfg.PublicBaseURL, cfg.Env == "development")
-		deps.AnalyticsCountryHeader = cfg.AnalyticsCountryHeader
-		deps.SecureCookies = cfg.Env == "production"
-		deps.User = user.NewService(pool, permissionService)
-		deps.UserGroup = usergroup.NewService(pool, permissionService)
-
-		if !oidcConfigured {
+		} else {
 			backgroundCancel, backgroundDone = startBackgroundTasks(
 				func(ctx context.Context) {
 					runAccessGrantCleanup(redirectService, ctx, accessGrantCleanupInterval, logger)

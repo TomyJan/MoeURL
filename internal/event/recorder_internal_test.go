@@ -21,7 +21,7 @@ func TestDBRecorderDropsEventsWhenConcurrentWritesReachLimit(t *testing.T) {
 		done:    make(chan struct{}),
 	}
 	logs := &synchronizedLogBuffer{}
-	recorder := newDBRecorder(writer, slog.New(slog.NewTextHandler(logs, nil)), 1)
+	recorder := newDBRecorder(writer, slog.New(slog.NewTextHandler(logs, nil)), 1, recordTimeout)
 
 	if err := recorder.Record(context.Background(), Event{Type: RedirectResponseSent, ShortLinkID: "00000000-0000-0000-0000-000000000301"}); err != nil {
 		t.Fatalf("start blocked record: %v", err)
@@ -55,7 +55,7 @@ func TestDBRecorderSkipsNonStatisticalEvents(t *testing.T) {
 	}
 	releaseWriter := sync.OnceFunc(func() { close(writer.release) })
 	t.Cleanup(releaseWriter)
-	recorder := newDBRecorder(writer, slog.New(slog.NewTextHandler(&synchronizedLogBuffer{}, nil)), 1)
+	recorder := newDBRecorder(writer, slog.New(slog.NewTextHandler(&synchronizedLogBuffer{}, nil)), 1, recordTimeout)
 
 	for _, eventType := range []string{RedirectInitiated, ConfirmationClicked} {
 		if err := recorder.Record(context.Background(), Event{Type: eventType, ShortLinkID: "00000000-0000-0000-0000-000000000301"}); err != nil {
@@ -78,6 +78,25 @@ func TestDBRecorderSkipsNonStatisticalEvents(t *testing.T) {
 	}
 }
 
+// TestDBRecorderUsesConfiguredWriteTimeout verifies the asynchronous write uses the constructor timeout.
+func TestDBRecorderUsesConfiguredWriteTimeout(t *testing.T) {
+	writer := &deadlineEventWriter{remaining: make(chan time.Duration, 1)}
+	recorder := newDBRecorder(writer, slog.New(slog.NewTextHandler(&synchronizedLogBuffer{}, nil)), 1, 10*time.Second)
+
+	if err := recorder.Record(context.Background(), Event{Type: RedirectResponseSent, ShortLinkID: "00000000-0000-0000-0000-000000000301"}); err != nil {
+		t.Fatalf("record event: %v", err)
+	}
+
+	select {
+	case remaining := <-writer.remaining:
+		if remaining < 5*time.Second || remaining > 10*time.Second {
+			t.Fatalf("expected configured write timeout, got %s remaining", remaining)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected asynchronous write to start")
+	}
+}
+
 // blockingEventWriter blocks persistence until the test releases it.
 type blockingEventWriter struct {
 	entered chan struct{}
@@ -86,6 +105,22 @@ type blockingEventWriter struct {
 
 	mu    sync.Mutex
 	calls int
+}
+
+// deadlineEventWriter captures the deadline applied to an asynchronous write.
+type deadlineEventWriter struct {
+	remaining chan time.Duration
+}
+
+// CreateShortLinkEvent reports the remaining context deadline to the test.
+func (w *deadlineEventWriter) CreateShortLinkEvent(ctx context.Context, _ sqlc.CreateShortLinkEventParams) error {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		w.remaining <- 0
+		return nil
+	}
+	w.remaining <- time.Until(deadline)
+	return nil
 }
 
 // CreateShortLinkEvent records the invocation and waits for the test release signal.

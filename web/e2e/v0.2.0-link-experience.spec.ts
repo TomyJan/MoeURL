@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto'
+
 import { expect, test } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
 import {
@@ -35,22 +37,24 @@ test('v0.2.0 intermediate-page, expiry, QR-code, and logout flows', async ({ pag
   await page.goto('/link')
   await expect(page.getByRole('heading', { name: '我的短链' })).toBeVisible()
 
+  const aliceUsername = `alice-${randomBytes(4).toString('hex')}`
+  const alicePassword = 'alice-password'
   await page.goto('/admin/user/new')
-  await page.getByRole('textbox', { name: '账号' }).fill('alice')
-  await page.getByLabel('密码').fill('alice-password')
+  await page.getByRole('textbox', { name: '账号' }).fill(aliceUsername)
+  await page.getByLabel('密码').fill(alicePassword)
   await page.getByLabel('昵称').fill('Alice')
   await page.getByRole('button', { name: '创建用户' }).click()
-  await expect(page.getByText('alice')).toBeVisible()
+  await expect(page.getByText(aliceUsername)).toBeVisible()
 
   await page.goto('/admin/user')
-  await expect(page.getByText('alice')).toBeVisible()
+  await expect(page.getByText(aliceUsername)).toBeVisible()
   const disableUser = page.waitForResponse('**/api/v1/admin/user/update')
-  const aliceRow = page.getByTestId('console-user-row').filter({ hasText: 'alice' })
+  const aliceRow = page.getByTestId('console-user-row').filter({ hasText: aliceUsername })
   await aliceRow.getByRole('button', { name: '更多操作' }).click()
   await aliceRow.getByRole('button', { name: '禁用' }).click()
   expect((await disableUser).status()).toBe(200)
   const disabledLogin = await page.request.post('/api/v1/auth/login', {
-    data: { username: 'alice', password: 'alice-password' },
+    data: { username: aliceUsername, password: alicePassword },
   })
   await expect(disabledLogin).toBeOK()
   expect(await disabledLogin.json()).toMatchObject({

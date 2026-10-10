@@ -2,7 +2,7 @@
   <header class="home-header">
     <RouterLink class="home-header__brand" to="/">
       <span class="home-header__logo">M</span>
-      <span>MoeURL</span>
+      <span>{{ config.siteName }}</span>
     </RouterLink>
 
     <nav class="home-header__actions">
@@ -23,6 +23,7 @@ import { useI18n } from 'vue-i18n'
 
 import PreferenceSwitcher from '@/shared/preferences/PreferenceSwitcher.vue'
 import { useAvatarText } from '@/shared/user/useAvatarText'
+import { useSiteConfig } from '@/shared/site/useSiteConfig'
 
 const props = defineProps<{
   displayName: string
@@ -36,6 +37,7 @@ defineEmits<{
 const { t } = useI18n()
 const displayName = toRef(props, 'displayName')
 const avatarText = useAvatarText(displayName)
+const { config } = useSiteConfig()
 </script>
 
 <style scoped>
@@ -53,16 +55,25 @@ const avatarText = useAvatarText(displayName)
 
 .home-header__brand {
   display: inline-flex;
+  flex: 1 1 auto;
   align-items: center;
   gap: 10px;
+  min-width: 0;
   color: rgb(var(--v-theme-on-background));
   font-weight: 900;
   text-decoration: none;
 }
 
+.home-header__brand span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .home-header__logo,
 .home-header__avatar {
   display: inline-grid;
+  flex: 0 0 auto;
   width: 36px;
   height: 36px;
   place-items: center;
@@ -74,6 +85,7 @@ const avatarText = useAvatarText(displayName)
 
 .home-header__actions {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 10px;
   padding: 0;

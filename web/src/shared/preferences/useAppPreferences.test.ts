@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
@@ -11,6 +11,7 @@ function mockPreferenceRuntime(
     addEventListener?: (event: 'change', listener: (event: { matches: boolean }) => void) => void
     matches?: boolean
   },
+  languagePreference: string | null = null,
 ) {
   vi.resetModules()
   let systemMatches = false
@@ -34,7 +35,7 @@ function mockPreferenceRuntime(
   Object.defineProperty(window, 'localStorage', {
     configurable: true,
     value: {
-      getItem: vi.fn((key: string) => (key === 'moeurl.theme' ? themePreference : null)),
+      getItem: vi.fn((key: string) => key === 'moeurl.theme' ? themePreference : key === 'moeurl.language' ? languagePreference : null),
       setItem: vi.fn(),
     },
   })
@@ -64,6 +65,9 @@ function mockPreferenceRuntime(
 }
 
 describe('useAppPreferences', () => {
+  afterEach(() => {
+    Object.defineProperty(window.navigator, 'language', { value: 'en-US', configurable: true })
+  })
   it('updates Vuetify theme when the system color scheme changes in system mode', async () => {
     const listeners: Array<(event: { matches: boolean }) => void> = []
     const state = mockPreferenceRuntime(
@@ -141,6 +145,29 @@ describe('useAppPreferences', () => {
     useAppPreferences()
 
     expect(addEventListener).toHaveBeenCalledTimes(1)
+  })
+
+  it('applies server defaults when neither local nor browser preferences decide the value', async () => {
+    Object.defineProperty(window.navigator, 'language', { value: 'fr-FR', configurable: true })
+    const state = mockPreferenceRuntime('invalid', vi.fn(() => ({ matches: false })))
+    const { useAppPreferences } = await import('./useAppPreferences')
+    const preferences = useAppPreferences()
+
+    preferences.applyServerDefaults('en', 'dark')
+
+    expect(state.locale.value).toBe('en')
+    expect(state.themeName.value).toBe('moeurlDark')
+  })
+
+  it('does not replace valid locally stored preferences with server defaults', async () => {
+    const state = mockPreferenceRuntime('light', vi.fn(() => ({ matches: false })), 'zh-CN')
+    const { useAppPreferences } = await import('./useAppPreferences')
+    const preferences = useAppPreferences()
+
+    preferences.applyServerDefaults('en', 'dark')
+
+    expect(state.locale.value).toBe('zh-CN')
+    expect(state.themeName.value).toBe('moeurlLight')
   })
 
   it('uses the public Vuetify entrypoint and shared theme resolution', () => {

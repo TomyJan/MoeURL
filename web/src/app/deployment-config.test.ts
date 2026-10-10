@@ -155,6 +155,22 @@ describe('deployment configuration', () => {
     expect(exampleEnv).toContain('openssl rand -base64 32')
   })
 
+  it('verifies default public settings and login methods in the Compose smoke flow', () => {
+    const smokeScript = readFileSync(resolve(repositoryRoot, 'scripts/compose-smoke.sh'), 'utf8')
+    const setupSuccess = smokeScript.indexOf('assert_response_code "$WORK_DIR/setup-valid-response.json" 0')
+    const settingsAssertion = smokeScript.indexOf('  assert_system_settings_defaults')
+    const adminLogin = smokeScript.indexOf('  login_admin', settingsAssertion)
+
+    expect(smokeScript).toContain('assert_system_settings_defaults()')
+    expect(smokeScript).toContain('$BASE_URL/api/v1/system/public-config')
+    expect(smokeScript).toContain('$BASE_URL/api/v1/auth/methods')
+    expect(smokeScript).toContain("publicPayload.data?.siteName === 'MoeURL Smoke'")
+    expect(smokeScript).toContain('methodsPayload.data?.local?.enabled === true')
+    expect(smokeScript).toContain('methodsPayload.data?.oidc?.length === 0')
+    expect(settingsAssertion).toBeGreaterThan(setupSuccess)
+    expect(settingsAssertion).toBeLessThan(adminLogin)
+  })
+
   it('aligns the production container identity and shutdown budget', () => {
     const compose = readFileSync(resolve(repositoryRoot, 'docker-compose.yml'), 'utf8')
     const dockerfile = readFileSync(resolve(repositoryRoot, 'Dockerfile'), 'utf8')
@@ -162,7 +178,9 @@ describe('deployment configuration', () => {
     expect(dockerfile).toContain('addgroup -S -g 10001 moeurl')
     expect(dockerfile).toContain('adduser -S -D -H -u 10001 -G moeurl moeurl')
     expect(dockerfile).toContain('apk upgrade --no-cache')
+    expect(dockerfile.match(/FROM golang:1\.27\.2/g)).toHaveLength(2)
     expect(dockerfile).toContain('github.com/pressly/goose/v3/cmd/goose@v3.28.0')
+    expect(dockerfile).toContain('go get golang.org/x/net@v0.60.0')
     expect(compose).toContain('user: "10001:10001"')
     expect(compose).toContain('stop_grace_period: 20s')
   })
@@ -673,11 +691,12 @@ describe('deployment configuration', () => {
     expect(playwrightConfig.webServer).not.toBeInstanceOf(Array)
     expect(playwrightConfig.webServer).toMatchObject({ timeout: 600_000 })
     expect(playwrightConfig.projects).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: 'setup', testMatch: '**/initialize.setup.ts' }),
+      expect.objectContaining({ name: 'setup', testMatch: '**/initialize.setup.ts', use: expect.objectContaining({ locale: 'zh-CN' }) }),
       expect.objectContaining({
         name: 'chromium',
         dependencies: ['setup'],
         testIgnore: '**/initialize.setup.ts',
+        use: expect.objectContaining({ locale: 'zh-CN' }),
       }),
     ]))
   })

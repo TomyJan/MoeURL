@@ -80,6 +80,14 @@ export const requireConsoleAccess = createRequireConsoleAccess()
 export const requireSignedIn = createRequireSignedIn()
 export const requireAdminAccess = createRequireAdminAccess()
 const requireDomainManageAccess = createRequireDomainManageAccess()
+/** Requires administrator access and permission to manage system settings. */
+export function createRequireSystemManageAccess(loadCurrentUser = me): AccessGuard {
+  return createAccessGuard(loadCurrentUser, (user, loginRedirect) => {
+    if (user.permissions.includes('admin:access') && user.permissions.includes('system:manage')) return true
+    return user.group === 'guest' ? loginRedirect : '/'
+  })
+}
+const requireSystemManageAccess = createRequireSystemManageAccess()
 
 export const routes: RouteRecordRaw[] = [
   // Keep the public homepage before the ConsoleShell parent: both records use '/', and vue-router resolves by definition order.
@@ -136,9 +144,9 @@ export const routes: RouteRecordRaw[] = [
       },
       {
         path: '/admin/setting',
-        component: () => import('@/pages/AdminAuthenticationPage.vue'),
-        meta: { requiresConsole: true, requiresAdmin: true },
-        beforeEnter: requireAdminAccess,
+        component: () => import('@/pages/AdminSettingsPage.vue'),
+        meta: { requiresConsole: true, requiresAdmin: true, requiresSystemManage: true },
+        beforeEnter: requireSystemManageAccess,
       },
       {
         path: '/admin/user/new',
