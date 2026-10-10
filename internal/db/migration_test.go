@@ -258,7 +258,7 @@ func TestSystemSettingsMigrationRoundTrip(t *testing.T) {
 		t.Fatalf("upgrade through multi-domain: %v", err)
 	}
 	insertUserGroups(t, ctx, database)
-	legacySiteName := strings.Repeat("\u754c", 65)
+	legacySiteName := strings.Repeat("\u754c", 63) + "\u00a0\u754c"
 	if _, err := database.ExecContext(ctx, `
 		insert into system_setting (key, value, created_at, updated_at)
 		values
@@ -274,7 +274,7 @@ func TestSystemSettingsMigrationRoundTrip(t *testing.T) {
 		t.Fatalf("upgrade system settings migration: %v", err)
 	}
 	for key, want := range map[string]string{
-		"site.name":                strings.Repeat("\u754c", 64),
+		"site.name":                strings.Repeat("\u754c", 63),
 		"site.default_language":    "zh-CN",
 		"site.default_theme":       "system",
 		"site.footer_text":         "Existing footer",

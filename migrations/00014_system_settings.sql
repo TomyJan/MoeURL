@@ -13,12 +13,16 @@ on conflict (key) do nothing;
 
 -- v0.8.0 accepted any non-empty site name. Keep those installations bootable
 -- under v0.9.0's 64-character contract without masking other corrupt values.
+-- This character set matches Go's unicode.IsSpace White_Space table.
 update system_setting
-set value = to_jsonb(left(btrim(value #>> '{}'), 64)),
+set value = to_jsonb(rtrim(
+        left(btrim(value #>> '{}', U&'\0009\000A\000B\000C\000D\0020\0085\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000'), 64),
+        U&'\0009\000A\000B\000C\000D\0020\0085\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000'
+    )),
     updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
 where key = 'site.name'
     and jsonb_typeof(value) = 'string'
-    and char_length(btrim(value #>> '{}')) > 64;
+    and char_length(btrim(value #>> '{}', U&'\0009\000A\000B\000C\000D\0020\0085\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000')) > 64;
 
 -- Earlier versions did not constrain language and theme values. Normalize only
 -- legacy strings so structurally corrupt JSON continues to fail startup checks.
