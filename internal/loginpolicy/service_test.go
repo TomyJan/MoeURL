@@ -238,6 +238,9 @@ func TestServiceHandlesMissingRowsAndDatabaseFailures(t *testing.T) {
 		if _, _, err := service.LoginMethodsSnapshot(ctx); err == nil {
 			t.Fatal("expected methods snapshot query failure")
 		}
+		if err := service.ValidateStartup(ctx); err == nil {
+			t.Fatal("expected startup policy query failure")
+		}
 	})
 
 	t.Run("provider query failure", func(t *testing.T) {

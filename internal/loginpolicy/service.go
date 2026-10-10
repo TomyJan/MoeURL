@@ -31,14 +31,14 @@ type Reader interface {
 
 // Service reads and locks the shared login-entry policy.
 type Service struct {
-	pool      *pgxpool.Pool
 	queries   *sqlc.Queries
 	validator RuntimeValidator
+	beginTx   func(context.Context, pgx.TxOptions) (pgx.Tx, error)
 }
 
 // NewService creates a policy service backed by the application database.
 func NewService(pool *pgxpool.Pool, validator RuntimeValidator) *Service {
-	return &Service{pool: pool, queries: sqlc.New(pool), validator: validator}
+	return &Service{queries: sqlc.New(pool), validator: validator, beginTx: pool.BeginTx}
 }
 
 // LocalLoginEnabled reports whether new password-login attempts are admitted.
@@ -96,7 +96,7 @@ func (s *Service) RequireAvailableProvider(ctx context.Context, tx pgx.Tx) error
 
 // ValidateStartup rejects an application state with no usable login entry point.
 func (s *Service) ValidateStartup(ctx context.Context) error {
-	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	tx, err := s.beginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
 	if err != nil {
 		return err
 	}

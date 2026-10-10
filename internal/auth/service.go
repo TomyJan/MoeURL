@@ -108,15 +108,6 @@ func NewServiceWithLoginPolicyAndPasswordVerifier(pool *pgxpool.Pool, sessionTTL
 
 // Login verifies credentials and creates a session for an active user.
 func (s *Service) Login(ctx context.Context, input LoginInput) (LoginResult, error) {
-	enabled, err := s.loginPolicy.LocalLoginEnabled(ctx)
-	if err != nil {
-		return LoginResult{}, err
-	}
-	if !enabled {
-		return LoginResult{}, ErrLoginMethodUnavailable
-	}
-	username := strings.TrimSpace(input.Username)
-	usernameHash := hashLoginUsername(username)
 	select {
 	case s.loginSlots <- struct{}{}:
 		defer func() { <-s.loginSlots }()
@@ -125,6 +116,15 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (LoginResult, err
 	}
 	operationContext, cancelOperation := context.WithTimeout(context.WithoutCancel(ctx), s.loginOperationTimeout)
 	defer cancelOperation()
+	enabled, err := s.loginPolicy.LocalLoginEnabled(operationContext)
+	if err != nil {
+		return LoginResult{}, err
+	}
+	if !enabled {
+		return LoginResult{}, ErrLoginMethodUnavailable
+	}
+	username := strings.TrimSpace(input.Username)
+	usernameHash := hashLoginUsername(username)
 	tx, err := s.pool.Begin(operationContext)
 	if err != nil {
 		return LoginResult{}, err

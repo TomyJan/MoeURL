@@ -249,7 +249,7 @@ restore_compose exec -T postgres \
   "select key from user_group where builtin order by key"
 ```
 
-使用恢复出的管理员账号向 `http://127.0.0.1:18082/api/v1/auth/login` 发起登录请求，断言 HTTP `200` 且业务 `code=0`。密码只通过权限为 `600` 的临时 JSON 文件传入，不放在命令行或 Shell 历史中。
+登录入口验收必须以下文 `GET /api/v1/auth/methods` 返回的恢复后策略为准。需要验证本地登录时，密码只通过权限为 `600` 的临时 JSON 文件传入，不放在命令行或 Shell 历史中。
 
 选择备份前已记录的样例短码，验证短链和访问配置：
 
@@ -273,7 +273,12 @@ restore_compose exec -T postgres \
   "select key, display_name, enabled, deleted_at is null as active from oidc_provider order by key"
 ```
 
-通过 `GET /api/v1/system/public-config` 核对站点品牌，通过 `GET /api/v1/auth/methods` 核对本地登录状态和可用 Provider。若恢复数据关闭了本地登录，必须已经向 `restore.env` 注入原始 `MOEURL_OIDC_ENCRYPTION_KEY`，并使用身份提供商允许的演练 Origin 完成真实 OIDC 登录；不能只依赖恢复前保留的 Session。若本地登录仍启用，应同时验证管理员本地登录。记录设置值、登录方式、Provider 集合和密钥恢复来源，但不得记录 Secret 明文。
+通过 `GET /api/v1/system/public-config` 核对站点品牌，通过 `GET /api/v1/auth/methods` 核对本地登录状态和可用 Provider，并按结果分支验收：
+
+- `local.enabled=true`：使用恢复出的管理员账号向 `http://127.0.0.1:18082/api/v1/auth/login` 发起登录请求，断言 HTTP `200` 且业务 `code=0`。
+- `local.enabled=false`：向同一接口发起本地登录请求，断言 HTTP `200` 且业务 `code=110104`；同时必须已经向 `restore.env` 注入原始 `MOEURL_OIDC_ENCRYPTION_KEY`，并使用身份提供商允许的演练 Origin 完成真实 OIDC 登录，不能只依赖恢复前保留的 Session。
+
+记录设置值、登录方式、Provider 集合和密钥恢复来源，但不得记录 Secret 明文。
 
 ## 5. 清理演练环境
 
