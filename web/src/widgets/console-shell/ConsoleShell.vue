@@ -436,6 +436,7 @@ function getFocusableElements(root: globalThis.HTMLElement) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
 }
 
 .console-shell__mobile-brand {
