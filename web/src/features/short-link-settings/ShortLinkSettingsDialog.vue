@@ -157,6 +157,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const targetUrl = ref('')
+const initialTargetUrl = ref('')
 const redirectMode = ref<RedirectMode>('direct')
 const intermediateDelaySeconds = ref(5)
 const expirationEnabled = ref(false)
@@ -218,15 +219,14 @@ function save() {
   expirationErrorMessage.value = ''
   passwordErrorMessage.value = ''
 
-  const targetResult = targetUrlSchema.safeParse(targetUrl.value)
-  if (!targetResult.success) {
-    targetErrorMessage.value = t('shortLinkSettings.invalidUrl')
-    return
-  }
-
-  const input: UpdateShortLinkInput = {
-    id: props.link.id,
-    targetUrl: targetResult.data,
+  const input: UpdateShortLinkInput = { id: props.link.id }
+  if (targetUrl.value !== initialTargetUrl.value) {
+    const targetResult = targetUrlSchema.safeParse(targetUrl.value)
+    if (!targetResult.success) {
+      targetErrorMessage.value = t('shortLinkSettings.invalidUrl')
+      return
+    }
+    input.targetUrl = targetResult.data
   }
   if (canSubmitRedirectMode(redirectMode.value, canConfigureRedirect.value)) {
     input.redirectMode = redirectMode.value
@@ -331,6 +331,7 @@ function resetFromLink(link: typeof props.link) {
   maxVisits.value = link.maxVisits === null ? '' : String(link.maxVisits)
   limitErrorMessage.value = ''
   targetUrl.value = link.targetUrl
+  initialTargetUrl.value = link.targetUrl
   redirectMode.value = link.redirectMode
   intermediateDelaySeconds.value = link.intermediateDelaySeconds
   expirationEnabled.value = link.expiresAt !== null
