@@ -91,6 +91,15 @@ function setMutationResult(value: Partial<{
 }
 
 describe('ShortLinkCreatePanel', () => {
+  it('blocks creation after a permission refetch fails even with cached permissions', async () => {
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_max_visits'])
+    state.queryResult = { ...state.queryResult, isError: ref(true) }
+    mountPanel()
+    expect((screen.getByText('shortLinkCreate.submit') as HTMLButtonElement).disabled).toBe(true)
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(createShortLink).not.toHaveBeenCalled()
+  })
+
   it('submits a finite visit limit and resets it after success', async () => {
     setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_max_visits'])
     mountPanel()

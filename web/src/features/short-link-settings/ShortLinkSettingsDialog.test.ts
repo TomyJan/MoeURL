@@ -75,6 +75,14 @@ function setPermissions(permissions: string[]) {
 }
 
 describe('ShortLinkSettingsDialog', () => {
+  it.each([false, true])('blocks saving until permissions are loaded without a query error (%s)', async (failed) => {
+    state.queryResult = { data: ref(failed ? { user: { permissions: ['short_link:set_max_visits'] } } : undefined), isError: ref(failed) }
+    const view = mountDialog()
+    expect((screen.getByText('shortLinkSettings.save') as HTMLButtonElement).disabled).toBe(true)
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save).toBeUndefined()
+  })
+
   it('keeps the current quota when saving unrelated fields, then submits a lower limit with a warning', async () => {
     setPermissions(['short_link:set_max_visits'])
     const view = mountDialog({ link: { ...directLink, maxVisits: 5, visitsUsed: 3, visitsRemaining: 2 } })

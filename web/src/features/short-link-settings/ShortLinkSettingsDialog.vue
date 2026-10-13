@@ -124,7 +124,7 @@
       </v-card-text>
       <v-card-actions class="short-link-settings-dialog__actions">
         <v-btn variant="text" :disabled="pending" @click="close">{{ t('shortLinkSettings.cancel') }}</v-btn>
-        <v-btn color="primary" :loading="pending" :disabled="pending" @click="save">
+        <v-btn color="primary" :loading="pending" :disabled="pending || !permissionsReady" @click="save">
           {{ t('shortLinkSettings.save') }}
         </v-btn>
       </v-card-actions>
@@ -181,6 +181,7 @@ const currentUserQuery = useQuery({
   queryFn: me,
 })
 const currentUser = computed(() => currentUserQuery.data.value?.user)
+const permissionsReady = computed(() => currentUserQuery.data.value !== undefined && !currentUserQuery.isError?.value)
 const { canUseIntermediate, canUseConfirmation, canSubmitRedirectMode } = useRedirectModePermissions(currentUser)
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
 const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
@@ -210,7 +211,7 @@ watch(
 
 /** Validates editable fields and emits the permitted access-setting changes. */
 function save() {
-  if (props.pending) {
+  if (props.pending || !permissionsReady.value) {
     return
   }
   targetErrorMessage.value = ''
