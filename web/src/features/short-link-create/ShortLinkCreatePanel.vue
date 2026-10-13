@@ -387,6 +387,7 @@ function submitValidatedInput(): boolean {
   if (canSetMetadata.value) {
     const metadata = metadataDraftSchema.safeParse({ title: metadataTitle.value, tagsText: metadataTags.value })
     if (!metadata.success) {
+      advancedOpen.value = true
       for (const issue of metadata.error.issues) {
         if (issue.path[0] === 'title') metadataTitleError.value = t('linkMetadata.titleInvalid')
         else metadataTagsError.value = t('linkMetadata.tagsInvalid')
