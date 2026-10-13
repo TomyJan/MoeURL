@@ -22,6 +22,24 @@ const accessAndQuota = {
 }
 
 describe('short link api', () => {
+  it.each([
+    ['owner', listShortLinks],
+    ['administrator', listAdminShortLinks],
+  ] as const)('preserves every %s list item when a stored target URL is rejected by the browser URL parser', async (role, load) => {
+    const items = ['https://example.com', 'https://example.com:65536'].map((targetUrl, index) => ({
+      ...accessAndQuota,
+      id: `link-${index}`, url: `https://go.example.com/abc12${index}`, slug: `abc12${index}`,
+      targetUrl, status: 'active',
+      ...(role === 'administrator' ? { owner: { id: 'owner-id', username: 'alice', nickname: 'Alice' } } : {}),
+    }))
+    const meta = { page: 1, pageSize: 20, total: items.length }
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      code: 0, message: 'OK', data: { items }, meta,
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })))
+
+    await expect(load()).resolves.toEqual({ items, meta })
+  })
+
   it('loads the current user overview', async () => {
     vi.stubGlobal(
       'fetch',
