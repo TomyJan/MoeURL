@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { ApiClientError, apiGet, apiGetPath, apiPost, apiPostPath } from '@/shared/api/client'
 
 import type { AdminShortLink, CreateShortLinkInput, PublicShortLinkPreview, ShortLink, ShortLinkOverview, ShortLinkStatisticsResponse, UnlockShortLinkInput, UnlockShortLinkResponse, UpdateShortLinkInput } from './model'
+import { adminShortLinkListSchema, shortLinkListSchema, shortLinkResponseSchema, shortLinkStatisticsSchema } from './schema'
 
 export interface ShortLinkResponse {
   shortLink: ShortLink
@@ -27,14 +28,6 @@ export interface AdminShortLinkListInput extends ShortLinkListInput {
   q?: string
 }
 
-interface ShortLinkItemsResponse {
-  items: ShortLink[]
-}
-
-interface AdminShortLinkItemsResponse {
-  items: AdminShortLink[]
-}
-
 const publicShortLinkPreviewBaseSchema = {
   slug: z.string(),
   targetHost: z.string(),
@@ -57,8 +50,8 @@ const unlockShortLinkResponseSchema: z.ZodType<UnlockShortLinkResponse> = z.stri
 
 /** Creates a short link using access settings allowed by the current user. */
 export async function createShortLink(input: CreateShortLinkInput): Promise<ShortLinkResponse> {
-  const response = await apiPost<ShortLinkResponse>('/short-link/create', input)
-  return response.data
+  const response = await apiPost<unknown>('/short-link/create', input)
+  return parse(shortLinkResponseSchema, response.data)
 }
 
 /** Loads and validates the minimal public metadata required by the redirect page. */
@@ -94,9 +87,9 @@ export async function listShortLinks(input: ShortLinkListInput = {}): Promise<Sh
   if (input.status) {
     search.set('status', input.status)
   }
-  const response = await apiGet<ShortLinkItemsResponse>(`/short-link/list?${search.toString()}`)
+  const response = await apiGet<unknown>(`/short-link/list?${search.toString()}`)
   return {
-    items: response.data.items,
+    items: parse(shortLinkListSchema, response.data).items,
     meta: normalizeListMeta(response.meta, page, pageSize),
   }
 }
@@ -109,8 +102,8 @@ export async function getShortLinkOverview(): Promise<ShortLinkOverview> {
 
 /** Updates an owned short link without supplying omitted access settings. */
 export async function updateShortLink(input: UpdateShortLinkInput): Promise<ShortLinkResponse> {
-  const response = await apiPost<ShortLinkResponse>('/short-link/update', input)
-  return response.data
+  const response = await apiPost<unknown>('/short-link/update', input)
+  return parse(shortLinkResponseSchema, response.data)
 }
 
 /** Soft-deletes an owned short link by identifier. */
@@ -120,8 +113,8 @@ export async function deleteShortLink(id: string): Promise<void> {
 
 /** Loads visit statistics for an owned short link. */
 export async function getShortLinkStatistics(id: string): Promise<ShortLinkStatisticsResponse> {
-	const response = await apiGet<ShortLinkStatisticsResponse>(`/short-link/statistics?id=${encodeURIComponent(id)}`)
-	return response.data
+	const response = await apiGet<unknown>(`/short-link/statistics?id=${encodeURIComponent(id)}`)
+	return parse(shortLinkStatisticsSchema, response.data)
 }
 
 /** Lists all visible short links for administrators with optional filtering. */
@@ -141,17 +134,17 @@ export async function listAdminShortLinks(input: AdminShortLinkListInput = {}): 
   if (input.q) {
     search.set('q', input.q)
   }
-  const response = await apiGet<AdminShortLinkItemsResponse>(`/admin/short-link/list?${search.toString()}`)
+  const response = await apiGet<unknown>(`/admin/short-link/list?${search.toString()}`)
   return {
-    items: response.data.items,
+    items: parse(adminShortLinkListSchema, response.data).items,
     meta: normalizeListMeta(response.meta, page, pageSize),
   }
 }
 
 /** Updates a short link through the administrative API. */
 export async function updateAdminShortLink(input: UpdateShortLinkInput): Promise<ShortLinkResponse> {
-  const response = await apiPost<ShortLinkResponse>('/admin/short-link/update', input)
-  return response.data
+  const response = await apiPost<unknown>('/admin/short-link/update', input)
+  return parse(shortLinkResponseSchema, response.data)
 }
 
 /** Soft-deletes a short link through the administrative API. */
@@ -161,8 +154,15 @@ export async function deleteAdminShortLink(id: string): Promise<void> {
 
 /** Loads visit statistics for a short link through the administrative API. */
 export async function getAdminShortLinkStatistics(id: string): Promise<ShortLinkStatisticsResponse> {
-	const response = await apiGet<ShortLinkStatisticsResponse>(`/admin/short-link/statistics?id=${encodeURIComponent(id)}`)
-	return response.data
+	const response = await apiGet<unknown>(`/admin/short-link/statistics?id=${encodeURIComponent(id)}`)
+	return parse(shortLinkStatisticsSchema, response.data)
+}
+
+/** Enforces the managed short-link response contract without exposing invalid payloads. */
+function parse<T>(schema: z.ZodType<T>, data: unknown): T {
+  const parsed = schema.safeParse(data)
+  if (!parsed.success) throw new ApiClientError(100001, 'Invalid short-link response')
+  return parsed.data
 }
 
 /** Coerces response metadata into stable numeric pagination fields. */

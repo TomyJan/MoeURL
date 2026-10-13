@@ -35,6 +35,10 @@ const directLink: ShortLink = {
   expiresAt: null,
   expired: false,
   passwordEnabled: false,
+  maxVisits: null,
+  visitsUsed: 0,
+  visitsRemaining: null,
+  exhausted: false,
   createdAt: '2026-08-01T00:00:00Z',
 }
 
@@ -71,6 +75,75 @@ function setPermissions(permissions: string[]) {
 }
 
 describe('ShortLinkSettingsDialog', () => {
+  it('saves quota changes without validating or resubmitting the unchanged stored target URL', async () => {
+    setPermissions(['short_link:set_max_visits'])
+    const link = { ...directLink, targetUrl: 'https://example.com:65536' }
+    const view = mountDialog({ link })
+    await fireEvent.click(screen.getByLabelText('visitLimit.enabled'))
+    await fireEvent.update(screen.getByLabelText('visitLimit.maximum'), '10')
+    await view.rerender({ link: { ...link, targetUrl: 'https://example.com/refreshed' } })
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+
+    expect(screen.queryByText('shortLinkSettings.invalidUrl')).toBeNull()
+    expect(view.emitted().save).toEqual([[{ id: 'link-id', visitLimit: { mode: 'limited', maxVisits: 10 } }]])
+  })
+
+  it.each([false, true])('blocks saving until permissions are loaded without a query error (%s)', async (failed) => {
+    state.queryResult = { data: ref(failed ? { user: { permissions: ['short_link:set_max_visits'] } } : undefined), isError: ref(failed) }
+    const view = mountDialog()
+    expect((screen.getByText('shortLinkSettings.save') as HTMLButtonElement).disabled).toBe(true)
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save).toBeUndefined()
+  })
+
+  it('keeps the current quota when saving unrelated fields, then submits a lower limit with a warning', async () => {
+    setPermissions(['short_link:set_max_visits'])
+    const view = mountDialog({ link: { ...directLink, maxVisits: 5, visitsUsed: 3, visitsRemaining: 2 } })
+    expect(screen.getByText('visitLimit.usage')).toBeTruthy()
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save?.[0]).toEqual([{ id: 'link-id' }])
+    await fireEvent.update(screen.getByLabelText('visitLimit.maximum'), '2')
+    expect(screen.getByText('visitLimit.lowerWarning')).toBeTruthy()
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save?.[1]).toEqual([{ id: 'link-id', visitLimit: { mode: 'limited', maxVisits: 2 } }])
+  })
+
+  it('warns before clearing a quota period and preserves the draft on failed saves', async () => {
+    setPermissions(['short_link:set_max_visits'])
+    const view = mountDialog({ link: { ...directLink, maxVisits: 5, visitsUsed: 3, visitsRemaining: 2 } })
+    await fireEvent.click(screen.getByLabelText('visitLimit.enabled'))
+    expect(screen.getByText('visitLimit.clearWarning')).toBeTruthy()
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save?.[0]).toEqual([{ id: 'link-id', visitLimit: { mode: 'unlimited' } }])
+    await view.rerender({ pending: true })
+    expect((screen.getByLabelText('visitLimit.enabled') as HTMLInputElement).disabled).toBe(true)
+    await view.rerender({ pending: false, errorMessage: 'save failed' })
+    expect((screen.getByLabelText('visitLimit.enabled') as HTMLInputElement).checked).toBe(false)
+    expect(screen.getByText('save failed')).toBeTruthy()
+  })
+
+  it('validates a new quota and hides editing from users without the capability', async () => {
+    setPermissions(['short_link:set_max_visits'])
+    const view = mountDialog()
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save?.[0]).toEqual([{ id: 'link-id' }])
+    await fireEvent.click(screen.getByLabelText('visitLimit.enabled'))
+    await fireEvent.update(screen.getByLabelText('visitLimit.maximum'), '0')
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save).toHaveLength(1)
+    expect(screen.getByText('visitLimit.invalid')).toBeTruthy()
+    await fireEvent.update(screen.getByLabelText('visitLimit.maximum'), '1')
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save?.[1]).toEqual([{ id: 'link-id', visitLimit: { mode: 'limited', maxVisits: 1 } }])
+    view.unmount()
+    setPermissions([])
+    const readOnly = mountDialog({ link: { ...directLink, maxVisits: 1, visitsUsed: 1, visitsRemaining: 0, exhausted: true } })
+    expect(screen.queryByLabelText('visitLimit.enabled')).toBeNull()
+    expect(screen.getByText('visitLimit.exhausted')).toBeTruthy()
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(readOnly.emitted().save?.[0]).toEqual([{ id: 'link-id' }])
+  })
+
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-02T00:00:00Z'))
@@ -115,7 +188,6 @@ describe('ShortLinkSettingsDialog', () => {
     expect(view.emitted().save).toEqual([[
       {
         id: 'link-id',
-        targetUrl: 'https://example.com/original',
         redirectMode: 'intermediate',
         intermediateDelaySeconds: 10,
         expiration: { mode: 'at', expiresAt: new Date('2026-08-04T10:30').toISOString() },
@@ -174,7 +246,6 @@ describe('ShortLinkSettingsDialog', () => {
     expect(view.emitted().save).toEqual([[
       {
         id: 'link-id',
-        targetUrl: 'https://example.com/original',
         redirectMode: 'intermediate',
         intermediateDelaySeconds: 5,
       },
@@ -194,7 +265,6 @@ describe('ShortLinkSettingsDialog', () => {
     expect(view.emitted().save).toEqual([[
       {
         id: 'link-id',
-        targetUrl: 'https://example.com/original',
         redirectMode: 'confirmation',
       },
     ]])
@@ -208,7 +278,6 @@ describe('ShortLinkSettingsDialog', () => {
     expect(view.emitted().save).toEqual([[
       {
         id: 'link-id',
-        targetUrl: 'https://example.com/original',
       },
     ]])
 
@@ -216,7 +285,6 @@ describe('ShortLinkSettingsDialog', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
     expect(view.emitted().save?.[1]).toEqual([{
       id: 'link-id',
-      targetUrl: 'https://example.com/original',
       redirectMode: 'direct',
     }])
   })
@@ -237,7 +305,6 @@ describe('ShortLinkSettingsDialog', () => {
     expect(view.emitted().save).toEqual([[
       {
         id: 'link-id',
-        targetUrl: 'https://example.com/original',
         redirectMode: 'direct',
       },
     ]])
@@ -255,7 +322,6 @@ describe('ShortLinkSettingsDialog', () => {
     expect(view.emitted().save).toEqual([[
       {
         id: 'link-id',
-        targetUrl: 'https://example.com/original',
         expiration: { mode: 'at', expiresAt: new Date('2026-08-04T10:30').toISOString() },
       },
     ]])
@@ -276,7 +342,6 @@ describe('ShortLinkSettingsDialog', () => {
     expect(view.emitted().save).toEqual([[
       {
         id: 'link-id',
-        targetUrl: 'https://example.com/original',
         password: { mode: 'set', value: 'correct horse' },
       },
     ]])
@@ -303,7 +368,6 @@ describe('ShortLinkSettingsDialog', () => {
     expect(view.emitted().save).toEqual([[
       {
         id: 'link-id',
-        targetUrl: 'https://example.com/original',
         password: { mode: 'set', value: 'correct horse' },
       },
     ]])
@@ -404,7 +468,6 @@ describe('ShortLinkSettingsDialog', () => {
     expect(view.emitted().save).toEqual([[
       {
         id: 'link-id',
-        targetUrl: 'https://example.com/original',
       },
     ]])
   })
@@ -434,7 +497,6 @@ describe('ShortLinkSettingsDialog', () => {
     expect(view.emitted().save).toEqual([[
       {
         id: 'link-id',
-        targetUrl: 'https://example.com/original',
         password: { mode: 'never' },
       },
     ]])

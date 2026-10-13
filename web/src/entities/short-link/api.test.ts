@@ -15,7 +15,31 @@ import {
   updateShortLink,
 } from './api'
 
+const accessAndQuota = {
+  redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null,
+  expired: false, passwordEnabled: false, createdAt: '2026-10-13T00:00:00Z',
+  maxVisits: null, visitsUsed: 0, visitsRemaining: null, exhausted: false,
+}
+
 describe('short link api', () => {
+  it.each([
+    ['owner', listShortLinks],
+    ['administrator', listAdminShortLinks],
+  ] as const)('preserves every %s list item when a stored target URL is rejected by the browser URL parser', async (role, load) => {
+    const items = ['https://example.com', 'https://example.com:65536'].map((targetUrl, index) => ({
+      ...accessAndQuota,
+      id: `link-${index}`, url: `https://go.example.com/abc12${index}`, slug: `abc12${index}`,
+      targetUrl, status: 'active',
+      ...(role === 'administrator' ? { owner: { id: 'owner-id', username: 'alice', nickname: 'Alice' } } : {}),
+    }))
+    const meta = { page: 1, pageSize: 20, total: items.length }
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      code: 0, message: 'OK', data: { items }, meta,
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })))
+
+    await expect(load()).resolves.toEqual({ items, meta })
+  })
+
   it('loads the current user overview', async () => {
     vi.stubGlobal(
       'fetch',
@@ -43,7 +67,7 @@ describe('short link api', () => {
         code: 0,
         message: 'OK',
         data: {
-          shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' },
+          shortLink: { ...accessAndQuota, id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' },
           stats: { visitCount: 2, todayVisitCount: 1, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] },
         },
         meta: {},
@@ -67,6 +91,7 @@ describe('short link api', () => {
             message: 'OK',
             data: {
               shortLink: {
+                ...accessAndQuota,
                 id: 'link-id',
                 url: 'https://go.example.com/abc123',
                 slug: 'abc123',
@@ -97,7 +122,7 @@ describe('short link api', () => {
           message: 'OK',
           data: url.includes('/preview')
             ? { slug: 'abc123', targetHost: 'example.com', redirectMode: 'intermediate', intermediateDelaySeconds: 5, expiresAt: null }
-            : { shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123' } },
+            : { shortLink: { ...accessAndQuota, id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' } },
           meta: {},
         }), { status: 200, headers: { 'Content-Type': 'application/json' } })
       }),
@@ -299,6 +324,7 @@ describe('short link api', () => {
             data: {
               items: [
                 {
+                  ...accessAndQuota,
                   id: 'link-id',
                   url: 'https://go.example.com/abc123',
                   slug: 'abc123',
@@ -382,6 +408,7 @@ describe('short link api', () => {
             message: 'OK',
             data: {
               shortLink: {
+                ...accessAndQuota,
                 id: 'link-id',
                 url: 'https://go.example.com/abc123',
                 slug: 'abc123',
@@ -414,6 +441,7 @@ describe('short link api', () => {
             data: {
               items: [
                 {
+                  ...accessAndQuota,
                   id: 'link-id',
                   url: 'https://go.example.com/abc123',
                   slug: 'abc123',
@@ -491,6 +519,7 @@ describe('short link api', () => {
             message: 'OK',
             data: {
               shortLink: {
+                ...accessAndQuota,
                 id: 'link-id',
                 url: 'https://go.example.com/abc123',
                 slug: 'abc123',

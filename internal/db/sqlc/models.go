@@ -65,6 +65,11 @@ type MoeurlShortLinkExperiencePermissionAddition struct {
 	Permission  string      `json:"permission"`
 }
 
+type MoeurlShortLinkMaxVisitsPermissionAddition struct {
+	UserGroupID        pgtype.UUID `json:"user_group_id"`
+	PermissionRevision int64       `json:"permission_revision"`
+}
+
 // Tracks permissions added by migration 00006 for reversible rollback.
 type MoeurlShortLinkPasswordPermissionAddition struct {
 	UserGroupID pgtype.UUID `json:"user_group_id"`
@@ -131,6 +136,8 @@ type ShortLink struct {
 	PasswordWindowStartedAt  pgtype.Timestamptz `json:"password_window_started_at"`
 	PasswordBlockedUntil     pgtype.Timestamptz `json:"password_blocked_until"`
 	PasswordUpdatedAt        pgtype.Timestamptz `json:"password_updated_at"`
+	MaxVisits                pgtype.Int8        `json:"max_visits"`
+	VisitsUsed               int64              `json:"visits_used"`
 }
 
 type ShortLinkAccessGrant struct {

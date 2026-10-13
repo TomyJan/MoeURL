@@ -113,6 +113,8 @@ func (h *RedirectHandler) preview(w http.ResponseWriter, r *http.Request, slug s
 			businessError(w, CodeShortLinkDisabled, "Short link disabled")
 		case errors.Is(err, ErrShortLinkExpired):
 			businessError(w, CodeShortLinkExpired, "Short link expired")
+		case errors.Is(err, ErrShortLinkExhausted):
+			businessError(w, CodeShortLinkExhausted, "Short link exhausted")
 		case errors.Is(err, ErrShortLinkNotInteractive):
 			businessError(w, CodeShortLinkNotInteractive, "Short link does not use an interactive access page")
 		case errors.Is(err, ErrPasswordRequired):
@@ -163,6 +165,8 @@ func (h *RedirectHandler) Unlock(w http.ResponseWriter, r *http.Request, slug st
 			errors.Is(err, ErrShortLinkDisabled),
 			errors.Is(err, ErrShortLinkExpired):
 			businessError(w, CodeInvalidPassword, "Invalid password")
+		case errors.Is(err, ErrShortLinkExhausted):
+			businessError(w, CodeShortLinkExhausted, "Short link exhausted")
 		case errors.Is(err, ErrPasswordRateLimited):
 			var rateLimitErr *PasswordRateLimitedError
 			meta := map[string]any{}
@@ -222,6 +226,7 @@ const (
 	publicAccessErrorMissing
 	publicAccessErrorDisabled
 	publicAccessErrorExpired
+	publicAccessErrorExhausted
 	publicAccessErrorNotInteractive
 	publicAccessErrorPassword
 	publicAccessErrorRateLimited
@@ -241,6 +246,8 @@ func classifyPublicAccessError(err error) publicAccessErrorKind {
 		return publicAccessErrorDisabled
 	case errors.Is(err, ErrShortLinkExpired):
 		return publicAccessErrorExpired
+	case errors.Is(err, ErrShortLinkExhausted):
+		return publicAccessErrorExhausted
 	case errors.Is(err, ErrShortLinkNotInteractive):
 		return publicAccessErrorNotInteractive
 	case errors.Is(err, ErrPasswordRequired), errors.Is(err, ErrInvalidPassword):
@@ -286,6 +293,8 @@ func (h *RedirectHandler) writePublicAccessError(w http.ResponseWriter, r *http.
 		redirectToPublicAccessState(w, r, slug, "disabled", nil)
 	case publicAccessErrorExpired:
 		redirectToPublicAccessState(w, r, slug, "expired", nil)
+	case publicAccessErrorExhausted:
+		redirectToPublicAccessState(w, r, slug, "exhausted", nil)
 	case publicAccessErrorNotInteractive:
 		redirectToPublicAccessState(w, r, slug, "not-interactive", nil)
 	case publicAccessErrorPassword:

@@ -49,6 +49,19 @@ async function flushPreview() {
 }
 
 describe('RedirectPage', () => {
+  it('replaces the password form when the quota is exhausted during unlock', async () => {
+    mockUnauthorizedPreview()
+    vi.mocked(unlockShortLink).mockRejectedValueOnce(new ApiClientError(200115, 'Exhausted'))
+    mountPage()
+    await flushPreview()
+    await fireEvent.update(screen.getByLabelText('redirect.password'), 'correct-password')
+    await fireEvent.submit(screen.getByLabelText('redirect.password').closest('form')!)
+    await flushPreview()
+    expect(screen.getByText('redirect.exhausted')).toBeTruthy()
+    expect(screen.queryByLabelText('redirect.password')).toBeNull()
+    expect(state.assign).not.toHaveBeenCalled()
+  })
+
   beforeEach(() => {
     vi.useFakeTimers()
     state.assign.mockReset()
@@ -132,6 +145,7 @@ describe('RedirectPage', () => {
     [200105, 'redirect.disabled'],
     [200109, 'redirect.expired'],
     [200110, 'redirect.notInteractive'],
+    [200115, 'redirect.exhausted'],
   ])('shows a non-retryable state for public business error %i', async (code, messageKey) => {
     vi.mocked(getPublicShortLinkPreview).mockRejectedValueOnce(new ApiClientError(code, 'unavailable'))
     mountPage()
@@ -145,6 +159,7 @@ describe('RedirectPage', () => {
     ['disabled', 'redirect.disabled'],
     ['expired', 'redirect.expired'],
     ['not-interactive', 'redirect.notInteractive'],
+    ['exhausted', 'redirect.exhausted'],
   ])('renders the localized public status for redirect reason %s', async (reason, messageKey) => {
     state.route!.query = { reason }
     mountPage()

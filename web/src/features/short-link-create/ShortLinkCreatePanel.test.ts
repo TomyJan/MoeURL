@@ -91,6 +91,65 @@ function setMutationResult(value: Partial<{
 }
 
 describe('ShortLinkCreatePanel', () => {
+  it('blocks creation after a permission refetch fails even with cached permissions', async () => {
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_max_visits'])
+    state.queryResult = { ...state.queryResult, isError: ref(true) }
+    mountPanel()
+    expect((screen.getByText('shortLinkCreate.submit') as HTMLButtonElement).disabled).toBe(true)
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(createShortLink).not.toHaveBeenCalled()
+  })
+
+  it('submits a finite visit limit and resets it after success', async () => {
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_max_visits'])
+    mountPanel()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    await fireEvent.click(screen.getByLabelText('visitLimit.enabled'))
+    await fireEvent.update(screen.getByLabelText('visitLimit.maximum'), '2')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(createShortLink).toHaveBeenCalledWith({ targetUrl: 'https://example.com', maxVisits: 2 })
+    await screen.findByTestId('short-link-create-result')
+    expect((screen.getByLabelText('visitLimit.enabled') as HTMLInputElement).checked).toBe(false)
+  })
+
+  it.each(['', '0', '-1', '1.5', '1e2', '2147483648'])('rejects invalid visit limit %s before creating', async (value) => {
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_max_visits'])
+    mountPanel()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    await fireEvent.click(screen.getByLabelText('visitLimit.enabled'))
+    await fireEvent.update(screen.getByLabelText('visitLimit.maximum'), value)
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(screen.getByText('visitLimit.invalid')).toBeTruthy()
+    expect(createShortLink).not.toHaveBeenCalled()
+  })
+
+  it('keeps the quota draft after failure, disables it while pending and omits it after permission loss', async () => {
+    const pending = ref(false)
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_max_visits'])
+    setMutationResult({ mutate, isPending: pending })
+    mountPanel()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    await fireEvent.click(screen.getByLabelText('visitLimit.enabled'))
+    await fireEvent.update(screen.getByLabelText('visitLimit.maximum'), '2147483647')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(mutate).toHaveBeenLastCalledWith({ targetUrl: 'https://example.com', maxVisits: 2147483647 })
+    expect((screen.getByLabelText('visitLimit.maximum') as HTMLInputElement).value).toBe('2147483647')
+    pending.value = true
+    await nextTick()
+    expect((screen.getByLabelText('visitLimit.maximum') as HTMLInputElement).disabled).toBe(true)
+    pending.value = false
+    const query = state.queryResult as { data: { value: { user: { permissions: string[] } } } }
+    query.data.value.user.permissions = ['short_link:create', 'domain:use_default']
+    await nextTick()
+    expect(screen.queryByLabelText('visitLimit.enabled')).toBeNull()
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(mutate).toHaveBeenLastCalledWith({ targetUrl: 'https://example.com' })
+  })
+
   beforeEach(() => {
     state.invalidateQueries.mockReset()
     state.mutationOptions = []

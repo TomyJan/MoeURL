@@ -98,11 +98,33 @@
           @input="clearPasswordError"
           @update:model-value="clearPasswordError"
         />
+        <p v-if="link.maxVisits !== null">{{ t('visitLimit.usage', { used: link.visitsUsed, maximum: link.maxVisits, remaining: link.visitsRemaining }) }}</p>
+        <p v-if="link.exhausted">{{ t('visitLimit.exhausted') }}</p>
+        <v-switch
+          v-if="canSetMaxVisits"
+          v-model="limitEnabled"
+          :label="t('visitLimit.enabled')"
+          :disabled="pending"
+          color="primary"
+          hide-details
+        />
+        <v-text-field
+          v-if="canSetMaxVisits && limitEnabled"
+          v-model="maxVisits"
+          :label="t('visitLimit.maximum')"
+          :error-messages="limitErrorMessage"
+          :disabled="pending"
+          inputmode="numeric"
+          variant="outlined"
+        />
+        <p v-if="canSetMaxVisits && limitEnabled">{{ t('visitLimit.hint') }}</p>
+        <v-alert v-if="canSetMaxVisits && lowerLimitExhausts" type="warning" variant="tonal">{{ t('visitLimit.lowerWarning') }}</v-alert>
+        <v-alert v-if="canSetMaxVisits && initialMaxVisits !== null && !limitEnabled" type="warning" variant="tonal">{{ t('visitLimit.clearWarning') }}</v-alert>
         <v-alert v-if="errorMessage" type="error" variant="tonal">{{ errorMessage }}</v-alert>
       </v-card-text>
       <v-card-actions class="short-link-settings-dialog__actions">
         <v-btn variant="text" :disabled="pending" @click="close">{{ t('shortLinkSettings.cancel') }}</v-btn>
-        <v-btn color="primary" :loading="pending" :disabled="pending" @click="save">
+        <v-btn color="primary" :loading="pending" :disabled="pending || !permissionsReady" @click="save">
           {{ t('shortLinkSettings.save') }}
         </v-btn>
       </v-card-actions>
@@ -117,12 +139,13 @@ import { useQuery } from '@tanstack/vue-query'
 
 import { me } from '@/entities/auth/api'
 import type { RedirectMode, ShortLink, UpdateShortLinkInput } from '@/entities/short-link/model'
+import { visitLimitInputSchema } from '@/entities/short-link/schema'
 import { useRedirectModePermissions } from '@/shared/short-link/useRedirectModePermissions'
 import { futureDateTimeSchema, passwordSchema, targetUrlSchema } from '@/shared/validation/shortLinkAccess'
 
 const props = defineProps<{
   errorMessage?: string
-  link: Pick<ShortLink, 'id' | 'targetUrl' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'passwordEnabled'>
+  link: Pick<ShortLink, 'id' | 'targetUrl' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'passwordEnabled' | 'maxVisits' | 'visitsUsed' | 'visitsRemaining' | 'exhausted'>
   open: boolean
   pending: boolean
 }>()
@@ -134,6 +157,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const targetUrl = ref('')
+const initialTargetUrl = ref('')
 const redirectMode = ref<RedirectMode>('direct')
 const intermediateDelaySeconds = ref(5)
 const expirationEnabled = ref(false)
@@ -141,6 +165,14 @@ const expiresAt = ref('')
 const initialExpirationInput = ref('')
 const initialExpirationEnabled = ref(false)
 const passwordEnabled = ref(false)
+const limitEnabled = ref(false)
+const maxVisits = ref('')
+const initialMaxVisits = ref<number | null>(null)
+const limitErrorMessage = ref('')
+const lowerLimitExhausts = computed(() => {
+  const result = visitLimitInputSchema.safeParse(maxVisits.value)
+  return limitEnabled.value && result.success && result.data !== initialMaxVisits.value && result.data <= props.link.visitsUsed
+})
 const passwordField = useTemplateRef<{ $el: globalThis.Element }>('passwordField')
 const targetErrorMessage = ref('')
 const expirationErrorMessage = ref('')
@@ -150,9 +182,11 @@ const currentUserQuery = useQuery({
   queryFn: me,
 })
 const currentUser = computed(() => currentUserQuery.data.value?.user)
+const permissionsReady = computed(() => currentUserQuery.data.value !== undefined && !currentUserQuery.isError?.value)
 const { canUseIntermediate, canUseConfirmation, canSubmitRedirectMode } = useRedirectModePermissions(currentUser)
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
 const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
+const canSetMaxVisits = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_max_visits')))
 const canConfigureRedirect = computed(() =>
   canUseIntermediate.value || canUseConfirmation.value || props.link.redirectMode !== 'direct',
 )
@@ -178,22 +212,21 @@ watch(
 
 /** Validates editable fields and emits the permitted access-setting changes. */
 function save() {
-  if (props.pending) {
+  if (props.pending || !permissionsReady.value) {
     return
   }
   targetErrorMessage.value = ''
   expirationErrorMessage.value = ''
   passwordErrorMessage.value = ''
 
-  const targetResult = targetUrlSchema.safeParse(targetUrl.value)
-  if (!targetResult.success) {
-    targetErrorMessage.value = t('shortLinkSettings.invalidUrl')
-    return
-  }
-
-  const input: UpdateShortLinkInput = {
-    id: props.link.id,
-    targetUrl: targetResult.data,
+  const input: UpdateShortLinkInput = { id: props.link.id }
+  if (targetUrl.value !== initialTargetUrl.value) {
+    const targetResult = targetUrlSchema.safeParse(targetUrl.value)
+    if (!targetResult.success) {
+      targetErrorMessage.value = t('shortLinkSettings.invalidUrl')
+      return
+    }
+    input.targetUrl = targetResult.data
   }
   if (canSubmitRedirectMode(redirectMode.value, canConfigureRedirect.value)) {
     input.redirectMode = redirectMode.value
@@ -221,6 +254,20 @@ function save() {
   }
   if (!applyPasswordInput(input)) {
     return
+  }
+
+  limitErrorMessage.value = ''
+  if (canSetMaxVisits.value) {
+    if (limitEnabled.value) {
+      const limit = visitLimitInputSchema.safeParse(maxVisits.value)
+      if (!limit.success) {
+        limitErrorMessage.value = t('visitLimit.invalid')
+        return
+      }
+      if (limit.data !== initialMaxVisits.value) input.visitLimit = { mode: 'limited', maxVisits: limit.data }
+    } else if (initialMaxVisits.value !== null) {
+      input.visitLimit = { mode: 'unlimited' }
+    }
   }
 
   emit('save', input)
@@ -278,8 +325,13 @@ function handleOpenUpdate(open: boolean) {
 }
 
 /** Restores editable access settings from the persisted link snapshot. */
-function resetFromLink(link: Pick<ShortLink, 'targetUrl' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'passwordEnabled'>) {
+function resetFromLink(link: typeof props.link) {
+  initialMaxVisits.value = link.maxVisits
+  limitEnabled.value = link.maxVisits !== null
+  maxVisits.value = link.maxVisits === null ? '' : String(link.maxVisits)
+  limitErrorMessage.value = ''
   targetUrl.value = link.targetUrl
+  initialTargetUrl.value = link.targetUrl
   redirectMode.value = link.redirectMode
   intermediateDelaySeconds.value = link.intermediateDelaySeconds
   expirationEnabled.value = link.expiresAt !== null

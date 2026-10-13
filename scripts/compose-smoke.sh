@@ -283,6 +283,7 @@ fs.writeFileSync(path.join(directory, 'login.json'), JSON.stringify({ username: 
 fs.writeFileSync(path.join(directory, 'short-link.json'), JSON.stringify({
   targetUrl: 'https://example.com/moeurl-compose-smoke',
   redirectMode: 'direct',
+  maxVisits: 1,
 }), { mode: 0o600 })
 NODE
 }
@@ -376,11 +377,22 @@ assert_persisted_link() {
 const fs = require('node:fs')
 const payload = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 const found = payload.code === 0 && payload.data?.items?.some((item) =>
-  item.targetUrl === 'https://example.com/moeurl-compose-smoke' && item.redirectMode === 'direct')
+  item.targetUrl === 'https://example.com/moeurl-compose-smoke' && item.redirectMode === 'direct'
+  && item.maxVisits === 1 && item.visitsUsed === 1 && item.visitsRemaining === 0 && item.exhausted === true)
 if (!found) {
   throw new Error('created short link was not retained after app restart')
 }
 NODE
+}
+
+assert_visit_quota() {
+  quota_slug=$(node -e "process.stdout.write(require(process.argv[1]).data.shortLink.slug)" "$WORK_DIR/short-link-response.json")
+  first_location=$(curl --fail --silent --show-error --connect-timeout 2 --max-time 5 \
+    --output /dev/null --write-out '%{redirect_url}' "$BASE_URL/$quota_slug")
+  [ "$first_location" = 'https://example.com/moeurl-compose-smoke' ] || fail 'first quota redirect failed'
+  second_location=$(curl --fail --silent --show-error --connect-timeout 2 --max-time 5 \
+    --output /dev/null --write-out '%{redirect_url}' "$BASE_URL/$quota_slug")
+  [ "$second_location" = "$BASE_URL/go/$quota_slug?reason=exhausted" ] || fail 'exhausted quota did not block a second redirect'
 }
 
 assert_database_state() {
@@ -436,6 +448,7 @@ run_full_smoke() {
   post_json "$WORK_DIR/short-link.json" "$WORK_DIR/short-link-response.json" \
     --cookie "$WORK_DIR/cookies.txt" "$BASE_URL/api/v1/short-link/create"
   assert_response_code "$WORK_DIR/short-link-response.json" 0
+  assert_visit_quota
   assert_database_state
 
   run_compose --project-name "$PROJECT_NAME" --env-file "$RUNTIME_ENV" --file "$COMPOSE_FILE" restart app

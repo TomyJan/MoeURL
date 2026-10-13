@@ -74,10 +74,6 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
       new URL(response.url()).pathname === `/go/${confirmationSlug}/preview`
       && response.request().method() === 'GET'
     ))
-    await page.route('https://example.com/e2e-confirmation', (route) => route.fulfill({
-      body: 'confirmation target reached',
-      status: 200,
-    }))
     const readContinueAttempts = await interceptFirstContinueFailure(page, confirmationSlug)
     await page.goto(`/${confirmationSlug}`)
     const previewResponse = await previewResponsePromise
@@ -131,10 +127,7 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
       new URL(request.url()).pathname === `/go/${confirmationSlug}/continue`
       && request.method() === 'GET'
     ))
-    await Promise.all([
-      page.waitForURL('https://example.com/e2e-confirmation'),
-      page.getByRole('button', { name: '继续访问' }).click(),
-    ])
+    await expectFinalRedirect(page, confirmationSlug, 'https://example.com/e2e-confirmation', '继续访问')
     await continueRequestPromise
     expect(readContinueAttempts()).toBe(2)
     await expect.poll(
@@ -158,7 +151,6 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
     const open = await page.request.get(`/${created.slug}`, { maxRedirects: 0 })
     expect(open.status()).toBe(302)
     expect(open.headers().location).toBe(`/go/${created.slug}?reason=password`)
-    await page.route(target, (route) => route.fulfill({ body: 'protected confirmation reached', status: 200 }))
     await page.goto(open.headers().location!)
     await expect(page.getByRole('heading', { name: '输入密码后继续访问' })).toBeVisible()
     await expectPasswordLayout(page)
@@ -173,10 +165,7 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
     await expect(page).toHaveURL(new RegExp(`/go/${created.slug}[?]reason=password$`))
     expect(await readVisitCount(page, created.id)).toBe(0)
 
-    await Promise.all([
-      page.waitForURL(target),
-      page.getByRole('button', { name: '继续访问' }).click(),
-    ])
+    await expectFinalRedirect(page, created.slug, target, '继续访问')
     await expect.poll(
       () => readVisitCount(page, created.id),
       { intervals: [250, 500, 1_000], timeout: 30_000 },
@@ -202,7 +191,6 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
     const created = payload.data.shortLink
     expect(await readVisitCount(page, created.id)).toBe(0)
 
-    await page.route(target, (route) => route.fulfill({ body: 'protected direct reached', status: 200 }))
     const readContinueAttempts = await interceptFirstContinueFailure(page, created.slug)
 
     const open = await page.request.get(`/${created.slug}`, { maxRedirects: 0 })
@@ -222,10 +210,7 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
     expect(readContinueAttempts()).toBe(1)
     expect(await readVisitCount(page, created.id)).toBe(0)
 
-    await Promise.all([
-      page.waitForURL(target),
-      page.getByRole('button', { name: '立即前往' }).click(),
-    ])
+    await expectFinalRedirect(page, created.slug, target, '立即前往')
     expect(readContinueAttempts()).toBe(2)
     await expect.poll(
       () => readVisitCount(page, created.id),
@@ -274,20 +259,35 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
   })
 })
 
-/** Fails the first continue request and reports how many attempts were intercepted. */
+/** Verifies the real final redirect and cancels target loading before an external response is needed. */
+async function expectFinalRedirect(page: Page, slug: string, target: string, button: string) {
+  const responsePromise = page.waitForResponse((response) => (
+    new URL(response.url()).pathname === `/go/${slug}/continue`
+    && response.request().method() === 'GET'
+  ))
+  await Promise.all([
+    page.waitForRequest(target),
+    page.getByRole('button', { name: button, exact: true }).click({ noWaitAfter: true }),
+  ])
+  const response = await responsePromise
+  expect(response.status()).toBe(302)
+  expect(response.headers().location).toBe(target)
+  await page.goto('about:blank')
+}
+
+/** Fails the first continue request and counts actual attempts independently of routing. */
 async function interceptFirstContinueFailure(page: Page, slug: string) {
   let attempts = 0
-  await page.route(`**/go/${slug}/continue`, async (route) => {
-    attempts += 1
-    if (attempts === 1) {
-      await route.fulfill({
-        headers: { location: `/go/${slug}?reason=continue-failed` },
-        status: 302,
-      })
-      return
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === `/go/${slug}/continue` && request.method() === 'GET') {
+      attempts += 1
     }
-    await route.continue()
   })
+  // Remove the failure route after one use so a real retry's redirect can reach the target mock.
+  await page.route(`**/go/${slug}/continue`, (route) => route.fulfill({
+    headers: { location: `/go/${slug}?reason=continue-failed` },
+    status: 302,
+  }), { times: 1 })
   return () => attempts
 }
 

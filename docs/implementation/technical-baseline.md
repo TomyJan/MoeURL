@@ -283,6 +283,8 @@ API 使用 `/api/v1` 前缀：
 | `300000`-`399999` | 用户错误。 |
 | `900000`-`999999` | 系统和初始化错误。 |
 
+v0.10.0 扩展既有短链 create、own/admin update、list 和 statistics 契约，不新增路由。创建接受可选 `maxVisits`，更新接受可选 `visitLimit`（`limited` + 整数或 `unlimited`）。管理响应统一返回 `maxVisits`、`visitsUsed`、`visitsRemaining`、`exhausted`，前端共享严格 Schema 校验其一致性。公开 Preview 不返回额度字段，Preview/Unlock 耗尽返回 HTTP `200` + `200115`，公开跳转使用 `reason=exhausted`。非法额度输入沿用 `100001`，缺少能力沿用 `120001`。
+
 ## 6. 数据库约定
 
 ### 命名规则
@@ -384,6 +386,12 @@ v0.7.0 新增 `oidc_provider`、`external_identity` 和 `oidc_login_attempt`。p
 
 公开接口 `GET /api/v1/system/public-config` 只返回站点名称、默认语言、默认主题、页脚文本和 Powered by 开关。管理接口 `GET /api/v1/admin/system/settings` 与 `POST /api/v1/admin/system/settings/update` 同时要求 `admin:access` 和 `system:manage`；更新本地登录策略时先锁定策略行，并与 OIDC Provider 更新、停用和删除共享最终登录入口检查。本地登录关闭不撤销已有 Session，也不删除本地账号或密码；`GET /api/v1/auth/methods` 返回持久化后的真实状态。密码登录先受全局并发槽位和统一操作超时保护，再读取本地登录策略；策略关闭时在创建事务和执行 Argon2id 校验前拒绝。
 
+### v0.10.0 访问次数额度
+
+`00015_short_link_max_visits.sql` 添加 nullable `max_visits bigint` 与非空 `visits_used bigint default 0`。数据库约束限定 32 位正整数上限和非负用量，无限额用量必须为 0。允许降低上限后用量大于上限，剩余量派生为 `max(0, max_visits - visits_used)`；耗尽不修改 `status`。更新已有有限额保留用量，清除或重新启用重建周期；既有短链无限额且历史事件不回填。
+
+有限额最终跳转使用最多 5 秒的事务，锁定短链行和共享锁域名行后通过第二条查询重读，重新验证 Host、状态、过期、模式和密码授权，再条件领取并提交。领取不推进 `updated_at`，也不退款；`302` 响应头可能在正文错误之前送达。默认无限额保持原只读路径和访问快照语义。异步 `redirect_response_sent` 统计仍独立且允许丢失。Down 删除额度数据，回滚影响必须由运维先确认。
+
 ### 短码规则
 
 - v0.0.1 默认生成 6 位随机短码。
@@ -419,6 +427,7 @@ short_link:use_intermediate
 short_link:use_confirmation
 short_link:set_expiration
 short_link:set_password
+short_link:set_max_visits
 admin:access
 ```
 

@@ -64,6 +64,7 @@ type PreviewResult struct {
 type RedirectService struct {
 	queries                 *sqlc.Queries
 	pool                    *pgxpool.Pool
+	visitTransactions       visitTransactionStore
 	recorder                event.Recorder
 	accessTokenRandomReader io.Reader
 	cleanupPauseHook        func(context.Context) error
@@ -77,6 +78,7 @@ func NewRedirectService(pool *pgxpool.Pool, recorder event.Recorder) *RedirectSe
 	return &RedirectService{
 		queries:                 sqlc.New(pool),
 		pool:                    pool,
+		visitTransactions:       pool,
 		recorder:                recorder,
 		accessTokenRandomReader: rand.Reader,
 	}
@@ -107,6 +109,10 @@ func (s *RedirectService) Open(ctx context.Context, slug string, requestHost str
 	if err := s.checkAccess(ctx, slug, shortLinkID, link.Status, link.Expired, link.RedirectMode, false); err != nil {
 		return OpenResult{}, err
 	}
+	if link.Exhausted {
+		s.record(ctx, event.RedirectBlocked, slug, shortLinkID)
+		return OpenResult{}, ErrShortLinkExhausted
+	}
 
 	result := OpenResult{
 		RedirectResult:   RedirectResult{ShortLinkID: shortLinkID},
@@ -120,9 +126,19 @@ func (s *RedirectService) Open(ctx context.Context, slug string, requestHost str
 	if isInteractiveRedirectMode(link.RedirectMode) {
 		return result, nil
 	}
+	if link.MaxVisits.Valid {
+		result, err = s.claimLimitedVisit(ctx, slug, "", requestHost, false)
+		if err != nil {
+			return OpenResult{}, err
+		}
+		if result.RequiresPassword || isInteractiveRedirectMode(result.RedirectMode) {
+			return result, nil
+		}
+	} else {
+		result.TargetURL = link.TargetUrl
+	}
 
 	s.record(ctx, event.RedirectInitiated, slug, shortLinkID)
-	result.TargetURL = link.TargetUrl
 	return result, nil
 }
 
@@ -138,6 +154,12 @@ func (s *RedirectService) Preview(ctx context.Context, slug string, accessToken 
 	}
 	if !publicDomainMatches(link.DomainHost, link.DomainEnabled, link.DomainPurpose, requestHost) {
 		return PreviewResult{}, ErrShortLinkMissing
+	}
+	if link.Exhausted {
+		if err := validateAccessConditions(link.Status, link.Expired, link.RedirectMode, false); err != nil {
+			return PreviewResult{}, err
+		}
+		return PreviewResult{}, ErrShortLinkExhausted
 	}
 	passwordEnabled := link.PasswordHash.Valid
 	if err := validateAccessConditions(link.Status, link.Expired, link.RedirectMode, !passwordEnabled); err != nil {
@@ -188,6 +210,25 @@ func (s *RedirectService) Continue(ctx context.Context, slug string, accessToken
 	if !publicDomainMatches(link.DomainHost, link.DomainEnabled, link.DomainPurpose, requestHost) {
 		return RedirectResult{}, ErrShortLinkMissing
 	}
+	if link.Exhausted {
+		shortLinkID := uuidFromPgtype(link.ID)
+		if err := s.checkAccess(ctx, slug, shortLinkID, link.Status, link.Expired, link.RedirectMode, false); err != nil {
+			return RedirectResult{}, err
+		}
+		s.record(ctx, event.RedirectBlocked, slug, shortLinkID)
+		return RedirectResult{}, ErrShortLinkExhausted
+	}
+	if link.MaxVisits.Valid {
+		result, err := s.claimLimitedVisit(ctx, slug, accessToken, requestHost, true)
+		if err != nil {
+			return RedirectResult{}, err
+		}
+		if result.RedirectMode == RedirectModeConfirmation {
+			s.record(ctx, event.ConfirmationClicked, slug, result.ShortLinkID)
+		}
+		s.record(ctx, event.RedirectInitiated, slug, result.ShortLinkID)
+		return result.RedirectResult, nil
+	}
 
 	shortLinkID := uuidFromPgtype(link.ID)
 	passwordEnabled := link.PasswordHash.Valid
@@ -214,10 +255,15 @@ func (s *RedirectService) Continue(ctx context.Context, slug string, accessToken
 
 // hasValidAccessGrant verifies a scoped token against the current password revision.
 func (s *RedirectService) hasValidAccessGrant(ctx context.Context, shortLinkID pgtype.UUID, accessToken string) (bool, error) {
+	return hasValidAccessGrantWithQueries(ctx, s.queries, shortLinkID, accessToken)
+}
+
+// hasValidAccessGrantWithQueries keeps password revision checks inside the caller's transaction.
+func hasValidAccessGrantWithQueries(ctx context.Context, queries *sqlc.Queries, shortLinkID pgtype.UUID, accessToken string) (bool, error) {
 	if accessToken == "" {
 		return false, nil
 	}
-	_, err := s.queries.GetValidShortLinkAccessGrant(ctx, sqlc.GetValidShortLinkAccessGrantParams{
+	_, err := queries.GetValidShortLinkAccessGrant(ctx, sqlc.GetValidShortLinkAccessGrantParams{
 		ShortLinkID: shortLinkID,
 		TokenHash:   hashAccessToken(accessToken),
 	})
@@ -262,6 +308,9 @@ func (s *RedirectService) Unlock(ctx context.Context, slug string, password stri
 	}
 	if err := validateAccessConditions(link.Status, link.Expired, link.RedirectMode, false); err != nil {
 		return AccessGrant{}, err
+	}
+	if link.Exhausted {
+		return AccessGrant{}, ErrShortLinkExhausted
 	}
 	if !state.PasswordHash.Valid {
 		return AccessGrant{}, ErrInvalidPassword
