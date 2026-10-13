@@ -95,6 +95,8 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		Page:     queryInt32WithDefault(r, "page", defaultPage),
 		PageSize: queryInt32WithDefault(r, "pageSize", defaultPageSize),
 		Status:   r.URL.Query().Get("status"),
+		Query:    r.URL.Query().Get("q"),
+		Tag:      r.URL.Query().Get("tag"),
 	})
 	if err != nil {
 		writeBusinessOrSystemError(w, r, h.logger, err)
@@ -164,6 +166,7 @@ func (h *Handler) AdminList(w http.ResponseWriter, r *http.Request) {
 		PageSize: queryInt32WithDefault(r, "pageSize", defaultPageSize),
 		Status:   r.URL.Query().Get("status"),
 		Query:    r.URL.Query().Get("q"),
+		Tag:      r.URL.Query().Get("tag"),
 	})
 	if err != nil {
 		writeBusinessOrSystemError(w, r, h.logger, err)
@@ -225,6 +228,8 @@ func (h *Handler) AdminDelete(w http.ResponseWriter, r *http.Request) {
 // writeBusinessOrSystemError maps service errors and records unknown infrastructure failures.
 func writeBusinessOrSystemError(w http.ResponseWriter, r *http.Request, logger *slog.Logger, err error) {
 	switch {
+	case errors.Is(err, ErrInvalidInput):
+		businessError(w, 100001, "Invalid request")
 	case errors.Is(err, ErrPermissionDenied):
 		businessError(w, CodePermissionDenied, "Permission denied")
 	case errors.Is(err, ErrInvalidTargetURL):

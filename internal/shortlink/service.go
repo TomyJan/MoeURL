@@ -94,6 +94,10 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 	if err != nil {
 		return CreateResult{}, err
 	}
+	title, tags, err := normalizeMetadata(permissions, input.Metadata)
+	if err != nil {
+		return CreateResult{}, err
+	}
 
 	ownerID, err := uuid.Parse(user.ID)
 	if err != nil {
@@ -137,11 +141,15 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 				ExpiresAt:                accessConfig.expiresAt,
 				PasswordHash:             accessConfig.passwordHash,
 				MaxVisits:                maxVisits,
+				Title:                    title,
+				Tags:                     tags,
 			})
 			if err != nil {
 				return err
 			}
 			shortLink := ShortLink{
+				Title:     created.Title,
+				Tags:      metadataTags(created.Tags),
 				ID:        uuidFromPgtype(created.ID),
 				URL:       buildShortLinkURL(domain.Host, created.Slug),
 				Slug:      created.Slug,
@@ -197,6 +205,10 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 	if input.Status != "" && !isAllowedStatus(input.Status) {
 		return ListResult{}, ErrInvalidStatus
 	}
+	query, tag, err := normalizeListFilters(input)
+	if err != nil {
+		return ListResult{}, err
+	}
 
 	page, pageSize := normalizePagination(input)
 	ownerID, err := uuid.Parse(user.ID)
@@ -205,6 +217,8 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 	}
 
 	total, err := s.queries.CountShortLinksByOwner(ctx, sqlc.CountShortLinksByOwnerParams{
+		Query:   query,
+		Tag:     tag,
 		OwnerID: uuidToPgtype(ownerID),
 		Status:  optionalFilterText(input.Status),
 	})
@@ -213,6 +227,8 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 	}
 
 	rows, err := s.queries.ListShortLinksByOwner(ctx, sqlc.ListShortLinksByOwnerParams{
+		Query:   query,
+		Tag:     tag,
 		OwnerID: uuidToPgtype(ownerID),
 		Limit:   pageSize,
 		Offset:  (page - 1) * pageSize,
@@ -225,6 +241,8 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 	items := make([]ShortLink, 0, len(rows))
 	for _, row := range rows {
 		shortLink := ShortLink{
+			Title:     row.Title,
+			Tags:      metadataTags(row.Tags),
 			ID:        uuidFromPgtype(row.ID),
 			URL:       buildShortLinkURL(row.DomainHost, row.Slug),
 			Slug:      row.Slug,
@@ -271,6 +289,10 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 	if err != nil {
 		return CreateResult{}, err
 	}
+	title, tags, err := normalizeMetadata(permissions, input.Metadata)
+	if err != nil {
+		return CreateResult{}, err
+	}
 
 	linkID, ownerID, err := parseLinkAndOwnerIDs(input.ID, user.ID)
 	if err != nil {
@@ -278,6 +300,8 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 	}
 
 	updated, err := s.queries.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
+		Title:                    title,
+		Tags:                     tags,
 		ID:                       uuidToPgtype(linkID),
 		OwnerID:                  uuidToPgtype(ownerID),
 		TargetUrl:                optionalText(input.TargetURL),
@@ -304,6 +328,8 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 	}
 
 	shortLink := ShortLink{
+		Title:     updated.Title,
+		Tags:      metadataTags(updated.Tags),
 		ID:        uuidFromPgtype(updated.ID),
 		URL:       buildShortLinkURL(domain.Host, updated.Slug),
 		Slug:      updated.Slug,
@@ -386,11 +412,16 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 	if input.Status != "" && !isAllowedStatus(input.Status) {
 		return AdminListResult{}, ErrInvalidStatus
 	}
+	query, tag, err := normalizeListFilters(input)
+	if err != nil {
+		return AdminListResult{}, err
+	}
 
 	page, pageSize := normalizePagination(input)
 	total, err := s.queries.CountAllShortLinks(ctx, sqlc.CountAllShortLinksParams{
 		Status: optionalFilterText(input.Status),
-		Query:  input.Query,
+		Query:  query,
+		Tag:    tag,
 	})
 	if err != nil {
 		return AdminListResult{}, err
@@ -399,7 +430,8 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 		Limit:  pageSize,
 		Offset: (page - 1) * pageSize,
 		Status: optionalFilterText(input.Status),
-		Query:  input.Query,
+		Query:  query,
+		Tag:    tag,
 	})
 	if err != nil {
 		return AdminListResult{}, err
@@ -408,6 +440,8 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 	items := make([]AdminShortLink, 0, len(rows))
 	for _, row := range rows {
 		shortLink := AdminShortLink{
+			Title:     row.Title,
+			Tags:      metadataTags(row.Tags),
 			ID:        uuidFromPgtype(row.ID),
 			URL:       buildShortLinkURL(row.DomainHost, row.Slug),
 			Slug:      row.Slug,
@@ -459,12 +493,18 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 	if err != nil {
 		return CreateResult{}, err
 	}
+	title, tags, err := normalizeMetadata(permissions, input.Metadata)
+	if err != nil {
+		return CreateResult{}, err
+	}
 
 	linkID, err := uuid.Parse(input.ID)
 	if err != nil {
 		return CreateResult{}, err
 	}
 	updated, err := s.queries.UpdateAnyShortLink(ctx, sqlc.UpdateAnyShortLinkParams{
+		Title:                    title,
+		Tags:                     tags,
 		ID:                       uuidToPgtype(linkID),
 		TargetUrl:                optionalText(input.TargetURL),
 		Status:                   optionalText(input.Status),
@@ -490,6 +530,8 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 	}
 
 	shortLink := ShortLink{
+		Title:     updated.Title,
+		Tags:      metadataTags(updated.Tags),
 		ID:        uuidFromPgtype(updated.ID),
 		URL:       buildShortLinkURL(domain.Host, updated.Slug),
 		Slug:      updated.Slug,
@@ -547,6 +589,8 @@ func (s *Service) analyticsLink(ctx context.Context, linkID uuid.UUID) (analytic
 		return analyticsLinkResult{}, err
 	}
 	shortLink := ShortLink{
+		Title:     row.Title,
+		Tags:      metadataTags(row.Tags),
 		ID:        uuidFromPgtype(row.ID),
 		URL:       buildShortLinkURL(row.DomainHost, row.Slug),
 		Slug:      row.Slug,
