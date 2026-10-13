@@ -126,6 +126,24 @@
                 :error-messages="expirationErrorMessage"
               />
               <v-switch
+                v-if="canSetMaxVisits"
+                v-model="limitEnabled"
+                :label="t('visitLimit.enabled')"
+                :disabled="mutation.isPending.value"
+                color="primary"
+                hide-details
+              />
+              <v-text-field
+                v-if="canSetMaxVisits && limitEnabled"
+                v-model="maxVisits"
+                :label="t('visitLimit.maximum')"
+                :error-messages="limitErrorMessage"
+                :disabled="mutation.isPending.value"
+                inputmode="numeric"
+                variant="outlined"
+              />
+              <p v-if="canSetMaxVisits && limitEnabled">{{ t('visitLimit.hint') }}</p>
+              <v-switch
                 v-if="canSetPassword"
                 v-model="passwordEnabled"
                 color="primary"
@@ -191,6 +209,7 @@ import { me } from '@/entities/auth/api'
 import { availableDomainQueryKey, listAvailableDomains } from '@/entities/domain/api'
 import { createShortLink } from '@/entities/short-link/api'
 import type { CreateShortLinkInput, RedirectMode } from '@/entities/short-link/model'
+import { visitLimitInputSchema } from '@/entities/short-link/schema'
 import ShortLinkQrDialog from '@/features/short-link-qr/ShortLinkQrDialog.vue'
 import { runShortLinkMutation } from '@/shared/short-link/runShortLinkMutation'
 import { useRedirectModePermissions } from '@/shared/short-link/useRedirectModePermissions'
@@ -221,6 +240,9 @@ const intermediateDelaySeconds = ref(5)
 const expirationEnabled = ref(false)
 const expiresAt = ref('')
 const passwordEnabled = ref(false)
+const limitEnabled = ref(false)
+const maxVisits = ref('')
+const limitErrorMessage = ref('')
 const selectedDomainId = ref('')
 const passwordField = useTemplateRef<{ $el: globalThis.Element }>('passwordField')
 const currentUserQuery = useQuery({
@@ -244,12 +266,13 @@ const domainChoice = computed({
   get: () => availableDomains.value.some((item) => item.id === selectedDomainId.value) ? selectedDomainId.value : fallbackDomainId.value,
   set: (id: string) => { selectedDomainId.value = id },
 })
-const canCreateShortLink = computed(() => canCreateWithPermissions.value && !domainQuery.isError.value && availableDomains.value.length > 0)
+const canCreateShortLink = computed(() => canCreateWithPermissions.value && !currentUserQuery.isError?.value && !domainQuery.isError.value && availableDomains.value.length > 0)
 const { canUseIntermediate, canUseConfirmation, canSubmitRedirectMode } = useRedirectModePermissions(currentUser)
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
 const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
+const canSetMaxVisits = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_max_visits')))
 const canConfigureRedirect = computed(() => canUseIntermediate.value || canUseConfirmation.value)
-const canConfigureAccess = computed(() => canConfigureRedirect.value || canSetExpiration.value || canSetPassword.value)
+const canConfigureAccess = computed(() => canConfigureRedirect.value || canSetExpiration.value || canSetPassword.value || canSetMaxVisits.value)
 const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !canCreateWithPermissions.value)
 
 watch([canUseIntermediate, canUseConfirmation], () => {
@@ -349,6 +372,15 @@ function submitValidatedInput(): boolean {
   }
 
   const input: CreateShortLinkInput = { targetUrl: targetUrlResult.data }
+  limitErrorMessage.value = ''
+  if (canSetMaxVisits.value && limitEnabled.value) {
+    const limit = visitLimitInputSchema.safeParse(maxVisits.value)
+    if (!limit.success) {
+      limitErrorMessage.value = t('visitLimit.invalid')
+      return false
+    }
+    input.maxVisits = limit.data
+  }
   if (domainChoice.value) input.domainId = domainChoice.value
   if (canSubmitRedirectMode(redirectMode.value)) {
     input.redirectMode = redirectMode.value
@@ -381,6 +413,9 @@ function resetForm() {
 
 /** Clears creation inputs after a successful request while preserving the generated result. */
 function resetInputFields() {
+  limitEnabled.value = false
+  maxVisits.value = ''
+  limitErrorMessage.value = ''
   targetUrl.value = ''
   validationErrorMessage.value = ''
   copyErrorMessage.value = ''

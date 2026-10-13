@@ -12,7 +12,7 @@ interface UseShortLinkSettingsOptions {
 
 type ShortLinkSettingsTarget = Pick<
   ShortLink,
-  'id' | 'url' | 'slug' | 'targetUrl' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'passwordEnabled'
+  'id' | 'url' | 'slug' | 'targetUrl' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'passwordEnabled' | 'maxVisits' | 'visitsUsed' | 'visitsRemaining' | 'exhausted'
 >
 
 /** Coordinates shared settings and QR dialog state for short-link list pages. */

@@ -75,6 +75,54 @@ function setPermissions(permissions: string[]) {
 }
 
 describe('ShortLinkSettingsDialog', () => {
+  it('keeps the current quota when saving unrelated fields, then submits a lower limit with a warning', async () => {
+    setPermissions(['short_link:set_max_visits'])
+    const view = mountDialog({ link: { ...directLink, maxVisits: 5, visitsUsed: 3, visitsRemaining: 2 } })
+    expect(screen.getByText('visitLimit.usage')).toBeTruthy()
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save?.[0]).toEqual([{ id: 'link-id', targetUrl: directLink.targetUrl }])
+    await fireEvent.update(screen.getByLabelText('visitLimit.maximum'), '2')
+    expect(screen.getByText('visitLimit.lowerWarning')).toBeTruthy()
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save?.[1]).toEqual([{ id: 'link-id', targetUrl: directLink.targetUrl, visitLimit: { mode: 'limited', maxVisits: 2 } }])
+  })
+
+  it('warns before clearing a quota period and preserves the draft on failed saves', async () => {
+    setPermissions(['short_link:set_max_visits'])
+    const view = mountDialog({ link: { ...directLink, maxVisits: 5, visitsUsed: 3, visitsRemaining: 2 } })
+    await fireEvent.click(screen.getByLabelText('visitLimit.enabled'))
+    expect(screen.getByText('visitLimit.clearWarning')).toBeTruthy()
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save?.[0]).toEqual([{ id: 'link-id', targetUrl: directLink.targetUrl, visitLimit: { mode: 'unlimited' } }])
+    await view.rerender({ pending: true })
+    expect((screen.getByLabelText('visitLimit.enabled') as HTMLInputElement).disabled).toBe(true)
+    await view.rerender({ pending: false, errorMessage: 'save failed' })
+    expect((screen.getByLabelText('visitLimit.enabled') as HTMLInputElement).checked).toBe(false)
+    expect(screen.getByText('save failed')).toBeTruthy()
+  })
+
+  it('validates a new quota and hides editing from users without the capability', async () => {
+    setPermissions(['short_link:set_max_visits'])
+    const view = mountDialog()
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save?.[0]).toEqual([{ id: 'link-id', targetUrl: directLink.targetUrl }])
+    await fireEvent.click(screen.getByLabelText('visitLimit.enabled'))
+    await fireEvent.update(screen.getByLabelText('visitLimit.maximum'), '0')
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save).toHaveLength(1)
+    expect(screen.getByText('visitLimit.invalid')).toBeTruthy()
+    await fireEvent.update(screen.getByLabelText('visitLimit.maximum'), '1')
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save?.[1]).toEqual([{ id: 'link-id', targetUrl: directLink.targetUrl, visitLimit: { mode: 'limited', maxVisits: 1 } }])
+    view.unmount()
+    setPermissions([])
+    const readOnly = mountDialog({ link: { ...directLink, maxVisits: 1, visitsUsed: 1, visitsRemaining: 0, exhausted: true } })
+    expect(screen.queryByLabelText('visitLimit.enabled')).toBeNull()
+    expect(screen.getByText('visitLimit.exhausted')).toBeTruthy()
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(readOnly.emitted().save?.[0]).toEqual([{ id: 'link-id', targetUrl: directLink.targetUrl }])
+  })
+
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-02T00:00:00Z'))

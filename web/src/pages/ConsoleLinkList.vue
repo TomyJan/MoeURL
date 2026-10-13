@@ -27,6 +27,10 @@
           <span v-if="link.expired" class="console-link-row__expired">{{ t('links.expired') }}</span>
           <span v-else>{{ formatExpiration(link.expiresAt) }}</span>
         </div>
+        <div v-if="link.maxVisits !== null" class="console-link-row__access" data-testid="visit-limit">
+          <span>{{ t('visitLimit.usage', { used: link.visitsUsed, maximum: link.maxVisits, remaining: link.visitsRemaining }) }}</span>
+          <span v-if="link.exhausted" class="console-link-row__expired">{{ t('visitLimit.exhausted') }}</span>
+        </div>
         <dl class="console-link-row__stats">
           <div>
             <dt>{{ t('links.stats.visitCount') }}</dt>
@@ -99,6 +103,10 @@ export interface ConsoleLinkListItem {
   expiresAt: string | null
   expired: boolean
   passwordEnabled: boolean
+  maxVisits: number | null
+  visitsUsed: number
+  visitsRemaining: number | null
+  exhausted: boolean
   stats?: {
     visitCount: number
     todayVisitCount: number

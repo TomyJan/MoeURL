@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 export const visitLimitIntegerSchema = z.number().int().min(1).max(2147483647)
+export const visitLimitInputSchema = z.string().trim().regex(/^[0-9]+$/).transform(Number).pipe(visitLimitIntegerSchema)
 const quotaCountSchema = z.number().int().min(0).max(2147483647)
 const countSchema = z.number().int().min(0)
 const timestampSchema = z.iso.datetime({ offset: true })
