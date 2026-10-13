@@ -28,6 +28,7 @@ const (
 	CodeInvalidPassword          = 200112
 	CodePasswordRateLimited      = 200113
 	CodeDomainUnavailable        = 200114
+	CodeShortLinkExhausted       = 200115
 )
 
 type Port interface {

@@ -189,6 +189,7 @@ func TestRedirectHandlerUnlockMapsPasswordErrorsToBusinessCodes(t *testing.T) {
 		{name: "missing", err: shortlink.ErrShortLinkMissing, code: shortlink.CodeInvalidPassword},
 		{name: "disabled", err: shortlink.ErrShortLinkDisabled, code: shortlink.CodeInvalidPassword},
 		{name: "expired", err: shortlink.ErrShortLinkExpired, code: shortlink.CodeInvalidPassword},
+		{name: "exhausted", err: shortlink.ErrShortLinkExhausted, code: 200115},
 		{name: "rate limited", err: shortlink.ErrPasswordRateLimited, code: shortlink.CodePasswordRateLimited},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -483,6 +484,7 @@ func TestRedirectHandlerShowsBlockedStatus(t *testing.T) {
 		{name: "missing", err: shortlink.ErrShortLinkMissing, code: http.StatusNotFound},
 		{name: "disabled", err: shortlink.ErrShortLinkDisabled, code: http.StatusFound, location: "/go/abc123?reason=disabled"},
 		{name: "expired", err: shortlink.ErrShortLinkExpired, code: http.StatusFound, location: "/go/abc123?reason=expired"},
+		{name: "exhausted", err: shortlink.ErrShortLinkExhausted, code: http.StatusFound, location: "/go/abc123?reason=exhausted"},
 		{name: "system", err: errors.New("database down"), code: http.StatusInternalServerError},
 	}
 
@@ -701,6 +703,7 @@ func TestRedirectHandlerPreviewMapsBusinessAndSystemErrors(t *testing.T) {
 		{name: "missing", err: shortlink.ErrShortLinkMissing, httpStatus: http.StatusOK, code: shortlink.CodeShortLinkMissing},
 		{name: "disabled", err: shortlink.ErrShortLinkDisabled, httpStatus: http.StatusOK, code: shortlink.CodeShortLinkDisabled},
 		{name: "expired", err: shortlink.ErrShortLinkExpired, httpStatus: http.StatusOK, code: shortlink.CodeShortLinkExpired},
+		{name: "exhausted", err: shortlink.ErrShortLinkExhausted, httpStatus: http.StatusOK, code: 200115},
 		{name: "not interactive", err: shortlink.ErrShortLinkNotInteractive, httpStatus: http.StatusOK, code: shortlink.CodeShortLinkNotInteractive},
 		{name: "password required", err: shortlink.ErrPasswordRequired, httpStatus: http.StatusOK, code: shortlink.CodePasswordRequired},
 		{name: "system", err: errors.New("database down"), httpStatus: http.StatusInternalServerError, code: 900000},
@@ -757,6 +760,7 @@ func TestRedirectHandlerContinueShowsLifecycleErrors(t *testing.T) {
 		{name: "missing", err: shortlink.ErrShortLinkMissing, code: http.StatusNotFound},
 		{name: "disabled", err: shortlink.ErrShortLinkDisabled, code: http.StatusFound, location: "/go/middle?reason=disabled"},
 		{name: "expired", err: shortlink.ErrShortLinkExpired, code: http.StatusFound, location: "/go/middle?reason=expired"},
+		{name: "exhausted", err: shortlink.ErrShortLinkExhausted, code: http.StatusFound, location: "/go/middle?reason=exhausted"},
 		{name: "not interactive", err: shortlink.ErrShortLinkNotInteractive, code: http.StatusFound, location: "/go/middle?reason=not-interactive"},
 		{name: "password required", err: shortlink.ErrPasswordRequired, code: http.StatusFound, location: "/go/middle?reason=password"},
 		{name: "invalid password", err: shortlink.ErrInvalidPassword, code: http.StatusFound, location: "/go/middle?reason=password"},
