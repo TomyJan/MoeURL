@@ -10,6 +10,7 @@ import (
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/event"
+	apphttp "github.com/TomyJan/MoeURL/internal/http"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/stretchr/testify/require"
@@ -215,6 +216,32 @@ func TestServiceMetadataFiltersIntersectAndIsolateOwners(t *testing.T) {
 		if input.PageSize == 1 {
 			require.Equal(t, int64(1), own.Total)
 			require.Len(t, own.Items, 1)
+		}
+	}
+}
+
+// TestMetadataListRejectsInvalidUTF8 keeps malformed query bytes out of PostgreSQL and the system-error contract.
+func TestMetadataListRejectsInvalidUTF8(t *testing.T) {
+	pool := shortLinkTestPool(t, t.Context())
+	user := insertShortLinkUser(t, t.Context(), pool, "alice", permission.GroupAdmin, permission.AdminPermissions)
+	router := apphttp.NewRouter(apphttp.Dependencies{
+		CurrentUser: &fakeCurrentUserResolver{user: user},
+		ShortLink:   shortlink.NewService(pool, permission.NewService()),
+	})
+	for _, path := range []string{"/api/v1/short-link/list", "/api/v1/admin/short-link/list"} {
+		for _, query := range []string{"q=%FF", "q=%C0%AF", "tag=%FF", "tag=%ED%A0%80"} {
+			t.Run(path+"?"+query, func(t *testing.T) {
+				response := httptest.NewRecorder()
+				request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path+"?"+query, nil)
+				request.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session-id"})
+				router.ServeHTTP(response, request)
+				require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+				var body struct {
+					Code int `json:"code"`
+				}
+				require.NoError(t, json.NewDecoder(response.Body).Decode(&body))
+				require.Equal(t, 100001, body.Code)
+			})
 		}
 	}
 }

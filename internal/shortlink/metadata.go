@@ -51,7 +51,7 @@ func containsControl(value string) bool {
 // normalizeListFilters bounds Unicode input and escapes SQL LIKE metacharacters.
 func normalizeListFilters(input ListInput) (string, string, error) {
 	query, tag := strings.TrimSpace(input.Query), strings.TrimSpace(input.Tag)
-	if utf8.RuneCountInString(query) > 200 || utf8.RuneCountInString(tag) > 32 || containsControl(query) || containsControl(tag) {
+	if !utf8.ValidString(query) || !utf8.ValidString(tag) || utf8.RuneCountInString(query) > 200 || utf8.RuneCountInString(tag) > 32 || containsControl(query) || containsControl(tag) {
 		return "", "", ErrInvalidInput
 	}
 	query = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(query)
