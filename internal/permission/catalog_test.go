@@ -21,6 +21,7 @@ func TestCatalogDefinitionsCoverPermissionConstants(t *testing.T) {
 		{Key: ShortLinkSetExpiration, Category: "short_link_access"},
 		{Key: ShortLinkSetPassword, Category: "short_link_access"},
 		{Key: ShortLinkUseConfirmation, Category: "short_link_access"},
+		{Key: ShortLinkSetMaxVisits, Category: "short_link_access"},
 		{Key: DomainUseDefault, Category: "domain"},
 		{Key: DomainUseAssigned, Category: "domain"},
 		{Key: DomainManage, Category: "administration", Protected: true},

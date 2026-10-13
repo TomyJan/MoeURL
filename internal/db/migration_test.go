@@ -364,6 +364,156 @@ func TestSystemSettingsRollbackRemovesPermissionFromPostMigrationAdmin(t *testin
 	}
 }
 
+// TestShortLinkMaxVisitsMigrationRoundTrip verifies quota defaults, constraints, and permission rollback ownership.
+func TestShortLinkMaxVisitsMigrationRoundTrip(t *testing.T) {
+	ctx := t.Context()
+	database := migrationTestDatabase(t, ctx)
+	migrationsDir := filepath.Join("..", "..", "migrations")
+	if err := goose.UpTo(database, migrationsDir, 14); err != nil {
+		t.Fatalf("upgrade through system settings: %v", err)
+	}
+	insertUserGroups(t, ctx, database)
+	if _, err := database.ExecContext(ctx, `
+		insert into short_link (
+			id, owner_id, domain_id, slug, target_url, status,
+			redirect_mode, intermediate_delay_seconds, created_at, updated_at
+		) values (
+			'00000000-0000-0000-0000-000000000301',
+			'00000000-0000-0000-0000-000000000201',
+			'00000000-0000-0000-0000-000000000101',
+			'quota1', 'https://example.com', 'active', 'direct', 5, now(), now()
+		)
+	`); err != nil {
+		t.Fatalf("insert pre-migration short link: %v", err)
+	}
+
+	if err := goose.UpTo(database, migrationsDir, 15); err != nil {
+		t.Fatalf("upgrade max visits migration: %v", err)
+	}
+	var maxVisits sql.NullInt64
+	var visitsUsed int64
+	if err := database.QueryRowContext(ctx, `
+		select max_visits, visits_used from short_link where slug = 'quota1'
+	`).Scan(&maxVisits, &visitsUsed); err != nil {
+		t.Fatalf("read migrated quota fields: %v", err)
+	}
+	if maxVisits.Valid || visitsUsed != 0 {
+		t.Fatalf("migrated quota = (%v, %d), want (null, 0)", maxVisits, visitsUsed)
+	}
+	for _, groupKey := range []string{"user", "admin"} {
+		var hasPermission bool
+		if err := database.QueryRowContext(ctx, `
+			select permissions ? 'short_link:set_max_visits' from user_group where key = $1
+		`, groupKey).Scan(&hasPermission); err != nil {
+			t.Fatalf("read %s max visits permission: %v", groupKey, err)
+		}
+		if !hasPermission {
+			t.Fatalf("expected %s to receive short_link:set_max_visits", groupKey)
+		}
+	}
+
+	constraintCases := []struct {
+		name      string
+		maxVisits any
+		used      int64
+		wantError bool
+	}{
+		{name: "minimum", maxVisits: int64(1), used: 0},
+		{name: "used above reduced limit", maxVisits: int64(1), used: 2},
+		{name: "maximum", maxVisits: int64(2147483647), used: 2147483647},
+		{name: "zero limit", maxVisits: int64(0), used: 0, wantError: true},
+		{name: "limit above maximum", maxVisits: int64(2147483648), used: 0, wantError: true},
+		{name: "negative usage", maxVisits: int64(1), used: -1, wantError: true},
+		{name: "unlimited usage", maxVisits: nil, used: 1, wantError: true},
+	}
+	for _, test := range constraintCases {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := database.ExecContext(ctx, `
+				update short_link set max_visits = $1, visits_used = $2 where slug = 'quota1'
+			`, test.maxVisits, test.used)
+			if (err != nil) != test.wantError {
+				t.Fatalf("quota constraint error = %v, wantError %t", err, test.wantError)
+			}
+		})
+	}
+	if _, err := database.ExecContext(ctx, `
+		update user_group
+		set permissions = permissions - 'short_link:set_max_visits'
+		where key = 'user';
+		update user_group
+		set permissions = permissions || '["short_link:set_max_visits"]'::jsonb
+		where key = 'user';
+	`); err != nil {
+		t.Fatalf("edit migrated user permission: %v", err)
+	}
+
+	if err := goose.DownTo(database, migrationsDir, 14); err != nil {
+		t.Fatalf("rollback max visits migration: %v", err)
+	}
+	for _, column := range []string{"max_visits", "visits_used"} {
+		var exists bool
+		if err := database.QueryRowContext(ctx, `
+			select exists (
+				select 1 from information_schema.columns
+				where table_schema = 'public' and table_name = 'short_link' and column_name = $1
+			)
+		`, column).Scan(&exists); err != nil {
+			t.Fatalf("inspect rolled-back column %s: %v", column, err)
+		}
+		if exists {
+			t.Fatalf("rollback retained column %s", column)
+		}
+	}
+	for groupKey, want := range map[string]bool{"user": true, "admin": false} {
+		var got bool
+		if err := database.QueryRowContext(ctx, `
+			select permissions ? 'short_link:set_max_visits' from user_group where key = $1
+		`, groupKey).Scan(&got); err != nil {
+			t.Fatalf("read rolled-back %s permission: %v", groupKey, err)
+		}
+		if got != want {
+			t.Fatalf("rolled-back %s permission = %t, want %t", groupKey, got, want)
+		}
+	}
+	if err := goose.UpTo(database, migrationsDir, 15); err != nil {
+		t.Fatalf("reapply max visits migration: %v", err)
+	}
+}
+
+// TestShortLinkMaxVisitsRollbackRemovesPostMigrationPermissions verifies setup-created groups remain rollback-compatible.
+func TestShortLinkMaxVisitsRollbackRemovesPostMigrationPermissions(t *testing.T) {
+	ctx := t.Context()
+	database := migrationTestDatabase(t, ctx)
+	migrationsDir := filepath.Join("..", "..", "migrations")
+	if err := goose.UpTo(database, migrationsDir, 15); err != nil {
+		t.Fatalf("upgrade empty database through max visits: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `
+		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+		values
+			('00000000-0000-0000-0000-000000000002', 'user', 'User', '',
+			 '["short_link:create","short_link:set_max_visits"]'::jsonb, true, now(), now()),
+			('00000000-0000-0000-0000-000000000003', 'admin', 'Admin', '',
+			 '["admin:access","short_link:set_max_visits"]'::jsonb, true, now(), now())
+	`); err != nil {
+		t.Fatalf("insert post-migration groups: %v", err)
+	}
+	if err := goose.DownTo(database, migrationsDir, 14); err != nil {
+		t.Fatalf("rollback max visits migration: %v", err)
+	}
+	for _, groupKey := range []string{"user", "admin"} {
+		var hasPermission bool
+		if err := database.QueryRowContext(ctx, `
+			select permissions ? 'short_link:set_max_visits' from user_group where key = $1
+		`, groupKey).Scan(&hasPermission); err != nil {
+			t.Fatalf("read rolled-back %s permission: %v", groupKey, err)
+		}
+		if hasPermission {
+			t.Fatalf("rollback retained post-migration %s max visits permission", groupKey)
+		}
+	}
+}
+
 // TestOIDCRollbackWaitsForConcurrentIdentityInsert verifies the guard observes committed in-flight bindings.
 func TestOIDCRollbackWaitsForConcurrentIdentityInsert(t *testing.T) {
 	ctx := t.Context()
