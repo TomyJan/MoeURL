@@ -328,12 +328,47 @@ func TestIdentityResolverPropagatesAdvisoryLockFailure(t *testing.T) {
 	if _, err := lock.Exec(t.Context(), `select pg_advisory_xact_lock(hashtextextended($1, 0))`, lockKey); err != nil {
 		t.Fatalf("hold subject lock: %v", err)
 	}
-	ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	if _, err := NewDatabaseIdentityResolver(pool).ResolveOrCreate(ctx, provider, IdentityClaims{
-		Subject: "subject", Email: "person@example.com", EmailVerified: true,
-	}); !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("advisory lock wait error = %v, want deadline exceeded", err)
+	result := make(chan error, 1)
+	go func() {
+		_, err := NewDatabaseIdentityResolver(pool).ResolveOrCreate(ctx, provider, IdentityClaims{
+			Subject: "subject", Email: "person@example.com", EmailVerified: true,
+		})
+		result <- err
+	}()
+	// Cancel only after PostgreSQL confirms the resolver reached this advisory lock.
+	waitContext, stopWaiting := context.WithTimeout(t.Context(), 10*time.Second)
+	defer stopWaiting()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		var waiting bool
+		if err := pool.QueryRow(waitContext, `select exists (
+			select 1 from pg_locks where locktype = 'advisory' and not granted
+			and $1::integer = any(pg_blocking_pids(pid))
+		)`, int32(lock.Conn().PgConn().PID())).Scan(&waiting); err != nil {
+			t.Fatalf("observe advisory lock wait: %v", err)
+		}
+		if waiting {
+			break
+		}
+		select {
+		case err := <-result:
+			t.Fatalf("resolver returned before waiting for advisory lock: %v", err)
+		case <-waitContext.Done():
+			t.Fatal("resolver never waited for advisory lock")
+		case <-ticker.C:
+		}
+	}
+	cancel()
+	select {
+	case err := <-result:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("advisory lock wait error = %v, want canceled", err)
+		}
+	case <-waitContext.Done():
+		t.Fatal("resolver did not return after cancellation")
 	}
 	var users int
 	if err := pool.QueryRow(t.Context(), `select count(*) from app_user`).Scan(&users); err != nil || users != 0 {
