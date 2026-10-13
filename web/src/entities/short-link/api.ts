@@ -22,11 +22,11 @@ export interface ShortLinkListInput {
   page?: number
   pageSize?: number
   status?: ShortLink['status'] | ''
+  q?: string
+  tag?: string
 }
 
-export interface AdminShortLinkListInput extends ShortLinkListInput {
-  q?: string
-}
+export type AdminShortLinkListInput = ShortLinkListInput
 
 const publicShortLinkPreviewBaseSchema = {
   slug: z.string(),
@@ -87,6 +87,8 @@ export async function listShortLinks(input: ShortLinkListInput = {}): Promise<Sh
   if (input.status) {
     search.set('status', input.status)
   }
+  if (input.q) search.set('q', input.q)
+  if (input.tag) search.set('tag', input.tag)
   const response = await apiGet<unknown>(`/short-link/list?${search.toString()}`)
   return {
     items: parse(shortLinkListSchema, response.data).items,
@@ -134,6 +136,7 @@ export async function listAdminShortLinks(input: AdminShortLinkListInput = {}): 
   if (input.q) {
     search.set('q', input.q)
   }
+  if (input.tag) search.set('tag', input.tag)
   const response = await apiGet<unknown>(`/admin/short-link/list?${search.toString()}`)
   return {
     items: parse(adminShortLinkListSchema, response.data).items,

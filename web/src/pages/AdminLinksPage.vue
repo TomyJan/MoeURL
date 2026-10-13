@@ -7,9 +7,10 @@
       <span class="console-page__total">{{ t('adminLinks.total', { total }) }}</span>
     </div>
     <div class="console-page__tools">
-      <div class="console-page__filters">
+      <div class="console-page__filters console-page__metadata-filters">
         <v-select v-model="statusFilter" :items="statusOptions" :label="t('filter.status')" density="compact" variant="outlined" />
-        <v-text-field v-model="searchKeyword" :label="t('filter.keyword')" density="compact" variant="outlined" />
+        <v-text-field v-model="searchKeyword" :label="t('filter.keyword')" :error-messages="keywordInvalid ? t('linkMetadata.keywordInvalid') : ''" density="compact" variant="outlined" />
+        <v-text-field v-model="tagFilter" :label="t('filter.tag')" :error-messages="tagInvalid ? t('linkMetadata.tagFilterInvalid') : ''" density="compact" variant="outlined" />
       </div>
     </div>
     <div class="console-data-panel" data-testid="console-data-panel">
@@ -53,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -63,29 +64,22 @@ import ShortLinkSettingsDialog from '@/features/short-link-settings/ShortLinkSet
 import ShortLinkQrDialog from '@/features/short-link-qr/ShortLinkQrDialog.vue'
 import { useMutationTargetId } from '@/shared/mutations/useMutationTargetId'
 import { useShortLinkSettings } from '@/shared/short-link/useShortLinkSettings'
+import { useShortLinkFilters } from '@/shared/short-link/useShortLinkFilters'
 import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const statusFilter = ref<'' | AdminShortLink['status']>('')
-const searchKeyword = ref('')
-const debouncedKeyword = ref('')
+const { searchKeyword, tagFilter, debouncedKeyword, debouncedTag, keywordInvalid, tagInvalid } = useShortLinkFilters()
 const statusOptions = computed(() => [
   { title: t('filter.all'), value: '' },
   { title: t('filter.active'), value: 'active' },
   { title: t('filter.disabled'), value: 'disabled' },
 ])
 
-watch(searchKeyword, (value, _oldValue, onCleanup) => {
-  const timer = globalThis.setTimeout(() => {
-    debouncedKeyword.value = value
-  }, 500)
-  onCleanup(() => globalThis.clearTimeout(timer))
-})
-
 const query = useQuery({
-  queryKey: computed(() => ['admin-short-link', statusFilter.value, debouncedKeyword.value]),
-  queryFn: () => listAdminShortLinks({ status: statusFilter.value, q: debouncedKeyword.value }),
+  queryKey: computed(() => ['admin-short-link', statusFilter.value, debouncedKeyword.value, debouncedTag.value]),
+  queryFn: () => listAdminShortLinks({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value }),
 })
 const links = computed(() => query.data.value?.items ?? [])
 const linkItems = computed<ConsoleLinkListItem[]>(() => links.value)
@@ -133,3 +127,15 @@ function invalidateLinks() {
   void queryClient.invalidateQueries({ queryKey: ['admin-short-link'] })
 }
 </script>
+
+<style scoped>
+.console-page__metadata-filters {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 760px) {
+  .console-page__metadata-filters {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

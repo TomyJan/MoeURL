@@ -91,6 +91,73 @@ function setMutationResult(value: Partial<{
 }
 
 describe('ShortLinkCreatePanel', () => {
+  it('creates trimmed metadata only with its independent permission and resets the inputs', async () => {
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_metadata'])
+    mountPanel()
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.update(screen.getByLabelText('linkMetadata.title'), '\u0085文档入口\u3000')
+    await fireEvent.update(screen.getByLabelText('linkMetadata.tags'), ' 团队资料 \n Release 计划 ')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    await nextTick()
+    expect(createShortLink).toHaveBeenCalledWith({ targetUrl: 'https://example.com', metadata: { title: '文档入口', tags: ['团队资料', 'Release 计划'] } })
+    expect((screen.getByLabelText('linkMetadata.title') as HTMLInputElement).value).toBe('')
+    expect((screen.getByLabelText('linkMetadata.tags') as HTMLTextAreaElement).value).toBe('')
+  })
+
+  it('blocks invalid metadata and omits the draft after permission is revoked', async () => {
+    const data = ref({ user: { permissions: ['short_link:create', 'domain:use_default', 'short_link:set_metadata'] } })
+    state.queryResult = { data }
+    const mutate = vi.fn()
+    setMutationResult({ mutate })
+    mountPanel()
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.update(screen.getByLabelText('linkMetadata.title'), '😀'.repeat(121))
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(screen.getByText('linkMetadata.titleInvalid')).toBeTruthy()
+    expect(mutate).not.toHaveBeenCalled()
+    await fireEvent.update(screen.getByLabelText('linkMetadata.title'), 'Valid')
+    await fireEvent.update(screen.getByLabelText('linkMetadata.tags'), 'duplicate\nduplicate')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(screen.getByText('linkMetadata.tagsInvalid')).toBeTruthy()
+    expect(mutate).not.toHaveBeenCalled()
+    data.value.user.permissions = ['short_link:create', 'domain:use_default']
+    await nextTick()
+    expect(screen.queryByLabelText('linkMetadata.title')).toBeNull()
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(mutate).toHaveBeenLastCalledWith({ targetUrl: 'https://example.com' })
+  })
+
+  it.each([
+    { field: 'title', invalid: '😀'.repeat(121), valid: '文档入口', error: 'linkMetadata.titleInvalid' },
+    { field: 'tags', invalid: 'A\nA', valid: 'A\nB', error: 'linkMetadata.tagsInvalid' },
+  ])('reveals invalid $field after advanced settings are collapsed and allows correction', async ({ field, invalid, valid, error }) => {
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_metadata'])
+    const mutate = vi.fn()
+    setMutationResult({ mutate })
+    mountPanel()
+    const advanced = screen.getByText('shortLinkCreate.advanced')
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(advanced)
+    await fireEvent.update(screen.getByLabelText(`linkMetadata.${field}`), invalid)
+    await fireEvent.click(advanced)
+    expect(screen.queryByLabelText(`linkMetadata.${field}`)).toBeNull()
+
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+
+    expect(mutate).not.toHaveBeenCalled()
+    expect(advanced.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByText(error)).toBeTruthy()
+    expect((screen.getByLabelText(`linkMetadata.${field}`) as HTMLInputElement).value).toBe(invalid)
+    await fireEvent.update(screen.getByLabelText(`linkMetadata.${field}`), valid)
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(mutate).toHaveBeenCalledWith({
+      targetUrl: 'https://example.com',
+      metadata: field === 'title' ? { title: valid, tags: [] } : { title: '', tags: ['A', 'B'] },
+    })
+  })
+
   it('blocks creation after a permission refetch fails even with cached permissions', async () => {
     setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_max_visits'])
     state.queryResult = { ...state.queryResult, isError: ref(true) }

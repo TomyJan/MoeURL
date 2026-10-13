@@ -23,6 +23,7 @@ import {
   VTab,
   VTabs,
   VTextField,
+  VTextarea,
 } from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 
@@ -123,6 +124,7 @@ export const vuetify = createVuetify({
     VTab,
     VTabs,
     VTextField,
+    VTextarea,
   },
   defaults: {
     VBtn: {

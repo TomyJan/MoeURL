@@ -44,6 +44,7 @@ type AccessGrant struct {
 }
 
 type CreateInput struct {
+	Metadata                 *MetadataInput   `json:"metadata,omitempty"`
 	TargetURL                string           `json:"targetUrl"`
 	DomainID                 *string          `json:"domainId,omitempty"`
 	RedirectMode             string           `json:"redirectMode"`
@@ -62,6 +63,7 @@ type ListInput struct {
 	PageSize int32
 	Status   string
 	Query    string
+	Tag      string
 }
 
 // OverviewResult contains personal short-link and visit aggregates.
@@ -73,6 +75,7 @@ type OverviewResult struct {
 }
 
 type UpdateInput struct {
+	Metadata                 *MetadataInput   `json:"metadata,omitempty"`
 	ID                       string           `json:"id"`
 	TargetURL                *string          `json:"targetUrl"`
 	Status                   *string          `json:"status"`
@@ -178,11 +181,13 @@ func (limit *VisitLimit) setVisitLimit(maxVisits pgtype.Int8, visitsUsed int64) 
 }
 
 type ShortLink struct {
-	ID        string `json:"id"`
-	URL       string `json:"url"`
-	Slug      string `json:"slug"`
-	TargetURL string `json:"targetUrl"`
-	Status    string `json:"status"`
+	Title     string   `json:"title"`
+	Tags      []string `json:"tags"`
+	ID        string   `json:"id"`
+	URL       string   `json:"url"`
+	Slug      string   `json:"slug"`
+	TargetURL string   `json:"targetUrl"`
+	Status    string   `json:"status"`
 	AccessConfig
 	VisitLimit
 	CreatedAt time.Time       `json:"createdAt"`
@@ -202,11 +207,13 @@ type OwnerSummary struct {
 }
 
 type AdminShortLink struct {
-	ID        string `json:"id"`
-	URL       string `json:"url"`
-	Slug      string `json:"slug"`
-	TargetURL string `json:"targetUrl"`
-	Status    string `json:"status"`
+	Title     string   `json:"title"`
+	Tags      []string `json:"tags"`
+	ID        string   `json:"id"`
+	URL       string   `json:"url"`
+	Slug      string   `json:"slug"`
+	TargetURL string   `json:"targetUrl"`
+	Status    string   `json:"status"`
 	AccessConfig
 	VisitLimit
 	CreatedAt time.Time       `json:"createdAt"`

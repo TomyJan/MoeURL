@@ -59,6 +59,10 @@
           </v-btn>
           <Transition name="moe-layout">
             <div v-if="advancedOpen" class="short-link-create-panel__advanced-controls">
+              <template v-if="canSetMetadata">
+                <v-text-field v-model="metadataTitle" :label="t('linkMetadata.title')" :error-messages="metadataTitleError" :disabled="mutation.isPending.value" variant="outlined" />
+                <v-textarea v-model="metadataTags" :label="t('linkMetadata.tags')" :error-messages="metadataTagsError" :disabled="mutation.isPending.value" rows="3" variant="outlined" />
+              </template>
               <div v-if="canConfigureRedirect" class="short-link-create-panel__mode-control">
                 <span>{{ t('shortLinkCreate.redirectMode') }}</span>
                 <v-btn-toggle
@@ -214,6 +218,7 @@ import ShortLinkQrDialog from '@/features/short-link-qr/ShortLinkQrDialog.vue'
 import { runShortLinkMutation } from '@/shared/short-link/runShortLinkMutation'
 import { useRedirectModePermissions } from '@/shared/short-link/useRedirectModePermissions'
 import { futureDateTimeSchema, passwordSchema, targetUrlSchema } from '@/shared/validation/shortLinkAccess'
+import { metadataDraftSchema } from '@/shared/validation/shortLinkMetadata'
 
 withDefaults(
   defineProps<{
@@ -227,6 +232,10 @@ withDefaults(
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const targetUrl = ref('')
+const metadataTitle = ref('')
+const metadataTags = ref('')
+const metadataTitleError = ref('')
+const metadataTagsError = ref('')
 const createdUrl = ref('')
 const createdSlug = ref('')
 const qrOpen = ref(false)
@@ -271,8 +280,9 @@ const { canUseIntermediate, canUseConfirmation, canSubmitRedirectMode } = useRed
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
 const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
 const canSetMaxVisits = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_max_visits')))
+const canSetMetadata = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_metadata')))
 const canConfigureRedirect = computed(() => canUseIntermediate.value || canUseConfirmation.value)
-const canConfigureAccess = computed(() => canConfigureRedirect.value || canSetExpiration.value || canSetPassword.value || canSetMaxVisits.value)
+const canConfigureAccess = computed(() => canConfigureRedirect.value || canSetExpiration.value || canSetPassword.value || canSetMaxVisits.value || canSetMetadata.value)
 const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !canCreateWithPermissions.value)
 
 watch([canUseIntermediate, canUseConfirmation], () => {
@@ -372,6 +382,20 @@ function submitValidatedInput(): boolean {
   }
 
   const input: CreateShortLinkInput = { targetUrl: targetUrlResult.data }
+  metadataTitleError.value = ''
+  metadataTagsError.value = ''
+  if (canSetMetadata.value) {
+    const metadata = metadataDraftSchema.safeParse({ title: metadataTitle.value, tagsText: metadataTags.value })
+    if (!metadata.success) {
+      advancedOpen.value = true
+      for (const issue of metadata.error.issues) {
+        if (issue.path[0] === 'title') metadataTitleError.value = t('linkMetadata.titleInvalid')
+        else metadataTagsError.value = t('linkMetadata.tagsInvalid')
+      }
+      return false
+    }
+    input.metadata = metadata.data
+  }
   limitErrorMessage.value = ''
   if (canSetMaxVisits.value && limitEnabled.value) {
     const limit = visitLimitInputSchema.safeParse(maxVisits.value)
@@ -413,6 +437,10 @@ function resetForm() {
 
 /** Clears creation inputs after a successful request while preserving the generated result. */
 function resetInputFields() {
+  metadataTitle.value = ''
+  metadataTags.value = ''
+  metadataTitleError.value = ''
+  metadataTagsError.value = ''
   limitEnabled.value = false
   maxVisits.value = ''
   limitErrorMessage.value = ''

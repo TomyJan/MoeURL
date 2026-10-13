@@ -13,6 +13,7 @@ export const shortLinkSchema = z.strictObject({
   id: z.string().min(1), url: z.url(), slug: z.string().min(1),
   // Stored targets follow the server URL contract, which differs from the browser URL parser.
   targetUrl: z.string().min(1),
+  title: z.string(), tags: z.array(z.string()),
   status: z.enum(['active', 'disabled']), redirectMode: z.enum(['direct', 'intermediate', 'confirmation']),
   intermediateDelaySeconds: z.number().int().min(3).max(10),
   expiresAt: timestampSchema.nullable(), expired: z.boolean(), passwordEnabled: z.boolean(),

@@ -5,14 +5,15 @@ select clock_timestamp()::timestamptz as database_time;
 insert into short_link (
     id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at, password_hash,
-    password_updated_at, max_visits,
+    password_updated_at, max_visits, title, tags,
     created_at, updated_at
 )
 values ($1, $2, $3, $4, $5, $6, $7, $8, $9, nullif(sqlc.narg('password_hash')::text, ''),
     case when coalesce(sqlc.narg('password_hash')::text, '') <> '' then clock_timestamp() else null end,
     sqlc.narg('max_visits')::bigint,
+    coalesce(sqlc.narg('title')::text, ''), coalesce(sqlc.narg('tags')::text[], '{}'),
     now(), now())
-returning id, owner_id, domain_id, slug, target_url, status,
+returning id, owner_id, domain_id, slug, target_url, status, title, tags,
     redirect_mode, intermediate_delay_seconds, expires_at,
     coalesce(expires_at <= clock_timestamp(), false)::boolean as expired,
     password_hash, max_visits, visits_used,
@@ -57,6 +58,7 @@ returning visits_used, max_visits;
 
 -- name: GetShortLinkAnalyticsLink :one
 select short_link.id,
+    short_link.title, short_link.tags,
     short_link.owner_id,
     short_link.slug,
     short_link.target_url,
@@ -77,6 +79,7 @@ where short_link.id = $1 and short_link.deleted_at is null;
 
 -- name: ListShortLinksByOwner :many
 select short_link.id,
+    short_link.title, short_link.tags,
     short_link.owner_id,
     short_link.domain_id,
     short_link.slug,
@@ -108,6 +111,14 @@ left join lateral (
 ) stats on true
 where short_link.owner_id = $1 and short_link.deleted_at is null
     and (sqlc.narg('status')::text is null or short_link.status = sqlc.narg('status')::text)
+    and (sqlc.arg('tag')::text = '' or short_link.tags @> array[sqlc.arg('tag')::text])
+    and (
+        sqlc.arg('query')::text = ''
+        or short_link.slug ilike '%' || sqlc.arg('query')::text || '%'
+        or short_link.target_url ilike '%' || sqlc.arg('query')::text || '%'
+        or short_link.title ilike '%' || sqlc.arg('query')::text || '%'
+        or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || sqlc.arg('query')::text || '%')
+    )
 order by short_link.created_at desc
 limit $2 offset $3;
 
@@ -115,7 +126,15 @@ limit $2 offset $3;
 select count(*)
 from short_link
 where owner_id = $1 and deleted_at is null
-    and (sqlc.narg('status')::text is null or status = sqlc.narg('status')::text);
+    and (sqlc.narg('status')::text is null or status = sqlc.narg('status')::text)
+    and (sqlc.arg('tag')::text = '' or short_link.tags @> array[sqlc.arg('tag')::text])
+    and (
+        sqlc.arg('query')::text = ''
+        or short_link.slug ilike '%' || sqlc.arg('query')::text || '%'
+        or short_link.target_url ilike '%' || sqlc.arg('query')::text || '%'
+        or short_link.title ilike '%' || sqlc.arg('query')::text || '%'
+        or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || sqlc.arg('query')::text || '%')
+    );
 
 -- name: GetShortLinkOverviewByOwner :one
 select count(distinct short_link.id)::bigint as total_link_count,
@@ -149,6 +168,8 @@ with locked as materialized (
 )
 update short_link
 set target_url = coalesce(sqlc.narg('target_url'), target_url),
+    title = coalesce(sqlc.narg('title')::text, title),
+    tags = coalesce(sqlc.narg('tags')::text[], tags),
     max_visits = case sqlc.arg('visit_limit_mode')::text
         when 'unlimited' then null
         when 'limited' then sqlc.narg('max_visits')::bigint
@@ -197,6 +218,7 @@ set target_url = coalesce(sqlc.narg('target_url'), target_url),
 from locked
 where short_link.id = locked.id
 returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
+    short_link.title, short_link.tags,
     short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
     short_link.password_hash, short_link.password_updated_at,
@@ -214,6 +236,7 @@ where id = $1
 
 -- name: ListAllShortLinks :many
 select short_link.id,
+    short_link.title, short_link.tags,
     short_link.owner_id,
     short_link.domain_id,
     short_link.slug,
@@ -248,11 +271,14 @@ left join lateral (
 ) stats on true
 where short_link.deleted_at is null
     and (sqlc.narg('status')::text is null or short_link.status = sqlc.narg('status')::text)
+    and (sqlc.arg('tag')::text = '' or short_link.tags @> array[sqlc.arg('tag')::text])
     and (
         sqlc.arg('query')::text = ''
         or short_link.slug ilike '%' || sqlc.arg('query')::text || '%'
         or short_link.target_url ilike '%' || sqlc.arg('query')::text || '%'
         or app_user.username ilike '%' || sqlc.arg('query')::text || '%'
+        or short_link.title ilike '%' || sqlc.arg('query')::text || '%'
+        or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || sqlc.arg('query')::text || '%')
         or app_user.nickname ilike '%' || sqlc.arg('query')::text || '%'
     )
 order by short_link.created_at desc
@@ -264,11 +290,14 @@ from short_link
 left join app_user on sqlc.arg('query')::text <> '' and app_user.id = short_link.owner_id
 where short_link.deleted_at is null
     and (sqlc.narg('status')::text is null or short_link.status = sqlc.narg('status')::text)
+    and (sqlc.arg('tag')::text = '' or short_link.tags @> array[sqlc.arg('tag')::text])
     and (
         sqlc.arg('query')::text = ''
         or short_link.slug ilike '%' || sqlc.arg('query')::text || '%'
         or short_link.target_url ilike '%' || sqlc.arg('query')::text || '%'
         or app_user.username ilike '%' || sqlc.arg('query')::text || '%'
+        or short_link.title ilike '%' || sqlc.arg('query')::text || '%'
+        or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || sqlc.arg('query')::text || '%')
         or app_user.nickname ilike '%' || sqlc.arg('query')::text || '%'
     );
 
@@ -289,6 +318,8 @@ with locked as materialized (
 )
 update short_link
 set target_url = coalesce(sqlc.narg('target_url'), target_url),
+    title = coalesce(sqlc.narg('title')::text, title),
+    tags = coalesce(sqlc.narg('tags')::text[], tags),
     max_visits = case sqlc.arg('visit_limit_mode')::text
         when 'unlimited' then null
         when 'limited' then sqlc.narg('max_visits')::bigint
@@ -337,6 +368,7 @@ set target_url = coalesce(sqlc.narg('target_url'), target_url),
 from locked
 where short_link.id = locked.id
 returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
+    short_link.title, short_link.tags,
     short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
     short_link.password_hash, short_link.password_updated_at,

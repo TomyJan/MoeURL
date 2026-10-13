@@ -284,6 +284,7 @@ fs.writeFileSync(path.join(directory, 'short-link.json'), JSON.stringify({
   targetUrl: 'https://example.com/moeurl-compose-smoke',
   redirectMode: 'direct',
   maxVisits: 1,
+  metadata: { title: 'Compose Smoke', tags: ['smoke', 'restart persistence'] },
 }), { mode: 0o600 })
 NODE
 }
@@ -378,6 +379,7 @@ const fs = require('node:fs')
 const payload = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 const found = payload.code === 0 && payload.data?.items?.some((item) =>
   item.targetUrl === 'https://example.com/moeurl-compose-smoke' && item.redirectMode === 'direct'
+  && item.title === 'Compose Smoke' && JSON.stringify(item.tags) === JSON.stringify(['smoke', 'restart persistence'])
   && item.maxVisits === 1 && item.visitsUsed === 1 && item.visitsRemaining === 0 && item.exhausted === true)
 if (!found) {
   throw new Error('created short link was not retained after app restart')

@@ -14,11 +14,18 @@ export type VisitLimitInput =
   | { mode: 'limited'; maxVisits: number }
   | { mode: 'unlimited' }
 
+export interface ShortLinkMetadata {
+  title: string
+  tags: string[]
+}
+
 export interface ShortLink {
   id: string
   url: string
   slug: string
   targetUrl: string
+  title: string
+  tags: string[]
   status: 'active' | 'disabled'
   redirectMode: RedirectMode
   intermediateDelaySeconds: number
@@ -80,6 +87,7 @@ export interface AdminShortLink extends ShortLink {
 
 export interface CreateShortLinkInput {
   targetUrl: string
+  metadata?: ShortLinkMetadata | null
   domainId?: string
   redirectMode?: RedirectMode
   intermediateDelaySeconds?: number
@@ -90,6 +98,8 @@ export interface CreateShortLinkInput {
 
 export interface UpdateShortLinkInput {
   id: string
+  /** Omit or null to preserve metadata; a complete object replaces both fields. */
+  metadata?: ShortLinkMetadata | null
   targetUrl?: string
   status?: ShortLink['status']
   redirectMode?: RedirectMode

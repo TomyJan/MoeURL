@@ -39,11 +39,14 @@ from short_link
 left join app_user on $1::text <> '' and app_user.id = short_link.owner_id
 where short_link.deleted_at is null
     and ($2::text is null or short_link.status = $2::text)
+    and ($3::text = '' or short_link.tags @> array[$3::text])
     and (
         $1::text = ''
         or short_link.slug ilike '%' || $1::text || '%'
         or short_link.target_url ilike '%' || $1::text || '%'
         or app_user.username ilike '%' || $1::text || '%'
+        or short_link.title ilike '%' || $1::text || '%'
+        or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || $1::text || '%')
         or app_user.nickname ilike '%' || $1::text || '%'
     )
 `
@@ -51,10 +54,11 @@ where short_link.deleted_at is null
 type CountAllShortLinksParams struct {
 	Query  string      `json:"query"`
 	Status pgtype.Text `json:"status"`
+	Tag    string      `json:"tag"`
 }
 
 func (q *Queries) CountAllShortLinks(ctx context.Context, arg CountAllShortLinksParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countAllShortLinks, arg.Query, arg.Status)
+	row := q.db.QueryRow(ctx, countAllShortLinks, arg.Query, arg.Status, arg.Tag)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -65,15 +69,30 @@ select count(*)
 from short_link
 where owner_id = $1 and deleted_at is null
     and ($2::text is null or status = $2::text)
+    and ($3::text = '' or short_link.tags @> array[$3::text])
+    and (
+        $4::text = ''
+        or short_link.slug ilike '%' || $4::text || '%'
+        or short_link.target_url ilike '%' || $4::text || '%'
+        or short_link.title ilike '%' || $4::text || '%'
+        or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || $4::text || '%')
+    )
 `
 
 type CountShortLinksByOwnerParams struct {
 	OwnerID pgtype.UUID `json:"owner_id"`
 	Status  pgtype.Text `json:"status"`
+	Tag     string      `json:"tag"`
+	Query   string      `json:"query"`
 }
 
 func (q *Queries) CountShortLinksByOwner(ctx context.Context, arg CountShortLinksByOwnerParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countShortLinksByOwner, arg.OwnerID, arg.Status)
+	row := q.db.QueryRow(ctx, countShortLinksByOwner,
+		arg.OwnerID,
+		arg.Status,
+		arg.Tag,
+		arg.Query,
+	)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -83,14 +102,15 @@ const createShortLink = `-- name: CreateShortLink :one
 insert into short_link (
     id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at, password_hash,
-    password_updated_at, max_visits,
+    password_updated_at, max_visits, title, tags,
     created_at, updated_at
 )
 values ($1, $2, $3, $4, $5, $6, $7, $8, $9, nullif($10::text, ''),
     case when coalesce($10::text, '') <> '' then clock_timestamp() else null end,
     $11::bigint,
+    coalesce($12::text, ''), coalesce($13::text[], '{}'),
     now(), now())
-returning id, owner_id, domain_id, slug, target_url, status,
+returning id, owner_id, domain_id, slug, target_url, status, title, tags,
     redirect_mode, intermediate_delay_seconds, expires_at,
     coalesce(expires_at <= clock_timestamp(), false)::boolean as expired,
     password_hash, max_visits, visits_used,
@@ -110,6 +130,8 @@ type CreateShortLinkParams struct {
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	PasswordHash             pgtype.Text        `json:"password_hash"`
 	MaxVisits                pgtype.Int8        `json:"max_visits"`
+	Title                    pgtype.Text        `json:"title"`
+	Tags                     []string           `json:"tags"`
 }
 
 type CreateShortLinkRow struct {
@@ -119,6 +141,8 @@ type CreateShortLinkRow struct {
 	Slug                     string             `json:"slug"`
 	TargetUrl                string             `json:"target_url"`
 	Status                   string             `json:"status"`
+	Title                    string             `json:"title"`
+	Tags                     []string           `json:"tags"`
 	RedirectMode             string             `json:"redirect_mode"`
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
@@ -145,6 +169,8 @@ func (q *Queries) CreateShortLink(ctx context.Context, arg CreateShortLinkParams
 		arg.ExpiresAt,
 		arg.PasswordHash,
 		arg.MaxVisits,
+		arg.Title,
+		arg.Tags,
 	)
 	var i CreateShortLinkRow
 	err := row.Scan(
@@ -154,6 +180,8 @@ func (q *Queries) CreateShortLink(ctx context.Context, arg CreateShortLinkParams
 		&i.Slug,
 		&i.TargetUrl,
 		&i.Status,
+		&i.Title,
+		&i.Tags,
 		&i.RedirectMode,
 		&i.IntermediateDelaySeconds,
 		&i.ExpiresAt,
@@ -235,6 +263,7 @@ func (q *Queries) GetDatabaseTime(ctx context.Context) (pgtype.Timestamptz, erro
 
 const getShortLinkAnalyticsLink = `-- name: GetShortLinkAnalyticsLink :one
 select short_link.id,
+    short_link.title, short_link.tags,
     short_link.owner_id,
     short_link.slug,
     short_link.target_url,
@@ -256,6 +285,8 @@ where short_link.id = $1 and short_link.deleted_at is null
 
 type GetShortLinkAnalyticsLinkRow struct {
 	ID                       pgtype.UUID        `json:"id"`
+	Title                    string             `json:"title"`
+	Tags                     []string           `json:"tags"`
 	OwnerID                  pgtype.UUID        `json:"owner_id"`
 	Slug                     string             `json:"slug"`
 	TargetUrl                string             `json:"target_url"`
@@ -277,6 +308,8 @@ func (q *Queries) GetShortLinkAnalyticsLink(ctx context.Context, id pgtype.UUID)
 	var i GetShortLinkAnalyticsLinkRow
 	err := row.Scan(
 		&i.ID,
+		&i.Title,
+		&i.Tags,
 		&i.OwnerID,
 		&i.Slug,
 		&i.TargetUrl,
@@ -556,6 +589,7 @@ func (q *Queries) GetValidShortLinkAccessGrant(ctx context.Context, arg GetValid
 
 const listAllShortLinks = `-- name: ListAllShortLinks :many
 select short_link.id,
+    short_link.title, short_link.tags,
     short_link.owner_id,
     short_link.domain_id,
     short_link.slug,
@@ -590,12 +624,15 @@ left join lateral (
 ) stats on true
 where short_link.deleted_at is null
     and ($3::text is null or short_link.status = $3::text)
+    and ($4::text = '' or short_link.tags @> array[$4::text])
     and (
-        $4::text = ''
-        or short_link.slug ilike '%' || $4::text || '%'
-        or short_link.target_url ilike '%' || $4::text || '%'
-        or app_user.username ilike '%' || $4::text || '%'
-        or app_user.nickname ilike '%' || $4::text || '%'
+        $5::text = ''
+        or short_link.slug ilike '%' || $5::text || '%'
+        or short_link.target_url ilike '%' || $5::text || '%'
+        or app_user.username ilike '%' || $5::text || '%'
+        or short_link.title ilike '%' || $5::text || '%'
+        or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || $5::text || '%')
+        or app_user.nickname ilike '%' || $5::text || '%'
     )
 order by short_link.created_at desc
 limit $1 offset $2
@@ -605,11 +642,14 @@ type ListAllShortLinksParams struct {
 	Limit  int32       `json:"limit"`
 	Offset int32       `json:"offset"`
 	Status pgtype.Text `json:"status"`
+	Tag    string      `json:"tag"`
 	Query  string      `json:"query"`
 }
 
 type ListAllShortLinksRow struct {
 	ID                       pgtype.UUID        `json:"id"`
+	Title                    string             `json:"title"`
+	Tags                     []string           `json:"tags"`
 	OwnerID                  pgtype.UUID        `json:"owner_id"`
 	DomainID                 pgtype.UUID        `json:"domain_id"`
 	Slug                     string             `json:"slug"`
@@ -639,6 +679,7 @@ func (q *Queries) ListAllShortLinks(ctx context.Context, arg ListAllShortLinksPa
 		arg.Limit,
 		arg.Offset,
 		arg.Status,
+		arg.Tag,
 		arg.Query,
 	)
 	if err != nil {
@@ -650,6 +691,8 @@ func (q *Queries) ListAllShortLinks(ctx context.Context, arg ListAllShortLinksPa
 		var i ListAllShortLinksRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.Title,
+			&i.Tags,
 			&i.OwnerID,
 			&i.DomainID,
 			&i.Slug,
@@ -685,6 +728,7 @@ func (q *Queries) ListAllShortLinks(ctx context.Context, arg ListAllShortLinksPa
 
 const listShortLinksByOwner = `-- name: ListShortLinksByOwner :many
 select short_link.id,
+    short_link.title, short_link.tags,
     short_link.owner_id,
     short_link.domain_id,
     short_link.slug,
@@ -716,6 +760,14 @@ left join lateral (
 ) stats on true
 where short_link.owner_id = $1 and short_link.deleted_at is null
     and ($4::text is null or short_link.status = $4::text)
+    and ($5::text = '' or short_link.tags @> array[$5::text])
+    and (
+        $6::text = ''
+        or short_link.slug ilike '%' || $6::text || '%'
+        or short_link.target_url ilike '%' || $6::text || '%'
+        or short_link.title ilike '%' || $6::text || '%'
+        or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || $6::text || '%')
+    )
 order by short_link.created_at desc
 limit $2 offset $3
 `
@@ -725,10 +777,14 @@ type ListShortLinksByOwnerParams struct {
 	Limit   int32       `json:"limit"`
 	Offset  int32       `json:"offset"`
 	Status  pgtype.Text `json:"status"`
+	Tag     string      `json:"tag"`
+	Query   string      `json:"query"`
 }
 
 type ListShortLinksByOwnerRow struct {
 	ID                       pgtype.UUID        `json:"id"`
+	Title                    string             `json:"title"`
+	Tags                     []string           `json:"tags"`
 	OwnerID                  pgtype.UUID        `json:"owner_id"`
 	DomainID                 pgtype.UUID        `json:"domain_id"`
 	Slug                     string             `json:"slug"`
@@ -757,6 +813,8 @@ func (q *Queries) ListShortLinksByOwner(ctx context.Context, arg ListShortLinksB
 		arg.Limit,
 		arg.Offset,
 		arg.Status,
+		arg.Tag,
+		arg.Query,
 	)
 	if err != nil {
 		return nil, err
@@ -767,6 +825,8 @@ func (q *Queries) ListShortLinksByOwner(ctx context.Context, arg ListShortLinksB
 		var i ListShortLinksByOwnerRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.Title,
+			&i.Tags,
 			&i.OwnerID,
 			&i.DomainID,
 			&i.Slug,
@@ -879,40 +939,42 @@ with locked as materialized (
     select short_link.id, short_link.max_visits, short_link.visits_used,
         (
             (
-                $9::text = 'never'
+                $11::text = 'never'
                 and coalesce(short_link.password_hash, '') <> ''
             )
-            or ($9::text = 'set' and coalesce($10::text, '') <> '')
+            or ($11::text = 'set' and coalesce($12::text, '') <> '')
         ) as password_changed
     from short_link
-    where short_link.id = $11
+    where short_link.id = $13
         and short_link.deleted_at is null
     for update
 )
 update short_link
 set target_url = coalesce($1, target_url),
-    max_visits = case $2::text
+    title = coalesce($2::text, title),
+    tags = coalesce($3::text[], tags),
+    max_visits = case $4::text
         when 'unlimited' then null
-        when 'limited' then $3::bigint
+        when 'limited' then $5::bigint
         else locked.max_visits
     end,
     visits_used = case
-        when $2::text = 'unlimited' then 0
-        when $2::text = 'limited' and locked.max_visits is null then 0
+        when $4::text = 'unlimited' then 0
+        when $4::text = 'limited' and locked.max_visits is null then 0
         else locked.visits_used
     end,
-    status = coalesce($4, status),
-    redirect_mode = coalesce($5::text, redirect_mode),
-    intermediate_delay_seconds = coalesce($6::smallint, intermediate_delay_seconds),
-    expires_at = case $7::text
+    status = coalesce($6, status),
+    redirect_mode = coalesce($7::text, redirect_mode),
+    intermediate_delay_seconds = coalesce($8::smallint, intermediate_delay_seconds),
+    expires_at = case $9::text
         when 'never' then null
-        when 'at' then $8::timestamptz
+        when 'at' then $10::timestamptz
         else expires_at
     end,
     password_hash = case
-        when $9::text = 'never' then null
+        when $11::text = 'never' then null
         when locked.password_changed
-            then $10::text
+            then $12::text
         else password_hash
     end,
     password_updated_at = case
@@ -939,6 +1001,7 @@ set target_url = coalesce($1, target_url),
 from locked
 where short_link.id = locked.id
 returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
+    short_link.title, short_link.tags,
     short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
     short_link.password_hash, short_link.password_updated_at,
@@ -949,6 +1012,8 @@ returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.s
 
 type UpdateAnyShortLinkParams struct {
 	TargetUrl                pgtype.Text        `json:"target_url"`
+	Title                    pgtype.Text        `json:"title"`
+	Tags                     []string           `json:"tags"`
 	VisitLimitMode           string             `json:"visit_limit_mode"`
 	MaxVisits                pgtype.Int8        `json:"max_visits"`
 	Status                   pgtype.Text        `json:"status"`
@@ -968,6 +1033,8 @@ type UpdateAnyShortLinkRow struct {
 	Slug                     string             `json:"slug"`
 	TargetUrl                string             `json:"target_url"`
 	Status                   string             `json:"status"`
+	Title                    string             `json:"title"`
+	Tags                     []string           `json:"tags"`
 	RedirectMode             string             `json:"redirect_mode"`
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
@@ -985,6 +1052,8 @@ type UpdateAnyShortLinkRow struct {
 func (q *Queries) UpdateAnyShortLink(ctx context.Context, arg UpdateAnyShortLinkParams) (UpdateAnyShortLinkRow, error) {
 	row := q.db.QueryRow(ctx, updateAnyShortLink,
 		arg.TargetUrl,
+		arg.Title,
+		arg.Tags,
 		arg.VisitLimitMode,
 		arg.MaxVisits,
 		arg.Status,
@@ -1004,6 +1073,8 @@ func (q *Queries) UpdateAnyShortLink(ctx context.Context, arg UpdateAnyShortLink
 		&i.Slug,
 		&i.TargetUrl,
 		&i.Status,
+		&i.Title,
+		&i.Tags,
 		&i.RedirectMode,
 		&i.IntermediateDelaySeconds,
 		&i.ExpiresAt,
@@ -1025,41 +1096,43 @@ with locked as materialized (
     select short_link.id, short_link.max_visits, short_link.visits_used,
         (
             (
-                $9::text = 'never'
+                $11::text = 'never'
                 and coalesce(short_link.password_hash, '') <> ''
             )
-            or ($9::text = 'set' and coalesce($10::text, '') <> '')
+            or ($11::text = 'set' and coalesce($12::text, '') <> '')
         ) as password_changed
     from short_link
-    where short_link.id = $11
-        and short_link.owner_id = $12
+    where short_link.id = $13
+        and short_link.owner_id = $14
         and short_link.deleted_at is null
     for update
 )
 update short_link
 set target_url = coalesce($1, target_url),
-    max_visits = case $2::text
+    title = coalesce($2::text, title),
+    tags = coalesce($3::text[], tags),
+    max_visits = case $4::text
         when 'unlimited' then null
-        when 'limited' then $3::bigint
+        when 'limited' then $5::bigint
         else locked.max_visits
     end,
     visits_used = case
-        when $2::text = 'unlimited' then 0
-        when $2::text = 'limited' and locked.max_visits is null then 0
+        when $4::text = 'unlimited' then 0
+        when $4::text = 'limited' and locked.max_visits is null then 0
         else locked.visits_used
     end,
-    status = coalesce($4, status),
-    redirect_mode = coalesce($5::text, redirect_mode),
-    intermediate_delay_seconds = coalesce($6::smallint, intermediate_delay_seconds),
-    expires_at = case $7::text
+    status = coalesce($6, status),
+    redirect_mode = coalesce($7::text, redirect_mode),
+    intermediate_delay_seconds = coalesce($8::smallint, intermediate_delay_seconds),
+    expires_at = case $9::text
         when 'never' then null
-        when 'at' then $8::timestamptz
+        when 'at' then $10::timestamptz
         else expires_at
     end,
     password_hash = case
-        when $9::text = 'never' then null
+        when $11::text = 'never' then null
         when locked.password_changed
-            then $10::text
+            then $12::text
         else password_hash
     end,
     password_updated_at = case
@@ -1086,6 +1159,7 @@ set target_url = coalesce($1, target_url),
 from locked
 where short_link.id = locked.id
 returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
+    short_link.title, short_link.tags,
     short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
     short_link.password_hash, short_link.password_updated_at,
@@ -1096,6 +1170,8 @@ returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.s
 
 type UpdateOwnShortLinkParams struct {
 	TargetUrl                pgtype.Text        `json:"target_url"`
+	Title                    pgtype.Text        `json:"title"`
+	Tags                     []string           `json:"tags"`
 	VisitLimitMode           string             `json:"visit_limit_mode"`
 	MaxVisits                pgtype.Int8        `json:"max_visits"`
 	Status                   pgtype.Text        `json:"status"`
@@ -1116,6 +1192,8 @@ type UpdateOwnShortLinkRow struct {
 	Slug                     string             `json:"slug"`
 	TargetUrl                string             `json:"target_url"`
 	Status                   string             `json:"status"`
+	Title                    string             `json:"title"`
+	Tags                     []string           `json:"tags"`
 	RedirectMode             string             `json:"redirect_mode"`
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
@@ -1133,6 +1211,8 @@ type UpdateOwnShortLinkRow struct {
 func (q *Queries) UpdateOwnShortLink(ctx context.Context, arg UpdateOwnShortLinkParams) (UpdateOwnShortLinkRow, error) {
 	row := q.db.QueryRow(ctx, updateOwnShortLink,
 		arg.TargetUrl,
+		arg.Title,
+		arg.Tags,
 		arg.VisitLimitMode,
 		arg.MaxVisits,
 		arg.Status,
@@ -1153,6 +1233,8 @@ func (q *Queries) UpdateOwnShortLink(ctx context.Context, arg UpdateOwnShortLink
 		&i.Slug,
 		&i.TargetUrl,
 		&i.Status,
+		&i.Title,
+		&i.Tags,
 		&i.RedirectMode,
 		&i.IntermediateDelaySeconds,
 		&i.ExpiresAt,

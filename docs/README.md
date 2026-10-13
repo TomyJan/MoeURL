@@ -4,7 +4,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 ## 阅读顺序
 
-当前开发版本为 [v0.10.0 最大访问次数](product/scope-v0.10.0.md)。实现与验收分别见 [详细计划](implementation/v0.10.0-detailed-plan.md)、[任务清单](implementation/v0.10.0-tasks.md) 和 [验证记录](implementation/v0.10.0-acceptance.md)；下列既有版本的发布证据保持各自独立。
+当前开发版本为 [v0.11.0 短链标题与标签](product/scope-v0.11.0.md)。设计见 [元数据规格](specs/2026-10-13-v0.11.0-link-metadata-design.md)，执行与证据见 [实施计划](implementation/v0.11.0-plan.md)、[任务清单](implementation/v0.11.0-tasks.md) 和 [验收清单](implementation/v0.11.0-acceptance.md)。v0.10.0 已合并到 `c0b87cb2`，其 [验证记录](implementation/v0.10.0-acceptance.md) 及下列既有版本的发布证据保持各自独立。
 
 建议按以下顺序阅读：
 
@@ -65,6 +65,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 - [v0.8.0 范围](product/scope-v0.8.0.md)
 - [v0.9.0 范围](product/scope-v0.9.0.md)
 - [v0.10.0 范围](product/scope-v0.10.0.md)
+- [v0.11.0 范围](product/scope-v0.11.0.md)
 - [路线图](product/roadmap.md)
 
 ### 功能规格层
@@ -80,6 +81,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 - [v0.3.0 受保护短链访问设计](specs/2026-08-04-v0.3.0-protected-link-access-design.md)
 - [用户与认证](specs/users-and-auth.md)
 - [短链](specs/short-links.md)
+- [v0.11.0 短链标题与标签设计](specs/2026-10-13-v0.11.0-link-metadata-design.md)
 - [域名](specs/domains.md)
 - [跳转模式](specs/redirect-modes.md)
 - [统计与事件](specs/statistics-and-events.md)
@@ -98,6 +100,9 @@ v0.9.0 系统设置与站点品牌基础闭环的功能实现已经完成；功�
 - [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)
 - [技术选型决策](implementation/technical-decision.md)
 - [技术基线](implementation/technical-baseline.md)
+- [v0.11.0 实施计划](implementation/v0.11.0-plan.md)
+- [v0.11.0 任务清单](implementation/v0.11.0-tasks.md)
+- [v0.11.0 验收清单](implementation/v0.11.0-acceptance.md)
 - [v0.9.0 实施计划](implementation/v0.9.0-plan.md)
 - [v0.9.0 任务级实施清单](implementation/v0.9.0-tasks.md)
 - [v0.9.0 验收清单](implementation/v0.9.0-acceptance.md)

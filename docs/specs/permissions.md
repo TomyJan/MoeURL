@@ -95,6 +95,8 @@ v0.2.0 首次落地以下增强权限标识：
 
 ### 访问条件权限
 
+v0.11.0 新增 `short_link:set_metadata`：在既有创建或更新权限之上控制标题、标签的写入与清除。内置 `user`、`admin` 默认拥有，`standard` 预设包含，`guest`、`basic`、`restricted` 不包含。省略 `metadata` 不要求该能力；读取仍走既有自己/全站短链读取边界，公开接口不返回标题或标签。
+
 v0.10.0 新增 `short_link:set_max_visits`：控制创建、调整和清除访问次数上限。内置 `user`、`admin` 默认拥有，`guest` 不拥有；`standard` 预设包含，`restricted`、`basic` 不包含。更新省略 `visitLimit` 不要求该能力，仍可按既有权限编辑其他字段。管理员全站更新也必须逐项检查此能力，不以 `admin:access` 替代。
 
 v0.3.0 新增 `short_link:set_password`：允许创建或编辑受密码保护的短链。内置 `user` 和 `admin` 用户组默认拥有该权限，`guest` 默认不拥有；密码保护属于独立访问条件，不形成新的跳转模式。

@@ -5,6 +5,7 @@ import { ApiClientError } from '@/shared/api/client'
 import { createShortLink, getAdminShortLinkStatistics, getShortLinkStatistics, listAdminShortLinks, listShortLinks, updateAdminShortLink, updateShortLink } from './api'
 
 const baseLink = {
+  title: '', tags: [],
   id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com',
   status: 'active', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null,
   expired: false, passwordEnabled: false, createdAt: '2026-10-13T00:00:00Z',

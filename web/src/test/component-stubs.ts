@@ -64,8 +64,8 @@ export const componentStubs: Record<string, Component> = {
     template: '<label>{{ label }}<input :aria-label="label" :autocomplete="autocomplete" :disabled="disabled" :name="name" :placeholder="placeholder" :step="step" :type="type || \'text\'" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" @keyup="$emit(\'keyup\', $event)" /><span v-if="errorMessages">{{ errorMessages }}</span></label>',
   },
   VTextarea: {
-    props: ['disabled', 'label', 'modelValue'],
+    props: ['disabled', 'errorMessages', 'label', 'modelValue'],
     emits: ['update:modelValue'],
-    template: '<label>{{ label }}<textarea :aria-label="label" :disabled="disabled" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /></label>',
+    template: '<label>{{ label }}<textarea :aria-label="label" :disabled="disabled" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /><span v-if="errorMessages">{{ errorMessages }}</span></label>',
   },
 }

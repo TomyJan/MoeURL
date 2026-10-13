@@ -6,8 +6,10 @@
       </div>
     </header>
     <div class="console-page__tools">
-      <div class="console-page__toolbar" data-testid="console-page-toolbar">
+      <div class="console-page__filters console-page__metadata-filters" data-testid="console-page-toolbar">
         <v-select v-model="statusFilter" :items="statusOptions" :label="t('filter.status')" density="compact" variant="outlined" />
+        <v-text-field v-model="searchKeyword" :label="t('filter.keyword')" :error-messages="keywordInvalid ? t('linkMetadata.keywordInvalid') : ''" density="compact" variant="outlined" />
+        <v-text-field v-model="tagFilter" :label="t('filter.tag')" :error-messages="tagInvalid ? t('linkMetadata.tagFilterInvalid') : ''" density="compact" variant="outlined" />
       </div>
     </div>
     <div class="console-data-panel" data-testid="console-data-panel">
@@ -59,6 +61,7 @@ import { deleteShortLink, listShortLinks, updateShortLink } from '@/entities/sho
 import type { ShortLink } from '@/entities/short-link/model'
 import { useMutationTargetId } from '@/shared/mutations/useMutationTargetId'
 import { useShortLinkSettings } from '@/shared/short-link/useShortLinkSettings'
+import { useShortLinkFilters } from '@/shared/short-link/useShortLinkFilters'
 import ShortLinkSettingsDialog from '@/features/short-link-settings/ShortLinkSettingsDialog.vue'
 import ShortLinkQrDialog from '@/features/short-link-qr/ShortLinkQrDialog.vue'
 import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue'
@@ -66,14 +69,15 @@ import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const statusFilter = ref<'' | ShortLink['status']>('')
+const { searchKeyword, tagFilter, debouncedKeyword, debouncedTag, keywordInvalid, tagInvalid } = useShortLinkFilters()
 const statusOptions = computed(() => [
   { title: t('filter.all'), value: '' },
   { title: t('filter.active'), value: 'active' },
   { title: t('filter.disabled'), value: 'disabled' },
 ])
 const query = useQuery({
-  queryKey: computed(() => ['short-link', statusFilter.value]),
-  queryFn: () => listShortLinks({ status: statusFilter.value }),
+  queryKey: computed(() => ['short-link', statusFilter.value, debouncedKeyword.value, debouncedTag.value]),
+  queryFn: () => listShortLinks({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value }),
 })
 const links = computed(() => query.data.value?.items ?? [])
 const linkItems = computed<ConsoleLinkListItem[]>(() => links.value)
@@ -120,3 +124,15 @@ function invalidateLinks() {
   void queryClient.invalidateQueries({ queryKey: ['short-link'] })
 }
 </script>
+
+<style scoped>
+.console-page__metadata-filters {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 760px) {
+  .console-page__metadata-filters {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

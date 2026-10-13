@@ -228,7 +228,7 @@ done
 
 ## 4. 恢复验收
 
-目标 v0.10.0 必须完成以下检查，不能只以容器健康代替数据验证。
+目标 v0.11.0 必须完成以下检查，不能只以容器健康代替数据验证。除既有访问配置与额度外，还须逐项比对样例短链的标题、标签和 `short_link:set_metadata` 授权；恢复后的个人与全站列表应保持相同的关键词、标签筛选结果，公开预览仍不返回管理元数据。
 
 从当前 `migrations/` 目录计算最大 migration 版本，并确认恢复数据库一致：
 
@@ -246,7 +246,7 @@ test -n "$expected_migration_version" && test "$actual_migration_version" = "$ex
 ```bash
 restore_compose exec -T postgres \
   psql -U moeurl -d moeurl -Atc \
-  "select key from user_group where builtin order by key"
+  "select key, permissions ? 'short_link:set_metadata' as can_set_metadata from user_group where builtin order by key"
 ```
 
 登录入口验收必须以下文 `GET /api/v1/auth/methods` 返回的恢复后策略为准。需要验证本地登录时，密码只通过权限为 `600` 的临时 JSON 文件传入，不放在命令行或 Shell 历史中。
@@ -256,7 +256,7 @@ restore_compose exec -T postgres \
 ```bash
 restore_compose exec -T postgres \
   psql -U moeurl -d moeurl -P pager=off -c \
-  "select slug, status, redirect_mode, intermediate_delay_seconds, expires_at, password_hash is not null as password_enabled, max_visits, visits_used from short_link where slug = '<sample-slug>' and deleted_at is null"
+  "select slug, title, tags, status, redirect_mode, intermediate_delay_seconds, expires_at, password_hash is not null as password_enabled, max_visits, visits_used from short_link where slug = '<sample-slug>' and deleted_at is null"
 ```
 
 随后通过隔离 App 访问该短码，按其 direct、intermediate 或 confirmation 模式验证公开流程。若短链受密码保护，还应验证错误密码被拒绝、正确密码授权和最终跳转。记录备份校验和、恢复开始/结束时间、镜像版本、migration 版本、样例短码和每项结果。

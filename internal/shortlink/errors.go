@@ -6,6 +6,7 @@ import (
 )
 
 var (
+	ErrInvalidInput             = errors.New("invalid input")
 	ErrPermissionDenied         = errors.New("permission denied")
 	ErrInvalidTargetURL         = errors.New("invalid target url")
 	ErrInvalidStatus            = errors.New("invalid status")

@@ -386,6 +386,12 @@ v0.7.0 新增 `oidc_provider`、`external_identity` 和 `oidc_login_attempt`。p
 
 公开接口 `GET /api/v1/system/public-config` 只返回站点名称、默认语言、默认主题、页脚文本和 Powered by 开关。管理接口 `GET /api/v1/admin/system/settings` 与 `POST /api/v1/admin/system/settings/update` 同时要求 `admin:access` 和 `system:manage`；更新本地登录策略时先锁定策略行，并与 OIDC Provider 更新、停用和删除共享最终登录入口检查。本地登录关闭不撤销已有 Session，也不删除本地账号或密码；`GET /api/v1/auth/methods` 返回持久化后的真实状态。密码登录先受全局并发槽位和统一操作超时保护，再读取本地登录策略；策略关闭时在创建事务和执行 Argon2id 校验前拒绝。
 
+### v0.11.0 标题与标签
+
+`00016_short_link_metadata.sql` 为短链增加有界纯文本 `title` 和 `text[] tags`，默认空。标签用 GIN 索引支持精确包含过滤；不引入全局标签实体。create、own/admin update 接受可选 `metadata: {title, tags}`，省略保留、对象整体替换；管理响应返回顶层 `title`、`tags`，公开 Preview 和访问事件不返回。写入同时要求现有操作权限和 `short_link:set_metadata`。
+
+own/admin list 的 `q` 匹配短码、目标地址、标题和标签的文字子串（最多 200 个 Unicode 字符），`tag` 区分大小写精确匹配一个标签（最多 32 个字符），与状态取交集；列表和计数共享相同条件。完整边界见 [设计](../specs/2026-10-13-v0.11.0-link-metadata-design.md)。Down 删除标题与标签，权限仅撤销本次迁移追加且未独立修改的授权；必须先备份。
+
 ### v0.10.0 访问次数额度
 
 `00015_short_link_max_visits.sql` 添加 nullable `max_visits bigint` 与非空 `visits_used bigint default 0`。数据库约束限定 32 位正整数上限和非负用量，无限额用量必须为 0。允许降低上限后用量大于上限，剩余量派生为 `max(0, max_visits - visits_used)`；耗尽不修改 `status`。更新已有有限额保留用量，清除或重新启用重建周期；既有短链无限额且历史事件不回填。
@@ -428,6 +434,7 @@ short_link:use_confirmation
 short_link:set_expiration
 short_link:set_password
 short_link:set_max_visits
+short_link:set_metadata
 admin:access
 ```
 
