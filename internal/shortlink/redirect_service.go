@@ -156,6 +156,9 @@ func (s *RedirectService) Preview(ctx context.Context, slug string, accessToken 
 		return PreviewResult{}, ErrShortLinkMissing
 	}
 	if link.Exhausted {
+		if err := validateAccessConditions(link.Status, link.Expired, link.RedirectMode, false); err != nil {
+			return PreviewResult{}, err
+		}
 		return PreviewResult{}, ErrShortLinkExhausted
 	}
 	passwordEnabled := link.PasswordHash.Valid
@@ -208,7 +211,11 @@ func (s *RedirectService) Continue(ctx context.Context, slug string, accessToken
 		return RedirectResult{}, ErrShortLinkMissing
 	}
 	if link.Exhausted {
-		s.recordBlocked(ctx, slug, uuidFromPgtype(link.ID))
+		shortLinkID := uuidFromPgtype(link.ID)
+		if err := s.checkAccess(ctx, slug, shortLinkID, link.Status, link.Expired, link.RedirectMode, false); err != nil {
+			return RedirectResult{}, err
+		}
+		s.record(ctx, event.RedirectBlocked, slug, shortLinkID)
 		return RedirectResult{}, ErrShortLinkExhausted
 	}
 	if link.MaxVisits.Valid {

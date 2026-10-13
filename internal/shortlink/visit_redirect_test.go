@@ -84,6 +84,45 @@ func TestRedirectVisitLimitsConsumeOnlyFinalRedirects(t *testing.T) {
 	}
 }
 
+// TestExhaustedAccessPreservesDisabledAndExpiredPriority keeps every public entry point consistent.
+func TestExhaustedAccessPreservesDisabledAndExpiredPriority(t *testing.T) {
+	ctx := t.Context()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	user := insertShortLinkUser(t, ctx, pool, "alice", permission.GroupUser, permission.UserPermissions)
+	manager := shortlink.NewService(pool, permission.NewService())
+	redirect := shortlink.NewRedirectService(pool, nil)
+	for _, test := range []struct {
+		name   string
+		change string
+		want   error
+	}{
+		{"disabled", `status = 'disabled'`, shortlink.ErrShortLinkDisabled},
+		{"expired", `expires_at = clock_timestamp() - interval '1 second'`, shortlink.ErrShortLinkExpired},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			created, err := manager.Create(ctx, user, shortlink.CreateInput{TargetURL: "https://example.com", MaxVisits: visitMax(1)})
+			require.NoError(t, err)
+			slug := created.ShortLink.Slug
+			_, err = redirect.Open(ctx, slug, "go.example.com")
+			require.NoError(t, err)
+			_, err = pool.Exec(ctx, `update short_link set `+test.change+` where id = $1`, created.ShortLink.ID)
+			require.NoError(t, err)
+			_, err = redirect.Open(ctx, slug, "go.example.com")
+			require.ErrorIs(t, err, test.want, "Open")
+			_, err = redirect.Preview(ctx, slug, "", "go.example.com")
+			require.ErrorIs(t, err, test.want, "Preview")
+			_, err = redirect.Continue(ctx, slug, "", "go.example.com")
+			require.ErrorIs(t, err, test.want, "Continue")
+			_, err = redirect.Unlock(ctx, slug, "", "go.example.com")
+			require.ErrorIs(t, err, test.want, "Unlock")
+			var used int64
+			require.NoError(t, pool.QueryRow(ctx, `select visits_used from short_link where id = $1`, created.ShortLink.ID).Scan(&used))
+			require.EqualValues(t, 1, used)
+		})
+	}
+}
+
 // TestVisitClaimRechecksManagementChangesAfterWaitingForLock prevents stale access and target decisions.
 func TestVisitClaimRechecksManagementChangesAfterWaitingForLock(t *testing.T) {
 	ctx := t.Context()
