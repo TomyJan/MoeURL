@@ -37,6 +37,7 @@ vi.mock('vuetify/components', () => ({
   VTab: {},
   VTabs: {},
   VTextField: {},
+  VTextarea: {},
 }))
 
 vi.mock('vuetify/directives', () => ({
