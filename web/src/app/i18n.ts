@@ -108,6 +108,7 @@ export const messages = {
     filter: {
       status: '状态筛选',
       keyword: '关键词搜索',
+      tag: '标签',
       all: '全部',
       active: '启用',
       disabled: '禁用',
@@ -164,6 +165,15 @@ export const messages = {
     },
     validation: {
       passwordLength: '密码需包含 8 至 128 个字符',
+    },
+    linkMetadata: {
+      title: '短链标题',
+      tags: '标签（每行一个）',
+      tagList: '短链标签',
+      titleInvalid: '标题最多 120 个字符，不能包含控制字符。',
+      tagsInvalid: '最多 10 个标签，每个 1 至 32 个字符；不能重复或包含控制字符。',
+      keywordInvalid: '关键词最多 200 个字符，不能包含控制字符。',
+      tagFilterInvalid: '标签最多 32 个字符，不能包含控制字符。',
     },
     visitLimit: {
       enabled: '设置最大访问次数',
@@ -409,6 +419,7 @@ export const messages = {
         'short_link:set_expiration': { label: '设置过期时间', description: '为短链配置可选过期时间。' },
         'short_link:set_password': { label: '设置访问密码', description: '为短链配置访问密码。' },
         'short_link:set_max_visits': { label: '设置最大访问次数', description: '设置、调整或清除短链的访问次数上限。' },
+        'short_link:set_metadata': { label: '设置标题和标签', description: '设置、修改或清除短链标题和标签。' },
         'short_link:use_confirmation': { label: '使用确认页', description: '为短链启用主动确认页。' },
         'domain:use_default': { label: '使用默认域名', description: '使用系统默认短链域名。' },
         'domain:use_assigned': { label: '选择授权域名', description: '创建短链时选择已授权的启用域名。' },
@@ -655,6 +666,7 @@ export const messages = {
     filter: {
       status: 'Status',
       keyword: 'Keyword',
+      tag: 'Tag',
       all: 'All',
       active: 'Active',
       disabled: 'Disabled',
@@ -711,6 +723,15 @@ export const messages = {
     },
     validation: {
       passwordLength: 'Password must contain 8 to 128 characters',
+    },
+    linkMetadata: {
+      title: 'Short-link title',
+      tags: 'Tags (one per line)',
+      tagList: 'Short-link tags',
+      titleInvalid: 'Use at most 120 characters without control characters for the title.',
+      tagsInvalid: 'Use at most 10 unique tags of 1 to 32 characters each, without control characters.',
+      keywordInvalid: 'Use at most 200 characters without control characters for the keyword.',
+      tagFilterInvalid: 'Use at most 32 characters without control characters for the tag.',
     },
     visitLimit: {
       enabled: 'Set maximum visits',
@@ -956,6 +977,7 @@ export const messages = {
         'short_link:set_expiration': { label: 'Set expiration', description: 'Configure optional short-link expiration.' },
         'short_link:set_password': { label: 'Set access passwords', description: 'Protect short links with access passwords.' },
         'short_link:set_max_visits': { label: 'Set maximum visits', description: 'Set, change or remove short-link visit limits.' },
+        'short_link:set_metadata': { label: 'Set titles and tags', description: 'Set, change or clear short-link titles and tags.' },
         'short_link:use_confirmation': { label: 'Use confirmation pages', description: 'Require active confirmation before redirecting.' },
         'domain:use_default': { label: 'Use default domain', description: 'Use the system default short-link domain.' },
         'domain:use_assigned': { label: 'Choose assigned domains', description: 'Choose an enabled, assigned domain when creating short links.' },

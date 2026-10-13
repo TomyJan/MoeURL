@@ -47,6 +47,7 @@ const link: ShortLink = {
   url: 'https://go.example.com/abc123',
   slug: 'abc123',
   targetUrl: 'https://example.com',
+  title: '', tags: [],
   status: 'active',
   redirectMode: 'direct',
   intermediateDelaySeconds: 5,

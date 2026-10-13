@@ -4,6 +4,12 @@
       <div class="console-link-row__main">
         <span class="console-link-row__label">{{ t('links.shortUrl') }}</span>
         <a :href="link.url" target="_blank" rel="noreferrer">{{ link.url }}</a>
+        <div v-if="link.title || link.tags.length" class="console-link-row__metadata" data-testid="link-metadata">
+          <strong v-if="link.title">{{ link.title }}</strong>
+          <ul v-if="link.tags.length" :aria-label="t('linkMetadata.tagList')">
+            <li v-for="tag in link.tags" :key="tag">{{ tag }}</li>
+          </ul>
+        </div>
       </div>
 
       <div class="console-link-row__target">
@@ -113,6 +119,8 @@ export interface ConsoleLinkListItem {
     lastVisitedAt: string | null
   }
   targetUrl: string
+  title: string
+  tags: string[]
   url: string
 }
 
@@ -224,6 +232,38 @@ function removeDocumentListeners() {
 </script>
 
 <style scoped>
+.console-link-row__metadata {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.console-link-row__metadata strong {
+  font-size: 0.94rem;
+  white-space: pre-wrap;
+}
+
+.console-link-row__metadata ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.console-link-row__metadata li {
+  min-width: 0;
+  max-width: 100%;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 8%, transparent);
+  font-size: 0.76rem;
+  white-space: pre-wrap;
+}
+
 .console-link-row__access {
   display: inline-flex;
   align-items: center;

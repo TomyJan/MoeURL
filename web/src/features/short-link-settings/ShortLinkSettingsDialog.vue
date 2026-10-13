@@ -46,6 +46,11 @@
           </v-btn-toggle>
         </div>
 
+        <template v-if="canSetMetadata">
+          <v-text-field v-model="metadataTitle" :label="t('linkMetadata.title')" :error-messages="metadataTitleError" :disabled="pending" variant="outlined" />
+          <v-textarea v-model="metadataTags" :label="t('linkMetadata.tags')" :error-messages="metadataTagsError" :disabled="pending" rows="3" variant="outlined" />
+        </template>
+
         <v-slider
           v-if="canUseIntermediate && redirectMode === 'intermediate'"
           v-model="intermediateDelaySeconds"
@@ -142,10 +147,11 @@ import type { RedirectMode, ShortLink, UpdateShortLinkInput } from '@/entities/s
 import { visitLimitInputSchema } from '@/entities/short-link/schema'
 import { useRedirectModePermissions } from '@/shared/short-link/useRedirectModePermissions'
 import { futureDateTimeSchema, passwordSchema, targetUrlSchema } from '@/shared/validation/shortLinkAccess'
+import { metadataDraftSchema } from '@/shared/validation/shortLinkMetadata'
 
 const props = defineProps<{
   errorMessage?: string
-  link: Pick<ShortLink, 'id' | 'targetUrl' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'passwordEnabled' | 'maxVisits' | 'visitsUsed' | 'visitsRemaining' | 'exhausted'>
+  link: Pick<ShortLink, 'id' | 'targetUrl' | 'title' | 'tags' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'passwordEnabled' | 'maxVisits' | 'visitsUsed' | 'visitsRemaining' | 'exhausted'>
   open: boolean
   pending: boolean
 }>()
@@ -158,6 +164,12 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const targetUrl = ref('')
 const initialTargetUrl = ref('')
+const metadataTitle = ref('')
+const metadataTags = ref('')
+const initialMetadataTitle = ref('')
+const initialMetadataTags = ref('')
+const metadataTitleError = ref('')
+const metadataTagsError = ref('')
 const redirectMode = ref<RedirectMode>('direct')
 const intermediateDelaySeconds = ref(5)
 const expirationEnabled = ref(false)
@@ -187,6 +199,7 @@ const { canUseIntermediate, canUseConfirmation, canSubmitRedirectMode } = useRed
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
 const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
 const canSetMaxVisits = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_max_visits')))
+const canSetMetadata = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_metadata')))
 const canConfigureRedirect = computed(() =>
   canUseIntermediate.value || canUseConfirmation.value || props.link.redirectMode !== 'direct',
 )
@@ -220,6 +233,19 @@ function save() {
   passwordErrorMessage.value = ''
 
   const input: UpdateShortLinkInput = { id: props.link.id }
+  metadataTitleError.value = ''
+  metadataTagsError.value = ''
+  if (canSetMetadata.value && (metadataTitle.value !== initialMetadataTitle.value || metadataTags.value !== initialMetadataTags.value)) {
+    const metadata = metadataDraftSchema.safeParse({ title: metadataTitle.value, tagsText: metadataTags.value })
+    if (!metadata.success) {
+      for (const issue of metadata.error.issues) {
+        if (issue.path[0] === 'title') metadataTitleError.value = t('linkMetadata.titleInvalid')
+        else metadataTagsError.value = t('linkMetadata.tagsInvalid')
+      }
+      return
+    }
+    input.metadata = metadata.data
+  }
   if (targetUrl.value !== initialTargetUrl.value) {
     const targetResult = targetUrlSchema.safeParse(targetUrl.value)
     if (!targetResult.success) {
@@ -326,6 +352,12 @@ function handleOpenUpdate(open: boolean) {
 
 /** Restores editable access settings from the persisted link snapshot. */
 function resetFromLink(link: typeof props.link) {
+  metadataTitle.value = link.title
+  metadataTags.value = link.tags.join('\n')
+  initialMetadataTitle.value = metadataTitle.value
+  initialMetadataTags.value = metadataTags.value
+  metadataTitleError.value = ''
+  metadataTagsError.value = ''
   initialMaxVisits.value = link.maxVisits
   limitEnabled.value = link.maxVisits !== null
   maxVisits.value = link.maxVisits === null ? '' : String(link.maxVisits)

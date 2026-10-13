@@ -48,6 +48,7 @@ const state = vi.hoisted(() => ({
 }))
 
 const defaultShortLinkAccessConfig = {
+  title: '', tags: [],
   redirectMode: 'direct' as const,
   intermediateDelaySeconds: 5,
   expiresAt: null,
@@ -57,7 +58,7 @@ const defaultShortLinkAccessConfig = {
   visitsUsed: 0,
   visitsRemaining: null,
   exhausted: false,
-} satisfies Pick<ShortLink, 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'expired' | 'passwordEnabled' | 'maxVisits' | 'visitsUsed' | 'visitsRemaining' | 'exhausted'>
+} satisfies Pick<ShortLink, 'title' | 'tags' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'expired' | 'passwordEnabled' | 'maxVisits' | 'visitsUsed' | 'visitsRemaining' | 'exhausted'>
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -1105,7 +1106,7 @@ describe('pages', () => {
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.more' }))
     await fireEvent.click(within(activeRow).getByRole('menuitem', { name: 'links.actions.delete' }))
     expect(screen.getByLabelText('filter.status')).toBeTruthy()
-    expect(listShortLinks).toHaveBeenCalledWith({ status: '' })
+    expect(listShortLinks).toHaveBeenCalledWith({ status: '', q: '', tag: '' })
     expect(update).toHaveBeenCalledWith({ id: 'link-id', status: 'disabled' })
     expect(update).toHaveBeenCalledWith({ id: 'link-disabled', status: 'active' })
     expect(update).toHaveBeenCalledWith('link-id')
@@ -1390,8 +1391,45 @@ describe('pages', () => {
     const queryKey = state.queryKeys[0]
     state.queryFns[0]?.()
 
-    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['short-link', 'disabled'])
-    expect(listShortLinks).toHaveBeenCalledWith({ status: 'disabled' })
+    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['short-link', 'disabled', '', ''])
+    expect(listShortLinks).toHaveBeenCalledWith({ status: 'disabled', q: '', tag: '' })
+  })
+
+  it.each([
+    ['own', MyLinksPage, listShortLinks, 'short-link'],
+    ['admin', AdminLinksPage, listAdminShortLinks, 'admin-short-link'],
+  ] as const)('debounces %s keyword and exact tag filters, rejecting invalid input before querying', async (_name, component, load, key) => {
+    vi.useFakeTimers()
+    setQueryResult({ data: ref({ meta: { total: 0 }, items: [] }) })
+    const view = mount(component)
+    const keyword = screen.getByLabelText('filter.keyword')
+    const tag = screen.getByLabelText('filter.tag')
+    await fireEvent.update(keyword, 'discarded')
+    await fireEvent.update(keyword, ' %_文档\\ ')
+    await fireEvent.update(tag, '\u0085Release 计划\u3000')
+    await vi.advanceTimersByTimeAsync(499)
+    state.queryFns[0]?.()
+    expect(load).toHaveBeenLastCalledWith({ status: '', q: '', tag: '' })
+    await vi.advanceTimersByTimeAsync(1)
+    state.queryFns[0]?.()
+    expect(load).toHaveBeenLastCalledWith({ status: '', q: '%_文档\\', tag: 'Release 计划' })
+    const queryKey = state.queryKeys[0]
+    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual([key, '', '%_文档\\', 'Release 计划'])
+    await fireEvent.update(keyword, '😀'.repeat(201))
+    await fireEvent.update(tag, 'bad\u0000tag')
+    expect(screen.getByText('linkMetadata.keywordInvalid')).toBeTruthy()
+    expect(screen.getByText('linkMetadata.tagFilterInvalid')).toBeTruthy()
+    await vi.advanceTimersByTimeAsync(500)
+    state.queryFns[0]?.()
+    expect(load).toHaveBeenLastCalledWith({ status: '', q: '%_文档\\', tag: 'Release 计划' })
+    await fireEvent.update(keyword, '')
+    await fireEvent.update(tag, '')
+    await vi.advanceTimersByTimeAsync(500)
+    state.queryFns[0]?.()
+    expect(load).toHaveBeenLastCalledWith({ status: '', q: '', tag: '' })
+    await fireEvent.update(tag, 'pending')
+    view.unmount()
+    await vi.runAllTimersAsync()
   })
 
   it('renders admin links states and row actions', async () => {
@@ -1461,7 +1499,7 @@ describe('pages', () => {
     await fireEvent.click(within(disabledRow).getByRole('menuitem', { name: 'links.actions.delete' }))
     expect(screen.getByLabelText('filter.status')).toBeTruthy()
     expect(screen.getByLabelText('filter.keyword')).toBeTruthy()
-    expect(listAdminShortLinks).toHaveBeenCalledWith({ status: '', q: '' })
+    expect(listAdminShortLinks).toHaveBeenCalledWith({ status: '', q: '', tag: '' })
     expect(mutate).toHaveBeenCalledWith({ id: 'link-id', status: 'active' })
     expect(mutate).toHaveBeenCalledWith({ id: 'link-active', status: 'disabled' })
     expect(mutate).toHaveBeenCalledWith('link-id')
@@ -1660,8 +1698,8 @@ describe('pages', () => {
     const queryKey = state.queryKeys[0]
     state.queryFns[0]?.()
 
-    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['admin-short-link', 'active', 'alice'])
-    expect(listAdminShortLinks).toHaveBeenCalledWith({ status: 'active', q: 'alice' })
+    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['admin-short-link', 'active', 'alice', ''])
+    expect(listAdminShortLinks).toHaveBeenCalledWith({ status: 'active', q: 'alice', tag: '' })
   })
 
   it('renders admin links error, loading, and empty states', () => {

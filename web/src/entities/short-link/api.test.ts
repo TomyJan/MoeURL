@@ -16,6 +16,7 @@ import {
 } from './api'
 
 const accessAndQuota = {
+  title: '', tags: [],
   redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null,
   expired: false, passwordEnabled: false, createdAt: '2026-10-13T00:00:00Z',
   maxVisits: null, visitsUsed: 0, visitsRemaining: null, exhausted: false,

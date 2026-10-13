@@ -25,6 +25,7 @@ vi.mock('@tanstack/vue-query', () => ({
 }))
 
 const directLink: ShortLink = {
+  title: '', tags: [],
   id: 'link-id',
   url: 'https://go.example.com/abc123',
   slug: 'abc123',
@@ -75,6 +76,49 @@ function setPermissions(permissions: string[]) {
 }
 
 describe('ShortLinkSettingsDialog', () => {
+  it('omits untouched metadata after a refetch and preserves dirty drafts until explicitly cleared', async () => {
+    setPermissions(['short_link:set_metadata'])
+    const link = { ...directLink, title: 'Original', tags: ['原有标签'] }
+    const view = mountDialog({ link })
+    await view.rerender({ link: { ...link, title: 'Server update', tags: ['New'] } })
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save?.[0]).toEqual([{ id: link.id }])
+    await fireEvent.update(screen.getByLabelText('linkMetadata.title'), ' 我的草稿 ')
+    await fireEvent.update(screen.getByLabelText('linkMetadata.tags'), ' 团队 资料 \nRelease')
+    await view.rerender({ link: { ...link, title: 'Another update', tags: [] } })
+    expect((screen.getByLabelText('linkMetadata.title') as HTMLInputElement).value).toBe(' 我的草稿 ')
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save?.[1]).toEqual([{ id: link.id, metadata: { title: '我的草稿', tags: ['团队 资料', 'Release'] } }])
+    await fireEvent.update(screen.getByLabelText('linkMetadata.title'), '')
+    await fireEvent.update(screen.getByLabelText('linkMetadata.tags'), '')
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save?.[2]).toEqual([{ id: link.id, metadata: { title: '', tags: [] } }])
+    await view.rerender({ open: false })
+    await view.rerender({ open: true })
+    expect((screen.getByLabelText('linkMetadata.title') as HTMLInputElement).value).toBe('Another update')
+  })
+
+  it('validates only changed metadata and omits hidden drafts when permission is revoked', async () => {
+    const data = ref({ user: { permissions: ['short_link:set_metadata'] } })
+    state.queryResult = { data }
+    const view = mountDialog({ link: { ...directLink, title: 'Old\u0000invalid', tags: [] } })
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save).toEqual([[{ id: directLink.id }]])
+    await fireEvent.update(screen.getByLabelText('linkMetadata.title'), '😀'.repeat(121))
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(view.emitted().save).toHaveLength(1)
+    expect(screen.getByText('linkMetadata.titleInvalid')).toBeTruthy()
+    await fireEvent.update(screen.getByLabelText('linkMetadata.title'), 'Valid')
+    await fireEvent.update(screen.getByLabelText('linkMetadata.tags'), 'A\nA')
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(screen.getByText('linkMetadata.tagsInvalid')).toBeTruthy()
+    expect(view.emitted().save).toHaveLength(1)
+    data.value.user.permissions = []
+    await fireEvent.click(screen.getByText('shortLinkSettings.save'))
+    expect(screen.queryByLabelText('linkMetadata.title')).toBeNull()
+    expect(view.emitted().save?.[1]).toEqual([{ id: directLink.id }])
+  })
+
   it('saves quota changes without validating or resubmitting the unchanged stored target URL', async () => {
     setPermissions(['short_link:set_max_visits'])
     const link = { ...directLink, targetUrl: 'https://example.com:65536' }
