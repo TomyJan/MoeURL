@@ -10,6 +10,10 @@ export type PasswordInput =
   /** Sets or replaces password protection. */
   | { mode: 'set'; value: string }
 
+export type VisitLimitInput =
+  | { mode: 'limited'; maxVisits: number }
+  | { mode: 'unlimited' }
+
 export interface ShortLink {
   id: string
   url: string
@@ -21,6 +25,10 @@ export interface ShortLink {
   expiresAt: string | null
   expired: boolean
   passwordEnabled: boolean
+  maxVisits: number | null
+  visitsUsed: number
+  visitsRemaining: number | null
+  exhausted: boolean
   createdAt: string
   stats?: ShortLinkStats
 }
@@ -77,6 +85,7 @@ export interface CreateShortLinkInput {
   intermediateDelaySeconds?: number
   expiration?: ExpirationInput
   password?: PasswordInput
+  maxVisits?: number
 }
 
 export interface UpdateShortLinkInput {
@@ -88,6 +97,8 @@ export interface UpdateShortLinkInput {
   expiration?: ExpirationInput
   /** Omit to preserve the existing password; use `never` to clear it explicitly. */
   password?: PasswordInput
+  /** Omit to preserve the current quota period; unlimited clears its usage. */
+  visitLimit?: VisitLimitInput
 }
 
 interface PublicShortLinkPreviewBase {

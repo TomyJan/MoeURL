@@ -35,6 +35,10 @@ const directLink: ShortLink = {
   expiresAt: null,
   expired: false,
   passwordEnabled: false,
+  maxVisits: null,
+  visitsUsed: 0,
+  visitsRemaining: null,
+  exhausted: false,
   createdAt: '2026-08-01T00:00:00Z',
 }
 

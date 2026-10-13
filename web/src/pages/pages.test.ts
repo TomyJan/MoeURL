@@ -53,7 +53,11 @@ const defaultShortLinkAccessConfig = {
   expiresAt: null,
   expired: false,
   passwordEnabled: false,
-} satisfies Pick<ShortLink, 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'expired' | 'passwordEnabled'>
+  maxVisits: null,
+  visitsUsed: 0,
+  visitsRemaining: null,
+  exhausted: false,
+} satisfies Pick<ShortLink, 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'expired' | 'passwordEnabled' | 'maxVisits' | 'visitsUsed' | 'visitsRemaining' | 'exhausted'>
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
