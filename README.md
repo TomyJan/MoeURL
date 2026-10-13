@@ -39,6 +39,8 @@ v0.9.0 已实现系统设置和站点品牌；v0.10.0 已实现短链最大访�
 
 ## 文档
 
+- [v0.11.0 标题与标签范围](./docs/product/scope-v0.11.0.md)
+- [v0.11.0 验收清单](./docs/implementation/v0.11.0-acceptance.md)
 - [文档总览](./docs/README.md)
 - [v0.10.0 最大访问次数范围](./docs/product/scope-v0.10.0.md)
 - [v0.10.0 验收清单](./docs/implementation/v0.10.0-acceptance.md)
