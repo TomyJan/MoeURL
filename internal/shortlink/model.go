@@ -14,7 +14,15 @@ const (
 	ExpirationModeAt         = "at"
 	PasswordModeNever        = "never"
 	PasswordModeSet          = "set"
+	VisitLimitModeLimited    = "limited"
+	VisitLimitModeUnlimited  = "unlimited"
 )
+
+// VisitLimitInput changes the current quota period without exposing a reset operation.
+type VisitLimitInput struct {
+	Mode      string `json:"mode"`
+	MaxVisits *int64 `json:"maxVisits,omitempty"`
+}
 
 type ExpirationInput struct {
 	Mode      string     `json:"mode"`
@@ -42,6 +50,7 @@ type CreateInput struct {
 	IntermediateDelaySeconds *int16           `json:"intermediateDelaySeconds"`
 	Expiration               *ExpirationInput `json:"expiration"`
 	Password                 *PasswordInput   `json:"password"`
+	MaxVisits                *int64           `json:"maxVisits,omitempty"`
 }
 
 type CreateResult struct {
@@ -71,6 +80,7 @@ type UpdateInput struct {
 	IntermediateDelaySeconds *int16           `json:"intermediateDelaySeconds"`
 	Expiration               *ExpirationInput `json:"expiration"`
 	Password                 *PasswordInput   `json:"password"`
+	VisitLimit               *VisitLimitInput `json:"visitLimit,omitempty"`
 }
 
 type DeleteInput struct {

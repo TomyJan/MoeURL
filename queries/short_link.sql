@@ -133,7 +133,7 @@ where short_link.owner_id = $1
 
 -- name: UpdateOwnShortLink :one
 with locked as materialized (
-    select short_link.id,
+    select short_link.id, short_link.max_visits, short_link.visits_used,
         (
             (
                 sqlc.arg('password_mode')::text = 'never'
@@ -149,6 +149,16 @@ with locked as materialized (
 )
 update short_link
 set target_url = coalesce(sqlc.narg('target_url'), target_url),
+    max_visits = case sqlc.arg('visit_limit_mode')::text
+        when 'unlimited' then null
+        when 'limited' then sqlc.narg('max_visits')::bigint
+        else locked.max_visits
+    end,
+    visits_used = case
+        when sqlc.arg('visit_limit_mode')::text = 'unlimited' then 0
+        when sqlc.arg('visit_limit_mode')::text = 'limited' and locked.max_visits is null then 0
+        else locked.visits_used
+    end,
     status = coalesce(sqlc.narg('status'), status),
     redirect_mode = coalesce(sqlc.narg('redirect_mode')::text, redirect_mode),
     intermediate_delay_seconds = coalesce(sqlc.narg('intermediate_delay_seconds')::smallint, intermediate_delay_seconds),
@@ -264,7 +274,7 @@ where short_link.deleted_at is null
 
 -- name: UpdateAnyShortLink :one
 with locked as materialized (
-    select short_link.id,
+    select short_link.id, short_link.max_visits, short_link.visits_used,
         (
             (
                 sqlc.arg('password_mode')::text = 'never'
@@ -279,6 +289,16 @@ with locked as materialized (
 )
 update short_link
 set target_url = coalesce(sqlc.narg('target_url'), target_url),
+    max_visits = case sqlc.arg('visit_limit_mode')::text
+        when 'unlimited' then null
+        when 'limited' then sqlc.narg('max_visits')::bigint
+        else locked.max_visits
+    end,
+    visits_used = case
+        when sqlc.arg('visit_limit_mode')::text = 'unlimited' then 0
+        when sqlc.arg('visit_limit_mode')::text = 'limited' and locked.max_visits is null then 0
+        else locked.visits_used
+    end,
     status = coalesce(sqlc.narg('status'), status),
     redirect_mode = coalesce(sqlc.narg('redirect_mode')::text, redirect_mode),
     intermediate_delay_seconds = coalesce(sqlc.narg('intermediate_delay_seconds')::smallint, intermediate_delay_seconds),

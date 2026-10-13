@@ -13,6 +13,7 @@ var (
 	ErrInvalidIntermediateDelay = errors.New("invalid intermediate delay")
 	ErrInvalidExpiration        = errors.New("invalid expiration")
 	ErrInvalidPasswordInput     = errors.New("invalid password input")
+	ErrInvalidVisitLimit        = errors.New("invalid visit limit")
 	ErrPasswordRequired         = errors.New("password required")
 	ErrInvalidPassword          = errors.New("invalid password")
 	ErrPasswordRateLimited      = errors.New("password rate limited")

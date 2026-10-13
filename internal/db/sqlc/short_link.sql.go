@@ -876,33 +876,43 @@ func (q *Queries) SoftDeleteOwnShortLink(ctx context.Context, arg SoftDeleteOwnS
 
 const updateAnyShortLink = `-- name: UpdateAnyShortLink :one
 with locked as materialized (
-    select short_link.id,
+    select short_link.id, short_link.max_visits, short_link.visits_used,
         (
             (
-                $7::text = 'never'
+                $9::text = 'never'
                 and coalesce(short_link.password_hash, '') <> ''
             )
-            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+            or ($9::text = 'set' and coalesce($10::text, '') <> '')
         ) as password_changed
     from short_link
-    where short_link.id = $9
+    where short_link.id = $11
         and short_link.deleted_at is null
     for update
 )
 update short_link
 set target_url = coalesce($1, target_url),
-    status = coalesce($2, status),
-    redirect_mode = coalesce($3::text, redirect_mode),
-    intermediate_delay_seconds = coalesce($4::smallint, intermediate_delay_seconds),
-    expires_at = case $5::text
+    max_visits = case $2::text
+        when 'unlimited' then null
+        when 'limited' then $3::bigint
+        else locked.max_visits
+    end,
+    visits_used = case
+        when $2::text = 'unlimited' then 0
+        when $2::text = 'limited' and locked.max_visits is null then 0
+        else locked.visits_used
+    end,
+    status = coalesce($4, status),
+    redirect_mode = coalesce($5::text, redirect_mode),
+    intermediate_delay_seconds = coalesce($6::smallint, intermediate_delay_seconds),
+    expires_at = case $7::text
         when 'never' then null
-        when 'at' then $6::timestamptz
+        when 'at' then $8::timestamptz
         else expires_at
     end,
     password_hash = case
-        when $7::text = 'never' then null
+        when $9::text = 'never' then null
         when locked.password_changed
-            then $8::text
+            then $10::text
         else password_hash
     end,
     password_updated_at = case
@@ -939,6 +949,8 @@ returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.s
 
 type UpdateAnyShortLinkParams struct {
 	TargetUrl                pgtype.Text        `json:"target_url"`
+	VisitLimitMode           string             `json:"visit_limit_mode"`
+	MaxVisits                pgtype.Int8        `json:"max_visits"`
 	Status                   pgtype.Text        `json:"status"`
 	RedirectMode             pgtype.Text        `json:"redirect_mode"`
 	IntermediateDelaySeconds pgtype.Int2        `json:"intermediate_delay_seconds"`
@@ -973,6 +985,8 @@ type UpdateAnyShortLinkRow struct {
 func (q *Queries) UpdateAnyShortLink(ctx context.Context, arg UpdateAnyShortLinkParams) (UpdateAnyShortLinkRow, error) {
 	row := q.db.QueryRow(ctx, updateAnyShortLink,
 		arg.TargetUrl,
+		arg.VisitLimitMode,
+		arg.MaxVisits,
 		arg.Status,
 		arg.RedirectMode,
 		arg.IntermediateDelaySeconds,
@@ -1008,34 +1022,44 @@ func (q *Queries) UpdateAnyShortLink(ctx context.Context, arg UpdateAnyShortLink
 
 const updateOwnShortLink = `-- name: UpdateOwnShortLink :one
 with locked as materialized (
-    select short_link.id,
+    select short_link.id, short_link.max_visits, short_link.visits_used,
         (
             (
-                $7::text = 'never'
+                $9::text = 'never'
                 and coalesce(short_link.password_hash, '') <> ''
             )
-            or ($7::text = 'set' and coalesce($8::text, '') <> '')
+            or ($9::text = 'set' and coalesce($10::text, '') <> '')
         ) as password_changed
     from short_link
-    where short_link.id = $9
-        and short_link.owner_id = $10
+    where short_link.id = $11
+        and short_link.owner_id = $12
         and short_link.deleted_at is null
     for update
 )
 update short_link
 set target_url = coalesce($1, target_url),
-    status = coalesce($2, status),
-    redirect_mode = coalesce($3::text, redirect_mode),
-    intermediate_delay_seconds = coalesce($4::smallint, intermediate_delay_seconds),
-    expires_at = case $5::text
+    max_visits = case $2::text
+        when 'unlimited' then null
+        when 'limited' then $3::bigint
+        else locked.max_visits
+    end,
+    visits_used = case
+        when $2::text = 'unlimited' then 0
+        when $2::text = 'limited' and locked.max_visits is null then 0
+        else locked.visits_used
+    end,
+    status = coalesce($4, status),
+    redirect_mode = coalesce($5::text, redirect_mode),
+    intermediate_delay_seconds = coalesce($6::smallint, intermediate_delay_seconds),
+    expires_at = case $7::text
         when 'never' then null
-        when 'at' then $6::timestamptz
+        when 'at' then $8::timestamptz
         else expires_at
     end,
     password_hash = case
-        when $7::text = 'never' then null
+        when $9::text = 'never' then null
         when locked.password_changed
-            then $8::text
+            then $10::text
         else password_hash
     end,
     password_updated_at = case
@@ -1072,6 +1096,8 @@ returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.s
 
 type UpdateOwnShortLinkParams struct {
 	TargetUrl                pgtype.Text        `json:"target_url"`
+	VisitLimitMode           string             `json:"visit_limit_mode"`
+	MaxVisits                pgtype.Int8        `json:"max_visits"`
 	Status                   pgtype.Text        `json:"status"`
 	RedirectMode             pgtype.Text        `json:"redirect_mode"`
 	IntermediateDelaySeconds pgtype.Int2        `json:"intermediate_delay_seconds"`
@@ -1107,6 +1133,8 @@ type UpdateOwnShortLinkRow struct {
 func (q *Queries) UpdateOwnShortLink(ctx context.Context, arg UpdateOwnShortLinkParams) (UpdateOwnShortLinkRow, error) {
 	row := q.db.QueryRow(ctx, updateOwnShortLink,
 		arg.TargetUrl,
+		arg.VisitLimitMode,
+		arg.MaxVisits,
 		arg.Status,
 		arg.RedirectMode,
 		arg.IntermediateDelaySeconds,

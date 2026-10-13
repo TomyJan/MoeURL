@@ -82,6 +82,14 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 	if err := validateTargetURL(input.TargetURL); err != nil {
 		return CreateResult{}, err
 	}
+	var visitLimit *VisitLimitInput
+	if input.MaxVisits != nil {
+		visitLimit = &VisitLimitInput{Mode: VisitLimitModeLimited, MaxVisits: input.MaxVisits}
+	}
+	_, maxVisits, err := normalizeVisitLimit(permissions, visitLimit)
+	if err != nil {
+		return CreateResult{}, err
+	}
 	accessConfig, err := s.createAccessConfig(ctx, permissions, input)
 	if err != nil {
 		return CreateResult{}, err
@@ -128,6 +136,7 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 				IntermediateDelaySeconds: accessConfig.intermediateDelaySeconds,
 				ExpiresAt:                accessConfig.expiresAt,
 				PasswordHash:             accessConfig.passwordHash,
+				MaxVisits:                maxVisits,
 			})
 			if err != nil {
 				return err
@@ -258,6 +267,10 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 	if err != nil {
 		return CreateResult{}, err
 	}
+	visitLimitMode, maxVisits, err := normalizeVisitLimit(permissions, input.VisitLimit)
+	if err != nil {
+		return CreateResult{}, err
+	}
 
 	linkID, ownerID, err := parseLinkAndOwnerIDs(input.ID, user.ID)
 	if err != nil {
@@ -275,6 +288,8 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 		ExpiresAt:                accessConfig.expiresAt,
 		PasswordMode:             accessConfig.passwordMode,
 		PasswordHash:             accessConfig.passwordHash,
+		VisitLimitMode:           visitLimitMode,
+		MaxVisits:                maxVisits,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return CreateResult{}, ErrShortLinkMissing
@@ -440,6 +455,10 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 	if err != nil {
 		return CreateResult{}, err
 	}
+	visitLimitMode, maxVisits, err := normalizeVisitLimit(permissions, input.VisitLimit)
+	if err != nil {
+		return CreateResult{}, err
+	}
 
 	linkID, err := uuid.Parse(input.ID)
 	if err != nil {
@@ -455,6 +474,8 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 		ExpiresAt:                accessConfig.expiresAt,
 		PasswordMode:             accessConfig.passwordMode,
 		PasswordHash:             accessConfig.passwordHash,
+		VisitLimitMode:           visitLimitMode,
+		MaxVisits:                maxVisits,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return CreateResult{}, ErrShortLinkMissing

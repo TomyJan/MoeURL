@@ -38,6 +38,7 @@ github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go
 github.com/TomyJan/MoeURL/internal/shortlink/service.go
 github.com/TomyJan/MoeURL/internal/shortlink/slug.go
 github.com/TomyJan/MoeURL/internal/shortlink/validator.go
+github.com/TomyJan/MoeURL/internal/shortlink/visit_limit.go
 github.com/TomyJan/MoeURL/internal/system/handler.go
 github.com/TomyJan/MoeURL/internal/system/service.go
 github.com/TomyJan/MoeURL/internal/system/settings_handler.go
