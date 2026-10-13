@@ -242,6 +242,37 @@ func TestShortLinkPasswordStateMarshalsOnlyEnabledFlag(t *testing.T) {
 	require.NotContains(t, strings.ToLower(string(raw)), "hash")
 }
 
+// TestVisitLimitValuesMapsUnlimitedRemainingAndExhaustedStates verifies the shared response projection.
+func TestVisitLimitValuesMapsUnlimitedRemainingAndExhaustedStates(t *testing.T) {
+	tests := []struct {
+		name          string
+		maxVisits     pgtype.Int8
+		visitsUsed    int64
+		wantMax       *int64
+		wantRemaining *int64
+		wantExhausted bool
+	}{
+		{name: "unlimited", visitsUsed: 0},
+		{name: "remaining", maxVisits: pgtype.Int8{Int64: 10, Valid: true}, visitsUsed: 3, wantMax: int64Pointer(10), wantRemaining: int64Pointer(7)},
+		{name: "reduced below usage", maxVisits: pgtype.Int8{Int64: 2, Valid: true}, visitsUsed: 3, wantMax: int64Pointer(2), wantRemaining: int64Pointer(0), wantExhausted: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var limit VisitLimit
+			limit.setVisitLimit(test.maxVisits, test.visitsUsed)
+			require.Equal(t, test.wantMax, limit.MaxVisits)
+			require.Equal(t, test.visitsUsed, limit.VisitsUsed)
+			require.Equal(t, test.wantRemaining, limit.VisitsRemaining)
+			require.Equal(t, test.wantExhausted, limit.Exhausted)
+		})
+	}
+}
+
+func int64Pointer(value int64) *int64 {
+	return &value
+}
+
 // TestNormalizePasswordRequiresPermissionAndStoresOnlyHash verifies capability checks and one-way persistence.
 func TestNormalizePasswordRequiresPermissionAndStoresOnlyHash(t *testing.T) {
 	service := permission.NewService()

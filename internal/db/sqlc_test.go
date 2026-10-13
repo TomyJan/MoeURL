@@ -1189,6 +1189,155 @@ func TestShortLinkAccessConfigQueries(t *testing.T) {
 	}
 }
 
+// TestShortLinkVisitLimitQueries verifies quota fields and atomic visit claims.
+func TestShortLinkVisitLimitQueries(t *testing.T) {
+	ctx := t.Context()
+	pool := sqlcTestPool(t, ctx)
+	queries := sqlc.New(pool)
+	ownerID := uuid.MustParse("00000000-0000-0000-0000-000000000201")
+	domainID := uuid.MustParse("00000000-0000-0000-0000-000000000101")
+	unlimitedID := uuid.MustParse("00000000-0000-0000-0000-000000000301")
+	limitedID := uuid.MustParse("00000000-0000-0000-0000-000000000302")
+	insertSQLCShortLinkFixtures(t, ctx, pool, ownerID, domainID, unlimitedID)
+
+	created, err := queries.CreateShortLink(ctx, sqlc.CreateShortLinkParams{
+		ID:                       uuidToPgtype(limitedID),
+		OwnerID:                  uuidToPgtype(ownerID),
+		DomainID:                 uuidToPgtype(domainID),
+		Slug:                     "limited",
+		TargetUrl:                "https://example.com/limited",
+		Status:                   "active",
+		RedirectMode:             "direct",
+		IntermediateDelaySeconds: 5,
+		MaxVisits:                pgtype.Int8{Int64: 2, Valid: true},
+	})
+	if err != nil {
+		t.Fatalf("create limited short link: %v", err)
+	}
+	if !created.MaxVisits.Valid || created.MaxVisits.Int64 != 2 || created.VisitsUsed != 0 || created.Exhausted {
+		t.Fatalf("unexpected created visit limit: %#v", created)
+	}
+
+	bySlug, err := queries.GetShortLinkBySlug(ctx, "limited")
+	if err != nil {
+		t.Fatalf("get limited short link: %v", err)
+	}
+	if !bySlug.MaxVisits.Valid || bySlug.MaxVisits.Int64 != 2 || bySlug.VisitsUsed != 0 || bySlug.Exhausted {
+		t.Fatalf("unexpected slug visit limit: %#v", bySlug)
+	}
+
+	analytics, err := queries.GetShortLinkAnalyticsLink(ctx, uuidToPgtype(limitedID))
+	if err != nil {
+		t.Fatalf("get limited analytics link: %v", err)
+	}
+	if !analytics.MaxVisits.Valid || analytics.MaxVisits.Int64 != 2 || analytics.VisitsUsed != 0 || analytics.Exhausted {
+		t.Fatalf("unexpected analytics visit limit: %#v", analytics)
+	}
+
+	ownerRows, err := queries.ListShortLinksByOwner(ctx, sqlc.ListShortLinksByOwnerParams{
+		OwnerID: uuidToPgtype(ownerID),
+		Limit:   20,
+		Offset:  0,
+		Status:  pgtype.Text{},
+	})
+	if err != nil {
+		t.Fatalf("list owner short links: %v", err)
+	}
+	assertListedShortLinkVisitLimit(t, ownerRows, limitedID, 2, 0, false)
+
+	adminRows, err := queries.ListAllShortLinks(ctx, sqlc.ListAllShortLinksParams{
+		Limit:  20,
+		Offset: 0,
+		Status: pgtype.Text{},
+		Query:  "",
+	})
+	if err != nil {
+		t.Fatalf("list all short links: %v", err)
+	}
+	assertAdminListedShortLinkVisitLimit(t, adminRows, limitedID, 2, 0, false)
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin visit claim read: %v", err)
+	}
+	t.Cleanup(func() { _ = tx.Rollback(context.Background()) })
+	locked, err := sqlc.New(tx).GetShortLinkBySlugForVisitClaim(ctx, "limited")
+	if err != nil {
+		t.Fatalf("lock limited short link: %v", err)
+	}
+	if locked.DomainHost != "go.example.com" || !locked.DomainEnabled || locked.DomainPurpose != "short_link" || !locked.MaxVisits.Valid || locked.MaxVisits.Int64 != 2 || locked.VisitsUsed != 0 || locked.Exhausted {
+		t.Fatalf("unexpected locked visit limit: %#v", locked)
+	}
+	if err := tx.Rollback(ctx); err != nil {
+		t.Fatalf("rollback visit claim read: %v", err)
+	}
+
+	first, err := queries.ClaimShortLinkVisit(ctx, uuidToPgtype(limitedID))
+	if err != nil {
+		t.Fatalf("claim first limited visit: %v", err)
+	}
+	if first.VisitsUsed != 1 || !first.MaxVisits.Valid || first.MaxVisits.Int64 != 2 {
+		t.Fatalf("unexpected first visit claim: %#v", first)
+	}
+	second, err := queries.ClaimShortLinkVisit(ctx, uuidToPgtype(limitedID))
+	if err != nil {
+		t.Fatalf("claim final limited visit: %v", err)
+	}
+	if second.VisitsUsed != 2 || !second.MaxVisits.Valid || second.MaxVisits.Int64 != 2 {
+		t.Fatalf("unexpected final visit claim: %#v", second)
+	}
+	if _, err := queries.ClaimShortLinkVisit(ctx, uuidToPgtype(limitedID)); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("expected exhausted claim to return pgx.ErrNoRows, got %v", err)
+	}
+	if _, err := queries.ClaimShortLinkVisit(ctx, uuidToPgtype(unlimitedID)); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("expected unlimited claim to return pgx.ErrNoRows, got %v", err)
+	}
+
+	exhausted, err := queries.GetShortLinkBySlug(ctx, "limited")
+	if err != nil {
+		t.Fatalf("get exhausted short link: %v", err)
+	}
+	if !exhausted.Exhausted || exhausted.VisitsUsed != 2 {
+		t.Fatalf("expected exhausted short link, got %#v", exhausted)
+	}
+	if _, err := pool.Exec(ctx, `update short_link set max_visits = 1 where id = $1`, limitedID); err != nil {
+		t.Fatalf("lower visit limit below usage: %v", err)
+	}
+	reduced, err := queries.GetShortLinkBySlug(ctx, "limited")
+	if err != nil {
+		t.Fatalf("get reduced short link: %v", err)
+	}
+	if !reduced.Exhausted || reduced.MaxVisits.Int64 != 1 || reduced.VisitsUsed != 2 {
+		t.Fatalf("expected reduced limit to remain exhausted, got %#v", reduced)
+	}
+}
+
+func assertListedShortLinkVisitLimit(t *testing.T, rows []sqlc.ListShortLinksByOwnerRow, id uuid.UUID, maxVisits, visitsUsed int64, exhausted bool) {
+	t.Helper()
+	for _, row := range rows {
+		if row.ID == uuidToPgtype(id) {
+			if !row.MaxVisits.Valid || row.MaxVisits.Int64 != maxVisits || row.VisitsUsed != visitsUsed || row.Exhausted != exhausted {
+				t.Fatalf("unexpected owner-listed visit limit: %#v", row)
+			}
+			return
+		}
+	}
+	t.Fatalf("short link %s was not present in owner list", id)
+}
+
+func assertAdminListedShortLinkVisitLimit(t *testing.T, rows []sqlc.ListAllShortLinksRow, id uuid.UUID, maxVisits, visitsUsed int64, exhausted bool) {
+	t.Helper()
+	for _, row := range rows {
+		if row.ID == uuidToPgtype(id) {
+			if !row.MaxVisits.Valid || row.MaxVisits.Int64 != maxVisits || row.VisitsUsed != visitsUsed || row.Exhausted != exhausted {
+				t.Fatalf("unexpected admin-listed visit limit: %#v", row)
+			}
+			return
+		}
+	}
+	t.Fatalf("short link %s was not present in admin list", id)
+}
+
 // TestShortLinkAccessGrantUsesIssuanceTimeAfterConcurrentPasswordUpdate verifies stale grants cannot survive a password update race.
 func TestShortLinkAccessGrantUsesIssuanceTimeAfterConcurrentPasswordUpdate(t *testing.T) {
 	ctx := context.Background()

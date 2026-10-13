@@ -5,28 +5,55 @@ select clock_timestamp()::timestamptz as database_time;
 insert into short_link (
     id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at, password_hash,
-    password_updated_at,
+    password_updated_at, max_visits,
     created_at, updated_at
 )
 values ($1, $2, $3, $4, $5, $6, $7, $8, $9, nullif(sqlc.narg('password_hash')::text, ''),
     case when coalesce(sqlc.narg('password_hash')::text, '') <> '' then clock_timestamp() else null end,
+    sqlc.narg('max_visits')::bigint,
     now(), now())
 returning id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at,
     coalesce(expires_at <= clock_timestamp(), false)::boolean as expired,
-    password_hash,
+    password_hash, max_visits, visits_used,
+    (max_visits is not null and visits_used >= max_visits)::boolean as exhausted,
     created_at, updated_at, deleted_at;
 
 -- name: GetShortLinkBySlug :one
 select short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
     short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
-    short_link.password_hash,
+    short_link.password_hash, short_link.max_visits, short_link.visits_used,
+    (short_link.max_visits is not null and short_link.visits_used >= short_link.max_visits)::boolean as exhausted,
     short_link.created_at, short_link.updated_at, short_link.deleted_at,
     domain.host as domain_host, domain.enabled as domain_enabled, domain.purpose as domain_purpose
 from short_link
 join domain on domain.id = short_link.domain_id
 where short_link.slug = $1 and short_link.deleted_at is null;
+
+-- name: GetShortLinkBySlugForVisitClaim :one
+select short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
+    short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
+    coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
+    short_link.password_hash, short_link.password_updated_at,
+    short_link.max_visits, short_link.visits_used,
+    (short_link.max_visits is not null and short_link.visits_used >= short_link.max_visits)::boolean as exhausted,
+    short_link.created_at, short_link.updated_at, short_link.deleted_at,
+    domain.host as domain_host, domain.enabled as domain_enabled, domain.purpose as domain_purpose
+from short_link
+join domain on domain.id = short_link.domain_id
+where short_link.slug = $1 and short_link.deleted_at is null
+for update of short_link
+for share of domain;
+
+-- name: ClaimShortLinkVisit :one
+update short_link
+set visits_used = visits_used + 1
+where id = $1
+    and deleted_at is null
+    and max_visits is not null
+    and visits_used < max_visits
+returning visits_used, max_visits;
 
 -- name: GetShortLinkAnalyticsLink :one
 select short_link.id,
@@ -39,6 +66,9 @@ select short_link.id,
     short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
     coalesce(short_link.password_hash, '') <> '' as has_password,
+    short_link.max_visits,
+    short_link.visits_used,
+    (short_link.max_visits is not null and short_link.visits_used >= short_link.max_visits)::boolean as exhausted,
     short_link.created_at,
     domain.host as domain_host
 from short_link
@@ -57,6 +87,9 @@ select short_link.id,
     short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
     coalesce(short_link.password_hash, '') <> '' as has_password,
+    short_link.max_visits,
+    short_link.visits_used,
+    (short_link.max_visits is not null and short_link.visits_used >= short_link.max_visits)::boolean as exhausted,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
@@ -157,6 +190,8 @@ returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.s
     short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
     short_link.password_hash, short_link.password_updated_at,
+    short_link.max_visits, short_link.visits_used,
+    (short_link.max_visits is not null and short_link.visits_used >= short_link.max_visits)::boolean as exhausted,
     short_link.created_at, short_link.updated_at, short_link.deleted_at;
 
 -- name: SoftDeleteOwnShortLink :execrows
@@ -179,6 +214,9 @@ select short_link.id,
     short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
     coalesce(short_link.password_hash, '') <> '' as has_password,
+    short_link.max_visits,
+    short_link.visits_used,
+    (short_link.max_visits is not null and short_link.visits_used >= short_link.max_visits)::boolean as exhausted,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
@@ -282,6 +320,8 @@ returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.s
     short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
     short_link.password_hash, short_link.password_updated_at,
+    short_link.max_visits, short_link.visits_used,
+    (short_link.max_visits is not null and short_link.visits_used >= short_link.max_visits)::boolean as exhausted,
     short_link.created_at, short_link.updated_at, short_link.deleted_at;
 
 -- name: SoftDeleteAnyShortLink :execrows

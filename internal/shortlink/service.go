@@ -143,6 +143,7 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 			shortLink.setAccessConfig(created.RedirectMode, created.IntermediateDelaySeconds, created.ExpiresAt, accessConfigOptions{
 				expired: created.Expired, passwordEnabled: created.PasswordHash.Valid,
 			})
+			shortLink.setVisitLimit(created.MaxVisits, created.VisitsUsed)
 			result = CreateResult{ShortLink: shortLink}
 			return nil
 		})
@@ -227,6 +228,7 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 			expired:         row.Expired,
 			passwordEnabled: row.HasPassword,
 		})
+		shortLink.setVisitLimit(row.MaxVisits, row.VisitsUsed)
 		items = append(items, shortLink)
 	}
 
@@ -298,6 +300,7 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 		expired:         updated.Expired,
 		passwordEnabled: updated.PasswordHash.Valid,
 	})
+	shortLink.setVisitLimit(updated.MaxVisits, updated.VisitsUsed)
 	return CreateResult{ShortLink: shortLink}, nil
 }
 
@@ -407,6 +410,7 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 			expired:         row.Expired,
 			passwordEnabled: row.HasPassword,
 		})
+		shortLink.setVisitLimit(row.MaxVisits, row.VisitsUsed)
 		items = append(items, shortLink)
 	}
 
@@ -476,6 +480,7 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 		expired:         updated.Expired,
 		passwordEnabled: updated.PasswordHash.Valid,
 	})
+	shortLink.setVisitLimit(updated.MaxVisits, updated.VisitsUsed)
 	return CreateResult{ShortLink: shortLink}, nil
 }
 
@@ -532,6 +537,7 @@ func (s *Service) analyticsLink(ctx context.Context, linkID uuid.UUID) (analytic
 		expired:         row.Expired,
 		passwordEnabled: row.HasPassword,
 	})
+	shortLink.setVisitLimit(row.MaxVisits, row.VisitsUsed)
 	return analyticsLinkResult{
 		ownerID:   uuid.UUID(row.OwnerID.Bytes),
 		shortLink: shortLink,

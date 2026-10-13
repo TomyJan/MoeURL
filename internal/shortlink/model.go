@@ -139,6 +139,34 @@ func (config *AccessConfig) setAccessConfig(redirectMode string, delay int16, ex
 	config.PasswordEnabled = options.passwordEnabled
 }
 
+// VisitLimit describes the current quota period for a managed short link.
+type VisitLimit struct {
+	MaxVisits       *int64 `json:"maxVisits"`
+	VisitsUsed      int64  `json:"visitsUsed"`
+	VisitsRemaining *int64 `json:"visitsRemaining"`
+	Exhausted       bool   `json:"exhausted"`
+}
+
+// setVisitLimit maps persisted quota state into the shared API model.
+func (limit *VisitLimit) setVisitLimit(maxVisits pgtype.Int8, visitsUsed int64) {
+	limit.VisitsUsed = visitsUsed
+	if !maxVisits.Valid {
+		limit.MaxVisits = nil
+		limit.VisitsRemaining = nil
+		limit.Exhausted = false
+		return
+	}
+
+	maxValue := maxVisits.Int64
+	remaining := maxValue - visitsUsed
+	if remaining < 0 {
+		remaining = 0
+	}
+	limit.MaxVisits = &maxValue
+	limit.VisitsRemaining = &remaining
+	limit.Exhausted = visitsUsed >= maxValue
+}
+
 type ShortLink struct {
 	ID        string `json:"id"`
 	URL       string `json:"url"`
@@ -146,6 +174,7 @@ type ShortLink struct {
 	TargetURL string `json:"targetUrl"`
 	Status    string `json:"status"`
 	AccessConfig
+	VisitLimit
 	CreatedAt time.Time       `json:"createdAt"`
 	Stats     *ShortLinkStats `json:"stats,omitempty"`
 }
@@ -169,6 +198,7 @@ type AdminShortLink struct {
 	TargetURL string `json:"targetUrl"`
 	Status    string `json:"status"`
 	AccessConfig
+	VisitLimit
 	CreatedAt time.Time       `json:"createdAt"`
 	Stats     *ShortLinkStats `json:"stats,omitempty"`
 	Owner     OwnerSummary    `json:"owner"`

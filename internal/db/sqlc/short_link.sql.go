@@ -11,6 +11,28 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const claimShortLinkVisit = `-- name: ClaimShortLinkVisit :one
+update short_link
+set visits_used = visits_used + 1
+where id = $1
+    and deleted_at is null
+    and max_visits is not null
+    and visits_used < max_visits
+returning visits_used, max_visits
+`
+
+type ClaimShortLinkVisitRow struct {
+	VisitsUsed int64       `json:"visits_used"`
+	MaxVisits  pgtype.Int8 `json:"max_visits"`
+}
+
+func (q *Queries) ClaimShortLinkVisit(ctx context.Context, id pgtype.UUID) (ClaimShortLinkVisitRow, error) {
+	row := q.db.QueryRow(ctx, claimShortLinkVisit, id)
+	var i ClaimShortLinkVisitRow
+	err := row.Scan(&i.VisitsUsed, &i.MaxVisits)
+	return i, err
+}
+
 const countAllShortLinks = `-- name: CountAllShortLinks :one
 select count(*)
 from short_link
@@ -61,16 +83,18 @@ const createShortLink = `-- name: CreateShortLink :one
 insert into short_link (
     id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at, password_hash,
-    password_updated_at,
+    password_updated_at, max_visits,
     created_at, updated_at
 )
 values ($1, $2, $3, $4, $5, $6, $7, $8, $9, nullif($10::text, ''),
     case when coalesce($10::text, '') <> '' then clock_timestamp() else null end,
+    $11::bigint,
     now(), now())
 returning id, owner_id, domain_id, slug, target_url, status,
     redirect_mode, intermediate_delay_seconds, expires_at,
     coalesce(expires_at <= clock_timestamp(), false)::boolean as expired,
-    password_hash,
+    password_hash, max_visits, visits_used,
+    (max_visits is not null and visits_used >= max_visits)::boolean as exhausted,
     created_at, updated_at, deleted_at
 `
 
@@ -85,6 +109,7 @@ type CreateShortLinkParams struct {
 	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	PasswordHash             pgtype.Text        `json:"password_hash"`
+	MaxVisits                pgtype.Int8        `json:"max_visits"`
 }
 
 type CreateShortLinkRow struct {
@@ -99,6 +124,9 @@ type CreateShortLinkRow struct {
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	Expired                  bool               `json:"expired"`
 	PasswordHash             pgtype.Text        `json:"password_hash"`
+	MaxVisits                pgtype.Int8        `json:"max_visits"`
+	VisitsUsed               int64              `json:"visits_used"`
+	Exhausted                bool               `json:"exhausted"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -116,6 +144,7 @@ func (q *Queries) CreateShortLink(ctx context.Context, arg CreateShortLinkParams
 		arg.IntermediateDelaySeconds,
 		arg.ExpiresAt,
 		arg.PasswordHash,
+		arg.MaxVisits,
 	)
 	var i CreateShortLinkRow
 	err := row.Scan(
@@ -130,6 +159,9 @@ func (q *Queries) CreateShortLink(ctx context.Context, arg CreateShortLinkParams
 		&i.ExpiresAt,
 		&i.Expired,
 		&i.PasswordHash,
+		&i.MaxVisits,
+		&i.VisitsUsed,
+		&i.Exhausted,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -212,6 +244,9 @@ select short_link.id,
     short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
     coalesce(short_link.password_hash, '') <> '' as has_password,
+    short_link.max_visits,
+    short_link.visits_used,
+    (short_link.max_visits is not null and short_link.visits_used >= short_link.max_visits)::boolean as exhausted,
     short_link.created_at,
     domain.host as domain_host
 from short_link
@@ -230,6 +265,9 @@ type GetShortLinkAnalyticsLinkRow struct {
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	Expired                  bool               `json:"expired"`
 	HasPassword              bool               `json:"has_password"`
+	MaxVisits                pgtype.Int8        `json:"max_visits"`
+	VisitsUsed               int64              `json:"visits_used"`
+	Exhausted                bool               `json:"exhausted"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	DomainHost               string             `json:"domain_host"`
 }
@@ -248,6 +286,9 @@ func (q *Queries) GetShortLinkAnalyticsLink(ctx context.Context, id pgtype.UUID)
 		&i.ExpiresAt,
 		&i.Expired,
 		&i.HasPassword,
+		&i.MaxVisits,
+		&i.VisitsUsed,
+		&i.Exhausted,
 		&i.CreatedAt,
 		&i.DomainHost,
 	)
@@ -258,7 +299,8 @@ const getShortLinkBySlug = `-- name: GetShortLinkBySlug :one
 select short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
     short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
-    short_link.password_hash,
+    short_link.password_hash, short_link.max_visits, short_link.visits_used,
+    (short_link.max_visits is not null and short_link.visits_used >= short_link.max_visits)::boolean as exhausted,
     short_link.created_at, short_link.updated_at, short_link.deleted_at,
     domain.host as domain_host, domain.enabled as domain_enabled, domain.purpose as domain_purpose
 from short_link
@@ -278,6 +320,9 @@ type GetShortLinkBySlugRow struct {
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	Expired                  bool               `json:"expired"`
 	PasswordHash             pgtype.Text        `json:"password_hash"`
+	MaxVisits                pgtype.Int8        `json:"max_visits"`
+	VisitsUsed               int64              `json:"visits_used"`
+	Exhausted                bool               `json:"exhausted"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -301,6 +346,78 @@ func (q *Queries) GetShortLinkBySlug(ctx context.Context, slug string) (GetShort
 		&i.ExpiresAt,
 		&i.Expired,
 		&i.PasswordHash,
+		&i.MaxVisits,
+		&i.VisitsUsed,
+		&i.Exhausted,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.DomainHost,
+		&i.DomainEnabled,
+		&i.DomainPurpose,
+	)
+	return i, err
+}
+
+const getShortLinkBySlugForVisitClaim = `-- name: GetShortLinkBySlugForVisitClaim :one
+select short_link.id, short_link.owner_id, short_link.domain_id, short_link.slug, short_link.target_url, short_link.status,
+    short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
+    coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
+    short_link.password_hash, short_link.password_updated_at,
+    short_link.max_visits, short_link.visits_used,
+    (short_link.max_visits is not null and short_link.visits_used >= short_link.max_visits)::boolean as exhausted,
+    short_link.created_at, short_link.updated_at, short_link.deleted_at,
+    domain.host as domain_host, domain.enabled as domain_enabled, domain.purpose as domain_purpose
+from short_link
+join domain on domain.id = short_link.domain_id
+where short_link.slug = $1 and short_link.deleted_at is null
+for update of short_link
+for share of domain
+`
+
+type GetShortLinkBySlugForVisitClaimRow struct {
+	ID                       pgtype.UUID        `json:"id"`
+	OwnerID                  pgtype.UUID        `json:"owner_id"`
+	DomainID                 pgtype.UUID        `json:"domain_id"`
+	Slug                     string             `json:"slug"`
+	TargetUrl                string             `json:"target_url"`
+	Status                   string             `json:"status"`
+	RedirectMode             string             `json:"redirect_mode"`
+	IntermediateDelaySeconds int16              `json:"intermediate_delay_seconds"`
+	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
+	Expired                  bool               `json:"expired"`
+	PasswordHash             pgtype.Text        `json:"password_hash"`
+	PasswordUpdatedAt        pgtype.Timestamptz `json:"password_updated_at"`
+	MaxVisits                pgtype.Int8        `json:"max_visits"`
+	VisitsUsed               int64              `json:"visits_used"`
+	Exhausted                bool               `json:"exhausted"`
+	CreatedAt                pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
+	DomainHost               string             `json:"domain_host"`
+	DomainEnabled            bool               `json:"domain_enabled"`
+	DomainPurpose            string             `json:"domain_purpose"`
+}
+
+func (q *Queries) GetShortLinkBySlugForVisitClaim(ctx context.Context, slug string) (GetShortLinkBySlugForVisitClaimRow, error) {
+	row := q.db.QueryRow(ctx, getShortLinkBySlugForVisitClaim, slug)
+	var i GetShortLinkBySlugForVisitClaimRow
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.DomainID,
+		&i.Slug,
+		&i.TargetUrl,
+		&i.Status,
+		&i.RedirectMode,
+		&i.IntermediateDelaySeconds,
+		&i.ExpiresAt,
+		&i.Expired,
+		&i.PasswordHash,
+		&i.PasswordUpdatedAt,
+		&i.MaxVisits,
+		&i.VisitsUsed,
+		&i.Exhausted,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -449,6 +566,9 @@ select short_link.id,
     short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
     coalesce(short_link.password_hash, '') <> '' as has_password,
+    short_link.max_visits,
+    short_link.visits_used,
+    (short_link.max_visits is not null and short_link.visits_used >= short_link.max_visits)::boolean as exhausted,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
@@ -500,6 +620,9 @@ type ListAllShortLinksRow struct {
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	Expired                  bool               `json:"expired"`
 	HasPassword              bool               `json:"has_password"`
+	MaxVisits                pgtype.Int8        `json:"max_visits"`
+	VisitsUsed               int64              `json:"visits_used"`
+	Exhausted                bool               `json:"exhausted"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -537,6 +660,9 @@ func (q *Queries) ListAllShortLinks(ctx context.Context, arg ListAllShortLinksPa
 			&i.ExpiresAt,
 			&i.Expired,
 			&i.HasPassword,
+			&i.MaxVisits,
+			&i.VisitsUsed,
+			&i.Exhausted,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
@@ -569,6 +695,9 @@ select short_link.id,
     short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
     coalesce(short_link.password_hash, '') <> '' as has_password,
+    short_link.max_visits,
+    short_link.visits_used,
+    (short_link.max_visits is not null and short_link.visits_used >= short_link.max_visits)::boolean as exhausted,
     short_link.created_at,
     short_link.updated_at,
     short_link.deleted_at,
@@ -610,6 +739,9 @@ type ListShortLinksByOwnerRow struct {
 	ExpiresAt                pgtype.Timestamptz `json:"expires_at"`
 	Expired                  bool               `json:"expired"`
 	HasPassword              bool               `json:"has_password"`
+	MaxVisits                pgtype.Int8        `json:"max_visits"`
+	VisitsUsed               int64              `json:"visits_used"`
+	Exhausted                bool               `json:"exhausted"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -645,6 +777,9 @@ func (q *Queries) ListShortLinksByOwner(ctx context.Context, arg ListShortLinksB
 			&i.ExpiresAt,
 			&i.Expired,
 			&i.HasPassword,
+			&i.MaxVisits,
+			&i.VisitsUsed,
+			&i.Exhausted,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
@@ -797,6 +932,8 @@ returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.s
     short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
     short_link.password_hash, short_link.password_updated_at,
+    short_link.max_visits, short_link.visits_used,
+    (short_link.max_visits is not null and short_link.visits_used >= short_link.max_visits)::boolean as exhausted,
     short_link.created_at, short_link.updated_at, short_link.deleted_at
 `
 
@@ -825,6 +962,9 @@ type UpdateAnyShortLinkRow struct {
 	Expired                  bool               `json:"expired"`
 	PasswordHash             pgtype.Text        `json:"password_hash"`
 	PasswordUpdatedAt        pgtype.Timestamptz `json:"password_updated_at"`
+	MaxVisits                pgtype.Int8        `json:"max_visits"`
+	VisitsUsed               int64              `json:"visits_used"`
+	Exhausted                bool               `json:"exhausted"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -856,6 +996,9 @@ func (q *Queries) UpdateAnyShortLink(ctx context.Context, arg UpdateAnyShortLink
 		&i.Expired,
 		&i.PasswordHash,
 		&i.PasswordUpdatedAt,
+		&i.MaxVisits,
+		&i.VisitsUsed,
+		&i.Exhausted,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -922,6 +1065,8 @@ returning short_link.id, short_link.owner_id, short_link.domain_id, short_link.s
     short_link.redirect_mode, short_link.intermediate_delay_seconds, short_link.expires_at,
     coalesce(short_link.expires_at <= clock_timestamp(), false)::boolean as expired,
     short_link.password_hash, short_link.password_updated_at,
+    short_link.max_visits, short_link.visits_used,
+    (short_link.max_visits is not null and short_link.visits_used >= short_link.max_visits)::boolean as exhausted,
     short_link.created_at, short_link.updated_at, short_link.deleted_at
 `
 
@@ -951,6 +1096,9 @@ type UpdateOwnShortLinkRow struct {
 	Expired                  bool               `json:"expired"`
 	PasswordHash             pgtype.Text        `json:"password_hash"`
 	PasswordUpdatedAt        pgtype.Timestamptz `json:"password_updated_at"`
+	MaxVisits                pgtype.Int8        `json:"max_visits"`
+	VisitsUsed               int64              `json:"visits_used"`
+	Exhausted                bool               `json:"exhausted"`
 	CreatedAt                pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt                pgtype.Timestamptz `json:"deleted_at"`
@@ -983,6 +1131,9 @@ func (q *Queries) UpdateOwnShortLink(ctx context.Context, arg UpdateOwnShortLink
 		&i.Expired,
 		&i.PasswordHash,
 		&i.PasswordUpdatedAt,
+		&i.MaxVisits,
+		&i.VisitsUsed,
+		&i.Exhausted,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
