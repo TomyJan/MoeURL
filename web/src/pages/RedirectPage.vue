@@ -89,7 +89,7 @@ import { getPublicShortLinkPreview, unlockShortLink } from '@/entities/short-lin
 import type { PublicShortLinkPreview } from '@/entities/short-link/model'
 import { ApiClientError } from '@/shared/api/client'
 
-type PreviewFailureState = '' | 'disabled' | 'expired' | 'loadFailed' | 'notInteractive' | 'unavailable'
+type PreviewFailureState = '' | 'disabled' | 'expired' | 'exhausted' | 'loadFailed' | 'notInteractive' | 'unavailable'
 type UnlockErrorState = '' | 'invalidPassword' | 'passwordRequired' | 'rateLimited' | 'unlockFailed'
 
 const { locale, t } = useI18n()
@@ -214,6 +214,9 @@ function whenCurrent(requestId: number, update: () => void) {
 
 /** Maps navigation reasons into the initial preview failure state. */
 function failureStateFromReason(reason: unknown): PreviewFailureState {
+  if (reason === 'exhausted') {
+    return 'exhausted'
+  }
   if (reason === 'disabled') {
     return 'disabled'
   }
@@ -234,6 +237,9 @@ function unlockErrorFromReason(reason: unknown): UnlockErrorState {
 /** Maps public preview API failures into non-sensitive page states. */
 function classifyPreviewError(error: unknown): PreviewFailureState {
   const code = error instanceof ApiClientError ? error.code : 0
+  if (code === 200115) {
+    return 'exhausted'
+  }
   if (code === 200109) {
     return 'expired'
   }
@@ -334,6 +340,13 @@ async function unlock(event: globalThis.Event) {
     proceedAfterAccess(continueFailed.value)
   } catch (error) {
     if (!isCurrentUnlock()) {
+      return
+    }
+    if (error instanceof ApiClientError && error.code === 200115) {
+      failureState.value = 'exhausted'
+      passwordRequired.value = false
+      clearRateLimitCountdown()
+      form.reset()
       return
     }
     const errorState = classifyUnlockError(error)
