@@ -4,6 +4,8 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 ## 阅读顺序
 
+当前开发版本为 [v0.10.0 最大访问次数](product/scope-v0.10.0.md)。实现与验收分别见 [详细计划](implementation/v0.10.0-detailed-plan.md)、[任务清单](implementation/v0.10.0-tasks.md) 和 [验证记录](implementation/v0.10.0-acceptance.md)；下列既有版本的发布证据保持各自独立。
+
 建议按以下顺序阅读：
 
 1. [产品总览](product/overview.md)：了解 MoeURL 的定位、目标和核心原则。
@@ -62,6 +64,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 - [v0.7.0 范围](product/scope-v0.7.0.md)
 - [v0.8.0 范围](product/scope-v0.8.0.md)
 - [v0.9.0 范围](product/scope-v0.9.0.md)
+- [v0.10.0 范围](product/scope-v0.10.0.md)
 - [路线图](product/roadmap.md)
 
 ### 功能规格层

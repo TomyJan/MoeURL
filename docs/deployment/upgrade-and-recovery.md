@@ -221,6 +221,8 @@ target_compose logs --since 10m app
 
 最后通过公网 HTTPS 验证管理员登录、短链创建/列表、样例 direct、intermediate、confirmation 跳转及统计。v0.9.0 还要核对公开站点品牌、`/admin/setting`、`GET /api/v1/auth/methods` 的本地登录状态、OIDC Provider 集合和现有 Session 行为。确认代理仍发送 HSTS，登录、初始化和公开解锁限流仍生效。
 
+v0.10.0 的 `00015` 升级不回填历史统计，既有短链保持无限额。使用演练短链验证三种模式的最终跳转领取、密码失败不消耗、最后名额并发拒绝和重启后的额度持久化。不得用生产短链消耗额度来替代隔离验收。
+
 ## 4. 失败处理与回退
 
 若构建失败，或在摘流并执行 `target_compose stop app` 之前中止且 migration 尚未执行，旧容器仍可运行，修复后重试即可。若旧 App 已停止，而 PostgreSQL 启动失败或健康检查超时，则旧服务已经不可用；按下述首选回退路径恢复升级前镜像并确认 readiness，再重新开始升级。若 migration 成功但新 App 未就绪：
@@ -310,6 +312,8 @@ rollback_compose up --detach --no-build --force-recreate --no-deps app || {
 
 先在隔离 project 证明备份可恢复，再按维护窗口的恢复方案重建生产数据库。不得在仍接收流量的数据库上直接使用 `pg_restore --clean`。
 
+`00015` Down 会删除 `max_visits`、`visits_used` 和迁移的权限修订记录，撤回未被后续修改的迁移权限；限额配置和当前用量会丢失。即使保留新 schema，旧镜像也不执行额度检查。仍需限制访问次数时优先前向修复，不能把容器镜像回退视为额度策略仍然有效；确需 Down 前必须备份并明确接受失去限制和用量的影响，再升级不会自动恢复额度。
+
 ## 5. 灾难恢复演练
 
 至少定期模拟以下场景：
@@ -323,7 +327,7 @@ rollback_compose up --detach --no-build --force-recreate --no-deps app || {
 1. `goose_db_version` 的最大已应用版本与 `migrations/` 目录中按编号计算出的当前最大 migration 版本一致。
 2. `guest`、`user`、`admin` 三个内置组存在。
 3. 恢复出的管理员可以登录。
-4. 预先登记的样例短链、跳转模式、倒计时、过期时间和密码启用状态一致。
+4. 预先登记的样例短链、跳转模式、倒计时、过期时间、密码启用状态、最大访问次数和额度已用量一致。
 5. 站点名称、默认语言、默认主题、页脚、Powered by 开关、本地登录状态和 OIDC Provider 集合与备份记录一致；启用 OIDC 时使用原始加密密钥完成真实登录。
 6. 外部 HTTPS、HSTS、可信转发头和敏感端点的来源级限流有效。
 7. 演练结束后只清理隔离 project，生产容器、网络和卷不受影响。

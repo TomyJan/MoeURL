@@ -228,7 +228,7 @@ done
 
 ## 4. 恢复验收
 
-目标 v0.9.0 必须完成以下检查，不能只以容器健康代替数据验证。
+目标 v0.10.0 必须完成以下检查，不能只以容器健康代替数据验证。
 
 从当前 `migrations/` 目录计算最大 migration 版本，并确认恢复数据库一致：
 
@@ -256,10 +256,12 @@ restore_compose exec -T postgres \
 ```bash
 restore_compose exec -T postgres \
   psql -U moeurl -d moeurl -P pager=off -c \
-  "select slug, status, redirect_mode, intermediate_delay_seconds, expires_at, password_hash is not null as password_enabled from short_link where slug = '<sample-slug>' and deleted_at is null"
+  "select slug, status, redirect_mode, intermediate_delay_seconds, expires_at, password_hash is not null as password_enabled, max_visits, visits_used from short_link where slug = '<sample-slug>' and deleted_at is null"
 ```
 
 随后通过隔离 App 访问该短码，按其 direct、intermediate 或 confirmation 模式验证公开流程。若短链受密码保护，还应验证错误密码被拒绝、正确密码授权和最终跳转。记录备份校验和、恢复开始/结束时间、镜像版本、migration 版本、样例短码和每项结果。
+
+v0.10.0 还应将 `max_visits`、`visits_used` 与备份前记录逐项比较，恢复不会根据历史访问事件重建额度。用隔离样例验证剩余最后名额只允许一次最终跳转、之后显示耗尽；预览、页面入口和错误密码不改变用量。验证会消耗恢复库中的额度，不得用生产库执行演练，也不能把恢复旧备份视为累计访问次数永不回退的保证。
 
 继续核对 v0.9.0 设置与登录入口：
 

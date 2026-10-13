@@ -10,6 +10,8 @@ v0.9.0 范围和安全边界以 `docs/product/scope-v0.9.0.md`、系统设置设
 
 ## 工作入口
 
+v0.10.0 最大访问次数的产品边界、实现与验证状态见 `docs/product/scope-v0.10.0.md`、`docs/superpowers/specs/2026-10-13-v0.10.0-max-visits-design.md` 及 `docs/implementation/v0.10.0-{plan,detailed-plan,tasks,acceptance}.md`。涉及额度配置、公开耗尽状态或最终跳转领取时必须阅读这些文档。
+
 开始任何产品、文档或实现工作前，优先阅读：
 
 1. `docs/README.md`
