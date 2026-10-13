@@ -480,8 +480,8 @@ func TestShortLinkMaxVisitsMigrationRoundTrip(t *testing.T) {
 	}
 }
 
-// TestShortLinkMaxVisitsRollbackRemovesPostMigrationPermissions verifies setup-created groups remain rollback-compatible.
-func TestShortLinkMaxVisitsRollbackRemovesPostMigrationPermissions(t *testing.T) {
+// TestShortLinkMaxVisitsRollbackPreservesPostMigrationPermissions verifies later inserts and grants are not owned by the migration.
+func TestShortLinkMaxVisitsRollbackPreservesPostMigrationPermissions(t *testing.T) {
 	ctx := t.Context()
 	database := migrationTestDatabase(t, ctx)
 	migrationsDir := filepath.Join("..", "..", "migrations")
@@ -494,7 +494,10 @@ func TestShortLinkMaxVisitsRollbackRemovesPostMigrationPermissions(t *testing.T)
 			('00000000-0000-0000-0000-000000000002', 'user', 'User', '',
 			 '["short_link:create","short_link:set_max_visits"]'::jsonb, true, now(), now()),
 			('00000000-0000-0000-0000-000000000003', 'admin', 'Admin', '',
-			 '["admin:access","short_link:set_max_visits"]'::jsonb, true, now(), now())
+			 '["admin:access"]'::jsonb, true, now(), now());
+		update user_group
+		set permissions = permissions || '["short_link:set_max_visits"]'::jsonb
+		where key = 'admin';
 	`); err != nil {
 		t.Fatalf("insert post-migration groups: %v", err)
 	}
@@ -508,9 +511,12 @@ func TestShortLinkMaxVisitsRollbackRemovesPostMigrationPermissions(t *testing.T)
 		`, groupKey).Scan(&hasPermission); err != nil {
 			t.Fatalf("read rolled-back %s permission: %v", groupKey, err)
 		}
-		if hasPermission {
-			t.Fatalf("rollback retained post-migration %s max visits permission", groupKey)
+		if !hasPermission {
+			t.Fatalf("rollback removed post-migration %s max visits permission", groupKey)
 		}
+	}
+	if err := goose.UpTo(database, migrationsDir, 15); err != nil {
+		t.Fatalf("reapply max visits migration: %v", err)
 	}
 }
 

@@ -39,18 +39,6 @@ where builtin and key in ('user', 'admin')
 create function track_short_link_max_visits_permission_edits() returns trigger
 language plpgsql as $$
 begin
-    if tg_op = 'INSERT' then
-        if new.builtin
-            and new.key in ('user', 'admin')
-            and new.permissions ? 'short_link:set_max_visits'
-        then
-            insert into moeurl_short_link_max_visits_permission_addition (user_group_id)
-            values (new.id)
-            on conflict (user_group_id) do nothing;
-        end if;
-        return new;
-    end if;
-
     if (old.permissions ? 'short_link:set_max_visits')
         is distinct from (new.permissions ? 'short_link:set_max_visits')
     then
@@ -62,10 +50,6 @@ begin
 end;
 $$;
 
-create trigger track_inserted_short_link_max_visits_permission
-after insert on user_group
-for each row execute function track_short_link_max_visits_permission_edits();
-
 create trigger track_updated_short_link_max_visits_permission
 after update of permissions on user_group
 for each row execute function track_short_link_max_visits_permission_edits();
@@ -73,7 +57,6 @@ for each row execute function track_short_link_max_visits_permission_edits();
 
 -- +goose Down
 -- +goose StatementBegin
-drop trigger track_inserted_short_link_max_visits_permission on user_group;
 drop trigger track_updated_short_link_max_visits_permission on user_group;
 drop function track_short_link_max_visits_permission_edits();
 
