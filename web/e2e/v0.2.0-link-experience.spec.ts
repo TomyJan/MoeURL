@@ -109,7 +109,7 @@ test('v0.2.0 intermediate-page, expiry, QR-code, and logout flows', async ({ pag
   await page.setViewportSize({ width: 390, height: 800 })
   await expectQrDialogLayout(page, qrDialog, qrImage)
   await attachScreenshot(testInfo, 'qr-mobile', page)
-  await qrDialog.getByRole('button', { name: '关闭' }).click()
+  await qrDialog.getByRole('button', { name: '关闭', exact: true }).click()
   await page.setViewportSize({ width: 1280, height: 720 })
 
   const intermediateOpen = await page.request.get(`/${intermediateSlug}`, { maxRedirects: 0 })
