@@ -2,6 +2,28 @@ import { createI18n } from 'vue-i18n'
 
 export const messages = {
   'zh-CN': {
+    overview: {
+      summary: '你的短链、访问与最近动态，一目了然。',
+      viewAllLinks: '查看全部短链',
+      viewAnalytics: '查看访问分析',
+      metricsLabel: '短链统计概览',
+      metricsLoadFailed: '暂时无法加载统计数据，请稍后重试。',
+      retryMetrics: '重新加载统计',
+      recentTitle: '最近创建',
+      recentDescription: '接着管理你最近分享的链接。',
+      recentLoadFailed: '暂时无法加载最近短链，请稍后重试。',
+      retryRecent: '重新加载短链',
+      emptyTitle: '还没有短链',
+      emptyDescription: '创建你的第一条短链，开始分享与管理。',
+      createFromHome: '前往首页创建',
+      createdAt: '创建日期',
+      metrics: {
+        totalLinkCount: '短链总数',
+        activeLinkCount: '启用中的短链',
+        visitCount: '累计访问',
+        todayVisitCount: '今日访问',
+      },
+    },
     nav: {
       home: '首页',
       overview: '概览',
@@ -574,6 +596,28 @@ export const messages = {
     },
   },
   en: {
+    overview: {
+      summary: 'Your links, visits and recent activity, at a glance.',
+      viewAllLinks: 'View all links',
+      viewAnalytics: 'View analytics',
+      metricsLabel: 'Short-link overview',
+      metricsLoadFailed: 'Statistics could not be loaded. Please try again.',
+      retryMetrics: 'Reload statistics',
+      recentTitle: 'Recently created',
+      recentDescription: 'Pick up where you left off.',
+      recentLoadFailed: 'Recent links could not be loaded. Please try again.',
+      retryRecent: 'Reload links',
+      emptyTitle: 'No short links yet',
+      emptyDescription: 'Create your first short link to start sharing and managing.',
+      createFromHome: 'Create from the home page',
+      createdAt: 'Created',
+      metrics: {
+        totalLinkCount: 'Total links',
+        activeLinkCount: 'Active links',
+        visitCount: 'Total visits',
+        todayVisitCount: 'Visits today',
+      },
+    },
     feedback: {
       dismiss: 'Dismiss notification',
       required: 'This field is required',

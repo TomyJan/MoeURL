@@ -10,6 +10,21 @@ function readBackendPermissionCatalog(): Array<{ key: string }> {
 }
 
 describe('i18n', () => {
+  it('resolves overview content and recoverable states in both actual locales', () => {
+    const keys = [
+      'summary', 'viewAllLinks', 'viewAnalytics', 'metricsLabel', 'metricsLoadFailed', 'retryMetrics',
+      'recentTitle', 'recentDescription', 'recentLoadFailed', 'retryRecent', 'emptyTitle', 'emptyDescription',
+      'createFromHome', 'createdAt', 'metrics.totalLinkCount', 'metrics.activeLinkCount',
+      'metrics.visitCount', 'metrics.todayVisitCount',
+    ]
+    for (const locale of ['zh-CN', 'en'] as const) {
+      for (const name of keys) {
+        const key = `overview.${name}`
+        expect(i18n.global.te(key, locale), `${locale}: ${key}`).toBe(true)
+        expect(i18n.global.t(key, {}, { locale })).not.toBe(key)
+      }
+    }
+  })
   it('labels domain administration and selection in both locales', () => {
     expect(messages['zh-CN'].domains.title).toBeTruthy()
     expect(messages.en.domains.title).toBeTruthy()
