@@ -176,7 +176,7 @@ describe('ProfilePage', () => {
     expect(screen.getByText('profile.backToConsole').closest('button')?.getAttribute('data-to')).toBe('/console')
     expect(screen.getByText('page.overview').closest('button')?.getAttribute('data-to')).toBe('/console')
     expect(screen.getByText('page.links').closest('button')?.getAttribute('data-to')).toBe('/link')
-    expect(screen.getByText('page.analytics').closest('button')?.getAttribute('data-to')).toBe('/analytics')
+    expect(screen.queryByText('page.analytics')).toBeNull()
   })
 
   it('falls back to the username when nickname is blank', () => {

@@ -183,6 +183,16 @@ describe('ConsoleShell', () => {
     expect(screen.getAllByRole('group', { name: 'preferences.groupLabel' }).length).toBeGreaterThan(0)
   })
 
+  it('keeps the links section active only for slash-delimited child routes', async () => {
+    state.routePath.value = '/link/link-id/analytics'
+    const { container } = mountShell()
+    expect(container.querySelector('[data-to="/link"]')?.classList.contains('console-nav-list__item--section-active')).toBe(true)
+
+    state.routePath.value = '/link-extra/analytics'
+    await nextTick()
+    expect(container.querySelector('[data-to="/link"]')?.classList.contains('console-nav-list__item--section-active')).toBe(false)
+  })
+
   it('shows administrator navigation as grouped two-level sections without create-user nav', async () => {
     setCurrentUser({
       username: 'admin',
@@ -207,7 +217,7 @@ describe('ConsoleShell', () => {
     expect(screen.getAllByTestId('console-nav-child-item').length).toBeGreaterThan(1)
     expect(screen.queryByTestId('console-nav-planned-badge')).toBeNull()
     expect(screen.queryByText('page.createUser')).toBeNull()
-    expect(screen.getByText('nav.analytics')).toBeTruthy()
+    expect(screen.queryByText('nav.analytics')).toBeNull()
     expect(screen.getByText('nav.settings')).toBeTruthy()
     expect(screen.getByText('nav.domains')).toBeTruthy()
   })

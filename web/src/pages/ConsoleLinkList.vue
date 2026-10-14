@@ -3,7 +3,7 @@
     <article v-for="link in links" :key="link.id" class="console-link-row" data-testid="console-link-row">
       <div class="console-link-row__main">
         <span class="console-link-row__label">{{ t('links.shortUrl') }}</span>
-        <a :href="link.url" target="_blank" rel="noreferrer">{{ link.url }}</a>
+        <a :href="link.url" :title="link.url" target="_blank" rel="noreferrer">{{ link.url }}</a>
         <div v-if="link.title || link.tags.length" class="console-link-row__metadata" data-testid="link-metadata">
           <strong v-if="link.title">{{ link.title }}</strong>
           <ul v-if="link.tags.length" :aria-label="t('linkMetadata.tagList')">
@@ -14,7 +14,7 @@
 
       <div class="console-link-row__target">
         <span class="console-link-row__label">{{ t('links.targetUrl') }}</span>
-        <span>{{ link.targetUrl }}</span>
+        <span :title="link.targetUrl">{{ link.targetUrl }}</span>
       </div>
 
       <div v-if="link.owner" class="console-link-row__owner">
@@ -58,7 +58,7 @@
         <v-btn size="small" variant="text" :href="link.url" target="_blank" rel="noreferrer">
           {{ t('links.actions.open') }}
         </v-btn>
-        <v-btn size="small" variant="text" :to="{ path: '/analytics', query: { shortLinkId: link.id } }">
+        <v-btn size="small" variant="text" :to="analyticsScope === 'admin' ? `/admin/link/${encodeURIComponent(link.id)}/analytics` : `/link/${encodeURIComponent(link.id)}/analytics`">
           {{ t('links.actions.analytics') }}
         </v-btn>
         <button
@@ -124,11 +124,12 @@ export interface ConsoleLinkListItem {
   url: string
 }
 
-defineProps<{
+withDefaults(defineProps<{
+  analyticsScope?: 'own' | 'admin'
   deletingId?: string
   links: ConsoleLinkListItem[]
   updatingId?: string
-}>()
+}>(), { analyticsScope: 'own', deletingId: undefined, updatingId: undefined })
 
 const emit = defineEmits<{
   configure: [link: ConsoleLinkListItem]

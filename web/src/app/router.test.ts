@@ -30,8 +30,10 @@ describe('router', () => {
         '/profile',
         '/console',
         '/link',
+        '/link/:shortLinkId/analytics',
         '/analytics',
         '/admin/link',
+        '/admin/link/:shortLinkId/analytics',
         '/admin/user',
         '/admin/user/group',
         '/admin/domain',
@@ -46,7 +48,7 @@ describe('router', () => {
     const consoleRoute = routes.find((route) => route.children)
     const adminRoutes = consoleRoute?.children?.filter((route) => route.path.startsWith('/admin/')) ?? []
 
-    expect(adminRoutes).toHaveLength(6)
+    expect(adminRoutes).toHaveLength(7)
     expect(adminRoutes.every((route) => route.meta?.requiresAdmin === true)).toBe(true)
   })
 
@@ -62,10 +64,11 @@ describe('router', () => {
     expect(profileRoute?.beforeEnter).toBe(requireSignedIn)
     expect(consoleRoute?.children?.filter((route) => route.meta?.requiresConsole === true).every((route) => route.path !== '/profile')).toBe(true)
     expect(typeof overviewRoute?.component).toBe('function')
-    expect(typeof consoleRoute?.children?.find((route) => route.path === '/analytics')?.component).toBe('function')
+    expect(consoleRoute?.children?.find((route) => route.path === '/analytics')?.redirect).toBeTypeOf('function')
+    expect(typeof consoleRoute?.children?.find((route) => route.path === '/link/:shortLinkId/analytics')?.component).toBe('function')
     expect(typeof consoleRoute?.children?.find((route) => route.path === '/admin/link')?.component).toBe('function')
 
-    const lazyChildren = consoleRoute?.children ?? []
+    const lazyChildren = consoleRoute?.children?.filter((route) => route.component) ?? []
     const loadedPages = await Promise.all(lazyChildren.map((route) => (
       route.component as () => Promise<{ default: unknown }>
     )()))
@@ -314,5 +317,28 @@ describe('router', () => {
     const profileRoute = router.getRoutes().find((route) => route.path === '/profile')
 
     expect(profileRoute?.beforeEnter).toBe(requireSignedIn)
+  })
+
+  it('routes contextual analytics separately for owned and administrative links', () => {
+    const children = routes.find((route) => route.children)?.children ?? []
+    const ownAnalytics = children.find((route) => route.path === '/link/:shortLinkId/analytics')
+    const adminAnalytics = children.find((route) => route.path === '/admin/link/:shortLinkId/analytics')
+
+    expect(ownAnalytics?.meta?.requiresConsole).toBe(true)
+    expect(ownAnalytics?.beforeEnter).toBe(requireConsoleAccess)
+    expect(adminAnalytics?.meta?.requiresAdmin).toBe(true)
+    expect(adminAnalytics?.beforeEnter).toBe(requireAdminAccess)
+  })
+
+  it('redirects the legacy analytics URL to personal links or its contextual analytics page', async () => {
+    vi.mocked(me).mockResolvedValue({
+      user: { id: 'user-id', username: 'alice', nickname: 'Alice', group: 'user', permissions: ['short_link:read_own'] },
+    })
+
+    await router.push('/analytics')
+    expect(router.currentRoute.value.fullPath).toBe('/link')
+
+    await router.push('/analytics?shortLinkId=legacy-id')
+    expect(router.currentRoute.value.fullPath).toBe('/link/legacy-id/analytics')
   })
 })

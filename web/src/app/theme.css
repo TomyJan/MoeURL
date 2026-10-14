@@ -429,14 +429,18 @@ body {
 
 .console-link-row__target span:last-child,
 .console-link-row__owner small {
-  overflow-wrap: anywhere;
+  overflow: hidden;
   color: rgb(var(--v-theme-on-surface-variant));
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .console-link-row a,
 .console-link-row__target span:last-child {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .console-link-row__label {

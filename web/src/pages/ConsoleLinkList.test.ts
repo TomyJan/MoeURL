@@ -5,7 +5,23 @@ import { componentStubs } from '@/test/component-stubs'
 
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 
-describe('ConsoleLinkList quota', () => {
+describe('ConsoleLinkList', () => {
+  it('links analytics from each list to its contextual route and preserves long targets', async () => {
+    const targetUrl = 'https://example.com/a-long-target-path/that-remains-complete?campaign=summer&ref=dashboard'
+    const link: ConsoleLinkListItem = {
+      id: 'link-id', slug: 'abc123', url: 'https://go.example.com/abc123', targetUrl,
+      title: '', tags: [], status: 'active', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null,
+      expired: false, passwordEnabled: false, maxVisits: null, visitsUsed: 0, visitsRemaining: null, exhausted: false,
+    }
+    const view = render(ConsoleLinkList, { props: { links: [link] }, global: { stubs: componentStubs } })
+
+    expect(screen.getByText(targetUrl).getAttribute('title')).toBe(targetUrl)
+    expect(screen.getByText('links.actions.analytics').closest('button')?.getAttribute('data-to')).toBe('/link/link-id/analytics')
+
+    await view.rerender({ links: [link], analyticsScope: 'admin' })
+    expect(screen.getByText('links.actions.analytics').closest('button')?.getAttribute('data-to')).toBe('/admin/link/link-id/analytics')
+  })
+
   it('shows finite quota separately from analytics and hides it for unlimited links', async () => {
     const link: ConsoleLinkListItem = {
       id: 'link-id', slug: 'abc123', url: 'https://go.example.com/abc123', targetUrl: 'https://example.com',

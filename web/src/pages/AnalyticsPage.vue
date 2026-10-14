@@ -1,20 +1,27 @@
 <template>
   <section class="console-page analytics-page" data-testid="console-page-analytics">
-    <header class="console-page__header">
+    <header class="console-page__header analytics-page__header">
       <div>
-        <h1>{{ t('page.analytics') }}</h1>
-        <p v-if="statistics" class="analytics-page__url">{{ statistics.shortLink.url }}</p>
+        <h1>{{ t(isAdminAnalytics ? 'analytics.adminTitle' : 'analytics.ownTitle') }}</h1>
+        <p v-if="statistics" class="analytics-page__url" :title="statistics.shortLink.url">{{ statistics.shortLink.url }}</p>
       </div>
-      <v-btn :to="backTo" variant="text">{{ t('analytics.backToLinks') }}</v-btn>
+      <v-btn :to="backTo" variant="tonal">{{ t(isAdminAnalytics ? 'analytics.backToAdminLinks' : 'analytics.backToLinks') }}</v-btn>
     </header>
 
-    <v-alert v-if="!shortLinkId" type="info" variant="tonal">{{ t('analytics.selectLink') }}</v-alert>
-    <v-alert v-else-if="query.isError.value" type="error" variant="tonal">{{ t('analytics.loadFailed') }}</v-alert>
-    <v-progress-linear v-else-if="query.isPending.value" indeterminate />
+    <v-alert v-if="query.isError.value" type="error" variant="tonal">
+      <div class="analytics-page__error">
+        <span>{{ t('analytics.loadFailed') }}</span>
+        <v-btn color="error" size="small" variant="tonal" :loading="query.isFetching.value" @click="retry">{{ t('analytics.retry') }}</v-btn>
+      </div>
+    </v-alert>
+    <section v-else-if="query.isPending.value" class="console-data-panel" :aria-label="t('analytics.title')">
+      <v-progress-linear indeterminate />
+    </section>
 
     <template v-else-if="statistics">
+      <p class="analytics-page__description">{{ t('analytics.description') }}</p>
       <div class="analytics-page__metrics" data-testid="analytics-summary">
-        <v-card v-for="metric in metrics" :key="metric.label" variant="tonal">
+        <v-card v-for="metric in metrics" :key="metric.label" variant="flat">
           <v-card-text>
             <span>{{ metric.label }}</span>
             <strong>{{ metric.value }}</strong>
@@ -24,7 +31,7 @@
 
       <v-card class="analytics-page__trend" variant="outlined">
         <v-card-title>{{ t('analytics.trend') }}</v-card-title>
-        <v-card-text><canvas ref="trendCanvas" data-testid="analytics-trend-chart" /></v-card-text>
+        <v-card-text><div class="analytics-page__chart"><canvas ref="trendCanvas" data-testid="analytics-trend-chart" /></div></v-card-text>
       </v-card>
 
       <div class="analytics-page__dimensions">
@@ -44,14 +51,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 import { Chart, LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, type ChartConfiguration } from 'chart.js'
 import { useTheme } from 'vuetify'
 
-import { me } from '@/entities/auth/api'
 import { getAdminShortLinkStatistics, getShortLinkStatistics } from '@/entities/short-link/api'
 import type { ShortLinkStatisticsResponse } from '@/entities/short-link/model'
 
@@ -61,19 +67,22 @@ const { t } = useI18n()
 const route = useRoute()
 const theme = useTheme()
 const trendCanvas = ref<globalThis.HTMLCanvasElement>()
-const shortLinkId = computed(() => typeof route.query.shortLinkId === 'string' ? route.query.shortLinkId : '')
+const shortLinkId = computed(() => typeof route.params.shortLinkId === 'string' ? route.params.shortLinkId : '')
+const isAdminAnalytics = computed(() => route.path.startsWith('/admin/link/'))
+const backTo = computed(() => isAdminAnalytics.value ? '/admin/link' : '/link')
 const query = useQuery({
-  queryKey: computed(() => ['short-link-statistics', shortLinkId.value]),
+  queryKey: computed(() => ['short-link-statistics', isAdminAnalytics.value ? 'admin' : 'own', shortLinkId.value]),
   enabled: computed(() => shortLinkId.value !== ''),
-  queryFn: async () => {
-    const current = await me()
-    return current.user.permissions.includes('admin:access')
-      ? getAdminShortLinkStatistics(shortLinkId.value)
-      : getShortLinkStatistics(shortLinkId.value)
-  },
+  queryFn: () => isAdminAnalytics.value
+    ? getAdminShortLinkStatistics(shortLinkId.value)
+    : getShortLinkStatistics(shortLinkId.value),
 })
 const statistics = computed<ShortLinkStatisticsResponse | undefined>(() => query.data.value)
-const backTo = '/link'
+const chartColors = computed(() => ({
+  primary: theme.global.current.value.colors.primary,
+  text: theme.global.current.value.colors['on-surface-variant'],
+  outline: theme.global.current.value.colors.outline,
+}))
 const metrics = computed(() => {
   const stats = statistics.value!.stats
   return [
@@ -90,26 +99,33 @@ const dimensions = computed(() => {
     { title: t('analytics.countries'), items: stats.countries },
   ]
 })
-let chart: Chart | undefined
-
-watch([statistics, () => theme.global.current.value.colors.primary], async ([value, primary]: [ShortLinkStatisticsResponse | undefined, string]) => {
-  chart?.destroy()
-  chart = undefined
-  if (!value) return
-  await nextTick()
-  const canvas = trendCanvas.value!
+watch([statistics, trendCanvas, chartColors], ([value, canvas, colors]: [ShortLinkStatisticsResponse | undefined, globalThis.HTMLCanvasElement | undefined, { primary: string; text: string; outline: string }], _previous, onCleanup) => {
+  if (!value || !canvas) return
   const configuration: ChartConfiguration<'line'> = {
     type: 'line',
     data: {
       labels: value.stats.trend.map((point) => point.date),
-      datasets: [{ data: value.stats.trend.map((point) => point.visitCount), borderColor: primary, backgroundColor: primary, tension: 0.25 }],
+      datasets: [{ data: value.stats.trend.map((point) => point.visitCount), borderColor: colors.primary, backgroundColor: colors.primary, tension: 0.25 }],
     },
-    options: { animation: false, plugins: { legend: { display: false } }, responsive: true, maintainAspectRatio: false },
+    options: {
+      animation: false,
+      plugins: { legend: { display: false } },
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: colors.text }, grid: { color: colors.outline }, border: { color: colors.outline } },
+        y: { min: 0, suggestedMax: 1, ticks: { color: colors.text, precision: 0 }, grid: { color: colors.outline }, border: { color: colors.outline } },
+      },
+    },
   }
-  chart = new Chart(canvas, configuration)
-}, { immediate: true })
+  const chart = new Chart(canvas, configuration)
+  onCleanup(() => chart.destroy())
+}, { flush: 'post' })
 
-onBeforeUnmount(() => chart?.destroy())
+/** Retries the active link's statistics request. */
+function retry() {
+  void query.refetch()
+}
 
 /** Formats the last-visit date while handling absent or invalid timestamps. */
 function formatVisitedAt(value: string | null) {
@@ -128,10 +144,22 @@ function dimensionLabel(value: string) {
 </script>
 
 <style scoped>
-.analytics-page__url { margin: 4px 0 0; overflow-wrap: anywhere; }
-.analytics-page__metrics, .analytics-page__dimensions { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 20px; }
-.analytics-page__metrics strong { display: block; font-size: 24px; margin-top: 8px; }
+.analytics-page__url { max-width: min(70vw, 900px); margin: 5px 0 0; overflow: hidden; color: rgb(var(--v-theme-on-surface-variant)); text-overflow: ellipsis; white-space: nowrap; }
+.analytics-page__description { margin: 4px 0 0; color: rgb(var(--v-theme-on-surface-variant)); }
+.analytics-page__metrics, .analytics-page__dimensions { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 20px; }
+.analytics-page__metrics > :deep(.v-card) { min-width: 0; border: 1px solid var(--moeurl-outline-strong); background: var(--moeurl-surface-elevated); }
+.analytics-page__metrics span { color: rgb(var(--v-theme-on-surface-variant)); }
+.analytics-page__metrics strong { display: block; margin-top: 8px; color: rgb(var(--v-theme-primary)); font-size: 1.5rem; font-variant-numeric: tabular-nums; }
 .analytics-page__trend { margin-top: 20px; }
-.analytics-page__trend canvas { min-height: 260px; }
-@media (max-width: 760px) { .analytics-page__metrics, .analytics-page__dimensions { grid-template-columns: 1fr; } }
+.analytics-page__chart { position: relative; height: 280px; }
+.analytics-page__chart canvas { max-width: 100%; }
+.analytics-page__error { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+@media (max-width: 760px) {
+  .analytics-page__header { display: flex; align-items: flex-start; flex-direction: column; }
+  .analytics-page__url { max-width: calc(100vw - 48px); }
+  .analytics-page__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .analytics-page__dimensions { grid-template-columns: 1fr; }
+  .analytics-page__chart { height: 220px; }
+}
+@media (max-width: 420px) { .analytics-page__metrics { grid-template-columns: 1fr; } }
 </style>

@@ -174,7 +174,6 @@ const navGroups = computed<ConsoleNavGroup[]>(() => {
       items: [
         { labelKey: 'nav.overview', to: '/console' },
         { labelKey: 'nav.links', to: '/link' },
-        { labelKey: 'nav.analytics', to: '/analytics' },
       ],
     })
   }

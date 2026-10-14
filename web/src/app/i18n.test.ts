@@ -12,7 +12,7 @@ function readBackendPermissionCatalog(): Array<{ key: string }> {
 describe('i18n', () => {
   it('resolves overview content and recoverable states in both actual locales', () => {
     const keys = [
-      'summary', 'viewAllLinks', 'viewAnalytics', 'metricsLabel', 'metricsLoadFailed', 'retryMetrics',
+      'summary', 'viewAllLinks', 'metricsLabel', 'metricsLoadFailed', 'retryMetrics',
       'recentTitle', 'recentDescription', 'recentLoadFailed', 'retryRecent', 'emptyTitle', 'emptyDescription',
       'createFromHome', 'createdAt', 'metrics.totalLinkCount', 'metrics.activeLinkCount',
       'metrics.visitCount', 'metrics.todayVisitCount',
@@ -20,6 +20,14 @@ describe('i18n', () => {
     for (const locale of ['zh-CN', 'en'] as const) {
       for (const name of keys) {
         const key = `overview.${name}`
+        expect(i18n.global.te(key, locale), `${locale}: ${key}`).toBe(true)
+        expect(i18n.global.t(key, {}, { locale })).not.toBe(key)
+      }
+    }
+  })
+  it('resolves contextual analytics headings, navigation, and retry labels in both actual locales', () => {
+    for (const locale of ['zh-CN', 'en'] as const) {
+      for (const key of ['analytics.ownTitle', 'analytics.adminTitle', 'analytics.description', 'analytics.backToLinks', 'analytics.backToAdminLinks', 'analytics.retry']) {
         expect(i18n.global.te(key, locale), `${locale}: ${key}`).toBe(true)
         expect(i18n.global.t(key, {}, { locale })).not.toBe(key)
       }

@@ -23,6 +23,7 @@
       </div>
       <ConsoleLinkList
         v-else
+        analytics-scope="own"
         :deleting-id="deletingId"
         :links="linkItems"
         :updating-id="updatingId"

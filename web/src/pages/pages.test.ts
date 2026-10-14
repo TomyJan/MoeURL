@@ -35,12 +35,15 @@ const state = vi.hoisted(() => ({
   queryKeys: [] as unknown[],
   queryFns: [] as Array<() => unknown>,
   chartConfigurations: [] as unknown[],
+  chartInstances: [] as Array<{ canvas: unknown; destroy: ReturnType<typeof vi.fn> }>,
   mutationResult: {},
   routeQuery: {} as Record<string, unknown>,
+  routePath: '/analytics',
+  routeParams: {} as Record<string, unknown>,
   routerPush: vi.fn(),
   theme: {} as {
     global: {
-      current: { value: { colors: { primary: string } } }
+      current: { value: { colors: { primary: string; 'on-surface-variant': string; outline: string } } }
       name: { value: string }
     }
   },
@@ -73,6 +76,8 @@ vi.mock('vue-i18n', () => ({
 vi.mock('vue-router', () => ({
   RouterLink: { props: ['to'], template: '<a :data-to="to"><slot /></a>' },
   useRoute: () => ({
+    path: state.routePath,
+    params: state.routeParams,
     query: state.routeQuery,
   }),
   useRouter: () => ({
@@ -117,8 +122,9 @@ vi.mock('chart.js', () => {
   class Chart {
     static register = vi.fn()
     destroy = vi.fn()
-    constructor(_canvas: unknown, configuration?: unknown) {
+    constructor(canvas: unknown, configuration?: unknown) {
       state.chartConfigurations.push(configuration)
+      state.chartInstances.push({ canvas, destroy: this.destroy })
     }
   }
   return {
@@ -196,6 +202,7 @@ function mount(component: object) {
 function setQueryResult(value: Partial<{
   data: ReturnType<typeof ref>
   isError: ReturnType<typeof ref>
+  isFetching: ReturnType<typeof ref>
   isLoading: ReturnType<typeof ref>
   isPending: ReturnType<typeof ref>
   refetch: ReturnType<typeof vi.fn>
@@ -203,6 +210,7 @@ function setQueryResult(value: Partial<{
   state.queryResult = {
     data: value.data ?? ref(undefined),
     isError: value.isError ?? ref(false),
+    isFetching: value.isFetching ?? ref(false),
     isLoading: value.isLoading ?? ref(false),
     isPending: value.isPending ?? ref(false),
     refetch: value.refetch ?? vi.fn(),
@@ -214,6 +222,7 @@ function setQueryResults(...values: Array<Parameters<typeof setQueryResult>[0]>)
   state.queryResults = values.map((value) => ({
     data: value.data ?? ref(undefined),
     isError: value.isError ?? ref(false),
+    isFetching: value.isFetching ?? ref(false),
     isLoading: value.isLoading ?? ref(false),
     isPending: value.isPending ?? ref(false),
     refetch: value.refetch ?? vi.fn(),
@@ -305,7 +314,10 @@ describe('pages', () => {
     state.queryKeys = []
     state.queryFns = []
     state.chartConfigurations = []
+    state.chartInstances = []
     state.routeQuery = {}
+    state.routePath = '/analytics'
+    state.routeParams = {}
     state.routerPush.mockReset()
     state.queryClient.invalidateQueries.mockReset()
     state.queryClient.setQueryData.mockReset()
@@ -323,7 +335,7 @@ describe('pages', () => {
     vi.mocked(me).mockResolvedValue({ user: { permissions: [] } } as never)
     state.theme = {
       global: {
-        current: ref({ colors: { primary: '#315f8c' } }),
+        current: ref({ colors: { primary: '#315f8c', 'on-surface-variant': '#617184', outline: '#e1e7ee' } }),
         name: ref('moeurlLight'),
       },
     }
@@ -389,8 +401,8 @@ describe('pages', () => {
     expect(screen.getByText('https://example.com/recent')).toBeTruthy()
     expect(screen.getByText('2026-07-30')).toBeTruthy()
     expect(screen.getByText('overview.viewAllLinks').closest('button')?.getAttribute('data-to')).toBe('/link')
-    expect(screen.getByText('overview.viewAnalytics').closest('button')?.getAttribute('data-to')).toBe('/analytics')
-    expect(screen.getByText('links.actions.analytics').closest('button')?.getAttribute('data-to')).toBe('/analytics?shortLinkId=link-id')
+    expect(screen.queryByText('overview.viewAnalytics')).toBeNull()
+    expect(screen.getByText('links.actions.analytics').closest('button')?.getAttribute('data-to')).toBe('/link/link-id/analytics')
     expect(getShortLinkOverview).toHaveBeenCalledTimes(1)
     expect(listShortLinks).toHaveBeenCalledWith({ page: 1, pageSize: 5 })
   })
@@ -481,7 +493,7 @@ describe('pages', () => {
   })
 
   it('renders analytics data, chart, and dimension summaries for a selected link', async () => {
-    state.routeQuery = { shortLinkId: 'link-id' }
+    state.routeParams = { shortLinkId: 'link-id' }
     const analytics = ref<undefined | {
       shortLink: { id: string; url: string; slug: string; targetUrl: string; status: 'active'; redirectMode: 'direct'; intermediateDelaySeconds: number; expiresAt: null; expired: false; passwordEnabled: boolean; createdAt: string }
       stats: { visitCount: number; todayVisitCount: number; lastVisitedAt: string; trend: Array<{ date: string; visitCount: number }>; referrers: Array<{ value: string; visitCount: number }>; devices: Array<{ value: string; visitCount: number }>; countries: Array<{ value: string; visitCount: number }> }
@@ -508,8 +520,6 @@ describe('pages', () => {
       },
     }
     await nextTick()
-    await nextTick()
-    await new Promise((resolve) => globalThis.setTimeout(resolve, 0))
 
     expect(await screen.findByTestId('analytics-trend-chart')).toBeTruthy()
     expect(screen.getByTestId('analytics-summary')).toBeTruthy()
@@ -520,14 +530,31 @@ describe('pages', () => {
       data: expect.objectContaining({
         datasets: [expect.objectContaining({ borderColor: '#315f8c', backgroundColor: '#315f8c' })],
       }),
+      options: expect.objectContaining({
+        scales: {
+          x: { ticks: { color: '#617184' }, grid: { color: '#e1e7ee' }, border: { color: '#e1e7ee' } },
+          y: { min: 0, suggestedMax: 1, ticks: { color: '#617184', precision: 0 }, grid: { color: '#e1e7ee' }, border: { color: '#e1e7ee' } },
+        },
+      }),
     }))
 
-    state.theme.global.current.value = { colors: { primary: '#8ab8e8' } }
-    await nextTick()
+    state.theme.global.current.value = { colors: { primary: '#8ab8e8', 'on-surface-variant': '#9aabbe', outline: '#2c3a4c' } }
     await nextTick()
     expect(state.chartConfigurations).toContainEqual(expect.objectContaining({
       data: expect.objectContaining({
         datasets: [expect.objectContaining({ borderColor: '#8ab8e8', backgroundColor: '#8ab8e8' })],
+      }),
+    }))
+
+    state.theme.global.current.value.colors['on-surface-variant'] = '#b0bfd0'
+    state.theme.global.current.value.colors.outline = '#3c4a5c'
+    await nextTick()
+    expect(state.chartConfigurations.at(-1)).toEqual(expect.objectContaining({
+      options: expect.objectContaining({
+        scales: {
+          x: { ticks: { color: '#b0bfd0' }, grid: { color: '#3c4a5c' }, border: { color: '#3c4a5c' } },
+          y: { min: 0, suggestedMax: 1, ticks: { color: '#b0bfd0', precision: 0 }, grid: { color: '#3c4a5c' }, border: { color: '#3c4a5c' } },
+        },
       }),
     }))
 
@@ -540,8 +567,93 @@ describe('pages', () => {
     expect(screen.queryByTestId('analytics-summary')).toBeNull()
   })
 
-  it('uses the administrator analytics request for an administrator', async () => {
-    state.routeQuery = { shortLinkId: 'link-id' }
+  it('recreates the chart after retrying an error with the same cached statistics', async () => {
+    state.routeParams = { shortLinkId: 'link-id' }
+    const data = ref({
+      shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig, createdAt: '2026-08-01T00:00:00Z' },
+      stats: { visitCount: 1, todayVisitCount: 1, lastVisitedAt: null, trend: [{ date: '2026-08-01', visitCount: 1 }], referrers: [], devices: [], countries: [] },
+    })
+    const cachedStatistics = data.value
+    const isError = ref(false)
+    const refetch = vi.fn(() => { isError.value = false })
+    setQueryResult({ data, isError, refetch })
+
+    const view = mount(AnalyticsPage)
+    await nextTick()
+    const originalCanvas = screen.getByTestId('analytics-trend-chart')
+    const originalChart = state.chartInstances[0]!
+    expect(originalChart.canvas).toBe(originalCanvas)
+
+    isError.value = true
+    await nextTick()
+    expect(screen.queryByTestId('analytics-trend-chart')).toBeNull()
+    expect(originalChart.destroy).toHaveBeenCalledTimes(1)
+
+    await fireEvent.click(screen.getByRole('button', { name: 'analytics.retry' }))
+    expect(data.value).toBe(cachedStatistics)
+    const restoredCanvas = screen.getByTestId('analytics-trend-chart')
+    expect(restoredCanvas).not.toBe(originalCanvas)
+    expect(state.chartInstances).toHaveLength(2)
+    const restoredChart = state.chartInstances[1]!
+    expect(restoredChart.canvas).toBe(restoredCanvas)
+    expect(restoredChart.destroy).not.toHaveBeenCalled()
+
+    view.unmount()
+    expect(restoredChart.destroy).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not create a chart while retained statistics are hidden by an error', async () => {
+    state.routeParams = { shortLinkId: 'link-id' }
+    setQueryResult({
+      isError: ref(true),
+      data: ref({
+        shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig, createdAt: '2026-08-01T00:00:00Z' },
+        stats: { visitCount: 1, todayVisitCount: 1, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] },
+      }),
+    })
+
+    mount(AnalyticsPage)
+    await nextTick()
+    expect(screen.getByText('analytics.loadFailed')).toBeTruthy()
+    expect(screen.queryByTestId('analytics-trend-chart')).toBeNull()
+    expect(state.chartInstances).toHaveLength(0)
+  })
+
+  it('does not create a chart after the page unmounts before its first draw', async () => {
+    state.routeParams = { shortLinkId: 'link-id' }
+    setQueryResult({
+      data: ref({
+        shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig, createdAt: '2026-08-01T00:00:00Z' },
+        stats: { visitCount: 1, todayVisitCount: 1, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] },
+      }),
+    })
+
+    const view = mount(AnalyticsPage)
+    const chartCountBeforeUnmount = state.chartInstances.length
+    view.unmount()
+    await nextTick()
+    expect(state.chartInstances).toHaveLength(chartCountBeforeUnmount)
+    expect(state.chartInstances.every(({ destroy }) => destroy.mock.calls.length === 1)).toBe(true)
+  })
+
+  it('uses personal analytics for an administrator viewing an owned link', async () => {
+    state.routeParams = { shortLinkId: 'link-id' }
+    state.routePath = '/link/link-id/analytics'
+    setQueryResult({})
+    vi.mocked(me).mockResolvedValue({ user: { permissions: ['admin:access'] } } as never)
+    vi.mocked(getAdminShortLinkStatistics).mockResolvedValue({} as never)
+
+    mount(AnalyticsPage)
+    await state.queryFns[0]?.()
+
+    expect(getShortLinkStatistics).toHaveBeenCalledWith('link-id')
+    expect(getAdminShortLinkStatistics).not.toHaveBeenCalled()
+  })
+
+  it('uses administrative analytics only on an administrative link route', async () => {
+    state.routeQuery = {}
+    state.routeParams = { shortLinkId: 'link-id' }
+    state.routePath = '/admin/link/link-id/analytics'
     setQueryResult({})
     vi.mocked(me).mockResolvedValue({ user: { permissions: ['admin:access'] } } as never)
     vi.mocked(getAdminShortLinkStatistics).mockResolvedValue({} as never)
@@ -550,26 +662,30 @@ describe('pages', () => {
     await state.queryFns[0]?.()
 
     expect(getAdminShortLinkStatistics).toHaveBeenCalledWith('link-id')
+    expect(getShortLinkStatistics).not.toHaveBeenCalled()
   })
 
-  it('renders selected-link, loading, and error analytics states', () => {
+  it('renders selected-link, loading, and error analytics states with retry', async () => {
     mount(AnalyticsPage)
-    expect(screen.getByText('analytics.selectLink')).toBeTruthy()
+    expect(screen.getByTestId('console-page-analytics')).toBeTruthy()
     expect(state.queryFns).toHaveLength(0)
     expect(me).not.toHaveBeenCalled()
 
-    state.routeQuery = { shortLinkId: 'link-id' }
+    state.routeParams = { shortLinkId: 'link-id' }
     setQueryResult({ isPending: ref(true) })
     mount(AnalyticsPage)
     expect(screen.getByRole('progressbar')).toBeTruthy()
 
-    setQueryResult({ isError: ref(true) })
+    const retryStatistics = vi.fn()
+    setQueryResult({ isError: ref(true), isFetching: ref(false), refetch: retryStatistics })
     mount(AnalyticsPage)
     expect(screen.getByText('analytics.loadFailed')).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: 'analytics.retry' }))
+    expect(retryStatistics).toHaveBeenCalledTimes(1)
   })
 
   it('renders empty analytics dimensions and normalizes other labels', () => {
-    state.routeQuery = { shortLinkId: 'link-id' }
+    state.routeParams = { shortLinkId: 'link-id' }
     setQueryResult({
       data: ref({
         shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig, createdAt: '2026-08-01T00:00:00Z' },
@@ -590,6 +706,22 @@ describe('pages', () => {
     expect(screen.getAllByText('analytics.emptyDimension')).toHaveLength(2)
     expect(screen.getByText('analytics.other')).toBeTruthy()
     expect(screen.getByText('links.stats.neverVisited')).toBeTruthy()
+  })
+
+  it('ellipsizes the displayed short URL while preserving the full value in its title', async () => {
+    state.routeParams = { shortLinkId: 'link-id' }
+    const url = 'https://go.example.com/a-very-long-path?with=query&another=value'
+    setQueryResult({
+      data: ref({
+        shortLink: { id: 'link-id', url, slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig, createdAt: '2026-08-01T00:00:00Z' },
+        stats: { visitCount: 0, todayVisitCount: 0, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] },
+      }),
+    })
+
+    const view = mount(AnalyticsPage)
+    const displayedUrl = view.container.querySelector('.analytics-page__url')
+    expect(displayedUrl?.textContent).toBe(url)
+    expect(displayedUrl?.getAttribute('title')).toBe(url)
   })
 
   it('submits login credentials, maps invalid credentials, and follows redirect query after success', async () => {

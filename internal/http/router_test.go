@@ -304,7 +304,7 @@ func TestRouterStaticRoutesBypassCurrentUser(t *testing.T) {
 	resolver := &recordingRouterCurrentUserResolver{}
 	router := apphttp.NewRouter(apphttp.Dependencies{CurrentUser: resolver, StaticDir: staticDir})
 
-	for _, path := range []string{"/", "/go/example"} {
+	for _, path := range []string{"/", "/go/example", "/link/example/analytics", "/admin/link/example/analytics"} {
 		response := httptest.NewRecorder()
 		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
 		request.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session-id"})
@@ -336,8 +336,10 @@ func TestRouterServesSPAFixedRoutesFromStaticDir(t *testing.T) {
 		"/profile",
 		"/console",
 		"/link",
+		"/link/example/analytics",
 		"/analytics",
 		"/admin/link",
+		"/admin/link/example/analytics",
 		"/admin/user",
 		"/admin/user/group",
 		"/admin/setting",

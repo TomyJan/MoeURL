@@ -7,6 +7,7 @@
           v-if="item.to"
           :to="item.to"
           class="console-nav-list__item console-nav-list__item--primary"
+          :class="{ 'console-nav-list__item--section-active': isPathWithin(item.to) }"
           data-testid="console-nav-primary-item"
           variant="text"
           @click="$emit('navigate')"
@@ -119,6 +120,11 @@ function toggleGroup(labelKey: string) {
 /** Builds the stable DOM identifier referenced by a group's ARIA controls. */
 function navChildrenId(labelKey: string) {
   return `console-nav-children-${labelKey.replaceAll('.', '-')}`
+}
+
+/** Marks a section active for its own route and slash-delimited child routes. */
+function isPathWithin(path: string) {
+  return route.path === path || route.path.startsWith(`${path}/`)
 }
 </script>
 
@@ -257,7 +263,8 @@ function navChildrenId(labelKey: string) {
 }
 
 .console-nav-list__item.router-link-active,
-.console-nav-list__item[aria-current="page"] {
+.console-nav-list__item[aria-current="page"],
+.console-nav-list__item--section-active {
   border-color: color-mix(in srgb, rgb(var(--v-theme-primary)) 18%, transparent);
   background: color-mix(in srgb, var(--moeurl-surface-strong) 52%, transparent);
   color: rgb(var(--v-theme-primary));

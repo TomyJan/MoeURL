@@ -64,7 +64,6 @@
         <div class="profile-card__links">
           <v-btn to="/console" variant="tonal">{{ t('page.overview') }}</v-btn>
           <v-btn to="/link" variant="tonal">{{ t('page.links') }}</v-btn>
-          <v-btn to="/analytics" variant="tonal">{{ t('page.analytics') }}</v-btn>
         </div>
       </section>
     </div>

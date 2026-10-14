@@ -7,7 +7,6 @@
       </div>
       <div class="console-page__actions-bar overview-page__actions">
         <v-btn color="primary" variant="flat" to="/link">{{ t('overview.viewAllLinks') }}</v-btn>
-        <v-btn color="primary" variant="tonal" to="/analytics">{{ t('overview.viewAnalytics') }}</v-btn>
       </div>
     </header>
 
@@ -66,7 +65,7 @@
           <article v-for="link in recentLinks" :key="link.id" class="overview-recent-row">
             <div class="overview-recent-row__link">
               <a :href="link.url" target="_blank" rel="noreferrer">{{ link.slug }}</a>
-              <span>{{ link.targetUrl }}</span>
+              <span :title="link.targetUrl">{{ link.targetUrl }}</span>
             </div>
             <span class="console-link-row__status" :class="`console-link-row__status--${link.status}`">
               {{ t(`links.status.${link.status}`) }}
@@ -85,7 +84,7 @@
                 <dd>{{ formatDate(link.createdAt) }}</dd>
               </div>
             </dl>
-            <v-btn color="primary" size="small" variant="tonal" :to="`/analytics?shortLinkId=${encodeURIComponent(link.id)}`">
+            <v-btn color="primary" size="small" variant="tonal" :to="`/link/${encodeURIComponent(link.id)}/analytics`">
               {{ t('links.actions.analytics') }}
             </v-btn>
           </article>
@@ -223,6 +222,12 @@ function formatDate(value: string) {
   display: grid;
   gap: 5px;
   min-width: 0;
+}
+
+.overview-recent-row__link > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .overview-recent-row__link a {

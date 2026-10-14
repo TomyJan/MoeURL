@@ -114,6 +114,14 @@ export const routes: RouteRecordRaw[] = [
       { path: '/link', component: () => import('@/pages/MyLinksPage.vue'), meta: { requiresConsole: true }, beforeEnter: requireConsoleAccess },
       {
         path: '/analytics',
+        redirect: (to) => typeof to.query.shortLinkId === 'string' && to.query.shortLinkId
+          ? { path: `/link/${encodeURIComponent(to.query.shortLinkId)}/analytics`, query: {} }
+          : { path: '/link', query: {} },
+        meta: { requiresConsole: true },
+        beforeEnter: requireConsoleAccess,
+      },
+      {
+        path: '/link/:shortLinkId/analytics',
         component: () => import('@/pages/AnalyticsPage.vue'),
         meta: { requiresConsole: true },
         beforeEnter: requireConsoleAccess,
@@ -121,6 +129,12 @@ export const routes: RouteRecordRaw[] = [
       {
         path: '/admin/link',
         component: () => import('@/pages/AdminLinksPage.vue'),
+        meta: { requiresConsole: true, requiresAdmin: true },
+        beforeEnter: requireAdminAccess,
+      },
+      {
+        path: '/admin/link/:shortLinkId/analytics',
+        component: () => import('@/pages/AnalyticsPage.vue'),
         meta: { requiresConsole: true, requiresAdmin: true },
         beforeEnter: requireAdminAccess,
       },
