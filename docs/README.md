@@ -6,6 +6,8 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 当前开发版本为 [v0.11.0 短链标题与标签](product/scope-v0.11.0.md)。设计见 [元数据规格](specs/2026-10-13-v0.11.0-link-metadata-design.md)，执行与证据见 [实施计划](implementation/v0.11.0-plan.md)、[任务清单](implementation/v0.11.0-tasks.md) 和 [验收清单](implementation/v0.11.0-acceptance.md)。v0.10.0 已合并到 `c0b87cb2`，其 [验证记录](implementation/v0.10.0-acceptance.md) 及下列既有版本的发布证据保持各自独立。
 
+2026-10-14 全站前端视觉更新沿用既有业务范围，设计见 [视觉与交互规范](specs/2026-10-14-ui-refresh-design.md)，执行与证据见 [实施计划](implementation/2026-10-14-ui-refresh-plan.md) 和 [本地验收](implementation/2026-10-14-ui-refresh-acceptance.md)。
+
 建议按以下顺序阅读：
 
 1. [产品总览](product/overview.md)：了解 MoeURL 的定位、目标和核心原则。
