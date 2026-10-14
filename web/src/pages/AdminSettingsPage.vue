@@ -34,7 +34,7 @@
         <v-switch v-model="draft.localLoginEnabled" :disabled="mutation.isPending.value" :label="t('settings.localLoginEnabled')" />
         <p>{{ t('settings.authHint') }}</p>
       </section>
-      <v-alert v-if="feedback" :type="feedback === 'success' ? 'success' : 'error'" variant="tonal">{{ feedbackMessage }}</v-alert>
+      <ActionToast v-if="feedback" :key="`${feedback}:${feedbackRevision}`" :type="feedback === 'success' ? 'success' : 'error'">{{ feedbackMessage }}</ActionToast>
       <div class="settings-page__actions">
         <v-btn v-if="feedback === 'conflict'" type="button" variant="text" @click="reloadLatest">{{ t('settings.reload') }}</v-btn>
         <v-btn color="primary" type="submit" :disabled="mutation.isPending.value" :loading="mutation.isPending.value">{{ t('settings.save') }}</v-btn>
@@ -45,6 +45,7 @@
 </template>
 
 <script setup lang="ts">
+import ActionToast from '@/shared/feedback/ActionToast.vue'
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -60,6 +61,7 @@ const query = useQuery({ queryKey: ['admin', 'system', 'settings'], queryFn: get
 const draft = reactive({ siteName: '', defaultLanguage: 'zh-CN' as 'zh-CN' | 'en', defaultTheme: 'system' as 'system' | 'light' | 'dark', footerText: '', showPoweredBy: true, localLoginEnabled: true })
 const expectedUpdatedAt = ref('')
 const feedback = ref<'success' | 'conflict' | 'noProvider' | 'error' | ''>('')
+const feedbackRevision = ref(0)
 let baseline: typeof draft | null = null
 let preserveDraftDuringRefresh = false
 let conflictLatest: Settings | null = null
@@ -110,6 +112,7 @@ function dirty() {
 }
 function save() {
   if (mutation.isPending.value) return
+  feedbackRevision.value++
   const siteName = draft.siteName.trim()
   const footerText = draft.footerText.trim()
   if (!siteName || [...siteName].length > 64 || [...footerText].length > 200 || !expectedUpdatedAt.value) {

@@ -125,7 +125,7 @@
         <p v-if="canSetMaxVisits && limitEnabled">{{ t('visitLimit.hint') }}</p>
         <v-alert v-if="canSetMaxVisits && lowerLimitExhausts" type="warning" variant="tonal">{{ t('visitLimit.lowerWarning') }}</v-alert>
         <v-alert v-if="canSetMaxVisits && initialMaxVisits !== null && !limitEnabled" type="warning" variant="tonal">{{ t('visitLimit.clearWarning') }}</v-alert>
-        <v-alert v-if="errorMessage" type="error" variant="tonal">{{ errorMessage }}</v-alert>
+        <ActionToast v-if="errorMessage" type="error">{{ errorMessage }}</ActionToast>
       </v-card-text>
       <v-card-actions class="short-link-settings-dialog__actions">
         <v-btn variant="text" :disabled="pending" @click="close">{{ t('shortLinkSettings.cancel') }}</v-btn>
@@ -138,6 +138,7 @@
 </template>
 
 <script setup lang="ts">
+import ActionToast from '@/shared/feedback/ActionToast.vue'
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'

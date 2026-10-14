@@ -19,23 +19,18 @@
           <v-text-field v-model="username" :label="t('auth.username')" variant="outlined" />
           <v-text-field v-model="password" :label="t('auth.password')" type="password" variant="outlined" />
         </template>
-        <Transition v-if="localLoginEnabled || localLoginRejected" name="moe-overlay">
-          <v-snackbar
+        <template v-if="localLoginEnabled || localLoginRejected">
+          <ActionToast
             v-if="loginErrorSnackbarOpen"
-            class="auth-page__toast"
             data-testid="auth-error-toast"
-            :model-value="loginErrorSnackbarOpen"
-            :timeout="5000"
-            @update:model-value="setLoginErrorSnackbarOpen"
+            type="error"
           >
             {{ loginErrorMessage }}
-            <template #actions>
-              <v-btn variant="text" @click="setLoginErrorSnackbarOpen(false)">
-                {{ t('auth.dismissError') }}
-              </v-btn>
-            </template>
-          </v-snackbar>
-        </Transition>
+            <v-btn variant="text" @click="setLoginErrorSnackbarOpen(false)">
+              {{ t('auth.dismissError') }}
+            </v-btn>
+          </ActionToast>
+        </template>
         <v-btn v-if="localLoginEnabled" class="auth-page__submit" color="primary" :loading="mutation.isPending.value" type="submit">
           {{ t('auth.loginSubmit') }}
         </v-btn>
@@ -58,9 +53,9 @@
             {{ provider.displayName }}
           </v-btn>
         </div>
-        <v-alert v-if="oidcErrorMessage" type="error" variant="tonal">
+        <ActionToast v-if="oidcErrorMessage" type="error">
           {{ oidcErrorMessage }}
-        </v-alert>
+        </ActionToast>
       </form>
     </section>
   </main>
@@ -76,6 +71,7 @@ import { login } from '@/entities/auth/api'
 import { getLoginMethods, oidcStartURL } from '@/entities/oidc/api'
 import { queryClient } from '@/app/query'
 import { useSiteConfig } from '@/shared/site/useSiteConfig'
+import ActionToast from '@/shared/feedback/ActionToast.vue'
 
 const { t } = useI18n()
 const { config } = useSiteConfig()
@@ -133,7 +129,7 @@ const loginErrorMessage = computed(() => {
   if (hasBusinessErrorCode(error, LOGIN_METHOD_UNAVAILABLE_ERROR_CODE)) {
     return t('auth.localLoginUnavailable')
   }
-  return error instanceof Error ? error.message : t('auth.loginFailed')
+  return t('auth.loginFailed')
 })
 
 const loginRedirectTarget = computed(() => {
@@ -158,7 +154,7 @@ function submit() {
   mutation.mutate({ username: username.value, password: password.value })
 }
 
-/** Synchronizes the login error snackbar's controlled open state. */
+/** Dismisses the login error notification without changing the mutation result. */
 function setLoginErrorSnackbarOpen(value: boolean) {
   loginErrorSnackbarOpen.value = value
 }

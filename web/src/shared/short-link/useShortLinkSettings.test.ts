@@ -104,7 +104,7 @@ describe('useShortLinkSettings', () => {
     settings.configure(link)
     settings.saveSettings(input)
     expect(state.mutate).toHaveBeenCalledWith(input)
-    expect(settings.settingsErrorMessage.value).toBe('settings failed')
+    expect(settings.settingsErrorMessage.value).toBe('links.settingsSaveFailed')
 
     state.mutationOptions?.onSuccess?.(undefined, input)
     expect(settings.settingsLink.value).toBeNull()

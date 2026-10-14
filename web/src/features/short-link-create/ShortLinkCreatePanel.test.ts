@@ -717,7 +717,7 @@ describe('ShortLinkCreatePanel', () => {
     expect(passwordInput.value).toBe('')
     deferred.reject(new Error('create failed'))
     await vi.waitFor(() => {
-      expect(screen.getByText('create failed')).toBeTruthy()
+      expect(screen.getByText('shortLinkCreate.failed')).toBeTruthy()
     })
     expect(variables.value).toEqual({ targetUrl: 'https://example.com' })
   })
@@ -914,7 +914,8 @@ describe('ShortLinkCreatePanel', () => {
     setMutationResult({ error: ref(new Error('invalid target')) })
 
     const { unmount } = mountPanel()
-    expect(screen.getByText('invalid target')).toBeTruthy()
+    expect(screen.getByText('shortLinkCreate.failed')).toBeTruthy()
+    expect(screen.queryByText('invalid target')).toBeNull()
     unmount()
 
     setMutationResult({ error: ref({}) })
@@ -931,6 +932,6 @@ describe('ShortLinkCreatePanel', () => {
 
     mountPanel()
 
-    expect(screen.getByText('later failure')).toBeTruthy()
+    expect(screen.getByText('shortLinkCreate.failed')).toBeTruthy()
   })
 })

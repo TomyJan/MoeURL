@@ -24,6 +24,9 @@ import { updateUser } from '@/entities/user/api'
 import { createDeferred } from '@/test/deferred'
 import type { MutationMockResult } from '@/test/mutation-mock'
 import { ApiClientError } from '@/shared/api/client'
+import { toast } from 'vue-sonner'
+import { deleteAdminShortLink, deleteShortLink } from '@/entities/short-link/api'
+import { createUser, resetUserPassword } from '@/entities/user/api'
 
 const state = vi.hoisted(() => ({
   queryResult: {},
@@ -129,7 +132,8 @@ vi.mock('chart.js', () => {
   }
 })
 
-vi.mock('@/entities/system/api', () => ({
+vi.mock('@/entities/system/api', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/entities/system/api')>(),
   getInitStatus: vi.fn(async () => ({ initialized: false, setupTokenRequired: false })),
   setupSystem: vi.fn(),
 }))
@@ -236,6 +240,63 @@ function setMutationResult(value: Partial<{
 }
 
 describe('pages', () => {
+  it.each([
+    [MyLinksPage, updateShortLink, deleteShortLink],
+    [AdminLinksPage, updateAdminShortLink, deleteAdminShortLink],
+  ])('reports failed link writes without invalidating the list', async (page, update, remove) => {
+    const notify = vi.spyOn(toast, 'error')
+    vi.mocked(update).mockRejectedValueOnce(new Error('internal detail'))
+    vi.mocked(remove).mockRejectedValueOnce(new Error('internal detail'))
+    setQueryResult({ data: ref({ meta: { total: 1 }, items: [{
+      ...defaultShortLinkAccessConfig, id: 'link-id', slug: 'abc123', url: 'https://go.example.com/abc123',
+      targetUrl: 'https://example.com', status: 'active', createdAt: '2026-08-01T00:00:00Z',
+    }] }) })
+    mount(page)
+    await fireEvent.click(screen.getByRole('button', { name: 'links.actions.more' }))
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'links.actions.disable' }))
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('feedback.failed'))
+    notify.mockClear()
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'links.actions.delete' }))
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('feedback.failed'))
+    expect(state.queryClient.invalidateQueries).not.toHaveBeenCalled()
+    const success = vi.spyOn(toast, 'success')
+    vi.mocked(remove).mockResolvedValueOnce(undefined)
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'links.actions.delete' }))
+    await vi.waitFor(() => expect(success).toHaveBeenCalledWith('feedback.deleted'))
+    expect(state.queryClient.invalidateQueries).toHaveBeenCalled()
+    success.mockRestore()
+    notify.mockRestore()
+  })
+
+  it('reports failed user updates and password resets without discarding input', async () => {
+    const notify = vi.spyOn(toast, 'error')
+    vi.mocked(updateUser).mockRejectedValueOnce(new Error('internal detail'))
+    vi.mocked(resetUserPassword).mockRejectedValueOnce(new Error('internal detail'))
+    setQueryResult({ data: ref({ meta: { total: 1 }, items: [{
+      id: 'user-id', username: 'alice', nickname: 'Alice', group: 'user', status: 'active', builtin: false,
+      createdAt: '2026-06-08T00:00:00Z', updatedAt: '2026-06-08T00:00:00Z',
+    }] }) })
+    mount(AdminUsersPage)
+    await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.more' }))
+    await fireEvent.click(screen.getByText('adminUsers.actions.disable'))
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('feedback.failed'))
+    notify.mockClear()
+    const input = screen.getByLabelText('adminUsers.labels.newPassword')
+    await fireEvent.update(input, 'a correct password')
+    await fireEvent.click(screen.getByText('adminUsers.resetPassword'))
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('feedback.failed'))
+    expect(state.queryClient.invalidateQueries).not.toHaveBeenCalled()
+    expect((input as HTMLInputElement).value).toBe('a correct password')
+    notify.mockRestore()
+  })
+
+  it('reports user creation failures without exposing raw errors', async () => {
+    vi.mocked(createUser).mockRejectedValueOnce(new Error('internal detail'))
+    mount(CreateUserPage)
+    await fireEvent.click(screen.getByText('createUser.submit'))
+    await screen.findByText('feedback.failed')
+    expect(screen.queryByText('internal detail')).toBeNull()
+  })
   beforeEach(() => {
     setQueryResult({})
     state.queryResults = []
@@ -726,7 +787,8 @@ describe('pages', () => {
     await fireEvent.update(screen.getByLabelText('auth.password'), 'secret')
     await fireEvent.click(screen.getByText('auth.loginSubmit'))
 
-    expect(screen.getByText('network unavailable')).toBeTruthy()
+    expect(screen.getByText('auth.loginFailed')).toBeTruthy()
+    expect(screen.queryByText('network unavailable')).toBeNull()
     expect(mutate).toHaveBeenCalledWith({ username: 'alice', password: 'secret' })
     expect(state.routerPush).not.toHaveBeenCalled()
 
@@ -782,7 +844,7 @@ describe('pages', () => {
     expect(screen.getByText('setup.steps.admin')).toBeTruthy()
     expect(screen.getByText('setup.steps.domain')).toBeTruthy()
     expect(screen.getByText('setup.steps.preference')).toBeTruthy()
-    expect(screen.getByText('setup failed')).toBeTruthy()
+    expect(screen.getByText('setup.failed')).toBeTruthy()
     await fireEvent.update(screen.getByLabelText('setup.adminUsername'), 'admin')
     await fireEvent.update(screen.getByLabelText('setup.adminPassword'), 'password123')
     await fireEvent.update(screen.getByLabelText('setup.adminNickname'), 'Admin')
@@ -859,10 +921,15 @@ describe('pages', () => {
 
     const tokenInput = screen.getByLabelText('setup.setupToken') as HTMLInputElement
     await fireEvent.update(tokenInput, 'correct-production-token')
+    await fireEvent.update(screen.getByLabelText('setup.adminUsername'), 'admin')
+    await fireEvent.update(screen.getByLabelText('setup.adminPassword'), 'password123')
+    await fireEvent.update(screen.getByLabelText('setup.adminNickname'), 'Admin')
     await fireEvent.click(screen.getByText('setup.submit'))
 
     expect(setupSystem).toHaveBeenCalledWith(expect.objectContaining({ setupToken: 'correct-production-token' }))
     expect(variables.value).toEqual(expect.objectContaining({ setupToken: 'correct-production-token' }))
+    await fireEvent.submit(screen.getByTestId('setup-wizard'))
+    expect(setupSystem).toHaveBeenCalledTimes(1)
 
     deferred.resolve({ initialized: false })
     await vi.waitFor(() => expect(tokenInput.value).toBe(''))
@@ -881,11 +948,14 @@ describe('pages', () => {
 
     const tokenInput = screen.getByLabelText('setup.setupToken') as HTMLInputElement
     await fireEvent.update(tokenInput, 'failed-production-token')
+    await fireEvent.update(screen.getByLabelText('setup.adminUsername'), 'admin')
+    await fireEvent.update(screen.getByLabelText('setup.adminPassword'), 'password123')
+    await fireEvent.update(screen.getByLabelText('setup.adminNickname'), 'Admin')
     await fireEvent.click(screen.getByText('setup.submit'))
 
     await vi.waitFor(() => expect(tokenInput.value).toBe(''))
     expect(variables.value).not.toHaveProperty('setupToken')
-    expect(screen.getByText(error instanceof ApiClientError ? 'setup.setupTokenInvalid' : error.message)).toBeTruthy()
+    expect(screen.getByText(error instanceof ApiClientError ? 'setup.setupTokenInvalid' : 'setup.failed')).toBeTruthy()
   })
 
   it('uses a named business error code for an invalid setup token', () => {
@@ -924,6 +994,7 @@ describe('pages', () => {
     setMutationResult({
       data: ref(undefined),
       error: ref(new Error('invalid target')),
+      isError: ref(true),
       isPending: ref(false),
       mutate,
     })
@@ -932,7 +1003,8 @@ describe('pages', () => {
     await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
-    expect(screen.getByText('invalid target')).toBeTruthy()
+    expect(screen.getByText('shortLinkCreate.failed')).toBeTruthy()
+    expect(screen.queryByText('invalid target')).toBeNull()
     expect(mutate).toHaveBeenCalledWith({ targetUrl: 'https://example.com' })
   })
 
@@ -941,6 +1013,7 @@ describe('pages', () => {
     setMutationResult({
       data: ref(undefined),
       error: ref({}),
+      isError: ref(true),
       mutate: vi.fn(),
     })
     mount(HomePage)
@@ -1238,7 +1311,7 @@ describe('pages', () => {
 
     update.reject(new Error('personal settings failed'))
     await vi.waitFor(() => {
-      expect(screen.getByRole('alert').textContent).toContain('personal settings failed')
+      expect(screen.getByRole('alert').textContent).toContain('links.settingsSaveFailed')
       expect(screen.getByText('shortLinkSettings.title')).toBeTruthy()
       expect(state.queryClient.invalidateQueries).not.toHaveBeenCalled()
     })
@@ -1628,7 +1701,7 @@ describe('pages', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'shortLinkSettings.save' }))
     retry.reject(new Error('administrator settings failed'))
     await vi.waitFor(() => {
-      expect(screen.getByRole('alert').textContent).toContain('administrator settings failed')
+      expect(screen.getByRole('alert').textContent).toContain('links.settingsSaveFailed')
       expect(screen.getByText('shortLinkSettings.title')).toBeTruthy()
     })
 
@@ -1736,8 +1809,11 @@ describe('pages', () => {
     })
     mount(SetupPage)
 
-    expect(screen.getByText('setup failed')).toBeTruthy()
+    expect(screen.getByText('setup.failed')).toBeTruthy()
     expect(screen.getByTestId('setup-wizard')).toBeTruthy()
+    await fireEvent.update(screen.getByLabelText('setup.adminUsername'), 'admin')
+    await fireEvent.update(screen.getByLabelText('setup.adminPassword'), 'password123')
+    await fireEvent.update(screen.getByLabelText('setup.adminNickname'), 'Admin')
     await fireEvent.click(screen.getByText('setup.submit'))
 
     expect(screen.getByText('setup.initialized')).toBeTruthy()
@@ -1783,7 +1859,7 @@ describe('pages', () => {
     await fireEvent.update(screen.getByLabelText('createUser.status'), 'disabled')
     await fireEvent.click(screen.getByText('createUser.submit'))
 
-    expect(screen.getByText('alice')).toBeTruthy()
+    expect(screen.getByText('feedback.created · alice')).toBeTruthy()
     expect((screen.getByLabelText('createUser.username') as HTMLInputElement).value).toBe('')
     expect((screen.getByLabelText('createUser.password') as HTMLInputElement).value).toBe('')
     expect((screen.getByLabelText('createUser.nickname') as HTMLInputElement).value).toBe('')
@@ -1862,12 +1938,13 @@ describe('pages', () => {
     await fireEvent.update(screen.getAllByLabelText('adminUsers.labels.nickname')[0], 'Alice Renamed')
     await fireEvent.click(screen.getAllByText('adminUsers.saveNickname')[0])
     await fireEvent.click(screen.getAllByRole('button', { name: 'adminUsers.actions.more' })[0])
-    await fireEvent.update(screen.getAllByLabelText('adminUsers.labels.newPassword')[0], 'new-password')
+    const replacementPassword = '  特殊"\\$<>&密码  '
+    await fireEvent.update(screen.getAllByLabelText('adminUsers.labels.newPassword')[0], replacementPassword)
     await fireEvent.click(screen.getAllByText('adminUsers.resetPassword')[0])
 
     expect(mutate).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Alice', status: 'disabled' })
     expect(mutate).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Alice Renamed', status: 'active' })
-    expect(mutate).toHaveBeenCalledWith({ id: 'user-id', password: 'new-password' })
+    expect(mutate).toHaveBeenCalledWith({ id: 'user-id', password: replacementPassword })
   })
 
   it('invalidates admin users after a successful status update', async () => {

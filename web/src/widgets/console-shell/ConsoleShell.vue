@@ -17,9 +17,9 @@
       @logout="submitLogout"
       @open-menu="openMobileNav"
     />
-    <v-alert v-if="logoutErrorVisible" class="console-shell__logout-error" type="error" variant="tonal">
+    <ActionToast v-if="logoutErrorVisible" type="error">
       {{ t('console.logoutFailed') }}
-    </v-alert>
+    </ActionToast>
 
     <Transition name="moe-overlay">
       <div v-if="mobileNavOpen" class="console-shell__mobile-nav" data-testid="console-mobile-nav" @click.self="closeOverlays">
@@ -27,6 +27,7 @@
           ref="mobileNavPanelRef"
           class="console-shell__mobile-panel moe-overlay-panel"
           data-testid="console-drawer-transition"
+          data-toast-modal-root
           tabindex="-1"
         >
           <div class="console-shell__mobile-head">
@@ -78,6 +79,7 @@
           ref="createDialogPanelRef"
           class="console-shell__dialog-panel moe-overlay-panel"
           data-testid="console-create-transition"
+          data-toast-modal-root
           tabindex="-1"
         >
           <div class="console-shell__dialog-heading">
@@ -92,6 +94,7 @@
 </template>
 
 <script setup lang="ts">
+import ActionToast from '@/shared/feedback/ActionToast.vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute, useRouter } from 'vue-router'

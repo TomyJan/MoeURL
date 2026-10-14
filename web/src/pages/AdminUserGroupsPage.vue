@@ -24,10 +24,10 @@
         <v-tab v-for="group in displayedGroups" :key="group.key" :value="group.key">{{ group.name }}</v-tab>
       </v-tabs>
 
-      <v-alert v-if="feedback === 'success'" type="success" variant="tonal">{{ t('userGroups.saveSuccess') }}</v-alert>
-      <v-alert v-else-if="feedback === 'conflict'" type="warning" variant="tonal">{{ t('userGroups.conflict') }}</v-alert>
-      <v-alert v-else-if="feedback === 'reload-error'" type="error" variant="tonal">{{ t('userGroups.conflictReloadFailed') }}</v-alert>
-      <v-alert v-else-if="feedback === 'error'" type="error" variant="tonal">{{ t('userGroups.saveFailed') }}</v-alert>
+      <ActionToast v-if="feedback === 'success'" :key="`success:${feedbackRevision}`" type="success">{{ t('userGroups.saveSuccess') }}</ActionToast>
+      <ActionToast v-else-if="feedback === 'conflict'" :key="`conflict:${feedbackRevision}`" type="warning">{{ t('userGroups.conflict') }}</ActionToast>
+      <ActionToast v-else-if="feedback === 'reload-error'" :key="`reload-error:${feedbackRevision}`" type="error">{{ t('userGroups.conflictReloadFailed') }}</ActionToast>
+      <ActionToast v-else-if="feedback === 'error'" :key="`error:${feedbackRevision}`" type="error">{{ t('userGroups.saveFailed') }}</ActionToast>
 
       <UserGroupPermissionEditor
         v-if="activeGroup && catalog"
@@ -47,6 +47,7 @@
 </template>
 
 <script setup lang="ts">
+import ActionToast from '@/shared/feedback/ActionToast.vue'
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -74,6 +75,7 @@ const draft = useUserGroupPermissionDraft()
 const displayedGroups = ref<UserGroup[]>([])
 const activeGroupKey = ref<UserGroupKey>('guest')
 const feedback = ref<Feedback>('')
+const feedbackRevision = ref(0)
 const knownVersions = new Map<UserGroupKey, string>()
 const staleGroupKeys = reactive(new Set<UserGroupKey>())
 let pendingConflictRefreshes = 0
@@ -185,6 +187,7 @@ function replaceDisplayedGroup(group: UserGroup) {
 
 /** Applies a server-defined preset to the current local draft. */
 function applyPreset(group: UserGroup, presetKey: PermissionPresetKey) {
+  feedbackRevision.value++
   const currentCatalog = catalog.value
   const preset = currentCatalog?.presets.find(({ key }) => key === presetKey)
   if (!currentCatalog || !preset) {
@@ -197,6 +200,7 @@ function applyPreset(group: UserGroup, presetKey: PermissionPresetKey) {
 
 /** Updates one configurable permission in the current local draft. */
 function setPermission(group: UserGroup, permissionKey: string, selected: boolean) {
+  feedbackRevision.value++
   const definition = catalog.value?.permissions.find(({ key }) => key === permissionKey)
   if (!definition) {
     feedback.value = 'error'
@@ -208,6 +212,7 @@ function setPermission(group: UserGroup, permissionKey: string, selected: boolea
 
 /** Starts one complete optimistic update for the active editable group. */
 function saveCurrentGroup(group: UserGroup) {
+  feedbackRevision.value++
   const input = draft.toUpdateInput(group)
   if (!input) {
     feedback.value = 'error'

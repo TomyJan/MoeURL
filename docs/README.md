@@ -100,6 +100,7 @@ v0.9.0 系统设置与站点品牌基础闭环的功能实现已经完成；功�
 - [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)
 - [技术选型决策](implementation/technical-decision.md)
 - [技术基线](implementation/technical-baseline.md)
+- [初始化、密码与操作反馈本地验证记录](implementation/2026-10-14-auth-feedback-acceptance.md)
 - [v0.11.0 实施计划](implementation/v0.11.0-plan.md)
 - [v0.11.0 任务清单](implementation/v0.11.0-tasks.md)
 - [v0.11.0 验收清单](implementation/v0.11.0-acceptance.md)

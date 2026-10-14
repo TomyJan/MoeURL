@@ -19,11 +19,14 @@ describe('auth api', () => {
       }),
     )
 
-    const result = await login({ username: 'alice', password: 'secret' })
+    const password = '  特殊"\\$<>&密码  '
+    const result = await login({ username: 'alice', password })
 
     expect(result.user.username).toBe('alice')
     expect(result.user.group).toBe('admin')
     expect(fetch).toHaveBeenCalledWith('/api/v1/auth/login', expect.objectContaining({ method: 'POST' }))
+    const options = vi.mocked(fetch).mock.calls[0]![1]!
+    expect(JSON.parse(String(options.body)).password).toBe(password)
   })
 
   it('posts logout request', async () => {

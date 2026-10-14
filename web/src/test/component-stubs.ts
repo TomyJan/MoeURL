@@ -1,6 +1,8 @@
 import type { Component } from 'vue'
 
 export const componentStubs: Record<string, Component> = {
+  AppToasts: { template: '<div />' },
+  ActionToast: { props: ['type'], template: '<div role="alert"><slot /></div>' },
   RouterLink: { props: ['to'], template: '<a :data-to="to" :href="typeof to === \'string\' ? to : to?.path"><slot /></a>' },
   RouterView: { template: '<div data-testid="router-view"><slot :Component="undefined" :route="{ fullPath: \'/\' }" /></div>' },
   ShortLinkQrDialog: {

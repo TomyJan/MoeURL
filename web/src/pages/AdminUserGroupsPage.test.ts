@@ -72,6 +72,7 @@ const data: UserGroupListResponse = {
 }
 
 const stubs = {
+  ActionToast: { template: '<div role="alert"><slot /></div>' },
   VAlert: { template: '<div role="alert"><slot /><slot name="append" /></div>' },
   VBtn: { props: ['disabled', 'loading'], emits: ['click'], template: '<button v-bind="$attrs" :disabled="disabled || loading" @click="$emit(\'click\')"><slot /></button>' },
   VCheckbox: { props: ['disabled', 'label', 'modelValue'], emits: ['update:modelValue'], template: '<label><input type="checkbox" :aria-label="label" :checked="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.checked)" />{{ label }}</label>' },

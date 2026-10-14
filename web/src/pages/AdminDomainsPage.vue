@@ -36,9 +36,6 @@
         </fieldset>
         <v-switch v-model="draft.enabled" :label="t('domains.enabled')" :disabled="writesBlocked || (!creating && selectedDomain?.isDefault)" />
         <v-alert v-if="selectionRemoved" type="error" variant="tonal">{{ t('domains.removedDraft') }}</v-alert>
-        <v-alert v-else-if="feedback" :type="feedback === 'success' ? 'success' : 'error'" variant="tonal">
-          {{ t(feedback === 'success' ? 'domains.saved' : feedback === 'conflict' ? 'domains.conflict' : 'domains.saveFailed') }}
-        </v-alert>
         <div class="domains-page__actions">
           <v-btn v-if="!creating && !selectionRemoved && feedback === 'conflict' && dirty()" type="button" variant="text" :disabled="writesBlocked" @click="requestDiscard(selectedID)">{{ t('domains.reloadDraft') }}</v-btn>
           <v-btn v-if="!creating && !selectedDomain?.isDefault" type="button" variant="text" :disabled="writesBlocked || selectionRemoved || !selectedDomain?.enabled" @click="setDefault">{{ t('domains.setDefault') }}</v-btn>
@@ -49,6 +46,9 @@
       </form>
     </div>
 
+    <ActionToast v-if="feedback && !selectionRemoved" :key="`${feedback}:${feedbackRevision}`" :type="feedback === 'success' ? 'success' : 'error'">
+      {{ t(feedback === 'success' ? 'domains.saved' : feedback === 'conflict' ? 'domains.conflict' : 'domains.saveFailed') }}
+    </ActionToast>
     <v-dialog v-model="deleteDialog" max-width="440">
       <v-card>
         <v-card-title>{{ t('domains.deleteTitle') }}</v-card-title>
@@ -73,6 +73,7 @@
 </template>
 
 <script setup lang="ts">
+import ActionToast from '@/shared/feedback/ActionToast.vue'
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -97,6 +98,7 @@ const groupKeys = ['user', 'admin'] as const
 const selectedID = ref('')
 const creating = ref(false)
 const feedback = ref<'success' | 'conflict' | 'error' | ''>('')
+const feedbackRevision = ref(0)
 const deleteDialog = ref(false)
 const deleteTarget = ref<ManagedDomain | null>(null)
 const discardDialog = ref(false)
@@ -264,6 +266,7 @@ function toggleGroup(group: DomainGroupKey, event: globalThis.Event) {
 }
 function save() {
   if (selectionRemoved.value) return
+  feedbackRevision.value++
   if (writesBlocked.value || !draft.host.trim() || !draft.displayName.trim()) { feedback.value = 'error'; return }
   const values = { ...draft, host: draft.host.trim(), displayName: draft.displayName.trim(), allowedGroups: [...draft.allowedGroups] }
   feedback.value = ''
@@ -271,13 +274,17 @@ function save() {
   else mutation.mutate({ type: 'update', domain: selectedDomain.value!, expectedUpdatedAt, values })
 }
 function setDefault() {
+  feedbackRevision.value++
   mutation.mutate({ type: 'default', domain: selectedDomain.value! })
 }
 function openDelete() {
   deleteTarget.value = { ...selectedDomain.value! }
   deleteDialog.value = true
 }
-function confirmDelete() { mutation.mutate({ type: 'delete', domain: deleteTarget.value! }) }
+function confirmDelete() {
+  feedbackRevision.value++
+  mutation.mutate({ type: 'delete', domain: deleteTarget.value! })
+}
 function targetsCurrentSelection(operation: Operation): boolean {
   return operation.type === 'create' ? creating.value : !creating.value && selectedID.value === operation.domain.id
 }

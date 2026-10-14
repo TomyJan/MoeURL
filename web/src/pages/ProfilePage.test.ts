@@ -280,7 +280,7 @@ describe('ProfilePage', () => {
     })
   })
 
-  it('shows a retryable backend reason when the save request fails with invalid input', async () => {
+  it('shows localized feedback instead of a raw backend error', async () => {
     vi.mocked(updateProfile).mockRejectedValueOnce(new ApiClientError(100001, 'Invalid request'))
     mountProfilePage()
 
@@ -288,7 +288,8 @@ describe('ProfilePage', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'profile.saveNickname' }))
 
     await waitFor(() => {
-      expect(screen.getByText('profile.saveFailedWithReason:Invalid request')).toBeTruthy()
+      expect(screen.getByText('profile.saveFailed')).toBeTruthy()
+      expect(screen.queryByText('Invalid request')).toBeNull()
     })
   })
 

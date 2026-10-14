@@ -113,6 +113,7 @@
 </template>
 
 <script setup lang="ts">
+import { toast } from 'vue-sonner'
 import { computed, defineComponent, reactive, ref, toRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -163,10 +164,12 @@ watch(
 const updateMutation = useMutation({
   mutationFn: updateUser,
   onSuccess: invalidateUsers,
+  onError: () => toast.error(t('feedback.failed')),
 })
 const resetMutation = useMutation({
   mutationFn: resetUserPassword,
   onSuccess: invalidateUsers,
+  onError: () => toast.error(t('feedback.failed')),
 })
 
 /** Toggles a managed user's active state while preserving their nickname. */
@@ -189,7 +192,7 @@ function saveNickname(item: UserSummary) {
 
 /** Validates and submits a replacement password for a managed user. */
 function resetPassword(item: UserSummary) {
-  const password = draftPasswords[item.id]?.trim()
+  const password = draftPasswords[item.id]
   if (!password) {
     resetPasswordErrors[item.id] = t('adminUsers.passwordRequired')
     return
@@ -223,6 +226,7 @@ function toggleMore(id: string) {
 
 /** Refreshes cached administrative user lists after a mutation. */
 function invalidateUsers() {
+  toast.success(t('feedback.saved'))
   void queryClient.invalidateQueries({ queryKey: ['admin-user'] })
 }
 

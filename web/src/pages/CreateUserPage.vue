@@ -36,15 +36,15 @@
           </v-btn>
         </div>
 
-        <v-alert v-if="createdUsername" class="mt-4" type="success" variant="tonal">
-          {{ createdUsername }}
-        </v-alert>
+        <ActionToast v-if="createdUsername" type="success">{{ t('feedback.created') }} · {{ createdUsername }}</ActionToast>
+        <ActionToast v-if="mutation.isError.value" type="error">{{ t('feedback.failed') }}</ActionToast>
       </form>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
+import ActionToast from '@/shared/feedback/ActionToast.vue'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation } from '@tanstack/vue-query'

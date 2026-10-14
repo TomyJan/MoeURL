@@ -173,9 +173,10 @@
         <div v-if="showPermissionRequired" class="short-link-create-panel__permission" role="status">
           {{ t('shortLinkCreate.permissionRequired') }}
         </div>
-        <p v-if="copyErrorMessage" class="short-link-create-panel__error" role="alert">
+        <ActionToast v-if="copyErrorMessage" type="error">
           {{ copyErrorMessage }}
-        </p>
+        </ActionToast>
+        <ActionToast v-if="mutation.error.value && !passwordErrorMessage" type="error">{{ t('shortLinkCreate.failed') }}</ActionToast>
       </div>
 
       <Transition name="moe-layout">
@@ -205,6 +206,8 @@
 </template>
 
 <script setup lang="ts">
+import ActionToast from '@/shared/feedback/ActionToast.vue'
+import { toast } from 'vue-sonner'
 import { computed, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -317,6 +320,7 @@ const mutation = useMutation({
   },
   /** Stores the generated link and refreshes list consumers after creation. */
   onSuccess(result) {
+    toast.success(t('feedback.created'))
     createdUrl.value = result.shortLink.url
     createdSlug.value = result.shortLink.slug
     qrOpen.value = false
@@ -336,9 +340,6 @@ const errorMessage = computed(() => {
   }
   if (passwordErrorMessage.value) {
     return ''
-  }
-  if (mutation.error.value) {
-    return mutation.error.value instanceof Error ? mutation.error.value.message : t('shortLinkCreate.failed')
   }
   return ''
 })
@@ -475,7 +476,7 @@ function clearPasswordInput() {
   }
 }
 
-/** Copies a generated short-link URL and surfaces clipboard failures inline. */
+/** Copies a generated short-link URL and reports the outcome through shared notifications. */
 async function copyUrl(url: string) {
   copyErrorMessage.value = ''
   try {
@@ -484,6 +485,7 @@ async function copyUrl(url: string) {
       throw new Error('clipboard unavailable')
     }
     await writeText.call(navigator.clipboard, url)
+    toast.success(t('feedback.copied'))
   } catch {
     copyErrorMessage.value = t('shortLinkCreate.copyFailed')
   }

@@ -17,9 +17,13 @@
           <span>{{ t('setup.loadFailed') }}</span>
           <v-btn variant="text" @click="retryStatus">{{ t('setup.retry') }}</v-btn>
         </v-alert>
-        <v-alert v-else-if="data?.initialized || initialized" class="auth-page__state" data-testid="setup-completion" type="success" variant="tonal">
-          {{ t('setup.initialized') }}
-        </v-alert>
+        <div v-else-if="data?.initialized || initialized" class="auth-page__state" data-testid="setup-completion">
+          <p>{{ t('setup.initialized') }}</p>
+          <div class="auth-page__actions">
+            <RouterLink class="auth-page__completion-link auth-page__completion-link--primary" to="/login">{{ t('setup.goToLogin') }}</RouterLink>
+            <RouterLink class="auth-page__completion-link" to="/">{{ t('setup.goHome') }}</RouterLink>
+          </div>
+        </div>
 
         <form v-else class="setup-wizard" data-testid="setup-wizard" @submit.prevent="submit">
           <div class="auth-page__form-heading">
@@ -32,9 +36,9 @@
               <h3 id="setup-admin-title">{{ t('setup.steps.admin') }}</h3>
             </div>
             <div class="auth-page__field-grid auth-page__field-grid--three">
-              <v-text-field v-model="form.adminUsername" data-testid="setup-admin-username" :label="t('setup.adminUsername')" variant="outlined" />
-              <v-text-field v-model="form.adminPassword" data-testid="setup-admin-password" :label="t('setup.adminPassword')" type="password" variant="outlined" />
-              <v-text-field v-model="form.adminNickname" data-testid="setup-admin-nickname" :label="t('setup.adminNickname')" variant="outlined" />
+              <v-text-field v-model="form.adminUsername" :error-messages="fieldErrors.adminUsername" data-testid="setup-admin-username" :label="t('setup.adminUsername')" variant="outlined" />
+              <v-text-field v-model="form.adminPassword" :error-messages="fieldErrors.adminPassword" autocomplete="new-password" data-testid="setup-admin-password" :label="t('setup.adminPassword')" type="password" variant="outlined" />
+              <v-text-field v-model="form.adminNickname" :error-messages="fieldErrors.adminNickname" data-testid="setup-admin-nickname" :label="t('setup.adminNickname')" variant="outlined" />
               <div v-if="data?.setupTokenRequired" class="setup-wizard__token-field">
                 <v-text-field v-model="form.setupToken" autocomplete="off" data-testid="setup-token" :label="t('setup.setupToken')" type="password" variant="outlined" />
                 <p data-testid="setup-token-help">{{ t('setup.setupTokenHelp') }}</p>
@@ -48,9 +52,9 @@
               <h3 id="setup-domain-title">{{ t('setup.steps.domain') }}</h3>
             </div>
             <div class="auth-page__field-grid">
-              <v-text-field v-model="form.siteName" data-testid="setup-site-name" :label="t('setup.siteName')" variant="outlined" />
-              <v-text-field v-model="form.systemDomain" data-testid="setup-system-domain" :label="t('setup.systemDomain')" variant="outlined" />
-              <v-text-field v-model="form.shortLinkDomain" data-testid="setup-short-link-domain" :label="t('setup.shortLinkDomain')" variant="outlined" />
+              <v-text-field v-model="form.siteName" :error-messages="fieldErrors.siteName" data-testid="setup-site-name" :label="t('setup.siteName')" variant="outlined" />
+              <v-text-field v-model="form.systemDomain" :error-messages="fieldErrors.systemDomain" data-testid="setup-system-domain" :label="t('setup.systemDomain')" variant="outlined" />
+              <v-text-field v-model="form.shortLinkDomain" :error-messages="fieldErrors.shortLinkDomain" data-testid="setup-short-link-domain" :label="t('setup.shortLinkDomain')" variant="outlined" />
             </div>
           </section>
 
@@ -65,9 +69,9 @@
             </div>
           </section>
 
-          <v-alert v-if="mutation.isError.value" class="auth-page__alert" type="error" variant="tonal">
+          <ActionToast v-if="mutation.isError.value" type="error">
             {{ errorMessage }}
-          </v-alert>
+          </ActionToast>
 
           <div class="auth-page__actions">
             <v-btn class="auth-page__submit" color="primary" data-testid="setup-submit" :loading="mutation.isPending.value" type="submit">
@@ -87,10 +91,12 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
-import { getInitStatus, setupSystem } from '@/entities/system/api'
+import { getInitStatus, setupSystem, SetupInputSchema } from '@/entities/system/api'
 import type { SetupInput } from '@/entities/system/api'
 import { ApiClientError } from '@/shared/api/client'
 import { useSiteConfig } from '@/shared/site/useSiteConfig'
+import ActionToast from '@/shared/feedback/ActionToast.vue'
+import { toast } from 'vue-sonner'
 
 const INVALID_SETUP_TOKEN_ERROR_CODE = 900102
 const { config } = useSiteConfig()
@@ -102,13 +108,14 @@ const { data, isError, isLoading, refetch } = useQuery({
   queryFn: getInitStatus,
 })
 const initialized = ref(false)
+const fieldErrors = ref<Record<string, string>>({})
 const form = reactive<SetupInput>({
   adminUsername: '',
   adminPassword: '',
   adminNickname: '',
   siteName: 'MoeURL',
-  systemDomain: '127.0.0.1:8080',
-  shortLinkDomain: 'http://127.0.0.1:8080',
+  systemDomain: globalThis.location.host,
+  shortLinkDomain: globalThis.location.origin,
   defaultLanguage: 'zh-CN',
   defaultTheme: 'system',
   setupToken: '',
@@ -141,17 +148,29 @@ const errorMessage = computed(() => {
   if (error instanceof ApiClientError && error.code === INVALID_SETUP_TOKEN_ERROR_CODE) {
     return t('setup.setupTokenInvalid')
   }
-  return error instanceof Error ? error.message : t('setup.failed')
+  return t('setup.failed')
 })
 
 /** Submits a snapshot of the system initialization form. */
 function submit() {
-  if (!data.value || isError.value) {
+  if (!data.value || isError.value || mutation.isPending.value) {
     return
   }
   const input = { ...form }
   if (!data.value.setupTokenRequired) {
     delete input.setupToken
+  }
+  const validated = SetupInputSchema.safeParse(input)
+  fieldErrors.value = {}
+  if (!validated.success) {
+    for (const issue of validated.error.issues) {
+      const field = String(issue.path[0])
+      fieldErrors.value[field] = field === 'adminPassword'
+        ? t('setup.passwordMinLength')
+        : field === 'siteName' ? t('setup.siteNameInvalid') : t('feedback.required')
+    }
+    toast.error(t('feedback.invalidForm'))
+    return
   }
   mutation.mutate(input)
 }
@@ -265,6 +284,24 @@ function retryStatus() {
 
 .auth-page__state {
   padding: 18px;
+}
+
+.auth-page__completion-link {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 48px;
+  padding: 10px 22px;
+  border: 1px solid var(--moeurl-outline);
+  border-radius: var(--moeurl-radius-pill);
+  color: rgb(var(--v-theme-primary));
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-page__completion-link--primary {
+  background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
 }
 
 .setup-wizard {

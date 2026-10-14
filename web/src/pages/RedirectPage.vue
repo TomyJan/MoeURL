@@ -66,9 +66,9 @@
           <strong>{{ remainingSeconds }}</strong>
           <span>{{ t('redirect.seconds') }}</span>
         </div>
-        <v-alert v-if="continueFailed" type="error" variant="tonal">
+        <ActionToast v-if="continueFailed" type="error">
           {{ t('redirect.continueFailed') }}
-        </v-alert>
+        </ActionToast>
         <div class="redirect-page__actions">
           <v-btn color="primary" size="large" :loading="navigating" @click="continueToTarget">
             {{ t(preview.redirectMode === 'confirmation' ? 'redirect.confirmationContinue' : 'redirect.continue') }}
@@ -81,6 +81,7 @@
 </template>
 
 <script setup lang="ts">
+import ActionToast from '@/shared/feedback/ActionToast.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'

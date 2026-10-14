@@ -1,5 +1,6 @@
 <template>
   <v-app>
+    <AppToasts />
     <v-main>
       <div class="app-route-transition" data-testid="app-route-transition">
         <router-view v-slot="{ Component, route }">
@@ -20,6 +21,7 @@ import { getPublicConfig } from '@/entities/system/api'
 import { useAppPreferences } from '@/shared/preferences/useAppPreferences'
 import { bindSiteTitle, setSiteConfig, useSiteConfig } from '@/shared/site/useSiteConfig'
 import SiteFooter from '@/shared/site/SiteFooter.vue'
+import AppToasts from '@/shared/feedback/AppToasts.vue'
 
 const preferences = useAppPreferences()
 const publicConfigQuery = useQuery({ queryKey: ['system', 'public-config'], queryFn: getPublicConfig, retry: false, staleTime: 60_000 })

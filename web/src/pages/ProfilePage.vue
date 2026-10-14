@@ -41,10 +41,10 @@
           />
 
           <Transition name="moe-overlay">
-            <v-alert v-if="saveErrorVisible" type="error" variant="tonal">{{ saveErrorMessage }}</v-alert>
+            <ActionToast v-if="saveErrorVisible" type="error">{{ saveErrorMessage }}</ActionToast>
           </Transition>
           <Transition name="moe-overlay">
-            <v-alert v-if="saveSuccessVisible" type="success" variant="tonal">{{ t('profile.saveSuccess') }}</v-alert>
+            <ActionToast v-if="saveSuccessVisible" type="success">{{ t('profile.saveSuccess') }}</ActionToast>
           </Transition>
 
           <div class="profile-card__actions">
@@ -81,6 +81,7 @@ import { updateProfile } from '@/entities/user/api'
 import { ApiClientError } from '@/shared/api/client'
 import PreferenceSwitcher from '@/shared/preferences/PreferenceSwitcher.vue'
 import { useAvatarText } from '@/shared/user/useAvatarText'
+import ActionToast from '@/shared/feedback/ActionToast.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
@@ -142,9 +143,6 @@ function resolveSaveErrorMessage(error: unknown) {
   }
   if (nonRetryableSaveErrorCodes.has(error.code)) {
     return t('profile.saveUnavailable')
-  }
-  if (error.message) {
-    return t('profile.saveFailedWithReason', { message: error.message })
   }
   return t('profile.saveFailed')
 }

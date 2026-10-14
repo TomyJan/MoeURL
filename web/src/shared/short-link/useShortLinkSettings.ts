@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import { toast } from 'vue-sonner'
 
 import type { ShortLink, UpdateShortLinkInput } from '@/entities/short-link/model'
 import { runShortLinkMutation } from './runShortLinkMutation'
@@ -32,6 +33,7 @@ export function useShortLinkSettings(options: UseShortLinkSettingsOptions) {
     },
     /** Closes the matching editor and refreshes its list after a successful save. */
     onSuccess(_data, variables) {
+      toast.success(t('feedback.saved'))
       if (settingsLink.value?.id === variables.id) {
         settingsLink.value = null
       }
@@ -47,9 +49,7 @@ export function useShortLinkSettings(options: UseShortLinkSettingsOptions) {
     if (!settingsMutation.isError.value) {
       return ''
     }
-    return settingsMutation.error.value instanceof Error
-      ? settingsMutation.error.value.message
-      : t('links.settingsSaveFailed')
+    return t('links.settingsSaveFailed')
   })
 
   /** Opens the settings dialog with a fresh mutation state for the selected link. */

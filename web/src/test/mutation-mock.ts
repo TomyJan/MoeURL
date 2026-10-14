@@ -4,6 +4,7 @@ import { vi } from 'vitest'
 export interface MutationMockCallOptions {
   mutationFn?: (input: unknown) => unknown
   onSettled?: (value: unknown, reason: unknown, variables: unknown) => void
+  onError?: (reason: unknown, variables: unknown) => void
   onSuccess?: (value: unknown, variables: unknown) => void
 }
 
@@ -61,6 +62,7 @@ export function createMutationMock(config: CreateMutationMockOptions) {
       if (config.fields?.isError) {
         isError.value = true
       }
+      options?.onError?.(reason, input)
       options?.onSettled?.(undefined, reason, input)
     }
     const mutate = vi.fn((input: unknown) => {

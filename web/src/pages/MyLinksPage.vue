@@ -53,6 +53,7 @@
 </template>
 
 <script setup lang="ts">
+import { toast } from 'vue-sonner'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -96,10 +97,15 @@ const {
 const statusMutation = useMutation({
   mutationFn: updateShortLink,
   onSuccess: invalidateLinks,
+  onError: () => toast.error(t('feedback.failed')),
 })
 const deleteMutation = useMutation({
   mutationFn: deleteShortLink,
-  onSuccess: invalidateLinks,
+  onSuccess() {
+    toast.success(t('feedback.deleted'))
+    void queryClient.invalidateQueries({ queryKey: ['short-link'] })
+  },
+  onError: () => toast.error(t('feedback.failed')),
 })
 const updatingId = useMutationTargetId(statusMutation, (variables) => variables?.id)
 const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof variables === 'string' ? variables : undefined))
@@ -121,6 +127,7 @@ function copyUrl(url: string) {
 
 /** Refreshes every cached personal short-link list after a mutation. */
 function invalidateLinks() {
+  toast.success(t('feedback.saved'))
   void queryClient.invalidateQueries({ queryKey: ['short-link'] })
 }
 </script>

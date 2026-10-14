@@ -16,6 +16,16 @@ export const messages = {
       login: '登录',
       logout: '退出登录',
     },
+    feedback: {
+      dismiss: '关闭提示',
+      required: '请填写此项',
+      invalidForm: '请检查标出的输入项后重试。',
+      failed: '操作失败，请稍后重试。',
+      saved: '保存成功',
+      created: '创建成功',
+      copied: '已复制',
+      deleted: '删除成功',
+    },
     page: {
       home: '创建并管理你的短链',
       setup: '初始化 MoeURL',
@@ -329,6 +339,10 @@ export const messages = {
       loadFailed: '无法加载初始化状态，请重试。',
       retry: '重新加载',
       initialized: '已完成初始化',
+      goToLogin: '前往登录',
+      goHome: '返回首页',
+      passwordMinLength: '密码至少需要 8 个字符',
+      siteNameInvalid: '站点名称需要 1 至 64 个字符',
       mark: '系统所有者',
       title: '初始化管理员与站点',
       steps: {
@@ -560,6 +574,16 @@ export const messages = {
     },
   },
   en: {
+    feedback: {
+      dismiss: 'Dismiss notification',
+      required: 'This field is required',
+      invalidForm: 'Check the highlighted fields and try again.',
+      failed: 'Unable to complete the action. Please try again.',
+      saved: 'Saved',
+      created: 'Created',
+      copied: 'Copied',
+      deleted: 'Deleted',
+    },
     nav: {
       home: 'Home',
       overview: 'Overview',
@@ -887,6 +911,10 @@ export const messages = {
       loadFailed: 'Unable to load initialization status. Try again.',
       retry: 'Reload',
       initialized: 'Initialized',
+      goToLogin: 'Go to login',
+      goHome: 'Back to home',
+      passwordMinLength: 'Password must contain at least 8 characters',
+      siteNameInvalid: 'Site name must contain 1 to 64 characters',
       mark: 'System owner',
       title: 'Initialize administrator and site',
       steps: {

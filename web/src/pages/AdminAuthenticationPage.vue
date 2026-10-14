@@ -57,9 +57,6 @@
           />
           <v-text-field v-model="draft.allowedDomains" :label="t('oidc.allowedDomains')" :disabled="mutation.isPending.value" variant="outlined" />
         </div>
-        <v-alert v-if="feedback" :type="feedback === 'success' ? 'success' : 'error'" variant="tonal">
-          {{ feedbackMessage }}
-        </v-alert>
         <div class="identity-page__actions">
           <v-btn v-if="!creating" color="error" variant="text" :disabled="mutation.isPending.value" @click="openDeleteDialog">{{ t('oidc.delete') }}</v-btn>
           <span />
@@ -69,6 +66,7 @@
       </form>
     </div>
 
+    <ActionToast v-if="feedback" :key="`${feedback}:${feedbackRevision}`" :type="feedback === 'success' ? 'success' : 'error'">{{ feedbackMessage }}</ActionToast>
     <v-dialog v-model="deleteDialog" max-width="440">
       <v-card>
         <v-card-title>{{ t('oidc.deleteTitle') }}</v-card-title>
@@ -83,6 +81,7 @@
 </template>
 
 <script setup lang="ts">
+import ActionToast from '@/shared/feedback/ActionToast.vue'
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -103,6 +102,7 @@ const creating = ref(false)
 const deleteDialog = ref(false)
 const deleteTarget = ref<OIDCProvider | null>(null)
 const feedback = ref<'success' | 'conflict' | 'error' | ''>('')
+const feedbackRevision = ref(0)
 const draft = reactive({ key: '', displayName: '', issuerUrl: '', clientId: '', clientSecret: '', allowedDomains: '', enabled: true })
 const providers = computed(() => query.data.value?.providers ?? [])
 const selectedProvider = computed(() => providers.value.find((provider) => provider.id === selectedID.value))
@@ -271,6 +271,7 @@ function cancelCreate() {
 }
 
 function save() {
+  feedbackRevision.value++
   if (!draft.key.trim() || !draft.displayName.trim() || !draft.issuerUrl.trim() || !draft.clientId.trim() || !splitDomains(draft.allowedDomains).length || (creating.value && !draft.clientSecret)) {
     feedback.value = 'error'
     return
@@ -295,6 +296,7 @@ function openDeleteDialog() {
 }
 
 function confirmDelete() {
+  feedbackRevision.value++
   // The dialog is only opened after capturing a provider snapshot.
   mutation.mutate({ type: 'delete', provider: deleteTarget.value! })
 }
