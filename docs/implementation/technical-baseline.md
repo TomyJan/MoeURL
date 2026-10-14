@@ -318,7 +318,7 @@ v0.0.4 创建 `short_link_event` 表，用于持久化已成功写出跳转响�
 
 v0.0.1 的字段级 schema 以 [v0.0.1 工程实施合同](./v0.0.1-implementation-contract.md#4-数据库-schema-合同) 为准。最小表结构必须覆盖：
 
-- `system_setting`：保存站点名称、初始化状态、系统访问域名、默认短链访问域名、默认语言、默认主题、纯文本页脚、Powered by 开关、本地登录策略和统一设置修订行。
+- `system_setting`：保存站点名称、初始化状态、系统访问域名、默认短链访问域名、默认语言、默认主题、纯文本页脚、Powered by 兼容字段、本地登录策略和统一设置修订行。
 - `user_group`：保存 `guest`、`user`、`admin` 用户组及其权限数组。
 - `app_user`：保存本地用户、内置 `guest` 用户、主用户组、账号状态和密码哈希。
 - `session`：保存加密随机会话 ID、过期时间、最近访问时间和撤销时间。
@@ -382,9 +382,9 @@ v0.7.0 新增 `oidc_provider`、`external_identity` 和 `oidc_login_attempt`。p
 
 ### v0.9.0 系统设置扩展摘要
 
-`00014` 在既有 `system_setting` 中补齐 `site.footer_text`、`site.show_powered_by`、`auth.local_login_enabled` 和 `site.settings_revision` 默认值，并把受保护权限 `system:manage` 加入内置 `admin`。设置值继续使用 JSONB；`site.settings_revision.updated_at` 是管理页面完整草稿的统一乐观并发版本，单次更新在同一事务内写入全部可编辑键并推进统一时间戳。Down 保留设置键和管理员选择，只撤回 migration 实际新增且未被后续修改的权限；旧 App 不会消费保留的本地登录策略，回退必须按运维手册单独验收登录入口。
+`00014` 在既有 `system_setting` 中补齐 `site.footer_text`、`site.show_powered_by`、`auth.local_login_enabled` 和 `site.settings_revision` 默认值，并把受保护权限 `system:manage` 加入内置 `admin`。设置值继续使用 JSONB；`site.settings_revision.updated_at` 是管理页面完整草稿的统一乐观并发版本，单次更新在同一事务内写入全部可编辑键并推进统一时间戳。Down 保留设置键和管理员选择，只撤回 migration 实际新增且未被后续修改的权限；旧 App 不会消费保留的本地登录策略，回退必须按运维手册单独验收登录入口。v0.11.0 起页脚品牌署名固定展示，旧 `site.show_powered_by` 存储及 JSON 字段保留兼容，但服务端读取和写入都规范为 `true`，前端管理页不再提供关闭入口。
 
-公开接口 `GET /api/v1/system/public-config` 只返回站点名称、默认语言、默认主题、页脚文本和 Powered by 开关。管理接口 `GET /api/v1/admin/system/settings` 与 `POST /api/v1/admin/system/settings/update` 同时要求 `admin:access` 和 `system:manage`；更新本地登录策略时先锁定策略行，并与 OIDC Provider 更新、停用和删除共享最终登录入口检查。本地登录关闭不撤销已有 Session，也不删除本地账号或密码；`GET /api/v1/auth/methods` 返回持久化后的真实状态。密码登录先受全局并发槽位和统一操作超时保护，再读取本地登录策略；策略关闭时在创建事务和执行 Argon2id 校验前拒绝。
+公开接口 `GET /api/v1/system/public-config` 只返回站点名称、默认语言、默认主题、页脚文本和固定为 `true` 的 Powered by 兼容字段。管理接口 `GET /api/v1/admin/system/settings` 与 `POST /api/v1/admin/system/settings/update` 同时要求 `admin:access` 和 `system:manage`；更新本地登录策略时先锁定策略行，并与 OIDC Provider 更新、停用和删除共享最终登录入口检查。本地登录关闭不撤销已有 Session，也不删除本地账号或密码；`GET /api/v1/auth/methods` 返回持久化后的真实状态。密码登录先受全局并发槽位和统一操作超时保护，再读取本地登录策略；策略关闭时在创建事务和执行 Argon2id 校验前拒绝。
 
 ### v0.11.0 标题与标签
 

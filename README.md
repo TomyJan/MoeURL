@@ -143,8 +143,12 @@ production_compose down
 本地开发确需直连 PostgreSQL 时，显式叠加开发覆盖文件；数据库仍只绑定本机回环地址：
 
 ```bash
+export MOEURL_BUILD_COMMIT="$(git rev-parse --verify HEAD^{commit})"
+export MOEURL_BUILD_TAG="$(git tag --points-at HEAD --sort=-version:refname | awk '/^v[0-9]+\.[0-9]+\.[0-9]+$/ { print; exit }')"
 docker compose --env-file .env -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
+
+容器构建不包含 `.git`，因此 Compose 构建必须显式提供源提交；本地脚本和 CI 会自动注入。缺少完整提交时构建会失败，不会生成无法追溯的默认版本。
 
 普通 `down` 和再次启动会保留 `/var/lib/postgresql` 上的命名卷。`docker compose down -v` 会永久删除目标 project 的管理员、短链和全部数据库内容；只有在核对 project、验证卷外备份并明确需要销毁数据时才能执行。备份与恢复步骤见 [PostgreSQL 备份与隔离恢复](./docs/deployment/backup-and-restore.md)，升级步骤见 [升级、回退与灾难恢复](./docs/deployment/upgrade-and-recovery.md)。
 

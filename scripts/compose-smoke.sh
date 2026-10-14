@@ -7,6 +7,9 @@ export PATH
 PROJECT_NAME="moeurl-compose-smoke"
 REPOSITORY_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 COMPOSE_FILE="$REPOSITORY_ROOT/docker-compose.yml"
+export MOEURL_BUILD_COMMIT="$(git -C "$REPOSITORY_ROOT" rev-parse --verify HEAD^{commit})"
+MOEURL_BUILD_TAG="$(git -C "$REPOSITORY_ROOT" tag --points-at HEAD --sort=-version:refname | awk '/^v[0-9]+\.[0-9]+\.[0-9]+$/ { print; exit }')"
+export MOEURL_BUILD_TAG
 WORK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/moeurl-compose-smoke.XXXXXX")
 CONFIG_ENV="$WORK_DIR/config.env"
 RUNTIME_ENV="$WORK_DIR/runtime.env"

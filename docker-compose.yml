@@ -17,6 +17,9 @@ services:
   app:
     build:
       context: .
+      args:
+        MOEURL_BUILD_COMMIT: ${MOEURL_BUILD_COMMIT:-}
+        MOEURL_BUILD_TAG: ${MOEURL_BUILD_TAG:-}
     depends_on:
       postgres:
         condition: service_healthy

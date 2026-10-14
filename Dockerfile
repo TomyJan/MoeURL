@@ -1,6 +1,10 @@
 FROM golang:1.27.2 AS web-build
 ARG NODE_VERSION=26.5.1
 ARG TARGETARCH
+ARG MOEURL_BUILD_COMMIT
+ARG MOEURL_BUILD_TAG=
+ENV MOEURL_BUILD_COMMIT=${MOEURL_BUILD_COMMIT}
+ENV MOEURL_BUILD_TAG=${MOEURL_BUILD_TAG}
 WORKDIR /workspace/web
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl xz-utils \

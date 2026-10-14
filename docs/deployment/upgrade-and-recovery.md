@@ -45,6 +45,8 @@ grep -F '${MOEURL_POSTGRES_PASSWORD:?required}' "$ROLLBACK_COMPOSE" >/dev/null
 grep -F '${MOEURL_DATABASE_URL:?required}' "$ROLLBACK_COMPOSE" >/dev/null
 
 production_compose() {
+  MOEURL_BUILD_COMMIT="$(git -C "$DEPLOY_ROOT" rev-parse --verify HEAD^{commit})" \
+  MOEURL_BUILD_TAG="$(git -C "$DEPLOY_ROOT" tag --points-at HEAD --sort=-version:refname | awk '/^v[0-9]+\.[0-9]+\.[0-9]+$/ { print; exit }')" \
   docker compose \
     --project-name "$DEPLOY_PROJECT" \
     --project-directory "$DEPLOY_ROOT" \
@@ -105,6 +107,8 @@ curl --fail --silent --show-error --connect-timeout 2 --max-time 5 "$PUBLIC_BASE
 git -C "$DEPLOY_ROOT" checkout --detach '<target-commit-sha>'
 TARGET_COMPOSE="$DEPLOY_ROOT/docker-compose.yml"
 target_compose() {
+  MOEURL_BUILD_COMMIT="$(git -C "$DEPLOY_ROOT" rev-parse --verify HEAD^{commit})" \
+  MOEURL_BUILD_TAG="$(git -C "$DEPLOY_ROOT" tag --points-at HEAD --sort=-version:refname | awk '/^v[0-9]+\.[0-9]+\.[0-9]+$/ { print; exit }')" \
   docker compose \
     --project-name "$DEPLOY_PROJECT" \
     --project-directory "$DEPLOY_ROOT" \
@@ -120,6 +124,8 @@ target_compose build --pull app || {
 }
 
 rollback_compose() {
+  MOEURL_BUILD_COMMIT="$(git -C "$DEPLOY_ROOT" rev-parse --verify HEAD^{commit})" \
+  MOEURL_BUILD_TAG="$(git -C "$DEPLOY_ROOT" tag --points-at HEAD --sort=-version:refname | awk '/^v[0-9]+\.[0-9]+\.[0-9]+$/ { print; exit }')" \
   docker compose \
     --project-name "$DEPLOY_PROJECT" \
     --project-directory "$DEPLOY_ROOT" \
@@ -252,6 +258,8 @@ running_image_id="$(cat "$DEPLOY_STATE/rollback-image-id")"
 service_image_ref="$(cat "$DEPLOY_STATE/service-image-ref")"
 TARGET_COMPOSE="$DEPLOY_ROOT/docker-compose.yml"
 target_compose() {
+  MOEURL_BUILD_COMMIT="$(git -C "$DEPLOY_ROOT" rev-parse --verify HEAD^{commit})" \
+  MOEURL_BUILD_TAG="$(git -C "$DEPLOY_ROOT" tag --points-at HEAD --sort=-version:refname | awk '/^v[0-9]+\.[0-9]+\.[0-9]+$/ { print; exit }')" \
   docker compose \
     --project-name "$DEPLOY_PROJECT" \
     --project-directory "$DEPLOY_ROOT" \
@@ -260,6 +268,8 @@ target_compose() {
     "$@"
 }
 rollback_compose() {
+  MOEURL_BUILD_COMMIT="$(git -C "$DEPLOY_ROOT" rev-parse --verify HEAD^{commit})" \
+  MOEURL_BUILD_TAG="$(git -C "$DEPLOY_ROOT" tag --points-at HEAD --sort=-version:refname | awk '/^v[0-9]+\.[0-9]+\.[0-9]+$/ { print; exit }')" \
   docker compose \
     --project-name "$DEPLOY_PROJECT" \
     --project-directory "$DEPLOY_ROOT" \
@@ -330,7 +340,7 @@ rollback_compose up --detach --no-build --force-recreate --no-deps app || {
 2. `guest`、`user`、`admin` 三个内置组存在。
 3. 恢复出的管理员可以登录。
 4. 预先登记的样例短链、跳转模式、倒计时、过期时间、密码启用状态、最大访问次数和额度已用量一致。
-5. 站点名称、默认语言、默认主题、页脚、Powered by 开关、本地登录状态和 OIDC Provider 集合与备份记录一致；启用 OIDC 时使用原始加密密钥完成真实登录。
+5. 站点名称、默认语言、默认主题、页脚、本地登录状态和 OIDC Provider 集合与备份记录一致；Powered by 兼容字段为 `true`，固定品牌署名及版本链接可见。启用 OIDC 时使用原始加密密钥完成真实登录。
 6. 外部 HTTPS、HSTS、可信转发头和敏感端点的来源级限流有效。
 7. 演练结束后只清理隔离 project，生产容器、网络和卷不受影响。
 

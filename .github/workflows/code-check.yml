@@ -299,7 +299,10 @@ jobs:
         run: pnpm build
 
       - name: Docker build
-        run: docker build .
+        run: |
+          build_tag=""
+          if [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then build_tag="$GITHUB_REF_NAME"; fi
+          docker build --build-arg "MOEURL_BUILD_COMMIT=$GITHUB_SHA" --build-arg "MOEURL_BUILD_TAG=$build_tag" .
 
   image-security:
     name: Image Security
@@ -313,7 +316,10 @@ jobs:
           persist-credentials: false
 
       - name: Build final image
-        run: docker build --tag moeurl:ci .
+        run: |
+          build_tag=""
+          if [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then build_tag="$GITHUB_REF_NAME"; fi
+          docker build --tag moeurl:ci --build-arg "MOEURL_BUILD_COMMIT=$GITHUB_SHA" --build-arg "MOEURL_BUILD_TAG=$build_tag" .
 
       - name: Scan final image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0

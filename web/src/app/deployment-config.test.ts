@@ -758,7 +758,9 @@ describe('deployment configuration', () => {
     expect(backendSecurity).toContain('git diff --exit-code -- internal/db/sqlc')
     expect(backendSecurity).toContain('git ls-files --others --exclude-standard -- internal/db/sqlc')
 
-    expect(imageSecurity).toContain('docker build --tag moeurl:ci .')
+    expect(imageSecurity).toContain(
+      'docker build --tag moeurl:ci --build-arg "MOEURL_BUILD_COMMIT=$GITHUB_SHA" --build-arg "MOEURL_BUILD_TAG=$build_tag" .',
+    )
     expect(imageSecurity).toContain('timeout-minutes: 20')
     expect(imageSecurity).toContain(
       'aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25',

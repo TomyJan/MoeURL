@@ -91,14 +91,13 @@ describe('AdminSettingsPage', () => {
       defaultLanguage: 'en',
       defaultTheme: 'dark',
       footerText: 'Footer',
-      showPoweredBy: false,
+      showPoweredBy: true,
       localLoginEnabled: false,
       updatedAt: '2026-10-09T01:00:00Z',
     })
     mountPage()
     await fireEvent.update(screen.getByLabelText('settings.siteName'), '  New site  ')
     await fireEvent.update(screen.getByLabelText('settings.footerText'), '  Footer  ')
-    await fireEvent.click(screen.getByLabelText('settings.showPoweredBy'))
     await fireEvent.update(screen.getByLabelText('settings.defaultLanguage'), 'en')
     await fireEvent.update(screen.getByLabelText('settings.defaultTheme'), 'dark')
     await fireEvent.click(screen.getByLabelText('settings.localLoginEnabled'))
@@ -109,7 +108,7 @@ describe('AdminSettingsPage', () => {
       defaultLanguage: 'en',
       defaultTheme: 'dark',
       footerText: 'Footer',
-      showPoweredBy: false,
+      showPoweredBy: true,
       localLoginEnabled: false,
       expectedUpdatedAt: settings.updatedAt,
     }))
@@ -130,7 +129,7 @@ describe('AdminSettingsPage', () => {
     await waitFor(() => expect(updateAdminSettings).toHaveBeenCalledTimes(1))
     expect((screen.getByLabelText('settings.siteName') as HTMLInputElement).disabled).toBe(true)
     expect((screen.getByLabelText('settings.footerText') as HTMLTextAreaElement).disabled).toBe(true)
-    expect((screen.getByLabelText('settings.showPoweredBy') as HTMLInputElement).disabled).toBe(true)
+    expect(screen.queryByLabelText('settings.showPoweredBy')).toBeNull()
     expect((screen.getByLabelText('settings.defaultLanguage') as HTMLSelectElement).disabled).toBe(true)
     expect((screen.getByLabelText('settings.defaultTheme') as HTMLSelectElement).disabled).toBe(true)
     expect((screen.getByLabelText('settings.localLoginEnabled') as HTMLInputElement).disabled).toBe(true)

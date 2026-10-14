@@ -22,7 +22,6 @@
         <h2>{{ t('settings.brandTitle') }}</h2>
         <v-text-field v-model="draft.siteName" :disabled="mutation.isPending.value" :label="t('settings.siteName')" variant="outlined" />
         <v-textarea v-model="draft.footerText" :disabled="mutation.isPending.value" :label="t('settings.footerText')" variant="outlined" rows="3" />
-        <v-switch v-model="draft.showPoweredBy" :disabled="mutation.isPending.value" :label="t('settings.showPoweredBy')" />
       </section>
       <section class="settings-page__section">
         <h2>{{ t('settings.preferenceTitle') }}</h2>

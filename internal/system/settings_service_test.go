@@ -98,7 +98,7 @@ func TestSettingsServiceUpdatesAtomicallyAndDetectsConflicts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("update settings: %v", err)
 	}
-	if updated.SiteName != "新站点" || updated.FooterText != "Footer" || updated.DefaultLanguage != "en" || updated.DefaultTheme != "dark" || updated.ShowPoweredBy || updated.LocalLoginEnabled {
+	if updated.SiteName != "新站点" || updated.FooterText != "Footer" || updated.DefaultLanguage != "en" || updated.DefaultTheme != "dark" || !updated.ShowPoweredBy || updated.LocalLoginEnabled {
 		t.Fatalf("updated settings = %#v", updated)
 	}
 	if updated.UpdatedAt == current.UpdatedAt || policy.lockCalls != 1 || policy.requireCalls != 1 {
@@ -116,6 +116,40 @@ func TestSettingsServiceUpdatesAtomicallyAndDetectsConflicts(t *testing.T) {
 	}
 	if _, err := service.UpdateSettings(ctx, admin, input); !errors.Is(err, system.ErrSettingsConflict) {
 		t.Fatalf("stale update error = %v", err)
+	}
+}
+
+// TestSettingsServiceKeepsPoweredByEnabled verifies compatibility data cannot disable attribution.
+func TestSettingsServiceKeepsPoweredByEnabled(t *testing.T) {
+	ctx := t.Context()
+	pool := systemTestPool(t, ctx)
+	seedEditableSettings(t, ctx, pool)
+	if _, err := pool.Exec(ctx, `update system_setting set value = 'false'::jsonb where key = 'site.show_powered_by'`); err != nil {
+		t.Fatalf("seed legacy disabled attribution: %v", err)
+	}
+	service := system.NewSettingsService(pool, permission.NewService(), &settingsPolicyStub{})
+	admin := auth.CurrentUser{GroupKey: permission.GroupAdmin}
+	current, err := service.GetSettings(ctx, admin)
+	if err != nil {
+		t.Fatalf("read legacy settings: %v", err)
+	}
+	if !current.ShowPoweredBy {
+		t.Fatal("legacy false setting disabled attribution")
+	}
+	updated, err := service.UpdateSettings(ctx, admin, system.UpdateSettingsInput{
+		SiteName: current.SiteName, DefaultLanguage: current.DefaultLanguage, DefaultTheme: current.DefaultTheme,
+		FooterText: current.FooterText, ShowPoweredBy: false, LocalLoginEnabled: current.LocalLoginEnabled,
+		ExpectedUpdatedAt: current.UpdatedAt,
+	})
+	if err != nil {
+		t.Fatalf("update settings with legacy false value: %v", err)
+	}
+	var persisted bool
+	if err := pool.QueryRow(ctx, `select value from system_setting where key = 'site.show_powered_by'`).Scan(&persisted); err != nil {
+		t.Fatalf("read persisted attribution: %v", err)
+	}
+	if !updated.ShowPoweredBy || !persisted {
+		t.Fatalf("attribution after update = response %t, stored %t", updated.ShowPoweredBy, persisted)
 	}
 }
 

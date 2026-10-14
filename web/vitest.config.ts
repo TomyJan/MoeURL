@@ -2,8 +2,13 @@ import { fileURLToPath, URL } from 'node:url'
 
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vitest/config'
+import { loadBuildMetadata } from './scripts/build-version.mjs'
+
+const repositoryRoot = fileURLToPath(new URL('..', import.meta.url))
+const buildMetadata = loadBuildMetadata(repositoryRoot)
 
 export default defineConfig({
+  define: { __MOEURL_BUILD__: JSON.stringify(buildMetadata) },
   plugins: [vue()],
   resolve: {
     alias: {

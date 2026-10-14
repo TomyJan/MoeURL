@@ -1,14 +1,16 @@
 <template>
-  <footer v-if="config.footerText || config.showPoweredBy" class="site-footer">
+  <footer class="site-footer">
     <span v-if="config.footerText">{{ config.footerText }}</span>
-    <span v-if="config.showPoweredBy">Powered by MoeURL</span>
+    <span><a :href="build.url" target="_blank" rel="noopener noreferrer">Powered by MoeURL {{ build.label }}</a></span>
   </footer>
 </template>
 
 <script setup lang="ts">
+/* global __MOEURL_BUILD__ */
 import { useSiteConfig } from './useSiteConfig'
 
 const { config } = useSiteConfig()
+const build = __MOEURL_BUILD__
 </script>
 
 <style scoped>
@@ -31,5 +33,24 @@ const { config } = useSiteConfig()
 
 .site-footer > span {
   min-width: 0;
+}
+
+.site-footer a {
+  color: inherit;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition: color 180ms ease, text-decoration-color 180ms ease;
+}
+
+.site-footer a:hover,
+.site-footer a:focus-visible {
+  color: rgb(var(--v-theme-primary));
+  text-decoration-color: currentColor;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-footer a {
+    transition: none;
+  }
 }
 </style>

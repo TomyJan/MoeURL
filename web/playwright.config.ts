@@ -1,8 +1,10 @@
 import { existsSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
+import { resolve } from 'node:path'
 import { chromium, defineConfig, devices } from '@playwright/test'
 
 import { e2eOIDCPort } from './e2e/support'
+import { loadBuildSource } from './scripts/build-version.mjs'
 
 type BrowserChannel = 'chrome' | 'msedge'
 type BrowserCandidate = {
@@ -18,6 +20,7 @@ const oidcEncryptionKey = randomBytes(32).toString('base64')
 const composeProjectName = resolveE2EComposeProjectName(process.env.MOEURL_E2E_COMPOSE_PROJECT, e2ePort)
 const browserChannel = process.env.MOEURL_E2E_BROWSER_CHANNEL?.trim() || detectFallbackBrowserChannel()
 const skipDockerCompose = shouldSkipDockerCompose()
+const buildSource = loadBuildSource(resolve(process.cwd(), '..'))
 const browserUse = {
   ...devices['Desktop Chrome'],
   channel: browserChannel,
@@ -114,6 +117,8 @@ export default defineConfig({
           MOEURL_E2E_OIDC_PORT: e2eOIDCPort,
           MOEURL_PUBLIC_BASE_URL: baseURL,
           MOEURL_OIDC_ENCRYPTION_KEY: oidcEncryptionKey,
+          MOEURL_BUILD_COMMIT: buildSource.commit,
+          MOEURL_BUILD_TAG: buildSource.tag,
         },
         reuseExistingServer: false,
         timeout: 600_000,

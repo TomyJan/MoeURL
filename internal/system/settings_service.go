@@ -197,6 +197,7 @@ func (s *SettingsService) readSettings(ctx context.Context, queries settingsQuer
 	if !validPersistedSettings(result) {
 		return Settings{}, ErrCorruptSettings
 	}
+	result.ShowPoweredBy = true
 	return result, nil
 }
 
@@ -221,6 +222,7 @@ func validPersistedSettings(settings Settings) bool {
 }
 
 func normalizeSettingsInput(input UpdateSettingsInput) (UpdateSettingsInput, time.Time, error) {
+	input.ShowPoweredBy = true
 	var err error
 	input.SiteName, input.FooterText, err = normalizeManagedSettingValues(
 		input.SiteName,

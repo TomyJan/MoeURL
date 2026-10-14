@@ -16,14 +16,18 @@ describe('SiteFooter', () => {
     render(SiteFooter)
 
     expect(screen.getByText('<strong>Safe text</strong>')).toBeTruthy()
-    expect(screen.getByText('Powered by MoeURL')).toBeTruthy()
+    expect(screen.getByRole('contentinfo').textContent).toContain('Powered by MoeURL V')
+    const versionLink = screen.getByRole('link', { name: /^Powered by MoeURL V\d/ })
+    expect(versionLink.getAttribute('href')).toMatch(/^https:\/\/github\.com\/TomyJan\/MoeURL\/(?:commit|tree)\//)
+    expect(versionLink.getAttribute('target')).toBe('_blank')
     expect(document.querySelector('.site-footer strong')).toBeNull()
   })
 
-  it('hides attribution and the empty footer when both fields are disabled', () => {
+  it('always shows traceable attribution when custom footer content is empty', () => {
     setSiteConfig({ ...productDefaultSiteConfig, footerText: '', showPoweredBy: false })
     const view = render(SiteFooter)
-    expect(view.container.querySelector('footer')).toBeNull()
+    expect(view.container.querySelector('footer')).not.toBeNull()
+    expect(screen.getByRole('link', { name: /^Powered by MoeURL V\d/ })).toBeTruthy()
   })
 
   it('skips title updates when no browser document exists', () => {

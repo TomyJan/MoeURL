@@ -80,6 +80,8 @@ test -f "$DEPLOY_ENV" && test -r "$DEPLOY_ENV" || {
 stat -c '%a %U:%G %n' "$DEPLOY_ENV"
 
 production_compose() {
+  MOEURL_BUILD_COMMIT="$(git -C "$DEPLOY_ROOT" rev-parse --verify HEAD^{commit})" \
+  MOEURL_BUILD_TAG="$(git -C "$DEPLOY_ROOT" tag --points-at HEAD --sort=-version:refname | awk '/^v[0-9]+\.[0-9]+\.[0-9]+$/ { print; exit }')" \
   docker compose \
     --project-name "$DEPLOY_PROJECT" \
     --project-directory "$DEPLOY_ROOT" \
@@ -283,7 +285,7 @@ map $geoip2_data_country_code $moeurl_country_code {
 
 ### 5.6 v0.9.0 系统设置与登录入口上线检查
 
-升级后先通过公网 HTTPS 读取 `GET /api/v1/system/public-config`，确认只返回站点名称、默认语言、默认主题、纯文本页脚和 Powered by 开关；再登录管理页面验证 `/admin/setting` 的常规设置与身份认证区域。站点名称和页脚不得包含 HTML，系统默认语言和主题只影响没有浏览器本地偏好的用户。
+升级后先通过公网 HTTPS 读取 `GET /api/v1/system/public-config`，确认只返回站点名称、默认语言、默认主题、纯文本页脚和固定为 `true` 的 Powered by 兼容字段；再登录管理页面验证 `/admin/setting` 的常规设置与身份认证区域。站点名称和页脚不得包含 HTML，系统默认语言和主题只影响没有浏览器本地偏好的用户。页脚固定展示构建时生成的版本及源码链接，版本 tag 指向 tag，其他提交显示开发基线版本与短哈希并指向 commit。
 
 关闭本地登录前必须先创建、启用并实际验证至少一个 OIDC Provider。App 会在设置更新、Provider 更新/停用/删除和进程启动时检查最终登录入口，但部署者仍需从无现有 Session 的独立浏览器完成一次真实 OIDC 登录，再关闭本地登录。关闭后确认：
 

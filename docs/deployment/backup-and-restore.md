@@ -24,6 +24,8 @@ test -d "$DEPLOY_ROOT"
 test -r "$DEPLOY_COMPOSE"
 test -r "$DEPLOY_ENV"
 production_compose() {
+  MOEURL_BUILD_COMMIT="$(git -C "$DEPLOY_ROOT" rev-parse --verify HEAD^{commit})" \
+  MOEURL_BUILD_TAG="$(git -C "$DEPLOY_ROOT" tag --points-at HEAD --sort=-version:refname | awk '/^v[0-9]+\.[0-9]+\.[0-9]+$/ { print; exit }')" \
   docker compose \
     --project-name "$DEPLOY_PROJECT" \
     --project-directory "$DEPLOY_ROOT" \
@@ -161,6 +163,8 @@ test -d "$RESTORE_ROOT"
 test -r "$RESTORE_COMPOSE"
 test -r "$RESTORE_ENV"
 restore_compose() {
+  MOEURL_BUILD_COMMIT="$(git -C "$RESTORE_ROOT" rev-parse --verify HEAD^{commit})" \
+  MOEURL_BUILD_TAG="$(git -C "$RESTORE_ROOT" tag --points-at HEAD --sort=-version:refname | awk '/^v[0-9]+\.[0-9]+\.[0-9]+$/ { print; exit }')" \
   docker compose \
     --project-name "$RESTORE_PROJECT" \
     --project-directory "$RESTORE_ROOT" \
