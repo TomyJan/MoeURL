@@ -146,7 +146,7 @@ function navChildrenId(labelKey: string) {
   padding: 0 13px;
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.71rem;
-  font-weight: 900;
+  font-weight: 650;
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -162,13 +162,13 @@ function navChildrenId(labelKey: string) {
   gap: 8px;
   padding: 0 13px;
   border: 1px solid transparent;
-  border-radius: 20px;
+  border-radius: var(--moeurl-radius-control);
   background: transparent;
   color: rgb(var(--v-theme-on-surface-variant));
   cursor: pointer;
   font: inherit;
-  font-size: 0.93rem;
-  font-weight: 790;
+  font-size: 0.875rem;
+  font-weight: 600;
   text-align: left;
   text-decoration: none;
   transition:
@@ -224,7 +224,7 @@ function navChildrenId(labelKey: string) {
   background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 14%, transparent);
   color: rgb(var(--v-theme-secondary));
   font-size: 0.68rem;
-  font-weight: 880;
+  font-weight: 600;
   line-height: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -261,7 +261,7 @@ function navChildrenId(labelKey: string) {
   border-color: color-mix(in srgb, rgb(var(--v-theme-primary)) 18%, transparent);
   background: color-mix(in srgb, var(--moeurl-surface-strong) 52%, transparent);
   color: rgb(var(--v-theme-primary));
-  font-weight: 870;
+  font-weight: 600;
 }
 
 .console-nav-list__children {

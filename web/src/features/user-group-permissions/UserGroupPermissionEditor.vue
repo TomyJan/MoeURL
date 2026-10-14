@@ -188,7 +188,7 @@ function formatUpdatedAt(value: string, activeLocale: string): string {
 .permission-editor__option span {
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.82rem;
-  font-weight: 750;
+  font-weight: 600;
 }
 
 .permission-editor__statuses {

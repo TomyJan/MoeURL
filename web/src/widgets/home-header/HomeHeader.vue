@@ -47,10 +47,10 @@ const { config } = useSiteConfig()
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  width: min(1120px, calc(100% - 32px));
+  gap: 24px;
+  width: min(1160px, calc(100% - 64px));
   margin: 0 auto;
-  padding: 22px 0;
+  padding: 26px 0;
 }
 
 .home-header__brand {
@@ -60,7 +60,9 @@ const { config } = useSiteConfig()
   gap: 10px;
   min-width: 0;
   color: rgb(var(--v-theme-on-background));
-  font-weight: 900;
+  font-size: 1.18rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
   text-decoration: none;
 }
 
@@ -77,20 +79,20 @@ const { config } = useSiteConfig()
   width: 36px;
   height: 36px;
   place-items: center;
-  border-radius: 16px;
+  border-radius: 12px;
   background: rgb(var(--v-theme-primary));
   color: rgb(var(--v-theme-on-primary));
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .home-header__actions {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 0;
   border: 0;
-  border-radius: var(--moeurl-radius-pill);
+  border-radius: 12px;
   background: transparent;
 }
 
@@ -98,23 +100,42 @@ const { config } = useSiteConfig()
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 12px 6px 6px;
+  max-width: 240px;
+  padding: 4px 12px 4px 4px;
   border: 1px solid var(--moeurl-outline);
-  border-radius: var(--moeurl-radius-pill);
-  background: color-mix(in srgb, var(--moeurl-surface-elevated) 86%, transparent);
+  border-radius: 12px;
+  background: var(--moeurl-surface-elevated);
   color: rgb(var(--v-theme-on-surface));
   cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.home-header__account span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-header__account:hover {
+  border-color: rgb(var(--v-theme-primary));
+  background: var(--moeurl-surface-soft);
+}
+
+.home-header__account:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 4px;
 }
 
 .home-header__login {
   border: 1px solid var(--moeurl-outline);
-  background: color-mix(in srgb, var(--moeurl-surface-elevated) 86%, transparent);
+  border-radius: 12px;
+  background: var(--moeurl-surface-elevated);
   color: rgb(var(--v-theme-on-surface));
 }
 
 @media (max-width: 620px) {
   .home-header {
-    width: min(100% - 20px, 1120px);
+    width: calc(100% - 32px);
     gap: 10px;
     padding-block: 16px;
   }
@@ -125,6 +146,16 @@ const { config } = useSiteConfig()
 
   .home-header__actions {
     gap: 6px;
+  }
+
+  .home-header__account {
+    padding: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-header__account {
+    transition: none;
   }
 }
 </style>

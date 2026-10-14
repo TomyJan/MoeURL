@@ -433,7 +433,7 @@ function toLocalDateTime(value: string | null) {
   gap: 10px;
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.88rem;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 .short-link-settings-dialog__actions {

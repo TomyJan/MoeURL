@@ -47,46 +47,27 @@ vi.mock('vuetify/directives', () => ({
 import { moeurlDarkTheme, moeurlLightTheme, vuetify } from './vuetify'
 
 describe('vuetify', () => {
-  it('defines MoeURL light and dark themes', () => {
-    expect(moeurlLightTheme.dark).toBe(false)
-    expect(moeurlLightTheme.colors.primary).toBe('#315f8c')
-    expect(moeurlLightTheme.colors.background).toBe('#f5f7fb')
-    expect(moeurlLightTheme.colors.secondary).toBe('#c47a4a')
-    expect(moeurlLightTheme.colors['on-background']).toBe('#141a22')
-    expect(moeurlLightTheme.variables).toEqual(
-      expect.objectContaining({
-        'app-elevated-surface': '#ffffff',
-        'app-glass-surface': 'rgba(255, 255, 255, 0.86)',
-        'app-hero-glow': 'rgba(49, 95, 140, 0.10)',
-        'app-soft-surface': '#f8fafc',
-        'app-workspace-surface': '#eef2f7',
-        'app-strong-surface': '#e2e9f1',
-        'app-outline': 'rgba(49, 95, 140, 0.14)',
-        'app-outline-strong': 'rgba(49, 95, 140, 0.22)',
-        'app-ring': 'rgba(49, 95, 140, 0.24)',
-        'radius-panel': '32px',
-      }),
-    )
-
-    expect(moeurlDarkTheme.dark).toBe(true)
-    expect(moeurlDarkTheme.colors.primary).toBe('#8ab8e8')
-    expect(moeurlDarkTheme.colors.background).toBe('#101722')
-    expect(moeurlDarkTheme.colors.secondary).toBe('#e0a06f')
-    expect(moeurlDarkTheme.colors['on-background']).toBe('#edf4fb')
-    expect(moeurlDarkTheme.variables).toEqual(
-      expect.objectContaining({
-        'app-elevated-surface': '#1a2433',
-        'app-glass-surface': 'rgba(26, 36, 51, 0.94)',
-        'app-hero-glow': 'rgba(138, 184, 232, 0.10)',
-        'app-soft-surface': '#172231',
-        'app-workspace-surface': '#101722',
-        'app-strong-surface': '#202c3d',
-        'app-outline': 'rgba(237, 244, 251, 0.10)',
-        'app-outline-strong': 'rgba(237, 244, 251, 0.16)',
-        'app-ring': 'rgba(138, 184, 232, 0.30)',
-        'radius-panel': '32px',
-      }),
-    )
+  it('keeps text and primary actions readable in both themes', () => {
+    /** Computes WCAG relative luminance for an opaque theme color. */
+    function luminance(hex: string) {
+      const channels = hex.slice(1).match(/.{2}/g)!.map((channel) => {
+        const value = Number.parseInt(channel, 16) / 255
+        return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+      })
+      return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+    }
+    for (const theme of [moeurlLightTheme, moeurlDarkTheme]) {
+      for (const [foreground, background] of [
+        [theme.colors['on-background'], theme.colors.background],
+        [theme.colors['on-surface'], theme.colors.surface],
+        [theme.colors['on-surface-variant'], theme.colors.background],
+        [theme.colors['on-primary'], theme.colors.primary],
+        [theme.colors.error, theme.colors.surface],
+      ]) {
+        const values = [luminance(foreground), luminance(background)].sort((a, b) => b - a)
+        expect((values[0] + 0.05) / (values[1] + 0.05)).toBeGreaterThanOrEqual(4.5)
+      }
+    }
   })
 
   it('creates a Vuetify plugin instance', () => {

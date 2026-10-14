@@ -181,7 +181,7 @@ function submit() {
   margin: 0 0 6px;
   color: rgb(var(--v-theme-primary));
   font-size: 0.84rem;
-  font-weight: 820;
+  font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -209,7 +209,7 @@ function submit() {
 
 .profile-page__loading-card {
   min-height: 150px;
-  border-radius: 26px;
+  border-radius: var(--moeurl-radius-panel);
   background: color-mix(in srgb, var(--moeurl-surface-elevated) 78%, var(--moeurl-surface-soft) 22%);
 }
 
@@ -224,7 +224,7 @@ function submit() {
   gap: 14px;
   padding: 22px;
   border: 1px solid var(--moeurl-outline);
-  border-radius: 28px;
+  border-radius: var(--moeurl-radius-panel);
   background: var(--moeurl-surface-elevated);
   box-shadow: var(--moeurl-shadow);
 }
@@ -239,11 +239,11 @@ function submit() {
   width: 72px;
   height: 72px;
   place-items: center;
-  border-radius: 28px;
+  border-radius: var(--moeurl-radius-panel);
   background: color-mix(in srgb, rgb(var(--v-theme-primary)) 16%, transparent);
   color: rgb(var(--v-theme-primary));
   font-size: 1.5rem;
-  font-weight: 900;
+  font-weight: 650;
 }
 
 .profile-card__identity {
@@ -256,7 +256,7 @@ function submit() {
   margin: 0;
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.82rem;
-  font-weight: 760;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -319,7 +319,7 @@ function submit() {
 
   .profile-card {
     padding: 18px;
-    border-radius: 24px;
+    border-radius: var(--moeurl-radius-panel);
   }
 
   .profile-card--account {

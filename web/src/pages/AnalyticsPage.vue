@@ -104,7 +104,7 @@ watch([statistics, () => theme.global.current.value.colors.primary], async ([val
       labels: value.stats.trend.map((point) => point.date),
       datasets: [{ data: value.stats.trend.map((point) => point.visitCount), borderColor: primary, backgroundColor: primary, tension: 0.25 }],
     },
-    options: { plugins: { legend: { display: false } }, responsive: true, maintainAspectRatio: false },
+    options: { animation: false, plugins: { legend: { display: false } }, responsive: true, maintainAspectRatio: false },
   }
   chart = new Chart(canvas, configuration)
 }, { immediate: true })

@@ -318,7 +318,7 @@ function operationTargetsActiveContext(operation: ProviderOperation) {
 <style scoped>
 .identity-page { display: grid; gap: 22px; min-width: 0; }
 .identity-page__header { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
-.identity-page__header p { margin: 0 0 5px; color: rgb(var(--v-theme-primary)); font-size: .78rem; font-weight: 700; text-transform: uppercase; }
+.identity-page__header p { margin: 0 0 5px; color: rgb(var(--v-theme-primary)); font-size: .78rem; font-weight: 600; text-transform: uppercase; }
 .identity-page__header h1 { margin: 0; font-size: 1.75rem; }
 .identity-page__header span { display: block; margin-top: 7px; color: rgb(var(--v-theme-on-surface-variant)); }
 .identity-page__workspace { display: grid; grid-template-columns: minmax(190px, 260px) minmax(0, 1fr); gap: 24px; border-top: 1px solid var(--moeurl-outline); padding-top: 20px; }

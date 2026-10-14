@@ -271,7 +271,7 @@ function removeDocumentListeners() {
   gap: 6px;
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .console-link-row__access span {

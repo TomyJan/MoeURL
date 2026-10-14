@@ -196,10 +196,15 @@ onBeforeUnmount(() => {
 }
 
 .preference-switcher--sidebar {
+  position: relative;
   display: flex;
   justify-content: flex-start;
   width: auto;
   gap: 8px;
+}
+
+.preference-switcher--sidebar .preference-switcher__menu {
+  position: static;
 }
 
 .preference-switcher__menu {
@@ -220,7 +225,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
   font: inherit;
   font-size: 0.8rem;
-  font-weight: 820;
+  font-weight: 600;
   transition: border-color 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
@@ -245,7 +250,7 @@ onBeforeUnmount(() => {
   background: color-mix(in srgb, rgb(var(--v-theme-primary)) 13%, transparent);
   color: rgb(var(--v-theme-primary));
   font-size: 0.72rem;
-  font-weight: 950;
+  font-weight: 650;
   line-height: 1;
 }
 
@@ -290,7 +295,7 @@ onBeforeUnmount(() => {
   gap: 6px;
   padding: 9px;
   border: 1px solid var(--moeurl-outline);
-  border-radius: 24px;
+  border-radius: var(--moeurl-radius-panel);
   background: color-mix(in srgb, var(--moeurl-surface-elevated) 96%, var(--moeurl-surface-soft) 4%);
   box-shadow: var(--moeurl-shadow-strong);
 }
@@ -298,8 +303,8 @@ onBeforeUnmount(() => {
 .preference-switcher--sidebar .preference-switcher__popover {
   top: auto;
   bottom: calc(100% + 8px);
-  right: auto;
-  left: 0;
+  right: 0;
+  left: auto;
 }
 
 .preference-switcher__popover--theme {
@@ -308,8 +313,8 @@ onBeforeUnmount(() => {
 }
 
 .preference-switcher--sidebar .preference-switcher__popover--theme {
-  left: 50%;
-  right: auto;
+  min-width: 196px;
+  width: 196px;
 }
 
 .preference-switcher__option,
@@ -325,7 +330,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
   font: inherit;
   font-size: 0.82rem;
-  font-weight: 800;
+  font-weight: 600;
   text-align: left;
   transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
 }
@@ -365,7 +370,7 @@ onBeforeUnmount(() => {
   background: color-mix(in srgb, rgb(var(--v-theme-primary)) 10%, transparent);
   color: rgb(var(--v-theme-primary));
   font-size: 0.72rem;
-  font-weight: 950;
+  font-weight: 650;
 }
 
 .preference-switcher__option[aria-checked="true"] .preference-switcher__option-check,

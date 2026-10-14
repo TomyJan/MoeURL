@@ -506,10 +506,8 @@ async function copyUrl(url: string) {
   overflow: hidden;
   padding: clamp(16px, 2.6vw, 24px);
   border: 1px solid var(--moeurl-outline);
-  border-radius: clamp(28px, 4vw, 40px);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, rgb(var(--v-theme-secondary)) 7%, transparent), transparent 44%),
-    var(--moeurl-surface-elevated);
+  border-radius: var(--moeurl-radius-panel);
+  background: var(--moeurl-surface-elevated);
   box-shadow: var(--moeurl-shadow);
 }
 
@@ -537,7 +535,7 @@ async function copyUrl(url: string) {
   margin: 0;
   color: rgb(var(--v-theme-primary));
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 650;
 }
 
 .short-link-create-panel__form {
@@ -551,7 +549,7 @@ async function copyUrl(url: string) {
   border-radius: 20px;
   background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 7%, transparent);
   color: rgb(var(--v-theme-on-surface-variant));
-  font-weight: 750;
+  font-weight: 600;
   text-align: center;
 }
 
@@ -581,14 +579,14 @@ async function copyUrl(url: string) {
   gap: 8px;
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.88rem;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 .short-link-create-panel__error {
   margin: 0;
   color: rgb(var(--v-theme-error));
   font-size: 0.88rem;
-  font-weight: 760;
+  font-weight: 600;
   text-align: center;
 }
 
@@ -606,7 +604,14 @@ async function copyUrl(url: string) {
 .short-link-create-panel__submit {
   min-height: 56px;
   padding-inline: 24px;
-  border-radius: var(--moeurl-radius-pill);
+  border-radius: var(--moeurl-radius-control);
+}
+
+.short-link-create-panel--compact .short-link-create-panel__shell {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .short-link-create-panel__result {
@@ -616,7 +621,7 @@ async function copyUrl(url: string) {
   padding: 16px;
   width: min(560px, 100%);
   border: 1px solid color-mix(in srgb, rgb(var(--v-theme-primary)) 24%, transparent);
-  border-radius: 26px;
+  border-radius: var(--moeurl-radius-panel);
   background: color-mix(in srgb, rgb(var(--v-theme-primary)) 11%, transparent);
 }
 
@@ -632,7 +637,7 @@ async function copyUrl(url: string) {
   max-width: 100%;
   overflow-wrap: anywhere;
   color: rgb(var(--v-theme-primary));
-  font-weight: 850;
+  font-weight: 600;
 }
 
 .short-link-create-panel__actions {

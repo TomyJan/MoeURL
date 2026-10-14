@@ -71,17 +71,18 @@ const { config } = useSiteConfig()
 
 <style scoped>
 .console-sidebar {
-  position: sticky;
-  top: 20px;
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 20;
   display: grid;
-  min-height: calc(100vh - 40px);
-  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
-  gap: 16px;
-  padding: 18px;
-  border: 1px solid var(--moeurl-outline);
-  border-radius: var(--moeurl-radius-page);
-  background: color-mix(in srgb, var(--moeurl-surface-elevated) 96%, var(--moeurl-surface-soft) 4%);
-  box-shadow: 0 18px 42px color-mix(in srgb, rgb(var(--v-theme-primary)) 3%, transparent);
+  width: 232px;
+  height: 100dvh;
+  overflow-y: auto;
+  grid-template-rows: auto auto 1fr auto auto;
+  gap: 22px;
+  padding: 28px 18px 20px;
+  border-right: 1px solid var(--moeurl-outline);
+  background: var(--moeurl-surface-elevated);
 }
 
 .console-sidebar__brand {
@@ -103,7 +104,7 @@ const { config } = useSiteConfig()
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 950;
+  font-weight: 650;
 }
 
 .console-sidebar__logo {
@@ -115,7 +116,7 @@ const { config } = useSiteConfig()
   border-radius: 17px;
   background: color-mix(in srgb, rgb(var(--v-theme-primary)) 18%, var(--moeurl-surface-strong));
   color: rgb(var(--v-theme-primary));
-  font-weight: 900;
+  font-weight: 650;
 }
 
 .console-sidebar__quick {
@@ -127,9 +128,9 @@ const { config } = useSiteConfig()
 .console-sidebar__action {
   width: 100%;
   min-height: 44px;
-  border-radius: var(--moeurl-radius-pill);
-  box-shadow: 0 12px 24px color-mix(in srgb, rgb(var(--v-theme-primary)) 8%, transparent);
-  font-weight: 850;
+  border-radius: var(--moeurl-radius-control);
+  box-shadow: none;
+  font-weight: 600;
 }
 
 .console-sidebar__action :deep(.v-btn__content) {
@@ -138,8 +139,9 @@ const { config } = useSiteConfig()
 
 .console-sidebar__utilities {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
   min-width: 0;
   padding-top: 12px;
   border-top: 1px solid var(--moeurl-outline);
@@ -155,11 +157,11 @@ const { config } = useSiteConfig()
   gap: 9px;
   padding: 7px 10px;
   border: 1px solid transparent;
-  border-radius: var(--moeurl-radius-pill);
+  border-radius: var(--moeurl-radius-control);
   background: transparent;
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.84rem;
-  font-weight: 850;
+  font-weight: 600;
   text-decoration: none;
 }
 

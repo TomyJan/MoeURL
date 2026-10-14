@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <AppToasts />
-    <v-main>
+    <v-main class="app-main">
       <div class="app-route-transition" data-testid="app-route-transition">
         <router-view v-slot="{ Component, route }">
           <Transition name="moe-route" mode="out-in">

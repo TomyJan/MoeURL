@@ -30,7 +30,7 @@
         <v-btn color="error" size="small" variant="tonal" @click="retryOverview">{{ t('overview.retryMetrics') }}</v-btn>
       </v-alert>
     </section>
-    <section v-else class="console-data-panel overview-metrics" :aria-label="t('overview.metricsLabel')">
+    <section v-else class="overview-metrics" :aria-label="t('overview.metricsLabel')">
       <article v-for="metric in metrics" :key="metric.key" class="overview-metric">
         <span>{{ t(`overview.metrics.${metric.key}`) }}</span>
         <strong>{{ metric.value }}</strong>
@@ -159,29 +159,32 @@ function formatDate(value: string) {
 .overview-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .overview-metric {
   display: grid;
-  gap: 9px;
+  gap: 18px;
   min-width: 0;
-  padding: 22px;
-}
-
-.overview-metric + .overview-metric {
-  border-left: 1px solid var(--moeurl-outline);
+  padding: 24px;
+  border: 1px solid var(--moeurl-outline);
+  border-radius: var(--moeurl-radius-card);
+  background: var(--moeurl-surface-elevated);
 }
 
 .overview-metric span {
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.8rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .overview-metric strong {
+  overflow-wrap: anywhere;
   color: rgb(var(--v-theme-on-surface));
-  font-size: 1.85rem;
-  line-height: 1;
+  font-size: 2rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 
 .overview-recent {
@@ -224,7 +227,7 @@ function formatDate(value: string) {
 
 .overview-recent-row__link a {
   color: rgb(var(--v-theme-primary));
-  font-weight: 850;
+  font-weight: 600;
   text-decoration: none;
 }
 
@@ -253,20 +256,12 @@ function formatDate(value: string) {
 
 .overview-recent-row__stats dd {
   margin: 0;
-  font-weight: 850;
+  font-weight: 600;
 }
 
 @media (max-width: 980px) {
   .overview-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .overview-metric:nth-child(3) {
-    border-left: 0;
-  }
-
-  .overview-metric:nth-child(n + 3) {
-    border-top: 1px solid var(--moeurl-outline);
   }
 
   .overview-recent-row {
@@ -276,29 +271,33 @@ function formatDate(value: string) {
 
 @media (max-width: 620px) {
   .overview-page__header,
-  .overview-page__actions,
   .overview-recent-row {
     display: grid;
     grid-template-columns: 1fr;
   }
 
   .overview-page__actions {
-    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .overview-page__actions .v-btn {
+    flex: 0 1 auto;
   }
 
   .overview-metrics {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
   }
 
-  .overview-metric + .overview-metric,
-  .overview-metric:nth-child(3) {
-    border-top: 1px solid var(--moeurl-outline);
-    border-left: 0;
+  .overview-metric {
+    padding: 18px;
   }
 
-  .overview-recent-row__link span {
-    overflow-wrap: anywhere;
-    white-space: normal;
+  .overview-metric strong {
+    font-size: 1.75rem;
   }
+
 }
 </style>

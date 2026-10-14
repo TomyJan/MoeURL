@@ -146,7 +146,7 @@ function publicProjection(settings: Settings) {
 <style scoped>
 .settings-page { display: grid; gap: 22px; min-width: 0; }
 .settings-page__header { display: flex; justify-content: space-between; gap: 20px; }
-.settings-page__header p { margin: 0 0 5px; color: rgb(var(--v-theme-primary)); font-size: .78rem; font-weight: 700; text-transform: uppercase; }
+.settings-page__header p { margin: 0 0 5px; color: rgb(var(--v-theme-primary)); font-size: .78rem; font-weight: 600; text-transform: uppercase; }
 .settings-page__header h1 { margin: 0; font-size: 1.75rem; }
 .settings-page__header span { display: block; margin-top: 7px; color: rgb(var(--v-theme-on-surface-variant)); }
 .settings-page__form { display: grid; gap: 18px; }

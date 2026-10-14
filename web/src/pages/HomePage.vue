@@ -49,22 +49,19 @@ function goProfile() {
 <style scoped>
 .home-page {
   position: relative;
-  overflow: hidden;
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at 50% 12%, var(--moeurl-hero-glow), transparent 30rem),
-    radial-gradient(circle at 9% 18%, color-mix(in srgb, rgb(var(--v-theme-primary)) 7%, transparent), transparent 20rem),
-    linear-gradient(180deg, rgb(var(--v-theme-background)), var(--moeurl-surface-soft));
+  flex: 1;
+  min-height: 0;
+  background: rgb(var(--v-theme-background));
 }
 
 .home-page__hero {
   position: relative;
   z-index: 1;
   display: grid;
-  min-height: calc(100vh - 86px);
+  min-height: min(760px, calc(100svh - 154px));
   grid-template-rows: 1fr auto;
   justify-items: center;
-  padding: 12px 16px 20px;
+  padding: 42px 24px 24px;
 }
 
 .home-page__hero-content {
@@ -72,8 +69,8 @@ function goProfile() {
   display: grid;
   justify-items: center;
   align-self: center;
-  width: min(900px, 100%);
-  padding: clamp(16px, 2.8vw, 26px);
+  width: min(960px, 100%);
+  padding: clamp(8px, 2vw, 24px);
   text-align: center;
 }
 
@@ -83,26 +80,30 @@ function goProfile() {
 }
 
 .home-page__hero h1 {
-  max-width: 640px;
+  max-width: 780px;
   margin: 0;
   color: rgb(var(--v-theme-on-background));
-  font-size: clamp(1.72rem, 3.2vw, 2.65rem);
-  line-height: 1.1;
+  font-size: clamp(2.3rem, 4.8vw, 3.4rem);
+  font-weight: 650;
+  letter-spacing: -0.045em;
+  line-height: 1.25;
+  text-wrap: balance;
 }
 
 .home-page__summary {
-  max-width: 520px;
-  margin: 14px 0 0;
+  max-width: 560px;
+  margin: 20px 0 0;
   color: rgb(var(--v-theme-on-surface-variant));
-  font-size: clamp(0.92rem, 1.2vw, 1.04rem);
-  line-height: 1.65;
+  font-size: clamp(0.92rem, 1.2vw, 1rem);
+  line-height: 1.85;
 }
 
 .home-page__tool {
   display: grid;
   gap: 12px;
-  width: min(760px, 100%);
-  margin-top: clamp(20px, 3vw, 28px);
+  width: min(720px, 100%);
+  min-width: 0;
+  margin-top: clamp(28px, 4vw, 38px);
 }
 
 .home-page__scroll-hint {
@@ -110,9 +111,9 @@ function goProfile() {
   align-items: center;
   gap: 10px;
   align-self: end;
-  margin-top: 26px;
+  margin-top: 32px;
   color: rgb(var(--v-theme-on-surface-variant));
-  font-size: 0.9rem;
+  font-size: 0.78rem;
 }
 
 .home-page__scroll-hint::before {
@@ -124,12 +125,21 @@ function goProfile() {
 
 @media (max-width: 680px) {
   .home-page__hero {
-    min-height: calc(100vh - 76px);
-    padding-top: 18px;
+    min-height: calc(100svh - 138px);
+    padding: 30px 16px 22px;
   }
 
   .home-page__hero-content {
-    padding: 8px;
+    padding: 0;
+  }
+
+  .home-page__hero h1 {
+    font-size: clamp(2rem, 7.6vw, 2.65rem);
+  }
+
+  .home-page__summary {
+    max-width: 30rem;
+    margin-top: 16px;
   }
 }
 </style>

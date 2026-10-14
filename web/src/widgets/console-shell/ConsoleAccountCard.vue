@@ -5,8 +5,10 @@
       <strong>{{ displayName }}</strong>
       <small>{{ username }}</small>
     </span>
-    <v-btn size="small" variant="text" to="/profile">{{ t('nav.profile') }}</v-btn>
-    <v-btn size="small" variant="text" :loading="logoutPending" @click="$emit('logout')">{{ t('nav.logout') }}</v-btn>
+    <div class="console-account-card__actions">
+      <v-btn size="small" variant="text" to="/profile">{{ t('nav.profile') }}</v-btn>
+      <v-btn size="small" variant="text" :loading="logoutPending" @click="$emit('logout')">{{ t('nav.logout') }}</v-btn>
+    </div>
   </div>
 </template>
 
@@ -32,26 +34,25 @@ const avatarText = useAvatarText(toRef(props, 'displayName'))
 
 <style scoped>
 .console-account-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   min-width: 0;
-  padding: 10px;
-  border: 1px solid var(--moeurl-outline);
-  border-radius: var(--moeurl-radius-card);
-  background: color-mix(in srgb, var(--moeurl-surface-soft) 74%, var(--moeurl-surface-elevated) 26%);
+  padding-top: 16px;
+  border-top: 1px solid var(--moeurl-outline);
 }
 
 .console-account-card__avatar {
   display: inline-grid;
   flex: 0 0 auto;
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   border-radius: 18px;
   background: color-mix(in srgb, rgb(var(--v-theme-primary)) 18%, transparent);
   color: rgb(var(--v-theme-primary));
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .console-account-card__body {
@@ -70,5 +71,15 @@ const avatarText = useAvatarText(toRef(props, 'displayName'))
 
 .console-account-card__body small {
   color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.console-account-card__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+}
+
+.console-account-card__actions > .v-btn {
+  min-width: 0;
 }
 </style>

@@ -20,10 +20,6 @@
         <p>{{ t(`homeIntro.${item.key}.description`) }}</p>
       </article>
     </div>
-    <footer class="home-intro__footer">
-      <span>MoeURL</span>
-      <p>{{ t('homeIntro.footerCopyright') }}</p>
-    </footer>
   </section>
 </template>
 
@@ -47,28 +43,32 @@ const secondaryItems = [
   z-index: 1;
   display: grid;
   gap: 24px;
-  width: min(1120px, calc(100% - 32px));
+  width: min(1060px, calc(100% - 64px));
   margin: 0 auto;
-  padding: 40px 0 34px;
+  padding: 68px 0 72px;
+  border-top: 1px solid var(--moeurl-outline);
 }
 
 .home-intro__heading {
   display: grid;
   max-width: 620px;
-  gap: 8px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .home-intro__heading p {
   margin: 0;
-  color: rgb(var(--v-theme-secondary));
+  color: rgb(var(--v-theme-primary));
   font-size: 0.82rem;
-  font-weight: 850;
+  font-weight: 600;
 }
 
 .home-intro__heading h2 {
   margin: 0;
-  font-size: clamp(1.55rem, 3vw, 2.25rem);
-  line-height: 1.16;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.35;
 }
 
 .home-intro__feature-band {
@@ -81,13 +81,11 @@ const secondaryItems = [
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 16px;
-  min-height: 180px;
+  min-height: 168px;
   padding: clamp(22px, 3vw, 30px);
   border: 1px solid var(--moeurl-outline);
   border-radius: var(--moeurl-radius-panel);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--moeurl-surface-elevated) 94%, rgb(var(--v-theme-secondary)) 6%), var(--moeurl-surface-elevated));
-  box-shadow: 0 18px 46px color-mix(in srgb, rgb(var(--v-theme-primary)) 5%, transparent);
+  background: var(--moeurl-surface-elevated);
 }
 
 .home-intro__grid {
@@ -99,81 +97,58 @@ const secondaryItems = [
 .home-intro__item {
   display: grid;
   gap: 10px;
-  min-height: 160px;
-  padding: 22px;
-  border: 1px solid var(--moeurl-outline);
-  border-radius: var(--moeurl-radius-card);
-  background: var(--moeurl-surface-elevated);
-  box-shadow: 0 18px 46px color-mix(in srgb, rgb(var(--v-theme-primary)) 6%, transparent);
+  min-height: 144px;
+  padding: 20px 6px;
 }
 
 .home-intro__mark {
   display: inline-grid;
-  width: 42px;
+  width: 32px;
   height: 32px;
   place-items: center;
-  border-radius: 999px;
-  background: color-mix(in srgb, rgb(var(--v-theme-secondary)) 15%, transparent);
-  color: rgb(var(--v-theme-secondary));
+  border-radius: 10px;
+  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 9%, transparent);
+  color: rgb(var(--v-theme-primary));
   font-size: 0.82rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .home-intro__item h3 {
   margin: 0;
   font-size: 1.08rem;
+  font-weight: 600;
 }
 
 .home-intro__feature h3 {
   margin: 0;
   font-size: 1.16rem;
+  font-weight: 600;
+  margin-bottom: 10px;
 }
 
 .home-intro__feature p,
 .home-intro__item p {
   margin: 0;
   color: rgb(var(--v-theme-on-surface-variant));
-  line-height: 1.7;
-}
-
-.home-intro__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 24px 2px 10px;
-  color: rgb(var(--v-theme-on-surface-variant));
-  font-size: 0.9rem;
-}
-
-.home-intro__footer span {
-  color: rgb(var(--v-theme-on-background));
-  font-weight: 950;
-}
-
-.home-intro__footer p {
-  margin: 0;
-}
-
-@media (max-width: 900px) {
-  .home-intro__feature-band,
-  .home-intro__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  font-size: 0.92rem;
+  line-height: 1.85;
 }
 
 @media (max-width: 620px) {
+  .home-intro {
+    width: calc(100% - 32px);
+    padding-block: 44px;
+    gap: 16px;
+  }
+
   .home-intro__feature-band,
   .home-intro__grid {
     grid-template-columns: 1fr;
   }
 
   .home-intro__feature {
-    grid-template-columns: 1fr;
-  }
-
-  .home-intro__footer {
-    display: grid;
+    min-height: 0;
+    padding: 22px 18px;
   }
 }
 </style>

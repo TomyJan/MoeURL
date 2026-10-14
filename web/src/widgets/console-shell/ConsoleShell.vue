@@ -385,16 +385,13 @@ function getFocusableElements(root: globalThis.HTMLElement) {
 <style scoped>
 .console-shell {
   display: grid;
-  min-height: 100vh;
-  grid-template-columns: 260px minmax(0, 1fr);
-  gap: 18px;
-  padding: 18px;
-  background:
-    radial-gradient(circle at 8% -10%, var(--moeurl-hero-glow), transparent 22rem),
-    var(--moeurl-surface-workspace);
+  min-height: 0;
+  grid-template-columns: 232px minmax(0, 1fr);
+  background: var(--moeurl-surface-workspace);
 }
 
 .console-shell__main {
+  grid-column: 2;
   min-width: 0;
   padding: 0;
   border-radius: var(--moeurl-radius-page);
@@ -402,9 +399,9 @@ function getFocusableElements(root: globalThis.HTMLElement) {
 }
 
 .console-shell__workspace {
-  min-height: calc(100vh - 36px);
-  padding: clamp(22px, 3vw, 36px);
-  border-radius: var(--moeurl-radius-page);
+  width: min(1248px, 100%);
+  margin-inline: auto;
+  padding: 38px 44px 28px;
   background: transparent;
 }
 
@@ -414,18 +411,19 @@ function getFocusableElements(root: globalThis.HTMLElement) {
   inset: 0;
   z-index: 120;
   display: grid;
-  background: color-mix(in srgb, black 76%, rgb(var(--v-theme-background)) 24%);
-  backdrop-filter: blur(14px);
+  background: color-mix(in srgb, black 40%, transparent);
+  backdrop-filter: blur(4px);
 }
 
 .console-shell__mobile-panel {
   position: relative;
   z-index: 1;
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
   width: min(340px, calc(100% - 32px));
   height: calc(100% - 32px);
+  overflow-y: auto;
   margin: 16px;
   padding: 18px;
   border: 1px solid color-mix(in srgb, var(--moeurl-outline) 90%, transparent);
@@ -447,7 +445,7 @@ function getFocusableElements(root: globalThis.HTMLElement) {
   min-width: 0;
   overflow: hidden;
   color: rgb(var(--v-theme-on-surface));
-  font-weight: 900;
+  font-weight: 650;
   text-decoration: none;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -475,7 +473,7 @@ function getFocusableElements(root: globalThis.HTMLElement) {
   min-width: 0;
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--moeurl-outline) 86%, transparent);
-  border-radius: 28px;
+  border-radius: var(--moeurl-radius-panel);
   background: color-mix(in srgb, var(--moeurl-surface-strong) 34%, transparent);
 }
 
@@ -492,7 +490,7 @@ function getFocusableElements(root: globalThis.HTMLElement) {
   border-radius: 20px;
   background: transparent;
   color: rgb(var(--v-theme-on-surface-variant));
-  font-weight: 850;
+  font-weight: 600;
   text-decoration: none;
 }
 
@@ -549,9 +547,11 @@ function getFocusableElements(root: globalThis.HTMLElement) {
   padding: 22px;
   border-radius: var(--moeurl-radius-page);
   border: 1px solid var(--moeurl-outline);
-  background: var(--moeurl-surface-glass);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--moeurl-surface-elevated);
   box-shadow: var(--moeurl-shadow-strong);
-  backdrop-filter: blur(24px);
 }
 
 .console-shell__dialog-heading {
@@ -577,23 +577,23 @@ function getFocusableElements(root: globalThis.HTMLElement) {
   }
 
   .console-shell__main {
-    margin: 0 12px 12px;
+    margin: 0;
     padding: 0;
     border-radius: 0;
   }
 
   .console-shell__workspace {
-    min-height: calc(100vh - 90px);
-    padding: 16px;
-    border-radius: 30px;
+    padding: 24px 20px;
   }
 
   .console-shell__dialog {
     align-items: end;
+    padding: 12px 12px 0;
   }
 
   .console-shell__dialog-panel {
-    border-radius: 32px 32px 0 0;
+    border-radius: 24px 24px 0 0;
+    padding-bottom: max(22px, env(safe-area-inset-bottom));
   }
 }
 </style>

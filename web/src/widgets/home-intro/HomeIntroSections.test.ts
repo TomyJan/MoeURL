@@ -20,6 +20,7 @@ describe('HomeIntroSections', () => {
     expect(screen.getByText('homeIntro.modern.title')).toBeTruthy()
     expect(screen.queryByText('homeIntro.workflow.title')).toBeNull()
     expect(screen.queryByText('homeIntro.deploy.title')).toBeNull()
-    expect(screen.getByText('homeIntro.footerCopyright')).toBeTruthy()
+    expect(screen.queryByText('homeIntro.footerCopyright')).toBeNull()
+    expect(screen.queryByRole('contentinfo')).toBeNull()
   })
 })

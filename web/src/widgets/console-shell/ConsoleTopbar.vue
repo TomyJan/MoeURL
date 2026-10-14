@@ -104,16 +104,14 @@ onBeforeUnmount(() => {
 .console-topbar {
   display: none;
   position: sticky;
-  top: 10px;
+  top: 0;
   z-index: 15;
   align-items: center;
   gap: 10px;
-  margin: 10px 10px 8px;
-  padding: 10px;
-  border: 1px solid var(--moeurl-outline);
-  border-radius: 28px;
-  background: var(--moeurl-surface-elevated);
-  box-shadow: var(--moeurl-shadow);
+  min-width: 0;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--moeurl-outline);
+  background: rgb(var(--v-theme-background));
 }
 
 .console-topbar__menu {
@@ -122,7 +120,7 @@ onBeforeUnmount(() => {
   height: 42px;
   place-items: center;
   border: 1px solid var(--moeurl-outline);
-  border-radius: 18px;
+  border-radius: var(--moeurl-radius-control);
   background: color-mix(in srgb, var(--moeurl-surface-soft) 76%, transparent);
   cursor: pointer;
 }
@@ -138,7 +136,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   overflow: hidden;
   color: rgb(var(--v-theme-on-background));
-  font-weight: 900;
+  font-weight: 650;
   text-decoration: none;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -159,7 +157,7 @@ onBeforeUnmount(() => {
   background: rgb(var(--v-theme-primary));
   color: rgb(var(--v-theme-on-primary));
   cursor: pointer;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .console-topbar__account-menu {
@@ -202,7 +200,7 @@ onBeforeUnmount(() => {
   color: rgb(var(--v-theme-secondary));
   cursor: pointer;
   font: inherit;
-  font-weight: 820;
+  font-weight: 600;
 }
 
 .console-topbar__account-menu button:disabled {

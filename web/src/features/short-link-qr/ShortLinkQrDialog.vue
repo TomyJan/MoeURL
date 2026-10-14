@@ -136,7 +136,7 @@ watch(
   padding: 0 14px;
   border-radius: 8px;
   color: rgb(var(--v-theme-primary));
-  font-weight: 800;
+  font-weight: 600;
   text-decoration: none;
 }
 

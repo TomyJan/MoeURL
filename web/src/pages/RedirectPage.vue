@@ -1,7 +1,7 @@
 <template>
   <main class="redirect-page">
     <header class="redirect-page__header">
-      <a href="/" class="redirect-page__brand">MoeURL</a>
+      <a href="/" class="redirect-page__brand"><span aria-hidden="true">M</span>MoeURL</a>
     </header>
 
     <section class="redirect-page__content">
@@ -452,47 +452,73 @@ function clearRateLimitCountdown() {
 
 <style scoped>
 .redirect-page {
-  min-height: 100dvh;
-  padding: 20px clamp(18px, 4vw, 56px) 40px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, rgb(var(--v-theme-primary)) 8%, transparent), transparent 38%),
-    rgb(var(--v-theme-background));
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 28px 32px 56px;
+  background: rgb(var(--v-theme-background));
   color: rgb(var(--v-theme-on-background));
 }
 
 .redirect-page__header {
-  width: min(1080px, 100%);
+  width: min(1160px, 100%);
   margin: 0 auto;
 }
 
 .redirect-page__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   color: rgb(var(--v-theme-on-background));
-  font-size: 1.08rem;
-  font-weight: 900;
+  font-size: 1.18rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
   text-decoration: none;
+}
+
+.redirect-page__brand span {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 12px;
+  background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
 }
 
 .redirect-page__content {
   display: grid;
+  flex: 1;
   place-items: center;
   width: min(760px, 100%);
-  min-height: calc(100dvh - 100px);
+  min-height: 0;
   margin: 0 auto;
+  padding-top: 48px;
 }
 
 .redirect-page__state {
   display: grid;
   justify-items: center;
-  gap: 16px;
-  width: min(560px, 100%);
+  gap: 20px;
+  width: min(500px, 100%);
+  min-width: 0;
+  padding: 36px 32px;
+  border: 1px solid var(--moeurl-outline);
+  border-radius: 24px;
+  background: var(--moeurl-surface-elevated);
+  box-shadow: var(--moeurl-shadow);
   text-align: center;
 }
 
 .redirect-page__state h1 {
-  max-width: 18ch;
+  max-width: 100%;
   margin: 0;
-  font-size: clamp(1.75rem, 4vw, 3.2rem);
-  line-height: 1.12;
+  font-size: clamp(1.5rem, 3vw, 1.9rem);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.35;
+  text-wrap: balance;
 }
 
 .redirect-page__eyebrow,
@@ -500,7 +526,7 @@ function clearRateLimitCountdown() {
   margin: 0;
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.82rem;
-  font-weight: 850;
+  font-weight: 550;
 }
 
 .redirect-page__description {
@@ -508,6 +534,7 @@ function clearRateLimitCountdown() {
   margin: 0;
   color: rgb(var(--v-theme-on-surface-variant));
   line-height: 1.65;
+  font-size: 0.9rem;
 }
 
 .redirect-page__metadata {
@@ -515,7 +542,11 @@ function clearRateLimitCountdown() {
   flex-wrap: wrap;
   justify-content: center;
   gap: 12px 24px;
+  width: 100%;
   margin: 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--moeurl-surface-soft);
 }
 
 .redirect-page__metadata div {
@@ -526,13 +557,14 @@ function clearRateLimitCountdown() {
 .redirect-page__metadata dt {
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 550;
 }
 
 .redirect-page__metadata dd {
   margin: 0;
   color: rgb(var(--v-theme-on-surface));
-  font-weight: 850;
+  font-size: 0.9rem;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
@@ -540,7 +572,8 @@ function clearRateLimitCountdown() {
   max-width: 100%;
   overflow-wrap: anywhere;
   color: rgb(var(--v-theme-primary));
-  font-size: clamp(1.1rem, 3vw, 1.55rem);
+  font-size: clamp(1.1rem, 3vw, 1.4rem);
+  font-weight: 600;
 }
 
 .redirect-page__password {
@@ -550,22 +583,26 @@ function clearRateLimitCountdown() {
 .redirect-page__countdown {
   display: grid;
   place-items: center;
-  width: 112px;
+  width: 96px;
   aspect-ratio: 1;
-  border: 1px solid color-mix(in srgb, rgb(var(--v-theme-primary)) 30%, transparent);
-  border-radius: 50%;
-  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 86%, transparent);
+  border: 1px solid var(--moeurl-outline);
+  border-radius: 24px;
+  background: var(--moeurl-surface-soft);
+  color: rgb(var(--v-theme-primary));
+  padding: 14px;
 }
 
 .redirect-page__countdown strong {
-  font-size: 2.4rem;
+  font-size: 2.2rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 
 .redirect-page__countdown span {
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 550;
 }
 
 .redirect-page__actions {
@@ -576,6 +613,19 @@ function clearRateLimitCountdown() {
 }
 
 @media (max-width: 480px) {
+  .redirect-page {
+    padding: 22px 20px 32px;
+  }
+
+  .redirect-page__content {
+    padding-top: 32px;
+  }
+
+  .redirect-page__state {
+    padding: 28px 20px;
+    border-radius: 20px;
+  }
+
   .redirect-page__actions {
     width: 100%;
   }
