@@ -168,7 +168,11 @@ function formatDate(value: string) {
   border: 1px solid var(--moeurl-outline);
   border-radius: var(--moeurl-radius-card);
   background: var(--moeurl-surface-elevated);
+  border-top: 3px solid rgb(var(--v-theme-primary));
 }
+
+.overview-metric:nth-child(2) { border-top-color: rgb(var(--v-theme-secondary)); }
+.overview-metric:nth-child(3) { border-top-color: rgb(var(--v-theme-tertiary)); }
 
 .overview-metric span {
   color: rgb(var(--v-theme-on-surface-variant));
@@ -178,12 +182,15 @@ function formatDate(value: string) {
 
 .overview-metric strong {
   overflow-wrap: anywhere;
-  color: rgb(var(--v-theme-on-surface));
+  color: rgb(var(--v-theme-primary));
   font-size: 2rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
 }
+
+.overview-metric:nth-child(2) strong { color: rgb(var(--v-theme-secondary)); }
+.overview-metric:nth-child(3) strong { color: rgb(var(--v-theme-tertiary)); }
 
 .overview-recent {
   display: grid;

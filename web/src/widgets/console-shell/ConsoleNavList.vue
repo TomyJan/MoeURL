@@ -255,7 +255,7 @@ function isPathWithin(path: string) {
 
 .console-nav-list__item.router-link-active .console-nav-list__rail,
 .console-nav-list__item[aria-current="page"] .console-nav-list__rail {
-  background: rgb(var(--v-theme-secondary));
+  background: rgb(var(--v-theme-tertiary));
 }
 
 .console-nav-list__item--parent[aria-expanded="true"] .console-nav-list__caret {

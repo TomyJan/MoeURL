@@ -189,7 +189,10 @@ function retryStatus() {
   min-height: 0;
   place-items: center;
   padding: 112px 32px 52px;
-  background: rgb(var(--v-theme-background));
+  background:
+    radial-gradient(ellipse at 10% 20%, var(--moeurl-hero-glow), transparent 60%),
+    radial-gradient(ellipse at 90% 85%, color-mix(in srgb, rgb(var(--v-theme-secondary)) 5%, transparent), transparent 55%),
+    rgb(var(--v-theme-background));
 }
 
 .auth-page__brand {

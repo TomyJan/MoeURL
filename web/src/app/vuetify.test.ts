@@ -13,7 +13,7 @@ vi.mock('vuetify/directives', () => ({ Ripple: {} }))
 import { moeurlDarkTheme, moeurlLightTheme, vuetify } from './vuetify'
 
 describe('vuetify', () => {
-  it('keeps text and primary actions readable in both themes', () => {
+  it('keeps text, actions and semantic colors readable in both themes', () => {
     /** Computes WCAG relative luminance for an opaque theme color. */
     function luminance(hex: string) {
       const channels = hex.slice(1).match(/.{2}/g)!.map((channel) => {
@@ -28,7 +28,16 @@ describe('vuetify', () => {
         [theme.colors['on-surface'], theme.colors.surface],
         [theme.colors['on-surface-variant'], theme.colors.background],
         [theme.colors['on-primary'], theme.colors.primary],
+        [theme.colors['on-secondary'], theme.colors.secondary],
+        [theme.colors['on-tertiary'], theme.colors.tertiary],
+        [theme.colors.primary, theme.colors.surface],
+        [theme.colors.secondary, theme.colors.surface],
+        [theme.colors.tertiary, theme.colors.surface],
+        [theme.colors.success, theme.colors.surface],
+        [theme.colors.warning, theme.colors.surface],
         [theme.colors.error, theme.colors.surface],
+        [theme.colors['on-surface-variant'], theme.variables['app-soft-surface']],
+        [theme.colors['on-surface-variant'], theme.variables['app-strong-surface']],
       ]) {
         const values = [luminance(foreground), luminance(background)].sort((a, b) => b - a)
         expect((values[0] + 0.05) / (values[1] + 0.05)).toBeGreaterThanOrEqual(4.5)

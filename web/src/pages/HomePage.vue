@@ -51,7 +51,10 @@ function goProfile() {
   position: relative;
   flex: 1;
   min-height: 0;
-  background: rgb(var(--v-theme-background));
+  background:
+    radial-gradient(ellipse 65% 460px at 25% 8%, var(--moeurl-hero-glow), transparent),
+    radial-gradient(ellipse 50% 400px at 85% 22%, color-mix(in srgb, rgb(var(--v-theme-secondary)) 6%, transparent), transparent),
+    rgb(var(--v-theme-background));
 }
 
 .home-page__hero {

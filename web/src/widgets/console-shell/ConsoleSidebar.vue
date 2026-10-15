@@ -82,7 +82,7 @@ const { config } = useSiteConfig()
   gap: 22px;
   padding: 28px 18px 20px;
   border-right: 1px solid var(--moeurl-outline);
-  background: var(--moeurl-surface-elevated);
+  background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--v-theme-primary)) 4%, var(--moeurl-surface-elevated)), var(--moeurl-surface-elevated) 50%);
 }
 
 .console-sidebar__brand {
@@ -114,8 +114,8 @@ const { config } = useSiteConfig()
   height: 38px;
   place-items: center;
   border-radius: 17px;
-  background: color-mix(in srgb, rgb(var(--v-theme-primary)) 18%, var(--moeurl-surface-strong));
-  color: rgb(var(--v-theme-primary));
+  background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
   font-weight: 650;
 }
 
