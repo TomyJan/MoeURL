@@ -105,6 +105,8 @@ v0.9.0 系统设置与站点品牌基础闭环的功能实现已经完成；功�
 - [初始化、密码与操作反馈本地验证记录](implementation/2026-10-14-auth-feedback-acceptance.md)
 - [控制台导航、版本标识与界面细节计划](implementation/2026-10-14-ui-details-plan.md)
 - [控制台导航、版本标识与界面细节本地验收](implementation/2026-10-14-ui-details-acceptance.md)
+- [标准列表与页脚链接调整](implementation/2026-10-15-standard-lists-plan.md)
+- [标准列表与页脚链接本地验收](implementation/2026-10-15-standard-lists-acceptance.md)
 - [v0.11.0 实施计划](implementation/v0.11.0-plan.md)
 - [v0.11.0 任务清单](implementation/v0.11.0-tasks.md)
 - [v0.11.0 验收清单](implementation/v0.11.0-acceptance.md)
