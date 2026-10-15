@@ -138,6 +138,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		}
 		authService := auth.NewServiceWithLoginPolicy(pool, 24*time.Hour, loginPolicy)
 		deps.Auth = authService
+		deps.Password = authService
 		deps.CurrentUser = authService
 		deps.SystemSettings = settingsService
 		deps.OIDCProvider = oidc.NewProviderServiceWithLoginPolicy(pool, permissionService, discoverer, secretBox, cfg.PublicBaseURL, cfg.Env == "development", loginPolicy)

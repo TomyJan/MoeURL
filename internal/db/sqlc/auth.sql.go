@@ -160,6 +160,7 @@ select
 from app_user
 join user_group on user_group.id = app_user.group_id
 where app_user.username = $1 and app_user.deleted_at is null
+for share of app_user
 `
 
 type GetAuthUserByUsernameRow struct {
@@ -185,6 +186,68 @@ func (q *Queries) GetAuthUserByUsername(ctx context.Context, username string) (G
 		&i.Permissions,
 	)
 	return i, err
+}
+
+const getPasswordAccountBySession = `-- name: GetPasswordAccountBySession :one
+select app_user.id::text as user_id, app_user.username, app_user.password_hash
+from session
+join app_user on app_user.id = session.user_id
+join user_group on user_group.id = app_user.group_id
+where session.id = $1 and session.revoked_at is null
+    and session.expires_at > clock_timestamp()
+    and app_user.status = 'active' and app_user.deleted_at is null
+    and app_user.builtin = false and user_group.key <> 'guest'
+`
+
+type GetPasswordAccountBySessionRow struct {
+	UserID       string      `json:"user_id"`
+	Username     string      `json:"username"`
+	PasswordHash pgtype.Text `json:"password_hash"`
+}
+
+func (q *Queries) GetPasswordAccountBySession(ctx context.Context, id string) (GetPasswordAccountBySessionRow, error) {
+	row := q.db.QueryRow(ctx, getPasswordAccountBySession, id)
+	var i GetPasswordAccountBySessionRow
+	err := row.Scan(&i.UserID, &i.Username, &i.PasswordHash)
+	return i, err
+}
+
+const getPasswordAccountForUpdate = `-- name: GetPasswordAccountForUpdate :one
+select app_user.password_hash
+from app_user
+join user_group on user_group.id = app_user.group_id
+where app_user.id = $1::text::uuid
+    and app_user.status = 'active' and app_user.deleted_at is null
+    and app_user.builtin = false and user_group.key <> 'guest'
+for update of app_user
+`
+
+func (q *Queries) GetPasswordAccountForUpdate(ctx context.Context, userID string) (pgtype.Text, error) {
+	row := q.db.QueryRow(ctx, getPasswordAccountForUpdate, userID)
+	var password_hash pgtype.Text
+	err := row.Scan(&password_hash)
+	return password_hash, err
+}
+
+const getPasswordSessionForUpdate = `-- name: GetPasswordSessionForUpdate :one
+select id
+from session
+where id = $1::text
+    and user_id = $2::text::uuid
+    and revoked_at is null and expires_at > clock_timestamp()
+for update
+`
+
+type GetPasswordSessionForUpdateParams struct {
+	SessionID string `json:"session_id"`
+	UserID    string `json:"user_id"`
+}
+
+func (q *Queries) GetPasswordSessionForUpdate(ctx context.Context, arg GetPasswordSessionForUpdateParams) (string, error) {
+	row := q.db.QueryRow(ctx, getPasswordSessionForUpdate, arg.SessionID, arg.UserID)
+	var id string
+	err := row.Scan(&id)
+	return id, err
 }
 
 const recordAuthLoginFailure = `-- name: RecordAuthLoginFailure :one
@@ -227,4 +290,29 @@ func (q *Queries) RecordAuthLoginFailure(ctx context.Context, arg RecordAuthLogi
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const revokePasswordUserSessions = `-- name: RevokePasswordUserSessions :exec
+update session set revoked_at = clock_timestamp()
+where user_id = $1::text::uuid and revoked_at is null
+`
+
+func (q *Queries) RevokePasswordUserSessions(ctx context.Context, userID string) error {
+	_, err := q.db.Exec(ctx, revokePasswordUserSessions, userID)
+	return err
+}
+
+const updateOwnPassword = `-- name: UpdateOwnPassword :exec
+update app_user set password_hash = $1, updated_at = clock_timestamp()
+where id = $2::text::uuid
+`
+
+type UpdateOwnPasswordParams struct {
+	PasswordHash pgtype.Text `json:"password_hash"`
+	UserID       string      `json:"user_id"`
+}
+
+func (q *Queries) UpdateOwnPassword(ctx context.Context, arg UpdateOwnPasswordParams) error {
+	_, err := q.db.Exec(ctx, updateOwnPassword, arg.PasswordHash, arg.UserID)
+	return err
 }

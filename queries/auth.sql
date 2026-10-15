@@ -76,7 +76,43 @@ select
     user_group.permissions
 from app_user
 join user_group on user_group.id = app_user.group_id
-where app_user.username = $1 and app_user.deleted_at is null;
+where app_user.username = $1 and app_user.deleted_at is null
+for share of app_user;
+
+-- name: GetPasswordAccountBySession :one
+select app_user.id::text as user_id, app_user.username, app_user.password_hash
+from session
+join app_user on app_user.id = session.user_id
+join user_group on user_group.id = app_user.group_id
+where session.id = $1 and session.revoked_at is null
+    and session.expires_at > clock_timestamp()
+    and app_user.status = 'active' and app_user.deleted_at is null
+    and app_user.builtin = false and user_group.key <> 'guest';
+
+-- name: GetPasswordAccountForUpdate :one
+select app_user.password_hash
+from app_user
+join user_group on user_group.id = app_user.group_id
+where app_user.id = sqlc.arg(user_id)::text::uuid
+    and app_user.status = 'active' and app_user.deleted_at is null
+    and app_user.builtin = false and user_group.key <> 'guest'
+for update of app_user;
+
+-- name: GetPasswordSessionForUpdate :one
+select id
+from session
+where id = sqlc.arg(session_id)::text
+    and user_id = sqlc.arg(user_id)::text::uuid
+    and revoked_at is null and expires_at > clock_timestamp()
+for update;
+
+-- name: UpdateOwnPassword :exec
+update app_user set password_hash = sqlc.arg(password_hash), updated_at = clock_timestamp()
+where id = sqlc.arg(user_id)::text::uuid;
+
+-- name: RevokePasswordUserSessions :exec
+update session set revoked_at = clock_timestamp()
+where user_id = sqlc.arg(user_id)::text::uuid and revoked_at is null;
 
 -- name: CreateAuthSession :exec
 insert into session (id, user_id, expires_at, last_seen_at, created_at)
