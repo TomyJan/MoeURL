@@ -10,6 +10,18 @@ function readBackendPermissionCatalog(): Array<{ key: string }> {
 }
 
 describe('i18n', () => {
+  it('resolves custom slug controls and safe conflict feedback in both locales', () => {
+    for (const locale of ['zh-CN', 'en'] as const) {
+      for (const name of ['customSlug', 'customSlugHint', 'customSlugInvalid', 'customSlugConflict', 'customSlugReserved']) {
+        const key = `shortLinkCreate.${name}`
+        expect(i18n.global.te(key, locale), `${locale}: ${key}`).toBe(true)
+        expect(i18n.global.t(key, {}, { locale })).not.toBe(key)
+      }
+    }
+    expect(i18n.global.t('shortLinkCreate.customSlug', {}, { locale: 'zh-CN' })).toBe('自定义短码')
+    expect(i18n.global.t('shortLinkCreate.customSlugConflict', {}, { locale: 'zh-CN' })).toBe('这个短码已被占用，请更换或留空使用随机短码。')
+    expect(i18n.global.t('shortLinkCreate.customSlugReserved', {}, { locale: 'zh-CN' })).toBe('这个短码是系统保留路径，请选择其他短码。')
+  })
   it('resolves overview content and recoverable states in both actual locales', () => {
     const keys = [
       'summary', 'viewAllLinks', 'metricsLabel', 'metricsLoadFailed', 'retryMetrics',

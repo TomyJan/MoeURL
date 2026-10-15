@@ -1,4 +1,11 @@
 import { z } from 'zod'
+import { customSlugSchema } from '@/shared/validation/customSlug'
+
+// Preserve existing creation settings while enforcing the optional address contract.
+export const createShortLinkInputSchema = z.looseObject({
+  targetUrl: z.string(),
+  customSlug: customSlugSchema.nullish(),
+})
 
 export const visitLimitIntegerSchema = z.number().int().min(1).max(2147483647)
 export const visitLimitInputSchema = z.string().trim().regex(/^[0-9]+$/).transform(Number).pipe(visitLimitIntegerSchema)

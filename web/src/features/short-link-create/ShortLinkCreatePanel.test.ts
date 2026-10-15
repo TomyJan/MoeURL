@@ -7,6 +7,7 @@ import ShortLinkCreatePanel from './ShortLinkCreatePanel.vue'
 import { componentStubs } from '@/test/component-stubs'
 import { me } from '@/entities/auth/api'
 import { createShortLink } from '@/entities/short-link/api'
+import { ApiClientError } from '@/shared/api/client'
 import type { CreateShortLinkInput } from '@/entities/short-link/model'
 import { createDeferred } from '@/test/deferred'
 import type { MutationMockResult } from '@/test/mutation-mock'
@@ -91,6 +92,137 @@ function setMutationResult(value: Partial<{
 }
 
 describe('ShortLinkCreatePanel', () => {
+  it.each(['AbC', 'TeamDocs2026', 'A'.repeat(32)])('submits normalized custom slug %s and resets it for the next creation', async (value) => {
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:custom_slug'])
+    mountPanel()
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    const field = screen.getByLabelText('shortLinkCreate.customSlug') as HTMLInputElement
+    await fireEvent.update(field, value)
+    expect(field.value).toBe(value)
+    expect(screen.getByTestId('custom-slug-preview').textContent).toBe(`https://go.example.com/${value.toLowerCase()}`)
+    expect(screen.getByText('shortLinkCreate.customSlugHint')).toBeTruthy()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com/docs')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(createShortLink).toHaveBeenCalledWith({ targetUrl: 'https://example.com/docs', customSlug: value.toLowerCase() })
+    await screen.findByTestId('short-link-create-result')
+    await fireEvent.click(screen.getByText('shortLinkCreate.reset'))
+    expect(field.value).toBe('')
+    expect(screen.queryByTestId('custom-slug-preview')).toBeNull()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com/random')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(createShortLink).toHaveBeenLastCalledWith({ targetUrl: 'https://example.com/random' })
+  })
+
+  it.each(['ab', 'a'.repeat(33), ' team ', 'ＡBC', 'abK', 'abc-def', 'abc_def', 'ab/c', 'ab%20'])('rejects raw invalid custom slug %j and reveals collapsed advanced settings', async (value) => {
+    setQueryResult(['short_link:create', 'domain:use_default', 'short_link:custom_slug'])
+    mountPanel()
+    const advanced = screen.getByText('shortLinkCreate.advanced')
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(advanced)
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.customSlug'), value)
+    expect(screen.queryByTestId('custom-slug-preview')).toBeNull()
+    await fireEvent.click(advanced)
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(advanced.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('alert').textContent).toContain('shortLinkCreate.customSlugInvalid')
+    expect(createShortLink).not.toHaveBeenCalled()
+  })
+
+  it('omits cached custom slug after permission loss and disables it during creation', async () => {
+    const permissions = ref({ user: { permissions: ['short_link:create', 'domain:use_default', 'short_link:custom_slug'] } })
+    state.queryResult = { data: permissions }
+    const pending = ref(false)
+    const mutate = vi.fn()
+    setMutationResult({ mutate, isPending: pending })
+    mountPanel()
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    const field = screen.getByLabelText('shortLinkCreate.customSlug')
+    await fireEvent.update(field, 'TeamDocs')
+    pending.value = true
+    await nextTick()
+    expect(field).toHaveProperty('disabled', true)
+    pending.value = false
+    permissions.value.user.permissions = ['short_link:create', 'domain:use_default', 'short_link:set_metadata']
+    await nextTick()
+    expect(screen.queryByLabelText('shortLinkCreate.customSlug')).toBeNull()
+    expect(screen.queryByTestId('custom-slug-preview')).toBeNull()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(mutate).toHaveBeenCalledWith({ targetUrl: 'https://example.com', metadata: { title: '', tags: [] } })
+  })
+
+  it.each([
+    { code: 200101, key: 'shortLinkCreate.customSlugConflict' },
+    { code: 200102, key: 'shortLinkCreate.customSlugReserved' },
+    { code: 120001, key: 'shortLinkCreate.failed' },
+    { code: 200114, key: 'shortLinkCreate.failed' },
+  ])('preserves the entire draft after $code and allows random fallback', async ({ code, key }) => {
+    setQueryResult(['short_link:create', 'domain:use_default', 'domain:use_assigned', 'short_link:custom_slug', 'short_link:set_metadata'])
+    state.domainQueryResult = {
+      data: ref({ items: [
+        { id: 'primary', host: 'https://go.example.com', displayName: 'Primary', isDefault: true },
+        { id: 'second', host: 'https://links.example.com/', displayName: 'Second', isDefault: false },
+      ] }), isPending: ref(false), isError: ref(false),
+    }
+    vi.mocked(createShortLink).mockRejectedValueOnce(new ApiClientError(code, 'Untrusted server details'))
+    mountPanel()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com/docs')
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.domainLabel'), 'second')
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.customSlug'), 'TeamDocs')
+    await fireEvent.update(screen.getByLabelText('linkMetadata.title'), 'Team')
+    await fireEvent.update(screen.getByLabelText('linkMetadata.tags'), 'Docs')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(await screen.findByText(key)).toBeTruthy()
+    expect(screen.queryByText('Untrusted server details')).toBeNull()
+    expect(screen.getByLabelText('shortLinkCreate.targetLabel')).toHaveProperty('value', 'https://example.com/docs')
+    expect(screen.getByLabelText('shortLinkCreate.domainLabel')).toHaveProperty('value', 'second')
+    expect(screen.getByLabelText('shortLinkCreate.customSlug')).toHaveProperty('value', 'TeamDocs')
+    expect(screen.getByLabelText('linkMetadata.title')).toHaveProperty('value', 'Team')
+    expect(screen.getByLabelText('linkMetadata.tags')).toHaveProperty('value', 'Docs')
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.customSlug'), '')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(createShortLink).toHaveBeenLastCalledWith({ targetUrl: 'https://example.com/docs', domainId: 'second', metadata: { title: 'Team', tags: ['Docs'] } })
+  })
+
+  it('updates preview on domain selection, authorization fallback and failed refetch', async () => {
+    setQueryResult(['short_link:create', 'domain:use_default', 'domain:use_assigned', 'short_link:custom_slug'])
+    const data = ref({ items: [
+      { id: 'second', host: 'https://links.example.com/', displayName: 'Second', isDefault: false },
+      { id: 'primary', host: 'https://go.example.com', displayName: 'Primary', isDefault: true },
+    ] })
+    const isError = ref(false)
+    state.domainQueryResult = { data, isPending: ref(false), isError }
+    mountPanel()
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.customSlug'), 'Docs2026')
+    expect(screen.getByTestId('custom-slug-preview').textContent).toBe('https://go.example.com/docs2026')
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.domainLabel'), 'second')
+    expect(screen.getByTestId('custom-slug-preview').textContent).toBe('https://links.example.com/docs2026')
+    data.value = { items: [data.value.items[1]!] }
+    await nextTick()
+    expect(screen.getByTestId('custom-slug-preview').textContent).toBe('https://go.example.com/docs2026')
+    isError.value = true
+    await nextTick()
+    expect(screen.queryByTestId('custom-slug-preview')).toBeNull()
+    isError.value = false
+    data.value = { items: [] }
+    await nextTick()
+    expect(screen.queryByTestId('custom-slug-preview')).toBeNull()
+  })
+
+  it('previews a legacy assigned authority using the same HTTPS origin as the server', async () => {
+    setQueryResult(['short_link:create', 'domain:use_assigned', 'short_link:custom_slug'])
+    state.domainQueryResult = {
+      data: ref({ items: [{ id: 'assigned', host: 'links.example.com:8443', displayName: 'Assigned', isDefault: false }] }),
+      isPending: ref(false), isError: ref(false),
+    }
+    mountPanel()
+    await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.customSlug'), 'TeamDocs')
+    expect(screen.getByTestId('custom-slug-preview').textContent).toBe('https://links.example.com:8443/teamdocs')
+  })
+
   it('creates trimmed metadata only with its independent permission and resets the inputs', async () => {
     setQueryResult(['short_link:create', 'domain:use_default', 'short_link:set_metadata'])
     mountPanel()
