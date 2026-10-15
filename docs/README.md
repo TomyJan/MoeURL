@@ -8,6 +8,8 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 2026-10-14 全站前端视觉更新沿用既有业务范围，设计见 [视觉与交互规范](specs/2026-10-14-ui-refresh-design.md)，执行与证据见 [实施计划](implementation/2026-10-14-ui-refresh-plan.md) 和 [本地验收](implementation/2026-10-14-ui-refresh-acceptance.md)。
 
+2026-10-15 配色更新为 [鸢尾蓝与薄荷青](specs/2026-10-15-color-refresh-design.md)，替代前述灰蓝配色，保留标准列表与布局；执行与证据见 [实施计划](implementation/2026-10-15-color-refresh-plan.md) 和 [本地验收](implementation/2026-10-15-color-refresh-acceptance.md)。
+
 建议按以下顺序阅读：
 
 1. [产品总览](product/overview.md)：了解 MoeURL 的定位、目标和核心原则。
