@@ -48,10 +48,12 @@
           </Transition>
 
           <div class="profile-card__actions">
-            <v-btn color="primary" :loading="updateProfileMutation.isPending.value" type="submit">{{ t('profile.saveNickname') }}</v-btn>
+            <v-btn color="primary" :disabled="identityRevoked" :loading="updateProfileMutation.isPending.value" type="submit">{{ t('profile.saveNickname') }}</v-btn>
           </div>
         </form>
       </section>
+
+      <PasswordChangePanel @session-revoked="identityRevoked = true" />
 
       <section class="profile-card profile-card--preferences">
         <h2>{{ t('profile.preferencesTitle') }}</h2>
@@ -71,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -81,9 +83,12 @@ import { ApiClientError } from '@/shared/api/client'
 import PreferenceSwitcher from '@/shared/preferences/PreferenceSwitcher.vue'
 import { useAvatarText } from '@/shared/user/useAvatarText'
 import ActionToast from '@/shared/feedback/ActionToast.vue'
+import PasswordChangePanel from '@/features/password-change/PasswordChangePanel.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
+const identityRevoked = ref(false)
+onBeforeUnmount(() => { identityRevoked.value = true })
 const ERR_PERMISSION_DENIED_CODE = 120001
 const ERR_BUILTIN_USER_IMMUTABLE_CODE = 300102
 const ERR_USER_NOT_FOUND_CODE = 300103
@@ -120,6 +125,7 @@ const updateProfileMutation = useMutation({
   mutationFn: updateProfile,
   /** Reconciles the saved profile with the form and cached identity. */
   onSuccess(result) {
+    if (identityRevoked.value) return
     const user = result.user
     saveErrorVisible.value = false
     saveSuccessVisible.value = true
@@ -130,6 +136,7 @@ const updateProfileMutation = useMutation({
   },
   /** Displays profile-save feedback while retaining the draft nickname. */
   onError() {
+    if (identityRevoked.value) return
     saveSuccessVisible.value = false
     saveErrorVisible.value = true
   },
@@ -148,6 +155,7 @@ function resolveSaveErrorMessage(error: unknown) {
 
 /** Validates and submits the trimmed nickname draft. */
 function submit() {
+  if (identityRevoked.value) return
   const nickname = draftNickname.value.trim()
   if (!nickname) {
     nicknameError.value = t('profile.nicknameRequired')
