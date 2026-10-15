@@ -87,7 +87,7 @@ test('applies system branding while preserving a recoverable OIDC-only login pat
     await expect(visitor.getByText(siteName, { exact: true })).toBeVisible()
     await expectBrandWithinViewport(visitor)
     await expect(visitor.getByText(footerText, { exact: true })).toBeVisible()
-    await expect(visitor.getByRole('link', { name: /^Powered by MoeURL V\d/ })).toBeVisible()
+    await expect(visitor.getByRole('link', { name: /^V\d/ })).toBeVisible()
     await expect.poll(async () => visitor.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
     await expect(visitor.locator('.v-application')).toHaveClass(/v-theme--moeurlDark/)
     await expect(visitor.getByLabel('Username')).toHaveCount(0)

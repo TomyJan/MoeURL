@@ -1,7 +1,7 @@
 <template>
   <footer class="site-footer">
     <span v-if="config.footerText">{{ config.footerText }}</span>
-    <span><a :href="build.url" target="_blank" rel="noopener noreferrer">Powered by MoeURL {{ build.label }}</a></span>
+    <span>Powered by MoeURL <a :href="build.url" target="_blank" rel="noopener noreferrer">{{ build.label }}</a></span>
   </footer>
 </template>
 
