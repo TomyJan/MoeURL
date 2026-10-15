@@ -6,9 +6,11 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 先阅读 [开发进度与能力清单](product/development-status.md)：按模块查看已实现、部分实现、待开发和待验证事项；再阅读 [产品总览](product/overview.md) 与 [路线图](product/roadmap.md)。进度清单集中维护当前状态，scope 定义版本边界，acceptance 保留指定提交和环境的证据。
 
-当前主分支功能已推进到 [v0.11.0 短链标题与标签](product/scope-v0.11.0.md)。设计见 [元数据规格](specs/2026-10-13-v0.11.0-link-metadata-design.md)，执行与证据见 [实施计划](implementation/v0.11.0-plan.md)、[任务清单](implementation/v0.11.0-tasks.md) 和 [验收清单](implementation/v0.11.0-acceptance.md)。此前 [v0.10.0 最大访问次数](product/scope-v0.10.0.md) 已实现，其 [验证记录](implementation/v0.10.0-acceptance.md) 与其他版本保持独立。
+此前 [v0.11.0 短链标题与标签](product/scope-v0.11.0.md) 的设计见 [元数据规格](specs/2026-10-13-v0.11.0-link-metadata-design.md)，执行与证据见 [实施计划](implementation/v0.11.0-plan.md)、[任务清单](implementation/v0.11.0-tasks.md) 和 [验收清单](implementation/v0.11.0-acceptance.md)。[v0.10.0 最大访问次数](product/scope-v0.10.0.md) 已实现，其 [验证记录](implementation/v0.10.0-acceptance.md) 与其他版本保持独立。
 
-下一业务版本 [v0.12.0 自定义短码](product/scope-v0.12.0.md) 已在 `feat/v0.12.0-custom-slugs` 实现，尚未合并或正式发布。只允许创建时指定短码，不修改已发布地址；规则见 [设计](specs/2026-10-15-v0.12.0-custom-slugs-design.md)，本地门禁与独立审查见 [实施计划](implementation/v0.12.0-plan.md)、[任务清单](implementation/v0.12.0-tasks.md) 和 [验收清单](implementation/v0.12.0-acceptance.md)。
+[v0.12.0 自定义短码](product/scope-v0.12.0.md) 已通过 PR #185 合并为 `17e1f766`。只允许创建时指定短码，不修改已发布地址；规则见 [设计](specs/2026-10-15-v0.12.0-custom-slugs-design.md)，原分支本地门禁与独立审查见 [验收清单](implementation/v0.12.0-acceptance.md)，不据此声称正式发布。
+
+下一业务版本 [v0.13.0 个人密码修改](product/scope-v0.13.0.md) 在独立分支实施，校验当前密码后原子更新并撤销旧会话。见 [设计](specs/2026-10-15-v0.13.0-password-change-design.md)、[实施计划](implementation/v0.13.0-plan.md)、[任务清单](implementation/v0.13.0-tasks.md) 和 [验收记录](implementation/v0.13.0-acceptance.md)。
 
 2026-10-14 全站前端视觉更新沿用既有业务范围，设计见 [视觉与交互规范](specs/2026-10-14-ui-refresh-design.md)，执行与证据见 [实施计划](implementation/2026-10-14-ui-refresh-plan.md) 和 [本地验收](implementation/2026-10-14-ui-refresh-acceptance.md)。
 
@@ -76,6 +78,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 - [v0.10.0 范围](product/scope-v0.10.0.md)
 - [v0.11.0 范围](product/scope-v0.11.0.md)
 - [v0.12.0 范围](product/scope-v0.12.0.md)
+- [v0.13.0 范围](product/scope-v0.13.0.md)
 - [路线图](product/roadmap.md)
 
 ### 功能规格层
@@ -90,6 +93,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 - [v0.4.0 确认页访问设计](specs/2026-08-13-v0.4.0-confirmation-page-access-design.md)
 - [v0.3.0 受保护短链访问设计](specs/2026-08-04-v0.3.0-protected-link-access-design.md)
 - [用户与认证](specs/users-and-auth.md)
+- [个人密码修改设计](specs/2026-10-15-v0.13.0-password-change-design.md)
 - [短链](specs/short-links.md)
 - [v0.11.0 短链标题与标签设计](specs/2026-10-13-v0.11.0-link-metadata-design.md)
 - [v0.12.0 自定义短码设计](specs/2026-10-15-v0.12.0-custom-slugs-design.md)
@@ -118,6 +122,9 @@ v0.9.0 系统设置与站点品牌基础闭环的功能实现已经完成；功�
 - [标准列表与页脚链接本地验收](implementation/2026-10-15-standard-lists-acceptance.md)
 - [v0.11.0 实施计划](implementation/v0.11.0-plan.md)
 - [v0.12.0 实施计划](implementation/v0.12.0-plan.md)
+- [v0.13.0 实施计划](implementation/v0.13.0-plan.md)
+- [v0.13.0 任务清单](implementation/v0.13.0-tasks.md)
+- [v0.13.0 验收记录](implementation/v0.13.0-acceptance.md)
 - [v0.12.0 任务清单](implementation/v0.12.0-tasks.md)
 - [v0.12.0 验收清单](implementation/v0.12.0-acceptance.md)
 - [v0.11.0 任务清单](implementation/v0.11.0-tasks.md)
