@@ -599,7 +599,7 @@ go test -p=1 -count=1 -coverprofile="$PWD/coverage.out" ./internal/auth ./intern
 node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100 --include-from=scripts/go-coverage-targets.txt --exclude-blocks-from=scripts/go-coverage-excluded-blocks.txt
 ```
 
-后端覆盖率门禁覆盖 `scripts/go-coverage-targets.txt` 中列出的业务源码文件，必须达到 100%。`scripts/go-coverage-excluded-blocks.txt` 只允许精确列出不可稳定触发或由数据模型保证不可达的代码块，例如事务中途基础设施失败、随机短码连续冲突耗尽、静态类型值的 JSON 编码失败。门禁必须拒绝未匹配的排除项，以及命中已执行代码块的排除项，避免旧坐标或多余豁免掩盖测试回退。数据库集成、进程入口和框架胶水仍通过 `go test ./...` 验证，但不作为业务源码覆盖率分母。
+后端覆盖率门禁覆盖 `scripts/go-coverage-targets.txt` 中列出的业务源码文件，必须达到 100%。`scripts/go-coverage-excluded-blocks.txt` 只允许精确列出不可稳定触发或由数据模型保证不可达的代码块，例如事务中途基础设施失败、静态类型值的 JSON 编码失败。随机数失败、短码冲突重试和耗尽已有受控测试，不再排除。门禁必须拒绝未匹配的排除项，以及命中已执行代码块的排除项，避免旧坐标或多余豁免掩盖测试回退。数据库集成、进程入口和框架胶水仍通过 `go test ./...` 验证，但不作为业务源码覆盖率分母。
 
 数据库集成测试优先使用 Testcontainers，并在同一 Go 测试进程内复用一个 PostgreSQL 容器。每个测试必须创建并在清理阶段删除独立数据库，不能复用业务数据。当前本机 Docker 不可用时，测试基础设施允许回退到本地 PostgreSQL 管理库，默认地址为 `postgres://postgres:postgres@127.0.0.1:5433/postgres?sslmode=disable`；也可通过 `MOEURL_TEST_POSTGRES_ADMIN_URL` 覆盖。需要强制验证 Docker 路径时设置 `MOEURL_TEST_REQUIRE_DOCKER=1`，Docker daemon 不可用必须直接使测试失败，不得回退。
 
@@ -643,6 +643,8 @@ v0.2.0 访问体验 E2E 必须覆盖真实 `/{slug}` 入口、进入中间页前
 v0.8.0 多域名 E2E 使用隔离 Compose 数据库和两个 loopback authority，验证授权、创建选择、错误 Host、切换默认后旧 URL 保持、停用及重新启用。只要存在短链引用（包括软删除和未产生访问记录的短链），所属域名就不能删除；全局 teardown 只清理本次独立 project。目标公网 DNS/TLS 的可达性和代理 Host 保真必须在真实部署环境另行验证。
 
 v0.9.0 系统设置 E2E 在单个隔离场景中创建并清理专用 OIDC Provider，验证品牌、页面标题、页脚、默认语言和默认主题、本地登录关闭、最后 Provider 保护、现有 Session 保留、OIDC 首次与重复登录，以及本地登录恢复。测试不得依赖其他 spec 创建的 Provider、用户或设置状态；清理失败不得覆盖场景原始错误。公开配置解析、偏好优先级、设置草稿与冲突、权限守卫和登录方式错误状态继续纳入前端单元覆盖率门禁。
+
+v0.12.0 自定义短码 E2E 在桌面与手机视口验证真实创建、小写预览、公开大写入口跳转、占用和保留字错误、失败草稿保留、清空后随机创建；独立撤权场景验证后端拒绝、页面隐藏与随机路径保留，并恢复原用户组权限。Compose smoke 另检查指定短码规范化、重复创建拒绝和重启后地址持久化；脚本配置通过不代表完整容器场景已执行。
 
 ### 质量检查工作流
 

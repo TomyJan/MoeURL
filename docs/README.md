@@ -8,7 +8,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 当前主分支功能已推进到 [v0.11.0 短链标题与标签](product/scope-v0.11.0.md)。设计见 [元数据规格](specs/2026-10-13-v0.11.0-link-metadata-design.md)，执行与证据见 [实施计划](implementation/v0.11.0-plan.md)、[任务清单](implementation/v0.11.0-tasks.md) 和 [验收清单](implementation/v0.11.0-acceptance.md)。此前 [v0.10.0 最大访问次数](product/scope-v0.10.0.md) 已实现，其 [验证记录](implementation/v0.10.0-acceptance.md) 与其他版本保持独立。
 
-下一业务版本为 [v0.12.0 自定义短码](product/scope-v0.12.0.md)，在 `feat/v0.12.0-custom-slugs` 独立开发。只允许创建时指定短码，不修改已发布地址；规则见 [设计](specs/2026-10-15-v0.12.0-custom-slugs-design.md)，执行与证据见 [实施计划](implementation/v0.12.0-plan.md)、[任务清单](implementation/v0.12.0-tasks.md) 和 [验收清单](implementation/v0.12.0-acceptance.md)。
+下一业务版本 [v0.12.0 自定义短码](product/scope-v0.12.0.md) 已在 `feat/v0.12.0-custom-slugs` 实现，尚未合并或正式发布。只允许创建时指定短码，不修改已发布地址；规则见 [设计](specs/2026-10-15-v0.12.0-custom-slugs-design.md)，本地门禁与独立审查见 [实施计划](implementation/v0.12.0-plan.md)、[任务清单](implementation/v0.12.0-tasks.md) 和 [验收清单](implementation/v0.12.0-acceptance.md)。
 
 2026-10-14 全站前端视觉更新沿用既有业务范围，设计见 [视觉与交互规范](specs/2026-10-14-ui-refresh-design.md)，执行与证据见 [实施计划](implementation/2026-10-14-ui-refresh-plan.md) 和 [本地验收](implementation/2026-10-14-ui-refresh-acceptance.md)。
 
