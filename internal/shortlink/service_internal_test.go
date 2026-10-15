@@ -432,7 +432,7 @@ func TestAnalyticsWithQueriesPropagatesAggregateFailures(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := analyticsWithQueries(context.Background(), test.queries, linkID, ShortLink{})
+			_, err := analyticsWithQueries(context.Background(), test.queries, linkID, ShortLink{}, normalizedAnalyticsRange{})
 			if err == nil || err.Error() != test.name {
 				t.Fatalf("analytics error = %v", err)
 			}
@@ -449,27 +449,27 @@ type analyticsQueryStub struct {
 }
 
 // GetShortLinkAnalyticsSummary implements the corresponding operation for the surrounding test double.
-func (s analyticsQueryStub) GetShortLinkAnalyticsSummary(context.Context, pgtype.UUID) (sqlc.GetShortLinkAnalyticsSummaryRow, error) {
+func (s analyticsQueryStub) GetShortLinkAnalyticsSummary(context.Context, sqlc.GetShortLinkAnalyticsSummaryParams) (sqlc.GetShortLinkAnalyticsSummaryRow, error) {
 	return sqlc.GetShortLinkAnalyticsSummaryRow{}, s.summaryErr
 }
 
 // ListShortLinkDailyVisits implements the corresponding operation for the surrounding test double.
-func (s analyticsQueryStub) ListShortLinkDailyVisits(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkDailyVisitsRow, error) {
+func (s analyticsQueryStub) ListShortLinkDailyVisits(context.Context, sqlc.ListShortLinkDailyVisitsParams) ([]sqlc.ListShortLinkDailyVisitsRow, error) {
 	return nil, s.trendErr
 }
 
 // ListShortLinkReferrerStats implements the corresponding operation for the surrounding test double.
-func (s analyticsQueryStub) ListShortLinkReferrerStats(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkReferrerStatsRow, error) {
+func (s analyticsQueryStub) ListShortLinkReferrerStats(context.Context, sqlc.ListShortLinkReferrerStatsParams) ([]sqlc.ListShortLinkReferrerStatsRow, error) {
 	return nil, s.referrerErr
 }
 
 // ListShortLinkDeviceStats implements the corresponding operation for the surrounding test double.
-func (s analyticsQueryStub) ListShortLinkDeviceStats(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkDeviceStatsRow, error) {
+func (s analyticsQueryStub) ListShortLinkDeviceStats(context.Context, sqlc.ListShortLinkDeviceStatsParams) ([]sqlc.ListShortLinkDeviceStatsRow, error) {
 	return nil, s.deviceErr
 }
 
 // ListShortLinkCountryStats implements the corresponding operation for the surrounding test double.
-func (s analyticsQueryStub) ListShortLinkCountryStats(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkCountryStatsRow, error) {
+func (s analyticsQueryStub) ListShortLinkCountryStats(context.Context, sqlc.ListShortLinkCountryStatsParams) ([]sqlc.ListShortLinkCountryStatsRow, error) {
 	return nil, s.countryErr
 }
 

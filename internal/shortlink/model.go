@@ -93,17 +93,29 @@ type DeleteInput struct {
 
 // StatisticsInput identifies the short link to analyze.
 type StatisticsInput struct {
-	ID string
+	ID        string
+	Days      string
+	StartDate string
+	EndDate   string
 }
 
 // StatisticsResult contains a visible short link and its visit analytics.
 type StatisticsResult struct {
 	ShortLink ShortLink      `json:"shortLink"`
 	Stats     AnalyticsStats `json:"stats"`
+	Range     AnalyticsRange `json:"range"`
+}
+
+// AnalyticsRange identifies the inclusive UTC calendar dates used by analytics.
+type AnalyticsRange struct {
+	StartDate string `json:"startDate"`
+	EndDate   string `json:"endDate"`
+	TimeZone  string `json:"timeZone"`
 }
 
 // AnalyticsStats contains aggregate metrics for a short link.
 type AnalyticsStats struct {
+	RangeVisitCount int64                 `json:"rangeVisitCount"`
 	VisitCount      int64                 `json:"visitCount"`
 	TodayVisitCount int64                 `json:"todayVisitCount"`
 	LastVisitedAt   *time.Time            `json:"lastVisitedAt"`

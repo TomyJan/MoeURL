@@ -415,6 +415,46 @@ func TestHandlerAdminStatisticsReturnsAnalyticsAndForwardsID(t *testing.T) {
 	}
 }
 
+// TestHandlerStatisticsRejectsAmbiguousRanges rejects lossy query parsing on both endpoints.
+func TestHandlerStatisticsRejectsAmbiguousRanges(t *testing.T) {
+	for _, path := range []string{"/api/v1/short-link/statistics", "/api/v1/admin/short-link/statistics"} {
+		for _, query := range []string{"days=", "days=7&days=30", "startDate=", "endDate=", "startDate=2026-01-01&startDate=2026-01-02", "endDate=2026-01-01&endDate=2026-01-02", "days=%ZZ", "days=7&days=%ZZ", "days=7;bad", "startDate=%ZZ", "endDate=%ZZ"} {
+			t.Run(path+query, func(t *testing.T) {
+				service := &fakeShortLinkService{}
+				router := apphttp.NewRouter(apphttp.Dependencies{CurrentUser: &fakeCurrentUserResolver{}, ShortLink: service})
+				response := httptest.NewRecorder()
+				router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path+"?id=link-id&"+query, nil))
+				assertBusinessCode(t, response, http.StatusOK, 100001)
+				if service.statisticsInput.ID != "" {
+					t.Fatal("invalid query reached service")
+				}
+			})
+		}
+	}
+}
+
+// TestHandlerStatisticsForwardsRanges verifies both endpoints retain the supplied range mode.
+func TestHandlerStatisticsForwardsRanges(t *testing.T) {
+	for _, path := range []string{"/api/v1/short-link/statistics", "/api/v1/admin/short-link/statistics"} {
+		for _, test := range []struct {
+			query string
+			input shortlink.StatisticsInput
+		}{
+			{"days=30", shortlink.StatisticsInput{ID: "link-id", Days: "30"}},
+			{"startDate=2026-10-01&endDate=2026-10-03", shortlink.StatisticsInput{ID: "link-id", StartDate: "2026-10-01", EndDate: "2026-10-03"}},
+		} {
+			service := &fakeShortLinkService{}
+			router := apphttp.NewRouter(apphttp.Dependencies{CurrentUser: &fakeCurrentUserResolver{}, ShortLink: service})
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path+"?id=link-id&"+test.query, nil))
+			assertBusinessCode(t, response, http.StatusOK, 0)
+			if service.statisticsInput != test.input {
+				t.Fatalf("input = %#v", service.statisticsInput)
+			}
+		}
+	}
+}
+
 // TestHandlerStatisticsMapsErrors verifies both statistics endpoints preserve response conventions.
 func TestHandlerStatisticsMapsErrors(t *testing.T) {
 	tests := []struct {
