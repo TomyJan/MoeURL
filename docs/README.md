@@ -4,19 +4,21 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 ## 阅读顺序
 
-当前开发版本为 [v0.11.0 短链标题与标签](product/scope-v0.11.0.md)。设计见 [元数据规格](specs/2026-10-13-v0.11.0-link-metadata-design.md)，执行与证据见 [实施计划](implementation/v0.11.0-plan.md)、[任务清单](implementation/v0.11.0-tasks.md) 和 [验收清单](implementation/v0.11.0-acceptance.md)。v0.10.0 已合并到 `c0b87cb2`，其 [验证记录](implementation/v0.10.0-acceptance.md) 及下列既有版本的发布证据保持各自独立。
+先阅读 [开发进度与能力清单](product/development-status.md)：按模块查看已实现、部分实现、待开发和待验证事项；再阅读 [产品总览](product/overview.md) 与 [路线图](product/roadmap.md)。进度清单集中维护当前状态，scope 定义版本边界，acceptance 保留指定提交和环境的证据。
+
+当前主分支功能已推进到 [v0.11.0 短链标题与标签](product/scope-v0.11.0.md)。设计见 [元数据规格](specs/2026-10-13-v0.11.0-link-metadata-design.md)，执行与证据见 [实施计划](implementation/v0.11.0-plan.md)、[任务清单](implementation/v0.11.0-tasks.md) 和 [验收清单](implementation/v0.11.0-acceptance.md)。此前 [v0.10.0 最大访问次数](product/scope-v0.10.0.md) 已实现，其 [验证记录](implementation/v0.10.0-acceptance.md) 与其他版本保持独立。下一业务版本尚未确定。
 
 2026-10-14 全站前端视觉更新沿用既有业务范围，设计见 [视觉与交互规范](specs/2026-10-14-ui-refresh-design.md)，执行与证据见 [实施计划](implementation/2026-10-14-ui-refresh-plan.md) 和 [本地验收](implementation/2026-10-14-ui-refresh-acceptance.md)。
 
 2026-10-15 配色更新为 [鸢尾蓝与薄荷青](specs/2026-10-15-color-refresh-design.md)，替代前述灰蓝配色，保留标准列表与布局；执行与证据见 [实施计划](implementation/2026-10-15-color-refresh-plan.md) 和 [本地验收](implementation/2026-10-15-color-refresh-acceptance.md)。
 
-建议按以下顺序阅读：
+需要了解既有模块的设计和实施过程时，继续按以下索引阅读；列表中的早期版本范围不代表当前全部能力：
 
 1. [产品总览](product/overview.md)：了解 MoeURL 的定位、目标和核心原则。
 2. [v0.9.0 范围](product/scope-v0.9.0.md)：确认已实现的系统设置、站点品牌和本地登录开关边界，以及仍待补齐的目标环境证据。
    详细技术设计见 [v0.9.0 系统设置与站点品牌基础闭环设计](superpowers/specs/2026-10-09-v0.9.0-system-settings-design.md)。
    工程推进参见 [v0.9.0 实施计划](implementation/v0.9.0-plan.md)、[详细实现计划](implementation/v0.9.0-detailed-plan.md)、[任务清单](implementation/v0.9.0-tasks.md) 与 [验收清单](implementation/v0.9.0-acceptance.md)。
-3. [v0.8.0 范围](product/scope-v0.8.0.md)：确认已完成本地功能验证的多域名管理范围及升级边界。
+3. [v0.8.0 范围](product/scope-v0.8.0.md)：确认多域名管理范围、升级边界及历史合并提交的 CI 与容器验证记录。
    工程推进参见 [v0.8.0 实施计划](implementation/v0.8.0-plan.md)、[任务清单](implementation/v0.8.0-tasks.md) 与 [验收清单](implementation/v0.8.0-acceptance.md)。
 4. [v0.7.0 范围](product/scope-v0.7.0.md)：确认多提供商 OIDC 登录的范围、账号供应规则和非目标。
 5. [v0.7.0 OIDC 登录设计](specs/2026-09-11-v0.7.0-oidc-login-design.md)：确认协议、密钥、外部身份、并发和回滚设计。
@@ -53,6 +55,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 产品层文档位于 [product](product/) 目录，用于描述产品方向、版本边界和路线图。
 
 - [产品总览](product/overview.md)
+- [开发进度与能力清单](product/development-status.md)
 - [v0.0.1 范围](product/scope-v0.0.1.md)
 - [v0.0.2 范围](product/scope-v0.0.2.md)
 - [v0.0.3 范围](product/scope-v0.0.3.md)

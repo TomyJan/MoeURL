@@ -4,11 +4,11 @@
 
 MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
 
-当前已完成到 v0.9.0 系统设置与站点品牌基础闭环的功能实现；功能提交 `900037d` 的 Go、前端单元覆盖率、静态检查、构建、SQLC 和 Compose 配置门禁已完成复验，该提交的全量 Playwright、目标 Node.js 26、完整 Compose smoke、目标 CI、Linux race、安全扫描、外部真实 OIDC 和生产发布验收仍待补齐。v0.8.0 合并提交 `f818a7e8` 对应的 PR 合并验证已通过全量 CI、Linux race、安全扫描、Playwright 与 Compose smoke，但真实 DNS/TLS、隔离恢复和生产发布验收仍待目标环境证据。v0.6.0 生产验收和 v0.7.0 外部 OIDC 互操作同样仍待证据；自动化门禁通过不替代目标环境发布证据。
-
-v0.9.0 范围和安全边界以 `docs/product/scope-v0.9.0.md`、系统设置设计、实施计划、任务清单和验收清单为准；功能实现完成不等于正式发布，缺少的目标环境证据必须保持待验证。
+当前开发进度、已实现能力、待开发功能和验证缺口统一以 `docs/product/development-status.md` 为入口，并结合对应 scope、spec 和 acceptance 判定。功能实现、主分支合并、本地门禁、目标 CI 与正式发布必须分开记录；历史提交的自动化结果不替代当前提交及目标环境发布证据。
 
 ## 工作入口
+
+开始工作先查阅 `docs/product/development-status.md`，再按任务阅读对应版本与模块文档。v0.11.0 标题与标签见 `docs/product/scope-v0.11.0.md`、`docs/specs/2026-10-13-v0.11.0-link-metadata-design.md` 和对应实施、任务、验收文档。
 
 v0.10.0 最大访问次数的产品边界、实现与验证状态见 `docs/product/scope-v0.10.0.md`、`docs/superpowers/specs/2026-10-13-v0.10.0-max-visits-design.md` 及 `docs/implementation/v0.10.0-{plan,detailed-plan,tasks,acceptance}.md`。涉及额度配置、公开耗尽状态或最终跳转领取时必须阅读这些文档。
 
