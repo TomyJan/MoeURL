@@ -12,7 +12,7 @@ function readBackendPermissionCatalog(): Array<{ key: string }> {
 describe('i18n', () => {
   it('resolves custom slug controls and safe conflict feedback in both locales', () => {
     for (const locale of ['zh-CN', 'en'] as const) {
-      for (const name of ['customSlug', 'customSlugHint', 'customSlugInvalid', 'customSlugConflict', 'customSlugReserved']) {
+      for (const name of ['customSlug', 'customSlugHint', 'customSlugInvalid', 'customSlugConflict', 'customSlugReserved', 'domainOrPermissionsChanged']) {
         const key = `shortLinkCreate.${name}`
         expect(i18n.global.te(key, locale), `${locale}: ${key}`).toBe(true)
         expect(i18n.global.t(key, {}, { locale })).not.toBe(key)
@@ -21,6 +21,8 @@ describe('i18n', () => {
     expect(i18n.global.t('shortLinkCreate.customSlug', {}, { locale: 'zh-CN' })).toBe('自定义短码')
     expect(i18n.global.t('shortLinkCreate.customSlugConflict', {}, { locale: 'zh-CN' })).toBe('这个短码已被占用，请更换或留空使用随机短码。')
     expect(i18n.global.t('shortLinkCreate.customSlugReserved', {}, { locale: 'zh-CN' })).toBe('这个短码是系统保留路径，请选择其他短码。')
+    expect(i18n.global.t('shortLinkCreate.domainOrPermissionsChanged', {}, { locale: 'zh-CN' })).toBe('当前域名或权限已变化，请刷新后重试。')
+    expect(i18n.global.t('shortLinkCreate.domainOrPermissionsChanged', {}, { locale: 'en' })).toBe('The available domains or permissions have changed. Refresh the page and try again.')
   })
   it('resolves overview content and recoverable states in both actual locales', () => {
     const keys = [

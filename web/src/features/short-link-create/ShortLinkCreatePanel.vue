@@ -379,6 +379,7 @@ const creationErrorMessage = computed(() => {
   if (error instanceof ApiClientError) {
     if (error.code === 200101) return t('shortLinkCreate.customSlugConflict')
     if (error.code === 200102) return t('shortLinkCreate.customSlugReserved')
+    if (error.code === 200114) return t('shortLinkCreate.domainOrPermissionsChanged')
   }
   return t('shortLinkCreate.failed')
 })

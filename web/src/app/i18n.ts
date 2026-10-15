@@ -248,6 +248,7 @@ export const messages = {
       customSlugInvalid: '请输入 3–32 个 ASCII 字母或数字，不含空白和符号。',
       customSlugConflict: '这个短码已被占用，请更换或留空使用随机短码。',
       customSlugReserved: '这个短码是系统保留路径，请选择其他短码。',
+      domainOrPermissionsChanged: '当前域名或权限已变化，请刷新后重试。',
       redirectMode: '跳转方式',
       redirectModes: {
         direct: '直接跳转',
@@ -854,6 +855,7 @@ export const messages = {
       customSlugInvalid: 'Enter 3–32 ASCII letters or digits without whitespace or symbols.',
       customSlugConflict: 'This slug is already taken. Choose another or leave it blank for a random slug.',
       customSlugReserved: 'This slug is a reserved system path. Choose another slug.',
+      domainOrPermissionsChanged: 'The available domains or permissions have changed. Refresh the page and try again.',
       redirectMode: 'Redirect mode',
       redirectModes: {
         direct: 'Direct redirect',
