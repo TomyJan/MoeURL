@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { ApiClientError, apiGet, apiGetPath, apiPost, apiPostPath } from '@/shared/api/client'
 import { INVALID_REQUEST_CODE } from '@/shared/api/error-codes'
 
-import type { AdminShortLink, CreateShortLinkInput, PublicShortLinkPreview, ShortLink, ShortLinkOverview, ShortLinkStatisticsResponse, UnlockShortLinkInput, UnlockShortLinkResponse, UpdateShortLinkInput } from './model'
+import type { AdminShortLink, CreateShortLinkInput, PublicShortLinkPreview, ShortLink, ShortLinkOverview, ShortLinkStatisticsResponse, StatisticsRangeInput, UnlockShortLinkInput, UnlockShortLinkResponse, UpdateShortLinkInput } from './model'
 import { adminShortLinkListSchema, createShortLinkInputSchema, shortLinkListSchema, shortLinkResponseSchema, shortLinkStatisticsSchema } from './schema'
 
 export interface ShortLinkResponse {
@@ -117,8 +117,8 @@ export async function deleteShortLink(id: string): Promise<void> {
 }
 
 /** Loads visit statistics for an owned short link. */
-export async function getShortLinkStatistics(id: string): Promise<ShortLinkStatisticsResponse> {
-	const response = await apiGet<unknown>(`/short-link/statistics?id=${encodeURIComponent(id)}`)
+export async function getShortLinkStatistics(id: string, range?: StatisticsRangeInput): Promise<ShortLinkStatisticsResponse> {
+	const response = await apiGet<unknown>(`/short-link/statistics?${statisticsSearch(id, range)}`)
 	return parse(shortLinkStatisticsSchema, response.data)
 }
 
@@ -159,9 +159,17 @@ export async function deleteAdminShortLink(id: string): Promise<void> {
 }
 
 /** Loads visit statistics for a short link through the administrative API. */
-export async function getAdminShortLinkStatistics(id: string): Promise<ShortLinkStatisticsResponse> {
-	const response = await apiGet<unknown>(`/admin/short-link/statistics?id=${encodeURIComponent(id)}`)
+export async function getAdminShortLinkStatistics(id: string, range?: StatisticsRangeInput): Promise<ShortLinkStatisticsResponse> {
+	const response = await apiGet<unknown>(`/admin/short-link/statistics?${statisticsSearch(id, range)}`)
 	return parse(shortLinkStatisticsSchema, response.data)
+}
+
+/** Encodes only the chosen statistics range, preserving the server's omitted default. */
+function statisticsSearch(id: string, range?: StatisticsRangeInput): string {
+  let search = `id=${encodeURIComponent(id)}`
+  if (range?.days !== undefined) search += `&days=${range.days}`
+  else if (range) search += `&startDate=${encodeURIComponent(range.startDate)}&endDate=${encodeURIComponent(range.endDate)}`
+  return search
 }
 
 /** Enforces the managed short-link response contract without exposing invalid payloads. */

@@ -168,7 +168,7 @@ vi.mock('@tanstack/vue-query', async () => {
         input,
       }),
     }),
-    useQuery: vi.fn((options?: { enabled?: unknown; queryFn?: () => unknown; queryKey?: unknown }) => {
+    useQuery: vi.fn((options?: { enabled?: unknown; queryFn?: (context: { queryKey: unknown }) => unknown; queryKey?: unknown }) => {
       state.queryKeys.push(options?.queryKey)
       if (Array.isArray(options?.queryKey) && options.queryKey[0] === 'domain' && options.queryKey[1] === 'available') {
         return { data: ref({ items: [{ id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true }] }), isError: ref(false), isPending: ref(false) }
@@ -178,8 +178,9 @@ vi.mock('@tanstack/vue-query', async () => {
       }
       const enabled = isRef(options?.enabled) ? options.enabled.value : options?.enabled
       if (enabled !== false && options?.queryFn) {
-        state.queryFns.push(options.queryFn)
-        void options.queryFn()
+        const runQuery = () => options.queryFn!({ queryKey: isRef(options.queryKey) ? options.queryKey.value : options.queryKey })
+        state.queryFns.push(runQuery)
+        void runQuery()
       }
       const result = state.queryResults[state.queryResultIndex] ?? state.queryResult
       state.queryResultIndex += 1
@@ -535,20 +536,24 @@ describe('pages', () => {
     state.routeParams = { shortLinkId: 'link-id' }
     const analytics = ref<undefined | {
       shortLink: { id: string; url: string; slug: string; targetUrl: string; status: 'active'; redirectMode: 'direct'; intermediateDelaySeconds: number; expiresAt: null; expired: false; passwordEnabled: boolean; createdAt: string }
-      stats: { visitCount: number; todayVisitCount: number; lastVisitedAt: string; trend: Array<{ date: string; visitCount: number }>; referrers: Array<{ value: string; visitCount: number }>; devices: Array<{ value: string; visitCount: number }>; countries: Array<{ value: string; visitCount: number }> }
+      range: { startDate: string; endDate: string; timeZone: 'UTC' }
+      stats: { rangeVisitCount: number; visitCount: number; todayVisitCount: number; lastVisitedAt: string; trend: Array<{ date: string; visitCount: number }>; referrers: Array<{ value: string; visitCount: number }>; devices: Array<{ value: string; visitCount: number }>; countries: Array<{ value: string; visitCount: number }> }
     }>(undefined)
     setQueryResult({ data: analytics })
     vi.mocked(me).mockResolvedValue({ user: { permissions: [] } } as never)
     vi.mocked(getShortLinkStatistics).mockResolvedValue({
       shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig, createdAt: '2026-07-01T00:00:00Z' },
-      stats: { visitCount: 5, todayVisitCount: 2, lastVisitedAt: '2026-07-17T00:00:00Z', trend: [{ date: '2026-07-17', visitCount: 2 }], referrers: [{ value: 'search.example', visitCount: 3 }], devices: [{ value: 'mobile', visitCount: 4 }], countries: [{ value: 'unknown', visitCount: 1 }] },
+      range: { startDate: '2026-07-11', endDate: '2026-07-17', timeZone: 'UTC' },
+      stats: { rangeVisitCount: 5, visitCount: 5, todayVisitCount: 2, lastVisitedAt: '2026-07-17T00:00:00Z', trend: [{ date: '2026-07-17', visitCount: 2 }], referrers: [{ value: 'search.example', visitCount: 3 }], devices: [{ value: 'mobile', visitCount: 4 }], countries: [{ value: 'unknown', visitCount: 1 }] },
     })
 
     mount(AnalyticsPage)
     await state.queryFns[0]?.()
     analytics.value = {
+      range: { startDate: '2026-07-11', endDate: '2026-07-17', timeZone: 'UTC' },
       shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig, createdAt: '2026-07-01T00:00:00Z' },
       stats: {
+        rangeVisitCount: 5,
         visitCount: 5,
         todayVisitCount: 2,
         lastVisitedAt: '2026-07-17T00:00:00Z',
@@ -609,8 +614,9 @@ describe('pages', () => {
   it('recreates the chart after retrying an error with the same cached statistics', async () => {
     state.routeParams = { shortLinkId: 'link-id' }
     const data = ref({
+      range: { startDate: '2026-07-26', endDate: '2026-08-01', timeZone: 'UTC' },
       shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig, createdAt: '2026-08-01T00:00:00Z' },
-      stats: { visitCount: 1, todayVisitCount: 1, lastVisitedAt: null, trend: [{ date: '2026-08-01', visitCount: 1 }], referrers: [], devices: [], countries: [] },
+      stats: { rangeVisitCount: 1, visitCount: 1, todayVisitCount: 1, lastVisitedAt: null, trend: [{ date: '2026-08-01', visitCount: 1 }], referrers: [], devices: [], countries: [] },
     })
     const cachedStatistics = data.value
     const isError = ref(false)
@@ -647,7 +653,8 @@ describe('pages', () => {
       isError: ref(true),
       data: ref({
         shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig, createdAt: '2026-08-01T00:00:00Z' },
-        stats: { visitCount: 1, todayVisitCount: 1, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] },
+        range: { startDate: '2026-07-26', endDate: '2026-08-01', timeZone: 'UTC' },
+        stats: { rangeVisitCount: 1, visitCount: 1, todayVisitCount: 1, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] },
       }),
     })
 
@@ -663,7 +670,8 @@ describe('pages', () => {
     setQueryResult({
       data: ref({
         shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig, createdAt: '2026-08-01T00:00:00Z' },
-        stats: { visitCount: 1, todayVisitCount: 1, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] },
+        range: { startDate: '2026-07-26', endDate: '2026-08-01', timeZone: 'UTC' },
+        stats: { rangeVisitCount: 1, visitCount: 1, todayVisitCount: 1, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] },
       }),
     })
 
@@ -685,7 +693,7 @@ describe('pages', () => {
     mount(AnalyticsPage)
     await state.queryFns[0]?.()
 
-    expect(getShortLinkStatistics).toHaveBeenCalledWith('link-id')
+    expect(getShortLinkStatistics).toHaveBeenCalledWith('link-id', { days: 7 })
     expect(getAdminShortLinkStatistics).not.toHaveBeenCalled()
   })
 
@@ -700,7 +708,7 @@ describe('pages', () => {
     mount(AnalyticsPage)
     await state.queryFns[0]?.()
 
-    expect(getAdminShortLinkStatistics).toHaveBeenCalledWith('link-id')
+    expect(getAdminShortLinkStatistics).toHaveBeenCalledWith('link-id', { days: 7 })
     expect(getShortLinkStatistics).not.toHaveBeenCalled()
   })
 
@@ -728,8 +736,10 @@ describe('pages', () => {
     setQueryResult({
       data: ref({
         shortLink: { id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig, createdAt: '2026-08-01T00:00:00Z' },
+        range: { startDate: '2026-07-26', endDate: '2026-08-01', timeZone: 'UTC' },
         stats: {
           visitCount: 1,
+          rangeVisitCount: 1,
           todayVisitCount: 0,
           lastVisitedAt: 'not-a-date',
           trend: [],
@@ -753,7 +763,8 @@ describe('pages', () => {
     setQueryResult({
       data: ref({
         shortLink: { id: 'link-id', url, slug: 'abc123', targetUrl: 'https://example.com', status: 'active', ...defaultShortLinkAccessConfig, createdAt: '2026-08-01T00:00:00Z' },
-        stats: { visitCount: 0, todayVisitCount: 0, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] },
+        range: { startDate: '2026-07-26', endDate: '2026-08-01', timeZone: 'UTC' },
+        stats: { rangeVisitCount: 0, visitCount: 0, todayVisitCount: 0, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] },
       }),
     })
 

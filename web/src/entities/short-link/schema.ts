@@ -36,9 +36,16 @@ export const shortLinkResponseSchema = z.strictObject({ shortLink: shortLinkSche
 export const shortLinkListSchema = z.strictObject({ items: z.array(shortLinkSchema) })
 export const adminShortLinkListSchema = z.strictObject({ items: z.array(adminShortLinkSchema) })
 const dimensionSchema = z.strictObject({ value: z.string(), visitCount: countSchema })
+export const statisticsDateRangeSchema = z.strictObject({
+  startDate: z.iso.date(), endDate: z.iso.date(),
+}).refine((range) => range.startDate <= range.endDate
+  && Date.parse(range.endDate) - Date.parse(range.startDate) < 90 * 86400000,
+{ path: ['endDate'], message: 'invalidRange' })
 export const shortLinkStatisticsSchema = z.strictObject({
   shortLink: shortLinkSchema,
+  range: statisticsDateRangeSchema.safeExtend({ timeZone: z.literal('UTC') }),
   stats: statsSchema.extend({
+    rangeVisitCount: countSchema,
     trend: z.array(z.strictObject({ date: z.iso.date(), visitCount: countSchema })),
     referrers: z.array(dimensionSchema), devices: z.array(dimensionSchema), countries: z.array(dimensionSchema),
   }),

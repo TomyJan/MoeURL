@@ -64,6 +64,7 @@ export interface AnalyticsDimension {
 }
 
 export interface AnalyticsStats extends ShortLinkStats {
+  rangeVisitCount: number
   trend: AnalyticsTrendPoint[]
   referrers: AnalyticsDimension[]
   devices: AnalyticsDimension[]
@@ -72,8 +73,13 @@ export interface AnalyticsStats extends ShortLinkStats {
 
 export interface ShortLinkStatisticsResponse {
   shortLink: ShortLink
+  range: { startDate: string; endDate: string; timeZone: 'UTC' }
   stats: AnalyticsStats
 }
+
+export type StatisticsRangeInput =
+  | { days: 7 | 30 | 90; startDate?: never; endDate?: never }
+  | { startDate: string; endDate: string; days?: never }
 
 export interface OwnerSummary {
   id: string
