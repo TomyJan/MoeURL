@@ -14,6 +14,7 @@ import (
 func TestCatalogDefinitionsCoverPermissionConstants(t *testing.T) {
 	want := []Definition{
 		{Key: ShortLinkCreate, Category: "short_link_basic"},
+		{Key: ShortLinkCustomSlug, Category: "short_link_basic"},
 		{Key: ShortLinkReadOwn, Category: "short_link_basic"},
 		{Key: ShortLinkUpdateOwn, Category: "short_link_basic"},
 		{Key: ShortLinkDeleteOwn, Category: "short_link_basic"},

@@ -491,14 +491,17 @@ func TestInternalServiceHelpers(t *testing.T) {
 		t.Fatal("expected https host to be preserved")
 	}
 
-	if isUniqueViolation(nil) {
+	if isSlugConflict(nil) {
 		t.Fatal("expected nil error to not be unique violation")
 	}
-	if !isUniqueViolation(&pgconn.PgError{Code: "23505"}) {
+	if !isSlugConflict(&pgconn.PgError{Code: "23505", ConstraintName: "short_link_slug_key"}) {
 		t.Fatal("expected PostgreSQL unique violation to be detected")
 	}
-	if isUniqueViolation(errors.New("plain error")) {
+	if isSlugConflict(errors.New("plain error")) {
 		t.Fatal("expected plain error to not be unique violation")
+	}
+	if isSlugConflict(&pgconn.PgError{Code: "23505", ConstraintName: "short_link_pkey"}) {
+		t.Fatal("unrelated uniqueness must remain an infrastructure failure")
 	}
 }
 
@@ -573,7 +576,7 @@ func TestExpirationValuesUsesDatabaseState(t *testing.T) {
 
 // TestReservedSlugsIncludeSingularPageRoutes verifies reserved slugs include singular page routes.
 func TestReservedSlugsIncludeSingularPageRoutes(t *testing.T) {
-	for _, slug := range []string{"api", "assets", "setup", "login", "profile", "console", "link", "links", "analytics", "admin", "go", "PROFILE", "GO"} {
+	for _, slug := range []string{"api", "assets", "icons", "setup", "login", "profile", "console", "link", "links", "analytics", "admin", "go", "PROFILE", "GO"} {
 		if !isReservedSlug(slug) {
 			t.Fatalf("expected %q to be reserved", slug)
 		}

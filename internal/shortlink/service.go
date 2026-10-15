@@ -79,6 +79,16 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 	if err != nil {
 		return CreateResult{}, err
 	}
+	customSlug := ""
+	if input.CustomSlug != nil {
+		if !permissions.Has(permission.ShortLinkCustomSlug) {
+			return CreateResult{}, ErrPermissionDenied
+		}
+		customSlug, err = normalizeCustomSlug(*input.CustomSlug)
+		if err != nil {
+			return CreateResult{}, err
+		}
+	}
 	if err := validateTargetURL(input.TargetURL); err != nil {
 		return CreateResult{}, err
 	}
@@ -105,12 +115,15 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 	}
 
 	for attempt := 0; attempt < maxSlugAttempts; attempt++ {
-		slug, err := generateSlug()
-		if err != nil {
-			return CreateResult{}, err
-		}
-		if isReservedSlug(slug) {
-			continue
+		slug := customSlug
+		if input.CustomSlug == nil {
+			slug, err = generateSlug()
+			if err != nil {
+				return CreateResult{}, err
+			}
+			if isReservedSlug(slug) {
+				continue
+			}
 		}
 
 		var result CreateResult
@@ -120,7 +133,8 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 			}
 			queries := s.queries.WithTx(tx)
 			domain, err := queries.GetGrantedShortLinkDomainForCreate(ctx, sqlc.GetGrantedShortLinkDomainForCreateParams{
-				GroupKey: user.GroupKey, RequiredPermission: required,
+				CustomSlug: input.CustomSlug != nil,
+				GroupKey:   user.GroupKey, RequiredPermission: required,
 				UseDefault: useDefault, DomainID: uuidToPgtype(domainID),
 			})
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -164,7 +178,10 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 			result = CreateResult{ShortLink: shortLink}
 			return nil
 		})
-		if isUniqueViolation(err) {
+		if isSlugConflict(err) {
+			if input.CustomSlug != nil {
+				return CreateResult{}, ErrSlugConflict
+			}
 			continue
 		}
 		if err != nil {
@@ -1012,13 +1029,13 @@ func buildShortLinkURL(host string, slug string) string {
 	return "https://" + strings.TrimRight(host, "/") + "/" + slug
 }
 
-// isUniqueViolation reports whether an error is a PostgreSQL unique constraint violation.
-func isUniqueViolation(err error) bool {
+// isSlugConflict recognizes only the global slug constraint, preserving unrelated database failures.
+func isSlugConflict(err error) bool {
 	if err == nil {
 		return false
 	}
 	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "short_link_slug_key"
 }
 
 var errPermissionResolverRequired = errors.New("short link permission resolver is required")

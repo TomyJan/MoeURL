@@ -25,16 +25,12 @@ github.com/TomyJan/MoeURL/internal/auth/session.go:89.16,91.3
 github.com/TomyJan/MoeURL/internal/user/service.go:67.16,69.3
 # ResetPassword password hashing failure; argon2/random failure is an infrastructure branch that is not deterministically triggerable.
 github.com/TomyJan/MoeURL/internal/user/service.go:277.16,279.3
-# Create's random failure, database collision retry, and retry exhaustion are defensive paths.
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:109.17,111.4
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:167.29,168.12
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:176.2,176.40
 # After a creation transaction starts, advisory locking or the granted-domain query can fail on database or context errors.
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:118.64,120.5
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:129.18,131.5
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:131.64,133.5
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:143.18,145.5
 # Successful updates retain a valid domain foreign key; a subsequent domain read can fail only on infrastructure error.
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:326.16,328.3
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:528.16,530.3
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:343.16,345.3
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:545.16,547.3
 
 # Redirect access transaction step failures are infrastructure/concurrency paths: each intermediate failure requires the database connection or row to change between locked statements.
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:300.35,302.3
@@ -49,7 +45,7 @@ github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:364.39,366.3
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:352.16,354.3
 
 # Password hashing failure is an Argon2id/random infrastructure path after input and permission validation.
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:818.16,820.3
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:835.16,837.3
 
 # Domain mutations acquire the same advisory lock immediately after beginning a transaction; forcing only the lock
 # statement to fail requires a connection or context race after the transaction has already started.
