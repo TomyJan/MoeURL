@@ -198,9 +198,11 @@ API 使用 `/api/v1` 前缀：
 /api/v1/short-link/list
 /api/v1/short-link/update
 /api/v1/short-link/delete
+/api/v1/short-link/statistics
 /api/v1/admin/short-link/list
 /api/v1/admin/short-link/update
 /api/v1/admin/short-link/delete
+/api/v1/admin/short-link/statistics
 /api/v1/admin/user-group/list
 /api/v1/admin/user-group/update-permissions
 /api/v1/admin/oidc/provider/list
@@ -287,6 +289,8 @@ API 使用 `/api/v1` 前缀：
 
 v0.10.0 扩展既有短链 create、own/admin update、list 和 statistics 契约，不新增路由。创建接受可选 `maxVisits`，更新接受可选 `visitLimit`（`limited` + 整数或 `unlimited`）。管理响应统一返回 `maxVisits`、`visitsUsed`、`visitsRemaining`、`exhausted`，前端共享严格 Schema 校验其一致性。公开 Preview 不返回额度字段，Preview/Unlock 耗尽返回 HTTP `200` + `200115`，公开跳转使用 `reason=exhausted`。非法额度输入沿用 `100001`，缺少能力沿用 `120001`。
 
+v0.14.0 的个人／管理员 statistics 支持 `days=7|30|90`（省略默认 7），或成对的 `startDate`、`endDate`。日期严格为 `YYYY-MM-DD`，按 UTC 包含首尾两天，最多 90 天且不包含未来日期；混用、缺项、重复参数和显式空值返回 `100001`。响应新增实际 `range` 与 `stats.rangeVisitCount`，趋势和来源／设备／国家维度使用该范围；全生命周期总量、今日量和最近访问时间仍保持概览含义。今日量按 UTC 日历计算。默认维度由全生命周期变为近 7 天，调用方应读取实际范围；既有列表和概览接口未改动。完整契约见 [日期范围设计](../specs/2026-10-15-v0.14.0-analytics-date-range-design.md)。
+
 ## 6. 数据库约定
 
 ### 命名规则
@@ -343,6 +347,8 @@ v0.0.4 在 v0.0.1 最小 schema 之外新增：
 - `short_link_event`：保存短链访问事件 ID、短链 ID、事件类型和创建时间。v0.0.4 只持久化用于基础统计的成功响应事件，不保存 IP、User-Agent、Referer 或地区信息。
 
 v0.1.0 在 `short_link_event` 追加 `referrer_host`、`device_type` 和 `country_code`。这些字段只保存已规范化的聚合维度；原始 IP、完整 User-Agent 和完整 Referer 不进入数据库。`country_code` 仅在 `MOEURL_ANALYTICS_COUNTRY_HEADER` 配置后读取，部署者必须确保请求头来自可信反向代理。
+
+v0.14.0 复用现有事件表和短链／时间索引，不新增 migration。统计范围转换为 UTC 半开时间区间，SQL 以原始 `created_at` 与类型化边界比较；每日序列最多 90 点并补零，不受数据库 Session 时区影响。区间访问量从每日计数求和，维度在同一日期范围内执行 top 10 与其他桶归并；仍只统计成功跳转事件。
 
 ### v0.2.0 schema 扩展摘要
 

@@ -4,7 +4,7 @@
 
 ## 当前文档
 
-当前开发版本为 v0.13.0 个人密码修改，见 [范围](../product/scope-v0.13.0.md)、[设计](../specs/2026-10-15-v0.13.0-password-change-design.md)、[实施计划](v0.13.0-plan.md)、[任务清单](v0.13.0-tasks.md) 和 [验收记录](v0.13.0-acceptance.md)。主分支与历史版本进度统一查阅 [开发进度与能力清单](../product/development-status.md)；以下历史实施入口保留其原有版本证据。
+当前开发版本为 v0.14.0 统计日期范围，见 [范围](../product/scope-v0.14.0.md)、[设计](../specs/2026-10-15-v0.14.0-analytics-date-range-design.md)、[实施计划](v0.14.0-plan.md)、[任务清单](v0.14.0-tasks.md) 和 [验收记录](v0.14.0-acceptance.md)。v0.13.0 已通过 PR #186 合并为 `a52733cc`，保留 [原本地验收](v0.13.0-acceptance.md) 的证据范围。主分支与历史版本进度统一查阅 [开发进度与能力清单](../product/development-status.md)；以下历史实施入口保留其原有版本证据。
 
 技术基线文档包括：
 
