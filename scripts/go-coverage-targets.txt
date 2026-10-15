@@ -4,6 +4,8 @@
 github.com/TomyJan/MoeURL/internal/auth/current_user.go
 github.com/TomyJan/MoeURL/internal/auth/handler.go
 github.com/TomyJan/MoeURL/internal/auth/password.go
+github.com/TomyJan/MoeURL/internal/auth/password_handler.go
+github.com/TomyJan/MoeURL/internal/auth/password_service.go
 github.com/TomyJan/MoeURL/internal/auth/service.go
 github.com/TomyJan/MoeURL/internal/auth/session.go
 github.com/TomyJan/MoeURL/internal/domain/handler.go

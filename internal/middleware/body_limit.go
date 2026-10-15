@@ -20,6 +20,7 @@ func BodyLimit(next http.Handler) http.Handler {
 
 		if r.ContentLength > MaxJSONBodyBytes {
 			_ = r.Body.Close()
+			w.Header().Set("Cache-Control", "no-store")
 			writeMiddlewareError(w, http.StatusOK, 100001, "Invalid request")
 			return
 		}
@@ -28,6 +29,7 @@ func BodyLimit(next http.Handler) http.Handler {
 			body, err := io.ReadAll(limitedBody)
 			_ = limitedBody.Close()
 			if err != nil {
+				w.Header().Set("Cache-Control", "no-store")
 				writeMiddlewareError(w, http.StatusOK, 100001, "Invalid request")
 				return
 			}

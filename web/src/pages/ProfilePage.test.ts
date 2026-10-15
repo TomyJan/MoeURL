@@ -133,7 +133,7 @@ vi.mock('@/entities/user/api', () => ({
 function mountProfilePage() {
   return render(ProfilePage, {
     global: {
-      stubs: componentStubs,
+      stubs: { ...componentStubs, PasswordChangePanel: { template: '<section data-testid="password-change-panel" />' } },
     },
   })
 }
@@ -169,6 +169,7 @@ describe('ProfilePage', () => {
     expect(screen.getByText('profile.accountTitle')).toBeTruthy()
     expect(screen.getByText('profile.preferencesTitle')).toBeTruthy()
     expect(screen.getByText('profile.quickLinksTitle')).toBeTruthy()
+    expect(screen.getByTestId('password-change-panel')).toBeTruthy()
     expect(screen.getByRole('group', { name: 'preferences.groupLabel' })).toBeTruthy()
     expect(screen.getByDisplayValue('Alice')).toBeTruthy()
     expect(screen.getByText('alice')).toBeTruthy()

@@ -24,6 +24,7 @@ type Dependencies struct {
 	System                 system.ServicePort
 	SystemSettings         system.SettingsPort
 	Auth                   auth.Port
+	Password               auth.PasswordPort
 	CurrentUser            auth.CurrentUserResolver
 	ShortLink              shortlink.Port
 	Domain                 domain.Port
@@ -66,6 +67,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 		api.Get("/health/live", healthHandler.Live)
 		api.Get("/health/ready", healthHandler.Ready)
 		api.Get("/health", healthHandler.Ready)
+		if dependency.Password != nil {
+			passwordHandler := auth.NewPasswordHandler(dependency.Password, dependency.SecureCookies, logger)
+			api.With(middleware.NoStore).Get("/auth/password/status", passwordHandler.Status)
+			api.With(middleware.NoStore).Post("/auth/password/change", passwordHandler.Change)
+		}
 		if dependency.SystemSettings != nil {
 			settingsHandler := system.NewSettingsHandler(dependency.SystemSettings, logger)
 			api.With(middleware.NoStore).Get("/system/public-config", settingsHandler.PublicConfig)

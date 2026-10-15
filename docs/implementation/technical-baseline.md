@@ -187,6 +187,8 @@ API 使用 `/api/v1` 前缀：
 /api/v1/auth/login
 /api/v1/auth/logout
 /api/v1/auth/me
+/api/v1/auth/password/status
+/api/v1/auth/password/change
 /api/v1/auth/methods
 /api/v1/auth/oidc/{providerKey}/start
 /api/v1/auth/oidc/{providerKey}/callback
@@ -456,6 +458,8 @@ v0.5.0 将 `admin:access`、`short_link:read_all`、`short_link:update_all`、`s
 用户组权限管理写入必须使用乐观并发。权限更新成功后，前端刷新用户组查询和 `auth/me`；后端 Service 对后续业务请求直接读取数据库，不以刷新前端缓存作为安全保障。
 
 ### Cookie Session 安全规范
+
+v0.13.0 新增 `GET /api/v1/auth/password/status`（`canChangePassword`）和 `POST /api/v1/auth/password/change`（当前密码、新密码，成功 `changed=true`）。接口只能作用于有效 Session 所属的启用非 guest 账号，纯 OIDC 账号不建立本地密码。两接口位于独立 no-store API 路由组，由服务直接验证 Cookie，不重复经过 CurrentUserMiddleware。修改成功在单事务中更新哈希、清除共享失败状态和撤销全部旧 Session；清除 Cookie 后重新登录。当前密码错误沿用 `110101`，限流 `110103`，无可修改凭据 `110105`；无效会话 HTTP 401，其余预期错误 HTTP 200。新密码为 8–128 个 Unicode 字符，原值处理；媒体类型、未知字段及额外 JSON 值均校验。锁序、并发和敏感数据边界见 [设计](../specs/2026-10-15-v0.13.0-password-change-design.md)。
 
 - Cookie 名称：`moeurl_session`。
 - Cookie 必须设置 `HttpOnly`。

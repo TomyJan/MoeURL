@@ -130,6 +130,8 @@ JWT 不作为 v0.0.1 的主会话方案。
 
 v0.7.0 在该会话模型上实现多提供商 OIDC Authorization Code Flow。标准协议处理使用 `coreos/go-oidc` 与 `x/oauth2`，包括 Discovery、PKCE S256、签名、Issuer、Audience 和时间声明校验；业务层额外负责一次性 state、nonce、邮箱域名策略、外部身份绑定和本地用户状态。共享 OIDC HTTP Client 使用有界连接与响应超时，并拒绝自动跟随重定向，确保 Discovery、Token 和 JWKS 请求停留在已校验端点。Client Secret 与 PKCE verifier 使用部署级 AES-256-GCM 密钥加密，成功后仍签发 `moeurl_session`，不建立第二套会话或权限系统。
 
+v0.13.0 的个人改密沿用 Auth Service 的 Argon2id、数据库失败窗口与两层并发槽位。用户行排他锁与 Login 的共享行锁使旧密码验证和 Session 提交同改密互斥；改密重新检查请求 Session 后，在同一事务更新哈希并撤销全部旧 Session。采用重新登录，避免第二套会话轮换协议；不新增权限、schema 或 OIDC 账号本地凭据，细节见 [设计](../specs/2026-10-15-v0.13.0-password-change-design.md)。
+
 ### 后端辅助库
 
 建议使用：
