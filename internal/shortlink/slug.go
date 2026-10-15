@@ -15,6 +15,7 @@ const (
 var reservedSlugs = map[string]struct{}{
 	"api":       {},
 	"assets":    {},
+	"icons":     {},
 	"setup":     {},
 	"login":     {},
 	"profile":   {},
@@ -27,6 +28,24 @@ var reservedSlugs = map[string]struct{}{
 }
 
 var slugRandomReader io.Reader = rand.Reader
+
+// normalizeCustomSlug accepts raw ASCII identifiers without trimming and protects fixed routes.
+func normalizeCustomSlug(value string) (string, error) {
+	if len(value) < 3 || len(value) > 32 {
+		return "", ErrInvalidInput
+	}
+	for i := range len(value) {
+		c := value[i]
+		if (c < 'A' || c > 'Z') && (c < 'a' || c > 'z') && (c < '0' || c > '9') {
+			return "", ErrInvalidInput
+		}
+	}
+	slug := strings.ToLower(value)
+	if isReservedSlug(slug) {
+		return "", ErrReservedSlug
+	}
+	return slug, nil
+}
 
 // generateSlug creates a random lowercase alphanumeric short-link slug.
 func generateSlug() (string, error) {

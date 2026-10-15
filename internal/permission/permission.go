@@ -6,6 +6,7 @@ const (
 	GroupAdmin = "admin"
 
 	ShortLinkCreate          = "short_link:create"
+	ShortLinkCustomSlug      = "short_link:custom_slug"
 	ShortLinkReadOwn         = "short_link:read_own"
 	ShortLinkUpdateOwn       = "short_link:update_own"
 	ShortLinkDeleteOwn       = "short_link:delete_own"
@@ -27,6 +28,7 @@ const (
 
 var UserPermissions = []string{
 	ShortLinkCreate,
+	ShortLinkCustomSlug,
 	ShortLinkReadOwn,
 	ShortLinkUpdateOwn,
 	ShortLinkDeleteOwn,
@@ -42,6 +44,7 @@ var UserPermissions = []string{
 
 var AdminPermissions = []string{
 	ShortLinkCreate,
+	ShortLinkCustomSlug,
 	ShortLinkReadOwn,
 	ShortLinkUpdateOwn,
 	ShortLinkDeleteOwn,

@@ -260,6 +260,7 @@ func equalStringSets(left map[string]struct{}, right map[string]struct{}) bool {
 func newCatalogDefinitions() []Definition {
 	return []Definition{
 		{Key: ShortLinkCreate, Category: "short_link_basic"},
+		{Key: ShortLinkCustomSlug, Category: "short_link_basic"},
 		{Key: ShortLinkReadOwn, Category: "short_link_basic"},
 		{Key: ShortLinkUpdateOwn, Category: "short_link_basic"},
 		{Key: ShortLinkDeleteOwn, Category: "short_link_basic"},
@@ -300,6 +301,7 @@ func newCatalogPresets() []Preset {
 			ApplicableGroups: []string{GroupUser, GroupAdmin},
 			Permissions: []string{
 				ShortLinkCreate,
+				ShortLinkCustomSlug,
 				ShortLinkReadOwn,
 				ShortLinkUpdateOwn,
 				ShortLinkDeleteOwn,

@@ -1,9 +1,10 @@
 import { z } from 'zod'
 
 import { ApiClientError, apiGet, apiGetPath, apiPost, apiPostPath } from '@/shared/api/client'
+import { INVALID_REQUEST_CODE } from '@/shared/api/error-codes'
 
 import type { AdminShortLink, CreateShortLinkInput, PublicShortLinkPreview, ShortLink, ShortLinkOverview, ShortLinkStatisticsResponse, UnlockShortLinkInput, UnlockShortLinkResponse, UpdateShortLinkInput } from './model'
-import { adminShortLinkListSchema, shortLinkListSchema, shortLinkResponseSchema, shortLinkStatisticsSchema } from './schema'
+import { adminShortLinkListSchema, createShortLinkInputSchema, shortLinkListSchema, shortLinkResponseSchema, shortLinkStatisticsSchema } from './schema'
 
 export interface ShortLinkResponse {
   shortLink: ShortLink
@@ -50,7 +51,9 @@ const unlockShortLinkResponseSchema: z.ZodType<UnlockShortLinkResponse> = z.stri
 
 /** Creates a short link using access settings allowed by the current user. */
 export async function createShortLink(input: CreateShortLinkInput): Promise<ShortLinkResponse> {
-  const response = await apiPost<unknown>('/short-link/create', input)
+  const request = createShortLinkInputSchema.safeParse(input)
+  if (!request.success) throw new ApiClientError(INVALID_REQUEST_CODE, 'Invalid short-link creation request')
+  const response = await apiPost<unknown>('/short-link/create', request.data)
   return parse(shortLinkResponseSchema, response.data)
 }
 

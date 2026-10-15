@@ -87,6 +87,8 @@ export interface AdminShortLink extends ShortLink {
 
 export interface CreateShortLinkInput {
   targetUrl: string
+  /** Omit or null to generate a random address; custom addresses cannot be changed later. */
+  customSlug?: string | null
   metadata?: ShortLinkMetadata | null
   domainId?: string
   redirectMode?: RedirectMode

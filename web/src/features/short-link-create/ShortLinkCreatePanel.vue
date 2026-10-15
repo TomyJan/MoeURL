@@ -59,6 +59,20 @@
           </v-btn>
           <Transition name="moe-layout">
             <div v-if="advancedOpen" class="short-link-create-panel__advanced-controls">
+              <template v-if="canCustomizeSlug">
+                <v-text-field
+                  v-model="customSlug"
+                  :label="t('shortLinkCreate.customSlug')"
+                  :error-messages="customSlugError"
+                  :disabled="mutation.isPending.value || !canCreateShortLink"
+                  autocapitalize="none"
+                  autocomplete="off"
+                  spellcheck="false"
+                  variant="outlined"
+                />
+                <p class="short-link-create-panel__slug-hint">{{ t('shortLinkCreate.customSlugHint') }}</p>
+                <p v-if="customSlugPreview" class="short-link-create-panel__slug-preview" data-testid="custom-slug-preview">{{ customSlugPreview }}</p>
+              </template>
               <template v-if="canSetMetadata">
                 <v-text-field v-model="metadataTitle" :label="t('linkMetadata.title')" :error-messages="metadataTitleError" :disabled="mutation.isPending.value" variant="outlined" />
                 <v-textarea v-model="metadataTags" :label="t('linkMetadata.tags')" :error-messages="metadataTagsError" :disabled="mutation.isPending.value" rows="3" variant="outlined" />
@@ -176,7 +190,8 @@
         <ActionToast v-if="copyErrorMessage" type="error">
           {{ copyErrorMessage }}
         </ActionToast>
-        <ActionToast v-if="mutation.error.value && !passwordErrorMessage" type="error">{{ t('shortLinkCreate.failed') }}</ActionToast>
+        <ActionToast v-if="mutation.error.value && !passwordErrorMessage" type="error">{{ creationErrorMessage }}</ActionToast>
+        <ActionToast v-if="customSlugError && canCustomizeSlug" type="error">{{ customSlugError }}</ActionToast>
       </div>
 
       <Transition name="moe-layout">
@@ -222,6 +237,8 @@ import { runShortLinkMutation } from '@/shared/short-link/runShortLinkMutation'
 import { useRedirectModePermissions } from '@/shared/short-link/useRedirectModePermissions'
 import { futureDateTimeSchema, passwordSchema, targetUrlSchema } from '@/shared/validation/shortLinkAccess'
 import { metadataDraftSchema } from '@/shared/validation/shortLinkMetadata'
+import { customSlugSchema } from '@/shared/validation/customSlug'
+import { ApiClientError } from '@/shared/api/client'
 
 withDefaults(
   defineProps<{
@@ -235,6 +252,8 @@ withDefaults(
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const targetUrl = ref('')
+const customSlug = ref('')
+const customSlugError = ref('')
 const metadataTitle = ref('')
 const metadataTags = ref('')
 const metadataTitleError = ref('')
@@ -284,9 +303,20 @@ const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.i
 const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
 const canSetMaxVisits = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_max_visits')))
 const canSetMetadata = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_metadata')))
+const canCustomizeSlug = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:custom_slug')))
 const canConfigureRedirect = computed(() => canUseIntermediate.value || canUseConfirmation.value)
-const canConfigureAccess = computed(() => canConfigureRedirect.value || canSetExpiration.value || canSetPassword.value || canSetMaxVisits.value || canSetMetadata.value)
+const canConfigureAccess = computed(() => canConfigureRedirect.value || canSetExpiration.value || canSetPassword.value || canSetMaxVisits.value || canSetMetadata.value || canCustomizeSlug.value)
 const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !canCreateWithPermissions.value)
+const customSlugPreview = computed(() => {
+  if (!canCustomizeSlug.value || !canCreateShortLink.value) return ''
+  const slug = customSlugSchema.safeParse(customSlug.value)
+  if (!slug.success) return ''
+  const domain = availableDomains.value.find((item) => item.id === domainChoice.value)
+    // A valid default choice always resolves a default item; assigned choices resolve by ID.
+    ?? availableDomains.value.find((item) => item.isDefault)!
+  const origin = domain.host.includes('://') ? domain.host : `https://${domain.host}`
+  return `${origin.replace(/\/+$/, '')}/${slug.data}`
+})
 
 watch([canUseIntermediate, canUseConfirmation], () => {
   if (!canSubmitRedirectMode(redirectMode.value)) {
@@ -344,6 +374,16 @@ const errorMessage = computed(() => {
   return ''
 })
 
+const creationErrorMessage = computed(() => {
+  const error = mutation.error.value
+  if (error instanceof ApiClientError) {
+    if (error.code === 200101) return t('shortLinkCreate.customSlugConflict')
+    if (error.code === 200102) return t('shortLinkCreate.customSlugReserved')
+    if (error.code === 200114) return t('shortLinkCreate.domainOrPermissionsChanged')
+  }
+  return t('shortLinkCreate.failed')
+})
+
 /** Validates the form and submits only access settings allowed by current permissions. */
 function submit() {
   if (!canCreateShortLink.value || mutation.isPending.value) {
@@ -357,6 +397,7 @@ function submit() {
 
 /** Validates visible fields and builds a permission-scoped creation request. */
 function submitValidatedInput(): boolean {
+  customSlugError.value = ''
   validationErrorMessage.value = ''
   copyErrorMessage.value = ''
   expirationErrorMessage.value = ''
@@ -383,6 +424,15 @@ function submitValidatedInput(): boolean {
   }
 
   const input: CreateShortLinkInput = { targetUrl: targetUrlResult.data }
+  if (canCustomizeSlug.value && customSlug.value !== '') {
+    const slug = customSlugSchema.safeParse(customSlug.value)
+    if (!slug.success) {
+      customSlugError.value = t('shortLinkCreate.customSlugInvalid')
+      advancedOpen.value = true
+      return false
+    }
+    input.customSlug = slug.data
+  }
   metadataTitleError.value = ''
   metadataTagsError.value = ''
   if (canSetMetadata.value) {
@@ -438,6 +488,8 @@ function resetForm() {
 
 /** Clears creation inputs after a successful request while preserving the generated result. */
 function resetInputFields() {
+  customSlug.value = ''
+  customSlugError.value = ''
   metadataTitle.value = ''
   metadataTags.value = ''
   metadataTitleError.value = ''
@@ -579,6 +631,19 @@ async function copyUrl(url: string) {
   gap: 8px;
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.short-link-create-panel__slug-hint,
+.short-link-create-panel__slug-preview {
+  margin: 0;
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.short-link-create-panel__slug-preview {
+  color: rgb(var(--v-theme-primary));
   font-weight: 600;
 }
 

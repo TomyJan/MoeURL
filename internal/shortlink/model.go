@@ -44,6 +44,7 @@ type AccessGrant struct {
 }
 
 type CreateInput struct {
+	CustomSlug               *string          `json:"customSlug,omitempty"`
 	Metadata                 *MetadataInput   `json:"metadata,omitempty"`
 	TargetURL                string           `json:"targetUrl"`
 	DomainID                 *string          `json:"domainId,omitempty"`

@@ -232,7 +232,7 @@ done
 
 ## 4. 恢复验收
 
-目标 v0.11.0 必须完成以下检查，不能只以容器健康代替数据验证。除既有访问配置与额度外，还须逐项比对样例短链的标题、标签和 `short_link:set_metadata` 授权；恢复后的个人与全站列表应保持相同的关键词、标签筛选结果，公开预览仍不返回管理元数据。
+目标 v0.12.0 必须完成以下检查，不能只以容器健康代替数据验证。除既有访问配置与额度外，还须逐项比对样例短链的标题、标签、原始短码，以及 `short_link:set_metadata`、`short_link:custom_slug` 授权；恢复后的个人与全站列表应保持相同的关键词、标签筛选结果，公开预览仍不返回管理元数据。使用备份中的自定义短码验证原地址仍可访问，跨域名或软删除的占用仍拒绝重复创建，恢复不能重新分配短码。
 
 从当前 `migrations/` 目录计算最大 migration 版本，并确认恢复数据库一致：
 
@@ -250,7 +250,7 @@ test -n "$expected_migration_version" && test "$actual_migration_version" = "$ex
 ```bash
 restore_compose exec -T postgres \
   psql -U moeurl -d moeurl -Atc \
-  "select key, permissions ? 'short_link:set_metadata' as can_set_metadata from user_group where builtin order by key"
+  "select key, permissions ? 'short_link:set_metadata' as can_set_metadata, permissions ? 'short_link:custom_slug' as can_custom_slug from user_group where builtin order by key"
 ```
 
 登录入口验收必须以下文 `GET /api/v1/auth/methods` 返回的恢复后策略为准。需要验证本地登录时，密码只通过权限为 `600` 的临时 JSON 文件传入，不放在命令行或 Shell 历史中。

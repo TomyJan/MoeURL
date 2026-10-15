@@ -24,16 +24,19 @@ func TestNewHandlerUsesDefaultLogger(t *testing.T) {
 	}
 }
 
-// TestHandlerCreatePassesExplicitDomainID verifies optional domain selection reaches the service.
-func TestHandlerCreatePassesExplicitDomainID(t *testing.T) {
+// TestHandlerCreatePassesExplicitDomainAndSlug verifies optional creation fields reach service validation unchanged.
+func TestHandlerCreatePassesExplicitDomainAndSlug(t *testing.T) {
 	service := &fakeShortLinkService{}
 	handler := shortlink.NewHandler(service)
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/short-link/create",
-		bytes.NewBufferString(`{"targetUrl":"https://target.example.com","domainId":"00000000-0000-0000-0000-000000000301"}`))
+		bytes.NewBufferString(`{"targetUrl":"https://target.example.com","domainId":"00000000-0000-0000-0000-000000000301","customSlug":"TeamDocs2026"}`))
 	response := httptest.NewRecorder()
 	handler.Create(response, request)
 	if service.createInput.DomainID == nil || *service.createInput.DomainID != "00000000-0000-0000-0000-000000000301" {
 		t.Fatalf("decoded domain ID = %v", service.createInput.DomainID)
+	}
+	if service.createInput.CustomSlug == nil || *service.createInput.CustomSlug != "TeamDocs2026" {
+		t.Fatalf("decoded custom slug = %v", service.createInput.CustomSlug)
 	}
 }
 
@@ -147,6 +150,7 @@ func TestHandlerCreateShortLinkMapsBusinessErrors(t *testing.T) {
 		code int
 	}{
 		{name: "permission denied", err: shortlink.ErrPermissionDenied, code: 120001},
+		{name: "invalid custom slug", err: shortlink.ErrInvalidInput, code: 100001},
 		{name: "invalid target url", err: shortlink.ErrInvalidTargetURL, code: 200103},
 		{name: "invalid redirect mode", err: shortlink.ErrInvalidRedirectMode, code: 200106},
 		{name: "invalid intermediate delay", err: shortlink.ErrInvalidIntermediateDelay, code: 200107},

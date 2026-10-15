@@ -13,6 +13,7 @@ where domain.enabled and domain.purpose = 'short_link'
   and user_group.key = sqlc.arg(group_key) and user_group.builtin
   and user_group.permissions ? 'short_link:create'
   and user_group.permissions ? sqlc.arg(required_permission)::text
+  and (not sqlc.arg(custom_slug)::boolean or user_group.permissions ? 'short_link:custom_slug')
   and ((sqlc.arg(use_default)::boolean and domain.is_default)
        or (not sqlc.arg(use_default)::boolean and not domain.is_default
            and domain.id = sqlc.arg(domain_id)::uuid))

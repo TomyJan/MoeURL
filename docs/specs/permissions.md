@@ -70,6 +70,8 @@ v0.5.0 只管理 `guest`、`user`、`admin` 三个内置用户组。管理员可
 
 ### 短链创建权限
 
+v0.12.0 新增 `short_link:custom_slug`：只控制创建时显式指定短码，属于 `short_link_basic` 类别。内置 `user`、`admin` 默认拥有，`standard` 预设包含；`guest`、`basic`、`restricted` 不包含。省略或 `null` 不要求此能力，显式空值仍是无效指定。授权必须在创建事务中重查，不以页面展示或请求入口快照替代。
+
 - 创建短链。
 - 自定义短码。
 - 使用随机短码。

@@ -130,15 +130,17 @@ where domain.enabled and domain.purpose = 'short_link'
   and user_group.key = $1 and user_group.builtin
   and user_group.permissions ? 'short_link:create'
   and user_group.permissions ? $2::text
-  and (($3::boolean and domain.is_default)
-       or (not $3::boolean and not domain.is_default
-           and domain.id = $4::uuid))
+  and (not $3::boolean or user_group.permissions ? 'short_link:custom_slug')
+  and (($4::boolean and domain.is_default)
+       or (not $4::boolean and not domain.is_default
+           and domain.id = $5::uuid))
 for share of domain, domain_user_group, user_group
 `
 
 type GetGrantedShortLinkDomainForCreateParams struct {
 	GroupKey           string      `json:"group_key"`
 	RequiredPermission string      `json:"required_permission"`
+	CustomSlug         bool        `json:"custom_slug"`
 	UseDefault         bool        `json:"use_default"`
 	DomainID           pgtype.UUID `json:"domain_id"`
 }
@@ -152,6 +154,7 @@ func (q *Queries) GetGrantedShortLinkDomainForCreate(ctx context.Context, arg Ge
 	row := q.db.QueryRow(ctx, getGrantedShortLinkDomainForCreate,
 		arg.GroupKey,
 		arg.RequiredPermission,
+		arg.CustomSlug,
 		arg.UseDefault,
 		arg.DomainID,
 	)

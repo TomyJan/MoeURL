@@ -285,6 +285,7 @@ fs.writeFileSync(path.join(directory, 'setup-valid.json'), JSON.stringify({ ...s
 fs.writeFileSync(path.join(directory, 'login.json'), JSON.stringify({ username: setup.adminUsername, password: setup.adminPassword }), { mode: 0o600 })
 fs.writeFileSync(path.join(directory, 'short-link.json'), JSON.stringify({
   targetUrl: 'https://example.com/moeurl-compose-smoke',
+  customSlug: 'ComposeSmoke',
   redirectMode: 'direct',
   maxVisits: 1,
   metadata: { title: 'Compose Smoke', tags: ['smoke', 'restart persistence'] },
@@ -382,6 +383,7 @@ const fs = require('node:fs')
 const payload = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 const found = payload.code === 0 && payload.data?.items?.some((item) =>
   item.targetUrl === 'https://example.com/moeurl-compose-smoke' && item.redirectMode === 'direct'
+  && item.slug === 'composesmoke'
   && item.title === 'Compose Smoke' && JSON.stringify(item.tags) === JSON.stringify(['smoke', 'restart persistence'])
   && item.maxVisits === 1 && item.visitsUsed === 1 && item.visitsRemaining === 0 && item.exhausted === true)
 if (!found) {
@@ -392,6 +394,7 @@ NODE
 
 assert_visit_quota() {
   quota_slug=$(node -e "process.stdout.write(require(process.argv[1]).data.shortLink.slug)" "$WORK_DIR/short-link-response.json")
+  [ "$quota_slug" = 'composesmoke' ] || fail 'custom slug was not normalized and retained'
   first_location=$(curl --fail --silent --show-error --connect-timeout 2 --max-time 5 \
     --output /dev/null --write-out '%{redirect_url}' "$BASE_URL/$quota_slug")
   [ "$first_location" = 'https://example.com/moeurl-compose-smoke' ] || fail 'first quota redirect failed'
@@ -453,6 +456,9 @@ run_full_smoke() {
   post_json "$WORK_DIR/short-link.json" "$WORK_DIR/short-link-response.json" \
     --cookie "$WORK_DIR/cookies.txt" "$BASE_URL/api/v1/short-link/create"
   assert_response_code "$WORK_DIR/short-link-response.json" 0
+  post_json "$WORK_DIR/short-link.json" "$WORK_DIR/short-link-conflict-response.json" \
+    --cookie "$WORK_DIR/cookies.txt" "$BASE_URL/api/v1/short-link/create"
+  assert_response_code "$WORK_DIR/short-link-conflict-response.json" 200101
   assert_visit_quota
   assert_database_state
 

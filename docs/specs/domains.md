@@ -76,7 +76,7 @@ v0.0.1 只要求支持单全局默认短链访问域名，并保留多域名模�
 
 管理员在 `/admin/domain` 管理短链域名，系统访问域名仍不开放管理。新增和地址修改使用完整根 Origin：生产只允许 HTTPS，开发只允许回环 HTTP；拒绝用户信息、非根路径、查询和片段。既有裸主机名或带端口的地址继续按原规则读取，不在迁移中改写。相同的规范化 authority 不可重复注册。
 
-每个短链域名可以授权内置 `user`、`admin`，`guest` 不在本版本授权范围。创建时省略 `domainId` 需要 `domain:use_default` 和当前用户组对默认域名的授权；显式提供域名 UUID 需要 `domain:use_assigned` 和该域名授权。`GET /api/v1/domain/available` 只返回当前用户可用的启用域名。没有可用域名时前端禁用创建，后端仍执行最终权限检查。`domain:manage` 固定属于 `admin`，管理操作还要检查 `admin:access`。
+每个短链域名可以授权内置 `user`、`admin`，`guest` 不在本版本授权范围。创建时省略 `domainId` 需要 `domain:use_default` 和当前用户组对默认域名的授权；显式提供域名 UUID 仅允许非默认域名，需要 `domain:use_assigned` 和该域名授权。`GET /api/v1/domain/available` 分别按上述权限返回当前用户可用的默认及非默认启用域名，仅有 `domain:use_assigned` 不会展示默认域名。没有可用域名时前端禁用创建，后端仍执行最终权限检查。`domain:manage` 固定属于 `admin`，管理操作还要检查 `admin:access`。
 
 管理员可创建、更新、启停、切换默认和删除域名。写操作提交 `expectedUpdatedAt`，版本冲突保留草稿而不自动覆盖。不能停用或删除当前默认域名；已有任意短链引用的域名不能修改地址或删除，软删除的短链同样算引用。切换默认值只影响之后未显式选域名的新短链，不改写旧短链 URL。
 
