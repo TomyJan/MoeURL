@@ -49,7 +49,7 @@ test('v0.4.0 confirmation-page access flow', async ({ page }, testInfo) => {
     const row = page.getByTestId('console-link-row').filter({ hasText: confirmationUrl })
     await expect(row.getByText('确认页', { exact: true })).toBeVisible()
     await row.getByRole('button', { name: '更多操作' }).click()
-    await row.getByRole('menuitem', { name: '访问配置' }).click()
+    await page.getByRole('menu').getByRole('menuitem', { name: '访问配置' }).click()
     const dialog = page.getByRole('dialog')
     await expect(dialog.getByRole('button', { name: '确认页', exact: true })).toHaveAttribute('aria-pressed', 'true')
     await expect(dialog.getByRole('slider')).toHaveCount(0)

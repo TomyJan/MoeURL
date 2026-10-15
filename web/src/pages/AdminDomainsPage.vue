@@ -16,10 +16,12 @@
     </v-alert>
     <div v-else class="domains-page__workspace">
       <aside class="domains-page__list" :aria-label="t('domains.listLabel')">
-        <button v-for="item in domains" :key="item.id" type="button" :class="{ 'domains-page__selected': selectedID === item.id && !creating }" @click="selectDomain(item)">
-          <strong>{{ item.displayName }}</strong>
-          <small>{{ item.host }} · {{ item.isDefault ? t('domains.default') : item.enabled ? t('domains.enabled') : t('domains.disabled') }}</small>
-        </button>
+        <v-list role="group" density="comfortable" nav class="moe-resource-list">
+          <v-list-item v-for="item in domains" :key="item.id" tag="button" type="button" role="button" color="primary" :active="selectedID === item.id && !creating" :aria-current="selectedID === item.id && !creating ? 'true' : undefined" @click="selectDomain(item)">
+            <template #title>{{ item.displayName }}</template>
+            <template #subtitle>{{ item.host }} · {{ item.isDefault ? t('domains.default') : item.enabled ? t('domains.enabled') : t('domains.disabled') }}</template>
+          </v-list-item>
+        </v-list>
         <p v-if="domains.length === 0 && !creating">{{ t('domains.empty') }}</p>
       </aside>
       <form v-if="creating || selectedDomain" class="domains-page__editor" @submit.prevent="save">
@@ -298,8 +300,6 @@ function targetsCurrentSelection(operation: Operation): boolean {
 .domains-page__workspace { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr); gap: 18px; min-width: 0; }
 .domains-page__list, .domains-page__editor { padding: 18px; border: 1px solid rgb(var(--v-theme-outline-variant)); border-radius: 18px; background: rgb(var(--v-theme-surface)); }
 .domains-page__list { display: flex; flex-direction: column; gap: 8px; }
-.domains-page__list button { display: grid; gap: 5px; padding: 12px; border-radius: 12px; text-align: left; overflow-wrap: anywhere; }
-.domains-page__list button:hover, .domains-page__selected { background: rgb(var(--v-theme-surface-variant)); }
 .domains-page__editor { display: grid; align-content: start; gap: 12px; }
 .domains-page__groups { display: flex; gap: 18px; padding: 12px; border: 1px solid rgb(var(--v-theme-outline-variant)); border-radius: 8px; }
 .domains-page__groups label { display: flex; gap: 6px; align-items: center; }

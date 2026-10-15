@@ -61,34 +61,33 @@
             <v-btn class="mt-4" color="primary" variant="tonal" to="/">{{ t('overview.createFromHome') }}</v-btn>
           </div>
         </div>
-        <div v-else class="overview-recent__list">
-          <article v-for="link in recentLinks" :key="link.id" class="overview-recent-row">
-            <div class="overview-recent-row__link">
-              <a :href="link.url" target="_blank" rel="noreferrer">{{ link.slug }}</a>
-              <span :title="link.targetUrl">{{ link.targetUrl }}</span>
-            </div>
-            <span class="console-link-row__status" :class="`console-link-row__status--${link.status}`">
-              {{ t(`links.status.${link.status}`) }}
-            </span>
-            <dl class="overview-recent-row__stats">
-              <div>
-                <dt>{{ t('links.stats.visitCount') }}</dt>
-                <dd>{{ link.stats?.visitCount ?? 0 }}</dd>
-              </div>
-              <div>
-                <dt>{{ t('links.stats.todayVisitCount') }}</dt>
-                <dd>{{ link.stats?.todayVisitCount ?? 0 }}</dd>
-              </div>
-              <div>
-                <dt>{{ t('overview.createdAt') }}</dt>
-                <dd>{{ formatDate(link.createdAt) }}</dd>
-              </div>
-            </dl>
-            <v-btn color="primary" size="small" variant="tonal" :to="`/link/${encodeURIComponent(link.id)}/analytics`">
-              {{ t('links.actions.analytics') }}
-            </v-btn>
-          </article>
-        </div>
+        <v-table v-else class="moe-data-table overview-recent__table" hover :aria-label="t('overview.recentTitle')">
+          <thead>
+            <tr>
+              <th scope="col" class="overview-recent__link-column">{{ t('links.shortUrl') }}</th>
+              <th scope="col">{{ t('adminUsers.headers.status') }}</th>
+              <th scope="col" class="text-end">{{ t('links.stats.visitCount') }}</th>
+              <th scope="col" class="text-end">{{ t('links.stats.todayVisitCount') }}</th>
+              <th scope="col">{{ t('overview.createdAt') }}</th>
+              <th scope="col" class="text-end">{{ t('links.headers.actions') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="link in recentLinks" :key="link.id">
+              <td>
+                <div class="moe-table-stack">
+                  <a class="moe-table-ellipsis" :href="link.url" :title="link.url" target="_blank" rel="noreferrer">{{ link.slug }}</a>
+                  <span class="moe-table-ellipsis moe-table-muted" :title="link.targetUrl">{{ link.targetUrl }}</span>
+                </div>
+              </td>
+              <td><v-chip :color="link.status === 'active' ? 'success' : undefined" size="small" variant="tonal">{{ t(`links.status.${link.status}`) }}</v-chip></td>
+              <td class="text-end">{{ link.stats?.visitCount ?? 0 }}</td>
+              <td class="text-end">{{ link.stats?.todayVisitCount ?? 0 }}</td>
+              <td>{{ formatDate(link.createdAt) }}</td>
+              <td class="text-end"><v-btn color="primary" size="small" variant="text" :to="`/link/${encodeURIComponent(link.id)}/analytics`">{{ t('links.actions.analytics') }}</v-btn></td>
+            </tr>
+          </tbody>
+        </v-table>
       </div>
     </section>
   </section>
@@ -197,86 +196,19 @@ function formatDate(value: string) {
   font-size: 1.15rem;
 }
 
-.overview-recent__panel {
-  padding: 8px 12px;
-}
-
-.overview-recent__list {
-  display: grid;
-}
-
-.overview-recent-row {
-  display: grid;
-  align-items: center;
-  gap: 16px;
-  min-width: 0;
-  padding: 16px 10px;
-  grid-template-columns: minmax(180px, 1fr) auto minmax(190px, auto) auto;
-}
-
-.overview-recent-row + .overview-recent-row {
-  border-top: 1px solid var(--moeurl-outline);
-}
-
-.overview-recent-row__link {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-}
-
-.overview-recent-row__link > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.overview-recent-row__link a {
-  color: rgb(var(--v-theme-primary));
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.overview-recent-row__link span {
-  overflow: hidden;
-  color: rgb(var(--v-theme-on-surface-variant));
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.overview-recent-row__stats {
-  display: flex;
-  gap: 14px;
-  margin: 0;
-}
-
-.overview-recent-row__stats div {
-  display: grid;
-  gap: 3px;
-}
-
-.overview-recent-row__stats dt {
-  color: rgb(var(--v-theme-on-surface-variant));
-  font-size: 0.72rem;
-}
-
-.overview-recent-row__stats dd {
-  margin: 0;
-  font-weight: 600;
-}
+.overview-recent__panel { padding: 0; }
+.overview-recent__table :deep(table) { min-width: 760px; }
+.overview-recent__link-column { width: 32%; }
 
 @media (max-width: 980px) {
   .overview-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .overview-recent-row {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
 }
 
 @media (max-width: 620px) {
-  .overview-page__header,
-  .overview-recent-row {
+  .overview-page__header {
     display: grid;
     grid-template-columns: 1fr;
   }

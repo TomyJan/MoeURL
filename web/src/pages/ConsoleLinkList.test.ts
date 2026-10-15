@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/vue'
+import { fireEvent, render, screen, within } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
 import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue'
 import { componentStubs } from '@/test/component-stubs'
@@ -6,6 +6,34 @@ import { componentStubs } from '@/test/component-stubs'
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 
 describe('ConsoleLinkList', () => {
+  it('keeps owner cells aligned when a list contains both owned and ownerless links', () => {
+    const link: ConsoleLinkListItem = {
+      id: 'owned-link', slug: 'owned1', url: 'https://go.example.com/owned1', targetUrl: 'https://example.com/owned',
+      title: '', tags: [], status: 'active', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null,
+      expired: false, passwordEnabled: false, maxVisits: null, visitsUsed: 0, visitsRemaining: null, exhausted: false,
+      owner: { id: 'owner-id', username: 'alice', nickname: 'Alice' },
+    }
+    render(ConsoleLinkList, {
+      props: {
+        analyticsScope: 'admin',
+        links: [link, { ...link, id: 'ownerless-link', slug: 'ownerless1', url: 'https://go.example.com/ownerless1', owner: undefined }],
+      },
+      global: { stubs: componentStubs },
+    })
+
+    expect(screen.getByRole('columnheader', { name: 'links.owner' })).toBeTruthy()
+    const [ownedRow, ownerlessRow] = screen.getAllByTestId('console-link-row')
+    const ownedCells = within(ownedRow!).getAllByRole('cell')
+    const ownerlessCells = within(ownerlessRow!).getAllByRole('cell')
+    expect(ownedCells).toHaveLength(6)
+    expect(ownerlessCells).toHaveLength(6)
+    expect(within(ownedCells[2]!).getByText('alice')).toBeTruthy()
+    expect(ownerlessCells[2]!.textContent).toBe('')
+    expect(within(ownerlessCells[3]!).getByText('links.status.active')).toBeTruthy()
+    expect(within(ownerlessCells[4]!).getByText('links.stats.visitCount')).toBeTruthy()
+    expect(within(ownerlessCells[5]!).getByRole('button', { name: 'links.actions.analytics' }).getAttribute('data-to')).toBe('/admin/link/ownerless-link/analytics')
+  })
+
   it('links analytics from each list to its contextual route and preserves long targets', async () => {
     const targetUrl = 'https://example.com/a-long-target-path/that-remains-complete?campaign=summer&ref=dashboard'
     const link: ConsoleLinkListItem = {
@@ -15,11 +43,29 @@ describe('ConsoleLinkList', () => {
     }
     const view = render(ConsoleLinkList, { props: { links: [link] }, global: { stubs: componentStubs } })
 
+    const table = screen.getByRole('table')
+    expect(within(table).getByRole('columnheader', { name: 'links.shortUrl' })).toBeTruthy()
+    expect(within(table).getByRole('columnheader', { name: 'links.targetUrl' })).toBeTruthy()
+    expect(within(table).getByRole('columnheader', { name: 'links.headers.access' })).toBeTruthy()
+    expect(within(table).getByRole('columnheader', { name: 'links.headers.statistics' })).toBeTruthy()
+    expect(within(table).getByRole('columnheader', { name: 'links.headers.actions' })).toBeTruthy()
+    expect(screen.getByTestId('console-link-row').tagName).toBe('TR')
     expect(screen.getByText(targetUrl).getAttribute('title')).toBe(targetUrl)
+    expect(screen.getByRole('link', { name: targetUrl }).getAttribute('href')).toBe(targetUrl)
     expect(screen.getByText('links.actions.analytics').closest('button')?.getAttribute('data-to')).toBe('/link/link-id/analytics')
 
     await view.rerender({ links: [link], analyticsScope: 'admin' })
     expect(screen.getByText('links.actions.analytics').closest('button')?.getAttribute('data-to')).toBe('/admin/link/link-id/analytics')
+    expect(screen.queryByRole('columnheader', { name: 'links.owner' })).toBeNull()
+    await view.rerender({ links: [{ ...link, owner: { id: 'owner-id', username: 'alice', nickname: 'Alice' } }] })
+    expect(screen.getByRole('columnheader', { name: 'links.owner' })).toBeTruthy()
+    expect(screen.getByText('alice')).toBeTruthy()
+    expect(screen.getByText('Alice')).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: 'links.actions.more' }))
+    expect(screen.getByRole('menu')).toBeTruthy()
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'links.actions.configure' }))
+    expect(view.emitted('configure')).toHaveLength(1)
+    expect(screen.queryByRole('menu')).toBeNull()
   })
 
   it('shows finite quota separately from analytics and hides it for unlimited links', async () => {

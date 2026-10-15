@@ -60,7 +60,7 @@ test('creates, filters, edits and clears metadata without publishing it', async 
     await page.goto('/link')
     const row = page.getByTestId('console-link-row').filter({ hasText: link.url })
     await row.getByRole('button', { name: '更多操作' }).click()
-    await row.getByRole('menuitem', { name: '访问配置' }).click()
+    await page.getByRole('menu').getByRole('menuitem', { name: '访问配置' }).click()
     let dialog = page.getByRole('dialog')
     const longTitle = '界'.repeat(120)
     await dialog.getByLabel('短链标题', { exact: true }).fill(longTitle)
@@ -74,7 +74,7 @@ test('creates, filters, edits and clears metadata without publishing it', async 
     await expectNoHorizontalOverflow(page)
 
     await row.getByRole('button', { name: '更多操作' }).click()
-    await row.getByRole('menuitem', { name: '访问配置' }).click()
+    await page.getByRole('menu').getByRole('menuitem', { name: '访问配置' }).click()
     dialog = page.getByRole('dialog')
     await dialog.getByLabel('短链标题', { exact: true }).fill('')
     await dialog.getByLabel('标签（每行一个）', { exact: true }).fill('')

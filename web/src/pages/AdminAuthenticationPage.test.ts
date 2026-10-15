@@ -122,6 +122,15 @@ beforeEach(() => {
 })
 
 describe('AdminAuthenticationPage', () => {
+  it('exposes the selected provider while retaining its editable draft', async () => {
+    mountPage()
+    const companyButton = screen.getByRole('button', { name: /Company SSO/ })
+    expect(companyButton.getAttribute('aria-current')).toBe('true')
+    await fireEvent.update(screen.getByLabelText('oidc.displayName'), 'Edited company')
+    expect(companyButton.getAttribute('aria-current')).toBe('true')
+    expect(screen.getByLabelText('oidc.displayName')).toHaveProperty('value', 'Edited company')
+  })
+
   it('renders loading and empty states when provider data has not arrived', async () => {
     state.queryPending.value = true
     state.queryData.value = undefined

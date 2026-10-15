@@ -21,92 +21,111 @@
           <p>{{ t('adminUsers.emptyDescription') }}</p>
         </div>
       </div>
-      <div v-else class="console-user-list">
-        <article v-for="item in users" :key="item.id" class="console-user-row" data-testid="console-user-row">
-          <div class="console-user-row__identity">
-            <span class="console-user-row__avatar"><UserAvatarText :username="item.username" /></span>
-            <div>
-              <strong>{{ item.username }}</strong>
-              <small>
-                <span>{{ item.group }}</span>
-                <span>{{ formatDate(item.createdAt) }}</span>
-              </small>
-            </div>
-          </div>
-
-          <div class="console-user-row__badges">
-            <span class="console-page__status" :class="`console-page__status--${item.status}`">
-              {{ t(`adminUsers.status.${item.status}`) }}
-            </span>
-            <span class="console-page__type">{{ t(item.builtin ? 'adminUsers.type.builtin' : 'adminUsers.type.normal') }}</span>
-          </div>
-
-          <div class="console-user-row__summary-actions" data-testid="console-user-summary-actions">
-            <v-btn
-              size="small"
-              variant="text"
-              :disabled="item.builtin"
-              :aria-controls="userEditPanelId(item.id)"
-              :aria-expanded="editingUserId === item.id"
-              @click="toggleEdit(item.id)"
-            >
-              {{ t('adminUsers.actions.edit') }}
-            </v-btn>
-            <button
-              class="console-user-row__more"
-              type="button"
-              :disabled="item.builtin"
-              :aria-controls="userMorePanelId(item.id)"
-              :aria-expanded="moreUserId === item.id"
-              @click="toggleMore(item.id)"
-            >
-              {{ t('adminUsers.actions.more') }}
-            </button>
-          </div>
-
-          <Transition name="moe-layout">
-            <div v-if="editingUserId === item.id" :id="userEditPanelId(item.id)" class="console-user-row__actions" data-testid="console-user-edit-panel">
-              <p class="console-user-row__panel-title">{{ t('adminUsers.editTitle') }}</p>
-              <div class="console-user-row__nickname">
-                <v-text-field
-                  v-model="draftNicknames[item.id]"
-                  density="compact"
-                  hide-details
-                  :label="t('adminUsers.labels.nickname')"
-                  :disabled="item.builtin"
-                  variant="outlined"
-                />
-                <v-btn size="small" variant="text" :disabled="item.builtin" :loading="isUpdatingUser(item.id)" @click="saveNickname(item)">
-                  {{ t('adminUsers.saveNickname') }}
-                </v-btn>
-              </div>
-            </div>
-          </Transition>
-
-          <Transition name="moe-layout">
-            <div v-if="moreUserId === item.id" :id="userMorePanelId(item.id)" class="console-user-row__actions console-user-row__actions--more" data-testid="console-user-actions">
-              <p class="console-user-row__panel-title">{{ t('adminUsers.moreTitle') }}</p>
-              <v-btn size="small" variant="text" :disabled="item.builtin" :loading="isUpdatingUser(item.id)" @click="toggleStatus(item)">
-                {{ t(item.status === 'active' ? 'adminUsers.actions.disable' : 'adminUsers.actions.enable') }}
-              </v-btn>
-              <div class="console-user-row__password">
-                <v-text-field
-                  v-model="draftPasswords[item.id]"
-                  density="compact"
-                  :error-messages="resetPasswordErrors[item.id]"
-                  :label="t('adminUsers.labels.newPassword')"
-                  :disabled="item.builtin"
-                  type="password"
-                  variant="outlined"
-                />
-                <v-btn size="small" variant="text" :disabled="item.builtin" :loading="isResettingUser(item.id)" @click="resetPassword(item)">
-                  {{ t('adminUsers.resetPassword') }}
-                </v-btn>
-              </div>
-            </div>
-          </Transition>
-        </article>
-      </div>
+      <v-table v-else class="moe-data-table user-table" density="comfortable">
+        <colgroup>
+          <col class="user-table__identity-column" />
+          <col class="user-table__group-column" />
+          <col class="user-table__status-column" />
+          <col class="user-table__date-column" />
+          <col class="user-table__actions-column" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">{{ t('adminUsers.headers.username') }}</th>
+            <th scope="col">{{ t('adminUsers.headers.group') }}</th>
+            <th scope="col">{{ t('adminUsers.headers.status') }}</th>
+            <th scope="col">{{ t('adminUsers.headers.createdAt') }}</th>
+            <th scope="col">{{ t('adminUsers.headers.actions') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template v-for="item in users" :key="item.id">
+            <tr data-testid="console-user-row">
+              <td>
+                <div class="user-table__identity">
+                  <span class="user-table__avatar"><UserAvatarText :username="item.username" /></span>
+                  <div class="user-table__stack">
+                    <strong>{{ item.username }}</strong>
+                    <small v-if="item.nickname">{{ item.nickname }}</small>
+                    <span class="console-page__type">{{ t(item.builtin ? 'adminUsers.type.builtin' : 'adminUsers.type.normal') }}</span>
+                  </div>
+                </div>
+              </td>
+              <td>{{ item.group }}</td>
+              <td><v-chip size="small" variant="tonal" :color="item.status === 'active' ? 'success' : undefined">{{ t(`adminUsers.status.${item.status}`) }}</v-chip></td>
+              <td class="user-table__date">{{ formatDate(item.createdAt) }}</td>
+              <td>
+                <div class="user-table__summary-actions" data-testid="console-user-summary-actions">
+                  <v-btn
+                    size="small"
+                    variant="text"
+                    :disabled="item.builtin"
+                    :aria-controls="userEditPanelId(item.id)"
+                    :aria-expanded="editingUserId === item.id"
+                    @click="toggleEdit(item.id)"
+                  >
+                    {{ t('adminUsers.actions.edit') }}
+                  </v-btn>
+                  <v-btn
+                    size="small"
+                    variant="text"
+                    :disabled="item.builtin"
+                    :aria-controls="userMorePanelId(item.id)"
+                    :aria-expanded="moreUserId === item.id"
+                    @click="toggleMore(item.id)"
+                  >
+                    {{ t('adminUsers.actions.more') }}
+                  </v-btn>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="editingUserId === item.id" class="user-table__expanded-row">
+              <td colspan="5">
+                <div :id="userEditPanelId(item.id)" class="user-table__panel" data-testid="console-user-edit-panel">
+                  <p class="user-table__panel-title">{{ t('adminUsers.editTitle') }}</p>
+                  <div class="user-table__form">
+                    <v-text-field
+                      v-model="draftNicknames[item.id]"
+                      density="compact"
+                      hide-details
+                      :label="t('adminUsers.labels.nickname')"
+                      :disabled="item.builtin"
+                      variant="outlined"
+                    />
+                    <v-btn size="small" variant="text" :disabled="item.builtin" :loading="isUpdatingUser(item.id)" @click="saveNickname(item)">
+                      {{ t('adminUsers.saveNickname') }}
+                    </v-btn>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="moreUserId === item.id" class="user-table__expanded-row">
+              <td colspan="5">
+                <div :id="userMorePanelId(item.id)" class="user-table__panel" data-testid="console-user-actions">
+                  <p class="user-table__panel-title">{{ t('adminUsers.moreTitle') }}</p>
+                  <v-btn size="small" variant="text" :disabled="item.builtin" :loading="isUpdatingUser(item.id)" @click="toggleStatus(item)">
+                    {{ t(item.status === 'active' ? 'adminUsers.actions.disable' : 'adminUsers.actions.enable') }}
+                  </v-btn>
+                  <div class="user-table__form">
+                    <v-text-field
+                      v-model="draftPasswords[item.id]"
+                      density="compact"
+                      :error-messages="resetPasswordErrors[item.id]"
+                      :label="t('adminUsers.labels.newPassword')"
+                      :disabled="item.builtin"
+                      type="password"
+                      variant="outlined"
+                    />
+                    <v-btn size="small" variant="text" :disabled="item.builtin" :loading="isResettingUser(item.id)" @click="resetPassword(item)">
+                      {{ t('adminUsers.resetPassword') }}
+                    </v-btn>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </v-table>
       <p v-if="users.length > 0" class="console-page__notice">{{ t('adminUsers.paginationNotice') }}</p>
     </div>
   </section>
@@ -263,3 +282,25 @@ function userMorePanelId(id: string) {
   return `console-user-more-${id}`
 }
 </script>
+
+<style scoped>
+.user-table { --moe-table-min-width: 780px; }
+.user-table__identity-column { width: 32%; }
+.user-table__group-column { width: 13%; }
+.user-table__status-column { width: 13%; }
+.user-table__date-column { width: 18%; }
+.user-table__actions-column { width: 200px; }
+.user-table__identity, .user-table__summary-actions { display: flex; align-items: center; gap: 12px; }
+.user-table__identity { min-width: 0; }
+.user-table__stack { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.user-table__stack small { color: rgb(var(--v-theme-on-surface-variant)); }
+.user-table__avatar { display: grid; flex: 0 0 36px; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: color-mix(in srgb, rgb(var(--v-theme-primary)) 10%, transparent); color: rgb(var(--v-theme-primary)); font-weight: 600; }
+.user-table__date { font-variant-numeric: tabular-nums; }
+.user-table__summary-actions { gap: 2px; flex-wrap: wrap; }
+.user-table__expanded-row { background: color-mix(in srgb, rgb(var(--v-theme-primary)) 3%, transparent); }
+.user-table__panel { display: grid; justify-items: start; gap: 12px; max-width: 640px; padding: 8px 0; }
+.user-table__panel-title { margin: 0; font-weight: 600; }
+.user-table__form { display: flex; align-items: start; gap: 12px; width: 100%; }
+.user-table__form :deep(.v-input) { min-width: 260px; }
+.user-table__form > .v-btn { margin-top: 4px; }
+</style>

@@ -1,4 +1,4 @@
-import type { Component } from 'vue'
+import { computed, defineComponent, ref, type Component } from 'vue'
 
 export const componentStubs: Record<string, Component> = {
   AppToasts: { template: '<div />' },
@@ -28,6 +28,7 @@ export const componentStubs: Record<string, Component> = {
   VCardActions: { template: '<div><slot /></div>' },
   VCardTitle: { template: '<h2><slot /></h2>' },
   VCardText: { template: '<div><slot /></div>' },
+  VChip: { props: ['color', 'size', 'variant'], template: '<span><slot /></span>' },
   VContainer: { template: '<main><slot /></main>' },
   VDialog: {
     props: ['modelValue'],
@@ -35,9 +36,27 @@ export const componentStubs: Record<string, Component> = {
     template: '<div v-if="modelValue" role="dialog"><slot /></div>',
   },
   VMain: { template: '<div><slot /></div>' },
-  VList: { template: '<ul><slot /></ul>' },
-  VListItem: { template: '<li><slot /><slot name="append" /></li>' },
+  VList: { props: ['density', 'nav'], template: '<ul><slot /></ul>' },
+  VListItem: {
+    props: { tag: { default: 'li' }, active: Boolean, disabled: Boolean, title: String, subtitle: String, href: String, target: String },
+    template: '<component :is="tag" :disabled="disabled" :data-href="href" :data-active="active"><slot name="title">{{ title }}</slot><slot name="subtitle">{{ subtitle }}</slot><slot /><slot name="append" /></component>',
+  },
   VListItemTitle: { template: '<span><slot /></span>' },
+  VMenu: defineComponent({
+    props: { modelValue: { type: Boolean, default: undefined }, location: { type: String, default: undefined } },
+    emits: ['update:modelValue'],
+    setup(props, { emit }) {
+      const internalOpen = ref(false)
+      const open = computed(() => props.modelValue ?? internalOpen.value)
+      /** Toggles the stub's visible content and reports optional model updates. */
+      function setOpen(value: boolean) {
+        internalOpen.value = value
+        emit('update:modelValue', value)
+      }
+      return { open, setOpen }
+    },
+    template: '<div><slot name="activator" :props="{ \'aria-haspopup\': \'menu\', \'aria-expanded\': open ? \'true\' : \'false\', onClick: () => setOpen(!open) }" /><div v-if="open" @click="setOpen(false)"><slot /></div></div>',
+  }),
   VProgressLinear: { template: '<div role="progressbar" />' },
   VSelect: {
     props: ['items', 'label', 'modelValue'],
@@ -54,7 +73,7 @@ export const componentStubs: Record<string, Component> = {
 		emits: ['update:modelValue'],
 		template: '<label><input type="checkbox" :aria-label="label" :checked="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.checked)" />{{ label }}</label>',
 	},
-  VTable: { template: '<table><slot /></table>' },
+  VTable: { props: ['density'], template: '<div class="v-table"><div class="v-table__wrapper"><table><slot /></table></div></div>' },
   VSnackbar: {
     props: ['modelValue', 'timeout'],
     emits: ['update:modelValue'],

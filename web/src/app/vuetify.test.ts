@@ -1,48 +1,14 @@
-import { describe, expect, it } from 'vitest'
-import { vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-/** Holds the hoisted Vuetify factory used by module mocks. */
-const mocks = vi.hoisted(() => ({
-  createVuetify: vi.fn((options: unknown) => ({
-    install: vi.fn(),
-    options,
-  })),
-}))
-
-vi.mock('vuetify', () => ({
-  createVuetify: mocks.createVuetify,
-}))
-
+// Keep component CSS outside the Node test runner; browser tests exercise rendering.
 vi.mock('vuetify/components', () => ({
-  VAlert: {},
-  VApp: {},
-  VBtn: {},
-  VBtnToggle: {},
-  VCheckbox: {},
-  VCard: {},
-  VCardActions: {},
-  VCardText: {},
-  VCardTitle: {},
-  VContainer: {},
-  VDialog: {},
-  VList: {},
-  VListItem: {},
-  VListItemTitle: {},
-  VMain: {},
-  VProgressLinear: {},
-  VSelect: {},
-  VSlider: {},
-  VSnackbar: {},
-  VSwitch: {},
-  VTab: {},
-  VTabs: {},
-  VTextField: {},
-  VTextarea: {},
+  VAlert: {}, VApp: {}, VBtn: {}, VBtnToggle: {}, VCheckbox: {}, VChip: {},
+  VCard: {}, VCardActions: {}, VCardText: {}, VCardTitle: {}, VContainer: {},
+  VDialog: {}, VList: {}, VListItem: {}, VListItemTitle: {}, VMain: {}, VMenu: {},
+  VProgressLinear: {}, VSelect: {}, VSlider: {}, VSnackbar: {}, VSwitch: {},
+  VTab: {}, VTabs: {}, VTable: {}, VTextField: {}, VTextarea: {},
 }))
-
-vi.mock('vuetify/directives', () => ({
-  Ripple: {},
-}))
+vi.mock('vuetify/directives', () => ({ Ripple: {} }))
 
 import { moeurlDarkTheme, moeurlLightTheme, vuetify } from './vuetify'
 

@@ -62,6 +62,21 @@ beforeEach(() => {
 })
 
 describe('AdminDomainsPage', () => {
+  it('exposes the current domain selection and preserves it when discarding is canceled', async () => {
+    mount()
+    const primaryButton = screen.getByRole('button', { name: /Primary/ })
+    const secondaryButton = screen.getByRole('button', { name: /Secondary/ })
+    expect(primaryButton.getAttribute('aria-current')).toBe('true')
+    await fireEvent.click(secondaryButton)
+    expect(secondaryButton.getAttribute('aria-current')).toBe('true')
+    expect(primaryButton.hasAttribute('aria-current')).toBe(false)
+    await fireEvent.update(screen.getByLabelText('domains.displayName'), 'Unsaved')
+    await fireEvent.click(primaryButton)
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.cancel' }))
+    expect(secondaryButton.getAttribute('aria-current')).toBe('true')
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'Unsaved')
+  })
+
   it('provides loading, retry and empty states', async () => {
     state.pending.value = true
     state.data.value = undefined

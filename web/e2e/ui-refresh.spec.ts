@@ -89,7 +89,9 @@ for (const width of [1440, 360]) {
         await expect(page.locator('h1')).toBeVisible()
         await expect(page.locator('.site-footer')).toHaveCount(1)
         await expect(page.locator('.site-footer')).toContainText('很长的页脚文本')
-        const attribution = page.locator('.site-footer').getByRole('link', { name: /^Powered by MoeURL V\d+\.\d+\.\d+(?:-[a-f0-9]{7})?$/ })
+        const attribution = page.locator('.site-footer').getByRole('link', { name: /^V\d+\.\d+\.\d+(?:-[a-f0-9]{7})?$/ })
+        await expect(page.locator('.site-footer')).toContainText('Powered by MoeURL')
+        await expect(attribution).not.toContainText('Powered by MoeURL')
         await expect(attribution).toBeVisible()
         await expect(attribution).toHaveAttribute('href', /^https:\/\/github\.com\/TomyJan\/MoeURL\/(?:commit\/[a-f0-9]{40,64}|tree\/v\d+\.\d+\.\d+)$/)
         await expect(attribution).toHaveAttribute('target', '_blank')
@@ -98,6 +100,49 @@ for (const width of [1440, 360]) {
         const footer = await page.locator('.site-footer').boundingBox()
         expect(footer!.y + footer!.height).toBeLessThanOrEqual(1001)
       }
+    })
+
+    test(`${width}/${language}: standard table menus dismiss outside and restore keyboard focus`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await page.addInitScript(({ language }) => localStorage.setItem('moeurl.language', language), { language })
+      const link: ShortLink = {
+        id: 'first-link', slug: 'first123', url: 'https://go.example.com/first123', targetUrl: 'https://example.com',
+        title: '', tags: [], status: 'active', redirectMode: 'direct', intermediateDelaySeconds: 5,
+        expiresAt: null, expired: false, passwordEnabled: false, maxVisits: null, visitsUsed: 0,
+        visitsRemaining: null, exhausted: false, createdAt: '2026-10-15T00:00:00Z',
+      }
+      const second = { ...link, id: 'second-link', slug: 'second123', url: 'https://go.example.com/second123' }
+      await mockWorkspace(page, { '/short-link/list': { items: [link, second] } })
+      await page.goto('/link')
+      await expect(page.getByRole('columnheader', { name: language === 'en' ? 'Target URL' : '目标链接', exact: true })).toBeVisible()
+      const moreLabel = language === 'en' ? 'More actions' : '更多操作'
+      const firstMore = page.getByTestId('console-link-row').nth(0).getByRole('button', { name: moreLabel })
+      const secondMore = page.getByTestId('console-link-row').nth(1).getByRole('button', { name: moreLabel })
+      const menu = page.getByRole('menu')
+      const open = menu.getByRole('menuitem', { name: language === 'en' ? 'Open' : '打开', exact: true })
+      await firstMore.click()
+      await expect(open).toHaveAttribute('href', link.url)
+      await page.getByRole('heading', { level: 1 }).click()
+      await expect(menu).toHaveCount(0)
+      await secondMore.click()
+      await expect(menu).toHaveCount(1)
+      await expect(open).toHaveAttribute('href', second.url)
+      await secondMore.press('ArrowDown')
+      await expect.poll(() => menu.evaluate(element => element.contains(document.activeElement))).toBe(true)
+      await page.keyboard.press('Home')
+      await expect(open).toBeFocused()
+      await page.keyboard.press('Escape')
+      await expect(menu).toHaveCount(0)
+      await expect(secondMore).toBeFocused()
+      await firstMore.press('ArrowDown')
+      await expect(open).toHaveAttribute('href', link.url)
+      await expect.poll(() => menu.evaluate(element => element.contains(document.activeElement))).toBe(true)
+      await page.keyboard.press('Home')
+      await expect(open).toBeFocused()
+      await page.keyboard.press('Escape')
+      await expect(firstMore).toBeFocused()
+      await expectNoHorizontalOverflow(page)
     })
 
     test(`${width}/${language}: link analytics keeps list context and long targets fit the viewport`, async ({ page }) => {
@@ -150,7 +195,7 @@ for (const width of [1440, 360]) {
         await page.goto(parent)
         const row = page.getByTestId('console-link-row')
         await expect(row).toHaveCount(1)
-        const target = row.locator('.console-link-row__target > span').last()
+        const target = row.locator('.console-link-row__target > a')
         await expect(target).toHaveText(targetUrl)
         await expect(target).toHaveAttribute('title', targetUrl)
         const targetLayout = await target.evaluate(element => ({
@@ -166,7 +211,9 @@ for (const width of [1440, 360]) {
         expect(targetLayout).toMatchObject({ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })
         expect(targetLayout.height).toBeLessThan(40)
         await expect(row.locator('.console-link-row__main > a')).toHaveAttribute('href', link.url)
-        await expect(row.getByRole('link', { name: language === 'en' ? 'Open' : '打开', exact: true })).toHaveAttribute('href', link.url)
+        await row.getByRole('button', { name: language === 'en' ? 'More actions' : '更多操作', exact: true }).click()
+        await expect(page.getByRole('menu').getByRole('menuitem', { name: language === 'en' ? 'Open' : '打开', exact: true })).toHaveAttribute('href', link.url)
+        await page.keyboard.press('Escape')
         await expectNoHorizontalOverflow(page)
 
         const analytics = row.getByRole('link', { name: language === 'en' ? 'Analytics' : '分析', exact: true })

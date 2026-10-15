@@ -91,13 +91,11 @@ export async function expectPasswordLayout(page: Page) {
   expect(passwordBox.y + passwordBox.height).toBeLessThanOrEqual(actionsBox.y + 1)
 }
 
-/** Verifies that the rendered document does not overflow horizontally. */
+/** Waits for responsive layout and overlay transitions to settle without document overflow. */
 export async function expectNoHorizontalOverflow(page: Page) {
-  const dimensions = await page.evaluate(() => ({
-    clientWidth: document.documentElement.clientWidth,
-    scrollWidth: document.documentElement.scrollWidth,
-  }))
-  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth)
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  )).toBeLessThanOrEqual(0)
 }
 
 /** Attaches the current page image to the Playwright report. */

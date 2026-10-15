@@ -51,7 +51,7 @@ test('v0.2.0 intermediate-page, expiry, QR-code, and logout flows', async ({ pag
   const disableUser = page.waitForResponse('**/api/v1/admin/user/update')
   const aliceRow = page.getByTestId('console-user-row').filter({ hasText: aliceUsername })
   await aliceRow.getByRole('button', { name: '更多操作' }).click()
-  await aliceRow.getByRole('button', { name: '禁用' }).click()
+  await page.getByTestId('console-user-actions').getByRole('button', { name: '禁用' }).click()
   expect((await disableUser).status()).toBe(200)
   const disabledLogin = await page.request.post('/api/v1/auth/login', {
     data: { username: aliceUsername, password: alicePassword },
@@ -180,7 +180,7 @@ test('v0.2.0 intermediate-page, expiry, QR-code, and logout flows', async ({ pag
   const intermediateRow = page.getByTestId('console-link-row').filter({ hasText: intermediateUrl ?? '' })
   await expect(intermediateRow).toBeVisible()
   await intermediateRow.getByRole('button', { name: '更多操作' }).click()
-  await intermediateRow.getByRole('menuitem', { name: '访问配置' }).click()
+  await page.getByRole('menu').getByRole('menuitem', { name: '访问配置' }).click()
   const settingsDialog = page.getByRole('dialog')
   const updatedIntermediateTarget = 'https://example.org/e2e-expired'
   await settingsDialog.getByLabel('目标链接').fill(updatedIntermediateTarget)
@@ -271,7 +271,8 @@ test('v0.2.0 intermediate-page, expiry, QR-code, and logout flows', async ({ pag
     .filter({ has: page.getByRole('link', { name: createdUrl ?? '' }) })
   await expect(disabledLinkRow).toHaveCount(1)
   await expect(disabledLinkRow.getByRole('button', { name: '复制' })).toBeVisible()
-  await expect(disabledLinkRow.getByRole('link', { name: '打开' })).toHaveAttribute('href', createdUrl ?? '')
+  await disabledLinkRow.getByRole('button', { name: '更多操作' }).click()
+  await expect(page.getByRole('menu').getByRole('menuitem', { name: '打开', exact: true })).toHaveAttribute('href', createdUrl ?? '')
 
   await page.goto('/admin/link')
   await selectVuetifyOption(page, '状态筛选', '禁用')

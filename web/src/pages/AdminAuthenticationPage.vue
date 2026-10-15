@@ -17,16 +17,12 @@
 
     <div v-else class="identity-page__workspace">
       <aside class="identity-page__providers" :aria-label="t('oidc.providerListLabel')">
-        <button
-          v-for="provider in providers"
-          :key="provider.id"
-          :class="['identity-page__provider', { 'identity-page__provider--active': provider.id === selectedID && !creating }]"
-          type="button"
-          @click="selectProvider(provider)"
-        >
-          <span>{{ provider.displayName }}</span>
-          <small>{{ provider.enabled ? t('oidc.enabled') : t('oidc.disabled') }}</small>
-        </button>
+        <v-list role="group" density="comfortable" nav class="moe-resource-list">
+          <v-list-item v-for="provider in providers" :key="provider.id" tag="button" type="button" role="button" color="primary" :active="provider.id === selectedID && !creating" :aria-current="provider.id === selectedID && !creating ? 'true' : undefined" @click="selectProvider(provider)">
+            <template #title>{{ provider.displayName }}</template>
+            <template #subtitle>{{ provider.enabled ? t('oidc.enabled') : t('oidc.disabled') }}</template>
+          </v-list-item>
+        </v-list>
         <div v-if="providers.length === 0 && !creating" class="identity-page__empty">
           <strong>{{ t('oidc.empty') }}</strong>
           <span>{{ t('oidc.emptyDescription') }}</span>
@@ -322,10 +318,7 @@ function operationTargetsActiveContext(operation: ProviderOperation) {
 .identity-page__header h1 { margin: 0; font-size: 1.75rem; }
 .identity-page__header span { display: block; margin-top: 7px; color: rgb(var(--v-theme-on-surface-variant)); }
 .identity-page__workspace { display: grid; grid-template-columns: minmax(190px, 260px) minmax(0, 1fr); gap: 24px; border-top: 1px solid var(--moeurl-outline); padding-top: 20px; }
-.identity-page__providers { display: grid; align-content: start; gap: 6px; }
-.identity-page__provider { display: flex; justify-content: space-between; gap: 10px; width: 100%; padding: 12px; border: 0; border-left: 3px solid transparent; background: transparent; color: inherit; text-align: left; cursor: pointer; }
-.identity-page__provider--active { border-left-color: rgb(var(--v-theme-primary)); background: var(--moeurl-surface-soft); }
-.identity-page__provider small { color: rgb(var(--v-theme-on-surface-variant)); }
+.identity-page__providers { min-width: 0; }
 .identity-page__empty { display: grid; gap: 6px; color: rgb(var(--v-theme-on-surface-variant)); }
 .identity-page__editor { display: grid; gap: 18px; min-width: 0; }
 .identity-page__editor-title { display: flex; align-items: start; justify-content: space-between; gap: 20px; }
@@ -337,7 +330,6 @@ function operationTargetsActiveContext(operation: ProviderOperation) {
 @media (max-width: 760px) {
   .identity-page__header { align-items: stretch; flex-direction: column; }
   .identity-page__workspace { grid-template-columns: 1fr; }
-  .identity-page__providers { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
   .identity-page__fields { grid-template-columns: 1fr; }
   .identity-page__fields > :nth-child(3), .identity-page__fields > :nth-child(6) { grid-column: auto; }
 }
