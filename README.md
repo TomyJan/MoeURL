@@ -4,6 +4,8 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 当前主分支的功能实现已推进到 v0.11.0：包含短链管理与访问条件、匿名聚合统计、用户组权限、多提供商 OIDC、多域名、系统设置、最大访问次数以及标题与标签。近期已完成标准列表、操作反馈、构建版本署名和「鸢尾蓝 × 薄荷青」前端配色更新。
 
+v0.12.0 正在独立分支补齐创建时自定义短码：3–32 位 ASCII 字母数字，大写转小写，受独立权限控制且不改变既有短链地址。实施与验证状态见 [验收清单](./docs/implementation/v0.12.0-acceptance.md)。
+
 已实现、待开发和待验证事项统一见 [开发进度与能力清单](./docs/product/development-status.md)。功能实现与本地验证不等于正式发布；当前候选提交的目标 CI、容器、外部真实 OIDC、DNS/TLS 和恢复发布证据须分别补齐，历史验证保留各自的提交与环境范围。
 
 ## 功能概览
@@ -46,6 +48,8 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 - [路线图](./docs/product/roadmap.md)
 - [v0.11.0 标题与标签范围](./docs/product/scope-v0.11.0.md)
 - [v0.11.0 验收清单](./docs/implementation/v0.11.0-acceptance.md)
+- [v0.12.0 自定义短码范围](./docs/product/scope-v0.12.0.md)
+- [v0.12.0 验收清单](./docs/implementation/v0.12.0-acceptance.md)
 - [文档总览](./docs/README.md)
 - [v0.10.0 最大访问次数范围](./docs/product/scope-v0.10.0.md)
 - [v0.10.0 验收清单](./docs/implementation/v0.10.0-acceptance.md)

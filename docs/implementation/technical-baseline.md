@@ -403,8 +403,12 @@ own/admin list 的 `q` 匹配短码、目标地址、标题和标签的文字子
 - v0.0.1 默认生成 6 位随机短码。
 - 短码只允许小写字母和数字：`[a-z0-9]`。
 - 系统生成、保存和展示的短码都使用小写。
-- 后续如开放自定义短码，输入应先归一化为小写再校验和保存。
+- v0.12.0 创建接受可选 `customSlug`；省略或 `null` 保持随机生成，显式空字符串非法。先校验原始值为 3–32 位 ASCII 字母数字，再转小写，不去空格、不接受 Unicode 相似字。
 - 短码唯一性、保留路径校验和访问查找都基于归一化后的小写值。
+
+指定短码要求 `short_link:custom_slug`，创建事务在用户组共享锁下重查权限，和域名授权使用同一查询。指定值仅插入一次，slug 唯一约束冲突为 `200101`，保留路径为 `200102`，格式错误为 `100001`，缺权限为 `120001`；其他数据库错误不能伪装成占用或触发随机重试。短码跨域名唯一，软删除仍占用；不提供可用性探测、改码或复用。固定入口保留集合与完整契约见 [设计](../specs/2026-10-15-v0.12.0-custom-slugs-design.md)。
+
+`00017_custom_slug_permission.sql` 只补权限及回滚追踪，不修改 `short_link.slug` 类型或约束。Down 仅撤销 migration 追加且之后未独立变更的授权，保留后来新增组的授权与全部短链数据；旧 App 可继续解析已保存的自定义短码。
 
 ### 迁移规则
 
@@ -435,6 +439,7 @@ short_link:set_expiration
 short_link:set_password
 short_link:set_max_visits
 short_link:set_metadata
+short_link:custom_slug
 admin:access
 ```
 
