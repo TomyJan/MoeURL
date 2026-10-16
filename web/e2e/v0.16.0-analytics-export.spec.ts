@@ -120,7 +120,7 @@ function nextStatistics(page: Page, endpoint: string, id: string, range: Record<
   })
 }
 
-/** Compares the complete persisted CSV with freshly queried server aggregates. */
+/** Compares persisted CSV and stable aggregates without assuming requests share a UTC day. */
 async function expectDownload(page: Page, endpoint: string, scenario: Scenario, displayed: ShortLinkStatisticsResponse, testInfo: TestInfo, name: string, english = false) {
   const exportResponse = page.waitForResponse((response) => new URL(response.url()).pathname === `${endpoint}/export`)
   const saved = page.waitForEvent('download')
@@ -152,7 +152,8 @@ async function expectDownload(page: Page, endpoint: string, scenario: Scenario, 
   expect(text.replaceAll('\r\n', '')).not.toMatch(/[\r\n]/)
   const fresh = await statisticsPayload(await page.request.get(`${endpoint}?${url.searchParams}`))
   expect(fresh.range).toEqual(displayed.range)
-  expect(fresh.stats).toEqual(displayed.stats)
+  // Independent requests can straddle UTC midnight; only today's count may change.
+  expect(fresh.stats).toEqual({ ...displayed.stats, todayVisitCount: expect.any(Number) })
   const { stats, range } = fresh
   // This fixture deliberately uses delimiter-free values; escaping/injection is covered by CSV-reader unit tests.
   const rows = text.slice(0, -2).split('\r\n').map((row) => row.split(','))
@@ -164,13 +165,18 @@ async function expectDownload(page: Page, endpoint: string, scenario: Scenario, 
     ['metadata', 'time_zone', 'UTC', ''],
     ['summary', 'range_visit_count', '', String(stats.rangeVisitCount)],
     ['summary', 'lifetime_visit_count', '', String(stats.visitCount)],
-    ['summary', 'today_visit_count', '', String(stats.todayVisitCount)],
+    ['summary', 'today_visit_count', '', expect.stringMatching(/^(0|[1-9]\d*)$/)],
     ['summary', 'last_visited_at', utcTimestamp(stats.lastVisitedAt), ''],
     ...stats.trend.map((point) => ['trend', 'date', point.date, String(point.visitCount)]),
     ...stats.referrers.map((item) => ['referrer', 'host', item.value, String(item.visitCount)]),
     ...stats.devices.map((item) => ['device', 'type', item.value, String(item.visitCount)]),
     ...stats.countries.map((item) => ['country', 'code', item.value, String(item.visitCount)]),
   ])
+  for (const count of [displayed.stats.todayVisitCount, stats.todayVisitCount, Number(rows[7]?.[3])]) {
+    expect(Number.isSafeInteger(count)).toBe(true)
+    expect(count).toBeGreaterThanOrEqual(0)
+    expect(count).toBeLessThanOrEqual(stats.visitCount)
+  }
   for (const secret of [scenario.link.targetUrl, scenario.link.id, scenario.username, 'Private CSV owner', privateTitle, privateTag, fixturePassword, '/private-campaign?secret=referrer']) {
     expect(text).not.toContain(secret)
   }
