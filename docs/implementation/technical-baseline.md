@@ -301,7 +301,7 @@ v0.15.0 增加 `user_preference`，按当前 Cookie 身份读取和更新语言�
 
 v0.16.0 的 own／admin statistics/export 复用严格日期与统计读取逻辑，再叠加 `short_link:export_statistics`。成功返回 JSON 下载描述 `{fileName, contentType, content}`，MIME 固定 `text/csv;charset=utf-8`；失败仍用既有业务 envelope，响应 no-store。CSV 使用 BOM、CRLF、固定四列及公式注入保护，只有现有匿名聚合和公开短链 URL，不导出目标地址或原始事件。具体契约见 [导出设计](../specs/2026-10-16-v0.16.0-analytics-export-design.md)。
 
-v0.17.0 批量管理新增个人／后台 `POST short-link/batch`，严格接受 1–100 个不同的非零 UUID 和 `enable`／`disable`／`delete` 动作，成功返回 `affectedCount`。沿用现有写权限，单条 SQL 重查账号与数据库授权、按 UUID 锁定全部目标后检查数量，只有全部可操作才写入；无 schema 或权限迁移。状态赋值与软删除不改变其他访问条件、额度或元数据，详细契约见 [批量管理设计](../specs/2026-10-16-v0.17.0-bulk-link-management-design.md)。
+v0.17.0 批量管理新增个人／后台 `POST short-link/batch`，要求 `application/json` 媒体类型（允许合法参数），严格接受 1–100 个不同的非零 UUID 和 `enable`／`disable`／`delete` 动作，成功返回 `affectedCount`。缺失、错误或非 JSON 媒体类型在调用业务服务前返回 `100001`，防止同站跨源简单请求借登录 Cookie 执行批量写入。沿用现有写权限，单条 SQL 重查账号与数据库授权、按 UUID 锁定全部目标后检查数量，只有全部可操作才写入；无 schema 或权限迁移。状态赋值与软删除不改变其他访问条件、额度或元数据，详细契约见 [批量管理设计](../specs/2026-10-16-v0.17.0-bulk-link-management-design.md)。
 
 ## 6. 数据库约定
 

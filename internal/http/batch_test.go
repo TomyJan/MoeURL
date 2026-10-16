@@ -40,6 +40,7 @@ func TestRouterBatchRegistersIndependentNoStoreEndpoints(t *testing.T) {
 	router := apphttp.NewRouter(apphttp.Dependencies{ShortLinkBatch: port})
 	for _, path := range []string{"/api/v1/short-link/batch", "/api/v1/admin/short-link/batch"} {
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, path, strings.NewReader(`{"ids":["00000000-0000-0000-0000-000000000001"],"action":"enable"}`))
+		req.Header.Set("Content-Type", "application/json")
 		res := httptest.NewRecorder()
 		router.ServeHTTP(res, req)
 		require.Equal(t, http.StatusOK, res.Code)

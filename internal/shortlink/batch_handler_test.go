@@ -65,6 +65,7 @@ func TestBatchHTTPStrictContract(t *testing.T) {
 				user := auth.CurrentUser{ID: "actor", Username: "actor", GroupKey: "user"}
 				router := apphttp.NewRouter(apphttp.Dependencies{ShortLinkBatch: stub, CurrentUser: &fakeCurrentUserResolver{user: user}})
 				req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, path, strings.NewReader(test.body))
+				req.Header.Set("Content-Type", "application/json")
 				req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session"})
 				res := httptest.NewRecorder()
 				router.ServeHTTP(res, req)
@@ -83,6 +84,53 @@ func TestBatchHTTPStrictContract(t *testing.T) {
 					require.Equal(t, int64(1), body.Data.AffectedCount)
 				} else if test.err == nil {
 					require.False(t, stub.called)
+				}
+			})
+		}
+	}
+}
+
+// TestBatchHTTPRequiresJSONMediaType blocks simple cross-origin writes before service dispatch in both scopes.
+func TestBatchHTTPRequiresJSONMediaType(t *testing.T) {
+	for _, path := range []string{"/api/v1/short-link/batch", "/api/v1/admin/short-link/batch"} {
+		for _, test := range []struct {
+			name, contentType string
+			accepted          bool
+		}{
+			{name: "missing"},
+			{name: "plain text", contentType: "text/plain"},
+			{name: "form", contentType: "application/x-www-form-urlencoded"},
+			{name: "multipart", contentType: "multipart/form-data; boundary=batch"},
+			{name: "malformed", contentType: "application/json; charset"},
+			{name: "different subtype", contentType: "application/problem+json"},
+			{name: "JSON", contentType: "application/json", accepted: true},
+			{name: "JSON with charset", contentType: "application/json; charset=utf-8", accepted: true},
+			{name: "case insensitive JSON", contentType: "Application/JSON", accepted: true},
+		} {
+			t.Run(path+"/"+test.name, func(t *testing.T) {
+				stub := &batchStub{}
+				user := auth.CurrentUser{ID: "actor", Username: "actor", GroupKey: "user"}
+				router := apphttp.NewRouter(apphttp.Dependencies{ShortLinkBatch: stub, CurrentUser: &fakeCurrentUserResolver{user: user}})
+				req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, path, strings.NewReader(`{"ids":["00000000-0000-0000-0000-000000000001"],"action":"delete"}`))
+				if test.contentType != "" {
+					req.Header.Set("Content-Type", test.contentType)
+				}
+				req.Header.Set("Origin", "https://evil.example.com")
+				req.Header.Set("Sec-Fetch-Site", "same-site")
+				req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "session"})
+				res := httptest.NewRecorder()
+				router.ServeHTTP(res, req)
+				code := 100001
+				if test.accepted {
+					code = 0
+				}
+				assertBusinessCode(t, res, http.StatusOK, code)
+				require.Contains(t, res.Header().Get("Cache-Control"), "no-store")
+				require.Equal(t, test.accepted, stub.called)
+				if test.accepted {
+					require.Equal(t, user, stub.user)
+					require.Equal(t, "delete", stub.input.Action)
+					require.Equal(t, strings.Contains(path, "/admin/"), stub.admin)
 				}
 			})
 		}

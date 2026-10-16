@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"mime"
 	"net/http"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
@@ -40,8 +41,13 @@ func (h *BatchHandler) AdminBatch(w http.ResponseWriter, r *http.Request) {
 	h.batch(w, r, h.service.AdminBatch)
 }
 
-// batch rejects malformed JSON and invalid inputs before calling the selected service operation.
+// batch requires JSON media type and rejects malformed JSON and invalid inputs before service dispatch.
 func (h *BatchHandler) batch(w http.ResponseWriter, r *http.Request, run func(context.Context, auth.CurrentUser, BatchInput) (BatchResult, error)) {
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/json" {
+		businessError(w, 100001, "Invalid request")
+		return
+	}
 	var request struct {
 		IDs    []*string `json:"ids"`
 		Action *string   `json:"action"`

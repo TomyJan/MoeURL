@@ -39,6 +39,7 @@ func TestAppBatchUsesDatabasePermissions(t *testing.T) {
 				require.NoError(t, err)
 			}
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, path, strings.NewReader(fmt.Sprintf(`{"ids":[%q],"action":"disable"}`, id)))
+			req.Header.Set("Content-Type", "application/json")
 			req.AddCookie(cookie)
 			res := httptest.NewRecorder()
 			application.server.Handler.ServeHTTP(res, req)
