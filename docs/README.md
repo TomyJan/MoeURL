@@ -16,7 +16,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 [v0.15.0 账号语言与主题偏好](product/scope-v0.15.0.md) 已通过 PR #190 合并为 `2ec7eaa4`；显式账号保存、登录加载和浏览器偏好隔离的原分支证据见 [验收记录](implementation/v0.15.0-acceptance.md)，不替代合并提交或发布验证。
 
-当前推进 [v0.16.0 聚合统计 CSV 导出](product/scope-v0.16.0.md)，仅导出单短链已应用 UTC 区间的匿名聚合；见 [设计](specs/2026-10-16-v0.16.0-analytics-export-design.md)、[实施计划](implementation/v0.16.0-plan.md)、[任务清单](implementation/v0.16.0-tasks.md) 与 [验收记录](implementation/v0.16.0-acceptance.md)。
+[v0.16.0 聚合统计 CSV 导出](product/scope-v0.16.0.md) 已在独立分支实现并通过本地可执行门禁，未合并、未发布；仅导出单短链已应用 UTC 区间的匿名聚合。见 [设计](specs/2026-10-16-v0.16.0-analytics-export-design.md)、[实施计划](implementation/v0.16.0-plan.md)、[任务清单](implementation/v0.16.0-tasks.md) 与 [验收记录](implementation/v0.16.0-acceptance.md)。
 
 2026-10-14 全站前端视觉更新沿用既有业务范围，设计见 [视觉与交互规范](specs/2026-10-14-ui-refresh-design.md)，执行与证据见 [实施计划](implementation/2026-10-14-ui-refresh-plan.md) 和 [本地验收](implementation/2026-10-14-ui-refresh-acceptance.md)。
 

@@ -8,7 +8,7 @@ v0.12.0 自定义短码与 v0.13.0 个人改密已分别通过 PR #185、#186 �
 
 已实现、待开发和待验证事项统一见 [开发进度与能力清单](./docs/product/development-status.md)。功能实现与本地验证不等于正式发布；当前候选提交的目标 CI、容器、外部真实 OIDC、DNS/TLS 和恢复发布证据须分别补齐，历史验证保留各自的提交与环境范围。
 
-[v0.15.0 账号语言与主题偏好](./docs/product/scope-v0.15.0.md) 已通过 PR #190 合并为 `2ec7eaa4`：支持账号保存与登录加载，同时保留浏览器即时选择。原分支验证环境和发布缺口见 [验收记录](./docs/implementation/v0.15.0-acceptance.md)。当前独立推进 [v0.16.0 聚合统计 CSV 导出](./docs/product/scope-v0.16.0.md)，不扩展原始数据采集，状态见 [本版验收](./docs/implementation/v0.16.0-acceptance.md)。
+[v0.15.0 账号语言与主题偏好](./docs/product/scope-v0.15.0.md) 已通过 PR #190 合并为 `2ec7eaa4`：支持账号保存与登录加载，同时保留浏览器即时选择。原分支验证环境和发布缺口见 [验收记录](./docs/implementation/v0.15.0-acceptance.md)。[v0.16.0 聚合统计 CSV 导出](./docs/product/scope-v0.16.0.md) 已在独立分支实现并通过本地可执行门禁，未合并、未发布；不扩展原始数据采集，状态见 [本版验收](./docs/implementation/v0.16.0-acceptance.md)。
 
 ## 功能概览
 

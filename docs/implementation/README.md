@@ -4,7 +4,7 @@
 
 ## 当前文档
 
-当前推进 v0.16.0 聚合统计 CSV 导出，见 [范围](../product/scope-v0.16.0.md)、[设计](../specs/2026-10-16-v0.16.0-analytics-export-design.md)、[实施计划](v0.16.0-plan.md)、[任务清单](v0.16.0-tasks.md) 和 [验收记录](v0.16.0-acceptance.md)。功能、验证、合并和发布状态分别记录。
+v0.16.0 聚合统计 CSV 导出已在独立分支实现并通过本地可执行门禁，未合并、未发布。见 [范围](../product/scope-v0.16.0.md)、[设计](../specs/2026-10-16-v0.16.0-analytics-export-design.md)、[实施计划](v0.16.0-plan.md)、[任务清单](v0.16.0-tasks.md) 和 [验收记录](v0.16.0-acceptance.md)。功能、验证、合并和发布状态分别记录。
 
 v0.15.0 账号语言与主题偏好已通过 PR #190 合并为 `2ec7eaa4`；原分支的实现、本地门禁和独立审查见 [验收记录](v0.15.0-acceptance.md)，不替代合并提交或发布验证。
 
