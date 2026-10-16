@@ -124,6 +124,34 @@ func TestPreferencesServiceConcurrentWrites(t *testing.T) {
 	}
 }
 
+// TestPreferencesServiceRejectsOverPreciseVersion prevents sub-nanosecond input from being truncated into a valid stored version.
+func TestPreferencesServiceRejectsOverPreciseVersion(t *testing.T) {
+	ctx := t.Context()
+	pool := userTestPool(t, ctx)
+	insertUserGroup(t, ctx, pool, "user", permission.UserPermissions)
+	actor := auth.CurrentUser{ID: insertAppUser(t, ctx, pool, "precision", "hash", "Precision", "user", "active", false), GroupKey: "user"}
+	if _, err := pool.Exec(ctx, `insert into user_preference(user_id,language,theme,updated_at) values($1,'en','dark','2026-10-16T12:00:00.123456Z')`, actor.ID); err != nil {
+		t.Fatal(err)
+	}
+	service := user.NewPreferencesService(pool)
+	version := "2026-10-16T12:00:00.1234560001Z"
+	if _, err := service.Update(ctx, actor, user.UpdatePreferencesInput{ExpectedUpdatedAt: &version}); !errors.Is(err, user.ErrInvalidInput) {
+		t.Fatalf("sub-nanosecond version error = %v, want ErrInvalidInput", err)
+	}
+	current, err := service.Get(ctx, actor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.Preferences.Language == nil || *current.Preferences.Language != "en" || current.Preferences.Theme == nil || *current.Preferences.Theme != "dark" || current.Preferences.UpdatedAt == nil || *current.Preferences.UpdatedAt != "2026-10-16T12:00:00.123456Z" {
+		t.Fatalf("invalid version changed stored preferences: %#v", current)
+	}
+	// Equivalent RFC3339 offsets retain their instant semantics without requiring canonical UTC text.
+	version = "2026-10-16T20:00:00.123456000+08:00"
+	if _, err := service.Update(ctx, actor, user.UpdatePreferencesInput{ExpectedUpdatedAt: &version}); err != nil {
+		t.Fatalf("equivalent offset version: %v", err)
+	}
+}
+
 // TestPreferencesServiceRejectsInactiveAndGuestUsers rechecks eligibility in the database for both operations.
 func TestPreferencesServiceRejectsInactiveAndGuestUsers(t *testing.T) {
 	ctx := t.Context()

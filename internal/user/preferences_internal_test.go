@@ -73,4 +73,20 @@ func TestPreferencesServiceInputValidation(t *testing.T) {
 			t.Fatal("invalid input reached the database")
 		}
 	}
+	for _, version := range []string{
+		"2026-10-16T12:00:00.1234560001Z", // time.Parse otherwise silently truncates precision.
+		"2026-10-16T12:00:00,1234560001Z", // Go's parser also accepts comma fractions.
+		"2026-02-30T12:00:00Z",            // Shape alone cannot validate calendar dates.
+		"2026-10-16T25:00:00Z",
+		"2026-10-16T12:00:00+24:00",
+		"2026-10-16T12:00:00+00:60",
+	} {
+		store := &preferenceFaultStore{}
+		if _, err := (&PreferencesService{store: store}).Update(t.Context(), actor, UpdatePreferencesInput{ExpectedUpdatedAt: &version}); !errors.Is(err, ErrInvalidInput) {
+			t.Fatalf("invalid timestamp %q: %v", version, err)
+		}
+		if store.reads != 0 || store.writes != 0 {
+			t.Fatalf("invalid timestamp %q reached database", version)
+		}
+	}
 }

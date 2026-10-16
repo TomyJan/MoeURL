@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"errors"
+	"regexp"
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
@@ -15,6 +16,9 @@ import (
 
 // ErrPreferencesConflict means the submitted version cannot replace the account's current settings.
 var ErrPreferencesConflict = errors.New("preferences conflict")
+
+// preferencesVersionPattern bounds fractional precision before time.Parse can silently discard digits.
+var preferencesVersionPattern = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,9})?(Z|[+-](0[0-9]|1[0-9]|2[0-3]):[0-5][0-9])$`)
 
 // Preferences contains nullable account overrides; null fields preserve browser and site defaults.
 type Preferences struct {
@@ -78,6 +82,9 @@ func (s *PreferencesService) Update(ctx context.Context, actor auth.CurrentUser,
 	}
 	var expected pgtype.Timestamptz
 	if input.ExpectedUpdatedAt != nil {
+		if !preferencesVersionPattern.MatchString(*input.ExpectedUpdatedAt) {
+			return PreferencesResult{}, ErrInvalidInput
+		}
 		version, parseErr := time.Parse(time.RFC3339Nano, *input.ExpectedUpdatedAt)
 		if parseErr != nil {
 			return PreferencesResult{}, ErrInvalidInput
