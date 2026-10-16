@@ -56,7 +56,7 @@
 | [配色验收](../implementation/2026-10-15-color-refresh-acceptance.md) | 基线 `fafa6231` 后的工作树：919 项前端测试、四项覆盖率 100%、lint、类型检查与构建；16 项界面 E2E、88 组只读页面检查。 | 本轮未重跑 Go、完整业务 E2E、Docker 或目标 CI；界面 E2E 拦截 API，不作为业务集成证据。 |
 | [v0.13.0 验收](../implementation/v0.13.0-acceptance.md) | 个人改密通过 PR #186 合并为 `a52733cc`。分支原始证据：Go 全仓与业务覆盖率 100%；1023 项前端测试、四项覆盖率 100%、静态检查与构建；代码候选 `77035e6` 全量 Playwright 47 项通过、1 项 Docker 场景跳过；独立审查完成，隔离资源已清理。 | 分支本地证据不能替代合并提交验证；PostgreSQL 16.3 本地回退不能替代 PostgreSQL 18、完整容器、目标 CI／Linux race／安全扫描或生产证据。 |
 | [v0.14.0 验收](../implementation/v0.14.0-acceptance.md) | 已通过 PR #187 合并为 `c864ce3a`；原分支 Go 业务覆盖率 100%；1050 项前端测试、四项覆盖率 100%、静态检查与构建；代码候选 `2afdba14` 全量 Playwright 52 项通过、1 项 Docker 双 Host 跳过；隔离资源已清理，原始证据归档保留。 | 分支证据不能替代合并提交或发布验证；PostgreSQL 16.3／本机 Chrome 与 mock OIDC 不替代目标 CI、PostgreSQL 18、完整容器、Linux race、安全扫描或生产环境证据。 |
-| [v0.15.0 验收](../implementation/v0.15.0-acceptance.md) | 独立分支实现和审查完成；Go 全仓包验证、业务覆盖率 100%；1098 项前端测试、四项覆盖率 100%、静态检查；代码候选 `14207888` 固定构建及完整 Playwright 55 项通过、1 项 Docker 双 Host 跳过；隔离资源已清理，证据已归档。 | 尚未合并或发布；分阶段本地门禁的提交和环境分别见验收，不能替代目标 CI、PostgreSQL 18、完整容器、Linux race、安全扫描或生产环境证据。 |
+| [v0.15.0 验收](../implementation/v0.15.0-acceptance.md) | 已通过 PR #190 合并为 `2ec7eaa4`。原分支 Go 全仓包验证、业务覆盖率 100%；1098 项前端测试、四项覆盖率 100%、静态检查；代码候选 `14207888` 固定构建及完整 Playwright 55 项通过、1 项 Docker 双 Host 跳过；隔离资源已清理，证据已归档。 | 尚未正式发布；原分支分阶段本地门禁的提交和环境分别见验收，不能替代合并提交、目标 CI、PostgreSQL 18、完整容器、Linux race、安全扫描或生产环境证据。 |
 
 发布前仍须针对候选提交补齐：
 
