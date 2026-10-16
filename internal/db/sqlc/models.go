@@ -53,6 +53,11 @@ type ExternalIdentity struct {
 	LastLoginAt pgtype.Timestamptz `json:"last_login_at"`
 }
 
+type MoeurlAnalyticsExportPermissionAddition struct {
+	UserGroupID        pgtype.UUID `json:"user_group_id"`
+	PermissionRevision int64       `json:"permission_revision"`
+}
+
 type MoeurlCustomSlugPermissionAddition struct {
 	UserGroupID        pgtype.UUID `json:"user_group_id"`
 	PermissionRevision int64       `json:"permission_revision"`

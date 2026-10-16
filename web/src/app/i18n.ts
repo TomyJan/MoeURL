@@ -185,6 +185,10 @@ export const messages = {
     },
     analytics: {
       title: '访问分析',
+      exportCsv: '导出 CSV',
+      exportDescription: '导出当前已应用日期范围的聚合统计。',
+      exportStarted: '已发起 CSV 下载，请在浏览器中确认保存。',
+      exportFailed: '导出失败，请重试。',
       ownTitle: '短链访问分析',
       adminTitle: '全站短链访问分析',
       description: '总访问量和最近访问反映全部历史，今日访问量按 UTC 计算。',
@@ -512,6 +516,7 @@ export const messages = {
       permissions: {
         'short_link:create': { label: '创建短链', description: '创建新的短链。' },
         'short_link:read_own': { label: '查看自己的短链', description: '查看当前账号创建的短链。' },
+        'short_link:export_statistics': { label: '导出短链统计', description: '将有权查看的短链聚合统计导出为 CSV。' },
         'short_link:update_own': { label: '编辑自己的短链', description: '编辑当前账号创建的短链。' },
         'short_link:delete_own': { label: '删除自己的短链', description: '软删除当前账号创建的短链。' },
         'short_link:use_intermediate': { label: '使用中间页', description: '为短链启用倒计时中间页。' },
@@ -843,6 +848,10 @@ export const messages = {
     },
     analytics: {
       title: 'Analytics',
+      exportCsv: 'Export CSV',
+      exportDescription: 'Export aggregate statistics for the currently applied date range.',
+      exportStarted: 'CSV download started. Confirm saving in your browser.',
+      exportFailed: 'Export failed. Please try again.',
       ownTitle: 'Link analytics',
       adminTitle: 'All-link analytics',
       description: 'Total visits and latest visit cover all history. Today’s visits use UTC.',
@@ -1170,6 +1179,7 @@ export const messages = {
       permissions: {
         'short_link:create': { label: 'Create short links', description: 'Create new short links.' },
         'short_link:read_own': { label: 'View own links', description: 'View short links created by this account.' },
+        'short_link:export_statistics': { label: 'Export link statistics', description: 'Export permitted short-link aggregate statistics as CSV.' },
         'short_link:update_own': { label: 'Edit own links', description: 'Edit short links created by this account.' },
         'short_link:delete_own': { label: 'Delete own links', description: 'Soft-delete short links created by this account.' },
         'short_link:use_intermediate': { label: 'Use intermediate pages', description: 'Enable countdown pages for short links.' },

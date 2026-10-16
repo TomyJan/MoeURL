@@ -50,6 +50,11 @@ function getIdentity(client: QueryClient) {
   return identity
 }
 
+/** Reuses the synchronous login-epoch guard without mounting a preferences request. */
+export function useAccountIdentity() {
+  return getIdentity(useQueryClient())
+}
+
 /** Revokes identity synchronously; password changes additionally cancel every private data read. */
 export function revokeAccountIdentity(client: QueryClient, cancelAllReads = false) {
   const cancelled = client.cancelQueries(cancelAllReads ? {} : { queryKey: ['auth', 'me'] })

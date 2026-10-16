@@ -16,6 +16,7 @@ func TestCatalogDefinitionsCoverPermissionConstants(t *testing.T) {
 		{Key: ShortLinkCreate, Category: "short_link_basic"},
 		{Key: ShortLinkCustomSlug, Category: "short_link_basic"},
 		{Key: ShortLinkReadOwn, Category: "short_link_basic"},
+		{Key: ShortLinkExportStatistics, Category: "short_link_basic"},
 		{Key: ShortLinkUpdateOwn, Category: "short_link_basic"},
 		{Key: ShortLinkDeleteOwn, Category: "short_link_basic"},
 		{Key: ShortLinkSetMetadata, Category: "short_link_basic"},

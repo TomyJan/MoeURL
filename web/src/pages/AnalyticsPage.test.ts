@@ -7,6 +7,10 @@ import { getShortLinkStatistics, getAdminShortLinkStatistics } from '@/entities/
 import type { ShortLinkStatisticsResponse, StatisticsRangeInput } from '@/entities/short-link/model'
 import { componentStubs } from '@/test/component-stubs'
 import { createDeferred } from '@/test/deferred'
+import { exportShortLinkStatistics } from '@/entities/short-link/export'
+import { downloadCsv } from '@/shared/download/csv'
+import type { StatisticsExport } from '@/entities/short-link/export'
+import { toast } from 'vue-sonner'
 
 const state = vi.hoisted(() => ({ route: {} as { path: string; params: { shortLinkId: string } } }))
 vi.mock('vue-router', () => ({ useRoute: () => state.route }))
@@ -14,6 +18,9 @@ vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, params?: Record<
 vi.mock('vuetify', () => ({ useTheme: () => ({ global: { current: { value: { colors: { primary: 'blue', 'on-surface-variant': 'black', outline: 'gray' } } } } }) }))
 vi.mock('chart.js', () => ({ Chart: class { static register() {} destroy() {} }, LineController: class {}, LineElement: class {}, PointElement: class {}, LinearScale: class {}, CategoryScale: class {}, Tooltip: class {} }))
 vi.mock('@/entities/short-link/api', () => ({ getShortLinkStatistics: vi.fn(), getAdminShortLinkStatistics: vi.fn() }))
+vi.mock('@/entities/short-link/export', () => ({ exportShortLinkStatistics: vi.fn() }))
+vi.mock('@/shared/download/csv', () => ({ downloadCsv: vi.fn() }))
+vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 const clients: QueryClient[] = []
 /** Builds a server-shaped payload whose range and count identify the resolved request. */
@@ -28,6 +35,7 @@ function response(id = 'link-id', startDate = '2026-10-09', endDate = '2026-10-1
 function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
   clients.push(client)
+  client.setQueryData(['auth', 'me'], { user: { id: 'A', username: 'A', group: 'user', permissions: ['short_link:export_statistics', 'short_link:read_own', 'short_link:read_all', 'admin:access'] } })
   return render(AnalyticsPage, { global: { stubs: componentStubs, plugins: [[VueQueryPlugin, { queryClient: client }]] } })
 }
 /** Changes a range through the user's selector. */
@@ -52,6 +60,77 @@ describe('analytics date range', () => {
   afterEach(() => {
     clients.splice(0).forEach((client) => client.clear())
     vi.useRealTimers()
+  })
+
+  it('exports the displayed dates while custom edits remain unapplied and disables during active reads', async () => {
+    const file: StatisticsExport = { fileName: 'moeurl-statistics-abc-2026-10-09-2026-10-15.csv', contentType: 'text/csv;charset=utf-8', content: '\uFEFFsection,key,value,visit_count\r\n' }
+    vi.mocked(exportShortLinkStatistics).mockResolvedValue(file)
+    mount()
+    expect((screen.getByTestId('analytics-export') as HTMLButtonElement).disabled).toBe(true)
+    await screen.findByTestId('analytics-summary')
+    await choose('custom')
+    await draft('2026-10-12', '2026-10-14')
+    await fireEvent.click(screen.getByTestId('analytics-export'))
+    await waitFor(() => expect(downloadCsv).toHaveBeenCalledWith(file))
+    expect(exportShortLinkStatistics).toHaveBeenCalledExactlyOnceWith('link-id', { startDate: '2026-10-09', endDate: '2026-10-15' }, 'own')
+    const loading = createDeferred<ShortLinkStatisticsResponse>()
+    vi.mocked(getShortLinkStatistics).mockReturnValue(loading.promise)
+    await fireEvent.click(screen.getByRole('button', { name: 'analytics.apply' }))
+    expect((screen.getByTestId('analytics-export') as HTMLButtonElement).disabled).toBe(true)
+    loading.reject(new Error('offline'))
+    await screen.findByText('analytics.loadFailed')
+    expect((screen.getByTestId('analytics-export') as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('invalidates a pending export when the route leaves and returns to the same cached analytics', async () => {
+    const exporting = createDeferred<StatisticsExport>()
+    vi.mocked(exportShortLinkStatistics).mockReturnValue(exporting.promise)
+    mount()
+    await screen.findByTestId('analytics-summary')
+    await fireEvent.click(screen.getByTestId('analytics-export'))
+    state.route.params.shortLinkId = 'other'
+    await waitFor(() => expect(getShortLinkStatistics).toHaveBeenLastCalledWith('other', { days: 7 }))
+    state.route.params.shortLinkId = 'link-id'
+    await screen.findByTestId('analytics-summary')
+    exporting.resolve({ fileName: 'moeurl-statistics-abc-2026-10-09-2026-10-15.csv', contentType: 'text/csv;charset=utf-8', content: '\uFEFFsection,key,value,visit_count\r\n' })
+    await exporting.promise
+    await Promise.resolve()
+    expect(downloadCsv).not.toHaveBeenCalled()
+    expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  it('remembers a route round trip even when both transitions happen before the next render', async () => {
+    const exporting = createDeferred<StatisticsExport>()
+    vi.mocked(exportShortLinkStatistics).mockReturnValue(exporting.promise)
+    mount()
+    await screen.findByTestId('analytics-summary')
+    await fireEvent.click(screen.getByTestId('analytics-export'))
+    state.route.params.shortLinkId = 'other'
+    state.route.params.shortLinkId = 'link-id'
+    exporting.resolve({ fileName: 'moeurl-statistics-abc-2026-10-09-2026-10-15.csv', contentType: 'text/csv;charset=utf-8', content: '\uFEFFsection,key,value,visit_count\r\n' })
+    await exporting.promise
+    await Promise.resolve()
+    expect(downloadCsv).not.toHaveBeenCalled()
+    expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  it.each(['success', 'failure'])('drops an already queued export %s before a synchronous route round trip renders', async (outcome) => {
+    const exporting = createDeferred<StatisticsExport>()
+    vi.mocked(exportShortLinkStatistics).mockReturnValue(exporting.promise)
+    mount()
+    await screen.findByTestId('analytics-summary')
+    await fireEvent.click(screen.getByTestId('analytics-export'))
+    if (outcome === 'success') {
+      exporting.resolve({ fileName: 'moeurl-statistics-abc-2026-10-09-2026-10-15.csv', contentType: 'text/csv;charset=utf-8', content: '\uFEFFsection,key,value,visit_count\r\n' })
+    } else exporting.reject(new Error('private'))
+    state.route.params.shortLinkId = 'other'
+    state.route.params.shortLinkId = 'link-id'
+    await exporting.promise.catch(() => undefined)
+    await Promise.resolve()
+    await waitFor(() => expect((screen.getByTestId('analytics-export') as HTMLButtonElement).disabled).toBe(false))
+    expect(downloadCsv).not.toHaveBeenCalled()
+    expect(toast.success).not.toHaveBeenCalled()
+    expect(toast.error).not.toHaveBeenCalled()
   })
 
   it('shows lifetime metrics separately from the actual server range and applies presets', async () => {

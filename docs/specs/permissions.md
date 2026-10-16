@@ -128,6 +128,8 @@ v0.8.0 已实现 `domain:use_default`（省略域名选择）、可配置的 `do
 
 ### 统计权限
 
+v0.16.0 新增可配置的 `short_link:export_statistics`，属于 `short_link_basic` 类别。内置 `user`／`admin` 默认拥有，`standard` 预设包含，`basic`／`restricted`／`guest` 不包含。它叠加个人 `short_link:read_own` 与本人归属，或管理 `admin:access` 与 `short_link:read_all`，不能单独扩大可读取范围。`00019` 只追加内置组缺失授权；Down 仅撤销本次追加且未被独立编辑的授权，保留既有和后续人工授予。详见 [导出设计](2026-10-16-v0.16.0-analytics-export-design.md)。
+
 - 查看自己的短链基础统计。
 - 查看自己的短链基础维度统计。
 - 查看自己的短链完整详细统计。

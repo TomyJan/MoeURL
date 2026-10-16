@@ -236,6 +236,8 @@ done
 
 v0.15.0 恢复还须比对样例用户的 `user_preference.language`、`theme` 与版本，并从新浏览器会话重新登录验证账号设置恢复。尚未保存的用户应继续无记录，不得从演练浏览器回填偏好。该表包含在正常数据库备份中，不需要新增部署密钥；直接执行 `00018 Down` 会删除这些设置。
 
+v0.16.0 恢复还须核验 `short_link:export_statistics` 授权，并以样例短链的已应用 UTC 区间下载 CSV，与页面聚合数值对照。导出不新增采集数据或文件存储，不需要额外备份密钥；回退 `00019` 不删除访问事件，授权仅按迁移追踪撤销。
+
 从当前 `migrations/` 目录计算最大 migration 版本，并确认恢复数据库一致：
 
 ```bash
@@ -252,7 +254,7 @@ test -n "$expected_migration_version" && test "$actual_migration_version" = "$ex
 ```bash
 restore_compose exec -T postgres \
   psql -U moeurl -d moeurl -Atc \
-  "select key, permissions ? 'short_link:set_metadata' as can_set_metadata, permissions ? 'short_link:custom_slug' as can_custom_slug from user_group where builtin order by key"
+  "select key, permissions ? 'short_link:set_metadata' as can_set_metadata, permissions ? 'short_link:custom_slug' as can_custom_slug, permissions ? 'short_link:export_statistics' as can_export_statistics from user_group where builtin order by key"
 ```
 
 登录入口验收必须以下文 `GET /api/v1/auth/methods` 返回的恢复后策略为准。需要验证本地登录时，密码只通过权限为 `600` 的临时 JSON 文件传入，不放在命令行或 Shell 历史中。

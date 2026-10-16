@@ -47,3 +47,18 @@ func TestNormalizeAnalyticsRange(t *testing.T) {
 		require.ErrorIs(t, err, ErrInvalidInput)
 	}
 }
+
+// TestNormalizeAnalyticsRangeAcrossUTCMidnight keeps explicit dates fixed while today's window advances.
+func TestNormalizeAnalyticsRangeAcrossUTCMidnight(t *testing.T) {
+	input := StatisticsInput{StartDate: "2026-10-14", EndDate: "2026-10-15"}
+	midnight := time.Date(2026, 10, 16, 0, 0, 0, 0, time.UTC)
+	before, err := normalizeAnalyticsRange(input, midnight.Add(-time.Nanosecond))
+	require.NoError(t, err)
+	after, err := normalizeAnalyticsRange(input, midnight)
+	require.NoError(t, err)
+	require.Equal(t, before.response, after.response)
+	require.Equal(t, before.start, after.start)
+	require.Equal(t, before.end, after.end)
+	require.Equal(t, midnight.AddDate(0, 0, -1), before.today)
+	require.Equal(t, midnight, after.today)
+}
