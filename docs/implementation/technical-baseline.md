@@ -198,6 +198,7 @@ API 使用 `/api/v1` 前缀：
 /api/v1/short-link/list
 /api/v1/short-link/update
 /api/v1/short-link/delete
+/api/v1/short-link/batch
 /api/v1/short-link/statistics
 /api/v1/short-link/statistics/export
 /api/v1/user/preferences
@@ -205,6 +206,7 @@ API 使用 `/api/v1` 前缀：
 /api/v1/admin/short-link/list
 /api/v1/admin/short-link/update
 /api/v1/admin/short-link/delete
+/api/v1/admin/short-link/batch
 /api/v1/admin/short-link/statistics
 /api/v1/admin/short-link/statistics/export
 /api/v1/admin/user-group/list
@@ -298,6 +300,8 @@ v0.14.0 的个人／管理员 statistics 支持 `days=7|30|90`（省略默认 7�
 v0.15.0 增加 `user_preference`，按当前 Cookie 身份读取和更新语言／主题。读取未保存用户返回三个 null 字段；更新必须完整提供 `language`、`theme` 和 `expectedUpdatedAt`，字段可空，拒绝缺项、未知字段和尾随 JSON。`expectedUpdatedAt=null` 仅首次创建，其余版本精确比较；冲突返回 `300104`，输入／无权／基础设施沿用 `100001`／`120001`／`900000`，两端点 no-store。不存在管理员代改接口或新增权限，具体见 [账号偏好设计](../specs/2026-10-16-v0.15.0-account-preferences-design.md)。
 
 v0.16.0 的 own／admin statistics/export 复用严格日期与统计读取逻辑，再叠加 `short_link:export_statistics`。成功返回 JSON 下载描述 `{fileName, contentType, content}`，MIME 固定 `text/csv;charset=utf-8`；失败仍用既有业务 envelope，响应 no-store。CSV 使用 BOM、CRLF、固定四列及公式注入保护，只有现有匿名聚合和公开短链 URL，不导出目标地址或原始事件。具体契约见 [导出设计](../specs/2026-10-16-v0.16.0-analytics-export-design.md)。
+
+v0.17.0 批量管理新增个人／后台 `POST short-link/batch`，严格接受 1–100 个不同的非零 UUID 和 `enable`／`disable`／`delete` 动作，成功返回 `affectedCount`。沿用现有写权限，单条 SQL 重查账号与数据库授权、按 UUID 锁定全部目标后检查数量，只有全部可操作才写入；无 schema 或权限迁移。状态赋值与软删除不改变其他访问条件、额度或元数据，详细契约见 [批量管理设计](../specs/2026-10-16-v0.17.0-bulk-link-management-design.md)。
 
 ## 6. 数据库约定
 
