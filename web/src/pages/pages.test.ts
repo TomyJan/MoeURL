@@ -196,7 +196,8 @@ vi.mock('@tanstack/vue-query', async () => {
 function mount(component: object) {
   return render(component, {
     global: {
-      stubs: componentStubs,
+      // Export lifecycle has real QueryClient coverage in AnalyticsPage.test.ts.
+      stubs: { ...componentStubs, AnalyticsExportButton: true },
     },
   })
 }

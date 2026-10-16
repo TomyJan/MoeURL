@@ -5,7 +5,16 @@
         <h1>{{ t(isAdminAnalytics ? 'analytics.adminTitle' : 'analytics.ownTitle') }}</h1>
         <p v-if="statistics" class="analytics-page__url" :title="statistics.shortLink.url">{{ statistics.shortLink.url }}</p>
       </div>
-      <v-btn :to="backTo" variant="tonal">{{ t(isAdminAnalytics ? 'analytics.backToAdminLinks' : 'analytics.backToLinks') }}</v-btn>
+      <div class="analytics-page__actions">
+        <v-btn :to="backTo" variant="tonal">{{ t(isAdminAnalytics ? 'analytics.backToAdminLinks' : 'analytics.backToLinks') }}</v-btn>
+        <AnalyticsExportButton
+          :id="shortLinkId"
+          :context="isAdminAnalytics ? 'admin' : 'own'"
+          :statistics="statistics"
+          :blocked="query.isPending.value || query.isFetching.value || query.isError.value"
+          :applied-range-key="`${exportRevision}:${JSON.stringify(appliedRange)}`"
+        />
+      </div>
     </header>
 
     <div class="analytics-page__range">
@@ -72,6 +81,7 @@ import { useForm } from 'vee-validate'
 import { getAdminShortLinkStatistics, getShortLinkStatistics } from '@/entities/short-link/api'
 import type { ShortLinkStatisticsResponse, StatisticsRangeInput } from '@/entities/short-link/model'
 import { statisticsDateRangeSchema } from '@/entities/short-link/schema'
+import AnalyticsExportButton from '@/features/analytics-export/AnalyticsExportButton.vue'
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip)
 
@@ -84,6 +94,9 @@ const isAdminAnalytics = computed(() => route.path.startsWith('/admin/link/'))
 const backTo = computed(() => isAdminAnalytics.value ? '/admin/link' : '/link')
 const rangeChoice = ref('7')
 const appliedRange = ref<StatisticsRangeInput>({ days: 7 })
+const exportRevision = ref(0)
+// Preserve intermediate transitions even when Vue batches a route round trip into one render.
+watch([shortLinkId, () => route.path, appliedRange], () => { exportRevision.value++ }, { flush: 'sync' })
 const rangeOptions = computed(() => [
   { title: t('analytics.days7'), value: '7' },
   { title: t('analytics.days30'), value: '30' },
@@ -193,7 +206,10 @@ function dimensionLabel(value: string) {
 </script>
 
 <style scoped>
-.analytics-page__url { max-width: min(70vw, 900px); margin: 5px 0 0; overflow: hidden; color: rgb(var(--v-theme-on-surface-variant)); text-overflow: ellipsis; white-space: nowrap; }
+.analytics-page__header { flex-wrap: wrap; }
+.analytics-page__header > div:first-child { flex: 1 1 260px; min-width: 0; }
+.analytics-page__url { max-width: min(100%, 900px); margin: 5px 0 0; overflow: hidden; color: rgb(var(--v-theme-on-surface-variant)); text-overflow: ellipsis; white-space: nowrap; }
+.analytics-page__actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; max-width: 100%; }
 .analytics-page__description { margin: 4px 0 0; color: rgb(var(--v-theme-on-surface-variant)); }
 .analytics-page__range { display: grid; gap: 12px; margin-top: 20px; }
 .analytics-page__range > :deep(.v-input) { max-width: 320px; }
@@ -209,6 +225,7 @@ function dimensionLabel(value: string) {
 .analytics-page__error { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 @media (max-width: 760px) {
   .analytics-page__header { display: flex; align-items: flex-start; flex-direction: column; }
+  .analytics-page__header > div:first-child { flex-basis: auto; }
   .analytics-page__url { max-width: calc(100vw - 48px); }
   .analytics-page__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .analytics-page__dimensions { grid-template-columns: 1fr; }
