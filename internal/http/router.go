@@ -28,6 +28,7 @@ type Dependencies struct {
 	CurrentUser            auth.CurrentUserResolver
 	ShortLink              shortlink.Port
 	ShortLinkExport        shortlink.ExportPort
+	ShortLinkBatch         shortlink.BatchPort
 	Domain                 domain.Port
 	Redirect               shortlink.RedirectPort
 	RedirectRecorder       event.Recorder
@@ -124,6 +125,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				businessAPI.Get("/admin/short-link/statistics", shortLinkHandler.AdminStatistics)
 				businessAPI.Post("/admin/short-link/update", shortLinkHandler.AdminUpdate)
 				businessAPI.Post("/admin/short-link/delete", shortLinkHandler.AdminDelete)
+			}
+			if dependency.ShortLinkBatch != nil {
+				batchHandler := shortlink.NewBatchHandler(dependency.ShortLinkBatch, logger)
+				businessAPI.Post("/short-link/batch", batchHandler.Batch)
+				businessAPI.Post("/admin/short-link/batch", batchHandler.AdminBatch)
 			}
 			if dependency.Domain != nil {
 				domainHandler := domain.NewHandler(dependency.Domain, logger)
