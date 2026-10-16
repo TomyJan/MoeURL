@@ -1,6 +1,7 @@
 <template>
   <v-table class="moe-data-table link-table" :class="{ 'link-table--owned': hasOwners }" density="comfortable" data-testid="console-link-list">
     <colgroup>
+      <col v-if="selectable" class="link-table__select-column" />
       <col class="link-table__short-column" />
       <col class="link-table__target-column" />
       <col v-if="hasOwners" class="link-table__owner-column" />
@@ -10,6 +11,7 @@
     </colgroup>
     <thead>
       <tr>
+        <th v-if="selectable" scope="col"><v-checkbox-btn v-bind="selectionIcons" :model-value="allSelected" :indeterminate="indeterminate" :disabled="selectionDisabled || links.length === 0" :aria-label="t('batch.selectAll')" @update:model-value="$emit('selectAll', $event === true)" /></th>
         <th scope="col">{{ t('links.shortUrl') }}</th>
         <th scope="col">{{ t('links.targetUrl') }}</th>
         <th v-if="hasOwners" scope="col">{{ t('links.owner') }}</th>
@@ -20,6 +22,7 @@
     </thead>
     <tbody>
       <tr v-for="link in links" :key="link.id" data-testid="console-link-row">
+        <td v-if="selectable"><v-checkbox-btn v-bind="selectionIcons" :model-value="selectedIds.includes(link.id)" :disabled="selectionDisabled || (selectedIds.length >= 100 && !selectedIds.includes(link.id))" :aria-label="t('batch.selectLink', { slug: link.slug })" @update:model-value="$emit('select', link.id, $event === true)" /></td>
         <td>
           <div class="link-table__stack console-link-row__main">
             <a class="link-table__url" :href="link.url" :title="link.url" target="_blank" rel="noreferrer">{{ link.url }}</a>
@@ -72,10 +75,10 @@
               </template>
               <v-list density="compact" role="menu" :aria-label="t('links.actions.more')">
                 <v-list-item role="menuitem" :href="link.url" target="_blank" rel="noreferrer">{{ t('links.actions.open') }}</v-list-item>
-                <v-list-item tag="div" role="menuitem" @click="$emit('configure', link)">{{ t('links.actions.configure') }}</v-list-item>
+                <v-list-item tag="div" role="menuitem" :disabled="writeDisabled" :aria-disabled="writeDisabled" @click="$emit('configure', link)">{{ t('links.actions.configure') }}</v-list-item>
                 <v-list-item tag="div" role="menuitem" @click="$emit('qr', link)">{{ t('links.actions.qrCode') }}</v-list-item>
-                <v-list-item tag="div" role="menuitem" :disabled="updatingId === link.id" :aria-disabled="updatingId === link.id" @click="$emit('toggleStatus', link)">{{ t(link.status === 'active' ? 'links.actions.disable' : 'links.actions.enable') }}</v-list-item>
-                <v-list-item tag="div" role="menuitem" class="text-error" :disabled="deletingId === link.id" :aria-disabled="deletingId === link.id" @click="$emit('remove', link.id)">{{ t('links.actions.delete') }}</v-list-item>
+                <v-list-item tag="div" role="menuitem" :disabled="writeDisabled || updatingId === link.id" :aria-disabled="writeDisabled || updatingId === link.id" @click="$emit('toggleStatus', link)">{{ t(link.status === 'active' ? 'links.actions.disable' : 'links.actions.enable') }}</v-list-item>
+                <v-list-item tag="div" role="menuitem" class="text-error" :disabled="writeDisabled || deletingId === link.id" :aria-disabled="writeDisabled || deletingId === link.id" @click="$emit('remove', link.id)">{{ t('links.actions.delete') }}</v-list-item>
               </v-list>
             </v-menu>
           </div>
@@ -88,8 +91,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { aliases } from 'vuetify/iconsets/mdi-svg'
 
 import type { RedirectMode } from '@/entities/short-link/model'
+
+// Local SVG glyphs keep list selection visible without a Material Design icon font.
+const selectionIcons = { trueIcon: aliases.checkboxOn, falseIcon: aliases.checkboxOff, indeterminateIcon: aliases.checkboxIndeterminate }
 
 export interface ConsoleLinkListItem {
   id: string
@@ -125,7 +132,13 @@ const props = withDefaults(defineProps<{
   deletingId?: string
   links: ConsoleLinkListItem[]
   updatingId?: string
-}>(), { analyticsScope: 'own', deletingId: undefined, updatingId: undefined })
+  selectable?: boolean
+  selectedIds?: string[]
+  allSelected?: boolean
+  indeterminate?: boolean
+  selectionDisabled?: boolean
+  writeDisabled?: boolean
+}>(), { analyticsScope: 'own', deletingId: undefined, updatingId: undefined, selectable: false, selectedIds: () => [], allSelected: false, indeterminate: false, selectionDisabled: false, writeDisabled: false })
 
 defineEmits<{
   configure: [link: ConsoleLinkListItem]
@@ -133,6 +146,8 @@ defineEmits<{
   qr: [link: ConsoleLinkListItem]
   remove: [id: string]
   toggleStatus: [link: ConsoleLinkListItem]
+  select: [id: string, checked: boolean]
+  selectAll: [checked: boolean]
 }>()
 
 const { t } = useI18n()
@@ -182,6 +197,7 @@ function formatLocalDate(value: string | null | undefined, fallback: string) {
 .link-table__access-column { width: 20%; }
 .link-table__stats-column { width: 17%; }
 .link-table__actions-column { width: 210px; }
+.link-table__select-column { width: 52px; }
 .link-table--owned .link-table__short-column { width: 21%; }
 .link-table--owned .link-table__target-column { width: 18%; }
 .link-table--owned .link-table__access-column { width: 18%; }

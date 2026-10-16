@@ -12,23 +12,32 @@
         <v-text-field v-model="searchKeyword" :label="t('filter.keyword')" :error-messages="keywordInvalid ? t('linkMetadata.keywordInvalid') : ''" density="compact" variant="outlined" />
         <v-text-field v-model="tagFilter" :label="t('filter.tag')" :error-messages="tagInvalid ? t('linkMetadata.tagFilterInvalid') : ''" density="compact" variant="outlined" />
       </div>
+      <ShortLinkBatchToolbar :state="batch" :access="access" />
     </div>
     <div class="console-data-panel" data-testid="console-data-panel">
-      <v-alert v-if="query.isError.value" type="error" variant="tonal">{{ t('adminLinks.loadFailed') }}</v-alert>
-      <v-progress-linear v-else-if="query.isPending.value" indeterminate />
-      <div v-else-if="links.length === 0" class="console-page__empty">
+      <v-alert v-if="query.isError.value || (!access.canRead.value && !access.authPending.value)" type="error" variant="tonal">{{ t('adminLinks.loadFailed') }}</v-alert>
+      <v-progress-linear v-else-if="access.authPending.value || (access.canRead.value && query.isPending.value)" indeterminate />
+      <div v-else-if="access.canRead.value && links.length === 0" class="console-page__empty">
         <div>
           <h2>{{ t('links.emptyTitle') }}</h2>
           <p>{{ t('adminLinks.emptyDescription') }}</p>
         </div>
       </div>
       <ConsoleLinkList
-        v-else
+        v-else-if="access.canRead.value"
         analytics-scope="admin"
         :deleting-id="deletingId"
         :links="linkItems"
         :updating-id="updatingId"
-        @configure="configure"
+        :selectable="access.canSelect.value"
+        :selected-ids="batch.selected.value"
+        :all-selected="batch.allSelected.value"
+        :indeterminate="batch.indeterminate.value"
+        :selection-disabled="batch.unavailable.value"
+        :write-disabled="batch.pending.value"
+        @select="batch.toggle"
+        @select-all="batch.toggleAll"
+        @configure="configureLink"
         @copy="copyUrl"
         @qr="showQr"
         @remove="remove"
@@ -68,9 +77,12 @@ import { useMutationTargetId } from '@/shared/mutations/useMutationTargetId'
 import { useShortLinkSettings } from '@/shared/short-link/useShortLinkSettings'
 import { useShortLinkFilters } from '@/shared/short-link/useShortLinkFilters'
 import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue'
+import { useShortLinkAccess, useShortLinkBatch } from '@/features/short-link-batch/useShortLinkBatch'
+import ShortLinkBatchToolbar from '@/features/short-link-batch/ShortLinkBatchToolbar.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
+const access = useShortLinkAccess('admin')
 const statusFilter = ref<'' | AdminShortLink['status']>('')
 const { searchKeyword, tagFilter, debouncedKeyword, debouncedTag, keywordInvalid, tagInvalid } = useShortLinkFilters()
 const statusOptions = computed(() => [
@@ -80,12 +92,13 @@ const statusOptions = computed(() => [
 ])
 
 const query = useQuery({
-  queryKey: computed(() => ['admin-short-link', statusFilter.value, debouncedKeyword.value, debouncedTag.value]),
+  queryKey: computed(() => ['admin-short-link', statusFilter.value, debouncedKeyword.value, debouncedTag.value, access.identity.scope.value.userId, access.identity.scope.value.epoch]),
+  enabled: access.canRead,
   queryFn: () => listAdminShortLinks({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value }),
 })
-const links = computed(() => query.data.value?.items ?? [])
+const links = computed(() => access.canRead.value ? query.data.value?.items ?? [] : [])
 const linkItems = computed<ConsoleLinkListItem[]>(() => links.value)
-const total = computed(() => query.data.value?.meta.total ?? 0)
+const total = computed(() => access.canRead.value ? query.data.value?.meta.total ?? 0 : 0)
 const {
   closeQr,
   closeSettings,
@@ -113,14 +126,24 @@ const deleteMutation = useMutation({
 })
 const updatingId = useMutationTargetId(statusMutation, (variables) => variables?.id)
 const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof variables === 'string' ? variables : undefined))
+const batch = useShortLinkBatch({
+  context: 'admin', access, ids: computed(() => links.value.map(link => link.id)),
+  filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value]),
+  blocked: computed(() => query.isFetching.value || query.isPending.value || query.isError.value || keywordInvalid.value || tagInvalid.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null),
+})
+
+/** Prevents opening row settings while a batch is outstanding. */
+function configureLink(link: ConsoleLinkListItem) { if (!batch.pending.value) configure(link) }
 
 /** Toggles a short link through the administrative update mutation. */
 function toggleStatus(link: ConsoleLinkListItem) {
+  if (batch.pending.value) return
   statusMutation.mutate({ id: link.id, status: link.status === 'active' ? 'disabled' : 'active' })
 }
 
 /** Starts an administrative soft-delete for the selected short link. */
 function remove(id: string) {
+  if (batch.pending.value) return
   deleteMutation.mutate(id)
 }
 

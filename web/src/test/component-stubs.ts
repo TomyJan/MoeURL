@@ -29,6 +29,11 @@ export const componentStubs: Record<string, Component> = {
   VCardTitle: { template: '<h2><slot /></h2>' },
   VCardText: { template: '<div><slot /></div>' },
   VChip: { props: ['color', 'size', 'variant'], template: '<span><slot /></span>' },
+  VCheckboxBtn: {
+    props: ['modelValue', 'disabled', 'indeterminate'],
+    emits: ['update:modelValue'],
+    template: '<input type="checkbox" :checked="modelValue" :disabled="disabled" :indeterminate.prop="indeterminate" @change="$emit(\'update:modelValue\', $event.target.checked)" />',
+  },
   VContainer: { template: '<main><slot /></main>' },
   VDialog: {
     props: ['modelValue'],
