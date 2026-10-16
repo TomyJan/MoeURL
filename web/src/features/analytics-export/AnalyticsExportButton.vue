@@ -8,7 +8,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
@@ -63,10 +63,13 @@ async function submit() {
   pending.value = true
   try {
     const file = await exportShortLinkStatistics(props.id, range, props.context)
+    // A settled request may precede the render that delivers the parent's synchronous revision.
+    await nextTick()
     if (!isCurrent()) return
     downloadCsv(file)
     toast.success(t('analytics.exportStarted'))
   } catch {
+    await nextTick()
     if (isCurrent()) toast.error(t('analytics.exportFailed'))
   } finally {
     pending.value = false

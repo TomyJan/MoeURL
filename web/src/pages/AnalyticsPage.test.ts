@@ -114,6 +114,25 @@ describe('analytics date range', () => {
     expect(toast.success).not.toHaveBeenCalled()
   })
 
+  it.each(['success', 'failure'])('drops an already queued export %s before a synchronous route round trip renders', async (outcome) => {
+    const exporting = createDeferred<StatisticsExport>()
+    vi.mocked(exportShortLinkStatistics).mockReturnValue(exporting.promise)
+    mount()
+    await screen.findByTestId('analytics-summary')
+    await fireEvent.click(screen.getByTestId('analytics-export'))
+    if (outcome === 'success') {
+      exporting.resolve({ fileName: 'moeurl-statistics-abc-2026-10-09-2026-10-15.csv', contentType: 'text/csv;charset=utf-8', content: '\uFEFFsection,key,value,visit_count\r\n' })
+    } else exporting.reject(new Error('private'))
+    state.route.params.shortLinkId = 'other'
+    state.route.params.shortLinkId = 'link-id'
+    await exporting.promise.catch(() => undefined)
+    await Promise.resolve()
+    await waitFor(() => expect((screen.getByTestId('analytics-export') as HTMLButtonElement).disabled).toBe(false))
+    expect(downloadCsv).not.toHaveBeenCalled()
+    expect(toast.success).not.toHaveBeenCalled()
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
   it('shows lifetime metrics separately from the actual server range and applies presets', async () => {
     mount()
     await screen.findByTestId('analytics-summary')
