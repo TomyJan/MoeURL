@@ -1,6 +1,6 @@
 # 开发进度与能力清单
 
-更新日期：2026-10-15。主分支基线：`master` 的 `a52733cc`（PR #186），包含 v0.13.0 个人密码修改及此前能力。v0.14.0 统计日期范围已在独立分支实现，验证状态见 [本版验收](../implementation/v0.14.0-acceptance.md)。本页是当前进度入口；版本边界由 scope 和 spec 定义，实际验证证据由各 acceptance 记录。
+更新日期：2026-10-16。远端 `master` 已核验为 `ae464282`，包含 PR #187 的 v0.14.0 合并提交 `c864ce3a` 及随后依赖更新。v0.14.0 统计日期范围的实现与验证见 [本版验收](../implementation/v0.14.0-acceptance.md)，v0.15.0 账号偏好正在独立分支开发。本页是当前进度入口；版本边界由 scope 和 spec 定义，实际验证证据由各 acceptance 记录。
 
 ## 状态口径
 
@@ -55,7 +55,7 @@
 | [标准列表验收](../implementation/2026-10-15-standard-lists-acceptance.md) | 基线 `9dbca832` 后的工作树：919 项前端测试、四项覆盖率 100%、静态检查和构建；隔离数据库完整 E2E 42 项通过、1 项跳过。 | 跳过的是 Docker 双 Host 场景；本地结果不等同目标 CI 或外部真实 OIDC。 |
 | [配色验收](../implementation/2026-10-15-color-refresh-acceptance.md) | 基线 `fafa6231` 后的工作树：919 项前端测试、四项覆盖率 100%、lint、类型检查与构建；16 项界面 E2E、88 组只读页面检查。 | 本轮未重跑 Go、完整业务 E2E、Docker 或目标 CI；界面 E2E 拦截 API，不作为业务集成证据。 |
 | [v0.13.0 验收](../implementation/v0.13.0-acceptance.md) | 个人改密通过 PR #186 合并为 `a52733cc`。分支原始证据：Go 全仓与业务覆盖率 100%；1023 项前端测试、四项覆盖率 100%、静态检查与构建；代码候选 `77035e6` 全量 Playwright 47 项通过、1 项 Docker 场景跳过；独立审查完成，隔离资源已清理。 | 分支本地证据不能替代合并提交验证；PostgreSQL 16.3 本地回退不能替代 PostgreSQL 18、完整容器、目标 CI／Linux race／安全扫描或生产证据。 |
-| [v0.14.0 验收](../implementation/v0.14.0-acceptance.md) | 独立分支已实现统计日期范围；Go 业务覆盖率 100%；1050 项前端测试、四项覆盖率 100%、静态检查与构建；代码候选 `2afdba14` 全量 Playwright 52 项通过、1 项 Docker 双 Host 跳过；隔离资源已清理，原始证据归档保留。 | 尚未合并或发布；PostgreSQL 16.3／本机 Chrome 与 mock OIDC 不替代目标 CI、PostgreSQL 18、完整容器、Linux race、安全扫描或生产环境证据。 |
+| [v0.14.0 验收](../implementation/v0.14.0-acceptance.md) | 已通过 PR #187 合并为 `c864ce3a`；原分支 Go 业务覆盖率 100%；1050 项前端测试、四项覆盖率 100%、静态检查与构建；代码候选 `2afdba14` 全量 Playwright 52 项通过、1 项 Docker 双 Host 跳过；隔离资源已清理，原始证据归档保留。 | 分支证据不能替代合并提交或发布验证；PostgreSQL 16.3／本机 Chrome 与 mock OIDC 不替代目标 CI、PostgreSQL 18、完整容器、Linux race、安全扫描或生产环境证据。 |
 
 发布前仍须针对候选提交补齐：
 
@@ -67,7 +67,9 @@
 
 ## 后续开发方向
 
-原有规划尚未完成的产品能力集中列在 [路线图](roadmap.md) 的「待开发能力」中。[v0.12.0 自定义短码](scope-v0.12.0.md) 已通过 PR #185 合并为 `17e1f766`；阶段状态与证据见 [验收清单](../implementation/v0.12.0-acceptance.md)。[v0.13.0 个人密码修改](scope-v0.13.0.md) 已通过 PR #186 合并为 `a52733cc`。[v0.14.0 统计日期范围](scope-v0.14.0.md) 已在 `feat/v0.14.0-analytics-date-range` 实现，尚未合并或发布，目标环境缺口继续单独记录。
+当前正在补齐 [v0.15.0 账号语言与主题偏好](scope-v0.15.0.md)：个人设置显式保存、登录自动加载、乐观并发与访客浏览器偏好隔离。实施与验证见 [计划](../implementation/v0.15.0-plan.md) 和 [验收记录](../implementation/v0.15.0-acceptance.md)，未验证前不列入上方已完成能力。头像、时区、默认域名等扩展不纳入本版。
+
+原有规划尚未完成的产品能力集中列在 [路线图](roadmap.md) 的「待开发能力」中。[v0.12.0 自定义短码](scope-v0.12.0.md) 已通过 PR #185 合并为 `17e1f766`；阶段状态与证据见 [验收清单](../implementation/v0.12.0-acceptance.md)。[v0.13.0 个人密码修改](scope-v0.13.0.md) 已通过 PR #186 合并为 `a52733cc`。[v0.14.0 统计日期范围](scope-v0.14.0.md) 已通过 PR #187 合并为 `c864ce3a`，正式发布及目标环境缺口继续单独记录。
 
 v0.12.0 的分支本地记录包含 Go 业务与前端覆盖率 100%、隔离数据库完整 Playwright 45 项通过、1 项 Docker 双 Host 跳过。该记录不替代合并提交的 CI 或生产证据。v0.13.0 的测试和审查分别记录于 [本版验收](../implementation/v0.13.0-acceptance.md)。
 

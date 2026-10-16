@@ -199,6 +199,8 @@ API 使用 `/api/v1` 前缀：
 /api/v1/short-link/update
 /api/v1/short-link/delete
 /api/v1/short-link/statistics
+/api/v1/user/preferences
+/api/v1/user/preferences/update
 /api/v1/admin/short-link/list
 /api/v1/admin/short-link/update
 /api/v1/admin/short-link/delete
@@ -291,7 +293,11 @@ v0.10.0 扩展既有短链 create、own/admin update、list 和 statistics 契�
 
 v0.14.0 的个人／管理员 statistics 支持 `days=7|30|90`（省略默认 7），或成对的 `startDate`、`endDate`。日期严格为 `YYYY-MM-DD`，按 UTC 包含首尾两天，最多 90 天且不包含未来日期；混用、缺项、重复参数和显式空值返回 `100001`。响应新增实际 `range` 与 `stats.rangeVisitCount`，趋势和来源／设备／国家维度使用该范围；全生命周期总量、今日量和最近访问时间仍保持概览含义。今日量按 UTC 日历计算。默认维度由全生命周期变为近 7 天，调用方应读取实际范围；既有列表和概览接口未改动。完整契约见 [日期范围设计](../specs/2026-10-15-v0.14.0-analytics-date-range-design.md)。
 
+v0.15.0 增加 `user_preference`，按当前 Cookie 身份读取和更新语言／主题。读取未保存用户返回三个 null 字段；更新必须完整提供 `language`、`theme` 和 `expectedUpdatedAt`，字段可空，拒绝缺项、未知字段和尾随 JSON。`expectedUpdatedAt=null` 仅首次创建，其余版本精确比较；冲突返回 `300104`，输入／无权／基础设施沿用 `100001`／`120001`／`900000`，两端点 no-store。不存在管理员代改接口或新增权限，具体见 [账号偏好设计](../specs/2026-10-16-v0.15.0-account-preferences-design.md)。
+
 ## 6. 数据库约定
+
+新表以 `user_id` 为外键主键、删除级联；`language`、`theme` 使用可空枚举约束，`updated_at` 为严格递增的并发版本。migration `00018` 不回填旧用户、不改动其资料修订时间；Down 删除账号偏好表，用户与会话不受影响，已保存偏好会丢失。
 
 ### 命名规则
 
