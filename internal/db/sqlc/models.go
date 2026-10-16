@@ -194,3 +194,10 @@ type UserGroup struct {
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
+
+type UserPreference struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	Language  pgtype.Text        `json:"language"`
+	Theme     pgtype.Text        `json:"theme"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}

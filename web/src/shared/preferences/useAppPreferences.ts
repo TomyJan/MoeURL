@@ -20,48 +20,84 @@ const themeMode = ref<ThemePreference>('system')
 let preferencesLoaded = false
 let systemThemeListenerInstalled = false
 let activeThemeName: { value: string } | undefined
+let activeLocale: { value: string } | undefined
+let baselineLanguage: LanguagePreference = 'zh-CN'
+let baselineTheme: ThemePreference = 'system'
+let accountLanguage: LanguagePreference | null = null
+let accountTheme: ThemePreference | null = null
+let manualLanguage = false
+let manualTheme = false
+
+/** Removes identity-scoped overrides immediately when a session is replaced or revoked. */
+export function resetAccountPreferences() {
+  accountLanguage = null
+  accountTheme = null
+  manualLanguage = false
+  manualTheme = false
+  renderPreferences()
+}
+
+/** Resolves each field independently without persisting account values into browser storage. */
+function renderPreferences() {
+  language.value = manualLanguage ? baselineLanguage : accountLanguage ?? baselineLanguage
+  themeMode.value = manualTheme ? baselineTheme : accountTheme ?? baselineTheme
+  if (activeLocale) activeLocale.value = language.value
+  if (activeThemeName) activeThemeName.value = resolveVuetifyTheme(themeMode.value)
+}
 
 /** Provides the shared language and theme state synchronized with vue-i18n and Vuetify. */
 export function useAppPreferences() {
   const { locale } = useI18n()
   const theme = useTheme()
   activeThemeName = theme.global.name
+  activeLocale = locale
 
   if (!preferencesLoaded) {
     preferencesLoaded = true
     const preferences = loadPreferences()
-    language.value = preferences.language
-    themeMode.value = preferences.theme
+    baselineLanguage = preferences.language
+    baselineTheme = preferences.theme
   }
 
-  locale.value = language.value
-  theme.global.name.value = resolveVuetifyTheme(themeMode.value)
+  renderPreferences()
   installSystemThemeListener()
 
   /** Updates and persists the active interface language. */
   function setLanguage(value: LanguagePreference) {
-    language.value = value
-    locale.value = value
+    baselineLanguage = value
+    manualLanguage = true
     saveLanguagePreference(value)
+    renderPreferences()
   }
 
   /** Updates and persists the active interface theme mode. */
   function setTheme(value: ThemePreference) {
-    themeMode.value = value
-    theme.global.name.value = resolveVuetifyTheme(value)
+    baselineTheme = value
+    manualTheme = true
     saveThemePreference(value)
+    renderPreferences()
   }
 
   /** Applies server defaults only when the user has not chosen a local preference. */
   function applyServerDefaults(languageDefault: LanguagePreference, themeDefault: ThemePreference) {
-    if (!hasStoredLanguagePreference() && !browserLanguagePreference() && languageOptions.includes(languageDefault) && language.value !== languageDefault) {
-      language.value = languageDefault
-      locale.value = languageDefault
+    if (!manualLanguage && !hasStoredLanguagePreference() && !browserLanguagePreference() && languageOptions.includes(languageDefault)) {
+      baselineLanguage = languageDefault
     }
-    if (!hasStoredThemePreference() && themeOptions.includes(themeDefault) && themeMode.value !== themeDefault) {
-      themeMode.value = themeDefault
-      theme.global.name.value = resolveVuetifyTheme(themeDefault)
+    if (!manualTheme && !hasStoredThemePreference() && themeOptions.includes(themeDefault)) {
+      baselineTheme = themeDefault
     }
+    renderPreferences()
+  }
+
+  /** Applies a saved account override; automatic hydration preserves newer local choices per field. */
+  function applyAccountPreferences(value: { language: LanguagePreference | null; theme: ThemePreference | null }, automatic = false) {
+    accountLanguage = value.language
+    accountTheme = value.theme
+    if (!automatic) {
+      manualLanguage = false
+      manualTheme = false
+    }
+    renderPreferences()
   }
 
   return {
@@ -69,6 +105,7 @@ export function useAppPreferences() {
     setLanguage,
     setTheme,
     applyServerDefaults,
+    applyAccountPreferences,
     themeMode,
   }
 }

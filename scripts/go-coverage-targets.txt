@@ -50,6 +50,8 @@ github.com/TomyJan/MoeURL/internal/system/service.go
 github.com/TomyJan/MoeURL/internal/system/settings_handler.go
 github.com/TomyJan/MoeURL/internal/system/settings_service.go
 github.com/TomyJan/MoeURL/internal/user/handler.go
+github.com/TomyJan/MoeURL/internal/user/preferences_handler.go
+github.com/TomyJan/MoeURL/internal/user/preferences_service.go
 github.com/TomyJan/MoeURL/internal/user/service.go
 github.com/TomyJan/MoeURL/internal/usergroup/handler.go
 github.com/TomyJan/MoeURL/internal/usergroup/service.go

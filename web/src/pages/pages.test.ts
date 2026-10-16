@@ -48,6 +48,8 @@ const state = vi.hoisted(() => ({
     }
   },
   queryClient: {
+    cancelQueries: vi.fn(),
+    removeQueries: vi.fn(),
     invalidateQueries: vi.fn(),
     setQueryData: vi.fn(),
   },
@@ -808,6 +810,7 @@ describe('pages', () => {
     await fireEvent.click(screen.getByText('auth.loginSubmit'))
 
     expect(login).toHaveBeenCalledWith({ username: 'alice', password: 'secret' })
+    expect(state.queryClient.cancelQueries).toHaveBeenCalledWith({ queryKey: ['auth', 'me'] })
     expect(state.queryClient.setQueryData).toHaveBeenCalledWith(
       ['auth', 'me'],
       expect.objectContaining({ user: expect.objectContaining({ username: 'alice' }) }),

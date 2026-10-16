@@ -59,9 +59,9 @@ export const componentStubs: Record<string, Component> = {
   }),
   VProgressLinear: { template: '<div role="progressbar" />' },
   VSelect: {
-    props: ['items', 'label', 'modelValue'],
+    props: ['disabled', 'items', 'label', 'modelValue'],
     emits: ['update:modelValue'],
-    template: '<select :aria-label="label || \'select\'" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :key="typeof item === \'string\' ? item : item.value" :value="typeof item === \'string\' ? item : item.value">{{ typeof item === \'string\' ? item : item.title }}</option></select>',
+    template: '<select :aria-label="label || \'select\'" :disabled="disabled" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :key="typeof item === \'string\' ? item : item.value" :value="typeof item === \'string\' ? item : item.value">{{ typeof item === \'string\' ? item : item.title }}</option></select>',
   },
 	VSlider: {
 		props: ['disabled', 'label', 'max', 'min', 'modelValue', 'step'],

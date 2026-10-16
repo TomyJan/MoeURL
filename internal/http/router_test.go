@@ -26,6 +26,47 @@ import (
 
 type routerDomainPort struct{ domain.Port }
 
+type routerPreferencesPort struct{ calls int }
+
+// Get proves the preference route receives resolved current-user context.
+func (s *routerPreferencesPort) Get(_ context.Context, actor auth.CurrentUser) (user.PreferencesResult, error) {
+	s.calls++
+	if actor.GroupKey != "guest" {
+		return user.PreferencesResult{}, errors.New("unexpected identity")
+	}
+	return user.PreferencesResult{}, nil
+}
+
+// Update proves the independent preference port is wired for complete nullable updates.
+func (s *routerPreferencesPort) Update(ctx context.Context, actor auth.CurrentUser, _ user.UpdatePreferencesInput) (user.PreferencesResult, error) {
+	return s.Get(ctx, actor)
+}
+
+// TestRouterRegistersUserPreferencesRoutes verifies route dispatch and no-store for both operations.
+func TestRouterRegistersUserPreferencesRoutes(t *testing.T) {
+	service := &routerPreferencesPort{}
+	router := apphttp.NewRouter(apphttp.Dependencies{UserPreferences: service})
+	for _, entry := range []struct{ method, path, body string }{
+		{http.MethodGet, "/api/v1/user/preferences", ""},
+		{http.MethodPost, "/api/v1/user/preferences/update", `{"language":null,"theme":null,"expectedUpdatedAt":null}`},
+	} {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), entry.method, entry.path, strings.NewReader(entry.body)))
+		var body struct {
+			Code int `json:"code"`
+		}
+		if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		if response.Code != http.StatusOK || body.Code != 0 || response.Header().Get("Cache-Control") != "no-store" {
+			t.Fatalf("%s status=%d code=%d cache=%q", entry.path, response.Code, body.Code, response.Header().Get("Cache-Control"))
+		}
+	}
+	if service.calls != 2 {
+		t.Fatalf("route dispatches=%d, want 2", service.calls)
+	}
+}
+
 // routerSettingsPort supplies deterministic settings responses to route-registration tests.
 type routerSettingsPort struct{ system.SettingsPort }
 

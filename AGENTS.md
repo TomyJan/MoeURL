@@ -8,6 +8,8 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 ## 工作入口
 
+v0.15.0 账号语言与主题偏好的边界与验证状态见 `docs/product/scope-v0.15.0.md`、`docs/specs/2026-10-16-v0.15.0-account-preferences-design.md` 及 `docs/implementation/v0.15.0-{plan,tasks,acceptance}.md`。涉及账号偏好、浏览器基线、登录身份轮次或偏好并发编辑时必须阅读。
+
 v0.13.0 个人密码修改的边界与验证状态见 `docs/product/scope-v0.13.0.md`、`docs/specs/2026-10-15-v0.13.0-password-change-design.md` 及 `docs/implementation/v0.13.0-{plan,tasks,acceptance}.md`。涉及当前密码校验、登录失败窗口、凭据更新或会话撤销时必须阅读。
 
 v0.12.0 自定义短码的边界与验证状态见 `docs/product/scope-v0.12.0.md`、`docs/specs/2026-10-15-v0.12.0-custom-slugs-design.md` 及 `docs/implementation/v0.12.0-{plan,tasks,acceptance}.md`。涉及创建短码、固定路由保留、全局唯一性或自定义权限时必须阅读；新增固定入口须同步检查随机与自定义共用的保留集合。

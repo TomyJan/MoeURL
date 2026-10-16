@@ -8,6 +8,7 @@ import { componentStubs } from '@/test/component-stubs'
 /** Holds mutable query, mutation, and router state shared by shell tests. */
 const state = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
+  revokeIdentity: vi.fn(),
   createShortLinkRequest: vi.fn(() => ({ shortLink: { url: 'https://go.example.com/new' } })),
   logoutRequest: vi.fn(() => undefined),
   logoutMutate: vi.fn(),
@@ -61,6 +62,7 @@ vi.mock('@/entities/auth/api', () => ({
   logout: state.logoutRequest,
   me: vi.fn(),
 }))
+vi.mock('@/shared/preferences/useAccountPreferences', () => ({ revokeAccountIdentity: state.revokeIdentity }))
 
 vi.mock('@/entities/short-link/api', () => ({
   createShortLink: state.createShortLinkRequest,
@@ -152,6 +154,7 @@ describe('ConsoleShell', () => {
     state.logoutRequest.mockReset()
     state.logoutRequest.mockReturnValue(undefined)
     state.logoutMutate.mockReset()
+    state.revokeIdentity.mockReset()
     state.routerPush.mockReset()
     state.routePath.value = '/link'
     state.routeMeta.value = {}
@@ -360,7 +363,7 @@ describe('ConsoleShell', () => {
     await fireEvent.click(within(screen.getByTestId('console-mobile-account-menu')).getByText('nav.logout'))
 
     expect(state.logoutMutate).toHaveBeenCalled()
-    expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['auth', 'me'] })
+    expect(state.revokeIdentity).toHaveBeenCalled()
     expect(state.routerPush).toHaveBeenCalledWith('/login')
   })
 
@@ -395,7 +398,7 @@ describe('ConsoleShell', () => {
     await fireEvent.click(within(screen.getByTestId('console-account')).getByText('nav.logout'))
 
     expect(state.logoutMutate).toHaveBeenCalled()
-    expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['auth', 'me'] })
+    expect(state.revokeIdentity).toHaveBeenCalled()
     expect(state.routerPush).toHaveBeenCalledWith('/login')
   })
 
