@@ -145,6 +145,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.AnalyticsCountryHeader = cfg.AnalyticsCountryHeader
 		deps.SecureCookies = cfg.Env == "production"
 		deps.User = user.NewService(pool, permissionService)
+		deps.UserPreferences = user.NewPreferencesService(pool)
 		deps.UserGroup = usergroup.NewService(pool, permissionService)
 
 		if oidcConfigured {
