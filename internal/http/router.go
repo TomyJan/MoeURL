@@ -27,6 +27,7 @@ type Dependencies struct {
 	Password               auth.PasswordPort
 	CurrentUser            auth.CurrentUserResolver
 	ShortLink              shortlink.Port
+	ShortLinkExport        shortlink.ExportPort
 	Domain                 domain.Port
 	Redirect               shortlink.RedirectPort
 	RedirectRecorder       event.Recorder
@@ -105,6 +106,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				businessAPI.Post("/auth/login", authHandler.Login)
 				businessAPI.Post("/auth/logout", authHandler.Logout)
 				businessAPI.Get("/auth/me", authHandler.Me)
+			}
+			if dependency.ShortLinkExport != nil {
+				exportHandler := shortlink.NewExportHandler(dependency.ShortLinkExport, logger)
+				businessAPI.Get("/short-link/statistics/export", exportHandler.Statistics)
+				businessAPI.Get("/admin/short-link/statistics/export", exportHandler.AdminStatistics)
 			}
 			if dependency.ShortLink != nil {
 				shortLinkHandler := shortlink.NewHandlerWithLogger(dependency.ShortLink, logger)
