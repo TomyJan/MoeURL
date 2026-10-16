@@ -18,7 +18,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 [v0.16.0 聚合统计 CSV 导出](product/scope-v0.16.0.md) 已通过 PR #191 合并为 `bd4c2625`，未正式发布；仅导出单短链已应用 UTC 区间的匿名聚合。见 [设计](specs/2026-10-16-v0.16.0-analytics-export-design.md)、[实施计划](implementation/v0.16.0-plan.md)、[任务清单](implementation/v0.16.0-tasks.md) 与 [原分支验收记录](implementation/v0.16.0-acceptance.md)。
 
-当前独立开发 [v0.17.0 短链批量管理](product/scope-v0.17.0.md)，补齐当前列表多选与原子批量启停／软删除，未完成本版验收。见 [设计](specs/2026-10-16-v0.17.0-bulk-link-management-design.md)、[计划](implementation/v0.17.0-plan.md)、[任务清单](implementation/v0.17.0-tasks.md) 和 [验收记录](implementation/v0.17.0-acceptance.md)。
+[v0.17.0 短链批量管理](product/scope-v0.17.0.md) 已在独立分支实现当前列表多选与原子批量启停／软删除，已验证的工作树原样纳入签名代码候选 `33f287ec`，本地门禁和独立审查通过；目标 CI、合并和发布未完成。见 [设计](specs/2026-10-16-v0.17.0-bulk-link-management-design.md)、[计划](implementation/v0.17.0-plan.md)、[任务清单](implementation/v0.17.0-tasks.md) 和 [验收记录](implementation/v0.17.0-acceptance.md)。
 
 2026-10-14 全站前端视觉更新沿用既有业务范围，设计见 [视觉与交互规范](specs/2026-10-14-ui-refresh-design.md)，执行与证据见 [实施计划](implementation/2026-10-14-ui-refresh-plan.md) 和 [本地验收](implementation/2026-10-14-ui-refresh-acceptance.md)。
 
