@@ -11,15 +11,16 @@ const baseLink = {
   expired: false, passwordEnabled: false, createdAt: '2026-10-13T00:00:00Z',
   maxVisits: 5, visitsUsed: 2, visitsRemaining: 3, exhausted: false,
 }
-const stats = { visitCount: 0, todayVisitCount: 0, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] }
+const stats = { rangeVisitCount: 0, visitCount: 0, todayVisitCount: 0, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] }
+const range = { startDate: '2026-10-09', endDate: '2026-10-15', timeZone: 'UTC' }
 const consumers = [
   { name: 'create', call: () => createShortLink({ targetUrl: baseLink.targetUrl, maxVisits: 5 }), data: (link: unknown) => ({ shortLink: link }) },
   { name: 'update', call: () => updateShortLink({ id: baseLink.id, visitLimit: { mode: 'limited', maxVisits: 5 } }), data: (link: unknown) => ({ shortLink: link }) },
   { name: 'admin update', call: () => updateAdminShortLink({ id: baseLink.id, visitLimit: { mode: 'unlimited' } }), data: (link: unknown) => ({ shortLink: link }) },
   { name: 'list', call: () => listShortLinks(), data: (link: unknown) => ({ items: [link] }) },
   { name: 'admin list', call: () => listAdminShortLinks(), data: (link: unknown) => ({ items: [{ ...(link as object), owner: { id: 'owner-id', username: 'alice', nickname: 'Alice' } }] }) },
-  { name: 'statistics', call: () => getShortLinkStatistics(baseLink.id), data: (link: unknown) => ({ shortLink: link, stats }) },
-  { name: 'admin statistics', call: () => getAdminShortLinkStatistics(baseLink.id), data: (link: unknown) => ({ shortLink: link, stats }) },
+  { name: 'statistics', call: () => getShortLinkStatistics(baseLink.id), data: (link: unknown) => ({ shortLink: link, stats, range }) },
+  { name: 'admin statistics', call: () => getAdminShortLinkStatistics(baseLink.id), data: (link: unknown) => ({ shortLink: link, stats, range }) },
 ]
 
 /** Supplies a successful API envelope while leaving its business data untrusted. */

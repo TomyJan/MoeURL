@@ -166,6 +166,7 @@ for (const width of [1440, 360]) {
         owner: { id: 'other-user', username: 'alice', nickname: 'Alice' },
       }
       const statistics: ShortLinkStatisticsResponse['stats'] = {
+        rangeVisitCount: 12,
         visitCount: 12, todayVisitCount: 2, lastVisitedAt: '2026-10-14T00:00:00Z',
         trend: [{ date: '2026-10-13', visitCount: 10 }, { date: '2026-10-14', visitCount: 2 }],
         referrers: [{ value: 'search.example.com', visitCount: 12 }],
@@ -178,9 +179,10 @@ for (const width of [1440, 360]) {
         } },
         '/short-link/list': { items: [ownLink] },
         '/admin/short-link/list': { items: [adminLink] },
-        '/short-link/statistics': { shortLink: ownLink, stats: statistics } satisfies ShortLinkStatisticsResponse,
+        '/short-link/statistics': { shortLink: ownLink, stats: statistics, range: { startDate: '2026-10-08', endDate: '2026-10-14', timeZone: 'UTC' } } satisfies ShortLinkStatisticsResponse,
         '/admin/short-link/statistics': {
           shortLink: { ...ownLink, id: adminLink.id, slug: adminLink.slug, url: adminLink.url }, stats: statistics,
+          range: { startDate: '2026-10-08', endDate: '2026-10-14', timeZone: 'UTC' },
         } satisfies ShortLinkStatisticsResponse,
       })
       const statisticsRequests: string[] = []

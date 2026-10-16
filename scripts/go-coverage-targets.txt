@@ -35,6 +35,7 @@ github.com/TomyJan/MoeURL/internal/oidc/validation.go
 github.com/TomyJan/MoeURL/internal/permission/catalog.go
 github.com/TomyJan/MoeURL/internal/permission/service.go
 github.com/TomyJan/MoeURL/internal/shortlink/handler.go
+github.com/TomyJan/MoeURL/internal/shortlink/analytics_range.go
 github.com/TomyJan/MoeURL/internal/shortlink/model.go
 github.com/TomyJan/MoeURL/internal/shortlink/metadata.go
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_handler.go

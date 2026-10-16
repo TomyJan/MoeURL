@@ -9,15 +9,16 @@ const baseLink = {
   maxVisits: null, visitsUsed: 0, visitsRemaining: null, exhausted: false,
   title: '文档', tags: ['Release 计划'],
 }
-const stats = { visitCount: 0, todayVisitCount: 0, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] }
+const stats = { rangeVisitCount: 0, visitCount: 0, todayVisitCount: 0, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] }
+const range = { startDate: '2026-10-09', endDate: '2026-10-15', timeZone: 'UTC' }
 const consumers = [
   { name: 'create', call: () => createShortLink({ targetUrl: baseLink.targetUrl }), data: (link: unknown) => ({ shortLink: link }) },
   { name: 'update', call: () => updateShortLink({ id: baseLink.id }), data: (link: unknown) => ({ shortLink: link }) },
   { name: 'admin update', call: () => updateAdminShortLink({ id: baseLink.id }), data: (link: unknown) => ({ shortLink: link }) },
   { name: 'list', call: () => listShortLinks(), data: (link: unknown) => ({ items: [link] }) },
   { name: 'admin list', call: () => listAdminShortLinks(), data: (link: unknown) => ({ items: [{ ...(link as object), owner: { id: 'owner-id', username: 'alice', nickname: 'Alice' } }] }) },
-  { name: 'statistics', call: () => getShortLinkStatistics(baseLink.id), data: (link: unknown) => ({ shortLink: link, stats }) },
-  { name: 'admin statistics', call: () => getAdminShortLinkStatistics(baseLink.id), data: (link: unknown) => ({ shortLink: link, stats }) },
+  { name: 'statistics', call: () => getShortLinkStatistics(baseLink.id), data: (link: unknown) => ({ shortLink: link, stats, range }) },
+  { name: 'admin statistics', call: () => getAdminShortLinkStatistics(baseLink.id), data: (link: unknown) => ({ shortLink: link, stats, range }) },
 ]
 
 /** Supplies an untrusted business response to each managed API consumer. */

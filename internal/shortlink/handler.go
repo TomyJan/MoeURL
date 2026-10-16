@@ -151,7 +151,12 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // Statistics returns analytics for a short link owned by the current user.
 func (h *Handler) Statistics(w http.ResponseWriter, r *http.Request) {
-	result, err := h.service.Statistics(r.Context(), auth.UserFromContext(r.Context()), StatisticsInput{ID: r.URL.Query().Get("id")})
+	input, err := statisticsInput(r.URL.RawQuery)
+	if err != nil {
+		businessError(w, 100001, "Invalid request")
+		return
+	}
+	result, err := h.service.Statistics(r.Context(), auth.UserFromContext(r.Context()), input)
 	if err != nil {
 		writeBusinessOrSystemError(w, r, h.logger, err)
 		return
@@ -187,7 +192,12 @@ func (h *Handler) AdminList(w http.ResponseWriter, r *http.Request) {
 
 // AdminStatistics returns analytics for a short link visible to an administrator.
 func (h *Handler) AdminStatistics(w http.ResponseWriter, r *http.Request) {
-	result, err := h.service.AdminStatistics(r.Context(), auth.UserFromContext(r.Context()), StatisticsInput{ID: r.URL.Query().Get("id")})
+	input, err := statisticsInput(r.URL.RawQuery)
+	if err != nil {
+		businessError(w, 100001, "Invalid request")
+		return
+	}
+	result, err := h.service.AdminStatistics(r.Context(), auth.UserFromContext(r.Context()), input)
 	if err != nil {
 		writeBusinessOrSystemError(w, r, h.logger, err)
 		return

@@ -388,6 +388,7 @@ func (s *Service) Delete(ctx context.Context, user auth.CurrentUser, input Delet
 
 // Statistics returns analytics for a short link owned by the current user.
 func (s *Service) Statistics(ctx context.Context, user auth.CurrentUser, input StatisticsInput) (StatisticsResult, error) {
+	now := time.Now()
 	if _, err := s.authorize(ctx, user, permission.ShortLinkReadOwn); err != nil {
 		return StatisticsResult{}, err
 	}
@@ -402,11 +403,16 @@ func (s *Service) Statistics(ctx context.Context, user auth.CurrentUser, input S
 	if link.ownerID != ownerID {
 		return StatisticsResult{}, ErrShortLinkMissing
 	}
-	return s.analytics(ctx, linkID, link.shortLink)
+	rangeValue, err := normalizeAnalyticsRange(input, now)
+	if err != nil {
+		return StatisticsResult{}, err
+	}
+	return s.analytics(ctx, linkID, link.shortLink, rangeValue)
 }
 
 // AdminStatistics returns analytics for a short link visible to an administrator.
 func (s *Service) AdminStatistics(ctx context.Context, user auth.CurrentUser, input StatisticsInput) (StatisticsResult, error) {
+	now := time.Now()
 	if _, err := s.authorizeAdmin(ctx, user, permission.ShortLinkReadAll); err != nil {
 		return StatisticsResult{}, err
 	}
@@ -418,7 +424,11 @@ func (s *Service) AdminStatistics(ctx context.Context, user auth.CurrentUser, in
 	if err != nil {
 		return StatisticsResult{}, err
 	}
-	return s.analytics(ctx, linkID, link.shortLink)
+	rangeValue, err := normalizeAnalyticsRange(input, now)
+	if err != nil {
+		return StatisticsResult{}, err
+	}
+	return s.analytics(ctx, linkID, link.shortLink, rangeValue)
 }
 
 // AdminList returns a paginated, filterable view of all short links.
@@ -589,11 +599,11 @@ type analyticsLinkResult struct {
 }
 
 type analyticsQueries interface {
-	GetShortLinkAnalyticsSummary(context.Context, pgtype.UUID) (sqlc.GetShortLinkAnalyticsSummaryRow, error)
-	ListShortLinkDailyVisits(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkDailyVisitsRow, error)
-	ListShortLinkReferrerStats(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkReferrerStatsRow, error)
-	ListShortLinkDeviceStats(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkDeviceStatsRow, error)
-	ListShortLinkCountryStats(context.Context, pgtype.UUID) ([]sqlc.ListShortLinkCountryStatsRow, error)
+	GetShortLinkAnalyticsSummary(context.Context, sqlc.GetShortLinkAnalyticsSummaryParams) (sqlc.GetShortLinkAnalyticsSummaryRow, error)
+	ListShortLinkDailyVisits(context.Context, sqlc.ListShortLinkDailyVisitsParams) ([]sqlc.ListShortLinkDailyVisitsRow, error)
+	ListShortLinkReferrerStats(context.Context, sqlc.ListShortLinkReferrerStatsParams) ([]sqlc.ListShortLinkReferrerStatsRow, error)
+	ListShortLinkDeviceStats(context.Context, sqlc.ListShortLinkDeviceStatsParams) ([]sqlc.ListShortLinkDeviceStatsRow, error)
+	ListShortLinkCountryStats(context.Context, sqlc.ListShortLinkCountryStatsParams) ([]sqlc.ListShortLinkCountryStatsRow, error)
 }
 
 // analyticsLink returns a non-deleted link formatted for analytics responses.
@@ -627,30 +637,36 @@ func (s *Service) analyticsLink(ctx context.Context, linkID uuid.UUID) (analytic
 }
 
 // analytics assembles summary, trend, and dimension aggregates for one visible link.
-func (s *Service) analytics(ctx context.Context, linkID uuid.UUID, shortLink ShortLink) (StatisticsResult, error) {
-	return analyticsWithQueries(ctx, s.queries, linkID, shortLink)
+func (s *Service) analytics(ctx context.Context, linkID uuid.UUID, shortLink ShortLink, rangeValue normalizedAnalyticsRange) (StatisticsResult, error) {
+	return analyticsWithQueries(ctx, s.queries, linkID, shortLink, rangeValue)
 }
 
 // analyticsWithQueries assembles analytics using the supplied aggregate query reader.
-func analyticsWithQueries(ctx context.Context, queries analyticsQueries, linkID uuid.UUID, shortLink ShortLink) (StatisticsResult, error) {
+func analyticsWithQueries(ctx context.Context, queries analyticsQueries, linkID uuid.UUID, shortLink ShortLink, rangeValue normalizedAnalyticsRange) (StatisticsResult, error) {
 	pgLinkID := uuidToPgtype(linkID)
-	summary, err := queries.GetShortLinkAnalyticsSummary(ctx, pgLinkID)
+	start := pgtype.Timestamptz{Time: rangeValue.start, Valid: true}
+	end := pgtype.Timestamptz{Time: rangeValue.end, Valid: true}
+	summary, err := queries.GetShortLinkAnalyticsSummary(ctx, sqlc.GetShortLinkAnalyticsSummaryParams{
+		ShortLinkID: pgLinkID,
+		TodayStart:  pgtype.Timestamptz{Time: rangeValue.today, Valid: true},
+		TodayEnd:    pgtype.Timestamptz{Time: rangeValue.today.AddDate(0, 0, 1), Valid: true},
+	})
 	if err != nil {
 		return StatisticsResult{}, err
 	}
-	trend, err := queries.ListShortLinkDailyVisits(ctx, pgLinkID)
+	trend, err := queries.ListShortLinkDailyVisits(ctx, sqlc.ListShortLinkDailyVisitsParams{ShortLinkID: pgLinkID, RangeStart: start, RangeEnd: end})
 	if err != nil {
 		return StatisticsResult{}, err
 	}
-	referrers, err := queries.ListShortLinkReferrerStats(ctx, pgLinkID)
+	referrers, err := queries.ListShortLinkReferrerStats(ctx, sqlc.ListShortLinkReferrerStatsParams{ShortLinkID: pgLinkID, RangeStart: start, RangeEnd: end})
 	if err != nil {
 		return StatisticsResult{}, err
 	}
-	devices, err := queries.ListShortLinkDeviceStats(ctx, pgLinkID)
+	devices, err := queries.ListShortLinkDeviceStats(ctx, sqlc.ListShortLinkDeviceStatsParams{ShortLinkID: pgLinkID, RangeStart: start, RangeEnd: end})
 	if err != nil {
 		return StatisticsResult{}, err
 	}
-	countries, err := queries.ListShortLinkCountryStats(ctx, pgLinkID)
+	countries, err := queries.ListShortLinkCountryStats(ctx, sqlc.ListShortLinkCountryStatsParams{ShortLinkID: pgLinkID, RangeStart: start, RangeEnd: end})
 	if err != nil {
 		return StatisticsResult{}, err
 	}
@@ -665,7 +681,10 @@ func analyticsWithQueries(ctx context.Context, queries analyticsQueries, linkID 
 	if summary.LastVisitedAt.Valid {
 		stats.LastVisitedAt = &summary.LastVisitedAt.Time
 	}
-	return StatisticsResult{ShortLink: shortLink, Stats: stats}, nil
+	for _, point := range trend {
+		stats.RangeVisitCount += point.VisitCount
+	}
+	return StatisticsResult{ShortLink: shortLink, Stats: stats, Range: rangeValue.response}, nil
 }
 
 // trendFromRows maps generated day aggregates to the API response.

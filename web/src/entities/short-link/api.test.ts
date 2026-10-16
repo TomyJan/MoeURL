@@ -69,7 +69,8 @@ describe('short link api', () => {
         message: 'OK',
         data: {
           shortLink: { ...accessAndQuota, id: 'link-id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' },
-          stats: { visitCount: 2, todayVisitCount: 1, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] },
+          range: { startDate: '2026-10-09', endDate: '2026-10-15', timeZone: 'UTC' },
+          stats: { rangeVisitCount: 2, visitCount: 2, todayVisitCount: 1, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] },
         },
         meta: {},
       }), { status: 200, headers: { 'Content-Type': 'application/json' } })),
@@ -80,6 +81,42 @@ describe('short link api', () => {
 
     expect(fetch).toHaveBeenCalledWith('/api/v1/short-link/statistics?id=link%20id', expect.objectContaining({ method: 'GET' }))
     expect(fetch).toHaveBeenCalledWith('/api/v1/admin/short-link/statistics?id=link%20id', expect.objectContaining({ method: 'GET' }))
+  })
+
+  it.each([getShortLinkStatistics, getAdminShortLinkStatistics])('encodes preset and custom statistics ranges', async (load) => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', meta: {}, data: {
+      shortLink: { ...accessAndQuota, id: 'id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' },
+      range: { startDate: '2026-10-09', endDate: '2026-10-15', timeZone: 'UTC' },
+      stats: { rangeVisitCount: 0, visitCount: 2, todayVisitCount: 0, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] },
+    } }))))
+    await load('a &b', { days: 30 })
+    expect(String(vi.mocked(fetch).mock.calls[0]![0])).toMatch(/statistics\?id=a%20%26b&days=30$/)
+    await load('id', { startDate: '2026-08-01', endDate: '2026-08-30' })
+    expect(String(vi.mocked(fetch).mock.calls[1]![0])).toMatch(/statistics\?id=id&startDate=2026-08-01&endDate=2026-08-30$/)
+  })
+
+  it.each([
+    undefined,
+    { startDate: '2026-10-09', endDate: '2026-10-15', timeZone: 'Asia/Shanghai' },
+    { startDate: '2026-02-30', endDate: '2026-03-01', timeZone: 'UTC' },
+    { startDate: '2026-10-15', endDate: '2026-10-09', timeZone: 'UTC' },
+    { startDate: '2026-01-01', endDate: '2026-10-15', timeZone: 'UTC' },
+    { startDate: '2026-10-09', endDate: '2026-10-15', timeZone: 'UTC', unexpected: true },
+  ])('rejects invalid server statistics ranges: %j', async (range) => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', meta: {}, data: {
+      shortLink: { ...accessAndQuota, id: 'id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' },
+      range, stats: { rangeVisitCount: 0, visitCount: 0, todayVisitCount: 0, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] },
+    } }))))
+    await expect(getShortLinkStatistics('id')).rejects.toMatchObject({ code: 100001 })
+  })
+
+  it.each([undefined, -1, 0.5, '2'])('rejects missing or invalid range visit count: %j', async (rangeVisitCount) => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', meta: {}, data: {
+      shortLink: { ...accessAndQuota, id: 'id', url: 'https://go.example.com/abc123', slug: 'abc123', targetUrl: 'https://example.com', status: 'active' },
+      range: { startDate: '2026-10-09', endDate: '2026-10-15', timeZone: 'UTC' },
+      stats: { rangeVisitCount, visitCount: 0, todayVisitCount: 0, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] },
+    } }))))
+    await expect(getShortLinkStatistics('id')).rejects.toMatchObject({ code: 100001 })
   })
 
   it('posts create request', async () => {

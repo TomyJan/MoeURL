@@ -39,11 +39,18 @@ func (q *Queries) CreateShortLinkEvent(ctx context.Context, arg CreateShortLinkE
 
 const getShortLinkAnalyticsSummary = `-- name: GetShortLinkAnalyticsSummary :one
 select count(*)::bigint as visit_count,
-    count(*) filter (where created_at >= current_date)::bigint as today_visit_count,
+    count(*) filter (where created_at >= $1::timestamptz
+        and created_at < $2::timestamptz)::bigint as today_visit_count,
     max(created_at)::timestamptz as last_visited_at
 from short_link_event
-where short_link_id = $1 and event_type = 'redirect_response_sent'
+where short_link_id = $3 and event_type = 'redirect_response_sent'
 `
+
+type GetShortLinkAnalyticsSummaryParams struct {
+	TodayStart  pgtype.Timestamptz `json:"today_start"`
+	TodayEnd    pgtype.Timestamptz `json:"today_end"`
+	ShortLinkID pgtype.UUID        `json:"short_link_id"`
+}
 
 type GetShortLinkAnalyticsSummaryRow struct {
 	VisitCount      int64              `json:"visit_count"`
@@ -51,8 +58,8 @@ type GetShortLinkAnalyticsSummaryRow struct {
 	LastVisitedAt   pgtype.Timestamptz `json:"last_visited_at"`
 }
 
-func (q *Queries) GetShortLinkAnalyticsSummary(ctx context.Context, shortLinkID pgtype.UUID) (GetShortLinkAnalyticsSummaryRow, error) {
-	row := q.db.QueryRow(ctx, getShortLinkAnalyticsSummary, shortLinkID)
+func (q *Queries) GetShortLinkAnalyticsSummary(ctx context.Context, arg GetShortLinkAnalyticsSummaryParams) (GetShortLinkAnalyticsSummaryRow, error) {
+	row := q.db.QueryRow(ctx, getShortLinkAnalyticsSummary, arg.TodayStart, arg.TodayEnd, arg.ShortLinkID)
 	var i GetShortLinkAnalyticsSummaryRow
 	err := row.Scan(&i.VisitCount, &i.TodayVisitCount, &i.LastVisitedAt)
 	return i, err
@@ -63,6 +70,8 @@ with grouped as (
     select coalesce(nullif(country_code, ''), 'unknown') as value, count(*)::bigint as visit_count
     from short_link_event
     where short_link_id = $1 and event_type = 'redirect_response_sent'
+        and created_at >= $2::timestamptz
+        and created_at < $3::timestamptz
     group by 1
 ), ranked as (
     select value, visit_count, row_number() over (order by visit_count desc, value asc) as rank
@@ -74,13 +83,19 @@ group by 1
 order by visit_count desc, value asc
 `
 
+type ListShortLinkCountryStatsParams struct {
+	ShortLinkID pgtype.UUID        `json:"short_link_id"`
+	RangeStart  pgtype.Timestamptz `json:"range_start"`
+	RangeEnd    pgtype.Timestamptz `json:"range_end"`
+}
+
 type ListShortLinkCountryStatsRow struct {
 	Value      string `json:"value"`
 	VisitCount int64  `json:"visit_count"`
 }
 
-func (q *Queries) ListShortLinkCountryStats(ctx context.Context, shortLinkID pgtype.UUID) ([]ListShortLinkCountryStatsRow, error) {
-	rows, err := q.db.Query(ctx, listShortLinkCountryStats, shortLinkID)
+func (q *Queries) ListShortLinkCountryStats(ctx context.Context, arg ListShortLinkCountryStatsParams) ([]ListShortLinkCountryStatsRow, error) {
+	rows, err := q.db.Query(ctx, listShortLinkCountryStats, arg.ShortLinkID, arg.RangeStart, arg.RangeEnd)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +116,11 @@ func (q *Queries) ListShortLinkCountryStats(ctx context.Context, shortLinkID pgt
 
 const listShortLinkDailyVisits = `-- name: ListShortLinkDailyVisits :many
 with days as (
-    select generate_series(current_date - interval '6 days', current_date, interval '1 day')::date as day
+    select generate_series(
+        $2::timestamptz at time zone 'UTC',
+        ($3::timestamptz at time zone 'UTC') - interval '1 day',
+        interval '1 day'
+    )::date as day
 )
 select days.day,
     count(short_link_event.id)::bigint as visit_count
@@ -109,19 +128,27 @@ from days
 left join short_link_event
     on short_link_event.short_link_id = $1
     and short_link_event.event_type = 'redirect_response_sent'
-    and short_link_event.created_at >= days.day
-    and short_link_event.created_at < days.day + interval '1 day'
+    and short_link_event.created_at >= $2::timestamptz
+    and short_link_event.created_at < $3::timestamptz
+    and short_link_event.created_at >= (days.day::timestamp at time zone 'UTC')
+    and short_link_event.created_at < ((days.day + 1)::timestamp at time zone 'UTC')
 group by days.day
 order by days.day
 `
+
+type ListShortLinkDailyVisitsParams struct {
+	ShortLinkID pgtype.UUID        `json:"short_link_id"`
+	RangeStart  pgtype.Timestamptz `json:"range_start"`
+	RangeEnd    pgtype.Timestamptz `json:"range_end"`
+}
 
 type ListShortLinkDailyVisitsRow struct {
 	Day        pgtype.Date `json:"day"`
 	VisitCount int64       `json:"visit_count"`
 }
 
-func (q *Queries) ListShortLinkDailyVisits(ctx context.Context, shortLinkID pgtype.UUID) ([]ListShortLinkDailyVisitsRow, error) {
-	rows, err := q.db.Query(ctx, listShortLinkDailyVisits, shortLinkID)
+func (q *Queries) ListShortLinkDailyVisits(ctx context.Context, arg ListShortLinkDailyVisitsParams) ([]ListShortLinkDailyVisitsRow, error) {
+	rows, err := q.db.Query(ctx, listShortLinkDailyVisits, arg.ShortLinkID, arg.RangeStart, arg.RangeEnd)
 	if err != nil {
 		return nil, err
 	}
@@ -145,6 +172,8 @@ with grouped as (
     select coalesce(nullif(device_type, ''), 'unknown') as value, count(*)::bigint as visit_count
     from short_link_event
     where short_link_id = $1 and event_type = 'redirect_response_sent'
+        and created_at >= $2::timestamptz
+        and created_at < $3::timestamptz
     group by 1
 ), ranked as (
     select value, visit_count, row_number() over (order by visit_count desc, value asc) as rank
@@ -156,13 +185,19 @@ group by 1
 order by visit_count desc, value asc
 `
 
+type ListShortLinkDeviceStatsParams struct {
+	ShortLinkID pgtype.UUID        `json:"short_link_id"`
+	RangeStart  pgtype.Timestamptz `json:"range_start"`
+	RangeEnd    pgtype.Timestamptz `json:"range_end"`
+}
+
 type ListShortLinkDeviceStatsRow struct {
 	Value      string `json:"value"`
 	VisitCount int64  `json:"visit_count"`
 }
 
-func (q *Queries) ListShortLinkDeviceStats(ctx context.Context, shortLinkID pgtype.UUID) ([]ListShortLinkDeviceStatsRow, error) {
-	rows, err := q.db.Query(ctx, listShortLinkDeviceStats, shortLinkID)
+func (q *Queries) ListShortLinkDeviceStats(ctx context.Context, arg ListShortLinkDeviceStatsParams) ([]ListShortLinkDeviceStatsRow, error) {
+	rows, err := q.db.Query(ctx, listShortLinkDeviceStats, arg.ShortLinkID, arg.RangeStart, arg.RangeEnd)
 	if err != nil {
 		return nil, err
 	}
@@ -186,6 +221,8 @@ with grouped as (
     select coalesce(nullif(referrer_host, ''), 'unknown') as value, count(*)::bigint as visit_count
     from short_link_event
     where short_link_id = $1 and event_type = 'redirect_response_sent'
+        and created_at >= $2::timestamptz
+        and created_at < $3::timestamptz
     group by 1
 ), ranked as (
     select value, visit_count, row_number() over (order by visit_count desc, value asc) as rank
@@ -197,13 +234,19 @@ group by 1
 order by visit_count desc, value asc
 `
 
+type ListShortLinkReferrerStatsParams struct {
+	ShortLinkID pgtype.UUID        `json:"short_link_id"`
+	RangeStart  pgtype.Timestamptz `json:"range_start"`
+	RangeEnd    pgtype.Timestamptz `json:"range_end"`
+}
+
 type ListShortLinkReferrerStatsRow struct {
 	Value      string `json:"value"`
 	VisitCount int64  `json:"visit_count"`
 }
 
-func (q *Queries) ListShortLinkReferrerStats(ctx context.Context, shortLinkID pgtype.UUID) ([]ListShortLinkReferrerStatsRow, error) {
-	rows, err := q.db.Query(ctx, listShortLinkReferrerStats, shortLinkID)
+func (q *Queries) ListShortLinkReferrerStats(ctx context.Context, arg ListShortLinkReferrerStatsParams) ([]ListShortLinkReferrerStatsRow, error) {
+	rows, err := q.db.Query(ctx, listShortLinkReferrerStats, arg.ShortLinkID, arg.RangeStart, arg.RangeEnd)
 	if err != nil {
 		return nil, err
 	}
