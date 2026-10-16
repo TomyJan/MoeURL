@@ -30,7 +30,7 @@ function deferred<T>() {
 function mountPanel(client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } }), profile = false) {
   clients.push(client)
   const i18n = createI18n({ legacy: false, locale: 'test', missingWarn: false, fallbackWarn: false, messages: {} })
-  return { ...render(profile ? ProfilePage : PasswordChangePanel, { global: { plugins: [[VueQueryPlugin, { queryClient: client }], i18n], stubs: { ...componentStubs, PreferenceSwitcher: true } } }), client }
+  return { ...render(profile ? ProfilePage : PasswordChangePanel, { global: { plugins: [[VueQueryPlugin, { queryClient: client }], i18n], stubs: { ...componentStubs, PreferenceSwitcher: true, AccountPreferencesPanel: { props: ['active'], template: '<section data-testid="account-preferences-panel" :data-active="active" />' } } } }), client }
 }
 /** Enters a draft using visible password fields. */
 async function fill(currentPassword = 'old', newPassword = 'newpassword', confirmPassword = newPassword) {
@@ -48,6 +48,12 @@ function expectCleared() {
   for (const input of screen.getAllByLabelText(/passwordChange\.(current|new|confirm)Password/)) {
     expect((input as HTMLInputElement).value).toBe('')
   }
+}
+
+/** Verifies that only the inert guest identity survives account-cache removal. */
+function expectGuestCache(client: QueryClient) {
+  expect(client.getQueryCache().getAll().map((query) => query.queryKey)).toEqual([['auth', 'me']])
+  expect(client.getQueryData(['auth', 'me'])).toMatchObject({ user: { group: 'guest', permissions: [] } })
 }
 
 beforeEach(() => {
@@ -97,7 +103,7 @@ describe('PasswordChangePanel', () => {
     const { client } = mountPanel()
     client.setQueryData(['auth', 'me'], { user: 'stale' })
     await waitFor(() => expect(state.replace).toHaveBeenCalledWith('/login?redirect=/profile'))
-    expect(client.getQueryCache().getAll()).toEqual([])
+    expectGuestCache(client)
     expect(toast.error).toHaveBeenCalledWith('passwordChange.sessionExpired')
   })
 
@@ -111,7 +117,7 @@ describe('PasswordChangePanel', () => {
     unmount()
     cancelled.resolve()
     await cancelled.promise
-    expect(client.getQueryCache().getAll()).toEqual([])
+    expectGuestCache(client)
     expect(state.replace).not.toHaveBeenCalled()
     expect(toast.success).not.toHaveBeenCalled()
   })
@@ -238,17 +244,17 @@ describe('PasswordChangePanel', () => {
     const { client, unmount } = mountPanel()
     client.setQueryData(['links'], { private: true })
     const cancel = vi.spyOn(client, 'cancelQueries')
-    const clear = vi.spyOn(client, 'clear')
+    const remove = vi.spyOn(client, 'removeQueries')
     state.replace.mockImplementation(() => {
-      expect(client.getQueryCache().getAll()).toEqual([])
+      expectGuestCache(client)
       unmount()
       return Promise.resolve()
     })
     await fill()
     await submit()
     await waitFor(() => expect(state.replace).toHaveBeenCalledWith('/login?redirect=/profile'))
-    expect(cancel.mock.invocationCallOrder[0]).toBeLessThan(clear.mock.invocationCallOrder[0]!)
-    expect(clear.mock.invocationCallOrder[0]).toBeLessThan(state.replace.mock.invocationCallOrder[0]!)
+    expect(cancel.mock.invocationCallOrder[0]).toBeLessThan(remove.mock.invocationCallOrder[0]!)
+    expect(remove.mock.invocationCallOrder[0]).toBeLessThan(state.replace.mock.invocationCallOrder[0]!)
     expect(outcome === 'success' ? toast.success : toast.error).toHaveBeenCalledWith(`passwordChange.${outcome === 'success' ? 'success' : 'sessionExpired'}`)
   })
 
@@ -264,7 +270,7 @@ describe('PasswordChangePanel', () => {
     if (outcome === 'success') request.resolve({ changed: true })
     else request.reject(outcome === 'expired' ? new ApiClientError(401, 'private detail') : new Error('private detail'))
     await request.promise.catch(() => undefined)
-    if (outcome !== 'failure') await waitFor(() => expect(client.getQueryCache().getAll()).toEqual([]))
+    if (outcome !== 'failure') await waitFor(() => expectGuestCache(client))
     expect(state.replace).not.toHaveBeenCalled()
     expect(toast.success).not.toHaveBeenCalled()
     expect(toast.error).not.toHaveBeenCalled()
@@ -285,12 +291,12 @@ describe('PasswordChangePanel', () => {
     const nicknameMutation = client.getMutationCache().getAll()[0]!
     unmount()
     password.resolve({ changed: true })
-    await waitFor(() => expect(client.getQueryCache().getAll()).toEqual([]))
+    await waitFor(() => expectGuestCache(client))
     const setIdentity = vi.spyOn(client, 'setQueryData')
     nickname.resolve({ user: { ...user, nickname: 'Renamed' } })
     await nickname.promise
     await waitFor(() => expect(nicknameMutation.state.status).toBe('success'))
-    await waitFor(() => expect(client.getQueryCache().getAll()).toEqual([]))
+    await waitFor(() => expectGuestCache(client))
     expect(setIdentity).not.toHaveBeenCalled()
     expect(state.replace).not.toHaveBeenCalled()
     expect(toast.success).not.toHaveBeenCalled()
@@ -316,7 +322,8 @@ describe('PasswordChangePanel', () => {
     else nickname.reject(new Error('private nickname failure'))
     await nickname.promise.catch(() => undefined)
     await waitFor(() => expect(client.getMutationCache().getAll()[0]?.state.status).toBe(outcome === 'success' ? 'success' : 'error'))
-    expect(setIdentity).not.toHaveBeenCalled()
+    expect(setIdentity).toHaveBeenCalledTimes(1)
+    expect(setIdentity).toHaveBeenCalledWith(['auth', 'me'], expect.objectContaining({ user: expect.objectContaining({ group: 'guest' }) }))
     expect(invalidate).not.toHaveBeenCalled()
     expect(screen.queryByText('profile.saveSuccess')).toBeNull()
     expect(screen.queryByText('profile.saveFailed')).toBeNull()
@@ -325,6 +332,6 @@ describe('PasswordChangePanel', () => {
     state.replace.mockImplementation(() => { unmount(); return Promise.resolve() })
     cancelGate.resolve()
     await waitFor(() => expect(state.replace).toHaveBeenCalledWith('/login?redirect=/profile'))
-    expect(client.getQueryCache().getAll()).toEqual([])
+    expectGuestCache(client)
   })
 })

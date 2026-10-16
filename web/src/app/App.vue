@@ -18,12 +18,16 @@
 import { computed, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { getPublicConfig } from '@/entities/system/api'
+import { me } from '@/entities/auth/api'
 import { useAppPreferences } from '@/shared/preferences/useAppPreferences'
+import { useAccountPreferences } from '@/shared/preferences/useAccountPreferences'
 import { bindSiteTitle, setSiteConfig, useSiteConfig } from '@/shared/site/useSiteConfig'
 import SiteFooter from '@/shared/site/SiteFooter.vue'
 import AppToasts from '@/shared/feedback/AppToasts.vue'
 
 const preferences = useAppPreferences()
+useQuery({ queryKey: ['auth', 'me'], queryFn: me, retry: false })
+useAccountPreferences()
 const publicConfigQuery = useQuery({ queryKey: ['system', 'public-config'], queryFn: getPublicConfig, retry: false, staleTime: 60_000 })
 const { config } = useSiteConfig()
 bindSiteTitle(computed(() => config.value.siteName))

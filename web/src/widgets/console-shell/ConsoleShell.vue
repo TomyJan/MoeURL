@@ -103,6 +103,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { logout, me } from '@/entities/auth/api'
 import ShortLinkCreatePanel from '@/features/short-link-create/ShortLinkCreatePanel.vue'
 import PreferenceSwitcher from '@/shared/preferences/PreferenceSwitcher.vue'
+import { revokeAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 import MoeIcon from '@/shared/ui/MoeIcon.vue'
 import ConsoleNavList from './ConsoleNavList.vue'
 import ConsoleSidebar from './ConsoleSidebar.vue'
@@ -203,10 +204,10 @@ const logoutMutation = useMutation({
   onError() {
     logoutErrorVisible.value = true
   },
-  /** Invalidates auth/me and starts login navigation without waiting for its current-state refetch. */
+  /** Revokes cached identity immediately so late reads cannot restore the logged-out account. */
   onSuccess() {
     logoutErrorVisible.value = false
-    void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
+    void revokeAccountIdentity(queryClient)
     void router.push('/login')
   },
 })

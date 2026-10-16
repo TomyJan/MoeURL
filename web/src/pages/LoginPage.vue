@@ -89,6 +89,7 @@ const mutation = useMutation({
   mutationFn: login,
   /** Updates cached identity data, starts auth/me invalidation, and restores the requested route. */
   onSuccess(data) {
+    void queryClient.cancelQueries({ queryKey: ['auth', 'me'] })
     queryClient.setQueryData(['auth', 'me'], data)
     void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
     void router.push(loginRedirectTarget.value)

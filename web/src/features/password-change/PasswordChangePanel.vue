@@ -39,6 +39,7 @@ import { z } from 'zod'
 import { toast } from 'vue-sonner'
 import { changePassword, getPasswordStatus, type ChangePasswordInput } from '@/entities/auth/password'
 import { ApiClientError } from '@/shared/api/client'
+import { revokeAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -111,8 +112,8 @@ function validateDraft() {
 /** Cancels outstanding identity reads and clears cached account data before returning to login. */
 async function leaveAuthenticatedSession(changed: boolean) {
   if (active) emit('sessionRevoked')
-  await client.cancelQueries()
-  client.clear()
+  await revokeAccountIdentity(client, true)
+  client.removeQueries({ predicate: (query) => query.queryKey[0] !== 'auth' || query.queryKey[1] !== 'me' })
   if (!active) return
   if (changed) toast.success(t('passwordChange.success'))
   else toast.error(t('passwordChange.sessionExpired'))
