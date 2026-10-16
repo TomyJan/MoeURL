@@ -70,6 +70,7 @@ import { useMutation, useQuery } from '@tanstack/vue-query'
 import { login } from '@/entities/auth/api'
 import { getLoginMethods, oidcStartURL } from '@/entities/oidc/api'
 import { queryClient } from '@/app/query'
+import { revokeAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 import { useSiteConfig } from '@/shared/site/useSiteConfig'
 import ActionToast from '@/shared/feedback/ActionToast.vue'
 
@@ -87,9 +88,9 @@ const methodsQuery = useQuery({ queryKey: ['auth', 'methods'], queryFn: getLogin
 const oidcProviders = computed(() => methodsQuery.data.value?.oidc ?? [])
 const mutation = useMutation({
   mutationFn: login,
-  /** Updates cached identity data, starts auth/me invalidation, and restores the requested route. */
+  /** Starts a fresh identity epoch on every successful login, including the same account. */
   onSuccess(data) {
-    void queryClient.cancelQueries({ queryKey: ['auth', 'me'] })
+    void revokeAccountIdentity(queryClient)
     queryClient.setQueryData(['auth', 'me'], data)
     void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
     void router.push(loginRedirectTarget.value)

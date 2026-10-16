@@ -49,6 +49,7 @@ const state = vi.hoisted(() => ({
   },
   queryClient: {
     cancelQueries: vi.fn(),
+    removeQueries: vi.fn(),
     invalidateQueries: vi.fn(),
     setQueryData: vi.fn(),
   },
