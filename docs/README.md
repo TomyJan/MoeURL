@@ -14,7 +14,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 [v0.14.0 统计日期范围](product/scope-v0.14.0.md) 已通过 PR #187 合并为 `c864ce3a`，支持近 7／30／90 天和有界自定义 UTC 区间；见 [设计](specs/2026-10-15-v0.14.0-analytics-date-range-design.md)、[实施计划](implementation/v0.14.0-plan.md)、[任务清单](implementation/v0.14.0-tasks.md) 与 [原分支验收记录](implementation/v0.14.0-acceptance.md)。
 
-当前开发 [v0.15.0 账号语言与主题偏好](product/scope-v0.15.0.md)，在独立分支实现显式账号保存、登录加载和浏览器偏好隔离；见 [设计](specs/2026-10-16-v0.15.0-account-preferences-design.md)、[实施计划](implementation/v0.15.0-plan.md)、[任务清单](implementation/v0.15.0-tasks.md) 与 [验收记录](implementation/v0.15.0-acceptance.md)。
+[v0.15.0 账号语言与主题偏好](product/scope-v0.15.0.md) 已在独立分支完成显式账号保存、登录加载和浏览器偏好隔离，本地门禁与独立审查完成，尚未合并或发布；见 [设计](specs/2026-10-16-v0.15.0-account-preferences-design.md)、[实施计划](implementation/v0.15.0-plan.md)、[任务清单](implementation/v0.15.0-tasks.md) 与 [验收记录](implementation/v0.15.0-acceptance.md)。
 
 2026-10-14 全站前端视觉更新沿用既有业务范围，设计见 [视觉与交互规范](specs/2026-10-14-ui-refresh-design.md)，执行与证据见 [实施计划](implementation/2026-10-14-ui-refresh-plan.md) 和 [本地验收](implementation/2026-10-14-ui-refresh-acceptance.md)。
 
@@ -84,6 +84,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 - [v0.12.0 范围](product/scope-v0.12.0.md)
 - [v0.13.0 范围](product/scope-v0.13.0.md)
 - [v0.14.0 范围](product/scope-v0.14.0.md)
+- [v0.15.0 范围](product/scope-v0.15.0.md)
 - [路线图](product/roadmap.md)
 
 ### 功能规格层
@@ -106,6 +107,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 - [跳转模式](specs/redirect-modes.md)
 - [统计与事件](specs/statistics-and-events.md)
 - [v0.14.0 统计日期范围设计](specs/2026-10-15-v0.14.0-analytics-date-range-design.md)
+- [v0.15.0 账号语言与主题偏好设计](specs/2026-10-16-v0.15.0-account-preferences-design.md)
 - [导航与页面](specs/navigation-and-pages.md)
 - [主题与多语言](specs/themes-and-i18n.md)
 - [管理后台](specs/admin.md)
