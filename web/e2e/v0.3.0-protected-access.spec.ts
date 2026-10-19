@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import type { Page } from '@playwright/test'
+import type { Page, Request } from '@playwright/test'
 import {
   attachScreenshot,
   e2eAdminPassword,
@@ -363,18 +363,23 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
   )
 })
 
-/** Verifies the real continuation and its target navigation without requiring a third-party document to load. */
+/** Verifies the real continuation and waits for its target request to finish or fail before further navigation. */
 async function expectProtectedContinuation(page: Page, slug: string, target: string, trigger: () => Promise<unknown>) {
   const continuePath = `/go/${slug}/continue`
   const continued = page.waitForResponse(response => (
     new URL(response.url()).pathname === continuePath && response.request().method() === 'GET'
   ))
-  const targetNavigation = page.waitForRequest(request => {
+  const matchesTargetNavigation = (request: Request) => {
     const source = request.redirectedFrom()
     return request.isNavigationRequest() && request.url() === target
       && source !== null && new URL(source.url()).pathname === continuePath
-  })
-  const [response] = await Promise.all([continued, targetNavigation, trigger()])
+  }
+  const targetNavigation = page.waitForRequest(matchesTargetNavigation)
+  const targetSettled = Promise.race([
+    page.waitForEvent('requestfinished', matchesTargetNavigation),
+    page.waitForEvent('requestfailed', matchesTargetNavigation),
+  ])
+  const [response] = await Promise.all([continued, targetNavigation, targetSettled, trigger()])
   expect(response.status()).toBe(302)
   expect(response.headers().location).toBe(target)
   return response.request()
