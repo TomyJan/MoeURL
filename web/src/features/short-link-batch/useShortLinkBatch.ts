@@ -92,7 +92,7 @@ export function useShortLinkBatch(options: BatchOptions) {
       void client.invalidateQueries({ queryKey: ['admin-short-link'] })
       if (!isCurrent()) return
       clear()
-      toast.success(t('batch.success', { count: result.affectedCount }))
+      toast.success(t('batch.success', { count: result.affectedCount }, result.affectedCount))
     } catch {
       await nextTick()
       if (isCurrent()) toast.error(t('batch.failed'))

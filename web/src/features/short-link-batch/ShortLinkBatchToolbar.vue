@@ -11,7 +11,7 @@
   <v-dialog v-if="state.deleteIds.value" :model-value="true" max-width="460" @update:model-value="state.closeDelete">
     <v-card>
       <v-card-title>{{ t('batch.deleteTitle') }}</v-card-title>
-      <v-card-text>{{ t('batch.deleteDescription', { count: state.deleteIds.value.length }) }}</v-card-text>
+      <v-card-text>{{ t('batch.deleteDescription', { count: state.deleteIds.value.length }, state.deleteIds.value.length) }}</v-card-text>
       <v-card-actions>
         <v-btn data-testid="batch-cancel-delete" variant="text" @click="state.closeDelete">{{ t('batch.cancel') }}</v-btn>
         <v-btn data-testid="batch-confirm-delete" color="error" variant="tonal" :disabled="state.unavailable.value || !access.canDelete.value" :loading="state.pending.value" @click="state.confirmDelete">{{ t('batch.confirmDelete') }}</v-btn>

@@ -124,6 +124,8 @@ describe('private list batch controls', () => {
     await waitFor(() => expect((screen.getByTestId('batch-enable') as HTMLButtonElement).disabled).toBe(true))
     loading.reject(new Error('private'))
     await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy())
+    expect(screen.queryByTestId('console-link-list')).toBeNull()
+    expect(screen.queryByRole('progressbar')).toBeNull()
     expect((screen.getByTestId('batch-enable') as HTMLButtonElement).disabled).toBe(true)
     await view.client.invalidateQueries({ queryKey: [prefix] })
     await waitFor(() => expect((screen.getByTestId('batch-enable') as HTMLButtonElement).disabled).toBe(false))
@@ -176,15 +178,19 @@ describe('private list batch controls', () => {
     expect(screen.queryByRole('progressbar')).toBeNull()
   })
   it.each([
-    ['zh-CN', '选择当前列表', '选择短链 one', '批量启用', '即将删除 1 条短链，删除后公开地址将不可访问。此操作无法撤销。'],
-    ['en', 'Select current list', 'Select short link one', 'Enable selected', 'Delete 1 links? Their public addresses will become unavailable. This action cannot be undone.'],
-  ])('provides translated accessible controls and irreversible delete confirmation in %s', async (locale, all, one, enable, confirmation) => {
+    ['zh-CN', 1, '选择当前列表', '选择短链 one', '批量启用', '即将删除 1 条短链，删除后公开地址将不可访问。此操作无法撤销。', '已处理 1 条短链。'],
+    ['en', 1, 'Select current list', 'Select short link one', 'Enable selected', 'Delete 1 link? Its public address will become unavailable. This action cannot be undone.', 'Processed 1 link.'],
+    ['en', 2, 'Select current list', 'Select short link one', 'Enable selected', 'Delete 2 links? Their public addresses will become unavailable. This action cannot be undone.', 'Processed 2 links.'],
+  ] as const)('provides translated accessible controls and irreversible delete confirmation in %s (%i selected)', async (locale, count, all, one, enable, confirmation, success) => {
     mount('own', user(), locale)
     await screen.findByRole('checkbox', { name: one })
     expect(screen.getByRole('checkbox', { name: all })).toBeTruthy()
     expect(within(screen.getByTestId('batch-toolbar')).getByRole('button', { name: enable })).toBeTruthy()
-    await fireEvent.click(screen.getByRole('checkbox', { name: one }))
+    await fireEvent.click(screen.getByRole('checkbox', { name: count === 1 ? one : all }))
     await fireEvent.click(screen.getByTestId('batch-delete'))
     expect(within(screen.getByRole('dialog')).getByText(confirmation)).toBeTruthy()
+    vi.mocked(batchShortLinks).mockResolvedValueOnce({ affectedCount: count })
+    await fireEvent.click(screen.getByTestId('batch-confirm-delete'))
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith(success))
   })
 })

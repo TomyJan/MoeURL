@@ -674,8 +674,8 @@ export const messages = {
     batch: {
       selectAll: 'Select current list', selectLink: 'Select short link {slug}', selected: '{count} selected', currentList: 'Current list only, up to 100 links',
       enable: 'Enable selected', disable: 'Disable selected', delete: 'Delete selected', deleteTitle: 'Delete selected links?',
-      deleteDescription: 'Delete {count} links? Their public addresses will become unavailable. This action cannot be undone.', cancel: 'Cancel', confirmDelete: 'Confirm delete',
-      success: 'Processed {count} links.', failed: 'Batch action failed. Refresh the list and try again.', processing: 'Processing selected links',
+      deleteDescription: 'Delete {count} link? Its public address will become unavailable. This action cannot be undone. | Delete {count} links? Their public addresses will become unavailable. This action cannot be undone.', cancel: 'Cancel', confirmDelete: 'Confirm delete',
+      success: 'Processed {count} link. | Processed {count} links.', failed: 'Batch action failed. Refresh the list and try again.', processing: 'Processing selected links',
     },
     overview: {
       summary: 'Your links, visits and recent activity, at a glance.',

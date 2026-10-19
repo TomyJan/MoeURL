@@ -15,7 +15,7 @@
     </div>
     <div class="console-data-panel" data-testid="console-data-panel">
       <v-alert v-if="query.isError.value || (!access.canRead.value && !access.authPending.value)" type="error" variant="tonal">{{ t('links.loadFailed') }}</v-alert>
-      <v-progress-linear v-if="access.authPending.value || (access.canRead.value && query.isPending.value)" indeterminate />
+      <v-progress-linear v-else-if="access.authPending.value || (access.canRead.value && query.isPending.value)" indeterminate />
       <div v-else-if="access.canRead.value && links.length === 0" class="console-page__empty">
         <div>
           <h2>{{ t('links.emptyTitle') }}</h2>
