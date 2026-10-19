@@ -16,7 +16,9 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 [v0.15.0 账号语言与主题偏好](product/scope-v0.15.0.md) 已通过 PR #190 合并为 `2ec7eaa4`；显式账号保存、登录加载和浏览器偏好隔离的原分支证据见 [验收记录](implementation/v0.15.0-acceptance.md)，不替代合并提交或发布验证。
 
-[v0.16.0 聚合统计 CSV 导出](product/scope-v0.16.0.md) 已在独立分支实现并通过本地可执行门禁，未合并、未发布；仅导出单短链已应用 UTC 区间的匿名聚合。见 [设计](specs/2026-10-16-v0.16.0-analytics-export-design.md)、[实施计划](implementation/v0.16.0-plan.md)、[任务清单](implementation/v0.16.0-tasks.md) 与 [验收记录](implementation/v0.16.0-acceptance.md)。
+[v0.16.0 聚合统计 CSV 导出](product/scope-v0.16.0.md) 已通过 PR #191 合并为 `bd4c2625`，未正式发布；仅导出单短链已应用 UTC 区间的匿名聚合。见 [设计](specs/2026-10-16-v0.16.0-analytics-export-design.md)、[实施计划](implementation/v0.16.0-plan.md)、[任务清单](implementation/v0.16.0-tasks.md) 与 [原分支验收记录](implementation/v0.16.0-acceptance.md)。
+
+[v0.17.0 短链批量管理](product/scope-v0.17.0.md) 已在独立分支实现当前列表多选与原子批量启停／软删除。当前产品代码候选为 `1c6df4a`，包含 JSON 媒体类型安全修复；`33f287ec` 的完整门禁结果仅为安全修复前证据。截至 `1c6df4a` 的原始本地记录，修复后尚未完整重跑全仓 Go、Playwright 和前端门禁；后续 CI 及测试修正工作树的复验单独记录。目标 CI 全绿、合并和发布仍待完成。范围与实际证据见 [设计](specs/2026-10-16-v0.17.0-bulk-link-management-design.md)、[计划](implementation/v0.17.0-plan.md)、[任务清单](implementation/v0.17.0-tasks.md) 和 [验收记录](implementation/v0.17.0-acceptance.md)。
 
 2026-10-14 全站前端视觉更新沿用既有业务范围，设计见 [视觉与交互规范](specs/2026-10-14-ui-refresh-design.md)，执行与证据见 [实施计划](implementation/2026-10-14-ui-refresh-plan.md) 和 [本地验收](implementation/2026-10-14-ui-refresh-acceptance.md)。
 

@@ -29,6 +29,7 @@ import { deleteAdminShortLink, deleteShortLink } from '@/entities/short-link/api
 import { createUser, resetUserPassword } from '@/entities/user/api'
 
 const state = vi.hoisted(() => ({
+  listAuth: false,
   queryResult: {},
   queryResults: [] as unknown[],
   queryResultIndex: 0,
@@ -48,6 +49,7 @@ const state = vi.hoisted(() => ({
     }
   },
   queryClient: {
+    getQueryData: vi.fn(() => ({ user: { id: 'test-account', username: 'test-account', group: 'user', permissions: ['short_link:read_own', 'short_link:update_own', 'short_link:delete_own', 'admin:access', 'short_link:read_all', 'short_link:update_all', 'short_link:delete_all'] } })),
     cancelQueries: vi.fn(),
     removeQueries: vi.fn(),
     invalidateQueries: vi.fn(),
@@ -93,6 +95,11 @@ vi.mock('vuetify', () => ({
 
 vi.mock('@/app/query', () => ({
   queryClient: state.queryClient,
+}))
+
+vi.mock('@/shared/preferences/useAccountPreferences', async importOriginal => ({
+  ...await importOriginal<typeof import('@/shared/preferences/useAccountPreferences')>(),
+  useAccountIdentity: () => ({ scope: ref({ userId: 'test-account', epoch: 1 }), isCurrent: () => true }),
 }))
 
 vi.mock('@/entities/auth/api', () => ({
@@ -171,6 +178,10 @@ vi.mock('@tanstack/vue-query', async () => {
       }),
     }),
     useQuery: vi.fn((options?: { enabled?: unknown; queryFn?: (context: { queryKey: unknown }) => unknown; queryKey?: unknown }) => {
+      if (state.listAuth && Array.isArray(options?.queryKey) && options.queryKey[0] === 'auth' && options.queryKey[1] === 'me') {
+        state.listAuth = false
+        return { data: ref(state.queryClient.getQueryData()), isSuccess: ref(true), isPending: ref(false) }
+      }
       state.queryKeys.push(options?.queryKey)
       if (Array.isArray(options?.queryKey) && options.queryKey[0] === 'domain' && options.queryKey[1] === 'available') {
         return { data: ref({ items: [{ id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true }] }), isError: ref(false), isPending: ref(false) }
@@ -194,6 +205,7 @@ vi.mock('@tanstack/vue-query', async () => {
 
 /** Mounts a page component with the shared router and component stubs. */
 function mount(component: object) {
+  state.listAuth = component === MyLinksPage || component === AdminLinksPage
   return render(component, {
     global: {
       // Export lifecycle has real QueryClient coverage in AnalyticsPage.test.ts.
@@ -1639,7 +1651,7 @@ describe('pages', () => {
     const queryKey = state.queryKeys[0]
     state.queryFns[0]?.()
 
-    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['short-link', 'disabled', '', ''])
+    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['short-link', 'disabled', '', '', 'test-account', 1])
     expect(listShortLinks).toHaveBeenCalledWith({ status: 'disabled', q: '', tag: '' })
   })
 
@@ -1662,7 +1674,7 @@ describe('pages', () => {
     state.queryFns[0]?.()
     expect(load).toHaveBeenLastCalledWith({ status: '', q: '%_文档\\', tag: 'Release 计划' })
     const queryKey = state.queryKeys[0]
-    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual([key, '', '%_文档\\', 'Release 计划'])
+    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual([key, '', '%_文档\\', 'Release 计划', 'test-account', 1])
     await fireEvent.update(keyword, '😀'.repeat(201))
     await fireEvent.update(tag, 'bad\u0000tag')
     expect(screen.getByText('linkMetadata.keywordInvalid')).toBeTruthy()
@@ -1946,7 +1958,7 @@ describe('pages', () => {
     const queryKey = state.queryKeys[0]
     state.queryFns[0]?.()
 
-    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['admin-short-link', 'active', 'alice', ''])
+    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['admin-short-link', 'active', 'alice', '', 'test-account', 1])
     expect(listAdminShortLinks).toHaveBeenCalledWith({ status: 'active', q: 'alice', tag: '' })
   })
 

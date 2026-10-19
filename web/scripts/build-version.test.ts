@@ -85,6 +85,7 @@ function createRepository(): string {
   git(directory, 'init', '-b', 'main')
   git(directory, 'config', 'user.name', 'Build metadata test')
   git(directory, 'config', 'user.email', 'build-test@example.invalid')
+  git(directory, 'config', 'commit.gpgsign', 'false')
   git(directory, 'add', 'web/package.json')
   git(directory, 'commit', '-m', 'test fixture')
   return directory

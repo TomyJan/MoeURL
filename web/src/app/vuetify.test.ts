@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 // Keep component CSS outside the Node test runner; browser tests exercise rendering.
 vi.mock('vuetify/components', () => ({
-  VAlert: {}, VApp: {}, VBtn: {}, VBtnToggle: {}, VCheckbox: {}, VChip: {},
+  VAlert: {}, VApp: {}, VBtn: {}, VBtnToggle: {}, VCheckbox: {}, VCheckboxBtn: {}, VChip: {},
   VCard: {}, VCardActions: {}, VCardText: {}, VCardTitle: {}, VContainer: {},
   VDialog: {}, VList: {}, VListItem: {}, VListItemTitle: {}, VMain: {}, VMenu: {},
   VProgressLinear: {}, VSelect: {}, VSlider: {}, VSnackbar: {}, VSwitch: {},

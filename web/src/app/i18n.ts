@@ -2,6 +2,12 @@ import { createI18n } from 'vue-i18n'
 
 export const messages = {
   'zh-CN': {
+    batch: {
+      selectAll: '选择当前列表', selectLink: '选择短链 {slug}', selected: '已选择 {count} 条', currentList: '仅当前列表，最多 100 条',
+      enable: '批量启用', disable: '批量停用', delete: '批量删除', deleteTitle: '删除所选短链？',
+      deleteDescription: '即将删除 {count} 条短链，删除后公开地址将不可访问。此操作无法撤销。', cancel: '取消', confirmDelete: '确认删除',
+      success: '已处理 {count} 条短链。', failed: '批量操作失败，请刷新列表后重试。', processing: '正在处理所选短链',
+    },
     overview: {
       summary: '你的短链、访问与最近动态，一目了然。',
       viewAllLinks: '查看全部短链',
@@ -665,6 +671,12 @@ export const messages = {
     },
   },
   en: {
+    batch: {
+      selectAll: 'Select current list', selectLink: 'Select short link {slug}', selected: '{count} selected', currentList: 'Current list only, up to 100 links',
+      enable: 'Enable selected', disable: 'Disable selected', delete: 'Delete selected', deleteTitle: 'Delete selected links?',
+      deleteDescription: 'Delete {count} link? Its public address will become unavailable. This action cannot be undone. | Delete {count} links? Their public addresses will become unavailable. This action cannot be undone.', cancel: 'Cancel', confirmDelete: 'Confirm delete',
+      success: 'Processed {count} link. | Processed {count} links.', failed: 'Batch action failed. Refresh the list and try again.', processing: 'Processing selected links',
+    },
     overview: {
       summary: 'Your links, visits and recent activity, at a glance.',
       viewAllLinks: 'View all links',

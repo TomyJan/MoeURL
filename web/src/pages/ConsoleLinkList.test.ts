@@ -6,6 +6,23 @@ import { componentStubs } from '@/test/component-stubs'
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 
 describe('ConsoleLinkList', () => {
+  it('keeps selected rows removable at the 100-ID limit while disabling unselected rows', async () => {
+    const links: ConsoleLinkListItem[] = Array.from({ length: 101 }, (_, index) => ({
+      id: String(index), slug: `link${index}`, url: `https://go.example/${index}`, targetUrl: 'https://example.com',
+      title: '', tags: [], status: 'active', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null,
+      expired: false, passwordEnabled: false, maxVisits: null, visitsUsed: 0, visitsRemaining: null, exhausted: false,
+    }))
+    const view = render(ConsoleLinkList, { props: { links, selectable: true, selectedIds: links.slice(0, 100).map(link => link.id) }, global: { stubs: componentStubs } })
+    const boxes = screen.getAllByRole('checkbox') as HTMLInputElement[]
+    expect(boxes[1]!.disabled).toBe(false)
+    expect(boxes[101]!.disabled).toBe(true)
+    await fireEvent.click(boxes[1]!)
+    expect(view.emitted('select')).toEqual([['0', false]])
+    await view.rerender({ selectedIds: links.slice(1, 100).map(link => link.id) })
+    expect(boxes[101]!.disabled).toBe(false)
+    await fireEvent.click(boxes[101]!)
+    expect(view.emitted('select')?.at(-1)).toEqual(['100', true])
+  })
   it('keeps owner cells aligned when a list contains both owned and ownerless links', () => {
     const link: ConsoleLinkListItem = {
       id: 'owned-link', slug: 'owned1', url: 'https://go.example.com/owned1', targetUrl: 'https://example.com/owned',

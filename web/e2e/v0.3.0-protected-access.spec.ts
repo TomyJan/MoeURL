@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import type { Page, Request } from '@playwright/test'
 import {
   attachScreenshot,
   e2eAdminPassword,
@@ -107,15 +108,9 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
       await expect(page.getByText('密码错误，请重试。')).toBeVisible()
 
       await page.getByLabel('访问密码').fill('correct horse')
-      const continueRequestPromise = page.waitForRequest((request) => (
-        new URL(request.url()).pathname === `/go/${protectedSlug}/continue`
-        && request.method() === 'GET'
-      ))
-      await Promise.all([
-        page.waitForURL(protectedTarget, { waitUntil: 'commit' }),
-        page.getByRole('button', { name: '解锁并继续' }).click(),
-      ])
-      const continueRequest = await continueRequestPromise
+      const continueRequest = await expectProtectedContinuation(page, protectedSlug, protectedTarget,
+        () => page.getByRole('button', { name: '解锁并继续' }).click({ noWaitAfter: true }),
+      )
       expect((await continueRequest.allHeaders()).cookie).toContain('moeurl_short_link_access=')
       await expect.poll(
         () => readVisitCount(page, protectedLinkId),
@@ -133,8 +128,9 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
       const previewResponse = await previewResponsePromise
       expect((await previewResponse.request().allHeaders()).cookie).toContain('moeurl_short_link_access=')
 
-      await page.goto(`/go/${protectedSlug}`)
-      await expect(page).toHaveURL(protectedTarget)
+      await expectProtectedContinuation(page, protectedSlug, protectedTarget,
+        () => page.goto(`/go/${protectedSlug}`, { waitUntil: 'commit' }),
+      )
       await expect.poll(
         () => readVisitCount(page, protectedLinkId),
         { intervals: [250, 500, 1_000], timeout: 30_000 },
@@ -200,10 +196,9 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
       await page.getByRole('button', { name: '解锁并继续' }).click()
       await expect(page.getByRole('heading', { name: '即将前往外部网站' })).toBeVisible()
       await expect(page.getByRole('button', { name: '立即前往' })).toBeVisible()
-      await Promise.all([
-        page.waitForURL(protectedTarget, { waitUntil: 'commit' }),
-        page.getByRole('button', { name: '立即前往' }).click(),
-      ])
+      await expectProtectedContinuation(page, protectedSlug, protectedTarget,
+        () => page.getByRole('button', { name: '立即前往' }).click({ noWaitAfter: true }),
+      )
       await expect.poll(
         () => readVisitCount(page, protectedLinkId),
         { intervals: [250, 500, 1_000], timeout: 30_000 },
@@ -240,7 +235,9 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
       await page.goto(`/${protectedSlug}`)
       await expect(page.getByRole('heading', { name: '即将前往外部网站' })).toBeVisible()
       await expect(page.getByLabel('访问密码')).toHaveCount(0)
-      await Promise.all([page.waitForURL(protectedTarget), page.getByRole('button', { name: '立即前往' }).click()])
+      await expectProtectedContinuation(page, protectedSlug, protectedTarget,
+        () => page.getByRole('button', { name: '立即前往' }).click({ noWaitAfter: true }),
+      )
       await expect.poll(
         () => readVisitCount(page, protectedLinkId),
         { intervals: [250, 500, 1_000], timeout: 30_000 },
@@ -365,3 +362,25 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
     },
   )
 })
+
+/** Verifies the real continuation and waits for its target request to finish or fail before further navigation. */
+async function expectProtectedContinuation(page: Page, slug: string, target: string, trigger: () => Promise<unknown>) {
+  const continuePath = `/go/${slug}/continue`
+  const continued = page.waitForResponse(response => (
+    new URL(response.url()).pathname === continuePath && response.request().method() === 'GET'
+  ))
+  const matchesTargetNavigation = (request: Request) => {
+    const source = request.redirectedFrom()
+    return request.isNavigationRequest() && request.url() === target
+      && source !== null && new URL(source.url()).pathname === continuePath
+  }
+  const targetNavigation = page.waitForRequest(matchesTargetNavigation)
+  const targetSettled = Promise.race([
+    page.waitForEvent('requestfinished', matchesTargetNavigation),
+    page.waitForEvent('requestfailed', matchesTargetNavigation),
+  ])
+  const [response] = await Promise.all([continued, targetNavigation, targetSettled, trigger()])
+  expect(response.status()).toBe(302)
+  expect(response.headers().location).toBe(target)
+  return response.request()
+}

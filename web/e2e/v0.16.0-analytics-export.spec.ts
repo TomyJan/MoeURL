@@ -137,6 +137,11 @@ async function expectDownload(page: Page, endpoint: string, scenario: Scenario, 
   expect(descriptor.code).toBe(0)
   expect(descriptor.data.contentType).toBe('text/csv;charset=utf-8')
   const download = await saved
+  const message = page.getByText(english ? 'CSV download started. Confirm saving in your browser.' : '已发起 CSV 下载，请在浏览器中确认保存。', { exact: true })
+  await expect(message).toBeVisible()
+  // Check transient feedback before file/API work, then dismiss it before the next download.
+  await page.getByRole('button', { name: english ? 'Dismiss notification' : '关闭提示', exact: true }).click()
+  await expect(message).not.toBeVisible()
   const filename = `moeurl-statistics-${scenario.link.slug}-${displayed.range.startDate}-${displayed.range.endDate}.csv`
   expect(download.suggestedFilename()).toBe(filename)
   expect(descriptor.data.fileName).toBe(filename)
@@ -180,11 +185,6 @@ async function expectDownload(page: Page, endpoint: string, scenario: Scenario, 
   for (const secret of [scenario.link.targetUrl, scenario.link.id, scenario.username, 'Private CSV owner', privateTitle, privateTag, fixturePassword, '/private-campaign?secret=referrer']) {
     expect(text).not.toContain(secret)
   }
-  const message = page.getByText(english ? 'CSV download started. Confirm saving in your browser.' : '已发起 CSV 下载，请在浏览器中确认保存。', { exact: true })
-  await expect(message).toBeVisible()
-  // Dismiss through the real control before the next download; a hovered toast pauses its timeout.
-  await page.getByRole('button', { name: english ? 'Dismiss notification' : '关闭提示', exact: true }).click()
-  await expect(message).not.toBeVisible()
   await testInfo.attach(`${name}-csv`, { path, contentType: 'text/csv' })
 }
 
@@ -195,13 +195,21 @@ async function captureLayout(page: Page, testInfo: TestInfo, name: string) {
   await expect(header.getByRole('heading')).toBeVisible()
   const button = page.getByTestId('analytics-export')
   await expect(button).toBeVisible()
-  const headerBox = await header.boundingBox()
-  const buttonBox = await button.boundingBox()
-  expect(headerBox).not.toBeNull()
-  expect(buttonBox).not.toBeNull()
-  expect(buttonBox!.x).toBeGreaterThanOrEqual(headerBox!.x)
-  expect(buttonBox!.x + buttonBox!.width).toBeLessThanOrEqual(headerBox!.x + headerBox!.width + 1)
-  expect(buttonBox!.y + buttonBox!.height).toBeLessThanOrEqual(headerBox!.y + headerBox!.height + 1)
+  const viewport = page.viewportSize()
+  expect(viewport).not.toBeNull()
+  // Resize can reflow between separate protocol calls; measure both elements in one layout.
+  await expect.poll(() => header.evaluate((element) => {
+    const action = element.querySelector('[data-testid="analytics-export"]')
+    if (!action) return null
+    const headerBox = element.getBoundingClientRect()
+    const buttonBox = action.getBoundingClientRect()
+    return {
+      viewportWidth: globalThis.innerWidth,
+      left: buttonBox.left >= headerBox.left,
+      right: buttonBox.right <= headerBox.right + 1,
+      bottom: buttonBox.bottom <= headerBox.bottom + 1,
+    }
+  })).toEqual({ viewportWidth: viewport!.width, left: true, right: true, bottom: true })
   const path = testInfo.outputPath(`${name}.png`)
   await page.screenshot({ path, fullPage: true, animations: 'disabled' })
   await testInfo.attach(name, { path, contentType: 'image/png' })
