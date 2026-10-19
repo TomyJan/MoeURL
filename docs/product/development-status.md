@@ -1,6 +1,6 @@
 # 开发进度与能力清单
 
-更新日期：2026-10-19。远端 `master` 已核验为 `c815c767`，包含 PR #191 的 [v0.16.0 聚合统计 CSV 导出](scope-v0.16.0.md) 及后续依赖更新。[v0.17.0 短链批量管理](scope-v0.17.0.md) 已在独立分支实现，当前代码候选 `1c6df4a` 包含 `f4fbd632` 的批量接口 JSON 媒体类型安全修复、CSV E2E 时序修正及列表 review 修复。`33f287ec` 的完整门禁为安全修复前证据，不代表当前候选可合并；修复后已有定向 Go、覆盖率、定向浏览器和前端测试验证，完整复验缺口见下表。目标 CI 尚未全绿，合并及发布未完成。合并不等于发布；本页是当前进度入口，版本边界由 scope 和 spec 定义，实际验证证据由各 acceptance 记录。
+更新日期：2026-10-19。远端 `master` 已核验为 `c815c767`，包含 PR #191 的 [v0.16.0 聚合统计 CSV 导出](scope-v0.16.0.md) 及后续依赖更新。[v0.17.0 短链批量管理](scope-v0.17.0.md) 已在独立分支实现，当前产品代码候选 `1c6df4a` 包含 `f4fbd632` 的批量接口 JSON 媒体类型安全修复、CSV E2E 时序修正及列表 review 修复。`33f287ec` 的完整门禁为安全修复前证据，不代表当前候选可合并；后续受保护访问导航竞态修正工作树已在 PostgreSQL 18.6 隔离容器及 Windows 本机应用环境通过完整 Playwright 64 项，包括双 Host 场景。此前定向 Go、覆盖率、前端测试与本轮浏览器证据分开记录，剩余复验缺口见下表。目标 CI 尚未全绿，合并及发布未完成。合并不等于发布；本页是当前进度入口，版本边界由 scope 和 spec 定义，实际验证证据由各 acceptance 记录。
 
 ## 状态口径
 
@@ -58,19 +58,19 @@
 | [v0.14.0 验收](../implementation/v0.14.0-acceptance.md) | 已通过 PR #187 合并为 `c864ce3a`；原分支 Go 业务覆盖率 100%；1050 项前端测试、四项覆盖率 100%、静态检查与构建；代码候选 `2afdba14` 全量 Playwright 52 项通过、1 项 Docker 双 Host 跳过；隔离资源已清理，原始证据归档保留。 | 分支证据不能替代合并提交或发布验证；PostgreSQL 16.3／本机 Chrome 与 mock OIDC 不替代目标 CI、PostgreSQL 18、完整容器、Linux race、安全扫描或生产环境证据。 |
 | [v0.15.0 验收](../implementation/v0.15.0-acceptance.md) | 已通过 PR #190 合并为 `2ec7eaa4`。原分支 Go 全仓包验证、业务覆盖率 100%；1098 项前端测试、四项覆盖率 100%、静态检查；代码候选 `14207888` 固定构建及完整 Playwright 55 项通过、1 项 Docker 双 Host 跳过；隔离资源已清理，证据已归档。 | 尚未正式发布；原分支分阶段本地门禁的提交和环境分别见验收，不能替代合并提交、目标 CI、PostgreSQL 18、完整容器、Linux race、安全扫描或生产环境证据。 |
 | [v0.16.0 验收](../implementation/v0.16.0-acceptance.md) | 已通过 PR #191 合并为 `bd4c2625`。原分支 Go 全仓测试与业务覆盖率 100%，1154 项前端测试及四项覆盖率 100%；代码候选 `d3f9c68f` 完整 Playwright 59 项通过、1 项 Docker 双 Host 跳过；任务资源已清理，日常预览保留。 | 未正式发布；原分支证据不替代合并提交、目标 CI、PostgreSQL 18、Linux race、完整容器、安全扫描、外部互操作和生产验收。 |
-| [v0.17.0 验收](../implementation/v0.17.0-acceptance.md) | 安全修复前 `33f287ec`：Go 全仓及业务覆盖率 100%；1214 项前端测试、四项覆盖率 100%、静态检查与隔离构建；完整 Playwright 63 项通过、1 项 Docker 双 Host 跳过。`f4fbd632` 安全修复工作树：定向 Go 三包通过，应用包完整复验通过、业务覆盖率 100%，vet／lint／构建通过；全仓 Go 首轮因应用请求头夹具失败，修正后仅重跑应用包。`9ee7a393` 的 CSV E2E 修正工作树：三轮共 13 项通过、0 失败／flaky，日志及任务资源清理已记录。`1c6df4a` 列表 review 工作树：138 项相关测试、变动文件 lint 与全项目类型检查通过。 | 当前代码候选为 `1c6df4a`，尚未合并或发布；安全修复后的最终源码尚未完整重跑全仓 Go、完整 Playwright 和完整前端测试／覆盖率／全仓 lint／构建门禁，旧候选证据不能替代。目标 CI 尚未全绿，本地 PostgreSQL 16.3 及 Chromium 证据不替代 PostgreSQL 18、Linux race、完整容器、安全扫描或生产验收。 |
+| [v0.17.0 验收](../implementation/v0.17.0-acceptance.md) | 安全修复前 `33f287ec`：Go 全仓及业务覆盖率 100%；1214 项前端测试、四项覆盖率 100%、静态检查与隔离构建；完整 Playwright 63 项通过、1 项 Docker 双 Host 跳过。`f4fbd632` 安全修复工作树：定向 Go 三包、应用包完整复验、业务覆盖率 100% 及 vet／lint／构建通过；修正全仓运行的应用夹具失败后仅重跑应用包。`9ee7a393` 的 CSV E2E 三轮共 13 项通过；`1c6df4a` 列表 review 的 138 项相关测试、变动文件 lint 与全项目类型检查通过。`0b8e1b4f` 后的导航竞态修正工作树：PostgreSQL 18.6 容器加 Windows 本机应用，受保护访问三轮共 4 项、完整 Playwright 64 项通过，均无失败／跳过／flaky，含双 Host；类型检查及隔离构建通过，资源已清理。 | 当前产品代码候选为 `1c6df4a`，后续仅测试及文档修正，尚未合并或发布。`0b8e1b4f` 的目标 CI 仅 E2E 失败，其余 8 个 job 通过；本轮修正后的远端 CI 未运行，也未重跑本地全仓 Go、完整前端测试／覆盖率／全仓 lint。旧候选证据不能替代新候选；本地分支依赖、Windows 本机应用和数据库容器不替代目标 PR 合并依赖组合、Linux race、完整 Compose、安全扫描或生产验收。 |
 
 发布前仍须针对候选提交补齐：
 
 - [ ] 目标 CI 的 Go／前端门禁、Linux race、安全扫描和完整容器构建／Compose smoke，记录提交与运行链接。
-- [ ] Docker 双 Host 浏览器场景及真实 DNS/TLS、Host 白名单和 SNI 校验。
+- [ ] 真实 DNS/TLS、Host 白名单和 SNI 校验；PostgreSQL 18.6 隔离容器环境的双 Host 浏览器场景已有本轮通过记录。
 - [ ] 外部真实 OIDC Provider 互操作、代理回调及本地登录策略切换。
 - [ ] 隔离备份恢复、OIDC 原始密钥恢复、升级失败回退和业务 readiness 演练。
 - [ ] 目标部署发布验收；其他浏览器、实体移动设备及读屏验证按交付要求补齐。
 
 ## 后续开发方向
 
-[v0.16.0 聚合统计 CSV 导出](scope-v0.16.0.md) 已通过 PR #191 合并为 `bd4c2625`；原分支证据继续保留于 [验收记录](../implementation/v0.16.0-acceptance.md)。[v0.17.0 短链批量管理](scope-v0.17.0.md) 在 `feat/v0.17.0-bulk-link-management` 已实现当前列表多选、原子批量启停和软删除，当前代码候选 `1c6df4a` 包含 JSON 媒体类型安全修复、CSV E2E 与列表 review 修复。历史完整门禁与修复后定向证据分开记录，当前候选的完整复验、目标 CI 全绿和合并仍未完成。不扩展导入、归属转移或跨页全选。边界和验证见 [设计](../specs/2026-10-16-v0.17.0-bulk-link-management-design.md)、[计划](../implementation/v0.17.0-plan.md) 及 [验收记录](../implementation/v0.17.0-acceptance.md)。
+[v0.16.0 聚合统计 CSV 导出](scope-v0.16.0.md) 已通过 PR #191 合并为 `bd4c2625`；原分支证据继续保留于 [验收记录](../implementation/v0.16.0-acceptance.md)。[v0.17.0 短链批量管理](scope-v0.17.0.md) 在 `feat/v0.17.0-bulk-link-management` 已实现当前列表多选、原子批量启停和软删除，当前产品代码候选 `1c6df4a` 包含 JSON 媒体类型安全修复、CSV E2E 与列表 review 修复。后续导航竞态修正已补齐本地完整浏览器复验；各阶段证据分开记录，其余完整门禁、修正后的目标 CI 全绿和合并仍待完成。不扩展导入、归属转移或跨页全选。边界和验证见 [设计](../specs/2026-10-16-v0.17.0-bulk-link-management-design.md)、[计划](../implementation/v0.17.0-plan.md) 及 [验收记录](../implementation/v0.17.0-acceptance.md)。
 
 原有规划尚未完成的产品能力集中列在 [路线图](roadmap.md) 的「待开发能力」中。[v0.12.0 自定义短码](scope-v0.12.0.md) 已通过 PR #185 合并为 `17e1f766`；阶段状态与证据见 [验收清单](../implementation/v0.12.0-acceptance.md)。[v0.13.0 个人密码修改](scope-v0.13.0.md) 已通过 PR #186 合并为 `a52733cc`。[v0.14.0 统计日期范围](scope-v0.14.0.md) 已通过 PR #187 合并为 `c864ce3a`，正式发布及目标环境缺口继续单独记录。
 
