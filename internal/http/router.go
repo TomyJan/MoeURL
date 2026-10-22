@@ -9,6 +9,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/domain"
 	"github.com/TomyJan/MoeURL/internal/event"
+	"github.com/TomyJan/MoeURL/internal/insights"
 	"github.com/TomyJan/MoeURL/internal/middleware"
 	"github.com/TomyJan/MoeURL/internal/oidc"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
@@ -29,6 +30,7 @@ type Dependencies struct {
 	ShortLink              shortlink.Port
 	ShortLinkExport        shortlink.ExportPort
 	ShortLinkBatch         shortlink.BatchPort
+	Insights               insights.Port
 	Domain                 domain.Port
 	Redirect               shortlink.RedirectPort
 	RedirectRecorder       event.Recorder
@@ -107,6 +109,12 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				businessAPI.Post("/auth/login", authHandler.Login)
 				businessAPI.Post("/auth/logout", authHandler.Logout)
 				businessAPI.Get("/auth/me", authHandler.Me)
+			}
+			if dependency.Insights != nil {
+				handler := insights.NewHandler(dependency.Insights, logger)
+				businessAPI.Get("/admin/dashboard", handler.Dashboard)
+				businessAPI.Get("/short-link/visits", handler.Visits)
+				businessAPI.Get("/admin/short-link/visits", handler.AdminVisits)
 			}
 			if dependency.ShortLinkExport != nil {
 				exportHandler := shortlink.NewExportHandler(dependency.ShortLinkExport, logger)

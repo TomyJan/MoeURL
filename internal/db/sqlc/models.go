@@ -63,6 +63,12 @@ type MoeurlCustomSlugPermissionAddition struct {
 	PermissionRevision int64       `json:"permission_revision"`
 }
 
+type MoeurlInsightsPermissionAddition struct {
+	UserGroupID        pgtype.UUID `json:"user_group_id"`
+	Permission         string      `json:"permission"`
+	PermissionRevision int64       `json:"permission_revision"`
+}
+
 type MoeurlMultiDomainPermissionAddition struct {
 	UserGroupID pgtype.UUID `json:"user_group_id"`
 	Permission  string      `json:"permission"`
@@ -173,13 +179,15 @@ type ShortLinkConfirmationPermissionAddition struct {
 }
 
 type ShortLinkEvent struct {
-	ID           pgtype.UUID        `json:"id"`
-	ShortLinkID  pgtype.UUID        `json:"short_link_id"`
-	EventType    string             `json:"event_type"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	ReferrerHost pgtype.Text        `json:"referrer_host"`
-	DeviceType   pgtype.Text        `json:"device_type"`
-	CountryCode  pgtype.Text        `json:"country_code"`
+	ID            pgtype.UUID        `json:"id"`
+	ShortLinkID   pgtype.UUID        `json:"short_link_id"`
+	EventType     string             `json:"event_type"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	ReferrerHost  pgtype.Text        `json:"referrer_host"`
+	DeviceType    pgtype.Text        `json:"device_type"`
+	CountryCode   pgtype.Text        `json:"country_code"`
+	BrowserFamily pgtype.Text        `json:"browser_family"`
+	OsFamily      pgtype.Text        `json:"os_family"`
 }
 
 type SystemSetting struct {

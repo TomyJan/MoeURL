@@ -17,6 +17,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/domain"
 	"github.com/TomyJan/MoeURL/internal/event"
 	apphttp "github.com/TomyJan/MoeURL/internal/http"
+	"github.com/TomyJan/MoeURL/internal/insights"
 	"github.com/TomyJan/MoeURL/internal/loginpolicy"
 	"github.com/TomyJan/MoeURL/internal/oidc"
 	"github.com/TomyJan/MoeURL/internal/permission"
@@ -89,6 +90,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		shortLinkService := shortlink.NewServiceWithLogger(pool, permissionService, logger)
 		deps.ShortLink = shortLinkService
 		deps.ShortLinkExport = shortLinkService
+		deps.Insights = insights.NewService(pool, permissionService)
 		deps.ShortLinkBatch = shortLinkService
 		recorder := event.NewRecorder(pool, logger)
 		redirectService := shortlink.NewRedirectService(pool, recorder)

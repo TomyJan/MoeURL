@@ -12,17 +12,19 @@ import (
 )
 
 const createShortLinkEvent = `-- name: CreateShortLinkEvent :exec
-insert into short_link_event (id, short_link_id, event_type, referrer_host, device_type, country_code, created_at)
-values ($1, $2, $3, $4, $5, $6, now())
+insert into short_link_event (id, short_link_id, event_type, referrer_host, device_type, country_code, browser_family, os_family, created_at)
+values ($1, $2, $3, $4, $5, $6, $7, $8, now())
 `
 
 type CreateShortLinkEventParams struct {
-	ID           pgtype.UUID `json:"id"`
-	ShortLinkID  pgtype.UUID `json:"short_link_id"`
-	EventType    string      `json:"event_type"`
-	ReferrerHost pgtype.Text `json:"referrer_host"`
-	DeviceType   pgtype.Text `json:"device_type"`
-	CountryCode  pgtype.Text `json:"country_code"`
+	ID            pgtype.UUID `json:"id"`
+	ShortLinkID   pgtype.UUID `json:"short_link_id"`
+	EventType     string      `json:"event_type"`
+	ReferrerHost  pgtype.Text `json:"referrer_host"`
+	DeviceType    pgtype.Text `json:"device_type"`
+	CountryCode   pgtype.Text `json:"country_code"`
+	BrowserFamily pgtype.Text `json:"browser_family"`
+	OsFamily      pgtype.Text `json:"os_family"`
 }
 
 func (q *Queries) CreateShortLinkEvent(ctx context.Context, arg CreateShortLinkEventParams) error {
@@ -33,6 +35,8 @@ func (q *Queries) CreateShortLinkEvent(ctx context.Context, arg CreateShortLinkE
 		arg.ReferrerHost,
 		arg.DeviceType,
 		arg.CountryCode,
+		arg.BrowserFamily,
+		arg.OsFamily,
 	)
 	return err
 }

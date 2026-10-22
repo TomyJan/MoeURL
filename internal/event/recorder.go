@@ -57,12 +57,14 @@ func (r *DBRecorder) Record(_ context.Context, event Event) error {
 		return nil
 	}
 	params := sqlc.CreateShortLinkEventParams{
-		ID:           pgtypeUUID(uuid.New()),
-		ShortLinkID:  pgtypeUUID(shortLinkID),
-		EventType:    event.Type,
-		ReferrerHost: nullableText(event.ReferrerHost),
-		DeviceType:   nullableText(event.DeviceType),
-		CountryCode:  nullableText(event.CountryCode),
+		ID:            pgtypeUUID(uuid.New()),
+		ShortLinkID:   pgtypeUUID(shortLinkID),
+		EventType:     event.Type,
+		ReferrerHost:  nullableText(event.ReferrerHost),
+		DeviceType:    nullableText(event.DeviceType),
+		CountryCode:   nullableText(event.CountryCode),
+		BrowserFamily: nullableText(event.BrowserFamily),
+		OsFamily:      nullableText(event.OSFamily),
 	}
 	select {
 	case r.writeSlots <- struct{}{}:

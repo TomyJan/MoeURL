@@ -75,6 +75,11 @@ func NewDatabaseService(pool *pgxpool.Pool) *DatabaseService {
 	return &DatabaseService{queries: sqlc.New(pool)}
 }
 
+// ResolveIn reads permissions using the caller's transaction snapshot.
+func (s *DatabaseService) ResolveIn(ctx context.Context, database sqlc.DBTX, groupKey string) (Snapshot, error) {
+	return (&DatabaseService{queries: sqlc.New(database)}).Resolve(ctx, groupKey)
+}
+
 // Resolve reads the current database permission set for a group.
 func (s *DatabaseService) Resolve(ctx context.Context, groupKey string) (Snapshot, error) {
 	group, err := s.queries.GetUserGroupByKey(ctx, groupKey)
@@ -84,8 +89,13 @@ func (s *DatabaseService) Resolve(ctx context.Context, groupKey string) (Snapsho
 	if err != nil {
 		return Snapshot{}, err
 	}
+	return DecodeSnapshot(group.Permissions)
+}
+
+// DecodeSnapshot validates stored group permissions and returns an immutable lookup.
+func DecodeSnapshot(data []byte) (Snapshot, error) {
 	var permissions []string
-	if err := json.Unmarshal(group.Permissions, &permissions); err != nil {
+	if err := json.Unmarshal(data, &permissions); err != nil {
 		return Snapshot{}, err
 	}
 	return Snapshot{permissions: toSet(permissions)}, nil

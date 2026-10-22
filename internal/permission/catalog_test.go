@@ -16,6 +16,7 @@ func TestCatalogDefinitionsCoverPermissionConstants(t *testing.T) {
 		{Key: ShortLinkCreate, Category: "short_link_basic"},
 		{Key: ShortLinkCustomSlug, Category: "short_link_basic"},
 		{Key: ShortLinkReadOwn, Category: "short_link_basic"},
+		{Key: ShortLinkReadVisits, Category: "short_link_basic"},
 		{Key: ShortLinkExportStatistics, Category: "short_link_basic"},
 		{Key: ShortLinkUpdateOwn, Category: "short_link_basic"},
 		{Key: ShortLinkDeleteOwn, Category: "short_link_basic"},
@@ -30,6 +31,8 @@ func TestCatalogDefinitionsCoverPermissionConstants(t *testing.T) {
 		{Key: DomainManage, Category: "administration", Protected: true},
 		{Key: SystemManage, Category: "administration", Protected: true},
 		{Key: AdminAccess, Category: "administration", Protected: true},
+		{Key: StatisticsReadAll, Category: "administration", Protected: true},
+		{Key: AuditRead, Category: "administration", Protected: true},
 		{Key: ShortLinkReadAll, Category: "administration", Protected: true},
 		{Key: ShortLinkUpdateAll, Category: "administration", Protected: true},
 		{Key: ShortLinkDeleteAll, Category: "administration", Protected: true},
@@ -119,6 +122,8 @@ func TestPresetDefinitions(t *testing.T) {
 // TestProtectedPermissionNormalization verifies protected permissions retain their fixed ownership.
 func TestProtectedPermissionNormalization(t *testing.T) {
 	adminInput := []string{
+		StatisticsReadAll,
+		AuditRead,
 		ShortLinkDeleteAll,
 		ShortLinkCreate,
 		ShortLinkReadAll,
@@ -132,6 +137,8 @@ func TestProtectedPermissionNormalization(t *testing.T) {
 		DomainManage,
 		SystemManage,
 		AdminAccess,
+		StatisticsReadAll,
+		AuditRead,
 		ShortLinkReadAll,
 		ShortLinkUpdateAll,
 		ShortLinkDeleteAll,

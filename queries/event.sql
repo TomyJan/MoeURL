@@ -1,6 +1,6 @@
 -- name: CreateShortLinkEvent :exec
-insert into short_link_event (id, short_link_id, event_type, referrer_host, device_type, country_code, created_at)
-values ($1, $2, $3, $4, $5, $6, now());
+insert into short_link_event (id, short_link_id, event_type, referrer_host, device_type, country_code, browser_family, os_family, created_at)
+values ($1, $2, $3, $4, $5, $6, $7, $8, now());
 
 -- name: GetShortLinkAnalyticsSummary :one
 select count(*)::bigint as visit_count,

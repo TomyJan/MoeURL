@@ -522,6 +522,9 @@ export const messages = {
       permissions: {
         'short_link:create': { label: '创建短链', description: '创建新的短链。' },
         'short_link:read_own': { label: '查看自己的短链', description: '查看当前账号创建的短链。' },
+        'short_link:read_visits': { label: '查看匿名访问记录', description: '查看有权读取的短链成功跳转记录及匿名访问维度。' },
+        'statistics:read_all': { label: '查看全站统计', description: '查看全站使用量、访问趋势和热门短链。' },
+        'audit:read': { label: '查看操作审计', description: '查看关键业务操作的操作者、动作和变更字段。' },
         'short_link:export_statistics': { label: '导出短链统计', description: '将有权查看的短链聚合统计导出为 CSV。' },
         'short_link:update_own': { label: '编辑自己的短链', description: '编辑当前账号创建的短链。' },
         'short_link:delete_own': { label: '删除自己的短链', description: '软删除当前账号创建的短链。' },
@@ -1191,6 +1194,9 @@ export const messages = {
       permissions: {
         'short_link:create': { label: 'Create short links', description: 'Create new short links.' },
         'short_link:read_own': { label: 'View own links', description: 'View short links created by this account.' },
+        'short_link:read_visits': { label: 'View anonymous visits', description: 'View successful redirects and anonymous dimensions for permitted links.' },
+        'statistics:read_all': { label: 'View global statistics', description: 'View system usage, visit trends and popular links.' },
+        'audit:read': { label: 'View operation audit', description: 'View actors, actions and changed fields for key business operations.' },
         'short_link:export_statistics': { label: 'Export link statistics', description: 'Export permitted short-link aggregate statistics as CSV.' },
         'short_link:update_own': { label: 'Edit own links', description: 'Edit short links created by this account.' },
         'short_link:delete_own': { label: 'Delete own links', description: 'Soft-delete short links created by this account.' },
