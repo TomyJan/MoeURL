@@ -622,3 +622,9 @@ body {
 .moe-resource-list .v-list-item { width: 100%; text-align: start; }
 .moe-resource-list .v-list-item-title { font-size: .9rem; font-weight: 600; }
 .moe-resource-list .v-list-item-subtitle { margin-top: 5px; font-size: .78rem; }
+/* Private insight tables scroll inside the panel; bounded cells retain their full title text. */
+.insight-table { max-width: 100%; min-width: 0; }
+.insight-table .v-table__wrapper { max-width: 100%; overflow-x: auto; }
+.insight-table th, .insight-table td { white-space: nowrap; }
+.insight-table__ellipsis { display: block; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.insight-pagination { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; margin-top: 16px; }

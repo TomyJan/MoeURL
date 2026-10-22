@@ -37,7 +37,7 @@ func (r *DatabaseIdentityResolver) ResolveOrCreate(ctx context.Context, provider
 		return auth.CurrentUser{}, ErrIdentityNotAllowed
 	}
 	var result auth.CurrentUser
-	err := appdb.WithTx(ctx, r.pool, func(tx pgx.Tx) error {
+	err := appdb.WithAuditTx(ctx, r.pool, "", func(tx pgx.Tx) error {
 		queries := sqlc.New(tx)
 		var currentID pgtype.UUID
 		var issuerURL, clientID string

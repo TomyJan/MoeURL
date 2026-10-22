@@ -149,6 +149,8 @@ func validateCatalog(definitions []Definition, presets []Preset) error {
 	}
 
 	protectedKeys := map[string]struct{}{
+		StatisticsReadAll:  {},
+		AuditRead:          {},
 		DomainManage:       {},
 		SystemManage:       {},
 		AdminAccess:        {},
@@ -262,6 +264,7 @@ func newCatalogDefinitions() []Definition {
 		{Key: ShortLinkCreate, Category: "short_link_basic"},
 		{Key: ShortLinkCustomSlug, Category: "short_link_basic"},
 		{Key: ShortLinkReadOwn, Category: "short_link_basic"},
+		{Key: ShortLinkReadVisits, Category: "short_link_basic"},
 		{Key: ShortLinkExportStatistics, Category: "short_link_basic"},
 		{Key: ShortLinkUpdateOwn, Category: "short_link_basic"},
 		{Key: ShortLinkDeleteOwn, Category: "short_link_basic"},
@@ -276,6 +279,8 @@ func newCatalogDefinitions() []Definition {
 		{Key: DomainManage, Category: "administration", Protected: true},
 		{Key: SystemManage, Category: "administration", Protected: true},
 		{Key: AdminAccess, Category: "administration", Protected: true},
+		{Key: StatisticsReadAll, Category: "administration", Protected: true},
+		{Key: AuditRead, Category: "administration", Protected: true},
 		{Key: ShortLinkReadAll, Category: "administration", Protected: true},
 		{Key: ShortLinkUpdateAll, Category: "administration", Protected: true},
 		{Key: ShortLinkDeleteAll, Category: "administration", Protected: true},
@@ -304,6 +309,7 @@ func newCatalogPresets() []Preset {
 				ShortLinkCreate,
 				ShortLinkCustomSlug,
 				ShortLinkReadOwn,
+				ShortLinkReadVisits,
 				ShortLinkExportStatistics,
 				ShortLinkUpdateOwn,
 				ShortLinkDeleteOwn,

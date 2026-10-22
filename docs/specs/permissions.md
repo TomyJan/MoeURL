@@ -128,6 +128,8 @@ v0.8.0 已实现 `domain:use_default`（省略域名选择）、可配置的 `do
 
 ### 统计权限
 
+v0.18.0 新增可配置 `short_link:read_visits`（`short_link_basic`）：user／admin 默认拥有且 standard 包含；guest／basic／restricted 不包含。个人查询还要求 `short_link:read_own` 与本人归属，管理查询还要求 `admin:access` 和 `short_link:read_all`。新增 `statistics:read_all`、`audit:read` 属于 administration 受保护权限，仅 admin 拥有且不可移除，页面和 API 均叠加 `admin:access`。所有读取重查数据库账号、组和授权；客户端缓存不构成授权证据。`00020` 仅撤回本次追加且未独立编辑的权限，不吞掉迁移后人工授权。细节见 [v0.18.0 设计](2026-10-22-v0.18.0-analytics-audit-design.md)。
+
 v0.16.0 新增可配置的 `short_link:export_statistics`，属于 `short_link_basic` 类别。内置 `user`／`admin` 默认拥有，`standard` 预设包含，`basic`／`restricted`／`guest` 不包含。它叠加个人 `short_link:read_own` 与本人归属，或管理 `admin:access` 与 `short_link:read_all`，不能单独扩大可读取范围。`00019` 只追加内置组缺失授权；Down 仅撤销本次追加且未被独立编辑的授权，保留既有和后续人工授予。详见 [导出设计](2026-10-16-v0.16.0-analytics-export-design.md)。
 
 - 查看自己的短链基础统计。

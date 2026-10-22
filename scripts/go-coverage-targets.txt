@@ -16,6 +16,12 @@ github.com/TomyJan/MoeURL/internal/event/recorder.go
 github.com/TomyJan/MoeURL/internal/http/health.go
 github.com/TomyJan/MoeURL/internal/http/response.go
 github.com/TomyJan/MoeURL/internal/http/router.go
+github.com/TomyJan/MoeURL/internal/insights/model.go
+github.com/TomyJan/MoeURL/internal/insights/query.go
+github.com/TomyJan/MoeURL/internal/insights/service.go
+github.com/TomyJan/MoeURL/internal/insights/dashboard.go
+github.com/TomyJan/MoeURL/internal/insights/visits.go
+github.com/TomyJan/MoeURL/internal/insights/handler.go
 github.com/TomyJan/MoeURL/internal/loginpolicy/service.go
 github.com/TomyJan/MoeURL/internal/middleware/body_limit.go
 github.com/TomyJan/MoeURL/internal/middleware/recovery.go
@@ -38,6 +44,7 @@ github.com/TomyJan/MoeURL/internal/shortlink/handler.go
 github.com/TomyJan/MoeURL/internal/shortlink/batch_handler.go
 github.com/TomyJan/MoeURL/internal/shortlink/batch_service.go
 github.com/TomyJan/MoeURL/internal/shortlink/analytics_range.go
+github.com/TomyJan/MoeURL/internal/shortlink/analytics.go
 github.com/TomyJan/MoeURL/internal/shortlink/analytics_export.go
 github.com/TomyJan/MoeURL/internal/shortlink/analytics_export_handler.go
 github.com/TomyJan/MoeURL/internal/shortlink/model.go
@@ -59,3 +66,8 @@ github.com/TomyJan/MoeURL/internal/user/preferences_service.go
 github.com/TomyJan/MoeURL/internal/user/service.go
 github.com/TomyJan/MoeURL/internal/usergroup/handler.go
 github.com/TomyJan/MoeURL/internal/usergroup/service.go
+github.com/TomyJan/MoeURL/internal/db/audit.go
+github.com/TomyJan/MoeURL/internal/insights/audit.go
+github.com/TomyJan/MoeURL/internal/insights/audit_handler.go
+github.com/TomyJan/MoeURL/internal/insights/audit_cleanup.go
+github.com/TomyJan/MoeURL/internal/insights/audit_model.go

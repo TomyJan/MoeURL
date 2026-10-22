@@ -57,6 +57,12 @@ order by user_group.key;
 -- name: DeleteDomainGrants :exec
 delete from domain_user_group where domain_id = $1;
 
+-- name: DeleteRemovedDomainGrants :exec
+delete from domain_user_group using user_group
+where domain_user_group.domain_id = sqlc.arg(domain_id)
+and user_group.id = domain_user_group.user_group_id
+and not (user_group.key = any(sqlc.arg(keys)::text[]));
+
 -- name: InsertDomainGrant :execrows
 insert into domain_user_group (domain_id, user_group_id)
 select $1, user_group.id from user_group where user_group.key = $2 and user_group.builtin = true and user_group.key in ('user', 'admin');

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/jackc/pgx/v5"
@@ -33,6 +34,23 @@ type groupQueries interface {
 	GetUserGroupByKey(context.Context, string) (sqlc.UserGroup, error)
 }
 
+// transactionalGroupQueries keeps permission writes and their audit rows in one transaction.
+type transactionalGroupQueries struct {
+	*sqlc.Queries
+	pool *pgxpool.Pool
+}
+
+// UpdateBuiltinUserGroupPermissions binds the actor carried by the service before writing grants.
+func (q *transactionalGroupQueries) UpdateBuiltinUserGroupPermissions(ctx context.Context, input sqlc.UpdateBuiltinUserGroupPermissionsParams) (sqlc.UserGroup, error) {
+	var row sqlc.UserGroup
+	err := appdb.WithTx(ctx, q.pool, func(tx pgx.Tx) error {
+		var err error
+		row, err = q.Queries.WithTx(tx).UpdateBuiltinUserGroupPermissions(ctx, input)
+		return err
+	})
+	return row, err
+}
+
 // missingPermissionResolver rejects operations when authorization cannot use the database.
 type missingPermissionResolver struct{}
 
@@ -49,7 +67,7 @@ func NewService(pool *pgxpool.Pool, permissions permission.Resolver) *Service {
 		permissions = missingPermissionResolver{}
 	}
 	return &Service{
-		queries:     sqlc.New(pool),
+		queries:     &transactionalGroupQueries{Queries: sqlc.New(pool), pool: pool},
 		permissions: permissions,
 	}
 }
@@ -109,7 +127,7 @@ func (s *Service) UpdatePermissions(ctx context.Context, actor auth.CurrentUser,
 		return UpdatePermissionsResult{}, err
 	}
 
-	row, err := s.queries.UpdateBuiltinUserGroupPermissions(ctx, sqlc.UpdateBuiltinUserGroupPermissionsParams{
+	row, err := s.queries.UpdateBuiltinUserGroupPermissions(appdb.WithAuditActor(ctx, actor.ID), sqlc.UpdateBuiltinUserGroupPermissionsParams{
 		Permissions:       encoded,
 		GroupKey:          input.GroupKey,
 		ExpectedUpdatedAt: pgtype.Timestamptz{Time: expectedUpdatedAt.UTC(), Valid: true},

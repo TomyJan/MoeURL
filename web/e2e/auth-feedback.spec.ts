@@ -54,15 +54,15 @@ test('initialized setup offers navigation and login preserves the exact password
 })
 
 test('repeats the same settings validation after dismissing its notification', async ({ page }) => {
-  await page.route('**/api/v1/init/status', route => route.fulfill({ json: { code: 0, data: { initialized: true, setupTokenRequired: false } } }))
-  await page.route('**/api/v1/auth/me', route => route.fulfill({ json: { code: 0, data: { user: {
+  await page.route('**/api/v1/init/status', route => route.fulfill({ json: { code: 0, message: 'OK', data: { initialized: true, setupTokenRequired: false }, meta: {} } }))
+  await page.route('**/api/v1/auth/me', route => route.fulfill({ json: { code: 0, message: 'OK', data: { user: {
     id: 'admin', username: 'admin', nickname: 'Admin', group: 'admin', permissions: ['admin:access', 'system:manage'],
   } } } }))
-  await page.route('**/api/v1/admin/system/settings', route => route.fulfill({ json: { code: 0, data: {
+  await page.route('**/api/v1/admin/system/settings', route => route.fulfill({ json: { code: 0, message: 'OK', data: {
     siteName: 'MoeURL', defaultLanguage: 'zh-CN', defaultTheme: 'system', footerText: '', showPoweredBy: true,
     localLoginEnabled: true, updatedAt: '2026-10-14T00:00:00Z',
   } } }))
-  await page.route('**/api/v1/admin/oidc/provider/list', route => route.fulfill({ json: { code: 0, data: { providers: [] } } }))
+  await page.route('**/api/v1/admin/oidc/provider/list', route => route.fulfill({ json: { code: 0, message: 'OK', data: { providers: [] }, meta: {} } }))
   await page.goto('/admin/setting')
   await page.getByLabel('站点名称', { exact: true }).fill('')
   const save = page.getByRole('button', { name: '保存设置', exact: true })

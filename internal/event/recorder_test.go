@@ -32,9 +32,11 @@ func TestRecorderPersistsShortLinkEvent(t *testing.T) {
 	)
 
 	err := recorder.Record(ctx, Event{
-		Type:        RedirectResponseSent,
-		ShortLinkID: linkID.String(),
-		Slug:        "abc123",
+		Type:          RedirectResponseSent,
+		ShortLinkID:   linkID.String(),
+		Slug:          "abc123",
+		BrowserFamily: "chrome",
+		OSFamily:      "windows",
 	})
 	if err != nil {
 		t.Fatalf("record event: %v", err)
@@ -52,6 +54,13 @@ func TestRecorderPersistsShortLinkEvent(t *testing.T) {
 	count := eventCount(t, ctx, pool, linkID, RedirectResponseSent)
 	if count != 1 {
 		t.Fatalf("expected 1 event, got %d", count)
+	}
+	var browser, os string
+	if err := pool.QueryRow(ctx, `select browser_family,os_family from short_link_event where short_link_id=$1`, linkID).Scan(&browser, &os); err != nil {
+		t.Fatal(err)
+	}
+	if browser != "chrome" || os != "windows" {
+		t.Fatalf("unexpected persisted agent families: %q/%q", browser, os)
 	}
 }
 

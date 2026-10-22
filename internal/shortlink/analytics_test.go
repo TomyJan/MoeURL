@@ -1,7 +1,9 @@
 package shortlink
 
 import (
+	"fmt"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -12,10 +14,30 @@ func TestAnalyticsEventFieldsNormalizesAnonymousDimensions(t *testing.T) {
 	request.Header.Set("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1")
 	request.Header.Set("CF-IPCountry", "cn")
 
-	referrer, device, country := analyticsEventFields(request, "CF-IPCountry")
+	referrer, device, country, _, _ := analyticsEventFields(request, "CF-IPCountry")
 
 	if referrer != "search.example" || device != "mobile" || country != "CN" {
 		t.Fatalf("unexpected analytics dimensions: %q, %q, %q", referrer, device, country)
+	}
+}
+
+// TestAnonymousAgentFamilies catches raw UA/version leakage and incorrect stable categories.
+func TestAnonymousAgentFamilies(t *testing.T) {
+	for _, test := range []struct{ raw, browser, os string }{
+		{"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36", "chrome", "windows"},
+		{"Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1", "safari", "ios"},
+		{"Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)", "bot", ""},
+		{"", "", ""},
+		{strings.Repeat("private-user-agent/1.0 ", 10000), "", ""},
+		{"Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; WOW64; Trident/4.0)", "other", "windows"},
+		{"Mozilla/5.0 (Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)", "other", "other"},
+	} {
+		t.Run(fmt.Sprintf("browser=%s/os=%s/length=%d", test.browser, test.os, len(test.raw)), func(t *testing.T) {
+			_, browser, os := anonymousAgent(test.raw)
+			if browser != test.browser || os != test.os {
+				t.Fatalf("families = %q/%q, want %q/%q", browser, os, test.browser, test.os)
+			}
+		})
 	}
 }
 
@@ -26,7 +48,7 @@ func TestAnalyticsEventFieldsRejectsInvalidValues(t *testing.T) {
 	request.Header.Set("User-Agent", "unknown")
 	request.Header.Set("CF-IPCountry", "China")
 
-	referrer, device, country := analyticsEventFields(request, "CF-IPCountry")
+	referrer, device, country, _, _ := analyticsEventFields(request, "CF-IPCountry")
 
 	if referrer != "" || device != "other" || country != "" {
 		t.Fatalf("unexpected invalid analytics dimensions: %q, %q, %q", referrer, device, country)
@@ -48,9 +70,16 @@ func TestDeviceTypeClassifiesKnownClasses(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := deviceType(test.userAgent); got != test.want {
+			if got, _, _ := anonymousAgent(test.userAgent); got != test.want {
 				t.Fatalf("device type = %q, want %q", got, test.want)
 			}
 		})
+	}
+}
+
+// TestAnonymousReferrerRejectsMalformedURL catches parser errors before host persistence.
+func TestAnonymousReferrerRejectsMalformedURL(t *testing.T) {
+	if got := referrerHost("http://%zz"); got != "" {
+		t.Fatalf("malformed host persisted: %q", got)
 	}
 }

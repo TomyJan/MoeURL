@@ -16,6 +16,11 @@ func WithTx(ctx context.Context, pool *pgxpool.Pool, fn func(pgx.Tx) error) erro
 	defer func() {
 		_ = tx.Rollback(ctx)
 	}()
+	if actorID, marked := ctx.Value(auditActorKey{}).(string); marked {
+		if err := SetAuditContext(ctx, tx, actorID); err != nil {
+			return err
+		}
+	}
 
 	if err := fn(tx); err != nil {
 		return err

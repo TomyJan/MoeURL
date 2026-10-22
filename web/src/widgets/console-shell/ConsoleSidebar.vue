@@ -195,6 +195,9 @@ const { config } = useSiteConfig()
 
 .console-sidebar__nav {
   min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 .console-sidebar__preferences {

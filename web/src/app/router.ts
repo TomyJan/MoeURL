@@ -89,6 +89,12 @@ export function createRequireSystemManageAccess(loadCurrentUser = me): AccessGua
 }
 const requireSystemManageAccess = createRequireSystemManageAccess()
 
+/** Requires the administrative boundary and the named private insight capability together. */
+function requireInsightAccess(capability: string): AccessGuard {
+  return createAccessGuard(me, (user, loginRedirect) => user.permissions.includes('admin:access') && user.permissions.includes(capability)
+    ? true : user.group === 'guest' ? loginRedirect : '/')
+}
+
 export const routes: RouteRecordRaw[] = [
   // Keep the public homepage before the ConsoleShell parent: both records use '/', and vue-router resolves by definition order.
   { path: '/', component: HomePage },
@@ -99,6 +105,14 @@ export const routes: RouteRecordRaw[] = [
     path: '/',
     component: ConsoleShell,
     children: [
+      {
+        path: '/admin/dashboard', component: () => import('@/pages/AdminDashboardPage.vue'),
+        meta: { requiresAdmin: true, insightCapability: 'statistics:read_all' }, beforeEnter: requireInsightAccess('statistics:read_all'),
+      },
+      {
+        path: '/admin/audit', component: () => import('@/pages/AdminAuditPage.vue'),
+        meta: { requiresAdmin: true, insightCapability: 'audit:read' }, beforeEnter: requireInsightAccess('audit:read'),
+      },
       {
         path: '/profile',
         component: () => import('@/pages/ProfilePage.vue'),

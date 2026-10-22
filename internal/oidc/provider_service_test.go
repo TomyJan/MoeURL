@@ -577,7 +577,7 @@ func TestProviderServiceCreateClassifiesInputDiscoveryAndPersistenceFailures(t *
 		t.Fatalf("discovery create error = %v", err)
 	}
 	discoverer.err = nil
-	store.createErr = &pgconn.PgError{Code: "23505"}
+	store.createErr = &pgconn.PgError{Code: "23505", ConstraintName: "oidc_provider_key_key"}
 	if _, err := service.Create(t.Context(), adminActor(), valid); !errors.Is(err, ErrProviderKeyExists) {
 		t.Fatalf("duplicate create error = %v", err)
 	}

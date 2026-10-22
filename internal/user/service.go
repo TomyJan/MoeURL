@@ -68,14 +68,19 @@ func (s *Service) Create(ctx context.Context, actor auth.CurrentUser, input Crea
 		return CreateResult{}, err
 	}
 
-	created, err := s.queries.CreateAppUser(ctx, sqlc.CreateAppUserParams{
-		ID:           uuidToPgtype(uuid.New()),
-		Username:     input.Username,
-		PasswordHash: pgtype.Text{String: hash, Valid: true},
-		Nickname:     input.Nickname,
-		GroupID:      group.ID,
-		Status:       input.Status,
-		Builtin:      false,
+	var created sqlc.AppUser
+	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
+		var writeErr error
+		created, writeErr = s.queries.WithTx(tx).CreateAppUser(ctx, sqlc.CreateAppUserParams{
+			ID:           uuidToPgtype(uuid.New()),
+			Username:     input.Username,
+			PasswordHash: pgtype.Text{String: hash, Valid: true},
+			Nickname:     input.Nickname,
+			GroupID:      group.ID,
+			Status:       input.Status,
+			Builtin:      false,
+		})
+		return writeErr
 	})
 	if isUniqueViolation(err) {
 		return CreateResult{}, ErrUsernameExists
@@ -155,10 +160,15 @@ func (s *Service) Update(ctx context.Context, actor auth.CurrentUser, input Upda
 		return UpdateResult{}, ErrBuiltinUserImmutable
 	}
 
-	updated, err := s.queries.UpdateAppUserProfile(ctx, sqlc.UpdateAppUserProfileParams{
-		ID:       uuidToPgtype(userID),
-		Nickname: input.Nickname,
-		Status:   input.Status,
+	var updated sqlc.AppUser
+	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
+		var writeErr error
+		updated, writeErr = s.queries.WithTx(tx).UpdateAppUserProfile(ctx, sqlc.UpdateAppUserProfileParams{
+			ID:       uuidToPgtype(userID),
+			Nickname: input.Nickname,
+			Status:   input.Status,
+		})
+		return writeErr
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return UpdateResult{}, ErrUserNotFound
@@ -215,7 +225,7 @@ func (s *Service) UpdateProfile(ctx context.Context, actor auth.CurrentUser, inp
 	var updated sqlc.AppUser
 	var group sqlc.UserGroup
 	var permissions []string
-	err = appdb.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
 		txQueries := s.queries.WithTx(tx)
 		var err error
 		updated, err = txQueries.UpdateAppUserNickname(ctx, sqlc.UpdateAppUserNicknameParams{
@@ -277,9 +287,14 @@ func (s *Service) ResetPassword(ctx context.Context, actor auth.CurrentUser, inp
 	if err != nil {
 		return err
 	}
-	rows, err := s.queries.UpdateAppUserPassword(ctx, sqlc.UpdateAppUserPasswordParams{
-		ID:           uuidToPgtype(userID),
-		PasswordHash: pgtype.Text{String: hash, Valid: true},
+	var rows int64
+	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
+		var writeErr error
+		rows, writeErr = s.queries.WithTx(tx).UpdateAppUserPassword(ctx, sqlc.UpdateAppUserPasswordParams{
+			ID:           uuidToPgtype(userID),
+			PasswordHash: pgtype.Text{String: hash, Valid: true},
+		})
+		return writeErr
 	})
 	if err != nil {
 		return err
@@ -350,7 +365,7 @@ func isUniqueViolation(err error) bool {
 		return false
 	}
 	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "app_user_username_key"
 }
 
 var errPermissionResolverRequired = errors.New("user permission resolver is required")

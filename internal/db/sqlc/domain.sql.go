@@ -87,6 +87,23 @@ func (q *Queries) DeleteManagedDomain(ctx context.Context, arg DeleteManagedDoma
 	return result.RowsAffected(), nil
 }
 
+const deleteRemovedDomainGrants = `-- name: DeleteRemovedDomainGrants :exec
+delete from domain_user_group using user_group
+where domain_user_group.domain_id = $1
+and user_group.id = domain_user_group.user_group_id
+and not (user_group.key = any($2::text[]))
+`
+
+type DeleteRemovedDomainGrantsParams struct {
+	DomainID pgtype.UUID `json:"domain_id"`
+	Keys     []string    `json:"keys"`
+}
+
+func (q *Queries) DeleteRemovedDomainGrants(ctx context.Context, arg DeleteRemovedDomainGrantsParams) error {
+	_, err := q.db.Exec(ctx, deleteRemovedDomainGrants, arg.DomainID, arg.Keys)
+	return err
+}
+
 const domainHasReferences = `-- name: DomainHasReferences :one
 select exists(select 1 from short_link where domain_id = $1)
 `

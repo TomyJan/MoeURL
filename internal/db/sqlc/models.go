@@ -21,6 +21,16 @@ type AppUser struct {
 	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type AuditLog struct {
+	ID            int64              `json:"id"`
+	ActorID       pgtype.UUID        `json:"actor_id"`
+	ResourceType  string             `json:"resource_type"`
+	ResourceID    string             `json:"resource_id"`
+	Action        string             `json:"action"`
+	ChangedFields []string           `json:"changed_fields"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
 type AuthLoginAttempt struct {
 	UsernameHash    string             `json:"username_hash"`
 	FailedAttempts  int16              `json:"failed_attempts"`
@@ -60,6 +70,12 @@ type MoeurlAnalyticsExportPermissionAddition struct {
 
 type MoeurlCustomSlugPermissionAddition struct {
 	UserGroupID        pgtype.UUID `json:"user_group_id"`
+	PermissionRevision int64       `json:"permission_revision"`
+}
+
+type MoeurlInsightsPermissionAddition struct {
+	UserGroupID        pgtype.UUID `json:"user_group_id"`
+	Permission         string      `json:"permission"`
 	PermissionRevision int64       `json:"permission_revision"`
 }
 
@@ -173,13 +189,15 @@ type ShortLinkConfirmationPermissionAddition struct {
 }
 
 type ShortLinkEvent struct {
-	ID           pgtype.UUID        `json:"id"`
-	ShortLinkID  pgtype.UUID        `json:"short_link_id"`
-	EventType    string             `json:"event_type"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	ReferrerHost pgtype.Text        `json:"referrer_host"`
-	DeviceType   pgtype.Text        `json:"device_type"`
-	CountryCode  pgtype.Text        `json:"country_code"`
+	ID            pgtype.UUID        `json:"id"`
+	ShortLinkID   pgtype.UUID        `json:"short_link_id"`
+	EventType     string             `json:"event_type"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	ReferrerHost  pgtype.Text        `json:"referrer_host"`
+	DeviceType    pgtype.Text        `json:"device_type"`
+	CountryCode   pgtype.Text        `json:"country_code"`
+	BrowserFamily pgtype.Text        `json:"browser_family"`
+	OsFamily      pgtype.Text        `json:"os_family"`
 }
 
 type SystemSetting struct {

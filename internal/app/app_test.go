@@ -19,6 +19,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/config"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
+	"github.com/TomyJan/MoeURL/internal/insights"
 	"github.com/TomyJan/MoeURL/internal/loginpolicy"
 	"github.com/TomyJan/MoeURL/internal/oidc"
 	"github.com/TomyJan/MoeURL/internal/permission"
@@ -360,15 +361,22 @@ func TestAppNewStartsAndWaitsForAllCleanupTasks(t *testing.T) {
 	originalAccessGrantRunner := runAccessGrantCleanup
 	originalLoginAttemptRunner := runLoginAttemptCleanup
 	originalSessionRunner := runSessionCleanup
+	originalAuditRunner := runAuditCleanup
 	t.Cleanup(func() {
 		runAccessGrantCleanup = originalAccessGrantRunner
 		runLoginAttemptCleanup = originalLoginAttemptRunner
 		runSessionCleanup = originalSessionRunner
+		runAuditCleanup = originalAuditRunner
 	})
 
 	accessStarted := make(chan time.Duration, 1)
 	loginStarted := make(chan time.Duration, 1)
 	sessionStarted := make(chan time.Duration, 1)
+	auditStarted := make(chan time.Duration, 1)
+	auditCanceled := make(chan struct{})
+	releaseAudit := make(chan struct{})
+	releaseAuditTask := sync.OnceFunc(func() { close(releaseAudit) })
+	t.Cleanup(releaseAuditTask)
 	accessCanceled := make(chan struct{})
 	loginCanceled := make(chan struct{})
 	sessionCanceled := make(chan struct{})
@@ -402,6 +410,12 @@ func TestAppNewStartsAndWaitsForAllCleanupTasks(t *testing.T) {
 		close(sessionCanceled)
 		<-releaseSession
 	}
+	runAuditCleanup = func(_ *insights.Service, ctx context.Context, interval time.Duration, _ *slog.Logger) {
+		auditStarted <- interval
+		<-ctx.Done()
+		close(auditCanceled)
+		<-releaseAudit
+	}
 
 	ctx, cancel := context.WithTimeout(t.Context(), testLifecycleTimeout)
 	defer cancel()
@@ -432,6 +446,9 @@ func TestAppNewStartsAndWaitsForAllCleanupTasks(t *testing.T) {
 	if sessionInterval != sessionCleanupInterval {
 		t.Fatalf("session cleanup interval = %s, want %s", sessionInterval, sessionCleanupInterval)
 	}
+	if interval := waitForAppTestValue(t, auditStarted, "audit cleanup startup"); interval != time.Hour {
+		t.Fatalf("audit cleanup interval = %s", interval)
+	}
 
 	shutdownResult := make(chan error, 1)
 	go func() {
@@ -440,12 +457,15 @@ func TestAppNewStartsAndWaitsForAllCleanupTasks(t *testing.T) {
 	waitForAppTestSignal(t, accessCanceled, "access-grant cleanup cancellation")
 	waitForAppTestSignal(t, loginCanceled, "login-attempt cleanup cancellation")
 	waitForAppTestSignal(t, sessionCanceled, "session cleanup cancellation")
+	waitForAppTestSignal(t, auditCanceled, "audit cleanup cancellation")
 	assertAppTestValuePending(t, shutdownResult, "shutdown completion before cleanup tasks exit")
 	releaseAccessTask()
 	assertAppTestValuePending(t, shutdownResult, "shutdown completion before login-attempt and session cleanup exit")
 	releaseLoginTask()
 	assertAppTestValuePending(t, shutdownResult, "shutdown completion before session cleanup exits")
 	releaseSessionTask()
+	assertAppTestValuePending(t, shutdownResult, "shutdown before audit cleanup exits")
+	releaseAuditTask()
 	if err := waitForAppTestValue(t, shutdownResult, "shutdown after all cleanup tasks exit"); err != nil {
 		t.Fatalf("shutdown application: %v", err)
 	}

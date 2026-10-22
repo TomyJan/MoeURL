@@ -83,7 +83,7 @@ func (s *SettingsService) UpdateSettings(ctx context.Context, actor auth.Current
 		return Settings{}, err
 	}
 	var result Settings
-	err = appdb.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
 		if s.loginPolicy == nil {
 			return errors.New("login policy unavailable")
 		}

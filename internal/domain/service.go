@@ -104,7 +104,7 @@ func (s *Service) Create(ctx context.Context, actor auth.CurrentUser, input Crea
 		return Domain{}, err
 	}
 	var created Domain
-	err = appdb.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
 		if err := lockDomainWrites(ctx, tx); err != nil {
 			return err
 		}
@@ -138,7 +138,7 @@ func (s *Service) Update(ctx context.Context, actor auth.CurrentUser, input Upda
 		return Domain{}, err
 	}
 	var updated Domain
-	err = appdb.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
 		if err := lockDomainWrites(ctx, tx); err != nil {
 			return err
 		}
@@ -205,7 +205,7 @@ func (s *Service) SetDefault(ctx context.Context, actor auth.CurrentUser, input 
 		return Domain{}, err
 	}
 	var selected Domain
-	err = appdb.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
 		if err := lockDomainWrites(ctx, tx); err != nil {
 			return err
 		}
@@ -265,7 +265,7 @@ func (s *Service) Delete(ctx context.Context, actor auth.CurrentUser, input Chan
 	if err != nil {
 		return err
 	}
-	return appdb.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+	return appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
 		if err := lockDomainWrites(ctx, tx); err != nil {
 			return err
 		}
@@ -371,12 +371,26 @@ func checkAuthorityConflict(ctx context.Context, queries *sqlc.Queries, host str
 	return nil
 }
 
-// replaceGrants replaces all built-in group assignments and rejects unknown group keys.
+// replaceGrants applies only set differences so unchanged grants never produce audit noise.
 func replaceGrants(ctx context.Context, queries *sqlc.Queries, domainID pgtype.UUID, keys []string) error {
-	if err := queries.DeleteDomainGrants(ctx, domainID); err != nil {
+	existing, err := queries.ListDomainGrantKeys(ctx, domainID)
+	if err != nil {
+		return err
+	}
+	if err := queries.DeleteRemovedDomainGrants(ctx, sqlc.DeleteRemovedDomainGrantsParams{DomainID: domainID, Keys: keys}); err != nil {
 		return err
 	}
 	for _, key := range keys {
+		found := false
+		for _, old := range existing {
+			if old == key {
+				found = true
+				break
+			}
+		}
+		if found {
+			continue
+		}
 		count, err := queries.InsertDomainGrant(ctx, sqlc.InsertDomainGrantParams{DomainID: domainID, Key: key})
 		if err != nil {
 			return err
@@ -429,7 +443,7 @@ func mapNotFound(err error) error {
 // mapUniqueConflict converts PostgreSQL uniqueness failures into the domain conflict contract.
 func mapUniqueConflict(err error) error {
 	pgErr := new(pgconn.PgError)
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" && (pgErr.ConstraintName == "domain_host_key" || pgErr.ConstraintName == "domain_single_enabled_default_idx") {
 		return ErrDomainConflict
 	}
 	return err

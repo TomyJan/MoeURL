@@ -3,6 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiClientError, apiGet, apiGetPath, apiPost, apiPostPath } from './client'
 
 describe('api client', () => {
+  it.each([null, [], 1, { code: '0', message: 'OK', data: {} }, { code: 0, data: {} }, { code: 0, message: 'OK' }])('rejects structurally invalid success envelopes with a numeric error code', async (payload) => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(payload))))
+    await expect(apiGet('/health')).rejects.toMatchObject({ name: 'ApiClientError', code: 100001, meta: { status: 200 } })
+  })
   afterEach(() => {
     vi.unstubAllGlobals()
   })

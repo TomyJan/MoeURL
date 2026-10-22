@@ -91,7 +91,9 @@ async function decodeResponse<T>(response: Response): Promise<ApiResponse<T>> {
   if (!response.ok) {
     throw new ApiClientError(response.status, payload?.message || `HTTP ${response.status}`, { status: response.status })
   }
-  if (!payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)
+    || !Number.isInteger(payload.code) || typeof payload.message !== 'string' || !('data' in payload)
+    || (payload.meta !== undefined && (payload.meta === null || typeof payload.meta !== 'object' || Array.isArray(payload.meta)))) {
     throw new ApiClientError(100001, 'Invalid JSON response', { status: response.status })
   }
   if (payload.code !== 0) {

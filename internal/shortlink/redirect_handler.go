@@ -279,8 +279,8 @@ func (h *RedirectHandler) writeTargetRedirect(w http.ResponseWriter, r *http.Req
 	w.WriteHeader(http.StatusFound)
 	_, writeErr := w.Write([]byte(`<a href="` + html.EscapeString(result.TargetURL) + `">Found</a>.` + "\n\n"))
 	if writeErr == nil {
-		referrerHost, deviceType, countryCode := analyticsEventFields(r, h.countryHeader)
-		_ = h.recorder.Record(r.Context(), event.Event{Type: event.RedirectResponseSent, Slug: slug, ShortLinkID: result.ShortLinkID, ReferrerHost: referrerHost, DeviceType: deviceType, CountryCode: countryCode})
+		referrerHost, deviceType, countryCode, browserFamily, osFamily := analyticsEventFields(r, h.countryHeader)
+		_ = h.recorder.Record(r.Context(), event.Event{Type: event.RedirectResponseSent, Slug: slug, ShortLinkID: result.ShortLinkID, ReferrerHost: referrerHost, DeviceType: deviceType, CountryCode: countryCode, BrowserFamily: browserFamily, OSFamily: osFamily})
 	}
 }
 

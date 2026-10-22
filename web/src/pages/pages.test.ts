@@ -205,11 +205,11 @@ vi.mock('@tanstack/vue-query', async () => {
 
 /** Mounts a page component with the shared router and component stubs. */
 function mount(component: object) {
-  state.listAuth = component === MyLinksPage || component === AdminLinksPage
+  state.listAuth = component === MyLinksPage || component === AdminLinksPage || component === AnalyticsPage
   return render(component, {
     global: {
       // Export lifecycle has real QueryClient coverage in AnalyticsPage.test.ts.
-      stubs: { ...componentStubs, AnalyticsExportButton: true },
+      stubs: { ...componentStubs, AnalyticsExportButton: true, VisitRecordsPanel: true },
     },
   })
 }
@@ -217,6 +217,7 @@ function mount(component: object) {
 /** Configures one query result returned by the page test mock. */
 function setQueryResult(value: Partial<{
   data: ReturnType<typeof ref>
+  error: ReturnType<typeof ref>
   isError: ReturnType<typeof ref>
   isFetching: ReturnType<typeof ref>
   isLoading: ReturnType<typeof ref>
@@ -225,6 +226,7 @@ function setQueryResult(value: Partial<{
 }>) {
   state.queryResult = {
     data: value.data ?? ref(undefined),
+    error: value.error ?? ref(null),
     isError: value.isError ?? ref(false),
     isFetching: value.isFetching ?? ref(false),
     isLoading: value.isLoading ?? ref(false),
@@ -237,6 +239,7 @@ function setQueryResult(value: Partial<{
 function setQueryResults(...values: Array<Parameters<typeof setQueryResult>[0]>) {
   state.queryResults = values.map((value) => ({
     data: value.data ?? ref(undefined),
+    error: value.error ?? ref(null),
     isError: value.isError ?? ref(false),
     isFetching: value.isFetching ?? ref(false),
     isLoading: value.isLoading ?? ref(false),

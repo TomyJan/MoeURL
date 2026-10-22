@@ -127,7 +127,7 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 		}
 
 		var result CreateResult
-		err = appdb.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		err = appdb.WithAuditTx(ctx, s.pool, user.ID, func(tx pgx.Tx) error {
 			if err := domain.LockShortLinkCreation(ctx, tx); err != nil {
 				return err
 			}
@@ -316,21 +316,26 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 		return CreateResult{}, err
 	}
 
-	updated, err := s.queries.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
-		Title:                    title,
-		Tags:                     tags,
-		ID:                       uuidToPgtype(linkID),
-		OwnerID:                  uuidToPgtype(ownerID),
-		TargetUrl:                optionalText(input.TargetURL),
-		Status:                   optionalText(input.Status),
-		RedirectMode:             accessConfig.redirectMode,
-		IntermediateDelaySeconds: accessConfig.intermediateDelaySeconds,
-		ExpirationMode:           accessConfig.expirationMode,
-		ExpiresAt:                accessConfig.expiresAt,
-		PasswordMode:             accessConfig.passwordMode,
-		PasswordHash:             accessConfig.passwordHash,
-		VisitLimitMode:           visitLimitMode,
-		MaxVisits:                maxVisits,
+	var updated sqlc.UpdateOwnShortLinkRow
+	err = appdb.WithAuditTx(ctx, s.pool, user.ID, func(tx pgx.Tx) error {
+		var writeErr error
+		updated, writeErr = s.queries.WithTx(tx).UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
+			Title:                    title,
+			Tags:                     tags,
+			ID:                       uuidToPgtype(linkID),
+			OwnerID:                  uuidToPgtype(ownerID),
+			TargetUrl:                optionalText(input.TargetURL),
+			Status:                   optionalText(input.Status),
+			RedirectMode:             accessConfig.redirectMode,
+			IntermediateDelaySeconds: accessConfig.intermediateDelaySeconds,
+			ExpirationMode:           accessConfig.expirationMode,
+			ExpiresAt:                accessConfig.expiresAt,
+			PasswordMode:             accessConfig.passwordMode,
+			PasswordHash:             accessConfig.passwordHash,
+			VisitLimitMode:           visitLimitMode,
+			MaxVisits:                maxVisits,
+		})
+		return writeErr
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return CreateResult{}, ErrShortLinkMissing
@@ -373,9 +378,14 @@ func (s *Service) Delete(ctx context.Context, user auth.CurrentUser, input Delet
 		return err
 	}
 
-	rows, err := s.queries.SoftDeleteOwnShortLink(ctx, sqlc.SoftDeleteOwnShortLinkParams{
-		ID:      uuidToPgtype(linkID),
-		OwnerID: uuidToPgtype(ownerID),
+	var rows int64
+	err = appdb.WithAuditTx(ctx, s.pool, user.ID, func(tx pgx.Tx) error {
+		var writeErr error
+		rows, writeErr = s.queries.WithTx(tx).SoftDeleteOwnShortLink(ctx, sqlc.SoftDeleteOwnShortLinkParams{
+			ID:      uuidToPgtype(linkID),
+			OwnerID: uuidToPgtype(ownerID),
+		})
+		return writeErr
 	})
 	if err != nil {
 		return err
@@ -529,20 +539,25 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 	if err != nil {
 		return CreateResult{}, err
 	}
-	updated, err := s.queries.UpdateAnyShortLink(ctx, sqlc.UpdateAnyShortLinkParams{
-		Title:                    title,
-		Tags:                     tags,
-		ID:                       uuidToPgtype(linkID),
-		TargetUrl:                optionalText(input.TargetURL),
-		Status:                   optionalText(input.Status),
-		RedirectMode:             accessConfig.redirectMode,
-		IntermediateDelaySeconds: accessConfig.intermediateDelaySeconds,
-		ExpirationMode:           accessConfig.expirationMode,
-		ExpiresAt:                accessConfig.expiresAt,
-		PasswordMode:             accessConfig.passwordMode,
-		PasswordHash:             accessConfig.passwordHash,
-		VisitLimitMode:           visitLimitMode,
-		MaxVisits:                maxVisits,
+	var updated sqlc.UpdateAnyShortLinkRow
+	err = appdb.WithAuditTx(ctx, s.pool, user.ID, func(tx pgx.Tx) error {
+		var writeErr error
+		updated, writeErr = s.queries.WithTx(tx).UpdateAnyShortLink(ctx, sqlc.UpdateAnyShortLinkParams{
+			Title:                    title,
+			Tags:                     tags,
+			ID:                       uuidToPgtype(linkID),
+			TargetUrl:                optionalText(input.TargetURL),
+			Status:                   optionalText(input.Status),
+			RedirectMode:             accessConfig.redirectMode,
+			IntermediateDelaySeconds: accessConfig.intermediateDelaySeconds,
+			ExpirationMode:           accessConfig.expirationMode,
+			ExpiresAt:                accessConfig.expiresAt,
+			PasswordMode:             accessConfig.passwordMode,
+			PasswordHash:             accessConfig.passwordHash,
+			VisitLimitMode:           visitLimitMode,
+			MaxVisits:                maxVisits,
+		})
+		return writeErr
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return CreateResult{}, ErrShortLinkMissing
@@ -583,7 +598,12 @@ func (s *Service) AdminDelete(ctx context.Context, user auth.CurrentUser, input 
 	if err != nil {
 		return err
 	}
-	rows, err := s.queries.SoftDeleteAnyShortLink(ctx, uuidToPgtype(linkID))
+	var rows int64
+	err = appdb.WithAuditTx(ctx, s.pool, user.ID, func(tx pgx.Tx) error {
+		var writeErr error
+		rows, writeErr = s.queries.WithTx(tx).SoftDeleteAnyShortLink(ctx, uuidToPgtype(linkID))
+		return writeErr
+	})
 	if err != nil {
 		return err
 	}

@@ -138,6 +138,10 @@ const currentRouteAccessDenied = computed(() => {
   const user = currentUser.value
   if (!user || isGuestFallback.value) return false
 
+  if (typeof route.meta.insightCapability === 'string') {
+    return !user.permissions.includes('admin:access') || !user.permissions.includes(route.meta.insightCapability)
+  }
+
   if (route.meta.requiresSystemManage) {
     return !user.permissions.includes('admin:access') || !user.permissions.includes('system:manage')
   }
@@ -182,6 +186,7 @@ const navGroups = computed<ConsoleNavGroup[]>(() => {
     groups.push({
       labelKey: 'nav.admin',
       items: [
+        ...(permissions.value.includes('statistics:read_all') ? [{ labelKey: 'dashboard.title', to: '/admin/dashboard' }] : []),
         { labelKey: 'page.adminLinks', to: '/admin/link' },
         {
           labelKey: 'console.nav.userManagement',
@@ -194,6 +199,7 @@ const navGroups = computed<ConsoleNavGroup[]>(() => {
         ...(permissions.value.includes('domain:manage') ? [{ labelKey: 'nav.domains', to: '/admin/domain' }] : []),
       ],
     })
+    if (permissions.value.includes('audit:read')) groups.push({ labelKey: 'insights.maintenance', items: [{ labelKey: 'audit.title', to: '/admin/audit' }] })
   }
   return groups
 })
@@ -475,6 +481,12 @@ function getFocusableElements(root: globalThis.HTMLElement) {
   border: 1px solid color-mix(in srgb, var(--moeurl-outline) 86%, transparent);
   border-radius: var(--moeurl-radius-panel);
   background: color-mix(in srgb, var(--moeurl-surface-strong) 34%, transparent);
+}
+
+/* Mobile utilities sit near the drawer top, so upward menus would be clipped by its scroll container. */
+.console-shell__mobile-utilities :deep(.preference-switcher--sidebar .preference-switcher__popover) {
+  top: calc(100% + 8px);
+  bottom: auto;
 }
 
 .console-shell__mobile-home {

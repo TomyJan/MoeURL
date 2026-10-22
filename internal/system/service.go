@@ -101,7 +101,7 @@ func (s *Service) Setup(ctx context.Context, input SetupInput) error {
 		return err
 	}
 
-	return appdb.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+	return appdb.WithAuditTx(ctx, s.pool, "", func(tx pgx.Tx) error {
 		now := time.Now().UTC()
 		guestGroupID := uuid.New()
 		userGroupID := uuid.New()

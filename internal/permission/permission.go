@@ -8,6 +8,9 @@ const (
 	ShortLinkCreate           = "short_link:create"
 	ShortLinkCustomSlug       = "short_link:custom_slug"
 	ShortLinkReadOwn          = "short_link:read_own"
+	ShortLinkReadVisits       = "short_link:read_visits"
+	StatisticsReadAll         = "statistics:read_all"
+	AuditRead                 = "audit:read"
 	ShortLinkExportStatistics = "short_link:export_statistics"
 	ShortLinkUpdateOwn        = "short_link:update_own"
 	ShortLinkDeleteOwn        = "short_link:delete_own"
@@ -31,6 +34,7 @@ var UserPermissions = []string{
 	ShortLinkCreate,
 	ShortLinkCustomSlug,
 	ShortLinkReadOwn,
+	ShortLinkReadVisits,
 	ShortLinkExportStatistics,
 	ShortLinkUpdateOwn,
 	ShortLinkDeleteOwn,
@@ -45,9 +49,12 @@ var UserPermissions = []string{
 }
 
 var AdminPermissions = []string{
+	StatisticsReadAll,
+	AuditRead,
 	ShortLinkCreate,
 	ShortLinkCustomSlug,
 	ShortLinkReadOwn,
+	ShortLinkReadVisits,
 	ShortLinkExportStatistics,
 	ShortLinkUpdateOwn,
 	ShortLinkDeleteOwn,
