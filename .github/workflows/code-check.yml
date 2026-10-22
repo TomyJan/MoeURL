@@ -199,10 +199,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          # Use the first patched Go 1.26 toolchain for vulnerability scanning.
+          # Use a patched Go 1.26 toolchain for vulnerability scanning.
           # The module baseline remains Go 1.26.8+, while govulncheck reports
           # standard-library issues against the exact toolchain in use.
-          go-version: '1.26.9'
+          go-version: '1.26.10'
           cache: true
 
       - name: Race tests
