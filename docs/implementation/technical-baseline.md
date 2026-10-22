@@ -65,6 +65,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 │  ├─ usergroup/
 │  ├─ domain/
 │  ├─ shortlink/
+│  ├─ insights/
 │  ├─ system/
 │  └─ event/
 ├─ migrations/
@@ -107,6 +108,7 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 - `internal/usergroup/`：内置用户组权限目录、预设、并发更新和管理 API 业务。
 - `internal/domain/`：v0.8.0 短链域名规范化、组授权、管理事务及 API；系统访问域名仍只由初始化配置。
 - `internal/shortlink/`：短链创建、状态、软删除和访问跳转。
+- `internal/insights/`：按当前数据库权限读取全站快照、匿名访问和审计，管理有界审计保留清理；业务写入的事务审计上下文位于 `internal/db/`。
 - `internal/system/`：初始化流程、系统设置和站点配置。
 - `internal/event/`：访问事件和操作记录扩展点。
 - `migrations/`：Goose 数据库迁移文件。
@@ -303,6 +305,8 @@ v0.16.0 的 own／admin statistics/export 复用严格日期与统计读取逻�
 
 v0.17.0 批量管理新增个人／后台 `POST short-link/batch`，要求 `application/json` 媒体类型（允许合法参数），严格接受 1–100 个不同的非零 UUID 和 `enable`／`disable`／`delete` 动作，成功返回 `affectedCount`。缺失、错误或非 JSON 媒体类型在调用业务服务前返回 `100001`，防止同站跨源简单请求借登录 Cookie 执行批量写入。沿用现有写权限，单条 SQL 重查账号与数据库授权、按 UUID 锁定全部目标后检查数量，只有全部可操作才写入；无 schema 或权限迁移。状态赋值与软删除不改变其他访问条件、额度或元数据，详细契约见 [批量管理设计](../specs/2026-10-16-v0.17.0-bulk-link-management-design.md)。
 
+v0.18.0 的只读 API 为 `GET /api/v1/admin/dashboard`、`GET /api/v1/{admin/}short-link/visits`、`GET /api/v1/admin/audit/list`。日期沿用上述 UTC 契约，分页默认 25、范围 1–100，cursor 最大 512 字节；拒绝未知、重复和显式空值，排序唯一且有界。仪表盘／审计分别要求 `admin:access` 加 `statistics:read_all`／`audit:read`；访问明细再叠加 `short_link:read_visits` 与原归属权限。审计 bigint ID 使用十进制字符串，UTC 时间不损失精度。所有响应 no-store，具体 DTO 见 [设计](../specs/2026-10-22-v0.18.0-analytics-audit-design.md)。
+
 ## 6. 数据库约定
 
 ### 命名规则
@@ -439,6 +443,10 @@ own/admin list 的 `q` 匹配短码、目标地址、标题和标签的文字子
 `00019_analytics_export_permission.sql` 仅为内置 `user`／`admin` 追加缺失的 `short_link:export_statistics`，沿用 UPDATE 编辑追踪和修订号保护；Down 只撤销本次迁移追加且未再独立编辑的授权，不删除统计或短链数据。CSV 复用现有有界聚合查询，不新增统计表、索引或采集字段。
 
 ### 迁移规则
+
+v0.18.0 的 `00020_insights.sql` 增加可空 browser／OS 类别、全局成功事件时间与未删除链接创建索引，以及三项真实权限和 UPDATE 编辑追踪；不回填虚构类别、不删除历史事件。`00021_audit.sql` 增加无业务级联外键的 `audit_log`、keyset／保留索引和审计白名单触发器。应用写入必须显式启用事务局部 actor 上下文，任何审计写入错误使业务一起回滚；no-op、访问额度领取、失败计数和偏好不产生审计噪音。
+
+审计读取应用滚动 180 天截止时间，每小时清理最多 4×500 条，周期 10 秒且退出可取消。`00021 Down` 先阻止并发审计写入，再检查日志；非空时安全失败，空表可回滚／再次 Up。支持的应用回退保留兼容 schema，不提供在线清空审计的绕过步骤；备份保护和部署验收见 [升级与回退](../deployment/upgrade-and-recovery.md)。
 
 - 每个 schema 变更都必须通过 Goose migration。
 - migration 文件放在 `migrations/`。

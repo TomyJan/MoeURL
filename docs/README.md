@@ -1,5 +1,9 @@
 # MoeURL 文档中心
 
+当前功能分支 `feat/v0.18.0-analytics-audit` 已实现 [全站统计、匿名访问明细与操作审计](product/scope-v0.18.0.md)。管理页为 `/admin/dashboard`、`/admin/audit`，访问明细保留在单短链分析页中；权限、隐私、事务与保留边界见 [设计](specs/2026-10-22-v0.18.0-analytics-audit-design.md)。分阶段本地门禁、候选树及剩余远端／发布验证分别记录在 [验收](implementation/v0.18.0-acceptance.md)，功能尚未推送、合并或正式发布。
+
+整分支终审的统一修复已通过定向复审，范围往返、卸载重建、跨 UTC 午夜与父聚合身份隔离均有回归；最终代码候选 `721206c` 的前端、完整 68 项 E2E、production smoke 和精确镜像扫描通过，完整证据 ZIP 已校验，文档与代码分别提交，详见 v0.18.0 验收。
+
 MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、技术基线和实施计划各自边界清晰，便于后续按阶段开发。
 
 ## 阅读顺序
@@ -56,7 +60,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 ## 当前开发：v0.18.0
 
-[全站统计、匿名访问明细与操作审计](product/scope-v0.18.0.md) 已在独立分支开始设计，尚未实现、合并或发布。查询权限、隐私和事务原子性见 [设计](specs/2026-10-22-v0.18.0-analytics-audit-design.md)，执行与证据见 [计划](implementation/v0.18.0-plan.md)、[任务](implementation/v0.18.0-tasks.md) 和 [验收](implementation/v0.18.0-acceptance.md)。
+[全站统计、匿名访问明细与操作审计](product/scope-v0.18.0.md) 已在独立分支实现，统一终审修复与本地验证完成；尚未推送、合并或发布。查询权限、隐私和事务原子性见 [设计](specs/2026-10-22-v0.18.0-analytics-audit-design.md)，执行与证据见 [计划](implementation/v0.18.0-plan.md)、[任务](implementation/v0.18.0-tasks.md) 和 [验收](implementation/v0.18.0-acceptance.md)。
 
 ## 部署与运维
 
