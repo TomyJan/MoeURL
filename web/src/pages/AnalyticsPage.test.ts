@@ -32,10 +32,10 @@ function response(id = 'link-id', startDate = '2026-10-09', endDate = '2026-10-1
     stats: { rangeVisitCount: count, visitCount: 100, todayVisitCount: 2, lastVisitedAt: null, trend: [], referrers: [], devices: [], countries: [] } }
 }
 /** Uses a real query observer to exercise reactive cache isolation. */
-function mount() {
+function mount(extraPermissions: string[] = []) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
   clients.push(client)
-  client.setQueryData(['auth', 'me'], { user: { id: 'A', username: 'A', group: 'user', permissions: ['short_link:export_statistics', 'short_link:read_own', 'short_link:read_all', 'admin:access'] } })
+  client.setQueryData(['auth', 'me'], { user: { id: 'A', username: 'A', group: 'user', permissions: ['short_link:export_statistics', 'short_link:read_own', 'short_link:read_all', 'admin:access', ...extraPermissions] } })
   return render(AnalyticsPage, { global: { stubs: componentStubs, plugins: [[VueQueryPlugin, { queryClient: client }]] } })
 }
 /** Changes a range through the user's selector. */
@@ -59,7 +59,32 @@ describe('analytics date range', () => {
   })
   afterEach(() => {
     clients.splice(0).forEach((client) => client.clear())
+    vi.unstubAllGlobals()
     vi.useRealTimers()
+  })
+
+  it('remounts visit records with a fresh read when parent statistics unmount them during A to B to A navigation', async () => {
+    const a = '00000000-0000-0000-0000-000000000001'
+    const b = '00000000-0000-0000-0000-000000000002'
+    state.route.params.shortLinkId = a
+    const pendingStatistics = createDeferred<ShortLinkStatisticsResponse>()
+    vi.mocked(getShortLinkStatistics).mockImplementation((id) => id === b ? pendingStatistics.promise : Promise.resolve(response(a)))
+    const pendingVisits = createDeferred<Response>()
+    const page = { range: { startDate: '2026-10-09', endDate: '2026-10-15', timeZone: 'UTC' }, pageSize: 25, hasMore: false, nextCursor: '' }
+    const fetcher = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, message: 'OK', meta: {}, data: { ...page, items: [{ id: a, occurredAt: '2026-10-15T00:00:00Z', referrerHost: 'old.parent.instance.example', deviceType: null, browserFamily: null, osFamily: null, countryCode: null }] } }))).mockImplementation(() => pendingVisits.promise)
+    vi.stubGlobal('fetch', fetcher)
+    mount(['short_link:read_visits'])
+    await screen.findByText('old.parent.instance.example')
+    state.route.params.shortLinkId = b
+    await waitFor(() => expect(screen.queryByTestId('visit-records')).toBeNull())
+    state.route.params.shortLinkId = a
+    await screen.findByTestId('visit-records')
+    expect(screen.queryByText('old.parent.instance.example')).toBeNull()
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2))
+    pendingStatistics.resolve(response(b))
+    pendingVisits.resolve(new Response(JSON.stringify({ code: 0, message: 'OK', meta: {}, data: { ...page, items: [] } })))
+    await screen.findByText('visits.empty')
+    expect(screen.queryByText('old.parent.instance.example')).toBeNull()
   })
 
   it('exports the displayed dates while custom edits remain unapplied and disables during active reads', async () => {

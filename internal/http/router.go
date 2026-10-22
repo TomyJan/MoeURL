@@ -230,6 +230,8 @@ func registerStaticRoutes(router chi.Router, staticDir string) {
 		"/link",
 		"/link/{shortLinkId}/analytics",
 		"/analytics",
+		"/admin/dashboard",
+		"/admin/audit",
 		"/admin/link",
 		"/admin/link/{shortLinkId}/analytics",
 		"/admin/user",

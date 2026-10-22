@@ -48,7 +48,7 @@ describe('router', () => {
     const consoleRoute = routes.find((route) => route.children)
     const adminRoutes = consoleRoute?.children?.filter((route) => route.path.startsWith('/admin/')) ?? []
 
-    expect(adminRoutes).toHaveLength(7)
+    expect(adminRoutes).toHaveLength(9)
     expect(adminRoutes.every((route) => route.meta?.requiresAdmin === true)).toBe(true)
   })
 

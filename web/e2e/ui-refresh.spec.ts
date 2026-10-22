@@ -26,7 +26,7 @@ async function mockWorkspace(page: Page, overrides: Record<string, unknown> = {}
   await page.route('**/api/v1/**', route => {
     const path = new URL(route.request().url()).pathname.slice('/api/v1'.length)
     if (!Object.hasOwn(responses, path)) throw new Error(`Unexpected UI fixture request: ${path}`)
-    return route.fulfill({ json: { code: 0, data: responses[path], meta: { page: 1, pageSize: 5, total: 0 } } })
+    return route.fulfill({ json: { code: 0, message: 'OK', data: responses[path], meta: { page: 1, pageSize: 5, total: 0 } } })
   })
 }
 

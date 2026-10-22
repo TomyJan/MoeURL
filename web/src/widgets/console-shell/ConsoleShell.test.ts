@@ -15,7 +15,7 @@ const state = vi.hoisted(() => ({
   routerPush: vi.fn(),
   queryResult: {},
   routePath: undefined as unknown as { value: string },
-  routeMeta: undefined as unknown as { value: Record<string, boolean> },
+  routeMeta: undefined as unknown as { value: Record<string, boolean | string> },
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -146,6 +146,19 @@ function setCurrentUser(user: {
 }
 
 describe('ConsoleShell', () => {
+  it.each(['statistics:read_all', 'audit:read'])('shows insight navigation only at the complete intersection and redirects after %s is revoked', async (capability) => {
+    const data = setCurrentUser({ username: 'admin', group: 'admin', permissions: ['admin:access', capability] })
+    state.routePath.value = capability === 'audit:read' ? '/admin/audit' : '/admin/dashboard'
+    state.routeMeta.value = { requiresAdmin: true, insightCapability: capability }
+    mountShell()
+    expect(screen.getByText(capability === 'audit:read' ? 'audit.title' : 'dashboard.title')).toBeTruthy()
+    expect(screen.queryByText(capability === 'audit:read' ? 'dashboard.title' : 'audit.title')).toBeNull()
+    data.value.user.permissions = ['admin:access']
+    await waitFor(() => expect(state.routerPush).toHaveBeenCalledWith('/'))
+    expect(screen.queryByText('dashboard.title')).toBeNull()
+    expect(screen.queryByText('audit.title')).toBeNull()
+  })
+
   beforeEach(() => {
     document.body.style.overflow = ''
     state.createShortLinkRequest.mockClear()

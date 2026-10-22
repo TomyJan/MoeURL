@@ -209,7 +209,7 @@ function mount(component: object) {
   return render(component, {
     global: {
       // Export lifecycle has real QueryClient coverage in AnalyticsPage.test.ts.
-      stubs: { ...componentStubs, AnalyticsExportButton: true },
+      stubs: { ...componentStubs, AnalyticsExportButton: true, VisitRecordsPanel: true },
     },
   })
 }
