@@ -26,11 +26,10 @@ func TestProviderAuditMutations(t *testing.T) {
 		require.Equal(t, actor.ID, actualActor)
 		require.Equal(t, created.Provider.ID, id)
 		require.Equal(t, action, actualAction)
-		if fields != nil {
-			require.ElementsMatch(t, fields, actualFields)
-		}
+		require.ElementsMatch(t, fields, actualFields)
 	}
-	assertLast("create", nil)
+	expectedCreateFields := []string{"key", "display_name", "issuer_url", "client_id", "client_secret_ciphertext", "authorization_endpoint", "token_endpoint", "jwks_uri", "allowed_email_domains", "enabled", "deleted_at"}
+	assertLast("create", expectedCreateFields)
 	update := UpdateProviderInput{ID: created.Provider.ID, ExpectedUpdatedAt: created.Provider.UpdatedAt, DisplayName: input.DisplayName, IssuerURL: input.IssuerURL, ClientID: input.ClientID, ClientSecret: SecretChange{Mode: SecretPreserve}, AllowedEmailDomains: input.AllowedEmailDomains, Enabled: false}
 	updated, err := service.Update(ctx, actor, update)
 	require.NoError(t, err)

@@ -32,9 +32,7 @@ func TestAuditMutationCoverage(t *testing.T) {
 		require.Equal(t, resource, actualResource)
 		require.Equal(t, id, actualID)
 		require.Equal(t, action, actualAction)
-		if fields != nil {
-			require.ElementsMatch(t, fields, actualFields)
-		}
+		require.ElementsMatch(t, fields, actualFields)
 	}
 	links := shortlink.NewService(pool, permissions)
 	disabled, active, target := "disabled", "active", "https://changed.example/private"
@@ -58,7 +56,8 @@ func TestAuditMutationCoverage(t *testing.T) {
 	users := user.NewService(pool, permissions)
 	created, err := users.Create(ctx, admin, user.CreateInput{Username: "audited", Nickname: "Private name", Password: "private-password", GroupKey: "user", Status: "active"})
 	require.NoError(t, err)
-	assertLast(admin.ID, "user", created.User.ID, "create", nil)
+	expectedCreateFields := []string{"username", "nickname", "group_id", "status", "password_hash", "deleted_at"}
+	assertLast(admin.ID, "user", created.User.ID, "create", expectedCreateFields)
 	_, err = users.Update(ctx, admin, user.UpdateInput{ID: created.User.ID, Nickname: "Changed", Status: "disabled"})
 	require.NoError(t, err)
 	assertLast(admin.ID, "user", created.User.ID, "disable", []string{"nickname", "status"})
