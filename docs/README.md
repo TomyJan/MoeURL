@@ -54,6 +54,10 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 23. [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)：确认新版本、跨模块、review 修复、CI 门禁和生产化任务的统一执行约定。
 24. [实施文档](implementation/)：查看工程计划、阶段任务和验收记录。
 
+## 当前开发：v0.18.0
+
+[全站统计、匿名访问明细与操作审计](product/scope-v0.18.0.md) 已在独立分支开始设计，尚未实现、合并或发布。查询权限、隐私和事务原子性见 [设计](specs/2026-10-22-v0.18.0-analytics-audit-design.md)，执行与证据见 [计划](implementation/v0.18.0-plan.md)、[任务](implementation/v0.18.0-tasks.md) 和 [验收](implementation/v0.18.0-acceptance.md)。
+
 ## 部署与运维
 
 - [单机 Docker Compose 部署](deployment/single-host-compose.md)：准备秘密、首次启动、Caddy/Nginx TLS 和来源级限流。
