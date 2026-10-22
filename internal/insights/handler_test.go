@@ -135,14 +135,19 @@ func TestDashboardConcurrentSnapshot(t *testing.T) {
 	pool, _, owner, admin, link, today := fixture(t)
 	entered, release := make(chan struct{}), make(chan struct{})
 	releaseOnce := sync.OnceFunc(func() { close(release) })
-	t.Cleanup(releaseOnce)
-	blockOnce := sync.OnceFunc(func() { close(entered); <-release })
+	signalEntered := sync.OnceFunc(func() { close(entered) })
 	readPool := tracedPool(t, pool, queryTracer{start: func(ctx context.Context, sql string) context.Context {
 		if strings.HasPrefix(sql, "-- name: GetDashboardSummary") {
-			blockOnce()
+			signalEntered()
+			select {
+			case <-release:
+			case <-ctx.Done():
+			}
 		}
 		return ctx
 	}})
+	// Cleanup runs in reverse order: release the reader before closing its pool.
+	t.Cleanup(releaseOnce)
 	service := insights.NewService(readPool, permission.NewDatabaseService(readPool))
 	type outcome struct {
 		result insights.DashboardResult
