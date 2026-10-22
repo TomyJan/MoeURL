@@ -38,7 +38,12 @@ begin
         foreach field_name in array string_to_array(tg_argv[1], ',') loop
             changed := true;
             if tg_op = 'UPDATE' then
-                execute format('select ($1).%I is distinct from ($2).%I', field_name, field_name) into changed using new, old;
+                if resource = 'user_group' and field_name = 'permissions' then
+                    -- Permission order is normalized on save; only membership changes are audited.
+                    changed := not (new.permissions @> old.permissions and old.permissions @> new.permissions);
+                else
+                    execute format('select ($1).%I is distinct from ($2).%I', field_name, field_name) into changed using new, old;
+                end if;
             end if;
             if changed then fields := array_append(fields, field_name); end if;
         end loop;
