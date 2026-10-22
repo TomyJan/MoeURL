@@ -5,6 +5,7 @@ import (
 	"errors"
 	"unicode/utf8"
 
+	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -99,6 +100,9 @@ func (s *Service) ChangePassword(ctx context.Context, sessionID string, input Ch
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrInvalidSession
 		}
+		return err
+	}
+	if err := appdb.SetAuditContext(operationContext, tx, account.UserID); err != nil {
 		return err
 	}
 	select {

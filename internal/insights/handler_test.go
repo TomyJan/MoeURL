@@ -38,7 +38,7 @@ func (r identityResolver) ResolveCurrentUser(context.Context, string) (auth.Curr
 // requestInsight exercises the real router, middleware, query parser, service and SQLC reads.
 func requestInsight(t *testing.T, service *insights.Service, user auth.CurrentUser, path string, status, code int) []byte {
 	t.Helper()
-	router := apphttp.NewRouter(apphttp.Dependencies{CurrentUser: identityResolver{user}, Insights: service})
+	router := apphttp.NewRouter(apphttp.Dependencies{CurrentUser: identityResolver{user}, Insights: service, Audit: service})
 	request := httptest.NewRequest("GET", path, nil)
 	request.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "insight-session"})
 	response := httptest.NewRecorder()

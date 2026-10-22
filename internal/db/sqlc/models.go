@@ -21,6 +21,16 @@ type AppUser struct {
 	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type AuditLog struct {
+	ID            int64              `json:"id"`
+	ActorID       pgtype.UUID        `json:"actor_id"`
+	ResourceType  string             `json:"resource_type"`
+	ResourceID    string             `json:"resource_id"`
+	Action        string             `json:"action"`
+	ChangedFields []string           `json:"changed_fields"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
 type AuthLoginAttempt struct {
 	UsernameHash    string             `json:"username_hash"`
 	FailedAttempts  int16              `json:"failed_attempts"`

@@ -4,9 +4,11 @@ import (
 	"context"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -63,21 +65,25 @@ func (s *Service) batch(ctx context.Context, actor auth.CurrentUser, input Batch
 	}
 	var authorized bool
 	var affected int64
-	if input.Action == "delete" {
-		row, queryErr := s.queries.BatchDeleteShortLinks(ctx, sqlc.BatchDeleteShortLinksParams{
-			ActorID: uuidToPgtype(actorID), GroupKey: actor.GroupKey, RequiredPermissions: requiredPermissions, Ids: ids, AdminScope: admin,
-		})
-		authorized, affected, err = row.Authorized, row.AffectedCount, queryErr
-	} else {
-		status := "active"
-		if input.Action == "disable" {
-			status = "disabled"
+	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
+		queries := s.queries.WithTx(tx)
+		if input.Action == "delete" {
+			row, queryErr := queries.BatchDeleteShortLinks(ctx, sqlc.BatchDeleteShortLinksParams{
+				ActorID: uuidToPgtype(actorID), GroupKey: actor.GroupKey, RequiredPermissions: requiredPermissions, Ids: ids, AdminScope: admin,
+			})
+			authorized, affected, err = row.Authorized, row.AffectedCount, queryErr
+		} else {
+			status := "active"
+			if input.Action == "disable" {
+				status = "disabled"
+			}
+			row, queryErr := queries.BatchSetShortLinkStatus(ctx, sqlc.BatchSetShortLinkStatusParams{
+				ActorID: uuidToPgtype(actorID), GroupKey: actor.GroupKey, RequiredPermissions: requiredPermissions, Ids: ids, AdminScope: admin, Status: status,
+			})
+			authorized, affected, err = row.Authorized, row.AffectedCount, queryErr
 		}
-		row, queryErr := s.queries.BatchSetShortLinkStatus(ctx, sqlc.BatchSetShortLinkStatusParams{
-			ActorID: uuidToPgtype(actorID), GroupKey: actor.GroupKey, RequiredPermissions: requiredPermissions, Ids: ids, AdminScope: admin, Status: status,
-		})
-		authorized, affected, err = row.Authorized, row.AffectedCount, queryErr
-	}
+		return err
+	})
 	if err != nil {
 		return BatchResult{}, err
 	}

@@ -101,7 +101,7 @@ func TestServiceCoversPermissionQueryAndHelperFailures(t *testing.T) {
 	if !errors.Is(mapNotFound(pgx.ErrNoRows), ErrDomainNotFound) || !errors.Is(mapNotFound(plainErr), plainErr) {
 		t.Fatal("not-found mapping did not preserve expected errors")
 	}
-	if !errors.Is(mapUniqueConflict(&pgconn.PgError{Code: "23505"}), ErrDomainConflict) ||
+	if !errors.Is(mapUniqueConflict(&pgconn.PgError{Code: "23505", ConstraintName: "domain_host_key"}), ErrDomainConflict) ||
 		!errors.Is(mapUniqueConflict(plainErr), plainErr) {
 		t.Fatal("unique-conflict mapping did not preserve expected errors")
 	}
@@ -125,7 +125,7 @@ func TestServiceCoversListAndCreateDatabaseFailures(t *testing.T) {
 		service, pool, admin, _ := internalDomainFixture(t)
 		installDomainTrigger(t, pool, `
 			create function fail_domain_insert() returns trigger language plpgsql as $$
-			begin raise unique_violation using message = 'forced unique violation'; end $$;
+			begin raise unique_violation using message = 'forced unique violation', constraint = 'domain_host_key'; end $$;
 			create trigger fail_domain_insert before insert on domain
 			for each row execute function fail_domain_insert();
 		`)
@@ -184,7 +184,7 @@ func TestServiceCoversUpdateDatabaseAndProtectionFailures(t *testing.T) {
 		service, pool, admin, current := internalDomainFixture(t)
 		installDomainTrigger(t, pool, `
 			create function fail_domain_update() returns trigger language plpgsql as $$
-			begin raise unique_violation using message = 'forced update failure'; end $$;
+			begin raise unique_violation using message = 'forced update failure', constraint = 'domain_host_key'; end $$;
 			create trigger fail_domain_update before update on domain
 			for each row execute function fail_domain_update();
 		`)
@@ -199,6 +199,9 @@ func TestServiceCoversUpdateDatabaseAndProtectionFailures(t *testing.T) {
 
 	t.Run("replace grants", func(t *testing.T) {
 		service, pool, admin, current := internalDomainFixture(t)
+		if _, err := pool.Exec(t.Context(), `delete from domain_user_group where user_group_id in (select id from user_group where key='user')`); err != nil {
+			t.Fatal(err)
+		}
 		installDomainTrigger(t, pool, `
 			create function fail_domain_grant_insert() returns trigger language plpgsql as $$
 			begin raise exception 'forced grant failure'; end $$;
@@ -350,4 +353,31 @@ func TestServiceCoversDeleteDatabaseFailures(t *testing.T) {
 			t.Fatalf("skipped delete error = %v", err)
 		}
 	})
+}
+
+// TestGrantDiffDatabaseFailures keeps the domain write atomic when reading or removing grants fails.
+func TestGrantDiffDatabaseFailures(t *testing.T) {
+	for _, stage := range []string{"read", "delete"} {
+		t.Run(stage, func(t *testing.T) {
+			service, pool, admin, current := internalDomainFixture(t)
+			if stage == "read" {
+				if _, err := pool.Exec(t.Context(), `drop table domain_user_group`); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				installDomainTrigger(t, pool, `create function reject_grant_delete() returns trigger language plpgsql as $$ begin raise exception 'forced grant delete failure'; end $$; create trigger reject_grant_delete before delete on domain_user_group for each row execute function reject_grant_delete()`)
+			}
+			_, err := service.Update(t.Context(), admin, UpdateInput{ID: current.ID, Host: "go.example.com", DisplayName: "Changed", Enabled: true, AllowedGroups: []string{}, ExpectedUpdatedAt: current.ExpectedUpdatedAt})
+			if err == nil {
+				t.Fatal("expected grant storage failure")
+			}
+			var name string
+			if err := pool.QueryRow(t.Context(), `select display_name from domain where id=$1`, current.ID).Scan(&name); err != nil {
+				t.Fatal(err)
+			}
+			if name != "Default" {
+				t.Fatalf("domain changed despite grant failure: %q", name)
+			}
+		})
+	}
 }

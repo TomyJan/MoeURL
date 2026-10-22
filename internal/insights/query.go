@@ -65,6 +65,11 @@ type visitCursor struct {
 
 // decodeCursor accepts canonical, bounded JSON with exactly one timestamp and UUID.
 func decodeCursor(raw string) (visitCursor, error) {
+	return decodeKeysetCursor(raw, validUUID)
+}
+
+// decodeKeysetCursor shares strict object parsing while keeping resource-specific ID validation explicit.
+func decodeKeysetCursor(raw string, validID func(string) bool) (visitCursor, error) {
 	if raw == "" {
 		return visitCursor{ID: uuid.Nil.String()}, nil
 	}
@@ -103,7 +108,7 @@ func decodeCursor(raw string) (visitCursor, error) {
 		return visitCursor{}, ErrInvalidInput
 	}
 	var cursor visitCursor
-	if len(values) != 2 || json.Unmarshal(values["createdAt"], &cursor.CreatedAt) != nil || json.Unmarshal(values["id"], &cursor.ID) != nil || cursor.CreatedAt.IsZero() || cursor.CreatedAt.UTC().Year() < 1 || !validUUID(cursor.ID) {
+	if len(values) != 2 || json.Unmarshal(values["createdAt"], &cursor.CreatedAt) != nil || json.Unmarshal(values["id"], &cursor.ID) != nil || cursor.CreatedAt.IsZero() || cursor.CreatedAt.UTC().Year() < 1 || !validID(cursor.ID) {
 		return visitCursor{}, ErrInvalidInput
 	}
 	return cursor, nil

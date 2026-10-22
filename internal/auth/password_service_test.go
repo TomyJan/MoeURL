@@ -82,6 +82,7 @@ func TestPasswordChangeInfrastructureRollback(t *testing.T) {
 		{"account lookup", "GetPasswordAccountBySession", false}, {"begin", "begin", false},
 		{"attempt lock", "GetAuthLoginAttemptForUpdate", false}, {"user lock", "GetPasswordAccountForUpdate", false},
 		{"session lock", "GetPasswordSessionForUpdate", false}, {"failure record", "RecordAuthLoginFailure", true},
+		{"audit context", "set_config", false},
 		{"failure commit", "commit", true}, {"password update", "UpdateOwnPassword", false},
 		{"session revoke", "RevokePasswordUserSessions", false}, {"attempt delete", "DeleteAuthLoginAttempt", false},
 		{"success commit", "commit", false},

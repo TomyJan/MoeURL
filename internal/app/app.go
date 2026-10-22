@@ -33,6 +33,7 @@ const (
 	loginAttemptCleanupInterval = 15 * time.Minute
 	sessionCleanupInterval      = time.Minute
 	oidcAttemptCleanupInterval  = time.Minute
+	auditCleanupInterval        = time.Hour
 )
 
 // validatePermissionCatalog allows startup validation failures to be exercised without mutating package catalog state.
@@ -48,6 +49,10 @@ var runLoginAttemptCleanup = func(service *auth.Service, ctx context.Context, in
 
 var runSessionCleanup = func(service *auth.SessionService, ctx context.Context, interval time.Duration, logger *slog.Logger) {
 	service.RunCleanup(ctx, interval, logger)
+}
+
+var runAuditCleanup = func(service *insights.Service, ctx context.Context, interval time.Duration, logger *slog.Logger) {
+	service.RunAuditCleanup(ctx, interval, logger)
 }
 
 // App owns the HTTP server, database Pool, and process-scoped background work.
@@ -90,7 +95,9 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		shortLinkService := shortlink.NewServiceWithLogger(pool, permissionService, logger)
 		deps.ShortLink = shortLinkService
 		deps.ShortLinkExport = shortLinkService
-		deps.Insights = insights.NewService(pool, permissionService)
+		insightService := insights.NewService(pool, permissionService)
+		deps.Insights = insightService
+		deps.Audit = insightService
 		deps.ShortLinkBatch = shortLinkService
 		recorder := event.NewRecorder(pool, logger)
 		redirectService := shortlink.NewRedirectService(pool, recorder)
@@ -158,6 +165,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			loginService := oidc.NewLoginService(pool, oidc.NewStandardProtocol(oidcHTTPClient), identityResolver, sessionService, secretBox, cfg.PublicBaseURL)
 			deps.OIDCLogin = loginService
 			backgroundCancel, backgroundDone = startBackgroundTasks(
+				func(ctx context.Context) { runAuditCleanup(insightService, ctx, auditCleanupInterval, logger) },
 				func(ctx context.Context) {
 					runAccessGrantCleanup(redirectService, ctx, accessGrantCleanupInterval, logger)
 				},
@@ -171,6 +179,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			)
 		} else {
 			backgroundCancel, backgroundDone = startBackgroundTasks(
+				func(ctx context.Context) { runAuditCleanup(insightService, ctx, auditCleanupInterval, logger) },
 				func(ctx context.Context) {
 					runAccessGrantCleanup(redirectService, ctx, accessGrantCleanupInterval, logger)
 				},

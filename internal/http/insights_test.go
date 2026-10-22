@@ -13,8 +13,9 @@ import (
 
 // TestInsightRoutesRejectGuestWithoutExposingData catches missing or publicly readable API registrations.
 func TestInsightRoutesRejectGuestWithoutExposingData(t *testing.T) {
-	router := apphttp.NewRouter(apphttp.Dependencies{Insights: insights.NewService(nil, permission.NewService())})
-	for _, path := range []string{"/api/v1/admin/dashboard", "/api/v1/short-link/visits?id=00000000-0000-0000-0000-000000000001", "/api/v1/admin/short-link/visits?id=00000000-0000-0000-0000-000000000001"} {
+	service := insights.NewService(nil, permission.NewService())
+	router := apphttp.NewRouter(apphttp.Dependencies{Insights: service, Audit: service})
+	for _, path := range []string{"/api/v1/admin/audit/list", "/api/v1/admin/dashboard", "/api/v1/short-link/visits?id=00000000-0000-0000-0000-000000000001", "/api/v1/admin/short-link/visits?id=00000000-0000-0000-0000-000000000001"} {
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, httptest.NewRequest("GET", path, nil))
 		var body struct {

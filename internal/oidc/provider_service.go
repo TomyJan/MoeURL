@@ -87,6 +87,17 @@ type transactionalProviderStore struct {
 	loginPolicy ProviderLoginPolicy
 }
 
+// CreateOIDCProvider uses the same actor-bound transaction boundary as provider changes.
+func (s *transactionalProviderStore) CreateOIDCProvider(ctx context.Context, input sqlc.CreateOIDCProviderParams) (sqlc.OidcProvider, error) {
+	var created sqlc.OidcProvider
+	err := appdb.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		var err error
+		created, err = s.Queries.WithTx(tx).CreateOIDCProvider(ctx, input)
+		return err
+	})
+	return created, err
+}
+
 // effectiveLoginPolicy preserves the historical provider-store behavior for direct test construction.
 func (s *transactionalProviderStore) effectiveLoginPolicy() ProviderLoginPolicy {
 	if s.loginPolicy == nil {
@@ -274,7 +285,7 @@ func (s *ProviderService) Create(ctx context.Context, actor auth.CurrentUser, in
 	if err != nil {
 		return ProviderResult{}, err
 	}
-	row, err := s.store.CreateOIDCProvider(ctx, sqlc.CreateOIDCProviderParams{
+	row, err := s.store.CreateOIDCProvider(appdb.WithAuditActor(ctx, actor.ID), sqlc.CreateOIDCProviderParams{
 		ID: uuidToPGUUID(providerID), Key: normalized.Key, DisplayName: normalized.DisplayName,
 		IssuerUrl: normalized.IssuerURL, ClientID: normalized.ClientID, ClientSecretCiphertext: ciphertext,
 		AuthorizationEndpoint: metadata.AuthorizationEndpoint, TokenEndpoint: metadata.TokenEndpoint,
@@ -352,7 +363,7 @@ func (s *ProviderService) Update(ctx context.Context, actor auth.CurrentUser, in
 	if err != nil {
 		return ProviderResult{}, err
 	}
-	row, err := s.store.UpdateOIDCProvider(ctx, sqlc.UpdateOIDCProviderParams{
+	row, err := s.store.UpdateOIDCProvider(appdb.WithAuditActor(ctx, actor.ID), sqlc.UpdateOIDCProviderParams{
 		DisplayName: normalized.DisplayName, IssuerUrl: normalized.IssuerURL, ClientID: normalized.ClientID,
 		ClientSecretCiphertext: ciphertext, AuthorizationEndpoint: metadata.AuthorizationEndpoint,
 		TokenEndpoint: metadata.TokenEndpoint, JwksUri: metadata.JWKSURI,
@@ -378,7 +389,7 @@ func (s *ProviderService) Delete(ctx context.Context, actor auth.CurrentUser, in
 	if err != nil {
 		return DeleteProviderResult{}, ErrInvalidInput
 	}
-	_, err = s.store.SoftDeleteOIDCProvider(ctx, sqlc.SoftDeleteOIDCProviderParams{
+	_, err = s.store.SoftDeleteOIDCProvider(appdb.WithAuditActor(ctx, actor.ID), sqlc.SoftDeleteOIDCProviderParams{
 		ID: uuidToPGUUID(id), ExpectedUpdatedAt: pgtype.Timestamptz{Time: expectedUpdatedAt, Valid: true},
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -465,7 +476,7 @@ func parseIdentityAndTimestamp(idValue string, timestampValue string) (uuid.UUID
 // isUniqueViolation identifies database uniqueness without exposing constraint diagnostics.
 func isUniqueViolation(err error) bool {
 	var pgError *pgconn.PgError
-	return errors.As(err, &pgError) && pgError.Code == "23505"
+	return errors.As(err, &pgError) && pgError.Code == "23505" && pgError.ConstraintName == "oidc_provider_key_key"
 }
 
 // uuidToPGUUID converts a UUID to the pgx generated-query representation.
