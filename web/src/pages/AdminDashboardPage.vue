@@ -28,7 +28,7 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 import { getDashboard } from '@/entities/insights/api'
@@ -40,8 +40,10 @@ import InsightReadState from '@/features/insights/InsightReadState.vue'
 
 const { t } = useI18n()
 const range = ref<InsightRangeInput>({ days: 7 })
+const readRevision = ref(0)
+watch(range, () => { readRevision.value++ }, { flush: 'sync' })
 const { allowed, scope } = useInsightAccess(['admin:access', 'statistics:read_all'])
-const query = useQuery({ queryKey: computed(() => ['insights', 'dashboard', scope.value, range.value] as const), enabled: allowed, retry: false, queryFn: ({ queryKey: [, , , applied] }) => getDashboard(applied) })
+const query = useQuery({ queryKey: computed(() => ['insights', 'dashboard', scope.value, range.value, readRevision.value] as const), enabled: allowed, retry: false, queryFn: ({ queryKey: [, , , applied] }) => getDashboard(applied) })
 const denied = computed(() => !allowed.value || isInsightAccessError(query.error.value))
 const snapshot = computed(() => !denied.value && !query.isError.value ? query.data.value : undefined)
 const metrics = computed(() => Object.entries(snapshot.value!.summary).map(([key, value]) => ({ key, value })))

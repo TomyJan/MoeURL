@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { reactive } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
@@ -11,6 +11,7 @@ import { exportShortLinkStatistics } from '@/entities/short-link/export'
 import { downloadCsv } from '@/shared/download/csv'
 import type { StatisticsExport } from '@/entities/short-link/export'
 import { toast } from 'vue-sonner'
+import { ApiClientError } from '@/shared/api/client'
 
 const state = vi.hoisted(() => ({ route: {} as { path: string; params: { shortLinkId: string } } }))
 vi.mock('vue-router', () => ({ useRoute: () => state.route }))
@@ -36,7 +37,7 @@ function mount(extraPermissions: string[] = []) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
   clients.push(client)
   client.setQueryData(['auth', 'me'], { user: { id: 'A', username: 'A', group: 'user', permissions: ['short_link:export_statistics', 'short_link:read_own', 'short_link:read_all', 'admin:access', ...extraPermissions] } })
-  return render(AnalyticsPage, { global: { stubs: componentStubs, plugins: [[VueQueryPlugin, { queryClient: client }]] } })
+  return { client, ...render(AnalyticsPage, { global: { stubs: componentStubs, plugins: [[VueQueryPlugin, { queryClient: client }]] } }) }
 }
 /** Changes a range through the user's selector. */
 async function choose(value: string) {
@@ -61,6 +62,94 @@ describe('analytics date range', () => {
     clients.splice(0).forEach((client) => client.clear())
     vi.unstubAllGlobals()
     vi.useRealTimers()
+  })
+
+  it.each(['own', 'admin'])('isolates %s aggregate identity, late responses and live permission loss without requiring visit access', async (context) => {
+    if (context === 'admin') state.route.path = '/admin/link/link-id/analytics'
+    const read = vi.mocked(context === 'admin' ? getAdminShortLinkStatistics : getShortLinkStatistics)
+    const abandoned = createDeferred<ShortLinkStatisticsResponse>()
+    const current = createDeferred<ShortLinkStatisticsResponse>()
+    read.mockResolvedValueOnce(response()).mockImplementationOnce(() => abandoned.promise).mockImplementation(() => current.promise)
+    const { client } = mount()
+    await screen.findByText('https://go.example/link-id')
+    await choose('30')
+    await waitFor(() => expect(read).toHaveBeenCalledTimes(2))
+    client.setQueryData(['auth', 'me'], { user: { id: 'B', username: 'B', group: 'admin', permissions: ['admin:access', 'short_link:read_all', 'short_link:read_own'] } })
+    await waitFor(() => expect(read).toHaveBeenCalledTimes(3))
+    expect(screen.queryByText('https://go.example/link-id')).toBeNull()
+    abandoned.resolve(response('abandoned-account'))
+    await abandoned.promise
+    await Promise.resolve()
+    expect(screen.queryByText('https://go.example/abandoned-account')).toBeNull()
+    expect(screen.queryByTestId('analytics-summary')).toBeNull()
+    current.resolve(response('current-account'))
+    await screen.findByText('https://go.example/current-account')
+    client.setQueryData(['auth', 'me'], { user: { id: 'B', username: 'B', group: 'user', permissions: [] } })
+    await screen.findByText('insights.noAccess')
+    expect(screen.queryByText('https://go.example/current-account')).toBeNull()
+    expect(screen.queryByTestId('analytics-summary')).toBeNull()
+  })
+
+  it('hides the aggregate URL and old range after a confirmed business denial, including a deferred range return', async () => {
+    const fresh = createDeferred<ShortLinkStatisticsResponse>()
+    vi.mocked(getShortLinkStatistics).mockResolvedValueOnce(response()).mockRejectedValueOnce(new ApiClientError(120001, 'denied')).mockImplementation(() => fresh.promise)
+    mount()
+    await screen.findByText('https://go.example/link-id')
+    await choose('30')
+    await screen.findByText('insights.noAccess')
+    expect(screen.queryByText('https://go.example/link-id')).toBeNull()
+    await choose('7')
+    await waitFor(() => expect(getShortLinkStatistics).toHaveBeenCalledTimes(3))
+    expect(screen.queryByText('https://go.example/link-id')).toBeNull()
+    expect(screen.queryByTestId('analytics-summary')).toBeNull()
+    fresh.resolve(response('fresh-range'))
+    await screen.findByText('https://go.example/fresh-range')
+  })
+
+  it('keeps visits on the displayed resolved dates across UTC midnight and resets cursors when those dates change', async () => {
+    const id = '00000000-0000-0000-0000-000000000001'
+    state.route.params.shortLinkId = id
+    vi.mocked(getShortLinkStatistics).mockResolvedValue(response(id))
+    const fetcher = vi.fn(async (url: string) => {
+      const params = new URL(url, 'https://console.example').searchParams
+      const endDate = params.get('endDate') ?? new Date().toISOString().slice(0, 10)
+      const startDate = params.get('startDate') ?? (endDate === '2026-10-15' ? '2026-10-09' : '2026-10-10')
+      return new Response(JSON.stringify({ code: 0, message: 'OK', meta: {}, data: {
+        range: { startDate, endDate, timeZone: 'UTC' }, pageSize: 25, hasMore: true, nextCursor: 'next-visit',
+        items: [{ id, occurredAt: `${endDate}T00:00:00Z`, referrerHost: `${endDate}.example`, deviceType: null, browserFamily: null, osFamily: null, countryCode: null }],
+      } }))
+    })
+    vi.stubGlobal('fetch', fetcher)
+    const { client } = mount(['short_link:read_visits'])
+    const records = within(await screen.findByTestId('visit-records'))
+    await records.findByText('2026-10-15.example')
+    vi.setSystemTime(new Date('2026-10-16T00:01:00Z'))
+    await fireEvent.update(records.getByRole('combobox', { name: 'visits.device' }), 'mobile')
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2))
+    await records.findByText('insights.appliedRange 2026-10-09 2026-10-15')
+    expect(screen.getByText('analytics.rangeDescription 2026-10-09 2026-10-15')).toBeTruthy()
+    await fireEvent.update(records.getByLabelText('visits.country'), 'US')
+    await fireEvent.click(records.getByRole('button', { name: 'audit.applyFilters' }))
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(3))
+    await records.findByText('2026-10-15.example')
+    await fireEvent.click(records.getByRole('button', { name: 'insights.next' }))
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(4))
+    await records.findByText('2026-10-15.example')
+    for (const [url] of fetcher.mock.calls) {
+      const params = new URL(url, 'https://console.example').searchParams
+      expect(params.get('startDate')).toBe('2026-10-09')
+      expect(params.get('endDate')).toBe('2026-10-15')
+      expect(params.has('days')).toBe(false)
+    }
+    expect(new URL(fetcher.mock.calls.at(-1)![0], 'https://console.example').searchParams.get('cursor')).toBe('next-visit')
+    const aggregateKey = client.getQueryCache().find({ queryKey: ['short-link-statistics', 'own', id], exact: false })!.queryKey
+    client.setQueryData(aggregateKey, response(id, '2026-10-10', '2026-10-16'))
+    await records.findByText('2026-10-16.example')
+    const updated = new URL(fetcher.mock.calls.at(-1)![0], 'https://console.example').searchParams
+    expect(updated.get('startDate')).toBe('2026-10-10')
+    expect(updated.get('endDate')).toBe('2026-10-16')
+    expect(updated.has('cursor')).toBe(false)
+    expect((records.getByRole('button', { name: 'insights.previous' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('remounts visit records with a fresh read when parent statistics unmount them during A to B to A navigation', async () => {
@@ -243,7 +332,7 @@ describe('analytics date range', () => {
     await screen.findByTestId('analytics-summary')
     await choose('30')
     await waitFor(() => expect(getShortLinkStatistics).toHaveBeenCalledTimes(2))
-    await clients[0]!.refetchQueries({ queryKey: ['short-link-statistics', 'own', 'link-id', { days: 7 }], exact: true })
+    await clients[0]!.refetchQueries({ queryKey: ['short-link-statistics', 'own', 'link-id', { days: 7 }] })
     expect(getShortLinkStatistics).toHaveBeenLastCalledWith('link-id', { days: 7 })
   })
 })

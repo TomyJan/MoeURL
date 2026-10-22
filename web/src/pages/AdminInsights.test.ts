@@ -26,6 +26,26 @@ function mount(page: typeof AdminDashboardPage | typeof AdminAuditPage, permissi
 }
 afterEach(() => { clients.splice(0).forEach((client) => client.clear()); vi.unstubAllGlobals() })
 describe('administrator insight pages', () => {
+  it.each([401, 120001])('never revives a successful dashboard range after another range confirms denial %s', async (code) => {
+    const fresh = createDeferred<Response>()
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, message: 'OK', data: dashboard, meta: {} })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code, message: 'denied', data: null, meta: {} }), { status: code === 401 ? 401 : 200 }))
+      .mockImplementation(() => fresh.promise))
+    mount(AdminDashboardPage)
+    await screen.findByText('A deleted link')
+    await fireEvent.update(screen.getByRole('combobox', { name: 'analytics.dateRange' }), '30')
+    await screen.findByText('insights.noAccess')
+    expect(screen.queryByTestId('dashboard-summary')).toBeNull()
+    await fireEvent.update(screen.getByRole('combobox', { name: 'analytics.dateRange' }), '7')
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3))
+    expect(screen.queryByText('A deleted link')).toBeNull()
+    expect(screen.queryByTestId('dashboard-summary')).toBeNull()
+    expect(screen.getByRole('progressbar')).toBeTruthy()
+    fresh.resolve(new Response(JSON.stringify({ code: 0, message: 'OK', data: { ...dashboard, topLinks: [] }, meta: {} })))
+    await screen.findByText('dashboard.empty')
+    expect(screen.getByTestId('dashboard-summary')).toBeTruthy()
+  })
   it.each([['dashboard', AdminDashboardPage, dashboard], ['audit', AdminAuditPage, audit]] as const)('does not revive %s data after a page is destroyed and recreated', async (name, page, data) => {
     serve(data)
     const firstView = mount(page)

@@ -11,7 +11,7 @@
           :id="shortLinkId"
           :context="isAdminAnalytics ? 'admin' : 'own'"
           :statistics="statistics"
-          :blocked="query.isPending.value || query.isFetching.value || query.isError.value"
+          :blocked="!allowed || query.isPending.value || query.isFetching.value || query.isError.value"
           :applied-range-key="`${exportRevision}:${JSON.stringify(appliedRange)}`"
         />
       </div>
@@ -19,7 +19,8 @@
 
     <InsightRangePicker :key="shortLinkId" v-model="appliedRange" />
 
-    <v-alert v-if="query.isError.value" type="error" variant="tonal">
+    <v-alert v-if="denied" type="warning" variant="tonal">{{ t('insights.noAccess') }}</v-alert>
+    <v-alert v-else-if="query.isError.value" type="error" variant="tonal">
       <div class="analytics-page__error">
         <span>{{ t('analytics.loadFailed') }}</span>
         <v-btn color="error" size="small" variant="tonal" :loading="query.isFetching.value" @click="retry">{{ t('analytics.retry') }}</v-btn>
@@ -58,7 +59,7 @@
           <v-card-text v-else>{{ t('analytics.emptyDimension') }}</v-card-text>
         </v-card>
       </div>
-      <VisitRecordsPanel :id="shortLinkId" :context="isAdminAnalytics ? 'admin' : 'own'" :range="appliedRange" />
+      <VisitRecordsPanel :id="shortLinkId" :context="isAdminAnalytics ? 'admin' : 'own'" :range="{ startDate: statistics.range.startDate, endDate: statistics.range.endDate }" />
     </template>
   </section>
 </template>
@@ -76,6 +77,7 @@ import type { ShortLinkStatisticsResponse, StatisticsRangeInput } from '@/entiti
 import AnalyticsExportButton from '@/features/analytics-export/AnalyticsExportButton.vue'
 import VisitRecordsPanel from '@/features/visit-records/VisitRecordsPanel.vue'
 import InsightRangePicker from '@/features/insights/InsightRangePicker.vue'
+import { useInsightAccess, isInsightAccessError } from '@/shared/insights/useInsightAccess'
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip)
 
@@ -86,6 +88,7 @@ const trendCanvas = ref<globalThis.HTMLCanvasElement>()
 const shortLinkId = computed(() => typeof route.params.shortLinkId === 'string' ? route.params.shortLinkId : '')
 const isAdminAnalytics = computed(() => route.path.startsWith('/admin/link/'))
 const backTo = computed(() => isAdminAnalytics.value ? '/admin/link' : '/link')
+const { allowed, scope } = useInsightAccess(() => isAdminAnalytics.value ? ['admin:access', 'short_link:read_all'] : ['short_link:read_own'])
 const appliedRange = ref<StatisticsRangeInput>({ days: 7 })
 const exportRevision = ref(0)
 // Preserve intermediate transitions even when Vue batches a route round trip into one render.
@@ -94,13 +97,14 @@ watch(shortLinkId, () => {
   appliedRange.value = { days: 7 }
 }, { flush: 'sync' })
 const query = useQuery({
-  queryKey: computed(() => ['short-link-statistics', isAdminAnalytics.value ? 'admin' : 'own', shortLinkId.value, appliedRange.value] as const),
-  enabled: computed(() => shortLinkId.value !== ''),
+  queryKey: computed(() => ['short-link-statistics', isAdminAnalytics.value ? 'admin' : 'own', shortLinkId.value, appliedRange.value, scope.value, exportRevision.value] as const),
+  enabled: computed(() => allowed.value && shortLinkId.value !== ''),
   queryFn: ({ queryKey: [, context, id, range] }) => context === 'admin'
     ? getAdminShortLinkStatistics(id, range)
     : getShortLinkStatistics(id, range),
 })
-const statistics = computed<ShortLinkStatisticsResponse | undefined>(() => query.data.value)
+const denied = computed(() => !allowed.value || isInsightAccessError(query.error.value))
+const statistics = computed<ShortLinkStatisticsResponse | undefined>(() => !denied.value && !query.isError.value ? query.data.value : undefined)
 const chartColors = computed(() => ({
   primary: theme.global.current.value.colors.primary,
   text: theme.global.current.value.colors['on-surface-variant'],
