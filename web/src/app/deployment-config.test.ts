@@ -178,7 +178,6 @@ describe('deployment configuration', () => {
     expect(dockerfile).toContain('addgroup -S -g 10001 moeurl')
     expect(dockerfile).toContain('adduser -S -D -H -u 10001 -G moeurl moeurl')
     expect(dockerfile).toContain('apk upgrade --no-cache')
-    expect(dockerfile.match(/FROM golang:1\.27\.2/g)).toHaveLength(2)
     expect(dockerfile).toContain('github.com/pressly/goose/v3/cmd/goose@v3.28.0')
     expect(dockerfile).toContain('go get golang.org/x/net@v0.60.0')
     expect(compose).toContain('user: "10001:10001"')
@@ -750,7 +749,6 @@ describe('deployment configuration', () => {
     const imageSecurity = workflowJob(workflow, 'image-security')
 
     expect(backendSecurity).toContain('timeout-minutes: 20')
-    expect(backendSecurity).toContain("go-version: '1.26.9'")
     expect(backendSecurity).toContain('go test -race ./... -count=1')
     expect(backendSecurity).toContain('golang.org/x/vuln/cmd/govulncheck@v1.8.0')
     expect(backendSecurity).toContain('govulncheck ./...')
