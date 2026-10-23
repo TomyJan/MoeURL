@@ -3,7 +3,6 @@ package shortlink
 import (
 	"context"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
@@ -44,7 +43,7 @@ func (s *Service) Transfer(ctx context.Context, actor auth.CurrentUser, input Tr
 	}
 	id, err := uuid.Parse(input.ID)
 	expected, timeErr := time.Parse(time.RFC3339Nano, input.ExpectedUpdatedAt)
-	if err != nil || id == uuid.Nil || id.String() != input.ID || timeErr != nil || expected.IsZero() || input.NewOwnerUsername == "" || len(input.NewOwnerUsername) > 64 || strings.TrimSpace(input.NewOwnerUsername) != input.NewOwnerUsername {
+	if err != nil || id == uuid.Nil || id.String() != input.ID || timeErr != nil || expected.IsZero() || input.NewOwnerUsername == "" {
 		return TransferResult{}, ErrInvalidInput
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)

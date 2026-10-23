@@ -16,7 +16,7 @@ for (const width of [1280, 390]) {
     try {
       expect(await (await page.request.post('/api/v1/auth/login', { data: { username: e2eAdminUsername, password: e2eAdminPassword } })).json()).toMatchObject({ code: 0 })
       for (const role of ['original', 'recipient']) {
-        const username = `${role}-${suffix}`
+        const username = `${role === 'recipient' ? '中'.repeat(22) : role}-${suffix}`
         const account = await (await page.request.post('/api/v1/admin/user/create', { data: { username, password, nickname: role, groupKey: 'user', status: 'active' } })).json()
         expect(account.code).toBe(0)
         users.push(account.data.user)

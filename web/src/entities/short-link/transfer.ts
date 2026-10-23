@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { ApiClientError, apiPost } from '@/shared/api/client'
 
-export const transferUsernameSchema = z.string().min(1).refine(value => new TextEncoder().encode(value).length <= 64 && value.trim() === value)
+export const transferUsernameSchema = z.string().min(1)
 const id = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/).refine(value => value !== '00000000-0000-0000-0000-000000000000')
 const requestSchema = z.strictObject({ id, newOwnerUsername: transferUsernameSchema, expectedUpdatedAt: z.iso.datetime({ offset: true }) })
 const resultSchema = z.strictObject({ id, ownerId: id, updatedAt: z.iso.datetime({ offset: true }) })

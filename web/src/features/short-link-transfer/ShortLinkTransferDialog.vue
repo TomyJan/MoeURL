@@ -6,7 +6,7 @@
         <p class="transfer-url">{{ target.url }}</p>
         <p>{{ t('transfer.currentOwner', { username: target.owner.username }) }}</p>
         <v-alert type="warning" variant="tonal">{{ t('transfer.warning') }}</v-alert>
-        <v-text-field v-model="username" :label="t('transfer.recipient')" :error-messages="username && !validUsername ? t('transfer.invalidUsername') : ''" :disabled="mutation.isPending.value" autocomplete="off" variant="outlined" />
+        <v-text-field v-model="username" :label="t('transfer.recipient')" :disabled="mutation.isPending.value" autocomplete="off" variant="outlined" />
         <v-switch v-model="confirmed" :label="t('transfer.confirm')" :disabled="mutation.isPending.value" color="primary" />
       </v-card-text>
       <v-card-actions>

@@ -13,9 +13,15 @@ describe('ownership transfer API', () => {
     expect(fetcher.mock.calls[0]?.[0]).toBe('/api/v1/admin/short-link/transfer')
     expect(JSON.parse(fetcher.mock.calls[0]![1]!.body as string)).toEqual(input)
   })
-  it.each(['', ' recipient', 'recipient ', 'x'.repeat(65)])('rejects invalid account %j before sending', async (newOwnerUsername) => {
+  it.each(['中'.repeat(22), 'x'.repeat(70), ' recipient '])('preserves existing account username %j without normalization', async newOwnerUsername => {
+    const fetcher = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: result, meta: {} })))
+    vi.stubGlobal('fetch', fetcher)
+    expect(await transferShortLink({ ...input, newOwnerUsername })).toEqual(result)
+    expect(JSON.parse(fetcher.mock.calls[0]![1]!.body as string).newOwnerUsername).toBe(newOwnerUsername)
+  })
+  it('rejects an empty account before sending', async () => {
     vi.stubGlobal('fetch', vi.fn())
-    await expect(transferShortLink({ ...input, newOwnerUsername })).rejects.toBeInstanceOf(ApiClientError)
+    await expect(transferShortLink({ ...input, newOwnerUsername: '' })).rejects.toBeInstanceOf(ApiClientError)
     expect(fetch).not.toHaveBeenCalled()
   })
   it('rejects malformed responses and preserves business conflicts', async () => {

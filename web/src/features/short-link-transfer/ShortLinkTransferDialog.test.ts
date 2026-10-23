@@ -19,8 +19,8 @@ function mount() {
   return { ...render(ShortLinkTransferDialog, { props: { target }, global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: componentStubs } }), client }
 }
 /** Supplies an exact recipient and acknowledges the history handoff. */
-async function confirm() {
-  await fireEvent.update(screen.getByLabelText('transfer.recipient'), 'recipient')
+async function confirm(username = 'recipient') {
+  await fireEvent.update(screen.getByLabelText('transfer.recipient'), username)
   await fireEvent.click(screen.getByLabelText('transfer.confirm'))
 }
 /** Builds a valid response preserving the request's identity. */
@@ -35,7 +35,7 @@ describe('ownership transfer dialog', () => {
     await fireEvent.click(save)
     expect(fetch).not.toHaveBeenCalled()
     await confirm()
-    await fireEvent.update(screen.getByLabelText('transfer.recipient'), ' recipient')
+    await fireEvent.update(screen.getByLabelText('transfer.recipient'), '')
     expect(save.disabled).toBe(true)
     await fireEvent.update(screen.getByLabelText('transfer.recipient'), 'recipient')
     await fireEvent.click(save)
@@ -49,6 +49,14 @@ describe('ownership transfer dialog', () => {
     await waitFor(() => expect(view.emitted().close).toHaveLength(1))
     expect(toast.success).toHaveBeenCalledWith('transfer.success')
     expect(fetch).toHaveBeenCalledTimes(1)
+  })
+  it.each(['中'.repeat(22), 'x'.repeat(70), ' recipient '])('submits an existing account username %j exactly', async username => {
+    vi.stubGlobal('fetch', vi.fn(async () => response()))
+    const view = mount()
+    await confirm(username)
+    await fireEvent.click(screen.getByRole('button', { name: 'transfer.save' }))
+    await waitFor(() => expect(view.emitted().close).toHaveLength(1))
+    expect(JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string).newOwnerUsername).toBe(username)
   })
   it.each([200116, 200117, 900000])('handles %s without retrying or losing an ordinary-error draft', async code => {
     vi.stubGlobal('fetch', vi.fn(async () => response(code)))

@@ -10,6 +10,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
+	"github.com/TomyJan/MoeURL/internal/user"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -81,6 +82,27 @@ func TestTransfer(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TestTransferExistingRecipientUsernames preserves the account-creation contract and exact lookup.
+func TestTransferExistingRecipientUsernames(t *testing.T) {
+	for _, username := range []string{strings.Repeat("中", 22), strings.Repeat("a", 70), " recipient "} {
+		t.Run(username, func(t *testing.T) {
+			pool, service, actor, _, _, input := transferFixture(t)
+			created, err := user.NewService(pool, permission.NewDatabaseService(pool)).Create(t.Context(), actor, user.CreateInput{
+				Username: username, Password: "recipient-password", Nickname: "Recipient", GroupKey: "user", Status: "active",
+			})
+			require.NoError(t, err)
+			require.Equal(t, username, created.User.Username)
+			input.NewOwnerUsername = username
+			result, err := service.Transfer(t.Context(), actor, input)
+			require.NoError(t, err)
+			require.Equal(t, created.User.ID, result.OwnerID)
+			var stored string
+			require.NoError(t, pool.QueryRow(t.Context(), `select owner_id::text from short_link where id=$1`, input.ID).Scan(&stored))
+			require.Equal(t, created.User.ID, stored)
+		})
+	}
+}
+
 // TestTransferGuards rejects stale roles, invalid receivers, malformed input and deleted links.
 func TestTransferGuards(t *testing.T) {
 	pool, service, actor, owner, recipient, input := transferFixture(t)
@@ -90,8 +112,6 @@ func TestTransferGuards(t *testing.T) {
 		func(v *shortlink.TransferInput) { v.ExpectedUpdatedAt = "bad" },
 		func(v *shortlink.TransferInput) { v.ExpectedUpdatedAt = "0001-01-01T00:00:00Z" },
 		func(v *shortlink.TransferInput) { v.NewOwnerUsername = "" },
-		func(v *shortlink.TransferInput) { v.NewOwnerUsername = " recipient " },
-		func(v *shortlink.TransferInput) { v.NewOwnerUsername = strings.Repeat("a", 65) },
 	} {
 		bad := input
 		mutate(&bad)

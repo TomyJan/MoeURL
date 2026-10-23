@@ -614,7 +614,7 @@ export const messages = {
     transfer: {
       action: '转移归属', title: '转移短链归属', currentOwner: '当前所有者：{username}',
       warning: '公开地址和访问配置保持不变。新所有者将获得此短链的管理权和全部历史统计，原所有者将失去个人管理与统计权限。',
-      recipient: '接收账号的准确用户名', invalidUsername: '请输入 1–64 字节的用户名，不得包含首尾空格。',
+      recipient: '接收账号的准确用户名',
       confirm: '我已核对接收账号，并确认移交管理权及历史统计', cancel: '取消', save: '确认转移',
       success: '短链归属已转移', conflict: '短链已被修改，请刷新后重新打开并确认。',
       recipientUnavailable: '接收账号不存在、已停用或不支持接收短链。', failed: '转移失败，请稍后重试。',
@@ -1306,7 +1306,7 @@ export const messages = {
     transfer: {
       action: 'Transfer ownership', title: 'Transfer short-link ownership', currentOwner: 'Current owner: {username}',
       warning: 'The public URL and access settings stay unchanged. The recipient receives management access and all historical statistics; the previous owner loses personal management and statistics access.',
-      recipient: 'Exact recipient username', invalidUsername: 'Enter a username of 1–64 bytes without leading or trailing spaces.',
+      recipient: 'Exact recipient username',
       confirm: 'I verified the recipient and approve transferring management and historical statistics', cancel: 'Cancel', save: 'Confirm transfer',
       success: 'Short-link ownership transferred', conflict: 'The short link changed. Refresh and reopen to confirm again.',
       recipientUnavailable: 'The recipient does not exist, is disabled, or cannot receive short links.', failed: 'Transfer failed. Please try again later.',
