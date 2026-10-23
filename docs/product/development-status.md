@@ -50,13 +50,13 @@
 
 以下只汇总已有记录，不表示本次文档整理重新运行了业务门禁。
 
-各版本未完成门禁均指对应候选及环境。以下远端状态于 2026-10-23 15:23（UTC+08:00）复核；主分支、PR 与历史候选分别记录，历史成功结果不替代当前失败或尚未运行的新提交。
+各版本未完成门禁均指对应候选及环境。以下远端状态于 2026-10-23 19:14（UTC+08:00）复核；主分支、PR 与历史候选分别记录，历史成功结果不替代当前失败或尚未运行的新提交。
 
 | 证据范围 | 已记录结果 | 不能替代的验证 |
 | --- | --- | --- |
 | 当前主分支 `5a1d9761` | [Check Code #39830070001](https://github.com/TomyJan/MoeURL/actions/runs/39830070001) 8 项成功，`Backend Security` 的 `Race tests` 步骤失败，整体结论为 failure。 | 尚无该主分支提交完整 CI 通过的证据；历史 `c4928a85` 的成功及后续 PR 的成功均不改写此次失败。 |
-| PR #211 远端 `6ca648f4` | [Check Code #39913556898](https://github.com/TomyJan/MoeURL/actions/runs/39913556898) 的 `Test / Backend tests` 因 Docker 探测超时及本地数据库回退失败，其余 8 项成功。历史 `44f187cf` 的 [#39907869249](https://github.com/TomyJan/MoeURL/actions/runs/39907869249) 全部 9 项成功仍保留原归属。 | 本轮工作树限制普通 Go／race 包级并行度并强制 Docker；修复后远端目标 CI 待验证。PR 尚未合并或发布，不用历史成功覆盖当前失败或替代生产验收。 |
-| [v0.19.0 本地验收](../implementation/v0.19.0-acceptance.md) | 原候选 `c9f5a0b5` 已通过全仓 Go／100% 业务覆盖率、SQLC 零漂移、vet、完整 Linux race、1276 项前端测试／四项 100%、70 项 E2E、production smoke 及精确镜像扫描。`b02f3366` 修复后本地 1279 项前端测试／四项 100%、lint／类型／构建及 3 项定向 Compose 浏览器验证通过。本轮 CI 修复工作树补跑完整 Linux Go／race、100% 业务覆盖率、vet 与 actionlint，均通过，独立复审无新问题。 | 本轮 CI／文档修复未重跑前端、完整 Playwright、production smoke 或安全扫描；修复后远端 CI 仍待验证。真实外部 OIDC、生产恢复／升级回退仍需目标环境证据。 |
+| PR #211 远端 `b28ecf27` | [Check Code #39919076100](https://github.com/TomyJan/MoeURL/actions/runs/39919076100) 的普通 Go、后端覆盖率及 Backend Security 已通过；前端测试和前端覆盖率因旧 race 命令字符串断言失败，其余 7 个 job 成功。历史 `6ca648f4` 的 Docker 探测失败和 `44f187cf` 的 CI 成功仍保留原归属。 | 本轮仅删除这条脆弱文本断言；修复后远端目标 CI 待验证。PR 尚未合并或发布，不用历史成功覆盖当前失败或替代生产验收。 |
+| [v0.19.0 本地验收](../implementation/v0.19.0-acceptance.md) | 原候选 `c9f5a0b5` 已通过全仓 Go／100% 业务覆盖率、SQLC 零漂移、vet、完整 Linux race、1276 项前端测试／四项 100%、70 项 E2E、production smoke 及精确镜像扫描。`b02f3366` 修复后本地 1279 项前端测试／四项 100%、lint／类型／构建及 3 项定向 Compose 浏览器验证通过。`b28ecf27` 的 CI 修复已补跑完整 Linux Go／race、100% 业务覆盖率、vet 与 actionlint，独立复审无新问题；本轮删除脆弱部署断言后，完整前端测试与覆盖率均 1279 项通过、四项 100%，lint／类型检查通过。 | 本轮未重跑完整 Playwright、production smoke 或安全扫描；删除断言后的远端 CI 仍待验证。真实外部 OIDC、生产恢复／升级回退仍需目标环境证据。 |
 | [v0.8.0 验收](../implementation/v0.8.0-acceptance.md) | 合并提交 `f818a7e8` 对应 CI、Linux race、安全扫描、Playwright 与 Compose smoke 通过。 | 该历史提交的结果不能替代当前 master；真实 DNS/TLS、隔离恢复和发布验收仍缺。 |
 | [v0.9.0 验收](../implementation/v0.9.0-acceptance.md) | 系统设置功能及指定提交的 Go、前端、生成物和配置验证已有记录。 | 保留该版本验收中的未勾选项，不用后续 UI 测试回填。 |
 | [v0.10.0 验收](../implementation/v0.10.0-acceptance.md)、[v0.11.0 验收](../implementation/v0.11.0-acceptance.md) | 后端、前端、SQLC、权限 fixture 及本地数据库浏览器流程已有分阶段证据。 | 完整容器、当前提交的目标 CI／Linux race／安全扫描及生产升级恢复证据待补。 |
