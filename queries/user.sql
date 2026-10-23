@@ -94,3 +94,21 @@ update app_user
 set password_hash = $2,
 	updated_at = now()
 where id = $1 and deleted_at is null and builtin = false;
+
+-- name: LockGroupChangeUsers :many
+select * from app_user
+where id = any(sqlc.arg(ids)::uuid[])
+order by id for update;
+
+-- name: GetGroupChangeGroup :one
+select * from user_group where key = $1 for share;
+
+-- name: ChangeAppUserGroup :one
+update app_user set group_id=$2,
+    updated_at=greatest(clock_timestamp(),updated_at+interval '1 microsecond')
+where id=$1 and deleted_at is null and builtin=false
+returning *;
+
+-- name: RevokeGroupChangeSessions :exec
+update session set revoked_at=clock_timestamp()
+where user_id=$1 and revoked_at is null;

@@ -156,7 +156,9 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.OIDCProvider = oidc.NewProviderServiceWithLoginPolicy(pool, permissionService, discoverer, secretBox, cfg.PublicBaseURL, cfg.Env == "development", loginPolicy)
 		deps.AnalyticsCountryHeader = cfg.AnalyticsCountryHeader
 		deps.SecureCookies = cfg.Env == "production"
-		deps.User = user.NewService(pool, permissionService)
+		userService := user.NewService(pool, permissionService)
+		deps.User = userService
+		deps.UserMembership = userService
 		deps.UserPreferences = user.NewPreferencesService(pool)
 		deps.UserGroup = usergroup.NewService(pool, permissionService)
 

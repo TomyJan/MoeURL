@@ -11,6 +11,36 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const changeAppUserGroup = `-- name: ChangeAppUserGroup :one
+update app_user set group_id=$2,
+    updated_at=greatest(clock_timestamp(),updated_at+interval '1 microsecond')
+where id=$1 and deleted_at is null and builtin=false
+returning id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at, deleted_at
+`
+
+type ChangeAppUserGroupParams struct {
+	ID      pgtype.UUID `json:"id"`
+	GroupID pgtype.UUID `json:"group_id"`
+}
+
+func (q *Queries) ChangeAppUserGroup(ctx context.Context, arg ChangeAppUserGroupParams) (AppUser, error) {
+	row := q.db.QueryRow(ctx, changeAppUserGroup, arg.ID, arg.GroupID)
+	var i AppUser
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Nickname,
+		&i.GroupID,
+		&i.Status,
+		&i.Builtin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const countAppUsers = `-- name: CountAppUsers :one
 select count(*)::bigint
 from app_user
@@ -144,6 +174,26 @@ func (q *Queries) GetAppUserMetaByID(ctx context.Context, id pgtype.UUID) (GetAp
 	row := q.db.QueryRow(ctx, getAppUserMetaByID, id)
 	var i GetAppUserMetaByIDRow
 	err := row.Scan(&i.ID, &i.Builtin, &i.DeletedAt)
+	return i, err
+}
+
+const getGroupChangeGroup = `-- name: GetGroupChangeGroup :one
+select id, key, name, description, permissions, builtin, created_at, updated_at from user_group where key = $1 for share
+`
+
+func (q *Queries) GetGroupChangeGroup(ctx context.Context, key string) (UserGroup, error) {
+	row := q.db.QueryRow(ctx, getGroupChangeGroup, key)
+	var i UserGroup
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Name,
+		&i.Description,
+		&i.Permissions,
+		&i.Builtin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 
@@ -315,6 +365,53 @@ func (q *Queries) ListBuiltinUserGroups(ctx context.Context) ([]UserGroup, error
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockGroupChangeUsers = `-- name: LockGroupChangeUsers :many
+select id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at, deleted_at from app_user
+where id = any($1::uuid[])
+order by id for update
+`
+
+func (q *Queries) LockGroupChangeUsers(ctx context.Context, ids []pgtype.UUID) ([]AppUser, error) {
+	rows, err := q.db.Query(ctx, lockGroupChangeUsers, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AppUser{}
+	for rows.Next() {
+		var i AppUser
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.PasswordHash,
+			&i.Nickname,
+			&i.GroupID,
+			&i.Status,
+			&i.Builtin,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const revokeGroupChangeSessions = `-- name: RevokeGroupChangeSessions :exec
+update session set revoked_at=clock_timestamp()
+where user_id=$1 and revoked_at is null
+`
+
+func (q *Queries) RevokeGroupChangeSessions(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, revokeGroupChangeSessions, userID)
+	return err
 }
 
 const updateAppUserNickname = `-- name: UpdateAppUserNickname :one

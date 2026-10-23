@@ -34,6 +34,12 @@ type UpdateInput struct {
 	Status   string
 }
 
+type ChangeGroupInput struct {
+	ID                string `json:"id"`
+	GroupKey          string `json:"groupKey"`
+	ExpectedUpdatedAt string `json:"expectedUpdatedAt"`
+}
+
 type UpdateResult struct {
 	User UserSummary `json:"user"`
 }
