@@ -18,7 +18,7 @@ const consumers = [
   { name: 'update', call: () => updateShortLink({ id: baseLink.id, visitLimit: { mode: 'limited', maxVisits: 5 } }), data: (link: unknown) => ({ shortLink: link }) },
   { name: 'admin update', call: () => updateAdminShortLink({ id: baseLink.id, visitLimit: { mode: 'unlimited' } }), data: (link: unknown) => ({ shortLink: link }) },
   { name: 'list', call: () => listShortLinks(), data: (link: unknown) => ({ items: [link] }) },
-  { name: 'admin list', call: () => listAdminShortLinks(), data: (link: unknown) => ({ items: [{ ...(link as object), owner: { id: 'owner-id', username: 'alice', nickname: 'Alice' } }] }) },
+  { name: 'admin list', call: () => listAdminShortLinks(), data: (link: unknown) => ({ items: [{ ...(link as object), updatedAt: '2026-10-23T00:00:00.123456Z', owner: { id: 'owner-id', username: 'alice', nickname: 'Alice' } }] }) },
   { name: 'statistics', call: () => getShortLinkStatistics(baseLink.id), data: (link: unknown) => ({ shortLink: link, stats, range }) },
   { name: 'admin statistics', call: () => getAdminShortLinkStatistics(baseLink.id), data: (link: unknown) => ({ shortLink: link, stats, range }) },
 ]

@@ -30,6 +30,7 @@ export const shortLinkSchema = z.strictObject({
 }).refine(consistentVisitLimit, 'Inconsistent visit quota')
 
 export const adminShortLinkSchema = shortLinkSchema.safeExtend({
+  updatedAt: timestampSchema,
   owner: z.strictObject({ id: z.string().min(1), username: z.string(), nickname: z.string() }),
 })
 export const shortLinkResponseSchema = z.strictObject({ shortLink: shortLinkSchema })

@@ -31,7 +31,7 @@ describe('short link api', () => {
       ...accessAndQuota,
       id: `link-${index}`, url: `https://go.example.com/abc12${index}`, slug: `abc12${index}`,
       targetUrl, status: 'active',
-      ...(role === 'administrator' ? { owner: { id: 'owner-id', username: 'alice', nickname: 'Alice' } } : {}),
+      ...(role === 'administrator' ? { updatedAt: '2026-10-23T00:00:00.123456Z', owner: { id: 'owner-id', username: 'alice', nickname: 'Alice' } } : {}),
     }))
     const meta = { page: 1, pageSize: 20, total: items.length }
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
@@ -488,6 +488,7 @@ describe('short link api', () => {
                   createdAt: '2026-07-02T00:00:00Z',
                   stats: { visitCount: 3, todayVisitCount: 2, lastVisitedAt: null },
                   owner: { id: 'owner-id', username: 'alice', nickname: 'Alice' },
+                  updatedAt: '2026-10-23T00:00:00.123456Z',
                 },
               ],
             },

@@ -76,6 +76,7 @@
               <v-list density="compact" role="menu" :aria-label="t('links.actions.more')">
                 <v-list-item role="menuitem" :href="link.url" target="_blank" rel="noreferrer">{{ t('links.actions.open') }}</v-list-item>
                 <v-list-item tag="div" role="menuitem" :disabled="writeDisabled" :aria-disabled="writeDisabled" @click="$emit('configure', link)">{{ t('links.actions.configure') }}</v-list-item>
+                <v-list-item v-if="canTransfer" tag="div" role="menuitem" :disabled="writeDisabled" :aria-disabled="writeDisabled" @click="$emit('transfer', link)">{{ t('transfer.action') }}</v-list-item>
                 <v-list-item tag="div" role="menuitem" @click="$emit('qr', link)">{{ t('links.actions.qrCode') }}</v-list-item>
                 <v-list-item tag="div" role="menuitem" :disabled="writeDisabled || updatingId === link.id" :aria-disabled="writeDisabled || updatingId === link.id" @click="$emit('toggleStatus', link)">{{ t(link.status === 'active' ? 'links.actions.disable' : 'links.actions.enable') }}</v-list-item>
                 <v-list-item tag="div" role="menuitem" class="text-error" :disabled="writeDisabled || deletingId === link.id" :aria-disabled="writeDisabled || deletingId === link.id" @click="$emit('remove', link.id)">{{ t('links.actions.delete') }}</v-list-item>
@@ -138,10 +139,12 @@ const props = withDefaults(defineProps<{
   indeterminate?: boolean
   selectionDisabled?: boolean
   writeDisabled?: boolean
+  canTransfer?: boolean
 }>(), { analyticsScope: 'own', deletingId: undefined, updatingId: undefined, selectable: false, selectedIds: () => [], allSelected: false, indeterminate: false, selectionDisabled: false, writeDisabled: false })
 
 defineEmits<{
   configure: [link: ConsoleLinkListItem]
+  transfer: [link: ConsoleLinkListItem]
   copy: [url: string]
   qr: [link: ConsoleLinkListItem]
   remove: [id: string]

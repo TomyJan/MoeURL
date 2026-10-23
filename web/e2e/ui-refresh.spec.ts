@@ -164,6 +164,7 @@ for (const width of [1440, 360]) {
       }
       const adminLink: AdminShortLink = {
         ...ownLink, id: 'admin-link', slug: 'all123', url: 'https://go.example.com/all123',
+        updatedAt: '2026-10-23T00:00:00.123456Z',
         owner: { id: 'other-user', username: 'alice', nickname: 'Alice' },
       }
       const statistics: ShortLinkStatisticsResponse['stats'] = {
