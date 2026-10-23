@@ -179,6 +179,10 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 
 ## 5. API 约定
 
+### v0.19.0 用户组成员迁移
+
+新增 `POST /api/v1/admin/user/change-group`，请求为 `id`、`groupKey`（user／admin）及 `expectedUpdatedAt`，成功返回 `data.user`。沿用管理权限边界，事务内锁定并重查当前操作者和目标；保护 builtin／自身，同组 no-op，真实改组撤销目标全部旧会话并与 group_id 审计原子提交。用户列表／修改结果时间改为 RFC3339Nano，保留数据库版本精度。300105 表示用户版本冲突，300106 表示不允许改自己的组；300104 仍为账号偏好冲突。只接受单个 JSON 对象及已知字段，不新增表、migration 或依赖，具体见 [设计](../specs/2026-10-23-v0.19.0-user-group-membership-design.md)。
+
 ### 路径规范
 
 API 使用 `/api/v1` 前缀：
