@@ -25,7 +25,7 @@ import (
 )
 
 const localAdminDatabaseURL = "postgres://postgres:postgres@127.0.0.1:5433/postgres?sslmode=disable"
-const dockerProbeTimeout = 10 * time.Second
+const dockerProbeTimeout = 30 * time.Second
 const dockerContainerStartupTimeout = 60 * time.Second
 
 type cleanupErrorReporter interface {
@@ -222,7 +222,7 @@ func probeDockerDaemon() error {
 	dockerProbeOnce.Do(func() {
 		probeContext, cancelProbe := newDockerProbeContext()
 		defer cancelProbe()
-		if err := exec.CommandContext(probeContext, "docker", "info", "--format", "{{.ServerVersion}}").Run(); err != nil {
+		if err := exec.CommandContext(probeContext, "docker", "version", "--format", "{{.Server.Version}}").Run(); err != nil {
 			dockerProbeErr = fmt.Errorf("probe Docker daemon: %w", err)
 		}
 	})

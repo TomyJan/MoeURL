@@ -99,6 +99,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.Insights = insightService
 		deps.Audit = insightService
 		deps.ShortLinkBatch = shortLinkService
+		deps.ShortLinkTransfer = shortLinkService
 		recorder := event.NewRecorder(pool, logger)
 		redirectService := shortlink.NewRedirectService(pool, recorder)
 		deps.Redirect = redirectService

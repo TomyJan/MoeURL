@@ -34,10 +34,12 @@
         :all-selected="batch.allSelected.value"
         :indeterminate="batch.indeterminate.value"
         :selection-disabled="batch.unavailable.value"
-        :write-disabled="batch.pending.value"
+        :write-disabled="rowWriteBlocked"
+        :can-transfer="canTransfer"
         @select="batch.toggle"
         @select-all="batch.toggleAll"
         @configure="configureLink"
+        @transfer="beginTransfer"
         @copy="copyUrl"
         @qr="showQr"
         @remove="remove"
@@ -61,6 +63,7 @@
     :url="qrLink.url"
     @update:open="closeQr"
   />
+  <ShortLinkTransferDialog v-if="transferTarget" :target="transferTarget" @close="transferTarget = null" />
 </template>
 
 <script setup lang="ts">
@@ -79,10 +82,12 @@ import { useShortLinkFilters } from '@/shared/short-link/useShortLinkFilters'
 import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue'
 import { useShortLinkAccess, useShortLinkBatch } from '@/features/short-link-batch/useShortLinkBatch'
 import ShortLinkBatchToolbar from '@/features/short-link-batch/ShortLinkBatchToolbar.vue'
+import ShortLinkTransferDialog from '@/features/short-link-transfer/ShortLinkTransferDialog.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const access = useShortLinkAccess('admin')
+const transferTarget = ref<AdminShortLink | null>(null)
 const statusFilter = ref<'' | AdminShortLink['status']>('')
 const { searchKeyword, tagFilter, debouncedKeyword, debouncedTag, keywordInvalid, tagInvalid } = useShortLinkFilters()
 const statusOptions = computed(() => [
@@ -129,21 +134,30 @@ const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof va
 const batch = useShortLinkBatch({
   context: 'admin', access, ids: computed(() => links.value.map(link => link.id)),
   filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value]),
-  blocked: computed(() => query.isFetching.value || query.isPending.value || query.isError.value || keywordInvalid.value || tagInvalid.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null),
+  blocked: computed(() => query.isFetching.value || query.isPending.value || query.isError.value || keywordInvalid.value || tagInvalid.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || transferTarget.value !== null),
 })
+const rowWriteBlocked = computed(() => batch.pending.value || transferTarget.value !== null)
+const canTransfer = computed(() => access.canUpdate.value && query.isSuccess.value && !query.isFetching.value)
+
+/** Opens one immutable administrative link snapshot without overlapping other writes. */
+function beginTransfer(link: ConsoleLinkListItem) {
+  if (!canTransfer.value || rowWriteBlocked.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || !access.allows('update')) return
+  const target = links.value.find(value => value.id === link.id)
+  if (target) transferTarget.value = { ...target, owner: { ...target.owner } }
+}
 
 /** Prevents opening row settings while a batch is outstanding. */
-function configureLink(link: ConsoleLinkListItem) { if (!batch.pending.value) configure(link) }
+function configureLink(link: ConsoleLinkListItem) { if (!rowWriteBlocked.value) configure(link) }
 
 /** Toggles a short link through the administrative update mutation. */
 function toggleStatus(link: ConsoleLinkListItem) {
-  if (batch.pending.value) return
+  if (rowWriteBlocked.value) return
   statusMutation.mutate({ id: link.id, status: link.status === 'active' ? 'disabled' : 'active' })
 }
 
 /** Starts an administrative soft-delete for the selected short link. */
 function remove(id: string) {
-  if (batch.pending.value) return
+  if (rowWriteBlocked.value) return
   deleteMutation.mutate(id)
 }
 

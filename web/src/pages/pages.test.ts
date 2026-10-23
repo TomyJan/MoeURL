@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/vue'
 import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { isRef, nextTick, ref } from 'vue'
+import { computed, isRef, nextTick, ref } from 'vue'
 
 import AdminLinksPage from './AdminLinksPage.vue'
 import AdminUsersPage from './AdminUsersPage.vue'
@@ -231,6 +231,7 @@ function setQueryResult(value: Partial<{
     isFetching: value.isFetching ?? ref(false),
     isLoading: value.isLoading ?? ref(false),
     isPending: value.isPending ?? ref(false),
+    isSuccess: computed(() => !value.isError?.value && !value.isPending?.value),
     refetch: value.refetch ?? vi.fn(),
   }
 }
@@ -244,6 +245,7 @@ function setQueryResults(...values: Array<Parameters<typeof setQueryResult>[0]>)
     isFetching: value.isFetching ?? ref(false),
     isLoading: value.isLoading ?? ref(false),
     isPending: value.isPending ?? ref(false),
+    isSuccess: computed(() => !value.isError?.value && !value.isPending?.value),
     refetch: value.refetch ?? vi.fn(),
   }))
 }
@@ -1749,7 +1751,7 @@ describe('pages', () => {
     expect(within(disabledRow).getByText('links.neverExpires')).toBeTruthy()
 
     await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.more' }))
-    expect(within(disabledRow).getAllByRole('menuitem')).toHaveLength(5)
+    expect(within(disabledRow).getAllByRole('menuitem')).toHaveLength(6)
     await fireEvent.click(within(disabledRow).getByRole('menuitem', { name: 'links.actions.qrCode' }))
     expect(screen.getByTestId('short-link-qr-dialog-stub').textContent).toContain('https://go.example.com/abc123')
     await fireEvent.click(screen.getByLabelText('short-link-qr-close'))

@@ -1,6 +1,6 @@
 # MoeURL 文档中心
 
-当前待合并功能为 [v0.19.0 用户组成员迁移](product/scope-v0.19.0.md)，已实现并创建 [PR #211](https://github.com/TomyJan/MoeURL/pull/211)，见 [设计](specs/2026-10-23-v0.19.0-user-group-membership-design.md)、[实施计划](implementation/v0.19.0-plan.md)、[任务](implementation/v0.19.0-tasks.md) 和 [验收](implementation/v0.19.0-acceptance.md)。主分支基线 `5a1d9761` 已包含 v0.18.0 及后续依赖更新；当前 CI 快照与历史本地门禁分别记录于 [开发进度](product/development-status.md)，不据此声明正式发布。
+当前主分支基线为 `c08b67b2`：[v0.19.0 用户组成员迁移](product/scope-v0.19.0.md) 已通过 [PR #211](https://github.com/TomyJan/MoeURL/pull/211) 合并，尚未正式发布，历史验证保留在 [验收](implementation/v0.19.0-acceptance.md)。下一步为独立分支上的 [v0.20.0 短链归属转移](product/scope-v0.20.0.md)，见 [设计](specs/2026-10-23-v0.20.0-link-ownership-design.md)、[计划](implementation/v0.20.0-plan.md)、[任务](implementation/v0.20.0-tasks.md) 与 [本版验收](implementation/v0.20.0-acceptance.md)。功能、本地门禁、目标 CI、合并和发布分别记录，不用旧提交证据替代新候选。
 
 主分支已合并 [全站统计、匿名访问明细与操作审计](product/scope-v0.18.0.md)。管理页为 `/admin/dashboard`、`/admin/audit`，访问明细保留在单短链分析页中；权限、隐私、事务与保留边界见 [设计](specs/2026-10-22-v0.18.0-analytics-audit-design.md)。分阶段本地门禁、候选树及剩余远端／发布验证分别记录在 [验收](implementation/v0.18.0-acceptance.md)，功能已通过 PR #208 合并为 `0f01a2e5`，尚未正式发布。
 
@@ -60,7 +60,11 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 23. [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)：确认新版本、跨模块、review 修复、CI 门禁和生产化任务的统一执行约定。
 24. [实施文档](implementation/)：查看工程计划、阶段任务和验收记录。
 
-## 最近合并：v0.18.0
+## 最近合并：v0.19.0
+
+[用户组成员迁移](product/scope-v0.19.0.md) 已通过 PR #211 合并为 `c08b67b2`，尚未正式发布。原候选和后续 CI 修复证据见 [验收](implementation/v0.19.0-acceptance.md)，不替代新合并提交目标 CI。
+
+## 此前合并：v0.18.0
 
 [全站统计、匿名访问明细与操作审计](product/scope-v0.18.0.md) 已通过 PR #208 合并为 `0f01a2e5`，尚未正式发布。原分支统一终审修复与本地验证保持原候选归属。查询权限、隐私和事务原子性见 [设计](specs/2026-10-22-v0.18.0-analytics-audit-design.md)，执行与证据见 [计划](implementation/v0.18.0-plan.md)、[任务](implementation/v0.18.0-tasks.md) 和 [验收](implementation/v0.18.0-acceptance.md)。
 

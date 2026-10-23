@@ -1,4 +1,6 @@
-import { computed, defineComponent, ref, type Component } from 'vue'
+import { computed, defineComponent, inject, provide, ref, type Component, type InjectionKey, type SetupContext } from 'vue'
+
+const selectToggle: InjectionKey<(value: unknown) => void> = Symbol('selectToggle')
 
 export const componentStubs: Record<string, Component> = {
   AppToasts: { template: '<div />' },
@@ -15,15 +17,27 @@ export const componentStubs: Record<string, Component> = {
   VAppBar: { template: '<nav><slot /></nav>' },
   VAppBarTitle: { template: '<strong><slot /></strong>' },
   VBtn: {
-    props: ['color', 'disabled', 'href', 'loading', 'size', 'target', 'to', 'variant'],
+    props: ['color', 'disabled', 'href', 'loading', 'size', 'target', 'to', 'value', 'variant'],
     emits: ['click'],
-    template: '<button v-bind="$attrs" :disabled="disabled || loading" :data-href="href" :data-to="to" @click="$emit(\'click\')"><slot /></button>',
+    setup(props: Record<string, unknown>, { emit }: SetupContext) {
+      const select = inject(selectToggle, undefined)
+      /** Selects this button's value without relying on a second bubbling Vue listener. */
+      function click() {
+        select?.(props.value)
+        emit('click')
+      }
+      return { click }
+    },
+    template: '<button v-bind="$attrs" :disabled="disabled || loading" :value="value" :data-href="href" :data-to="to" @click="click"><slot /></button>',
   },
-	VBtnToggle: {
-		props: ['modelValue'],
-		emits: ['update:modelValue'],
-		template: '<div role="radiogroup" @click="$emit(\'update:modelValue\', $event.target.value)"><slot /></div>',
-	},
+  VBtnToggle: {
+    props: ['modelValue', 'disabled'],
+    emits: ['update:modelValue'],
+    setup(props: Record<string, unknown>, { emit }: SetupContext) {
+      provide(selectToggle, (value) => { if (!props.disabled) emit('update:modelValue', value) })
+    },
+    template: '<div role="radiogroup" :disabled="disabled"><slot /></div>',
+  },
   VCard: { template: '<section><slot /></section>' },
   VCardActions: { template: '<div><slot /></div>' },
   VCardTitle: { template: '<h2><slot /></h2>' },

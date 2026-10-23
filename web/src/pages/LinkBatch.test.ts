@@ -41,7 +41,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(me).mockResolvedValue({ user: user() })
   vi.mocked(listShortLinks).mockReset().mockResolvedValue({ items: links, meta: { page: 1, pageSize: 20, total: 2 } })
-  vi.mocked(listAdminShortLinks).mockReset().mockResolvedValue({ items: links.map(link => ({ ...link, owner: { id: 'A', username: 'A', nickname: '' } })), meta: { page: 1, pageSize: 20, total: 2 } })
+  vi.mocked(listAdminShortLinks).mockReset().mockResolvedValue({ items: links.map(link => ({ ...link, updatedAt: '2026-10-23T00:00:00.123456Z', owner: { id: 'A', username: 'A', nickname: '' } })), meta: { page: 1, pageSize: 20, total: 2 } })
   vi.mocked(batchShortLinks).mockReset().mockResolvedValue({ affectedCount: 1 })
 })
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()) })

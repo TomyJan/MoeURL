@@ -611,6 +611,14 @@ export const messages = {
       removedDraft: '此域名已被删除，当前草稿仍保留，但不能保存；请选择其他域名或新建域名并确认丢弃草稿。',
       reloadDraft: '重新载入最新配置', discardTitle: '丢弃当前草稿？', discardWarning: '未保存的修改将被丢弃。确认后才会载入所选域名的配置。', confirmDiscard: '丢弃并载入',
     },
+    transfer: {
+      action: '转移归属', title: '转移短链归属', currentOwner: '当前所有者：{username}',
+      warning: '公开地址和访问配置保持不变。新所有者将获得此短链的管理权和全部历史统计，原所有者将失去个人管理与统计权限。',
+      recipient: '接收账号的准确用户名',
+      confirm: '我已核对接收账号，并确认移交管理权及历史统计', cancel: '取消', save: '确认转移',
+      success: '短链归属已转移', conflict: '短链已被修改，请刷新后重新打开并确认。',
+      recipientUnavailable: '接收账号不存在、已停用或不支持接收短链。', failed: '转移失败，请稍后重试。',
+    },
     membership: {
       title: '调整用户组', group: '目标用户组', user: '普通用户', admin: '管理员', cancel: '取消',
       warning: '切换后将撤销此账号的所有旧登录会话，账号需要重新登录。已有短链和外部身份绑定不变。',
@@ -1294,6 +1302,14 @@ export const messages = {
       saved: 'Domain settings saved.', saveFailed: 'Operation failed. Check the settings and try again.', conflict: 'The server changed. Your draft is preserved; review and reload before saving again.',
       removedDraft: 'This domain was deleted. Your draft is preserved but cannot be saved; choose another domain or create one and confirm discarding the draft.',
       reloadDraft: 'Reload latest settings', discardTitle: 'Discard your draft?', discardWarning: 'Unsaved changes will be lost. Confirm to load the selected domain settings.', confirmDiscard: 'Discard and load',
+    },
+    transfer: {
+      action: 'Transfer ownership', title: 'Transfer short-link ownership', currentOwner: 'Current owner: {username}',
+      warning: 'The public URL and access settings stay unchanged. The recipient receives management access and all historical statistics; the previous owner loses personal management and statistics access.',
+      recipient: 'Exact recipient username',
+      confirm: 'I verified the recipient and approve transferring management and historical statistics', cancel: 'Cancel', save: 'Confirm transfer',
+      success: 'Short-link ownership transferred', conflict: 'The short link changed. Refresh and reopen to confirm again.',
+      recipientUnavailable: 'The recipient does not exist, is disabled, or cannot receive short links.', failed: 'Transfer failed. Please try again later.',
     },
     membership: {
       title: 'Change user group', group: 'Target group', user: 'User', admin: 'Administrator', cancel: 'Cancel',

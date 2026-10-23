@@ -88,6 +88,7 @@ export interface OwnerSummary {
 }
 
 export interface AdminShortLink extends ShortLink {
+  updatedAt: string
   owner: OwnerSummary
 }
 
