@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"mime"
@@ -70,7 +71,16 @@ func (h *GroupHandler) Change(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, ErrUserNotFound):
 		businessError(w, 300103, "User not found")
 	default:
-		h.logger.ErrorContext(r.Context(), "user_group_change_failed", "request_id", middleware.RequestIDFromContext(r.Context()))
+		category := "infrastructure"
+		switch {
+		case errors.Is(err, context.DeadlineExceeded):
+			category = "timeout"
+		case errors.Is(err, context.Canceled):
+			category = "canceled"
+		}
+		h.logger.ErrorContext(r.Context(), "user_group_change_failed",
+			"request_id", middleware.RequestIDFromContext(r.Context()),
+			"error_category", category, "error_type", fmt.Sprintf("%T", err))
 		writeJSON(w, http.StatusInternalServerError, response{Code: 900000, Message: "Internal server error", Data: nil, Meta: map[string]any{}})
 	}
 }

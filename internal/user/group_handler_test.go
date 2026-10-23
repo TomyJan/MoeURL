@@ -1,15 +1,21 @@
 package user_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log/slog"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	"github.com/TomyJan/MoeURL/internal/middleware"
 	"github.com/TomyJan/MoeURL/internal/user"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,6 +23,47 @@ type groupPort struct {
 	calls int
 	err   error
 	input user.ChangeGroupInput
+}
+
+// TestChangeGroupInfrastructureLogs classifies failures without exposing database diagnostics.
+func TestChangeGroupInfrastructureLogs(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		err      error
+		category string
+	}{
+		{"timeout", context.DeadlineExceeded, "timeout"},
+		{"wrapped timeout", fmt.Errorf("private timeout detail: %w", context.DeadlineExceeded), "timeout"},
+		{"canceled", context.Canceled, "canceled"},
+		{"wrapped cancellation", fmt.Errorf("private cancellation detail: %w", context.Canceled), "canceled"},
+		{"database", &pgconn.PgError{Code: "08006", Message: "private database message", Detail: "private database detail", Where: "private query"}, "infrastructure"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var logs bytes.Buffer
+			service := &groupPort{err: tc.err}
+			handler := user.NewGroupHandler(service, slog.New(slog.NewJSONHandler(&logs, nil)))
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/admin/user/change-group", strings.NewReader(`{"id":"00000000-0000-0000-0000-000000000001","groupKey":"admin","expectedUpdatedAt":"2026-10-23T00:00:00.123456Z"}`))
+			request.Header.Set("Content-Type", "application/json")
+			request.Header.Set("X-Request-ID", "group-change-test")
+			response := httptest.NewRecorder()
+			middleware.RequestID(http.HandlerFunc(handler.Change)).ServeHTTP(response, request)
+
+			require.Equal(t, http.StatusInternalServerError, response.Code)
+			require.JSONEq(t, `{"code":900000,"message":"Internal server error","data":null,"meta":{}}`, response.Body.String())
+			require.Equal(t, 1, service.calls)
+			var entry map[string]any
+			require.NoError(t, json.Unmarshal(logs.Bytes(), &entry))
+			require.Equal(t, "ERROR", entry["level"])
+			require.Equal(t, "user_group_change_failed", entry["msg"])
+			require.Equal(t, "group-change-test", entry["request_id"])
+			require.Equal(t, tc.category, entry["error_category"])
+			require.Equal(t, fmt.Sprintf("%T", tc.err), entry["error_type"])
+			require.Len(t, entry, 6) // Timestamp plus only the five safe fields above.
+			for _, forbidden := range []string{tc.err.Error(), "08006", "private", "SQLSTATE"} {
+				require.NotContains(t, logs.String(), forbidden)
+			}
+		})
+	}
 }
 
 // ChangeGroup records the actual HTTP payload at the service boundary.
