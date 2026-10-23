@@ -36,8 +36,8 @@ importers:
         specifier: ^2.0.9
         version: 2.0.9
       vuetify:
-        specifier: ^4.2.6
-        version: 4.2.6(typescript@6.0.3)(vue-i18n@11.4.16(vue@3.5.44(typescript@6.0.3)))(vue@3.5.44(typescript@6.0.3))
+        specifier: ^4.3.0
+        version: 4.3.0(typescript@6.0.3)(vue-i18n@11.4.16(vue@3.5.44(typescript@6.0.3)))(vue@3.5.44(typescript@6.0.3))
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -677,8 +677,8 @@ packages:
       '@vue/server-renderer':
         optional: true
 
-  '@vuetify/v0@1.2.3':
-    resolution: {integrity: sha512-8qpYa88KxKrvi4jQcz+Zg4WH04un48Lt7Tj0Qq+LqvbUvHi+H177vWqBn9tQWgpxBVs1RXrTz5zw0Cy6txJHlw==}
+  '@vuetify/v0@1.2.4':
+    resolution: {integrity: sha512-OPdNLwFDTUb0d0KnlNTo24uba/l+xlKOgEqNsoH/Q+AwnOGif2DpNZCMu6NZVpgppFkcx6sw3ZYUOlc9HQLzuA==}
     peerDependencies:
       '@adobe/leonardo-contrast-colors': '>=1.0.0'
       '@ant-design/colors': '>=7.0.0'
@@ -2046,8 +2046,8 @@ packages:
       typescript:
         optional: true
 
-  vuetify@4.2.6:
-    resolution: {integrity: sha512-W91vPxyJT7Br2wc3Iu2fUzC1YRZCTGxtrvywxnf7vGZF6Cfz2QvTvKvXmwMreie8oCHW6kA9yw7auCgQuwBUjQ==}
+  vuetify@4.3.0:
+    resolution: {integrity: sha512-tQpJ/2oKCNeZQb7p3PpwGVca4B9IFUp4LuTpE/bOZ/lIC4U74EJxtriMdB8xj0wtZx40PFGbHPrdfJzZg1FX0A==}
     peerDependencies:
       typescript: '>=4.7'
       vite-plugin-vuetify: '>=2.1.0'
@@ -2747,7 +2747,7 @@ snapshots:
     optionalDependencies:
       '@vue/server-renderer': 3.5.44
 
-  '@vuetify/v0@1.2.3(vue-i18n@11.4.16(vue@3.5.44(typescript@6.0.3)))(vue@3.5.44(typescript@6.0.3))':
+  '@vuetify/v0@1.2.4(vue-i18n@11.4.16(vue@3.5.44(typescript@6.0.3)))(vue@3.5.44(typescript@6.0.3))':
     dependencies:
       vue: 3.5.44(typescript@6.0.3)
     optionalDependencies:
@@ -4017,9 +4017,9 @@ snapshots:
     optionalDependencies:
       typescript: 6.0.3
 
-  vuetify@4.2.6(typescript@6.0.3)(vue-i18n@11.4.16(vue@3.5.44(typescript@6.0.3)))(vue@3.5.44(typescript@6.0.3)):
+  vuetify@4.3.0(typescript@6.0.3)(vue-i18n@11.4.16(vue@3.5.44(typescript@6.0.3)))(vue@3.5.44(typescript@6.0.3)):
     dependencies:
-      '@vuetify/v0': 1.2.3(vue-i18n@11.4.16(vue@3.5.44(typescript@6.0.3)))(vue@3.5.44(typescript@6.0.3))
+      '@vuetify/v0': 1.2.4(vue-i18n@11.4.16(vue@3.5.44(typescript@6.0.3)))(vue@3.5.44(typescript@6.0.3))
       vue: 3.5.44(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
