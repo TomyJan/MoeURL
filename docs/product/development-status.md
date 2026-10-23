@@ -54,7 +54,7 @@
 
 | 证据范围 | 已记录结果 | 不能替代的验证 |
 | --- | --- | --- |
-| [v0.19.0 验收](../implementation/v0.19.0-acceptance.md) | 候选 `c9f5a0b5` 已通过全仓 Go／100% 业务覆盖率、SQLC 零漂移、vet、完整 Linux race、1276 项前端测试／四项 100%、lint／类型／构建、70 项真实 Compose E2E、production smoke 及两份精确镜像扫描；独立审查无阻断。 | 独立分支尚未推送或合并，目标 CI 与正式发布未执行；真实外部 OIDC、生产恢复／升级回退仍需目标环境证据。 |
+| [v0.19.0 验收](../implementation/v0.19.0-acceptance.md) | 原候选 `c9f5a0b5` 已通过全仓 Go／100% 业务覆盖率、SQLC 零漂移、vet、完整 Linux race、1276 项前端测试／四项 100%、70 项 E2E、production smoke 及精确镜像扫描。当前 `b02f336` 修复身份加载竞态后，1279 项前端测试／四项 100%、lint／类型／构建及 3 项定向 Compose 浏览器验证通过，独立复审无新问题。 | 修复后未重跑完整 Playwright、全仓 Go、Linux race、production smoke 或安全扫描；原候选结果不替代这些证据。独立分支尚未推送或合并，目标 CI 与正式发布未执行；真实外部 OIDC、生产恢复／升级回退仍需目标环境证据。 |
 | [v0.8.0 验收](../implementation/v0.8.0-acceptance.md) | 合并提交 `f818a7e8` 对应 CI、Linux race、安全扫描、Playwright 与 Compose smoke 通过。 | 该历史提交的结果不能替代当前 master；真实 DNS/TLS、隔离恢复和发布验收仍缺。 |
 | [v0.9.0 验收](../implementation/v0.9.0-acceptance.md) | 系统设置功能及指定提交的 Go、前端、生成物和配置验证已有记录。 | 保留该版本验收中的未勾选项，不用后续 UI 测试回填。 |
 | [v0.10.0 验收](../implementation/v0.10.0-acceptance.md)、[v0.11.0 验收](../implementation/v0.11.0-acceptance.md) | 后端、前端、SQLC、权限 fixture 及本地数据库浏览器流程已有分阶段证据。 | 完整容器、当前提交的目标 CI／Linux race／安全扫描及生产升级恢复证据待补。 |
