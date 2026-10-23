@@ -1,9 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { defineComponent, type Component, type PropType } from 'vue'
+import { defineComponent, nextTick, type Component, type PropType, type SetupContext } from 'vue'
 import { componentStubs } from '@/test/component-stubs'
 import AdminLinksPage from './AdminLinksPage.vue'
+import { createDeferred } from '@/test/deferred'
 
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
@@ -46,6 +47,47 @@ describe('administrative ownership entry', () => {
   it('hides transfer without full update permission', async () => {
     mount(['admin:access', 'short_link:read_all']); await menu()
     expect(screen.queryByRole('menuitem', { name: 'transfer.action' })).toBeNull()
+  })
+  it('waits for the conflict refresh before offering a new ownership snapshot', async () => {
+    mount(); await menu()
+    const refreshed = createDeferred<Response>()
+    vi.mocked(fetch).mockImplementation(async url => String(url).endsWith('/transfer')
+      ? new Response(JSON.stringify({ code: 200116, message: 'Changed', data: null, meta: {} }))
+      : refreshed.promise)
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'transfer.action' }))
+    await fireEvent.update(screen.getByLabelText('transfer.recipient'), 'recipient')
+    await fireEvent.click(screen.getByLabelText('transfer.confirm'))
+    await fireEvent.click(screen.getByRole('button', { name: 'transfer.save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await fireEvent.click(screen.getByRole('button', { name: 'links.actions.more' }))
+    expect(screen.queryByRole('menuitem', { name: 'transfer.action' })).toBeNull()
+    refreshed.resolve(new Response(JSON.stringify({ code: 0, message: 'OK', data: { items: [{ ...link, owner: { ...link.owner, username: 'latest-owner' }, updatedAt: '2026-10-23T00:00:00.123457Z' }] }, meta: { total: 1 } })))
+    await fireEvent.click(await screen.findByRole('menuitem', { name: 'transfer.action' }))
+    await fireEvent.update(screen.getByLabelText('transfer.recipient'), 'recipient')
+    await fireEvent.click(screen.getByLabelText('transfer.confirm'))
+    vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { id: link.id, ownerId: actor.id, updatedAt: '2026-10-23T00:00:00.123458Z' }, meta: {} })))
+    await fireEvent.click(screen.getByRole('button', { name: 'transfer.save' }))
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith('/transfer'))).toHaveLength(2))
+    const requests = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith('/transfer'))
+    expect(JSON.parse(requests[1]![1]!.body as string).expectedUpdatedAt).toBe('2026-10-23T00:00:00.123457Z')
+  })
+  it('ignores a queued transfer while its list is refreshing', async () => {
+    let delayedTransfer!: () => void
+    const stub = { emits: ['transfer'], setup(_props: Record<string, unknown>, { emit }: SetupContext) {
+      delayedTransfer = () => emit('transfer', link)
+      return {}
+    }, template: '<div data-testid="queued-list" />' }
+    const view = mount(actor.permissions, undefined, stub)
+    await screen.findByTestId('queued-list')
+    const refreshed = createDeferred<Response>()
+    vi.mocked(fetch).mockImplementation(() => refreshed.promise)
+    const refreshing = view.client.invalidateQueries({ queryKey: ['admin-short-link'] })
+    await nextTick()
+    delayedTransfer()
+    await Promise.resolve()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    refreshed.resolve(new Response(JSON.stringify({ code: 0, message: 'OK', data: { items: [link] }, meta: { total: 1 } })))
+    await refreshing
   })
   it('does not overlap an existing settings editor', async () => {
     mount(); await menu()

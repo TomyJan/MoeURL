@@ -35,7 +35,7 @@
         :indeterminate="batch.indeterminate.value"
         :selection-disabled="batch.unavailable.value"
         :write-disabled="rowWriteBlocked"
-        :can-transfer="access.canUpdate.value"
+        :can-transfer="canTransfer"
         @select="batch.toggle"
         @select-all="batch.toggleAll"
         @configure="configureLink"
@@ -137,10 +137,11 @@ const batch = useShortLinkBatch({
   blocked: computed(() => query.isFetching.value || query.isPending.value || query.isError.value || keywordInvalid.value || tagInvalid.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || transferTarget.value !== null),
 })
 const rowWriteBlocked = computed(() => batch.pending.value || transferTarget.value !== null)
+const canTransfer = computed(() => access.canUpdate.value && query.isSuccess.value && !query.isFetching.value)
 
 /** Opens one immutable administrative link snapshot without overlapping other writes. */
 function beginTransfer(link: ConsoleLinkListItem) {
-  if (rowWriteBlocked.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || !access.allows('update')) return
+  if (!canTransfer.value || rowWriteBlocked.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || !access.allows('update')) return
   const target = links.value.find(value => value.id === link.id)
   if (target) transferTarget.value = { ...target, owner: { ...target.owner } }
 }
