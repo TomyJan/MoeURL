@@ -205,7 +205,7 @@ vi.mock('@tanstack/vue-query', async () => {
 
 /** Mounts a page component with the shared router and component stubs. */
 function mount(component: object) {
-  state.listAuth = component === MyLinksPage || component === AdminLinksPage || component === AnalyticsPage
+  state.listAuth = component === MyLinksPage || component === AdminLinksPage || component === AnalyticsPage || component === AdminUsersPage
   return render(component, {
     global: {
       // Export lifecycle has real QueryClient coverage in AnalyticsPage.test.ts.

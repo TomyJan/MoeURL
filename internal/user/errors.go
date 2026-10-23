@@ -8,4 +8,6 @@ var (
 	ErrInvalidInput         = errors.New("invalid input")
 	ErrUserNotFound         = errors.New("user not found")
 	ErrBuiltinUserImmutable = errors.New("builtin user immutable")
+	ErrVersionConflict      = errors.New("user version conflict")
+	ErrSelfGroupChange      = errors.New("cannot change own group")
 )

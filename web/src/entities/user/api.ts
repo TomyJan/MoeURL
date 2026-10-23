@@ -1,6 +1,17 @@
 import { apiGet, apiPost } from '@/shared/api/client'
 import type { CurrentUser } from '@/entities/auth/api'
 
+export interface ChangeUserGroupInput {
+  id: string
+  groupKey: 'user' | 'admin'
+  expectedUpdatedAt: string
+}
+
+/** Changes one account's group using the original full-precision version. */
+export async function changeUserGroup(input: ChangeUserGroupInput): Promise<UpdateUserResponse> {
+  return (await apiPost<UpdateUserResponse>('/admin/user/change-group', input)).data
+}
+
 export interface CreateUserInput {
   username: string
   password: string

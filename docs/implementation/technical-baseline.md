@@ -179,6 +179,10 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 
 ## 5. API 约定
 
+### v0.19.0 用户组成员迁移
+
+新增 `POST /api/v1/admin/user/change-group`，请求为 `id`、`groupKey`（user／admin）及 `expectedUpdatedAt`，成功返回 `data.user`。沿用管理权限边界，事务内锁定并重查当前操作者和目标；保护 builtin／自身，同组 no-op，真实改组撤销目标全部旧会话并与 group_id 审计原子提交。用户列表／修改结果时间改为 RFC3339Nano，保留数据库版本精度。300105 表示用户版本冲突，300106 表示不允许改自己的组；300104 仍为账号偏好冲突。只接受单个 JSON 对象及已知字段，不新增表、migration 或依赖，具体见 [设计](../specs/2026-10-23-v0.19.0-user-group-membership-design.md)。
+
 ### 路径规范
 
 API 使用 `/api/v1` 前缀：
@@ -640,6 +644,8 @@ node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100 --include-from=sc
 后端覆盖率门禁覆盖 `scripts/go-coverage-targets.txt` 中列出的业务源码文件，必须达到 100%。`scripts/go-coverage-excluded-blocks.txt` 只允许精确列出不可稳定触发或由数据模型保证不可达的代码块，例如事务中途基础设施失败、静态类型值的 JSON 编码失败。随机数失败、短码冲突重试和耗尽已有受控测试，不再排除。门禁必须拒绝未匹配的排除项，以及命中已执行代码块的排除项，避免旧坐标或多余豁免掩盖测试回退。数据库集成、进程入口和框架胶水仍通过 `go test ./...` 验证，但不作为业务源码覆盖率分母。
 
 数据库集成测试优先使用 Testcontainers，并在同一 Go 测试进程内复用一个 PostgreSQL 容器。每个测试必须创建并在清理阶段删除独立数据库，不能复用业务数据。当前本机 Docker 不可用时，测试基础设施允许回退到本地 PostgreSQL 管理库，默认地址为 `postgres://postgres:postgres@127.0.0.1:5433/postgres?sslmode=disable`；也可通过 `MOEURL_TEST_POSTGRES_ADMIN_URL` 覆盖。需要强制验证 Docker 路径时设置 `MOEURL_TEST_REQUIRE_DOCKER=1`，Docker daemon 不可用必须直接使测试失败，不得回退。
+
+CI 必须设置 `MOEURL_TEST_REQUIRE_DOCKER=1`。全仓普通测试执行 `go test -p=2 -count=1 ./...`，race 执行 `go test -race -p=2 -count=1 ./...`，覆盖率保持上述 `-p=1`；限制的是包级并行度，不跳过包、用例或并发行为断言，避免同时启动过多容器导致有界 Docker 探测超时。
 
 SQLC 生成文件必须使用文件头声明的版本重新生成，并保持零手工漂移。当前版本使用 SQLC `1.30.0`，可通过以下命令验证：
 

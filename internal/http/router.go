@@ -38,6 +38,7 @@ type Dependencies struct {
 	AnalyticsCountryHeader string
 	SecureCookies          bool
 	User                   user.Port
+	UserMembership         user.GroupPort
 	UserPreferences        user.PreferencesPort
 	UserGroup              usergroup.Port
 	OIDCProvider           oidc.ProviderPort
@@ -163,6 +164,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				businessAPI.Post("/admin/user/update", userHandler.Update)
 				businessAPI.Post("/user/profile/update", userHandler.UpdateProfile)
 				businessAPI.Post("/admin/user/reset-password", userHandler.ResetPassword)
+			}
+			if dependency.UserMembership != nil {
+				groupHandler := user.NewGroupHandler(dependency.UserMembership, logger)
+				businessAPI.Post("/admin/user/change-group", groupHandler.Change)
 			}
 			if dependency.UserPreferences != nil {
 				preferencesHandler := user.NewPreferencesHandler(dependency.UserPreferences, logger)

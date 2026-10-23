@@ -343,7 +343,7 @@ func formatTime(value pgtype.Timestamptz) string {
 	if !value.Valid {
 		return ""
 	}
-	return value.Time.UTC().Format(time.RFC3339)
+	return value.Time.UTC().Format(time.RFC3339Nano)
 }
 
 // uuidToPgtype converts a UUID to its PostgreSQL representation.

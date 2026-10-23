@@ -1,8 +1,10 @@
 # MoeURL 文档中心
 
-当前功能分支 `feat/v0.18.0-analytics-audit` 已实现 [全站统计、匿名访问明细与操作审计](product/scope-v0.18.0.md)。管理页为 `/admin/dashboard`、`/admin/audit`，访问明细保留在单短链分析页中；权限、隐私、事务与保留边界见 [设计](specs/2026-10-22-v0.18.0-analytics-audit-design.md)。分阶段本地门禁、候选树及剩余远端／发布验证分别记录在 [验收](implementation/v0.18.0-acceptance.md)，功能尚未推送、合并或正式发布。
+当前待合并功能为 [v0.19.0 用户组成员迁移](product/scope-v0.19.0.md)，已实现并创建 [PR #211](https://github.com/TomyJan/MoeURL/pull/211)，见 [设计](specs/2026-10-23-v0.19.0-user-group-membership-design.md)、[实施计划](implementation/v0.19.0-plan.md)、[任务](implementation/v0.19.0-tasks.md) 和 [验收](implementation/v0.19.0-acceptance.md)。主分支基线 `5a1d9761` 已包含 v0.18.0 及后续依赖更新；当前 CI 快照与历史本地门禁分别记录于 [开发进度](product/development-status.md)，不据此声明正式发布。
 
-整分支终审的统一修复已通过定向复审，范围往返、卸载重建、跨 UTC 午夜与父聚合身份隔离均有回归。原完整门禁候选 `721206c` 的前端、68 项 E2E、production smoke、精确镜像扫描及证据 ZIP 另行保留；当前实现候选 `e476f87d` 包含权限集合审计修复，已重跑后端门禁，尚未重跑前端、完整浏览器及镜像门禁，详见 v0.18.0 验收。
+主分支已合并 [全站统计、匿名访问明细与操作审计](product/scope-v0.18.0.md)。管理页为 `/admin/dashboard`、`/admin/audit`，访问明细保留在单短链分析页中；权限、隐私、事务与保留边界见 [设计](specs/2026-10-22-v0.18.0-analytics-audit-design.md)。分阶段本地门禁、候选树及剩余远端／发布验证分别记录在 [验收](implementation/v0.18.0-acceptance.md)，功能已通过 PR #208 合并为 `0f01a2e5`，尚未正式发布。
+
+整分支终审的统一修复已通过定向复审，范围往返、卸载重建、跨 UTC 午夜与父聚合身份隔离均有回归。原完整门禁候选 `721206c` 的前端、68 项 E2E、production smoke、精确镜像扫描及证据 ZIP 另行保留；原分支最后实现候选 `e476f87d` 包含权限集合审计修复，已重跑后端门禁，尚未重跑前端、完整浏览器及镜像门禁，详见 v0.18.0 验收。
 
 MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、技术基线和实施计划各自边界清晰，便于后续按阶段开发。
 
@@ -22,7 +24,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 [v0.16.0 聚合统计 CSV 导出](product/scope-v0.16.0.md) 已通过 PR #191 合并为 `bd4c2625`，未正式发布；仅导出单短链已应用 UTC 区间的匿名聚合。见 [设计](specs/2026-10-16-v0.16.0-analytics-export-design.md)、[实施计划](implementation/v0.16.0-plan.md)、[任务清单](implementation/v0.16.0-tasks.md) 与 [原分支验收记录](implementation/v0.16.0-acceptance.md)。
 
-[v0.17.0 短链批量管理](product/scope-v0.17.0.md) 已通过 PR #198 合并为 `3eda85de`，支持当前列表多选与最多 100 条的原子批量启停／软删除。当前主分支 `c4928a85` 包含后续依赖与 Go 证书安全修复，其完整目标 CI 9 项通过；功能合并和 CI 不等于正式发布。范围与实际证据见 [设计](specs/2026-10-16-v0.17.0-bulk-link-management-design.md)、[计划](implementation/v0.17.0-plan.md)、[任务清单](implementation/v0.17.0-tasks.md) 和 [验收记录](implementation/v0.17.0-acceptance.md)。
+[v0.17.0 短链批量管理](product/scope-v0.17.0.md) 已通过 PR #198 合并为 `3eda85de`，支持当前列表多选与最多 100 条的原子批量启停／软删除。历史主分支候选 `c4928a85` 包含当时的依赖与 Go 证书安全修复，其完整目标 CI 9 项通过；功能合并和历史 CI 不等于当前候选或正式发布通过。范围与实际证据见 [设计](specs/2026-10-16-v0.17.0-bulk-link-management-design.md)、[计划](implementation/v0.17.0-plan.md)、[任务清单](implementation/v0.17.0-tasks.md) 和 [验收记录](implementation/v0.17.0-acceptance.md)。
 
 2026-10-14 全站前端视觉更新沿用既有业务范围，设计见 [视觉与交互规范](specs/2026-10-14-ui-refresh-design.md)，执行与证据见 [实施计划](implementation/2026-10-14-ui-refresh-plan.md) 和 [本地验收](implementation/2026-10-14-ui-refresh-acceptance.md)。
 
@@ -58,9 +60,9 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 23. [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)：确认新版本、跨模块、review 修复、CI 门禁和生产化任务的统一执行约定。
 24. [实施文档](implementation/)：查看工程计划、阶段任务和验收记录。
 
-## 当前开发：v0.18.0
+## 最近合并：v0.18.0
 
-[全站统计、匿名访问明细与操作审计](product/scope-v0.18.0.md) 已在独立分支实现，统一终审修复与本地验证完成；尚未推送、合并或发布。查询权限、隐私和事务原子性见 [设计](specs/2026-10-22-v0.18.0-analytics-audit-design.md)，执行与证据见 [计划](implementation/v0.18.0-plan.md)、[任务](implementation/v0.18.0-tasks.md) 和 [验收](implementation/v0.18.0-acceptance.md)。
+[全站统计、匿名访问明细与操作审计](product/scope-v0.18.0.md) 已通过 PR #208 合并为 `0f01a2e5`，尚未正式发布。原分支统一终审修复与本地验证保持原候选归属。查询权限、隐私和事务原子性见 [设计](specs/2026-10-22-v0.18.0-analytics-audit-design.md)，执行与证据见 [计划](implementation/v0.18.0-plan.md)、[任务](implementation/v0.18.0-tasks.md) 和 [验收](implementation/v0.18.0-acceptance.md)。
 
 ## 部署与运维
 

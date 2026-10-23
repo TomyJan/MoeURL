@@ -59,6 +59,8 @@ Chi 作为 HTTP 路由和中间件框架。
 
 ### PostgreSQL
 
+v0.19.0 用户组成员迁移复用 app_user.group_id 与既有审计触发器，不增加成员关系表或新授权层。按 UUID 顺序锁定操作者／目标，再从事务内数据库组读取管理权限；实际变更同时撤销所有旧 Session。选择完整精度 updated_at 乐观并发与同组 no-op，避免静默覆盖或无变化时强制退出。自定义组、多组和批量迁移仍单独规划。
+
 PostgreSQL 作为主数据库。
 
 选择原因：
@@ -293,6 +295,8 @@ v0.2.0 使用前端 `qrcode` 库按短链公开 URL 即时生成 PNG Data URL。
 - `testcontainers-go`：需要真实 PostgreSQL 的集成测试。
 
 同一 Go 测试进程复用一个 PostgreSQL 容器；每个测试仍创建并清理独立数据库，兼顾隔离性与启动成本。
+
+CI 的全仓普通测试与 race 测试使用 `-p=2` 限制同时运行的测试包，覆盖率保持 `-p=1`，避免多个 PostgreSQL 容器及 Docker 探测争用 runner。CI 设置 `MOEURL_TEST_REQUIRE_DOCKER=1`，Docker 失败直接报错，不回退到不存在的本地 PostgreSQL；不缩减测试范围或改变断言。
 
 测试重点：
 
