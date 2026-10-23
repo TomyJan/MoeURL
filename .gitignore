@@ -30,3 +30,4 @@ restore.env
 
 # Local brainstorming prototypes
 .superpowers/brainstorm/
+.superpowers/sdd/
