@@ -296,6 +296,8 @@ v0.2.0 使用前端 `qrcode` 库按短链公开 URL 即时生成 PNG Data URL。
 
 同一 Go 测试进程复用一个 PostgreSQL 容器；每个测试仍创建并清理独立数据库，兼顾隔离性与启动成本。
 
+CI 的全仓普通测试与 race 测试使用 `-p=2` 限制同时运行的测试包，覆盖率保持 `-p=1`，避免多个 PostgreSQL 容器及 Docker 探测争用 runner。CI 设置 `MOEURL_TEST_REQUIRE_DOCKER=1`，Docker 失败直接报错，不回退到不存在的本地 PostgreSQL；不缩减测试范围或改变断言。
+
 测试重点：
 
 - URL 校验。

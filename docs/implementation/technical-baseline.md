@@ -645,6 +645,8 @@ node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100 --include-from=sc
 
 数据库集成测试优先使用 Testcontainers，并在同一 Go 测试进程内复用一个 PostgreSQL 容器。每个测试必须创建并在清理阶段删除独立数据库，不能复用业务数据。当前本机 Docker 不可用时，测试基础设施允许回退到本地 PostgreSQL 管理库，默认地址为 `postgres://postgres:postgres@127.0.0.1:5433/postgres?sslmode=disable`；也可通过 `MOEURL_TEST_POSTGRES_ADMIN_URL` 覆盖。需要强制验证 Docker 路径时设置 `MOEURL_TEST_REQUIRE_DOCKER=1`，Docker daemon 不可用必须直接使测试失败，不得回退。
 
+CI 必须设置 `MOEURL_TEST_REQUIRE_DOCKER=1`。全仓普通测试执行 `go test -p=2 -count=1 ./...`，race 执行 `go test -race -p=2 -count=1 ./...`，覆盖率保持上述 `-p=1`；限制的是包级并行度，不跳过包、用例或并发行为断言，避免同时启动过多容器导致有界 Docker 探测超时。
+
 SQLC 生成文件必须使用文件头声明的版本重新生成，并保持零手工漂移。当前版本使用 SQLC `1.30.0`，可通过以下命令验证：
 
 ```bash
