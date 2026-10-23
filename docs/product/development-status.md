@@ -54,7 +54,7 @@
 
 | 证据范围 | 已记录结果 | 不能替代的验证 |
 | --- | --- | --- |
-| [v0.20.0 分支验收](../implementation/v0.20.0-acceptance.md) | 初始实现工作树通过全仓 Go／vet、业务门禁 100%、SQLC 零漂移、1300 项前端测试／四项 100%、完整 72 项 E2E、Linux 串行 race／govulncheck、production smoke 和精确镜像扫描。`29d388b2` 的冲突刷新保护另有 1304 项前端／3 项定向浏览器记录。当前分支在 `8ffdd63a` 基础上修复既有用户名兼容性，本轮工作树通过全仓 Go／100% 业务门禁、1307 项前端／四项 100%、零警告 lint、类型、构建及真实 Compose 3 项长中文账号验证；独立复审无新增问题。 | 本轮修复后未重跑完整 Playwright、production smoke、Linux race 和安全扫描，不将原门禁／镜像改记为当前结果。尚未推送或合并；目标 CI、正式发布和生产演练未完成。 |
+| [v0.20.0 分支验收](../implementation/v0.20.0-acceptance.md) | 初始实现工作树通过全仓 Go／vet、业务门禁 100%、SQLC 零漂移、1300 项前端测试／四项 100%、完整 72 项 E2E、Linux 串行 race／govulncheck、production smoke 和精确镜像扫描。`29d388b2` 的冲突刷新保护另有 1304 项前端／3 项定向浏览器记录。既有用户名兼容性修复 `0d13eaaa` 已通过提交前全仓 Go／100% 业务门禁、1307 项前端／四项 100% 及真实 Compose 3 项长中文账号验证。本轮移动端长用户名折行工作树重跑 1307 项前端／四项 100%、零警告 lint、类型、构建及真实 Compose 3 项验证；新增断言先复现弹窗内部溢出 248px，修复后通过，独立定向复审未发现额外问题。 | 本轮布局修复后未重跑 Go、完整 Playwright、production smoke、Linux race 和安全扫描，不将原门禁／镜像改记为当前结果。尚未推送或合并；目标 CI、正式发布和生产演练未完成。 |
 | 历史主分支 `5a1d9761` | [Check Code #39830070001](https://github.com/TomyJan/MoeURL/actions/runs/39830070001) 8 项成功，`Backend Security` 的 `Race tests` 步骤失败，整体结论为 failure。 | 尚无该主分支提交完整 CI 通过的证据；历史 `c4928a85` 的成功及后续 PR 的成功均不改写此次失败。 |
 | PR #211 远端 `b28ecf27` | [Check Code #39919076100](https://github.com/TomyJan/MoeURL/actions/runs/39919076100) 的普通 Go、后端覆盖率及 Backend Security 已通过；前端测试和前端覆盖率因旧 race 命令字符串断言失败，其余 7 个 job 成功。历史 `6ca648f4` 的 Docker 探测失败和 `44f187cf` 的 CI 成功仍保留原归属。 | 随后仅删除这条脆弱文本断言；修复后远端目标 CI 待验证。PR 已合并为 `c08b67b2`，尚未发布，不用历史成功覆盖当前失败或替代生产验收。 |
 | [v0.19.0 本地验收](../implementation/v0.19.0-acceptance.md) | 原候选 `c9f5a0b5` 已通过全仓 Go／100% 业务覆盖率、SQLC 零漂移、vet、完整 Linux race、1276 项前端测试／四项 100%、70 项 E2E、production smoke 及精确镜像扫描。`b02f3366` 修复后本地 1279 项前端测试／四项 100%、lint／类型／构建及 3 项定向 Compose 浏览器验证通过。`b28ecf27` 的 CI 修复已补跑完整 Linux Go／race、100% 业务覆盖率、vet 与 actionlint，独立复审无新问题；本轮删除脆弱部署断言后，完整前端测试与覆盖率均 1279 项通过、四项 100%，lint／类型检查通过。 | 合并前维护轮次未重跑完整 Playwright、production smoke 或安全扫描；合并提交 `c08b67b2` 的目标 CI 本轮未获取。真实外部 OIDC、生产恢复／升级回退仍需目标环境证据。 |
@@ -81,7 +81,7 @@
 
 ## 后续开发方向
 
-v0.20.0 在独立分支 `feat/v0.20.0-link-ownership` 完成管理员单条短链归属转移：事务内当前授权与账号检查、完整精度版本、原地址和历史统计保留、旧所有者拒绝及审计原子性。在 `8ffdd63a` 基础上补充既有用户名兼容性修复；初始完整门禁与本轮全仓 Go、完整前端及浏览器重跑范围分别见上表，未推送或合并。详见 [范围](scope-v0.20.0.md)、[设计](../specs/2026-10-23-v0.20.0-link-ownership-design.md) 和 [验收](../implementation/v0.20.0-acceptance.md)。
+v0.20.0 在独立分支 `feat/v0.20.0-link-ownership` 完成管理员单条短链归属转移：事务内当前授权与账号检查、完整精度版本、原地址和历史统计保留、旧所有者拒绝及审计原子性。既有用户名兼容性修复已提交 `0d13eaaa`，本轮补充移动端长用户名折行；初始完整门禁、用户名修复的 Go 证据与后续布局工作树的前端／定向浏览器证据分别见上表，未推送或合并。详见 [范围](scope-v0.20.0.md)、[设计](../specs/2026-10-23-v0.20.0-link-ownership-design.md) 和 [验收](../implementation/v0.20.0-acceptance.md)。
 
 v0.19.0 已实现管理员为其他非内置账号切换 user／admin，结合当前授权、完整精度并发检查、全部旧会话撤销和事务审计，已通过 PR #211 合并为 `c08b67b2`，尚未正式发布。自定义组、多用户组和批量迁移仍属于后续能力。设计与执行分别见 [规格](../specs/2026-10-23-v0.19.0-user-group-membership-design.md)、[计划](../implementation/v0.19.0-plan.md) 和 [验收](../implementation/v0.19.0-acceptance.md)。
 

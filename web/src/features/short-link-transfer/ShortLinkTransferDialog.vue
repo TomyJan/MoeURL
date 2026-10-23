@@ -84,6 +84,6 @@ async function save() {
 }
 </script>
 <style scoped>
-.transfer-body { display: grid; gap: 16px; min-width: 0; }
+.transfer-body { display: grid; gap: 16px; min-width: 0; overflow-wrap: anywhere; }
 .transfer-url { overflow-wrap: anywhere; font-weight: 600; }
 </style>

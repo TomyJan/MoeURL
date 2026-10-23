@@ -16,7 +16,7 @@ for (const width of [1280, 390]) {
     try {
       expect(await (await page.request.post('/api/v1/auth/login', { data: { username: e2eAdminUsername, password: e2eAdminPassword } })).json()).toMatchObject({ code: 0 })
       for (const role of ['original', 'recipient']) {
-        const username = `${role === 'recipient' ? '中'.repeat(22) : role}-${suffix}`
+        const username = role === 'recipient' ? `${'中'.repeat(22)}-${suffix}` : `${'x'.repeat(54)}${suffix}`
         const account = await (await page.request.post('/api/v1/admin/user/create', { data: { username, password, nickname: role, groupKey: 'user', status: 'active' } })).json()
         expect(account.code).toBe(0)
         users.push(account.data.user)
@@ -40,6 +40,7 @@ for (const width of [1280, 390]) {
       await dialog.getByRole('textbox', { name: '接收账号的准确用户名', exact: true }).fill(users[1]!.username)
       await dialog.getByRole('checkbox', { name: '我已核对接收账号，并确认移交管理权及历史统计', exact: true }).check()
       await expectNoHorizontalOverflow(page)
+      await expect.poll(() => dialog.locator('.transfer-body').evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1)
       await page.screenshot({ path: info.outputPath(`transfer-${width}.png`), fullPage: true })
       const transferred = page.waitForResponse('**/api/v1/admin/short-link/transfer')
       await dialog.getByRole('button', { name: '确认转移', exact: true }).click()
@@ -71,6 +72,7 @@ for (const width of [1280, 390]) {
       await dialog.getByRole('textbox', { name: 'Exact recipient username', exact: true }).fill(users[0]!.username)
       await dialog.getByRole('checkbox', { name: 'I verified the recipient and approve transferring management and historical statistics', exact: true }).check()
       await expectNoHorizontalOverflow(page)
+      await expect.poll(() => dialog.locator('.transfer-body').evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1)
       await page.screenshot({ path: info.outputPath(`transfer-${width}-en.png`), fullPage: true })
       await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
       await expect(dialog).toHaveCount(0)
