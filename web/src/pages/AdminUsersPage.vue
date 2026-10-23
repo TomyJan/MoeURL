@@ -103,7 +103,7 @@
               <td colspan="5">
                 <div :id="userMorePanelId(item.id)" class="user-table__panel" data-testid="console-user-actions">
                   <p class="user-table__panel-title">{{ t('adminUsers.moreTitle') }}</p>
-                  <v-btn v-if="!item.builtin && item.id !== currentUserId" size="small" variant="text" @click="beginGroupChange(item)">{{ t('membership.title') }}</v-btn>
+                  <v-btn v-if="!item.builtin && item.id !== currentUserId" :disabled="!canChangeGroup" size="small" variant="text" @click="beginGroupChange(item)">{{ t('membership.title') }}</v-btn>
                   <v-btn size="small" variant="text" :disabled="item.builtin" :loading="isUpdatingUser(item.id)" @click="toggleStatus(item)">
                     {{ t(item.status === 'active' ? 'adminUsers.actions.disable' : 'adminUsers.actions.enable') }}
                   </v-btn>
@@ -140,6 +140,7 @@ import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { listUsers, resetUserPassword, updateUser } from '@/entities/user/api'
+import { me } from '@/entities/auth/api'
 import type { UserSummary } from '@/entities/user/api'
 import { useAvatarText } from '@/shared/user/useAvatarText'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
@@ -149,11 +150,13 @@ const { t } = useI18n()
 const queryClient = useQueryClient()
 const identity = useAccountIdentity()
 const currentUserId = computed(() => identity.scope.value.userId)
+const currentUserQuery = useQuery({ queryKey: ['auth', 'me'], queryFn: me, staleTime: Infinity, retry: false })
+const canChangeGroup = computed(() => !!currentUserId.value && !!currentUserQuery.data.value?.user.permissions.includes('admin:access'))
 const groupTarget = ref<UserSummary>()
 
 /** Freezes the version shown when the administrator opens the confirmation dialog. */
 function beginGroupChange(item: UserSummary) {
-  if (groupTarget.value || item.builtin || item.id === currentUserId.value) return
+  if (!canChangeGroup.value || groupTarget.value || item.builtin || item.id === currentUserId.value) return
   groupTarget.value = { ...item }
 }
 const draftNicknames = reactive<Record<string, string>>({})
