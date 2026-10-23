@@ -477,6 +477,7 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 	items := make([]AdminShortLink, 0, len(rows))
 	for _, row := range rows {
 		shortLink := AdminShortLink{
+			UpdatedAt: row.UpdatedAt.Time,
 			Title:     row.Title,
 			Tags:      metadataTags(row.Tags),
 			ID:        uuidFromPgtype(row.ID),
