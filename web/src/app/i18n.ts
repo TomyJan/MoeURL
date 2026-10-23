@@ -611,6 +611,14 @@ export const messages = {
       removedDraft: '此域名已被删除，当前草稿仍保留，但不能保存；请选择其他域名或新建域名并确认丢弃草稿。',
       reloadDraft: '重新载入最新配置', discardTitle: '丢弃当前草稿？', discardWarning: '未保存的修改将被丢弃。确认后才会载入所选域名的配置。', confirmDiscard: '丢弃并载入',
     },
+    membership: {
+      title: '调整用户组', group: '目标用户组', user: '普通用户', admin: '管理员', cancel: '取消',
+      warning: '切换后将撤销此账号的所有旧登录会话，账号需要重新登录。已有短链和外部身份绑定不变。',
+      promote: '管理员组可管理全站账号、短链与系统设置，请确认授权对象。',
+      demote: '切换为普通用户将移除此账号的管理权限。',
+      confirm: '我确认调整权限并撤销所有旧登录会话', save: '确认调整',
+      success: '用户组已调整，账号需重新登录', conflict: '账号已被修改，请重新打开最新记录再操作', failed: '用户组调整失败，请重试',
+    },
     adminUsers: {
       createUser: '创建用户',
       loadFailed: '加载失败',
@@ -1286,6 +1294,14 @@ export const messages = {
       saved: 'Domain settings saved.', saveFailed: 'Operation failed. Check the settings and try again.', conflict: 'The server changed. Your draft is preserved; review and reload before saving again.',
       removedDraft: 'This domain was deleted. Your draft is preserved but cannot be saved; choose another domain or create one and confirm discarding the draft.',
       reloadDraft: 'Reload latest settings', discardTitle: 'Discard your draft?', discardWarning: 'Unsaved changes will be lost. Confirm to load the selected domain settings.', confirmDiscard: 'Discard and load',
+    },
+    membership: {
+      title: 'Change user group', group: 'Target group', user: 'User', admin: 'Administrator', cancel: 'Cancel',
+      warning: 'Changing the group revokes all existing sessions. This account must sign in again. Existing links and external identity bindings remain unchanged.',
+      promote: 'Administrators can manage all accounts, links and system settings. Confirm that this account should receive these privileges.',
+      demote: 'Switching to User removes this account’s administrative privileges.',
+      confirm: 'I confirm the permission change and revocation of all existing sessions', save: 'Confirm change',
+      success: 'Group changed. The account must sign in again.', conflict: 'This account changed. Reopen the latest record before trying again.', failed: 'Could not change the group. Please retry.',
     },
     adminUsers: {
       createUser: 'Create user',

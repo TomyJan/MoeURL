@@ -103,6 +103,7 @@
               <td colspan="5">
                 <div :id="userMorePanelId(item.id)" class="user-table__panel" data-testid="console-user-actions">
                   <p class="user-table__panel-title">{{ t('adminUsers.moreTitle') }}</p>
+                  <v-btn v-if="!item.builtin && item.id !== currentUserId" size="small" variant="text" @click="beginGroupChange(item)">{{ t('membership.title') }}</v-btn>
                   <v-btn size="small" variant="text" :disabled="item.builtin" :loading="isUpdatingUser(item.id)" @click="toggleStatus(item)">
                     {{ t(item.status === 'active' ? 'adminUsers.actions.disable' : 'adminUsers.actions.enable') }}
                   </v-btn>
@@ -128,6 +129,7 @@
       </v-table>
       <p v-if="users.length > 0" class="console-page__notice">{{ t('adminUsers.paginationNotice') }}</p>
     </div>
+    <UserGroupChangeDialog v-if="groupTarget" :target="groupTarget" @close="groupTarget = undefined" />
   </section>
 </template>
 
@@ -140,9 +142,20 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { listUsers, resetUserPassword, updateUser } from '@/entities/user/api'
 import type { UserSummary } from '@/entities/user/api'
 import { useAvatarText } from '@/shared/user/useAvatarText'
+import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
+import UserGroupChangeDialog from '@/features/user-group-change/UserGroupChangeDialog.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
+const identity = useAccountIdentity()
+const currentUserId = computed(() => identity.scope.value.userId)
+const groupTarget = ref<UserSummary>()
+
+/** Freezes the version shown when the administrator opens the confirmation dialog. */
+function beginGroupChange(item: UserSummary) {
+  if (groupTarget.value || item.builtin || item.id === currentUserId.value) return
+  groupTarget.value = { ...item }
+}
 const draftNicknames = reactive<Record<string, string>>({})
 const draftPasswords = reactive<Record<string, string>>({})
 const resetPasswordErrors = reactive<Record<string, string>>({})
