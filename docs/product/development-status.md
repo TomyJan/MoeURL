@@ -1,6 +1,6 @@
 # 开发进度与能力清单
 
-最新主分支基线为 `c08b67b2`：[v0.19.0 用户组成员迁移](scope-v0.19.0.md) 已通过 [PR #211](https://github.com/TomyJan/MoeURL/pull/211) 合并，尚未正式发布。当前独立分支 `feat/v0.20.0-link-ownership` 实施 [单条短链归属转移](scope-v0.20.0.md)，本地证据见 [本版验收](../implementation/v0.20.0-acceptance.md)，尚未推送或合并。本轮未获取新合并提交目标 CI，下面的旧提交结果保留历史归属。
+最新已确认主分支为 `ea78dcef`，包含 `c08b67b2`（[PR #211](https://github.com/TomyJan/MoeURL/pull/211)）的 [v0.19.0 用户组成员迁移](scope-v0.19.0.md) 和 PR #212 的依赖更新，尚未正式发布。当前独立分支 `feat/v0.20.0-link-ownership` 已实现 [单条短链归属转移](scope-v0.20.0.md) 并同步该主分支，本轮修复 CI Docker 探测；最新本地证据及 PR 集成状态见 [本版验收](../implementation/v0.20.0-acceptance.md)。下面的旧提交结果保留历史归属。
 
 更新日期：2026-10-23。历史远端文档基线 `722b2ce03ee79c05b55737e16eaab2d83c36372b` 基于代码 `c4928a85`，包含 PR #198 合并的 [v0.17.0 短链批量管理](scope-v0.17.0.md) 及当时的依赖和 Go 证书安全修复。该文档基线的 [Check Code](https://github.com/TomyJan/MoeURL/actions/runs/39775160522) 全部 9 项通过，不替代当前 `c08b67b2` 或新分支的结果。v0.18.0 已通过 PR #208 合并为 `0f01a2e5`，其原分支本地证据不替代合并提交 CI 或发布。`33f287ec`、`1c6df4a` 等历史证据单独保留，不改写为新提交结果。真实生产演练与正式发布尚未完成。本页是进度入口，版本边界由 scope 和 spec 定义，指定提交及环境的实际验证由对应 acceptance 记录。
 

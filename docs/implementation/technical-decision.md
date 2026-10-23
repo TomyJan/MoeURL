@@ -300,6 +300,8 @@ v0.2.0 使用前端 `qrcode` 库按短链公开 URL 即时生成 PNG Data URL。
 
 CI 的全仓普通测试与 race 测试使用 `-p=2` 限制同时运行的测试包，覆盖率保持 `-p=1`，避免多个 PostgreSQL 容器及 Docker 探测争用 runner。CI 设置 `MOEURL_TEST_REQUIRE_DOCKER=1`，Docker 失败直接报错，不回退到不存在的本地 PostgreSQL；不缩减测试范围或改变断言。
 
+Docker 可用性探测采用轻量的服务端版本接口，并给予独立的 30 秒预算，避免冷启动时 `docker info` 的 10 秒超时使整包测试失败。使用真实 CLI 对受控 HTTP 端点回归成功与服务端失败，确保格式化输出不会将不可用服务端误判为可用；不增加自动重试或放宽覆盖率门禁。
+
 测试重点：
 
 - URL 校验。

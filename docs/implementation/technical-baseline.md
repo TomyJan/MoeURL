@@ -652,6 +652,8 @@ node scripts/go-coverage-threshold.mjs "$PWD/coverage.out" 100 --include-from=sc
 
 CI 必须设置 `MOEURL_TEST_REQUIRE_DOCKER=1`。全仓普通测试执行 `go test -p=2 -count=1 ./...`，race 执行 `go test -race -p=2 -count=1 ./...`，覆盖率保持上述 `-p=1`；限制的是包级并行度，不跳过包、用例或并发行为断言，避免同时启动过多容器导致有界 Docker 探测超时。
 
+数据库测试使用 `docker version --format '{{.Server.Version}}'` 探测服务端，避免依赖较重的 `info` 接口及其格式化输出的失败退出行为；探测使用独立的 30 秒超时，容器启动仍为 60 秒。探测失败在要求 Docker 的 CI 中必须直接失败，不能跳过测试或回退本地数据库。
+
 SQLC 生成文件必须使用文件头声明的版本重新生成，并保持零手工漂移。当前版本使用 SQLC `1.30.0`，可通过以下命令验证：
 
 ```bash
