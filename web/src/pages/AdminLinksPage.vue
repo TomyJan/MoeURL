@@ -5,6 +5,7 @@
         <h1>{{ t('page.adminLinks') }}</h1>
       </div>
       <span class="console-page__total">{{ t('adminLinks.total', { total }) }}</span>
+      <ShortLinkListExportButton context="admin" :filters="exportFilters" :blocked="exportBlocked" />
     </div>
     <div class="console-page__tools">
       <div class="console-page__filters console-page__metadata-filters">
@@ -83,13 +84,14 @@ import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue
 import { useShortLinkAccess, useShortLinkBatch } from '@/features/short-link-batch/useShortLinkBatch'
 import ShortLinkBatchToolbar from '@/features/short-link-batch/ShortLinkBatchToolbar.vue'
 import ShortLinkTransferDialog from '@/features/short-link-transfer/ShortLinkTransferDialog.vue'
+import ShortLinkListExportButton from '@/features/short-link-list-export/ShortLinkListExportButton.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const access = useShortLinkAccess('admin')
 const transferTarget = ref<AdminShortLink | null>(null)
 const statusFilter = ref<'' | AdminShortLink['status']>('')
-const { searchKeyword, tagFilter, debouncedKeyword, debouncedTag, keywordInvalid, tagInvalid } = useShortLinkFilters()
+const { searchKeyword, tagFilter, debouncedKeyword, debouncedTag, keywordInvalid, tagInvalid, filtersPending } = useShortLinkFilters()
 const statusOptions = computed(() => [
   { title: t('filter.all'), value: '' },
   { title: t('filter.active'), value: 'active' },
@@ -138,6 +140,10 @@ const batch = useShortLinkBatch({
 })
 const rowWriteBlocked = computed(() => batch.pending.value || transferTarget.value !== null)
 const canTransfer = computed(() => access.canUpdate.value && query.isSuccess.value && !query.isFetching.value)
+const exportFilters = computed(() => ({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value }))
+const exportBlocked = computed(() => !access.canRead.value || !query.isSuccess.value || query.isFetching.value
+  || keywordInvalid.value || tagInvalid.value || filtersPending.value || statusMutation.isPending.value
+  || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || rowWriteBlocked.value)
 
 /** Opens one immutable administrative link snapshot without overlapping other writes. */
 function beginTransfer(link: ConsoleLinkListItem) {

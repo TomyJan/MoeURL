@@ -4,6 +4,7 @@
       <div>
         <h1>{{ t('page.links') }}</h1>
       </div>
+      <ShortLinkListExportButton context="own" :filters="exportFilters" :blocked="exportBlocked" />
     </header>
     <div class="console-page__tools">
       <div class="console-page__filters console-page__metadata-filters" data-testid="console-page-toolbar">
@@ -78,12 +79,13 @@ import ShortLinkQrDialog from '@/features/short-link-qr/ShortLinkQrDialog.vue'
 import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue'
 import { useShortLinkAccess, useShortLinkBatch } from '@/features/short-link-batch/useShortLinkBatch'
 import ShortLinkBatchToolbar from '@/features/short-link-batch/ShortLinkBatchToolbar.vue'
+import ShortLinkListExportButton from '@/features/short-link-list-export/ShortLinkListExportButton.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const access = useShortLinkAccess('own')
 const statusFilter = ref<'' | ShortLink['status']>('')
-const { searchKeyword, tagFilter, debouncedKeyword, debouncedTag, keywordInvalid, tagInvalid } = useShortLinkFilters()
+const { searchKeyword, tagFilter, debouncedKeyword, debouncedTag, keywordInvalid, tagInvalid, filtersPending } = useShortLinkFilters()
 const statusOptions = computed(() => [
   { title: t('filter.all'), value: '' },
   { title: t('filter.active'), value: 'active' },
@@ -128,6 +130,10 @@ const batch = useShortLinkBatch({
   filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value]),
   blocked: computed(() => query.isFetching.value || query.isPending.value || query.isError.value || keywordInvalid.value || tagInvalid.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null),
 })
+const exportFilters = computed(() => ({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value }))
+const exportBlocked = computed(() => !access.canRead.value || !query.isSuccess.value || query.isFetching.value
+  || keywordInvalid.value || tagInvalid.value || filtersPending.value || statusMutation.isPending.value
+  || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || batch.pending.value)
 
 /** Prevents opening row settings while a batch is outstanding. */
 function configureLink(link: ConsoleLinkListItem) { if (!batch.pending.value) configure(link) }
