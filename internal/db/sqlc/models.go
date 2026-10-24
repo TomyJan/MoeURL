@@ -91,6 +91,11 @@ type MoeurlShortLinkExperiencePermissionAddition struct {
 	Permission  string      `json:"permission"`
 }
 
+type MoeurlShortLinkExportPermissionAddition struct {
+	UserGroupID        pgtype.UUID `json:"user_group_id"`
+	PermissionRevision int64       `json:"permission_revision"`
+}
+
 type MoeurlShortLinkMaxVisitsPermissionAddition struct {
 	UserGroupID        pgtype.UUID `json:"user_group_id"`
 	PermissionRevision int64       `json:"permission_revision"`

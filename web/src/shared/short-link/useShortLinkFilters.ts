@@ -11,6 +11,8 @@ export function useShortLinkFilters() {
   const tagResult = computed(() => shortLinkTagFilterSchema.safeParse(tagFilter.value))
   const keywordInvalid = computed(() => !keywordResult.value.success)
   const tagInvalid = computed(() => !tagResult.value.success)
+  const filtersPending = computed(() => keywordResult.value.success && tagResult.value.success
+    && (keywordResult.value.data !== debouncedKeyword.value || tagResult.value.data !== debouncedTag.value))
 
   watch([searchKeyword, tagFilter], (_values, _oldValues, onCleanup) => {
     const keyword = keywordResult.value
@@ -23,5 +25,5 @@ export function useShortLinkFilters() {
     onCleanup(() => globalThis.clearTimeout(timer))
   })
 
-  return { searchKeyword, tagFilter, debouncedKeyword, debouncedTag, keywordInvalid, tagInvalid }
+  return { searchKeyword, tagFilter, debouncedKeyword, debouncedTag, keywordInvalid, tagInvalid, filtersPending }
 }

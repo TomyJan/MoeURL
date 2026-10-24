@@ -132,6 +132,8 @@ v0.18.0 新增可配置 `short_link:read_visits`（`short_link_basic`）：user�
 
 v0.16.0 新增可配置的 `short_link:export_statistics`，属于 `short_link_basic` 类别。内置 `user`／`admin` 默认拥有，`standard` 预设包含，`basic`／`restricted`／`guest` 不包含。它叠加个人 `short_link:read_own` 与本人归属，或管理 `admin:access` 与 `short_link:read_all`，不能单独扩大可读取范围。`00019` 只追加内置组缺失授权；Down 仅撤销本次追加且未被独立编辑的授权，保留既有和后续人工授予。详见 [导出设计](2026-10-16-v0.16.0-analytics-export-design.md)。
 
+v0.21.0 的清单导出另用 `short_link:export`，同属可配置的 `short_link_basic`，默认组和预设归属与统计导出一致，但两种导出能力相互独立。它叠加个人 `short_link:read_own` 与本人归属，或管理 `admin:access` 与 `short_link:read_all`；当前账号和组权限必须在读取清单的同条 SELECT 中重查。`00022` 只回收本次追加且未再独立编辑的权限；设计及实施状态见 [清单导出设计](2026-10-24-v0.21.0-link-list-export-design.md)。
+
 - 查看自己的短链基础统计。
 - 查看自己的短链基础维度统计。
 - 查看自己的短链完整详细统计。
