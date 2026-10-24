@@ -179,6 +179,10 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 
 ## 5. API 约定
 
+### v0.22.0 批量短链归属转移
+
+`POST /api/v1/admin/short-link/batch-transfer` 使用严格单一 JSON：`items:[{id,expectedUpdatedAt}]` 和 `newOwnerUsername`，1–100 条不同规范非零 UUID 及非零 RFC3339Nano 版本。复用 `admin:access`、`short_link:update_all` 和 5 秒 `WithAuditTx`，用户 UUID → 当前组 → 短链 UUID 的锁序，全量数量及版本预检通过后才写入。任一冲突／缺失／审计故障整批回滚；同 owner 不写版本或审计。仅改变 owner_id 和单调 updated_at，无 migration／新权限。成功 `{transferredCount,unchangedCount}` 合计请求数，错误码沿用单条转移；严格媒体类型、no-store、安全诊断，详见[设计](../specs/2026-10-25-v0.22.0-batch-ownership-design.md)与[实际验收](v0.22.0-acceptance.md)。
+
 ### v0.21.0 短链清单导出
 
 新增 `GET /api/v1/short-link/export` 与 `GET /api/v1/admin/short-link/export`，只接受 `status`、`q`、`tag`。叠加 `short_link:export` 及对应读取权限，同条 SELECT 快照重查账号／组授权与 owner_id，不逐页拼接或聚合访问事件。5 秒期限；MATERIALIZED 候选集最多保留 1001 条 ID／排序／原始文本字节数元数据，同语句先检查超过 1000 条或累计原始可变长文本超过 8 MiB，超限只返回空的 limit 哨兵，通过后才读取完整字段。读取预算覆盖原域名、短码、目标 URL、标题、tag 元素、状态、模式及所属用户名，求和前转 bigint；最终 CSV 另有精确 UTF-8 8 MiB 预算，任一超限整体返回 `200118`。少数经规范化缩小的集合也可能被读取预算拒绝，不改变既有 URL 写入限制。成功为固定文件名和 MIME 的 JSON 下载描述，BOM／CRLF／CSV 转义／公式中和；包含原域名短链 URL、目标及管理配置，不包含秘密和原始事件，详见 [设计](../specs/2026-10-24-v0.21.0-link-list-export-design.md)。
@@ -224,6 +228,7 @@ API 使用 `/api/v1` 前缀：
 /api/v1/admin/short-link/delete
 /api/v1/admin/short-link/batch
 /api/v1/admin/short-link/transfer
+/api/v1/admin/short-link/batch-transfer
 /api/v1/admin/short-link/statistics
 /api/v1/admin/short-link/statistics/export
 /api/v1/admin/user-group/list

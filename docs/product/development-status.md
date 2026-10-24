@@ -54,7 +54,7 @@
 
 | 证据范围 | 已记录结果 | 不能替代的验证 |
 | --- | --- | --- |
-| [v0.21.0 分支验收](../implementation/v0.21.0-acceptance.md) | 修后代码树 `36a9d5ed`：全仓 Go／Linux race、Go 100% 业务门禁、1365 项前端测试／四项 100%、lint／类型／构建、77 项完整 Playwright、production smoke 与本次实际镜像 HIGH／CRITICAL 扫描通过；全分支独立终审及两项修复定向复审通过。此前 76 项浏览器结果为修复前证据。 | 证据来自验收中明确记录的工作树与运行时，不冒充最终提交制品；本版目标 CI、合并、正式发布和真实生产验收尚未完成。 |
+| [v0.21.0 验收](../implementation/v0.21.0-acceptance.md) | 最终 head `1641e2a` 的[目标 CI](https://github.com/TomyJan/MoeURL/actions/runs/40132665857) 全部 9 项成功：1367 项前端、四项 100%、Go 业务 100%、77 项完整 Playwright 及安全／smoke 通过。PR #216 已合并为 `dfc9a5a1`，该实际合并提交的[独立 CI](https://github.com/TomyJan/MoeURL/actions/runs/40133310132) 也全部 9 项成功。原本地树 `36a9d5ed` 及首轮 `5e3d713d` 证据保持历史归属。 | CI 不冒充正式发布或生产验收；增量 CodeRabbit 因限额跳过，已修复其首轮两项意见并经独立定向复审。真实生产验收尚未完成。 |
 | [v0.20.0 验收](../implementation/v0.20.0-acceptance.md) | 最终 PR 候选 `ba90f37e` 的 [Check Code #40031018213](https://github.com/TomyJan/MoeURL/actions/runs/40031018213) 全部 9 项成功，含完整测试／覆盖率、Linux race、安全扫描、构建、完整 E2E 与 Compose smoke。已通过 PR #214 合并为 `2d23dcfd`；各阶段本地、用户名兼容、布局及 CI 探测修复的证据保留在验收。 | PR CI 不替代后续提交或生产验收；尚未正式发布，真实 DNS/TLS、外部 OIDC、恢复及回退演练仍需目标环境证据。 |
 | 历史主分支 `5a1d9761` | [Check Code #39830070001](https://github.com/TomyJan/MoeURL/actions/runs/39830070001) 8 项成功，`Backend Security` 的 `Race tests` 步骤失败，整体结论为 failure。 | 尚无该主分支提交完整 CI 通过的证据；历史 `c4928a85` 的成功及后续 PR 的成功均不改写此次失败。 |
 | PR #211 远端 `b28ecf27` | [Check Code #39919076100](https://github.com/TomyJan/MoeURL/actions/runs/39919076100) 的普通 Go、后端覆盖率及 Backend Security 已通过；前端测试和前端覆盖率因旧 race 命令字符串断言失败，其余 7 个 job 成功。历史 `6ca648f4` 的 Docker 探测失败和 `44f187cf` 的 CI 成功仍保留原归属。 | 随后仅删除这条脆弱文本断言；修复后远端目标 CI 待验证。PR 已合并为 `c08b67b2`，尚未发布，不用历史成功覆盖当前失败或替代生产验收。 |
@@ -90,7 +90,7 @@ v0.19.0 已实现管理员为其他非内置账号切换 user／admin，结合�
 
 原独立分支 `feat/v0.18.0-analytics-audit` 已通过 PR #208 合并并实现 [v0.18.0 范围](scope-v0.18.0.md) 定义的全站统计、匿名访问明细与事务审计。原分支最后实现候选为 `e476f87d`，包含权限集合审计修复，已通过修复后全仓 Go、100% 业务覆盖率和定向复审；原候选 `721206c` 的前端、浏览器与部署验证单独保留，不替代新候选尚未重跑的对应门禁，详见 [验收](../implementation/v0.18.0-acceptance.md)。功能已通过 PR #208 合并为 `0f01a2e5`，尚未正式发布。
 
-[v0.16.0 聚合统计 CSV 导出](scope-v0.16.0.md) 和 [v0.17.0 短链批量管理](scope-v0.17.0.md) 均已合并，历史文档基线 `722b2ce0` 的目标 CI 已通过；当前主分支与 PR 结果见上表。后续扩展应继续先设计查询权限、采集隐私与数据保留边界。批量导入、批量归属转移及跨页全选仍未实现；单条归属转移已在 v0.20.0 合并，清单导出在 v0.21.0 独立实施。
+[v0.16.0 聚合统计 CSV 导出](scope-v0.16.0.md) 和 [v0.17.0 短链批量管理](scope-v0.17.0.md) 均已合并，历史文档基线 `722b2ce0` 的目标 CI 已通过；当前主分支与 PR 结果见上表。后续扩展继续先设计查询权限、采集隐私与数据保留边界。单条归属转移与清单导出分别在 v0.20.0、v0.21.0 合并；批量转移在 v0.22.0 独立实施，批量导入和跨页全选仍未开发。
 
 原有规划尚未完成的产品能力集中列在 [路线图](roadmap.md) 的「待开发能力」中。[v0.12.0 自定义短码](scope-v0.12.0.md) 已通过 PR #185 合并为 `17e1f766`；阶段状态与证据见 [验收清单](../implementation/v0.12.0-acceptance.md)。[v0.13.0 个人密码修改](scope-v0.13.0.md) 已通过 PR #186 合并为 `a52733cc`。[v0.14.0 统计日期范围](scope-v0.14.0.md) 已通过 PR #187 合并为 `c864ce3a`，正式发布及目标环境缺口继续单独记录。
 
