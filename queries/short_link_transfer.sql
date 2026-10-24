@@ -16,3 +16,8 @@ where id=$1 and deleted_at is null for update;
 update short_link set owner_id=$2,
     updated_at=greatest(clock_timestamp(),updated_at+interval '1 microsecond')
 where id=$1 returning id, owner_id, updated_at;
+
+-- name: LockBatchTransferShortLinks :many
+select id, owner_id, updated_at from short_link
+where id=any($1::uuid[]) and deleted_at is null
+order by id for update;
