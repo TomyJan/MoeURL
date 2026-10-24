@@ -1,6 +1,6 @@
 # MoeURL 文档中心
 
-当前已确认主分支为 `2d23dcfd`：[v0.20.0 短链归属转移](product/scope-v0.20.0.md) 已通过 [PR #214](https://github.com/TomyJan/MoeURL/pull/214) 合并，PR 候选 `ba90f37e` 的目标 CI 全部 9 项成功，证据见 [验收](implementation/v0.20.0-acceptance.md)。独立分支已实现 [v0.21.0 短链清单 CSV 导出](product/scope-v0.21.0.md)，完整本地门禁与独立终审均已通过，本地原子签名提交已完成，尚未推送或合并。清单最多 1000 条，原始可变长文本累计读取与最终 CSV 各有独立 8 MiB 预算；具体边界见 [设计](specs/2026-10-24-v0.21.0-link-list-export-design.md)，实施与证据见 [计划](implementation/v0.21.0-plan.md)、[任务](implementation/v0.21.0-tasks.md) 与 [验收](implementation/v0.21.0-acceptance.md)。功能、本地门禁、目标 CI、合并和正式发布分别记录，旧候选的通过不替代新提交验证。
+当前已确认主分支为 `315ad39f`，包含 [PR #214](https://github.com/TomyJan/MoeURL/pull/214) 合并的 [v0.20.0 短链归属转移](product/scope-v0.20.0.md) 及 PR #215 的依赖更新。独立分支已实现 [v0.21.0 短链清单 CSV 导出](product/scope-v0.21.0.md)，并创建 [PR #216](https://github.com/TomyJan/MoeURL/pull/216)。完整本地门禁与独立终审通过，首轮候选 `5e3d713d` 的[目标 CI](https://github.com/TomyJan/MoeURL/actions/runs/40131142902) 全部 9 项成功；后续浏览器兼容性修复单独验证，尚未合并或发布。清单最多 1000 条，原始可变长文本累计读取与最终 CSV 各有独立 8 MiB 预算；具体边界见 [设计](specs/2026-10-24-v0.21.0-link-list-export-design.md)，实施与证据见 [计划](implementation/v0.21.0-plan.md)、[任务](implementation/v0.21.0-tasks.md) 与 [验收](implementation/v0.21.0-acceptance.md)。功能、本地门禁、目标 CI、合并和正式发布分别记录，旧候选的通过不替代新提交验证。
 
 主分支已合并 [全站统计、匿名访问明细与操作审计](product/scope-v0.18.0.md)。管理页为 `/admin/dashboard`、`/admin/audit`，访问明细保留在单短链分析页中；权限、隐私、事务与保留边界见 [设计](specs/2026-10-22-v0.18.0-analytics-audit-design.md)。分阶段本地门禁、候选树及剩余远端／发布验证分别记录在 [验收](implementation/v0.18.0-acceptance.md)，功能已通过 PR #208 合并为 `0f01a2e5`，尚未正式发布。
 

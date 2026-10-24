@@ -1,8 +1,8 @@
 # 开发进度与能力清单
 
-最新已确认主分支为 `2d23dcfd`：[v0.20.0 单条短链归属转移](scope-v0.20.0.md) 已通过 [PR #214](https://github.com/TomyJan/MoeURL/pull/214) 合并，PR 候选 `ba90f37e` 的目标 CI 全部 9 项成功，尚未正式发布。当前独立分支 `feat/v0.21.0-link-export` 已实现 [短链清单 CSV 导出](scope-v0.21.0.md)，完整本地门禁与独立终审均通过，本地原子签名提交已完成；尚未推送、合并或发布。修后代码树 `36a9d5ed` 的证据见 [本版验收](../implementation/v0.21.0-acceptance.md)，不将树标识冒充提交 SHA。下面的旧提交结果保留历史归属。
+最新已确认主分支为 `315ad39f`，包含 [PR #214](https://github.com/TomyJan/MoeURL/pull/214) 合并的 [v0.20.0 单条短链归属转移](scope-v0.20.0.md) 及 PR #215 的依赖更新，尚未正式发布。当前独立分支 `feat/v0.21.0-link-export` 已实现 [短链清单 CSV 导出](scope-v0.21.0.md)，并创建 [PR #216](https://github.com/TomyJan/MoeURL/pull/216)。完整本地门禁与独立终审通过，首轮候选 `5e3d713d` 的[目标 CI](https://github.com/TomyJan/MoeURL/actions/runs/40131142902) 全部 9 项成功；后续浏览器兼容性修复及其验证见 [本版验收](../implementation/v0.21.0-acceptance.md)，不能沿用首轮 CI。尚未合并或发布，下面的旧提交结果保留历史归属。
 
-更新日期：2026-10-24。历史远端文档基线 `722b2ce03ee79c05b55737e16eaab2d83c36372b` 基于代码 `c4928a85`，包含 PR #198 合并的 [v0.17.0 短链批量管理](scope-v0.17.0.md) 及当时的依赖和 Go 证书安全修复。该文档基线的 [Check Code](https://github.com/TomyJan/MoeURL/actions/runs/39775160522) 全部 9 项通过，不替代后续代码候选的结果。v0.18.0 已通过 PR #208 合并为 `0f01a2e5`，其原分支本地证据不替代合并提交 CI 或发布。`33f287ec`、`1c6df4a` 等历史证据单独保留，不改写为新提交结果。真实生产演练与正式发布尚未完成。本页是进度入口，版本边界由 scope 和 spec 定义，指定提交及环境的实际验证由对应 acceptance 记录。
+更新日期：2026-10-25。历史远端文档基线 `722b2ce03ee79c05b55737e16eaab2d83c36372b` 基于代码 `c4928a85`，包含 PR #198 合并的 [v0.17.0 短链批量管理](scope-v0.17.0.md) 及当时的依赖和 Go 证书安全修复。该文档基线的 [Check Code](https://github.com/TomyJan/MoeURL/actions/runs/39775160522) 全部 9 项通过，不替代后续代码候选的结果。v0.18.0 已通过 PR #208 合并为 `0f01a2e5`，其原分支本地证据不替代合并提交 CI 或发布。`33f287ec`、`1c6df4a` 等历史证据单独保留，不改写为新提交结果。真实生产演练与正式发布尚未完成。本页是进度入口，版本边界由 scope 和 spec 定义，指定提交及环境的实际验证由对应 acceptance 记录。
 
 ## 状态口径
 
