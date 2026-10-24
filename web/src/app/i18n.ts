@@ -613,6 +613,10 @@ export const messages = {
       removedDraft: '此域名已被删除，当前草稿仍保留，但不能保存；请选择其他域名或新建域名并确认丢弃草稿。',
       reloadDraft: '重新载入最新配置', discardTitle: '丢弃当前草稿？', discardWarning: '未保存的修改将被丢弃。确认后才会载入所选域名的配置。', confirmDiscard: '丢弃并载入',
     },
+    batchTransfer: {
+      title: '转移 {count} 条短链的归属', summary: '待移交短链与原所有者',
+      transferred: '已转移 {count} 条短链。', unchanged: '{count} 条短链归属未变。',
+    },
     transfer: {
       action: '转移归属', title: '转移短链归属', currentOwner: '当前所有者：{username}',
       warning: '公开地址和访问配置保持不变。新所有者将获得此短链的管理权和全部历史统计，原所有者将失去个人管理与统计权限。',
@@ -1306,6 +1310,10 @@ export const messages = {
       saved: 'Domain settings saved.', saveFailed: 'Operation failed. Check the settings and try again.', conflict: 'The server changed. Your draft is preserved; review and reload before saving again.',
       removedDraft: 'This domain was deleted. Your draft is preserved but cannot be saved; choose another domain or create one and confirm discarding the draft.',
       reloadDraft: 'Reload latest settings', discardTitle: 'Discard your draft?', discardWarning: 'Unsaved changes will be lost. Confirm to load the selected domain settings.', confirmDiscard: 'Discard and load',
+    },
+    batchTransfer: {
+      title: 'Transfer ownership of {count} link | Transfer ownership of {count} links', summary: 'Selected links and previous owners',
+      transferred: 'Transferred {count} link. | Transferred {count} links.', unchanged: '{count} link unchanged. | {count} links unchanged.',
     },
     transfer: {
       action: 'Transfer ownership', title: 'Transfer short-link ownership', currentOwner: 'Current owner: {username}',

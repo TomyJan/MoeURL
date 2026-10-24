@@ -98,5 +98,5 @@ export function useShortLinkBatch(options: BatchOptions) {
       if (isCurrent()) toast.error(t('batch.failed'))
     } finally { pending.value = false }
   }
-  return { selected, deleteIds, pending, unavailable, allSelected, indeterminate, toggle, toggleAll, openDelete, closeDelete, confirmDelete, submit }
+  return { selected, deleteIds, pending, unavailable, allSelected, indeterminate, toggle, toggleAll, openDelete, closeDelete, confirmDelete, submit, clear }
 }

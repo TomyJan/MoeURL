@@ -2,6 +2,7 @@
   <div v-if="access.canSelect.value" class="batch-toolbar" data-testid="batch-toolbar" :aria-busy="state.pending.value">
     <p aria-live="polite">{{ t('batch.selected', { count: state.selected.value.length }) }} <span>{{ t('batch.currentList') }}</span></p>
     <div class="batch-toolbar__actions">
+      <v-btn v-if="transfer && access.canUpdate.value" data-testid="batch-transfer" size="small" color="primary" variant="tonal" :disabled="disabled" @click="$emit('transfer')">{{ t('transfer.action') }}</v-btn>
       <v-btn v-if="access.canUpdate.value" data-testid="batch-enable" size="small" color="primary" variant="tonal" :disabled="disabled" @click="state.submit('enable')">{{ t('batch.enable') }}</v-btn>
       <v-btn v-if="access.canUpdate.value" data-testid="batch-disable" size="small" variant="tonal" :disabled="disabled" @click="state.submit('disable')">{{ t('batch.disable') }}</v-btn>
       <v-btn v-if="access.canDelete.value" data-testid="batch-delete" size="small" color="error" variant="text" :disabled="disabled" @click="state.openDelete">{{ t('batch.delete') }}</v-btn>
@@ -25,7 +26,8 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { useShortLinkAccess, useShortLinkBatch } from './useShortLinkBatch'
 
-const props = defineProps<{ state: ReturnType<typeof useShortLinkBatch>; access: ReturnType<typeof useShortLinkAccess> }>()
+const props = defineProps<{ state: ReturnType<typeof useShortLinkBatch>; access: ReturnType<typeof useShortLinkAccess>; transfer?: boolean }>()
+defineEmits<{ transfer: [] }>()
 const { t } = useI18n()
 const disabled = computed(() => props.state.unavailable.value || props.state.selected.value.length === 0)
 </script>

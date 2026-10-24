@@ -6,6 +6,23 @@ const id = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0
 const requestSchema = z.strictObject({ id, newOwnerUsername: transferUsernameSchema, expectedUpdatedAt: z.iso.datetime({ offset: true }) })
 const resultSchema = z.strictObject({ id, ownerId: id, updatedAt: z.iso.datetime({ offset: true }) })
 export type TransferInput = z.infer<typeof requestSchema>
+const batchRequestSchema = z.strictObject({
+  items: z.array(z.strictObject({ id, expectedUpdatedAt: z.iso.datetime({ offset: true }).refine(value => Date.parse(value.replace(/\.\d+/, '')) !== Date.parse('0001-01-01T00:00:00Z') || /\.\d*[1-9]/.test(value)) })).min(1).max(100)
+    .refine(items => new Set(items.map(item => item.id)).size === items.length),
+  newOwnerUsername: transferUsernameSchema,
+})
+const batchResultSchema = z.strictObject({ transferredCount: z.number().int().nonnegative(), unchangedCount: z.number().int().nonnegative() })
+export type BatchTransferInput = z.infer<typeof batchRequestSchema>
+
+/** Sends one atomic ownership handoff and rejects incomplete result counts. */
+export async function batchTransferShortLinks(input: BatchTransferInput) {
+  const request = batchRequestSchema.safeParse(input)
+  if (!request.success) throw new ApiClientError(100001, 'Invalid batch ownership transfer request')
+  const response = await apiPost<unknown>('/admin/short-link/batch-transfer', request.data)
+  const result = batchResultSchema.safeParse(response.data)
+  if (!result.success || result.data.transferredCount + result.data.unchangedCount !== request.data.items.length) throw new ApiClientError(100001, 'Invalid batch ownership transfer response')
+  return result.data
+}
 
 /** Transfers one captured link version to an exact account, without retrying writes. */
 export async function transferShortLink(input: TransferInput) {

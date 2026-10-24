@@ -19,11 +19,13 @@ import { downloadCsv } from '@/shared/download/csv'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 
 const props = defineProps<{ context: ShortLinkListExportContext; filters: ShortLinkListExportFilters; blocked: boolean }>()
+const emit = defineEmits<{ pending: [value: boolean] }>()
 const { t } = useI18n()
 const client = useQueryClient()
 const identity = useAccountIdentity()
 const auth = useQuery({ queryKey: ['auth', 'me'], queryFn: me, staleTime: Infinity, retry: false })
 const pending = ref(false)
+watch(pending, value => emit('pending', value), { flush: 'sync' })
 const canExport = computed(() => auth.isSuccess.value && hasAccess(auth.data.value))
 const disabled = computed(() => pending.value || props.blocked)
 let alive = true

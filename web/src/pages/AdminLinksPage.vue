@@ -5,7 +5,7 @@
         <h1>{{ t('page.adminLinks') }}</h1>
       </div>
       <span class="console-page__total">{{ t('adminLinks.total', { total }) }}</span>
-      <ShortLinkListExportButton context="admin" :filters="exportFilters" :blocked="exportBlocked" />
+      <ShortLinkListExportButton context="admin" :filters="exportFilters" :blocked="exportBlocked" @pending="exportPending = $event" />
     </div>
     <div class="console-page__tools">
       <div class="console-page__filters console-page__metadata-filters">
@@ -13,7 +13,7 @@
         <v-text-field v-model="searchKeyword" :label="t('filter.keyword')" :error-messages="keywordInvalid ? t('linkMetadata.keywordInvalid') : ''" density="compact" variant="outlined" />
         <v-text-field v-model="tagFilter" :label="t('filter.tag')" :error-messages="tagInvalid ? t('linkMetadata.tagFilterInvalid') : ''" density="compact" variant="outlined" />
       </div>
-      <ShortLinkBatchToolbar :state="batch" :access="access" />
+      <ShortLinkBatchToolbar :state="batch" :access="access" transfer @transfer="beginBatchTransfer" />
     </div>
     <div class="console-data-panel" data-testid="console-data-panel">
       <v-alert v-if="query.isError.value || (!access.canRead.value && !access.authPending.value)" type="error" variant="tonal">{{ t('adminLinks.loadFailed') }}</v-alert>
@@ -65,11 +65,12 @@
     @update:open="closeQr"
   />
   <ShortLinkTransferDialog v-if="transferTarget" :target="transferTarget" @close="transferTarget = null" />
+  <ShortLinkBatchTransferDialog v-if="batchTransferTargets" :targets="batchTransferTargets" @close="batchTransferTargets = null" @transferred="batch.clear" @conflict="batchTransferRefreshRequired = true" />
 </template>
 
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -84,12 +85,16 @@ import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue
 import { useShortLinkAccess, useShortLinkBatch } from '@/features/short-link-batch/useShortLinkBatch'
 import ShortLinkBatchToolbar from '@/features/short-link-batch/ShortLinkBatchToolbar.vue'
 import ShortLinkTransferDialog from '@/features/short-link-transfer/ShortLinkTransferDialog.vue'
+import ShortLinkBatchTransferDialog from '@/features/short-link-transfer/ShortLinkBatchTransferDialog.vue'
 import ShortLinkListExportButton from '@/features/short-link-list-export/ShortLinkListExportButton.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const access = useShortLinkAccess('admin')
 const transferTarget = ref<AdminShortLink | null>(null)
+const batchTransferTargets = ref<readonly AdminShortLink[] | null>(null)
+const batchTransferRefreshRequired = ref(false)
+const exportPending = ref(false)
 const statusFilter = ref<'' | AdminShortLink['status']>('')
 const { searchKeyword, tagFilter, debouncedKeyword, debouncedTag, keywordInvalid, tagInvalid, filtersPending } = useShortLinkFilters()
 const statusOptions = computed(() => [
@@ -98,8 +103,9 @@ const statusOptions = computed(() => [
   { title: t('filter.disabled'), value: 'disabled' },
 ])
 
+const listQueryKey = computed(() => ['admin-short-link', statusFilter.value, debouncedKeyword.value, debouncedTag.value, access.identity.scope.value.userId, access.identity.scope.value.epoch])
 const query = useQuery({
-  queryKey: computed(() => ['admin-short-link', statusFilter.value, debouncedKeyword.value, debouncedTag.value, access.identity.scope.value.userId, access.identity.scope.value.epoch]),
+  queryKey: listQueryKey,
   enabled: access.canRead,
   queryFn: () => listAdminShortLinks({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value }),
 })
@@ -136,10 +142,12 @@ const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof va
 const batch = useShortLinkBatch({
   context: 'admin', access, ids: computed(() => links.value.map(link => link.id)),
   filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value]),
-  blocked: computed(() => query.isFetching.value || query.isPending.value || query.isError.value || keywordInvalid.value || tagInvalid.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || transferTarget.value !== null),
+  blocked: computed(() => query.isFetching.value || query.isPending.value || query.isError.value || batchTransferRefreshRequired.value || exportPending.value || keywordInvalid.value || tagInvalid.value || filtersPending.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null),
 })
-const rowWriteBlocked = computed(() => batch.pending.value || transferTarget.value !== null)
-const canTransfer = computed(() => access.canUpdate.value && query.isSuccess.value && !query.isFetching.value)
+const rowWriteBlocked = computed(() => batch.pending.value || transferTarget.value !== null || batchTransferTargets.value !== null || batch.deleteIds.value !== null)
+const canTransfer = computed(() => access.canUpdate.value && query.isSuccess.value && !query.isFetching.value && !filtersPending.value && !keywordInvalid.value && !tagInvalid.value)
+watch([access.identity.scope, access.canUpdate], () => { batchTransferTargets.value = null; batch.clear() }, { flush: 'sync' })
+watch([query.isFetching, query.isSuccess], ([fetching, success]) => { if (!fetching && success) batchTransferRefreshRequired.value = false })
 const exportFilters = computed(() => ({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value }))
 const exportBlocked = computed(() => !access.canRead.value || !query.isSuccess.value || query.isFetching.value
   || keywordInvalid.value || tagInvalid.value || filtersPending.value || statusMutation.isPending.value
@@ -150,6 +158,12 @@ function beginTransfer(link: ConsoleLinkListItem) {
   if (!canTransfer.value || rowWriteBlocked.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || !access.allows('update')) return
   const target = links.value.find(value => value.id === link.id)
   if (target) transferTarget.value = { ...target, owner: { ...target.owner } }
+}
+
+/** Captures only selected current-list records after checking the live list and grants. */
+function beginBatchTransfer() {
+  if (!canTransfer.value || batch.unavailable.value || rowWriteBlocked.value || queryClient.isFetching({ queryKey: listQueryKey.value, exact: true }) || queryClient.getQueryState(listQueryKey.value)?.isInvalidated !== false || !access.allows('update') || !batch.selected.value.length) return
+  batchTransferTargets.value = links.value.filter(link => batch.selected.value.includes(link.id)).map(link => ({ ...link, owner: { ...link.owner } }))
 }
 
 /** Prevents opening row settings while a batch is outstanding. */
