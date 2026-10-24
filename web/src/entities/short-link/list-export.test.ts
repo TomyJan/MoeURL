@@ -18,6 +18,18 @@ describe('short-link list export API', () => {
     await expect(exportShortLinkList({ status: 'disabled', q: 'title &?', tag: '精确' }, context)).resolves.toEqual(file)
     expect(fetcher).toHaveBeenCalledWith(`/api/v1/${context === 'admin' ? 'admin/' : ''}short-link/export?status=disabled&q=title+%26%3F&tag=%E7%B2%BE%E7%A1%AE`, expect.objectContaining({ method: 'GET', credentials: 'include' }))
   })
+  it.each(['own', 'admin'] as const)('preserves applied filters through %s without URLSearchParams.size', async (context) => {
+    const sizeDescriptor = Object.getOwnPropertyDescriptor(URLSearchParams.prototype, 'size')
+    const file = { ...descriptor, fileName: context === 'admin' ? 'moeurl-links-all.csv' : descriptor.fileName }
+    const fetcher = respond(file)
+    try {
+      Reflect.deleteProperty(URLSearchParams.prototype, 'size')
+      await expect(exportShortLinkList({ status: 'disabled', q: 'title &?', tag: '精确' }, context)).resolves.toEqual(file)
+      expect(fetcher).toHaveBeenCalledWith(`/api/v1/${context === 'admin' ? 'admin/' : ''}short-link/export?status=disabled&q=title+%26%3F&tag=%E7%B2%BE%E7%A1%AE`, expect.objectContaining({ method: 'GET', credentials: 'include' }))
+    } finally {
+      if (sizeDescriptor) Object.defineProperty(URLSearchParams.prototype, 'size', sizeDescriptor)
+    }
+  })
   it('omits empty filters and permits an empty header-only export', async () => {
     const fetcher = respond(descriptor)
     await expect(exportShortLinkList({ status: '', q: '', tag: '' }, 'own')).resolves.toEqual(descriptor)

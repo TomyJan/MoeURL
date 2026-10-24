@@ -14,7 +14,8 @@ export async function exportShortLinkList(filters: ShortLinkListExportFilters, c
   if (filters.status) search.set('status', filters.status)
   if (filters.q) search.set('q', filters.q)
   if (filters.tag) search.set('tag', filters.tag)
-  const query = search.size ? `?${search}` : ''
+  const serializedSearch = search.toString()
+  const query = serializedSearch ? `?${serializedSearch}` : ''
   const response = await apiGet<unknown>(`${context === 'admin' ? '/admin' : ''}/short-link/export${query}`)
   const schema = z.strictObject({
     fileName: z.literal(context === 'admin' ? 'moeurl-links-all.csv' : 'moeurl-links-own.csv'),
