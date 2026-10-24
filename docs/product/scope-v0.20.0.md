@@ -2,7 +2,7 @@
 
 ## 目标与状态
 
-基于主分支 `c08b67b2`（PR #211 已合并的 v0.19.0），补齐原管理后台规划中的「修改短链所属用户」。独立分支的功能候选 `a16f82af` 包含既有用户名兼容性与移动端折行修复；`24f4655` 同步主分支 `ea78dcef` 的依赖更新，本轮补充 CI Docker 探测修复。尚未正式发布；初始完整门禁、后续修复、本轮验证及 PR 集成状态分开记录于 [验收](../implementation/v0.20.0-acceptance.md)，历史完整浏览器、race 和安全扫描不能替代新候选目标 CI。
+已通过 [PR #214](https://github.com/TomyJan/MoeURL/pull/214) 合并为 `2d23dcfd`，补齐原管理后台规划中的「修改短链所属用户」，尚未正式发布。原基线为 `c08b67b2`；最终 PR 候选 `ba90f37e` 包含既有用户名兼容、移动端折行、依赖同步和 CI Docker 探测修复，其 [目标 CI](https://github.com/TomyJan/MoeURL/actions/runs/40031018213) 全部 9 项成功。各阶段本地结果、PR CI、主分支合并和生产验证分开记录于 [验收](../implementation/v0.20.0-acceptance.md)，不将 PR 结果冒充后续提交或正式发布结果。
 
 ## 必须实现
 

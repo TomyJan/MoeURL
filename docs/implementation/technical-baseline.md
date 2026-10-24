@@ -179,6 +179,10 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 
 ## 5. API 约定
 
+### v0.21.0 短链清单导出
+
+新增 `GET /api/v1/short-link/export` 与 `GET /api/v1/admin/short-link/export`，只接受 `status`、`q`、`tag`。叠加 `short_link:export` 及对应读取权限，同条 SELECT 快照重查账号／组授权与 owner_id，不逐页拼接或聚合访问事件。5 秒期限；MATERIALIZED 候选集最多保留 1001 条 ID／排序／原始文本字节数元数据，同语句先检查超过 1000 条或累计原始可变长文本超过 8 MiB，超限只返回空的 limit 哨兵，通过后才读取完整字段。读取预算覆盖原域名、短码、目标 URL、标题、tag 元素、状态、模式及所属用户名，求和前转 bigint；最终 CSV 另有精确 UTF-8 8 MiB 预算，任一超限整体返回 `200118`。少数经规范化缩小的集合也可能被读取预算拒绝，不改变既有 URL 写入限制。成功为固定文件名和 MIME 的 JSON 下载描述，BOM／CRLF／CSV 转义／公式中和；包含原域名短链 URL、目标及管理配置，不包含秘密和原始事件，详见 [设计](../specs/2026-10-24-v0.21.0-link-list-export-design.md)。
+
 ### v0.20.0 短链归属转移
 
 新增 `POST /api/v1/admin/short-link/transfer`，严格请求字段为 `id`、`newOwnerUsername` 和 `expectedUpdatedAt`，成功返回 `{id, ownerId, updatedAt}`。管理列表新增完整精度 `updatedAt`。要求 `admin:access` 与 `short_link:update_all`，5 秒事务中按 UUID 锁定 actor／接收用户，再锁操作者组并重查数据库授权，最后锁短链校验版本。只更新 owner_id 和单调版本，与既有审计原子提交；同 owner no-op。200116 为版本冲突，200117 为接收账号不可用；缺失沿用 200104，参数与权限沿用 100001／120001。无新表／migration／权限，详细契约见 [设计](../specs/2026-10-23-v0.20.0-link-ownership-design.md)。
@@ -206,6 +210,7 @@ API 使用 `/api/v1` 前缀：
 /api/v1/short-link/create
 /api/v1/short-link/overview
 /api/v1/short-link/list
+/api/v1/short-link/export
 /api/v1/short-link/update
 /api/v1/short-link/delete
 /api/v1/short-link/batch
@@ -214,6 +219,7 @@ API 使用 `/api/v1` 前缀：
 /api/v1/user/preferences
 /api/v1/user/preferences/update
 /api/v1/admin/short-link/list
+/api/v1/admin/short-link/export
 /api/v1/admin/short-link/update
 /api/v1/admin/short-link/delete
 /api/v1/admin/short-link/batch
@@ -485,6 +491,7 @@ short_link:set_password
 short_link:set_max_visits
 short_link:set_metadata
 short_link:custom_slug
+short_link:export
 admin:access
 ```
 
