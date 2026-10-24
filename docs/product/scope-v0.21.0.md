@@ -2,7 +2,7 @@
 
 ## 目标与状态
 
-开发基线为已合并 v0.20.0 的主分支 `2d23dcfd`（PR #214），当前远端主分支为 `315ad39f`，独立分支 `feat/v0.21.0-link-export` 已创建 [PR #216](https://github.com/TomyJan/MoeURL/pull/216)。本版补足原有「短链组织与交换」规划中的清单导出，完整本地门禁与独立终审已完成，首轮候选 `5e3d713d` 的目标 CI 全部 9 项通过。后续浏览器兼容性修复的验证独立记录于[验收](../implementation/v0.21.0-acceptance.md)，首轮 CI 不替代修后候选验证；合并与正式发布尚未完成。
+本版补足原有「短链组织与交换」规划中的清单导出，2026-10-25 已通过 [PR #216](https://github.com/TomyJan/MoeURL/pull/216) 合并为 `dfc9a5a1`，尚未正式发布。最终候选 `1641e2a` 的[目标 CI](https://github.com/TomyJan/MoeURL/actions/runs/40132665857) 全部 9 项成功，审查意见已处理；开发基线 `2d23dcfd`、首轮 `5e3d713d` 与后续修复的证据独立保留于[验收](../implementation/v0.21.0-acceptance.md)。
 
 | 能力与来源 | 现状与取舍 | 后端与数据库 | 前端与验证 | 风险 |
 | --- | --- | --- | --- | --- |
