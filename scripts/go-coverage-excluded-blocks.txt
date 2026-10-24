@@ -26,11 +26,11 @@ github.com/TomyJan/MoeURL/internal/user/service.go:67.16,69.3
 # ResetPassword password hashing failure; argon2/random failure is an infrastructure branch that is not deterministically triggerable.
 github.com/TomyJan/MoeURL/internal/user/service.go:287.16,289.3
 # After a creation transaction starts, advisory locking or the granted-domain query can fail on database or context errors.
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:131.64,133.5
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:143.18,145.5
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:133.64,135.5
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:145.18,147.5
 # Successful updates retain a valid domain foreign key; a subsequent domain read can fail only on infrastructure error.
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:348.16,350.3
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:571.16,573.3
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:350.16,352.3
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:573.16,575.3
 
 # Redirect access transaction step failures are infrastructure/concurrency paths: each intermediate failure requires the database connection or row to change between locked statements.
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:300.35,302.3
@@ -45,7 +45,7 @@ github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:364.39,366.3
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:352.16,354.3
 
 # Password hashing failure is an Argon2id/random infrastructure path after input and permission validation.
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:875.16,877.3
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:877.16,879.3
 
 # Domain mutations acquire the same advisory lock immediately after beginning a transaction; forcing only the lock
 # statement to fail requires a connection or context race after the transaction has already started.

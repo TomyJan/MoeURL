@@ -93,6 +93,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		permissionService := permission.NewDatabaseService(pool)
 		deps.Domain = domain.NewServiceWithDevelopment(pool, permissionService, cfg.Env == "development")
 		shortLinkService := shortlink.NewServiceWithLogger(pool, permissionService, logger)
+		deps.ShortLinkListExport = shortLinkService
 		deps.ShortLink = shortLinkService
 		deps.ShortLinkExport = shortLinkService
 		insightService := insights.NewService(pool, permissionService)

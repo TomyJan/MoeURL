@@ -49,6 +49,8 @@ github.com/TomyJan/MoeURL/internal/shortlink/analytics_range.go
 github.com/TomyJan/MoeURL/internal/shortlink/analytics.go
 github.com/TomyJan/MoeURL/internal/shortlink/analytics_export.go
 github.com/TomyJan/MoeURL/internal/shortlink/analytics_export_handler.go
+github.com/TomyJan/MoeURL/internal/shortlink/list_export.go
+github.com/TomyJan/MoeURL/internal/shortlink/list_export_handler.go
 github.com/TomyJan/MoeURL/internal/shortlink/model.go
 github.com/TomyJan/MoeURL/internal/shortlink/metadata.go
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_handler.go

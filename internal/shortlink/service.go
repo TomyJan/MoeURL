@@ -39,6 +39,7 @@ type Service struct {
 	pool        *pgxpool.Pool
 	queries     *sqlc.Queries
 	permissions permission.Resolver
+	listExports listExportReader
 }
 
 // NewService creates a short link service backed by SQLC queries and permissions.
@@ -59,6 +60,7 @@ func NewServiceWithLogger(pool *pgxpool.Pool, permissions permission.Resolver, l
 		pool:        pool,
 		queries:     sqlc.New(pool),
 		permissions: permissions,
+		listExports: sqlc.New(pool),
 	}
 }
 
