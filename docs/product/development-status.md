@@ -1,8 +1,8 @@
 # 开发进度与能力清单
 
-最新已确认主分支为 `dfc9a5a1`：[v0.21.0 短链清单 CSV 导出](scope-v0.21.0.md) 已通过 [PR #216](https://github.com/TomyJan/MoeURL/pull/216) 合并，最终 head `1641e2a` 的[目标 CI](https://github.com/TomyJan/MoeURL/actions/runs/40132665857) 和合并提交的[主分支 CI](https://github.com/TomyJan/MoeURL/actions/runs/40133310132) 各 9 项成功，两条有效审查意见已修复。尚未正式发布，历史证据见[本版验收](../implementation/v0.21.0-acceptance.md)。独立分支 `feat/v0.22.0-batch-link-transfer` 已实现 [批量短链归属转移](scope-v0.22.0.md)，产品候选 `a0e8e26` 的 Go 业务与前端覆盖率均为 100%，任务及整分支代码质量审查通过，完整 Playwright 80 项、Linux race、production smoke、精确镜像扫描与 100 条手机布局压力验证通过，隔离资源已清理；最终记录已同步，代码及测试已原子提交，本版尚未推送、合并或发布。下面的旧提交结果保留历史归属。
+最新已确认主分支为 `dfc9a5a1`：[v0.21.0 短链清单 CSV 导出](scope-v0.21.0.md) 已通过 [PR #216](https://github.com/TomyJan/MoeURL/pull/216) 合并，最终 head `1641e2a` 的[目标 CI](https://github.com/TomyJan/MoeURL/actions/runs/40132665857) 和合并提交的[主分支 CI](https://github.com/TomyJan/MoeURL/actions/runs/40133310132) 各 9 项成功，两条有效审查意见已修复。尚未正式发布，历史证据见[本版验收](../implementation/v0.21.0-acceptance.md)。独立分支 `feat/v0.22.0-batch-link-transfer` 已实现 [批量短链归属转移](scope-v0.22.0.md)，产品候选 `a0e8e26` 的 Go 业务与前端覆盖率均为 100%，任务及整分支代码质量审查通过，完整 Playwright 80 项、Linux race、production smoke、精确镜像扫描与 100 条手机布局压力验证通过，隔离资源已清理；最终记录已同步，代码及测试已原子提交，本分支已于 2026-10-26 补强独立批次并发回归并以 `f320fc08` 推送，目标 CI 结果单独记录，尚未合并或发布。下面的旧提交结果保留历史归属。
 
-更新日期：2026-10-25。历史远端文档基线 `722b2ce03ee79c05b55737e16eaab2d83c36372b` 基于代码 `c4928a85`，包含 PR #198 合并的 [v0.17.0 短链批量管理](scope-v0.17.0.md) 及当时的依赖和 Go 证书安全修复。该文档基线的 [Check Code](https://github.com/TomyJan/MoeURL/actions/runs/39775160522) 全部 9 项通过，不替代后续代码候选的结果。v0.18.0 已通过 PR #208 合并为 `0f01a2e5`，其原分支本地证据不替代合并提交 CI 或发布。`33f287ec`、`1c6df4a` 等历史证据单独保留，不改写为新提交结果。真实生产演练与正式发布尚未完成。本页是进度入口，版本边界由 scope 和 spec 定义，指定提交及环境的实际验证由对应 acceptance 记录。
+更新日期：2026-10-26。历史远端文档基线 `722b2ce03ee79c05b55737e16eaab2d83c36372b` 基于代码 `c4928a85`，包含 PR #198 合并的 [v0.17.0 短链批量管理](scope-v0.17.0.md) 及当时的依赖和 Go 证书安全修复。该文档基线的 [Check Code](https://github.com/TomyJan/MoeURL/actions/runs/39775160522) 全部 9 项通过，不替代后续代码候选的结果。v0.18.0 已通过 PR #208 合并为 `0f01a2e5`，其原分支本地证据不替代合并提交 CI 或发布。`33f287ec`、`1c6df4a` 等历史证据单独保留，不改写为新提交结果。真实生产演练与正式发布尚未完成。本页是进度入口，版本边界由 scope 和 spec 定义，指定提交及环境的实际验证由对应 acceptance 记录。
 
 ## 状态口径
 
@@ -82,7 +82,7 @@
 
 ## 后续开发方向
 
-v0.22.0 已在独立分支实现管理员批量短链归属转移并通过完整本地门禁（尚未推送、合并或发布）：当前列表最多100条、完整精度版本、全量预检与整批原子审计，不改地址／配置／历史统计。详见[范围](scope-v0.22.0.md)、[设计](../specs/2026-10-25-v0.22.0-batch-ownership-design.md)和[验收](../implementation/v0.22.0-acceptance.md)。v0.21.0 清单导出已经通过 PR #216 合并，最终候选目标 CI 9 项成功，尚未正式发布。
+v0.22.0 已在独立分支实现管理员批量短链归属转移并通过完整本地门禁（已推送功能分支，尚未合并或发布）：当前列表最多100条、完整精度版本、全量预检与整批原子审计，不改地址／配置／历史统计。详见[范围](scope-v0.22.0.md)、[设计](../specs/2026-10-25-v0.22.0-batch-ownership-design.md)和[验收](../implementation/v0.22.0-acceptance.md)。v0.21.0 清单导出已经通过 PR #216 合并，最终候选目标 CI 9 项成功，尚未正式发布。
 
 v0.20.0 已通过 PR #214 合并为 `2d23dcfd`：管理员单条短链归属转移、当前授权与账号检查、完整精度版本、原地址和历史统计保留、旧所有者拒绝及事务审计。最终 PR CI 与各阶段本地证据分别见上表及 [验收](../implementation/v0.20.0-acceptance.md)，尚未正式发布。
 
