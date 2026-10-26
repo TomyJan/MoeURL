@@ -321,7 +321,7 @@ func TestBatchTagsAuthorizationWait(t *testing.T) {
 	}
 }
 
-// TestBatchTagsConcurrency catches request-order locking and accidental exclusive actor locks.
+// TestBatchTagsConcurrency catches request-order locking and accidental exclusive actor/group locks.
 func TestBatchTagsConcurrency(t *testing.T) {
 	pool, _, admin, _, input := batchTagsFixture(t, 2)
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
@@ -375,8 +375,11 @@ func TestBatchTagsConcurrency(t *testing.T) {
 		defer ticker.Stop()
 		for {
 			var blockers []int32
-			require.NoError(t, pool.QueryRow(ctx, `select pg_blocking_pids($1::integer)`, pids[i]).Scan(&blockers))
+			var query, waitEventType string
+			require.NoError(t, pool.QueryRow(ctx, `select pg_blocking_pids(pid), query, coalesce(wait_event_type, '') from pg_stat_activity where pid=$1`, pids[i]).Scan(&blockers, &query, &waitEventType))
 			if len(blockers) > 0 {
+				require.Contains(t, query, "-- name: LockBatchTagsShortLinks :many", "batch %d must reach the short-link lock query", i)
+				require.Equal(t, "Lock", waitEventType, "batch %d must be waiting for a lock", i)
 				require.Equal(t, []int32{expected}, blockers, "requests must wait on sorted links, not shared actor/group rows")
 				return
 			}
