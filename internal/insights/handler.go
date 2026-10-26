@@ -69,6 +69,8 @@ func (h *Handler) respond(w http.ResponseWriter, r *http.Request, result any, er
 		code, message = 200104, "Short link not found"
 	case errors.Is(err, ErrVisitExportLimit):
 		code, message = 200120, "Visit export limit exceeded"
+	case errors.Is(err, ErrAuditExportLimit):
+		code, message = 100002, "Audit export limit exceeded"
 	default:
 		code, status, message = 900000, http.StatusInternalServerError, "Internal server error"
 		h.logger.ErrorContext(r.Context(), "insight_request_failed", "request_id", middleware.RequestIDFromContext(r.Context()))
