@@ -1,6 +1,6 @@
 # v0.24.0 匿名访问记录 CSV 导出
 
-状态：2026-10-26 在独立分支 `feat/v0.24.0-visit-record-export` 设计与实施，基于 v0.23.0 实际合并提交 `5f6702d92939dd1bfa9fb2afe30660965577d1f2`。该基线的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40300323879) 和[合并提交 CI](https://github.com/TomyJan/MoeURL/actions/runs/40306786126) 各 9 项成功，CodeRabbit 对最终 44 文件完整复审无有效意见；不替代本版验证，也不代表正式发布。
+状态：2026-10-26 在独立分支 `feat/v0.24.0-visit-record-export` 完成功能实现、本地门禁和独立代码复审，基于 v0.23.0 实际合并提交 `5f6702d92939dd1bfa9fb2afe30660965577d1f2`。该基线的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40300323879) 和[合并提交 CI](https://github.com/TomyJan/MoeURL/actions/runs/40306786126) 各 9 项成功，CodeRabbit 对最终 44 文件完整复审无有效意见；不替代本版验证，也不代表正式发布。
 
 ## 目标与盘点
 

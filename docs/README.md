@@ -4,7 +4,7 @@
 
 [v0.24.0 匿名访问记录 CSV 导出](product/scope-v0.24.0.md) 在独立分支 `feat/v0.24.0-visit-record-export` 实现单链已应用 UTC 日期、设备及国家筛选的完整记录下载，最多 1000 条／8 MiB，新增独立权限且保持匿名字段边界。设计、任务及本地门禁见[规格](specs/2026-10-26-v0.24.0-visit-record-export-design.md)、[计划](implementation/v0.24.0-plan.md)、[任务](implementation/v0.24.0-tasks.md)与[验收](implementation/v0.24.0-acceptance.md)。本版独立终审、目标 CI、合并及正式发布分别记录，旧候选结果不替代新提交验证。
 
-v0.24.0 整分支终审已完成，统一修复候选 `7cd277b2` 补齐真实父页授权恢复、服务端日期权威及固定 E2E 分类／已加载页面撤权回归；新门禁、工作树生成物隔离偏差与待定向复审状态见本版验收。
+v0.24.0 整分支终审已完成，统一修复候选 `7cd277b2` 补齐真实父页授权恢复、服务端日期权威及固定 E2E 分类／已加载页面撤权回归；新门禁、工作树生成物隔离偏差及已通过的独立定向复审结论见本版验收。
 
 主分支已合并 [全站统计、匿名访问明细与操作审计](product/scope-v0.18.0.md)。管理页为 `/admin/dashboard`、`/admin/audit`，访问明细保留在单短链分析页中；权限、隐私、事务与保留边界见 [设计](specs/2026-10-22-v0.18.0-analytics-audit-design.md)。分阶段本地门禁、候选树及剩余远端／发布验证分别记录在 [验收](implementation/v0.18.0-acceptance.md)，功能已通过 PR #208 合并为 `0f01a2e5`，尚未正式发布。
 
