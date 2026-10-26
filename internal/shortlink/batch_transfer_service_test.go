@@ -323,38 +323,97 @@ func TestBatchTransferOldOwnerWait(t *testing.T) {
 	}
 }
 
-// TestBatchTransferConcurrent rejects the losing reversed batch without deadlock or split ownership.
+// TestBatchTransferConcurrent catches request-order locking by observing independent batches waiting on sorted link rows.
 func TestBatchTransferConcurrent(t *testing.T) {
-	pool, service, actor, _, _, input := batchTransferFixture(t, 2)
-	start := make(chan struct{})
-	done := make(chan error, 2)
+	pool, _, actor, _, recipient, input := batchTransferFixture(t, 2)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	var connections []*pgxpool.Pool
+	var blocker pgx.Tx
 	var workers sync.WaitGroup
-	for i := range 2 {
-		request := input
-		request.Items = append([]shortlink.BatchTransferItem(nil), input.Items...)
-		if i == 1 {
-			request.NewOwnerUsername = actor.Username
-			request.Items[0], request.Items[1] = request.Items[1], request.Items[0]
+	defer func() {
+		cancel()
+		if blocker != nil {
+			_ = blocker.Rollback(context.Background())
 		}
-		workers.Go(func() { <-start; _, err := service.BatchTransfer(t.Context(), actor, request); done <- err })
+		workers.Wait()
+		for _, connection := range connections {
+			connection.Close()
+		}
+	}()
+	var adminGroupID string
+	require.NoError(t, pool.QueryRow(ctx, `select group_id::text from app_user where id=$1`, actor.ID).Scan(&adminGroupID))
+	otherActor := insertShortLinkUserForGroup(t, ctx, pool, "other-manager", adminGroupID, uuid.NewString(), "admin", permission.AdminPermissions)
+	actors := []auth.CurrentUser{actor, otherActor}
+	var pids [2]int32
+	for i := range actors {
+		config := pool.Config()
+		config.MaxConns = 1
+		connection, err := pgxpool.NewWithConfig(ctx, config)
+		require.NoError(t, err)
+		connections = append(connections, connection)
+		require.NoError(t, connection.QueryRow(ctx, `select pg_backend_pid()`).Scan(&pids[i]))
 	}
-	close(start)
-	workers.Wait()
-	close(done)
-	success := 0
-	for err := range done {
-		if err == nil {
-			success++
-		} else {
-			require.ErrorIs(t, err, shortlink.ErrTransferConflict)
+	first := input
+	first.Items = append([]shortlink.BatchTransferItem(nil), input.Items...)
+	if first.Items[0].ID < first.Items[1].ID {
+		first.Items[0], first.Items[1] = first.Items[1], first.Items[0]
+	}
+	second := shortlink.BatchTransferInput{NewOwnerUsername: otherActor.Username, Items: []shortlink.BatchTransferItem{first.Items[1], first.Items[0]}}
+	var err error
+	blocker, err = pool.Begin(ctx)
+	require.NoError(t, err)
+	_, err = blocker.Exec(ctx, `select id from short_link where id=$1 for update`, first.Items[0].ID)
+	require.NoError(t, err)
+	type outcome struct {
+		result shortlink.BatchTransferResult
+		err    error
+	}
+	done := []chan outcome{make(chan outcome, 1), make(chan outcome, 1)}
+	start := func(i int, request shortlink.BatchTransferInput) {
+		workers.Go(func() {
+			result, err := shortlink.NewService(connections[i], permission.NewDatabaseService(connections[i])).BatchTransfer(ctx, actors[i], request)
+			done[i] <- outcome{result, err}
+		})
+	}
+	waitBlockedBy := func(i int, expected int32) {
+		t.Helper()
+		ticker := time.NewTicker(5 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			var blockers []int32
+			require.NoError(t, pool.QueryRow(ctx, `select pg_blocking_pids($1::integer)`, pids[i]).Scan(&blockers))
+			if len(blockers) != 0 {
+				require.Equal(t, []int32{expected}, blockers, "batch %d must wait only on the expected link-lock holder", i)
+				return
+			}
+			select {
+			case result := <-done[i]:
+				t.Fatalf("batch %d finished before the expected lock wait: %+v", i, result)
+			case <-ctx.Done():
+				t.Fatal(ctx.Err())
+			case <-ticker.C:
+			}
 		}
 	}
-	require.Equal(t, 1, success)
-	var owners, audits int
-	require.NoError(t, pool.QueryRow(t.Context(), `select count(distinct owner_id) from short_link`).Scan(&owners))
-	require.Equal(t, 1, owners)
-	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from audit_log`).Scan(&audits))
+	// The first request is descending, but must hold the lower ID before waiting on the higher ID.
+	start(0, first)
+	waitBlockedBy(0, int32(blocker.Conn().PgConn().PID()))
+	// Different actor/recipient rows and compatible group locks force this wait onto the lower link.
+	start(1, second)
+	waitBlockedBy(1, pids[0])
+	require.NoError(t, blocker.Commit(ctx))
+	winner, loser := <-done[0], <-done[1]
+	require.NoError(t, winner.err)
+	require.Equal(t, shortlink.BatchTransferResult{TransferredCount: 2}, winner.result)
+	require.ErrorIs(t, loser.err, shortlink.ErrTransferConflict)
+	require.Equal(t, shortlink.BatchTransferResult{}, loser.result)
+	var transferred, audits int
+	require.NoError(t, pool.QueryRow(ctx, `select count(*) from short_link where owner_id=$1`, recipient.ID).Scan(&transferred))
+	require.Equal(t, 2, transferred)
+	require.NoError(t, pool.QueryRow(ctx, `select count(*) from audit_log where actor_id=$1 and changed_fields=array['owner_id']`, actor.ID).Scan(&audits))
 	require.Equal(t, 2, audits)
+	require.NoError(t, pool.QueryRow(ctx, `select count(*) from audit_log where actor_id=$1`, otherActor.ID).Scan(&audits))
+	require.Zero(t, audits)
 }
 
 // TestBatchTransferWaitsForRecipient uses a visible row-lock wait to prove fresh account validation.
