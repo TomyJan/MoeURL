@@ -21,6 +21,8 @@ github.com/TomyJan/MoeURL/internal/insights/query.go
 github.com/TomyJan/MoeURL/internal/insights/service.go
 github.com/TomyJan/MoeURL/internal/insights/dashboard.go
 github.com/TomyJan/MoeURL/internal/insights/visits.go
+github.com/TomyJan/MoeURL/internal/insights/visit_export.go
+github.com/TomyJan/MoeURL/internal/insights/visit_export_handler.go
 github.com/TomyJan/MoeURL/internal/insights/handler.go
 github.com/TomyJan/MoeURL/internal/loginpolicy/service.go
 github.com/TomyJan/MoeURL/internal/middleware/body_limit.go

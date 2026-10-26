@@ -35,6 +35,7 @@ type Dependencies struct {
 	ShortLinkBatchTransfer shortlink.BatchTransferPort
 	ShortLinkBatchTags     shortlink.BatchTagsPort
 	Insights               insights.Port
+	VisitExport            insights.VisitExportPort
 	Audit                  insights.AuditPort
 	Domain                 domain.Port
 	Redirect               shortlink.RedirectPort
@@ -121,6 +122,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				businessAPI.Get("/admin/dashboard", handler.Dashboard)
 				businessAPI.Get("/short-link/visits", handler.Visits)
 				businessAPI.Get("/admin/short-link/visits", handler.AdminVisits)
+			}
+			if dependency.VisitExport != nil {
+				handler := insights.NewVisitExportHandler(dependency.VisitExport, logger)
+				businessAPI.Get("/short-link/visits/export", handler.ExportVisits)
+				businessAPI.Get("/admin/short-link/visits/export", handler.AdminExportVisits)
 			}
 			if dependency.Audit != nil {
 				handler := insights.NewAuditHandler(dependency.Audit, logger)

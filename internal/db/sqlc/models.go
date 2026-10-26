@@ -117,6 +117,11 @@ type MoeurlSystemSettingsPermissionAddition struct {
 	PermissionRevision int64       `json:"permission_revision"`
 }
 
+type MoeurlVisitExportPermissionAddition struct {
+	UserGroupID        pgtype.UUID `json:"user_group_id"`
+	PermissionRevision int64       `json:"permission_revision"`
+}
+
 type OidcLoginAttempt struct {
 	StateHash          []byte             `json:"state_hash"`
 	ProviderID         pgtype.UUID        `json:"provider_id"`
