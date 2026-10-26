@@ -49,7 +49,15 @@ v0.1.0 实现来源、设备、地区等基础维度统计。来源只保存 Ref
 
 全站接口 `GET /api/v1/admin/dashboard` 要求 `admin:access` 和 `statistics:read_all`，返回有效用户／短链规模、保存的启用状态数量、UTC 今日新增／访问量、区间访问量、连续日趋势、热门短链及生成时间。同一只读 repeatable-read 快照中执行有界查询；已删除链接的成功历史仍计访问量，热门记录显示删除状态并取消详情入口。启用状态不等于公开可访问；不提供虚构 UV、在线人数或机器健康指标。完整 DTO 和日期契约见 [v0.18.0 设计](2026-10-22-v0.18.0-analytics-audit-design.md)。
 
-原访问事件及全生命周期聚合继续长期保留，本版只限制单次读取范围，不自动删除历史访问事件。访问明细及审计导出、任意时区和事件归档仍未实现。
+原访问事件及全生命周期聚合继续长期保留，v0.18.0 只限制单次读取范围，不自动删除历史访问事件。该版本未提供访问明细及审计导出；v0.24.0 单链匿名记录导出的当前进展见下节。审计导出、全站访问合并导出、任意时区和事件归档仍未实现。
+
+### v0.24.0 单链匿名记录导出
+
+个人与管理接口分别为 `GET /api/v1/short-link/visits/export` 和 `GET /api/v1/admin/short-link/visits/export`。只接受规范非零 UUID 的 `id`、默认 7 天／7、30、90 天 `days` 或成对 `startDate`／`endDate`，可选设备／国家；最多 90 个 UTC 日。拒绝游标、pageSize、重复、未知和显式空参数。同一 5 秒只读 repeatable-read 快照重读有效账号、数据库组权限和未删除链接；独立 `short_link:export_visits` 必须叠加 `short_link:read_visits` 及本人读取／归属，或后台入口／全站读取。
+
+只导出 `redirect_response_sent`，按 `(created_at DESC,id DESC)` 排序。候选至多 1001 条元数据，最多 1000 行，原始可变长文本与最终 UTF-8 CSV 分别限制 8 MiB，超限整体拒绝且不回读超预算文本。成功 JSON 为 `{fileName,contentType,content}`，MIME `text/csv;charset=utf-8`；文件名 `moeurl-visits-{id}-{startDate}-{endDate}.csv`。固定字段为 `short_link_id,start_date,end_date,time_zone,event_id,occurred_at,referrer_host,device_type,browser_family,os_family,country_code`，时间为 UTC RFC3339Nano，空值保持空单元格，包含 BOM／CRLF、标准 quoting 和逐文本公式中和。空结果允许仅表头文件。
+
+按钮只在记录成功加载且范围／已应用筛选一致时可用，第二页仍导出整个筛选范围，未应用国家草稿和刷新中的旧范围不可导出。换号、同账号重登录、路由／过滤往返、撤权及卸载后的迟到结果均失效，浏览器释放 Blob URL 与临时节点。非法输入／无权／不可见／容量分别为 100001／120001／200104／200120，基础设施 HTTP 500／900000；所有响应 no-store。文件不含目标地址、标题／标签、owner、用户名、原始 IP／UA／完整 Referer 或令牌，也不新增采集、事件、审计或业务写入。完整契约和实际验证见[设计](2026-10-26-v0.24.0-visit-record-export-design.md)与[验收](../implementation/v0.24.0-acceptance.md)。
 
 ## 聚合统计导出
 
