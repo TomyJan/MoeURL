@@ -185,6 +185,10 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 
 ## 5. API 约定
 
+### v0.26.0 个人默认域名（设计阶段）
+
+计划新增本人 `GET /api/v1/user/domain-preference` 与 `POST /api/v1/user/domain-preference/update`，独立 `user_domain_preference` 版本、Cookie 本人归属与当前数据库权限交集。语言主题接口和后端创建省略语义保持原契约；域名删除拟在原事务清理偏好并推进版本，身份 epoch 隔离前端查询和迟到响应。此条仅记录已完成设计，代码／migration／生成及门禁尚未实现；完整契约与验收见[设计](../specs/2026-10-27-v0.26.0-personal-default-domain-design.md)和[验收](v0.26.0-acceptance.md)。
+
 ### v0.25.0 操作审计导出
 
 新增 `GET /api/v1/admin/audit/export`，仅接受 days 或成对 startDate／endDate 及 actorId／resourceType／action；拒绝分页、未知、重复和空参数，日期沿用最长 90 天 UTC。`AuditExportPort` 独立于列表端口，复用 insightService；5 秒只读 repeatable-read 内重查有效账号、`admin:access`、`audit:read`、`audit:export` 和数据库时间／180 天保留截止。MATERIALIZED 候选先校验 1000 行及原文 8 MiB（完整 changed_fields JSON 计入），通过后才回读；最终编码另限精确 UTF-8 8 MiB，不 count 全表或返回部分文件。

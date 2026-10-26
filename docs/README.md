@@ -1,6 +1,8 @@
 # MoeURL 文档中心
 
-最近功能合并为 `6933f94c20c508c879f50b7ed7afa673cc1e5e40`：[v0.25.0 操作审计 CSV](product/scope-v0.25.0.md) 已通过 [PR #222](https://github.com/TomyJan/MoeURL/pull/222) 合并，最终 `d250b4b` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40404362865) 9 项成功，实际 CodeRabbit 全部 50 文件审查无有效未解决意见。合并后 [CI](https://github.com/TomyJan/MoeURL/actions/runs/40406334592) 为 8 成功／手机 E2E 失败，正在独立维护分支修复，不能将 PR 成功当作主分支全绿。尚未正式发布。
+最近功能 [v0.25.0 操作审计 CSV](product/scope-v0.25.0.md) 已由 PR #222 合并，其旧合并 CI 的手机 E2E 失败保持历史归属。后继[维护 PR #223](https://github.com/TomyJan/MoeURL/pull/223) 已合并为 `cafacf15`，精确最终 head 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40415038034) 与新合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40421454231) 各 9 成功，实际 CodeRabbit 已覆盖最终变更，无有效未解决问题。恢复证据见[维护验收](implementation/2026-10-27-frontend-security-dependencies-acceptance.md)；尚未正式发布。
+
+当前 [v0.26.0 个人默认域名](product/scope-v0.26.0.md) 仅完成设计与计划，尚未实现；见[设计](specs/2026-10-27-v0.26.0-personal-default-domain-design.md)、[计划](implementation/v0.26.0-plan.md)、[任务](implementation/v0.26.0-tasks.md)和[验收](implementation/v0.26.0-acceptance.md)。
 
 [v0.25.0 操作审计 CSV 导出](product/scope-v0.25.0.md) 已合并按 UTC 日期与操作者／资源／动作筛选的完整元数据下载，最多 1000 条／8 MiB，新增受保护管理员权限并保持业务值与秘密隔离。设计与逐候选证据见[规格](specs/2026-10-27-v0.25.0-audit-export-design.md)、[计划](implementation/v0.25.0-plan.md)、[任务](implementation/v0.25.0-tasks.md)及[验收](implementation/v0.25.0-acceptance.md)。当前[开发依赖安全维护](implementation/2026-10-27-frontend-security-dependencies-plan.md) 同时处理 4 条工具链公告及上述 E2E 提示关闭同步，不新增产品版本；进度见[维护验收](implementation/2026-10-27-frontend-security-dependencies-acceptance.md)。
 

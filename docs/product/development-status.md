@@ -1,6 +1,8 @@
 # 开发进度与能力清单
 
-最近功能合并为 `6933f94c20c508c879f50b7ed7afa673cc1e5e40`：[v0.25.0 操作审计 CSV](scope-v0.25.0.md) 已通过 [PR #222](https://github.com/TomyJan/MoeURL/pull/222) 合并。最终 `d250b4b` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40404362865) 9 项成功，实际 CodeRabbit 全部 50 文件审查无有效未解决意见；合并后 [CI](https://github.com/TomyJan/MoeURL/actions/runs/40406334592) 为 8 成功／手机 E2E 失败，正在[独立维护分支](../implementation/2026-10-27-frontend-security-dependencies-acceptance.md) 修复。该维护同时清理 4 条开发依赖公告，尚未完成远端交付；正式发布仍未执行。旧提交结果保留历史归属，不能用 PR 成功替代合并后结果。
+最近功能 [v0.25.0 操作审计 CSV](scope-v0.25.0.md) 由 PR #222 合并为 `6933f94c`，其合并 CI #40406334592 的手机 E2E 失败保持历史归属。后继[维护 PR #223](https://github.com/TomyJan/MoeURL/pull/223) 清理 4 条开发依赖公告并修复 Toast 同步，已合并为 `cafacf1520e4ea59934af4c1339a56224c2fdcd0`；精确最终 `a9a53b98` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40415038034) 和新合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40421454231) 各 9 成功，实际 CodeRabbit 首审与最终增量覆盖最新变更，无有效未解决问题。远端恢复与逐候选证据见[维护验收](../implementation/2026-10-27-frontend-security-dependencies-acceptance.md)，不改写旧失败；正式发布未执行。
+
+当前新一轮为 [v0.26.0 个人默认域名](scope-v0.26.0.md)，仅完成范围／设计与计划，尚未实现。个人域名偏好只影响创建面板初始选择，不放宽授权或改变创建 API 的省略语义。
 
 更新日期：2026-10-27。历史远端文档基线 `722b2ce03ee79c05b55737e16eaab2d83c36372b` 基于代码 `c4928a85`，包含 PR #198 合并的 [v0.17.0 短链批量管理](scope-v0.17.0.md) 及当时的依赖和 Go 证书安全修复。该文档基线的 [Check Code](https://github.com/TomyJan/MoeURL/actions/runs/39775160522) 全部 9 项通过，不替代后续代码候选的结果。v0.18.0 已通过 PR #208 合并为 `0f01a2e5`，其原分支本地证据不替代合并提交 CI 或发布。`33f287ec`、`1c6df4a` 等历史证据单独保留，不改写为新提交结果。真实生产演练与正式发布尚未完成。本页是进度入口，版本边界由 scope 和 spec 定义，指定提交及环境的实际验证由对应 acceptance 记录。
 
@@ -54,7 +56,7 @@
 
 | 证据范围 | 已记录结果 | 不能替代的验证 |
 | --- | --- | --- |
-| [v0.25.0 验收](../implementation/v0.25.0-acceptance.md) | PR #222 最终 `d250b4b` 的 CI #40404362865 全部 9 项成功：1704 前端／四项 100%、Go 业务 100%、95 完整 E2E 及安全／smoke。实际 CodeRabbit run `5500f594` 覆盖全部 50 文件和最终 head，无有效意见；已合并为 `6933f94c`。原逐候选本地证据和部分 RED 流程偏差继续保留。 | 实际合并 CI #40406334592 为 8 成功／E2E 失败（Toast 遮挡手机菜单），独立维护修复中；尚未正式发布，不能以 PR 成功替代。 |
+| [v0.25.0 验收](../implementation/v0.25.0-acceptance.md) | PR #222 最终 `d250b4b` 的 CI #40404362865 全部 9 项成功：1704 前端／四项 100%、Go 业务 100%、95 完整 E2E 及安全／smoke。实际 CodeRabbit run `5500f594` 覆盖全部 50 文件和最终 head，无有效意见；已合并为 `6933f94c`。原逐候选本地证据和部分 RED 流程偏差继续保留。 | 旧合并 CI #40406334592 为 8 成功／E2E 失败；后继 PR #223 的新合并 `cafacf15` 在 #40421454231 实际 9 成功，手机失败已闭环。尚未正式发布，不改写旧失败。 |
 | [v0.24.0 验收](../implementation/v0.24.0-acceptance.md) | [PR #219](https://github.com/TomyJan/MoeURL/pull/219) 最终 head `769a9d97` 的 [CI #40374212790](https://github.com/TomyJan/MoeURL/actions/runs/40374212790) 与合并提交 `5c3fee5c` 的 [CI #40384305979](https://github.com/TomyJan/MoeURL/actions/runs/40384305979)各 9 项成功，实际确认 1615 项前端、业务 100%、91 项完整 E2E。CodeRabbit 最终实际增量 `45bc6a0c` 无新增有效意见。 | 已合并，尚未正式发布；原逐候选本地证据和工作树生成物误定向继续保留，不替代 v0.25.0。 |
 | [v0.23.0 验收](../implementation/v0.23.0-acceptance.md) | [PR #218](https://github.com/TomyJan/MoeURL/pull/218) 最终 head `635b53ae449c4f66ee6b26759fac619cbfccb8cb` 的 [CI #40300323879](https://github.com/TomyJan/MoeURL/actions/runs/40300323879) 和合并提交 `5f6702d9` 的 [CI #40306786126](https://github.com/TomyJan/MoeURL/actions/runs/40306786126) 各 9 项成功；最终 PR 原始日志核验 1518 项前端／四项 100%、Go 业务 100%、85 项完整 E2E。CodeRabbit run `085626ca-8590-4cb0-a30f-ca091e80c641` 实际完整复审 44 文件，无有效意见、docstring 100%。首轮并发观测失败和额度跳过仍保留历史归属。 | 已合并，尚未正式发布，真实生产验收待执行；不替代 v0.24.0 候选门禁。 |
 | [v0.21.0 验收](../implementation/v0.21.0-acceptance.md) | 最终 head `1641e2a` 的[目标 CI](https://github.com/TomyJan/MoeURL/actions/runs/40132665857) 全部 9 项成功：1367 项前端、四项 100%、Go 业务 100%、77 项完整 Playwright 及安全／smoke 通过。PR #216 已合并为 `dfc9a5a1`，该实际合并提交的[独立 CI](https://github.com/TomyJan/MoeURL/actions/runs/40133310132) 也全部 9 项成功。原本地树 `36a9d5ed` 及首轮 `5e3d713d` 证据保持历史归属。 | CI 不冒充正式发布或生产验收；增量 CodeRabbit 因限额跳过，已修复其首轮两项意见并经独立定向复审。真实生产验收尚未完成。 |
@@ -85,7 +87,7 @@
 
 ## 后续开发方向
 
-v0.25.0 操作审计 CSV 已通过 PR #222 合并为 `6933f94c`，最终 PR CI 9 项成功及实际审查完成；合并后 CI 的手机 Toast 点击失败由独立维护跟进，尚未正式发布，详见[范围](scope-v0.25.0.md)和[验收](../implementation/v0.25.0-acceptance.md)。此前 v0.24.0 单链匿名记录 CSV 的 PR 与实际合并 CI 各 9 项成功保持历史归属；全站访问合并导出和审计归档仍未开发。
+v0.25.0 操作审计 CSV 已通过 PR #222 合并为 `6933f94c`，最终 PR CI 9 项成功及实际审查完成；旧合并 CI 的手机 Toast 点击失败已由 PR #223 修复，新合并 `cafacf15` 的 CI #40421454231 实际 9 成功，尚未正式发布，详见[范围](scope-v0.25.0.md)和[验收](../implementation/v0.25.0-acceptance.md)。此前 v0.24.0 单链匿名记录 CSV 的 PR 与实际合并 CI 各 9 项成功保持历史归属；全站访问合并导出和审计归档仍未开发。
 
 v0.23.0 批量标签整理已通过 PR #218 合并为 `5f6702d9`，最终 PR 与合并提交 CI 各 9 项成功，尚未正式发布，逐候选证据见[验收](../implementation/v0.23.0-acceptance.md)。v0.22.0 管理员批量短链归属转移已通过 PR #217 合并为 `ba2073cf`，修复候选与合并提交 CI 各 9 项成功，尚未正式发布：当前列表最多 100 条、完整精度版本、全量预检与整批原子审计，不改地址／配置／历史统计。详见[范围](scope-v0.22.0.md)、[设计](../specs/2026-10-25-v0.22.0-batch-ownership-design.md)和[验收](../implementation/v0.22.0-acceptance.md)。v0.21.0 清单导出已经通过 PR #216 合并，最终候选目标 CI 9 项成功，尚未正式发布。
 

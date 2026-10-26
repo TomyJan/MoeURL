@@ -1,6 +1,6 @@
 # 前端开发依赖安全维护验收
 
-2026-10-27：从实际合并的 `6933f94c` 创建独立分支 `fix/frontend-security-dependencies`。兼容补丁解析、官方 audit、完整前端门禁、真实浏览器和新精确 production 制品验证已完成；`6933f94c..472efc0f` 的独立全分支终审通过，Critical／Important／Minor 均为 0，无范围搁置事项，远端交付尚未完成。本维护不新增产品版本；package 保持 0.25.0。后台主分支失败的修复在本地通过，不提前声称主分支 CI 已恢复。
+2026-10-27：从 `6933f94c` 开始的独立维护已通过 [PR #223](https://github.com/TomyJan/MoeURL/pull/223) 合并为 `cafacf1520e4ea59934af4c1339a56224c2fdcd0`。最终 `a9a53b98574ffb665ae64ce5dad4dace12939c11` 的 [PR CI #40415038034](https://github.com/TomyJan/MoeURL/actions/runs/40415038034) 与该新合并的 [master CI #40421454231](https://github.com/TomyJan/MoeURL/actions/runs/40421454231) 各 9 项成功，手机 E2E 失败已远端闭环。真实 CodeRabbit 首审 `7a64a01c` 与最终增量 `96713c38` 覆盖最终变更，无有效未解决意见；锁文件按既有过滤排除，不冒称机器人审读锁文件。独立本地全分支终审仍保持原 `6933f94c..472efc0f` 归属和零发现。本维护不新增业务版本，package 保持 0.25.0，尚未正式发布。
 
 GitHub 4 条 development 公告及实际 `pnpm why` 已确认，分别为 Vitest mocker 5.0.0、magicast 路径的 source-map-js 1.2.1、Vue test-utils／js-beautify／config-chain 路径的 ini 1.3.4。生产可达性与开发依赖公告分开记录；现有 production 扫描不替代本轮新依赖镜像验证。
 
@@ -10,12 +10,12 @@ GitHub 4 条 development 公告及实际 `pnpm why` 已确认，分别为 Vitest
 - [x] 完整真实 Playwright、新 production smoke 与精确镜像扫描。
 - [x] 上一版合并及各入口状态同步。
 - [x] 独立终审、有效修复、原子提交（`6933f94c..472efc0f`，无未解决问题）。
-- [ ] 本轮最新 PR CI／实际 CodeRabbit／合并。
-- [ ] 合并后 CI 后台跟进。
+- [x] 本轮最新 PR CI／实际 CodeRabbit／合并（最终 a9／PR #223／新合并 cafacf15）。
+- [x] 合并后 CI 后台跟进（#40421454231，实际 9 成功，95 完整 E2E／1704 前端／四项100）。
 
 证据目录：`D:/Dev/TomyJan/MoeURL/.tmp/frontend-security-20261027/`。上一版原始 CI／CR／合并证据仍在 `v025-evidence/`；不将其写成本维护依赖更新后的验证。
 
-本维护执行账本、完整报告和审查包校验归档于证据目录的 `sdd-final-archive.zip` 与 `sdd-final-archive-check/`；完整工程裁决及错误时的代价见 `delivery-decisions.md`。原始证据 manifest 共 692 项，独立终审逐项核实 hash／字节全部相符；后续阶段文档与远端证据另留，不冒充原 manifest 范围或构建注入。
+本维护执行账本、完整报告和审查包校验归档于证据目录的 `sdd-final-archive.zip` 与 `sdd-final-archive-check/`；完整工程裁决及错误时的代价见 `delivery-decisions.md`。原始证据 manifest 共 692 项，独立终审逐项核实 hash／字节全部相符；后续阶段文档与远端证据另留，不冒充原 manifest 范围或构建注入。最终 PR 与新 master 的完整 metadata／原始日志／下载 exit0 为 `pr223-a9-ci-complete.*` 和 `pr223-master-ci-complete.*`；新 master 原始日志核实 95 完整 E2E（8.6 分钟）、1704 前端和四项100，其余安全／Go／构建检查亦实际成功。完整集成及最终可选语法建议核验理由见 `pr223-integration-receipt.md`／`pr223-final-review-decision.md`。这些结果属于 cafacf15，不把旧693失败改写成成功。
 
 ## 补丁与前端证据
 
@@ -25,7 +25,7 @@ GitHub 4 条 development 公告及实际 `pnpm why` 已确认，分别为 Vitest
 
 ## 合并后 CI 的实际失败
 
-v0.25 实际合并提交 `6933f94c` 的后台 [CI #40406334592](https://github.com/TomyJan/MoeURL/actions/runs/40406334592) 为 8 成功／E2E 失败，不能用 PR 的 9 项成功替代。失败是新审计用例 390px 在下载后直接点菜单，成功 Toast 拦截指针；其他导出 E2E 先验证提示并通过可访问关闭按钮退出提示。修复 `2aabdccfd67bbd52a619eff759bce47e8921be01` 仅补 5 行相同用户流程的确定性同步，不使用 force click、固定休眠或调整超时，不改产品通知行为。旧 CI 失败是原始 RED，新真实定向及完整浏览器是修复后的 GREEN，不伪造产品实现前时序；远端恢复仍待本维护集成。原失败日志在上一版证据目录 `pr222-master-ci-failed.log`。
+v0.25 实际合并提交 `6933f94c` 的后台 [CI #40406334592](https://github.com/TomyJan/MoeURL/actions/runs/40406334592) 为 8 成功／E2E 失败，不能用 PR 的 9 项成功替代。失败是新审计用例 390px 在下载后直接点菜单，成功 Toast 拦截指针；其他导出 E2E 先验证提示并通过可访问关闭按钮退出提示。修复 `2aabdccfd67bbd52a619eff759bce47e8921be01` 仅补 5 行相同用户流程的确定性同步，不使用 force click、固定休眠或调整超时，不改产品通知行为。旧 CI 失败是原始 RED，新真实定向及完整浏览器是修复后的 GREEN，不伪造产品实现前时序；远端恢复由本维护实际 PR #223／新合并 cafacf15 的独立9成功CI证明。原失败日志在上一版证据目录 `pr222-master-ci-failed.log`。
 
 ## 新浏览器与精确制品
 
