@@ -11,6 +11,38 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const lockBatchTransferShortLinks = `-- name: LockBatchTransferShortLinks :many
+select id, owner_id, updated_at from short_link
+where id=any($1::uuid[]) and deleted_at is null
+order by id for update
+`
+
+type LockBatchTransferShortLinksRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	OwnerID   pgtype.UUID        `json:"owner_id"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) LockBatchTransferShortLinks(ctx context.Context, dollar_1 []pgtype.UUID) ([]LockBatchTransferShortLinksRow, error) {
+	rows, err := q.db.Query(ctx, lockBatchTransferShortLinks, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LockBatchTransferShortLinksRow{}
+	for rows.Next() {
+		var i LockBatchTransferShortLinksRow
+		if err := rows.Scan(&i.ID, &i.OwnerID, &i.UpdatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockTransferActorGroup = `-- name: LockTransferActorGroup :one
 select key, permissions from user_group where id=$1 for share
 `

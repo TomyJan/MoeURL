@@ -56,6 +56,11 @@ func (h *TransferHandler) Transfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := h.service.Transfer(r.Context(), auth.UserFromContext(r.Context()), input)
+	writeTransferResult(w, r, result, err, h.logger, "short_link_transfer_failed")
+}
+
+// writeTransferResult preserves the shared ownership error contract without exposing database diagnostics.
+func writeTransferResult(w http.ResponseWriter, r *http.Request, result any, err error, logger *slog.Logger, event string) {
 	switch {
 	case err == nil:
 		ok(w, result)
@@ -76,7 +81,7 @@ func (h *TransferHandler) Transfer(w http.ResponseWriter, r *http.Request) {
 		} else if errors.Is(err, context.Canceled) {
 			category = "canceled"
 		}
-		h.logger.ErrorContext(r.Context(), "short_link_transfer_failed", "request_id", middleware.RequestIDFromContext(r.Context()), "error_category", category, "error_type", fmt.Sprintf("%T", err))
+		logger.ErrorContext(r.Context(), event, "request_id", middleware.RequestIDFromContext(r.Context()), "error_category", category, "error_type", fmt.Sprintf("%T", err))
 		writeJSON(w, http.StatusInternalServerError, response{Code: 900000, Message: "Internal server error", Data: nil, Meta: map[string]any{}})
 	}
 }

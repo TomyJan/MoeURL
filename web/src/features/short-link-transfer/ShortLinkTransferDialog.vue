@@ -17,51 +17,28 @@
   </v-dialog>
 </template>
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { computed, nextTick, ref } from 'vue'
+import { useMutation } from '@tanstack/vue-query'
 import { useForm } from 'vee-validate'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { me, type UserResponse } from '@/entities/auth/api'
 import type { AdminShortLink } from '@/entities/short-link/model'
 import { transferShortLink, transferUsernameSchema } from '@/entities/short-link/transfer'
 import { ApiClientError } from '@/shared/api/client'
-import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
+import { useTransferSession } from './useTransferSession'
 
 const props = defineProps<{ target: Pick<AdminShortLink, 'id' | 'url' | 'owner' | 'updatedAt'> }>()
 const emit = defineEmits<{ close: [] }>()
 const { t } = useI18n()
-const client = useQueryClient()
-const identity = useAccountIdentity()
-const scope = identity.scope.value
 // Capture the opening version; a refreshed list must not silently authorize a new handoff.
 const snapshot = { ...props.target }
-const auth = useQuery({ queryKey: ['auth', 'me'], queryFn: me, staleTime: Infinity, retry: false })
 const { defineField } = useForm({ initialValues: { username: '' } })
 const [username] = defineField('username')
 const confirmed = ref(false)
-const dismissed = ref(false)
-let alive = true
 const mutation = useMutation({ mutationFn: transferShortLink, retry: false })
-const allowed = computed(() => identity.isCurrent(scope) && !!scope.userId && hasPermission(auth.data.value))
+const { allowed, dismissed, isCurrent, close, invalidate } = useTransferSession(mutation.isPending, () => emit('close'))
 const validUsername = computed(() => transferUsernameSchema.safeParse(username.value).success)
 const canSave = computed(() => !dismissed.value && allowed.value && confirmed.value && validUsername.value && !mutation.isPending.value)
-watch(allowed, value => { if (!value && !dismissed.value) { dismissed.value = true; emit('close') } }, { flush: 'sync' })
-onBeforeUnmount(() => { alive = false })
-
-/** Reads confirmed grants directly at submission and completion, including same-tick revocations. */
-function hasPermission(response = client.getQueryData<UserResponse>(['auth', 'me'])) {
-  const user = response?.user
-  return !!user && user.id === scope.userId && user.group !== 'guest' && user.permissions.includes('admin:access') && user.permissions.includes('short_link:update_all')
-}
-/** Rejects stale completions after unmount, dismissal, account change or permission loss. */
-function isCurrent() { return alive && !dismissed.value && identity.isCurrent(scope) && hasPermission() }
-/** Keeps dismissal locked while a privileged write is outstanding. */
-function close() { if (!mutation.isPending.value && !dismissed.value) { dismissed.value = true; emit('close') } }
-/** Refreshes ownership-dependent views without copying private data between accounts. */
-function invalidate() {
-  for (const key of ['admin-short-link', 'short-link', 'short-link-overview', 'short-link-statistics', 'insights']) void client.invalidateQueries({ queryKey: [key] })
-}
 /** Sends the immutable opening version and preserves input on ordinary failures. */
 async function save() {
   if (!canSave.value || !isCurrent()) return

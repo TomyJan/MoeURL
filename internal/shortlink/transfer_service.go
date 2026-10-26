@@ -11,6 +11,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 var (
@@ -51,35 +52,9 @@ func (s *Service) Transfer(ctx context.Context, actor auth.CurrentUser, input Tr
 	var result TransferResult
 	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
 		q := s.queries.WithTx(tx)
-		users, err := q.LockTransferUsers(ctx, sqlc.LockTransferUsersParams{ActorID: uuidToPgtype(actorID), Username: input.NewOwnerUsername})
+		recipient, err := lockTransferParticipants(ctx, q, actorID, input.NewOwnerUsername)
 		if err != nil {
 			return err
-		}
-		var current, recipient *sqlc.LockTransferUsersRow
-		for i := range users {
-			if users[i].ID.Bytes == actorID {
-				current = &users[i]
-			}
-			if users[i].Username == input.NewOwnerUsername {
-				recipient = &users[i]
-			}
-		}
-		if current == nil || current.Status != "active" || current.DeletedAt.Valid {
-			return ErrPermissionDenied
-		}
-		group, err := q.LockTransferActorGroup(ctx, current.GroupID)
-		if err != nil {
-			return err
-		}
-		grants, err := permission.DecodeSnapshot(group.Permissions)
-		if err != nil {
-			return err
-		}
-		if group.Key == "guest" || !grants.Has(permission.AdminAccess) || !grants.Has(permission.ShortLinkUpdateAll) {
-			return ErrPermissionDenied
-		}
-		if recipient == nil || recipient.Status != "active" || recipient.DeletedAt.Valid || (recipient.GroupKey != "user" && recipient.GroupKey != "admin") {
-			return ErrTransferRecipientUnavailable
 		}
 		link, err := q.LockTransferShortLink(ctx, uuidToPgtype(id))
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -91,8 +66,8 @@ func (s *Service) Transfer(ctx context.Context, actor auth.CurrentUser, input Tr
 		if !link.UpdatedAt.Time.Equal(expected) {
 			return ErrTransferConflict
 		}
-		if link.OwnerID != recipient.ID {
-			updated, err := q.TransferShortLinkOwner(ctx, sqlc.TransferShortLinkOwnerParams{ID: link.ID, OwnerID: recipient.ID})
+		if link.OwnerID != recipient {
+			updated, err := q.TransferShortLinkOwner(ctx, sqlc.TransferShortLinkOwnerParams{ID: link.ID, OwnerID: recipient})
 			if err != nil {
 				return err
 			}
@@ -102,4 +77,39 @@ func (s *Service) Transfer(ctx context.Context, actor auth.CurrentUser, input Tr
 		return nil
 	})
 	return result, err
+}
+
+// lockTransferParticipants serializes both handoff variants with current account and group authorization.
+func lockTransferParticipants(ctx context.Context, q *sqlc.Queries, actorID uuid.UUID, username string) (pgtype.UUID, error) {
+	users, err := q.LockTransferUsers(ctx, sqlc.LockTransferUsersParams{ActorID: uuidToPgtype(actorID), Username: username})
+	if err != nil {
+		return pgtype.UUID{}, err
+	}
+	var current, recipient *sqlc.LockTransferUsersRow
+	for i := range users {
+		if users[i].ID.Bytes == actorID {
+			current = &users[i]
+		}
+		if users[i].Username == username {
+			recipient = &users[i]
+		}
+	}
+	if current == nil || current.Status != "active" || current.DeletedAt.Valid {
+		return pgtype.UUID{}, ErrPermissionDenied
+	}
+	group, err := q.LockTransferActorGroup(ctx, current.GroupID)
+	if err != nil {
+		return pgtype.UUID{}, err
+	}
+	grants, err := permission.DecodeSnapshot(group.Permissions)
+	if err != nil {
+		return pgtype.UUID{}, err
+	}
+	if group.Key == "guest" || !grants.Has(permission.AdminAccess) || !grants.Has(permission.ShortLinkUpdateAll) {
+		return pgtype.UUID{}, ErrPermissionDenied
+	}
+	if recipient == nil || recipient.Status != "active" || recipient.DeletedAt.Valid || (recipient.GroupKey != "user" && recipient.GroupKey != "admin") {
+		return pgtype.UUID{}, ErrTransferRecipientUnavailable
+	}
+	return recipient.ID, nil
 }
