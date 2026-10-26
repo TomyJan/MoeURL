@@ -1,6 +1,6 @@
 <template>
   <section class="console-page audit-page" data-testid="admin-audit">
-    <header class="console-page__header"><div><h1>{{ t('audit.title') }}</h1><p>{{ t('audit.description') }}</p></div></header>
+    <header class="console-page__header"><div><h1>{{ t('audit.title') }}</h1><p>{{ t('audit.description') }}</p></div><AuditExportButton :range="exportRange" :filters="filters" :blocked="exportBlocked" :context-revision="contextRevision" /></header>
     <InsightRangePicker v-model="range" />
     <form v-if="allowed" class="audit-page__filters" novalidate @submit.prevent="applyFilters">
       <v-text-field v-model="actorDraft" :label="t('audit.actorId')" :error-messages="actorError" variant="outlined" />
@@ -30,7 +30,7 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { z } from 'zod'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
@@ -40,6 +40,7 @@ import { useInsightAccess, isInsightAccessError } from '@/shared/insights/useIns
 import { useCursorHistory } from '@/shared/insights/useCursorHistory'
 import InsightRangePicker from '@/features/insights/InsightRangePicker.vue'
 import InsightReadState from '@/features/insights/InsightReadState.vue'
+import AuditExportButton from '@/features/audit-export/AuditExportButton.vue'
 
 const { t } = useI18n()
 const range = ref<InsightRangeInput>({ days: 7 })
@@ -58,11 +59,21 @@ const query = useQuery({
 })
 const denied = computed(() => !allowed.value || isInsightAccessError(query.error.value))
 const logs = computed(() => !denied.value && !query.isError.value ? query.data.value : undefined)
+const exportRange = computed(() => logs.value ? { startDate: logs.value.range.startDate, endDate: logs.value.range.endDate } : undefined)
+const exportBlocked = computed(() => !logs.value || query.isPending.value || query.isFetching.value || query.isError.value
+  || actorDraft.value !== (filters.value.actorId || '') || resourceDraft.value !== (filters.value.resourceType || '')
+  || actionDraft.value !== (filters.value.action || '') || !!actorError.value)
+const contextRevision = ref(0)
+watch([
+  scope, range, filters, pages.cursor, pages.revision, query.isPending, query.isFetching, query.isError,
+  () => logs.value?.range.startDate, () => logs.value?.range.endDate,
+  actorDraft, resourceDraft, actionDraft, actorError,
+], () => { contextRevision.value++ }, { flush: 'sync', deep: true })
 
 /** Applies only the public actor/resource/action filter vocabulary without altering invalid drafts. */
 function applyFilters() {
   actorError.value = ''
-  if (actorDraft.value && !z.guid().safeParse(actorDraft.value).success) { actorError.value = t('audit.invalidActor'); return }
+  if (actorDraft.value && !z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/).refine(value => value !== '00000000-0000-0000-0000-000000000000').safeParse(actorDraft.value).success) { actorError.value = t('audit.invalidActor'); return }
   filters.value = { actorId: actorDraft.value, resourceType: resourceDraft.value, action: actionDraft.value }
 }
 </script>

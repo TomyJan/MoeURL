@@ -22,7 +22,7 @@ const options = computed(() => [7, 30, 90].map((days) => ({ title: t(`analytics.
 const { values, errors, defineField, setErrors } = useForm({ initialValues: { startDate: '', endDate: '' } })
 const [startDate] = defineField('startDate')
 const [endDate] = defineField('endDate')
-watch(choice, (value) => { if (value !== 'custom') model.value = { days: Number(value) as 7 | 30 | 90 } })
+watch(choice, (value) => { if (value !== 'custom') model.value = { days: Number(value) as 7 | 30 | 90 } }, { flush: 'sync' })
 
 /** Applies valid UTC calendar drafts while retaining the last applied range on errors. */
 function apply() {
