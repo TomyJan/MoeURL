@@ -221,9 +221,11 @@ func TestAuditExportAuthorization(t *testing.T) {
 func TestAuditExportFilteringAndCSV(t *testing.T) {
 	pool, service, owner, admin, _, today := fixture(t)
 	port := auditExporter(t, service)
-	_, err := pool.Exec(t.Context(), `insert into audit_log(id,actor_id,resource_type,resource_id,action,changed_fields,created_at) overriding system value select x,$1::uuid,'user','雪,"山"','update',array['nickname','comma,field','quote"field','雪'],$2 from generate_series(9007199254740993::bigint,9007199254740995::bigint) x`, owner.ID, today)
+	// PostgreSQL receives a non-UTC offset and nonzero microseconds; the expected CSV below is independent of its encoder.
+	occurredAt := today.Format(time.DateOnly) + "T09:10:11.123456+09:00"
+	_, err := pool.Exec(t.Context(), `insert into audit_log(id,actor_id,resource_type,resource_id,action,changed_fields,created_at) overriding system value select x,$1::uuid,'user','雪,"山"','update',array['nickname','comma,field','quote"field','雪'],$2::text::timestamptz from generate_series(9007199254740993::bigint,9007199254740995::bigint) x`, owner.ID, occurredAt)
 	require.NoError(t, err)
-	_, err = pool.Exec(t.Context(), `insert into audit_log(id,actor_id,resource_type,resource_id,action,changed_fields,created_at) overriding system value select x,$1::uuid,'user','small','update','{}',$2 from unnest(array[9,10]) x`, owner.ID, today)
+	_, err = pool.Exec(t.Context(), `insert into audit_log(id,actor_id,resource_type,resource_id,action,changed_fields,created_at) overriding system value select x,$1::uuid,'user','small','update','{}',$2::text::timestamptz from unnest(array[9,10]) x`, owner.ID, occurredAt)
 	require.NoError(t, err)
 	_, err = pool.Exec(t.Context(), `insert into audit_log(resource_type,resource_id,action,changed_fields,created_at) values('domain','excluded','create','{}',$1),('user','old','update','{}',$2)`, today, today.Add(-time.Microsecond))
 	require.NoError(t, err)
@@ -236,7 +238,7 @@ func TestAuditExportFilteringAndCSV(t *testing.T) {
 	require.Equal(t, "9007199254740993", rows[3][3])
 	require.Equal(t, "10", rows[4][3])
 	require.Equal(t, "9", rows[5][3])
-	require.Equal(t, []string{today.Format(time.DateOnly), today.Format(time.DateOnly), "UTC", "9007199254740995", today.Format(time.RFC3339Nano), owner.ID, "owner", "user", "雪,\"山\"", "update", `["nickname","comma,field","quote\"field","雪"]`}, rows[1])
+	require.Equal(t, []string{today.Format(time.DateOnly), today.Format(time.DateOnly), "UTC", "9007199254740995", today.Format(time.DateOnly) + "T00:10:11.123456Z", owner.ID, "owner", "user", "雪,\"山\"", "update", `["nickname","comma,field","quote\"field","雪"]`}, rows[1])
 	require.Equal(t, "moeurl-audit-"+today.Format(time.DateOnly)+"-"+today.Format(time.DateOnly)+".csv", result.FileName)
 	require.Contains(t, result.Content, "\r\n")
 	require.NotContains(t, result.Content, "target.example")
