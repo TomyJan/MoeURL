@@ -260,6 +260,7 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 	items := make([]ShortLink, 0, len(rows))
 	for _, row := range rows {
 		shortLink := ShortLink{
+			UpdatedAt: row.UpdatedAt.Time,
 			Title:     row.Title,
 			Tags:      metadataTags(row.Tags),
 			ID:        uuidFromPgtype(row.ID),

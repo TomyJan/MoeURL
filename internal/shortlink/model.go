@@ -194,13 +194,14 @@ func (limit *VisitLimit) setVisitLimit(maxVisits pgtype.Int8, visitsUsed int64) 
 }
 
 type ShortLink struct {
-	Title     string   `json:"title"`
-	Tags      []string `json:"tags"`
-	ID        string   `json:"id"`
-	URL       string   `json:"url"`
-	Slug      string   `json:"slug"`
-	TargetURL string   `json:"targetUrl"`
-	Status    string   `json:"status"`
+	UpdatedAt time.Time `json:"updatedAt,omitzero"`
+	Title     string    `json:"title"`
+	Tags      []string  `json:"tags"`
+	ID        string    `json:"id"`
+	URL       string    `json:"url"`
+	Slug      string    `json:"slug"`
+	TargetURL string    `json:"targetUrl"`
+	Status    string    `json:"status"`
 	AccessConfig
 	VisitLimit
 	CreatedAt time.Time       `json:"createdAt"`
