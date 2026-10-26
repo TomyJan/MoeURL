@@ -26,7 +26,7 @@ export const shortLinkSchema = z.strictObject({
   expiresAt: timestampSchema.nullable(), expired: z.boolean(), passwordEnabled: z.boolean(),
   maxVisits: visitLimitIntegerSchema.nullable(), visitsUsed: quotaCountSchema,
   visitsRemaining: quotaCountSchema.nullable(), exhausted: z.boolean(),
-  createdAt: timestampSchema, stats: statsSchema.optional(),
+  createdAt: timestampSchema, updatedAt: timestampSchema.optional(), stats: statsSchema.optional(),
 }).refine(consistentVisitLimit, 'Inconsistent visit quota')
 
 export const adminShortLinkSchema = shortLinkSchema.safeExtend({

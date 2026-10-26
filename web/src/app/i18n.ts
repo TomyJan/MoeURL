@@ -613,6 +613,16 @@ export const messages = {
       removedDraft: '此域名已被删除，当前草稿仍保留，但不能保存；请选择其他域名或新建域名并确认丢弃草稿。',
       reloadDraft: '重新载入最新配置', discardTitle: '丢弃当前草稿？', discardWarning: '未保存的修改将被丢弃。确认后才会载入所选域名的配置。', confirmDiscard: '丢弃并载入',
     },
+    batchTags: {
+      action: '整理标签', title: '整理 {count} 条短链的标签', summary: '所选短链与原标签',
+      operation: '操作', add: '添加标签', remove: '移除标签', replace: '替换全部标签', tags: '标签，每行一个',
+      description: '此操作仅更改所选短链的标签，保留标题、公开地址、访问配置和历史统计。添加和移除保留其他标签及其顺序；替换使用输入的完整标签集。',
+      clearWarning: '此操作将清空所选短链的全部现有标签。',
+      confirm: '我确认对全部所选短链执行此标签操作', cancel: '取消', save: '确认整理标签',
+      changed: '已更新 {count} 条短链的标签。', unchanged: '{count} 条短链标签未变。',
+      conflict: '短链已被修改，请刷新后重新打开并确认。', failed: '标签整理失败，请稍后重试。',
+      limitExceeded: '操作后任一短链不能超过 10 个标签，请缩小标签集后重试。',
+    },
     batchTransfer: {
       title: '转移 {count} 条短链的归属', summary: '待移交短链与原所有者',
       transferred: '已转移 {count} 条短链。', unchanged: '{count} 条短链归属未变。',
@@ -1310,6 +1320,16 @@ export const messages = {
       saved: 'Domain settings saved.', saveFailed: 'Operation failed. Check the settings and try again.', conflict: 'The server changed. Your draft is preserved; review and reload before saving again.',
       removedDraft: 'This domain was deleted. Your draft is preserved but cannot be saved; choose another domain or create one and confirm discarding the draft.',
       reloadDraft: 'Reload latest settings', discardTitle: 'Discard your draft?', discardWarning: 'Unsaved changes will be lost. Confirm to load the selected domain settings.', confirmDiscard: 'Discard and load',
+    },
+    batchTags: {
+      action: 'Organize tags', title: 'Organize tags for {count} link | Organize tags for {count} links', summary: 'Selected links and original tags',
+      operation: 'Operation', add: 'Add tags', remove: 'Remove tags', replace: 'Replace all tags', tags: 'Tags, one per line',
+      description: 'This changes only the selected links’ tags, preserving titles, public URLs, access settings and historical statistics. Add and remove preserve other tags and their order; replace uses the complete entered set.',
+      clearWarning: 'This removes every existing tag from the selected links.',
+      confirm: 'I confirm this tag operation for every selected link', cancel: 'Cancel', save: 'Confirm tag changes',
+      changed: 'Updated tags on {count} link. | Updated tags on {count} links.', unchanged: '{count} link unchanged. | {count} links unchanged.',
+      conflict: 'A short link changed. Refresh and reopen to confirm again.', failed: 'Could not organize tags. Please try again later.',
+      limitExceeded: 'Each resulting link must have at most 10 tags. Reduce the tag set and try again.',
     },
     batchTransfer: {
       title: 'Transfer ownership of {count} link | Transfer ownership of {count} links', summary: 'Selected links and previous owners',
