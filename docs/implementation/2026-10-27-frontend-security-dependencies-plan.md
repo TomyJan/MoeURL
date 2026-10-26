@@ -29,18 +29,18 @@
 
 **文件：** 修改 `web/package.json`、标准生成 `web/pnpm-lock.yaml`；本维护验收记录。本任务不改产品源码或测试实现。
 
-- [ ] 保存真实 `pnpm audit --json`、完整依赖路径及基线输入。Expected：命令结果能明确证明上述受影响版本／GHSA；网络失败只记录准备问题，不冒充安全失败。
-- [ ] 用 pnpm 标准入口同步 Vitest／coverage-v8 至 5.0.3，并在现有兼容范围解析传递 ini／source-map-js 的安全补丁。Expected：无受影响副本，无无关主版本更新；必要约束裁决留账。
-- [ ] `pnpm install --frozen-lockfile` 后核查完整树和 audit，再顺序运行 `pnpm test:coverage --maxWorkers=2 --coverage.reportsDirectory=<隔离绝对目录>`、lint、typecheck、`pnpm build --outDir <隔离绝对目录> --emptyOutDir`。Expected：原 1704 项通过、四项 100%、命令 exit0、无新增构建警告；准确记录 runtime／输入／退出码。
-- [ ] 原子提交 `fix(依赖): 修补前端测试与构建工具链安全公告`。Expected：仅必要 package／锁文件和准确阶段记录，不改阈值、排除、runner 或业务实现。
+- [x] 保存真实 `pnpm audit --json`、完整依赖路径及基线输入。Expected：命令结果能明确证明上述受影响版本／GHSA；网络失败只记录准备问题，不冒充安全失败。
+- [x] 用 pnpm 标准入口同步 Vitest／coverage-v8 至 5.0.3，并在现有兼容范围解析传递 ini／source-map-js 的安全补丁。Expected：无受影响副本，无无关主版本更新；必要约束裁决留账。
+- [x] `pnpm install --frozen-lockfile` 后核查完整树和 audit，再顺序运行 `pnpm test:coverage --maxWorkers=2 --coverage.reportsDirectory=<隔离绝对目录>`、lint、typecheck、`pnpm build --outDir <隔离绝对目录> --emptyOutDir`。Expected：原 1704 项通过、四项 100%、命令 exit0、无新增构建警告；准确记录 runtime／输入／退出码。
+- [x] 原子提交 `fix(依赖): 修补前端测试与构建工具链安全公告`。Expected：仅必要 package／锁文件和准确阶段记录，不改阈值、排除、runner 或业务实现。
 
 ### 任务 2：真实制品、文档与交付闭环
 
 **文件：** 本维护验收记录；最小修改 `web/e2e/v0.25.0-audit-export.spec.ts` 的下载反馈同步；更新 `docs/README.md`、`docs/product/{overview,roadmap,development-status,scope-v0.25.0}.md`、`docs/implementation/v0.25.0-{acceptance,tasks,plan}.md` 的实际集成状态；按真实依赖约定影响同步技术文档。不批量重写历史证据。
 
-- [ ] 优先修复实际后台 CI #40406334592 的 390px Toast 遮挡失败。Expected：像其他导出用例一样验证成功提示、用可访问关闭按钮清除并等待消失，再继续菜单；定向真实浏览器通过，不使用 force／sleep 或更改产品通知。
+- [x] 优先修复实际后台 CI #40406334592 的 390px Toast 遮挡失败。Expected：像其他导出用例一样验证成功提示、用可访问关闭按钮清除并等待消失，再继续菜单；定向真实浏览器通过，不使用 force／sleep 或更改产品通知。
 
-- [ ] 在专用 Compose 项目／端口运行完整 Playwright 与标准 production smoke／精确 image Trivy；先验证资源／端口为空，终态检查资源清理。Expected：95 项真实浏览器、smoke、HIGH／CRITICAL 扫描 exit0；新镜像对应真实新 HEAD，旧后端输入复用有完整集合／hash 证据，不重复无变化 Go／race。
-- [ ] 同步 v0.25 PR #222 最终 `d250b4b` 的 9 项 CI #40404362865、CodeRabbit run `5500f594-8bf3-4135-b13a-72fcb9566588` 全 50 文件、merge `6933f94c`；主分支 CI #40406334592 后台如实查询，不阻塞，发布仍未完成。Expected：入口／页尾无“v0.25 未合并”现行措辞，历史保留明确归属。
-- [ ] 记录精确验证、已跳过项及理由，原子文档提交；`git diff --check`／status。Expected：所有完成项有原始证据，工作树干净。
-- [ ] 一次全分支独立终审；有效问题按风险修复；显式同名 push、PR／attach、最新 head 9 CI 与实际 CodeRabbit 无误后 squash＋match-head 合并。Expected：不绕保护、不强推，主分支 CI 后台跟进后继续下一轮。
+- [x] 在专用 Compose 项目／端口运行完整 Playwright 与标准 production smoke／精确 image Trivy；先验证资源／端口为空，终态检查资源清理。Expected：95 项真实浏览器、smoke、HIGH／CRITICAL 扫描 exit0；新镜像对应真实新 HEAD，旧后端输入复用有完整集合／hash 证据，不重复无变化 Go／race。
+- [x] 同步 v0.25 PR #222 最终 `d250b4b` 的 9 项 CI #40404362865、CodeRabbit run `5500f594-8bf3-4135-b13a-72fcb9566588` 全 50 文件、merge `6933f94c`；主分支 CI #40406334592 后台如实查询，不阻塞，发布仍未完成。Expected：入口／页尾无“v0.25 未合并”现行措辞，历史保留明确归属。
+- [x] 记录精确验证、已跳过项及理由，原子文档提交；`git diff --check`／status。Expected：所有完成项有原始证据，工作树干净。
+任务完成后的收尾：一次全分支独立终审；有效问题按风险修复；显式同名 push、PR／attach、最新 head 9 CI 与实际 CodeRabbit 无误后 squash＋match-head 合并。此流程在本地任务完成之后，不把未来远端结果列为本地完成证据；不绕保护、不强推，主分支 CI 后台跟进后继续下一轮。
