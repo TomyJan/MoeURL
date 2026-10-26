@@ -179,6 +179,14 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 
 ## 5. API 约定
 
+### v0.23.0 批量标签整理
+
+`POST /api/v1/short-link/batch-tags` 与 `POST /api/v1/admin/short-link/batch-tags` 只接受严格单一 JSON：`items:[{id,expectedUpdatedAt}]`、`operation:add|remove|replace`、显式 `tags` 数组。1–100 条互异规范非零 UUID，版本为完整非零 RFC3339Nano。add／remove 输入 1–10 个，replace 0–10 个；裁剪后的每个标签 1–32 个 Unicode 字符，无重复、控制字符或无效 UTF-8，结果任一超过 10 个则整批拒绝。成功 `{changedCount,unchangedCount}` 合计请求数。
+
+入口与 5 秒 `WithAuditTx` 内重查当前账号和数据库权限；个人要求 update_own + set_metadata + owner，后台要求 admin:access + update_all + set_metadata。锁序为用户共享锁 → 当前组共享锁 → UUID 排序短链更新锁，全量预检后只写 tags 与严格递增 updated_at；no-op 不写版本或审计。非法输入 100001、无权 120001、缺失／归属 200104、版本 200116、结果超量 200119，基础设施 HTTP 500／900000；响应 no-store，日志仅安全类别／类型和 request_id。
+
+个人私有列表增加完整 `updatedAt`，不得经 JavaScript Date 截断后提交；公开 Preview 不返回版本，其他个人 DTO 未赋值时省略。前端共享 Vuetify 确认框，冻结快照、清空警示、草稿与确认、账号轮次、成功失效五类缓存，冲突后必须成功读到新列表才能重开；无新依赖、migration 或权限。新服务／Handler 与前端逻辑纳入原 100% 门禁；独立 Compose 浏览器覆盖个人与后台、跨用户拒绝、筛选和 390 像素实际滚动。契约及分阶段证据见[设计](../specs/2026-10-26-v0.23.0-batch-tags-design.md)与[验收](v0.23.0-acceptance.md)。
+
 ### v0.22.0 批量短链归属转移
 
 `POST /api/v1/admin/short-link/batch-transfer` 使用严格单一 JSON：`items:[{id,expectedUpdatedAt}]` 和 `newOwnerUsername`，1–100 条不同规范非零 UUID 及非零 RFC3339Nano 版本。复用 `admin:access`、`short_link:update_all` 和 5 秒 `WithAuditTx`，用户 UUID → 当前组 → 短链 UUID 的锁序，全量数量及版本预检通过后才写入。任一冲突／缺失／审计故障整批回滚；同 owner 不写版本或审计。仅改变 owner_id 和单调 updated_at，无 migration／新权限。成功 `{transferredCount,unchangedCount}` 合计请求数，错误码沿用单条转移；严格媒体类型、no-store、安全诊断，详见[设计](../specs/2026-10-25-v0.22.0-batch-ownership-design.md)与[实际验收](v0.22.0-acceptance.md)。
@@ -229,6 +237,8 @@ API 使用 `/api/v1` 前缀：
 /api/v1/admin/short-link/batch
 /api/v1/admin/short-link/transfer
 /api/v1/admin/short-link/batch-transfer
+/api/v1/short-link/batch-tags
+/api/v1/admin/short-link/batch-tags
 /api/v1/admin/short-link/statistics
 /api/v1/admin/short-link/statistics/export
 /api/v1/admin/user-group/list
