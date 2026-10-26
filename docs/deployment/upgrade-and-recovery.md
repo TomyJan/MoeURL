@@ -237,6 +237,8 @@ v0.10.0 的 `00015` 升级不回填历史统计，既有短链保持无限额。
 
 ## 4. 失败处理与回退
 
+v0.25.0 的 `00024_audit_export_permission.sql` 只补 builtin admin 缺失的 `audit:export`，已有权限不变更 updated_at，user／guest 和预设不追加。升级后在隔离环境核验 admin:access／audit:read／audit:export 三权限、已应用 UTC／actor／resource／action 筛选及完整 bigint／时间／JSON 数组，验证空文件、1000 条和两级 8 MiB 超限整体拒绝。只回退 `00024` 不删审计或业务数据；Down 只撤销本迁移追加且未独立编辑的授权，保留先有、移除再授予及迁移后 INSERT 组，修订追踪清理与撤销同事务。不要为移除下载跨过 `00021` 的非空日志保护；本地往返与 smoke 仍不替代真实生产恢复／回退演练。
+
 v0.24.0 的 `00023_visit_export_permission.sql` 只追加内置 user／admin 缺失的 `short_link:export_visits`，已有授权不改变 updated_at，guest 不变。升级后在隔离环境核验它与 read_visits／原读取权限的交集、当前 UTC／设备／国家筛选、1000 条及两级 8 MiB 超限拒绝和匿名 CSV。只回退 `00023` 时保留访问事件、短链和审计；Down 仅撤销本次追加且未独立编辑的权限，保留先有、迁移后新增组及移除再重授予的授权，修订追踪与撤销同事务。不要为了移除导出入口跨过 `00021` 的审计保护；本地 migration 往返和 smoke 证据不替代真实生产恢复／回退演练。
 
 v0.21.0 的 `00022_short_link_export_permission.sql` 只追加内置 user／admin 缺失的 `short_link:export`，并记录本次追加与后续该项授权的 UPDATE。升级后在隔离环境验证个人／管理清单导出的权限交集、当前筛选、超限拒绝与文件内容。只回退 `00022` 时保留短链和审计数据，且只撤销本次添加后未被独立编辑的权限；不要为了回退清单导出跨过已有日志保护的 `00021`。
