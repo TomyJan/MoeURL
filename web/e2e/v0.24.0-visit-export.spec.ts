@@ -88,7 +88,15 @@ async function seedVisits(page: Page, link: ShortLink) {
     expect(response.headers().location).toBe(link.targetUrl)
   }
   await expect.poll(async () => (await records(page, link)).items.length).toBe(28)
-  return records(page, link)
+  const result = await records(page, link)
+  // Literal fixture expectations must fail even if collection and export regress together.
+  expect(result.items.map(({ referrerHost, deviceType, browserFamily, osFamily, countryCode }) =>
+    [referrerHost, deviceType, browserFamily, osFamily, countryCode]).sort()).toEqual([
+    ...Array.from({ length: 26 }, () => ['desktop.example.test', 'desktop', 'chrome', 'windows', 'SG']),
+    ['mobile.example.test', 'mobile', 'safari', 'ios', 'SG'],
+    [null, 'other', null, null, null],
+  ].sort())
+  return result
 }
 
 /** Observes native Blob URLs while preserving the actual browser implementation and downloads. */
@@ -114,7 +122,7 @@ function utc(value: string) {
 }
 
 /** Downloads the real file and compares every cell to independent fixture dimensions and persisted IDs. */
-async function download(page: Page, scope: Scope, link: ShortLink, result: VisitResult, expected: VisitRecord[], filters: Filters, info: TestInfo, name: string) {
+async function download(page: Page, scope: Scope, link: ShortLink, result: VisitResult, expected: VisitRecord[], filters: Filters, info: TestInfo, name: string, expectedCount: number) {
   const endpoint = `/api/v1/${scope === 'admin' ? 'admin/' : ''}short-link/visits/export`
   const responsePromise = page.waitForResponse(response => new URL(response.url()).pathname === endpoint)
   const downloadPromise = page.waitForEvent('download')
@@ -142,6 +150,8 @@ async function download(page: Page, scope: Scope, link: ShortLink, result: Visit
   expect(content.endsWith('\r\n')).toBe(true)
   expect(content.replaceAll('\r\n', '')).not.toMatch(/[\r\n]/)
   const rows = content.slice(0, -2).split('\r\n').map(row => row.split(','))
+  expect(expected).toHaveLength(expectedCount)
+  expect(rows).toHaveLength(expectedCount + 1)
   expect(rows).toEqual([header.split(','), ...expected.map(item => {
     const kind = item.referrerHost === 'desktop.example.test' ? 'desktop' : item.referrerHost === 'mobile.example.test' ? 'mobile' : 'other'
     const dimensions = kind === 'desktop' ? ['desktop.example.test', 'desktop', 'chrome', 'windows', 'SG'] : kind === 'mobile' ? ['mobile.example.test', 'mobile', 'safari', 'ios', 'SG'] : ['', 'other', '', '', '']
@@ -202,20 +212,20 @@ for (const scope of ['own', 'admin'] as const) {
       await panel.getByRole('button', { name: '下一页', exact: true }).click()
       expect(await (await second).json()).toMatchObject({ code: 0 })
       await expect(panel.getByRole('row')).toHaveCount(4)
-      await download(page, scope, link, result, result.items, {}, info, 'all-from-second-page')
+      await download(page, scope, link, result, result.items, {}, info, 'all-from-second-page', 28)
       await capture(page, info, `${scope}-${width}-complete`)
 
       let applied = nextRecords(page, scope, { deviceType: 'desktop' })
       await panel.getByRole('combobox', { name: '设备', exact: true }).press('Enter')
       await page.getByRole('option', { name: '桌面设备', exact: true }).click()
       expect(await (await applied).json()).toMatchObject({ code: 0 })
-      await download(page, scope, link, result, result.items.filter(item => item.referrerHost === 'desktop.example.test'), { deviceType: 'desktop' }, info, 'desktop')
+      await download(page, scope, link, result, result.items.filter(item => item.referrerHost === 'desktop.example.test'), { deviceType: 'desktop' }, info, 'desktop', 26)
       await panel.getByLabel('国家代码', { exact: true }).fill('SG')
       await expect(page.getByTestId('visit-export')).toBeDisabled()
       applied = nextRecords(page, scope, { deviceType: 'desktop', countryCode: 'SG' })
       await panel.getByRole('button', { name: '应用筛选', exact: true }).click()
       expect(await (await applied).json()).toMatchObject({ code: 0 })
-      await download(page, scope, link, result, result.items.filter(item => item.referrerHost === 'desktop.example.test'), { deviceType: 'desktop', countryCode: 'SG' }, info, 'applied-country')
+      await download(page, scope, link, result, result.items.filter(item => item.referrerHost === 'desktop.example.test'), { deviceType: 'desktop', countryCode: 'SG' }, info, 'applied-country', 26)
 
       applied = nextRecords(page, scope, { countryCode: 'SG' })
       await panel.getByRole('combobox', { name: '设备', exact: true }).press('Enter')
@@ -226,7 +236,7 @@ for (const scope of ['own', 'admin'] as const) {
       applied = nextRecords(page, scope, { countryCode: 'unknown' })
       await panel.getByRole('button', { name: '应用筛选', exact: true }).click()
       expect(await (await applied).json()).toMatchObject({ code: 0 })
-      await download(page, scope, link, result, result.items.filter(item => item.referrerHost === null), { countryCode: 'unknown' }, info, 'unknown-country')
+      await download(page, scope, link, result, result.items.filter(item => item.referrerHost === null), { countryCode: 'unknown' }, info, 'unknown-country', 1)
       await capture(page, info, `${scope}-${width}-unknown`)
     })
   }
@@ -239,10 +249,10 @@ test('empty visit range downloads a legal header-only file', async ({ scenario }
   await observeDownloads(owner)
   await owner.goto(`/link/${empty.id}/analytics`)
   await expect(owner.getByTestId('visit-records').getByText('已应用范围与筛选下暂无访问记录。', { exact: true })).toBeVisible()
-  await download(owner, 'own', empty, result, [], {}, info, 'empty')
+  await download(owner, 'own', empty, result, [], {}, info, 'empty', 0)
 })
 
-test('independent export permission hides the action while records remain readable', async ({ scenario }, info) => {
+test('revoking export on loaded analytics rejects the stale action and restores readable records', async ({ scenario }, info) => {
   const { owner, admin, link } = scenario
   const group = async () => {
     const payload = await (await admin.request.get('/api/v1/admin/user-group/list')).json() as { code: number; data: { groups: UserGroup[] } }
@@ -252,11 +262,28 @@ test('independent export permission hides the action while records remain readab
   const original = await group()
   const errors: unknown[] = []
   try {
-    expect(await (await admin.request.post('/api/v1/admin/user-group/update-permissions', { data: { groupKey: 'user', expectedUpdatedAt: original.updatedAt, permissions: original.permissions.filter(permission => permission !== 'short_link:export_visits') } })).json()).toMatchObject({ code: 0 })
-    expect(await (await owner.request.get(`/api/v1/short-link/visits/export?id=${link.id}`)).json()).toMatchObject({ code: 120001, data: null })
+    await seedVisits(owner, link)
+    await observeDownloads(owner)
+    const downloads: string[] = []
+    owner.on('download', download => { downloads.push(download.suggestedFilename()) })
     await owner.goto(`/link/${link.id}/analytics`)
-    await expect(owner.getByTestId('visit-records').getByText('已应用范围与筛选下暂无访问记录。', { exact: true })).toBeVisible()
+    await expect(owner.getByTestId('visit-records').getByRole('row')).toHaveCount(26)
+    await expect(owner.getByTestId('visit-export')).toBeEnabled()
+    expect(await (await admin.request.post('/api/v1/admin/user-group/update-permissions', { data: { groupKey: 'user', expectedUpdatedAt: original.updatedAt, permissions: original.permissions.filter(permission => permission !== 'short_link:export_visits') } })).json()).toMatchObject({ code: 0 })
+    const rejected = owner.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/short-link/visits/export')
+    const refreshed = owner.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/auth/me')
+    await owner.getByTestId('visit-export').click()
+    expect(await (await rejected).json()).toMatchObject({ code: 120001, data: null })
+    const authorization = await (await refreshed).json() as { code: number; data: { user: { permissions: string[] } } }
+    expect(authorization.code).toBe(0)
+    expect(authorization.data.user.permissions).toEqual(original.permissions.filter(permission => permission !== 'short_link:export_visits'))
+    await expect(owner.getByTestId('analytics-summary')).toBeVisible()
+    await expect(owner.getByTestId('visit-records').getByRole('row')).toHaveCount(26)
     await expect(owner.getByTestId('visit-export')).toHaveCount(0)
+    expect(downloads).toEqual([])
+    const observation = await owner.evaluate(() => (window as unknown as { visitDownloadObservation: DownloadObservation }).visitDownloadObservation)
+    expect(observation).toEqual({ created: [], revoked: [] })
+    await attachJSON(info, 'permission-denial-recovery', { code: 120001, permissions: authorization.data.user.permissions, downloads, observation })
   } catch (error) { errors.push(error) }
   finally {
     try {
