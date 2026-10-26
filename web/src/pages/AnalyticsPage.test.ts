@@ -12,6 +12,8 @@ import { downloadCsv } from '@/shared/download/csv'
 import type { StatisticsExport } from '@/entities/short-link/export'
 import { toast } from 'vue-sonner'
 import { ApiClientError } from '@/shared/api/client'
+import type { UserResponse } from '@/entities/auth/api'
+import { setImmediate } from 'node:timers'
 
 const state = vi.hoisted(() => ({ route: {} as { path: string; params: { shortLinkId: string } } }))
 vi.mock('vue-router', () => ({ useRoute: () => state.route }))
@@ -151,6 +153,51 @@ describe('analytics date range', () => {
     expect(updated.has('cursor')).toBe(false)
     expect((records.getByRole('button', { name: 'insights.previous' }) as HTMLButtonElement).disabled).toBe(true)
   })
+
+  it.each(['current', 'unmounted', 'other-account', 'newer-read', 'newer-empty'])(
+    'recovers readable analytics after export denial unmounts its button, guarding %s authorization', async transition => {
+      const id = '00000000-0000-0000-0000-000000000001'
+      state.route.params.shortLinkId = id
+      vi.mocked(getShortLinkStatistics).mockResolvedValue(response(id))
+      const refresh = createDeferred<Response>()
+      const readPermissions = ['short_link:read_own', 'short_link:read_visits']
+      const auth = (permissions = readPermissions, userId = 'A'): UserResponse => ({ user: { id: userId, username: userId, nickname: '', group: 'user', permissions } })
+      let authReads = 0
+      vi.stubGlobal('fetch', async (path: string) => {
+        if (path.endsWith('/auth/me')) { authReads++; return refresh.promise }
+        if (path.includes('/visits/export?')) return new Response(JSON.stringify({ code: 120001, message: 'denied', data: null }))
+        return new Response(JSON.stringify({ code: 0, message: 'OK', data: {
+          range: { startDate: '2026-10-09', endDate: '2026-10-15', timeZone: 'UTC' }, pageSize: 25, hasMore: false, nextCursor: '',
+          items: [{ id, occurredAt: '2026-10-15T00:00:00Z', referrerHost: 'readable.example', deviceType: null, browserFamily: null, osFamily: null, countryCode: null }],
+        } }))
+      })
+      const view = mount(['short_link:read_visits', 'short_link:export_visits'])
+      await screen.findByText('readable.example')
+      await fireEvent.click(screen.getByTestId('visit-export'))
+      await screen.findByText('insights.noAccess')
+      expect(authReads).toBe(1)
+      expect(screen.queryByTestId('visit-records')).toBeNull()
+      expect(screen.queryByTestId('analytics-summary')).toBeNull()
+      expect(view.client.getQueryData<UserResponse>(['auth', 'me'])?.user.permissions).toEqual([])
+      const newer = transition === 'other-account' ? auth(readPermissions, 'B')
+        : transition === 'newer-read' ? auth(['short_link:read_own']) : auth([])
+      if (transition.startsWith('newer-') || transition === 'other-account') view.client.setQueryData(['auth', 'me'], newer)
+      if (transition === 'unmounted') view.unmount()
+      refresh.resolve(new Response(JSON.stringify({ code: 0, message: 'OK', data: auth() })))
+      await refresh.promise
+      await new Promise<void>(resolve => setImmediate(resolve))
+      if (transition === 'current') {
+        await screen.findByText('readable.example')
+        expect(screen.queryByText('insights.noAccess')).toBeNull()
+        expect(screen.getByTestId('analytics-summary')).toBeTruthy()
+      }
+      expect(view.client.getQueryData(['auth', 'me'])).toEqual(['current', 'unmounted'].includes(transition) ? auth() : newer)
+      expect(screen.queryByTestId('visit-export')).toBeNull()
+      expect(downloadCsv).not.toHaveBeenCalled()
+      expect(toast.success).not.toHaveBeenCalled()
+      expect(toast.error).toHaveBeenCalledTimes(1)
+    },
+  )
 
   it('remounts visit records with a fresh read when parent statistics unmount them during A to B to A navigation', async () => {
     const a = '00000000-0000-0000-0000-000000000001'

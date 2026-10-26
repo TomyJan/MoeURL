@@ -182,7 +182,7 @@ describe('VisitExportButton', () => {
     if (lifecycle === 'failed') refresh.reject(new Error('offline'))
     else refresh.resolve(json({ user: user(own) }))
     await settle()
-    expect(view.client.getQueryData<{ user: CurrentUser }>(['auth', 'me'])?.user.permissions).toEqual(lifecycle === 'current' ? own : [])
+    expect(view.client.getQueryData<{ user: CurrentUser }>(['auth', 'me'])?.user.permissions).toEqual(lifecycle === 'failed' ? [] : own)
     expect(downloads).toEqual([])
     expect(toast.error).toHaveBeenCalledTimes(1)
   })
