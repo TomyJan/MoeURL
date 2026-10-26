@@ -12,6 +12,8 @@ import { downloadCsv } from '@/shared/download/csv'
 import type { StatisticsExport } from '@/entities/short-link/export'
 import { toast } from 'vue-sonner'
 import { ApiClientError } from '@/shared/api/client'
+import type { UserResponse } from '@/entities/auth/api'
+import { setImmediate } from 'node:timers'
 
 const state = vi.hoisted(() => ({ route: {} as { path: string; params: { shortLinkId: string } } }))
 vi.mock('vue-router', () => ({ useRoute: () => state.route }))
@@ -60,6 +62,8 @@ describe('analytics date range', () => {
   })
   afterEach(() => {
     clients.splice(0).forEach((client) => client.clear())
+    vi.mocked(downloadCsv).mockReset()
+    vi.restoreAllMocks()
     vi.unstubAllGlobals()
     vi.useRealTimers()
   })
@@ -152,6 +156,51 @@ describe('analytics date range', () => {
     expect((records.getByRole('button', { name: 'insights.previous' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
+  it.each(['current', 'unmounted', 'other-account', 'newer-read', 'newer-empty'])(
+    'recovers readable analytics after export denial unmounts its button, guarding %s authorization', async transition => {
+      const id = '00000000-0000-0000-0000-000000000001'
+      state.route.params.shortLinkId = id
+      vi.mocked(getShortLinkStatistics).mockResolvedValue(response(id))
+      const refresh = createDeferred<Response>()
+      const readPermissions = ['short_link:read_own', 'short_link:read_visits']
+      const auth = (permissions = readPermissions, userId = 'A'): UserResponse => ({ user: { id: userId, username: userId, nickname: '', group: 'user', permissions } })
+      let authReads = 0
+      vi.stubGlobal('fetch', async (path: string) => {
+        if (path.endsWith('/auth/me')) { authReads++; return refresh.promise }
+        if (path.includes('/visits/export?')) return new Response(JSON.stringify({ code: 120001, message: 'denied', data: null }))
+        return new Response(JSON.stringify({ code: 0, message: 'OK', data: {
+          range: { startDate: '2026-10-09', endDate: '2026-10-15', timeZone: 'UTC' }, pageSize: 25, hasMore: false, nextCursor: '',
+          items: [{ id, occurredAt: '2026-10-15T00:00:00Z', referrerHost: 'readable.example', deviceType: null, browserFamily: null, osFamily: null, countryCode: null }],
+        } }))
+      })
+      const view = mount(['short_link:read_visits', 'short_link:export_visits'])
+      await screen.findByText('readable.example')
+      await fireEvent.click(screen.getByTestId('visit-export'))
+      await screen.findByText('insights.noAccess')
+      expect(authReads).toBe(1)
+      expect(screen.queryByTestId('visit-records')).toBeNull()
+      expect(screen.queryByTestId('analytics-summary')).toBeNull()
+      expect(view.client.getQueryData<UserResponse>(['auth', 'me'])?.user.permissions).toEqual([])
+      const newer = transition === 'other-account' ? auth(readPermissions, 'B')
+        : transition === 'newer-read' ? auth(['short_link:read_own']) : auth([])
+      if (transition.startsWith('newer-') || transition === 'other-account') view.client.setQueryData(['auth', 'me'], newer)
+      if (transition === 'unmounted') view.unmount()
+      refresh.resolve(new Response(JSON.stringify({ code: 0, message: 'OK', data: auth() })))
+      await refresh.promise
+      await new Promise<void>(resolve => setImmediate(resolve))
+      if (transition === 'current') {
+        await screen.findByText('readable.example')
+        expect(screen.queryByText('insights.noAccess')).toBeNull()
+        expect(screen.getByTestId('analytics-summary')).toBeTruthy()
+      }
+      expect(view.client.getQueryData(['auth', 'me'])).toEqual(['current', 'unmounted'].includes(transition) ? auth() : newer)
+      expect(screen.queryByTestId('visit-export')).toBeNull()
+      expect(downloadCsv).not.toHaveBeenCalled()
+      expect(toast.success).not.toHaveBeenCalled()
+      expect(toast.error).toHaveBeenCalledTimes(1)
+    },
+  )
+
   it('remounts visit records with a fresh read when parent statistics unmount them during A to B to A navigation', async () => {
     const a = '00000000-0000-0000-0000-000000000001'
     const b = '00000000-0000-0000-0000-000000000002'
@@ -174,6 +223,43 @@ describe('analytics date range', () => {
     pendingVisits.resolve(new Response(JSON.stringify({ code: 0, message: 'OK', meta: {}, data: { ...page, items: [] } })))
     await screen.findByText('visits.empty')
     expect(screen.queryByText('old.parent.instance.example')).toBeNull()
+  })
+
+  it.each([0, 100001])('requests server-confirmed visit dates across a slow browser UTC clock and handles server code %s', async code => {
+    vi.setSystemTime(new Date('2026-10-25T23:59:55Z'))
+    const id = '00000000-0000-0000-0000-000000000001'
+    state.route.params.shortLinkId = id
+    vi.mocked(getShortLinkStatistics).mockResolvedValue(response(id, '2026-10-20', '2026-10-26'))
+    const file = { fileName: `moeurl-visits-${id}-2026-10-20-2026-10-26.csv`, contentType: 'text/csv;charset=utf-8', content: '\uFEFFshort_link_id,start_date,end_date,time_zone,event_id,occurred_at,referrer_host,device_type,browser_family,os_family,country_code\r\n' }
+    const exports: string[] = []
+    const downloads: string[] = []
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:server-dates')
+    const revoked = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { downloads.push(this.download) })
+    const realDownload = await vi.importActual<typeof import('@/shared/download/csv')>('@/shared/download/csv')
+    vi.mocked(downloadCsv).mockImplementationOnce(realDownload.downloadCsv)
+    vi.stubGlobal('fetch', async (path: string) => {
+      if (path.includes('/visits/export?')) {
+        exports.push(path)
+        return new Response(JSON.stringify({ code, message: 'server result', data: code ? null : file }))
+      }
+      return new Response(JSON.stringify({ code: 0, message: 'OK', data: {
+        range: { startDate: '2026-10-20', endDate: '2026-10-26', timeZone: 'UTC' }, pageSize: 25, hasMore: false, nextCursor: '', items: [],
+      } }))
+    })
+    mount(['short_link:read_visits', 'short_link:export_visits'])
+    await screen.findByText('visits.empty')
+    await fireEvent.click(screen.getByTestId('visit-export'))
+    await waitFor(() => expect(exports).toEqual([`/api/v1/short-link/visits/export?id=${id}&startDate=2026-10-20&endDate=2026-10-26`]))
+    if (code === 0) {
+      await waitFor(() => expect(downloads).toEqual([file.fileName]))
+      expect(revoked).toHaveBeenCalledWith('blob:server-dates')
+      expect(document.querySelector('a[download]')).toBeNull()
+    } else {
+      await waitFor(() => expect(toast.error).toHaveBeenCalledWith('visitExport.failed'))
+      expect(downloads).toEqual([])
+      expect((screen.getByTestId('visit-export') as HTMLButtonElement).disabled).toBe(false)
+    }
   })
 
   it('exports the displayed dates while custom edits remain unapplied and disables during active reads', async () => {

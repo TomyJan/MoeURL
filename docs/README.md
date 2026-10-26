@@ -1,6 +1,10 @@
 # MoeURL 文档中心
 
-已确认的主分支基线为 `ba2073cf`：[v0.22.0 批量短链归属转移](product/scope-v0.22.0.md) 已通过 [PR #217](https://github.com/TomyJan/MoeURL/pull/217) 合并，修复候选 `7e41d438` 的[目标 CI](https://github.com/TomyJan/MoeURL/actions/runs/40268882496) 和实际合并提交的[主分支 CI](https://github.com/TomyJan/MoeURL/actions/runs/40269757583) 各 9 项成功；4 条 CodeRabbit 意见均修复并获原线程确认，尚未正式发布。此前 [v0.21.0 清单 CSV 导出](product/scope-v0.21.0.md) 的历史证据仍见[验收](implementation/v0.21.0-acceptance.md)。[v0.23.0 批量标签整理](product/scope-v0.23.0.md) 已在独立分支 `feat/v0.23.0-batch-link-tags` 实现并创建 [PR #218](https://github.com/TomyJan/MoeURL/pull/218)，本地门禁、浏览器、制品及各轮目标 CI 逐候选记录在本版验收，最新 CI 与合并结果以 PR 实际记录为准，尚未正式发布；见[规格](specs/2026-10-26-v0.23.0-batch-tags-design.md)、[计划](implementation/v0.23.0-plan.md)、[任务](implementation/v0.23.0-tasks.md)与[验收](implementation/v0.23.0-acceptance.md)。功能、本地门禁、目标 CI、合并和正式发布分别记录，旧候选结果不替代新提交验证。
+已确认的主分支基线为 `5f6702d92939dd1bfa9fb2afe30660965577d1f2`：[v0.23.0 批量标签整理](product/scope-v0.23.0.md) 已通过 [PR #218](https://github.com/TomyJan/MoeURL/pull/218) 合并。最终 head `635b53ae` 的[目标 CI](https://github.com/TomyJan/MoeURL/actions/runs/40300323879) 和实际合并提交的[主分支 CI](https://github.com/TomyJan/MoeURL/actions/runs/40306786126) 各 9 项成功，CodeRabbit 对最终 44 文件实际完整复审无有效意见，尚未正式发布；历史候选保留在[验收](implementation/v0.23.0-acceptance.md)。
+
+[v0.24.0 匿名访问记录 CSV 导出](product/scope-v0.24.0.md) 在独立分支 `feat/v0.24.0-visit-record-export` 实现单链已应用 UTC 日期、设备及国家筛选的完整记录下载，最多 1000 条／8 MiB，新增独立权限且保持匿名字段边界。设计、任务及本地门禁见[规格](specs/2026-10-26-v0.24.0-visit-record-export-design.md)、[计划](implementation/v0.24.0-plan.md)、[任务](implementation/v0.24.0-tasks.md)与[验收](implementation/v0.24.0-acceptance.md)。本版独立终审、目标 CI、合并及正式发布分别记录，旧候选结果不替代新提交验证。
+
+v0.24.0 整分支终审已完成，统一修复候选 `7cd277b2` 补齐真实父页授权恢复、服务端日期权威及固定 E2E 分类／已加载页面撤权回归；新门禁、工作树生成物隔离偏差及已通过的独立定向复审结论见本版验收。
 
 主分支已合并 [全站统计、匿名访问明细与操作审计](product/scope-v0.18.0.md)。管理页为 `/admin/dashboard`、`/admin/audit`，访问明细保留在单短链分析页中；权限、隐私、事务与保留边界见 [设计](specs/2026-10-22-v0.18.0-analytics-audit-design.md)。分阶段本地门禁、候选树及剩余远端／发布验证分别记录在 [验收](implementation/v0.18.0-acceptance.md)，功能已通过 PR #208 合并为 `0f01a2e5`，尚未正式发布。
 
@@ -82,6 +86,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 
 - [产品总览](product/overview.md)
 - [开发进度与能力清单](product/development-status.md)
+- [v0.24.0 匿名访问记录导出范围](product/scope-v0.24.0.md)
 - [v0.0.1 范围](product/scope-v0.0.1.md)
 - [v0.0.2 范围](product/scope-v0.0.2.md)
 - [v0.0.3 范围](product/scope-v0.0.3.md)
@@ -124,6 +129,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 - [域名](specs/domains.md)
 - [跳转模式](specs/redirect-modes.md)
 - [统计与事件](specs/statistics-and-events.md)
+- [v0.24.0 匿名访问记录导出设计](specs/2026-10-26-v0.24.0-visit-record-export-design.md)
 - [v0.14.0 统计日期范围设计](specs/2026-10-15-v0.14.0-analytics-date-range-design.md)
 - [v0.15.0 账号语言与主题偏好设计](specs/2026-10-16-v0.15.0-account-preferences-design.md)
 - [导航与页面](specs/navigation-and-pages.md)
@@ -139,6 +145,9 @@ v0.9.0 系统设置与站点品牌基础闭环的功能实现已经完成；功�
 当前实施层文档包括：
 
 - [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)
+- [v0.24.0 计划](implementation/v0.24.0-plan.md)
+- [v0.24.0 任务](implementation/v0.24.0-tasks.md)
+- [v0.24.0 验收](implementation/v0.24.0-acceptance.md)
 - [技术选型决策](implementation/technical-decision.md)
 - [技术基线](implementation/technical-baseline.md)
 - [初始化、密码与操作反馈本地验证记录](implementation/2026-10-14-auth-feedback-acceptance.md)

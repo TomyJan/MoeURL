@@ -33,6 +33,19 @@ describe('detectFallbackBrowserChannel', () => {
 })
 
 describe('shouldSkipDockerCompose', () => {
+  it('configures a deterministic trusted country fixture only for the disposable Compose backend', async () => {
+    vi.stubEnv('MOEURL_E2E_SKIP_DOCKER', undefined)
+    vi.stubEnv('MOEURL_ANALYTICS_COUNTRY_HEADER', undefined)
+    vi.resetModules()
+
+    const { default: config } = await import('./playwright.config')
+
+    expect(config.webServer).toMatchObject({
+      env: { MOEURL_ANALYTICS_COUNTRY_HEADER: 'X-MoeURL-E2E-Country' },
+    })
+    expect(process.env.MOEURL_ANALYTICS_COUNTRY_HEADER).toBeUndefined()
+  })
+
   it('uses Docker Compose by default', () => {
     vi.stubEnv('MOEURL_E2E_SKIP_DOCKER', undefined)
 

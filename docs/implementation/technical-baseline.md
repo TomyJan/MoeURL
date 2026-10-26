@@ -43,6 +43,10 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 
 当前以 Go 1.26.8+ 为最低语言版本，`go.mod` 声明为 Go 1.26.8。`Dockerfile` 的前端和后端构建阶段统一使用稳定镜像 `golang:1.27.3`，后端安全门禁使用 Go 1.26.10，修复标准库证书校验漏洞 [GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809)；自行构建也须使用对应 Go 分支的安全修复版本。构建和扫描工具链版本不提高项目的最低语言版本。生产镜像中的 Goose 固定为 v3.28.0，并在独立构建模块中将 `golang.org/x/net` 固定为 v0.60.0，避免迁移工具携带已修复的网络库漏洞。
 
+Docker 前端构建从 Node 官方固定版本地址下载运行时，使用 HTTP/1.1、20 秒连接超时、单次 120 秒总超时和最多 2 次重试；保留 HTTPS 证书校验，不改版本、源站或基础镜像。该有界传输用于避免构建下载链路的 HTTP/2 停滞，不改变应用运行协议。
+
+`MOEURL_BUILD_COMMIT`／`MOEURL_BUILD_TAG` 的 ARG／ENV 只在复制前端源码之后、实际 `pnpm build` 之前声明，版本注入不使 Node 下载及锁文件依赖安装层随每次提交失效。构建与浏览器仍须验证实际 footer 和完整源码 URL，缓存复用不替代制品归属。
+
 ## 3. 仓库目录结构
 
 建议采用单仓库结构：
@@ -178,6 +182,14 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 - 不写业务判断。
 
 ## 5. API 约定
+
+### v0.24.0 匿名访问记录导出
+
+新增 `GET /api/v1/short-link/visits/export` 和 `GET /api/v1/admin/short-link/visits/export`。仅 id、days 或成对起止日期、deviceType、countryCode；规范非零 UUID、最多 90 个 UTC 日、拒绝分页及重复／未知／显式空值。独立 `short_link:export_visits` 与 read_visits、个人 read_own／owner 或 admin:access／read_all 取交集；同一 5 秒只读 repeatable-read 快照重新检查数据库有效账号、组授权、时间和未删除短链。
+
+最多 1000 行，MATERIALIZED 候选至多 1001 条 ID／排序／bigint 文本长度；原始可变长文本与最终 UTF-8 CSV 分别限 8 MiB，超预算只返回哨兵，不拉取完整文本或返回部分文件。成功 `{fileName,contentType,content}`、固定 `text/csv;charset=utf-8` 与 `moeurl-visits-{id}-{startDate}-{endDate}.csv`；BOM／CRLF、固定 11 列机器字段、UTC RFC3339Nano、空单元格及公式中和。业务码 100001／120001／200104／200120，基础设施 500／900000，响应 no-store，日志仅安全类别／类型和 request_id。无目标、账号、原始 IP／UA／完整 Referer 或秘密。完整字段见[设计](../specs/2026-10-26-v0.24.0-visit-record-export-design.md)。
+
+`00023_visit_export_permission.sql` 仅补内置 user／admin 缺失授权，已有权限不改 updated_at；按 UPDATE 修订跟踪，Down 保留既有、迁移后新增组和移除再重授予的权限，不删除事件。默认及 standard 包含，guest／basic／restricted 不包含。SQLC 1.30.0 与权限 fixture 仍只经标准入口生成，保持原业务与前端四项 100% 阈值。记录区域仅导出已加载实际范围／已应用筛选；分页不限制文件，未应用草稿、刷新、失败或迟到上下文禁止下载。
 
 ### v0.23.0 批量标签整理
 
@@ -507,6 +519,7 @@ short_link:set_max_visits
 short_link:set_metadata
 short_link:custom_slug
 short_link:export
+short_link:export_visits
 admin:access
 ```
 
@@ -720,6 +733,8 @@ v0.9.0 系统设置 E2E 在单个隔离场景中创建并清理专用 OIDC Provi
 v0.12.0 自定义短码 E2E 在桌面与手机视口验证真实创建、小写预览、公开大写入口跳转、占用和保留字错误、失败草稿保留、清空后随机创建；独立撤权场景验证后端拒绝、页面隐藏与随机路径保留，并恢复原用户组权限。Compose smoke 另检查指定短码规范化、重复创建拒绝和重启后地址持久化；脚本配置通过不代表完整容器场景已执行。
 
 ### 质量检查工作流
+
+v0.24.0 真实下载验收使用隔离 Compose 账号、链接及公开 302 写出的匿名事件，不 mock 产品 API。Playwright 的 Docker-enabled webServer 环境固定 `MOEURL_ANALYTICS_COUNTRY_HEADER=X-MoeURL-E2E-Country`，仅本 runner 的公开 fixture 请求发送该头以验证已知国家；其他请求仍未知，生产 Compose 默认值不变。定向／完整运行无需手工设置国家头环境变量。完整 E2E／runner 配置与 bundle／后端／部署输入分别冻结，构建 HEAD／tag 注入和精确 image ID 另行记录，源文件相同不证明不同提交注入的制品字节相同。
 
 GitHub Actions 使用单个 `Check Code` 工作流文件。该工作流包含 9 个互相独立的并行任务：
 

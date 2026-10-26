@@ -242,6 +242,8 @@ v0.16.0 恢复还须核验 `short_link:export_statistics` 授权，并以样例�
 
 v0.21.0 恢复还须核验独立 `short_link:export` 授权，以个人和管理员账号按同一组筛选下载清单，核对原短链域名、目标、元数据和所属账号。清单导出不替代数据库备份；`00022` 的权限追加追踪表随正常数据库备份保留，回退仅撤销该迁移追加且未被独立修改的授权，不删除短链或审计。
 
+v0.24.0 恢复还须核验独立 `short_link:export_visits` 与 `short_link:read_visits` 的权限交集，按样例短链已应用 UTC 日期和设备／国家筛选下载匿名记录，核对事件 ID、完整 UTC 时间、机器分类和空值。`00023` 的权限追加／修订追踪随正常整库备份保留；不新增文件存储或部署密钥，CSV 不替代数据库备份。默认 user／admin 拥有、guest 不拥有；恢复已有实例应以备份前记录的人工授权为准，不把默认值强制覆盖到自定义权限。
+
 从当前 `migrations/` 目录计算最大 migration 版本，并确认恢复数据库一致：
 
 ```bash
@@ -258,7 +260,7 @@ test -n "$expected_migration_version" && test "$actual_migration_version" = "$ex
 ```bash
 restore_compose exec -T postgres \
   psql -U moeurl -d moeurl -Atc \
-  "select key, permissions ? 'short_link:set_metadata' as can_set_metadata, permissions ? 'short_link:custom_slug' as can_custom_slug, permissions ? 'short_link:export_statistics' as can_export_statistics, permissions ? 'short_link:export' as can_export_links from user_group where builtin order by key"
+  "select key, permissions ? 'short_link:set_metadata' as can_set_metadata, permissions ? 'short_link:custom_slug' as can_custom_slug, permissions ? 'short_link:export_statistics' as can_export_statistics, permissions ? 'short_link:export' as can_export_links, permissions ? 'short_link:read_visits' as can_read_visits, permissions ? 'short_link:export_visits' as can_export_visits from user_group where builtin order by key"
 ```
 
 登录入口验收必须以下文 `GET /api/v1/auth/methods` 返回的恢复后策略为准。需要验证本地登录时，密码只通过权限为 `600` 的临时 JSON 文件传入，不放在命令行或 Shell 历史中。

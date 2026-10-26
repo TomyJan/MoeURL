@@ -1,10 +1,6 @@
 FROM golang:1.27.3 AS web-build
 ARG NODE_VERSION=26.5.1
 ARG TARGETARCH
-ARG MOEURL_BUILD_COMMIT
-ARG MOEURL_BUILD_TAG=
-ENV MOEURL_BUILD_COMMIT=${MOEURL_BUILD_COMMIT}
-ENV MOEURL_BUILD_TAG=${MOEURL_BUILD_TAG}
 WORKDIR /workspace/web
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl xz-utils \
@@ -14,7 +10,7 @@ RUN apt-get update \
         arm64) node_arch="linux-arm64" ;; \
         *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
     esac \
-    && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${node_arch}.tar.xz" -o /tmp/node.tar.xz \
+    && curl -fsSL --http1.1 --connect-timeout 20 --max-time 120 --retry 2 --retry-all-errors "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-${node_arch}.tar.xz" -o /tmp/node.tar.xz \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
     && rm -f /tmp/node.tar.xz \
     && node -v \
@@ -23,6 +19,10 @@ COPY web/package.json web/pnpm-lock.yaml ./
 RUN npm install -g $(node -p "require('./package.json').packageManager")
 RUN pnpm install --frozen-lockfile --config.dangerously-allow-all-builds=true
 COPY web/ ./
+ARG MOEURL_BUILD_COMMIT
+ARG MOEURL_BUILD_TAG=
+ENV MOEURL_BUILD_COMMIT=${MOEURL_BUILD_COMMIT}
+ENV MOEURL_BUILD_TAG=${MOEURL_BUILD_TAG}
 RUN pnpm build
 
 FROM golang:1.27.3 AS go-build

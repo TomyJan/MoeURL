@@ -1,6 +1,6 @@
 # 开发进度与能力清单
 
-已确认的主分支基线为 `ba2073cf`：[v0.22.0 批量短链归属转移](scope-v0.22.0.md) 已通过 [PR #217](https://github.com/TomyJan/MoeURL/pull/217) 合并，最终修复候选 `7e41d438` 的[目标 CI](https://github.com/TomyJan/MoeURL/actions/runs/40268882496) 和实际合并提交的[主分支 CI](https://github.com/TomyJan/MoeURL/actions/runs/40269757583) 各 9 项成功，4 条 CodeRabbit 意见已修复并获原线程确认；自动增量整轮审查因额度跳过，不冒充整轮复审通过。尚未正式发布，各阶段证据见[本版验收](../implementation/v0.22.0-acceptance.md)。独立分支 `feat/v0.23.0-batch-link-tags` 已实现[批量标签整理](scope-v0.23.0.md)并创建 [PR #218](https://github.com/TomyJan/MoeURL/pull/218)，本地门禁、浏览器、制品及各轮目标 CI 逐候选见[验收](../implementation/v0.23.0-acceptance.md)；最新 CI 与合并结果以 PR 实际记录为准，尚未正式发布。下面的旧提交结果保留历史归属。
+已确认的主分支基线为 `5f6702d92939dd1bfa9fb2afe30660965577d1f2`：[v0.23.0 批量标签整理](scope-v0.23.0.md) 已通过 [PR #218](https://github.com/TomyJan/MoeURL/pull/218) 合并。最终 head `635b53ae` 的[目标 CI](https://github.com/TomyJan/MoeURL/actions/runs/40300323879)和实际合并提交的[主分支 CI](https://github.com/TomyJan/MoeURL/actions/runs/40306786126)各 9 项成功；CodeRabbit 对最终 44 文件实际完整复审无有效意见，历史额度跳过结果不替代本次审查。尚未正式发布。[v0.24.0 匿名访问记录导出](scope-v0.24.0.md) 已在独立分支实现，本地验收及独立终审、目标 CI、合并和发布缺口见[本版验收](../implementation/v0.24.0-acceptance.md)。下面的旧提交结果保留历史归属。
 
 更新日期：2026-10-26。历史远端文档基线 `722b2ce03ee79c05b55737e16eaab2d83c36372b` 基于代码 `c4928a85`，包含 PR #198 合并的 [v0.17.0 短链批量管理](scope-v0.17.0.md) 及当时的依赖和 Go 证书安全修复。该文档基线的 [Check Code](https://github.com/TomyJan/MoeURL/actions/runs/39775160522) 全部 9 项通过，不替代后续代码候选的结果。v0.18.0 已通过 PR #208 合并为 `0f01a2e5`，其原分支本地证据不替代合并提交 CI 或发布。`33f287ec`、`1c6df4a` 等历史证据单独保留，不改写为新提交结果。真实生产演练与正式发布尚未完成。本页是进度入口，版本边界由 scope 和 spec 定义，指定提交及环境的实际验证由对应 acceptance 记录。
 
@@ -22,8 +22,8 @@
 | 访问模式与生命周期 | direct、intermediate、confirmation；中间页 3–10 秒倒计时；过期时间；浏览器生成二维码；公开访问状态页。 | 模板选择和编辑、二维码样式配置、目标可达性检测与自动审核。 | [访问体验范围](scope-v0.2.0.md)、[确认页范围](scope-v0.4.0.md) |
 | 访问密码 | Argon2id 哈希、数据库一致失败限流、15 分钟访问授权；修改密码使旧授权失效。 | 本版闭环已实现，不提供独立授权管理 UI。 | [密码保护范围](scope-v0.3.0.md) |
 | 最大访问次数 | 权限控制的可选限额；最终跳转原子领取；编辑保留用量、清除后重开周期；统一耗尽状态。 | 自动周期重置、独立清零、额度历史和告警。 | [最大访问次数范围](scope-v0.10.0.md) |
-| 标题与标签 | 创建、编辑和清空；管理列表展示；关键词搜索及精确标签筛选；权限与公开字段隔离。v0.23.0 已实现当前列表 1–100 条原子添加／移除／替换标签及清空，保持标题、访问配置与历史，集成跟踪见 PR #218。 | 尚未正式发布；最新 CI／合并见 PR 实际记录。集中标签库、重命名合并、颜色层级、独立备注及 Open Graph 未开发。 | [元数据范围](scope-v0.11.0.md)、[批量标签](scope-v0.23.0.md)、[验收](../implementation/v0.23.0-acceptance.md) |
-| 概览与分析 | 已合并个人概览、最近短链、单链匿名聚合、最长 90 天 UTC 范围和聚合 CSV。v0.18.0 已合并管理员全站快照、趋势／热门、本人／管理单链的匿名访问分页与浏览器／系统类别；旧空类别显示未知。 | 超出 90 天或任意时区分析、访问明细及全站批量导出、事件归档。v0.18.0 已通过 PR #208 合并，当前 CI／发布证据另行记录。 | [个人概览](scope-v0.1.1.md)、[聚合导出](scope-v0.16.0.md)、[v0.18.0 范围](scope-v0.18.0.md)、[统计与事件](../specs/statistics-and-events.md) |
+| 标题与标签 | 创建、编辑和清空；管理列表展示；关键词搜索及精确标签筛选；权限与公开字段隔离。v0.23.0 已合并当前列表 1–100 条原子添加／移除／替换标签及清空，保持标题、访问配置与历史。 | 尚未正式发布。集中标签库、重命名合并、颜色层级、独立备注及 Open Graph 未开发。 | [元数据范围](scope-v0.11.0.md)、[批量标签](scope-v0.23.0.md)、[验收](../implementation/v0.23.0-acceptance.md) |
+| 概览与分析 | 已合并个人概览、最近短链、单链匿名聚合、最长 90 天 UTC 范围和聚合 CSV，以及管理员全站快照、趋势／热门、本人／管理单链匿名访问分页与浏览器／系统类别；旧空类别显示未知。v0.24.0 独立分支实现单链完整筛选匿名记录 CSV，最多 1000 条／8 MiB，叠加独立权限。 | v0.24.0 独立终审、目标 CI、合并和发布见验收；超出 90 天或任意时区分析、全站访问合并导出及事件归档未实现。 | [个人概览](scope-v0.1.1.md)、[聚合导出](scope-v0.16.0.md)、[v0.24.0 范围](scope-v0.24.0.md)、[统计与事件](../specs/statistics-and-events.md) |
 | 操作审计 | v0.18.0 已合并关键业务变更与日志同事务、真实 actor、白名单字段及只读筛选；180 天在线保留和有界清理，非空审计安全拒绝回滚。 | 明细／审计导出、独立登录安全事件中心、外部 SIEM 与防篡改签名。功能已合并，当前 CI／发布证据另行记录。 | [v0.18.0 范围](scope-v0.18.0.md)、[设计](../specs/2026-10-22-v0.18.0-analytics-audit-design.md)、[验收](../implementation/v0.18.0-acceptance.md) |
 | OIDC | 多 Provider 管理；标准 Discovery、Authorization Code、PKCE、state、nonce 及浏览器绑定；邮箱域名白名单首次供应；复用本地 Session 与权限。 | Provider 模板、主动账号绑定、组映射、SAML、LDAP、SCIM 和 Passkey。 | [OIDC 范围](scope-v0.7.0.md)、[OIDC 设计](../specs/2026-09-11-v0.7.0-oidc-login-design.md) |
 | 多域名 | 管理、启停、组授权、全局默认及创建选择；访问限定所属启用域名；被短链引用的域名禁止删除。 | 用户自助绑定、个人／组默认域名、自动 DNS/TLS、既有短链域名迁移。 | [多域名范围](scope-v0.8.0.md)、[域名](../specs/domains.md) |
@@ -54,7 +54,8 @@
 
 | 证据范围 | 已记录结果 | 不能替代的验证 |
 | --- | --- | --- |
-| [v0.23.0 验收](../implementation/v0.23.0-acceptance.md) | [PR #218](https://github.com/TomyJan/MoeURL/pull/218) 的修复候选 `225dc437` 在 [CI #40298542801](https://github.com/TomyJan/MoeURL/actions/runs/40298542801) 全部 9 项成功，包含 1518 项前端／四项 100%、Go 业务 100%、85 项完整 E2E、race／安全／生成漂移及制品门禁。首轮 `c9ac573` 的并发观测失败已单独修复，原失败保留；CodeRabbit 首轮完整审查无可执行意见。 | 增量审查因额度跳过，不冒充最新候选已审；最终文档候选 CI 与后续合并分别以 PR 实际记录为准。尚未正式发布，真实生产验收待执行。 |
+| [v0.24.0 验收](../implementation/v0.24.0-acceptance.md) | 服务端和前端实现、真实下载、原覆盖率门禁、Linux race／安全及 production 精确制品按验收逐输入归档。整分支终审完成，统一修复候选 `7cd277b2` 处理授权恢复与浏览器时钟问题，固定 E2E 分类预期及已加载页面撤权回归；修复后证据与历史结果分别记录。 | 修复后的独立定向复审已通过；精确候选目标 CI、主分支合并和正式发布尚未执行；本轮工作树生成物误定向按验收披露。 |
+| [v0.23.0 验收](../implementation/v0.23.0-acceptance.md) | [PR #218](https://github.com/TomyJan/MoeURL/pull/218) 最终 head `635b53ae449c4f66ee6b26759fac619cbfccb8cb` 的 [CI #40300323879](https://github.com/TomyJan/MoeURL/actions/runs/40300323879) 和合并提交 `5f6702d9` 的 [CI #40306786126](https://github.com/TomyJan/MoeURL/actions/runs/40306786126) 各 9 项成功；最终 PR 原始日志核验 1518 项前端／四项 100%、Go 业务 100%、85 项完整 E2E。CodeRabbit run `085626ca-8590-4cb0-a30f-ca091e80c641` 实际完整复审 44 文件，无有效意见、docstring 100%。首轮并发观测失败和额度跳过仍保留历史归属。 | 已合并，尚未正式发布，真实生产验收待执行；不替代 v0.24.0 候选门禁。 |
 | [v0.21.0 验收](../implementation/v0.21.0-acceptance.md) | 最终 head `1641e2a` 的[目标 CI](https://github.com/TomyJan/MoeURL/actions/runs/40132665857) 全部 9 项成功：1367 项前端、四项 100%、Go 业务 100%、77 项完整 Playwright 及安全／smoke 通过。PR #216 已合并为 `dfc9a5a1`，该实际合并提交的[独立 CI](https://github.com/TomyJan/MoeURL/actions/runs/40133310132) 也全部 9 项成功。原本地树 `36a9d5ed` 及首轮 `5e3d713d` 证据保持历史归属。 | CI 不冒充正式发布或生产验收；增量 CodeRabbit 因限额跳过，已修复其首轮两项意见并经独立定向复审。真实生产验收尚未完成。 |
 | [v0.20.0 验收](../implementation/v0.20.0-acceptance.md) | 最终 PR 候选 `ba90f37e` 的 [Check Code #40031018213](https://github.com/TomyJan/MoeURL/actions/runs/40031018213) 全部 9 项成功，含完整测试／覆盖率、Linux race、安全扫描、构建、完整 E2E 与 Compose smoke。已通过 PR #214 合并为 `2d23dcfd`；各阶段本地、用户名兼容、布局及 CI 探测修复的证据保留在验收。 | PR CI 不替代后续提交或生产验收；尚未正式发布，真实 DNS/TLS、外部 OIDC、恢复及回退演练仍需目标环境证据。 |
 | 历史主分支 `5a1d9761` | [Check Code #39830070001](https://github.com/TomyJan/MoeURL/actions/runs/39830070001) 8 项成功，`Backend Security` 的 `Race tests` 步骤失败，整体结论为 failure。 | 尚无该主分支提交完整 CI 通过的证据；历史 `c4928a85` 的成功及后续 PR 的成功均不改写此次失败。 |
@@ -83,7 +84,7 @@
 
 ## 后续开发方向
 
-v0.23.0 已在独立分支实现批量标签整理，本地及剩余验证见[验收](../implementation/v0.23.0-acceptance.md)。v0.22.0 管理员批量短链归属转移已通过 PR #217 合并为 `ba2073cf`，修复候选与合并提交 CI 各 9 项成功，尚未正式发布：当前列表最多 100 条、完整精度版本、全量预检与整批原子审计，不改地址／配置／历史统计。详见[范围](scope-v0.22.0.md)、[设计](../specs/2026-10-25-v0.22.0-batch-ownership-design.md)和[验收](../implementation/v0.22.0-acceptance.md)。v0.21.0 清单导出已经通过 PR #216 合并，最终候选目标 CI 9 项成功，尚未正式发布。
+v0.23.0 批量标签整理已通过 PR #218 合并为 `5f6702d9`，最终 PR 与合并提交 CI 各 9 项成功，尚未正式发布，逐候选证据见[验收](../implementation/v0.23.0-acceptance.md)。v0.22.0 管理员批量短链归属转移已通过 PR #217 合并为 `ba2073cf`，修复候选与合并提交 CI 各 9 项成功，尚未正式发布：当前列表最多 100 条、完整精度版本、全量预检与整批原子审计，不改地址／配置／历史统计。详见[范围](scope-v0.22.0.md)、[设计](../specs/2026-10-25-v0.22.0-batch-ownership-design.md)和[验收](../implementation/v0.22.0-acceptance.md)。v0.21.0 清单导出已经通过 PR #216 合并，最终候选目标 CI 9 项成功，尚未正式发布。
 
 v0.20.0 已通过 PR #214 合并为 `2d23dcfd`：管理员单条短链归属转移、当前授权与账号检查、完整精度版本、原地址和历史统计保留、旧所有者拒绝及事务审计。最终 PR CI 与各阶段本地证据分别见上表及 [验收](../implementation/v0.20.0-acceptance.md)，尚未正式发布。
 
@@ -91,7 +92,7 @@ v0.19.0 已实现管理员为其他非内置账号切换 user／admin，结合�
 
 原独立分支 `feat/v0.18.0-analytics-audit` 已通过 PR #208 合并并实现 [v0.18.0 范围](scope-v0.18.0.md) 定义的全站统计、匿名访问明细与事务审计。原分支最后实现候选为 `e476f87d`，包含权限集合审计修复，已通过修复后全仓 Go、100% 业务覆盖率和定向复审；原候选 `721206c` 的前端、浏览器与部署验证单独保留，不替代新候选尚未重跑的对应门禁，详见 [验收](../implementation/v0.18.0-acceptance.md)。功能已通过 PR #208 合并为 `0f01a2e5`，尚未正式发布。
 
-[v0.16.0 聚合统计 CSV 导出](scope-v0.16.0.md) 和 [v0.17.0 短链批量管理](scope-v0.17.0.md) 均已合并，历史文档基线 `722b2ce0` 的目标 CI 已通过；当前主分支与 PR 结果见上表。后续扩展继续先设计查询权限、采集隐私与数据保留边界。单条归属转移与清单导出分别在 v0.20.0、v0.21.0 合并；批量转移在 v0.22.0 合并；v0.23.0 批量标签在独立分支实现，批量导入和跨页全选仍未开发。
+[v0.16.0 聚合统计 CSV 导出](scope-v0.16.0.md) 和 [v0.17.0 短链批量管理](scope-v0.17.0.md) 均已合并，历史文档基线 `722b2ce0` 的目标 CI 已通过；当前主分支与 PR 结果见上表。后续扩展继续先设计查询权限、采集隐私与数据保留边界。单条归属转移与清单导出分别在 v0.20.0、v0.21.0 合并；批量转移在 v0.22.0 合并；v0.23.0 批量标签已合并、尚未正式发布，批量导入和跨页全选仍未开发。
 
 原有规划尚未完成的产品能力集中列在 [路线图](roadmap.md) 的「待开发能力」中。[v0.12.0 自定义短码](scope-v0.12.0.md) 已通过 PR #185 合并为 `17e1f766`；阶段状态与证据见 [验收清单](../implementation/v0.12.0-acceptance.md)。[v0.13.0 个人密码修改](scope-v0.13.0.md) 已通过 PR #186 合并为 `a52733cc`。[v0.14.0 统计日期范围](scope-v0.14.0.md) 已通过 PR #187 合并为 `c864ce3a`，正式发布及目标环境缺口继续单独记录。
 
