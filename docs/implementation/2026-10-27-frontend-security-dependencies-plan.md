@@ -36,7 +36,9 @@
 
 ### 任务 2：真实制品、文档与交付闭环
 
-**文件：** 本维护验收记录；更新 `docs/README.md`、`docs/product/{overview,roadmap,development-status,scope-v0.25.0}.md`、`docs/implementation/v0.25.0-{acceptance,tasks,plan}.md` 的实际集成状态；按真实依赖约定影响同步技术文档。不批量重写历史证据。
+**文件：** 本维护验收记录；最小修改 `web/e2e/v0.25.0-audit-export.spec.ts` 的下载反馈同步；更新 `docs/README.md`、`docs/product/{overview,roadmap,development-status,scope-v0.25.0}.md`、`docs/implementation/v0.25.0-{acceptance,tasks,plan}.md` 的实际集成状态；按真实依赖约定影响同步技术文档。不批量重写历史证据。
+
+- [ ] 优先修复实际后台 CI #40406334592 的 390px Toast 遮挡失败。Expected：像其他导出用例一样验证成功提示、用可访问关闭按钮清除并等待消失，再继续菜单；定向真实浏览器通过，不使用 force／sleep 或更改产品通知。
 
 - [ ] 在专用 Compose 项目／端口运行完整 Playwright 与标准 production smoke／精确 image Trivy；先验证资源／端口为空，终态检查资源清理。Expected：95 项真实浏览器、smoke、HIGH／CRITICAL 扫描 exit0；新镜像对应真实新 HEAD，旧后端输入复用有完整集合／hash 证据，不重复无变化 Go／race。
 - [ ] 同步 v0.25 PR #222 最终 `d250b4b` 的 9 项 CI #40404362865、CodeRabbit run `5500f594-8bf3-4135-b13a-72fcb9566588` 全 50 文件、merge `6933f94c`；主分支 CI #40406334592 后台如实查询，不阻塞，发布仍未完成。Expected：入口／页尾无“v0.25 未合并”现行措辞，历史保留明确归属。
