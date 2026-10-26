@@ -12,7 +12,7 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 ## 长期核心目标
 
-本节描述 MoeURL 的完整目标形态。已确认的主分支基线 `5f6702d9` 已通过 [PR #218](https://github.com/TomyJan/MoeURL/pull/218) 合并 [v0.23.0 批量标签整理](scope-v0.23.0.md)，最终 head `635b53ae` 的[目标 CI](https://github.com/TomyJan/MoeURL/actions/runs/40300323879)和实际合并提交的[主分支 CI](https://github.com/TomyJan/MoeURL/actions/runs/40306786126)各 9 项成功，CodeRabbit 最终 44 文件实际完整复审无有效意见，尚未正式发布。[v0.24.0 匿名访问记录导出](scope-v0.24.0.md) 已在独立分支实现，本地门禁及尚待独立终审、目标 CI、合并与发布的状态见[验收](../implementation/v0.24.0-acceptance.md)。具体已实现、部分实现及待开发能力见 [开发进度与能力清单](development-status.md)。功能实现不等于正式发布，各版本的本地、CI 和生产证据分别由对应验收清单记录。当前生产化设计仍以 [v0.6.0 范围](scope-v0.6.0.md) 为准。远期能力不得自动视为当前版本必须实现内容。
+本节描述 MoeURL 的完整目标形态。已确认的主分支基线 `5f6702d9` 已通过 [PR #218](https://github.com/TomyJan/MoeURL/pull/218) 合并 [v0.23.0 批量标签整理](scope-v0.23.0.md)，最终 head `635b53ae` 的[目标 CI](https://github.com/TomyJan/MoeURL/actions/runs/40300323879)和实际合并提交的[主分支 CI](https://github.com/TomyJan/MoeURL/actions/runs/40306786126)各 9 项成功，CodeRabbit 最终 44 文件实际完整复审无有效意见，尚未正式发布。[v0.24.0 匿名访问记录导出](scope-v0.24.0.md) 已在独立分支实现并完成整分支终审，统一修复候选 `7cd277b2` 的新门禁及尚待定向复审、目标 CI、合并与发布状态见[验收](../implementation/v0.24.0-acceptance.md)。具体已实现、部分实现及待开发能力见 [开发进度与能力清单](development-status.md)。功能实现不等于正式发布，各版本的本地、CI 和生产证据分别由对应验收清单记录。当前生产化设计仍以 [v0.6.0 范围](scope-v0.6.0.md) 为准。远期能力不得自动视为当前版本必须实现内容。
 
 [v0.17.0 短链批量管理](scope-v0.17.0.md) 已合并当前列表多选、原子启停与软删除。包含后续依赖及 Go 安全修复的历史主分支候选 `c4928a85` 完整目标 CI 已通过；该结果属于历史记录，不代表当前主分支基线或当前 CI 结果，生产演练与正式发布仍待完成。不包含跨页全选、导入或归属转移。原分支与历史主分支候选的证据分开保留，见 [本版计划](../implementation/v0.17.0-plan.md) 和 [验收记录](../implementation/v0.17.0-acceptance.md)。
 
