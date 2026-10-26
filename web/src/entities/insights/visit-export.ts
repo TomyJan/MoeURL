@@ -11,7 +11,8 @@ const header = '\uFEFFshort_link_id,start_date,end_date,time_zone,event_id,occur
 const inputSchema = z.strictObject({
   id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/).refine(value => value !== '00000000-0000-0000-0000-000000000000'),
   context: z.enum(['own', 'admin']),
-  range: statisticsDateRangeSchema.refine(value => value.endDate <= new Date().toISOString().slice(0, 10)),
+  // Dates come from the loaded server range; only the server decides its current UTC day.
+  range: statisticsDateRangeSchema,
   filters: z.strictObject({ deviceType: z.union([z.enum(deviceTypes), z.literal('')]).optional(), countryCode: z.string().regex(/^(?:[A-Z]{2}|unknown)?$/).optional() }),
 })
 const contentSchema = z.string().startsWith(header).max(8 * 1024 * 1024)

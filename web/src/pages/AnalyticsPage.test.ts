@@ -62,6 +62,8 @@ describe('analytics date range', () => {
   })
   afterEach(() => {
     clients.splice(0).forEach((client) => client.clear())
+    vi.mocked(downloadCsv).mockReset()
+    vi.restoreAllMocks()
     vi.unstubAllGlobals()
     vi.useRealTimers()
   })
@@ -221,6 +223,43 @@ describe('analytics date range', () => {
     pendingVisits.resolve(new Response(JSON.stringify({ code: 0, message: 'OK', meta: {}, data: { ...page, items: [] } })))
     await screen.findByText('visits.empty')
     expect(screen.queryByText('old.parent.instance.example')).toBeNull()
+  })
+
+  it.each([0, 100001])('requests server-confirmed visit dates across a slow browser UTC clock and handles server code %s', async code => {
+    vi.setSystemTime(new Date('2026-10-25T23:59:55Z'))
+    const id = '00000000-0000-0000-0000-000000000001'
+    state.route.params.shortLinkId = id
+    vi.mocked(getShortLinkStatistics).mockResolvedValue(response(id, '2026-10-20', '2026-10-26'))
+    const file = { fileName: `moeurl-visits-${id}-2026-10-20-2026-10-26.csv`, contentType: 'text/csv;charset=utf-8', content: '\uFEFFshort_link_id,start_date,end_date,time_zone,event_id,occurred_at,referrer_host,device_type,browser_family,os_family,country_code\r\n' }
+    const exports: string[] = []
+    const downloads: string[] = []
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:server-dates')
+    const revoked = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { downloads.push(this.download) })
+    const realDownload = await vi.importActual<typeof import('@/shared/download/csv')>('@/shared/download/csv')
+    vi.mocked(downloadCsv).mockImplementationOnce(realDownload.downloadCsv)
+    vi.stubGlobal('fetch', async (path: string) => {
+      if (path.includes('/visits/export?')) {
+        exports.push(path)
+        return new Response(JSON.stringify({ code, message: 'server result', data: code ? null : file }))
+      }
+      return new Response(JSON.stringify({ code: 0, message: 'OK', data: {
+        range: { startDate: '2026-10-20', endDate: '2026-10-26', timeZone: 'UTC' }, pageSize: 25, hasMore: false, nextCursor: '', items: [],
+      } }))
+    })
+    mount(['short_link:read_visits', 'short_link:export_visits'])
+    await screen.findByText('visits.empty')
+    await fireEvent.click(screen.getByTestId('visit-export'))
+    await waitFor(() => expect(exports).toEqual([`/api/v1/short-link/visits/export?id=${id}&startDate=2026-10-20&endDate=2026-10-26`]))
+    if (code === 0) {
+      await waitFor(() => expect(downloads).toEqual([file.fileName]))
+      expect(revoked).toHaveBeenCalledWith('blob:server-dates')
+      expect(document.querySelector('a[download]')).toBeNull()
+    } else {
+      await waitFor(() => expect(toast.error).toHaveBeenCalledWith('visitExport.failed'))
+      expect(downloads).toEqual([])
+      expect((screen.getByTestId('visit-export') as HTMLButtonElement).disabled).toBe(false)
+    }
   })
 
   it('exports the displayed dates while custom edits remain unapplied and disables during active reads', async () => {

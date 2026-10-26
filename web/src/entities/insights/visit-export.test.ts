@@ -25,7 +25,7 @@ describe('visit record CSV contract', () => {
     { id: '00000000-0000-0000-0000-000000000000' }, { id: 'INVALID' }, { id: id.toUpperCase().replace('0001', '000A') },
     { context: 'other' }, { range: { startDate: '', endDate: range.endDate } },
     { range: { startDate: '2026-02-30', endDate: range.endDate } }, { range: { startDate: range.endDate, endDate: range.startDate } },
-    { range: { startDate: '2026-01-01', endDate: '2026-10-22' } }, { range: { startDate: '2099-01-01', endDate: '2099-01-02' } },
+    { range: { startDate: '2026-01-01', endDate: '2026-10-22' } },
     { range: { ...range, days: 7 } }, { filters: { deviceType: 'phone' } }, { filters: { countryCode: 'us' } },
     { filters: { cursor: 'page2' } }, { filters: { pageSize: '25' } },
   ])('rejects invalid input before any network request %#', async changes => {
