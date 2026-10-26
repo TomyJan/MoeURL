@@ -14,12 +14,14 @@ import { exportVisitRecords, type VisitExportContext, type VisitExportRange, typ
 import { ApiClientError } from '@/shared/api/client'
 import { downloadCsv } from '@/shared/download/csv'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
+import { useAuthorizationRefresh } from '@/shared/auth/useAuthorizationRefresh'
 
 const props = defineProps<{ id: string; context: VisitExportContext; range?: VisitExportRange; filters: VisitExportFilters; blocked: boolean; contextRevision: number }>()
 const emit = defineEmits<{ unavailable: [] }>()
 const { t } = useI18n()
 const client = useQueryClient()
 const identity = useAccountIdentity()
+const authorization = useAuthorizationRefresh()
 const auth = useQuery({ queryKey: ['auth', 'me'], queryFn: me, staleTime: Infinity, retry: false })
 const pending = ref(false)
 const canExport = computed(() => auth.isSuccess.value && hasAccess(auth.data.value))
@@ -78,22 +80,7 @@ async function submit() {
     const code = error instanceof ApiClientError ? error.code : 0
     toast.error(t(code === 200120 ? 'visitExport.limitExceeded' : 'visitExport.failed'))
     if ([120001, 401, 403].includes(code)) {
-      // Keep the identity epoch, but never keep grants the server has just rejected.
-      void client.cancelQueries({ queryKey: ['auth', 'me'] })
-      const current = client.getQueryData<UserResponse>(['auth', 'me'])!
-      client.setQueryData<UserResponse>(['auth', 'me'], { user: { ...current.user, permissions: [] } })
-      // This read belongs to the identity/cache, not the button that clearing grants unmounts.
-      // Keep observing writes until it settles, including same-value empty-grant writes.
-      let authRevision = 0
-      const stopRefresh = client.getQueryCache().subscribe(event => {
-        if (event.query.queryKey[0] === 'auth' && event.query.queryKey[1] === 'me'
-          && (event.type === 'updated' || event.type === 'removed')) authRevision++
-      })
-      try {
-        const refreshed = await me()
-        if (identity.isCurrent(scope) && authRevision === 0) client.setQueryData(['auth', 'me'], refreshed)
-      } catch { /* Keep denied grants cleared until a later authenticated read succeeds. */ }
-      finally { stopRefresh() }
+      await authorization.refresh(() => identity.isCurrent(scope))
     } else if (code === 200104) emit('unavailable')
   } finally { pending.value = false }
 }

@@ -104,6 +104,7 @@ import { logout, me } from '@/entities/auth/api'
 import ShortLinkCreatePanel from '@/features/short-link-create/ShortLinkCreatePanel.vue'
 import PreferenceSwitcher from '@/shared/preferences/PreferenceSwitcher.vue'
 import { revokeAccountIdentity } from '@/shared/preferences/useAccountPreferences'
+import { useAuthorizationRefresh } from '@/shared/auth/useAuthorizationRefresh'
 import MoeIcon from '@/shared/ui/MoeIcon.vue'
 import ConsoleNavList from './ConsoleNavList.vue'
 import ConsoleSidebar from './ConsoleSidebar.vue'
@@ -116,6 +117,7 @@ const { config } = useSiteConfig()
 const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
+const authorization = useAuthorizationRefresh()
 const mobileNavOpen = ref(false)
 const createPanelOpen = ref(false)
 const logoutErrorVisible = ref(false)
@@ -223,13 +225,13 @@ let overlayOpener: globalThis.HTMLElement | null = null
 let fallbackOverlayOpener: globalThis.HTMLElement | null = null
 
 watch(
-  () => [currentUserQuery.isError.value, isGuestFallback.value, currentRouteAccessDenied.value] as const,
-  ([isError, isGuest, accessDenied]) => {
+  () => [currentUserQuery.isError.value, isGuestFallback.value, currentRouteAccessDenied.value, authorization.pending.value] as const,
+  ([isError, isGuest, accessDenied, refreshing]) => {
     if (isError || isGuest) {
       void router.push({ path: '/login', query: { redirect: route.fullPath } })
       return
     }
-    if (accessDenied) void router.push('/')
+    if (accessDenied && !refreshing) void router.push('/')
   },
   { immediate: true },
 )
