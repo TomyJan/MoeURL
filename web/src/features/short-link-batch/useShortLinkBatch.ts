@@ -12,20 +12,22 @@ export function useShortLinkAccess(context: 'own' | 'admin') {
   const client = useQueryClient()
   const auth = useQuery({ queryKey: ['auth', 'me'], queryFn: me, staleTime: Infinity, retry: false })
   /** Rechecks the current cache rather than trusting a previous render's grants. */
-  function allows(action: 'read' | 'update' | 'delete', response = client.getQueryData<UserResponse>(['auth', 'me'])) {
+  function allows(action: 'read' | 'update' | 'delete' | 'tags', response = client.getQueryData<UserResponse>(['auth', 'me'])) {
     const user = response?.user
     if (!user?.id || user.group === 'guest' || user.username === 'guest') return false
     const permissions = user.permissions
     const suffix = context === 'own' ? 'own' : 'all'
     return (context === 'own' || permissions.includes('admin:access'))
       && permissions.includes(`short_link:read_${suffix}`)
-      && permissions.includes(`short_link:${action}_${suffix}`)
+      && permissions.includes(`short_link:${action === 'tags' ? 'update' : action}_${suffix}`)
+      && (action !== 'tags' || permissions.includes('short_link:set_metadata'))
   }
   const canRead = computed(() => auth.isSuccess.value && allows('read', auth.data.value))
   const canUpdate = computed(() => auth.isSuccess.value && allows('update', auth.data.value))
   const canDelete = computed(() => auth.isSuccess.value && allows('delete', auth.data.value))
+  const canTag = computed(() => auth.isSuccess.value && allows('tags', auth.data.value))
   const canSelect = computed(() => canUpdate.value || canDelete.value)
-  return { identity, canRead, canUpdate, canDelete, canSelect, allows, authPending: auth.isPending }
+  return { identity, canRead, canUpdate, canDelete, canTag, canSelect, allows, authPending: auth.isPending }
 }
 
 interface BatchOptions {

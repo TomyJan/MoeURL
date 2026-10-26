@@ -13,7 +13,7 @@
         <v-text-field v-model="searchKeyword" :label="t('filter.keyword')" :error-messages="keywordInvalid ? t('linkMetadata.keywordInvalid') : ''" density="compact" variant="outlined" />
         <v-text-field v-model="tagFilter" :label="t('filter.tag')" :error-messages="tagInvalid ? t('linkMetadata.tagFilterInvalid') : ''" density="compact" variant="outlined" />
       </div>
-      <ShortLinkBatchToolbar :state="batch" :access="access" transfer @transfer="beginBatchTransfer" />
+      <ShortLinkBatchToolbar :state="batch" :access="access" transfer @transfer="beginBatchTransfer" @tags="beginBatchTags" />
     </div>
     <div class="console-data-panel" data-testid="console-data-panel">
       <v-alert v-if="query.isError.value || (!access.canRead.value && !access.authPending.value)" type="error" variant="tonal">{{ t('adminLinks.loadFailed') }}</v-alert>
@@ -66,6 +66,7 @@
   />
   <ShortLinkTransferDialog v-if="transferTarget" :target="transferTarget" @close="transferTarget = null" />
   <ShortLinkBatchTransferDialog v-if="batchTransferTargets" :targets="batchTransferTargets" @close="batchTransferTargets = null" @transferred="batch.clear" @conflict="batchTransferRefreshRequired = true" />
+  <ShortLinkBatchTagsDialog v-if="batchTagTargets" context="admin" :targets="batchTagTargets" @close="batchTagTargets = null" @saved="batch.clear" @revoked="batch.clear" @conflict="batchTagsRefreshRequired = true" />
 </template>
 
 <script setup lang="ts">
@@ -87,10 +88,14 @@ import ShortLinkBatchToolbar from '@/features/short-link-batch/ShortLinkBatchToo
 import ShortLinkTransferDialog from '@/features/short-link-transfer/ShortLinkTransferDialog.vue'
 import ShortLinkBatchTransferDialog from '@/features/short-link-transfer/ShortLinkBatchTransferDialog.vue'
 import ShortLinkListExportButton from '@/features/short-link-list-export/ShortLinkListExportButton.vue'
+import ShortLinkBatchTagsDialog from '@/features/short-link-tags/ShortLinkBatchTagsDialog.vue'
+import { batchTagVersionSchema, type BatchTagTarget } from '@/entities/short-link/batch-tags'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const access = useShortLinkAccess('admin')
+const batchTagTargets = ref<readonly BatchTagTarget[] | null>(null)
+const batchTagsRefreshRequired = ref(false)
 const transferTarget = ref<AdminShortLink | null>(null)
 const batchTransferTargets = ref<readonly AdminShortLink[] | null>(null)
 const batchTransferRefreshRequired = ref(false)
@@ -142,16 +147,26 @@ const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof va
 const batch = useShortLinkBatch({
   context: 'admin', access, ids: computed(() => links.value.map(link => link.id)),
   filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value]),
-  blocked: computed(() => query.isFetching.value || query.isPending.value || query.isError.value || batchTransferRefreshRequired.value || exportPending.value || keywordInvalid.value || tagInvalid.value || filtersPending.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null),
+  blocked: computed(() => !query.isSuccess.value || query.isFetching.value || batchTagsRefreshRequired.value || batchTagTargets.value !== null || batchTransferRefreshRequired.value || exportPending.value || keywordInvalid.value || tagInvalid.value || filtersPending.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null),
 })
-const rowWriteBlocked = computed(() => batch.pending.value || transferTarget.value !== null || batchTransferTargets.value !== null || batch.deleteIds.value !== null)
+const rowWriteBlocked = computed(() => batch.pending.value || batchTagTargets.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null || batch.deleteIds.value !== null)
 const canTransfer = computed(() => access.canUpdate.value && query.isSuccess.value && !query.isFetching.value && !filtersPending.value && !keywordInvalid.value && !tagInvalid.value)
 watch([access.identity.scope, access.canUpdate], () => { batchTransferTargets.value = null; batch.clear() }, { flush: 'sync' })
 watch([query.isFetching, query.isSuccess], ([fetching, success]) => { if (!fetching && success) batchTransferRefreshRequired.value = false })
+watch([query.isFetching, query.isSuccess], ([fetching, success]) => { if (!fetching && success) batchTagsRefreshRequired.value = false })
 const exportFilters = computed(() => ({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value }))
 const exportBlocked = computed(() => !access.canRead.value || !query.isSuccess.value || query.isFetching.value
   || keywordInvalid.value || tagInvalid.value || filtersPending.value || statusMutation.isPending.value
   || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || rowWriteBlocked.value)
+
+/** Captures real list versions only while the live cache and metadata grants are valid. */
+function beginBatchTags() {
+  const state = queryClient.getQueryState(listQueryKey.value)
+  if (batch.unavailable.value || rowWriteBlocked.value || !access.allows('tags') || !batch.selected.value.length || state?.status !== 'success' || state.fetchStatus !== 'idle' || state.isInvalidated) return
+  const targets = links.value.filter(link => batch.selected.value.includes(link.id))
+  if (targets.length !== batch.selected.value.length || targets.some(link => !batchTagVersionSchema.safeParse(link.updatedAt).success)) return
+  batchTagTargets.value = targets.map(link => ({ id: link.id, updatedAt: link.updatedAt, url: link.url, tags: [...link.tags] }))
+}
 
 /** Opens one immutable administrative link snapshot without overlapping other writes. */
 function beginTransfer(link: ConsoleLinkListItem) {

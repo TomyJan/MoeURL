@@ -37,6 +37,8 @@ export interface ShortLink {
   visitsRemaining: number | null
   exhausted: boolean
   createdAt: string
+  /** Complete database version supplied by management lists. */
+  updatedAt?: string
   stats?: ShortLinkStats
 }
 

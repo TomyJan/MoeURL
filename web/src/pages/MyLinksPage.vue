@@ -4,7 +4,7 @@
       <div>
         <h1>{{ t('page.links') }}</h1>
       </div>
-      <ShortLinkListExportButton context="own" :filters="exportFilters" :blocked="exportBlocked" />
+      <ShortLinkListExportButton context="own" :filters="exportFilters" :blocked="exportBlocked" @pending="exportPending = $event" />
     </header>
     <div class="console-page__tools">
       <div class="console-page__filters console-page__metadata-filters" data-testid="console-page-toolbar">
@@ -12,7 +12,7 @@
         <v-text-field v-model="searchKeyword" :label="t('filter.keyword')" :error-messages="keywordInvalid ? t('linkMetadata.keywordInvalid') : ''" density="compact" variant="outlined" />
         <v-text-field v-model="tagFilter" :label="t('filter.tag')" :error-messages="tagInvalid ? t('linkMetadata.tagFilterInvalid') : ''" density="compact" variant="outlined" />
       </div>
-      <ShortLinkBatchToolbar :state="batch" :access="access" />
+      <ShortLinkBatchToolbar :state="batch" :access="access" @tags="beginBatchTags" />
     </div>
     <div class="console-data-panel" data-testid="console-data-panel">
       <v-alert v-if="query.isError.value || (!access.canRead.value && !access.authPending.value)" type="error" variant="tonal">{{ t('links.loadFailed') }}</v-alert>
@@ -34,7 +34,7 @@
         :all-selected="batch.allSelected.value"
         :indeterminate="batch.indeterminate.value"
         :selection-disabled="batch.unavailable.value"
-        :write-disabled="batch.pending.value"
+        :write-disabled="rowWriteBlocked"
         @select="batch.toggle"
         @select-all="batch.toggleAll"
         @configure="configureLink"
@@ -61,11 +61,12 @@
     :url="qrLink.url"
     @update:open="closeQr"
   />
+  <ShortLinkBatchTagsDialog v-if="batchTagTargets" context="own" :targets="batchTagTargets" @close="batchTagTargets = null" @saved="batch.clear" @revoked="batch.clear" @conflict="batchTagsRefreshRequired = true" />
 </template>
 
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -80,10 +81,15 @@ import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue
 import { useShortLinkAccess, useShortLinkBatch } from '@/features/short-link-batch/useShortLinkBatch'
 import ShortLinkBatchToolbar from '@/features/short-link-batch/ShortLinkBatchToolbar.vue'
 import ShortLinkListExportButton from '@/features/short-link-list-export/ShortLinkListExportButton.vue'
+import ShortLinkBatchTagsDialog from '@/features/short-link-tags/ShortLinkBatchTagsDialog.vue'
+import { batchTagVersionSchema, type BatchTagTarget } from '@/entities/short-link/batch-tags'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const access = useShortLinkAccess('own')
+const batchTagTargets = ref<readonly BatchTagTarget[] | null>(null)
+const batchTagsRefreshRequired = ref(false)
+const exportPending = ref(false)
 const statusFilter = ref<'' | ShortLink['status']>('')
 const { searchKeyword, tagFilter, debouncedKeyword, debouncedTag, keywordInvalid, tagInvalid, filtersPending } = useShortLinkFilters()
 const statusOptions = computed(() => [
@@ -91,8 +97,9 @@ const statusOptions = computed(() => [
   { title: t('filter.active'), value: 'active' },
   { title: t('filter.disabled'), value: 'disabled' },
 ])
+const listQueryKey = computed(() => ['short-link', statusFilter.value, debouncedKeyword.value, debouncedTag.value, access.identity.scope.value.userId, access.identity.scope.value.epoch])
 const query = useQuery({
-  queryKey: computed(() => ['short-link', statusFilter.value, debouncedKeyword.value, debouncedTag.value, access.identity.scope.value.userId, access.identity.scope.value.epoch]),
+  queryKey: listQueryKey,
   enabled: access.canRead,
   queryFn: () => listShortLinks({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value }),
 })
@@ -128,25 +135,36 @@ const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof va
 const batch = useShortLinkBatch({
   context: 'own', access, ids: computed(() => links.value.map(link => link.id)),
   filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value]),
-  blocked: computed(() => query.isFetching.value || query.isPending.value || query.isError.value || keywordInvalid.value || tagInvalid.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null),
+  blocked: computed(() => !query.isSuccess.value || query.isFetching.value || batchTagsRefreshRequired.value || batchTagTargets.value !== null || exportPending.value || filtersPending.value || keywordInvalid.value || tagInvalid.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null),
 })
+const rowWriteBlocked = computed(() => batch.pending.value || batch.deleteIds.value !== null || batchTagTargets.value !== null)
+watch([query.isFetching, query.isSuccess], ([fetching, success]) => { if (!fetching && success) batchTagsRefreshRequired.value = false })
 const exportFilters = computed(() => ({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value }))
 const exportBlocked = computed(() => !access.canRead.value || !query.isSuccess.value || query.isFetching.value
   || keywordInvalid.value || tagInvalid.value || filtersPending.value || statusMutation.isPending.value
-  || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || batch.pending.value)
+  || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || rowWriteBlocked.value)
+
+/** Requires a successful live list and captures only real, complete management versions. */
+function beginBatchTags() {
+  const state = queryClient.getQueryState(listQueryKey.value)
+  if (batch.unavailable.value || rowWriteBlocked.value || !access.allows('tags') || !batch.selected.value.length || state?.status !== 'success' || state.fetchStatus !== 'idle' || state.isInvalidated) return
+  const targets = links.value.filter(link => batch.selected.value.includes(link.id))
+  if (targets.length !== batch.selected.value.length || targets.some(link => !batchTagVersionSchema.safeParse(link.updatedAt).success)) return
+  batchTagTargets.value = targets.map(link => ({ id: link.id, updatedAt: link.updatedAt!, url: link.url, tags: [...link.tags] }))
+}
 
 /** Prevents opening row settings while a batch is outstanding. */
-function configureLink(link: ConsoleLinkListItem) { if (!batch.pending.value) configure(link) }
+function configureLink(link: ConsoleLinkListItem) { if (!rowWriteBlocked.value) configure(link) }
 
 /** Toggles an owned short link through the personal update mutation. */
 function toggleStatus(link: ConsoleLinkListItem) {
-  if (batch.pending.value) return
+  if (rowWriteBlocked.value) return
   statusMutation.mutate({ id: link.id, status: link.status === 'active' ? 'disabled' : 'active' })
 }
 
 /** Starts a soft-delete for the selected owned short link. */
 function remove(id: string) {
-  if (batch.pending.value) return
+  if (rowWriteBlocked.value) return
   deleteMutation.mutate(id)
 }
 

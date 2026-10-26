@@ -33,6 +33,7 @@ type Dependencies struct {
 	ShortLinkBatch         shortlink.BatchPort
 	ShortLinkTransfer      shortlink.TransferPort
 	ShortLinkBatchTransfer shortlink.BatchTransferPort
+	ShortLinkBatchTags     shortlink.BatchTagsPort
 	Insights               insights.Port
 	Audit                  insights.AuditPort
 	Domain                 domain.Port
@@ -160,6 +161,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			if dependency.ShortLinkBatchTransfer != nil {
 				handler := shortlink.NewBatchTransferHandler(dependency.ShortLinkBatchTransfer, logger)
 				businessAPI.Post("/admin/short-link/batch-transfer", handler.BatchTransfer)
+			}
+			if dependency.ShortLinkBatchTags != nil {
+				handler := shortlink.NewBatchTagsHandler(dependency.ShortLinkBatchTags, logger)
+				businessAPI.Post("/short-link/batch-tags", handler.BatchTags)
+				businessAPI.Post("/admin/short-link/batch-tags", handler.AdminBatchTags)
 			}
 			if dependency.Domain != nil {
 				domainHandler := domain.NewHandler(dependency.Domain, logger)
