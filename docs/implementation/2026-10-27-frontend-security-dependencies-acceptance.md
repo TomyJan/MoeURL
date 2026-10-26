@@ -1,6 +1,6 @@
 # 前端开发依赖安全维护验收
 
-2026-10-27：从实际合并的 `6933f94c` 创建独立分支 `fix/frontend-security-dependencies`。兼容补丁解析、官方 audit、完整前端门禁、真实浏览器和新精确 production 制品验证已完成；独立终审与远端交付尚未完成。本维护不新增产品版本；package 保持 0.25.0。后台主分支失败的修复在本地通过，不提前声称主分支 CI 已恢复。
+2026-10-27：从实际合并的 `6933f94c` 创建独立分支 `fix/frontend-security-dependencies`。兼容补丁解析、官方 audit、完整前端门禁、真实浏览器和新精确 production 制品验证已完成；`6933f94c..472efc0f` 的独立全分支终审通过，Critical／Important／Minor 均为 0，无范围搁置事项，远端交付尚未完成。本维护不新增产品版本；package 保持 0.25.0。后台主分支失败的修复在本地通过，不提前声称主分支 CI 已恢复。
 
 GitHub 4 条 development 公告及实际 `pnpm why` 已确认，分别为 Vitest mocker 5.0.0、magicast 路径的 source-map-js 1.2.1、Vue test-utils／js-beautify／config-chain 路径的 ini 1.3.4。生产可达性与开发依赖公告分开记录；现有 production 扫描不替代本轮新依赖镜像验证。
 
@@ -9,11 +9,13 @@ GitHub 4 条 development 公告及实际 `pnpm why` 已确认，分别为 Vitest
 - [x] frozen-lockfile、完整前端／四项 100%、静态及隔离构建。
 - [x] 完整真实 Playwright、新 production smoke 与精确镜像扫描。
 - [x] 上一版合并及各入口状态同步。
-- [ ] 独立终审、有效修复、原子提交。
+- [x] 独立终审、有效修复、原子提交（`6933f94c..472efc0f`，无未解决问题）。
 - [ ] 本轮最新 PR CI／实际 CodeRabbit／合并。
 - [ ] 合并后 CI 后台跟进。
 
 证据目录：`D:/Dev/TomyJan/MoeURL/.tmp/frontend-security-20261027/`。上一版原始 CI／CR／合并证据仍在 `v025-evidence/`；不将其写成本维护依赖更新后的验证。
+
+本维护执行账本、完整报告和审查包校验归档于证据目录的 `sdd-final-archive.zip` 与 `sdd-final-archive-check/`；完整工程裁决及错误时的代价见 `delivery-decisions.md`。原始证据 manifest 共 692 项，独立终审逐项核实 hash／字节全部相符；后续阶段文档与远端证据另留，不冒充原 manifest 范围或构建注入。
 
 ## 补丁与前端证据
 

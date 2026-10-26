@@ -10,6 +10,8 @@
 
 **规格：** [安全维护规格](../specs/2026-10-27-frontend-security-dependencies.md)。
 
+执行状态：本地两个任务完成，`6933f94c..472efc0f` 的独立全分支终审通过，Critical／Important／Minor 均为 0。当前进入远端 PR／CI／实际 CodeRabbit 收尾，未宣称主分支失败已远端恢复或正式发布。
+
 ## 全局约束
 
 - 实际基线 `6933f94c20c508c879f50b7ed7afa673cc1e5e40`，独立无 upstream 分支 `fix/frontend-security-dependencies`，不等待主分支后台 CI。
