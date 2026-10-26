@@ -111,6 +111,7 @@ export default defineConfig({
         env: {
           MOEURL_E2E_COMPOSE_PROJECT: composeProjectName,
           MOEURL_ENV: 'development',
+          MOEURL_ANALYTICS_COUNTRY_HEADER: 'X-MoeURL-E2E-Country',
           MOEURL_HTTP_PORT: e2ePort,
           MOEURL_POSTGRES_PASSWORD: e2ePostgresPassword,
           MOEURL_DATABASE_URL: e2eDatabaseURL,
