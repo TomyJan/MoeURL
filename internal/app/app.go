@@ -100,6 +100,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.Insights = insightService
 		deps.VisitExport = insightService
 		deps.Audit = insightService
+		deps.AuditExport = insightService
 		deps.ShortLinkBatch = shortLinkService
 		deps.ShortLinkTransfer = shortLinkService
 		deps.ShortLinkBatchTransfer = shortLinkService

@@ -155,6 +155,8 @@ v0.21.0 的清单导出另用 `short_link:export`，同属可配置的 `short_li
 
 ### 管理权限
 
+v0.25.0 新增 `audit:export`（`administration`），与 `audit:read` 一样为受保护的管理员权限；只追加到内置 admin baseline，user／guest 和 restricted／basic／standard 均不追加。导出同时要求 `admin:access`、`audit:read`、`audit:export`，同一 5 秒只读 repeatable-read 快照内重查有效账号和数据库组权限；不能用页面缓存或组名放行。受保护目录仍只允许管理员固定拥有，不能通过组编辑移除此项或授予 user；管理员改组与撤销会话的既有边界继续有效。`00024` 的 Up／Down 保留既有及迁移后独立编辑授权，详见[设计](2026-10-27-v0.25.0-audit-export-design.md)。
+
 - 管理用户。
 - 管理用户组。
 - 配置用户组权限。

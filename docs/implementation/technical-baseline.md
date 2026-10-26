@@ -183,6 +183,14 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 
 ## 5. API 约定
 
+### v0.25.0 操作审计导出
+
+新增 `GET /api/v1/admin/audit/export`，仅接受 days 或成对 startDate／endDate 及 actorId／resourceType／action；拒绝分页、未知、重复和空参数，日期沿用最长 90 天 UTC。`AuditExportPort` 独立于列表端口，复用 insightService；5 秒只读 repeatable-read 内重查有效账号、`admin:access`、`audit:read`、`audit:export` 和数据库时间／180 天保留截止。MATERIALIZED 候选先校验 1000 行及原文 8 MiB（完整 changed_fields JSON 计入），通过后才回读；最终编码另限精确 UTF-8 8 MiB，不 count 全表或返回部分文件。
+
+成功 `{fileName,contentType,content}`，文件名 `moeurl-audit-{startDate}-{endDate}.csv`、MIME `text/csv;charset=utf-8`，BOM／CRLF、固定 11 列、完整十进制 bigint、UTC RFC3339Nano、JSON 数组与公式中和。业务码 100001／120001／100002，基础设施 500／900000，响应 no-store。共享 `csv_export.go` 保持 visits 的 200120。`00024_audit_export_permission.sql` 仅补 builtin admin 缺失授权、已有权限不改 updated_at；Down 只撤销本次追加且未被独立编辑部分，不跟踪 INSERT 或删除业务／审计数据。
+
+审计页使用已加载日期和已应用三筛选，第二页仍导出全量；三种草稿、刷新／失败禁用。身份、同步 cache 授权、父级 contextRevision 和卸载抑制旧结果；120001／401／403 复用全局授权恢复，100002 提示缩小范围。双语和原生 URL／节点清理复用既有工具。详细字段及验证状态见[设计](../specs/2026-10-27-v0.25.0-audit-export-design.md)与[验收](v0.25.0-acceptance.md)。
+
 ### v0.24.0 匿名访问记录导出
 
 新增 `GET /api/v1/short-link/visits/export` 和 `GET /api/v1/admin/short-link/visits/export`。仅 id、days 或成对起止日期、deviceType、countryCode；规范非零 UUID、最多 90 个 UTC 日、拒绝分页及重复／未知／显式空值。独立 `short_link:export_visits` 与 read_visits、个人 read_own／owner 或 admin:access／read_all 取交集；同一 5 秒只读 repeatable-read 快照重新检查数据库有效账号、组授权、时间和未删除短链。

@@ -37,6 +37,7 @@ type Dependencies struct {
 	Insights               insights.Port
 	VisitExport            insights.VisitExportPort
 	Audit                  insights.AuditPort
+	AuditExport            insights.AuditExportPort
 	Domain                 domain.Port
 	Redirect               shortlink.RedirectPort
 	RedirectRecorder       event.Recorder
@@ -131,6 +132,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			if dependency.Audit != nil {
 				handler := insights.NewAuditHandler(dependency.Audit, logger)
 				businessAPI.Get("/admin/audit/list", handler.List)
+			}
+			if dependency.AuditExport != nil {
+				handler := insights.NewAuditExportHandler(dependency.AuditExport, logger)
+				businessAPI.Get("/admin/audit/export", handler.Export)
 			}
 			if dependency.ShortLinkExport != nil {
 				exportHandler := shortlink.NewExportHandler(dependency.ShortLinkExport, logger)

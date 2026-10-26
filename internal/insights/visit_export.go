@@ -1,21 +1,16 @@
 package insights
 
 import (
-	"bytes"
 	"context"
 	"encoding/csv"
 	"errors"
-	"strings"
 	"time"
-	"unicode"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/jackc/pgx/v5"
 )
-
-const maxVisitExportBytes = 8 * 1024 * 1024
 
 // ErrVisitExportLimit rejects the entire export when a row or byte budget is exceeded.
 var ErrVisitExportLimit = errors.New("visit export limit exceeded")
@@ -84,19 +79,9 @@ func (s *Service) exportVisits(ctx context.Context, user auth.CurrentUser, input
 	return result, nil
 }
 
-type visitExportBuffer struct{ buffer bytes.Buffer }
-
-// Write retains at most the exact CSV byte budget, including escaping and the BOM.
-func (b *visitExportBuffer) Write(data []byte) (int, error) {
-	if len(data) > maxVisitExportBytes-b.buffer.Len() {
-		return 0, ErrVisitExportLimit
-	}
-	return b.buffer.Write(data)
-}
-
 // visitExportCSV encodes only the fixed anonymous schema and discards failed partial files.
 func visitExportCSV(ctx context.Context, id string, dates Range, rows []sqlc.ExportInsightVisitsRow) (VisitExport, error) {
-	var output visitExportBuffer
+	var output csvExportBuffer
 	_, _ = output.Write([]byte("\ufeff"))
 	writer := csv.NewWriter(&output)
 	writer.UseCRLF = true
@@ -110,24 +95,15 @@ func visitExportCSV(ctx context.Context, id string, dates Range, rows []sqlc.Exp
 		}
 		cells := []string{id, dates.StartDate, dates.EndDate, "UTC", row.ID, row.CreatedAt.Time.UTC().Format(time.RFC3339Nano), row.ReferrerHost, row.DeviceType, row.BrowserFamily, row.OsFamily, row.CountryCode}
 		for i, value := range cells {
-			cells[i] = visitExportText(value)
+			cells[i] = csvExportText(value)
 		}
 		if err := writer.Write(cells); err != nil {
-			return VisitExport{}, err
+			return VisitExport{}, ErrVisitExportLimit
 		}
 	}
 	writer.Flush()
 	if err := writer.Error(); err != nil {
-		return VisitExport{}, err
+		return VisitExport{}, ErrVisitExportLimit
 	}
 	return VisitExport{FileName: "moeurl-visits-" + id + "-" + dates.StartDate + "-" + dates.EndDate + ".csv", ContentType: "text/csv;charset=utf-8", Content: output.buffer.String()}, nil
-}
-
-// visitExportText neutralizes formula prefixes independently of standard CSV quoting.
-func visitExportText(value string) string {
-	trimmed := strings.TrimLeftFunc(value, unicode.IsSpace)
-	if strings.HasPrefix(value, "\t") || strings.HasPrefix(value, "\r") || strings.HasPrefix(value, "\n") || (len(trimmed) > 0 && strings.ContainsRune("=+-@", rune(trimmed[0]))) {
-		return "'" + value
-	}
-	return value
 }

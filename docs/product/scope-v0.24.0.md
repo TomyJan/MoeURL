@@ -1,6 +1,6 @@
 # v0.24.0 匿名访问记录 CSV 导出
 
-状态：2026-10-26 在独立分支 `feat/v0.24.0-visit-record-export` 完成功能实现、本地门禁和独立代码复审，基于 v0.23.0 实际合并提交 `5f6702d92939dd1bfa9fb2afe30660965577d1f2`。该基线的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40300323879) 和[合并提交 CI](https://github.com/TomyJan/MoeURL/actions/runs/40306786126) 各 9 项成功，CodeRabbit 对最终 44 文件完整复审无有效意见；不替代本版验证，也不代表正式发布。
+状态：2026-10-27 已通过 [PR #219](https://github.com/TomyJan/MoeURL/pull/219) squash 合并为 `5c3fee5ca2ff3c53f7b028ca87d9a99f41cd706e`。最终 head `769a9d97` 的[目标 CI](https://github.com/TomyJan/MoeURL/actions/runs/40374212790)与实际合并提交的[主分支 CI](https://github.com/TomyJan/MoeURL/actions/runs/40384305979)各 9 项成功；最终实际 CodeRabbit 增量复审无新增有效意见，详见[验收](../implementation/v0.24.0-acceptance.md)。功能已合并，尚未正式发布；原分支基线 `5f6702d9` 和逐候选本地证据保持原归属。
 
 ## 目标与盘点
 
@@ -10,7 +10,7 @@
 | --- | --- | --- | --- | --- |
 | [匿名访问记录](../specs/statistics-and-events.md) | 已有单链日期、设备、国家筛选和游标分页；本版复用过滤语义，保持只读查询。 | 只导出成功跳转的已有匿名字段，当前快照重新授权和检查归属。 | 当前记录区域增加独立下载动作。 | 中，跨账号或筛选错位。 |
 | 单链记录导出 | 纳入，最多 1000 条，原始可变长文本与最终 CSV 分别最多 8 MiB。 | 新增专用导出权限及最小授权迁移、预算受限 SQLC 查询。 | 服务端生成 CSV；不从浏览器缓存／分页拼接，不静默截断。 | 中，容量与公式注入。 |
-| 审计、全站访问及大数据导出 | 仍未实现，不纳入。 | 需要独立授权、容量与保留设计。 | 不开放占位入口。 | 高，保持范围清晰。 |
+| 审计、全站访问及大数据导出 | 本版不纳入，审计导出另由 v0.25.0 实施。 | 需要独立授权、容量与保留设计。 | 不开放占位入口。 | 高，保持范围清晰。 |
 
 ## 必须实现
 
