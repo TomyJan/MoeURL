@@ -186,6 +186,26 @@ describe('VisitExportButton', () => {
     expect(downloads).toEqual([])
     expect(toast.error).toHaveBeenCalledTimes(1)
   })
+  it.each([{ permissions: [] }, { permissions: ['short_link:read_own', 'short_link:read_visits'] }])('keeps newer same-account authorization when an older refresh returns full grants %#', async ({ permissions }) => {
+    const refresh = createDeferred<Response>()
+    let reading = false
+    vi.stubGlobal('fetch', (path: string) => {
+      if (path.endsWith('/auth/me')) { reading = true; return refresh.promise }
+      return Promise.resolve(json(null, 120001))
+    })
+    const view = mount()
+    await click()
+    await waitFor(() => expect(reading).toBe(true))
+    expect(view.client.getQueryData<{ user: CurrentUser }>(['auth', 'me'])?.user.permissions).toEqual([])
+    view.client.setQueryData(['auth', 'me'], { user: user(permissions) })
+    refresh.resolve(json({ user: user(all) }))
+    await settle()
+    expect(view.client.getQueryData<{ user: CurrentUser }>(['auth', 'me'])).toEqual({ user: user(permissions) })
+    expect(screen.queryByTestId('visit-export')).toBeNull()
+    expect(downloads).toEqual([])
+    expect(toast.success).not.toHaveBeenCalled()
+    expect(toast.error).toHaveBeenCalledTimes(1)
+  })
   it('refreshes unavailable records instead of downloading a stale result', async () => {
     vi.stubGlobal('fetch', async () => json(null, 200104))
     const view = mount()

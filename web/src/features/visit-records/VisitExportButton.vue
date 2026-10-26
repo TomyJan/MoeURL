@@ -26,6 +26,7 @@ const canExport = computed(() => auth.isSuccess.value && hasAccess(auth.data.val
 const disabled = computed(() => pending.value || props.blocked || !props.range)
 let alive = true
 let revision = 0
+let authRevision = 0
 watch([
   () => props.id, () => props.context, () => props.contextRevision,
   () => props.range?.startDate, () => props.range?.endDate,
@@ -35,6 +36,8 @@ watch([
 let permissions = permissionKey()
 const unsubscribe = client.getQueryCache().subscribe(event => {
   if (event.query.queryKey[0] !== 'auth' || event.query.queryKey[1] !== 'me') return
+  // Count writes even when structural sharing preserves the same empty permissions.
+  if (event.type === 'updated') authRevision++
   const current = permissionKey()
   if (current !== permissions) { permissions = current; revision++ }
 })
@@ -82,9 +85,10 @@ async function submit() {
       void client.cancelQueries({ queryKey: ['auth', 'me'] })
       const current = client.getQueryData<UserResponse>(['auth', 'me'])!
       client.setQueryData<UserResponse>(['auth', 'me'], { user: { ...current.user, permissions: [] } })
+      const refreshRevision = authRevision
       try {
         const refreshed = await me()
-        if (alive && identity.isCurrent(scope)) client.setQueryData(['auth', 'me'], refreshed)
+        if (alive && identity.isCurrent(scope) && authRevision === refreshRevision) client.setQueryData(['auth', 'me'], refreshed)
       } catch { /* Keep denied grants cleared until a later authenticated read succeeds. */ }
     } else if (code === 200104) emit('unavailable')
   } finally { pending.value = false }
