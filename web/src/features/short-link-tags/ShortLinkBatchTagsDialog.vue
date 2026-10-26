@@ -81,7 +81,11 @@ async function save() {
   } catch (error) {
     await nextTick()
     if (!isCurrent()) return
-    if (error instanceof ApiClientError && error.code === 200116) {
+    if (error instanceof ApiClientError && [120001, 401, 403].includes(error.code)) {
+      toast.error(t('batchTags.accessChanged')); revoke()
+      // Discard denied grants before refetching so they cannot authorize a new confirmation.
+      void client.resetQueries({ queryKey: ['auth', 'me'], exact: true })
+    } else if (error instanceof ApiClientError && error.code === 200116) {
       toast.error(t('batchTags.conflict')); emit('conflict'); close(); invalidate()
     } else toast.error(t(error instanceof ApiClientError && error.code === 200119 ? 'batchTags.limitExceeded' : 'batchTags.failed'))
   }

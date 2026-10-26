@@ -74,4 +74,26 @@ describe('batch tags dialog', () => {
     expect(view.emitted().close).toHaveLength(1)
     expect(fetch).toHaveBeenCalledTimes(1)
   })
+  it.each([
+    ['en', 'Your permissions or session changed. This confirmation was canceled. Sign in again or check your access before continuing.'],
+    ['zh-CN', '权限或登录状态已变化，本次确认已取消。请重新登录或确认权限后再操作。'],
+  ])('explains a server denial in %s and retires the draft only once', async (locale, message) => {
+    const view = mount(locale)
+    vi.mocked(fetch).mockImplementation(async url => new Response(JSON.stringify({
+      code: String(url).endsWith('/auth/me') ? 0 : 120001,
+      message: 'private diagnostic',
+      data: String(url).endsWith('/auth/me') ? { user: { ...actor, permissions: [] } } : null,
+      meta: {},
+    })))
+    await fireEvent.update(screen.getByLabelText(locale === 'en' ? 'Tags, one per line' : '标签，每行一个'), 'A')
+    await fireEvent.click(screen.getByLabelText(locale === 'en' ? 'I confirm this tag operation for every selected link' : '我确认对全部所选短链执行此标签操作'))
+    await fireEvent.click(screen.getByTestId('batch-tags-save'))
+    await waitFor(() => expect(view.emitted().revoked).toHaveLength(1))
+    expect(view.emitted().close).toHaveLength(1)
+    expect(toast.error).toHaveBeenCalledWith(message)
+    await waitFor(() => expect(view.client.getQueryData<{ user: typeof actor }>(['auth', 'me'])?.user.permissions).toEqual([]))
+    await fireEvent.click(screen.getByTestId('batch-tags-save'))
+    expect(view.emitted().revoked).toHaveLength(1)
+    expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith('/batch-tags'))).toHaveLength(1)
+  })
 })

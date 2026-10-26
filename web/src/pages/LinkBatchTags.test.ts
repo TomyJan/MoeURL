@@ -15,7 +15,7 @@ const actor = { id: '00000000-0000-0000-0000-000000000001', username: 'manager',
 const links = [20, 21].map(number => ({ id: `00000000-0000-0000-0000-0000000000${number}`, slug: `link${number}`, url: `https://go.example/link${number}`, targetUrl: 'https://example.com', title: 'Preserved', tags: ['Original'], owner: { id: actor.id, username: 'manager', nickname: '' }, updatedAt: '2026-10-26T00:00:00.123456789Z', createdAt: '2026-10-26T00:00:00Z', status: 'active', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null, expired: false, passwordEnabled: false, maxVisits: null, visitsUsed: 0, visitsRemaining: null, exhausted: false }))
 const clients: QueryClient[] = []
 /** Keeps wire responses and Vue Query real while controlling the external HTTP boundary. */
-function response(data: unknown = { items: links }, code = 0) { return new Response(JSON.stringify({ code, message: 'private diagnostic', data, meta: { total: 2 } })) }
+function response(data: unknown = { items: links }, code = 0, status = 200) { return new Response(JSON.stringify({ code, message: 'private diagnostic', data, meta: { total: 2 } }), { status }) }
 /** Mirrors the personal wire shape, which has no administrative owner projection. */
 function ownLink(link: typeof links[number]) { const result: Partial<typeof link> = { ...link }; delete result.owner; return result }
 /** Mounts both real page flows, including row actions, export, toolbar and confirmation. */
@@ -61,9 +61,10 @@ describe.each(['own', 'admin'] as const)('%s batch tag confirmation', context =>
     expect(screen.getAllByRole('checkbox').every(box => !(box as HTMLInputElement).checked)).toBe(true)
     expect(toast.success).toHaveBeenCalledWith('batchTags.changed batchTags.unchanged')
   })
-  it.each([200119, 900000])('keeps the draft, acknowledgment and selection on ordinary failure %i', async code => {
+  it.each([200119, 900000, 'network'] as const)('keeps the draft, acknowledgment and selection on ordinary failure %s', async code => {
     const view = mount(context); await open(); await confirm('remove')
-    view.fetcher.mockResolvedValue(response(null, code))
+    if (code === 'network') view.fetcher.mockRejectedValue(new Error('offline'))
+    else view.fetcher.mockResolvedValue(response(null, code))
     await fireEvent.click(screen.getByTestId('batch-tags-save'))
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith(code === 200119 ? 'batchTags.limitExceeded' : 'batchTags.failed'))
     expect((screen.getByLabelText('batchTags.operation') as HTMLSelectElement).value).toBe('remove')
@@ -72,6 +73,41 @@ describe.each(['own', 'admin'] as const)('%s batch tag confirmation', context =>
     expect((screen.getAllByRole('checkbox')[1] as HTMLInputElement).checked).toBe(true)
     await fireEvent.click(screen.getByTestId('batch-tags-cancel'))
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+  it.each([120001, 401, 403])('retires server-denied confirmation %i until current authority is read again', async code => {
+    const view = mount(context); await open(); await confirm()
+    const readAuthority = createDeferred<Response>()
+    const originalFetcher = view.fetcher.getMockImplementation()!
+    view.fetcher.mockImplementation((url, init) => String(url).endsWith('/batch-tags')
+      ? Promise.resolve(response(null, code, code === 120001 ? 200 : code))
+      : String(url).endsWith('/auth/me') ? readAuthority.promise : originalFetcher(url, init))
+    await fireEvent.click(screen.getByTestId('batch-tags-save'))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(toast.error).toHaveBeenCalledWith('batchTags.accessChanged')
+    await waitFor(() => expect(view.fetcher.mock.calls.filter(([url]) => String(url).endsWith('/auth/me'))).toHaveLength(1))
+    expect(view.client.getQueryData(['auth', 'me'])).toBeUndefined()
+    expect(screen.queryByTestId('batch-tags')).toBeNull()
+    readAuthority.resolve(response({ user: actor }))
+    await screen.findByTestId('console-link-list')
+    expect(screen.getAllByRole('checkbox').every(box => !(box as HTMLInputElement).checked)).toBe(true)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await open()
+    expect((screen.getByLabelText('batchTags.confirm') as HTMLInputElement).checked).toBe(false)
+    expect((screen.getByLabelText('batchTags.tags') as HTMLTextAreaElement).value).toBe('')
+    expect((screen.getByTestId('batch-tags-save') as HTMLButtonElement).disabled).toBe(true)
+    expect(view.fetcher.mock.calls.filter(([url]) => String(url).endsWith('/batch-tags'))).toHaveLength(1)
+  })
+  it('keeps stale authority unusable when revalidation fails after a server denial', async () => {
+    const view = mount(context); await open(); await confirm()
+    view.fetcher.mockImplementation(async url => String(url).endsWith('/batch-tags')
+      ? response(null, 120001) : response(null, 900000, 500))
+    await fireEvent.click(screen.getByTestId('batch-tags-save'))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(view.client.getQueryState(['auth', 'me'])?.status).toBe('error'))
+    expect(view.client.getQueryData(['auth', 'me'])).toBeUndefined()
+    expect(screen.queryByTestId('batch-tags')).toBeNull()
+    expect(toast.error).toHaveBeenCalledWith('batchTags.accessChanged')
+    expect(view.fetcher.mock.calls.filter(([url]) => String(url).endsWith('/batch-tags'))).toHaveLength(1)
   })
   it('locks stale snapshots through conflict, failed refresh, and successful recovery', async () => {
     const view = mount(context); await open(); await confirm()
@@ -108,7 +144,7 @@ describe.each(['own', 'admin'] as const)('%s batch tag confirmation', context =>
     await fireEvent.update(screen.getByLabelText('filter.keyword'), 'pending')
     expect((screen.getByTestId('batch-tags') as HTMLButtonElement).disabled).toBe(true)
   })
-  it.each([['identity', 0], ['epoch', 0], ['permission', 0], ['unmount', 0], ['identity', 200116], ['permission', 200119], ['unmount', 900000]] as const)('isolates late %s results (%i) while successful writes invalidate all five views', async (reason, code) => {
+  it.each([['identity', 0], ['epoch', 0], ['permission', 0], ['unmount', 0], ['identity', 200116], ['permission', 200119], ['unmount', 900000], ['identity', 120001], ['identity', 401], ['identity', 403]] as const)('isolates late %s results (%i) while successful writes invalidate all five views', async (reason, code) => {
     const view = mount(context); await open(); await confirm()
     const keys = ['short-link', 'admin-short-link', 'short-link-overview', 'short-link-statistics', 'insights'].map(key => [key, 'previous-user'])
     keys.forEach(key => view.client.setQueryData(key, { total: 9 }))

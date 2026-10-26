@@ -3,6 +3,7 @@ import { writeFile } from 'node:fs/promises'
 import { expect, test as base } from '@playwright/test'
 import type { BrowserContext, Locator, Page, TestInfo } from '@playwright/test'
 import type { AdminShortLink, ShortLink } from '../src/entities/short-link/model'
+import type { UserGroup } from '../src/entities/user-group/api'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
 
 interface Scenario { admin: Page; owner: Page; other: Page; anonymous: BrowserContext; links: AdminShortLink[]; tag: string; keyword: string }
@@ -234,6 +235,68 @@ for (const width of [1280, 390]) {
       const actor = own.some(link => link.id === current.id) ? owner : scenario.other
       await expect.poll(async () => (await (await actor.request.get(`/api/v1/short-link/statistics?id=${current.id}`)).json()).data.stats.visitCount).toBe(2)
     }
+  })
+}
+
+for (const scope of ['own', 'admin'] as const) {
+  test(`retires ${scope} confirmation after permissions are revoked in another window`, async ({ scenario }) => {
+    const { admin, owner, links, tag, keyword } = scenario
+    const page = scope === 'own' ? owner : admin
+    const groupKey = scope === 'own' ? 'user' : 'admin'
+    /** Reads the live concurrency version without caching a group restoration token. */
+    const readGroup = async () => {
+      const response = await admin.request.get('/api/v1/admin/user-group/list')
+      expect(response.status()).toBe(200)
+      const result = await response.json() as { code: number; data: { groups: UserGroup[] } }
+      expect(result.code).toBe(0)
+      const group = result.data.groups.find(value => value.key === groupKey)
+      if (!group) throw new Error('Fixture group missing')
+      return group
+    }
+    const original = await readGroup()
+    expect(original.permissions).toContain('short_link:set_metadata')
+    /** Restores the shared fixture group on every path using its latest version. */
+    const restoreGroup = async () => {
+      const current = await readGroup()
+      if (JSON.stringify(current.permissions) !== JSON.stringify(original.permissions)) {
+        expect(await (await admin.request.post('/api/v1/admin/user-group/update-permissions', { data: { groupKey, expectedUpdatedAt: current.updatedAt, permissions: original.permissions } })).json()).toMatchObject({ code: 0 })
+      }
+    }
+    const errors: unknown[] = []
+    try {
+      await page.setViewportSize({ width: 390, height: 844 })
+      await page.goto(scope === 'own' ? '/link' : '/admin/link')
+      await filter(page, scope === 'own' ? '标签' : '关键词搜索', scope === 'own' ? tag : keyword, scope === 'own' ? 'tag' : 'q', scope === 'own' ? 3 : 4)
+      const selected = scope === 'own' ? links.filter(link => link.owner.username.endsWith('-0')) : links
+      const dialog = await open(page, selected)
+      await dialog.getByLabel('标签，每行一个').fill('禁止复用旧确认')
+      await dialog.getByLabel('我确认对全部所选短链执行此标签操作').check()
+      const beforeAudit = await audits(scenario)
+      expect(await (await admin.request.post('/api/v1/admin/user-group/update-permissions', { data: { groupKey, expectedUpdatedAt: original.updatedAt, permissions: original.permissions.filter(value => value !== 'short_link:set_metadata') } })).json()).toMatchObject({ code: 0 })
+      const denied = page.waitForResponse(response => new URL(response.url()).pathname.endsWith('/short-link/batch-tags'))
+      const authority = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/auth/me')
+      await dialog.getByTestId('batch-tags-save').click()
+      expect(await (await denied).json()).toMatchObject({ code: 120001 })
+      await expect(page.getByTestId('batch-tags-dialog')).toHaveCount(0)
+      await expect(page.getByText('权限或登录状态已变化，本次确认已取消。请重新登录或确认权限后再操作。', { exact: true })).toBeVisible()
+      const refreshed = await (await authority).json()
+      expect(refreshed.code).toBe(0)
+      expect(refreshed.data.user.permissions).not.toContain('short_link:set_metadata')
+      await expect(page.getByTestId('batch-tags')).toHaveCount(0)
+      expect(await list(admin, keyword)).toEqual(links)
+      expect(await audits(scenario)).toEqual(beforeAudit)
+      await restoreGroup()
+      await expect(page.getByTestId('batch-tags-dialog')).toHaveCount(0)
+      await page.reload()
+      await filter(page, scope === 'own' ? '标签' : '关键词搜索', scope === 'own' ? tag : keyword, scope === 'own' ? 'tag' : 'q', scope === 'own' ? 3 : 4)
+      const fresh = await open(page, selected)
+      await expect(fresh.getByLabel('标签，每行一个')).toHaveValue('')
+      await expect(fresh.getByLabel('我确认对全部所选短链执行此标签操作')).not.toBeChecked()
+      await expect(fresh.getByTestId('batch-tags-save')).toBeDisabled()
+      await fresh.getByTestId('batch-tags-cancel').click()
+    } catch (error) { errors.push(error) }
+    finally { try { await restoreGroup() } catch (error) { errors.push(error) } }
+    if (errors.length) throw new AggregateError(errors, 'Server denial scenario or permission cleanup failed')
   })
 }
 

@@ -621,6 +621,7 @@ export const messages = {
       confirm: '我确认对全部所选短链执行此标签操作', cancel: '取消', save: '确认整理标签',
       changed: '已更新 {count} 条短链的标签。', unchanged: '{count} 条短链标签未变。',
       conflict: '短链已被修改，请刷新后重新打开并确认。', failed: '标签整理失败，请稍后重试。',
+      accessChanged: '权限或登录状态已变化，本次确认已取消。请重新登录或确认权限后再操作。',
       limitExceeded: '操作后任一短链不能超过 10 个标签，请缩小标签集后重试。',
     },
     batchTransfer: {
@@ -1329,6 +1330,7 @@ export const messages = {
       confirm: 'I confirm this tag operation for every selected link', cancel: 'Cancel', save: 'Confirm tag changes',
       changed: 'Updated tags on {count} link. | Updated tags on {count} links.', unchanged: '{count} link unchanged. | {count} links unchanged.',
       conflict: 'A short link changed. Refresh and reopen to confirm again.', failed: 'Could not organize tags. Please try again later.',
+      accessChanged: 'Your permissions or session changed. This confirmation was canceled. Sign in again or check your access before continuing.',
       limitExceeded: 'Each resulting link must have at most 10 tags. Reduce the tag set and try again.',
     },
     batchTransfer: {
