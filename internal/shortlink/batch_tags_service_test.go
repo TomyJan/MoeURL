@@ -377,17 +377,16 @@ func TestBatchTagsConcurrency(t *testing.T) {
 			var blockers []int32
 			var query, waitEventType string
 			require.NoError(t, pool.QueryRow(ctx, `select pg_blocking_pids(pid), query, coalesce(wait_event_type, '') from pg_stat_activity where pid=$1`, pids[i]).Scan(&blockers, &query, &waitEventType))
-			if len(blockers) > 0 {
-				require.Contains(t, query, "-- name: LockBatchTagsShortLinks :many", "batch %d must reach the short-link lock query", i)
-				require.Equal(t, "Lock", waitEventType, "batch %d must be waiting for a lock", i)
-				require.Equal(t, []int32{expected}, blockers, "requests must wait on sorted links, not shared actor/group rows")
+			// Activity and lock-manager observations can lag each other even within one SELECT.
+			// Wait for the complete condition instead of asserting on a transient partial sample.
+			if strings.Contains(query, "-- name: LockBatchTagsShortLinks :many") && waitEventType == "Lock" && len(blockers) == 1 && blockers[0] == expected {
 				return
 			}
 			select {
 			case result := <-done[i]:
 				t.Fatalf("batch %d completed before lock wait: %+v", i, result)
 			case <-ctx.Done():
-				t.Fatal(ctx.Err())
+				t.Fatalf("%v: batch %d must wait on sorted links, not actor/group rows; query=%q wait_event_type=%q blockers=%v expected=%d", ctx.Err(), i, query, waitEventType, blockers, expected)
 			case <-ticker.C:
 			}
 		}
