@@ -205,11 +205,30 @@ for (const width of [1280, 390]) {
     await filter(admin, '关键词搜索', keyword, 'q', 4)
     dialog = await open(admin, cleared)
     await submit(admin, dialog, 'add', ['后台 跨账号'], true)
-    const after = await list(admin, keyword)
+    let previous = cleared
+    const readBack = async (tagsFor: (original: AdminShortLink) => string[]) => {
+      const currentLinks = await list(admin, keyword)
+      expect(currentLinks).toHaveLength(4)
+      for (const current of currentLinks) {
+        const original = links.find(link => link.id === current.id)!
+        expect(current).toEqual({ ...original, tags: tagsFor(original), updatedAt: expect.any(String) })
+        expect(current.updatedAt).not.toBe(previous.find(link => link.id === current.id)!.updatedAt)
+      }
+      previous = currentLinks
+      return currentLinks
+    }
+    let after = await readBack(original => own.some(link => link.id === original.id) ? ['后台 跨账号'] : [...original.tags, '后台 跨账号'])
+    dialog = await open(admin, after)
+    await submit(admin, dialog, 'remove', ['后台 跨账号'], true)
+    after = await readBack(original => own.some(link => link.id === original.id) ? [] : original.tags)
+    dialog = await open(admin, after)
+    await submit(admin, dialog, 'replace', ['后台 替换', '顺序,保留'], true)
+    after = await readBack(() => ['后台 替换', '顺序,保留'])
+    dialog = await open(admin, after)
+    // The shared submit helper asserts the visible clear warning before explicit approval.
+    await submit(admin, dialog, 'replace', [], true)
+    after = await readBack(() => [])
     for (const current of after) {
-      const before = links.find(link => link.id === current.id)!
-      expect(current).toEqual({ ...before, tags: own.some(link => link.id === current.id) ? ['后台 跨账号'] : [...before.tags, '后台 跨账号'], updatedAt: expect.any(String) })
-      expect(current.updatedAt).not.toBe(before.updatedAt)
       if (current.passwordEnabled) expect(await (await anonymous.request.get(`/go/${current.slug}/preview`)).json()).toMatchObject({ code: 0, data: { redirectMode: current.redirectMode } })
       expect((await anonymous.request.get(current.passwordEnabled ? `/go/${current.slug}/continue` : current.url, { maxRedirects: 0 })).headers().location).toBe(current.targetUrl)
       const actor = own.some(link => link.id === current.id) ? owner : scenario.other
