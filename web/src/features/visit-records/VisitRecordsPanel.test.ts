@@ -10,6 +10,8 @@ vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, params?: Record<
 const clients: QueryClient[] = []
 const range = { startDate: '2026-10-16', endDate: '2026-10-22', timeZone: 'UTC' }
 const first = { range, pageSize: 25, hasMore: true, nextCursor: 'page2', items: [{ id: '00000000-0000-0000-0000-000000000001', occurredAt: '2026-10-22T01:02:03.123456Z', referrerHost: 'private.first.example', deviceType: null, browserFamily: null, osFamily: null, countryCode: null }] }
+const exportPermissions = ['short_link:read_own', 'short_link:read_visits', 'short_link:export_visits']
+const csv = { fileName: 'moeurl-visits-00000000-0000-0000-0000-000000000001-2026-10-16-2026-10-22.csv', contentType: 'text/csv;charset=utf-8', content: '\uFEFFshort_link_id,start_date,end_date,time_zone,event_id,occurred_at,referrer_host,device_type,browser_family,os_family,country_code\r\n' }
 /** Returns actual wire responses through the real API decoder and query observer. */
 function json(data: unknown, code = 0) { return new Response(JSON.stringify({ code, message: 'OK', data, meta: {} })) }
 /** Mounts an authenticated observer whose cache can be changed synchronously by each test. */
@@ -21,9 +23,81 @@ function mount(permissions: string[] | null = ['short_link:read_own', 'short_lin
   const view = render({ components: { VisitRecordsPanel }, setup: () => ({ props }), template: '<VisitRecordsPanel v-bind="props" />' }, { global: { stubs: componentStubs, plugins: [[VueQueryPlugin, { queryClient: client }]] } })
   return { client, props, ...view }
 }
-afterEach(() => { clients.splice(0).forEach((client) => client.clear()); vi.unstubAllGlobals() })
+afterEach(() => { clients.splice(0).forEach((client) => client.clear()); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('anonymous visit records', () => {
+  it('exports all applied filters from the second page, including empty results, without pagination', async () => {
+    const requested: string[] = []
+    const downloads: string[] = []
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:visits')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { downloads.push(this.download) })
+    vi.stubGlobal('fetch', async (path: string) => { requested.push(path); return json(path.includes('/export?') ? csv : path.includes('cursor=page2') ? { ...first, items: [], hasMore: false, nextCursor: '' } : first) })
+    mount(exportPermissions)
+    await screen.findByText('private.first.example')
+    await fireEvent.update(screen.getByRole('combobox', { name: 'visits.device' }), 'unknown')
+    await fireEvent.update(screen.getByLabelText('visits.country'), 'US')
+    expect((screen.getByTestId('visit-export') as HTMLButtonElement).disabled).toBe(true)
+    await fireEvent.click(screen.getByRole('button', { name: 'audit.applyFilters' }))
+    await waitFor(() => expect((screen.getByTestId('visit-export') as HTMLButtonElement).disabled).toBe(false))
+    await fireEvent.click(screen.getByRole('button', { name: 'insights.next' }))
+    await screen.findByText('visits.empty')
+    await fireEvent.click(screen.getByTestId('visit-export'))
+    await waitFor(() => expect(downloads).toEqual([csv.fileName]))
+    expect(requested.at(-1)).toBe('/api/v1/short-link/visits/export?id=00000000-0000-0000-0000-000000000001&startDate=2026-10-16&endDate=2026-10-22&deviceType=unknown&countryCode=US')
+  })
+  it.each(['range', 'country', 'device', 'refresh', 'error'])('invalidates pending export after same-tick %s changes or query state changes', async transition => {
+    const exporting = createDeferred<Response>()
+    const refreshing = createDeferred<Response>()
+    const downloads: string[] = []
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:visits')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { downloads.push(this.download) })
+    let read = false
+    vi.stubGlobal('fetch', (path: string) => {
+      if (path.includes('/export?')) return exporting.promise
+      if (read && (transition === 'refresh' || transition === 'error')) return refreshing.promise
+      read = true
+      return Promise.resolve(json(first))
+    })
+    const view = mount(exportPermissions)
+    await screen.findByText('private.first.example')
+    await fireEvent.click(screen.getByTestId('visit-export'))
+    if (transition === 'range') { view.props.range = { days: 30 }; view.props.range = { days: 7 } }
+    if (transition === 'country') {
+      const input = screen.getByLabelText('visits.country') as HTMLInputElement
+      input.value = 'US'; input.dispatchEvent(new Event('input', { bubbles: true }))
+      input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    if (transition === 'device') {
+      const select = screen.getByRole('combobox', { name: 'visits.device' }) as HTMLSelectElement
+      select.value = 'mobile'; select.dispatchEvent(new Event('change', { bubbles: true }))
+      select.value = ''; select.dispatchEvent(new Event('change', { bubbles: true }))
+    }
+    if (transition === 'refresh' || transition === 'error') {
+      void view.client.invalidateQueries({ queryKey: ['insights', 'visits'] })
+      await waitFor(() => expect((screen.getByTestId('visit-export') as HTMLButtonElement).disabled).toBe(true))
+      if (transition === 'error') { refreshing.reject(new Error('offline')); await screen.findByText('insights.loadFailed') }
+    }
+    exporting.resolve(json(csv))
+    await exporting.promise
+    await waitFor(() => expect(screen.getByTestId('visit-export').hasAttribute('disabled')).toBe(transition === 'refresh' || transition === 'error'))
+    expect(downloads).toEqual([])
+    if (transition === 'refresh') { refreshing.resolve(json(first)); await waitFor(() => expect(screen.getByTestId('visit-export').hasAttribute('disabled')).toBe(false)) }
+  })
+  it('blocks stale cached export after the server reports an unavailable link and retries records', async () => {
+    const refresh = createDeferred<Response>()
+    let reads = 0
+    vi.stubGlobal('fetch', (path: string) => path.includes('/export?') ? Promise.resolve(json(null, 200104)) : ++reads === 1 ? Promise.resolve(json(first)) : refresh.promise)
+    mount(exportPermissions)
+    await screen.findByText('private.first.example')
+    await fireEvent.click(screen.getByTestId('visit-export'))
+    await waitFor(() => expect(reads).toBe(2))
+    expect((screen.getByTestId('visit-export') as HTMLButtonElement).disabled).toBe(true)
+    refresh.resolve(json(null, 200104))
+    await screen.findByText('insights.noAccess')
+    expect((screen.getByTestId('visit-export') as HTMLButtonElement).disabled).toBe(true)
+  })
   it('requires a fresh read after unmounting and remounting against the same authenticated cache', async () => {
     const fresh = createDeferred<Response>()
     const fetcher = vi.fn().mockResolvedValueOnce(json(first)).mockImplementation(() => fresh.promise)

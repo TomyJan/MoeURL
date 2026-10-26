@@ -2,6 +2,7 @@ import { createI18n } from 'vue-i18n'
 
 export const messages = {
   'zh-CN': {
+    visitExport: { csv: '导出访问记录 CSV', description: '导出完整筛选结果，最多 1000 条、8 MiB。', started: '已发起 CSV 下载，请在浏览器中确认保存。', failed: '导出失败，请重试。', limitExceeded: '导出超过 1000 条或 8 MiB，请缩小日期范围或筛选条件后重试。' },
     listExport: { csv: '导出 CSV', description: '导出筛选结果，最多 1000 条。', started: '已发起 CSV 下载，请在浏览器中确认保存。', failed: '导出失败，请重试。', limitExceeded: '筛选结果超过 1000 条或导出数据超过 8 MiB，请缩小筛选范围后重试。' },
     insights: { noAccess: '当前账号无权查看此数据，或资源已不可用。', loadFailed: '数据加载失败，请重试。', loading: '正在加载数据', appliedRange: '已应用范围：{startDate} 至 {endDate}（UTC，含首尾日期）', occurredAt: '发生时间（UTC）', previous: '上一页', next: '下一页', maintenance: '系统维护' },
     dashboard: { title: '全站仪表盘', description: '查看全站规模与成功跳转趋势。访问量仅表示已签发目标跳转响应。', userCount: '用户数', activeUserCount: '启用用户数', linkCount: '短链数', activeLinkCount: '启用短链数', todayCreatedLinkCount: '今日新增短链（UTC）', todayVisitCount: '今日访问量（UTC）', rangeVisitCount: '区间访问量', activeMeaning: '“启用”仅表示保存的状态；短链仍可能受过期、密码、额度或域名状态限制。', topLinks: '区间热门短链', deleted: '已删除', empty: '所选范围暂无成功访问。', generatedAt: '快照时间（UTC）：' },
@@ -528,6 +529,7 @@ export const messages = {
         'short_link:create': { label: '创建短链', description: '创建新的短链。' },
         'short_link:read_own': { label: '查看自己的短链', description: '查看当前账号创建的短链。' },
         'short_link:read_visits': { label: '查看匿名访问记录', description: '查看有权读取的短链成功跳转记录及匿名访问维度。' },
+        'short_link:export_visits': { label: '导出匿名访问记录', description: '将有权读取的短链匿名访问记录导出为 CSV。' },
         'statistics:read_all': { label: '查看全站统计', description: '查看全站使用量、访问趋势和热门短链。' },
         'audit:read': { label: '查看操作审计', description: '查看关键业务操作的操作者、动作和变更字段。' },
         'short_link:export_statistics': { label: '导出短链统计', description: '将有权查看的短链聚合统计导出为 CSV。' },
@@ -711,6 +713,7 @@ export const messages = {
     },
   },
   en: {
+    visitExport: { csv: 'Export visit records CSV', description: 'Export all filtered results, up to 1000 records and 8 MiB.', started: 'CSV download started. Confirm saving in your browser.', failed: 'Export failed. Please try again.', limitExceeded: 'Export exceeds 1000 records or 8 MiB. Narrow the date range or filters and try again.' },
     listExport: { csv: 'Export CSV', description: 'Export filtered results, up to 1000 links.', started: 'CSV download started. Confirm saving in your browser.', failed: 'Export failed. Please try again.', limitExceeded: 'Export data exceeds 1000 links or 8 MiB. Narrow the filters and try again.' },
     insights: { noAccess: 'This account cannot view these records, or the resource is unavailable.', loadFailed: 'Could not load data. Please retry.', loading: 'Loading data', appliedRange: 'Applied range: {startDate} to {endDate} (UTC, inclusive)', occurredAt: 'Occurred at (UTC)', previous: 'Previous page', next: 'Next page', maintenance: 'System maintenance' },
     dashboard: { title: 'Global dashboard', description: 'System usage and successful redirect trends. Visits count issued destination redirects.', userCount: 'Users', activeUserCount: 'Enabled users', linkCount: 'Short links', activeLinkCount: 'Enabled short links', todayCreatedLinkCount: 'Links created today (UTC)', todayVisitCount: 'Visits today (UTC)', rangeVisitCount: 'Visits in range', activeMeaning: 'Enabled refers only to the saved status. Expiration, passwords, quotas or domain status can still restrict a link.', topLinks: 'Popular links in range', deleted: 'Deleted', empty: 'No successful visits in this range.', generatedAt: 'Snapshot at (UTC):' },
@@ -1237,6 +1240,7 @@ export const messages = {
         'short_link:create': { label: 'Create short links', description: 'Create new short links.' },
         'short_link:read_own': { label: 'View own links', description: 'View short links created by this account.' },
         'short_link:read_visits': { label: 'View anonymous visits', description: 'View successful redirects and anonymous dimensions for permitted links.' },
+        'short_link:export_visits': { label: 'Export anonymous visits', description: 'Export anonymous visit records for permitted short links as CSV.' },
         'statistics:read_all': { label: 'View global statistics', description: 'View system usage, visit trends and popular links.' },
         'audit:read': { label: 'View operation audit', description: 'View actors, actions and changed fields for key business operations.' },
         'short_link:export_statistics': { label: 'Export link statistics', description: 'Export permitted short-link aggregate statistics as CSV.' },

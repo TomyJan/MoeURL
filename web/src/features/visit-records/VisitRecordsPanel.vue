@@ -1,6 +1,9 @@
 <template>
   <section class="visit-records" data-testid="visit-records">
-    <h2>{{ t('visits.title') }}</h2>
+    <div class="visit-records__heading">
+      <h2>{{ t('visits.title') }}</h2>
+      <VisitExportButton :id="id" :context="context" :range="exportRange" :filters="{ deviceType, countryCode }" :blocked="exportBlocked" :context-revision="contextRevision" @unavailable="query.refetch()" />
+    </div>
     <p>{{ t('visits.description') }}</p>
     <form v-if="allowed" class="visit-records__filters" novalidate @submit.prevent="applyCountry">
       <v-select v-model="deviceType" :items="deviceOptions" :label="t('visits.device')" variant="outlined" hide-details />
@@ -29,7 +32,7 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 import { deviceTypes, getVisits } from '@/entities/insights/api'
@@ -37,6 +40,7 @@ import type { InsightRangeInput } from '@/entities/insights/model'
 import { useInsightAccess, isInsightAccessError } from '@/shared/insights/useInsightAccess'
 import { useCursorHistory } from '@/shared/insights/useCursorHistory'
 import InsightReadState from '@/features/insights/InsightReadState.vue'
+import VisitExportButton from './VisitExportButton.vue'
 
 const props = defineProps<{ id: string; context: 'own' | 'admin'; range: InsightRangeInput }>()
 const { t } = useI18n()
@@ -55,6 +59,13 @@ const query = useQuery({
 })
 const denied = computed(() => !allowed.value || isInsightAccessError(query.error.value))
 const records = computed(() => !denied.value && !query.isError.value ? query.data.value : undefined)
+const exportRange = computed(() => records.value ? { startDate: records.value.range.startDate, endDate: records.value.range.endDate } : undefined)
+const exportBlocked = computed(() => !records.value || query.isPending.value || query.isFetching.value || query.isError.value || countryDraft.value !== countryCode.value || !!countryError.value)
+const contextRevision = ref(0)
+watch([
+  contextKey, pages.cursor, pages.revision, query.isPending, query.isFetching, query.isError,
+  () => records.value?.range.startDate, () => records.value?.range.endDate, countryDraft, countryError,
+], () => { contextRevision.value++ }, { flush: 'sync', deep: true })
 
 /** Applies only canonical country filters, keeping invalid drafts out of query keys. */
 function applyCountry() {
@@ -69,7 +80,8 @@ function dimension(value: string | null) {
 </script>
 <style scoped>
 .visit-records { min-width: 0; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--moeurl-outline-strong); }
+.visit-records__heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .visit-records > p { color: rgb(var(--v-theme-on-surface-variant)); }
 .visit-records__filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: start; gap: 12px; margin-top: 16px; }
-@media (max-width: 760px) { .visit-records__filters { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .visit-records__filters { grid-template-columns: 1fr; } .visit-records__heading { flex-direction: column; } }
 </style>
