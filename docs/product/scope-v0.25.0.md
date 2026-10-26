@@ -1,6 +1,6 @@
 # v0.25.0 操作审计 CSV 导出
 
-状态：2026-10-27 独立分支 `feat/v0.25.0-audit-export` 已完成功能与本地交付验证，起点为 v0.24.0 实际合并提交 `5c3fee5ca2ff3c53f7b028ca87d9a99f41cd706e`。后端／前端切片及各自独立审查、原业务／前端 100%、Linux race／安全、冻结代码 `974ffa89` 的 95 项真实 Compose Playwright、标准 production smoke 及精确镜像 HIGH／CRITICAL 检查均通过。最终独立分支审查、本版目标 CI／实际 CodeRabbit、合并与正式发布仍待各自证据；历史 RED 流程偏差保留在[验收](../implementation/v0.25.0-acceptance.md)。不借用前版门禁或将后续纯文档 SHA 冒充制品注入。用户授权连续自主开发；合并后 CI 后台跟进，不阻塞下一轮，失败时优先修复。
+状态：2026-10-27 独立分支 `feat/v0.25.0-audit-export` 已完成功能与本地交付验证，起点为 v0.24.0 实际合并提交 `5c3fee5ca2ff3c53f7b028ca87d9a99f41cd706e`。后端／前端切片及各自独立审查、原业务／前端 100%、Linux race／安全、原 `974ffa89` 的标准 production smoke 及精确镜像 HIGH／CRITICAL 检查通过；统一修复 `e3415d71` 的 95 项完整真实 Compose Playwright 通过，production 按不变核心输入复用原制品。任务 3 独立及最终全分支审查在 `1ac92f8a` 完成，无 Critical／Important，2 项 Minor 已在 `e3415d71` 统一修复；修复候选定向复审、本版目标 CI／实际 CodeRabbit、合并与正式发布仍待各自证据；历史 RED 流程偏差保留在[验收](../implementation/v0.25.0-acceptance.md)。不借用前版门禁或将后续纯文档 SHA 冒充制品注入。用户授权连续自主开发；合并后 CI 后台跟进，不阻塞下一轮，失败时优先修复。
 
 ## 选择理由与能力盘点
 
