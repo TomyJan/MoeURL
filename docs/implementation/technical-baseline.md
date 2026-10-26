@@ -45,6 +45,8 @@ v0.0.1 具体 schema、API、默认数据、标准命令和验收映射以 [v0.0
 
 Docker 前端构建从 Node 官方固定版本地址下载运行时，使用 HTTP/1.1、20 秒连接超时、单次 120 秒总超时和最多 2 次重试；保留 HTTPS 证书校验，不改版本、源站或基础镜像。该有界传输用于避免构建下载链路的 HTTP/2 停滞，不改变应用运行协议。
 
+前端开发依赖安全维护同步 Vitest／coverage-v8 补丁，当前维护候选解析为 5.0.3；`@vitest/mocker` 不得保留低于 5.0.3 的受影响副本，source-map-js 至少 1.2.2、ini 至少 1.3.6。完整依赖路径、兼容子树更新及实际验收见[维护规格](../specs/2026-10-27-frontend-security-dependencies.md)和[维护验收](2026-10-27-frontend-security-dependencies-acceptance.md)。开发依赖公告与生产可达漏洞分开，registry 缺少 audit endpoint 是验证错误，不能当作零漏洞；必要时仅命令级指定官方 audit registry，不改全局配置。
+
 `MOEURL_BUILD_COMMIT`／`MOEURL_BUILD_TAG` 的 ARG／ENV 只在复制前端源码之后、实际 `pnpm build` 之前声明，版本注入不使 Node 下载及锁文件依赖安装层随每次提交失效。构建与浏览器仍须验证实际 footer 和完整源码 URL，缓存复用不替代制品归属。
 
 ## 3. 仓库目录结构

@@ -1,8 +1,8 @@
 # MoeURL 文档中心
 
-已确认的主分支基线为 `5c3fee5ca2ff3c53f7b028ca87d9a99f41cd706e`：[v0.24.0 匿名访问记录 CSV 导出](product/scope-v0.24.0.md) 已通过 [PR #219](https://github.com/TomyJan/MoeURL/pull/219) 合并。最终 head `769a9d97` 的[目标 CI](https://github.com/TomyJan/MoeURL/actions/runs/40374212790)和实际合并提交的[主分支 CI](https://github.com/TomyJan/MoeURL/actions/runs/40384305979)各 9 项成功，CodeRabbit 最终实际增量复审无新增有效意见，尚未正式发布；历史候选与隔离偏差保留在[验收](implementation/v0.24.0-acceptance.md)。
+最近功能合并为 `6933f94c20c508c879f50b7ed7afa673cc1e5e40`：[v0.25.0 操作审计 CSV](product/scope-v0.25.0.md) 已通过 [PR #222](https://github.com/TomyJan/MoeURL/pull/222) 合并，最终 `d250b4b` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40404362865) 9 项成功，实际 CodeRabbit 全部 50 文件审查无有效未解决意见。合并后 [CI](https://github.com/TomyJan/MoeURL/actions/runs/40406334592) 为 8 成功／手机 E2E 失败，正在独立维护分支修复，不能将 PR 成功当作主分支全绿。尚未正式发布。
 
-[v0.25.0 操作审计 CSV 导出](product/scope-v0.25.0.md) 在独立分支 `feat/v0.25.0-audit-export` 实现已应用 UTC 日期与操作者／资源／动作筛选的完整审计元数据下载，最多 1000 条／8 MiB，新增受保护的管理员权限并保持业务值与秘密隔离。设计、任务和逐输入本地门禁见[规格](specs/2026-10-27-v0.25.0-audit-export-design.md)、[计划](implementation/v0.25.0-plan.md)、[任务](implementation/v0.25.0-tasks.md)及[验收](implementation/v0.25.0-acceptance.md)；本版最终独立审查、目标 CI、实际 CodeRabbit、合并与发布分别留证，不借用前版成功。
+[v0.25.0 操作审计 CSV 导出](product/scope-v0.25.0.md) 已合并按 UTC 日期与操作者／资源／动作筛选的完整元数据下载，最多 1000 条／8 MiB，新增受保护管理员权限并保持业务值与秘密隔离。设计与逐候选证据见[规格](specs/2026-10-27-v0.25.0-audit-export-design.md)、[计划](implementation/v0.25.0-plan.md)、[任务](implementation/v0.25.0-tasks.md)及[验收](implementation/v0.25.0-acceptance.md)。当前[开发依赖安全维护](implementation/2026-10-27-frontend-security-dependencies-plan.md) 同时处理 4 条工具链公告及上述 E2E 提示关闭同步，不新增产品版本；进度见[维护验收](implementation/2026-10-27-frontend-security-dependencies-acceptance.md)。
 
 v0.24.0 整分支终审已完成，统一修复候选 `7cd277b2` 补齐真实父页授权恢复、服务端日期权威及固定 E2E 分类／已加载页面撤权回归；新门禁、工作树生成物隔离偏差及已通过的独立定向复审结论见本版验收。
 

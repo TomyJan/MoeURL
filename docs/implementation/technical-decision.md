@@ -18,6 +18,8 @@ PWA：Web App Manifest + Service Worker
 
 这套技术栈的目标是：稳定、现代、低魔法、易自托管、便于长期维护，并能支撑 MoeURL 后续权限、统计、多域名、跳转页模板和外部登录等扩展能力。
 
+2026-10-27 的[开发依赖安全维护](2026-10-27-frontend-security-dependencies-plan.md) 选择同主版本 Vitest／coverage 补丁，以及原 testing-library 版本下的兼容子树刷新，清除 mocker／source-map-js／ini 公告；不新增 override 或手改锁文件，也不提高业务版本。传递 test-utils／beautifier 的升级和完整门禁单独留证，不把开发工具公告说成生产 HTTP 可达漏洞；生产镜像在新依赖冻结后重新构建和扫描。
+
 ## 2. 选型原则
 
 技术选型遵循以下原则：

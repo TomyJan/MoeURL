@@ -1,10 +1,10 @@
 # v0.25.0 操作审计 CSV 导出
 
-状态：2026-10-27 独立分支 `feat/v0.25.0-audit-export` 已完成功能与本地交付验证，起点为 v0.24.0 实际合并提交 `5c3fee5ca2ff3c53f7b028ca87d9a99f41cd706e`。后端／前端切片及各自独立审查、原业务／前端 100%、Linux race／安全、原 `974ffa89` 的标准 production smoke 及精确镜像 HIGH／CRITICAL 检查通过；统一修复 `e3415d71` 的 95 项完整真实 Compose Playwright 通过，production 按不变核心输入复用原制品。任务 3 独立及最终全分支审查在 `1ac92f8a` 完成，无 Critical／Important，2 项 Minor 已在 `e3415d71` 统一修复；修复候选定向复审、本版目标 CI／实际 CodeRabbit、合并与正式发布仍待各自证据；历史 RED 流程偏差保留在[验收](../implementation/v0.25.0-acceptance.md)。不借用前版门禁或将后续纯文档 SHA 冒充制品注入。用户授权连续自主开发；合并后 CI 后台跟进，不阻塞下一轮，失败时优先修复。
+状态：2026-10-27 已通过 [PR #222](https://github.com/TomyJan/MoeURL/pull/222) 合并为 `6933f94c20c508c879f50b7ed7afa673cc1e5e40`，尚未正式发布。最终 `d250b4b` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40404362865) 9 项成功，实际 CodeRabbit 全部 50 文件审查无有效未解决意见；合并后 [CI](https://github.com/TomyJan/MoeURL/actions/runs/40406334592) 为 8 成功／E2E 失败，手机用例的 Toast 遮挡正由[独立维护](../implementation/2026-10-27-frontend-security-dependencies-acceptance.md) 修复。逐候选本地证据与历史 RED 流程偏差见[验收](../implementation/v0.25.0-acceptance.md)，不以 PR 成功替代合并后结果或正式发布。
 
 ## 选择理由与能力盘点
 
-审查收尾更新：修复候选 `618f7da9` 的独立定向复审已完成，两项发现均已解决，无新问题。上述等待复审描述保留为该提交时的历史状态；当前等待精确远端 CI／实际 CodeRabbit、合并与发布。
+审查收尾：修复候选 `618f7da9` 的独立定向复审确认两项发现均已解决，无新问题；最终候选再经实际远端审查后合并。合并后 CI 后台跟进，不阻塞下一轮，真实失败优先修复。
 
 | 能力 | 当前状态 | 本版取舍与风险 |
 | --- | --- | --- |

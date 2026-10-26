@@ -2,11 +2,11 @@
 
 MoeURL 按「基础可用闭环 → 发布质量补强 → 产品体验精细化 → MVP 增强闭环 → 统计分析闭环 → 增强能力」逐步推进。
 
-截至 2026-10-27，已确认的主分支基线 `5c3fee5c` 已通过 [PR #219](https://github.com/TomyJan/MoeURL/pull/219) 合并 [v0.24.0 匿名访问记录 CSV 导出](scope-v0.24.0.md)，最终 head `769a9d97` 的[目标 CI](https://github.com/TomyJan/MoeURL/actions/runs/40374212790)与实际合并提交的[主分支 CI](https://github.com/TomyJan/MoeURL/actions/runs/40384305979)各 9 项成功，最终实际 CodeRabbit 复审无新增有效意见，尚未正式发布。[v0.25.0 操作审计 CSV](scope-v0.25.0.md) 已在独立分支实现，逐输入门禁及独立终审、目标 CI／合并／发布缺口见[验收](../implementation/v0.25.0-acceptance.md)。本地、CI 与生产证据分别记录，下列早期非目标保留当时语义。
+截至 2026-10-27，最近功能 [v0.25.0 操作审计 CSV](scope-v0.25.0.md) 已通过 [PR #222](https://github.com/TomyJan/MoeURL/pull/222) 合并为 `6933f94c`。最终 `d250b4b` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40404362865) 9 项成功，实际 CodeRabbit 完整审查无有效未解决意见；合并后 [CI](https://github.com/TomyJan/MoeURL/actions/runs/40406334592) 为 8 成功／手机 E2E 失败，当前优先[维护修复](../implementation/2026-10-27-frontend-security-dependencies-plan.md)，同时清理开发依赖公告。合并后 CI 后台不阻塞新轮，实际失败优先，尚未正式发布。本地、CI 与生产证据分别记录，下列早期非目标保留当时语义。
 
 ## v0.25.0 操作审计 CSV 导出
 
-管理员按已应用 UTC 日期与操作者／资源／动作筛选下载完整审计元数据，最多 1000 条，原文与最终 CSV 各 8 MiB，受保护 `audit:export` 叠加既有读取权限；同一只读快照重查当前账号、数据库权限和 180 天保留截止。保留完整 bigint、UTC 时间和字段数组，不包含业务值或秘密，不新增采集、归档、全站访问合并或后台任务。当前独立分支实现与逐阶段验证见[范围](scope-v0.25.0.md)、[设计](../specs/2026-10-27-v0.25.0-audit-export-design.md)与[验收](../implementation/v0.25.0-acceptance.md)，尚未合并或正式发布。
+管理员按已应用 UTC 日期与操作者／资源／动作筛选下载完整审计元数据，最多 1000 条，原文与最终 CSV 各 8 MiB，受保护 `audit:export` 叠加既有读取权限；同一只读快照重查当前账号、数据库权限和 180 天保留截止。保留完整 bigint、UTC 时间和字段数组，不包含业务值或秘密，不新增采集、归档、全站访问合并或后台任务。已通过 PR #222 合并，尚未正式发布；逐阶段验证及合并后 CI 修复跟进见[范围](scope-v0.25.0.md)、[设计](../specs/2026-10-27-v0.25.0-audit-export-design.md)与[验收](../implementation/v0.25.0-acceptance.md)。
 
 ## v0.24.0 匿名访问记录 CSV 导出
 
@@ -283,7 +283,7 @@ v0.9.0 复用现有 `system_setting`、前端偏好和 OIDC Provider 管理，�
 
 ## 待开发能力
 
-2026-10-27：v0.22.0 批量归属转移、v0.23.0 批量标签整理已分别通过 PR #217／#218 合并。v0.24.0 单链匿名记录 CSV 已通过 [PR #219](https://github.com/TomyJan/MoeURL/pull/219) 合并为 `5c3fee5c`，最终 PR 与合并提交 CI 各 9 项成功，尚未正式发布；v0.25.0 操作审计 CSV 在独立分支实现，见[本版验收](../implementation/v0.25.0-acceptance.md)。本表区分已合并、当前分支及仍未开发能力。
+2026-10-27：v0.22.0、v0.23.0、v0.24.0 已分别通过 PR #217／#218／#219 合并，历史 PR 与合并 CI 结果各自保留。v0.25.0 操作审计 CSV 已通过 PR #222 合并，最终 PR CI 9 项成功；合并后手机 E2E 失败由当前独立维护跟进，尚未正式发布，见[本版验收](../implementation/v0.25.0-acceptance.md)。本表区分已合并、当前维护分支及仍未开发能力。
 
 以下为后续能力；自定义短码已合并，个人密码修改已单列为 v0.13.0。每项启动前须收敛独立范围、权限和验收标准。生产验证缺口另见进度清单，不作为新功能重复列入。
 
@@ -291,7 +291,7 @@ v0.9.0 复用现有 `system_setting`、前端偏好和 OIDC Provider 管理，�
 | --- | --- | --- | --- |
 | 账号与用户组 | 本地／OIDC 登录、个人昵称、个人密码修改、内置组权限和预设、账号语言／主题偏好已合并；v0.19.0 单账号 user／admin 改组已合并。 | 头像、时区及其他个人偏好；自定义组、批量成员迁移、多用户组；OIDC 模板、主动绑定和组映射。 | [用户与认证](../specs/users-and-auth.md)、[账号偏好范围](scope-v0.15.0.md)、[成员迁移范围](scope-v0.19.0.md)、[管理后台](../specs/admin.md)、[系统设置范围](scope-v0.9.0.md) |
 | 短链组织与交换 | 单链接标题、标签、筛选、设置和 v0.20.0 单条归属转移、v0.21.0 有界清单 CSV、v0.22.0 批量转移、v0.23.0 批量标签整理已合并。 | 尚未正式发布；个人赠送、集中标签管理及导入未实现。 | [短链](../specs/short-links.md)、[管理后台](../specs/admin.md)、[元数据范围](scope-v0.11.0.md)、[清单导出](scope-v0.21.0.md)、[批量转移](scope-v0.22.0.md)、[标签整理](scope-v0.23.0.md) |
-| 分析与操作追溯 | 个人概览、匿名单链接聚合、有界日期和聚合 CSV、全站仪表盘、匿名访问明细与事务审计已合并；v0.24.0 单链匿名记录 CSV 已合并；v0.25.0 审计 CSV 在独立分支实现。 | v0.25.0 集成与发布见验收；超出 90 天或任意时区分析、全站访问合并导出、访问事件归档、独立安全事件中心未实现。 | [统计与事件](../specs/statistics-and-events.md)、[v0.24.0 范围](scope-v0.24.0.md)、[v0.25.0 范围](scope-v0.25.0.md)、[管理后台](../specs/admin.md) |
+| 分析与操作追溯 | 个人概览、匿名单链接聚合、有界日期和聚合 CSV、全站仪表盘、匿名访问明细与事务审计已合并；v0.24.0 单链匿名记录 CSV、v0.25.0 审计 CSV 已合并。 | 尚未正式发布，v0.25.0 合并后 CI 修复见验收；超出 90 天或任意时区分析、全站访问合并导出、访问事件归档、独立安全事件中心未实现。 | [统计与事件](../specs/statistics-and-events.md)、[v0.24.0 范围](scope-v0.24.0.md)、[v0.25.0 范围](scope-v0.25.0.md)、[管理后台](../specs/admin.md) |
 | 域名与默认策略 | 管理员域名、组授权及全局默认。 | 个人／组默认域名、域名排序和默认跳转策略；用户自助绑定及自动 DNS/TLS 属于进一步扩展。 | [域名](../specs/domains.md)、[多域名范围](scope-v0.8.0.md) |
 | 品牌与模板 | 站点名称、默认语言／主题、纯文本页脚及固定构建版本署名。 | Logo／Favicon 上传、可配置主题色与首页文案、自定义 Open Graph、更多跳转页模板、高级模板编辑和自定义 CSS。 | [主题与多语言](../specs/themes-and-i18n.md)、[系统设置范围](scope-v0.9.0.md) |
 | 集成与权限扩展 | Cookie Session API 和按能力校验权限。 | 程序化接口鉴权、Webhook、与新增能力对应的更细粒度权限。 | [管理后台](../specs/admin.md)、[权限](../specs/permissions.md) |

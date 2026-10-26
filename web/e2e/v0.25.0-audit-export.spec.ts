@@ -166,6 +166,11 @@ async function download(scenario: Scenario, filters: AuditFilters, indices: numb
   expect(descriptor.code).toBe(0)
   expect(descriptor.data.contentType).toBe('text/csv;charset=utf-8')
   const saved = await downloadPromise
+  const message = admin.getByText('已发起 CSV 下载，请在浏览器中确认保存。', { exact: true })
+  await expect(message).toBeVisible()
+  // Dismiss real feedback before later clicks can hover it and pause its expiry.
+  await admin.getByRole('button', { name: '关闭提示', exact: true }).click()
+  await expect(message).not.toBeVisible()
   const fileName = `moeurl-audit-${logs.range.startDate}-${logs.range.endDate}.csv`
   expect(saved.suggestedFilename()).toBe(fileName)
   expect(descriptor.data.fileName).toBe(fileName)
