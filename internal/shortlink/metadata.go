@@ -24,23 +24,35 @@ func normalizeMetadata(permissions permission.Snapshot, input *MetadataInput) (p
 		return pgtype.Text{}, nil, ErrPermissionDenied
 	}
 	title := strings.TrimSpace(input.Title)
-	if utf8.RuneCountInString(title) > 120 || containsControl(title) || input.Tags == nil || len(input.Tags) > 10 {
+	if utf8.RuneCountInString(title) > 120 || containsControl(title) {
 		return pgtype.Text{}, nil, ErrInvalidInput
 	}
-	tags := make([]string, 0, len(input.Tags))
-	seen := make(map[string]struct{}, len(input.Tags))
-	for _, raw := range input.Tags {
+	tags, err := normalizeTags(input.Tags)
+	if err != nil {
+		return pgtype.Text{}, nil, err
+	}
+	return pgtype.Text{String: title, Valid: true}, tags, nil
+}
+
+// normalizeTags shares ordered, case-sensitive Unicode validation across metadata operations.
+func normalizeTags(input []string) ([]string, error) {
+	if input == nil || len(input) > 10 {
+		return nil, ErrInvalidInput
+	}
+	tags := make([]string, 0, len(input))
+	seen := make(map[string]struct{}, len(input))
+	for _, raw := range input {
 		tag := strings.TrimSpace(raw)
-		if tag == "" || utf8.RuneCountInString(tag) > 32 || containsControl(tag) {
-			return pgtype.Text{}, nil, ErrInvalidInput
+		if !utf8.ValidString(raw) || tag == "" || utf8.RuneCountInString(tag) > 32 || containsControl(tag) {
+			return nil, ErrInvalidInput
 		}
 		if _, exists := seen[tag]; exists {
-			return pgtype.Text{}, nil, ErrInvalidInput
+			return nil, ErrInvalidInput
 		}
 		seen[tag] = struct{}{}
 		tags = append(tags, tag)
 	}
-	return pgtype.Text{String: title, Valid: true}, tags, nil
+	return tags, nil
 }
 
 // containsControl rejects control characters in managed plain text.
