@@ -49,11 +49,11 @@ async function save() {
   try {
     const result = await mutation.mutateAsync({ items: snapshot.map(target => ({ id: target.id, expectedUpdatedAt: target.updatedAt })), newOwnerUsername: username.value })
     await nextTick()
+    invalidate()
     if (!isCurrent()) return
     toast.success(`${t('batchTransfer.transferred', { count: result.transferredCount }, result.transferredCount)} ${t('batchTransfer.unchanged', { count: result.unchangedCount }, result.unchangedCount)}`)
     emit('transferred')
     close()
-    invalidate()
   } catch (error) {
     await nextTick()
     if (!isCurrent()) return

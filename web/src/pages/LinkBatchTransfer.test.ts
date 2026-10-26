@@ -94,6 +94,8 @@ describe('administrative batch ownership confirmation', () => {
   })
   it.each([['identity', 0], ['permission', 0], ['unmount', 0], ['identity', 200116], ['permission', 200117], ['unmount', 900000]] as const)('isolates late response after %s change (%i)', async (reason, code) => {
     const view = mount(); await open(); await confirm()
+    const ownershipKeys = ['admin-short-link', 'short-link', 'short-link-overview', 'short-link-statistics', 'insights'].map(key => [key, 'previous-owner'])
+    ownershipKeys.forEach(key => view.client.setQueryData(key, { total: 5 }))
     const pending = createDeferred<Response>()
     view.fetcher.mockImplementation(url => String(url).endsWith('/batch-transfer') ? pending.promise : Promise.resolve(response()))
     await fireEvent.click(screen.getByRole('button', { name: 'transfer.save' }))
@@ -107,6 +109,7 @@ describe('administrative batch ownership confirmation', () => {
     pending.resolve(response(code === 0 ? { transferredCount: 2, unchangedCount: 0 } : null, code))
     await waitFor(() => expect(view.client.isMutating()).toBe(0))
     expect(toast.success).not.toHaveBeenCalled(); expect(toast.error).not.toHaveBeenCalled()
+    for (const key of ownershipKeys) expect(view.client.getQueryState(key)?.isInvalidated).toBe(code === 0)
     if (reason === 'identity') expect((screen.getAllByRole('checkbox')[1] as HTMLInputElement).checked).toBe(true)
   })
   it('rejects same-tick revocation and unapplied filter entry', async () => {
