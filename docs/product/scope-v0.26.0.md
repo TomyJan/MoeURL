@@ -2,7 +2,7 @@
 
 ## 目标与状态
 
-当前后端已完成本地实现及验证（e3286dcd），前端及完整本地门禁已通过，唯一整审的两项 Important 已在单修复波闭环，远端集成待完成；未创建 PR 或发布。基线为维护 PR #223 合并提交 `cafacf1520e4ea59934af4c1339a56224c2fdcd0`，独立分支 `feat/v0.26.0-personal-default-domain`。上一轮合并 CI 在后台实际完成 9 项成功，保留其独立候选归属，不替代本版验证。
+当前已同名推送并创建 [PR #224](https://github.com/TomyJan/MoeURL/pull/224)，首个候选 `cfeb1f69` 的 [CI #40436589446](https://github.com/TomyJan/MoeURL/actions/runs/40436589446) 实际 9 项成功，实际 CodeRabbit 首审覆盖该候选；本次文档修订处理 3 项有效意见，最新修订 head 的 CI 与真实增量审查仍须另验，尚未合并或发布。本地提交前检查点（历史）为后端已完成（e3286dcd）、前端及完整本地门禁通过、唯一整审两项 Important 经单修复波闭环，当时尚未创建 PR。基线为维护 PR #223 合并提交 `cafacf1520e4ea59934af4c1339a56224c2fdcd0`，独立分支 `feat/v0.26.0-personal-default-domain`。上一轮合并 CI 保留独立候选归属，不替代本版验证；当前逐候选状态见[本版验收](../implementation/v0.26.0-acceptance.md)。
 
 在个人设置中明确保存一个当前可用的短链域名，之后在其他浏览器登录时，创建面板优先选择该域名，减少重复选择。该偏好只决定界面初始选择，不新增域名授权，不改变既有创建 API 省略 `domainId` 使用全局默认的语义。
 
