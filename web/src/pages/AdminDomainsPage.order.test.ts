@@ -23,7 +23,7 @@ const clients: QueryClient[] = []
 function response(data: unknown, code = 0) { return new Response(JSON.stringify({ code, message: '', data, meta: {} })) }
 
 /** Runs the real editor, API parser, identity observer and QueryClient; only HTTP is controlled. */
-function mount(options: { save?: () => Promise<Response>; listFails?: boolean; authFails?: boolean; authPermissions?: string[]; authRead?: () => Promise<Response>; read?: () => Promise<ManagedDomain[]>; realVuetify?: boolean } = {}) {
+function mount(options: { save?: () => Promise<Response>; legacyWrite?: () => Promise<Response>; listFails?: boolean; authFails?: boolean; authPermissions?: string[]; authRead?: () => Promise<Response>; read?: () => Promise<ManagedDomain[]>; realVuetify?: boolean } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity, gcTime: Infinity } } })
   clients.push(client)
   const user = { id: 'A', username: 'admin', nickname: '', group: 'admin', permissions: ['admin:access', 'domain:manage'] }
@@ -32,6 +32,7 @@ function mount(options: { save?: () => Promise<Response>; listFails?: boolean; a
   const bodies: Array<{ id: string; sortOrder: number; expectedUpdatedAt: string }> = []
   const reads: string[] = []
   const requests: string[] = []
+  const legacyBodies: Array<{ path: string; input: { id: string; expectedUpdatedAt: string } }> = []
   vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit) => {
     requests.push(url)
     if (url === '/api/v1/auth/me') {
@@ -58,6 +59,15 @@ function mount(options: { save?: () => Promise<Response>; listFails?: boolean; a
       items = items.map((item) => item.id === saved.id ? saved : item)
       return response({ domain: saved })
     }
+    if (url === '/api/v1/admin/domain/set-default' || url === '/api/v1/admin/domain/delete') {
+      const input = JSON.parse(init.body as string)
+      legacyBodies.push({ path: url, input })
+      if (options.legacyWrite) return options.legacyWrite()
+      if (url.endsWith('/delete')) { items = items.filter(({ id }) => id !== input.id); return response({ deleted: true }) }
+      const saved = { ...items.find(({ id }) => id === input.id)!, isDefault: true, updatedAt: '2026-10-27T01:02:08.123456Z' }
+      items = items.map((item) => item.id === saved.id ? saved : { ...item, isDefault: false })
+      return response({ domain: saved })
+    }
     throw new Error(`Unexpected request ${url}`)
   }))
   if (options.realVuetify) {
@@ -69,7 +79,7 @@ function mount(options: { save?: () => Promise<Response>; listFails?: boolean; a
     plugins: options.realVuetify ? [[VueQueryPlugin, { queryClient: client }], createVuetify({ components, directives })] : [[VueQueryPlugin, { queryClient: client }]],
     stubs: options.realVuetify ? { ActionToast: componentStubs.ActionToast } : componentStubs,
   } })
-  return { ...view, client, bodies, reads, requests, user, options, setItems: (value: ManagedDomain[]) => { items = value } }
+  return { ...view, client, bodies, reads, requests, legacyBodies, user, options, setItems: (value: ManagedDomain[]) => { items = value } }
 }
 
 /** Waits for the real selected editor before a case edits or submits its priority. */
@@ -80,6 +90,75 @@ async function selectSecondary() {
 afterEach(() => { cleanup(); clients.splice(0).forEach((client) => client.clear()); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 describe('domain ordering with real queries', () => {
+  it('dispatch boundary rejects a stale default event after a confirmed server permission denial', async () => {
+    const { client, legacyBodies } = mount({ save: async () => response(null, 120001) })
+    await selectSecondary()
+    const staleDefault = screen.getByRole('button', { name: 'domains.setDefault' })
+    await fireEvent.update(screen.getByLabelText('domainOrder.value'), '-20')
+    await fireEvent.click(screen.getByRole('button', { name: 'domainOrder.save' }))
+    await screen.findByText('domainOrder.accessDenied')
+    await waitFor(() => expect(client.isMutating()).toBe(0))
+    await fireEvent.click(staleDefault)
+    await flushEventLoop()
+    expect(legacyBodies).toEqual([])
+  })
+
+  it('dispatch boundary rejects a captured delete while another domain write is pending', async () => {
+    const pending = createDeferred<Response>()
+    const { client, legacyBodies } = mount({ legacyWrite: () => pending.promise })
+    await selectSecondary()
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.delete' }))
+    const staleDelete = screen.getByRole('button', { name: 'domains.confirmDelete' })
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.setDefault' }))
+    await waitFor(() => expect(legacyBodies).toHaveLength(1))
+    await fireEvent.click(staleDelete)
+    await flushEventLoop()
+    expect(legacyBodies).toEqual([{ path: '/api/v1/admin/domain/set-default', input: { id: secondary.id, expectedUpdatedAt: secondary.updatedAt } }])
+    pending.resolve(response({ domain: { ...secondary, isDefault: true } }))
+    await waitFor(() => expect(client.isMutating()).toBe(0))
+  })
+
+  it.each(['default', 'delete'])('dispatch boundary rejects a stale %s event for a removed selection', async (action) => {
+    const { client, legacyBodies, setItems } = mount()
+    await selectSecondary()
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.delete' }))
+    const stale = screen.getByRole('button', { name: action === 'default' ? 'domains.setDefault' : 'domains.confirmDelete' })
+    await fireEvent.update(screen.getByLabelText('domainOrder.value'), '-20')
+    setItems([primary])
+    await client.refetchQueries({ queryKey: ['admin', 'domains'] })
+    await screen.findByText('domains.removedDraft')
+    await fireEvent.click(stale)
+    await flushEventLoop()
+    expect(legacyBodies).toEqual([])
+    expect(screen.getByLabelText('domainOrder.value')).toHaveProperty('value', '-20')
+  })
+
+  it('dispatch boundary rejects a stale delete event after its dialog target was cleared', async () => {
+    const { client, legacyBodies } = mount()
+    await selectSecondary()
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.delete' }))
+    const stale = screen.getByRole('button', { name: 'domains.confirmDelete' })
+    await fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'domains.cancel' }))
+    await nextTick()
+    await fireEvent.click(stale)
+    await flushEventLoop()
+    expect(client.isMutating()).toBe(0)
+    expect(legacyBodies).toEqual([])
+    expect(screen.queryByText('domains.saveFailed')).toBeNull()
+  })
+
+  it('dispatch boundary still deletes an existing captured target after selecting another domain', async () => {
+    const { client, legacyBodies } = mount()
+    await selectSecondary()
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.delete' }))
+    await fireEvent.click(screen.getByRole('button', { name: /Primary/ }))
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.confirmDelete' }))
+    await waitFor(() => expect(client.isMutating()).toBe(0))
+    expect(legacyBodies).toEqual([{ path: '/api/v1/admin/domain/delete', input: { id: secondary.id, expectedUpdatedAt: secondary.updatedAt } }])
+    expect(screen.queryByRole('button', { name: /Secondary/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /Primary/ }).getAttribute('aria-current')).toBe('true')
+  })
+
   it.each(['button', 'native form'])('submits real Vuetify fields through the independent %s path', async (method) => {
     const { bodies } = mount({ realVuetify: true })
     await selectSecondary()

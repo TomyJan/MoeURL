@@ -523,6 +523,7 @@ describe('AdminDomainsPage', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: /Saved B/ })).toBeTruthy())
     state.data.value = { items: [latestB, latestA] }
     await nextTick()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'domains.confirmDelete' })).toHaveProperty('disabled', false))
     await fireEvent.click(screen.getByRole('button', { name: 'domains.confirmDelete' }))
     await waitFor(() => expect(deleteDomain).toHaveBeenLastCalledWith({ id: secondary.id, expectedUpdatedAt: latestA.updatedAt }))
   })
@@ -573,6 +574,7 @@ describe('AdminDomainsPage', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'domains.delete' }))
     await fireEvent.click(screen.getByRole('button', { name: 'domains.confirmDelete' }))
     await waitFor(() => expect(screen.getByLabelText('domains.displayName')).toHaveProperty('value', 'Changed remotely'))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'domains.confirmDelete' })).toHaveProperty('disabled', false))
     await fireEvent.click(screen.getByRole('button', { name: 'domains.confirmDelete' }))
     await waitFor(() => expect(deleteDomain).toHaveBeenLastCalledWith({ id: secondary.id, expectedUpdatedAt: latest.updatedAt }))
   })

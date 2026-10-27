@@ -344,9 +344,10 @@ function currentOperation(operation: { scope: typeof identity.scope.value }): bo
   return mounted && identity.isCurrent(operation.scope) && eligible.value
 }
 
-/** Carries scope outside the API payload while preserving legacy action semantics. */
+/** Rechecks current transport/target state before binding a command to this login round. */
 function dispatch(operation: Operation) {
-  if (!eligible.value) return
+  if (transportBlocked.value || selectionRemoved.value ||
+    (operation.type !== 'create' && (!operation.domain || !domains.value.some(({ id }) => id === operation.domain.id)))) return
   operationKind.value = operation.type === 'order' ? 'order' : 'details'
   feedbackKind.value = operationKind.value
   mutation.mutate({ ...operation, scope: identity.scope.value })
