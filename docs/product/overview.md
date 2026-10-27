@@ -12,7 +12,7 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 ## 长期核心目标
 
-本节描述 MoeURL 的完整目标形态。v0.26.0 已通过 [PR #224](https://github.com/TomyJan/MoeURL/pull/224) 合并为 `60b36fec2d063785a8c97855d5a6d38a950c4ad3`，最终候选 `0305c016` 的 [PR CI #40438886293](https://github.com/TomyJan/MoeURL/actions/runs/40438886293) 与合并提交的 [master CI #40444537045](https://github.com/TomyJan/MoeURL/actions/runs/40444537045) 各 9 项成功，实际 CodeRabbit 首审及最终增量覆盖最新变更，全部有效意见已处理；尚未正式发布。当前 [v0.27.0 域名排序](scope-v0.27.0.md) 处于前后端本地验证阶段；具体能力见[开发进度](development-status.md)，逐候选证据见[本版验收](../implementation/v0.26.0-acceptance.md)。前轮 v0.25.0 的合并手机 Toast 故障已由[维护 PR #223](../implementation/2026-10-27-frontend-security-dependencies-acceptance.md) 修复，旧失败保留原归属。生产化边界仍见 [v0.6.0 范围](scope-v0.6.0.md)。
+本节描述 MoeURL 的完整目标形态。v0.26.0 已通过 [PR #224](https://github.com/TomyJan/MoeURL/pull/224) 合并为 `60b36fec2d063785a8c97855d5a6d38a950c4ad3`，最终候选 `0305c016` 的 [PR CI #40438886293](https://github.com/TomyJan/MoeURL/actions/runs/40438886293) 与合并提交的 [master CI #40444537045](https://github.com/TomyJan/MoeURL/actions/runs/40444537045) 各 9 项成功，实际 CodeRabbit 首审及最终增量覆盖最新变更，全部有效意见已处理；尚未正式发布。当前 [v0.27.0 域名排序](scope-v0.27.0.md) 完整本地门禁已通过，独立终审及远端交付待完成；具体能力见[开发进度](development-status.md)，逐候选证据见[本版验收](../implementation/v0.26.0-acceptance.md)。前轮 v0.25.0 的合并手机 Toast 故障已由[维护 PR #223](../implementation/2026-10-27-frontend-security-dependencies-acceptance.md) 修复，旧失败保留原归属。生产化边界仍见 [v0.6.0 范围](scope-v0.6.0.md)。
 
 [v0.17.0 短链批量管理](scope-v0.17.0.md) 已合并当前列表多选、原子启停与软删除。包含后续依赖及 Go 安全修复的历史主分支候选 `c4928a85` 完整目标 CI 已通过；该结果属于历史记录，不代表当前主分支基线或当前 CI 结果，生产演练与正式发布仍待完成。不包含跨页全选、导入或归属转移。原分支与历史主分支候选的证据分开保留，见 [本版计划](../implementation/v0.17.0-plan.md) 和 [验收记录](../implementation/v0.17.0-acceptance.md)。
 
@@ -81,7 +81,7 @@ MoeURL 的核心控制逻辑是权限系统。
 
 ## 当前维护入口
 
-2026-10-27 更新：v0.26.0 已通过 [PR #224](https://github.com/TomyJan/MoeURL/pull/224) 合并为 `60b36fec2d063785a8c97855d5a6d38a950c4ad3`，最终候选 `0305c016` 的 [PR CI #40438886293](https://github.com/TomyJan/MoeURL/actions/runs/40438886293) 与合并提交的 [master CI #40444537045](https://github.com/TomyJan/MoeURL/actions/runs/40444537045) 各 9 项成功，实际 CodeRabbit 首审及最终增量覆盖最新变更，全部有效意见已处理；尚未正式发布。当前新一轮域名排序处于前后端本地验证阶段，尚未整版验收。v0.25.0 的历史失败及后继维护、v0.24.0 的 PR／合并 CI 均保留独立候选归属，不因本轮成功改写历史。
+2026-10-27 更新：v0.26.0 已通过 [PR #224](https://github.com/TomyJan/MoeURL/pull/224) 合并为 `60b36fec2d063785a8c97855d5a6d38a950c4ad3`，最终候选 `0305c016` 的 [PR CI #40438886293](https://github.com/TomyJan/MoeURL/actions/runs/40438886293) 与合并提交的 [master CI #40444537045](https://github.com/TomyJan/MoeURL/actions/runs/40444537045) 各 9 项成功，实际 CodeRabbit 首审及最终增量覆盖最新变更，全部有效意见已处理；尚未正式发布。当前新一轮域名排序完整本地门禁已通过，独立终审及远端交付待完成，尚未整版验收。v0.25.0 的历史失败及后继维护、v0.24.0 的 PR／合并 CI 均保留独立候选归属，不因本轮成功改写历史。
 
 2026-10-26 更新：[v0.19.0 用户组成员迁移](scope-v0.19.0.md) 已通过 PR #211 合并为 `c08b67b2`；[v0.20.0 单条归属转移](scope-v0.20.0.md) 已通过 PR #214 合并为 `2d23dcfd`；[v0.21.0 清单 CSV](scope-v0.21.0.md) 已通过 PR #216 合并为 `dfc9a5a1`。v0.22.0 批量归属转移已通过 PR #217 合并为 `ba2073cf`，最终修复候选 `7e41d438` 和实际合并提交 CI 各 9 项成功，尚未正式发布，具体提交及证据见[本版验收](../implementation/v0.22.0-acceptance.md)。本页旧版本状态与分支验证保留历史归属，合并不替代正式发布。
 
