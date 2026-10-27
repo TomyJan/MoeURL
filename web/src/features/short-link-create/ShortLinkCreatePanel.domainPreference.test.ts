@@ -25,6 +25,7 @@ function mount(options: { preference?: () => Promise<unknown>; single?: boolean;
   vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit) => {
     let data: unknown
     if (url === '/api/v1/auth/me') data = { user }
+    else if (url === '/api/v1/domain/group-default') data = { selection: { domainId: null, status: 'not_set' } }
     else if (url === '/api/v1/domain/available') data = { items: options.empty ? [] : [
       ...options.assignedOnly ? [] : [{ id: globalId, host: 'global.example', displayName: 'Global', isDefault: !options.personalDefault }],
       ...options.single ? [] : [{ id: personalId, host: 'personal.example', displayName: 'Personal', isDefault: !!options.personalDefault }],

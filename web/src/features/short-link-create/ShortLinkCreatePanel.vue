@@ -53,6 +53,12 @@
           <v-btn variant="text" @click="useSystemChoice">{{ t('domainPreference.useSystem') }}</v-btn>
         </div>
         <p v-if="selectionUnavailable" role="status">{{ t('domainPreference.fallback') }}</p>
+        <div v-if="needsGroupChoice && !groupDefault.isSuccess.value" role="status">
+          {{ t(groupDefault.isError.value ? 'groupDefault.loadFailed' : 'groupDefault.loading') }}
+          <v-btn v-if="groupDefault.isError.value" variant="text" @click="groupDefault.refetch()">{{ t('groupDefault.retry') }}</v-btn>
+          <v-btn variant="text" @click="useSystemChoice">{{ t('domainPreference.useSystem') }}</v-btn>
+        </div>
+        <p v-if="needsGroupChoice && groupDefault.data.value?.status === 'unavailable'" role="status">{{ t('groupDefault.unavailable') }}</p>
         <p v-if="!domainQuery.isError.value && domainQuery.data.value && availableDomains.length === 0 && canCreateWithPermissions" role="status">
           {{ t('shortLinkCreate.noAvailableDomains') }}
         </p>
@@ -233,12 +239,13 @@
 <script setup lang="ts">
 import ActionToast from '@/shared/feedback/ActionToast.vue'
 import { toast } from 'vue-sonner'
-import { computed, ref, useTemplateRef, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { me } from '@/entities/auth/api'
 import { useAvailableDomainChoices, useDomainPreference } from '@/shared/preferences/useDomainPreference'
+import { useGroupDefaultDomain } from '@/shared/preferences/useGroupDefaultDomain'
 import { createShortLink } from '@/entities/short-link/api'
 import type { CreateShortLinkInput, RedirectMode } from '@/entities/short-link/model'
 import { visitLimitInputSchema } from '@/entities/short-link/schema'
@@ -292,6 +299,7 @@ const currentUserQuery = useQuery({
   queryFn: me,
 })
 const preference = useDomainPreference()
+const groupDefault = useGroupDefaultDomain()
 const domainQuery = useAvailableDomainChoices()
 const currentUser = computed(() => currentUserQuery.data.value?.user)
 const hasResolvedCurrentUser = computed(() => currentUserQuery.data.value !== undefined)
@@ -311,13 +319,16 @@ const domainChoice = computed({
     const manual = availableDomains.value.find((item) => item.id === selectedDomainId.value)
     if (manual) return manual.isDefault ? '' : manual.id
     const saved = availableDomains.value.find((item) => item.id === preference.query.data.value?.domainId)
-    return saved ? (saved.isDefault ? '' : saved.id) : fallbackDomainId.value
+    if (saved) return saved.isDefault ? '' : saved.id
+    const group = availableDomains.value.find((item) => item.id === groupDefault.data.value?.domainId)
+    return group ? (group.isDefault ? '' : group.id) : fallbackDomainId.value
   },
   set: (id: string) => { selectedDomainId.value = id; lostManualChoice.value = false },
 })
 const selectionUnavailable = computed(() => availableDomains.value.length > 0 && (lostManualChoice.value || (selectedDomainId.value === null && !!preference.query.data.value?.domainId && !availableDomains.value.some((item) => item.id === preference.query.data.value?.domainId) && domainQuery.isSuccess.value)))
 const canCreateShortLink = computed(() => canCreateWithPermissions.value && !currentUserQuery.isError?.value && !domainQuery.isError.value && availableDomains.value.length > 0)
-const canSubmit = computed(() => canCreateShortLink.value && (selectedDomainId.value !== null || preference.query.isSuccess.value))
+const needsGroupChoice = computed(() => selectedDomainId.value === null && preference.query.isSuccess.value && !availableDomains.value.some((item) => item.id === preference.query.data.value?.domainId))
+const canSubmit = computed(() => canCreateShortLink.value && (selectedDomainId.value !== null || (preference.query.isSuccess.value && (!needsGroupChoice.value || groupDefault.isSuccess.value))))
 const { canUseIntermediate, canUseConfirmation, canSubmitRedirectMode } = useRedirectModePermissions(currentUser)
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
 const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
@@ -352,6 +363,10 @@ watch(availableDomains, (items) => {
 
 type CreationInput = Omit<CreateShortLinkInput, 'password'>
 const creationScopes = new WeakMap<CreationInput, typeof preference.scope.value>()
+let mounted = true
+onBeforeUnmount(() => { mounted = false })
+/** Discards feedback from removed forms and earlier login epochs. */
+function isCurrentCreation(input: CreationInput) { return mounted && preference.isCurrent(creationScopes.get(input)!) }
 
 const mutation = useMutation({
   /** Runs creation through the shared sensitive-input cleanup boundary. */
@@ -376,7 +391,7 @@ const mutation = useMutation({
   },
   /** Stores the generated link and refreshes list consumers after creation. */
   onSuccess(result, input) {
-    if (!preference.isCurrent(creationScopes.get(input)!)) return
+    if (!isCurrentCreation(input)) return
     toast.success(t('feedback.created'))
     createdUrl.value = result.shortLink.url
     createdSlug.value = result.shortLink.slug
@@ -387,13 +402,17 @@ const mutation = useMutation({
   },
   /** Removes any residual plaintext password after every mutation outcome. */
   onSettled(_result, _error, input) {
-    if (preference.isCurrent(creationScopes.get(input)!)) clearPasswordInput()
+    if (isCurrentCreation(input)) clearPasswordInput()
   },
   /** Refreshes current authorization without changing or replaying the failed request. */
   onError(error, input) {
-    if (preference.isCurrent(creationScopes.get(input)!) && error instanceof ApiClientError && error.code === 200114) {
+    if (isCurrentCreation(input) && error instanceof ApiClientError && error.code === 200114) {
       void domainQuery.refetch()
-      void currentUserQuery.refetch()
+      void groupDefault.refetch()
+      const scope = preference.scope.value
+      void me().then((result) => {
+        if (mounted && preference.isCurrent(scope) && result.user.id === scope.userId) queryClient.setQueryData(['auth', 'me'], result)
+      }).catch(() => { /* The failed creation remains visible; no write is retried. */ })
     }
   },
 })

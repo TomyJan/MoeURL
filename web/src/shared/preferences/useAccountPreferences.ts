@@ -4,6 +4,8 @@ import type { UserResponse } from '@/entities/auth/api'
 import { accountPreferencesKey, getAccountPreferences } from '@/entities/user/preferences'
 import { domainPreferenceKey } from '@/entities/user/domain-preference'
 import { availableDomainQueryKey } from '@/entities/domain/api'
+import { userGroupQueryKey } from '@/entities/user-group/api'
+import { adminGroupDefaultDomainQueryKey, groupDefaultDomainQueryKey } from '@/entities/user-group/domain-default'
 import { resetAccountPreferences, useAppPreferences } from './useAppPreferences'
 
 interface IdentityScope { userId: string; epoch: number }
@@ -29,6 +31,11 @@ function createIdentity(client: QueryClient) {
       const previousDomains = [...availableDomainQueryKey, previous]
       void client.cancelQueries({ queryKey: previousDomains })
       client.removeQueries({ queryKey: previousDomains })
+      for (const prefix of [userGroupQueryKey, adminGroupDefaultDomainQueryKey, groupDefaultDomainQueryKey]) {
+        const key = [...prefix, previous]
+        void client.cancelQueries({ queryKey: key })
+        client.removeQueries({ queryKey: key })
+      }
     }
   }
   client.getQueryCache().subscribe((event) => {

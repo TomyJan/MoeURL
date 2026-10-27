@@ -42,6 +42,10 @@ vi.mock('@/shared/preferences/useDomainPreference', () => {
   }
 })
 
+vi.mock('@/shared/preferences/useGroupDefaultDomain', () => ({
+  useGroupDefaultDomain: () => ({ data: ref({ domainId: null, status: 'not_set' }), isSuccess: ref(true), isError: ref(false), refetch: vi.fn() }),
+}))
+
 vi.mock('@tanstack/vue-query', async () => {
   const { createMutationMock } = await import('@/test/mutation-mock')
   return {
@@ -362,6 +366,7 @@ describe('ShortLinkCreatePanel', () => {
     state.invalidateQueries.mockReset()
     state.mutationOptions = []
     state.queryOptions = []
+    vi.mocked(me).mockResolvedValue({ user: { id: 'legacy-account', username: 'legacy', nickname: '', group: 'user', permissions: [] } })
     vi.mocked(createShortLink).mockReset()
     vi.mocked(createShortLink).mockResolvedValue({
       shortLink: { slug: 'abc123', url: 'https://go.example.com/abc123' },

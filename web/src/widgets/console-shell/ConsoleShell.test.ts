@@ -63,6 +63,9 @@ vi.mock('@/entities/auth/api', () => ({
   me: vi.fn(),
 }))
 vi.mock('@/shared/preferences/useAccountPreferences', () => ({ revokeAccountIdentity: state.revokeIdentity }))
+vi.mock('@/shared/preferences/useGroupDefaultDomain', () => ({
+  useGroupDefaultDomain: () => ({ data: ref({ domainId: null, status: 'not_set' }), isSuccess: ref(true), isError: ref(false), refetch: vi.fn() }),
+}))
 vi.mock('@/shared/preferences/useDomainPreference', () => {
   const scope = ref({ userId: 'shell-account', epoch: 1 })
   return {

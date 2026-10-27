@@ -1,455 +1,211 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/vue'
+import { afterEach, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
-import { useMutation } from '@tanstack/vue-query'
-
-import { ApiClientError } from '@/shared/api/client'
-import { USER_GROUP_PERMISSION_CONFLICT_CODE } from '@/shared/api/error-codes'
-import { listUserGroups, updateUserGroupPermissions } from '@/entities/user-group/api'
-import type { UserGroupListResponse } from '@/entities/user-group/api'
-
+import { setImmediate as flushEventLoop } from 'node:timers/promises'
 import AdminUserGroupsPage from './AdminUserGroupsPage.vue'
+import { mountGroupDefault, response, groupId, version, nextVersion } from '@/test/group-default'
+import { createDeferred } from '@/test/deferred'
+import { revokeAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 
-/** Holds mutable query and mutation state shared by page tests. */
-const state = vi.hoisted(() => ({
-  invalidateQueries: vi.fn(async () => undefined),
-  setQueryData: vi.fn(),
-  mutationPending: undefined as unknown as ReturnType<typeof ref<boolean>>,
-  queryData: undefined as unknown as ReturnType<typeof ref<unknown>>,
-  queryError: undefined as unknown as ReturnType<typeof ref<boolean>>,
-  queryPending: undefined as unknown as ReturnType<typeof ref<boolean>>,
-  refetch: vi.fn(async () => undefined),
-}))
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key, locale: ref('en') }) }))
+let view: ReturnType<typeof mountGroupDefault>
+afterEach(() => { cleanup(); view.client.clear(); vi.unstubAllGlobals() })
+/** Opens a target after its complete shared configuration is available. */
+async function selectUser() {
+  await fireEvent.click(await screen.findByRole('tab', { name: 'user' }))
+  await waitFor(() => expect(screen.getByLabelText('userGroups.preset')).toHaveProperty('disabled', false))
+}
+/** Creates a real permission draft through the public checkbox. */
+async function editPermission() {
+  await selectUser()
+  await fireEvent.click(screen.getByLabelText('userGroups.permissions.short_link:create.label'))
+}
 
-vi.mock('vue-i18n', () => ({
-  useI18n: () => ({
-    locale: { value: 'en' },
-    t: (key: string, params?: unknown) => params ? `${key}:${JSON.stringify(params)}` : key,
-  }),
-}))
-vi.mock('@/entities/user-group/api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/entities/user-group/api')>()
-  return { ...actual, listUserGroups: vi.fn(), updateUserGroupPermissions: vi.fn() }
+it('shows initial loading and then the actual catalog', async () => {
+  const pending = createDeferred<Response>()
+  view = mountGroupDefault(AdminUserGroupsPage, { overrides: { '/api/v1/admin/user-group/list': () => pending.promise } })
+  expect(screen.getByRole('progressbar')).toBeTruthy()
+  pending.resolve(response(view.catalog()))
+  await screen.findByRole('tab', { name: 'user' })
 })
-vi.mock('@tanstack/vue-query', () => ({
-  useQuery: vi.fn((options: { queryFn: () => unknown }) => {
-    void options.queryFn()
-    return { data: state.queryData, isError: state.queryError, isPending: state.queryPending, refetch: state.refetch }
-  }),
-  useQueryClient: () => ({ invalidateQueries: state.invalidateQueries, setQueryData: state.setQueryData }),
-  useMutation: vi.fn((options: {
-    mutationFn: (input: unknown) => Promise<unknown>
-    onError?: (error: unknown, input: unknown) => unknown
-    onSuccess?: (result: unknown, input: unknown) => unknown
-  }) => ({
-    isPending: state.mutationPending,
-    mutate: vi.fn((input: unknown) => {
-      state.mutationPending.value = true
-      void options.mutationFn(input)
-        .then((result) => options.onSuccess?.(result, input))
-        .catch((error) => options.onError?.(error, input))
-        .finally(() => { state.mutationPending.value = false })
-    }),
-  })),
-}))
-
-const data: UserGroupListResponse = {
-  groups: [
-    { key: 'guest', name: 'Guest', description: 'Guest group', builtin: true, editable: false, permissions: [], updatedAt: 'guest-v1' },
-    { key: 'user', name: 'User', description: 'User group', builtin: true, editable: true, permissions: ['short_link:read_own'], updatedAt: 'user-v1' },
-    { key: 'admin', name: 'Admin', description: 'Admin group', builtin: true, editable: true, permissions: ['admin:access'], updatedAt: 'admin-v1' },
-  ],
-  permissions: [
-    { key: 'short_link:create', category: 'short_link_basic', protected: false },
-    { key: 'short_link:read_own', category: 'short_link_basic', protected: false },
-    { key: 'admin:access', category: 'administration', protected: true },
-  ],
-  presets: [
-    { key: 'restricted', applicableGroups: ['user', 'admin'], permissions: [] },
-    { key: 'basic', applicableGroups: ['user', 'admin'], permissions: ['short_link:create'] },
-    { key: 'standard', applicableGroups: ['user', 'admin'], permissions: ['short_link:create', 'short_link:read_own'] },
-  ],
-}
-
-const stubs = {
-  ActionToast: { template: '<div role="alert"><slot /></div>' },
-  VAlert: { template: '<div role="alert"><slot /><slot name="append" /></div>' },
-  VBtn: { props: ['disabled', 'loading'], emits: ['click'], template: '<button v-bind="$attrs" :disabled="disabled || loading" @click="$emit(\'click\')"><slot /></button>' },
-  VCheckbox: { props: ['disabled', 'label', 'modelValue'], emits: ['update:modelValue'], template: '<label><input type="checkbox" :aria-label="label" :checked="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.checked)" />{{ label }}</label>' },
-  VProgressLinear: { template: '<div role="progressbar" />' },
-  VSelect: { props: ['disabled', 'items', 'label', 'modelValue'], emits: ['update:modelValue'], template: '<select :aria-label="label" :disabled="disabled" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option value="" /><option v-for="item in items" :key="item.value" :value="item.value">{{ item.title }}</option></select>' },
-  VTab: { props: ['value'], emits: ['click'], template: '<button role="tab" :data-value="value" @click="$emit(\'click\')"><slot /></button>' },
-  VTabs: { props: ['modelValue'], emits: ['update:modelValue'], template: '<div role="tablist" @click="$emit(\'update:modelValue\', $event.target.dataset.value)"><slot /></div>' },
-}
-
-/** Mounts the user-group administration page with controlled component stubs. */
-function mountPage() {
-  return render(AdminUserGroupsPage, { global: { stubs } })
-}
-
-/** Creates a manually settled promise for mutation timing tests. */
-function deferred<T>() {
-  let resolve!: (value: T) => void
-  let reject!: (reason: unknown) => void
-  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
-    resolve = resolvePromise
-    reject = rejectPromise
-  })
-  return { promise, reject, resolve }
-}
-
-beforeEach(() => {
-  state.mutationPending = ref(false)
-  state.queryData = ref<unknown>(data)
-  state.queryError = ref(false)
-  state.queryPending = ref(false)
-  state.invalidateQueries.mockClear()
-  state.setQueryData.mockClear()
-  state.setQueryData.mockImplementation((_queryKey: unknown, updater: (current: UserGroupListResponse | undefined) => unknown) => {
-    updater(data)
-    updater(undefined)
-  })
-  state.refetch.mockReset()
-  state.refetch.mockResolvedValue(undefined)
-  vi.mocked(useMutation).mockClear()
-  vi.mocked(listUserGroups).mockReset()
-  vi.mocked(listUserGroups).mockResolvedValue(data)
-  vi.mocked(updateUserGroupPermissions).mockReset()
+it('retries a failed initial catalog read without writing', async () => {
+  view = mountGroupDefault(AdminUserGroupsPage, { overrides: { '/api/v1/admin/user-group/list': async () => { throw new Error('offline') } } })
+  await screen.findByText('userGroups.loadFailed')
+  delete view.overrides['/api/v1/admin/user-group/list']
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.retry' }))
+  await screen.findByRole('tab', { name: 'user' })
+  expect(view.writes).toEqual([])
 })
-
-describe('AdminUserGroupsPage', () => {
-  it('renders loading, read failure, and empty states', async () => {
-    state.queryPending.value = true
-    const loading = mountPage()
-    expect(screen.getByRole('progressbar')).toBeTruthy()
-    loading.unmount()
-
-    state.queryPending.value = false
-    state.queryError.value = true
-    state.queryData.value = undefined
-    const failed = mountPage()
-    expect(screen.getByText('userGroups.loadFailed')).toBeTruthy()
-    await fireEvent.click(screen.getByRole('button', { name: 'userGroups.retry' }))
-    expect(state.refetch).toHaveBeenCalledOnce()
-    failed.unmount()
-
-    state.queryError.value = false
-    state.queryData.value = { ...data, groups: [] }
-    const empty = mountPage()
-    expect(screen.getByText('userGroups.empty')).toBeTruthy()
-    empty.unmount()
-
-    state.queryData.value = undefined
-    mountPage()
-    expect(screen.getByText('userGroups.empty')).toBeTruthy()
-  })
-
-  it('renders three tabs and preserves independent drafts across group switches', async () => {
-    mountPage()
-    expect(screen.getAllByRole('tab')).toHaveLength(3)
-    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
-    await fireEvent.click(screen.getByLabelText('userGroups.permissions.short_link:create.label'))
-    await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
-    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
-    expect((screen.getByLabelText('userGroups.permissions.short_link:create.label') as HTMLInputElement).checked).toBe(true)
-  })
-
-  it('preserves a valid active group and falls back when that group disappears', async () => {
-    mountPage()
-    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
-    state.queryData.value = {
-      ...data,
-      groups: data.groups.map((group) => ({ ...group, updatedAt: `${group.key}-v2` })),
-    }
-    await nextTick()
-    expect(screen.getByTestId('user-group-summary').textContent).toContain('user')
-
-    state.queryData.value = {
-      ...data,
-      groups: data.groups.filter(({ key }) => key !== 'user'),
-    }
-    await nextTick()
-    expect(screen.getByTestId('user-group-summary').textContent).toContain('guest')
-  })
-
-  it('resets a dirty draft when its server version changes', async () => {
-    mountPage()
-    await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
-    await fireEvent.click(screen.getByLabelText('userGroups.permissions.short_link:create.label'))
-    state.queryData.value = {
-      ...data,
-      groups: data.groups.map((group) => group.key === 'admin'
-        ? { ...group, updatedAt: 'admin-v2' }
-        : group),
-    }
-    await nextTick()
-
-    expect((screen.getByLabelText('userGroups.permissions.short_link:create.label') as HTMLInputElement).checked).toBe(false)
-    expect((screen.getByRole('button', { name: 'userGroups.save' }) as HTMLButtonElement).disabled).toBe(true)
-  })
-
-  it('applies a preset locally, disables unchanged saves, and submits the complete draft', async () => {
-    vi.mocked(updateUserGroupPermissions).mockResolvedValue({ group: { ...data.groups[1], permissions: ['short_link:create'], updatedAt: 'user-v2' } })
-    mountPage()
-    expect(useMutation).toHaveBeenCalledWith(expect.objectContaining({ retry: false }))
-    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
-
-    expect((screen.getByRole('button', { name: 'userGroups.save' }) as HTMLButtonElement).disabled).toBe(true)
-    await fireEvent.update(screen.getByLabelText('userGroups.preset'), 'basic')
-    expect(updateUserGroupPermissions).not.toHaveBeenCalled()
-    await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
-
-    await waitFor(() => expect(updateUserGroupPermissions).toHaveBeenCalledWith({
-      groupKey: 'user', permissions: ['short_link:create'], expectedUpdatedAt: 'user-v1',
-    }))
-    await waitFor(() => expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['admin-user-groups'] }))
-    expect(state.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['auth', 'me'] })
-    expect(screen.getByText('userGroups.saveSuccess')).toBeTruthy()
-    expect((screen.getByRole('button', { name: 'userGroups.save' }) as HTMLButtonElement).disabled).toBe(true)
-
-    await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
-    expect(screen.queryByText('userGroups.saveSuccess')).toBeNull()
-  })
-
-  it('syncs a completed save without showing success on a newly active group', async () => {
-    const request = deferred<Awaited<ReturnType<typeof updateUserGroupPermissions>>>()
-    vi.mocked(updateUserGroupPermissions).mockReturnValue(request.promise)
-    mountPage()
-    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
-    await fireEvent.update(screen.getByLabelText('userGroups.preset'), 'restricted')
-    await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
-    await waitFor(() => expect(updateUserGroupPermissions).toHaveBeenCalledOnce())
-    await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
-
-    request.resolve({ group: { ...data.groups[1], permissions: [], updatedAt: 'user-v2' } })
-
-    await waitFor(() => expect(state.invalidateQueries).toHaveBeenCalledTimes(2))
-    expect(state.setQueryData).toHaveBeenCalledOnce()
-    expect(screen.queryByText('userGroups.saveSuccess')).toBeNull()
-    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
-    expect((screen.getByRole('button', { name: 'userGroups.save' }) as HTMLButtonElement).disabled).toBe(true)
-  })
-
-  it('refreshes a conflicting save without showing conflict on a newly active group', async () => {
-    const request = deferred<Awaited<ReturnType<typeof updateUserGroupPermissions>>>()
-    vi.mocked(updateUserGroupPermissions).mockReturnValue(request.promise)
-    mountPage()
-    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
-    await fireEvent.update(screen.getByLabelText('userGroups.preset'), 'restricted')
-    await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
-    await waitFor(() => expect(updateUserGroupPermissions).toHaveBeenCalledOnce())
-    await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
-
-    request.reject(new ApiClientError(USER_GROUP_PERMISSION_CONFLICT_CODE, 'Permission conflict'))
-
-    await waitFor(() => expect(state.refetch).toHaveBeenCalledOnce())
-    await waitFor(() => expect(state.mutationPending.value).toBe(false))
-    expect(screen.queryByText('userGroups.conflict')).toBeNull()
-    expect(screen.queryByText('userGroups.conflictReloadFailed')).toBeNull()
-  })
-
-  it('suppresses a failed save alert on a newly active group', async () => {
-    const request = deferred<Awaited<ReturnType<typeof updateUserGroupPermissions>>>()
-    vi.mocked(updateUserGroupPermissions).mockReturnValue(request.promise)
-    mountPage()
-    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
-    await fireEvent.update(screen.getByLabelText('userGroups.preset'), 'restricted')
-    await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
-    await waitFor(() => expect(updateUserGroupPermissions).toHaveBeenCalledOnce())
-    await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
-
-    request.reject(new Error('failed'))
-
-    await waitFor(() => expect(state.mutationPending.value).toBe(false))
-    expect(screen.queryByText('userGroups.saveFailed')).toBeNull()
-  })
-
-  it('locks controls while saving', async () => {
-    state.mutationPending.value = true
-    mountPage()
-    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
-    expect((screen.getByLabelText('userGroups.preset') as HTMLSelectElement).disabled).toBe(true)
-    expect(screen.getAllByRole('checkbox').every((checkbox) => (checkbox as HTMLInputElement).disabled)).toBe(true)
-  })
-
-  it('fails safely when a selected preset disappears during a catalog refresh', async () => {
-    mountPage()
-    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
-    const preset = screen.getByLabelText('userGroups.preset') as HTMLSelectElement
-    state.queryData.value = { ...data, presets: [] }
-    preset.value = 'basic'
-    preset.dispatchEvent(new Event('change', { bubbles: true }))
-    await nextTick()
-
-    expect(screen.getByText('userGroups.saveFailed')).toBeTruthy()
-    expect(updateUserGroupPermissions).not.toHaveBeenCalled()
-  })
-
-  it('fails safely when a permission definition disappears during a catalog refresh', async () => {
-    mountPage()
-    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
-    const checkbox = screen.getByLabelText('userGroups.permissions.short_link:create.label') as HTMLInputElement
-    state.queryData.value = { ...data, permissions: [] }
-    checkbox.checked = true
-    checkbox.dispatchEvent(new Event('change', { bubbles: true }))
-    await nextTick()
-
-    expect(screen.getByText('userGroups.saveFailed')).toBeTruthy()
-    expect(updateUserGroupPermissions).not.toHaveBeenCalled()
-  })
-
-  it('does not submit when an immutable group emits a stale save event', async () => {
-    mountPage()
-    const save = screen.getByRole('button', { name: 'userGroups.save' })
-    save.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    await nextTick()
-
-    expect(screen.getByText('userGroups.saveFailed')).toBeTruthy()
-    expect(updateUserGroupPermissions).not.toHaveBeenCalled()
-  })
-
-  it('reloads server-changed drafts without retrying the conflicting mutation', async () => {
-    vi.mocked(updateUserGroupPermissions).mockRejectedValue(new ApiClientError(USER_GROUP_PERMISSION_CONFLICT_CODE, 'Permission conflict'))
-    state.refetch.mockImplementation(async () => {
-      state.queryData.value = {
-        ...data,
-        groups: data.groups.map((group) => {
-          if (group.key === 'user') {
-            return { ...group, permissions: ['short_link:create'], updatedAt: 'user-v2' }
-          }
-          if (group.key === 'admin') {
-            return { ...group, updatedAt: 'admin-v2' }
-          }
-          return group
-        }),
-      }
-    })
-    mountPage()
-    await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
-    await fireEvent.click(screen.getByLabelText('userGroups.permissions.short_link:create.label'))
-    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
-    await fireEvent.update(screen.getByLabelText('userGroups.preset'), 'restricted')
-    await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
-
-    await waitFor(() => expect(screen.getByText('userGroups.conflict')).toBeTruthy())
-    expect(state.refetch).toHaveBeenCalledOnce()
-    expect(updateUserGroupPermissions).toHaveBeenCalledOnce()
-    expect((screen.getByLabelText('userGroups.permissions.short_link:create.label') as HTMLInputElement).checked).toBe(true)
-    expect((screen.getByLabelText('userGroups.preset') as HTMLSelectElement).value).toBe('')
-
-    await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
-    expect((screen.getByLabelText('userGroups.permissions.short_link:create.label') as HTMLInputElement).checked).toBe(true)
-    expect((screen.getByRole('button', { name: 'userGroups.save' }) as HTMLButtonElement).disabled).toBe(true)
-    expect(screen.getByText('userGroups.dataStale')).toBeTruthy()
-  })
-
-  it('keeps automatic synchronization suspended until overlapping conflict refreshes finish', async () => {
-    const firstRefresh = deferred<undefined>()
-    const secondRefresh = deferred<undefined>()
-    state.refetch
-      .mockImplementationOnce(() => firstRefresh.promise)
-      .mockImplementationOnce(() => secondRefresh.promise)
-    mountPage()
-    await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
-    await fireEvent.click(screen.getByLabelText('userGroups.permissions.short_link:create.label'))
-    const mutationOptions = vi.mocked(useMutation).mock.calls[0]?.[0] as unknown as {
-      onError: (error: unknown, input: { groupKey: 'user'; permissions: string[]; expectedUpdatedAt: string }) => Promise<void>
-    }
-    const input = { groupKey: 'user' as const, permissions: [], expectedUpdatedAt: 'user-v1' }
-    const conflict = new ApiClientError(USER_GROUP_PERMISSION_CONFLICT_CODE, 'Permission conflict')
-
-    const firstFlow = mutationOptions.onError(conflict, input)
-    const secondFlow = mutationOptions.onError(conflict, input)
-    await waitFor(() => expect(state.refetch).toHaveBeenCalledTimes(2))
-    state.queryData.value = {
-      ...data,
-      groups: data.groups.map((group) => group.key === 'user' ? { ...group, updatedAt: 'user-v2' } : group),
-    }
-    await nextTick()
-    firstRefresh.resolve(undefined)
-    await firstFlow
-
-    state.queryData.value = {
-      ...data,
-      groups: data.groups.map((group) => group.key === 'admin' ? { ...group, updatedAt: 'admin-v2' } : group),
-    }
-    await nextTick()
-    secondRefresh.resolve(undefined)
-    await secondFlow
-
-    expect((screen.getByLabelText('userGroups.permissions.short_link:create.label') as HTMLInputElement).checked).toBe(true)
-    expect(screen.getByText('userGroups.dataStale')).toBeTruthy()
-  })
-
-  it('shows a non-conflict save failure without refetching', async () => {
-    vi.mocked(updateUserGroupPermissions).mockRejectedValue(new Error('failed'))
-    mountPage()
-    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
-    await fireEvent.update(screen.getByLabelText('userGroups.preset'), 'restricted')
-    await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
-
-    await waitFor(() => expect(screen.getByText('userGroups.saveFailed')).toBeTruthy())
-    expect(state.refetch).not.toHaveBeenCalled()
-  })
-
-  it('falls back without showing conflict feedback when the refreshed target group is unavailable', async () => {
-    vi.mocked(updateUserGroupPermissions).mockRejectedValue(new ApiClientError(USER_GROUP_PERMISSION_CONFLICT_CODE, 'Permission conflict'))
-    state.refetch.mockImplementation(async () => {
-      state.queryData.value = { ...data, groups: data.groups.filter(({ key }) => key !== 'user') }
-    })
-    mountPage()
-    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
-    await fireEvent.update(screen.getByLabelText('userGroups.preset'), 'restricted')
-    await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
-
-    await waitFor(() => expect(screen.getByTestId('user-group-summary').textContent).toContain('guest'))
-    expect(screen.queryByText('userGroups.conflict')).toBeNull()
-    expect(updateUserGroupPermissions).toHaveBeenCalledOnce()
-  })
-
-  it('keeps conflict feedback when a successful refresh returns no catalog data', async () => {
-    vi.mocked(updateUserGroupPermissions).mockRejectedValue(new ApiClientError(USER_GROUP_PERMISSION_CONFLICT_CODE, 'Permission conflict'))
-    state.refetch.mockImplementation(async () => {
-      state.queryData.value = undefined
-    })
-    mountPage()
-    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
-    await fireEvent.update(screen.getByLabelText('userGroups.preset'), 'restricted')
-    await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
-
-    await waitFor(() => expect(screen.getByText('userGroups.conflict')).toBeTruthy())
-    expect(state.refetch).toHaveBeenCalledOnce()
-    expect(updateUserGroupPermissions).toHaveBeenCalledOnce()
-  })
-
-  it('keeps the stale conflict draft locked when reloading latest state fails', async () => {
-    vi.mocked(updateUserGroupPermissions).mockRejectedValue(new ApiClientError(USER_GROUP_PERMISSION_CONFLICT_CODE, 'Permission conflict'))
-    state.refetch.mockImplementation(() => {
-      queueMicrotask(() => {
-        state.queryData.value = {
-          ...data,
-          groups: data.groups.map((group) => group.key === 'admin'
-            ? { ...group, updatedAt: 'admin-v2' }
-            : group),
-        }
-      })
-      state.queryError.value = true
-      return Promise.reject(new Error('reload failed'))
-    })
-    mountPage()
-    await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
-    await fireEvent.click(screen.getByLabelText('userGroups.permissions.short_link:create.label'))
-    await fireEvent.click(screen.getByRole('tab', { name: 'User' }))
-    await fireEvent.update(screen.getByLabelText('userGroups.preset'), 'basic')
-    await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
-
-    await waitFor(() => expect(screen.getByText('userGroups.conflictReloadFailed')).toBeTruthy())
-    expect(state.refetch).toHaveBeenCalledWith({ throwOnError: true })
-    expect((screen.getByLabelText('userGroups.permissions.short_link:create.label') as HTMLInputElement).checked).toBe(true)
-    expect((screen.getByRole('button', { name: 'userGroups.save' }) as HTMLButtonElement).disabled).toBe(true)
-    expect(updateUserGroupPermissions).toHaveBeenCalledOnce()
-
-    await fireEvent.click(screen.getByRole('tab', { name: 'Admin' }))
-    expect((screen.getByLabelText('userGroups.permissions.short_link:create.label') as HTMLInputElement).checked).toBe(true)
-  })
+it('displays an actual empty catalog safely', async () => {
+  view = mountGroupDefault(AdminUserGroupsPage, { overrides: { '/api/v1/admin/user-group/list': async () => response({ groups: [], permissions: [], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user'], permissions: [] })) }) } })
+  await screen.findByText('userGroups.empty')
+  expect(screen.queryByRole('button', { name: 'userGroups.save' })).toBeNull()
+})
+it('keeps guest read-only in both editors', async () => {
+  view = mountGroupDefault(AdminUserGroupsPage)
+  await screen.findByTestId('group-default-editor')
+  expect(screen.getByRole('button', { name: 'userGroups.save' })).toHaveProperty('disabled', true)
+  expect(screen.queryByLabelText('groupDefault.domain')).toBeNull()
+  expect(view.writes).toEqual([])
+})
+it('retains the old permission-only management capability without domain:manage', async () => {
+  view = mountGroupDefault(AdminUserGroupsPage, { permissions: ['admin:access'] })
+  await editPermission()
+  expect(screen.queryByTestId('group-default-editor')).toBeNull()
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
+  await waitFor(() => expect(view.writes).toHaveLength(1))
+  expect(view.writes[0]).toEqual({ path: '/api/v1/admin/user-group/update-permissions', input: { groupKey: 'user', permissions: ['short_link:create'], expectedUpdatedAt: version } })
+  await screen.findByText('userGroups.saveSuccess')
+})
+it('does not read private group settings without management permission', async () => {
+  view = mountGroupDefault(AdminUserGroupsPage, { permissions: ['domain:manage'] })
+  await screen.findByText('groupDefault.accessDenied')
+  expect(view.requests).toEqual([])
+})
+it('saves complete permission drafts and aligns both editors to the new shared revision', async () => {
+  view = mountGroupDefault(AdminUserGroupsPage)
+  await editPermission()
+  expect(screen.getByLabelText('groupDefault.domain')).toHaveProperty('disabled', true)
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
+  await screen.findByText('userGroups.saveSuccess')
+  await waitFor(() => expect(view.client.isMutating()).toBe(0))
+  expect(screen.getByRole('button', { name: 'userGroups.save' })).toHaveProperty('disabled', true)
+  await fireEvent.update(screen.getByLabelText('groupDefault.domain'), groupId)
+  await fireEvent.click(screen.getByRole('button', { name: 'groupDefault.save' }))
+  await waitFor(() => expect(view.writes).toHaveLength(2))
+  expect(view.writes[1]?.input.expectedUpdatedAt).toBe(nextVersion)
+})
+it('applies catalog presets, preserves independent drafts and cancels only the selected one', async () => {
+  view = mountGroupDefault(AdminUserGroupsPage)
+  await selectUser()
+  await fireEvent.update(screen.getByLabelText('userGroups.preset'), 'basic')
+  expect(screen.getByLabelText('userGroups.permissions.short_link:create.label')).toHaveProperty('checked', true)
+  await fireEvent.click(screen.getByRole('tab', { name: 'admin' }))
+  await waitFor(() => expect(screen.getByLabelText('userGroups.preset')).toHaveProperty('disabled', false))
+  await fireEvent.click(screen.getByLabelText('userGroups.permissions.short_link:create.label'))
+  await fireEvent.click(screen.getByRole('tab', { name: 'user' }))
+  expect(screen.getByLabelText('userGroups.permissions.short_link:create.label')).toHaveProperty('checked', true)
+  await fireEvent.click(screen.getByRole('button', { name: 'groupDefault.cancelPermissions' }))
+  expect(screen.getByLabelText('userGroups.permissions.short_link:create.label')).toHaveProperty('checked', false)
+  expect(screen.getByLabelText('userGroups.preset')).toHaveProperty('value', '')
+  await fireEvent.click(screen.getByRole('tab', { name: 'admin' }))
+  expect(screen.getByLabelText('userGroups.permissions.short_link:create.label')).toHaveProperty('checked', true)
+})
+it('preserves a dirty permission snapshot when the server revision changes', async () => {
+  view = mountGroupDefault(AdminUserGroupsPage)
+  await editPermission()
+  view.groups.find(({ key }) => key === 'user')!.updatedAt = nextVersion
+  const key = view.client.getQueriesData({ queryKey: ['admin-user-groups'] })[0]![0]
+  view.client.setQueryData(key, view.catalog())
+  await screen.findAllByText('userGroups.dataStale')
+  expect(screen.getByLabelText('userGroups.permissions.short_link:create.label')).toHaveProperty('checked', true)
+  expect(screen.getByRole('button', { name: 'userGroups.save' })).toHaveProperty('disabled', true)
+  await fireEvent.click(screen.getByRole('button', { name: 'groupDefault.reloadPermissions' }))
+  await waitFor(() => expect(screen.getByLabelText('userGroups.preset')).toHaveProperty('disabled', false))
+  expect(screen.getByLabelText('userGroups.permissions.short_link:create.label')).toHaveProperty('checked', false)
+})
+it('cancels a preset draft in place without retaining its selected preset label', async () => {
+  view = mountGroupDefault(AdminUserGroupsPage)
+  await selectUser()
+  await fireEvent.update(screen.getByLabelText('userGroups.preset'), 'basic')
+  expect(screen.getByLabelText('userGroups.permissions.short_link:create.label')).toHaveProperty('checked', true)
+  await fireEvent.click(screen.getByRole('button', { name: 'groupDefault.cancelPermissions' }))
+  expect(screen.getByLabelText('userGroups.permissions.short_link:create.label')).toHaveProperty('checked', false)
+  expect(screen.getByLabelText('userGroups.preset')).toHaveProperty('value', '')
+})
+it('reloads a permission conflict once and never retries its rejected write', async () => {
+  view = mountGroupDefault(AdminUserGroupsPage, { overrides: { '/api/v1/admin/user-group/update-permissions': async () => response(null, 300202) } })
+  await editPermission()
+  view.groups.find(({ key }) => key === 'user')!.updatedAt = nextVersion
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
+  await screen.findByText('userGroups.conflict')
+  expect(screen.getByLabelText('userGroups.permissions.short_link:create.label')).toHaveProperty('checked', false)
+  expect(view.writes).toHaveLength(1)
+})
+it('keeps a failed conflict reload locked until explicit recovery', async () => {
+  view = mountGroupDefault(AdminUserGroupsPage, { overrides: { '/api/v1/admin/user-group/update-permissions': async () => response(null, 300202) } })
+  await editPermission()
+  view.overrides['/api/v1/auth/me'] = async () => { throw new Error('offline') }
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
+  await screen.findByText('userGroups.conflictReloadFailed')
+  expect(screen.getByLabelText('userGroups.permissions.short_link:create.label')).toHaveProperty('checked', true)
+  expect(screen.getByRole('button', { name: 'userGroups.save' })).toHaveProperty('disabled', true)
+})
+it('preserves a failed permission draft and requires rereading before another save', async () => {
+  view = mountGroupDefault(AdminUserGroupsPage, { overrides: { '/api/v1/admin/user-group/update-permissions': async () => response(null, 900000) } })
+  await editPermission()
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
+  await screen.findByText('userGroups.saveFailed')
+  expect(screen.getByLabelText('userGroups.permissions.short_link:create.label')).toHaveProperty('checked', true)
+  expect(screen.getByRole('button', { name: 'userGroups.save' })).toHaveProperty('disabled', true)
+  expect(view.writes).toHaveLength(1)
+})
+it('recovers a failed setting read by rereading both shared resources', async () => {
+  view = mountGroupDefault(AdminUserGroupsPage, { overrides: { '/api/v1/admin/user-group/domain-default?groupKey=user': async () => { throw new Error('offline') } } })
+  await fireEvent.click(await screen.findByRole('tab', { name: 'user' }))
+  await screen.findByText('groupDefault.loadFailed')
+  expect(screen.getByRole('button', { name: 'userGroups.save' })).toHaveProperty('disabled', true)
+  delete view.overrides['/api/v1/admin/user-group/domain-default?groupKey=user']
+  await fireEvent.click(screen.getByRole('button', { name: 'groupDefault.retry' }))
+  await waitFor(() => expect(screen.getByLabelText('groupDefault.domain')).toHaveProperty('disabled', false))
+})
+it('can clear an unavailable saved domain even when no candidates remain', async () => {
+  view = mountGroupDefault(AdminUserGroupsPage, { domains: [] })
+  view.values.user = groupId
+  await selectUser()
+  await screen.findByText('groupDefault.savedUnavailable')
+  await fireEvent.update(screen.getByLabelText('groupDefault.domain'), '')
+  await fireEvent.click(screen.getByRole('button', { name: 'groupDefault.save' }))
+  await waitFor(() => expect(view.writes[0]?.input.domainId).toBeNull())
+})
+it.each(['roundtrip', 'same-id', 'unmount'])('discards late permission outcomes after %s', async (kind) => {
+  const pending = createDeferred<Response>()
+  view = mountGroupDefault(AdminUserGroupsPage, { overrides: { '/api/v1/admin/user-group/update-permissions': () => pending.promise } })
+  await editPermission()
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
+  await waitFor(() => expect(view.writes).toHaveLength(1))
+  if (kind === 'unmount') view.unmount()
+  else {
+    if (kind === 'roundtrip') view.client.setQueryData(['auth', 'me'], { user: { ...view.user, id: 'B' } })
+    else revokeAccountIdentity(view.client)
+    view.client.setQueryData(['auth', 'me'], { user: view.user })
+  }
+  pending.resolve(response({ group: view.groups.find(({ key }) => key === 'user') }))
+  await waitFor(() => expect(view.client.isMutating()).toBe(0))
+  expect(screen.queryByText('userGroups.saveSuccess')).toBeNull()
+  expect(view.requests).not.toContain('/api/v1/auth/me')
+})
+it('does not publish a late management auth refresh over another account', async () => {
+  const pending = createDeferred<Response>()
+  view = mountGroupDefault(AdminUserGroupsPage)
+  await editPermission()
+  view.overrides['/api/v1/auth/me'] = () => pending.promise
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
+  await waitFor(() => expect(view.requests).toContain('/api/v1/auth/me'))
+  const other = { ...view.user, id: 'B', username: 'bob' }
+  view.client.setQueryData(['auth', 'me'], { user: other })
+  pending.resolve(response({ user: view.user }))
+  await waitFor(() => expect(view.client.isMutating()).toBe(0))
+  expect(view.client.getQueryData(['auth', 'me'])).toEqual({ user: other })
+  expect(screen.queryByText('userGroups.saveSuccess')).toBeNull()
+})
+it('stops both editors when refreshed current permissions revoke administration', async () => {
+  view = mountGroupDefault(AdminUserGroupsPage)
+  await editPermission()
+  view.overrides['/api/v1/auth/me'] = async () => response({ user: { ...view.user, permissions: [] } })
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
+  await screen.findByText('groupDefault.accessDenied')
+  await flushEventLoop()
+  expect(view.writes).toHaveLength(1)
+})
+it('refuses a setting snapshot whose shared revision differs from the group list', async () => {
+  view = mountGroupDefault(AdminUserGroupsPage)
+  await selectUser()
+  const key = view.client.getQueriesData({ queryKey: ['admin-user-group-domain-default'] }).find(([key]) => key[3] === 'user')![0]
+  const snapshot = view.management('user')
+  snapshot.setting.updatedAt = nextVersion
+  view.client.setQueryData(key, snapshot)
+  await nextTick()
+  expect(screen.getByRole('button', { name: 'userGroups.save' })).toHaveProperty('disabled', true)
+  expect(screen.getByLabelText('groupDefault.domain')).toHaveProperty('disabled', true)
 })

@@ -179,6 +179,9 @@ vi.mock('@tanstack/vue-query', async () => {
     }),
     useQuery: vi.fn((options?: { enabled?: unknown; queryFn?: (context: { queryKey: unknown }) => unknown; queryKey?: unknown }) => {
       const key = isRef(options?.queryKey) ? options.queryKey.value : options?.queryKey
+      if (Array.isArray(key) && key[0] === 'group-default-domain') {
+        return { data: ref({ domainId: null, status: 'not_set' }), isSuccess: ref(true), isError: ref(false), refetch: vi.fn() }
+      }
       if (Array.isArray(key) && key[0] === 'user' && key[1] === 'domain-preference') {
         return { data: ref({ domainId: null, updatedAt: null }), isSuccess: ref(true), isError: ref(false) }
       }
