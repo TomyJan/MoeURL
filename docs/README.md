@@ -1,5 +1,7 @@
 # MoeURL 文档中心
 
+下一轮 [v0.29.0 每域名默认跳转方式](product/scope-v0.29.0.md) 已完成[书面设计](specs/2026-10-28-v0.29.0-domain-default-redirect-mode-design.md)、一次 fresh builder check 及[实现计划](implementation/v0.29.0-plan.md)，按既定授权由 root 原生 TDD 推进。当前只有设计与旧轮状态同步，产品实现和运行门禁未开始；进度见[任务](implementation/v0.29.0-tasks.md)与[验收](implementation/v0.29.0-acceptance.md)。旧 API 省略 redirectMode 仍 direct，默认只用于新面板初选，不改已有短链。
+
 此前功能 [v0.25.0 操作审计 CSV](product/scope-v0.25.0.md) 已由 PR #222 合并，其旧合并 CI 的手机 E2E 失败保持历史归属。后继[维护 PR #223](https://github.com/TomyJan/MoeURL/pull/223) 已合并为 `cafacf15`，精确最终 head 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40415038034) 与新合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40421454231) 各 9 成功，实际 CodeRabbit 已覆盖最终变更，无有效未解决问题。恢复证据见[维护验收](implementation/2026-10-27-frontend-security-dependencies-acceptance.md)；尚未正式发布。
 
 v0.26.0 个人默认已由 PR #224 合并，逐候选证据见[验收](implementation/v0.26.0-acceptance.md)。[v0.27.0 域名排序](product/scope-v0.27.0.md) 已通过 [PR #225](https://github.com/TomyJan/MoeURL/pull/225) 合并为 `8c024b5035226285ea76571c8b6a50ceb2d19440`，最终 `64751e5` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40486914108) 与合并 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40493457478) 各 9 成功，真实 CodeRabbit 覆盖最终且有效意见闭环，尚未发布；原始候选／制品和失败仍按[验收](implementation/v0.27.0-acceptance.md)独立归属。

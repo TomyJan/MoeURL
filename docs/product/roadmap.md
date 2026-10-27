@@ -1,5 +1,7 @@
 # 路线图
 
+[v0.29.0 每域名默认跳转方式](scope-v0.29.0.md) 已形成[设计](../specs/2026-10-28-v0.29.0-domain-default-redirect-mode-design.md)和[实施计划](../implementation/v0.29.0-plan.md)，一次 fresh builder check 无剩余重要问题；当前未实现。只做域名级模式配置和当前有权创建初选，不扩模板、DNS/TLS、个人／组跳转偏好或旧 API 省略语义。
+
 MoeURL 按「基础可用闭环 → 发布质量补强 → 产品体验精细化 → MVP 增强闭环 → 统计分析闭环 → 增强能力」逐步推进。
 
 截至 2026-10-28（Asia/Singapore），v0.26 个人默认、v0.27 域名排序与 [v0.28 用户组默认](scope-v0.28.0.md) 均已合并。PR #226 于 2026-10-27T21:21:01Z 合并为 `b1b1e4112ba92708becf59c875cff8bff109c3ec`，最终 `0280081` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40575287235) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40586040807) 各九成功，真实审查覆盖最终且有效意见闭环；完整历史见[验收](../implementation/v0.28.0-acceptance.md)。下一有界发现方向为每域名默认跳转方式，尚未实现，不改变旧 API 省略字段、已有短链或公开访问语义。旧手机 E2E 故障及恢复保留原归属，正式生产验收与发布独立记录。
