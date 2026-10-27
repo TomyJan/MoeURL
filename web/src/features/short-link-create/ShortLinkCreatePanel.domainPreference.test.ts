@@ -6,6 +6,9 @@ import { componentStubs } from '@/test/component-stubs'
 import { createDeferred } from '@/test/deferred'
 import { revokeAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 import { toast } from 'vue-sonner'
+import { createVuetify } from 'vuetify'
+import * as components from 'vuetify/components'
+import * as directives from 'vuetify/directives'
 
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 const globalId = '11111111-1111-4111-8111-111111111111'
@@ -13,7 +16,7 @@ const personalId = '22222222-2222-4222-8222-222222222222'
 const clients: QueryClient[] = []
 
 /** Mounts the real panel and query stack with HTTP as the only external boundary. */
-function mount(options: { preference?: () => Promise<unknown>; single?: boolean; empty?: boolean; assignedOnly?: boolean; create?: () => Promise<Response> } = {}) {
+function mount(options: { preference?: () => Promise<unknown>; single?: boolean; empty?: boolean; assignedOnly?: boolean; personalDefault?: boolean; realVuetify?: boolean; create?: () => Promise<Response> } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity, staleTime: Infinity } } })
   clients.push(client)
   const bodies: unknown[] = []
@@ -23,19 +26,73 @@ function mount(options: { preference?: () => Promise<unknown>; single?: boolean;
     let data: unknown
     if (url === '/api/v1/auth/me') data = { user }
     else if (url === '/api/v1/domain/available') data = { items: options.empty ? [] : [
-      ...options.assignedOnly ? [] : [{ id: globalId, host: 'global.example', displayName: 'Global', isDefault: true }],
-      ...options.single ? [] : [{ id: personalId, host: 'personal.example', displayName: 'Personal', isDefault: false }],
+      ...options.assignedOnly ? [] : [{ id: globalId, host: 'global.example', displayName: 'Global', isDefault: !options.personalDefault }],
+      ...options.single ? [] : [{ id: personalId, host: 'personal.example', displayName: 'Personal', isDefault: !!options.personalDefault }],
     ] }
     else if (url === '/api/v1/user/domain-preference') data = { preference: options.preference ? await options.preference() : { domainId: personalId, updatedAt: '2026-10-27T00:00:00.123456Z' } }
     else if (url === '/api/v1/short-link/create') { bodies.push(JSON.parse(init.body as string)); return options.create ? options.create() : new Response(JSON.stringify({ code: 200114, message: 'changed', data: null, meta: {} })) }
     else throw new Error(`Unexpected request ${url}`)
     return new Response(JSON.stringify({ code: 0, message: '', data, meta: {} }))
   }))
-  render(ShortLinkCreatePanel, { global: { stubs: componentStubs, plugins: [[VueQueryPlugin, { queryClient: client }]] } })
+  if (options.realVuetify) {
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() {} }))
+    vi.stubGlobal('visualViewport', Object.assign(new window.EventTarget(), { width: 1024, height: 768, offsetLeft: 0, offsetTop: 0, pageLeft: 0, pageTop: 0, scale: 1 }))
+  }
+  render(ShortLinkCreatePanel, { global: {
+    stubs: options.realVuetify ? { ShortLinkQrDialog: true } : componentStubs,
+    plugins: options.realVuetify ? [[VueQueryPlugin, { queryClient: client }], createVuetify({ components, directives })] : [[VueQueryPlugin, { queryClient: client }]],
+  } })
   return { client, bodies, user, options }
 }
 afterEach(() => { cleanup(); clients.splice(0).forEach((client) => client.clear()); vi.unstubAllGlobals() })
 describe('account domain selection through real queries', () => {
+  it('omits an explicitly selected domain after its current role becomes global', async () => {
+    const { client, bodies } = mount({ preference: async () => ({ domainId: null, updatedAt: null }) })
+    const select = await screen.findByLabelText('shortLinkCreate.domainLabel')
+    await waitFor(() => expect((screen.getByText('shortLinkCreate.submit') as HTMLButtonElement).disabled).toBe(false))
+    await fireEvent.update(select, personalId)
+    const key = client.getQueriesData({ queryKey: ['domain', 'available'] })[0]![0]
+    client.setQueryData(key, { items: [
+      { id: globalId, host: 'global.example', displayName: 'Global', isDefault: false },
+      { id: personalId, host: 'personal.example', displayName: 'Personal', isDefault: true },
+    ] })
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://target.example/docs')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    await waitFor(() => expect(bodies).toEqual([{ targetUrl: 'https://target.example/docs' }]))
+    expect((select as HTMLSelectElement).selectedOptions[0]?.textContent).toContain('Personal (personal.example)')
+  })
+  it.each(['click', 'keyboard'])('records direct confirmation of the displayed global option with real Vuetify via %s', async (method) => {
+    const pending = createDeferred<unknown>()
+    const { bodies } = mount({ realVuetify: true, preference: () => pending.promise })
+    const select = await screen.findByRole('combobox', { name: 'shortLinkCreate.domainLabel' })
+    await waitFor(() => expect((select as HTMLInputElement).value).toBe('Global (global.example)'))
+    await fireEvent.keyDown(select, { key: 'Enter' })
+    const option = await screen.findByRole('option', { name: 'Global (global.example)' })
+    if (method === 'click') await fireEvent.click(option)
+    else { option.focus(); await fireEvent.keyDown(option, { key: 'Enter' }) }
+    pending.resolve({ domainId: personalId, updatedAt: '2026-10-27T00:00:00Z' })
+    await waitFor(() => expect((screen.getByRole('button', { name: 'shortLinkCreate.submit' }) as HTMLButtonElement).disabled).toBe(false))
+    expect((select as HTMLInputElement).value).toBe('Global (global.example)')
+    await fireEvent.update(screen.getByRole('textbox', { name: 'shortLinkCreate.targetLabel' }), 'https://target.example/docs')
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkCreate.submit' }))
+    await waitFor(() => expect(bodies).toEqual([{ targetUrl: 'https://target.example/docs' }]))
+  })
+  it('recovers the new global role after 200114 without automatically retrying the creation', async () => {
+    const { bodies, options, client } = mount({ preference: async () => ({ domainId: null, updatedAt: null }) })
+    const select = await screen.findByLabelText('shortLinkCreate.domainLabel')
+    await waitFor(() => expect((screen.getByText('shortLinkCreate.submit') as HTMLButtonElement).disabled).toBe(false))
+    await fireEvent.update(select, personalId)
+    options.personalDefault = true
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://target.example/docs')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    await waitFor(() => expect((select as HTMLSelectElement).value).toBe(''))
+    await waitFor(() => expect(client.isFetching({ queryKey: ['domain', 'available'] })).toBe(0))
+    expect((select as HTMLSelectElement).selectedOptions[0]?.textContent).toContain('Personal (personal.example)')
+    expect(bodies).toEqual([{ targetUrl: 'https://target.example/docs', domainId: personalId }])
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    await waitFor(() => expect(bodies).toEqual([{ targetUrl: 'https://target.example/docs', domainId: personalId }, { targetUrl: 'https://target.example/docs' }]))
+  })
   it('uses the saved available domain in the selector and creation payload', async () => {
     const { bodies } = mount()
     await waitFor(() => expect((screen.getByLabelText('shortLinkCreate.domainLabel') as HTMLSelectElement).value).toBe(personalId))

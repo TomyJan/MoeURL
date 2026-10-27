@@ -38,7 +38,11 @@
           :label="t('shortLinkCreate.domainLabel')"
           :disabled="mutation.isPending.value || domainQuery.isError.value"
           variant="outlined"
-        />
+        >
+          <template #item="{ item, props: optionProps }">
+            <v-list-item v-bind="optionProps" @click="domainChoice = item.value" />
+          </template>
+        </v-select>
         <div v-if="domainQuery.isError.value && canCreateWithPermissions" role="alert">
           {{ t('shortLinkCreate.domainLoadFailed') }}
           <v-btn variant="text" @click="domainQuery.refetch()">{{ t('shortLinkCreate.retryDomains') }}</v-btn>
@@ -304,7 +308,8 @@ const fallbackDomainId = computed(() => {
 const domainChoice = computed({
   get: () => {
     if (selectedDomainId.value === '' && availableDomains.value.some((item) => item.isDefault)) return ''
-    if (availableDomains.value.some((item) => item.id === selectedDomainId.value)) return selectedDomainId.value!
+    const manual = availableDomains.value.find((item) => item.id === selectedDomainId.value)
+    if (manual) return manual.isDefault ? '' : manual.id
     const saved = availableDomains.value.find((item) => item.id === preference.query.data.value?.domainId)
     return saved ? (saved.isDefault ? '' : saved.id) : fallbackDomainId.value
   },
