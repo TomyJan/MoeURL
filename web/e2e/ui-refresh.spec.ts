@@ -19,6 +19,7 @@ async function mockWorkspace(page: Page, overrides: Record<string, unknown> = {}
     } },
     '/user/preferences': { preferences: { language: null, theme: null, updatedAt: null } },
     '/user/domain-preference': { preference: { domainId: null, updatedAt: null } },
+    '/domain/group-default': { selection: { domainId: null, status: 'not_set' } },
     '/short-link/overview': { totalLinkCount: 12345678, activeLinkCount: 0, visitCount: 0, todayVisitCount: 0 },
     '/short-link/list': { items: [] },
     '/domain/available': { items: [] },

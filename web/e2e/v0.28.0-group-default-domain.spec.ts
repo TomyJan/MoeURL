@@ -292,7 +292,8 @@ async function dismiss(page: Page) {
   const buttons = page.getByRole('button', { name: /^(关闭提示|Dismiss notification)$/ })
   while (await buttons.count()) {
     const count = await buttons.count()
-    await buttons.first().click()
+    // Keyboard activation does not wait for the toaster's moving exit animation.
+    await buttons.first().press('Enter')
     await expect.poll(() => buttons.count()).toBeLessThan(count)
   }
   await expect(buttons).toHaveCount(0)
