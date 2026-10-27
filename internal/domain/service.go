@@ -109,6 +109,9 @@ func (s *Service) Create(ctx context.Context, actor auth.CurrentUser, input Crea
 			return err
 		}
 		q := s.queries.WithTx(tx)
+		if err := authorizeDomainWriter(ctx, q, actor.ID); err != nil {
+			return err
+		}
 		if err := checkAuthorityConflict(ctx, q, host, uuid.Nil); err != nil {
 			return err
 		}
@@ -143,6 +146,9 @@ func (s *Service) Update(ctx context.Context, actor auth.CurrentUser, input Upda
 			return err
 		}
 		q := s.queries.WithTx(tx)
+		if err := authorizeDomainWriter(ctx, q, actor.ID); err != nil {
+			return err
+		}
 		current, err := q.GetManagedDomainForUpdate(ctx, pgUUID(id))
 		if err != nil {
 			return mapNotFound(err)
@@ -210,6 +216,9 @@ func (s *Service) SetDefault(ctx context.Context, actor auth.CurrentUser, input 
 			return err
 		}
 		q := s.queries.WithTx(tx)
+		if err := authorizeDomainWriter(ctx, q, actor.ID); err != nil {
+			return err
+		}
 		current, err := q.GetManagedDomainForUpdate(ctx, pgUUID(id))
 		if err != nil {
 			return mapNotFound(err)
@@ -270,6 +279,9 @@ func (s *Service) Delete(ctx context.Context, actor auth.CurrentUser, input Chan
 			return err
 		}
 		q := s.queries.WithTx(tx)
+		if err := authorizeDomainWriter(ctx, q, actor.ID); err != nil {
+			return err
+		}
 		current, err := q.GetManagedDomainForUpdate(ctx, pgUUID(id))
 		if err != nil {
 			return mapNotFound(err)

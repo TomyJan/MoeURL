@@ -26,12 +26,16 @@ type SetOrderInput struct {
 
 // domainOrderStore keeps reauthorization and the single-field write in one transaction.
 type domainOrderStore interface {
-	LockDomainOrderActor(context.Context, pgtype.UUID) (sqlc.LockDomainOrderActorRow, error)
-	LockDomainOrderGroup(context.Context, pgtype.UUID) ([]byte, error)
+	domainWriterStore
 	GetManagedDomainForUpdate(context.Context, pgtype.UUID) (sqlc.Domain, error)
 	ListDomainGrantKeys(context.Context, pgtype.UUID) ([]string, error)
 	DomainHasReferences(context.Context, pgtype.UUID) (bool, error)
 	SetDomainSortOrder(context.Context, sqlc.SetDomainSortOrderParams) (sqlc.Domain, error)
+}
+
+type domainWriterStore interface {
+	LockDomainOrderActor(context.Context, pgtype.UUID) (sqlc.LockDomainOrderActorRow, error)
+	LockDomainOrderGroup(context.Context, pgtype.UUID) ([]byte, error)
 }
 
 // SetOrder serializes a bounded, reauthorized priority change with all domain writes.
@@ -76,26 +80,8 @@ func validateSetOrderInput(input SetOrderInput) (uuid.UUID, time.Time, error) {
 
 // applyDomainOrder checks current identity before the target and never audits a no-op.
 func applyDomainOrder(ctx context.Context, q domainOrderStore, actorID, domainID pgtype.UUID, expected time.Time, order int32) (Domain, error) {
-	actor, err := q.LockDomainOrderActor(ctx, actorID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return Domain{}, ErrPermissionDenied
-	}
-	if err != nil {
+	if err := authorizeDomainWriter(ctx, q, uuid.UUID(actorID.Bytes).String()); err != nil {
 		return Domain{}, err
-	}
-	permissions, err := q.LockDomainOrderGroup(ctx, actor.GroupID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return Domain{}, ErrPermissionDenied
-	}
-	if err != nil {
-		return Domain{}, err
-	}
-	grants, err := permission.DecodeSnapshot(permissions)
-	if err != nil {
-		return Domain{}, err
-	}
-	if !grants.Has(permission.AdminAccess) || !grants.Has(permission.DomainManage) {
-		return Domain{}, ErrPermissionDenied
 	}
 	current, err := q.GetManagedDomainForUpdate(ctx, domainID)
 	if err != nil {
@@ -122,4 +108,35 @@ func applyDomainOrder(ctx context.Context, q domainOrderStore, actorID, domainID
 		}
 	}
 	return domainFromRow(current, groups, referenced), nil
+}
+
+// authorizeDomainWriter locks current identity and permissions after the domain
+// advisory lock, so queued writes cannot outlive a completed revocation.
+func authorizeDomainWriter(ctx context.Context, q domainWriterStore, actorID string) error {
+	id, err := uuid.Parse(actorID)
+	if err != nil || id == uuid.Nil || id.String() != actorID {
+		return ErrPermissionDenied
+	}
+	actor, err := q.LockDomainOrderActor(ctx, pgUUID(id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrPermissionDenied
+	}
+	if err != nil {
+		return err
+	}
+	permissions, err := q.LockDomainOrderGroup(ctx, actor.GroupID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrPermissionDenied
+	}
+	if err != nil {
+		return err
+	}
+	grants, err := permission.DecodeSnapshot(permissions)
+	if err != nil {
+		return err
+	}
+	if !grants.Has(permission.AdminAccess) || !grants.Has(permission.DomainManage) {
+		return ErrPermissionDenied
+	}
+	return nil
 }

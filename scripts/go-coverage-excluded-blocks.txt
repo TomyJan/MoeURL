@@ -50,12 +50,12 @@ github.com/TomyJan/MoeURL/internal/shortlink/service.go:878.16,880.3
 # Domain mutations acquire the same advisory lock immediately after beginning a transaction; forcing only the lock
 # statement to fail requires a connection or context race after the transaction has already started.
 github.com/TomyJan/MoeURL/internal/domain/service.go:108.51,110.4
-github.com/TomyJan/MoeURL/internal/domain/service.go:142.51,144.4
-github.com/TomyJan/MoeURL/internal/domain/service.go:209.51,211.4
-github.com/TomyJan/MoeURL/internal/domain/service.go:269.51,271.4
+github.com/TomyJan/MoeURL/internal/domain/service.go:145.51,147.4
+github.com/TomyJan/MoeURL/internal/domain/service.go:215.51,217.4
+github.com/TomyJan/MoeURL/internal/domain/service.go:278.51,280.4
 
 # The default host is a validated string, so encoding/json cannot fail while marshaling it.
-github.com/TomyJan/MoeURL/internal/domain/service.go:252.16,254.3
+github.com/TomyJan/MoeURL/internal/domain/service.go:261.16,263.3
 
 # Discovery validates the issuer URL before request construction, so net/http cannot reject the derived URL.
 github.com/TomyJan/MoeURL/internal/oidc/discovery.go:39.16,41.3

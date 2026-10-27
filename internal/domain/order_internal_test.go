@@ -63,8 +63,6 @@ func TestDomainOrderDatabaseFailures(t *testing.T) {
 	ctx := t.Context()
 	_, err := pool.Exec(ctx, `update user_group set permissions='["admin:access","domain:manage"]' where key='admin'`)
 	require.NoError(t, err)
-	_, err = pool.Exec(ctx, `insert into app_user(id,username,nickname,group_id,status,builtin,created_at,updated_at) select $1,'order-fault','Fault',id,'active',false,now(),now() from user_group where key='admin'`, actor.ID)
-	require.NoError(t, err)
 	actorID, _, err := validateSetOrderInput(SetOrderInput{ID: actor.ID, ExpectedUpdatedAt: input.ExpectedUpdatedAt})
 	require.NoError(t, err)
 	domainID, version, err := validateSetOrderInput(SetOrderInput{ID: input.ID, ExpectedUpdatedAt: input.ExpectedUpdatedAt})
