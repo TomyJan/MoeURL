@@ -166,6 +166,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.User = userService
 		deps.UserMembership = userService
 		deps.UserPreferences = user.NewPreferencesService(pool)
+		deps.UserDomainPreference = user.NewDomainPreferenceService(pool)
 		deps.UserGroup = usergroup.NewService(pool, permissionService)
 
 		if oidcConfigured {

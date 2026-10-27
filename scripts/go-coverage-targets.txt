@@ -11,6 +11,8 @@ github.com/TomyJan/MoeURL/internal/auth/session.go
 github.com/TomyJan/MoeURL/internal/domain/handler.go
 github.com/TomyJan/MoeURL/internal/domain/service.go
 github.com/TomyJan/MoeURL/internal/domain/validation.go
+github.com/TomyJan/MoeURL/internal/user/domain_preference_service.go
+github.com/TomyJan/MoeURL/internal/user/domain_preference_handler.go
 github.com/TomyJan/MoeURL/internal/event/event.go
 github.com/TomyJan/MoeURL/internal/event/recorder.go
 github.com/TomyJan/MoeURL/internal/http/health.go

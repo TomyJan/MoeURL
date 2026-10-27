@@ -46,6 +46,7 @@ type Dependencies struct {
 	User                   user.Port
 	UserMembership         user.GroupPort
 	UserPreferences        user.PreferencesPort
+	UserDomainPreference   user.DomainPreferencePort
 	UserGroup              usergroup.Port
 	OIDCProvider           oidc.ProviderPort
 	OIDCLogin              oidc.LoginPort
@@ -206,6 +207,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				preferencesHandler := user.NewPreferencesHandler(dependency.UserPreferences, logger)
 				businessAPI.Get("/user/preferences", preferencesHandler.Get)
 				businessAPI.Post("/user/preferences/update", preferencesHandler.Update)
+			}
+			if dependency.UserDomainPreference != nil {
+				preferenceHandler := user.NewDomainPreferenceHandler(dependency.UserDomainPreference, logger)
+				businessAPI.Get("/user/domain-preference", preferenceHandler.Get)
+				businessAPI.Post("/user/domain-preference/update", preferenceHandler.Update)
 			}
 			if dependency.UserGroup != nil {
 				userGroupHandler := usergroup.NewHandler(dependency.UserGroup, logger)
