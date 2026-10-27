@@ -17,6 +17,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// domainFixture persists the administrator needed by lock-time authorization;
+// tests that need a real ordinary account own that account's setup separately.
 func domainFixture(t *testing.T) (*domain.Service, *pgxpool.Pool, auth.CurrentUser, auth.CurrentUser) {
 	t.Helper()
 	pool := testdb.ProjectMigratedPool(t.Context(), t)
@@ -39,8 +41,13 @@ func domainFixture(t *testing.T) (*domain.Service, *pgxpool.Pool, auth.CurrentUs
 	`, defaultID, userID, adminID); err != nil {
 		t.Fatalf("prepare grants: %v", err)
 	}
+	admin := auth.CurrentUser{ID: uuid.NewString(), GroupKey: permission.GroupAdmin}
+	if _, err := pool.Exec(t.Context(), `insert into app_user(id,username,nickname,group_id,status,builtin,created_at,updated_at)
+		values($1,'domain-admin','Admin',$2,'active',false,now(),now())`, admin.ID, adminID); err != nil {
+		t.Fatalf("prepare persisted domain administrator: %v", err)
+	}
 	return domain.NewService(pool, permission.NewService()), pool,
-		auth.CurrentUser{ID: uuid.NewString(), GroupKey: permission.GroupAdmin},
+		admin,
 		auth.CurrentUser{ID: uuid.NewString(), GroupKey: permission.GroupUser}
 }
 

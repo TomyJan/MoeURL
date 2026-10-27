@@ -16,11 +16,11 @@ const personalId = '22222222-2222-4222-8222-222222222222'
 const clients: QueryClient[] = []
 
 /** Mounts the real panel and query stack with HTTP as the only external boundary. */
-function mount(options: { preference?: () => Promise<unknown>; single?: boolean; empty?: boolean; assignedOnly?: boolean; personalDefault?: boolean; realVuetify?: boolean; create?: () => Promise<Response> } = {}) {
+function mount(options: { preference?: () => Promise<unknown>; single?: boolean; empty?: boolean; assignedOnly?: boolean; personalDefault?: boolean; realVuetify?: boolean; custom?: boolean; create?: () => Promise<Response> } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity, staleTime: Infinity } } })
   clients.push(client)
   const bodies: unknown[] = []
-  const user = { id: 'A', username: 'alice', nickname: '', group: 'user', permissions: ['short_link:create', 'domain:use_default', 'domain:use_assigned'] }
+  const user = { id: 'A', username: 'alice', nickname: '', group: 'user', permissions: ['short_link:create', 'domain:use_default', 'domain:use_assigned', ...options.custom ? ['short_link:custom_slug'] : []] }
   client.setQueryData(['auth', 'me'], { user })
   vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit) => {
     let data: unknown
@@ -47,6 +47,37 @@ function mount(options: { preference?: () => Promise<unknown>; single?: boolean;
 }
 afterEach(() => { cleanup(); clients.splice(0).forEach((client) => client.clear()); vi.unstubAllGlobals() })
 describe('account domain selection through real queries', () => {
+  it.each(['manual', 'preference', 'fallback', 'global'])('keeps %s priority through a server-order refresh in selection, preview and actual creation', async (priority) => {
+    const thirdId = '33333333-3333-4333-8333-333333333333'
+    const expectedID = priority === 'fallback' ? thirdId : priority === 'global' ? '' : personalId
+    const expectedHost = priority === 'fallback' ? 'third.example' : priority === 'global' ? 'global.example' : 'personal.example'
+    const url = `https://${expectedHost}/order27`
+    const shortLink = { id: 'link', url, slug: 'order27', targetUrl: 'https://target.example/docs', title: '', tags: [], status: 'active', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null, expired: false, passwordEnabled: false, maxVisits: null, visitsUsed: 0, visitsRemaining: null, exhausted: false, createdAt: '2026-10-27T00:00:00Z' }
+    const { client, bodies } = mount({
+      assignedOnly: priority !== 'global', custom: true,
+      preference: async () => ({ domainId: priority === 'preference' ? personalId : null, updatedAt: null }),
+      create: async () => new Response(JSON.stringify({ code: 0, message: '', data: { shortLink }, meta: {} })),
+    })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'shortLinkCreate.submit' })).toHaveProperty('disabled', false))
+    const key = client.getQueriesData({ queryKey: ['domain', 'available'] })[0]![0]
+    const personal = { id: personalId, host: 'personal.example', displayName: 'Personal', isDefault: false }
+    const third = { id: thirdId, host: 'third.example', displayName: 'Third', isDefault: false }
+    const global = { id: globalId, host: 'global.example', displayName: 'Global', isDefault: true }
+    client.setQueryData(key, { items: priority === 'global' ? [global, personal, third] : [personal, third] })
+    const select = await screen.findByLabelText('shortLinkCreate.domainLabel')
+    if (priority === 'manual') await fireEvent.update(select, personalId)
+    // Emulate the authoritative available response after an administrator changed ordering.
+    client.setQueryData(key, { items: priority === 'global' ? [third, personal, global] : [third, personal] })
+    await waitFor(() => expect(select).toHaveProperty('value', expectedID))
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkCreate.advanced' }))
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.customSlug'), 'order27')
+    await waitFor(() => expect(screen.getByTestId('custom-slug-preview').textContent).toContain(url))
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://target.example/docs')
+    await fireEvent.click(screen.getByRole('button', { name: 'shortLinkCreate.submit' }))
+    await screen.findByTestId('short-link-create-result')
+    expect(screen.getByTestId('short-link-create-result').textContent).toContain(url)
+    expect(bodies).toEqual([{ targetUrl: 'https://target.example/docs', customSlug: 'order27', ...expectedID ? { domainId: expectedID } : {} }])
+  })
   it('omits an explicitly selected domain after its current role becomes global', async () => {
     const { client, bodies } = mount({ preference: async () => ({ domainId: null, updatedAt: null }) })
     const select = await screen.findByLabelText('shortLinkCreate.domainLabel')

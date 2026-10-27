@@ -24,6 +24,8 @@ func (r failingDomainPermissionResolver) Resolve(context.Context, string) (permi
 	return permission.Snapshot{}, r.err
 }
 
+// internalDomainFixture supplies persisted authorization and an exact default-domain
+// revision so injected SQL failures occur after genuine transaction checks.
 func internalDomainFixture(t *testing.T) (*Service, *pgxpool.Pool, auth.CurrentUser, ChangeInput) {
 	t.Helper()
 	ctx := t.Context()
@@ -32,7 +34,7 @@ func internalDomainFixture(t *testing.T) (*Service, *pgxpool.Pool, auth.CurrentU
 	if _, err := pool.Exec(ctx, `
 		insert into user_group (id, key, name, permissions, builtin, created_at, updated_at)
 		values ($1, 'user', 'User', '[]', true, now(), now()),
-		       ($2, 'admin', 'Admin', '[]', true, now(), now())
+		       ($2, 'admin', 'Admin', '["admin:access","domain:manage"]', true, now(), now())
 	`, userGroupID, adminGroupID); err != nil {
 		t.Fatalf("prepare internal domain groups: %v", err)
 	}
@@ -51,8 +53,13 @@ func internalDomainFixture(t *testing.T) (*Service, *pgxpool.Pool, auth.CurrentU
 	if err := pool.QueryRow(ctx, `select updated_at from domain where id = $1`, domainID).Scan(&updatedAt); err != nil {
 		t.Fatalf("load internal default version: %v", err)
 	}
+	admin := auth.CurrentUser{ID: uuid.NewString(), GroupKey: permission.GroupAdmin}
+	if _, err := pool.Exec(ctx, `insert into app_user(id,username,nickname,group_id,status,builtin,created_at,updated_at)
+		values($1,'internal-domain-admin','Admin',$2,'active',false,now(),now())`, admin.ID, adminGroupID); err != nil {
+		t.Fatalf("prepare persisted internal administrator: %v", err)
+	}
 	return NewService(pool, permission.NewService()), pool,
-		auth.CurrentUser{ID: uuid.NewString(), GroupKey: permission.GroupAdmin},
+		admin,
 		ChangeInput{ID: domainID.String(), ExpectedUpdatedAt: updatedAt.UTC().Format(time.RFC3339Nano)}
 }
 

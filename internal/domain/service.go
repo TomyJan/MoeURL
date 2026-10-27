@@ -55,7 +55,7 @@ func (s *Service) List(ctx context.Context, actor auth.CurrentUser) (ListResult,
 		}
 		result.Items = append(result.Items, Domain{
 			ID: uuid.UUID(row.ID.Bytes).String(), Host: row.Host, DisplayName: row.DisplayName,
-			Purpose: row.Purpose, Enabled: row.Enabled, IsDefault: row.IsDefault,
+			Purpose: row.Purpose, Enabled: row.Enabled, IsDefault: row.IsDefault, SortOrder: row.SortOrder,
 			AllowedGroups: grants, Referenced: row.Referenced, UpdatedAt: formatUpdatedAt(row.UpdatedAt),
 		})
 	}
@@ -109,6 +109,9 @@ func (s *Service) Create(ctx context.Context, actor auth.CurrentUser, input Crea
 			return err
 		}
 		q := s.queries.WithTx(tx)
+		if err := authorizeDomainWriter(ctx, q, actor.ID); err != nil {
+			return err
+		}
 		if err := checkAuthorityConflict(ctx, q, host, uuid.Nil); err != nil {
 			return err
 		}
@@ -143,6 +146,9 @@ func (s *Service) Update(ctx context.Context, actor auth.CurrentUser, input Upda
 			return err
 		}
 		q := s.queries.WithTx(tx)
+		if err := authorizeDomainWriter(ctx, q, actor.ID); err != nil {
+			return err
+		}
 		current, err := q.GetManagedDomainForUpdate(ctx, pgUUID(id))
 		if err != nil {
 			return mapNotFound(err)
@@ -210,6 +216,9 @@ func (s *Service) SetDefault(ctx context.Context, actor auth.CurrentUser, input 
 			return err
 		}
 		q := s.queries.WithTx(tx)
+		if err := authorizeDomainWriter(ctx, q, actor.ID); err != nil {
+			return err
+		}
 		current, err := q.GetManagedDomainForUpdate(ctx, pgUUID(id))
 		if err != nil {
 			return mapNotFound(err)
@@ -270,6 +279,9 @@ func (s *Service) Delete(ctx context.Context, actor auth.CurrentUser, input Chan
 			return err
 		}
 		q := s.queries.WithTx(tx)
+		if err := authorizeDomainWriter(ctx, q, actor.ID); err != nil {
+			return err
+		}
 		current, err := q.GetManagedDomainForUpdate(ctx, pgUUID(id))
 		if err != nil {
 			return mapNotFound(err)
@@ -421,7 +433,7 @@ func parseChange(id, updatedAt string) (uuid.UUID, time.Time, error) {
 // domainFromRow converts the persisted domain and related state into the API model.
 func domainFromRow(row sqlc.Domain, groups []string, referenced bool) Domain {
 	return Domain{ID: uuid.UUID(row.ID.Bytes).String(), Host: row.Host, DisplayName: row.DisplayName,
-		Purpose: row.Purpose, Enabled: row.Enabled, IsDefault: row.IsDefault,
+		Purpose: row.Purpose, Enabled: row.Enabled, IsDefault: row.IsDefault, SortOrder: row.SortOrder,
 		AllowedGroups: groups, Referenced: referenced, UpdatedAt: formatUpdatedAt(row.UpdatedAt)}
 }
 

@@ -12,7 +12,7 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 ## 长期核心目标
 
-本节描述 MoeURL 的完整目标形态。最近功能 [v0.25.0 操作审计导出](scope-v0.25.0.md) 已由 PR #222 合并为 `6933f94c`，最终 PR CI 与实际 CodeRabbit 通过。其合并后手机 E2E 失败已由[维护 PR #223](https://github.com/TomyJan/MoeURL/pull/223) 修复，新合并 `cafacf15` 的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40421454231) 实际 9 成功；旧失败保持历史归属，不等同正式发布。当前 [v0.26.0 个人默认域名](scope-v0.26.0.md) 本地实现与完整门禁已通过，唯一整审的两项 Important 已在单修复波闭环，远端集成待完成。具体能力见[开发进度与能力清单](development-status.md)，逐候选证据见[验收](../implementation/v0.25.0-acceptance.md)；生产化设计仍以 [v0.6.0 范围](scope-v0.6.0.md) 为准，远期能力不自动纳入当前版本。
+本节描述 MoeURL 的完整目标形态。v0.26.0 已通过 [PR #224](https://github.com/TomyJan/MoeURL/pull/224) 合并为 `60b36fec2d063785a8c97855d5a6d38a950c4ad3`，最终候选 `0305c016` 的 [PR CI #40438886293](https://github.com/TomyJan/MoeURL/actions/runs/40438886293) 与合并提交的 [master CI #40444537045](https://github.com/TomyJan/MoeURL/actions/runs/40444537045) 各 9 项成功，实际 CodeRabbit 首审及最终增量覆盖最新变更，全部有效意见已处理；尚未正式发布。当前 [v0.27.0 域名排序](scope-v0.27.0.md) 独立终审及集中修复后的完整本地门禁已通过，远端交付待完成；具体能力见[开发进度](development-status.md)，逐候选证据见[本版验收](../implementation/v0.26.0-acceptance.md)。前轮 v0.25.0 的合并手机 Toast 故障已由[维护 PR #223](../implementation/2026-10-27-frontend-security-dependencies-acceptance.md) 修复，旧失败保留原归属。生产化边界仍见 [v0.6.0 范围](scope-v0.6.0.md)。
 
 [v0.17.0 短链批量管理](scope-v0.17.0.md) 已合并当前列表多选、原子启停与软删除。包含后续依赖及 Go 安全修复的历史主分支候选 `c4928a85` 完整目标 CI 已通过；该结果属于历史记录，不代表当前主分支基线或当前 CI 结果，生产演练与正式发布仍待完成。不包含跨页全选、导入或归属转移。原分支与历史主分支候选的证据分开保留，见 [本版计划](../implementation/v0.17.0-plan.md) 和 [验收记录](../implementation/v0.17.0-acceptance.md)。
 
@@ -81,7 +81,7 @@ MoeURL 的核心控制逻辑是权限系统。
 
 ## 当前维护入口
 
-2026-10-27 更新：v0.25.0 已通过 PR #222 合并；合并后手机 Toast 失败与开发依赖公告已由[维护 PR #223](../implementation/2026-10-27-frontend-security-dependencies-acceptance.md) 闭环，最终 PR／新合并 CI 各 9 成功，真实审查覆盖最终 head。当前 v0.26.0 本地实现与完整门禁已通过，唯一整审的两项 Important 已在单修复波闭环，远端集成待完成。v0.24.0 的历史 PR／合并 CI 单独保留；尚未正式发布的状态不因功能合并改变。下段保留此前维护记录。
+2026-10-27 更新：v0.26.0 已通过 [PR #224](https://github.com/TomyJan/MoeURL/pull/224) 合并为 `60b36fec2d063785a8c97855d5a6d38a950c4ad3`，最终候选 `0305c016` 的 [PR CI #40438886293](https://github.com/TomyJan/MoeURL/actions/runs/40438886293) 与合并提交的 [master CI #40444537045](https://github.com/TomyJan/MoeURL/actions/runs/40444537045) 各 9 项成功，实际 CodeRabbit 首审及最终增量覆盖最新变更，全部有效意见已处理；尚未正式发布。当前新一轮域名排序独立终审及集中修复后的完整本地门禁已通过，远端交付待完成，尚未整版验收。v0.25.0 的历史失败及后继维护、v0.24.0 的 PR／合并 CI 均保留独立候选归属，不因本轮成功改写历史。
 
 2026-10-26 更新：[v0.19.0 用户组成员迁移](scope-v0.19.0.md) 已通过 PR #211 合并为 `c08b67b2`；[v0.20.0 单条归属转移](scope-v0.20.0.md) 已通过 PR #214 合并为 `2d23dcfd`；[v0.21.0 清单 CSV](scope-v0.21.0.md) 已通过 PR #216 合并为 `dfc9a5a1`。v0.22.0 批量归属转移已通过 PR #217 合并为 `ba2073cf`，最终修复候选 `7e41d438` 和实际合并提交 CI 各 9 项成功，尚未正式发布，具体提交及证据见[本版验收](../implementation/v0.22.0-acceptance.md)。本页旧版本状态与分支验证保留历史归属，合并不替代正式发布。
 
@@ -96,7 +96,7 @@ MoeURL 的核心控制逻辑是权限系统。
 - 站点名称、默认语言／主题、纯文本页脚和带登录入口保护的本地登录开关。
 - 中英双语、响应式浅深色界面、PWA 基础、统一 Toast 与标准列表，以及固定展示的构建版本署名。
 
-最近已合并的业务增量为 [v0.25.0 操作审计 CSV](scope-v0.25.0.md)，此前为 [v0.24.0 单链匿名记录 CSV](scope-v0.24.0.md)、[v0.23.0 批量标签整理](scope-v0.23.0.md)、[v0.22.0 批量归属转移](scope-v0.22.0.md)、[v0.21.0 短链清单 CSV](scope-v0.21.0.md)、[v0.20.0 归属转移](scope-v0.20.0.md)和[v0.19.0 成员迁移](scope-v0.19.0.md)。开发依赖与测试同步维护不另算业务版本；合并后失败仍跟进，不视为发布。
+最近已合并的业务增量为 [v0.26.0 个人默认域名](scope-v0.26.0.md)，此前为 [v0.25.0 操作审计 CSV](scope-v0.25.0.md)、[v0.24.0 单链匿名记录 CSV](scope-v0.24.0.md)、[v0.23.0 批量标签](scope-v0.23.0.md)、[v0.22.0 批量转移](scope-v0.22.0.md)、[v0.21.0 清单导出](scope-v0.21.0.md) 和 [v0.20.0 归属转移](scope-v0.20.0.md)。维护不另算业务版本，合并不视为正式发布。
 
 [v0.12.0 自定义短码](scope-v0.12.0.md) 已通过 PR #185 合并至 `master` 的 `17e1f766`，支持创建时指定地址，不加入改码、释放、复用或批量能力；原分支的本地验证和独立审查见 [验收清单](../implementation/v0.12.0-acceptance.md)，合并不等于正式发布。
 

@@ -10,6 +10,8 @@ github.com/TomyJan/MoeURL/internal/auth/service.go
 github.com/TomyJan/MoeURL/internal/auth/session.go
 github.com/TomyJan/MoeURL/internal/domain/handler.go
 github.com/TomyJan/MoeURL/internal/domain/service.go
+github.com/TomyJan/MoeURL/internal/domain/order_service.go
+github.com/TomyJan/MoeURL/internal/domain/order_handler.go
 github.com/TomyJan/MoeURL/internal/domain/validation.go
 github.com/TomyJan/MoeURL/internal/user/domain_preference_service.go
 github.com/TomyJan/MoeURL/internal/user/domain_preference_handler.go
