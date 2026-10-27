@@ -84,7 +84,7 @@ test('v0.8.0 lets an authorized member create a link served only on its assigned
     await page.getByRole('button', { name: /E2E secondary/ }).click()
     await page.getByRole('button', { name: '设为默认' }).click()
     await expect(page.getByText('域名设置已保存。')).toBeVisible()
-    expect((await listDomains(page)).find((item) => item.isDefault)?.id).toBe(secondary.id)
+    expect((await listDomains(page)).find((item) => item.isDefault)?.id).toBe(secondary!.id)
     expect((await memberPage.request.get('/api/v1/short-link/list?page=1&pageSize=100').then((response) => response.json()) as {
       data: { items: Array<{ id: string; url: string }> }
     }).data.items.find((item) => item.id === linkID)?.url).toBe(publishedURL)
