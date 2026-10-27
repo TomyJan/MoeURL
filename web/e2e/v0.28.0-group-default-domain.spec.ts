@@ -117,13 +117,19 @@ for (const width of [1280, 390]) {
       await expect(admin.getByRole('combobox', { name: groupLabel })).toHaveValue(option(global))
       await expect(admin.getByRole('combobox', { name: groupLabel })).toBeEnabled()
 
-      // An already-mounted creator refreshes from the new group setting on a genuine online event.
+      // The production visibility listener refreshes the mounted creator after an external save.
       await member.reload(); await expectChoice(member, global)
       await saveSetting(admin, 'user', groupDomain)
-      await reconnect(member)
+      await focusRefresh(member)
       await expectChoice(member, groupDomain)
       await create(member, groupDomain, groupDomain.id, links)
       await layout(member, info, `group-default-create-${width}`)
+      // Retain the distinct online recovery path as well as focus refresh.
+      await saveSetting(admin, 'user', global)
+      await reconnect(member)
+      await expectChoice(member, global)
+      await create(member, global, null, links)
+      await saveSetting(admin, 'user', groupDomain)
 
       // Grant revocation and disabled domains mask the saved UUID and fall back without rewriting it.
       await updateDomain(admin.request, groupDomain.id, { allowedGroups: ['admin'] })
@@ -266,6 +272,17 @@ async function unavailable(page: Page, hiddenId: string) {
   await expect(page.getByText(/^(用户组默认域名当前不可用|The group default domain is unavailable)/)).toBeVisible()
   await expect(page.locator('body')).not.toContainText(hiddenId)
 }
+/** Delivers a visibility notification to the production focus listener and observes both real reads. */
+async function focusRefresh(page: Page) {
+  const reads = ['/domain/group-default', '/domain/available'].map((path) => page.waitForResponse((response) => new URL(response.url()).pathname === `/api/v1${path}` && response.request().method() === 'GET'))
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
+  for (const result of await Promise.all(reads)) {
+    expect(result.status()).toBe(200)
+    expect((await result.json()).code).toBe(0)
+    expect(result.headers()['cache-control']).toContain('no-store')
+  }
+}
+
 /** Refreshes the mounted creator's real queries through an online transition. */
 async function reconnect(page: Page) {
   await page.context().setOffline(true)

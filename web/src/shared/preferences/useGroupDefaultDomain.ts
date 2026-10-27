@@ -12,5 +12,6 @@ export function useGroupDefaultDomain() {
     enabled: computed(() => !!identity.scope.value.userId),
     retry: false,
     staleTime: 0,
+    refetchOnWindowFocus: true,
   })
 }

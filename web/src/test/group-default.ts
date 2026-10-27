@@ -36,8 +36,8 @@ const managementStubs = {
 export function response(data: unknown, code = 0) { return new Response(JSON.stringify({ code, message: '', data, meta: {} })) }
 
 /** Mounts real parents, editors and queries; controlled HTTP is the only business boundary. */
-export function mountGroupDefault(component: Component, options: { real?: boolean; permissions?: string[]; overrides?: Record<string, () => Promise<Response>>; personal?: string | null; selection?: { domainId: string | null; status: string }; domains?: typeof domains } = {}) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity, staleTime: Infinity } } })
+export function mountGroupDefault(component: Component, options: { client?: QueryClient; real?: boolean; permissions?: string[]; overrides?: Record<string, () => Promise<Response>>; personal?: string | null; selection?: { domainId: string | null; status: string }; domains?: typeof domains } = {}) {
+  const client = options.client ?? new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity, staleTime: Infinity } } })
   const user = { id: 'A', username: 'alice', nickname: '', group: 'admin', permissions: options.permissions ?? ['short_link:create', 'domain:use_default', 'domain:use_assigned', 'admin:access', 'domain:manage'] }
   client.setQueryData(['auth', 'me'], { user })
   const groups = (['guest', 'user', 'admin'] as const).map((key) => ({ key, name: key, description: '', builtin: true, editable: key !== 'guest', permissions: [] as string[], updatedAt: version }))
