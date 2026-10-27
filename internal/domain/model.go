@@ -20,6 +20,7 @@ type Domain struct {
 	Purpose       string   `json:"purpose"`
 	Enabled       bool     `json:"enabled"`
 	IsDefault     bool     `json:"isDefault"`
+	SortOrder     int32    `json:"sortOrder"`
 	AllowedGroups []string `json:"allowedGroups"`
 	Referenced    bool     `json:"referenced"`
 	UpdatedAt     string   `json:"updatedAt"`

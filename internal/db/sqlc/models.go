@@ -48,6 +48,7 @@ type Domain struct {
 	IsDefault   bool               `json:"is_default"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	SortOrder   int32              `json:"sort_order"`
 }
 
 type DomainUserGroup struct {
