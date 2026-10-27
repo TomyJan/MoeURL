@@ -116,7 +116,7 @@ v0.3.0 新增 `short_link:set_password`：允许创建或编辑受密码保护�
 
 ### 域名权限
 
-v0.8.0 已实现 `domain:use_default`（省略域名选择）、可配置的 `domain:use_assigned`（显式选择）和受保护的 `domain:manage`。使用权限必须和 `domain_user_group` 中该域名对当前内置组的授权同时成立；`guest` 保持只读无创建能力。管理员管理接口还检查 `admin:access`。`basic` 预设保持默认域名使用权，`standard` 增加显式选择权；预设只生成权限草稿，不自动授予具体域名。v0.26.0 当前分支已实现有界的[个人默认域名](2026-10-27-v0.26.0-personal-default-domain-design.md)，不新增权限：有效非 guest 账号可读／清除本人偏好，保存指定 UUID 要求事务中当前数据库账号／主组的 `short_link:create`、域名对应使用权限及组 grant，不能信任旧 actor 组名。偏好只影响界面初始选择，旧创建接口授权契约不变；远端及发布状态见[验收](../implementation/v0.26.0-acceptance.md)。其他目标能力按独立范围推进。
+v0.8.0 已实现 `domain:use_default`（省略域名选择）、可配置的 `domain:use_assigned`（显式选择）和受保护的 `domain:manage`。使用权限必须和 `domain_user_group` 中该域名对当前内置组的授权同时成立；`guest` 保持只读无创建能力。管理员管理接口还检查 `admin:access`。`basic` 预设保持默认域名使用权，`standard` 增加显式选择权；预设只生成权限草稿，不自动授予具体域名。v0.26.0 已合并有界的[个人默认域名](2026-10-27-v0.26.0-personal-default-domain-design.md)，不新增权限：有效非 guest 账号可读／清除本人偏好，保存指定 UUID 要求事务中当前数据库账号／主组的 `short_link:create`、域名对应使用权限及组 grant，不能信任旧 actor 组名。偏好只影响界面初始选择，旧创建接口授权契约不变；逐候选验证与尚未正式发布状态见[验收](../implementation/v0.26.0-acceptance.md)。其他目标能力按独立范围推进。
 
 - 使用指定域名。
 - 设置个人默认域名。

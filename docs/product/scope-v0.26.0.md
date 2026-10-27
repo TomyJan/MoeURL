@@ -2,7 +2,7 @@
 
 ## 目标与状态
 
-当前已同名推送并创建 [PR #224](https://github.com/TomyJan/MoeURL/pull/224)，首个候选 `cfeb1f69` 的 [CI #40436589446](https://github.com/TomyJan/MoeURL/actions/runs/40436589446) 实际 9 项成功，实际 CodeRabbit 首审覆盖该候选；本次文档修订处理 3 项有效意见，最新修订 head 的 CI 与真实增量审查仍须另验，尚未合并或发布。本地提交前检查点（历史）为后端已完成（e3286dcd）、前端及完整本地门禁通过、唯一整审两项 Important 经单修复波闭环，当时尚未创建 PR。基线为维护 PR #223 合并提交 `cafacf1520e4ea59934af4c1339a56224c2fdcd0`，独立分支 `feat/v0.26.0-personal-default-domain`。上一轮合并 CI 保留独立候选归属，不替代本版验证；当前逐候选状态见[本版验收](../implementation/v0.26.0-acceptance.md)。
+v0.26.0 已通过 [PR #224](https://github.com/TomyJan/MoeURL/pull/224) 合并为 `60b36fec2d063785a8c97855d5a6d38a950c4ad3`，最终候选 `0305c016` 的 [PR CI #40438886293](https://github.com/TomyJan/MoeURL/actions/runs/40438886293) 与合并提交的 [master CI #40444537045](https://github.com/TomyJan/MoeURL/actions/runs/40444537045) 各 9 项成功，实际 CodeRabbit 首审及最终增量覆盖最新变更，全部有效意见已处理；尚未正式发布。本地独立审查的两项 Important 经单修复波闭环，远端首审三项文档意见在 `0305c016` 最小修复并原线程解决；配额恢复后真实增量完成，无有效未决。原起点 `cafacf15` 与各阶段制品保留独立归属，完整证据见[验收](../implementation/v0.26.0-acceptance.md)。
 
 在个人设置中明确保存一个当前可用的短链域名，之后在其他浏览器登录时，创建面板优先选择该域名，减少重复选择。该偏好只决定界面初始选择，不新增域名授权，不改变既有创建 API 省略 `domainId` 使用全局默认的语义。
 
@@ -23,4 +23,4 @@
 
 ## 设计入口
 
-明确接口、权限、兼容与异步规则见[设计](../specs/2026-10-27-v0.26.0-personal-default-domain-design.md)，工程切片见[计划](../implementation/v0.26.0-plan.md)、[任务](../implementation/v0.26.0-tasks.md)和[验收](../implementation/v0.26.0-acceptance.md)。设计检查、计划与后端本地验证已完成，前端及完整本地门禁已通过，唯一整审的两项 Important 已在单修复波闭环，远端集成待完成，验收清单保留未执行项。
+接口与边界见[设计](../specs/2026-10-27-v0.26.0-personal-default-domain-design.md)，切片见[计划](../implementation/v0.26.0-plan.md)、[任务](../implementation/v0.26.0-tasks.md)，本地、最终 PR、实际审查与合并 CI 均已闭环；正式生产验收未完成，见[验收](../implementation/v0.26.0-acceptance.md)。
