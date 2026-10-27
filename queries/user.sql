@@ -4,17 +4,17 @@ from app_user
 where username = $1 and deleted_at is null;
 
 -- name: GetUserGroupByKey :one
-select id, key, name, description, permissions, builtin, created_at, updated_at
+select id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
 from user_group
 where key = $1;
 
 -- name: GetUserGroupByID :one
-select id, key, name, description, permissions, builtin, created_at, updated_at
+select id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
 from user_group
 where id = $1;
 
 -- name: ListBuiltinUserGroups :many
-select id, key, name, description, permissions, builtin, created_at, updated_at
+select id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
 from user_group
 where builtin = true
 	and key in ('guest', 'user', 'admin')
@@ -32,12 +32,12 @@ where key = sqlc.arg(group_key)
 	and builtin = true
 	and key in ('user', 'admin')
 	and updated_at = sqlc.arg(expected_updated_at)
-returning id, key, name, description, permissions, builtin, created_at, updated_at;
+returning id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id;
 
 -- name: CreateUserGroup :one
 insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
 values ($1, $2, $3, $4, $5, $6, now(), now())
-returning id, key, name, description, permissions, builtin, created_at, updated_at;
+returning id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id;
 
 -- name: CreateAppUser :one
 insert into app_user (id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at)

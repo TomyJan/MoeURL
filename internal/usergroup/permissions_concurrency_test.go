@@ -124,6 +124,12 @@ func assertPermissionTargetUnchanged(t *testing.T, pool *pgxpool.Pool) {
 // waitForPermissionWriterLock observes an actual database wait instead of guessing with a delay.
 func waitForPermissionWriterLock(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 	t.Helper()
+	waitForConfigurationLockWaiters(t, ctx, pool, 1)
+}
+
+// waitForConfigurationLockWaiters observes both sides of a deliberately ordered transaction race.
+func waitForConfigurationLockWaiters(t *testing.T, ctx context.Context, pool *pgxpool.Pool, want int) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	ticker := time.NewTicker(10 * time.Millisecond)
@@ -132,7 +138,7 @@ func waitForPermissionWriterLock(t *testing.T, ctx context.Context, pool *pgxpoo
 		var count int
 		require.NoError(t, pool.QueryRow(ctx, `select count(*) from pg_stat_activity
 			where datname=current_database() and wait_event_type='Lock' and pid<>pg_backend_pid()`).Scan(&count))
-		if count > 0 {
+		if count >= want {
 			return
 		}
 		select {

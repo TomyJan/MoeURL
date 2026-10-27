@@ -1,6 +1,7 @@
 package usergroup
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"regexp"
@@ -46,7 +47,7 @@ func authorizeGroupWriter(ctx context.Context, q groupWriterStore, actorID pgtyp
 	if err != nil {
 		return sqlc.UserGroup{}, err
 	}
-	grants, err := permission.DecodeSnapshot(admin.Permissions)
+	grants, err := decodeGroupConfigurationPermissions(admin.Permissions)
 	if err != nil {
 		return sqlc.UserGroup{}, err
 	}
@@ -54,4 +55,13 @@ func authorizeGroupWriter(ctx context.Context, q groupWriterStore, actorID pgtyp
 		return sqlc.UserGroup{}, ErrPermissionDenied
 	}
 	return admin, nil
+}
+
+// decodeGroupConfigurationPermissions distinguishes a corrupt non-array from a deliberately empty grant list.
+func decodeGroupConfigurationPermissions(data []byte) (permission.Snapshot, error) {
+	value := bytes.TrimSpace(data)
+	if len(value) == 0 || value[0] != '[' {
+		return permission.Snapshot{}, errors.New("invalid stored group permission array")
+	}
+	return permission.DecodeSnapshot(data)
 }

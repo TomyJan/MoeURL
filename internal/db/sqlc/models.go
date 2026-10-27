@@ -230,14 +230,15 @@ type UserDomainPreference struct {
 }
 
 type UserGroup struct {
-	ID          pgtype.UUID        `json:"id"`
-	Key         string             `json:"key"`
-	Name        string             `json:"name"`
-	Description string             `json:"description"`
-	Permissions []byte             `json:"permissions"`
-	Builtin     bool               `json:"builtin"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	ID              pgtype.UUID        `json:"id"`
+	Key             string             `json:"key"`
+	Name            string             `json:"name"`
+	Description     string             `json:"description"`
+	Permissions     []byte             `json:"permissions"`
+	Builtin         bool               `json:"builtin"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	DefaultDomainID pgtype.UUID        `json:"default_domain_id"`
 }
 
 type UserPreference struct {

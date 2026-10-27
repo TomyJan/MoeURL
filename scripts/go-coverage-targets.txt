@@ -86,6 +86,8 @@ github.com/TomyJan/MoeURL/internal/user/group_handler.go
 github.com/TomyJan/MoeURL/internal/usergroup/handler.go
 github.com/TomyJan/MoeURL/internal/usergroup/service.go
 github.com/TomyJan/MoeURL/internal/usergroup/write_authorization.go
+github.com/TomyJan/MoeURL/internal/usergroup/domain_default_service.go
+github.com/TomyJan/MoeURL/internal/usergroup/domain_default_handler.go
 github.com/TomyJan/MoeURL/internal/db/audit.go
 github.com/TomyJan/MoeURL/internal/insights/audit.go
 github.com/TomyJan/MoeURL/internal/insights/audit_handler.go

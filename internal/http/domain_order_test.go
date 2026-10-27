@@ -20,8 +20,7 @@ import (
 // Catches an unprotected or missing route and a session identity lost between
 // Cookie middleware and the actual reauthorized, versioned database write.
 func TestRouterDomainOrderSessionBoundary(t *testing.T) {
-	// This is this package's only database test; terminate after its database/pool cleanups.
-	t.Cleanup(func() { require.NoError(t, testdb.ShutdownSharedDockerContainer()) })
+	// Package TestMain releases the shared PostgreSQL container after every database test.
 	pool := testdb.ProjectMigratedPool(t.Context(), t)
 	const adminID = "00000000-0000-0000-0000-000000002711"
 	const userID = "00000000-0000-0000-0000-000000002712"

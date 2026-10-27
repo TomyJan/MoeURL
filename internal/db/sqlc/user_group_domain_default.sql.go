@@ -11,8 +11,124 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearDeletedGroupDomainDefaults = `-- name: ClearDeletedGroupDomainDefaults :exec
+with admin_lock as materialized (
+    select id from user_group where builtin and key = 'admin' for update
+), targets as materialized (
+    select g.id from user_group g cross join admin_lock
+    where g.default_domain_id = $1
+    order by case when g.key = 'admin' then 0 else 1 end, g.id
+    for update of g
+)
+update user_group g
+set default_domain_id = null,
+    updated_at = greatest(clock_timestamp(), g.updated_at + interval '1 microsecond')
+where g.id in (select id from targets)
+`
+
+func (q *Queries) ClearDeletedGroupDomainDefaults(ctx context.Context, domainID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, clearDeletedGroupDomainDefaults, domainID)
+	return err
+}
+
+const getCurrentGroupDefaultDomain = `-- name: GetCurrentGroupDefaultDomain :one
+select g.permissions, g.default_domain_id, d.id as available_domain_id, d.is_default
+from app_user u join user_group g on g.id = u.group_id
+left join domain d on d.id = g.default_domain_id and d.enabled and d.purpose = 'short_link'
+  and exists(select 1 from domain_user_group dg where dg.domain_id = d.id and dg.user_group_id = g.id)
+where u.id = $1 and u.status = 'active' and u.deleted_at is null
+  and g.builtin and g.key in ('user', 'admin')
+`
+
+type GetCurrentGroupDefaultDomainRow struct {
+	Permissions       []byte      `json:"permissions"`
+	DefaultDomainID   pgtype.UUID `json:"default_domain_id"`
+	AvailableDomainID pgtype.UUID `json:"available_domain_id"`
+	IsDefault         pgtype.Bool `json:"is_default"`
+}
+
+func (q *Queries) GetCurrentGroupDefaultDomain(ctx context.Context, id pgtype.UUID) (GetCurrentGroupDefaultDomainRow, error) {
+	row := q.db.QueryRow(ctx, getCurrentGroupDefaultDomain, id)
+	var i GetCurrentGroupDefaultDomainRow
+	err := row.Scan(
+		&i.Permissions,
+		&i.DefaultDomainID,
+		&i.AvailableDomainID,
+		&i.IsDefault,
+	)
+	return i, err
+}
+
+const getGroupDefaultReadActor = `-- name: GetGroupDefaultReadActor :one
+select g.permissions
+from app_user u join user_group g on g.id = u.group_id
+where u.id = $1 and u.status = 'active' and u.deleted_at is null
+  and g.builtin and g.key = 'admin'
+`
+
+func (q *Queries) GetGroupDefaultReadActor(ctx context.Context, id pgtype.UUID) ([]byte, error) {
+	row := q.db.QueryRow(ctx, getGroupDefaultReadActor, id)
+	var permissions []byte
+	err := row.Scan(&permissions)
+	return permissions, err
+}
+
+const listGroupDefaultCandidates = `-- name: ListGroupDefaultCandidates :many
+select d.id, d.host, d.display_name, d.is_default
+from domain d join domain_user_group dg on dg.domain_id = d.id
+where dg.user_group_id = $1
+  and d.enabled and d.purpose = 'short_link' and $2::boolean
+  and ((d.is_default and $3::boolean)
+       or (not d.is_default and $4::boolean))
+order by d.is_default desc, d.sort_order, d.created_at, d.id
+`
+
+type ListGroupDefaultCandidatesParams struct {
+	GroupID     pgtype.UUID `json:"group_id"`
+	CanCreate   bool        `json:"can_create"`
+	CanDefault  bool        `json:"can_default"`
+	CanAssigned bool        `json:"can_assigned"`
+}
+
+type ListGroupDefaultCandidatesRow struct {
+	ID          pgtype.UUID `json:"id"`
+	Host        string      `json:"host"`
+	DisplayName string      `json:"display_name"`
+	IsDefault   bool        `json:"is_default"`
+}
+
+func (q *Queries) ListGroupDefaultCandidates(ctx context.Context, arg ListGroupDefaultCandidatesParams) ([]ListGroupDefaultCandidatesRow, error) {
+	rows, err := q.db.Query(ctx, listGroupDefaultCandidates,
+		arg.GroupID,
+		arg.CanCreate,
+		arg.CanDefault,
+		arg.CanAssigned,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListGroupDefaultCandidatesRow{}
+	for rows.Next() {
+		var i ListGroupDefaultCandidatesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Host,
+			&i.DisplayName,
+			&i.IsDefault,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockGroupDefaultAdmin = `-- name: LockGroupDefaultAdmin :one
-select id, key, name, description, permissions, builtin, created_at, updated_at
+select id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
 from user_group
 where id = $1 and builtin and key = 'admin'
 for update
@@ -30,12 +146,13 @@ func (q *Queries) LockGroupDefaultAdmin(ctx context.Context, id pgtype.UUID) (Us
 		&i.Builtin,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DefaultDomainID,
 	)
 	return i, err
 }
 
 const lockGroupDefaultTarget = `-- name: LockGroupDefaultTarget :one
-select id, key, name, description, permissions, builtin, created_at, updated_at
+select id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
 from user_group
 where key = $1 and builtin and key in ('user', 'admin')
 for update
@@ -53,6 +170,39 @@ func (q *Queries) LockGroupDefaultTarget(ctx context.Context, key string) (UserG
 		&i.Builtin,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DefaultDomainID,
+	)
+	return i, err
+}
+
+const setUserGroupDefaultDomain = `-- name: SetUserGroupDefaultDomain :one
+update user_group
+set default_domain_id = $1::uuid,
+    updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
+where key = $2 and builtin and key in ('user', 'admin')
+  and updated_at = $3
+returning id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
+`
+
+type SetUserGroupDefaultDomainParams struct {
+	DomainID          pgtype.UUID        `json:"domain_id"`
+	GroupKey          string             `json:"group_key"`
+	ExpectedUpdatedAt pgtype.Timestamptz `json:"expected_updated_at"`
+}
+
+func (q *Queries) SetUserGroupDefaultDomain(ctx context.Context, arg SetUserGroupDefaultDomainParams) (UserGroup, error) {
+	row := q.db.QueryRow(ctx, setUserGroupDefaultDomain, arg.DomainID, arg.GroupKey, arg.ExpectedUpdatedAt)
+	var i UserGroup
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Name,
+		&i.Description,
+		&i.Permissions,
+		&i.Builtin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DefaultDomainID,
 	)
 	return i, err
 }

@@ -49,6 +49,7 @@ type Dependencies struct {
 	UserPreferences        user.PreferencesPort
 	UserDomainPreference   user.DomainPreferencePort
 	UserGroup              usergroup.Port
+	UserGroupDomainDefault usergroup.DomainDefaultPort
 	OIDCProvider           oidc.ProviderPort
 	OIDCLogin              oidc.LoginPort
 	StaticDir              string
@@ -222,6 +223,12 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				userGroupHandler := usergroup.NewHandler(dependency.UserGroup, logger)
 				businessAPI.Get("/admin/user-group/list", userGroupHandler.List)
 				businessAPI.Post("/admin/user-group/update-permissions", userGroupHandler.UpdatePermissions)
+			}
+			if dependency.UserGroupDomainDefault != nil {
+				groupDefaultHandler := usergroup.NewDomainDefaultHandler(dependency.UserGroupDomainDefault, logger)
+				businessAPI.Get("/admin/user-group/domain-default", groupDefaultHandler.Get)
+				businessAPI.Post("/admin/user-group/set-domain-default", groupDefaultHandler.Set)
+				businessAPI.Get("/domain/group-default", groupDefaultHandler.GetCurrent)
 			}
 			if dependency.OIDCProvider != nil {
 				oidcHandler := oidc.NewHandler(dependency.OIDCProvider, dependency.OIDCLogin, dependency.SecureCookies, logger)

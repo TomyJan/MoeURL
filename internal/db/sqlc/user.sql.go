@@ -99,7 +99,7 @@ func (q *Queries) CreateAppUser(ctx context.Context, arg CreateAppUserParams) (A
 const createUserGroup = `-- name: CreateUserGroup :one
 insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
 values ($1, $2, $3, $4, $5, $6, now(), now())
-returning id, key, name, description, permissions, builtin, created_at, updated_at
+returning id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
 `
 
 type CreateUserGroupParams struct {
@@ -130,6 +130,7 @@ func (q *Queries) CreateUserGroup(ctx context.Context, arg CreateUserGroupParams
 		&i.Builtin,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DefaultDomainID,
 	)
 	return i, err
 }
@@ -178,7 +179,7 @@ func (q *Queries) GetAppUserMetaByID(ctx context.Context, id pgtype.UUID) (GetAp
 }
 
 const getGroupChangeGroup = `-- name: GetGroupChangeGroup :one
-select id, key, name, description, permissions, builtin, created_at, updated_at from user_group where key = $1 for share
+select id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id from user_group where key = $1 for share
 `
 
 func (q *Queries) GetGroupChangeGroup(ctx context.Context, key string) (UserGroup, error) {
@@ -193,6 +194,7 @@ func (q *Queries) GetGroupChangeGroup(ctx context.Context, key string) (UserGrou
 		&i.Builtin,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DefaultDomainID,
 	)
 	return i, err
 }
@@ -222,7 +224,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (AppUs
 }
 
 const getUserGroupByID = `-- name: GetUserGroupByID :one
-select id, key, name, description, permissions, builtin, created_at, updated_at
+select id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
 from user_group
 where id = $1
 `
@@ -239,12 +241,13 @@ func (q *Queries) GetUserGroupByID(ctx context.Context, id pgtype.UUID) (UserGro
 		&i.Builtin,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DefaultDomainID,
 	)
 	return i, err
 }
 
 const getUserGroupByKey = `-- name: GetUserGroupByKey :one
-select id, key, name, description, permissions, builtin, created_at, updated_at
+select id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
 from user_group
 where key = $1
 `
@@ -261,6 +264,7 @@ func (q *Queries) GetUserGroupByKey(ctx context.Context, key string) (UserGroup,
 		&i.Builtin,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DefaultDomainID,
 	)
 	return i, err
 }
@@ -327,7 +331,7 @@ func (q *Queries) ListAppUsers(ctx context.Context, arg ListAppUsersParams) ([]L
 }
 
 const listBuiltinUserGroups = `-- name: ListBuiltinUserGroups :many
-select id, key, name, description, permissions, builtin, created_at, updated_at
+select id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
 from user_group
 where builtin = true
 	and key in ('guest', 'user', 'admin')
@@ -356,6 +360,7 @@ func (q *Queries) ListBuiltinUserGroups(ctx context.Context) ([]UserGroup, error
 			&i.Builtin,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.DefaultDomainID,
 		); err != nil {
 			return nil, err
 		}
@@ -506,7 +511,7 @@ where key = $2
 	and builtin = true
 	and key in ('user', 'admin')
 	and updated_at = $3
-returning id, key, name, description, permissions, builtin, created_at, updated_at
+returning id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
 `
 
 type UpdateBuiltinUserGroupPermissionsParams struct {
@@ -527,6 +532,7 @@ func (q *Queries) UpdateBuiltinUserGroupPermissions(ctx context.Context, arg Upd
 		&i.Builtin,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DefaultDomainID,
 	)
 	return i, err
 }
