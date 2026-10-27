@@ -9,6 +9,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
+	"github.com/TomyJan/MoeURL/internal/domain"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -30,7 +31,7 @@ type Service struct {
 // groupQueries contains the SQLC operations needed by Service.
 type groupQueries interface {
 	ListBuiltinUserGroups(context.Context) ([]sqlc.UserGroup, error)
-	UpdateBuiltinUserGroupPermissions(context.Context, sqlc.UpdateBuiltinUserGroupPermissionsParams) (sqlc.UserGroup, error)
+	UpdateBuiltinUserGroupPermissions(context.Context, auth.CurrentUser, sqlc.UpdateBuiltinUserGroupPermissionsParams) (sqlc.UserGroup, error)
 	GetUserGroupByKey(context.Context, string) (sqlc.UserGroup, error)
 }
 
@@ -40,12 +41,41 @@ type transactionalGroupQueries struct {
 	pool *pgxpool.Pool
 }
 
-// UpdateBuiltinUserGroupPermissions binds the actor carried by the service before writing grants.
-func (q *transactionalGroupQueries) UpdateBuiltinUserGroupPermissions(ctx context.Context, input sqlc.UpdateBuiltinUserGroupPermissionsParams) (sqlc.UserGroup, error) {
+// UpdateBuiltinUserGroupPermissions reauthorizes a bounded permission write under shared configuration locks.
+func (q *transactionalGroupQueries) UpdateBuiltinUserGroupPermissions(ctx context.Context, actor auth.CurrentUser, input sqlc.UpdateBuiltinUserGroupPermissionsParams) (sqlc.UserGroup, error) {
+	actorID, err := groupWriterID(actor.ID)
+	if err != nil {
+		return sqlc.UserGroup{}, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	var row sqlc.UserGroup
-	err := appdb.WithTx(ctx, q.pool, func(tx pgx.Tx) error {
-		var err error
-		row, err = q.Queries.WithTx(tx).UpdateBuiltinUserGroupPermissions(ctx, input)
+	err = appdb.WithAuditTx(ctx, q.pool, actor.ID, func(tx pgx.Tx) error {
+		if err := domain.LockShortLinkCreation(ctx, tx); err != nil {
+			return err
+		}
+		queries := q.Queries.WithTx(tx)
+		current, err := authorizeGroupWriter(ctx, queries, actorID, false)
+		if err != nil {
+			return err
+		}
+		if input.GroupKey != permission.GroupAdmin {
+			current, err = queries.LockGroupDefaultTarget(ctx, input.GroupKey)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrUserGroupNotFound
+			}
+			if err != nil {
+				return err
+			}
+		}
+		if !current.UpdatedAt.Time.Equal(input.ExpectedUpdatedAt.Time) {
+			return ErrPermissionConflict
+		}
+		row, err = queries.UpdateBuiltinUserGroupPermissions(ctx, input)
+		if err != nil {
+			return err
+		}
+		_, err = userGroupFromRow(row)
 		return err
 	})
 	return row, err
@@ -109,7 +139,7 @@ func (s *Service) UpdatePermissions(ctx context.Context, actor auth.CurrentUser,
 		return UpdatePermissionsResult{}, ErrInvalidInput
 	}
 	expectedUpdatedAt, err := time.Parse(time.RFC3339Nano, input.ExpectedUpdatedAt)
-	if err != nil {
+	if err != nil || expectedUpdatedAt.IsZero() || !groupRevisionPattern.MatchString(input.ExpectedUpdatedAt) {
 		return UpdatePermissionsResult{}, ErrInvalidInput
 	}
 	if input.Permissions == nil {
@@ -127,7 +157,7 @@ func (s *Service) UpdatePermissions(ctx context.Context, actor auth.CurrentUser,
 		return UpdatePermissionsResult{}, err
 	}
 
-	row, err := s.queries.UpdateBuiltinUserGroupPermissions(appdb.WithAuditActor(ctx, actor.ID), sqlc.UpdateBuiltinUserGroupPermissionsParams{
+	row, err := s.queries.UpdateBuiltinUserGroupPermissions(ctx, actor, sqlc.UpdateBuiltinUserGroupPermissionsParams{
 		Permissions:       encoded,
 		GroupKey:          input.GroupKey,
 		ExpectedUpdatedAt: pgtype.Timestamptz{Time: expectedUpdatedAt.UTC(), Valid: true},

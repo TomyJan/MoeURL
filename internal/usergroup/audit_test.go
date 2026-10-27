@@ -27,6 +27,14 @@ func TestUserGroupAuditCommitAndRollback(t *testing.T) {
 	var at time.Time
 	require.NoError(t, pool.QueryRow(ctx, `select updated_at from user_group where key='user'`).Scan(&at))
 	actor := auth.CurrentUser{ID: uuid.NewString(), GroupKey: "admin"}
+	adminPermissions, err := json.Marshal(permission.AdminPermissions)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at)
+		values(gen_random_uuid(),'admin','Admin',$1,true,now(),now())`, adminPermissions)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `insert into app_user(id,username,nickname,group_id,status,builtin,created_at,updated_at)
+		select $1,'audit-admin','Admin',id,'active',false,now(),now() from user_group where key='admin'`, actor.ID)
+	require.NoError(t, err)
 	service := NewService(pool, permission.NewService())
 	input := UpdatePermissionsInput{GroupKey: "user", Permissions: []string{}, ExpectedUpdatedAt: at.Format(time.RFC3339Nano)}
 	_, err = pool.Exec(ctx, `alter table audit_log add constraint audit_failure check(false) not valid`)

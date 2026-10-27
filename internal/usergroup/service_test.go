@@ -38,7 +38,7 @@ func (f *fakeGroupQueries) ListBuiltinUserGroups(context.Context) ([]sqlc.UserGr
 }
 
 // UpdateBuiltinUserGroupPermissions records an update query and returns the configured result.
-func (f *fakeGroupQueries) UpdateBuiltinUserGroupPermissions(_ context.Context, input sqlc.UpdateBuiltinUserGroupPermissionsParams) (sqlc.UserGroup, error) {
+func (f *fakeGroupQueries) UpdateBuiltinUserGroupPermissions(_ context.Context, _ auth.CurrentUser, input sqlc.UpdateBuiltinUserGroupPermissionsParams) (sqlc.UserGroup, error) {
 	f.updateCalls++
 	f.updateInput = input
 	return f.updateResult, f.updateErr
