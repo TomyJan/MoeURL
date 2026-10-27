@@ -76,8 +76,8 @@ import { useGroupDefaultManagement } from '@/features/user-group-domain-default/
 const { t } = useI18n()
 const { identity, query, settingQuery, canManage, canManageDefault, activeGroupKey, activeGroup, displayedGroups, currentDefault, draft, stale, feedback, feedbackKind, feedbackRevision, refreshBroken, pending, groupReady, settingReady, defaultDirty, applyPreset, setPermission, savePermissions, selectDefault, saveDefault, cancelDefault, cancelPermissions, reload, changeGroup } = useGroupDefaultManagement()
 const feedbackKey = computed(() => (feedbackKind.value === 'default'
-  ? { success: 'groupDefault.saved', conflict: 'groupDefault.conflict', 'reload-error': 'groupDefault.reloadFailed', error: 'groupDefault.saveFailed' }
-  : { success: 'userGroups.saveSuccess', conflict: 'userGroups.conflict', 'reload-error': 'userGroups.conflictReloadFailed', error: 'userGroups.saveFailed' })[feedback.value as 'success' | 'conflict' | 'reload-error' | 'error'])
+  ? { success: 'groupDefault.saved', conflict: 'groupDefault.conflict', 'reload-error': 'groupDefault.reloadFailed', 'conflict-reload-error': 'groupDefault.reloadFailed', error: 'groupDefault.saveFailed' }
+  : { success: 'userGroups.saveSuccess', conflict: 'userGroups.conflict', 'reload-error': 'groupDefault.reloadFailed', 'conflict-reload-error': 'userGroups.conflictReloadFailed', error: 'userGroups.saveFailed' })[feedback.value as 'success' | 'conflict' | 'reload-error' | 'conflict-reload-error' | 'error'])
 </script>
 
 <style scoped>

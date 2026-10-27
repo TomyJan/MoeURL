@@ -63,6 +63,7 @@ for (const width of [1280, 390]) {
       await expect(admin.getByTestId('group-default-editor').getByRole('combobox')).toHaveCount(0)
       await selectGroup(admin, 'user')
       await saveSetting(admin, 'user', groupDomain)
+      await permissionReloadFailure(admin)
       await layout(admin, info, `group-default-management-${width}`)
       await member.goto('/')
       await expectChoice(member, groupDomain)
@@ -243,6 +244,23 @@ async function choose(page: Page, label: RegExp, title: string) {
   await page.getByRole('combobox', { name: label }).press('Enter')
   await page.getByRole('option', { name: title, exact: true }).click()
 }
+/** Verifies a failed permission read reports loading failure without inventing a rejected write. */
+async function permissionReloadFailure(page: Page) {
+  const before = await groups(page.request)
+  const path = '**/api/v1/admin/user-group/list'
+  await page.route(path, (route) => route.abort('failed'))
+  try {
+    await page.getByRole('button', { name: /^(重新加载权限配置|Reload permission configuration)$/ }).click()
+    await expect(page.getByText(/^(用户组配置加载失败|Could not load the group configuration)/)).toBeVisible()
+    await expect(page.getByText(/检测到权限冲突|permission conflict/i)).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /^(保存权限|Save permissions)$/ })).toBeDisabled()
+  } finally { await page.unroute(path) }
+  expect(await groups(page.request)).toEqual(before)
+  await page.getByRole('button', { name: /^(重新加载权限配置|Reload permission configuration)$/ }).click()
+  await expect(page.getByRole('combobox', { name: groupLabel })).toBeEnabled()
+  await dismiss(page)
+}
+
 /** Verifies an actual page save carries the target and exact shared revision. */
 async function saveSetting(page: Page, key: 'user' | 'admin', domain: ManagedDomain) {
   const before = await setting(page.request, key)

@@ -154,7 +154,7 @@ export function useGroupDefaultManagement() {
       if (error instanceof ApiClientError && error.code === 300202) {
         stale.add(write.key)
         if (write.kind === 'permission') await reload(write.key, write.scope)
-        if (current(write.scope) && !refreshBroken.value) feedback.value = 'conflict'
+        if (current(write.scope)) feedback.value = refreshBroken.value ? 'conflict-reload-error' : 'conflict'
       } else { refreshBroken.value = true; feedback.value = 'error' }
     },
   })
