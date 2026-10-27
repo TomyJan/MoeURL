@@ -31,6 +31,7 @@ func orderFixture(t *testing.T) (*domain.Service, *pgxpool.Pool, auth.CurrentUse
 	return s, pool, admin, user, created
 }
 
+// orderInput varies only priority and preserves the database revision's complete precision.
 func orderInput(d domain.Domain, order int32) domain.SetOrderInput {
 	return domain.SetOrderInput{ID: d.ID, SortOrder: order, ExpectedUpdatedAt: d.UpdatedAt}
 }

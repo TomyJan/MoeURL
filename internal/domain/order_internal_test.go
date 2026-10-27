@@ -20,36 +20,47 @@ type orderFaultStore struct {
 	failure error
 }
 
+// LockDomainOrderActor isolates an identity-read fault while other stages retain real SQL.
 func (s orderFaultStore) LockDomainOrderActor(ctx context.Context, id pgtype.UUID) (sqlc.LockDomainOrderActorRow, error) {
 	if s.stage == "actor" {
 		return sqlc.LockDomainOrderActorRow{}, s.failure
 	}
 	return s.domainOrderStore.LockDomainOrderActor(ctx, id)
 }
+
+// LockDomainOrderGroup distinguishes a failed current-permission read from a denied grant.
 func (s orderFaultStore) LockDomainOrderGroup(ctx context.Context, id pgtype.UUID) ([]byte, error) {
 	if s.stage == "group" {
 		return nil, s.failure
 	}
 	return s.domainOrderStore.LockDomainOrderGroup(ctx, id)
 }
+
+// GetManagedDomainForUpdate checks target-read error mapping after real authorization.
 func (s orderFaultStore) GetManagedDomainForUpdate(ctx context.Context, id pgtype.UUID) (sqlc.Domain, error) {
 	if s.stage == "target" {
 		return sqlc.Domain{}, s.failure
 	}
 	return s.domainOrderStore.GetManagedDomainForUpdate(ctx, id)
 }
+
+// ListDomainGrantKeys prevents a failed grant projection from becoming a successful partial result.
 func (s orderFaultStore) ListDomainGrantKeys(ctx context.Context, id pgtype.UUID) ([]string, error) {
 	if s.stage == "grants" {
 		return nil, s.failure
 	}
 	return s.domainOrderStore.ListDomainGrantKeys(ctx, id)
 }
+
+// DomainHasReferences keeps reference-query failures observable instead of defaulting to false.
 func (s orderFaultStore) DomainHasReferences(ctx context.Context, id pgtype.UUID) (bool, error) {
 	if s.stage == "references" {
 		return false, s.failure
 	}
 	return s.domainOrderStore.DomainHasReferences(ctx, id)
 }
+
+// SetDomainSortOrder fails before the write so error and conflict paths can prove no persisted change.
 func (s orderFaultStore) SetDomainSortOrder(ctx context.Context, arg sqlc.SetDomainSortOrderParams) (sqlc.Domain, error) {
 	if s.stage == "write" {
 		return sqlc.Domain{}, s.failure

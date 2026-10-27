@@ -24,6 +24,8 @@ func (r failingDomainPermissionResolver) Resolve(context.Context, string) (permi
 	return permission.Snapshot{}, r.err
 }
 
+// internalDomainFixture supplies persisted authorization and an exact default-domain
+// revision so injected SQL failures occur after genuine transaction checks.
 func internalDomainFixture(t *testing.T) (*Service, *pgxpool.Pool, auth.CurrentUser, ChangeInput) {
 	t.Helper()
 	ctx := t.Context()

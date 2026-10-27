@@ -19,6 +19,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// orderHTTP preserves the real identity middleware and HTTP decoder so malformed
+// requests cannot reach a service through a test-only shortcut.
 func orderHTTP(t *testing.T, h *domain.OrderHandler, actor auth.CurrentUser, media, payload string) *httptest.ResponseRecorder {
 	t.Helper()
 	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/admin/domain/set-order", strings.NewReader(payload))
@@ -133,6 +135,8 @@ func TestDomainOrderHandlerStrictContract(t *testing.T) {
 
 type orderFailurePort struct{ failure error }
 
+// SetOrder supplies an infrastructure failure at the service boundary to verify
+// that the HTTP response and logs do not expose its private database details.
 func (p orderFailurePort) SetOrder(context.Context, auth.CurrentUser, domain.SetOrderInput) (domain.Domain, error) {
 	return domain.Domain{}, p.failure
 }
