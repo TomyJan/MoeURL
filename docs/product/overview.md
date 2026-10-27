@@ -12,7 +12,7 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 ## 长期核心目标
 
-本节描述 MoeURL 的完整目标形态。最近功能 [v0.25.0 操作审计导出](scope-v0.25.0.md) 已由 PR #222 合并为 `6933f94c`，最终 PR CI 与实际 CodeRabbit 通过。其合并后手机 E2E 失败已由[维护 PR #223](https://github.com/TomyJan/MoeURL/pull/223) 修复，新合并 `cafacf15` 的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40421454231) 实际 9 成功；旧失败保持历史归属，不等同正式发布。当前 [v0.26.0 个人默认域名](scope-v0.26.0.md) 后端已完成本地验证，前端尚未开始。具体能力见[开发进度与能力清单](development-status.md)，逐候选证据见[验收](../implementation/v0.25.0-acceptance.md)；生产化设计仍以 [v0.6.0 范围](scope-v0.6.0.md) 为准，远期能力不自动纳入当前版本。
+本节描述 MoeURL 的完整目标形态。最近功能 [v0.25.0 操作审计导出](scope-v0.25.0.md) 已由 PR #222 合并为 `6933f94c`，最终 PR CI 与实际 CodeRabbit 通过。其合并后手机 E2E 失败已由[维护 PR #223](https://github.com/TomyJan/MoeURL/pull/223) 修复，新合并 `cafacf15` 的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40421454231) 实际 9 成功；旧失败保持历史归属，不等同正式发布。当前 [v0.26.0 个人默认域名](scope-v0.26.0.md) 后端已完成本地验证，前端也已完成本地验证，真实浏览器与完整交付尚待验证。具体能力见[开发进度与能力清单](development-status.md)，逐候选证据见[验收](../implementation/v0.25.0-acceptance.md)；生产化设计仍以 [v0.6.0 范围](scope-v0.6.0.md) 为准，远期能力不自动纳入当前版本。
 
 [v0.17.0 短链批量管理](scope-v0.17.0.md) 已合并当前列表多选、原子启停与软删除。包含后续依赖及 Go 安全修复的历史主分支候选 `c4928a85` 完整目标 CI 已通过；该结果属于历史记录，不代表当前主分支基线或当前 CI 结果，生产演练与正式发布仍待完成。不包含跨页全选、导入或归属转移。原分支与历史主分支候选的证据分开保留，见 [本版计划](../implementation/v0.17.0-plan.md) 和 [验收记录](../implementation/v0.17.0-acceptance.md)。
 
@@ -81,7 +81,7 @@ MoeURL 的核心控制逻辑是权限系统。
 
 ## 当前维护入口
 
-2026-10-27 更新：v0.25.0 已通过 PR #222 合并；合并后手机 Toast 失败与开发依赖公告已由[维护 PR #223](../implementation/2026-10-27-frontend-security-dependencies-acceptance.md) 闭环，最终 PR／新合并 CI 各 9 成功，真实审查覆盖最终 head。当前 v0.26.0 后端已完成本地验证，前端尚未开始。v0.24.0 的历史 PR／合并 CI 单独保留；尚未正式发布的状态不因功能合并改变。下段保留此前维护记录。
+2026-10-27 更新：v0.25.0 已通过 PR #222 合并；合并后手机 Toast 失败与开发依赖公告已由[维护 PR #223](../implementation/2026-10-27-frontend-security-dependencies-acceptance.md) 闭环，最终 PR／新合并 CI 各 9 成功，真实审查覆盖最终 head。当前 v0.26.0 后端已完成本地验证，前端也已完成本地验证，真实浏览器与完整交付尚待验证。v0.24.0 的历史 PR／合并 CI 单独保留；尚未正式发布的状态不因功能合并改变。下段保留此前维护记录。
 
 2026-10-26 更新：[v0.19.0 用户组成员迁移](scope-v0.19.0.md) 已通过 PR #211 合并为 `c08b67b2`；[v0.20.0 单条归属转移](scope-v0.20.0.md) 已通过 PR #214 合并为 `2d23dcfd`；[v0.21.0 清单 CSV](scope-v0.21.0.md) 已通过 PR #216 合并为 `dfc9a5a1`。v0.22.0 批量归属转移已通过 PR #217 合并为 `ba2073cf`，最终修复候选 `7e41d438` 和实际合并提交 CI 各 9 项成功，尚未正式发布，具体提交及证据见[本版验收](../implementation/v0.22.0-acceptance.md)。本页旧版本状态与分支验证保留历史归属，合并不替代正式发布。
 
