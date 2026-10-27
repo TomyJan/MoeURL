@@ -41,6 +41,7 @@ async function verifyFeedback(locale: 'zh-CN' | 'en', mode: 'manual' | 'committe
   const authReadStarted = createDeferred<void>()
   const authResult = createDeferred<Response>()
   let offline = false
+  let listOwner = 'A'
   vi.stubGlobal('fetch', async (path: string, init: RequestInit) => {
     if (path === '/api/v1/auth/me') {
       if (mode === 'late-conflict') { authReadStarted.resolve(); return authResult.promise }
@@ -48,7 +49,7 @@ async function verifyFeedback(locale: 'zh-CN' | 'en', mode: 'manual' | 'committe
     }
     if (path === '/api/v1/admin/user-group/list') {
       if (offline) throw new Error('Read connection lost')
-      return response({ groups, permissions: [{ key: 'short_link:create', category: 'short_link_basic', protected: false }], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user', 'admin'], permissions: [] })) })
+      return response({ groups: groups.map((group) => ({ ...group, name: listOwner === 'B' ? `B-${group.name}` : group.name })), permissions: [{ key: 'short_link:create', category: 'short_link_basic', protected: false }], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user', 'admin'], permissions: [] })) })
     }
     if (path.startsWith('/api/v1/admin/user-group/domain-default?')) {
       const key = new URL(path, 'https://app.example').searchParams.get('groupKey')!
@@ -82,10 +83,15 @@ async function verifyFeedback(locale: 'zh-CN' | 'en', mode: 'manual' | 'committe
   if (mode === 'late-conflict') {
     await authReadStarted.promise
     const other = { ...user, id: 'B', username: 'other-admin' }
+    listOwner = 'B'
+    offline = false
     client.setQueryData(['auth', 'me'], { user: other })
+    await fireEvent.click(await screen.findByRole('tab', { name: 'B-user' }))
+    await waitFor(() => expect(screen.getByRole('checkbox')).toHaveProperty('disabled', false))
     authResult.resolve(response({ user }))
     await waitFor(() => expect(client.isMutating()).toBe(0))
     expect(client.getQueryData(['auth', 'me'])).toEqual({ user: other })
+    expect(screen.queryByText(i18n.global.t('userGroups.conflict'))).toBeNull()
     expect(screen.queryByText(i18n.global.t('userGroups.conflictReloadFailed'))).toBeNull()
     expect(screen.queryByText(i18n.global.t('groupDefault.reloadFailed'))).toBeNull()
     expect(writes).toEqual([{ groupKey: 'user', permissions: ['short_link:create'], expectedUpdatedAt: version }])
