@@ -607,7 +607,7 @@ export const messages = {
       noLoginProvider: '关闭本地登录前，必须保留至少一个可用的 OIDC 提供商。',
     },
     domainOrder: {
-      title: '域名排序', description: '数值越小越靠前；全局默认始终优先，同值保持创建顺序。', value: '排序值',
+      title: '域名排序', description: '数值越小越靠前；全局默认始终优先，同值按创建时间和 UUID 稳定排序。', value: '排序值',
       accessDenied: '当前权限不足，写入已暂停。请重新核查权限及域名后再操作。', reloadAccess: '重新核查权限',
       save: '保存排序', cancel: '取消排序编辑', reload: '重新加载排序', invalid: '请输入 -10000 至 10000 的十进制整数。',
       saved: '排序已保存。', conflict: '排序或域名详情已在其他位置更新，草稿已保留，请重新加载排序。', saveFailed: '排序保存失败，草稿已保留，请重试。',
@@ -1327,7 +1327,7 @@ export const messages = {
       noLoginProvider: 'Keep at least one usable OIDC provider before disabling local login.',
     },
     domainOrder: {
-      title: 'Domain order', description: 'Lower numbers come first. The global default stays first; ties keep creation order.', value: 'Order value',
+      title: 'Domain order', description: 'Lower numbers come first. The global default stays first; ties are stably ordered by creation time, then UUID.', value: 'Order value',
       accessDenied: 'Access was denied. Writes are paused until your permissions and domains are checked again.', reloadAccess: 'Recheck access',
       save: 'Save order', cancel: 'Cancel order edits', reload: 'Reload order', invalid: 'Enter a decimal integer from -10000 to 10000.',
       saved: 'Order saved.', conflict: 'This domain changed elsewhere. Your draft is preserved; reload the order.', saveFailed: 'Could not save the order. Your draft is preserved; please retry.',
