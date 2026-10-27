@@ -4,7 +4,7 @@
 
 ## 当前文档
 
-v0.28.0 用户组默认域名已完成分支实现与原本地完整门禁，唯一独立终审核出 1 项 Important、1 项 Minor，集中修复及受影响完整本地验证均已通过；PR #226 已创建，远端交付与正式发布未完成。四切片与逐候选证据见[计划](v0.28.0-plan.md)、[任务](v0.28.0-tasks.md)及[验收](v0.28.0-acceptance.md)。前轮 v0.27 已由 PR #225 合并为 8c024b5，最终 PR／合并 CI 各九成功、真实审查闭环，未发布；见[v0.27 验收](v0.27.0-acceptance.md)。 首候选 `7c84ba5` 的九项 CI 与真实 CodeRabbit 首审已完成，3 项 Minor 正在集中修复验证；后继精确候选门禁另验，见 [PR #226](https://github.com/TomyJan/MoeURL/pull/226)。
+v0.28.0 用户组默认域名已完成分支实现与原本地完整门禁，唯一独立终审核出 1 项 Important、1 项 Minor，集中修复及受影响完整本地验证均已通过；PR #226 已创建，远端交付与正式发布未完成。四切片与逐候选证据见[计划](v0.28.0-plan.md)、[任务](v0.28.0-tasks.md)及[验收](v0.28.0-acceptance.md)。前轮 v0.27 已由 PR #225 合并为 8c024b5，最终 PR／合并 CI 各九成功、真实审查闭环，未发布；见[v0.27 验收](v0.27.0-acceptance.md)。 首候选 `7c84ba5` 的九项 CI 与真实 CodeRabbit 首审已完成，3 项 Minor 已集中修复并通过受影响完整本地验证；后继精确候选门禁另验，见 [PR #226](https://github.com/TomyJan/MoeURL/pull/226)。
 
 v0.16.0 聚合统计 CSV 导出已在独立分支实现并通过本地可执行门禁，未合并、未发布。见 [范围](../product/scope-v0.16.0.md)、[设计](../specs/2026-10-16-v0.16.0-analytics-export-design.md)、[实施计划](v0.16.0-plan.md)、[任务清单](v0.16.0-tasks.md) 和 [验收记录](v0.16.0-acceptance.md)。功能、验证、合并和发布状态分别记录。
 
