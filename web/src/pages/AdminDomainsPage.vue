@@ -6,15 +6,19 @@
         <h1>{{ t('domains.title') }}</h1>
         <span>{{ t('domains.description') }}</span>
       </div>
-      <v-btn color="primary" :disabled="creating || writesBlocked" @click="beginCreate">{{ t('domains.add') }}</v-btn>
+      <v-btn color="primary" :disabled="creating || transportBlocked" @click="beginCreate">{{ t('domains.add') }}</v-btn>
     </header>
 
     <v-progress-linear v-if="query.isPending.value" indeterminate />
-    <v-alert v-else-if="query.isError.value || (defaultRefreshRequired && !mutation.isPending.value)" type="error" variant="tonal">
+    <v-alert v-if="query.isError.value || (defaultRefreshRequired && !mutation.isPending.value)" type="error" variant="tonal">
       {{ t('domains.loadFailed') }}
       <template #append><v-btn variant="text" @click="retryDomains">{{ t('domains.retry') }}</v-btn></template>
     </v-alert>
-    <div v-else class="domains-page__workspace">
+    <v-alert v-if="permissionDenied" type="error" variant="tonal">
+      {{ t('domainOrder.accessDenied') }}
+      <v-btn type="button" variant="text" :disabled="mutation.isPending.value || orderReloading || !identity.scope.value.userId" @click="reloadAccess">{{ t('domainOrder.reloadAccess') }}</v-btn>
+    </v-alert>
+    <div v-if="!query.isPending.value" class="domains-page__workspace">
       <aside class="domains-page__list" :aria-label="t('domains.listLabel')">
         <v-list role="group" density="comfortable" nav class="moe-resource-list">
           <v-list-item v-for="item in domains" :key="item.id" tag="button" type="button" role="button" color="primary" :active="selectedID === item.id && !creating" :aria-current="selectedID === item.id && !creating ? 'true' : undefined" @click="selectDomain(item)">
@@ -24,32 +28,35 @@
         </v-list>
         <p v-if="domains.length === 0 && !creating">{{ t('domains.empty') }}</p>
       </aside>
-      <form v-if="creating || selectedDomain" class="domains-page__editor" @submit.prevent="save">
-        <h2>{{ creating ? t('domains.createTitle') : selectedDomain?.displayName }}</h2>
-        <v-text-field v-model="draft.host" :label="t('domains.host')" :disabled="writesBlocked || (!creating && selectedDomain?.referenced)" variant="outlined" />
-        <p v-if="selectedDomain?.referenced">{{ t('domains.addressLocked') }}</p>
-        <v-text-field v-model="draft.displayName" :label="t('domains.displayName')" :disabled="writesBlocked" variant="outlined" />
-        <fieldset class="domains-page__groups" :disabled="writesBlocked">
-          <legend>{{ t('domains.allowedGroups') }}</legend>
-          <label v-for="group in groupKeys" :key="group">
-            <input type="checkbox" :checked="draft.allowedGroups.includes(group)" @change="toggleGroup(group, $event)" />
-            {{ t(`domains.groups.${group}`) }}
-          </label>
-        </fieldset>
-        <v-switch v-model="draft.enabled" :label="t('domains.enabled')" :disabled="writesBlocked || (!creating && selectedDomain?.isDefault)" />
-        <v-alert v-if="selectionRemoved" type="error" variant="tonal">{{ t('domains.removedDraft') }}</v-alert>
-        <div class="domains-page__actions">
-          <v-btn v-if="!creating && !selectionRemoved && feedback === 'conflict' && dirty()" type="button" variant="text" :disabled="writesBlocked" @click="requestDiscard(selectedID)">{{ t('domains.reloadDraft') }}</v-btn>
-          <v-btn v-if="!creating && !selectedDomain?.isDefault" type="button" variant="text" :disabled="writesBlocked || selectionRemoved || !selectedDomain?.enabled" @click="setDefault">{{ t('domains.setDefault') }}</v-btn>
-          <v-btn v-if="!creating" type="button" color="error" variant="text" :disabled="writesBlocked || selectionRemoved || selectedDomain?.isDefault || selectedDomain?.referenced" @click="openDelete">{{ t('domains.delete') }}</v-btn>
-          <v-btn v-if="creating" type="button" variant="text" @click="cancelCreate">{{ t('domains.cancel') }}</v-btn>
-          <v-btn color="primary" type="submit" :disabled="writesBlocked || selectionRemoved" :loading="mutation.isPending.value">{{ t('domains.save') }}</v-btn>
-        </div>
-      </form>
+      <div v-if="creating || selectedDomain" class="domains-page__editors">
+        <form class="domains-page__editor" @submit.prevent="save">
+          <h2>{{ creating ? t('domains.createTitle') : selectedDomain?.displayName }}</h2>
+          <v-text-field v-model="draft.host" :label="t('domains.host')" :disabled="writesBlocked || (!creating && selectedDomain?.referenced)" variant="outlined" />
+          <p v-if="selectedDomain?.referenced">{{ t('domains.addressLocked') }}</p>
+          <v-text-field v-model="draft.displayName" :label="t('domains.displayName')" :disabled="writesBlocked" variant="outlined" />
+          <fieldset class="domains-page__groups" :disabled="writesBlocked">
+            <legend>{{ t('domains.allowedGroups') }}</legend>
+            <label v-for="group in groupKeys" :key="group">
+              <input type="checkbox" :checked="draft.allowedGroups.includes(group)" @change="toggleGroup(group, $event)" />
+              {{ t(`domains.groups.${group}`) }}
+            </label>
+          </fieldset>
+          <v-switch v-model="draft.enabled" :label="t('domains.enabled')" :disabled="writesBlocked || (!creating && selectedDomain?.isDefault)" />
+          <v-alert v-if="selectionRemoved" type="error" variant="tonal">{{ t('domains.removedDraft') }}</v-alert>
+          <div class="domains-page__actions">
+            <v-btn v-if="!creating && !selectionRemoved && feedback === 'conflict' && dirty()" type="button" variant="text" :disabled="writesBlocked" @click="requestDiscard(selectedID)">{{ t('domains.reloadDraft') }}</v-btn>
+            <v-btn v-if="!creating && !selectedDomain?.isDefault" type="button" variant="text" :disabled="writesBlocked || selectionRemoved || !selectedDomain?.enabled" @click="setDefault">{{ t('domains.setDefault') }}</v-btn>
+            <v-btn v-if="!creating" type="button" color="error" variant="text" :disabled="writesBlocked || selectionRemoved || selectedDomain?.isDefault || selectedDomain?.referenced" @click="openDelete">{{ t('domains.delete') }}</v-btn>
+            <v-btn v-if="creating" type="button" variant="text" @click="cancelCreate">{{ t('domains.cancel') }}</v-btn>
+            <v-btn color="primary" type="submit" :disabled="writesBlocked || selectionRemoved" :loading="mutation.isPending.value">{{ t('domains.save') }}</v-btn>
+          </div>
+        </form>
+        <DomainOrderEditor v-if="!creating && selectedDomain" :key="`${selectedID}:${orderRevision}:${identity.scope.value.epoch}`" :domain="selectedDomain" :disabled="transportBlocked || dirty() || selectionRemoved" :pending="mutation.isPending.value && operationKind === 'order'" :conflict="feedbackKind === 'order' && feedback === 'conflict'" @dirty="orderDirty = $event" @save="saveOrder" @reload="reloadOrder" />
+      </div>
     </div>
 
     <ActionToast v-if="feedback && !selectionRemoved" :key="`${feedback}:${feedbackRevision}`" :type="feedback === 'success' ? 'success' : 'error'">
-      {{ t(feedback === 'success' ? 'domains.saved' : feedback === 'conflict' ? 'domains.conflict' : 'domains.saveFailed') }}
+      {{ t(feedbackKind === 'order' ? feedback === 'success' ? 'domainOrder.saved' : feedback === 'conflict' ? 'domainOrder.conflict' : 'domainOrder.saveFailed' : feedback === 'success' ? 'domains.saved' : feedback === 'conflict' ? 'domains.conflict' : 'domains.saveFailed') }}
     </ActionToast>
     <v-dialog v-model="deleteDialog" max-width="440">
       <v-card>
@@ -76,31 +83,47 @@
 
 <script setup lang="ts">
 import ActionToast from '@/shared/feedback/ActionToast.vue'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import {
-  createDomain, deleteDomain, listDomains, managedDomainQueryKey, setDefaultDomain, updateDomain,
-  type DomainDraftInput, type DomainGroupKey, type ManagedDomain,
+  createDomain, deleteDomain, listDomains, managedDomainQueryKey, setDefaultDomain, setDomainOrder, updateDomain,
+  type DomainDraftInput, type DomainGroupKey, type ManagedDomain, type SetDomainOrderInput,
 } from '@/entities/domain/api'
 import { ApiClientError } from '@/shared/api/client'
+import { me } from '@/entities/auth/api'
+import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
+import DomainOrderEditor from '@/features/domain-order/DomainOrderEditor.vue'
 
 type Operation =
   | { type: 'create'; values: DomainDraftInput }
   | { type: 'update'; domain: ManagedDomain; expectedUpdatedAt: string; values: DomainDraftInput }
   | { type: 'default' | 'delete'; domain: ManagedDomain }
+  | { type: 'order'; domain: ManagedDomain; input: SetDomainOrderInput }
 type Outcome = { type: 'saved'; domain: ManagedDomain } | { type: 'deleted'; id: string }
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
-const query = useQuery({ queryKey: managedDomainQueryKey, queryFn: listDomains, retry: false })
+const identity = useAccountIdentity()
+const auth = useQuery({ queryKey: ['auth', 'me'], queryFn: me, staleTime: Infinity, retry: false })
+const eligible = computed(() => !auth.isError?.value && !!identity.scope.value.userId && auth.data.value?.user.id === identity.scope.value.userId && ['admin:access', 'domain:manage'].every((permission) => auth.data.value?.user.permissions.includes(permission)))
+const queryKey = computed(() => [...managedDomainQueryKey, identity.scope.value.userId, identity.scope.value.epoch])
+const query = useQuery({ queryKey, queryFn: listDomains, enabled: eligible, retry: false })
 const domains = computed(() => query.data.value?.items ?? [])
 const groupKeys = ['user', 'admin'] as const
 const selectedID = ref('')
 const creating = ref(false)
 const feedback = ref<'success' | 'conflict' | 'error' | ''>('')
 const feedbackRevision = ref(0)
+const feedbackKind = ref<'details' | 'order'>('details')
+const operationKind = ref<'details' | 'order'>('details')
+const orderDirty = ref(false)
+const orderRevision = ref(0)
+const orderReloading = ref(false)
+const permissionDenied = ref(false)
+let mounted = true
+onBeforeUnmount(() => { mounted = false })
 const deleteDialog = ref(false)
 const deleteTarget = ref<ManagedDomain | null>(null)
 const discardDialog = ref(false)
@@ -110,7 +133,7 @@ const draft = reactive<DomainDraftInput>({ host: '', displayName: '', allowedGro
 const selectedSnapshot = ref<ManagedDomain | null>(null)
 const selectionRemoved = computed(() => !creating.value && !!selectedID.value && query.data.value !== undefined && !domains.value.some(({ id }) => id === selectedID.value))
 const selectedDomain = computed(() => domains.value.find(({ id }) => id === selectedID.value) ??
-  (selectionRemoved.value && dirty() && selectedSnapshot.value?.id === selectedID.value ? selectedSnapshot.value : undefined))
+  (selectionRemoved.value && (dirty() || orderDirty.value) && selectedSnapshot.value?.id === selectedID.value ? selectedSnapshot.value : undefined))
 let baseline: DomainDraftInput | null = null
 let expectedUpdatedAt = ''
 const pendingConflicts = new Map<string, string>()
@@ -119,12 +142,14 @@ const VERSION_CONFLICT_CODE = 210103
 
 const mutation = useMutation({
   retry: false,
-  async mutationFn(operation: Operation): Promise<Outcome> {
+  async mutationFn(operation: Operation & { scope: typeof identity.scope.value }): Promise<Outcome> {
     if (operation.type === 'delete') {
       await deleteDomain({ id: operation.domain.id, expectedUpdatedAt: operation.domain.updatedAt })
       return { type: 'deleted', id: operation.domain.id }
     }
-    const result = operation.type === 'create'
+    const result = operation.type === 'order'
+      ? await setDomainOrder(operation.input)
+      : operation.type === 'create'
       ? await createDomain(operation.values)
       : operation.type === 'update'
         ? await updateDomain({ ...operation.values, id: operation.domain.id, expectedUpdatedAt: operation.expectedUpdatedAt })
@@ -132,8 +157,9 @@ const mutation = useMutation({
     return { type: 'saved', domain: result.domain }
   },
   async onSuccess(result, operation) {
+    if (!currentOperation(operation)) return
     const active = targetsCurrentSelection(operation)
-    queryClient.setQueryData<{ items: ManagedDomain[] }>(managedDomainQueryKey, (current) => {
+    queryClient.setQueryData<{ items: ManagedDomain[] }>(queryKey.value, (current) => {
       const items = current?.items ?? []
       if (result.type === 'deleted') return { items: items.filter(({ id }) => id !== result.id) }
       const next = result.domain
@@ -153,35 +179,45 @@ const mutation = useMutation({
       }
     }
     if (result.type === 'deleted' && deleteTarget.value?.id === result.id) deleteDialog.value = false
-    if (operation.type === 'default') {
+    if (operation.type === 'order' && active) { orderDirty.value = false; orderRevision.value++ }
+    if (operation.type === 'default' || operation.type === 'order') {
       defaultRefreshRequired.value = true
       await retryDomains()
     } else {
-      void queryClient.invalidateQueries({ queryKey: managedDomainQueryKey })
+      void queryClient.invalidateQueries({ queryKey: queryKey.value })
     }
-    void queryClient.invalidateQueries({ queryKey: ['domain', 'available'] })
+    if (currentOperation(operation)) void queryClient.invalidateQueries({ queryKey: ['domain', 'available'] })
   },
   async onError(error, operation) {
+    if (!currentOperation(operation)) return
+    if (error instanceof ApiClientError && [401, 403, 120001].includes(error.code)) permissionDenied.value = true
     const active = targetsCurrentSelection(operation)
     const conflict = error instanceof ApiClientError && error.code === VERSION_CONFLICT_CODE && operation.type !== 'create'
     if (active) feedback.value = conflict ? 'conflict' : 'error'
     if (conflict) {
-      pendingConflicts.set(operation.domain.id, operation.type === 'update' ? operation.expectedUpdatedAt : operation.domain.updatedAt)
+      pendingConflicts.set(operation.domain.id, operation.type === 'update' ? operation.expectedUpdatedAt : operation.type === 'order' ? operation.input.expectedUpdatedAt : operation.domain.updatedAt)
       try {
         const refreshed = await query.refetch()
-        if (refreshed.isSuccess) syncPendingConflicts(refreshed.data.items)
+        if (currentOperation(operation) && refreshed.isSuccess) syncPendingConflicts(refreshed.data.items)
       } catch { /* The next successful query can still reconcile this conflict. */ }
     }
   },
 })
-const writesBlocked = computed(() => mutation.isPending.value || defaultRefreshRequired.value)
+const transportBlocked = computed(() => mutation.isPending.value || defaultRefreshRequired.value || orderReloading.value || query.isError.value || permissionDenied.value || !eligible.value)
+const writesBlocked = computed(() => transportBlocked.value || orderDirty.value)
+watch(identity.scope, () => {
+  creating.value = false; selectedID.value = ''; selectedSnapshot.value = null; baseline = null
+  feedback.value = ''; orderDirty.value = false; orderRevision.value++; pendingConflicts.clear()
+  defaultRefreshRequired.value = false; orderReloading.value = false
+  permissionDenied.value = false
+}, { flush: 'sync' })
 
 watch(deleteDialog, (open) => { if (!open) deleteTarget.value = null })
 watch(discardDialog, (open) => { if (!open) discardTarget.value = '' })
 watch(domains, (items) => {
   syncPendingConflicts(items)
   if (creating.value) return
-  if (selectedID.value && !items.some(({ id }) => id === selectedID.value) && dirty()) return
+  if (selectedID.value && !items.some(({ id }) => id === selectedID.value) && (dirty() || orderDirty.value)) return
   const current = items.find(({ id }) => id === selectedID.value) ?? items[0]
   if (!current) { selectedID.value = ''; selectedSnapshot.value = null; baseline = null; return }
   const changed = selectedID.value !== current.id
@@ -199,7 +235,7 @@ function syncPendingConflicts(items: ManagedDomain[]) {
       if (latest) deleteTarget.value = { ...latest }
       else { deleteDialog.value = false; deleteTarget.value = null }
     }
-    if (!latest && selectedID.value === id && !dirty()) { selectedID.value = ''; selectedSnapshot.value = null; baseline = null }
+    if (!latest && selectedID.value === id && !dirty() && !orderDirty.value) { selectedID.value = ''; selectedSnapshot.value = null; baseline = null }
     else if (latest && selectedID.value === id && !dirty()) fillDraft(latest)
   }
 }
@@ -218,16 +254,18 @@ function dirty(): boolean {
 }
 
 async function retryDomains() {
+  const scope = identity.scope.value
   const refreshed = await query.refetch()
-  if (refreshed.isSuccess) defaultRefreshRequired.value = false
+  if (mounted && identity.isCurrent(scope) && eligible.value && refreshed.isSuccess) defaultRefreshRequired.value = false
   return refreshed
 }
 
 function selectDomain(item: ManagedDomain) {
-  if (dirty()) { requestDiscard(item.id); return }
+  if (orderReloading.value || (mutation.isPending.value && operationKind.value === 'order')) return
+  if (dirty() || orderDirty.value) { requestDiscard(item.id); return }
   selectDomainNow(item)
 }
-function selectDomainNow(item: ManagedDomain) { creating.value = false; selectedID.value = item.id; feedback.value = ''; fillDraft(item) }
+function selectDomainNow(item: ManagedDomain) { creating.value = false; selectedID.value = item.id; feedback.value = ''; orderDirty.value = false; orderRevision.value++; fillDraft(item) }
 function requestDiscard(target: string) { discardTarget.value = target; discardDialog.value = true }
 async function confirmDiscard() {
   const target = discardTarget.value
@@ -249,11 +287,13 @@ async function confirmDiscard() {
   discardDialog.value = false
 }
 function beginCreate() {
-  if (dirty()) { requestDiscard('create'); return }
+  if (orderReloading.value || (mutation.isPending.value && operationKind.value === 'order')) return
+  if (dirty() || orderDirty.value) { requestDiscard('create'); return }
   beginCreateNow()
 }
 function beginCreateNow() {
   creating.value = true; selectedID.value = ''; feedback.value = ''
+  orderDirty.value = false; orderRevision.value++
   Object.assign(draft, { host: '', displayName: '', allowedGroups: [], enabled: true })
   baseline = null
 }
@@ -272,12 +312,12 @@ function save() {
   if (writesBlocked.value || !draft.host.trim() || !draft.displayName.trim()) { feedback.value = 'error'; return }
   const values = { ...draft, host: draft.host.trim(), displayName: draft.displayName.trim(), allowedGroups: [...draft.allowedGroups] }
   feedback.value = ''
-  if (creating.value) mutation.mutate({ type: 'create', values })
-  else mutation.mutate({ type: 'update', domain: selectedDomain.value!, expectedUpdatedAt, values })
+  if (creating.value) dispatch({ type: 'create', values })
+  else dispatch({ type: 'update', domain: selectedDomain.value!, expectedUpdatedAt, values })
 }
 function setDefault() {
   feedbackRevision.value++
-  mutation.mutate({ type: 'default', domain: selectedDomain.value! })
+  dispatch({ type: 'default', domain: selectedDomain.value! })
 }
 function openDelete() {
   deleteTarget.value = { ...selectedDomain.value! }
@@ -285,7 +325,61 @@ function openDelete() {
 }
 function confirmDelete() {
   feedbackRevision.value++
-  mutation.mutate({ type: 'delete', domain: deleteTarget.value! })
+  dispatch({ type: 'delete', domain: deleteTarget.value! })
+}
+
+/** Binds every response to the exact mounted login round before touching shared cache or feedback. */
+function currentOperation(operation: { scope: typeof identity.scope.value }): boolean {
+  return mounted && identity.isCurrent(operation.scope) && eligible.value
+}
+
+/** Carries scope outside the API payload while preserving legacy action semantics. */
+function dispatch(operation: Operation) {
+  if (!eligible.value) return
+  operationKind.value = operation.type === 'order' ? 'order' : 'details'
+  feedbackKind.value = operationKind.value
+  mutation.mutate({ ...operation, scope: identity.scope.value })
+}
+
+/** Keeps the order command separate from the ordinary full-details draft. */
+function saveOrder(input: SetDomainOrderInput) {
+  if (transportBlocked.value || dirty() || selectionRemoved.value || input.id !== selectedID.value) return
+  feedback.value = ''; feedbackRevision.value++
+  dispatch({ type: 'order', domain: selectedDomain.value!, input })
+}
+
+/** Discards a conflicted ordering draft only after a successful, current-identity reload. */
+async function reloadOrder() {
+  if (transportBlocked.value || selectionRemoved.value) return
+  const scope = identity.scope.value
+  const id = selectedID.value
+  orderReloading.value = true
+  try {
+    const result = await queryClient.fetchQuery({ queryKey: queryKey.value, queryFn: listDomains, staleTime: 0 })
+    if (!mounted || !identity.isCurrent(scope) || !eligible.value || selectedID.value !== id) return
+    const latest = result.items.find((item) => item.id === id)
+    if (!latest) return
+    fillDraft(latest); orderDirty.value = false; orderRevision.value++; feedback.value = ''
+  } catch { /* Keep the original value/revision available for another explicit reload. */ }
+  finally { if (mounted && identity.isCurrent(scope)) orderReloading.value = false }
+}
+
+/** Clears a confirmed access denial only after explicit fresh identity and domain reads. */
+async function reloadAccess() {
+  if (mutation.isPending.value || orderReloading.value || !identity.scope.value.userId) return
+  const scope = identity.scope.value
+  orderReloading.value = true
+  try {
+    const fresh = await me()
+    if (!mounted || !identity.isCurrent(scope) || fresh.user.id !== scope.userId) return
+    queryClient.setQueryData(['auth', 'me'], fresh)
+    if (!['admin:access', 'domain:manage'].every((permission) => fresh.user.permissions.includes(permission))) return
+    await queryClient.fetchQuery({ queryKey: queryKey.value, queryFn: listDomains, staleTime: 0 })
+    if (mounted && identity.isCurrent(scope) && eligible.value) {
+      permissionDenied.value = false; defaultRefreshRequired.value = false
+    }
+  } catch { /* Denial remains visible and writes stay blocked until both reads succeed. */ }
+  finally { if (mounted && identity.isCurrent(scope)) orderReloading.value = false }
 }
 function targetsCurrentSelection(operation: Operation): boolean {
   return operation.type === 'create' ? creating.value : !creating.value && selectedID.value === operation.domain.id
@@ -301,6 +395,7 @@ function targetsCurrentSelection(operation: Operation): boolean {
 .domains-page__list, .domains-page__editor { padding: 18px; border: 1px solid rgb(var(--v-theme-outline-variant)); border-radius: 18px; background: rgb(var(--v-theme-surface)); }
 .domains-page__list { display: flex; flex-direction: column; gap: 8px; }
 .domains-page__editor { display: grid; align-content: start; gap: 12px; }
+.domains-page__editors { display: grid; align-content: start; gap: 18px; min-width: 0; }
 .domains-page__groups { display: flex; gap: 18px; padding: 12px; border: 1px solid rgb(var(--v-theme-outline-variant)); border-radius: 8px; }
 .domains-page__groups label { display: flex; gap: 6px; align-items: center; }
 .domains-page__actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }

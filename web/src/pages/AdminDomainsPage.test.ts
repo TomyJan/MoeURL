@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/vue
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
 
-import { createDomain, deleteDomain, listDomains, setDefaultDomain, updateDomain } from '@/entities/domain/api'
+import { createDomain, deleteDomain, listDomains, setDefaultDomain, setDomainOrder, updateDomain } from '@/entities/domain/api'
 import { ApiClientError } from '@/shared/api/client'
 import { componentStubs } from '@/test/component-stubs'
 import AdminDomainsPage from './AdminDomainsPage.vue'
@@ -10,7 +10,7 @@ import AdminDomainsPage from './AdminDomainsPage.vue'
 const primary = {
   id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary',
   purpose: 'short_link' as const, enabled: true, isDefault: true, allowedGroups: ['user', 'admin'] as Array<'user' | 'admin'>,
-  referenced: false, updatedAt: '2026-09-14T00:00:00Z',
+  referenced: false, sortOrder: 0, updatedAt: '2026-09-14T00:00:00Z',
 }
 const secondary = { ...primary, id: '00000000-0000-4000-8000-000000000802', host: 'https://links.example.com', displayName: 'Secondary', isDefault: false }
 const state = vi.hoisted(() => ({
@@ -22,11 +22,19 @@ const state = vi.hoisted(() => ({
 
 vi.mock('@/entities/domain/api', async (original) => ({
   ...await original<typeof import('@/entities/domain/api')>(),
-  createDomain: vi.fn(), deleteDomain: vi.fn(), listDomains: vi.fn(), setDefaultDomain: vi.fn(), updateDomain: vi.fn(),
+  createDomain: vi.fn(), deleteDomain: vi.fn(), listDomains: vi.fn(), setDefaultDomain: vi.fn(), setDomainOrder: vi.fn(), updateDomain: vi.fn(),
 }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
+vi.mock('@/shared/preferences/useAccountPreferences', () => ({
+  useAccountIdentity: () => {
+    const scope = ref({ userId: 'admin', epoch: 1 })
+    return { scope, isCurrent: (value: unknown) => scope.value === value }
+  },
+}))
 vi.mock('@tanstack/vue-query', () => ({
-  useQuery: () => ({ data: state.data, isPending: state.pending, isError: state.error, refetch: state.refetch }),
+  useQuery: (options: { queryKey: unknown }) => Array.isArray(options.queryKey) && options.queryKey[0] === 'auth'
+    ? { data: ref({ user: { id: 'admin', permissions: ['admin:access', 'domain:manage'] } }) }
+    : { data: state.data, isPending: state.pending, isError: state.error, refetch: state.refetch },
   useQueryClient: () => ({ invalidateQueries: state.invalidate, setQueryData: state.setQueryData }),
   useMutation: (options: { mutationFn: (input: unknown) => Promise<unknown>; onSuccess: (result: unknown, input: unknown) => void | Promise<void>; onError: (error: unknown, input: unknown) => Promise<void> }) => {
     const isPending = ref(false)
@@ -59,6 +67,20 @@ beforeEach(() => {
   vi.mocked(updateDomain).mockReset()
   vi.mocked(setDefaultDomain).mockReset()
   vi.mocked(deleteDomain).mockReset()
+  vi.mocked(setDomainOrder).mockReset()
+})
+
+it('saves the order editor independently with the original complete revision', async () => {
+  const saved = { ...secondary, sortOrder: -20, updatedAt: '2026-10-27T01:02:03.123456Z' }
+  vi.mocked(setDomainOrder).mockResolvedValue({ domain: saved })
+  mount()
+  await fireEvent.click(screen.getByRole('button', { name: /Secondary/ }))
+  await fireEvent.update(screen.getByLabelText('domainOrder.value'), '-20')
+  expect(screen.getByLabelText('domains.displayName')).toHaveProperty('disabled', true)
+  await fireEvent.click(screen.getByRole('button', { name: 'domainOrder.save' }))
+  await waitFor(() => expect(setDomainOrder).toHaveBeenCalledWith({ id: secondary.id, sortOrder: -20, expectedUpdatedAt: secondary.updatedAt }))
+  expect(updateDomain).not.toHaveBeenCalled()
+  expect(createDomain).not.toHaveBeenCalled()
 })
 
 describe('AdminDomainsPage', () => {

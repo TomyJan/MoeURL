@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { apiGet, apiPost } from '@/shared/api/client'
 import { INVALID_REQUEST_CODE } from '@/shared/api/error-codes'
-import { availableDomainQueryKey, createDomain, deleteDomain, listAvailableDomains, listDomains, setDefaultDomain, updateDomain } from './api'
+import { availableDomainQueryKey, createDomain, deleteDomain, listAvailableDomains, listDomains, setDefaultDomain, setDomainOrder, updateDomain } from './api'
 import type { DomainDraftInput } from './api'
 
 vi.mock('@/shared/api/client', async (importOriginal) => {
@@ -13,13 +13,34 @@ vi.mock('@/shared/api/client', async (importOriginal) => {
 const domain = {
   id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary',
   purpose: 'short_link', enabled: true, isDefault: true, allowedGroups: ['user', 'admin'],
-  referenced: false, updatedAt: '2026-09-14T00:00:00Z',
+  referenced: false, sortOrder: 0, updatedAt: '2026-09-14T00:00:00Z',
 }
 
 describe('domain API', () => {
   beforeEach(() => {
     vi.mocked(apiGet).mockReset()
     vi.mocked(apiPost).mockReset()
+  })
+
+  it.each([-10000, 0, 10000])('preserves managed ordering priority %s and its full revision', async (sortOrder) => {
+    const item = { ...domain, sortOrder, updatedAt: '2026-10-27T01:02:03.123456Z' }
+    vi.mocked(apiGet).mockResolvedValue({ code: 0, message: 'OK', meta: {}, data: { items: [item] } })
+    await expect(listDomains()).resolves.toEqual({ items: [item] })
+  })
+
+  it.each([{}, { sortOrder: null }, { sortOrder: '0' }, { sortOrder: 1.5 }, { sortOrder: -10001 }, { sortOrder: 10001 }])('rejects missing or invalid managed ordering %j', async (priority) => {
+    const item = { ...domain, ...priority }
+    if (!('sortOrder' in priority)) Reflect.deleteProperty(item, 'sortOrder')
+    vi.mocked(apiGet).mockResolvedValue({ code: 0, message: 'OK', meta: {}, data: { items: [item] } })
+    await expect(listDomains()).rejects.toEqual(expect.objectContaining({ code: INVALID_REQUEST_CODE }))
+  })
+
+  it('sends only the independent ordering command and preserves complete revision precision', async () => {
+    const expectedUpdatedAt = '2026-10-27T01:02:03.123456Z'
+    const saved = { ...domain, sortOrder: -20, updatedAt: '2026-10-27T01:02:04.654321Z' }
+    vi.mocked(apiPost).mockResolvedValue({ code: 0, message: 'OK', meta: {}, data: { domain: saved } })
+    await expect(setDomainOrder({ id: domain.id, sortOrder: -20, expectedUpdatedAt })).resolves.toEqual({ domain: saved })
+    expect(apiPost).toHaveBeenCalledWith('/admin/domain/set-order', { id: domain.id, sortOrder: -20, expectedUpdatedAt })
   })
 
   it('parses a strict management list and uses the versioned endpoint', async () => {

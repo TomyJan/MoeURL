@@ -12,6 +12,7 @@ export interface ManagedDomain {
   purpose: 'short_link'
   enabled: boolean
   isDefault: boolean
+  sortOrder: number
   allowedGroups: DomainGroupKey[]
   referenced: boolean
   updatedAt: string
@@ -41,6 +42,10 @@ export interface ChangeDomainInput {
   expectedUpdatedAt: string
 }
 
+export interface SetDomainOrderInput extends ChangeDomainInput {
+  sortOrder: number
+}
+
 export const managedDomainQueryKey = ['admin', 'domains'] as const
 export const availableDomainQueryKey = ['domain', 'available'] as const
 
@@ -51,6 +56,7 @@ const availableSchema = z.strictObject({
 })
 const managedSchema: z.ZodType<ManagedDomain> = availableSchema.safeExtend({
   purpose: z.literal('short_link'), enabled: z.boolean(),
+  sortOrder: z.number().int().min(-10000).max(10000),
   allowedGroups: z.array(z.enum(['user', 'admin'])).refine(unique),
   referenced: z.boolean(), updatedAt: z.iso.datetime({ offset: true }),
 })
@@ -82,6 +88,11 @@ export async function updateDomain(input: UpdateDomainInput): Promise<{ domain: 
 /** Switches the global short-link default using the server revision. */
 export async function setDefaultDomain(input: ChangeDomainInput): Promise<{ domain: ManagedDomain }> {
   return parse(managedResponseSchema, (await apiPost<unknown>('/admin/domain/set-default', input)).data)
+}
+
+/** Saves only one priority against the domain's complete server revision. */
+export async function setDomainOrder(input: SetDomainOrderInput): Promise<{ domain: ManagedDomain }> {
+  return parse(managedResponseSchema, (await apiPost<unknown>('/admin/domain/set-order', input)).data)
 }
 
 /** Removes an unreferenced, non-default domain. */
