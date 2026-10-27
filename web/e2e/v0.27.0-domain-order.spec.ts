@@ -159,22 +159,26 @@ for (const width of [1280, 390]) {
   })
 }
 
+/** Retains business failures for denial/conflict assertions while requiring the real HTTP 200 boundary. */
 async function rawPost(request: APIRequestContext, path: string, data: unknown): Promise<{ code: number; data: unknown }> {
   const response = await request.post(`/api/v1${path}`, { data })
   expect(response.status()).toBe(200)
   return response.json()
 }
+/** Requires business success before fixture setup or cleanup can consume a response. */
 async function post<T = unknown>(request: APIRequestContext, path: string, data: unknown): Promise<T> {
   const payload = await rawPost(request, path, data)
   expect(payload.code).toBe(0)
   return payload.data as T
 }
+/** Reads authoritative managed revisions and ordering rather than reusing a browser draft. */
 async function domains(request: APIRequestContext): Promise<Domain[]> {
   const response = await request.get('/api/v1/admin/domain/list')
   const payload = await response.json()
   expect(payload.code).toBe(0)
   return payload.data.items
 }
+/** Checks the authorized candidate projection still hides administrator-only priority values. */
 async function available(request: APIRequestContext): Promise<Array<{ id: string }>> {
   const response = await request.get('/api/v1/domain/available')
   const payload = await response.json()
@@ -182,15 +186,19 @@ async function available(request: APIRequestContext): Promise<Array<{ id: string
   for (const item of payload.data.items) expect(item).not.toHaveProperty('sortOrder')
   return payload.data.items
 }
+/** Changes fixture grants or status against a freshly read version without overwriting other details. */
 async function update(request: APIRequestContext, id: string, changes: Partial<Pick<Domain, 'enabled' | 'allowedGroups'>>) {
   const current = (await domains(request)).find((item) => item.id === id)!
   await post(request, '/admin/domain/update', { id, host: current.host, displayName: current.displayName, allowedGroups: current.allowedGroups, enabled: current.enabled, ...changes, expectedUpdatedAt: current.updatedAt })
 }
+/** Uses both label and authority to distinguish real Vuetify domain options. */
 function option(domain: Domain) { return `${domain.displayName} (${domain.host})` }
+/** Waits for the selected editor to display its saved priority before the next interaction. */
 async function selectManaged(page: Page, domain: Domain) {
   await page.getByRole('button', { name: new RegExp(escapeRegExp(domain.displayName)) }).click()
   await expect(page.getByRole('textbox', { name: orderField })).toHaveValue(String(domain.sortOrder))
 }
+/** Verifies button/native-Enter writes preserve the exact revision, no-store policy and conflict feedback. */
 async function writeOrder(page: Page, domain: Domain, value: number, keyboard: boolean, code = 0) {
   await page.getByRole('textbox', { name: orderField }).fill(String(value))
   const waiting = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/admin/domain/set-order')
@@ -207,16 +215,19 @@ async function writeOrder(page: Page, domain: Domain, value: number, keyboard: b
   } else await expect(page.getByText(/排序或域名详情已在其他位置更新|This domain changed elsewhere/).first()).toBeVisible()
   await dismiss(page)
 }
+/** Makes an explicit user selection through the actual combobox overlay. */
 async function choose(page: Page, label: RegExp, domain: Domain) {
   await page.getByRole('combobox', { name: label }).press('Enter')
   await page.getByRole('option', { name: option(domain), exact: true }).click()
 }
+/** Triggers a genuine online refresh and waits for the available-domain response without reloading the creator. */
 async function reconnect(page: Page) {
   await page.context().setOffline(true)
   const waiting = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/domain/available')
   await page.context().setOffline(false)
   expect((await (await waiting).json()).code).toBe(0)
 }
+/** Checks the submitted selection and published origin, recording created links for owned cleanup. */
 async function create(page: Page, domain: Domain, domainId: string | null, links: string[]) {
   await page.getByLabel(/^(输入链接|Enter link)$/).fill('https://example.com/domain-order-e2e')
   const waiting = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/short-link/create')
@@ -233,11 +244,13 @@ async function create(page: Page, domain: Domain, domainId: string | null, links
   await expect(page.getByText(/^(创建成功|Created)$/).first()).toBeVisible()
   await dismiss(page)
 }
+/** Clears visible notifications before the next assertion so an older toast cannot satisfy it. */
 async function dismiss(page: Page) {
   const buttons = page.getByRole('button', { name: /^(关闭提示|Dismiss notification)$/ })
   for (const button of await buttons.all()) await button.click()
   await expect(buttons).toHaveCount(0)
 }
+/** Checks viewport bounds and saves the actual rendered ordering/creation panel for visual verification. */
 async function layout(page: Page, info: TestInfo, name: string) {
   await expectNoHorizontalOverflow(page)
   const panel = page.locator('.domain-order').or(page.locator('.short-link-create-panel'))

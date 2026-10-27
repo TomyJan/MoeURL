@@ -19,6 +19,7 @@ const primary: ManagedDomain = {
 }
 const secondary: ManagedDomain = { ...primary, id: '00000000-0000-4000-8000-000000000802', host: 'https://secondary.example', displayName: 'Secondary', isDefault: false }
 const clients: QueryClient[] = []
+/** Keeps controlled HTTP responses inside the real API envelope/parser contract. */
 function response(data: unknown, code = 0) { return new Response(JSON.stringify({ code, message: '', data, meta: {} })) }
 
 /** Runs the real editor, API parser, identity observer and QueryClient; only HTTP is controlled. */
@@ -71,6 +72,7 @@ function mount(options: { save?: () => Promise<Response>; listFails?: boolean; a
   return { ...view, client, bodies, reads, requests, user, options, setItems: (value: ManagedDomain[]) => { items = value } }
 }
 
+/** Waits for the real selected editor before a case edits or submits its priority. */
 async function selectSecondary() {
   await fireEvent.click(await screen.findByRole('button', { name: /Secondary/ }))
   await waitFor(() => expect(screen.getByLabelText('domainOrder.value')).toHaveProperty('value', '0'))

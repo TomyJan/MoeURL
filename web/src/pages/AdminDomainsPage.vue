@@ -142,6 +142,7 @@ const VERSION_CONFLICT_CODE = 210103
 
 const mutation = useMutation({
   retry: false,
+  /** Sends only the chosen command; the captured identity scope remains local to response handling. */
   async mutationFn(operation: Operation & { scope: typeof identity.scope.value }): Promise<Outcome> {
     if (operation.type === 'delete') {
       await deleteDomain({ id: operation.domain.id, expectedUpdatedAt: operation.domain.updatedAt })
@@ -156,6 +157,7 @@ const mutation = useMutation({
         : await setDefaultDomain({ id: operation.domain.id, expectedUpdatedAt: operation.domain.updatedAt })
     return { type: 'saved', domain: result.domain }
   },
+  /** Reconciles only the current login round; order/default writes reload server order before unblocking. */
   async onSuccess(result, operation) {
     if (!currentOperation(operation)) return
     const active = targetsCurrentSelection(operation)
@@ -188,6 +190,7 @@ const mutation = useMutation({
     }
     if (currentOperation(operation)) void queryClient.invalidateQueries({ queryKey: ['domain', 'available'] })
   },
+  /** Retains conflicted revisions and blocks denied writes without leaking late feedback across identities. */
   async onError(error, operation) {
     if (!currentOperation(operation)) return
     if (error instanceof ApiClientError && [401, 403, 120001].includes(error.code)) permissionDenied.value = true
@@ -253,6 +256,7 @@ function dirty(): boolean {
     draft.allowedGroups.length !== baseline.allowedGroups.length || draft.allowedGroups.some((group) => !baseline?.allowedGroups.includes(group)))
 }
 
+/** Releases the refresh barrier only after a successful read for the same eligible login round. */
 async function retryDomains() {
   const scope = identity.scope.value
   const refreshed = await query.refetch()
@@ -260,11 +264,13 @@ async function retryDomains() {
   return refreshed
 }
 
+/** Preserves either editor's draft and prevents switching while an order operation is pending. */
 function selectDomain(item: ManagedDomain) {
   if (orderReloading.value || (mutation.isPending.value && operationKind.value === 'order')) return
   if (dirty() || orderDirty.value) { requestDiscard(item.id); return }
   selectDomainNow(item)
 }
+/** Adopts a confirmed selection and remounts its order editor to release the previous conflict snapshot. */
 function selectDomainNow(item: ManagedDomain) { creating.value = false; selectedID.value = item.id; feedback.value = ''; orderDirty.value = false; orderRevision.value++; fillDraft(item) }
 function requestDiscard(target: string) { discardTarget.value = target; discardDialog.value = true }
 async function confirmDiscard() {
@@ -286,11 +292,13 @@ async function confirmDiscard() {
   }
   discardDialog.value = false
 }
+/** Requires confirmation before leaving either dirty editor for a new domain. */
 function beginCreate() {
   if (orderReloading.value || (mutation.isPending.value && operationKind.value === 'order')) return
   if (dirty() || orderDirty.value) { requestDiscard('create'); return }
   beginCreateNow()
 }
+/** Starts a confirmed blank details draft and retires the previous domain's ordering state. */
 function beginCreateNow() {
   creating.value = true; selectedID.value = ''; feedback.value = ''
   orderDirty.value = false; orderRevision.value++
@@ -306,6 +314,7 @@ function toggleGroup(group: DomainGroupKey, event: globalThis.Event) {
   const enabled = (event.target as globalThis.HTMLInputElement).checked
   draft.allowedGroups = enabled ? [...new Set([...draft.allowedGroups, group])] : draft.allowedGroups.filter((item) => item !== group)
 }
+/** Submits the details draft with its original revision while respecting the independent order lock. */
 function save() {
   if (selectionRemoved.value) return
   feedbackRevision.value++
@@ -315,6 +324,7 @@ function save() {
   if (creating.value) dispatch({ type: 'create', values })
   else dispatch({ type: 'update', domain: selectedDomain.value!, expectedUpdatedAt, values })
 }
+/** Dispatches the selected saved domain so default changes share identity and response guards. */
 function setDefault() {
   feedbackRevision.value++
   dispatch({ type: 'default', domain: selectedDomain.value! })
@@ -323,6 +333,7 @@ function openDelete() {
   deleteTarget.value = { ...selectedDomain.value! }
   deleteDialog.value = true
 }
+/** Uses the dialog's captured target rather than a subsequently selected domain. */
 function confirmDelete() {
   feedbackRevision.value++
   dispatch({ type: 'delete', domain: deleteTarget.value! })
