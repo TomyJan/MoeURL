@@ -1,5 +1,4 @@
 import { fireEvent, render, screen } from '@testing-library/vue'
-import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
 
@@ -35,17 +34,25 @@ vi.mock('@/entities/short-link/api', () => ({
   createShortLink: vi.fn(),
 }))
 
+vi.mock('@/shared/preferences/useDomainPreference', () => {
+  const scope = ref({ userId: 'legacy-account', epoch: 1 })
+  return {
+    useAvailableDomainChoices: () => ({ refetch: vi.fn(), ...state.domainQueryResult }),
+    useDomainPreference: () => ({ scope, isCurrent: (candidate: unknown) => candidate === scope.value, query: { data: ref({ domainId: null, updatedAt: null }), isSuccess: ref(true), isError: ref(false) } }),
+  }
+})
+
 vi.mock('@tanstack/vue-query', async () => {
   const { createMutationMock } = await import('@/test/mutation-mock')
   return {
     useMutation: createMutationMock({
       captureOptions: (options) => state.mutationOptions.push(options),
-      fields: { isError: true, variables: true },
+      fields: { isError: true, variables: true, reset: true },
       getResult: () => state.mutationResult as MutationMockResult,
     }),
     useQuery: vi.fn((options?: { queryKey?: readonly string[] }) => {
       state.queryOptions.push(options)
-      return options?.queryKey?.[0] === 'domain' ? state.domainQueryResult : state.queryResult
+      return { refetch: vi.fn(), ...(options?.queryKey?.[0] === 'domain' ? state.domainQueryResult : state.queryResult) }
     }),
     useQueryClient: () => ({
       invalidateQueries: state.invalidateQueries,
@@ -66,6 +73,7 @@ function mountPanel(props: Record<string, unknown> = {}) {
 /** Configures the permission query mock for the next panel render. */
 function setQueryResult(permissions: string[]) {
   state.queryResult = {
+    refetch: vi.fn(),
     data: ref({
       user: {
         permissions,
@@ -216,6 +224,7 @@ describe('ShortLinkCreatePanel', () => {
     state.domainQueryResult = {
       data: ref({ items: [{ id: 'assigned', host: 'links.example.com:8443', displayName: 'Assigned', isDefault: false }] }),
       isPending: ref(false), isError: ref(false),
+      refetch: vi.fn(),
     }
     mountPanel()
     await fireEvent.click(screen.getByText('shortLinkCreate.advanced'))
@@ -361,6 +370,7 @@ describe('ShortLinkCreatePanel', () => {
     state.domainQueryResult = {
       data: ref({ items: [{ id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true }] }),
       isPending: ref(false), isError: ref(false),
+      refetch: vi.fn(),
     }
     setMutationResult()
     Object.defineProperty(window.navigator, 'clipboard', {
@@ -869,9 +879,9 @@ describe('ShortLinkCreatePanel', () => {
 
     const options = state.mutationOptions[0] as {
       mutationFn?: (input: { targetUrl: string }) => Promise<unknown>
-      onSettled?: () => void
+      onSettled?: (result: unknown, error: unknown, input: unknown) => void
     }
-    options.onSettled?.()
+    options.onSettled?.(undefined, null, mutate.mock.calls[0]![0])
     expect(passwordInput.value).toBe('')
     await expect(options.mutationFn?.({ targetUrl: 'https://example.com' })).rejects.toThrow('password validation failed')
     expect(screen.getByText('shortLinkCreate.passwordRequired')).toBeTruthy()
@@ -1000,11 +1010,19 @@ describe('ShortLinkCreatePanel', () => {
     expect((screen.getByLabelText('shortLinkCreate.password') as HTMLInputElement).disabled).toBe(true)
   })
 
-  it('binds pending state into the submit button disabled expression', () => {
-    const source = readFileSync('src/features/short-link-create/ShortLinkCreatePanel.vue', 'utf8')
-    const submitButtonBlock = source.match(/<v-btn\s+class="short-link-create-panel__submit"[\s\S]+?<\/v-btn>/)?.[0] ?? ''
-
-    expect(submitButtonBlock).toContain(':disabled="!canCreateShortLink || mutation.isPending.value"')
+  it('blocks another submission while a creation is pending', async () => {
+    const isPending = ref(false)
+    const mutate = vi.fn()
+    setQueryResult(['short_link:create', 'domain:use_default'])
+    setMutationResult({ isPending, mutate })
+    mountPanel()
+    await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
+    expect((screen.getByText('shortLinkCreate.submit') as HTMLButtonElement).disabled).toBe(false)
+    isPending.value = true
+    await nextTick()
+    expect((screen.getByText('shortLinkCreate.submit') as HTMLButtonElement).disabled).toBe(true)
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(mutate).not.toHaveBeenCalled()
   })
 
   it('shows copy failures without clearing the created link', async () => {

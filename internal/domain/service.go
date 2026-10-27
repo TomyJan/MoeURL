@@ -287,6 +287,9 @@ func (s *Service) Delete(ctx context.Context, actor auth.CurrentUser, input Chan
 		if referenced {
 			return ErrDomainReferenced
 		}
+		if err := q.ClearDeletedDomainPreferences(ctx, current.ID); err != nil {
+			return err
+		}
 		count, err := q.DeleteManagedDomain(ctx, sqlc.DeleteManagedDomainParams{ID: current.ID, UpdatedAt: current.UpdatedAt})
 		if err != nil {
 			return err

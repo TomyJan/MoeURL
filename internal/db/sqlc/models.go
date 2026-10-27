@@ -222,6 +222,12 @@ type SystemSetting struct {
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
+type UserDomainPreference struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	DomainID  pgtype.UUID        `json:"domain_id"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
 type UserGroup struct {
 	ID          pgtype.UUID        `json:"id"`
 	Key         string             `json:"key"`

@@ -59,6 +59,7 @@
         :key="currentUser.id" :user-id="currentUser.id"
         :active="!identityRevoked && currentUser.group !== 'guest' && !currentUserQuery.isError.value"
       />
+      <DomainPreferencePanel :key="`domain-${currentUser.id}`" :user-id="currentUser.id" :active="!identityRevoked && currentUser.group !== 'guest' && !currentUserQuery.isError.value" />
 
       <section class="profile-card profile-card--preferences">
         <h2>{{ t('profile.preferencesTitle') }}</h2>
@@ -90,6 +91,7 @@ import { useAvatarText } from '@/shared/user/useAvatarText'
 import ActionToast from '@/shared/feedback/ActionToast.vue'
 import PasswordChangePanel from '@/features/password-change/PasswordChangePanel.vue'
 import AccountPreferencesPanel from '@/features/account-preferences/AccountPreferencesPanel.vue'
+import DomainPreferencePanel from '@/features/domain-preference/DomainPreferencePanel.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()

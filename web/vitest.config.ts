@@ -16,6 +16,7 @@ export default defineConfig({
     },
   },
   test: {
+    server: { deps: { inline: ['vuetify'] } },
     execArgv: ['--no-experimental-webstorage'],
     coverage: {
       include: [

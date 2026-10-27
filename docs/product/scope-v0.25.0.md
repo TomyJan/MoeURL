@@ -1,6 +1,6 @@
 # v0.25.0 操作审计 CSV 导出
 
-状态：2026-10-27 已通过 [PR #222](https://github.com/TomyJan/MoeURL/pull/222) 合并为 `6933f94c20c508c879f50b7ed7afa673cc1e5e40`，尚未正式发布。最终 `d250b4b` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40404362865) 9 项成功，实际 CodeRabbit 全部 50 文件审查无有效未解决意见；合并后 [CI](https://github.com/TomyJan/MoeURL/actions/runs/40406334592) 为 8 成功／E2E 失败，手机用例的 Toast 遮挡正由[独立维护](../implementation/2026-10-27-frontend-security-dependencies-acceptance.md) 修复。逐候选本地证据与历史 RED 流程偏差见[验收](../implementation/v0.25.0-acceptance.md)，不以 PR 成功替代合并后结果或正式发布。
+状态：2026-10-27 已通过 [PR #222](https://github.com/TomyJan/MoeURL/pull/222) 合并为 `6933f94c20c508c879f50b7ed7afa673cc1e5e40`，尚未正式发布。最终 `d250b4b` 的 PR CI 9 项成功，实际 CodeRabbit 全部50文件审查无有效未解决意见；旧合并 CI #40406334592 为8成功／E2E失败。手机Toast遮挡已由[后继维护 PR #223](../implementation/2026-10-27-frontend-security-dependencies-acceptance.md) 修复，新合并cafacf15的 [CI #40421454231](https://github.com/TomyJan/MoeURL/actions/runs/40421454231) 实际9成功。逐候选本地证据与历史RED偏差见[验收](../implementation/v0.25.0-acceptance.md)，保留旧失败，不以新恢复冒充正式发布。
 
 ## 选择理由与能力盘点
 

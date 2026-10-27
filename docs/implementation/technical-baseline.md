@@ -185,6 +185,10 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 
 ## 5. API 约定
 
+### v0.26.0 个人默认域名（后端本地验证完成）
+
+已新增本人 `GET /api/v1/user/domain-preference` 与 `POST /api/v1/user/domain-preference/update`，独立 `user_domain_preference` 版本、Cookie 本人归属与当前数据库权限交集。语言主题接口和后端创建省略语义保持原契约；域名删除在原事务清理偏好并推进版本，身份 epoch 隔离前端查询和迟到响应。后端 e3286dcd 的 migration／标准生成、完整 Go／原业务 100／vet 与关键并发回归已通过；前端 e3d7f1a 的完整 1744 tests／四项 100／lint／type／隔离 build 已通过；完整97项E2E、Linuxrace／安全及新精确制品门禁已通过，唯一整审的两项 Important 已修复并重新完整验证，远端门禁待完成；完整契约与验收见[设计](../specs/2026-10-27-v0.26.0-personal-default-domain-design.md)和[验收](v0.26.0-acceptance.md)。
+
 ### v0.25.0 操作审计导出
 
 新增 `GET /api/v1/admin/audit/export`，仅接受 days 或成对 startDate／endDate 及 actorId／resourceType／action；拒绝分页、未知、重复和空参数，日期沿用最长 90 天 UTC。`AuditExportPort` 独立于列表端口，复用 insightService；5 秒只读 repeatable-read 内重查有效账号、`admin:access`、`audit:read`、`audit:export` 和数据库时间／180 天保留截止。MATERIALIZED 候选先校验 1000 行及原文 8 MiB（完整 changed_fields JSON 计入），通过后才回读；最终编码另限精确 UTF-8 8 MiB，不 count 全表或返回部分文件。
@@ -495,6 +499,8 @@ own/admin list 的 `q` 匹配短码、目标地址、标题和标签的文字子
 `00019_analytics_export_permission.sql` 仅为内置 `user`／`admin` 追加缺失的 `short_link:export_statistics`，沿用 UPDATE 编辑追踪和修订号保护；Down 只撤销本次迁移追加且未再独立编辑的授权，不删除统计或短链数据。CSV 复用现有有界聚合查询，不新增统计表、索引或采集字段。
 
 ### 迁移规则
+
+`00025_user_domain_preference.sql` 新增独立 `user_domain_preference`（账号主键级联删除、可空受保护域名引用及单调版本），无旧账号回填。域名删除在原事务先清偏好／推进版本再删除，保存共享同一域名锁并重查当前用户主组授权；独立本人 API 不修改 `user_preference` 或旧创建省略语义。Down 仅删除新表，个人域名偏好会丢失；镜像回退优先保留兼容表，恢复核查见[备份与恢复](../deployment/backup-and-restore.md)及[升级与回退](../deployment/upgrade-and-recovery.md)。
 
 v0.18.0 的 `00020_insights.sql` 增加可空 browser／OS 类别、全局成功事件时间与未删除链接创建索引，以及三项真实权限和 UPDATE 编辑追踪；不回填虚构类别、不删除历史事件。`00021_audit.sql` 增加无业务级联外键的 `audit_log`、keyset／保留索引和审计白名单触发器。应用写入必须显式启用事务局部 actor 上下文，任何审计写入错误使业务一起回滚；no-op、访问额度领取、失败计数和偏好不产生审计噪音。
 

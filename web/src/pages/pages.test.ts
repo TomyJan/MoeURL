@@ -178,6 +178,13 @@ vi.mock('@tanstack/vue-query', async () => {
       }),
     }),
     useQuery: vi.fn((options?: { enabled?: unknown; queryFn?: (context: { queryKey: unknown }) => unknown; queryKey?: unknown }) => {
+      const key = isRef(options?.queryKey) ? options.queryKey.value : options?.queryKey
+      if (Array.isArray(key) && key[0] === 'user' && key[1] === 'domain-preference') {
+        return { data: ref({ domainId: null, updatedAt: null }), isSuccess: ref(true), isError: ref(false) }
+      }
+      if (Array.isArray(key) && key[0] === 'domain' && key[1] === 'available') {
+        return { data: ref({ items: [{ id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true }] }), isSuccess: ref(true), isError: ref(false), isPending: ref(false) }
+      }
       if (state.listAuth && Array.isArray(options?.queryKey) && options.queryKey[0] === 'auth' && options.queryKey[1] === 'me') {
         state.listAuth = false
         return { data: ref(state.queryClient.getQueryData()), isSuccess: ref(true), isPending: ref(false) }

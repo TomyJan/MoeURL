@@ -63,6 +63,13 @@ vi.mock('@/entities/auth/api', () => ({
   me: vi.fn(),
 }))
 vi.mock('@/shared/preferences/useAccountPreferences', () => ({ revokeAccountIdentity: state.revokeIdentity }))
+vi.mock('@/shared/preferences/useDomainPreference', () => {
+  const scope = ref({ userId: 'shell-account', epoch: 1 })
+  return {
+    useDomainPreference: () => ({ scope, isCurrent: (candidate: unknown) => candidate === scope.value, query: { data: ref({ domainId: null, updatedAt: null }), isSuccess: ref(true), isError: ref(false) } }),
+    useAvailableDomainChoices: () => ({ data: ref({ items: [{ id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true }] }), isSuccess: ref(true), isError: ref(false), isPending: ref(false) }),
+  }
+})
 
 vi.mock('@/entities/short-link/api', () => ({
   createShortLink: state.createShortLinkRequest,
@@ -73,7 +80,7 @@ vi.mock('@tanstack/vue-query', () => ({
     (options?: {
       mutationFn?: (variables?: unknown) => unknown
       onError?: (error: unknown) => void
-      onSuccess?: (result: unknown) => void
+      onSuccess?: (result: unknown, input?: unknown) => void
     }) => {
       const data = ref<unknown>(undefined)
       const error = ref<unknown>(undefined)
@@ -95,7 +102,7 @@ vi.mock('@tanstack/vue-query', () => ({
             void (result as Promise<unknown>)
               .then((value) => {
                 data.value = value
-                options?.onSuccess?.(value)
+                options?.onSuccess?.(value, payload)
               })
               .catch((mutationError: unknown) => {
                 error.value = mutationError
@@ -104,7 +111,7 @@ vi.mock('@tanstack/vue-query', () => ({
             return
           }
           data.value = result
-          options?.onSuccess?.(result)
+          options?.onSuccess?.(result, payload)
         }),
       }
     },
