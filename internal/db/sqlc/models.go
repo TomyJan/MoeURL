@@ -40,15 +40,16 @@ type AuthLoginAttempt struct {
 }
 
 type Domain struct {
-	ID          pgtype.UUID        `json:"id"`
-	Host        string             `json:"host"`
-	DisplayName string             `json:"display_name"`
-	Purpose     string             `json:"purpose"`
-	Enabled     bool               `json:"enabled"`
-	IsDefault   bool               `json:"is_default"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
-	SortOrder   int32              `json:"sort_order"`
+	ID                  pgtype.UUID        `json:"id"`
+	Host                string             `json:"host"`
+	DisplayName         string             `json:"display_name"`
+	Purpose             string             `json:"purpose"`
+	Enabled             bool               `json:"enabled"`
+	IsDefault           bool               `json:"is_default"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	SortOrder           int32              `json:"sort_order"`
+	DefaultRedirectMode string             `json:"default_redirect_mode"`
 }
 
 type DomainUserGroup struct {

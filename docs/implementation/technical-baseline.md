@@ -185,9 +185,9 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 
 ## 5. API 约定
 
-### v0.29.0 域名默认模式（设计阶段，未实现）
+### v0.29.0 域名默认模式（后端实施与验证中）
 
-[设计](../specs/2026-10-28-v0.29.0-domain-default-redirect-mode-design.md)定义新独立 GET /api/v1/admin/domain/redirect-default?id=...、POST /api/v1/admin/domain/set-redirect-default 和 GET /api/v1/domain/redirect-defaults，均 no-store。模式三值、domain 共享完整版本、当前 DB 身份／双管理权限、锁后授权及事务审计；本人投影按当前创建／域名／模式权限过滤。旧 available／managed／create DTO 及省略redirectMode=direct不变。以上为计划契约，具体实施与实际门禁见[计划](v0.29.0-plan.md)和[验收](v0.29.0-acceptance.md)，不提前标记完成。
+[设计](../specs/2026-10-28-v0.29.0-domain-default-redirect-mode-design.md)定义新独立 GET /api/v1/admin/domain/redirect-default?id=...、POST /api/v1/admin/domain/set-redirect-default 和 GET /api/v1/domain/redirect-defaults，均 no-store。模式三值、domain 共享完整版本、当前 DB 身份／双管理权限、锁后授权及事务审计；本人投影按当前创建／域名／模式权限过滤。旧 available／managed／create DTO 及省略redirectMode=direct不变。当前后端实施与验证中，前端尚未实现，具体实际门禁见[计划](v0.29.0-plan.md)和[验收](v0.29.0-acceptance.md)，不提前标记整版完成。
 
 ### v0.28.0 用户组默认域名（已合并，未发布）
 

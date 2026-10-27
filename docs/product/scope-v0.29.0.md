@@ -2,7 +2,7 @@
 
 ## 阶段与基线
 
-当前为书面设计阶段，产品代码、migration、运行验证与新 PR 均未开始。分支为 feat/v0.29.0-domain-default-redirect-mode，从 PR #226 的真实合并 b1b1e4112ba92708becf59c875cff8bff109c3ec 建立；首个 de8867d 仅同步旧轮交付文档。旧轮最终候选与合并的独立九 CI、真实审查及制品归属见 [v0.28 验收](../implementation/v0.28.0-acceptance.md)，不替代本轮门禁。
+当前 Task1 后端正在实施和验证，migration／独立三 API 已有定向证据，完整门禁尚未闭环；前端与新 PR 未开始。分支为 feat/v0.29.0-domain-default-redirect-mode，从 PR #226 的真实合并 b1b1e4112ba92708becf59c875cff8bff109c3ec 建立；首个 de8867d 仅同步旧轮交付文档。旧轮最终候选与合并的独立九 CI、真实审查及制品归属见 [v0.28 验收](../implementation/v0.28.0-acceptance.md)，不替代本轮门禁。
 
 本轮依据 roadmap 的「域名与默认策略」、domains 和 admin 规格补齐每域名默认跳转方式。root 依长期自主设计授权决定常规细节；不声称用户逐项批准本文件的具体方案。一次 fresh builder check 与完整实现计划完成后，root 原生实现；一次独立最强实现终审仍为之后的交付门禁。
 
