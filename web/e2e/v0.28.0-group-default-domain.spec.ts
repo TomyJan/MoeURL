@@ -272,10 +272,12 @@ async function unavailable(page: Page, hiddenId: string) {
   await expect(page.getByText(/^(用户组默认域名当前不可用|The group default domain is unavailable)/)).toBeVisible()
   await expect(page.locator('body')).not.toContainText(hiddenId)
 }
-/** Delivers a visibility notification to the production focus listener and observes both real reads. */
+/** Activates the creator and notifies its production window listener, observing both real reads. */
 async function focusRefresh(page: Page) {
   const reads = ['/domain/group-default', '/domain/available'].map((path) => page.waitForResponse((response) => new URL(response.url()).pathname === `/api/v1${path}` && response.request().method() === 'GET'))
-  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
+  await page.bringToFront()
+  await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe('visible')
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')))
   for (const result of await Promise.all(reads)) {
     expect(result.status()).toBe(200)
     expect((await result.json()).code).toBe(0)
