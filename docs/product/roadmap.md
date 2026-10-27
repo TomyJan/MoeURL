@@ -2,11 +2,11 @@
 
 MoeURL 按「基础可用闭环 → 发布质量补强 → 产品体验精细化 → MVP 增强闭环 → 统计分析闭环 → 增强能力」逐步推进。
 
-截至 2026-10-27，最近功能 [v0.25.0 操作审计 CSV](scope-v0.25.0.md) 已由 PR #222 合并为 `6933f94c`，最终 PR CI 与真实审查通过。其旧合并 CI 的手机 E2E 失败与开发依赖公告已由[维护 PR #223](../implementation/2026-10-27-frontend-security-dependencies-acceptance.md) 闭环，新合并 `cafacf15` 的 [CI #40421454231](https://github.com/TomyJan/MoeURL/actions/runs/40421454231) 实际 9 成功。当前 [v0.26.0 个人默认域名](scope-v0.26.0.md) 本地实现与完整门禁已通过，独立整审和远端集成待完成。合并后 CI 后台不阻塞新轮，实际失败优先；尚未正式发布。本地、CI 与生产证据分别记录，下列早期非目标保留当时语义。
+截至 2026-10-27，最近功能 [v0.25.0 操作审计 CSV](scope-v0.25.0.md) 已由 PR #222 合并为 `6933f94c`，最终 PR CI 与真实审查通过。其旧合并 CI 的手机 E2E 失败与开发依赖公告已由[维护 PR #223](../implementation/2026-10-27-frontend-security-dependencies-acceptance.md) 闭环，新合并 `cafacf15` 的 [CI #40421454231](https://github.com/TomyJan/MoeURL/actions/runs/40421454231) 实际 9 成功。当前 [v0.26.0 个人默认域名](scope-v0.26.0.md) 本地实现与完整门禁已通过，唯一整审的两项 Important 已在单修复波闭环，远端集成待完成。合并后 CI 后台不阻塞新轮，实际失败优先；尚未正式发布。本地、CI 与生产证据分别记录，下列早期非目标保留当时语义。
 
 ## v0.26.0 个人默认短链域名
 
-在个人设置显式保存当前可用域名，跨浏览器登录后优先作为创建面板初始选择。独立版本与当前授权，失效回退与身份轮次隔离；保留创建 API 省略 `domainId` 的全局默认语义及旧语言主题请求。本地实现与完整门禁已通过，独立整审和远端集成待完成；见[范围](scope-v0.26.0.md)、[设计](../specs/2026-10-27-v0.26.0-personal-default-domain-design.md)、[计划](../implementation/v0.26.0-plan.md)和[验收](../implementation/v0.26.0-acceptance.md)。不包含组默认、排序管理或自助绑定。
+在个人设置显式保存当前可用域名，跨浏览器登录后优先作为创建面板初始选择。独立版本与当前授权，失效回退与身份轮次隔离；保留创建 API 省略 `domainId` 的全局默认语义及旧语言主题请求。本地实现与完整门禁已通过，唯一整审的两项 Important 已在单修复波闭环，远端集成待完成；见[范围](scope-v0.26.0.md)、[设计](../specs/2026-10-27-v0.26.0-personal-default-domain-design.md)、[计划](../implementation/v0.26.0-plan.md)和[验收](../implementation/v0.26.0-acceptance.md)。不包含组默认、排序管理或自助绑定。
 
 ## v0.25.0 操作审计 CSV 导出
 

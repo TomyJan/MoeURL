@@ -2,7 +2,7 @@
 
 ## 目标与状态
 
-当前后端已完成本地实现及验证（e3286dcd），前端及完整本地门禁已通过，独立整审和远端集成待完成；未创建 PR 或发布。基线为维护 PR #223 合并提交 `cafacf1520e4ea59934af4c1339a56224c2fdcd0`，独立分支 `feat/v0.26.0-personal-default-domain`。上一轮合并 CI 在后台实际完成 9 项成功，保留其独立候选归属，不替代本版验证。
+当前后端已完成本地实现及验证（e3286dcd），前端及完整本地门禁已通过，唯一整审的两项 Important 已在单修复波闭环，远端集成待完成；未创建 PR 或发布。基线为维护 PR #223 合并提交 `cafacf1520e4ea59934af4c1339a56224c2fdcd0`，独立分支 `feat/v0.26.0-personal-default-domain`。上一轮合并 CI 在后台实际完成 9 项成功，保留其独立候选归属，不替代本版验证。
 
 在个人设置中明确保存一个当前可用的短链域名，之后在其他浏览器登录时，创建面板优先选择该域名，减少重复选择。该偏好只决定界面初始选择，不新增域名授权，不改变既有创建 API 省略 `domainId` 使用全局默认的语义。
 
@@ -23,4 +23,4 @@
 
 ## 设计入口
 
-明确接口、权限、兼容与异步规则见[设计](../specs/2026-10-27-v0.26.0-personal-default-domain-design.md)，工程切片见[计划](../implementation/v0.26.0-plan.md)、[任务](../implementation/v0.26.0-tasks.md)和[验收](../implementation/v0.26.0-acceptance.md)。设计检查、计划与后端本地验证已完成，前端及完整本地门禁已通过，独立整审和远端集成待完成，验收清单保留未执行项。
+明确接口、权限、兼容与异步规则见[设计](../specs/2026-10-27-v0.26.0-personal-default-domain-design.md)，工程切片见[计划](../implementation/v0.26.0-plan.md)、[任务](../implementation/v0.26.0-tasks.md)和[验收](../implementation/v0.26.0-acceptance.md)。设计检查、计划与后端本地验证已完成，前端及完整本地门禁已通过，唯一整审的两项 Important 已在单修复波闭环，远端集成待完成，验收清单保留未执行项。

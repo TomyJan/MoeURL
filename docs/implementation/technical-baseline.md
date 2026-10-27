@@ -187,7 +187,7 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 
 ### v0.26.0 个人默认域名（后端本地验证完成）
 
-已新增本人 `GET /api/v1/user/domain-preference` 与 `POST /api/v1/user/domain-preference/update`，独立 `user_domain_preference` 版本、Cookie 本人归属与当前数据库权限交集。语言主题接口和后端创建省略语义保持原契约；域名删除在原事务清理偏好并推进版本，身份 epoch 隔离前端查询和迟到响应。后端 e3286dcd 的 migration／标准生成、完整 Go／原业务 100／vet 与关键并发回归已通过；前端 e3d7f1a 的完整 1744 tests／四项 100／lint／type／隔离 build 已通过；完整97项E2E、Linuxrace／安全及新精确制品门禁已通过，独立整审／远端门禁待完成；完整契约与验收见[设计](../specs/2026-10-27-v0.26.0-personal-default-domain-design.md)和[验收](v0.26.0-acceptance.md)。
+已新增本人 `GET /api/v1/user/domain-preference` 与 `POST /api/v1/user/domain-preference/update`，独立 `user_domain_preference` 版本、Cookie 本人归属与当前数据库权限交集。语言主题接口和后端创建省略语义保持原契约；域名删除在原事务清理偏好并推进版本，身份 epoch 隔离前端查询和迟到响应。后端 e3286dcd 的 migration／标准生成、完整 Go／原业务 100／vet 与关键并发回归已通过；前端 e3d7f1a 的完整 1744 tests／四项 100／lint／type／隔离 build 已通过；完整97项E2E、Linuxrace／安全及新精确制品门禁已通过，唯一整审的两项 Important 已修复并重新完整验证，远端门禁待完成；完整契约与验收见[设计](../specs/2026-10-27-v0.26.0-personal-default-domain-design.md)和[验收](v0.26.0-acceptance.md)。
 
 ### v0.25.0 操作审计导出
 
