@@ -2,7 +2,7 @@
 
 MoeURL 按「基础可用闭环 → 发布质量补强 → 产品体验精细化 → MVP 增强闭环 → 统计分析闭环 → 增强能力」逐步推进。
 
-截至 2026-10-27，v0.26.0 已通过 [PR #224](https://github.com/TomyJan/MoeURL/pull/224) 合并为 `60b36fec2d063785a8c97855d5a6d38a950c4ad3`，最终候选 `0305c016` 的 [PR CI #40438886293](https://github.com/TomyJan/MoeURL/actions/runs/40438886293) 与合并提交的 [master CI #40444537045](https://github.com/TomyJan/MoeURL/actions/runs/40444537045) 各 9 项成功，实际 CodeRabbit 首审及最终增量覆盖最新变更，全部有效意见已处理；尚未正式发布。当前 [v0.27.0 域名排序](scope-v0.27.0.md) 独立终审及集中修复后本地门禁已通过，远端待完成。前轮 v0.25.0 的手机 E2E 失败已由[维护 PR #223](../implementation/2026-10-27-frontend-security-dependencies-acceptance.md) 闭环，旧失败与恢复记录保持历史归属。合并 CI 后台不阻塞下一轮，真实失败优先；正式生产验收独立记录。
+截至 2026-10-27，v0.26 个人默认与 [v0.27 域名排序](scope-v0.27.0.md) 均已合并；后者 PR #225 合并为 `8c024b5035226285ea76571c8b6a50ceb2d19440`，最终 `64751e5` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40486914108) 和合并 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40493457478) 各九成功、真实审查覆盖最终且有效意见闭环，未发布。当前 [v0.28 用户组默认](scope-v0.28.0.md) 已完成分支实现与原本地完整门禁，唯一独立终审的 1 项 Important 和 1 项 Minor 已集中修复并通过完整本地门禁，远端交付进行中；边界和证据见[设计](../specs/2026-10-27-v0.28.0-group-default-domain-design.md)、[计划](../implementation/v0.28.0-plan.md)及[验收](../implementation/v0.28.0-acceptance.md)。v0.25 手机 E2E 失败及[维护 PR #223](../implementation/2026-10-27-frontend-security-dependencies-acceptance.md)恢复保持原归属。合并 CI 后台不阻塞下一轮，真实失败优先；正式生产验收独立记录。 首候选 `7c84ba5` 的九项 CI 与真实 CodeRabbit 首审已完成，3 项 Minor 已集中修复并通过受影响完整本地验证；后继精确候选门禁另验，见 [PR #226](https://github.com/TomyJan/MoeURL/pull/226)。
 
 ## v0.26.0 个人默认短链域名
 
@@ -296,7 +296,7 @@ v0.9.0 复用现有 `system_setting`、前端偏好和 OIDC Provider 管理，�
 | 账号与用户组 | 本地／OIDC 登录、个人昵称、个人密码修改、内置组权限和预设、账号语言／主题偏好已合并；v0.19.0 单账号 user／admin 改组已合并。 | 头像、时区及其他个人偏好；自定义组、批量成员迁移、多用户组；OIDC 模板、主动绑定和组映射。 | [用户与认证](../specs/users-and-auth.md)、[账号偏好范围](scope-v0.15.0.md)、[成员迁移范围](scope-v0.19.0.md)、[管理后台](../specs/admin.md)、[系统设置范围](scope-v0.9.0.md) |
 | 短链组织与交换 | 单链接标题、标签、筛选、设置和 v0.20.0 单条归属转移、v0.21.0 有界清单 CSV、v0.22.0 批量转移、v0.23.0 批量标签整理已合并。 | 尚未正式发布；个人赠送、集中标签管理及导入未实现。 | [短链](../specs/short-links.md)、[管理后台](../specs/admin.md)、[元数据范围](scope-v0.11.0.md)、[清单导出](scope-v0.21.0.md)、[批量转移](scope-v0.22.0.md)、[标签整理](scope-v0.23.0.md) |
 | 分析与操作追溯 | 个人概览、匿名单链接聚合、有界日期和聚合 CSV、全站仪表盘、匿名访问明细与事务审计已合并；v0.24.0 单链匿名记录 CSV、v0.25.0 审计 CSV 已合并。 | 尚未正式发布，v0.25.0 合并后 CI 修复见验收；超出 90 天或任意时区分析、全站访问合并导出、访问事件归档、独立安全事件中心未实现。 | [统计与事件](../specs/statistics-and-events.md)、[v0.24.0 范围](scope-v0.24.0.md)、[v0.25.0 范围](scope-v0.25.0.md)、[管理后台](../specs/admin.md) |
-| 域名与默认策略 | 管理员域名、组授权及全局默认；v0.26.0 个人偏好已合并。 | v0.27.0 域名排序独立终审及集中修复后本地门禁已通过，远端待完成；用户组默认和默认跳转、自助绑定及自动 DNS/TLS 未实现。 | [域名](../specs/domains.md)、[多域名](scope-v0.8.0.md)、[个人默认](scope-v0.26.0.md)、[排序](scope-v0.27.0.md) |
+| 域名与默认策略 | 管理员域名、组授权及全局默认；v0.26 个人偏好及 v0.27 排序已合并。v0.28 用户组默认已完成分支实现与原本地门禁，终审问题已集中修复并通过受影响完整本地验证。 | v0.28 远端交付与正式发布未完成；默认跳转、自助绑定及自动 DNS/TLS 未实现。 | [域名](../specs/domains.md)、[多域名](scope-v0.8.0.md)、[个人默认](scope-v0.26.0.md)、[排序](scope-v0.27.0.md)、[组默认](scope-v0.28.0.md) |
 | 品牌与模板 | 站点名称、默认语言／主题、纯文本页脚及固定构建版本署名。 | Logo／Favicon 上传、可配置主题色与首页文案、自定义 Open Graph、更多跳转页模板、高级模板编辑和自定义 CSS。 | [主题与多语言](../specs/themes-and-i18n.md)、[系统设置范围](scope-v0.9.0.md) |
 | 集成与权限扩展 | Cookie Session API 和按能力校验权限。 | 程序化接口鉴权、Webhook、与新增能力对应的更细粒度权限。 | [管理后台](../specs/admin.md)、[权限](../specs/permissions.md) |
 | 风控与滥用治理 | 认证及访问密码安全、访问条件检查。 | 目标域名黑白名单、自动审核、外部安全数据源、管理员复审、举报及创建配额。 | [统计与事件](../specs/statistics-and-events.md) |

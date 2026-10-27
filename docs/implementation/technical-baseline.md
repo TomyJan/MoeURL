@@ -185,9 +185,15 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 
 ## 5. API 约定
 
-### v0.27.0 域名排序（独立终审与修复后本地门禁通过）
+### v0.28.0 用户组默认域名（分支实现，交付验证中）
 
-v0.27.0 [域名排序设计](../specs/2026-10-27-v0.27.0-domain-order-design.md)／[计划](v0.27.0-plan.md) 已完成前后端实现与本地门禁。新增 sort_order 与独立 set-order，当前默认固定优先、授权后稳定排序，原完整保存不写新字段；迁移／真实 App／数据库边界回归已通过，前端完整门禁已通过，完整浏览器、Linux 安全及精确制品门禁已通过，集中安全修复的目标门禁已通过，远端交付尚待，不将局部验证视为整版完成，见[验收](v0.27.0-acceptance.md)。
+`00027` 为 builtin user／admin 增加可空 `user_group.default_domain_id`，共享组 `updated_at`；SQLC1.30 标准生成完整模型，旧严格组 DTO／权限请求不增加字段。新增 GET `/api/v1/admin/user-group/domain-default?groupKey=...`、POST `/api/v1/admin/user-group/set-domain-default` 及 GET `/api/v1/domain/group-default`，均 `no-store`。新管理检查当前 DB actor 的双管理权限及目标组候选交集，本人不可用 UUID 必须为 null。默认写先完整精度版本比较，再当前同值 no-op；旧权限同集合仍推进版本。
+
+新旧组写采用 5 秒 domain 共享→当前账号共享→当前 builtin admin 排他→目标组排他，锁后重新授权；删除域名在原事务中 admin 优先清个人／组引用、推进版本和独立默认字段审计。前端双草稿共享版本，身份 epoch 隔离与安全 me 发布；手动／个人／组／全局／有序候选只影响面板初选，旧省略 `domainId` 仍全局。具体严格字段、错误码、事务／HTTP 编码失败差异、测试及交付状态见[设计](../specs/2026-10-27-v0.28.0-group-default-domain-design.md)和[验收](v0.28.0-acceptance.md)。技术栈、原覆盖率阈值和排除不变，无新增权限或依赖。
+
+### v0.27.0 域名排序（已合并，未发布）
+
+v0.27.0 [域名排序设计](../specs/2026-10-27-v0.27.0-domain-order-design.md)／[计划](v0.27.0-plan.md) 的前后端、事务授权修复及完整本地门禁已完成，PR #225 合并为 `8c024b5035226285ea76571c8b6a50ceb2d19440`；最终 `64751e5` 的 PR CI #40486914108 与新合并 CI #40493457478 各九成功，实际 CodeRabbit 覆盖最终且有效意见闭环。各阶段源码、运行时与制品保持独立归属，详见[验收](v0.27.0-acceptance.md)，未正式发布。
 
 ### v0.26.0 个人默认域名（已合并，未发布）
 

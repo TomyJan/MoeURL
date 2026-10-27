@@ -188,7 +188,11 @@ const mutation = useMutation({
     } else {
       void queryClient.invalidateQueries({ queryKey: queryKey.value })
     }
-    if (currentOperation(operation)) void queryClient.invalidateQueries({ queryKey: ['domain', 'available'] })
+    if (currentOperation(operation)) {
+      void queryClient.invalidateQueries({ queryKey: ['domain', 'available'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin-user-group-domain-default'] })
+      void queryClient.invalidateQueries({ queryKey: ['group-default-domain'] })
+    }
   },
   /** Retains conflicted revisions and blocks denied writes without leaking late feedback across identities. */
   async onError(error, operation) {

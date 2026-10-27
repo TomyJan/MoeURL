@@ -20,5 +20,7 @@ export function useAvailableDomainChoices() {
     queryFn: listAvailableDomains,
     enabled: computed(() => !!identity.scope.value.userId),
     retry: false,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   })
 }

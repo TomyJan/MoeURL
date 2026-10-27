@@ -274,6 +274,8 @@ func (s *Service) Delete(ctx context.Context, actor auth.CurrentUser, input Chan
 	if err != nil {
 		return err
 	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	return appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
 		if err := lockDomainWrites(ctx, tx); err != nil {
 			return err
@@ -300,6 +302,9 @@ func (s *Service) Delete(ctx context.Context, actor auth.CurrentUser, input Chan
 			return ErrDomainReferenced
 		}
 		if err := q.ClearDeletedDomainPreferences(ctx, current.ID); err != nil {
+			return err
+		}
+		if err := q.ClearDeletedGroupDomainDefaults(ctx, current.ID); err != nil {
 			return err
 		}
 		count, err := q.DeleteManagedDomain(ctx, sqlc.DeleteManagedDomainParams{ID: current.ID, UpdatedAt: current.UpdatedAt})

@@ -1,226 +1,83 @@
 <template>
   <section class="user-groups-page" data-testid="console-page-user-groups">
     <header class="user-groups-page__header">
-      <div>
-        <h1>{{ t('userGroups.title') }}</h1>
-        <p>{{ t('userGroups.description') }}</p>
-      </div>
+      <div><h1>{{ t('userGroups.title') }}</h1><p>{{ t('userGroups.description') }}</p></div>
       <strong>{{ t('userGroups.total', { total: displayedGroups.length }) }}</strong>
     </header>
-
-    <v-progress-linear v-if="query.isPending.value" indeterminate />
+    <v-alert v-if="!canManage" type="warning">{{ t('groupDefault.accessDenied') }}</v-alert>
+    <v-progress-linear v-else-if="query.isPending.value" indeterminate />
     <v-alert v-else-if="query.isError.value && !query.data.value" type="error" variant="tonal">
       {{ t('userGroups.loadFailed') }}
-      <template #append>
-        <v-btn variant="text" @click="query.refetch()">{{ t('userGroups.retry') }}</v-btn>
-      </template>
+      <v-btn variant="text" @click="query.refetch()">{{ t('userGroups.retry') }}</v-btn>
     </v-alert>
     <div v-else-if="displayedGroups.length === 0" class="user-groups-page__empty">
-      <h2>{{ t('userGroups.empty') }}</h2>
-      <p>{{ t('userGroups.emptyDescription') }}</p>
+      <h2>{{ t('userGroups.empty') }}</h2><p>{{ t('userGroups.emptyDescription') }}</p>
     </div>
     <template v-else>
-      <v-tabs v-model="activeGroupKey" class="user-groups-page__tabs" show-arrows>
-        <v-tab v-for="group in displayedGroups" :key="group.key" :value="group.key">{{ group.name }}</v-tab>
+      <v-tabs :model-value="activeGroupKey" class="user-groups-page__tabs" show-arrows @update:model-value="changeGroup">
+        <v-tab v-for="group in displayedGroups" :key="group.key" :value="group.key" :disabled="pending">{{ group.name }}</v-tab>
       </v-tabs>
-
-      <ActionToast v-if="feedback === 'success'" :key="`success:${feedbackRevision}`" type="success">{{ t('userGroups.saveSuccess') }}</ActionToast>
-      <ActionToast v-else-if="feedback === 'conflict'" :key="`conflict:${feedbackRevision}`" type="warning">{{ t('userGroups.conflict') }}</ActionToast>
-      <ActionToast v-else-if="feedback === 'reload-error'" :key="`reload-error:${feedbackRevision}`" type="error">{{ t('userGroups.conflictReloadFailed') }}</ActionToast>
-      <ActionToast v-else-if="feedback === 'error'" :key="`error:${feedbackRevision}`" type="error">{{ t('userGroups.saveFailed') }}</ActionToast>
-
-      <UserGroupPermissionEditor
-        v-if="activeGroup && catalog"
-        :data-valid="!staleGroupKeys.has(activeGroup.key)"
-        :definitions="catalog.permissions"
-        :dirty="draft.isDirty(activeGroup)"
-        :draft-permissions="draft.permissionsFor(activeGroup.key)"
-        :group="activeGroup"
-        :pending="mutation.isPending.value"
-        :presets="catalog.presets"
-        @apply-preset="applyPreset(activeGroup, $event)"
-        @save="saveCurrentGroup(activeGroup)"
-        @set-permission="(permissionKey, selected) => activeGroup && setPermission(activeGroup, permissionKey, selected)"
-      />
+      <ActionToast v-if="feedback" :key="feedbackRevision + ':' + feedback" :type="feedback === 'success' ? 'success' : feedback === 'conflict' ? 'warning' : 'error'">{{ t(feedbackKey) }}</ActionToast>
+      <v-alert v-if="refreshBroken" type="warning">
+        {{ t('groupDefault.refreshRequired') }}
+        <v-btn :disabled="pending" @click="reload(activeGroupKey)">{{ t('groupDefault.reload') }}</v-btn>
+      </v-alert>
+      <!-- The nonempty catalog branch guarantees an active group; capture its rendered target for event guards. -->
+      <template v-for="group in [activeGroup!]" :key="identity.scope.value.epoch + ':' + group.key + ':' + group.updatedAt + ':' + feedbackRevision">
+        <UserGroupPermissionEditor
+          :data-valid="group.key === 'guest' || (groupReady(group) && !defaultDirty(group.key))"
+          :definitions="query.data.value!.permissions"
+          :dirty="draft.isDirty(group)"
+          :draft-permissions="draft.permissionsFor(group.key)"
+          :group="group"
+          :pending="pending"
+          :presets="query.data.value!.presets"
+          @apply-preset="applyPreset(group, $event)"
+          @save="savePermissions(group)"
+          @set-permission="(key, selected) => setPermission(group, key, selected)"
+        />
+        <div v-if="group.editable">
+          <v-btn :disabled="pending" variant="text" @click="cancelPermissions(group)">{{ t('groupDefault.cancelPermissions') }}</v-btn>
+          <v-btn :disabled="pending" variant="text" @click="reload(group.key, undefined, 'permission')">{{ t('groupDefault.reloadPermissions') }}</v-btn>
+        </div>
+        <template v-if="canManageDefault">
+          <v-progress-linear v-if="settingQuery.isPending.value" indeterminate />
+          <v-alert v-if="settingQuery.isError.value" type="error">
+            {{ t('groupDefault.loadFailed') }}
+            <v-btn :disabled="pending" @click="reload(group.key, undefined, 'default')">{{ t('groupDefault.retry') }}</v-btn>
+          </v-alert>
+          <UserGroupDomainDefaultEditor
+            v-if="currentDefault"
+            :result="currentDefault.result"
+            :value="currentDefault.value"
+            :disabled="!settingReady(currentDefault.result.setting)"
+            :dirty="defaultDirty(group.key)"
+            :pending="pending"
+            :stale="stale.has(group.key)"
+            @select="selectDefault"
+            @save="saveDefault"
+            @cancel="cancelDefault"
+            @reload="(target) => reload(target.groupKey, undefined, 'default')"
+          />
+        </template>
+      </template>
     </template>
   </section>
 </template>
 
 <script setup lang="ts">
-import ActionToast from '@/shared/feedback/ActionToast.vue'
-import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-
-import {
-  listUserGroups,
-  updateUserGroupPermissions,
-  userGroupQueryKey,
-  type PermissionPresetKey,
-  type UserGroup,
-  type UserGroupKey,
-  type UserGroupListResponse,
-} from '@/entities/user-group/api'
+import ActionToast from '@/shared/feedback/ActionToast.vue'
 import UserGroupPermissionEditor from '@/features/user-group-permissions/UserGroupPermissionEditor.vue'
-import { useUserGroupPermissionDraft } from '@/features/user-group-permissions/useUserGroupPermissionDraft'
-import { ApiClientError } from '@/shared/api/client'
-import { USER_GROUP_PERMISSION_CONFLICT_CODE } from '@/shared/api/error-codes'
-
-type Feedback = '' | 'success' | 'conflict' | 'reload-error' | 'error'
+import UserGroupDomainDefaultEditor from '@/features/user-group-domain-default/UserGroupDomainDefaultEditor.vue'
+import { useGroupDefaultManagement } from '@/features/user-group-domain-default/useGroupDefaultManagement'
 
 const { t } = useI18n()
-const queryClient = useQueryClient()
-const query = useQuery({ queryKey: userGroupQueryKey, queryFn: listUserGroups })
-const draft = useUserGroupPermissionDraft()
-const displayedGroups = ref<UserGroup[]>([])
-const activeGroupKey = ref<UserGroupKey>('guest')
-const feedback = ref<Feedback>('')
-const feedbackRevision = ref(0)
-const knownVersions = new Map<UserGroupKey, string>()
-const staleGroupKeys = reactive(new Set<UserGroupKey>())
-let pendingConflictRefreshes = 0
-/** Exposes the validated catalog while preserving its initial absent state. */
-const catalog = computed<UserGroupListResponse | undefined>(() => query.data.value)
-/** Resolves the active visible group without asserting that it exists. */
-const activeGroup = computed<UserGroup | undefined>(() => displayedGroups.value.find(({ key }) => key === activeGroupKey.value))
-
-watch(
-  () => query.data.value,
-  (result) => {
-    if (pendingConflictRefreshes > 0) {
-      return
-    }
-    if (!result) {
-      displayedGroups.value = []
-      return
-    }
-    syncServerGroups(result)
-  },
-  { immediate: true },
-)
-
-watch(activeGroupKey, () => {
-  feedback.value = ''
-})
-
-const mutation = useMutation({
-  mutationFn: updateUserGroupPermissions,
-  retry: false,
-  /** Replaces current state from the response, then awaits both required cache refreshes. */
-  async onSuccess(result) {
-    replaceDisplayedGroup(result.group)
-    draft.resetGroup(result.group)
-    knownVersions.set(result.group.key, result.group.updatedAt)
-    staleGroupKeys.delete(result.group.key)
-    queryClient.setQueryData<UserGroupListResponse | undefined>(userGroupQueryKey, (current) => current ? {
-      ...current,
-      groups: current.groups.map((group) => group.key === result.group.key ? { ...result.group, permissions: [...result.group.permissions] } : group),
-    } : current)
-    if (result.group.key === activeGroupKey.value) {
-      feedback.value = 'success'
-    }
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: userGroupQueryKey }),
-      queryClient.invalidateQueries({ queryKey: ['auth', 'me'] }),
-    ])
-  },
-  /** Reloads a conflicting group once without retrying the rejected write. */
-  async onError(error, input) {
-    if (error instanceof ApiClientError && error.code === USER_GROUP_PERMISSION_CONFLICT_CODE) {
-      pendingConflictRefreshes += 1
-      let refreshFailed = false
-      try {
-        await query.refetch({ throwOnError: true })
-      } catch {
-        refreshFailed = true
-        staleGroupKeys.add(input.groupKey)
-      } finally {
-        try {
-          await nextTick()
-          const result = query.data.value
-          if (result) {
-            syncServerGroups(result, input.groupKey)
-            await nextTick()
-          }
-        } finally {
-          pendingConflictRefreshes -= 1
-        }
-      }
-      if (input.groupKey === activeGroupKey.value) {
-        feedback.value = refreshFailed ? 'reload-error' : 'conflict'
-      }
-      return
-    }
-    if (input.groupKey === activeGroupKey.value) {
-      feedback.value = 'error'
-    }
-  },
-})
-
-/** Copies refreshed groups and preserves unrelated drafts during a conflict refresh. */
-function syncServerGroups(result: UserGroupListResponse, conflictGroupKey?: UserGroupKey) {
-  displayedGroups.value = result.groups.map((group) => ({ ...group, permissions: [...group.permissions] }))
-  const firstGroup = displayedGroups.value[0]
-  if (firstGroup && !displayedGroups.value.some(({ key }) => key === activeGroupKey.value)) {
-    activeGroupKey.value = firstGroup.key
-  }
-  for (const group of displayedGroups.value) {
-    if (knownVersions.get(group.key) === group.updatedAt) {
-      continue
-    }
-    if (conflictGroupKey && group.key !== conflictGroupKey) {
-      staleGroupKeys.add(group.key)
-      continue
-    }
-    draft.resetGroup(group)
-    knownVersions.set(group.key, group.updatedAt)
-    staleGroupKeys.delete(group.key)
-  }
-}
-
-/** Replaces one visible group without mutating query response objects. */
-function replaceDisplayedGroup(group: UserGroup) {
-  displayedGroups.value = displayedGroups.value.map((current) => current.key === group.key
-    ? { ...group, permissions: [...group.permissions] }
-    : current)
-}
-
-/** Applies a server-defined preset to the current local draft. */
-function applyPreset(group: UserGroup, presetKey: PermissionPresetKey) {
-  feedbackRevision.value++
-  const currentCatalog = catalog.value
-  const preset = currentCatalog?.presets.find(({ key }) => key === presetKey)
-  if (!currentCatalog || !preset) {
-    feedback.value = 'error'
-    return
-  }
-  feedback.value = ''
-  draft.applyPreset(group, preset, currentCatalog.permissions)
-}
-
-/** Updates one configurable permission in the current local draft. */
-function setPermission(group: UserGroup, permissionKey: string, selected: boolean) {
-  feedbackRevision.value++
-  const definition = catalog.value?.permissions.find(({ key }) => key === permissionKey)
-  if (!definition) {
-    feedback.value = 'error'
-    return
-  }
-  feedback.value = ''
-  draft.setPermission(group, definition, selected)
-}
-
-/** Starts one complete optimistic update for the active editable group. */
-function saveCurrentGroup(group: UserGroup) {
-  feedbackRevision.value++
-  const input = draft.toUpdateInput(group)
-  if (!input) {
-    feedback.value = 'error'
-    return
-  }
-  feedback.value = ''
-  mutation.mutate(input)
-}
+const { identity, query, settingQuery, canManage, canManageDefault, activeGroupKey, activeGroup, displayedGroups, currentDefault, draft, stale, feedback, feedbackKind, feedbackRevision, refreshBroken, pending, groupReady, settingReady, defaultDirty, applyPreset, setPermission, savePermissions, selectDefault, saveDefault, cancelDefault, cancelPermissions, reload, changeGroup } = useGroupDefaultManagement()
+const feedbackKey = computed(() => (feedbackKind.value === 'default'
+  ? { success: 'groupDefault.saved', conflict: 'groupDefault.conflict', 'reload-error': 'groupDefault.reloadFailed', 'conflict-reload-error': 'groupDefault.reloadFailed', error: 'groupDefault.saveFailed' }
+  : { success: 'userGroups.saveSuccess', conflict: 'userGroups.conflict', 'reload-error': 'groupDefault.reloadFailed', 'conflict-reload-error': 'userGroups.conflictReloadFailed', error: 'userGroups.saveFailed' })[feedback.value as 'success' | 'conflict' | 'reload-error' | 'conflict-reload-error' | 'error'])
 </script>
 
 <style scoped>

@@ -47,6 +47,8 @@ func TestUserGroupAuditPermissionSets(t *testing.T) {
 			if mode == "upgraded" {
 				require.NoError(t, goose.UpTo(database, dir, 21))
 			}
+			// Exercise the current service against its complete schema after preserving the historical seed path.
+			require.NoError(t, goose.Up(database, dir))
 			pool, err := pgxpool.New(ctx, url)
 			require.NoError(t, err)
 			t.Cleanup(pool.Close)

@@ -90,6 +90,19 @@ async function selectSecondary() {
 afterEach(() => { cleanup(); clients.splice(0).forEach((client) => client.clear()); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 describe('domain ordering with real queries', () => {
+  it('invalidates group default management and self selections after a domain write', async () => {
+    const { client } = mount()
+    const management = ['admin-user-group-domain-default', 'A', 1, 'user']
+    const selection = ['group-default-domain', 'A', 1]
+    client.setQueryData(management, { saved: true })
+    client.setQueryData(selection, { saved: true })
+    await selectSecondary()
+    await fireEvent.update(screen.getByLabelText('domainOrder.value'), '-20')
+    await fireEvent.click(screen.getByRole('button', { name: 'domainOrder.save' }))
+    await screen.findByText('domainOrder.saved')
+    await waitFor(() => expect(client.getQueryState(management)?.isInvalidated).toBe(true))
+    expect(client.getQueryState(selection)?.isInvalidated).toBe(true)
+  })
   it('dispatch boundary rejects a stale default event after a confirmed server permission denial', async () => {
     const { client, legacyBodies } = mount({ save: async () => response(null, 120001) })
     await selectSecondary()

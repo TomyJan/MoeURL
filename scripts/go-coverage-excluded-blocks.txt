@@ -52,7 +52,7 @@ github.com/TomyJan/MoeURL/internal/shortlink/service.go:878.16,880.3
 github.com/TomyJan/MoeURL/internal/domain/service.go:108.51,110.4
 github.com/TomyJan/MoeURL/internal/domain/service.go:145.51,147.4
 github.com/TomyJan/MoeURL/internal/domain/service.go:215.51,217.4
-github.com/TomyJan/MoeURL/internal/domain/service.go:278.51,280.4
+github.com/TomyJan/MoeURL/internal/domain/service.go:280.51,282.4
 
 # The default host is a validated string, so encoding/json cannot fail while marshaling it.
 github.com/TomyJan/MoeURL/internal/domain/service.go:261.16,263.3

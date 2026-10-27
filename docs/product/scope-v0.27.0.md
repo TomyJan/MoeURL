@@ -2,7 +2,7 @@
 
 ## 目标与阶段
 
-本轮前后端实现、唯一独立终审及集中安全修复后的完整本地门禁已通过。主控将旧域名排队授权竞态纳入 Important 修复，真实 24 场景 RED→GREEN；修复候选 `f25a8b5bc2720947d113cf6b13850a1496401adb` 的完整后端／原业务 100%、99 项浏览器、Linux race／安全及新精确制品门禁均通过，SDD 已完整归档核验，远端交付仍待。原候选 `6a46a48` 的证据及工具缓存隔离事故另有准确归属，见[验收](../implementation/v0.27.0-acceptance.md)。独立分支 `feat/v0.27.0-domain-order` 从 v0.26 PR #224 的合并提交 `60b36fec2d063785a8c97855d5a6d38a950c4ad3` 起步。上一轮最终 PR 和合并 CI 已分别取得真实 9 项成功，实际 CodeRabbit 已覆盖最新候选；这些结果不替代本轮验证。
+本轮已通过 [PR #225](https://github.com/TomyJan/MoeURL/pull/225) 合并为 `8c024b5035226285ea76571c8b6a50ceb2d19440`；最终 `64751e5` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40486914108) 与合并 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40493457478) 各九SUCCESS，真实最终CodeRabbit覆盖最新且有效意见闭环，未正式发布。本地唯一终审及集中安全修复、后续真实审查修复均保留精确候选；原f25／6a46证据、d785制品、缓存隔离事故和SDD归档不能改称最终head结果，详见[验收](../implementation/v0.27.0-acceptance.md)。分支 `feat/v0.27.0-domain-order` 从 `60b36fec2d063785a8c97855d5a6d38a950c4ad3` 起步，最终分支保留。
 
 补齐 roadmap 中的域名排序：管理员为短链域名设置排序值，用户只在自己已获授权的候选中看到稳定顺序，个人偏好和临时明确选择继续优先。当前全局默认固定排在候选首位；排序不改变服务器省略 `domainId` 的全局默认语义。
 

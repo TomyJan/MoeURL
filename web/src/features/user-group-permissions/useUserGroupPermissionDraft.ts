@@ -10,6 +10,7 @@ import type {
 
 interface PermissionDraft {
   permissions: string[]
+  sourcePermissions: string[]
   sourceUpdatedAt: string
 }
 
@@ -31,6 +32,7 @@ export function useUserGroupPermissionDraft() {
   function resetGroup(group: UserGroup) {
     drafts[group.key] = {
       permissions: [...group.permissions],
+      sourcePermissions: [...group.permissions],
       sourceUpdatedAt: group.updatedAt,
     }
   }
@@ -79,7 +81,7 @@ export function useUserGroupPermissionDraft() {
     if (!draft) {
       return false
     }
-    return !sameSet(draft.permissions, group.permissions)
+    return !sameSet(draft.permissions, draft.sourcePermissions)
   }
 
   /** Builds a complete optimistic update for an editable group. */
