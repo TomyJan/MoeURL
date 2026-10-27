@@ -2,7 +2,7 @@
 
 MoeURL 按「基础可用闭环 → 发布质量补强 → 产品体验精细化 → MVP 增强闭环 → 统计分析闭环 → 增强能力」逐步推进。
 
-截至 2026-10-27，v0.26 个人默认与 [v0.27 域名排序](scope-v0.27.0.md) 均已合并；后者 PR #225 合并为 `8c024b5035226285ea76571c8b6a50ceb2d19440`，最终 `64751e5` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40486914108) 和合并 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40493457478) 各九成功、真实审查覆盖最终且有效意见闭环，未发布。当前 [v0.28 用户组默认](scope-v0.28.0.md) 已完成分支实现与原本地完整门禁，唯一独立终审的 1 项 Important 和 1 项 Minor 已集中修复并通过完整本地门禁，远端交付进行中；边界和证据见[设计](../specs/2026-10-27-v0.28.0-group-default-domain-design.md)、[计划](../implementation/v0.28.0-plan.md)及[验收](../implementation/v0.28.0-acceptance.md)。v0.25 手机 E2E 失败及[维护 PR #223](../implementation/2026-10-27-frontend-security-dependencies-acceptance.md)恢复保持原归属。合并 CI 后台不阻塞下一轮，真实失败优先；正式生产验收独立记录。 首候选 `7c84ba5` 的九项 CI 与真实 CodeRabbit 首审已完成，3 项 Minor 已集中修复并通过受影响完整本地验证；后继精确候选门禁另验，见 [PR #226](https://github.com/TomyJan/MoeURL/pull/226)。
+截至 2026-10-28（Asia/Singapore），v0.26 个人默认、v0.27 域名排序与 [v0.28 用户组默认](scope-v0.28.0.md) 均已合并。PR #226 于 2026-10-27T21:21:01Z 合并为 `b1b1e4112ba92708becf59c875cff8bff109c3ec`，最终 `0280081` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40575287235) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40586040807) 各九成功，真实审查覆盖最终且有效意见闭环；完整历史见[验收](../implementation/v0.28.0-acceptance.md)。下一有界发现方向为每域名默认跳转方式，尚未实现，不改变旧 API 省略字段、已有短链或公开访问语义。旧手机 E2E 故障及恢复保留原归属，正式生产验收与发布独立记录。
 
 ## v0.26.0 个人默认短链域名
 

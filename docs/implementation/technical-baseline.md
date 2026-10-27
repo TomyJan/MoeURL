@@ -185,7 +185,7 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 
 ## 5. API 约定
 
-### v0.28.0 用户组默认域名（分支实现，交付验证中）
+### v0.28.0 用户组默认域名（已合并，未发布）
 
 `00027` 为 builtin user／admin 增加可空 `user_group.default_domain_id`，共享组 `updated_at`；SQLC1.30 标准生成完整模型，旧严格组 DTO／权限请求不增加字段。新增 GET `/api/v1/admin/user-group/domain-default?groupKey=...`、POST `/api/v1/admin/user-group/set-domain-default` 及 GET `/api/v1/domain/group-default`，均 `no-store`。新管理检查当前 DB actor 的双管理权限及目标组候选交集，本人不可用 UUID 必须为 null。默认写先完整精度版本比较，再当前同值 no-op；旧权限同集合仍推进版本。
 
