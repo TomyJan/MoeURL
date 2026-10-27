@@ -2,6 +2,8 @@ import { computed, shallowRef } from 'vue'
 import { QueryClient, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { UserResponse } from '@/entities/auth/api'
 import { accountPreferencesKey, getAccountPreferences } from '@/entities/user/preferences'
+import { domainPreferenceKey } from '@/entities/user/domain-preference'
+import { availableDomainQueryKey } from '@/entities/domain/api'
 import { resetAccountPreferences, useAppPreferences } from './useAppPreferences'
 
 interface IdentityScope { userId: string; epoch: number }
@@ -22,6 +24,11 @@ function createIdentity(client: QueryClient) {
     if (previous) {
       void client.cancelQueries({ queryKey: accountPreferencesKey(previous) })
       client.removeQueries({ queryKey: accountPreferencesKey(previous) })
+      void client.cancelQueries({ queryKey: domainPreferenceKey(previous) })
+      client.removeQueries({ queryKey: domainPreferenceKey(previous) })
+      const previousDomains = [...availableDomainQueryKey, previous]
+      void client.cancelQueries({ queryKey: previousDomains })
+      client.removeQueries({ queryKey: previousDomains })
     }
   }
   client.getQueryCache().subscribe((event) => {

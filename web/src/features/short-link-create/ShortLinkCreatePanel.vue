@@ -24,7 +24,7 @@
             class="short-link-create-panel__submit"
             color="primary"
             size="large"
-            :disabled="!canCreateShortLink || mutation.isPending.value"
+            :disabled="!canSubmit || mutation.isPending.value"
             :loading="mutation.isPending.value"
             @click="submit"
           >
@@ -43,7 +43,13 @@
           {{ t('shortLinkCreate.domainLoadFailed') }}
           <v-btn variant="text" @click="domainQuery.refetch()">{{ t('shortLinkCreate.retryDomains') }}</v-btn>
         </div>
-        <p v-else-if="domainQuery.data.value && availableDomains.length === 0 && canCreateWithPermissions" role="status">
+        <div v-if="preference.query.isError.value && canCreateWithPermissions" role="alert">
+          {{ t('domainPreference.loadFailed') }}
+          <v-btn variant="text" @click="preference.query.refetch()">{{ t('domainPreference.retry') }}</v-btn>
+          <v-btn variant="text" @click="useSystemChoice">{{ t('domainPreference.useSystem') }}</v-btn>
+        </div>
+        <p v-if="selectionUnavailable" role="status">{{ t('domainPreference.fallback') }}</p>
+        <p v-if="!domainQuery.isError.value && domainQuery.data.value && availableDomains.length === 0 && canCreateWithPermissions" role="status">
           {{ t('shortLinkCreate.noAvailableDomains') }}
         </p>
         <div v-if="canConfigureAccess" class="short-link-create-panel__advanced">
@@ -228,7 +234,7 @@ import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { me } from '@/entities/auth/api'
-import { availableDomainQueryKey, listAvailableDomains } from '@/entities/domain/api'
+import { useAvailableDomainChoices, useDomainPreference } from '@/shared/preferences/useDomainPreference'
 import { createShortLink } from '@/entities/short-link/api'
 import type { CreateShortLinkInput, RedirectMode } from '@/entities/short-link/model'
 import { visitLimitInputSchema } from '@/entities/short-link/schema'
@@ -274,13 +280,15 @@ const passwordEnabled = ref(false)
 const limitEnabled = ref(false)
 const maxVisits = ref('')
 const limitErrorMessage = ref('')
-const selectedDomainId = ref('')
+const selectedDomainId = ref<string | null>(null)
+const lostManualChoice = ref(false)
 const passwordField = useTemplateRef<{ $el: globalThis.Element }>('passwordField')
 const currentUserQuery = useQuery({
   queryKey: ['auth', 'me'],
   queryFn: me,
 })
-const domainQuery = useQuery({ queryKey: availableDomainQueryKey, queryFn: listAvailableDomains, retry: false })
+const preference = useDomainPreference()
+const domainQuery = useAvailableDomainChoices()
 const currentUser = computed(() => currentUserQuery.data.value?.user)
 const hasResolvedCurrentUser = computed(() => currentUserQuery.data.value !== undefined)
 const canCreateWithPermissions = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:create') &&
@@ -291,13 +299,20 @@ const domainOptions = computed(() => availableDomains.value.map((item) => ({ tit
 const fallbackDomainId = computed(() => {
   if (canUseDefaultDomain.value && availableDomains.value.some((item) => item.isDefault)) return ''
   // The selector and submission path are only active when at least one domain is available.
-  return (availableDomains.value.find((item) => item.isDefault) ?? availableDomains.value[0])!.id
+  return (availableDomains.value.find((item) => item.isDefault) ?? availableDomains.value[0])?.id ?? ''
 })
 const domainChoice = computed({
-  get: () => availableDomains.value.some((item) => item.id === selectedDomainId.value) ? selectedDomainId.value : fallbackDomainId.value,
-  set: (id: string) => { selectedDomainId.value = id },
+  get: () => {
+    if (selectedDomainId.value === '' && availableDomains.value.some((item) => item.isDefault)) return ''
+    if (availableDomains.value.some((item) => item.id === selectedDomainId.value)) return selectedDomainId.value!
+    const saved = availableDomains.value.find((item) => item.id === preference.query.data.value?.domainId)
+    return saved ? (saved.isDefault ? '' : saved.id) : fallbackDomainId.value
+  },
+  set: (id: string) => { selectedDomainId.value = id; lostManualChoice.value = false },
 })
+const selectionUnavailable = computed(() => availableDomains.value.length > 0 && (lostManualChoice.value || (selectedDomainId.value === null && !!preference.query.data.value?.domainId && !availableDomains.value.some((item) => item.id === preference.query.data.value?.domainId) && domainQuery.isSuccess.value)))
 const canCreateShortLink = computed(() => canCreateWithPermissions.value && !currentUserQuery.isError?.value && !domainQuery.isError.value && availableDomains.value.length > 0)
+const canSubmit = computed(() => canCreateShortLink.value && (selectedDomainId.value !== null || preference.query.isSuccess.value))
 const { canUseIntermediate, canUseConfirmation, canSubmitRedirectMode } = useRedirectModePermissions(currentUser)
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
 const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
@@ -324,8 +339,14 @@ watch([canUseIntermediate, canUseConfirmation], () => {
   }
 })
 watch(availableDomains, (items) => {
-  if (selectedDomainId.value && !items.some(({ id }) => id === selectedDomainId.value)) selectedDomainId.value = ''
+  if (selectedDomainId.value !== null && !items.some((item) => selectedDomainId.value === '' ? item.isDefault : item.id === selectedDomainId.value)) {
+    selectedDomainId.value = null
+    lostManualChoice.value = true
+  }
 })
+
+type CreationInput = Omit<CreateShortLinkInput, 'password'>
+const creationScopes = new WeakMap<CreationInput, typeof preference.scope.value>()
 
 const mutation = useMutation({
   /** Runs creation through the shared sensitive-input cleanup boundary. */
@@ -349,7 +370,8 @@ const mutation = useMutation({
     )
   },
   /** Stores the generated link and refreshes list consumers after creation. */
-  onSuccess(result) {
+  onSuccess(result, input) {
+    if (!preference.isCurrent(creationScopes.get(input)!)) return
     toast.success(t('feedback.created'))
     createdUrl.value = result.shortLink.url
     createdSlug.value = result.shortLink.slug
@@ -359,10 +381,22 @@ const mutation = useMutation({
     void queryClient.invalidateQueries({ queryKey: ['admin-short-link'] })
   },
   /** Removes any residual plaintext password after every mutation outcome. */
-  onSettled() {
-    clearPasswordInput()
+  onSettled(_result, _error, input) {
+    if (preference.isCurrent(creationScopes.get(input)!)) clearPasswordInput()
+  },
+  /** Refreshes current authorization without changing or replaying the failed request. */
+  onError(error, input) {
+    if (preference.isCurrent(creationScopes.get(input)!) && error instanceof ApiClientError && error.code === 200114) {
+      void domainQuery.refetch()
+      void currentUserQuery.refetch()
+    }
   },
 })
+
+watch(preference.scope, () => { resetForm(); mutation.reset() }, { flush: 'sync' })
+
+/** Makes the system fallback an explicit temporary decision even for a single candidate. */
+function useSystemChoice() { selectedDomainId.value = fallbackDomainId.value; lostManualChoice.value = false }
 
 const errorMessage = computed(() => {
   if (validationErrorMessage.value) {
@@ -386,7 +420,7 @@ const creationErrorMessage = computed(() => {
 
 /** Validates the form and submits only access settings allowed by current permissions. */
 function submit() {
-  if (!canCreateShortLink.value || mutation.isPending.value) {
+  if (!canSubmit.value || mutation.isPending.value) {
     return
   }
   const submitted = submitValidatedInput()
@@ -474,6 +508,7 @@ function submitValidatedInput(): boolean {
   }
   createdUrl.value = ''
   createdSlug.value = ''
+  creationScopes.set(input, preference.scope.value)
   mutation.mutate(input)
   return true
 }
@@ -508,7 +543,8 @@ function resetInputFields() {
   expiresAt.value = ''
   clearPasswordInput()
   passwordEnabled.value = false
-  selectedDomainId.value = ''
+  selectedDomainId.value = null
+  lostManualChoice.value = false
 }
 
 /** Resolves the transient native password input without copying it into reactive state. */

@@ -30,7 +30,7 @@ function deferred<T>() {
 function mountPanel(client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } }), profile = false) {
   clients.push(client)
   const i18n = createI18n({ legacy: false, locale: 'test', missingWarn: false, fallbackWarn: false, messages: {} })
-  return { ...render(profile ? ProfilePage : PasswordChangePanel, { global: { plugins: [[VueQueryPlugin, { queryClient: client }], i18n], stubs: { ...componentStubs, PreferenceSwitcher: true, AccountPreferencesPanel: { props: ['active'], template: '<section data-testid="account-preferences-panel" :data-active="active" />' } } } }), client }
+  return { ...render(profile ? ProfilePage : PasswordChangePanel, { global: { plugins: [[VueQueryPlugin, { queryClient: client }], i18n], stubs: { ...componentStubs, DomainPreferencePanel: true, PreferenceSwitcher: true, AccountPreferencesPanel: { props: ['active'], template: '<section data-testid="account-preferences-panel" :data-active="active" />' } } } }), client }
 }
 /** Enters a draft using visible password fields. */
 async function fill(currentPassword = 'old', newPassword = 'newpassword', confirmPassword = newPassword) {

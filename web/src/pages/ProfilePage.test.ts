@@ -133,7 +133,7 @@ vi.mock('@/entities/user/api', () => ({
 function mountProfilePage() {
   return render(ProfilePage, {
     global: {
-      stubs: { ...componentStubs, AccountPreferencesPanel: { props: ['userId', 'active'], template: '<section data-testid="account-preferences-panel" :data-user-id="userId" :data-active="active" />' }, PasswordChangePanel: { template: '<section data-testid="password-change-panel" />' } },
+      stubs: { ...componentStubs, DomainPreferencePanel: true, AccountPreferencesPanel: { props: ['userId', 'active'], template: '<section data-testid="account-preferences-panel" :data-user-id="userId" :data-active="active" />' }, PasswordChangePanel: { template: '<section data-testid="password-change-panel" />' } },
     },
   })
 }

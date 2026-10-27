@@ -2,6 +2,7 @@ import { createI18n } from 'vue-i18n'
 
 export const messages = {
   'zh-CN': {
+    domainPreference: { title: '默认短链域名', description: '仅设置创建面板的初始选择，创建时仍可临时改选，最终权限由服务器检查。', domain: '个人默认域名', useSystem: '使用系统选择', save: '保存域名偏好', saved: '域名偏好已保存', loadFailed: '域名偏好加载失败，请重试或明确使用系统选择。', retry: '重试域名偏好', unavailable: '已保存域名当前不可用，可选择其他域名或清除偏好。', fallback: '原域名当前不可用，已采用可用的系统选择。', conflict: '域名偏好已在其他位置更新，请重新加载后保存。', reload: '重新加载域名偏好', invalid: '请选择当前可用域名或使用系统选择。', saveFailed: '域名偏好保存失败，草稿已保留，请重试。' },
     visitExport: { csv: '导出访问记录 CSV', description: '导出完整筛选结果，最多 1000 条、8 MiB。', started: '已发起 CSV 下载，请在浏览器中确认保存。', failed: '导出失败，请重试。', limitExceeded: '导出超过 1000 条或 8 MiB，请缩小日期范围或筛选条件后重试。' },
     auditExport: { csv: '导出操作审计 CSV', description: '导出完整筛选结果，最多 1000 条、8 MiB。', started: '已发起 CSV 下载，请在浏览器中确认保存。', failed: '导出失败，请重试。', limitExceeded: '导出超过 1000 条或 8 MiB，请缩小日期范围或筛选条件后重试。' },
     listExport: { csv: '导出 CSV', description: '导出筛选结果，最多 1000 条。', started: '已发起 CSV 下载，请在浏览器中确认保存。', failed: '导出失败，请重试。', limitExceeded: '筛选结果超过 1000 条或导出数据超过 8 MiB，请缩小筛选范围后重试。' },
@@ -715,6 +716,7 @@ export const messages = {
     },
   },
   en: {
+    domainPreference: { title: 'Default short-link domain', description: 'Sets only the initial creation choice. You can choose another domain when creating; the server checks current permissions.', domain: 'Personal default domain', useSystem: 'Use system selection', save: 'Save domain preference', saved: 'Domain preference saved', loadFailed: 'Could not load your domain preference. Retry or explicitly use the system selection.', retry: 'Retry domain preference', unavailable: 'The saved domain is currently unavailable. Choose another domain or clear the preference.', fallback: 'The previous domain is unavailable. Using an available system selection.', conflict: 'Your domain preference changed elsewhere. Reload before saving.', reload: 'Reload domain preference', invalid: 'Choose an available domain or use the system selection.', saveFailed: 'Could not save your domain preference. Your draft is preserved; please retry.' },
     visitExport: { csv: 'Export visit records CSV', description: 'Export all filtered results, up to 1000 records and 8 MiB.', started: 'CSV download started. Confirm saving in your browser.', failed: 'Export failed. Please try again.', limitExceeded: 'Export exceeds 1000 records or 8 MiB. Narrow the date range or filters and try again.' },
     auditExport: { csv: 'Export audit records CSV', description: 'Export all filtered results, up to 1000 records and 8 MiB.', started: 'CSV download started. Confirm saving in your browser.', failed: 'Export failed. Please try again.', limitExceeded: 'Export exceeds 1000 records or 8 MiB. Narrow the date range or filters and try again.' },
     listExport: { csv: 'Export CSV', description: 'Export filtered results, up to 1000 links.', started: 'CSV download started. Confirm saving in your browser.', failed: 'Export failed. Please try again.', limitExceeded: 'Export data exceeds 1000 links or 8 MiB. Narrow the filters and try again.' },
