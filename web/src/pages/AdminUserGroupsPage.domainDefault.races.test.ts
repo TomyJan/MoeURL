@@ -94,7 +94,7 @@ it.each(['roundtrip', 'same-id', 'unmount'])('discards a late save and refresh f
   pending.resolve(response(view.management('user')))
   await waitFor(() => expect(view.client.isMutating()).toBe(0))
   expect(view.requests.filter((path) => path === '/api/v1/auth/me')).toHaveLength(before)
-  expect(screen.queryByText('userGroups.saveSuccess')).toBeNull()
+  expect(screen.queryByText('groupDefault.saved')).toBeNull()
 })
 
 it('locks after a committed write whose refresh fails, then explicitly recovers without replaying it', async () => {
@@ -115,7 +115,7 @@ it('keeps a default conflict draft and never resends it automatically', async ()
   view = mountGroupDefault(AdminUserGroupsPage, { overrides: { '/api/v1/admin/user-group/set-domain-default': async () => response(null, 300202) } })
   await fireEvent.update(await userEditor(), groupId)
   await fireEvent.click(screen.getByRole('button', { name: 'groupDefault.save' }))
-  await screen.findByText('userGroups.conflict')
+  await screen.findByText('groupDefault.conflict')
   expect(screen.getByLabelText('groupDefault.domain')).toHaveProperty('value', groupId)
   expect(screen.getByRole('button', { name: 'groupDefault.save' })).toHaveProperty('disabled', true)
   await flushEventLoop()

@@ -169,6 +169,10 @@ v0.25.0 新增 `audit:export`（`administration`），与 `audit:read` 一样为
 
 v0.5.0 已将 `admin:access`、`short_link:read_all`、`short_link:update_all`、`short_link:delete_all` 定义为受保护管理权限：`admin` 必须拥有，`guest` 和 `user` 必须不拥有。保护规则只约束权限配置写入；所有管理业务仍按当前权限快照检查 `admin:access` 和对应能力，不能按用户组标识直接放行。
 
+## 用户组默认域名权限
+
+v0.28.0 用户组默认域名不是授权层。设置管理要求当前数据库的 builtin admin 身份及 `admin:access`、`domain:manage`，候选必须与目标组 `short_link:create`、当前域名角色对应的 `domain:use_default`／`domain:use_assigned`、授权和启用状态取交集。本人读取只返回可用选择或不带 UUID 的未设置／不可用状态。旧权限写仍要求其原有 `admin:access`，不额外依赖 `domain:manage`，但在锁后重查当前有效身份；完整[设计](2026-10-27-v0.28.0-group-default-domain-design.md)及[验收](../implementation/v0.28.0-acceptance.md)区分实现与远端／发布状态。
+
 ## 权限预设
 
 为了降低管理员的配置心智负担，系统可以提供预置权限模型，用于快速套用常见部署场景。

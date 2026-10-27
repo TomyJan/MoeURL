@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { afterEach, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { defineComponent, h, ref } from 'vue'
+import { Toaster } from 'vue-sonner'
 import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
@@ -36,11 +37,13 @@ it('saves a target group default using the original full revision through the re
   vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
   vi.stubGlobal('matchMedia', () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} }))
   vi.stubGlobal('visualViewport', Object.assign(new window.EventTarget(), { width: 1024, height: 768, offsetLeft: 0, offsetTop: 0, pageLeft: 0, pageTop: 0, scale: 1 }))
-  render(AdminUserGroupsPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }], createVuetify({ components, directives })] } })
+  const Host = defineComponent({ setup: () => () => [h(AdminUserGroupsPage), h(Toaster)] })
+  render(Host, { global: { plugins: [[VueQueryPlugin, { queryClient: client }], createVuetify({ components, directives })] } })
   await fireEvent.click(await screen.findByRole('tab', { name: 'user' }))
   const select = await screen.findByRole('combobox', { name: 'groupDefault.domain' })
   await fireEvent.keyDown(select, { key: 'Enter' })
   await fireEvent.click(await screen.findByRole('option', { name: 'Group (group.example)' }))
   await fireEvent.click(screen.getByRole('button', { name: 'groupDefault.save' }))
   await waitFor(() => expect(bodies).toEqual([{ groupKey: 'user', domainId, expectedUpdatedAt: version }]))
+  await screen.findByText('groupDefault.saved')
 })

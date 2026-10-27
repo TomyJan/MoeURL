@@ -38,13 +38,13 @@
         />
         <div v-if="group.editable">
           <v-btn :disabled="pending" variant="text" @click="cancelPermissions(group)">{{ t('groupDefault.cancelPermissions') }}</v-btn>
-          <v-btn :disabled="pending" variant="text" @click="reload(group.key)">{{ t('groupDefault.reloadPermissions') }}</v-btn>
+          <v-btn :disabled="pending" variant="text" @click="reload(group.key, undefined, 'permission')">{{ t('groupDefault.reloadPermissions') }}</v-btn>
         </div>
         <template v-if="canManageDefault">
           <v-progress-linear v-if="settingQuery.isPending.value" indeterminate />
           <v-alert v-if="settingQuery.isError.value" type="error">
             {{ t('groupDefault.loadFailed') }}
-            <v-btn :disabled="pending" @click="reload(group.key)">{{ t('groupDefault.retry') }}</v-btn>
+            <v-btn :disabled="pending" @click="reload(group.key, undefined, 'default')">{{ t('groupDefault.retry') }}</v-btn>
           </v-alert>
           <UserGroupDomainDefaultEditor
             v-if="currentDefault"
@@ -57,7 +57,7 @@
             @select="selectDefault"
             @save="saveDefault"
             @cancel="cancelDefault"
-            @reload="(target) => reload(target.groupKey)"
+            @reload="(target) => reload(target.groupKey, undefined, 'default')"
           />
         </template>
       </template>
@@ -74,8 +74,10 @@ import UserGroupDomainDefaultEditor from '@/features/user-group-domain-default/U
 import { useGroupDefaultManagement } from '@/features/user-group-domain-default/useGroupDefaultManagement'
 
 const { t } = useI18n()
-const { identity, query, settingQuery, canManage, canManageDefault, activeGroupKey, activeGroup, displayedGroups, currentDefault, draft, stale, feedback, feedbackRevision, refreshBroken, pending, groupReady, settingReady, defaultDirty, applyPreset, setPermission, savePermissions, selectDefault, saveDefault, cancelDefault, cancelPermissions, reload, changeGroup } = useGroupDefaultManagement()
-const feedbackKey = computed(() => ({ success: 'userGroups.saveSuccess', conflict: 'userGroups.conflict', 'reload-error': 'userGroups.conflictReloadFailed', error: 'userGroups.saveFailed' })[feedback.value as 'success' | 'conflict' | 'reload-error' | 'error'])
+const { identity, query, settingQuery, canManage, canManageDefault, activeGroupKey, activeGroup, displayedGroups, currentDefault, draft, stale, feedback, feedbackKind, feedbackRevision, refreshBroken, pending, groupReady, settingReady, defaultDirty, applyPreset, setPermission, savePermissions, selectDefault, saveDefault, cancelDefault, cancelPermissions, reload, changeGroup } = useGroupDefaultManagement()
+const feedbackKey = computed(() => (feedbackKind.value === 'default'
+  ? { success: 'groupDefault.saved', conflict: 'groupDefault.conflict', 'reload-error': 'groupDefault.reloadFailed', error: 'groupDefault.saveFailed' }
+  : { success: 'userGroups.saveSuccess', conflict: 'userGroups.conflict', 'reload-error': 'userGroups.conflictReloadFailed', error: 'userGroups.saveFailed' })[feedback.value as 'success' | 'conflict' | 'reload-error' | 'error'])
 </script>
 
 <style scoped>

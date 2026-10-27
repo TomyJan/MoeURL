@@ -74,7 +74,7 @@ v0.0.1 只要求支持单全局默认短链访问域名，并保留多域名模�
 
 ## v0.8.0 短链域名管理
 
-v0.26.0 [个人默认域名](2026-10-27-v0.26.0-personal-default-domain-design.md) 已通过 PR #224 合并，只影响账号保存与创建面板初始选择；v0.27.0 [排序](2026-10-27-v0.27.0-domain-order-design.md) 已通过 PR #225 合并为8c024b5，最终PR与合并CI各九成功、真实审查闭环，均未发布，逐候选见[验收](../implementation/v0.27.0-acceptance.md)。v0.28 [组默认](2026-10-27-v0.28.0-group-default-domain-design.md)处于设计／计划阶段，自助绑定未实现；下文 v0.8.0 后端省略／显式创建契约保持原义。
+v0.26.0 [个人默认域名](2026-10-27-v0.26.0-personal-default-domain-design.md) 已通过 PR #224 合并，只影响账号保存与创建面板初始选择；v0.27.0 [排序](2026-10-27-v0.27.0-domain-order-design.md) 已通过 PR #225 合并为 8c024b5，最终 PR 与合并 CI 各九成功、真实审查闭环，均未发布，逐候选见[验收](../implementation/v0.27.0-acceptance.md)。v0.28 [组默认](2026-10-27-v0.28.0-group-default-domain-design.md) 已在分支实现，远端与正式发布另见[验收](../implementation/v0.28.0-acceptance.md)；自助绑定未实现，下文 v0.8.0 后端省略／显式创建契约保持原义。
 
 管理员在 `/admin/domain` 管理短链域名，系统访问域名仍不开放管理。新增和地址修改使用完整根 Origin：生产只允许 HTTPS，开发只允许回环 HTTP；拒绝用户信息、非根路径、查询和片段。既有裸主机名或带端口的地址继续按原规则读取，不在迁移中改写。相同的规范化 authority 不可重复注册。
 
@@ -83,3 +83,13 @@ v0.26.0 [个人默认域名](2026-10-27-v0.26.0-personal-default-domain-design.m
 管理员可创建、更新、启停、切换默认和删除域名。写操作提交 `expectedUpdatedAt`，版本冲突保留草稿而不自动覆盖。不能停用或删除当前默认域名；已有任意短链引用的域名不能修改地址或删除，软删除的短链同样算引用。切换默认值只影响之后未显式选域名的新短链，不改写旧短链 URL。
 
 公开 `/{slug}`、预览、解锁和继续访问只接受短链保存域名的真实 `Host` authority，并重新检查该域名启用状态；不以 `X-Forwarded-Host` 决定归属。错误 Host 和停用域名按不存在处理，重新启用后原公开地址恢复。短码依旧全系统唯一，不按域名重复使用。部署者必须为每个公开域名配置 DNS、HTTPS 证书和保留原始 Host（包括非默认端口）的反向代理路由；本版本不自动提供这些设施。
+
+## v0.28.0 用户组默认域名
+
+管理员可以为内置 `user`／`admin` 保存一个可空默认域名。配置只参与创建面板初选，不构成授权，不改已有短链或个人偏好。优先级为有效手动选择、有效个人偏好、有效组默认、可用全局默认、授权列表的有序首项；当前全局默认在实际创建请求中省略 `domainId`，非全局候选传 UUID。后端旧省略／显式语义保持，提交期间角色或授权变化仍可能返回 200114，刷新后由用户重新确认，不自动重发。
+
+管理 GET `/api/v1/admin/user-group/domain-default?groupKey=...` 与 POST `/api/v1/admin/user-group/set-domain-default` 使用独立严格 DTO，读取当前数据库操作者的 builtin admin 身份及 `admin:access`＋`domain:manage`。候选按目标组当前权限、域名角色、授权及启用状态取交集，顺序沿用 v0.27；`guest` 只读。POST 显式提交 `groupKey`、可空 `domainId` 和完整 `expectedUpdatedAt`，使用已有用户组版本；当前同值 no-op、陈旧同值冲突。
+
+本人 GET `/api/v1/domain/group-default` 仅返回 `selection={domainId,status}`，状态为 `available`／`not_set`／`unavailable`；不可用时 UUID 为 null，不返回域名元数据或用户组权限。三个接口均 `no-store`。组默认读取未知／失败时没有隐式成功回退，面板提供重试与明确的临时系统选择，单候选也能恢复；有效手动或个人选择不等待组读取，迟到结果不覆盖明确选择。
+
+停用、撤授权或撤创建／角色权限不清保存值，使用时回退，恢复资格后再次可用。真正删除在原审计事务中清个人与组引用、单调推进各自版本再删除域名，任一步或审计失败全回滚。已有任意短链（含软删除）引用仍阻止删除。数据库、锁序、审计和回退限制见[设计](2026-10-27-v0.28.0-group-default-domain-design.md)，没有新增权限、依赖、绑定或 DNS/TLS 能力。

@@ -29,6 +29,7 @@ export function useGroupDefaultManagement() {
   const defaults = reactive<Partial<Record<UserGroupKey, DefaultDraft>>>({})
   const stale = reactive(new Set<UserGroupKey>())
   const feedback = ref('')
+  const feedbackKind = ref<'permission' | 'default'>('permission')
   const feedbackRevision = ref(0)
   const refreshBroken = ref(false)
   const refreshing = ref(false)
@@ -71,7 +72,7 @@ export function useGroupDefaultManagement() {
   watch(identity.scope, () => {
     displayedGroups.value = []; draft.reset([])
     for (const key of ['guest', 'user', 'admin'] as const) delete defaults[key]
-    stale.clear(); feedback.value = ''; refreshBroken.value = false; refreshing.value = false; activeGroupKey.value = 'guest'
+    stale.clear(); feedback.value = ''; feedbackKind.value = 'permission'; refreshBroken.value = false; refreshing.value = false; activeGroupKey.value = 'guest'
   }, { flush: 'sync' })
   watch(activeGroupKey, () => { feedback.value = '' })
 
@@ -92,8 +93,9 @@ export function useGroupDefaultManagement() {
   }
 
   /** Refreshes auth outside the global cache and checks identity before publishing it. */
-  async function reload(key: UserGroupKey, scope = identity.scope.value) {
+  async function reload(key: UserGroupKey, scope = identity.scope.value, kind = feedbackKind.value) {
     if (!current(scope) || refreshing.value) return false
+    feedbackKind.value = kind
     refreshing.value = true
     try {
       const user = await me()
@@ -177,6 +179,7 @@ export function useGroupDefaultManagement() {
     if (!groupReady(group) || defaultDirty(group.key) || !draft.isDirty(group)) return
     // groupReady already established an editable non-guest target.
     const input = draft.toUpdateInput(group)!
+    feedbackKind.value = 'permission'
     feedbackRevision.value++; feedback.value = ''
     mutation.mutate({ kind: 'permission', input, key: group.key, scope: identity.scope.value })
   }
@@ -191,6 +194,7 @@ export function useGroupDefaultManagement() {
     if (!settingReady(target) || target.groupKey === 'guest' || !defaultDirty(target.groupKey)) return
     const value = defaults[target.groupKey]!
     if (value.value !== null && !value.result.candidates.some(({ id }) => id === value.value)) return
+    feedbackKind.value = 'default'
     feedbackRevision.value++; feedback.value = ''
     mutation.mutate({ kind: 'default', key: target.groupKey, scope: identity.scope.value, input: { groupKey: target.groupKey, domainId: value.value, expectedUpdatedAt: target.updatedAt } })
   }
@@ -206,5 +210,5 @@ export function useGroupDefaultManagement() {
   /** Guards keyboard and delayed tab events as well as the disabled tab buttons. */
   function changeGroup(key: UserGroupKey) { if (!pending.value && displayedGroups.value.some((group) => group.key === key)) activeGroupKey.value = key }
 
-  return { identity, query, settingQuery, canManage, canManageDefault, activeGroupKey, activeGroup, displayedGroups, currentDefault, draft, stale, feedback, feedbackRevision, refreshBroken, pending, groupReady, settingReady, defaultDirty, applyPreset, setPermission, savePermissions, selectDefault, saveDefault, cancelDefault, cancelPermissions, reload, changeGroup }
+  return { identity, query, settingQuery, canManage, canManageDefault, activeGroupKey, activeGroup, displayedGroups, currentDefault, draft, stale, feedback, feedbackKind, feedbackRevision, refreshBroken, pending, groupReady, settingReady, defaultDirty, applyPreset, setPermission, savePermissions, selectDefault, saveDefault, cancelDefault, cancelPermissions, reload, changeGroup }
 }
