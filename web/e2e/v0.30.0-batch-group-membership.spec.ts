@@ -66,7 +66,8 @@ for (const width of [1280, 390]) {
         // The existing table scrolls within its panel, not the document.
         const groupCell = page.getByTestId('console-user-row').filter({ hasText: alice.username }).locator('td').nth(2)
         await groupCell.scrollIntoViewIfNeeded()
-        await expect(groupCell).toBeInViewport({ ratio: 1 })
+        // A collapsed table border may clip subpixel geometry, not the group text.
+        await expect(groupCell).toBeInViewport({ ratio: 0.99 })
         await expect(groupCell).toHaveText('user')
         await page.locator('.user-table > .v-table__wrapper').evaluate(element => { element.scrollLeft = 0 })
       }
@@ -91,7 +92,7 @@ for (const width of [1280, 390]) {
       // Confirmation actions must not require Playwright auto-scrolling a clipped card.
       await expect.soft(dialog.getByRole('button', { name: saveName }), 'Confirmed action is fully inside the viewport').toBeInViewport({ ratio: 1, timeout: 2000 })
       // Every frozen account remains readable inside the bounded scrollable summary.
-      const summary = dialog.getByRole('list')
+      const summary = dialog.getByRole('list').filter({ has: page.getByText(bob.username, { exact: true }) })
       for (const member of [bob, alice]) {
         const item = summary.getByRole('listitem').filter({ hasText: member.username })
         await item.scrollIntoViewIfNeeded()
