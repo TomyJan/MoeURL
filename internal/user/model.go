@@ -40,6 +40,21 @@ type ChangeGroupInput struct {
 	ExpectedUpdatedAt string `json:"expectedUpdatedAt"`
 }
 
+type BatchChangeGroupItem struct {
+	ID                string `json:"id"`
+	ExpectedUpdatedAt string `json:"expectedUpdatedAt"`
+}
+
+type BatchChangeGroupInput struct {
+	Items    []BatchChangeGroupItem `json:"items"`
+	GroupKey string                 `json:"groupKey"`
+}
+
+type BatchChangeGroupResult struct {
+	ChangedCount   int `json:"changedCount"`
+	UnchangedCount int `json:"unchangedCount"`
+}
+
 type UpdateResult struct {
 	User UserSummary `json:"user"`
 }

@@ -1,6 +1,6 @@
 # 路线图
 
-[v0.30.0 批量成员迁移](scope-v0.30.0.md) 已从下方待开发项收敛为当前有界设计：当前列表选择其他非 builtin user／admin 账号，统一目标、全批事务、旧 Session 撤销与审计。一次 fresh builder check 与[计划](../implementation/v0.30.0-plan.md)完成，尚无产品实现／门禁结论；自定义组、多组、OIDC 映射继续未开发。
+[v0.30.0 批量成员迁移](scope-v0.30.0.md) 已从下方待开发项收敛为当前有界版本：当前列表选择其他非 builtin user／admin 账号，统一目标、全批事务、旧 Session 撤销与审计。一次 fresh builder check 与[计划](../implementation/v0.30.0-plan.md)完成，当前后端实现及门禁进行中，尚未完成前端／整版验收；自定义组、多组、OIDC 映射继续未开发。
 
 [v0.29.0 每域名默认跳转方式](scope-v0.29.0.md) 已由 [PR #227](https://github.com/TomyJan/MoeURL/pull/227) 合并为 `8af05d60fb89769f7aaabf4da4906ed411fdad48`。最终 `4dfa4d43` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40629796924) 与合并 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40631422772) 各九成功、真实最新审查闭环，尚未正式发布。只做域名级模式配置和当前有权创建初选，不扩模板、DNS/TLS、个人／组跳转偏好或旧 API 省略语义；唯一终审、root 修复、原失败及逐候选见[验收](../implementation/v0.29.0-acceptance.md)。
 
