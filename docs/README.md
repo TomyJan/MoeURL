@@ -1,6 +1,6 @@
 # MoeURL 文档中心
 
-下一有界版本 [v0.32.0 二维码外观预设](product/scope-v0.32.0.md) 已形成[设计](specs/2026-10-29-v0.32.0-qr-appearance-presets-design.md)、[计划](implementation/v0.32.0-plan.md)、[任务](implementation/v0.32.0-tasks.md)与[验收](implementation/v0.32.0-acceptance.md)：三个本地固定深色／白底 PNG 预设，实现中，完整本地与远端验证待完成。
+下一有界版本 [v0.32.0 二维码外观预设](product/scope-v0.32.0.md) 的[设计](specs/2026-10-29-v0.32.0-qr-appearance-presets-design.md)、[计划](implementation/v0.32.0-plan.md)、[任务](implementation/v0.32.0-tasks.md)与[验收](implementation/v0.32.0-acceptance.md)已同步：三个本地固定深色／白底PNG预设，Task1–2标准完成；原前端2051项四100，clean459cddd自身3／109浏览器、六无遮挡原图与精确产品通过。Task3独立终审及远端交付待完成，未正式发布。
 
 v0.31.0 已通过 [PR #229](https://github.com/TomyJan/MoeURL/pull/229) 于 2026-10-28T18:44:58Z 合并为 `c671205182f92d7a5396ebf4e3589d85d155dd2b`。最终候选 `e9c3025` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40741884841) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40748005532) 各九项成功，真实 CodeRabbit 覆盖最终候选，全部有效意见闭环；标准 Task1–4 和完整最终 SDD 归档核验已完成。仅 Google／手动创建草稿，无正式发布或外部 Google 互通验收。逐候选及原失败见[验收](implementation/v0.31.0-acceptance.md)。
 
