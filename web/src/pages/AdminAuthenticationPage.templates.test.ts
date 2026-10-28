@@ -201,21 +201,27 @@ it('renders the same creation aid in Chinese without untranslated keys', async (
   expect(screen.getByRole('checkbox', { name: '启用' })).toHaveProperty('checked', false)
 })
 
-// Removing either accessible relationship loses the warning's context for assistive technology.
+// A generic warning or a label taken from the old draft hides which replacement will be applied.
 it.each([
-  { locale: 'en' as const, empty: 'No OIDC providers', add: 'Add provider', apply: 'Apply template', title: 'Replace creation draft?' },
-  { locale: 'zh-CN' as const, empty: '暂无 OIDC 提供商', add: '新增提供商', apply: '应用模板', title: '替换创建草稿？' },
-])('names and describes the replacement dialog in $locale', async text => {
+  { locale: 'en' as const, empty: 'No OIDC providers', add: 'Add provider', apply: 'Apply template', title: 'Replace creation draft?', template: 'Google' },
+  { locale: 'en' as const, empty: 'No OIDC providers', add: 'Add provider', apply: 'Apply template', title: 'Replace creation draft?', template: 'Manual / blank' },
+  { locale: 'zh-CN' as const, empty: '暂无 OIDC 提供商', add: '新增提供商', apply: '应用模板', title: '替换创建草稿？', template: 'Google' },
+  { locale: 'zh-CN' as const, empty: '暂无 OIDC 提供商', add: '新增提供商', apply: '应用模板', title: '替换创建草稿？', template: '手动／空白' },
+])('identifies the pending $template replacement and its warning in $locale', async text => {
   mountTemplates({ locale: text.locale })
   await screen.findByText(text.empty)
   await fireEvent.click(screen.getByRole('button', { name: text.add }))
+  await fireEvent.update(screen.getByLabelText(text.locale === 'en' ? 'Display name' : '显示名称'), 'Old provider')
   await fireEvent.update(screen.getByLabelText('Client Secret'), 'keep-secret')
-  await fireEvent.click(screen.getByRole('button', { name: 'Google' }))
+  await fireEvent.click(screen.getByRole('button', { name: text.template }))
   await fireEvent.click(screen.getByRole('button', { name: text.apply }))
   const dialog = await screen.findByRole('dialog', { name: text.title })
   const description = document.getElementById(dialog.getAttribute('aria-describedby')!)
   expect(description).not.toBeNull()
   expect(description!.textContent).toContain('Client Secret')
+  expect(description!.textContent).toContain(text.template)
+  expect(description!.textContent).not.toContain('Old provider')
+  expect(description!.textContent).not.toContain('keep-secret')
   expect(screen.getByRole('dialog', { name: text.title, description: /Client Secret/ })).toBe(dialog)
 })
 

@@ -67,7 +67,7 @@
     <v-dialog v-if="pendingTemplate" v-model="templateDialog" max-width="480" :aria-labelledby="templateDialogID + '-title'" :aria-describedby="templateDialogID + '-description'">
       <v-card>
         <v-card-title :id="templateDialogID + '-title'">{{ t('oidc.templates.replaceTitle') }}</v-card-title>
-        <v-card-text :id="templateDialogID + '-description'">{{ t('oidc.templates.replaceDescription') }}</v-card-text>
+        <v-card-text :id="templateDialogID + '-description'">{{ t('oidc.templates.replaceDescription', { template: pendingTemplate.displayName || t('oidc.templates.manual') }) }}</v-card-text>
         <v-card-actions class="identity-page__template-actions">
           <v-btn type="button" variant="text" @click="pendingTemplate = null">{{ t('oidc.templates.keep') }}</v-btn>
           <v-btn type="button" color="primary" :disabled="mutation.isPending.value" @click="confirmTemplateApply">{{ t('oidc.templates.replace') }}</v-btn>

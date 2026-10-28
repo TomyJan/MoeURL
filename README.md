@@ -16,7 +16,7 @@ v0.30.0 已通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 于 2026
 
 ## 功能概览
 
-[v0.31.0 OIDC 创建模板](./docs/product/scope-v0.31.0.md) 已标准完成分支本地 Task1–3，仅提供 Google 与手动空白创建草稿。唯一实际终审四项有效意见闭环；clean `8712426` 的完整 107 项浏览器、六原图、精确产品／扫描与完整本地归档已核，远端待完成。2039 项单元测试及各次制品的实际身份见[验收](./docs/implementation/v0.31.0-acceptance.md)。
+[v0.31.0 OIDC 创建模板](./docs/product/scope-v0.31.0.md) 已标准完成分支本地 Task1–3，仅提供 Google 与手动空白创建草稿。唯一实际终审四项有效意见闭环；Task3 的 clean `8712426` 完整 107 项浏览器、六原图、精确产品／扫描与阶段本地归档快照已核。Task4 补审要求确认中明确模板名称，当前修复验证、远端交付、标准 Task4 及最终 SDD 归档仍待完成。原单元测试及各次制品的实际身份见[验收](./docs/implementation/v0.31.0-acceptance.md)。
 
 各项能力的版本边界与验证记录见 [文档中心](./docs/README.md)。
 

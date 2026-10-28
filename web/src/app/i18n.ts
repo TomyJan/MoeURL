@@ -575,7 +575,7 @@ export const messages = {
       templates: {
         title: '创建模板', choice: '提供商模板', manual: '手动／空白',
         description: '模板只填入草稿，不会联网或保存。请填写自己的凭据和邮箱域名，检查后再启用。首次登录需要提供商确认邮箱已验证，且属于允许的域名。', apply: '应用模板',
-        replaceTitle: '替换创建草稿？', replaceDescription: '将替换全部草稿字段，并清除 Client ID、Client Secret 和邮箱域名白名单。此操作不会修改已保存的提供商。',
+        replaceTitle: '替换创建草稿？', replaceDescription: '将应用“{template}”模板，替换全部草稿字段，并清除 Client ID、Client Secret 和邮箱域名白名单。此操作不会修改已保存的提供商。',
         keep: '保留草稿', replace: '替换草稿',
       },
       key: '提供商标识',
@@ -1315,7 +1315,7 @@ export const messages = {
       templates: {
         title: 'Creation template', choice: 'Provider template', manual: 'Manual / blank',
         description: 'Templates only fill a draft; they do not connect or save. Enter your credentials and email domains, check the configuration, then enable it. First sign-in requires a provider-verified email in an allowed domain.', apply: 'Apply template',
-        replaceTitle: 'Replace creation draft?', replaceDescription: 'All draft fields will be replaced, clearing Client ID, Client Secret and allowed email domains. Saved providers will not change.',
+        replaceTitle: 'Replace creation draft?', replaceDescription: 'Apply the {template} template. All draft fields will be replaced, clearing Client ID, Client Secret and allowed email domains. Saved providers will not change.',
         keep: 'Keep draft', replace: 'Replace draft',
       },
       key: 'Provider key',
