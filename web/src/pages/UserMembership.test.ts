@@ -1,79 +1,46 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/vue'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { afterEach, expect, it, vi } from 'vitest'
-import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { componentStubs } from '@/test/component-stubs'
+import { batchAlice, batchBob, batchManager, membershipResponse, mountBatchMembership } from '@/test/user-batch-group'
 import { createDeferred } from '@/test/deferred'
-import { me } from '@/entities/auth/api'
-import AdminUsersPage from './AdminUsersPage.vue'
 
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
-const clients: QueryClient[] = []
-const member = { id: '00000000-0000-0000-0000-000000000002', username: 'member', nickname: 'Member', group: 'user', status: 'active', builtin: false, createdAt: '2026-10-23T00:00:00Z', updatedAt: '2026-10-23T00:00:00.123456Z' }
-afterEach(() => { clients.splice(0).forEach((client) => client.clear()); vi.unstubAllGlobals() })
+let view: ReturnType<typeof mountBatchMembership>
+afterEach(() => { cleanup(); view?.client.clear(); vi.unstubAllGlobals() })
 
-it('waits for the current identity before opening a usable group-change dialog', async () => {
-  const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } }); clients.push(client)
-  client.setQueryData(['admin-user'], { items: [member], meta: { page: 1, pageSize: 20, total: 1 } })
-  const pendingIdentity = createDeferred<Response>()
-  vi.stubGlobal('fetch', vi.fn((path: string) => String(path).endsWith('/auth/me')
-    ? pendingIdentity.promise
-    : Promise.resolve(new Response(JSON.stringify({ code: 0, message: 'OK', data: { user: { ...member, group: 'admin' } }, meta: {} })))))
-  const identityRequest = client.fetchQuery({ queryKey: ['auth', 'me'], queryFn: me })
-  // Observe cancellation if an earlier assertion fails and cleanup clears the pending query.
-  void identityRequest.catch(() => {})
-  render(AdminUsersPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: componentStubs } })
-  await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.more' }))
-  const change = screen.getByRole('button', { name: 'membership.title' }) as HTMLButtonElement
-  expect(change.disabled).toBe(true)
-  await fireEvent.click(change)
-  expect(screen.queryByRole('dialog')).toBeNull()
-
-  pendingIdentity.resolve(new Response(JSON.stringify({ code: 0, message: 'OK', data: { user: { id: 'manager', username: 'manager', nickname: 'Manager', group: 'admin', permissions: ['admin:access'] } }, meta: {} })))
-  await identityRequest
-  await waitFor(() => expect(change.disabled).toBe(false))
-  await fireEvent.click(change)
-  const dialog = screen.getByRole('dialog')
-  await fireEvent.update(within(dialog).getByLabelText('membership.group'), 'admin')
-  await fireEvent.click(within(dialog).getByLabelText('membership.confirm'))
-  expect((within(dialog).getByRole('button', { name: 'membership.save' }) as HTMLButtonElement).disabled).toBe(false)
-  await fireEvent.click(within(dialog).getByRole('button', { name: 'membership.save' }))
-  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+it('reads no private list before current auth succeeds and never renders the old shared list cache', async () => {
+  const auth = createDeferred<Response>()
+  view = mountBatchMembership({ identityReady: false, overrides: { '/api/v1/auth/me': () => auth.promise } })
+  view.client.setQueryData(['admin-user'], { items: [{ ...batchAlice, username: 'Private old cache' }], meta: { total: 1 } })
+  expect(screen.queryByText('Private old cache')).toBeNull()
+  expect(view.state.requests).toEqual(['/api/v1/auth/me'])
+  auth.resolve(membershipResponse({ user: batchManager }))
+  await screen.findByText('alice')
+  expect(view.state.requests).toContain('/api/v1/admin/user/list?page=1&pageSize=20')
 })
 
-it.each(['guest', 'user'])('prevents group changes for a resolved %s identity without administrative permissions', async (group) => {
-  const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } }); clients.push(client)
-  client.setQueryData(['auth', 'me'], { user: { id: group === 'guest' ? '' : 'manager', username: group, nickname: group, group, permissions: [] } })
-  client.setQueryData(['admin-user'], { items: [member], meta: { page: 1, pageSize: 20, total: 1 } })
-  render(AdminUsersPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: componentStubs } })
-  await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.more' }))
-  const change = screen.getByRole('button', { name: 'membership.title' }) as HTMLButtonElement
-  expect(change.disabled).toBe(true)
-  await fireEvent.click(change)
-  expect(screen.queryByRole('dialog')).toBeNull()
+it.each(['guest', 'user'])('does not read or expose administrative accounts to %s without admin capability', async group => {
+  view = mountBatchMembership({ user: { ...batchManager, group, username: group, permissions: [] } })
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Change selected groups' })).toHaveProperty('disabled', true))
+  expect(view.state.requests).toEqual([])
+  expect(screen.queryByText('alice')).toBeNull()
 })
 
-it('opens a frozen account snapshot, preserves it across refetch and hides protected targets', async () => {
-  const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } }); clients.push(client)
-  client.setQueryData(['auth', 'me'], { user: { id: 'self', username: 'manager', group: 'admin', permissions: ['admin:access'] } })
-  const items = [member, { ...member, id: 'self', username: 'manager' }, { ...member, id: 'builtin', username: 'root', builtin: true }]
-  client.setQueryData(['admin-user'], { items, meta: { page: 1, pageSize: 20, total: 3 } })
-  const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { user: member }, meta: {} })))
-  vi.stubGlobal('fetch', fetcher)
-  render(AdminUsersPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: componentStubs } })
-  const rows = screen.getAllByTestId('console-user-row')
-  await fireEvent.click(within(rows[1]!).getByRole('button', { name: 'adminUsers.actions.more' }))
-  expect(screen.queryByRole('button', { name: 'membership.title' })).toBeNull()
-  await fireEvent.click(within(rows[0]!).getByRole('button', { name: 'adminUsers.actions.more' }))
-  await fireEvent.click(screen.getByRole('button', { name: 'membership.title' }))
-  const dialog = screen.getByRole('dialog')
-  // A repeated underlying action cannot replace the opening snapshot.
-  await fireEvent.click(screen.getByRole('button', { name: 'membership.title' }))
-  client.setQueryData(['admin-user'], { items: [{ ...member, updatedAt: '2026-10-23T12:00:00Z' }], meta: { page: 1, pageSize: 20, total: 1 } })
-  await fireEvent.update(within(dialog).getByLabelText('membership.group'), 'admin')
-  await fireEvent.click(within(dialog).getByLabelText('membership.confirm'))
-  await fireEvent.click(within(dialog).getByRole('button', { name: 'membership.save' }))
+it('keeps the legacy single-account snapshot across background reads and holds the parent read barrier after success', async () => {
+  view = mountBatchMembership({ users: [batchAlice, { ...batchBob, id: batchManager.id, username: 'manager' }, { ...batchBob, username: 'guest', builtin: true }] })
+  await screen.findByText('alice')
+  const row = screen.getAllByTestId('console-user-row')[0]!
+  await fireEvent.click(within(row).getByRole('button', { name: 'More actions' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'Change user group' }))
+  const dialog = within(screen.getByRole('dialog'))
+  view.state.users[0]!.updatedAt = '2026-10-28T04:00:00Z'
+  await view.client.invalidateQueries({ queryKey: ['admin-user'] })
+  await fireEvent.keyDown(dialog.getByRole('combobox', { name: 'Target group' }), { key: 'Enter' })
+  await fireEvent.click(await screen.findByRole('option', { name: 'Administrator' }))
+  await fireEvent.click(dialog.getByRole('checkbox', { name: 'I confirm the permission change and revocation of all existing sessions' }))
+  view.state.overrides['/api/v1/admin/user/change-group'] = () => membershipResponse({ user: { ...batchAlice, group: 'admin' } })
+  view.state.overrides['/api/v1/admin/user/list?page=1&pageSize=20'] = () => membershipResponse(null, 900000, 500)
+  await fireEvent.click(dialog.getByRole('button', { name: 'Confirm change' }))
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-  const mutation = fetcher.mock.calls.find(([path]) => String(path).includes('change-group'))
-  expect(mutation).toBeTruthy()
-  expect(JSON.parse(mutation![1]!.body as string).expectedUpdatedAt).toBe('2026-10-23T00:00:00.123456Z')
+  expect(view.state.writes[0]).toEqual({ path: '/api/v1/admin/user/change-group', input: { id: batchAlice.id, groupKey: 'admin', expectedUpdatedAt: '2026-10-28T01:02:03.123456Z' } })
+  await screen.findByRole('button', { name: 'Retry user list' })
+  expect(screen.getByRole('checkbox', { name: 'Select account alice' })).toHaveProperty('disabled', true)
 })
