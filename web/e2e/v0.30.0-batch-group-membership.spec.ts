@@ -56,8 +56,11 @@ for (const width of [1280, 390]) {
       const rejected = await rawPost(page.request, '/admin/user/batch-change-group', { items: snapshot([before.find(item => item.id === alice.id)!, protectedUser]), groupKey: 'admin' })
       expect(rejected.code).toBe(300102)
       expect((await users(page.request)).find(item => item.id === alice.id)).toEqual(before.find(item => item.id === alice.id))
+      // A focusable transparent checkbox is not a visible selection affordance.
+      await expect.soft(selectAccount(page, alice.username).locator('..').locator('svg'), 'Unselected account has a visible local selection glyph').toBeVisible({ timeout: 2000 })
       await selectAccount(page, alice.username).check()
       await selectAccount(page, bob.username).check()
+      await expect.soft(selectAccount(page, alice.username).locator('..').locator('svg'), 'Selected account has a visible local selection glyph').toBeVisible({ timeout: 2000 })
       await expect(page.getByRole('button', { name: /^(编辑|Edit)$/, exact: true }).first()).toBeDisabled()
       await capture(page, info, 'batch-membership-selection-' + width)
       await page.getByRole('button', { name: openName }).click()
@@ -77,6 +80,8 @@ for (const width of [1280, 390]) {
       await chooseGroup(page, 'admin')
       await expect(dialog).toContainText(width === 1280 ? '2 will change; 0 will remain unchanged.' : '将调整 2 个，保持不变 0 个。')
       await dialog.getByRole('checkbox', { name: confirmName }).check()
+      // Confirmation actions must not require Playwright auto-scrolling a clipped card.
+      await expect.soft(dialog.getByRole('button', { name: saveName }), 'Confirmed action is fully inside the viewport').toBeInViewport({ ratio: 1, timeout: 2000 })
       await capture(page, info, 'batch-membership-confirmation-' + width)
       const promoted = page.waitForResponse('**' + batchPath)
       await dialog.getByRole('button', { name: saveName }).click()
