@@ -1,6 +1,6 @@
 # MoeURL 产品总览
 
-[v0.30.0 批量成员迁移](scope-v0.30.0.md) 正通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 交付，Task1–3 标准完成，Task4 唯一实现终审与 root 集中修复已完成，远端交付与最终归档仍在进行。首 head a0a7 的九项 CI 与真实 CodeRabbit 审查已完成，两个有效 Minor 已由 root 修复；完整前端 121 个文件、2015 项测试及四项 100% 覆盖率实际运行于 a0a7 加当时 dirty 前端，当前输入集合／hash／bytes 已核验相符；clean85f4c45 的 105 项 browser 测试、本次六图与新精确产品证据另行核验。后继提交仍须取得自己的九项 CI 与真实最新审查覆盖，合并、最终归档和正式发布尚未完成。不替代下方 v0.29.0 主分支状态，范围与各候选实证见[验收](../implementation/v0.30.0-acceptance.md)。
+v0.30.0 已通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 于 2026-10-28T13:21:25Z 合并为 `d582fba02772e62f2f3af2fe11e485728f5c0097`。最终候选 `f54567d` 的 [PR CI #40686801162](https://github.com/TomyJan/MoeURL/actions/runs/40686801162) 与该合并的 [master CI #40695791448](https://github.com/TomyJan/MoeURL/actions/runs/40695791448) 各九项成功，真实 CodeRabbit 覆盖最终候选、有效意见全部闭环；标准 Task1–4 与完整最终 SDD 归档核验已完成。未正式发布或部署。范围、逐候选验证、原失败及运行归属见[验收](../implementation/v0.30.0-acceptance.md)；不将旧本地浏览器或产品制品重归属给合并提交，不扩自定义组、多组或 OIDC 映射。
 
 ## 产品定位
 

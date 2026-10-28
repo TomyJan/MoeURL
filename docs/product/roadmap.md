@@ -1,6 +1,6 @@
 # 路线图
 
-[v0.30.0 批量成员迁移](scope-v0.30.0.md) 已从下方待开发项收敛为当前有界版本：当前列表选择其他非 builtin user／admin 账号，统一目标、全批事务、旧 Session 撤销与审计。Task1–3 已标准完成，Task4 通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 继续交付；首 head a0a7 的九项 CI 与真实 CodeRabbit 审查已完成，两个有效 Minor 已由 root 修复；完整前端 121 个文件、2015 项测试及四项 100% 覆盖率实际运行于 a0a7 加当时 dirty 前端，当前输入集合／hash／bytes 已核验相符；clean85f4c45 的 105 项 browser 测试、本次六图与新精确产品证据另行核验。后继提交仍须取得自己的九项 CI 与真实最新审查覆盖，合并、最终归档和正式发布尚未完成，详见[计划](../implementation/v0.30.0-plan.md)和[验收](../implementation/v0.30.0-acceptance.md)。自定义组、多组、OIDC 映射继续未开发。
+v0.30.0 已通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 于 2026-10-28T13:21:25Z 合并为 `d582fba02772e62f2f3af2fe11e485728f5c0097`。最终候选 `f54567d` 的 [PR CI #40686801162](https://github.com/TomyJan/MoeURL/actions/runs/40686801162) 与该合并的 [master CI #40695791448](https://github.com/TomyJan/MoeURL/actions/runs/40695791448) 各九项成功，真实 CodeRabbit 覆盖最终候选、有效意见全部闭环；标准 Task1–4 与完整最终 SDD 归档核验已完成。未正式发布或部署。范围、逐候选验证、原失败及运行归属见[验收](../implementation/v0.30.0-acceptance.md)；不将旧本地浏览器或产品制品重归属给合并提交，不扩自定义组、多组或 OIDC 映射。
 
 [v0.29.0 每域名默认跳转方式](scope-v0.29.0.md) 已由 [PR #227](https://github.com/TomyJan/MoeURL/pull/227) 合并为 `8af05d60fb89769f7aaabf4da4906ed411fdad48`。最终 `4dfa4d43` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40629796924) 与合并 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40631422772) 各九成功、真实最新审查闭环，尚未正式发布。只做域名级模式配置和当前有权创建初选，不扩模板、DNS/TLS、个人／组跳转偏好或旧 API 省略语义；唯一终审、root 修复、原失败及逐候选见[验收](../implementation/v0.29.0-acceptance.md)。
 
