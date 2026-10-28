@@ -1,5 +1,7 @@
 # 路线图
 
+下方 OIDC 模板规划已收敛为 [v0.31.0](scope-v0.31.0.md)：仅新建草稿的手动／Google／Entra 单租户本地模板，设计形成、实现与验证待执行。主动绑定、组映射、多租户与自定义模板继续未开发。
+
 v0.30.0 已通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 于 2026-10-28T13:21:25Z 合并为 `d582fba02772e62f2f3af2fe11e485728f5c0097`。最终候选 `f54567d` 的 [PR CI #40686801162](https://github.com/TomyJan/MoeURL/actions/runs/40686801162) 与该合并的 [master CI #40695791448](https://github.com/TomyJan/MoeURL/actions/runs/40695791448) 各九项成功，真实 CodeRabbit 覆盖最终候选、有效意见全部闭环；标准 Task1–4 与完整最终 SDD 归档核验已完成。未正式发布或部署。范围、逐候选验证、原失败及运行归属见[验收](../implementation/v0.30.0-acceptance.md)；不将旧本地浏览器或产品制品重归属给合并提交，不扩自定义组、多组或 OIDC 映射。
 
 [v0.29.0 每域名默认跳转方式](scope-v0.29.0.md) 已由 [PR #227](https://github.com/TomyJan/MoeURL/pull/227) 合并为 `8af05d60fb89769f7aaabf4da4906ed411fdad48`。最终 `4dfa4d43` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40629796924) 与合并 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40631422772) 各九成功、真实最新审查闭环，尚未正式发布。只做域名级模式配置和当前有权创建初选，不扩模板、DNS/TLS、个人／组跳转偏好或旧 API 省略语义；唯一终审、root 修复、原失败及逐候选见[验收](../implementation/v0.29.0-acceptance.md)。
@@ -297,7 +299,7 @@ v0.9.0 复用现有 `system_setting`、前端偏好和 OIDC Provider 管理，�
 
 | 方向 | 当前基础 | 尚待开发 | 规格来源 |
 | --- | --- | --- | --- |
-| 账号与用户组 | 本地／OIDC 登录、个人昵称、个人密码修改、内置组权限和预设、账号语言／主题偏好已合并；v0.19.0 单账号 user／admin 改组已合并。 | 头像、时区及其他个人偏好；自定义组、批量成员迁移、多用户组；OIDC 模板、主动绑定和组映射。 | [用户与认证](../specs/users-and-auth.md)、[账号偏好范围](scope-v0.15.0.md)、[成员迁移范围](scope-v0.19.0.md)、[管理后台](../specs/admin.md)、[系统设置范围](scope-v0.9.0.md) |
+| 账号与用户组 | 本地／OIDC 登录、个人昵称、个人密码修改、内置组权限和预设、账号语言／主题偏好已合并；v0.19.0 单账号与 v0.30.0 有界批量 user／admin 改组已合并。 | 头像、时区及其他个人偏好；自定义组、多用户组；OIDC 创建模板正在 v0.31.0 设计／实施，主动绑定和组映射未开发。 | [用户与认证](../specs/users-and-auth.md)、[账号偏好范围](scope-v0.15.0.md)、[成员迁移范围](scope-v0.30.0.md)、[创建模板范围](scope-v0.31.0.md)、[管理后台](../specs/admin.md)、[系统设置范围](scope-v0.9.0.md) |
 | 短链组织与交换 | 单链接标题、标签、筛选、设置和 v0.20.0 单条归属转移、v0.21.0 有界清单 CSV、v0.22.0 批量转移、v0.23.0 批量标签整理已合并。 | 尚未正式发布；个人赠送、集中标签管理及导入未实现。 | [短链](../specs/short-links.md)、[管理后台](../specs/admin.md)、[元数据范围](scope-v0.11.0.md)、[清单导出](scope-v0.21.0.md)、[批量转移](scope-v0.22.0.md)、[标签整理](scope-v0.23.0.md) |
 | 分析与操作追溯 | 个人概览、匿名单链接聚合、有界日期和聚合 CSV、全站仪表盘、匿名访问明细与事务审计已合并；v0.24.0 单链匿名记录 CSV、v0.25.0 审计 CSV 已合并。 | 尚未正式发布，v0.25.0 合并后 CI 修复见验收；超出 90 天或任意时区分析、全站访问合并导出、访问事件归档、独立安全事件中心未实现。 | [统计与事件](../specs/statistics-and-events.md)、[v0.24.0 范围](scope-v0.24.0.md)、[v0.25.0 范围](scope-v0.25.0.md)、[管理后台](../specs/admin.md) |
 | 域名与默认策略 | 管理员域名、组授权及全局默认；v0.26 个人偏好、v0.27 排序、v0.28 用户组默认及 v0.29 每域名默认跳转方式已合并。模式仅用于创建面板有权初选，旧 API 与既有短链不变。 | 尚未正式发布；自助绑定及自动 DNS/TLS 未实现。 | [域名](../specs/domains.md)、[多域名](scope-v0.8.0.md)、[个人默认](scope-v0.26.0.md)、[排序](scope-v0.27.0.md)、[组默认](scope-v0.28.0.md)、[默认模式](scope-v0.29.0.md) |
