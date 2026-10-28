@@ -25,7 +25,7 @@ func (q *Queries) ClearDefaultShortLinkDomain(ctx context.Context) error {
 const createDomain = `-- name: CreateDomain :one
 insert into domain (id, host, display_name, purpose, enabled, is_default, created_at, updated_at)
 values ($1, $2, $3, $4, $5, $6, now(), now())
-returning id, host, display_name, purpose, enabled, is_default, created_at, updated_at, sort_order
+returning id, host, display_name, purpose, enabled, is_default, created_at, updated_at, sort_order, default_redirect_mode
 `
 
 type CreateDomainParams struct {
@@ -57,6 +57,7 @@ func (q *Queries) CreateDomain(ctx context.Context, arg CreateDomainParams) (Dom
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SortOrder,
+		&i.DefaultRedirectMode,
 	)
 	return i, err
 }
@@ -117,7 +118,7 @@ func (q *Queries) DomainHasReferences(ctx context.Context, domainID pgtype.UUID)
 }
 
 const getDefaultShortLinkDomain = `-- name: GetDefaultShortLinkDomain :one
-select id, host, display_name, purpose, enabled, is_default, created_at, updated_at, sort_order
+select id, host, display_name, purpose, enabled, is_default, created_at, updated_at, sort_order, default_redirect_mode
 from domain
 where enabled = true and is_default = true
 limit 1
@@ -136,6 +137,7 @@ func (q *Queries) GetDefaultShortLinkDomain(ctx context.Context) (Domain, error)
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SortOrder,
+		&i.DefaultRedirectMode,
 	)
 	return i, err
 }
@@ -183,7 +185,7 @@ func (q *Queries) GetGrantedShortLinkDomainForCreate(ctx context.Context, arg Ge
 }
 
 const getManagedDomainForUpdate = `-- name: GetManagedDomainForUpdate :one
-select id, host, display_name, purpose, enabled, is_default, created_at, updated_at, sort_order
+select id, host, display_name, purpose, enabled, is_default, created_at, updated_at, sort_order, default_redirect_mode
 from domain where id = $1 and purpose = 'short_link' for update
 `
 
@@ -200,6 +202,7 @@ func (q *Queries) GetManagedDomainForUpdate(ctx context.Context, id pgtype.UUID)
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SortOrder,
+		&i.DefaultRedirectMode,
 	)
 	return i, err
 }
@@ -404,7 +407,7 @@ update domain set is_default = true,
     updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
 where domain.id = $1 and domain.enabled = true and domain.purpose = 'short_link' and domain.updated_at = $2
 returning domain.id, domain.host, domain.display_name, domain.purpose, domain.enabled,
-    domain.is_default, domain.created_at, domain.updated_at, domain.sort_order
+    domain.is_default, domain.created_at, domain.updated_at, domain.sort_order, domain.default_redirect_mode
 `
 
 type MakeDefaultShortLinkDomainParams struct {
@@ -425,6 +428,7 @@ func (q *Queries) MakeDefaultShortLinkDomain(ctx context.Context, arg MakeDefaul
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SortOrder,
+		&i.DefaultRedirectMode,
 	)
 	return i, err
 }
@@ -435,7 +439,7 @@ set host = $2, display_name = $3, enabled = $4,
     updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
 where domain.id = $1 and domain.purpose = 'short_link' and domain.updated_at = $5
 returning domain.id, domain.host, domain.display_name, domain.purpose, domain.enabled,
-    domain.is_default, domain.created_at, domain.updated_at, domain.sort_order
+    domain.is_default, domain.created_at, domain.updated_at, domain.sort_order, domain.default_redirect_mode
 `
 
 type UpdateManagedDomainParams struct {
@@ -465,6 +469,7 @@ func (q *Queries) UpdateManagedDomain(ctx context.Context, arg UpdateManagedDoma
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SortOrder,
+		&i.DefaultRedirectMode,
 	)
 	return i, err
 }

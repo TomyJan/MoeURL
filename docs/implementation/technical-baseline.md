@@ -185,7 +185,11 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 
 ## 5. API 约定
 
-### v0.28.0 用户组默认域名（分支实现，交付验证中）
+### v0.29.0 域名默认模式（完整本地门禁）
+
+[设计](../specs/2026-10-28-v0.29.0-domain-default-redirect-mode-design.md)定义新独立 GET /api/v1/admin/domain/redirect-default?id=...、POST /api/v1/admin/domain/set-redirect-default 和 GET /api/v1/domain/redirect-defaults，均 no-store。模式三值、domain 共享完整版本、当前 DB 身份／双管理权限、锁后授权及事务审计；本人投影按当前创建／域名／模式权限过滤。旧 available／managed／create DTO 及省略redirectMode=direct不变。后端已提交；前端独立设置coordinator与三草稿互锁、身份epoch、自动快照及手动优先已实现。完整本地Go／业务100、前端四100／静态／隔离build、双语双视口完整browser、Linuxrace／安全及精确image／smoke／同image扫描已有逐候选证据，唯一完整实现终审和 root 三项修复／新完整本地门禁已完成，远端门禁未完成。E2E override 的127.0.0.2／3只为真实第二域名提供同一owned app port的loopback访问，不扩生产Compose或外网绑定。具体见[计划](v0.29.0-plan.md)和[验收](v0.29.0-acceptance.md)，不提前标记整版完成。
+
+### v0.28.0 用户组默认域名（已合并，未发布）
 
 `00027` 为 builtin user／admin 增加可空 `user_group.default_domain_id`，共享组 `updated_at`；SQLC1.30 标准生成完整模型，旧严格组 DTO／权限请求不增加字段。新增 GET `/api/v1/admin/user-group/domain-default?groupKey=...`、POST `/api/v1/admin/user-group/set-domain-default` 及 GET `/api/v1/domain/group-default`，均 `no-store`。新管理检查当前 DB actor 的双管理权限及目标组候选交集，本人不可用 UUID 必须为 null。默认写先完整精度版本比较，再当前同值 no-op；旧权限同集合仍推进版本。
 

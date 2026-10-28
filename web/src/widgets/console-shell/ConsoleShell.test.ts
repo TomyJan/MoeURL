@@ -63,6 +63,13 @@ vi.mock('@/entities/auth/api', () => ({
   me: vi.fn(),
 }))
 vi.mock('@/shared/preferences/useAccountPreferences', () => ({ revokeAccountIdentity: state.revokeIdentity }))
+vi.mock('@/shared/preferences/useDomainRedirectDefaults', () => ({
+  /** Supplies the existing shell fixture's direct projection without changing its logout seam. */
+  useDomainRedirectDefaults: () => {
+    const data = ref({ items: [{ domainId: '00000000-0000-4000-8000-000000000801', redirectMode: 'direct' }] })
+    return { data, isSuccess: ref(true), isError: ref(false), refetch: vi.fn(async () => ({ data: data.value })) }
+  },
+}))
 vi.mock('@/shared/preferences/useGroupDefaultDomain', () => ({
   useGroupDefaultDomain: () => ({ data: ref({ domainId: null, status: 'not_set' }), isSuccess: ref(true), isError: ref(false), refetch: vi.fn() }),
 }))

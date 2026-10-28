@@ -1,5 +1,5 @@
 -- name: GetDefaultShortLinkDomain :one
-select id, host, display_name, purpose, enabled, is_default, created_at, updated_at, sort_order
+select id, host, display_name, purpose, enabled, is_default, created_at, updated_at, sort_order, default_redirect_mode
 from domain
 where enabled = true and is_default = true
 limit 1;
@@ -25,7 +25,7 @@ select id, host from domain where id = $1;
 -- name: CreateDomain :one
 insert into domain (id, host, display_name, purpose, enabled, is_default, created_at, updated_at)
 values ($1, $2, $3, $4, $5, $6, now(), now())
-returning id, host, display_name, purpose, enabled, is_default, created_at, updated_at, sort_order;
+returning id, host, display_name, purpose, enabled, is_default, created_at, updated_at, sort_order, default_redirect_mode;
 
 -- name: ListManagedDomains :many
 select domain.id, domain.host, domain.display_name, domain.purpose, domain.enabled,
@@ -71,7 +71,7 @@ select $1, user_group.id from user_group where user_group.key = $2 and user_grou
 select id, host from domain;
 
 -- name: GetManagedDomainForUpdate :one
-select id, host, display_name, purpose, enabled, is_default, created_at, updated_at, sort_order
+select id, host, display_name, purpose, enabled, is_default, created_at, updated_at, sort_order, default_redirect_mode
 from domain where id = $1 and purpose = 'short_link' for update;
 
 -- name: DomainHasReferences :one
@@ -83,7 +83,7 @@ set host = $2, display_name = $3, enabled = $4,
     updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
 where domain.id = $1 and domain.purpose = 'short_link' and domain.updated_at = $5
 returning domain.id, domain.host, domain.display_name, domain.purpose, domain.enabled,
-    domain.is_default, domain.created_at, domain.updated_at, domain.sort_order;
+    domain.is_default, domain.created_at, domain.updated_at, domain.sort_order, domain.default_redirect_mode;
 
 -- name: ClearDefaultShortLinkDomain :exec
 update domain set is_default = false,
@@ -95,7 +95,7 @@ update domain set is_default = true,
     updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
 where domain.id = $1 and domain.enabled = true and domain.purpose = 'short_link' and domain.updated_at = $2
 returning domain.id, domain.host, domain.display_name, domain.purpose, domain.enabled,
-    domain.is_default, domain.created_at, domain.updated_at, domain.sort_order;
+    domain.is_default, domain.created_at, domain.updated_at, domain.sort_order, domain.default_redirect_mode;
 
 -- name: DeleteManagedDomain :execrows
 delete from domain where domain.id = $1 and domain.purpose = 'short_link' and domain.is_default = false

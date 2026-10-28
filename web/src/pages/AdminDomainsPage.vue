@@ -51,7 +51,16 @@
             <v-btn color="primary" type="submit" :disabled="writesBlocked || selectionRemoved" :loading="mutation.isPending.value">{{ t('domains.save') }}</v-btn>
           </div>
         </form>
-        <DomainOrderEditor v-if="!creating && selectedDomain" :key="`${selectedID}:${orderRevision}:${identity.scope.value.epoch}`" :domain="selectedDomain" :disabled="transportBlocked || dirty() || selectionRemoved" :pending="mutation.isPending.value && operationKind === 'order'" :conflict="feedbackKind === 'order' && feedback === 'conflict'" @dirty="orderDirty = $event" @save="saveOrder" @reload="reloadOrder" />
+        <DomainOrderEditor v-if="!creating && selectedDomain" :key="`${selectedID}:${orderRevision}:${identity.scope.value.epoch}`" :domain="selectedDomain" :disabled="transportBlocked || dirty() || redirectDirty || selectionRemoved" :pending="mutation.isPending.value && operationKind === 'order'" :conflict="feedbackKind === 'order' && feedback === 'conflict'" @dirty="orderDirty = $event" @save="saveOrder" @reload="reloadOrder" />
+        <template v-if="!creating && selectedDomain && eligible && !permissionDenied">
+          <div v-if="redirectManagement.query.isError.value || (redirectManagement.barrier.value && !redirectManagement.pending.value)" role="alert">
+            {{ t('domainRedirectManagement.readFailed') }}
+            <v-btn variant="text" :disabled="redirectManagement.pending.value || mutation.isPending.value || selectionRemoved" @click="redirectManagement.reload()">{{ t('domainRedirectManagement.reload') }}</v-btn>
+          </div>
+          <DomainRedirectDefaultEditor v-if="redirectManagement.setting.value" :key="`${selectedID}:${redirectManagement.revision.value}:${identity.scope.value.epoch}`" :setting="redirectManagement.setting.value" :disabled="redirectManagement.blocked.value" :cancel-disabled="redirectManagement.cancelBlocked.value" :pending="redirectManagement.pending.value" :conflict="redirectManagement.conflicted.value" @dirty="redirectDirty = $event" @save="redirectManagement.save" @reload="redirectManagement.reload()" />
+          <p v-else-if="!redirectManagement.query.isError.value" role="status">{{ t('domainRedirectManagement.loading') }}</p>
+          <ActionToast v-if="redirectManagement.feedback.value === 'saved' || redirectManagement.feedback.value === 'failed'" :type="redirectManagement.feedback.value === 'saved' ? 'success' : 'error'">{{ t(redirectManagement.feedback.value === 'saved' ? 'domainRedirectManagement.saved' : 'domainRedirectManagement.failed') }}</ActionToast>
+        </template>
       </div>
     </div>
 
@@ -95,6 +104,8 @@ import { ApiClientError } from '@/shared/api/client'
 import { me } from '@/entities/auth/api'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 import DomainOrderEditor from '@/features/domain-order/DomainOrderEditor.vue'
+import DomainRedirectDefaultEditor from '@/features/domain-redirect-default/DomainRedirectDefaultEditor.vue'
+import { useDomainRedirectManagement } from '@/features/domain-redirect-default/useDomainRedirectManagement'
 
 type Operation =
   | { type: 'create'; values: DomainDraftInput }
@@ -119,6 +130,7 @@ const feedbackRevision = ref(0)
 const feedbackKind = ref<'details' | 'order'>('details')
 const operationKind = ref<'details' | 'order'>('details')
 const orderDirty = ref(false)
+const redirectDirty = ref(false)
 const orderRevision = ref(0)
 const orderReloading = ref(false)
 const permissionDenied = ref(false)
@@ -133,7 +145,7 @@ const draft = reactive<DomainDraftInput>({ host: '', displayName: '', allowedGro
 const selectedSnapshot = ref<ManagedDomain | null>(null)
 const selectionRemoved = computed(() => !creating.value && !!selectedID.value && query.data.value !== undefined && !domains.value.some(({ id }) => id === selectedID.value))
 const selectedDomain = computed(() => domains.value.find(({ id }) => id === selectedID.value) ??
-  (selectionRemoved.value && (dirty() || orderDirty.value) && selectedSnapshot.value?.id === selectedID.value ? selectedSnapshot.value : undefined))
+  (selectionRemoved.value && (dirty() || orderDirty.value || redirectDirty.value) && selectedSnapshot.value?.id === selectedID.value ? selectedSnapshot.value : undefined))
 let baseline: DomainDraftInput | null = null
 let expectedUpdatedAt = ''
 const pendingConflicts = new Map<string, string>()
@@ -210,11 +222,12 @@ const mutation = useMutation({
     }
   },
 })
-const transportBlocked = computed(() => mutation.isPending.value || defaultRefreshRequired.value || orderReloading.value || query.isError.value || permissionDenied.value || !eligible.value)
-const writesBlocked = computed(() => transportBlocked.value || orderDirty.value)
+const redirectManagement = useDomainRedirectManagement({ domain: selectedDomain, identity, eligible, denied: permissionDenied, removed: selectionRemoved, dirty: redirectDirty, legacyDirty: computed(() => dirty() || orderDirty.value), legacyBusy: computed(() => mutation.isPending.value || orderReloading.value || defaultRefreshRequired.value), list: query, adopt: (domain) => { fillDraft(domain); orderRevision.value++ } })
+const transportBlocked = computed(() => mutation.isPending.value || redirectManagement.pending.value || redirectManagement.barrier.value || defaultRefreshRequired.value || orderReloading.value || query.isError.value || permissionDenied.value || !eligible.value)
+const writesBlocked = computed(() => transportBlocked.value || orderDirty.value || redirectDirty.value)
 watch(identity.scope, () => {
   creating.value = false; selectedID.value = ''; selectedSnapshot.value = null; baseline = null
-  feedback.value = ''; orderDirty.value = false; orderRevision.value++; pendingConflicts.clear()
+  feedback.value = ''; orderDirty.value = false; redirectDirty.value = false; orderRevision.value++; pendingConflicts.clear()
   defaultRefreshRequired.value = false; orderReloading.value = false
   permissionDenied.value = false
 }, { flush: 'sync' })
@@ -224,7 +237,7 @@ watch(discardDialog, (open) => { if (!open) discardTarget.value = '' })
 watch(domains, (items) => {
   syncPendingConflicts(items)
   if (creating.value) return
-  if (selectedID.value && !items.some(({ id }) => id === selectedID.value) && (dirty() || orderDirty.value)) return
+  if (selectedID.value && !items.some(({ id }) => id === selectedID.value) && (dirty() || orderDirty.value || redirectDirty.value)) return
   const current = items.find(({ id }) => id === selectedID.value) ?? items[0]
   if (!current) { selectedID.value = ''; selectedSnapshot.value = null; baseline = null; return }
   const changed = selectedID.value !== current.id
@@ -242,7 +255,7 @@ function syncPendingConflicts(items: ManagedDomain[]) {
       if (latest) deleteTarget.value = { ...latest }
       else { deleteDialog.value = false; deleteTarget.value = null }
     }
-    if (!latest && selectedID.value === id && !dirty() && !orderDirty.value) { selectedID.value = ''; selectedSnapshot.value = null; baseline = null }
+    if (!latest && selectedID.value === id && !dirty() && !orderDirty.value && !redirectDirty.value) { selectedID.value = ''; selectedSnapshot.value = null; baseline = null }
     else if (latest && selectedID.value === id && !dirty()) fillDraft(latest)
   }
 }
@@ -270,12 +283,15 @@ async function retryDomains() {
 
 /** Preserves either editor's draft and prevents switching while an order operation is pending. */
 function selectDomain(item: ManagedDomain) {
-  if (orderReloading.value || (mutation.isPending.value && operationKind.value === 'order')) return
-  if (dirty() || orderDirty.value) { requestDiscard(item.id); return }
+  if (redirectManagement.pending.value || orderReloading.value || (mutation.isPending.value && operationKind.value === 'order')) return
+  if (dirty() || orderDirty.value || redirectDirty.value) { requestDiscard(item.id); return }
   selectDomainNow(item)
 }
 /** Adopts a confirmed selection and remounts its order editor to release the previous conflict snapshot. */
-function selectDomainNow(item: ManagedDomain) { creating.value = false; selectedID.value = item.id; feedback.value = ''; orderDirty.value = false; orderRevision.value++; fillDraft(item) }
+function selectDomainNow(item: ManagedDomain) {
+  if (selectedID.value === item.id) redirectManagement.discardDraft()
+  creating.value = false; selectedID.value = item.id; feedback.value = ''; orderDirty.value = false; redirectDirty.value = false; orderRevision.value++; fillDraft(item)
+}
 function requestDiscard(target: string) { discardTarget.value = target; discardDialog.value = true }
 async function confirmDiscard() {
   const target = discardTarget.value
@@ -298,14 +314,14 @@ async function confirmDiscard() {
 }
 /** Requires confirmation before leaving either dirty editor for a new domain. */
 function beginCreate() {
-  if (orderReloading.value || (mutation.isPending.value && operationKind.value === 'order')) return
-  if (dirty() || orderDirty.value) { requestDiscard('create'); return }
+  if (redirectManagement.pending.value || orderReloading.value || (mutation.isPending.value && operationKind.value === 'order')) return
+  if (dirty() || orderDirty.value || redirectDirty.value) { requestDiscard('create'); return }
   beginCreateNow()
 }
 /** Starts a confirmed blank details draft and retires the previous domain's ordering state. */
 function beginCreateNow() {
   creating.value = true; selectedID.value = ''; feedback.value = ''
-  orderDirty.value = false; orderRevision.value++
+  orderDirty.value = false; redirectDirty.value = false; orderRevision.value++
   Object.assign(draft, { host: '', displayName: '', allowedGroups: [], enabled: true })
   baseline = null
 }
@@ -350,7 +366,7 @@ function currentOperation(operation: { scope: typeof identity.scope.value }): bo
 
 /** Rechecks current transport/target state before binding a command to this login round. */
 function dispatch(operation: Operation) {
-  if (transportBlocked.value || selectionRemoved.value ||
+  if (transportBlocked.value || redirectDirty.value || selectionRemoved.value ||
     (operation.type !== 'create' && (!operation.domain || !domains.value.some(({ id }) => id === operation.domain.id)))) return
   operationKind.value = operation.type === 'order' ? 'order' : 'details'
   feedbackKind.value = operationKind.value
@@ -359,7 +375,7 @@ function dispatch(operation: Operation) {
 
 /** Keeps the order command separate from the ordinary full-details draft. */
 function saveOrder(input: SetDomainOrderInput) {
-  if (transportBlocked.value || dirty() || selectionRemoved.value || input.id !== selectedID.value) return
+  if (transportBlocked.value || dirty() || redirectDirty.value || selectionRemoved.value || input.id !== selectedID.value) return
   feedback.value = ''; feedbackRevision.value++
   dispatch({ type: 'order', domain: selectedDomain.value!, input })
 }
@@ -391,7 +407,7 @@ async function reloadAccess() {
     queryClient.setQueryData(['auth', 'me'], fresh)
     if (!['admin:access', 'domain:manage'].every((permission) => fresh.user.permissions.includes(permission))) return
     await queryClient.fetchQuery({ queryKey: queryKey.value, queryFn: listDomains, staleTime: 0 })
-    if (mounted && identity.isCurrent(scope) && eligible.value) {
+    if (mounted && identity.isCurrent(scope) && eligible.value && await redirectManagement.recoverAccess()) {
       permissionDenied.value = false; defaultRefreshRequired.value = false
     }
   } catch { /* Denial remains visible and writes stay blocked until both reads succeed. */ }

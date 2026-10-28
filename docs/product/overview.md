@@ -12,7 +12,9 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 ## 长期核心目标
 
-本节描述 MoeURL 的完整目标形态。v0.26 个人默认与 [v0.27 域名排序](scope-v0.27.0.md) 均已合并，后者 PR #225 合并为 `8c024b5035226285ea76571c8b6a50ceb2d19440`，最终 PR／合并 CI 各九成功、真实审查覆盖最终且有效意见闭环，未正式发布；逐候选证据见[验收](../implementation/v0.27.0-acceptance.md)。当前 [v0.28 用户组默认](scope-v0.28.0.md) 前后端切片已提交并通过本地门禁，完整浏览器／Linux／精确制品本地门禁也已通过，唯一终审已完成（C0／I1／M1），集中修复及受影响完整本地门禁已通过；远端交付未完成。具体能力见[开发进度](development-status.md)。v0.25 的合并手机 Toast 故障已由[维护 PR #223](../implementation/2026-10-27-frontend-security-dependencies-acceptance.md) 修复，旧失败保留原归属；生产化边界仍见 [v0.6.0 范围](scope-v0.6.0.md)。 首候选 `7c84ba5` 的九项 CI 与真实 CodeRabbit 首审已完成，3 项 Minor 已集中修复并通过受影响完整本地验证；后继精确候选门禁另验，见 [PR #226](https://github.com/TomyJan/MoeURL/pull/226)。
+当前分支候选 [v0.29.0 每域名默认跳转方式](scope-v0.29.0.md) 已实现并通过完整本地门禁，仅影响有权创建者的新面板初选，不改旧省略 API 或已有短链。唯一完整实现终审与 root 三项集中修复／新完整本地门禁已完成，远端 CI／实际审查与合并仍未完成，不能作为主分支已交付能力；环境及各候选制品见[验收](../implementation/v0.29.0-acceptance.md)。
+
+本节描述 MoeURL 的完整目标形态。v0.26 个人默认、v0.27 域名排序和 [v0.28 用户组默认](scope-v0.28.0.md) 均已合并。v0.28 的 PR #226 合并为 `b1b1e4112ba92708becf59c875cff8bff109c3ec`，最终 `0280081` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40575287235) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40586040807) 各九成功，真实 CodeRabbit 覆盖最终且全部有效意见闭环；逐候选、原失败与制品见[验收](../implementation/v0.28.0-acceptance.md)。具体能力见[开发进度](development-status.md)，正式发布与生产验收仍未执行，生产化边界继续见 [v0.6.0 范围](scope-v0.6.0.md)。
 
 [v0.17.0 短链批量管理](scope-v0.17.0.md) 已合并当前列表多选、原子启停与软删除。包含后续依赖及 Go 安全修复的历史主分支候选 `c4928a85` 完整目标 CI 已通过；该结果属于历史记录，不代表当前主分支基线或当前 CI 结果，生产演练与正式发布仍待完成。不包含跨页全选、导入或归属转移。原分支与历史主分支候选的证据分开保留，见 [本版计划](../implementation/v0.17.0-plan.md) 和 [验收记录](../implementation/v0.17.0-acceptance.md)。
 
@@ -81,7 +83,7 @@ MoeURL 的核心控制逻辑是权限系统。
 
 ## 当前维护入口
 
-2026-10-27 更新：[v0.27 验收](../implementation/v0.27.0-acceptance.md)已记录最终 `64751e5` 的 [PR CI #40486914108](https://github.com/TomyJan/MoeURL/actions/runs/40486914108) 和合并 `8c024b5` 的 [master CI #40493457478](https://github.com/TomyJan/MoeURL/actions/runs/40493457478) 各九成功，真实 CodeRabbit 覆盖最终且有效意见闭环。v0.28 用户组默认前后端切片已完成本地门禁，完整浏览器／Linux／精确制品本地门禁也已通过，唯一终审已完成（C0／I1／M1），集中修复及受影响完整本地门禁已通过，远端交付未完成。v0.25 的历史失败及后继维护、v0.24／v0.26 的 PR／合并 CI 均保留独立归属，不因本轮成功改写历史；正式发布未执行。 首候选 `7c84ba5` 的九项 CI 与真实 CodeRabbit 首审已完成，3 项 Minor 已集中修复并通过受影响完整本地验证；后继精确候选门禁另验，见 [PR #226](https://github.com/TomyJan/MoeURL/pull/226)。
+2026-10-28 更新：[v0.27 验收](../implementation/v0.27.0-acceptance.md)已记录最终 `64751e5` 与合并 `8c024b5` 各九项 CI 成功及真实审查闭环。[v0.28 用户组默认](scope-v0.28.0.md)已通过 [PR #226](https://github.com/TomyJan/MoeURL/pull/226) 于 2026-10-27T21:21:01Z 合并为 `b1b1e4112ba92708becf59c875cff8bff109c3ec`；最终 `028008114edda315cfaef0f2effbc0c6c127ae7c` 的 PR CI #40575287235 与该合并的 master CI #40586040807 各九成功，真实 CodeRabbit 覆盖最终且有效意见闭环。首候选 `7c84ba5`、独立终审与集中修复的各阶段证据保留在[v0.28 验收](../implementation/v0.28.0-acceptance.md)，不替代最终候选／合并结果。v0.25 的历史失败及后继维护、v0.24／v0.26 的 PR／合并 CI 保持独立归属；以上均未正式发布。
 
 2026-10-26 更新：[v0.19.0 用户组成员迁移](scope-v0.19.0.md) 已通过 PR #211 合并为 `c08b67b2`；[v0.20.0 单条归属转移](scope-v0.20.0.md) 已通过 PR #214 合并为 `2d23dcfd`；[v0.21.0 清单 CSV](scope-v0.21.0.md) 已通过 PR #216 合并为 `dfc9a5a1`。v0.22.0 批量归属转移已通过 PR #217 合并为 `ba2073cf`，最终修复候选 `7e41d438` 和实际合并提交 CI 各 9 项成功，尚未正式发布，具体提交及证据见[本版验收](../implementation/v0.22.0-acceptance.md)。本页旧版本状态与分支验证保留历史归属，合并不替代正式发布。
 
@@ -96,7 +98,7 @@ MoeURL 的核心控制逻辑是权限系统。
 - 站点名称、默认语言／主题、纯文本页脚和带登录入口保护的本地登录开关。
 - 中英双语、响应式浅深色界面、PWA 基础、统一 Toast 与标准列表，以及固定展示的构建版本署名。
 
-最近已合并的业务增量为 [v0.27.0 域名排序](scope-v0.27.0.md)，此前为 [v0.26.0 个人默认域名](scope-v0.26.0.md)、 [v0.25.0 操作审计 CSV](scope-v0.25.0.md)、[v0.24.0 单链匿名记录 CSV](scope-v0.24.0.md)、[v0.23.0 批量标签](scope-v0.23.0.md)、[v0.22.0 批量转移](scope-v0.22.0.md)、[v0.21.0 清单导出](scope-v0.21.0.md) 和 [v0.20.0 归属转移](scope-v0.20.0.md)。维护不另算业务版本，合并不视为正式发布。
+最近已合并的业务增量为 [v0.28.0 用户组默认域名](scope-v0.28.0.md)，此前为 [v0.27.0 域名排序](scope-v0.27.0.md)、[v0.26.0 个人默认域名](scope-v0.26.0.md)、[v0.25.0 操作审计 CSV](scope-v0.25.0.md)、[v0.24.0 单链匿名记录 CSV](scope-v0.24.0.md)、[v0.23.0 批量标签](scope-v0.23.0.md)、[v0.22.0 批量转移](scope-v0.22.0.md)、[v0.21.0 清单导出](scope-v0.21.0.md) 和 [v0.20.0 归属转移](scope-v0.20.0.md)。维护不另算业务版本，合并不视为正式发布。
 
 [v0.12.0 自定义短码](scope-v0.12.0.md) 已通过 PR #185 合并至 `master` 的 `17e1f766`，支持创建时指定地址，不加入改码、释放、复用或批量能力；原分支的本地验证和独立审查见 [验收清单](../implementation/v0.12.0-acceptance.md)，合并不等于正式发布。
 

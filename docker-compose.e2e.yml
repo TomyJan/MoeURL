@@ -4,6 +4,9 @@ services:
       MOEURL_PUBLIC_BASE_URL: ${MOEURL_PUBLIC_BASE_URL:?required}
       MOEURL_OIDC_ENCRYPTION_KEY: ${MOEURL_OIDC_ENCRYPTION_KEY:?required}
     ports:
+      # Real alternate short-link Hosts; remain loopback-only and use the owned E2E app port.
+      - "127.0.0.2:${MOEURL_HTTP_PORT:-8080}:8080"
+      - "127.0.0.3:${MOEURL_HTTP_PORT:-8080}:8080"
       - "127.0.0.1:${MOEURL_E2E_OIDC_PORT:-19000}:${MOEURL_E2E_OIDC_PORT:-19000}"
 
   oidc-test:

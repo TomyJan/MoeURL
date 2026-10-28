@@ -94,6 +94,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		domainService := domain.NewServiceWithDevelopment(pool, permissionService, cfg.Env == "development")
 		deps.Domain = domainService
 		deps.DomainOrder = domainService
+		deps.DomainRedirectDefault = domainService
 		shortLinkService := shortlink.NewServiceWithLogger(pool, permissionService, logger)
 		deps.ShortLinkListExport = shortLinkService
 		deps.ShortLink = shortLinkService

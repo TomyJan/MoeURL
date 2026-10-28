@@ -83,6 +83,7 @@ export const componentStubs: Record<string, Component> = {
     template: '<div><select :aria-label="label || \'select\'" :disabled="disabled" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :key="typeof item === \'string\' ? item : item.value" :value="typeof item === \'string\' ? item : item.value">{{ typeof item === \'string\' ? item : item.title }}</option></select><span v-if="errorMessages">{{ errorMessages }}</span></div>',
   },
 	VSlider: {
+		inheritAttrs: false,
 		props: ['disabled', 'label', 'max', 'min', 'modelValue', 'step'],
 		emits: ['update:modelValue'],
 		template: '<label>{{ label }}<input v-bind="$attrs" type="range" :aria-label="label" :disabled="disabled" :max="max" :min="min" :step="step" :value="modelValue" @input="$emit(\'update:modelValue\', Number($event.target.value))" /></label>',

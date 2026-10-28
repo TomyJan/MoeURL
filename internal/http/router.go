@@ -40,6 +40,7 @@ type Dependencies struct {
 	AuditExport            insights.AuditExportPort
 	Domain                 domain.Port
 	DomainOrder            domain.OrderPort
+	DomainRedirectDefault  domain.RedirectDefaultPort
 	Redirect               shortlink.RedirectPort
 	RedirectRecorder       event.Recorder
 	AnalyticsCountryHeader string
@@ -193,6 +194,12 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			if dependency.DomainOrder != nil {
 				orderHandler := domain.NewOrderHandler(dependency.DomainOrder, logger)
 				businessAPI.Post("/admin/domain/set-order", orderHandler.SetOrder)
+			}
+			if dependency.DomainRedirectDefault != nil {
+				handler := domain.NewRedirectDefaultHandler(dependency.DomainRedirectDefault, logger)
+				businessAPI.Get("/admin/domain/redirect-default", handler.Get)
+				businessAPI.Post("/admin/domain/set-redirect-default", handler.Set)
+				businessAPI.Get("/domain/redirect-defaults", handler.Available)
 			}
 			if redirectHandler != nil {
 				businessAPI.Get("/public/short-link/preview", redirectHandler.PreviewPublic)

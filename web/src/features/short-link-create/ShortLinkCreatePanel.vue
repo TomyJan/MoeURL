@@ -59,6 +59,19 @@
           <v-btn variant="text" @click="useSystemChoice">{{ t('domainPreference.useSystem') }}</v-btn>
         </div>
         <p v-if="needsGroupChoice && groupDefault.data.value?.status === 'unavailable'" role="status">{{ t('groupDefault.unavailable') }}</p>
+        <div v-if="canCreateShortLink && redirectDraft.needsRead.value" :role="redirectDefaults.isError.value ? 'alert' : 'status'">
+          {{ t(redirectDefaults.isError.value ? 'domainRedirectDefault.loadFailed' : 'domainRedirectDefault.loading') }}
+          <v-btn v-if="redirectDefaults.isError.value || redirectDefaults.isSuccess.value" variant="text" :disabled="mutation.isPending.value" @click="redirectDraft.reload()">{{ t('domainRedirectDefault.retry') }}</v-btn>
+          <v-btn variant="text" :disabled="mutation.isPending.value" @click="redirectDraft.choose('direct')">{{ t('domainRedirectDefault.useDirect') }}</v-btn>
+        </div>
+        <div v-if="canCreateShortLink && redirectDraft.reconfirm.value" role="alert">
+          {{ t('domainRedirectDefault.reconfirm') }}
+          <v-btn variant="text" :disabled="mutation.isPending.value" @click="redirectDraft.choose('direct')">{{ t('domainRedirectDefault.useDirect') }}</v-btn>
+        </div>
+        <div v-if="canConfigureRedirect && (redirectDraft.changed.value || redirectDraft.manual.value !== null)" role="status">
+          <span v-if="redirectDraft.changed.value">{{ t('domainRedirectDefault.changed') }}</span>
+          <v-btn variant="text" :disabled="mutation.isPending.value" @click="redirectDraft.reload()">{{ t('domainRedirectDefault.useDefault') }}</v-btn>
+        </div>
         <p v-if="!domainQuery.isError.value && domainQuery.data.value && availableDomains.length === 0 && canCreateWithPermissions" role="status">
           {{ t('shortLinkCreate.noAvailableDomains') }}
         </p>
@@ -107,6 +120,7 @@
                     :aria-pressed="redirectMode === 'direct'"
                     :disabled="mutation.isPending.value"
                     value="direct"
+                    @click="redirectDraft.choose('direct')"
                   >
                     {{ t('shortLinkCreate.redirectModes.direct') }}
                   </v-btn>
@@ -116,6 +130,7 @@
                     :aria-pressed="redirectMode === 'intermediate'"
                     :disabled="mutation.isPending.value"
                     value="intermediate"
+                    @click="redirectDraft.choose('intermediate')"
                   >
                     {{ t('shortLinkCreate.redirectModes.intermediate') }}
                   </v-btn>
@@ -125,6 +140,7 @@
                     :aria-pressed="redirectMode === 'confirmation'"
                     :disabled="mutation.isPending.value"
                     value="confirmation"
+                    @click="redirectDraft.choose('confirmation')"
                   >
                     {{ t('shortLinkCreate.redirectModes.confirmation') }}
                   </v-btn>
@@ -134,12 +150,14 @@
                 v-if="canUseIntermediate && redirectMode === 'intermediate'"
                 v-model="intermediateDelaySeconds"
                 :label="t('shortLinkCreate.intermediateDelay')"
+                :aria-label="t('shortLinkCreate.intermediateDelay')"
                 :min="3"
                 :max="10"
                 :step="1"
                 :disabled="mutation.isPending.value"
                 show-ticks="always"
                 thumb-label
+                @update:model-value="redirectDraft.choose('intermediate')"
               />
               <v-switch
                 v-if="canSetExpiration"
@@ -246,6 +264,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { me } from '@/entities/auth/api'
 import { useAvailableDomainChoices, useDomainPreference } from '@/shared/preferences/useDomainPreference'
 import { useGroupDefaultDomain } from '@/shared/preferences/useGroupDefaultDomain'
+import { useDomainRedirectDefaults } from '@/shared/preferences/useDomainRedirectDefaults'
+import { useDomainRedirectDraft } from './useDomainRedirectDraft'
 import { createShortLink } from '@/entities/short-link/api'
 import type { CreateShortLinkInput, RedirectMode } from '@/entities/short-link/model'
 import { visitLimitInputSchema } from '@/entities/short-link/schema'
@@ -328,7 +348,7 @@ const domainChoice = computed({
 const selectionUnavailable = computed(() => availableDomains.value.length > 0 && (lostManualChoice.value || (selectedDomainId.value === null && !!preference.query.data.value?.domainId && !availableDomains.value.some((item) => item.id === preference.query.data.value?.domainId) && domainQuery.isSuccess.value)))
 const canCreateShortLink = computed(() => canCreateWithPermissions.value && !currentUserQuery.isError?.value && !domainQuery.isError.value && availableDomains.value.length > 0)
 const needsGroupChoice = computed(() => selectedDomainId.value === null && preference.query.isSuccess.value && !availableDomains.value.some((item) => item.id === preference.query.data.value?.domainId))
-const canSubmit = computed(() => canCreateShortLink.value && (selectedDomainId.value !== null || (preference.query.isSuccess.value && (!needsGroupChoice.value || groupDefault.isSuccess.value))))
+const canSubmit = computed(() => canCreateShortLink.value && redirectDraft.ready.value && (selectedDomainId.value !== null || (preference.query.isSuccess.value && (!needsGroupChoice.value || groupDefault.isSuccess.value))))
 const { canUseIntermediate, canUseConfirmation, canSubmitRedirectMode } = useRedirectModePermissions(currentUser)
 const canSetExpiration = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_expiration')))
 const canSetPassword = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_password')))
@@ -336,6 +356,8 @@ const canSetMaxVisits = computed(() => Boolean(currentUser.value?.permissions.in
 const canSetMetadata = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:set_metadata')))
 const canCustomizeSlug = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:custom_slug')))
 const canConfigureRedirect = computed(() => canUseIntermediate.value || canUseConfirmation.value)
+const redirectDefaults = useDomainRedirectDefaults(computed(() => canConfigureRedirect.value && canCreateWithPermissions.value))
+const actualDomainId = computed(() => availableDomains.value.find((item) => domainChoice.value === '' ? item.isDefault : item.id === domainChoice.value)?.id ?? '')
 const canConfigureAccess = computed(() => canConfigureRedirect.value || canSetExpiration.value || canSetPassword.value || canSetMaxVisits.value || canSetMetadata.value || canCustomizeSlug.value)
 const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !canCreateWithPermissions.value)
 const customSlugPreview = computed(() => {
@@ -349,11 +371,6 @@ const customSlugPreview = computed(() => {
   return `${origin.replace(/\/+$/, '')}/${slug.data}`
 })
 
-watch([canUseIntermediate, canUseConfirmation], () => {
-  if (!canSubmitRedirectMode(redirectMode.value)) {
-    redirectMode.value = 'direct'
-  }
-})
 watch(availableDomains, (items) => {
   if (selectedDomainId.value !== null && !items.some((item) => selectedDomainId.value === '' ? item.isDefault : item.id === selectedDomainId.value)) {
     selectedDomainId.value = null
@@ -397,6 +414,7 @@ const mutation = useMutation({
     createdSlug.value = result.shortLink.slug
     qrOpen.value = false
     resetInputFields()
+    redirectDraft.reset(true)
     void queryClient.invalidateQueries({ queryKey: ['short-link'] })
     void queryClient.invalidateQueries({ queryKey: ['admin-short-link'] })
   },
@@ -406,9 +424,10 @@ const mutation = useMutation({
   },
   /** Refreshes current authorization without changing or replaying the failed request. */
   onError(error, input) {
-    if (isCurrentCreation(input) && error instanceof ApiClientError && error.code === 200114) {
+    if (isCurrentCreation(input) && error instanceof ApiClientError && [120001, 200114].includes(error.code)) {
       void domainQuery.refetch()
       void groupDefault.refetch()
+      if (canConfigureRedirect.value) void redirectDefaults.refetch()
       const scope = preference.scope.value
       void me().then((result) => {
         if (mounted && preference.isCurrent(scope) && result.user.id === scope.userId) queryClient.setQueryData(['auth', 'me'], result)
@@ -417,6 +436,7 @@ const mutation = useMutation({
   },
 })
 
+const redirectDraft = useDomainRedirectDraft({ domainId: actualDomainId, scope: preference.scope, canIntermediate: canUseIntermediate, canConfirmation: canUseConfirmation, pending: mutation.isPending, mode: redirectMode, delay: intermediateDelaySeconds, query: redirectDefaults })
 watch(preference.scope, () => { resetForm(); mutation.reset() }, { flush: 'sync' })
 
 /** Makes the system fallback an explicit temporary decision even for a single candidate. */
@@ -569,6 +589,7 @@ function resetInputFields() {
   passwordEnabled.value = false
   selectedDomainId.value = null
   lostManualChoice.value = false
+  redirectDraft.reset()
 }
 
 /** Resolves the transient native password input without copying it into reactive state. */

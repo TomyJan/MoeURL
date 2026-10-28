@@ -2,7 +2,7 @@
 
 ## 目标与阶段
 
-本轮从 PR225 的合并提交 `8c024b5035226285ea76571c8b6a50ceb2d19440` 起步，独立分支 `feat/v0.28.0-group-default-domain`。前轮最终 64751e5 的 PR CI40486914108 及合并 8c024b5 的 CI40493457478 各九成功，实际最终 CodeRabbit 已覆盖最新且有效意见闭环；这些证据只证明基线，不替代本轮。当前后端 Task 1／2 已提交并通过本地完整 Go／业务 100／vet／标准生成及完成契约；前端 Task 3 已提交并通过完整四 100／lint／类型／隔离构建及完成契约。Task 4 的完整浏览器、Linux／新制品本地门禁与完成契约均通过；唯一终审已完成（C0／I1／M1），集中修复 bb3ce874 的完整前端／静态已通过，修后完整浏览器 101 项／7.8m 已通过；远端交付未完成，PR #226 已创建，未正式发布。 首候选 `7c84ba5` 的九项 CI 与真实 CodeRabbit 首审已完成，3 项 Minor 已集中修复并通过受影响完整本地验证；后继精确候选门禁另验，见 [PR #226](https://github.com/TomyJan/MoeURL/pull/226)。
+本轮从 PR225 合并 `8c024b5035226285ea76571c8b6a50ceb2d19440` 起步，独立分支 `feat/v0.28.0-group-default-domain`。实现、本地完整门禁、一次 fresh builder check、唯一独立终审及集中修复已完成。最终 `028008114edda315cfaef0f2effbc0c6c127ae7c` 已通过 [PR #226](https://github.com/TomyJan/MoeURL/pull/226) 于 2026-10-27T21:21:01Z squash 合并为 `b1b1e4112ba92708becf59c875cff8bff109c3ec`，两 tree 均为 `da57ed346c5a43126509f3c78e305bda94defdaa`。精确 [PR CI #40575287235](https://github.com/TomyJan/MoeURL/actions/runs/40575287235) 与 [master CI #40586040807](https://github.com/TomyJan/MoeURL/actions/runs/40586040807) 各九成功，真实 CodeRabbit 覆盖最终且有效意见全部闭环；逐候选／原失败／制品归属见[验收](../implementation/v0.28.0-acceptance.md)。尚未正式发布。
 
 补齐 roadmap 及 domains 规格中的组默认层：管理员为内置 user、admin 分别保存一个默认短链域名，作为没有有效个人偏好时的创建面板初始选择。所有选择仍受当前账号、主组权限、域名启用和授权交集约束。保持后端省略 domainId 仅表示提交时全局默认，不在本轮改变旧 API 客户端语义。
 
