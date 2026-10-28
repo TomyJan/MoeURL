@@ -87,7 +87,7 @@ OIDC 不是一个简单的「启用 / 禁用 OIDC 登录」开关，而是一组
 
 配置 OIDC 提供商时，系统后续可以提供预置模板，帮助管理员快速填写常见平台参数。v0.7.0 使用标准 Discovery，不实现提供商模板。
 
-v0.31.0 已将模板收敛为新建草稿的手动／Google／Entra UUID 单租户三种本地辅助，当前仅设计、尚未实现。明确应用才替换，脏草稿先确认并清旧凭据，不自动 Discovery／保存／启用；编辑现有身份命名空间不受模板影响。边界见[设计](2026-10-28-v0.31.0-oidc-provider-templates-design.md)，实际阶段见[验收](../implementation/v0.31.0-acceptance.md)。
+v0.31.0 已将模板收敛为新建草稿的手动／Google 两种本地辅助，当前仅设计、尚未实现。明确应用才替换，脏草稿先确认并清旧凭据，不自动 Discovery／保存／启用；编辑现有身份命名空间不受模板影响。边界见[设计](2026-10-28-v0.31.0-oidc-provider-templates-design.md)，实际阶段见[验收](../implementation/v0.31.0-acceptance.md)。
 
 ## 首次初始化流程
 

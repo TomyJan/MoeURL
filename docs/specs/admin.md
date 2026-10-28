@@ -1,5 +1,9 @@
 # 管理后台
 
+## v0.31.0 OIDC 创建模板（当前分支）
+
+系统设置的认证区域仅在创建时展示 Google／手动空白模板。选择不动业务草稿，明确应用才整体替换；含任意旧字段或改变 enabled 时先确认，取消无损，确认清 Client ID／Secret／允许域名。写入期间和离开创建后拒绝旧应用事件，编辑既有提供商不接收模板；不改变后端 OIDC 或授权。仅本地前端门禁已通过，真实 browser／产品与远端仍待执行，见[设计](2026-10-28-v0.31.0-oidc-provider-templates-design.md)和[验收](../implementation/v0.31.0-acceptance.md)。
+
 ## v0.30.0 当前列表批量成员调整（已合并）
 
 当前列表最多 20 项选择、冻结确认与写互斥／读取屏障／身份 epoch 已合并；手机使用表内横滚和确认纵滚。v0.30.0 已通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 于 2026-10-28T13:21:25Z 合并为 `d582fba02772e62f2f3af2fe11e485728f5c0097`。最终候选 `f54567d` 的 [PR CI #40686801162](https://github.com/TomyJan/MoeURL/actions/runs/40686801162) 与该合并的 [master CI #40695791448](https://github.com/TomyJan/MoeURL/actions/runs/40695791448) 各九项成功，真实 CodeRabbit 覆盖最终候选、有效意见全部闭环；标准 Task1–4 与完整最终 SDD 归档核验已完成。未正式发布或部署。范围、逐候选验证、原失败及运行归属见[验收](../implementation/v0.30.0-acceptance.md)；不将旧本地浏览器或产品制品重归属给合并提交，不扩自定义组、多组或 OIDC 映射。

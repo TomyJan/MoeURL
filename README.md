@@ -16,6 +16,8 @@ v0.30.0 已通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 于 2026
 
 ## 功能概览
 
+[v0.31.0 OIDC 创建模板](./docs/product/scope-v0.31.0.md) 正在独立分支实现，仅提供 Google 与手动空白创建草稿。前端本地门禁已通过，浏览器、产品制品、独立审查和远端交付仍待执行，阶段见[验收](./docs/implementation/v0.31.0-acceptance.md)。
+
 各项能力的版本边界与验证记录见 [文档中心](./docs/README.md)。
 
 - 首次初始化站点和管理员账号。
