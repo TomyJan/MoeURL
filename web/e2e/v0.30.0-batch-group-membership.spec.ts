@@ -96,7 +96,23 @@ for (const width of [1280, 390]) {
       for (const member of [bob, alice]) {
         const item = summary.getByRole('listitem').filter({ hasText: member.username })
         await item.scrollIntoViewIfNeeded()
-        await expect(item).toBeInViewport({ ratio: 1 })
+        try { await expect(item).toBeInViewport({ ratio: 1 }) } catch (error) {
+          // Preserve real clipping geometry before fixture cleanup, without weakening visibility.
+          const geometry = await item.evaluate(element => {
+            const ancestors = []
+            for (let current: Element | null = element; current; current = current.parentElement) {
+              const style = getComputedStyle(current)
+              ancestors.push({ tag: current.tagName, className: current.className, bounds: current.getBoundingClientRect().toJSON(), clientHeight: current.clientHeight, scrollHeight: current.scrollHeight, scrollTop: current.scrollTop, display: style.display, gridTemplateRows: style.gridTemplateRows, gridAutoRows: style.gridAutoRows, minHeight: style.minHeight, maxHeight: style.maxHeight, overflowY: style.overflowY, flexShrink: style.flexShrink })
+              if (current.getAttribute('role') === 'dialog') break
+            }
+            return { viewport: { width: innerWidth, height: innerHeight }, ancestors }
+          })
+          await info.attach('batch-summary-clipping-' + width, { body: JSON.stringify(geometry, null, 2), contentType: 'application/json' })
+          const path = info.outputPath('batch-summary-clipping-' + width + '.png')
+          await page.screenshot({ path, fullPage: true, animations: 'disabled' })
+          await info.attach('batch-summary-clipping-' + width, { path, contentType: 'image/png' })
+          throw error
+        }
         await expect(item).toContainText(width === 1280 ? 'User' : '普通用户')
       }
       await summary.evaluate(element => { element.scrollTop = 0 })
