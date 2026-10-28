@@ -33,6 +33,8 @@ for (const language of ['en', 'zh'] as const) {
       const slug = result.data.shortLink.slug
       const createdUrl = await page.getByTestId('short-link-create-result').getByRole('link').first().getAttribute('href')
       expect(createdUrl).toMatch(new RegExp(`^https?://[^/]+/${slug}$`))
+      await page.getByRole('button', { name: language === 'en' ? 'Dismiss notification' : '关闭提示', exact: true }).click()
+      await expect(page.locator('[data-sonner-toast]')).toHaveCount(0)
       await page.getByRole('button', { name: text.qr, exact: true }).click()
       const dialog = page.getByRole('dialog', { name: text.title, exact: true })
       const group = dialog.getByRole('group', { name: text.group, exact: true })
