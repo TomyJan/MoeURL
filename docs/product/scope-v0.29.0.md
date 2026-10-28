@@ -2,9 +2,9 @@
 
 ## 阶段与基线
 
-Task1 后端、Task2 创建初选及管理草稿、Task3 本地完整门禁均已完成标准切片契约；唯一完整实现终审、新 PR 与远端整轮交付未完成。分支为 feat/v0.29.0-domain-default-redirect-mode，从 PR #226 的真实合并 b1b1e4112ba92708becf59c875cff8bff109c3ec 建立；首个 de8867d 仅同步旧轮交付文档。本轮逐候选门禁及原失败见[验收](../implementation/v0.29.0-acceptance.md)；旧轮最终候选与合并的独立九 CI、真实审查及制品归属见 [v0.28 验收](../implementation/v0.28.0-acceptance.md)，不替代本轮门禁。
+Task1 后端、Task2 创建初选及管理草稿、Task3 本地完整门禁均已完成标准切片契约；唯一完整实现终审已返回 C0／I2／M1，root 三项修复与受影响完整门禁通过，新 PR 与远端整轮交付未完成。分支为 feat/v0.29.0-domain-default-redirect-mode，从 PR #226 的真实合并 b1b1e4112ba92708becf59c875cff8bff109c3ec 建立；首个 de8867d 仅同步旧轮交付文档。本轮逐候选门禁及原失败见[验收](../implementation/v0.29.0-acceptance.md)；旧轮最终候选与合并的独立九 CI、真实审查及制品归属见 [v0.28 验收](../implementation/v0.28.0-acceptance.md)，不替代本轮门禁。
 
-本轮依据 roadmap 的「域名与默认策略」、domains 和 admin 规格补齐每域名默认跳转方式。root 依长期自主设计授权决定常规细节；不声称用户逐项批准本文件的具体方案。一次 fresh builder check 与完整实现计划完成后，root 原生实现；一次独立最强实现终审仍为之后的交付门禁。
+本轮依据 roadmap 的「域名与默认策略」、domains 和 admin 规格补齐每域名默认跳转方式。root 依长期自主设计授权决定常规细节；不声称用户逐项批准本文件的具体方案。一次 fresh builder check 与完整实现计划完成后，root 原生实现；一次独立最强实现终审与 root 集中修复已完成，远端审查和合并仍为独立交付门禁。
 
 ## 目标
 

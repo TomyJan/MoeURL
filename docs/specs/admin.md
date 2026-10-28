@@ -2,7 +2,7 @@
 
 ## 当前设计：域名默认跳转方式
 
-[v0.29.0 设计](2026-10-28-v0.29.0-domain-default-redirect-mode-design.md)已在分支的域名详情与排序旁实现独立模式草稿，复用 admin:access＋domain:manage 和共享完整版本；三个草稿互锁、显式重载与当前身份隔离。完整本地门禁已通过，唯一完整实现终审及远端交付未完成；配置不授予创建者模式权限，也不是强制跳转或批量修改旧短链，逐候选见[验收](../implementation/v0.29.0-acceptance.md)。
+[v0.29.0 设计](2026-10-28-v0.29.0-domain-default-redirect-mode-design.md)已在分支的域名详情与排序旁实现独立模式草稿，复用 admin:access＋domain:manage 和共享完整版本；三个草稿互锁、显式重载与当前身份隔离。完整本地门禁已通过，唯一完整实现终审和 root 三项修复／新完整本地门禁已完成，远端交付未完成；配置不授予创建者模式权限，也不是强制跳转或批量修改旧短链，逐候选见[验收](../implementation/v0.29.0-acceptance.md)。
 
 ## 目标
 

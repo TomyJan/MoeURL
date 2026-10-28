@@ -1,6 +1,6 @@
 # 路线图
 
-[v0.29.0 每域名默认跳转方式](scope-v0.29.0.md) 已按[设计](../specs/2026-10-28-v0.29.0-domain-default-redirect-mode-design.md)和[实施计划](../implementation/v0.29.0-plan.md)在分支实现，完整本地门禁通过；唯一完整实现终审与远端交付未完成。只做域名级模式配置和当前有权创建初选，不扩模板、DNS/TLS、个人／组跳转偏好或旧 API 省略语义，逐候选见[验收](../implementation/v0.29.0-acceptance.md)。
+[v0.29.0 每域名默认跳转方式](scope-v0.29.0.md) 已按[设计](../specs/2026-10-28-v0.29.0-domain-default-redirect-mode-design.md)和[实施计划](../implementation/v0.29.0-plan.md)在分支实现，完整本地门禁通过；唯一完整实现终审已返回 C0／I2／M1，root 三项修复与新完整本地门禁通过，远端交付未完成。只做域名级模式配置和当前有权创建初选，不扩模板、DNS/TLS、个人／组跳转偏好或旧 API 省略语义，逐候选见[验收](../implementation/v0.29.0-acceptance.md)。
 
 MoeURL 按「基础可用闭环 → 发布质量补强 → 产品体验精细化 → MVP 增强闭环 → 统计分析闭环 → 增强能力」逐步推进。
 

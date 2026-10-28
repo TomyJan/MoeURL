@@ -12,7 +12,7 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 ## 长期核心目标
 
-当前分支候选 [v0.29.0 每域名默认跳转方式](scope-v0.29.0.md) 已实现并通过完整本地门禁，仅影响有权创建者的新面板初选，不改旧省略 API 或已有短链。唯一完整实现终审、远端 CI／实际审查与合并仍未完成，不能作为主分支已交付能力；环境及各候选制品见[验收](../implementation/v0.29.0-acceptance.md)。
+当前分支候选 [v0.29.0 每域名默认跳转方式](scope-v0.29.0.md) 已实现并通过完整本地门禁，仅影响有权创建者的新面板初选，不改旧省略 API 或已有短链。唯一完整实现终审与 root 三项集中修复／新完整本地门禁已完成，远端 CI／实际审查与合并仍未完成，不能作为主分支已交付能力；环境及各候选制品见[验收](../implementation/v0.29.0-acceptance.md)。
 
 本节描述 MoeURL 的完整目标形态。v0.26 个人默认、v0.27 域名排序和 [v0.28 用户组默认](scope-v0.28.0.md) 均已合并。v0.28 的 PR #226 合并为 `b1b1e4112ba92708becf59c875cff8bff109c3ec`，最终 `0280081` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40575287235) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40586040807) 各九成功，真实 CodeRabbit 覆盖最终且全部有效意见闭环；逐候选、原失败与制品见[验收](../implementation/v0.28.0-acceptance.md)。具体能力见[开发进度](development-status.md)，正式发布与生产验收仍未执行，生产化边界继续见 [v0.6.0 范围](scope-v0.6.0.md)。
 
