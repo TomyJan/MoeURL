@@ -45,6 +45,11 @@ function mount(options: { save?: () => Promise<Response>; legacyWrite?: () => Pr
       if (options.listFails) throw new Error('controlled offline list')
       return response({ items: options.read ? await options.read() : items })
     }
+    if (url.startsWith('/api/v1/admin/domain/redirect-default?')) {
+      const id = new URL(url, 'https://app.example').searchParams.get('id')
+      const domain = items.find((item) => item.id === id)
+      return domain ? response({ setting: { domainId: domain.id, redirectMode: 'direct', updatedAt: domain.updatedAt } }) : response(null, 210102)
+    }
     if (url === '/api/v1/admin/domain/set-order') {
       const input = JSON.parse(init.body as string)
       bodies.push(input)

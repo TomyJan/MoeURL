@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 
 import ShortLinkCreatePanel from './ShortLinkCreatePanel.vue'
 import { componentStubs } from '@/test/component-stubs'
@@ -44,6 +44,14 @@ vi.mock('@/shared/preferences/useDomainPreference', () => {
 
 vi.mock('@/shared/preferences/useGroupDefaultDomain', () => ({
   useGroupDefaultDomain: () => ({ data: ref({ domainId: null, status: 'not_set' }), isSuccess: ref(true), isError: ref(false), refetch: vi.fn() }),
+}))
+
+vi.mock('@/shared/preferences/useDomainRedirectDefaults', () => ({
+  /** Preserves these legacy unit fixtures' direct policy at their existing query boundary. */
+  useDomainRedirectDefaults: () => {
+    const data = computed(() => ({ items: ((state.domainQueryResult as { data?: { value?: { items: Array<{ id: string }> } } }).data?.value?.items ?? []).map(({ id }) => ({ domainId: id, redirectMode: 'direct' as const })) }))
+    return { data, isSuccess: ref(true), isError: ref(false), refetch: vi.fn(async () => ({ data: data.value })) }
+  },
 }))
 
 vi.mock('@tanstack/vue-query', async () => {
@@ -749,6 +757,10 @@ describe('ShortLinkCreatePanel', () => {
 
     expect(screen.queryByText('shortLinkCreate.redirectModes.confirmation')).toBeNull()
     await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com/changed')
+    await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
+    expect(mutate).not.toHaveBeenCalled()
+    expect(screen.getByText('domainRedirectDefault.reconfirm')).toBeTruthy()
+    await fireEvent.click(screen.getByText('domainRedirectDefault.useDirect'))
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
 
     expect(mutate).toHaveBeenCalledWith({

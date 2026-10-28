@@ -25,6 +25,15 @@ vi.mock('@/entities/domain/api', async (original) => ({
   createDomain: vi.fn(), deleteDomain: vi.fn(), listDomains: vi.fn(), setDefaultDomain: vi.fn(), setDomainOrder: vi.fn(), updateDomain: vi.fn(),
 }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
+vi.mock('@/features/domain-redirect-default/useDomainRedirectManagement', () => ({
+  /** Keeps this fully mocked legacy suite at its existing details/order seam.
+   * New mode coordination is tested with real queries and HTTP in the independent parent suites. */
+  useDomainRedirectManagement: () => ({
+    query: { isError: ref(false) }, setting: ref(undefined), revision: ref(0), conflicted: ref(false),
+    pending: ref(false), blocked: ref(true), barrier: ref(false), feedback: ref(''),
+    save: vi.fn(), reload: vi.fn(async () => true), recoverAccess: vi.fn(async () => true),
+  }),
+}))
 vi.mock('@/shared/preferences/useAccountPreferences', () => ({
   useAccountIdentity: () => {
     const scope = ref({ userId: 'admin', epoch: 1 })
