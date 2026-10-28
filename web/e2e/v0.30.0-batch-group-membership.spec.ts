@@ -62,6 +62,14 @@ for (const width of [1280, 390]) {
       await selectAccount(page, bob.username).check()
       await expect.soft(selectAccount(page, alice.username).locator('..').locator('svg'), 'Selected account has a visible local selection glyph').toBeVisible({ timeout: 2000 })
       await expect(page.getByRole('button', { name: /^(编辑|Edit)$/, exact: true }).first()).toBeDisabled()
+      if (width === 390) {
+        // The existing table scrolls within its panel, not the document.
+        const groupCell = page.getByTestId('console-user-row').filter({ hasText: alice.username }).locator('td').nth(2)
+        await groupCell.scrollIntoViewIfNeeded()
+        await expect(groupCell).toBeInViewport({ ratio: 1 })
+        await expect(groupCell).toHaveText('user')
+        await page.locator('.user-table > .v-table__wrapper').evaluate(element => { element.scrollLeft = 0 })
+      }
       await capture(page, info, 'batch-membership-selection-' + width)
       await page.getByRole('button', { name: openName }).click()
       let dialog = page.getByRole('dialog')
@@ -82,6 +90,16 @@ for (const width of [1280, 390]) {
       await dialog.getByRole('checkbox', { name: confirmName }).check()
       // Confirmation actions must not require Playwright auto-scrolling a clipped card.
       await expect.soft(dialog.getByRole('button', { name: saveName }), 'Confirmed action is fully inside the viewport').toBeInViewport({ ratio: 1, timeout: 2000 })
+      // Every frozen account remains readable inside the bounded scrollable summary.
+      const summary = dialog.getByRole('list')
+      for (const member of [bob, alice]) {
+        const item = summary.getByRole('listitem').filter({ hasText: member.username })
+        await item.scrollIntoViewIfNeeded()
+        await expect(item).toBeInViewport({ ratio: 1 })
+        await expect(item).toContainText(width === 1280 ? 'User' : '普通用户')
+      }
+      await summary.evaluate(element => { element.scrollTop = 0 })
+      await expect(dialog.getByRole('button', { name: saveName })).toBeInViewport({ ratio: 1 })
       await capture(page, info, 'batch-membership-confirmation-' + width)
       const promoted = page.waitForResponse('**' + batchPath)
       await dialog.getByRole('button', { name: saveName }).click()
