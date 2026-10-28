@@ -1,6 +1,6 @@
 # 开发进度与能力清单
 
-下一有界版本 [v0.30.0 批量成员迁移](scope-v0.30.0.md) 已标准完成 Task1–3，Task4 唯一实现终审与 root 集中修复已完成，通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 继续交付。首 head a0a7 的九项 CI 与真实 CodeRabbit 审查已完成，两个有效 Minor 已由 root 修复；完整前端 121 个文件、2015 项测试及四项 100% 覆盖率实际运行于 a0a7 加当时 dirty 前端，当前输入集合／hash／bytes 已核验相符；clean85f4c45 的 105 项 browser 测试、本次六图与新精确产品证据另行核验。后继提交仍须取得自己的九 CI 与真实最新审查覆盖，合并、最终归档和正式发布尚未完成，不把分支验证写成已合并能力。只对当前列表其他非 builtin user／admin 账号有界原子调整，阶段见[计划](../implementation/v0.30.0-plan.md)与[验收](../implementation/v0.30.0-acceptance.md)。
+下一有界版本 [v0.30.0 批量成员迁移](scope-v0.30.0.md) 已标准完成 Task1–3，Task4 唯一实现终审与 root 集中修复已完成，通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 继续交付。首 head a0a7 的九项 CI 与真实 CodeRabbit 审查已完成，两个有效 Minor 已由 root 修复；完整前端 121 个文件、2015 项测试及四项 100% 覆盖率实际运行于 a0a7 加当时 dirty 前端，当前输入集合／hash／bytes 已核验相符；clean85f4c45 的 105 项 browser 测试、本次六图与新精确产品证据另行核验。后继提交仍须取得自己的九项 CI 与真实最新审查覆盖，合并、最终归档和正式发布尚未完成，不把分支验证写成已合并能力。只对当前列表其他非 builtin user／admin 账号有界原子调整，阶段见[计划](../implementation/v0.30.0-plan.md)与[验收](../implementation/v0.30.0-acceptance.md)。
 
 2026-10-28：[v0.29.0 每域名默认跳转方式](scope-v0.29.0.md) 已由 [PR #227](https://github.com/TomyJan/MoeURL/pull/227) 合并为 `8af05d60fb89769f7aaabf4da4906ed411fdad48`。最终 `4dfa4d43` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40629796924) 与合并 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40631422772) 各九成功，真实 CodeRabbit 覆盖最终、有效 open0。配置仅用于创建初选、明确手动优先，旧省略模式与已有短链不变；唯一独立终审、root 修复与原失败均保持[验收](../implementation/v0.29.0-acceptance.md)归属，尚未正式发布。
 
