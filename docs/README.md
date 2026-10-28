@@ -1,6 +1,6 @@
 # MoeURL 文档中心
 
-下一有界版本 [v0.31.0 OIDC 提供商创建模板](product/scope-v0.31.0.md) 已形成[设计](specs/2026-10-28-v0.31.0-oidc-provider-templates-design.md)、[计划](implementation/v0.31.0-plan.md)、[任务](implementation/v0.31.0-tasks.md)与[验收](implementation/v0.31.0-acceptance.md)。仅新建草稿的手动／Google模板，Task1 已标准完成，浏览器／产品与远端待验证，不改变下方已合并状态。
+下一有界版本 [v0.31.0 OIDC 提供商创建模板](product/scope-v0.31.0.md) 已形成[设计](specs/2026-10-28-v0.31.0-oidc-provider-templates-design.md)、[计划](implementation/v0.31.0-plan.md)、[任务](implementation/v0.31.0-tasks.md)与[验收](implementation/v0.31.0-acceptance.md)。仅新建草稿的手动／Google模板，Task1–2 已标准完成，本版真实浏览器、六原图及精确产品已核验，独立终审与远端待验证，不改变下方已合并状态。
 
 v0.30.0 已通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 于 2026-10-28T13:21:25Z 合并为 `d582fba02772e62f2f3af2fe11e485728f5c0097`。最终候选 `f54567d` 的 [PR CI #40686801162](https://github.com/TomyJan/MoeURL/actions/runs/40686801162) 与该合并的 [master CI #40695791448](https://github.com/TomyJan/MoeURL/actions/runs/40695791448) 各九项成功，真实 CodeRabbit 覆盖最终候选、有效意见全部闭环；标准 Task1–4 与完整最终 SDD 归档核验已完成。未正式发布或部署。范围、逐候选验证、原失败及运行归属见[验收](implementation/v0.30.0-acceptance.md)；不将旧本地浏览器或产品制品重归属给合并提交，不扩自定义组、多组或 OIDC 映射。
 
