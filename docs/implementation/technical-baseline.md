@@ -1,8 +1,8 @@
 # 技术基线
 
-## v0.32.0 计划中的前端增量
+## v0.32.0 本地已验证的前端增量
 
-三个本地固定二维码深色／白底 PNG 预设，320／M／margin4，身份变化恢复黑白，全部异步状态受 generationId 保护。无新依赖、API、权限或 schema，实现中，完整本地与远端验证待完成，见[设计](../specs/2026-10-29-v0.32.0-qr-appearance-presets-design.md)与[验收](v0.32.0-acceptance.md)。
+三个本地固定二维码深色／白底 PNG 预设，320／M／margin4，身份变化恢复黑白，全部异步状态受 generationId 保护。无新依赖、API、权限或 schema，Task1–2本地标准完成，原单元／静态仅c671加当时dirty前端，browser／六图／image仅clean459cddd；Task3终审后边界补验及Task4远端交付待完成，见[设计](../specs/2026-10-29-v0.32.0-qr-appearance-presets-design.md)与[验收](v0.32.0-acceptance.md)。
 
 ## v0.31.0 已合并前端增量
 

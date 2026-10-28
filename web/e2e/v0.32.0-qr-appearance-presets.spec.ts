@@ -110,6 +110,81 @@ for (const language of ['en', 'zh'] as const) {
   })
 }
 
+// A missing wrap rule or clipped dialog actions must fail on a real long public URL.
+test('v0.32.0 long public QR URL preserves mobile layout and keyboard access', async ({ page }, info) => {
+  const errors: unknown[] = []
+  let domain: { id: string; host: string; displayName: string; updatedAt: string } | undefined
+  let linkId: string | undefined
+  try {
+    await post(page, '/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword })
+    const origin = 'https://' + [randomBytes(6).toString('hex'), 'a'.repeat(50), 'b'.repeat(50), 'c'.repeat(50), 'd'.repeat(50), 'example'].join('.')
+    domain = (await post<{ domain: NonNullable<typeof domain> }>(page, '/admin/domain/create', { host: origin, displayName: 'QR long public origin', enabled: true, allowedGroups: ['admin'] })).domain
+    const created = await post<{ shortLink: { id: string; slug: string; url: string } }>(page, '/short-link/create', { targetUrl: 'https://example.com/qr-long-origin', domainId: domain.id })
+    linkId = created.shortLink.id
+    const publicUrl = origin + '/' + created.shortLink.slug
+    expect(created.shortLink.url).toBe(publicUrl)
+    expect(new URL(publicUrl).hostname.length).toBeGreaterThan(200)
+    await page.addInitScript(() => localStorage.setItem('moeurl.language', 'zh'))
+    await page.setViewportSize({ width: 390, height: 800 })
+    await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'dark' })
+    await page.goto('/link')
+    await openListQr(page, created.shortLink.slug, labels.zh.more, labels.zh.qr)
+    const dialog = page.getByRole('dialog', { name: labels.zh.title, exact: true })
+    const url = dialog.getByText(publicUrl, { exact: true })
+    await expect(url).toBeVisible()
+    expect(await url.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+    await expectNoHorizontalOverflow(page)
+    const group = dialog.getByRole('group', { name: labels.zh.group, exact: true })
+    await group.getByRole('button', { name: labels.zh.presets[0], exact: true }).focus()
+    await page.keyboard.press('Tab')
+    const indigo = group.getByRole('button', { name: labels.zh.presets[1], exact: true })
+    await expect(indigo).toBeFocused()
+    await page.keyboard.press('Space')
+    await expect(indigo).toHaveAttribute('aria-pressed', 'true')
+    const image = dialog.getByRole('img', { name: labels.zh.title, exact: true })
+    await expect(image).toBeVisible()
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth)).toBe(320)
+    const pixels = await readPixels(image)
+    expect(pixels.colors.sort()).toEqual([colors[1]!, '255,255,255,255'].sort())
+    for (const border of [pixels.left, pixels.top, pixels.right, pixels.bottom]) expect(border).toBeGreaterThanOrEqual(4 * pixels.finderBar / 7 - 1)
+    await page.keyboard.press('Tab')
+    await expect(group.getByRole('button', { name: labels.zh.presets[2], exact: true })).toBeFocused()
+    await page.keyboard.press('Tab')
+    const download = dialog.getByRole('link', { name: labels.zh.download, exact: true })
+    await expect(download).toBeFocused()
+    await expect(download).toBeInViewport({ ratio: 1 })
+    const downloaded = page.waitForEvent('download')
+    await page.keyboard.press('Enter')
+    const artifact = await downloaded
+    expect(artifact.suggestedFilename()).toBe(`moeurl-${created.shortLink.slug}.png`)
+    const artifactPath = info.outputPath('qr-long-url-download.png')
+    await artifact.saveAs(artifactPath)
+    expect(await readFile(artifactPath)).toEqual(Buffer.from((await image.getAttribute('src'))!.split(',')[1]!, 'base64'))
+    await page.keyboard.press('Tab')
+    const close = dialog.getByRole('button', { name: labels.zh.close, exact: true })
+    await expect(close).toBeFocused()
+    await expect(close).toBeInViewport({ ratio: 1 })
+    await page.screenshot({ path: info.outputPath('qr-long-url-mobile-screen.png') })
+    await info.attach('qr-long-url-contract', { body: JSON.stringify({ publicUrl, pixels, viewport: page.viewportSize() }), contentType: 'application/json' })
+    await page.keyboard.press('Enter')
+    await expect(dialog).not.toBeVisible()
+  } catch (error) { errors.push(error) } finally {
+    if (linkId) { try { await post(page, '/admin/short-link/delete', { id: linkId }) } catch (error) { errors.push(error) } }
+    if (domain) {
+      try {
+        const response = await page.request.get('/api/v1/admin/domain/list')
+        expect(response.status()).toBe(200)
+        const payload = await response.json() as { code: number; data: { items: Array<NonNullable<typeof domain>> } }
+        expect(payload.code).toBe(0)
+        const current = payload.data.items.find(item => item.id === domain!.id)!
+        await post(page, '/admin/domain/update', { id: current.id, host: current.host, displayName: current.displayName, enabled: false, allowedGroups: ['admin'], expectedUpdatedAt: current.updatedAt })
+        // Soft-deleted links retain their immutable domain until this owned Compose DB is destroyed.
+      } catch (error) { errors.push(error) }
+    }
+  }
+  if (errors.length) throw new AggregateError(errors, 'Long public QR scenario or owned fixture cleanup failed')
+})
+
 /** Checks the real business envelope during fixture setup and owned cleanup. */
 async function post<T = unknown>(page: Page, path: string, data: unknown): Promise<T> {
   const response = await page.request.post('/api/v1' + path, { data })
