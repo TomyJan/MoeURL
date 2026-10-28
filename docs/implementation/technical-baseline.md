@@ -1,5 +1,9 @@
 # 技术基线
 
+## v0.30.0 当前分支增量（尚未合并）
+
+独立 strict/no-store POST /api/v1/admin/user/batch-change-group：items 含 1–100 唯一规范 UUID／完整 expectedUpdatedAt，统一 user／admin；返回 changedCount＋unchangedCount=请求数量。actor＋targets UUID 排他锁后，builtin admin→user 共享锁；当前 DB 授权，全批 missing/deleted→builtin→self→unsupported→stale，版本先于 no-op，五秒同事务改组／撤销旧 Session／逐账号审计。复用原 SQLC 输出，无 schema、依赖或权限目录变化。前端当前 20 行选择、冻结确认、身份 epoch／pending／read barrier 与严格计数；旧 API 含义不变。当前候选及原始失败、本地 Node26.3／pnpm11.5、Go1.26.10 windows 与 Linux CGO1、产品 Go1.27.3 linux CGO0 各自归属见[设计](../specs/2026-10-28-v0.30.0-batch-group-membership-design.md)及[验收](v0.30.0-acceptance.md)；不据此勾选尚未执行的目标 CI／审查／合并／发布。
+
 ## 1. 目标
 
 本文档定义 MoeURL 的工程技术基线。所有后续实现、重构和实施计划都应以本文档为准。

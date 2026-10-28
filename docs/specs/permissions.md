@@ -1,5 +1,9 @@
 # 权限模型
 
+## v0.30.0 批量成员迁移边界（当前分支）
+
+不新增权限。入口沿用管理访问，事务在有序账号锁后从当前 DB 重查 active、非 builtin、admin 组及 admin:access，再按 admin→user 取得内置组共享锁。客户端组名／权限缓存不构成授权。整批拒绝 builtin、自身、缺失／已删及不支持组；全批版本验证先于 no-op，实际变化的组写、全部旧 Session 撤销和逐账号审计同事务。只支持内置 user／admin，不实现多组／自定义组／映射；旧单项权限仍逐项执行。规格与证据见[设计](2026-10-28-v0.30.0-batch-group-membership-design.md)和[验收](../implementation/v0.30.0-acceptance.md)，尚未合并／发布。
+
 ## 权限优先
 
 MoeURL 的核心控制逻辑是权限系统。

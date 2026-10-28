@@ -1,5 +1,9 @@
 # 用户与认证
 
+## v0.30.0 有界批量改组（当前分支）
+
+独立 POST /api/v1/admin/user/batch-change-group 接收 items（1–100 个唯一规范 UUID id、完整 expectedUpdatedAt）与统一 groupKey=user／admin，成功返回 changedCount／unchangedCount；旧单账号 DTO 不变。当前 DB 的 active、非 builtin、admin 且具 admin:access 操作者才可使用，保护所有 builtin／自身／非内置组目标。先完整检查全批与版本，再在一个五秒审计事务内改组、撤销实际变化账号的全部旧 Session、逐账号审计；当前同组 no-op，陈旧同组仍冲突。账号状态、短链、外部身份绑定与偏好不变，无 schema 或新权限。精确错误优先级、锁序及本地／远端状态见[设计](2026-10-28-v0.30.0-batch-group-membership-design.md)和[验收](../implementation/v0.30.0-acceptance.md)，未合并或发布。
+
 ## 本地用户系统
 
 系统保留本地用户系统，用于支持基础账号、用户资料、用户组关系和权限计算。
