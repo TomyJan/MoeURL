@@ -634,6 +634,23 @@ describe('AdminAuthenticationPage', () => {
     await waitFor(() => expect(deleteOIDCProvider).toHaveBeenCalledWith({ id: company.id, expectedUpdatedAt: company.updatedAt }))
   })
 
+  it('rejects a buffered template confirmation when the mutation observer becomes pending', async () => {
+    mountPage()
+    await fireEvent.click(screen.getByRole('button', { name: 'oidc.addProvider' }))
+    await fireEvent.update(screen.getByLabelText('oidc.clientSecret'), 'keep-this-secret')
+    await fireEvent.click(screen.getByRole('button', { name: 'Google' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'oidc.templates.apply' }))
+    const confirm = within(screen.getByRole('dialog')).getByRole('button', { name: 'oidc.templates.replace' })
+    // The observer is an external dependency; simulate it changing after the click was queued.
+    state.mutationPending.value = true
+    await nextTick()
+    confirm.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await nextTick()
+    expect(screen.getByLabelText('oidc.clientSecret')).toHaveProperty('value', 'keep-this-secret')
+    expect(screen.getByLabelText('oidc.key')).toHaveProperty('value', '')
+    expect(createOIDCProvider).not.toHaveBeenCalled()
+  })
+
   it('ignores a stale form submit after its provider disappears', () => {
     const view = mountPage()
     const form = view.container.querySelector('form')

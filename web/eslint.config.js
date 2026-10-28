@@ -22,7 +22,9 @@ export default [
     languageOptions: {
       globals: {
         URL: 'readonly',
+        HTMLButtonElement: 'readonly',
         caches: 'readonly',
+        document: 'readonly',
         fetch: 'readonly',
         navigator: 'readonly',
         self: 'readonly',

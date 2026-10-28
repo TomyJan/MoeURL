@@ -1,8 +1,12 @@
 # 技术基线
 
-## v0.30.0 当前分支增量（尚未合并）
+## v0.31.0 当前分支前端增量
 
-独立 strict/no-store POST /api/v1/admin/user/batch-change-group：items 含 1–100 唯一规范 UUID／完整 expectedUpdatedAt，统一 user／admin；返回 changedCount＋unchangedCount=请求数量。actor＋targets UUID 排他锁后，builtin admin→user 共享锁；当前 DB 授权，全批 missing/deleted→builtin→self→unsupported→stale，版本先于 no-op，五秒同事务改组／撤销旧 Session／逐账号审计。复用原 SQLC 输出，无 schema、依赖或权限目录变化。前端当前 20 行选择、冻结确认、身份 epoch／pending／read barrier 与严格计数；旧 API 含义不变。当前候选及原始失败、本地 Node26.3／pnpm11.5、Go1.26.10 windows 与 Linux CGO1、产品 Go1.27.3 linux CGO0 各自归属见[设计](../specs/2026-10-28-v0.30.0-batch-group-membership-design.md)及[验收](v0.30.0-acceptance.md)；不据此勾选尚未执行的目标 CI／审查／合并／发布。
+OIDC 创建页新增本地 Google／手动空白模板与明确替换确认；完整清 Client ID／Secret／允许域名，不自动联网、保存或启用。现有提供商编辑、严格七字段创建 DTO、后端 Discovery／verified-email 供应条件保持，无新 API／权限／schema／依赖。Task1–3 已标准完成；唯一实际终审四项有效意见修复后，完整前端 123 文件／2039 项测试、四项 100% 与静态／隔离 build 通过，实际运行于 7799 加当时 dirty 前端，后补仅准确 readonly ESLint globals 并独立 lint0。clean `8712426` 的完整 107 项 browser、六原图、精确 image／18178 smoke／同 image HIGH,CRITICAL 扫描和完整本地归档已核；远端待验证。原 Task1／b164 制品保留原身份，见[验收](v0.31.0-acceptance.md)，不能借 v30 制品或冒已合并。
+
+## v0.30.0 已合并增量
+
+独立 strict/no-store 批量改组 API、当前数据库授权、全批事务／Session 撤销／审计及前端冻结确认／身份隔离均保持既有设计，无 schema、依赖或新权限。v0.30.0 已通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 于 2026-10-28T13:21:25Z 合并为 `d582fba02772e62f2f3af2fe11e485728f5c0097`。最终候选 `f54567d` 的 [PR CI #40686801162](https://github.com/TomyJan/MoeURL/actions/runs/40686801162) 与该合并的 [master CI #40695791448](https://github.com/TomyJan/MoeURL/actions/runs/40695791448) 各九项成功，真实 CodeRabbit 覆盖最终候选、有效意见全部闭环；标准 Task1–4 与完整最终 SDD 归档核验已完成。未正式发布或部署。范围、逐候选验证、原失败及运行归属见[验收](v0.30.0-acceptance.md)；不将旧本地浏览器或产品制品重归属给合并提交，不扩自定义组、多组或 OIDC 映射。
 
 ## 1. 目标
 

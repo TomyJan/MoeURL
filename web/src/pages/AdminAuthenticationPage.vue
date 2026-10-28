@@ -30,6 +30,7 @@
       </aside>
 
       <form v-if="creating || selectedProvider" class="identity-page__editor" @submit.prevent="save">
+        <OIDCProviderTemplatePicker v-if="creating" :disabled="mutation.isPending.value" @apply="requestTemplateApply" @change="pendingTemplate = null" />
         <div class="identity-page__editor-title">
           <div>
             <h2>{{ creating ? t('oidc.createTitle') : selectedProvider?.displayName }}</h2>
@@ -57,12 +58,22 @@
           <v-btn v-if="!creating" color="error" variant="text" :disabled="mutation.isPending.value" @click="openDeleteDialog">{{ t('oidc.delete') }}</v-btn>
           <span />
           <v-btn v-if="creating" variant="text" :disabled="mutation.isPending.value" @click="cancelCreate">{{ t('oidc.cancel') }}</v-btn>
-          <v-btn color="primary" type="submit" :loading="mutation.isPending.value">{{ t('oidc.save') }}</v-btn>
+          <v-btn color="primary" type="submit" :loading="mutation.isPending.value" :disabled="!!pendingTemplate">{{ t('oidc.save') }}</v-btn>
         </div>
       </form>
     </div>
 
     <ActionToast v-if="feedback" :key="`${feedback}:${feedbackRevision}`" :type="feedback === 'success' ? 'success' : 'error'">{{ feedbackMessage }}</ActionToast>
+    <v-dialog v-if="pendingTemplate" v-model="templateDialog" max-width="480" :aria-labelledby="templateDialogID + '-title'" :aria-describedby="templateDialogID + '-description'">
+      <v-card>
+        <v-card-title :id="templateDialogID + '-title'">{{ t('oidc.templates.replaceTitle') }}</v-card-title>
+        <v-card-text :id="templateDialogID + '-description'">{{ t('oidc.templates.replaceDescription', { template: pendingTemplate.displayName || t('oidc.templates.manual') }) }}</v-card-text>
+        <v-card-actions class="identity-page__template-actions">
+          <v-btn type="button" variant="text" @click="pendingTemplate = null">{{ t('oidc.templates.keep') }}</v-btn>
+          <v-btn type="button" color="primary" :disabled="mutation.isPending.value" @click="confirmTemplateApply">{{ t('oidc.templates.replace') }}</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
     <v-dialog v-model="deleteDialog" max-width="440">
       <v-card>
         <v-card-title>{{ t('oidc.deleteTitle') }}</v-card-title>
@@ -78,7 +89,9 @@
 
 <script setup lang="ts">
 import ActionToast from '@/shared/feedback/ActionToast.vue'
-import { computed, reactive, ref, watch } from 'vue'
+import OIDCProviderTemplatePicker from '@/features/oidc-provider-template/OIDCProviderTemplatePicker.vue'
+import type { ProviderTemplateFields } from '@/features/oidc-provider-template/template'
+import { computed, nextTick, reactive, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -96,6 +109,10 @@ const query = useQuery({ queryKey: ['admin', 'oidc', 'providers'], queryFn: list
 const selectedID = ref('')
 const creating = ref(false)
 const deleteDialog = ref(false)
+const pendingTemplate = ref<ProviderTemplateFields | null>(null)
+const templateDialogID = useId()
+let templateReturnFocus: HTMLButtonElement | null = null
+const templateDialog = computed({ get: () => pendingTemplate.value !== null, set: open => { if (!open) pendingTemplate.value = null } })
 const deleteTarget = ref<OIDCProvider | null>(null)
 const feedback = ref<'success' | 'conflict' | 'error' | ''>('')
 const feedbackRevision = ref(0)
@@ -199,6 +216,17 @@ watch(deleteDialog, (open) => {
   if (!open) deleteTarget.value = null
 })
 
+watch(creating, value => { if (!value) pendingTemplate.value = null })
+
+watch(pendingTemplate, async fields => {
+  if (fields) return
+  const target = templateReturnFocus
+  templateReturnFocus = null
+  await nextTick()
+  // A removed trigger cannot receive focus after cancellation or a new creation round.
+  if (creating.value) target?.focus({ preventScroll: true })
+})
+
 watch([providers, () => query.isError.value], ([items]) => {
   if (!query.isError.value) syncPendingConflicts(items)
   if (creating.value) return
@@ -245,6 +273,7 @@ function draftHasUnsavedChanges() {
 }
 
 function selectProvider(provider: OIDCProvider) {
+  pendingTemplate.value = null
   creating.value = false
   selectedID.value = provider.id
   feedback.value = ''
@@ -252,7 +281,7 @@ function selectProvider(provider: OIDCProvider) {
 }
 
 function beginCreate() {
-  if (creating.value) return
+  if (creating.value || mutation.isPending.value) return
   creating.value = true
   selectedID.value = ''
   feedback.value = ''
@@ -260,6 +289,7 @@ function beginCreate() {
 }
 
 function cancelCreate() {
+  pendingTemplate.value = null
   creating.value = false
   draft.clientSecret = ''
   const first = providers.value[0]
@@ -267,6 +297,7 @@ function cancelCreate() {
 }
 
 function save() {
+  if (pendingTemplate.value || mutation.isPending.value) return
   feedbackRevision.value++
   if (!draft.key.trim() || !draft.displayName.trim() || !draft.issuerUrl.trim() || !draft.clientId.trim() || !splitDomains(draft.allowedDomains).length || (creating.value && !draft.clientSecret)) {
     feedback.value = 'error'
@@ -283,6 +314,31 @@ function save() {
     if (clientSecret) pendingClientSecrets.set(operation, clientSecret)
     mutation.mutate(operation)
   }
+}
+
+/** Captures a credential-free replacement and asks before discarding any creation draft data. */
+function requestTemplateApply(fields: ProviderTemplateFields) {
+  if (!creating.value || mutation.isPending.value) return
+  const hasData = draft.enabled !== true || [draft.key, draft.displayName, draft.issuerUrl, draft.clientId, draft.clientSecret, draft.allowedDomains].some(value => value !== '')
+  if (hasData) {
+    templateReturnFocus = document.querySelector<HTMLButtonElement>('.provider-template button:focus')
+    pendingTemplate.value = { ...fields }
+  } else replaceTemplateDraft(fields)
+}
+
+/** Rechecks the active creation context before applying a previously confirmed snapshot. */
+function confirmTemplateApply() {
+  const fields = pendingTemplate.value
+  pendingTemplate.value = null
+  if (fields) replaceTemplateDraft(fields)
+}
+
+/** Replaces the whole creation draft so credentials from different providers can never be mixed. */
+function replaceTemplateDraft(fields: ProviderTemplateFields) {
+  if (!creating.value || mutation.isPending.value) return
+  Object.assign(draft, fields, { clientId: '', clientSecret: '', allowedDomains: '' })
+  draftBaseline = null
+  feedback.value = ''
 }
 
 function openDeleteDialog() {
@@ -327,6 +383,7 @@ function operationTargetsActiveContext(operation: ProviderOperation) {
 .identity-page__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 14px; }
 .identity-page__fields > :nth-child(3), .identity-page__fields > :nth-child(6) { grid-column: 1 / -1; }
 .identity-page__actions { display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: center; }
+.identity-page__template-actions { flex-wrap: wrap; }
 @media (max-width: 760px) {
   .identity-page__header { align-items: stretch; flex-direction: column; }
   .identity-page__workspace { grid-template-columns: 1fr; }

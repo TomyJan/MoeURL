@@ -1,6 +1,8 @@
 # 技术选型决策
 
-v0.30.0 在当前分支采用独立 batch API／Service，不循环旧接口拼多事务：复用既有 SQLC 锁行、改组和 Session 撤销方法，无 migration、依赖或新权限；一次五秒审计事务先做全批分类／版本预检，再 UUID 顺序写入。前端独立 strict 结果实体与批量状态机，父页共享写互斥／成功读取屏障／身份 epoch，不扩大 Pinia 服务端缓存；本地 SVG 和局部滚动不改变授权。真实 PG／HTTP／并发及双语浏览器验证与原失败分候选记入[验收](v0.30.0-acceptance.md)，唯一实现终审及 root 集中修复已完成；[PR #228](https://github.com/TomyJan/MoeURL/pull/228) 首 head a0a7 的九项 CI 与真实 CodeRabbit 审查已完成，两个有效 Minor 已由 root 修复；完整前端 121 个文件、2015 项测试及四项 100% 覆盖率实际运行于 a0a7 加当时 dirty 前端，当前输入集合／hash／bytes 已核验相符；clean85f4c45 的 105 项 browser 测试、本次六图与新精确产品证据另行核验。后继提交仍须取得自己的九项 CI 与真实最新审查覆盖，合并、最终归档和正式发布尚未完成，非已合并能力。
+v0.31.0 当前分支采用前端本地 Google／手动创建模板：无秘密 fields 快照、明确应用、dirty 整体替换确认，清旧凭据／域名，具体模板默认禁用。picker 私有状态不缓存，父页对 pending／创建上下文与失效确认重新检查；既有七字段 API／后端协议与供应条件不改，无依赖或 schema。Entra 预设因未证明标准 token 满足 verified-email 首次供应而取消，不放宽认证验证。设计与真实阶段见[本版设计](../specs/2026-10-28-v0.31.0-oidc-provider-templates-design.md)和[验收](v0.31.0-acceptance.md)，尚未合并。
+
+v0.30.0 已通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 于 2026-10-28T13:21:25Z 合并为 `d582fba02772e62f2f3af2fe11e485728f5c0097`。最终候选 `f54567d` 的 [PR CI #40686801162](https://github.com/TomyJan/MoeURL/actions/runs/40686801162) 与该合并的 [master CI #40695791448](https://github.com/TomyJan/MoeURL/actions/runs/40695791448) 各九项成功，真实 CodeRabbit 覆盖最终候选、有效意见全部闭环；标准 Task1–4 与完整最终 SDD 归档核验已完成。未正式发布或部署。范围、逐候选验证、原失败及运行归属见[验收](v0.30.0-acceptance.md)；不将旧本地浏览器或产品制品重归属给合并提交，不扩自定义组、多组或 OIDC 映射。
 
 v0.29.0 [域名默认模式设计](../specs/2026-10-28-v0.29.0-domain-default-redirect-mode-design.md)采用 domain 非空三值列／共享版本、独立严格配置 API 和本人有效投影，不扩旧严格 DTO，不改变旧创建省略模式。面板自动默认绑定本草稿／实际域名快照，明确手动优先，后台配置变化不无声改写草稿；配置与模式使用权限分离。已由 PR #227 合并为 8af05d60，最终 PR 与合并 CI 各九成功、真实最新审查闭环，尚未正式发布。唯一实现终审 C0／I2／M1、root 修复、逐候选制品及原失败见[验收](v0.29.0-acceptance.md)，无新依赖。
 

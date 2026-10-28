@@ -1,8 +1,8 @@
 # 用户与认证
 
-## v0.30.0 有界批量改组（当前分支）
+## v0.30.0 有界批量改组（已合并）
 
-独立 POST /api/v1/admin/user/batch-change-group 接收 items（1–100 个唯一规范 UUID id、完整 expectedUpdatedAt）与统一 groupKey=user／admin，成功返回 changedCount／unchangedCount；旧单账号 DTO 不变。当前 DB 的 active、非 builtin、admin 且具 admin:access 操作者才可使用，保护所有 builtin／自身／非内置组目标。先完整检查全批与版本，再在一个五秒审计事务内改组、撤销实际变化账号的全部旧 Session、逐账号审计；当前同组 no-op，陈旧同组仍冲突。账号状态、短链、外部身份绑定与偏好不变，无 schema 或新权限。精确错误优先级、锁序及本地／远端状态见[设计](2026-10-28-v0.30.0-batch-group-membership-design.md)和[验收](../implementation/v0.30.0-acceptance.md)，未合并或发布。
+独立 POST /api/v1/admin/user/batch-change-group 对 1–100 个唯一规范 UUID／完整版本与统一 user／admin 执行当前授权、全批预检及五秒原子改组／旧 Session 撤销／逐账号审计。v0.30.0 已通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 于 2026-10-28T13:21:25Z 合并为 `d582fba02772e62f2f3af2fe11e485728f5c0097`。最终候选 `f54567d` 的 [PR CI #40686801162](https://github.com/TomyJan/MoeURL/actions/runs/40686801162) 与该合并的 [master CI #40695791448](https://github.com/TomyJan/MoeURL/actions/runs/40695791448) 各九项成功，真实 CodeRabbit 覆盖最终候选、有效意见全部闭环；标准 Task1–4 与完整最终 SDD 归档核验已完成。未正式发布或部署。范围、逐候选验证、原失败及运行归属见[验收](../implementation/v0.30.0-acceptance.md)；不将旧本地浏览器或产品制品重归属给合并提交，不扩自定义组、多组或 OIDC 映射。
 
 ## 本地用户系统
 
@@ -86,6 +86,8 @@ v0.7.0 将登录方式扩展为：
 OIDC 不是一个简单的「启用 / 禁用 OIDC 登录」开关，而是一组可管理的身份提供商配置。v0.7.0 支持多个提供商的启用状态、显示名称、Issuer、客户端信息、固定回调地址和精确邮箱域名策略；作用域固定为标准身份声明，首次供应固定进入 `user`。图标、自定义声明映射和可选默认用户组仍属于后续范围。
 
 配置 OIDC 提供商时，系统后续可以提供预置模板，帮助管理员快速填写常见平台参数。v0.7.0 使用标准 Discovery，不实现提供商模板。
+
+v0.31.0 已将模板收敛为新建草稿的手动／Google 两种本地辅助，Task1–3 已标准完成；唯一实际终审及四项有效修复闭环，Task3 的 clean `8712426` 完整 107 项浏览器／六原图／精确产品与扫描、阶段本地归档快照已核。Task4 确认模板名称修复的新 clean `8dbcb9e` 浏览器／六原图／精确产品已核；远端交付、标准 Task4 及最终 SDD 归档待完成，尚未合并。明确应用才替换，脏草稿先确认并清旧凭据，不自动 Discovery／保存／启用；编辑现有身份命名空间不受模板影响。边界见[设计](2026-10-28-v0.31.0-oidc-provider-templates-design.md)，实际阶段见[验收](../implementation/v0.31.0-acceptance.md)。
 
 ## 首次初始化流程
 
