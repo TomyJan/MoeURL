@@ -38,6 +38,7 @@ function mountTemplates(options: { providers?: OIDCProvider[]; create?: () => Re
   return { ...view, instances, requests, writes }
 }
 
+/** Returns a no-store API envelope; nonzero fixture codes model rejected business writes. */
 function response(data: unknown, code = 0) {
   return new Response(JSON.stringify({ code, message: code ? 'Request rejected' : 'OK', data, meta: {} }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } })
 }
