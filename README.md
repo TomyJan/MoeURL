@@ -12,7 +12,7 @@ v0.12.0 自定义短码与 v0.13.0 个人改密已分别通过 PR #185、#186 �
 
 [v0.17.0 短链批量管理](./docs/product/scope-v0.17.0.md)、[v0.18.0 全站统计、访问明细和操作审计](./docs/product/scope-v0.18.0.md) 与 [v0.19.0 用户组成员迁移](./docs/product/scope-v0.19.0.md) 已分别通过 PR #198、#208、#211 合并。最近 [v0.29.0](./docs/product/scope-v0.29.0.md) 由 PR #227 合并为 8af05d60，最终 PR CI #40629796924 与合并 master CI #40631422772 各九成功、真实审查闭环。各候选的本地门禁、目标 CI 和生产验收保持独立归属。
 
-[v0.30.0 批量用户组成员迁移](./docs/product/scope-v0.30.0.md) 正通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 交付。首 head a0a7 的九项 CI 与真实 CodeRabbit 审查已完成，两个有效 Minor 已由 root 修复；clean85f4c45 的完整前端2015测试／四100、browser105／本次六图与新精确产品证据已核验。后继提交仍须取得自己的九 CI 与真实最新审查覆盖，合并、最终归档和正式发布尚未完成，各候选证据见[验收](./docs/implementation/v0.30.0-acceptance.md)，不把分支验证列为主分支已交付能力。
+[v0.30.0 批量用户组成员迁移](./docs/product/scope-v0.30.0.md) 正通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 交付。首 head a0a7 的九项 CI 与真实 CodeRabbit 审查已完成，两个有效 Minor 已由 root 修复；完整前端 121 个文件、2015 项测试及四项 100% 覆盖率实际运行于 a0a7 加当时 dirty 前端，当前输入集合／hash／bytes 已核验相符；clean85f4c45 的 105 项 browser 测试、本次六图与新精确产品证据另行核验。后继提交仍须取得自己的九 CI 与真实最新审查覆盖，合并、最终归档和正式发布尚未完成，各候选证据见[验收](./docs/implementation/v0.30.0-acceptance.md)，不把分支验证列为主分支已交付能力。
 
 ## 功能概览
 

@@ -1,6 +1,6 @@
 # MoeURL 产品总览
 
-[v0.30.0 批量成员迁移](scope-v0.30.0.md) 正通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 交付，Task1–3 标准完成，Task4 仍在进行。首 head a0a7 的九项 CI 与真实 CodeRabbit 审查已完成，两个有效 Minor 已由 root 修复；clean85f4c45 的完整前端2015测试／四100、browser105／本次六图与新精确产品证据已核验。后继提交仍须取得自己的九 CI 与真实最新审查覆盖，合并、最终归档和正式发布尚未完成。不替代下方 v0.29.0 主分支状态，范围与各候选实证见[验收](../implementation/v0.30.0-acceptance.md)。
+[v0.30.0 批量成员迁移](scope-v0.30.0.md) 正通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 交付，Task1–3 标准完成，Task4 唯一实现终审与 root 集中修复已完成，远端交付与最终归档仍在进行。首 head a0a7 的九项 CI 与真实 CodeRabbit 审查已完成，两个有效 Minor 已由 root 修复；完整前端 121 个文件、2015 项测试及四项 100% 覆盖率实际运行于 a0a7 加当时 dirty 前端，当前输入集合／hash／bytes 已核验相符；clean85f4c45 的 105 项 browser 测试、本次六图与新精确产品证据另行核验。后继提交仍须取得自己的九 CI 与真实最新审查覆盖，合并、最终归档和正式发布尚未完成。不替代下方 v0.29.0 主分支状态，范围与各候选实证见[验收](../implementation/v0.30.0-acceptance.md)。
 
 ## 产品定位
 
