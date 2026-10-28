@@ -1,5 +1,7 @@
 # 开发进度与能力清单
 
+下一有界版本 [v0.30.0 批量成员迁移](scope-v0.30.0.md) 已完成范围／设计、一次 fresh builder check 及[完整计划](../implementation/v0.30.0-plan.md)，尚无产品实现或验证通过；不把设计写成已合并能力。只对当前列表其他非 builtin user／admin 账号有界原子调整，阶段见[验收](../implementation/v0.30.0-acceptance.md)。
+
 2026-10-28：[v0.29.0 每域名默认跳转方式](scope-v0.29.0.md) 已由 [PR #227](https://github.com/TomyJan/MoeURL/pull/227) 合并为 `8af05d60fb89769f7aaabf4da4906ed411fdad48`。最终 `4dfa4d43` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40629796924) 与合并 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40631422772) 各九成功，真实 CodeRabbit 覆盖最终、有效 open0。配置仅用于创建初选、明确手动优先，旧省略模式与已有短链不变；唯一独立终审、root 修复与原失败均保持[验收](../implementation/v0.29.0-acceptance.md)归属，尚未正式发布。
 
 最近功能 [v0.25.0 操作审计 CSV](scope-v0.25.0.md) 由 PR #222 合并为 `6933f94c`，其合并 CI #40406334592 的手机 E2E 失败保持历史归属。后继[维护 PR #223](https://github.com/TomyJan/MoeURL/pull/223) 清理 4 条开发依赖公告并修复 Toast 同步，已合并为 `cafacf1520e4ea59934af4c1339a56224c2fdcd0`；精确最终 `a9a53b98` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40415038034) 和新合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40421454231) 各 9 成功，实际 CodeRabbit 首审与最终增量覆盖最新变更，无有效未解决问题。远端恢复与逐候选证据见[维护验收](../implementation/2026-10-27-frontend-security-dependencies-acceptance.md)，不改写旧失败；正式发布未执行。

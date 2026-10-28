@@ -1,5 +1,7 @@
 # MoeURL 文档中心
 
+当前下一版本 [v0.30.0 批量成员迁移](product/scope-v0.30.0.md) 已形成[设计](specs/2026-10-28-v0.30.0-batch-group-membership-design.md)、一次 fresh builder check 和[完整计划](implementation/v0.30.0-plan.md)，尚无产品实现或门禁完成声明。只做当前列表其他非 builtin 账号在 user／admin 间的有界原子调整，不扩自定义组、多组或 OIDC 映射；实际阶段见[任务](implementation/v0.30.0-tasks.md)和[验收](implementation/v0.30.0-acceptance.md)。
+
 [v0.29.0 每域名默认跳转方式](product/scope-v0.29.0.md) 已通过 [PR #227](https://github.com/TomyJan/MoeURL/pull/227) 于 2026-10-28T04:16:45Z 合并为 `8af05d60fb89769f7aaabf4da4906ed411fdad48`。最终 `4dfa4d43` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40629796924) 与合并 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40631422772) 各九成功，实际 CodeRabbit 覆盖最终且有效意见全部闭环。旧 API 省略 redirectMode 仍 direct，默认只用于新面板初选，不改已有短链；唯一独立终审、root 修复、原失败及逐候选制品见[任务](implementation/v0.29.0-tasks.md)和[验收](implementation/v0.29.0-acceptance.md)。尚未正式发布。
 
 此前功能 [v0.25.0 操作审计 CSV](product/scope-v0.25.0.md) 已由 PR #222 合并，其旧合并 CI 的手机 E2E 失败保持历史归属。后继[维护 PR #223](https://github.com/TomyJan/MoeURL/pull/223) 已合并为 `cafacf15`，精确最终 head 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40415038034) 与新合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40421454231) 各 9 成功，实际 CodeRabbit 已覆盖最终变更，无有效未解决问题。恢复证据见[维护验收](implementation/2026-10-27-frontend-security-dependencies-acceptance.md)；尚未正式发布。
