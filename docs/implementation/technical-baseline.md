@@ -1,5 +1,9 @@
 # 技术基线
 
+## v0.30.0 当前分支增量（尚未合并）
+
+独立 strict/no-store POST /api/v1/admin/user/batch-change-group：items 含 1–100 唯一规范 UUID／完整 expectedUpdatedAt，统一 user／admin；返回 changedCount＋unchangedCount=请求数量。actor＋targets UUID 排他锁后，builtin admin→user 共享锁；当前 DB 授权，全批 missing/deleted→builtin→self→unsupported→stale，版本先于 no-op，五秒同事务改组／撤销旧 Session／逐账号审计。复用原 SQLC 输出，无 schema、依赖或权限目录变化。前端当前 20 行选择、冻结确认、身份 epoch／pending／read barrier 与严格计数；旧 API 含义不变。当前候选及原始失败、本地 Node26.3／pnpm11.5、Go1.26.10 windows 与 Linux CGO1、产品 Go1.27.3 linux CGO0 各自归属见[设计](../specs/2026-10-28-v0.30.0-batch-group-membership-design.md)及[验收](v0.30.0-acceptance.md)；不据此勾选尚未执行的目标 CI／审查／合并／发布。
+
 ## 1. 目标
 
 本文档定义 MoeURL 的工程技术基线。所有后续实现、重构和实施计划都应以本文档为准。
@@ -185,9 +189,9 @@ v0.0.1 优先使用简单结构，不为远期复杂度提前拆过细。
 
 ## 5. API 约定
 
-### v0.29.0 域名默认模式（完整本地门禁）
+### v0.29.0 域名默认模式（已合并，尚未发布）
 
-[设计](../specs/2026-10-28-v0.29.0-domain-default-redirect-mode-design.md)定义新独立 GET /api/v1/admin/domain/redirect-default?id=...、POST /api/v1/admin/domain/set-redirect-default 和 GET /api/v1/domain/redirect-defaults，均 no-store。模式三值、domain 共享完整版本、当前 DB 身份／双管理权限、锁后授权及事务审计；本人投影按当前创建／域名／模式权限过滤。旧 available／managed／create DTO 及省略redirectMode=direct不变。后端已提交；前端独立设置coordinator与三草稿互锁、身份epoch、自动快照及手动优先已实现。完整本地Go／业务100、前端四100／静态／隔离build、双语双视口完整browser、Linuxrace／安全及精确image／smoke／同image扫描已有逐候选证据，唯一完整实现终审和 root 三项修复／新完整本地门禁已完成，远端门禁未完成。E2E override 的127.0.0.2／3只为真实第二域名提供同一owned app port的loopback访问，不扩生产Compose或外网绑定。具体见[计划](v0.29.0-plan.md)和[验收](v0.29.0-acceptance.md)，不提前标记整版完成。
+[设计](../specs/2026-10-28-v0.29.0-domain-default-redirect-mode-design.md)定义新独立 GET /api/v1/admin/domain/redirect-default?id=...、POST /api/v1/admin/domain/set-redirect-default 和 GET /api/v1/domain/redirect-defaults，均 no-store。模式三值、domain 共享完整版本、当前 DB 身份／双管理权限、锁后授权及事务审计；本人投影按当前创建／域名／模式权限过滤。旧 available／managed／create DTO 及省略 redirectMode=direct 不变。前端独立 coordinator 与三草稿互锁、身份 epoch、自动快照及手动优先已实现。PR #227 已合并为 8af05d60，最终 PR CI #40629796924 与合并 CI #40631422772 各九成功、实际最新审查闭环；尚未正式发布。E2E override 的 127.0.0.2／3 只为真实第二域名提供同一 owned app port 的 loopback 访问，不扩生产 Compose 或外网绑定。唯一终审、root 修复、本地逐候选门禁及原失败见[计划](v0.29.0-plan.md)和[验收](v0.29.0-acceptance.md)，不将原 image 归于后继文档或 merge。
 
 ### v0.28.0 用户组默认域名（已合并，未发布）
 

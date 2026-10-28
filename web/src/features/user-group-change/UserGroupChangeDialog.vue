@@ -17,7 +17,7 @@
   </v-dialog>
 </template>
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
@@ -26,12 +26,14 @@ import { changeUserGroup, type UserSummary } from '@/entities/user/api'
 import { ApiClientError } from '@/shared/api/client'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 
-const props = defineProps<{ target: UserSummary }>()
-const emit = defineEmits<{ close: [] }>()
+const props = defineProps<{ target: UserSummary; managed?: boolean }>()
+const emit = defineEmits<{ close: []; pending: [value: boolean]; refresh: [] }>()
 const { t } = useI18n()
 const client = useQueryClient()
 const identity = useAccountIdentity()
 const initialScope = identity.scope.value
+let alive = true
+onBeforeUnmount(() => { alive = false })
 const auth = useQuery({ queryKey: ['auth', 'me'], queryFn: me, staleTime: Infinity, retry: false })
 const allowed = computed(() => identity.isCurrent(initialScope) && !!initialScope.userId && !!auth.data.value?.user.permissions.includes('admin:access') && props.target.id !== initialScope.userId && !props.target.builtin)
 const group = ref(props.target.group as 'user' | 'admin')
@@ -51,20 +53,27 @@ async function save() {
   if (!canSave.value) return
   const current = revision
   const input = { id: props.target.id, groupKey: group.value, expectedUpdatedAt: props.target.updatedAt }
+  emit('pending', true)
   try {
     await mutation.mutateAsync(input)
-    if (!allowed.value || revision !== current) return
+    if (!alive || !allowed.value || revision !== current) return
     toast.success(t('membership.success'))
     emit('close')
-    void client.invalidateQueries({ queryKey: ['admin-user'] })
+    refresh()
   } catch (error) {
-    if (!allowed.value || revision !== current) return
+    if (!alive || !allowed.value || revision !== current) return
     if (error instanceof ApiClientError && error.code === 300105) {
       toast.error(t('membership.conflict'))
       emit('close')
-      void client.invalidateQueries({ queryKey: ['admin-user'] })
+      refresh()
     } else toast.error(t('membership.failed'))
-  }
+  } finally { if (alive) emit('pending', false) }
+}
+
+/** Lets the owning page enforce readback while preserving standalone dialog consumers. */
+function refresh() {
+  if (props.managed) emit('refresh')
+  else void client.invalidateQueries({ queryKey: ['admin-user'] })
 }
 </script>
 <style scoped>

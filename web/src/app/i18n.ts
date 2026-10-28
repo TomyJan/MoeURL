@@ -653,6 +653,14 @@ export const messages = {
       success: '短链归属已转移', conflict: '短链已被修改，请刷新后重新打开并确认。',
       recipientUnavailable: '接收账号不存在、已停用或不支持接收短链。', failed: '转移失败，请稍后重试。',
     },
+    batchMembership: {
+      selectAll: '选择当前列表中可调整的账号', selectAccount: '选择账号 {username}', selected: '已选择 {count} 个账号', clear: '清除选择', open: '批量调整用户组',
+      title: '批量调整所选账号的用户组', summary: '已确认的账号与当前用户组', group: '目标用户组', confirm: '我确认这些用户组调整', save: '保存用户组调整',
+      success: '已调整 {changed} 个账号，{unchanged} 个保持不变。', readRequired: '继续操作前需成功读取最新账号列表。', retryRead: '重试账号列表',
+      noEligible: '当前列表没有可调整的账号。',
+      rejected: '整批未应用。请读取最新列表并重新确认。', denied: '权限已变化，请重新验证当前身份。', failed: '批量调整未确认成功。重试前请刷新并核实结果。',
+      warning: '整批成功或整批不变。仅实际变化的账号需要重新登录；已有短链与外部身份绑定不变。', counts: '将调整 {changed} 个，保持不变 {unchanged} 个。',
+    },
     membership: {
       title: '调整用户组', group: '目标用户组', user: '普通用户', admin: '管理员', cancel: '取消',
       warning: '切换后将撤销此账号的所有旧登录会话，账号需要重新登录。已有短链和外部身份绑定不变。',
@@ -1378,6 +1386,14 @@ export const messages = {
       confirm: 'I verified the recipient and approve transferring management and historical statistics', cancel: 'Cancel', save: 'Confirm transfer',
       success: 'Short-link ownership transferred', conflict: 'The short link changed. Refresh and reopen to confirm again.',
       recipientUnavailable: 'The recipient does not exist, is disabled, or cannot receive short links.', failed: 'Transfer failed. Please try again later.',
+    },
+    batchMembership: {
+      selectAll: 'Select eligible accounts in this list', selectAccount: 'Select account {username}', selected: '{count} account selected | {count} accounts selected', clear: 'Clear selection', open: 'Change selected groups',
+      title: 'Change selected user groups', summary: 'Confirmed accounts and current groups', group: 'Target group', confirm: 'I confirm the group changes', save: 'Save group changes',
+      success: 'Changed {changed} account; {unchanged} unchanged. | Changed {changed} accounts; {unchanged} unchanged.', readRequired: 'Read the latest accounts successfully before continuing.', retryRead: 'Retry user list',
+      noEligible: 'No eligible accounts in this list.',
+      rejected: 'The batch was not applied. Read the latest list and confirm again.', denied: 'Authorization changed. Verify the current identity again.', failed: 'Could not confirm the batch outcome. Refresh to check its outcome before retrying.',
+      warning: 'The entire batch succeeds or remains unchanged. Only changed accounts must sign in again; existing links and external identity bindings remain unchanged.', counts: '{changed} will change; {unchanged} will remain unchanged.',
     },
     membership: {
       title: 'Change user group', group: 'Target group', user: 'User', admin: 'Administrator', cancel: 'Cancel',

@@ -47,6 +47,7 @@ type Dependencies struct {
 	SecureCookies          bool
 	User                   user.Port
 	UserMembership         user.GroupPort
+	UserBatchMembership    user.BatchGroupPort
 	UserPreferences        user.PreferencesPort
 	UserDomainPreference   user.DomainPreferencePort
 	UserGroup              usergroup.Port
@@ -215,6 +216,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			if dependency.UserMembership != nil {
 				groupHandler := user.NewGroupHandler(dependency.UserMembership, logger)
 				businessAPI.Post("/admin/user/change-group", groupHandler.Change)
+			}
+			if dependency.UserBatchMembership != nil {
+				batchHandler := user.NewBatchGroupHandler(dependency.UserBatchMembership, logger)
+				businessAPI.Post("/admin/user/batch-change-group", batchHandler.Change)
 			}
 			if dependency.UserPreferences != nil {
 				preferencesHandler := user.NewPreferencesHandler(dependency.UserPreferences, logger)

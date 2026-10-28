@@ -2145,20 +2145,22 @@ describe('pages', () => {
 
     await fireEvent.click(screen.getAllByRole('button', { name: 'adminUsers.actions.more' })[0])
     await fireEvent.click(screen.getAllByText('adminUsers.actions.disable')[0])
+    await vi.waitFor(() => expect(screen.getAllByRole('button', { name: 'adminUsers.actions.edit' })[0]).toHaveProperty('disabled', false))
     await fireEvent.click(screen.getAllByRole('button', { name: 'adminUsers.actions.edit' })[0])
     await fireEvent.update(screen.getAllByLabelText('adminUsers.labels.nickname')[0], 'Alice Renamed')
     await fireEvent.click(screen.getAllByText('adminUsers.saveNickname')[0])
+    await vi.waitFor(() => expect(screen.getAllByRole('button', { name: 'adminUsers.actions.more' })[0]).toHaveProperty('disabled', false))
     await fireEvent.click(screen.getAllByRole('button', { name: 'adminUsers.actions.more' })[0])
     const replacementPassword = '  特殊"\\$<>&密码  '
     await fireEvent.update(screen.getAllByLabelText('adminUsers.labels.newPassword')[0], replacementPassword)
     await fireEvent.click(screen.getAllByText('adminUsers.resetPassword')[0])
 
-    expect(mutate).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Alice', status: 'disabled' })
-    expect(mutate).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Alice Renamed', status: 'active' })
-    expect(mutate).toHaveBeenCalledWith({ id: 'user-id', password: replacementPassword })
+    expect(updateUser).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Alice', status: 'disabled' })
+    expect(updateUser).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Alice Renamed', status: 'active' })
+    expect(resetUserPassword).toHaveBeenCalledWith({ id: 'user-id', password: replacementPassword })
   })
 
-  it('invalidates admin users after a successful status update', async () => {
+  it('requires an explicit list read after a successful status update', async () => {
     setQueryResult({
       data: ref({
         meta: { total: 1 },
@@ -2180,7 +2182,7 @@ describe('pages', () => {
     await fireEvent.click(screen.getByText('adminUsers.actions.disable'))
 
     expect(updateUser).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Alice', status: 'disabled' })
-    expect(state.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['admin-user'] })
+    expect((state.queryResult as { refetch: unknown }).refetch).toHaveBeenCalledWith({ throwOnError: true })
   })
 
   it('formats admin user dates with local date components', () => {
@@ -2234,7 +2236,7 @@ describe('pages', () => {
     expect(container.querySelector('.user-table__avatar')?.textContent).toBe('😀')
   })
 
-  it('scopes admin user action loading state to the active row', async () => {
+  it('locks competing rows while a user profile request is actually pending', async () => {
     setQueryResult({
       data: ref({
         meta: { total: 2 },
@@ -2262,10 +2264,8 @@ describe('pages', () => {
         ],
       }),
     })
-    setMutationResult({
-      isPending: ref(true),
-      variables: ref({ id: 'user-id', nickname: 'Alice', status: 'active' }),
-    })
+    const pending = createDeferred<never>()
+    vi.mocked(updateUser).mockReturnValueOnce(pending.promise)
 
     mount(AdminUsersPage)
 
@@ -2280,10 +2280,19 @@ describe('pages', () => {
     expect((within(screen.getByTestId('console-user-edit-panel')).getByRole('button', { name: 'adminUsers.saveNickname' }) as HTMLButtonElement).disabled).toBe(false)
 
     await fireEvent.click(within(aliceRow).getByRole('button', { name: 'adminUsers.actions.edit' }))
+    await fireEvent.click(within(screen.getByTestId('console-user-edit-panel')).getByRole('button', { name: 'adminUsers.saveNickname' }))
     expect((within(screen.getByTestId('console-user-edit-panel')).getByRole('button', { name: 'adminUsers.saveNickname' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(within(bobRow).getByRole('button', { name: 'adminUsers.actions.edit' })).toHaveProperty('disabled', true)
+    await fireEvent.click(within(bobRow).getByRole('button', { name: 'adminUsers.actions.more' }))
+    await fireEvent.click(within(aliceRow).getByRole('button', { name: 'adminUsers.actions.edit' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.saveNickname' }))
+    expect(updateUser).toHaveBeenCalledTimes(1)
+    expect(screen.queryByTestId('console-user-actions')).toBeNull()
+    pending.reject(new Error('controlled profile failure'))
+    await vi.waitFor(() => expect(within(bobRow).getByRole('button', { name: 'adminUsers.actions.edit' })).toHaveProperty('disabled', false))
   })
 
-  it('scopes admin user password reset loading state to the active row', async () => {
+  it('locks competing rows while a real password reset request is pending', async () => {
     setQueryResult({
       data: ref({
         meta: { total: 2 },
@@ -2311,10 +2320,8 @@ describe('pages', () => {
         ],
       }),
     })
-    setMutationResult({
-      isPending: ref(true),
-      variables: ref({ id: 'user-id', password: 'new-password' }),
-    })
+    const pending = createDeferred<never>()
+    vi.mocked(resetUserPassword).mockReturnValueOnce(pending.promise)
 
     mount(AdminUsersPage)
 
@@ -2329,7 +2336,16 @@ describe('pages', () => {
     expect((within(screen.getByTestId('console-user-actions')).getByRole('button', { name: 'adminUsers.resetPassword' }) as HTMLButtonElement).disabled).toBe(false)
 
     await fireEvent.click(within(aliceRow).getByRole('button', { name: 'adminUsers.actions.more' }))
+    await fireEvent.update(screen.getByLabelText('adminUsers.labels.newPassword'), 'new-password')
+    await fireEvent.click(within(screen.getByTestId('console-user-actions')).getByRole('button', { name: 'adminUsers.resetPassword' }))
     expect((within(screen.getByTestId('console-user-actions')).getByRole('button', { name: 'adminUsers.resetPassword' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(within(bobRow).getByRole('button', { name: 'adminUsers.actions.more' })).toHaveProperty('disabled', true)
+    await fireEvent.click(screen.getByRole('button', { name: 'membership.title' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.resetPassword' }))
+    expect(resetUserPassword).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    pending.reject(new Error('controlled password failure'))
+    await vi.waitFor(() => expect(within(bobRow).getByRole('button', { name: 'adminUsers.actions.more' })).toHaveProperty('disabled', false))
   })
 
   it('submits admin user fallback actions for disabled users', async () => {
@@ -2356,16 +2372,18 @@ describe('pages', () => {
 
     await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.more' }))
     await fireEvent.click(screen.getByText('adminUsers.actions.enable'))
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'adminUsers.actions.edit' })).toHaveProperty('disabled', false))
     await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.edit' }))
     await fireEvent.update(screen.getByLabelText('adminUsers.labels.nickname'), '')
     await fireEvent.click(screen.getByText('adminUsers.saveNickname'))
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'adminUsers.actions.more' })).toHaveProperty('disabled', false))
     await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.more' }))
     await fireEvent.update(screen.getByLabelText('adminUsers.labels.newPassword'), '')
     await fireEvent.click(screen.getByText('adminUsers.resetPassword'))
 
-    expect(mutate).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Bob', status: 'active' })
-    expect(mutate).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Bob', status: 'disabled' })
-    expect(mutate).not.toHaveBeenCalledWith({ id: 'user-id', password: '' })
+    expect(updateUser).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Bob', status: 'active' })
+    expect(updateUser).toHaveBeenCalledWith({ id: 'user-id', nickname: 'Bob', status: 'disabled' })
+    expect(resetUserPassword).not.toHaveBeenCalledWith({ id: 'user-id', password: '' })
     expect(screen.getByText('adminUsers.passwordRequired')).toBeTruthy()
   })
 
