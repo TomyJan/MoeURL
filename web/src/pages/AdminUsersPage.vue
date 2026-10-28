@@ -14,7 +14,7 @@
     </div>
     <div class="console-data-panel" data-testid="console-data-panel">
       <div class="console-page__actions-bar">
-        <span v-if="batch.selected.value.length">{{ t('batchMembership.selected', { count: batch.selected.value.length }) }}</span>
+        <span v-if="batch.selected.value.length">{{ t('batchMembership.selected', { count: batch.selected.value.length }, batch.selected.value.length) }}</span>
         <v-btn v-if="batch.selected.value.length" :disabled="batch.pending.value || batch.barrier.value || !!batch.snapshot.value" @click="batch.clear">{{ t('batchMembership.clear') }}</v-btn>
         <v-btn :disabled="batch.unavailable.value || !batch.selected.value.length || !!batch.snapshot.value" @click="batch.open">{{ t('batchMembership.open') }}</v-btn>
       </div>

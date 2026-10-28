@@ -58,7 +58,7 @@ it('limits selection to current eligible accounts, maintains indeterminate state
   await fireEvent.click(screen.getByRole('checkbox', { name: 'Select account bob' }))
   view.state.users = [batchAlice]
   await view.client.invalidateQueries({ queryKey: ['admin-user'] })
-  await waitFor(() => expect(screen.queryByText('1 accounts selected')).toBeNull())
+  await waitFor(() => expect(screen.queryByText('1 account selected')).toBeNull())
 })
 
 it('rejects a queued cancellation and submission after the parent marks the request pending', async () => {

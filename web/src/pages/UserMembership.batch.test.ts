@@ -39,7 +39,7 @@ it.each(['all-removed', 'partly-ineligible'] as const)('reconciles the current s
     expect(screen.getByRole('button', { name: 'Edit' })).toHaveProperty('disabled', false)
     await fireEvent.click(screen.getByRole('checkbox', { name: 'Select account charlie' }))
   } else {
-    expect(screen.getByText('1 accounts selected')).toBeTruthy()
+    expect(screen.getByText('1 account selected')).toBeTruthy()
     expect(screen.getByRole('checkbox', { name: 'Select account bob' })).toHaveProperty('checked', true)
   }
   await fireEvent.click(screen.getByRole('button', { name: 'Change selected groups' }))
@@ -48,6 +48,25 @@ it.each(['all-removed', 'partly-ineligible'] as const)('reconciles the current s
   expect(reopened.getByText(kind === 'all-removed' ? 'charlie' : 'bob')).toBeTruthy()
   if (kind === 'all-removed') expect(reopened.queryByText('bob')).toBeNull()
   expect(view.state.writes).toEqual([])
+})
+
+it.each([
+  { users: [batchAlice], selected: '1 account selected', changedCount: 1, unchangedCount: 0, success: 'Changed 1 account; 0 unchanged.' },
+  { users: [batchAlice, batchBob], selected: '2 accounts selected', changedCount: 2, unchangedCount: 0, success: 'Changed 2 accounts; 0 unchanged.' },
+  { users: [batchAlice, { ...batchBob, group: 'admin' }], selected: '2 accounts selected', changedCount: 1, unchangedCount: 1, success: 'Changed 1 account; 1 unchanged.' },
+])('reports $selected and the committed changed/unchanged counts in English', async ({ users, selected, changedCount, unchangedCount, success }) => {
+  view = mountBatchMembership({ users })
+  await screen.findByText('alice')
+  await fireEvent.click(screen.getByRole('checkbox', { name: 'Select eligible accounts in this list' }))
+  expect(screen.getByText(selected)).toBeTruthy()
+  await fireEvent.click(screen.getByRole('button', { name: 'Change selected groups' }))
+  await confirmBatchMembership()
+  view.state.overrides['/api/v1/admin/user/batch-change-group'] = () => membershipResponse({ changedCount, unchangedCount })
+  await fireEvent.click(screen.getByRole('button', { name: 'Save group changes' }))
+  await screen.findByText(success)
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(view.state.writes).toHaveLength(1)
+  expect(view.state.writes[0]!.input).toEqual({ items: users.map(item => ({ id: item.id, expectedUpdatedAt: item.updatedAt })), groupKey: 'admin' })
 })
 
 it('sends the frozen full-precision batch once, then holds a read barrier until an actual successful retry', async () => {

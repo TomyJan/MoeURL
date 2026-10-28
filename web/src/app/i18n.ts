@@ -1388,9 +1388,9 @@ export const messages = {
       recipientUnavailable: 'The recipient does not exist, is disabled, or cannot receive short links.', failed: 'Transfer failed. Please try again later.',
     },
     batchMembership: {
-      selectAll: 'Select eligible accounts in this list', selectAccount: 'Select account {username}', selected: '{count} accounts selected', clear: 'Clear selection', open: 'Change selected groups',
+      selectAll: 'Select eligible accounts in this list', selectAccount: 'Select account {username}', selected: '{count} account selected | {count} accounts selected', clear: 'Clear selection', open: 'Change selected groups',
       title: 'Change selected user groups', summary: 'Confirmed accounts and current groups', group: 'Target group', confirm: 'I confirm the group changes', save: 'Save group changes',
-      success: 'Changed {changed} accounts; {unchanged} unchanged.', readRequired: 'Read the latest accounts successfully before continuing.', retryRead: 'Retry user list',
+      success: 'Changed {changed} account; {unchanged} unchanged. | Changed {changed} accounts; {unchanged} unchanged.', readRequired: 'Read the latest accounts successfully before continuing.', retryRead: 'Retry user list',
       noEligible: 'No eligible accounts in this list.',
       rejected: 'The batch was not applied. Read the latest list and confirm again.', denied: 'Authorization changed. Verify the current identity again.', failed: 'Could not confirm the batch outcome. Refresh to check its outcome before retrying.',
       warning: 'The entire batch succeeds or remains unchanged. Only changed accounts must sign in again; existing links and external identity bindings remain unchanged.', counts: '{changed} will change; {unchanged} will remain unchanged.',

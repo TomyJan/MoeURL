@@ -67,7 +67,7 @@ export function useUserBatchGroupChange(options: BatchOptions) {
     try {
       const result = await batchChangeUserGroup({ items: current.snapshot.map(item => ({ id: item.id, expectedUpdatedAt: item.updatedAt })), groupKey })
       if (!alive || state.value !== current || !identity.isCurrent(scope) || !options.allowed.value) return
-      toast.success(t('batchMembership.success', { changed: result.changedCount, unchanged: result.unchangedCount }))
+      toast.success(t('batchMembership.success', { changed: result.changedCount, unchanged: result.unchangedCount }, result.changedCount))
       current.snapshot = null
       current.selected = []
       await reload()
