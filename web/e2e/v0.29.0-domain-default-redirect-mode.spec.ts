@@ -109,6 +109,7 @@ for (const width of [1280, 390]) {
       await expect(publicPage).toHaveURL(target)
       await expect.poll(() => readVisitCount(member, manual.id)).toBe(1)
 
+      await chooseDomain(member, other)
       await expect(member.getByRole('button', { name: modeNames.intermediate })).toHaveAttribute('aria-pressed', 'true')
       await permissions(admin.request, [...new Set([...originalPermissions, 'short_link:create', 'domain:use_default', 'domain:use_assigned'])].filter((permission) => !['short_link:use_intermediate', 'short_link:use_confirmation'].includes(permission)))
       await member.getByLabel(/^(输入链接|Enter link)$/).fill(target)
@@ -117,7 +118,7 @@ for (const width of [1280, 390]) {
       const denial = await deniedCreation
       expect(denial.status()).toBe(200)
       expect((await denial.json()).code).toBe(120001)
-      await expect(member.getByText(/^(跳转权限已变化，已清除无权模式，请重新确认本次跳转方式。|Redirect permissions changed. The unavailable mode was cleared; confirm a mode for this link.)$/)).toBeVisible()
+      await expect(member.getByRole('alert').filter({ hasText: /跳转权限已变化，已清除无权模式|Redirect permissions changed/ })).toBeVisible()
       await expect(member.getByRole('button', { name: /^(创建短链|Create short link)$/ })).toBeDisabled()
       await expect(member.getByLabel(/^(输入链接|Enter link)$/)).toHaveValue(target)
       await member.getByRole('button', { name: /^(本次使用直接跳转|Use direct redirect for this link)$/ }).click()
@@ -226,10 +227,10 @@ async function reviewDraftRecovery(page: Page, domain: ManagedDomain) {
   await page.locator('.domain-mode').getByRole('button', { name: modeNames.intermediate }).click()
   await page.route('**/api/v1/admin/domain/redirect-default?*', (route) => route.abort('failed'))
   const failedRead = page.waitForEvent('requestfailed', (request) => new URL(request.url()).pathname === '/api/v1/admin/domain/redirect-default')
-  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')))
   await failedRead
   const cancel = page.getByRole('button', { name: /^(取消模式草稿|Cancel mode draft)$/ })
-  await expect(page.getByText(/^(域名模式或共享版本尚未确认，请重新加载；相关保存已暂停。|The domain mode or shared revision is not confirmed. Reload before saving dependent changes.)$/)).toBeVisible()
+  await expect(page.getByRole('alert').filter({ hasText: /域名模式或共享版本尚未确认|The domain mode or shared revision is not confirmed/ })).toBeVisible()
   await expect(cancel).toBeEnabled()
   await cancel.click()
   await expect(page.locator('.domain-mode').getByRole('button', { name: modeNames.confirmation })).toHaveAttribute('aria-pressed', 'true')
