@@ -1,6 +1,7 @@
 package user
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"regexp"
@@ -71,6 +72,10 @@ func (s *Service) BatchChangeGroup(ctx context.Context, actor auth.CurrentUser, 
 		}
 		if current.GroupID != admin.ID {
 			return ErrPermissionDenied
+		}
+		// A legal empty array denies access; JSON null is corrupt stored configuration.
+		if !bytes.HasPrefix(bytes.TrimSpace(admin.Permissions), []byte("[")) {
+			return errors.New("invalid stored group permission array")
 		}
 		grants, err := permission.DecodeSnapshot(admin.Permissions)
 		if err != nil {

@@ -190,6 +190,11 @@ func TestBatchChangeGroupAuthorization(t *testing.T) {
 	_, err = service.BatchChangeGroup(t.Context(), actor, input)
 	require.Error(t, err)
 	require.NotErrorIs(t, err, user.ErrPermissionDenied)
+	_, err = pool.Exec(t.Context(), `update user_group set permissions='[1]'::jsonb where key='admin'`)
+	require.NoError(t, err)
+	_, err = service.BatchChangeGroup(t.Context(), actor, input)
+	require.Error(t, err)
+	require.NotErrorIs(t, err, user.ErrPermissionDenied)
 	_, err = pool.Exec(t.Context(), `update user_group set permissions='["admin:access"]'::jsonb where key='admin'`)
 	require.NoError(t, err)
 	for _, key := range []string{"admin", "user"} {
@@ -208,6 +213,31 @@ func TestBatchChangeGroupAuthorization(t *testing.T) {
 		_, err = pool.Exec(t.Context(), `update user_group set key=$2 where key=$1`, "formerly-"+key, key)
 		require.NoError(t, err)
 	}
+}
+
+// TestBatchChangeGroupNullPermissions rejects corrupt configuration without changing membership, sessions or audit.
+func TestBatchChangeGroupNullPermissions(t *testing.T) {
+	pool, service, actor, id := groupFixture(t)
+	items := batchItems(t, pool, id)
+	sessions := auth.NewSessionService(pool, time.Hour)
+	old, err := sessions.Create(t.Context(), id)
+	require.NoError(t, err)
+	_, err = pool.Exec(t.Context(), `update user_group set permissions='null'::jsonb where key='admin'`)
+	require.NoError(t, err)
+	result, err := service.BatchChangeGroup(t.Context(), actor, user.BatchChangeGroupInput{Items: items, GroupKey: "admin"})
+	require.Error(t, err)
+	require.NotErrorIs(t, err, user.ErrPermissionDenied)
+	require.NotErrorIs(t, err, user.ErrInvalidInput)
+	require.Equal(t, user.BatchChangeGroupResult{}, result)
+	require.Equal(t, items, batchItems(t, pool, id))
+	var group string
+	require.NoError(t, pool.QueryRow(t.Context(), `select g.key from app_user u join user_group g on g.id=u.group_id where u.id=$1`, id).Scan(&group))
+	require.Equal(t, "user", group)
+	_, err = sessions.Resolve(t.Context(), old.ID)
+	require.NoError(t, err)
+	var audits int
+	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from audit_log where resource_type='user' and action='update' and changed_fields=array['group_id']`).Scan(&audits))
+	require.Zero(t, audits)
 }
 
 type batchFaultTracer struct {

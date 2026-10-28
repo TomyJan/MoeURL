@@ -1392,7 +1392,7 @@ export const messages = {
       title: 'Change selected user groups', summary: 'Confirmed accounts and current groups', group: 'Target group', confirm: 'I confirm the group changes', save: 'Save group changes',
       success: 'Changed {changed} accounts; {unchanged} unchanged.', readRequired: 'Read the latest accounts successfully before continuing.', retryRead: 'Retry user list',
       noEligible: 'No eligible accounts in this list.',
-      rejected: 'The batch was not applied. Read the latest list and confirm again.', denied: 'Authorization changed. Verify the current identity again.', failed: 'Could not apply the batch. Refresh to check its outcome before retrying.',
+      rejected: 'The batch was not applied. Read the latest list and confirm again.', denied: 'Authorization changed. Verify the current identity again.', failed: 'Could not confirm the batch outcome. Refresh to check its outcome before retrying.',
       warning: 'The entire batch succeeds or remains unchanged. Only changed accounts must sign in again; existing links and external identity bindings remain unchanged.', counts: '{changed} will change; {unchanged} will remain unchanged.',
     },
     membership: {

@@ -46,7 +46,7 @@ for (const width of [1280, 390]) {
       linkId = shortLink.id
       await post(page.request, '/auth/login', { username: actor.username, password })
       await page.addInitScript(value => localStorage.setItem('moeurl.language', value), language)
-      await page.setViewportSize({ width, height: width === 1280 ? 800 : 844 })
+      await page.setViewportSize({ width, height: width === 1280 ? 720 : 800 })
       await page.emulateMedia({ reducedMotion: 'reduce' })
       await page.goto('/admin/user')
       await expect(page.getByTestId('console-user-row').filter({ hasText: actor.username })).toBeVisible()

@@ -21,6 +21,35 @@ it('selects the two real current-list accounts and opens their group confirmatio
   expect(dialog.getByRole('button', { name: 'Save group changes' })).toHaveProperty('disabled', true)
 })
 
+it.each(['all-removed', 'partly-ineligible'] as const)('reconciles the current selection after cancelling a frozen confirmation with %s accounts', async kind => {
+  view = mountBatchMembership()
+  await openBatchMembership()
+  const charlie = { ...batchAlice, id: '44444444-4444-4444-8444-444444444444', username: 'charlie', nickname: 'Charlie' }
+  view.state.users = kind === 'all-removed' ? [charlie] : [{ ...batchAlice, builtin: true }, batchBob]
+  await view.client.refetchQueries({ queryKey: ['admin-user', '11111111-1111-4111-8111-111111111111', 1] })
+  // The currently open confirmation must retain both original accounts until explicitly cancelled.
+  const frozen = within(screen.getByRole('dialog'))
+  expect(frozen.getByText('alice')).toBeTruthy()
+  expect(frozen.getByText('bob')).toBeTruthy()
+  await fireEvent.click(frozen.getByRole('button', { name: 'Cancel' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  if (kind === 'all-removed') {
+    expect(screen.queryByText('2 accounts selected')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Change selected groups' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Edit' })).toHaveProperty('disabled', false)
+    await fireEvent.click(screen.getByRole('checkbox', { name: 'Select account charlie' }))
+  } else {
+    expect(screen.getByText('1 accounts selected')).toBeTruthy()
+    expect(screen.getByRole('checkbox', { name: 'Select account bob' })).toHaveProperty('checked', true)
+  }
+  await fireEvent.click(screen.getByRole('button', { name: 'Change selected groups' }))
+  const reopened = within(screen.getByRole('dialog'))
+  expect(reopened.queryByText('alice')).toBeNull()
+  expect(reopened.getByText(kind === 'all-removed' ? 'charlie' : 'bob')).toBeTruthy()
+  if (kind === 'all-removed') expect(reopened.queryByText('bob')).toBeNull()
+  expect(view.state.writes).toEqual([])
+})
+
 it('sends the frozen full-precision batch once, then holds a read barrier until an actual successful retry', async () => {
   view = mountBatchMembership()
   await openBatchMembership()
@@ -40,7 +69,7 @@ it('sends the frozen full-precision batch once, then holds a read barrier until 
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   await screen.findByText('Changed 2 accounts; 0 unchanged.')
   await screen.findByRole('button', { name: 'Retry user list' })
-  expect(screen.queryByText('Could not apply the batch. Refresh to check its outcome before retrying.')).toBeNull()
+  expect(screen.queryByText('Could not confirm the batch outcome. Refresh to check its outcome before retrying.')).toBeNull()
   expect(screen.getByRole('checkbox', { name: 'Select eligible accounts in this list' })).toHaveProperty('disabled', true)
   delete view.state.overrides['/api/v1/admin/user/list?page=1&pageSize=20']
   await fireEvent.click(screen.getByRole('button', { name: 'Retry user list' }))
@@ -72,7 +101,7 @@ it.each([500, 'network'] as const)('keeps the original confirmation after %s wit
     return membershipResponse(null, 900000, 500)
   }
   await fireEvent.click(screen.getByRole('button', { name: 'Save group changes' }))
-  await screen.findByText('Could not apply the batch. Refresh to check its outcome before retrying.')
+  await screen.findByText('Could not confirm the batch outcome. Refresh to check its outcome before retrying.')
   expect(screen.getByRole('dialog')).toBeTruthy()
   expect(screen.getByRole('button', { name: 'Save group changes' })).toHaveProperty('disabled', false)
   expect(view.state.writes).toHaveLength(1)
@@ -132,7 +161,7 @@ it.each(['invalid-count', 'malformed-json'])('keeps the outcome uncertain after 
     ? membershipResponse({ changedCount: 1, unchangedCount: 0 })
     : new Response('not-json', { status: 200 })
   await fireEvent.click(screen.getByRole('button', { name: 'Save group changes' }))
-  await screen.findByText('Could not apply the batch. Refresh to check its outcome before retrying.')
+  await screen.findByText('Could not confirm the batch outcome. Refresh to check its outcome before retrying.')
   expect(screen.getByRole('dialog')).toBeTruthy()
   expect(screen.queryByText('The batch was not applied. Read the latest list and confirm again.')).toBeNull()
   expect(view.state.writes).toHaveLength(1)

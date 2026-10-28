@@ -37,7 +37,7 @@ export function useUserBatchGroupChange(options: BatchOptions) {
   const allSelected = computed(() => eligible.value.length > 0 && eligible.value.every(item => selected.value.includes(item.id)))
   const indeterminate = computed(() => selected.value.length > 0 && !allSelected.value)
   watch([identity.scope, options.allowed], () => { state.value = createBatchState() }, { flush: 'sync' })
-  watch(eligible, items => { if (!snapshot.value && !pending.value) state.value.selected = selected.value.filter(id => items.some(item => item.id === id)) }, { flush: 'sync' })
+  watch([eligible, snapshot], ([items, frozen]) => { if (!frozen && !pending.value) state.value.selected = selected.value.filter(id => items.some(item => item.id === id)) }, { flush: 'sync' })
   onBeforeUnmount(() => { alive = false; state.value = createBatchState() })
 
   /** Requires a genuinely successful current-identity read before enabling another write. */
@@ -112,7 +112,7 @@ export function useUserBatchGroupChange(options: BatchOptions) {
     if (unavailable.value || snapshot.value || !selected.value.length) return
     state.value.snapshot = eligible.value.filter(item => selected.value.includes(item.id)).map(item => ({ ...item }))
   }
-  /** Cancels only the confirmation draft, preserving the administrator's current selection. */
+  /** Cancels the frozen draft and reconciles selection against the current eligible list. */
   function close() { if (!pending.value) state.value.snapshot = null }
   return { selected, snapshot, pending, barrier, unavailable, eligible, allSelected, indeterminate, toggle, toggleAll, clear, open, close, submit, reload }
 }
