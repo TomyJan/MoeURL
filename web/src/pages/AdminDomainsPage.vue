@@ -57,7 +57,7 @@
             {{ t('domainRedirectManagement.readFailed') }}
             <v-btn variant="text" :disabled="redirectManagement.pending.value || mutation.isPending.value || selectionRemoved" @click="redirectManagement.reload()">{{ t('domainRedirectManagement.reload') }}</v-btn>
           </div>
-          <DomainRedirectDefaultEditor v-if="redirectManagement.setting.value" :key="`${selectedID}:${redirectManagement.revision.value}:${identity.scope.value.epoch}`" :setting="redirectManagement.setting.value" :disabled="redirectManagement.blocked.value" :pending="redirectManagement.pending.value" :conflict="redirectManagement.conflicted.value" @dirty="redirectDirty = $event" @save="redirectManagement.save" @reload="redirectManagement.reload()" />
+          <DomainRedirectDefaultEditor v-if="redirectManagement.setting.value" :key="`${selectedID}:${redirectManagement.revision.value}:${identity.scope.value.epoch}`" :setting="redirectManagement.setting.value" :disabled="redirectManagement.blocked.value" :cancel-disabled="redirectManagement.cancelBlocked.value" :pending="redirectManagement.pending.value" :conflict="redirectManagement.conflicted.value" @dirty="redirectDirty = $event" @save="redirectManagement.save" @reload="redirectManagement.reload()" />
           <p v-else-if="!redirectManagement.query.isError.value" role="status">{{ t('domainRedirectManagement.loading') }}</p>
           <ActionToast v-if="redirectManagement.feedback.value === 'saved' || redirectManagement.feedback.value === 'failed'" :type="redirectManagement.feedback.value === 'saved' ? 'success' : 'error'">{{ t(redirectManagement.feedback.value === 'saved' ? 'domainRedirectManagement.saved' : 'domainRedirectManagement.failed') }}</ActionToast>
         </template>
@@ -288,7 +288,10 @@ function selectDomain(item: ManagedDomain) {
   selectDomainNow(item)
 }
 /** Adopts a confirmed selection and remounts its order editor to release the previous conflict snapshot. */
-function selectDomainNow(item: ManagedDomain) { creating.value = false; selectedID.value = item.id; feedback.value = ''; orderDirty.value = false; redirectDirty.value = false; orderRevision.value++; fillDraft(item) }
+function selectDomainNow(item: ManagedDomain) {
+  if (selectedID.value === item.id) redirectManagement.discardDraft()
+  creating.value = false; selectedID.value = item.id; feedback.value = ''; orderDirty.value = false; redirectDirty.value = false; orderRevision.value++; fillDraft(item)
+}
 function requestDiscard(target: string) { discardTarget.value = target; discardDialog.value = true }
 async function confirmDiscard() {
   const target = discardTarget.value

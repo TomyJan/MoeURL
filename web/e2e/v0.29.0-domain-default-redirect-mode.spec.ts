@@ -52,6 +52,7 @@ for (const width of [1280, 390]) {
       await selectManaged(admin, global)
       await expect(admin.getByRole('heading', { name: width === 1280 ? 'Default redirect mode' : '域名默认跳转方式', exact: true })).toBeVisible()
       await saveMode(admin, global.id, 'confirmation')
+      await reviewDraftRecovery(admin, global)
       await selectManaged(admin, other)
       await saveMode(admin, other.id, 'intermediate')
       await layout(admin, info, 'domain-mode-management-' + width, '.domain-mode')
@@ -108,7 +109,20 @@ for (const width of [1280, 390]) {
       await expect(publicPage).toHaveURL(target)
       await expect.poll(() => readVisitCount(member, manual.id)).toBe(1)
 
+      await expect(member.getByRole('button', { name: modeNames.intermediate })).toHaveAttribute('aria-pressed', 'true')
       await permissions(admin.request, [...new Set([...originalPermissions, 'short_link:create', 'domain:use_default', 'domain:use_assigned'])].filter((permission) => !['short_link:use_intermediate', 'short_link:use_confirmation'].includes(permission)))
+      await member.getByLabel(/^(输入链接|Enter link)$/).fill(target)
+      const deniedCreation = member.waitForResponse('**/api/v1/short-link/create')
+      await member.getByRole('button', { name: /^(创建短链|Create short link)$/ }).click()
+      const denial = await deniedCreation
+      expect(denial.status()).toBe(200)
+      expect((await denial.json()).code).toBe(120001)
+      await expect(member.getByText(/^(跳转权限已变化，已清除无权模式，请重新确认本次跳转方式。|Redirect permissions changed. The unavailable mode was cleared; confirm a mode for this link.)$/)).toBeVisible()
+      await expect(member.getByRole('button', { name: /^(创建短链|Create short link)$/ })).toBeDisabled()
+      await expect(member.getByLabel(/^(输入链接|Enter link)$/)).toHaveValue(target)
+      await member.getByRole('button', { name: /^(本次使用直接跳转|Use direct redirect for this link)$/ }).click()
+      await create(member, other, 'direct', links, true)
+      await dismiss(member)
       await member.goto('/')
       await chooseDomain(member, other)
       await advanced(member)
@@ -198,6 +212,32 @@ async function saveMode(page: Page, id: string, mode: RedirectMode) {
   await expect(page.locator('.domain-mode').getByRole('button', { name: modeNames[mode] })).toBeEnabled()
   await expect(page.getByRole('button', { name: modeSave })).toBeDisabled()
   await dismiss(page)
+}
+/** Verifies same-domain discard and local cancellation without clearing remote read barriers. */
+async function reviewDraftRecovery(page: Page, domain: ManagedDomain) {
+  const details = page.getByRole('textbox', { name: /^(显示名称|Display name)$/ })
+  await page.locator('.domain-mode').getByRole('button', { name: modeNames.intermediate }).click()
+  await expect(details).toBeDisabled()
+  await page.locator('.domains-page__list').getByRole('button', { name: new RegExp(escapeRegExp(domain.displayName)) }).click()
+  await page.getByRole('button', { name: /^(丢弃并载入|Discard and load)$/ }).click()
+  await expect(page.locator('.domain-mode').getByRole('button', { name: modeNames.confirmation })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('button', { name: modeSave })).toBeDisabled()
+  await expect(details).toBeEnabled()
+  await page.locator('.domain-mode').getByRole('button', { name: modeNames.intermediate }).click()
+  await page.route('**/api/v1/admin/domain/redirect-default?*', (route) => route.abort('failed'))
+  const failedRead = page.waitForEvent('requestfailed', (request) => new URL(request.url()).pathname === '/api/v1/admin/domain/redirect-default')
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
+  await failedRead
+  const cancel = page.getByRole('button', { name: /^(取消模式草稿|Cancel mode draft)$/ })
+  await expect(page.getByText(/^(域名模式或共享版本尚未确认，请重新加载；相关保存已暂停。|The domain mode or shared revision is not confirmed. Reload before saving dependent changes.)$/)).toBeVisible()
+  await expect(cancel).toBeEnabled()
+  await cancel.click()
+  await expect(page.locator('.domain-mode').getByRole('button', { name: modeNames.confirmation })).toHaveAttribute('aria-pressed', 'true')
+  await expect(details).toBeEnabled()
+  await expect(page.getByRole('button', { name: modeSave })).toBeDisabled()
+  await page.unroute('**/api/v1/admin/domain/redirect-default?*')
+  await page.getByRole('button', { name: modeReload }).click()
+  await expect(page.locator('.domain-mode').getByRole('button', { name: modeNames.direct })).toBeEnabled()
 }
 /** Uses real Vuetify controls and preserves a manual mode across actual domain changes. */
 async function chooseDomain(page: Page, domain: ManagedDomain) {

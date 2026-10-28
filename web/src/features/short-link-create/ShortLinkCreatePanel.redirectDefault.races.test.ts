@@ -24,6 +24,26 @@ async function submit() {
   await fireEvent.click(screen.getByRole('button', { name: 'Create short link' }))
 }
 
+it('refreshes real HTTP authorization after a 120001 denial and requires mode reconfirmation without replay', async () => {
+  view = mountRedirectDefaults(ShortLinkCreatePanel, { overrides: { '/api/v1/short-link/create': async () => redirectResponse(null, 120001) } })
+  await loaded(); await advanced()
+  expect(screen.getByRole('button', { name: 'Confirmation page' }).getAttribute('aria-pressed')).toBe('true')
+  view.state.user = { ...view.state.user, permissions: ['short_link:create', 'domain:use_default', 'domain:use_assigned'] }
+  const previousAuthReads = view.state.requests.filter((path) => path === '/api/v1/auth/me').length
+  await submit()
+  await waitFor(() => expect(view.state.writes).toHaveLength(1))
+  await waitFor(() => expect(view.state.requests.filter((path) => path === '/api/v1/auth/me')).toHaveLength(previousAuthReads + 1))
+  await screen.findByText('Redirect permissions changed. The unavailable mode was cleared; confirm a mode for this link.')
+  expect(screen.queryByRole('button', { name: 'Confirmation page' })).toBeNull()
+  expect(screen.getByRole('textbox', { name: 'Enter link' })).toHaveProperty('value', 'https://target.example/docs')
+  expect(screen.getByRole('button', { name: 'Create short link' })).toHaveProperty('disabled', true)
+  expect(view.state.writes).toHaveLength(1)
+  await fireEvent.click(screen.getByRole('button', { name: 'Use direct redirect for this link' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'Create short link' }))
+  await waitFor(() => expect(view.state.writes).toHaveLength(2))
+  expect(view.state.writes[1]).toEqual({ targetUrl: 'https://target.example/docs' })
+})
+
 it.each(['direct', 'confirmation'])('keeps an explicit direct click over domain changes even when initially %s', async (initial) => {
   view = mountRedirectDefaults(ShortLinkCreatePanel, { overrides: { '/api/v1/domain/redirect-defaults': async () => redirectResponse({ items: [{ domainId: globalId, redirectMode: initial }, { domainId: otherId, redirectMode: 'intermediate' }] }) } })
   await loaded(); await advanced()

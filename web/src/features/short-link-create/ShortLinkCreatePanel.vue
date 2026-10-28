@@ -424,7 +424,7 @@ const mutation = useMutation({
   },
   /** Refreshes current authorization without changing or replaying the failed request. */
   onError(error, input) {
-    if (isCurrentCreation(input) && error instanceof ApiClientError && error.code === 200114) {
+    if (isCurrentCreation(input) && error instanceof ApiClientError && [120001, 200114].includes(error.code)) {
       void domainQuery.refetch()
       void groupDefault.refetch()
       if (canConfigureRedirect.value) void redirectDefaults.refetch()

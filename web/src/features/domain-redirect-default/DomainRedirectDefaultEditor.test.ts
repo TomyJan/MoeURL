@@ -13,7 +13,7 @@ const setting = { domainId: '11111111-1111-4111-8111-111111111111', redirectMode
 function mount() {
   const commands: SetDomainRedirectDefaultInput[] = []
   vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
-  const view = render(DomainRedirectDefaultEditor, { props: { setting, disabled: false, pending: false, conflict: false, onSave: (value) => commands.push(value) }, global: { plugins: [createVuetify({ components, directives }), createI18n({ legacy: false, locale: 'en', messages })] } })
+  const view = render(DomainRedirectDefaultEditor, { props: { setting, disabled: false, cancelDisabled: false, pending: false, conflict: false, onSave: (value) => commands.push(value) }, global: { plugins: [createVuetify({ components, directives }), createI18n({ legacy: false, locale: 'en', messages })] } })
   return { ...view, commands }
 }
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })

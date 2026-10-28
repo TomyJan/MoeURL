@@ -9,7 +9,7 @@
       <p v-if="stale" role="alert">{{ t('domainRedirectManagement.conflict') }}</p>
       <div class="domain-mode__actions">
         <v-btn v-if="stale" type="button" variant="text" :disabled="disabled" @click="$emit('reload')">{{ t('domainRedirectManagement.reload') }}</v-btn>
-        <v-btn type="button" variant="text" :disabled="disabled" @click="adopt(original)">{{ t('domainRedirectManagement.cancel') }}</v-btn>
+        <v-btn type="button" variant="text" :disabled="cancelDisabled" @click="adopt(original)">{{ t('domainRedirectManagement.cancel') }}</v-btn>
         <v-btn type="submit" color="primary" :disabled="disabled || stale || !dirty" :loading="pending">{{ t('domainRedirectManagement.save') }}</v-btn>
       </div>
     </form>
@@ -22,7 +22,7 @@ import { useI18n } from 'vue-i18n'
 import type { RedirectMode } from '@/entities/short-link/model'
 import type { DomainRedirectDefaultSetting, SetDomainRedirectDefaultInput } from '@/entities/domain/redirect-default'
 
-const props = defineProps<{ setting: DomainRedirectDefaultSetting; disabled: boolean; pending: boolean; conflict: boolean }>()
+const props = defineProps<{ setting: DomainRedirectDefaultSetting; disabled: boolean; cancelDisabled: boolean; pending: boolean; conflict: boolean }>()
 const emit = defineEmits<{ save: [SetDomainRedirectDefaultInput]; dirty: [boolean]; reload: [] }>()
 const { t } = useI18n()
 const modes: RedirectMode[] = ['direct', 'intermediate', 'confirmation']

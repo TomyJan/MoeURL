@@ -11,6 +11,25 @@ async function loaded() { await waitFor(() => expect(view.client.isFetching()).t
 /** Finds the existing details form independently of the new mode form. */
 function details() { return within(screen.getByRole('textbox', { name: messages.en.domains.host }).closest('form')!) }
 
+it('discards the mode draft when reselecting the same domain without losing editor interlocks', async () => {
+  view = mountRedirectDefaults(AdminDomainsPage, { admin: true })
+  await screen.findByRole('heading', { name: 'Default redirect mode' }); await loaded()
+  await fireEvent.click(screen.getByRole('button', { name: 'Intermediate page' }))
+  expect(screen.getByRole('textbox', { name: messages.en.domains.displayName })).toHaveProperty('disabled', true)
+  await fireEvent.click(within(screen.getByRole('complementary', { name: messages.en.domains.listLabel })).getByText('Global'))
+  await screen.findByText(messages.en.domains.discardWarning)
+  await fireEvent.click(screen.getByRole('button', { name: messages.en.domains.confirmDiscard }))
+  expect(screen.getByRole('button', { name: 'Confirmation page' }).getAttribute('aria-pressed')).toBe('true')
+  expect(screen.getByRole('button', { name: 'Save redirect default' })).toHaveProperty('disabled', true)
+  expect(screen.getByRole('textbox', { name: messages.en.domains.displayName })).toHaveProperty('disabled', false)
+  await fireEvent.click(screen.getByRole('button', { name: 'Direct redirect' }))
+  expect(screen.getByRole('textbox', { name: messages.en.domains.displayName })).toHaveProperty('disabled', true)
+  expect(screen.getByRole('button', { name: messages.en.domainOrder.save })).toHaveProperty('disabled', true)
+  await fireEvent.click(screen.getByRole('button', { name: 'Save redirect default' }))
+  await waitFor(() => expect(view.state.writes).toHaveLength(1))
+  expect(view.state.writes[0]).toEqual({ id: globalId, redirectMode: 'direct', expectedUpdatedAt: revision })
+})
+
 it('saves only mode and exact shared version, then renews legacy details from the new revision', async () => {
   view = mountRedirectDefaults(AdminDomainsPage, { admin: true })
   await screen.findByRole('textbox', { name: messages.en.domains.host })

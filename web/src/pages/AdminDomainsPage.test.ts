@@ -30,8 +30,8 @@ vi.mock('@/features/domain-redirect-default/useDomainRedirectManagement', () => 
    * New mode coordination is tested with real queries and HTTP in the independent parent suites. */
   useDomainRedirectManagement: () => ({
     query: { isError: ref(false) }, setting: ref(undefined), revision: ref(0), conflicted: ref(false),
-    pending: ref(false), blocked: ref(true), barrier: ref(false), feedback: ref(''),
-    save: vi.fn(), reload: vi.fn(async () => true), recoverAccess: vi.fn(async () => true),
+    pending: ref(false), blocked: ref(true), cancelBlocked: ref(false), barrier: ref(false), feedback: ref(''),
+    save: vi.fn(), discardDraft: vi.fn(), reload: vi.fn(async () => true), recoverAccess: vi.fn(async () => true),
   }),
 }))
 vi.mock('@/shared/preferences/useAccountPreferences', () => ({

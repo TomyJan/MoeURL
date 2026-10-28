@@ -17,6 +17,23 @@ function details() { return within(screen.getByRole('textbox', { name: messages.
 /** The error recovery button remains separate from a disabled stale editor. */
 function retry() { return within(screen.getByText(messages.en.domainRedirectManagement.readFailed).closest('[role=alert]')!).getByRole('button', { name: 'Reload domain mode' }) }
 
+it('allows a local mode cancellation after an ordinary background read failure', async () => {
+  view = mountRedirectDefaults(AdminDomainsPage, { admin: true })
+  await screen.findByRole('heading', { name: 'Default redirect mode' }); await loaded()
+  await fireEvent.click(screen.getByRole('button', { name: 'Intermediate page' }))
+  view.state.overrides[settingPath(globalId)] = async () => { throw new Error('offline') }
+  await view.client.invalidateQueries({ queryKey: ['admin-domain-redirect-default'] })
+  await screen.findByText(messages.en.domainRedirectManagement.readFailed); await loaded()
+  expect(screen.getByRole('button', { name: 'Save redirect default' })).toHaveProperty('disabled', true)
+  const cancel = screen.getByRole('button', { name: 'Cancel mode draft' })
+  expect(cancel).toHaveProperty('disabled', false)
+  await fireEvent.click(cancel)
+  expect(screen.getByRole('button', { name: 'Confirmation page' }).getAttribute('aria-pressed')).toBe('true')
+  expect(screen.getByRole('textbox', { name: messages.en.domains.displayName })).toHaveProperty('disabled', false)
+  expect(screen.getByRole('button', { name: 'Save redirect default' })).toHaveProperty('disabled', true)
+  expect(view.state.writes).toHaveLength(0)
+})
+
 it('does not erase a dirty details draft while recovering a failed mode read', async () => {
   view = mountRedirectDefaults(AdminDomainsPage, { admin: true, overrides: { [settingPath(globalId)]: async () => { throw new Error('offline') } } })
   await screen.findByText(messages.en.domainRedirectManagement.readFailed)
@@ -45,6 +62,12 @@ it.each(['setting', 'list'])('keeps dependent writes blocked when the post-save 
   await waitFor(() => expect(retry()).toHaveProperty('disabled', false))
   expect(details().getByRole('button', { name: messages.en.domains.save })).toHaveProperty('disabled', true)
   expect(screen.getByRole('button', { name: messages.en.domainOrder.save })).toHaveProperty('disabled', true)
+  expect(screen.getByRole('button', { name: 'Cancel mode draft' })).toHaveProperty('disabled', true)
+  await fireEvent.click(within(screen.getByRole('complementary', { name: messages.en.domains.listLabel })).getByText('Global'))
+  const discard = screen.queryByRole('button', { name: messages.en.domains.confirmDiscard })
+  if (discard) await fireEvent.click(discard)
+  expect(details().getByRole('button', { name: messages.en.domains.save })).toHaveProperty('disabled', true)
+  expect(screen.getByRole('button', { name: 'Cancel mode draft' })).toHaveProperty('disabled', true)
   delete view.state.overrides[failedPath]
   await fireEvent.click(retry())
   await loaded()

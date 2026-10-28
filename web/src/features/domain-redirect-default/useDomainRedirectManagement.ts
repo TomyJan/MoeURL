@@ -93,6 +93,7 @@ export function useDomainRedirectManagement(input: ManagementInputs) {
     },
   })
   const pending = computed(() => mutation.isPending.value || reloading.value)
+  const cancelBlocked = computed(() => pending.value || barrier.value || input.legacyBusy.value || input.denied.value || !input.eligible.value || input.removed.value)
   const blocked = computed(() => pending.value || barrier.value || input.legacyBusy.value || input.legacyDirty.value || input.list.isError.value || query.isError.value || input.denied.value || !input.eligible.value || input.removed.value || !setting.value)
 
   /** Accepts only the current editor's original full revision and one mode value. */
@@ -105,6 +106,11 @@ export function useDomainRedirectManagement(input: ManagementInputs) {
   async function reload() {
     if (pending.value || input.legacyBusy.value) return false
     return refresh()
+  }
+  /** Remounts a discarded local draft without releasing security or readback barriers. */
+  function discardDraft() {
+    input.dirty.value = false
+    revision.value++
   }
   /** Selection and account transitions retire only this editor's local feedback. */
   function clear() {
@@ -124,5 +130,5 @@ export function useDomainRedirectManagement(input: ManagementInputs) {
   watch(query.error, (error) => {
     if (error instanceof ApiClientError && [401, 403, 120001].includes(error.code) && input.eligible.value) { input.denied.value = true; feedback.value = '' }
   }, { flush: 'post' })
-  return { query, setting, revision, conflicted, pending, blocked, barrier, feedback, save, reload, recoverAccess: refresh }
+  return { query, setting, revision, conflicted, pending, blocked, cancelBlocked, barrier, feedback, save, reload, discardDraft, recoverAccess: refresh }
 }
