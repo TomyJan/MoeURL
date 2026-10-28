@@ -69,7 +69,8 @@ for (const width of [1280, 390]) {
       expect(await readVisitCount(member, confirmation.id)).toBe(0)
       await layout(publicPage, info, 'domain-mode-confirmation-' + width, '.redirect-page__state')
       const continued = publicPage.waitForResponse((response) => new URL(response.url()).pathname === '/go/' + confirmation.slug + '/continue')
-      await publicPage.getByRole('button', { name: /^(继续访问|Continue to site)$/ }).click()
+      // The real 302, destination URL and event count below own navigation synchronization.
+      await publicPage.getByRole('button', { name: /^(继续访问|Continue to site)$/ }).click({ noWaitAfter: true })
       expect((await continued).status()).toBe(302)
       await expect(publicPage).toHaveURL(target)
       await expect.poll(() => readVisitCount(member, confirmation.id)).toBe(1)
