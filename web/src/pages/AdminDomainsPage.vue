@@ -53,7 +53,7 @@
         </form>
         <DomainOrderEditor v-if="!creating && selectedDomain" :key="`${selectedID}:${orderRevision}:${identity.scope.value.epoch}`" :domain="selectedDomain" :disabled="transportBlocked || dirty() || redirectDirty || selectionRemoved" :pending="mutation.isPending.value && operationKind === 'order'" :conflict="feedbackKind === 'order' && feedback === 'conflict'" @dirty="orderDirty = $event" @save="saveOrder" @reload="reloadOrder" />
         <template v-if="!creating && selectedDomain && eligible && !permissionDenied">
-          <div v-if="redirectManagement.query.isError.value || redirectManagement.barrier.value" role="alert">
+          <div v-if="redirectManagement.query.isError.value || (redirectManagement.barrier.value && !redirectManagement.pending.value)" role="alert">
             {{ t('domainRedirectManagement.readFailed') }}
             <v-btn variant="text" :disabled="redirectManagement.pending.value || mutation.isPending.value || selectionRemoved" @click="redirectManagement.reload()">{{ t('domainRedirectManagement.reload') }}</v-btn>
           </div>

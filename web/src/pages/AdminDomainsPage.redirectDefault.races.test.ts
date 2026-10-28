@@ -17,6 +17,32 @@ function details() { return within(screen.getByRole('textbox', { name: messages.
 /** The error recovery button remains separate from a disabled stale editor. */
 function retry() { return within(screen.getByText(messages.en.domainRedirectManagement.readFailed).closest('[role=alert]')!).getByRole('button', { name: 'Reload domain mode' }) }
 
+it('keeps a successful save awaiting authoritative reads silent instead of announcing a read failure', async () => {
+  view = mountRedirectDefaults(AdminDomainsPage, { admin: true })
+  await screen.findByRole('heading', { name: 'Default redirect mode' }); await loaded()
+  const list = createDeferred<Response>()
+  const setting = createDeferred<Response>()
+  view.state.overrides['/api/v1/admin/domain/list'] = () => list.promise
+  view.state.overrides[settingPath(globalId)] = () => setting.promise
+  await fireEvent.click(screen.getByRole('button', { name: 'Intermediate page' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'Save redirect default' }))
+  await waitFor(() => expect(view.state.requests.filter((path) => path === settingPath(globalId))).toHaveLength(2))
+  await waitFor(() => expect(view.state.requests.filter((path) => path === '/api/v1/admin/domain/list')).toHaveLength(2))
+  await eventLoop()
+  try {
+    expect(screen.queryByText(messages.en.domainRedirectManagement.readFailed)).toBeNull()
+    expect(details().getByRole('button', { name: messages.en.domains.save })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Cancel mode draft' })).toHaveProperty('disabled', true)
+  } finally {
+    list.resolve(redirectResponse({ items: view.state.managed }))
+    setting.resolve(redirectResponse({ setting: { domainId: globalId, redirectMode: 'intermediate', updatedAt: nextRevision } }))
+    await loaded()
+  }
+  await waitFor(() => expect(details().getByRole('button', { name: messages.en.domains.save })).toHaveProperty('disabled', false))
+  expect(screen.queryByText(messages.en.domainRedirectManagement.readFailed)).toBeNull()
+  expect(view.state.writes).toHaveLength(1)
+})
+
 it('allows a local mode cancellation after an ordinary background read failure', async () => {
   view = mountRedirectDefaults(AdminDomainsPage, { admin: true })
   await screen.findByRole('heading', { name: 'Default redirect mode' }); await loaded()
