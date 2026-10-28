@@ -2,7 +2,7 @@
 
 ## 当前设计：v0.29.0 域名默认跳转方式
 
-[范围](../product/scope-v0.29.0.md)与[设计](2026-10-28-v0.29.0-domain-default-redirect-mode-design.md)已在分支实现并通过后端、前端、浏览器与制品完整本地门禁，唯一完整实现终审和 root 三项修复／新完整本地门禁已完成，远端交付未完成。每域名保存 direct／intermediate／confirmation，独立严格接口、共享域名版本与事务审计；新面板按当前权限采用初选，手动模式优先，旧省略 redirectMode 仍 direct，已有短链不追溯修改。个人／组默认域名与跳转模式是两个独立维度。下文历史 v0.8.0 边界与旧请求含义不改，逐候选证据由[验收](../implementation/v0.29.0-acceptance.md)负责。
+[范围](../product/scope-v0.29.0.md)与[设计](2026-10-28-v0.29.0-domain-default-redirect-mode-design.md)已由 PR #227 合并为 8af05d60，最终 PR 与合并 CI 各九成功、真实最新审查闭环，尚未正式发布。每域名保存 direct／intermediate／confirmation，独立严格接口、共享域名版本与事务审计；新面板按当前权限采用初选，手动模式优先，旧省略 redirectMode 仍 direct，已有短链不追溯修改。个人／组默认域名与跳转模式是两个独立维度。下文历史 v0.8.0 边界与旧请求含义不改，原失败和逐候选证据由[验收](../implementation/v0.29.0-acceptance.md)负责。
 
 ## 域名作为资源
 

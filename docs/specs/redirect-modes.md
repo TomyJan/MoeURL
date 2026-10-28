@@ -2,7 +2,7 @@
 
 ## 域名默认与单链保存
 
-[v0.29.0 设计](2026-10-28-v0.29.0-domain-default-redirect-mode-design.md)只为创建面板提供域名级有权初选，已在分支实现并通过完整本地门禁，唯一完整实现终审和 root 三项修复／新完整本地门禁已完成，远端交付未完成。默认不是强制策略或权限，明确手动模式优先；旧 API 省略 redirectMode 仍 direct，创建后仍保存独立单链模式。域名默认变化不会修改旧记录或任何公开访问／密码／倒计时／统计语义，不增加模板能力，逐候选见[验收](../implementation/v0.29.0-acceptance.md)。
+[v0.29.0 设计](2026-10-28-v0.29.0-domain-default-redirect-mode-design.md)只为创建面板提供域名级有权初选，已由 PR #227 合并为 8af05d60，最终 PR／合并 CI 各九成功、真实最新审查闭环，尚未正式发布。默认不是强制策略或权限，明确手动模式优先；旧 API 省略 redirectMode 仍 direct，创建后仍保存独立单链模式。域名默认变化不会修改旧记录或任何公开访问／密码／倒计时／统计语义，不增加模板能力，原失败及逐候选见[验收](../implementation/v0.29.0-acceptance.md)。
 
 本规格描述 MoeURL 跳转模式的完整目标形态。当前已完成实现以 [v0.4.0 范围](../product/scope-v0.4.0.md) 和 [v0.4.0 功能设计](2026-08-13-v0.4.0-confirmation-page-access-design.md) 为准；后续实现以路线图和对应版本范围为准。
 

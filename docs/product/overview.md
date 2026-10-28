@@ -12,7 +12,7 @@ MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人�
 
 ## 长期核心目标
 
-当前分支候选 [v0.29.0 每域名默认跳转方式](scope-v0.29.0.md) 已实现并通过完整本地门禁，仅影响有权创建者的新面板初选，不改旧省略 API 或已有短链。唯一完整实现终审与 root 三项集中修复／新完整本地门禁已完成，远端 CI／实际审查与合并仍未完成，不能作为主分支已交付能力；环境及各候选制品见[验收](../implementation/v0.29.0-acceptance.md)。
+[v0.29.0 每域名默认跳转方式](scope-v0.29.0.md) 已通过 [PR #227](https://github.com/TomyJan/MoeURL/pull/227) 合并为 `8af05d60fb89769f7aaabf4da4906ed411fdad48`；最终 `4dfa4d43` 的 PR CI #40629796924 与合并 master CI #40631422772 各九成功，实际 CodeRabbit 覆盖最终且有效 open0。只影响有权创建者的新面板初选，不改旧省略 API 或已有短链。尚未正式发布，唯一终审、root 修复及各候选制品见[验收](../implementation/v0.29.0-acceptance.md)。
 
 本节描述 MoeURL 的完整目标形态。v0.26 个人默认、v0.27 域名排序和 [v0.28 用户组默认](scope-v0.28.0.md) 均已合并。v0.28 的 PR #226 合并为 `b1b1e4112ba92708becf59c875cff8bff109c3ec`，最终 `0280081` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40575287235) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40586040807) 各九成功，真实 CodeRabbit 覆盖最终且全部有效意见闭环；逐候选、原失败与制品见[验收](../implementation/v0.28.0-acceptance.md)。具体能力见[开发进度](development-status.md)，正式发布与生产验收仍未执行，生产化边界继续见 [v0.6.0 范围](scope-v0.6.0.md)。
 
@@ -98,7 +98,7 @@ MoeURL 的核心控制逻辑是权限系统。
 - 站点名称、默认语言／主题、纯文本页脚和带登录入口保护的本地登录开关。
 - 中英双语、响应式浅深色界面、PWA 基础、统一 Toast 与标准列表，以及固定展示的构建版本署名。
 
-最近已合并的业务增量为 [v0.28.0 用户组默认域名](scope-v0.28.0.md)，此前为 [v0.27.0 域名排序](scope-v0.27.0.md)、[v0.26.0 个人默认域名](scope-v0.26.0.md)、[v0.25.0 操作审计 CSV](scope-v0.25.0.md)、[v0.24.0 单链匿名记录 CSV](scope-v0.24.0.md)、[v0.23.0 批量标签](scope-v0.23.0.md)、[v0.22.0 批量转移](scope-v0.22.0.md)、[v0.21.0 清单导出](scope-v0.21.0.md) 和 [v0.20.0 归属转移](scope-v0.20.0.md)。维护不另算业务版本，合并不视为正式发布。
+最近已合并的业务增量为 [v0.29.0 域名默认跳转方式](scope-v0.29.0.md)，此前为 [v0.28.0 用户组默认域名](scope-v0.28.0.md)、[v0.27.0 域名排序](scope-v0.27.0.md)、[v0.26.0 个人默认域名](scope-v0.26.0.md)、[v0.25.0 操作审计 CSV](scope-v0.25.0.md)、[v0.24.0 单链匿名记录 CSV](scope-v0.24.0.md)、[v0.23.0 批量标签](scope-v0.23.0.md)、[v0.22.0 批量转移](scope-v0.22.0.md)、[v0.21.0 清单导出](scope-v0.21.0.md) 和 [v0.20.0 归属转移](scope-v0.20.0.md)。维护不另算业务版本，合并不视为正式发布。
 
 [v0.12.0 自定义短码](scope-v0.12.0.md) 已通过 PR #185 合并至 `master` 的 `17e1f766`，支持创建时指定地址，不加入改码、释放、复用或批量能力；原分支的本地验证和独立审查见 [验收清单](../implementation/v0.12.0-acceptance.md)，合并不等于正式发布。
 
