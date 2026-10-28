@@ -2,7 +2,7 @@
 
 ## 状态与依据
 
-Task1–2 本地实现与标准完成契约已通过，本版浏览器／六原图／精确产品已核验，独立终审与远端交付尚待验证。[路线图](roadmap.md)与[账号规格](../specs/users-and-auth.md)已规划提供商模板；root 按长期自主授权选择这个有界版本，裁决及错误代价见[设计](../specs/2026-10-28-v0.31.0-oidc-provider-templates-design.md)，不声称用户逐项批准。隔离分支 `feat/v0.31.0-oidc-provider-templates` 从 fresh master `d582fba02772e62f2f3af2fe11e485728f5c0097` 以 `--no-track` 建立；`e124cf1` 只同步 v0.30.0 已合并、独立 CI 与最终归档事实，不是本版产品验证。
+Task1–3 已标准完成，唯一实际终审四项有效意见闭环；clean `8712426` 的完整 107 项浏览器／六原图／精确产品及完整本地归档已核，远端交付待验证，原单元执行身份独立记录。[路线图](roadmap.md)与[账号规格](../specs/users-and-auth.md)已规划提供商模板；root 按长期自主授权选择这个有界版本，裁决及错误代价见[设计](../specs/2026-10-28-v0.31.0-oidc-provider-templates-design.md)，不声称用户逐项批准。隔离分支 `feat/v0.31.0-oidc-provider-templates` 从 fresh master `d582fba02772e62f2f3af2fe11e485728f5c0097` 以 `--no-track` 建立；`e124cf1` 只同步 v0.30.0 已合并、独立 CI 与最终归档事实，不是本版产品验证。
 
 ## 必须实现
 

@@ -2,7 +2,7 @@
 
 ## v0.31.0 当前分支前端增量
 
-OIDC 创建页新增本地 Google／手动空白模板与明确替换确认；完整清 Client ID／Secret／允许域名，不自动联网、保存或启用。现有提供商编辑、严格七字段创建 DTO、后端 Discovery／verified-email 供应条件保持，无新 API／权限／schema／依赖。当前前端 123 文件／2033 项测试、四项 100% 及静态／隔离 build 已通过，实际运行于 4330b51 加当时 dirty 前端；本版 clean b164e13 的完整 107 项 browser、六原图、精确 image／18178 smoke／同 image HIGH,CRITICAL 扫描与标准 Task2 已通过；独立审查／远端尚待验证，见[验收](v0.31.0-acceptance.md)，不能借 v30 制品或冒已合并。
+OIDC 创建页新增本地 Google／手动空白模板与明确替换确认；完整清 Client ID／Secret／允许域名，不自动联网、保存或启用。现有提供商编辑、严格七字段创建 DTO、后端 Discovery／verified-email 供应条件保持，无新 API／权限／schema／依赖。Task1–3 已标准完成；唯一实际终审四项有效意见修复后，完整前端 123 文件／2039 项测试、四项 100% 与静态／隔离 build 通过，实际运行于 7799 加当时 dirty 前端，后补仅准确 readonly ESLint globals 并独立 lint0。clean `8712426` 的完整 107 项 browser、六原图、精确 image／18178 smoke／同 image HIGH,CRITICAL 扫描和完整本地归档已核；远端待验证。原 Task1／b164 制品保留原身份，见[验收](v0.31.0-acceptance.md)，不能借 v30 制品或冒已合并。
 
 ## v0.30.0 已合并增量
 
