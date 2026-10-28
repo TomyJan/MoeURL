@@ -200,6 +200,65 @@ it('renders the same creation aid in Chinese without untranslated keys', async (
   expect(screen.getByRole('checkbox', { name: '启用' })).toHaveProperty('checked', false)
 })
 
+// Removing either accessible relationship loses the warning's context for assistive technology.
+it.each([
+  { locale: 'en' as const, empty: 'No OIDC providers', add: 'Add provider', apply: 'Apply template', title: 'Replace creation draft?' },
+  { locale: 'zh-CN' as const, empty: '暂无 OIDC 提供商', add: '新增提供商', apply: '应用模板', title: '替换创建草稿？' },
+])('names and describes the replacement dialog in $locale', async text => {
+  mountTemplates({ locale: text.locale })
+  await screen.findByText(text.empty)
+  await fireEvent.click(screen.getByRole('button', { name: text.add }))
+  await fireEvent.update(screen.getByLabelText('Client Secret'), 'keep-secret')
+  await fireEvent.click(screen.getByRole('button', { name: 'Google' }))
+  await fireEvent.click(screen.getByRole('button', { name: text.apply }))
+  const dialog = await screen.findByRole('dialog', { name: text.title })
+  const description = document.getElementById(dialog.getAttribute('aria-describedby')!)
+  expect(description).not.toBeNull()
+  expect(description!.textContent).toContain('Client Secret')
+  expect(screen.getByRole('dialog', { name: text.title, description: /Client Secret/ })).toBe(dialog)
+})
+
+// Unmounting the confirmation must return keyboard users to the actual Apply button.
+it.each(['keep', 'replace', 'dismiss'] as const)('returns focus to the template trigger after %s', async action => {
+  const view = mountTemplates()
+  await beginCreate()
+  await fillCredentials()
+  await fireEvent.click(screen.getByRole('button', { name: 'Google' }))
+  const trigger = screen.getByRole('button', { name: 'Apply template' })
+  trigger.focus()
+  await fireEvent.click(trigger)
+  const dialog = within(await screen.findByRole('dialog'))
+  const button = dialog.getByRole('button', { name: action === 'replace' ? 'Replace draft' : 'Keep draft' })
+  button.focus()
+  if (action === 'dismiss') {
+    const instance = view.instances.find(item => (item.type as { name?: string }).name === 'VDialog' && item.vnode.props?.modelValue === true)!
+    const dismiss = instance.vnode.props!['onUpdate:modelValue'] as (open: boolean) => void
+    dismiss(false)
+  } else await fireEvent.click(button)
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  await waitFor(() => expect(document.activeElement).toBe(trigger))
+  expect(screen.getByLabelText('Client Secret')).toHaveProperty('value', action === 'replace' ? '' : 'old-secret')
+})
+
+it('does not return focus to a removed template trigger when creation is cancelled', async () => {
+  mountTemplates()
+  await beginCreate()
+  await fillCredentials()
+  const trigger = screen.getByRole('button', { name: 'Apply template' })
+  trigger.focus()
+  await fireEvent.click(trigger)
+  await screen.findByRole('dialog')
+  const cancel = screen.getByRole('button', { name: 'Cancel' })
+  cancel.focus()
+  await fireEvent.click(cancel)
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  const add = screen.getByRole('button', { name: 'Add provider' })
+  add.focus()
+  await fireEvent.click(add)
+  expect(document.activeElement).toBe(add)
+  expect(screen.getByRole('button', { name: 'Apply template' })).not.toBe(trigger)
+})
+
 it('rejects already-buffered picker events after a write starts and after creation ends', async () => {
   const write = createDeferred<Response>()
   const view = mountTemplates({ create: () => write.promise })

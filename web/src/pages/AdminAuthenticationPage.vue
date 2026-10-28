@@ -64,10 +64,10 @@
     </div>
 
     <ActionToast v-if="feedback" :key="`${feedback}:${feedbackRevision}`" :type="feedback === 'success' ? 'success' : 'error'">{{ feedbackMessage }}</ActionToast>
-    <v-dialog v-if="pendingTemplate" v-model="templateDialog" max-width="480">
+    <v-dialog v-if="pendingTemplate" v-model="templateDialog" max-width="480" :aria-labelledby="templateDialogID + '-title'" :aria-describedby="templateDialogID + '-description'">
       <v-card>
-        <v-card-title>{{ t('oidc.templates.replaceTitle') }}</v-card-title>
-        <v-card-text>{{ t('oidc.templates.replaceDescription') }}</v-card-text>
+        <v-card-title :id="templateDialogID + '-title'">{{ t('oidc.templates.replaceTitle') }}</v-card-title>
+        <v-card-text :id="templateDialogID + '-description'">{{ t('oidc.templates.replaceDescription') }}</v-card-text>
         <v-card-actions class="identity-page__template-actions">
           <v-btn type="button" variant="text" @click="pendingTemplate = null">{{ t('oidc.templates.keep') }}</v-btn>
           <v-btn type="button" color="primary" :disabled="mutation.isPending.value" @click="confirmTemplateApply">{{ t('oidc.templates.replace') }}</v-btn>
@@ -91,7 +91,7 @@
 import ActionToast from '@/shared/feedback/ActionToast.vue'
 import OIDCProviderTemplatePicker from '@/features/oidc-provider-template/OIDCProviderTemplatePicker.vue'
 import type { ProviderTemplateFields } from '@/features/oidc-provider-template/template'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -110,6 +110,8 @@ const selectedID = ref('')
 const creating = ref(false)
 const deleteDialog = ref(false)
 const pendingTemplate = ref<ProviderTemplateFields | null>(null)
+const templateDialogID = useId()
+let templateReturnFocus: HTMLButtonElement | null = null
 const templateDialog = computed({ get: () => pendingTemplate.value !== null, set: open => { if (!open) pendingTemplate.value = null } })
 const deleteTarget = ref<OIDCProvider | null>(null)
 const feedback = ref<'success' | 'conflict' | 'error' | ''>('')
@@ -216,6 +218,15 @@ watch(deleteDialog, (open) => {
 
 watch(creating, value => { if (!value) pendingTemplate.value = null })
 
+watch(pendingTemplate, async fields => {
+  if (fields) return
+  const target = templateReturnFocus
+  templateReturnFocus = null
+  await nextTick()
+  // A removed trigger cannot receive focus after cancellation or a new creation round.
+  if (creating.value) target?.focus({ preventScroll: true })
+})
+
 watch([providers, () => query.isError.value], ([items]) => {
   if (!query.isError.value) syncPendingConflicts(items)
   if (creating.value) return
@@ -309,8 +320,10 @@ function save() {
 function requestTemplateApply(fields: ProviderTemplateFields) {
   if (!creating.value || mutation.isPending.value) return
   const hasData = draft.enabled !== true || [draft.key, draft.displayName, draft.issuerUrl, draft.clientId, draft.clientSecret, draft.allowedDomains].some(value => value !== '')
-  if (hasData) pendingTemplate.value = { ...fields }
-  else replaceTemplateDraft(fields)
+  if (hasData) {
+    templateReturnFocus = document.querySelector<HTMLButtonElement>('.provider-template button:focus')
+    pendingTemplate.value = { ...fields }
+  } else replaceTemplateDraft(fields)
 }
 
 /** Rechecks the active creation context before applying a previously confirmed snapshot. */

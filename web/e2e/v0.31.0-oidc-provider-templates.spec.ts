@@ -8,8 +8,8 @@ const issuerURL = `http://127.0.0.1:${e2eOIDCPort}`
 const clientSecret = 'e2e-client-secret'
 const providerPath = '/api/v1/admin/oidc/provider/'
 const labels = {
-  en: { add: 'Add provider', key: 'Provider key', name: 'Display name', domains: 'Allowed email domains', enabled: 'Enabled', manual: 'Manual / blank', apply: 'Apply template', keep: 'Keep draft', replace: 'Replace draft', save: 'Save', template: 'Creation template' },
-  zh: { add: '新增提供商', key: '提供商标识', name: '显示名称', domains: '允许的邮箱域名', enabled: '启用', manual: '手动／空白', apply: '应用模板', keep: '保留草稿', replace: '替换草稿', save: '保存', template: '创建模板' },
+  en: { add: 'Add provider', key: 'Provider key', name: 'Display name', domains: 'Allowed email domains', enabled: 'Enabled', manual: 'Manual / blank', apply: 'Apply template', keep: 'Keep draft', replace: 'Replace draft', save: 'Save', template: 'Creation template', dialog: 'Replace creation draft?' },
+  zh: { add: '新增提供商', key: '提供商标识', name: '显示名称', domains: '允许的邮箱域名', enabled: '启用', manual: '手动／空白', apply: '应用模板', keep: '保留草稿', replace: '替换草稿', save: '保存', template: '创建模板', dialog: '替换创建草稿？' },
 }
 
 for (const language of ['en', 'zh'] as const) {
@@ -23,6 +23,8 @@ for (const language of ['en', 'zh'] as const) {
     const observe = (request: Request) => {
       if (request.url().includes(providerPath) || new URL(request.url()).hostname === 'accounts.google.com') observed.push(request.method() + ' ' + request.url())
     }
+    const scenarioErrors: unknown[] = []
+    const cleanupErrors: unknown[] = []
     try {
       await post(page, '/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword })
       await page.addInitScript(value => localStorage.setItem('moeurl.language', value), language)
@@ -60,18 +62,31 @@ for (const language of ['en', 'zh'] as const) {
       await expect(enabled).toBeChecked()
       await section.getByRole('heading', { name: text.template, exact: true }).scrollIntoViewIfNeeded()
       await capture(page, info, 'template-selection-' + width)
-      await section.getByRole('button', { name: text.apply, exact: true }).click()
-      const dialog = page.getByRole('dialog')
+      const apply = section.getByRole('button', { name: text.apply, exact: true })
+      await apply.focus()
+      await apply.press('Enter')
+      const dialog = page.getByRole('dialog', { name: text.dialog, exact: true })
+      await expect(dialog).toHaveAccessibleDescription(/Client Secret/)
       await expect(dialog).toContainText('Client Secret')
       for (const action of [text.keep, text.replace]) await expect(dialog.getByRole('button', { name: action, exact: true })).toBeInViewport({ ratio: 1 })
       await capture(page, info, 'template-confirmation-' + width)
-      await dialog.getByRole('button', { name: text.keep, exact: true }).click()
+      await dialog.getByRole('button', { name: text.keep, exact: true }).focus()
+      await dialog.getByRole('button', { name: text.keep, exact: true }).press('Enter')
       await expect(dialog).toHaveCount(0)
+      await expect(apply).toBeFocused()
       for (const [field, value] of [[keyField, 'old-provider'], [nameField, 'Old draft'], [issuer, 'https://old.example.test'], [client, 'old-client'], [secret, 'old-secret-never-send'], [domains, 'old.example.test']] as const) await expect(field).toHaveValue(value)
       await expect(enabled).toBeChecked()
-      await section.getByRole('button', { name: text.apply, exact: true }).click()
-      await page.getByRole('dialog').getByRole('button', { name: text.replace, exact: true }).click()
+      await apply.press('Enter')
+      await expect(dialog).toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(dialog).toHaveCount(0)
+      await expect(apply).toBeFocused()
+      await expect(secret).toHaveValue('old-secret-never-send')
+      await apply.press('Enter')
+      await dialog.getByRole('button', { name: text.replace, exact: true }).focus()
+      await dialog.getByRole('button', { name: text.replace, exact: true }).press('Enter')
       await expect(page.getByRole('dialog')).toHaveCount(0)
+      await expect(apply).toBeFocused()
       await expect(keyField).toHaveValue('google')
       await expect(nameField).toHaveValue('Google')
       await expect(issuer).toHaveValue('https://accounts.google.com')
@@ -120,15 +135,23 @@ for (const language of ['en', 'zh'] as const) {
       expect(identity.data.user.group).toBe('user')
       expect(identity.data.user.nickname).toBe('OIDC Person')
       expect(identity.data.user.username).toMatch(new RegExp('^oidc-' + key + '-[a-z2-7]{20}$'))
-    } finally {
+    } catch (error) { scenarioErrors.push(error) } finally {
       page.off('request', observe)
-      await post(page, '/auth/logout', {})
-      await post(page, '/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword })
-      const response = await page.request.get(providerPath + 'list')
-      const listed = await response.json() as { code: number; data: { providers: Array<{ id: string; key: string; updatedAt: string }> } }
-      expect(listed.code).toBe(0)
-      for (const provider of listed.data.providers.filter(item => item.key === key)) await post(page, '/admin/oidc/provider/delete', { id: provider.id, expectedUpdatedAt: provider.updatedAt })
+      try { await post(page, '/auth/logout', {}) } catch (error) { cleanupErrors.push(error) }
+      try { await post(page, '/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword }) } catch (error) { cleanupErrors.push(error) }
+      let ownedProviders: Array<{ id: string; updatedAt: string }> = []
+      try {
+        const response = await page.request.get(providerPath + 'list')
+        expect(response.status()).toBe(200)
+        const listed = await response.json() as { code: number; data: { providers: Array<{ id: string; key: string; updatedAt: string }> } }
+        expect(listed.code).toBe(0)
+        ownedProviders = listed.data.providers.filter(item => item.key === key)
+      } catch (error) { cleanupErrors.push(error) }
+      for (const provider of ownedProviders) {
+        try { await post(page, '/admin/oidc/provider/delete', { id: provider.id, expectedUpdatedAt: provider.updatedAt }) } catch (error) { cleanupErrors.push(error) }
+      }
     }
+    if (scenarioErrors.length || cleanupErrors.length) throw new AggregateError([...scenarioErrors, ...cleanupErrors], 'OIDC template scenario or owned provider cleanup failed')
   })
 }
 
@@ -141,6 +164,9 @@ async function post(page: Page, path: string, data: unknown) {
 
 async function capture(page: Page, info: TestInfo, name: string) {
   await expectNoHorizontalOverflow(page)
+  // Keep the fixed mobile header at the page origin in full-page originals.
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
   const path = info.outputPath(name + '.png')
   await page.screenshot({ path, fullPage: true, animations: 'disabled' })
   await info.attach(name, { path, contentType: 'image/png' })
