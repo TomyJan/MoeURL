@@ -1,8 +1,12 @@
 # 技术基线
 
-## v0.31.0 当前分支前端增量
+## v0.32.0 计划中的前端增量
 
-OIDC 创建页新增本地 Google／手动空白模板与明确替换确认；完整清 Client ID／Secret／允许域名，不自动联网、保存或启用。现有提供商编辑、严格七字段创建 DTO、后端 Discovery／verified-email 供应条件保持，无新 API／权限／schema／依赖。Task1–3 已标准完成；唯一实际终审四项有效意见修复后，完整前端 123 文件／2039 项测试、四项 100% 与静态／隔离 build 通过，实际运行于 7799 加当时 dirty 前端，后补仅准确 readonly ESLint globals 并独立 lint0。clean `8712426` 的完整 107 项 browser、六原图、精确 image／18178 smoke／同 image HIGH,CRITICAL 扫描和完整本地归档已核；远端待验证。原 Task1／b164 制品保留原身份，见[验收](v0.31.0-acceptance.md)，不能借 v30 制品或冒已合并。
+三个本地固定二维码深色／白底 PNG 预设，320／M／margin4，身份变化恢复黑白，全部异步状态受 generationId 保护。无新依赖、API、权限或 schema，实现中，完整本地与远端验证待完成，见[设计](../specs/2026-10-29-v0.32.0-qr-appearance-presets-design.md)与[验收](v0.32.0-acceptance.md)。
+
+## v0.31.0 已合并前端增量
+
+v0.31.0 已由 [PR #229](https://github.com/TomyJan/MoeURL/pull/229) 合并为 `c6712051`，最终候选 `e9c3025` 的 CI40741884841 与合并自身 CI40748005532 各九成功，真实最终 CodeRabbit 覆盖、有效意见闭环；标准 Task1–4 和最终完整 SDD 归档已完成。仅 Google／手动创建草稿，未正式发布或验收外部 Google 互通；原阶段、原失败及各候选制品保持验收记录中的执行归属。见[验收](v0.31.0-acceptance.md)。
 
 ## v0.30.0 已合并增量
 

@@ -327,6 +327,9 @@ export const messages = {
     },
     shortLinkQr: {
       title: '短链二维码',
+      appearance: '二维码外观',
+      appearanceHint: '仅用于本次预览与下载，重新打开恢复黑白。',
+      presets: { classic: '黑白', indigo: '鸢尾蓝', forest: '森林绿' },
       imageAlt: '短链二维码',
       generateFailed: '二维码生成失败，请稍后重试。',
       download: '下载 PNG',
@@ -1067,6 +1070,9 @@ export const messages = {
     },
     shortLinkQr: {
       title: 'Short-link QR code',
+      appearance: 'QR appearance',
+      appearanceHint: 'Applies to this preview and download. Reopening restores black and white.',
+      presets: { classic: 'Black and white', indigo: 'Iris blue', forest: 'Forest green' },
       imageAlt: 'Short-link QR code',
       generateFailed: 'Failed to generate the QR code. Try again.',
       download: 'Download PNG',

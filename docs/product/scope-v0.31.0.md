@@ -2,7 +2,7 @@
 
 ## 状态与依据
 
-Task1–3 已标准完成，唯一实际终审四项有效意见闭环；Task3 的 clean `8712426` 完整 107 项浏览器／六原图／精确产品及阶段本地归档快照已核。Task4 确认模板名称修复的新 clean `8dbcb9e` 浏览器／六原图／精确产品已核；远端交付、标准 Task4 及最终 SDD 归档待完成，原单元执行身份独立记录。[路线图](roadmap.md)与[账号规格](../specs/users-and-auth.md)已规划提供商模板；root 按长期自主授权选择这个有界版本，裁决及错误代价见[设计](../specs/2026-10-28-v0.31.0-oidc-provider-templates-design.md)，不声称用户逐项批准。隔离分支 `feat/v0.31.0-oidc-provider-templates` 从 fresh master `d582fba02772e62f2f3af2fe11e485728f5c0097` 以 `--no-track` 建立；`e124cf1` 只同步 v0.30.0 已合并、独立 CI 与最终归档事实，不是本版产品验证。
+v0.31.0 已由 [PR #229](https://github.com/TomyJan/MoeURL/pull/229) 合并为 `c6712051`，最终候选 `e9c3025` 的 CI40741884841 与合并自身 CI40748005532 各九成功，真实最终 CodeRabbit 覆盖、有效意见闭环；标准 Task1–4 和最终完整 SDD 归档已完成。仅 Google／手动创建草稿，未正式发布或验收外部 Google 互通；原阶段、原失败及各候选制品保持验收记录中的执行归属。见[验收](../implementation/v0.31.0-acceptance.md)。
 
 ## 必须实现
 

@@ -1,6 +1,8 @@
 # 开发进度与能力清单
 
-当前下一版本 [v0.31.0 OIDC 提供商创建模板](scope-v0.31.0.md) Task1–3 已标准完成（唯一实际终审四项有效意见闭环，Task3 的 clean `8712426` 完整 107 项浏览器、六原图、精确产品／扫描及阶段本地归档快照已核；Task4 确认模板名称修复的新 clean `8dbcb9e` 浏览器／六原图／精确产品已核，远端交付、标准 Task4 及最终 SDD 归档待完成）：本地手动／Google，明确应用、脏草稿整体替换确认、清旧凭据，编辑已有提供商保持原契约。[计划](../implementation/v0.31.0-plan.md)和[验收](../implementation/v0.31.0-acceptance.md)分别记录真实执行与原单元身份。
+当前下一版本 [v0.32.0 二维码外观预设](scope-v0.32.0.md) 处于设计／Task1 实施阶段，组件已有真实 RED→GREEN，完整前端门禁运行中：共享对话框三个本地深色／白底 PNG 预设，身份变化恢复黑白，不持久化。[计划](../implementation/v0.32.0-plan.md)和[验收](../implementation/v0.32.0-acceptance.md)分别记录执行与证据。
+
+[v0.31.0 OIDC 创建模板](scope-v0.31.0.md) 已由 [PR #229](https://github.com/TomyJan/MoeURL/pull/229) 合并为 `c6712051`，最终 `e9c3025` 的 PR CI40741884841 与合并 master CI40748005532 各九成功，真实最终审查／有效意见闭环，标准 Task1–4 与完整最终归档均完成。仅 Google／手动草稿，不放宽 verified-email；原单元及各候选制品保持[验收](../implementation/v0.31.0-acceptance.md)归属，未正式发布。
 
 v0.30.0 已通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 于 2026-10-28T13:21:25Z 合并为 `d582fba02772e62f2f3af2fe11e485728f5c0097`。最终候选 `f54567d` 的 [PR CI #40686801162](https://github.com/TomyJan/MoeURL/actions/runs/40686801162) 与该合并的 [master CI #40695791448](https://github.com/TomyJan/MoeURL/actions/runs/40695791448) 各九项成功，真实 CodeRabbit 覆盖最终候选、有效意见全部闭环；标准 Task1–4 与完整最终 SDD 归档核验已完成。未正式发布或部署。范围、逐候选验证、原失败及运行归属见[验收](../implementation/v0.30.0-acceptance.md)；不将旧本地浏览器或产品制品重归属给合并提交，不扩自定义组、多组或 OIDC 映射。
 
@@ -33,7 +35,7 @@ v0.26.0 个人偏好已由 PR #224 合并，v0.27.0 域名排序已由 PR #225 �
 | 标题与标签 | 创建、编辑和清空；管理列表展示；关键词搜索及精确标签筛选；权限与公开字段隔离。v0.23.0 已合并当前列表 1–100 条原子添加／移除／替换标签及清空，保持标题、访问配置与历史。 | 尚未正式发布。集中标签库、重命名合并、颜色层级、独立备注及 Open Graph 未开发。 | [元数据范围](scope-v0.11.0.md)、[批量标签](scope-v0.23.0.md)、[验收](../implementation/v0.23.0-acceptance.md) |
 | 概览与分析 | 已合并个人概览、最近短链、单链匿名聚合、最长 90 天 UTC 范围和聚合 CSV，以及管理员全站快照、趋势／热门、本人／管理单链匿名访问分页与浏览器／系统类别；旧空类别显示未知。v0.24.0 已合并单链完整筛选匿名记录 CSV，最多 1000 条／8 MiB，叠加独立权限。 | 尚未正式发布；超出 90 天或任意时区分析、全站访问合并导出及事件归档未实现。 | [个人概览](scope-v0.1.1.md)、[聚合导出](scope-v0.16.0.md)、[v0.24.0 范围](scope-v0.24.0.md)、[统计与事件](../specs/statistics-and-events.md) |
 | 操作审计 | v0.18.0 已合并关键业务变更与日志同事务、真实 actor、白名单字段及只读筛选；180 天在线保留和有界清理，非空审计安全拒绝回滚。v0.25.0 已通过 PR #222 合并按日期／actor／resource／action 下载最多 1000 条／8 MiB 审计元数据 CSV。 | 尚未正式发布；合并后手机 E2E 修复跟进见验收。独立登录安全事件中心、外部 SIEM 与防篡改签名未实现。 | [v0.18.0 范围](scope-v0.18.0.md)、[v0.25.0 范围](scope-v0.25.0.md)、[设计](../specs/2026-10-27-v0.25.0-audit-export-design.md)、[验收](../implementation/v0.25.0-acceptance.md) |
-| OIDC | 多 Provider 管理；标准 Discovery、Authorization Code、PKCE、state、nonce 及浏览器绑定；邮箱域名白名单首次供应；复用本地 Session 与权限。 | Provider 模板、主动账号绑定、组映射、SAML、LDAP、SCIM 和 Passkey。 | [OIDC 范围](scope-v0.7.0.md)、[OIDC 设计](../specs/2026-09-11-v0.7.0-oidc-login-design.md) |
+| OIDC | 多 Provider 管理；标准 Discovery、Authorization Code、PKCE、state、nonce 及浏览器绑定；邮箱域名白名单首次供应；复用本地 Session 与权限。v0.31.0 已合并 Google／手动创建草稿模板。 | 自定义 Provider 模板、主动账号绑定、组映射、SAML、LDAP、SCIM 和 Passkey。 | [OIDC 范围](scope-v0.7.0.md)、[OIDC 设计](../specs/2026-09-11-v0.7.0-oidc-login-design.md)、[创建模板](scope-v0.31.0.md) |
 | 多域名 | 管理、启停、组授权、全局默认及创建选择；访问限定所属启用域名；短链引用保护。v0.26 个人默认、v0.27 排序、v0.28 组默认及 v0.29 域名默认跳转方式均已合并，各自最终 PR／合并 CI 九成功及真实审查闭环。 | 尚未正式发布；用户自助绑定、自动 DNS/TLS、既有短链域名迁移未开发。 | [多域名范围](scope-v0.8.0.md)、[个人默认](scope-v0.26.0.md)、[排序](scope-v0.27.0.md)、[组默认](scope-v0.28.0.md)、[默认方式](scope-v0.29.0.md)、[域名](../specs/domains.md) |
 | 系统设置与品牌 | 站点名称、默认语言／主题、纯文本页脚、本地登录开关；关闭本地登录与最后一个可用 OIDC Provider 共享安全边界。 | Logo／Favicon 上传、主题色编辑、首页文案配置、HTML 页脚、部署参数在线修改。 | [系统设置范围](scope-v0.9.0.md) |
 | 前端体验 | 中英双语、浅深色及跟随系统、响应式布局、PWA 基础；标准表格／列表／菜单、可堆叠 Toast、短链下的分析入口、长 URL 省略、减少动态效果支持。 | 更多语言、主题编辑器、自定义 CSS、跳转页模板编辑。 | [导航与页面](../specs/navigation-and-pages.md)、[主题与多语言](../specs/themes-and-i18n.md) |
