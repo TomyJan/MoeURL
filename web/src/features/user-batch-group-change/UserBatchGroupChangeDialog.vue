@@ -51,7 +51,8 @@ function save() {
 <style scoped>
 .batch-membership-card { min-width: 0; }
 .batch-membership-card :deep(.v-card-title) { white-space: normal; overflow-wrap: anywhere; }
-.batch-membership-body { display: grid; gap: 16px; min-width: 0; overflow-wrap: anywhere; }
+.batch-membership-body { display: grid; gap: 16px; min-width: 0; min-height: 0; overflow-y: auto; overflow-wrap: anywhere; }
+.batch-membership-card :deep(.v-card-actions) { flex-shrink: 0; }
 .batch-membership-summary { max-height: 30vh; overflow-y: auto; padding-inline-start: 20px; }
 .batch-membership-summary li { display: grid; gap: 4px; margin-block: 8px; overflow-wrap: anywhere; }
 .batch-membership-body :deep(.v-label) { white-space: normal; }

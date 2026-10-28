@@ -46,7 +46,7 @@
         <thead>
           <tr>
             <th scope="col">{{ t('adminUsers.headers.username') }}</th>
-            <th scope="col"><v-checkbox-btn :aria-label="t('batchMembership.selectAll')" :model-value="batch.allSelected.value" :indeterminate="batch.indeterminate.value" :disabled="batch.unavailable.value || !batch.eligible.value.length || !!batch.snapshot.value" @update:model-value="batch.toggleAll(!!$event)" /></th>
+            <th scope="col"><v-checkbox-btn v-bind="selectionIcons" :aria-label="t('batchMembership.selectAll')" :model-value="batch.allSelected.value" :indeterminate="batch.indeterminate.value" :disabled="batch.unavailable.value || !batch.eligible.value.length || !!batch.snapshot.value" @update:model-value="batch.toggleAll(!!$event)" /></th>
             <th scope="col">{{ t('adminUsers.headers.group') }}</th>
             <th scope="col">{{ t('adminUsers.headers.status') }}</th>
             <th scope="col">{{ t('adminUsers.headers.createdAt') }}</th>
@@ -66,7 +66,7 @@
                   </div>
                 </div>
               </td>
-              <td><v-checkbox-btn v-if="batch.eligible.value.some(user => user.id === item.id)" :aria-label="t('batchMembership.selectAccount', { username: item.username })" :model-value="batch.selected.value.includes(item.id)" :disabled="batch.unavailable.value || !!batch.snapshot.value" @update:model-value="batch.toggle(item.id, !!$event)" /></td>
+              <td><v-checkbox-btn v-if="batch.eligible.value.some(user => user.id === item.id)" v-bind="selectionIcons" :aria-label="t('batchMembership.selectAccount', { username: item.username })" :model-value="batch.selected.value.includes(item.id)" :disabled="batch.unavailable.value || !!batch.snapshot.value" @update:model-value="batch.toggle(item.id, !!$event)" /></td>
               <td>{{ item.group }}</td>
               <td><v-chip size="small" variant="tonal" :color="item.status === 'active' ? 'success' : undefined">{{ t(`adminUsers.status.${item.status}`) }}</v-chip></td>
               <td class="user-table__date">{{ formatDate(item.createdAt) }}</td>
@@ -163,6 +163,7 @@ import { useAvatarText } from '@/shared/user/useAvatarText'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 import UserGroupChangeDialog from '@/features/user-group-change/UserGroupChangeDialog.vue'
 import UserBatchGroupChangeDialog from '@/features/user-batch-group-change/UserBatchGroupChangeDialog.vue'
+import { aliases } from 'vuetify/iconsets/mdi-svg'
 import { useUserBatchGroupChange } from '@/features/user-batch-group-change/useUserBatchGroupChange'
 
 const { t } = useI18n()
@@ -196,6 +197,8 @@ const query = useQuery({
 })
 const users = computed(() => canChangeGroup.value ? query.data.value?.items ?? [] : [])
 const total = computed(() => canChangeGroup.value ? query.data.value?.meta.total ?? 0 : 0)
+// Match link-list selection without relying on an unloaded icon font.
+const selectionIcons = { trueIcon: aliases.checkboxOn, falseIcon: aliases.checkboxOff, indeterminateIcon: aliases.checkboxIndeterminate }
 const batch = useUserBatchGroupChange({ users, allowed: canChangeGroup, blocked: computed(() => !!singlePending.value || !!groupTarget.value), onSelect: () => { editingUserId.value = ''; moreUserId.value = '' }, read: () => query.refetch({ throwOnError: true }) })
 const writeLocked = computed(() => !canChangeGroup.value || !!singlePending.value || groupPending.value || batch.pending.value || batch.barrier.value || !!batch.snapshot.value || batch.selected.value.length > 0)
 const rowLocked = computed(() => writeLocked.value || !!groupTarget.value)
@@ -345,6 +348,7 @@ function userMorePanelId(id: string) {
 <style scoped>
 .user-table { --moe-table-min-width: 780px; }
 .user-table__identity-column { width: 32%; }
+.user-table__select-column { width: 56px; }
 .user-table__group-column { width: 13%; }
 .user-table__status-column { width: 13%; }
 .user-table__date-column { width: 18%; }
