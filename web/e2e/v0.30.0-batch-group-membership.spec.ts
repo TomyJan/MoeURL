@@ -107,6 +107,7 @@ for (const width of [1280, 390]) {
             }
             return { viewport: { width: innerWidth, height: innerHeight }, ancestors }
           })
+          console.info('Batch summary clipping geometry: ' + JSON.stringify(geometry))
           await info.attach('batch-summary-clipping-' + width, { body: JSON.stringify(geometry, null, 2), contentType: 'application/json' })
           const path = info.outputPath('batch-summary-clipping-' + width + '.png')
           await page.screenshot({ path, fullPage: true, animations: 'disabled' })
