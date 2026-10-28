@@ -2,7 +2,7 @@
 
 ## 阶段与基线
 
-当前 Task1 后端及 Task2 前端已标准完成，真实 DB／HTTP／并发／故障与完整本地门禁分别有证据；Task3 正在收束 browser／六图／精确产品，Task4 唯一实现终审、PR、目标 CI 与整版验收尚未完成，详见[验收](../implementation/v0.30.0-acceptance.md)。本分支 `feat/v0.30.0-batch-group-membership` 从 fresh `origin/master` 的 `8af05d60fb89769f7aaabf4da4906ed411fdad48` 以 `--no-track` 建立，复用既有隔离 worktree。首个维护提交 `3e76879` 仅同步 v0.29.0 已合并及 PR／master 各九 CI 的事实，不重跑旧门禁，不改变旧制品归属。新行为须单独形成真实证据。
+当前 Task1–3 已标准完成，真实 DB／HTTP／并发／故障、完整本地门禁、browser／六图／精确产品已契约核验，Task4 唯一实现终审、PR、目标 CI 与整版验收尚未完成，详见[验收](../implementation/v0.30.0-acceptance.md)。本分支 `feat/v0.30.0-batch-group-membership` 从 fresh `origin/master` 的 `8af05d60fb89769f7aaabf4da4906ed411fdad48` 以 `--no-track` 建立，复用既有隔离 worktree。首个维护提交 `3e76879` 仅同步 v0.29.0 已合并及 PR／master 各九 CI 的事实，不重跑旧门禁，不改变旧制品归属。新行为须单独形成真实证据。
 
 依据 [路线图](roadmap.md)、[进度清单](development-status.md)及 v0.19.0 单账号改组基础，root 按长期自主设计授权选择此有界版本；具体常规决策及错误代价见[设计](../specs/2026-10-28-v0.30.0-batch-group-membership-design.md)，不声称用户逐项批准。设计经一次 fresh builder check 后形成完整计划，再由 root 原生 TDD 实现；实现后仅一次 fresh 最强完整终审，root 集中修复。
 

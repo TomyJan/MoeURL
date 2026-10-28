@@ -1,6 +1,6 @@
 # MoeURL 文档中心
 
-当前下一版本 [v0.30.0 批量成员迁移](product/scope-v0.30.0.md) 的 Task1 后端与 Task2 前端已标准完成，Task3 正在收束真实浏览器、六图与精确镜像本地证据；唯一实现终审、PR、目标 CI 与整版验收尚未完成。只做当前列表其他非 builtin 账号在 user／admin 间的有界原子调整，不扩自定义组、多组或 OIDC 映射；[设计](specs/2026-10-28-v0.30.0-batch-group-membership-design.md)、[计划](implementation/v0.30.0-plan.md)、[任务](implementation/v0.30.0-tasks.md)和[验收](implementation/v0.30.0-acceptance.md)保留各阶段与失败归属。
+当前下一版本 [v0.30.0 批量成员迁移](product/scope-v0.30.0.md) 的 Task1–3 已标准完成，后端／前端／真实 browser 六图／精确产品本地证据均已契约核验，当前进入 Task4；唯一实现终审、PR、目标 CI 与整版验收尚未完成。只做当前列表其他非 builtin 账号在 user／admin 间的有界原子调整，不扩自定义组、多组或 OIDC 映射；[设计](specs/2026-10-28-v0.30.0-batch-group-membership-design.md)、[计划](implementation/v0.30.0-plan.md)、[任务](implementation/v0.30.0-tasks.md)和[验收](implementation/v0.30.0-acceptance.md)保留各阶段与失败归属。
 
 [v0.29.0 每域名默认跳转方式](product/scope-v0.29.0.md) 已通过 [PR #227](https://github.com/TomyJan/MoeURL/pull/227) 于 2026-10-28T04:16:45Z 合并为 `8af05d60fb89769f7aaabf4da4906ed411fdad48`。最终 `4dfa4d43` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40629796924) 与合并 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40631422772) 各九成功，实际 CodeRabbit 覆盖最终且有效意见全部闭环。旧 API 省略 redirectMode 仍 direct，默认只用于新面板初选，不改已有短链；唯一独立终审、root 修复、原失败及逐候选制品见[任务](implementation/v0.29.0-tasks.md)和[验收](implementation/v0.29.0-acceptance.md)。尚未正式发布。
 
