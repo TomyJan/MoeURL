@@ -1,5 +1,7 @@
 # 技术基线
 
+v0.34.0 [站点强调色设计](../specs/2026-10-30-v0.34.0-site-accent-design.md)规定新增公开／管理 appearance三端点、独立 `site.appearance`／版本及仅键名事务审计；固定iris／ocean／forest，更新现有moeurlLight／moeurlDark四token，保持主题模式、旧DTO及权限目录。当前只是设计，尚未实现；完整迁移、协议、前端和交付门禁见[计划](v0.34.0-plan.md)及[验收](v0.34.0-acceptance.md)，不能把下方历史证据归属本版。
+
 2026-10-29 最终状态：v0.33.1 已由 PR #232 合并为 `cf5d5a64`，候选 `91cf9d5` 与该合并的独立 CI 各九成功，真实最新审查／有效意见闭环、标准 Task1–3、最终归档和准确 leaf 可恢复清理完成，详见[v0.33.1 验收](v0.33.1-acceptance.md)。未正式发布。此次[文档维护](2026-10-29-delivery-status-plan.md)只同步已有交付事实，下面各阶段“待做”描述保持其历史时间归属；技术约定、本地制品身份与未修机制边界不变。
 
 2026-10-29 v0.33.1 本地门禁补记：唯一终审的 E2E 恢复 Important 已真实 RED→GREEN，独立 request fixture teardown 恢复／读回原配置；clean `9e76e10` 定向 7 项／完整 116 项浏览器及新八原图验证通过，阶段文档 Minor 已修正。产品仍是原 clean `1bfdd2b` 的精确 smoke／metadata 与同镜像正常更新的 Trivy0.74 HIGH／CRITICAL 扫描；原 DNS 失败、受保护等待未确定机制、组偏好 pointer 覆盖取舍保留。未变产品输入另核，不重复 Go／SQLC／产品。Task2 本地归档／标准完成实际 PASS，Task3 已标准 start，远端待做。完整归属见[v0.33.1验收](v0.33.1-acceptance.md)；下段早期待做状态保持历史归属。

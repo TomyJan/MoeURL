@@ -1,5 +1,7 @@
 # MoeURL 产品总览
 
+[v0.34.0 站点强调色预设](scope-v0.34.0.md) 为下一有界设计轮：管理员从三个固定主强调色中显式保存，既有浅／深／跟随系统与账号偏好独立。当前尚未实现或验证，见[设计](../specs/2026-10-30-v0.34.0-site-accent-design.md)和[验收](../implementation/v0.34.0-acceptance.md)；任意主题编辑器仍未开放。
+
 [v0.33.1 首页文案反馈补丁](scope-v0.33.1.md) 已由 [PR #232](https://github.com/TomyJan/MoeURL/pull/232) 合并为 `cf5d5a64`，最终 `91cf9d5` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40885738492) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40892523382) 各九成功，真实审查／有效意见闭环、标准 Task1–3 与最终归档清理完成。原本地产品、失败、pointer 覆盖取舍及截图／扫描限制保持[验收](../implementation/v0.33.1-acceptance.md)归属，未正式发布。
 
 [v0.33.0 首页文案](scope-v0.33.0.md) 已由 [PR #231](https://github.com/TomyJan/MoeURL/pull/231) 合并为 `811d6c57`，最终 `34a520b` 的 PR CI40852026042 与合并 master CI40858639758 各九成功，真实审查／有效意见闭环，标准 Task1–4 与完整最终归档、准确 leaf 可恢复清理完成。管理员首屏标题与简介纯文本、逐字段回退、独立版本和身份隔离；三个 Minor 在该版延期，原证据见[验收](../implementation/v0.33.0-acceptance.md)，未正式发布。
