@@ -1,6 +1,6 @@
 # 技术基线
 
-v0.34.0 [站点强调色设计](../specs/2026-10-30-v0.34.0-site-accent-design.md)规定新增公开／管理 appearance三端点、独立 `site.appearance`／版本及仅键名事务审计；固定iris／ocean／forest，更新现有moeurlLight／moeurlDark四token，保持主题模式、旧DTO及权限目录。当前 Task1 后端三端点、迁移00030及完整 Go／race／vet／安全／业务100／SQLC54＋25零漂移验证通过，原子提交及标准完成已通过，Task2 完整前端 132 文件／2158 测试、四项 100%、types／lint／隔离构建通过，原子提交 2bd7c10 与标准完成已通过，Task3 定向 3 项／五原图已验证，首完整 E2E 101 通过／17 失败，两处 E2E fixture／键盘同步修正后待重验，尚无完整浏览器或产品结论；完整迁移、协议、前端和交付门禁见[计划](v0.34.0-plan.md)及[验收](v0.34.0-acceptance.md)，不能把下方历史证据归属本版。
+v0.34.0 [站点强调色设计](../specs/2026-10-30-v0.34.0-site-accent-design.md)规定新增公开／管理 appearance三端点、独立 `site.appearance`／版本及仅键名事务审计；固定iris／ocean／forest，更新现有moeurlLight／moeurlDark四token，保持主题模式、旧DTO及权限目录。当前 Task1 后端三端点、迁移00030及完整 Go／race／vet／安全／业务100／SQLC54＋25零漂移验证通过，原子提交及标准完成已通过，Task2 完整前端 132 文件／2158 测试、四项 100%、types／lint／隔离构建通过，原子提交 2bd7c10 与标准完成已通过，Task3 修正定向 19 项／五新原图及 clean50eb9e9 完整 E2E 118 项、标准 smoke／精确制品与同 image HIGH／CRITICAL 扫描已通过，原首完整 101 通过／17 失败保留，尚无独立终审或远端交付结论；完整迁移、协议、前端和交付门禁见[计划](v0.34.0-plan.md)及[验收](v0.34.0-acceptance.md)，不能把下方历史证据归属本版。
 
 2026-10-29 最终状态：v0.33.1 已由 PR #232 合并为 `cf5d5a64`，候选 `91cf9d5` 与该合并的独立 CI 各九成功，真实最新审查／有效意见闭环、标准 Task1–3、最终归档和准确 leaf 可恢复清理完成，详见[v0.33.1 验收](v0.33.1-acceptance.md)。未正式发布。此次[文档维护](2026-10-29-delivery-status-plan.md)只同步已有交付事实，下面各阶段“待做”描述保持其历史时间归属；技术约定、本地制品身份与未修机制边界不变。
 
