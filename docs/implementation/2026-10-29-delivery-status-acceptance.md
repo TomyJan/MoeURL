@@ -9,7 +9,7 @@
 ## 本轮门禁
 
 - [x] 文档 diff／本地链接、完整非 Markdown 集合 hash／bytes 相等和原冻结证据哈希核验。
-- [ ] 本地原子提交与标准 Task1 完成。
+- [x] 本地原子提交与标准 Task1 完成。
 - [ ] 唯一全新整分支终审及全部意见裁决。
 - [ ] 本轮候选自己的九 CI／真实最新 CodeRabbit／有效意见闭环、guarded merge 与独立证明。
 - [ ] 本轮合并 master 自身九 CI、标准 Task2、完整报告与独立 owned 可恢复归档清理。
@@ -17,3 +17,5 @@
 尚未执行本轮远端交付，不以 PR232 结果替代。仅文档变更不重跑产品本地测试或重新构建产品，也不声称本轮组件／浏览器／扫描成功。未 tag、release、部署；生产环境验收缺口保持原状态。
 
 `verify-docs.ps1 -Label local-docs-verification` 实际0：11 个文档、605 个本地链接，diff check通过；当前完整726物理／718运行时路径集合、SHA256和bytes与原冻结 `task3-local-revalidation.json` 全相同，Git相对基线无非Markdown差异。原完整报告／ZIP／manifest／done3 contract哈希不变，旧leaf仍不存在。检查脚本初次syntax预检因插值变量后冒号解析失败actual1，未执行验证或写出proof；改为显式变量分隔后上述首次实际验证通过。Git既有LF→CRLF提示保留，不冒零notice。
+
+2026-10-29T15:24:03Z，原子 `8b12c29eec765dc1100a1d4c1ae0ede9186251b8` 实际0，11文件128+／12-，完整物理输入稳定、tracked clean；commit raw314bytes／SHA256 `3A52AC59CBCA9E25255D4A70C1B76DBA394624AD84AEC0FB87DFF764789D4B1C` 已完整读取。标准 task-done Task1 actual PASS／exit0，range `cf5d5a6..8b12c29`，执行独立只读 `task1-close.ps1`，再次确认605本地链接、726／718完整集合与冻结原件无变。此后仅补本段状态，不把文档更新当作产品执行证据；Task2 终审与远端仍待验收。
