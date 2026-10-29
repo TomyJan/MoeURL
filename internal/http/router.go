@@ -24,6 +24,7 @@ type Dependencies struct {
 	Health                 HealthChecker
 	System                 system.ServicePort
 	SystemSettings         system.SettingsPort
+	HomeContent            system.HomeContentPort
 	Auth                   auth.Port
 	Password               auth.PasswordPort
 	CurrentUser            auth.CurrentUserResolver
@@ -94,6 +95,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			settingsHandler := system.NewSettingsHandler(dependency.SystemSettings, logger)
 			api.With(middleware.NoStore).Get("/system/public-config", settingsHandler.PublicConfig)
 		}
+		if dependency.HomeContent != nil {
+			homeContentHandler := system.NewHomeContentHandler(dependency.HomeContent, logger)
+			api.With(middleware.NoStore).Get("/system/home-content", homeContentHandler.Public)
+		}
 
 		if dependency.OIDCProvider != nil {
 			oidcHandler := oidc.NewHandler(dependency.OIDCProvider, dependency.OIDCLogin, dependency.SecureCookies, logger)
@@ -116,6 +121,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				settingsHandler := system.NewSettingsHandler(dependency.SystemSettings, logger)
 				businessAPI.Get("/admin/system/settings", settingsHandler.Get)
 				businessAPI.Post("/admin/system/settings/update", settingsHandler.Update)
+			}
+			if dependency.HomeContent != nil {
+				homeContentHandler := system.NewHomeContentHandler(dependency.HomeContent, logger)
+				businessAPI.Get("/admin/system/home-content", homeContentHandler.Get)
+				businessAPI.Post("/admin/system/home-content/update", homeContentHandler.Update)
 			}
 			if dependency.Auth != nil {
 				authHandler := auth.NewHandlerWithLogger(dependency.Auth, dependency.SecureCookies, logger)

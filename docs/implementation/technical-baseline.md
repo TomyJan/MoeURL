@@ -1,8 +1,12 @@
 # 技术基线
 
-## v0.32.0 本地已验证的前端增量
+## v0.33.0 本地已验证的独立后端增量
 
-三个本地固定二维码深色／白底 PNG 预设，320／M／margin4，身份变化恢复黑白，全部异步状态受 generationId 保护。无新依赖、API、权限或 schema，Task1–3本地标准完成；原单元／静态仅c671加当时dirty前端，最新4／110browser／七图／image仅clean7b7315b，主机中断及恢复运行独立留证。唯一终审及有效意见闭环、完整本地阶段归档已完成；Task4远端交付待完成，见[设计](../specs/2026-10-29-v0.32.0-qr-appearance-presets-design.md)与[验收](v0.32.0-acceptance.md)。
+新增 `site.home_content` 单键与 `00029` 非破坏迁移、专用仅键名审计及独立三 API：公开 `system/home-content` 与管理读／update。80／200 Unicode 码点，控制字符先拒后 trim；当前账号／builtin admin 组及两权限重查，五秒事务与账号→组→配置锁序，完整精度 CAS 先于 no-op。旧 settings DTO／revision 不变，SQLC 1.30 完整 52 源／24 生成零漂移。当前 718 物理非 Markdown 输入的完整 Go／race／vet、业务 100% 和安全扫描通过；标准 Task1 完成契约待执行，前端／产品／远端尚无本版证据，见[设计](../specs/2026-10-29-v0.33.0-homepage-copy-design.md)和[验收](v0.33.0-acceptance.md)。
+
+## v0.32.0 已合并的前端增量
+
+三个本地固定二维码深色／白底 PNG 预设，320／M／margin4，身份变化恢复黑白，全部异步状态受 generationId 保护。无新依赖、API、权限或 schema；已由 PR #230 合并为99f87709，最终28214ef与master各九 CI 成功、真实审查及全部意见闭环、标准 Task1–4 和完整最终归档完成。原单元／静态仅c671加当时dirty前端，4／110browser／七图／image仅clean7b7315b，主机中断及恢复运行独立留证；未正式发布，见[设计](../specs/2026-10-29-v0.32.0-qr-appearance-presets-design.md)与[验收](v0.32.0-acceptance.md)。
 
 ## v0.31.0 已合并前端增量
 
