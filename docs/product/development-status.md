@@ -1,6 +1,6 @@
 # 开发进度与能力清单
 
-当前有界轮为 [v0.34.0 站点强调色预设](scope-v0.34.0.md)：三个固定强调色、独立资源／版本及现有双管理权限，保留个人深浅模式。Task1 独立后端和完整门禁通过，原子提交及标准完成已通过，Task2 完整前端 132 文件／2158 测试、四项 100%、types／lint／隔离构建通过，原子提交 2bd7c10 与标准完成已通过，Task3 已启动；不把它计入下表已实现能力。本版门禁与交付独立记录在[验收](../implementation/v0.34.0-acceptance.md)。
+当前有界轮为 [v0.34.0 站点强调色预设](scope-v0.34.0.md)：三个固定强调色、独立资源／版本及现有双管理权限，保留个人深浅模式。Task1 独立后端和完整门禁通过，原子提交及标准完成已通过，Task2 完整前端 132 文件／2158 测试、四项 100%、types／lint／隔离构建通过，原子提交 2bd7c10 与标准完成已通过，Task3 定向 3 项／五原图已验证，首完整 E2E 101 通过／17 失败，两处 E2E fixture／键盘同步修正后待重验；不把它计入下表已实现能力。本版门禁与交付独立记录在[验收](../implementation/v0.34.0-acceptance.md)。
 
 [v0.33.1 首页文案反馈补丁](scope-v0.33.1.md) 已由 [PR #232](https://github.com/TomyJan/MoeURL/pull/232) 合并为 `cf5d5a647febf6d7c5ee306605432066ca5bd2e8`。最终候选 `91cf9d5` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40885738492) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40892523382) 各九成功，真实最新审查覆盖、全部有效意见闭环；标准 Task1–3、完整最终归档与准确 leaf 可恢复清理完成。原本地执行 SHA、失败与证明边界见[验收](../implementation/v0.33.1-acceptance.md)；未正式发布，不替代当前[文档维护轮](../implementation/2026-10-29-delivery-status-plan.md)自己的交付验证。
 

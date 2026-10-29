@@ -183,10 +183,15 @@ for (const language of ['en', 'zh'] as const) {
 
 /** Selects an actual Vuetify option by keyboard, not DOM mutation or a synthetic API result. */
 async function choose(page: Page, select: Locator, option: string) {
+  const current = await select.inputValue()
   await select.press('Enter')
   const target = page.getByRole('option', { name: option, exact: true })
   await expect(target).toBeVisible()
+  // Vuetify focuses the current choice after its opening transition; wait before moving focus.
+  await expect(page.getByRole('option', { name: current, exact: true })).toBeFocused()
   await target.press('Enter')
+  await expect(select).toHaveValue(option)
+  await expect(target).toBeHidden()
 }
 
 /** Checks the active theme tokens and the rendered primary button's foreground/background. */
