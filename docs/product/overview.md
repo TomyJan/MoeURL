@@ -1,6 +1,6 @@
 # MoeURL 产品总览
 
-当前 [v0.33.1 首页文案反馈补丁](scope-v0.33.1.md) 两项行为和完整前端门禁通过；唯一终审的 E2E 恢复 Important 已真实 RED→GREEN，阶段 Minor 已修正，clean `9e76e10` 定向 7 项／完整 116 项浏览器通过。原 clean `1bfdd2b` 精确产品及独立扫描恢复保持原执行归属，Task1–2 标准完成、Task2 本地归档已提取核验，Task3 已标准 start，远端交付待完成。原失败、pointer 覆盖取舍及截图限制见[验收](../implementation/v0.33.1-acceptance.md)。
+[v0.33.1 首页文案反馈补丁](scope-v0.33.1.md) 已由 [PR #232](https://github.com/TomyJan/MoeURL/pull/232) 合并为 `cf5d5a64`，最终 `91cf9d5` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40885738492) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40892523382) 各九成功，真实审查／有效意见闭环、标准 Task1–3 与最终归档清理完成。原本地产品、失败、pointer 覆盖取舍及截图／扫描限制保持[验收](../implementation/v0.33.1-acceptance.md)归属，未正式发布。
 
 [v0.33.0 首页文案](scope-v0.33.0.md) 已由 [PR #231](https://github.com/TomyJan/MoeURL/pull/231) 合并为 `811d6c57`，最终 `34a520b` 的 PR CI40852026042 与合并 master CI40858639758 各九成功，真实审查／有效意见闭环，标准 Task1–4 与完整最终归档、准确 leaf 可恢复清理完成。管理员首屏标题与简介纯文本、逐字段回退、独立版本和身份隔离；三个 Minor 在该版延期，原证据见[验收](../implementation/v0.33.0-acceptance.md)，未正式发布。
 
@@ -108,7 +108,7 @@ MoeURL 的核心控制逻辑是权限系统。
 - 站点名称、默认语言／主题、纯文本页脚和带登录入口保护的本地登录开关。
 - 中英双语、响应式浅深色界面、PWA 基础、统一 Toast 与标准列表，以及固定展示的构建版本署名。
 
-最近已合并的业务增量为 [v0.31.0 OIDC 创建模板](scope-v0.31.0.md)，此前为 [v0.30.0 批量成员迁移](scope-v0.30.0.md)、[v0.29.0 域名默认跳转方式](scope-v0.29.0.md)、[v0.28.0 用户组默认域名](scope-v0.28.0.md)、[v0.27.0 域名排序](scope-v0.27.0.md)、[v0.26.0 个人默认域名](scope-v0.26.0.md)、[v0.25.0 操作审计 CSV](scope-v0.25.0.md)、[v0.24.0 单链匿名记录 CSV](scope-v0.24.0.md)、[v0.23.0 批量标签](scope-v0.23.0.md)、[v0.22.0 批量转移](scope-v0.22.0.md)、[v0.21.0 清单导出](scope-v0.21.0.md) 和 [v0.20.0 归属转移](scope-v0.20.0.md)。维护不另算业务版本，合并不视为正式发布。
+最近已合并的业务增量为 [v0.33.0 首页标题与简介](scope-v0.33.0.md) 和 [v0.32.0 二维码外观预设](scope-v0.32.0.md)，此前为 [v0.31.0 OIDC 创建模板](scope-v0.31.0.md)、[v0.30.0 批量成员迁移](scope-v0.30.0.md) 及[路线图](roadmap.md)所列历史能力。[v0.33.1](scope-v0.33.1.md) 是已合并的首页文案反馈补丁。维护不另算业务版本，合并不视为正式发布。
 
 [v0.12.0 自定义短码](scope-v0.12.0.md) 已通过 PR #185 合并至 `master` 的 `17e1f766`，支持创建时指定地址，不加入改码、释放、复用或批量能力；原分支的本地验证和独立审查见 [验收清单](../implementation/v0.12.0-acceptance.md)，合并不等于正式发布。
 
