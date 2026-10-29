@@ -175,6 +175,40 @@ test('v0.33.1 real reconnect retains current copy while pending and falls back a
 })
 
 /** Delays a genuine server response until assertions inspect the observable pending state. */
+for (const failure of ['no-refetch', 'response-error'] as const) {
+  test(`v0.33.1 held public read rejects ${failure} and restores real content`, async ({ page, browser }, info) => {
+    let original: Content | undefined
+    let visitor: BrowserContext | undefined
+    let release: (() => void) | undefined
+    try {
+      await login(page)
+      original = await read(page)
+      await write(page, { title: 'Temporary recovery probe', summary: 'Must be restored after a failed held read' })
+      visitor = await browser.newContext({ baseURL: info.project.use.baseURL })
+      const home = await visitor.newPage()
+      await home.goto('/')
+      await expect(home.locator('.home-page__copy h1')).toHaveText('Temporary recovery probe')
+      const held = await holdPublicRead(home)
+      release = held.release
+      let outcome: 'pending' | 'resolved' | 'rejected' = 'pending'
+      void held.requested.then(() => { outcome = 'resolved' }, () => { outcome = 'rejected' })
+      if (failure === 'response-error') {
+        // A real unsupported method returns the server's error envelope; no response is fabricated.
+        void home.evaluate(() => fetch('/api/v1/system/home-content', { method: 'POST' }).catch(() => undefined))
+      }
+      await expect.poll(() => outcome, { timeout: 12_000 }).toBe('rejected')
+    } finally {
+      release?.()
+      await visitor?.setOffline(false)
+      if (original) {
+        await write(page, original)
+        expect(await read(page)).toMatchObject({ title: original.title, summary: original.summary })
+      }
+      await visitor?.close()
+    }
+  })
+}
+
 async function holdPublicRead(page: Page) {
   let release!: () => void
   let observed!: () => void
