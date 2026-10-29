@@ -4,6 +4,7 @@ import { nextTick, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createDeferred } from '@/test/deferred'
+import { publicHomeContentKey } from '@/entities/home-content/api'
 import HomePage from './HomePage.vue'
 
 const state = vi.hoisted(() => ({ locale: undefined as unknown as ReturnType<typeof ref<string>> }))
@@ -79,5 +80,57 @@ describe('Homepage copy', () => {
     pending.reject(new Error('offline'))
     await waitFor(() => expect(client.isFetching()).toBe(0))
     expect(screen.queryByText('Prior custom')).toBeNull()
+  })
+  it('retains successful copy during a same-mount background refresh and then applies the new content', async () => {
+    const pending = createDeferred<Response>()
+    const fetchMock = vi.fn().mockResolvedValueOnce(response('First title', 'First summary')).mockImplementation(() => pending.promise)
+    vi.stubGlobal('fetch', fetchMock)
+    mountHome()
+    await waitFor(() => expect(screen.getByText('First title')).toBeTruthy())
+    const refresh = client.invalidateQueries({ queryKey: publicHomeContentKey })
+    await waitFor(() => expect(client.getQueryState(publicHomeContentKey)?.fetchStatus).toBe('fetching'))
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('First title')
+    expect(screen.getByText('First summary')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Create link' })).toBeTruthy()
+    pending.resolve(response('New title', ''))
+    await refresh
+    await waitFor(() => expect(screen.getByText('New title')).toBeTruthy())
+    state.locale.value = 'zh-CN'; await nextTick()
+    expect(screen.getByText('zh-CN:home.heroSummary')).toBeTruthy()
+  })
+  it('falls back after a background error and does not revive stale data while retrying', async () => {
+    const failed = createDeferred<Response>()
+    const retry = createDeferred<Response>()
+    const fetchMock = vi.fn().mockResolvedValueOnce(response('First title', 'First summary')).mockImplementationOnce(() => failed.promise).mockImplementation(() => retry.promise)
+    vi.stubGlobal('fetch', fetchMock)
+    mountHome()
+    await waitFor(() => expect(screen.getByText('First title')).toBeTruthy())
+    const refresh = client.invalidateQueries({ queryKey: publicHomeContentKey })
+    await waitFor(() => expect(client.getQueryState(publicHomeContentKey)?.fetchStatus).toBe('fetching'))
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('First title')
+    failed.reject(new Error('offline')); await refresh
+    await waitFor(() => expect(screen.queryByText('First title')).toBeNull())
+    const nextRefresh = client.refetchQueries({ queryKey: publicHomeContentKey })
+    await waitFor(() => expect(client.getQueryState(publicHomeContentKey)?.fetchStatus).toBe('fetching'))
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('en:home.heroTitle')
+    expect(screen.getByText('en:home.heroSummary')).toBeTruthy()
+    retry.resolve(response('Recovered title', 'Recovered summary')); await nextRefresh
+    await waitFor(() => expect(screen.getByText('Recovered title')).toBeTruthy())
+  })
+  it('hides retained cached copy on a new observer until this mount completes its own read', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => response('Cached title', 'Cached summary')))
+    const first = mountHome()
+    await waitFor(() => expect(screen.getByText('Cached title')).toBeTruthy())
+    const pending = createDeferred<Response>()
+    vi.stubGlobal('fetch', vi.fn(() => pending.promise))
+    const retained = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+    retained.setQueryData(publicHomeContentKey, { title: 'Cached title', summary: 'Cached summary' })
+    first.unmount(); client.clear(); client = retained
+    render(HomePage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]] } })
+    await waitFor(() => expect(client.getQueryState(publicHomeContentKey)?.fetchStatus).toBe('fetching'))
+    expect(screen.queryByText('Cached title')).toBeNull()
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('en:home.heroTitle')
+    pending.resolve(response('Current title', 'Current summary'))
+    await waitFor(() => expect(screen.getByText('Current title')).toBeTruthy())
   })
 })

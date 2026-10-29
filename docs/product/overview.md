@@ -1,6 +1,8 @@
 # MoeURL 产品总览
 
-下一有界版本 [v0.33.0 首页文案](scope-v0.33.0.md) 已标准完成 Task1–3；唯一终审 Important 经真实 RED→GREEN 修复，新 clean `be7b304` 的完整受影响后端、定向 4 项／完整 113 项浏览器、五原图、标准 smoke 与同镜像 HIGH／CRITICAL 三目标扫描通过，完整本地档案已提取核验。仅管理员编辑首屏标题与简介，纯文本逐字段回退、独立版本和身份隔离；两项 Minor 如实延期，Task4 远端交付进行中，不表示正式发布。
+当前 [v0.33.1 首页文案反馈补丁](scope-v0.33.1.md) 两项行为和完整前端门禁通过；唯一终审的 E2E 恢复 Important 已真实 RED→GREEN，阶段 Minor 已修正，clean `9e76e10` 定向 7 项／完整 116 项浏览器通过。原 clean `1bfdd2b` 精确产品及独立扫描恢复保持原执行归属，Task1–2 标准完成、Task2 本地归档已提取核验，Task3 已标准 start，远端交付待完成。原失败、pointer 覆盖取舍及截图限制见[验收](../implementation/v0.33.1-acceptance.md)。
+
+[v0.33.0 首页文案](scope-v0.33.0.md) 已由 [PR #231](https://github.com/TomyJan/MoeURL/pull/231) 合并为 `811d6c57`，最终 `34a520b` 的 PR CI40852026042 与合并 master CI40858639758 各九成功，真实审查／有效意见闭环，标准 Task1–4 与完整最终归档、准确 leaf 可恢复清理完成。管理员首屏标题与简介纯文本、逐字段回退、独立版本和身份隔离；三个 Minor 在该版延期，原证据见[验收](../implementation/v0.33.0-acceptance.md)，未正式发布。
 
 [v0.32.0 二维码外观预设](scope-v0.32.0.md) 已由 [PR #230](https://github.com/TomyJan/MoeURL/pull/230) 合并为 `99f87709`。最终 `28214ef` 的 PR CI40816638924 与合并 master CI40821882951 各九成功，真实最新审查／有效意见闭环，标准 Task1–4 及最终完整归档均完成；未正式发布。原候选和执行环境见[验收](../implementation/v0.32.0-acceptance.md)。
 

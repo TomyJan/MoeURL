@@ -73,6 +73,31 @@ describe('HomeContentEditor', () => {
     await fireEvent.click(save())
     await waitFor(() => expect(updateHomeContent).toHaveBeenLastCalledWith({ title: saved.title, summary: saved.summary, expectedUpdatedAt: saved.updatedAt }))
   })
+  it.each(['title', 'summary'] as const)('clears a prior saved confirmation when %s is edited and preserves the saved revision', async (field) => {
+    mountEditor(); await ready()
+    await fireEvent.click(save())
+    await waitFor(() => expect(screen.getByText('homeContent.saved')).toBeTruthy())
+    const input = field === 'title' ? title() : summary()
+    await fireEvent.update(input, 'A new unsaved draft')
+    expect(input.value).toBe('A new unsaved draft')
+    expect(screen.queryByText('homeContent.saved')).toBeNull()
+    await fireEvent.click(save())
+    await waitFor(() => expect(updateHomeContent).toHaveBeenLastCalledWith({
+      title: field === 'title' ? 'A new unsaved draft' : saved.title,
+      summary: field === 'summary' ? 'A new unsaved draft' : saved.summary,
+      expectedUpdatedAt: saved.updatedAt,
+    }))
+  })
+  it('retains a conflict diagnosis when the rejected draft is edited', async () => {
+    vi.mocked(updateHomeContent).mockRejectedValue(new ApiClientError(900205, 'Conflict'))
+    mountEditor(); await ready()
+    await fireEvent.click(save())
+    await waitFor(() => expect(screen.getByText('homeContent.conflict')).toBeTruthy())
+    await fireEvent.update(title(), 'Revised conflicting draft')
+    expect(screen.getByText('homeContent.conflict')).toBeTruthy()
+    expect(title().value).toBe('Revised conflicting draft')
+    expect(updateHomeContent).toHaveBeenCalledTimes(1)
+  })
   it('counts emoji as one codepoint and allows independent empty defaults without UTF16 truncation', async () => {
     mountEditor(); await ready()
     await fireEvent.update(title(), '🌲'.repeat(80))

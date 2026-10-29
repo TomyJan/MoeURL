@@ -26,6 +26,7 @@ export function useHomeContentDraft() {
   function edit(field: 'title' | 'summary', value: string) {
     state[field] = value
     edited++
+    if (state.feedback === 'saved') state.feedback = ''
   }
   /** Reloads explicitly; errors retain an existing draft and never retry a write. */
   async function load() {

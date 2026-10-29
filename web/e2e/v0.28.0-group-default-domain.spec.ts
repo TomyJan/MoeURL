@@ -83,7 +83,9 @@ for (const width of [1280, 390]) {
       await choose(member, personalLabel, option(personal))
       const preferenceSave = member.waitForResponse('**/api/v1/user/domain-preference/update')
       await member.getByTestId('domain-preference-save').click()
-      expect((await (await preferenceSave).json()).code).toBe(0)
+      const preferenceResponse = await preferenceSave
+      expect(preferenceResponse.request().postDataJSON()).toMatchObject({ domainId: personal.id })
+      expect((await preferenceResponse.json()).code).toBe(0)
       await dismiss(member)
       await member.goto('/'); await expectChoice(member, personal)
       await create(member, personal, personal.id, links)
@@ -239,10 +241,14 @@ async function selectGroup(page: Page, key: 'user' | 'admin') {
 }
 /** Formats the exact accessible option from real server-returned public metadata. */
 function option(domain: ManagedDomain) { return `${domain.displayName} (${domain.host})` }
-/** Chooses through the actual Vuetify overlay without forcing disabled controls. */
+/** Resolves the virtual option after scrolling and verifies the real keyboard selection. */
 async function choose(page: Page, label: RegExp, title: string) {
-  await page.getByRole('combobox', { name: label }).press('Enter')
-  await page.getByRole('option', { name: title, exact: true }).click()
+  const select = page.getByRole('combobox', { name: label })
+  await select.press('Enter')
+  const option = page.getByRole('option', { name: title, exact: true })
+  await option.scrollIntoViewIfNeeded()
+  await option.press('Enter')
+  await expect(select).toHaveValue(title)
 }
 /** Verifies a failed permission read reports loading failure without inventing a rejected write. */
 async function permissionReloadFailure(page: Page) {
