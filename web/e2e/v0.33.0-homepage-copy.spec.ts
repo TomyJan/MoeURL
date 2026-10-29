@@ -1,8 +1,38 @@
-import { expect, test } from '@playwright/test'
+import { expect, test as base } from '@playwright/test'
 import type { BrowserContext, Page } from '@playwright/test'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
 
 type Content = { title: string; summary: string; updatedAt: string }
+type APIClient = Pick<Page, 'request'>
+type ContentRecovery = { visitor(context: BrowserContext): void; hold(release: () => void): void }
+
+const test = base.extend<{ contentRecovery: ContentRecovery }>({
+  contentRecovery: async ({ request }, use) => {
+    // This request fixture outlives the test body and does not depend on a live page/visitor.
+    const client = { request }
+    await login(client)
+    const original = await read(client)
+    const visitors: BrowserContext[] = []
+    const releases: (() => void)[] = []
+    const failures: unknown[] = []
+    try {
+      await use({ visitor: context => { visitors.push(context) }, hold: release => { releases.push(release) } })
+    } catch (error) { failures.push(error) } finally {
+      for (const release of releases) release()
+      for (const visitor of visitors) {
+        try { await visitor.setOffline(false) } catch (error) { failures.push(error) }
+      }
+      try {
+        await write(client, original)
+        expect(await read(client)).toMatchObject({ title: original.title, summary: original.summary })
+      } catch (error) { failures.push(error) }
+      for (const visitor of visitors) {
+        try { await visitor.close() } catch (error) { failures.push(error) }
+      }
+    }
+    if (failures.length) throw new AggregateError(failures, 'Independent homepage fixture restoration failed')
+  },
+})
 const labels = {
   en: { title: 'Homepage title', summary: 'Homepage summary', save: 'Save homepage copy', reload: 'Reload homepage copy', generalSave: 'Save settings', saved: 'Homepage copy saved.', conflict: 'Homepage copy changed elsewhere. Your draft is kept; reload before saving again.', defaultTitle: 'Shorten links while keeping control', defaultSummary: 'Paste a target URL and create a managed short link under your own domain.' },
   zh: { title: '首页标题', summary: '首页简介', save: '保存首页文案', reload: '重新加载首页文案', generalSave: '保存设置', saved: '首页文案已保存。', conflict: '首页文案已被其他请求修改。草稿已保留，请重新加载后再保存。', defaultTitle: '把链接变短，把控制留在自己手里', defaultSummary: '粘贴目标链接，用自己的域名生成一条可管理的短链。' },
@@ -106,18 +136,17 @@ for (const language of ['en', 'zh'] as const) {
   })
 }
 
-test('v0.33.1 real reconnect retains current copy while pending and falls back after failure', async ({ page, browser }, info) => {
-  let original: Content | undefined
+test('v0.33.1 real reconnect retains current copy while pending and falls back after failure', async ({ page, browser, contentRecovery }, info) => {
   let visitor: BrowserContext | undefined
   const releases: (() => void)[] = []
   const failures: unknown[] = []
   try {
     await login(page)
-    original = await read(page)
     const first = { title: 'First successful title', summary: 'First successful summary' }
     const next = { title: 'Authoritative replacement', summary: 'Updated on the server' }
     await write(page, first)
     visitor = await browser.newContext({ baseURL: info.project.use.baseURL, viewport: { width: 1280, height: 720 }, reducedMotion: 'reduce' })
+    contentRecovery.visitor(visitor)
     await visitor.addInitScript(() => localStorage.setItem('moeurl.language', 'en'))
     const home = await visitor.newPage()
     await home.goto('/')
@@ -129,6 +158,7 @@ test('v0.33.1 real reconnect retains current copy while pending and falls back a
     await write(page, next)
     const pending = await holdPublicRead(home)
     releases.push(pending.release)
+    contentRecovery.hold(pending.release)
     await reconnect(visitor, home)
     await pending.requested
     await expect(title).toHaveText(first.title)
@@ -146,6 +176,7 @@ test('v0.33.1 real reconnect retains current copy while pending and falls back a
 
     const retry = await holdPublicRead(home)
     releases.push(retry.release)
+    contentRecovery.hold(retry.release)
     await reconnect(visitor, home)
     await retry.requested
     await expect(title).toHaveText(labels.en.defaultTitle)
@@ -156,6 +187,7 @@ test('v0.33.1 real reconnect retains current copy while pending and falls back a
 
     const remount = await holdPublicRead(home)
     releases.push(remount.release)
+    contentRecovery.hold(remount.release)
     await home.reload({ waitUntil: 'domcontentloaded' })
     await remount.requested
     await expect(title).toHaveText(labels.en.defaultTitle)
@@ -167,60 +199,56 @@ test('v0.33.1 real reconnect retains current copy while pending and falls back a
     await expectNoHorizontalOverflow(home)
   } catch (error) { failures.push(error) } finally {
     for (const release of releases) release()
-    try { await visitor?.setOffline(false) } catch (error) { failures.push(error) }
-    try { if (original) { await write(page, original); expect(await read(page)).toMatchObject({ title: original.title, summary: original.summary }) } } catch (error) { failures.push(error) }
-    try { await visitor?.close() } catch (error) { failures.push(error) }
   }
   if (failures.length) throw new AggregateError(failures, 'Reconnect rendering or exact fixture restoration failed')
 })
 
-/** Delays a genuine server response until assertions inspect the observable pending state. */
 for (const failure of ['no-refetch', 'response-error'] as const) {
-  test(`v0.33.1 held public read rejects ${failure} and restores real content`, async ({ page, browser }, info) => {
-    let original: Content | undefined
-    let visitor: BrowserContext | undefined
-    let release: (() => void) | undefined
-    try {
-      await login(page)
-      original = await read(page)
-      await write(page, { title: 'Temporary recovery probe', summary: 'Must be restored after a failed held read' })
-      visitor = await browser.newContext({ baseURL: info.project.use.baseURL })
-      const home = await visitor.newPage()
-      await home.goto('/')
-      await expect(home.locator('.home-page__copy h1')).toHaveText('Temporary recovery probe')
-      const held = await holdPublicRead(home)
-      release = held.release
-      let outcome: 'pending' | 'resolved' | 'rejected' = 'pending'
-      void held.requested.then(() => { outcome = 'resolved' }, () => { outcome = 'rejected' })
-      if (failure === 'response-error') {
-        // A real unsupported method returns the server's error envelope; no response is fabricated.
-        void home.evaluate(() => fetch('/api/v1/system/home-content', { method: 'POST' }).catch(() => undefined))
-      }
-      await expect.poll(() => outcome, { timeout: 12_000 }).toBe('rejected')
-    } finally {
-      release?.()
-      await visitor?.setOffline(false)
-      if (original) {
-        await write(page, original)
-        expect(await read(page)).toMatchObject({ title: original.title, summary: original.summary })
-      }
-      await visitor?.close()
+  test(`v0.33.1 held public read rejects ${failure} and restores real content`, async ({ page, browser, contentRecovery }, info) => {
+    await login(page)
+    await write(page, { title: 'Temporary recovery probe', summary: 'Must be restored after a failed held read' })
+    const visitor = await browser.newContext({ baseURL: info.project.use.baseURL })
+    contentRecovery.visitor(visitor)
+    const home = await visitor.newPage()
+    await home.goto('/')
+    await expect(home.locator('.home-page__copy h1')).toHaveText('Temporary recovery probe')
+    const held = await holdPublicRead(home)
+    contentRecovery.hold(held.release)
+    let outcome: 'pending' | 'resolved' | 'rejected' = 'pending'
+    void held.requested.then(() => { outcome = 'resolved' }, () => { outcome = 'rejected' })
+    let triggered: Promise<unknown> | undefined
+    if (failure === 'response-error') {
+      // A real unsupported method returns HTTP 405; no response is fabricated.
+      triggered = home.evaluate(() => fetch('/api/v1/system/home-content', { method: 'POST' }).catch(() => undefined))
     }
+    await expect.poll(() => outcome, { timeout: 12_000 }).toBe('rejected')
+    await triggered
+    // Restoration and its independent server read are asserted by fixture teardown, even on body timeout.
   })
 }
 
+/** Delays a genuine server response; readiness failure returns to the caller before the test's total timeout. */
 async function holdPublicRead(page: Page) {
   let release!: () => void
-  let observed!: () => void
+  let observed = false
+  let failure: { error: unknown } | undefined
   const resumed = new Promise<void>(resolve => { release = resolve })
-  const requested = new Promise<void>(resolve => { observed = resolve })
+  const requested = expect.poll(() => observed || Boolean(failure), { message: 'Held homepage read did not reach a validated response' })
+    .toBe(true).then(() => { if (failure) throw failure.error })
+  // Reconnect itself can fail before the caller awaits requested; retain its rejection without an unhandled Promise.
+  void requested.catch(() => undefined)
   await page.route('**/api/v1/system/home-content', async route => {
-    const actual = await route.fetch()
-    expect(actual.status()).toBe(200)
-    expect((await actual.json()).code).toBe(0)
-    observed()
-    await resumed
-    await route.fulfill({ response: actual })
+    try {
+      const actual = await route.fetch()
+      expect(actual.status()).toBe(200)
+      expect((await actual.json()).code).toBe(0)
+      observed = true
+      await resumed
+      await route.fulfill({ response: actual })
+    } catch (error) {
+      failure = { error }
+      await route.abort('failed').catch(() => undefined)
+    }
   }, { times: 1 })
   return { requested, release }
 }
@@ -283,19 +311,19 @@ test('v0.33.0 80 and 200 unbroken codepoints wrap on mobile and leave keyboard c
   if (failures.length) throw new AggregateError(failures, 'Mobile homepage boundary or owned fixture cleanup failed')
 })
 
-async function login(page: Page) { await post(page, '/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword }) }
-async function read(page: Page): Promise<Content> {
+async function login(page: APIClient) { await post(page, '/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword }) }
+async function read(page: APIClient): Promise<Content> {
   const response = await page.request.get('/api/v1/admin/system/home-content')
   expect(response.status()).toBe(200)
   const result = await response.json()
   expect(result.code).toBe(0)
   return result.data as Content
 }
-async function write(page: Page, content: Pick<Content, 'title' | 'summary'>): Promise<Content> {
+async function write(page: APIClient, content: Pick<Content, 'title' | 'summary'>): Promise<Content> {
   const current = await read(page)
   return post<Content>(page, '/admin/system/home-content/update', { title: content.title, summary: content.summary, expectedUpdatedAt: current.updatedAt })
 }
-async function post<T = unknown>(page: Page, path: string, data: unknown): Promise<T> {
+async function post<T = unknown>(page: APIClient, path: string, data: unknown): Promise<T> {
   const response = await page.request.post('/api/v1' + path, { data })
   expect(response.status()).toBe(200)
   const result = await response.json()
