@@ -1,6 +1,8 @@
 # 开发进度与能力清单
 
-当前下一版本 [v0.33.0 首页文案](scope-v0.33.0.md) 已标准完成 Task1–3；唯一终审 Important 的媒体类型修复经真实 RED→GREEN、完整受影响后端门禁及新 clean `be7b304` 的定向 4 项／完整 113 项浏览器、五原图、标准 smoke、同镜像 HIGH／CRITICAL 三目标扫描验证，完整本地档案已提取核验。仅首屏标题／简介纯文本，独立版本与当前数据库授权；两项 Minor 延期，Task4 远端交付进行中。[计划](../implementation/v0.33.0-plan.md)和[验收](../implementation/v0.33.0-acceptance.md)分开记录原始失败、执行 SHA、完整输入与运行时，不借为后继提交或正式发布证据。
+当前 [v0.33.1 首页文案反馈补丁](scope-v0.33.1.md) 设计／计划已确定，行为未修复、门禁未执行。范围仅旧成功反馈、后台刷新闪回和路线图旧阶段，见[计划](../implementation/v0.33.1-plan.md)及[验收](../implementation/v0.33.1-acceptance.md)。
+
+[v0.33.0 首页文案](scope-v0.33.0.md) 已由 [PR #231](https://github.com/TomyJan/MoeURL/pull/231) 合并为 `811d6c57`，最终 `34a520b` 的 PR CI40852026042 与合并 master CI40858639758 各九成功，真实最新审查／有效意见闭环、标准 Task1–4、完整最终归档与准确 leaf 可恢复清理完成。三个 Minor 在该版延期，所有原始失败、执行 SHA、完整输入与运行时保持[验收](../implementation/v0.33.0-acceptance.md)归属；未正式发布。
 
 [v0.32.0 二维码外观预设](scope-v0.32.0.md) 已由 [PR #230](https://github.com/TomyJan/MoeURL/pull/230) 合并为 `99f87709`；最终候选 `28214ef` 的 PR CI40816638924 与合并 master CI40821882951 各九成功，真实最新审查／有效意见闭环，标准 Task1–4 与最终完整 SDD 归档均完成。三个本地深色／白底 PNG 预设，不持久化；原单元及各候选4／110浏览器、七原图和产品制品保持[验收](../implementation/v0.32.0-acceptance.md)归属，未正式发布。
 
@@ -39,7 +41,7 @@ v0.26.0 个人偏好已由 PR #224 合并，v0.27.0 域名排序已由 PR #225 �
 | 操作审计 | v0.18.0 已合并关键业务变更与日志同事务、真实 actor、白名单字段及只读筛选；180 天在线保留和有界清理，非空审计安全拒绝回滚。v0.25.0 已通过 PR #222 合并按日期／actor／resource／action 下载最多 1000 条／8 MiB 审计元数据 CSV。 | 尚未正式发布；合并后手机 E2E 修复跟进见验收。独立登录安全事件中心、外部 SIEM 与防篡改签名未实现。 | [v0.18.0 范围](scope-v0.18.0.md)、[v0.25.0 范围](scope-v0.25.0.md)、[设计](../specs/2026-10-27-v0.25.0-audit-export-design.md)、[验收](../implementation/v0.25.0-acceptance.md) |
 | OIDC | 多 Provider 管理；标准 Discovery、Authorization Code、PKCE、state、nonce 及浏览器绑定；邮箱域名白名单首次供应；复用本地 Session 与权限。v0.31.0 已合并 Google／手动创建草稿模板。 | 自定义 Provider 模板、主动账号绑定、组映射、SAML、LDAP、SCIM 和 Passkey。 | [OIDC 范围](scope-v0.7.0.md)、[OIDC 设计](../specs/2026-09-11-v0.7.0-oidc-login-design.md)、[创建模板](scope-v0.31.0.md) |
 | 多域名 | 管理、启停、组授权、全局默认及创建选择；访问限定所属启用域名；短链引用保护。v0.26 个人默认、v0.27 排序、v0.28 组默认及 v0.29 域名默认跳转方式均已合并，各自最终 PR／合并 CI 九成功及真实审查闭环。 | 尚未正式发布；用户自助绑定、自动 DNS/TLS、既有短链域名迁移未开发。 | [多域名范围](scope-v0.8.0.md)、[个人默认](scope-v0.26.0.md)、[排序](scope-v0.27.0.md)、[组默认](scope-v0.28.0.md)、[默认方式](scope-v0.29.0.md)、[域名](../specs/domains.md) |
-| 系统设置与品牌 | 站点名称、默认语言／主题、纯文本页脚、本地登录开关；关闭本地登录与最后一个可用 OIDC Provider 共享安全边界。v0.33.0 分支新增独立首页标题／简介，本地功能、终审修复、浏览器／产品和标准 Task1–3 完成，远端交付待完成。 | Logo／Favicon 上传、主题色编辑、HTML 页脚、部署参数在线修改。 | [系统设置范围](scope-v0.9.0.md)、[首页文案](scope-v0.33.0.md) |
+| 系统设置与品牌 | 站点名称、默认语言／主题、纯文本页脚、本地登录开关；关闭本地登录与最后一个可用 OIDC Provider 共享安全边界。v0.33.0 已合并独立首页标题／简介，候选和 master 各九 CI 成功、审查／标准任务／归档完成；v0.33.1 三个反馈与文档 Minor 修复处于计划阶段。 | Logo／Favicon 上传、主题色编辑、HTML 页脚、部署参数在线修改。 | [系统设置范围](scope-v0.9.0.md)、[首页文案](scope-v0.33.0.md)、[反馈补丁](scope-v0.33.1.md) |
 | 前端体验 | 中英双语、浅深色及跟随系统、响应式布局、PWA 基础；标准表格／列表／菜单、可堆叠 Toast、短链下的分析入口、长 URL 省略、减少动态效果支持。 | 更多语言、主题编辑器、自定义 CSS、跳转页模板编辑。 | [导航与页面](../specs/navigation-and-pages.md)、[主题与多语言](../specs/themes-and-i18n.md) |
 | 部署与维护 | 单机 Compose、外部 TLS 代理示例、健康检查、请求防护、有界退出、分批清理、备份恢复及升级回退脚本与手册。 | 高可用、内置 TLS、完整监控追踪、事件归档；生产演练证据另列下节。 | [生产就绪范围](scope-v0.6.0.md)、[部署手册](../deployment/single-host-compose.md) |
 
