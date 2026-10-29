@@ -1,6 +1,6 @@
 # 开发进度与能力清单
 
-当前下一版本 [v0.32.0 二维码外观预设](scope-v0.32.0.md) Task1–2已标准完成：真实RED→GREEN、完整123文件2051项／四100及静态／隔离build0（c6712051加当时dirty前端）；clean459cddd自身定向3／完整109浏览器、六无遮挡原图与精确image／smoke／同image目标扫描通过。三个本地深色／白底PNG预设，身份变化恢复黑白、不持久化；Task3独立终审及远端交付待完成。[计划](../implementation/v0.32.0-plan.md)和[验收](../implementation/v0.32.0-acceptance.md)分别记录执行与证据。
+当前下一版本 [v0.32.0 二维码外观预设](scope-v0.32.0.md) Task1–3已标准完成：真实RED→GREEN、完整123文件2051项／四100及静态／隔离build0（c6712051加当时dirty前端）；最新clean7b7315b自身定向4／完整110浏览器、七无遮挡原图与精确image／smoke／同image目标扫描通过。三个本地深色／白底PNG预设，身份变化恢复黑白、不持久化；唯一终审及有效意见闭环、完整本地阶段归档已完成，Task4远端交付待完成。[计划](../implementation/v0.32.0-plan.md)和[验收](../implementation/v0.32.0-acceptance.md)分别记录执行与证据。
 
 [v0.31.0 OIDC 创建模板](scope-v0.31.0.md) 已由 [PR #229](https://github.com/TomyJan/MoeURL/pull/229) 合并为 `c6712051`，最终 `e9c3025` 的 PR CI40741884841 与合并 master CI40748005532 各九成功，真实最终审查／有效意见闭环，标准 Task1–4 与完整最终归档均完成。仅 Google／手动草稿，不放宽 verified-email；原单元及各候选制品保持[验收](../implementation/v0.31.0-acceptance.md)归属，未正式发布。
 
