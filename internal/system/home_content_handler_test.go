@@ -46,6 +46,7 @@ func TestHomeContentHandlerResponses(t *testing.T) {
 		h := system.NewHomeContentHandler(homeContentPortStub{tc.err}, slog.New(slog.NewTextHandler(&logs, nil)))
 		for _, method := range []func(http.ResponseWriter, *http.Request){h.Public, h.Get, h.Update} {
 			r := httptest.NewRequest("POST", "/", strings.NewReader(`{"title":"editorial private draft","summary":"","expectedUpdatedAt":"2026-10-29T01:02:03.123456Z"}`))
+			r.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			method(w, r)
 			require.Equal(t, tc.status, w.Code)
@@ -60,10 +61,24 @@ func TestHomeContentHandlerResponses(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.Public(w, httptest.NewRequest("GET", "/", nil))
 	require.NotContains(t, w.Body.String(), "updatedAt")
-	h.Update(httptest.NewRecorder(), httptest.NewRequest("POST", "/", strings.NewReader(`{}`)))
+	r := httptest.NewRequest("POST", "/", strings.NewReader(`{}`))
+	r.Header.Set("Content-Type", "application/json")
+	h.Update(httptest.NewRecorder(), r)
 	w = httptest.NewRecorder()
-	h.Update(w, httptest.NewRequest("POST", "/", strings.NewReader(`{"title":"","summary":"","expectedUpdatedAt":"2026-10-29T01:02:03Z"} {}`)))
+	r = httptest.NewRequest("POST", "/", strings.NewReader(`{"title":"","summary":"","expectedUpdatedAt":"2026-10-29T01:02:03Z"} {}`))
+	r.Header.Set("Content-Type", "application/json")
+	h.Update(w, r)
 	require.Contains(t, w.Body.String(), `"code":900204`)
+	// This protocol boundary must reject simple media types before a valid JSON
+	// body can become a write. The App regression proves real storage stays put.
+	for _, media := range []string{"", "text/plain", "application/json; charset"} {
+		r = httptest.NewRequest("POST", "/", strings.NewReader(`{"title":"T","summary":"S","expectedUpdatedAt":"2026-10-29T01:02:03Z"}`))
+		r.Header.Set("Content-Type", media)
+		w = httptest.NewRecorder()
+		h.Update(w, r)
+		require.Equal(t, 200, w.Code)
+		require.Contains(t, w.Body.String(), `"code":900204`)
+	}
 }
 
 type homeContentBrokenBody struct{}
@@ -74,6 +89,7 @@ func (homeContentBrokenBody) Close() error             { return nil }
 func TestHomeContentHandlerUnreadableBody(t *testing.T) {
 	h := system.NewHomeContentHandler(homeContentPortStub{}, nil)
 	r := httptest.NewRequest("POST", "/", nil)
+	r.Header.Set("Content-Type", "application/json")
 	r.Body = homeContentBrokenBody{}
 	w := httptest.NewRecorder()
 	h.Update(w, r)

@@ -9,11 +9,67 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 const homeContentAdminPath = "/api/v1/admin/system/home-content"
 const homeContentUpdatePath = homeContentAdminPath + "/update"
+
+// TestAppHomeContentRequiresJSONMediaType catches accepting a cookie-authenticated
+// simple cross-origin POST as an administrator's intent, even with valid CAS.
+func TestAppHomeContentRequiresJSONMediaType(t *testing.T) {
+	a := newTestApplication(t)
+	cookie := domainOrderLogin(t, a)
+	for _, tc := range []struct {
+		name, media string
+		code        int
+	}{
+		{"missing", "", 900204},
+		{"plain text", "text/plain", 900204},
+		{"urlencoded form", "application/x-www-form-urlencoded", 900204},
+		{"multipart form", "multipart/form-data; boundary=attack", 900204},
+		{"malformed", "application/json; charset", 900204},
+		{"non JSON application", "application/jsonp", 900204},
+		{"JSON", "application/json", 0},
+		{"JSON parameters", "application/json; charset=utf-8", 0},
+		{"case insensitive JSON", "Application/JSON; Charset=UTF-8", 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			before := homeContentCall(t, a, cookie, "GET", homeContentAdminPath, "", 200, 0)
+			var auditBefore int
+			require.NoError(t, a.pool.QueryRow(t.Context(), `select count(*) from audit_log where resource_id='site.home_content'`).Scan(&auditBefore))
+			body, err := json.Marshal(map[string]any{"title": tc.name, "summary": "media type boundary", "expectedUpdatedAt": before["updatedAt"]})
+			require.NoError(t, err)
+			r := httptest.NewRequestWithContext(t.Context(), "POST", "https://links.example.test"+homeContentUpdatePath, strings.NewReader(string(body)))
+			if tc.media != "" {
+				r.Header.Set("Content-Type", tc.media)
+			}
+			r.Header.Set("Origin", "https://other.example.test")
+			r.Header.Set("Sec-Fetch-Site", "same-site")
+			r.AddCookie(cookie)
+			w := httptest.NewRecorder()
+			a.server.Handler.ServeHTTP(w, r)
+			require.Equal(t, 200, w.Code)
+			require.Equal(t, "no-store", w.Header().Get("Cache-Control"))
+			var response struct{ Code int }
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+			assert.Equal(t, tc.code, response.Code, "%s", w.Body.String())
+			after := homeContentCall(t, a, cookie, "GET", homeContentAdminPath, "", 200, 0)
+			var auditAfter int
+			require.NoError(t, a.pool.QueryRow(t.Context(), `select count(*) from audit_log where resource_id='site.home_content'`).Scan(&auditAfter))
+			if tc.code != 0 {
+				assert.Equal(t, before, after, "rejected media types must preserve both fields and the full revision")
+				assert.Equal(t, auditBefore, auditAfter, "rejected media types must not audit a write")
+			} else {
+				assert.Equal(t, tc.name, after["title"])
+				assert.Equal(t, "media type boundary", after["summary"])
+				assert.NotEqual(t, before["updatedAt"], after["updatedAt"])
+				assert.Equal(t, auditBefore+1, auditAfter)
+			}
+		})
+	}
+}
 
 // homeContentCall exercises real production wiring, JSON decoding, identity,
 // persistence and public projection, rather than a fake port's call counts.

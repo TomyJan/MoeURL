@@ -1,5 +1,7 @@
 # 技术基线
 
+2026-10-29 终审修复补充：新增首页文案 update 必须先解析并要求 `Content-Type: application/json`，允许合法参数及类型大小写；拒绝简单媒体类型，保留 `900204`／HTTP 200、no-store 和旧 DTO。真实 App／Session／PostgreSQL 回归以有效 CAS、Cookie 与同站不同源 Origin 检查拒绝后内容／完整版本／审计不变，并保留正常 JSON 对照；不以 CAS 代替请求意图。唯一终审已返回，当前补新后端门禁及新 clean 浏览器／产品，原 `7836087` 制品仍只属原候选。
+
 ## v0.33.0 本地已验证的首页文案增量
 
 新增 `site.home_content` 单键与 `00029` 非破坏迁移、专用仅键名审计及独立三 API：公开 `system/home-content` 与管理读／update。80／200 Unicode 码点，控制字符先拒后 trim；当前账号／builtin admin 组及两权限重查，五秒事务与账号→组→配置锁序，完整精度 CAS 先于 no-op。旧 settings DTO／revision 不变，SQLC 1.30 完整 52 源／24 生成零漂移。Task1 完整 Go／race／vet、业务 100% 与符号安全检查及 Task2 的 2094 测试／四 100%、lint／types／隔离构建均已标准完成。候选 `7836087` 的 718 运行时选择器输入另行实核，定向 4 项／完整 113 项浏览器、五原图、18178 标准 smoke 与精确镜像正常更新数据库后的 HIGH／CRITICAL 三目标均 0。原物理输入与后继运行时选择器不同；各 SHA、Go／Node、镜像和漏洞库身份分别保留，Task3 终审／归档／标准完成及 Task4 远端仍待执行，见[设计](../specs/2026-10-29-v0.33.0-homepage-copy-design.md)和[验收](v0.33.0-acceptance.md)。

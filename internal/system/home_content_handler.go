@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"mime"
 	"net/http"
 	"unicode/utf8"
 
@@ -62,6 +63,11 @@ func (h *HomeContentHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // Update requires a complete bounded UTF8 JSON document before business writes.
 func (h *HomeContentHandler) Update(w http.ResponseWriter, r *http.Request) {
+	media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || media != "application/json" {
+		h.writeError(w, r, "update", ErrInvalidHomeContent)
+		return
+	}
 	input, err := decodeHomeContent(r.Body)
 	if err != nil {
 		h.writeError(w, r, "update", err)
