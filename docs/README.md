@@ -1,6 +1,6 @@
 # MoeURL 文档中心
 
-下一有界版本 [v0.33.0 首页文案](product/scope-v0.33.0.md) 已标准完成 Task1 后端和 Task2 前端；候选 `7836087` 的定向 4 项、完整 113 项浏览器、五原图核验、标准 Compose smoke 与精确镜像正常更新数据库后的 HIGH／CRITICAL 扫描已通过。Task3 仍待唯一 fresh 终审、完整本地归档及标准完成，Task4 远端尚未开始；[设计](specs/2026-10-29-v0.33.0-homepage-copy-design.md)、[计划](implementation/v0.33.0-plan.md)、[任务](implementation/v0.33.0-tasks.md)及[验收](implementation/v0.33.0-acceptance.md)保留各次输入、原始失败和运行时归属，不表示正式发布。
+下一有界版本 [v0.33.0 首页文案](product/scope-v0.33.0.md) 已标准完成 Task1–3。唯一终审的媒体类型 Important 已真实 RED→GREEN 并通过完整受影响后端门禁；新 clean 候选 `be7b304` 的定向 4 项、完整 113 项浏览器、五原图、标准 Compose smoke 及同镜像正常更新数据库后的 HIGH／CRITICAL 三目标扫描通过，完整本地档案已提取核验。Task4 远端交付进行中；[设计](specs/2026-10-29-v0.33.0-homepage-copy-design.md)、[计划](implementation/v0.33.0-plan.md)、[任务](implementation/v0.33.0-tasks.md)及[验收](implementation/v0.33.0-acceptance.md)保留两项延期 Minor、各候选输入／失败／运行时，不表示正式发布。
 
 [v0.32.0 二维码外观预设](product/scope-v0.32.0.md) 已由 [PR #230](https://github.com/TomyJan/MoeURL/pull/230) 合并为 `99f87709`。最终候选 `28214ef` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40816638924) 与合并 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40821882951) 各九成功，真实最新审查／有效意见闭环；标准 Task1–4 与最终完整归档均完成。原单元、各候选浏览器／七图与精确产品仍按[验收](implementation/v0.32.0-acceptance.md)归属，未正式发布。
 
