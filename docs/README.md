@@ -1,6 +1,6 @@
 # MoeURL 文档中心
 
-当前 [v0.33.1 首页文案反馈补丁](product/scope-v0.33.1.md) 两项行为已真实 RED→GREEN，完整前端 2100 测试／四项 100%、types／lint／隔离 build 通过；唯一终审的恢复 Important 与阶段 Minor 已处置，clean `9e76e10` 定向 7 项／完整浏览器 116 项通过，八张新原图已 root 查看。精确产品仍归原 clean `1bfdd2b`，原失败与同镜像扫描恢复保留；本轮仅 E2E 修正，未变产品输入另核。标准 Task2 归档收尾及 Task3 远端交付待完成，未发布。范围、全部裁决与限制见[设计](specs/2026-10-29-v0.33.1-homepage-feedback-design.md)、[计划](implementation/v0.33.1-plan.md)、[任务](implementation/v0.33.1-tasks.md)与[验收](implementation/v0.33.1-acceptance.md)。
+当前 [v0.33.1 首页文案反馈补丁](product/scope-v0.33.1.md) 两项行为已真实 RED→GREEN，完整前端 2100 测试／四项 100%、types／lint／隔离 build 通过；唯一终审的恢复 Important 与阶段 Minor 已处置，clean `9e76e10` 定向 7 项／完整浏览器 116 项通过，八张新原图已 root 查看。精确产品仍归原 clean `1bfdd2b`，原失败与同镜像扫描恢复保留；本轮仅 E2E 修正，未变产品输入另核。Task1–2 标准完成、Task2 本地归档已提取核验，Task3 已标准 start，远端交付待完成，未发布。范围、全部裁决与限制见[设计](specs/2026-10-29-v0.33.1-homepage-feedback-design.md)、[计划](implementation/v0.33.1-plan.md)、[任务](implementation/v0.33.1-tasks.md)与[验收](implementation/v0.33.1-acceptance.md)。
 
 [v0.33.0 首页文案](product/scope-v0.33.0.md) 已通过 [PR #231](https://github.com/TomyJan/MoeURL/pull/231) 合并为 `811d6c57`。最终 `34a520b` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40852026042) 与合并 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40858639758) 各九成功，真实最新审查／全部有效意见闭环，标准 Task1–4、完整最终归档与准确 owned leaf 可恢复清理完成。三个 Minor 在该版延期，原候选／运行时及失败保持[验收](implementation/v0.33.0-acceptance.md)归属，未正式发布。
 

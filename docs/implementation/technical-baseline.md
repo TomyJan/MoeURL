@@ -1,6 +1,6 @@
 # 技术基线
 
-2026-10-29 v0.33.1 本地门禁补记：唯一终审的 E2E 恢复 Important 已真实 RED→GREEN，独立 request fixture teardown 恢复／读回原配置；clean `9e76e10` 定向 7 项／完整 116 项浏览器及新八原图验证通过，阶段文档 Minor 已修正。产品仍是原 clean `1bfdd2b` 的精确 smoke／metadata 与同镜像正常更新的 Trivy0.74 HIGH／CRITICAL 扫描；原 DNS 失败、受保护等待未确定机制、组偏好 pointer 覆盖取舍保留。未变产品输入另核，不重复 Go／SQLC／产品。Task2 归档／标准收尾及远端待做。完整归属见[v0.33.1验收](v0.33.1-acceptance.md)；下段早期待做状态保持历史归属。
+2026-10-29 v0.33.1 本地门禁补记：唯一终审的 E2E 恢复 Important 已真实 RED→GREEN，独立 request fixture teardown 恢复／读回原配置；clean `9e76e10` 定向 7 项／完整 116 项浏览器及新八原图验证通过，阶段文档 Minor 已修正。产品仍是原 clean `1bfdd2b` 的精确 smoke／metadata 与同镜像正常更新的 Trivy0.74 HIGH／CRITICAL 扫描；原 DNS 失败、受保护等待未确定机制、组偏好 pointer 覆盖取舍保留。未变产品输入另核，不重复 Go／SQLC／产品。Task2 本地归档／标准完成实际 PASS，Task3 已标准 start，远端待做。完整归属见[v0.33.1验收](v0.33.1-acceptance.md)；下段早期待做状态保持历史归属。
 
 2026-10-29 最终交付补记：v0.33.0 已由 PR231 合并为811d6c57，最终34a的PR CI40852026042及master CI40858639758各九成功，真实审查／有效意见闭环、标准Task1–4及最终归档清理完成，三个Minor在该版延期。原运行时及候选保持[验收](v0.33.0-acceptance.md)归属。当前[v0.33.1补丁](v0.33.1-plan.md)两项行为及完整前端2100测试／四100／typeslintbuild已通过，仅清旧成功反馈、区分本次挂载与后台读取、修正文档；无新API／数据库／依赖／全局query策略，浏览器／产品／终审和远端待做。下节本地阶段表述保留历史归属，本段最终证据优先。
 
