@@ -1,6 +1,6 @@
 # v0.33.1 首页文案反馈稳定性
 
-状态：两项行为已真实 RED→GREEN，完整前端 2100 测试／四项 100%、types／lint／隔离 build 通过；唯一终审的恢复 Important 已真实 RED→GREEN，阶段 Minor 已修正，clean `9e76e10` 定向 7 项／完整 116 项浏览器通过。原 `1bfdd2b` 精确产品及同镜像扫描恢复保留执行归属；Task1–2 标准完成、本地归档已提取核验，Task3 已标准 start，远端交付待完成。原失败和旧选择 helper 改键盘的覆盖取舍见验收。基线为 `811d6c57f590692ac74fcb1988d62861224aac9d`，实现、本地、目标 CI 与正式发布分别验收。
+状态：已由 [PR #232](https://github.com/TomyJan/MoeURL/pull/232) 合并为 `cf5d5a647febf6d7c5ee306605432066ca5bd2e8`，最终候选 `91cf9d5` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40885738492) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40892523382) 各九成功，真实最新 CodeRabbit 覆盖／有效意见闭环，标准 Task1–3 与完整最终归档、准确 leaf 可恢复清理完成。原两项行为 RED→GREEN、本地候选与产品、失败及旧选择 helper 改键盘的覆盖取舍保持[验收](../implementation/v0.33.1-acceptance.md)归属。基线 `811d6c57`；未正式发布、tag 或部署。
 
 ## 版本选择
 
