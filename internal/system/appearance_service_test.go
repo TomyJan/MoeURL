@@ -2,11 +2,14 @@ package system_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/system"
+	"github.com/TomyJan/MoeURL/internal/user"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 )
@@ -98,6 +101,113 @@ func TestAppearanceConcurrentCAS(t *testing.T) {
 	var count int
 	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from audit_log where resource_id='site.appearance'`).Scan(&count))
 	require.Equal(t, 1, count)
+}
+
+// TestAppearanceIndependentAdminsCAS detects cross-actor lost updates and audit
+// attribution to the losing administrator, using actual database identities.
+func TestAppearanceIndependentAdminsCAS(t *testing.T) {
+	pool, service, firstActor := appearanceFixture(t)
+	created, err := user.NewService(pool, permission.NewDatabaseService(pool)).Create(t.Context(), firstActor, user.CreateInput{Username: "accent-admin", Password: "second-secure-password", Nickname: "Second administrator", GroupKey: "admin", Status: "active"})
+	require.NoError(t, err)
+	secondActor := auth.CurrentUser{ID: created.User.ID, Username: created.User.Username, GroupKey: created.User.Group}
+	require.NotEqual(t, firstActor.ID, secondActor.ID)
+	var administrators int
+	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from app_user u join user_group g on g.id=u.group_id where ((u.id::text=$1 and u.username='admin') or (u.id::text=$2 and u.username='accent-admin')) and u.status='active' and u.deleted_at is null and not u.builtin and g.builtin and g.key='admin'`, firstActor.ID, secondActor.ID).Scan(&administrators))
+	require.Equal(t, 2, administrators)
+	current, err := service.GetAppearance(t.Context(), firstActor)
+	require.NoError(t, err)
+	require.Equal(t, "iris", current.AccentPreset)
+	secondCurrent, err := service.GetAppearance(t.Context(), secondActor)
+	require.NoError(t, err)
+	require.Equal(t, current, secondCurrent)
+	tx, err := pool.Begin(t.Context())
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	_, err = tx.Exec(t.Context(), `select key from system_setting where key='site.appearance' for update`)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	type outcome struct {
+		actor    auth.CurrentUser
+		preset   string
+		settings system.AppearanceSettings
+		err      error
+	}
+	ready, start := make(chan struct{}, 2), make(chan struct{})
+	results, finished := make(chan outcome, 2), make(chan struct{}, 2)
+	for _, writer := range []struct {
+		actor  auth.CurrentUser
+		preset string
+	}{{firstActor, "ocean"}, {secondActor, "forest"}} {
+		go func() {
+			defer func() { finished <- struct{}{} }()
+			ready <- struct{}{}
+			<-start
+			settings, err := service.UpdateAppearance(ctx, writer.actor, system.UpdateAppearanceInput{AccentPreset: writer.preset, ExpectedUpdatedAt: current.UpdatedAt})
+			results <- outcome{writer.actor, writer.preset, settings, err}
+		}()
+	}
+	<-ready
+	<-ready
+	close(start)
+	t.Cleanup(func() {
+		cancel()
+		cleanupContext, stop := context.WithTimeout(context.Background(), 5*time.Second)
+		defer stop()
+		_ = tx.Rollback(cleanupContext)
+		for range 2 {
+			select {
+			case <-finished:
+			case <-cleanupContext.Done():
+				t.Error("independent appearance writer did not terminate")
+			}
+		}
+	})
+	require.Eventually(t, func() bool {
+		var waiting int
+		err := pool.QueryRow(ctx, `with recursive waiting(pid) as (select pid from pg_stat_activity where $1::integer=any(pg_blocking_pids(pid)) union select a.pid from pg_stat_activity a join waiting w on w.pid=any(pg_blocking_pids(a.pid))) select count(*) from waiting`, tx.Conn().PgConn().PID()).Scan(&waiting)
+		return err == nil && waiting == 2
+	}, 2*time.Second, 5*time.Millisecond, "both independent writers must queue behind the real setting lock")
+	require.NoError(t, tx.Commit(ctx))
+	var winner outcome
+	successes, conflicts := 0, 0
+	for range 2 {
+		var result outcome
+		select {
+		case result = <-results:
+		case <-ctx.Done():
+			t.Fatal("independent appearance result timed out")
+		}
+		if result.err == nil {
+			successes++
+			require.Equal(t, result.preset, result.settings.AccentPreset)
+			winner = result
+		} else {
+			conflicts++
+			require.ErrorIs(t, result.err, system.ErrAppearanceConflict)
+		}
+	}
+	require.Equal(t, 1, successes)
+	require.Equal(t, 1, conflicts)
+	previous, err := time.Parse(time.RFC3339Nano, current.UpdatedAt)
+	require.NoError(t, err)
+	next, err := time.Parse(time.RFC3339Nano, winner.settings.UpdatedAt)
+	require.NoError(t, err)
+	require.True(t, next.After(previous))
+	for _, actor := range []auth.CurrentUser{firstActor, secondActor} {
+		stored, err := service.GetAppearance(t.Context(), actor)
+		require.NoError(t, err)
+		require.Equal(t, winner.settings, stored)
+	}
+	public, err := service.PublicAppearance(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, winner.settings.Appearance, public)
+	var count int
+	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from audit_log where resource_id='site.appearance'`).Scan(&count))
+	require.Equal(t, 1, count)
+	var audit string
+	require.NoError(t, pool.QueryRow(t.Context(), `select jsonb_build_object('actor',actor_id,'resource',resource_type,'id',resource_id,'action',action,'fields',changed_fields)::text from audit_log where resource_id='site.appearance'`).Scan(&audit))
+	require.JSONEq(t, fmt.Sprintf(`{"actor":%q,"resource":"system_setting","id":"site.appearance","action":"settings_change","fields":["site.appearance"]}`, winner.actor.ID), audit)
 }
 
 // Cancellation while a real content-row lock is held must return without a

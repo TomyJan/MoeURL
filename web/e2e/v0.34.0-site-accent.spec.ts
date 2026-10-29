@@ -230,4 +230,3 @@ async function post<T = unknown>(client: APIClient, path: string, data: unknown)
   expect(payload.code).toBe(0)
   return payload.data as T
 }
-
