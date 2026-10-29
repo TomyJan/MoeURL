@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/vue'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, onMounted, ref } from 'vue'
 import { VueQueryPlugin } from '@tanstack/vue-query'
 import { queryClient } from './query'
@@ -11,6 +11,10 @@ import { getPublicConfig } from '@/entities/system/api'
 const state = vi.hoisted(() => ({
   routePath: { value: '/' },
   themeName: { value: 'moeurlLight' },
+  themes: { value: {
+    moeurlLight: { colors: { primary: '#5c4dde', 'on-primary': '#ffffff' }, variables: { 'app-hero-glow': 'rgba(92, 77, 222, 0.09)', 'app-ring': 'rgba(92, 77, 222, 0.38)' } },
+    moeurlDark: { colors: { primary: '#b9adff', 'on-primary': '#272047' }, variables: { 'app-hero-glow': 'rgba(185, 173, 255, 0.07)', 'app-ring': 'rgba(185, 173, 255, 0.44)' } },
+  } },
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -22,6 +26,7 @@ vi.mock('vue-i18n', () => ({
 
 vi.mock('vuetify', () => ({
   useTheme: () => ({
+    themes: state.themes,
     global: {
       name: state.themeName,
     },
@@ -63,6 +68,7 @@ vi.mock('@/shared/preferences/preferences', async (importOriginal) => {
 
 describe('App', () => {
   beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { accentPreset: 'iris' }, meta: {} }), { status: 200 })))
     state.routePath.value = '/'
     queryClient.clear()
     document.title = 'MoeURL'
@@ -76,6 +82,19 @@ describe('App', () => {
     })
     preferenceSpies.saveLanguagePreference.mockReset()
     preferenceSpies.saveThemePreference.mockReset()
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('reads site appearance and applies both palettes without changing the selected mode or preferences', async () => {
+    vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { accentPreset: 'forest' }, meta: {} }), { status: 200 }))
+    state.themeName.value = 'moeurlDark'
+    render(App, { global: { plugins: [queryPlugin], stubs: componentStubs } })
+    await waitFor(() => expect(state.themes.value.moeurlLight.colors.primary).toBe('#236744'))
+    expect(state.themes.value.moeurlDark.colors.primary).toBe('#8dd9a3')
+    expect(state.themeName.value).toBe('moeurlDark')
+    expect(preferenceSpies.saveLanguagePreference).not.toHaveBeenCalled()
+    expect(preferenceSpies.saveThemePreference).not.toHaveBeenCalled()
+    expect(fetch).toHaveBeenCalledWith('/api/v1/system/appearance', expect.objectContaining({ method: 'GET' }))
   })
 
   it('renders the route outlet without global product navigation', () => {

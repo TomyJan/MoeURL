@@ -40,6 +40,7 @@
       </div>
     </form>
     <HomeContentEditor />
+    <AppearanceEditor />
     <AdminAuthenticationPage />
   </section>
 </template>
@@ -55,6 +56,7 @@ import { ApiClientError } from '@/shared/api/client'
 import { setSiteConfig } from '@/shared/site/useSiteConfig'
 import AdminAuthenticationPage from './AdminAuthenticationPage.vue'
 import HomeContentEditor from '@/features/home-content/HomeContentEditor.vue'
+import AppearanceEditor from '@/features/site-appearance/AppearanceEditor.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()

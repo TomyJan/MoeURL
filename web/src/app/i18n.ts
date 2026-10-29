@@ -607,6 +607,13 @@ export const messages = {
       conflict: '首页文案已被其他请求修改。草稿已保留，请重新加载后再保存。',
       invalid: '请检查文案长度，并移除换行、制表等控制字符。',
     },
+    appearance: {
+      heading: '站点强调色', preset: '强调色预设', iris: '鸢尾紫', ocean: '海洋蓝', forest: '森林绿',
+      hint: '选择全站主强调色。草稿不会预览；保存后应用，不改变个人浅色、深色或跟随系统的偏好。',
+      save: '保存强调色', reload: '重新加载强调色', saved: '站点强调色已保存。',
+      loadFailed: '强调色加载失败，请重新加载。', saveFailed: '保存失败，草稿已保留，请重试。',
+      conflict: '强调色已被其他请求修改。草稿已保留，请重新加载后再保存。', invalid: '请选择有效的强调色预设。',
+    },
     settings: {
       title: '系统设置',
       description: '管理站点品牌、默认偏好和登录方式。',
@@ -1357,6 +1364,13 @@ export const messages = {
       loadFailed: 'Could not load homepage copy. Please reload.', saveFailed: 'Could not save. Your draft is kept; please retry.',
       conflict: 'Homepage copy changed elsewhere. Your draft is kept; reload before saving again.',
       invalid: 'Check the text length and remove control characters such as line breaks and tabs.',
+    },
+    appearance: {
+      heading: 'Site accent', preset: 'Accent preset', iris: 'Iris', ocean: 'Ocean', forest: 'Forest',
+      hint: 'Choose the site-wide primary accent. Drafts are not previewed; saving applies it without changing personal light, dark, or system preferences.',
+      save: 'Save accent', reload: 'Reload accent', saved: 'Site accent saved.',
+      loadFailed: 'Could not load the accent. Please reload.', saveFailed: 'Could not save. Your draft is kept; please retry.',
+      conflict: 'The accent changed elsewhere. Your draft is kept; reload before saving again.', invalid: 'Choose a valid accent preset.',
     },
     settings: {
       title: 'System settings',

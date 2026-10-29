@@ -1,6 +1,6 @@
 # 技术基线
 
-v0.34.0 [站点强调色设计](../specs/2026-10-30-v0.34.0-site-accent-design.md)规定新增公开／管理 appearance三端点、独立 `site.appearance`／版本及仅键名事务审计；固定iris／ocean／forest，更新现有moeurlLight／moeurlDark四token，保持主题模式、旧DTO及权限目录。当前 Task1 后端三端点、迁移00030及完整 Go／race／vet／安全／业务100／SQLC54＋25零漂移验证通过，标准完成待执行，尚无前端结论；完整迁移、协议、前端和交付门禁见[计划](v0.34.0-plan.md)及[验收](v0.34.0-acceptance.md)，不能把下方历史证据归属本版。
+v0.34.0 [站点强调色设计](../specs/2026-10-30-v0.34.0-site-accent-design.md)规定新增公开／管理 appearance三端点、独立 `site.appearance`／版本及仅键名事务审计；固定iris／ocean／forest，更新现有moeurlLight／moeurlDark四token，保持主题模式、旧DTO及权限目录。当前 Task1 后端三端点、迁移00030及完整 Go／race／vet／安全／业务100／SQLC54＋25零漂移验证通过，原子提交及标准完成已通过，Task2 完整前端 132 文件／2158 测试、四项 100%、types／lint／隔离构建通过，原子提交与标准完成待做，尚无浏览器或产品结论；完整迁移、协议、前端和交付门禁见[计划](v0.34.0-plan.md)及[验收](v0.34.0-acceptance.md)，不能把下方历史证据归属本版。
 
 2026-10-29 最终状态：v0.33.1 已由 PR #232 合并为 `cf5d5a64`，候选 `91cf9d5` 与该合并的独立 CI 各九成功，真实最新审查／有效意见闭环、标准 Task1–3、最终归档和准确 leaf 可恢复清理完成，详见[v0.33.1 验收](v0.33.1-acceptance.md)。未正式发布。此次[文档维护](2026-10-29-delivery-status-plan.md)只同步已有交付事实，下面各阶段“待做”描述保持其历史时间归属；技术约定、本地制品身份与未修机制边界不变。
 
