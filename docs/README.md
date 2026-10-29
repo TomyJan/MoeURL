@@ -1,6 +1,6 @@
 # MoeURL 文档中心
 
-当前 [v0.33.1 首页文案反馈补丁](product/scope-v0.33.1.md) 两项行为已真实 RED→GREEN、完整前端 2100 测试／四项 100%、types／lint／隔离 build 通过；浏览器、产品、终审及远端交付待做。范围仅旧成功反馈、后台刷新闪回及路线图旧阶段，见[设计](specs/2026-10-29-v0.33.1-homepage-feedback-design.md)、[计划](implementation/v0.33.1-plan.md)、[任务](implementation/v0.33.1-tasks.md)与[验收](implementation/v0.33.1-acceptance.md)。
+当前 [v0.33.1 首页文案反馈补丁](product/scope-v0.33.1.md) 两项行为已真实 RED→GREEN、完整前端 2100 测试／四项 100%、types／lint／隔离 build 通过；clean `1bfdd2b` 完整浏览器 114 项、精确产品 smoke／metadata／同镜像正常更新后的 HIGH／CRITICAL 扫描通过。原两次浏览器失败及扫描 DNS 失败保留，唯一终审、标准 Task2 完成和远端交付待做。范围仅旧成功反馈、后台刷新闪回及路线图旧阶段，见[设计](specs/2026-10-29-v0.33.1-homepage-feedback-design.md)、[计划](implementation/v0.33.1-plan.md)、[任务](implementation/v0.33.1-tasks.md)与[验收](implementation/v0.33.1-acceptance.md)。
 
 [v0.33.0 首页文案](product/scope-v0.33.0.md) 已通过 [PR #231](https://github.com/TomyJan/MoeURL/pull/231) 合并为 `811d6c57`。最终 `34a520b` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40852026042) 与合并 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40858639758) 各九成功，真实最新审查／全部有效意见闭环，标准 Task1–4、完整最终归档与准确 owned leaf 可恢复清理完成。三个 Minor 在该版延期，原候选／运行时及失败保持[验收](implementation/v0.33.0-acceptance.md)归属，未正式发布。
 
