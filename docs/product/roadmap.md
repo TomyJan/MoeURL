@@ -1,6 +1,6 @@
 # 路线图
 
-下一有界轮 [v0.34.0 站点强调色预设](scope-v0.34.0.md) 从下方品牌主题色方向收敛三个固定主色，保留既有深浅模式及账号偏好；独立CAS与仅键名事务审计，不纳入任意色值／CSS／上传。当前仅设计，尚无实现或验证结果，见[计划](../implementation/v0.34.0-plan.md)和[验收](../implementation/v0.34.0-acceptance.md)。
+当前有界轮 [v0.34.0 站点强调色预设](scope-v0.34.0.md) 从下方品牌主题色方向收敛三个固定主色，保留既有深浅模式及账号偏好；独立CAS与仅键名事务审计，不纳入任意色值／CSS／上传。Task1 独立后端和完整门禁通过，标准完成待执行，见[计划](../implementation/v0.34.0-plan.md)和[验收](../implementation/v0.34.0-acceptance.md)。
 
 品牌方向中的 [v0.33.0 首屏标题与简介](scope-v0.33.0.md) 已由 [PR #231](https://github.com/TomyJan/MoeURL/pull/231) 合并为 `811d6c57`；[v0.33.1 反馈补丁](scope-v0.33.1.md) 已由 [PR #232](https://github.com/TomyJan/MoeURL/pull/232) 合并为 `cf5d5a64`。补丁最终 `91cf9d5` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40885738492) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40892523382) 各九成功、真实审查／有效意见闭环、标准 Task1–3 及最终可恢复归档完成；未正式发布。纯文本、逐字段留空回退、独立资源与版本保持，不扩展 Logo、主题色、HTML、翻译管理或 CMS。原失败、执行归属与限制见[验收](../implementation/v0.33.1-acceptance.md)。
 

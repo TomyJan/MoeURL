@@ -1,6 +1,6 @@
 # v0.34.0 站点强调色预设
 
-状态：范围与实现计划已建立，功能、测试、独立终审、目标 CI 与发布均未完成。执行状态见[任务](../implementation/v0.34.0-tasks.md)和[验收](../implementation/v0.34.0-acceptance.md)。
+状态：范围与实现计划已建立，Task1 后端实现与完整门禁通过、标准完成待执行；功能整体验收、完整前端与浏览器测试、独立终审、目标 CI 与发布均未完成。执行状态见[任务](../implementation/v0.34.0-tasks.md)和[验收](../implementation/v0.34.0-acceptance.md)。
 
 ## 目标与选择
 

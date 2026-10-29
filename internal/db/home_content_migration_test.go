@@ -17,7 +17,7 @@ func TestHomeContentMigrationPreservesSavedCopy(t *testing.T) {
 	require.NoError(t, goose.UpTo(database, dir, 28))
 	var legacyBefore string
 	require.NoError(t, database.QueryRowContext(ctx, `select jsonb_agg(to_jsonb(s) order by key)::text from system_setting s`).Scan(&legacyBefore))
-	require.NoError(t, goose.Up(database, dir))
+	require.NoError(t, goose.UpTo(database, dir, 29))
 	var title, summary string
 	require.NoError(t, database.QueryRowContext(ctx, `select value->>'title',value->>'summary' from system_setting where key='site.home_content'`).Scan(&title, &summary))
 	require.Empty(t, title)
@@ -30,7 +30,7 @@ func TestHomeContentMigrationPreservesSavedCopy(t *testing.T) {
 	var savedAfter string
 	require.NoError(t, database.QueryRowContext(ctx, `select to_jsonb(s)::text from system_setting s where key='site.home_content'`).Scan(&savedAfter))
 	require.Equal(t, savedBefore, savedAfter, "rollback must preserve content and its revision")
-	require.NoError(t, goose.Up(database, dir))
+	require.NoError(t, goose.UpTo(database, dir, 29))
 	require.NoError(t, database.QueryRowContext(ctx, `select to_jsonb(s)::text from system_setting s where key='site.home_content'`).Scan(&savedAfter))
 	require.Equal(t, savedBefore, savedAfter, "re-upgrade must not replace saved copy with defaults")
 	var legacyAfter string
