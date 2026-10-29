@@ -1,6 +1,6 @@
 # v0.34.0 站点强调色预设
 
-状态：范围与实现计划已建立，Task1 后端实现与完整门禁通过、原子提交及标准完成已通过，Task2 完整前端 132 文件／2158 测试、四项 100%、types／lint／隔离构建通过，原子提交 2bd7c10 与标准完成已通过，Task3 修正定向 19 项／五新原图及 clean50eb9e9 完整 E2E 118 项、标准 smoke／精确制品与同 image HIGH／CRITICAL 扫描已通过，原首完整 101 通过／17 失败保留；功能整体验收、独立终审、目标 CI 与发布均未完成。执行状态见[任务](../implementation/v0.34.0-tasks.md)和[验收](../implementation/v0.34.0-acceptance.md)。
+状态：范围与实现计划已建立，Task1 后端实现与完整门禁通过、原子提交及标准完成已通过，Task2 完整前端 132 文件／2158 测试、四项 100%、types／lint／隔离构建通过，原子提交 2bd7c10 与标准完成已通过，Task3 修正定向 19 项／五新原图及 clean50eb9e9 完整 E2E 118 项、标准 smoke／精确制品与同 image HIGH／CRITICAL 扫描已通过，原首完整 101 通过／17 失败保留；唯一 fresh 整分支终审已完成，ROOT 核为 Critical0／Important0／Minor3 延期；功能整体验收、目标 CI 与发布仍未完成。执行状态见[任务](../implementation/v0.34.0-tasks.md)和[验收](../implementation/v0.34.0-acceptance.md)。
 
 ## 目标与选择
 
