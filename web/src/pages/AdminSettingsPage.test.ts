@@ -45,7 +45,7 @@ vi.mock('@tanstack/vue-query', () => ({
 }))
 
 function mountPage() {
-  return render(AdminSettingsPage, { global: { stubs: { ...componentStubs, AdminAuthenticationPage: { template: '<div data-testid="authentication-settings" />' } } } })
+  return render(AdminSettingsPage, { global: { stubs: { ...componentStubs, HomeContentEditor: { template: '<div data-testid="homepage-settings" />' }, AdminAuthenticationPage: { template: '<div data-testid="authentication-settings" />' } } } })
 }
 
 describe('AdminSettingsPage', () => {

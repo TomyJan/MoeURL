@@ -1,6 +1,6 @@
 # MoeURL 文档中心
 
-下一有界版本 [v0.33.0 首页文案](product/scope-v0.33.0.md) 的独立后端及当前完整后端门禁已实现和验证，Task1 标准完成契约待执行，Task2–4 尚未开始。仅管理员配置首屏标题／简介，前端纯文本安全回退、浏览器、产品和远端验证仍待执行；[设计](specs/2026-10-29-v0.33.0-homepage-copy-design.md)、[计划](implementation/v0.33.0-plan.md)、[任务](implementation/v0.33.0-tasks.md)及[验收](implementation/v0.33.0-acceptance.md)区分各次输入和原始失败。
+下一有界版本 [v0.33.0 首页文案](product/scope-v0.33.0.md) 已标准完成 Task1 后端；Task2 的首页纯文本回退、独立编辑器及身份竞态已实现，当前完整前端 2094 测试／四 100%、lint／types／隔离构建通过，标准完成契约待执行。Task3–4 的真实浏览器、产品和远端验证尚未开始；[设计](specs/2026-10-29-v0.33.0-homepage-copy-design.md)、[计划](implementation/v0.33.0-plan.md)、[任务](implementation/v0.33.0-tasks.md)及[验收](implementation/v0.33.0-acceptance.md)区分各次输入和原始失败。
 
 [v0.32.0 二维码外观预设](product/scope-v0.32.0.md) 已由 [PR #230](https://github.com/TomyJan/MoeURL/pull/230) 合并为 `99f87709`。最终候选 `28214ef` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40816638924) 与合并 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40821882951) 各九成功，真实最新审查／有效意见闭环；标准 Task1–4 与最终完整归档均完成。原单元、各候选浏览器／七图与精确产品仍按[验收](implementation/v0.32.0-acceptance.md)归属，未正式发布。
 

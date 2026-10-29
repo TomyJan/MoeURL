@@ -5,8 +5,8 @@
     <main class="home-page__hero" data-testid="home-hero-panel">
       <section class="home-page__hero-content">
         <div class="home-page__copy">
-          <h1>{{ t('home.heroTitle') }}</h1>
-          <p class="home-page__summary">{{ t('home.heroSummary') }}</p>
+          <h1>{{ copy?.title || t('home.heroTitle') }}</h1>
+          <p class="home-page__summary">{{ copy?.summary || t('home.heroSummary') }}</p>
         </div>
         <div class="home-page__tool">
           <ShortLinkCreatePanel mode="full" />
@@ -26,6 +26,7 @@ import { useRouter } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 
 import { me } from '@/entities/auth/api'
+import { getPublicHomeContent, publicHomeContentKey } from '@/entities/home-content/api'
 import ShortLinkCreatePanel from '@/features/short-link-create/ShortLinkCreatePanel.vue'
 import HomeHeader from '@/widgets/home-header/HomeHeader.vue'
 import HomeIntroSections from '@/widgets/home-intro/HomeIntroSections.vue'
@@ -39,6 +40,8 @@ const currentUserQuery = useQuery({
 const currentUser = computed(() => currentUserQuery.data.value?.user)
 const currentUserName = computed(() => currentUser.value?.nickname || currentUser.value?.username || 'guest')
 const isGuest = computed(() => currentUser.value?.group === 'guest' || !currentUser.value)
+const contentQuery = useQuery({ queryKey: publicHomeContentKey, queryFn: getPublicHomeContent, retry: false, refetchOnMount: 'always', gcTime: 0 })
+const copy = computed(() => contentQuery.isSuccess.value && !contentQuery.isFetching.value ? contentQuery.data.value : undefined)
 
 /** Opens the signed-in user's profile page. */
 function goProfile() {
@@ -80,9 +83,12 @@ function goProfile() {
 .home-page__copy {
   display: grid;
   justify-items: center;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .home-page__hero h1 {
+  overflow-wrap: anywhere;
   max-width: 780px;
   margin: 0;
   color: rgb(var(--v-theme-on-background));
@@ -94,6 +100,7 @@ function goProfile() {
 }
 
 .home-page__summary {
+  overflow-wrap: anywhere;
   max-width: 560px;
   margin: 20px 0 0;
   color: rgb(var(--v-theme-on-surface-variant));

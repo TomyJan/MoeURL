@@ -179,6 +179,9 @@ vi.mock('@tanstack/vue-query', async () => {
     }),
     useQuery: vi.fn((options?: { enabled?: unknown; queryFn?: (context: { queryKey: unknown }) => unknown; queryKey?: unknown }) => {
       const key = isRef(options?.queryKey) ? options.queryKey.value : options?.queryKey
+      if (Array.isArray(key) && key[0] === 'home-content' && key[1] === 'public') {
+        return { data: ref({ title: '', summary: '' }), isSuccess: ref(true), isFetching: ref(false) }
+      }
       if (Array.isArray(key) && key[0] === 'domain-redirect-defaults') {
         const data = ref({ items: [{ domainId: '00000000-0000-4000-8000-000000000801', redirectMode: 'direct' }] })
         return { data, isSuccess: ref(true), isError: ref(false), refetch: vi.fn(async () => ({ data: data.value })) }

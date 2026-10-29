@@ -1,8 +1,8 @@
 # 技术基线
 
-## v0.33.0 本地已验证的独立后端增量
+## v0.33.0 本地已验证的首页文案增量
 
-新增 `site.home_content` 单键与 `00029` 非破坏迁移、专用仅键名审计及独立三 API：公开 `system/home-content` 与管理读／update。80／200 Unicode 码点，控制字符先拒后 trim；当前账号／builtin admin 组及两权限重查，五秒事务与账号→组→配置锁序，完整精度 CAS 先于 no-op。旧 settings DTO／revision 不变，SQLC 1.30 完整 52 源／24 生成零漂移。当前 718 物理非 Markdown 输入的完整 Go／race／vet、业务 100% 和安全扫描通过；标准 Task1 完成契约待执行，前端／产品／远端尚无本版证据，见[设计](../specs/2026-10-29-v0.33.0-homepage-copy-design.md)和[验收](v0.33.0-acceptance.md)。
+新增 `site.home_content` 单键与 `00029` 非破坏迁移、专用仅键名审计及独立三 API：公开 `system/home-content` 与管理读／update。80／200 Unicode 码点，控制字符先拒后 trim；当前账号／builtin admin 组及两权限重查，五秒事务与账号→组→配置锁序，完整精度 CAS 先于 no-op。旧 settings DTO／revision 不变，SQLC 1.30 完整 52 源／24 生成零漂移。原 718 物理输入的完整 Go／race／vet、业务 100% 和安全扫描已通过标准 Task1；Task2 独立前端已实现，当前 313 web 输入的 2094 测试／四 100%、lint／types／隔离构建通过，标准完成契约待执行。冻结 Task1 的非 web 完整集合不变，不冒重跑 Go；真实浏览器／产品／远端仍待执行，见[设计](../specs/2026-10-29-v0.33.0-homepage-copy-design.md)和[验收](v0.33.0-acceptance.md)。
 
 ## v0.32.0 已合并的前端增量
 

@@ -39,6 +39,7 @@
         <v-btn color="primary" type="submit" :disabled="mutation.isPending.value" :loading="mutation.isPending.value">{{ t('settings.save') }}</v-btn>
       </div>
     </form>
+    <HomeContentEditor />
     <AdminAuthenticationPage />
   </section>
 </template>
@@ -53,6 +54,7 @@ import { getAdminSettings, updateAdminSettings, type Settings } from '@/entities
 import { ApiClientError } from '@/shared/api/client'
 import { setSiteConfig } from '@/shared/site/useSiteConfig'
 import AdminAuthenticationPage from './AdminAuthenticationPage.vue'
+import HomeContentEditor from '@/features/home-content/HomeContentEditor.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()

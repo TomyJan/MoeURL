@@ -599,6 +599,14 @@ export const messages = {
       deleteTitle: '删除提供商',
       deleteDescription: '该提供商将停止出现在登录页；已有外部身份归属会保留。',
     },
+    homeContent: {
+      heading: '首页文案', title: '首页标题', summary: '首页简介',
+      hint: '标题最多 80 个码点，简介最多 200 个码点。留空的字段使用当前语言的默认文案；只支持单行纯文本。',
+      save: '保存首页文案', reload: '重新加载首页文案', saved: '首页文案已保存。',
+      loadFailed: '首页文案加载失败，请重新加载。', saveFailed: '保存失败，草稿已保留，请重试。',
+      conflict: '首页文案已被其他请求修改。草稿已保留，请重新加载后再保存。',
+      invalid: '请检查文案长度，并移除换行、制表等控制字符。',
+    },
     settings: {
       title: '系统设置',
       description: '管理站点品牌、默认偏好和登录方式。',
@@ -1341,6 +1349,14 @@ export const messages = {
       conflict: 'The provider changed on the server. The latest version was loaded and this draft was preserved.',
       deleteTitle: 'Delete provider',
       deleteDescription: 'The provider will disappear from sign-in. Existing external identity ownership is preserved.',
+    },
+    homeContent: {
+      heading: 'Homepage copy', title: 'Homepage title', summary: 'Homepage summary',
+      hint: 'Title: up to 80 codepoints. Summary: up to 200. Leave either field empty for the current language default. Single-line plain text only.',
+      save: 'Save homepage copy', reload: 'Reload homepage copy', saved: 'Homepage copy saved.',
+      loadFailed: 'Could not load homepage copy. Please reload.', saveFailed: 'Could not save. Your draft is kept; please retry.',
+      conflict: 'Homepage copy changed elsewhere. Your draft is kept; reload before saving again.',
+      invalid: 'Check the text length and remove control characters such as line breaks and tabs.',
     },
     settings: {
       title: 'System settings',
