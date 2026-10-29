@@ -42,6 +42,18 @@ for (const language of ['en', 'zh'] as const) {
       const persisted = await read(page)
       expect(persisted).toMatchObject(custom)
 
+      // A new local edit must not continue announcing the previous persisted draft as saved.
+      const edited = language === 'en' ? title : summary
+      await edited.fill('New unsaved homepage draft')
+      await expect(editor.getByText(text.saved, { exact: true })).toHaveCount(0)
+      await expect(edited).toHaveValue('New unsaved homepage draft')
+      expect(await read(page)).toEqual(persisted)
+      await editor.scrollIntoViewIfNeeded()
+      await page.screenshot({ path: info.outputPath(`home-copy-${language}-unsaved.png`) })
+      await editor.getByRole('button', { name: text.reload, exact: true }).click()
+      await expect(title).toHaveValue(custom.title)
+      await expect(summary).toHaveValue(custom.summary)
+
       // Real legacy complete save must leave both content and its independent revision untouched.
       const oldSave = page.waitForResponse(r => r.url().endsWith('/settings/update'))
       await page.getByRole('button', { name: text.generalSave, exact: true }).click()
@@ -92,6 +104,99 @@ for (const language of ['en', 'zh'] as const) {
     }
     if (failures.length) throw new AggregateError(failures, 'Homepage copy scenario or exact fixture restoration failed')
   })
+}
+
+test('v0.33.1 real reconnect retains current copy while pending and falls back after failure', async ({ page, browser }, info) => {
+  let original: Content | undefined
+  let visitor: BrowserContext | undefined
+  const releases: (() => void)[] = []
+  const failures: unknown[] = []
+  try {
+    await login(page)
+    original = await read(page)
+    const first = { title: 'First successful title', summary: 'First successful summary' }
+    const next = { title: 'Authoritative replacement', summary: 'Updated on the server' }
+    await write(page, first)
+    visitor = await browser.newContext({ baseURL: info.project.use.baseURL, viewport: { width: 1280, height: 720 }, reducedMotion: 'reduce' })
+    await visitor.addInitScript(() => localStorage.setItem('moeurl.language', 'en'))
+    const home = await visitor.newPage()
+    await home.goto('/')
+    const title = home.locator('.home-page__copy h1')
+    const summary = home.locator('.home-page__summary')
+    await expect(title).toHaveText(first.title)
+    await expect(summary).toHaveText(first.summary)
+
+    await write(page, next)
+    const pending = await holdPublicRead(home)
+    releases.push(pending.release)
+    await reconnect(visitor, home)
+    await pending.requested
+    await expect(title).toHaveText(first.title)
+    await expect(summary).toHaveText(first.summary)
+    await expect(home.getByRole('button', { name: 'Create short link', exact: true })).toBeVisible()
+    await home.screenshot({ path: info.outputPath('home-copy-background-pending.png') })
+    pending.release()
+    await expect(title).toHaveText(next.title)
+    await expect(summary).toHaveText(next.summary)
+
+    await home.route('**/api/v1/system/home-content', route => route.abort('failed'), { times: 1 })
+    await reconnect(visitor, home)
+    await expect(title).toHaveText(labels.en.defaultTitle)
+    await expect(summary).toHaveText(labels.en.defaultSummary)
+
+    const retry = await holdPublicRead(home)
+    releases.push(retry.release)
+    await reconnect(visitor, home)
+    await retry.requested
+    await expect(title).toHaveText(labels.en.defaultTitle)
+    await expect(summary).toHaveText(labels.en.defaultSummary)
+    retry.release()
+    await expect(title).toHaveText(next.title)
+    await expect(summary).toHaveText(next.summary)
+
+    const remount = await holdPublicRead(home)
+    releases.push(remount.release)
+    await home.reload({ waitUntil: 'domcontentloaded' })
+    await remount.requested
+    await expect(title).toHaveText(labels.en.defaultTitle)
+    await expect(summary).toHaveText(labels.en.defaultSummary)
+    remount.release()
+    await expect(title).toHaveText(next.title)
+    await expect(summary).toHaveText(next.summary)
+    expect(await read(page)).toMatchObject(next)
+    await expectNoHorizontalOverflow(home)
+  } catch (error) { failures.push(error) } finally {
+    for (const release of releases) release()
+    try { await visitor?.setOffline(false) } catch (error) { failures.push(error) }
+    try { if (original) { await write(page, original); expect(await read(page)).toMatchObject({ title: original.title, summary: original.summary }) } } catch (error) { failures.push(error) }
+    try { await visitor?.close() } catch (error) { failures.push(error) }
+  }
+  if (failures.length) throw new AggregateError(failures, 'Reconnect rendering or exact fixture restoration failed')
+})
+
+/** Delays a genuine server response until assertions inspect the observable pending state. */
+async function holdPublicRead(page: Page) {
+  let release!: () => void
+  let observed!: () => void
+  const resumed = new Promise<void>(resolve => { release = resolve })
+  const requested = new Promise<void>(resolve => { observed = resolve })
+  await page.route('**/api/v1/system/home-content', async route => {
+    const actual = await route.fetch()
+    expect(actual.status()).toBe(200)
+    expect((await actual.json()).code).toBe(0)
+    observed()
+    await resumed
+    await route.fulfill({ response: actual })
+  }, { times: 1 })
+  return { requested, release }
+}
+
+/** Uses the browser's real connectivity events; the observed public request proves a refetch. */
+async function reconnect(context: BrowserContext, page: Page) {
+  await context.setOffline(true)
+  await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false)
+  await context.setOffline(false)
+  await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(true)
 }
 
 test('v0.33.0 80 and 200 unbroken codepoints wrap on mobile and leave keyboard creation usable', async ({ page, browser }, info) => {

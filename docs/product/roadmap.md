@@ -1,6 +1,6 @@
 # 路线图
 
-品牌方向中的 [v0.33.0 首屏标题与简介](scope-v0.33.0.md) 已由 [PR #231](https://github.com/TomyJan/MoeURL/pull/231) 合并为 `811d6c57`，最终候选与合并 master 各九 CI 成功、真实审查／有效意见闭环、标准 Task1–4 及最终归档完成；未正式发布。纯文本、逐字段留空回退、独立资源与版本，不扩展 Logo、主题色、HTML、翻译管理或 CMS。原三项延期 Minor 由当前 [v0.33.1 有界补丁](scope-v0.33.1.md) 接续，补丁尚未实现。
+品牌方向中的 [v0.33.0 首屏标题与简介](scope-v0.33.0.md) 已由 [PR #231](https://github.com/TomyJan/MoeURL/pull/231) 合并为 `811d6c57`，最终候选与合并 master 各九 CI 成功、真实审查／有效意见闭环、标准 Task1–4 及最终归档完成；未正式发布。纯文本、逐字段留空回退、独立资源与版本，不扩展 Logo、主题色、HTML、翻译管理或 CMS。原三项延期 Minor 由当前 [v0.33.1 有界补丁](scope-v0.33.1.md) 接续，补丁 Task1 行为及完整前端门禁／标准完成已通过，浏览器、产品、审查及远端待做。
 
 二维码样式的 [v0.32.0 三个固定外观预设](scope-v0.32.0.md) 已通过 [PR #230](https://github.com/TomyJan/MoeURL/pull/230) 合并为 `99f87709`，最终 PR CI40816638924 与合并 master CI40821882951 各九成功，真实最新审查／有效意见闭环，标准 Task1–4 和最终完整归档完成。未正式发布；原候选制品保持[验收](../implementation/v0.32.0-acceptance.md)归属，任意编辑、Logo 和持久模板仍未开发。
 
