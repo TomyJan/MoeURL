@@ -25,6 +25,7 @@ type Dependencies struct {
 	System                 system.ServicePort
 	SystemSettings         system.SettingsPort
 	HomeContent            system.HomeContentPort
+	Appearance             system.AppearancePort
 	Auth                   auth.Port
 	Password               auth.PasswordPort
 	CurrentUser            auth.CurrentUserResolver
@@ -99,6 +100,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			homeContentHandler := system.NewHomeContentHandler(dependency.HomeContent, logger)
 			api.With(middleware.NoStore).Get("/system/home-content", homeContentHandler.Public)
 		}
+		if dependency.Appearance != nil {
+			appearanceHandler := system.NewAppearanceHandler(dependency.Appearance, logger)
+			api.With(middleware.NoStore).Get("/system/appearance", appearanceHandler.Public)
+		}
 
 		if dependency.OIDCProvider != nil {
 			oidcHandler := oidc.NewHandler(dependency.OIDCProvider, dependency.OIDCLogin, dependency.SecureCookies, logger)
@@ -126,6 +131,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				homeContentHandler := system.NewHomeContentHandler(dependency.HomeContent, logger)
 				businessAPI.Get("/admin/system/home-content", homeContentHandler.Get)
 				businessAPI.Post("/admin/system/home-content/update", homeContentHandler.Update)
+			}
+			if dependency.Appearance != nil {
+				appearanceHandler := system.NewAppearanceHandler(dependency.Appearance, logger)
+				businessAPI.Get("/admin/system/appearance", appearanceHandler.Get)
+				businessAPI.Post("/admin/system/appearance/update", appearanceHandler.Update)
 			}
 			if dependency.Auth != nil {
 				authHandler := auth.NewHandlerWithLogger(dependency.Auth, dependency.SecureCookies, logger)

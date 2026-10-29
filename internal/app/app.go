@@ -163,6 +163,12 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			return nil, fmt.Errorf("validate home content: %w", err)
 		}
 		deps.HomeContent = homeContentService
+		appearanceService := system.NewAppearanceService(pool)
+		if err := appearanceService.ValidateStartup(ctx); err != nil {
+			pool.Close()
+			return nil, fmt.Errorf("validate site appearance: %w", err)
+		}
+		deps.Appearance = appearanceService
 		authService := auth.NewServiceWithLoginPolicy(pool, 24*time.Hour, loginPolicy)
 		deps.Auth = authService
 		deps.Password = authService

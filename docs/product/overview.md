@@ -1,5 +1,7 @@
 # MoeURL 产品总览
 
+[v0.34.0 站点强调色预设](scope-v0.34.0.md) 为当前有界开发轮：管理员从三个固定主强调色中显式保存，既有浅／深／跟随系统与账号偏好独立。Task1 独立后端和完整门禁通过，原子提交及标准完成已通过，Task2 完整前端 132 文件／2158 测试、四项 100%、types／lint／隔离构建通过，原子提交 2bd7c10 与标准完成已通过，Task3 修正定向 19 项／五新原图及 clean50eb9e9 完整 E2E 118 项、标准 smoke／精确制品与同 image HIGH／CRITICAL 扫描已通过，原首完整 101 通过／17 失败保留，唯一 fresh 整分支终审完成，ROOT 核为 Critical0／Important0／Minor3 延期，wholeowned 本地归档／提取核验和标准 Task3 已完成，Task4 已标准启动，尚无远端交付结论，见[设计](../specs/2026-10-30-v0.34.0-site-accent-design.md)和[验收](../implementation/v0.34.0-acceptance.md)；任意主题编辑器仍未开放。
+
 [v0.33.1 首页文案反馈补丁](scope-v0.33.1.md) 已由 [PR #232](https://github.com/TomyJan/MoeURL/pull/232) 合并为 `cf5d5a64`，最终 `91cf9d5` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40885738492) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40892523382) 各九成功，真实审查／有效意见闭环、标准 Task1–3 与最终归档清理完成。原本地产品、失败、pointer 覆盖取舍及截图／扫描限制保持[验收](../implementation/v0.33.1-acceptance.md)归属，未正式发布。
 
 [v0.33.0 首页文案](scope-v0.33.0.md) 已由 [PR #231](https://github.com/TomyJan/MoeURL/pull/231) 合并为 `811d6c57`，最终 `34a520b` 的 PR CI40852026042 与合并 master CI40858639758 各九成功，真实审查／有效意见闭环，标准 Task1–4 与完整最终归档、准确 leaf 可恢复清理完成。管理员首屏标题与简介纯文本、逐字段回退、独立版本和身份隔离；三个 Minor 在该版延期，原证据见[验收](../implementation/v0.33.0-acceptance.md)，未正式发布。

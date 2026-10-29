@@ -45,7 +45,7 @@ vi.mock('@tanstack/vue-query', () => ({
 }))
 
 function mountPage() {
-  return render(AdminSettingsPage, { global: { stubs: { ...componentStubs, HomeContentEditor: { template: '<div data-testid="homepage-settings" />' }, AdminAuthenticationPage: { template: '<div data-testid="authentication-settings" />' } } } })
+  return render(AdminSettingsPage, { global: { stubs: { ...componentStubs, AppearanceEditor: { template: '<form aria-label="appearance.heading"><label>appearance.preset<select name="site-accent"><option>iris</option></select></label></form>' }, HomeContentEditor: { template: '<div data-testid="homepage-settings" />' }, AdminAuthenticationPage: { template: '<div data-testid="authentication-settings" />' } } } })
 }
 
 describe('AdminSettingsPage', () => {
@@ -70,6 +70,14 @@ describe('AdminSettingsPage', () => {
     expect(screen.getByTestId('admin-settings-page')).toBeTruthy()
     expect((screen.getByLabelText('settings.siteName') as HTMLInputElement).value).toBe('MoeURL')
     expect(screen.getByTestId('authentication-settings')).toBeTruthy()
+  })
+
+  it('renders a separately submitted named site accent selector', () => {
+    mountPage()
+    const selector = screen.getByRole('combobox', { name: 'appearance.preset' })
+    const accentForm = screen.getByRole('form', { name: 'appearance.heading' })
+    expect(selector.closest('form')).toBe(accentForm)
+    expect(screen.getByLabelText('settings.siteName').closest('form')).not.toBe(accentForm)
   })
 
   it('updates language and theme option labels when the interface language changes', async () => {

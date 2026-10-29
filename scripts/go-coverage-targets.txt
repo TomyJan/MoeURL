@@ -82,6 +82,9 @@ github.com/TomyJan/MoeURL/internal/system/settings_service.go
 github.com/TomyJan/MoeURL/internal/system/home_content.go
 github.com/TomyJan/MoeURL/internal/system/home_content_service.go
 github.com/TomyJan/MoeURL/internal/system/home_content_handler.go
+github.com/TomyJan/MoeURL/internal/system/appearance.go
+github.com/TomyJan/MoeURL/internal/system/appearance_service.go
+github.com/TomyJan/MoeURL/internal/system/appearance_handler.go
 github.com/TomyJan/MoeURL/internal/user/handler.go
 github.com/TomyJan/MoeURL/internal/user/preferences_handler.go
 github.com/TomyJan/MoeURL/internal/user/preferences_service.go

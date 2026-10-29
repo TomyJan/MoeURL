@@ -24,8 +24,10 @@ import { useAccountPreferences } from '@/shared/preferences/useAccountPreference
 import { bindSiteTitle, setSiteConfig, useSiteConfig } from '@/shared/site/useSiteConfig'
 import SiteFooter from '@/shared/site/SiteFooter.vue'
 import AppToasts from '@/shared/feedback/AppToasts.vue'
+import { useSiteAppearance } from '@/shared/site/useSiteAppearance'
 
 const preferences = useAppPreferences()
+useSiteAppearance()
 useQuery({ queryKey: ['auth', 'me'], queryFn: me, retry: false })
 useAccountPreferences()
 const publicConfigQuery = useQuery({ queryKey: ['system', 'public-config'], queryFn: getPublicConfig, retry: false, staleTime: 60_000 })

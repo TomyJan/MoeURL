@@ -12,7 +12,7 @@ import { componentStubs } from '@/test/component-stubs'
 import { createDeferred } from '@/test/deferred'
 import App from './App.vue'
 
-vi.mock('vuetify', () => ({ useTheme: () => ({ global: { name: { value: 'moeurlLight' } } }) }))
+vi.mock('vuetify', () => ({ useTheme: () => ({ global: { name: { value: 'moeurlLight' } }, themes: { value: { moeurlLight: { colors: {}, variables: {} }, moeurlDark: { colors: {}, variables: {} } } } }) }))
 vi.mock('@/entities/auth/api', () => ({ me: vi.fn() }))
 vi.mock('@/entities/system/api', () => ({ getPublicConfig: vi.fn() }))
 vi.mock('@/entities/user/preferences', async (original) => ({ ...await original<typeof import('@/entities/user/preferences')>(), getAccountPreferences: vi.fn() }))
@@ -30,10 +30,11 @@ function mount() {
 }
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { accentPreset: 'iris' }, meta: {} }), { status: 200 })))
   localStorage.setItem('moeurl.language', 'zh-CN')
   localStorage.setItem('moeurl.theme', 'light')
 })
-afterEach(() => { cleanup(); for (const client of clients.splice(0)) { revokeAccountIdentity(client); client.clear() } })
+afterEach(() => { cleanup(); for (const client of clients.splice(0)) { revokeAccountIdentity(client); client.clear() } vi.unstubAllGlobals() })
 describe('App account preference startup', () => {
   it('revokes account reads immediately while allowing an unrelated public config read to finish', async () => {
     const account = createDeferred<AccountPreferences>()

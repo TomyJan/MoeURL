@@ -1,5 +1,7 @@
 # 路线图
 
+当前有界轮 [v0.34.0 站点强调色预设](scope-v0.34.0.md) 从下方品牌主题色方向收敛三个固定主色，保留既有深浅模式及账号偏好；独立CAS与仅键名事务审计，不纳入任意色值／CSS／上传。Task1 独立后端和完整门禁通过，原子提交及标准完成已通过，Task2 完整前端 132 文件／2158 测试、四项 100%、types／lint／隔离构建通过，原子提交 2bd7c10 与标准完成已通过，Task3 修正定向 19 项／五新原图及 clean50eb9e9 完整 E2E 118 项、标准 smoke／精确制品与同 image HIGH／CRITICAL 扫描已通过，原首完整 101 通过／17 失败保留；唯一 fresh 整分支终审完成，ROOT 核为 Critical0／Important0／Minor3 延期，wholeowned 本地归档／提取核验和标准 Task3 已完成，Task4 已标准启动，远端交付仍待，见[计划](../implementation/v0.34.0-plan.md)和[验收](../implementation/v0.34.0-acceptance.md)。
+
 品牌方向中的 [v0.33.0 首屏标题与简介](scope-v0.33.0.md) 已由 [PR #231](https://github.com/TomyJan/MoeURL/pull/231) 合并为 `811d6c57`；[v0.33.1 反馈补丁](scope-v0.33.1.md) 已由 [PR #232](https://github.com/TomyJan/MoeURL/pull/232) 合并为 `cf5d5a64`。补丁最终 `91cf9d5` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40885738492) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40892523382) 各九成功、真实审查／有效意见闭环、标准 Task1–3 及最终可恢复归档完成；未正式发布。纯文本、逐字段留空回退、独立资源与版本保持，不扩展 Logo、主题色、HTML、翻译管理或 CMS。原失败、执行归属与限制见[验收](../implementation/v0.33.1-acceptance.md)。
 
 二维码样式的 [v0.32.0 三个固定外观预设](scope-v0.32.0.md) 已通过 [PR #230](https://github.com/TomyJan/MoeURL/pull/230) 合并为 `99f87709`，最终 PR CI40816638924 与合并 master CI40821882951 各九成功，真实最新审查／有效意见闭环，标准 Task1–4 和最终完整归档完成。未正式发布；原候选制品保持[验收](../implementation/v0.32.0-acceptance.md)归属，任意编辑、Logo 和持久模板仍未开发。
