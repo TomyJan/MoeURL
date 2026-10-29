@@ -1,6 +1,6 @@
 # 技术选型决策
 
-v0.34.0 的[设计](../specs/2026-10-30-v0.34.0-site-accent-design.md)选择独立 `site.appearance` 资源／完整版本，复用系统设置表与现有双管理权限；前端固定三预设只更新原两主题的四项token，不改个人主题模式或旧严格DTO。无新依赖、权限或部署配置，当前 Task1 独立后端和完整门禁通过，原子提交及标准完成已通过，Task2 完整前端 132 文件／2158 测试、四项 100%、types／lint／隔离构建通过，原子提交 2bd7c10 与标准完成已通过，Task3 修正定向 19 项／五新原图及 clean50eb9e9 完整 E2E 118 项、标准 smoke／精确制品与同 image HIGH／CRITICAL 扫描已通过，原首完整 101 通过／17 失败保留，唯一 fresh 整分支终审完成，ROOT 核为 Critical0／Important0／Minor3 延期，尚无归档／标准完成或远端交付结论，验证见[验收](v0.34.0-acceptance.md)。
+v0.34.0 的[设计](../specs/2026-10-30-v0.34.0-site-accent-design.md)选择独立 `site.appearance` 资源／完整版本，复用系统设置表与现有双管理权限；前端固定三预设只更新原两主题的四项token，不改个人主题模式或旧严格DTO。无新依赖、权限或部署配置，当前 Task1 独立后端和完整门禁通过，原子提交及标准完成已通过，Task2 完整前端 132 文件／2158 测试、四项 100%、types／lint／隔离构建通过，原子提交 2bd7c10 与标准完成已通过，Task3 修正定向 19 项／五新原图及 clean50eb9e9 完整 E2E 118 项、标准 smoke／精确制品与同 image HIGH／CRITICAL 扫描已通过，原首完整 101 通过／17 失败保留，唯一 fresh 整分支终审完成，ROOT 核为 Critical0／Important0／Minor3 延期，wholeowned 本地归档／提取核验和标准 Task3 已完成，Task4 已标准启动，尚无远端交付结论，验证见[验收](v0.34.0-acceptance.md)。
 
 2026-10-29 最终状态：v0.33.1 已由 PR #232 合并为 `cf5d5a64`，候选 `91cf9d5` 与该合并的独立 CI 各九成功，真实最新审查／有效意见闭环、标准 Task1–3、最终归档和准确 leaf 可恢复清理完成，详见[v0.33.1 验收](v0.33.1-acceptance.md)。未正式发布。此次[文档维护](2026-10-29-delivery-status-plan.md)只同步已有交付事实，不改变技术栈、API、数据库、权限、测试或部署约定；下面各阶段“待做”描述保持其历史时间归属，不表示当前交付未完成。
 
