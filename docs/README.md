@@ -1,6 +1,8 @@
 # MoeURL 文档中心
 
-下一有界版本 [v0.31.0 OIDC 提供商创建模板](product/scope-v0.31.0.md) 已形成[设计](specs/2026-10-28-v0.31.0-oidc-provider-templates-design.md)、[计划](implementation/v0.31.0-plan.md)、[任务](implementation/v0.31.0-tasks.md)与[验收](implementation/v0.31.0-acceptance.md)。仅新建草稿的手动／Google 模板，Task1–3 已标准完成；唯一实际终审四项有效意见闭环，Task3 的 clean `8712426` 完整 107 项浏览器、六原图、精确产品／扫描和阶段本地归档快照已核。Task4 确认模板名称修复的新 clean `8dbcb9e` 浏览器、六原图与精确产品验证已完成；远端交付、标准 Task4 及最终 SDD 归档待完成，不改变下方已合并状态。原单元与各候选制品分别归属。
+下一有界版本 [v0.32.0 二维码外观预设](product/scope-v0.32.0.md) 的[设计](specs/2026-10-29-v0.32.0-qr-appearance-presets-design.md)、[计划](implementation/v0.32.0-plan.md)、[任务](implementation/v0.32.0-tasks.md)与[验收](implementation/v0.32.0-acceptance.md)已同步：三个本地固定深色／白底PNG预设，Task1–3标准完成；原前端2051项四100，最新clean7b7315b自身4／110浏览器、七无遮挡原图与精确产品通过。唯一终审及有效意见闭环、完整本地阶段归档已完成；Task4远端交付待完成，未正式发布。
+
+v0.31.0 已通过 [PR #229](https://github.com/TomyJan/MoeURL/pull/229) 于 2026-10-28T18:44:58Z 合并为 `c671205182f92d7a5396ebf4e3589d85d155dd2b`。最终候选 `e9c3025` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40741884841) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40748005532) 各九项成功，真实 CodeRabbit 覆盖最终候选，全部有效意见闭环；标准 Task1–4 和完整最终 SDD 归档核验已完成。仅 Google／手动创建草稿，无正式发布或外部 Google 互通验收。逐候选及原失败见[验收](implementation/v0.31.0-acceptance.md)。
 
 v0.30.0 已通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 于 2026-10-28T13:21:25Z 合并为 `d582fba02772e62f2f3af2fe11e485728f5c0097`。最终候选 `f54567d` 的 [PR CI #40686801162](https://github.com/TomyJan/MoeURL/actions/runs/40686801162) 与该合并的 [master CI #40695791448](https://github.com/TomyJan/MoeURL/actions/runs/40695791448) 各九项成功，真实 CodeRabbit 覆盖最终候选、有效意见全部闭环；标准 Task1–4 与完整最终 SDD 归档核验已完成。未正式发布或部署。范围、逐候选验证、原失败及运行归属见[验收](implementation/v0.30.0-acceptance.md)；不将旧本地浏览器或产品制品重归属给合并提交，不扩自定义组、多组或 OIDC 映射。
 

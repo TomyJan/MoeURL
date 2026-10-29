@@ -1,8 +1,22 @@
 <template>
-  <v-dialog :model-value="open" max-width="440" @update:model-value="$emit('update:open', $event)">
+  <v-dialog :model-value="open" :aria-label="t('shortLinkQr.title')" max-width="440" @update:model-value="$emit('update:open', $event)">
     <v-card class="short-link-qr-dialog">
       <v-card-title>{{ t('shortLinkQr.title') }}</v-card-title>
       <v-card-text class="short-link-qr-dialog__body">
+        <div class="short-link-qr-dialog__presets" role="group" :aria-label="t('shortLinkQr.appearance')">
+          <v-btn
+            v-for="preset in qrAppearancePresets"
+            :key="preset.key"
+            type="button"
+            :variant="selectedPreset.key === preset.key ? 'tonal' : 'outlined'"
+            :aria-pressed="selectedPreset.key === preset.key"
+            @click="selectedPreset = preset"
+          >
+            <span class="short-link-qr-dialog__swatch" :style="{ backgroundColor: preset.dark }" aria-hidden="true" />
+            {{ t(preset.labelKey) }}
+          </v-btn>
+        </div>
+        <p class="short-link-qr-dialog__hint">{{ t('shortLinkQr.appearanceHint') }}</p>
         <div class="short-link-qr-dialog__preview" aria-live="polite">
           <v-progress-linear v-if="generating" indeterminate />
           <v-alert v-else-if="generationError" type="error" variant="tonal">
@@ -36,6 +50,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { qrAppearancePresets } from './appearance-presets'
 
 const props = defineProps<{
   open: boolean
@@ -48,14 +63,21 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
+const selectedPreset = ref<(typeof qrAppearancePresets)[number]>(qrAppearancePresets[0])
 const dataUrl = ref('')
 const generating = ref(false)
 const generationError = ref(false)
 let generationId = 0
 
 watch(
-  () => [props.open, props.url] as const,
-  async ([open, url]) => {
+  () => [props.open, props.slug, props.url] as const,
+  () => { selectedPreset.value = qrAppearancePresets[0] },
+  { flush: 'sync' },
+)
+
+watch(
+  () => [props.open, props.slug, props.url, selectedPreset.value] as const,
+  async ([open, , url, preset]) => {
     const currentGeneration = ++generationId
     dataUrl.value = ''
     generationError.value = false
@@ -69,8 +91,9 @@ watch(
       const { default: QRCode } = await import('qrcode')
       const result = await QRCode.toDataURL(url, {
         width: 320,
-        margin: 2,
+        margin: 4,
         errorCorrectionLevel: 'M',
+        color: { dark: preset.dark, light: '#FFFFFF' },
       })
       if (currentGeneration === generationId) {
         dataUrl.value = result
@@ -107,11 +130,32 @@ watch(
   aspect-ratio: 1;
 }
 
+.short-link-qr-dialog__presets {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.short-link-qr-dialog__swatch {
+  width: 12px;
+  height: 12px;
+  margin-inline-end: 8px;
+  border-radius: 50%;
+}
+
+.short-link-qr-dialog__hint {
+  margin: 0;
+  color: rgb(var(--v-theme-on-surface-variant));
+  text-align: center;
+}
+
 .short-link-qr-dialog__preview img {
   display: block;
   width: 100%;
   height: auto;
   aspect-ratio: 1;
+  background: #fff;
 }
 
 .short-link-qr-dialog__url {
