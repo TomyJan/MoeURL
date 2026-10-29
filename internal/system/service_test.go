@@ -133,6 +133,7 @@ func TestServiceSetupRejectsInvalidShortLinkOriginBeforePersistence(t *testing.T
 		t.Run(shortLinkDomain, func(t *testing.T) {
 			ctx := t.Context()
 			pool := systemTestPool(t, ctx)
+			settingsBefore := setupSettingsSnapshot(t, ctx, pool)
 			service := system.NewService(pool, mustSetupPolicy(t, false, ""))
 			input := validSetupInput("")
 			input.ShortLinkDomain = shortLinkDomain
@@ -142,15 +143,15 @@ func TestServiceSetupRejectsInvalidShortLinkOriginBeforePersistence(t *testing.T
 			if !errors.Is(err, system.ErrInvalidSetupInput) {
 				t.Fatalf("setup error = %v, want ErrInvalidSetupInput", err)
 			}
-			for _, table := range []string{"user_group", "app_user", "domain", "system_setting", "domain_user_group"} {
+			if after := setupSettingsSnapshot(t, ctx, pool); after != settingsBefore {
+				t.Fatal("invalid setup changed migration-provided settings")
+			}
+			for _, table := range []string{"user_group", "app_user", "domain", "domain_user_group"} {
 				var count int
 				if err := pool.QueryRow(ctx, `select count(*) from `+table).Scan(&count); err != nil {
 					t.Fatalf("count %s: %v", table, err)
 				}
 				want := 0
-				if table == "system_setting" {
-					want = 7
-				}
 				if count != want {
 					t.Fatalf("invalid setup left %d %s rows, want migration baseline %d", count, table, want)
 				}
@@ -470,6 +471,7 @@ func assertBuiltInData(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 func TestServiceSetupRollsBackWhenDomainGrantFails(t *testing.T) {
 	ctx := t.Context()
 	pool := systemTestPool(t, ctx)
+	settingsBefore := setupSettingsSnapshot(t, ctx, pool)
 	if _, err := pool.Exec(ctx, `
 		create function reject_domain_grant() returns trigger language plpgsql as $$
 		begin raise exception 'domain grant unavailable'; end; $$;
@@ -482,19 +484,30 @@ func TestServiceSetupRollsBackWhenDomainGrantFails(t *testing.T) {
 	if err := service.Setup(ctx, validSetupInput("")); err == nil {
 		t.Fatal("expected domain grant failure")
 	}
-	for _, table := range []string{"user_group", "app_user", "domain", "system_setting", "domain_user_group"} {
+	if after := setupSettingsSnapshot(t, ctx, pool); after != settingsBefore {
+		t.Fatal("rolled-back setup changed migration-provided settings")
+	}
+	for _, table := range []string{"user_group", "app_user", "domain", "domain_user_group"} {
 		var count int
 		if err := pool.QueryRow(ctx, `select count(*) from `+table).Scan(&count); err != nil {
 			t.Fatalf("count rolled-back %s: %v", table, err)
 		}
 		want := 0
-		if table == "system_setting" {
-			want = 7
-		}
 		if count != want {
 			t.Fatalf("partial setup left %d %s rows, want migration baseline %d", count, table, want)
 		}
 	}
+}
+
+// Compare every baseline setting, value and timestamp, rather than coupling
+// rollback checks to the number of independent defaults added by migrations.
+func setupSettingsSnapshot(t *testing.T, ctx context.Context, pool *pgxpool.Pool) string {
+	t.Helper()
+	var snapshot string
+	if err := pool.QueryRow(ctx, `select coalesce(jsonb_agg(to_jsonb(s) order by key),'[]'::jsonb)::text from system_setting s`).Scan(&snapshot); err != nil {
+		t.Fatalf("snapshot baseline settings: %v", err)
+	}
+	return snapshot
 }
 
 // assertStoredGroupPermission checks the database state expected by the surrounding tests.

@@ -157,6 +157,12 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			pool.Close()
 			return nil, fmt.Errorf("validate system settings: %w", err)
 		}
+		homeContentService := system.NewHomeContentService(pool)
+		if err := homeContentService.ValidateStartup(ctx); err != nil {
+			pool.Close()
+			return nil, fmt.Errorf("validate home content: %w", err)
+		}
+		deps.HomeContent = homeContentService
 		authService := auth.NewServiceWithLoginPolicy(pool, 24*time.Hour, loginPolicy)
 		deps.Auth = authService
 		deps.Password = authService
