@@ -2,7 +2,7 @@
 
 MoeURL 是一个现代、轻量、可控的自托管短链系统，面向个人、小团队和可控范围内的公开访问场景。
 
-当前主分支的功能实现已推进到 v0.31.0：在短链、匿名统计、批量管理、事务审计、账号与用户组、OIDC、多域名和系统设置基础上，已合并单条／批量归属转移、清单与审计 CSV、批量标签、个人／组默认域名、域名排序、域名默认跳转方式、有界批量成员迁移和 Google／手动 OIDC 创建草稿。前端保留标准列表、操作反馈、构建版本署名和「鸢尾蓝 × 薄荷青」配色。合并不等于正式发布。
+当前主分支的功能实现已推进到 [v0.34.0](./docs/product/scope-v0.34.0.md)：在短链、匿名统计、批量管理、事务审计、账号与用户组、OIDC、多域名和系统设置基础上，已合并归属转移、清单与审计 CSV、批量标签、个人／组默认域名、域名排序与默认跳转方式、批量成员迁移、Google／手动 OIDC 草稿、三个二维码外观预设、首页纯文本文案和三个站点强调色预设。前端保留标准列表、操作反馈、构建版本署名及个人深浅模式。合并不等于正式发布。
 
 v0.12.0 自定义短码与 v0.13.0 个人改密已分别通过 PR #185、#186 合并。本地验证与独立审查分别见 [短码验收](./docs/implementation/v0.12.0-acceptance.md) 和 [改密验收](./docs/implementation/v0.13.0-acceptance.md)，不据此声称正式发布。[v0.14.0 统计日期范围](./docs/product/scope-v0.14.0.md) 已通过 PR #187 合并为 `c864ce3a`，支持近 7／30／90 天与有界自定义 UTC 区间，随后依赖更新后的主分支为 `ae464282`；原分支验证状态见 [本版验收](./docs/implementation/v0.14.0-acceptance.md)。
 
@@ -10,7 +10,7 @@ v0.12.0 自定义短码与 v0.13.0 个人改密已分别通过 PR #185、#186 �
 
 [v0.15.0 账号语言与主题偏好](./docs/product/scope-v0.15.0.md) 已通过 PR #190 合并为 `2ec7eaa4`：支持账号保存与登录加载，同时保留浏览器即时选择。原分支验证环境和发布缺口见 [验收记录](./docs/implementation/v0.15.0-acceptance.md)。[v0.16.0 聚合统计 CSV 导出](./docs/product/scope-v0.16.0.md) 已通过 PR #191 合并为 `bd4c2625`，未正式发布；不扩展原始数据采集，状态见 [本版验收](./docs/implementation/v0.16.0-acceptance.md)。
 
-[v0.17.0 短链批量管理](./docs/product/scope-v0.17.0.md)、[v0.18.0 全站统计、访问明细和操作审计](./docs/product/scope-v0.18.0.md) 与 [v0.19.0 用户组成员迁移](./docs/product/scope-v0.19.0.md) 已分别通过 PR #198、#208、#211 合并。此前 [v0.29.0](./docs/product/scope-v0.29.0.md) 由 PR #227 合并为 8af05d60，最终 PR CI #40629796924 与合并 master CI #40631422772 各九成功、真实审查闭环；最近已合并版本为下方记录的 v0.31.0。各候选的本地门禁、目标 CI 和生产验收保持独立归属。
+[v0.17.0 短链批量管理](./docs/product/scope-v0.17.0.md)、[v0.18.0 全站统计、访问明细和操作审计](./docs/product/scope-v0.18.0.md) 与 [v0.19.0 用户组成员迁移](./docs/product/scope-v0.19.0.md) 已分别通过 PR #198、#208、#211 合并。此前 [v0.29.0](./docs/product/scope-v0.29.0.md) 由 PR #227 合并为 8af05d60，最终 PR CI #40629796924 与合并 master CI #40631422772 各九成功、真实审查闭环；当前已合并至 v0.34.0，交付证据见[本版验收](./docs/implementation/v0.34.0-acceptance.md)。各候选的本地门禁、目标 CI 和生产验收保持独立归属。
 
 v0.30.0 已通过 [PR #228](https://github.com/TomyJan/MoeURL/pull/228) 于 2026-10-28T13:21:25Z 合并为 `d582fba02772e62f2f3af2fe11e485728f5c0097`。最终候选 `f54567d` 的 [PR CI #40686801162](https://github.com/TomyJan/MoeURL/actions/runs/40686801162) 与该合并的 [master CI #40695791448](https://github.com/TomyJan/MoeURL/actions/runs/40695791448) 各九项成功，真实 CodeRabbit 覆盖最终候选、有效意见全部闭环；标准 Task1–4 与完整最终 SDD 归档核验已完成。未正式发布或部署。范围、逐候选验证、原失败及运行归属见[验收](./docs/implementation/v0.30.0-acceptance.md)；不将旧本地浏览器或产品制品重归属给合并提交，不扩自定义组、多组或 OIDC 映射。
 
