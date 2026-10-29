@@ -1,6 +1,6 @@
 # MoeURL 文档中心
 
-[v0.34.0 站点强调色预设](product/scope-v0.34.0.md) 已建立独立范围、[设计](specs/2026-10-30-v0.34.0-site-accent-design.md)及[计划](implementation/v0.34.0-plan.md)：三个固定主强调色，保留浏览器／账号深浅模式，不扩任意 CSS 或上传。当前 Task1 独立后端和完整门禁通过，原子提交及标准完成已通过，Task2 完整前端 132 文件／2158 测试、四项 100%、types／lint／隔离构建通过，原子提交与标准完成待做，尚无浏览器、产品或交付结论，见[任务](implementation/v0.34.0-tasks.md)和[验收](implementation/v0.34.0-acceptance.md)。
+[v0.34.0 站点强调色预设](product/scope-v0.34.0.md) 已建立独立范围、[设计](specs/2026-10-30-v0.34.0-site-accent-design.md)及[计划](implementation/v0.34.0-plan.md)：三个固定主强调色，保留浏览器／账号深浅模式，不扩任意 CSS 或上传。当前 Task1 独立后端和完整门禁通过，原子提交及标准完成已通过，Task2 完整前端 132 文件／2158 测试、四项 100%、types／lint／隔离构建通过，原子提交 2bd7c10 与标准完成已通过，Task3 已启动，尚无浏览器、产品或交付结论，见[任务](implementation/v0.34.0-tasks.md)和[验收](implementation/v0.34.0-acceptance.md)。
 
 [v0.33.1 首页文案反馈补丁](product/scope-v0.33.1.md) 已由 [PR #232](https://github.com/TomyJan/MoeURL/pull/232) 合并为 `cf5d5a64`。最终候选 `91cf9d5` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40885738492) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40892523382) 各九成功，真实最新 CodeRabbit 覆盖最终候选、有效意见闭环；标准 Task1–3、完整最终归档及准确 leaf 可恢复清理完成。原本地执行 SHA、失败、42 项裁决和限制保持[验收](implementation/v0.33.1-acceptance.md)归属；未正式发布。当前文档同步属于独立[维护轮](implementation/2026-10-29-delivery-status-plan.md)，不将上述 CI 归属本轮文档提交。
 
