@@ -2,7 +2,7 @@
 
 ## v0.33.0 本地已验证的首页文案增量
 
-新增 `site.home_content` 单键与 `00029` 非破坏迁移、专用仅键名审计及独立三 API：公开 `system/home-content` 与管理读／update。80／200 Unicode 码点，控制字符先拒后 trim；当前账号／builtin admin 组及两权限重查，五秒事务与账号→组→配置锁序，完整精度 CAS 先于 no-op。旧 settings DTO／revision 不变，SQLC 1.30 完整 52 源／24 生成零漂移。原 718 物理输入的完整 Go／race／vet、业务 100% 和安全扫描已标准完成 Task1；Task2 的 313 web 输入、2094 测试／四 100%、lint／types／隔离构建也已标准完成。冻结 Task1 的非 web 完整集合不变，不冒重跑 Go；Task3 已启动，真实浏览器／产品／远端仍待执行，见[设计](../specs/2026-10-29-v0.33.0-homepage-copy-design.md)和[验收](v0.33.0-acceptance.md)。
+新增 `site.home_content` 单键与 `00029` 非破坏迁移、专用仅键名审计及独立三 API：公开 `system/home-content` 与管理读／update。80／200 Unicode 码点，控制字符先拒后 trim；当前账号／builtin admin 组及两权限重查，五秒事务与账号→组→配置锁序，完整精度 CAS 先于 no-op。旧 settings DTO／revision 不变，SQLC 1.30 完整 52 源／24 生成零漂移。Task1 完整 Go／race／vet、业务 100% 与符号安全检查及 Task2 的 2094 测试／四 100%、lint／types／隔离构建均已标准完成。候选 `7836087` 的 718 运行时选择器输入另行实核，定向 4 项／完整 113 项浏览器、五原图、18178 标准 smoke 与精确镜像正常更新数据库后的 HIGH／CRITICAL 三目标均 0。原物理输入与后继运行时选择器不同；各 SHA、Go／Node、镜像和漏洞库身份分别保留，Task3 终审／归档／标准完成及 Task4 远端仍待执行，见[设计](../specs/2026-10-29-v0.33.0-homepage-copy-design.md)和[验收](v0.33.0-acceptance.md)。
 
 ## v0.32.0 已合并的前端增量
 

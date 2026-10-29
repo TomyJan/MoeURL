@@ -1,6 +1,6 @@
 # v0.33.0 首页文案范围
 
-状态：Task1 独立后端及 Task2 首页／独立编辑器已标准完成，当前完整前端 2094 测试／四 100%、lint／types／隔离构建通过。Task3 已启动，真实浏览器／产品验证待执行，Task4 尚未开始。2026-10-29 从 fresh `origin/master` 的 `99f877094119585c4cdd510bfb046f8ade56d47d` 创建 no-track 分支 `feat/v0.33.0-homepage-copy`，起点 open PR 为 0。该基线是已完成的 v0.32.0／PR #230，不以其测试替代本版证据。各次 dirty 输入、失败及 SQLC 恢复分别见验收，尚无本版真实浏览器、产品镜像或远端验证。
+状态：Task1 独立后端及 Task2 首页／独立编辑器已标准完成；候选 `7836087` 的定向 4 项／完整 113 项浏览器、五原图核验、标准 Compose smoke 与精确镜像正常更新数据库后的 HIGH／CRITICAL 扫描已通过。Task3 唯一 fresh 终审、完整本地归档及标准完成待执行，Task4 尚未开始。2026-10-29 从 fresh `origin/master` 的 `99f877094119585c4cdd510bfb046f8ade56d47d` 创建 no-track 分支 `feat/v0.33.0-homepage-copy`，起点 open PR 为 0。各次 dirty 输入、失败、SQLC 恢复及产品运行时分别见验收；不以基线 v0.32.0／PR #230 或本地证据替代尚无的本版远端验证。
 
 ## 目标
 

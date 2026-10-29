@@ -1,6 +1,6 @@
 # 技术选型决策
 
-v0.33.0 采用独立首页文案资源，不扩旧严格 settings DTO／revision；单键、完整精度 CAS、当前身份及两权限重查、五秒事务和仅键名审计，Down 保留内容历史。前端独立表单、身份／权限 generation 与编辑轮次守卫，公开逐字段回退及纯文本渲染；无新依赖或权限。Task1–2 已标准完成，完整前端 2094 测试／四 100%、lint／types／隔离构建通过；Task3 已启动，浏览器、产品及远端仍待完成，见[设计](../specs/2026-10-29-v0.33.0-homepage-copy-design.md)和[验收](v0.33.0-acceptance.md)。
+v0.33.0 采用独立首页文案资源，不扩旧严格 settings DTO／revision；单键、完整精度 CAS、当前身份及两权限重查、五秒事务和仅键名审计，Down 保留内容历史。前端独立表单、身份／权限 generation 与编辑轮次守卫，公开逐字段回退及纯文本渲染；无新依赖或权限。Task1–2 已标准完成；候选 `7836087` 的定向 4 项／完整 113 项浏览器、五原图、标准 Compose smoke 与精确镜像正常更新数据库后的 HIGH／CRITICAL 扫描已通过。Task3 终审／归档／标准完成及 Task4 远端仍待执行；原始 SHA、输入、运行时与失败见[设计](../specs/2026-10-29-v0.33.0-homepage-copy-design.md)和[验收](v0.33.0-acceptance.md)。
 
 v0.32.0 设计采用现有 qrcode 与共享对话框的本地固定外观目录：320 像素／M／4 模块静区、不透明白底，三个深色预设；只改变 PNG 渲染，不新增依赖、API、权限、数据库或持久偏好。身份变化恢复黑白，全部异步写入保留 generationId 守卫。已由 PR #230 合并为99f87709，最终28214ef与master各九 CI 成功、真实审查及标准 Task1–4／完整最终归档完成。原单元／静态与clean7b7315b的4／110浏览器、七图／产品分别归属；未正式发布，见[设计](../specs/2026-10-29-v0.32.0-qr-appearance-presets-design.md)与[验收](v0.32.0-acceptance.md)。
 
