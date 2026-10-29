@@ -41,7 +41,7 @@ const currentUser = computed(() => currentUserQuery.data.value?.user)
 const currentUserName = computed(() => currentUser.value?.nickname || currentUser.value?.username || 'guest')
 const isGuest = computed(() => currentUser.value?.group === 'guest' || !currentUser.value)
 const contentQuery = useQuery({ queryKey: publicHomeContentKey, queryFn: getPublicHomeContent, retry: false, refetchOnMount: 'always', gcTime: 0 })
-const copy = computed(() => contentQuery.isSuccess.value && !contentQuery.isFetching.value ? contentQuery.data.value : undefined)
+const copy = computed(() => contentQuery.isSuccess.value && contentQuery.isFetchedAfterMount.value ? contentQuery.data.value : undefined)
 
 /** Opens the signed-in user's profile page. */
 function goProfile() {

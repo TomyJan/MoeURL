@@ -1,6 +1,6 @@
 # 开发进度与能力清单
 
-当前 [v0.33.1 首页文案反馈补丁](scope-v0.33.1.md) 设计／计划已确定，行为未修复、门禁未执行。范围仅旧成功反馈、后台刷新闪回和路线图旧阶段，见[计划](../implementation/v0.33.1-plan.md)及[验收](../implementation/v0.33.1-acceptance.md)。
+当前 [v0.33.1 首页文案反馈补丁](scope-v0.33.1.md) 已完成两项行为真实 RED→GREEN、完整前端 2100 测试／四项 100%、types／lint／隔离 build；标准 Task1 收口与后续浏览器、产品、终审及远端交付待做。范围仅旧成功反馈、后台刷新闪回和路线图旧阶段，见[计划](../implementation/v0.33.1-plan.md)及[验收](../implementation/v0.33.1-acceptance.md)。
 
 [v0.33.0 首页文案](scope-v0.33.0.md) 已由 [PR #231](https://github.com/TomyJan/MoeURL/pull/231) 合并为 `811d6c57`，最终 `34a520b` 的 PR CI40852026042 与合并 master CI40858639758 各九成功，真实最新审查／有效意见闭环、标准 Task1–4、完整最终归档与准确 leaf 可恢复清理完成。三个 Minor 在该版延期，所有原始失败、执行 SHA、完整输入与运行时保持[验收](../implementation/v0.33.0-acceptance.md)归属；未正式发布。
 
