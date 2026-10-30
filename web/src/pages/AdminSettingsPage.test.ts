@@ -45,7 +45,7 @@ vi.mock('@tanstack/vue-query', () => ({
 }))
 
 function mountPage() {
-  return render(AdminSettingsPage, { global: { stubs: { ...componentStubs, AppearanceEditor: { template: '<form aria-label="appearance.heading"><label>appearance.preset<select name="site-accent"><option>iris</option></select></label></form>' }, HomeContentEditor: { template: '<div data-testid="homepage-settings" />' }, AdminAuthenticationPage: { template: '<div data-testid="authentication-settings" />' } } } })
+  return render(AdminSettingsPage, { global: { stubs: { ...componentStubs, FooterLinksEditor: { template: '<section />' }, AppearanceEditor: { template: '<form aria-label="appearance.heading"><label>appearance.preset<select name="site-accent"><option>iris</option></select></label></form>' }, HomeContentEditor: { template: '<div data-testid="homepage-settings" />' }, AdminAuthenticationPage: { template: '<div data-testid="authentication-settings" />' } } } })
 }
 
 describe('AdminSettingsPage', () => {
