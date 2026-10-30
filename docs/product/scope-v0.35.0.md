@@ -1,6 +1,8 @@
 # v0.35.0 有界页脚链接
 
-状态：2026-10-30 Task1–3 已标准完成，后端、前端、完整浏览器和精确产品本地门禁已有各自输入与运行时证据；Task4 进行中。[PR #239](https://github.com/TomyJan/MoeURL/pull/239) 候选 632c619 的 [CI](https://github.com/TomyJan/MoeURL/actions/runs/41054453846) 有 Test、Test Coverage、E2E 三项失败，当前正在窄修 ACE 校验及旧场景选择同步，不可合并，未发布。执行者根据长期自主迭代授权选择本增量，不冒用户逐条批准。起点仍为 fresh master API 与独立 fetch 相等的 65e859f797b7c422f83d8eac056b06ae2d60a1db；旧 PR #238 的完成证据不归属本版。
+2026-10-30 19:06 UTC 文档状态同步（远端状态只据 2026-10-30 18:13:09 UTC 只读快照，非本次实时查询）：Task1–3 已标准完成，Task4 进行中且仅步骤 1 已完成。既有 [PR #239](https://github.com/TomyJan/MoeURL/pull/239) 已推送候选 `c44d23c0c7fe9ff41c52c19bd92dbe3c45636b08`；其自身 [CI run41097109781](https://github.com/TomyJan/MoeURL/actions/runs/41097109781) 九项 SUCCESS，完整 7331 行原始日志现已 ROOT 连续读至 EOF。真实 CodeRabbit review5716229915 的 kind=reviewed、sourceCommitId=coveredCommitId=该候选完整 SHA，review 与 overview 已全文读回；快照 effective open 为 0，但两条新增 outside 文档 Minor 仍须本次字段／状态同步及一次公开处置闭环，不与原五类延期 Minor 混合。本次文档后继的自身 CI、完整原始日志与真实 exact-head 审查仍待，不借 c44 证据；尚未合并、未完成 master 自身 CI／标准 Task4／最终归档清理，未 tag／release／deploy。以下旧阶段与失败记录均为历史，保留实际提交、输入、运行时和证据归属。
+
+历史记录（原文保留）：状态：2026-10-30 Task1–3 已标准完成，后端、前端、完整浏览器和精确产品本地门禁已有各自输入与运行时证据；Task4 进行中。[PR #239](https://github.com/TomyJan/MoeURL/pull/239) 候选 632c619 的 [CI](https://github.com/TomyJan/MoeURL/actions/runs/41054453846) 有 Test、Test Coverage、E2E 三项失败，当前正在窄修 ACE 校验及旧场景选择同步，不可合并，未发布。执行者根据长期自主迭代授权选择本增量，不冒用户逐条批准。起点仍为 fresh master API 与独立 fetch 相等的 65e859f797b7c422f83d8eac056b06ae2d60a1db；旧 PR #238 的完成证据不归属本版。
 
 ## 目标与版本选择
 
@@ -11,7 +13,7 @@
 | 能力／来源 | 当前状态／是否纳入 | 后端／数据库 | 前端 | 测试与风险 |
 | --- | --- | --- | --- | --- |
 | [现有页脚](../specs/themes-and-i18n.md#页脚配置) | 纯文本与固定署名已实现；保留不重构 | 旧 DTO／版本不扩展 | 保留文字、构建链接及弹性布局 | 新旧组合回归；低风险 |
-| 自定义页脚链接／同上 | 已实现最多 5 项；候选 CI 修复中，未合并 | 独立三 API、单键、CAS、仅键名审计、00031 | 独立编辑器与公开 nav 已实现 | 共享 URL 语料、严格 JSON、真实 PG 与本地门禁已有证据；目标 CI 未通过，中风险 |
+| 自定义页脚链接／同上 | 已实现最多 5 项；c44 候选自身九项 CI 成功，Task4 仍进行中，未合并 | 独立三 API、单键、CAS、仅键名审计、00031 | 独立编辑器与公开 nav 已实现 | 共享 URL 语料、严格 JSON、真实 PG 与本地门禁保持各自归属；c44 原始 CI 全文 EOF，本次文档后继门禁／公开处置仍待，中风险 |
 | [首页文案](scope-v0.33.0.md)、[固定强调色](scope-v0.34.0.md) | 已合并未发布；本版仅验证资源独立 | 不改旧键／权限／审计 | 不改旧表单或账号偏好 | 独立保存、身份轮次、公开晚到；中风险 |
 | Logo／Favicon／任意主题色 | 规划未开发；不纳入 | 媒体与存储边界另立版本 | 无上传或编辑入口 | 避免 PWA／内容注入范围扩张 |
 | [全站访问合并导出](roadmap.md) | 未开发；不纳入 | 跨用户权限、隐私和快照预算独立设计 | 不新增导出 UI | 高风险，不与品牌入口混合 |
