@@ -33,14 +33,17 @@ export function useFooterLinksDraft() {
   }
   /** Structural edits are unavailable until a confirmed draft is idle. */
   function idle() { return state.allowed && !!state.version && !state.loading && !state.saving }
+  /** Adds an explicit blank draft row up to the five-item limit; validation never silently drops it. */
   function add() {
     if (!idle() || state.rows.length >= 5) return
     state.rows.push({ key: ++sequence, label: '', url: '' }); changed()
   }
+  /** Removes a row only from an idle local draft; clearing the last row still requires saving. */
   function remove(index: number) {
     if (!idle()) return
     state.rows.splice(index, 1); changed()
   }
+  /** Swaps adjacent rows without changing their local keys or deduplicating stored order. */
   function move(index: number, offset: -1 | 1) {
     const target = index + offset
     if (!idle() || target < 0 || target >= state.rows.length) return

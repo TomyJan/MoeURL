@@ -24,6 +24,8 @@ type FooterLinksService struct {
 	queries *sqlc.Queries
 }
 
+// NewFooterLinksService binds the independent resource to the shared database;
+// startup validation remains explicit so construction performs no storage reads.
 func NewFooterLinksService(pool *pgxpool.Pool) *FooterLinksService {
 	return &FooterLinksService{pool: pool, queries: sqlc.New(pool)}
 }
@@ -149,6 +151,8 @@ func applyFooterLinks(ctx context.Context, q footerLinksWriteStore, id pgtype.UU
 	return storedFooterLinks(row)
 }
 
+// footerLinksActorID requires a canonical, nonzero account UUID before any
+// database access; malformed identity is denied rather than normalized.
 func footerLinksActorID(raw string) (pgtype.UUID, error) {
 	id, err := uuid.Parse(raw)
 	if err != nil || id == uuid.Nil || id.String() != raw {
@@ -157,6 +161,8 @@ func footerLinksActorID(raw string) (pgtype.UUID, error) {
 	return pgtype.UUID{Bytes: id, Valid: true}, nil
 }
 
+// footerLinksIdentityError treats an absent eligible account or group as denied
+// access while preserving infrastructure errors for the fail-closed error path.
 func footerLinksIdentityError(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrSettingsPermissionDenied
@@ -164,6 +170,8 @@ func footerLinksIdentityError(err error) error {
 	return err
 }
 
+// authorizeFooterLinksPermissions requires both current database grants. A
+// malformed permission snapshot is storage corruption, not an empty grant list.
 func authorizeFooterLinksPermissions(raw []byte, err error) error {
 	if err != nil {
 		return footerLinksIdentityError(err)

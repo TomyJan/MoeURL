@@ -145,10 +145,14 @@ func footerDNSOrIPv4(raw string) (string, error) {
 	return host, nil
 }
 
+// footerASCIIAlphanumeric deliberately accepts ASCII bytes only; Unicode host
+// labels must arrive as validated ACE and URI suffixes as percent-encoded bytes.
 func footerASCIIAlphanumeric(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9'
 }
 
+// footerHexDigits checks only the character set. The caller supplies escape
+// width or host-label rules; an empty suffix is intentionally accepted here.
 func footerHexDigits(raw string) bool {
 	for i := 0; i < len(raw); i++ {
 		c := raw[i]

@@ -5,7 +5,9 @@ export const publicFooterLinksKey = ['footer-links', 'public'] as const
 export const adminFooterLinksKey = ['footer-links', 'admin'] as const
 const controls = /\p{Cc}/u
 const whitespace = /^\p{White_Space}+|\p{White_Space}+$/gu
+/** Matches Go TrimSpace without removing BOM, which remains a counted label codepoint. */
 const trim = (value: string) => value.replace(whitespace, '')
+/** Rejects raw controls and lone UTF-16 surrogates before trimming can erase invalid input. */
 const scalarText = (value: string) => !controls.test(value) && !/[\uD800-\uDFFF]/u.test(value)
 
 /**

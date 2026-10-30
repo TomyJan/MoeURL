@@ -27,6 +27,8 @@ type FooterLinksHandler struct {
 	logger  *slog.Logger
 }
 
+// NewFooterLinksHandler uses the supplied service boundary and falls back to
+// the default logger; request failures never log administrator link contents.
 func NewFooterLinksHandler(service FooterLinksPort, logger *slog.Logger) *FooterLinksHandler {
 	if logger == nil {
 		logger = slog.Default()
