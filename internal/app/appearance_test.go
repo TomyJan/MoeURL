@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/stretchr/testify/require"
 )
 
@@ -193,8 +194,8 @@ func TestAppearanceCorruptStorage(t *testing.T) {
 	appearanceCall(t, a, nil, "GET", appearancePublicPath, "", "", 500, 900000)
 }
 
-// TestAppearanceSameVersionHasOneWinner races two actual administrators through
-// the session middleware, asserting the committed winner and exactly one audit.
+// TestAppearanceSameVersionHasOneWinner races two requests from one administrator
+// through session middleware, asserting the committed winner and one audit.
 func TestAppearanceSameVersionHasOneWinner(t *testing.T) {
 	a := newTestApplication(t)
 	cookie := domainOrderLogin(t, a)
@@ -234,6 +235,140 @@ func TestAppearanceSameVersionHasOneWinner(t *testing.T) {
 	var count int
 	require.NoError(t, a.pool.QueryRow(t.Context(), `select count(*) from audit_log where resource_id='site.appearance'`).Scan(&count))
 	require.Equal(t, 1, count)
+}
+
+// TestAppearanceIndependentAdminsCAS catches lost CAS across different sessions
+// and an audit actor attributed to anyone other than the actual winning writer.
+func TestAppearanceIndependentAdminsCAS(t *testing.T) {
+	a := newTestApplication(t)
+	login := func(username, password string) (*http.Cookie, auth.CurrentUser) {
+		t.Helper()
+		r := httptest.NewRequestWithContext(t.Context(), "POST", "/api/v1/auth/login", strings.NewReader(fmt.Sprintf(`{"username":%q,"password":%q}`, username, password)))
+		r.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		a.server.Handler.ServeHTTP(w, r)
+		require.Equal(t, 200, w.Code)
+		var response struct {
+			Code int
+			Data struct{ User auth.CurrentUser }
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+		require.Zero(t, response.Code)
+		cookies := w.Result().Cookies()
+		require.Len(t, cookies, 1)
+		var me struct{ User auth.CurrentUser }
+		require.NoError(t, json.Unmarshal(domainOrderRequest(t, a, cookies[0], "GET", "/api/v1/auth/me", ""), &me))
+		require.Equal(t, response.Data.User, me.User)
+		require.Equal(t, username, me.User.Username)
+		require.Equal(t, "admin", me.User.GroupKey)
+		return cookies[0], me.User
+	}
+	firstCookie, firstActor := login("admin", "secure-password")
+	var created struct{ User struct{ ID string } }
+	require.NoError(t, json.Unmarshal(domainOrderRequest(t, a, firstCookie, "POST", "/api/v1/admin/user/create", `{"username":"accent-admin","password":"second-secure-password","nickname":"Second administrator","groupKey":"admin","status":"active"}`), &created))
+	secondCookie, secondActor := login("accent-admin", "second-secure-password")
+	require.Equal(t, created.User.ID, secondActor.ID)
+	require.NotEqual(t, firstActor.ID, secondActor.ID)
+	require.NotEqual(t, firstActor.Username, secondActor.Username)
+	require.False(t, firstCookie.Value == secondCookie.Value, "independent logins must have distinct sessions")
+	var administrators int
+	require.NoError(t, a.pool.QueryRow(t.Context(), `select count(*) from app_user u join user_group g on g.id=u.group_id where ((u.id::text=$1 and u.username=$2) or (u.id::text=$3 and u.username=$4)) and u.status='active' and u.deleted_at is null and not u.builtin and g.builtin and g.key='admin'`, firstActor.ID, firstActor.Username, secondActor.ID, secondActor.Username).Scan(&administrators))
+	require.Equal(t, 2, administrators)
+	current := appearanceCall(t, a, firstCookie, "GET", appearanceAdminPath, "", "", 200, 0)
+	require.Equal(t, "iris", current["accentPreset"])
+	require.Equal(t, current, appearanceCall(t, a, secondCookie, "GET", appearanceAdminPath, "", "", 200, 0))
+	tx, err := a.pool.Begin(t.Context())
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	_, err = tx.Exec(t.Context(), `select key from system_setting where key='site.appearance' for update`)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	type outcome struct {
+		actor    auth.CurrentUser
+		preset   string
+		response *httptest.ResponseRecorder
+	}
+	ready, start := make(chan struct{}, 2), make(chan struct{})
+	results, finished := make(chan outcome, 2), make(chan struct{}, 2)
+	for _, writer := range []struct {
+		actor  auth.CurrentUser
+		cookie *http.Cookie
+		preset string
+	}{{firstActor, firstCookie, "ocean"}, {secondActor, secondCookie, "forest"}} {
+		go func() {
+			defer func() { finished <- struct{}{} }()
+			ready <- struct{}{}
+			<-start
+			r := httptest.NewRequestWithContext(ctx, "POST", appearanceUpdatePath, strings.NewReader(fmt.Sprintf(`{"accentPreset":%q,"expectedUpdatedAt":%q}`, writer.preset, current["updatedAt"])))
+			r.Header.Set("Content-Type", "application/json")
+			r.AddCookie(writer.cookie)
+			w := httptest.NewRecorder()
+			a.server.Handler.ServeHTTP(w, r)
+			results <- outcome{writer.actor, writer.preset, w}
+		}()
+	}
+	<-ready
+	<-ready
+	close(start)
+	t.Cleanup(func() {
+		cancel()
+		cleanupContext, stop := context.WithTimeout(context.Background(), 5*time.Second)
+		defer stop()
+		_ = tx.Rollback(cleanupContext)
+		for range 2 {
+			select {
+			case <-finished:
+			case <-cleanupContext.Done():
+				t.Error("independent appearance writer did not terminate")
+			}
+		}
+	})
+	require.Eventually(t, func() bool {
+		var waiting int
+		err := a.pool.QueryRow(ctx, `with recursive waiting(pid) as (select pid from pg_stat_activity where $1::integer=any(pg_blocking_pids(pid)) union select a.pid from pg_stat_activity a join waiting w on w.pid=any(pg_blocking_pids(a.pid))) select count(*) from waiting`, tx.Conn().PgConn().PID()).Scan(&waiting)
+		return err == nil && waiting == 2
+	}, 2*time.Second, 5*time.Millisecond, "both independent writers must queue behind the real setting lock")
+	require.NoError(t, tx.Commit(ctx))
+	codes := map[int]int{}
+	var winner map[string]any
+	var winnerID string
+	for range 2 {
+		var result outcome
+		select {
+		case result = <-results:
+		case <-ctx.Done():
+			t.Fatal("independent appearance result timed out")
+		}
+		require.Equal(t, 200, result.response.Code)
+		require.Equal(t, "no-store", result.response.Header().Get("Cache-Control"))
+		var body struct {
+			Code int
+			Data map[string]any
+		}
+		require.NoError(t, json.Unmarshal(result.response.Body.Bytes(), &body))
+		codes[body.Code]++
+		if body.Code == 0 {
+			require.Equal(t, result.preset, body.Data["accentPreset"])
+			winner, winnerID = body.Data, result.actor.ID
+		}
+	}
+	require.Equal(t, map[int]int{0: 1, 900207: 1}, codes)
+	previous, err := time.Parse(time.RFC3339Nano, current["updatedAt"].(string))
+	require.NoError(t, err)
+	next, err := time.Parse(time.RFC3339Nano, winner["updatedAt"].(string))
+	require.NoError(t, err)
+	require.True(t, next.After(previous))
+	for _, cookie := range []*http.Cookie{firstCookie, secondCookie} {
+		require.Equal(t, winner, appearanceCall(t, a, cookie, "GET", appearanceAdminPath, "", "", 200, 0))
+	}
+	require.Equal(t, map[string]any{"accentPreset": winner["accentPreset"]}, appearanceCall(t, a, nil, "GET", appearancePublicPath, "", "", 200, 0))
+	var count int
+	require.NoError(t, a.pool.QueryRow(t.Context(), `select count(*) from audit_log where resource_id='site.appearance'`).Scan(&count))
+	require.Equal(t, 1, count)
+	var audit string
+	require.NoError(t, a.pool.QueryRow(t.Context(), `select jsonb_build_object('actor',actor_id,'resource',resource_type,'id',resource_id,'action',action,'fields',changed_fields)::text from audit_log where resource_id='site.appearance'`).Scan(&audit))
+	require.JSONEq(t, fmt.Sprintf(`{"actor":%q,"resource":"system_setting","id":"site.appearance","action":"settings_change","fields":["site.appearance"]}`, winnerID), audit)
 }
 
 // TestAppearanceQueuedRevocation observes a writer blocked on a real revocation
