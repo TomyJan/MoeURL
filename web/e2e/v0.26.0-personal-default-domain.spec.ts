@@ -66,7 +66,9 @@ for (const width of [1280, 390]) {
       await choose(second, domainLabel, systemOption)
       const conflict = second.waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/user/domain-preference/update')
       await second.getByTestId('domain-preference-save').click()
-      expect(await (await conflict).json()).toMatchObject({ code: 300104 })
+      const conflictResponse = await conflict
+      expect(conflictResponse.request().postDataJSON()).toEqual({ domainId: null, expectedUpdatedAt: saved.updatedAt })
+      expect(await conflictResponse.json()).toMatchObject({ code: 300104 })
       await expect(second.getByRole('combobox', { name: domainLabel })).toHaveValue(systemOption)
       await expect(second.getByText(/域名偏好已在其他位置更新|Your domain preference changed elsewhere/).first()).toBeVisible()
       await dismiss(second)
@@ -168,8 +170,17 @@ async function signIn(page: Page, username: string) {
 }
 /** Selects an accessible real Vuetify option, without forcing pointer actions. */
 async function choose(page: Page, label: RegExp, option: string | RegExp) {
-  await page.getByRole('combobox', { name: label }).press('Enter')
-  await page.getByRole('option', { name: option, exact: true }).click()
+  const select = page.getByRole('combobox', { name: label })
+  const current = await select.inputValue()
+  await select.press('Enter')
+  const target = page.getByRole('option', { name: option, exact: true })
+  await expect(target).toBeVisible()
+  // Vuetify focuses the current choice after the opening transition.
+  await expect(page.getByRole('option', { name: current, exact: true })).toBeFocused()
+  await target.scrollIntoViewIfNeeded()
+  await target.click()
+  await expect(select).toHaveValue(option)
+  await expect(target).toBeHidden()
 }
 /** Reads the authoritative independent resource and private cache policy. */
 async function read(page: Page): Promise<Preference> {

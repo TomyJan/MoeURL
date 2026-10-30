@@ -1,6 +1,6 @@
 # MoeURL 文档中心
 
-2026-10-30 修后浏览器读回：clean 09cbe8c 的定向 4 项和五张原图已通过并由 ROOT 读取；随后完整浏览器 actual 1，120 passed／1 failed，失败位于旧 v0.29 手机场景的通知清理 helper，三个新页脚场景均通过。原输入的带 trace 诊断 2 项通过，不能据此声称原失败机制已完全确认；确定性真实 DOM 回归证明原 helper 的观察到激活间存在消失竞态，测试基础设施最小修复后 4 项 GREEN，当前隔离 types／lint actual 0。产品运行时未改，新 clean 定向 7 项、完整 125 项及精确产品仍待；Task3 in_progress／Task4 pending，无 push／PR／merge。下文旧执行事实保持原提交与环境归属。
+2026-10-30 后继浏览器读回：clean 10e0e7a 的通知集成定向 7 项通过；其唯一完整 125 项 actual 1，124 passed／1 failed，三个新页脚场景及旧 v0.29 双视口均通过。失败是旧 v0.26 手机场景未提交预期系统选择，真实 trace 的 POST 仍为 Personal，服务端正确返回 300104，不据此认定页脚或持久化回归。仅同步旧测试的真实 pointer 选择并加精确冲突 payload 断言后，初始化与双视口共 3 项 actual 0，当前隔离 types／lint actual 0；产品运行时不改。新 clean 完整门禁及精确产品仍待，Task3 in_progress／Task4 pending，无 push／PR／merge。下文旧执行保持原提交与环境归属。
 
 [v0.35.0 有界页脚链接](product/scope-v0.35.0.md) 已完成正式设计与四任务计划，后端已实现并通过本地完整门禁，标准 Task1–2 已完成、Task3 进行中，当前隔离 frozen 依赖、strict entity／公开协调器／SiteFooter、独立管理 editor 与身份竞态已实现，完整 135 文件／2333 测试及四项 100%、types／lint／外置构建已通过，metadata 为 0.35.0；原 clean afed568 的完整浏览器与标准精确产品／扫描已通过；唯一终审已完成并确认 1 项 Important，当前窄修已真实 RED→GREEN，新 clean 浏览器／产品、远端合并和发布仍待。独立最多 5 项／完整 CAS／仅键名审计，保留旧纯文本与固定署名；[规格](specs/2026-10-30-v0.35.0-footer-links-design.md)、[计划](implementation/v0.35.0-plan.md)、[矩阵](implementation/v0.35.0-test-matrix.md)、[任务](implementation/v0.35.0-tasks.md)和[验收](implementation/v0.35.0-acceptance.md)为当前入口。下文旧版本阶段记录保持原执行归属，不代本版门禁。
 
