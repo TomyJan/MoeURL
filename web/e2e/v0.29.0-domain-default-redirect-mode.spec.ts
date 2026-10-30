@@ -13,7 +13,11 @@ const choiceLabel = /^(短链域名|Short-link domain)$/
 const modeSave = /^(保存默认跳转方式|Save redirect default)$/
 const modeReload = /^(重新加载域名模式|Reload domain mode)$/
 // Real redirects must finish at an owned HTTP endpoint, not depend on public DNS/TLS.
-const target = 'http://target.localhost:' + e2eOIDCPort + '/jwks'
+// App-only local runs do not start the Compose OIDC provider.
+const skipDocker = process.env.MOEURL_E2E_SKIP_DOCKER?.trim().toLowerCase()
+const target = skipDocker === '1' || skipDocker === 'true'
+  ? 'http://target.localhost:' + e2ePort + '/api/v1/health'
+  : 'http://target.localhost:' + e2eOIDCPort + '/jwks'
 const modeNames = { direct: /^(直接跳转|Direct redirect)$/, intermediate: /^(中间页|Intermediate page)$/, confirmation: /^(确认页|Confirmation page)$/ }
 test.use({ serviceWorkers: 'block', actionTimeout: 10_000 })
 
