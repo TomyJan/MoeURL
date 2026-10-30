@@ -1,5 +1,7 @@
 # MoeURL 文档中心
 
+[v0.35.0 有界页脚链接](product/scope-v0.35.0.md) 已完成正式设计与四任务计划，尚未实现、测试、合并或发布。独立最多 5 项／完整 CAS／仅键名审计，保留旧纯文本与固定署名；[规格](specs/2026-10-30-v0.35.0-footer-links-design.md)、[计划](implementation/v0.35.0-plan.md)、[矩阵](implementation/v0.35.0-test-matrix.md)、[任务](implementation/v0.35.0-tasks.md)和[验收](implementation/v0.35.0-acceptance.md)为当前入口。下文旧版本阶段记录保持原执行归属，不代本版门禁。
+
 [v0.34.0 站点强调色预设](product/scope-v0.34.0.md) 已由 [PR #237](https://github.com/TomyJan/MoeURL/pull/237) 于 2026-10-29T21:10:29Z 合并为 fc88c0e8b9192174e62b225fdc3cb0b87a253451。最终候选 99ebef5 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40949991695) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40955501280) 各九项成功，真实审查覆盖最终候选、全部有效意见闭环；标准 Task1–4、完整最终归档与准确 owned leaf 可恢复清理完成，未正式发布。固定 iris／ocean／forest 三预设、独立 CAS 与仅键名审计保持既有主题模式、个人偏好和公开访问；任意颜色编辑仍未开放；本次维护不改依赖、权限或 schema。原失败、逐候选运行时和当时延期三项 Minor 见[验收](implementation/v0.34.0-acceptance.md)。当前[独立验证与文档维护](implementation/2026-10-30-site-accent-closeout-plan.md)不新增业务版本；补验 Task1 已标准完成，维护自己的终审及 PR／CI／合并仍待做。
 
 [v0.33.1 首页文案反馈补丁](product/scope-v0.33.1.md) 已由 [PR #232](https://github.com/TomyJan/MoeURL/pull/232) 合并为 `cf5d5a64`。最终候选 `91cf9d5` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40885738492) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40892523382) 各九成功，真实最新 CodeRabbit 覆盖最终候选、有效意见闭环；标准 Task1–3、完整最终归档及准确 leaf 可恢复清理完成。原本地执行 SHA、失败、42 项裁决和限制保持[验收](implementation/v0.33.1-acceptance.md)归属；未正式发布。当前文档同步属于独立[维护轮](implementation/2026-10-29-delivery-status-plan.md)，不将上述 CI 归属本轮文档提交。

@@ -1,5 +1,7 @@
 # 技术选型决策
 
+v0.35.0 设计决定采用独立 site.footer_links 单键／三 API／完整 CAS／五秒当前数据库双权限与账号→组→配置锁序、仅键名事务审计，00031 Down 保值与历史；仅本版局部严格 JSON／URL helper 与 Go／TS 同源语料，不扩旧 DTO 或通用 decoder。前端独立公共轮次／管理草稿／安全文本 nav，无依赖或权限新增；隔离当前 frozen 依赖门禁不使用旧 host 安装。以上均为尚未实现的合同，见[设计](../specs/2026-10-30-v0.35.0-footer-links-design.md)、[计划](v0.35.0-plan.md)与[验收](v0.35.0-acceptance.md)。
+
 v0.34.0 已由 [PR #237](https://github.com/TomyJan/MoeURL/pull/237) 于 2026-10-29T21:10:29Z 合并为 fc88c0e8b9192174e62b225fdc3cb0b87a253451。最终候选 99ebef5 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40949991695) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40955501280) 各九项成功，真实审查覆盖最终候选、全部有效意见闭环；标准 Task1–4、完整最终归档与准确 owned leaf 可恢复清理完成，未正式发布。固定 iris／ocean／forest 三预设、独立 CAS 与仅键名审计保持既有主题模式、个人偏好和公开访问；任意颜色编辑仍未开放；本次维护不改依赖、权限或 schema。原失败、逐候选运行时和当时延期三项 Minor 见[验收](v0.34.0-acceptance.md)。当前[独立验证与文档维护](2026-10-30-site-accent-closeout-plan.md)不新增业务版本；补验 Task1 已标准完成，维护自己的终审及 PR／CI／合并仍待做。
 
 2026-10-29 最终状态：v0.33.1 已由 PR #232 合并为 `cf5d5a64`，候选 `91cf9d5` 与该合并的独立 CI 各九成功，真实最新审查／有效意见闭环、标准 Task1–3、最终归档和准确 leaf 可恢复清理完成，详见[v0.33.1 验收](v0.33.1-acceptance.md)。未正式发布。此次[文档维护](2026-10-29-delivery-status-plan.md)只同步已有交付事实，不改变技术栈、API、数据库、权限、测试或部署约定；下面各阶段“待做”描述保持其历史时间归属，不表示当前交付未完成。

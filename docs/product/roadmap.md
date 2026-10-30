@@ -1,5 +1,7 @@
 # 路线图
 
+下一有界迭代确定为 [v0.35.0 页脚链接](scope-v0.35.0.md)，落实已有自定义链接规划：最多 5 项有序文本／HTTP(S) URI、独立当前授权／CAS／审计，无抓取或上传。正式[规格](../specs/2026-10-30-v0.35.0-footer-links-design.md)与[计划](../implementation/v0.35.0-plan.md)已建立，尚未实施／验证／合并。Logo／Favicon、任意主题色与全站访问合并导出不混入本版；旧五类延期 Minor 不顺手修复。
+
 [v0.34.0 站点强调色预设](scope-v0.34.0.md) 已由 [PR #237](https://github.com/TomyJan/MoeURL/pull/237) 于 2026-10-29T21:10:29Z 合并为 fc88c0e8b9192174e62b225fdc3cb0b87a253451。最终候选 99ebef5 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40949991695) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40955501280) 各九项成功，真实审查覆盖最终候选、全部有效意见闭环；标准 Task1–4、完整最终归档与准确 owned leaf 可恢复清理完成，未正式发布。固定 iris／ocean／forest 三预设、独立 CAS 与仅键名审计保持既有主题模式、个人偏好和公开访问；任意颜色编辑仍未开放；本次维护不改依赖、权限或 schema。原失败、逐候选运行时和当时延期三项 Minor 见[验收](../implementation/v0.34.0-acceptance.md)。当前[独立验证与文档维护](../implementation/2026-10-30-site-accent-closeout-plan.md)不新增业务版本；补验 Task1 已标准完成，维护自己的终审及 PR／CI／合并仍待做。
 
 品牌方向中的 [v0.33.0 首屏标题与简介](scope-v0.33.0.md) 已由 [PR #231](https://github.com/TomyJan/MoeURL/pull/231) 合并为 `811d6c57`；[v0.33.1 反馈补丁](scope-v0.33.1.md) 已由 [PR #232](https://github.com/TomyJan/MoeURL/pull/232) 合并为 `cf5d5a64`。补丁最终 `91cf9d5` 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40885738492) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40892523382) 各九成功、真实审查／有效意见闭环、标准 Task1–3 及最终可恢复归档完成；未正式发布。纯文本、逐字段留空回退、独立资源与版本保持，不扩展 Logo、主题色、HTML、翻译管理或 CMS。原失败、执行归属与限制见[验收](../implementation/v0.33.1-acceptance.md)。

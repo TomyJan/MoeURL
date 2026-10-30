@@ -116,6 +116,8 @@ v0.0.1 应实现响应式基础布局。
 
 ## 页脚配置
 
+自定义链接已进入 [v0.35.0 有界设计](../product/scope-v0.35.0.md)，尚未实现或验证：默认空、最多 5 项，label 纯文本与绝对 HTTP(S) URI，独立三 API／版本／当前权限／仅键名审计；保留既有 footerText 和固定署名。服务端不抓取目标；用户主动新窗口导航使用 noopener／noreferrer／no-referrer。严格 URL、输入和公开／管理异步规则以[正式规格](2026-10-30-v0.35.0-footer-links-design.md)为准；不把本段规划视为当前后台能力。
+
 页脚是系统主题配置的一部分，只允许管理员配置。
 
 当前支持管理员配置纯文本页脚。Powered by 固定展示，内容为 `Powered by MoeURL V<构建版本>`，仅 `V` 开头的版本文字带链接；精确 tag 构建链接到 tag，否则附短 commit hash 并链接到 commit。旧 `showPoweredBy` 字段只保留兼容并规范为 `true`，不提供关闭入口。
