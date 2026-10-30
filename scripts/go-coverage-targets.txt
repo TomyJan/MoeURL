@@ -85,6 +85,11 @@ github.com/TomyJan/MoeURL/internal/system/home_content_handler.go
 github.com/TomyJan/MoeURL/internal/system/appearance.go
 github.com/TomyJan/MoeURL/internal/system/appearance_service.go
 github.com/TomyJan/MoeURL/internal/system/appearance_handler.go
+github.com/TomyJan/MoeURL/internal/system/footer_links.go
+github.com/TomyJan/MoeURL/internal/system/footer_links_url.go
+github.com/TomyJan/MoeURL/internal/system/footer_links_json.go
+github.com/TomyJan/MoeURL/internal/system/footer_links_service.go
+github.com/TomyJan/MoeURL/internal/system/footer_links_handler.go
 github.com/TomyJan/MoeURL/internal/user/handler.go
 github.com/TomyJan/MoeURL/internal/user/preferences_handler.go
 github.com/TomyJan/MoeURL/internal/user/preferences_service.go

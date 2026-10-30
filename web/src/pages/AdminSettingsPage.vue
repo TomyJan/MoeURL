@@ -41,6 +41,7 @@
     </form>
     <HomeContentEditor />
     <AppearanceEditor />
+    <FooterLinksEditor />
     <AdminAuthenticationPage />
   </section>
 </template>
@@ -57,6 +58,7 @@ import { setSiteConfig } from '@/shared/site/useSiteConfig'
 import AdminAuthenticationPage from './AdminAuthenticationPage.vue'
 import HomeContentEditor from '@/features/home-content/HomeContentEditor.vue'
 import AppearanceEditor from '@/features/site-appearance/AppearanceEditor.vue'
+import FooterLinksEditor from '@/features/footer-links/FooterLinksEditor.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()

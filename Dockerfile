@@ -19,6 +19,7 @@ COPY web/package.json web/pnpm-lock.yaml ./
 RUN npm install -g $(node -p "require('./package.json').packageManager")
 RUN pnpm install --frozen-lockfile --config.dangerously-allow-all-builds=true
 COPY web/ ./
+COPY testdata/ /workspace/testdata/
 ARG MOEURL_BUILD_COMMIT
 ARG MOEURL_BUILD_TAG=
 ENV MOEURL_BUILD_COMMIT=${MOEURL_BUILD_COMMIT}

@@ -169,6 +169,12 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			return nil, fmt.Errorf("validate site appearance: %w", err)
 		}
 		deps.Appearance = appearanceService
+		footerLinksService := system.NewFooterLinksService(pool)
+		if err := footerLinksService.ValidateStartup(ctx); err != nil {
+			pool.Close()
+			return nil, fmt.Errorf("validate footer links: %w", err)
+		}
+		deps.FooterLinks = footerLinksService
 		authService := auth.NewServiceWithLoginPolicy(pool, 24*time.Hour, loginPolicy)
 		deps.Auth = authService
 		deps.Password = authService

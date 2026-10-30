@@ -5,6 +5,7 @@ import type { ManagedDomain } from '../src/entities/domain/api'
 import type { UserGroup, UserGroupKey } from '../src/entities/user-group/api'
 import type { UserGroupDomainDefault } from '../src/entities/user-group/domain-default'
 import { e2eAdminPassword, e2eAdminUsername, e2ePort, expectNoHorizontalOverflow } from './support'
+import { dismissNotifications as dismiss } from './notification-dismissal'
 
 const password = 'group-default-domain-e2e-password'
 const groupLabel = /^(用户组默认域名|Group default domain)$/
@@ -329,17 +330,6 @@ async function create(page: Page, domain: ManagedDomain, domainId: string | null
   expect(new URL(payload.data.shortLink.url).origin).toBe(new URL(domain.host.includes('://') ? domain.host : `https://${domain.host}`).origin)
   await expect(page.getByTestId('short-link-create-result')).toContainText(payload.data.shortLink.url)
   await dismiss(page)
-}
-/** Removes old notifications so a later assertion cannot accidentally match an earlier outcome. */
-async function dismiss(page: Page) {
-  const buttons = page.getByRole('button', { name: /^(关闭提示|Dismiss notification)$/ })
-  while (await buttons.count()) {
-    const count = await buttons.count()
-    // Keyboard activation does not wait for the toaster's moving exit animation.
-    await buttons.first().press('Enter')
-    await expect.poll(() => buttons.count()).toBeLessThan(count)
-  }
-  await expect(buttons).toHaveCount(0)
 }
 /** Records full rendered layouts and verifies desktop/mobile horizontal bounds. */
 async function layout(page: Page, info: TestInfo, name: string) {

@@ -9,6 +9,7 @@ async function mockWorkspace(page: Page, overrides: Record<string, unknown> = {}
   const responses: Record<string, unknown> = {
     '/init/status': { initialized: true, setupTokenRequired: false },
     '/system/appearance': { accentPreset: 'iris' },
+    '/system/footer-links': { links: [] },
     '/system/public-config': {
       siteName: '长站点名称'.repeat(12) + '测试名称', defaultLanguage: 'zh-CN', defaultTheme: 'system',
       footerText: '很长的页脚文本'.repeat(28) + '页脚测试', showPoweredBy: false,
