@@ -1,6 +1,6 @@
 # 技术选型决策
 
-v0.35.0 设计决定采用独立 site.footer_links 单键／三 API／完整 CAS／五秒当前数据库双权限与账号→组→配置锁序、仅键名事务审计，00031 Down 保值与历史；仅本版局部严格 JSON／URL helper 与 Go／TS 同源语料，不扩旧 DTO 或通用 decoder。前端独立公共轮次／管理草稿／安全文本 nav，无依赖或权限新增；隔离当前 frozen 依赖门禁不使用旧 host 安装。后端实现与本地门禁已验证，前端仍待实施；完整版本尚未交付，见[设计](../specs/2026-10-30-v0.35.0-footer-links-design.md)、[计划](v0.35.0-plan.md)与[验收](v0.35.0-acceptance.md)。
+v0.35.0 设计决定采用独立 site.footer_links 单键／三 API／完整 CAS／五秒当前数据库双权限与账号→组→配置锁序、仅键名事务审计，00031 Down 保值与历史；仅本版局部严格 JSON／URL helper 与 Go／TS 同源语料，不扩旧 DTO 或通用 decoder。前端独立公共轮次／管理草稿／安全文本 nav，无依赖或权限新增；隔离当前 frozen 依赖门禁不使用旧 host 安装。后端和前端本地门禁与标准 Task1–2 已完成；真实浏览器、精确产品与完整交付仍待，见[设计](../specs/2026-10-30-v0.35.0-footer-links-design.md)、[计划](v0.35.0-plan.md)与[验收](v0.35.0-acceptance.md)。
 
 v0.34.0 已由 [PR #237](https://github.com/TomyJan/MoeURL/pull/237) 于 2026-10-29T21:10:29Z 合并为 fc88c0e8b9192174e62b225fdc3cb0b87a253451。最终候选 99ebef5 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40949991695) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40955501280) 各九项成功，真实审查覆盖最终候选、全部有效意见闭环；标准 Task1–4、完整最终归档与准确 owned leaf 可恢复清理完成，未正式发布。固定 iris／ocean／forest 三预设、独立 CAS 与仅键名审计保持既有主题模式、个人偏好和公开访问；任意颜色编辑仍未开放；本次维护不改依赖、权限或 schema。原失败、逐候选运行时和当时延期三项 Minor 见[验收](v0.34.0-acceptance.md)。当前[独立验证与文档维护](2026-10-30-site-accent-closeout-plan.md)不新增业务版本；补验 Task1 已标准完成，维护自己的终审及 PR／CI／合并仍待做。
 
@@ -409,6 +409,8 @@ Node 固定版本 tar 包继续从官方 HTTPS 地址取得，curl 使用 HTTP/1
 提交与 tag 注入仅由实际前端编译消费，将对应 ARG／ENV 放在依赖安装及源码复制之后、`pnpm build` 之前。依赖层不依赖提交标识，可跨原子提交复用；实际 bundle 仍按新提交生成并核对 footer，避免版本更新无谓重触发网络下载。
 
 推荐方式：
+
+标准 Dockerfile 的 web-build 阶段保留仓库相对结构，将根 testdata 复制到 /workspace/testdata，供前端类型检查读取与 Go 共用的字面 URL 语料。不复制第二份测试期望，不排除导入该语料的测试文件，也不改变 frozen 依赖或类型检查入口；最终运行镜像仍只从此阶段复制 web/dist，不发布测试语料。该输入在依赖安装之后、版本注入和实际构建之前复制。
 
 - 前端使用 Vite 构建为静态资源。
 - Go 服务在生产环境托管前端静态产物。
