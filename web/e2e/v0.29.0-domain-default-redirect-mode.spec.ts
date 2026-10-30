@@ -243,8 +243,18 @@ async function reviewDraftRecovery(page: Page, domain: ManagedDomain) {
 }
 /** Uses real Vuetify controls and preserves a manual mode across actual domain changes. */
 async function chooseDomain(page: Page, domain: ManagedDomain) {
-  await page.getByRole('combobox', { name: choiceLabel }).press('Enter')
-  await page.getByRole('option', { name: domain.displayName + ' (' + domain.host + ')', exact: true }).click()
+  const select = page.getByRole('combobox', { name: choiceLabel })
+  const current = await select.inputValue()
+  const title = domain.displayName + ' (' + domain.host + ')'
+  await select.press('Enter')
+  const option = page.getByRole('option', { name: title, exact: true })
+  await expect(option).toBeVisible()
+  // Wait for Vuetify to focus the current choice after the opening transition.
+  await expect(page.getByRole('option', { name: current, exact: true })).toBeFocused()
+  await option.scrollIntoViewIfNeeded()
+  await option.click()
+  await expect(select).toHaveValue(title)
+  await expect(option).toBeHidden()
 }
 /** Opens advanced settings without toggling an already-visible control closed. */
 async function advanced(page: Page) {
