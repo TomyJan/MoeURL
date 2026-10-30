@@ -1,5 +1,7 @@
 # MoeURL 文档中心
 
+2026-10-30 修后浏览器读回：clean 09cbe8c 的定向 4 项和五张原图已通过并由 ROOT 读取；随后完整浏览器 actual 1，120 passed／1 failed，失败位于旧 v0.29 手机场景的通知清理 helper，三个新页脚场景均通过。原输入的带 trace 诊断 2 项通过，不能据此声称原失败机制已完全确认；确定性真实 DOM 回归证明原 helper 的观察到激活间存在消失竞态，测试基础设施最小修复后 4 项 GREEN，当前隔离 types／lint actual 0。产品运行时未改，新 clean 定向 7 项、完整 125 项及精确产品仍待；Task3 in_progress／Task4 pending，无 push／PR／merge。下文旧执行事实保持原提交与环境归属。
+
 [v0.35.0 有界页脚链接](product/scope-v0.35.0.md) 已完成正式设计与四任务计划，后端已实现并通过本地完整门禁，标准 Task1–2 已完成、Task3 进行中，当前隔离 frozen 依赖、strict entity／公开协调器／SiteFooter、独立管理 editor 与身份竞态已实现，完整 135 文件／2333 测试及四项 100%、types／lint／外置构建已通过，metadata 为 0.35.0；原 clean afed568 的完整浏览器与标准精确产品／扫描已通过；唯一终审已完成并确认 1 项 Important，当前窄修已真实 RED→GREEN，新 clean 浏览器／产品、远端合并和发布仍待。独立最多 5 项／完整 CAS／仅键名审计，保留旧纯文本与固定署名；[规格](specs/2026-10-30-v0.35.0-footer-links-design.md)、[计划](implementation/v0.35.0-plan.md)、[矩阵](implementation/v0.35.0-test-matrix.md)、[任务](implementation/v0.35.0-tasks.md)和[验收](implementation/v0.35.0-acceptance.md)为当前入口。下文旧版本阶段记录保持原执行归属，不代本版门禁。
 
 2026-10-30 09:26 UTC 最新：唯一 fresh 整分支终审已完成（Critical 0／Important 1／新 Minor 0）。ROOT 真实共享语料与已登录 App/session/PG 复现普通 ASCII 双连字符主机前后端分歧；仅 Go 改为逐 ACE 标签 IDNA 校验，92 项同源语料、真实保存和原 API／HTTP 协议已局部 GREEN。原 clean afed568 的 121 项浏览器和精确产品／扫描仍仅属历史，不借给新运行时；当前完整 Go、vet、canonical 业务 100% 与 checker 10 项均 actual 0，隔离 types／lint 已通过；完整 775 非 Markdown 输入逐项稳定，Linux 完整 race／scanner 也已 actual 0；scanner called 0／imported 0／required 3，不冒零公告，新 clean 浏览器及精确产品仍待。Task1–2 标准完成、Task3 in_progress／Task4 pending，原五类 Minor 延期，无 push／PR／merge。

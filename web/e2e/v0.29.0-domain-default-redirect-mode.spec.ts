@@ -6,6 +6,7 @@ import type { DomainRedirectDefaultSetting } from '../src/entities/domain/redire
 import type { RedirectMode } from '../src/entities/short-link/model'
 import type { UserGroup } from '../src/entities/user-group/api'
 import { e2eAdminPassword, e2eAdminUsername, e2ePort, escapeRegExp, expectNoHorizontalOverflow, readVisitCount } from './support'
+import { dismissNotifications as dismiss } from './notification-dismissal'
 
 interface CreatedLink { id: string; slug: string; url: string; redirectMode: RedirectMode; intermediateDelaySeconds: number | null }
 const choiceLabel = /^(短链域名|Short-link domain)$/
@@ -269,11 +270,6 @@ async function create(page: Page, domain: ManagedDomain, mode: RedirectMode, lin
   await expect(page.getByTestId('short-link-create-result')).toContainText(link.url)
   await dismiss(page)
   return link
-}
-/** Dismisses moving notifications through keyboard activation and observable removal. */
-async function dismiss(page: Page) {
-  const buttons = page.getByRole('button', { name: /^(关闭提示|Dismiss notification)$/ })
-  while (await buttons.count()) { const count = await buttons.count(); await buttons.first().press('Enter'); await expect.poll(() => buttons.count()).toBeLessThan(count) }
 }
 /** Saves actual desktop/mobile screenshots after checking the business panel's viewport bounds. */
 async function layout(page: Page, info: TestInfo, name: string, selector: string) {
