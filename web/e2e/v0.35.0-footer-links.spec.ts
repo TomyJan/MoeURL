@@ -50,7 +50,7 @@ test.use({ serviceWorkers: 'block', actionTimeout: 10_000 })
 // Catches a lost/reordered draft, accidental legacy-form coupling, interpreted markup or unsafe new-window navigation.
 test('v0.35.0 E01 English desktop keyboard replacement reaches a fresh visitor safely', async ({ page, browser, footerRecovery }, info) => {
   const request = footerRecovery.request
-  const original: Link[] = [{ label: 'Original link', url: 'https://example.com/original' }]
+  const original: Link[] = [{ label: 'Original link', url: 'http://ab--cd/original' }]
   const initial = await write(request, original)
   const legacy = await get<unknown>(request, '/admin/system/settings')
   const home = await get<{ title: string; summary: string; updatedAt: string }>(request, '/admin/system/home-content')
@@ -73,7 +73,7 @@ test('v0.35.0 E01 English desktop keyboard replacement reaches a fresh visitor s
   await keyboardFill(field(form, text.en.url, 2), destination)
   await activate(form.getByRole('button', { name: text.en.add, exact: true }))
   await keyboardFill(field(form, text.en.label, 3), 'Contact')
-  await keyboardFill(field(form, text.en.url, 3), 'HTTPS://Example.COM:00443/help?A=b#FAQ')
+  await keyboardFill(field(form, text.en.url, 3), 'HTTPS://AB--CD.Example:00443/help?A=b#FAQ')
   await activate(form.getByRole('button', { name: text.en.up + ' 3', exact: true }))
   await expect(field(form, text.en.label, 2)).toHaveValue('Contact')
   await activate(form.getByRole('button', { name: text.en.down + ' 2', exact: true }))
@@ -85,8 +85,8 @@ test('v0.35.0 E01 English desktop keyboard replacement reaches a fresh visitor s
 
   const expected: Link[] = [
     { label: '<b>Docs & policy</b>', url: destination },
-    { label: 'Original link', url: 'https://example.com/original' },
-    { label: 'Contact', url: 'https://example.com/help?A=b#FAQ' },
+    { label: 'Original link', url: 'http://ab--cd/original' },
+    { label: 'Contact', url: 'https://ab--cd.example/help?A=b#FAQ' },
   ]
   const response = page.waitForResponse(value => new URL(value.url()).pathname === updatePath)
   await activate(form.getByRole('button', { name: text.en.save, exact: true }))

@@ -118,6 +118,34 @@ func TestFooterLinksAPI(t *testing.T) {
 	})
 }
 
+// TestFooterLinksASCIIHostPolicy catches applying IDNA hyphen restrictions to
+// ordinary ASCII labels, without weakening ACE validation or atomic rejection.
+func TestFooterLinksASCIIHostPolicy(t *testing.T) {
+	a := newTestApplication(t)
+	cookie := domainOrderLogin(t, a)
+	initial := footerLinksCall(t, a, cookie, "GET", footerLinksAdminPath, "", "", 200, 0)
+	links := []any{
+		map[string]any{"label": "Public", "url": "https://ab--cd.example/a/../b?x=%2f#Keep"},
+		map[string]any{"label": "Internal", "url": "http://ab--cd/"},
+		map[string]any{"label": "ACE", "url": "https://xn--bcher-kva.ab--cd/"},
+	}
+	body := fmt.Sprintf(`{"links":[{"label":"Public","url":"HTTPS://AB--CD.Example:00443/a/../b?x=%%2f#Keep"},{"label":"Internal","url":"http://ab--cd/"},{"label":"ACE","url":"https://xn--bcher-kva.ab--cd/"}],"expectedUpdatedAt":%q}`, initial["updatedAt"])
+	saved := footerLinksCall(t, a, cookie, "POST", footerLinksUpdatePath, body, "application/json", 200, 0)
+	require.Equal(t, links, saved["links"])
+	require.NotEqual(t, initial["updatedAt"], saved["updatedAt"])
+	require.Equal(t, saved, footerLinksCall(t, a, cookie, "GET", footerLinksAdminPath, "", "", 200, 0))
+	require.Equal(t, map[string]any{"links": links}, footerLinksCall(t, a, nil, "GET", footerLinksPublicPath, "", "", 200, 0))
+	snapshot := func() string {
+		var value string
+		require.NoError(t, a.pool.QueryRow(t.Context(), `select jsonb_build_object('setting',(select to_jsonb(s) from system_setting s where key='site.footer_links'),'audit',(select coalesce(jsonb_agg(to_jsonb(a) order by id),'[]'::jsonb) from audit_log a where resource_id='site.footer_links'))::text`).Scan(&value))
+		return value
+	}
+	before := snapshot()
+	invalid := fmt.Sprintf(`{"links":[{"label":"Public","url":"https://ab--cd.example/"},{"label":"Invalid ACE","url":"https://xn--a.ab--cd/"}],"expectedUpdatedAt":%q}`, saved["updatedAt"])
+	footerLinksCall(t, a, cookie, "POST", footerLinksUpdatePath, invalid, "application/json", 200, 900208)
+	require.Equal(t, before, snapshot())
+}
+
 // TestFooterLinksHTTPProtocol supplements the earlier decoder RED with real
 // App/session/PG enforcement. Rejections must preserve value, version and audit.
 func TestFooterLinksHTTPProtocol(t *testing.T) {

@@ -54,6 +54,51 @@
     "normalized": "https://xn--bcher-kva.example/"
   },
   {
+    "name": "ascii_double_hyphen_dns",
+    "input": "https://ab--cd.example/",
+    "valid": true,
+    "normalized": "https://ab--cd.example/"
+  },
+  {
+    "name": "ascii_double_hyphen_single_label",
+    "input": "http://ab--cd/",
+    "valid": true,
+    "normalized": "http://ab--cd/"
+  },
+  {
+    "name": "ascii_double_hyphen_authority_normalization",
+    "input": "HTTPS://AB--CD.Example:00443/a/../b?x=%2f#Keep",
+    "valid": true,
+    "normalized": "https://ab--cd.example/a/../b?x=%2f#Keep"
+  },
+  {
+    "name": "ascii_double_hyphen_neighbor",
+    "input": "https://a--b.example/",
+    "valid": true,
+    "normalized": "https://a--b.example/"
+  },
+  {
+    "name": "punycode_with_ascii_double_hyphen_label",
+    "input": "https://xn--bcher-kva.ab--cd/",
+    "valid": true,
+    "normalized": "https://xn--bcher-kva.ab--cd/"
+  },
+  {
+    "name": "double_hyphen_leading_hyphen_rejected",
+    "input": "https://-ab--cd.example/",
+    "valid": false
+  },
+  {
+    "name": "double_hyphen_trailing_hyphen_rejected",
+    "input": "https://ab--cd-.example/",
+    "valid": false
+  },
+  {
+    "name": "invalid_punycode_with_ascii_double_hyphen_label",
+    "input": "https://xn--a.ab--cd/",
+    "valid": false
+  },
+  {
     "name": "encoded_unicode",
     "input": "https://example.com/%E4%B8%AD?x=%2f#part",
     "valid": true,

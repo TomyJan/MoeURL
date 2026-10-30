@@ -125,13 +125,17 @@ func footerDNSOrIPv4(raw string) (string, error) {
 				return "", ErrInvalidFooterLinks
 			}
 		}
+		// Ordinary ASCII DNS labels follow the explicit syntax above, not
+		// IDNA's reserved third/fourth-position hyphen rule for U-labels.
+		if strings.HasPrefix(label, "xn--") {
+			ascii, err := idna.Lookup.ToASCII(label)
+			if err != nil || ascii != label {
+				return "", ErrInvalidFooterLinks
+			}
+		}
 	}
 	last := labels[len(labels)-1]
 	if strings.Trim(last, "0123456789") == "" || (strings.HasPrefix(last, "0x") && footerHexDigits(last[2:])) {
-		return "", ErrInvalidFooterLinks
-	}
-	ascii, err := idna.Lookup.ToASCII(host)
-	if err != nil || ascii != host {
 		return "", ErrInvalidFooterLinks
 	}
 	return host, nil
