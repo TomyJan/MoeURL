@@ -1,6 +1,6 @@
 # 技术基线
 
-v0.35.0 设计合同（尚未实现）：最多 5 项页脚链接，label 1–40 Unicode 码点／URL 至多 2048 ASCII 字节／严格 64 KiB JSON；新900208／900209、三个独立no-store API及00031单键审计，旧settings／home／appearance不扩。Go／TS共享URL样例，所有身份和公开cache晚到守卫；当前依赖Linux隔离副本执行前端四100／静态／build，宿主旧安装不代新门禁。准确数值与范围见[规格](../specs/2026-10-30-v0.35.0-footer-links-design.md)、[矩阵](v0.35.0-test-matrix.md)与[验收](v0.35.0-acceptance.md)，本段不是运行成功证据。
+v0.35.0 后端本地已验证／前端待实施：最多 5 项页脚链接，label 1–40 Unicode 码点／URL 至多 2048 ASCII 字节／严格 64 KiB JSON；新900208／900209、三个独立no-store API及00031单键审计，旧settings／home／appearance不扩。Go／TS共享URL样例，所有身份和公开cache晚到守卫；当前依赖Linux隔离副本执行前端四100／静态／build，宿主旧安装不代新门禁。准确数值与范围见[规格](../specs/2026-10-30-v0.35.0-footer-links-design.md)、[矩阵](v0.35.0-test-matrix.md)与[验收](v0.35.0-acceptance.md)，后端实际运行身份和 called 0／imported 0／required 3 边界见验收；前端与正式交付仍待。
 
 v0.34.0 已由 [PR #237](https://github.com/TomyJan/MoeURL/pull/237) 于 2026-10-29T21:10:29Z 合并为 fc88c0e8b9192174e62b225fdc3cb0b87a253451。最终候选 99ebef5 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40949991695) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40955501280) 各九项成功，真实审查覆盖最终候选、全部有效意见闭环；标准 Task1–4、完整最终归档与准确 owned leaf 可恢复清理完成，未正式发布。固定 iris／ocean／forest 三预设、独立 CAS 与仅键名审计保持既有主题模式、个人偏好和公开访问；任意颜色编辑仍未开放；本次维护不改依赖、权限或 schema。原失败、逐候选运行时和当时延期三项 Minor 见[验收](v0.34.0-acceptance.md)。当前[独立验证与文档维护](2026-10-30-site-accent-closeout-plan.md)不新增业务版本；补验 Task1 已标准完成，维护自己的终审及 PR／CI／合并仍待做。
 

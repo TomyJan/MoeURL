@@ -1,0 +1,445 @@
+[
+  {
+    "name": "canonical_authority_preserve_suffix",
+    "input": "HTTPS://Docs.Example.COM:00443/a/../b?A=b#FAQ",
+    "valid": true,
+    "normalized": "https://docs.example.com/a/../b?A=b#FAQ"
+  },
+  {
+    "name": "localhost",
+    "input": "http://localhost:8080/docs",
+    "valid": true,
+    "normalized": "http://localhost:8080/docs"
+  },
+  {
+    "name": "private_ipv4",
+    "input": "http://192.168.1.2/",
+    "valid": true,
+    "normalized": "http://192.168.1.2/"
+  },
+  {
+    "name": "zero_ipv4",
+    "input": "http://0.0.0.0/",
+    "valid": true,
+    "normalized": "http://0.0.0.0/"
+  },
+  {
+    "name": "internal_dns",
+    "input": "https://Intranet/docs",
+    "valid": true,
+    "normalized": "https://intranet/docs"
+  },
+  {
+    "name": "ipv6_compression",
+    "input": "https://[2001:0db8:0:0:0:0:0:1]:443/a",
+    "valid": true,
+    "normalized": "https://[2001:db8::1]/a"
+  },
+  {
+    "name": "ipv6_loopback_port",
+    "input": "http://[0:0:0:0:0:0:0:1]:08080/",
+    "valid": true,
+    "normalized": "http://[::1]:8080/"
+  },
+  {
+    "name": "ipv6_all_zero",
+    "input": "http://[0:0:0:0:0:0:0:0]/",
+    "valid": true,
+    "normalized": "http://[::]/"
+  },
+  {
+    "name": "punycode",
+    "input": "https://xn--bcher-kva.example/",
+    "valid": true,
+    "normalized": "https://xn--bcher-kva.example/"
+  },
+  {
+    "name": "encoded_unicode",
+    "input": "https://example.com/%E4%B8%AD?x=%2f#part",
+    "valid": true,
+    "normalized": "https://example.com/%E4%B8%AD?x=%2f#part"
+  },
+  {
+    "name": "fragment_at",
+    "input": "https://example.com/#user@example.com",
+    "valid": true,
+    "normalized": "https://example.com/#user@example.com"
+  },
+  {
+    "name": "query_at",
+    "input": "https://example.com/?contact=a@b",
+    "valid": true,
+    "normalized": "https://example.com/?contact=a@b"
+  },
+  {
+    "name": "http_default_port",
+    "input": "HTTP://EXAMPLE.COM:00080",
+    "valid": true,
+    "normalized": "http://example.com"
+  },
+  {
+    "name": "empty_query_fragment",
+    "input": "https://example.com?#",
+    "valid": true,
+    "normalized": "https://example.com?#"
+  },
+  {
+    "name": "nondefault_port",
+    "input": "https://example.com:00081/a",
+    "valid": true,
+    "normalized": "https://example.com:81/a"
+  },
+  {
+    "name": "max_port",
+    "input": "http://localhost:65535/",
+    "valid": true,
+    "normalized": "http://localhost:65535/"
+  },
+  {
+    "name": "min_port",
+    "input": "http://localhost:00001/",
+    "valid": true,
+    "normalized": "http://localhost:1/"
+  },
+  {
+    "name": "unreserved_and_subdelimiters",
+    "input": "https://example.com/a!$&'()*+,;=:@~_-.?x=/?:@#/?@",
+    "valid": true,
+    "normalized": "https://example.com/a!$&'()*+,;=:@~_-.?x=/?:@#/?@"
+  },
+  {
+    "name": "percent_not_recursive",
+    "input": "https://example.com/%2500",
+    "valid": true,
+    "normalized": "https://example.com/%2500"
+  },
+  {
+    "name": "space_trim",
+    "input": "  https://example.com/  ",
+    "valid": true,
+    "normalized": "https://example.com/"
+  },
+  {
+    "name": "go_unicode_trim",
+    "input": " https://example.com/　",
+    "valid": true,
+    "normalized": "https://example.com/"
+  },
+  {
+    "name": "single_label_with_digits",
+    "input": "http://office123/",
+    "valid": true,
+    "normalized": "http://office123/"
+  },
+  {
+    "name": "numeric_nonfinal_label",
+    "input": "http://123.example/",
+    "valid": true,
+    "normalized": "http://123.example/"
+  },
+  {
+    "name": "empty",
+    "input": "",
+    "valid": false
+  },
+  {
+    "name": "relative",
+    "input": "/help",
+    "valid": false
+  },
+  {
+    "name": "protocol_relative",
+    "input": "//example.com/help",
+    "valid": false
+  },
+  {
+    "name": "javascript",
+    "input": "javascript:alert(1)",
+    "valid": false
+  },
+  {
+    "name": "data",
+    "input": "data:text/html,test",
+    "valid": false
+  },
+  {
+    "name": "mailto",
+    "input": "mailto:a@example.com",
+    "valid": false
+  },
+  {
+    "name": "ftp",
+    "input": "ftp://example.com/",
+    "valid": false
+  },
+  {
+    "name": "opaque_http",
+    "input": "https:example.com",
+    "valid": false
+  },
+  {
+    "name": "missing_host",
+    "input": "https:///evil.example",
+    "valid": false
+  },
+  {
+    "name": "userinfo",
+    "input": "https://user:pass@example.com/",
+    "valid": false
+  },
+  {
+    "name": "empty_userinfo",
+    "input": "https://@example.com/",
+    "valid": false
+  },
+  {
+    "name": "empty_port",
+    "input": "https://example.com:/",
+    "valid": false
+  },
+  {
+    "name": "zero_port",
+    "input": "https://example.com:0/",
+    "valid": false
+  },
+  {
+    "name": "overflow_port",
+    "input": "https://example.com:65536/",
+    "valid": false
+  },
+  {
+    "name": "huge_port",
+    "input": "https://example.com:999999999999999999999/",
+    "valid": false
+  },
+  {
+    "name": "alpha_port",
+    "input": "https://example.com:https/",
+    "valid": false
+  },
+  {
+    "name": "signed_port",
+    "input": "https://example.com:+443/",
+    "valid": false
+  },
+  {
+    "name": "trailing_dot",
+    "input": "https://example.com./",
+    "valid": false
+  },
+  {
+    "name": "empty_dns_label",
+    "input": "https://a..example/",
+    "valid": false
+  },
+  {
+    "name": "underscore",
+    "input": "http://my_host/",
+    "valid": false
+  },
+  {
+    "name": "leading_hyphen",
+    "input": "https://-example.com/",
+    "valid": false
+  },
+  {
+    "name": "trailing_hyphen",
+    "input": "https://example-.com/",
+    "valid": false
+  },
+  {
+    "name": "integer_ipv4",
+    "input": "http://2130706433/",
+    "valid": false
+  },
+  {
+    "name": "short_ipv4",
+    "input": "http://127.1/",
+    "valid": false
+  },
+  {
+    "name": "octal_ipv4",
+    "input": "http://0177.0.0.1/",
+    "valid": false
+  },
+  {
+    "name": "hex_ipv4",
+    "input": "http://0x7f.1/",
+    "valid": false
+  },
+  {
+    "name": "leading_zero_ipv4",
+    "input": "http://127.000.0.1/",
+    "valid": false
+  },
+  {
+    "name": "invalid_ipv4",
+    "input": "http://256.0.0.1/",
+    "valid": false
+  },
+  {
+    "name": "numeric_dns_final",
+    "input": "https://example.123/",
+    "valid": false
+  },
+  {
+    "name": "hex_dns_final",
+    "input": "https://example.0x7f/",
+    "valid": false
+  },
+  {
+    "name": "empty_hex_dns_final",
+    "input": "https://example.0x/",
+    "valid": false
+  },
+  {
+    "name": "upper_hex_dns_final",
+    "input": "https://example.0XAF/",
+    "valid": false
+  },
+  {
+    "name": "ipv6_zone",
+    "input": "https://[fe80::1%25eth0]/",
+    "valid": false
+  },
+  {
+    "name": "mapped_ipv6_decimal",
+    "input": "https://[::ffff:127.0.0.1]/",
+    "valid": false
+  },
+  {
+    "name": "mapped_ipv6_hex",
+    "input": "https://[::ffff:7f00:1]/",
+    "valid": false
+  },
+  {
+    "name": "unbracketed_ipv6",
+    "input": "https://2001:db8::1/",
+    "valid": false
+  },
+  {
+    "name": "invalid_ipv6",
+    "input": "https://[xyz]/",
+    "valid": false
+  },
+  {
+    "name": "bracket_suffix",
+    "input": "https://[::1]evil/",
+    "valid": false
+  },
+  {
+    "name": "unicode_hostname",
+    "input": "https://bücher.example/",
+    "valid": false
+  },
+  {
+    "name": "unicode_path",
+    "input": "https://example.com/中",
+    "valid": false
+  },
+  {
+    "name": "invalid_punycode",
+    "input": "https://xn--a.example/",
+    "valid": false
+  },
+  {
+    "name": "authority_percent",
+    "input": "https://ex%61mple.com/",
+    "valid": false
+  },
+  {
+    "name": "backslash",
+    "input": "https://example.com\\@evil.example/",
+    "valid": false
+  },
+  {
+    "name": "raw_space",
+    "input": "https://example.com/a b",
+    "valid": false
+  },
+  {
+    "name": "raw_tab_before_trim",
+    "input": "\thttps://example.com/",
+    "valid": false
+  },
+  {
+    "name": "raw_newline",
+    "input": "https://example.com/\n",
+    "valid": false
+  },
+  {
+    "name": "raw_del",
+    "input": "https://example.com/",
+    "valid": false
+  },
+  {
+    "name": "bom_not_trimmed",
+    "input": "﻿https://example.com/",
+    "valid": false
+  },
+  {
+    "name": "double_quote",
+    "input": "https://example.com/a\"b",
+    "valid": false
+  },
+  {
+    "name": "angle_bracket",
+    "input": "https://example.com/<a>",
+    "valid": false
+  },
+  {
+    "name": "backtick",
+    "input": "https://example.com/`",
+    "valid": false
+  },
+  {
+    "name": "brace",
+    "input": "https://example.com/{a}",
+    "valid": false
+  },
+  {
+    "name": "pipe",
+    "input": "https://example.com/a|b",
+    "valid": false
+  },
+  {
+    "name": "bad_percent",
+    "input": "https://example.com/%ZZ",
+    "valid": false
+  },
+  {
+    "name": "lone_percent",
+    "input": "https://example.com/%",
+    "valid": false
+  },
+  {
+    "name": "encoded_nul",
+    "input": "https://example.com/%00",
+    "valid": false
+  },
+  {
+    "name": "encoded_lf",
+    "input": "https://example.com/?a=%0A",
+    "valid": false
+  },
+  {
+    "name": "encoded_del",
+    "input": "https://example.com/#%7f",
+    "valid": false
+  },
+  {
+    "name": "unclosed_ipv6_bracket",
+    "input": "https://[::1/",
+    "valid": false
+  },
+  {
+    "name": "label_too_long",
+    "input": "http://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example/",
+    "valid": false
+  },
+  {
+    "name": "host_too_long",
+    "input": "http://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd/",
+    "valid": false
+  }
+]

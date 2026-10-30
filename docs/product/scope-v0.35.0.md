@@ -34,4 +34,4 @@ HTML／Markdown／CSS、媒体上传、Logo／Favicon、备案号专有字段、
 
 ## 文档与完成口径
 
-[规格](../specs/2026-10-30-v0.35.0-footer-links-design.md)、[计划](../implementation/v0.35.0-plan.md)、[矩阵](../implementation/v0.35.0-test-matrix.md)、[任务](../implementation/v0.35.0-tasks.md)和[验收](../implementation/v0.35.0-acceptance.md)共同约束实施。实现、本地门禁、目标 CI、合并与发布分开；当前 20 项具名用例均为计划，不能勾成执行成功。
+[规格](../specs/2026-10-30-v0.35.0-footer-links-design.md)、[计划](../implementation/v0.35.0-plan.md)、[矩阵](../implementation/v0.35.0-test-matrix.md)、[任务](../implementation/v0.35.0-tasks.md)和[验收](../implementation/v0.35.0-acceptance.md)共同约束实施。实现、本地门禁、目标 CI、合并与发布分开；后端测试与本地门禁已有实证；B06 的 TS 同源语料消费、前端／浏览器／远端均未完成，不得以 Go 通过代替复合验收。

@@ -1,6 +1,6 @@
 # 开发进度与能力清单
 
-[v0.35.0 有界页脚链接](scope-v0.35.0.md) 已建立正式范围／规格／实施计划与 20 项具名矩阵，尚未实现或运行产品门禁。独立 fresh master／open PR 与 fetch 已确认起点 65e859f797b7c422f83d8eac056b06ae2d60a1db，新分支仅开始设计文档阶段。见[计划](../implementation/v0.35.0-plan.md)、[任务](../implementation/v0.35.0-tasks.md)与[验收](../implementation/v0.35.0-acceptance.md)；下文旧阶段表述保留历史归属，不能借旧 CI 宣称新版本完成。
+[v0.35.0 有界页脚链接](scope-v0.35.0.md) 后端已实现并通过当前本地完整 Go／Linux race／vet／业务 100% 与 SQLC 零漂移，标准 Task1 收尾中；前端／浏览器／远端交付仍待。独立 fresh master／open PR 与 fetch 已确认起点 65e859f797b7c422f83d8eac056b06ae2d60a1db，新分支已进入后端实施验证阶段，尚无完整版本交付结论。见[计划](../implementation/v0.35.0-plan.md)、[任务](../implementation/v0.35.0-tasks.md)与[验收](../implementation/v0.35.0-acceptance.md)；下文旧阶段表述保留历史归属，不能借旧 CI 宣称新版本完成。
 
 [v0.34.0 站点强调色预设](scope-v0.34.0.md) 已由 [PR #237](https://github.com/TomyJan/MoeURL/pull/237) 于 2026-10-29T21:10:29Z 合并为 fc88c0e8b9192174e62b225fdc3cb0b87a253451。最终候选 99ebef5 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40949991695) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40955501280) 各九项成功，真实审查覆盖最终候选、全部有效意见闭环；标准 Task1–4、完整最终归档与准确 owned leaf 可恢复清理完成，未正式发布。固定 iris／ocean／forest 三预设、独立 CAS 与仅键名审计保持既有主题模式、个人偏好和公开访问；任意颜色编辑仍未开放；本次维护不改依赖、权限或 schema。原失败、逐候选运行时和当时延期三项 Minor 见[验收](../implementation/v0.34.0-acceptance.md)。当前[独立验证与文档维护](../implementation/2026-10-30-site-accent-closeout-plan.md)不新增业务版本；补验 Task1 已标准完成，维护自己的终审及 PR／CI／合并仍待做。
 

@@ -1,6 +1,6 @@
 # 路线图
 
-下一有界迭代确定为 [v0.35.0 页脚链接](scope-v0.35.0.md)，落实已有自定义链接规划：最多 5 项有序文本／HTTP(S) URI、独立当前授权／CAS／审计，无抓取或上传。正式[规格](../specs/2026-10-30-v0.35.0-footer-links-design.md)与[计划](../implementation/v0.35.0-plan.md)已建立，尚未实施／验证／合并。Logo／Favicon、任意主题色与全站访问合并导出不混入本版；旧五类延期 Minor 不顺手修复。
+下一有界迭代确定为 [v0.35.0 页脚链接](scope-v0.35.0.md)，落实已有自定义链接规划：最多 5 项有序文本／HTTP(S) URI、独立当前授权／CAS／审计，无抓取或上传。正式[规格](../specs/2026-10-30-v0.35.0-footer-links-design.md)与[计划](../implementation/v0.35.0-plan.md)已建立，后端已实现并通过本地门禁，前端／浏览器／合并仍待。Logo／Favicon、任意主题色与全站访问合并导出不混入本版；旧五类延期 Minor 不顺手修复。
 
 [v0.34.0 站点强调色预设](scope-v0.34.0.md) 已由 [PR #237](https://github.com/TomyJan/MoeURL/pull/237) 于 2026-10-29T21:10:29Z 合并为 fc88c0e8b9192174e62b225fdc3cb0b87a253451。最终候选 99ebef5 的 [PR CI](https://github.com/TomyJan/MoeURL/actions/runs/40949991695) 与该合并的 [master CI](https://github.com/TomyJan/MoeURL/actions/runs/40955501280) 各九项成功，真实审查覆盖最终候选、全部有效意见闭环；标准 Task1–4、完整最终归档与准确 owned leaf 可恢复清理完成，未正式发布。固定 iris／ocean／forest 三预设、独立 CAS 与仅键名审计保持既有主题模式、个人偏好和公开访问；任意颜色编辑仍未开放；本次维护不改依赖、权限或 schema。原失败、逐候选运行时和当时延期三项 Minor 见[验收](../implementation/v0.34.0-acceptance.md)。当前[独立验证与文档维护](../implementation/2026-10-30-site-accent-closeout-plan.md)不新增业务版本；补验 Task1 已标准完成，维护自己的终审及 PR／CI／合并仍待做。
 
