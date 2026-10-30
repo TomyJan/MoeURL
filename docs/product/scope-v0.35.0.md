@@ -36,4 +36,4 @@ HTML／Markdown／CSS、媒体上传、Logo／Favicon、备案号专有字段、
 
 ## 文档与完成口径
 
-[规格](../specs/2026-10-30-v0.35.0-footer-links-design.md)、[计划](../implementation/v0.35.0-plan.md)、[矩阵](../implementation/v0.35.0-test-matrix.md)、[任务](../implementation/v0.35.0-tasks.md)和[验收](../implementation/v0.35.0-acceptance.md)共同约束实施。实现、本地门禁、目标 CI、合并与发布分开；B06 的 Go／TS 同源语料消费、前端与浏览器已实现并有本地证据，但候选 Node 26.13.0 暴露了原生 URL 对无效 ACE 的接受差异，现有候选 CI 不通过。修复后的完整门禁、当前候选真实审查闭环、合并、master 自身 CI 和发布仍须分别验证，不借旧提交或其他运行时结果替代。
+[规格](../specs/2026-10-30-v0.35.0-footer-links-design.md)、[计划](../implementation/v0.35.0-plan.md)、[矩阵](../implementation/v0.35.0-test-matrix.md)、[任务](../implementation/v0.35.0-tasks.md)和[验收](../implementation/v0.35.0-acceptance.md)共同约束实施。实现、本地门禁、目标 CI、合并与发布分开；B06 的 Go／TS 同源语料消费、前端与浏览器已实现并有本地证据；历史候选 `632c619` 的 Node 26.13.0 曾暴露原生 URL 对无效 ACE 的接受差异，其当时 CI 未通过。后继修复的完整门禁、各候选真实审查闭环、合并、master 自身 CI 和发布须按各自提交分别留证，不借旧提交或其他运行时结果替代。
