@@ -34,6 +34,7 @@ func NewFooterLinksHandler(service FooterLinksPort, logger *slog.Logger) *Footer
 	return &FooterLinksHandler{service: service, logger: logger}
 }
 
+// Public exposes only the canonical navigation list, never its management revision.
 func (h *FooterLinksHandler) Public(w http.ResponseWriter, r *http.Request) {
 	content, err := h.service.PublicFooterLinks(r.Context())
 	if err != nil {
@@ -43,6 +44,7 @@ func (h *FooterLinksHandler) Public(w http.ResponseWriter, r *http.Request) {
 	ok(w, content)
 }
 
+// Get delegates current database authorization and retains the complete CAS version.
 func (h *FooterLinksHandler) Get(w http.ResponseWriter, r *http.Request) {
 	content, err := h.service.GetFooterLinks(r.Context(), auth.UserFromContext(r.Context()))
 	if err != nil {
@@ -52,6 +54,8 @@ func (h *FooterLinksHandler) Get(w http.ResponseWriter, r *http.Request) {
 	ok(w, content)
 }
 
+// Update rejects non-JSON media and malformed documents before a mutation can
+// reach the service; the service owns current authorization, CAS and atomic audit.
 func (h *FooterLinksHandler) Update(w http.ResponseWriter, r *http.Request) {
 	media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || media != "application/json" {

@@ -19,6 +19,8 @@ func decodeFooterLinksUpdate(body io.Reader) (UpdateFooterLinksInput, error) {
 	return footerLinksDocument(raw, true)
 }
 
+// footerLinksDocument shares strict nested list decoding between persisted
+// documents and writes; only writes require the independent CAS revision field.
 func footerLinksDocument(raw []byte, update bool) (UpdateFooterLinksInput, error) {
 	if !footerJSONScalars(raw) {
 		return UpdateFooterLinksInput{}, ErrInvalidFooterLinks
@@ -99,6 +101,8 @@ func footerJSONObject(raw []byte, fields []string) (map[string]json.RawMessage, 
 	return values, nil
 }
 
+// footerJSONString rejects null and other JSON types instead of accepting their
+// zero-value string representation; scalar escape validity is checked beforehand.
 func footerJSONString(raw []byte) (string, error) {
 	raw = bytes.TrimSpace(raw)
 	var value string

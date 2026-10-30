@@ -34,6 +34,8 @@ func (s *FooterLinksService) ValidateStartup(ctx context.Context) error {
 	return err
 }
 
+// PublicFooterLinks validates persisted content before discarding its private
+// revision; corrupt storage is an error rather than an implicit empty default.
 func (s *FooterLinksService) PublicFooterLinks(ctx context.Context) (FooterLinks, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -81,6 +83,8 @@ type footerLinksWriteStore interface {
 	UpdateSystemSettingValue(context.Context, sqlc.UpdateSystemSettingValueParams) (sqlc.SystemSetting, error)
 }
 
+// UpdateFooterLinks validates input before opening a bounded transaction, then
+// commits the locked authorization, full-version comparison and audit together.
 func (s *FooterLinksService) UpdateFooterLinks(ctx context.Context, actor auth.CurrentUser, input UpdateFooterLinksInput) (FooterLinksSettings, error) {
 	id, err := footerLinksActorID(actor.ID)
 	if err != nil {

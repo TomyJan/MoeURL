@@ -46,6 +46,8 @@ type UpdateFooterLinksInput struct {
 	ExpectedUpdatedAt string
 }
 
+// footerLinksVersion accepts only complete nonzero RFC3339 revisions; fractional
+// precision is retained so callers cannot weaken the optimistic concurrency check.
 func footerLinksVersion(raw string) (time.Time, error) {
 	if !footerLinksVersionPattern.MatchString(raw) {
 		return time.Time{}, ErrInvalidFooterLinks
@@ -76,6 +78,8 @@ func storedFooterLinks(row sqlc.SystemSetting) (FooterLinksSettings, error) {
 	return FooterLinksSettings{FooterLinks: normalized, UpdatedAt: version}, nil
 }
 
+// normalizeFooterLinks validates a complete replacement without mutating the
+// caller's list, preserving order and duplicates rather than dropping invalid rows.
 func normalizeFooterLinks(links []FooterLink) (FooterLinks, error) {
 	if links == nil || len(links) > 5 {
 		return FooterLinks{}, ErrInvalidFooterLinks

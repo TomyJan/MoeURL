@@ -8,6 +8,42 @@ const whitespace = /^\p{White_Space}+|\p{White_Space}+$/gu
 const trim = (value: string) => value.replace(whitespace, '')
 const scalarText = (value: string) => !controls.test(value) && !/[\uD800-\uDFFF]/u.test(value)
 
+/**
+ * Decodes one lower-case ACE label using RFC 3492 sections 6.1–6.2, then
+ * requires its Unicode form to round-trip through the platform IDNA parser.
+ * ASCII-only URL fast paths may accept invalid ACE unchanged; ordinary ASCII
+ * labels must not inherit IDNA's third/fourth-position hyphen restriction.
+ */
+function validateFooterACE(label: string): void {
+  const input = label.slice(4), delimiter = input.lastIndexOf('-')
+  const points = Array.from(input.slice(0, Math.max(0, delimiter)), value => value.charCodeAt(0))
+  let cursor = delimiter < 0 ? 0 : delimiter + 1
+  let codepoint = 128, index = 0, bias = 72
+  while (cursor < input.length) {
+    const previous = index
+    let weight = 1
+    for (let base = 36; ; base += 36) {
+      const code = input.charCodeAt(cursor++)
+      const digit = code >= 97 && code <= 122 ? code - 97 : code >= 48 && code <= 57 ? code - 22 : 36
+      index += digit * weight
+      if (digit === 36 || !Number.isSafeInteger(index)) throw new Error('Invalid footer ACE encoding')
+      const threshold = Math.max(1, Math.min(26, base - bias))
+      if (digit < threshold) break
+      weight *= 36 - threshold
+    }
+    const count = points.length + 1
+    let delta = Math.floor((index - previous) / (previous === 0 ? 700 : 2)), offset = 0
+    delta += Math.floor(delta / count)
+    while (delta > 455) { delta = Math.floor(delta / 35); offset += 36 }
+    bias = offset + Math.floor(36 * delta / (delta + 38))
+    codepoint += Math.floor(index / count)
+    if (codepoint > 0x10ffff || codepoint >= 0xd800 && codepoint <= 0xdfff) throw new Error('Invalid footer ACE codepoint')
+    index %= count
+    points.splice(index++, 0, codepoint)
+  }
+  if (new URL('https://' + String.fromCodePoint(...points)).hostname !== label) throw new Error('Noncanonical footer ACE label')
+}
+
 /** Validates navigation syntax without resolving, fetching or rewriting the suffix. */
 export function normalizeFooterLinkURL(input: string): string {
   if (!scalarText(input)) throw new Error('Invalid footer URL text')
@@ -39,6 +75,7 @@ export function normalizeFooterLinkURL(input: string): string {
       // Canonical decimal IPv4 has no WHATWG shorthand or leading zeroes.
     } else {
       if (!host || host.length > 253 || host.split('.').some(label => label.length > 63 || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label))) throw new Error('Invalid footer DNS labels')
+      for (const label of host.split('.')) if (label.startsWith('xn--')) validateFooterACE(label)
       const last = host.split('.').at(-1)!
       if (/^[0-9]+$/.test(last) || /^0x[a-f0-9]*$/.test(last)) throw new Error('Ambiguous numeric footer host')
     }

@@ -5,14 +5,15 @@ import type { ManagedDomain } from '../src/entities/domain/api'
 import type { DomainRedirectDefaultSetting } from '../src/entities/domain/redirect-default'
 import type { RedirectMode } from '../src/entities/short-link/model'
 import type { UserGroup } from '../src/entities/user-group/api'
-import { e2eAdminPassword, e2eAdminUsername, e2ePort, escapeRegExp, expectNoHorizontalOverflow, readVisitCount } from './support'
+import { e2eAdminPassword, e2eAdminUsername, e2eOIDCPort, e2ePort, escapeRegExp, expectNoHorizontalOverflow, readVisitCount } from './support'
 import { dismissNotifications as dismiss } from './notification-dismissal'
 
 interface CreatedLink { id: string; slug: string; url: string; redirectMode: RedirectMode; intermediateDelaySeconds: number | null }
 const choiceLabel = /^(短链域名|Short-link domain)$/
 const modeSave = /^(保存默认跳转方式|Save redirect default)$/
 const modeReload = /^(重新加载域名模式|Reload domain mode)$/
-const target = 'https://example.com/domain-mode-e2e'
+// Real redirects must finish at an owned HTTP endpoint, not depend on public DNS/TLS.
+const target = 'http://target.localhost:' + e2eOIDCPort + '/jwks'
 const modeNames = { direct: /^(直接跳转|Direct redirect)$/, intermediate: /^(中间页|Intermediate page)$/, confirmation: /^(确认页|Confirmation page)$/ }
 test.use({ serviceWorkers: 'block', actionTimeout: 10_000 })
 
@@ -47,7 +48,6 @@ for (const width of [1280, 390]) {
       await admin.addInitScript((language) => localStorage.setItem('moeurl.language', language), language)
       const member = await context.newPage()
       const publicPage = await context.newPage()
-      await publicPage.route(target, (route) => route.fulfill({ contentType: 'text/plain', body: 'Reached the real redirect target' }))
       await post(member.request, '/auth/login', { username: 'mode-' + suffix, password: 'domain-mode-e2e-password' })
       await admin.setViewportSize({ width, height: width === 1280 ? 800 : 844 })
       await selectManaged(admin, global)
@@ -244,17 +244,24 @@ async function reviewDraftRecovery(page: Page, domain: ManagedDomain) {
 /** Uses real Vuetify controls and preserves a manual mode across actual domain changes. */
 async function chooseDomain(page: Page, domain: ManagedDomain) {
   const select = page.getByRole('combobox', { name: choiceLabel })
-  const current = await select.inputValue()
   const title = domain.displayName + ' (' + domain.host + ')'
+  // Vuetify's visible selection text overlays its input; keyboard opening is real input.
   await select.press('Enter')
+  await expect(select).toHaveAttribute('aria-expanded', 'true')
   const option = page.getByRole('option', { name: title, exact: true })
   await expect(option).toBeVisible()
-  // Wait for Vuetify to focus the current choice after the opening transition.
-  await expect(page.getByRole('option', { name: current, exact: true })).toBeFocused()
+  // A selected option need not own focus. Wait for actual opening motion instead.
+  await expect.poll(() => option.evaluate(element => {
+    for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
+      if (ancestor.getAnimations().some(animation => animation.playState === 'running')) return false
+    }
+    return true
+  })).toBe(true)
   await option.scrollIntoViewIfNeeded()
   await option.click()
   await expect(select).toHaveValue(title)
   await expect(option).toBeHidden()
+  await expect(select).toHaveAttribute('aria-expanded', 'false')
 }
 /** Opens advanced settings without toggling an already-visible control closed. */
 async function advanced(page: Page) {

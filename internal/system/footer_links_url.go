@@ -87,6 +87,8 @@ func normalizeFooterLinkURL(raw string) (string, error) {
 	return scheme + "://" + host + suffix, nil
 }
 
+// footerURLBytesValid checks the unrewritten URI bytes and percent-encoded
+// controls without decoding or canonicalizing the administrator's URL suffix.
 func footerURLBytesValid(raw string) bool {
 	for i := 0; i < len(raw); i++ {
 		c := raw[i]
@@ -107,6 +109,8 @@ func footerURLBytesValid(raw string) bool {
 	return true
 }
 
+// footerDNSOrIPv4 excludes numeric host shorthands and validates only ACE
+// labels through IDNA, leaving ordinary ASCII double-hyphen labels permitted.
 func footerDNSOrIPv4(raw string) (string, error) {
 	if address, err := netip.ParseAddr(raw); err == nil && address.Is4() && address.String() == raw {
 		return raw, nil

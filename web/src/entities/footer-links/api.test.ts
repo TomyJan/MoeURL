@@ -7,11 +7,29 @@ const links = [{ label: 'Docs', url: 'https://example.com/a/../b?x=%2f#part' }]
 const envelope = (data: unknown) => new Response(JSON.stringify({ code: 0, message: 'OK', data, meta: {} }))
 afterEach(() => vi.unstubAllGlobals())
 describe('footer links shared URL contract', () => {
+  it.each(['https://xn--a.example/', 'https://xn--a.ab--cd/'])('rejects invalid ACE when the platform accepts its ASCII spelling: %s', input => {
+    const NativeURL = URL
+    // Models the native ASCII fast path; decoded Unicode still uses the real parser.
+    vi.stubGlobal('URL', class extends NativeURL {
+      constructor(value: string | URL, base?: string | URL) {
+        super(String(value).replace(/^https:\/\/xn--a[.]/, 'https://ordinary.'), base)
+      }
+      get hostname() { return super.hostname.replace(/^ordinary[.]/, 'xn--a.') }
+    })
+    expect(() => normalizeFooterLinkURL(input)).toThrow()
+  })
   it('fails closed if the platform parser disagrees with the locally validated authority', () => {
     const NativeURL = URL
     // Fault injection, not a claim that this ordinary URI changes host in a real browser.
     vi.stubGlobal('URL', class extends NativeURL { get hostname() { return 'unexpected.example' } })
     expect(() => normalizeFooterLinkURL('https://example.com/docs')).toThrow('Noncanonical footer DNS spelling')
+  })
+  it.each(['xn--maana-pta', 'xn--r8jz45g', 'xn--hxajbheg2az3al', 'xn--j50i'])('preserves a canonical ACE label without changing its suffix: %s', label => {
+    const input = 'https://' + label + '.ab--cd/a/../b?x=%2f#part'
+    expect(normalizeFooterLinkURL(input)).toBe(input)
+  })
+  it.each(['xn--0', 'xn--' + '9'.repeat(20), 'xn--ib9b', 'xn--en32g', 'xn--62g'])('rejects incomplete, overflowing, nonscalar or mapping-unstable ACE: %s', label => {
+    expect(() => normalizeFooterLinkURL('https://' + label + '.example/')).toThrow()
   })
   it.each(corpus)('$name matches the Go literal acceptance and canonical URL', entry => {
     if (entry.valid) expect(normalizeFooterLinkURL(entry.input)).toBe(entry.normalized)
@@ -84,6 +102,7 @@ describe('footer links strict DTO and complete revision', () => {
     vi.stubGlobal('fetch', vi.fn(async (path: string) => { seen.push(path); return envelope({ links, updatedAt: version }) }))
     await expect(getPublicFooterLinks()).rejects.toThrow()
     await expect(updateFooterLinks({ links: [{ label: '', url: 'https://example.com/' }], expectedUpdatedAt: version })).rejects.toThrow()
+    await expect(updateFooterLinks({ links: [{ label: 'Docs', url: 'https://xn--a.example/' }], expectedUpdatedAt: version })).rejects.toThrow()
     expect(seen).toEqual(['/api/v1/system/footer-links'])
   })
 })
