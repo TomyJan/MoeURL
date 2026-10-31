@@ -614,6 +614,16 @@ export const messages = {
       loadFailed: '强调色加载失败，请重新加载。', saveFailed: '保存失败，草稿已保留，请重试。',
       conflict: '强调色已被其他请求修改。草稿已保留，请重新加载后再保存。', invalid: '请选择有效的强调色预设。',
     },
+    footerLinks: {
+      heading: '页脚链接', form: '页脚链接设置', navigation: '页脚导航', newWindow: '（在新窗口打开）',
+      hint: '最多 5 项，标签为 1–40 个 Unicode 码点，网址最多 2048 字节。按列表顺序展示，允许重复；空行必须填写或删除。草稿不会公开，清空列表并保存可移除全部自定义链接。',
+      urlHint: '仅支持完整的 HTTP(S) ASCII 网址：国际化域名请使用 punycode，中文路径请用百分号编码。允许内网目标；服务端不探测或访问，只有用户点击后在新窗口打开，不发送来源信息。这不是对目标安全性的认证。',
+      item: '链接', label: '标签', url: '网址', add: '添加链接', remove: '删除链接', up: '上移链接', down: '下移链接',
+      save: '保存页脚链接', reload: '重新加载页脚链接', saved: '页脚链接已保存。',
+      loadFailed: '页脚链接加载失败，请重新加载。', saveFailed: '保存失败，草稿已保留，请重试。',
+      conflict: '页脚链接已被其他请求修改。草稿已保留，请明确重新加载后再保存，不会自动重试写入。',
+      invalid: '请检查各行标签与网址；空行不会被自动忽略。', invalidField: '请检查此字段的格式及长度。',
+    },
     settings: {
       title: '系统设置',
       description: '管理站点品牌、默认偏好和登录方式。',
@@ -1371,6 +1381,16 @@ export const messages = {
       save: 'Save accent', reload: 'Reload accent', saved: 'Site accent saved.',
       loadFailed: 'Could not load the accent. Please reload.', saveFailed: 'Could not save. Your draft is kept; please retry.',
       conflict: 'The accent changed elsewhere. Your draft is kept; reload before saving again.', invalid: 'Choose a valid accent preset.',
+    },
+    footerLinks: {
+      heading: 'Footer links', form: 'Footer link settings', navigation: 'Footer navigation', newWindow: '(opens in a new window)',
+      hint: 'Up to 5 ordered links, with 1–40 Unicode code points per label and up to 2048 bytes per URL. Duplicates are allowed. Complete or remove empty rows. Drafts stay private; save an empty list to remove all custom links.',
+      urlHint: 'Use complete HTTP(S) ASCII URLs: punycode for internationalized domains and percent-encoding for Unicode paths. Internal targets are allowed. The server never probes or visits them; only a user click opens a new window without sending a referrer. This is not a safety endorsement.',
+      item: 'Link', label: 'Label', url: 'URL', add: 'Add link', remove: 'Remove link', up: 'Move link up', down: 'Move link down',
+      save: 'Save footer links', reload: 'Reload footer links', saved: 'Footer links saved.',
+      loadFailed: 'Could not load footer links. Please reload.', saveFailed: 'Could not save. Your draft is kept; please retry.',
+      conflict: 'Footer links changed elsewhere. Your draft is kept; explicitly reload before saving again. Writes are never replayed automatically.',
+      invalid: 'Check every label and URL. Empty rows are not silently ignored.', invalidField: 'Check this field’s format and length.',
     },
     settings: {
       title: 'System settings',

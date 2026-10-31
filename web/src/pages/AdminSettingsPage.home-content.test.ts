@@ -21,7 +21,7 @@ describe('independent homepage editor in system settings', () => {
     vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
       const body = init?.body ? JSON.parse(String(init.body)) : undefined
       requests.push({ path, body })
-      const data = path.includes('home-content') ? content : settings
+      const data = path.includes('footer-links') ? { links: [], updatedAt: '2026-10-30T04:00:00.123456Z' } : path.includes('home-content') ? content : settings
       return new Response(JSON.stringify({ code: 0, message: 'OK', data, meta: {} }), { status: 200 })
     }))
   })
@@ -42,5 +42,13 @@ describe('independent homepage editor in system settings', () => {
     await waitFor(() => expect(requests.filter(r => r.path.endsWith('/home-content/update'))).toHaveLength(1))
     expect(requests.find(r => r.path.endsWith('/home-content/update'))?.body).toEqual({ title: 'Unsaved homepage draft', summary: content.summary, expectedUpdatedAt: content.updatedAt })
     expect(requests.filter(r => r.path.endsWith('/settings/update'))).toHaveLength(1)
+  })
+  it('mounts the independent named footer links form outside both existing settings forms', async () => {
+    mountPage()
+    await waitFor(() => expect(screen.getByLabelText('homeContent.title')).toHaveProperty('value', content.title))
+    const footerForm = screen.getByRole('form', { name: 'footerLinks.form' })
+    expect(footerForm).not.toBe(screen.getByLabelText('homeContent.title').closest('form'))
+    expect(footerForm).not.toBe(screen.getByLabelText('settings.siteName').closest('form'))
+    expect(footerForm.contains(screen.getByRole('button', { name: 'footerLinks.add' }))).toBe(true)
   })
 })

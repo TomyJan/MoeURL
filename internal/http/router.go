@@ -26,6 +26,7 @@ type Dependencies struct {
 	SystemSettings         system.SettingsPort
 	HomeContent            system.HomeContentPort
 	Appearance             system.AppearancePort
+	FooterLinks            system.FooterLinksPort
 	Auth                   auth.Port
 	Password               auth.PasswordPort
 	CurrentUser            auth.CurrentUserResolver
@@ -104,6 +105,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			appearanceHandler := system.NewAppearanceHandler(dependency.Appearance, logger)
 			api.With(middleware.NoStore).Get("/system/appearance", appearanceHandler.Public)
 		}
+		if dependency.FooterLinks != nil {
+			footerLinksHandler := system.NewFooterLinksHandler(dependency.FooterLinks, logger)
+			api.With(middleware.NoStore).Get("/system/footer-links", footerLinksHandler.Public)
+		}
 
 		if dependency.OIDCProvider != nil {
 			oidcHandler := oidc.NewHandler(dependency.OIDCProvider, dependency.OIDCLogin, dependency.SecureCookies, logger)
@@ -136,6 +141,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				appearanceHandler := system.NewAppearanceHandler(dependency.Appearance, logger)
 				businessAPI.Get("/admin/system/appearance", appearanceHandler.Get)
 				businessAPI.Post("/admin/system/appearance/update", appearanceHandler.Update)
+			}
+			if dependency.FooterLinks != nil {
+				footerLinksHandler := system.NewFooterLinksHandler(dependency.FooterLinks, logger)
+				businessAPI.Get("/admin/system/footer-links", footerLinksHandler.Get)
+				businessAPI.Post("/admin/system/footer-links/update", footerLinksHandler.Update)
 			}
 			if dependency.Auth != nil {
 				authHandler := auth.NewHandlerWithLogger(dependency.Auth, dependency.SecureCookies, logger)
