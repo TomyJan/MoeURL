@@ -95,7 +95,7 @@ func (footerBrokenReader) Read([]byte) (int, error) { return 0, errors.New("read
 var _ io.Reader = footerBrokenReader{}
 
 func TestFooterLinksVersionAndStored(t *testing.T) {
-	for _, raw := range []string{footerProtocolVersion, "2026-10-30T11:00:00.123456+08:00", "2026-10-30T03:00:00.123456789Z"} {
+	for _, raw := range []string{footerProtocolVersion, "2026-10-30T11:00:00.123456+08:00", "2026-10-30T03:00:00.123456789Z", "0001-01-01T00:00:00.000000001Z", "0001-01-01T01:00:00+02:00"} {
 		t.Run("valid_"+raw, func(t *testing.T) {
 			got, err := footerLinksVersion(raw)
 			require.NoError(t, err)
@@ -104,7 +104,7 @@ func TestFooterLinksVersionAndStored(t *testing.T) {
 			require.True(t, want.Equal(got))
 		})
 	}
-	for _, raw := range []string{"", "0001-01-01T00:00:00Z", "2026-10-30", "2026-10-30T03:00:00", "2026-10-30T03:00:00z", "2026-10-30T03:00:00,123Z", "-0001-01-01T00:00:00Z", "10000-01-01T00:00:00Z", "2026-10-30T03:00:60Z"} {
+	for _, raw := range []string{"", "0000-01-01T00:00:00Z", "0000-01-01T08:00:00+08:00", "0001-01-01T00:00:00Z", "2026-10-30", "2026-10-30T03:00:00", "2026-10-30T03:00:00z", "2026-10-30T03:00:00,123Z", "-0001-01-01T00:00:00Z", "10000-01-01T00:00:00Z", "2026-10-30T03:00:60Z"} {
 		t.Run("invalid_"+raw, func(t *testing.T) { _, err := footerLinksVersion(raw); require.ErrorIs(t, err, ErrInvalidFooterLinks) })
 	}
 	stamp := time.Date(2026, 10, 30, 3, 0, 0, 123456000, time.UTC)
@@ -141,6 +141,7 @@ func TestFooterLinksVersionAndStored(t *testing.T) {
 		{"null_time", func(v *sqlc.SystemSetting) { v.UpdatedAt.Valid = false }},
 		{"infinite_time", func(v *sqlc.SystemSetting) { v.UpdatedAt.InfinityModifier = pgtype.Infinity }},
 		{"zero_time", func(v *sqlc.SystemSetting) { v.UpdatedAt.Time = time.Time{} }},
+		{"zero_year", func(v *sqlc.SystemSetting) { v.UpdatedAt.Time = time.Date(0, 1, 1, 0, 0, 0, 0, time.UTC) }},
 		{"negative_year", func(v *sqlc.SystemSetting) { v.UpdatedAt.Time = time.Date(-1, 1, 1, 0, 0, 0, 0, time.UTC) }},
 		{"five_digit_year", func(v *sqlc.SystemSetting) { v.UpdatedAt.Time = time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC) }},
 	} {

@@ -10,7 +10,7 @@ interface DraftRow extends FooterLink { key: number }
 /** Keeps private ordered drafts and every continuation inside the current identity generation. */
 export function useFooterLinksDraft() {
   const client = useQueryClient(), identity = useAccountIdentity()
-  const state = reactive({ allowed: false, rows: [] as DraftRow[], version: '', loading: false, saving: false, feedback: '', errors: {} as Record<string, string> })
+  const state = reactive({ allowed: false, rows: [] as DraftRow[], version: '', loading: false, saving: false, reloadRequired: false, feedback: '', errors: {} as Record<string, string> })
   let generation = 0, edited = 0, sequence = 0
   let previousScope: object | undefined
   let previousPermissions = ''
@@ -19,6 +19,7 @@ export function useFooterLinksDraft() {
   function fill(value: FooterLinksSettings) {
     state.rows = value.links.map(link => ({ ...link, key: ++sequence }))
     state.version = value.updatedAt
+    state.reloadRequired = false
     state.errors = {}
   }
   /** Clears stale success feedback for every actual draft edit. */
@@ -73,7 +74,7 @@ export function useFooterLinksDraft() {
   }
   /** Saves once, preserves failed drafts and rechecks after synchronous private cache notifications. */
   async function save() {
-    if (!idle()) return
+    if (!idle() || state.reloadRequired) return
     const links = state.rows.map(({ label, url }) => ({ label, url }))
     const input = UpdateFooterLinksSchema.safeParse({ links, expectedUpdatedAt: state.version })
     if (!input.success) {
@@ -92,7 +93,11 @@ export function useFooterLinksDraft() {
       publishFooterLinks(client, { links: value.links })
       if (token === generation) state.feedback = 'saved'
     } catch (error) {
-      if (token === generation) state.feedback = error instanceof ApiClientError && error.code === 900209 ? 'conflict' : 'saveFailed'
+      if (token === generation) {
+        const conflict = error instanceof ApiClientError && error.code === 900209
+        state.feedback = conflict ? 'conflict' : 'saveFailed'
+        state.reloadRequired = conflict
+      }
     } finally {
       if (token === generation) state.saving = false
     }
@@ -107,7 +112,7 @@ export function useFooterLinksDraft() {
     void client.cancelQueries({ queryKey: key, exact: true })
     client.removeQueries({ queryKey: key, exact: true })
     key = [...adminFooterLinksKey, scope.userId, scope.epoch, generation]
-    Object.assign(state, { allowed: !!scope.userId && permissions.includes('admin:access') && permissions.includes('system:manage'), rows: [], version: '', loading: false, saving: false, feedback: '', errors: {} })
+    Object.assign(state, { allowed: !!scope.userId && permissions.includes('admin:access') && permissions.includes('system:manage'), rows: [], version: '', loading: false, saving: false, reloadRequired: false, feedback: '', errors: {} })
     edited = 0
     void load()
   }

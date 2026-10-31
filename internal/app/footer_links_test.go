@@ -188,6 +188,8 @@ func TestFooterLinksHTTPProtocol(t *testing.T) {
 		{"url_2049", command(fmt.Sprintf(`[{"label":"Docs","url":%q}]`, "https://example.com/"+strings.Repeat("a", 2049-len("https://example.com/")))), "application/json", 900208},
 		{"dangerous_scheme", command(`[{"label":"Docs","url":"javascript:alert(1)"}]`), "application/json", 900208},
 		{"invalid_version", `{"links":[],"expectedUpdatedAt":"2026-10-30"}`, "application/json", 900208},
+		{"zero_year_version", `{"links":[],"expectedUpdatedAt":"0000-01-01T00:00:00Z"}`, "application/json", 900208},
+		{"zero_year_offset_version", `{"links":[],"expectedUpdatedAt":"0000-01-01T08:00:00+08:00"}`, "application/json", 900208},
 		{"valid_json", empty, "application/json", 0},
 		{"valid_media_parameters", empty, "Application/JSON; Charset=UTF-8", 0},
 		{"body_65536", empty + strings.Repeat(" ", 65536-len(empty)), "application/json", 0},

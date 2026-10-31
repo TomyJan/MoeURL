@@ -20,7 +20,7 @@
       <div class="footer-links__actions">
         <v-btn type="button" variant="text" :disabled="busy || state.rows.length >= 5" @click="add">{{ t('footerLinks.add') }}</v-btn>
         <v-btn type="button" variant="text" :disabled="state.loading || state.saving" @click="load">{{ t('footerLinks.reload') }}</v-btn>
-        <v-btn type="submit" color="primary" :disabled="busy" :loading="state.saving">{{ t('footerLinks.save') }}</v-btn>
+        <v-btn type="submit" color="primary" :disabled="busy || state.reloadRequired" :loading="state.saving">{{ t('footerLinks.save') }}</v-btn>
       </div>
     </form>
   </section>

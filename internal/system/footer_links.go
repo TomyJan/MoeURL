@@ -46,14 +46,14 @@ type UpdateFooterLinksInput struct {
 	ExpectedUpdatedAt string
 }
 
-// footerLinksVersion accepts only complete nonzero RFC3339 revisions; fractional
+// footerLinksVersion accepts only complete nonzero RFC3339 revisions with a positive year; fractional
 // precision is retained so callers cannot weaken the optimistic concurrency check.
 func footerLinksVersion(raw string) (time.Time, error) {
 	if !footerLinksVersionPattern.MatchString(raw) {
 		return time.Time{}, ErrInvalidFooterLinks
 	}
 	version, err := time.Parse(time.RFC3339Nano, raw)
-	if err != nil || version.IsZero() {
+	if err != nil || version.IsZero() || version.Year() == 0 {
 		return time.Time{}, ErrInvalidFooterLinks
 	}
 	return version, nil
