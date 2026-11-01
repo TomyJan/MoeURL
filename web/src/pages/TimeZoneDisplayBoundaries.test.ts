@@ -36,7 +36,7 @@ const visitCsv = { fileName: 'moeurl-visits-' + id + '-2025-12-26-2026-01-01.csv
 const visit = { id, occurredAt: instant, referrerHost: 'visible.example', deviceType: null, browserFamily: null, osFamily: null, countryCode: null }
 const audit = { id: '9223372036854775807', occurredAt: instant, actorId: null, actorUsername: null, resourceType: 'user', resourceId: id, action: 'update', changedFields: [] }
 
-function mount(component: Component, props: Record<string, unknown> = {}, paginate = false) {
+function mount(component: Component, props: Record<string, unknown> = {}, paginate = false, records: { visits?: typeof visit[]; audit?: typeof audit[] } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity, staleTime: Infinity } } })
   clients.push(client)
   client.setQueryData(['auth', 'me'], { user })
@@ -48,8 +48,8 @@ function mount(component: Component, props: Record<string, unknown> = {}, pagina
     if (path === '/api/v1/auth/me') data = { user }
     else if (path === '/api/v1/user/time-zone-preference') data = { preference: { timeZone: 'America/New_York', updatedAt: version } }
     else if (path.includes('/export?')) data = path.includes('/visits/') ? visitCsv : csv
-    else if (path.includes('/visits?')) data = { range, pageSize: 25, hasMore: paginate && !path.includes('cursor='), nextCursor: paginate && !path.includes('cursor=') ? cursor : '', items: [visit] }
-    else if (path.includes('/admin/audit/list?')) data = { range, pageSize: 25, hasMore: paginate && !path.includes('cursor='), nextCursor: paginate && !path.includes('cursor=') ? cursor : '', retentionDays: 180, items: [audit] }
+    else if (path.includes('/visits?')) data = { range, pageSize: 25, hasMore: paginate && !path.includes('cursor='), nextCursor: paginate && !path.includes('cursor=') ? cursor : '', items: records.visits ?? [visit] }
+    else if (path.includes('/admin/audit/list?')) data = { range, pageSize: 25, hasMore: paginate && !path.includes('cursor='), nextCursor: paginate && !path.includes('cursor=') ? cursor : '', retentionDays: 180, items: records.audit ?? [audit] }
     else throw new Error('Unexpected request ' + path)
     return new Response(JSON.stringify({ code: 0, message: '', data, meta: {} }))
   }))
@@ -62,14 +62,62 @@ function mount(component: Component, props: Record<string, unknown> = {}, pagina
   const view = render(Provider, { global: { stubs: { ...componentStubs, VCheckbox: true }, plugins: [[VueQueryPlugin, { queryClient: client }]] } })
   return { ...view, client, requests, observer }
 }
-afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks() })
+afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()); locale.value = 'en-US'; vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks() })
 
 describe('time-zone display protocol boundaries', () => {
+  it.each(['audit', 'visits'] as const)('preserves distinct raw seconds and nanoseconds for same-minute %s events', async kind => {
+    const later = '2026-01-01T00:30:59.987654321Z'
+    const view = mount(kind === 'audit' ? AdminAuditPage : VisitRecordsPanel, kind === 'audit' ? {} : { id, context: 'own', range }, false, {
+      visits: [visit, { ...visit, id: '00000000-0000-4000-8000-000000000002', occurredAt: later }],
+      audit: [audit, { ...audit, id: '9223372036854775806', occurredAt: later }],
+    })
+    await waitFor(() => expect(view.container.querySelectorAll('tbody tr')).toHaveLength(2))
+    expect(view.container.querySelectorAll('details')).toHaveLength(2)
+    const details = Array.from(view.container.querySelectorAll('details'))
+    for (const [index, raw] of [instant, later].entries()) {
+      expect(details[index]?.querySelector('summary')?.textContent).toContain('Dec 31, 2025, 19:30')
+      expect(details[index]?.querySelector('time')?.getAttribute('datetime')).toBe(raw)
+      expect(details[index]?.querySelector('p')?.textContent).toBe(raw)
+      expect(details[index]?.open).toBe(false)
+    }
+  })
+  it.each(['audit', 'visits'] as const)('updates only %s summary labels when zone and locale change', async kind => {
+    const view = mount(kind === 'audit' ? AdminAuditPage : VisitRecordsPanel, kind === 'audit' ? {} : { id, context: 'own', range })
+    await waitFor(() => expect(view.container.querySelector('summary time')?.textContent).toBe('Dec 31, 2025, 19:30'))
+    const details = view.container.querySelector('details')!
+    await fireEvent.click(details.querySelector('summary')!)
+    expect(details.open).toBe(true)
+    const requests = [...view.requests]
+    view.observer.publish(view.observer.scope.value, { timeZone: 'Asia/Tokyo', updatedAt: version })
+    await nextTick()
+    expect(details.querySelector('summary time')?.textContent).toBe('Jan 1, 2026, 09:30')
+    locale.value = 'zh-CN'
+    await nextTick()
+    expect(details.querySelector('summary time')?.textContent).not.toBe('Jan 1, 2026, 09:30')
+    expect(details.querySelector('p')?.textContent).toBe('2026-01-01T00:30:00.123456789Z')
+    expect(details.querySelector('time')?.getAttribute('datetime')).toBe('2026-01-01T00:30:00.123456789Z')
+    expect(details.open).toBe(true)
+    expect(view.requests).toEqual(requests)
+    expect(visit.occurredAt).toBe('2026-01-01T00:30:00.123456789Z')
+    expect(audit.occurredAt).toBe('2026-01-01T00:30:00.123456789Z')
+  })
+  it.each(['audit', 'visits'] as const)('unmounts expanded %s details when current access is revoked', async kind => {
+    const view = mount(kind === 'audit' ? AdminAuditPage : VisitRecordsPanel, kind === 'audit' ? {} : { id, context: 'own', range })
+    await waitFor(() => expect(view.container.querySelector('details')).not.toBeNull())
+    const details = view.container.querySelector('details')!
+    await fireEvent.click(details.querySelector('summary')!)
+    expect(details.open).toBe(true)
+    view.client.setQueryData(['auth', 'me'], { user: { ...user, permissions: [] } })
+    await nextTick()
+    expect(view.container.querySelector('details')).toBeNull()
+    expect(view.container.textContent).not.toContain('2026-01-01T00:30:00.123456789Z')
+  })
   it.each(['audit', 'visits'])('keeps %s readable with the original instant if device Intl itself is unavailable', async kind => {
     vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(function () { throw new RangeError('missing Intl data') })
     const view = mount(kind === 'audit' ? AdminAuditPage : VisitRecordsPanel, kind === 'audit' ? {} : { id, context: 'own', range })
-    const time = await screen.findByText(instant)
-    expect(time.getAttribute('datetime')).toBe(instant)
+    await waitFor(() => expect(view.container.querySelector('summary time')?.textContent).toBe(instant))
+    expect(view.container.querySelector('summary time')?.getAttribute('datetime')).toBe(instant)
+    expect(view.container.querySelector('details p')?.textContent).toBe(instant)
     expect(view.observer.preference.value?.timeZone).toBe('America/New_York')
   })
   it.each([

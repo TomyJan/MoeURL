@@ -15,7 +15,7 @@
         <thead><tr><th>{{ t('audit.id') }}</th><th>{{ t('insights.occurredAt') }}</th><th>{{ t('audit.actor') }}</th><th>{{ t('audit.resourceType') }}</th><th>{{ t('audit.resourceId') }}</th><th>{{ t('audit.action') }}</th><th>{{ t('audit.changedFields') }}</th></tr></thead>
         <tbody>
           <tr v-for="item in logs.items" :key="item.id">
-            <td>{{ item.id }}</td><td><time :datetime="item.occurredAt">{{ format(item.occurredAt) ?? item.occurredAt }}</time></td>
+            <td>{{ item.id }}</td><td><InstantDetails :instant="item.occurredAt" :label="format(item.occurredAt) ?? item.occurredAt" /></td>
             <td><span class="insight-table__ellipsis" :title="item.actorId || t('audit.systemActor')">{{ item.actorId ? item.actorUsername || t('analytics.unknown') : t('audit.systemActor') }}</span><span v-if="item.actorId" class="insight-table__ellipsis" :title="item.actorId">{{ item.actorId }}</span></td>
             <td>{{ t(`audit.resources.${item.resourceType}`) }}</td><td><span class="insight-table__ellipsis" :title="item.resourceId">{{ item.resourceId }}</span></td><td>{{ t(`audit.actions.${item.action}`) }}</td><td><span class="insight-table__ellipsis" :title="item.changedFields.join(', ')">{{ item.changedFields.join(', ') || '—' }}</span></td>
           </tr>
@@ -42,6 +42,7 @@ import { useCursorHistory } from '@/shared/insights/useCursorHistory'
 import InsightRangePicker from '@/features/insights/InsightRangePicker.vue'
 import InsightReadState from '@/features/insights/InsightReadState.vue'
 import AuditExportButton from '@/features/audit-export/AuditExportButton.vue'
+import InstantDetails from '@/shared/ui/InstantDetails.vue'
 
 const { t } = useI18n()
 const { format } = useDateTimeDisplay()
