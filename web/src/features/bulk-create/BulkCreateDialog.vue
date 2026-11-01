@@ -38,7 +38,7 @@ const state = useBulkCreate()
 <style scoped>
 .bulk-create-card { min-width: 0; max-height: calc(100dvh - 32px); }
 .bulk-create-card :deep(.v-card-title) { white-space: normal; overflow-wrap: anywhere; }
-.bulk-create-body { display: grid; gap: 16px; min-width: 0; overflow-wrap: anywhere; }
+.bulk-create-body { display: grid; grid-auto-rows: max-content; align-content: start; gap: 16px; min-width: 0; overflow-wrap: anywhere; }
 .bulk-create-body p { margin: 0; }
 .bulk-create-body ol { padding-inline-start: 24px; }
 .bulk-create-body li + li { margin-top: 8px; }

@@ -74,6 +74,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
     const geometry = await dialog.evaluate(element => { const box = element.getBoundingClientRect(); return { left: box.left, right: box.right, viewport: innerWidth } })
     expect(geometry.left).toBeGreaterThanOrEqual(0); expect(geometry.right).toBeLessThanOrEqual(geometry.viewport)
     await capture(info, 'preview-' + language + '-' + width, page)
+    await expectReadableAlerts(dialog)
     const writes: unknown[] = []
     await page.route('**/api/v1/short-link/batch-create', async route => {
       writes.push(route.request().postDataJSON())
@@ -94,7 +95,9 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
     await page.getByTestId('bulk-create-close').click()
     await expect(page.getByTestId('bulk-create-close-warning')).toBeVisible()
     await expect(submit).toBeDisabled()
+    await page.getByTestId('bulk-create-close-warning').scrollIntoViewIfNeeded()
     await capture(info, 'unknown-' + language + '-' + width, page)
+    await expectReadableAlerts(dialog)
     await page.getByTestId('bulk-create-keep').click()
     await expect(page.getByTestId('bulk-create-request-id')).toHaveText(requestId)
     await submit.focus(); await submit.press('Enter')
@@ -123,6 +126,20 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
       expect(await links(page.request)).toHaveLength(3)
     }
   })
+}
+
+/** Rejects clipped recovery guidance even when the dialog itself has no horizontal overflow. */
+async function expectReadableAlerts(dialog: ReturnType<Page['getByRole']>) {
+  const alerts = dialog.locator('.v-alert')
+  for (let index = 0; index < await alerts.count(); index += 1) {
+    await expect.poll(() => alerts.nth(index).evaluate(element => {
+      const alert = element.getBoundingClientRect()
+      const content = element.querySelector('.v-alert__content')!
+      const text = content.getBoundingClientRect()
+      return text.top >= alert.top - 1 && text.bottom <= alert.bottom + 1
+        && content.scrollHeight <= content.clientHeight + 1
+    }), { message: 'Recovery and unknown-result guidance must not be vertically clipped' }).toBe(true)
+  }
 }
 
 /** Reads only this fresh scenario account's current links, including a committed lost response. */
