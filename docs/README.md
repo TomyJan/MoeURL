@@ -1,6 +1,6 @@
 # MoeURL 文档中心
 
-2026-11-01 最新：v0.37.0／PR244 已合并为 master617c12cc8cb07c2ea3173b8d0cc65239aec4f49c；候选与 master 各九 CI、真实审查、标准任务和可恢复归档已完成，未发布部署。当前启动 [v0.38.0 有界批量创建](product/scope-v0.38.0.md)，仅设计，见[规格](specs/2026-11-01-v0.38.0-bulk-create-design.md)、[计划](implementation/v0.38.0-plan.md)与[验收](implementation/v0.38.0-acceptance.md)。下方旧阶段文字保留历史归属，不代当前状态。
+2026-11-01 最新：v0.37.0／PR244 已合并为 master617c12cc8cb07c2ea3173b8d0cc65239aec4f49c；候选与 master 各九 CI、真实审查、标准任务和可恢复归档已完成，未发布部署。当前启动 [v0.38.0 有界批量创建](product/scope-v0.38.0.md)，后端Windows完整测试／业务100／vet通过，Linux race／scanner已通过；前端和完整交付未完成，见[规格](specs/2026-11-01-v0.38.0-bulk-create-design.md)、[计划](implementation/v0.38.0-plan.md)与[验收](implementation/v0.38.0-acceptance.md)。下方旧阶段文字保留历史归属，不代当前状态。
 
 2026-11-01 当前入口：[v0.36.0 账号时区](product/scope-v0.36.0.md)已经 PR243 合并为 5dc1c8aa34bbc9ba66576efd1ec41d1ce2025e43，候选及 master 各九 CI、真实审查、标准 Task1–4 与完整可恢复归档完成，未发布部署。下一有界阶段为 [v0.37.0 精确记录时间](product/scope-v0.37.0.md)，已完成两表详情和手机提示的本地实现及定向验证，整版交付仍待；见[规格](specs/2026-11-01-v0.37.0-precise-record-times-design.md)、[计划](implementation/v0.37.0-plan.md)、[任务](implementation/v0.37.0-tasks.md)及[验收](implementation/v0.37.0-acceptance.md)。下方旧阶段叙述保持历史归属。
 

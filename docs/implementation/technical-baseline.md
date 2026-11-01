@@ -1,6 +1,6 @@
 # 技术基线
 
-v0.38.0 设计边界：1–20条、单条1–2048字节可打印ASCII HTTP(S)、64KiB严格JSON、5秒事务、每条8次随机slug尝试；本人／默认域名／direct、永久SHA-256幂等回执不存URL；无新增权限或依赖。新增00033与SQLC1.30标准生成须真实验证，未声明门禁通过。见[规格](../specs/2026-11-01-v0.38.0-bulk-create-design.md)和[验收](v0.38.0-acceptance.md)。v0.37.0／PR244已交付，以下旧阶段状态保持历史归属。
+v0.38.0 设计边界：1–20条、单条1–2048字节可打印ASCII HTTP(S)、64KiB严格JSON、5秒事务、每条8次随机slug尝试；本人／默认域名／direct、永久SHA-256幂等回执不存URL；无新增权限或依赖。新增00033真实迁移通过，SQLC1.30完整60sources／28generated两次零漂移，Windows Go1.26.10完整测试／业务100／vet通过；Linux race／scanner已通过，不冒前端、产品或远端完成。见[规格](../specs/2026-11-01-v0.38.0-bulk-create-design.md)和[验收](v0.38.0-acceptance.md)。v0.37.0／PR244已交付，以下旧阶段状态保持历史归属。
 
 v0.37.0 本地实现边界（整版交付待完成）：InstantDetails 只消费 instant: string 和 label: string，保留原 datetime、秒／小数／offset及文本安全；账号时区仅影响父层短标签。后端、SQLC、migration、CSV、cursor、UTC 日期和 datetime-local 不变。沿用已冻结隔离前端依赖镜像，manifest 除 version、lock与workspace须全等，不安装本机依赖；本版门禁不能借旧结果。见[规格](../specs/2026-11-01-v0.37.0-precise-record-times-design.md)和[验收](v0.37.0-acceptance.md)。
 

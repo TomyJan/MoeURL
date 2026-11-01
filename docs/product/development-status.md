@@ -1,6 +1,6 @@
 # 开发进度与能力清单
 
-2026-11-01 最新：v0.37.0／PR244 已完成 guarded squash（master617c12cc8cb07c2ea3173b8d0cc65239aec4f49c），候选与 master 各九 CI、完整原始日志、真实审查、标准 Task1–4、36条裁决／4项延期Minor和可恢复归档均已闭环；未发布部署。下一轮 [v0.38.0 有界批量创建](scope-v0.38.0.md)仅设计，未实现／未验证；见[计划](../implementation/v0.38.0-plan.md)与[验收](../implementation/v0.38.0-acceptance.md)。下方旧阶段摘要保留历史归属，不表示旧版本仍待交付。
+2026-11-01 最新：v0.37.0／PR244 已完成 guarded squash（master617c12cc8cb07c2ea3173b8d0cc65239aec4f49c），候选与 master 各九 CI、完整原始日志、真实审查、标准 Task1–4、36条裁决／4项延期Minor和可恢复归档均已闭环；未发布部署。下一轮 [v0.38.0 有界批量创建](scope-v0.38.0.md)后端已实现，真实App与迁移RED→GREEN、PG并发／回滚／撤权、SQLC零漂移、Windows完整测试／业务100／vet通过；Linux race／scanner已通过，Task1标准结项待提交后核验，前端与完整交付未完成；见[计划](../implementation/v0.38.0-plan.md)与[验收](../implementation/v0.38.0-acceptance.md)。下方旧阶段摘要保留历史归属，不表示旧版本仍待交付。
 
 2026-11-01 05:35 UTC 最新交付：v0.36.0／PR243 已 guarded squash 为 master 5dc1c8aa34bbc9ba66576efd1ec41d1ce2025e43；候选 run41274108148 与 master 自身 run41275576405 各九 SUCCESS、完整原始日志 ROOT 已读到 EOF，真实 CodeRabbit 覆盖最终 2403a0d，effective open0。标准 Task1–4、37 条完整裁决／三项延期 Minor 与 16 文件 whole-owned ZIP／解压／准确 leaf 可恢复迁出均完成。首次 Task4 校验器历史文档混比失败和正确归属恢复保留原件；无产品重跑。未发布部署。下一 [v0.37.0 精确记录时间](scope-v0.37.0.md)已完成两表详情和手机提示的本地实现及定向验证，整版交付仍待，见[计划](../implementation/v0.37.0-plan.md)和[验收](../implementation/v0.37.0-acceptance.md)。以下旧阶段摘要均为各自历史，不表示 v0.36.0 仍在等待交付。
 

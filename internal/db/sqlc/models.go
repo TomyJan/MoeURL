@@ -205,6 +205,14 @@ type ShortLinkConfirmationPermissionAddition struct {
 	PermissionRevision int64       `json:"permission_revision"`
 }
 
+type ShortLinkCreateBatch struct {
+	ActorID      pgtype.UUID        `json:"actor_id"`
+	RequestID    pgtype.UUID        `json:"request_id"`
+	RequestHash  []byte             `json:"request_hash"`
+	CreatedCount int16              `json:"created_count"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+}
+
 type ShortLinkEvent struct {
 	ID            pgtype.UUID        `json:"id"`
 	ShortLinkID   pgtype.UUID        `json:"short_link_id"`

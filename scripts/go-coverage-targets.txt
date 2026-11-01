@@ -62,6 +62,8 @@ github.com/TomyJan/MoeURL/internal/shortlink/batch_transfer_handler.go
 github.com/TomyJan/MoeURL/internal/shortlink/batch_transfer_service.go
 github.com/TomyJan/MoeURL/internal/shortlink/batch_tags_handler.go
 github.com/TomyJan/MoeURL/internal/shortlink/batch_tags_service.go
+github.com/TomyJan/MoeURL/internal/shortlink/bulk_create_handler.go
+github.com/TomyJan/MoeURL/internal/shortlink/bulk_create_service.go
 github.com/TomyJan/MoeURL/internal/shortlink/analytics_range.go
 github.com/TomyJan/MoeURL/internal/shortlink/analytics.go
 github.com/TomyJan/MoeURL/internal/shortlink/analytics_export.go
