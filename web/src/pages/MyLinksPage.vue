@@ -4,7 +4,10 @@
       <div>
         <h1>{{ t('page.links') }}</h1>
       </div>
-      <ShortLinkListExportButton context="own" :filters="exportFilters" :blocked="exportBlocked" @pending="exportPending = $event" />
+      <div class="bulk-create-header-actions">
+        <BulkCreateDialog />
+        <ShortLinkListExportButton context="own" :filters="exportFilters" :blocked="exportBlocked" @pending="exportPending = $event" />
+      </div>
     </header>
     <div class="console-page__tools">
       <div class="console-page__filters console-page__metadata-filters" data-testid="console-page-toolbar">
@@ -81,6 +84,7 @@ import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue
 import { useShortLinkAccess, useShortLinkBatch } from '@/features/short-link-batch/useShortLinkBatch'
 import ShortLinkBatchToolbar from '@/features/short-link-batch/ShortLinkBatchToolbar.vue'
 import ShortLinkListExportButton from '@/features/short-link-list-export/ShortLinkListExportButton.vue'
+import BulkCreateDialog from '@/features/bulk-create/BulkCreateDialog.vue'
 import ShortLinkBatchTagsDialog from '@/features/short-link-tags/ShortLinkBatchTagsDialog.vue'
 import { batchTagVersionSchema, type BatchTagTarget } from '@/entities/short-link/batch-tags'
 
@@ -181,6 +185,7 @@ function invalidateLinks() {
 </script>
 
 <style scoped>
+.bulk-create-header-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .console-page__metadata-filters {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
