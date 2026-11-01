@@ -191,6 +191,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.UserPreferences = user.NewPreferencesService(pool)
 		deps.UserDomainPreference = user.NewDomainPreferenceService(pool)
 		deps.UserTimeZonePreference = user.NewTimeZonePreferenceService(pool)
+		deps.UserRedirectPreference = user.NewRedirectPreferenceService(pool)
 		deps.UserGroup = usergroup.NewService(pool, permissionService)
 		deps.UserGroupDomainDefault = usergroup.NewDomainDefaultService(pool)
 

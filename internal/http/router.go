@@ -55,6 +55,7 @@ type Dependencies struct {
 	UserPreferences        user.PreferencesPort
 	UserDomainPreference   user.DomainPreferencePort
 	UserTimeZonePreference user.TimeZonePreferencePort
+	UserRedirectPreference user.RedirectPreferencePort
 	UserGroup              usergroup.Port
 	UserGroupDomainDefault usergroup.DomainDefaultPort
 	OIDCProvider           oidc.ProviderPort
@@ -271,6 +272,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				preferenceHandler := user.NewTimeZonePreferenceHandler(dependency.UserTimeZonePreference, logger)
 				businessAPI.Get("/user/time-zone-preference", preferenceHandler.Get)
 				businessAPI.Post("/user/time-zone-preference/update", preferenceHandler.Update)
+			}
+			if dependency.UserRedirectPreference != nil {
+				preferenceHandler := user.NewRedirectPreferenceHandler(dependency.UserRedirectPreference, logger)
+				businessAPI.Get("/user/redirect-preference", preferenceHandler.Get)
+				businessAPI.Post("/user/redirect-preference/update", preferenceHandler.Update)
 			}
 			if dependency.UserGroup != nil {
 				userGroupHandler := usergroup.NewHandler(dependency.UserGroup, logger)

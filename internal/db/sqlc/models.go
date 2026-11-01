@@ -257,6 +257,12 @@ type UserPreference struct {
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
+type UserRedirectPreference struct {
+	UserID       pgtype.UUID        `json:"user_id"`
+	RedirectMode pgtype.Text        `json:"redirect_mode"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
 type UserTimeZonePreference struct {
 	UserID    pgtype.UUID        `json:"user_id"`
 	TimeZone  pgtype.Text        `json:"time_zone"`
