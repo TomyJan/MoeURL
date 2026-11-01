@@ -398,7 +398,7 @@ function getFocusableElements(root: globalThis.HTMLElement) {
 </script>
 
 <style scoped>
-.console-shell__time-zone { margin: 0 0 16px; color: rgb(var(--v-theme-on-surface-variant)); font-size: 0.82rem; overflow-wrap: anywhere; }
+.console-shell__time-zone { box-sizing: border-box; width: min(1248px, 100%); margin: 0 auto 16px; padding-inline: 44px; color: rgb(var(--v-theme-on-surface-variant)); font-size: 0.82rem; overflow-wrap: anywhere; }
 .console-shell__time-zone span { display: block; }
 .console-shell {
   display: grid;
@@ -607,6 +607,10 @@ function getFocusableElements(root: globalThis.HTMLElement) {
 
   .console-shell__workspace {
     padding: 24px 20px;
+  }
+
+  .console-shell__time-zone {
+    padding-inline: 20px;
   }
 
   .console-shell__dialog {
