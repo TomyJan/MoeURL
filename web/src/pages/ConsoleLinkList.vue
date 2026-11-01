@@ -92,6 +92,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useDateTimeDisplay } from '@/shared/preferences/useDateTimeDisplay'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
 
 import type { RedirectMode } from '@/entities/short-link/model'
@@ -154,6 +155,7 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { format } = useDateTimeDisplay()
 const hasOwners = computed(() => props.links.some((link) => link.owner))
 
 /** Formats an optional last-visit date with the product fallback label. */
@@ -163,30 +165,12 @@ function formatVisitedAt(value?: string | null) {
 
 /** Formats an expiration timestamp with local date and minute precision. */
 function formatExpiration(value: string | null) {
-  if (!value) {
-    return t('links.neverExpires')
-  }
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return t('links.neverExpires')
-  }
-  return `${formatLocalDate(value, t('links.neverExpires'))} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  return value ? format(value) ?? t('links.neverExpires') : t('links.neverExpires')
 }
 
-/** Formats a valid timestamp as YYYY-MM-DD or returns the supplied fallback. */
+/** Formats the selected zone's calendar date or returns the supplied fallback. */
 function formatLocalDate(value: string | null | undefined, fallback: string) {
-  if (!value) {
-    return fallback
-  }
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return fallback
-  }
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, '0'),
-    String(date.getDate()).padStart(2, '0'),
-  ].join('-')
+  return value ? format(value, 'date') ?? fallback : fallback
 }
 
 </script>

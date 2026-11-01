@@ -47,7 +47,7 @@ const preferenceSpies = vi.hoisted(() => ({
 }))
 
 vi.mock('@/entities/auth/api', () => ({ me: vi.fn(async () => ({ user: { id: '', username: 'guest', group: 'guest' } })) }))
-vi.mock('@/shared/preferences/useAccountPreferences', () => ({ useAccountPreferences: vi.fn() }))
+vi.mock('@/shared/preferences/useAccountPreferences', async importOriginal => ({ ...await importOriginal<typeof import('@/shared/preferences/useAccountPreferences')>(), useAccountPreferences: vi.fn() }))
 
 vi.mock('@/entities/system/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/entities/system/api')>()

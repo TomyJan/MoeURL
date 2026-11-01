@@ -64,6 +64,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useDateTimeDisplay } from '@/shared/preferences/useDateTimeDisplay'
 
 import type {
   PermissionCategory,
@@ -89,11 +90,12 @@ const emit = defineEmits<{
   'set-permission': [permissionKey: string, selected: boolean]
 }>()
 
-const { locale, t } = useI18n()
+const { t } = useI18n()
+const { format } = useDateTimeDisplay()
 const categoryOrder: PermissionCategory[] = ['short_link_basic', 'short_link_access', 'domain', 'administration']
 const selectedPreset = ref<PermissionPresetKey | ''>('')
 /** Formats the current permission version whenever its value or locale changes. */
-const formattedUpdatedAt = computed(() => formatUpdatedAt(props.group.updatedAt, locale.value))
+const formattedUpdatedAt = computed(() => format(props.group.updatedAt) ?? props.group.updatedAt)
 /** Groups permission definitions in their stable interface order. */
 const categories = computed(() => categoryOrder.map((key) => ({
   key,
@@ -151,14 +153,6 @@ function setPermission(permissionKey: string, selected: boolean) {
   emit('set-permission', permissionKey, selected)
 }
 
-/** Formats an RFC3339 permission version in the active locale. */
-function formatUpdatedAt(value: string, activeLocale: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-  return new Intl.DateTimeFormat(activeLocale, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
-}
 </script>
 
 <style scoped>

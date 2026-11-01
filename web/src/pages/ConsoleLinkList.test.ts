@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue'
 import { componentStubs } from '@/test/component-stubs'
 
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ locale: { value: 'en-US' }, t: (key: string) => key }) }))
 
 describe('ConsoleLinkList', () => {
   it('keeps selected rows removable at the 100-ID limit while disabling unselected rows', async () => {

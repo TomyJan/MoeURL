@@ -10,7 +10,7 @@ import { createDeferred } from '@/test/deferred'
 import AdminAuditPage from './AdminAuditPage.vue'
 import ConsoleShell from '@/widgets/console-shell/ConsoleShell.vue'
 
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ locale: { value: 'en-US' }, t: (key: string) => key }) }))
 vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 const clients: QueryClient[] = []
 const actorId = '00000000-0000-0000-0000-000000000001'

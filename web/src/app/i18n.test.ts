@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import permissionCatalog from '@/test/fixtures/permission-catalog.json'
 
 import { i18n, messages } from './i18n'
+import { timeZonePresets } from '@/entities/time-zone-preference/api'
 
 /** Loads the checked-in snapshot generated from the backend permission catalog. */
 function readBackendPermissionCatalog(): Array<{ key: string }> {
@@ -10,6 +11,20 @@ function readBackendPermissionCatalog(): Array<{ key: string }> {
 }
 
 describe('i18n', () => {
+  it('labels time-zone choices and safe device fallbacks in both actual locales', () => {
+    for (const locale of ['zh-CN', 'en'] as const) {
+      for (const key of ['title', 'description', 'zone', 'device', 'save', 'saved', 'retry', 'reload', 'conflict', 'loadFailed', 'saveFailed', 'unavailable', 'invalid', 'usingDevice', 'displayUnavailable', 'unsupported']) {
+        expect(i18n.global.te('timeZonePreference.' + key, locale)).toBe(true)
+      }
+      for (const zone of timeZonePresets) {
+        const key = 'timeZonePreference.zones.' + zone
+        expect(i18n.global.t(key, {}, { locale })).not.toBe(key)
+      }
+      expect(i18n.global.t('timeZonePreference.current', { zone: 'Asia/Tokyo' }, { locale })).toContain('Asia/Tokyo')
+      expect(messages[locale].insights.occurredAt).not.toContain('UTC')
+      expect(messages[locale].insights.appliedRange).toContain('UTC')
+    }
+  })
   it('resolves custom slug controls and safe conflict feedback in both locales', () => {
     for (const locale of ['zh-CN', 'en'] as const) {
       for (const name of ['customSlug', 'customSlugHint', 'customSlugInvalid', 'customSlugConflict', 'customSlugReserved', 'domainOrPermissionsChanged']) {
@@ -76,14 +91,14 @@ describe('i18n', () => {
     expect(messages['zh-CN'].shortLinkCreate.advanced).toBe('高级设置')
     expect(messages['zh-CN'].shortLinkCreate.redirectModes.intermediate).toBe('中间页')
     expect(messages['zh-CN'].shortLinkCreate.redirectModes.confirmation).toBe('确认页')
-    expect(messages['zh-CN'].shortLinkCreate.expiresAt).toBe('过期时间（本地时间）')
-    expect(messages['zh-CN'].shortLinkSettings.expiresAt).toBe('过期时间（本地时间）')
+    expect(messages['zh-CN'].shortLinkCreate.expiresAt).toBe('过期时间（设备本地时间）')
+    expect(messages['zh-CN'].shortLinkSettings.expiresAt).toBe('过期时间（设备本地时间）')
     expect(messages['zh-CN'].shortLinkCreate.expirationFuture).toBe('过期时间必须晚于当前时间')
     expect(messages.en.shortLinkCreate.advanced).toBe('Advanced settings')
     expect(messages.en.shortLinkCreate.redirectModes.intermediate).toBe('Intermediate page')
     expect(messages.en.shortLinkCreate.redirectModes.confirmation).toBe('Confirmation page')
-    expect(messages.en.shortLinkCreate.expiresAt).toBe('Expiration time (local time)')
-    expect(messages.en.shortLinkSettings.expiresAt).toBe('Expiration time (local time)')
+    expect(messages.en.shortLinkCreate.expiresAt).toBe('Expiration time (device local time)')
+    expect(messages.en.shortLinkSettings.expiresAt).toBe('Expiration time (device local time)')
     expect(messages.en.shortLinkCreate.expirationFuture).toBe('Expiration must be in the future')
     expect(messages['zh-CN'].shortLinkCreate.qrCode).toBe('二维码')
     expect(messages.en.shortLinkCreate.qrCode).toBe('QR code')

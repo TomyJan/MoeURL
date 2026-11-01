@@ -57,6 +57,11 @@
     </Transition>
 
     <main class="console-shell__main">
+      <p class="console-shell__time-zone" data-testid="console-time-zone" role="status">
+        {{ timeZone ? t('timeZonePreference.current', { zone: timeZone }) : t('timeZonePreference.usingDevice') }}
+        <span v-if="timeZoneFallback === 'unsupported'">{{ t('timeZonePreference.unsupported') }}</span>
+        <span v-else-if="timeZoneFallback === 'unavailable'">{{ t('timeZonePreference.displayUnavailable') }}</span>
+      </p>
       <Transition name="moe-layout" mode="out-in">
         <div :key="route.path || 'console'" class="console-shell__workspace">
           <slot>
@@ -95,6 +100,7 @@
 
 <script setup lang="ts">
 import ActionToast from '@/shared/feedback/ActionToast.vue'
+import { useDateTimeDisplay } from '@/shared/preferences/useDateTimeDisplay'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute, useRouter } from 'vue-router'
@@ -113,6 +119,7 @@ import type { ConsoleNavGroup } from './ConsoleNavList.vue'
 import { useSiteConfig } from '@/shared/site/useSiteConfig'
 
 const { t } = useI18n()
+const { timeZone, fallback: timeZoneFallback } = useDateTimeDisplay()
 const { config } = useSiteConfig()
 const route = useRoute()
 const router = useRouter()
@@ -391,6 +398,8 @@ function getFocusableElements(root: globalThis.HTMLElement) {
 </script>
 
 <style scoped>
+.console-shell__time-zone { margin: 0 0 16px; color: rgb(var(--v-theme-on-surface-variant)); font-size: 0.82rem; overflow-wrap: anywhere; }
+.console-shell__time-zone span { display: block; }
 .console-shell {
   display: grid;
   min-height: 0;

@@ -6,7 +6,7 @@ import { createDeferred } from '@/test/deferred'
 import AdminDashboardPage from './AdminDashboardPage.vue'
 import AdminAuditPage from './AdminAuditPage.vue'
 
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, params?: Record<string, string>) => params ? `${key} ${Object.values(params).join(' ')}` : key }) }))
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ locale: { value: 'en-US' }, t: (key: string, params?: Record<string, string>) => params ? `${key} ${Object.values(params).join(' ')}` : key }) }))
 vi.mock('vuetify', () => ({ useTheme: () => ({ global: { current: { value: { colors: { primary: 'blue', 'on-surface-variant': 'black', outline: 'gray' } } } } }) }))
 vi.mock('chart.js', () => ({ Chart: class { static register() {} destroy() {} }, LineController: class {}, LineElement: class {}, PointElement: class {}, LinearScale: class {}, CategoryScale: class {}, Tooltip: class {} }))
 const clients: QueryClient[] = []
@@ -114,7 +114,8 @@ describe('administrator insight pages', () => {
     serve(audit)
     mount(AdminAuditPage)
     await screen.findByText('9223372036854775807')
-    expect(screen.getByText('2026-10-22T01:02:03.123456Z')).toBeTruthy()
+    const time = screen.getByText(new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short', hourCycle: 'h23' }).format(new Date(audit.items[0]!.occurredAt)))
+    expect(time.getAttribute('datetime')).toBe('2026-10-22T01:02:03.123456Z')
     expect(screen.getByText('audit.systemActor')).toBeTruthy()
     expect(screen.getByText('title, status')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /delete|save/i })).toBeNull()

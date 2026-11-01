@@ -154,6 +154,7 @@
 import { toast } from 'vue-sonner'
 import { computed, defineComponent, onBeforeUnmount, reactive, ref, toRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useDateTimeDisplay } from '@/shared/preferences/useDateTimeDisplay'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { listUsers, resetUserPassword, updateUser } from '@/entities/user/api'
@@ -167,6 +168,7 @@ import { aliases } from 'vuetify/iconsets/mdi-svg'
 import { useUserBatchGroupChange } from '@/features/user-batch-group-change/useUserBatchGroupChange'
 
 const { t } = useI18n()
+const { format } = useDateTimeDisplay()
 const queryClient = useQueryClient()
 const identity = useAccountIdentity()
 const currentUserId = computed(() => identity.scope.value.userId)
@@ -321,17 +323,9 @@ function isResettingUser(id: string) {
   return singlePending.value === id
 }
 
-/** Formats a valid timestamp as a stable local calendar date. */
+/** Formats an account creation instant as the selected zone's calendar date. */
 function formatDate(value: string) {
-  const timestamp = Date.parse(value)
-  if (Number.isNaN(timestamp)) {
-    return value
-  }
-  const date = new Date(timestamp)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return format(value, 'date') ?? value
 }
 
 /** Builds the stable DOM identifier for a user's edit panel. */

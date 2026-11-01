@@ -21,6 +21,7 @@ import { getPublicConfig } from '@/entities/system/api'
 import { me } from '@/entities/auth/api'
 import { useAppPreferences } from '@/shared/preferences/useAppPreferences'
 import { useAccountPreferences } from '@/shared/preferences/useAccountPreferences'
+import { provideDateTimeDisplay } from '@/shared/preferences/useDateTimeDisplay'
 import { bindSiteTitle, setSiteConfig, useSiteConfig } from '@/shared/site/useSiteConfig'
 import SiteFooter from '@/shared/site/SiteFooter.vue'
 import AppToasts from '@/shared/feedback/AppToasts.vue'
@@ -28,8 +29,9 @@ import { useSiteAppearance } from '@/shared/site/useSiteAppearance'
 
 const preferences = useAppPreferences()
 useSiteAppearance()
-useQuery({ queryKey: ['auth', 'me'], queryFn: me, retry: false })
+const authQuery = useQuery({ queryKey: ['auth', 'me'], queryFn: me, retry: false })
 useAccountPreferences()
+provideDateTimeDisplay(computed(() => authQuery.isSuccess.value))
 const publicConfigQuery = useQuery({ queryKey: ['system', 'public-config'], queryFn: getPublicConfig, retry: false, staleTime: 60_000 })
 const { config } = useSiteConfig()
 bindSiteTitle(computed(() => config.value.siteName))

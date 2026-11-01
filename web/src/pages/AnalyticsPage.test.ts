@@ -17,7 +17,7 @@ import { setImmediate } from 'node:timers'
 
 const state = vi.hoisted(() => ({ route: {} as { path: string; params: { shortLinkId: string } } }))
 vi.mock('vue-router', () => ({ useRoute: () => state.route }))
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, params?: Record<string, string>) => params ? `${key} ${Object.values(params).join(' ')}` : key }) }))
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ locale: { value: 'en-US' }, t: (key: string, params?: Record<string, string>) => params ? `${key} ${Object.values(params).join(' ')}` : key }) }))
 vi.mock('vuetify', () => ({ useTheme: () => ({ global: { current: { value: { colors: { primary: 'blue', 'on-surface-variant': 'black', outline: 'gray' } } } } }) }))
 vi.mock('chart.js', () => ({ Chart: class { static register() {} destroy() {} }, LineController: class {}, LineElement: class {}, PointElement: class {}, LinearScale: class {}, CategoryScale: class {}, Tooltip: class {} }))
 vi.mock('@/entities/short-link/api', () => ({ getShortLinkStatistics: vi.fn(), getAdminShortLinkStatistics: vi.fn() }))

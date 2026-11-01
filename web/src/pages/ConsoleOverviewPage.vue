@@ -96,11 +96,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useDateTimeDisplay } from '@/shared/preferences/useDateTimeDisplay'
 import { useQuery } from '@tanstack/vue-query'
 
 import { getShortLinkOverview, listShortLinks } from '@/entities/short-link/api'
 
 const { t } = useI18n()
+const { format } = useDateTimeDisplay()
 const overviewQuery = useQuery({
   queryKey: ['short-link', 'overview'],
   queryFn: getShortLinkOverview,
@@ -128,17 +130,9 @@ function retryRecentLinks() {
   void recentLinksQuery.refetch()
 }
 
-/** Formats a parsed recent-link timestamp as YYYY-MM-DD. */
+/** Formats a recent-link instant as the selected zone's calendar date. */
 function formatDate(value: string) {
-  const timestamp = Date.parse(value)
-  if (Number.isNaN(timestamp)) {
-    return value
-  }
-  const date = new Date(timestamp)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return format(value, 'date') ?? value
 }
 </script>
 

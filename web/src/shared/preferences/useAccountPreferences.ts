@@ -3,6 +3,7 @@ import { QueryClient, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { UserResponse } from '@/entities/auth/api'
 import { accountPreferencesKey, getAccountPreferences } from '@/entities/user/preferences'
 import { domainPreferenceKey } from '@/entities/user/domain-preference'
+import { timeZonePreferenceKey } from '@/entities/time-zone-preference/api'
 import { availableDomainQueryKey } from '@/entities/domain/api'
 import { adminDomainRedirectDefaultQueryKey, domainRedirectDefaultsQueryKey } from '@/entities/domain/redirect-default'
 import { userGroupQueryKey } from '@/entities/user-group/api'
@@ -29,6 +30,8 @@ function createIdentity(client: QueryClient) {
       client.removeQueries({ queryKey: accountPreferencesKey(previous) })
       void client.cancelQueries({ queryKey: domainPreferenceKey(previous) })
       client.removeQueries({ queryKey: domainPreferenceKey(previous) })
+      void client.cancelQueries({ queryKey: timeZonePreferenceKey(previous) })
+      client.removeQueries({ queryKey: timeZonePreferenceKey(previous) })
       const previousDomains = [...availableDomainQueryKey, previous]
       void client.cancelQueries({ queryKey: previousDomains })
       client.removeQueries({ queryKey: previousDomains })
