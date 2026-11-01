@@ -799,6 +799,16 @@ async function copyUrl(url: string) {
 }
 
 @media (max-width: 620px) {
+  .short-link-create-panel__mode-control :deep(.v-btn-toggle) {
+    flex-wrap: wrap;
+    height: auto;
+    max-width: 100%;
+  }
+
+  .short-link-create-panel__mode-control :deep(.v-btn-toggle > .v-btn) {
+    min-height: 44px;
+  }
+
   .short-link-create-panel__field-row {
     grid-template-columns: 1fr;
   }

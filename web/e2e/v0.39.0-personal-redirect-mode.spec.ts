@@ -224,15 +224,35 @@ async function switchEnglish(page: Page) {
 async function capture(info: TestInfo, name: string, page: Page, panel = false) {
   const section = panel ? page.getByTestId('redirect-preference-panel') : page.locator('.short-link-create-panel')
   await section.scrollIntoViewIfNeeded()
+  const path = info.outputPath(name + '.png')
+  await page.screenshot({ path, animations: 'disabled' })
+  await info.attach(name, { path, contentType: 'image/png' })
+  await captureJSON(info, name + '-layout', await page.evaluate(() => ({
+    viewport: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+    scrollX: window.scrollX,
+    outside: [...document.querySelectorAll('*')].flatMap(element => {
+      const box = element.getBoundingClientRect()
+      if (!box.width || (box.right + window.scrollX <= document.documentElement.clientWidth + 0.5 && box.left + window.scrollX >= -0.5)) return []
+      const style = getComputedStyle(element)
+      return [{ tag: element.tagName, class: element.className, text: element.textContent?.trim().slice(0, 120), left: box.left, right: box.right, width: box.width, minWidth: style.minWidth, display: style.display, overflowX: style.overflowX }]
+    }),
+  })))
   await expectNoHorizontalOverflow(page)
+  if (!panel) {
+    for (const name of Object.values(creationModes)) {
+      const mode = await page.getByRole('button', { name }).boundingBox()
+      expect(mode).not.toBeNull()
+      expect(mode!.x).toBeGreaterThanOrEqual(0)
+      expect(mode!.x + mode!.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+      expect(mode!.height).toBeGreaterThanOrEqual(40)
+    }
+  }
   const saveButton = panel ? page.getByTestId('redirect-preference-save') : page.locator('.short-link-create-panel__submit')
   const box = await saveButton.boundingBox()
   expect(box).not.toBeNull()
   expect(box!.x).toBeGreaterThanOrEqual(0)
   expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width)
-  const path = info.outputPath(name + '.png')
-  await page.screenshot({ path, animations: 'disabled' })
-  await info.attach(name, { path, contentType: 'image/png' })
 }
 async function captureJSON(info: TestInfo, name: string, value: unknown) {
   const path = info.outputPath(name + '.json')
