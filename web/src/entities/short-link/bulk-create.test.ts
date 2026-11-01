@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiClientError } from '@/shared/api/client'
+import { createDeferred } from '@/test/deferred'
 import { batchCreateShortLinks, BulkCreateUnknownError, bulkCreateTargetsSchema, parseBulkCreateLines, type BulkCreateInput } from './bulk-create'
 
 const input = { requestId: '00000000-0000-0000-0000-000000003891', targetUrls: ['https://example.com/one', 'http://example.org/two'] }
@@ -7,9 +8,45 @@ const input = { requestId: '00000000-0000-0000-0000-000000003891', targetUrls: [
 function response(data: unknown = { requestId: input.requestId, createdCount: 2 }, code = 0, status = 200) {
   return new Response(JSON.stringify({ code, message: 'private server detail', data, meta: {} }), { status })
 }
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 describe('bounded creation protocol', () => {
+  // Missing cancellation of headers or response.text would leave this operation unsettled.
+  it.each(['headers', 'body'])('bounds a stalled %s response and reports unknown rather than a rejected write', async stage => {
+    vi.useFakeTimers()
+    const waiting = createDeferred<Response>()
+    let body!: ReadableStreamDefaultController<Uint8Array>
+    const stream = new ReadableStream<Uint8Array>({ start(controller) { body = controller; controller.enqueue(new TextEncoder().encode('{"code":0,')) } })
+    let signal: AbortSignal | null | undefined
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>((_url, init) => {
+      signal = init?.signal
+      signal?.addEventListener('abort', () => {
+        if (stage === 'headers') waiting.reject(signal!.reason)
+        else body.error(signal!.reason)
+      }, { once: true })
+      return stage === 'headers' ? waiting.promise : Promise.resolve(new Response(stream))
+    }))
+    let settled: unknown
+    const request = batchCreateShortLinks(input).then(value => { settled = value }, error => { settled = error })
+    try {
+      await vi.advanceTimersByTimeAsync(20_000)
+      expect(settled).toBeInstanceOf(BulkCreateUnknownError)
+      expect(signal?.aborted).toBe(true); expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      waiting.resolve(response())
+      if (stage === 'body' && !signal?.aborted) body.close()
+      await request
+    }
+  })
+  it('clears the deadline after an acknowledged response without aborting it later', async () => {
+    vi.useFakeTimers()
+    let signal: AbortSignal | null | undefined
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (_url, init) => { signal = init?.signal; return response() }))
+    expect(await batchCreateShortLinks(input)).toEqual({ requestId: input.requestId, createdCount: 2 })
+    expect(vi.getTimerCount()).toBe(0)
+    await vi.advanceTimersByTimeAsync(20_000)
+    expect(signal?.aborted).toBe(false)
+  })
   it('preserves URL order and only trims ASCII padding and empty CRLF lines', () => {
     expect(parseBulkCreateLines(' \t https://example.com/one\t\r\n\nhttp://example.org/two \n').data).toEqual(input.targetUrls)
     const longest = 'https://example.com/' + 'a'.repeat(2048 - 'https://example.com/'.length)

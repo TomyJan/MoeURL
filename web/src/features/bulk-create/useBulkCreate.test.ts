@@ -1,5 +1,5 @@
 import { render, waitFor } from '@testing-library/vue'
-import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { onlineManager, QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { defineComponent, nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { toast } from 'vue-sonner'
@@ -31,9 +31,65 @@ function preview(state: ReturnType<typeof useBulkCreate>) {
   state.begin(); state.draft.value = ' https://example.com/one \r\nhttps://example.org/two'; state.preview()
   return state.snapshot.value!
 }
-afterEach(() => { clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks() })
+afterEach(() => { onlineManager.setOnline(true); clients.splice(0).forEach(client => client.clear()); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks() })
 
 describe('batch lifecycle and retry safety', () => {
+  // Default online queuing would leave this attempt pending, then send it on reconnect.
+  it.each(['initial', 'retry'])('finishes an offline %s attempt without queuing a write for reconnect', async kind => {
+    const { state, fetcher } = mount(); const input = preview(state)
+    fetcher.mockRejectedValue(new Error('offline transport'))
+    if (kind === 'retry') await state.submit()
+    const previous = fetcher.mock.calls.length
+    onlineManager.setOnline(false)
+    const request = state.submit()
+    try {
+      await waitFor(() => expect(state.pending.value).toBe(false))
+      expect(state.unknown.value).toBe(true); expect(state.snapshot.value).toBe(input)
+      expect(fetcher).toHaveBeenCalledTimes(previous + 1)
+    } finally { onlineManager.setOnline(true); await request }
+    await nextTick()
+    expect(fetcher).toHaveBeenCalledTimes(previous + 1)
+    fetcher.mockResolvedValueOnce(response({ requestId: input.requestId, createdCount: 2 }))
+    await state.submit()
+    expect(fetcher).toHaveBeenCalledTimes(previous + 2)
+    expect(fetcher.mock.calls.at(-1)![1]!.body).toBe(JSON.stringify(input))
+    expect(state.opened.value).toBe(false)
+  })
+  // A check only before mutateAsync misses the microtask before mutationFn sends.
+  it.each(['account', 'revoke and restore', 'auth error and restore', 'unmount'])('does not send after same-tick %s retires the attempt', async transition => {
+    const { state, client, fetcher, invalidations, unmount } = mount(); preview(state)
+    const request = state.submit()
+    if (transition === 'unmount') unmount()
+    else if (transition === 'account') client.setQueryData(['auth', 'me'], { user: { ...actor, id: '00000000-0000-0000-0000-000000003882' } })
+    else {
+      if (transition === 'revoke and restore') client.setQueryData(['auth', 'me'], { user: { ...actor, permissions: [] } })
+      else client.getQueryCache().find({ queryKey: ['auth', 'me'], exact: true })!.setState({ status: 'error' })
+      client.setQueryData(['auth', 'me'], { user: actor })
+    }
+    await request
+    expect(fetcher).not.toHaveBeenCalled(); expect(invalidations).not.toHaveBeenCalled()
+    expect(toast.success).not.toHaveBeenCalled(); expect(toast.error).not.toHaveBeenCalled()
+  })
+  // A fetch without a deadline would never release this real controller's pending state.
+  it('recovers a stalled attempt as unknown and retries the unchanged key only on explicit submission', async () => {
+    vi.useFakeTimers()
+    const { state, fetcher } = mount(); const input = preview(state), stalled = createDeferred<Response>()
+    fetcher.mockImplementationOnce((_url, init) => {
+      init?.signal?.addEventListener('abort', () => stalled.reject(new DOMException('aborted', 'AbortError')), { once: true })
+      return stalled.promise
+    })
+    const request = state.submit()
+    try {
+      await vi.advanceTimersByTimeAsync(20_000)
+      expect(state.pending.value).toBe(false); expect(state.unknown.value).toBe(true)
+      expect(state.errorKey.value).toBe('bulkCreate.unknown'); expect(state.snapshot.value).toBe(input)
+    } finally { stalled.resolve(response({ requestId: input.requestId, createdCount: 2 })); await request; vi.useRealTimers() }
+    expect(fetcher).toHaveBeenCalledTimes(1)
+    await state.submit()
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(fetcher.mock.calls[0]![1]!.body).toBe(fetcher.mock.calls[1]![1]!.body)
+    expect(state.opened.value).toBe(false)
+  })
   it('keeps immutable previews separate from edits and refreshes only after an acknowledged commit', async () => {
     const { state, fetcher, invalidations } = mount()
     state.preview(); await state.submit(); state.close(); state.discard()

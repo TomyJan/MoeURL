@@ -16,7 +16,14 @@ export function useBulkCreate() {
   const opened = ref(false), draft = ref(''), pending = ref(false), unknown = ref(false), closing = ref(false), errorKey = ref('')
   const snapshot = shallowRef<BulkCreateInput | null>(null)
   let generation = 0, alive = true, scope = identity.scope.value
-  const mutation = useMutation({ mutationFn: batchCreateShortLinks, retry: false })
+  const mutation = useMutation({
+    mutationFn: (attempt: { input: BulkCreateInput; token: number; candidate: typeof scope }) => {
+      if (!isCurrent(attempt.token, attempt.candidate)) throw new Error('Batch context retired')
+      return batchCreateShortLinks(attempt.input)
+    },
+    networkMode: 'always',
+    retry: false,
+  })
   /** Reads the cache synchronously so batched renders cannot retain revoked grants. */
   function canUseNow() {
     const user = client.getQueryData<UserResponse>(['auth', 'me'])?.user
@@ -57,7 +64,7 @@ export function useBulkCreate() {
     const token = generation, candidate = scope, input = snapshot.value
     pending.value = true; errorKey.value = ''
     try {
-      const result = await mutation.mutateAsync(input)
+      const result = await mutation.mutateAsync({ input, token, candidate })
       await nextTick()
       if (!isCurrent(token, candidate)) return
       for (const key of ['short-link', 'short-link-overview']) void client.invalidateQueries({ queryKey: [key] })
