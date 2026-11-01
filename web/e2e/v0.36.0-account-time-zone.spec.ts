@@ -207,6 +207,8 @@ async function signOut(page: Page) {
 async function choose(page: Page, name: RegExp) {
   const selector = page.getByTestId('time-zone-preference-form').getByRole('combobox', { name: zoneLabel })
   await selector.press('Enter')
+  // The virtual list starts near the saved item; Home brings its first/device option into view.
+  await selector.press('Home')
   await page.getByRole('option', { name }).click()
   await expect(selector).toHaveValue(name)
 }
@@ -250,8 +252,14 @@ async function statistics(page: Page, id: string) {
 
 /** Switches only this browser's language; it must not rewrite any account preference resource. */
 async function switchEnglish(page: Page) {
+  const mobile = (page.viewportSize()?.width ?? 1280) < 720
+  if (mobile) await page.getByRole('button', { name: /^(打开控制台菜单|Open console menu)$/, exact: true }).click()
   await page.getByRole('button', { name: /^(选择语言|Select language)$/, exact: true }).filter({ visible: true }).first().click()
   await page.getByRole('menuitemradio', { name: 'English', exact: true }).click()
+  if (mobile) {
+    await page.getByRole('button', { name: 'Close menu', exact: true }).click()
+    await expect(page.getByTestId('console-mobile-nav')).not.toBeVisible()
+  }
 }
 
 /** Captures the untouched viewport, including any real notifications; checks layout before capture. */
