@@ -1,6 +1,8 @@
 # 开发进度与能力清单
 
-v0.38.0 当前：Task1–3 标准完成，本地完整报告／30条裁决和whole-owned ZIP／解压核验完成。唯一终审覆盖919548b，两个Important真实修复；完整2544前端／四100／静态构建及clean540b862自身144浏览器／八原图／精确产品通过。Task4已启动，PR245的远端CI／有效意见闭环／最终head真实审查、合并及master验证仍待。原0d519c0首审只提出3项文档Minor，正在同步状态；不冒后继审查覆盖、发布或部署。下方较早摘要均为历史。
+当前 [v0.39.0 个人默认跳转方式](scope-v0.39.0.md)已收敛[设计](../specs/2026-11-02-v0.39.0-personal-redirect-mode-design.md)与[实施计划](../implementation/v0.39.0-plan.md)，尚未开始实现。独立本人资源／CAS 和单条创建优先级，不改旧 API、批量或已有短链。
+
+v0.38.0 已完成交付：[PR245](https://github.com/TomyJan/MoeURL/pull/245) 最终候选 b2d19823c70a59d479bbc8d452f97c174c32bb1d 的真实审查／有效意见已闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41340395109) 与合并 master07d4f6c3af23c4f50cd94021d2af13fe0a889c87 的[九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41344911045) 均成功，完整日志分别核读至 EOF。标准 Task1–4、完整 41 条裁决报告与 whole-owned ZIP／解压全集核、准确 leaf 可恢复迁出完成；未发布或部署。下方旧阶段保留历史归属。
 
 2026-11-01 最新：v0.37.0／PR244 已完成 guarded squash（master617c12cc8cb07c2ea3173b8d0cc65239aec4f49c），候选与 master 各九 CI、真实审查、标准任务、36 条裁决／4 项延期 Minor 和可恢复归档均已闭环，未发布部署。当前 [v0.38.0 有界批量创建](scope-v0.38.0.md)Task1 已在 a5bd50a 标准完成，后端真实 RED→GREEN、PG 并发／回滚／撤权、业务 100%、Linux race／scanner 及 SQLC 零漂移保持原执行归属；前端完整 2534 测试、四项 100%、types／lint／隔离 build 通过。Task2 已在 2b2ee2a 标准完成，Task3 已标准启动；手机提示已真实 RED→GREEN，clean bfb9828 的完整 144 项浏览器、八张原图实读和标准产品／精确镜像扫描通过，唯一终审、本地归档与远端交付仍待。见[计划](../implementation/v0.38.0-plan.md)与[验收](../implementation/v0.38.0-acceptance.md)。下方旧摘要为历史。
 
