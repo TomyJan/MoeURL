@@ -225,8 +225,8 @@ function mount(component: object) {
   state.listAuth = component === MyLinksPage || component === AdminLinksPage || component === AnalyticsPage || component === AdminUsersPage
   return render(component, {
     global: {
-      // Export lifecycle has real QueryClient coverage in AnalyticsPage.test.ts.
-      stubs: { ...componentStubs, AnalyticsExportButton: true, ShortLinkListExportButton: true, VisitRecordsPanel: true },
+      // Export and bulk-create lifecycles have real QueryClient coverage in their dedicated page tests.
+      stubs: { ...componentStubs, AnalyticsExportButton: true, ShortLinkListExportButton: true, VisitRecordsPanel: true, BulkCreateDialog: true },
     },
   })
 }

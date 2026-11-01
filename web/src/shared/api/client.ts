@@ -65,13 +65,14 @@ async function getJson<T>(path: string): Promise<ApiResponse<T>> {
 }
 
 /** Performs a POST request under the versioned API prefix; authentication is endpoint-specific. */
-export async function apiPost<T>(path: string, body?: unknown): Promise<ApiResponse<T>> {
-  return postJson<T>(`${API_BASE}${path}`, body)
+export async function apiPost<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<ApiResponse<T>> {
+  return postJson<T>(`${API_BASE}${path}`, body, signal)
 }
 
 /** Serializes an optional JSON body and posts it to an already resolved path. */
-async function postJson<T>(path: string, body?: unknown): Promise<ApiResponse<T>> {
+async function postJson<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<ApiResponse<T>> {
   const response = await fetch(path, {
+    ...(signal ? { signal } : {}),
     body: body === undefined ? undefined : JSON.stringify(body),
     credentials: 'include',
     headers: {

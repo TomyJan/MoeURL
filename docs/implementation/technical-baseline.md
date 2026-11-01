@@ -1,5 +1,9 @@
 # 技术基线
 
+v0.38.0 当前：Task1–3 标准完成，本地完整报告／30条裁决和whole-owned ZIP／解压核验完成。唯一终审覆盖919548b，两个Important真实修复；完整2544前端／四100／静态构建及clean540b862自身144浏览器／八原图／精确产品通过。Task4已启动，PR245的远端CI／有效意见闭环／最终head真实审查、合并及master验证仍待。原0d519c0首审只提出3项文档Minor，正在同步状态；不冒后继审查覆盖、发布或部署。下方较早摘要均为历史。
+
+v0.38.0 边界：1–20 条、单条 1–2048 字节可打印 ASCII HTTP(S)、64KiB 严格 JSON、5 秒事务、每条 8 次随机 slug 尝试；本人／默认域名／direct，永久 SHA-256 回执不存 URL，无新增权限或依赖。Task1 已标准完成，00033、SQLC 60／28 零漂移、Windows Go1.26.10 业务 100%／vet 与 Linux race／scanner 保持原归属。前端冻结依赖镜像 05c538e5，真实 Docker Node26.5.1／pnpm11.5，完整 2534 测试和四项 100%、types／lint／隔离 build 通过，未安装 host 依赖；Task2 已在 2b2ee2a 标准完成，Task3 已标准启动；手机提示已真实 RED→GREEN，clean bfb9828 的完整 144 项浏览器、八张原图实读和标准产品／精确镜像扫描通过，唯一终审、本地归档与远端交付仍待。见[规格](../specs/2026-11-01-v0.38.0-bulk-create-design.md)和[验收](v0.38.0-acceptance.md)。v0.37.0／PR244 已交付，旧叙述为历史。
+
 v0.37.0 本地实现边界（整版交付待完成）：InstantDetails 只消费 instant: string 和 label: string，保留原 datetime、秒／小数／offset及文本安全；账号时区仅影响父层短标签。后端、SQLC、migration、CSV、cursor、UTC 日期和 datetime-local 不变。沿用已冻结隔离前端依赖镜像，manifest 除 version、lock与workspace须全等，不安装本机依赖；本版门禁不能借旧结果。见[规格](../specs/2026-11-01-v0.37.0-precise-record-times-design.md)和[验收](v0.37.0-acceptance.md)。
 
 2026-11-01 当前摘要：[v0.36.0 账号时区显示预设](../product/scope-v0.36.0.md)按正式[实施计划](v0.36.0-plan.md)实施：Task1–2 已分别标准完成（90674e6／070627a），完整前端 2443 测试及四项 100%、后端业务 100% 已通过。Task3 在 clean 544a0706 上完整 128 项浏览器通过，5 张原图已实读；标准产品 smoke 与同一精确镜像的正常漏洞库更新扫描通过，两次下载失败与官方镜像恢复分别保留。唯一终审已完成（Critical 0／Important 1／Minor 1），认证暂时失败后时区编辑器无法恢复的问题已真实 RED→GREEN；修复后完整 2449 项前端测试、四项 100%、types／lint／build 已通过。修复候选 b5a3dcea 的新完整 128 项浏览器（10.8 分钟）、5 张原图实读及标准产品／精确镜像扫描已通过；原重连超时失败及不变输入诊断分别留证，不称已证明其根因。本地归档／标准收尾与远端交付仍待；独立本人偏好／CAS、九固定 IANA 与身份轮次隔离，只改显示，不改 UTC 统计、CSV、到期输入或公开访问，无新依赖或权限。v0.35.0／PR239 已完成交付；其后 PR242 有界测试回滚维护已合并为 08b990d70bf30dbe54f885d0b7a3bc9490eacb89，真实审查、候选及 master 各九 CI、标准任务与可恢复归档均完成，未正式发布。下方带时间的旧待做叙述均保留其历史归属，不表示当前仍未交付，也不借旧证据给本版。
