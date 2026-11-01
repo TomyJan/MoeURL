@@ -1,5 +1,7 @@
 # 技术选型决策
 
+v0.38.0 终审修复：仅本 mutation 使用 networkMode:always，不进入离线队列；捕获 payload／身份／generation，真正调用 API 前再核当前权限和组件存活。单次 AbortController 15 秒涵盖请求及正文，finally 清计时器，超时归 unknown 保同 key 仅手动恢复；apiPost 可选 signal 不改旧无 signal 请求形状。两个 Important 已真实 RED→GREEN，完整前端 2544／四项 100% 与静态构建通过；clean 540b862 自身 144 浏览器／八原图和精确产品通过。审查仍归 919548b，不派复审，标准 Task3／归档／远端仍待。见[验收](v0.38.0-acceptance.md)。下方较早状态为历史。
+
 v0.38.0 设计选择：小批量单事务创建＋永久轻量幂等回执，不循环旧单条事务，也不实现旧 CSV 恢复；当前账号→组授权在域名创建 shared 锁后重查，回执不存 URL，Down 有已用回执时安全失败。仅默认域名／direct，旧单条高级创建不改。Task1 已标准完成；前端未知结果冻结同 key／payload、仅手动重试，身份／权限轮次隔离晚到结果、不持久化网址，完整 2534 测试及四项 100%、types／lint／隔离 build 通过。Task2 已在 2b2ee2a 标准完成，Task3 已标准启动；手机提示已真实 RED→GREEN，clean bfb9828 的完整 144 项浏览器、八张原图实读和标准产品／精确镜像扫描通过，唯一终审、本地归档与远端交付仍待。见[设计](../specs/2026-11-01-v0.38.0-bulk-create-design.md)与[计划](v0.38.0-plan.md)。v0.37.0 已由 PR244 交付，旧叙述为历史。
 
 v0.37.0 本地实现选择（整版交付待完成）：审计／访问精确时间采用原生 details／summary，复用父层现有显示标签，只把原始 instant 作为文本展示。不采用仅 title（键盘访问不足）或全局秒格式（扩大旧显示约定）。不解析／重序列化原始时间、不新增 HTTP 或身份观察者。具体范围及验证见[设计](../specs/2026-11-01-v0.37.0-precise-record-times-design.md)与[计划](v0.37.0-plan.md)。

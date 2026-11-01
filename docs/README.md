@@ -1,5 +1,7 @@
 # MoeURL 文档中心
 
+当前 v0.38.0：唯一终审覆盖 919548b，两个 Important 已真实 RED→GREEN；修复后 2544 项前端测试、四项 100%、types／lint／构建通过。clean 540b862 自身完整 144 浏览器、八原图和精确产品扫描通过；标准 Task3、本地归档和远端交付仍待，不冒修复后独立复审。请求不离线排队，发送前核身份，含正文最多 15 秒，未知结果仅同批次手动恢复。详情见[验收](implementation/v0.38.0-acceptance.md)。下方较早记录为历史。
+
 2026-11-01 最新：v0.37.0／PR244 已合并为 master617c12cc8cb07c2ea3173b8d0cc65239aec4f49c；候选与 master 各九 CI、真实审查、标准任务和可恢复归档已完成，未发布部署。当前 [v0.38.0 有界批量创建](product/scope-v0.38.0.md)Task1 已标准完成，前端完整 2534 测试、四项 100%、types／lint／隔离 build 通过；Task2 已在 2b2ee2a 标准完成，Task3 已标准启动；手机提示已真实 RED→GREEN，clean bfb9828 的完整 144 项浏览器、八张原图实读和标准产品／精确镜像扫描通过，唯一终审、本地归档与远端交付仍待。见[规格](specs/2026-11-01-v0.38.0-bulk-create-design.md)、[计划](implementation/v0.38.0-plan.md)与[验收](implementation/v0.38.0-acceptance.md)。下方旧阶段文字保留历史归属。
 
 2026-11-01 当前入口：[v0.36.0 账号时区](product/scope-v0.36.0.md)已经 PR243 合并为 5dc1c8aa34bbc9ba66576efd1ec41d1ce2025e43，候选及 master 各九 CI、真实审查、标准 Task1–4 与完整可恢复归档完成，未发布部署。下一有界阶段为 [v0.37.0 精确记录时间](product/scope-v0.37.0.md)，已完成两表详情和手机提示的本地实现及定向验证，整版交付仍待；见[规格](specs/2026-11-01-v0.37.0-precise-record-times-design.md)、[计划](implementation/v0.37.0-plan.md)、[任务](implementation/v0.37.0-tasks.md)及[验收](implementation/v0.37.0-acceptance.md)。下方旧阶段叙述保持历史归属。
