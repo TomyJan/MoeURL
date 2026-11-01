@@ -42,7 +42,7 @@ for (const width of [1280, 390]) {
     // A real keyboard creation still interprets datetime-local using this device (Tokyo), not New York.
     await editor.goto('/')
     await editor.getByRole('button', { name: '高级设置', exact: true }).click()
-    await editor.getByRole('switch', { name: '设置过期时间', exact: true }).check()
+    await editor.getByRole('checkbox', { name: '设置过期时间', exact: true }).check()
     const expiration = editor.locator('input[type="datetime-local"]')
     await expect(expiration).toHaveAccessibleName('过期时间（设备本地时间）')
     await expiration.fill('2030-01-01T09:30')
@@ -52,11 +52,11 @@ for (const width of [1280, 390]) {
     await expect(editor.locator('.short-link-create-panel__submit')).toBeEnabled()
     await target.press('Enter')
     const created = await createdResponse
-    const payload = await created.json() as { code: number; data: { link: Link } }
-    if (payload.code === 0 && payload.data.link.id) scenario.ownLink(payload.data.link.id)
+    const payload = await created.json() as { code: number; data: { shortLink: Link } }
+    if (payload.code === 0 && payload.data.shortLink.id) scenario.ownLink(payload.data.shortLink.id)
     expect(payload.code).toBe(0)
-    expect(created.request().postDataJSON().expiresAt).toBe(instant)
-    const link = payload.data.link
+    expect(created.request().postDataJSON().expiration).toEqual({ mode: 'at', expiresAt: '2030-01-01T00:30:00.000Z' })
+    const link = payload.data.shortLink
     expect(link.expiresAt).toBe(instant)
     const rangeBefore = await statistics(editor, link.id)
     await editor.goto('/link')
@@ -142,6 +142,7 @@ async function withScenario(browser: Browser, admin: APIRequestContext, info: Te
   let failed = false
   let originalError: unknown
   try {
+    await info.attach('browser-runtime', { body: Buffer.from(JSON.stringify({ browserVersion: browser.version(), driverNode: process.version, isolatedContexts: true })), contentType: 'application/json' })
     await post(admin, '/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword })
     await run({
       async createAccount() {
@@ -237,13 +238,14 @@ async function statistics(page: Page, id: string) {
   await page.goto('/link/' + encodeURIComponent(id) + '/analytics')
   const response = await pending
   expect(Object.fromEntries(new URL(response.url()).searchParams)).toEqual({ id, days: '7' })
-  const payload = await response.json() as { code: number; data: { stats: { range: { startDate: string; endDate: string } } } }
+  const payload = await response.json() as { code: number; data: { range: { startDate: string; endDate: string; timeZone: 'UTC' } } }
   expect(payload.code).toBe(0)
   await expect(page.getByTestId('analytics-summary')).toBeVisible()
   await expect(page.locator('.analytics-page__description').filter({ hasText: 'UTC' })).toBeVisible()
-  expect(payload.data.stats.range.startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-  expect(payload.data.stats.range.endDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-  return payload.data.stats.range
+  expect(payload.data.range.startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  expect(payload.data.range.endDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  expect(payload.data.range.timeZone).toBe('UTC')
+  return payload.data.range
 }
 
 /** Switches only this browser's language; it must not rewrite any account preference resource. */
