@@ -1,0 +1,25 @@
+import { z } from 'zod'
+import { apiGet, apiPost, ApiClientError } from '@/shared/api/client'
+import type { RedirectMode } from '@/entities/short-link/model'
+
+export const redirectModes = ['direct', 'intermediate', 'confirmation'] as const
+const preferenceSchema = z.strictObject({
+  redirectMode: z.enum(redirectModes).nullable(),
+  updatedAt: z.iso.datetime({ offset: true }).refine(value => !/[.][0-9]{10}/.test(value)).nullable(),
+}).refine(value => value.redirectMode === null || value.updatedAt !== null)
+export type RedirectPreference = z.infer<typeof preferenceSchema>
+export interface UpdateRedirectPreferenceInput { redirectMode: RedirectMode | null; expectedUpdatedAt: string | null }
+export const redirectPreferenceKey = (userId: string) => ['user', 'redirect-preference', userId] as const
+
+/** Keeps the personal document strict and preserves its complete server revision. */
+function parse(data: unknown): RedirectPreference {
+  const result = z.strictObject({ preference: preferenceSchema }).safeParse(data)
+  if (!result.success) throw new ApiClientError(100001, 'Invalid redirect preference response')
+  return result.data.preference
+}
+export async function getRedirectPreference(): Promise<RedirectPreference> {
+  return parse((await apiGet<unknown>('/user/redirect-preference')).data)
+}
+export async function updateRedirectPreference(input: UpdateRedirectPreferenceInput): Promise<RedirectPreference> {
+  return parse((await apiPost<unknown>('/user/redirect-preference/update', input)).data)
+}

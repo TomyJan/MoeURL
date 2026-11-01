@@ -1,6 +1,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue'
 import type { RedirectMode } from '@/entities/short-link/model'
 import type { useDomainRedirectDefaults } from '@/shared/preferences/useDomainRedirectDefaults'
+import type { useRedirectPreference } from '@/shared/preferences/useRedirectPreference'
 
 interface DraftInputs {
   domainId: Ref<string>
@@ -11,6 +12,7 @@ interface DraftInputs {
   mode: Ref<RedirectMode>
   delay: Ref<number>
   query: ReturnType<typeof useDomainRedirectDefaults>
+  personal: ReturnType<typeof useRedirectPreference>
 }
 
 /** Separates explicit choices from one domain-bound automatic draft snapshot. */
@@ -27,6 +29,9 @@ export function useDomainRedirectDraft(input: DraftInputs) {
   /** Configuration never grants an enhanced capability absent from current auth/me. */
   function allowed(mode: RedirectMode) { return mode === 'direct' || (mode === 'intermediate' ? input.canIntermediate.value : input.canConfirmation.value) }
   const suggested = computed(() => {
+    const personal = input.personal.preference.value
+    if (!personal || input.personal.readError.value) return undefined
+    if (personal.redirectMode !== null && allowed(personal.redirectMode)) return personal.redirectMode
     if (!input.query.isSuccess.value) return undefined
     const entry = input.query.data.value!.items.find(({ domainId }) => domainId === input.domainId.value)
     return entry ? allowed(entry.redirectMode) ? entry.redirectMode : 'direct' : undefined
@@ -34,6 +39,7 @@ export function useDomainRedirectDraft(input: DraftInputs) {
   const ready = computed(() => !reconfirm.value && (!enhanced.value || manual.value !== null || (bound.value?.domainId === input.domainId.value && !waiting.value)))
   const needsRead = computed(() => enhanced.value && manual.value === null && bound.value === null && !reconfirm.value)
   const changed = computed(() => !!bound.value && suggested.value !== undefined && bound.value.mode !== suggested.value)
+  const readFailed = computed(() => input.personal.readError.value || (!!input.personal.preference.value && suggested.value === undefined && input.query.isError.value))
 
   /** Adopts only an unbound automatic choice; background reads cannot rewrite a draft. */
   function bind() {
@@ -50,7 +56,12 @@ export function useDomainRedirectDraft(input: DraftInputs) {
     waiting.value = true
     await nextTick()
     if (!mounted || scope !== input.scope.value || generation !== current) return
-    if (refresh && enhanced.value) await input.query.refetch()
+    if (refresh && enhanced.value) {
+      await input.personal.query.refetch()
+      if (!mounted || scope !== input.scope.value || generation !== current) return
+      const personal = input.personal.preference.value
+      if (personal && (personal.redirectMode === null || !allowed(personal.redirectMode))) await input.query.refetch()
+    }
     if (!mounted || scope !== input.scope.value || generation !== current) return
     waiting.value = false
     bind()
@@ -85,6 +96,6 @@ export function useDomainRedirectDraft(input: DraftInputs) {
     generation++; waiting.value = false; manual.value = null; bound.value = null; reconfirm.value = true
     input.mode.value = 'direct'; input.delay.value = 5
   }, { flush: 'sync' })
-  watch([input.query.data, input.query.isSuccess, input.pending, input.canIntermediate, input.canConfirmation], bind, { immediate: true, flush: 'post' })
-  return { ready, needsRead, changed, reconfirm, manual, choose, reset, reload }
+  watch([input.personal.preference, input.personal.readError, input.query.data, input.query.isSuccess, input.pending, input.canIntermediate, input.canConfirmation], bind, { immediate: true, flush: 'post' })
+  return { ready, needsRead, readFailed, changed, reconfirm, manual, choose, reset, reload }
 }

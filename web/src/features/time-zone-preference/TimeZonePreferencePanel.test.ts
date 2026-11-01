@@ -44,7 +44,7 @@ function mount(options: Options = {}) {
     else throw new Error('Unexpected request ' + url)
     return new Response(JSON.stringify({ code: 0, message: '', data, meta: {} }))
   }))
-  const view = render(ProfilePage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, PasswordChangePanel: true, AccountPreferencesPanel: true, DomainPreferencePanel: true, PreferenceSwitcher: true } } })
+  const view = render(ProfilePage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, RedirectPreferencePanel: true, PasswordChangePanel: true, AccountPreferencesPanel: true, DomainPreferencePanel: true, PreferenceSwitcher: true } } })
   return { ...view, client, bodies, options,
     setPreference(value: Preference) { preference = value },
     setUser(id: string) { user = { ...user, id }; client.setQueryData(['auth', 'me'], { user }) },

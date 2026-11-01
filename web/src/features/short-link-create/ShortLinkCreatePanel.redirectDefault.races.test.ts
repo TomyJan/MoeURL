@@ -103,9 +103,9 @@ it('keeps a bound draft on background change until the creator explicitly adopts
   await fireEvent.update(screen.getByRole('textbox', { name: 'Enter link' }), 'https://target.example/preserved')
   view.state.defaults = [{ domainId: globalId, redirectMode: 'direct' }]
   await view.client.invalidateQueries({ queryKey: ['domain-redirect-defaults'] })
-  await screen.findByText('A new domain default is available. Your current draft is unchanged.')
+  await screen.findByText('A new default redirect mode is available. Your current draft is unchanged.')
   expect(screen.getByRole('button', { name: 'Confirmation page' }).getAttribute('aria-pressed')).toBe('true')
-  await fireEvent.click(screen.getByRole('button', { name: 'Use domain default' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'Use saved default' }))
   await loaded()
   expect(screen.getByRole('button', { name: 'Direct redirect' }).getAttribute('aria-pressed')).toBe('true')
   expect(screen.getByRole('textbox', { name: 'Enter link' })).toHaveProperty('value', 'https://target.example/preserved')
@@ -158,7 +158,7 @@ it('blocks a missing current-domain entry and retries without inventing a defaul
   await loaded()
   expect(screen.getByRole('button', { name: 'Create short link' })).toHaveProperty('disabled', true)
   delete view.state.overrides['/api/v1/domain/redirect-defaults']
-  await fireEvent.click(screen.getByRole('button', { name: 'Retry domain defaults' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'Retry default redirect mode' }))
   await loaded(); await advanced()
   expect(screen.getByRole('button', { name: 'Confirmation page' }).getAttribute('aria-pressed')).toBe('true')
 })
