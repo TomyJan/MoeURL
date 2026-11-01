@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { writeFile } from 'node:fs/promises'
 import { expect, test as base } from '@playwright/test'
 import type { APIRequestContext, Browser, BrowserContext, Page, TestInfo } from '@playwright/test'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
@@ -64,6 +65,7 @@ for (const width of [1280, 390]) {
     const row = editor.getByTestId('console-link-row').filter({ hasText: link.slug })
     await expect(row).toContainText('Dec 31, 2029, 19:30')
     await expect(editor.getByTestId('console-time-zone')).toHaveText('Time display: America/New_York')
+    await row.getByText('Dec 31, 2029, 19:30', { exact: true }).scrollIntoViewIfNeeded()
     await capture(info, 'time-zone-' + width + '-en-cross-day', editor)
 
     await signIn(second, account)
@@ -98,7 +100,7 @@ for (const width of [1280, 390]) {
     expect(await get(editor.request, '/user/preferences')).toEqual(oldPreferences)
     expect(await get(editor.request, '/user/domain-preference')).toEqual(oldDomain)
     expect(await editor.evaluate(() => Object.keys(localStorage).filter(key => /time.?zone/i.test(key)))).toEqual([])
-    await info.attach('time-zone-protocol', { body: Buffer.from(JSON.stringify({ width, saved, cleared, instant, rangeBefore, rangeAfter, deviceInput: '2030-01-01T09:30', devices: ['Asia/Tokyo', 'America/Los_Angeles'] })), contentType: 'application/json' })
+    await captureJSON(info, 'time-zone-protocol', { width, saved, cleared, instant, rangeBefore, rangeAfter, deviceInput: '2030-01-01T09:30', devices: ['Asia/Tokyo', 'America/Los_Angeles'] })
   })
 }
 
@@ -142,7 +144,7 @@ async function withScenario(browser: Browser, admin: APIRequestContext, info: Te
   let failed = false
   let originalError: unknown
   try {
-    await info.attach('browser-runtime', { body: Buffer.from(JSON.stringify({ browserVersion: browser.version(), driverNode: process.version, isolatedContexts: true })), contentType: 'application/json' })
+    await captureJSON(info, 'browser-runtime', { browserVersion: browser.version(), driverNode: process.version, isolatedContexts: true })
     await post(admin, '/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword })
     await run({
       async createAccount() {
@@ -264,6 +266,13 @@ async function switchEnglish(page: Page) {
     await page.getByRole('button', { name: 'Close menu', exact: true }).click()
     await expect(page.getByTestId('console-mobile-nav')).not.toBeVisible()
   }
+}
+
+/** Persists each observed protocol/runtime object even when the list reporter drops inline bodies. */
+async function captureJSON(info: TestInfo, name: string, value: unknown) {
+  const path = info.outputPath(name + '.json')
+  await writeFile(path, JSON.stringify(value, null, 2))
+  await info.attach(name, { path, contentType: 'application/json' })
 }
 
 /** Captures the untouched viewport, including any real notifications; checks layout before capture. */
