@@ -34,7 +34,7 @@ func TestCustomSlugWaitsForConcurrentPermissionRevocation(t *testing.T) {
 	user := insertShortLinkUser(t, ctx, pool, "custom-revocation", "user", permission.UserPermissions)
 	tx, err := pool.Begin(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(context.Background()) }()
+	defer func() { testdb.Rollback(t, tx.Rollback) }()
 	var revokingPID int
 	require.NoError(t, tx.QueryRow(ctx, `select pg_backend_pid()`).Scan(&revokingPID))
 	_, err = tx.Exec(ctx, `update user_group set permissions=permissions-'short_link:custom_slug' where key='user'`)

@@ -8,6 +8,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/domain"
 	"github.com/TomyJan/MoeURL/internal/permission"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/TomyJan/MoeURL/internal/user"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -39,7 +40,7 @@ func TestGroupDefaultWriteCurrentAuthorizationQueue(t *testing.T) {
 			input := f.input(t, "user", &f.assigned)
 			gate, err := f.pool.Begin(ctx)
 			require.NoError(t, err)
-			t.Cleanup(func() { _ = gate.Rollback(context.Background()) })
+			t.Cleanup(func() { testdb.Rollback(t, gate.Rollback) })
 			_, err = gate.Exec(ctx, `select pg_advisory_xact_lock($1)`, int64(0x6d6f6575726c444d))
 			require.NoError(t, err)
 			result := make(chan error, 1)
@@ -83,7 +84,7 @@ func TestGroupDefaultDeleteRace(t *testing.T) {
 			domains := domain.NewService(f.pool, permission.NewDatabaseService(f.pool))
 			gate, err := f.pool.Begin(ctx)
 			require.NoError(t, err)
-			t.Cleanup(func() { _ = gate.Rollback(context.Background()) })
+			t.Cleanup(func() { testdb.Rollback(t, gate.Rollback) })
 			if saveFirst {
 				_, err = gate.Exec(ctx, `select id from user_group where key='user' for no key update`)
 			} else {
@@ -144,7 +145,7 @@ func TestGroupDefaultMembershipRace(t *testing.T) {
 			members := user.NewService(f.pool, permission.NewDatabaseService(f.pool))
 			gate, err := f.pool.Begin(ctx)
 			require.NoError(t, err)
-			t.Cleanup(func() { _ = gate.Rollback(context.Background()) })
+			t.Cleanup(func() { testdb.Rollback(t, gate.Rollback) })
 			if saveFirst {
 				_, err = gate.Exec(ctx, `select id from user_group where key='user' for no key update`)
 			} else {
@@ -196,7 +197,7 @@ func TestGroupDefaultQueuedGlobalSwitch(t *testing.T) {
 	require.NoError(t, f.pool.QueryRow(ctx, `select updated_at from domain where id=$1`, f.assigned).Scan(&at))
 	gate, err := f.pool.Begin(ctx)
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = gate.Rollback(context.Background()) })
+	t.Cleanup(func() { testdb.Rollback(t, gate.Rollback) })
 	_, err = gate.Exec(ctx, `select id from domain where id=$1 for update`, f.assigned)
 	require.NoError(t, err)
 	domains := domain.NewService(f.pool, permission.NewDatabaseService(f.pool))

@@ -1260,7 +1260,7 @@ func TestShortLinkVisitLimitQueries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("begin visit claim read: %v", err)
 	}
-	t.Cleanup(func() { _ = tx.Rollback(context.Background()) })
+	t.Cleanup(func() { testdb.Rollback(t, tx.Rollback) })
 	locked, err := sqlc.New(tx).GetShortLinkBySlugForVisitClaim(ctx, "limited")
 	if err != nil {
 		t.Fatalf("lock limited short link: %v", err)

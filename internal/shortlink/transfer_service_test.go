@@ -10,6 +10,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/TomyJan/MoeURL/internal/user"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -181,7 +182,7 @@ func TestTransferOwnWriteWait(t *testing.T) {
 			defer cancel()
 			tx, err := pool.Begin(ctx)
 			require.NoError(t, err)
-			defer func() { _ = tx.Rollback(context.Background()) }()
+			defer func() { testdb.Rollback(t, tx.Rollback) }()
 			_, err = tx.Exec(ctx, `update short_link set owner_id=$2 where id=$1`, input.ID, recipient.ID)
 			require.NoError(t, err)
 			done := make(chan error, 1)
@@ -262,7 +263,7 @@ func TestTransferWaitsForUserChanges(t *testing.T) {
 			require.NoError(t, err)
 			tx, err := pool.Begin(ctx)
 			require.NoError(t, err)
-			defer func() { _ = tx.Rollback(context.Background()) }()
+			defer func() { testdb.Rollback(t, tx.Rollback) }()
 			_, err = tx.Exec(ctx, `update app_user set `+tc.change+` where username=$1`, tc.username)
 			require.NoError(t, err)
 			done := make(chan error, 1)

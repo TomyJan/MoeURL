@@ -7,6 +7,7 @@ import (
 
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,7 +35,7 @@ func TestBatchLockWaitRechecksAuthorizationAndTargets(t *testing.T) {
 				ids := []string{insertStoredShortLink(t, ctx, pool, actor.ID, "first", "https://example.com", "active", false), insertStoredShortLink(t, ctx, pool, actor.ID, "second", "https://example.com", "active", false)}
 				tx, err := pool.Begin(ctx)
 				require.NoError(t, err)
-				defer func() { _ = tx.Rollback(context.Background()) }()
+				defer func() { testdb.Rollback(t, tx.Rollback) }()
 				_, err = tx.Exec(ctx, mutate.sql)
 				require.NoError(t, err)
 				service := shortlink.NewService(pool, permission.NewService())

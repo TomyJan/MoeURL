@@ -11,6 +11,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/domain"
 	"github.com/TomyJan/MoeURL/internal/permission"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/TomyJan/MoeURL/internal/user"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -101,7 +102,7 @@ func TestDomainPreferenceAuthorizationAfterLockWait(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer func() { _ = gate.Rollback(context.Background()) }()
+			defer func() { testdb.Rollback(t, gate.Rollback) }()
 			statement := "LockDomainPreferenceUser"
 			switch change {
 			case "group_revoked":
@@ -210,7 +211,7 @@ func TestDomainPreferenceDefaultRoleChange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = tx.Rollback(context.Background()) }()
+	defer func() { testdb.Rollback(t, tx.Rollback) }()
 	if _, err := tx.Exec(ctx, `update domain set is_default=false where is_default`); err != nil {
 		t.Fatal(err)
 	}
@@ -356,7 +357,7 @@ func TestDomainPreferenceDeleteConcurrency(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer func() { _ = gate.Rollback(context.Background()) }()
+			defer func() { testdb.Rollback(t, gate.Rollback) }()
 			if _, err := gate.Exec(t.Context(), `select pg_advisory_xact_lock($1)`, int64(0x6d6f6575726c444d)); err != nil {
 				t.Fatal(err)
 			}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/TomyJan/MoeURL/internal/user"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -117,7 +118,7 @@ func TestBatchChangeGroupWaitingAuthorization(t *testing.T) {
 			require.NoError(t, waiting.QueryRow(ctx, `select pg_backend_pid()`).Scan(&pid))
 			blocker, err := pool.Begin(ctx)
 			require.NoError(t, err)
-			defer blocker.Rollback(context.Background())
+			defer testdb.Rollback(t, blocker.Rollback)
 			if kind == "actor-row" {
 				_, err = blocker.Exec(ctx, `update app_user set group_id=(select id from user_group where key='user') where id=$1`, actor.ID)
 			} else {
@@ -145,7 +146,7 @@ func TestBatchChangeGroupLockOrder(t *testing.T) {
 	defer cancel()
 	blocker, err := pool.Begin(ctx)
 	require.NoError(t, err)
-	defer blocker.Rollback(context.Background())
+	defer testdb.Rollback(t, blocker.Rollback)
 	_, err = blocker.Exec(ctx, `select id from app_user where id=$1 for update`, ids[1])
 	require.NoError(t, err)
 	actors := []auth.CurrentUser{actor, {ID: other, GroupKey: "admin"}}
@@ -214,7 +215,7 @@ func TestBatchChangeGroupTimeout(t *testing.T) {
 	input.GroupKey = "user"
 	blocker, err := pool.Begin(t.Context())
 	require.NoError(t, err)
-	defer blocker.Rollback(context.Background())
+	defer testdb.Rollback(t, blocker.Rollback)
 	_, err = blocker.Exec(t.Context(), `select id from app_user where id=$1 for update`, id)
 	require.NoError(t, err)
 	ctx, cancel := context.WithTimeout(t.Context(), 150*time.Millisecond)

@@ -1,12 +1,12 @@
 package domain_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/domain"
 	"github.com/TomyJan/MoeURL/internal/permission"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,7 +41,7 @@ func TestDomainLegacyWritesReauthorizeAfterDomainLock(t *testing.T) {
 				before := state()
 				gate, err := pool.Begin(ctx)
 				require.NoError(t, err)
-				defer func() { _ = gate.Rollback(context.Background()) }()
+				defer func() { testdb.Rollback(t, gate.Rollback) }()
 				_, err = gate.Exec(ctx, `select pg_advisory_xact_lock($1)`, int64(0x6d6f6575726c444d))
 				require.NoError(t, err)
 				result := make(chan error, 1)

@@ -146,7 +146,7 @@ func TestIdentityBindingSerializesProviderNamespaceUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("begin advisory lock: %v", err)
 	}
-	defer func() { _ = lock.Rollback(context.Background()) }()
+	defer func() { testdb.Rollback(t, lock.Rollback) }()
 	lockKey := uuid.UUID(provider.ID.Bytes).String() + ":subject"
 	if _, err := lock.Exec(t.Context(), `select pg_advisory_xact_lock(hashtextextended($1, 0))`, lockKey); err != nil {
 		t.Fatalf("hold subject lock: %v", err)
@@ -182,7 +182,7 @@ func TestIdentityBindingSerializesProviderNamespaceUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("begin namespace update: %v", err)
 	}
-	defer func() { _ = updateTx.Rollback(context.Background()) }()
+	defer func() { testdb.Rollback(t, updateTx.Rollback) }()
 	if _, err := updateTx.Exec(t.Context(), `set local lock_timeout = '200ms'`); err != nil {
 		t.Fatalf("set update lock timeout: %v", err)
 	}
@@ -323,7 +323,7 @@ func TestIdentityResolverPropagatesAdvisoryLockFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("begin advisory lock: %v", err)
 	}
-	defer func() { _ = lock.Rollback(context.Background()) }()
+	defer func() { testdb.Rollback(t, lock.Rollback) }()
 	lockKey := uuid.UUID(provider.ID.Bytes).String() + ":subject"
 	if _, err := lock.Exec(t.Context(), `select pg_advisory_xact_lock(hashtextextended($1, 0))`, lockKey); err != nil {
 		t.Fatalf("hold subject lock: %v", err)
