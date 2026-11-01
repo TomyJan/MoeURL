@@ -212,7 +212,9 @@ async function choose(page: Page, name: RegExp, typeahead?: string) {
     await selector.press('Enter')
     await page.getByRole('option', { name }).click()
   }
-  await expect(selector).toHaveValue(name)
+  const selectedLabel = page.getByTestId('time-zone-preference-form').locator('.v-select__selection-text')
+  await expect(selectedLabel).toBeVisible()
+  await expect(selectedLabel).toHaveText(name)
 }
 
 /** Records the complete original CAS token and authoritative no-store response. */
