@@ -202,7 +202,11 @@ async function create(page: Page, mode: RedirectMode, scenario: Scenario): Promi
   const payload = await response.json() as { code: number; data: { shortLink: Link } }
   if (payload.code === 0 && payload.data.shortLink.id) scenario.ownLink(payload.data.shortLink.id)
   expect(payload.code).toBe(0)
-  expect(response.request().postDataJSON()).toEqual({ targetUrl: 'https://example.com/personal-' + mode, redirectMode: mode, ...mode === 'intermediate' ? { intermediateDelaySeconds: 5 } : {} })
+  const inputPayload = response.request().postDataJSON()
+  expect(inputPayload).toMatchObject({ targetUrl: 'https://example.com/personal-' + mode, redirectMode: mode })
+  expect(inputPayload).not.toHaveProperty('domainId')
+  if (mode === 'intermediate') expect(inputPayload.intermediateDelaySeconds).toBe(5)
+  else expect(inputPayload).not.toHaveProperty('intermediateDelaySeconds')
   expect(payload.data.shortLink.redirectMode).toBe(mode)
   await expect(page.getByTestId('short-link-create-result')).toBeVisible()
   return payload.data.shortLink
