@@ -25,6 +25,7 @@ export default defineConfig({
         'src/features/**/*.{ts,vue}',
         'src/pages/**/*.vue',
         'src/shared/**/*.ts',
+        'src/shared/ui/InstantDetails.vue',
       ],
       exclude: ['src/main.ts', 'src/**/*.test.ts', 'src/**/*.d.ts', 'src/entities/**/model.ts'],
       reporter: ['text', 'lcov'],

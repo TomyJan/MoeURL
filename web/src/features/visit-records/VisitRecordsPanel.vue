@@ -17,7 +17,7 @@
         <thead><tr><th>{{ t('insights.occurredAt') }}</th><th>{{ t('visits.referrer') }}</th><th>{{ t('visits.device') }}</th><th>{{ t('visits.browser') }}</th><th>{{ t('visits.os') }}</th><th>{{ t('visits.country') }}</th></tr></thead>
         <tbody>
           <tr v-for="item in records.items" :key="item.id">
-            <td><time :datetime="item.occurredAt">{{ format(item.occurredAt) ?? item.occurredAt }}</time></td>
+            <td><InstantDetails :instant="item.occurredAt" :label="format(item.occurredAt) ?? item.occurredAt" /></td>
             <td><span class="insight-table__ellipsis" :title="item.referrerHost || t('analytics.unknown')">{{ item.referrerHost || t('analytics.unknown') }}</span></td>
             <td>{{ dimension(item.deviceType) }}</td><td>{{ dimension(item.browserFamily) }}</td><td>{{ dimension(item.osFamily) }}</td><td>{{ item.countryCode || t('analytics.unknown') }}</td>
           </tr>
@@ -42,6 +42,7 @@ import { useInsightAccess, isInsightAccessError } from '@/shared/insights/useIns
 import { useCursorHistory } from '@/shared/insights/useCursorHistory'
 import InsightReadState from '@/features/insights/InsightReadState.vue'
 import VisitExportButton from './VisitExportButton.vue'
+import InstantDetails from '@/shared/ui/InstantDetails.vue'
 
 const props = defineProps<{ id: string; context: 'own' | 'admin'; range: InsightRangeInput }>()
 const { t } = useI18n()
