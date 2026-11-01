@@ -1,6 +1,6 @@
 # 技术基线
 
-v0.39.0 已实现 null／direct／intermediate／confirmation 的独立本人表、完整精度 CAS、8KiB 严格 JSON、五秒当前身份与权限事务，以及独立 Query 编辑器和单条创建初选。自动 intermediate 为 5 秒，手动→有权个人→实际域名→direct；旧 API 省略及批量仍 direct。冻结依赖镜像 Node26.5.1／pnpm11.5，2616 项前端测试和四项 100%、types／lint／隔离构建通过，无 host 安装；浏览器、审查与交付待完成。各门禁独立见[设计](../specs/2026-11-02-v0.39.0-personal-redirect-mode-design.md)及[验收](v0.39.0-acceptance.md)。
+v0.39.0 已实现 null／direct／intermediate／confirmation 的独立本人表、完整精度 CAS、8KiB 严格 JSON、五秒当前身份与权限事务，以及独立 Query 编辑器和单条创建初选。自动 intermediate 为 5 秒，手动→有权个人→实际域名→direct；旧 API 省略及批量仍 direct。冻结依赖镜像 Node26.5.1／pnpm11.5，2616 项前端测试和四项 100%、types／lint／隔离构建通过，无 host 安装；clean `18a8b12` 的完整 146 项浏览器、六原图实读与精确产品／扫描通过；唯一终审、本地归档与远端交付待完成。各门禁独立见[设计](../specs/2026-11-02-v0.39.0-personal-redirect-mode-design.md)及[验收](v0.39.0-acceptance.md)。
 
 v0.38.0 已完成交付：[PR245](https://github.com/TomyJan/MoeURL/pull/245) 最终候选 b2d19823c70a59d479bbc8d452f97c174c32bb1d 的真实审查／有效意见已闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41340395109) 与合并 master07d4f6c3af23c4f50cd94021d2af13fe0a889c87 的[九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41344911045) 均成功，完整日志分别核读至 EOF。标准 Task1–4、完整 41 条裁决报告与 whole-owned ZIP／解压全集核、准确 leaf 可恢复迁出完成；未发布或部署。下方旧阶段保留历史归属。
 

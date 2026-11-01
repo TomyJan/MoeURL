@@ -1,6 +1,6 @@
 # 路线图
 
-当前迭代：[v0.39.0 个人默认跳转方式](scope-v0.39.0.md)后端、个人编辑器与单条创建初选已实现，完整本地前端门禁通过；真实浏览器、审查与交付待完成，不扩强制策略或用户组默认模式。
+当前迭代：[v0.39.0 个人默认跳转方式](scope-v0.39.0.md)后端、个人编辑器与单条创建初选已实现，完整本地前端门禁通过；clean `18a8b12` 的完整 146 项浏览器、六原图实读与精确产品／扫描通过；唯一终审、本地归档与远端交付待完成，不扩强制策略或用户组默认模式。
 
 v0.38.0 已完成交付：[PR245](https://github.com/TomyJan/MoeURL/pull/245) 最终候选 b2d19823c70a59d479bbc8d452f97c174c32bb1d 的真实审查／有效意见已闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41340395109) 与合并 master07d4f6c3af23c4f50cd94021d2af13fe0a889c87 的[九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41344911045) 均成功，完整日志分别核读至 EOF。标准 Task1–4、完整 41 条裁决报告与 whole-owned ZIP／解压全集核、准确 leaf 可恢复迁出完成；未发布或部署。下方旧阶段保留历史归属。
 
