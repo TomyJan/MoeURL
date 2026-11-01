@@ -1,6 +1,6 @@
 # MoeURL 文档中心
 
-当前 v0.38.0：唯一终审覆盖 919548b，两个 Important 已真实 RED→GREEN；修复后 2544 项前端测试、四项 100%、types／lint／构建通过。clean 540b862 自身完整 144 浏览器、八原图和精确产品扫描通过；标准 Task3、本地归档和远端交付仍待，不冒修复后独立复审。请求不离线排队，发送前核身份，含正文最多 15 秒，未知结果仅同批次手动恢复。详情见[验收](implementation/v0.38.0-acceptance.md)。下方较早记录为历史。
+v0.38.0 当前：Task1–3 标准完成，本地完整报告／30条裁决和whole-owned ZIP／解压核验完成。唯一终审覆盖919548b，两个Important真实修复；完整2544前端／四100／静态构建及clean540b862自身144浏览器／八原图／精确产品通过。Task4已启动，PR245的远端CI／有效意见闭环／最终head真实审查、合并及master验证仍待。原0d519c0首审只提出3项文档Minor，正在同步状态；不冒后继审查覆盖、发布或部署。下方较早摘要均为历史。
 
 2026-11-01 最新：v0.37.0／PR244 已合并为 master617c12cc8cb07c2ea3173b8d0cc65239aec4f49c；候选与 master 各九 CI、真实审查、标准任务和可恢复归档已完成，未发布部署。当前 [v0.38.0 有界批量创建](product/scope-v0.38.0.md)Task1 已标准完成，前端完整 2534 测试、四项 100%、types／lint／隔离 build 通过；Task2 已在 2b2ee2a 标准完成，Task3 已标准启动；手机提示已真实 RED→GREEN，clean bfb9828 的完整 144 项浏览器、八张原图实读和标准产品／精确镜像扫描通过，唯一终审、本地归档与远端交付仍待。见[规格](specs/2026-11-01-v0.38.0-bulk-create-design.md)、[计划](implementation/v0.38.0-plan.md)与[验收](implementation/v0.38.0-acceptance.md)。下方旧阶段文字保留历史归属。
 

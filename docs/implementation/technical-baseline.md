@@ -1,6 +1,6 @@
 # 技术基线
 
-v0.38.0 当前：Task1–2 原合同冻结；唯一终审 919548b 的两 Important 已真实修复。Docker Node26.5.1／pnpm11.5／networknone 的完整 2544 前端／四项 100%、types／lint／隔离构建通过，外置 LCOV 已保留，无 host 安装。clean 540b862 自身完整 144 浏览器／八原图和标准产品六 gate 通过；精确 image70914bce 的 Trivy0.74 正常更新策略实际复用有效 DB，三目标所选 HIGH／CRITICAL 为零，非全部风险零。局部禁离线排队、发送前身份守卫和 15 秒含正文期限保持同 key 手动恢复。标准 Task3／归档／远端仍待，不冒独立复审。见[验收](v0.38.0-acceptance.md)。下方较早状态为历史。
+v0.38.0 当前：Task1–3 标准完成，本地完整报告／30条裁决和whole-owned ZIP／解压核验完成。唯一终审覆盖919548b，两个Important真实修复；完整2544前端／四100／静态构建及clean540b862自身144浏览器／八原图／精确产品通过。Task4已启动，PR245的远端CI／有效意见闭环／最终head真实审查、合并及master验证仍待。原0d519c0首审只提出3项文档Minor，正在同步状态；不冒后继审查覆盖、发布或部署。下方较早摘要均为历史。
 
 v0.38.0 边界：1–20 条、单条 1–2048 字节可打印 ASCII HTTP(S)、64KiB 严格 JSON、5 秒事务、每条 8 次随机 slug 尝试；本人／默认域名／direct，永久 SHA-256 回执不存 URL，无新增权限或依赖。Task1 已标准完成，00033、SQLC 60／28 零漂移、Windows Go1.26.10 业务 100%／vet 与 Linux race／scanner 保持原归属。前端冻结依赖镜像 05c538e5，真实 Docker Node26.5.1／pnpm11.5，完整 2534 测试和四项 100%、types／lint／隔离 build 通过，未安装 host 依赖；Task2 已在 2b2ee2a 标准完成，Task3 已标准启动；手机提示已真实 RED→GREEN，clean bfb9828 的完整 144 项浏览器、八张原图实读和标准产品／精确镜像扫描通过，唯一终审、本地归档与远端交付仍待。见[规格](../specs/2026-11-01-v0.38.0-bulk-create-design.md)和[验收](v0.38.0-acceptance.md)。v0.37.0／PR244 已交付，旧叙述为历史。
 
