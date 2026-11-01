@@ -1,5 +1,7 @@
 # MoeURL 文档中心
 
+2026-11-01 最新：v0.37.0／PR244 已合并为 master617c12cc8cb07c2ea3173b8d0cc65239aec4f49c；候选与 master 各九 CI、真实审查、标准任务和可恢复归档已完成，未发布部署。当前启动 [v0.38.0 有界批量创建](product/scope-v0.38.0.md)，仅设计，见[规格](specs/2026-11-01-v0.38.0-bulk-create-design.md)、[计划](implementation/v0.38.0-plan.md)与[验收](implementation/v0.38.0-acceptance.md)。下方旧阶段文字保留历史归属，不代当前状态。
+
 2026-11-01 当前入口：[v0.36.0 账号时区](product/scope-v0.36.0.md)已经 PR243 合并为 5dc1c8aa34bbc9ba66576efd1ec41d1ce2025e43，候选及 master 各九 CI、真实审查、标准 Task1–4 与完整可恢复归档完成，未发布部署。下一有界阶段为 [v0.37.0 精确记录时间](product/scope-v0.37.0.md)，已完成两表详情和手机提示的本地实现及定向验证，整版交付仍待；见[规格](specs/2026-11-01-v0.37.0-precise-record-times-design.md)、[计划](implementation/v0.37.0-plan.md)、[任务](implementation/v0.37.0-tasks.md)及[验收](implementation/v0.37.0-acceptance.md)。下方旧阶段叙述保持历史归属。
 
 2026-11-01 当前摘要：[v0.36.0 账号时区显示预设](product/scope-v0.36.0.md)按正式[实施计划](implementation/v0.36.0-plan.md)实施：Task1–2 已分别标准完成（90674e6／070627a），完整前端 2443 测试及四项 100%、后端业务 100% 已通过。Task3 在 clean 544a0706 上完整 128 项浏览器通过，5 张原图已实读；标准产品 smoke 与同一精确镜像的正常漏洞库更新扫描通过，两次下载失败与官方镜像恢复分别保留。唯一终审已完成（Critical 0／Important 1／Minor 1），认证暂时失败后时区编辑器无法恢复的问题已真实 RED→GREEN；修复后完整 2449 项前端测试、四项 100%、types／lint／build 已通过。修复候选 b5a3dcea 的新完整 128 项浏览器（10.8 分钟）、5 张原图实读及标准产品／精确镜像扫描已通过；原重连超时失败及不变输入诊断分别留证，不称已证明其根因。本地归档／标准收尾与远端交付仍待；独立本人偏好／CAS、九固定 IANA 与身份轮次隔离，只改显示，不改 UTC 统计、CSV、到期输入或公开访问，无新依赖或权限。v0.35.0／PR239 已完成交付；其后 PR242 有界测试回滚维护已合并为 08b990d70bf30dbe54f885d0b7a3bc9490eacb89，真实审查、候选及 master 各九 CI、标准任务与可恢复归档均完成，未正式发布。下方带时间的旧待做叙述均保留其历史归属，不表示当前仍未交付，也不借旧证据给本版。
