@@ -53,6 +53,7 @@ type Dependencies struct {
 	UserBatchMembership    user.BatchGroupPort
 	UserPreferences        user.PreferencesPort
 	UserDomainPreference   user.DomainPreferencePort
+	UserTimeZonePreference user.TimeZonePreferencePort
 	UserGroup              usergroup.Port
 	UserGroupDomainDefault usergroup.DomainDefaultPort
 	OIDCProvider           oidc.ProviderPort
@@ -260,6 +261,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				preferenceHandler := user.NewDomainPreferenceHandler(dependency.UserDomainPreference, logger)
 				businessAPI.Get("/user/domain-preference", preferenceHandler.Get)
 				businessAPI.Post("/user/domain-preference/update", preferenceHandler.Update)
+			}
+			if dependency.UserTimeZonePreference != nil {
+				preferenceHandler := user.NewTimeZonePreferenceHandler(dependency.UserTimeZonePreference, logger)
+				businessAPI.Get("/user/time-zone-preference", preferenceHandler.Get)
+				businessAPI.Post("/user/time-zone-preference/update", preferenceHandler.Update)
 			}
 			if dependency.UserGroup != nil {
 				userGroupHandler := usergroup.NewHandler(dependency.UserGroup, logger)

@@ -67,6 +67,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useDateTimeDisplay } from '@/shared/preferences/useDateTimeDisplay'
 import { useRoute } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 import { Chart, LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, type ChartConfiguration } from 'chart.js'
@@ -82,6 +83,7 @@ import { useInsightAccess, isInsightAccessError } from '@/shared/insights/useIns
 Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip)
 
 const { t } = useI18n()
+const { format } = useDateTimeDisplay()
 const route = useRoute()
 const theme = useTheme()
 const trendCanvas = ref<globalThis.HTMLCanvasElement>()
@@ -157,9 +159,7 @@ function retry() {
 
 /** Formats the last-visit date while handling absent or invalid timestamps. */
 function formatVisitedAt(value: string | null) {
-  if (!value) return t('links.stats.neverVisited')
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? t('links.stats.neverVisited') : date.toLocaleDateString()
+  return value ? format(value, 'date') ?? t('links.stats.neverVisited') : t('links.stats.neverVisited')
 }
 
 /** Localizes reserved analytics buckets while preserving concrete values. */

@@ -444,7 +444,7 @@ describe('pages', () => {
     expect(screen.getByText('31')).toBeTruthy()
     expect(screen.getByText('abc123')).toBeTruthy()
     expect(screen.getByText('https://example.com/recent')).toBeTruthy()
-    expect(screen.getByText('2026-07-30')).toBeTruthy()
+    expect(screen.getByText('2026年7月30日')).toBeTruthy()
     expect(screen.getByText('overview.viewAllLinks').closest('button')?.getAttribute('data-to')).toBe('/link')
     expect(screen.queryByText('overview.viewAnalytics')).toBeNull()
     expect(screen.getByText('links.actions.analytics').closest('button')?.getAttribute('data-to')).toBe('/link/link-id/analytics')
@@ -1378,7 +1378,7 @@ describe('pages', () => {
     expect(within(activeRow).getByText('shortLinkCreate.redirectModes.intermediate')).toBeTruthy()
     expect(within(confirmationRow).getByText('shortLinkCreate.redirectModes.confirmation')).toBeTruthy()
     const expiration = new Date('2026-08-10T00:00:00Z')
-    const expirationText = `${expiration.getFullYear()}-${String(expiration.getMonth() + 1).padStart(2, '0')}-${String(expiration.getDate()).padStart(2, '0')} ${String(expiration.getHours()).padStart(2, '0')}:${String(expiration.getMinutes()).padStart(2, '0')}`
+    const expirationText = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short', hourCycle: 'h23' }).format(expiration)
     expect(within(activeRow).getByText(expirationText)).toBeTruthy()
     expect(within(disabledRow).getByText('links.expired')).toBeTruthy()
 
@@ -2139,7 +2139,7 @@ describe('pages', () => {
     expect(screen.getByText('adminUsers.total')).toBeTruthy()
     expect(screen.getByText('alice')).toBeTruthy()
     expect(screen.getAllByText('adminUsers.type.builtin').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('2026-06-08').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('2026年6月8日').length).toBeGreaterThan(0)
     expect(screen.queryByText(/2026-06-08T00:00:00Z/)).toBeNull()
     expect(screen.getByText('legacy-date')).toBeTruthy()
     expect(screen.queryByLabelText('adminUsers.labels.nickname')).toBeNull()
@@ -2210,7 +2210,7 @@ describe('pages', () => {
     mount(AdminUsersPage)
 
     const expected = new Date('2026-06-07T23:30:00Z')
-    const localDate = `${expected.getFullYear()}-${String(expected.getMonth() + 1).padStart(2, '0')}-${String(expected.getDate()).padStart(2, '0')}`
+    const localDate = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium' }).format(expected)
     expect(screen.getByText(localDate)).toBeTruthy()
     expect(screen.queryByText('2026-06-07T23:30:00Z')).toBeNull()
   })

@@ -17,7 +17,7 @@
         <thead><tr><th>{{ t('insights.occurredAt') }}</th><th>{{ t('visits.referrer') }}</th><th>{{ t('visits.device') }}</th><th>{{ t('visits.browser') }}</th><th>{{ t('visits.os') }}</th><th>{{ t('visits.country') }}</th></tr></thead>
         <tbody>
           <tr v-for="item in records.items" :key="item.id">
-            <td><time :datetime="item.occurredAt">{{ item.occurredAt }}</time></td>
+            <td><time :datetime="item.occurredAt">{{ format(item.occurredAt) ?? item.occurredAt }}</time></td>
             <td><span class="insight-table__ellipsis" :title="item.referrerHost || t('analytics.unknown')">{{ item.referrerHost || t('analytics.unknown') }}</span></td>
             <td>{{ dimension(item.deviceType) }}</td><td>{{ dimension(item.browserFamily) }}</td><td>{{ dimension(item.osFamily) }}</td><td>{{ item.countryCode || t('analytics.unknown') }}</td>
           </tr>
@@ -34,6 +34,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useDateTimeDisplay } from '@/shared/preferences/useDateTimeDisplay'
 import { useQuery } from '@tanstack/vue-query'
 import { deviceTypes, getVisits } from '@/entities/insights/api'
 import type { InsightRangeInput } from '@/entities/insights/model'
@@ -44,6 +45,7 @@ import VisitExportButton from './VisitExportButton.vue'
 
 const props = defineProps<{ id: string; context: 'own' | 'admin'; range: InsightRangeInput }>()
 const { t } = useI18n()
+const { format } = useDateTimeDisplay()
 const { allowed, scope } = useInsightAccess(() => ['short_link:read_visits', ...(props.context === 'own' ? ['short_link:read_own'] : ['admin:access', 'short_link:read_all'])])
 const deviceType = ref('')
 const countryDraft = ref('')

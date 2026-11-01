@@ -194,7 +194,7 @@ test('v0.2.0 intermediate-page, expiry, QR-code, and logout flows', async ({ pag
   await page.setViewportSize({ width: 1280, height: 720 })
 
   const expiresAt = toLocalDateTimeValue(new Date(Date.now() + 20_000))
-  const expirationInput = settingsDialog.getByLabel('过期时间（本地时间）', { exact: true })
+  const expirationInput = settingsDialog.getByLabel('过期时间（设备本地时间）', { exact: true })
   await setDateTimeLocalValue(expirationInput, expiresAt)
   const updateResponsePromise = page.waitForResponse('**/api/v1/short-link/update')
   await settingsDialog.getByRole('button', { name: '保存' }).click()

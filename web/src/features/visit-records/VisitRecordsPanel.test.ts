@@ -6,7 +6,7 @@ import { componentStubs } from '@/test/component-stubs'
 import { createDeferred } from '@/test/deferred'
 import VisitRecordsPanel from './VisitRecordsPanel.vue'
 
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string, params?: Record<string, string>) => params ? `${key} ${Object.values(params).join(' ')}` : key }) }))
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ locale: { value: 'en-US' }, t: (key: string, params?: Record<string, string>) => params ? `${key} ${Object.values(params).join(' ')}` : key }) }))
 const clients: QueryClient[] = []
 const range = { startDate: '2026-10-16', endDate: '2026-10-22', timeZone: 'UTC' }
 const first = { range, pageSize: 25, hasMore: true, nextCursor: 'page2', items: [{ id: '00000000-0000-0000-0000-000000000001', occurredAt: '2026-10-22T01:02:03.123456Z', referrerHost: 'private.first.example', deviceType: null, browserFamily: null, osFamily: null, countryCode: null }] }
@@ -154,11 +154,12 @@ describe('anonymous visit records', () => {
     expect(screen.getByRole('cell', { name: 'visits.dimensions.chrome' })).toBeTruthy()
     expect(screen.getByRole('cell', { name: 'analytics.unknown' })).toBeTruthy()
   })
-  it('shows the applied server range, legacy unknown buckets, exact UTC timestamp and real table rows', async () => {
+  it('shows the applied UTC range, legacy unknown buckets, local timestamp and original datetime attribute', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => json(first)))
     mount()
     expect(await screen.findByRole('cell', { name: 'private.first.example' })).toBeTruthy()
-    expect(screen.getByText('2026-10-22T01:02:03.123456Z')).toBeTruthy()
+    const time = screen.getByText(new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short', hourCycle: 'h23' }).format(new Date(first.items[0]!.occurredAt)))
+    expect(time.getAttribute('datetime')).toBe('2026-10-22T01:02:03.123456Z')
     expect(screen.getAllByRole('cell', { name: 'analytics.unknown' })).toHaveLength(4)
     expect(screen.getByText('insights.appliedRange 2026-10-16 2026-10-22')).toBeTruthy()
   })

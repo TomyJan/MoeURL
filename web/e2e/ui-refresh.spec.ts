@@ -20,6 +20,7 @@ async function mockWorkspace(page: Page, overrides: Record<string, unknown> = {}
       permissions: ['short_link:read_own', 'short_link:create', 'domain:use_default'],
     } },
     '/user/preferences': { preferences: { language: null, theme: null, updatedAt: null } },
+    '/user/time-zone-preference': { preference: { timeZone: null, updatedAt: null } },
     '/user/domain-preference': { preference: { domainId: null, updatedAt: null } },
     '/domain/group-default': { selection: { domainId: null, status: 'not_set' } },
     '/short-link/overview': { totalLinkCount: 12345678, activeLinkCount: 0, visitCount: 0, todayVisitCount: 0 },

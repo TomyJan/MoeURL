@@ -2,6 +2,10 @@ import { createI18n } from 'vue-i18n'
 
 export const messages = {
   'zh-CN': {
+    timeZonePreference: {
+      title: '时间显示时区', description: '仅改变控制台日期与时间的显示，不改变统计日期、导出或到期时间。此偏好随账号保存。', zone: '显示时区', device: '跟随设备', save: '保存时区', saved: '时区偏好已保存。', retry: '重试读取时区', reload: '重新加载时区', conflict: '时区已在其他位置更新。草稿已保留，请重新加载后保存。', loadFailed: '时区读取失败，已暂用设备时区。', saveFailed: '时区保存失败，草稿已保留，请重试。', unavailable: '当前账号无法保存时区偏好。', invalid: '请选择列表中的时区或跟随设备。', current: '时间显示：{zone}', usingDevice: '时间显示：设备本地时区', displayUnavailable: '账号时区暂时无法读取，当前按设备时区显示。', unsupported: '此设备不支持已保存的时区，当前按设备时区显示；账号设置未改变。',
+      zones: { UTC: '协调世界时', 'Asia/Shanghai': '上海', 'Asia/Singapore': '新加坡', 'Asia/Tokyo': '东京', 'Europe/London': '伦敦', 'Europe/Paris': '巴黎', 'America/New_York': '纽约', 'America/Los_Angeles': '洛杉矶', 'Australia/Sydney': '悉尼' },
+    },
     domainRedirectManagement: { title: '域名默认跳转方式', description: '只影响新建面板的初选，不授予跳转权限，也不改已有短链。详情、排序与模式共享版本，请先保存或取消当前草稿。', save: '保存默认跳转方式', cancel: '取消模式草稿', reload: '重新加载域名模式', loading: '正在读取默认跳转方式。', readFailed: '域名模式或共享版本尚未确认，请重新加载；相关保存已暂停。', saved: '默认跳转方式已保存。', conflict: '域名已在其他位置更新，请明确重载模式后再保存。', failed: '模式保存未确认，草稿已保留，请重新加载后继续。' },
     domainRedirectDefault: { loading: '正在读取当前域名的默认跳转方式。', loadFailed: '默认跳转方式读取失败，请重试或明确选择本次跳转方式。', retry: '重试域名默认方式', useDirect: '本次使用直接跳转', useDefault: '使用域名默认方式', changed: '此域名有新的默认跳转方式，当前草稿保持不变。', reconfirm: '跳转权限已变化，已清除无权模式，请重新确认本次跳转方式。' },
     groupDefault: {
@@ -12,7 +16,7 @@ export const messages = {
     visitExport: { csv: '导出访问记录 CSV', description: '导出完整筛选结果，最多 1000 条、8 MiB。', started: '已发起 CSV 下载，请在浏览器中确认保存。', failed: '导出失败，请重试。', limitExceeded: '导出超过 1000 条或 8 MiB，请缩小日期范围或筛选条件后重试。' },
     auditExport: { csv: '导出操作审计 CSV', description: '导出完整筛选结果，最多 1000 条、8 MiB。', started: '已发起 CSV 下载，请在浏览器中确认保存。', failed: '导出失败，请重试。', limitExceeded: '导出超过 1000 条或 8 MiB，请缩小日期范围或筛选条件后重试。' },
     listExport: { csv: '导出 CSV', description: '导出筛选结果，最多 1000 条。', started: '已发起 CSV 下载，请在浏览器中确认保存。', failed: '导出失败，请重试。', limitExceeded: '筛选结果超过 1000 条或导出数据超过 8 MiB，请缩小筛选范围后重试。' },
-    insights: { noAccess: '当前账号无权查看此数据，或资源已不可用。', loadFailed: '数据加载失败，请重试。', loading: '正在加载数据', appliedRange: '已应用范围：{startDate} 至 {endDate}（UTC，含首尾日期）', occurredAt: '发生时间（UTC）', previous: '上一页', next: '下一页', maintenance: '系统维护' },
+    insights: { noAccess: '当前账号无权查看此数据，或资源已不可用。', loadFailed: '数据加载失败，请重试。', loading: '正在加载数据', appliedRange: '已应用范围：{startDate} 至 {endDate}（UTC，含首尾日期）', occurredAt: '发生时间', previous: '上一页', next: '下一页', maintenance: '系统维护' },
     dashboard: { title: '全站仪表盘', description: '查看全站规模与成功跳转趋势。访问量仅表示已签发目标跳转响应。', userCount: '用户数', activeUserCount: '启用用户数', linkCount: '短链数', activeLinkCount: '启用短链数', todayCreatedLinkCount: '今日新增短链（UTC）', todayVisitCount: '今日访问量（UTC）', rangeVisitCount: '区间访问量', activeMeaning: '“启用”仅表示保存的状态；短链仍可能受过期、密码、额度或域名状态限制。', topLinks: '区间热门短链', deleted: '已删除', empty: '所选范围暂无成功访问。', generatedAt: '快照时间（UTC）：' },
     visits: { title: '访问记录', description: '仅列出成功签发目标跳转的匿名记录；旧记录未采集的类别显示为未知。', empty: '已应用范围与筛选下暂无访问记录。', device: '设备', country: '国家代码', countryHint: '两位大写代码、unknown 或留空', invalidCountry: '请输入两位大写国家代码、unknown，或留空查看全部。', referrer: '来源主机', browser: '浏览器', os: '操作系统', dimensions: { desktop: '桌面设备', mobile: '移动设备', tablet: '平板', bot: '机器人', chrome: 'Chrome', edge: 'Edge', firefox: 'Firefox', safari: 'Safari', opera: 'Opera', samsung: 'Samsung Internet', windows: 'Windows', macos: 'macOS', ios: 'iOS', android: 'Android', linux: 'Linux', chromeos: 'ChromeOS' } },
     audit: { title: '操作审计', description: '只读查看关键业务操作的操作者、动作和变更字段，不展示字段值。', id: '审计 ID', actor: '操作者', actorId: '操作者 UUID', resourceType: '资源类型', resourceId: '资源 ID', action: '动作', changedFields: '变更字段', applyFilters: '应用筛选', invalidActor: '请输入有效的操作者 UUID，或留空查看全部。', systemActor: '系统', empty: '已应用范围与筛选下暂无审计记录。', retention: '在线保留最近 {days} 天审计记录，独立备份策略仍需由部署者维护。', resources: { short_link: '短链', user: '用户', user_group: '用户组', domain: '域名', system_setting: '系统设置', oidc_provider: 'OIDC 提供商' }, actions: { create: '创建', update: '修改', enable: '启用', disable: '停用', delete: '删除', credential_change: '凭据变更', permissions_change: '权限变更', assignment_change: '授权变更', settings_change: '设置变更' } },
@@ -297,7 +301,7 @@ export const messages = {
       },
       intermediateDelay: '中间页倒计时（秒）',
       expirationEnabled: '设置过期时间',
-      expiresAt: '过期时间（本地时间）',
+      expiresAt: '过期时间（设备本地时间）',
       expirationRequired: '请选择过期时间',
       expirationFuture: '过期时间必须晚于当前时间',
       passwordEnabled: '设置访问密码',
@@ -314,7 +318,7 @@ export const messages = {
       confirmation: '确认页',
       intermediateDelay: '中间页倒计时（秒）',
       expirationEnabled: '设置过期时间',
-      expiresAt: '过期时间（本地时间）',
+      expiresAt: '过期时间（设备本地时间）',
       invalidUrl: '请输入有效的 URL',
       expirationRequired: '请选择过期时间',
       expirationFuture: '过期时间必须晚于当前时间',
@@ -770,6 +774,10 @@ export const messages = {
     },
   },
   en: {
+    timeZonePreference: {
+      title: 'Time display zone', description: 'Changes console date and time display only, not statistics dates, exports or expiration inputs. Saved with your account.', zone: 'Display time zone', device: 'Follow device', save: 'Save time zone', saved: 'Time zone saved.', retry: 'Retry time zone', reload: 'Reload time zone', conflict: 'Your time zone changed elsewhere. Your draft is preserved; reload before saving.', loadFailed: 'Could not read your time zone. Using the device time zone.', saveFailed: 'Could not save your time zone. Your draft is preserved; please retry.', unavailable: 'This account cannot save a time zone preference.', invalid: 'Choose a listed time zone or follow device.', current: 'Time display: {zone}', usingDevice: 'Time display: device local time zone', displayUnavailable: 'Your account time zone is unavailable. Times use this device for now.', unsupported: 'This device does not support your saved time zone. Using device time without changing your account setting.',
+      zones: { UTC: 'Coordinated Universal Time', 'Asia/Shanghai': 'Shanghai', 'Asia/Singapore': 'Singapore', 'Asia/Tokyo': 'Tokyo', 'Europe/London': 'London', 'Europe/Paris': 'Paris', 'America/New_York': 'New York', 'America/Los_Angeles': 'Los Angeles', 'Australia/Sydney': 'Sydney' },
+    },
     domainRedirectManagement: { title: 'Default redirect mode', description: 'Only the initial choice for new links; never a permission grant or an edit to existing links. Details, ordering and mode share one revision. Save or cancel the current draft first.', save: 'Save redirect default', cancel: 'Cancel mode draft', reload: 'Reload domain mode', loading: 'Loading the domain redirect setting.', readFailed: 'The domain mode or shared revision is not confirmed. Reload before saving dependent changes.', saved: 'Redirect default saved.', conflict: 'The domain changed elsewhere. Explicitly reload the mode before saving.', failed: 'The mode save was not confirmed. Your draft is preserved; reload before continuing.' },
     domainRedirectDefault: { loading: 'Loading the current domain redirect default.', loadFailed: 'Unable to read the redirect default. Retry or explicitly choose a mode for this link.', retry: 'Retry domain defaults', useDirect: 'Use direct redirect for this link', useDefault: 'Use domain default', changed: 'A new domain default is available. Your current draft is unchanged.', reconfirm: 'Redirect permissions changed. The unavailable mode was cleared; confirm a mode for this link.' },
     groupDefault: {
@@ -780,7 +788,7 @@ export const messages = {
     visitExport: { csv: 'Export visit records CSV', description: 'Export all filtered results, up to 1000 records and 8 MiB.', started: 'CSV download started. Confirm saving in your browser.', failed: 'Export failed. Please try again.', limitExceeded: 'Export exceeds 1000 records or 8 MiB. Narrow the date range or filters and try again.' },
     auditExport: { csv: 'Export audit records CSV', description: 'Export all filtered results, up to 1000 records and 8 MiB.', started: 'CSV download started. Confirm saving in your browser.', failed: 'Export failed. Please try again.', limitExceeded: 'Export exceeds 1000 records or 8 MiB. Narrow the date range or filters and try again.' },
     listExport: { csv: 'Export CSV', description: 'Export filtered results, up to 1000 links.', started: 'CSV download started. Confirm saving in your browser.', failed: 'Export failed. Please try again.', limitExceeded: 'Export data exceeds 1000 links or 8 MiB. Narrow the filters and try again.' },
-    insights: { noAccess: 'This account cannot view these records, or the resource is unavailable.', loadFailed: 'Could not load data. Please retry.', loading: 'Loading data', appliedRange: 'Applied range: {startDate} to {endDate} (UTC, inclusive)', occurredAt: 'Occurred at (UTC)', previous: 'Previous page', next: 'Next page', maintenance: 'System maintenance' },
+    insights: { noAccess: 'This account cannot view these records, or the resource is unavailable.', loadFailed: 'Could not load data. Please retry.', loading: 'Loading data', appliedRange: 'Applied range: {startDate} to {endDate} (UTC, inclusive)', occurredAt: 'Occurred at', previous: 'Previous page', next: 'Next page', maintenance: 'System maintenance' },
     dashboard: { title: 'Global dashboard', description: 'System usage and successful redirect trends. Visits count issued destination redirects.', userCount: 'Users', activeUserCount: 'Enabled users', linkCount: 'Short links', activeLinkCount: 'Enabled short links', todayCreatedLinkCount: 'Links created today (UTC)', todayVisitCount: 'Visits today (UTC)', rangeVisitCount: 'Visits in range', activeMeaning: 'Enabled refers only to the saved status. Expiration, passwords, quotas or domain status can still restrict a link.', topLinks: 'Popular links in range', deleted: 'Deleted', empty: 'No successful visits in this range.', generatedAt: 'Snapshot at (UTC):' },
     visits: { title: 'Visit records', description: 'Anonymous records of issued destination redirects only. Categories not collected for older records are unknown.', empty: 'No visit records match the applied range and filters.', device: 'Device', country: 'Country code', countryHint: 'Two uppercase letters, unknown, or blank', invalidCountry: 'Enter two uppercase country letters, unknown, or leave blank for all.', referrer: 'Referrer host', browser: 'Browser', os: 'Operating system', dimensions: { desktop: 'Desktop', mobile: 'Mobile', tablet: 'Tablet', bot: 'Bot', chrome: 'Chrome', edge: 'Edge', firefox: 'Firefox', safari: 'Safari', opera: 'Opera', samsung: 'Samsung Internet', windows: 'Windows', macos: 'macOS', ios: 'iOS', android: 'Android', linux: 'Linux', chromeos: 'ChromeOS' } },
     audit: { title: 'Operation audit', description: 'Read-only actors, actions and changed field names for key business operations. Field values are not shown.', id: 'Audit ID', actor: 'Actor', actorId: 'Actor UUID', resourceType: 'Resource type', resourceId: 'Resource ID', action: 'Action', changedFields: 'Changed fields', applyFilters: 'Apply filters', invalidActor: 'Enter a valid actor UUID or leave blank for all.', systemActor: 'System', empty: 'No audit records match the applied range and filters.', retention: 'Audit records are retained online for {days} days. Maintain a separate protected backup policy.', resources: { short_link: 'Short link', user: 'User', user_group: 'User group', domain: 'Domain', system_setting: 'System setting', oidc_provider: 'OIDC provider' }, actions: { create: 'Create', update: 'Update', enable: 'Enable', disable: 'Disable', delete: 'Delete', credential_change: 'Credential change', permissions_change: 'Permissions change', assignment_change: 'Assignment change', settings_change: 'Settings change' } },
@@ -1065,7 +1073,7 @@ export const messages = {
       },
       intermediateDelay: 'Intermediate delay (seconds)',
       expirationEnabled: 'Set expiration',
-      expiresAt: 'Expiration time (local time)',
+      expiresAt: 'Expiration time (device local time)',
       expirationRequired: 'Choose an expiration time',
       expirationFuture: 'Expiration must be in the future',
       passwordEnabled: 'Protect with a password',
@@ -1082,7 +1090,7 @@ export const messages = {
       confirmation: 'Confirmation page',
       intermediateDelay: 'Intermediate delay (seconds)',
       expirationEnabled: 'Set expiration',
-      expiresAt: 'Expiration time (local time)',
+      expiresAt: 'Expiration time (device local time)',
       invalidUrl: 'Enter a valid URL',
       expirationRequired: 'Choose an expiration time',
       expirationFuture: 'Expiration must be in the future',

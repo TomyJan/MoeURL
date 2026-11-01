@@ -248,3 +248,9 @@ type UserPreference struct {
 	Theme     pgtype.Text        `json:"theme"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
+
+type UserTimeZonePreference struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	TimeZone  pgtype.Text        `json:"time_zone"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
