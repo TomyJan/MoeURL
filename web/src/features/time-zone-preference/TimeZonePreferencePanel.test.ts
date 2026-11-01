@@ -12,7 +12,7 @@ vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key, locale: 
 const version = '2026-11-01T00:00:00.123456Z'
 const clients: QueryClient[] = []
 interface Preference { timeZone: string | null; updatedAt: string | null }
-interface Options { initial?: Preference; read?: (id: string) => Promise<Preference>; save?: () => Promise<Response> }
+interface Options { initial?: Preference; read?: (id: string) => Promise<Preference>; save?: () => Promise<Response>; me?: () => Promise<Response> }
 const ok = (preference: Preference) => new Response(JSON.stringify({ code: 0, message: '', data: { preference }, meta: {} }))
 const failed = (code: number) => new Response(JSON.stringify({ code, message: '', data: null, meta: {} }))
 /** Flushes already-settled HTTP and Vue promise work, without assuming an elapsed delay. */
@@ -28,7 +28,10 @@ function mount(options: Options = {}) {
   client.setQueryData(['auth', 'me'], { user })
   vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit) => {
     let data: unknown
-    if (url === '/api/v1/auth/me') data = { user }
+    if (url === '/api/v1/auth/me') {
+      if (options.me) return options.me()
+      data = { user }
+    }
     else if (url === '/api/v1/user/time-zone-preference') data = { preference: options.read ? await options.read(user.id) : preference }
     else if (url === '/api/v1/user/time-zone-preference/update') {
       const body = JSON.parse(init.body as string) as typeof bodies[number]
@@ -57,6 +60,90 @@ const submit = () => fireEvent.submit(screen.getByTestId('time-zone-preference-f
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 describe('account time-zone preference', () => {
+  it.each([false, true])('restores same-user editing after authentication recovery without replacing its cached preference, dirty=%s', async dirty => {
+    const view = mount()
+    const select = await ready()
+    if (dirty) await fireEvent.update(select, 'Asia/Tokyo')
+    const cached = view.client.getQueriesData({ queryKey: ['user', 'time-zone-preference'] })[0]?.[1]
+    view.options.me = async () => failed(900000)
+    await view.client.refetchQueries({ queryKey: ['auth', 'me'] })
+    await waitFor(() => expect(view.client.getQueryState(['auth', 'me'])?.status).toBe('error'))
+    expect(view.client.getQueryData(['auth', 'me'])).toMatchObject({ user: { id: '00000000-0000-0000-0000-000000000701' } })
+    expect(screen.queryByTestId('time-zone-preference-panel')).toBeNull()
+    expect(view.bodies).toEqual([])
+    view.options.me = undefined
+    await view.client.refetchQueries({ queryKey: ['auth', 'me'] })
+    const recovered = await ready()
+    expect(view.client.getQueriesData({ queryKey: ['user', 'time-zone-preference'] })[0]?.[1]).toBe(cached)
+    expect(recovered.value).toBe(dirty ? 'Asia/Tokyo' : 'UTC')
+    if (!dirty) await fireEvent.update(recovered, 'Europe/Paris')
+    await submit()
+    await waitFor(() => expect(view.bodies).toEqual([{ timeZone: dirty ? 'Asia/Tokyo' : 'Europe/Paris', expectedUpdatedAt: version }]))
+  })
+  it('adopts an initial read that finishes while authentication is temporarily unavailable', async () => {
+    const loading = createDeferred<Preference>()
+    const view = mount({ read: () => loading.promise })
+    await screen.findByTestId('time-zone-preference-form')
+    view.options.me = async () => failed(900000)
+    await view.client.refetchQueries({ queryKey: ['auth', 'me'] })
+    await waitFor(() => expect(screen.queryByTestId('time-zone-preference-panel')).toBeNull())
+    loading.resolve({ timeZone: 'Europe/Paris', updatedAt: version })
+    await settleRequests()
+    view.options.me = undefined
+    await view.client.refetchQueries({ queryKey: ['auth', 'me'] })
+    expect((await ready()).value).toBe('Europe/Paris')
+    expect(view.bodies).toEqual([])
+  })
+  it.each([true, false])('releases an interrupted save without applying its hidden result or retrying, success=%s', async success => {
+    const saving = createDeferred<Response>()
+    const okToast = vi.spyOn(toast, 'success')
+    const badToast = vi.spyOn(toast, 'error')
+    const view = mount({ save: () => saving.promise })
+    await fireEvent.update(await ready(), 'Asia/Tokyo')
+    await submit()
+    await waitFor(() => expect(view.bodies).toHaveLength(1))
+    view.options.me = async () => failed(900000)
+    await view.client.refetchQueries({ queryKey: ['auth', 'me'] })
+    await waitFor(() => expect(screen.queryByTestId('time-zone-preference-panel')).toBeNull())
+    saving.resolve(success ? ok({ timeZone: 'Asia/Tokyo', updatedAt: '2026-11-01T00:00:01Z' }) : failed(300104))
+    await settleRequests()
+    expect(okToast).not.toHaveBeenCalled()
+    expect(badToast).not.toHaveBeenCalled()
+    view.options.me = undefined
+    await view.client.refetchQueries({ queryKey: ['auth', 'me'] })
+    expect((await ready()).value).toBe('Asia/Tokyo')
+    await waitFor(() => expect((screen.getByTestId('time-zone-preference-save') as HTMLButtonElement).disabled).toBe(false))
+    expect(view.bodies).toHaveLength(1)
+    expect(view.client.getQueriesData({ queryKey: ['user', 'time-zone-preference'] })[0]?.[1]).toMatchObject({ preference: { timeZone: 'UTC', updatedAt: version } })
+    view.options.save = async () => failed(300104)
+    await submit()
+    await screen.findByText('timeZonePreference.conflict')
+    expect(view.bodies[1]).toEqual({ timeZone: 'Asia/Tokyo', expectedUpdatedAt: version })
+  })
+  it('releases an interrupted conflict reload while preserving the draft and requiring another explicit reload', async () => {
+    const loading = createDeferred<Preference>()
+    const view = mount({ save: async () => failed(300104) })
+    await fireEvent.update(await ready(), 'Asia/Tokyo')
+    await submit()
+    await screen.findByText('timeZonePreference.conflict')
+    view.options.read = () => loading.promise
+    await fireEvent.click(screen.getByText('timeZonePreference.reload'))
+    view.options.me = async () => failed(900000)
+    await view.client.refetchQueries({ queryKey: ['auth', 'me'] })
+    await waitFor(() => expect(screen.queryByTestId('time-zone-preference-panel')).toBeNull())
+    loading.resolve({ timeZone: 'Europe/London', updatedAt: '2026-11-01T00:00:02Z' })
+    await settleRequests()
+    view.options.me = undefined
+    await view.client.refetchQueries({ queryKey: ['auth', 'me'] })
+    expect((await ready()).value).toBe('Asia/Tokyo')
+    expect(screen.getByText('timeZonePreference.conflict')).not.toBeNull()
+    const reload = screen.getByText('timeZonePreference.reload')
+    await waitFor(() => expect((reload as HTMLButtonElement).disabled).toBe(false))
+    view.options.read = async () => ({ timeZone: 'Europe/London', updatedAt: '2026-11-01T00:00:02Z' })
+    await fireEvent.click(reload)
+    await waitFor(() => expect((screen.getByLabelText('timeZonePreference.zone') as HTMLSelectElement).value).toBe('Europe/London'))
+    expect(view.bodies).toHaveLength(1)
+  })
   it('shows browser fallback without silently changing the saved selection', async () => {
     vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(function () { throw new RangeError('unsupported zone') })
     const view = mount()

@@ -46,10 +46,11 @@ const locked = computed(() => !eligible.value || !original.value || busy.value |
 const items = computed(() => [{ title: t('timeZonePreference.device'), value: '' }, ...timeZonePresets.map(value => ({ title: t('timeZonePreference.zones.' + value) + ' · ' + value, value }))])
 const draftSchema = z.union([z.literal(''), z.enum(timeZonePresets)])
 onBeforeUnmount(() => { mounted.value = false })
-watch([scope, () => props.active, () => props.userId], () => {
+// Temporary authentication errors pause this editor without changing its owner.
+watch([scope, () => props.userId], () => {
   original.value = undefined; draft.value = ''; editRevision.value++; pending.value = false; reloading.value = false; conflict.value = false; invalid.value = false
 }, { flush: 'sync' })
-watch(preference, value => {
+watch([preference, eligible], ([value]) => {
   if (value && eligible.value && !dirty.value && !pending.value && !reloading.value && !conflict.value) adopt(value)
 }, { immediate: true })
 
@@ -73,7 +74,7 @@ async function reload(discard: boolean) {
     } else if (revision === editRevision.value && (discard || !dirty.value)) adopt(result.data.preference)
   } catch {
     // The scoped query failure exposes retry without replacing the local snapshot.
-  } finally { if (isCurrent(owner) && eligible.value) reloading.value = false }
+  } finally { if (isCurrent(owner) && mounted.value) reloading.value = false }
 }
 
 /** Updates the saved revision, but never replaces a draft edited during the request. */
@@ -97,7 +98,7 @@ async function submit() {
     if (!isCurrent(owner) || !eligible.value) return
     conflict.value = error instanceof ApiClientError && error.code === 300104
     toast.error(t(conflict.value ? 'timeZonePreference.conflict' : error instanceof ApiClientError && error.code === 120001 ? 'timeZonePreference.unavailable' : 'timeZonePreference.saveFailed'))
-  } finally { if (isCurrent(owner) && eligible.value) pending.value = false }
+  } finally { if (isCurrent(owner) && mounted.value) pending.value = false }
 }
 </script>
 
