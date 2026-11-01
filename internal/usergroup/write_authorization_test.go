@@ -8,6 +8,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/permission"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
@@ -94,7 +95,7 @@ func TestPermissionWriterLockCancellation(t *testing.T) {
 			s, pool, actor, input := permissionWriterFixture(t)
 			gate, err := pool.Begin(t.Context())
 			require.NoError(t, err)
-			t.Cleanup(func() { _ = gate.Rollback(context.Background()) })
+			t.Cleanup(func() { testdb.Rollback(t, gate.Rollback) })
 			if scenario.name == "domain" {
 				_, err = gate.Exec(t.Context(), scenario.query, int64(0x6d6f6575726c444d))
 			} else {

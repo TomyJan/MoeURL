@@ -9,6 +9,7 @@ import (
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -231,7 +232,7 @@ func TestGroupDefaultWriteCancellation(t *testing.T) {
 	input := f.input(t, "user", &f.assigned)
 	gate, err := f.pool.Begin(t.Context())
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = gate.Rollback(context.Background()) })
+	t.Cleanup(func() { testdb.Rollback(t, gate.Rollback) })
 	_, err = gate.Exec(t.Context(), `select pg_advisory_xact_lock($1)`, int64(0x6d6f6575726c444d))
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(t.Context())

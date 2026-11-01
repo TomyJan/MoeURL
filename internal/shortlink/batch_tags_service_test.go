@@ -15,6 +15,7 @@ import (
 	apphttp "github.com/TomyJan/MoeURL/internal/http"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -304,7 +305,7 @@ func TestBatchTagsAuthorizationWait(t *testing.T) {
 			defer cancel()
 			tx, err := pool.Begin(ctx)
 			require.NoError(t, err)
-			defer func() { _ = tx.Rollback(context.Background()) }()
+			defer func() { testdb.Rollback(t, tx.Rollback) }()
 			_, err = tx.Exec(ctx, change.sql)
 			require.NoError(t, err)
 			before := batchTagsSnapshot(t, pool)
@@ -331,7 +332,7 @@ func TestBatchTagsConcurrency(t *testing.T) {
 	defer func() {
 		cancel()
 		if blocker != nil {
-			_ = blocker.Rollback(context.Background())
+			testdb.Rollback(t, blocker.Rollback)
 		}
 		workers.Wait()
 		for _, connection := range pools {

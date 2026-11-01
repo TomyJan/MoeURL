@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/stretchr/testify/require"
 )
 
@@ -279,7 +280,7 @@ func TestAppearanceIndependentAdminsCAS(t *testing.T) {
 	require.Equal(t, current, appearanceCall(t, a, secondCookie, "GET", appearanceAdminPath, "", "", 200, 0))
 	tx, err := a.pool.Begin(t.Context())
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(context.Background()) }()
+	defer func() { testdb.Rollback(t, tx.Rollback) }()
 	_, err = tx.Exec(t.Context(), `select key from system_setting where key='site.appearance' for update`)
 	require.NoError(t, err)
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
@@ -387,7 +388,7 @@ func TestAppearanceQueuedRevocation(t *testing.T) {
 			current := appearanceCall(t, a, cookie, "GET", appearanceAdminPath, "", "", 200, 0)
 			tx, err := a.pool.Begin(t.Context())
 			require.NoError(t, err)
-			defer func() { _ = tx.Rollback(context.Background()) }()
+			defer func() { testdb.Rollback(t, tx.Rollback) }()
 			_, err = tx.Exec(t.Context(), revoke.sql)
 			require.NoError(t, err)
 			result := make(chan *httptest.ResponseRecorder, 1)

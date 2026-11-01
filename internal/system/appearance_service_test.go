@@ -9,6 +9,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/system"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/TomyJan/MoeURL/internal/user"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
@@ -39,7 +40,7 @@ func TestAppearanceQueuedRevocation(t *testing.T) {
 			require.NoError(t, err)
 			tx, err := pool.Begin(t.Context())
 			require.NoError(t, err)
-			defer func() { _ = tx.Rollback(context.Background()) }()
+			defer func() { testdb.Rollback(t, tx.Rollback) }()
 			_, err = tx.Exec(t.Context(), revoke.sql, actor.ID)
 			require.NoError(t, err)
 			pid := tx.Conn().PgConn().PID()
@@ -122,7 +123,7 @@ func TestAppearanceIndependentAdminsCAS(t *testing.T) {
 	require.Equal(t, current, secondCurrent)
 	tx, err := pool.Begin(t.Context())
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(context.Background()) }()
+	defer func() { testdb.Rollback(t, tx.Rollback) }()
 	_, err = tx.Exec(t.Context(), `select key from system_setting where key='site.appearance' for update`)
 	require.NoError(t, err)
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
@@ -218,7 +219,7 @@ func TestAppearanceCanceledWriter(t *testing.T) {
 	require.NoError(t, err)
 	tx, err := pool.Begin(t.Context())
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(context.Background()) }()
+	defer func() { testdb.Rollback(t, tx.Rollback) }()
 	_, err = tx.Exec(t.Context(), `select key from system_setting where key='site.appearance' for update`)
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(t.Context())

@@ -11,6 +11,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/domain"
 	"github.com/TomyJan/MoeURL/internal/permission"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
@@ -136,7 +137,7 @@ func TestDomainOrderSerializesLegacyActions(t *testing.T) {
 				ctx := t.Context()
 				gate, err := pool.Begin(ctx)
 				require.NoError(t, err)
-				defer func() { _ = gate.Rollback(context.Background()) }()
+				defer func() { testdb.Rollback(t, gate.Rollback) }()
 				_, err = gate.Exec(ctx, `select id from domain where id=$1 for update`, d.ID)
 				require.NoError(t, err)
 				order := func() error { _, err := s.SetOrder(ctx, admin, orderInput(d, -7)); return err }
@@ -208,7 +209,7 @@ func TestDomainOrderReauthorizesAfterDomainLock(t *testing.T) {
 			ctx := t.Context()
 			gate, err := pool.Begin(ctx)
 			require.NoError(t, err)
-			defer func() { _ = gate.Rollback(context.Background()) }()
+			defer func() { testdb.Rollback(t, gate.Rollback) }()
 			_, err = gate.Exec(ctx, `select pg_advisory_xact_lock($1)`, int64(0x6d6f6575726c444d))
 			require.NoError(t, err)
 			result := make(chan error, 1)
@@ -253,7 +254,7 @@ func TestDomainOrderCanceledLockWait(t *testing.T) {
 	s, pool, admin, _, d := orderFixture(t)
 	gate, err := pool.Begin(t.Context())
 	require.NoError(t, err)
-	defer func() { _ = gate.Rollback(context.Background()) }()
+	defer func() { testdb.Rollback(t, gate.Rollback) }()
 	_, err = gate.Exec(t.Context(), `select pg_advisory_xact_lock($1)`, int64(0x6d6f6575726c444d))
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(t.Context())

@@ -11,6 +11,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
+	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -333,7 +334,7 @@ func TestBatchTransferConcurrent(t *testing.T) {
 	defer func() {
 		cancel()
 		if blocker != nil {
-			_ = blocker.Rollback(context.Background())
+			testdb.Rollback(t, blocker.Rollback)
 		}
 		workers.Wait()
 		for _, connection := range connections {
@@ -423,7 +424,7 @@ func TestBatchTransferWaitsForRecipient(t *testing.T) {
 	defer cancel()
 	tx, err := pool.Begin(ctx)
 	require.NoError(t, err)
-	defer func() { _ = tx.Rollback(context.Background()) }()
+	defer func() { testdb.Rollback(t, tx.Rollback) }()
 	_, err = tx.Exec(ctx, `update app_user set status='disabled' where id=$1`, recipient.ID)
 	require.NoError(t, err)
 	done := make(chan error, 1)

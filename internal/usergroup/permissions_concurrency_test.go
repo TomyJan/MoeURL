@@ -52,7 +52,7 @@ func TestPermissionWriteCurrentAuthorizationQueue(t *testing.T) {
 			defer cancel()
 			gate, err := pool.Begin(ctx)
 			require.NoError(t, err)
-			t.Cleanup(func() { _ = gate.Rollback(context.Background()) })
+			t.Cleanup(func() { testdb.Rollback(t, gate.Rollback) })
 			// Hold both the old target-row boundary and the new domain prefix.
 			// Revocation completes before either implementation may authorize and write.
 			_, err = gate.Exec(ctx, `select pg_advisory_xact_lock($1)`, int64(0x6d6f6575726c444d))

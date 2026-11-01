@@ -31,10 +31,10 @@
 
 文件：新增 `internal/testdb/transaction.go`、`transaction_test.go`；机械修改实际存在直接 Background 回滚的 Go 测试，保留时序；新增本设计和验收记录。
 
-- [ ] **步骤1：等价提取与真实 PG 补验。** 先写 `TestRollbackCleanupReportsResult`、`TestRollbackCleanupRealTransactionAfterCallerCancellation`，提取原 Background 调用语义。Expected: 真正 PG 行回滚且另一连接可写，诊断符合约定；不把首次通过冒 RED。
-- [ ] **步骤2：真实有界行为 RED。** 加 `TestRollbackCleanupBoundsIO`、`TestRollbackCleanupCancelsContextAfterReturn`、`TestRollbackCleanupCancelsContextAfterPanic`，旧 helper 仍无 deadline／cancel。Expected: 断言失败而非 import/编译故障；保存 raw。
-- [ ] **步骤3：最小 GREEN。** 独立 5 秒 WithTimeout、defer cancel、ErrTxClosed 过滤、其他错误 Errorf。Expected: 所有具名回归与真实 PG 通过。
-- [ ] **步骤4：替换旧调用者与完整门禁。** 保持每处注册和时序；完整 Go／Linux race／vet／canonical 业务100与checker通过。Expected: 原始失败保留，资源清理核，当前输入稳定；前端／SQLC不变。
+- [x] **步骤1：等价提取与真实 PG 补验。** 先写 `TestRollbackCleanupReportsResult`、`TestRollbackCleanupRealTransactionAfterCallerCancellation`，提取原 Background 调用语义。Expected: 真正 PG 行回滚且另一连接可写，诊断符合约定；不把首次通过冒 RED。
+- [x] **步骤2：真实有界行为 RED。** 加 `TestRollbackCleanupBoundsIO`、`TestRollbackCleanupCancelsContextAfterReturn`、`TestRollbackCleanupCancelsContextAfterPanic`，旧 helper 仍无 deadline／cancel。Expected: 断言失败而非 import/编译故障；保存 raw。
+- [x] **步骤3：最小 GREEN。** 独立 5 秒 WithTimeout、defer cancel、ErrTxClosed 过滤、其他错误 Errorf。Expected: 所有具名回归与真实 PG 通过。
+- [x] **步骤4：替换旧调用者与完整门禁。** 保持每处注册和时序；完整 Go／Linux race／vet／canonical 业务100与checker通过。Expected: 原始失败保留，资源清理核，当前输入稳定；前端／SQLC不变。
 - [ ] **步骤5：原子提交与标准完成。** commit显式禁签名，标准 task-done 只复核本轮已成功原件及输入。Expected: Task1 complete，clean，全部命令/环境/原件可追溯。
 
 ## Task 2：独立审查与受守卫交付
