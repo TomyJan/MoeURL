@@ -241,7 +241,7 @@ async function statistics(page: Page, id: string) {
   const payload = await response.json() as { code: number; data: { range: { startDate: string; endDate: string; timeZone: 'UTC' } } }
   expect(payload.code).toBe(0)
   await expect(page.getByTestId('analytics-summary')).toBeVisible()
-  await expect(page.locator('.analytics-page__description').filter({ hasText: 'UTC' })).toBeVisible()
+  await expect(page.locator('.analytics-page__description').filter({ hasText: payload.data.range.startDate }).filter({ hasText: 'UTC' })).toBeVisible()
   expect(payload.data.range.startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   expect(payload.data.range.endDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   expect(payload.data.range.timeZone).toBe('UTC')
