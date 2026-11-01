@@ -1,6 +1,6 @@
 # 技术基线
 
-v0.38.0 边界：1–20 条、单条 1–2048 字节可打印 ASCII HTTP(S)、64KiB 严格 JSON、5 秒事务、每条 8 次随机 slug 尝试；本人／默认域名／direct，永久 SHA-256 回执不存 URL，无新增权限或依赖。Task1 已标准完成，00033、SQLC 60／28 零漂移、Windows Go1.26.10 业务 100%／vet 与 Linux race／scanner 保持原归属。前端冻结依赖镜像 05c538e5，真实 Docker Node26.5.1／pnpm11.5，完整 2534 测试和四项 100%、types／lint／隔离 build 通过，未安装 host 依赖；Task2 标准结项于提交后核验，真实浏览器、产品及远端仍待。见[规格](../specs/2026-11-01-v0.38.0-bulk-create-design.md)和[验收](v0.38.0-acceptance.md)。v0.37.0／PR244 已交付，旧叙述为历史。
+v0.38.0 边界：1–20 条、单条 1–2048 字节可打印 ASCII HTTP(S)、64KiB 严格 JSON、5 秒事务、每条 8 次随机 slug 尝试；本人／默认域名／direct，永久 SHA-256 回执不存 URL，无新增权限或依赖。Task1 已标准完成，00033、SQLC 60／28 零漂移、Windows Go1.26.10 业务 100%／vet 与 Linux race／scanner 保持原归属。前端冻结依赖镜像 05c538e5，真实 Docker Node26.5.1／pnpm11.5，完整 2534 测试和四项 100%、types／lint／隔离 build 通过，未安装 host 依赖；Task2 已在 2b2ee2a 标准完成，Task3 已标准启动，真实浏览器、产品及远端仍待。见[规格](../specs/2026-11-01-v0.38.0-bulk-create-design.md)和[验收](v0.38.0-acceptance.md)。v0.37.0／PR244 已交付，旧叙述为历史。
 
 v0.37.0 本地实现边界（整版交付待完成）：InstantDetails 只消费 instant: string 和 label: string，保留原 datetime、秒／小数／offset及文本安全；账号时区仅影响父层短标签。后端、SQLC、migration、CSV、cursor、UTC 日期和 datetime-local 不变。沿用已冻结隔离前端依赖镜像，manifest 除 version、lock与workspace须全等，不安装本机依赖；本版门禁不能借旧结果。见[规格](../specs/2026-11-01-v0.37.0-precise-record-times-design.md)和[验收](v0.37.0-acceptance.md)。
 

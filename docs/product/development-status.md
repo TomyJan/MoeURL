@@ -1,6 +1,6 @@
 # 开发进度与能力清单
 
-2026-11-01 最新：v0.37.0／PR244 已完成 guarded squash（master617c12cc8cb07c2ea3173b8d0cc65239aec4f49c），候选与 master 各九 CI、真实审查、标准任务、36 条裁决／4 项延期 Minor 和可恢复归档均已闭环，未发布部署。当前 [v0.38.0 有界批量创建](scope-v0.38.0.md)Task1 已在 a5bd50a 标准完成，后端真实 RED→GREEN、PG 并发／回滚／撤权、业务 100%、Linux race／scanner 及 SQLC 零漂移保持原执行归属；前端完整 2534 测试、四项 100%、types／lint／隔离 build 通过。Task2 标准结项于当前前端提交后核验；真实浏览器、产品、终审和远端交付仍待。见[计划](../implementation/v0.38.0-plan.md)与[验收](../implementation/v0.38.0-acceptance.md)。下方旧摘要为历史。
+2026-11-01 最新：v0.37.0／PR244 已完成 guarded squash（master617c12cc8cb07c2ea3173b8d0cc65239aec4f49c），候选与 master 各九 CI、真实审查、标准任务、36 条裁决／4 项延期 Minor 和可恢复归档均已闭环，未发布部署。当前 [v0.38.0 有界批量创建](scope-v0.38.0.md)Task1 已在 a5bd50a 标准完成，后端真实 RED→GREEN、PG 并发／回滚／撤权、业务 100%、Linux race／scanner 及 SQLC 零漂移保持原执行归属；前端完整 2534 测试、四项 100%、types／lint／隔离 build 通过。Task2 已在 2b2ee2a 标准完成，Task3 已标准启动；真实浏览器、产品、终审和远端交付仍待。见[计划](../implementation/v0.38.0-plan.md)与[验收](../implementation/v0.38.0-acceptance.md)。下方旧摘要为历史。
 
 2026-11-01 05:35 UTC 最新交付：v0.36.0／PR243 已 guarded squash 为 master 5dc1c8aa34bbc9ba66576efd1ec41d1ce2025e43；候选 run41274108148 与 master 自身 run41275576405 各九 SUCCESS、完整原始日志 ROOT 已读到 EOF，真实 CodeRabbit 覆盖最终 2403a0d，effective open0。标准 Task1–4、37 条完整裁决／三项延期 Minor 与 16 文件 whole-owned ZIP／解压／准确 leaf 可恢复迁出均完成。首次 Task4 校验器历史文档混比失败和正确归属恢复保留原件；无产品重跑。未发布部署。下一 [v0.37.0 精确记录时间](scope-v0.37.0.md)已完成两表详情和手机提示的本地实现及定向验证，整版交付仍待，见[计划](../implementation/v0.37.0-plan.md)和[验收](../implementation/v0.37.0-acceptance.md)。以下旧阶段摘要均为各自历史，不表示 v0.36.0 仍在等待交付。
 
