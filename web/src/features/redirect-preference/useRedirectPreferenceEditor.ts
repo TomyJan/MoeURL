@@ -38,7 +38,7 @@ export function useRedirectPreferenceEditor(props: { userId: string; active: boo
       // TanStack may resume an offline mutation after a different identity is active.
       const currentUser = client.getQueryData<UserResponse>(['auth', 'me'])?.user
       if (!owns(intent) || !currentUser || client.getQueryState(['auth', 'me'])?.status === 'error' || !allowed(intent.input.redirectMode) || !allowed(intent.input.redirectMode, currentUser.permissions)) return Promise.reject(new Error('Redirect preference intent expired'))
-      return updateRedirectPreference(intent.input)
+      return updateRedirectPreference(intent.input, intent.owner.userId)
     },
   })
   onBeforeUnmount(() => { alive = false; generation++ })
@@ -68,8 +68,10 @@ export function useRedirectPreferenceEditor(props: { userId: string; active: boo
     try {
       const result = await query.refetch({ throwOnError: true })
       if (!owns(intent) || !result.data || result.data.userId !== intent.owner.userId || result.data.epoch !== intent.owner.epoch) return
-      if (revision !== editRevision.value) { original.value = result.data.preference; conflict.value = false }
-      else if (discard || !original.value) adopt(result.data.preference)
+      if (discard || !original.value) {
+        if (revision === editRevision.value) adopt(result.data.preference)
+        else { original.value = result.data.preference; conflict.value = false }
+      }
       else if (original.value.updatedAt !== result.data.preference.updatedAt) conflict.value = true
     } catch { /* The owned read error offers retry while preserving the draft. */ }
     finally { if (owns(intent)) reloading.value = false }

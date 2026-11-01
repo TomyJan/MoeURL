@@ -3,6 +3,8 @@ package app
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,4 +50,63 @@ func TestRedirectPreferenceProtocol(t *testing.T) {
 	require.JSONEq(t, `{"preference":{"redirectMode":null,"updatedAt":null}}`, string(domainOrderRequest(t, application, other, http.MethodGet, path, "")))
 	require.NoError(t, application.pool.QueryRow(t.Context(), snapshot).Scan(&after))
 	require.Equal(t, before, after)
+}
+
+// A stale tab must not read or write another account after its shared Cookie changes.
+// The expected identity is a precondition only; it never selects a resource owner.
+func TestRedirectPreferenceSharedCookieIdentity(t *testing.T) {
+	application := newTestApplication(t)
+	admin := domainOrderLogin(t, application)
+	var adminID string
+	require.NoError(t, application.pool.QueryRow(t.Context(), `select id::text from app_user where username='admin'`).Scan(&adminID))
+	const otherID = "00000000-0000-0000-0000-000000000392"
+	_, err := application.pool.Exec(t.Context(), `insert into app_user(id,username,password_hash,nickname,group_id,status,builtin,created_at,updated_at)
+		select $1,'redirect-other-tab',password_hash,'Other tab',group_id,'active',false,now(),now() from app_user where username='admin'`, otherID)
+	require.NoError(t, err)
+	session, err := auth.NewSessionService(application.pool, time.Hour).Create(t.Context(), otherID)
+	require.NoError(t, err)
+	other := &http.Cookie{Name: auth.SessionCookieName, Value: session.ID}
+	const path = "/api/v1/user/redirect-preference"
+	request := func(cookie *http.Cookie, expected []string, method string, want int) json.RawMessage {
+		t.Helper()
+		target, body := path, ""
+		if method == http.MethodPost {
+			target += "/update"
+			body = `{"redirectMode":"confirmation","expectedUpdatedAt":null}`
+		}
+		r := httptest.NewRequestWithContext(t.Context(), method, target, strings.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+		for _, value := range expected {
+			r.Header.Add("X-MoeURL-Expected-User-ID", value)
+		}
+		r.AddCookie(cookie)
+		w := httptest.NewRecorder()
+		application.server.Handler.ServeHTTP(w, r)
+		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+		require.Equal(t, "no-store", w.Header().Get("Cache-Control"))
+		var envelope struct {
+			Code int             `json:"code"`
+			Data json.RawMessage `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &envelope))
+		require.Equal(t, want, envelope.Code, w.Body.String())
+		if want != 0 {
+			require.JSONEq(t, `null`, string(envelope.Data))
+		}
+		return envelope.Data
+	}
+	request(admin, []string{adminID}, http.MethodGet, 0)
+	for _, expected := range [][]string{{adminID}, {""}, {otherID, adminID}} {
+		request(other, expected, http.MethodPost, 120001)
+		request(other, expected, http.MethodGet, 120001)
+	}
+	var count int
+	require.NoError(t, application.pool.QueryRow(t.Context(), `select count(*) from user_redirect_preference`).Scan(&count))
+	require.Zero(t, count)
+	// Matching Cookie identity succeeds, and the old body-only API still means current self.
+	request(other, []string{otherID}, http.MethodPost, 0)
+	data := request(other, nil, http.MethodGet, 0)
+	require.Contains(t, string(data), `"redirectMode":"confirmation"`)
+	require.NoError(t, application.pool.QueryRow(t.Context(), `select count(*) from user_redirect_preference where user_id=$1`, adminID).Scan(&count))
+	require.Zero(t, count)
 }

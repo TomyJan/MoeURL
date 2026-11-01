@@ -68,3 +68,22 @@ it.each([firstVersion, nextVersion])('keeps an existing draft on read retry and 
   expect(view.editor().conflict.value).toBe(version !== firstVersion)
   expect(view.editor().original.value?.updatedAt).toBe(firstVersion)
 })
+
+it.each([firstVersion, nextVersion])('preserves the original CAS baseline when editing during a normal read retry %s', async version => {
+  const view = mount()
+  await ready(view)
+  view.editor().edit('intermediate')
+  view.state.next = async () => response(firstVersion, 900000)
+  await view.client.refetchQueries({ queryKey: ['user', 'redirect-preference'] })
+  await waitFor(() => expect(view.editor().readError.value).toBe(true))
+  const pending = createDeferred<Response>()
+  view.state.next = () => pending.promise
+  const loading = view.editor().reload(false)
+  view.editor().edit('direct')
+  pending.resolve(response(version))
+  await loading
+  expect(view.getByText('direct')).toBeTruthy()
+  expect(view.editor().original.value?.updatedAt).toBe(firstVersion)
+  expect(view.editor().conflict.value).toBe(version !== firstVersion)
+  expect(view.editor().locked.value).toBe(version !== firstVersion)
+})

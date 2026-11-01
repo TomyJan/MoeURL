@@ -37,6 +37,10 @@ func (h *RedirectPreferenceHandler) Get(w http.ResponseWriter, r *http.Request) 
 		businessError(w, 100001, "Invalid request")
 		return
 	}
+	if !redirectPreferenceOwnerMatches(r) {
+		businessError(w, 120001, "Permission denied")
+		return
+	}
 	result, err := h.service.Get(r.Context(), auth.UserFromContext(r.Context()))
 	h.respond(w, r, result, err)
 }
@@ -53,8 +57,19 @@ func (h *RedirectPreferenceHandler) Update(w http.ResponseWriter, r *http.Reques
 		businessError(w, 100001, "Invalid request")
 		return
 	}
+	if !redirectPreferenceOwnerMatches(r) {
+		businessError(w, 120001, "Permission denied")
+		return
+	}
 	result, err := h.service.Update(r.Context(), auth.UserFromContext(r.Context()), input)
 	h.respond(w, r, result, err)
+}
+
+// Browser callers bind a stale tab's intent to its captured account. The Cookie
+// still chooses the sole resource owner; body-only API callers retain current-self semantics.
+func redirectPreferenceOwnerMatches(r *http.Request) bool {
+	expected := r.Header.Values("X-MoeURL-Expected-User-ID")
+	return len(expected) == 0 || len(expected) == 1 && expected[0] == auth.UserFromContext(r.Context()).ID
 }
 
 // Decode token by token so duplicate decoded keys and case aliases cannot masquerade as a valid document.

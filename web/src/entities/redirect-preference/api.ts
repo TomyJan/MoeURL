@@ -17,9 +17,9 @@ function parse(data: unknown): RedirectPreference {
   if (!result.success) throw new ApiClientError(100001, 'Invalid redirect preference response')
   return result.data.preference
 }
-export async function getRedirectPreference(): Promise<RedirectPreference> {
-  return parse((await apiGet<unknown>('/user/redirect-preference')).data)
+export async function getRedirectPreference(expectedUserId: string): Promise<RedirectPreference> {
+  return parse((await apiGet<unknown>('/user/redirect-preference', { 'X-MoeURL-Expected-User-ID': expectedUserId })).data)
 }
-export async function updateRedirectPreference(input: UpdateRedirectPreferenceInput): Promise<RedirectPreference> {
-  return parse((await apiPost<unknown>('/user/redirect-preference/update', input)).data)
+export async function updateRedirectPreference(input: UpdateRedirectPreferenceInput, expectedUserId: string): Promise<RedirectPreference> {
+  return parse((await apiPost<unknown>('/user/redirect-preference/update', input, undefined, { 'X-MoeURL-Expected-User-ID': expectedUserId })).data)
 }

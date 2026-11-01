@@ -22,10 +22,14 @@ func TestRedirectPreferenceStrictDocument(t *testing.T) {
 	session, err := auth.NewSessionService(pool, time.Hour).Create(t.Context(), actor.ID)
 	require.NoError(t, err)
 	h := user.NewRedirectPreferenceHandler(s, nil)
+	var expectedIdentity []string
 	request := func(method, path, body, media, token string, want int) json.RawMessage {
 		t.Helper()
 		r := httptest.NewRequestWithContext(t.Context(), method, path, strings.NewReader(body))
 		r.Header.Set("Content-Type", media)
+		for _, value := range expectedIdentity {
+			r.Header.Add("X-MoeURL-Expected-User-ID", value)
+		}
 		if token != "" {
 			r.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: token})
 		}
@@ -65,6 +69,14 @@ func TestRedirectPreferenceStrictDocument(t *testing.T) {
 	for _, media := range []string{"", "text/plain", "application/json; broken"} {
 		request(http.MethodPost, path+"/update", valid, media, session.ID, 100001)
 	}
+	for _, expected := range [][]string{{"different-account"}, {""}, {actor.ID, actor.ID}} {
+		expectedIdentity = expected
+		request(http.MethodGet, path, "", "", session.ID, 120001)
+		request(http.MethodPost, path+"/update", valid, "application/json", session.ID, 120001)
+	}
+	expectedIdentity = []string{actor.ID}
+	request(http.MethodGet, path, "", "", session.ID, 0)
+	expectedIdentity = nil
 	var count int
 	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from user_redirect_preference`).Scan(&count))
 	require.Zero(t, count)

@@ -21,7 +21,7 @@ export function useRedirectPreference(confirmed: Ref<boolean>) {
       const owner = { userId, epoch }
       try {
         if (signal.aborted || !owns(owner)) throw new OwnedReadError(owner)
-        const preference = await getRedirectPreference()
+        const preference = await getRedirectPreference(owner.userId)
         if (signal.aborted || !owns(owner)) throw new OwnedReadError(owner)
         return { ...owner, preference }
       } catch { throw new OwnedReadError(owner) }

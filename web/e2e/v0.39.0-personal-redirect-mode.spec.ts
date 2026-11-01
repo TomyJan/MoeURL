@@ -87,6 +87,48 @@ for (const width of [1280, 390]) {
   })
 }
 
+for (const transition of ['other-account', 'offline-other-account', 'same-account-conflict'] as const) {
+  test('v0.39.0 binds shared-cookie tab requests to their account: ' + transition, async ({ scenario }, info) => {
+    const account = await scenario.createAccount()
+    const other = await scenario.createAccount()
+    const stale = await scenario.openBrowser(1280)
+    await signIn(stale, account)
+    await choose(stale, personalConfirmation)
+    const current = await stale.context().newPage()
+    await current.goto('/profile')
+    await expect(current.getByTestId('redirect-preference-save')).toBeEnabled()
+    await signOut(current)
+    const sameAccount = transition === 'same-account-conflict'
+    await signIn(current, sameAccount ? account : other)
+    let currentPreference: Preference = { redirectMode: null, updatedAt: null }
+    if (sameAccount) {
+      await choose(current, /^(直接跳转|Direct redirect)$/)
+      currentPreference = await save(current, 'direct', null)
+    }
+    if (transition === 'offline-other-account') await stale.context().setOffline(true)
+    const waiting = stale.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/user/redirect-preference/update' && response.request().method() === 'POST')
+    await stale.getByTestId('redirect-preference-save').click()
+    if (transition === 'offline-other-account') {
+      await expect(stale.getByTestId('redirect-preference-save')).toBeDisabled()
+      await stale.context().setOffline(false)
+    }
+    const rejected = await waiting
+    expect(rejected.request().headers()['x-moeurl-expected-user-id']).toBe(account.id)
+    expect(rejected.request().postDataJSON()).toEqual({ redirectMode: 'confirmation', expectedUpdatedAt: null })
+    expect(await rejected.json()).toMatchObject({ code: sameAccount ? 300104 : 120001, data: null })
+    expect(await read(current)).toEqual(currentPreference)
+    if (!sameAccount) {
+      // Read retry must also reject the old owner instead of caching the new account's document.
+      const deniedRead = await stale.request.get('/api/v1/user/redirect-preference', { headers: { 'X-MoeURL-Expected-User-ID': account.id } })
+      expect(await deniedRead.json()).toMatchObject({ code: 120001, data: null })
+      const verifyOriginal = await scenario.openBrowser(1280)
+      await signIn(verifyOriginal, account)
+      expect(await read(verifyOriginal)).toEqual({ redirectMode: null, updatedAt: null })
+    }
+    await captureJSON(info, 'shared-cookie-protocol', { transition, expectedOwner: account.id, cookieOwner: sameAccount ? account.id : other.id, rejectedCode: sameAccount ? 300104 : 120001, currentPreference, wrongAccountWrites: 0 })
+  })
+}
+
 /** Owns all created resources and restores shared isolated fixture settings even on assertion failure. */
 async function withScenario(browser: Browser, admin: APIRequestContext, info: TestInfo, run: (scenario: Scenario) => Promise<void>) {
   const baseURL = info.project.use.baseURL
@@ -224,6 +266,7 @@ async function switchEnglish(page: Page) {
 async function capture(info: TestInfo, name: string, page: Page, panel = false) {
   const section = panel ? page.getByTestId('redirect-preference-panel') : page.locator('.short-link-create-panel')
   await section.scrollIntoViewIfNeeded()
+  if (!panel) await page.locator('.short-link-create-panel__mode-control .v-btn-toggle').scrollIntoViewIfNeeded()
   const path = info.outputPath(name + '.png')
   await page.screenshot({ path, animations: 'disabled' })
   await info.attach(name, { path, contentType: 'image/png' })
