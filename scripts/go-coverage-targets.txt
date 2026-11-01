@@ -16,6 +16,8 @@ github.com/TomyJan/MoeURL/internal/domain/redirect_default_service.go
 github.com/TomyJan/MoeURL/internal/domain/redirect_default_handler.go
 github.com/TomyJan/MoeURL/internal/domain/validation.go
 github.com/TomyJan/MoeURL/internal/user/domain_preference_service.go
+github.com/TomyJan/MoeURL/internal/user/time_zone_preference_service.go
+github.com/TomyJan/MoeURL/internal/user/time_zone_preference_handler.go
 github.com/TomyJan/MoeURL/internal/user/domain_preference_handler.go
 github.com/TomyJan/MoeURL/internal/event/event.go
 github.com/TomyJan/MoeURL/internal/event/recorder.go
