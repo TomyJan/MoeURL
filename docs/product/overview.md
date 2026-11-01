@@ -1,6 +1,6 @@
 # MoeURL 产品总览
 
-当前 [v0.39.0 个人默认跳转方式](scope-v0.39.0.md)后端与前端已实现，本地前端 2616 项与四项 100% 通过，clean `18a8b12` 的完整 146 项浏览器、六原图实读与精确产品／扫描通过；唯一终审、本地归档与远端交付待完成：单条创建手动优先，其次当前有权个人偏好、实际域名默认、direct。旧 API 省略、批量创建和既有短链不变。
+当前 [v0.39.0 个人默认跳转方式](scope-v0.39.0.md)后端与前端已实现，本地前端 2619 项与四项 100% 通过，clean `7d6f800` 的完整 149 项浏览器、六原图实读与精确产品／扫描通过；唯一终审两项 Important 与一项 Minor 已处理，修复后完整验证通过；本地归档与远端交付待完成：单条创建手动优先，其次当前有权个人偏好、实际域名默认、direct。旧 API 省略、批量创建和既有短链不变。
 
 v0.38.0 已完成交付：[PR245](https://github.com/TomyJan/MoeURL/pull/245) 最终候选 b2d19823c70a59d479bbc8d452f97c174c32bb1d 的真实审查／有效意见已闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41340395109) 与合并 master07d4f6c3af23c4f50cd94021d2af13fe0a889c87 的[九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41344911045) 均成功，完整日志分别核读至 EOF。标准 Task1–4、完整 41 条裁决报告与 whole-owned ZIP／解压全集核、准确 leaf 可恢复迁出完成；未发布或部署。下方旧阶段保留历史归属。
 

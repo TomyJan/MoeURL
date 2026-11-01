@@ -1,6 +1,6 @@
 # 技术选型决策
 
-v0.39.0 采用独立 user_redirect_preference 与本人 GET／POST，避免扩旧严格 DTO 或重解释创建省略语义。五秒账号→组锁后核实际模式权限；手动初选优先，后台变化保草稿与原 CAS 基线。官方读写携带预期账号头，后端仅与 Cookie 本人比较，不用它选目标；本页 epoch 和同账号外部保存的 CAS 分别处理登录轮次与版本。无新依赖或权限；原 clean `18a8b12` 的完整 146 项浏览器与精确产品／扫描通过，唯一终审两项 Important 已定向修复，修复后完整验证、本地归档与远端交付待完成。见[设计](../specs/2026-11-02-v0.39.0-personal-redirect-mode-design.md)。
+v0.39.0 采用独立 user_redirect_preference 与本人 GET／POST，避免扩旧严格 DTO 或重解释创建省略语义。五秒账号→组锁后核实际模式权限；手动初选优先，后台变化保草稿与原 CAS 基线。官方读写携带预期账号头，后端仅与 Cookie 本人比较，不用它选目标；本页 epoch 和同账号外部保存的 CAS 分别处理登录轮次与版本。无新依赖或权限；clean `7d6f800` 的完整 149 项浏览器与精确产品／扫描通过，唯一终审两项 Important 与一项 Minor 已处理，修复后完整验证通过；本地归档与远端交付待完成。见[设计](../specs/2026-11-02-v0.39.0-personal-redirect-mode-design.md)。
 
 v0.38.0 已完成交付：[PR245](https://github.com/TomyJan/MoeURL/pull/245) 最终候选 b2d19823c70a59d479bbc8d452f97c174c32bb1d 的真实审查／有效意见已闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41340395109) 与合并 master07d4f6c3af23c4f50cd94021d2af13fe0a889c87 的[九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41344911045) 均成功，完整日志分别核读至 EOF。标准 Task1–4、完整 41 条裁决报告与 whole-owned ZIP／解压全集核、准确 leaf 可恢复迁出完成；未发布或部署。下方旧阶段保留历史归属。
 
