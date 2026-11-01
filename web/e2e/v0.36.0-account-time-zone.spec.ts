@@ -84,7 +84,7 @@ for (const width of [1280, 390]) {
     await signIn(editor, account)
     await expect(editor.getByRole('combobox', { name: zoneLabel })).toHaveValue(/ · America\/New_York$/)
     expect(await read(editor)).toEqual(saved)
-    await choose(editor, deviceOption)
+    await choose(editor, deviceOption, 'f')
     const cleared = await save(editor, null, saved.updatedAt)
     await expect(editor.getByTestId('console-time-zone')).toHaveText('Time display: device local time zone')
     const rangeAfter = await statistics(editor, link.id)
@@ -204,12 +204,14 @@ async function signOut(page: Page) {
 }
 
 /** Chooses a real accessible Vuetify option and verifies selection actually committed. */
-async function choose(page: Page, name: RegExp) {
+async function choose(page: Page, name: RegExp, typeahead?: string) {
   const selector = page.getByTestId('time-zone-preference-form').getByRole('combobox', { name: zoneLabel })
-  await selector.press('Enter')
-  // The virtual list starts near the saved item; Home brings its first/device option into view.
-  await selector.press('Home')
-  await page.getByRole('option', { name }).click()
+  // Native closed-select typeahead also reaches items outside the popup's virtual viewport.
+  if (typeahead) await selector.press(typeahead)
+  else {
+    await selector.press('Enter')
+    await page.getByRole('option', { name }).click()
+  }
   await expect(selector).toHaveValue(name)
 }
 
