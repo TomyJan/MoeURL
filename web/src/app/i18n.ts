@@ -2,6 +2,13 @@ import { createI18n } from 'vue-i18n'
 
 export const messages = {
   'zh-CN': {
+    linkNote: {
+      action: '备注', title: '短链内部备注', text: '备注内容', transferWarning: '备注会随短链转移，请勿填写密码。',
+      readonly: '你可以查看此备注，当前没有编辑权限。', invalid: '最多 1000 个 Unicode 字符，允许换行和制表符，不允许其他控制字符。',
+      count: '{count} / 1000 字符', close: '关闭', reload: '重新加载（替换草稿）', clear: '清空草稿', save: '保存备注', saved: '备注已保存。',
+      conflict: '备注已在其他位置更新，草稿已保留；请重新加载后编辑。', unknown: '保存结果未确认，请重新加载核对。草稿已保留，不会自动重试保存。',
+      loadFailed: '备注读取失败，请重试重新加载。', saveFailed: '备注保存失败，草稿已保留。', accessChanged: '当前账号、权限或短链归属已变化，请刷新列表。',
+    },
     tagCatalog: { title: '我的标签', description: '统计你所有未删除短链，不受当前列表筛选影响。数量是引用该标签的短链数。', search: '查找我的标签', invalid: '请输入最多 32 个字符，不含控制字符。', loading: '正在读取标签……', failed: '标签读取失败，当前列表筛选保持不变。', retry: '重试读取标签', empty: '你的短链还没有标签。', noMatches: '没有匹配的标签。', more: '仅显示前 50 项，还有更多标签；请搜索以缩小范围。' },
     adminTagCatalog: { title: '全站标签', description: '统计全站所有未删除短链，不受当前列表筛选影响。数量是引用该标签的短链数。', search: '查找全站标签', invalid: '请输入最多 32 个字符，不含控制字符。', loading: '正在读取标签……', failed: '标签读取失败，当前列表筛选保持不变。', retry: '重试读取标签', empty: '全站短链还没有标签。', noMatches: '没有匹配的标签。', more: '仅显示前 50 项，还有更多标签；请搜索以缩小范围。' },
     redirectPreference: {
@@ -577,7 +584,7 @@ export const messages = {
         'short_link:set_expiration': { label: '设置过期时间', description: '为短链配置可选过期时间。' },
         'short_link:set_password': { label: '设置访问密码', description: '为短链配置访问密码。' },
         'short_link:set_max_visits': { label: '设置最大访问次数', description: '设置、调整或清除短链的访问次数上限。' },
-        'short_link:set_metadata': { label: '设置标题和标签', description: '设置、修改或清除短链标题和标签。' },
+        'short_link:set_metadata': { label: '设置标题、标签和备注', description: '设置、修改或清除短链标题、标签和内部备注；仍需对应短链读写权限。' },
         'short_link:custom_slug': { label: '自定义短码', description: '创建短链时指定不可修改的自定义短码。' },
         'short_link:use_confirmation': { label: '使用确认页', description: '为短链启用主动确认页。' },
         'domain:use_default': { label: '使用默认域名', description: '使用系统默认短链域名。' },
@@ -795,6 +802,13 @@ export const messages = {
     },
   },
   en: {
+    linkNote: {
+      action: 'Note', title: 'Internal link note', text: 'Note text', transferWarning: 'Notes move with the link when ownership changes. Do not store passwords.',
+      readonly: 'You can read this note but do not currently have permission to edit it.', invalid: 'Use at most 1000 Unicode characters. Line breaks and tabs are allowed; other control characters are not.',
+      count: '{count} / 1000 characters', close: 'Close', reload: 'Reload (replace draft)', clear: 'Clear draft', save: 'Save note', saved: 'Note saved.',
+      conflict: 'This note changed elsewhere. Your draft is preserved; reload before editing.', unknown: 'The save result is unconfirmed. Reload to check it. Your draft is preserved and the write will not be retried automatically.',
+      loadFailed: 'Could not read the note. Please reload to retry.', saveFailed: 'Could not save the note. Your draft is preserved.', accessChanged: 'Your account, permissions or link ownership changed. Refresh the list.',
+    },
     tagCatalog: { title: 'My tags', description: 'Counts all your non-deleted links, independently of current list filters. Each count is the number of links using that tag.', search: 'Find my tags', invalid: 'Use at most 32 characters without control characters.', loading: 'Loading tags…', failed: 'Tags could not be loaded. Your current list filters are unchanged.', retry: 'Retry loading tags', empty: 'Your links have no tags yet.', noMatches: 'No matching tags.', more: 'Showing the first 50 matches. More tags exist; search to narrow the results.' },
     adminTagCatalog: { title: 'All-site tags', description: 'Counts all non-deleted links across the site, independently of current list filters. Each count is the number of links using that tag.', search: 'Find all-site tags', invalid: 'Use at most 32 characters without control characters.', loading: 'Loading tags…', failed: 'Tags could not be loaded. Your current list filters are unchanged.', retry: 'Retry loading tags', empty: 'The site has no tagged links yet.', noMatches: 'No matching tags.', more: 'Showing the first 50 matches. More tags exist; search to narrow the results.' },
     redirectPreference: {
@@ -1370,7 +1384,7 @@ export const messages = {
         'short_link:set_expiration': { label: 'Set expiration', description: 'Configure optional short-link expiration.' },
         'short_link:set_password': { label: 'Set access passwords', description: 'Protect short links with access passwords.' },
         'short_link:set_max_visits': { label: 'Set maximum visits', description: 'Set, change or remove short-link visit limits.' },
-        'short_link:set_metadata': { label: 'Set titles and tags', description: 'Set, change or clear short-link titles and tags.' },
+        'short_link:set_metadata': { label: 'Set titles, tags and notes', description: 'Set, change or clear short-link titles, tags and internal notes; corresponding link read and update permissions are also required.' },
         'short_link:custom_slug': { label: 'Customize short-link slugs', description: 'Choose an immutable custom slug when creating a short link.' },
         'short_link:use_confirmation': { label: 'Use confirmation pages', description: 'Require active confirmation before redirecting.' },
         'domain:use_default': { label: 'Use default domain', description: 'Use the system default short-link domain.' },

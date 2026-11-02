@@ -1,10 +1,10 @@
 # 技术基线
 
-## v0.43.0 设计中的独立备注
+## v0.43.0 独立备注
 
-`short_link.note`／`note_updated_at`两列，Goose00035；独立own/admin GET note与POST note/update，不扩原DTO／metadata／公开访问／CSV。1000Unicode码点、16384原始body bytes、五秒写事务；当前账号shared→当前组shared→短链update，先独立CAS后no-op、仅note单调版本与字段名审计。官方客户端捕获身份header，缓存与异步轮次隔离，冲突／未知保存结果须显式重读；无新权限／依赖。Down锁表后任何非空备注含软删安全拒绝。尚未实现，完整契约以[设计](../specs/2026-11-03-v0.43.0-internal-link-notes-design.md)为准。
+`short_link.note`／`note_updated_at`两列，Goose00035；独立own/admin GET note与POST note/update，不扩原DTO／metadata／公开访问／CSV。1000Unicode码点、16384原始body bytes、五秒写事务；当前账号shared→当前组shared→短链update，先独立CAS后no-op、仅note单调版本与字段名审计。官方客户端捕获身份header，缓存与异步轮次隔离，冲突／未知保存结果须显式重读；无新权限／依赖。Down锁表后任何非空备注含软删安全拒绝。后端与前端已实现、本地门禁通过，浏览器与交付验证另记；完整契约以[设计](../specs/2026-11-03-v0.43.0-internal-link-notes-design.md)为准。
 
-当前 [v0.43.0 短链内部备注](../product/scope-v0.43.0.md)已完成设计，尚未实现。独立备注版本和当前权限隔离，旧 metadata／公开访问／CSV 不增加备注；范围和验证阶段见[验收](v0.43.0-acceptance.md)。
+当前 [v0.43.0 短链内部备注](../product/scope-v0.43.0.md)后端与前端及本地门禁通过，浏览器、产品、审查和远端交付尚未完成；旧 metadata／公开访问／CSV 不增加备注。见[验收](v0.43.0-acceptance.md)。
 
 v0.42.0 已完整交付：[PR253](https://github.com/TomyJan/MoeURL/pull/253)最终候选2eab6cd真实审查和有效意见闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41528785613)与合并master a680b224的[自身九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41533004155)均成功，完整原日志分别核至 EOF。标准 Task1–4、25条完整裁决报告、新 whole-owned ZIP／解压全集核与准确leaf可恢复迁出完成，无延期Minor。未发布部署，见[验收](v0.42.0-acceptance.md)。下方旧阶段叙述保持历史归属。
 
