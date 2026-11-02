@@ -1,6 +1,8 @@
 # 技术选型决策
 
-当前 [v0.41.0 我的标签](../product/scope-v0.41.0.md)复用短链text[]、SQLC当前授权快照及原精确筛选，不新增schema、权限、依赖或全站目录。唯一终审发现首次pending读取被写后失效复用，已以精确query的generation退休、取消／移除旧读取修复，不改共享缓存默认策略。真实RED→GREEN、完整 2733 项前端测试全部通过、四项覆盖率均为 100%、静态构建通过；clean68dec 的定向 5 项浏览器测试和完整 163 项浏览器测试均通过；两次运行各自的 8 张新增原图均已逐张阅读；精确产品验证通过；后端业务100%及SQLC原合同冻结。Task1–3 已标准完成并核对本地全成员归档，Task4 远端交付进行中，见[计划](v0.41.0-plan.md)。
+当前 [v0.42.0 全站标签查找](../product/scope-v0.42.0.md)本地验证和唯一整分支终审已通过：clean872e5f5 的完整 167 项浏览器、16 张原图逐张阅读、精确产品 smoke／身份与所选 HIGH／CRITICAL 扫描通过；2781 项前端测试及四项 100%，后端业务 100%。终审无 Critical／Important，1 项 Session 返回码文档问题已核实修正。本人目录仍仅本人，不新增 schema、权限或依赖。当前收尾本地归档与标准 Task3，候选自身九 CI、最新 head 真实审查、合并及 master 验证仍待，详见本版验收。
+
+v0.41.0／[PR249](https://github.com/TomyJan/MoeURL/pull/249)已完整交付：最终候选6829ba3真实审查和有效意见闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41496993103)与合并master9a71bea的[自身九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41505792542)均成功，完整日志分别核至 EOF；标准 Task1–4、32 条完整裁决、新 whole-owned ZIP／解压全集核与准确 leaf 可恢复迁出完成，无延期 Minor。未发布部署；见[验收](v0.41.0-acceptance.md)。下方旧阶段文字保留历史归属，不代表当前仍待交付。
 
 v0.40.1／[PR248](https://github.com/TomyJan/MoeURL/pull/248)已完整交付：最终 c43e600 真实审查及有效问题闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41423729705)与 master 00c893ff 的[自身九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41430855520)全部成功，完整 raw 到 EOF；标准 Task1–4、全部 20 条裁决及可恢复归档完成，无延期 Minor，未发布部署。详见[验收](v0.40.1-acceptance.md)，下方旧阶段保持历史归属。
 

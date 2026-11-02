@@ -15,6 +15,7 @@
       </div>
       <ShortLinkBatchToolbar :state="batch" :access="access" transfer @transfer="beginBatchTransfer" @tags="beginBatchTags" />
     </div>
+    <AdminTagBrowser :access="access" :blocked="tagSelectionBlocked" @select="selectCatalogTag" />
     <div class="console-data-panel" data-testid="console-data-panel">
       <v-alert v-if="query.isError.value || (!access.canRead.value && !access.authPending.value)" type="error" variant="tonal">{{ t('adminLinks.loadFailed') }}</v-alert>
       <v-progress-linear v-else-if="access.authPending.value || (access.canRead.value && query.isPending.value)" indeterminate />
@@ -90,6 +91,7 @@ import ShortLinkBatchTransferDialog from '@/features/short-link-transfer/ShortLi
 import ShortLinkListExportButton from '@/features/short-link-list-export/ShortLinkListExportButton.vue'
 import ShortLinkBatchTagsDialog from '@/features/short-link-tags/ShortLinkBatchTagsDialog.vue'
 import { batchTagVersionSchema, type BatchTagTarget } from '@/entities/short-link/batch-tags'
+import AdminTagBrowser from '@/features/short-link-tags/AdminTagBrowser.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
@@ -158,6 +160,14 @@ const exportFilters = computed(() => ({ status: statusFilter.value, q: debounced
 const exportBlocked = computed(() => !access.canRead.value || !query.isSuccess.value || query.isFetching.value
   || keywordInvalid.value || tagInvalid.value || filtersPending.value || statusMutation.isPending.value
   || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || rowWriteBlocked.value)
+const tagSelectionBlocked = computed(() => exportPending.value || exportBlocked.value)
+
+/** Rechecks live parent state so a queued catalog click cannot bypass another active operation. */
+function selectCatalogTag(tag: string) {
+  const state = queryClient.getQueryState(listQueryKey.value)
+  if (tagSelectionBlocked.value || !access.allows('read') || state?.status !== 'success' || state.fetchStatus !== 'idle' || state.isInvalidated) return
+  tagFilter.value = tag
+}
 
 /** Captures real list versions only while the live cache and metadata grants are valid. */
 function beginBatchTags() {
@@ -209,7 +219,9 @@ function invalidateLinks() {
 </script>
 
 <style scoped>
+.console-page__tools { display: grid; }
 .console-page__metadata-filters {
+  width: 100%;
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
