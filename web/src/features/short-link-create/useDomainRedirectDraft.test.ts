@@ -6,6 +6,7 @@ import { setImmediate as eventLoop } from 'node:timers/promises'
 import type { RedirectMode } from '@/entities/short-link/model'
 import { useAccountIdentity, revokeAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 import { useDomainRedirectDefaults } from '@/shared/preferences/useDomainRedirectDefaults'
+import { useRedirectPreference } from '@/shared/preferences/useRedirectPreference'
 import { createDeferred } from '@/test/deferred'
 import { useDomainRedirectDraft } from './useDomainRedirectDraft'
 
@@ -17,11 +18,14 @@ function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
   clients.push(client)
   client.setQueryData(['auth', 'me'], { user: { id: 'A', username: 'alice', group: 'user', nickname: '', permissions: [] } })
-  const state = { mode: ref<RedirectMode>('direct'), delay: ref(5), pending: ref(false), confirmation: ref(true), requests: 0, next: null as (() => Promise<Response>) | null }
-  vi.stubGlobal('fetch', vi.fn(async () => { state.requests++; return state.next ? state.next() : response('intermediate') }))
+  const state = { mode: ref<RedirectMode>('direct'), delay: ref(5), pending: ref(false), confirmation: ref(true), requests: 0, next: null as (() => Promise<Response>) | null, personalNext: null as (() => Promise<Response>) | null }
+  vi.stubGlobal('fetch', vi.fn(async (path: string) => {
+    if (path === '/api/v1/user/redirect-preference') return state.personalNext ? state.personalNext() : new Response(JSON.stringify({ code: 0, message: '', data: { preference: { redirectMode: null, updatedAt: null } }, meta: {} }))
+    state.requests++; return state.next ? state.next() : response('intermediate')
+  }))
   const component = defineComponent({ setup() {
     const identity = useAccountIdentity()
-    const draft = useDomainRedirectDraft({ domainId: ref('11111111-1111-4111-8111-111111111111'), scope: identity.scope, canIntermediate: ref(true), canConfirmation: state.confirmation, pending: state.pending, mode: state.mode, delay: state.delay, query: useDomainRedirectDefaults() })
+    const draft = useDomainRedirectDraft({ domainId: ref('11111111-1111-4111-8111-111111111111'), scope: identity.scope, canIntermediate: ref(true), canConfirmation: state.confirmation, pending: state.pending, mode: state.mode, delay: state.delay, query: useDomainRedirectDefaults(), personal: useRedirectPreference(ref(true)) })
     return () => h('section', [h('output', `${state.mode.value}/${state.delay.value}`), h('button', { onClick: () => draft.choose('direct') }, 'Direct'), h('button', { onClick: () => draft.choose('confirmation') }, 'Confirmation'), h('button', { onClick: draft.reload }, 'Reload')])
   } })
   const view = render(component, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]] } })
@@ -56,4 +60,19 @@ it('does not change a surviving parent mode binding after its consumer unmounts 
   pending.resolve(response('confirmation'))
   await eventLoop()
   expect(view.state.mode.value).toBe('direct')
+})
+it('does not continue into domain reads after unmount during a personal-default refresh', async () => {
+  const pending = createDeferred<Response>()
+  const view = mount()
+  await screen.findByText('intermediate/5')
+  await fireEvent.click(screen.getByRole('button', { name: 'Direct' }))
+  const reading = vi.fn(() => pending.promise)
+  view.state.personalNext = reading
+  await fireEvent.click(screen.getByRole('button', { name: 'Reload' }))
+  await waitFor(() => expect(reading).toHaveBeenCalledTimes(1))
+  view.unmount()
+  pending.resolve(new Response(JSON.stringify({ code: 0, message: '', data: { preference: { redirectMode: null, updatedAt: null } }, meta: {} })))
+  await eventLoop()
+  expect(view.state.mode.value).toBe('direct')
+  expect(view.state.requests).toBe(1)
 })

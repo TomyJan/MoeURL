@@ -73,6 +73,9 @@ vi.mock('@/shared/preferences/useDomainRedirectDefaults', () => ({
 vi.mock('@/shared/preferences/useGroupDefaultDomain', () => ({
   useGroupDefaultDomain: () => ({ data: ref({ domainId: null, status: 'not_set' }), isSuccess: ref(true), isError: ref(false), refetch: vi.fn() }),
 }))
+vi.mock('@/shared/preferences/useRedirectPreference', () => ({
+  useRedirectPreference: () => ({ preference: ref({ redirectMode: null, updatedAt: null }), readError: ref(false), query: { refetch: vi.fn() } }),
+}))
 vi.mock('@/shared/preferences/useDomainPreference', () => {
   const scope = ref({ userId: 'shell-account', epoch: 1 })
   return {
@@ -130,6 +133,8 @@ vi.mock('@tanstack/vue-query', () => ({
     ? { data: ref({ items: [{ id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true }] }), isError: ref(false), isPending: ref(false) }
     : state.queryResult),
   useQueryClient: () => ({
+    getQueryData: () => (state.queryResult as { data: { value: unknown } }).data.value,
+    getQueryState: () => ({ status: 'success' }),
     invalidateQueries: state.invalidateQueries,
   }),
 }))

@@ -46,6 +46,10 @@ vi.mock('@/shared/preferences/useGroupDefaultDomain', () => ({
   useGroupDefaultDomain: () => ({ data: ref({ domainId: null, status: 'not_set' }), isSuccess: ref(true), isError: ref(false), refetch: vi.fn() }),
 }))
 
+vi.mock('@/shared/preferences/useRedirectPreference', () => ({
+  useRedirectPreference: () => ({ preference: ref({ redirectMode: null, updatedAt: null }), readError: ref(false), query: { refetch: vi.fn() } }),
+}))
+
 vi.mock('@/shared/preferences/useDomainRedirectDefaults', () => ({
   /** Preserves these legacy unit fixtures' direct policy at their existing query boundary. */
   useDomainRedirectDefaults: () => {
@@ -67,6 +71,8 @@ vi.mock('@tanstack/vue-query', async () => {
       return { refetch: vi.fn(), ...(options?.queryKey?.[0] === 'domain' ? state.domainQueryResult : state.queryResult) }
     }),
     useQueryClient: () => ({
+      getQueryData: () => (state.queryResult as { data: { value: unknown } }).data.value,
+      getQueryState: () => ({ status: (state.queryResult as { isError?: { value: boolean } }).isError?.value ? 'error' : 'success' }),
       invalidateQueries: state.invalidateQueries,
     }),
   }
@@ -900,7 +906,7 @@ describe('ShortLinkCreatePanel', () => {
     }
     options.onSettled?.(undefined, null, mutate.mock.calls[0]![0])
     expect(passwordInput.value).toBe('')
-    await expect(options.mutationFn?.({ targetUrl: 'https://example.com' })).rejects.toThrow('password validation failed')
+    await expect(options.mutationFn?.(mutate.mock.calls[0]![0])).rejects.toThrow('password validation failed')
     expect(screen.getByText('shortLinkCreate.passwordRequired')).toBeTruthy()
   })
 

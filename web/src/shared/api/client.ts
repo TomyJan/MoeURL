@@ -19,8 +19,8 @@ export class ApiClientError extends Error {
 const API_BASE = '/api/v1'
 
 /** Performs an authenticated GET request under the versioned API prefix. */
-export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
-  return getJson<T>(`${API_BASE}${path}`)
+export async function apiGet<T>(path: string, headers?: Record<string, string>): Promise<ApiResponse<T>> {
+  return getJson<T>(`${API_BASE}${path}`, headers)
 }
 
 /** Performs a GET request to a validated same-origin absolute path. */
@@ -52,10 +52,11 @@ function resolveSameOriginPath(path: string): string {
 }
 
 /** Fetches and decodes a JSON response without changing the supplied path. */
-async function getJson<T>(path: string): Promise<ApiResponse<T>> {
+async function getJson<T>(path: string, headers?: Record<string, string>): Promise<ApiResponse<T>> {
   const response = await fetch(path, {
     credentials: 'include',
     headers: {
+      ...headers,
       Accept: 'application/json',
     },
     method: 'GET',
@@ -65,17 +66,18 @@ async function getJson<T>(path: string): Promise<ApiResponse<T>> {
 }
 
 /** Performs a POST request under the versioned API prefix; authentication is endpoint-specific. */
-export async function apiPost<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<ApiResponse<T>> {
-  return postJson<T>(`${API_BASE}${path}`, body, signal)
+export async function apiPost<T>(path: string, body?: unknown, signal?: AbortSignal, headers?: Record<string, string>): Promise<ApiResponse<T>> {
+  return postJson<T>(`${API_BASE}${path}`, body, signal, headers)
 }
 
 /** Serializes an optional JSON body and posts it to an already resolved path. */
-async function postJson<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<ApiResponse<T>> {
+async function postJson<T>(path: string, body?: unknown, signal?: AbortSignal, headers?: Record<string, string>): Promise<ApiResponse<T>> {
   const response = await fetch(path, {
     ...(signal ? { signal } : {}),
     body: body === undefined ? undefined : JSON.stringify(body),
     credentials: 'include',
     headers: {
+      ...headers,
       Accept: 'application/json',
       'Content-Type': 'application/json',
     },

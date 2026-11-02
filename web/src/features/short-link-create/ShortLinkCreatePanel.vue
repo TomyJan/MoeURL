@@ -59,9 +59,9 @@
           <v-btn variant="text" @click="useSystemChoice">{{ t('domainPreference.useSystem') }}</v-btn>
         </div>
         <p v-if="needsGroupChoice && groupDefault.data.value?.status === 'unavailable'" role="status">{{ t('groupDefault.unavailable') }}</p>
-        <div v-if="canCreateShortLink && redirectDraft.needsRead.value" :role="redirectDefaults.isError.value ? 'alert' : 'status'">
-          {{ t(redirectDefaults.isError.value ? 'domainRedirectDefault.loadFailed' : 'domainRedirectDefault.loading') }}
-          <v-btn v-if="redirectDefaults.isError.value || redirectDefaults.isSuccess.value" variant="text" :disabled="mutation.isPending.value" @click="redirectDraft.reload()">{{ t('domainRedirectDefault.retry') }}</v-btn>
+        <div v-if="canCreateShortLink && redirectDraft.needsRead.value" :role="redirectDraft.readFailed.value ? 'alert' : 'status'">
+          {{ t(redirectDraft.readFailed.value ? 'redirectPreference.defaultFailed' : 'redirectPreference.defaultLoading') }}
+          <v-btn v-if="redirectDraft.readFailed.value || redirectDefaults.isSuccess.value" variant="text" :disabled="mutation.isPending.value" @click="redirectDraft.reload()">{{ t('redirectPreference.retry') }}</v-btn>
           <v-btn variant="text" :disabled="mutation.isPending.value" @click="redirectDraft.choose('direct')">{{ t('domainRedirectDefault.useDirect') }}</v-btn>
         </div>
         <div v-if="canCreateShortLink && redirectDraft.reconfirm.value" role="alert">
@@ -69,8 +69,8 @@
           <v-btn variant="text" :disabled="mutation.isPending.value" @click="redirectDraft.choose('direct')">{{ t('domainRedirectDefault.useDirect') }}</v-btn>
         </div>
         <div v-if="canConfigureRedirect && (redirectDraft.changed.value || redirectDraft.manual.value !== null)" role="status">
-          <span v-if="redirectDraft.changed.value">{{ t('domainRedirectDefault.changed') }}</span>
-          <v-btn variant="text" :disabled="mutation.isPending.value" @click="redirectDraft.reload()">{{ t('domainRedirectDefault.useDefault') }}</v-btn>
+          <span v-if="redirectDraft.changed.value">{{ t('redirectPreference.defaultChanged') }}</span>
+          <v-btn variant="text" :disabled="mutation.isPending.value" @click="redirectDraft.reload()">{{ t('redirectPreference.useDefault') }}</v-btn>
         </div>
         <p v-if="!domainQuery.isError.value && domainQuery.data.value && availableDomains.length === 0 && canCreateWithPermissions" role="status">
           {{ t('shortLinkCreate.noAvailableDomains') }}
@@ -239,7 +239,7 @@
                 {{ t('shortLinkCreate.open') }}
               </v-btn>
               <v-btn size="small" variant="text" @click="qrOpen = true">{{ t('shortLinkCreate.qrCode') }}</v-btn>
-              <v-btn size="small" variant="text" @click="resetForm">{{ t('shortLinkCreate.reset') }}</v-btn>
+              <v-btn size="small" variant="text" @click="resetForm(true)">{{ t('shortLinkCreate.reset') }}</v-btn>
             </div>
           </div>
         </div>
@@ -261,10 +261,11 @@ import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
-import { me } from '@/entities/auth/api'
+import { me, type UserResponse } from '@/entities/auth/api'
 import { useAvailableDomainChoices, useDomainPreference } from '@/shared/preferences/useDomainPreference'
 import { useGroupDefaultDomain } from '@/shared/preferences/useGroupDefaultDomain'
 import { useDomainRedirectDefaults } from '@/shared/preferences/useDomainRedirectDefaults'
+import { useRedirectPreference } from '@/shared/preferences/useRedirectPreference'
 import { useDomainRedirectDraft } from './useDomainRedirectDraft'
 import { createShortLink } from '@/entities/short-link/api'
 import type { CreateShortLinkInput, RedirectMode } from '@/entities/short-link/model'
@@ -357,6 +358,7 @@ const canSetMetadata = computed(() => Boolean(currentUser.value?.permissions.inc
 const canCustomizeSlug = computed(() => Boolean(currentUser.value?.permissions.includes('short_link:custom_slug')))
 const canConfigureRedirect = computed(() => canUseIntermediate.value || canUseConfirmation.value)
 const redirectDefaults = useDomainRedirectDefaults(computed(() => canConfigureRedirect.value && canCreateWithPermissions.value))
+const personalRedirect = useRedirectPreference(computed(() => canConfigureRedirect.value && canCreateWithPermissions.value && !currentUserQuery.isError.value))
 const actualDomainId = computed(() => availableDomains.value.find((item) => domainChoice.value === '' ? item.isDefault : item.id === domainChoice.value)?.id ?? '')
 const canConfigureAccess = computed(() => canConfigureRedirect.value || canSetExpiration.value || canSetPassword.value || canSetMaxVisits.value || canSetMetadata.value || canCustomizeSlug.value)
 const showPermissionRequired = computed(() => hasResolvedCurrentUser.value && !canCreateWithPermissions.value)
@@ -386,8 +388,13 @@ onBeforeUnmount(() => { mounted = false })
 function isCurrentCreation(input: CreationInput) { return mounted && preference.isCurrent(creationScopes.get(input)!) }
 
 const mutation = useMutation({
+  retry: false,
   /** Runs creation through the shared sensitive-input cleanup boundary. */
   mutationFn: (input: Omit<CreateShortLinkInput, 'password'>) => {
+    const permissions = queryClient.getQueryData<UserResponse>(['auth', 'me'])?.user.permissions ?? []
+    if (!isCurrentCreation(input) || !canSubmit.value || queryClient.getQueryState(['auth', 'me'])?.status === 'error' || !permissions.includes('short_link:create') || !permissions.some(value => value === 'domain:use_default' || value === 'domain:use_assigned') || (input.redirectMode === 'intermediate' && !permissions.includes('short_link:use_intermediate')) || (input.redirectMode === 'confirmation' && !permissions.includes('short_link:use_confirmation'))) {
+      return Promise.reject(new Error('Creation intent expired'))
+    }
     const passwordRequested = canSetPassword.value && passwordEnabled.value
     const passwordElement = passwordRequested ? passwordInput() : null
     const requestPassword = passwordElement?.value
@@ -413,8 +420,7 @@ const mutation = useMutation({
     createdUrl.value = result.shortLink.url
     createdSlug.value = result.shortLink.slug
     qrOpen.value = false
-    resetInputFields()
-    redirectDraft.reset(true)
+    resetInputFields(true)
     void queryClient.invalidateQueries({ queryKey: ['short-link'] })
     void queryClient.invalidateQueries({ queryKey: ['admin-short-link'] })
   },
@@ -436,7 +442,7 @@ const mutation = useMutation({
   },
 })
 
-const redirectDraft = useDomainRedirectDraft({ domainId: actualDomainId, scope: preference.scope, canIntermediate: canUseIntermediate, canConfirmation: canUseConfirmation, pending: mutation.isPending, mode: redirectMode, delay: intermediateDelaySeconds, query: redirectDefaults })
+const redirectDraft = useDomainRedirectDraft({ domainId: actualDomainId, scope: preference.scope, canIntermediate: canUseIntermediate, canConfirmation: canUseConfirmation, pending: mutation.isPending, mode: redirectMode, delay: intermediateDelaySeconds, query: redirectDefaults, personal: personalRedirect })
 watch(preference.scope, () => { resetForm(); mutation.reset() }, { flush: 'sync' })
 
 /** Makes the system fallback an explicit temporary decision even for a single candidate. */
@@ -558,15 +564,15 @@ function submitValidatedInput(): boolean {
 }
 
 /** Clears both the creation form and its generated-link result. */
-function resetForm() {
-  resetInputFields()
+function resetForm(refresh = false) {
+  resetInputFields(refresh)
   createdUrl.value = ''
   createdSlug.value = ''
   qrOpen.value = false
 }
 
 /** Clears creation inputs after a successful request while preserving the generated result. */
-function resetInputFields() {
+function resetInputFields(refresh = false) {
   customSlug.value = ''
   customSlugError.value = ''
   metadataTitle.value = ''
@@ -589,7 +595,7 @@ function resetInputFields() {
   passwordEnabled.value = false
   selectedDomainId.value = null
   lostManualChoice.value = false
-  redirectDraft.reset()
+  redirectDraft.reset(refresh)
 }
 
 /** Resolves the transient native password input without copying it into reactive state. */
@@ -793,6 +799,16 @@ async function copyUrl(url: string) {
 }
 
 @media (max-width: 620px) {
+  .short-link-create-panel__mode-control :deep(.v-btn-toggle) {
+    flex-wrap: wrap;
+    height: auto;
+    max-width: 100%;
+  }
+
+  .short-link-create-panel__mode-control :deep(.v-btn-toggle > .v-btn) {
+    min-height: 44px;
+  }
+
   .short-link-create-panel__field-row {
     grid-template-columns: 1fr;
   }

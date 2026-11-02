@@ -41,6 +41,7 @@ export function mountRedirectDefaults(component: Component, options: { admin?: b
     if (state.overrides[path]) return state.overrides[path]()
     if (path === '/api/v1/auth/me') return redirectResponse({ user: state.user })
     if (path === '/api/v1/user/domain-preference') return redirectResponse({ preference: { domainId: null, updatedAt: null } })
+    if (path === '/api/v1/user/redirect-preference') return redirectResponse({ preference: { redirectMode: null, updatedAt: null } })
     if (path === '/api/v1/domain/group-default') return redirectResponse({ selection: { domainId: null, status: 'not_set' } })
     if (path === '/api/v1/domain/available') return redirectResponse({ items: state.domains })
     if (path === '/api/v1/domain/redirect-defaults') return redirectResponse({ items: state.defaults })

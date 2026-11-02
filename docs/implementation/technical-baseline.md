@@ -1,6 +1,8 @@
 # 技术基线
 
-v0.38.0 当前：Task1–3 标准完成，本地完整报告／30条裁决和whole-owned ZIP／解压核验完成。唯一终审覆盖919548b，两个Important真实修复；完整2544前端／四100／静态构建及clean540b862自身144浏览器／八原图／精确产品通过。Task4已启动，PR245的远端CI／有效意见闭环／最终head真实审查、合并及master验证仍待。原0d519c0首审只提出3项文档Minor，正在同步状态；不冒后继审查覆盖、发布或部署。下方较早摘要均为历史。
+v0.39.0 已实现独立本人表、完整精度 CAS、8KiB 严格 JSON、五秒当前身份与权限事务、Query 编辑器和单条创建初选。自动 intermediate 为 5 秒，手动→有权个人→实际域名→direct；旧 API 省略及批量仍 direct。官方 GET／POST 增加预期账号头前置条件，拒绝共享 Cookie 换号错写；无头客户端仍操作当前 Cookie 本人，JSON 不变。冻结镜像 Node26.5.1／pnpm11.5，无 host 安装；2619 项前端／四项 100% 与 clean `7d6f800` 的 149 项浏览器及产品扫描通过。唯一终审两项 Important 与一项 Minor 已处理，修复后完整门禁通过；远端交付待完成。各输入与证据分别见[设计](../specs/2026-11-02-v0.39.0-personal-redirect-mode-design.md)及[验收](v0.39.0-acceptance.md)。
+
+v0.38.0 已完成交付：[PR245](https://github.com/TomyJan/MoeURL/pull/245) 最终候选 b2d19823c70a59d479bbc8d452f97c174c32bb1d 的真实审查／有效意见已闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41340395109) 与合并 master07d4f6c3af23c4f50cd94021d2af13fe0a889c87 的[九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41344911045) 均成功，完整日志分别核读至 EOF。标准 Task1–4、完整 41 条裁决报告与 whole-owned ZIP／解压全集核、准确 leaf 可恢复迁出完成；未发布或部署。下方旧阶段保留历史归属。
 
 v0.38.0 边界：1–20 条、单条 1–2048 字节可打印 ASCII HTTP(S)、64KiB 严格 JSON、5 秒事务、每条 8 次随机 slug 尝试；本人／默认域名／direct，永久 SHA-256 回执不存 URL，无新增权限或依赖。Task1 已标准完成，00033、SQLC 60／28 零漂移、Windows Go1.26.10 业务 100%／vet 与 Linux race／scanner 保持原归属。前端冻结依赖镜像 05c538e5，真实 Docker Node26.5.1／pnpm11.5，完整 2534 测试和四项 100%、types／lint／隔离 build 通过，未安装 host 依赖；Task2 已在 2b2ee2a 标准完成，Task3 已标准启动；手机提示已真实 RED→GREEN，clean bfb9828 的完整 144 项浏览器、八张原图实读和标准产品／精确镜像扫描通过，唯一终审、本地归档与远端交付仍待。见[规格](../specs/2026-11-01-v0.38.0-bulk-create-design.md)和[验收](v0.38.0-acceptance.md)。v0.37.0／PR244 已交付，旧叙述为历史。
 

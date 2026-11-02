@@ -62,6 +62,7 @@
       <DomainPreferencePanel :key="`domain-${currentUser.id}`" :user-id="currentUser.id" :active="!identityRevoked && currentUser.group !== 'guest' && !currentUserQuery.isError.value" />
 
       <TimeZonePreferencePanel :key="'time-zone-' + currentUser.id" :user-id="currentUser.id" :active="!identityRevoked && currentUser.group !== 'guest' && !currentUserQuery.isError.value" />
+      <RedirectPreferencePanel :key="'redirect-' + currentUser.id" :user-id="currentUser.id" :permissions="currentUser.permissions" :active="!identityRevoked && currentUser.group !== 'guest' && !currentUserQuery.isError.value" />
 
       <section class="profile-card profile-card--preferences">
         <h2>{{ t('profile.preferencesTitle') }}</h2>
@@ -95,6 +96,7 @@ import PasswordChangePanel from '@/features/password-change/PasswordChangePanel.
 import AccountPreferencesPanel from '@/features/account-preferences/AccountPreferencesPanel.vue'
 import DomainPreferencePanel from '@/features/domain-preference/DomainPreferencePanel.vue'
 import TimeZonePreferencePanel from '@/features/time-zone-preference/TimeZonePreferencePanel.vue'
+import RedirectPreferencePanel from '@/features/redirect-preference/RedirectPreferencePanel.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()

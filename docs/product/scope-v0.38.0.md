@@ -1,6 +1,6 @@
 # v0.38.0 有界批量创建
 
-v0.38.0 当前：Task1–3 标准完成，本地完整报告／30条裁决和whole-owned ZIP／解压核验完成。唯一终审覆盖919548b，两个Important真实修复；完整2544前端／四100／静态构建及clean540b862自身144浏览器／八原图／精确产品通过。Task4已启动，PR245的远端CI／有效意见闭环／最终head真实审查、合并及master验证仍待。原0d519c0首审只提出3项文档Minor，正在同步状态；不冒后继审查覆盖、发布或部署。下方较早摘要均为历史。
+v0.38.0 已完成交付：[PR245](https://github.com/TomyJan/MoeURL/pull/245) 最终候选 b2d19823c70a59d479bbc8d452f97c174c32bb1d 的真实审查／有效意见已闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41340395109) 与合并 master07d4f6c3af23c4f50cd94021d2af13fe0a889c87 的[九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41344911045) 均成功，完整日志分别核读至 EOF。标准 Task1–4、完整 41 条裁决报告与 whole-owned ZIP／解压全集核、准确 leaf 可恢复迁出完成；未发布或部署。下方旧阶段保留历史归属。
 
 ## 定位与状态
 

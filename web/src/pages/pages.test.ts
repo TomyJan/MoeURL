@@ -49,6 +49,7 @@ const state = vi.hoisted(() => ({
     }
   },
   queryClient: {
+    getQueryState: vi.fn(() => ({ status: 'success' })),
     getQueryData: vi.fn(() => ({ user: { id: 'test-account', username: 'test-account', group: 'user', permissions: ['short_link:read_own', 'short_link:update_own', 'short_link:delete_own', 'admin:access', 'short_link:read_all', 'short_link:update_all', 'short_link:delete_all'] } })),
     cancelQueries: vi.fn(),
     removeQueries: vi.fn(),
@@ -1245,6 +1246,9 @@ describe('pages', () => {
     setQueryResult({ data: ref({ user: { username: 'alice', nickname: 'Alice', group: 'user', permissions: ['short_link:create', 'domain:use_default'] } }) })
     setMutationResult()
     mount(HomePage)
+
+    const cached = state.queryClient.getQueryData()
+    state.queryClient.getQueryData.mockReturnValueOnce({ user: { ...cached.user, permissions: [...cached.user.permissions, 'short_link:create', 'domain:use_default'] } })
 
     await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')
     await fireEvent.click(screen.getByText('shortLinkCreate.submit'))
