@@ -23,7 +23,7 @@ function mount(grants = actor.permissions) {
   vi.stubGlobal('fetch', fetcher)
   return { ...render(MyLinksPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: componentStubs } }), client, fetcher }
 }
-afterEach(() => { clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals(); vi.clearAllMocks() })
+afterEach(() => { clients.splice(0).forEach(client => client.clear()); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.clearAllMocks() })
 
 /** Opens and previews through the actual rendered controls. */
 async function openPreview() {
@@ -40,6 +40,103 @@ async function chooseFile(file?: File | NodeFile) {
 }
 
 describe('personal bounded creation', () => {
+  // Missing help, private draft leakage or a download that edits/submits the draft must fail.
+  it('shows downloadable CSV help without changing the draft', async () => {
+    const view = mount()
+    await waitFor(() => expect(view.client.isFetching()).toBe(0))
+    await fireEvent.click(await screen.findByTestId('bulk-create-open'))
+    await fireEvent.update(screen.getByLabelText('bulkCreate.targets'), 'https://private.example/sensitive')
+    const blobs: Blob[] = [], files: string[] = []
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, { createObjectURL: (blob: Blob) => { blobs.push(blob); return 'blob:bulk-csv' }, revokeObjectURL: () => {} }))
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { files.push(this.download) })
+    const summary = screen.getByText('bulkCreate.csvFormatTitle')
+    await fireEvent.click(summary)
+    expect(screen.getByTestId('bulk-create-csv-example').textContent).toBe('target_url\nhttps://example.com/one\n"https://example.org/search?q=a,b"')
+    await fireEvent.click(screen.getByRole('button', { name: 'bulkCreate.csvDownload' }))
+    expect(files).toEqual(['moeurl-target-urls-template.csv'])
+    expect(blobs).toHaveLength(1)
+    expect(blobs[0]!.type).toBe('text/csv;charset=utf-8')
+    const bytes = await new Promise<ArrayBuffer>(resolve => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as ArrayBuffer)
+      reader.readAsArrayBuffer(blobs[0]!)
+    })
+    expect([...new Uint8Array(bytes)]).toEqual([...new TextEncoder().encode('\uFEFFtarget_url\r\nhttps://example.com/one\r\n"https://example.org/search?q=a,b"\r\n')])
+    expect((screen.getByLabelText('bulkCreate.targets') as HTMLTextAreaElement).value).toBe('https://private.example/sensitive')
+    expect(screen.getByTestId('bulk-create-csv-feedback').textContent).toBe('bulkCreate.csvDownloadStarted')
+    expect(document.querySelector('a[download]')).toBeNull()
+    expect(view.fetcher.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0)
+  })
+  // Download errors belong to the help, never to the import error or draft; reopening clears them.
+  it('retries a failed template download without replacing the import error and resets on reopen', async () => {
+    const view = mount()
+    await waitFor(() => expect(view.client.isFetching()).toBe(0))
+    await fireEvent.click(await screen.findByTestId('bulk-create-open'))
+    await fireEvent.update(screen.getByLabelText('bulkCreate.targets'), 'https://example.com/keep')
+    await chooseFile(new NodeFile(['target_url,slug\nhttps://example.com/changed,old'], 'invalid.csv'))
+    await waitFor(() => expect(screen.getByTestId('bulk-create-error').textContent).toBe('bulkCreate.csvInvalid'))
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, { createObjectURL: () => 'blob:bulk-csv', revokeObjectURL: () => {} }))
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementationOnce(() => { throw new Error('private browser path') })
+      .mockImplementation(() => {})
+    await fireEvent.click(screen.getByText('bulkCreate.csvFormatTitle'))
+    await fireEvent.click(screen.getByRole('button', { name: 'bulkCreate.csvDownload' }))
+    expect(screen.getByTestId('bulk-create-csv-feedback').textContent).toBe('bulkCreate.csvDownloadFailed')
+    expect(screen.getByRole('dialog').textContent).not.toContain('private browser path')
+    expect(screen.getByTestId('bulk-create-error').textContent).toBe('bulkCreate.csvInvalid')
+    expect((screen.getByLabelText('bulkCreate.targets') as HTMLTextAreaElement).value).toBe('https://example.com/keep')
+    expect(document.querySelector('a[download]')).toBeNull()
+    await fireEvent.click(screen.getByRole('button', { name: 'bulkCreate.csvDownload' }))
+    expect(screen.getByTestId('bulk-create-csv-feedback').textContent).toBe('bulkCreate.csvDownloadStarted')
+    expect(screen.getByTestId('bulk-create-error').textContent).toBe('bulkCreate.csvInvalid')
+    expect(view.fetcher.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0)
+    click.mockRestore()
+    await fireEvent.click(screen.getByTestId('bulk-create-close'))
+    await fireEvent.click(screen.getByTestId('bulk-create-open'))
+    expect(screen.queryByTestId('bulk-create-csv-feedback')).toBeNull()
+    expect(screen.getByTestId('bulk-create-csv-help').hasAttribute('open')).toBe(false)
+  })
+  // A template download must not retire the already captured file-read generation.
+  it('lets a pending CSV read finish after downloading the public template', async () => {
+    const view = mount()
+    await waitFor(() => expect(view.client.isFetching()).toBe(0))
+    await fireEvent.click(await screen.findByTestId('bulk-create-open'))
+    const pending = createDeferred<ArrayBuffer>(), file = new File([], 'targets.csv')
+    Object.defineProperty(file, 'arrayBuffer', { value: () => pending.promise })
+    await chooseFile(file)
+    expect(screen.getByText('bulkCreate.csvReading')).toBeTruthy()
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, { createObjectURL: () => 'blob:bulk-csv', revokeObjectURL: () => {} }))
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    await fireEvent.click(screen.getByText('bulkCreate.csvFormatTitle'))
+    await fireEvent.click(screen.getByRole('button', { name: 'bulkCreate.csvDownload' }))
+    expect((screen.getByTestId('bulk-create-preview') as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText('bulkCreate.csvReading')).toBeTruthy()
+    pending.resolve(new TextEncoder().encode('target_url\nhttps://example.com/from-file').buffer)
+    await waitFor(() => expect((screen.getByLabelText('bulkCreate.targets') as HTMLTextAreaElement).value).toBe('https://example.com/from-file'))
+    expect(screen.queryByText('bulkCreate.csvReading')).toBeNull()
+    await fireEvent.click(screen.getByTestId('bulk-create-preview'))
+    expect(screen.getByTestId('bulk-create-preview-list').textContent).toBe('https://example.com/from-file')
+    expect(screen.queryByTestId('bulk-create-csv-help')).toBeNull()
+    expect(view.fetcher.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0)
+  })
+  // A frozen preview, in-flight write or unknown result must never offer replacement import help.
+  it('hides template help throughout preview, submission and an unknown result', async () => {
+    const view = mount()
+    await waitFor(() => expect(view.client.isFetching()).toBe(0))
+    await openPreview()
+    const key = screen.getByTestId('bulk-create-request-id').textContent
+    expect(screen.queryByTestId('bulk-create-csv-help')).toBeNull()
+    const original = view.fetcher.getMockImplementation()!, pending = createDeferred<Response>()
+    view.fetcher.mockImplementation((url, init) => String(url).endsWith('/batch-create') ? pending.promise : original(url, init))
+    await fireEvent.click(screen.getByTestId('bulk-create-submit'))
+    await waitFor(() => expect((screen.getByTestId('bulk-create-submit') as HTMLButtonElement).disabled).toBe(true))
+    expect(screen.queryByTestId('bulk-create-csv-help')).toBeNull()
+    pending.reject(new Error('offline'))
+    await waitFor(() => expect(screen.getByTestId('bulk-create-error').textContent).toBe('bulkCreate.unknown'))
+    expect(screen.queryByTestId('bulk-create-csv-help')).toBeNull()
+    expect(screen.getByTestId('bulk-create-request-id').textContent).toBe(key)
+    expect(view.fetcher.mock.calls.filter(([url]) => String(url).endsWith('/batch-create'))).toHaveLength(1)
+  })
   // Missing/early file ingestion must not write or alter literal ordered targets.
   it('imports a local CSV into ordered preview without writing until confirmation', async () => {
     const view = mount()

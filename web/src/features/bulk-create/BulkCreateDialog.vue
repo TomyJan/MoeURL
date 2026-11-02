@@ -12,6 +12,7 @@
             <input type="file" accept=".csv,text/csv" :disabled="state.pending.value" @change="selectFile" />
           </label>
           <p>{{ t('bulkCreate.csvHelp') }}</p>
+          <BulkCreateCsvHelp v-if="state.opened.value" />
           <p v-if="state.reading.value" role="status">{{ t('bulkCreate.csvReading') }}</p>
           <v-textarea v-model="state.draft.value" :label="t('bulkCreate.targets')" rows="6" variant="outlined" :disabled="state.pending.value" />
         </template>
@@ -40,6 +41,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { useBulkCreate } from './useBulkCreate'
+import BulkCreateCsvHelp from './BulkCreateCsvHelp.vue'
 const { t } = useI18n()
 const state = useBulkCreate()
 /** Releases the native selection so choosing the same file starts a fresh explicit read. */
