@@ -188,6 +188,8 @@ type ShortLink struct {
 	VisitsUsed               int64              `json:"visits_used"`
 	Title                    string             `json:"title"`
 	Tags                     []string           `json:"tags"`
+	Note                     string             `json:"note"`
+	NoteUpdatedAt            pgtype.Timestamptz `json:"note_updated_at"`
 }
 
 type ShortLinkAccessGrant struct {

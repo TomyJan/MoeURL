@@ -53,7 +53,7 @@ func TestDomainRedirectDefaultMigrationRoundTrip(t *testing.T) {
 				seed()
 				before = snapshot()
 			}
-			require.NoError(t, goose.Up(database, dir))
+			require.NoError(t, goose.UpTo(database, dir, 28))
 			if !populated {
 				seed()
 				before = snapshot()
@@ -103,7 +103,7 @@ func TestDomainRedirectDefaultMigrationRoundTrip(t *testing.T) {
 			require.NoError(t, database.QueryRowContext(ctx, `select array_to_json(changed_fields)::text from audit_log order by id desc limit 1`).Scan(&fields))
 			require.Equal(t, `["display_name"]`, fields, "the restored legacy trigger must remain usable")
 			before = snapshot()
-			require.NoError(t, goose.Up(database, dir))
+			require.NoError(t, goose.UpTo(database, dir, 28))
 			require.NoError(t, database.QueryRowContext(ctx, `select default_redirect_mode from domain`).Scan(&mode))
 			require.Equal(t, "direct", mode, "reapply starts direct, not the discarded old configuration")
 			require.Equal(t, before, snapshot())
