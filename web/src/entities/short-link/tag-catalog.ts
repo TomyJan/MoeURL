@@ -13,9 +13,19 @@ export type TagCatalogResult = z.infer<typeof resultSchema>
 
 /** Reads a bounded personal directory without interpreting search text as wildcard syntax. */
 export async function listPersonalTags(query = ''): Promise<TagCatalogResult> {
+  return readTagCatalog('/short-link/tags', query)
+}
+
+/** Reads the independently authorized global directory from its fixed management endpoint. */
+export async function listAdminTags(query = ''): Promise<TagCatalogResult> {
+  return readTagCatalog('/admin/short-link/tags', query)
+}
+
+/** Validates the same bounded wire contract for both fixed endpoints. */
+async function readTagCatalog(path: string, query: string): Promise<TagCatalogResult> {
   const request = tagCatalogQuerySchema.safeParse(query)
   if (!request.success) throw new ApiClientError(100001, 'Invalid tag search')
-  const response = await apiGet<unknown>('/short-link/tags?q=' + encodeURIComponent(request.data))
+  const response = await apiGet<unknown>(path + '?q=' + encodeURIComponent(request.data))
   const result = resultSchema.safeParse(response.data)
   if (!result.success) throw new ApiClientError(100001, 'Invalid tag catalog response')
   return result.data

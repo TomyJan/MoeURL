@@ -1,22 +1,26 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { listPersonalTags, tagCatalogQuerySchema } from './tag-catalog'
+import { listPersonalTags, listAdminTags, tagCatalogQuerySchema } from './tag-catalog'
 
 /** Supplies a fresh HTTP body for every request rather than reusing consumed Responses. */
 function response(data: unknown) { return new Response(JSON.stringify({ code: 0, message: 'OK', data, meta: {} })) }
 afterEach(() => { vi.unstubAllGlobals() })
 
-describe('personal tag catalog HTTP contract', () => {
+describe.each([
+  ['own', listPersonalTags, '/api/v1/short-link/tags'],
+  ['admin', listAdminTags, '/api/v1/admin/short-link/tags'],
+] as const)('%s tag catalog HTTP contract', (_context, listTags, path) => {
   it('encodes literal Unicode and wildcard-like characters, retaining exact tag text', async () => {
     const data = { items: [{ tag: '<b>%_\\文</b>', linkCount: 2 }], hasMore: false }
     vi.stubGlobal('fetch', vi.fn(async () => response(data)))
-    expect(await listPersonalTags('\u3000%_\\文\u00a0')).toEqual(data)
+    expect(await listTags('\u3000%_\\文\u00a0')).toEqual(data)
     expect(new URL(String(vi.mocked(fetch).mock.calls[0]?.[0]), 'http://localhost').searchParams.get('q')).toBe('%_\\文')
+    expect(new URL(String(vi.mocked(fetch).mock.calls[0]?.[0]), 'http://localhost').pathname).toBe(path)
     expect(vi.mocked(fetch).mock.calls[0]?.[1]).toMatchObject({ method: 'GET', credentials: 'include' })
-    expect(await listPersonalTags()).toEqual(data)
+    expect(await listTags()).toEqual(data)
   })
   it.each(['\tA', 'A\n', '\u0085A', '\u0000', '\ud800', '😀'.repeat(33)])('rejects invalid raw search %j before HTTP', async query => {
     vi.stubGlobal('fetch', vi.fn())
-    await expect(listPersonalTags(query)).rejects.toMatchObject({ code: 100001 })
+    await expect(listTags(query)).rejects.toMatchObject({ code: 100001 })
     expect(fetch).not.toHaveBeenCalled()
   })
   it('counts code points, trims Go space and preserves BOM and Unicode normalization', () => {
@@ -35,13 +39,13 @@ describe('personal tag catalog HTTP contract', () => {
     { items: [], hasMore: true },
   ])('rejects incomplete or invalid response %j', async data => {
     vi.stubGlobal('fetch', vi.fn(async () => response(data)))
-    await expect(listPersonalTags('')).rejects.toMatchObject({ code: 100001 })
+    await expect(listTags('')).rejects.toMatchObject({ code: 100001 })
   })
   it('accepts explicit empty and a complete bounded page', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => response({ items: [], hasMore: false })))
-    expect(await listPersonalTags('')).toEqual({ items: [], hasMore: false })
+    expect(await listTags('')).toEqual({ items: [], hasMore: false })
     const data = { items: Array.from({ length: 50 }, (_, i) => ({ tag: 'tag'+i, linkCount: 1 })), hasMore: true }
     vi.mocked(fetch).mockImplementation(async () => response(data))
-    expect(await listPersonalTags('')).toEqual(data)
+    expect(await listTags('')).toEqual(data)
   })
 })

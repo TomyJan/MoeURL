@@ -1,6 +1,6 @@
 # MoeURL 产品总览
 
-当前 [v0.42.0 全站标签查找](scope-v0.42.0.md)进入正式设计：独立管理只读 API、当前两项权限快照、最多 50 项与独立缓存族；本人目录保持仅本人。基线为 master312ac6，尚无本版实现或测试结果，不新增 schema、权限或依赖。
+当前 [v0.42.0 全站标签查找](scope-v0.42.0.md)已完成后端与前端本地实现及门禁：独立管理只读 API、当前两项权限快照、最多 50 项与独立缓存族；本人目录保持仅本人。基线为 master312ac6，业务覆盖率及前端四项覆盖率均100%；真实浏览器、产品、整分支审查、目标CI与合并待完成，不新增 schema、权限或依赖。
 
 v0.41.0／[PR249](https://github.com/TomyJan/MoeURL/pull/249)已完整交付：最终候选6829ba3真实审查和有效意见闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41496993103)与合并master9a71bea的[自身九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41505792542)均成功，完整日志分别核至 EOF；标准 Task1–4、32 条完整裁决、新 whole-owned ZIP／解压全集核与准确 leaf 可恢复迁出完成，无延期 Minor。未发布部署；见[验收](../implementation/v0.41.0-acceptance.md)。下方旧阶段文字保留历史归属，不代表当前仍待交付。
 
