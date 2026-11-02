@@ -33,6 +33,7 @@ type Dependencies struct {
 	ShortLink              shortlink.Port
 	ShortLinkExport        shortlink.ExportPort
 	ShortLinkListExport    shortlink.ListExportPort
+	ShortLinkTagCatalog    shortlink.TagCatalogPort
 	ShortLinkBatch         shortlink.BatchPort
 	ShortLinkTransfer      shortlink.TransferPort
 	ShortLinkBatchTransfer shortlink.BatchTransferPort
@@ -184,6 +185,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				handler := shortlink.NewListExportHandler(dependency.ShortLinkListExport, logger)
 				businessAPI.Get("/short-link/export", handler.List)
 				businessAPI.Get("/admin/short-link/export", handler.AdminList)
+			}
+			if dependency.ShortLinkTagCatalog != nil {
+				handler := shortlink.NewTagCatalogHandler(dependency.ShortLinkTagCatalog, logger)
+				businessAPI.Get("/short-link/tags", handler.List)
 			}
 			if dependency.ShortLink != nil {
 				shortLinkHandler := shortlink.NewHandlerWithLogger(dependency.ShortLink, logger)
