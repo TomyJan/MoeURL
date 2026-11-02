@@ -1,6 +1,6 @@
 # 技术选型决策
 
-当前 [v0.41.0 我的标签](../product/scope-v0.41.0.md)复用短链text[]、SQLC当前授权快照及原精确筛选，不新增schema、权限、依赖或全站目录。唯一终审发现首次pending读取被写后失效复用，已以精确query的generation退休、取消／移除旧读取修复，不改共享缓存默认策略。真实RED→GREEN、完整2733项前端测试／四100、静态构建及clean68dec定向5项／完整163项浏览器、逐图与精确产品验证均通过；后端业务100%及SQLC原合同冻结。本地报告、归档／标准Task3回执与远端交付分阶段执行，见[计划](v0.41.0-plan.md)。
+当前 [v0.41.0 我的标签](../product/scope-v0.41.0.md)复用短链text[]、SQLC当前授权快照及原精确筛选，不新增schema、权限、依赖或全站目录。唯一终审发现首次pending读取被写后失效复用，已以精确query的generation退休、取消／移除旧读取修复，不改共享缓存默认策略。真实RED→GREEN、完整2733 项前端测试全部通过、四项覆盖率均为 100%、静态构建及clean68dec定向5项／完整163项浏览器、逐图与精确产品验证均通过；后端业务100%及SQLC原合同冻结。Task1–3 已标准完成并核对本地全成员归档，Task4 远端交付进行中，见[计划](v0.41.0-plan.md)。
 
 v0.40.1／[PR248](https://github.com/TomyJan/MoeURL/pull/248)已完整交付：最终 c43e600 真实审查及有效问题闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41423729705)与 master 00c893ff 的[自身九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41430855520)全部成功，完整 raw 到 EOF；标准 Task1–4、全部 20 条裁决及可恢复归档完成，无延期 Minor，未发布部署。详见[验收](v0.40.1-acceptance.md)，下方旧阶段保持历史归属。
 

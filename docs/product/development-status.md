@@ -1,6 +1,6 @@
 # 开发进度与能力清单
 
-当前 [v0.41.0 我的标签](scope-v0.41.0.md)已实现本人标签查找与引用数、最多50项和原精确筛选。Task1–2标准完成，后端业务100%；唯一终审发现的首次读取失效竞态已真实RED→GREEN修复，完整2733项前端测试／四100、静态与构建通过。修复后clean68dec的定向5项／完整163项浏览器、各8张新原图阅读、精确产品与所选HIGH,CRITICAL扫描均通过；本地报告已整理，归档／标准Task3回执及Task4远端交付分阶段执行。无新权限、schema或依赖，未发布部署，见[计划](../implementation/v0.41.0-plan.md)与[验收](../implementation/v0.41.0-acceptance.md)。
+当前 [v0.41.0 我的标签](scope-v0.41.0.md)已实现本人标签查找与引用数、最多50项和原精确筛选。Task1–2标准完成，后端业务100%；唯一终审发现的首次读取失效竞态已真实RED→GREEN修复，完整2733 项前端测试全部通过、四项覆盖率均为 100%、静态与构建通过。修复后clean68dec的定向5项／完整163项浏览器、各8张新原图阅读、精确产品与所选HIGH,CRITICAL扫描均通过；Task1–3 已标准完成并核对本地全成员归档，Task4 远端交付进行中。无新权限、schema或依赖，未发布部署，见[计划](../implementation/v0.41.0-plan.md)与[验收](../implementation/v0.41.0-acceptance.md)。
 
 v0.40.1／[PR248](https://github.com/TomyJan/MoeURL/pull/248)已完整交付：最终候选 c43e600 的真实审查／有效问题闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41423729705)与合并 master 00c893ff 的[自身九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41430855520)均成功，完整日志核至 EOF。标准 Task1–4、全部 20 条裁决、whole-owned ZIP／解压全集核和准确 leaf 可恢复迁出完成，无延期 Minor；未发布部署。详见[验收](../implementation/v0.40.1-acceptance.md)。下方旧开发阶段叙述保留历史归属。
 
