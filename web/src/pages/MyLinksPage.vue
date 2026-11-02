@@ -188,7 +188,9 @@ function invalidateLinks() {
 
 <style scoped>
 .bulk-create-header-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.console-page__tools { display: grid; }
 .console-page__metadata-filters {
+  width: 100%;
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
