@@ -1,6 +1,6 @@
 # 技术选型决策
 
-当前 [v0.41.0 我的标签](../product/scope-v0.41.0.md)已实现本人只读标签查找和引用数，复用短链内 text[]、SQLC 当前授权快照和既有精确筛选；不新增 schema、权限、依赖或全站目录。Task1–2 已标准完成，后端业务100%、完整2728项前端测试／四项100%、types／零warning lint／隔离build通过；Task3真实浏览器、产品与唯一终审以及远端交付仍待，见[计划](v0.41.0-plan.md)。
+当前 [v0.41.0 我的标签](../product/scope-v0.41.0.md)复用短链text[]、SQLC当前授权快照及原精确筛选，不新增schema、权限、依赖或全站目录。Task1–2标准完成、后端业务100%、2728项前端测试／四100及静态构建通过；桌面实际重叠通过本页局部工具栏分行修复，clean6eb3b8f的定向5项／完整163项浏览器、8张原图和精确产品／所选HIGH,CRITICAL扫描通过。唯一终审、本地收尾与远端交付仍待，见[计划](v0.41.0-plan.md)。
 
 v0.40.1／[PR248](https://github.com/TomyJan/MoeURL/pull/248)已完整交付：最终 c43e600 真实审查及有效问题闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41423729705)与 master 00c893ff 的[自身九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41430855520)全部成功，完整 raw 到 EOF；标准 Task1–4、全部 20 条裁决及可恢复归档完成，无延期 Minor，未发布部署。详见[验收](v0.40.1-acceptance.md)，下方旧阶段保持历史归属。
 

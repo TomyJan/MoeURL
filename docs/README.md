@@ -1,6 +1,6 @@
 # MoeURL 文档中心
 
-当前 [v0.41.0 我的标签](product/scope-v0.41.0.md)已实现个人只读标签查找与引用数，最多 50 项并提示更多，点击复用已有精确筛选。Task1–2 已标准完成：后端业务100%、完整2728项前端测试及四项100%、types／零warning lint／隔离build通过。Task3 已启动，真实浏览器、精确产品、唯一终审及远端交付仍待；无新权限、schema 或依赖，见[计划](implementation/v0.41.0-plan.md)与[验收](implementation/v0.41.0-acceptance.md)。
+当前 [v0.41.0 我的标签](product/scope-v0.41.0.md)已实现本人标签查找与引用数、最多50项和原精确筛选。Task1–2标准完成，后端业务100%、完整2728项前端测试／四100、静态及构建通过。桌面重叠经真实几何RED修复后，clean6eb3b8f的定向5项、完整163项浏览器、8张原图和精确产品／所选HIGH,CRITICAL扫描通过；唯一终审、本地收尾和远端交付仍待。无新权限、schema或依赖，未发布部署，见[计划](implementation/v0.41.0-plan.md)与[验收](implementation/v0.41.0-acceptance.md)。
 
 v0.40.1／[PR248](https://github.com/TomyJan/MoeURL/pull/248)已完整交付：最终候选 c43e600 的真实审查／有效问题闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41423729705)与合并 master 00c893ff 的[自身九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41430855520)均成功，完整日志核至 EOF。标准 Task1–4、全部 20 条裁决、whole-owned ZIP／解压全集核和准确 leaf 可恢复迁出完成，无延期 Minor；未发布部署。详见[验收](implementation/v0.40.1-acceptance.md)。下方旧开发阶段叙述保留历史归属。
 
