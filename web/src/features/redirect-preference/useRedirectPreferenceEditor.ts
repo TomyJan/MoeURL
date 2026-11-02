@@ -26,6 +26,7 @@ export function useRedirectPreferenceEditor(props: { userId: string; active: boo
   const busy = computed(() => pending.value || reloading.value || query.isFetching.value)
   const locked = computed(() => !eligible.value || !original.value || busy.value || readError.value || conflict.value)
   const draftSchema = z.union([z.literal(''), z.enum(redirectModes)])
+  /** Clearing and direct need no enhanced capability; saved modes never grant their own permission. */
   function allowed(mode: string | null, permissions = props.permissions) {
     return mode === null || mode === '' || mode === 'direct' || permissions.includes(mode === 'intermediate' ? 'short_link:use_intermediate' : 'short_link:use_confirmation')
   }
@@ -34,6 +35,7 @@ export function useRedirectPreferenceEditor(props: { userId: string; active: boo
   const owns = (intent: Pick<Intent, 'owner' | 'generation'>) => alive && eligible.value && isCurrent(intent.owner) && generation === intent.generation
   const mutation = useMutation({
     retry: false,
+    /** Rechecks the captured owner and current cached authority when an offline intent actually sends. */
     mutationFn(intent: Intent) {
       // TanStack may resume an offline mutation after a different identity is active.
       const currentUser = client.getQueryData<UserResponse>(['auth', 'me'])?.user
@@ -58,8 +60,11 @@ export function useRedirectPreferenceEditor(props: { userId: string; active: boo
     if (!original.value) adopt(value)
     else if (original.value.updatedAt !== value.updatedAt) conflict.value = true
   }, { immediate: true })
+  /** Replaces both the confirmed CAS baseline and its draft after an authorized adoption. */
   function adopt(value: RedirectPreference) { original.value = value; draft.value = value.redirectMode ?? ''; conflict.value = false; invalid.value = false }
+  /** Records user edits so pending reads and saves cannot replace a newer draft. */
   function edit(value: string) { draft.value = value; editRevision.value++; invalid.value = false }
+  /** Ordinary retries preserve an existing CAS baseline; only explicit discard adopts a changed version. */
   async function reload(discard: boolean) {
     if (!eligible.value || busy.value) return
     const intent = { owner: scope.value, generation }
@@ -76,6 +81,7 @@ export function useRedirectPreferenceEditor(props: { userId: string; active: boo
     } catch { /* The owned read error offers retry while preserving the draft. */ }
     finally { if (owns(intent)) reloading.value = false }
   }
+  /** Saves the captured draft/version once, publishing feedback only to its surviving owner and generation. */
   async function submit() {
     if (locked.value) return
     const parsed = draftSchema.safeParse(draft.value)

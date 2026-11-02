@@ -17,6 +17,7 @@ export function useRedirectPreference(confirmed: Ref<boolean>) {
   const owns = (owner: Owner) => !!owner.userId && owner.userId === identity.scope.value.userId && owner.epoch === identity.scope.value.epoch
   const query = useQuery({
     queryKey, enabled: computed(() => !!identity.scope.value.userId && confirmed.value), retry: false, staleTime: Infinity,
+    /** Checks the captured epoch before and after HTTP, and binds the server read to the expected account. */
     async queryFn({ signal, queryKey: [, , userId, epoch] }): Promise<OwnedPreference> {
       const owner = { userId, epoch }
       try {
@@ -29,6 +30,7 @@ export function useRedirectPreference(confirmed: Ref<boolean>) {
   })
   const preference = computed(() => query.data.value && owns(query.data.value) ? query.data.value.preference : undefined)
   const readError = computed(() => query.error.value instanceof OwnedReadError && owns(query.error.value.owner))
+  /** Replaces only the current owner's exact cache entry and prevents an older read from overwriting it. */
   function publish(owner: Owner, preference: RedirectPreference) {
     if (!identity.isCurrent(owner)) return
     const key = [...redirectPreferenceKey(owner.userId), owner.epoch]

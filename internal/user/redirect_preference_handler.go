@@ -24,6 +24,7 @@ type RedirectPreferenceHandler struct {
 	logger  *slog.Logger
 }
 
+// NewRedirectPreferenceHandler falls back to the process logger when no logger is supplied.
 func NewRedirectPreferenceHandler(service RedirectPreferencePort, logger *slog.Logger) *RedirectPreferenceHandler {
 	if logger == nil {
 		logger = slog.Default()
@@ -31,6 +32,7 @@ func NewRedirectPreferenceHandler(service RedirectPreferencePort, logger *slog.L
 	return &RedirectPreferenceHandler{service: service, logger: logger}
 }
 
+// Get rejects query parameters and stale browser ownership before reading the Cookie owner's resource.
 func (h *RedirectPreferenceHandler) Get(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	if r.URL.RawQuery != "" || r.URL.ForceQuery {
@@ -45,6 +47,7 @@ func (h *RedirectPreferenceHandler) Get(w http.ResponseWriter, r *http.Request) 
 	h.respond(w, r, result, err)
 }
 
+// Update accepts one bounded strict document and checks browser ownership before any write.
 func (h *RedirectPreferenceHandler) Update(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -113,6 +116,7 @@ func decodeRedirectPreferenceInput(body io.Reader) (UpdateRedirectPreferenceInpu
 	return input, nil
 }
 
+// respond maps business failures without exposing request values or infrastructure error text.
 func (h *RedirectPreferenceHandler) respond(w http.ResponseWriter, r *http.Request, result RedirectPreferenceResult, err error) {
 	switch {
 	case err == nil:

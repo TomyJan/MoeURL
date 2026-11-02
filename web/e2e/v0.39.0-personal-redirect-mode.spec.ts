@@ -194,6 +194,7 @@ async function withScenario(browser: Browser, admin: APIRequestContext, info: Te
   if (cleanupErrors.length) throw new AggregateError(cleanupErrors, 'Personal redirect cleanup failed')
 }
 
+/** Waits for the real login navigation and usable personal editor before proceeding. */
 async function signIn(page: Page, account: Account) {
   await page.goto('/login?redirect=/profile')
   await page.getByLabel(/^(账号|Username)$/, { exact: true }).fill(account.username)
@@ -202,6 +203,7 @@ async function signIn(page: Page, account: Account) {
   await expect(page).toHaveURL(/\/profile$/)
   await expect(page.getByTestId('redirect-preference-save')).toBeEnabled()
 }
+/** Uses the viewport's real account control and waits for logout navigation. */
 async function signOut(page: Page) {
   if ((page.viewportSize()?.width ?? 1280) < 960) {
     await page.getByRole('button', { name: /^(打开账号菜单|Open account menu)$/ }).click()
@@ -209,12 +211,14 @@ async function signOut(page: Page) {
   } else await page.getByRole('button', { name: /^(退出登录|Sign out)$/, exact: true }).click()
   await expect(page).toHaveURL(/\/login(?:\?redirect=(?:%2F|\/)profile)?$/)
 }
+/** Selects through the actual listbox and confirms the displayed draft value. */
 async function choose(page: Page, name: RegExp) {
   const form = page.getByTestId('redirect-preference-form')
   await form.getByRole('combobox', { name: modeLabel }).press('Enter')
   await page.getByRole('option', { name, exact: true }).click()
   await expect(form.locator('.v-select__selection-text')).toHaveText(name)
 }
+/** Verifies the outgoing CAS version, no-store response and newly persisted revision. */
 async function save(page: Page, redirectMode: RedirectMode | null, expectedUpdatedAt: string | null): Promise<Preference> {
   const pending = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/user/redirect-preference/update' && response.request().method() === 'POST')
   await page.getByTestId('redirect-preference-save').click()
@@ -229,6 +233,7 @@ async function save(page: Page, redirectMode: RedirectMode | null, expectedUpdat
   return payload.data.preference
 }
 async function read(page: Page) { return (await get<{ preference: Preference }>(page.request, '/user/redirect-preference')).preference }
+/** Expands access settings only when collapsed so repeated calls preserve the user's open panel. */
 async function advanced(page: Page) {
   const toggle = page.getByRole('button', { name: /^(高级设置|Advanced settings)$/ })
   if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click()
@@ -253,6 +258,7 @@ async function create(page: Page, mode: RedirectMode, scenario: Scenario): Promi
   await expect(page.getByTestId('short-link-create-result')).toBeVisible()
   return payload.data.shortLink
 }
+/** Switches the visible language control and closes the mobile drawer before layout checks. */
 async function switchEnglish(page: Page) {
   const mobile = (page.viewportSize()?.width ?? 1280) < 720
   if (mobile) await page.getByRole('button', { name: /^(打开控制台菜单|Open console menu)$/, exact: true }).click()
@@ -263,6 +269,7 @@ async function switchEnglish(page: Page) {
     await expect(page.getByTestId('console-mobile-nav')).not.toBeVisible()
   }
 }
+/** Captures the unmasked viewport plus layout diagnostics and checks horizontal reach and touch height. */
 async function capture(info: TestInfo, name: string, page: Page, panel = false) {
   const section = panel ? page.getByTestId('redirect-preference-panel') : page.locator('.short-link-create-panel')
   await section.scrollIntoViewIfNeeded()

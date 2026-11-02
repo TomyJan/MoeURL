@@ -42,6 +42,7 @@ func TestRedirectPreferenceInfrastructureFailure(t *testing.T) {
 	}
 }
 
+// TestRedirectPreferenceInvalidActor rejects malformed or guest identities on both read and write paths.
 func TestRedirectPreferenceInvalidActor(t *testing.T) {
 	s, _, actor, _ := redirectPreferenceFixture(t)
 	for _, id := range []string{"", "bad", "00000000-0000-0000-0000-000000000000", "00000000000000000000000000000391", "00000000-0000-0000-0000-000000000ABC"} {

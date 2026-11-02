@@ -43,6 +43,7 @@ type RedirectPreferenceService struct {
 	inTx  func(context.Context, func(redirectPreferenceStore) error) error
 }
 
+// NewRedirectPreferenceService binds reads and transactional writes to the same pool.
 func NewRedirectPreferenceService(pool *pgxpool.Pool) *RedirectPreferenceService {
 	q := sqlc.New(pool)
 	return &RedirectPreferenceService{store: q, inTx: func(ctx context.Context, fn func(redirectPreferenceStore) error) error {
@@ -145,6 +146,7 @@ func (s *RedirectPreferenceService) Update(ctx context.Context, actor auth.Curre
 	return result, nil
 }
 
+// redirectPreferenceActorID rejects guest, nil and noncanonical identifiers before storage access.
 func redirectPreferenceActorID(actor auth.CurrentUser) (pgtype.UUID, error) {
 	id, err := uuid.Parse(actor.ID)
 	if actor.GroupKey == permission.GroupGuest || err != nil || id == uuid.Nil || id.String() != actor.ID {
@@ -153,6 +155,7 @@ func redirectPreferenceActorID(actor auth.CurrentUser) (pgtype.UUID, error) {
 	return uuidToPgtype(id), nil
 }
 
+// redirectPreferenceResult preserves nullable values and PostgreSQL revision precision in UTC.
 func redirectPreferenceResult(mode pgtype.Text, revision pgtype.Timestamptz) RedirectPreferenceResult {
 	result := RedirectPreferenceResult{}
 	if mode.Valid {

@@ -17,9 +17,11 @@ function parse(data: unknown): RedirectPreference {
   if (!result.success) throw new ApiClientError(100001, 'Invalid redirect preference response')
   return result.data.preference
 }
+/** Reads the Cookie owner's strict document only when it matches the caller's captured account. */
 export async function getRedirectPreference(expectedUserId: string): Promise<RedirectPreference> {
   return parse((await apiGet<unknown>('/user/redirect-preference', { 'X-MoeURL-Expected-User-ID': expectedUserId })).data)
 }
+/** Sends one CAS update with an ownership precondition; the header never chooses the resource target. */
 export async function updateRedirectPreference(input: UpdateRedirectPreferenceInput, expectedUserId: string): Promise<RedirectPreference> {
   return parse((await apiPost<unknown>('/user/redirect-preference/update', input, undefined, { 'X-MoeURL-Expected-User-ID': expectedUserId })).data)
 }

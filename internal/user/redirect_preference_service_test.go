@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// redirectPreferenceFixture gives each test isolated real storage and two distinct resource owners.
 func redirectPreferenceFixture(t *testing.T) (*user.RedirectPreferenceService, *pgxpool.Pool, auth.CurrentUser, auth.CurrentUser) {
 	t.Helper()
 	pool := userTestPool(t, t.Context())
@@ -159,6 +160,7 @@ func TestRedirectPreferenceCurrentAuthority(t *testing.T) {
 	}
 }
 
+// TestRedirectPreferenceRevokedValueReadable permits clearing a saved mode after its capability is revoked.
 func TestRedirectPreferenceRevokedValueReadable(t *testing.T) {
 	s, pool, actor, _ := redirectPreferenceFixture(t)
 	mode := "intermediate"
