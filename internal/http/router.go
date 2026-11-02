@@ -20,48 +20,49 @@ import (
 )
 
 type Dependencies struct {
-	Logger                 *slog.Logger
-	Health                 HealthChecker
-	System                 system.ServicePort
-	SystemSettings         system.SettingsPort
-	HomeContent            system.HomeContentPort
-	Appearance             system.AppearancePort
-	FooterLinks            system.FooterLinksPort
-	Auth                   auth.Port
-	Password               auth.PasswordPort
-	CurrentUser            auth.CurrentUserResolver
-	ShortLink              shortlink.Port
-	ShortLinkExport        shortlink.ExportPort
-	ShortLinkListExport    shortlink.ListExportPort
-	ShortLinkTagCatalog    shortlink.TagCatalogPort
-	ShortLinkBatch         shortlink.BatchPort
-	ShortLinkTransfer      shortlink.TransferPort
-	ShortLinkBatchTransfer shortlink.BatchTransferPort
-	ShortLinkBatchTags     shortlink.BatchTagsPort
-	ShortLinkBatchCreate   shortlink.BatchCreatePort
-	Insights               insights.Port
-	VisitExport            insights.VisitExportPort
-	Audit                  insights.AuditPort
-	AuditExport            insights.AuditExportPort
-	Domain                 domain.Port
-	DomainOrder            domain.OrderPort
-	DomainRedirectDefault  domain.RedirectDefaultPort
-	Redirect               shortlink.RedirectPort
-	RedirectRecorder       event.Recorder
-	AnalyticsCountryHeader string
-	SecureCookies          bool
-	User                   user.Port
-	UserMembership         user.GroupPort
-	UserBatchMembership    user.BatchGroupPort
-	UserPreferences        user.PreferencesPort
-	UserDomainPreference   user.DomainPreferencePort
-	UserTimeZonePreference user.TimeZonePreferencePort
-	UserRedirectPreference user.RedirectPreferencePort
-	UserGroup              usergroup.Port
-	UserGroupDomainDefault usergroup.DomainDefaultPort
-	OIDCProvider           oidc.ProviderPort
-	OIDCLogin              oidc.LoginPort
-	StaticDir              string
+	Logger                   *slog.Logger
+	Health                   HealthChecker
+	System                   system.ServicePort
+	SystemSettings           system.SettingsPort
+	HomeContent              system.HomeContentPort
+	Appearance               system.AppearancePort
+	FooterLinks              system.FooterLinksPort
+	Auth                     auth.Port
+	Password                 auth.PasswordPort
+	CurrentUser              auth.CurrentUserResolver
+	ShortLink                shortlink.Port
+	ShortLinkExport          shortlink.ExportPort
+	ShortLinkListExport      shortlink.ListExportPort
+	ShortLinkTagCatalog      shortlink.TagCatalogPort
+	AdminShortLinkTagCatalog shortlink.AdminTagCatalogPort
+	ShortLinkBatch           shortlink.BatchPort
+	ShortLinkTransfer        shortlink.TransferPort
+	ShortLinkBatchTransfer   shortlink.BatchTransferPort
+	ShortLinkBatchTags       shortlink.BatchTagsPort
+	ShortLinkBatchCreate     shortlink.BatchCreatePort
+	Insights                 insights.Port
+	VisitExport              insights.VisitExportPort
+	Audit                    insights.AuditPort
+	AuditExport              insights.AuditExportPort
+	Domain                   domain.Port
+	DomainOrder              domain.OrderPort
+	DomainRedirectDefault    domain.RedirectDefaultPort
+	Redirect                 shortlink.RedirectPort
+	RedirectRecorder         event.Recorder
+	AnalyticsCountryHeader   string
+	SecureCookies            bool
+	User                     user.Port
+	UserMembership           user.GroupPort
+	UserBatchMembership      user.BatchGroupPort
+	UserPreferences          user.PreferencesPort
+	UserDomainPreference     user.DomainPreferencePort
+	UserTimeZonePreference   user.TimeZonePreferencePort
+	UserRedirectPreference   user.RedirectPreferencePort
+	UserGroup                usergroup.Port
+	UserGroupDomainDefault   usergroup.DomainDefaultPort
+	OIDCProvider             oidc.ProviderPort
+	OIDCLogin                oidc.LoginPort
+	StaticDir                string
 }
 
 // NewRouter registers API, static-file, and short-link redirect routes.
@@ -189,6 +190,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			if dependency.ShortLinkTagCatalog != nil {
 				handler := shortlink.NewTagCatalogHandler(dependency.ShortLinkTagCatalog, logger)
 				businessAPI.Get("/short-link/tags", handler.List)
+			}
+			if dependency.AdminShortLinkTagCatalog != nil {
+				handler := shortlink.NewAdminTagCatalogHandler(dependency.AdminShortLinkTagCatalog, logger)
+				businessAPI.Get("/admin/short-link/tags", handler.List)
 			}
 			if dependency.ShortLink != nil {
 				shortLinkHandler := shortlink.NewHandlerWithLogger(dependency.ShortLink, logger)

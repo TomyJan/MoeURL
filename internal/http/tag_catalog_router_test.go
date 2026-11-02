@@ -45,7 +45,7 @@ func TestRouterTagCatalogSessionBoundary(t *testing.T) {
 	require.NoError(t, err)
 	resolver := auth.NewService(pool, time.Hour)
 	service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
-	router := apphttp.NewRouter(apphttp.Dependencies{CurrentUser: resolver, ShortLinkTagCatalog: service})
+	router := apphttp.NewRouter(apphttp.Dependencies{CurrentUser: resolver, ShortLinkTagCatalog: service, AdminShortLinkTagCatalog: service})
 	call := func(handler http.Handler, token, path string, status, code int) map[string]any {
 		t.Helper()
 		r := httptest.NewRequestWithContext(ctx, http.MethodGet, path, nil)
@@ -66,6 +66,11 @@ func TestRouterTagCatalogSessionBoundary(t *testing.T) {
 		return body["data"].(map[string]any)
 	}
 	const endpoint = "/api/v1/short-link/tags"
+	const adminEndpoint = "/api/v1/admin/short-link/tags"
+	globalData := call(router, admin.ID, adminEndpoint, 200, 0)
+	require.Equal(t, map[string]any{"items": []any{map[string]any{"tag": "shared", "linkCount": float64(2)}, map[string]any{"tag": "100%_", "linkCount": float64(1)}, map[string]any{"tag": "admin-only", "linkCount": float64(1)}}, "hasMore": false}, globalData)
+	call(router, user.ID, adminEndpoint, 200, 120001)
+	call(router, "", adminEndpoint, 200, 120001)
 	userData := call(router, user.ID, endpoint, 200, 0)
 	require.Equal(t, map[string]any{"items": []any{map[string]any{"tag": "100%_", "linkCount": float64(1)}, map[string]any{"tag": "shared", "linkCount": float64(1)}}, "hasMore": false}, userData)
 	adminData := call(router, admin.ID, endpoint+"?q=admin", 200, 0)
@@ -73,9 +78,11 @@ func TestRouterTagCatalogSessionBoundary(t *testing.T) {
 	call(router, "", endpoint, 200, 120001)
 	for _, query := range []string{"q=", "q=shared", "q=%25", "q=%5F", "q=%5C", "q=%E4%B8%AD", "q=" + url.QueryEscape(strings.Repeat("界", 32))} {
 		call(router, user.ID, endpoint+"?"+query, 200, 0)
+		call(router, admin.ID, adminEndpoint+"?"+query, 200, 0)
 	}
 	for _, query := range []string{"q=a&q=b", "ownerId=" + adminID, "limit=1", "status=active", "q", "q=x&", "=x", "q=%zz", "q=x;y", "q=%FF", "q=%00", "q=%09shared", "q=shared%0A", "q=" + url.QueryEscape(strings.Repeat("界", 33))} {
 		t.Run(query, func(t *testing.T) { call(router, user.ID, endpoint+"?"+query, 200, 100001) })
+		t.Run("admin-"+query, func(t *testing.T) { call(router, admin.ID, adminEndpoint+"?"+query, 200, 100001) })
 	}
 	// The dependency's optional logger must not turn an ordinary denied request into a panic.
 	direct := auth.CurrentUserMiddleware(resolver)(http.HandlerFunc(shortlink.NewTagCatalogHandler(service, nil).List))
@@ -87,6 +94,14 @@ func TestRouterTagCatalogSessionBoundary(t *testing.T) {
 	_, err = pool.Exec(ctx, `update user_group set permissions='["admin:access","short_link:read_all"]' where key='admin'`)
 	require.NoError(t, err)
 	call(router, admin.ID, endpoint, 200, 120001)
+	call(router, admin.ID, adminEndpoint, 200, 0)
+	for _, grants := range []string{`["admin:access"]`, `["short_link:read_all"]`} {
+		_, err = pool.Exec(ctx, `update user_group set permissions=$1 where key='admin'`, grants)
+		require.NoError(t, err)
+		call(router, admin.ID, adminEndpoint, 200, 120001)
+	}
+	_, err = pool.Exec(ctx, `update user_group set permissions='["admin:access","short_link:read_all"]' where key='admin'`)
+	require.NoError(t, err)
 	_, err = pool.Exec(ctx, `update user_group set permissions='[]' where key='user'`)
 	require.NoError(t, err)
 	call(router, user.ID, endpoint, 200, 120001)
@@ -98,8 +113,10 @@ func TestRouterTagCatalogSessionBoundary(t *testing.T) {
 	closed.Close()
 	var logs bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&logs, nil))
-	failing := apphttp.NewRouter(apphttp.Dependencies{Logger: logger, CurrentUser: resolver, ShortLinkTagCatalog: shortlink.NewService(closed, permission.NewService())})
+	failing := apphttp.NewRouter(apphttp.Dependencies{Logger: logger, CurrentUser: resolver, ShortLinkTagCatalog: shortlink.NewService(closed, permission.NewService()), AdminShortLinkTagCatalog: shortlink.NewService(closed, permission.NewService())})
 	call(failing, user.ID, endpoint+"?q=secret-search", 500, 900000)
+	call(failing, admin.ID, adminEndpoint+"?q=secret-search", 500, 900000)
+	require.Contains(t, logs.String(), "admin_short_link_tag_catalog_failed")
 	require.Contains(t, logs.String(), "short_link_tag_catalog_failed")
 	require.NotContains(t, logs.String(), "secret-search")
 	require.NotContains(t, logs.String(), "private-user")

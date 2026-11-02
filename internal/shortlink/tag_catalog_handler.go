@@ -32,26 +32,12 @@ func NewTagCatalogHandler(service TagCatalogPort, logger *slog.Logger) *TagCatal
 
 // List rejects ambiguous query parameters before reading the current actor's directory.
 func (h *TagCatalogHandler) List(w http.ResponseWriter, r *http.Request) {
-	values, err := url.ParseQuery(r.URL.RawQuery)
-	if err != nil {
+	query, valid := parseTagCatalogQuery(r.URL.RawQuery)
+	if !valid {
 		businessError(w, 100001, "Invalid request")
 		return
 	}
-	if r.URL.RawQuery != "" {
-		for _, part := range strings.Split(r.URL.RawQuery, "&") {
-			if !strings.Contains(part, "=") {
-				businessError(w, 100001, "Invalid request")
-				return
-			}
-		}
-	}
-	for key, items := range values {
-		if key != "q" || len(items) != 1 {
-			businessError(w, 100001, "Invalid request")
-			return
-		}
-	}
-	result, err := h.service.ListTags(r.Context(), auth.UserFromContext(r.Context()), TagCatalogInput{Query: values.Get("q")})
+	result, err := h.service.ListTags(r.Context(), auth.UserFromContext(r.Context()), TagCatalogInput{Query: query})
 	if err != nil {
 		if !errors.Is(err, ErrInvalidInput) && !errors.Is(err, ErrPermissionDenied) {
 			err = errors.New("short_link_tag_catalog_failed")
@@ -60,4 +46,25 @@ func (h *TagCatalogHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, result)
+}
+
+// parseTagCatalogQuery accepts only one optional q with an explicit equals sign.
+func parseTagCatalogQuery(raw string) (string, bool) {
+	values, err := url.ParseQuery(raw)
+	if err != nil {
+		return "", false
+	}
+	if raw != "" {
+		for _, part := range strings.Split(raw, "&") {
+			if !strings.Contains(part, "=") {
+				return "", false
+			}
+		}
+	}
+	for key, items := range values {
+		if key != "q" || len(items) != 1 {
+			return "", false
+		}
+	}
+	return values.Get("q"), true
 }

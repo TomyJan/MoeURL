@@ -12,10 +12,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// TagCatalogInput searches existing personal tags without accepting a client-owned scope or limit.
+// TagCatalogInput searches existing tags without accepting a client-owned scope or limit.
 type TagCatalogInput struct{ Query string }
 
-// TagCatalogItem counts distinct non-deleted links owned by the current actor.
+// TagCatalogItem counts distinct non-deleted links within the endpoint's authorized scope.
 type TagCatalogItem struct {
 	Tag       string `json:"tag"`
 	LinkCount int64  `json:"linkCount"`
