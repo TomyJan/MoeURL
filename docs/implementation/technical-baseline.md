@@ -1,6 +1,8 @@
 # 技术基线
 
-v0.40.0 已实现浏览器本地读取最多 65536 字节的严格 UTF-8 单列 target_url CSV，1–20 条网址复用既有 schema，再进入原批量预览和同 key 提交流程。Task1–3 已标准完成；终审发现的跨标签页 Cookie 换号风险已通过既有批量端点的 X-MoeURL-Expected-User-ID 账号前置条件修复，保留 body-only 调用的当前本人语义。修复后 clean 2e7b5f0 的完整 155 项浏览器及精确产品门禁已通过，本地报告与可恢复归档已核验，最新候选审查、CI 与远端交付仍待。无新端点、schema、权限或依赖，详见[验收](v0.40.0-acceptance.md)。
+当前 [v0.40.1 CSV 格式帮助与模板](../product/scope-v0.40.1.md)正在设计：补齐前版延期 M1，草稿入口显示可折叠格式示例并下载固定公开模板，不改变解析器、API、数据库、权限或依赖。实现与本版验证尚未执行。
+
+v0.40.0 已完整交付：[PR247](https://github.com/TomyJan/MoeURL/pull/247) 最新候选 `e2fee88036ab9637c455bbdccc56d1d3c00bfee5` 的真实审查与全部有效意见闭环；[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41401442214) 和合并 master `b4879c0ffd1e7a2048a68479d3fd487227f0926d` 的[自身九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41408228013) 均成功，完整日志分别核至 EOF。标准 Task1–4、全部 26 条裁决报告、新 whole-owned ZIP／解压全集核与准确 leaf 可恢复迁出完成，格式示例 M1 当时延期；未发布部署。见[验收](v0.40.0-acceptance.md)，下方旧阶段文字保留历史归属。
 
 v0.39.0 已完整交付：[PR246](https://github.com/TomyJan/MoeURL/pull/246) 最终候选 `647b013fa1b04f4eb874ceb32d8df97f375c072e` 的真实审查与全部有效意见闭环；[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41367196539) 和合并 master `7bf680b3a487e2ad364589b79d325de15cb9e1bd` 的[九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41371662994) 均成功。master 原 8 项成功，运行器失联的 E2E 单独恢复后 149 项通过；完整成功日志为保留原件的可重建组合，内容核验至 EOF，未冒九项重跑。标准 Task1–4、30 条完整裁决报告、新 whole-owned ZIP／解压全集核与准确 leaf 可恢复迁出均完成，未发布或部署。下方旧阶段保留历史归属。
 
