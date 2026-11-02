@@ -1,6 +1,8 @@
 # 技术基线
 
-v0.39.0 已实现独立本人表、完整精度 CAS、8KiB 严格 JSON、五秒当前身份与权限事务、Query 编辑器和单条创建初选。自动 intermediate 为 5 秒，手动→有权个人→实际域名→direct；旧 API 省略及批量仍 direct。官方 GET／POST 增加预期账号头前置条件，拒绝共享 Cookie 换号错写；无头客户端仍操作当前 Cookie 本人，JSON 不变。冻结镜像 Node26.5.1／pnpm11.5，无 host 安装；2619 项前端／四项 100% 与 clean `7d6f800` 的 149 项浏览器及产品扫描通过。唯一终审两项 Important 与一项 Minor 已处理，修复后完整门禁通过；远端交付待完成。各输入与证据分别见[设计](../specs/2026-11-02-v0.39.0-personal-redirect-mode-design.md)及[验收](v0.39.0-acceptance.md)。
+v0.40.0 设计阶段：浏览器本地读取最多 65536 字节的严格 UTF-8 单列 target_url CSV，1–20 条网址复用既有 schema，再进入原批量预览和同 key 提交流程。异步读取由身份／操作／文件序号／草稿版本隔离；无新 API、schema、权限或依赖，尚未实现或验证。
+
+v0.39.0 已完整交付：[PR246](https://github.com/TomyJan/MoeURL/pull/246) 最终候选 `647b013fa1b04f4eb874ceb32d8df97f375c072e` 的真实审查与全部有效意见闭环；[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41367196539) 和合并 master `7bf680b3a487e2ad364589b79d325de15cb9e1bd` 的[九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41371662994) 均成功。master 原 8 项成功，运行器失联的 E2E 单独恢复后 149 项通过；完整成功日志为保留原件的可重建组合，内容核验至 EOF，未冒九项重跑。标准 Task1–4、30 条完整裁决报告、新 whole-owned ZIP／解压全集核与准确 leaf 可恢复迁出均完成，未发布或部署。下方旧阶段保留历史归属。
 
 v0.38.0 已完成交付：[PR245](https://github.com/TomyJan/MoeURL/pull/245) 最终候选 b2d19823c70a59d479bbc8d452f97c174c32bb1d 的真实审查／有效意见已闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41340395109) 与合并 master07d4f6c3af23c4f50cd94021d2af13fe0a889c87 的[九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41344911045) 均成功，完整日志分别核读至 EOF。标准 Task1–4、完整 41 条裁决报告与 whole-owned ZIP／解压全集核、准确 leaf 可恢复迁出完成；未发布或部署。下方旧阶段保留历史归属。
 
