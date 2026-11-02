@@ -227,7 +227,7 @@ function mount(component: object) {
   return render(component, {
     global: {
       // Export and bulk-create lifecycles have real QueryClient coverage in their dedicated page tests.
-      stubs: { ...componentStubs, AnalyticsExportButton: true, ShortLinkListExportButton: true, VisitRecordsPanel: true, BulkCreateDialog: true },
+      stubs: { ...componentStubs, AnalyticsExportButton: true, ShortLinkListExportButton: true, VisitRecordsPanel: true, BulkCreateDialog: true, PersonalTagBrowser: true },
     },
   })
 }

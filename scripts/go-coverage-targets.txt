@@ -72,6 +72,8 @@ github.com/TomyJan/MoeURL/internal/shortlink/analytics_export.go
 github.com/TomyJan/MoeURL/internal/shortlink/analytics_export_handler.go
 github.com/TomyJan/MoeURL/internal/shortlink/list_export.go
 github.com/TomyJan/MoeURL/internal/shortlink/list_export_handler.go
+github.com/TomyJan/MoeURL/internal/shortlink/tag_catalog.go
+github.com/TomyJan/MoeURL/internal/shortlink/tag_catalog_handler.go
 github.com/TomyJan/MoeURL/internal/shortlink/model.go
 github.com/TomyJan/MoeURL/internal/shortlink/metadata.go
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_handler.go

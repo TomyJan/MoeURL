@@ -17,6 +17,7 @@
       </div>
       <ShortLinkBatchToolbar :state="batch" :access="access" @tags="beginBatchTags" />
     </div>
+    <PersonalTagBrowser :access="access" @select="tagFilter = $event" />
     <div class="console-data-panel" data-testid="console-data-panel">
       <v-alert v-if="query.isError.value || (!access.canRead.value && !access.authPending.value)" type="error" variant="tonal">{{ t('links.loadFailed') }}</v-alert>
       <v-progress-linear v-else-if="access.authPending.value || (access.canRead.value && query.isPending.value)" indeterminate />
@@ -86,6 +87,7 @@ import ShortLinkBatchToolbar from '@/features/short-link-batch/ShortLinkBatchToo
 import ShortLinkListExportButton from '@/features/short-link-list-export/ShortLinkListExportButton.vue'
 import BulkCreateDialog from '@/features/bulk-create/BulkCreateDialog.vue'
 import ShortLinkBatchTagsDialog from '@/features/short-link-tags/ShortLinkBatchTagsDialog.vue'
+import PersonalTagBrowser from '@/features/short-link-tags/PersonalTagBrowser.vue'
 import { batchTagVersionSchema, type BatchTagTarget } from '@/entities/short-link/batch-tags'
 
 const { t } = useI18n()
@@ -186,7 +188,9 @@ function invalidateLinks() {
 
 <style scoped>
 .bulk-create-header-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.console-page__tools { display: grid; }
 .console-page__metadata-filters {
+  width: 100%;
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 

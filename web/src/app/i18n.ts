@@ -2,6 +2,7 @@ import { createI18n } from 'vue-i18n'
 
 export const messages = {
   'zh-CN': {
+    tagCatalog: { title: '我的标签', description: '统计你所有未删除短链，不受当前列表筛选影响。数量是引用该标签的短链数。', search: '查找我的标签', invalid: '请输入最多 32 个字符，不含控制字符。', loading: '正在读取标签……', failed: '标签读取失败，当前列表筛选保持不变。', retry: '重试读取标签', empty: '你的短链还没有标签。', noMatches: '没有匹配的标签。', more: '仅显示前 50 项，还有更多标签；请搜索以缩小范围。' },
     redirectPreference: {
       useDefault: '使用已保存的默认方式', defaultChanged: '默认跳转方式已更新，当前草稿保持不变。',
       title: '个人默认跳转方式', description: '仅用于新建单条短链的初选；本次手动选择优先，不改变已有短链或批量创建。', mode: '默认跳转方式', followDomain: '跟随域名默认', modes: { direct: '直接跳转', intermediate: '中间页跳转', confirmation: '确认页跳转' }, save: '保存跳转偏好', saved: '跳转偏好已保存。', loadFailed: '个人跳转偏好读取失败，请重试。', retry: '重试默认跳转方式', reload: '重新加载跳转偏好', conflict: '跳转偏好已在其他位置更新，草稿已保留，请重新加载后保存。', invalid: '请选择当前有权使用的跳转方式。', unavailable: '已保存的方式当前不可用，可选择其他方式或跟随域名默认。', saveFailed: '保存失败，草稿已保留，请重试。', defaultLoading: '正在读取默认跳转方式。', defaultFailed: '默认跳转方式尚未确认，请重试或明确选择本次方式。',
@@ -793,6 +794,7 @@ export const messages = {
     },
   },
   en: {
+    tagCatalog: { title: 'My tags', description: 'Counts all your non-deleted links, independently of current list filters. Each count is the number of links using that tag.', search: 'Find my tags', invalid: 'Use at most 32 characters without control characters.', loading: 'Loading tags…', failed: 'Tags could not be loaded. Your current list filters are unchanged.', retry: 'Retry loading tags', empty: 'Your links have no tags yet.', noMatches: 'No matching tags.', more: 'Showing the first 50 matches. More tags exist; search to narrow the results.' },
     redirectPreference: {
       useDefault: 'Use saved default', defaultChanged: 'A new default redirect mode is available. Your current draft is unchanged.',
       title: 'Personal default redirect mode', description: 'Initial choice for new single links only. Your manual choice takes priority; existing links and bulk creation are unchanged.', mode: 'Default redirect mode', followDomain: 'Follow domain default', modes: { direct: 'Direct redirect', intermediate: 'Intermediate page', confirmation: 'Confirmation page' }, save: 'Save redirect preference', saved: 'Redirect preference saved.', loadFailed: 'Could not read your redirect preference. Please retry.', retry: 'Retry default redirect mode', reload: 'Reload redirect preference', conflict: 'Your redirect preference changed elsewhere. Your draft is preserved; reload before saving.', invalid: 'Choose a redirect mode you currently have permission to use.', unavailable: 'Your saved mode is currently unavailable. Choose another mode or follow the domain default.', saveFailed: 'Could not save your preference. Your draft is preserved; please retry.', defaultLoading: 'Loading the default redirect mode.', defaultFailed: 'The default redirect mode is not confirmed. Retry or explicitly choose a mode for this link.',
