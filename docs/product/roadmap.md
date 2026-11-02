@@ -1,6 +1,6 @@
 # 路线图
 
-当前 [v0.41.0 我的标签](scope-v0.41.0.md)已实现个人只读标签查找与引用数、点击复用已有精确筛选；最多50项并明确更多提示，无新权限、schema或依赖。唯一终审的有效问题已修复，完整2733 项前端测试全部通过、四项覆盖率均为 100%、后端业务100%、clean68dec的完整163项浏览器、逐图及精确产品验证通过。Task1–3 已标准完成并核对本地全成员归档，Task4 远端交付按实际回执推进，见[计划](../implementation/v0.41.0-plan.md)与[验收](../implementation/v0.41.0-acceptance.md)。
+当前 [v0.41.0 我的标签](scope-v0.41.0.md)已实现个人只读标签查找与引用数、点击复用已有精确筛选；最多 50 个标签并明确更多提示，无新权限、schema或依赖。唯一终审的有效问题已修复，完整 2733 项前端测试全部通过、四项覆盖率均为 100%、后端业务覆盖率为 100%；clean68dec 的完整 163 项浏览器测试通过，该次运行的 8 张新增原图均已逐张阅读；精确产品验证通过。Task1–3 已标准完成并核对本地全成员归档，Task4 远端交付按实际回执推进，见[计划](../implementation/v0.41.0-plan.md)与[验收](../implementation/v0.41.0-acceptance.md)。
 
 v0.40.1／[PR248](https://github.com/TomyJan/MoeURL/pull/248)已完整交付：最终候选 c43e600 的真实审查／有效问题闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41423729705)与合并 master 00c893ff 的[自身九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41430855520)均成功，完整日志核至 EOF。标准 Task1–4、全部 20 条裁决、whole-owned ZIP／解压全集核和准确 leaf 可恢复迁出完成，无延期 Minor；未发布部署。详见[验收](../implementation/v0.40.1-acceptance.md)。下方旧开发阶段叙述保留历史归属。
 
