@@ -51,12 +51,13 @@ const allowed = computed(() => {
   return props.access.canRead.value && auth?.status === 'success' && !auth.isInvalidated && props.access.allows('read')
 })
 const ready = computed(() => open.value && allowed.value && parsed.value.success && parsed.value.data === debounced.value)
-const queryKey = computed(() => ['short-link', 'tag-catalog', props.access.identity.scope.value.userId, props.access.identity.scope.value.epoch, generation.value, debounced.value])
-const query = useQuery({ queryKey, enabled: ready, retry: false, staleTime: 0, gcTime: 0, queryFn: () => listPersonalTags(debounced.value) })
+const queryKey = computed(() => ['short-link', 'tag-catalog', props.access.identity.scope.value.userId, props.access.identity.scope.value.epoch, generation.value, debounced.value] as const)
+const query = useQuery({ queryKey, enabled: ready, retry: false, staleTime: 0, gcTime: 0, queryFn: async ({ queryKey: key }) => ({ generation: key[4], search: key[5], result: await listPersonalTags(key[5]) }) })
 const data = computed(() => {
   void cacheRevision.value
   const state = client.getQueryState(queryKey.value)
-  return ready.value && query.isSuccess.value && !query.isFetching.value && !state?.isInvalidated ? query.data.value : undefined
+  const response = query.data.value
+  return ready.value && query.isSuccess.value && !query.isFetching.value && !state?.isInvalidated && response?.generation === generation.value && response.search === debounced.value ? response.result : undefined
 })
 
 /** Retires the opening generation so late reads cannot reappear after closing or authorization changes. */
@@ -81,6 +82,14 @@ watch([props.access.identity.scope, allowed], close, { flush: 'sync' })
 const unsubscribe = client.getQueryCache().subscribe(event => {
   cacheRevision.value++
   if (event.query.queryKey[0] === 'auth' && event.query.queryKey[1] === 'me' && !allowed.value) close()
+  // Initial in-flight queries have no data, so ordinary invalidation can reuse their old promise.
+  // Retire this exact read before the cache starts refetching; the new key keeps the live search.
+  if (event.type === 'updated' && event.action.type === 'invalidate' && event.query === client.getQueryCache().find({ queryKey: queryKey.value, exact: true })) {
+    const retiredKey = queryKey.value
+    generation.value++
+    void client.cancelQueries({ queryKey: retiredKey, exact: true })
+    client.removeQueries({ queryKey: retiredKey, exact: true })
+  }
 })
 onBeforeUnmount(() => { unsubscribe(); close() })
 </script>

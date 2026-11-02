@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { onlineManager, QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { createI18n } from 'vue-i18n'
 import { defineComponent, h, nextTick } from 'vue'
 import type { SetupContext } from 'vue'
@@ -186,6 +186,46 @@ describe('personal tag browser privacy and lifecycle', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'My tags' }))
     await fireEvent.click(retryButton)
     expect(view.fetcher).toHaveBeenCalledTimes(3)
+  })
+  // A completed write must retire every earlier read, including the first read with no cached data.
+  it.each([
+    ['initial', 'success'], ['initial', 'failure'],
+    ['background', 'success'], ['background', 'failure'],
+  ])('uses a fresh directory after repeated invalidation during %s read with late %s', async (phase, outcome) => {
+    const view = mount()
+    if (phase === 'background') await open()
+    const retired = createDeferred<Response>(), intermediate = createDeferred<Response>(), current = createDeferred<Response>()
+    view.fetcher.mockReturnValueOnce(retired.promise).mockReturnValueOnce(intermediate.promise).mockReturnValueOnce(current.promise)
+    if (phase === 'initial') await fireEvent.click(screen.getByRole('button', { name: 'My tags' }))
+    else void view.client.refetchQueries({ queryKey: ['short-link', 'tag-catalog'] })
+    await nextTick()
+    for (let count = 0; count < 2; count++) {
+      void view.client.invalidateQueries({ queryKey: ['short-link'] })
+      await nextTick()
+    }
+    current.resolve(response(['After write']))
+    intermediate.resolve(response(['Intermediate stale']))
+    if (outcome === 'success') retired.resolve(response(['Removed before write']))
+    else retired.reject(new Error('retired-private-error'))
+    const button = await screen.findByRole('button', { name: 'After write · 2' })
+    expect(screen.queryByRole('button', { name: 'Removed before write · 2' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Intermediate stale · 2' })).toBeNull()
+    expect(screen.queryByRole('alert')).toBeNull()
+    await fireEvent.click(button)
+    expect(view.selected).toHaveBeenCalledExactlyOnceWith('After write')
+  })
+  it('keeps invalidated results hidden while offline and reads the current directory on reconnect', async () => {
+    const view = mount(); await open()
+    view.fetcher.mockImplementation(async () => response(['After reconnect']))
+    try {
+      onlineManager.setOnline(false)
+      void view.client.invalidateQueries({ queryKey: ['short-link'] })
+      await screen.findByText('Loading tags…')
+      expect(screen.queryByRole('button', { name: 'Original · 2' })).toBeNull()
+      onlineManager.setOnline(true)
+      await screen.findByRole('button', { name: 'After reconnect · 2' })
+      expect(screen.queryByRole('button', { name: 'Original · 2' })).toBeNull()
+    } finally { onlineManager.setOnline(true) }
   })
   it('hides admin without read-own and guests, and clears successful data on guest transition', async () => {
     const denied = mount('en', { ...actor, group: 'admin', permissions: ['admin:access', 'short_link:read_all'] })
