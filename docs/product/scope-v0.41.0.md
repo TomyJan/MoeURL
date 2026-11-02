@@ -1,6 +1,6 @@
 # v0.41.0 我的标签范围
 
-状态：本人只读标签查找已实现，Task1–2标准complete，后端业务100%；唯一终审发现的首次读取失效竞态已真实RED→GREEN修复，完整 2733 项前端测试全部通过、四项覆盖率均为 100%、静态与构建通过。修复后 clean68dec 的定向 5 项浏览器测试和完整 163 项浏览器测试均通过；两次运行各自的 8 张新增原图均已逐张阅读；精确产品检查和所选 HIGH／CRITICAL 扫描均通过。Task1–3 已标准完成并核对本地全成员归档，Task4 远端交付进行中。本版从已交付v0.40.1的master `00c893ff339955047a7d8948d822ed6e276bb45b` 开始，未发布部署。
+状态：v0.41.0／PR249 已完整交付。最终候选6829ba32a97a0ab13df7dee5287b8349dc4ec4d6真实审查与全部有效意见闭环；[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41496993103)及合并master9a71bea2bbcf445d6484a232d31c33a9596ff867的[自身九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41505792542)均成功，完整raw分别ROOT连续核至EOF。标准Task1–4、全部32条裁决报告、最终whole-owned ZIP／extract全集核与准确leaf可恢复迁出完成，无延期Minor；未发布部署。下方各阶段与失败仅为历史，保持实际输入／提交／运行时归属。
 
 ## 目标与盘点
 
