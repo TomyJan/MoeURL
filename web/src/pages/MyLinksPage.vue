@@ -15,9 +15,9 @@
         <v-text-field v-model="searchKeyword" :label="t('filter.keyword')" :error-messages="keywordInvalid ? t('linkMetadata.keywordInvalid') : ''" density="compact" variant="outlined" />
         <v-text-field v-model="tagFilter" :label="t('filter.tag')" :error-messages="tagInvalid ? t('linkMetadata.tagFilterInvalid') : ''" density="compact" variant="outlined" />
       </div>
-      <PersonalTagBrowser :access="access" @select="tagFilter = $event" />
       <ShortLinkBatchToolbar :state="batch" :access="access" @tags="beginBatchTags" />
     </div>
+    <PersonalTagBrowser :access="access" @select="tagFilter = $event" />
     <div class="console-data-panel" data-testid="console-data-panel">
       <v-alert v-if="query.isError.value || (!access.canRead.value && !access.authPending.value)" type="error" variant="tonal">{{ t('links.loadFailed') }}</v-alert>
       <v-progress-linear v-else-if="access.authPending.value || (access.canRead.value && query.isPending.value)" indeterminate />

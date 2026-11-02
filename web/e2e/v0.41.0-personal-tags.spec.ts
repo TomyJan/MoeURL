@@ -159,6 +159,14 @@ async function capture(info: TestInfo, page: Page, name: string) {
   await expect.poll(() => page.locator('.personal-tag-browser').evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1)
   const path = info.outputPath(name + '.png')
   await page.screenshot({ path, animations: 'disabled' }); await info.attach(name, { path, contentType: 'image/png' })
+  const geometry = () => page.getByTestId('console-page-links').evaluate(element => {
+    const selectors = ['.personal-tag-browser', '[data-testid="batch-toolbar"]', ...Array.from({ length: 3 }, (_, index) => `[data-testid="console-page-toolbar"] .v-input:nth-child(${index + 1}) .v-field`)]
+    const boxes = selectors.map(selector => { const rect = element.querySelector(selector)!.getBoundingClientRect(); return { selector, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom } })
+    const overlaps = boxes.flatMap((a, index) => boxes.slice(index + 1).filter(b => a.right > b.left + 1 && b.right > a.left + 1 && a.bottom > b.top + 1 && b.bottom > a.top + 1).map(b => [a.selector, b.selector]))
+    return { boxes, overlaps }
+  })
+  await attach(info, name + '-geometry', await geometry())
+  await expect.poll(async () => (await geometry()).overlaps, { message: 'The directory, filters and batch actions must remain independently visible without overlap' }).toEqual([])
 }
 /** Stores runtime and real protocol observations beside original images. */
 async function attach(info: TestInfo, name: string, value: unknown) {
