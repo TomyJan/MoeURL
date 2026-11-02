@@ -15,6 +15,7 @@
         <v-text-field v-model="searchKeyword" :label="t('filter.keyword')" :error-messages="keywordInvalid ? t('linkMetadata.keywordInvalid') : ''" density="compact" variant="outlined" />
         <v-text-field v-model="tagFilter" :label="t('filter.tag')" :error-messages="tagInvalid ? t('linkMetadata.tagFilterInvalid') : ''" density="compact" variant="outlined" />
       </div>
+      <PersonalTagBrowser :access="access" @select="tagFilter = $event" />
       <ShortLinkBatchToolbar :state="batch" :access="access" @tags="beginBatchTags" />
     </div>
     <div class="console-data-panel" data-testid="console-data-panel">
@@ -86,6 +87,7 @@ import ShortLinkBatchToolbar from '@/features/short-link-batch/ShortLinkBatchToo
 import ShortLinkListExportButton from '@/features/short-link-list-export/ShortLinkListExportButton.vue'
 import BulkCreateDialog from '@/features/bulk-create/BulkCreateDialog.vue'
 import ShortLinkBatchTagsDialog from '@/features/short-link-tags/ShortLinkBatchTagsDialog.vue'
+import PersonalTagBrowser from '@/features/short-link-tags/PersonalTagBrowser.vue'
 import { batchTagVersionSchema, type BatchTagTarget } from '@/entities/short-link/batch-tags'
 
 const { t } = useI18n()
