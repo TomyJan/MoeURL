@@ -153,16 +153,22 @@ func TestServiceMetadataFiltersIntersectAndIsolateOwners(t *testing.T) {
 	insertShortLinkDefaultDomain(t, ctx, pool)
 	alice := insertShortLinkUser(t, ctx, pool, "alice", permission.GroupUser, permission.UserPermissions)
 	bob := insertShortLinkUserForGroup(t, ctx, pool, "bob", "00000000-0000-0000-0000-000000000401", "00000000-0000-0000-0000-000000000502", permission.GroupUser, permission.UserPermissions)
+	_, err := pool.Exec(ctx, `update app_user set nickname = '鲍勃' where id = $1`, bob.ID)
+	require.NoError(t, err)
 	service := shortlink.NewService(pool, permission.NewService())
+	// Fixed slugs include the observed CI collision, so search expectations never depend on randomness.
+	slugs := []string{"metadataone", "metadatatwo", "4qybob", "metadatadeleted", "metadataforeign"}
+	nextSlug := 0
 	create := func(owner auth.CurrentUser, title string, tags []string) shortlink.ShortLink {
-		result, err := service.Create(ctx, owner, shortlink.CreateInput{TargetURL: "https://example.com/target", Metadata: &shortlink.MetadataInput{Title: title, Tags: tags}})
+		result, err := service.Create(ctx, owner, shortlink.CreateInput{TargetURL: "https://example.com/target", CustomSlug: ptr(slugs[nextSlug]), Metadata: &shortlink.MetadataInput{Title: title, Tags: tags}})
 		require.NoError(t, err)
+		nextSlug++
 		return result.ShortLink
 	}
 	one := create(alice, `猫 100%_done\`, []string{"Go", "CaseTag"})
 	two := create(alice, "other", []string{"go", "golang"})
 	three := create(alice, "disabled", []string{"Go"})
-	_, err := service.Update(ctx, alice, shortlink.UpdateInput{ID: three.ID, Status: ptr("disabled")})
+	_, err = service.Update(ctx, alice, shortlink.UpdateInput{ID: three.ID, Status: ptr("disabled")})
 	require.NoError(t, err)
 	deleted := create(alice, one.Title, one.Tags)
 	require.NoError(t, service.Delete(ctx, alice, shortlink.DeleteInput{ID: deleted.ID}))
@@ -190,7 +196,8 @@ func TestServiceMetadataFiltersIntersectAndIsolateOwners(t *testing.T) {
 		{"intersection", shortlink.ListInput{Status: "active", Tag: "Go", Query: "猫"}, 1, 2},
 		{"disabled intersection", shortlink.ListInput{Status: "disabled", Tag: "Go"}, 1, 1},
 		{"owner admin search", shortlink.ListInput{Query: "alice"}, 0, 3},
-		{"nickname admin search", shortlink.ListInput{Query: "BOB"}, 0, 1},
+		{"slug matches owner keyword", shortlink.ListInput{Query: "BOB"}, 1, 2},
+		{"nickname admin search", shortlink.ListInput{Query: "鲍勃"}, 0, 1},
 		{"empty whitespace", shortlink.ListInput{Query: "　 ", Tag: "　 "}, 3, 4},
 	} {
 		t.Run(test.name, func(t *testing.T) {

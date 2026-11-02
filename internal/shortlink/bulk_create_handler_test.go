@@ -82,6 +82,22 @@ func TestBulkCreateHTTPFraming(t *testing.T) {
 	require.Contains(t, response.Body.String(), `"code":200103`)
 }
 
+// TestBulkCreateHTTPOwnerPrecondition counts the handler's own rejection branches as well as the real router regression.
+func TestBulkCreateHTTPOwnerPrecondition(t *testing.T) {
+	for _, headers := range [][]string{{"stale-owner"}, {""}, {"owner", "owner"}} {
+		request := httptest.NewRequestWithContext(t.Context(), "POST", "/", strings.NewReader(bulkCreateHTTPJSON))
+		request.Header.Set("Content-Type", "application/json")
+		for _, value := range headers {
+			request.Header.Add("X-MoeURL-Expected-User-ID", value)
+		}
+		response := httptest.NewRecorder()
+		shortlink.NewBulkCreateHandler(bulkCreateHTTPPort{}, nil).BatchCreate(response, request)
+		require.Equal(t, 200, response.Code)
+		require.Contains(t, response.Body.String(), `"code":120001`)
+		require.NotContains(t, response.Body.String(), `"createdCount"`)
+	}
+}
+
 // TestBulkCreateHTTPOutcomes catches wrong business codes and leakage of private URLs or database diagnostics.
 func TestBulkCreateHTTPOutcomes(t *testing.T) {
 	for _, tc := range []struct {

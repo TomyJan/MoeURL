@@ -6,7 +6,15 @@
       <v-card-text class="bulk-create-body">
         <p>{{ t('bulkCreate.policy') }}</p>
         <v-alert type="info" variant="tonal">{{ t('bulkCreate.recovery') }}</v-alert>
-        <v-textarea v-if="!state.snapshot.value" v-model="state.draft.value" :label="t('bulkCreate.targets')" rows="6" variant="outlined" :disabled="state.pending.value" />
+        <template v-if="!state.snapshot.value">
+          <label class="bulk-create-file">
+            <span>{{ t('bulkCreate.csvLabel') }}</span>
+            <input type="file" accept=".csv,text/csv" :disabled="state.pending.value" @change="selectFile" />
+          </label>
+          <p>{{ t('bulkCreate.csvHelp') }}</p>
+          <p v-if="state.reading.value" role="status">{{ t('bulkCreate.csvReading') }}</p>
+          <v-textarea v-model="state.draft.value" :label="t('bulkCreate.targets')" rows="6" variant="outlined" :disabled="state.pending.value" />
+        </template>
         <template v-else>
           <ol data-testid="bulk-create-preview-list"><li v-for="(target, index) in state.snapshot.value.targetUrls" :key="index">{{ target }}</li></ol>
           <p>{{ t('bulkCreate.requestId') }} <code data-testid="bulk-create-request-id">{{ state.snapshot.value.requestId }}</code></p>
@@ -20,7 +28,7 @@
       </v-card-text>
       <v-card-actions class="bulk-create-actions">
         <v-btn data-testid="bulk-create-close" :disabled="state.pending.value" variant="text" @click="state.close">{{ t('bulkCreate.close') }}</v-btn>
-        <v-btn v-if="!state.snapshot.value" data-testid="bulk-create-preview" variant="flat" color="primary" @click="state.preview">{{ t('bulkCreate.preview') }}</v-btn>
+        <v-btn v-if="!state.snapshot.value" data-testid="bulk-create-preview" :disabled="state.reading.value" variant="flat" color="primary" @click="state.preview">{{ t('bulkCreate.preview') }}</v-btn>
         <template v-else>
           <v-btn data-testid="bulk-create-edit" :disabled="state.pending.value || state.unknown.value" variant="text" @click="state.edit">{{ t('bulkCreate.edit') }}</v-btn>
           <v-btn data-testid="bulk-create-submit" :disabled="state.pending.value || state.closing.value" :loading="state.pending.value" variant="flat" color="primary" @click="state.submit">{{ t(state.unknown.value ? 'bulkCreate.retry' : 'bulkCreate.create') }}</v-btn>
@@ -34,6 +42,13 @@ import { useI18n } from 'vue-i18n'
 import { useBulkCreate } from './useBulkCreate'
 const { t } = useI18n()
 const state = useBulkCreate()
+/** Releases the native selection so choosing the same file starts a fresh explicit read. */
+function selectFile(event: globalThis.Event) {
+  const input = event.target as globalThis.HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  void state.importFile(file)
+}
 </script>
 <style scoped>
 .bulk-create-card { min-width: 0; max-height: calc(100dvh - 32px); }
@@ -44,4 +59,6 @@ const state = useBulkCreate()
 .bulk-create-body li + li { margin-top: 8px; }
 .bulk-create-body code { user-select: text; }
 .bulk-create-actions { flex-wrap: wrap; }
+.bulk-create-file { display: grid; gap: 8px; min-width: 0; }
+.bulk-create-file input { min-width: 0; max-width: 100%; min-height: 44px; }
 </style>

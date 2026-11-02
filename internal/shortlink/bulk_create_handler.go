@@ -56,6 +56,13 @@ func (h *BulkCreateHandler) BatchCreate(w http.ResponseWriter, r *http.Request) 
 		h.writeResult(w, r, BatchCreateResult{}, err)
 		return
 	}
+	// Bind stale browser intent to its captured account; the Cookie remains the sole actor authority.
+	// Body-only API callers keep current-self semantics, matching the existing preference protocol.
+	expected := r.Header.Values("X-MoeURL-Expected-User-ID")
+	if len(expected) > 0 && (len(expected) != 1 || expected[0] == "" || expected[0] != auth.UserFromContext(r.Context()).ID) {
+		businessError(w, 120001, "Permission denied")
+		return
+	}
 	result, err := h.service.BatchCreate(r.Context(), auth.UserFromContext(r.Context()), input)
 	h.writeResult(w, r, result, err)
 }

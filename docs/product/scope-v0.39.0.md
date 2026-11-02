@@ -2,7 +2,7 @@
 
 ## 阶段与目标
 
-从 v0.38.0／PR245 已完成交付的 master `07d4f6c3af23c4f50cd94021d2af13fe0a889c87` 开始，分支 `feat/v0.39.0-personal-redirect-mode`。本版独立本人资源后端、个人编辑器与单条创建初选已实现，本地前端 2619 项／四项 100%／types／lint／隔离构建通过；clean `7d6f800` 的完整 149 项浏览器、六原图实读与精确产品／扫描通过；唯一终审两项 Important 与一项 Minor 已处理，修复后完整验证通过；本地归档与远端交付待完成，各门禁分别见验收。v0.38.0 最终候选与合并各九 CI、真实审查、标准 Task1–4 与可恢复归档分别有证据，未正式发布。
+v0.39.0 已完整交付：[PR246](https://github.com/TomyJan/MoeURL/pull/246) 最终候选 `647b013fa1b04f4eb874ceb32d8df97f375c072e` 的真实审查与全部有效意见闭环；[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41367196539) 和合并 master `7bf680b3a487e2ad364589b79d325de15cb9e1bd` 的[九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41371662994) 均成功。master 原 8 项成功，运行器失联的 E2E 单独恢复后 149 项通过；完整成功日志为保留原件的可重建组合，内容核验至 EOF，未冒九项重跑。标准 Task1–4、30 条完整裁决报告、新 whole-owned ZIP／解压全集核与准确 leaf 可恢复迁出均完成，未发布或部署。下方旧阶段保留历史归属。
 
 让经常使用确认页或中间页的账号保存自己的创建初选，减少重复选择。方案由 Agent 依据持续自主交付授权选定，沿用原生执行和最终一次独立审查，不要求用户逐项确认。
 

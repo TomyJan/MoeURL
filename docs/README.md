@@ -1,6 +1,8 @@
 # MoeURL 文档中心
 
-当前 [v0.39.0 个人默认跳转方式](product/scope-v0.39.0.md)已实现独立本人偏好、CAS 后端、个人编辑器与单条创建初选；完整前端 2619 项、四项 100%、types／lint／隔离构建通过，clean `7d6f800` 的完整 149 项浏览器、六原图实读与精确产品／扫描通过；唯一终审两项 Important 与一项 Minor 已处理，修复后完整验证通过；本地归档与远端交付待完成。见[设计](specs/2026-11-02-v0.39.0-personal-redirect-mode-design.md)、[计划](implementation/v0.39.0-plan.md)、[任务](implementation/v0.39.0-tasks.md)和[验收](implementation/v0.39.0-acceptance.md)。
+当前 [v0.40.0 有界 CSV 网址导入](product/scope-v0.40.0.md) Task1–3 已标准完成：唯一终审发现的跨标签页换号风险已修复，官方批量请求由服务端核对预期账号；完整 2685 项前端测试及四项 100%、Go／race 门禁、clean 2e7b5f0 的 155 项浏览器、8 张原图和精确产品验证均通过。本地完整裁决报告与可恢复归档已核验，格式示例 Minor 延期；[PR247](https://github.com/TomyJan/MoeURL/pull/247) 正在完成最新候选审查、CI 与远端交付，见[验收](implementation/v0.40.0-acceptance.md)。文件最多 20 条网址／65536 字节，预览确认后沿用原子创建，不恢复旧清单，尚未发布或部署。
+
+v0.39.0 已完整交付：[PR246](https://github.com/TomyJan/MoeURL/pull/246) 最终候选 `647b013fa1b04f4eb874ceb32d8df97f375c072e` 的真实审查与全部有效意见闭环；[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41367196539) 和合并 master `7bf680b3a487e2ad364589b79d325de15cb9e1bd` 的[九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41371662994) 均成功。master 原 8 项成功，运行器失联的 E2E 单独恢复后 149 项通过；完整成功日志为保留原件的可重建组合，内容核验至 EOF，未冒九项重跑。标准 Task1–4、30 条完整裁决报告、新 whole-owned ZIP／解压全集核与准确 leaf 可恢复迁出均完成，未发布或部署。下方旧阶段保留历史归属。
 
 v0.38.0 已完成交付：[PR245](https://github.com/TomyJan/MoeURL/pull/245) 最终候选 b2d19823c70a59d479bbc8d452f97c174c32bb1d 的真实审查／有效意见已闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41340395109) 与合并 master07d4f6c3af23c4f50cd94021d2af13fe0a889c87 的[九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41344911045) 均成功，完整日志分别核读至 EOF。标准 Task1–4、完整 41 条裁决报告与 whole-owned ZIP／解压全集核、准确 leaf 可恢复迁出完成；未发布或部署。下方旧阶段保留历史归属。
 
