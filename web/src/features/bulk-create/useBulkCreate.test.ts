@@ -43,6 +43,40 @@ function pendingFile(text = 'target_url\nhttps://example.com/imported') {
 afterEach(() => { onlineManager.setOnline(true); clients.splice(0).forEach(client => client.clear()); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks() })
 
 describe('batch lifecycle and retry safety', () => {
+  // Removing the captured-owner header would write an old tab's CSV under the new Cookie owner.
+  it.each(['initial', 'unknown retry'])('rejects a stale CSV %s after a different tab changes the Cookie owner', async kind => {
+    const { state, fetcher, client } = mount()
+    state.begin()
+    const file = pendingFile(), read = state.importFile(file.file)
+    file.resolve(); await read; state.preview()
+    const input = state.snapshot.value!
+    if (kind === 'unknown retry') {
+      fetcher.mockRejectedValueOnce(new Error('acknowledgement lost'))
+      await state.submit()
+      expect(state.unknown.value).toBe(true)
+    }
+    let writesUnderOtherAccount = 0
+    fetcher.mockImplementation(async (url, init) => {
+      if (String(url).endsWith('/auth/me')) return response({ user: { ...actor, id: '00000000-0000-0000-0000-000000003882' } })
+      // The boundary mirrors the real HTTP ownership precondition, tested against PostgreSQL separately.
+      const expected = new Headers(init?.headers).get('X-MoeURL-Expected-User-ID')
+      if (expected === actor.id) return response(null, 120001)
+      writesUnderOtherAccount++
+      return response({ requestId: input.requestId, createdCount: 1 })
+    })
+    const revalidate = vi.spyOn(client, 'resetQueries')
+    await state.submit()
+    expect(writesUnderOtherAccount).toBe(0)
+    expect(toast.success).not.toHaveBeenCalled()
+    expect(toast.error).toHaveBeenCalledWith('bulkCreate.accessChanged')
+    expect(state.snapshot.value).toBeNull(); expect(state.draft.value).toBe('')
+    expect(revalidate).toHaveBeenCalledWith({ queryKey: ['auth', 'me'], exact: true })
+    const batches = fetcher.mock.calls.filter(([url]) => String(url).endsWith('/batch-create'))
+    for (const [, init] of batches) {
+      expect(init!.body).toBe(JSON.stringify(input))
+      expect(new Headers(init!.headers).get('X-MoeURL-Expected-User-ID')).toBe(actor.id)
+    }
+  })
   // Default online queuing would leave this attempt pending, then send it on reconnect.
   it.each(['initial', 'retry'])('finishes an offline %s attempt without queuing a write for reconnect', async kind => {
     const { state, fetcher } = mount(); const input = preview(state)

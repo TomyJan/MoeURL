@@ -6,7 +6,7 @@ import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from '
 
 interface User { id: string; username: string }
 interface Link { id: string; slug: string; targetUrl: string; redirectMode: string; url: string }
-interface Scenario { page: Page }
+interface Scenario { page: Page; manager: APIRequestContext; account: User }
 const password = 'csv-import-disposable-account'
 const test = base.extend<{ scenario: Scenario }>({
   scenario: [async ({ browser, page: manager }, use, info) => {
@@ -30,7 +30,7 @@ const test = base.extend<{ scenario: Scenario }>({
       page = await context.newPage()
       await post(page.request, '/auth/login', { username, password })
       await attach(info, 'runtime', { browser: browser.version(), driverNode: process.version, width, language, theme, userId: account.id, disposableDatabase: true })
-      await use({ page })
+      await use({ page, manager: manager.request, account })
     } catch (error) { failures.push(error) } finally {
       // Discover this fresh account's links even if an assertion failed after the actual commit.
       if (page) {
@@ -107,6 +107,71 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
       await expect(page.getByTestId('console-link-row').filter({ hasText: link.slug })).toBeVisible()
     }
     await attach(info, 'import-proof', { requestId, targets, writes, createdIds: created.map(link => link.id), fileGeometry: geometry, rejectedMultiColumnWithoutWrite: true })
+  })
+}
+
+for (const unknown of [false, true]) {
+  test('v0.40.0 zh-CN 1280px rejects a stale CSV after another tab changes account: ' + (unknown ? 'unknown retry' : 'initial submit'), async ({ scenario }, info) => {
+    const { page, manager, account } = scenario
+    const otherPage = await page.context().newPage(), failures: unknown[] = []
+    let other: User | undefined
+    try {
+      const username = 'csv-other-' + randomBytes(6).toString('hex')
+      const created = await manager.post('/api/v1/admin/user/create', { data: { username, password, nickname: 'CSV other account', groupKey: 'admin', status: 'active' } })
+      const body = await created.json() as { code: number; data: { user: User } }
+      if (body.code === 0) other = body.data.user
+      expect(created.status()).toBe(200); expect(body.code).toBe(0)
+      if (!other) throw new Error('Second disposable account not created')
+      const target = 'https://example.com/stale-csv-' + randomBytes(7).toString('hex')
+      await page.goto('/link')
+      await page.getByTestId('bulk-create-open').click()
+      await page.getByLabel('从 CSV 读入网址', { exact: true }).setInputFiles({ name: 'targets.csv', mimeType: 'text/csv', buffer: Buffer.from('target_url\n' + target) })
+      await expect(page.getByRole('dialog').getByRole('textbox')).toHaveValue(target)
+      await page.getByTestId('bulk-create-preview').click()
+      const requestId = await page.getByTestId('bulk-create-request-id').innerText()
+      const attempts: { body: unknown; expected: string | undefined }[] = []
+      page.on('request', request => {
+        if (new URL(request.url()).pathname === '/api/v1/short-link/batch-create') attempts.push({ body: request.postDataJSON(), expected: request.headers()['x-moeurl-expected-user-id'] })
+      })
+      if (unknown) {
+        // Commit under A, then lose only the acknowledgement at the browser boundary.
+        await page.route('**/api/v1/short-link/batch-create', async route => {
+          const result = await route.fetch()
+          expect(await result.json()).toMatchObject({ code: 0, data: { requestId, createdCount: 1 } })
+          await route.abort('failed')
+        }, { times: 1 })
+        await page.getByTestId('bulk-create-submit').click()
+        await expect(page.getByTestId('bulk-create-error')).toContainText('结果未确认')
+        expect(await links(page.request)).toHaveLength(1)
+      }
+      // Both pages share this context's Cookie. The old page never reloads its cached A identity.
+      await post(otherPage.request, '/auth/login', { username, password })
+      await otherPage.goto('/link')
+      expect(await links(otherPage.request)).toEqual([])
+      await expect(page.getByTestId('bulk-create-preview-list')).toContainText(target)
+      const rejected = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/short-link/batch-create')
+      await page.getByTestId('bulk-create-submit').click()
+      expect(await (await rejected).json()).toMatchObject({ code: 120001 })
+      await expect(page.getByRole('dialog')).toBeHidden()
+      expect(await links(otherPage.request)).toEqual([])
+      expect(attempts).toHaveLength(unknown ? 2 : 1)
+      for (const attempt of attempts) expect(attempt).toEqual({ body: { requestId, targetUrls: [target] }, expected: account.id })
+      await post(page.request, '/auth/login', { username: account.username, password })
+      const original = await links(page.request)
+      expect(original).toHaveLength(unknown ? 1 : 0)
+      await attach(info, 'cross-tab-owner-proof', { expected: account.id, other: other.id, unknown, requestId, attempts, otherLinks: 0, originalLinks: original.length })
+    } catch (error) { failures.push(error) } finally {
+      if (other) {
+        try {
+          await post(otherPage.request, '/auth/login', { username: other.username, password })
+          for (const link of await links(otherPage.request)) await post(manager, '/admin/short-link/delete', { id: link.id })
+          await post(manager, '/admin/user/update', { id: other.id, nickname: 'CSV other account', status: 'disabled' })
+        } catch (error) { failures.push(error) }
+      }
+      try { await post(page.request, '/auth/login', { username: account.username, password }) } catch (error) { failures.push(error) }
+      try { await otherPage.close() } catch (error) { failures.push(error) }
+    }
+    if (failures.length) throw new AggregateError(failures, 'Cross-tab ownership assertion or exact fixture cleanup failed')
   })
 }
 

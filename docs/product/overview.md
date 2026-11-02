@@ -1,6 +1,6 @@
 # MoeURL 产品总览
 
-当前 [v0.40.0 有界 CSV 网址导入](scope-v0.40.0.md)已完成本地解析、读取所有权和页面实现：完整 2683 项前端测试、四项 100% 覆盖率、types／lint／隔离 build 通过；完整非 web 输入及 SQLC 与已验证基线逐 hash／bytes 相同，复用原后端证据。真实浏览器、精确产品、唯一终审与远端交付仍待。文件最多 20 条网址／65536 字节，预览确认后沿用原子创建，不恢复旧清单。
+当前 [v0.40.0 有界 CSV 网址导入](scope-v0.40.0.md)Task1–2 已标准完成：完整 2683 项前端测试、四项 100% 覆盖率、types／lint／隔离 build、153 项真实浏览器及精确产品验证通过，8 张本版原图已逐张实看；完整非 web 输入及 SQLC 与已验证基线逐 hash／bytes 相同，复用原后端证据。唯一终审已完成，跨标签页账号误写问题已真实修复，新 2685 项前端／四项 100% 及完整 Go／race 门禁通过；修复后 clean 浏览器与精确产品、远端审查、CI 和交付仍待，见[验收](../implementation/v0.40.0-acceptance.md)。文件最多 20 条网址／65536 字节，预览确认后沿用原子创建，不恢复旧清单。
 
 v0.39.0 已完整交付：[PR246](https://github.com/TomyJan/MoeURL/pull/246) 最终候选 `647b013fa1b04f4eb874ceb32d8df97f375c072e` 的真实审查与全部有效意见闭环；[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41367196539) 和合并 master `7bf680b3a487e2ad364589b79d325de15cb9e1bd` 的[九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41371662994) 均成功。master 原 8 项成功，运行器失联的 E2E 单独恢复后 149 项通过；完整成功日志为保留原件的可重建组合，内容核验至 EOF，未冒九项重跑。标准 Task1–4、30 条完整裁决报告、新 whole-owned ZIP／解压全集核与准确 leaf 可恢复迁出均完成，未发布或部署。下方旧阶段保留历史归属。
 

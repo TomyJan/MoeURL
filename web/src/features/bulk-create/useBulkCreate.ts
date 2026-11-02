@@ -23,7 +23,7 @@ export function useBulkCreate() {
   const mutation = useMutation({
     mutationFn: (attempt: { input: BulkCreateInput; token: number; candidate: typeof scope }) => {
       if (!isCurrent(attempt.token, attempt.candidate)) throw new Error('Batch context retired')
-      return batchCreateShortLinks(attempt.input)
+      return batchCreateShortLinks(attempt.input, attempt.candidate.userId)
     },
     networkMode: 'always',
     retry: false,

@@ -19,14 +19,15 @@ export function parseBulkCreateLines(text: string) {
 }
 
 /** Treats transport, infrastructure and malformed success as unknown, never as permission to change the key. */
-export async function batchCreateShortLinks(input: BulkCreateInput) {
+export async function batchCreateShortLinks(input: BulkCreateInput, expectedUserId?: string) {
   const request = inputSchema.safeParse(input)
   if (!request.success) throw new ApiClientError(100001, 'Invalid batch creation request')
   const controller = new AbortController()
   // Includes response-body decoding: an unacknowledged write must become recoverable.
   const deadline = setTimeout(() => controller.abort(), 15_000)
   try {
-    const response = await apiPost<unknown>('/short-link/batch-create', request.data, controller.signal)
+    const response = await apiPost<unknown>('/short-link/batch-create', request.data, controller.signal,
+      expectedUserId === undefined ? undefined : { 'X-MoeURL-Expected-User-ID': expectedUserId })
     const result = resultSchema.safeParse(response.data)
     if (!result.success || result.data.requestId !== request.data.requestId || result.data.createdCount !== request.data.targetUrls.length) throw new BulkCreateUnknownError()
     return result.data
