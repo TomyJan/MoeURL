@@ -4,7 +4,7 @@
 
 v0.40.1／[PR248](https://github.com/TomyJan/MoeURL/pull/248)已完整交付：最终候选 c43e600 的真实审查／有效问题闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41423729705)与合并 master 00c893ff 的[自身九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41430855520)均成功，完整日志核至 EOF。标准 Task1–4、全部 20 条裁决、whole-owned ZIP／解压全集核和准确 leaf 可恢复迁出完成，无延期 Minor；未发布部署。详见[验收](implementation/v0.40.1-acceptance.md)。下方旧开发阶段叙述保留历史归属。
 
-历史阶段记录（后续交付结论见上段）：[v0.40.1 CSV 格式帮助与模板](product/scope-v0.40.1.md)已实现可折叠中英示例和固定公开模板下载。真实页面行为 RED→GREEN，78 项边界补验、完整 2690 项前端测试／四项 100%、types／lint／隔离 build 通过；下载不改草稿或文件读取，不改解析器、API、数据库、权限或依赖。clean9b14027的完整159项浏览器、精确产品及正常数据库更新的所选HIGH／CRITICAL扫描通过，原图已逐张阅读；唯一终审bc53c75无代码阻断，当时 Task3 文档与归档收尾后进入远端交付。当时的候选自身审查／九 CI、master 及最终归档仍待，后续完成证据见[验收](implementation/v0.40.1-acceptance.md)。
+历史阶段记录（后续交付结论见上段）：[v0.40.1 CSV 格式帮助与模板](product/scope-v0.40.1.md)已实现可折叠中英示例和固定公开模板下载。真实页面行为已由 RED 转为 GREEN；78 项边界补验通过，2690 项前端测试全部通过，四项覆盖率指标均为 100%；types、lint 和隔离 build 均通过。下载不改草稿或文件读取，不改解析器、API、数据库、权限或依赖。工作区干净的提交 `9b14027` 的完整 159 项浏览器测试通过；精确产品检查及正常数据库更新后的所选 HIGH／CRITICAL 扫描通过，原图已逐张阅读。唯一终审 `bc53c75` 无代码阻断；该阶段仍需完成 Task3 文档与本地归档收尾，随后进入 Task4 远端交付。当时尚待候选真实审查与候选自身九项 CI；合并、合并后 master 自身九项 CI 和最终归档也未完成。后续完成证据见[验收](implementation/v0.40.1-acceptance.md)。
 
 v0.40.0 已完整交付：[PR247](https://github.com/TomyJan/MoeURL/pull/247) 最新候选 `e2fee88036ab9637c455bbdccc56d1d3c00bfee5` 的真实审查与全部有效意见闭环；[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41401442214) 和合并 master `b4879c0ffd1e7a2048a68479d3fd487227f0926d` 的[自身九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41408228013) 均成功，完整日志分别核至 EOF。标准 Task1–4、全部 26 条裁决报告、新 whole-owned ZIP／解压全集核与准确 leaf 可恢复迁出完成，格式示例 M1 当时延期；未发布部署。见[验收](implementation/v0.40.0-acceptance.md)，下方旧阶段文字保留历史归属。
 
