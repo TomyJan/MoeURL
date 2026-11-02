@@ -31,6 +31,15 @@ function preview(state: ReturnType<typeof useBulkCreate>) {
   state.begin(); state.draft.value = ' https://example.com/one \r\nhttps://example.org/two'; state.preview()
   return state.snapshot.value!
 }
+/** Holds the browser's external file-read boundary without mocking CSV parsing. */
+function pendingFile(text = 'target_url\nhttps://example.com/imported') {
+  const bytes = new TextEncoder().encode(text).buffer
+  const result = createDeferred<ArrayBuffer>()
+  const file = new File([text], 'targets.csv', { type: 'text/csv' })
+  const read = vi.fn(() => result.promise)
+  Object.defineProperty(file, 'arrayBuffer', { value: read })
+  return { file, read, resolve: () => result.resolve(bytes), reject: () => result.reject(new Error('private file detail')), result }
+}
 afterEach(() => { onlineManager.setOnline(true); clients.splice(0).forEach(client => client.clear()); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks() })
 
 describe('batch lifecycle and retry safety', () => {
@@ -178,6 +187,109 @@ describe('batch lifecycle and retry safety', () => {
     expect(state.allowed.value).toBe(false)
     state.begin(); state.preview(); await state.submit()
     expect(state.opened.value).toBe(false); expect(fetcher).not.toHaveBeenCalled()
+  })
+})
+
+describe('local CSV ownership and explicit write boundary', () => {
+  it.each(['success', 'error'])('lets the newest file win while ignoring an older %s and finally', async outcome => {
+    const { state, fetcher } = mount(); state.begin(); state.draft.value = 'https://example.com/original'
+    const old = pendingFile('target_url\nhttps://example.com/old'), latest = pendingFile('target_url\nhttps://example.com/new')
+    const oldRequest = state.importFile(old.file), latestRequest = state.importFile(latest.file)
+    expect(state.reading.value).toBe(true); state.preview(); expect(state.snapshot.value).toBeNull()
+    if (outcome === 'success') old.resolve(); else old.reject()
+    await oldRequest
+    expect(state.reading.value).toBe(true); expect(state.errorKey.value).toBe('')
+    expect(state.draft.value).toBe('https://example.com/original')
+    latest.resolve(); await latestRequest
+    expect(state.draft.value).toBe('https://example.com/new'); expect(state.reading.value).toBe(false)
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+  it.each(['success', 'error'])('preserves manual editing over a late file %s and releases preview immediately', async outcome => {
+    const { state, fetcher } = mount(); state.begin()
+    const file = pendingFile(), request = state.importFile(file.file)
+    state.draft.value = 'https://example.com/manual'
+    expect(state.reading.value).toBe(false); state.preview()
+    const input = state.snapshot.value!
+    expect(input.targetUrls).toEqual(['https://example.com/manual'])
+    if (outcome === 'success') file.resolve(); else file.reject()
+    await request
+    expect(state.snapshot.value).toBe(input); expect(state.draft.value).toBe('https://example.com/manual')
+    expect(state.errorKey.value).toBe(''); expect(fetcher).not.toHaveBeenCalled()
+  })
+  it.each(['oversize metadata', 'oversize bytes', 'invalid UTF-8', 'double BOM', 'invalid CSV', 'read failure'])('keeps the draft after %s without sending a request', async kind => {
+    const { state, fetcher } = mount(); state.begin(); state.draft.value = 'https://example.com/keep'
+    const file = pendingFile(kind === 'double BOM' ? '\uFEFF\uFEFFtarget_url\nhttps://example.com' : kind === 'invalid CSV' ? 'target_url,slug\nhttps://example.com,a' : undefined)
+    if (kind === 'oversize metadata') Object.defineProperty(file.file, 'size', { value: 65537 })
+    const request = state.importFile(file.file)
+    if (kind === 'oversize metadata') expect(file.read).not.toHaveBeenCalled()
+    else if (kind === 'oversize bytes') file.result.resolve(new ArrayBuffer(65537))
+    else if (kind === 'invalid UTF-8') file.result.resolve(new Uint8Array([0xc3, 0x28]).buffer)
+    else if (kind === 'read failure') file.reject()
+    else file.resolve()
+    await request
+    expect(state.errorKey.value).toBe(kind.startsWith('oversize') ? 'bulkCreate.csvTooLarge' : ['invalid UTF-8', 'read failure'].includes(kind) ? 'bulkCreate.csvReadFailed' : 'bulkCreate.csvInvalid')
+    expect(state.draft.value).toBe('https://example.com/keep'); expect(state.reading.value).toBe(false)
+    expect(state.snapshot.value).toBeNull(); expect(fetcher).not.toHaveBeenCalled()
+  })
+  it('can read the same unchanged draft again and keeps the original payload after an unknown write', async () => {
+    const { state, fetcher } = mount(); state.begin()
+    const file = pendingFile(), first = state.importFile(file.file); file.resolve(); await first
+    await state.importFile(file.file)
+    expect(file.read).toHaveBeenCalledTimes(2); expect(state.reading.value).toBe(false)
+    expect(fetcher).not.toHaveBeenCalled(); state.preview()
+    const input = state.snapshot.value!, blocked = pendingFile('target_url\nhttps://example.com/changed')
+    await state.importFile(blocked.file); expect(blocked.read).not.toHaveBeenCalled()
+    const pending = createDeferred<Response>(); fetcher.mockReturnValueOnce(pending.promise)
+    const request = state.submit(); await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
+    await state.importFile(blocked.file); expect(blocked.read).not.toHaveBeenCalled()
+    pending.reject(new Error('unknown commit')); await request
+    await state.importFile(blocked.file)
+    expect(blocked.read).not.toHaveBeenCalled(); expect(state.snapshot.value).toBe(input)
+    await state.submit()
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(fetcher.mock.calls[0]![1]!.body).toBe(fetcher.mock.calls[1]![1]!.body)
+    expect(JSON.parse(fetcher.mock.calls[1]![1]!.body as string).targetUrls).toEqual(['https://example.com/imported'])
+  })
+  it('does nothing when the picker is cancelled or the dialog is closed or no longer authorized', async () => {
+    const { state, client, fetcher } = mount(); const file = pendingFile()
+    await state.importFile(file.file); expect(file.read).not.toHaveBeenCalled()
+    state.begin(); state.draft.value = 'https://example.com/keep'
+    await state.importFile(undefined)
+    expect(state.draft.value).toBe('https://example.com/keep'); expect(state.reading.value).toBe(false)
+    client.setQueryData(['auth', 'me'], { user: { ...actor, permissions: [] } })
+    await state.importFile(file.file)
+    expect(file.read).not.toHaveBeenCalled(); expect(fetcher).not.toHaveBeenCalled()
+  })
+})
+
+describe.each(['success', 'error'] as const)('late file %s isolation', outcome => {
+  it.each(['close and reopen', 'other account', 'guest and same account', 'permission and restore', 'auth pending', 'auth error', 'unmount'])('does not touch a newer read after %s', async transition => {
+    const { state, client, fetcher, unmount } = mount(); state.begin()
+    const old = pendingFile(), request = state.importFile(old.file)
+    if (transition === 'unmount') unmount()
+    else {
+      if (transition === 'close and reopen') state.close()
+      else if (transition === 'other account') client.setQueryData(['auth', 'me'], { user: { ...actor, id: '00000000-0000-0000-0000-000000003882' } })
+      else if (transition === 'guest and same account') {
+        client.setQueryData(['auth', 'me'], { user: { ...actor, group: 'guest' } }); client.setQueryData(['auth', 'me'], { user: actor })
+      } else if (transition === 'permission and restore') {
+        client.setQueryData(['auth', 'me'], { user: { ...actor, permissions: [] } }); client.setQueryData(['auth', 'me'], { user: actor })
+      } else {
+        client.getQueryCache().find({ queryKey: ['auth', 'me'], exact: true })!.setState({ status: transition === 'auth pending' ? 'pending' : 'error', ...(transition === 'auth pending' ? { data: undefined } : {}) })
+        client.setQueryData(['auth', 'me'], { user: actor })
+      }
+      expect(state.opened.value).toBe(false); expect(state.draft.value).toBe(''); expect(state.reading.value).toBe(false)
+      state.begin(); state.draft.value = 'https://example.com/current'
+    }
+    const current = pendingFile('target_url\nhttps://example.com/new'), currentRequest = transition === 'unmount' ? undefined : state.importFile(current.file)
+    if (outcome === 'success') old.resolve(); else old.reject()
+    await request
+    expect(state.reading.value).toBe(true); expect(state.errorKey.value).toBe(''); expect(fetcher).not.toHaveBeenCalled()
+    if (transition !== 'unmount') {
+      expect(state.draft.value).toBe('https://example.com/current')
+      current.resolve(); await currentRequest
+      expect(state.draft.value).toBe('https://example.com/new'); expect(state.reading.value).toBe(false)
+    }
   })
 })
 

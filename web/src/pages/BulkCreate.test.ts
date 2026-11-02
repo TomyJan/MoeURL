@@ -1,8 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
+import { File as NodeFile } from 'node:buffer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { toast } from 'vue-sonner'
 import { componentStubs } from '@/test/component-stubs'
+import { createDeferred } from '@/test/deferred'
 import MyLinksPage from './MyLinksPage.vue'
 
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
@@ -29,8 +31,62 @@ async function openPreview() {
   await fireEvent.update(screen.getByLabelText('bulkCreate.targets'), 'https://example.com/one\nhttps://example.org/two')
   await fireEvent.click(screen.getByTestId('bulk-create-preview'))
 }
+/** Dispatches the native file-selection event after providing the browser-owned file list. */
+async function chooseFile(file?: File | NodeFile) {
+  const input = screen.getByLabelText('bulkCreate.csvLabel') as HTMLInputElement
+  Object.defineProperty(input, 'files', { configurable: true, value: file ? [file] : [] })
+  await fireEvent(input, new Event('change', { bubbles: true }))
+  expect(input.value).toBe('')
+}
 
 describe('personal bounded creation', () => {
+  // Missing/early file ingestion must not write or alter literal ordered targets.
+  it('imports a local CSV into ordered preview without writing until confirmation', async () => {
+    const view = mount()
+    await waitFor(() => expect(view.client.isFetching()).toBe(0))
+    await fireEvent.click(await screen.findByTestId('bulk-create-open'))
+    const file = new NodeFile(['\uFEFFtarget_url\r\nhttps://example.com/one\r\n"https://example.org/search?q=a,b"\r\n'], 'targets.csv', { type: 'text/csv' })
+    await chooseFile(file)
+    await waitFor(() => expect((screen.getByLabelText('bulkCreate.targets') as HTMLTextAreaElement).value).toBe('https://example.com/one\nhttps://example.org/search?q=a,b'))
+    expect(view.fetcher.mock.calls.filter(([url]) => String(url).endsWith('/batch-create'))).toHaveLength(0)
+    await fireEvent.click(screen.getByTestId('bulk-create-preview'))
+    expect([...screen.getByTestId('bulk-create-preview-list').querySelectorAll('li')].map(item => item.textContent)).toEqual(['https://example.com/one', 'https://example.org/search?q=a,b'])
+    expect(screen.queryByLabelText('bulkCreate.csvLabel')).toBeNull()
+    await fireEvent.click(screen.getByTestId('bulk-create-submit'))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    const writes = view.fetcher.mock.calls.filter(([url]) => String(url).endsWith('/batch-create'))
+    expect(writes).toHaveLength(1)
+    expect(JSON.parse(writes[0]![1]!.body as string).targetUrls).toEqual(['https://example.com/one', 'https://example.org/search?q=a,b'])
+  })
+  it('shows reading, blocks premature preview and lets manual edits retire a pending file', async () => {
+    const view = mount(); await fireEvent.click(await screen.findByTestId('bulk-create-open'))
+    const pending = createDeferred<ArrayBuffer>(), file = new File([], 'targets.csv')
+    Object.defineProperty(file, 'arrayBuffer', { value: () => pending.promise })
+    await chooseFile(file)
+    expect(screen.getByRole('status').textContent).toBe('bulkCreate.csvReading')
+    expect((screen.getByTestId('bulk-create-preview') as HTMLButtonElement).disabled).toBe(true)
+    await fireEvent.update(screen.getByLabelText('bulkCreate.targets'), 'https://example.com/manual')
+    expect(screen.queryByRole('status')).toBeNull()
+    expect((screen.getByTestId('bulk-create-preview') as HTMLButtonElement).disabled).toBe(false)
+    pending.reject(new Error('late private detail'))
+    await waitFor(() => expect(screen.queryByTestId('bulk-create-error')).toBeNull())
+    await fireEvent.click(screen.getByTestId('bulk-create-preview'))
+    expect(screen.getByTestId('bulk-create-preview-list').textContent).toBe('https://example.com/manual')
+    expect(view.fetcher.mock.calls.filter(([url]) => String(url).endsWith('/batch-create'))).toHaveLength(0)
+  })
+  it('keeps a draft after invalid columns, accepts a corrected same-name file and ignores picker cancellation', async () => {
+    const view = mount(); await fireEvent.click(await screen.findByTestId('bulk-create-open'))
+    await fireEvent.update(screen.getByLabelText('bulkCreate.targets'), 'https://example.com/keep')
+    await chooseFile(new NodeFile(['target_url,slug\nhttps://example.com/changed,old'], 'targets.csv'))
+    await waitFor(() => expect(screen.getByTestId('bulk-create-error').textContent).toBe('bulkCreate.csvInvalid'))
+    expect((screen.getByLabelText('bulkCreate.targets') as HTMLTextAreaElement).value).toBe('https://example.com/keep')
+    await chooseFile()
+    expect((screen.getByLabelText('bulkCreate.targets') as HTMLTextAreaElement).value).toBe('https://example.com/keep')
+    await chooseFile(new NodeFile(['target_url\nhttps://example.com/corrected'], 'targets.csv'))
+    await waitFor(() => expect((screen.getByLabelText('bulkCreate.targets') as HTMLTextAreaElement).value).toBe('https://example.com/corrected'))
+    expect(screen.queryByTestId('bulk-create-error')).toBeNull()
+    expect(view.fetcher.mock.calls.filter(([url]) => String(url).endsWith('/batch-create'))).toHaveLength(0)
+  })
   it('opens from the real personal list and previews two trimmed targets without writing', async () => {
     const view = mount()
     await waitFor(() => expect(view.client.isFetching()).toBe(0))

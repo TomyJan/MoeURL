@@ -1,4 +1,4 @@
-import { computed, nextTick, onBeforeUnmount, ref, shallowRef } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
@@ -6,6 +6,7 @@ import { me, type UserResponse } from '@/entities/auth/api'
 import { batchCreateShortLinks, BulkCreateUnknownError, parseBulkCreateLines, type BulkCreateInput } from '@/entities/short-link/bulk-create'
 import { ApiClientError } from '@/shared/api/client'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
+import { BULK_CSV_MAX_BYTES, parseBulkCreateCsv } from '@/entities/short-link/bulk-create-csv'
 
 /** Owns an in-memory batch, binding every asynchronous completion to current confirmed authority. */
 export function useBulkCreate() {
@@ -15,7 +16,10 @@ export function useBulkCreate() {
   const { t } = useI18n()
   const opened = ref(false), draft = ref(''), pending = ref(false), unknown = ref(false), closing = ref(false), errorKey = ref('')
   const snapshot = shallowRef<BulkCreateInput | null>(null)
+  const reading = ref(false)
   let generation = 0, alive = true, scope = identity.scope.value
+  let fileSequence = 0, draftRevision = 0
+  watch(draft, () => { draftRevision++; fileSequence++; reading.value = false }, { flush: 'sync' })
   const mutation = useMutation({
     mutationFn: (attempt: { input: BulkCreateInput; token: number; candidate: typeof scope }) => {
       if (!isCurrent(attempt.token, attempt.candidate)) throw new Error('Batch context retired')
@@ -36,7 +40,7 @@ export function useBulkCreate() {
   /** Retires private input immediately, without letting old finally blocks unlock a newer batch. */
   function reset() {
     generation++; opened.value = false; draft.value = ''; snapshot.value = null; pending.value = false
-    unknown.value = false; closing.value = false; errorKey.value = ''
+    unknown.value = false; closing.value = false; errorKey.value = ''; fileSequence++; reading.value = false
   }
   const unsubscribe = client.getQueryCache().subscribe(event => {
     if (event.query.queryKey[0] === 'auth' && event.query.queryKey[1] === 'me' && (!identity.isCurrent(scope) || !canUseNow())) reset()
@@ -48,7 +52,7 @@ export function useBulkCreate() {
   }
   /** Freezes one ordered payload before generating its unique request identifier. */
   function preview() {
-    if (!opened.value || pending.value || unknown.value || !canUseNow()) return
+    if (!opened.value || pending.value || unknown.value || reading.value || !canUseNow()) return
     const parsed = parseBulkCreateLines(draft.value)
     if (!parsed.success) { errorKey.value = 'bulkCreate.invalid'; return }
     snapshot.value = Object.freeze({ requestId: crypto.randomUUID(), targetUrls: Object.freeze([...parsed.data]) })
@@ -58,6 +62,25 @@ export function useBulkCreate() {
   function edit() { if (!pending.value && !unknown.value) { snapshot.value = null; errorKey.value = '' } }
   /** Checks both login epoch and the operation generation immediately before any side effect. */
   function isCurrent(token: number, candidate: typeof scope) { return alive && token === generation && identity.isCurrent(candidate) && canUseNow() }
+  /** Binds local file reads to both authority and the latest explicit draft intent. */
+  async function importFile(file: File | undefined) {
+    if (!file || !opened.value || snapshot.value || pending.value || unknown.value || !isCurrent(generation, scope)) return
+    const token = generation, candidate = scope, sequence = ++fileSequence, revision = draftRevision
+    const current = () => isCurrent(token, candidate) && sequence === fileSequence && revision === draftRevision
+    reading.value = true; errorKey.value = ''
+    try {
+      if (file.size > BULK_CSV_MAX_BYTES) { errorKey.value = 'bulkCreate.csvTooLarge'; return }
+      const bytes = await file.arrayBuffer()
+      if (!current()) return
+      if (bytes.byteLength > BULK_CSV_MAX_BYTES) { errorKey.value = 'bulkCreate.csvTooLarge'; return }
+      // Keep BOMs visible to the parser, which accepts only one opening marker.
+      const parsed = parseBulkCreateCsv(new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes))
+      if (!parsed.success) { errorKey.value = 'bulkCreate.csvInvalid'; return }
+      draft.value = parsed.data.join('\n'); errorKey.value = ''
+    } catch {
+      if (current()) errorKey.value = 'bulkCreate.csvReadFailed'
+    } finally { if (current()) reading.value = false }
+  }
   /** Sends exactly one explicit attempt; retry keeps the same immutable payload and key. */
   async function submit() {
     if (!opened.value || pending.value || closing.value || !snapshot.value || !isCurrent(generation, scope)) return
@@ -92,5 +115,5 @@ export function useBulkCreate() {
   }
   window.addEventListener('beforeunload', beforeUnload)
   onBeforeUnmount(() => { alive = false; generation++; unsubscribe(); window.removeEventListener('beforeunload', beforeUnload) })
-  return { allowed, opened, draft, snapshot, pending, unknown, closing, errorKey, begin, preview, edit, submit, close, cancelClose, discard }
+  return { allowed, opened, draft, snapshot, pending, unknown, closing, errorKey, reading, importFile, begin, preview, edit, submit, close, cancelClose, discard }
 }
