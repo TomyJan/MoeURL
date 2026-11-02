@@ -219,7 +219,9 @@ function invalidateLinks() {
 </script>
 
 <style scoped>
+.console-page__tools { display: grid; }
 .console-page__metadata-filters {
+  width: 100%;
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
