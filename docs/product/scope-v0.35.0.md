@@ -1,5 +1,9 @@
 # v0.35.0 有界页脚链接
 
+v0.35.0 已完整交付：[PR239](https://github.com/TomyJan/MoeURL/pull/239)最终候选 `a5cfaff` 合并为 `2737d503`，候选／master 验证、标准 Task1–4、295 条完整裁决及最终 22 文件归档已完成。实现最多五项有序页脚链接，不支持 HTML 或媒体上传；未发布或部署。最终原收据及旧失败索引见[本次维护验收](../implementation/2026-11-03-capability-status-acceptance.md)。
+
+## 历史阶段记录（原文保留）
+
 2026-10-30 19:06 UTC 文档状态同步（远端状态只据 2026-10-30 18:13:09 UTC 只读快照，非本次实时查询）：Task1–3 已标准完成，Task4 进行中且仅步骤 1 已完成。既有 [PR #239](https://github.com/TomyJan/MoeURL/pull/239) 已推送候选 `c44d23c0c7fe9ff41c52c19bd92dbe3c45636b08`；其自身 [CI run41097109781](https://github.com/TomyJan/MoeURL/actions/runs/41097109781) 九项 SUCCESS，完整 7331 行原始日志现已 ROOT 连续读至 EOF。真实 CodeRabbit review5716229915 的 kind=reviewed、sourceCommitId=coveredCommitId=该候选完整 SHA，review 与 overview 已全文读回；快照 effective open 为 0，但两条新增 outside 文档 Minor 仍须本次字段／状态同步及一次公开处置闭环，不与原五类延期 Minor 混合。本次文档后继的自身 CI、完整原始日志与真实 exact-head 审查仍待，不借 c44 证据；尚未合并、未完成 master 自身 CI／标准 Task4／最终归档清理，未 tag／release／deploy。以下旧阶段与失败记录均为历史，保留实际提交、输入、运行时和证据归属。
 
 历史记录（原文保留）：状态：2026-10-30 Task1–3 已标准完成，后端、前端、完整浏览器和精确产品本地门禁已有各自输入与运行时证据；Task4 进行中。[PR #239](https://github.com/TomyJan/MoeURL/pull/239) 候选 632c619 的 [CI](https://github.com/TomyJan/MoeURL/actions/runs/41054453846) 有 Test、Test Coverage、E2E 三项失败，当前正在窄修 ACE 校验及旧场景选择同步，不可合并，未发布。执行者根据长期自主迭代授权选择本增量，不冒用户逐条批准。起点仍为 fresh master API 与独立 fetch 相等的 65e859f797b7c422f83d8eac056b06ae2d60a1db；旧 PR #238 的完成证据不归属本版。
