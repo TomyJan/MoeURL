@@ -52,11 +52,13 @@
 
 - [x] 标准start2。唯一fresh最强supported reviewer，给完整base..HEAD及五项Focus；不得访问生产／执行产品suite或派下级。
 - [x] 根据信息核实全部意见；Critical／Important必须修有效问题并核文档，Minor按既定规则记完整原因和错误代价。无无关业务扩张或重复审查。
-- [ ] 同步实际审查阶段，核完整非MD与链接，原子文档提交。生成全部裁决和报告，新whole-owned ZIP／extract全集hashbytes，标准done2实际0。
+- [x] 同步实际审查阶段，核完整非MD与链接，原子文档提交。生成全部裁决和报告，新whole-owned ZIP／extract全集hashbytes，标准done2实际0。
 
 ## Task3：本轮远端与最终可恢复归档
 
 **Consumes：** Task2 clean候选及合同。**Produces：** 本轮真实覆盖、候选／master各九CI、标准完成与最终档案。
+
+标准 start3 已实际 0，BASE `550a34f9e608ae73e2a8bcdf96a5014d3c210bf2`，brief 已全文读取。远端操作及下列联合验收项尚未完成，不能预先勾选。
 
 - [ ] 标准start3，同名push／upstream，唯一PR。自动审查running不催；若skipped读本PR当时评论updated_at＋明示恢复时长，恢复点后fresh无running且该head无manual才一次请求。覆盖必须kind reviewed／source=covered精确最新head；全部有效评论／inline／outside闭环。
 - [ ] 候选精确九CI通过，完整raw只capture一次并ROOT连续读至EOF；允许按已读原件精确引用重建文本，不能借执行身份。fresh完整分页讨论、guarded squash match-head，独立API及fetch核masterSHA／tree／唯一父。
