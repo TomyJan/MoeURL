@@ -39,11 +39,14 @@
   </v-dialog>
 </template>
 <script setup lang="ts">
+import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useBulkCreate } from './useBulkCreate'
 import BulkCreateCsvHelp from './BulkCreateCsvHelp.vue'
 const { t } = useI18n()
 const state = useBulkCreate()
+const emit = defineEmits<{ open: [value: boolean] }>()
+watch(state.opened, value => emit('open', value), { flush: 'sync' })
 /** Releases the native selection so choosing the same file starts a fresh explicit read. */
 function selectFile(event: globalThis.Event) {
   const input = event.target as globalThis.HTMLInputElement

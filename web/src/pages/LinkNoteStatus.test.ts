@@ -192,7 +192,7 @@ describe('note presence page filtering', () => {
     const old = createDeferred<Response>(), current = createDeferred<Response>(), defaults = createDeferred<Response>()
     view.fetcher.mockReturnValueOnce(old.promise)
     await fireEvent.update(screen.getByLabelText('filter.noteStatus'), 'present')
-    const oldQuery = view.client.getQueryCache().findAll({ queryKey: [view.prefix] }).find(query => query.queryKey.at(-1) === 'present')!
+    const oldQuery = view.client.getQueryCache().findAll({ queryKey: [view.prefix] }).find(query => query.queryKey[7] === 'present')!
     expect(oldQuery).toBeDefined()
     view.unmount()
     view.fetcher.mockImplementation(async input => {
