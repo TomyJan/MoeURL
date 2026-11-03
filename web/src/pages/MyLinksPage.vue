@@ -39,11 +39,14 @@
         :indeterminate="batch.indeterminate.value"
         :selection-disabled="batch.unavailable.value"
         :write-disabled="rowWriteBlocked"
+        :can-note="access.canRead.value"
+        :note-disabled="exportBlocked || exportPending || !!qrLink"
         @select="batch.toggle"
         @select-all="batch.toggleAll"
         @configure="configureLink"
         @copy="copyUrl"
-        @qr="showQr"
+        @qr="showLinkQr"
+        @note="beginNote"
         @remove="remove"
         @toggle-status="toggleStatus"
       />
@@ -66,6 +69,7 @@
     @update:open="closeQr"
   />
   <ShortLinkBatchTagsDialog v-if="batchTagTargets" context="own" :targets="batchTagTargets" @close="batchTagTargets = null" @saved="batch.clear" @revoked="batch.clear" @conflict="batchTagsRefreshRequired = true" />
+  <ShortLinkNoteDialog v-if="note.target.value" :state="note" />
 </template>
 
 <script setup lang="ts">
@@ -88,11 +92,14 @@ import ShortLinkListExportButton from '@/features/short-link-list-export/ShortLi
 import BulkCreateDialog from '@/features/bulk-create/BulkCreateDialog.vue'
 import ShortLinkBatchTagsDialog from '@/features/short-link-tags/ShortLinkBatchTagsDialog.vue'
 import PersonalTagBrowser from '@/features/short-link-tags/PersonalTagBrowser.vue'
+import ShortLinkNoteDialog from '@/features/short-link-note/ShortLinkNoteDialog.vue'
+import { useShortLinkNote } from '@/features/short-link-note/useShortLinkNote'
 import { batchTagVersionSchema, type BatchTagTarget } from '@/entities/short-link/batch-tags'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const access = useShortLinkAccess('own')
+const note = useShortLinkNote('own', access)
 const batchTagTargets = ref<readonly BatchTagTarget[] | null>(null)
 const batchTagsRefreshRequired = ref(false)
 const exportPending = ref(false)
@@ -141,9 +148,10 @@ const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof va
 const batch = useShortLinkBatch({
   context: 'own', access, ids: computed(() => links.value.map(link => link.id)),
   filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value]),
-  blocked: computed(() => !query.isSuccess.value || query.isFetching.value || batchTagsRefreshRequired.value || batchTagTargets.value !== null || exportPending.value || filtersPending.value || keywordInvalid.value || tagInvalid.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null),
+  blocked: computed(() => note.target.value !== null || !query.isSuccess.value || query.isFetching.value || batchTagsRefreshRequired.value || batchTagTargets.value !== null || exportPending.value || filtersPending.value || keywordInvalid.value || tagInvalid.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null),
 })
-const rowWriteBlocked = computed(() => batch.pending.value || batch.deleteIds.value !== null || batchTagTargets.value !== null)
+const rowWriteBlocked = computed(() => note.target.value !== null || batch.pending.value || batch.deleteIds.value !== null || batchTagTargets.value !== null)
+watch([statusFilter, searchKeyword, tagFilter], note.reset, { flush: 'sync' })
 watch([query.isFetching, query.isSuccess], ([fetching, success]) => { if (!fetching && success) batchTagsRefreshRequired.value = false })
 const exportFilters = computed(() => ({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value }))
 const exportBlocked = computed(() => !access.canRead.value || !query.isSuccess.value || query.isFetching.value
@@ -161,6 +169,16 @@ function beginBatchTags() {
 
 /** Prevents opening row settings while a batch is outstanding. */
 function configureLink(link: ConsoleLinkListItem) { if (!rowWriteBlocked.value) configure(link) }
+
+/** Rechecks the live list and all competing operations before reading private text. */
+function beginNote(link: ConsoleLinkListItem) {
+  const state = queryClient.getQueryState(listQueryKey.value)
+  if (exportBlocked.value || exportPending.value || qrLink.value || !access.allows('read') || state?.status !== 'success' || state.fetchStatus !== 'idle' || state.isInvalidated) return
+  const current = links.value.find(value => value.id === link.id)
+  if (current) note.open(current)
+}
+/** Keeps QR and note dialogs mutually exclusive even for a queued menu click. */
+function showLinkQr(link: ConsoleLinkListItem) { if (!rowWriteBlocked.value) showQr(link) }
 
 /** Toggles an owned short link through the personal update mutation. */
 function toggleStatus(link: ConsoleLinkListItem) {

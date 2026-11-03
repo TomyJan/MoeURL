@@ -1,0 +1,18 @@
+[
+  {"name":"empty","input":"","want":""},
+  {"name":"trim and CRLF","input":" \t猫\r\n😀\tX\n ","want":"猫\n😀\tX"},
+  {"name":"BOM is content","input":" \ufeffA\ufeff ","want":"\ufeffA\ufeff"},
+  {"name":"combining unchanged","input":"e\u0301","want":"e\u0301"},
+  {"name":"unicode whitespace","input":"\u00a0\u2000A\u2028\u2029\u3000","want":"A"},
+  {"name":"1000 scalars","input":"😀","repeat":1000,"wantRepeat":1000},
+  {"name":"1001 scalars","input":"😀","repeat":1001,"invalid":true},
+  {"name":"1000 combining scalars","input":"e\u0301","repeat":500,"wantRepeat":500},
+  {"name":"lone CR before trim","input":"\rA","invalid":true},
+  {"name":"NUL","input":"A\u0000B","invalid":true},
+  {"name":"DEL","input":"\u007f","invalid":true},
+  {"name":"C1 control before trim","input":"\u0085","invalid":true},
+  {"name":"bad UTF8","rawHex":"ff","invalid":true},
+  {"name":"lone high surrogate","jsonString":"\"\\ud800\"","invalid":true},
+  {"name":"lone low surrogate","jsonString":"\"\\udfff\"","invalid":true},
+  {"name":"paired surrogate","jsonString":"\"\\ud83d\\ude00\"","want":"😀"}
+]

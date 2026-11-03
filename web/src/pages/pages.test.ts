@@ -49,6 +49,7 @@ const state = vi.hoisted(() => ({
     }
   },
   queryClient: {
+    getQueryCache: vi.fn(),
     getQueryState: vi.fn(() => ({ status: 'success' })),
     getQueryData: vi.fn(() => ({ user: { id: 'test-account', username: 'test-account', group: 'user', permissions: ['short_link:read_own', 'short_link:update_own', 'short_link:delete_own', 'admin:access', 'short_link:read_all', 'short_link:update_all', 'short_link:delete_all'] } })),
     cancelQueries: vi.fn(),
@@ -163,6 +164,9 @@ vi.mock('@/entities/user/api', () => ({
 
 vi.mock('@tanstack/vue-query', async () => {
   const { createMutationMock } = await import('@/test/mutation-mock')
+  const { QueryCache } = await vi.importActual<typeof import('@tanstack/vue-query')>('@tanstack/vue-query')
+  // The general page fixture does not open notes; real note lifecycles have dedicated QueryClient tests.
+  state.queryClient.getQueryCache.mockReturnValue(new QueryCache())
   return {
     QueryClient: class {
       getDefaultOptions = vi.fn()
@@ -1389,7 +1393,7 @@ describe('pages', () => {
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.more' }))
     expect(within(activeRow).getByRole('button', { name: 'links.actions.more' }).getAttribute('aria-haspopup')).toBe('menu')
     expect(within(activeRow).getByRole('button', { name: 'links.actions.more' }).getAttribute('aria-expanded')).toBe('true')
-    expect(within(activeRow).getAllByRole('menuitem')).toHaveLength(5)
+    expect(within(activeRow).getAllByRole('menuitem').map(item => item.textContent)).toEqual(['links.actions.open', 'links.actions.configure', 'linkNote.action', 'links.actions.qrCode', 'links.actions.disable', 'links.actions.delete'])
     await fireEvent.click(within(activeRow).getByRole('menuitem', { name: 'links.actions.qrCode' }))
     expect(screen.getByTestId('short-link-qr-dialog-stub').textContent).toContain('https://go.example.com/abc123')
     await fireEvent.click(screen.getByLabelText('short-link-qr-close'))
@@ -1772,7 +1776,7 @@ describe('pages', () => {
     expect(within(disabledRow).getByText('links.neverExpires')).toBeTruthy()
 
     await fireEvent.click(within(disabledRow).getByRole('button', { name: 'links.actions.more' }))
-    expect(within(disabledRow).getAllByRole('menuitem')).toHaveLength(6)
+    expect(within(disabledRow).getAllByRole('menuitem').map(item => item.textContent)).toEqual(['links.actions.open', 'links.actions.configure', 'linkNote.action', 'transfer.action', 'links.actions.qrCode', 'links.actions.enable', 'links.actions.delete'])
     await fireEvent.click(within(disabledRow).getByRole('menuitem', { name: 'links.actions.qrCode' }))
     expect(screen.getByTestId('short-link-qr-dialog-stub').textContent).toContain('https://go.example.com/abc123')
     await fireEvent.click(screen.getByLabelText('short-link-qr-close'))

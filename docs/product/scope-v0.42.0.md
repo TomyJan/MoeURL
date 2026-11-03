@@ -1,6 +1,6 @@
 # v0.42.0 全站标签查找范围
 
-状态：本地后端、前端、完整 167 项浏览器、精确产品验证和唯一整分支终审通过；终审无 Critical／Important，1 项文档问题已修正。本地归档与标准 Task3 收尾中，目标 CI、最新 head 真实审查、合并和 master 验证仍待，详见本版验收。基线为 master `312ac6df90ef39c9bea409cab80f705b80eae56f`，复用已恢复的隔离工作区，分支 `feat/v0.42.0-admin-tag-browser`。v0.41.0／PR249 已完整交付，未发布或部署。
+状态：已由 [PR253](https://github.com/TomyJan/MoeURL/pull/253)完整交付。候选2eab6cd真实审查、有效意见闭环，候选与合并master a680b224各自九CI成功，完整raw已核至EOF；标准Task1–4、25条完整裁决和最终whole-owned可恢复归档完成，无延期Minor。未发布或部署，详见[验收](../implementation/v0.42.0-acceptance.md)。基线master312ac6、原执行872e及各运行时保持实际证据归属，下方盘点是设计时现状。
 
 ## 目标与盘点
 

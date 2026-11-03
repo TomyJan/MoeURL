@@ -60,7 +60,7 @@ func TestDomainOrderMigrationRoundTrip(t *testing.T) {
 				seed()
 				before = snapshot()
 			}
-			if err := goose.Up(database, dir); err != nil {
+			if err := goose.UpTo(database, dir, 26); err != nil {
 				t.Fatal(err)
 			}
 			var order int32
@@ -124,7 +124,7 @@ func TestDomainOrderMigrationRoundTrip(t *testing.T) {
 				t.Fatalf("old audit trigger must still work: %s %v", fields, err)
 			}
 			before = snapshot()
-			if err := goose.Up(database, dir); err != nil {
+			if err := goose.UpTo(database, dir, 26); err != nil {
 				t.Fatal(err)
 			}
 			var historyCount int

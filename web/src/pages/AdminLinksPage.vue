@@ -37,13 +37,16 @@
         :indeterminate="batch.indeterminate.value"
         :selection-disabled="batch.unavailable.value"
         :write-disabled="rowWriteBlocked"
+        :can-note="access.canRead.value"
+        :note-disabled="exportBlocked || exportPending || !!qrLink"
         :can-transfer="canTransfer"
         @select="batch.toggle"
         @select-all="batch.toggleAll"
         @configure="configureLink"
         @transfer="beginTransfer"
         @copy="copyUrl"
-        @qr="showQr"
+        @qr="showLinkQr"
+        @note="beginNote"
         @remove="remove"
         @toggle-status="toggleStatus"
       />
@@ -68,6 +71,7 @@
   <ShortLinkTransferDialog v-if="transferTarget" :target="transferTarget" @close="transferTarget = null" />
   <ShortLinkBatchTransferDialog v-if="batchTransferTargets" :targets="batchTransferTargets" @close="batchTransferTargets = null" @transferred="batch.clear" @conflict="batchTransferRefreshRequired = true" />
   <ShortLinkBatchTagsDialog v-if="batchTagTargets" context="admin" :targets="batchTagTargets" @close="batchTagTargets = null" @saved="batch.clear" @revoked="batch.clear" @conflict="batchTagsRefreshRequired = true" />
+  <ShortLinkNoteDialog v-if="note.target.value" :state="note" />
 </template>
 
 <script setup lang="ts">
@@ -92,10 +96,13 @@ import ShortLinkListExportButton from '@/features/short-link-list-export/ShortLi
 import ShortLinkBatchTagsDialog from '@/features/short-link-tags/ShortLinkBatchTagsDialog.vue'
 import { batchTagVersionSchema, type BatchTagTarget } from '@/entities/short-link/batch-tags'
 import AdminTagBrowser from '@/features/short-link-tags/AdminTagBrowser.vue'
+import ShortLinkNoteDialog from '@/features/short-link-note/ShortLinkNoteDialog.vue'
+import { useShortLinkNote } from '@/features/short-link-note/useShortLinkNote'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const access = useShortLinkAccess('admin')
+const note = useShortLinkNote('admin', access)
 const batchTagTargets = ref<readonly BatchTagTarget[] | null>(null)
 const batchTagsRefreshRequired = ref(false)
 const transferTarget = ref<AdminShortLink | null>(null)
@@ -149,9 +156,10 @@ const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof va
 const batch = useShortLinkBatch({
   context: 'admin', access, ids: computed(() => links.value.map(link => link.id)),
   filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value]),
-  blocked: computed(() => !query.isSuccess.value || query.isFetching.value || batchTagsRefreshRequired.value || batchTagTargets.value !== null || batchTransferRefreshRequired.value || exportPending.value || keywordInvalid.value || tagInvalid.value || filtersPending.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null),
+  blocked: computed(() => note.target.value !== null || !query.isSuccess.value || query.isFetching.value || batchTagsRefreshRequired.value || batchTagTargets.value !== null || batchTransferRefreshRequired.value || exportPending.value || keywordInvalid.value || tagInvalid.value || filtersPending.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null),
 })
-const rowWriteBlocked = computed(() => batch.pending.value || batchTagTargets.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null || batch.deleteIds.value !== null)
+const rowWriteBlocked = computed(() => note.target.value !== null || batch.pending.value || batchTagTargets.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null || batch.deleteIds.value !== null)
+watch([statusFilter, searchKeyword, tagFilter], note.reset, { flush: 'sync' })
 const canTransfer = computed(() => access.canUpdate.value && query.isSuccess.value && !query.isFetching.value && !filtersPending.value && !keywordInvalid.value && !tagInvalid.value)
 watch([access.identity.scope, access.canUpdate], () => { batchTransferTargets.value = null; batch.clear() }, { flush: 'sync' })
 watch([query.isFetching, query.isSuccess], ([fetching, success]) => { if (!fetching && success) batchTransferRefreshRequired.value = false })
@@ -193,6 +201,16 @@ function beginBatchTransfer() {
 
 /** Prevents opening row settings while a batch is outstanding. */
 function configureLink(link: ConsoleLinkListItem) { if (!rowWriteBlocked.value) configure(link) }
+
+/** Reads only a still-visible authorized row after checking the live cache and operation locks. */
+function beginNote(link: ConsoleLinkListItem) {
+  const state = queryClient.getQueryState(listQueryKey.value)
+  if (exportBlocked.value || exportPending.value || qrLink.value || !access.allows('read') || state?.status !== 'success' || state.fetchStatus !== 'idle' || state.isInvalidated) return
+  const current = links.value.find(value => value.id === link.id)
+  if (current) note.open(current)
+}
+/** Keeps QR and note dialogs mutually exclusive even for a queued menu click. */
+function showLinkQr(link: ConsoleLinkListItem) { if (!rowWriteBlocked.value) showQr(link) }
 
 /** Toggles a short link through the administrative update mutation. */
 function toggleStatus(link: ConsoleLinkListItem) {

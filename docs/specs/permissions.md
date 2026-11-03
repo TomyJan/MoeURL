@@ -1,5 +1,9 @@
 # 权限模型
 
+## v0.43.0 内部备注
+
+不新增权限或授权。个人读read_own＋当前owner，写再update_own＋set_metadata；管理读admin:access＋read_all，写再update_all＋set_metadata。均需有效非guest当前数据库身份；按能力支持自定义组，不能硬编码admin组。预期身份header只拒绝会话错配、不授予身份，原metadata权限key/grant/preset不变。本地实现、完整 171 项浏览器、产品与唯一独立终审完成；远端候选与 master 的审查及 CI、合并和最终交付另行核验；见[设计](2026-11-03-v0.43.0-internal-link-notes-design.md)及[验收](../implementation/v0.43.0-acceptance.md)。
+
 ## v0.30.0 批量成员迁移边界（当前分支）
 
 不新增权限。入口沿用管理访问，事务在有序账号锁后从当前 DB 重查 active、非 builtin、admin 组及 admin:access，再按 admin→user 取得内置组共享锁。客户端组名／权限缓存不构成授权。整批拒绝 builtin、自身、缺失／已删及不支持组；全批版本验证先于 no-op，实际变化的组写、全部旧 Session 撤销和逐账号审计同事务。只支持内置 user／admin，不实现多组／自定义组／映射；旧单项权限仍逐项执行。规格与证据见[设计](2026-10-28-v0.30.0-batch-group-membership-design.md)和[验收](../implementation/v0.30.0-acceptance.md)，尚未合并／发布。
