@@ -117,6 +117,51 @@ describe('private note keyword search', () => {
     expect(screen.queryByText('fresh A')).toBeNull()
   })
 
+  // Leaving an in-flight private search must retire both its key and transport, even if HTTP never settles.
+  describe.each(['own', 'admin'] as const)('%s pending private reads', context => {
+    it.each(['unmount', 'filter', 'permission', 'account'] as const)('forgets a pending word after %s', async reason => {
+      const view = mount(context); await ready()
+      const pending = createDeferred<Response>()
+      view.fetcher.mockReturnValueOnce(pending.promise)
+      await fireEvent.update(screen.getByLabelText('filter.noteQuery'), 'retired-private-word')
+      await waitFor(() => expect(view.fetcher.mock.calls.at(-1)![1]?.method).toBe('POST'))
+      const signal = view.fetcher.mock.calls.at(-1)![1]?.signal
+      const retired = view.client.getQueryCache().getAll().find(q => q.queryKey[9] === 'retired-private-word')!
+      if (reason === 'unmount') view.unmount()
+      else if (reason === 'filter') await fireEvent.update(screen.getByLabelText('filter.noteQuery'), '')
+      else view.client.setQueryData(['auth', 'me'], { user: reason === 'account'
+        ? { ...view.user, id: '00000000-0000-0000-0000-000000000002' }
+        : { ...view.user, permissions: [] } })
+      await waitFor(() => expect(view.client.getQueryCache().getAll()).not.toContain(retired))
+      expect(signal?.aborted).toBe(true)
+      pending.resolve(view.envelope('retired pending response'))
+      await nextTick(); await nextTick()
+      expect(screen.queryByText('retired pending response')).toBeNull()
+    })
+  })
+
+  // A new login epoch must not inherit either an applied term or a debounce/invalid draft from the previous actor.
+  describe.each(['own', 'admin'] as const)('%s account private drafts', context => {
+    it.each(['applied', 'debouncing', 'invalid', 'guest-return'] as const)('clears %s words before reading as another epoch', async state => {
+      const view = mount(context); await ready()
+      await fireEvent.update(screen.getByLabelText('filter.noteQuery'), 'previous-account-private')
+      if (state !== 'debouncing') await ready()
+      if (state === 'invalid') await fireEvent.update(screen.getByLabelText('filter.noteQuery'), '\tinvalid-private')
+      const before = view.fetcher.mock.calls.length
+      if (state === 'guest-return') view.client.setQueryData(['auth', 'me'], { user: { ...view.user, id: '', username: 'guest', group: 'guest', permissions: [] } })
+      const nextId = state === 'guest-return' ? actor.id : '00000000-0000-0000-0000-000000000002'
+      view.client.setQueryData(['auth', 'me'], { user: { ...view.user, id: nextId } })
+      await nextTick()
+      expect((screen.getByLabelText('filter.noteQuery') as HTMLInputElement).value).toBe('')
+      await ready()
+      await fireEvent.update(screen.getByLabelText('filter.keyword'), 'next-account-metadata')
+      await waitFor(() => expect(String(view.fetcher.mock.calls.at(-1)![0])).toContain('q=next-account-metadata'))
+      expect(view.fetcher.mock.calls.slice(before).every(([, init]) => init?.method === 'GET')).toBe(true)
+      expect(view.client.getQueryCache().getAll().some(q => q.queryKey[9])).toBe(false)
+      expect(screen.queryByText('linkMetadata.noteQueryInvalid')).toBeNull()
+    })
+  })
+
   // Page two is a view of a complete collection; its export must contain no page fields or private URL term.
   it.each(['own', 'admin'] as const)('exportsAllMatchesFromSecondPage in %s', async context => {
     const view = mount(context); await ready()
@@ -143,14 +188,14 @@ describe('private note keyword search', () => {
     await waitFor(() => expect(view.fetcher.mock.calls.at(-1)![1]?.method).toBe('POST'))
     const nextActor = '00000000-0000-0000-0000-000000000002'
     view.client.setQueryData(['auth', 'me'], { user: { ...view.user, id: nextActor } })
-    await waitFor(() => expect(view.fetcher.mock.calls.at(-1)![1]?.headers).toMatchObject({ 'X-MoeURL-Expected-User-ID': nextActor }))
+    await waitFor(() => expect(view.fetcher.mock.calls.at(-1)![1]?.method).toBe('GET'))
     old.resolve(view.envelope('retired identity')); await nextTick(); await nextTick()
     expect(screen.queryByText('retired identity')).toBeNull()
     current.resolve(view.envelope('current identity')); await ready()
     view.client.setQueryData(['auth', 'me'], { user: { ...view.user, permissions: [] } })
     view.queued('denied')
     view.client.setQueryData(['auth', 'me'], { user: view.user }); await ready()
-    expect((screen.getByLabelText('filter.noteQuery') as HTMLInputElement).value).toBe('private')
+    expect((screen.getByLabelText('filter.noteQuery') as HTMLInputElement).value).toBe('')
     expect(screen.queryByText('current identity')).toBeNull()
   })
 

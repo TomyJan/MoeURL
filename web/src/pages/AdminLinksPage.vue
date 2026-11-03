@@ -118,6 +118,8 @@ const exportPending = ref(false)
 const statusFilter = ref<'' | AdminShortLink['status']>('')
 const noteStatusFilter = ref<ShortLinkNoteStatus>('')
 const { searchKeyword, tagFilter, noteQuery, debouncedKeyword, debouncedTag, debouncedNoteQuery, keywordInvalid, tagInvalid, noteQueryInvalid, noteQueryPending, filtersPending } = useShortLinkFilters()
+// Private text belongs to one login epoch; resetting the draft also retires its pending debounce.
+watch(access.identity.scope, () => { noteQuery.value = ''; debouncedNoteQuery.value = '' }, { flush: 'sync' })
 const statusOptions = computed(() => [
   { title: t('filter.all'), value: '' },
   { title: t('filter.active'), value: 'active' },
@@ -145,9 +147,10 @@ const query = useQuery({
   queryKey: listQueryKey,
   enabled: computed(() => access.canRead.value && !noteQueryInvalid.value && !noteQueryPending.value),
   gcTime: 0,
-  queryFn: ({ queryKey: [, status, q, tag, userId, , , noteStatus, requestPage, noteQuery] }) => {
+  queryFn: (context) => {
+    const [, status, q, tag, userId, , , noteStatus, requestPage, noteQuery] = context.queryKey
     const input = { page: requestPage, pageSize: 20, status, q, tag }
-    return noteQuery ? searchAdminNotes({ ...input, noteStatus, noteQuery }, userId) : listAdminShortLinks({ ...input, ...(noteStatus ? { noteStatus } : {}) })
+    return noteQuery ? searchAdminNotes({ ...input, noteStatus, noteQuery }, userId, context.signal) : listAdminShortLinks({ ...input, ...(noteStatus ? { noteStatus } : {}) })
   },
 })
 const links = computed(() => access.canRead.value ? query.data.value?.items ?? [] : [])

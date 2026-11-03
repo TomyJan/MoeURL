@@ -21,16 +21,16 @@ export function noteSearchHeaders(userId: string) {
 }
 
 /** Validates both list items and the separate pagination envelope without echoing private data. */
-async function search<T>(path: string, schema: z.ZodType<{ items: T[] }>, input: NoteSearchInput, userId: string) {
+async function search<T>(path: string, schema: z.ZodType<{ items: T[] }>, input: NoteSearchInput, userId: string, signal?: AbortSignal) {
   const request = inputSchema.safeParse(input)
   if (!request.success) throw new ApiClientError(100001, 'Invalid note search request')
-  const response = await apiPost<unknown>(path, request.data, undefined, noteSearchHeaders(userId))
+  const response = await apiPost<unknown>(path, request.data, signal, noteSearchHeaders(userId))
   const data = schema.safeParse(response.data), meta = metaSchema.safeParse(response.meta)
   if (!data.success || !meta.success || meta.data.page !== request.data.page || meta.data.pageSize !== request.data.pageSize) throw new ApiClientError(100001, 'Invalid note search response')
   return { items: data.data.items, meta: meta.data }
 }
 
 /** Searches owned metadata using a fixed POST endpoint and no URL search term. */
-export const searchOwnNotes = (input: NoteSearchInput, userId: string) => search('/short-link/note/search', shortLinkListSchema, input, userId)
+export const searchOwnNotes = (input: NoteSearchInput, userId: string, signal?: AbortSignal) => search('/short-link/note/search', shortLinkListSchema, input, userId, signal)
 /** Searches administrative metadata using the complete current server authorization boundary. */
-export const searchAdminNotes = (input: NoteSearchInput, userId: string) => search('/admin/short-link/note/search', adminShortLinkListSchema, input, userId)
+export const searchAdminNotes = (input: NoteSearchInput, userId: string, signal?: AbortSignal) => search('/admin/short-link/note/search', adminShortLinkListSchema, input, userId, signal)
