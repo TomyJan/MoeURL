@@ -49,3 +49,72 @@ func TestShortLinkNoteMigration(t *testing.T) {
 	require.NoError(t, database.QueryRowContext(ctx, `select note from short_link where slug='notemigration'`).Scan(&note))
 	require.Empty(t, note)
 }
+
+// TestShortLinkNoteAuditCompatibility catches added note fields in legacy create/delete audits and missing or duplicate update audits across rollback.
+func TestShortLinkNoteAuditCompatibility(t *testing.T) {
+	ctx := t.Context()
+	database := migrationTestDatabase(t, ctx)
+	dir := filepath.Join("..", "..", "migrations")
+	require.NoError(t, goose.UpTo(database, dir, 34))
+	insertUserGroups(t, ctx, database)
+	const legacyFields = `["slug","owner_id","domain_id","target_url","status","redirect_mode","intermediate_delay_seconds","expires_at","password_hash","max_visits","title","tags","deleted_at"]`
+	const linkID = "00000000-0000-0000-0000-000000000436"
+	checkWrite := func(t *testing.T, query, action, fields string) {
+		t.Helper()
+		var previous int64
+		require.NoError(t, database.QueryRowContext(ctx, `select coalesce(max(id),0) from audit_log`).Scan(&previous))
+		tx, err := database.BeginTx(ctx, nil)
+		require.NoError(t, err)
+		defer tx.Rollback()
+		_, err = tx.ExecContext(ctx, `select set_config('moeurl.audit_enabled','on',true),set_config('moeurl.audit_actor','00000000-0000-0000-0000-000000000201',true)`)
+		require.NoError(t, err)
+		_, err = tx.ExecContext(ctx, query)
+		require.NoError(t, err)
+		require.NoError(t, tx.Commit())
+		rows, err := database.QueryContext(ctx, `select action,array_to_json(changed_fields)::text,actor_id::text,resource_type,resource_id from audit_log where id>$1 order by id`, previous)
+		require.NoError(t, err)
+		defer rows.Close()
+		if action != "" {
+			require.True(t, rows.Next(), "the actual write needs one audit row")
+			var gotAction, gotFields, actor, resource, id string
+			require.NoError(t, rows.Scan(&gotAction, &gotFields, &actor, &resource, &id))
+			require.Equal(t, action, gotAction)
+			require.JSONEq(t, fields, gotFields)
+			require.Equal(t, "00000000-0000-0000-0000-000000000201", actor)
+			require.Equal(t, "short_link", resource)
+			require.Equal(t, linkID, id)
+		}
+		require.False(t, rows.Next(), "no duplicate audit, including no-op/version-only writes")
+		require.NoError(t, rows.Err())
+	}
+	for _, phase := range []struct {
+		name    string
+		version int64
+		notes   bool
+	}{{"before", 34, false}, {"upgrade", 35, true}, {"rollback", 34, false}, {"reupgrade", 35, true}} {
+		t.Run(phase.name, func(t *testing.T) {
+			t.Cleanup(func() {
+				_, err := database.ExecContext(ctx, `delete from short_link where id='`+linkID+`'`)
+				require.NoError(t, err)
+			})
+			check := func(query, action, fields string) {
+				t.Helper()
+				checkWrite(t, query, action, fields)
+			}
+			if phase.name == "rollback" {
+				require.NoError(t, goose.DownTo(database, dir, phase.version))
+			} else {
+				require.NoError(t, goose.UpTo(database, dir, phase.version))
+			}
+			check(`insert into short_link(id,owner_id,domain_id,slug,target_url,status,created_at,updated_at) values('`+linkID+`','00000000-0000-0000-0000-000000000201','00000000-0000-0000-0000-000000000101','noteauditcompat','https://example.com/original','active',now(),now())`, "create", legacyFields)
+			check(`update short_link set title='Changed title' where id='`+linkID+`'`, "update", `["title"]`)
+			if phase.notes {
+				check(`update short_link set note='Private note' where id='`+linkID+`'`, "update", `["note"]`)
+				check(`update short_link set note=note,note_updated_at=clock_timestamp() where id='`+linkID+`'`, "", "")
+				check(`update short_link set title='Another title' where id='`+linkID+`'`, "update", `["title"]`)
+				check(`update short_link set note='' where id='`+linkID+`'`, "update", `["note"]`)
+			}
+			check(`delete from short_link where id='`+linkID+`'`, "delete", legacyFields)
+		})
+	}
+}
