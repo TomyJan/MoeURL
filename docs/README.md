@@ -1,6 +1,6 @@
 # MoeURL 文档中心
 
-当前 [v0.43.0 短链内部备注](product/scope-v0.43.0.md)后端与前端已实现，本地 Go 门禁、2874 项前端测试及四项 100% 覆盖率通过。真实浏览器、产品验证、审查与远端交付尚未完成；旧 metadata／公开访问／CSV 不增加备注，阶段见[验收](implementation/v0.43.0-acceptance.md)。
+当前 [v0.43.0 短链内部备注](product/scope-v0.43.0.md)后端、前端、完整 171 项浏览器及精确产品验证通过，16 张原图已逐张检查。唯一独立终审无阻断问题，两项 Minor 延后；远端审查、CI、合并与 master 验证尚待；旧 metadata／公开访问／CSV 不增加备注，阶段见[验收](implementation/v0.43.0-acceptance.md)。
 
 v0.42.0 已完整交付：[PR253](https://github.com/TomyJan/MoeURL/pull/253)最终候选2eab6cd真实审查和有效意见闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41528785613)与合并master a680b224的[自身九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41533004155)均成功，完整原日志分别核至 EOF。标准 Task1–4、25条完整裁决报告、新 whole-owned ZIP／解压全集核与准确leaf可恢复迁出完成，无延期Minor。未发布部署，见[验收](implementation/v0.42.0-acceptance.md)。下方旧阶段叙述保持历史归属。
 
