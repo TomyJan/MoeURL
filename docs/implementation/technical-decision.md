@@ -1,5 +1,7 @@
 # 技术选型决策
 
+新增 [v0.44.0 备注状态筛选](../specs/2026-11-03-v0.44.0-note-status-design.md)设计：只判断存储空串；非空筛选采用五秒只读 repeatable-read 事务核当前账号／组并同 snapshot Count／List。导出沿用单 SELECT 授权快照和原预算；不扩正文响应，不改 schema、依赖、CAS 或默认旧路径。正在实施，结果见[验收](v0.44.0-acceptance.md)。
+
 当前 [v0.43.1 备注版本边界](../product/scope-v0.43.1.md)已实现，真实 HTTP／客户端回归及完整本地门禁通过，前端 2940 项与四项 100% 覆盖率通过；clean61e938d 的完整 173 项浏览器、18 张原图及精确产品检查通过，Task1 标准完成；唯一独立终审无发现；本地归档与 Task2 标准完成，Task3 已启动，远端交付尚待，见[验收](v0.43.1-acceptance.md)。不改数据库、权限、依赖或其他资源解析器。
 
 v0.43.0 已完整交付：[PR254](https://github.com/TomyJan/MoeURL/pull/254)最终候选 fbe0fae 真实审查及有效问题闭环，[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41562059864)与合并 master646656 的[自身九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41567605713)均通过，完整原日志分别核至 EOF。标准 Task1–4、25 条完整裁决报告及全 owned ZIP／解压核验、准确 leaf 可恢复迁出完成。M2 已解决，最终仅延期 M1，本补丁接续处理；未发布部署，见[验收](v0.43.0-acceptance.md)。下方旧阶段叙述保留历史归属。

@@ -1,5 +1,7 @@
 # 短链
 
+[v0.44.0 设计](2026-11-03-v0.44.0-note-status-design.md)为授权列表和清单导出增加 noteStatus 三态交集，不搜索或返回备注正文。当前只设计确定，尚未验收；[范围](../product/scope-v0.44.0.md)及[实施验收](../implementation/v0.44.0-acceptance.md)区分本地、候选、master 和发布。
+
 ## v0.43.0 内部备注设计
 
 本版为既有短链增加授权管理界面独立备注，1000 码点纯文本、独立版本 CAS，不进入原 metadata／主列表／公开访问／CSV／统计。备注随资源转移，当前 owner 和权限重新校验；本地实现、171 项浏览器、产品与独立终审完成，远端交付待完成，详见[设计](2026-11-03-v0.43.0-internal-link-notes-design.md)与[验收](../implementation/v0.43.0-acceptance.md)。
