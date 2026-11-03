@@ -1,6 +1,6 @@
 # v0.48.0 短链列表每页条数
 
-2026-11-04 设计启动，基线为已验 master `5ed2939c6de3f75e3cb46dac37fcb6ffa06ad74f`。尚未实施或验收，见[设计](../specs/2026-11-04-v0.48.0-list-page-size-design.md)、[计划](../implementation/v0.48.0-plan.md)及[验收](../implementation/v0.48.0-acceptance.md)。
+2026-11-04 实施中，基线为已验 master `5ed2939c6de3f75e3cb46dac37fcb6ffa06ad74f`。Task1 已标准完成，3119 项完整前端四100%、types／lint及定向真实浏览器通过，8张原图已核；完整浏览器、产品、独立终审及远端交付仍待。见[设计](../specs/2026-11-04-v0.48.0-list-page-size-design.md)、[计划](../implementation/v0.48.0-plan.md)及[验收](../implementation/v0.48.0-acceptance.md)。
 
 ## 必须实现
 

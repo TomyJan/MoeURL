@@ -41,7 +41,7 @@ function mount(context: 'own' | 'admin', write = true) {
   })
   vi.stubGlobal('fetch', fetcher)
   let queued!: (value: unknown) => void
-  const select = defineComponent({ props: { label: { type: String, default: '' }, items: { type: Array, default: () => [] }, modelValue: { type: String, default: '' }, disabled: Boolean }, emits: ['update:modelValue'], setup(props, { emit }) {
+  const select = defineComponent({ props: { label: { type: String, default: '' }, items: { type: Array, default: () => [] }, modelValue: { type: [String, Number], default: '' }, disabled: Boolean }, emits: ['update:modelValue'], setup(props, { emit }) {
     if (props.label === 'filter.noteStatus') queued = value => emit('update:modelValue', value)
     return () => h(componentStubs.VSelect!, { ...props, 'onUpdate:modelValue': (value: unknown) => emit('update:modelValue', value) })
   } })

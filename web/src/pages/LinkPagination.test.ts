@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/vue'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { defineComponent, h, nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -78,17 +78,19 @@ describe('short-link list pagination', () => {
   it.each(['own', 'admin'] as const)('changesPageSizeAndRetiresSelection in %s', async context => {
     const view = mount(context, true, false, 61); await ready()
     expect(screen.getAllByTestId('console-link-row')).toHaveLength(20)
-    await fireEvent.click(screen.getAllByRole('checkbox')[1]!)
+    const pagination = within(screen.getByRole('navigation', { name: 'pagination.label' }))
+    await fireEvent.click(within(screen.getAllByTestId('console-link-row')[0]!).getByRole('checkbox'))
     await fireEvent.update(screen.getByLabelText('pagination.pageSize'), '50'); await ready()
     expect(screen.getAllByTestId('console-link-row')).toHaveLength(50)
-    expect(screen.getAllByRole('checkbox').every(box => !(box as HTMLInputElement).checked)).toBe(true)
+    // Visibility is covered by the real row rendering; avoid recomputing JSDOM styles for all 50 checkboxes.
+    expect(screen.getAllByRole('checkbox', { hidden: true }).every(box => !(box as HTMLInputElement).checked)).toBe(true)
     let url = new URL(String(view.fetcher.mock.calls.at(-1)![0]), 'http://localhost')
     expect(url.searchParams.get('page')).toBe('1'); expect(url.searchParams.get('pageSize')).toBe('50')
-    await fireEvent.click(screen.getByRole('button', { name: 'pagination.next' })); await ready()
+    await fireEvent.click(pagination.getByRole('button', { name: 'pagination.next' })); await ready()
     expect(screen.getAllByTestId('console-link-row')).toHaveLength(11)
     await fireEvent.update(screen.getByLabelText('pagination.pageSize'), '100'); await ready()
     expect(screen.getAllByTestId('console-link-row')).toHaveLength(61)
-    expect((screen.getByRole('button', { name: 'pagination.next' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((pagination.getByRole('button', { name: 'pagination.next' }) as HTMLButtonElement).disabled).toBe(true)
     url = new URL(String(view.fetcher.mock.calls.at(-1)![0]), 'http://localhost')
     expect(url.searchParams.get('page')).toBe('1'); expect(url.searchParams.get('pageSize')).toBe('100')
   })
