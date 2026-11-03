@@ -123,7 +123,7 @@ where short_link.owner_id = $1 and short_link.deleted_at is null
         or short_link.title ilike '%' || sqlc.arg('query')::text || '%'
         or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || sqlc.arg('query')::text || '%')
     )
-order by short_link.created_at desc
+order by short_link.created_at desc, short_link.id desc
 limit $2 offset $3;
 
 -- name: CountShortLinksByOwner :one
@@ -293,7 +293,7 @@ where short_link.deleted_at is null
         or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || sqlc.arg('query')::text || '%')
         or app_user.nickname ilike '%' || sqlc.arg('query')::text || '%'
     )
-order by short_link.created_at desc
+order by short_link.created_at desc, short_link.id desc
 limit $1 offset $2;
 
 -- name: CountAllShortLinks :one

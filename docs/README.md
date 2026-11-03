@@ -2,13 +2,11 @@
 
 ## 当前状态（2026-11-04）
 
-当前启动 [v0.47.0 列表确定顺序](product/scope-v0.47.0.md)：本人／全站普通及备注列表采用创建时间、UUID 倒序；尚未实现或验收，不承诺并发跨请求快照。见[计划](implementation/v0.47.0-plan.md)和[验收](implementation/v0.47.0-acceptance.md)。
+当前实施 [v0.47.0 列表确定顺序](product/scope-v0.47.0.md)：本人／全站普通及备注列表采用创建时间、UUID 倒序；真实 PG／HTTP RED→GREEN、完整后端／业务100%／Linux race及安全门禁通过。浏览器、产品、终审和远端交付仍待，不承诺并发跨请求快照；见[计划](implementation/v0.47.0-plan.md)和[验收](implementation/v0.47.0-acceptance.md)。
 
 PR260 文档维护已完整交付，master `47e170b455e6b2a8d02d89bcbdaef15a63b06df3`，真实覆盖、候选和 master 各九 CI、完整日志、标准 Task1–3 及可恢复归档均完成；未发布部署。下方旧阶段按原时点保留。
 
 [v0.46.0 备注关键词筛选](product/scope-v0.46.0.md)已完整交付：[PR259](https://github.com/TomyJan/MoeURL/pull/259) 合并为 `f3beb002ca88c7f2e4e2398ef22edf1cc9eae267`。最终候选 `fedb65a` 已真实审查、有效问题闭环；[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41697764468) 与 [master 自身九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41701602969) 均成功，完整日志分别核至 EOF。标准 Task1–4、25 条裁决报告及可恢复归档完成，未正式发布或部署；详见[验收](implementation/v0.46.0-acceptance.md)。
-
-当前进行[交付状态文档同步](implementation/2026-11-04-capability-sync-plan.md)，修正已交付能力和历史阶段标签；本维护自己的审查、CI 和合并尚待，不借旧版结果。
 
 ## 历史阶段摘要（v0.46.0 交付前，原文保留）
 

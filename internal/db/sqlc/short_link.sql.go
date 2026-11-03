@@ -658,7 +658,7 @@ where short_link.deleted_at is null
         or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || $7::text || '%')
         or app_user.nickname ilike '%' || $7::text || '%'
     )
-order by short_link.created_at desc
+order by short_link.created_at desc, short_link.id desc
 limit $1 offset $2
 `
 
@@ -800,7 +800,7 @@ where short_link.owner_id = $1 and short_link.deleted_at is null
         or short_link.title ilike '%' || $8::text || '%'
         or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || $8::text || '%')
     )
-order by short_link.created_at desc
+order by short_link.created_at desc, short_link.id desc
 limit $2 offset $3
 `
 
