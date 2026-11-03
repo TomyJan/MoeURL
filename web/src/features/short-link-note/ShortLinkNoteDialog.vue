@@ -1,5 +1,5 @@
 <template>
-  <v-dialog :model-value="!!state.target.value" :persistent="state.saving.value" max-width="680" @update:model-value="state.close">
+  <v-dialog :model-value="!!state.target.value" :persistent="state.saving.value" max-width="680" scrollable @update:model-value="state.close">
     <v-card class="note-card" data-testid="note-dialog">
       <v-card-title>{{ t('linkNote.title') }}</v-card-title>
       <v-card-text class="note-body">
@@ -39,7 +39,7 @@ const { t } = useI18n()
 </script>
 <style scoped>
 .note-card, .note-body { min-width: 0; }
-.note-body { display: grid; gap: 14px; overflow-wrap: anywhere; }
+.note-body { display: grid; grid-auto-rows: max-content; gap: 14px; min-height: 0; overflow-y: auto; overflow-wrap: anywhere; }
 .note-url { margin: 0; overflow-wrap: anywhere; }
 .note-counter { margin: 0; text-align: end; }
 .note-body :deep(textarea) { white-space: pre-wrap; overflow-wrap: anywhere; }
