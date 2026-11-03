@@ -176,13 +176,24 @@ async function capture(info: TestInfo, page: Page, name: string) {
   await expectNoHorizontalOverflow(page)
   const geometry = () => dialog.evaluate(element => {
     const selectors = ['.note-body .v-textarea', '.note-counter', ...Array.from(element.querySelectorAll('.note-actions button')).map((_, index) => `.note-actions button:nth-child(${index + 1})`)]
-    const boxes = selectors.map(selector => { const rect = element.querySelector(selector)!.getBoundingClientRect(); return { selector, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom } })
-    const overlaps = boxes.flatMap((a, index) => boxes.slice(index + 1).filter(b => a.right > b.left + 1 && b.right > a.left + 1 && a.bottom > b.top + 1 && b.bottom > a.top + 1).map(b => [a.selector, b.selector]))
-    return { boxes, overlaps, viewport: { width: innerWidth, height: innerHeight }, overflow: element.scrollWidth - element.clientWidth }
+    const body = element.querySelector('.note-body')!, clip = body.getBoundingClientRect(), clippingOverflow = getComputedStyle(body).overflowY
+    const rawBoxes = selectors.map(selector => { const rect = element.querySelector(selector)!.getBoundingClientRect(); return { selector, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom } })
+    // A scroll child's full DOM rectangle includes offscreen content that the browser actually clips.
+    const boxes = rawBoxes.map(box => box.selector.startsWith('.note-actions') || !['auto', 'scroll', 'hidden', 'clip'].includes(clippingOverflow) ? box
+      : { ...box, left: Math.max(box.left, clip.left), right: Math.min(box.right, clip.right), top: Math.max(box.top, clip.top), bottom: Math.min(box.bottom, clip.bottom) })
+    const visible = boxes.filter(box => box.right > box.left && box.bottom > box.top)
+    const overlaps = visible.flatMap((a, index) => visible.slice(index + 1).filter(b => a.right > b.left + 1 && b.right > a.left + 1 && a.bottom > b.top + 1 && b.bottom > a.top + 1).map(b => [a.selector, b.selector]))
+    const buttonsUnobstructed = Array.from(element.querySelectorAll('.note-actions button')).every(button => {
+      if (button.matches(':disabled')) return true
+      const rect = button.getBoundingClientRect(), hit = document.elementFromPoint((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2)
+      return hit !== null && button.contains(hit)
+    })
+    return { boxes, rawBoxes, clippingOverflow, buttonsUnobstructed, overlaps, viewport: { width: innerWidth, height: innerHeight }, overflow: element.scrollWidth - element.clientWidth }
   })
   await expect.poll(async () => (await geometry()).overlaps).toEqual([])
   await expect.poll(async () => (await geometry()).overflow).toBeLessThanOrEqual(1)
   for (const button of await dialog.locator('.note-actions button').all()) await expect(button).toBeInViewport()
+  await expect.poll(async () => (await geometry()).buttonsUnobstructed).toBe(true)
   await attach(info, name + '-geometry', await geometry())
   const path = info.outputPath(name + '.png'); await page.screenshot({ path, animations: 'disabled' }); await info.attach(name, { path, contentType: 'image/png' })
 }
