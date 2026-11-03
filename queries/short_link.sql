@@ -110,6 +110,9 @@ left join lateral (
     where short_link_event.short_link_id = short_link.id
 ) stats on true
 where short_link.owner_id = $1 and short_link.deleted_at is null
+    and (sqlc.arg('note_status')::text = ''
+        or (sqlc.arg('note_status')::text = 'present' and short_link.note <> '')
+        or (sqlc.arg('note_status')::text = 'absent' and short_link.note = ''))
     and (sqlc.narg('status')::text is null or short_link.status = sqlc.narg('status')::text)
     and (sqlc.arg('tag')::text = '' or short_link.tags @> array[sqlc.arg('tag')::text])
     and (
@@ -126,6 +129,9 @@ limit $2 offset $3;
 select count(*)
 from short_link
 where owner_id = $1 and deleted_at is null
+    and (sqlc.arg('note_status')::text = ''
+        or (sqlc.arg('note_status')::text = 'present' and short_link.note <> '')
+        or (sqlc.arg('note_status')::text = 'absent' and short_link.note = ''))
     and (sqlc.narg('status')::text is null or status = sqlc.narg('status')::text)
     and (sqlc.arg('tag')::text = '' or short_link.tags @> array[sqlc.arg('tag')::text])
     and (
@@ -271,6 +277,9 @@ left join lateral (
 ) stats on true
 where short_link.deleted_at is null
     and (sqlc.narg('status')::text is null or short_link.status = sqlc.narg('status')::text)
+    and (sqlc.arg('note_status')::text = ''
+        or (sqlc.arg('note_status')::text = 'present' and short_link.note <> '')
+        or (sqlc.arg('note_status')::text = 'absent' and short_link.note = ''))
     and (sqlc.arg('tag')::text = '' or short_link.tags @> array[sqlc.arg('tag')::text])
     and (
         sqlc.arg('query')::text = ''
@@ -290,6 +299,9 @@ from short_link
 left join app_user on sqlc.arg('query')::text <> '' and app_user.id = short_link.owner_id
 where short_link.deleted_at is null
     and (sqlc.narg('status')::text is null or short_link.status = sqlc.narg('status')::text)
+    and (sqlc.arg('note_status')::text = ''
+        or (sqlc.arg('note_status')::text = 'present' and short_link.note <> '')
+        or (sqlc.arg('note_status')::text = 'absent' and short_link.note = ''))
     and (sqlc.arg('tag')::text = '' or short_link.tags @> array[sqlc.arg('tag')::text])
     and (
         sqlc.arg('query')::text = ''

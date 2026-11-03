@@ -60,11 +60,12 @@ type CreateResult struct {
 }
 
 type ListInput struct {
-	Page     int32
-	PageSize int32
-	Status   string
-	Query    string
-	Tag      string
+	Page       int32
+	PageSize   int32
+	Status     string
+	Query      string
+	Tag        string
+	NoteStatus string
 }
 
 // OverviewResult contains personal short-link and visit aggregates.

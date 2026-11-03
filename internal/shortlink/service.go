@@ -218,6 +218,11 @@ func (s *Service) Overview(ctx context.Context, user auth.CurrentUser) (Overview
 
 // List returns a paginated view of short links owned by the caller.
 func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInput) (ListResult, error) {
+	if input.NoteStatus != "" {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+	}
 	if _, err := s.authorize(ctx, user, permission.ShortLinkReadOwn); err != nil {
 		return ListResult{}, err
 	}
@@ -235,23 +240,30 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 		return ListResult{}, err
 	}
 
-	total, err := s.queries.CountShortLinksByOwner(ctx, sqlc.CountShortLinksByOwnerParams{
-		Query:   query,
-		Tag:     tag,
-		OwnerID: uuidToPgtype(ownerID),
-		Status:  optionalFilterText(input.Status),
+	queries, finish, err := s.noteStatusListQueries(ctx, user, input.NoteStatus, false)
+	if err != nil {
+		return ListResult{}, err
+	}
+	defer finish()
+	total, err := queries.CountShortLinksByOwner(ctx, sqlc.CountShortLinksByOwnerParams{
+		NoteStatus: input.NoteStatus,
+		Query:      query,
+		Tag:        tag,
+		OwnerID:    uuidToPgtype(ownerID),
+		Status:     optionalFilterText(input.Status),
 	})
 	if err != nil {
 		return ListResult{}, err
 	}
 
-	rows, err := s.queries.ListShortLinksByOwner(ctx, sqlc.ListShortLinksByOwnerParams{
-		Query:   query,
-		Tag:     tag,
-		OwnerID: uuidToPgtype(ownerID),
-		Limit:   pageSize,
-		Offset:  (page - 1) * pageSize,
-		Status:  optionalFilterText(input.Status),
+	rows, err := queries.ListShortLinksByOwner(ctx, sqlc.ListShortLinksByOwnerParams{
+		NoteStatus: input.NoteStatus,
+		Query:      query,
+		Tag:        tag,
+		OwnerID:    uuidToPgtype(ownerID),
+		Limit:      pageSize,
+		Offset:     (page - 1) * pageSize,
+		Status:     optionalFilterText(input.Status),
 	})
 	if err != nil {
 		return ListResult{}, err
@@ -446,6 +458,11 @@ func (s *Service) AdminStatistics(ctx context.Context, user auth.CurrentUser, in
 
 // AdminList returns a paginated, filterable view of all short links.
 func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input ListInput) (AdminListResult, error) {
+	if input.NoteStatus != "" {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+	}
 	if _, err := s.authorizeAdmin(ctx, user, permission.ShortLinkReadAll); err != nil {
 		return AdminListResult{}, err
 	}
@@ -458,20 +475,27 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 	}
 
 	page, pageSize := normalizePagination(input)
-	total, err := s.queries.CountAllShortLinks(ctx, sqlc.CountAllShortLinksParams{
-		Status: optionalFilterText(input.Status),
-		Query:  query,
-		Tag:    tag,
+	queries, finish, err := s.noteStatusListQueries(ctx, user, input.NoteStatus, true)
+	if err != nil {
+		return AdminListResult{}, err
+	}
+	defer finish()
+	total, err := queries.CountAllShortLinks(ctx, sqlc.CountAllShortLinksParams{
+		NoteStatus: input.NoteStatus,
+		Status:     optionalFilterText(input.Status),
+		Query:      query,
+		Tag:        tag,
 	})
 	if err != nil {
 		return AdminListResult{}, err
 	}
-	rows, err := s.queries.ListAllShortLinks(ctx, sqlc.ListAllShortLinksParams{
-		Limit:  pageSize,
-		Offset: (page - 1) * pageSize,
-		Status: optionalFilterText(input.Status),
-		Query:  query,
-		Tag:    tag,
+	rows, err := queries.ListAllShortLinks(ctx, sqlc.ListAllShortLinksParams{
+		NoteStatus: input.NoteStatus,
+		Limit:      pageSize,
+		Offset:     (page - 1) * pageSize,
+		Status:     optionalFilterText(input.Status),
+		Query:      query,
+		Tag:        tag,
 	})
 	if err != nil {
 		return AdminListResult{}, err

@@ -21,7 +21,7 @@ const maxListExportBytes = 8 * 1024 * 1024
 var ErrListExportLimit = errors.New("short link list export limit exceeded")
 
 // ListExportInput reuses applied list filters without accepting client-owned scope or limits.
-type ListExportInput struct{ Status, Query, Tag string }
+type ListExportInput struct{ Status, Query, Tag, NoteStatus string }
 
 // ListExport describes a bounded CSV download through the normal JSON envelope.
 type ListExport struct {
@@ -66,7 +66,11 @@ func (s *Service) exportList(ctx context.Context, user auth.CurrentUser, input L
 	if err != nil {
 		return ListExport{}, ErrPermissionDenied
 	}
-	rows, err := s.listExports.ExportShortLinkList(ctx, sqlc.ExportShortLinkListParams{ActorID: uuidToPgtype(actorID), IsAdmin: admin, Status: input.Status, Query: query, Tag: tag})
+	noteStatus, err := normalizeNoteStatus(input.NoteStatus)
+	if err != nil {
+		return ListExport{}, err
+	}
+	rows, err := s.listExports.ExportShortLinkList(ctx, sqlc.ExportShortLinkListParams{ActorID: uuidToPgtype(actorID), IsAdmin: admin, Status: input.Status, Query: query, Tag: tag, NoteStatus: noteStatus})
 	if err != nil {
 		return ListExport{}, err
 	}

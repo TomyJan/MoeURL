@@ -39,7 +39,10 @@ from short_link
 left join app_user on $1::text <> '' and app_user.id = short_link.owner_id
 where short_link.deleted_at is null
     and ($2::text is null or short_link.status = $2::text)
-    and ($3::text = '' or short_link.tags @> array[$3::text])
+    and ($3::text = ''
+        or ($3::text = 'present' and short_link.note <> '')
+        or ($3::text = 'absent' and short_link.note = ''))
+    and ($4::text = '' or short_link.tags @> array[$4::text])
     and (
         $1::text = ''
         or short_link.slug ilike '%' || $1::text || '%'
@@ -52,13 +55,19 @@ where short_link.deleted_at is null
 `
 
 type CountAllShortLinksParams struct {
-	Query  string      `json:"query"`
-	Status pgtype.Text `json:"status"`
-	Tag    string      `json:"tag"`
+	Query      string      `json:"query"`
+	Status     pgtype.Text `json:"status"`
+	NoteStatus string      `json:"note_status"`
+	Tag        string      `json:"tag"`
 }
 
 func (q *Queries) CountAllShortLinks(ctx context.Context, arg CountAllShortLinksParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countAllShortLinks, arg.Query, arg.Status, arg.Tag)
+	row := q.db.QueryRow(ctx, countAllShortLinks,
+		arg.Query,
+		arg.Status,
+		arg.NoteStatus,
+		arg.Tag,
+	)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -68,27 +77,32 @@ const countShortLinksByOwner = `-- name: CountShortLinksByOwner :one
 select count(*)
 from short_link
 where owner_id = $1 and deleted_at is null
-    and ($2::text is null or status = $2::text)
-    and ($3::text = '' or short_link.tags @> array[$3::text])
+    and ($2::text = ''
+        or ($2::text = 'present' and short_link.note <> '')
+        or ($2::text = 'absent' and short_link.note = ''))
+    and ($3::text is null or status = $3::text)
+    and ($4::text = '' or short_link.tags @> array[$4::text])
     and (
-        $4::text = ''
-        or short_link.slug ilike '%' || $4::text || '%'
-        or short_link.target_url ilike '%' || $4::text || '%'
-        or short_link.title ilike '%' || $4::text || '%'
-        or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || $4::text || '%')
+        $5::text = ''
+        or short_link.slug ilike '%' || $5::text || '%'
+        or short_link.target_url ilike '%' || $5::text || '%'
+        or short_link.title ilike '%' || $5::text || '%'
+        or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || $5::text || '%')
     )
 `
 
 type CountShortLinksByOwnerParams struct {
-	OwnerID pgtype.UUID `json:"owner_id"`
-	Status  pgtype.Text `json:"status"`
-	Tag     string      `json:"tag"`
-	Query   string      `json:"query"`
+	OwnerID    pgtype.UUID `json:"owner_id"`
+	NoteStatus string      `json:"note_status"`
+	Status     pgtype.Text `json:"status"`
+	Tag        string      `json:"tag"`
+	Query      string      `json:"query"`
 }
 
 func (q *Queries) CountShortLinksByOwner(ctx context.Context, arg CountShortLinksByOwnerParams) (int64, error) {
 	row := q.db.QueryRow(ctx, countShortLinksByOwner,
 		arg.OwnerID,
+		arg.NoteStatus,
 		arg.Status,
 		arg.Tag,
 		arg.Query,
@@ -624,26 +638,30 @@ left join lateral (
 ) stats on true
 where short_link.deleted_at is null
     and ($3::text is null or short_link.status = $3::text)
-    and ($4::text = '' or short_link.tags @> array[$4::text])
+    and ($4::text = ''
+        or ($4::text = 'present' and short_link.note <> '')
+        or ($4::text = 'absent' and short_link.note = ''))
+    and ($5::text = '' or short_link.tags @> array[$5::text])
     and (
-        $5::text = ''
-        or short_link.slug ilike '%' || $5::text || '%'
-        or short_link.target_url ilike '%' || $5::text || '%'
-        or app_user.username ilike '%' || $5::text || '%'
-        or short_link.title ilike '%' || $5::text || '%'
-        or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || $5::text || '%')
-        or app_user.nickname ilike '%' || $5::text || '%'
+        $6::text = ''
+        or short_link.slug ilike '%' || $6::text || '%'
+        or short_link.target_url ilike '%' || $6::text || '%'
+        or app_user.username ilike '%' || $6::text || '%'
+        or short_link.title ilike '%' || $6::text || '%'
+        or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || $6::text || '%')
+        or app_user.nickname ilike '%' || $6::text || '%'
     )
 order by short_link.created_at desc
 limit $1 offset $2
 `
 
 type ListAllShortLinksParams struct {
-	Limit  int32       `json:"limit"`
-	Offset int32       `json:"offset"`
-	Status pgtype.Text `json:"status"`
-	Tag    string      `json:"tag"`
-	Query  string      `json:"query"`
+	Limit      int32       `json:"limit"`
+	Offset     int32       `json:"offset"`
+	Status     pgtype.Text `json:"status"`
+	NoteStatus string      `json:"note_status"`
+	Tag        string      `json:"tag"`
+	Query      string      `json:"query"`
 }
 
 type ListAllShortLinksRow struct {
@@ -679,6 +697,7 @@ func (q *Queries) ListAllShortLinks(ctx context.Context, arg ListAllShortLinksPa
 		arg.Limit,
 		arg.Offset,
 		arg.Status,
+		arg.NoteStatus,
 		arg.Tag,
 		arg.Query,
 	)
@@ -759,26 +778,30 @@ left join lateral (
     where short_link_event.short_link_id = short_link.id
 ) stats on true
 where short_link.owner_id = $1 and short_link.deleted_at is null
-    and ($4::text is null or short_link.status = $4::text)
-    and ($5::text = '' or short_link.tags @> array[$5::text])
+    and ($4::text = ''
+        or ($4::text = 'present' and short_link.note <> '')
+        or ($4::text = 'absent' and short_link.note = ''))
+    and ($5::text is null or short_link.status = $5::text)
+    and ($6::text = '' or short_link.tags @> array[$6::text])
     and (
-        $6::text = ''
-        or short_link.slug ilike '%' || $6::text || '%'
-        or short_link.target_url ilike '%' || $6::text || '%'
-        or short_link.title ilike '%' || $6::text || '%'
-        or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || $6::text || '%')
+        $7::text = ''
+        or short_link.slug ilike '%' || $7::text || '%'
+        or short_link.target_url ilike '%' || $7::text || '%'
+        or short_link.title ilike '%' || $7::text || '%'
+        or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || $7::text || '%')
     )
 order by short_link.created_at desc
 limit $2 offset $3
 `
 
 type ListShortLinksByOwnerParams struct {
-	OwnerID pgtype.UUID `json:"owner_id"`
-	Limit   int32       `json:"limit"`
-	Offset  int32       `json:"offset"`
-	Status  pgtype.Text `json:"status"`
-	Tag     string      `json:"tag"`
-	Query   string      `json:"query"`
+	OwnerID    pgtype.UUID `json:"owner_id"`
+	Limit      int32       `json:"limit"`
+	Offset     int32       `json:"offset"`
+	NoteStatus string      `json:"note_status"`
+	Status     pgtype.Text `json:"status"`
+	Tag        string      `json:"tag"`
+	Query      string      `json:"query"`
 }
 
 type ListShortLinksByOwnerRow struct {
@@ -812,6 +835,7 @@ func (q *Queries) ListShortLinksByOwner(ctx context.Context, arg ListShortLinksB
 		arg.OwnerID,
 		arg.Limit,
 		arg.Offset,
+		arg.NoteStatus,
 		arg.Status,
 		arg.Tag,
 		arg.Query,
