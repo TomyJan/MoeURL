@@ -32,6 +32,7 @@ with grant_snapshot as (
         and (sqlc.arg('note_status')::text = ''
             or (sqlc.arg('note_status')::text = 'present' and short_link.note <> '')
             or (sqlc.arg('note_status')::text = 'absent' and short_link.note = ''))
+        and (sqlc.arg('note_query')::text = '' or strpos(lower(short_link.note), lower(sqlc.arg('note_query')::text)) > 0)
         and (
             sqlc.arg('query')::text = ''
             or short_link.slug ilike '%' || sqlc.arg('query')::text || '%'

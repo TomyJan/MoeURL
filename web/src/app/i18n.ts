@@ -194,6 +194,7 @@ export const messages = {
       keyword: '关键词搜索',
       tag: '标签',
       noteStatus: '备注状态',
+      noteQuery: '备注关键词',
       notePresent: '有备注',
       noteAbsent: '无备注',
       all: '全部',
@@ -288,6 +289,7 @@ export const messages = {
       tagsInvalid: '最多 10 个标签，每个 1 至 32 个字符；不能重复或包含控制字符。',
       keywordInvalid: '关键词最多 200 个字符，不能包含控制字符。',
       tagFilterInvalid: '标签最多 32 个字符，不能包含控制字符。',
+      noteQueryInvalid: '备注关键词最多 100 个字符，不能包含控制字符或无效 Unicode。',
     },
     visitLimit: {
       enabled: '设置最大访问次数',
@@ -998,6 +1000,7 @@ export const messages = {
       keyword: 'Keyword',
       tag: 'Tag',
       noteStatus: 'Note status',
+      noteQuery: 'Note keyword',
       notePresent: 'With note',
       noteAbsent: 'Without note',
       all: 'All',
@@ -1092,6 +1095,7 @@ export const messages = {
       tagsInvalid: 'Use at most 10 unique tags of 1 to 32 characters each, without control characters.',
       keywordInvalid: 'Use at most 200 characters without control characters for the keyword.',
       tagFilterInvalid: 'Use at most 32 characters without control characters for the tag.',
+      noteQueryInvalid: 'Use at most 100 characters without control characters or invalid Unicode for the note keyword.',
     },
     visitLimit: {
       enabled: 'Set maximum visits',

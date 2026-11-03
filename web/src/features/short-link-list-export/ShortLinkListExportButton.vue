@@ -30,15 +30,18 @@ const canExport = computed(() => auth.isSuccess.value && hasAccess(auth.data.val
 const disabled = computed(() => pending.value || props.blocked)
 let alive = true
 let revision = 0
+/** Retires every callback and releases only the request belonging to the previous filters or identity. */
+function retire() { revision++; pending.value = false }
 watch([
   () => props.context, () => props.filters.status, () => props.filters.q, () => props.filters.tag, () => props.filters.noteStatus,
+  () => props.filters.noteQuery,
   () => props.blocked, identity.scope, canExport,
-], () => { revision++ }, { flush: 'sync' })
+], retire, { flush: 'sync' })
 let permissions = permissionKey()
 const unsubscribe = client.getQueryCache().subscribe(event => {
   if (event.query.queryKey[0] !== 'auth' || event.query.queryKey[1] !== 'me') return
   const current = permissionKey()
-  if (current !== permissions) { permissions = current; revision++ }
+  if (current !== permissions) { permissions = current; retire() }
 })
 onBeforeUnmount(() => { alive = false; unsubscribe() })
 
@@ -62,14 +65,14 @@ async function submit() {
   if (disabled.value || !canExport.value) return
   const scope = identity.scope.value
   const requestRevision = revision
-  const filters = { status: props.filters.status, q: props.filters.q, tag: props.filters.tag, ...(props.filters.noteStatus ? { noteStatus: props.filters.noteStatus } : {}) }
+  const filters = { status: props.filters.status, q: props.filters.q, tag: props.filters.tag, ...(props.filters.noteStatus ? { noteStatus: props.filters.noteStatus } : {}), ...(props.filters.noteQuery ? { noteQuery: props.filters.noteQuery } : {}) }
   const context = props.context
   /** Checks synchronous cache state after waiting for parent filter and loading props to render. */
   const isCurrent = () => alive && revision === requestRevision && identity.isCurrent(scope)
     && hasAccess(client.getQueryData<UserResponse>(['auth', 'me'])) && !props.blocked
   pending.value = true
   try {
-    const file = await exportShortLinkList(filters, context)
+    const file = await (filters.noteQuery ? exportShortLinkList(filters, context, scope.userId) : exportShortLinkList(filters, context))
     await nextTick()
     if (!isCurrent()) return
     downloadCsv(file)
@@ -78,7 +81,7 @@ async function submit() {
     await nextTick()
     if (isCurrent()) toast.error(t(error instanceof ApiClientError && error.code === 200118 ? 'listExport.limitExceeded' : 'listExport.failed'))
   } finally {
-    pending.value = false
+    if (alive && revision === requestRevision) pending.value = false
   }
 }
 </script>

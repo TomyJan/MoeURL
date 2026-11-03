@@ -44,10 +44,15 @@ func noteStatusQuery(raw string) (string, error) {
 // noteStatusListQueries pins current authorization and count/list to one read-only snapshot.
 // The caller bounds the full filtered operation, including entrance authorization, to five seconds.
 func (s *Service) noteStatusListQueries(ctx context.Context, actor auth.CurrentUser, status string, admin bool) (*sqlc.Queries, func(), error) {
+	return s.noteListQueries(ctx, actor, status, admin, false)
+}
+
+// noteListQueries always pins private searches, including empty words, to current database grants.
+func (s *Service) noteListQueries(ctx context.Context, actor auth.CurrentUser, status string, admin, force bool) (*sqlc.Queries, func(), error) {
 	if _, err := normalizeNoteStatus(status); err != nil {
 		return nil, nil, err
 	}
-	if status == "" {
+	if status == "" && !force {
 		return s.queries, func() {}, nil
 	}
 	id, err := parseNoteID(actor.ID)

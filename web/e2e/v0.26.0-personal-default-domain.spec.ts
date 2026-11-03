@@ -171,16 +171,22 @@ async function signIn(page: Page, username: string) {
 /** Selects an accessible real Vuetify option, without forcing pointer actions. */
 async function choose(page: Page, label: RegExp, option: string | RegExp) {
   const select = page.getByRole('combobox', { name: label })
-  const current = await select.inputValue()
   await select.press('Enter')
+  await expect(select).toHaveAttribute('aria-expanded', 'true')
   const target = page.getByRole('option', { name: option, exact: true })
   await expect(target).toBeVisible()
-  // Vuetify focuses the current choice after the opening transition.
-  await expect(page.getByRole('option', { name: current, exact: true })).toBeFocused()
+  // A selected option need not own focus; wait for the menu's actual opening motion.
+  await expect.poll(() => target.evaluate(element => {
+    for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
+      if (ancestor.getAnimations().some(animation => animation.playState === 'running')) return false
+    }
+    return true
+  })).toBe(true)
   await target.scrollIntoViewIfNeeded()
   await target.click()
   await expect(select).toHaveValue(option)
   await expect(target).toBeHidden()
+  await expect(select).toHaveAttribute('aria-expanded', 'false')
 }
 /** Reads the authoritative independent resource and private cache policy. */
 async function read(page: Page): Promise<Preference> {

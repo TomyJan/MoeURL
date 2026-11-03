@@ -62,7 +62,7 @@ async function capture(page: Page, info: TestInfo, name: string) {
   const geometry = await filters.evaluate(element => Array.from(element.children).map(child => {
     const box = child.getBoundingClientRect(); return { left: box.left, right: box.right, top: box.top, bottom: box.bottom }
   }))
-  expect(geometry).toHaveLength(4)
+  expect(geometry).toHaveLength(5)
   for (const box of geometry) { expect(box.left).toBeGreaterThanOrEqual(-1); expect(box.right).toBeLessThanOrEqual((page.viewportSize()?.width ?? 0) + 1) }
   for (const [index, a] of geometry.entries()) for (const b of geometry.slice(index + 1)) expect(a.right > b.left + 1 && b.right > a.left + 1 && a.bottom > b.top + 1 && b.bottom > a.top + 1).toBe(false)
   const path = info.outputPath(name + '.png'); await page.screenshot({ path, fullPage: true, animations: 'disabled' }); await info.attach(name, { path, contentType: 'image/png' })

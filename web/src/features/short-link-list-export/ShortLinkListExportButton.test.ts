@@ -47,6 +47,26 @@ beforeEach(() => {
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()) })
 
 describe('ShortLinkListExportButton', () => {
+  // Retiring a private term must release the old request without allowing its finally to unlock a newer download.
+  it.each([false, true])('retiresAllDownloadCallbacks with late failure=%s', async failed => {
+    const old = createDeferred<ShortLinkListExport>(), current = createDeferred<ShortLinkListExport>()
+    vi.mocked(exportShortLinkList).mockReturnValueOnce(old.promise).mockReturnValueOnce(current.promise)
+    const view = mount()
+    await view.rerender({ filters: { status: 'active', q: '', tag: '', noteQuery: 'A' } })
+    await click()
+    await view.rerender({ filters: { status: 'active', q: '', tag: '', noteQuery: 'B' } })
+    expect((screen.getByTestId('short-link-list-export') as HTMLButtonElement).disabled).toBe(false)
+    await click()
+    if (failed) old.reject(new Error('private'))
+    else old.resolve(descriptor)
+    await old.promise.catch(() => undefined); await nextTick(); await nextTick()
+    expect(downloadCsv).not.toHaveBeenCalled()
+    expect(toast.error).not.toHaveBeenCalled()
+    expect((screen.getByTestId('short-link-list-export') as HTMLButtonElement).disabled).toBe(true)
+    current.resolve(descriptor)
+    await waitFor(() => expect(downloadCsv).toHaveBeenCalledExactlyOnceWith(descriptor))
+    expect((screen.getByTestId('short-link-list-export') as HTMLButtonElement).disabled).toBe(false)
+  })
   it.each([
     [user([]), 'own'], [user(['short_link:read_own', 'short_link:export_statistics']), 'own'],
     [user(['short_link:export']), 'own'], [user(ownPermissions), 'admin'],

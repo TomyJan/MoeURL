@@ -45,14 +45,15 @@ with grant_snapshot as (
         and ($5::text = ''
             or ($5::text = 'present' and short_link.note <> '')
             or ($5::text = 'absent' and short_link.note = ''))
+        and ($6::text = '' or strpos(lower(short_link.note), lower($6::text)) > 0)
         and (
-            $6::text = ''
-            or short_link.slug ilike '%' || $6::text || '%'
-            or short_link.target_url ilike '%' || $6::text || '%'
-            or ($2::boolean and owner.username ilike '%' || $6::text || '%')
-            or short_link.title ilike '%' || $6::text || '%'
-            or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || $6::text || '%')
-            or ($2::boolean and owner.nickname ilike '%' || $6::text || '%')
+            $7::text = ''
+            or short_link.slug ilike '%' || $7::text || '%'
+            or short_link.target_url ilike '%' || $7::text || '%'
+            or ($2::boolean and owner.username ilike '%' || $7::text || '%')
+            or short_link.title ilike '%' || $7::text || '%'
+            or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || $7::text || '%')
+            or ($2::boolean and owner.nickname ilike '%' || $7::text || '%')
         )
     order by short_link.created_at desc, short_link.id desc
     limit 1001
@@ -102,6 +103,7 @@ type ExportShortLinkListParams struct {
 	Status     string      `json:"status"`
 	Tag        string      `json:"tag"`
 	NoteStatus string      `json:"note_status"`
+	NoteQuery  string      `json:"note_query"`
 	Query      string      `json:"query"`
 }
 
@@ -134,6 +136,7 @@ func (q *Queries) ExportShortLinkList(ctx context.Context, arg ExportShortLinkLi
 		arg.Status,
 		arg.Tag,
 		arg.NoteStatus,
+		arg.NoteQuery,
 		arg.Query,
 	)
 	if err != nil {
