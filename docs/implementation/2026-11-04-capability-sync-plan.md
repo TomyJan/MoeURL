@@ -39,15 +39,15 @@
 
 - [x] 标准 start1，全文读 brief；核完整925源 baseline、旧最终档案 hash／bytes，逐项矩阵记允许表述／非目标／收据身份。
 - [x] 按文件职责精确修正。新当前完成摘要有对应真实收据；两个历史标题只增加阶段限定，不批量调整层级，不删原失败／限制。
-- [ ] 运行外置 verify-docs.mjs verify task1-precommit，Expected：仅 .md、所有本地链接有效、925源与冻结档案全等，实际0。不为文档修正添加镜像实现的测试。
-- [ ] 精确名单原子提交，建立合同并标准 done1（只核实际证据，不重 suite）。
+- [x] 运行外置 verify-docs.mjs verify task1-precommit，Expected：仅 .md、所有本地链接有效、925源与冻结档案全等，实际0。不为文档修正添加镜像实现的测试。
+- [x] 精确名单原子提交，建立合同并标准 done1（只核实际证据，不重 suite）。
 
 ## Task2：唯一独立终审与本地收尾
 
 **Interfaces:** Consumes：Task1 文档与证据合同。Produces：整分支审查、全部裁决／延期清单、本地报告和档案。
 
-- [ ] 标准 start2，全文读 brief；一次 fresh 独立整分支终审，附 base..HEAD、规格／计划／完整 Focus 和账本，不派下级或执行产品套件。
-- [ ] 核实所有意见，Critical／Important 最小修正并文档核验；Minor 逐项延期理由成本，不派第二终审。
+- [x] 标准 start2，全文读 brief；一次 fresh 独立整分支终审，附 base..HEAD、规格／计划／完整 Focus 和账本，不派下级或执行产品套件。
+- [x] 核实所有意见，Critical／Important 最小修正并文档核验；Minor 逐项延期理由成本，不派第二终审。
 - [ ] 同步实际阶段、链接／完整源／冻结证据核，原子提交；全部裁决与 M5／M6 等延期入完整报告，新 whole-owned ZIP／解压全集核、合同与标准 done2。
 
 ## Task3：独立远端交付与最终归档

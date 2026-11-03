@@ -24,7 +24,7 @@ M5 可选测试请求风格与 M6 固定 20 共享常量继续延期，不捆绑
 
 ## 本轮验收条件
 
-- [ ] Task1：只修改 Markdown、所有变更本地链接有效、完整 925 源与冻结证据全等；原子提交及标准完成合同。
+- [x] Task1：只修改 Markdown、所有变更本地链接有效、完整 925 源与冻结证据全等；原子提交及标准完成合同。
 - [ ] Task2：一次 fresh 独立整分支审查，全部有效问题处理、完整裁决／报告、本地 whole-owned 档案和标准完成。
 - [ ] Task3：精确最新候选真实 reviewed／covered、有效讨论闭环、候选自身九 CI 和完整日志 EOF。
 - [ ] Task3：守卫 squash、独立 API／fetch／SHA／tree／唯一父一致，master 自身九 CI 和完整日志 EOF。
@@ -34,4 +34,10 @@ M5 可选测试请求风格与 M6 固定 20 共享常量继续延期，不捆绑
 
 ## Task1 本地文档验证
 
-`verify-docs.mjs verify task1-initial-check` 实际退出 0：14 份 Markdown、727 个本地文件链接有效，925 个非 Markdown 路径及逐 hash／bytes 与基线全等，15 项冻结原件不变。Git 的 LF／CRLF 提示保留，不冒零提示；未执行产品套件／生成器或旧远端操作。标准任务完成与后续独立审查按实际合同记录，当前尚待。
+`verify-docs.mjs verify task1-initial-check`、`task1-precommit` 和标准 `local-stage.mjs verify1` 均实际退出 0：14 份 Markdown、727 个本地文件链接有效，925 个非 Markdown 路径及逐 hash／bytes 与基线全等，15 项冻结原件不变。Task1 已在 `a16035c1025bd71a4adba2fb9983f1cb640a71e4` 标准完成，合同 `task1-completion-contract.json`；Git 的 LF／CRLF 提示保留，不冒零提示。未执行产品套件／生成器或旧远端操作。
+
+## Task2 唯一独立终审
+
+一次 fresh 独立审查范围 `f3beb002..a16035c1`，Critical 0／Important 0／新增 Minor 0，五项文档问题核实已处理，无修复轮或第二审查者。审查者独立只读核对完整 925 源、14 文档合同、15 冻结原件、727 个文件链接、旧版合并与 CI／归档证据；原报告完整保存于本轮 owned 的 `independent-final-review.md`。后继仅同步本轮实际阶段，原件与源码不变，远端审查及 CI 仍独立待做。
+
+不予判断的五类项目均已裁决并完整记入 `task2-review-decisions.json` 及最终报告：不复现的产品／性能风险不作新保证；实时远端在 Task3 取得；图片与生产缺口保留；不扩为历史全集重写或 M5／M6 重构；不重做旧任务和档案。本地 whole-owned 归档和标准 Task2 以随后实际收据判定，当前进行中。
