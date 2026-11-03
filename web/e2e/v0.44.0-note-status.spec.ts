@@ -31,7 +31,7 @@ function listed(page: Page, prefix: string, keyword: string, state: string, ids:
   }).then(async response => {
     expect(response.status()).toBe(200)
     const value = await response.json(); expect(value.code).toBe(0)
-    expect(value.data.total).toBe(ids.length)
+    expect(value.meta.total).toBe(ids.length)
     expect(value.data.items.map((item: ShortLink) => item.id).sort()).toEqual([...ids].sort())
     for (const item of value.data.items) for (const key of ['note', 'noteStatus', 'noteUpdatedAt']) expect(item).not.toHaveProperty(key)
   })

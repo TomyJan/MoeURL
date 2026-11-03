@@ -1,6 +1,6 @@
 # 短链
 
-[v0.44.0 设计](2026-11-03-v0.44.0-note-status-design.md)为授权列表和清单导出增加 noteStatus 三态交集，不搜索或返回备注正文。当前只设计确定，尚未验收；[范围](../product/scope-v0.44.0.md)及[实施验收](../implementation/v0.44.0-acceptance.md)区分本地、候选、master 和发布。
+[v0.44.0 设计](2026-11-03-v0.44.0-note-status-design.md)为授权列表和清单导出增加 noteStatus 三态交集，不搜索或返回备注正文。前后端已实现并通过本地门禁，终审缓存修复已有真实回归；浏览器、精确产品及远端交付尚待。[范围](../product/scope-v0.44.0.md)及[实施验收](../implementation/v0.44.0-acceptance.md)区分本地、候选、master 和发布。
 
 ## v0.43.0 内部备注设计
 

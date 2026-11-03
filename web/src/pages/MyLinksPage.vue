@@ -95,6 +95,7 @@ import ShortLinkBatchTagsDialog from '@/features/short-link-tags/ShortLinkBatchT
 import PersonalTagBrowser from '@/features/short-link-tags/PersonalTagBrowser.vue'
 import ShortLinkNoteDialog from '@/features/short-link-note/ShortLinkNoteDialog.vue'
 import { useShortLinkNote } from '@/features/short-link-note/useShortLinkNote'
+import { nextShortLinkListRevision } from '@/shared/short-link/listRevision'
 import { batchTagVersionSchema, type BatchTagTarget } from '@/entities/short-link/batch-tags'
 
 const { t } = useI18n()
@@ -117,13 +118,13 @@ const noteStatusOptions = computed(() => [
   { title: t('filter.notePresent'), value: 'present' },
   { title: t('filter.noteAbsent'), value: 'absent' },
 ])
-const listRevision = ref(0)
-watch([statusFilter, debouncedKeyword, debouncedTag, noteStatusFilter], () => { listRevision.value++ }, { flush: 'sync' })
+const listRevision = ref(nextShortLinkListRevision())
+watch([statusFilter, debouncedKeyword, debouncedTag, noteStatusFilter], () => { listRevision.value = nextShortLinkListRevision() }, { flush: 'sync' })
 let readAllowed = access.allows('read')
 const unsubscribeList = queryClient.getQueryCache().subscribe(event => {
   if (event.query.queryKey[0] !== 'auth' || event.query.queryKey[1] !== 'me') return
   const allowed = access.allows('read')
-  if (allowed !== readAllowed) { readAllowed = allowed; listRevision.value++ }
+  if (allowed !== readAllowed) { readAllowed = allowed; listRevision.value = nextShortLinkListRevision() }
 })
 onBeforeUnmount(unsubscribeList)
 const listQueryKey = computed(() => ['short-link', statusFilter.value, debouncedKeyword.value, debouncedTag.value, access.identity.scope.value.userId, access.identity.scope.value.epoch, listRevision.value, noteStatusFilter.value])

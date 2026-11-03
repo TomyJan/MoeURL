@@ -45,8 +45,9 @@ function mount(context: 'own' | 'admin', write = true) {
     if (props.label === 'filter.noteStatus') queued = value => emit('update:modelValue', value)
     return () => h(componentStubs.VSelect!, { ...props, 'onUpdate:modelValue': (value: unknown) => emit('update:modelValue', value) })
   } })
-  const view = render(context === 'own' ? MyLinksPage : AdminLinksPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, VSelect: select, BulkCreateDialog: true, PersonalTagBrowser: true, AdminTagBrowser: true } } })
-  return { ...view, client, fetcher, envelope, user, queued: (value: unknown) => queued(value), setStored: (value: string) => { stored = value }, prefix: context === 'own' ? 'short-link' : 'admin-short-link' }
+  const remount = () => render(context === 'own' ? MyLinksPage : AdminLinksPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, VSelect: select, BulkCreateDialog: true, PersonalTagBrowser: true, AdminTagBrowser: true } } })
+  const view = remount()
+  return { ...view, remount, client, fetcher, envelope, user, queued: (value: unknown) => queued(value), setStored: (value: string) => { stored = value }, prefix: context === 'own' ? 'short-link' : 'admin-short-link' }
 }
 /** Builds complete envelopes so malformed fixture responses cannot masquerade as a product failure. */
 function response(data: unknown, code = 0, total = 1) { return new Response(JSON.stringify({ code, message: 'Result', data, meta: { page: 1, pageSize: 20, total } })) }
@@ -165,6 +166,49 @@ describe('note presence page filtering', () => {
     expect(screen.queryByTestId('console-link-list')).toBeNull()
     middle.resolve(view.envelope()); fresh.resolve(view.envelope([]))
     await waitFor(() => expect(view.client.isFetching({ queryKey: [view.prefix] })).toBe(0))
+    expect(screen.queryByTestId('console-link-list')).toBeNull()
+  })
+  // Ordinary route navigation preserves the app's QueryClient and login epoch; a new page must not reuse its previous instance's list snapshots.
+  it.each(['own', 'admin'] as const)('does not restore a successful note-filter snapshot after remount in %s', async context => {
+    const view = mount(context); await ready()
+    await fireEvent.update(screen.getByLabelText('filter.noteStatus'), 'present'); await ready()
+    view.unmount()
+    const current = createDeferred<Response>(), defaults = createDeferred<Response>()
+    view.fetcher.mockImplementation(async input => {
+      const url = new URL(String(input), 'http://localhost')
+      if (url.pathname.endsWith('/auth/me')) return response({ user: view.user })
+      return url.searchParams.get('noteStatus') === 'present' ? current.promise : defaults.promise
+    })
+    view.remount()
+    await fireEvent.update(screen.getByLabelText('filter.noteStatus'), 'present')
+    const staleVisible = screen.queryByTestId('console-link-list') !== null
+    defaults.resolve(view.envelope([])); current.resolve(view.envelope([]))
+    await waitFor(() => expect(view.client.isFetching({ queryKey: [view.prefix] })).toBe(0))
+    expect(staleVisible).toBe(false)
+    expect(screen.queryByTestId('console-link-list')).toBeNull()
+  })
+  it.each(['own', 'admin'] as const)('retires a pending note-filter request across remount in %s', async context => {
+    const view = mount(context); await ready()
+    const old = createDeferred<Response>(), current = createDeferred<Response>(), defaults = createDeferred<Response>()
+    view.fetcher.mockReturnValueOnce(old.promise)
+    await fireEvent.update(screen.getByLabelText('filter.noteStatus'), 'present')
+    const oldQuery = view.client.getQueryCache().findAll({ queryKey: [view.prefix] }).find(query => query.queryKey.at(-1) === 'present')!
+    expect(oldQuery).toBeDefined()
+    view.unmount()
+    view.fetcher.mockImplementation(async input => {
+      const url = new URL(String(input), 'http://localhost')
+      if (url.pathname.endsWith('/auth/me')) return response({ user: view.user })
+      return url.searchParams.get('noteStatus') === 'present' ? current.promise : defaults.promise
+    })
+    view.remount()
+    await fireEvent.update(screen.getByLabelText('filter.noteStatus'), 'present')
+    old.resolve(view.envelope()); defaults.resolve(view.envelope([]))
+    await waitFor(() => expect(oldQuery.state.status).toBe('success'))
+    await nextTick()
+    const staleVisible = screen.queryByTestId('console-link-list') !== null
+    current.resolve(view.envelope([]))
+    await waitFor(() => expect(view.client.isFetching({ queryKey: [view.prefix] })).toBe(0))
+    expect(staleVisible).toBe(false)
     expect(screen.queryByTestId('console-link-list')).toBeNull()
   })
   it.each(['own', 'admin'] as const)('retires a late download and its errors across note-filter reuse in %s', async context => {
