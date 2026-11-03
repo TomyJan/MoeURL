@@ -4,7 +4,7 @@
 
 [能力文档维护](../implementation/2026-11-03-capability-status-acceptance.md)已完整交付：PR256 合并为 `254fef0f`，最新真实审查、候选和 master 各自九 CI、标准 Task1–3 与可恢复归档完成，未发布部署。两个文档 Minor 继续保留。
 
-当前推进 [v0.45.0 短链列表分页](scope-v0.45.0.md)：固定每页 20 条、前后翻页与单页选择，CSV 仍导出全部已应用筛选；设计已确定，实施及验证尚未完成，见[计划](../implementation/v0.45.0-plan.md)与[验收](../implementation/v0.45.0-acceptance.md)。
+当前推进 [v0.45.0 短链列表分页](scope-v0.45.0.md)：本人／全站固定每页 20 条、前后翻页、单页选择及实时操作守卫已实现，CSV 仍导出全部已应用筛选。完整 3008 项前端测试及四项 100%、types／lint／隔离 build 通过；真实浏览器、精确产品、独立审查和远端交付仍待，见[计划](../implementation/v0.45.0-plan.md)与[验收](../implementation/v0.45.0-acceptance.md)。
 
 [v0.44.0 备注状态筛选](scope-v0.44.0.md)已完整交付：[PR257](https://github.com/TomyJan/MoeURL/pull/257)合并为 `e0072c2`，最新真实审查、候选与 master 各九 CI、标准 Task1–4、完整 37 条裁决及可恢复归档均完成。177 项浏览器、2963 项前端四项 100% 及精确产品验证保持实际运行归属，未发布部署；见[验收](../implementation/v0.44.0-acceptance.md)。下方旧阶段保持历史归属。
 

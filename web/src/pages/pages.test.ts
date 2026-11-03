@@ -247,7 +247,7 @@ function setQueryResult(value: Partial<{
   refetch: ReturnType<typeof vi.fn>
 }>) {
   state.queryResult = {
-    data: value.data ?? ref(undefined),
+    data: completeListData(value.data),
     error: value.error ?? ref(null),
     isError: value.isError ?? ref(false),
     isFetching: value.isFetching ?? ref(false),
@@ -258,10 +258,22 @@ function setQueryResult(value: Partial<{
   }
 }
 
+/** Mirrors the real list client's complete pagination metadata in legacy page fixtures. */
+function completeListData(data = ref<unknown>(undefined)) {
+  const initial = data.value
+  if (!initial || typeof initial !== 'object' || !('items' in initial) || !Array.isArray(initial.items)) return data
+  return computed(() => {
+    const value = data.value
+    if (!value || typeof value !== 'object' || !('items' in value) || !Array.isArray(value.items)) return value
+    const meta = 'meta' in value && value.meta && typeof value.meta === 'object' ? value.meta : {}
+    return { ...value, meta: { page: 1, pageSize: 20, total: value.items.length, ...meta } }
+  })
+}
+
 /** Configures an ordered sequence of query results for one page render. */
 function setQueryResults(...values: Array<Parameters<typeof setQueryResult>[0]>) {
   state.queryResults = values.map((value) => ({
-    data: value.data ?? ref(undefined),
+    data: completeListData(value.data),
     error: value.error ?? ref(null),
     isError: value.isError ?? ref(false),
     isFetching: value.isFetching ?? ref(false),
@@ -282,7 +294,7 @@ function setMutationResult(value: Partial<{
   variables: ReturnType<typeof ref>
 }> = {}) {
   state.mutationResult = {
-    data: value.data ?? ref(undefined),
+    data: completeListData(value.data),
     error: value.error ?? ref(undefined),
     isError: value.isError ?? ref(false),
     isPending: value.isPending ?? ref(false),
@@ -1407,7 +1419,7 @@ describe('pages', () => {
     await fireEvent.click(within(activeRow).getByRole('button', { name: 'links.actions.more' }))
     await fireEvent.click(within(activeRow).getByRole('menuitem', { name: 'links.actions.delete' }))
     expect(screen.getByLabelText('filter.status')).toBeTruthy()
-    expect(listShortLinks).toHaveBeenCalledWith({ status: '', q: '', tag: '' })
+    expect(listShortLinks).toHaveBeenCalledWith({ page: 1, pageSize: 20, status: '', q: '', tag: '' })
     expect(update).toHaveBeenCalledWith({ id: 'link-id', status: 'disabled' })
     expect(update).toHaveBeenCalledWith({ id: 'link-disabled', status: 'active' })
     expect(update).toHaveBeenCalledWith('link-id')
@@ -1681,8 +1693,8 @@ describe('pages', () => {
     const queryKey = state.queryKeys[0]
     state.queryFns[0]?.()
 
-    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['short-link', 'disabled', '', '', 'test-account', 1, expect.any(Number), ''])
-    expect(listShortLinks).toHaveBeenCalledWith({ status: 'disabled', q: '', tag: '' })
+    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['short-link', 'disabled', '', '', 'test-account', 1, expect.any(Number), '', 1])
+    expect(listShortLinks).toHaveBeenCalledWith({ page: 1, pageSize: 20, status: 'disabled', q: '', tag: '' })
   })
 
   it.each([
@@ -1699,24 +1711,24 @@ describe('pages', () => {
     await fireEvent.update(tag, '\u0085Release 计划\u3000')
     await vi.advanceTimersByTimeAsync(499)
     state.queryFns[0]?.()
-    expect(load).toHaveBeenLastCalledWith({ status: '', q: '', tag: '' })
+    expect(load).toHaveBeenLastCalledWith({ page: 1, pageSize: 20, status: '', q: '', tag: '' })
     await vi.advanceTimersByTimeAsync(1)
     state.queryFns[0]?.()
-    expect(load).toHaveBeenLastCalledWith({ status: '', q: '%_文档\\', tag: 'Release 计划' })
+    expect(load).toHaveBeenLastCalledWith({ page: 1, pageSize: 20, status: '', q: '%_文档\\', tag: 'Release 计划' })
     const queryKey = state.queryKeys[0]
-    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual([key, '', '%_文档\\', 'Release 计划', 'test-account', 1, expect.any(Number), ''])
+    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual([key, '', '%_文档\\', 'Release 计划', 'test-account', 1, expect.any(Number), '', 1])
     await fireEvent.update(keyword, '😀'.repeat(201))
     await fireEvent.update(tag, 'bad\u0000tag')
     expect(screen.getByText('linkMetadata.keywordInvalid')).toBeTruthy()
     expect(screen.getByText('linkMetadata.tagFilterInvalid')).toBeTruthy()
     await vi.advanceTimersByTimeAsync(500)
     state.queryFns[0]?.()
-    expect(load).toHaveBeenLastCalledWith({ status: '', q: '%_文档\\', tag: 'Release 计划' })
+    expect(load).toHaveBeenLastCalledWith({ page: 1, pageSize: 20, status: '', q: '%_文档\\', tag: 'Release 计划' })
     await fireEvent.update(keyword, '')
     await fireEvent.update(tag, '')
     await vi.advanceTimersByTimeAsync(500)
     state.queryFns[0]?.()
-    expect(load).toHaveBeenLastCalledWith({ status: '', q: '', tag: '' })
+    expect(load).toHaveBeenLastCalledWith({ page: 1, pageSize: 20, status: '', q: '', tag: '' })
     await fireEvent.update(tag, 'pending')
     view.unmount()
     await vi.runAllTimersAsync()
@@ -1789,7 +1801,7 @@ describe('pages', () => {
     await fireEvent.click(within(disabledRow).getByRole('menuitem', { name: 'links.actions.delete' }))
     expect(screen.getByLabelText('filter.status')).toBeTruthy()
     expect(screen.getByLabelText('filter.keyword')).toBeTruthy()
-    expect(listAdminShortLinks).toHaveBeenCalledWith({ status: '', q: '', tag: '' })
+    expect(listAdminShortLinks).toHaveBeenCalledWith({ page: 1, pageSize: 20, status: '', q: '', tag: '' })
     expect(mutate).toHaveBeenCalledWith({ id: 'link-id', status: 'active' })
     expect(mutate).toHaveBeenCalledWith({ id: 'link-active', status: 'disabled' })
     expect(mutate).toHaveBeenCalledWith('link-id')
@@ -1988,8 +2000,8 @@ describe('pages', () => {
     const queryKey = state.queryKeys[0]
     state.queryFns[0]?.()
 
-    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['admin-short-link', 'active', 'alice', '', 'test-account', 1, expect.any(Number), ''])
-    expect(listAdminShortLinks).toHaveBeenCalledWith({ status: 'active', q: 'alice', tag: '' })
+    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['admin-short-link', 'active', 'alice', '', 'test-account', 1, expect.any(Number), '', 1])
+    expect(listAdminShortLinks).toHaveBeenCalledWith({ page: 1, pageSize: 20, status: 'active', q: 'alice', tag: '' })
   })
 
   it('renders admin links error, loading, and empty states', () => {
