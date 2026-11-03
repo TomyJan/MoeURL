@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readOwnNote, readAdminNote, updateOwnNote, updateAdminNote, noteVersionSchema } from './note'
+import versionCorpus from '../../../../testdata/short-link-note-versions.json'
 
 const id = '00000000-0000-0000-0000-000000000020', user = '00000000-0000-0000-0000-000000000001'
 const version = '2026-11-03T00:00:00.123456789Z'
@@ -11,6 +12,35 @@ function respond(value: unknown = data) {
   return fetcher
 }
 afterEach(() => vi.unstubAllGlobals())
+describe('note version boundary contracts', () => {
+  it.each(versionCorpus)('classifies the independent version corpus: $id', ({ input, valid }) => {
+    expect(noteVersionSchema.safeParse(input).success).toBe(valid)
+  })
+  for (const scope of ['own', 'admin'] as const) {
+    const read = scope === 'own' ? readOwnNote : readAdminNote
+    const write = scope === 'own' ? updateOwnNote : updateAdminNote
+    it.each(['0001-01-01T00:00:00+00:01', '0001-01-01T00:00:00.000000001+00:01', '9999-12-31T23:59:59-00:01'])(
+      `rejects UTC-out-of-range ${scope} requests before HTTP (%s)`, async expectedUpdatedAt => {
+        const fetcher = respond()
+        await expect(write({ id, note: 'changed', expectedUpdatedAt }, user)).rejects.toMatchObject({ code: 100001 })
+        expect(fetcher).not.toHaveBeenCalled()
+      })
+    it.each(['0001-01-01T00:00:00+00:01', '9999-12-31T23:59:59-00:01'])(
+      `rejects UTC-out-of-range ${scope} successful responses as unconfirmed (%s)`, async updatedAt => {
+        respond({ ...data, updatedAt })
+        await expect(read(id, user)).rejects.toMatchObject({ code: 100001, meta: { invalidNoteResponse: true } })
+        await expect(write({ id, note: 'changed', expectedUpdatedAt: version }, user)).rejects.toMatchObject({ code: 100001, meta: { invalidNoteResponse: true } })
+      })
+    it.each(['0001-01-01T00:00:00.000000001Z', '0001-01-01T00:01:00.000000001+00:01', '9999-12-31T23:59:59.999999999Z'])(
+      `preserves all ${scope} request and response precision (%s)`, async updatedAt => {
+        const value = { ...data, updatedAt }
+        const fetcher = respond(value)
+        expect(await read(id, user)).toEqual(value)
+        expect(await write({ id, note: 'private', expectedUpdatedAt: updatedAt }, user)).toEqual(value)
+        expect(JSON.parse(fetcher.mock.calls[1]![1]!.body as string).expectedUpdatedAt).toBe(updatedAt)
+      })
+  }
+})
 describe('fixed note endpoint contracts', () => {
   it.each(['own', 'admin'] as const)('reads and writes exact %s endpoints, actor and full independent version', async context => {
     const fetcher = respond()
