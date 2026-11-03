@@ -4,7 +4,7 @@
 
 [能力文档维护](implementation/2026-11-03-capability-status-acceptance.md)已完整交付：PR256 合并为 `254fef0f`，最新真实审查、候选和 master 各自九 CI、标准 Task1–3 与可恢复归档完成，未发布部署。两个文档 Minor 继续保留。
 
-当前实现 [v0.44.0 备注状态筛选](product/scope-v0.44.0.md)：前后端本地门禁通过，唯一独立终审发现的跨页面旧缓存问题已真实RED→GREEN，完整2963项前端测试与四100通过。真实浏览器、精确产品及远端交付尚待，见[计划](implementation/v0.44.0-plan.md)与[验收](implementation/v0.44.0-acceptance.md)。下面的旧阶段文字保持历史归属。
+当前实现 [v0.44.0 备注状态筛选](product/scope-v0.44.0.md)：2963 项前端测试、四项 100%、完整后端门禁、177 项浏览器、26 张原图及精确产品检查通过，唯一终审有效问题已处理。本地标准收尾与远端交付尚待；缓存镜像和透明测试环境差异见[验收](implementation/v0.44.0-acceptance.md)，不代替候选或 master 的标准 CI。下面的旧阶段文字保持历史归属。
 
 [v0.43.1 备注版本边界](product/scope-v0.43.1.md)已完整交付：[PR255](https://github.com/TomyJan/MoeURL/pull/255)合并为 `10d317e`，候选与 master 各自九项 CI、真实最新审查、标准任务及可恢复归档均完成，尚未发布或部署，详见[验收](implementation/v0.43.1-acceptance.md)。
 
