@@ -2,7 +2,7 @@
 
 ## 当前状态（2026-11-04）
 
-当前实施 [v0.47.0 列表确定顺序](product/scope-v0.47.0.md)：本人／全站普通及备注列表采用创建时间、UUID 倒序；后端和必要前端验证、183 项完整浏览器、38 张原图、精确产品及唯一独立终审通过。Task2 本地收尾和 Task3 远端交付继续，不承诺并发跨请求快照；见[计划](implementation/v0.47.0-plan.md)和[验收](implementation/v0.47.0-acceptance.md)。
+当前实施 [v0.47.0 列表确定顺序](product/scope-v0.47.0.md)：本人／全站普通及备注列表采用创建时间、UUID 倒序；后端和必要前端验证、183 项完整浏览器、38 张原图、精确产品及唯一独立终审通过。Task1–2 标准完成，本地完整报告／合同与可恢复档案已核，Task3 远端交付继续，不承诺并发跨请求快照；见[计划](implementation/v0.47.0-plan.md)和[验收](implementation/v0.47.0-acceptance.md)。
 
 PR260 文档维护已完整交付，master `47e170b455e6b2a8d02d89bcbdaef15a63b06df3`，真实覆盖、候选和 master 各九 CI、完整日志、标准 Task1–3 及可恢复归档均完成；未发布部署。下方旧阶段按原时点保留。
 
