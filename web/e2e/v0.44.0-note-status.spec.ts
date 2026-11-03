@@ -38,11 +38,14 @@ function listed(page: Page, prefix: string, keyword: string, state: string, ids:
 }
 /** Selects through the real Vuetify control and requires a matching network result. */
 async function choose(page: Page, prefix: string, keyword: string, state: string, ids: string[], en: boolean) {
-  const checked = listed(page, prefix, keyword, state, ids)
-  await page.getByRole('combobox', { name: en ? 'Note status' : '备注状态', exact: true }).click()
   const name = state === 'present' ? (en ? 'With note' : '有备注') : state === 'absent' ? (en ? 'Without note' : '无备注') : (en ? 'All' : '全部')
-  await page.getByRole('option', { name, exact: true }).click()
-  await checked
+  await Promise.all([
+    listed(page, prefix, keyword, state, ids),
+    (async () => {
+      await page.getByRole('combobox', { name: en ? 'Note status' : '备注状态', exact: true }).press('Enter')
+      await page.getByRole('option', { name, exact: true }).click()
+    })(),
+  ])
   await expect(page.getByTestId('console-link-row')).toHaveCount(ids.length)
 }
 /** Opens the visible row's genuine note action using the keyboard. */
