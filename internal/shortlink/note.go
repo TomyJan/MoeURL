@@ -1,6 +1,7 @@
 package shortlink
 
 import (
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -48,8 +49,13 @@ func parseNoteID(raw string) (uuid.UUID, error) {
 	return id, nil
 }
 
-// parseNoteVersion retains all fractional precision and rejects unreturnable years.
+var noteVersionPattern = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,9})?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$`)
+
+// parseNoteVersion rejects lossy or noncanonical syntax before checking the complete instant.
 func parseNoteVersion(raw string) (time.Time, error) {
+	if !noteVersionPattern.MatchString(raw) {
+		return time.Time{}, ErrInvalidInput
+	}
 	v, err := time.Parse(time.RFC3339Nano, raw)
 	if err != nil || v.IsZero() || v.Year() < 1 || v.Year() > 9999 || v.UTC().Year() < 1 || v.UTC().Year() > 9999 {
 		return time.Time{}, ErrInvalidInput

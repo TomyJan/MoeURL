@@ -4,8 +4,13 @@ import { shortLinkNoteSchema } from '@/shared/validation/shortLinkNote'
 
 export const noteIdSchema = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
   .refine(value => value !== '00000000-0000-0000-0000-000000000000')
-export const noteVersionSchema = z.iso.datetime({ offset: true }).refine(value => !value.startsWith('0000-') && !/\.\d{10}/.test(value)
-  && (Date.parse(value.replace(/\.\d+/, '')) !== Date.parse('0001-01-01T00:00:00Z') || /\.\d*[1-9]/.test(value)))
+export const noteVersionSchema = z.iso.datetime({ offset: true }).refine(value => {
+  // Date checks only the whole-second range; the original nanosecond string remains the CAS token.
+  const instant = Date.parse(value.replace(/\.\d+/, ''))
+  const utcYear = new Date(instant).getUTCFullYear()
+  return !value.startsWith('0000-') && !/\.\d{10}/.test(value) && utcYear >= 1 && utcYear <= 9999
+    && (instant !== Date.parse('0001-01-01T00:00:00Z') || /\.\d*[1-9]/.test(value))
+})
 const inputSchema = z.strictObject({ id: noteIdSchema, note: shortLinkNoteSchema, expectedUpdatedAt: noteVersionSchema })
 const resultSchema = z.strictObject({ id: noteIdSchema, note: z.string().refine(value => {
   const parsed = shortLinkNoteSchema.safeParse(value)
