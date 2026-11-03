@@ -50,8 +50,8 @@
 
 **Consumes：** Task1文档及冻结矩阵。**Produces：** 无未处置阻断的整分支审查、完整本地报告及归档。
 
-- [ ] 标准start2。唯一fresh最强supported reviewer，给完整base..HEAD及五项Focus；不得访问生产／执行产品suite或派下级。
-- [ ] 根据信息核实全部意见；Critical／Important必须修有效问题并核文档，Minor按既定规则记完整原因和错误代价。无无关业务扩张或重复审查。
+- [x] 标准start2。唯一fresh最强supported reviewer，给完整base..HEAD及五项Focus；不得访问生产／执行产品suite或派下级。
+- [x] 根据信息核实全部意见；Critical／Important必须修有效问题并核文档，Minor按既定规则记完整原因和错误代价。无无关业务扩张或重复审查。
 - [ ] 同步实际审查阶段，核完整非MD与链接，原子文档提交。生成全部裁决和报告，新whole-owned ZIP／extract全集hashbytes，标准done2实际0。
 
 ## Task3：本轮远端与最终可恢复归档
