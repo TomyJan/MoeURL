@@ -19,12 +19,15 @@ export interface ShortLinkListResponse {
   }
 }
 
+export type ShortLinkNoteStatus = '' | 'present' | 'absent'
+
 export interface ShortLinkListInput {
   page?: number
   pageSize?: number
   status?: ShortLink['status'] | ''
   q?: string
   tag?: string
+  noteStatus?: ShortLinkNoteStatus
 }
 
 export type AdminShortLinkListInput = ShortLinkListInput
@@ -92,6 +95,7 @@ export async function listShortLinks(input: ShortLinkListInput = {}): Promise<Sh
   }
   if (input.q) search.set('q', input.q)
   if (input.tag) search.set('tag', input.tag)
+  if (input.noteStatus) search.set('noteStatus', input.noteStatus)
   const response = await apiGet<unknown>(`/short-link/list?${search.toString()}`)
   return {
     items: parse(shortLinkListSchema, response.data).items,
@@ -140,6 +144,7 @@ export async function listAdminShortLinks(input: AdminShortLinkListInput = {}): 
     search.set('q', input.q)
   }
   if (input.tag) search.set('tag', input.tag)
+  if (input.noteStatus) search.set('noteStatus', input.noteStatus)
   const response = await apiGet<unknown>(`/admin/short-link/list?${search.toString()}`)
   return {
     items: parse(adminShortLinkListSchema, response.data).items,

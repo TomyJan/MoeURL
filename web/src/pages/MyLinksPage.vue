@@ -12,6 +12,7 @@
     <div class="console-page__tools">
       <div class="console-page__filters console-page__metadata-filters" data-testid="console-page-toolbar">
         <v-select v-model="statusFilter" :items="statusOptions" :label="t('filter.status')" density="compact" variant="outlined" />
+        <v-select :model-value="noteStatusFilter" :items="noteStatusOptions" :label="t('filter.noteStatus')" :disabled="noteFilterBlocked" density="compact" variant="outlined" @update:model-value="selectNoteStatus" />
         <v-text-field v-model="searchKeyword" :label="t('filter.keyword')" :error-messages="keywordInvalid ? t('linkMetadata.keywordInvalid') : ''" density="compact" variant="outlined" />
         <v-text-field v-model="tagFilter" :label="t('filter.tag')" :error-messages="tagInvalid ? t('linkMetadata.tagFilterInvalid') : ''" density="compact" variant="outlined" />
       </div>
@@ -74,11 +75,11 @@
 
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
-import { deleteShortLink, listShortLinks, updateShortLink } from '@/entities/short-link/api'
+import { deleteShortLink, listShortLinks, updateShortLink, type ShortLinkNoteStatus } from '@/entities/short-link/api'
 import type { ShortLink } from '@/entities/short-link/model'
 import { useMutationTargetId } from '@/shared/mutations/useMutationTargetId'
 import { useShortLinkSettings } from '@/shared/short-link/useShortLinkSettings'
@@ -104,17 +105,32 @@ const batchTagTargets = ref<readonly BatchTagTarget[] | null>(null)
 const batchTagsRefreshRequired = ref(false)
 const exportPending = ref(false)
 const statusFilter = ref<'' | ShortLink['status']>('')
+const noteStatusFilter = ref<ShortLinkNoteStatus>('')
 const { searchKeyword, tagFilter, debouncedKeyword, debouncedTag, keywordInvalid, tagInvalid, filtersPending } = useShortLinkFilters()
 const statusOptions = computed(() => [
   { title: t('filter.all'), value: '' },
   { title: t('filter.active'), value: 'active' },
   { title: t('filter.disabled'), value: 'disabled' },
 ])
-const listQueryKey = computed(() => ['short-link', statusFilter.value, debouncedKeyword.value, debouncedTag.value, access.identity.scope.value.userId, access.identity.scope.value.epoch])
+const noteStatusOptions = computed(() => [
+  { title: t('filter.all'), value: '' },
+  { title: t('filter.notePresent'), value: 'present' },
+  { title: t('filter.noteAbsent'), value: 'absent' },
+])
+const listRevision = ref(0)
+watch([statusFilter, debouncedKeyword, debouncedTag, noteStatusFilter], () => { listRevision.value++ }, { flush: 'sync' })
+let readAllowed = access.allows('read')
+const unsubscribeList = queryClient.getQueryCache().subscribe(event => {
+  if (event.query.queryKey[0] !== 'auth' || event.query.queryKey[1] !== 'me') return
+  const allowed = access.allows('read')
+  if (allowed !== readAllowed) { readAllowed = allowed; listRevision.value++ }
+})
+onBeforeUnmount(unsubscribeList)
+const listQueryKey = computed(() => ['short-link', statusFilter.value, debouncedKeyword.value, debouncedTag.value, access.identity.scope.value.userId, access.identity.scope.value.epoch, listRevision.value, noteStatusFilter.value])
 const query = useQuery({
   queryKey: listQueryKey,
   enabled: access.canRead,
-  queryFn: () => listShortLinks({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value }),
+  queryFn: () => listShortLinks({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value, ...(noteStatusFilter.value ? { noteStatus: noteStatusFilter.value } : {}) }),
 })
 const links = computed(() => access.canRead.value ? query.data.value?.items ?? [] : [])
 const linkItems = computed<ConsoleLinkListItem[]>(() => links.value)
@@ -147,16 +163,25 @@ const updatingId = useMutationTargetId(statusMutation, (variables) => variables?
 const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof variables === 'string' ? variables : undefined))
 const batch = useShortLinkBatch({
   context: 'own', access, ids: computed(() => links.value.map(link => link.id)),
-  filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value]),
+  filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value, noteStatusFilter.value]),
   blocked: computed(() => note.target.value !== null || !query.isSuccess.value || query.isFetching.value || batchTagsRefreshRequired.value || batchTagTargets.value !== null || exportPending.value || filtersPending.value || keywordInvalid.value || tagInvalid.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null),
 })
 const rowWriteBlocked = computed(() => note.target.value !== null || batch.pending.value || batch.deleteIds.value !== null || batchTagTargets.value !== null)
-watch([statusFilter, searchKeyword, tagFilter], note.reset, { flush: 'sync' })
+watch([statusFilter, searchKeyword, tagFilter, noteStatusFilter], note.reset, { flush: 'sync' })
 watch([query.isFetching, query.isSuccess], ([fetching, success]) => { if (!fetching && success) batchTagsRefreshRequired.value = false })
-const exportFilters = computed(() => ({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value }))
+const exportFilters = computed(() => ({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value, noteStatus: noteStatusFilter.value }))
 const exportBlocked = computed(() => !access.canRead.value || !query.isSuccess.value || query.isFetching.value
   || keywordInvalid.value || tagInvalid.value || filtersPending.value || statusMutation.isPending.value
   || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || rowWriteBlocked.value)
+const noteFilterBlocked = computed(() => !access.canRead.value || note.saving.value || batch.pending.value || batch.deleteIds.value !== null
+  || batchTagTargets.value !== null || statusMutation.isPending.value || deleteMutation.isPending.value
+  || settingsMutation.isPending.value || settingsLink.value !== null || qrLink.value !== null)
+
+/** Rejects queued changes against live grants and write locks while allowing a new filter during a read. */
+function selectNoteStatus(value: unknown) {
+  if (noteFilterBlocked.value || !access.allows('read') || (value !== '' && value !== 'present' && value !== 'absent')) return
+  noteStatusFilter.value = value
+}
 
 /** Requires a successful live list and captures only real, complete management versions. */
 function beginBatchTags() {
@@ -209,7 +234,7 @@ function invalidateLinks() {
 .console-page__tools { display: grid; }
 .console-page__metadata-filters {
   width: 100%;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 @media (max-width: 760px) {

@@ -4,7 +4,7 @@
 
 [能力文档维护](../implementation/2026-11-03-capability-status-acceptance.md)已完整交付：PR256 合并为 `254fef0f`，最新真实审查、候选和 master 各自九 CI、标准 Task1–3 与可恢复归档完成，未发布部署。两个文档 Minor 继续保留。
 
-当前开始 [v0.44.0 备注状态筛选](scope-v0.44.0.md)：本人／全站列表与导出按“全部／有备注／无备注”整理，沿用当前授权和私有正文边界。设计已确定，尚无本版实现或测试通过结论，见[计划](../implementation/v0.44.0-plan.md)与[验收](../implementation/v0.44.0-acceptance.md)。下面的维护进行中和旧阶段文字保留其历史归属。
+当前实现 [v0.44.0 备注状态筛选](scope-v0.44.0.md)：本人／全站列表与导出按“全部／有备注／无备注”整理，沿用当前授权和私有正文边界。后端完整门禁及前端2959测试、四100和types／lint／隔离build通过；真实浏览器、精确产品、独立终审和本版远端交付尚待，见[计划](../implementation/v0.44.0-plan.md)与[验收](../implementation/v0.44.0-acceptance.md)。下面的维护进行中和旧阶段文字保留其历史归属。
 
 [v0.43.1 备注版本边界](scope-v0.43.1.md)已完整交付：[PR255](https://github.com/TomyJan/MoeURL/pull/255)合并为 `10d317e`，候选与 master 各自九项 CI、真实最新审查、标准任务及可恢复归档均完成，尚未发布或部署，详见[验收](../implementation/v0.43.1-acceptance.md)。
 

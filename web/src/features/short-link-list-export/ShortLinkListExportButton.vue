@@ -31,7 +31,7 @@ const disabled = computed(() => pending.value || props.blocked)
 let alive = true
 let revision = 0
 watch([
-  () => props.context, () => props.filters.status, () => props.filters.q, () => props.filters.tag,
+  () => props.context, () => props.filters.status, () => props.filters.q, () => props.filters.tag, () => props.filters.noteStatus,
   () => props.blocked, identity.scope, canExport,
 ], () => { revision++ }, { flush: 'sync' })
 let permissions = permissionKey()
@@ -62,7 +62,7 @@ async function submit() {
   if (disabled.value || !canExport.value) return
   const scope = identity.scope.value
   const requestRevision = revision
-  const filters = { status: props.filters.status, q: props.filters.q, tag: props.filters.tag }
+  const filters = { status: props.filters.status, q: props.filters.q, tag: props.filters.tag, ...(props.filters.noteStatus ? { noteStatus: props.filters.noteStatus } : {}) }
   const context = props.context
   /** Checks synchronous cache state after waiting for parent filter and loading props to render. */
   const isCurrent = () => alive && revision === requestRevision && identity.isCurrent(scope)

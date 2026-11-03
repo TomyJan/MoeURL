@@ -86,7 +86,7 @@ describe('private list batch controls', () => {
     expect(screen.getByTestId('batch-toolbar').getAttribute('aria-busy')).toBe('true')
     expect(screen.getByRole('progressbar', { name: 'batch.processing' })).toBeTruthy()
     await waitFor(() => expect(batchShortLinks).toHaveBeenLastCalledWith({ ids: ['one'], action: 'disable' }, context))
-    expect(client.getQueriesData({ queryKey: [context === 'own' ? 'short-link' : 'admin-short-link'] })[0]?.[0].slice(-2)).toEqual(['A', 1])
+    expect(client.getQueriesData({ queryKey: [context === 'own' ? 'short-link' : 'admin-short-link'] })[0]?.[0].slice(4, 6)).toEqual(['A', 1])
   })
   it.each(['own', 'admin'] as const)('freezes delete targets, supports cancellation and manual failed-write retry in %s', async context => {
     mount(context)
