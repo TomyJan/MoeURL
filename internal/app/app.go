@@ -100,6 +100,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.ShortLinkTagCatalog = shortLinkService
 		deps.AdminShortLinkTagCatalog = shortLinkService
 		deps.ShortLinkNote = shortLinkService
+		deps.ShortLinkNoteSearch = shortLinkService
 		deps.ShortLink = shortLinkService
 		deps.ShortLinkExport = shortLinkService
 		insightService := insights.NewService(pool, permissionService)

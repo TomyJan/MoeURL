@@ -46,6 +46,11 @@ func (s *Service) AdminExportList(ctx context.Context, user auth.CurrentUser, in
 
 // exportList bounds the whole operation and relies on a single SELECT snapshot for its final authorization.
 func (s *Service) exportList(ctx context.Context, user auth.CurrentUser, input ListExportInput, admin bool) (ListExport, error) {
+	return s.exportFilteredList(ctx, user, input, admin, "")
+}
+
+// exportFilteredList applies the private predicate inside the existing authorized single-select budget.
+func (s *Service) exportFilteredList(ctx context.Context, user auth.CurrentUser, input ListExportInput, admin bool, noteQuery string) (ListExport, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	required := []string{permission.ShortLinkExport, permission.ShortLinkReadOwn}
@@ -70,7 +75,7 @@ func (s *Service) exportList(ctx context.Context, user auth.CurrentUser, input L
 	if err != nil {
 		return ListExport{}, err
 	}
-	rows, err := s.listExports.ExportShortLinkList(ctx, sqlc.ExportShortLinkListParams{ActorID: uuidToPgtype(actorID), IsAdmin: admin, Status: input.Status, Query: query, Tag: tag, NoteStatus: noteStatus})
+	rows, err := s.listExports.ExportShortLinkList(ctx, sqlc.ExportShortLinkListParams{ActorID: uuidToPgtype(actorID), IsAdmin: admin, Status: input.Status, Query: query, Tag: tag, NoteStatus: noteStatus, NoteQuery: noteQuery})
 	if err != nil {
 		return ListExport{}, err
 	}

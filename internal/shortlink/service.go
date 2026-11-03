@@ -218,7 +218,12 @@ func (s *Service) Overview(ctx context.Context, user auth.CurrentUser) (Overview
 
 // List returns a paginated view of short links owned by the caller.
 func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInput) (ListResult, error) {
-	if input.NoteStatus != "" {
+	return s.list(ctx, user, input, "", false)
+}
+
+// list shares metadata assembly while keeping private search arguments off the legacy port.
+func (s *Service) list(ctx context.Context, user auth.CurrentUser, input ListInput, noteQuery string, snapshot bool) (ListResult, error) {
+	if input.NoteStatus != "" || snapshot {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
@@ -240,12 +245,13 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 		return ListResult{}, err
 	}
 
-	queries, finish, err := s.noteStatusListQueries(ctx, user, input.NoteStatus, false)
+	queries, finish, err := s.noteListQueries(ctx, user, input.NoteStatus, false, snapshot)
 	if err != nil {
 		return ListResult{}, err
 	}
 	defer finish()
 	total, err := queries.CountShortLinksByOwner(ctx, sqlc.CountShortLinksByOwnerParams{
+		NoteQuery:  noteQuery,
 		NoteStatus: input.NoteStatus,
 		Query:      query,
 		Tag:        tag,
@@ -257,6 +263,7 @@ func (s *Service) List(ctx context.Context, user auth.CurrentUser, input ListInp
 	}
 
 	rows, err := queries.ListShortLinksByOwner(ctx, sqlc.ListShortLinksByOwnerParams{
+		NoteQuery:  noteQuery,
 		NoteStatus: input.NoteStatus,
 		Query:      query,
 		Tag:        tag,
@@ -458,7 +465,12 @@ func (s *Service) AdminStatistics(ctx context.Context, user auth.CurrentUser, in
 
 // AdminList returns a paginated, filterable view of all short links.
 func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input ListInput) (AdminListResult, error) {
-	if input.NoteStatus != "" {
+	return s.adminList(ctx, user, input, "", false)
+}
+
+// adminList shares global metadata assembly with the independently authorized private search.
+func (s *Service) adminList(ctx context.Context, user auth.CurrentUser, input ListInput, noteQuery string, snapshot bool) (AdminListResult, error) {
+	if input.NoteStatus != "" || snapshot {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
@@ -475,12 +487,13 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 	}
 
 	page, pageSize := normalizePagination(input)
-	queries, finish, err := s.noteStatusListQueries(ctx, user, input.NoteStatus, true)
+	queries, finish, err := s.noteListQueries(ctx, user, input.NoteStatus, true, snapshot)
 	if err != nil {
 		return AdminListResult{}, err
 	}
 	defer finish()
 	total, err := queries.CountAllShortLinks(ctx, sqlc.CountAllShortLinksParams{
+		NoteQuery:  noteQuery,
 		NoteStatus: input.NoteStatus,
 		Status:     optionalFilterText(input.Status),
 		Query:      query,
@@ -490,6 +503,7 @@ func (s *Service) AdminList(ctx context.Context, user auth.CurrentUser, input Li
 		return AdminListResult{}, err
 	}
 	rows, err := queries.ListAllShortLinks(ctx, sqlc.ListAllShortLinksParams{
+		NoteQuery:  noteQuery,
 		NoteStatus: input.NoteStatus,
 		Limit:      pageSize,
 		Offset:     (page - 1) * pageSize,

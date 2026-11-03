@@ -113,6 +113,7 @@ where short_link.owner_id = $1 and short_link.deleted_at is null
     and (sqlc.arg('note_status')::text = ''
         or (sqlc.arg('note_status')::text = 'present' and short_link.note <> '')
         or (sqlc.arg('note_status')::text = 'absent' and short_link.note = ''))
+    and (sqlc.arg('note_query')::text = '' or strpos(lower(short_link.note), lower(sqlc.arg('note_query')::text)) > 0)
     and (sqlc.narg('status')::text is null or short_link.status = sqlc.narg('status')::text)
     and (sqlc.arg('tag')::text = '' or short_link.tags @> array[sqlc.arg('tag')::text])
     and (
@@ -132,6 +133,7 @@ where owner_id = $1 and deleted_at is null
     and (sqlc.arg('note_status')::text = ''
         or (sqlc.arg('note_status')::text = 'present' and short_link.note <> '')
         or (sqlc.arg('note_status')::text = 'absent' and short_link.note = ''))
+    and (sqlc.arg('note_query')::text = '' or strpos(lower(short_link.note), lower(sqlc.arg('note_query')::text)) > 0)
     and (sqlc.narg('status')::text is null or status = sqlc.narg('status')::text)
     and (sqlc.arg('tag')::text = '' or short_link.tags @> array[sqlc.arg('tag')::text])
     and (
@@ -280,6 +282,7 @@ where short_link.deleted_at is null
     and (sqlc.arg('note_status')::text = ''
         or (sqlc.arg('note_status')::text = 'present' and short_link.note <> '')
         or (sqlc.arg('note_status')::text = 'absent' and short_link.note = ''))
+    and (sqlc.arg('note_query')::text = '' or strpos(lower(short_link.note), lower(sqlc.arg('note_query')::text)) > 0)
     and (sqlc.arg('tag')::text = '' or short_link.tags @> array[sqlc.arg('tag')::text])
     and (
         sqlc.arg('query')::text = ''
@@ -302,6 +305,7 @@ where short_link.deleted_at is null
     and (sqlc.arg('note_status')::text = ''
         or (sqlc.arg('note_status')::text = 'present' and short_link.note <> '')
         or (sqlc.arg('note_status')::text = 'absent' and short_link.note = ''))
+    and (sqlc.arg('note_query')::text = '' or strpos(lower(short_link.note), lower(sqlc.arg('note_query')::text)) > 0)
     and (sqlc.arg('tag')::text = '' or short_link.tags @> array[sqlc.arg('tag')::text])
     and (
         sqlc.arg('query')::text = ''

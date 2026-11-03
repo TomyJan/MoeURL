@@ -122,3 +122,5 @@ github.com/TomyJan/MoeURL/internal/shortlink/note.go
 github.com/TomyJan/MoeURL/internal/shortlink/note_service.go
 github.com/TomyJan/MoeURL/internal/shortlink/note_handler.go
 github.com/TomyJan/MoeURL/internal/shortlink/note_status.go
+github.com/TomyJan/MoeURL/internal/shortlink/note_search.go
+github.com/TomyJan/MoeURL/internal/shortlink/note_search_handler.go
