@@ -134,10 +134,49 @@ describe('short-link list pagination', () => {
     await fireEvent.update(screen.getByLabelText('filter.tag'), 'x'.repeat(33)); view.queuedNext(); await nextTick()
     expect(view.fetcher.mock.calls).toHaveLength(before)
     expect(screen.getByText('page-one-row')).toBeTruthy()
+    expect(screen.queryByTestId('short-link-pagination-summary')).toBeNull()
+    expect(view.container.querySelector('.console-page__total')).toBeNull()
     await fireEvent.update(screen.getByLabelText('filter.tag'), 'release'); view.queuedNext(); await nextTick()
     expect(view.fetcher.mock.calls).toHaveLength(before)
+    expect(screen.queryByTestId('short-link-pagination-summary')).toBeNull()
+    expect(view.container.querySelector('.console-page__total')).toBeNull()
     await ready()
     expect(new URL(String(view.fetcher.mock.calls.at(-1)![0]), 'http://localhost').searchParams.get('page')).toBe('1')
+  })
+
+  // A conflict must block stale writes, not the read needed to recover from a failed refresh.
+  it.each([
+    { context: 'own', operation: 'tags' }, { context: 'admin', operation: 'tags' }, { context: 'admin', operation: 'transfer' },
+  ] as const)('returns from page two after $context batch $operation conflict and failed refresh', async ({ context, operation }) => {
+    const view = mount(context); await ready()
+    await fireEvent.click(screen.getByRole('button', { name: 'pagination.next' })); await ready()
+    await fireEvent.click(screen.getAllByRole('checkbox')[1]!)
+    await fireEvent.click(screen.getByTestId(`batch-${operation}`))
+    if (operation === 'tags') {
+      await fireEvent.update(screen.getByLabelText('batchTags.tags'), 'updated')
+      await fireEvent.click(screen.getByLabelText('batchTags.confirm'))
+    } else {
+      await fireEvent.update(screen.getByLabelText('transfer.recipient'), 'recipient')
+      await fireEvent.click(screen.getByLabelText('transfer.confirm'))
+    }
+    view.fetcher.mockImplementation(async (_input, init) => {
+      if (init?.method === 'POST') return new Response(JSON.stringify({ code: 200116, message: 'conflict', data: null }))
+      throw new Error('refresh offline')
+    })
+    await fireEvent.click(operation === 'tags' ? screen.getByTestId('batch-tags-save') : screen.getByRole('button', { name: 'transfer.save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await screen.findByRole('alert')
+    expect(screen.queryByTestId('console-link-list')).toBeNull()
+    expect((screen.getByTestId(`batch-${operation}`) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: 'pagination.previous' }) as HTMLButtonElement).disabled).toBe(false)
+    view.fetcher.mockImplementation(async input => view.envelope(Number(new URL(String(input), 'http://localhost').searchParams.get('page'))))
+    await fireEvent.click(screen.getByRole('button', { name: 'pagination.previous' })); await ready()
+    expect(screen.getByText('page-one-row')).toBeTruthy()
+    expect(screen.queryByText('page-two-row')).toBeNull()
+    expect(screen.getAllByRole('checkbox').every(box => !(box as HTMLInputElement).checked)).toBe(true)
+    const writes = view.fetcher.mock.calls.filter(([, init]) => init?.method === 'POST')
+    expect(writes).toHaveLength(1)
+    expect(JSON.parse(writes[0]![1]!.body as string).items).toEqual([{ id: rows[20]!.id, expectedUpdatedAt: rows[20]!.updatedAt }])
   })
 
   // A failed or pending read is not a successful zero-total response.

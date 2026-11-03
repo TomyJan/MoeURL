@@ -184,10 +184,10 @@ const noteFilterBlocked = computed(() => !access.canRead.value || note.saving.va
   || settingsMutation.isPending.value || settingsLink.value !== null || qrLink.value !== null)
 
 const paginationBlocked = computed(() => noteFilterBlocked.value || note.target.value !== null || exportPending.value || bulkCreateOpen.value
-  || filtersPending.value || keywordInvalid.value || tagInvalid.value || batchTagsRefreshRequired.value)
+  || filtersPending.value || keywordInvalid.value || tagInvalid.value)
 const paginationTotal = computed(() => {
   const total = query.data.value?.meta.total
-  return access.canRead.value && query.isSuccess.value && !query.isFetching.value && Number.isSafeInteger(total) && total! >= 0 ? total : undefined
+  return access.canRead.value && !filtersPending.value && !keywordInvalid.value && !tagInvalid.value && query.isSuccess.value && !query.isFetching.value && Number.isSafeInteger(total) && total! >= 0 ? total : undefined
 })
 watch([paginationTotal, paginationBlocked, page], ([total, blocked]) => {
   if (blocked || total === undefined || !access.allows('read')) return
