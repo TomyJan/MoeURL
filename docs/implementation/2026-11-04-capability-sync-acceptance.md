@@ -25,7 +25,7 @@ M5 可选测试请求风格与 M6 固定 20 共享常量继续延期，不捆绑
 ## 本轮验收条件
 
 - [x] Task1：只修改 Markdown、所有变更本地链接有效、完整 925 源与冻结证据全等；原子提交及标准完成合同。
-- [ ] Task2：一次 fresh 独立整分支审查，全部有效问题处理、完整裁决／报告、本地 whole-owned 档案和标准完成。
+- [x] Task2：一次 fresh 独立整分支审查，全部有效问题处理、完整裁决／报告、本地 whole-owned 档案和标准完成。
 - [ ] Task3：精确最新候选真实 reviewed／covered、有效讨论闭环、候选自身九 CI 和完整日志 EOF。
 - [ ] Task3：守卫 squash、独立 API／fetch／SHA／tree／唯一父一致，master 自身九 CI 和完整日志 EOF。
 - [ ] Task3：完整报告、标准完成、新 whole-owned ZIP／解压全集核、准确 leaf 可恢复迁出及 siblings 不变。
@@ -40,4 +40,4 @@ M5 可选测试请求风格与 M6 固定 20 共享常量继续延期，不捆绑
 
 一次 fresh 独立审查范围 `f3beb002..a16035c1`，Critical 0／Important 0／新增 Minor 0，五项文档问题核实已处理，无修复轮或第二审查者。审查者独立只读核对完整 925 源、14 文档合同、15 冻结原件、727 个文件链接、旧版合并与 CI／归档证据；原报告完整保存于本轮 owned 的 `independent-final-review.md`。后继仅同步本轮实际阶段，原件与源码不变，远端审查及 CI 仍独立待做。
 
-不予判断的五类项目均已裁决并完整记入 `task2-review-decisions.json` 及最终报告：不复现的产品／性能风险不作新保证；实时远端在 Task3 取得；图片与生产缺口保留；不扩为历史全集重写或 M5／M6 重构；不重做旧任务和档案。本地 whole-owned 归档和标准 Task2 以随后实际收据判定，当前进行中。
+不予判断的五类项目均已裁决并完整记入 `task2-review-decisions.json` 及最终报告：不复现的产品／性能风险不作新保证；实时远端在 Task3 取得；图片与生产缺口保留；不扩为历史全集重写或 M5／M6 重构；不重做旧任务和档案。Task2 已在 `070f3a9f63f64d3d8166fec085028200650f4e3a` 标准完成，合同 `task2-completion-contract.json`；本地 whole-owned 10 文件 ZIP 42743 bytes，SHA `9163CE35706AF1047E209EB1F3337108074284EB0E5BD611C875CE00B0B1DA1B`，解压全集 hash／bytes 一致，准确 leaf 保留供 Task3 最终归档。完整五条裁决／错误代价、独立原文和两项延期见本地归档的 `final-review-report.md`。Task3 已标准开始，候选真实远端覆盖、候选与 master 各九 CI、合并及最终归档尚待。
