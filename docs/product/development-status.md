@@ -4,7 +4,9 @@
 
 [能力文档维护](../implementation/2026-11-03-capability-status-acceptance.md)已完整交付：PR256 合并为 `254fef0f`，最新真实审查、候选和 master 各自九 CI、标准 Task1–3 与可恢复归档完成，未发布部署。两个文档 Minor 继续保留。
 
-当前实现 [v0.44.0 备注状态筛选](scope-v0.44.0.md)：本人／全站列表与原 CSV 按备注有无整理，保留当前授权和私有正文边界。完整后端门禁、前端 2963 项与四项 100%、177 项浏览器、26 张原图、精确产品及正常库扫描通过，唯一终审有效问题已处理。本地标准收尾与本版远端交付尚待；缓存镜像和透明测试环境差异见[验收](../implementation/v0.44.0-acceptance.md)，不代替候选／master 标准 CI。下面的维护进行中和旧阶段文字保留历史归属。
+当前推进 [v0.45.0 短链列表分页](scope-v0.45.0.md)：固定每页 20 条、前后翻页与单页选择，CSV 仍导出全部已应用筛选；设计已确定，实施及验证尚未完成，见[计划](../implementation/v0.45.0-plan.md)与[验收](../implementation/v0.45.0-acceptance.md)。
+
+[v0.44.0 备注状态筛选](scope-v0.44.0.md)已完整交付：[PR257](https://github.com/TomyJan/MoeURL/pull/257)合并为 `e0072c2`，最新真实审查、候选与 master 各九 CI、标准 Task1–4、完整 37 条裁决及可恢复归档均完成。177 项浏览器、2963 项前端四项 100% 及精确产品验证保持实际运行归属，未发布部署；见[验收](../implementation/v0.44.0-acceptance.md)。下方旧阶段保持历史归属。
 
 [v0.43.1 备注版本边界](scope-v0.43.1.md)已完整交付：[PR255](https://github.com/TomyJan/MoeURL/pull/255)合并为 `10d317e`，候选与 master 各自九项 CI、真实最新审查、标准任务及可恢复归档均完成，尚未发布或部署，详见[验收](../implementation/v0.43.1-acceptance.md)。
 
