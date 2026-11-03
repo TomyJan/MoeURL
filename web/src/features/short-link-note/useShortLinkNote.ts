@@ -66,6 +66,7 @@ export function useShortLinkNote(context: 'own' | 'admin', access: Access) {
   /** Explicitly replaces the draft only after a successful read; failed recovery stays frozen. */
   async function reload() {
     if (!target.value || loading.value || saving.value || !access.identity.isCurrent(scope) || signature() !== grants) return
+    const recoveringUnknown = blocked.value === 'unknown'
     const isCurrent = capture(), id = target.value.id, userId = scope.userId
     loading.value = true; error.value = ''
     try {
@@ -73,10 +74,15 @@ export function useShortLinkNote(context: 'own' | 'admin', access: Access) {
       await nextTick()
       if (!isCurrent()) return
       data.value = value; draft.value = value.note; blocked.value = ''
+      if (recoveringUnknown) refreshLists()
     } catch (cause) {
       await nextTick()
       if (isCurrent() && !denied(cause)) error.value = 'loadFailed'
     } finally { if (isCurrent()) loading.value = false }
+  }
+  /** Refreshes the matching list family only after this opening confirms a write or its readback. */
+  function refreshLists() {
+    void client.invalidateQueries({ queryKey: [context === 'own' ? 'short-link' : 'admin-short-link'] })
   }
   /** Starts a fresh cache family for this account epoch, permission state, resource and opening. */
   function open(value: NoteTarget) {
@@ -104,6 +110,7 @@ export function useShortLinkNote(context: 'own' | 'admin', access: Access) {
       if (!isCurrent()) return
       data.value = value; draft.value = value.note
       client.setQueryData(key, value)
+      refreshLists()
       toast.success(t('linkNote.saved'))
     } catch (cause) {
       await nextTick()

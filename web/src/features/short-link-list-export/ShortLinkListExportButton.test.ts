@@ -97,7 +97,7 @@ describe('ShortLinkListExportButton', () => {
     await waitFor(() => expect(toast.success).toHaveBeenCalledOnce())
     expect(exportShortLinkList).toHaveBeenCalledTimes(2)
   })
-  it.each(['context', 'status', 'q', 'tag', 'blocked', 'logout', 'switch', 'relogin', 'permission', 'permission-roundtrip', 'unmount'])('isolates late success and failure after %s', async (transition) => {
+  it.each(['context', 'status', 'q', 'tag', 'noteStatus', 'blocked', 'logout', 'switch', 'relogin', 'permission', 'permission-roundtrip', 'unmount'])('isolates late success and failure after %s', async (transition) => {
     for (const failed of [false, true]) {
       const exporting = createDeferred<ShortLinkListExport>()
       vi.mocked(exportShortLinkList).mockReturnValue(exporting.promise)
@@ -107,6 +107,10 @@ describe('ShortLinkListExportButton', () => {
       if (['status', 'q', 'tag'].includes(transition)) {
         await view.rerender({ filters: { status: 'active', q: 'applied', tag: 'tag', [transition]: transition === 'status' ? 'disabled' : 'changed' } })
         await view.rerender({ filters: { status: 'active', q: 'applied', tag: 'tag' } })
+      }
+      if (transition === 'noteStatus') {
+        await view.rerender({ filters: { status: 'active', q: 'applied', tag: 'tag', noteStatus: 'present' } })
+        await view.rerender({ filters: { status: 'active', q: 'applied', tag: 'tag', noteStatus: '' } })
       }
       if (transition === 'blocked') { await view.rerender({ blocked: true }); await view.rerender({ blocked: false }) }
       if (transition === 'logout' || transition === 'relogin') void revokeAccountIdentity(view.client)

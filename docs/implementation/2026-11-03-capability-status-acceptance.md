@@ -1,5 +1,7 @@
 # 当前能力与交付状态维护验收
 
+本维护轮已完整交付：[PR256](https://github.com/TomyJan/MoeURL/pull/256)最终候选6352b92872e656f4db3b43650f0acb389f18c629真实 reviewed／covered、有效问题闭环；[候选CI41588344288](https://github.com/TomyJan/MoeURL/actions/runs/41588344288)与合并master254fef0f93a32da56a66a4850ec269c610462948的[自身CI41591839623](https://github.com/TomyJan/MoeURL/actions/runs/41591839623)各九项成功，原日志分别完整核至EOF。标准Task1–3、16条完整裁决和两个延期Minor报告、16成员whole-owned ZIP／extract全集核及准确leaf可恢复迁出完成，siblings不变。ZIP129336bytes／SHA256 85FDD9A1D4D626B246F958A31B0BB4F2F41F588BDC0FBC759F85F2D2B9F2EFF3；最终回执在原外置证据task3-capability-status-20261103-final-delivery-archive-receipt.json和owned-leaf-move-receipt.json。artifact未下载，不新增看图结论，未发布部署。下文保留原各阶段记录；本总结写于后继版本设计阶段，不借原CI给后继SHA。
+
 ## 范围与实际阶段
 
 从已交付 v0.43.1 的 master `10d317e42b87f30aada48089ea38c5000caca302` 建立 `docs/capability-status-20261103`，只修正文档。不新增业务版本，不改变运行时、权限、API、迁移、依赖或测试。Task1 已在 `40ffb72` 标准完成，Task2 已在 `550a34f` 标准完成；Task3 已标准启动，BASE `550a34f9e608ae73e2a8bcdf96a5014d3c210bf2`，brief 已全文读取。远端和最终归档仍待实际验证。

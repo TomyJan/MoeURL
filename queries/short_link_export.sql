@@ -29,6 +29,9 @@ with grant_snapshot as (
         and (sqlc.arg('is_admin')::boolean or short_link.owner_id = sqlc.arg('actor_id')::uuid)
         and (sqlc.arg('status')::text = '' or short_link.status = sqlc.arg('status')::text)
         and (sqlc.arg('tag')::text = '' or short_link.tags @> array[sqlc.arg('tag')::text])
+        and (sqlc.arg('note_status')::text = ''
+            or (sqlc.arg('note_status')::text = 'present' and short_link.note <> '')
+            or (sqlc.arg('note_status')::text = 'absent' and short_link.note = ''))
         and (
             sqlc.arg('query')::text = ''
             or short_link.slug ilike '%' || sqlc.arg('query')::text || '%'

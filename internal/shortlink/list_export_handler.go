@@ -77,9 +77,13 @@ func listExportInput(raw string) (ListExportInput, error) {
 		}
 	}
 	for key, items := range values {
-		if (key != "status" && key != "q" && key != "tag") || len(items) != 1 {
+		if (key != "status" && key != "q" && key != "tag" && key != "noteStatus") || len(items) != 1 {
 			return ListExportInput{}, ErrInvalidInput
 		}
 	}
-	return ListExportInput{Status: values.Get("status"), Query: values.Get("q"), Tag: values.Get("tag")}, nil
+	noteStatus, err := normalizeNoteStatus(values.Get("noteStatus"))
+	if err != nil {
+		return ListExportInput{}, err
+	}
+	return ListExportInput{Status: values.Get("status"), Query: values.Get("q"), Tag: values.Get("tag"), NoteStatus: noteStatus}, nil
 }

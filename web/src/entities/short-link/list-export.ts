@@ -3,7 +3,7 @@ import { apiGet, ApiClientError } from '@/shared/api/client'
 import type { ShortLinkListInput } from './api'
 
 export type ShortLinkListExportContext = 'own' | 'admin'
-export type ShortLinkListExportFilters = Pick<ShortLinkListInput, 'status' | 'q' | 'tag'>
+export type ShortLinkListExportFilters = Pick<ShortLinkListInput, 'status' | 'q' | 'tag' | 'noteStatus'>
 const header = '\uFEFFid,short_url,slug,target_url,title,tags,status,redirect_mode,intermediate_delay_seconds,expires_at,password_enabled,max_visits,visits_used,created_at,updated_at,owner_id,owner_username\r\n'
 const contentSchema = z.string().startsWith(header).max(8 * 1024 * 1024)
   .refine(content => new TextEncoder().encode(content).length <= 8 * 1024 * 1024)
@@ -14,6 +14,7 @@ export async function exportShortLinkList(filters: ShortLinkListExportFilters, c
   if (filters.status) search.set('status', filters.status)
   if (filters.q) search.set('q', filters.q)
   if (filters.tag) search.set('tag', filters.tag)
+  if (filters.noteStatus) search.set('noteStatus', filters.noteStatus)
   const serializedSearch = search.toString()
   const query = serializedSearch ? `?${serializedSearch}` : ''
   const response = await apiGet<unknown>(`${context === 'admin' ? '/admin' : ''}/short-link/export${query}`)

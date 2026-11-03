@@ -2,6 +2,10 @@
 
 ## 当前状态（2026-11-03）
 
+[能力文档维护](../implementation/2026-11-03-capability-status-acceptance.md)已完整交付：PR256 合并为 `254fef0f`，最新真实审查、候选和 master 各自九 CI、标准 Task1–3 与可恢复归档完成，未发布部署。两个文档 Minor 继续保留。
+
+当前实现 [v0.44.0 备注状态筛选](scope-v0.44.0.md)：前后端本地门禁通过，唯一独立终审发现的跨页面旧缓存问题已真实RED→GREEN，完整2963项前端测试与四100通过。真实浏览器、精确产品及远端交付尚待，见[计划](../implementation/v0.44.0-plan.md)与[验收](../implementation/v0.44.0-acceptance.md)。下面的旧阶段文字保持历史归属。
+
 [v0.43.1 备注版本边界](scope-v0.43.1.md)已完整交付：[PR255](https://github.com/TomyJan/MoeURL/pull/255)合并为 `10d317e`，候选与 master 各自九项 CI、真实最新审查、标准任务及可恢复归档均完成，尚未发布或部署，详见[验收](../implementation/v0.43.1-acceptance.md)。
 
 当前进行[能力文档维护](../implementation/2026-11-03-capability-status-plan.md)：对齐已经交付的页脚链接、时区显示、批量／CSV 创建、只读标签查找和内部备注，不增加产品行为。各版本原始失败、执行身份与未完成的生产验收保留原记录；本维护轮的审查和 CI 独立验收。

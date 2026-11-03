@@ -42,14 +42,17 @@ with grant_snapshot as (
         and ($2::boolean or short_link.owner_id = $1::uuid)
         and ($3::text = '' or short_link.status = $3::text)
         and ($4::text = '' or short_link.tags @> array[$4::text])
+        and ($5::text = ''
+            or ($5::text = 'present' and short_link.note <> '')
+            or ($5::text = 'absent' and short_link.note = ''))
         and (
-            $5::text = ''
-            or short_link.slug ilike '%' || $5::text || '%'
-            or short_link.target_url ilike '%' || $5::text || '%'
-            or ($2::boolean and owner.username ilike '%' || $5::text || '%')
-            or short_link.title ilike '%' || $5::text || '%'
-            or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || $5::text || '%')
-            or ($2::boolean and owner.nickname ilike '%' || $5::text || '%')
+            $6::text = ''
+            or short_link.slug ilike '%' || $6::text || '%'
+            or short_link.target_url ilike '%' || $6::text || '%'
+            or ($2::boolean and owner.username ilike '%' || $6::text || '%')
+            or short_link.title ilike '%' || $6::text || '%'
+            or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || $6::text || '%')
+            or ($2::boolean and owner.nickname ilike '%' || $6::text || '%')
         )
     order by short_link.created_at desc, short_link.id desc
     limit 1001
@@ -94,11 +97,12 @@ order by links.created_at desc, links.id desc
 `
 
 type ExportShortLinkListParams struct {
-	ActorID pgtype.UUID `json:"actor_id"`
-	IsAdmin bool        `json:"is_admin"`
-	Status  string      `json:"status"`
-	Tag     string      `json:"tag"`
-	Query   string      `json:"query"`
+	ActorID    pgtype.UUID `json:"actor_id"`
+	IsAdmin    bool        `json:"is_admin"`
+	Status     string      `json:"status"`
+	Tag        string      `json:"tag"`
+	NoteStatus string      `json:"note_status"`
+	Query      string      `json:"query"`
 }
 
 type ExportShortLinkListRow struct {
@@ -129,6 +133,7 @@ func (q *Queries) ExportShortLinkList(ctx context.Context, arg ExportShortLinkLi
 		arg.IsAdmin,
 		arg.Status,
 		arg.Tag,
+		arg.NoteStatus,
 		arg.Query,
 	)
 	if err != nil {

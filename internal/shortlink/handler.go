@@ -91,12 +91,18 @@ func (h *Handler) Overview(w http.ResponseWriter, r *http.Request) {
 
 // List returns short links visible to the current user.
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+	noteStatus, err := noteStatusQuery(r.URL.RawQuery)
+	if err != nil {
+		businessError(w, 100001, "Invalid request")
+		return
+	}
 	result, err := h.service.List(r.Context(), auth.UserFromContext(r.Context()), ListInput{
-		Page:     queryInt32WithDefault(r, "page", defaultPage),
-		PageSize: queryInt32WithDefault(r, "pageSize", defaultPageSize),
-		Status:   r.URL.Query().Get("status"),
-		Query:    r.URL.Query().Get("q"),
-		Tag:      r.URL.Query().Get("tag"),
+		NoteStatus: noteStatus,
+		Page:       queryInt32WithDefault(r, "page", defaultPage),
+		PageSize:   queryInt32WithDefault(r, "pageSize", defaultPageSize),
+		Status:     r.URL.Query().Get("status"),
+		Query:      r.URL.Query().Get("q"),
+		Tag:        r.URL.Query().Get("tag"),
 	})
 	if err != nil {
 		writeBusinessOrSystemError(w, r, h.logger, err)
@@ -166,12 +172,18 @@ func (h *Handler) Statistics(w http.ResponseWriter, r *http.Request) {
 
 // AdminList returns short links available to an administrator.
 func (h *Handler) AdminList(w http.ResponseWriter, r *http.Request) {
+	noteStatus, err := noteStatusQuery(r.URL.RawQuery)
+	if err != nil {
+		businessError(w, 100001, "Invalid request")
+		return
+	}
 	result, err := h.service.AdminList(r.Context(), auth.UserFromContext(r.Context()), ListInput{
-		Page:     queryInt32WithDefault(r, "page", defaultPage),
-		PageSize: queryInt32WithDefault(r, "pageSize", defaultPageSize),
-		Status:   r.URL.Query().Get("status"),
-		Query:    r.URL.Query().Get("q"),
-		Tag:      r.URL.Query().Get("tag"),
+		NoteStatus: noteStatus,
+		Page:       queryInt32WithDefault(r, "page", defaultPage),
+		PageSize:   queryInt32WithDefault(r, "pageSize", defaultPageSize),
+		Status:     r.URL.Query().Get("status"),
+		Query:      r.URL.Query().Get("q"),
+		Tag:        r.URL.Query().Get("tag"),
 	})
 	if err != nil {
 		writeBusinessOrSystemError(w, r, h.logger, err)
