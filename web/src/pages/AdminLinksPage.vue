@@ -13,6 +13,7 @@
         <v-select :model-value="noteStatusFilter" :items="noteStatusOptions" :label="t('filter.noteStatus')" :disabled="noteFilterBlocked" density="compact" variant="outlined" @update:model-value="selectNoteStatus" />
         <v-text-field v-model="searchKeyword" :label="t('filter.keyword')" :error-messages="keywordInvalid ? t('linkMetadata.keywordInvalid') : ''" density="compact" variant="outlined" />
         <v-text-field v-model="tagFilter" :label="t('filter.tag')" :error-messages="tagInvalid ? t('linkMetadata.tagFilterInvalid') : ''" density="compact" variant="outlined" />
+        <v-text-field :model-value="noteQuery" :label="t('filter.noteQuery')" :error-messages="noteQueryInvalid ? t('linkMetadata.noteQueryInvalid') : ''" :disabled="noteFilterBlocked || note.target.value !== null" density="compact" variant="outlined" @update:model-value="selectNoteQuery" />
       </div>
       <ShortLinkBatchToolbar :state="batch" :access="access" transfer @transfer="beginBatchTransfer" @tags="beginBatchTags" />
     </div>
@@ -102,6 +103,7 @@ import ShortLinkNoteDialog from '@/features/short-link-note/ShortLinkNoteDialog.
 import { useShortLinkNote } from '@/features/short-link-note/useShortLinkNote'
 import ShortLinkPagination from '@/features/short-link-pagination/ShortLinkPagination.vue'
 import { nextShortLinkListRevision } from '@/shared/short-link/listRevision'
+import { searchAdminNotes } from '@/entities/short-link/note-search'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
@@ -115,7 +117,7 @@ const batchTransferRefreshRequired = ref(false)
 const exportPending = ref(false)
 const statusFilter = ref<'' | AdminShortLink['status']>('')
 const noteStatusFilter = ref<ShortLinkNoteStatus>('')
-const { searchKeyword, tagFilter, debouncedKeyword, debouncedTag, keywordInvalid, tagInvalid, filtersPending } = useShortLinkFilters()
+const { searchKeyword, tagFilter, noteQuery, debouncedKeyword, debouncedTag, debouncedNoteQuery, keywordInvalid, tagInvalid, noteQueryInvalid, noteQueryPending, filtersPending } = useShortLinkFilters()
 const statusOptions = computed(() => [
   { title: t('filter.all'), value: '' },
   { title: t('filter.active'), value: 'active' },
@@ -129,7 +131,7 @@ const noteStatusOptions = computed(() => [
 ])
 const page = ref(1)
 const listRevision = ref(nextShortLinkListRevision())
-watch([statusFilter, debouncedKeyword, debouncedTag, noteStatusFilter, access.identity.scope], () => { page.value = 1; listRevision.value = nextShortLinkListRevision() }, { flush: 'sync' })
+watch([statusFilter, debouncedKeyword, debouncedTag, noteStatusFilter, debouncedNoteQuery, access.identity.scope], () => { page.value = 1; listRevision.value = nextShortLinkListRevision() }, { flush: 'sync' })
 watch(page, () => { listRevision.value = nextShortLinkListRevision() }, { flush: 'sync' })
 let readAllowed = access.allows('read')
 const unsubscribeList = queryClient.getQueryCache().subscribe(event => {
@@ -138,11 +140,15 @@ const unsubscribeList = queryClient.getQueryCache().subscribe(event => {
   if (allowed !== readAllowed) { readAllowed = allowed; page.value = 1; listRevision.value = nextShortLinkListRevision() }
 })
 onBeforeUnmount(unsubscribeList)
-const listQueryKey = computed(() => ['admin-short-link', statusFilter.value, debouncedKeyword.value, debouncedTag.value, access.identity.scope.value.userId, access.identity.scope.value.epoch, listRevision.value, noteStatusFilter.value, page.value] as const)
+const listQueryKey = computed(() => ['admin-short-link', statusFilter.value, debouncedKeyword.value, debouncedTag.value, access.identity.scope.value.userId, access.identity.scope.value.epoch, listRevision.value, noteStatusFilter.value, page.value, debouncedNoteQuery.value] as const)
 const query = useQuery({
   queryKey: listQueryKey,
-  enabled: access.canRead,
-  queryFn: ({ queryKey: [, status, q, tag, , , , noteStatus, requestPage] }) => listAdminShortLinks({ page: requestPage, pageSize: 20, status, q, tag, ...(noteStatus ? { noteStatus } : {}) }),
+  enabled: computed(() => access.canRead.value && !noteQueryInvalid.value && !noteQueryPending.value),
+  gcTime: 0,
+  queryFn: ({ queryKey: [, status, q, tag, userId, , , noteStatus, requestPage, noteQuery] }) => {
+    const input = { page: requestPage, pageSize: 20, status, q, tag }
+    return noteQuery ? searchAdminNotes({ ...input, noteStatus, noteQuery }, userId) : listAdminShortLinks({ ...input, ...(noteStatus ? { noteStatus } : {}) })
+  },
 })
 const links = computed(() => access.canRead.value ? query.data.value?.items ?? [] : [])
 const linkItems = computed<ConsoleLinkListItem[]>(() => links.value)
@@ -176,18 +182,18 @@ const updatingId = useMutationTargetId(statusMutation, (variables) => variables?
 const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof variables === 'string' ? variables : undefined))
 const batch = useShortLinkBatch({
   context: 'admin', access, ids: computed(() => links.value.map(link => link.id)),
-  filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value, noteStatusFilter.value, page.value]),
-  blocked: computed(() => note.target.value !== null || !query.isSuccess.value || query.isFetching.value || batchTagsRefreshRequired.value || batchTagTargets.value !== null || batchTransferRefreshRequired.value || exportPending.value || keywordInvalid.value || tagInvalid.value || filtersPending.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null),
+  filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value, noteStatusFilter.value, noteQuery.value, page.value]),
+  blocked: computed(() => note.target.value !== null || !query.isSuccess.value || query.isFetching.value || batchTagsRefreshRequired.value || batchTagTargets.value !== null || batchTransferRefreshRequired.value || exportPending.value || keywordInvalid.value || tagInvalid.value || noteQueryInvalid.value || filtersPending.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null),
 })
-const rowWriteBlocked = computed(() => note.target.value !== null || batch.pending.value || batchTagTargets.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null || batch.deleteIds.value !== null)
-watch([statusFilter, searchKeyword, tagFilter, noteStatusFilter, page], note.reset, { flush: 'sync' })
-const canTransfer = computed(() => access.canUpdate.value && query.isSuccess.value && !query.isFetching.value && !filtersPending.value && !keywordInvalid.value && !tagInvalid.value)
+const rowWriteBlocked = computed(() => noteQueryInvalid.value || noteQueryPending.value || note.target.value !== null || batch.pending.value || batchTagTargets.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null || batch.deleteIds.value !== null)
+watch([statusFilter, searchKeyword, tagFilter, noteQuery, noteStatusFilter, page], note.reset, { flush: 'sync' })
+const canTransfer = computed(() => access.canUpdate.value && query.isSuccess.value && !query.isFetching.value && !filtersPending.value && !keywordInvalid.value && !tagInvalid.value && !noteQueryInvalid.value)
 watch([access.identity.scope, access.canUpdate], () => { batchTransferTargets.value = null; batch.clear() }, { flush: 'sync' })
 watch([query.isFetching, query.isSuccess], ([fetching, success]) => { if (!fetching && success) batchTransferRefreshRequired.value = false })
 watch([query.isFetching, query.isSuccess], ([fetching, success]) => { if (!fetching && success) batchTagsRefreshRequired.value = false })
-const exportFilters = computed(() => ({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value, noteStatus: noteStatusFilter.value }))
+const exportFilters = computed(() => ({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value, noteStatus: noteStatusFilter.value, ...(debouncedNoteQuery.value ? { noteQuery: debouncedNoteQuery.value } : {}) }))
 const exportBlocked = computed(() => !access.canRead.value || !query.isSuccess.value || query.isFetching.value
-  || keywordInvalid.value || tagInvalid.value || filtersPending.value || statusMutation.isPending.value
+  || keywordInvalid.value || tagInvalid.value || noteQueryInvalid.value || filtersPending.value || statusMutation.isPending.value
   || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || rowWriteBlocked.value)
 const tagSelectionBlocked = computed(() => exportPending.value || exportBlocked.value)
 const noteFilterBlocked = computed(() => !access.canRead.value || note.saving.value || batch.pending.value || batch.deleteIds.value !== null
@@ -196,10 +202,10 @@ const noteFilterBlocked = computed(() => !access.canRead.value || note.saving.va
   || settingsLink.value !== null || qrLink.value !== null)
 
 const paginationBlocked = computed(() => noteFilterBlocked.value || note.target.value !== null || exportPending.value
-  || filtersPending.value || keywordInvalid.value || tagInvalid.value)
+  || filtersPending.value || keywordInvalid.value || tagInvalid.value || noteQueryInvalid.value)
 const paginationTotal = computed(() => {
   const total = query.data.value?.meta.total
-  return access.canRead.value && !filtersPending.value && !keywordInvalid.value && !tagInvalid.value && query.isSuccess.value && !query.isFetching.value && Number.isSafeInteger(total) && total! >= 0 ? total : undefined
+  return access.canRead.value && !filtersPending.value && !keywordInvalid.value && !tagInvalid.value && !noteQueryInvalid.value && query.isSuccess.value && !query.isFetching.value && Number.isSafeInteger(total) && total! >= 0 ? total : undefined
 })
 watch([paginationTotal, paginationBlocked, page], ([total, blocked]) => {
   if (blocked || total === undefined || !access.allows('read')) return
@@ -221,6 +227,12 @@ function retryPage() {
 }
 
 /** Rejects queued changes against live grants and write locks while allowing a new filter during a read. */
+/** Rechecks live authority and editor locks before accepting a queued private filter edit. */
+function selectNoteQuery(value: unknown) {
+  if (noteFilterBlocked.value || note.target.value !== null || !access.allows('read') || typeof value !== 'string') return
+  noteQuery.value = value
+}
+
 function selectNoteStatus(value: unknown) {
   if (noteFilterBlocked.value || !access.allows('read') || (value !== '' && value !== 'present' && value !== 'absent')) return
   noteStatusFilter.value = value
@@ -296,7 +308,7 @@ function invalidateLinks() {
 .console-page__tools { display: grid; }
 .console-page__metadata-filters {
   width: 100%;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 @media (max-width: 760px) {
