@@ -2,7 +2,7 @@
 
 ## 范围与实际阶段
 
-从已交付 v0.43.1 的 master `10d317e42b87f30aada48089ea38c5000caca302` 建立 `docs/capability-status-20261103`，只修正文档。不新增业务版本，不改变运行时、权限、API、迁移、依赖或测试。Task1 已标准启动；本轮核验、唯一终审、远端和归档只按后续实际结果记录。
+从已交付 v0.43.1 的 master `10d317e42b87f30aada48089ea38c5000caca302` 建立 `docs/capability-status-20261103`，只修正文档。不新增业务版本，不改变运行时、权限、API、迁移、依赖或测试。Task1 已在 `40ffb72` 标准完成，Task2 已标准启动；本轮终审、远端和归档只按后续实际结果记录。
 
 外置证据：`D:/Dev/TomyJan/MoeURL/.tmp/capability-status-20261103-evidence`。`baseline.json` 已冻结完整 902 个非 Markdown 路径及 hash／bytes、23 项旧收据和 ZIP；`capability-evidence.json` 逐项记录以下能力、允许表述、非目标和原件 Path／Bytes／SHA256。旧 ZIP／合同／失败原件不修改，不重新解压、运行旧 suite 或调用旧 API。
 
@@ -34,7 +34,7 @@ v0.38.0 至 v0.43.0 各版最终原收据均实际标准完成 0、全文件集�
 
 - [x] 标准 start1 和完整 brief；建立 902 输入基线及 11 项能力证据矩阵。
 - [x] 当前入口、能力表、旧 scope 最终状态及 R-M1 空行与证据一致；首轮文档检查实际 0，14 份 Markdown、684 个本地链接有效，diff 检查通过，902 非 Markdown 和 23 项冻结旧档案全部不变。后继文档与提交完成核验另记。
-- [ ] Task1 原子提交、完成合同和标准 done1。
+- [x] Task1 原子提交 `40ffb72`、完成合同和标准 done1；14 份 Markdown／684 个本地链接、902 非 Markdown 和 23 项旧档案核验实际 0，无产品 suite 或 API 重跑。
 - [ ] 唯一 fresh 整分支终审、全部有效意见处置、完整报告和本地归档、标准 done2。
 - [ ] 本轮最新真实远端覆盖、候选自身九 CI／完整日志、守卫合并和独立 SHA／tree／唯一父。
 - [ ] 本轮 master 自身九 CI／完整日志、标准 done3、新全成员 ZIP／解压／准确 leaf 可恢复迁出及 siblings 不变。

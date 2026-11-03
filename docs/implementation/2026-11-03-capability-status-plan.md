@@ -44,7 +44,7 @@
 - [x] 标准start1，完整brief。建立外置capability-evidence.json，逐项记录能力、精确scope／acceptance、允许的当前表述、仍未实现边界、原收据Path／Bytes／SHA256。需要引用的旧最终收据必须实际读取并核，不重复旧API、CI下载或归档。
 - [x] 按文件职责精确patch。每项当前事实对应矩阵来源；历史段只新增历史标签，原文字和顺序保留。正式验收未执行的本轮门禁保持未勾选。
 - [x] 运行本地evidence-only验证：git diff --check，所有变更Markdown本地链接存在，git diff --name-only基线仅.md，完整902非Markdown集合／hash／bytes等于基线，引用冻结档案全hashbytes相同。输出唯一proof，实际0。
-- [ ] 本地原子提交docs(进度): 对齐当前能力与交付状态，精确暂存名单，不覆盖无关改动。建立完成合同并标准done1，只核原成功证据，不重suite。
+- [x] 本地原子提交docs(进度): 对齐当前能力与交付状态，精确暂存名单，不覆盖无关改动。建立完成合同并标准done1，只核原成功证据，不重suite。
 
 ## Task2：唯一终审与本地标准收尾
 
