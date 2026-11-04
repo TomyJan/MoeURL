@@ -1,6 +1,6 @@
 # v0.49.3 手机通知与导航范围
 
-从已交付 PR268 的 master `8d72dda0696d139194ebea6aaeb24605abbe8607` 启动，分支 `fix/v0.49.3-mobile-toast-navigation`。fresh fetch、空 open PR 列表和新分支切换已成功，1326 个完整输入与前版冻结合同逐 hash／bytes 相同。导航避让已实现，三个业务导航和两个长消息场景、3270 项前端及四项 100% 通过；Task1 已标准完成；原208项浏览器通过，唯一终审两项Important进入作者修复；修复后完整浏览器、精确产品和远端交付仍待。未发布部署。见[设计](../specs/2026-11-05-v0.49.3-mobile-toast-navigation-design.md)、[计划](../implementation/v0.49.3-plan.md)与[验收](../implementation/v0.49.3-acceptance.md)。
+从已交付 PR268 的 master `8d72dda0696d139194ebea6aaeb24605abbe8607` 启动，分支 `fix/v0.49.3-mobile-toast-navigation`。导航避让和唯一终审两项 Important 修复均经真实 RED→GREEN；3270 项前端四项 100%、修复后 clean19cdba9 的完整 208 项浏览器、83 张原图和精确产品／正常漏洞库扫描通过。Task1 标准完成，Task2 标准收尾中；远端审查、候选和 master 各九 CI、守卫合并及最终归档仍待，未发布部署。起点已成功的 fetch、空 PR 列表、分支切换及 1326 输入基线保持原件，不重复执行。见[设计](../specs/2026-11-05-v0.49.3-mobile-toast-navigation-design.md)、[计划](../implementation/v0.49.3-plan.md)与[验收](../implementation/v0.49.3-acceptance.md)。
 
 ## 目标与必须实现
 
