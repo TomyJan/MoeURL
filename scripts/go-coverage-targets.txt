@@ -124,3 +124,6 @@ github.com/TomyJan/MoeURL/internal/shortlink/note_handler.go
 github.com/TomyJan/MoeURL/internal/shortlink/note_status.go
 github.com/TomyJan/MoeURL/internal/shortlink/note_search.go
 github.com/TomyJan/MoeURL/internal/shortlink/note_search_handler.go
+github.com/TomyJan/MoeURL/internal/shortlink/batch_note_clear.go
+github.com/TomyJan/MoeURL/internal/shortlink/batch_note_clear_service.go
+github.com/TomyJan/MoeURL/internal/shortlink/batch_note_clear_handler.go
