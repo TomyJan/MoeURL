@@ -1,5 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto'
-import { writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
+import { execFileSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext } from '@playwright/test'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
@@ -12,6 +14,135 @@ async function success(api: APIRequestContext, path: string, data?: unknown) {
   expect(body.code).toBe(0)
   return body
 }
+
+test.describe('real shared component with real Vuetify modal fixtures', () => {
+  let harness: string
+  test.beforeAll(async ({ browserName }, info) => {
+    expect(browserName).toBe('chromium')
+    harness = process.env.MOEURL_E2E_FEEDBACK_HARNESS_DIR ?? info.outputPath('feedback-harness')
+    if (!process.env.MOEURL_E2E_FEEDBACK_HARNESS_DIR) {
+      const pnpm = process.env.npm_execpath
+      if (!pnpm) throw new Error('Run the browser suite through the repository pnpm command')
+      execFileSync(process.execPath, [pnpm, 'exec', 'vite', 'build', '--config', 'e2e/feedback-harness.config.ts', '--outDir', harness], { cwd: fileURLToPath(new URL('..', import.meta.url)), stdio: 'pipe' })
+    }
+    await readFile(harness + '/harness.js')
+    await readFile(harness + '/harness.css')
+  })
+  test('keeps the six-second lifetime when a message moves into a modal', async ({ page }) => {
+    await page.route('http://feedback.test/**', async route => {
+      const path = new URL(route.request().url()).pathname
+      if (path === '/harness.js' || path === '/harness.css') return route.fulfill({ body: await readFile(harness + path), contentType: path.endsWith('.js') ? 'text/javascript' : 'text/css' })
+      return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><link rel="stylesheet" href="/harness.css"></head><body><div id="app"></div><script src="/harness.js"></script></body></html>' })
+    })
+    const time = new Date('2026-11-04T00:00:00Z')
+    await page.clock.install({ time })
+    await page.clock.pauseAt(time)
+    await page.goto('http://feedback.test/?language=en')
+    await page.getByRole('button', { name: 'Publish one', exact: true }).click()
+    await page.clock.runFor(4000)
+    await expect(page.locator('[data-sonner-toast]')).toHaveCount(1)
+    await page.getByRole('button', { name: 'Open parent', exact: true }).click()
+    await page.clock.runFor(350)
+    await expect(page.getByRole('dialog', { name: 'Parent fixture', exact: true }).locator('[data-sonner-toast]')).toHaveCount(1)
+    await page.clock.runFor(2200)
+    await expect(page.locator('[data-sonner-toast]')).toHaveCount(0)
+  })
+  test('preserves the same message and focus boundary through real nested dialogs', async ({ page }, info) => {
+    await page.route('http://feedback.test/**', async route => {
+      const path = new URL(route.request().url()).pathname
+      if (path === '/harness.js' || path === '/harness.css') return route.fulfill({ body: await readFile(harness + path), contentType: path.endsWith('.js') ? 'text/javascript' : 'text/css' })
+      return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/harness.css"></head><body><div id="app"></div><script src="/harness.js"></script></body></html>' })
+    })
+    await page.goto('http://feedback.test/?language=en')
+    await page.getByRole('button', { name: 'Publish one', exact: true }).click()
+    const original = await page.locator('[data-sonner-toast]').elementHandle()
+    await page.getByRole('button', { name: 'Open parent', exact: true }).click()
+    const parent = page.getByRole('dialog', { name: 'Parent fixture', exact: true })
+    await expect(parent.getByTestId('fixture-cancel')).toBeFocused()
+    await expect(parent.locator('[data-sonner-toast]')).toHaveCount(1)
+    await parent.locator('[data-toast-modal-region]').hover()
+    await parent.getByRole('button', { name: 'Open child', exact: true }).click()
+    const child = page.getByRole('dialog', { name: 'Child fixture', exact: true })
+    await expect(child.getByRole('button', { name: 'Close child', exact: true })).toBeFocused()
+    await expect(child.locator('[data-sonner-toast]')).toHaveCount(1)
+    expect(await child.locator('[data-sonner-toast]').evaluate((node, original) => node === original, original)).toBe(true)
+    await page.screenshot({ path: info.outputPath('nested-child.png'), animations: 'disabled' })
+    await child.getByRole('button', { name: 'Close child', exact: true }).press('Enter')
+    await expect(parent.locator('[data-sonner-toast]')).toHaveCount(1)
+    await expect(child).toHaveCount(0)
+    expect(await parent.locator('[data-sonner-toast]').evaluate((node, original) => node === original, original)).toBe(true)
+    await parent.getByTestId('fixture-cancel').press('Enter')
+    await expect(parent).toHaveCount(0)
+    const toaster = page.locator('[data-sonner-toaster]')
+    await expect(toaster).toBeVisible()
+    expect(await toaster.evaluate(node => node.closest('[role="dialog"]') === null)).toBe(true)
+    expect(await page.locator('[data-sonner-toast]').evaluate((node, original) => node === original, original)).toBe(true)
+    await page.screenshot({ path: info.outputPath('nested-return-page.png'), animations: 'disabled' })
+    await page.locator('[data-sonner-toast] button[data-close-button]').focus()
+    await page.keyboard.press('Enter')
+    await expect(page.locator('[data-sonner-toast]')).toHaveCount(0)
+  })
+  for (const scenario of [
+    { name: 'narrow-light-zh', width: 320, height: 700, language: 'zh-CN', theme: 'light', scale: 1 },
+    { name: 'short-dark-en', width: 568, height: 320, language: 'en', theme: 'dark', scale: 1 },
+    { name: 'zoom200-light-en', width: 640, height: 360, language: 'en', theme: 'light', scale: 2 },
+  ] as const) {
+    test('five long messages remain readable and clear of safety controls: ' + scenario.name, async ({ browser }, info) => {
+      // DPR2 + half-sized CSS viewport exercises the layout at 200% desktop zoom equivalence.
+      const context = await browser.newContext({ viewport: { width: scenario.width, height: scenario.height }, deviceScaleFactor: scenario.scale, reducedMotion: 'reduce' })
+      try {
+        await context.route('http://feedback.test/**', async route => {
+          const path = new URL(route.request().url()).pathname
+          if (path === '/harness.js' || path === '/harness.css') return route.fulfill({ body: await readFile(harness + path), contentType: path.endsWith('.js') ? 'text/javascript' : 'text/css' })
+          return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/harness.css"></head><body><div id="app"></div><script src="/harness.js"></script></body></html>' })
+        })
+        const page = await context.newPage()
+        await page.goto('http://feedback.test/?language=' + scenario.language + '&theme=' + scenario.theme)
+        await page.getByRole('button', { name: 'Publish five', exact: true }).click()
+        await page.getByRole('button', { name: 'Open parent', exact: true }).click()
+        const modal = page.getByRole('dialog', { name: 'Parent fixture', exact: true })
+        const region = modal.locator('[data-toast-modal-region]')
+        await expect(modal.locator('[data-sonner-toast][data-visible="true"]')).toHaveCount(5)
+        await expect(modal.getByTestId('fixture-cancel')).toBeFocused()
+        await region.hover()
+        expect(await modal.locator('[data-sonner-toast] script').count()).toBe(0)
+        await expect(modal.locator('[data-sonner-toaster]')).toHaveAttribute('data-sonner-theme', scenario.theme)
+        await expectNoHorizontalOverflow(page)
+        const geometry = await modal.evaluate(element => {
+          const box = (e: Element) => { const r = e.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom } }
+          const region = element.querySelector('[data-toast-modal-region]')!
+          const bounds = box(region)
+          const controls = Array.from(element.querySelectorAll('[data-testid^="fixture-"]')).map(box)
+          const visible = Array.from(region.querySelectorAll('[data-sonner-toast][data-visible="true"]')).map(toast => {
+            const r = box(toast)
+            return { left: Math.max(r.left, bounds.left), right: Math.min(r.right, bounds.right), top: Math.max(r.top, bounds.top), bottom: Math.min(r.bottom, bounds.bottom) }
+          }).filter(r => r.bottom > r.top && r.right > r.left)
+          return { bounds, controls, visible, width: innerWidth, height: innerHeight, scrollable: region.scrollHeight > region.clientHeight }
+        })
+        expect(geometry.scrollable).toBe(true)
+        expect(geometry.bounds.bottom).toBeLessThanOrEqual(geometry.height)
+        for (const toast of geometry.visible) for (const control of geometry.controls) expect(toast.right > control.left && control.right > toast.left && toast.bottom > control.top && control.bottom > toast.top).toBe(false)
+        for (const id of ['fixture-cancel', 'fixture-confirm']) {
+          expect(await modal.getByTestId(id).evaluate(button => { const r = button.getBoundingClientRect(); const hit = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2); return r.top >= 0 && r.bottom <= innerHeight && hit !== null && button.contains(hit) })).toBe(true)
+        }
+        const proof = info.outputPath(scenario.name + '-geometry.json')
+        await writeFile(proof, JSON.stringify(geometry, null, 2))
+        const image = info.outputPath(scenario.name + '.png')
+        await page.screenshot({ path: image, animations: 'disabled' })
+        await info.attach(scenario.name, { path: image, contentType: 'image/png' })
+        for (let remaining = 5; remaining > 0; remaining--) {
+          const button = modal.locator('[data-sonner-toast][data-removed="false"] button[data-close-button]').last()
+          await button.scrollIntoViewIfNeeded()
+          await button.focus()
+          await page.keyboard.press('Enter')
+          await expect(modal.locator('[data-sonner-toast][data-removed="false"]')).toHaveCount(remaining - 1)
+        }
+        await expect(modal.locator('[data-toast-modal-region]')).toHaveCount(0)
+        await expect(modal.getByTestId('fixture-title')).toBeVisible()
+      } finally { await context.close() }
+    })
+  }
+})
 
 test.use({ serviceWorkers: 'block' })
 // A fixed toast covering the reopened title must fail even when every business request succeeds.
