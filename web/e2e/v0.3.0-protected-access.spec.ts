@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test'
+import { createServer } from 'node:http'
+import { expect, test as baseTest } from '@playwright/test'
 import type { Page, Request } from '@playwright/test'
 import {
   attachScreenshot,
@@ -17,10 +18,37 @@ const rateLimitRetryDelayMs = 8_000
 
 const e2eHostPattern = escapeRegExp(e2eHost)
 
-test.describe.configure({ mode: 'serial' })
-test.use({ serviceWorkers: 'block' })
+const test = baseTest.extend<{ targetOrigin: string }>({
+  targetOrigin: async ({ browserName }, use) => {
+    if (browserName !== 'chromium') throw new Error('The isolated target requires Chromium host resolution')
+    const server = createServer((request, response) => {
+      const body = request.url === '/e2e-protected'
+        ? 'protected target reached'
+        : request.url === '/e2e-rate-limited' ? 'rate-limited target reached' : null
+      response.writeHead(body === null ? 404 : 200, { 'content-type': 'text/plain' })
+      response.end(body ?? 'not found')
+    })
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject)
+      server.listen(0, '127.0.0.1', resolve)
+    })
+    try {
+      const address = server.address()
+      if (address === null || typeof address === 'string') throw new Error('Missing isolated target port')
+      await use(`http://protected-target.test:${address.port}`)
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
+    }
+  },
+})
 
-test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
+test.describe.configure({ mode: 'serial' })
+test.use({
+  serviceWorkers: 'block',
+  launchOptions: { args: ['--host-resolver-rules=MAP protected-target.test 127.0.0.1', '--no-proxy-server'] },
+})
+
+test('v0.3.0 protected short-link access flow', async ({ page, targetOrigin }, testInfo) => {
   testInfo.setTimeout(120_000)
   page.setDefaultTimeout(10_000)
 
@@ -30,7 +58,8 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
   await page.getByRole('button', { name: '登录' }).click()
   await expect(page.getByRole('button', { name: 'Admin' })).toBeVisible()
 
-  const protectedTarget = 'https://example.com/e2e-protected'
+  const protectedTarget = `${targetOrigin}/e2e-protected`
+  const rateLimitedTarget = `${targetOrigin}/e2e-rate-limited`
   let protectedUrl = ''
   let protectedSlug = ''
   let protectedLinkId = ''
@@ -69,7 +98,7 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
 
       const rateLimitedCreate = await page.request.post('/api/v1/short-link/create', {
         data: {
-          targetUrl: 'https://example.com/e2e-rate-limited',
+          targetUrl: rateLimitedTarget,
           password: { mode: 'set', value: rateLimitedPassword },
         },
       })
@@ -91,10 +120,6 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
       expect(protectedOpen.status()).toBe(302)
       expect(protectedOpen.headers().location).toBe(`/go/${protectedSlug}?reason=password`)
 
-      await page.route(protectedTarget, (route) => route.fulfill({
-        status: 200,
-        body: 'protected target reached',
-      }))
       await page.goto(protectedOpen.headers().location!)
       await expect(page.getByRole('heading', { name: '输入密码后继续访问' })).toBeVisible()
       await expectPasswordLayout(page)
@@ -296,7 +321,7 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
               intermediateDelaySeconds: null,
               redirectMode: 'direct',
               slug: rateLimitedSlug,
-              targetHost: 'example.com',
+              targetHost: 'protected-target.test',
             },
             message: 'OK',
             meta: {},
@@ -309,14 +334,10 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
         const cookie = await route.request().headerValue('cookie')
         continuationCookieSeen = continuationCookieSeen || (cookie?.includes(`moeurl_short_link_access=${rateLimitedAccessToken}`) ?? false)
         await route.fulfill({
-          headers: { Location: 'https://example.com/e2e-rate-limited' },
+          headers: { Location: rateLimitedTarget },
           status: 302,
         })
       })
-      await page.route('https://example.com/e2e-rate-limited', (route) => route.fulfill({
-        body: 'rate-limited target reached',
-        status: 200,
-      }))
       await page.goto(`/${rateLimitedSlug}`)
       await expect(page.getByRole('heading', { name: '输入密码后继续访问' })).toBeVisible()
       const unlockButton = page.getByRole('button', { name: '解锁并继续' })
@@ -346,7 +367,8 @@ test('v0.3.0 protected short-link access flow', async ({ page }, testInfo) => {
         ))
         await page.getByRole('button', { name: '解锁并继续' }).click()
         await successfulUnlockRequestPromise
-        await expect(page).toHaveURL('https://example.com/e2e-rate-limited')
+        await expect(page).toHaveURL(rateLimitedTarget)
+        await expect(page.getByText('rate-limited target reached', { exact: true })).toBeVisible()
         expect(authorizedPreviewCookieSeen).toBe(true)
         expect(continuationCookieSeen).toBe(true)
 
