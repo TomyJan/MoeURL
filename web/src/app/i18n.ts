@@ -817,7 +817,7 @@ export const messages = {
   en: {
     batchNoteClear: {
       action: 'Clear notes', title: 'Clear selected internal notes', warning: 'This permanently clears the selected notes and cannot be undone.', cancel: 'Cancel', loading: 'Checking current notes',
-      selected: '{count} links selected.', nonempty: 'No notes to clear. | 1 note to clear. | {count} notes to clear.', alreadyEmpty: 'None already empty. | 1 note already empty. | {count} notes already empty.',
+      selected: 'No links selected. | 1 link selected. | {count} links selected.', nonempty: 'No notes to clear. | 1 note to clear. | {count} notes to clear.', alreadyEmpty: 'None already empty. | 1 note already empty. | {count} notes already empty.',
       confirm: 'Clear notes | Clear 1 note | Clear {count} notes', empty: 'All selected notes are already empty.', retry: 'Retry preview', check: 'Check current notes',
       unknown: 'We could not confirm the result. Check the current notes before deciding whether to clear them.', loadFailed: 'Could not check the notes. Please try again.',
       saveFailed: 'The clear request was rejected. Check and confirm again.', conflict: 'The selected links or notes changed. Refresh the list and select them again.',

@@ -1,5 +1,5 @@
 <template>
-  <v-dialog :model-value="state.targets.value !== null" :persistent="state.saving.value" max-width="560" scrollable @update:model-value="state.close" @after-enter="focusCancel" @after-leave="restoreFocus">
+  <v-dialog :model-value="state.targets.value !== null" :aria-label="t('batchNoteClear.title')" :persistent="state.saving.value" max-width="560" scrollable @update:model-value="state.close" @after-enter="focusCancel" @after-leave="restoreFocus">
     <v-card class="batch-note-card" data-testid="batch-note-clear-dialog">
       <v-card-title>{{ t('batchNoteClear.title') }}</v-card-title>
       <v-card-text class="batch-note-body">
@@ -8,7 +8,7 @@
         <v-alert v-if="state.unknown.value" type="warning" variant="tonal">{{ t('batchNoteClear.unknown') }}</v-alert>
         <v-alert v-if="state.error.value" type="error" variant="tonal">{{ t(`batchNoteClear.${state.error.value}`) }}</v-alert>
         <div v-if="state.data.value" data-testid="batch-note-clear-summary" role="status">
-          <p>{{ t('batchNoteClear.selected', { count: state.targets.value?.length }) }}</p>
+          <p>{{ t('batchNoteClear.selected', { count: state.targets.value?.length }, state.data.value.items.length) }}</p>
           <p>{{ t('batchNoteClear.nonempty', { count: state.data.value.nonemptyCount }, state.data.value.nonemptyCount) }}</p>
           <p>{{ t('batchNoteClear.alreadyEmpty', { count: state.data.value.emptyCount }, state.data.value.emptyCount) }}</p>
           <p v-if="state.data.value.nonemptyCount === 0">{{ t('batchNoteClear.empty') }}</p>
@@ -38,8 +38,10 @@ function focusCancel() { if (props.state.targets.value && !props.state.saving.va
 /** Restores a still-authorized opener or the current page after the closing transition completes. */
 function restoreFocus() {
   if (props.state.targets.value !== null) return
-  if (props.state.canRestoreFocus() && opener?.isConnected) opener.focus()
-  else props.fallbackFocus?.focus()
+  if (props.state.canRestoreFocus() && opener?.isConnected) {
+    opener.focus()
+    if (document.activeElement !== opener) props.fallbackFocus?.focus()
+  } else props.fallbackFocus?.focus()
   opener = null
 }
 </script>

@@ -24,6 +24,8 @@ describe('localized batch note clear counts', () => {
         global: { plugins: [[VueQueryPlugin, { queryClient: client }], createI18n({ legacy: false, locale, messages })], stubs: componentStubs },
       })
       state.open(items); await waitFor(() => expect(state.data.value?.nonemptyCount).toBe(count))
+      if (locale === 'en') expect(screen.getByTestId('batch-note-clear-summary').textContent).toContain(`${Math.max(1, count)} ${count === 100 ? 'links' : 'link'} selected.`)
+      expect(screen.getByRole('dialog', { name: locale === 'en' ? 'Clear selected internal notes' : '清空所选内部备注' })).toBeTruthy()
       if (count === 0) expect(screen.queryByTestId('batch-note-clear-confirm')).toBeNull()
       else expect(screen.getByTestId('batch-note-clear-confirm').textContent).toBe(locale === 'en' ? `Clear ${count} ${count === 1 ? 'note' : 'notes'}` : `清空 ${count} 条备注`)
       expect(screen.getByTestId('batch-note-clear-summary').textContent).not.toContain('1 notes')

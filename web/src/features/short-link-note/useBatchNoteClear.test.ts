@@ -175,7 +175,7 @@ describe('batch note clear confirmation', () => {
     request.resolve(response({ changedCount: 1, unchangedCount: 0 })); await saving
     entered(); expect(view.state.targets.value).toBeNull()
   })
-  it.each(['close', 'revoked', 'detached'] as const)('restores focus safely after %s without focusing an old account element', async reason => {
+  it.each(['close', 'revoked', 'detached', 'success'] as const)('restores focus safely after %s without focusing an old account element', async reason => {
     let entered!: () => void, left!: () => void
     const opener = document.createElement('button'), fallback = document.createElement('section')
     fallback.tabIndex = -1; document.body.append(opener, fallback); opener.focus()
@@ -187,6 +187,11 @@ describe('batch note clear confirmation', () => {
       if (reason === 'revoked') {
         view.client.setQueryData(['auth', 'me'], { user: user(['short_link:read_own']) })
         view.client.setQueryData(['auth', 'me'], { user: user() })
+      } else if (reason === 'success') {
+        view.cleared.mockImplementationOnce(() => { opener.disabled = true })
+        await view.state.confirm()
+        expect(opener.disabled).toBe(true)
+        expect(view.state.targets.value).toBeNull()
       } else { if (reason === 'detached') opener.remove(); view.state.close() }
       await nextTick(); left()
       expect(document.activeElement).toBe(reason === 'close' ? opener : fallback)

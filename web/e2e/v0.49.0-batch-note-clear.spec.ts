@@ -54,6 +54,7 @@ async function preview(page: Page, prefix: string, count: number, nonempty: numb
   expect(result.items).toHaveLength(count); expect(result.nonemptyCount).toBe(nonempty); expect(result.emptyCount).toBe(count - nonempty)
   for (const item of result.items) expect(Object.keys(item).sort()).toEqual(['id', 'expectedUpdatedAt', 'expectedNoteUpdatedAt', 'hasNote'].sort())
   await expect(page.getByTestId('batch-note-clear-summary')).toBeVisible()
+  await expect(page.getByRole('dialog', { name: /Clear selected internal notes|清空所选内部备注/ })).toBeVisible()
   await expect(page.getByTestId('batch-note-clear-cancel')).toBeFocused()
   return result
 }
@@ -65,6 +66,10 @@ async function clear(page: Page, prefix: string, expectedCode: number, snapshot:
   expect(response.status()).toBe(200); expect(body.code).toBe(expectedCode)
   expect(response.request().postDataJSON()).toEqual({ items: snapshot.items.map(({ id, expectedUpdatedAt, expectedNoteUpdatedAt }) => ({ id, expectedUpdatedAt, expectedNoteUpdatedAt })) })
   await expect(page.getByTestId('batch-note-clear-dialog')).toHaveCount(0)
+  if (expectedCode === 0) {
+    await expect(page.getByTestId('batch-note-clear')).toBeDisabled()
+    await expect(page.getByTestId(prefix.startsWith('/admin/') ? 'console-page-admin-links' : 'console-page-links')).toBeFocused()
+  }
   return body
 }
 /** Keeps notifications visible and measures the real dialog and hit targets before saving the original image. */
