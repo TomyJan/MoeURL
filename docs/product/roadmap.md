@@ -4,7 +4,7 @@
 
 v0.48.0 已通过 [PR262](https://github.com/TomyJan/MoeURL/pull/262) 完整交付，master `6aa7c0aa5a805446fae16e7d8453388763081f23`；最新真实审查、候选／master 各九 CI 与完整日志、标准 Task1–3、19 条裁决和可恢复归档均完成。每页 20／50／100，保持权限、私密筛选和全匹配 CSV；未发布部署，见[验收](../implementation/v0.48.0-acceptance.md)。
 
-当前推进 [v0.49.0 批量清空内部备注](scope-v0.49.0.md)：四个后端端点和原子双版本清空已实现，最终 host 回归、vet、业务覆盖率 100% 与 Linux race／安全门禁通过；Task1 已标准完成，前端3238项完整测试／四项100%、types／lint／隔离build通过，Task1–2标准完成，Task3真实浏览器与产品验证继续，见[验收](../implementation/v0.49.0-acceptance.md)。
+当前推进 [v0.49.0 批量清空内部备注](scope-v0.49.0.md)：Task1–2 已标准完成；唯一终审的成功后焦点问题已修复，对话框名称与英文单复数同步补齐。修复后 3239 项前端测试／四项 100%、types／lint／build、完整 191 项浏览器／58 张原图及精确产品验证通过；原执行与历史失败保持归属，Task3 归档／标准收尾及远端交付继续，见[验收](../implementation/v0.49.0-acceptance.md)。
 
 [前端 glob 安全维护](../implementation/2026-11-04-frontend-glob-security-plan.md)已通过 [PR263](https://github.com/TomyJan/MoeURL/pull/263) 完整交付，保持 0.48.0 行为和版本号。最终候选与 master 各自九 CI 成功，最新真实审查覆盖和有效问题闭环、守卫合并、标准 Task1–3、28 条裁决完整报告及可恢复归档均已完成，见[验收](../implementation/2026-11-04-frontend-glob-security-acceptance.md)。
 

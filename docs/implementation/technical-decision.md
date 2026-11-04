@@ -1,6 +1,6 @@
 # 技术选型决策
 
-[v0.49.0 批量清空内部备注](../specs/2026-11-04-v0.49.0-batch-note-clear-design.md)后端已标准完成，最终 host 回归／vet／业务 100% 与 Linux race／安全门禁通过；前端3238项完整测试／四100、types／lint／隔离build通过，浏览器及交付继续。独立四个固定 POST、当前页 1–100 条、64 KiB／五秒限制、双版本检查、全批事务和既有审计；无新依赖、权限或 migration，详见[验收](v0.49.0-acceptance.md)。
+[v0.49.0 批量清空内部备注](../specs/2026-11-04-v0.49.0-batch-note-clear-design.md)采用四个固定 POST、当前页 1–100 条、64 KiB／五秒限制、完整纳秒双版本、全批事务及既有字段名审计。Task1–2 已标准完成；唯一终审的成功后焦点问题已修复，对话框名称与英文单复数同步补齐。修复后 3239 项前端测试／四项 100%、types／lint／build、完整 191 项浏览器／58 张原图及精确产品验证通过；原执行与历史失败保持归属，Task3 归档／标准收尾及远端交付继续；无新依赖、权限或 migration，见[验收](v0.49.0-acceptance.md)。
 
 [glob 安全维护](../specs/2026-11-04-frontend-glob-security.md)采用五条精确父版本 override，标准 pnpm 11.5 生成锁文件；Docker 首次 frozen 安装同时读取 workspace。新依赖完整门禁、新产品和唯一独立终审已完成，兼容结论限于当前实际父调用与工具链；PR263 已完整交付，候选与 master 各自九 CI、标准完成及可恢复归档均完成，详见[验收](2026-11-04-frontend-glob-security-acceptance.md)。
 
