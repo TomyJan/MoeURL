@@ -56,15 +56,17 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
       const time = new Date('2026-11-04T00:00:00Z')
       await page.clock.install({ time })
       await page.clock.pauseAt(time)
+      await page.emulateMedia({ reducedMotion: 'reduce' })
       await openHarness(page, 'language=en&layout=' + layout)
       const original = await page.locator('[data-sonner-toaster]').elementHandle()
       await page.getByRole('button', { name: 'Open custom', exact: true }).click()
       await page.clock.runFor(350)
       const panel = page.getByTestId('empty-panel'), heading = '[data-testid="empty-heading"]'
       await expect(panel.getByTestId('empty-cancel')).toBeFocused()
+      // Finish the initial finite opening animation before measuring unscaled CSS pixels.
+      await page.screenshot({ path: info.outputPath('empty-initial.png'), animations: 'disabled' })
       const initial = await emptyPanelGeometry(panel, heading)
       await writeFile(info.outputPath('empty-initial.json'), JSON.stringify(initial, null, 2))
-      await page.screenshot({ path: info.outputPath('empty-initial.png'), animations: 'disabled' })
       expect(Math.abs(initial.extraGap)).toBeLessThanOrEqual(1)
       const assertEmpty = async () => {
         await expect(panel.locator('[data-sonner-toast]')).toHaveCount(0)
