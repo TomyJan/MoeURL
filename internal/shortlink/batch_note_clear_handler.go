@@ -26,6 +26,7 @@ type BatchNoteClearHandler struct {
 	logger  *slog.Logger
 }
 
+// NewBatchNoteClearHandler binds the four private-note endpoints and uses the default logger when none is supplied.
 func NewBatchNoteClearHandler(service BatchNoteClearPort, logger *slog.Logger) *BatchNoteClearHandler {
 	if logger == nil {
 		logger = slog.Default()
@@ -46,6 +47,7 @@ func (h *BatchNoteClearHandler) ClearAdmin(w http.ResponseWriter, r *http.Reques
 	h.handle(w, r, true, true)
 }
 
+// handle rejects query parameters and non-JSON bodies before dispatching the authenticated actor to the requested scope and operation.
 func (h *BatchNoteClearHandler) handle(w http.ResponseWriter, r *http.Request, admin, clear bool) {
 	w.Header().Set("Cache-Control", "no-store")
 	actor, err := noteActor(r)
