@@ -196,6 +196,16 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
         await page.screenshot({ path: info.outputPath('page-long-text.png'), animations: 'disabled' })
         const close = region.locator('[data-sonner-toast] button[data-close-button]').last()
         await close.scrollIntoViewIfNeeded()
+        await writeFile(info.outputPath('page-close-hit.json'), JSON.stringify(await close.evaluate(button => {
+          const r = button.getBoundingClientRect(), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+          const chain = []
+          for (let node: Element | null = button; node; node = node.parentElement) {
+            const b = node.getBoundingClientRect(), s = getComputedStyle(node)
+            chain.push({ tag: node.tagName, classes: node.className, rect: { x: b.x, y: b.y, width: b.width, height: b.height }, pointerEvents: s.pointerEvents, zIndex: s.zIndex, overflow: s.overflow, scrollTop: node.scrollTop })
+          }
+          return { hit: hit?.outerHTML.slice(0, 250), hitButton: hit !== null && button.contains(hit), chain }
+        }), null, 2))
+        await page.screenshot({ path: info.outputPath('page-close-before-tap.png'), animations: 'disabled' })
         await close.tap({ timeout: 1000 })
         await page.clock.runFor(250)
         await expect(region.locator('[data-sonner-toast]')).toHaveCount(4)
@@ -459,7 +469,10 @@ test('mobile live notice keeps navigation touchable before expiry at ' + width +
     await expect(page.locator('.app-toasts--page')).toHaveCount(0)
     await assertMessage()
     await page.goBack()
-    await page.clock.runFor(50)
+    await expect(page).toHaveURL(/\/profile$/)
+    // The route out-in transition must finish under the controlled animation clock.
+    await page.clock.runFor(350)
+    await writeFile(info.outputPath('navigation-return.json'), JSON.stringify(await page.evaluate(() => ({ url: location.pathname, headerCount: document.querySelectorAll('[data-toast-page-header]').length, transition: document.querySelector('[data-testid="app-route-transition"]')?.innerHTML.slice(0, 500) })), null, 2))
     await expect(page.locator('.app-toasts--page')).toHaveCount(1)
     await assertMessage()
   } catch (error) { failures.push(error) } finally {
