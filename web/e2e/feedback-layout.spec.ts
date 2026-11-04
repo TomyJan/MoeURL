@@ -77,7 +77,8 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
     await parent.getByTestId('fixture-cancel').press('Enter')
     await expect(parent).toHaveCount(0)
     const toaster = page.locator('[data-sonner-toaster]')
-    await expect(toaster).toBeVisible()
+    // Sonner's page list has zero height because its visible messages are absolutely positioned.
+    await expect(toaster.locator('[data-sonner-toast]')).toBeVisible()
     expect(await toaster.evaluate(node => node.closest('[role="dialog"]') === null)).toBe(true)
     expect(await page.locator('[data-sonner-toast]').evaluate((node, original) => node === original, original)).toBe(true)
     await page.screenshot({ path: info.outputPath('nested-return-page.png'), animations: 'disabled' })
@@ -97,7 +98,9 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
         const page = await context.newPage()
         await openHarness(page, 'language=' + scenario.language + '&theme=' + scenario.theme)
         await page.getByRole('button', { name: 'Publish five', exact: true }).click()
-        await page.getByRole('button', { name: 'Open parent', exact: true }).click()
+        // Long page notices may cover the fixture trigger; open it through the real keyboard path.
+        await page.getByRole('button', { name: 'Open parent', exact: true }).focus()
+        await page.keyboard.press('Enter')
         const modal = page.getByRole('dialog', { name: 'Parent fixture', exact: true })
         const region = modal.locator('[data-toast-modal-region]')
         await expect(modal.locator('[data-sonner-toast][data-visible="true"]')).toHaveCount(5)
