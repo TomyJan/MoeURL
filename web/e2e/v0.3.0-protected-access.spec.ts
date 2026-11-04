@@ -45,7 +45,9 @@ const test = baseTest.extend<{ targetOrigin: string }>({
 test.describe.configure({ mode: 'serial' })
 test.use({
   serviceWorkers: 'block',
-  launchOptions: { args: ['--host-resolver-rules=MAP protected-target.test 127.0.0.1', '--no-proxy-server'] },
+  launchOptions: {
+    args: ['--host-resolver-rules=MAP protected-target.test 127.0.0.1', '--proxy-server=direct://', '--proxy-bypass-list=*'],
+  },
 })
 
 test('v0.3.0 protected short-link access flow', async ({ page, targetOrigin }, testInfo) => {
@@ -397,12 +399,15 @@ async function expectProtectedContinuation(page: Page, slug: string, target: str
       && source !== null && new URL(source.url()).pathname === continuePath
   }
   const targetNavigation = page.waitForRequest(matchesTargetNavigation)
+  const targetResponse = page.waitForResponse(response => matchesTargetNavigation(response.request()))
   const targetSettled = Promise.race([
     page.waitForEvent('requestfinished', matchesTargetNavigation),
     page.waitForEvent('requestfailed', matchesTargetNavigation),
   ])
-  const [response] = await Promise.all([continued, targetNavigation, targetSettled, trigger()])
+  const [response, destination] = await Promise.all([continued, targetResponse, targetNavigation, targetSettled, trigger()])
   expect(response.status()).toBe(302)
   expect(response.headers().location).toBe(target)
+  expect(destination.status()).toBe(200)
+  await expect(page.getByText('protected target reached', { exact: true })).toBeVisible()
   return response.request()
 }
