@@ -466,8 +466,13 @@ test('mobile live notice keeps navigation touchable before expiry at ' + width +
     await page.clock.runFor(50)
     const account = page.getByTestId('console-mobile-account-menu')
     await expect(account).toBeVisible()
-    const geometry = await account.evaluate(menu => ({ bottom: menu.getBoundingClientRect().bottom, toastTop: document.querySelector('[data-sonner-toast]')!.getBoundingClientRect().top }))
-    expect(geometry.toastTop).toBeGreaterThanOrEqual(geometry.bottom)
+    const accountGeometry = () => account.evaluate(menu => ({ bottom: menu.getBoundingClientRect().bottom, toastTop: document.querySelector('[data-sonner-toast]')!.getBoundingClientRect().top }))
+    const initialGeometry = await accountGeometry()
+    // The paused notification clock does not commit native CSS transitions, including reduced motion.
+    // Wait for the actual non-overlap while the same live message remains; never wait for expiry.
+    await expect.poll(async () => { const geometry = await accountGeometry(); return geometry.toastTop - geometry.bottom }, { timeout: 1000 }).toBeGreaterThanOrEqual(0)
+    await assertMessage()
+    await writeFile(info.outputPath('navigation-account-geometry.json'), JSON.stringify({ initial: initialGeometry, settled: await accountGeometry() }, null, 2))
     await page.screenshot({ path: info.outputPath('navigation-expanded-account.png'), animations: 'disabled' })
     await account.locator('a[href="/profile"]').tap({ timeout: 1000 })
     await page.clock.runFor(50)
