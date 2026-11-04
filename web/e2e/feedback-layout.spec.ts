@@ -179,9 +179,8 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
         await page.clock.resume()
         const box = (await region.boundingBox())!, session = await context.newCDPSession(page)
         const x = box.x + box.width / 2, start = box.y + box.height - 25, end = box.y + 25
-        await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: start, id: 1 }] })
-        for (let step = 1; step <= 6; step++) await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: start + (end - start) * step / 6, id: 1 }] })
-        await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+        // A finite native drag avoids turning six timestamp-free moves into an unbounded fling.
+        await session.send('Input.synthesizeScrollGesture', { x, y: start, yDistance: end - start, speed: 250, preventFling: true, gestureSourceType: 'touch' })
         await expect(page.locator('html')).toHaveAttribute('data-fixture-page-cancels', '1')
         expect(await region.evaluate(element => element.scrollTop)).toBeGreaterThan(0)
         // Check every text segment, including the literal markup tail; a screenshot alone cannot prove this.
