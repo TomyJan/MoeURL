@@ -48,7 +48,7 @@ function restoreFocus() {
 <style scoped>
 .batch-note-card, .batch-note-body { min-width: 0; }
 .batch-note-card :deep(.v-card-title) { white-space: normal; overflow-wrap: anywhere; }
-.batch-note-body { display: grid; gap: 14px; overflow-y: auto; overflow-wrap: anywhere; }
+.batch-note-body { display: grid; grid-auto-rows: max-content; gap: 14px; overflow-y: auto; overflow-wrap: anywhere; }
 .batch-note-body p { margin: 8px 0; }
 .batch-note-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px; }
 @media (max-width: 480px) { .batch-note-actions > * { flex: 1 1 100%; margin: 0; white-space: normal; height: auto; min-height: 40px; } }
