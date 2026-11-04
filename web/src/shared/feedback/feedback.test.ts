@@ -60,7 +60,11 @@ describe('application notifications', () => {
   it('usesHighestActiveModalInsteadOfLastDOMNode', async () => {
     render({ components: { AppToasts }, template: '<AppToasts /><div class="v-dialog v-overlay--active" style="z-index: 2500"><section class="v-overlay__content" aria-label="Top"><button>Top cancel</button></section></div><div class="v-dialog v-overlay--active" style="z-index: 2400"><section class="v-overlay__content" aria-label="Lower"><button>Lower cancel</button></section></div>' }, { global: { plugins: [createI18n({ legacy: false, locale: 'zh-CN', messages })] } })
     toast.success('Highest layer message')
-    await waitFor(() => expect(screen.getByText('Highest layer message').closest('section[aria-label]')?.getAttribute('aria-label')).toBe('Top'))
+    await waitFor(() => expect(screen.getByText('Highest layer message').closest('.v-overlay__content')?.getAttribute('aria-label')).toBe('Top'))
+    const original = screen.getByText('Highest layer message')
+    document.querySelector<HTMLElement>('.v-dialog')!.style.zIndex = '2300'
+    await waitFor(() => expect(screen.getByText('Highest layer message').closest('.v-overlay__content')?.getAttribute('aria-label')).toBe('Lower'))
+    expect(screen.getByText('Highest layer message')).toBe(original)
   })
 
   it('returnsToParentAfterNestedClose', async () => {
@@ -92,6 +96,21 @@ describe('application notifications', () => {
     await waitFor(() => expect(screen.queryByText('Dismiss this message')).toBeNull())
     expect(document.querySelector('[data-toast-modal-region]')).toBeNull()
     expect(screen.getByRole('heading', { name: 'Safe title' })).toBeTruthy()
+  })
+
+  it.each(['hidden', 'inert', 'aria-hidden="true"', 'style="display:none"', 'style="visibility:hidden"'])('ignores a modal with a hidden ancestor: %s', async attribute => {
+    render({ components: { AppToasts }, template: '<AppToasts /><section data-toast-modal-root aria-label="Visible"><button>Cancel</button></section><div ' + attribute + '><section data-toast-modal-root aria-label="Unavailable"><button>Unavailable cancel</button></section></div>' }, { global: { plugins: [createI18n({ legacy: false, locale: 'zh-CN', messages })] } })
+    toast.success('Ancestor visibility message')
+    await waitFor(() => expect(screen.getByText('Ancestor visibility message').closest('[data-toast-modal-root]')?.getAttribute('aria-label')).toBe('Visible'))
+  })
+
+  it('returns to the page while a closed dialog is still leaving', async () => {
+    const active = ref(true)
+    render({ components: { AppToasts }, setup: () => ({ active }), template: '<AppToasts /><div class="v-dialog v-overlay" :class="{ \'v-overlay--active\': active }"><section data-toast-modal-root class="v-overlay__content"><button>Cancel</button></section></div>' }, { global: { plugins: [createI18n({ legacy: false, locale: 'zh-CN', messages })] } })
+    toast.success('Leaving modal message')
+    await waitFor(() => expect(screen.getByText('Leaving modal message').closest('[data-toast-modal-root]')).not.toBeNull())
+    active.value = false
+    await waitFor(() => expect(screen.getByText('Leaving modal message').closest('[data-toast-modal-root]')).toBeNull())
   })
 
   it('stacks independent messages, renders text safely, and dismisses only the chosen toast', async () => {
