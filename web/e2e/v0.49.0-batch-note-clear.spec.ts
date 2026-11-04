@@ -18,6 +18,23 @@ async function saveNote(api: APIRequestContext, id: string, note: string) {
   const before: Note = (await success(api, '/admin/short-link/note?id=' + id)).data
   return (await success(api, '/admin/short-link/note/update', { id, note, expectedUpdatedAt: before.updatedAt })).data as Note
 }
+/** Waits for this fixture's actual filtered response before interacting with guarded paging. */
+async function loadList(page: Page, prefix: string, keyword: string, en: boolean) {
+  await page.goto(prefix === '/short-link' ? '/link' : '/admin/link')
+  const loaded = page.waitForResponse(response => {
+    const url = new URL(response.url())
+    return url.pathname === '/api/v1' + prefix + '/list' && url.searchParams.get('q') === keyword && url.searchParams.get('pageSize') === '20'
+  })
+  await page.getByRole('textbox', { name: en ? 'Keyword' : '关键词搜索', exact: true }).fill(keyword)
+  const response = await loaded, result = await response.json()
+  expect(response.status()).toBe(200); expect(result.code).toBe(0); expect(result.meta.total).toBe(100)
+  await expect(page.getByTestId('console-link-row')).toHaveCount(20)
+  const size = page.getByRole('combobox', { name: en ? 'Rows per page' : '每页条数', exact: true })
+  await expect(size).toBeEnabled()
+  await size.press('Enter'); await page.getByRole('option', { name: '100', exact: true }).click()
+  await selectPage(page, 100)
+  return size
+}
 /** Selects only the current successful page, including the 100-row upper bound. */
 async function selectPage(page: Page, count: number) {
   await expect(page.getByTestId('console-link-row')).toHaveCount(count)
@@ -105,12 +122,7 @@ for (const scope of ['own', 'admin'] as const) for (const en of [false, true]) {
       const emptyBefore: Note = (await success(manager.request, '/admin/short-link/note?id=' + empty.id)).data
       const page = scope === 'own' ? owner : await makePage()
       if (scope === 'admin') await success(page.request, '/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword })
-      await page.goto(scope === 'own' ? '/link' : '/admin/link')
-      await page.getByRole('textbox', { name: en ? 'Keyword' : '关键词搜索', exact: true }).fill(keyword)
-      await expect(page.getByTestId('console-link-row')).toHaveCount(20)
-      const size = page.getByRole('combobox', { name: en ? 'Rows per page' : '每页条数', exact: true })
-      await size.press('Enter'); await page.getByRole('option', { name: '100', exact: true }).click()
-      await selectPage(page, 100)
+      const size = await loadList(page, prefix, keyword, en)
       const first = await preview(page, prefix, 100, 2)
       expect(JSON.stringify(first)).not.toContain(term)
       await capture(page, info, 'batch-clear-mixed100-' + scope + '-' + language)
@@ -125,8 +137,7 @@ for (const scope of ['own', 'admin'] as const) for (const en of [false, true]) {
       expect((await success(manager.request, '/admin/short-link/note?id=' + a.id)).data).toEqual(aNote)
       expect((await success(manager.request, '/admin/short-link/note?id=' + b.id)).data).toEqual(edited)
 
-      await page.reload(); await page.getByRole('textbox', { name: en ? 'Keyword' : '关键词搜索', exact: true }).fill(keyword)
-      await size.press('Enter'); await page.getByRole('option', { name: '100', exact: true }).click(); await selectPage(page, 100)
+      await loadList(page, prefix, keyword, en)
       const staleMain = await preview(page, prefix, 100, 2), pinned = staleMain.items.find(item => item.id === a.id)!
       const transfer = (await success(manager.request, '/admin/short-link/transfer', { id: a.id, newOwnerUsername: recipientName, expectedUpdatedAt: pinned.expectedUpdatedAt })).data
       await clear(page, prefix, scope === 'own' ? 200104 : 200116, staleMain)
@@ -134,8 +145,7 @@ for (const scope of ['own', 'admin'] as const) for (const en of [false, true]) {
       expect((await success(manager.request, '/admin/short-link/note?id=' + b.id)).data).toEqual(edited)
       await success(manager.request, '/admin/short-link/transfer', { id: a.id, newOwnerUsername: ownerName, expectedUpdatedAt: transfer.updatedAt })
 
-      await page.reload(); await page.getByRole('textbox', { name: en ? 'Keyword' : '关键词搜索', exact: true }).fill(keyword)
-      await size.press('Enter'); await page.getByRole('option', { name: '100', exact: true }).click(); await selectPage(page, 100)
+      await loadList(page, prefix, keyword, en)
       const current = await preview(page, prefix, 100, 2)
       await expect(page.getByRole('textbox', { name: en ? 'Note keyword' : '备注关键词', exact: true })).toBeDisabled()
       await expect(size).toBeDisabled()
@@ -163,7 +173,7 @@ for (const scope of ['own', 'admin'] as const) for (const en of [false, true]) {
       expect((await clear(page, prefix, 0, filtered)).data).toEqual({ changedCount: 2, unchangedCount: 0 })
       await expect(page.getByTestId('console-link-row')).toHaveCount(0)
       await expect(page.getByRole('textbox', { name: en ? 'Note keyword' : '备注关键词', exact: true })).toHaveValue(term)
-      await expect(page.getByRole('combobox', { name: en ? 'Note status' : '备注状态', exact: true })).toContainText(en ? 'With note' : '有备注')
+      await expect(page.getByRole('combobox', { name: en ? 'Note status' : '备注状态', exact: true })).toHaveValue(en ? 'With note' : '有备注')
       expect(page.url()).not.toContain(term)
       expect(await page.evaluate(term => [...Object.values(localStorage), ...Object.values(sessionStorage)].some(value => String(value).includes(term)), term)).toBe(false)
       const proofPath = info.outputPath('batch-clear-proof.json')
