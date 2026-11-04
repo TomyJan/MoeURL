@@ -15,7 +15,7 @@ RUN apt-get update \
     && rm -f /tmp/node.tar.xz \
     && node -v \
     && npm -v
-COPY web/package.json web/pnpm-lock.yaml ./
+COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
 RUN npm install -g $(node -p "require('./package.json').packageManager")
 RUN pnpm install --frozen-lockfile --config.dangerously-allow-all-builds=true
 COPY web/ ./

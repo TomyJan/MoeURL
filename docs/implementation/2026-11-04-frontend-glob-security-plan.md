@@ -34,18 +34,18 @@
 
 **Interfaces：** 产生标准生成的 lock、五条 workspace 规则、新精确依赖 image ID 与完整前端证据，供任务2消费。
 
-- [ ] 只读核磁盘、Docker 接口和 owned 资源；核原 baseline audit hash 与旧依赖合同，复用实际 2 moderate／exit1，不伪产品 RED。标准 task-start1／读 brief。
-- [ ] 外置解析目录复制 package／lock／workspace，加入规格五条覆盖；精确 Node26／pnpm11.5 容器执行 `pnpm install --lockfile-only --ignore-scripts --registry=https://registry.npmjs.org`。Expected：exit0，标准 lock diff 仅目标闭包；异常无关升级先定位。
-- [ ] 将标准生成 lock 和 workspace 带回源码；Dockerfile 首次 COPY 加 workspace。新 owned 依赖镜像执行 `pnpm install --frozen-lockfile`。Expected：读取相同三文件合同，安装成功，旧 image 和 host 依赖不变。
-- [ ] 新镜像运行 `pnpm list --depth Infinity --json`、`pnpm why minimatch glob`、官方 `pnpm audit --json --registry=https://registry.npmjs.org`。Expected：全部目标路径安全、两个 GHSA 消失；其他公告按实际记录，不忽略。
-- [ ] 新依赖顺序运行 lint、typecheck、`pnpm test:coverage --maxWorkers=2 --coverage.reportsDirectory=/output/coverage`、`pnpm build --outDir /output/dist --emptyOutDir`。Expected：完整至少3119项通过、四100%、命令exit0；无新增构建警告，完整输入稳定、owned容器空。
+- [x] 只读核磁盘、Docker 接口和 owned 资源；核原 baseline audit hash 与旧依赖合同，复用实际 2 moderate／exit1，不伪产品 RED。标准 task-start1／读 brief。
+- [x] 外置解析目录复制 package／lock／workspace，加入规格五条覆盖；精确 Node26／pnpm11.5 容器执行 `pnpm install --lockfile-only --ignore-scripts --registry=https://registry.npmjs.org`。Expected：exit0，标准 lock diff 仅目标闭包；异常无关升级先定位。
+- [x] 将标准生成 lock 和 workspace 带回源码；Dockerfile 首次 COPY 加 workspace。新 owned 依赖镜像执行 `pnpm install --frozen-lockfile`。Expected：读取相同三文件合同，安装成功，旧 image 和 host 依赖不变。
+- [x] 新镜像运行 `pnpm list --depth Infinity --json`、`pnpm why minimatch glob`、官方 `pnpm audit --json --registry=https://registry.npmjs.org`。Expected：全部目标路径安全、两个 GHSA 消失；其他公告按实际记录，不忽略。
+- [x] 新依赖顺序运行 lint、typecheck、`pnpm test:coverage --maxWorkers=2 --coverage.reportsDirectory=/output/coverage`、`pnpm build --outDir /output/dist --emptyOutDir`。Expected：完整至少3119项通过、四100%、命令exit0；无新增构建警告，完整输入稳定、owned容器空。
 - [ ] 同步准确阶段记录，完整diff／链接／输入核后原子提交；标准task-done1只验证已有证据，不重suite。
 
 ## 任务 2：真实产品、浏览器和唯一终审
 
 **Interfaces：** 消费任务1的新依赖合同与clean提交；产生完整本地合同、独立审查处置和阶段归档供任务3使用。
 
-- [ ] 标准start2／读brief；核独占端口与准确compose项目三资源为空。完整187项Playwright用新依赖与产品运行，不skip／mock／fallback；保存raw／exit及完整输入稳定、结束三空，逐张检查相关原图。
+- [ ] 标准start2／读brief；核独占端口与准确compose项目三资源为空。完整187项Playwright使用当前Dockerfile构建的新产品，驱动仅在实际依赖闭包和对应lock块全部相同时复用host Playwright1.64.1，不安装host依赖、不借旧工具链结果；不skip／mock／fallback。保存raw／exit及完整输入稳定、结束三空，逐张检查相关原图。
 - [ ] 标准产品build／smoke／restart／version，核binary／static身份、精确image与正常数据库更新后的Trivy选定HIGH／CRITICAL三目标。Expected：各exit0，缓存与真实构建边界分别记录。
 - [ ] Go／SQLC完整对应输入与原成功合同set／hash／bytes相等才复用原身份，不写本轮重跑。Dockerfile变化单独记录，不能声明整个非web集合全等。
 - [ ] 末段唯一fresh最强supported整分支终审；所有有效问题按事实处置，行为问题真实RED→GREEN及必要完整回归；不派第二席。完整裁决及错误代价、旧M5／M9延期保留。
