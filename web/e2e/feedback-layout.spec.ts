@@ -55,6 +55,34 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
     await page.clock.runFor(2200)
     await expect(page.locator('[data-sonner-toast]')).toHaveCount(0)
   })
+  test('expires normally after a real touch scroll cancels its pointer', async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 390, height: 700 }, hasTouch: true, reducedMotion: 'reduce' })
+    try {
+      const page = await context.newPage()
+      await page.clock.install()
+      await openHarness(page, 'language=en')
+      await page.getByRole('button', { name: 'Publish five', exact: true }).click()
+      await page.getByRole('button', { name: 'Open parent', exact: true }).focus()
+      await page.keyboard.press('Enter')
+      const modal = page.getByRole('dialog', { name: 'Parent fixture', exact: true })
+      await expect(modal.getByTestId('fixture-cancel')).toBeFocused()
+      await page.mouse.move(0, 699)
+      await page.evaluate(() => {
+        document.documentElement.dataset.fixturePointerCancels = '0'
+        document.addEventListener('pointercancel', () => { document.documentElement.dataset.fixturePointerCancels = String(Number(document.documentElement.dataset.fixturePointerCancels) + 1) }, true)
+      })
+      const region = modal.locator('[data-toast-modal-region]'), box = await region.boundingBox()
+      if (!box) throw new Error('A real scrollable notification region is required')
+      const session = await context.newCDPSession(page), x = box.x + box.width / 2, start = box.y + box.height - 25, end = box.y + 25
+      await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: start, id: 1 }] })
+      for (let step = 1; step <= 6; step++) await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: start + (end - start) * step / 6, id: 1 }] })
+      await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+      await expect(page.locator('html')).toHaveAttribute('data-fixture-pointer-cancels', '1')
+      expect(await region.evaluate(element => element.scrollTop)).toBeGreaterThan(0)
+      await page.clock.runFor(10000)
+      await expect(page.locator('[data-sonner-toast]')).toHaveCount(0)
+    } finally { await context.close() }
+  })
   test('preserves the same message and focus boundary through real nested dialogs', async ({ page }, info) => {
     await openHarness(page, 'language=en')
     await page.getByRole('button', { name: 'Publish one', exact: true }).click()
@@ -126,8 +154,22 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
         for (const id of ['fixture-cancel', 'fixture-confirm']) {
           expect(await modal.getByTestId(id).evaluate(button => { const r = button.getBoundingClientRect(); const hit = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2); return r.top >= 0 && r.bottom <= innerHeight && hit !== null && button.contains(hit) })).toBe(true)
         }
+        const readability = []
+        for (const id of ['fixture-warning', 'fixture-summary']) {
+          const element = modal.getByTestId(id)
+          await element.scrollIntoViewIfNeeded()
+          const readable = await element.evaluate(element => {
+            const r = element.getBoundingClientRect(), body = element.closest('.v-card-text')!.getBoundingClientRect()
+            const text = element.querySelector('.v-alert__content')?.getBoundingClientRect() ?? r
+            return { id: element.getAttribute('data-testid'), fullyInBody: r.top >= body.top - 1 && r.bottom <= body.bottom + 1, textFits: text.top >= r.top - 1 && text.bottom <= r.bottom + 1 && element.scrollHeight <= element.clientHeight + 1 }
+          })
+          expect(readable.fullyInBody, id + ' must be fully readable by scrolling the body').toBe(true)
+          expect(readable.textFits, id + ' must not clip its own text').toBe(true)
+          readability.push(readable)
+        }
+        await modal.getByTestId('fixture-warning').scrollIntoViewIfNeeded()
         const proof = info.outputPath(scenario.name + '-geometry.json')
-        await writeFile(proof, JSON.stringify(geometry, null, 2))
+        await writeFile(proof, JSON.stringify({ ...geometry, readability }, null, 2))
         const image = info.outputPath(scenario.name + '.png')
         await page.screenshot({ path: image, animations: 'disabled' })
         await info.attach(scenario.name, { path: image, contentType: 'image/png' })
@@ -136,7 +178,8 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
           await button.scrollIntoViewIfNeeded()
           await button.focus()
           await page.keyboard.press('Enter')
-          await expect(modal.locator('[data-sonner-toast][data-removed="false"]')).toHaveCount(remaining - 1)
+          await expect(modal.locator('[data-sonner-toast]')).toHaveCount(remaining - 1)
+          await expect(modal.getByTestId('fixture-cancel')).toBeFocused()
         }
         await expect(modal.locator('[data-toast-modal-region]')).toHaveCount(0)
         await expect(modal.getByTestId('fixture-title')).toBeVisible()

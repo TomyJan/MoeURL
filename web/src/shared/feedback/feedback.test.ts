@@ -78,6 +78,17 @@ describe('application notifications', () => {
     expect(screen.getByText('Nested message')).toBe(original)
   })
 
+  it('moves from a closing custom drawer to its newly opened dialog', async () => {
+    const opening = ref(false)
+    render({ components: { AppToasts }, setup: () => ({ opening }), template: '<AppToasts /><div class="console-shell__mobile-nav" :class="{ \'moe-overlay-leave-active\': opening }" style="z-index:120"><section data-toast-modal-root aria-label="Closing drawer" style="z-index:1"><button>Drawer control</button></section></div><div v-if="opening" class="console-shell__dialog" style="z-index:120"><section data-toast-modal-root aria-label="New dialog"><button>Dialog cancel</button></section></div>' }, { global: { plugins: [createI18n({ legacy: false, locale: 'zh-CN', messages })] } })
+    toast.success('Drawer handoff message')
+    await waitFor(() => expect(screen.getByText('Drawer handoff message').closest('[data-toast-modal-root]')?.getAttribute('aria-label')).toBe('Closing drawer'))
+    const original = screen.getByText('Drawer handoff message')
+    opening.value = true
+    await waitFor(() => expect(screen.getByText('Drawer handoff message').closest('[data-toast-modal-root]')?.getAttribute('aria-label')).toBe('New dialog'))
+    expect(screen.getByText('Drawer handoff message')).toBe(original)
+  })
+
   it('ignoresHiddenModal', async () => {
     const hidden = ref(true)
     render({ components: { AppToasts }, setup: () => ({ hidden }), template: '<AppToasts /><section data-toast-modal-root aria-label="Visible"><button>Visible cancel</button></section><section data-toast-modal-root :hidden="hidden" aria-label="Hidden"><button>Hidden cancel</button></section>' }, { global: { plugins: [createI18n({ legacy: false, locale: 'zh-CN', messages })] } })
@@ -96,6 +107,46 @@ describe('application notifications', () => {
     await waitFor(() => expect(screen.queryByText('Dismiss this message')).toBeNull())
     expect(document.querySelector('[data-toast-modal-region]')).toBeNull()
     expect(screen.getByRole('heading', { name: 'Safe title' })).toBeTruthy()
+  })
+
+  it('restores the last safe modal control after its focused notification actually leaves', async () => {
+    render({ components: { AppToasts }, template: '<AppToasts /><section data-toast-modal-root tabindex="-1"><button>Safe cancel</button></section>' }, { global: { plugins: [createI18n({ legacy: false, locale: 'zh-CN', messages })] } })
+    const cancel = screen.getByRole('button', { name: 'Safe cancel' })
+    cancel.focus()
+    toast.success('Focus restoration message')
+    await screen.findByText('Focus restoration message')
+    const close = screen.getByRole('button', { name: '关闭提示' })
+    close.focus()
+    await fireEvent.click(close)
+    await waitFor(() => expect(screen.queryByText('Focus restoration message')).toBeNull())
+    expect(document.activeElement).toBe(cancel)
+  })
+
+  it('does not steal a newer modal focus while the dismissed notification exits', async () => {
+    render({ components: { AppToasts }, template: '<AppToasts /><section data-toast-modal-root tabindex="-1"><button>Safe cancel</button><button>Another control</button></section>' }, { global: { plugins: [createI18n({ legacy: false, locale: 'zh-CN', messages })] } })
+    screen.getByRole('button', { name: 'Safe cancel' }).focus()
+    toast.success('Preserve newer focus')
+    await screen.findByText('Preserve newer focus')
+    const close = screen.getByRole('button', { name: '关闭提示' }), other = screen.getByRole('button', { name: 'Another control' })
+    close.focus()
+    await fireEvent.click(close)
+    other.focus()
+    await waitFor(() => expect(screen.queryByText('Preserve newer focus')).toBeNull())
+    expect(document.activeElement).toBe(other)
+  })
+
+  it('returns focus to the modal itself when its remembered control becomes disabled', async () => {
+    render({ components: { AppToasts }, template: '<AppToasts /><section data-toast-modal-root tabindex="-1" aria-label="Safe modal"><button>Safe cancel</button></section>' }, { global: { plugins: [createI18n({ legacy: false, locale: 'zh-CN', messages })] } })
+    const cancel = screen.getByRole('button', { name: 'Safe cancel' }) as HTMLButtonElement
+    cancel.focus()
+    toast.success('Disabled fallback message')
+    await screen.findByText('Disabled fallback message')
+    const close = screen.getByRole('button', { name: '关闭提示' })
+    close.focus()
+    cancel.disabled = true
+    await fireEvent.click(close)
+    await waitFor(() => expect(screen.queryByText('Disabled fallback message')).toBeNull())
+    expect(document.activeElement).toBe(document.querySelector('[data-toast-modal-root]'))
   })
 
   it.each(['hidden', 'inert', 'aria-hidden="true"', 'style="display:none"', 'style="visibility:hidden"'])('ignores a modal with a hidden ancestor: %s', async attribute => {
