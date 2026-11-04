@@ -449,6 +449,11 @@ function getFocusableElements(root: globalThis.HTMLElement) {
   box-shadow: var(--moeurl-shadow-strong);
 }
 
+/* Keep live feedback readable; the drawer itself scrolls when its navigation needs more room. */
+.console-shell__mobile-panel > :deep(.app-toasts--modal[data-toast-modal-region]) {
+  flex-shrink: 0;
+}
+
 .console-shell__mobile-head {
   display: flex;
   align-items: center;

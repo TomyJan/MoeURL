@@ -1,5 +1,5 @@
 <template>
-  <header class="console-topbar">
+  <header class="console-topbar" data-toast-page-header>
     <button class="console-topbar__menu" type="button" :aria-label="t('console.openMenu')" @click="$emit('openMenu')">
       <MoeIcon name="menu" data-testid="console-icon-menu" />
     </button>

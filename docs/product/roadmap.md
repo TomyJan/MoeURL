@@ -1,5 +1,11 @@
 # 路线图
 
+## 当前进展（2026-11-05）
+
+v0.49.2 已通过 [PR268](https://github.com/TomyJan/MoeURL/pull/268) 完整交付，master `8d72dda0696d139194ebea6aaeb24605abbe8607`；最新真实审查覆盖、候选41890239146和master41894181402各九CI／完整日志、标准Task1–3、17条裁决及可恢复归档全部完成。未发布部署，详见[前版验收](../implementation/v0.49.2-acceptance.md)。
+
+v0.49.3 本地验证与终审修复已完成：两项通知问题真实 RED→GREEN，3270 项前端四项 100%、types／lint／构建通过；clean19cdba9 的完整 208 项浏览器、83 张原图实读和精确产品／正常漏洞库扫描均通过。Task1 标准完成，Task2 标准收尾中；最新远端审查、候选和 master 各九 CI、守卫合并与最终归档仍待，未发布部署。见[计划](../implementation/v0.49.3-plan.md)与[验收](../implementation/v0.49.3-acceptance.md)。下方旧阶段保持历史归属。
+
 ## 当前状态（2026-11-04）
 
 v0.48.0 已通过 [PR262](https://github.com/TomyJan/MoeURL/pull/262) 完整交付，master `6aa7c0aa5a805446fae16e7d8453388763081f23`；最新真实审查、候选／master 各九 CI 与完整日志、标准 Task1–3、19 条裁决和可恢复归档均完成。每页 20／50／100，保持权限、私密筛选和全匹配 CSV；未发布部署，见[验收](../implementation/v0.48.0-acceptance.md)。
