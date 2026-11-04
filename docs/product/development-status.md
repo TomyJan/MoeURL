@@ -4,7 +4,7 @@
 
 v0.48.0 已通过 [PR262](https://github.com/TomyJan/MoeURL/pull/262) 完整交付，master `6aa7c0aa5a805446fae16e7d8453388763081f23`；最新真实审查、候选／master 各九 CI 与完整日志、标准 Task1–3、19 条裁决和可恢复归档均完成。每页 20／50／100，保持权限、私密筛选和全匹配 CSV；未发布部署，见[验收](../implementation/v0.48.0-acceptance.md)。
 
-当前推进[前端 glob 安全维护](../implementation/2026-11-04-frontend-glob-security-plan.md)：修复 minimatch／glob 两项开发依赖公告，保持 0.48.0 行为和版本号；新安装、完整门禁和独立交付尚未完成，见[验收](../implementation/2026-11-04-frontend-glob-security-acceptance.md)。
+当前推进[前端 glob 安全维护](../implementation/2026-11-04-frontend-glob-security-plan.md)：修复 minimatch／glob 两项开发依赖公告，保持 0.48.0 行为和版本号；新安装、完整本地门禁和唯一独立终审已完成，本地标准收尾与远端交付按实际回执判定，见[验收](../implementation/2026-11-04-frontend-glob-security-acceptance.md)。
 
 v0.47.0 已经 [PR261](https://github.com/TomyJan/MoeURL/pull/261) 完整交付，master `5ed2939c6de3f75e3cb46dac37fcb6ffa06ad74f`；最新真实审查、候选／master 各九 CI 与完整日志、标准 Task1–3、24 条完整裁决和可恢复归档均完成。保持不变集合的确定排序，不承诺跨请求快照；未发布部署，详见[验收](../implementation/v0.47.0-acceptance.md)。
 

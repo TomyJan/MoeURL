@@ -39,16 +39,16 @@
 - [x] 将标准生成 lock 和 workspace 带回源码；Dockerfile 首次 COPY 加 workspace。新 owned 依赖镜像执行 `pnpm install --frozen-lockfile`。Expected：读取相同三文件合同，安装成功，旧 image 和 host 依赖不变。
 - [x] 新镜像运行 `pnpm list --depth Infinity --json`、`pnpm why minimatch glob`、官方 `pnpm audit --json --registry=https://registry.npmjs.org`。Expected：全部目标路径安全、两个 GHSA 消失；其他公告按实际记录，不忽略。
 - [x] 新依赖顺序运行 lint、typecheck、`pnpm test:coverage --maxWorkers=2 --coverage.reportsDirectory=/output/coverage`、`pnpm build --outDir /output/dist --emptyOutDir`。Expected：完整至少3119项通过、四100%、命令exit0；无新增构建警告，完整输入稳定、owned容器空。
-- [ ] 同步准确阶段记录，完整diff／链接／输入核后原子提交；标准task-done1只验证已有证据，不重suite。
+- [x] 同步准确阶段记录，完整diff／链接／输入核后原子提交8d2195dc；标准task-done1实际0，只验证已有证据，不重suite。
 
 ## 任务 2：真实产品、浏览器和唯一终审
 
 **Interfaces：** 消费任务1的新依赖合同与clean提交；产生完整本地合同、独立审查处置和阶段归档供任务3使用。
 
-- [ ] 标准start2／读brief；核独占端口与准确compose项目三资源为空。完整187项Playwright使用当前Dockerfile构建的新产品，驱动仅在实际依赖闭包和对应lock块全部相同时复用host Playwright1.64.1，不安装host依赖、不借旧工具链结果；不skip／mock／fallback。保存raw／exit及完整输入稳定、结束三空，逐张检查相关原图。
-- [ ] 标准产品build／smoke／restart／version，核binary／static身份、精确image与正常数据库更新后的Trivy选定HIGH／CRITICAL三目标。Expected：各exit0，缓存与真实构建边界分别记录。
-- [ ] Go／SQLC完整对应输入与原成功合同set／hash／bytes相等才复用原身份，不写本轮重跑。Dockerfile变化单独记录，不能声明整个非web集合全等。
-- [ ] 末段唯一fresh最强supported整分支终审；所有有效问题按事实处置，行为问题真实RED→GREEN及必要完整回归；不派第二席。完整裁决及错误代价、旧M5／M9延期保留。
+- [x] 标准start2／读brief；核独占端口与准确compose项目三资源为空。完整187项Playwright使用当前Dockerfile构建的新产品，驱动仅在实际依赖闭包和对应lock块全部相同时复用host Playwright1.64.1，不安装host依赖、不借旧工具链结果；不skip／mock／fallback。raw／exit及完整输入稳定、结束三空已核，46原图逐张检查。
+- [x] 标准产品build／smoke／restart／version，核binary／static身份、精确image与正常数据库更新启用的Trivy选定HIGH／CRITICAL三目标。各exit0；23个BuildKit缓存步骤及未过期seed DB实际复用分别记录。
+- [x] Go／SQLC完整对应519输入与原成功合同set／hash／bytes相等，复用原身份，未重跑。Dockerfile变化单独验证，不声明整个非web集合全等。
+- [x] 末段唯一fresh最强supported整分支终审；Critical／Important零，无产品修复轮；M1随计划文档收尾。五项Declined逐项裁决及错误代价、旧M5／M9延期保留，不派第二席。
 - [ ] 完整报告、完成合同与阶段whole-owned ZIP／extract全集核后标准done2；阶段档案不冒最终交付。
 
 ## 任务 3：远端交付与可恢复归档
