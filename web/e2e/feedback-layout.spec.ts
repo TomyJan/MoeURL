@@ -166,6 +166,9 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
           document.addEventListener('click', event => { if ((event.target as Element).closest('[data-close-button]')) document.documentElement.dataset.fixtureCloseClicks = String(Number(document.documentElement.dataset.fixtureCloseClicks) + 1) }, true)
           document.addEventListener('pointercancel', () => { document.documentElement.dataset.fixturePageCancels = String(Number(document.documentElement.dataset.fixturePageCancels) + 1) }, true)
         })
+        // Native scrolling and its scrollend boundary need a running browser clock, as in the modal touch test.
+        // Keep requiring all five live messages before dismissal, so waiting for expiry cannot pass this case.
+        await page.clock.resume()
         const box = (await region.boundingBox())!, session = await context.newCDPSession(page)
         const x = box.x + box.width / 2, start = box.y + box.height - 25, end = box.y + 25
         await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: start, id: 1 }] })
@@ -211,11 +214,10 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
           return { hit: hit?.outerHTML.slice(0, 250), hitButton: hit !== null && button.contains(hit), chain }
         }), null, 2))
         await page.screenshot({ path: info.outputPath('page-close-before-tap.png'), animations: 'disabled' })
+        await expect(region.locator('[data-sonner-toast]')).toHaveCount(5)
         await close.tap({ timeout: 1000 })
-        await page.clock.runFor(350)
         await writeFile(info.outputPath('page-close-events.json'), JSON.stringify(await page.evaluate(() => ({ clicks: document.documentElement.dataset.fixtureCloseClicks, removed: document.querySelectorAll('[data-sonner-toast][data-removed="true"]').length, scrollEnd: document.documentElement.dataset.fixturePageScrollEnd })), null, 2))
-        await expect(region.locator('[data-sonner-toast][data-removed="true"]')).toHaveCount(1)
-        await page.clock.runFor(250)
+        await expect(page.locator('html')).toHaveAttribute('data-fixture-close-clicks', '1')
         await expect(region.locator('[data-sonner-toast]')).toHaveCount(4)
         const original = await region.locator('[data-sonner-toast]').first().elementHandle()
         await page.getByRole('button', { name: 'Review notification', exact: true }).tap({ timeout: 1000 })
