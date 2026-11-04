@@ -180,7 +180,7 @@ MoeURL 的核心控制逻辑是权限系统。
 - 站点名称、默认语言／主题、首页标题／简介、三个固定强调色、纯文本页脚、最多五个有序链接和安全的本地登录开关。
 - 中英双语、响应式浅深色界面、PWA 基础、统一 Toast 与标准列表，以及固定展示的构建版本署名。
 
-最近已交付 [v0.46.0 私密备注关键词筛选](scope-v0.46.0.md)、[v0.45.0 固定分页](scope-v0.45.0.md)和 [v0.44.0 备注状态筛选](scope-v0.44.0.md)，此前包括[内部备注](scope-v0.43.0.md)、[版本边界补丁](scope-v0.43.1.md)、[本人标签查找](scope-v0.41.0.md)、[全站标签查找](scope-v0.42.0.md)、[批量创建](scope-v0.38.0.md)、[CSV 录入](scope-v0.40.0.md)、[格式帮助](scope-v0.40.1.md)和[个人默认方式](scope-v0.39.0.md)。维护不另算业务版本，合并不视为正式发布。
+最近已交付 [v0.47.0 列表确定顺序](scope-v0.47.0.md)、[v0.46.0 私密备注关键词筛选](scope-v0.46.0.md)、[v0.45.0 固定分页](scope-v0.45.0.md)和 [v0.44.0 备注状态筛选](scope-v0.44.0.md)，此前包括[内部备注](scope-v0.43.0.md)、[版本边界补丁](scope-v0.43.1.md)、[本人标签查找](scope-v0.41.0.md)、[全站标签查找](scope-v0.42.0.md)、[批量创建](scope-v0.38.0.md)、[CSV 录入](scope-v0.40.0.md)、[格式帮助](scope-v0.40.1.md)和[个人默认方式](scope-v0.39.0.md)。维护不另算业务版本，合并不视为正式发布。
 
 [v0.12.0 自定义短码](scope-v0.12.0.md) 已通过 PR #185 合并至 `master` 的 `17e1f766`，支持创建时指定地址，不加入改码、释放、复用或批量能力；原分支的本地验证和独立审查见 [验收清单](../implementation/v0.12.0-acceptance.md)，合并不等于正式发布。
 
@@ -192,6 +192,6 @@ MoeURL 的核心控制逻辑是权限系统。
 
 ## 验证与发布边界
 
-功能实现、主分支合并和正式发布是不同状态。当前各版本的门禁证据保留在对应 acceptance；最新已交付版本的本地前端、浏览器、候选及 master 门禁见 [v0.46.0 验收](../implementation/v0.46.0-acceptance.md)。[标准列表验收](../implementation/2026-10-15-standard-lists-acceptance.md) 和 [配色验收](../implementation/2026-10-15-color-refresh-acceptance.md) 是 2026-10-15 的历史基线，各自执行归属不变。
+功能实现、主分支合并和正式发布是不同状态。当前各版本的门禁证据保留在对应 acceptance；最新已交付版本的本地前端、浏览器、候选及 master 门禁见 [v0.47.0 验收](../implementation/v0.47.0-acceptance.md)。[标准列表验收](../implementation/2026-10-15-standard-lists-acceptance.md) 和 [配色验收](../implementation/2026-10-15-color-refresh-acceptance.md) 是 2026-10-15 的历史基线，各自执行归属不变。
 
 单机 Compose 与外部 TLS 代理仍是支持的生产部署方向。候选提交的目标 CI、Linux race、安全扫描、完整容器流程、真实 DNS/TLS、外部 OIDC、隔离恢复和生产发布验收须按各自环境补齐；历史提交的 CI 或本地回退结果不能替代这些证据。缺口与证据索引统一见 [开发进度与能力清单](development-status.md)。
