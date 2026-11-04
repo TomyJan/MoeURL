@@ -339,7 +339,7 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
           const button = modal.locator('[data-sonner-toast][data-removed="false"] button[data-close-button]').last()
           await button.scrollIntoViewIfNeeded()
           await button.focus()
-          await page.keyboard.press('Enter')
+          await button.click({ timeout: 1000 })
           await expect(modal.locator('[data-sonner-toast]')).toHaveCount(remaining - 1)
           await expect(modal.getByTestId('fixture-cancel')).toBeFocused()
         }
@@ -432,6 +432,18 @@ test('mobile live notice keeps navigation touchable before expiry at ' + width +
     await expect(drawer).toBeVisible()
     expect(await drawer.locator('[data-sonner-toast]').evaluate((node, original) => node === original, message)).toBe(true)
     await page.screenshot({ path: info.outputPath('navigation-live-notice.png'), animations: 'disabled' })
+    const drawerText = await drawer.locator('[data-sonner-toast]').evaluate(toast => {
+      const title = toast.querySelector('[data-title]')!
+      const range = document.createRange()
+      range.selectNodeContents(title)
+      const text = range.getBoundingClientRect()
+      const region = toast.closest('[data-toast-modal-region]')!.getBoundingClientRect()
+      const panel = toast.closest('[data-toast-modal-root]')!.getBoundingClientRect()
+      return { textHeight: text.height, visibleHeight: Math.max(0, Math.min(text.bottom, region.bottom, panel.bottom, innerHeight) - Math.max(text.top, region.top, panel.top, 0)) }
+    })
+    await writeFile(info.outputPath('navigation-drawer-text.json'), JSON.stringify(drawerText, null, 2))
+    expect(drawerText.textHeight).toBeGreaterThan(0)
+    expect(drawerText.visibleHeight, 'The same live notification must remain readable inside the short drawer').toBeGreaterThanOrEqual(drawerText.textHeight - 1)
     await drawer.locator('.console-shell__mobile-close').tap({ timeout: 1000 })
     await page.clock.runFor(50)
     await expect(drawer).toHaveCount(0)
