@@ -2,7 +2,9 @@
 
 ## 当前状态（2026-11-04）
 
-当前实施 [v0.48.0 列表每页条数](product/scope-v0.48.0.md)：本人／全站增加 20／50／100，默认 20、挂载内状态；换大小清选择并退休旧请求，保留身份、私密筛选和全匹配 CSV。Task1–2 已标准完成，3119 项完整前端四100%、types／lint／build、187 项完整浏览器、46 张原图及精确产品验证通过；唯一独立终审无代码阻断，文档状态问题已修正。本地报告、合同和阶段归档已核，Task3 已标准启动，远端交付继续；见[计划](implementation/v0.48.0-plan.md)和[验收](implementation/v0.48.0-acceptance.md)。
+v0.48.0 已通过 [PR262](https://github.com/TomyJan/MoeURL/pull/262) 完整交付，master `6aa7c0aa5a805446fae16e7d8453388763081f23`；最新真实审查、候选／master 各九 CI 与完整日志、标准 Task1–3、19 条裁决和可恢复归档均完成。每页 20／50／100，保持权限、私密筛选和全匹配 CSV；未发布部署，见[验收](implementation/v0.48.0-acceptance.md)。
+
+当前推进[前端 glob 安全维护](implementation/2026-11-04-frontend-glob-security-plan.md)：修复 minimatch／glob 两项开发依赖公告，保持 0.48.0 行为和版本号；新安装、完整门禁和独立交付尚未完成，见[验收](implementation/2026-11-04-frontend-glob-security-acceptance.md)。
 
 v0.47.0 已经 [PR261](https://github.com/TomyJan/MoeURL/pull/261) 完整交付，master `5ed2939c6de3f75e3cb46dac37fcb6ffa06ad74f`；最新真实审查、候选／master 各九 CI 与完整日志、标准 Task1–3、24 条完整裁决和可恢复归档均完成。保持不变集合的确定排序，不承诺跨请求快照；未发布部署，详见[验收](implementation/v0.47.0-acceptance.md)。
 

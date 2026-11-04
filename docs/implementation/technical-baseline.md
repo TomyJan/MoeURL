@@ -1,5 +1,7 @@
 # 技术基线
 
+[glob 安全维护](../specs/2026-11-04-frontend-glob-security.md)采用五条精确父版本 override，标准 pnpm 11.5 生成锁文件；Docker 首次 frozen 安装必须同时读取 workspace。minimatch 11／glob 14 存在主版本兼容风险，须新依赖完整门禁及新产品验证，当前仅设计完成；实际状态见[验收](2026-11-04-frontend-glob-security-acceptance.md)。
+
 [v0.48.0 设计](../specs/2026-11-04-v0.48.0-list-page-size-design.md)采用挂载内 20／50／100，有界大小追加查询 key 槽 10，改大小推进单调代际并清选择；身份／读授权变化恢复默认 20。CSV 仍全匹配，不改后端协议／schema／权限／依赖；已经实现，本地门禁及唯一独立终审完成，当前交付状态和实际执行归属见[验收](v0.48.0-acceptance.md)。
 
 [v0.47.0 设计](../specs/2026-11-04-v0.47.0-stable-list-order-design.md)选用既有唯一 UUID 作为列表创建时间的次级倒序键，与 CSV 顺序一致；仅强化不变集合的确定顺序，不扩大跨请求快照、普通 GET 的事务或生产规模性能保证。PR261 已完整交付，真实审查、候选／master 各九 CI、标准 Task1–3 和可恢复归档均完成，本版验证见[验收](v0.47.0-acceptance.md)。PR260 已完整交付，以下原开发阶段保持历史归属。
