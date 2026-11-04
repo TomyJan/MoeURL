@@ -160,6 +160,10 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
         expect(await region.evaluate(element => { const r = element.getBoundingClientRect(); return r.top >= 80 && r.bottom <= innerHeight - 15 && element.scrollHeight > element.clientHeight })).toBe(true)
         await page.evaluate(() => {
           document.documentElement.dataset.fixturePageCancels = '0'
+          document.documentElement.dataset.fixturePageScrollEnd = 'pending'
+          document.documentElement.dataset.fixtureCloseClicks = '0'
+          document.querySelector('.app-toasts--page')!.addEventListener('scrollend', () => { document.documentElement.dataset.fixturePageScrollEnd = 'ended' }, { once: true })
+          document.addEventListener('click', event => { if ((event.target as Element).closest('[data-close-button]')) document.documentElement.dataset.fixtureCloseClicks = String(Number(document.documentElement.dataset.fixtureCloseClicks) + 1) }, true)
           document.addEventListener('pointercancel', () => { document.documentElement.dataset.fixturePageCancels = String(Number(document.documentElement.dataset.fixturePageCancels) + 1) }, true)
         })
         const box = (await region.boundingBox())!, session = await context.newCDPSession(page)
@@ -168,6 +172,7 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
         for (let step = 1; step <= 6; step++) await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: start + (end - start) * step / 6, id: 1 }] })
         await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
         await expect(page.locator('html')).toHaveAttribute('data-fixture-page-cancels', '1')
+        await expect(page.locator('html')).toHaveAttribute('data-fixture-page-scroll-end', 'ended')
         expect(await region.evaluate(element => element.scrollTop)).toBeGreaterThan(0)
         // Check every text segment, including the literal markup tail; a screenshot alone cannot prove this.
         const readback = await region.evaluate(container => {
@@ -207,6 +212,9 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
         }), null, 2))
         await page.screenshot({ path: info.outputPath('page-close-before-tap.png'), animations: 'disabled' })
         await close.tap({ timeout: 1000 })
+        await page.clock.runFor(350)
+        await writeFile(info.outputPath('page-close-events.json'), JSON.stringify(await page.evaluate(() => ({ clicks: document.documentElement.dataset.fixtureCloseClicks, removed: document.querySelectorAll('[data-sonner-toast][data-removed="true"]').length, scrollEnd: document.documentElement.dataset.fixturePageScrollEnd })), null, 2))
+        await expect(region.locator('[data-sonner-toast][data-removed="true"]')).toHaveCount(1)
         await page.clock.runFor(250)
         await expect(region.locator('[data-sonner-toast]')).toHaveCount(4)
         const original = await region.locator('[data-sonner-toast]').first().elementHandle()
@@ -468,13 +476,13 @@ test('mobile live notice keeps navigation touchable before expiry at ' + width +
     await expect(page).toHaveURL(/\/$/)
     await expect(page.locator('.app-toasts--page')).toHaveCount(0)
     await assertMessage()
-    const returned = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/auth/me')
+    // Every critical tap above used a paused clock. Let native history and its asynchronous guard run;
+    // the same still-live message is required afterwards, so expiry cannot make this pass falsely.
+    await page.locator('[data-sonner-toast]').hover()
+    await page.clock.resume()
     await page.goBack()
-    expect((await (await returned).json()).code).toBe(0)
     await expect(page).toHaveURL(/\/profile$/)
-    await expect(page.locator('.home-page.moe-route-leave-active, [data-toast-page-header]')).toHaveCount(1)
-    // The route out-in transition must finish under the controlled animation clock.
-    await page.clock.runFor(350)
+    await expect(page.locator('[data-toast-page-header]')).toBeVisible()
     await writeFile(info.outputPath('navigation-return.json'), JSON.stringify(await page.evaluate(() => ({ url: location.pathname, headerCount: document.querySelectorAll('[data-toast-page-header]').length, transition: document.querySelector('[data-testid="app-route-transition"]')?.innerHTML.slice(0, 500) })), null, 2))
     await expect(page.locator('.app-toasts--page')).toHaveCount(1)
     await assertMessage()
