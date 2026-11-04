@@ -1,6 +1,6 @@
 # 技术基线
 
-[v0.49.1 通知布局设计](../specs/2026-11-04-v0.49.1-modal-feedback-design.md)保留单一 Toaster／队列，计划在最高活动弹窗内采用有界正常流区域；30dvh 初选参数须经真实短视口几何验证。尚未实现，无 API、权限、schema 或依赖变化，见[计划](v0.49.1-plan.md)。
+[v0.49.1 通知布局设计](../specs/2026-11-04-v0.49.1-modal-feedback-design.md)保留单一 Toaster／队列，在最高活动弹窗内采用有界正常流区域。Task1 标准完成，13项通知、完整3249前端四项100%、types／lint／build和双视口几何RED→GREEN通过；30dvh仍须Task2短视口压力证明。无 API、权限、schema 或依赖变化，见[验收](v0.49.1-acceptance.md)。
 
 [v0.49.0 批量清空内部备注](../specs/2026-11-04-v0.49.0-batch-note-clear-design.md)采用四个固定 POST、当前页 1–100 条、64 KiB／五秒限制、完整纳秒双版本、全批事务及既有字段名审计。PR264 已完整交付，候选／master 各自九 CI、最新真实审查、标准 Task1–4 和可恢复归档完成；原执行身份及失败保留，无新依赖、权限或 migration，见[验收](v0.49.0-acceptance.md)。
 

@@ -1,6 +1,6 @@
 # v0.49.1 弹窗通知布局范围
 
-2026-11-04 从 PR264 已交付 master `bbdc95e6cce206f217666723a22375f967643d6f` 启动。当前仅设计与计划完成，尚未实现、测试或远端交付；未发布部署。状态见[验收](../implementation/v0.49.1-acceptance.md)。
+2026-11-04 从 PR264 已交付 master `bbdc95e6cce206f217666723a22375f967643d6f` 启动。Task1 已标准完成：共享布局、通知13项及完整3249前端四项100%、types／lint／build和桌面／手机几何RED→GREEN通过。完整压力／浏览器、产品、唯一终审和远端交付尚待；未发布部署。状态见[验收](../implementation/v0.49.1-acceptance.md)。
 
 ## 目标
 
