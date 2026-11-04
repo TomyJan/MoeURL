@@ -516,6 +516,13 @@ test('mobile live notice keeps navigation touchable before expiry at ' + width +
     await writeFile(info.outputPath('navigation-return.json'), JSON.stringify(await page.evaluate(() => ({ url: location.pathname, headerCount: document.querySelectorAll('[data-toast-page-header]').length, transition: document.querySelector('[data-testid="app-route-transition"]')?.innerHTML.slice(0, 500) })), null, 2))
     await expect(page.locator('.app-toasts--page')).toHaveCount(1)
     await assertMessage()
+    await page.locator('.console-topbar__menu').tap({ timeout: 1000 })
+    await expect(drawer).toBeVisible()
+    expect(await drawer.locator('[data-sonner-toast]').evaluate((node, original) => node === original, message)).toBe(true)
+    await drawer.locator('[data-sonner-toast] button[data-close-button]').tap({ timeout: 1000 })
+    await expect(page.locator('[data-sonner-toast]')).toHaveCount(0)
+    await drawer.locator('.console-shell__mobile-close').tap({ timeout: 1000 })
+    await expect(drawer).toHaveCount(0)
   } catch (error) { failures.push(error) } finally {
     try {
       const found = await success(page.request, '/admin/short-link/list?q=' + keyword + '&page=1&pageSize=20')

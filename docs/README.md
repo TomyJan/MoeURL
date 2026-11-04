@@ -4,7 +4,7 @@
 
 v0.49.2 已通过 [PR268](https://github.com/TomyJan/MoeURL/pull/268) 完整交付，master `8d72dda0696d139194ebea6aaeb24605abbe8607`；最新真实审查覆盖、候选41890239146和master41894181402各九CI／完整日志、标准Task1–3、17条裁决及可恢复归档全部完成。未发布部署，详见[前版验收](implementation/v0.49.2-acceptance.md)。
 
-v0.49.3 手机页面通知避让已实现：真实业务通知下的三个视口导航场景、两个短屏长消息场景和 3270 项前端测试通过，覆盖率四项 100%。单一 Toaster、modal 生命周期和后端协议保持；Task1 标准收尾、完整浏览器、精确产品、唯一终审及远端交付仍待各自验证。320 px 高抽屉通知被压缩的观察已保留，不能将页面验证扩大为全部 modal 可读性保证。见[计划](implementation/v0.49.3-plan.md)与[验收](implementation/v0.49.3-acceptance.md)。下方旧阶段保持历史归属。
+v0.49.3 导航避让与 Task1 标准完成。原 clean e93c30f 的完整 208 项浏览器通过；唯一终审发现短抽屉正文塌陷及 modal 关闭命中两项 Important，作者已取得真实 RED 并写入最小 CSS 修复。新输入完整 3270 项前端、四项 100%、types／lint／产品和 fixture 构建通过，真实指针 GREEN、修复后完整浏览器及精确产品仍待；不能借旧 208 结果放行。终审执行 HEAD 文档错误同时按原件更正，远端交付未开始。见[计划](implementation/v0.49.3-plan.md)与[验收](implementation/v0.49.3-acceptance.md)。下方旧阶段保持历史归属。
 
 ## 当前状态（2026-11-04）
 
