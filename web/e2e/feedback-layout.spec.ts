@@ -162,10 +162,12 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
           document.documentElement.dataset.fixturePageCancels = '0'
           document.documentElement.dataset.fixturePageScrollEnd = 'pending'
           document.documentElement.dataset.fixtureCloseClicks = '0'
-          const events: Array<{ type: string; target: string; close: boolean; scrollTop: number }> = []
+          const events: Array<{ type: string; target: string; close: boolean; scrollTop: number; downConnected: boolean | undefined; sameTarget: boolean; prevented: boolean }> = []
+          let downTarget: Element | undefined
           for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'touchstart', 'touchend', 'click', 'scroll', 'scrollend']) document.addEventListener(type, event => {
             const target = event.target as Element
-            if (events.length < 80) events.push({ type, target: target.tagName, close: Boolean(target.closest?.('[data-close-button]')), scrollTop: document.querySelector('.app-toasts--page')!.scrollTop })
+            if (type === 'pointerdown') downTarget = target
+            if (events.length < 80) events.push({ type, target: target.tagName, close: Boolean(target.closest?.('[data-close-button]')), scrollTop: document.querySelector('.app-toasts--page')!.scrollTop, downConnected: downTarget?.isConnected, sameTarget: downTarget === target, prevented: event.defaultPrevented })
             document.documentElement.dataset.fixtureTouchEvents = JSON.stringify(events)
           }, true)
           document.querySelector('.app-toasts--page')!.addEventListener('scrollend', () => { document.documentElement.dataset.fixturePageScrollEnd = 'ended' }, { once: true })
