@@ -4,7 +4,7 @@
 
 v0.49.2 已通过 [PR268](https://github.com/TomyJan/MoeURL/pull/268) 完整交付，master `8d72dda0696d139194ebea6aaeb24605abbe8607`；最新真实审查覆盖、候选41890239146和master41894181402各九CI／完整日志、标准Task1–3、17条裁决及可恢复归档全部完成。未发布部署，详见[前版验收](../implementation/v0.49.2-acceptance.md)。
 
-当前 v0.49.3 只修手机页面通知挡导航：按可见header和内部展开菜单实际矩形启用有界页面区域，保持单一Toaster及modal生命周期，无API／Go／SQLC／schema／权限／依赖变化。设计完成，尚未实现或运行新测试；见[计划](../implementation/v0.49.3-plan.md)与[验收](../implementation/v0.49.3-acceptance.md)。下方旧阶段保持历史归属。
+v0.49.3 手机页面通知避让已实现：真实业务通知下的三个视口导航场景、两个短屏长消息场景和 3270 项前端测试通过，覆盖率四项 100%。单一 Toaster、modal 生命周期和后端协议保持；Task1 标准收尾、完整浏览器、精确产品、唯一终审及远端交付仍待各自验证。320 px 高抽屉通知被压缩的观察已保留，不能将页面验证扩大为全部 modal 可读性保证。见[计划](../implementation/v0.49.3-plan.md)与[验收](../implementation/v0.49.3-acceptance.md)。下方旧阶段保持历史归属。
 
 ## 当前状态（2026-11-04）
 
