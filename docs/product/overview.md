@@ -1,5 +1,11 @@
 # MoeURL 产品总览
 
+## 当前进展（2026-11-05）
+
+v0.49.2 已通过 [PR268](https://github.com/TomyJan/MoeURL/pull/268) 完整交付，master `8d72dda0696d139194ebea6aaeb24605abbe8607`；最新真实审查覆盖、候选41890239146和master41894181402各九CI／完整日志、标准Task1–3、17条裁决及可恢复归档全部完成。未发布部署，详见[前版验收](../implementation/v0.49.2-acceptance.md)。
+
+当前 v0.49.3 只修手机页面通知挡导航：按可见header和内部展开菜单实际矩形启用有界页面区域，保持单一Toaster及modal生命周期，无API／Go／SQLC／schema／权限／依赖变化。设计完成，尚未实现或运行新测试；见[计划](../implementation/v0.49.3-plan.md)与[验收](../implementation/v0.49.3-acceptance.md)。下方旧阶段保持历史归属。
+
 ## 当前状态（2026-11-04）
 
 v0.48.0 已通过 [PR262](https://github.com/TomyJan/MoeURL/pull/262) 完整交付，master `6aa7c0aa5a805446fae16e7d8453388763081f23`；最新真实审查、候选／master 各九 CI 与完整日志、标准 Task1–3、19 条裁决和可恢复归档均完成。每页 20／50／100，保持权限、私密筛选和全匹配 CSV；未发布部署，见[验收](../implementation/v0.48.0-acceptance.md)。

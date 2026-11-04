@@ -1,5 +1,11 @@
 # 技术基线
 
+## 当前进展（2026-11-05）
+
+v0.49.2 已通过 [PR268](https://github.com/TomyJan/MoeURL/pull/268) 完整交付，master `8d72dda0696d139194ebea6aaeb24605abbe8607`；最新真实审查覆盖、候选41890239146和master41894181402各九CI／完整日志、标准Task1–3、17条裁决及可恢复归档全部完成。未发布部署，详见[前版验收](v0.49.2-acceptance.md)。
+
+当前 v0.49.3 只修手机页面通知挡导航：按可见header和内部展开菜单实际矩形启用有界页面区域，保持单一Toaster及modal生命周期，无API／Go／SQLC／schema／权限／依赖变化。设计完成，尚未实现或运行新测试；见[计划](v0.49.3-plan.md)与[验收](v0.49.3-acceptance.md)。下方旧阶段保持历史归属。
+
 [v0.49.2 空通知区域设计](../specs/2026-11-04-v0.49.2-empty-toast-gap-design.md)已实现实际无 toast DOM 的 modal wrapper 绝对定位、零尺寸并脱离 flex／grid 流；有退出节点继续原布局，下一消息恢复 30dvh。保留单一 Toaster、队列、六秒／五条、焦点和原生滚动，不隐藏或卸载 live region、不改父 gap；3253 项前端、203 项完整浏览器／73 张原图、精确产品和唯一独立终审已完成，远端交付仍待，见[验收](v0.49.2-acceptance.md)。无 API、schema、权限、依赖或生成物变化。
 
 v0.49.1 已通过 [PR265](https://github.com/TomyJan/MoeURL/pull/265) 完整交付，master `81591816c6cde10c78a9f386fcec1ffc8513bc70`；候选最新真实审查覆盖、候选和 master 各九 CI／完整日志、标准 Task1–3、22 条完整裁决及可恢复归档均完成。F1 空 wrapper 间距、M5／M9 和页面鼠标入口边界按原范围保留，未发布部署。前版运行身份与全部原始失败保持[验收](v0.49.1-acceptance.md)归属。
