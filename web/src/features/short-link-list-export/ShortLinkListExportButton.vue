@@ -18,7 +18,7 @@ import { ApiClientError } from '@/shared/api/client'
 import { downloadCsv } from '@/shared/download/csv'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 
-const props = defineProps<{ context: ShortLinkListExportContext; filters: ShortLinkListExportFilters; blocked: boolean }>()
+const props = defineProps<{ context: ShortLinkListExportContext; filters: ShortLinkListExportFilters; blocked: boolean; canStart?: () => boolean }>()
 const emit = defineEmits<{ pending: [value: boolean] }>()
 const { t } = useI18n()
 const client = useQueryClient()
@@ -27,7 +27,7 @@ const auth = useQuery({ queryKey: ['auth', 'me'], queryFn: me, staleTime: Infini
 const pending = ref(false)
 watch(pending, value => emit('pending', value), { flush: 'sync' })
 const canExport = computed(() => auth.isSuccess.value && hasAccess(auth.data.value))
-const disabled = computed(() => pending.value || props.blocked)
+const disabled = computed(() => pending.value || props.blocked || (props.canStart !== undefined && !props.canStart()))
 let alive = true
 let revision = 0
 /** Retires every callback and releases only the request belonging to the previous filters or identity. */
@@ -69,7 +69,7 @@ async function submit() {
   const context = props.context
   /** Checks synchronous cache state after waiting for parent filter and loading props to render. */
   const isCurrent = () => alive && revision === requestRevision && identity.isCurrent(scope)
-    && hasAccess(client.getQueryData<UserResponse>(['auth', 'me'])) && !props.blocked
+    && hasAccess(client.getQueryData<UserResponse>(['auth', 'me'])) && !props.blocked && (props.canStart === undefined || props.canStart())
   pending.value = true
   try {
     const file = await (filters.noteQuery ? exportShortLinkList(filters, context, scope.userId) : exportShortLinkList(filters, context))

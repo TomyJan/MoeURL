@@ -2,6 +2,13 @@ import { createI18n } from 'vue-i18n'
 
 export const messages = {
   'zh-CN': {
+    batchNoteClear: {
+      action: '清空备注', title: '清空所选内部备注', warning: '此操作会永久清空所选备注，无法撤销。', cancel: '取消', loading: '正在核对备注数量',
+      selected: '已选择 {count} 条短链。', nonempty: '{count} 条有备注。', alreadyEmpty: '{count} 条备注已为空。', confirm: '清空 {count} 条备注',
+      empty: '所选备注均为空，无需操作。', retry: '重试预览', check: '重新核对', unknown: '无法确认清空结果。请重新核对后再决定是否清空。',
+      loadFailed: '备注数量核对失败，请重试。', saveFailed: '清空请求未通过，请检查后再次确认。', conflict: '所选短链或备注已变化，请刷新列表后重新选择。',
+      accessChanged: '当前账号、权限或短链归属已变化，请刷新列表。', saved: '已清空 {changed} 条备注，{unchanged} 条原已为空。',
+    },
     pagination: { label: '短链列表分页', pageSize: '每页条数', previous: '上一页', next: '下一页', retry: '重试本页', summary: '第 {page} / {pages} 页，共 {total} 条' },
     linkNote: {
       action: '备注', title: '短链内部备注', text: '备注内容', transferWarning: '备注会随短链转移，请勿填写密码。',
@@ -808,6 +815,14 @@ export const messages = {
     },
   },
   en: {
+    batchNoteClear: {
+      action: 'Clear notes', title: 'Clear selected internal notes', warning: 'This permanently clears the selected notes and cannot be undone.', cancel: 'Cancel', loading: 'Checking current notes',
+      selected: 'No links selected. | 1 link selected. | {count} links selected.', nonempty: 'No notes to clear. | 1 note to clear. | {count} notes to clear.', alreadyEmpty: 'None already empty. | 1 note already empty. | {count} notes already empty.',
+      confirm: 'Clear notes | Clear 1 note | Clear {count} notes', empty: 'All selected notes are already empty.', retry: 'Retry preview', check: 'Check current notes',
+      unknown: 'We could not confirm the result. Check the current notes before deciding whether to clear them.', loadFailed: 'Could not check the notes. Please try again.',
+      saveFailed: 'The clear request was rejected. Check and confirm again.', conflict: 'The selected links or notes changed. Refresh the list and select them again.',
+      accessChanged: 'Your account, permissions or link ownership changed. Refresh the list.', saved: 'Cleared: {changed}. Already empty: {unchanged}.',
+    },
     pagination: { label: 'Short link list pages', pageSize: 'Rows per page', previous: 'Previous page', next: 'Next page', retry: 'Retry this page', summary: 'Page {page} of {pages}, {total} links' },
     linkNote: {
       action: 'Note', title: 'Internal link note', text: 'Note text', transferWarning: 'Notes move with the link when ownership changes. Do not store passwords.',
