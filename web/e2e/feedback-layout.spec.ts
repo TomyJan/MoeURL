@@ -77,6 +77,8 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
       await page.clock.runFor(50)
       await expect(panel.locator('[data-sonner-toast]')).toBeVisible()
       expect((await emptyPanelGeometry(panel, heading)).extraGap).toBeGreaterThan(20)
+      // Publishing focused its own button; deliberately establish the safe business return target.
+      await panel.getByTestId('empty-cancel').focus()
       await panel.locator('[data-sonner-toast] button[data-close-button]').focus()
       await page.keyboard.press('Enter')
       // The removed flag starts Sonner's exit; the actual node must still occupy normal flow.
