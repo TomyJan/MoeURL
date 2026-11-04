@@ -36,7 +36,7 @@ describe('application notifications', () => {
     expect(first.container.textContent).toBe('This slug is already taken.')
     expect(second.container.textContent).toBe('This slug is a reserved system path.')
   })
-  it('keeps notifications inside the active modal and returns them to the page when it closes', async () => {
+  it('keepsOneToastAcrossModalMigration', async () => {
     const modal = ref(false)
     const Page = {
       components: { AppToasts },
@@ -46,12 +46,52 @@ describe('application notifications', () => {
     render(Page, { global: { plugins: [createI18n({ legacy: false, locale: 'zh-CN', messages })] } })
     toast.error('Retry operation')
     await screen.findByText('Retry operation')
+    const original = screen.getByText('Retry operation').closest('[data-sonner-toast]')
     modal.value = true
     await waitFor(() => expect(screen.getByText('Retry operation').closest('[data-toast-modal-root]')).not.toBeNull())
+    expect(screen.getByText('Retry operation').closest('[data-sonner-toast]')).toBe(original)
     modal.value = false
     await waitFor(() => expect(screen.getByText('Retry operation').closest('[data-toast-modal-root]')).toBeNull())
+    expect(screen.getByText('Retry operation').closest('[data-sonner-toast]')).toBe(original)
     await fireEvent.click(screen.getByRole('button', { name: '关闭提示' }))
     await waitFor(() => expect(screen.queryByText('Retry operation')).toBeNull())
+  })
+
+  it('usesHighestActiveModalInsteadOfLastDOMNode', async () => {
+    render({ components: { AppToasts }, template: '<AppToasts /><div class="v-dialog v-overlay--active" style="z-index: 2500"><section class="v-overlay__content" aria-label="Top"><button>Top cancel</button></section></div><div class="v-dialog v-overlay--active" style="z-index: 2400"><section class="v-overlay__content" aria-label="Lower"><button>Lower cancel</button></section></div>' }, { global: { plugins: [createI18n({ legacy: false, locale: 'zh-CN', messages })] } })
+    toast.success('Highest layer message')
+    await waitFor(() => expect(screen.getByText('Highest layer message').closest('section[aria-label]')?.getAttribute('aria-label')).toBe('Top'))
+  })
+
+  it('returnsToParentAfterNestedClose', async () => {
+    const nested = ref(true)
+    render({ components: { AppToasts }, setup: () => ({ nested }), template: '<AppToasts /><section data-toast-modal-root aria-label="Parent"><button>Parent cancel</button></section><section v-if="nested" data-toast-modal-root aria-label="Child"><button>Child cancel</button></section>' }, { global: { plugins: [createI18n({ legacy: false, locale: 'zh-CN', messages })] } })
+    toast.success('Nested message')
+    await waitFor(() => expect(screen.getByText('Nested message').closest('[data-toast-modal-root]')?.getAttribute('aria-label')).toBe('Child'))
+    const original = screen.getByText('Nested message')
+    nested.value = false
+    await waitFor(() => expect(screen.getByText('Nested message').closest('[data-toast-modal-root]')?.getAttribute('aria-label')).toBe('Parent'))
+    expect(screen.getByText('Nested message')).toBe(original)
+  })
+
+  it('ignoresHiddenModal', async () => {
+    const hidden = ref(true)
+    render({ components: { AppToasts }, setup: () => ({ hidden }), template: '<AppToasts /><section data-toast-modal-root aria-label="Visible"><button>Visible cancel</button></section><section data-toast-modal-root :hidden="hidden" aria-label="Hidden"><button>Hidden cancel</button></section>' }, { global: { plugins: [createI18n({ legacy: false, locale: 'zh-CN', messages })] } })
+    toast.success('Visible layer message')
+    await waitFor(() => expect(screen.getByText('Visible layer message').closest('[data-toast-modal-root]')?.getAttribute('aria-label')).toBe('Visible'))
+    hidden.value = false
+    await waitFor(() => expect(screen.getByText('Visible layer message').closest('[data-toast-modal-root]')?.getAttribute('aria-label')).toBe('Hidden'))
+  })
+
+  it('leavesNoModalRegionWithoutMessages', async () => {
+    render({ components: { AppToasts }, template: '<AppToasts /><section data-toast-modal-root><h2>Safe title</h2><button>Cancel</button></section>' }, { global: { plugins: [createI18n({ legacy: false, locale: 'zh-CN', messages })] } })
+    expect(document.querySelector('[data-toast-modal-region]')).toBeNull()
+    toast.success('Dismiss this message')
+    await screen.findByText('Dismiss this message')
+    await fireEvent.click(screen.getByRole('button', { name: '关闭提示' }))
+    await waitFor(() => expect(screen.queryByText('Dismiss this message')).toBeNull())
+    expect(document.querySelector('[data-toast-modal-region]')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Safe title' })).toBeTruthy()
   })
 
   it('stacks independent messages, renders text safely, and dismisses only the chosen toast', async () => {
