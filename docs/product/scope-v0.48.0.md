@@ -1,13 +1,13 @@
 # v0.48.0 短链列表每页条数
 
-2026-11-04 实施中，基线为已验 master `5ed2939c6de3f75e3cb46dac37fcb6ffa06ad74f`。Task1 已标准完成，3119 项完整前端四100%、types／lint及定向真实浏览器通过，8张原图已核；完整浏览器、产品、独立终审及远端交付仍待。见[设计](../specs/2026-11-04-v0.48.0-list-page-size-design.md)、[计划](../implementation/v0.48.0-plan.md)及[验收](../implementation/v0.48.0-acceptance.md)。
+2026-11-04 实施中，基线为已验 master `5ed2939c6de3f75e3cb46dac37fcb6ffa06ad74f`。Task1 已标准完成，3119 项完整前端四100%、types／lint／build、187 项完整浏览器、46 张原图及精确产品验证通过；唯一独立终审无代码阻断，文档状态问题已修正。本地标准收尾和远端交付继续。见[设计](../specs/2026-11-04-v0.48.0-list-page-size-design.md)、[计划](../implementation/v0.48.0-plan.md)及[验收](../implementation/v0.48.0-acceptance.md)。
 
 ## 必须实现
 
 - 本人和全站列表独立的挂载内大小，只接受数字 20／50／100，默认 20；标签“每页条数”／“Rows per page”。
 - 改大小回第一页、清选择并退休旧请求／备注上下文；筛选保留大小，身份或读授权变化恢复 20。
 - pending 可以换大小；编辑、写入、导出、批量创建等原锁与实时权限守卫 queued 事件。
-- GET 和私密 POST 仅使用捕获大小，严格响应 meta；当前成功响应证明页界，失败保持大小可重试。
+- GET 和私密 POST 仅使用捕获大小；私密 POST 严格校验响应 meta 与捕获请求匹配，普通 GET 保留既有 meta 归一化契约。当前成功响应证明页界，失败保持大小可重试。
 - 双语桌面／手机可用，CSV 仍全匹配、1000 条／8 MiB／17 列。
 
 ## 非目标
