@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from '@playwright/test'
-import type { APIRequestContext, Page } from '@playwright/test'
+import type { APIRequestContext, Locator, Page } from '@playwright/test'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
 
 /** Makes one real fixture request; failed writes are never automatically retried. */
@@ -13,6 +13,16 @@ async function success(api: APIRequestContext, path: string, data?: unknown) {
   const body = await response.json()
   expect(body.code).toBe(0)
   return body
+}
+
+/** Measures business content against the container's border and padding, independent of toast CSS. */
+async function emptyPanelGeometry(panel: Locator, heading: string) {
+  return panel.evaluate((element, selector) => {
+    const style = getComputedStyle(element), panel = element.getBoundingClientRect()
+    const first = element.querySelector(selector)!.getBoundingClientRect()
+    const expectedTop = panel.top + Number.parseFloat(style.borderTopWidth) + Number.parseFloat(style.paddingTop)
+    return { panelTop: panel.top, firstTop: first.top, expectedTop, extraGap: first.top - expectedTop, toasts: element.querySelectorAll('[data-sonner-toast]').length }
+  }, heading)
 }
 
 test.describe('real shared component with real Vuetify modal fixtures', () => {
@@ -41,6 +51,54 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
     await readFile(harness + '/harness.js')
     await readFile(harness + '/harness.css')
   })
+  for (const layout of ['flex', 'grid']) {
+    test('empty modal fixture preserves spacing and the live Toaster lifecycle: ' + layout, async ({ page }, info) => {
+      const time = new Date('2026-11-04T00:00:00Z')
+      await page.clock.install({ time })
+      await page.clock.pauseAt(time)
+      await openHarness(page, 'language=en&layout=' + layout)
+      const original = await page.locator('[data-sonner-toaster]').elementHandle()
+      await page.getByRole('button', { name: 'Open custom', exact: true }).click()
+      await page.clock.runFor(350)
+      const panel = page.getByTestId('empty-panel'), heading = '[data-testid="empty-heading"]'
+      await expect(panel.getByTestId('empty-cancel')).toBeFocused()
+      const initial = await emptyPanelGeometry(panel, heading)
+      await writeFile(info.outputPath('empty-initial.json'), JSON.stringify(initial, null, 2))
+      await page.screenshot({ path: info.outputPath('empty-initial.png'), animations: 'disabled' })
+      expect(Math.abs(initial.extraGap)).toBeLessThanOrEqual(1)
+      const assertEmpty = async () => {
+        await expect(panel.locator('[data-sonner-toast]')).toHaveCount(0)
+        expect(Math.abs((await emptyPanelGeometry(panel, heading)).extraGap)).toBeLessThanOrEqual(1)
+        expect(await page.locator('[data-sonner-toaster]').evaluate((node, original) => node === original, original)).toBe(true)
+      }
+      await panel.getByRole('button', { name: 'Publish inside', exact: true }).click()
+      await page.clock.runFor(50)
+      await expect(panel.locator('[data-sonner-toast]')).toBeVisible()
+      expect((await emptyPanelGeometry(panel, heading)).extraGap).toBeGreaterThan(20)
+      await panel.locator('[data-sonner-toast] button[data-close-button]').focus()
+      await page.keyboard.press('Enter')
+      // The removed flag starts Sonner's exit; the actual node must still occupy normal flow.
+      await expect(panel.locator('[data-sonner-toast][data-removed="true"]')).toHaveCount(1)
+      expect((await emptyPanelGeometry(panel, heading)).extraGap).toBeGreaterThan(20)
+      await page.clock.runFor(250)
+      await assertEmpty()
+      await expect(panel.getByTestId('empty-cancel')).toBeFocused()
+      await panel.getByRole('button', { name: 'Publish inside', exact: true }).click()
+      await page.mouse.move(0, 0)
+      await page.clock.runFor(50)
+      await expect(panel.locator('[data-sonner-toast]')).toBeVisible()
+      expect((await emptyPanelGeometry(panel, heading)).extraGap).toBeGreaterThan(20)
+      // A newer business focus survives natural expiry; the old close button must not steal it.
+      await panel.getByRole('button', { name: 'Publish inside', exact: true }).focus()
+      await page.clock.runFor(6000)
+      await expect(panel.locator('[data-sonner-toast][data-removed="true"]')).toHaveCount(1)
+      expect((await emptyPanelGeometry(panel, heading)).extraGap).toBeGreaterThan(20)
+      await page.clock.runFor(250)
+      await assertEmpty()
+      await expect(panel.getByRole('button', { name: 'Publish inside', exact: true })).toBeFocused()
+      await page.screenshot({ path: info.outputPath('empty-after-expiry.png'), animations: 'disabled' })
+    })
+  }
   test('keeps the six-second lifetime when a message moves into a modal', async ({ page }) => {
     const time = new Date('2026-11-04T00:00:00Z')
     await page.clock.install({ time })
@@ -189,6 +247,31 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
 })
 
 test.use({ serviceWorkers: 'block' })
+for (const kind of ['drawer', 'create'] as const) {
+  test('empty modal business content starts at its own padding: ' + kind, async ({ browser }, info) => {
+    const baseURL = info.project.use.baseURL
+    if (typeof baseURL !== 'string') throw new Error('Requires disposable Compose baseURL')
+    const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, locale: 'zh-CN', serviceWorkers: 'block', reducedMotion: 'reduce' })
+    try {
+      const page = await context.newPage()
+      await context.addInitScript(() => { localStorage.setItem('moeurl.language', 'zh-CN'); localStorage.setItem('moeurl.theme', 'light') })
+      await success(page.request, '/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword })
+      await page.goto('/console')
+      await page.locator('.console-topbar__menu').click()
+      const drawer = page.getByTestId('console-mobile-nav')
+      await expect(drawer).toBeVisible()
+      if (kind === 'create') await drawer.getByRole('button', { name: '新建短链', exact: true }).click()
+      const panel = kind === 'drawer' ? drawer.locator('[data-toast-modal-root]') : page.getByTestId('console-create-transition')
+      await expect(panel).toBeVisible()
+      await expect(panel.locator('.app-toasts')).toHaveCount(1)
+      await expect(panel.locator('[data-sonner-toast]')).toHaveCount(0)
+      const geometry = await emptyPanelGeometry(panel, kind === 'drawer' ? '.console-shell__mobile-head' : '.console-shell__dialog-heading')
+      await writeFile(info.outputPath('empty-business-geometry.json'), JSON.stringify(geometry, null, 2))
+      await page.screenshot({ path: info.outputPath('empty-business.png'), animations: 'disabled' })
+      expect(Math.abs(geometry.extraGap), 'Empty notification infrastructure must not add a business layout gap').toBeLessThanOrEqual(1)
+    } finally { await context.close() }
+  })
+}
 // A fixed toast covering the reopened title must fail even when every business request succeeds.
 for (const width of [1280, 390]) {
   test('feedback keeps a real success notification clear of the reopened title at ' + width + 'px', async ({ browser }, info) => {

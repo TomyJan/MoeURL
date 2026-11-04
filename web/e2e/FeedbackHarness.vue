@@ -5,6 +5,14 @@
       <button @click="publish(1)">Publish one</button>
       <button @click="publish(5)">Publish five</button>
       <button @click="parent = true">Open parent</button>
+      <button @click="custom = true">Open custom</button>
+      <v-dialog v-model="custom" aria-label="Custom fixture" max-width="560" @after-enter="customCancel?.focus()">
+        <div class="feedback-empty-panel" :class="'feedback-empty-panel--' + layout" data-toast-modal-root data-testid="empty-panel" tabindex="-1">
+          <h2 data-testid="empty-heading">Empty notification spacing</h2>
+          <button @click="publish(1)">Publish inside</button>
+          <button ref="customCancel" data-testid="empty-cancel" @click="custom = false">Close custom</button>
+        </div>
+      </v-dialog>
       <v-dialog v-model="parent" aria-label="Parent fixture" max-width="560" scrollable @after-enter="parentCancel?.$el.focus()">
         <v-card class="feedback-fixture-card">
           <v-card-title data-testid="fixture-title">{{ en ? 'Review the selected operation' : '请确认所选操作' }}</v-card-title>
@@ -35,6 +43,9 @@ import { toast } from 'vue-sonner'
 import AppToasts from '../src/shared/feedback/AppToasts.vue'
 const en = new globalThis.URLSearchParams(globalThis.location.search).get('language') === 'en'
 const parent = ref(false), child = ref(false)
+const custom = ref(false)
+const layout = new globalThis.URLSearchParams(globalThis.location.search).get('layout') === 'grid' ? 'grid' : 'flex'
+const customCancel = ref<globalThis.HTMLButtonElement | null>(null)
 const parentCancel = ref<{ $el: globalThis.HTMLElement } | null>(null), childCancel = ref<{ $el: globalThis.HTMLElement } | null>(null)
 /** Publishes actual library messages without overriding the production duration or queue. */
 function publish(count: number) {
@@ -43,6 +54,10 @@ function publish(count: number) {
 </script>
 <style>
 .feedback-fixture-card { min-width: 0; }
+.feedback-empty-panel { position: relative; min-width: 0; padding: 18px; border: 1px solid; background: rgb(var(--v-theme-surface)); }
+.feedback-empty-panel--flex { display: flex; flex-direction: column; gap: 14px; }
+.feedback-empty-panel--grid { display: grid; gap: 16px; }
+.feedback-empty-panel h2 { margin: 0; }
 .feedback-fixture-card .v-card-title { white-space: normal; overflow-wrap: anywhere; }
 .feedback-fixture-card .v-card-text { display: grid; grid-auto-rows: max-content; gap: 12px; }
 .feedback-fixture-card .v-card-actions { flex-wrap: wrap; }
