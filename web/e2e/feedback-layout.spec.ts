@@ -247,13 +247,20 @@ for (const width of [1280, 390]) {
         const message = await page.locator('[data-sonner-toast]').elementHandle()
         await dialog.getByTestId('batch-note-clear-cancel').click()
         await expect(dialog).toHaveCount(0)
-        await page.locator('.console-topbar__menu').click()
+        const menu = page.locator('.console-topbar__menu')
+        const menuEntry = await menu.evaluate(button => {
+          const r = button.getBoundingClientRect(), hit = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2)
+          return { messageCount: document.querySelectorAll('[data-sonner-toast]').length, interceptedByNotification: Boolean(hit?.closest('[data-sonner-toast]')) }
+        })
+        // Page-positioned notices can cover this trigger; preserve the message using the real keyboard entry.
+        await menu.focus()
+        await page.keyboard.press('Enter')
         const drawer = page.getByTestId('console-mobile-nav')
-        await writeFile(info.outputPath('drawer-handoff-start.json'), JSON.stringify(await page.evaluate(() => ({
+        await writeFile(info.outputPath('drawer-handoff-start.json'), JSON.stringify({ menuEntry, ...await page.evaluate(() => ({
           messages: document.querySelectorAll('[data-sonner-toast]').length,
           owners: Array.from(document.querySelectorAll('[data-sonner-toast]')).map(node => node.closest('[data-toast-modal-root]')?.className ?? 'page'),
           panels: Array.from(document.querySelectorAll('[data-toast-modal-root], .v-dialog.v-overlay--active .v-overlay__content')).map(node => ({ classes: node.className, parent: node.parentElement?.className, hidden: node.closest('[inert], [aria-hidden="true"]')?.className })),
-        })), null, 2))
+        })) }, null, 2))
         await expect(drawer.locator('[data-sonner-toast]')).toHaveCount(1)
         await page.evaluate(() => {
           document.documentElement.dataset.fixtureHandoff = 'pending'
