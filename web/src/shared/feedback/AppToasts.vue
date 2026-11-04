@@ -99,6 +99,8 @@ onUnmounted(() => {
 .app-toasts--modal[data-toast-modal-region] { padding: 10px; }
 .app-toasts--page { position: fixed; right: 16px; z-index: 10000; box-sizing: border-box; width: min(376px, calc(100vw - 32px)); padding: 10px; overflow: auto; pointer-events: none; }
 .app-toasts--page [data-sonner-toaster] { pointer-events: auto; }
+/* Static page rows must not inherit Sonner's negative stacking offsets behind their own list. */
+.app-toasts.app-toasts--page [data-sonner-toast] { z-index: 0; }
 :is(.app-toasts--modal, .app-toasts--page) [data-sonner-toaster] { position: static; display: flex; flex-direction: column; gap: var(--gap); width: 100%; transform: none; }
 .app-toasts:is(.app-toasts--modal, .app-toasts--page) [data-sonner-toast] { position: relative; inset: auto; flex-shrink: 0; width: 100%; height: auto; transform: none; touch-action: pan-y; }
 :is(.app-toasts--modal, .app-toasts--page) [data-sonner-toast][data-visible='false'] { display: none; }

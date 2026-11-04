@@ -468,8 +468,11 @@ test('mobile live notice keeps navigation touchable before expiry at ' + width +
     await expect(page).toHaveURL(/\/$/)
     await expect(page.locator('.app-toasts--page')).toHaveCount(0)
     await assertMessage()
+    const returned = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/auth/me')
     await page.goBack()
+    expect((await (await returned).json()).code).toBe(0)
     await expect(page).toHaveURL(/\/profile$/)
+    await expect(page.locator('.home-page.moe-route-leave-active, [data-toast-page-header]')).toHaveCount(1)
     // The route out-in transition must finish under the controlled animation clock.
     await page.clock.runFor(350)
     await writeFile(info.outputPath('navigation-return.json'), JSON.stringify(await page.evaluate(() => ({ url: location.pathname, headerCount: document.querySelectorAll('[data-toast-page-header]').length, transition: document.querySelector('[data-testid="app-route-transition"]')?.innerHTML.slice(0, 500) })), null, 2))
