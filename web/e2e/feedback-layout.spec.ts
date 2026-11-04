@@ -145,6 +145,75 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
       await expect(page.locator('[data-sonner-toast]')).toHaveCount(0)
     } finally { await context.close() }
   })
+  for (const language of ['en', 'zh-CN']) {
+    test('mobile page long notifications scroll, dismiss and expire: ' + language, async ({ browser }, info) => {
+      const context = await browser.newContext({ viewport: { width: 320, height: 320 }, hasTouch: true, isMobile: true, reducedMotion: 'reduce' })
+      try {
+        const page = await context.newPage(), time = new Date()
+        await page.clock.install({ time })
+        await page.clock.pauseAt(time)
+        await openHarness(page, 'navigation=1&language=' + language + '&theme=' + (language === 'en' ? 'dark' : 'light'))
+        await page.getByRole('button', { name: 'Publish five', exact: true }).tap()
+        await page.clock.runFor(50)
+        const region = page.locator('.app-toasts--page')
+        await expect(region.locator('[data-sonner-toast]')).toHaveCount(5)
+        expect(await region.evaluate(element => { const r = element.getBoundingClientRect(); return r.top >= 80 && r.bottom <= innerHeight - 15 && element.scrollHeight > element.clientHeight })).toBe(true)
+        await page.evaluate(() => {
+          document.documentElement.dataset.fixturePageCancels = '0'
+          document.addEventListener('pointercancel', () => { document.documentElement.dataset.fixturePageCancels = String(Number(document.documentElement.dataset.fixturePageCancels) + 1) }, true)
+        })
+        const box = (await region.boundingBox())!, session = await context.newCDPSession(page)
+        const x = box.x + box.width / 2, start = box.y + box.height - 25, end = box.y + 25
+        await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: start, id: 1 }] })
+        for (let step = 1; step <= 6; step++) await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: start + (end - start) * step / 6, id: 1 }] })
+        await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+        await expect(page.locator('html')).toHaveAttribute('data-fixture-page-cancels', '1')
+        expect(await region.evaluate(element => element.scrollTop)).toBeGreaterThan(0)
+        // Check every text segment, including the literal markup tail; a screenshot alone cannot prove this.
+        const readback = await region.evaluate(container => {
+          const pieces: Array<{ text: string; fits: boolean }> = []
+          for (const title of container.querySelectorAll('[data-title]')) {
+            const walker = document.createTreeWalker(title, NodeFilter.SHOW_TEXT)
+            let node: Node | null
+            while ((node = walker.nextNode())) {
+              for (let offset = 0; offset < (node.textContent?.length ?? 0); offset += 32) {
+                const range = document.createRange()
+                range.setStart(node, offset)
+                range.setEnd(node, Math.min(offset + 32, node.textContent!.length))
+                const before = range.getBoundingClientRect(), frame = container.getBoundingClientRect()
+                container.scrollTop += (before.top + before.bottom - frame.top - frame.bottom) / 2
+                const after = range.getBoundingClientRect()
+                pieces.push({ text: range.toString(), fits: after.top >= frame.top - 1 && after.bottom <= frame.bottom + 1 && after.left >= frame.left - 1 && after.right <= frame.right + 1 })
+              }
+            }
+          }
+          return pieces
+        })
+        expect(readback.length).toBeGreaterThan(20)
+        expect(readback.every(piece => piece.fits)).toBe(true)
+        expect(readback.map(piece => piece.text).join('')).toContain('<script>literal text</script>')
+        await writeFile(info.outputPath('page-long-text-readback.json'), JSON.stringify(readback, null, 2))
+        await page.screenshot({ path: info.outputPath('page-long-text.png'), animations: 'disabled' })
+        const close = region.locator('[data-sonner-toast] button[data-close-button]').last()
+        await close.scrollIntoViewIfNeeded()
+        await close.tap({ timeout: 1000 })
+        await page.clock.runFor(250)
+        await expect(region.locator('[data-sonner-toast]')).toHaveCount(4)
+        const original = await region.locator('[data-sonner-toast]').first().elementHandle()
+        await page.getByRole('button', { name: 'Review notification', exact: true }).tap({ timeout: 1000 })
+        await page.clock.runFor(50)
+        const modal = page.getByRole('dialog', { name: 'Parent fixture', exact: true })
+        expect(await modal.locator('[data-sonner-toast]').first().evaluate((node, original) => node === original, original)).toBe(true)
+        await modal.getByTestId('fixture-cancel').tap({ timeout: 1000 })
+        await page.clock.runFor(50)
+        await expect(region.locator('[data-sonner-toast]')).toHaveCount(4)
+        expect(await region.locator('[data-sonner-toast]').first().evaluate((node, original) => node === original, original)).toBe(true)
+        await page.mouse.move(0, 319)
+        await page.clock.runFor(6500)
+        await expect(page.locator('[data-sonner-toast]')).toHaveCount(0)
+      } finally { await context.close() }
+    })
+  }
   test('preserves the same message and focus boundary through real nested dialogs', async ({ page }, info) => {
     await openHarness(page, 'language=en')
     await page.getByRole('button', { name: 'Publish one', exact: true }).click()
@@ -351,12 +420,12 @@ test('mobile live notice keeps navigation touchable before expiry at ' + width +
     await assertMessage()
     if (width === 800) {
       const preferences = page.locator('.console-topbar__preferences')
-      await preferences.locator('.preference-switcher__trigger--language').tap({ timeout: 1000 })
+      await preferences.locator('button:has(.preference-switcher__mark--language)').tap({ timeout: 1000 })
       await page.clock.runFor(50)
       await preferences.getByRole('menuitemradio', { name: 'English', exact: true }).tap({ timeout: 1000 })
       await page.clock.runFor(50)
       await assertMessage()
-      await preferences.locator('.preference-switcher__trigger--theme').tap({ timeout: 1000 })
+      await preferences.locator('button:has(.preference-switcher__mark--theme)').tap({ timeout: 1000 })
       await page.clock.runFor(50)
       await preferences.getByTestId('theme-choice').last().tap({ timeout: 1000 })
       await page.clock.runFor(50)
@@ -374,9 +443,15 @@ test('mobile live notice keeps navigation touchable before expiry at ' + width +
     await expect(page).toHaveURL(/\/profile$/)
     await assertMessage()
     await page.setViewportSize({ width: 1000, height: 844 })
+    await page.clock.runFor(50)
     await expect(page.locator('.app-toasts--page')).toHaveCount(0)
     await assertMessage()
     await page.setViewportSize({ width, height: width === 320 ? 320 : 844 })
+    await page.clock.runFor(50)
+    await writeFile(info.outputPath('navigation-resize.json'), JSON.stringify(await page.evaluate(() => {
+      const header = document.querySelector<HTMLElement>('[data-toast-page-header]')!
+      return { width: innerWidth, display: getComputedStyle(header).display, headerBottom: header.getBoundingClientRect().bottom, pageRegion: Boolean(document.querySelector('.app-toasts--page')) }
+    }), null, 2))
     await expect(page.locator('.app-toasts--page')).toHaveCount(1)
     await page.locator('.console-topbar__brand').tap({ timeout: 1000 })
     await page.clock.runFor(50)
@@ -404,7 +479,7 @@ for (const width of [1280, 390]) {
   test('feedback keeps a real success notification clear of the reopened title at ' + width + 'px', async ({ browser }, info) => {
     const baseURL = info.project.use.baseURL
     if (typeof baseURL !== 'string') throw new Error('Requires disposable Compose baseURL')
-    const context = await browser.newContext({ baseURL, viewport: { width, height: width === 390 ? 844 : 900 }, locale: 'zh-CN', serviceWorkers: 'block', reducedMotion: 'reduce' })
+    const context = await browser.newContext({ baseURL, viewport: { width, height: width === 390 ? 844 : 900 }, hasTouch: width === 390, locale: 'zh-CN', serviceWorkers: 'block', reducedMotion: 'reduce' })
     const page = await context.newPage(), keyword = 'feedback491-' + randomBytes(6).toString('hex')
     const links = new Set<string>(), failures: unknown[] = []
     try {
@@ -462,9 +537,7 @@ for (const width of [1280, 390]) {
           const r = button.getBoundingClientRect(), hit = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2)
           return { messageCount: document.querySelectorAll('[data-sonner-toast]').length, interceptedByNotification: Boolean(hit?.closest('[data-sonner-toast]')) }
         })
-        // Page-positioned notices can cover this trigger; preserve the message using the real keyboard entry.
-        await menu.focus()
-        await page.keyboard.press('Enter')
+        await menu.tap({ timeout: 1000 })
         const drawer = page.getByTestId('console-mobile-nav')
         await writeFile(info.outputPath('drawer-handoff-start.json'), JSON.stringify({ menuEntry, ...await page.evaluate(() => ({
           messages: document.querySelectorAll('[data-sonner-toast]').length,

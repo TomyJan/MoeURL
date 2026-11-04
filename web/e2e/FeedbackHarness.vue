@@ -2,6 +2,9 @@
   <v-app>
     <AppToasts />
     <v-main>
+      <header v-if="navigation" class="feedback-page-header" data-toast-page-header>
+        <button @click="parent = true">Review notification</button>
+      </header>
       <button @click="publish(1)">Publish one</button>
       <button @click="publish(5)">Publish five</button>
       <button @click="parent = true">Open parent</button>
@@ -45,6 +48,7 @@ const en = new globalThis.URLSearchParams(globalThis.location.search).get('langu
 const parent = ref(false), child = ref(false)
 const custom = ref(false)
 const layout = new globalThis.URLSearchParams(globalThis.location.search).get('layout') === 'grid' ? 'grid' : 'flex'
+const navigation = new globalThis.URLSearchParams(globalThis.location.search).get('navigation') === '1'
 const customCancel = ref<globalThis.HTMLButtonElement | null>(null)
 const parentCancel = ref<{ $el: globalThis.HTMLElement } | null>(null), childCancel = ref<{ $el: globalThis.HTMLElement } | null>(null)
 /** Publishes actual library messages without overriding the production duration or queue. */
@@ -54,6 +58,7 @@ function publish(count: number) {
 </script>
 <style>
 .feedback-fixture-card { min-width: 0; }
+.feedback-page-header { position: sticky; top: 0; z-index: 15; display: flex; align-items: center; min-height: 72px; background: rgb(var(--v-theme-surface)); }
 .feedback-empty-panel { position: relative; min-width: 0; padding: 18px; border: 1px solid; background: rgb(var(--v-theme-surface)); }
 .feedback-empty-panel--flex { display: flex; flex-direction: column; gap: 14px; }
 .feedback-empty-panel--grid { display: grid; gap: 16px; }
