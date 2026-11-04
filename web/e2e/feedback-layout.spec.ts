@@ -211,6 +211,8 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
         await page.screenshot({ path: info.outputPath('page-long-text.png'), animations: 'disabled' })
         const close = region.locator('[data-sonner-toast] button[data-close-button]').last()
         await close.scrollIntoViewIfNeeded()
+        // Range readback above scrolls synchronously; let those scroll commits reach the compositor before tapping.
+        await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
         await writeFile(info.outputPath('page-close-hit.json'), JSON.stringify(await close.evaluate(button => {
           const r = button.getBoundingClientRect(), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
           const chain = []
