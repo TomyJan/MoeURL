@@ -239,34 +239,21 @@ for (const width of [1280, 390]) {
         const title = geometry.title
         expect(toast.right > title.left && title.right > toast.left && toast.bottom > title.top && title.bottom > toast.top, 'Notification overlaps the real reopened dialog title').toBe(false)
       }
-      await page.locator('[data-sonner-toast]').hover()
-      await page.setViewportSize({ width, height: 320 })
-      const dialog = page.getByTestId('batch-note-clear-dialog'), warning = dialog.locator('.v-alert').first()
-      await warning.scrollIntoViewIfNeeded()
-      await page.screenshot({ path: info.outputPath('notification-short-height.png'), animations: 'disabled' })
-      const warningLayout = await warning.evaluate(element => {
-        const r = element.getBoundingClientRect(), text = element.querySelector('.v-alert__content')!.getBoundingClientRect()
-        return { height: r.height, scrollHeight: element.scrollHeight, clientHeight: element.clientHeight, textFits: text.top >= r.top - 1 && text.bottom <= r.bottom + 1 }
-      })
-      await writeFile(info.outputPath('real-short-warning-geometry.json'), JSON.stringify(warningLayout, null, 2))
-      expect(warningLayout.scrollHeight).toBeLessThanOrEqual(warningLayout.clientHeight + 1)
-      expect(warningLayout.textFits, 'The real safety warning must not clip its own text at 320px height').toBe(true)
-      for (const paragraph of await dialog.getByTestId('batch-note-clear-summary').locator('p').all()) {
-        await paragraph.scrollIntoViewIfNeeded()
-        expect(await paragraph.evaluate(element => {
-          const r = element.getBoundingClientRect(), body = element.closest('.v-card-text')!.getBoundingClientRect()
-          return r.top >= body.top - 1 && r.bottom <= body.bottom + 1
-        }), 'Each real summary line must remain readable by scrolling the body').toBe(true)
-      }
+      const dialog = page.getByTestId('batch-note-clear-dialog')
       if (width === 390) {
         // Exercise the real 220ms drawer-to-create overlap with normal motion and the same live message.
-        await page.setViewportSize({ width, height: 844 })
         await page.emulateMedia({ reducedMotion: 'no-preference' })
+        await expect(page.locator('[data-sonner-toast]')).toHaveCount(1)
         const message = await page.locator('[data-sonner-toast]').elementHandle()
         await dialog.getByTestId('batch-note-clear-cancel').click()
         await expect(dialog).toHaveCount(0)
         await page.locator('.console-topbar__menu').click()
         const drawer = page.getByTestId('console-mobile-nav')
+        await writeFile(info.outputPath('drawer-handoff-start.json'), JSON.stringify(await page.evaluate(() => ({
+          messages: document.querySelectorAll('[data-sonner-toast]').length,
+          owners: Array.from(document.querySelectorAll('[data-sonner-toast]')).map(node => node.closest('[data-toast-modal-root]')?.className ?? 'page'),
+          panels: Array.from(document.querySelectorAll('[data-toast-modal-root], .v-dialog.v-overlay--active .v-overlay__content')).map(node => ({ classes: node.className, parent: node.parentElement?.className, hidden: node.closest('[inert], [aria-hidden="true"]')?.className })),
+        })), null, 2))
         await expect(drawer.locator('[data-sonner-toast]')).toHaveCount(1)
         await page.evaluate(() => {
           document.documentElement.dataset.fixtureHandoff = 'pending'
@@ -284,6 +271,29 @@ for (const width of [1280, 390]) {
         expect(await create.locator('[data-sonner-toast]').evaluate((node, original) => node === original, message)).toBe(true)
         await expect(drawer).toHaveCount(0)
         await page.keyboard.press('Escape')
+        await expect(create).toHaveCount(0)
+        await page.emulateMedia({ reducedMotion: 'reduce' })
+        await page.getByTestId('batch-note-clear').click()
+        await expect(dialog.getByTestId('batch-note-clear-cancel')).toBeFocused()
+      }
+      await page.locator('[data-sonner-toast]').hover()
+      await page.setViewportSize({ width, height: 320 })
+      const warning = dialog.locator('.v-alert').first()
+      await warning.scrollIntoViewIfNeeded()
+      await page.screenshot({ path: info.outputPath('notification-short-height.png'), animations: 'disabled' })
+      const warningLayout = await warning.evaluate(element => {
+        const r = element.getBoundingClientRect(), text = element.querySelector('.v-alert__content')!.getBoundingClientRect()
+        return { height: r.height, scrollHeight: element.scrollHeight, clientHeight: element.clientHeight, textFits: text.top >= r.top - 1 && text.bottom <= r.bottom + 1 }
+      })
+      await writeFile(info.outputPath('real-short-warning-geometry.json'), JSON.stringify(warningLayout, null, 2))
+      expect(warningLayout.scrollHeight).toBeLessThanOrEqual(warningLayout.clientHeight + 1)
+      expect(warningLayout.textFits, 'The real safety warning must not clip its own text at 320px height').toBe(true)
+      for (const paragraph of await dialog.getByTestId('batch-note-clear-summary').locator('p').all()) {
+        await paragraph.scrollIntoViewIfNeeded()
+        expect(await paragraph.evaluate(element => {
+          const r = element.getBoundingClientRect(), body = element.closest('.v-card-text')!.getBoundingClientRect()
+          return r.top >= body.top - 1 && r.bottom <= body.bottom + 1
+        }), 'Each real summary line must remain readable by scrolling the body').toBe(true)
       }
     } catch (error) { failures.push(error) } finally {
       try {
