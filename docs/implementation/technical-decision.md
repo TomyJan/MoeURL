@@ -6,7 +6,7 @@ v0.49.2 已通过 [PR268](https://github.com/TomyJan/MoeURL/pull/268) 完整交�
 
 v0.49.3 已通过 [PR269](https://github.com/TomyJan/MoeURL/pull/269) 完整交付，master `4b5d4dc4db6d14a430cdc3cdf7238f3d9516da77`。最新真实审查、候选41919580747与master41924031590各九CI及完整日志、标准Task1–3、23条裁决报告和可恢复归档全部完成；未发布部署，见[验收](v0.49.3-acceptance.md)。
 
-当前设计 [v0.50.0 批量替换内部备注](../product/scope-v0.50.0.md)：当前页 1–100 条、统一非空正文、实际预览后显式覆盖，完整双 CAS／原子字段名审计及草稿代际隔离。尚未实施或验证；无新依赖、权限或 migration，详见[计划](v0.50.0-plan.md)。下方旧阶段保持历史归属。
+当前实施 [v0.50.0 批量替换内部备注](../product/scope-v0.50.0.md)：当前页 1–100 条、统一非空正文、实际预览后显式覆盖，完整双 CAS／原子字段名审计及草稿代际隔离。后端四接口及本地完整门禁已通过，前端、浏览器、审查及目标 CI 尚未完成；无新依赖、权限或 migration，详见[计划](v0.50.0-plan.md)。下方旧阶段保持历史归属。
 
 [v0.49.2 空通知区域设计](../specs/2026-11-04-v0.49.2-empty-toast-gap-design.md)已实现实际无 toast DOM 的 modal wrapper 绝对定位、零尺寸并脱离 flex／grid 流；有退出节点继续原布局，下一消息恢复 30dvh。保留单一 Toaster、队列、六秒／五条、焦点和原生滚动，不隐藏或卸载 live region、不改父 gap；3253 项前端、203 项完整浏览器／73 张原图、精确产品和唯一独立终审已完成，远端交付仍待，见[验收](v0.49.2-acceptance.md)。无 API、schema、权限、依赖或生成物变化。
 

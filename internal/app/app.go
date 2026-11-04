@@ -101,6 +101,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.AdminShortLinkTagCatalog = shortLinkService
 		deps.ShortLinkNote = shortLinkService
 		deps.ShortLinkBatchNoteClear = shortLinkService
+		deps.ShortLinkBatchNoteReplace = shortLinkService
 		deps.ShortLinkNoteSearch = shortLinkService
 		deps.ShortLink = shortLinkService
 		deps.ShortLinkExport = shortLinkService

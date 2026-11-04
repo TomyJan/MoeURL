@@ -20,52 +20,53 @@ import (
 )
 
 type Dependencies struct {
-	Logger                   *slog.Logger
-	Health                   HealthChecker
-	System                   system.ServicePort
-	SystemSettings           system.SettingsPort
-	HomeContent              system.HomeContentPort
-	Appearance               system.AppearancePort
-	FooterLinks              system.FooterLinksPort
-	Auth                     auth.Port
-	Password                 auth.PasswordPort
-	CurrentUser              auth.CurrentUserResolver
-	ShortLink                shortlink.Port
-	ShortLinkExport          shortlink.ExportPort
-	ShortLinkListExport      shortlink.ListExportPort
-	ShortLinkTagCatalog      shortlink.TagCatalogPort
-	AdminShortLinkTagCatalog shortlink.AdminTagCatalogPort
-	ShortLinkNote            shortlink.NotePort
-	ShortLinkBatchNoteClear  shortlink.BatchNoteClearPort
-	ShortLinkNoteSearch      shortlink.NoteSearchPort
-	ShortLinkBatch           shortlink.BatchPort
-	ShortLinkTransfer        shortlink.TransferPort
-	ShortLinkBatchTransfer   shortlink.BatchTransferPort
-	ShortLinkBatchTags       shortlink.BatchTagsPort
-	ShortLinkBatchCreate     shortlink.BatchCreatePort
-	Insights                 insights.Port
-	VisitExport              insights.VisitExportPort
-	Audit                    insights.AuditPort
-	AuditExport              insights.AuditExportPort
-	Domain                   domain.Port
-	DomainOrder              domain.OrderPort
-	DomainRedirectDefault    domain.RedirectDefaultPort
-	Redirect                 shortlink.RedirectPort
-	RedirectRecorder         event.Recorder
-	AnalyticsCountryHeader   string
-	SecureCookies            bool
-	User                     user.Port
-	UserMembership           user.GroupPort
-	UserBatchMembership      user.BatchGroupPort
-	UserPreferences          user.PreferencesPort
-	UserDomainPreference     user.DomainPreferencePort
-	UserTimeZonePreference   user.TimeZonePreferencePort
-	UserRedirectPreference   user.RedirectPreferencePort
-	UserGroup                usergroup.Port
-	UserGroupDomainDefault   usergroup.DomainDefaultPort
-	OIDCProvider             oidc.ProviderPort
-	OIDCLogin                oidc.LoginPort
-	StaticDir                string
+	Logger                    *slog.Logger
+	Health                    HealthChecker
+	System                    system.ServicePort
+	SystemSettings            system.SettingsPort
+	HomeContent               system.HomeContentPort
+	Appearance                system.AppearancePort
+	FooterLinks               system.FooterLinksPort
+	Auth                      auth.Port
+	Password                  auth.PasswordPort
+	CurrentUser               auth.CurrentUserResolver
+	ShortLink                 shortlink.Port
+	ShortLinkExport           shortlink.ExportPort
+	ShortLinkListExport       shortlink.ListExportPort
+	ShortLinkTagCatalog       shortlink.TagCatalogPort
+	AdminShortLinkTagCatalog  shortlink.AdminTagCatalogPort
+	ShortLinkNote             shortlink.NotePort
+	ShortLinkBatchNoteClear   shortlink.BatchNoteClearPort
+	ShortLinkBatchNoteReplace shortlink.BatchNoteReplacePort
+	ShortLinkNoteSearch       shortlink.NoteSearchPort
+	ShortLinkBatch            shortlink.BatchPort
+	ShortLinkTransfer         shortlink.TransferPort
+	ShortLinkBatchTransfer    shortlink.BatchTransferPort
+	ShortLinkBatchTags        shortlink.BatchTagsPort
+	ShortLinkBatchCreate      shortlink.BatchCreatePort
+	Insights                  insights.Port
+	VisitExport               insights.VisitExportPort
+	Audit                     insights.AuditPort
+	AuditExport               insights.AuditExportPort
+	Domain                    domain.Port
+	DomainOrder               domain.OrderPort
+	DomainRedirectDefault     domain.RedirectDefaultPort
+	Redirect                  shortlink.RedirectPort
+	RedirectRecorder          event.Recorder
+	AnalyticsCountryHeader    string
+	SecureCookies             bool
+	User                      user.Port
+	UserMembership            user.GroupPort
+	UserBatchMembership       user.BatchGroupPort
+	UserPreferences           user.PreferencesPort
+	UserDomainPreference      user.DomainPreferencePort
+	UserTimeZonePreference    user.TimeZonePreferencePort
+	UserRedirectPreference    user.RedirectPreferencePort
+	UserGroup                 usergroup.Port
+	UserGroupDomainDefault    usergroup.DomainDefaultPort
+	OIDCProvider              oidc.ProviderPort
+	OIDCLogin                 oidc.LoginPort
+	StaticDir                 string
 }
 
 // NewRouter registers API, static-file, and short-link redirect routes.
@@ -211,6 +212,13 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				businessAPI.Post("/admin/short-link/note/batch-clear/preview", handler.PreviewAdmin)
 				businessAPI.Post("/short-link/note/batch-clear", handler.ClearOwn)
 				businessAPI.Post("/admin/short-link/note/batch-clear", handler.ClearAdmin)
+			}
+			if dependency.ShortLinkBatchNoteReplace != nil {
+				handler := shortlink.NewBatchNoteReplaceHandler(dependency.ShortLinkBatchNoteReplace, logger)
+				businessAPI.Post("/short-link/note/batch-replace/preview", handler.PreviewOwn)
+				businessAPI.Post("/admin/short-link/note/batch-replace/preview", handler.PreviewAdmin)
+				businessAPI.Post("/short-link/note/batch-replace", handler.ReplaceOwn)
+				businessAPI.Post("/admin/short-link/note/batch-replace", handler.ReplaceAdmin)
 			}
 			if dependency.ShortLinkNote != nil {
 				handler := shortlink.NewNoteHandler(dependency.ShortLinkNote, logger)
