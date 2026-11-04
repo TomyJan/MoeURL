@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from '@playwright/test'
-import type { APIRequestContext } from '@playwright/test'
+import type { APIRequestContext, Page } from '@playwright/test'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
 
 /** Makes one real fixture request; failed writes are never automatically retried. */
@@ -17,6 +17,19 @@ async function success(api: APIRequestContext, path: string, data?: unknown) {
 
 test.describe('real shared component with real Vuetify modal fixtures', () => {
   let harness: string
+  /** Serves exact UTF-8 fixture assets and reports boot failures before any interaction timeout. */
+  async function openHarness(page: Page, query = '') {
+    const errors: string[] = []
+    page.on('pageerror', error => errors.push(error.message))
+    await page.route('http://feedback.test/**', async route => {
+      const path = new URL(route.request().url()).pathname
+      if (path === '/harness.js' || path === '/harness.css') return route.fulfill({ body: await readFile(harness + path, 'utf8'), contentType: path.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'text/css; charset=utf-8' })
+      return route.fulfill({ contentType: 'text/html; charset=utf-8', body: '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/harness.css"></head><body><div id="app"></div><script src="/harness.js"></script></body></html>' })
+    })
+    await page.goto('http://feedback.test/?' + query)
+    expect(errors, 'Fixture boot must not fail before testing shared feedback').toEqual([])
+    await expect(page.getByRole('button', { name: 'Publish one', exact: true })).toBeVisible({ timeout: 5000 })
+  }
   test.beforeAll(async ({ browserName }, info) => {
     expect(browserName).toBe('chromium')
     harness = process.env.MOEURL_E2E_FEEDBACK_HARNESS_DIR ?? info.outputPath('feedback-harness')
@@ -29,31 +42,21 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
     await readFile(harness + '/harness.css')
   })
   test('keeps the six-second lifetime when a message moves into a modal', async ({ page }) => {
-    await page.route('http://feedback.test/**', async route => {
-      const path = new URL(route.request().url()).pathname
-      if (path === '/harness.js' || path === '/harness.css') return route.fulfill({ body: await readFile(harness + path), contentType: path.endsWith('.js') ? 'text/javascript' : 'text/css' })
-      return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><link rel="stylesheet" href="/harness.css"></head><body><div id="app"></div><script src="/harness.js"></script></body></html>' })
-    })
     const time = new Date('2026-11-04T00:00:00Z')
     await page.clock.install({ time })
     await page.clock.pauseAt(time)
-    await page.goto('http://feedback.test/?language=en')
-    await page.getByRole('button', { name: 'Publish one', exact: true }).click()
+    await openHarness(page, 'language=en')
+    await page.getByRole('button', { name: 'Publish one', exact: true }).dispatchEvent('click')
     await page.clock.runFor(4000)
     await expect(page.locator('[data-sonner-toast]')).toHaveCount(1)
-    await page.getByRole('button', { name: 'Open parent', exact: true }).click()
+    await page.getByRole('button', { name: 'Open parent', exact: true }).dispatchEvent('click')
     await page.clock.runFor(350)
     await expect(page.getByRole('dialog', { name: 'Parent fixture', exact: true }).locator('[data-sonner-toast]')).toHaveCount(1)
     await page.clock.runFor(2200)
     await expect(page.locator('[data-sonner-toast]')).toHaveCount(0)
   })
   test('preserves the same message and focus boundary through real nested dialogs', async ({ page }, info) => {
-    await page.route('http://feedback.test/**', async route => {
-      const path = new URL(route.request().url()).pathname
-      if (path === '/harness.js' || path === '/harness.css') return route.fulfill({ body: await readFile(harness + path), contentType: path.endsWith('.js') ? 'text/javascript' : 'text/css' })
-      return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/harness.css"></head><body><div id="app"></div><script src="/harness.js"></script></body></html>' })
-    })
-    await page.goto('http://feedback.test/?language=en')
+    await openHarness(page, 'language=en')
     await page.getByRole('button', { name: 'Publish one', exact: true }).click()
     const original = await page.locator('[data-sonner-toast]').elementHandle()
     await page.getByRole('button', { name: 'Open parent', exact: true }).click()
@@ -91,13 +94,8 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
       // DPR2 + half-sized CSS viewport exercises the layout at 200% desktop zoom equivalence.
       const context = await browser.newContext({ viewport: { width: scenario.width, height: scenario.height }, deviceScaleFactor: scenario.scale, reducedMotion: 'reduce' })
       try {
-        await context.route('http://feedback.test/**', async route => {
-          const path = new URL(route.request().url()).pathname
-          if (path === '/harness.js' || path === '/harness.css') return route.fulfill({ body: await readFile(harness + path), contentType: path.endsWith('.js') ? 'text/javascript' : 'text/css' })
-          return route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/harness.css"></head><body><div id="app"></div><script src="/harness.js"></script></body></html>' })
-        })
         const page = await context.newPage()
-        await page.goto('http://feedback.test/?language=' + scenario.language + '&theme=' + scenario.theme)
+        await openHarness(page, 'language=' + scenario.language + '&theme=' + scenario.theme)
         await page.getByRole('button', { name: 'Publish five', exact: true }).click()
         await page.getByRole('button', { name: 'Open parent', exact: true }).click()
         const modal = page.getByRole('dialog', { name: 'Parent fixture', exact: true })

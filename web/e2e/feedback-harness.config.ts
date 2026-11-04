@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [vue()],
   publicDir: false,
   resolve: { alias: { '@': fileURLToPath(new URL('../src', import.meta.url)) } },
-  define: { 'process.env.NODE_ENV': JSON.stringify('production') },
+  define: { 'process.env.NODE_ENV': JSON.stringify('production'), 'process.env.VITE_LOGGER_ENABLED': JSON.stringify('false') },
   build: {
     // The caller owns a unique external test-output directory; this never writes web/dist.
     emptyOutDir: true,
