@@ -92,6 +92,7 @@ onUnmounted(() => {
 [data-sonner-toaster] { z-index: 10000; }
 [data-sonner-toast] { overflow-wrap: anywhere; }
 .app-toasts--modal { order: -1; flex: 0 1 auto; min-height: 0; max-height: 30dvh; overflow: auto; }
+.app-toasts--modal:not([data-toast-modal-region]) { position: absolute; width: 0; height: 0; }
 .app-toasts--modal[data-toast-modal-region] { padding: 10px; }
 .app-toasts--modal [data-sonner-toaster] { position: static; display: flex; flex-direction: column; gap: var(--gap); width: 100%; transform: none; }
 .app-toasts.app-toasts--modal [data-sonner-toast] { position: relative; inset: auto; flex-shrink: 0; width: 100%; height: auto; transform: none; touch-action: pan-y; }

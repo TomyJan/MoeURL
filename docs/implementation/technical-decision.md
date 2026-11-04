@@ -1,6 +1,8 @@
 # 技术选型决策
 
-[v0.49.1 通知布局设计](../specs/2026-11-04-v0.49.1-modal-feedback-design.md)保留单一 Toaster／队列，在最高活动弹窗内采用有界正常流区域。按实际外层 overlay z-index 排序并排除退出层；触摸 capture 保留原生滚动，以 mouseleave 恢复迁移遗留 hover 暂停，通知真正退出且焦点仍 BODY 时回当前 modal 安全控件。批量备注框仅修复 grid 行收缩。完整 3253 项四项 100%、199 项浏览器／67 原图及精确产品通过，唯一终审四项 Important 已修复；Task2 收尾与远端仍待。F1 自定义空 wrapper 结构 gap、页面通知挡鼠标入口边界保留，无 API、权限、schema 或依赖变化，见[验收](v0.49.1-acceptance.md)。
+[v0.49.2 空通知区域设计](../specs/2026-11-04-v0.49.2-empty-toast-gap-design.md)已实现实际无 toast DOM 的 modal wrapper 绝对定位、零尺寸并脱离 flex／grid 流；有退出节点继续原布局，下一消息恢复 30dvh。保留单一 Toaster、队列、六秒／五条、焦点和原生滚动，不隐藏或卸载 live region、不改父 gap；3253 项前端、203 项完整浏览器／73 张原图、精确产品和唯一独立终审已完成，远端交付仍待，见[验收](v0.49.2-acceptance.md)。无 API、schema、权限、依赖或生成物变化。
+
+v0.49.1 已通过 [PR265](https://github.com/TomyJan/MoeURL/pull/265) 完整交付，master `81591816c6cde10c78a9f386fcec1ffc8513bc70`；候选最新真实审查覆盖、候选和 master 各九 CI／完整日志、标准 Task1–3、22 条完整裁决及可恢复归档均完成。F1 空 wrapper 间距、M5／M9 和页面鼠标入口边界按原范围保留，未发布部署。前版运行身份与全部原始失败保持[验收](v0.49.1-acceptance.md)归属。
 
 [v0.49.0 批量清空内部备注](../specs/2026-11-04-v0.49.0-batch-note-clear-design.md)采用四个固定 POST、当前页 1–100 条、64 KiB／五秒限制、完整纳秒双版本、全批事务及既有字段名审计。PR264 已完整交付，候选／master 各自九 CI、最新真实审查、标准 Task1–4 和可恢复归档完成；原执行身份及失败保留，无新依赖、权限或 migration，见[验收](v0.49.0-acceptance.md)。
 

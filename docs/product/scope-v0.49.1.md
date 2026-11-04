@@ -1,6 +1,6 @@
 # v0.49.1 弹窗通知布局范围
 
-2026-11-04 从 PR264 已交付 master `bbdc95e6cce206f217666723a22375f967643d6f` 启动。Task1 标准完成；唯一终审四项 Important 已修复，完整 3253 项前端四项 100%、types／lint／build、199 项浏览器／67 张原图及精确产品／扫描通过。Task2 本地合同与归档收尾、Task3 远端交付仍待，未发布部署。状态见[验收](../implementation/v0.49.1-acceptance.md)。
+v0.49.1 已通过 [PR265](https://github.com/TomyJan/MoeURL/pull/265) 完整交付，master `81591816c6cde10c78a9f386fcec1ffc8513bc70`；候选最新真实审查覆盖、候选和 master 各九 CI／完整日志、标准 Task1–3、22 条完整裁决及可恢复归档均完成。F1 空 wrapper 间距、M5／M9 和页面鼠标入口边界按原范围保留，未发布部署。候选 run41870137739 与 master run41875049139 均已完整核至 EOF；准确合并与归档证据见[验收](../implementation/v0.49.1-acceptance.md)。下一版独立处理 F1，原本地执行与失败保持归属。
 
 ## 目标
 
