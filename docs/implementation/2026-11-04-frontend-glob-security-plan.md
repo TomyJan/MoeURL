@@ -49,7 +49,7 @@
 - [x] 标准产品build／smoke／restart／version，核binary／static身份、精确image与正常数据库更新启用的Trivy选定HIGH／CRITICAL三目标。各exit0；23个BuildKit缓存步骤及未过期seed DB实际复用分别记录。
 - [x] Go／SQLC完整对应519输入与原成功合同set／hash／bytes相等，复用原身份，未重跑。Dockerfile变化单独验证，不声明整个非web集合全等。
 - [x] 末段唯一fresh最强supported整分支终审；Critical／Important零，无产品修复轮；M1随计划文档收尾。五项Declined逐项裁决及错误代价、旧M5／M9延期保留，不派第二席。
-- [ ] 完整报告、完成合同与阶段whole-owned ZIP／extract全集核后标准done2；阶段档案不冒最终交付。
+- [x] 完整11条本地裁决报告、完成合同与阶段whole-owned ZIP／extract全集核后标准done2实际0；原参数准备失败及后继裁决保留，阶段档案不冒最终交付。
 
 ## 任务 3：远端交付与可恢复归档
 

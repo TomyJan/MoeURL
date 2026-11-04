@@ -1,6 +1,6 @@
 # 前端 glob 安全维护验收
 
-2026-11-04 新依赖安装、安全检查及完整前端门禁已通过，Task1 标准完成；clean `8d2195dc2dbdbdb3bab0202bb6b86a0afa8586c5` 的完整浏览器、新产品和唯一独立终审已通过。本地合同／归档／标准 Task2 收尾随后按实际回执判定，远端交付尚未执行。基线为已完整交付 v0.48.0 的 master `6aa7c0aa5a805446fae16e7d8453388763081f23`，独立分支 `fix/frontend-glob-security`。原始证据外置于 `D:/Dev/TomyJan/MoeURL/.tmp/frontend-glob-security-20261104`。
+2026-11-04 新依赖安装、安全检查及完整前端门禁已通过，Task1 标准完成；clean `8d2195dc2dbdbdb3bab0202bb6b86a0afa8586c5` 的完整浏览器、新产品和唯一独立终审已通过。本地合同、阶段归档及标准 Task2 已完成，Task3 已标准开始，远端交付尚未执行。基线为已完整交付 v0.48.0 的 master `6aa7c0aa5a805446fae16e7d8453388763081f23`，独立分支 `fix/frontend-glob-security`。原始证据外置于 `D:/Dev/TomyJan/MoeURL/.tmp/frontend-glob-security-20261104`。
 
 - [x] 基线官方 audit：2 moderate／0 high／0 critical，实际exit1，完整6458bytes原件SHA `F4CFDFD3E7725F8D85D21E6581AA59AB0F1F10A2DD34278DC0F5A724506844F8`；旧镜像 `sha256:8186bac837af789761eec4e9ce6e698c0b2b6287cfdc7cc6f6040bfd5279f26b`，Node26.12.0／pnpm11.5。此项复用原执行，不冒本轮重跑或产品RED。
 - [x] 标准解析及 frozen 安装，完整树无受影响目标副本，两个 GHSA 消失。Node 26.12.0／pnpm 11.5.0；外置 `resolve/web` 执行 `pnpm install --lockfile-only --ignore-scripts --registry=https://registry.npmjs.org`，实际 exit0；新依赖镜像 `sha256:223fc947956ff7cab530f74985e2dd08b07045d25cd11e382fdc5d1b64f93c30` 的 frozen 安装实际 exit0。四个父节点使用 minimatch 11.0.2，glob 14.0.3 自然解析安全的 minimatch 11.0.4；仅目标必要闭包变化。镜像内 `pnpm list --depth Infinity --json`、`pnpm why minimatch glob`、官方 `pnpm audit --json --registry=https://registry.npmjs.org` 均实际 exit0，427 个依赖，全严重度零公告。完整树和原件 hash 见 `task1-dependency-proof.json`。
@@ -9,7 +9,7 @@
 - [x] 标准 Compose build／smoke／restart／binary／static／Trivy 六项均 exit0，精确产品镜像 `sha256:be9a28db6961162f1df1a7133dfbee882079905a2e2efb218ca65f60c4aedf74`；23 个 BuildKit 缓存步骤不冒全部重新编译。产品 binary Go 1.27.3；Trivy 0.74.0 对 Alpine、goose、moeurl 三目标选定 HIGH／CRITICAL 均零，`ignore-unfixed=false`、正常更新启用，未过期 seed DB 实际复用、无下载。数据库 UpdatedAt 为 `2026-11-03T19:16:30.092559407Z`，EOL 列表和 vendor severity warning 保留；不冒全严重度或可达性结论。完整输入稳定、owned 资源空，见 `task2-product-independent-check.json` 与 ROOT 八短 raw EOF 回执。
 - [x] 后端对应 519 个完整非 Markdown／非 web 输入（仅排除已变 Dockerfile）与 v0.48、v0.47 最终及原后端合同的 set／hash／bytes 全同，27 原件核准，未重跑 Go／SQLC。原完成合同 head `a02f8d32` 承接底层 Windows full／coverage／vet 的实际 `5fc90f36` 运行；Host／Linux Go 1.26.10 保持原身份，不能与当前产品 Go 1.27.3 混写。Dockerfile 单独使用上述新产品验证。
 - [x] 唯一 fresh 独立整分支终审覆盖 `6aa7c0aa..8d2195dc`，Critical 0／Important 0／Minor 1；入口阶段文案 M1 纳入已计划文档收尾。五项 Declined 逐项裁决，旧 M5／M9 延期保留；不派复审、不重成功 suite。
-- [ ] 本地合同、阶段 whole-owned ZIP／extract 与标准 Task2 收尾。
+- [x] 本地合同、阶段 whole-owned ZIP／extract 与标准 Task2 收尾。文档收尾 `d2757d54e1e8a4bc019113ab6a207d00466dc845`，930 非 Markdown 输入全等，885 链接及 diff check 通过；完整 11 条本地裁决与五项 Declined 处置、M5／M9 延期报告已归档。ZIP 60861 bytes／SHA `869153BDA776FF4E4317202DFE6D9F0181035AFC8358BD07EAF3E822C2075C19`，10 文件／150092 bytes 全集解压核准。标准 done2 的首次外置参数准备失败发生于任务验证启动前，实际 exit127；修正参数数组后 fixed 原件实际 exit0，未重 suite、归档或合同。后继准备恢复裁决及标准完成行进入最终新档案，阶段档案不冒最终交付。
 - [ ] 最新候选真实远端覆盖、完整讨论、候选九CI与完整日志。
 - [ ] 守卫合并与独立master身份、master自身九CI与完整日志、最终标准任务及可恢复归档。
 
