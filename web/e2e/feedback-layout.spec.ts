@@ -276,6 +276,72 @@ for (const kind of ['drawer', 'create'] as const) {
     } finally { await context.close() }
   })
 }
+// Leaving the page notification at the top-right must fail a genuine touch, before its timer can expire.
+test('mobile live notice keeps the menu touchable before expiry', async ({ browser }, info) => {
+  const baseURL = info.project.use.baseURL
+  if (typeof baseURL !== 'string') throw new Error('Requires disposable Compose baseURL')
+  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, locale: 'zh-CN', serviceWorkers: 'block', reducedMotion: 'reduce' })
+  const page = await context.newPage(), keyword = 'navigation493-' + randomBytes(6).toString('hex')
+  const links = new Set<string>(), failures: unknown[] = []
+  try {
+    await context.addInitScript(() => { localStorage.setItem('moeurl.language', 'zh-CN'); localStorage.setItem('moeurl.theme', 'light') })
+    await success(page.request, '/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword })
+    await success(page.request, '/short-link/batch-create', { requestId: randomUUID(), targetUrls: ['https://example.com/' + keyword] })
+    const found = await success(page.request, '/admin/short-link/list?q=' + keyword + '&page=1&pageSize=20')
+    expect(found.data.items).toHaveLength(1)
+    const id: string = found.data.items[0].id
+    links.add(id)
+    const note = (await success(page.request, '/admin/short-link/note?id=' + id)).data
+    await success(page.request, '/admin/short-link/note/update', { id, note: 'Disposable navigation fixture', expectedUpdatedAt: note.updatedAt })
+    await page.goto('/admin/link')
+    const listed = page.waitForResponse(r => new URL(r.url()).pathname === '/api/v1/admin/short-link/list' && new URL(r.url()).searchParams.get('q') === keyword)
+    await page.getByRole('textbox', { name: '关键词搜索', exact: true }).fill(keyword)
+    expect((await (await listed).json()).code).toBe(0)
+    await expect(page.getByTestId('console-link-row')).toHaveCount(1)
+    const time = new Date()
+    await page.clock.install({ time })
+    await page.clock.pauseAt(time)
+    await page.getByRole('checkbox').first().check()
+    await page.getByTestId('batch-note-clear').click()
+    await page.clock.runFor(350)
+    const cleared = page.waitForResponse(r => new URL(r.url()).pathname === '/api/v1/admin/short-link/note/batch-clear')
+    await page.getByTestId('batch-note-clear-confirm').click()
+    expect((await (await cleared).json()).code).toBe(0)
+    await page.clock.runFor(350)
+    await expect(page.getByTestId('batch-note-clear-dialog')).toHaveCount(0)
+    await page.getByRole('checkbox').first().check()
+    await page.getByTestId('batch-note-clear').click()
+    await page.clock.runFor(350)
+    const dialog = page.getByTestId('batch-note-clear-dialog')
+    await expect(dialog.locator('[data-sonner-toast]')).toHaveCount(1)
+    const message = await page.locator('[data-sonner-toast]').elementHandle()
+    await page.getByTestId('batch-note-clear-cancel').click()
+    await page.clock.runFor(350)
+    await expect(dialog).toHaveCount(0)
+    const menu = page.locator('.console-topbar__menu')
+    await writeFile(info.outputPath('navigation-before-tap.json'), JSON.stringify(await menu.evaluate(button => {
+      const rect = (node: Element) => { const r = node.getBoundingClientRect(); return { left: r.left, top: r.top, right: r.right, bottom: r.bottom } }
+      const r = button.getBoundingClientRect(), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+      return { menu: rect(button), toasts: Array.from(document.querySelectorAll('[data-sonner-toast]')).map(rect), interceptedByNotification: Boolean(hit?.closest('[data-sonner-toast]')) }
+    }), null, 2))
+    await expect(page.locator('[data-sonner-toast]')).toHaveCount(1)
+    await menu.tap({ timeout: 1000 })
+    await page.clock.runFor(350)
+    const drawer = page.getByTestId('console-mobile-nav')
+    await expect(drawer).toBeVisible()
+    expect(await drawer.locator('[data-sonner-toast]').evaluate((node, original) => node === original, message)).toBe(true)
+    await page.screenshot({ path: info.outputPath('navigation-live-notice.png'), animations: 'disabled' })
+  } catch (error) { failures.push(error) } finally {
+    try {
+      const found = await success(page.request, '/admin/short-link/list?q=' + keyword + '&page=1&pageSize=20')
+      for (const link of found.data.items) links.add(link.id)
+    } catch (error) { failures.push(error) }
+    for (const id of links) { try { await success(page.request, '/admin/short-link/delete', { id }) } catch (error) { failures.push(error) } }
+    try { await context.close() } catch (error) { failures.push(error) }
+  }
+  if (failures.length) throw new AggregateError(failures, 'Navigation scenario or exact fixture cleanup failed')
+})
+
 // A fixed toast covering the reopened title must fail even when every business request succeeds.
 for (const width of [1280, 390]) {
   test('feedback keeps a real success notification clear of the reopened title at ' + width + 'px', async ({ browser }, info) => {
