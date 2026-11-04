@@ -1,6 +1,6 @@
 # v0.49.2 空通知区域间距范围
 
-2026-11-04 从已完整交付 PR265 的 master `81591816c6cde10c78a9f386fcec1ffc8513bc70` 启动；分支 `fix/v0.49.2-empty-toast-gap`。空区域布局已实现，真实业务几何 RED→GREEN，完整前端门禁及 13 项定向浏览器通过；完整浏览器、产品、终审和远端交付尚未完成，见[计划](../implementation/v0.49.2-plan.md)和[验收](../implementation/v0.49.2-acceptance.md)。
+2026-11-04 从已完整交付 PR265 的 master `81591816c6cde10c78a9f386fcec1ffc8513bc70` 启动；分支 `fix/v0.49.2-empty-toast-gap`。空区域布局已实现，真实业务几何 RED→GREEN，3253 项前端、13 项定向和 203 项完整浏览器、73 张完整回归原图及精确产品验证通过；唯一独立终审无 Critical／Important。Task1 标准完成，Task2 本地收尾中，远端交付尚未完成，见[计划](../implementation/v0.49.2-plan.md)和[验收](../implementation/v0.49.2-acceptance.md)。
 
 ## 目标
 

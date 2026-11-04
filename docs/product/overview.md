@@ -8,7 +8,7 @@ v0.49.0 已通过 [PR264](https://github.com/TomyJan/MoeURL/pull/264) 完整交�
 
 v0.49.1 已通过 [PR265](https://github.com/TomyJan/MoeURL/pull/265) 完整交付，master `81591816c6cde10c78a9f386fcec1ffc8513bc70`；候选最新真实审查覆盖、候选和 master 各九 CI／完整日志、标准 Task1–3、22 条完整裁决及可恢复归档均完成。F1 空 wrapper 间距、M5／M9 和页面鼠标入口边界按原范围保留，未发布部署。见[验收](../implementation/v0.49.1-acceptance.md)。
 
-当前推进 [v0.49.2 空通知区域间距](scope-v0.49.2.md)：空 wrapper 的额外 14／16 px 间距已实现并通过真实几何 RED→GREEN，保持单实例与消息生命周期。3253 项前端及 13 项定向浏览器通过；完整浏览器、产品、终审和远端交付未完成，见[计划](../implementation/v0.49.2-plan.md)和[验收](../implementation/v0.49.2-acceptance.md)。
+当前推进 [v0.49.2 空通知区域间距](scope-v0.49.2.md)：额外 14／16 px 间距已真实 RED→GREEN，3253 项前端、203 项完整浏览器／73 张原图和精确产品验证通过；唯一独立终审无 Critical／Important。Task1 标准完成，Task2 本地收尾中；候选真实审查、候选／master 各九 CI、守卫合并和最终归档仍待，见[计划](../implementation/v0.49.2-plan.md)和[验收](../implementation/v0.49.2-acceptance.md)。
 
 [前端 glob 安全维护](../implementation/2026-11-04-frontend-glob-security-plan.md)已通过 [PR263](https://github.com/TomyJan/MoeURL/pull/263) 完整交付，保持 0.48.0 行为和版本号。最终候选与 master 各自九 CI 成功，最新真实审查覆盖和有效问题闭环、守卫合并、标准 Task1–3、28 条裁决完整报告及可恢复归档均已完成，见[验收](../implementation/2026-11-04-frontend-glob-security-acceptance.md)。
 
