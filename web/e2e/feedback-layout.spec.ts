@@ -277,14 +277,15 @@ for (const kind of ['drawer', 'create'] as const) {
   })
 }
 // Leaving the page notification at the top-right must fail a genuine touch, before its timer can expire.
-test('mobile live notice keeps the menu touchable before expiry', async ({ browser }, info) => {
+for (const width of [390, 320, 800]) {
+test('mobile live notice keeps navigation touchable before expiry at ' + width + 'px', async ({ browser }, info) => {
   const baseURL = info.project.use.baseURL
   if (typeof baseURL !== 'string') throw new Error('Requires disposable Compose baseURL')
-  const context = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, locale: 'zh-CN', serviceWorkers: 'block', reducedMotion: 'reduce' })
+  const context = await browser.newContext({ baseURL, viewport: { width, height: width === 320 ? 320 : 844 }, hasTouch: true, isMobile: true, locale: 'zh-CN', serviceWorkers: 'block', reducedMotion: 'reduce' })
   const page = await context.newPage(), keyword = 'navigation493-' + randomBytes(6).toString('hex')
   const links = new Set<string>(), failures: unknown[] = []
   try {
-    await context.addInitScript(() => { localStorage.setItem('moeurl.language', 'zh-CN'); localStorage.setItem('moeurl.theme', 'light') })
+    await context.addInitScript(dark => { localStorage.setItem('moeurl.language', 'zh-CN'); localStorage.setItem('moeurl.theme', dark ? 'dark' : 'light') }, width !== 390)
     await success(page.request, '/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword })
     await success(page.request, '/short-link/batch-create', { requestId: randomUUID(), targetUrls: ['https://example.com/' + keyword] })
     const found = await success(page.request, '/admin/short-link/list?q=' + keyword + '&page=1&pageSize=20')
@@ -331,6 +332,61 @@ test('mobile live notice keeps the menu touchable before expiry', async ({ brows
     await expect(drawer).toBeVisible()
     expect(await drawer.locator('[data-sonner-toast]').evaluate((node, original) => node === original, message)).toBe(true)
     await page.screenshot({ path: info.outputPath('navigation-live-notice.png'), animations: 'disabled' })
+    await drawer.locator('.console-shell__mobile-close').tap({ timeout: 1000 })
+    await page.clock.runFor(50)
+    await expect(drawer).toHaveCount(0)
+    const assertMessage = async () => {
+      await expect(page.locator('[data-sonner-toast]')).toHaveCount(1)
+      expect(await page.locator('[data-sonner-toast]').evaluate((node, original) => node === original, message)).toBe(true)
+    }
+    await assertMessage()
+    await page.locator('.console-topbar > .v-btn').tap({ timeout: 1000 })
+    await page.clock.runFor(50)
+    const create = page.getByTestId('console-create-transition')
+    await expect(create).toBeVisible()
+    await assertMessage()
+    await create.locator('.console-shell__dialog-heading button').tap({ timeout: 1000 })
+    await page.clock.runFor(50)
+    await expect(create).toHaveCount(0)
+    await assertMessage()
+    if (width === 800) {
+      const preferences = page.locator('.console-topbar__preferences')
+      await preferences.locator('.preference-switcher__trigger--language').tap({ timeout: 1000 })
+      await page.clock.runFor(50)
+      await preferences.getByRole('menuitemradio', { name: 'English', exact: true }).tap({ timeout: 1000 })
+      await page.clock.runFor(50)
+      await assertMessage()
+      await preferences.locator('.preference-switcher__trigger--theme').tap({ timeout: 1000 })
+      await page.clock.runFor(50)
+      await preferences.getByTestId('theme-choice').last().tap({ timeout: 1000 })
+      await page.clock.runFor(50)
+      await assertMessage()
+    }
+    await page.locator('.console-topbar__avatar').tap({ timeout: 1000 })
+    await page.clock.runFor(50)
+    const account = page.getByTestId('console-mobile-account-menu')
+    await expect(account).toBeVisible()
+    const geometry = await account.evaluate(menu => ({ bottom: menu.getBoundingClientRect().bottom, toastTop: document.querySelector('[data-sonner-toast]')!.getBoundingClientRect().top }))
+    expect(geometry.toastTop).toBeGreaterThanOrEqual(geometry.bottom)
+    await page.screenshot({ path: info.outputPath('navigation-expanded-account.png'), animations: 'disabled' })
+    await account.locator('a[href="/profile"]').tap({ timeout: 1000 })
+    await page.clock.runFor(50)
+    await expect(page).toHaveURL(/\/profile$/)
+    await assertMessage()
+    await page.setViewportSize({ width: 1000, height: 844 })
+    await expect(page.locator('.app-toasts--page')).toHaveCount(0)
+    await assertMessage()
+    await page.setViewportSize({ width, height: width === 320 ? 320 : 844 })
+    await expect(page.locator('.app-toasts--page')).toHaveCount(1)
+    await page.locator('.console-topbar__brand').tap({ timeout: 1000 })
+    await page.clock.runFor(50)
+    await expect(page).toHaveURL(/\/$/)
+    await expect(page.locator('.app-toasts--page')).toHaveCount(0)
+    await assertMessage()
+    await page.goBack()
+    await page.clock.runFor(50)
+    await expect(page.locator('.app-toasts--page')).toHaveCount(1)
+    await assertMessage()
   } catch (error) { failures.push(error) } finally {
     try {
       const found = await success(page.request, '/admin/short-link/list?q=' + keyword + '&page=1&pageSize=20')
@@ -341,6 +397,7 @@ test('mobile live notice keeps the menu touchable before expiry', async ({ brows
   }
   if (failures.length) throw new AggregateError(failures, 'Navigation scenario or exact fixture cleanup failed')
 })
+}
 
 // A fixed toast covering the reopened title must fail even when every business request succeeds.
 for (const width of [1280, 390]) {

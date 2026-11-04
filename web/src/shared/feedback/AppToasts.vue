@@ -1,6 +1,6 @@
 <template>
   <Teleport :to="target">
-    <div ref="region" class="app-toasts" :class="{ 'app-toasts--modal': target !== 'body' }" :data-toast-modal-region="target !== 'body' && hasMessages ? '' : undefined" @pointerdown.capture="allowNativeModalScroll">
+    <div ref="region" class="app-toasts" :class="{ 'app-toasts--modal': target !== 'body', 'app-toasts--page': pageTop !== null }" :style="pageTop !== null ? { top: pageTop + 'px', maxHeight: `calc(100dvh - ${pageTop}px - 16px)` } : undefined" :data-toast-modal-region="target !== 'body' && hasMessages ? '' : undefined" @pointerdown.capture="allowNativeModalScroll">
       <Toaster position="top-right" :theme="dark ? 'dark' : 'light'" :visible-toasts="5" :duration="6000" expand rich-colors close-button :toast-options="{ closeButtonAriaLabel: t('feedback.dismiss') }" />
     </div>
   </Teleport>
@@ -12,6 +12,7 @@ import { useI18n } from 'vue-i18n'
 import { useTheme } from 'vuetify'
 import { Toaster } from 'vue-sonner'
 import 'vue-sonner/style.css'
+import { usePageToastClearance } from './usePageToastClearance'
 
 const { t } = useI18n()
 const theme = useTheme()
@@ -22,10 +23,11 @@ const hasMessages = shallowRef(false)
 let observer: globalThis.MutationObserver
 let focusedToastControl: globalThis.HTMLElement | null = null
 const modalFocus = new WeakMap<globalThis.HTMLElement, globalThis.HTMLElement>()
+const { top: pageTop, refresh: refreshPageClearance } = usePageToastClearance(() => target.value === 'body', isActive)
 
 /** Native touch scrolling must not start Sonner's swipe state, which lacks pointercancel cleanup. */
 function allowNativeModalScroll(event: globalThis.PointerEvent) {
-  if (target.value === 'body' || event.pointerType !== 'touch') return
+  if ((target.value === 'body' && pageTop.value === null) || event.pointerType !== 'touch') return
   // Reparenting can leave Sonner's old mouse hover paused without a native mouseleave.
   // A touch starts outside that mouse interaction; resume its remaining timer through its DOM boundary.
   for (const list of region.value?.querySelectorAll('[data-sonner-toaster]') ?? []) list.dispatchEvent(new globalThis.MouseEvent('mouseleave'))
@@ -66,6 +68,7 @@ function syncTarget() {
     if (z >= layer) { top = panel; layer = z }
   }
   target.value = top
+  refreshPageClearance()
   hasMessages.value = Boolean(region.value?.querySelector('[data-sonner-toast]'))
   if (focusedToastControl && !focusedToastControl.isConnected) {
     focusedToastControl = null
@@ -94,10 +97,12 @@ onUnmounted(() => {
 .app-toasts--modal { order: -1; flex: 0 1 auto; min-height: 0; max-height: 30dvh; overflow: auto; }
 .app-toasts--modal:not([data-toast-modal-region]) { position: absolute; width: 0; height: 0; }
 .app-toasts--modal[data-toast-modal-region] { padding: 10px; }
-.app-toasts--modal [data-sonner-toaster] { position: static; display: flex; flex-direction: column; gap: var(--gap); width: 100%; transform: none; }
-.app-toasts.app-toasts--modal [data-sonner-toast] { position: relative; inset: auto; flex-shrink: 0; width: 100%; height: auto; transform: none; touch-action: pan-y; }
-.app-toasts--modal [data-sonner-toast][data-visible='false'] { display: none; }
-.app-toasts--modal [data-sonner-toast] [data-content] { min-width: 0; }
-.app-toasts--modal [data-sonner-toast]::before,
-.app-toasts--modal [data-sonner-toast]::after { display: none; }
+.app-toasts--page { position: fixed; right: 16px; z-index: 10000; box-sizing: border-box; width: min(376px, calc(100vw - 32px)); padding: 10px; overflow: auto; pointer-events: none; }
+.app-toasts--page [data-sonner-toaster] { pointer-events: auto; }
+:is(.app-toasts--modal, .app-toasts--page) [data-sonner-toaster] { position: static; display: flex; flex-direction: column; gap: var(--gap); width: 100%; transform: none; }
+.app-toasts:is(.app-toasts--modal, .app-toasts--page) [data-sonner-toast] { position: relative; inset: auto; flex-shrink: 0; width: 100%; height: auto; transform: none; touch-action: pan-y; }
+:is(.app-toasts--modal, .app-toasts--page) [data-sonner-toast][data-visible='false'] { display: none; }
+:is(.app-toasts--modal, .app-toasts--page) [data-sonner-toast] [data-content] { min-width: 0; }
+:is(.app-toasts--modal, .app-toasts--page) [data-sonner-toast]::before,
+:is(.app-toasts--modal, .app-toasts--page) [data-sonner-toast]::after { display: none; }
 </style>
