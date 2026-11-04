@@ -6,7 +6,7 @@ v0.48.0 已通过 [PR262](https://github.com/TomyJan/MoeURL/pull/262) 完整交�
 
 v0.49.0 已通过 [PR264](https://github.com/TomyJan/MoeURL/pull/264) 完整交付，master `bbdc95e6cce206f217666723a22375f967643d6f`；最终候选真实审查覆盖、候选和 master 各自九 CI／完整日志、标准 Task1–4、28 条裁决报告与可恢复归档均完成，未发布或部署。原运行时与失败保持归属，见[验收](implementation/v0.49.0-acceptance.md)。
 
-当前推进 [v0.49.1 弹窗通知布局](product/scope-v0.49.1.md)：Task1 已标准完成，通知13项、完整3249前端四项100%、types／lint／build及桌面／手机真实遮挡RED→GREEN通过；继续压力／完整浏览器、产品、一次终审及远端交付，见[计划](implementation/v0.49.1-plan.md)和[验收](implementation/v0.49.1-acceptance.md)。
+当前推进 [v0.49.1 弹窗通知布局](product/scope-v0.49.1.md)：唯一终审四项 Important 已修复，完整 3253 项前端测试／四项 100%、types／lint／build、199 项浏览器、67 张原图和精确产品／扫描通过。Task1 标准完成，Task2 本地合同／归档收尾及 Task3 远端交付仍待，未发布部署，见[计划](implementation/v0.49.1-plan.md)和[验收](implementation/v0.49.1-acceptance.md)。
 
 [前端 glob 安全维护](implementation/2026-11-04-frontend-glob-security-plan.md)已通过 [PR263](https://github.com/TomyJan/MoeURL/pull/263) 完整交付，保持 0.48.0 行为和版本号。最终候选与 master 各自九 CI 成功，最新真实审查覆盖和有效问题闭环、守卫合并、标准 Task1–3、28 条裁决完整报告及可恢复归档均已完成，见[验收](implementation/2026-11-04-frontend-glob-security-acceptance.md)。
 
