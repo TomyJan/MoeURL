@@ -53,7 +53,7 @@
         @toggle-status="toggleStatus"
       />
     </div>
-    <ShortLinkPagination v-if="access.canRead.value" :page="page" :total="paginationTotal" :pending="query.isFetching.value" :failed="query.isError.value" :blocked="paginationBlocked" @change="changePage" @retry="retryPage" />
+    <ShortLinkPagination v-if="access.canRead.value" :page="page" :page-size="pageSize" :total="paginationTotal" :pending="query.isFetching.value" :failed="query.isError.value" :blocked="paginationBlocked" @change="changePage" @size="changePageSize" @retry="retryPage" />
   </section>
   <ShortLinkSettingsDialog
     v-if="settingsLink"
@@ -98,6 +98,7 @@ import PersonalTagBrowser from '@/features/short-link-tags/PersonalTagBrowser.vu
 import ShortLinkNoteDialog from '@/features/short-link-note/ShortLinkNoteDialog.vue'
 import { useShortLinkNote } from '@/features/short-link-note/useShortLinkNote'
 import ShortLinkPagination from '@/features/short-link-pagination/ShortLinkPagination.vue'
+import { DEFAULT_SHORT_LINK_PAGE_SIZE, isShortLinkPageSize, type ShortLinkPageSize } from '@/features/short-link-pagination/pageSize'
 import { nextShortLinkListRevision } from '@/shared/short-link/listRevision'
 import { searchOwnNotes } from '@/entities/short-link/note-search'
 import { batchTagVersionSchema, type BatchTagTarget } from '@/entities/short-link/batch-tags'
@@ -126,24 +127,26 @@ const noteStatusOptions = computed(() => [
   { title: t('filter.noteAbsent'), value: 'absent' },
 ])
 const page = ref(1)
+const pageSize = ref<ShortLinkPageSize>(DEFAULT_SHORT_LINK_PAGE_SIZE)
+watch(access.identity.scope, () => { pageSize.value = DEFAULT_SHORT_LINK_PAGE_SIZE }, { flush: 'sync' })
 const listRevision = ref(nextShortLinkListRevision())
 watch([statusFilter, debouncedKeyword, debouncedTag, noteStatusFilter, debouncedNoteQuery, access.identity.scope], () => { page.value = 1; listRevision.value = nextShortLinkListRevision() }, { flush: 'sync' })
-watch(page, () => { listRevision.value = nextShortLinkListRevision() }, { flush: 'sync' })
+watch([page, pageSize], () => { listRevision.value = nextShortLinkListRevision() }, { flush: 'sync' })
 let readAllowed = access.allows('read')
 const unsubscribeList = queryClient.getQueryCache().subscribe(event => {
   if (event.query.queryKey[0] !== 'auth' || event.query.queryKey[1] !== 'me') return
   const allowed = access.allows('read')
-  if (allowed !== readAllowed) { readAllowed = allowed; page.value = 1; listRevision.value = nextShortLinkListRevision() }
+  if (allowed !== readAllowed) { readAllowed = allowed; pageSize.value = DEFAULT_SHORT_LINK_PAGE_SIZE; page.value = 1; listRevision.value = nextShortLinkListRevision() }
 })
 onBeforeUnmount(unsubscribeList)
-const listQueryKey = computed(() => ['short-link', statusFilter.value, debouncedKeyword.value, debouncedTag.value, access.identity.scope.value.userId, access.identity.scope.value.epoch, listRevision.value, noteStatusFilter.value, page.value, debouncedNoteQuery.value] as const)
+const listQueryKey = computed(() => ['short-link', statusFilter.value, debouncedKeyword.value, debouncedTag.value, access.identity.scope.value.userId, access.identity.scope.value.epoch, listRevision.value, noteStatusFilter.value, page.value, debouncedNoteQuery.value, pageSize.value] as const)
 const query = useQuery({
   queryKey: listQueryKey,
   enabled: computed(() => access.canRead.value && !noteQueryInvalid.value && !noteQueryPending.value),
   gcTime: 0,
   queryFn: (context) => {
-    const [, status, q, tag, userId, , , noteStatus, requestPage, noteQuery] = context.queryKey
-    const input = { page: requestPage, pageSize: 20, status, q, tag }
+    const [, status, q, tag, userId, , , noteStatus, requestPage, noteQuery, requestPageSize] = context.queryKey
+    const input = { page: requestPage, pageSize: requestPageSize, status, q, tag }
     return noteQuery ? searchOwnNotes({ ...input, noteStatus, noteQuery }, userId, context.signal) : listShortLinks({ ...input, ...(noteStatus ? { noteStatus } : {}) })
   },
 })
@@ -178,11 +181,11 @@ const updatingId = useMutationTargetId(statusMutation, (variables) => variables?
 const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof variables === 'string' ? variables : undefined))
 const batch = useShortLinkBatch({
   context: 'own', access, ids: computed(() => links.value.map(link => link.id)),
-  filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value, noteStatusFilter.value, noteQuery.value, page.value]),
+  filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value, noteStatusFilter.value, noteQuery.value, page.value, pageSize.value]),
   blocked: computed(() => note.target.value !== null || !query.isSuccess.value || query.isFetching.value || batchTagsRefreshRequired.value || batchTagTargets.value !== null || exportPending.value || filtersPending.value || keywordInvalid.value || tagInvalid.value || noteQueryInvalid.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null),
 })
 const rowWriteBlocked = computed(() => noteQueryInvalid.value || noteQueryPending.value || note.target.value !== null || batch.pending.value || batch.deleteIds.value !== null || batchTagTargets.value !== null)
-watch([statusFilter, searchKeyword, tagFilter, noteQuery, noteStatusFilter, page], note.reset, { flush: 'sync' })
+watch([statusFilter, searchKeyword, tagFilter, noteQuery, noteStatusFilter, page, pageSize], note.reset, { flush: 'sync' })
 watch([query.isFetching, query.isSuccess], ([fetching, success]) => { if (!fetching && success) batchTagsRefreshRequired.value = false })
 const exportFilters = computed(() => ({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value, noteStatus: noteStatusFilter.value, ...(debouncedNoteQuery.value ? { noteQuery: debouncedNoteQuery.value } : {}) }))
 const exportBlocked = computed(() => !access.canRead.value || !query.isSuccess.value || query.isFetching.value
@@ -198,9 +201,9 @@ const paginationTotal = computed(() => {
   const total = query.data.value?.meta.total
   return access.canRead.value && !filtersPending.value && !keywordInvalid.value && !tagInvalid.value && !noteQueryInvalid.value && query.isSuccess.value && !query.isFetching.value && Number.isSafeInteger(total) && total! >= 0 ? total : undefined
 })
-watch([paginationTotal, paginationBlocked, page], ([total, blocked]) => {
+watch([paginationTotal, paginationBlocked, page, pageSize], ([total, blocked]) => {
   if (blocked || total === undefined || !access.allows('read')) return
-  const lastPage = Math.max(1, Math.ceil(total / 20))
+  const lastPage = Math.max(1, Math.ceil(total / pageSize.value))
   if (page.value > lastPage) page.value = lastPage
 })
 
@@ -208,8 +211,15 @@ watch([paginationTotal, paginationBlocked, page], ([total, blocked]) => {
 function changePage(value: number) {
   if (paginationBlocked.value || !access.allows('read') || !Number.isSafeInteger(value) || value < 1 || Math.abs(value - page.value) !== 1) return
   const state = queryClient.getQueryState(listQueryKey.value)
-  if (value > page.value && (state?.status !== 'success' || state.fetchStatus !== 'idle' || state.isInvalidated || paginationTotal.value === undefined || value > Math.ceil(paginationTotal.value / 20))) return
+  if (value > page.value && (state?.status !== 'success' || state.fetchStatus !== 'idle' || state.isInvalidated || paginationTotal.value === undefined || value > Math.ceil(paginationTotal.value / pageSize.value))) return
   page.value = value
+}
+
+/** Retires the collection only for a supported size accepted under live authority and operation locks. */
+function changePageSize(value: unknown) {
+  if (paginationBlocked.value || !access.allows('read') || !isShortLinkPageSize(value) || value === pageSize.value) return
+  pageSize.value = value
+  page.value = 1
 }
 
 /** Retries only this page's failed read without guessing a new collection or issuing a write. */

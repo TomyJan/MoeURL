@@ -2,7 +2,9 @@
 
 ## 当前状态（2026-11-04）
 
-当前实施 [v0.47.0 列表确定顺序](product/scope-v0.47.0.md)：本人／全站普通及备注列表采用创建时间、UUID 倒序；后端和必要前端验证、183 项完整浏览器、38 张原图、精确产品及唯一独立终审通过。Task1–2 标准完成，本地完整报告／合同与可恢复档案已核，Task3 远端交付继续，不承诺并发跨请求快照；见[计划](implementation/v0.47.0-plan.md)和[验收](implementation/v0.47.0-acceptance.md)。
+当前实施 [v0.48.0 列表每页条数](product/scope-v0.48.0.md)：本人／全站增加 20／50／100，默认 20、挂载内状态；换大小清选择并退休旧请求，保留身份、私密筛选和全匹配 CSV。Task1–2 已标准完成，3119 项完整前端四100%、types／lint／build、187 项完整浏览器、46 张原图及精确产品验证通过；唯一独立终审无代码阻断，文档状态问题已修正。本地报告、合同和阶段归档已核，Task3 已标准启动，远端交付继续；见[计划](implementation/v0.48.0-plan.md)和[验收](implementation/v0.48.0-acceptance.md)。
+
+v0.47.0 已经 [PR261](https://github.com/TomyJan/MoeURL/pull/261) 完整交付，master `5ed2939c6de3f75e3cb46dac37fcb6ffa06ad74f`；最新真实审查、候选／master 各九 CI 与完整日志、标准 Task1–3、24 条完整裁决和可恢复归档均完成。保持不变集合的确定排序，不承诺跨请求快照；未发布部署，详见[验收](implementation/v0.47.0-acceptance.md)。
 
 PR260 文档维护已完整交付，master `47e170b455e6b2a8d02d89bcbdaef15a63b06df3`，真实覆盖、候选和 master 各九 CI、完整日志、标准 Task1–3 及可恢复归档均完成；未发布部署。下方旧阶段按原时点保留。
 

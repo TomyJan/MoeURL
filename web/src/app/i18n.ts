@@ -2,7 +2,7 @@ import { createI18n } from 'vue-i18n'
 
 export const messages = {
   'zh-CN': {
-    pagination: { label: '短链列表分页', previous: '上一页', next: '下一页', retry: '重试本页', summary: '第 {page} / {pages} 页，共 {total} 条' },
+    pagination: { label: '短链列表分页', pageSize: '每页条数', previous: '上一页', next: '下一页', retry: '重试本页', summary: '第 {page} / {pages} 页，共 {total} 条' },
     linkNote: {
       action: '备注', title: '短链内部备注', text: '备注内容', transferWarning: '备注会随短链转移，请勿填写密码。',
       readonly: '你可以查看此备注，当前没有编辑权限。', invalid: '最多 1000 个 Unicode 字符，允许换行和制表符，不允许其他控制字符。',
@@ -808,7 +808,7 @@ export const messages = {
     },
   },
   en: {
-    pagination: { label: 'Short link list pages', previous: 'Previous page', next: 'Next page', retry: 'Retry this page', summary: 'Page {page} of {pages}, {total} links' },
+    pagination: { label: 'Short link list pages', pageSize: 'Rows per page', previous: 'Previous page', next: 'Next page', retry: 'Retry this page', summary: 'Page {page} of {pages}, {total} links' },
     linkNote: {
       action: 'Note', title: 'Internal link note', text: 'Note text', transferWarning: 'Notes move with the link when ownership changes. Do not store passwords.',
       readonly: 'You can read this note but do not currently have permission to edit it.', invalid: 'Use at most 1000 Unicode characters. Line breaks and tabs are allowed; other control characters are not.',

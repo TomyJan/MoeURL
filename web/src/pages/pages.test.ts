@@ -1693,7 +1693,7 @@ describe('pages', () => {
     const queryKey = state.queryKeys[0]
     state.queryFns[0]?.()
 
-    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['short-link', 'disabled', '', '', 'test-account', 1, expect.any(Number), '', 1, ''])
+    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['short-link', 'disabled', '', '', 'test-account', 1, expect.any(Number), '', 1, '', 20])
     expect(listShortLinks).toHaveBeenCalledWith({ page: 1, pageSize: 20, status: 'disabled', q: '', tag: '' })
   })
 
@@ -1716,7 +1716,7 @@ describe('pages', () => {
     state.queryFns[0]?.()
     expect(load).toHaveBeenLastCalledWith({ page: 1, pageSize: 20, status: '', q: '%_文档\\', tag: 'Release 计划' })
     const queryKey = state.queryKeys[0]
-    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual([key, '', '%_文档\\', 'Release 计划', 'test-account', 1, expect.any(Number), '', 1, ''])
+    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual([key, '', '%_文档\\', 'Release 计划', 'test-account', 1, expect.any(Number), '', 1, '', 20])
     await fireEvent.update(keyword, '😀'.repeat(201))
     await fireEvent.update(tag, 'bad\u0000tag')
     expect(screen.getByText('linkMetadata.keywordInvalid')).toBeTruthy()
@@ -2000,7 +2000,7 @@ describe('pages', () => {
     const queryKey = state.queryKeys[0]
     state.queryFns[0]?.()
 
-    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['admin-short-link', 'active', 'alice', '', 'test-account', 1, expect.any(Number), '', 1, ''])
+    expect(isRef(queryKey) ? queryKey.value : queryKey).toEqual(['admin-short-link', 'active', 'alice', '', 'test-account', 1, expect.any(Number), '', 1, '', 20])
     expect(listAdminShortLinks).toHaveBeenCalledWith({ page: 1, pageSize: 20, status: 'active', q: 'alice', tag: '' })
   })
 
