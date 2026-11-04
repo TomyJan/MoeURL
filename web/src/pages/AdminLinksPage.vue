@@ -1,21 +1,21 @@
 <template>
-  <section class="console-page" data-testid="console-page-admin-links">
+  <section ref="pageRoot" tabindex="-1" class="console-page" data-testid="console-page-admin-links">
     <div class="console-page__header">
       <div>
         <h1>{{ t('page.adminLinks') }}</h1>
       </div>
       <span v-if="paginationTotal !== undefined" class="console-page__total">{{ t('adminLinks.total', { total }) }}</span>
-      <ShortLinkListExportButton context="admin" :filters="exportFilters" :blocked="exportBlocked" @pending="exportPending = $event" />
+      <ShortLinkListExportButton context="admin" :filters="exportFilters" :blocked="exportBlocked" :can-start="canStartExport" @pending="exportPending = $event" />
     </div>
     <div class="console-page__tools">
       <div class="console-page__filters console-page__metadata-filters">
-        <v-select v-model="statusFilter" :items="statusOptions" :label="t('filter.status')" density="compact" variant="outlined" />
+        <v-select :model-value="statusFilter" :items="statusOptions" :label="t('filter.status')" :disabled="noteClear.targets.value !== null" density="compact" variant="outlined" @update:model-value="selectStatus" />
         <v-select :model-value="noteStatusFilter" :items="noteStatusOptions" :label="t('filter.noteStatus')" :disabled="noteFilterBlocked" density="compact" variant="outlined" @update:model-value="selectNoteStatus" />
-        <v-text-field v-model="searchKeyword" :label="t('filter.keyword')" :error-messages="keywordInvalid ? t('linkMetadata.keywordInvalid') : ''" density="compact" variant="outlined" />
-        <v-text-field v-model="tagFilter" :label="t('filter.tag')" :error-messages="tagInvalid ? t('linkMetadata.tagFilterInvalid') : ''" density="compact" variant="outlined" />
+        <v-text-field :model-value="searchKeyword" :label="t('filter.keyword')" :disabled="noteClear.targets.value !== null" :error-messages="keywordInvalid ? t('linkMetadata.keywordInvalid') : ''" density="compact" variant="outlined" @update:model-value="selectKeyword" />
+        <v-text-field :model-value="tagFilter" :label="t('filter.tag')" :disabled="noteClear.targets.value !== null" :error-messages="tagInvalid ? t('linkMetadata.tagFilterInvalid') : ''" density="compact" variant="outlined" @update:model-value="selectTag" />
         <v-text-field :model-value="noteQuery" :label="t('filter.noteQuery')" :error-messages="noteQueryInvalid ? t('linkMetadata.noteQueryInvalid') : ''" :disabled="noteFilterBlocked || note.target.value !== null" density="compact" variant="outlined" @update:model-value="selectNoteQuery" />
       </div>
-      <ShortLinkBatchToolbar :state="batch" :access="access" transfer @transfer="beginBatchTransfer" @tags="beginBatchTags" />
+      <ShortLinkBatchToolbar :state="batch" :access="access" transfer @transfer="beginBatchTransfer" @tags="beginBatchTags" @clear-notes="beginNoteClear" />
     </div>
     <AdminTagBrowser :access="access" :blocked="tagSelectionBlocked" @select="selectCatalogTag" />
     <div class="console-data-panel" data-testid="console-data-panel">
@@ -75,6 +75,7 @@
   <ShortLinkBatchTransferDialog v-if="batchTransferTargets" :targets="batchTransferTargets" @close="batchTransferTargets = null" @transferred="batch.clear" @conflict="batchTransferRefreshRequired = true" />
   <ShortLinkBatchTagsDialog v-if="batchTagTargets" context="admin" :targets="batchTagTargets" @close="batchTagTargets = null" @saved="batch.clear" @revoked="batch.clear" @conflict="batchTagsRefreshRequired = true" />
   <ShortLinkNoteDialog v-if="note.target.value" :state="note" />
+  <BatchNoteClearDialog :state="noteClear" :fallback-focus="pageRoot" />
 </template>
 
 <script setup lang="ts">
@@ -101,6 +102,9 @@ import { batchTagVersionSchema, type BatchTagTarget } from '@/entities/short-lin
 import AdminTagBrowser from '@/features/short-link-tags/AdminTagBrowser.vue'
 import ShortLinkNoteDialog from '@/features/short-link-note/ShortLinkNoteDialog.vue'
 import { useShortLinkNote } from '@/features/short-link-note/useShortLinkNote'
+import { useBatchNoteClear } from '@/features/short-link-note/useBatchNoteClear'
+import BatchNoteClearDialog from '@/features/short-link-note/BatchNoteClearDialog.vue'
+import { noteVersionSchema } from '@/entities/short-link/note'
 import ShortLinkPagination from '@/features/short-link-pagination/ShortLinkPagination.vue'
 import { DEFAULT_SHORT_LINK_PAGE_SIZE, isShortLinkPageSize, type ShortLinkPageSize } from '@/features/short-link-pagination/pageSize'
 import { nextShortLinkListRevision } from '@/shared/short-link/listRevision'
@@ -108,8 +112,10 @@ import { searchAdminNotes } from '@/entities/short-link/note-search'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
+const pageRoot = ref<globalThis.HTMLElement | null>(null)
 const access = useShortLinkAccess('admin')
 const note = useShortLinkNote('admin', access)
+const noteClear = useBatchNoteClear('admin', access, () => batch.clear())
 const batchTagTargets = ref<readonly BatchTagTarget[] | null>(null)
 const batchTagsRefreshRequired = ref(false)
 const transferTarget = ref<AdminShortLink | null>(null)
@@ -189,10 +195,11 @@ const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof va
 const batch = useShortLinkBatch({
   context: 'admin', access, ids: computed(() => links.value.map(link => link.id)),
   filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value, noteStatusFilter.value, noteQuery.value, page.value, pageSize.value]),
-  blocked: computed(() => note.target.value !== null || !query.isSuccess.value || query.isFetching.value || batchTagsRefreshRequired.value || batchTagTargets.value !== null || batchTransferRefreshRequired.value || exportPending.value || keywordInvalid.value || tagInvalid.value || noteQueryInvalid.value || filtersPending.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null),
+  blocked: computed(() => noteClear.targets.value !== null || qrLink.value !== null || note.target.value !== null || !query.isSuccess.value || query.isFetching.value || batchTagsRefreshRequired.value || batchTagTargets.value !== null || batchTransferRefreshRequired.value || exportPending.value || keywordInvalid.value || tagInvalid.value || noteQueryInvalid.value || filtersPending.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null),
 })
-const rowWriteBlocked = computed(() => noteQueryInvalid.value || noteQueryPending.value || note.target.value !== null || batch.pending.value || batchTagTargets.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null || batch.deleteIds.value !== null)
+const rowWriteBlocked = computed(() => noteClear.targets.value !== null || noteQueryInvalid.value || noteQueryPending.value || note.target.value !== null || batch.pending.value || batchTagTargets.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null || batch.deleteIds.value !== null)
 watch([statusFilter, searchKeyword, tagFilter, noteQuery, noteStatusFilter, page, pageSize], note.reset, { flush: 'sync' })
+watch([statusFilter, searchKeyword, tagFilter, noteQuery, noteStatusFilter, page, pageSize], noteClear.reset, { flush: 'sync' })
 const canTransfer = computed(() => access.canUpdate.value && query.isSuccess.value && !query.isFetching.value && !filtersPending.value && !keywordInvalid.value && !tagInvalid.value && !noteQueryInvalid.value)
 watch([access.identity.scope, access.canUpdate], () => { batchTransferTargets.value = null; batch.clear() }, { flush: 'sync' })
 watch([query.isFetching, query.isSuccess], ([fetching, success]) => { if (!fetching && success) batchTransferRefreshRequired.value = false })
@@ -202,7 +209,7 @@ const exportBlocked = computed(() => !access.canRead.value || !query.isSuccess.v
   || keywordInvalid.value || tagInvalid.value || noteQueryInvalid.value || filtersPending.value || statusMutation.isPending.value
   || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || rowWriteBlocked.value)
 const tagSelectionBlocked = computed(() => exportPending.value || exportBlocked.value)
-const noteFilterBlocked = computed(() => !access.canRead.value || note.saving.value || batch.pending.value || batch.deleteIds.value !== null
+const noteFilterBlocked = computed(() => noteClear.targets.value !== null || !access.canRead.value || note.saving.value || batch.pending.value || batch.deleteIds.value !== null
   || batchTagTargets.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null
   || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value
   || settingsLink.value !== null || qrLink.value !== null)
@@ -257,6 +264,26 @@ function selectCatalogTag(tag: string) {
   if (tagSelectionBlocked.value || !access.allows('read') || state?.status !== 'success' || state.fetchStatus !== 'idle' || state.isInvalidated) return
   tagFilter.value = tag
 }
+
+/** Captures real list versions only while the live cache and metadata grants are valid. */
+function beginNoteClear() {
+  const state = queryClient.getQueryState(listQueryKey.value)
+  if (batch.unavailable.value || exportBlocked.value || exportPending.value || qrLink.value !== null
+    || !access.allows('tags') || !batch.selected.value.length || state?.status !== 'success' || state.fetchStatus !== 'idle' || state.isInvalidated) return
+  const targets = links.value.filter(link => batch.selected.value.includes(link.id))
+  if (targets.length !== batch.selected.value.length || targets.some(link => !noteVersionSchema.safeParse(link.updatedAt).success)) return
+  noteClear.open(targets.map(link => ({ id: link.id, expectedUpdatedAt: link.updatedAt })))
+}
+/** Prevents a queued export from racing a newly opened private confirmation. */
+function canStartExport() { return noteClear.targets.value === null }
+/** Keeps filter changes outside the fixed confirmation, including queued component events. */
+function selectStatus(value: unknown) {
+  if (noteClear.targets.value === null && (value === '' || value === 'active' || value === 'disabled')) statusFilter.value = value
+}
+/** Guards private target context before accepting keyword edits. */
+function selectKeyword(value: unknown) { if (noteClear.targets.value === null && typeof value === 'string') searchKeyword.value = value }
+/** Guards both the typed tag and the live catalog's selection. */
+function selectTag(value: unknown) { if (noteClear.targets.value === null && typeof value === 'string') tagFilter.value = value }
 
 /** Captures real list versions only while the live cache and metadata grants are valid. */
 function beginBatchTags() {

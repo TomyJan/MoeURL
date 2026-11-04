@@ -1,6 +1,6 @@
 # v0.49.0 批量清空内部备注范围
 
-2026-11-04 从完整交付的 PR263 master fa020805ed5499f40a9f437d710f3eb661247057 启动。后端已实现，最终 host 完整回归／vet／业务覆盖率 100% 及 Linux race／安全门禁通过；前端、浏览器和远端交付尚待。Agent 依据持续无人值守授权及路线图选择该增量，实际结果见[验收](../implementation/v0.49.0-acceptance.md)。
+2026-11-04 从完整交付的 PR263 master fa020805ed5499f40a9f437d710f3eb661247057 启动。后端已标准完成，最终 host 完整回归／vet／业务覆盖率 100% 及 Linux race／安全门禁通过；前端3238项完整测试／四100、types／lint／隔离build通过，Task2标准收尾及浏览器／远端交付继续。Agent 依据持续无人值守授权及路线图选择该增量，实际结果见[验收](../implementation/v0.49.0-acceptance.md)。
 
 ## 目标
 

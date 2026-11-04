@@ -1,5 +1,5 @@
 <template>
-  <v-btn v-if="state.allowed.value" data-testid="bulk-create-open" variant="tonal" @click="state.begin">{{ t('bulkCreate.open') }}</v-btn>
+  <v-btn v-if="state.allowed.value" data-testid="bulk-create-open" :disabled="canOpen && !canOpen()" variant="tonal" @click="begin">{{ t('bulkCreate.open') }}</v-btn>
   <v-dialog :model-value="state.opened.value" :persistent="state.pending.value || state.unknown.value" max-width="680" scrollable @update:model-value="state.close">
     <v-card class="bulk-create-card" data-testid="bulk-create-dialog">
       <v-card-title>{{ t('bulkCreate.title') }}</v-card-title>
@@ -44,9 +44,12 @@ import { useI18n } from 'vue-i18n'
 import { useBulkCreate } from './useBulkCreate'
 import BulkCreateCsvHelp from './BulkCreateCsvHelp.vue'
 const { t } = useI18n()
+const props = defineProps<{ canOpen?: () => boolean }>()
 const state = useBulkCreate()
 const emit = defineEmits<{ open: [value: boolean] }>()
 watch(state.opened, value => emit('open', value), { flush: 'sync' })
+/** Checks live parent locks before opening, even before parent props have rerendered. */
+function begin() { if (!props.canOpen || props.canOpen()) state.begin() }
 /** Releases the native selection so choosing the same file starts a fresh explicit read. */
 function selectFile(event: globalThis.Event) {
   const input = event.target as globalThis.HTMLInputElement

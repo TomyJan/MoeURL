@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/vue'
-import { nextTick } from 'vue'
+import { nextTick, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { createI18n } from 'vue-i18n'
@@ -27,13 +27,13 @@ function user(permissions = ownPermissions, id = 'A'): CurrentUser {
   return { id, username: id, nickname: '', group: 'user', permissions }
 }
 /** Mounts the real export state machine with an isolated shared auth cache. */
-function mount(options: { user?: CurrentUser | null; context?: 'own' | 'admin'; blocked?: boolean; locale?: string } = {}) {
+function mount(options: { user?: CurrentUser | null; context?: 'own' | 'admin'; blocked?: boolean; locale?: string; canStart?: () => boolean } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
   clients.push(client)
   if (options.user !== null) client.setQueryData(['auth', 'me'], { user: options.user ?? user() })
   const locale = options.locale ?? 'test'
   const i18n = createI18n({ legacy: false, locale, messages: locale === 'test' ? {} : messages, missingWarn: false, fallbackWarn: false })
-  const view = render(ShortLinkListExportButton, { props: { context: options.context ?? 'own', blocked: options.blocked ?? false, filters: { status: 'active', q: 'applied', tag: 'tag' } }, global: { plugins: [[VueQueryPlugin, { queryClient: client }], i18n], stubs: componentStubs } })
+  const view = render(ShortLinkListExportButton, { props: { context: options.context ?? 'own', blocked: options.blocked ?? false, canStart: options.canStart, filters: { status: 'active', q: 'applied', tag: 'tag' } }, global: { plugins: [[VueQueryPlugin, { queryClient: client }], i18n], stubs: componentStubs } })
   return { ...view, client }
 }
 /** Dispatches the user-facing action, including repeat events while pending. */
@@ -47,6 +47,20 @@ beforeEach(() => {
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()) })
 
 describe('ShortLinkListExportButton', () => {
+  it('rechecks live parent locks at both the queued click and download boundary', async () => {
+    const allowed = ref(true)
+    const view = mount({ canStart: () => allowed.value })
+    allowed.value = false
+    await click(); expect(exportShortLinkList).not.toHaveBeenCalled()
+    allowed.value = true; await view.rerender({ blocked: true }); await view.rerender({ blocked: false })
+    const request = createDeferred<ShortLinkListExport>(); vi.mocked(exportShortLinkList).mockReturnValueOnce(request.promise)
+    await click(); allowed.value = false
+    request.resolve(descriptor); await request.promise; await nextTick(); await nextTick()
+    expect(downloadCsv).not.toHaveBeenCalled(); expect(toast.success).not.toHaveBeenCalled()
+    allowed.value = true; await nextTick(); await click()
+    await waitFor(() => expect(exportShortLinkList).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(downloadCsv).toHaveBeenCalledOnce())
+  })
   // Retiring a private term must release the old request without allowing its finally to unlock a newer download.
   it.each([false, true])('retiresAllDownloadCallbacks with late failure=%s', async failed => {
     const old = createDeferred<ShortLinkListExport>(), current = createDeferred<ShortLinkListExport>()
