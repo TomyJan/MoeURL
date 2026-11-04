@@ -258,6 +258,33 @@ for (const width of [1280, 390]) {
           return r.top >= body.top - 1 && r.bottom <= body.bottom + 1
         }), 'Each real summary line must remain readable by scrolling the body').toBe(true)
       }
+      if (width === 390) {
+        // Exercise the real 220ms drawer-to-create overlap with normal motion and the same live message.
+        await page.setViewportSize({ width, height: 844 })
+        await page.emulateMedia({ reducedMotion: 'no-preference' })
+        const message = await page.locator('[data-sonner-toast]').elementHandle()
+        await dialog.getByTestId('batch-note-clear-cancel').click()
+        await expect(dialog).toHaveCount(0)
+        await page.locator('.console-topbar__menu').click()
+        const drawer = page.getByTestId('console-mobile-nav')
+        await expect(drawer.locator('[data-sonner-toast]')).toHaveCount(1)
+        await page.evaluate(() => {
+          document.documentElement.dataset.fixtureHandoff = 'pending'
+          const observer = new MutationObserver(() => {
+            const leaving = document.querySelector('.console-shell__mobile-nav.moe-overlay-leave-active')
+            const current = document.querySelector('.console-shell__dialog [data-sonner-toast]')
+            if (leaving && current) { document.documentElement.dataset.fixtureHandoff = 'observed'; observer.disconnect() }
+          })
+          observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] })
+        })
+        await drawer.getByRole('button', { name: '新建短链', exact: true }).click()
+        await expect(page.locator('html')).toHaveAttribute('data-fixture-handoff', 'observed')
+        const create = page.getByTestId('console-create-transition')
+        await expect(create.locator('[data-sonner-toast]')).toHaveCount(1)
+        expect(await create.locator('[data-sonner-toast]').evaluate((node, original) => node === original, message)).toBe(true)
+        await expect(drawer).toHaveCount(0)
+        await page.keyboard.press('Escape')
+      }
     } catch (error) { failures.push(error) } finally {
       try {
         const found = await success(page.request, '/admin/short-link/list?q=' + keyword + '&page=1&pageSize=20')

@@ -25,7 +25,11 @@ const modalFocus = new WeakMap<globalThis.HTMLElement, globalThis.HTMLElement>()
 
 /** Native touch scrolling must not start Sonner's swipe state, which lacks pointercancel cleanup. */
 function allowNativeModalScroll(event: globalThis.PointerEvent) {
-  if (target.value !== 'body' && event.pointerType === 'touch') event.stopPropagation()
+  if (target.value === 'body' || event.pointerType !== 'touch') return
+  // Reparenting can leave Sonner's old mouse hover paused without a native mouseleave.
+  // A touch starts outside that mouse interaction; resume its remaining timer through its DOM boundary.
+  for (const list of region.value?.querySelectorAll('[data-sonner-toaster]') ?? []) list.dispatchEvent(new globalThis.MouseEvent('mouseleave'))
+  event.stopPropagation()
 }
 
 /** Remembers the user's safe modal focus without replacing newer focus during an exit animation. */
