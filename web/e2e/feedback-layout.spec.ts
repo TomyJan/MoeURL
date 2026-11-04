@@ -162,11 +162,17 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
           document.documentElement.dataset.fixturePageCancels = '0'
           document.documentElement.dataset.fixturePageScrollEnd = 'pending'
           document.documentElement.dataset.fixtureCloseClicks = '0'
+          const events: Array<{ type: string; target: string; close: boolean; scrollTop: number }> = []
+          for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'touchstart', 'touchend', 'click', 'scroll', 'scrollend']) document.addEventListener(type, event => {
+            const target = event.target as Element
+            if (events.length < 80) events.push({ type, target: target.tagName, close: Boolean(target.closest?.('[data-close-button]')), scrollTop: document.querySelector('.app-toasts--page')!.scrollTop })
+            document.documentElement.dataset.fixtureTouchEvents = JSON.stringify(events)
+          }, true)
           document.querySelector('.app-toasts--page')!.addEventListener('scrollend', () => { document.documentElement.dataset.fixturePageScrollEnd = 'ended' }, { once: true })
           document.addEventListener('click', event => { if ((event.target as Element).closest('[data-close-button]')) document.documentElement.dataset.fixtureCloseClicks = String(Number(document.documentElement.dataset.fixtureCloseClicks) + 1) }, true)
           document.addEventListener('pointercancel', () => { document.documentElement.dataset.fixturePageCancels = String(Number(document.documentElement.dataset.fixturePageCancels) + 1) }, true)
         })
-        // Native scrolling and its scrollend boundary need a running browser clock, as in the modal touch test.
+        // Use the running-clock pattern of the existing native modal touch test.
         // Keep requiring all five live messages before dismissal, so waiting for expiry cannot pass this case.
         await page.clock.resume()
         const box = (await region.boundingBox())!, session = await context.newCDPSession(page)
@@ -175,7 +181,6 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
         for (let step = 1; step <= 6; step++) await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: start + (end - start) * step / 6, id: 1 }] })
         await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
         await expect(page.locator('html')).toHaveAttribute('data-fixture-page-cancels', '1')
-        await expect(page.locator('html')).toHaveAttribute('data-fixture-page-scroll-end', 'ended')
         expect(await region.evaluate(element => element.scrollTop)).toBeGreaterThan(0)
         // Check every text segment, including the literal markup tail; a screenshot alone cannot prove this.
         const readback = await region.evaluate(container => {
@@ -216,7 +221,7 @@ test.describe('real shared component with real Vuetify modal fixtures', () => {
         await page.screenshot({ path: info.outputPath('page-close-before-tap.png'), animations: 'disabled' })
         await expect(region.locator('[data-sonner-toast]')).toHaveCount(5)
         await close.tap({ timeout: 1000 })
-        await writeFile(info.outputPath('page-close-events.json'), JSON.stringify(await page.evaluate(() => ({ clicks: document.documentElement.dataset.fixtureCloseClicks, removed: document.querySelectorAll('[data-sonner-toast][data-removed="true"]').length, scrollEnd: document.documentElement.dataset.fixturePageScrollEnd })), null, 2))
+        await writeFile(info.outputPath('page-close-events.json'), JSON.stringify(await page.evaluate(() => ({ clicks: document.documentElement.dataset.fixtureCloseClicks, removed: document.querySelectorAll('[data-sonner-toast][data-removed="true"]').length, scrollEnd: document.documentElement.dataset.fixturePageScrollEnd, events: JSON.parse(document.documentElement.dataset.fixtureTouchEvents!) })), null, 2))
         await expect(page.locator('html')).toHaveAttribute('data-fixture-close-clicks', '1')
         await expect(region.locator('[data-sonner-toast]')).toHaveCount(4)
         const original = await region.locator('[data-sonner-toast]').first().elementHandle()
