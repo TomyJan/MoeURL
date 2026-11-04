@@ -313,7 +313,7 @@ test('mobile live notice keeps the menu touchable before expiry', async ({ brows
     await page.getByTestId('batch-note-clear').click()
     await page.clock.runFor(350)
     const dialog = page.getByTestId('batch-note-clear-dialog')
-    await expect(dialog.locator('[data-sonner-toast]')).toHaveCount(1)
+    await expect(page.locator('.v-overlay__content [data-sonner-toast]')).toHaveCount(1)
     const message = await page.locator('[data-sonner-toast]').elementHandle()
     await page.getByTestId('batch-note-clear-cancel').click()
     await page.clock.runFor(350)
