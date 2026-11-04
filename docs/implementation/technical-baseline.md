@@ -1,6 +1,8 @@
 # 技术基线
 
-[glob 安全维护](../specs/2026-11-04-frontend-glob-security.md)采用五条精确父版本 override，标准 pnpm 11.5 生成锁文件；Docker 首次 frozen 安装同时读取 workspace。新依赖完整门禁、新产品和唯一独立终审已完成，兼容结论限于当前实际父调用与工具链；标准收尾及远端状态见[验收](2026-11-04-frontend-glob-security-acceptance.md)。
+[v0.49.0 批量清空内部备注](../specs/2026-11-04-v0.49.0-batch-note-clear-design.md)已启动设计，尚未实现或验证。采用独立四个固定 POST、当前页 1–100 条、64 KiB／五秒限制、双版本检查、全批事务和既有审计；无新依赖、权限或 migration，详见[计划](v0.49.0-plan.md)。
+
+[glob 安全维护](../specs/2026-11-04-frontend-glob-security.md)采用五条精确父版本 override，标准 pnpm 11.5 生成锁文件；Docker 首次 frozen 安装同时读取 workspace。新依赖完整门禁、新产品和唯一独立终审已完成，兼容结论限于当前实际父调用与工具链；PR263 已完整交付，候选与 master 各自九 CI、标准完成及可恢复归档均完成，详见[验收](2026-11-04-frontend-glob-security-acceptance.md)。
 
 [v0.48.0 设计](../specs/2026-11-04-v0.48.0-list-page-size-design.md)采用挂载内 20／50／100，有界大小追加查询 key 槽 10，改大小推进单调代际并清选择；身份／读授权变化恢复默认 20。CSV 仍全匹配，不改后端协议／schema／权限／依赖；已经实现，本地门禁及唯一独立终审完成，当前交付状态和实际执行归属见[验收](v0.48.0-acceptance.md)。
 
