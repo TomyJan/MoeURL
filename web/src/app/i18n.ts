@@ -2,6 +2,15 @@ import { createI18n } from 'vue-i18n'
 
 export const messages = {
   'zh-CN': {
+    batchNoteReplace: {
+      action: '替换备注', title: '替换所选内部备注', note: '统一备注内容', warning: '所选备注将被此内容永久覆盖，无法撤销。请先预览变化数量，再确认替换。',
+      hint: '输入最多 1000 个 Unicode 字符，允许换行和制表符。空内容请使用“清空备注”。', invalidNote: '请输入非空备注，最多 1000 个 Unicode 字符，不含换行和制表符以外的控制字符。',
+      selected: '已选择 {count} 条短链。', changed: '{count} 条备注将被替换。', unchanged: '{count} 条备注与新内容相同。', sameValue: '所选备注均与新内容相同，无需替换。',
+      cancel: '取消', preview: '预览变化', check: '重新核对', loading: '正在核对变化数量', confirm: '覆盖 {count} 条备注',
+      unknown: '无法确认替换结果。内容已锁定，请重新核对数量后再次确认；不会自动重试。',
+      loadFailed: '变化数量核对失败，请重试。', saveFailed: '替换请求未通过，请检查后再次确认。', conflict: '所选短链或备注已变化，请刷新列表后重新选择。',
+      accessChanged: '当前账号、权限或短链归属已变化，请刷新列表。', saved: '已替换 {changed} 条备注，{unchanged} 条内容原已相同。',
+    },
     batchNoteClear: {
       action: '清空备注', title: '清空所选内部备注', warning: '此操作会永久清空所选备注，无法撤销。', cancel: '取消', loading: '正在核对备注数量',
       selected: '已选择 {count} 条短链。', nonempty: '{count} 条有备注。', alreadyEmpty: '{count} 条备注已为空。', confirm: '清空 {count} 条备注',
@@ -815,6 +824,15 @@ export const messages = {
     },
   },
   en: {
+    batchNoteReplace: {
+      action: 'Replace notes', title: 'Replace selected internal notes', note: 'Replacement note', warning: 'This permanently overwrites the selected notes and cannot be undone. Preview the changes before confirming.',
+      hint: 'Up to 1000 Unicode characters, including line breaks and tabs. Use Clear notes for empty content.', invalidNote: 'Enter a non-empty note with up to 1000 Unicode characters and no controls other than line breaks and tabs.',
+      selected: '{count} link selected. | {count} links selected.', changed: '{count} note will be replaced. | {count} notes will be replaced.', unchanged: '{count} note already matches. | {count} notes already match.', sameValue: 'All selected notes already match. No replacement is needed.',
+      cancel: 'Cancel', preview: 'Preview changes', check: 'Check result again', loading: 'Checking the changes', confirm: 'Overwrite {count} note | Overwrite {count} notes',
+      unknown: 'The replacement result is unknown. Content is locked. Check the counts again, then confirm; the write will not be retried automatically.',
+      loadFailed: 'Could not check the changes. Please retry.', saveFailed: 'The replacement request was rejected. Check it before confirming again.', conflict: 'A selected link or note has changed. Refresh the list and select again.',
+      accessChanged: 'The account, permissions or link ownership has changed. Refresh the list.', saved: 'Replaced {changed} notes; {unchanged} already matched.',
+    },
     batchNoteClear: {
       action: 'Clear notes', title: 'Clear selected internal notes', warning: 'This permanently clears the selected notes and cannot be undone.', cancel: 'Cancel', loading: 'Checking current notes',
       selected: 'No links selected. | 1 link selected. | {count} links selected.', nonempty: 'No notes to clear. | 1 note to clear. | {count} notes to clear.', alreadyEmpty: 'None already empty. | 1 note already empty. | {count} notes already empty.',
