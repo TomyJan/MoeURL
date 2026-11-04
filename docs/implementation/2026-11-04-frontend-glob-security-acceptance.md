@@ -1,6 +1,8 @@
 # 前端 glob 安全维护验收
 
-2026-11-04 新依赖安装、安全检查及完整前端门禁已通过，Task1 标准完成；clean `8d2195dc2dbdbdb3bab0202bb6b86a0afa8586c5` 的完整浏览器、新产品和唯一独立终审已通过。本地合同、阶段归档及标准 Task2 已完成，Task3 已标准开始，远端交付尚未执行。基线为已完整交付 v0.48.0 的 master `6aa7c0aa5a805446fae16e7d8453388763081f23`，独立分支 `fix/frontend-glob-security`。原始证据外置于 `D:/Dev/TomyJan/MoeURL/.tmp/frontend-glob-security-20261104`。
+2026-11-04 新依赖安装、安全检查及完整前端门禁已通过，Task1 标准完成；clean `8d2195dc2dbdbdb3bab0202bb6b86a0afa8586c5` 的完整浏览器、新产品和唯一独立终审已通过。本地合同、阶段归档及标准 Task2 已完成，Task3 已标准开始，远端最终交付尚未完成。基线为已完整交付 v0.48.0 的 master `6aa7c0aa5a805446fae16e7d8453388763081f23`，独立分支 `fix/frontend-glob-security`。
+
+证据保留边界：本地原始日志、截图、合同和 ZIP 保留于作者工作站的 `.tmp/frontend-glob-security-20261104`，不是仓库成员或公共归档；下列文件名、字节数和 SHA256 用于核验这些保留原件，不表示他人可以在线下载。未删除原始证据，也不自动将本地资料上传到仓库。可共享复核入口为 [PR263 的审查与讨论](https://github.com/TomyJan/MoeURL/pull/263)及候选 `6f0876cc5571bba380561c41c9c77bbd7cb38df8` 的[九个 CI 作业及完整运行日志](https://github.com/TomyJan/MoeURL/actions/runs/41771245578)，只证明该候选的实际运行。复现本地验收须检出对应执行提交，按[实施计划](2026-11-04-frontend-glob-security-plan.md)及下列命令，在隔离 Node 26／pnpm 11.5、Docker 和浏览器环境重新执行；新复现结果保留自身时间、运行时与提交归属，不替代旧原件。后继候选及 master 的审查与 CI 仍须各自取得。
 
 - [x] 基线官方 audit：2 moderate／0 high／0 critical，实际exit1，完整6458bytes原件SHA `F4CFDFD3E7725F8D85D21E6581AA59AB0F1F10A2DD34278DC0F5A724506844F8`；旧镜像 `sha256:8186bac837af789761eec4e9ce6e698c0b2b6287cfdc7cc6f6040bfd5279f26b`，Node26.12.0／pnpm11.5。此项复用原执行，不冒本轮重跑或产品RED。
 - [x] 标准解析及 frozen 安装，完整树无受影响目标副本，两个 GHSA 消失。Node 26.12.0／pnpm 11.5.0；外置 `resolve/web` 执行 `pnpm install --lockfile-only --ignore-scripts --registry=https://registry.npmjs.org`，实际 exit0；新依赖镜像 `sha256:223fc947956ff7cab530f74985e2dd08b07045d25cd11e382fdc5d1b64f93c30` 的 frozen 安装实际 exit0。四个父节点使用 minimatch 11.0.2，glob 14.0.3 自然解析安全的 minimatch 11.0.4；仅目标必要闭包变化。镜像内 `pnpm list --depth Infinity --json`、`pnpm why minimatch glob`、官方 `pnpm audit --json --registry=https://registry.npmjs.org` 均实际 exit0，427 个依赖，全严重度零公告。完整树和原件 hash 见 `task1-dependency-proof.json`。

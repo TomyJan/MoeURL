@@ -42,4 +42,4 @@ Dockerfile 首次 frozen install 前同时 COPY package.json、pnpm-lock.yaml �
 2. 新依赖真实 lint／types、完整前端测试与四项 100%、隔离 build 成功，不禁规则或改期望隐藏主版本兼容问题。
 3. 完整 187 项浏览器、新产品 smoke／restart／版本／精确镜像扫描通过；源输入稳定、准确 owned 资源收尾。截图按实际原图检查。
 4. Go／SQLC 仅在完整对应输入一致时复用原身份；Dockerfile 已变，不能借旧产品制品。
-5. 末段唯一独立整分支审查，最新候选真实远端覆盖及有效问题闭环，候选／master 各九项 CI 和完整日志、守卫合并、标准任务、完整报告及可恢复归档完成。未取得的结果保持未验证。
+5. 末段唯一独立整分支审查，最新候选真实远端覆盖及有效问题闭环，候选／master 各九个 CI 作业和完整日志、守卫合并、标准任务、完整报告及可恢复归档完成。九个作业为 Lint、Typecheck、Test、Test Coverage、Backend Security、E2E、Build、Image Security 和 Compose Smoke；CodeRabbit 审查单独判定，不计入这九个作业。未取得的结果保持未验证。
