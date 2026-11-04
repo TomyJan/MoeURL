@@ -4,7 +4,9 @@
 
 v0.48.0 已通过 [PR262](https://github.com/TomyJan/MoeURL/pull/262) 完整交付，master `6aa7c0aa5a805446fae16e7d8453388763081f23`；最新真实审查、候选／master 各九 CI 与完整日志、标准 Task1–3、19 条裁决和可恢复归档均完成。每页 20／50／100，保持权限、私密筛选和全匹配 CSV；未发布部署，见[验收](implementation/v0.48.0-acceptance.md)。
 
-当前推进 [v0.49.0 批量清空内部备注](product/scope-v0.49.0.md)：Task1–3 已标准完成；唯一终审的成功后焦点问题已修复，对话框名称与英文单复数同步补齐。修复后 3239 项前端测试／四项 100%、types／lint／build、完整 191 项浏览器／58 张原图及精确产品验证通过；原执行与历史失败保持归属，Task3 本地归档与标准收尾完成，PR264 远端交付进行中，见[验收](implementation/v0.49.0-acceptance.md)。
+v0.49.0 已通过 [PR264](https://github.com/TomyJan/MoeURL/pull/264) 完整交付，master `bbdc95e6cce206f217666723a22375f967643d6f`；最终候选真实审查覆盖、候选和 master 各自九 CI／完整日志、标准 Task1–4、28 条裁决报告与可恢复归档均完成，未发布或部署。原运行时与失败保持归属，见[验收](implementation/v0.49.0-acceptance.md)。
+
+当前设计 [v0.49.1 弹窗通知布局](product/scope-v0.49.1.md)，只修共享通知遮挡，保留消息与关闭能力；实现、测试及远端交付尚未完成，见[计划](implementation/v0.49.1-plan.md)。
 
 [前端 glob 安全维护](implementation/2026-11-04-frontend-glob-security-plan.md)已通过 [PR263](https://github.com/TomyJan/MoeURL/pull/263) 完整交付，保持 0.48.0 行为和版本号。最终候选与 master 各自九 CI 成功，最新真实审查覆盖和有效问题闭环、守卫合并、标准 Task1–3、28 条裁决完整报告及可恢复归档均已完成，见[验收](implementation/2026-11-04-frontend-glob-security-acceptance.md)。
 

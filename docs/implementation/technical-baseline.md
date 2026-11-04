@@ -1,6 +1,8 @@
 # 技术基线
 
-[v0.49.0 批量清空内部备注](../specs/2026-11-04-v0.49.0-batch-note-clear-design.md)采用四个固定 POST、当前页 1–100 条、64 KiB／五秒限制、完整纳秒双版本、全批事务及既有字段名审计。Task1–3 已标准完成；唯一终审的成功后焦点问题已修复，对话框名称与英文单复数同步补齐。修复后 3239 项前端测试／四项 100%、types／lint／build、完整 191 项浏览器／58 张原图及精确产品验证通过；原执行与历史失败保持归属，Task3 本地归档与标准收尾完成，PR264 远端交付进行中；无新依赖、权限或 migration，见[验收](v0.49.0-acceptance.md)。
+[v0.49.1 通知布局设计](../specs/2026-11-04-v0.49.1-modal-feedback-design.md)保留单一 Toaster／队列，计划在最高活动弹窗内采用有界正常流区域；30dvh 初选参数须经真实短视口几何验证。尚未实现，无 API、权限、schema 或依赖变化，见[计划](v0.49.1-plan.md)。
+
+[v0.49.0 批量清空内部备注](../specs/2026-11-04-v0.49.0-batch-note-clear-design.md)采用四个固定 POST、当前页 1–100 条、64 KiB／五秒限制、完整纳秒双版本、全批事务及既有字段名审计。PR264 已完整交付，候选／master 各自九 CI、最新真实审查、标准 Task1–4 和可恢复归档完成；原执行身份及失败保留，无新依赖、权限或 migration，见[验收](v0.49.0-acceptance.md)。
 
 [glob 安全维护](../specs/2026-11-04-frontend-glob-security.md)采用五条精确父版本 override，标准 pnpm 11.5 生成锁文件；Docker 首次 frozen 安装同时读取 workspace。新依赖完整门禁、新产品和唯一独立终审已完成，兼容结论限于当前实际父调用与工具链；PR263 已完整交付，候选与 master 各自九 CI、标准完成及可恢复归档均完成，详见[验收](2026-11-04-frontend-glob-security-acceptance.md)。
 
