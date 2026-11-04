@@ -44,6 +44,6 @@ function publish(count: number) {
 <style>
 .feedback-fixture-card { min-width: 0; }
 .feedback-fixture-card .v-card-title { white-space: normal; overflow-wrap: anywhere; }
-.feedback-fixture-card .v-card-text { display: grid; gap: 12px; }
+.feedback-fixture-card .v-card-text { display: grid; grid-auto-rows: max-content; gap: 12px; }
 .feedback-fixture-card .v-card-actions { flex-wrap: wrap; }
 </style>

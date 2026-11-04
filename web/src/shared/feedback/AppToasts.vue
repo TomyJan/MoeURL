@@ -1,6 +1,6 @@
 <template>
   <Teleport :to="target">
-    <div ref="region" class="app-toasts" :class="{ 'app-toasts--modal': target !== 'body' }" :data-toast-modal-region="target !== 'body' && hasMessages ? '' : undefined">
+    <div ref="region" class="app-toasts" :class="{ 'app-toasts--modal': target !== 'body' }" :data-toast-modal-region="target !== 'body' && hasMessages ? '' : undefined" @pointerdown.capture="allowNativeModalScroll">
       <Toaster position="top-right" :theme="dark ? 'dark' : 'light'" :visible-toasts="5" :duration="6000" expand rich-colors close-button :toast-options="{ closeButtonAriaLabel: t('feedback.dismiss') }" />
     </div>
   </Teleport>
@@ -20,6 +20,21 @@ const target = shallowRef<globalThis.HTMLElement | string>('body')
 const region = shallowRef<globalThis.HTMLElement | null>(null)
 const hasMessages = shallowRef(false)
 let observer: globalThis.MutationObserver
+let focusedToastControl: globalThis.HTMLElement | null = null
+const modalFocus = new WeakMap<globalThis.HTMLElement, globalThis.HTMLElement>()
+
+/** Native touch scrolling must not start Sonner's swipe state, which lacks pointercancel cleanup. */
+function allowNativeModalScroll(event: globalThis.PointerEvent) {
+  if (target.value !== 'body' && event.pointerType === 'touch') event.stopPropagation()
+}
+
+/** Remembers the user's safe modal focus without replacing newer focus during an exit animation. */
+function rememberFocus(event: globalThis.FocusEvent) {
+  const element = event.target
+  if (!(element instanceof globalThis.HTMLElement)) return
+  focusedToastControl = region.value?.contains(element) ? element : null
+  if (!focusedToastControl && typeof target.value !== 'string' && target.value.contains(element)) modalFocus.set(target.value, element)
+}
 
 /** Excludes hidden ancestors as well as dialogs that are finishing their closing transition. */
 function isActive(panel: globalThis.HTMLElement) {
@@ -27,6 +42,7 @@ function isActive(panel: globalThis.HTMLElement) {
   if (dialog && !dialog.classList.contains('v-overlay--active')) return false
   for (let element: globalThis.HTMLElement | null = panel; element; element = element.parentElement) {
     const style = globalThis.getComputedStyle(element)
+    if (element.classList.contains('moe-overlay-leave-active')) return false
     if (element.hidden || element.hasAttribute('inert') || element.getAttribute('aria-hidden') === 'true' || style.display === 'none' || style.visibility === 'hidden') return false
   }
   return true
@@ -41,19 +57,31 @@ function syncTarget() {
   let layer = -Infinity
   for (const panel of panels) {
     if (!isActive(panel)) continue
-    const overlay = panel.closest('.v-dialog, .v-overlay') ?? panel
+    const overlay = panel.closest('.v-dialog, .v-overlay, .console-shell__mobile-nav, .console-shell__dialog') ?? panel
     const z = Number.parseFloat(globalThis.getComputedStyle(overlay).zIndex) || 0
     if (z >= layer) { top = panel; layer = z }
   }
   target.value = top
   hasMessages.value = Boolean(region.value?.querySelector('[data-sonner-toast]'))
+  if (focusedToastControl && !focusedToastControl.isConnected) {
+    focusedToastControl = null
+    if (typeof top !== 'string' && globalThis.document.activeElement === globalThis.document.body) {
+      const previous = modalFocus.get(top)
+      const safe = previous?.isConnected && top.contains(previous) && isActive(previous) && !previous.matches(':disabled, [aria-disabled="true"]') ? previous : top
+      safe.focus({ preventScroll: true })
+    }
+  }
 }
 onMounted(() => {
   syncTarget()
+  globalThis.document.addEventListener('focusin', rememberFocus)
   observer = new globalThis.MutationObserver(syncTarget)
   observer.observe(globalThis.document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden', 'inert', 'aria-hidden'] })
 })
-onUnmounted(() => observer.disconnect())
+onUnmounted(() => {
+  observer.disconnect()
+  globalThis.document.removeEventListener('focusin', rememberFocus)
+})
 </script>
 
 <style>

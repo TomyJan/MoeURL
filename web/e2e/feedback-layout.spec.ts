@@ -239,6 +239,25 @@ for (const width of [1280, 390]) {
         const title = geometry.title
         expect(toast.right > title.left && title.right > toast.left && toast.bottom > title.top && title.bottom > toast.top, 'Notification overlaps the real reopened dialog title').toBe(false)
       }
+      await page.locator('[data-sonner-toast]').hover()
+      await page.setViewportSize({ width, height: 320 })
+      const dialog = page.getByTestId('batch-note-clear-dialog'), warning = dialog.locator('.v-alert').first()
+      await warning.scrollIntoViewIfNeeded()
+      await page.screenshot({ path: info.outputPath('notification-short-height.png'), animations: 'disabled' })
+      const warningLayout = await warning.evaluate(element => {
+        const r = element.getBoundingClientRect(), text = element.querySelector('.v-alert__content')!.getBoundingClientRect()
+        return { height: r.height, scrollHeight: element.scrollHeight, clientHeight: element.clientHeight, textFits: text.top >= r.top - 1 && text.bottom <= r.bottom + 1 }
+      })
+      await writeFile(info.outputPath('real-short-warning-geometry.json'), JSON.stringify(warningLayout, null, 2))
+      expect(warningLayout.scrollHeight).toBeLessThanOrEqual(warningLayout.clientHeight + 1)
+      expect(warningLayout.textFits, 'The real safety warning must not clip its own text at 320px height').toBe(true)
+      for (const paragraph of await dialog.getByTestId('batch-note-clear-summary').locator('p').all()) {
+        await paragraph.scrollIntoViewIfNeeded()
+        expect(await paragraph.evaluate(element => {
+          const r = element.getBoundingClientRect(), body = element.closest('.v-card-text')!.getBoundingClientRect()
+          return r.top >= body.top - 1 && r.bottom <= body.bottom + 1
+        }), 'Each real summary line must remain readable by scrolling the body').toBe(true)
+      }
     } catch (error) { failures.push(error) } finally {
       try {
         const found = await success(page.request, '/admin/short-link/list?q=' + keyword + '&page=1&pageSize=20')
