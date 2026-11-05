@@ -1,5 +1,13 @@
 # v0.50.0 批量替换内部备注范围
 
+## 最终交付（2026-11-05）
+
+已通过 [PR270](https://github.com/TomyJan/MoeURL/pull/270) 完整交付，master `7ede77d48ff086209fd6d043a77000105d7c4870`。最新候选 `5ba4a4cb6f21f81f1b78a73f827033790cbe820c` 真实审查覆盖、有效意见闭环；候选 run41943898011 与 master run41947207982 各九 CI 成功，完整日志已分别核至 EOF。Task1–4 标准完成，22 条裁决与两项延期 Minor 完整报告、whole-owned ZIP／解压及准确 leaf 可恢复迁出均已核验。未发布部署。
+
+两项文案／接口说明 Minor 由 [v0.50.1](scope-v0.50.1.md) 承接；原执行、失败与运行时仍见[验收](../implementation/v0.50.0-acceptance.md)，首轮浏览器失败根因未确认的限制保留。
+
+## 设计与本地验证时的阶段记录
+
 状态：Task1–2 已标准完成；完整本地门禁、clean ca98b90 的 212 项浏览器、57 张相关原图、精确产品与唯一独立终审已核。首轮旧域名场景失败的根因仍未确定，限制如实保留；本地合同与归档正在收尾，远端交付尚待。基线为 PR269 已交付 master `4b5d4dc4db6d14a430cdc3cdf7238f3d9516da77`，分支 `feat/v0.50.0-batch-note-replace`。见[设计](../specs/2026-11-05-v0.50.0-batch-note-replace-design.md)、[计划](../implementation/v0.50.0-plan.md)与[验收](../implementation/v0.50.0-acceptance.md)。
 
 ## 目标与必须实现
