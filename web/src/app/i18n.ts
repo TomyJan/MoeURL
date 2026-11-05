@@ -2,6 +2,17 @@ import { createI18n } from 'vue-i18n'
 
 export const messages = {
   'zh-CN': {
+    batchTagRename: {
+      action: '重命名标签', title: '重命名所选短链的标签', from: '原标签', to: '新标签',
+      scope: '只影响本次选择，不是全局标签重命名。新旧标签都有时，只删除旧标签，保留新标签原位置。',
+      invalid: '请输入不同的非空标签，各最多 32 个 Unicode 字符，不含控制字符。',
+      changed: '预计 {count} 条短链变化。', unchanged: '{count} 条短链不含原标签。', noop: '没有需要改名的标签，不会发送写入。',
+      before: '修改前：', after: '修改后：', cancel: '取消', approve: '确认以上预览', confirm: '保存标签重命名', reload: '重新加载并检查',
+      unknown: '保存结果未确认，可能已经成功。请重新加载列表检查；不会自动重试保存。',
+      stale: '所选短链已变化或不可访问。请重新加载列表，再重新选择。',
+      loadFailed: '列表读取失败，仍禁止再次保存，请重试读取。', saveFailed: '请求未通过，草稿已保留，请重新确认预览。',
+      accessChanged: '账号或权限已变化，请刷新列表。', saved: '已修改 {changed} 条短链，{unchanged} 条无须修改。',
+    },
     batchNoteReplace: {
       action: '替换备注', title: '替换所选内部备注', note: '统一备注内容', warning: '所选备注将被此内容永久覆盖，无法撤销。请先预览变化数量，再确认替换。',
       hint: '输入最多 1000 个 Unicode 字符，允许换行和制表符。空内容请使用“清空备注”。', invalidNote: '请输入非空备注，最多 1000 个 Unicode 字符，不含换行和制表符以外的控制字符。',
@@ -824,6 +835,18 @@ export const messages = {
     },
   },
   en: {
+    batchTagRename: {
+      action: 'Rename tag', title: 'Rename tag on selected links', from: 'Current tag', to: 'New tag',
+      scope: 'Only affects this selection, not every link with this tag. If both tags exist, only the old tag is removed; the new tag keeps its position.',
+      invalid: 'Enter different, nonempty tags of up to 32 Unicode characters each, without control characters.',
+      changed: '{count} links will change. | {count} link will change. | {count} links will change.',
+      unchanged: '{count} links do not contain the current tag. | {count} link does not contain the current tag. | {count} links do not contain the current tag.',
+      noop: 'No tags need renaming. No write will be sent.', before: 'Before:', after: 'After:', cancel: 'Cancel', approve: 'Approve this preview', confirm: 'Save tag rename', reload: 'Reload and check',
+      unknown: 'The save result is unknown and may have succeeded. Reload the list to check; saving will not be retried automatically.',
+      stale: 'Selected links changed or are no longer accessible. Reload the list, then select again.',
+      loadFailed: 'Could not reload the list. Saving remains locked; retry the read.', saveFailed: 'The request was rejected. The draft is kept; approve the preview again.',
+      accessChanged: 'Your account or permissions changed. Refresh the list.', saved: 'Changed: {changed}. Unchanged: {unchanged}.',
+    },
     batchNoteReplace: {
       action: 'Replace notes', title: 'Replace selected internal notes', note: 'Replacement note', warning: 'This permanently overwrites the selected notes and cannot be undone. Preview the changes before confirming.',
       hint: 'Up to 1000 Unicode characters, including line breaks and tabs. Use Clear notes for empty content.', invalidNote: 'Enter a non-empty note with up to 1000 Unicode characters and no controls other than line breaks and tabs.',

@@ -10,7 +10,7 @@ v0.50.0 已通过 [PR270](https://github.com/TomyJan/MoeURL/pull/270) 完整交�
 
 v0.50.1 已通过 [PR271](https://github.com/TomyJan/MoeURL/pull/271) 完整交付，master `9bcf97bfafe3fd5e1747f692dea8ce2decbb6f53`；最新真实审查、[候选九项 CI](https://github.com/TomyJan/MoeURL/actions/runs/41956791078)和 [master 自身九项 CI](https://github.com/TomyJan/MoeURL/actions/runs/41959310355)及完整日志、三个标准任务、21 条裁决与可恢复归档均完成，未发布部署，见[验收](../implementation/v0.50.1-acceptance.md)。旧单元超时与前版浏览器失败根因未确认。
 
-当前推进 [v0.51.0 当前选择标签重命名](scope-v0.51.0.md)：两个独立 POST、原子权限／主版本检查和固定预览确认；后端本地验证已完成，前端与整版交付未完成，见[验收](../implementation/v0.51.0-acceptance.md)和[计划](../implementation/v0.51.0-plan.md)。基线包含外部合入的 vue-query5.105.1／vue-i18n11.4.17，独立验证，不借前版前端结果。下方旧阶段按历史归属保留。
+当前推进 [v0.51.0 当前选择标签重命名](scope-v0.51.0.md)：两个独立 POST、原子权限／主版本检查和固定预览确认；后端已标准完成，前端3496项／四项100%及types/lint/隔离双构建已验证，浏览器、终审与整版交付未完成，见[验收](../implementation/v0.51.0-acceptance.md)和[计划](../implementation/v0.51.0-plan.md)。基线包含外部合入的 vue-query5.105.1／vue-i18n11.4.17，独立验证，不借前版前端结果。下方旧阶段按历史归属保留。
 
 ## 当前状态（2026-11-04）
 

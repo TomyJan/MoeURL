@@ -17,7 +17,7 @@
         <v-text-field :model-value="tagFilter" :label="t('filter.tag')" :disabled="privateConfirmationOpen" :error-messages="tagInvalid ? t('linkMetadata.tagFilterInvalid') : ''" density="compact" variant="outlined" @update:model-value="selectTag" />
         <v-text-field :model-value="noteQuery" :label="t('filter.noteQuery')" :error-messages="noteQueryInvalid ? t('linkMetadata.noteQueryInvalid') : ''" :disabled="noteFilterBlocked || note.target.value !== null" density="compact" variant="outlined" @update:model-value="selectNoteQuery" />
       </div>
-      <ShortLinkBatchToolbar :state="batch" :access="access" @tags="beginBatchTags" @clear-notes="beginNoteClear" @replace-notes="beginNoteReplace" />
+      <ShortLinkBatchToolbar :state="batch" :access="access" @tags="beginBatchTags" @clear-notes="beginNoteClear" @replace-notes="beginNoteReplace" @rename-tag="beginTagRename" />
     </div>
     <PersonalTagBrowser :access="access" @select="selectTag" />
     <div class="console-data-panel" data-testid="console-data-panel">
@@ -75,6 +75,7 @@
   <ShortLinkNoteDialog v-if="note.target.value" :state="note" />
   <BatchNoteClearDialog :state="noteClear" :fallback-focus="pageRoot" />
   <BatchNoteReplaceDialog :state="noteReplace" :fallback-focus="pageRoot" />
+  <BatchTagRenameDialog :state="tagRename" :fallback-focus="pageRoot" />
 </template>
 
 <script setup lang="ts">
@@ -103,6 +104,8 @@ import { useBatchNoteClear } from '@/features/short-link-note/useBatchNoteClear'
 import BatchNoteClearDialog from '@/features/short-link-note/BatchNoteClearDialog.vue'
 import { useBatchNoteReplace } from '@/features/short-link-note/useBatchNoteReplace'
 import BatchNoteReplaceDialog from '@/features/short-link-note/BatchNoteReplaceDialog.vue'
+import { useBatchTagRename } from '@/features/short-link-tags/useBatchTagRename'
+import BatchTagRenameDialog from '@/features/short-link-tags/BatchTagRenameDialog.vue'
 import { noteVersionSchema } from '@/entities/short-link/note'
 import ShortLinkPagination from '@/features/short-link-pagination/ShortLinkPagination.vue'
 import { DEFAULT_SHORT_LINK_PAGE_SIZE, isShortLinkPageSize, type ShortLinkPageSize } from '@/features/short-link-pagination/pageSize'
@@ -117,7 +120,8 @@ const access = useShortLinkAccess('own')
 const note = useShortLinkNote('own', access)
 const noteClear = useBatchNoteClear('own', access, () => batch.clear())
 const noteReplace = useBatchNoteReplace('own', access, () => batch.clear())
-const privateConfirmationOpen = computed(() => noteClear.targets.value !== null || noteReplace.targets.value !== null)
+const tagRename = useBatchTagRename('own', access, () => batch.clear(), readFreshRenameList)
+const privateConfirmationOpen = computed(() => noteClear.targets.value !== null || noteReplace.targets.value !== null || tagRename.targets.value !== null)
 const batchTagTargets = ref<readonly BatchTagTarget[] | null>(null)
 const batchTagsRefreshRequired = ref(false)
 const exportPending = ref(false)
@@ -199,6 +203,7 @@ const rowWriteBlocked = computed(() => privateConfirmationOpen.value || noteQuer
 watch([statusFilter, searchKeyword, tagFilter, noteQuery, noteStatusFilter, page, pageSize], note.reset, { flush: 'sync' })
 watch([statusFilter, searchKeyword, tagFilter, noteQuery, noteStatusFilter, page, pageSize], noteClear.reset, { flush: 'sync' })
 watch([statusFilter, searchKeyword, tagFilter, noteQuery, noteStatusFilter, page, pageSize], noteReplace.reset, { flush: 'sync' })
+watch([statusFilter, searchKeyword, tagFilter, noteQuery, noteStatusFilter, page, pageSize], tagRename.reset, { flush: 'sync' })
 watch([query.isFetching, query.isSuccess], ([fetching, success]) => { if (!fetching && success) batchTagsRefreshRequired.value = false })
 const exportFilters = computed(() => ({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value, noteStatus: noteStatusFilter.value, ...(debouncedNoteQuery.value ? { noteQuery: debouncedNoteQuery.value } : {}) }))
 const exportBlocked = computed(() => !access.canRead.value || !query.isSuccess.value || query.isFetching.value
@@ -262,6 +267,26 @@ function beginNoteClear() {
   noteClear.open(targets.map(link => ({ id: link.id, expectedUpdatedAt: link.updatedAt! })))
 }
 /** Opens a replacement only against the same live selection and operation locks. */
+/** Captures only the selected live rows; background reads cannot replace the fixed preview. */
+function beginTagRename() {
+  const state = queryClient.getQueryState(listQueryKey.value)
+  if (batch.unavailable.value || exportBlocked.value || exportPending.value || bulkCreateOpen.value || qrLink.value !== null
+    || !access.allows('tags') || !batch.selected.value.length || state?.status !== 'success' || state.fetchStatus !== 'idle' || state.isInvalidated) return
+  const targets = links.value.filter(link => batch.selected.value.includes(link.id))
+  if (targets.length !== batch.selected.value.length || targets.some(link => !noteVersionSchema.safeParse(link.updatedAt).success)) return
+  tagRename.open(targets.map(link => ({ id: link.id, expectedUpdatedAt: link.updatedAt!, url: link.url, tags: [...link.tags] })))
+}
+/** Cancels an older read, then requires a new successful idle result for this exact collection. */
+async function readFreshRenameList(current: () => boolean) {
+  const key = listQueryKey.value
+  if (!current()) return false
+  await queryClient.cancelQueries({ queryKey: key, exact: true })
+  if (!current()) return false
+  const result = await query.refetch({ throwOnError: true })
+  if (!current() || listQueryKey.value !== key) return false
+  const state = queryClient.getQueryState(key)
+  return result.isSuccess && state?.status === 'success' && state.fetchStatus === 'idle' && !state.isInvalidated
+}
 function beginNoteReplace() {
   const state = queryClient.getQueryState(listQueryKey.value)
   if (batch.unavailable.value || exportBlocked.value || exportPending.value || bulkCreateOpen.value || qrLink.value !== null
