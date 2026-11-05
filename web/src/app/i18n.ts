@@ -831,7 +831,7 @@ export const messages = {
       cancel: 'Cancel', preview: 'Preview changes', check: 'Check result again', loading: 'Checking the changes', confirm: 'Overwrite {count} note | Overwrite {count} notes',
       unknown: 'The replacement result is unknown. Content is locked. Check the counts again, then confirm; the write will not be retried automatically.',
       loadFailed: 'Could not check the changes. Please retry.', saveFailed: 'The replacement request was rejected. Check it before confirming again.', conflict: 'A selected link or note has changed. Refresh the list and select again.',
-      accessChanged: 'The account, permissions or link ownership has changed. Refresh the list.', saved: 'Replaced {changed} notes; {unchanged} already matched.',
+      accessChanged: 'The account, permissions or link ownership has changed. Refresh the list.', saved: 'Notes replaced: {changed}; already matched: {unchanged}.',
     },
     batchNoteClear: {
       action: 'Clear notes', title: 'Clear selected internal notes', warning: 'This permanently clears the selected notes and cannot be undone.', cancel: 'Cancel', loading: 'Checking current notes',
