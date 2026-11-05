@@ -142,7 +142,12 @@ for (const scope of ['own', 'admin'] as const) for (const en of [false, true]) {
       await expect(page.getByTestId('console-link-row')).toHaveCount(0)
       await expect(page.getByRole('textbox', { name: en ? 'Tag' : '标签', exact: true })).toHaveValue(old)
 
-      await setTags(await readAll(), [old, 'keep']); await loadList(page, prefix, keyword, en); await open(page, old, replacement, en); await approve(page, 100, 0, en)
+      await setTags(await readAll(), [old, 'keep']); await loadList(page, prefix, keyword, en)
+      await page.getByRole('button', { name: en ? (scope === 'own' ? 'My tags' : 'All-site tags') : (scope === 'own' ? '我的标签' : '全站标签'), exact: true }).click()
+      const catalogSearch = page.getByRole('textbox', { name: en ? (scope === 'own' ? 'Find my tags' : 'Find all-site tags') : (scope === 'own' ? '查找我的标签' : '查找全站标签'), exact: true })
+      await catalogSearch.fill(old)
+      await expect(page.getByRole('button', { name: old + ' · 100', exact: true })).toBeVisible()
+      await open(page, old, replacement, en); await approve(page, 100, 0, en)
       let lostWrites = 0
       const routePath = '**/api/v1' + prefix + '/batch-tag-rename'
       await page.route(routePath, async route => { lostWrites++; const committed = await route.fetch(); expect(committed.status()).toBe(200); expect((await committed.json()).data).toEqual({ changedCount: 100, unchangedCount: 0 }); await route.abort('failed') })
@@ -157,8 +162,15 @@ for (const scope of ['own', 'admin'] as const) for (const en of [false, true]) {
       for (const row of actual.data.items) expect(row.tags).toEqual([replacement, 'keep'])
       await expect(page.getByRole('dialog')).toHaveCount(0); expect(lostWrites).toBe(1); await page.unroute(routePath)
       await expect(page.getByTestId('batch-tag-rename')).toBeDisabled()
+      await expect(page.getByText(en ? 'No matching tags.' : '没有匹配的标签。', { exact: true })).toBeVisible()
+      await expect(page.getByRole('button', { name: old + ' · 100', exact: true })).toHaveCount(0)
+      await catalogSearch.fill(replacement)
+      await expect(page.getByRole('button', { name: replacement + ' · 100', exact: true })).toBeVisible()
+      await expectNoHorizontalOverflow(page)
+      const directoryImage = info.outputPath('tag-rename-recovered-directory-' + scope + '-' + language + '.png')
+      await page.screenshot({ path: directoryImage, animations: 'disabled', fullPage: true }); await info.attach('recovered-directory', { path: directoryImage, contentType: 'image/png' })
       const proof = info.outputPath('tag-rename-proof.json')
-      await writeFile(proof, JSON.stringify({ browser: browser.version(), driverNode: process.version, scope, language, width, targets: 100, replacementCodePoints: 32, changed: 66, unchanged: 34, actualMetadataRead: 100, conflict: 200116, exactTagsAndOrder: true, noOpVersionUnchanged: true, unrelatedFieldsAndNoteUnchanged: true, editABARequiresApproval: true, keyboardEnterNeverWrites: true, oldTagFilterExit: true, committedLostResponseActualListReadback: true, lostWrites }, null, 2)); await info.attach('tag-rename-proof', { path: proof, contentType: 'application/json' })
+      await writeFile(proof, JSON.stringify({ browser: browser.version(), driverNode: process.version, scope, language, width, targets: 100, replacementCodePoints: 32, changed: 66, unchanged: 34, actualMetadataRead: 100, conflict: 200116, exactTagsAndOrder: true, noOpVersionUnchanged: true, unrelatedFieldsAndNoteUnchanged: true, editABARequiresApproval: true, keyboardEnterNeverWrites: true, oldTagFilterExit: true, committedLostResponseActualListReadback: true, expandedCatalogRefreshedAfterRecovery: true, lostWrites }, null, 2)); await info.attach('tag-rename-proof', { path: proof, contentType: 'application/json' })
     } catch (error) { failures.push(error) } finally {
       try { for (const row of await readAll()) links.set(row.id, row) } catch (error) { failures.push(error) }
       for (const row of links.values()) { try { await success(manager.request, '/admin/short-link/delete', { id: row.id }) } catch (error) { failures.push(error) } }

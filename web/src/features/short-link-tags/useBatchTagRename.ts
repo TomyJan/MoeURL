@@ -85,6 +85,9 @@ export function useBatchTagRename(context: 'own' | 'admin', access: Access, onRe
       if (!current()) return
       if (!success) { error.value = 'loadFailed'; return }
       onRetired()
+      for (const key of ['short-link', 'admin-short-link', 'short-link-overview', 'short-link-statistics', 'insights']) {
+        if (current()) void client.invalidateQueries({ queryKey: [key] })
+      }
       if (current()) reset()
     } catch { await nextTick(); if (current()) error.value = 'loadFailed' }
     finally { if (current()) loading.value = false }

@@ -10,6 +10,8 @@ import { nextTick, watch, type Component, type SetupContext } from 'vue'
 import type { useBatchTagRename } from '@/features/short-link-tags/useBatchTagRename'
 import type { useShortLinkBatch } from '@/features/short-link-batch/useShortLinkBatch'
 import { createDeferred } from '@/test/deferred'
+import PersonalTagBrowser from '@/features/short-link-tags/PersonalTagBrowser.vue'
+import AdminTagBrowser from '@/features/short-link-tags/AdminTagBrowser.vue'
 
 vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 const actor = { id: '00000000-0000-0000-0000-000000000001', username: 'rename-owner', nickname: '', group: 'admin' }
@@ -76,6 +78,34 @@ describe('batch tag rename page entry', () => {
     expect(view.fetcher.mock.calls.filter(([url]) => String(url).includes('/list?'))).toHaveLength(1)
   })
   for (const context of ['own', 'admin'] as const) {
+    it(`refreshes the already open tag directory after committed lost-response readback (${context})`, async () => {
+      const view = await queuedPage(context, { PersonalTagBrowser, AdminTagBrowser })
+      let committed = false
+      view.fetcher.mockImplementation(async (input, init) => {
+        const url = String(input)
+        if (url.endsWith('/batch-tag-rename') && init?.method === 'POST') { committed = true; throw new Error('reply lost after commit') }
+        const data = url.includes('/tags?')
+          ? { items: [{ tag: committed ? 'new' : 'old', linkCount: 1 }], hasMore: false }
+          : url.endsWith('/auth/me') ? view.client.getQueryData(['auth', 'me'])
+            : { items: [{ ...row, tags: committed ? ['new', 'other'] : row.tags, ...(context === 'admin' ? { owner: { id: actor.id, username: actor.username, nickname: actor.nickname } } : {}) }] }
+        return new Response(JSON.stringify({ code: 0, message: 'OK', data, meta: { total: 1 } }))
+      })
+      await fireEvent.click(screen.getByRole('button', { name: context === 'own' ? 'My tags' : 'All-site tags' }))
+      await screen.findByRole('button', { name: 'old · 1' })
+      view.toolbarEvent('rename-tag'); await nextTick(); await approve()
+      await fireEvent.click(screen.getByTestId('batch-tag-rename-confirm'))
+      await screen.findByText(/The save result is unknown/)
+      await fireEvent.click(screen.getByTestId('batch-tag-rename-reload'))
+      await waitFor(() => expect(view.client.isFetching()).toBe(0))
+      for (const query of view.client.getQueryCache().findAll({ queryKey: [context === 'own' ? 'short-link' : 'admin-short-link'] })) {
+        if (query.state.error) throw query.state.error
+      }
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+      await screen.findByRole('button', { name: 'new · 1' })
+      expect(screen.queryByRole('button', { name: 'old · 1' })).toBeNull()
+      expect(view.batch.selected.value).toEqual([])
+      expect(view.fetcher.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1)
+    })
     it.each(['start', 'cancel', 'response'] as const)(`retires list recovery after identity changes during %s (${context})`, async phase => {
       let state!: ReturnType<typeof useBatchTagRename>
       const view = await queuedPage(context, { BatchTagRenameDialog: { props: ['state'], setup(props: Record<string, unknown>) { state = props.state as ReturnType<typeof useBatchTagRename>; return {} }, template: '<div />' } })

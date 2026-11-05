@@ -135,6 +135,31 @@ describe('fixed tag rename approval', () => {
     view.cleared.mockImplementationOnce(() => { view.client.setQueryData(['auth', 'me'], { user: user(grants, other) }); approved(view) })
     await view.state.reload(); expect(view.state.targets.value).not.toBeNull(); expect(view.state.canConfirm.value).toBe(true)
   })
+  it.each(['unknown', 'stale'] as const)('marks every derived view stale after a successful %s recovery read', async kind => {
+    const view = mount(); approved(view)
+    const keys = ['short-link', 'admin-short-link', 'short-link-overview', 'short-link-statistics', 'insights']
+    for (const key of keys) view.client.setQueryData([key, 'cached-view'], { old: true })
+    if (kind === 'unknown') view.fetcher.mockRejectedValueOnce(new Error('lost reply'))
+    else view.fetcher.mockResolvedValueOnce(response(null, 200116))
+    await view.state.confirm(); await view.state.reload()
+    for (const key of keys) expect(view.client.getQueryState([key, 'cached-view'])?.isInvalidated).toBe(true)
+    expect(view.state.targets.value).toBeNull()
+  })
+  it('stops recovery cache effects when the first invalidation synchronously changes account', async () => {
+    const view = mount(); approved(view)
+    const keys = ['short-link', 'admin-short-link', 'short-link-overview', 'short-link-statistics', 'insights']
+    for (const key of keys) view.client.setQueryData([key, 'cached-view'], { old: true })
+    view.fetcher.mockRejectedValueOnce(new Error('lost reply')); await view.state.confirm()
+    const stop = view.client.getQueryCache().subscribe(event => {
+      if (event.type === 'updated' && event.action.type === 'invalidate' && event.query.queryKey[0] === 'short-link') {
+        view.client.setQueryData(['auth', 'me'], { user: user(grants, other) })
+      }
+    })
+    await view.state.reload(); stop()
+    expect(view.client.getQueryState(['short-link', 'cached-view'])?.isInvalidated).toBe(true)
+    for (const key of keys.slice(1)) expect(view.client.getQueryState([key, 'cached-view'])?.isInvalidated).toBe(false)
+    expect(view.state.targets.value).toBeNull()
+  })
   it('does not refresh a new account after a synchronous permission-error toast listener switches login', async () => {
     const view = mount(); approved(view); const reset = vi.spyOn(view.client, 'resetQueries')
     view.fetcher.mockResolvedValueOnce(response(null, 120001))
