@@ -18,7 +18,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@tanstack/vue-query": "^5.105.1",
+    "@tanstack/vue-query": "^5.105.2",
     "chart.js": "^4.6.1",
     "pinia": "^4.1.0",
     "qrcode": "^1.5.4",
