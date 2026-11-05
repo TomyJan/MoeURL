@@ -1,6 +1,6 @@
 # v0.50.1 批量备注文案维护范围
 
-状态：文案及文档已实现，实际 i18n 九组合与 3370 项前端四项 100%、types／lint／双构建通过；Task1 标准收尾及独立浏览器／产品／审查／远端交付继续。首完整前端一项旧测试超时保留，后继通过不证明原根因已修复。基线为 PR270 已交付 master `7ede77d48ff086209fd6d043a77000105d7c4870`，分支 `fix/v0.50.1-note-replace-copy`。见[设计](../specs/2026-11-05-v0.50.1-note-replace-copy-design.md)、[计划](../implementation/v0.50.1-plan.md)与[验收](../implementation/v0.50.1-acceptance.md)。
+状态：文案及文档已实现，Task1 标准完成；实际 i18n 九组合、3370 项前端四项 100%、types／lint／双构建及 clean 9b0de45 的完整 212 项浏览器、12 张相关原图、精确产品验证通过。Task2 唯一独立审查无发现，本地标准收尾与 Task3 远端交付继续。首完整前端一项旧测试超时保留，后继通过不证明原根因已修复。基线为 PR270 已交付 master `7ede77d48ff086209fd6d043a77000105d7c4870`，分支 `fix/v0.50.1-note-replace-copy`。见[设计](../specs/2026-11-05-v0.50.1-note-replace-copy-design.md)、[计划](../implementation/v0.50.1-plan.md)与[验收](../implementation/v0.50.1-acceptance.md)。
 
 ## 目标与边界
 

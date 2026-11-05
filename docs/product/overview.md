@@ -8,7 +8,7 @@ v0.49.3 已通过 [PR269](https://github.com/TomyJan/MoeURL/pull/269) 完整交�
 
 v0.50.0 已通过 [PR270](https://github.com/TomyJan/MoeURL/pull/270) 完整交付，master `7ede77d48ff086209fd6d043a77000105d7c4870`。最新真实审查覆盖、[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41943898011)与 [master 自身九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41947207982)及完整日志、标准 Task1–4、22 条裁决与可恢复归档全部完成；未发布部署。首轮旧域名场景 211/212 失败根因未确认的限制保持原归属，见[验收](../implementation/v0.50.0-acceptance.md)。
 
-当前推进 [v0.50.1 文案维护](scope-v0.50.1.md)：承接 PR270 英文保存提示单复数与管理员完整接口说明，保持既有业务流程；独立本地验证、审查和远端交付继续，见[计划](../implementation/v0.50.1-plan.md)。PR269 量词已由前版修正为“五个重点”，不重复修改。下方旧阶段保持历史归属。
+当前推进 [v0.50.1 文案维护](scope-v0.50.1.md)：英文保存提示及管理员完整接口说明已更新；Task1 标准完成，3370 项前端四项 100%、clean 9b0de45 的完整 212 项浏览器、12 张相关原图和精确产品验证通过。唯一独立审查无发现；本地标准收尾及远端交付继续，见[计划](../implementation/v0.50.1-plan.md)。PR269 量词已由前版修正为“五个重点”，不重复修改。下方旧阶段保持历史归属。
 
 ## 当前状态（2026-11-04）
 
