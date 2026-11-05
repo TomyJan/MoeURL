@@ -11,13 +11,13 @@
     </header>
     <div class="console-page__tools">
       <div class="console-page__filters console-page__metadata-filters" data-testid="console-page-toolbar">
-        <v-select :model-value="statusFilter" :items="statusOptions" :label="t('filter.status')" :disabled="noteClear.targets.value !== null" density="compact" variant="outlined" @update:model-value="selectStatus" />
+        <v-select :model-value="statusFilter" :items="statusOptions" :label="t('filter.status')" :disabled="privateConfirmationOpen" density="compact" variant="outlined" @update:model-value="selectStatus" />
         <v-select :model-value="noteStatusFilter" :items="noteStatusOptions" :label="t('filter.noteStatus')" :disabled="noteFilterBlocked" density="compact" variant="outlined" @update:model-value="selectNoteStatus" />
-        <v-text-field :model-value="searchKeyword" :label="t('filter.keyword')" :disabled="noteClear.targets.value !== null" :error-messages="keywordInvalid ? t('linkMetadata.keywordInvalid') : ''" density="compact" variant="outlined" @update:model-value="selectKeyword" />
-        <v-text-field :model-value="tagFilter" :label="t('filter.tag')" :disabled="noteClear.targets.value !== null" :error-messages="tagInvalid ? t('linkMetadata.tagFilterInvalid') : ''" density="compact" variant="outlined" @update:model-value="selectTag" />
+        <v-text-field :model-value="searchKeyword" :label="t('filter.keyword')" :disabled="privateConfirmationOpen" :error-messages="keywordInvalid ? t('linkMetadata.keywordInvalid') : ''" density="compact" variant="outlined" @update:model-value="selectKeyword" />
+        <v-text-field :model-value="tagFilter" :label="t('filter.tag')" :disabled="privateConfirmationOpen" :error-messages="tagInvalid ? t('linkMetadata.tagFilterInvalid') : ''" density="compact" variant="outlined" @update:model-value="selectTag" />
         <v-text-field :model-value="noteQuery" :label="t('filter.noteQuery')" :error-messages="noteQueryInvalid ? t('linkMetadata.noteQueryInvalid') : ''" :disabled="noteFilterBlocked || note.target.value !== null" density="compact" variant="outlined" @update:model-value="selectNoteQuery" />
       </div>
-      <ShortLinkBatchToolbar :state="batch" :access="access" @tags="beginBatchTags" @clear-notes="beginNoteClear" />
+      <ShortLinkBatchToolbar :state="batch" :access="access" @tags="beginBatchTags" @clear-notes="beginNoteClear" @replace-notes="beginNoteReplace" />
     </div>
     <PersonalTagBrowser :access="access" @select="selectTag" />
     <div class="console-data-panel" data-testid="console-data-panel">
@@ -74,6 +74,7 @@
   <ShortLinkBatchTagsDialog v-if="batchTagTargets" context="own" :targets="batchTagTargets" @close="batchTagTargets = null" @saved="batch.clear" @revoked="batch.clear" @conflict="batchTagsRefreshRequired = true" />
   <ShortLinkNoteDialog v-if="note.target.value" :state="note" />
   <BatchNoteClearDialog :state="noteClear" :fallback-focus="pageRoot" />
+  <BatchNoteReplaceDialog :state="noteReplace" :fallback-focus="pageRoot" />
 </template>
 
 <script setup lang="ts">
@@ -100,6 +101,8 @@ import ShortLinkNoteDialog from '@/features/short-link-note/ShortLinkNoteDialog.
 import { useShortLinkNote } from '@/features/short-link-note/useShortLinkNote'
 import { useBatchNoteClear } from '@/features/short-link-note/useBatchNoteClear'
 import BatchNoteClearDialog from '@/features/short-link-note/BatchNoteClearDialog.vue'
+import { useBatchNoteReplace } from '@/features/short-link-note/useBatchNoteReplace'
+import BatchNoteReplaceDialog from '@/features/short-link-note/BatchNoteReplaceDialog.vue'
 import { noteVersionSchema } from '@/entities/short-link/note'
 import ShortLinkPagination from '@/features/short-link-pagination/ShortLinkPagination.vue'
 import { DEFAULT_SHORT_LINK_PAGE_SIZE, isShortLinkPageSize, type ShortLinkPageSize } from '@/features/short-link-pagination/pageSize'
@@ -113,6 +116,8 @@ const pageRoot = ref<globalThis.HTMLElement | null>(null)
 const access = useShortLinkAccess('own')
 const note = useShortLinkNote('own', access)
 const noteClear = useBatchNoteClear('own', access, () => batch.clear())
+const noteReplace = useBatchNoteReplace('own', access, () => batch.clear())
+const privateConfirmationOpen = computed(() => noteClear.targets.value !== null || noteReplace.targets.value !== null)
 const batchTagTargets = ref<readonly BatchTagTarget[] | null>(null)
 const batchTagsRefreshRequired = ref(false)
 const exportPending = ref(false)
@@ -188,17 +193,18 @@ const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof va
 const batch = useShortLinkBatch({
   context: 'own', access, ids: computed(() => links.value.map(link => link.id)),
   filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value, noteStatusFilter.value, noteQuery.value, page.value, pageSize.value]),
-  blocked: computed(() => noteClear.targets.value !== null || bulkCreateOpen.value || qrLink.value !== null || note.target.value !== null || !query.isSuccess.value || query.isFetching.value || batchTagsRefreshRequired.value || batchTagTargets.value !== null || exportPending.value || filtersPending.value || keywordInvalid.value || tagInvalid.value || noteQueryInvalid.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null),
+  blocked: computed(() => privateConfirmationOpen.value || bulkCreateOpen.value || qrLink.value !== null || note.target.value !== null || !query.isSuccess.value || query.isFetching.value || batchTagsRefreshRequired.value || batchTagTargets.value !== null || exportPending.value || filtersPending.value || keywordInvalid.value || tagInvalid.value || noteQueryInvalid.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null),
 })
-const rowWriteBlocked = computed(() => noteClear.targets.value !== null || noteQueryInvalid.value || noteQueryPending.value || note.target.value !== null || batch.pending.value || batch.deleteIds.value !== null || batchTagTargets.value !== null)
+const rowWriteBlocked = computed(() => privateConfirmationOpen.value || noteQueryInvalid.value || noteQueryPending.value || note.target.value !== null || batch.pending.value || batch.deleteIds.value !== null || batchTagTargets.value !== null)
 watch([statusFilter, searchKeyword, tagFilter, noteQuery, noteStatusFilter, page, pageSize], note.reset, { flush: 'sync' })
 watch([statusFilter, searchKeyword, tagFilter, noteQuery, noteStatusFilter, page, pageSize], noteClear.reset, { flush: 'sync' })
+watch([statusFilter, searchKeyword, tagFilter, noteQuery, noteStatusFilter, page, pageSize], noteReplace.reset, { flush: 'sync' })
 watch([query.isFetching, query.isSuccess], ([fetching, success]) => { if (!fetching && success) batchTagsRefreshRequired.value = false })
 const exportFilters = computed(() => ({ status: statusFilter.value, q: debouncedKeyword.value, tag: debouncedTag.value, noteStatus: noteStatusFilter.value, ...(debouncedNoteQuery.value ? { noteQuery: debouncedNoteQuery.value } : {}) }))
 const exportBlocked = computed(() => !access.canRead.value || !query.isSuccess.value || query.isFetching.value
   || keywordInvalid.value || tagInvalid.value || noteQueryInvalid.value || filtersPending.value || statusMutation.isPending.value
   || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || rowWriteBlocked.value)
-const noteFilterBlocked = computed(() => noteClear.targets.value !== null || !access.canRead.value || note.saving.value || batch.pending.value || batch.deleteIds.value !== null
+const noteFilterBlocked = computed(() => privateConfirmationOpen.value || !access.canRead.value || note.saving.value || batch.pending.value || batch.deleteIds.value !== null
   || batchTagTargets.value !== null || statusMutation.isPending.value || deleteMutation.isPending.value
   || settingsMutation.isPending.value || settingsLink.value !== null || qrLink.value !== null)
 
@@ -255,22 +261,31 @@ function beginNoteClear() {
   if (targets.length !== batch.selected.value.length || targets.some(link => !noteVersionSchema.safeParse(link.updatedAt).success)) return
   noteClear.open(targets.map(link => ({ id: link.id, expectedUpdatedAt: link.updatedAt! })))
 }
+/** Opens a replacement only against the same live selection and operation locks. */
+function beginNoteReplace() {
+  const state = queryClient.getQueryState(listQueryKey.value)
+  if (batch.unavailable.value || exportBlocked.value || exportPending.value || bulkCreateOpen.value || qrLink.value !== null
+    || !access.allows('tags') || !batch.selected.value.length || state?.status !== 'success' || state.fetchStatus !== 'idle' || state.isInvalidated) return
+  const targets = links.value.filter(link => batch.selected.value.includes(link.id))
+  if (targets.length !== batch.selected.value.length || targets.some(link => !noteVersionSchema.safeParse(link.updatedAt).success)) return
+  noteReplace.open(targets.map(link => ({ id: link.id, expectedUpdatedAt: link.updatedAt! })))
+}
 /** Uses live parent state even when a creation click was queued before its props rerendered. */
 function canBeginBulkCreate() {
-  return noteClear.targets.value === null && note.target.value === null && !batch.pending.value && batch.deleteIds.value === null
+  return !privateConfirmationOpen.value && note.target.value === null && !batch.pending.value && batch.deleteIds.value === null
     && batchTagTargets.value === null && !statusMutation.isPending.value && !deleteMutation.isPending.value
     && !settingsMutation.isPending.value && settingsLink.value === null && !exportPending.value && !qrLink.value && !bulkCreateOpen.value
 }
 /** Prevents a queued export from racing a newly opened private confirmation. */
-function canStartExport() { return noteClear.targets.value === null && !bulkCreateOpen.value }
+function canStartExport() { return !privateConfirmationOpen.value && !bulkCreateOpen.value }
 /** Accepts controlled filter edits only outside the fixed confirmation. */
 function selectStatus(value: unknown) {
-  if (noteClear.targets.value === null && (value === '' || value === 'active' || value === 'disabled')) statusFilter.value = value
+  if (!privateConfirmationOpen.value && (value === '' || value === 'active' || value === 'disabled')) statusFilter.value = value
 }
 /** Keeps keyword edits from silently replacing a fixed target collection. */
-function selectKeyword(value: unknown) { if (noteClear.targets.value === null && typeof value === 'string') searchKeyword.value = value }
+function selectKeyword(value: unknown) { if (!privateConfirmationOpen.value && typeof value === 'string') searchKeyword.value = value }
 /** Guards both the input and queued catalog selections. */
-function selectTag(value: unknown) { if (noteClear.targets.value === null && typeof value === 'string') tagFilter.value = value }
+function selectTag(value: unknown) { if (!privateConfirmationOpen.value && typeof value === 'string') tagFilter.value = value }
 
 /** Requires a successful live list and captures only real, complete management versions. */
 function beginBatchTags() {
