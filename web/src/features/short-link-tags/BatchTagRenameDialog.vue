@@ -2,6 +2,8 @@
   <v-dialog :model-value="state.targets.value !== null" :aria-label="t('batchTagRename.title')" :persistent="locked" max-width="680" scrollable @update:model-value="state.close" @after-enter="focusInput" @after-leave="restoreFocus">
     <v-card class="tag-rename-card" data-testid="batch-tag-rename-dialog">
       <v-card-title>{{ t('batchTagRename.title') }}</v-card-title>
+      <v-alert v-if="state.recovery.value" class="tag-rename-feedback" type="warning" variant="tonal">{{ t(state.unknown.value ? 'batchTagRename.unknown' : 'batchTagRename.stale') }}</v-alert>
+      <v-alert v-if="state.error.value" class="tag-rename-feedback" type="error" variant="tonal">{{ t(`batchTagRename.${state.error.value}`) }}</v-alert>
       <v-card-text class="tag-rename-body">
         <v-alert type="info" variant="tonal">{{ t('batchTagRename.scope') }}</v-alert>
         <v-text-field ref="fromInput" :model-value="state.draft.value.fromTag" :label="t('batchTagRename.from')" :readonly="locked" variant="outlined" :error-messages="invalid ? t('batchTagRename.invalid') : ''" counter="32" :counter-value="codePoints" @update:model-value="state.setFromTag" />
@@ -18,8 +20,6 @@
             </li>
           </ol>
         </div>
-        <v-alert v-if="state.recovery.value" type="warning" variant="tonal">{{ t(state.unknown.value ? 'batchTagRename.unknown' : 'batchTagRename.stale') }}</v-alert>
-        <v-alert v-if="state.error.value" type="error" variant="tonal">{{ t(`batchTagRename.${state.error.value}`) }}</v-alert>
       </v-card-text>
       <v-card-actions class="tag-rename-actions">
         <v-btn variant="text" :disabled="locked" @click="state.close">{{ t('batchTagRename.cancel') }}</v-btn>
@@ -60,6 +60,7 @@ function restoreFocus() {
 <style scoped>
 .tag-rename-card, .tag-rename-body { min-width: 0; }
 .tag-rename-card :deep(.v-card-title) { white-space: normal; overflow-wrap: anywhere; }
+.tag-rename-feedback { flex: 0 0 auto; margin: 0 24px 14px; }
 .tag-rename-body { display: grid; grid-auto-rows: max-content; gap: 14px; overflow-y: auto; overflow-wrap: anywhere; }
 .tag-rename-body p { margin: 8px 0; }
 .tag-rename-body ol { padding-inline-start: 24px; }
