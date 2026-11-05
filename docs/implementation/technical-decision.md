@@ -10,7 +10,7 @@ v0.50.0 批量替换内部备注已通过 [PR270](https://github.com/TomyJan/Moe
 
 v0.50.1 已通过 [PR271](https://github.com/TomyJan/MoeURL/pull/271) 完整交付，master `9bcf97bfafe3fd5e1747f692dea8ce2decbb6f53`；最新真实审查、[候选九项 CI](https://github.com/TomyJan/MoeURL/actions/runs/41956791078)和 [master 自身九项 CI](https://github.com/TomyJan/MoeURL/actions/runs/41959310355)及完整日志、三个标准任务、21 条裁决与可恢复归档均完成，未发布部署，见[验收](v0.50.1-acceptance.md)。旧单元超时与前版浏览器失败根因未确认。
 
-当前推进 [v0.51.0 当前选择标签重命名](../product/scope-v0.51.0.md)：两个独立 POST、原子权限／主版本检查和固定预览确认；设计已完成，尚未实现或验证，见[计划](v0.51.0-plan.md)。基线包含外部合入的 vue-query5.105.1／vue-i18n11.4.17，独立验证，不借前版前端结果。下方旧阶段按历史归属保留。
+当前推进 [v0.51.0 当前选择标签重命名](../product/scope-v0.51.0.md)：两个独立 POST、原子权限／主版本检查和固定预览确认；后端本地验证已完成，前端与整版交付未完成，见[验收](v0.51.0-acceptance.md)和[计划](v0.51.0-plan.md)。基线包含外部合入的 vue-query5.105.1／vue-i18n11.4.17，独立验证，不借前版前端结果。下方旧阶段按历史归属保留。
 
 [v0.49.2 空通知区域设计](../specs/2026-11-04-v0.49.2-empty-toast-gap-design.md)已实现实际无 toast DOM 的 modal wrapper 绝对定位、零尺寸并脱离 flex／grid 流；有退出节点继续原布局，下一消息恢复 30dvh。保留单一 Toaster、队列、六秒／五条、焦点和原生滚动，不隐藏或卸载 live region、不改父 gap；3253 项前端、203 项完整浏览器／73 张原图、精确产品和唯一独立终审已完成，远端交付仍待，见[验收](v0.49.2-acceptance.md)。无 API、schema、权限、依赖或生成物变化。
 
