@@ -1,6 +1,6 @@
 # v0.51.0 当前选择标签重命名
 
-状态：后端 7b8ace2、前端 16a1986 已标准完成。唯一终审 Important 已真实目录 RED→GREEN 修复，新完整 3501 项前端／四项 100%、types／lint／双构建通过；保存进度反馈一项 Minor 延期。fcc8666 原浏览器／产品证据保留原归属，修复后新浏览器、产品及本地归档／远端交付仍待；实际失败与验证边界见[验收](../implementation/v0.51.0-acceptance.md)。基线 master `015276ccd2ffd75fd12c95fc7bd7d9a555a61f59`；版本号不代表正式发布。
+状态：后端 7b8ace2、前端 16a1986 已标准完成。唯一终审 Important 已真实目录 RED→GREEN 修复，新完整 3501 项前端／四项 100%、types／lint／双构建通过；clean f32a81b 的完整 216 项浏览器、73 张相关原图及精确产品验证均通过。保存进度反馈一项 Minor 延期，本地归档／标准收尾及远端交付仍待；实际失败与验证边界见[验收](../implementation/v0.51.0-acceptance.md)。基线 master `015276ccd2ffd75fd12c95fc7bd7d9a555a61f59`；版本号不代表正式发布。
 
 ## 现状与取舍
 
