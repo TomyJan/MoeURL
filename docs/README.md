@@ -8,7 +8,9 @@ v0.49.3 已通过 [PR269](https://github.com/TomyJan/MoeURL/pull/269) 完整交�
 
 v0.50.0 已通过 [PR270](https://github.com/TomyJan/MoeURL/pull/270) 完整交付，master `7ede77d48ff086209fd6d043a77000105d7c4870`。最新真实审查覆盖、[候选九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41943898011)与 [master 自身九 CI](https://github.com/TomyJan/MoeURL/actions/runs/41947207982)及完整日志、标准 Task1–4、22 条裁决与可恢复归档全部完成；未发布部署。首轮旧域名场景 211/212 失败根因未确认的限制保持原归属，见[验收](implementation/v0.50.0-acceptance.md)。
 
-当前推进 [v0.50.1 文案维护](product/scope-v0.50.1.md)：英文保存提示及管理员完整接口说明已更新；Task1 标准完成，3370 项前端四项 100%、clean 9b0de45 的完整 212 项浏览器、12 张相关原图和精确产品验证通过。唯一独立审查无发现；本地标准收尾及远端交付继续，见[计划](implementation/v0.50.1-plan.md)。PR269 量词已由前版修正为“五个重点”，不重复修改。下方旧阶段保持历史归属。
+v0.50.1 已通过 [PR271](https://github.com/TomyJan/MoeURL/pull/271) 完整交付，master `9bcf97bfafe3fd5e1747f692dea8ce2decbb6f53`；最新真实审查、[候选九项 CI](https://github.com/TomyJan/MoeURL/actions/runs/41956791078)和 [master 自身九项 CI](https://github.com/TomyJan/MoeURL/actions/runs/41959310355)及完整日志、三个标准任务、21 条裁决与可恢复归档均完成，未发布部署，见[验收](implementation/v0.50.1-acceptance.md)。旧单元超时与前版浏览器失败根因未确认。
+
+当前推进 [v0.51.0 当前选择标签重命名](product/scope-v0.51.0.md)：Task1–2 已标准完成。唯一终审 Important 已经真实目录 RED→GREEN 修复，3501 项前端测试、四项 100%、types／lint／双构建通过。修复候选 f32a81b 的完整 216 项浏览器、73 张相关原图和精确产品验证均通过；保存进度反馈一项 Minor 延期。13 条裁决与完整报告已整理，本地归档／标准收尾及远端交付仍待，见[验收](implementation/v0.51.0-acceptance.md)和[计划](implementation/v0.51.0-plan.md)。下方旧阶段按历史归属保留。
 
 ## 当前状态（2026-11-04）
 
