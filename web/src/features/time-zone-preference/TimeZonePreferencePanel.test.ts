@@ -283,6 +283,7 @@ describe('account time-zone preference', () => {
     await screen.findByText('timeZonePreference.loadFailed')
     expect(select.value).toBe('Asia/Tokyo')
     view.options.read = async () => ({ timeZone: 'Europe/London', updatedAt: '2026-11-01T00:00:02Z' })
+    await waitFor(() => expect(screen.getByText('timeZonePreference.reload')).toHaveProperty('disabled', false))
     await fireEvent.click(screen.getByText('timeZonePreference.reload'))
     await waitFor(() => expect(select.value).toBe('Europe/London'))
     expect(view.bodies).toHaveLength(1)

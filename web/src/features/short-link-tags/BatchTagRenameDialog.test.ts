@@ -2,9 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/vu
 import { defineComponent, getCurrentInstance, h, nextTick, type Component, type SetupContext } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { createI18n } from 'vue-i18n'
-import { createVuetify } from 'vuetify'
-import * as components from 'vuetify/components'
-import * as directives from 'vuetify/directives'
+import { vuetify } from '@/app/vuetify'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { messages } from '@/app/i18n'
 import { componentStubs } from '@/test/component-stubs'
@@ -34,13 +32,80 @@ function mount(locale = 'en', count = 1, stubs?: Record<string, Component>, fall
   const view = render(defineComponent({ setup() {
     state = useBatchTagRename('own', useShortLinkAccess('own'), () => {}, async () => true)
     return () => h(BatchTagRenameDialog, { state, fallbackFocus })
-  } }), { global: { mixins: [{ mounted: capture, updated: capture }], plugins: [[VueQueryPlugin, { queryClient: client }], createI18n({ legacy: false, locale, messages }), createVuetify({ components, directives })], stubs } })
+  } }), { global: { mixins: [{ mounted: capture, updated: capture }], plugins: [[VueQueryPlugin, { queryClient: client }], createI18n({ legacy: false, locale, messages }), vuetify], stubs } })
   state.open(Array.from({ length: Math.max(1, count) }, (_, index) => item(index, count ? 'old' : 'absent')))
   return { ...view, state, client, fetcher, callbacks }
 }
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals() })
 
 describe('batch tag rename dialog', () => {
+  // Retiring approval must not replace the in-flight save with an approval button.
+  it.each(['en', 'zh-CN'])('keeps an accessible saving action after approval retires in %s', async locale => {
+    const view = mount(locale), request = createDeferred<Response>()
+    view.fetcher.mockReturnValueOnce(request.promise)
+    await nextTick()
+    await fireEvent.update(screen.getByRole('textbox', { name: locale === 'en' ? 'Current tag' : '原标签' }), 'old')
+    await fireEvent.update(screen.getByRole('textbox', { name: locale === 'en' ? 'New tag' : '新标签' }), 'new')
+    await fireEvent.click(screen.getByTestId('batch-tag-rename-approve'))
+    await fireEvent.click(screen.getByTestId('batch-tag-rename-confirm'))
+    try {
+      await waitFor(() => expect(view.state.saving.value).toBe(true))
+      expect(view.state.approved.value).toBeNull()
+      const save = screen.getByRole('button', { name: locale === 'en' ? 'Saving…' : '正在保存…' })
+      expect(save).toBe(screen.getByTestId('batch-tag-rename-confirm'))
+      expect(save).toHaveProperty('disabled', true)
+      expect(save.getAttribute('aria-busy')).toBe('true')
+      expect(save.querySelector('.v-btn__loader')?.textContent).toContain(locale === 'en' ? 'Saving…' : '正在保存…')
+      expect(save.querySelector('.v-progress-circular--indeterminate svg')).not.toBeNull()
+      expect(screen.queryByTestId('batch-tag-rename-approve')).toBeNull()
+      await fireEvent.click(save)
+      await fireEvent.click(screen.getByRole('button', { name: locale === 'en' ? 'Cancel' : '取消' }))
+      expect(view.state.targets.value).not.toBeNull()
+      expect(view.fetcher).toHaveBeenCalledOnce()
+    } finally {
+      request.resolve(new Response(JSON.stringify({ code: 0, message: 'OK', data: { changedCount: 1, unchangedCount: 0 }, meta: {} })))
+      await waitFor(() => expect(view.state.targets.value).toBeNull())
+    }
+  })
+  it.each(['rejected', 'stale', 'unknown'] as const)('replaces saving feedback with the actual %s outcome', async outcome => {
+    const view = mount(), request = createDeferred<Response>()
+    view.fetcher.mockReturnValueOnce(request.promise)
+    await nextTick()
+    await fireEvent.update(screen.getByLabelText('Current tag'), 'old')
+    await fireEvent.update(screen.getByLabelText('New tag'), 'new')
+    await fireEvent.click(screen.getByTestId('batch-tag-rename-approve'))
+    await fireEvent.click(screen.getByTestId('batch-tag-rename-confirm'))
+    expect(view.state.saving.value).toBe(true)
+    if (outcome === 'unknown') request.reject(new Error('lost response'))
+    else request.resolve(new Response(JSON.stringify({ code: outcome === 'stale' ? 200116 : 100001, message: 'Rejected', data: null, meta: {} })))
+    await screen.findByText(outcome === 'unknown' ? /The save result is unknown/ : outcome === 'stale' ? /Selected links changed/ : /The request was rejected/)
+    expect(view.state.saving.value).toBe(false)
+    expect(view.state.approved.value).toBeNull()
+    expect(screen.queryByTestId('batch-tag-rename-confirm')).toBeNull()
+    expect(screen.getByLabelText('New tag')).toHaveProperty('value', 'new')
+    expect(view.fetcher).toHaveBeenCalledOnce()
+    if (outcome === 'rejected') expect(screen.getByTestId('batch-tag-rename-approve')).toHaveProperty('disabled', false)
+    else expect(screen.getByTestId('batch-tag-rename-reload')).toHaveProperty('disabled', false)
+  })
+  it.each(['account', 'permission', 'unmount'] as const)('retires the pending action on %s without reviving it after a late response', async reason => {
+    const view = mount(), request = createDeferred<Response>()
+    view.fetcher.mockReturnValueOnce(request.promise)
+    await nextTick()
+    await fireEvent.update(screen.getByLabelText('Current tag'), 'old')
+    await fireEvent.update(screen.getByLabelText('New tag'), 'new')
+    await fireEvent.click(screen.getByTestId('batch-tag-rename-approve'))
+    await fireEvent.click(screen.getByTestId('batch-tag-rename-confirm'))
+    expect(view.state.saving.value).toBe(true)
+    if (reason === 'unmount') view.unmount()
+    else view.client.setQueryData(['auth', 'me'], { user: reason === 'account' ? { ...actor, id: '00000000-0000-0000-0000-000000000002' } : { ...actor, permissions: [] } })
+    await waitFor(() => expect(view.state.targets.value).toBeNull())
+    request.resolve(new Response(JSON.stringify({ code: 0, message: 'OK', data: { changedCount: 1, unchangedCount: 0 }, meta: {} })))
+    await request.promise; await nextTick(); await nextTick()
+    expect(view.state.targets.value).toBeNull()
+    expect(view.state.saving.value).toBe(false)
+    expect(screen.queryByRole('button', { name: 'Saving…' })).toBeNull()
+    expect(view.fetcher).toHaveBeenCalledOnce()
+  })
   for (const locale of ['en', 'zh-CN']) it.each([0, 1, 100])(`renders before/after and correct counts in ${locale}: %s`, async count => {
     const view = mount(locale, count); await nextTick()
     const from = screen.getByRole('textbox', { name: locale === 'en' ? 'Current tag' : '原标签' }), to = screen.getByRole('textbox', { name: locale === 'en' ? 'New tag' : '新标签' })

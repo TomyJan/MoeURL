@@ -11,7 +11,7 @@ export const messages = {
       unknown: '保存结果未确认，可能已经成功。请重新加载列表检查；不会自动重试保存。',
       stale: '所选短链已变化或不可访问。请重新加载列表，再重新选择。',
       loadFailed: '列表读取失败，仍禁止再次保存，请重试读取。', saveFailed: '请求未通过，草稿已保留，请重新确认预览。',
-      accessChanged: '账号或权限已变化，请刷新列表。', saved: '已修改 {changed} 条短链，{unchanged} 条无须修改。',
+      accessChanged: '账号或权限已变化，请刷新列表。', saved: '已修改 {changed} 条短链，{unchanged} 条无须修改。', saving: '正在保存…',
     },
     batchNoteReplace: {
       action: '替换备注', title: '替换所选内部备注', note: '统一备注内容', warning: '所选备注将被此内容永久覆盖，无法撤销。请先预览变化数量，再确认替换。',
@@ -845,7 +845,7 @@ export const messages = {
       unknown: 'The save result is unknown and may have succeeded. Reload the list to check; saving will not be retried automatically.',
       stale: 'Selected links changed or are no longer accessible. Reload the list, then select again.',
       loadFailed: 'Could not reload the list. Saving remains locked; retry the read.', saveFailed: 'The request was rejected. The draft is kept; approve the preview again.',
-      accessChanged: 'Your account or permissions changed. Refresh the list.', saved: 'Changed: {changed}. Unchanged: {unchanged}.',
+      accessChanged: 'Your account or permissions changed. Refresh the list.', saved: 'Changed: {changed}. Unchanged: {unchanged}.', saving: 'Saving…',
     },
     batchNoteReplace: {
       action: 'Replace notes', title: 'Replace selected internal notes', note: 'Replacement note', warning: 'This permanently overwrites the selected notes and cannot be undone. Preview the changes before confirming.',
