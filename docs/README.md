@@ -2,7 +2,7 @@
 
 ## 当前进展（2026-11-09）
 
-当前实施 [v0.51.1 保存进度](product/scope-v0.51.1.md)，产品行为只改标签重命名的保存反馈，不改安全状态机；标准完整浏览器 220 项已通过，另以最小构建依赖更新处理产品扫描发现的迁移工具 HIGH 告警，新产品验证未完成。见[设计](specs/2026-11-09-v0.51.1-tag-rename-progress-design.md)、[计划](implementation/v0.51.1-plan.md)、[任务](implementation/v0.51.1-tasks.md)和[验收](implementation/v0.51.1-acceptance.md)。v0.51.0 已经 PR272 合并；master CI 因账单未启动，原外置原件当前缺失，最终归档未完成，不写成完整交付。用户最新要求以本地验证与 CodeRabbit 继续推进，不再等待 CI；未发布部署。下文旧阶段按当时事实保留。
+当前 [v0.51.1 保存进度](product/scope-v0.51.1.md)实现和本地验收完成：完整前端 3509 项／四 100%、标准完整浏览器 220 项、准确产品迁移及三目标所选 HIGH／CRITICAL 清零；只改保存反馈及必要的迁移工具安全 pin，不改安全状态机。最终提交真实审查和集成归档通过 PR278 收尾。见[设计](specs/2026-11-09-v0.51.1-tag-rename-progress-design.md)、[计划](implementation/v0.51.1-plan.md)、[任务](implementation/v0.51.1-tasks.md)和[验收](implementation/v0.51.1-acceptance.md)。v0.51.0 已由 PR272 合并；旧 master CI 失败、原外置证据缺失及最终归档缺口保留，不冒完整交付。用户明确不再等待 CI；未发布部署，下方旧阶段保留。
 
 ## 当前进展（2026-11-05）
 
