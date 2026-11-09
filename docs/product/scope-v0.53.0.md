@@ -1,6 +1,6 @@
 # v0.53.0 账号默认每页条数范围
 
-状态：后端与前端实现及当前本地门禁已核验；真实浏览器、准确产品、审查与交付尚待。基线为 v0.52.1 已交付 master `82355d63e2b7111912ac2d5eb6b067a3e1c14b5a`。见[设计](../specs/2026-11-09-v0.53.0-list-page-size-design.md)、[计划](../implementation/v0.53.0-plan.md)及[验收](../implementation/v0.53.0-acceptance.md)。
+状态：实现、Task1–3 及唯一独立终审意见处置已完成。接入当前 master 依赖后 3725 项前端／四项 100%、准确产品和原图已核验；完整浏览器 238 通过、1 项超时，同输入定向 3 项通过；断网导致身份检查失败的机制已复现，排序测试改用焦点刷新后 3 项通过，原失败精确时序未确认。最新提交 CodeRabbit、合并与归档仍待。起始基线为 v0.52.1 已交付 master `82355d63e2b7111912ac2d5eb6b067a3e1c14b5a`。见[设计](../specs/2026-11-09-v0.53.0-list-page-size-design.md)、[计划](../implementation/v0.53.0-plan.md)及[验收](../implementation/v0.53.0-acceptance.md)。
 
 ## 必须实现
 
