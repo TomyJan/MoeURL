@@ -23,6 +23,7 @@ function mount(context: 'own' | 'admin', initial?: Promise<Response>, empty = fa
   clients.push(client)
   client.setQueryData(['auth', 'me'], { user: { id: 'actor', username: 'actor', nickname: '', group: 'admin', permissions: ['short_link:export', 'short_link:read_own', 'short_link:update_own', 'short_link:delete_own', 'admin:access', 'short_link:read_all', 'short_link:update_all', 'short_link:delete_all'] } })
   const fetcher = vi.fn<typeof fetch>(async url => {
+    if (String(url).endsWith('/user/list-preference')) return response({ preference: { pageSize: null, updatedAt: null } })
     if (String(url).includes('/export')) return response({ fileName: context === 'own' ? 'moeurl-links-own.csv' : 'moeurl-links-all.csv', contentType: 'text/csv;charset=utf-8', content: header })
     return initial ?? response({ items: empty ? [] : [context === 'own' ? link : adminLink] })
   })

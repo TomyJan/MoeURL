@@ -197,6 +197,9 @@ vi.mock('@tanstack/vue-query', async () => {
       if (Array.isArray(key) && key[0] === 'user' && key[1] === 'domain-preference') {
         return { data: ref({ domainId: null, updatedAt: null }), isSuccess: ref(true), isError: ref(false) }
       }
+      if (Array.isArray(key) && key[0] === 'user' && key[1] === 'list-preference') {
+        return { data: ref({ userId: 'test-account', epoch: 1, preference: { pageSize: null, updatedAt: null } }), error: ref(null), isFetching: ref(false), isPending: ref(false) }
+      }
       if (Array.isArray(key) && key[0] === 'domain' && key[1] === 'available') {
         return { data: ref({ items: [{ id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true }] }), isSuccess: ref(true), isError: ref(false), isPending: ref(false) }
       }

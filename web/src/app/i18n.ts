@@ -40,6 +40,13 @@ export const messages = {
       accessChanged: '当前账号、权限或短链归属已变化，请刷新列表。', saved: '已清空 {changed} 条备注，{unchanged} 条原已为空。',
     },
     pagination: { label: '短链列表分页', pageSize: '每页条数', previous: '上一页', next: '下一页', retry: '重试本页', summary: '第 {page} / {pages} 页，共 {total} 条' },
+    listPreference: {
+      title: '默认每页条数', description: '用于打开我的短链和全站短链时的初选。列表中临时切换不会保存，也不会改变已经打开的列表。',
+      pageSize: '默认每页条数', followDefault: '使用默认值（20 条）', save: '保存每页条数', saved: '默认每页条数已保存。',
+      loadFailed: '默认每页条数读取失败，请重试。', retry: '重试读取每页条数', reload: '重新加载（替换草稿）',
+      conflict: '默认每页条数已在其他位置更新，草稿已保留，请重新加载后保存。', invalid: '请选择 20、50、100 条或使用默认值。',
+      unavailable: '当前账号无法保存默认每页条数。', saveFailed: '保存失败，草稿已保留，请重试。',
+    },
     linkNote: {
       action: '备注', title: '短链内部备注', text: '备注内容', transferWarning: '备注会随短链转移，请勿填写密码。',
       readonly: '你可以查看此备注，当前没有编辑权限。', invalid: '最多 1000 个 Unicode 字符，允许换行和制表符，不允许其他控制字符。',
@@ -885,6 +892,13 @@ export const messages = {
       accessChanged: 'Your account, permissions or link ownership changed. Refresh the list.', saved: 'Cleared: {changed}. Already empty: {unchanged}.',
     },
     pagination: { label: 'Short link list pages', pageSize: 'Rows per page', previous: 'Previous page', next: 'Next page', retry: 'Retry this page', summary: 'Page {page} of {pages}, {total} links' },
+    listPreference: {
+      title: 'Default rows per page', description: 'Initial choice when opening My links or All links. Temporary choices in a list are not saved and open lists stay unchanged.',
+      pageSize: 'Default rows per page', followDefault: 'Use default (20 rows)', save: 'Save rows per page', saved: 'Default rows per page saved.',
+      loadFailed: 'Could not read your default rows per page. Please retry.', retry: 'Retry rows per page', reload: 'Reload (replace draft)',
+      conflict: 'Your default rows per page changed elsewhere. Your draft is preserved; reload before saving.', invalid: 'Choose 20, 50, 100 rows or use the default.',
+      unavailable: 'This account cannot save default rows per page.', saveFailed: 'Could not save. Your draft is preserved; please retry.',
+    },
     linkNote: {
       action: 'Note', title: 'Internal link note', text: 'Note text', transferWarning: 'Notes move with the link when ownership changes. Do not store passwords.',
       readonly: 'You can read this note but do not currently have permission to edit it.', invalid: 'Use at most 1000 Unicode characters. Line breaks and tabs are allowed; other control characters are not.',

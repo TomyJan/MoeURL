@@ -41,6 +41,7 @@ function mount(context: 'own' | 'admin', write = true, bulkCreate = false, initi
   const fetcher = vi.fn<typeof fetch>(async (input, init) => {
     const url = new URL(String(input), 'http://localhost')
     if (url.pathname.endsWith('/auth/me')) return response({ user })
+    if (url.pathname.endsWith('/user/list-preference')) return response({ preference: { pageSize: null, updatedAt: null } })
     if (url.pathname.endsWith('/export')) return response({ fileName: context === 'own' ? 'moeurl-links-own.csv' : 'moeurl-links-all.csv', contentType: 'text/csv;charset=utf-8', content: csv })
     if (url.pathname.endsWith('/note') || url.pathname.endsWith('/note/update')) return response({ id: rows[0]!.id, note: init?.method === 'POST' ? JSON.parse(init.body as string).note : 'private text', updatedAt: '2026-11-03T00:00:00.123456789Z' })
     if (url.pathname.endsWith('/search')) {
