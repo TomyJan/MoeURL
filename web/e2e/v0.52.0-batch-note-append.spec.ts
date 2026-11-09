@@ -5,6 +5,7 @@ import { expect, test } from '@playwright/test'
 import type { APIRequestContext, BrowserContext, Page, TestInfo } from '@playwright/test'
 import type { ShortLink } from '../src/entities/short-link/model'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
+import { captureAppendDiscard } from './batch-note-append-support'
 
 interface Note { note: string; updatedAt: string }
 interface Preview { items: { id: string; expectedUpdatedAt: string; expectedNoteUpdatedAt: string }[]; appendableCount: number; overflowCount: number }
@@ -186,7 +187,7 @@ for (const scope of ['own', 'admin'] as const) for (const en of [false, true]) {
       await expect(page.getByRole('dialog').getByRole('textbox')).toHaveAttribute('readonly', '')
       await expect(page.getByTestId('batch-note-append-preview')).toHaveCount(0); await expect(page.getByTestId('batch-note-append-confirm')).toHaveCount(0)
       await page.getByTestId('batch-note-append-cancel').click(); await expect(page.getByTestId('batch-note-append-discard-warning')).toBeVisible()
-      await expect(page.getByTestId('batch-note-append-keep')).toBeFocused(); await capture(page, info, 'batch-append-unknown-warning-' + scope + '-' + language)
+      await captureAppendDiscard(page, info, 'batch-append-unknown-warning-' + scope + '-' + language, JSON.parse(firstBody).requestId)
       await page.getByTestId('batch-note-append-keep').click(); await capture(page, info, 'batch-append-unknown-retry-' + scope + '-' + language)
       const committedNotes = new Map<string, Note>()
       for (const id of ids) { const note: Note = (await success(manager.request, '/admin/short-link/note?id=' + id)).data; expect(note.note).toBe(term + '\nadded'); committedNotes.set(id, note) }
