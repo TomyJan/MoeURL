@@ -2,7 +2,9 @@
 
 ## 当前进展（2026-11-09）
 
-[v0.51.1 保存反馈](../specs/2026-11-09-v0.51.1-tag-rename-progress-design.md)实现及本地验收完成，不改 API、controller、schema、权限或主模块依赖。继承 master cfbcadbd 的 vue-query5.105.3／vue-i18n11.4.18 与 Go 依赖升级；独立 snapshot 前端 3509 项／四 100%、标准浏览器 220 项和准确产品验收已通过。唯一构建安全例外是 Goose 独立模块的 x/net 0.62.0；最终真实审查与集成经 PR278 收尾。本地、远端、旧失败和未发布边界分开记录；用户已取消 GitHub CI 阻塞要求，见[本版验收](v0.51.1-acceptance.md)。
+正在进行[Go 压缩依赖安全维护](../product/scope-2026-11-09-go-compression-security.md)：主模块 compress1.20.2，独立 Goose3.28.0 模块固定 compress1.20.2／brotli1.2.7 并保留 x/net0.62.0；产品版本、工具链与业务行为不变。精确准备基线已核同；新完整产品、最新真实审查、正常集成及可恢复归档仍待完成，见[公开验收摘要](2026-11-09-go-compression-security-acceptance.md)。完整 raw 是本地私有归档，新克隆不含原件。
+
+v0.51.1 已由 [PR278](https://github.com/TomyJan/MoeURL/pull/278) 正常合并为 ca0b12a26ba90c442ccb18f8d20c59a96aa69860；3509 项前端／四 100%、220 项标准浏览器及准确产品验证、最终85b真实CodeRabbit覆盖、有效问题处置、三个标准任务、46 条裁决和可恢复归档均完成，见[前版验收](v0.51.1-acceptance.md)。原两项文档 Minor 在本次维护落实访问边界和明确状态，不倒填为原 PR 修复。v0.51.0 合并事实、旧 CI 失败及原件缺失／归档缺口仍保留。不等待或伪称 CI 通过，未发布部署，下方旧阶段保持历史归属。
 
 ## 当前进展（2026-11-05）
 
