@@ -1,8 +1,8 @@
 # MoeURL 文档中心
 
-## 当前进展（2026-11-09）
+## 当前进展（2026-11-10）
 
-[v0.53.0 账号默认每页条数](product/scope-v0.53.0.md)已完成实现、Task1–3 和唯一独立终审意见处置。接入当前 master 的前端依赖后，3725 项测试及四项 100%、准确产品和原图验证完成；完整浏览器 238 通过、1 项超时，同输入定向 3 项通过；另已复现断网刷新导致身份检查失败的机制，排序测试改用焦点刷新后桌面／手机及 setup 3 项通过，原失败的精确时序未确认。PR287 最新提交 CodeRabbit、正常合并及归档仍待，详细执行归属与剩余风险见本版验收；不等待或冒称 GitHub CI。
+[v0.53.0 账号默认每页条数](product/scope-v0.53.0.md)已通过 [PR287](https://github.com/TomyJan/MoeURL/pull/287) 交付，master `e12f0cf43bda928ac56c5a6143d7291ad461edac`。最新提交真实 CodeRabbit 覆盖、有效问题处置、独立合并核验、标准 Task1–4 和可恢复归档完成。原完整浏览器 238 通过／1 项超时及后续诊断保持原归属，不改写为单次全绿。接续的 [v0.53.1 域名重连回归](product/scope-v0.53.1.md)只补永久测试：焦点／真实重连各桌面、手机及 setup 共 5 项通过，types／lint 通过；审查与交付进行中，产品版本仍为 0.53.0。不等待或冒称 GitHub CI，未发布部署。
 
 v0.52.1 已通过 [PR281](https://github.com/TomyJan/MoeURL/pull/281) 完整交付，master `82355d63e2b7111912ac2d5eb6b067a3e1c14b5a`。最新 ca1 真实 CodeRabbit 覆盖、有效问题闭环、正常合并独立 API／fetch／SHA／tree／唯一父核验、标准 Task1–3 及 20 条裁决／11 文件可恢复归档完成。完整 3642 项前端／四项 100%、228 项浏览器和 28 张原图保持原执行身份，后继测试增量另有验证，见[验收](implementation/v0.52.1-acceptance.md)。不等待或冒称 GitHub CI，未发布部署。
 
