@@ -16,7 +16,33 @@ export async function captureAppendDiscard(page: Page, info: TestInfo, name: str
       const r = target.getBoundingClientRect(), hit = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2)
       const bounds = index < 2 ? { left: Math.max(0, clip.left), right: Math.min(innerWidth, clip.right), top: Math.max(0, clip.top), bottom: Math.min(innerHeight, clip.bottom) }
         : { left: 0, right: innerWidth, top: 0, bottom: innerHeight }
-      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, bounds, hit: hit !== null && target.contains(hit), hitTag: hit?.tagName, hitTestId: hit?.getAttribute('data-testid') }
+      const text = []
+      if (index < 2) {
+        const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT)
+        while (walker.nextNode()) {
+          const node = walker.currentNode
+          if (!node.textContent?.trim()) continue
+          const visible = { ...bounds }
+          const overflow = []
+          for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+            const style = getComputedStyle(parent), rect = parent.getBoundingClientRect()
+            const clipsX = /^(hidden|clip|auto|scroll)$/.test(style.overflowX)
+            const clipsY = /^(hidden|clip|auto|scroll)$/.test(style.overflowY)
+            if (clipsX) {
+              visible.left = Math.max(visible.left, rect.left + parent.clientLeft)
+              visible.right = Math.min(visible.right, rect.left + parent.clientLeft + parent.clientWidth)
+            }
+            if (clipsY) {
+              visible.top = Math.max(visible.top, rect.top + parent.clientTop)
+              visible.bottom = Math.min(visible.bottom, rect.top + parent.clientTop + parent.clientHeight)
+            }
+            overflow.push({ x: clipsX ? parent.scrollWidth - parent.clientWidth : 0, y: clipsY ? parent.scrollHeight - parent.clientHeight : 0 })
+          }
+          const range = document.createRange(); range.selectNodeContents(node)
+          text.push({ bounds: visible, overflow, rects: Array.from(range.getClientRects(), rect => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom })) })
+        }
+      }
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, bounds, text, hit: hit !== null && target.contains(hit), hitTag: hit?.tagName, hitTestId: hit?.getAttribute('data-testid') }
     }) }
   })
   // Transition completion is observed through actual hit testing, without changing scroll position.
@@ -32,5 +58,14 @@ export async function captureAppendDiscard(page: Page, info: TestInfo, name: str
     expect(box.right - box.left).toBeGreaterThan(0); expect(box.bottom - box.top).toBeGreaterThan(0)
     expect(box.left).toBeGreaterThanOrEqual(box.bounds.left - 1); expect(box.right).toBeLessThanOrEqual(box.bounds.right + 1)
     expect(box.top).toBeGreaterThanOrEqual(box.bounds.top - 1); expect(box.bottom).toBeLessThanOrEqual(box.bounds.bottom + 1)
+    for (const text of box.text) {
+      expect(text.rects.length).toBeGreaterThan(0)
+      for (const overflow of text.overflow) { expect(overflow.x).toBeLessThanOrEqual(1); expect(overflow.y).toBeLessThanOrEqual(1) }
+      for (const rect of text.rects) {
+        expect(rect.right - rect.left).toBeGreaterThan(0); expect(rect.bottom - rect.top).toBeGreaterThan(0)
+        expect(rect.left).toBeGreaterThanOrEqual(text.bounds.left - 1); expect(rect.right).toBeLessThanOrEqual(text.bounds.right + 1)
+        expect(rect.top).toBeGreaterThanOrEqual(text.bounds.top - 1); expect(rect.bottom).toBeLessThanOrEqual(text.bounds.bottom + 1)
+      }
+    }
   }
 }
