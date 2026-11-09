@@ -11,8 +11,9 @@ const choiceLabel = /^(短链域名|Short-link domain)$/
 const preferenceLabel = /^(个人默认域名|Personal default domain)$/
 
 test.use({ serviceWorkers: 'block', actionTimeout: 10_000 })
-for (const width of [1280, 390]) {
-  test(`v0.27.0 orders authorized domains without replacing personal or manual choices at ${width}px`, async ({ browser, page: admin }, info) => {
+for (const { width, refresh } of [1280, 390].flatMap((width) =>
+  (['focus', 'reconnect'] as const).map((refresh) => ({ width, refresh })))) {
+  test(`v0.27.0 orders authorized domains without replacing personal or manual choices after ${refresh} at ${width}px`, async ({ browser, page: admin }, info) => {
     const suffix = randomBytes(6).toString('hex')
     const owned: string[] = []
     const links: string[] = []
@@ -81,18 +82,16 @@ for (const width of [1280, 390]) {
       await dismiss(member)
       await member.goto('/')
       await expect(member.getByRole('combobox', { name: choiceLabel })).toHaveValue(option(second))
-      await selectManaged(admin, third)
-      await writeOrder(admin, third, -30, false)
-      await refreshChoicesInForeground(member)
+      await reorderAndRefresh(admin, member, third, -30, refresh)
       expect((await available(member.request))[0]?.id).toBe(third.id)
+      await expectChoiceOrder(member, [third, first, second])
       await expect(member.getByRole('combobox', { name: choiceLabel })).toHaveValue(option(second))
       await create(member, second, second.id, links)
       await choose(member, choiceLabel, first)
       const secondCurrent = (await domains(admin.request)).find(({ id }) => id === second.id)!
-      await selectManaged(admin, secondCurrent)
-      await writeOrder(admin, secondCurrent, -40, false)
-      await refreshChoicesInForeground(member)
+      await reorderAndRefresh(admin, member, secondCurrent, -40, refresh)
       expect((await available(member.request))[0]?.id).toBe(second.id)
+      await expectChoiceOrder(member, [second, third, first])
       await expect(member.getByRole('combobox', { name: choiceLabel })).toHaveValue(option(first))
       await layout(member, info, `domain-order-create-${width}`)
       await create(member, first, first.id, links)
@@ -120,7 +119,7 @@ for (const width of [1280, 390]) {
       await admin.getByRole('dialog').getByRole('button', { name: /^(取消|Cancel)$/ }).click()
       await expect(admin.getByRole('textbox', { name: orderField })).toHaveValue('-24')
       await writeOrder(admin, latest, -24, true)
-      await info.attach('domain-order-contract', { body: Buffer.from(JSON.stringify({ width, accountId, original: original.id, domains: owned, links, final: await domains(admin.request) })), contentType: 'application/json' })
+      await info.attach('domain-order-contract', { body: Buffer.from(JSON.stringify({ width, refresh, accountId, original: original.id, domains: owned, links, final: await domains(admin.request) })), contentType: 'application/json' })
     } catch (error) { scenarioError = error } finally {
       if (member && authenticated) {
         try {
@@ -226,6 +225,41 @@ async function refreshChoicesInForeground(page: Page) {
   const waiting = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/domain/available')
   await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')))
   expect((await (await waiting).json()).code).toBe(0)
+}
+/** Changes another session's order while offline, then relies solely on actual browser reconnection. */
+async function reorderAndRefresh(admin: Page, member: Page, domain: Domain, sortOrder: number, refresh: 'focus' | 'reconnect') {
+  if (refresh === 'focus') {
+    await selectManaged(admin, domain)
+    await writeOrder(admin, domain, sortOrder, false)
+    await refreshChoicesInForeground(member)
+    return
+  }
+  await member.bringToFront()
+  await member.waitForLoadState('networkidle')
+  const context = member.context()
+  await context.setOffline(true)
+  let offline = true
+  try {
+    await expect.poll(() => member.evaluate(() => navigator.onLine)).toBe(false)
+    await post(admin.request, '/admin/domain/set-order', { id: domain.id, sortOrder, expectedUpdatedAt: domain.updatedAt })
+    const waiting = member.waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/domain/available')
+    await context.setOffline(false)
+    offline = false
+    expect((await (await waiting).json()).code).toBe(0)
+    await expect.poll(() => member.evaluate(() => navigator.onLine)).toBe(true)
+  } finally {
+    if (offline) await context.setOffline(false)
+  }
+}
+/** Checks actual rendered option order, so a fresh API-only read cannot hide a stale creator menu. */
+async function expectChoiceOrder(page: Page, ordered: Domain[]) {
+  const input = page.getByRole('combobox', { name: choiceLabel })
+  await input.press('Enter')
+  const labels = ordered.map(option)
+  const choices = page.getByRole('option').filter({ hasText: new RegExp(labels.map(escapeRegExp).join('|')) })
+  await expect(choices).toHaveText(labels)
+  await input.press('Escape')
+  await expect(choices).toHaveCount(0)
 }
 /** Checks the submitted selection and published origin, recording created links for owned cleanup. */
 async function create(page: Page, domain: Domain, domainId: string | null, links: string[]) {
