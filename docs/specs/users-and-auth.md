@@ -80,7 +80,7 @@ v0.19.0 在独立分支实现管理员将其他非内置账号在 `user`／`admi
 
 ## 账号默认每页条数
 
-v0.53.0 设计为独立本人资源：GET `/api/v1/user/list-preference` 与 POST `/api/v1/user/list-preference/update`，不扩旧偏好 DTO。保存 `pageSize: null | 20 | 50 | 100`，显式完整 `expectedUpdatedAt` CAS，冲突沿用 `300104`；清除保留版本。Cookie 决定本人，身份头只校验前提，当前数据库账号与 builtin 非 guest 组资格为准。列表仅初次采用，页面临时切换不自动保存；读取失败或 3 秒截止仅本次默认 20，迟到结果不改打开列表。设计尚未实现或验证，见[设计](2026-11-09-v0.53.0-list-page-size-design.md)及[验收](../implementation/v0.53.0-acceptance.md)。
+v0.53.0 已实现独立本人资源：GET `/api/v1/user/list-preference` 与 POST `/api/v1/user/list-preference/update`，不扩旧偏好 DTO。保存 `pageSize: null | 20 | 50 | 100`，显式完整 `expectedUpdatedAt` CAS，冲突沿用 `300104`；清除保留版本。Cookie 决定本人，身份头只校验前提，当前数据库账号与 builtin 非 guest 组资格为准。POST 仅接受不超过 8 KiB 的严格两字段 JSON；拒绝重复键、额外字段、查询参数及非整数条数。更新按账号、用户组顺序锁定并重查资格，纳秒版本不舍入。后续前端任务将实现列表仅初次采用、临时切换不自动保存，以及读取失败或 3 秒截止本次默认 20、迟到不改打开列表。真实 HTTP、并发与迁移边界已验证，完整后端门禁尚待，见[设计](2026-11-09-v0.53.0-list-page-size-design.md)及[验收](../implementation/v0.53.0-acceptance.md)。
 
 ## 外部登录扩展
 

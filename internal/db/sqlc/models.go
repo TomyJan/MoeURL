@@ -260,6 +260,12 @@ type UserGroup struct {
 	DefaultDomainID pgtype.UUID        `json:"default_domain_id"`
 }
 
+type UserListPreference struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	PageSize  pgtype.Int2        `json:"page_size"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
 type UserPreference struct {
 	UserID    pgtype.UUID        `json:"user_id"`
 	Language  pgtype.Text        `json:"language"`
