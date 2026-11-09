@@ -1,6 +1,6 @@
 # v0.52.0 批量追加内部备注范围
 
-状态：实现、本地门禁、224 项完整浏览器、准确产品及唯一独立终审通过，两个 Minor 延后；标准合同收尾与远端审查／合并／归档继续。基线为 PR279 已交付的 master `636cefd6f4b38cec884f6658807044279728c0c3`；分支 `feat/v0.52.0-batch-note-append`。执行者根据路线图及无人值守授权自主选择，见[设计](../specs/2026-11-09-v0.52.0-batch-note-append-design.md)、[计划](../implementation/v0.52.0-plan.md)和[验收](../implementation/v0.52.0-acceptance.md)。
+状态：PR280已完整交付，master `22373699819e3f2514d023bb6f257fd703404e04`；最新候选e35真实CodeRabbit覆盖、有效问题处置、正常合并独立核验、标准Task1–4和13文件可恢复归档完成。两Minor在原版延期，由v0.52.1独立维护接续处理；原本地执行/失败归属不变，未等待或冒称CI，未发布部署。原设计与各任务步骤保持历史范围，准确最终证据见[验收](../implementation/v0.52.0-acceptance.md)。
 
 ## 目标与必须实现
 
