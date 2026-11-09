@@ -179,7 +179,7 @@ describe('deployment configuration', () => {
     expect(dockerfile).toContain('adduser -S -D -H -u 10001 -G moeurl moeurl')
     expect(dockerfile).toContain('apk upgrade --no-cache')
     expect(dockerfile).toContain('github.com/pressly/goose/v3/cmd/goose@v3.28.0')
-    expect(dockerfile).toContain('go get golang.org/x/net@v0.60.0')
+    expect(dockerfile).toContain('go get golang.org/x/net@v0.62.0')
     expect(compose).toContain('user: "10001:10001"')
     expect(compose).toContain('stop_grace_period: 20s')
   })
