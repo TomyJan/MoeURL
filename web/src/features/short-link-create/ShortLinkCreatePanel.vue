@@ -31,6 +31,17 @@
             {{ t('shortLinkCreate.submit') }}
           </v-btn>
         </div>
+        <div v-if="currentUserQuery.isError.value" role="alert">
+          {{ t('shortLinkCreate.authLoadFailed') }}
+          <v-btn
+            variant="text"
+            :disabled="currentUserQuery.isFetching.value"
+            :loading="currentUserQuery.isFetching.value"
+            @click="currentUserQuery.refetch()"
+          >
+            {{ t('shortLinkCreate.retryAuth') }}
+          </v-btn>
+        </div>
         <v-select
           v-if="availableDomains.length > 1"
           v-model="domainChoice"
