@@ -78,6 +78,10 @@ v0.19.0 在独立分支实现管理员将其他非内置账号在 `user`／`admi
 
 管理页每组两个独立草稿共享版本，有一个脏草稿时互锁另一区域，写入期间禁重复及切组。后台新版本只标陈旧并保留原草稿；显式取消／重载才放弃对应草稿，刷新失败停写。查询和异步结果按账号＋登录 epoch 隔离，旧身份或卸载后的保存不发布新账号状态。边界与阶段分别见[设计](2026-10-27-v0.28.0-group-default-domain-design.md)及[验收](../implementation/v0.28.0-acceptance.md)，未增加自定义组、多组或批量能力。
 
+## 账号默认每页条数
+
+v0.53.0 设计为独立本人资源：GET `/api/v1/user/list-preference` 与 POST `/api/v1/user/list-preference/update`，不扩旧偏好 DTO。保存 `pageSize: null | 20 | 50 | 100`，显式完整 `expectedUpdatedAt` CAS，冲突沿用 `300104`；清除保留版本。Cookie 决定本人，身份头只校验前提，当前数据库账号与 builtin 非 guest 组资格为准。列表仅初次采用，页面临时切换不自动保存；读取失败或 3 秒截止仅本次默认 20，迟到结果不改打开列表。设计尚未实现或验证，见[设计](2026-11-09-v0.53.0-list-page-size-design.md)及[验收](../implementation/v0.53.0-acceptance.md)。
+
 ## 外部登录扩展
 
 v0.7.0 将登录方式扩展为：
