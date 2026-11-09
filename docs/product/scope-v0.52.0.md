@@ -1,6 +1,6 @@
 # v0.52.0 批量追加内部备注范围
 
-状态：正式设计，产品尚未实现。基线为 PR279 已交付的 master `636cefd6f4b38cec884f6658807044279728c0c3`；分支 `feat/v0.52.0-batch-note-append`。执行者根据路线图及无人值守授权自主选择，见[设计](../specs/2026-11-09-v0.52.0-batch-note-append-design.md)、[计划](../implementation/v0.52.0-plan.md)和[验收](../implementation/v0.52.0-acceptance.md)。
+状态：后端与前端已实现，本地门禁通过；浏览器、产品与交付验收未完成。基线为 PR279 已交付的 master `636cefd6f4b38cec884f6658807044279728c0c3`；分支 `feat/v0.52.0-batch-note-append`。执行者根据路线图及无人值守授权自主选择，见[设计](../specs/2026-11-09-v0.52.0-batch-note-append-design.md)、[计划](../implementation/v0.52.0-plan.md)和[验收](../implementation/v0.52.0-acceptance.md)。
 
 ## 目标与必须实现
 
