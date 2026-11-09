@@ -26,17 +26,17 @@
 
 **Interfaces：** 消费 master 全集与冻结准备原件，输出唯一三文件依赖差异及本地复用合同。
 
-- [ ] 标准 start1、读 brief；核全 1390 基线及 25 原件，读取两项真实 RED→GREEN，禁止重跑成功 suite。Expected：baseline-contract exit0。
-- [ ] 用已由标准模块工具生成的两文件 patch 更新 go.mod／go.sum，Dockerfile 追加两 pin；核完整候选后端输入逐 hash／bytes 相同。Expected：仅三个非 Markdown 路径变化，完整后端／vet／source 扫描证据身份吻合。
-- [ ] 同步公开访问边界、前版交付状态和技术基线；diff check、原子提交、standard done1 运行私有 verifier。Expected：证据 hash 与当前输入全核通过，不伪造 suite 重跑。
+- [x] 标准 start1、读 brief；核全 1390 基线及 25 原件，读取两项真实 RED→GREEN，禁止重跑成功 suite。Expected：baseline-contract exit0。
+- [x] 用已由标准模块工具生成的两文件 patch 更新 go.mod／go.sum，Dockerfile 追加两 pin；核完整候选后端输入逐 hash／bytes 相同。Expected：仅三个非 Markdown 路径变化，完整后端／vet／source 扫描证据身份吻合。
+- [x] 同步公开访问边界、前版交付状态和技术基线；diff check、原子提交、standard done1 运行私有 verifier。Expected：证据 hash 与当前输入全核通过，不伪造 suite 重跑。
 
 ## Task2：准确产品与唯一终审
 
 **Interfaces：** 消费 Task1 三文件和旧产品输入合同；输出新完整镜像、差异复用证明与整分支审查处置。
 
-- [ ] 新完整产品构建，读取实际 app／Goose；app 等同旧产品、Goose 等同 hardened 准备时才复用对应原验证。Expected：新镜像构建0，所有执行内容与新输入身份核实。
-- [ ] 准确新产品正常 freshness Trivy 三目标及实际运行／迁移清理；准备迁移只有 Goose／migration hash 全同才能复用。Expected：所选 HIGH／CRITICAL0，保留 required-only 和警告；无未知资源操作。
-- [ ] 唯一 fresh 整分支终审，有效 Important 用真实回归修复，Minor 延期；完整报告与 standard done2。Expected：无有效阻断项。
+- [x] 新完整产品构建，读取实际 app／Goose；app 等同旧产品、Goose 等同 hardened 准备时才复用对应原验证。Expected：新镜像构建0，所有执行内容与新输入身份核实。
+- [x] 准确新产品正常 freshness Trivy 三目标及实际运行／迁移清理；准备迁移只有 Goose／migration hash 全同才能复用。Expected：所选 HIGH／CRITICAL0，保留 required-only 和警告；无未知资源操作。
+- [x] 唯一 fresh 整分支终审，有效 Important 用真实回归修复，Minor 延期；完整报告与 standard done2。Expected：无有效阻断项。
 
 ## Task3：真实审查与正常集成归档
 

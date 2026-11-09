@@ -2,7 +2,7 @@
 
 ## 当前进展（2026-11-09）
 
-正在进行[Go 压缩依赖安全维护](scope-2026-11-09-go-compression-security.md)：主模块 compress1.20.2，独立 Goose3.28.0 模块固定 compress1.20.2／brotli1.2.7 并保留 x/net0.62.0；产品版本、工具链与业务行为不变。精确准备基线已核同；新完整产品、最新真实审查、正常集成及可恢复归档仍待完成，见[公开验收摘要](../implementation/2026-11-09-go-compression-security-acceptance.md)。完整 raw 是本地私有归档，新克隆不含原件。
+正在进行[Go 压缩依赖安全维护](scope-2026-11-09-go-compression-security.md)：主模块 compress1.20.2，独立 Goose3.28.0 模块固定 compress1.20.2／brotli1.2.7 并保留 x/net0.62.0；产品版本、工具链与业务行为不变。完整本地验证及唯一独立终审通过，Task1–2 标准完成；最新提交 CodeRabbit 真实覆盖、正常集成及可恢复归档仍待完成，见[公开验收摘要](../implementation/2026-11-09-go-compression-security-acceptance.md)。完整 raw 是本地私有归档，新克隆不含原件。
 
 v0.51.1 已由 [PR278](https://github.com/TomyJan/MoeURL/pull/278) 正常合并为 ca0b12a26ba90c442ccb18f8d20c59a96aa69860；3509 项前端／四 100%、220 项标准浏览器及准确产品验证、最终85b真实CodeRabbit覆盖、有效问题处置、三个标准任务、46 条裁决和可恢复归档均完成，见[前版验收](../implementation/v0.51.1-acceptance.md)。原两项文档 Minor 在本次维护落实访问边界和明确状态，不倒填为原 PR 修复。v0.51.0 合并事实、旧 CI 失败及原件缺失／归档缺口仍保留。不等待或伪称 CI 通过，未发布部署，下方旧阶段保持历史归属。
 
