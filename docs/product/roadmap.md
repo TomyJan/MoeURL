@@ -1,5 +1,9 @@
 # 路线图
 
+## 当前进展（2026-11-09）
+
+正在实施 [v0.51.1 标签重命名保存进度](scope-v0.51.1.md)，只完善请求进行中的反馈，不扩全局标签或修改 CAS。v0.51.0 已由 PR272 合并，master CI 未启动及最终归档缺口不冒完成；按用户最新指令不再因 CI 等待开发，本地验证与 CodeRabbit 真实覆盖继续。未发布部署，见[验收](../implementation/v0.51.1-acceptance.md)。
+
 ## 当前进展（2026-11-05）
 
 v0.49.2 已通过 [PR268](https://github.com/TomyJan/MoeURL/pull/268) 完整交付，master `8d72dda0696d139194ebea6aaeb24605abbe8607`；最新真实审查覆盖、候选41890239146和master41894181402各九CI／完整日志、标准Task1–3、17条裁决及可恢复归档全部完成。未发布部署，详见[前版验收](../implementation/v0.49.2-acceptance.md)。

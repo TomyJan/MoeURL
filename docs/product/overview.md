@@ -1,5 +1,9 @@
 # MoeURL 产品总览
 
+## 当前进展（2026-11-09）
+
+当前实施 [v0.51.1 保存进度](scope-v0.51.1.md)，承接标签重命名的保存反馈 Minor；本地验证和最新提交 CodeRabbit 真实覆盖仍须完成。v0.51.0 已通过 PR272 合并，master CI 未启动、原外置原件当前缺失及最终归档缺口分别保留，不声称完整交付。用户已取消 CI 阻塞要求，继续本地验证和审查；未发布部署。实际结果见[验收](../implementation/v0.51.1-acceptance.md)，下方旧阶段保留。
+
 ## 当前进展（2026-11-05）
 
 v0.49.2 已通过 [PR268](https://github.com/TomyJan/MoeURL/pull/268) 完整交付，master `8d72dda0696d139194ebea6aaeb24605abbe8607`；最新真实审查覆盖、候选41890239146和master41894181402各九CI／完整日志、标准Task1–3、17条裁决及可恢复归档全部完成。未发布部署，详见[前版验收](../implementation/v0.49.2-acceptance.md)。

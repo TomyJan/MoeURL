@@ -153,6 +153,7 @@ describe('AccountPreferencesPanel', () => {
     expect(screen.getByTestId('account-preferences-reload')).toBeTruthy()
     expect((screen.getByLabelText('accountPreferences.theme') as HTMLSelectElement).value).toBe('dark')
     vi.mocked(getAccountPreferences).mockResolvedValue({ ...saved, theme: 'light' })
+    await waitFor(() => expect(screen.getByTestId('account-preferences-reload')).toHaveProperty('disabled', false))
     await fireEvent.click(screen.getByTestId('account-preferences-reload'))
     await waitFor(() => expect(screen.queryByTestId('account-preferences-reload')).toBeNull())
     expect((screen.getByLabelText('accountPreferences.theme') as HTMLSelectElement).value).toBe('light')

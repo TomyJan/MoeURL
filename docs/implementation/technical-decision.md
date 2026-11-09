@@ -1,5 +1,9 @@
 # 技术选型决策
 
+## 当前进展（2026-11-09）
+
+[v0.51.1](../specs/2026-11-09-v0.51.1-tag-rename-progress-design.md)只令保存中的模板优先保留保存分支，用 Vuetify `loader` 插槽呈现可见双语文案和忙碌状态，不改 controller、API、数据库、权限或依赖。继承 master cfbcadbd 的依赖升级，独立 frozen-lockfile 环境验证。用户取消 CI 阻塞要求，但未运行结果不得冒成功；本地和真实 CodeRabbit 覆盖仍须实证，见[验收](v0.51.1-acceptance.md)。
+
 ## 当前进展（2026-11-05）
 
 v0.49.2 已通过 [PR268](https://github.com/TomyJan/MoeURL/pull/268) 完整交付，master `8d72dda0696d139194ebea6aaeb24605abbe8607`；最新真实审查覆盖、候选41890239146和master41894181402各九CI／完整日志、标准Task1–3、17条裁决及可恢复归档全部完成。未发布部署，详见[前版验收](v0.49.2-acceptance.md)。

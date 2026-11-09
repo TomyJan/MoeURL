@@ -24,8 +24,11 @@
       <v-card-actions class="tag-rename-actions">
         <v-btn variant="text" :disabled="locked" @click="state.close">{{ t('batchTagRename.cancel') }}</v-btn>
         <v-btn v-if="state.recovery.value" ref="reloadButton" data-testid="batch-tag-rename-reload" variant="tonal" :loading="state.loading.value" :disabled="state.saving.value" @click="state.reload">{{ t('batchTagRename.reload') }}</v-btn>
-        <v-btn v-else-if="!state.approved.value" data-testid="batch-tag-rename-approve" variant="tonal" :disabled="locked || !state.preview.value?.changedCount" v-on="{ click: state.approve }">{{ t('batchTagRename.approve') }}</v-btn>
-        <v-btn v-else data-testid="batch-tag-rename-confirm" color="primary" variant="tonal" :disabled="!state.canConfirm.value" :loading="state.saving.value" v-on="{ click: state.confirm }">{{ t('batchTagRename.confirm') }}</v-btn>
+        <v-btn v-else-if="!state.approved.value && !state.saving.value" data-testid="batch-tag-rename-approve" variant="tonal" :disabled="locked || !state.preview.value?.changedCount" v-on="{ click: state.approve }">{{ t('batchTagRename.approve') }}</v-btn>
+        <v-btn v-else data-testid="batch-tag-rename-confirm" color="primary" variant="tonal" :disabled="!state.canConfirm.value" :loading="state.saving.value" :aria-busy="state.saving.value" :aria-label="t(state.saving.value ? 'batchTagRename.saving' : 'batchTagRename.confirm')" v-on="{ click: state.confirm }">
+          {{ t('batchTagRename.confirm') }}
+          <template #loader><v-progress-circular indeterminate size="16" width="2" class="mr-2" aria-hidden="true" />{{ t('batchTagRename.saving') }}</template>
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
