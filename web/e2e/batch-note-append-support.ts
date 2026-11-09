@@ -16,11 +16,16 @@ export async function captureAppendDiscard(page: Page, info: TestInfo, name: str
       const r = target.getBoundingClientRect(), hit = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2)
       const bounds = index < 2 ? { left: Math.max(0, clip.left), right: Math.min(innerWidth, clip.right), top: Math.max(0, clip.top), bottom: Math.min(innerHeight, clip.bottom) }
         : { left: 0, right: innerWidth, top: 0, bottom: innerHeight }
-      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, bounds, hit: hit !== null && target.contains(hit) }
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, bounds, hit: hit !== null && target.contains(hit), hitTag: hit?.tagName, hitTestId: hit?.getAttribute('data-testid') }
     }) }
   })
   // Transition completion is observed through actual hit testing, without changing scroll position.
-  await expect.poll(async () => (await geometry()).boxes.every(box => box.hit)).toBe(true)
+  try { await expect.poll(async () => (await geometry()).boxes.every(box => box.hit)).toBe(true) } finally {
+    const proof = info.outputPath(name + '-geometry.json'); await writeFile(proof, JSON.stringify(await geometry(), null, 2))
+    await info.attach(name + '-geometry', { path: proof, contentType: 'application/json' })
+    const path = info.outputPath(name + '.png'); await page.screenshot({ path, animations: 'disabled' })
+    await info.attach(name, { path, contentType: 'image/png' })
+  }
   const value = await geometry()
   expect(value.scrollTop).toBe(0)
   for (const box of value.boxes) {
@@ -28,8 +33,4 @@ export async function captureAppendDiscard(page: Page, info: TestInfo, name: str
     expect(box.left).toBeGreaterThanOrEqual(box.bounds.left - 1); expect(box.right).toBeLessThanOrEqual(box.bounds.right + 1)
     expect(box.top).toBeGreaterThanOrEqual(box.bounds.top - 1); expect(box.bottom).toBeLessThanOrEqual(box.bounds.bottom + 1)
   }
-  const proof = info.outputPath(name + '-geometry.json'); await writeFile(proof, JSON.stringify(value, null, 2))
-  await info.attach(name + '-geometry', { path: proof, contentType: 'application/json' })
-  const path = info.outputPath(name + '.png'); await page.screenshot({ path, animations: 'disabled' })
-  await info.attach(name, { path, contentType: 'image/png' })
 }
