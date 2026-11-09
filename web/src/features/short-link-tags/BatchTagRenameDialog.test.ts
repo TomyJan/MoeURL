@@ -2,9 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/vu
 import { defineComponent, getCurrentInstance, h, nextTick, type Component, type SetupContext } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { createI18n } from 'vue-i18n'
-import { createVuetify } from 'vuetify'
-import * as components from 'vuetify/components'
-import * as directives from 'vuetify/directives'
+import { vuetify } from '@/app/vuetify'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { messages } from '@/app/i18n'
 import { componentStubs } from '@/test/component-stubs'
@@ -34,7 +32,7 @@ function mount(locale = 'en', count = 1, stubs?: Record<string, Component>, fall
   const view = render(defineComponent({ setup() {
     state = useBatchTagRename('own', useShortLinkAccess('own'), () => {}, async () => true)
     return () => h(BatchTagRenameDialog, { state, fallbackFocus })
-  } }), { global: { mixins: [{ mounted: capture, updated: capture }], plugins: [[VueQueryPlugin, { queryClient: client }], createI18n({ legacy: false, locale, messages }), createVuetify({ components, directives })], stubs } })
+  } }), { global: { mixins: [{ mounted: capture, updated: capture }], plugins: [[VueQueryPlugin, { queryClient: client }], createI18n({ legacy: false, locale, messages }), vuetify], stubs } })
   state.open(Array.from({ length: Math.max(1, count) }, (_, index) => item(index, count ? 'old' : 'absent')))
   return { ...view, state, client, fetcher, callbacks }
 }
@@ -58,6 +56,7 @@ describe('batch tag rename dialog', () => {
       expect(save).toHaveProperty('disabled', true)
       expect(save.getAttribute('aria-busy')).toBe('true')
       expect(save.querySelector('.v-btn__loader')?.textContent).toContain(locale === 'en' ? 'Saving…' : '正在保存…')
+      expect(save.querySelector('.v-progress-circular--indeterminate svg')).not.toBeNull()
       expect(screen.queryByTestId('batch-tag-rename-approve')).toBeNull()
       await fireEvent.click(save)
       await fireEvent.click(screen.getByRole('button', { name: locale === 'en' ? 'Cancel' : '取消' }))

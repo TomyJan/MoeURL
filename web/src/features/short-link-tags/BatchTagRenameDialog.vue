@@ -25,7 +25,7 @@
         <v-btn variant="text" :disabled="locked" @click="state.close">{{ t('batchTagRename.cancel') }}</v-btn>
         <v-btn v-if="state.recovery.value" ref="reloadButton" data-testid="batch-tag-rename-reload" variant="tonal" :loading="state.loading.value" :disabled="state.saving.value" @click="state.reload">{{ t('batchTagRename.reload') }}</v-btn>
         <v-btn v-else-if="!state.approved.value && !state.saving.value" data-testid="batch-tag-rename-approve" variant="tonal" :disabled="locked || !state.preview.value?.changedCount" v-on="{ click: state.approve }">{{ t('batchTagRename.approve') }}</v-btn>
-        <v-btn v-else data-testid="batch-tag-rename-confirm" color="primary" variant="tonal" :disabled="!state.canConfirm.value" :loading="state.saving.value" :aria-busy="state.saving.value" :aria-label="t(state.saving.value ? 'batchTagRename.saving' : 'batchTagRename.confirm')" v-on="{ click: state.confirm }">
+        <v-btn v-else data-testid="batch-tag-rename-confirm" color="primary" variant="tonal" :class="{ 'tag-rename-saving': state.saving.value }" :disabled="!state.canConfirm.value" :loading="state.saving.value" :aria-busy="state.saving.value" :aria-label="t(state.saving.value ? 'batchTagRename.saving' : 'batchTagRename.confirm')" v-on="{ click: state.confirm }">
           {{ t('batchTagRename.confirm') }}
           <template #loader><v-progress-circular indeterminate size="16" width="2" class="mr-2" aria-hidden="true" />{{ t('batchTagRename.saving') }}</template>
         </v-btn>
@@ -36,6 +36,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { VProgressCircular } from 'vuetify/components/VProgressCircular'
 import type { useBatchTagRename } from './useBatchTagRename'
 const props = defineProps<{ state: ReturnType<typeof useBatchTagRename>; fallbackFocus?: globalThis.HTMLElement | null }>()
 const { t } = useI18n()
@@ -69,5 +70,7 @@ function restoreFocus() {
 .tag-rename-body ol { padding-inline-start: 24px; }
 .tag-rename-chip { display: inline-block; max-width: 100%; padding: 2px 6px; margin: 2px; border: 1px solid currentColor; border-radius: 4px; vertical-align: top; }
 .tag-rename-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px; }
+/* The saving status stays readable while the native disabled state still blocks interaction. */
+.tag-rename-saving, .tag-rename-saving:hover { opacity: 1; }
 @media (max-width: 480px) { .tag-rename-actions > * { flex: 1 1 100%; margin: 0; white-space: normal; height: auto; min-height: 40px; } }
 </style>
