@@ -15,7 +15,7 @@
         <v-text-field :model-value="tagFilter" :label="t('filter.tag')" :disabled="privateConfirmationOpen" :error-messages="tagInvalid ? t('linkMetadata.tagFilterInvalid') : ''" density="compact" variant="outlined" @update:model-value="selectTag" />
         <v-text-field :model-value="noteQuery" :label="t('filter.noteQuery')" :error-messages="noteQueryInvalid ? t('linkMetadata.noteQueryInvalid') : ''" :disabled="noteFilterBlocked || note.target.value !== null" density="compact" variant="outlined" @update:model-value="selectNoteQuery" />
       </div>
-      <ShortLinkBatchToolbar :state="batch" :access="access" transfer @transfer="beginBatchTransfer" @tags="beginBatchTags" @clear-notes="beginNoteClear" @replace-notes="beginNoteReplace" @rename-tag="beginTagRename" />
+      <ShortLinkBatchToolbar :state="batch" :access="access" transfer @transfer="beginBatchTransfer" @tags="beginBatchTags" @clear-notes="beginNoteClear" @replace-notes="beginNoteReplace" @append-notes="beginNoteAppend" @rename-tag="beginTagRename" />
     </div>
     <AdminTagBrowser :access="access" :blocked="tagSelectionBlocked" @select="selectCatalogTag" />
     <div class="console-data-panel" data-testid="console-data-panel">
@@ -77,6 +77,7 @@
   <ShortLinkNoteDialog v-if="note.target.value" :state="note" />
   <BatchNoteClearDialog :state="noteClear" :fallback-focus="pageRoot" />
   <BatchNoteReplaceDialog :state="noteReplace" :fallback-focus="pageRoot" />
+  <BatchNoteAppendDialog :state="noteAppend" :fallback-focus="pageRoot" />
   <BatchTagRenameDialog :state="tagRename" :fallback-focus="pageRoot" />
 </template>
 
@@ -108,6 +109,8 @@ import { useBatchNoteClear } from '@/features/short-link-note/useBatchNoteClear'
 import BatchNoteClearDialog from '@/features/short-link-note/BatchNoteClearDialog.vue'
 import { useBatchNoteReplace } from '@/features/short-link-note/useBatchNoteReplace'
 import BatchNoteReplaceDialog from '@/features/short-link-note/BatchNoteReplaceDialog.vue'
+import { useBatchNoteAppend } from '@/features/short-link-note/useBatchNoteAppend'
+import BatchNoteAppendDialog from '@/features/short-link-note/BatchNoteAppendDialog.vue'
 import { useBatchTagRename } from '@/features/short-link-tags/useBatchTagRename'
 import BatchTagRenameDialog from '@/features/short-link-tags/BatchTagRenameDialog.vue'
 import { noteVersionSchema } from '@/entities/short-link/note'
@@ -123,8 +126,9 @@ const access = useShortLinkAccess('admin')
 const note = useShortLinkNote('admin', access)
 const noteClear = useBatchNoteClear('admin', access, () => batch.clear())
 const noteReplace = useBatchNoteReplace('admin', access, () => batch.clear())
+const noteAppend = useBatchNoteAppend('admin', access, () => batch.clear())
 const tagRename = useBatchTagRename('admin', access, () => batch.clear(), readFreshRenameList)
-const privateConfirmationOpen = computed(() => noteClear.targets.value !== null || noteReplace.targets.value !== null || tagRename.targets.value !== null)
+const privateConfirmationOpen = computed(() => noteClear.targets.value !== null || noteReplace.targets.value !== null || noteAppend.targets.value !== null || tagRename.targets.value !== null)
 const batchTagTargets = ref<readonly BatchTagTarget[] | null>(null)
 const batchTagsRefreshRequired = ref(false)
 const transferTarget = ref<AdminShortLink | null>(null)
@@ -210,6 +214,7 @@ const rowWriteBlocked = computed(() => privateConfirmationOpen.value || noteQuer
 watch([statusFilter, searchKeyword, tagFilter, noteQuery, noteStatusFilter, page, pageSize], note.reset, { flush: 'sync' })
 watch([statusFilter, searchKeyword, tagFilter, noteQuery, noteStatusFilter, page, pageSize], noteClear.reset, { flush: 'sync' })
 watch([statusFilter, searchKeyword, tagFilter, noteQuery, noteStatusFilter, page, pageSize], noteReplace.reset, { flush: 'sync' })
+watch([statusFilter, searchKeyword, tagFilter, noteQuery, noteStatusFilter, page, pageSize], noteAppend.reset, { flush: 'sync' })
 watch([statusFilter, searchKeyword, tagFilter, noteQuery, noteStatusFilter, page, pageSize], tagRename.reset, { flush: 'sync' })
 const canTransfer = computed(() => access.canUpdate.value && query.isSuccess.value && !query.isFetching.value && !filtersPending.value && !keywordInvalid.value && !tagInvalid.value && !noteQueryInvalid.value)
 watch([access.identity.scope, access.canUpdate], () => { batchTransferTargets.value = null; batch.clear() }, { flush: 'sync' })
@@ -305,6 +310,15 @@ async function readFreshRenameList(current: () => boolean) {
   if (!current() || listQueryKey.value !== key) return false
   const state = queryClient.getQueryState(key)
   return result.isSuccess && state?.status === 'success' && state.fetchStatus === 'idle' && !state.isInvalidated
+}
+/** Opens an append only from a successful idle list and the current fixed selection. */
+function beginNoteAppend() {
+  const state = queryClient.getQueryState(listQueryKey.value)
+  if (batch.unavailable.value || exportBlocked.value || exportPending.value || qrLink.value !== null
+    || !access.allows('tags') || !batch.selected.value.length || state?.status !== 'success' || state.fetchStatus !== 'idle' || state.isInvalidated) return
+  const targets = links.value.filter(link => batch.selected.value.includes(link.id))
+  if (targets.length !== batch.selected.value.length || targets.some(link => !noteVersionSchema.safeParse(link.updatedAt).success)) return
+  noteAppend.open(targets.map(link => ({ id: link.id, expectedUpdatedAt: link.updatedAt })))
 }
 function beginNoteReplace() {
   const state = queryClient.getQueryState(listQueryKey.value)
