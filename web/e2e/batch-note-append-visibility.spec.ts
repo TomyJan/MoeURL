@@ -30,3 +30,28 @@ for (const clipping of ['warning-width', 'request-height', 'nested-container', '
     await expect(captureAppendDiscard(page, info, clipping, requestId)).rejects.toThrow()
   })
 }
+
+for (const layout of ['locked-root', 'unrelated-overflow'] as const) {
+  test('discard geometry accepts fully visible text: ' + layout, async ({ page }, info) => {
+    const requestId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    await page.setContent(`
+      <style>
+        html { ${layout === 'locked-root' ? 'position: fixed; top: -700px; width: 100%; overflow-y: scroll;' : ''} }
+        [data-testid="batch-note-append-dialog"] { position: fixed; inset: 10px; }
+        .batch-append-body { width: 280px; height: 240px; overflow: auto; }
+        p { overflow-wrap: anywhere; }
+        .unrelated { margin-top: 400px; }
+      </style>
+      <div data-testid="batch-note-append-dialog">
+        <div class="batch-append-body">
+          <div data-testid="batch-note-append-discard-warning">The server may already have saved your changes.</div>
+          <p>Request identifier: ${requestId}</p>
+          ${layout === 'unrelated-overflow' ? '<div class="unrelated">Unrelated overflowing content</div>' : ''}
+        </div>
+        <button data-testid="batch-note-append-keep">Keep</button>
+        <button data-testid="batch-note-append-discard">Discard</button>
+      </div>`)
+    await page.getByTestId('batch-note-append-keep').focus()
+    await captureAppendDiscard(page, info, layout, requestId)
+  })
+}

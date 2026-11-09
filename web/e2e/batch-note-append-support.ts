@@ -23,8 +23,9 @@ export async function captureAppendDiscard(page: Page, info: TestInfo, name: str
           const node = walker.currentNode
           if (!node.textContent?.trim()) continue
           const visible = { ...bounds }
-          const overflow = []
           for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+            // The root clips to the viewport, even when modal scroll locking offsets its box.
+            if (parent === document.documentElement) continue
             const style = getComputedStyle(parent), rect = parent.getBoundingClientRect()
             const clipsX = /^(hidden|clip|auto|scroll)$/.test(style.overflowX)
             const clipsY = /^(hidden|clip|auto|scroll)$/.test(style.overflowY)
@@ -36,10 +37,9 @@ export async function captureAppendDiscard(page: Page, info: TestInfo, name: str
               visible.top = Math.max(visible.top, rect.top + parent.clientTop)
               visible.bottom = Math.min(visible.bottom, rect.top + parent.clientTop + parent.clientHeight)
             }
-            overflow.push({ x: clipsX ? parent.scrollWidth - parent.clientWidth : 0, y: clipsY ? parent.scrollHeight - parent.clientHeight : 0 })
           }
           const range = document.createRange(); range.selectNodeContents(node)
-          text.push({ bounds: visible, overflow, rects: Array.from(range.getClientRects(), rect => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom })) })
+          text.push({ bounds: visible, rects: Array.from(range.getClientRects(), rect => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom })) })
         }
       }
       return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, bounds, text, hit: hit !== null && target.contains(hit), hitTag: hit?.tagName, hitTestId: hit?.getAttribute('data-testid') }
@@ -60,7 +60,6 @@ export async function captureAppendDiscard(page: Page, info: TestInfo, name: str
     expect(box.top).toBeGreaterThanOrEqual(box.bounds.top - 1); expect(box.bottom).toBeLessThanOrEqual(box.bounds.bottom + 1)
     for (const text of box.text) {
       expect(text.rects.length).toBeGreaterThan(0)
-      for (const overflow of text.overflow) { expect(overflow.x).toBeLessThanOrEqual(1); expect(overflow.y).toBeLessThanOrEqual(1) }
       for (const rect of text.rects) {
         expect(rect.right - rect.left).toBeGreaterThan(0); expect(rect.bottom - rect.top).toBeGreaterThan(0)
         expect(rect.left).toBeGreaterThanOrEqual(text.bounds.left - 1); expect(rect.right).toBeLessThanOrEqual(text.bounds.right + 1)
