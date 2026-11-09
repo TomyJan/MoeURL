@@ -68,7 +68,7 @@ vi.mock('@tanstack/vue-query', async () => {
     }),
     useQuery: vi.fn((options?: { queryKey?: readonly string[] }) => {
       state.queryOptions.push(options)
-      return { refetch: vi.fn(), ...(options?.queryKey?.[0] === 'domain' ? state.domainQueryResult : state.queryResult) }
+      return { refetch: vi.fn(), isError: ref(false), isFetching: ref(false), ...(options?.queryKey?.[0] === 'domain' ? state.domainQueryResult : state.queryResult) }
     }),
     useQueryClient: () => ({
       getQueryData: () => (state.queryResult as { data: { value: unknown } }).data.value,
