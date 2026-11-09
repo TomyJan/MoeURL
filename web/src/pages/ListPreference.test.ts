@@ -5,6 +5,7 @@ import { componentStubs } from '@/test/component-stubs'
 import { createPageSizeSelectStub } from '@/test/page-size-select-stub'
 import MyLinksPage from './MyLinksPage.vue'
 import AdminLinksPage from './AdminLinksPage.vue'
+import ListPreferencePanel from '@/features/list-preference/ListPreferencePanel.vue'
 
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
@@ -19,7 +20,7 @@ function deferred<T>() {
   const promise = new Promise<T>((accept, fail) => { resolve = accept; reject = fail })
   return { promise, resolve, reject }
 }
-function mount(context: 'own' | 'admin', preference?: Promise<Response>, sharedClient?: QueryClient) {
+function mount(context: 'own' | 'admin', preference?: Promise<Response> | (() => Promise<Response>), sharedClient?: QueryClient) {
   const client = sharedClient ?? new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   clients.push(client)
   client.setQueryData(['auth', 'me'], { user })
@@ -33,7 +34,7 @@ function mount(context: 'own' | 'admin', preference?: Promise<Response>, sharedC
     if (url.pathname.endsWith('/auth/me')) return response({ user })
     if (url.pathname.endsWith('/user/list-preference')) {
       preferenceRequests.push(init ?? {})
-      return preference ?? response({ preference: { pageSize: 50, updatedAt: '2026-11-09T00:00:00.123456Z' } })
+      return typeof preference === 'function' ? preference() : preference ?? response({ preference: { pageSize: 50, updatedAt: '2026-11-09T00:00:00.123456Z' } })
     }
     if (url.pathname === '/api/v1/short-link/list' || url.pathname === '/api/v1/admin/short-link/list') {
       sharedRequests[url.pathname.includes('/admin/') ? 'admin' : 'own'].push(url)
@@ -91,6 +92,68 @@ describe('account default list page size', () => {
     await flushPromises()
     expect(view.requests).toHaveLength(1)
     expect((screen.getByLabelText('pagination.pageSize') as HTMLSelectElement).value).toBe('20')
+  })
+
+  // A surviving deadline or late preference must not reset a user's explicit selection.
+  it.each(['own', 'admin'] as const)('keeps manual 100 across the deadline and a late 50 in %s', async context => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const pending = deferred<Response>()
+    const view = mount(context, pending.promise)
+    await flushPromises()
+    await fireEvent.update(screen.getByLabelText('pagination.pageSize'), '100')
+    await flushPromises()
+    expect(view.requests.map(url => url.searchParams.get('pageSize'))).toEqual(['100'])
+    await vi.advanceTimersByTimeAsync(3001)
+    await flushPromises()
+    expect(screen.getByLabelText('pagination.pageSize')).toHaveProperty('value', '100')
+    expect(view.requests.map(url => url.searchParams.get('pageSize'))).toEqual(['100'])
+    pending.resolve(response({ preference: { pageSize: 50, updatedAt: '2026-11-09T00:00:00Z' } }))
+    await flushPromises()
+    expect(screen.getByLabelText('pagination.pageSize')).toHaveProperty('value', '100')
+    expect(view.requests.map(url => url.searchParams.get('pageSize'))).toEqual(['100'])
+    await fireEvent.update(screen.getByLabelText('filter.status'), 'disabled')
+    await flushPromises()
+    expect(view.requests.map(url => url.searchParams.get('pageSize'))).toEqual(['100', '100'])
+    expect(view.requests[1]!.searchParams.get('status')).toBe('disabled')
+  })
+
+  // Accepting an old epoch's GET would change both the actual list request and settings draft.
+  it.each([['own', 'other account'], ['admin', 'other account'], ['own', 'same account'], ['admin', 'same account']] as const)('isolates a pending old read from the new %s list and settings after %s login', async (context, identity) => {
+    const oldRead = deferred<Response>()
+    const newRead = deferred<Response>()
+    let reads = 0
+    const view = mount(context, () => ++reads === 1 ? oldRead.promise : newRead.promise)
+    const panel = render(ListPreferencePanel, { props: { userId: user.id, active: true }, global: {
+      plugins: [[VueQueryPlugin, { queryClient: view.client }]], stubs: { ...componentStubs, VSelect: createPageSizeSelectStub(() => {}) },
+    } })
+    await flushPromises()
+    expect(reads).toBe(1)
+    expect(view.requests).toHaveLength(0)
+    if (identity === 'same account') {
+      view.client.setQueryData(['auth', 'me'], { user: { ...user, id: '', username: 'guest', group: 'guest', permissions: [] } })
+      await panel.rerender({ active: false })
+      await flushPromises()
+    }
+    const next = identity === 'same account' ? user : { ...user, id: '00000000-0000-0000-0000-000000000002', username: 'next' }
+    view.client.setQueryData(['auth', 'me'], { user: next })
+    await panel.rerender({ userId: next.id, active: true })
+    await flushPromises()
+    expect(reads).toBe(2)
+    expect(view.requests).toHaveLength(0)
+    newRead.resolve(response({ preference: { pageSize: 100, updatedAt: '2026-11-09T00:00:01Z' } }))
+    await waitFor(() => expect(view.requests.map(url => url.searchParams.get('pageSize'))).toEqual(['100']))
+    await waitFor(() => expect(screen.getByLabelText('listPreference.pageSize')).toHaveProperty('value', '100'))
+    await fireEvent.update(screen.getByLabelText('listPreference.pageSize'), '20')
+    oldRead.resolve(response({ preference: { pageSize: 50, updatedAt: '2026-11-09T00:00:00Z' } }))
+    await flushPromises()
+    expect(screen.getByLabelText('pagination.pageSize')).toHaveProperty('value', '100')
+    expect(screen.getByLabelText('listPreference.pageSize')).toHaveProperty('value', '20')
+    expect(screen.queryByText('listPreference.conflict')).toBeNull()
+    expect(view.requests.map(url => url.searchParams.get('pageSize'))).toEqual(['100'])
+    await fireEvent.update(screen.getByLabelText('filter.status'), 'disabled')
+    await waitFor(() => expect(view.requests.map(url => url.searchParams.get('pageSize'))).toEqual(['100', '100']))
+    expect(view.requests[1]!.searchParams.get('status')).toBe('disabled')
+    expect(screen.getByLabelText('listPreference.pageSize')).toHaveProperty('value', '20')
   })
 
   it.each(['own', 'admin'] as const)('opens with 20 after a failed preference read in %s', async context => {
