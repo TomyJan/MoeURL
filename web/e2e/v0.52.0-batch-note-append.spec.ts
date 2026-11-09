@@ -198,7 +198,7 @@ for (const scope of ['own', 'admin'] as const) for (const en of [false, true]) {
       expect(auditState(ids, JSON.parse(firstBody).requestId)).toEqual(committedAudit)
       for (const id of ids) expect((await success(manager.request, '/admin/short-link/note?id=' + id)).data).toEqual(committedNotes.get(id))
       await expect(page.getByTestId('console-link-row')).toHaveCount(0)
-      await expect(page.getByRole('combobox', { name: en ? 'Note status' : '备注状态', exact: true })).toContainText(en ? 'Without note' : '无备注')
+      await expect(page.getByRole('combobox', { name: en ? 'Note status' : '备注状态', exact: true })).toHaveValue(en ? 'Without note' : '无备注')
       expect(page.url()).not.toContain(term); expect(await page.evaluate(term => [...Object.values(localStorage), ...Object.values(sessionStorage)].some(value => String(value).includes(term)), term)).toBe(false)
       await page.unroute(routePath)
       const proof = info.outputPath('batch-append-proof.json')
