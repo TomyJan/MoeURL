@@ -37,7 +37,7 @@ RUN mkdir -p /tmp/goose-build \
     && cd /tmp/goose-build \
     && go mod init moeurl/goose-build \
     && go get github.com/pressly/goose/v3/cmd/goose@v3.28.0 \
-    && go get golang.org/x/net@v0.60.0 \
+    && go get golang.org/x/net@v0.62.0 \
     && CGO_ENABLED=0 go install github.com/pressly/goose/v3/cmd/goose \
     && rm -rf /tmp/goose-build
 
