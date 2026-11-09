@@ -72,6 +72,8 @@ func writeTransferResult(w http.ResponseWriter, r *http.Request, result any, err
 		businessError(w, 200104, "Short link not found")
 	case errors.Is(err, ErrTransferConflict):
 		businessError(w, 200116, "Short link changed")
+	case errors.Is(err, ErrNoteAppendRequestConflict):
+		businessError(w, 200120, "Batch request has different content")
 	case errors.Is(err, ErrTransferRecipientUnavailable):
 		businessError(w, 200117, "Recipient unavailable")
 	default:

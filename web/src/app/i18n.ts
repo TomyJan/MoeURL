@@ -2,6 +2,16 @@ import { createI18n } from 'vue-i18n'
 
 export const messages = {
   'zh-CN': {
+    batchNoteAppend: {
+      action: '追加备注', title: '追加到所选内部备注', note: '追加内容', warning: '保留原备注，在末尾换行追加。此操作无法撤销。',
+      hint: '非空，最多 1000 个 Unicode 字符，允许换行和制表符。追加后的总长度也不能超过 1000 字符。', invalidNote: '请输入非空内容，最多 1000 个 Unicode 字符，不含换行和制表符以外的控制字符。',
+      selected: '已选择 {count} 条短链。', appendable: '{count} 条可以追加。', overflow: '{count} 条追加后超长。', blocked: '整批不会保存。请缩短追加内容，再预览。',
+      cancel: '取消', preview: '预览追加', loading: '正在检查追加长度', saving: '正在追加备注…', confirm: '追加到 {count} 条备注',
+      unknown: '结果未确认，可能已经完成。内容和操作编号已锁定，只能重试这一次追加，不会自动重试。', requestId: '操作编号：{id}', retry: '重试这次追加',
+      discardWarning: '放弃不会撤销服务端已完成的追加，也会丢失本次重试入口。重新发起可能重复追加，请先核对备注。', keep: '保留这次操作', discard: '仍然放弃并关闭',
+      loadFailed: '预览失败，请重试。', saveFailed: '追加请求未通过，请检查内容并重新预览。', conflict: '所选短链或备注已变化，请刷新列表后重新选择。',
+      requestConflict: '操作编号与原请求不一致，已停止。请核对备注，不会自动换编号重试。', accessChanged: '当前账号、权限或短链归属已变化，请刷新列表。', saved: '已追加 {count} 条备注。',
+    },
     batchTagRename: {
       action: '重命名标签', title: '重命名所选短链的标签', from: '原标签', to: '新标签',
       scope: '只影响本次选择，不是全局标签重命名。新旧标签都有时，只删除旧标签，保留新标签原位置。',
@@ -835,6 +845,16 @@ export const messages = {
     },
   },
   en: {
+    batchNoteAppend: {
+      action: 'Append notes', title: 'Append to selected internal notes', note: 'Text to append', warning: 'Keeps existing notes and appends on a new line. This cannot be undone.',
+      hint: 'Nonempty, up to 1000 Unicode characters. Line breaks and tabs are allowed. The resulting total must also fit 1000 characters.', invalidNote: 'Enter nonempty text with up to 1000 Unicode characters and no controls other than line breaks and tabs.',
+      selected: '{count} link selected. | {count} links selected.', appendable: '{count} note can be appended. | {count} notes can be appended.', overflow: '{count} note would be too long. | {count} notes would be too long.', blocked: 'Nothing in this batch will be saved. Shorten the text and preview again.',
+      cancel: 'Cancel', preview: 'Preview append', loading: 'Checking resulting note lengths', saving: 'Appending notes…', confirm: 'Append to {count} note | Append to {count} notes',
+      unknown: 'The result is unknown and may have succeeded. Text and operation ID are locked. Only this same append can be retried; there is no automatic retry.', requestId: 'Operation ID: {id}', retry: 'Retry this append',
+      discardWarning: 'Abandoning does not undo a completed server write and loses this retry entry. Starting again may append twice; check the notes first.', keep: 'Keep this operation', discard: 'Abandon and close anyway',
+      loadFailed: 'Could not preview. Please retry.', saveFailed: 'The request was rejected. Check the text and preview again.', conflict: 'A selected link or note changed. Refresh the list and select again.',
+      requestConflict: 'The operation ID does not match the original request. Stopped; check the notes. No new ID will be generated automatically.', accessChanged: 'Your account, permissions or link ownership changed. Refresh the list.', saved: 'Appended to {count} note. | Appended to {count} notes.',
+    },
     batchTagRename: {
       action: 'Rename tag', title: 'Rename tag on selected links', from: 'Current tag', to: 'New tag',
       scope: 'Only affects this selection, not every link with this tag. If both tags exist, only the old tag is removed; the new tag keeps its position.',

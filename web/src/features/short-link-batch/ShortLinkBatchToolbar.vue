@@ -6,6 +6,7 @@
       <v-btn v-if="access.canTag.value" data-testid="batch-tag-rename" size="small" color="primary" variant="tonal" :disabled="disabled" @click="$emit('rename-tag')">{{ t('batchTagRename.action') }}</v-btn>
       <v-btn v-if="access.canTag.value" data-testid="batch-note-clear" size="small" color="error" variant="tonal" :disabled="disabled" @click="$emit('clear-notes')">{{ t('batchNoteClear.action') }}</v-btn>
       <v-btn v-if="access.canTag.value" data-testid="batch-note-replace" size="small" color="primary" variant="tonal" :disabled="disabled" @click="$emit('replace-notes')">{{ t('batchNoteReplace.action') }}</v-btn>
+      <v-btn v-if="access.canTag.value" data-testid="batch-note-append" size="small" color="primary" variant="tonal" :disabled="disabled" @click="$emit('append-notes')">{{ t('batchNoteAppend.action') }}</v-btn>
       <v-btn v-if="transfer && access.canUpdate.value" data-testid="batch-transfer" size="small" color="primary" variant="tonal" :disabled="disabled" @click="$emit('transfer')">{{ t('transfer.action') }}</v-btn>
       <v-btn v-if="access.canUpdate.value" data-testid="batch-enable" size="small" color="primary" variant="tonal" :disabled="disabled" @click="state.submit('enable')">{{ t('batch.enable') }}</v-btn>
       <v-btn v-if="access.canUpdate.value" data-testid="batch-disable" size="small" variant="tonal" :disabled="disabled" @click="state.submit('disable')">{{ t('batch.disable') }}</v-btn>
@@ -31,7 +32,7 @@ import { useI18n } from 'vue-i18n'
 import type { useShortLinkAccess, useShortLinkBatch } from './useShortLinkBatch'
 
 const props = defineProps<{ state: ReturnType<typeof useShortLinkBatch>; access: ReturnType<typeof useShortLinkAccess>; transfer?: boolean }>()
-defineEmits<{ transfer: []; tags: []; 'clear-notes': []; 'replace-notes': []; 'rename-tag': [] }>()
+defineEmits<{ transfer: []; tags: []; 'clear-notes': []; 'replace-notes': []; 'append-notes': []; 'rename-tag': [] }>()
 const { t } = useI18n()
 const disabled = computed(() => props.state.unavailable.value || props.state.deleteIds.value !== null || props.state.selected.value.length === 0)
 </script>

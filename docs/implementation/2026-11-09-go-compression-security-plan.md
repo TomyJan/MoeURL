@@ -42,6 +42,6 @@
 
 **Interfaces：** 消费 Task2 合同，输出精确 head 审查、正常合并和可恢复归档。
 
-- [ ] 同名 push、单次建 PR；读完整有效讨论及明确额度窗口，最新 head 必须 reviewed／source=covered。Expected：有效问题处置完成，不重复 request、不把 skipped 当 running。
-- [ ] 正常 exact-head squash，独立 API／fetch／SHA／tree／唯一父。Expected：保护不绕过，CI 未验证不改写。
-- [ ] 完整报告、standard done3、whole-owned ZIP／extract 全核，准确 leaf 可恢复迁出。Expected：siblings／branch／worktree保留，继续下一合理增量。
+- [x] 同名 push、单次建 PR；读完整有效讨论及明确额度窗口，最新 head 必须 reviewed／source=covered。Expected：有效问题处置完成，不重复 request、不把 skipped 当 running。
+- [x] 正常 exact-head squash，独立 API／fetch／SHA／tree／唯一父。Expected：保护不绕过，CI 未验证不改写。
+- [x] 完整报告、standard done3、whole-owned ZIP／extract 全核，准确 leaf 可恢复迁出。Expected：siblings／branch／worktree保留，继续下一合理增量。

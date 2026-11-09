@@ -227,6 +227,14 @@ type ShortLinkEvent struct {
 	OsFamily      pgtype.Text        `json:"os_family"`
 }
 
+type ShortLinkNoteAppendBatch struct {
+	ActorID       pgtype.UUID        `json:"actor_id"`
+	RequestID     pgtype.UUID        `json:"request_id"`
+	RequestHash   []byte             `json:"request_hash"`
+	AppendedCount int16              `json:"appended_count"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
 type SystemSetting struct {
 	Key       string             `json:"key"`
 	Value     []byte             `json:"value"`

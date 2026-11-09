@@ -1,5 +1,15 @@
 # Go 压缩依赖安全维护验收
 
+## 最终交付（2026-11-09）
+
+已通过 [PR279](https://github.com/TomyJan/MoeURL/pull/279) 正常 exact-head squash 合并为 master `636cefd6f4b38cec884f6658807044279728c0c3`。最新候选 `0ef695bbc57e9656c4b32846968949c8f8f57483` 已真实 kind=reviewed／source=covered，CodeRabbit check129115147206 completed/success；完整讨论3评论／0review／0thread、全部分页完整，无actionable请求及待处置问题，14项additional均LGTM。语言工具的量词提示仅为技术简写风格，不是新修复请求；本维护无延期Minor。
+
+独立PR与commit API及正常fetch核实SHA、tree `37df23f4dad14079f3ff72a0dbb8333dc9428998`和唯一父 `ca0b12a26ba90c442ccb18f8d20c59a96aa69860`。Task1–3均标准完成；18条完整裁决、10个owned文件whole ZIP／extract／recovery逐hash核同，准确leaf可恢复迁出，siblings／branch／worktree保留。ZIP29557bytes，SHA256 `A4FEF386DC80C2969796751DE22C82C46B7F1B96C217110E26751990E8944F78`。原件保持私有边界，不公开本机环境raw。
+
+不等待或伪称GitHub CI，不声称master新执行套件或正式发布部署。以下为本地验证与送审前的原阶段记录，原执行SHA、运行时、失败和复用边界不改写。
+
+## 送审前阶段记录
+
 基线 master ca0b12a26ba90c442ccb18f8d20c59a96aa69860。正式三文件更新已提交8f1cfd93，本地验证与唯一独立终审C0/I0/M0通过、Task1–2标准完成；最新提交CodeRabbit及远端交付仍未完成。复用准备结果按原执行归属记录，不冒重新运行。
 
 - [x] 新 master 全 1390 输入与原准备基线逐 bytes／SHA256 相同，25 份原件 hash 核实。
