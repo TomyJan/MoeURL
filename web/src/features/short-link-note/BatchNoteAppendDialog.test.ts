@@ -43,12 +43,61 @@ function mount(locale = 'en', count = 1, stubs?: Record<string, Component>, fall
 }
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals() })
 describe('private append dialog', () => {
+  it.each(['en', 'zh-CN'])('shows the discard decision without the old editor in %s', async locale => {
+    const view = mount(locale); await nextTick()
+    await fireEvent.update(screen.getByRole('textbox'), 'private draft')
+    await fireEvent.click(screen.getByTestId('batch-note-append-preview')); await screen.findByTestId('batch-note-append-confirm')
+    view.fetcher.mockRejectedValueOnce(new Error('lost response'))
+    await fireEvent.click(screen.getByTestId('batch-note-append-confirm')); await screen.findByTestId('batch-note-append-unknown')
+    const requestId = view.state.requestId.value
+    await fireEvent.click(screen.getByTestId('batch-note-append-cancel'))
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId('batch-note-append-keep')))
+    expect(screen.getByTestId('batch-note-append-discard-warning').textContent).not.toBe('')
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(screen.queryByTestId('batch-note-append-summary')).toBeNull()
+    expect(screen.getByRole('dialog').textContent).toContain(requestId)
+    expect(view.state.draft.value).toBe('private draft')
+  })
   it('does not focus a retired discard warning after its asynchronous DOM wait', async () => {
     const view = mount('en', 1, componentStubs); await nextTick()
     view.state.setDraft('new'); await view.state.preview(); view.fetcher.mockRejectedValueOnce(new Error('lost')); await view.state.confirm()
     view.state.close(); await nextTick()
     view.state.reset(); await nextTick()
     expect(screen.queryByTestId('batch-note-append-keep')).toBeNull(); expect(view.state.requestId.value).toBe('')
+  })
+  it('keeps the exact frozen request after returning from discard confirmation', async () => {
+    const view = mount(); await nextTick()
+    await fireEvent.update(screen.getByRole('textbox'), '  private draft\r\nline  ')
+    await fireEvent.click(screen.getByTestId('batch-note-append-preview')); await screen.findByTestId('batch-note-append-confirm')
+    view.fetcher.mockRejectedValueOnce(new Error('lost response'))
+    await fireEvent.click(screen.getByTestId('batch-note-append-confirm')); await screen.findByTestId('batch-note-append-unknown')
+    const requestId = view.state.requestId.value, body = view.fetcher.mock.calls[1]![1]!.body
+    for (let turn = 0; turn < 2; turn++) {
+      await fireEvent.click(screen.getByTestId('batch-note-append-cancel')); await screen.findByTestId('batch-note-append-discard-warning')
+      await fireEvent.click(screen.getByTestId('batch-note-append-keep')); await screen.findByTestId('batch-note-append-unknown')
+      expect(screen.getByRole('textbox')).toHaveProperty('readOnly', true)
+      expect(screen.getByRole('textbox')).toHaveProperty('value', '  private draft\nline  ')
+      expect(view.state.requestId.value).toBe(requestId)
+      expect(view.fetcher).toHaveBeenCalledTimes(2)
+    }
+    await fireEvent.click(screen.getByTestId('batch-note-append-retry')); await waitFor(() => expect(view.state.targets.value).toBeNull())
+    expect(view.fetcher).toHaveBeenCalledTimes(3)
+    expect(view.fetcher.mock.calls[2]![1]!.body).toBe(body)
+    expect(JSON.parse(body as string)).toMatchObject({ requestId, note: 'private draft\nline' })
+  })
+  it.each(['revoked', 'unmounted'])('retires the discard decision when %s', async reason => {
+    const view = mount(); await nextTick()
+    await fireEvent.update(screen.getByRole('textbox'), 'private draft')
+    await fireEvent.click(screen.getByTestId('batch-note-append-preview')); await screen.findByTestId('batch-note-append-confirm')
+    view.fetcher.mockRejectedValueOnce(new Error('lost response'))
+    await fireEvent.click(screen.getByTestId('batch-note-append-confirm')); await screen.findByTestId('batch-note-append-unknown')
+    await fireEvent.click(screen.getByTestId('batch-note-append-cancel')); await screen.findByTestId('batch-note-append-discard-warning')
+    if (reason === 'revoked') view.client.setQueryData(['auth', 'me'], { user: { ...actor, permissions: ['short_link:read_own'] } })
+    else view.unmount()
+    await nextTick()
+    expect(screen.queryByTestId('batch-note-append-discard-warning')).toBeNull()
+    expect(view.state.draft.value).toBe(''); expect(view.state.requestId.value).toBe('')
+    expect(view.fetcher).toHaveBeenCalledTimes(2)
   })
   it('shows read errors, saving progress/locks, operation ID and explicit same-key recovery', async () => {
     let entered!: () => void
