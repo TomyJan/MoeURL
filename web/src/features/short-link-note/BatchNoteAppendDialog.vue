@@ -3,7 +3,7 @@
     <v-card class="batch-append-card" data-testid="batch-note-append-dialog" :aria-busy="state.saving.value">
       <v-card-title>{{ t('batchNoteAppend.title') }}</v-card-title>
       <v-card-text v-if="state.discardRequested.value" key="discard" class="batch-append-body">
-        <v-alert type="warning" variant="tonal" data-testid="batch-note-append-discard-warning">{{ t('batchNoteAppend.discardWarning') }}</v-alert>
+        <v-alert type="warning" variant="tonal" :icon="false" data-testid="batch-note-append-discard-warning">{{ t('batchNoteAppend.discardWarning') }}</v-alert>
         <p>{{ t('batchNoteAppend.requestId', { id: state.requestId.value }) }}</p>
       </v-card-text>
       <v-card-text v-else key="edit" class="batch-append-body">
