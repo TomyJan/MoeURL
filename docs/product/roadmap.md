@@ -2,7 +2,7 @@
 
 ## 当前进展（2026-11-09）
 
-[v0.52.1 放弃重试风险提示](scope-v0.52.1.md)已实现独立确认正文，完整前端 3642 项、浏览器 228 项和准确产品验证通过，28 张原图已检查；保留同请求手动重试。Task1 标准完成，独立终审、Task2 收尾及远端真实审查和交付尚待；见[计划](../implementation/v0.52.1-plan.md)和[验收](../implementation/v0.52.1-acceptance.md)。
+[v0.52.1 放弃重试风险提示](scope-v0.52.1.md)已实现独立确认正文，完整前端 3642 项、浏览器 228 项和准确产品验证通过，28 张原图已检查；保留同请求手动重试。Task1 标准完成，Task2 门禁和唯一独立终审完成（Critical／Important／Minor 均为 0）；远端真实审查和交付尚待，见[计划](../implementation/v0.52.1-plan.md)和[验收](../implementation/v0.52.1-acceptance.md)。
 
 [v0.52.0 批量追加内部备注](scope-v0.52.0.md)已由[PR280](https://github.com/TomyJan/MoeURL/pull/280)正常合并为 master `22373699819e3f2514d023bb6f257fd703404e04`。最新e35真实CodeRabbit覆盖、有效工具提示处置、独立API/fetch/tree/唯一父、标准Task1–4及26条裁决／13文件whole-owned可恢复归档均完成。原3637项前端／四100、完整224项浏览器／16张原图及产品证据保持准确执行归属，两Minor在原版延期，本维护接续处理；见[验收](../implementation/v0.52.0-acceptance.md)。不等待或冒称CI，未发布部署。
 

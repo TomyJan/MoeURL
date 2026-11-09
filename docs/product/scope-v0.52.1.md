@@ -1,6 +1,6 @@
 # v0.52.1 放弃重试风险提示范围
 
-状态：呈现实现、完整本地门禁与准确产品验证通过，Task1 标准完成；独立终审、Task2 收尾及远端真实审查和交付尚待。基线为 PR280 已交付 master `22373699819e3f2514d023bb6f257fd703404e04`，分支 `fix/v0.52.1-append-discard-warning`。执行者依据无人值守授权自主选择，见[设计](../specs/2026-11-09-v0.52.1-append-discard-warning-design.md)、[计划](../implementation/v0.52.1-plan.md)及[验收](../implementation/v0.52.1-acceptance.md)。
+状态：呈现实现、完整本地门禁、准确产品验证及唯一独立终审（C0／I0／M0）完成，Task1 标准完成；Task2 标准收尾及远端真实审查和交付尚待。基线为 PR280 已交付 master `22373699819e3f2514d023bb6f257fd703404e04`，分支 `fix/v0.52.1-append-discard-warning`。执行者依据无人值守授权自主选择，见[设计](../specs/2026-11-09-v0.52.1-append-discard-warning-design.md)、[计划](../implementation/v0.52.1-plan.md)及[验收](../implementation/v0.52.1-acceptance.md)。
 
 ## 必须实现
 
