@@ -2,14 +2,17 @@
   <v-dialog :model-value="state.targets.value !== null" :aria-label="t('batchNoteAppend.title')" :persistent="state.saving.value || state.discardRequested.value" max-width="600" scrollable @update:model-value="state.close" @after-enter="focusDraft" @after-leave="restoreFocus">
     <v-card class="batch-append-card" data-testid="batch-note-append-dialog" :aria-busy="state.saving.value">
       <v-card-title>{{ t('batchNoteAppend.title') }}</v-card-title>
-      <v-card-text class="batch-append-body">
+      <v-card-text v-if="state.discardRequested.value" key="discard" class="batch-append-body">
+        <v-alert type="warning" variant="tonal" :icon="false" data-testid="batch-note-append-discard-warning">{{ t('batchNoteAppend.discardWarning') }}</v-alert>
+        <p>{{ t('batchNoteAppend.requestId', { id: state.requestId.value }) }}</p>
+      </v-card-text>
+      <v-card-text v-else key="edit" class="batch-append-body">
         <v-alert type="warning" variant="tonal">{{ t('batchNoteAppend.warning') }}</v-alert>
         <p>{{ t('batchNoteAppend.selected', { count: state.targets.value?.length ?? 0 }, state.targets.value?.length ?? 0) }}</p>
         <v-textarea ref="editor" :model-value="state.draft.value" :label="t('batchNoteAppend.note')" :hint="t('batchNoteAppend.hint')" persistent-hint :readonly="state.saving.value || state.unknown.value" :error-messages="state.error.value === 'invalidNote' ? t('batchNoteAppend.invalidNote') : ''" variant="outlined" rows="4" counter="1000" :counter-value="codePoints" @update:model-value="state.setDraft" />
         <v-progress-linear v-if="state.loading.value" indeterminate :aria-label="t('batchNoteAppend.loading')" />
         <p v-if="state.saving.value" role="status">{{ t('batchNoteAppend.saving') }}</p>
         <v-alert v-if="state.unknown.value" type="warning" variant="tonal" data-testid="batch-note-append-unknown">{{ t('batchNoteAppend.unknown') }}<p>{{ t('batchNoteAppend.requestId', { id: state.requestId.value }) }}</p></v-alert>
-        <v-alert v-if="state.discardRequested.value" type="warning" variant="tonal" data-testid="batch-note-append-discard-warning">{{ t('batchNoteAppend.discardWarning') }}</v-alert>
         <v-alert v-if="state.error.value && state.error.value !== 'invalidNote'" type="error" variant="tonal">{{ t('batchNoteAppend.' + state.error.value) }}</v-alert>
         <div v-if="state.data.value" data-testid="batch-note-append-summary" role="status">
           <p>{{ t('batchNoteAppend.appendable', { count: state.data.value.appendableCount }, state.data.value.appendableCount) }}</p>

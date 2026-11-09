@@ -2,7 +2,9 @@
 
 ## 当前进展（2026-11-09）
 
-[v0.52.0 批量追加内部备注](../product/scope-v0.52.0.md)已完成实现、本地验证与唯一独立终审：前端 3637 项／四项 100%、完整浏览器 224 项、16 张本版原图、准确产品／迁移／扫描通过；终审无阻断、两项 Minor 延后。当前页 1–100 条原子追加，双 CAS 与永久摘要回执防同请求重复追加；CodeRabbit、正常合并与归档尚待，见[验收](v0.52.0-acceptance.md)。不等待或冒称 GitHub CI，通过不等于发布部署。
+[v0.52.1 放弃重试风险提示](../product/scope-v0.52.1.md)已实现独立确认正文，完整前端 3642 项、浏览器 228 项和准确产品验证通过，28 张原图已检查；保留同请求手动重试。Task1 标准完成，Task2 门禁和唯一独立终审完成（Critical／Important／Minor 均为 0）；远端真实审查和交付尚待，见[计划](v0.52.1-plan.md)和[验收](v0.52.1-acceptance.md)。
+
+[v0.52.0 批量追加内部备注](../product/scope-v0.52.0.md)已由[PR280](https://github.com/TomyJan/MoeURL/pull/280)正常合并为 master `22373699819e3f2514d023bb6f257fd703404e04`。最新e35真实CodeRabbit覆盖、有效工具提示处置、独立API/fetch/tree/唯一父、标准Task1–4及26条裁决／13文件whole-owned可恢复归档均完成。原3637项前端／四100、完整224项浏览器／16张原图及产品证据保持准确执行归属，两Minor在原版延期，本维护接续处理；见[验收](v0.52.0-acceptance.md)。不等待或冒称CI，未发布部署。
 
 Go 压缩依赖安全维护已通过 [PR279](https://github.com/TomyJan/MoeURL/pull/279) 完整交付，master `636cefd6f4b38cec884f6658807044279728c0c3`；准确本地验证、最新0ef695b真实CodeRabbit覆盖、正常合并及独立API/fetch/tree/唯一父、三个标准任务和18条裁决／10文件可恢复归档均完成，见[维护验收](2026-11-09-go-compression-security-acceptance.md)。保留原执行身份、required-only与仅回退第35项的迁移边界；不等待或伪称GitHub CI，未发布部署。完整raw为本机私有原件，新克隆不含原件。
 
