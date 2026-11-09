@@ -38,6 +38,7 @@ type Dependencies struct {
 	ShortLinkNote             shortlink.NotePort
 	ShortLinkBatchNoteClear   shortlink.BatchNoteClearPort
 	ShortLinkBatchNoteReplace shortlink.BatchNoteReplacePort
+	ShortLinkBatchNoteAppend  shortlink.BatchNoteAppendPort
 	ShortLinkNoteSearch       shortlink.NoteSearchPort
 	ShortLinkBatch            shortlink.BatchPort
 	ShortLinkTransfer         shortlink.TransferPort
@@ -220,6 +221,13 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				businessAPI.Post("/admin/short-link/note/batch-replace/preview", handler.PreviewAdmin)
 				businessAPI.Post("/short-link/note/batch-replace", handler.ReplaceOwn)
 				businessAPI.Post("/admin/short-link/note/batch-replace", handler.ReplaceAdmin)
+			}
+			if dependency.ShortLinkBatchNoteAppend != nil {
+				handler := shortlink.NewBatchNoteAppendHandler(dependency.ShortLinkBatchNoteAppend, logger)
+				businessAPI.Post("/short-link/note/batch-append/preview", handler.PreviewOwn)
+				businessAPI.Post("/admin/short-link/note/batch-append/preview", handler.PreviewAdmin)
+				businessAPI.Post("/short-link/note/batch-append", handler.AppendOwn)
+				businessAPI.Post("/admin/short-link/note/batch-append", handler.AppendAdmin)
 			}
 			if dependency.ShortLinkNote != nil {
 				handler := shortlink.NewNoteHandler(dependency.ShortLinkNote, logger)
