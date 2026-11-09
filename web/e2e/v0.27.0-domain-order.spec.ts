@@ -83,7 +83,7 @@ for (const width of [1280, 390]) {
       await expect(member.getByRole('combobox', { name: choiceLabel })).toHaveValue(option(second))
       await selectManaged(admin, third)
       await writeOrder(admin, third, -30, false)
-      await reconnect(member)
+      await refreshChoicesInForeground(member)
       expect((await available(member.request))[0]?.id).toBe(third.id)
       await expect(member.getByRole('combobox', { name: choiceLabel })).toHaveValue(option(second))
       await create(member, second, second.id, links)
@@ -91,7 +91,7 @@ for (const width of [1280, 390]) {
       const secondCurrent = (await domains(admin.request)).find(({ id }) => id === second.id)!
       await selectManaged(admin, secondCurrent)
       await writeOrder(admin, secondCurrent, -40, false)
-      await reconnect(member)
+      await refreshChoicesInForeground(member)
       expect((await available(member.request))[0]?.id).toBe(second.id)
       await expect(member.getByRole('combobox', { name: choiceLabel })).toHaveValue(option(first))
       await layout(member, info, `domain-order-create-${width}`)
@@ -220,11 +220,11 @@ async function choose(page: Page, label: RegExp, domain: Domain) {
   await page.getByRole('combobox', { name: label }).press('Enter')
   await page.getByRole('option', { name: option(domain), exact: true }).click()
 }
-/** Triggers a genuine online refresh and waits for the available-domain response without reloading the creator. */
-async function reconnect(page: Page) {
-  await page.context().setOffline(true)
+/** Refreshes mounted domain choices without injecting unrelated identity-request failures. */
+async function refreshChoicesInForeground(page: Page) {
+  await page.bringToFront()
   const waiting = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/domain/available')
-  await page.context().setOffline(false)
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')))
   expect((await (await waiting).json()).code).toBe(0)
 }
 /** Checks the submitted selection and published origin, recording created links for owned cleanup. */

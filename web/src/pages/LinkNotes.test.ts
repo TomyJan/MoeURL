@@ -24,6 +24,7 @@ function mount(context: 'own' | 'admin', write = true, listStub?: Component) {
     const path = new URL(String(input), 'http://localhost').pathname
     const row = context === 'admin' ? link : Object.fromEntries(Object.entries(link).filter(([key]) => key !== 'owner'))
     const data = path.endsWith('/auth/me') ? { user: { ...actor, permissions } }
+      : path.endsWith('/user/list-preference') ? { preference: { pageSize: null, updatedAt: null } }
       : path.endsWith('/note') ? { id: link.id, note: 'Internal handoff\nKeep this private', updatedAt: version } : { items: [row] }
     return new Response(JSON.stringify({ code: 0, message: 'OK', data, meta: { total: 1 } }))
   })
@@ -59,7 +60,10 @@ describe('internal note page entry', () => {
     }
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
     expect(screen.queryByTestId('short-link-qr-dialog-stub')).toBeNull()
-    expect(view.fetcher).toHaveBeenCalledTimes(2)
+    expect(view.fetcher.mock.calls.map(([url]) => new URL(String(url), 'http://localhost').pathname)).toEqual([
+      '/api/v1/user/list-preference', `/api/v1/${context === 'admin' ? 'admin/' : ''}short-link/list`,
+      `/api/v1/${context === 'admin' ? 'admin/' : ''}short-link/note`,
+    ])
     await fireEvent.click(screen.getByRole('button', { name: 'linkNote.close' }))
     await fireEvent.click(screen.getByRole('button', { name: 'links.actions.more' }))
     await fireEvent.click(screen.getByRole('menuitem', { name: 'links.actions.qrCode' }))

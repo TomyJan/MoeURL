@@ -2,7 +2,9 @@
 
 ## 当前进展（2026-11-09）
 
-[v0.52.1 放弃重试风险提示](scope-v0.52.1.md)已实现独立确认正文，完整前端 3642 项、浏览器 228 项和准确产品验证通过，28 张原图已检查；保留同请求手动重试。Task1 标准完成，Task2 门禁和唯一独立终审完成（Critical／Important／Minor 均为 0）；远端真实审查和交付尚待，见[计划](../implementation/v0.52.1-plan.md)和[验收](../implementation/v0.52.1-acceptance.md)。
+[v0.53.0 账号默认每页条数](scope-v0.53.0.md)已完成实现、Task1–3 和唯一独立终审意见处置。接入当前 master 的前端依赖后，3725 项测试及四项 100%、准确产品和原图验证完成；完整浏览器 238 通过、1 项超时，同输入定向 3 项通过；另已复现断网刷新导致身份检查失败的机制，排序测试改用焦点刷新后桌面／手机及 setup 3 项通过，原失败的精确时序未确认。PR287 最新提交 CodeRabbit、正常合并及归档仍待，详细执行归属与剩余风险见本版验收；不等待或冒称 GitHub CI。
+
+v0.52.1 已通过 [PR281](https://github.com/TomyJan/MoeURL/pull/281) 完整交付，master `82355d63e2b7111912ac2d5eb6b067a3e1c14b5a`。最新 ca1 真实 CodeRabbit 覆盖、有效问题闭环、正常合并独立 API／fetch／SHA／tree／唯一父核验、标准 Task1–3 及 20 条裁决／11 文件可恢复归档完成。完整 3642 项前端／四项 100%、228 项浏览器和 28 张原图保持原执行身份，后继测试增量另有验证，见[验收](../implementation/v0.52.1-acceptance.md)。不等待或冒称 GitHub CI，未发布部署。
 
 [v0.52.0 批量追加内部备注](scope-v0.52.0.md)已由[PR280](https://github.com/TomyJan/MoeURL/pull/280)正常合并为 master `22373699819e3f2514d023bb6f257fd703404e04`。最新e35真实CodeRabbit覆盖、有效工具提示处置、独立API/fetch/tree/唯一父、标准Task1–4及26条裁决／13文件whole-owned可恢复归档均完成。原3637项前端／四100、完整224项浏览器／16张原图及产品证据保持准确执行归属，两Minor在原版延期，本维护接续处理；见[验收](../implementation/v0.52.0-acceptance.md)。不等待或冒称CI，未发布部署。
 

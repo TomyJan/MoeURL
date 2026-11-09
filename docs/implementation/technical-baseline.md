@@ -2,7 +2,9 @@
 
 ## 当前进展（2026-11-09）
 
-[v0.52.1 放弃重试风险提示](../product/scope-v0.52.1.md)已实现独立确认正文，完整前端 3642 项、浏览器 228 项和准确产品验证通过，28 张原图已检查；保留同请求手动重试。Task1 标准完成，Task2 门禁和唯一独立终审完成（Critical／Important／Minor 均为 0）；远端真实审查和交付尚待，见[计划](v0.52.1-plan.md)和[验收](v0.52.1-acceptance.md)。
+[v0.53.0 账号默认每页条数](../product/scope-v0.53.0.md)实现、Task1–3 及唯一独立终审意见处置已完成。接入当前 master 的 Vue 3.5.45／Query 5.106.1／Playwright 1.65 等依赖后，隔离 Docker 环境 Node 26.5.1／pnpm 11.5 的 3725 项前端及四项 100%、types／lint 通过，本机依赖未改。完整浏览器 238 通过、1 项超时，同输入定向 3 项通过；断网导致身份检查失败的机制已复现，排序测试改用焦点刷新后 3 项通过，原失败精确时序未确认；准确产品、原图、启动／重启和三 target 安全检查已核验。最新提交 CodeRabbit、合并与归档仍待，执行身份与原失败见本版验收；不等待或冒称 GitHub CI。
+
+v0.52.1 已通过 [PR281](https://github.com/TomyJan/MoeURL/pull/281) 完整交付，master `82355d63e2b7111912ac2d5eb6b067a3e1c14b5a`。最新 ca1 真实 CodeRabbit 覆盖、有效问题闭环、正常合并独立 API／fetch／SHA／tree／唯一父核验、标准 Task1–3 及 20 条裁决／11 文件可恢复归档完成。完整 3642 项前端／四项 100%、228 项浏览器和 28 张原图保持原执行身份，后继测试增量另有验证，见[验收](v0.52.1-acceptance.md)。不等待或冒称 GitHub CI，未发布部署。
 
 [v0.52.0 批量追加内部备注](../product/scope-v0.52.0.md)已由[PR280](https://github.com/TomyJan/MoeURL/pull/280)正常合并为 master `22373699819e3f2514d023bb6f257fd703404e04`。最新e35真实CodeRabbit覆盖、有效工具提示处置、独立API/fetch/tree/唯一父、标准Task1–4及26条裁决／13文件whole-owned可恢复归档均完成。原3637项前端／四100、完整224项浏览器／16张原图及产品证据保持准确执行归属，两Minor在原版延期，本维护接续处理；见[验收](v0.52.0-acceptance.md)。不等待或冒称CI，未发布部署。
 

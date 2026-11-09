@@ -115,7 +115,8 @@ import { useBatchTagRename } from '@/features/short-link-tags/useBatchTagRename'
 import BatchTagRenameDialog from '@/features/short-link-tags/BatchTagRenameDialog.vue'
 import { noteVersionSchema } from '@/entities/short-link/note'
 import ShortLinkPagination from '@/features/short-link-pagination/ShortLinkPagination.vue'
-import { DEFAULT_SHORT_LINK_PAGE_SIZE, isShortLinkPageSize, type ShortLinkPageSize } from '@/features/short-link-pagination/pageSize'
+import { isShortLinkPageSize } from '@/features/short-link-pagination/pageSize'
+import { useInitialPageSize } from '@/features/short-link-pagination/useInitialPageSize'
 import { nextShortLinkListRevision } from '@/shared/short-link/listRevision'
 import { searchAdminNotes } from '@/entities/short-link/note-search'
 
@@ -152,8 +153,8 @@ const noteStatusOptions = computed(() => [
   { title: t('filter.noteAbsent'), value: 'absent' },
 ])
 const page = ref(1)
-const pageSize = ref<ShortLinkPageSize>(DEFAULT_SHORT_LINK_PAGE_SIZE)
-watch(access.identity.scope, () => { pageSize.value = DEFAULT_SHORT_LINK_PAGE_SIZE }, { flush: 'sync' })
+const initialPageSize = useInitialPageSize(access.canRead)
+const { pageSize } = initialPageSize
 const listRevision = ref(nextShortLinkListRevision())
 watch([statusFilter, debouncedKeyword, debouncedTag, noteStatusFilter, debouncedNoteQuery, access.identity.scope], () => { page.value = 1; listRevision.value = nextShortLinkListRevision() }, { flush: 'sync' })
 watch([page, pageSize], () => { listRevision.value = nextShortLinkListRevision() }, { flush: 'sync' })
@@ -161,13 +162,13 @@ let readAllowed = access.allows('read')
 const unsubscribeList = queryClient.getQueryCache().subscribe(event => {
   if (event.query.queryKey[0] !== 'auth' || event.query.queryKey[1] !== 'me') return
   const allowed = access.allows('read')
-  if (allowed !== readAllowed) { readAllowed = allowed; pageSize.value = DEFAULT_SHORT_LINK_PAGE_SIZE; page.value = 1; listRevision.value = nextShortLinkListRevision() }
+  if (allowed !== readAllowed) { readAllowed = allowed; page.value = 1; listRevision.value = nextShortLinkListRevision() }
 })
 onBeforeUnmount(unsubscribeList)
 const listQueryKey = computed(() => ['admin-short-link', statusFilter.value, debouncedKeyword.value, debouncedTag.value, access.identity.scope.value.userId, access.identity.scope.value.epoch, listRevision.value, noteStatusFilter.value, page.value, debouncedNoteQuery.value, pageSize.value] as const)
 const query = useQuery({
   queryKey: listQueryKey,
-  enabled: computed(() => access.canRead.value && !noteQueryInvalid.value && !noteQueryPending.value),
+  enabled: computed(() => access.canRead.value && initialPageSize.ready.value && !noteQueryInvalid.value && !noteQueryPending.value),
   gcTime: 0,
   queryFn: (context) => {
     const [, status, q, tag, userId, , , noteStatus, requestPage, noteQuery, requestPageSize] = context.queryKey
@@ -252,8 +253,8 @@ function changePage(value: number) {
 
 /** Retires the collection only for a supported size accepted under live authority and operation locks. */
 function changePageSize(value: unknown) {
-  if (paginationBlocked.value || !access.allows('read') || !isShortLinkPageSize(value) || value === pageSize.value) return
-  pageSize.value = value
+  if (paginationBlocked.value || !access.allows('read') || !isShortLinkPageSize(value) || (initialPageSize.ready.value && value === pageSize.value)) return
+  initialPageSize.choose(value)
   page.value = 1
 }
 

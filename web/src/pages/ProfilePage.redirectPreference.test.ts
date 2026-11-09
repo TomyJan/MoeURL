@@ -28,7 +28,7 @@ it('PersonalRedirectEditor saves the selected mode using its independent complet
     } else throw new Error('Unexpected request ' + path)
     return new Response(JSON.stringify({ code: 0, message: '', data, meta: {} }))
   }))
-  render(ProfilePage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, PasswordChangePanel: true, AccountPreferencesPanel: true, DomainPreferencePanel: true, TimeZonePreferencePanel: true, PreferenceSwitcher: true } } })
+  render(ProfilePage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, ListPreferencePanel: true, PasswordChangePanel: true, AccountPreferencesPanel: true, DomainPreferencePanel: true, TimeZonePreferencePanel: true, PreferenceSwitcher: true } } })
   const select = await screen.findByLabelText('redirectPreference.mode')
   await waitFor(() => expect(select).toHaveProperty('disabled', false))
   await fireEvent.update(select, 'confirmation')

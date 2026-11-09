@@ -1,6 +1,6 @@
 # v0.52.1 放弃重试风险提示范围
 
-状态：呈现实现、完整本地门禁、准确产品验证及唯一独立终审（C0／I0／M0）完成，Task1 标准完成；Task2 标准收尾及远端真实审查和交付尚待。基线为 PR280 已交付 master `22373699819e3f2514d023bb6f257fd703404e04`，分支 `fix/v0.52.1-append-discard-warning`。执行者依据无人值守授权自主选择，见[设计](../specs/2026-11-09-v0.52.1-append-discard-warning-design.md)、[计划](../implementation/v0.52.1-plan.md)及[验收](../implementation/v0.52.1-acceptance.md)。
+状态：已完整交付。PR281 的最终候选 `ca1ba676` 已获真实 CodeRabbit 覆盖，有效问题闭环；正常 squash 为 master `82355d63e2b7111912ac2d5eb6b067a3e1c14b5a`，独立 API／fetch／tree／唯一父核同，标准 Task1–3 和可恢复归档完成。无延期 Minor；未验证 GitHub CI，未发布部署。基线为 PR280 已交付 master `22373699819e3f2514d023bb6f257fd703404e04`，分支 `fix/v0.52.1-append-discard-warning`。见[设计](../specs/2026-11-09-v0.52.1-append-discard-warning-design.md)、[计划](../implementation/v0.52.1-plan.md)及[验收](../implementation/v0.52.1-acceptance.md)。
 
 ## 必须实现
 
