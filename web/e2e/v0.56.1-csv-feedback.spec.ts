@@ -96,6 +96,8 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
 async function upload(page: Page, language: string, target: string, slug: string) {
   await page.getByRole('dialog').getByLabel(language === 'en' ? 'Read URLs from CSV' : '从 CSV 读入网址', { exact: true }).setInputFiles({ name: 'feedback.csv', mimeType: 'text/csv', buffer: Buffer.from('target_url,title,tags,custom_slug\n' + target + ',,[],' + slug) })
   await expect(page.getByTestId('bulk-create-imported-list')).toContainText(target)
+  await expect(page.getByTestId('bulk-create-imported-list').locator('.bulk-create-item-slug')).toHaveText((language === 'en' ? 'Short code: ' : '短码： ') + (slug ? slug.toLowerCase() : language === 'en' ? '(randomly generated)' : '（随机生成）'))
+  await expect(page.getByTestId('bulk-create-preview')).toBeEnabled()
 }
 /** Uses the real keyboard activation path. */
 async function enter(locator: ReturnType<Page['getByTestId']>) { await locator.focus(); await locator.press('Enter') }
