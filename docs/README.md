@@ -1,5 +1,11 @@
 # MoeURL 文档中心
 
+## 当前实施（2026-11-11）
+
+v0.57.0／PR300 已完整交付，master `97fa899c477e1918898ec7e3f0c182272d6c5ea4`；最终 4ad 真实 CodeRabbit、有效意见公开处置、正常合并独立核验、标准 Task1–3、15 条裁决和 11 文件可恢复归档完成。原准确产品／271 项浏览器／19 张原图保持执行身份；量词行文 CR-M1 在原版延期，下方旧进度按历史归属保留。
+
+当前推进 [v0.58.0 二维码纠错等级](product/scope-v0.58.0.md)：M／Q／H 本地选择，默认 M，PNG 和 SVG 同轮等级与颜色一致。15 项真实行为 RED→GREEN、原 29 项回归、200 文件／3973 项完整前端及四项 100%、types／lint 和新旧 E2E 检查通过。正式产品、完整浏览器／原图、唯一独立终审、最终 head 真实 CodeRabbit、合并和可恢复归档继续执行，详见[本版验收](implementation/v0.58.0-acceptance.md)；不查询或冒称 CI，不发布部署。
+
 ## 当前进展（2026-11-10）
 
 [v0.53.2](product/scope-v0.53.2.md) 已通过 [PR289](https://github.com/TomyJan/MoeURL/pull/289) 完整交付，master `ef47a7ba33cc405b96c3058d5183b26d849b7571`。3732 项前端／四 100%、types／lint／build、唯一独立终审、最新 head 真实 CodeRabbit、正常合并独立核验、标准任务及可恢复归档完成。完整浏览器原 241 成功／4 项 fixture 失败，同产品补验四项及初始化 1 项通过，非单次 245 绿；12 张原图和 label 动画已核，旧超时根因未证明。
