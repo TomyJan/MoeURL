@@ -13,6 +13,8 @@ export type BulkCreateItem = Readonly<{ targetUrl: string; title: string }>
 export type BulkCreateTitlesInput = Readonly<{ requestId: string; items: readonly BulkCreateItem[] }>
 export type BulkCreateMetadataItem = Readonly<{ targetUrl: string; title: string; tags: readonly string[] }>
 export type BulkCreateMetadataInput = Readonly<{ requestId: string; items: readonly BulkCreateMetadataItem[] }>
+export type BulkCreateCustomSlugItem = Readonly<{ targetUrl: string; title: string; tags: readonly string[]; customSlug: string }>
+export type BulkCreateCustomSlugsInput = Readonly<{ requestId: string; items: readonly BulkCreateCustomSlugItem[] }>
 const rawTitle = z.string().refine(value => !/[\uD800-\uDFFF]/u.test(value) && shortLinkMetadataSchema.safeParse({ title: value, tags: [] }).success)
 export const bulkCreateItemsSchema = z.array(z.strictObject({ targetUrl: target, title: rawTitle })).min(1).max(20)
   .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
@@ -25,6 +27,16 @@ export const bulkCreateMetadataItemsSchema = z.array(z.strictObject({
 }).refine(item => shortLinkMetadataSchema.safeParse({ title: item.title, tags: item.tags }).success)).min(1).max(20)
   .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
 export const bulkCreateMetadataInputSchema = z.strictObject({ requestId, items: bulkCreateMetadataItemsSchema })
+  .refine(input => new TextEncoder().encode(JSON.stringify(input)).byteLength <= 65536)
+const customSlugItemSchema = z.strictObject({
+  targetUrl: target,
+  title: rawTitle,
+  tags: z.array(z.string().refine(value => !/[\uD800-\uDFFF]/u.test(value))).max(10),
+  customSlug: z.string().refine(value => value === '' || /^[A-Za-z0-9]{3,32}$/.test(value)),
+}).refine(item => shortLinkMetadataSchema.safeParse({ title: item.title, tags: item.tags }).success)
+export const bulkCreateCustomSlugsInputSchema = z.strictObject({ requestId, items: z.array(customSlugItemSchema).min(1).max(20)
+  .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
+  .refine(items => { const slugs = items.filter(item => item.customSlug !== '').map(item => item.customSlug.toLowerCase()); return new Set(slugs).size === slugs.length }) })
   .refine(input => new TextEncoder().encode(JSON.stringify(input)).byteLength <= 65536)
 
 export class BulkCreateUnknownError extends Error {
@@ -57,8 +69,15 @@ export async function batchCreateShortLinksWithMetadata(input: BulkCreateMetadat
   return sendBatch('/short-link/batch-create-with-metadata', request.data, request.data.items.length, expectedUserId)
 }
 
+/** Preserves raw requested codes and metadata for explicit retries through the fourth protocol. */
+export async function batchCreateShortLinksWithCustomSlugs(input: BulkCreateCustomSlugsInput, expectedUserId?: string) {
+  const request = bulkCreateCustomSlugsInputSchema.safeParse(input)
+  if (!request.success) throw new ApiClientError(100001, 'Invalid custom-code batch creation request')
+  return sendBatch('/short-link/batch-create-with-custom-slugs', request.data, request.data.items.length, expectedUserId)
+}
+
 /** Shares bounded transport and exact receipt validation across independent protocols. */
-async function sendBatch(path: string, input: BulkCreateInput | BulkCreateTitlesInput | BulkCreateMetadataInput, count: number, expectedUserId?: string) {
+async function sendBatch(path: string, input: BulkCreateInput | BulkCreateTitlesInput | BulkCreateMetadataInput | BulkCreateCustomSlugsInput, count: number, expectedUserId?: string) {
   const controller = new AbortController()
   // Includes response-body decoding: an unacknowledged write must become recoverable.
   const deadline = setTimeout(() => controller.abort(), 15_000)
@@ -70,7 +89,7 @@ async function sendBatch(path: string, input: BulkCreateInput | BulkCreateTitles
     return result.data
   } catch (error) {
     if (error instanceof ApiClientError && ([401, 403].includes(error.code)
-      || (!('status' in error.meta) && [100001, 120001, 200101, 200103, 200114, 200120].includes(error.code)))) throw error
+      || (!('status' in error.meta) && [100001, 120001, 200101, 200102, 200103, 200114, 200120].includes(error.code)))) throw error
     throw new BulkCreateUnknownError()
   } finally { clearTimeout(deadline) }
 }
