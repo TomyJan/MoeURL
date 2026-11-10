@@ -18,7 +18,7 @@
 
 [v0.56.2 CSV 上传等待维护](scope-v0.56.2.md) 已通过 [PR299](https://github.com/TomyJan/MoeURL/pull/299) 完整交付，master `8ee773125b0e0af27b875b081c05416ca9d3b6da`。两个标准任务、最终 9fa 真实 CodeRabbit、有效意见公开处置、正常合并独立 API／fetch／tree／唯一父、10 条完整裁决及 10 文件可恢复归档均完成；产品仍 0.56.1，原验证保持执行身份。旧验收清单 Minor 在原 PR 明确延期，不冒已修。
 
-当前实施 [v0.57.0 二维码 SVG 下载](scope-v0.57.0.md)：沿现有三色／白底／M 纠错／四模块静区，增加本地矢量下载并保留 PNG。独立准备 3958 项前端／四 100、types／lint 及新旧 E2E 检查通过；正式转移、准确产品、完整浏览器、唯一终审、真实 CodeRabbit 及交付尚未完成。不查 CI，不发布部署。
+当前实施 [v0.57.0 二维码 SVG 下载](scope-v0.57.0.md)：沿现有三色／白底／M 纠错／四模块静区，增加本地矢量下载并保留 PNG。独立准备 3958 项前端／四 100、types／lint 及新旧 E2E 检查通过；正式 `b3a10959…` 的准确 0.57.0 产品已完成 271 项浏览器、21 个 SVG 下载、20 组模块合同、smoke 和扫描，ROOT 已逐张检查 19 张原图，唯一独立终审无问题。Task1 已标准完成，Task2 执行与终审完成、标准关闭继续核验；最终 head 真实 CodeRabbit、正常合并与恢复归档仍待完成。不查 CI，不发布部署。
 
 v0.52.1 已通过 [PR281](https://github.com/TomyJan/MoeURL/pull/281) 完整交付，master `82355d63e2b7111912ac2d5eb6b067a3e1c14b5a`。最新 ca1 真实 CodeRabbit 覆盖、有效问题闭环、正常合并独立 API／fetch／SHA／tree／唯一父核验、标准 Task1–3 及 20 条裁决／11 文件可恢复归档完成。完整 3642 项前端／四项 100%、228 项浏览器和 28 张原图保持原执行身份，后继测试增量另有验证，见[验收](../implementation/v0.52.1-acceptance.md)。不等待或冒称 GitHub CI，未发布部署。
 
