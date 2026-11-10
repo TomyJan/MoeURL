@@ -28,7 +28,11 @@ func (s *Service) BatchCreateWithTitles(ctx context.Context, actor auth.CurrentU
 	if err != nil {
 		return BatchCreateResult{}, err
 	}
-	return s.batchCreate(ctx, actor, id, digest, input.Items, true)
+	items := make([]batchCreateItem, len(input.Items))
+	for i, item := range input.Items {
+		items[i] = batchCreateItem{TargetURL: item.TargetURL, Title: item.Title, Tags: []string{}}
+	}
+	return s.batchCreate(ctx, actor, id, digest, items, true)
 }
 
 // normalizeBulkCreateWithTitles shares URL limits while keeping raw ordered title bytes in a distinct digest.
