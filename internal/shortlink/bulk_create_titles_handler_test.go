@@ -57,23 +57,24 @@ func (p titlesHTTPPort) BatchCreateWithTitles(_ context.Context, _ auth.CurrentU
 
 // TestBulkCreateTitlesHTTPFraming catches strict nested parsing regressions and unbounded bodies.
 func TestBulkCreateTitlesHTTPFraming(t *testing.T) {
+	const validID = "11111111-1111-4111-8111-111111115402"
 	row := `{"targetUrl":"https://example.com/private-title","title":"ok"}`
 	invalid := []string{
 		"", `null`, `[]`, `{}`, `{"requestId":`, titlesHTTPJSON + ` {}`, titlesHTTPJSON + ` trailing`,
 		`{"requestId":null,"items":[` + row + `]}`, `{"requestId":12,"items":[` + row + `]}`,
-		`{"requestId":"x","requestId":"y","items":[` + row + `]}`,
-		`{"requestId":"x","items":null}`, `{"requestId":"x","items":{}}`, `{"requestId":"x","items":[]}`,
-		`{"requestId":"x","items":[null]}`, `{"requestId":"x","items":[{}]}`,
-		`{"requestId":"x","items":[{"targetUrl":12,"title":"ok"}]}`,
-		`{"requestId":"x","items":[{"targetUrl":"https://example.com","title":null}]}`,
-		`{"requestId":"x","items":[{"targetUrl":"https://example.com","title":"x","title":"y"}]}`,
-		`{"requestId":"x","items":[{"targetUrl":"https://example.com","title":"x","unknown":"y"}]}`,
-		`{"requestId":"x","items":[{"targetUrl":"https://example.com","title":"x"}`,
-		`{"requestId":"x","items":[{"targetUrl":"https://example.com","title":`,
-		`{"requestId":"x","items":[` + row + `,]}`, `{"requestId":"x","items":[` + row + `]`,
-		`{"requestId":"x","items":[` + row + `],"extra":true}`,
-		`{"requestId":"x","items":[` + row + `],"items":[]}`,
-		`{"requestId":"x","items":[` + row + `],`,
+		`{"requestId":"` + validID + `","requestId":"` + validID + `","items":[` + row + `]}`,
+		`{"requestId":"` + validID + `","items":null}`, `{"requestId":"` + validID + `","items":{}}`, `{"requestId":"` + validID + `","items":[]}`,
+		`{"requestId":"` + validID + `","items":[null]}`, `{"requestId":"` + validID + `","items":[{}]}`,
+		`{"requestId":"` + validID + `","items":[{"targetUrl":12,"title":"ok"}]}`,
+		`{"requestId":"` + validID + `","items":[{"targetUrl":"https://example.com","title":null}]}`,
+		`{"requestId":"` + validID + `","items":[{"targetUrl":"https://example.com","title":"x","title":"y"}]}`,
+		`{"requestId":"` + validID + `","items":[{"targetUrl":"https://example.com","title":"x","unknown":"y"}]}`,
+		`{"requestId":"` + validID + `","items":[{"targetUrl":"https://example.com","title":"x"}`,
+		`{"requestId":"` + validID + `","items":[{"targetUrl":"https://example.com","title":`,
+		`{"requestId":"` + validID + `","items":[` + row + `,]}`, `{"requestId":"` + validID + `","items":[` + row + `]`,
+		`{"requestId":"` + validID + `","items":[` + row + `],"extra":true}`,
+		`{"requestId":"` + validID + `","items":[` + row + `],"items":[]}`,
+		`{"requestId":"` + validID + `","items":[` + row + `],`,
 		`{"requestId":"11111111-1111-4111-8111-111111115402","items":[` + strings.TrimSuffix(strings.Repeat(row+",", 21), ",") + `]}`,
 		strings.Replace(titlesHTTPJSON, "private-title", string([]byte{255}), 1),
 		titlesHTTPJSON + strings.Repeat(" ", 65537-len(titlesHTTPJSON)),
