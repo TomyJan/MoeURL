@@ -10,6 +10,21 @@ function response(data: unknown = { requestId: input.requestId, createdCount: 2 
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
 describe('CSV title import contract', () => {
+  it('rejects oversized serialized title requests before accepting a CSV draft, preserving raw spaces at the exact JSON boundary', () => {
+    const item = { targetUrl: 'https://example.com', title: '' }
+    const requestId = '11111111-1111-4111-8111-111111115499'
+    const fixedBytes = new TextEncoder().encode(JSON.stringify({ requestId, items: [item] })).byteLength
+    const title = ' '.repeat(65536 - fixedBytes)
+    const exact = { requestId, items: [{ ...item, title }] }
+    expect(new TextEncoder().encode(JSON.stringify(exact)).byteLength).toBe(65536)
+    const csv = 'target_url,title\n' + item.targetUrl + ',' + title
+    expect(new TextEncoder().encode(csv).byteLength).toBeLessThan(65536)
+    expect(parseBulkCreateImportCsv(csv)).toEqual({ success: true, mode: 'titles', data: exact.items })
+    expect(parseBulkCreateImportCsv(csv + ' ')).toEqual({ success: false })
+    const largestFile = 'target_url,title\nhttps://example.com,' + ' '.repeat(65499)
+    expect(new TextEncoder().encode(largestFile).byteLength).toBe(65536)
+    expect(parseBulkCreateImportCsv(largestFile)).toEqual({ success: false })
+  })
   // Splitting on commas, trimming titles, or normalizing URLs would corrupt this payload.
   it.each(['\n', '\r\n'])('preserves exact two-column content with %j records', newline => {
     expect(parseBulkCreateImportCsv('\uFEFFtarget_url,title' + newline + 'https://example.com/one,"  中文, ""原文""  "' + newline + 'http://example.org/two,' + newline)).toEqual({ success: true, mode: 'titles', data: input.items })

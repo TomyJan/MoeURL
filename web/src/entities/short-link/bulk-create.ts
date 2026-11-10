@@ -14,7 +14,7 @@ export type BulkCreateTitlesInput = Readonly<{ requestId: string; items: readonl
 const rawTitle = z.string().refine(value => !/[\uD800-\uDFFF]/u.test(value) && shortLinkMetadataSchema.safeParse({ title: value, tags: [] }).success)
 export const bulkCreateItemsSchema = z.array(z.strictObject({ targetUrl: target, title: rawTitle })).min(1).max(20)
   .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
-const titlesInputSchema = z.strictObject({ requestId, items: bulkCreateItemsSchema })
+export const bulkCreateTitlesInputSchema = z.strictObject({ requestId, items: bulkCreateItemsSchema })
   .refine(input => new TextEncoder().encode(JSON.stringify(input)).byteLength <= 65536)
 
 export class BulkCreateUnknownError extends Error {
@@ -35,7 +35,7 @@ export async function batchCreateShortLinks(input: BulkCreateInput, expectedUser
 
 /** Validates titles without transforming the raw payload used for idempotent retries. */
 export async function batchCreateShortLinksWithTitles(input: BulkCreateTitlesInput, expectedUserId?: string) {
-  const request = titlesInputSchema.safeParse(input)
+  const request = bulkCreateTitlesInputSchema.safeParse(input)
   if (!request.success) throw new ApiClientError(100001, 'Invalid titled batch creation request')
   return sendBatch('/short-link/batch-create-with-titles', request.data, request.data.items.length, expectedUserId)
 }

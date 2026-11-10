@@ -1,4 +1,4 @@
-import { bulkCreateItemsSchema, bulkCreateTargetsSchema, type BulkCreateItem } from './bulk-create'
+import { bulkCreateTitlesInputSchema, bulkCreateTargetsSchema, type BulkCreateItem } from './bulk-create'
 
 export const BULK_CSV_MAX_BYTES = 65536
 type CsvResult = { success: true; data: string[] } | { success: false }
@@ -50,6 +50,7 @@ export function parseBulkCreateImportCsv(text: string): ImportResult {
     return parsed.success ? { success: true, mode: 'targets', data: parsed.data } : invalid
   }
   if (header.length !== 2 || header[0] !== 'target_url' || header[1] !== 'title' || rows.some(row => row.length !== 2)) return invalid
-  const parsed = bulkCreateItemsSchema.safeParse(rows.map(row => ({ targetUrl: row[0]!, title: row[1]! })))
-  return parsed.success ? { success: true, mode: 'titles', data: parsed.data } : invalid
+  // UUIDs always occupy 36 ASCII bytes; validate the complete future wire body before replacing a draft.
+  const parsed = bulkCreateTitlesInputSchema.safeParse({ requestId: '11111111-1111-4111-8111-111111111111', items: rows.map(row => ({ targetUrl: row[0]!, title: row[1]! })) })
+  return parsed.success ? { success: true, mode: 'titles', data: parsed.data.items } : invalid
 }

@@ -127,6 +127,29 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
   })
 }
 
+test('v0.54.0 en 390px refuses an allowed-size file whose complete request exceeds the byte limit', async ({ scenario }, info) => {
+  const { page } = scenario
+  await page.goto('/link'); await keyboard(page.getByTestId('bulk-create-open'))
+  const dialog = page.getByRole('dialog'), draft = dialog.getByRole('textbox')
+  const original = 'https://example.org/keep-' + randomBytes(7).toString('hex')
+  await draft.fill(original)
+  const csv = Buffer.from('target_url,title\nhttps://example.com,' + ' '.repeat(65499))
+  expect(csv.byteLength).toBe(65536)
+  const writes: unknown[] = []
+  page.on('request', request => { if (new URL(request.url()).pathname.includes('/short-link/batch-create')) writes.push(request.postDataJSON()) })
+  await dialog.getByLabel('Read URLs from CSV', { exact: true }).setInputFiles({ name: 'too-large-request.csv', mimeType: 'text/csv', buffer: csv })
+  const error = page.getByTestId('bulk-create-error')
+  await expect(error).toContainText('complete create request must fit 64 KiB')
+  await expect(draft).toHaveValue(original)
+  await expect(page.getByTestId('bulk-create-imported-list')).toBeHidden()
+  expect(writes).toEqual([]); expect(await links(page.request)).toEqual([])
+  await error.scrollIntoViewIfNeeded()
+  await capture(info, 'titles-request-size-refusal', page)
+  await keyboard(page.getByTestId('bulk-create-preview'))
+  await expect(page.getByTestId('bulk-create-preview-list')).toContainText(original)
+  expect(writes).toEqual([])
+})
+
 test('v0.54.0 zh-CN 390px rejects empty-title double columns without metadata while preserving single-column creation', async ({ scenario }, info) => {
   const { page, manager } = scenario
   const original = await userGroup(manager)

@@ -78,6 +78,10 @@ func TestBulkCreateTitlesHTTPFraming(t *testing.T) {
 		strings.Replace(titlesHTTPJSON, "private-title", string([]byte{255}), 1),
 		titlesHTTPJSON + strings.Repeat(" ", 65537-len(titlesHTTPJSON)),
 	}
+	for _, title := range []string{`\ud800`, `\ud801`, `\udfff`, `\ud800\u0041`, `\ud800\\udc00`, `\ud800\uZZZZ`, `\uZZZZ`, `\uD80`, `\ud800x`} {
+		invalid = append(invalid, strings.Replace(titlesHTTPJSON, `示例, \"标题\"`, title, 1))
+	}
+	invalid = append(invalid, `{"requestId":"11111111-1111-4111-8111-111111115402","items":[{"targetUrl":"https://example.com","title":"\u`)
 	for i, body := range invalid {
 		t.Run(fmt.Sprint(i), func(t *testing.T) {
 			request := httptest.NewRequestWithContext(t.Context(), "POST", "/", strings.NewReader(body))
@@ -109,6 +113,31 @@ func TestBulkCreateTitlesHTTPFraming(t *testing.T) {
 		shortlink.NewBulkCreateTitlesHandler(titlesHTTPPort{}, nil).BatchCreateWithTitles(response, request)
 		require.Contains(t, response.Body.String(), `"code":0`)
 		require.Contains(t, response.Body.String(), `"createdCount":1`)
+	}
+}
+
+type titlesUnicodeHTTPPort struct{ titles *[]string }
+
+// BatchCreateWithTitles records the decoded semantic title without accepting lossy substitutions.
+func (p titlesUnicodeHTTPPort) BatchCreateWithTitles(_ context.Context, _ auth.CurrentUser, input shortlink.BatchCreateWithTitlesInput) (shortlink.BatchCreateResult, error) {
+	*p.titles = append(*p.titles, input.Items[0].Title)
+	return shortlink.BatchCreateResult{RequestID: input.RequestID, CreatedCount: len(input.Items)}, nil
+}
+
+// TestBulkCreateTitlesHTTPUnicode preserves real replacement characters, legal pairs and literal escape text.
+func TestBulkCreateTitlesHTTPUnicode(t *testing.T) {
+	for _, tc := range []struct{ wire, title string }{
+		{`\ufffd`, "�"}, {"�", "�"}, {`\ud83d\ude00`, "😀"}, {`\u0041`, "A"}, {`\\ud800`, `\ud800`},
+	} {
+		var titles []string
+		body := strings.Replace(titlesHTTPJSON, `示例, \"标题\"`, tc.wire, 1)
+		request := httptest.NewRequestWithContext(t.Context(), "POST", "/", strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		shortlink.NewBulkCreateTitlesHandler(titlesUnicodeHTTPPort{&titles}, nil).BatchCreateWithTitles(response, request)
+		require.Equal(t, 200, response.Code)
+		require.Contains(t, response.Body.String(), `"code":0`)
+		require.Equal(t, []string{tc.title}, titles)
 	}
 }
 

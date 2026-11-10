@@ -75,7 +75,7 @@ export const messages = {
       csvReading: '正在读取本地文件……',
       csvTooLarge: '文件超过 64 KiB，草稿已保留。',
       csvReadFailed: '无法读取此 UTF-8 文件，草稿已保留，请检查文件后重试。',
-      csvInvalid: '请使用 target_url 或 target_url,title 表头，包含 1–20 个不同的有效网址和合法标题；不接受错列、空记录或无效引号。草稿已保留。',
+      csvInvalid: '请使用 target_url 或 target_url,title 表头，包含 1–20 个不同的有效网址和合法标题；文件及完整创建请求均不得超过 64 KiB。不接受错列、空记录或无效引号。草稿已保留。',
     },
     timeZonePreference: {
       title: '时间显示时区', description: '仅改变控制台日期与时间的显示，不改变统计日期、导出或到期时间。此偏好随账号保存。', zone: '显示时区', device: '跟随设备', save: '保存时区', saved: '时区偏好已保存。', retry: '重试读取时区', reload: '重新加载时区', conflict: '时区已在其他位置更新。草稿已保留，请重新加载后保存。', loadFailed: '时区读取失败，已暂用设备时区。', saveFailed: '时区保存失败，草稿已保留，请重试。', unavailable: '当前账号无法保存时区偏好。', invalid: '请选择列表中的时区或跟随设备。', current: '时间显示：{zone}', usingDevice: '时间显示：设备本地时区', displayUnavailable: '账号时区暂时无法读取，当前按设备时区显示。', unsupported: '此设备不支持已保存的时区，当前按设备时区显示；账号设置未改变。',
@@ -931,7 +931,7 @@ export const messages = {
       csvReading: 'Reading the local file…',
       csvTooLarge: 'The file exceeds 64 KiB. Your draft is preserved.',
       csvReadFailed: 'Could not read this UTF-8 file. Your draft is preserved; check the file and try again.',
-      csvInvalid: 'Use target_url or target_url,title with 1–20 distinct valid URLs and valid titles. Incorrect columns, empty records and malformed quotes are rejected. Your draft is preserved.',
+      csvInvalid: 'Use target_url or target_url,title with 1–20 distinct valid URLs and valid titles. Both the file and complete create request must fit 64 KiB. Incorrect columns, empty records and malformed quotes are rejected. Your draft is preserved.',
     },
     timeZonePreference: {
       title: 'Time display zone', description: 'Changes console date and time display only, not statistics dates, exports or expiration inputs. Saved with your account.', zone: 'Display time zone', device: 'Follow device', save: 'Save time zone', saved: 'Time zone saved.', retry: 'Retry time zone', reload: 'Reload time zone', conflict: 'Your time zone changed elsewhere. Your draft is preserved; reload before saving.', loadFailed: 'Could not read your time zone. Using the device time zone.', saveFailed: 'Could not save your time zone. Your draft is preserved; please retry.', unavailable: 'This account cannot save a time zone preference.', invalid: 'Choose a listed time zone or follow device.', current: 'Time display: {zone}', usingDevice: 'Time display: device local time zone', displayUnavailable: 'Your account time zone is unavailable. Times use this device for now.', unsupported: 'This device does not support your saved time zone. Using device time without changing your account setting.',

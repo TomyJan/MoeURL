@@ -43,6 +43,24 @@ function pendingFile(text = 'target_url\nhttps://example.com/imported') {
 afterEach(() => { onlineManager.setOnline(true); clients.splice(0).forEach(client => client.clear()); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks() })
 
 describe('batch lifecycle and retry safety', () => {
+  it.each(['manual', 'titles'])('preserves the prior %s draft when an allowed-size CSV would exceed the complete JSON request limit', async mode => {
+    const { state, fetcher } = mount({ ...actor, permissions: [...actor.permissions, 'short_link:set_metadata'] })
+    state.begin(); state.draft.value = 'https://example.org/keep'
+    if (mode === 'titles') {
+      const previous = pendingFile('target_url,title\nhttps://example.org/keep,original title')
+      const reading = state.importFile(previous.file); previous.resolve(); await reading
+    }
+    const previousItems = state.importedItems.value, previousDraft = state.draft.value
+    const file = pendingFile('target_url,title\nhttps://example.com,' + ' '.repeat(65499))
+    const reading = state.importFile(file.file); file.resolve(); await reading
+    expect(state.errorKey.value).toBe('bulkCreate.csvInvalid')
+    expect(state.importedItems.value).toBe(previousItems)
+    expect(state.draft.value).toBe(previousDraft)
+    expect(state.reading.value).toBe(false); expect(state.snapshot.value).toBeNull()
+    expect(fetcher).not.toHaveBeenCalled()
+    state.preview()
+    expect(state.snapshot.value).toMatchObject(mode === 'titles' ? { items: [{ targetUrl: 'https://example.org/keep', title: 'original title' }] } : { targetUrls: ['https://example.org/keep'] })
+  })
   // A metadata-only revocation must not discard a legacy URL-only batch or change its endpoint.
   it('keeps a URL-only preview usable after metadata permission is withdrawn', async () => {
     const { state, client, fetcher } = mount({ ...actor, permissions: [...actor.permissions, 'short_link:set_metadata'] })

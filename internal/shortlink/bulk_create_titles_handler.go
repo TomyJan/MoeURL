@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"mime"
 	"net/http"
+	"strconv"
 	"unicode/utf8"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
@@ -43,7 +44,7 @@ func (h *BulkCreateTitlesHandler) BatchCreateWithTitles(w http.ResponseWriter, r
 	}
 	const limit = 64 * 1024
 	body, err := io.ReadAll(io.LimitReader(r.Body, limit+1))
-	if err != nil || len(body) > limit || !utf8.Valid(body) {
+	if err != nil || len(body) > limit || !utf8.Valid(body) || !validBulkTitleUnicodeEscapes(body) {
 		businessError(w, 100001, "Invalid request")
 		return
 	}
@@ -63,6 +64,41 @@ func (h *BulkCreateTitlesHandler) BatchCreateWithTitles(w http.ResponseWriter, r
 	}
 	result, err := h.service.BatchCreateWithTitles(r.Context(), auth.UserFromContext(r.Context()), input)
 	writeBulkCreateResult(w, r, result, err, h.logger)
+}
+
+// validBulkTitleUnicodeEscapes rejects lossy JSON surrogate replacement before decoding or hashing.
+// Escaped backslashes are skipped; real U+FFFD and valid high/low pairs remain legal input.
+func validBulkTitleUnicodeEscapes(body []byte) bool {
+	for i := 0; i+1 < len(body); i++ {
+		if body[i] != '\\' {
+			continue
+		}
+		i++
+		if body[i] != 'u' {
+			continue
+		}
+		if i+4 >= len(body) {
+			return false
+		}
+		unit, err := strconv.ParseUint(string(body[i+1:i+5]), 16, 16)
+		if err != nil {
+			return false
+		}
+		i += 4
+		if unit >= 0xd800 && unit <= 0xdbff {
+			if i+6 >= len(body) || body[i+1] != '\\' || body[i+2] != 'u' {
+				return false
+			}
+			low, err := strconv.ParseUint(string(body[i+3:i+7]), 16, 16)
+			if err != nil || low < 0xdc00 || low > 0xdfff {
+				return false
+			}
+			i += 6
+		} else if unit >= 0xdc00 && unit <= 0xdfff {
+			return false
+		}
+	}
+	return true
 }
 
 // decodeBulkCreateWithTitles requires exactly two top-level fields and a bounded non-null item array.

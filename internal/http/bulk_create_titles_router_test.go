@@ -90,6 +90,16 @@ func TestBulkCreateTitlesRouter(t *testing.T) {
 		before := counts()
 		row := `{"targetUrl":"https://example.org/strict","title":"ok"}`
 		for _, invalid := range []string{
+			`{"requestId":"%s","items":[{"targetUrl":"https://example.org/strict","title":"\u`,
+			`{"requestId":"%s","items":[{"targetUrl":"https://example.org/strict","title":"\ud800"}]}`,
+			`{"requestId":"%s","items":[{"targetUrl":"https://example.org/strict","title":"\ud801"}]}`,
+			`{"requestId":"%s","items":[{"targetUrl":"https://example.org/strict","title":"\udfff"}]}`,
+			`{"requestId":"%s","items":[{"targetUrl":"https://example.org/strict","title":"\ud800\u0041"}]}`,
+			`{"requestId":"%s","items":[{"targetUrl":"https://example.org/strict","title":"\ud800\\udc00"}]}`,
+			`{"requestId":"%s","items":[{"targetUrl":"https://example.org/strict","title":"\ud800\uZZZZ"}]}`,
+			`{"requestId":"%s","items":[{"targetUrl":"https://example.org/strict","title":"\uZZZZ"}]}`,
+			`{"requestId":"%s","items":[{"targetUrl":"https://example.org/strict","title":"\uD80"}]}`,
+			`{"requestId":"%s","items":[{"targetUrl":"https://example.org/strict","title":"\ud800x"}]}`,
 			`{"requestId":"%s","items":null}`,
 			`{"requestId":"%s","items":[]}`,
 			`{"requestId":"%s","items":[null]}`,
@@ -108,6 +118,28 @@ func TestBulkCreateTitlesRouter(t *testing.T) {
 			code, _ := post(t, endpoint, fmt.Sprintf(invalid, uuid.NewString()), actorID, true)
 			require.Equal(t, 100001, code, invalid)
 			require.Equal(t, before, counts())
+		}
+		// Legitimate replacement characters, supplementary characters and literal escape text remain distinct content.
+		for _, tc := range []struct{ wire, title string }{
+			{`\ufffd`, "�"}, {"�", "�"}, {`\ud83d\ude00`, "😀"}, {`\u0041`, "A"}, {`\\ud800`, `\ud800`},
+		} {
+			requestID, target := uuid.NewString(), "https://example.org/unicode/"+uuid.NewString()
+			body := `{"requestId":"` + requestID + `","items":[{"targetUrl":"` + target + `","title":"` + tc.wire + `"}]}`
+			code, count := post(t, endpoint, body, actorID, true)
+			require.Zero(t, code)
+			require.Equal(t, 1, count)
+			var stored string
+			require.NoError(t, pool.QueryRow(t.Context(), `select title from short_link where target_url=$1`, target).Scan(&stored))
+			require.Equal(t, tc.title, stored)
+			code, _ = post(t, endpoint, body, actorID, true)
+			require.Zero(t, code)
+			for _, invalidTitle := range []string{`\ud800`, `\ud801`, `\udfff`} {
+				before := counts()
+				invalid := `{"requestId":"` + requestID + `","items":[{"targetUrl":"` + target + `","title":"` + invalidTitle + `"}]}`
+				code, _ = post(t, endpoint, invalid, actorID, true)
+				require.Equal(t, 100001, code)
+				require.Equal(t, before, counts())
+			}
 		}
 	})
 	t.Run("cookie identity and guest cannot write", func(t *testing.T) {
