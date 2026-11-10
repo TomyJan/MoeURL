@@ -10,7 +10,7 @@
 
 [v0.55.0 CSV 标题与标签导入](product/scope-v0.55.0.md) 已通过 [PR292](https://github.com/TomyJan/MoeURL/pull/292) 完整交付，master `4b6f24bf7ff6d8b1f5d69f57b01871c76ece32b7`。准确转移、标准 Task1–4、0.55.0 产品／完整 257 项浏览器／52 张原图及唯一独立终审完成；最终 8d8e059 真实 CodeRabbit、正常合并独立 API／fetch／tree／唯一父、34 条裁决及 13 文件可恢复归档已核准。原执行身份不变，两项 Minor 原版明确延期，不冒原 PR 已修；不查或冒称 GitHub CI，未发布部署。
 
-当前实施 [v0.55.1 CSV 字节边界测试维护](product/scope-v0.55.1.md)：产品保持 0.55.0，补原 M1 组合边界保护及 M2 技术入口状态句。独立副本六项边界、五种私有回归变体、195 文件／3883 项／四 100% 和 types／lint 已核准；正式转移、唯一终审及最终真实 CodeRabbit／正常交付继续，准确准备身份保留。
+当前实施 [v0.55.1 CSV 字节边界测试维护](product/scope-v0.55.1.md)：产品保持 0.55.0，补原 M1 组合边界保护及 M2 技术入口状态句。六项边界已准确转移，五种私有回归变体、195 文件／3883 项／四 100%、types／lint 及正式 66 项配置上下文均核准；唯一终审及最终真实 CodeRabbit／正常交付仍待，准确准备身份保留，标准完成行见本版 owned 账本。
 
 v0.52.1 已通过 [PR281](https://github.com/TomyJan/MoeURL/pull/281) 完整交付，master `82355d63e2b7111912ac2d5eb6b067a3e1c14b5a`。最新 ca1 真实 CodeRabbit 覆盖、有效问题闭环、正常合并独立 API／fetch／SHA／tree／唯一父核验、标准 Task1–3 及 20 条裁决／11 文件可恢复归档完成。完整 3642 项前端／四项 100%、228 项浏览器和 28 张原图保持原执行身份，后继测试增量另有验证，见[验收](implementation/v0.52.1-acceptance.md)。不等待或冒称 GitHub CI，未发布部署。
 
