@@ -5,8 +5,8 @@ import type { APIRequestContext, Locator, Page, TestInfo } from '@playwright/tes
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
 
 const labels = {
-  en: { target: 'Enter link', create: 'Create short link', qr: 'QR code', title: 'Short-link QR code', presets: ['Black and white', 'Iris blue', 'Forest green'], png: 'Download PNG', svg: 'Download SVG', close: 'Close', more: 'More actions' },
-  'zh-CN': { target: '输入链接', create: '创建短链', qr: '二维码', title: '短链二维码', presets: ['黑白', '鸢尾蓝', '森林绿'], png: '下载 PNG', svg: '下载 SVG', close: '关闭', more: '更多操作' },
+  en: { target: 'Enter link', create: 'Create short link', qr: 'QR code', title: 'Short-link QR code', presets: ['Black and white', 'Iris blue', 'Forest green'], levels: ['M (standard)', 'Q (higher)', 'H (highest)'], png: 'Download PNG', svg: 'Download SVG', close: 'Close', more: 'More actions' },
+  'zh-CN': { target: '输入链接', create: '创建短链', qr: '二维码', title: '短链二维码', presets: ['黑白', '鸢尾蓝', '森林绿'], levels: ['M（标准）', 'Q（较高）', 'H（最高）'], png: '下载 PNG', svg: '下载 SVG', close: '关闭', more: '更多操作' },
 } as const
 const colors = ['#000000', '#312e81', '#14532d']
 
@@ -47,7 +47,14 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
           await expect(preset).toHaveAttribute('aria-pressed', 'true')
           await verifyDownloads(page, dialog, text, link.slug, colors[index]!, info, `${language}-${width}-${index}`)
           await expectNoHorizontalOverflow(page)
-          for (const control of await dialog.locator('button,a').all()) await expect(control).toBeInViewport({ ratio: 1 })
+          // Check the nine QR controls without collecting expiring notification buttons.
+          for (const name of [...text.presets, ...text.levels, text.close]) {
+            await expect(dialog.getByRole('button', { name, exact: true })).toBeInViewport({ ratio: 1 })
+          }
+          for (const name of [text.png, text.svg]) {
+            await expect(dialog.getByRole('link', { name, exact: true })).toBeInViewport({ ratio: 1 })
+          }
+          await expect(dialog.getByText(text.title, { exact: true })).toBeInViewport({ ratio: 1 })
           await page.screenshot({ path: info.outputPath(`svg-${language}-${width}-${index}.png`) })
         }
         expect(apiRequests).toEqual([])
