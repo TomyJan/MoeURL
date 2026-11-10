@@ -43,6 +43,27 @@ function pendingFile(text = 'target_url\nhttps://example.com/imported') {
 afterEach(() => { onlineManager.setOnline(true); clients.splice(0).forEach(client => client.clear()); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks() })
 
 describe('batch lifecycle and retry safety', () => {
+  // A fourth-protocol hint must never reclassify an older protocol's refusal.
+  it.each([
+    ['targets', 200101], ['targets', 200102],
+    ['titles', 200101], ['titles', 200102],
+    ['metadata', 200101], ['metadata', 200102],
+  ] as const)('preserves the old %s refusal %i without a false custom-code diagnosis', async (mode, code) => {
+    const { state, fetcher } = mount({ ...actor, permissions: [...actor.permissions, 'short_link:set_metadata', 'short_link:custom_slug'] })
+    if (mode === 'targets') preview(state)
+    else {
+      state.begin()
+      const file = pendingFile(mode === 'titles' ? 'target_url,title\nhttps://example.com/legacy,title' : 'target_url,title,tags\nhttps://example.com/legacy,title,[]')
+      const reading = state.importFile(file.file); file.resolve(); await reading; state.preview()
+    }
+    const input = state.snapshot.value
+    fetcher.mockResolvedValueOnce(response(null, code))
+    await state.submit()
+    expect(state.errorKey.value).toBe('bulkCreate.failed')
+    expect(state.unknown.value).toBe(false)
+    expect(state.snapshot.value).toBe(input)
+    expect(state.snapshotMode.value).toBe(mode)
+  })
   it.each(['preview', 'queued write'])('checks current custom grants again before %s when a cache consumer skips notifications', async stage => {
     const authorized = { ...actor, permissions: [...actor.permissions, 'short_link:set_metadata', 'short_link:custom_slug'] }
     const { state, client, fetcher, invalidations } = mount(authorized)
