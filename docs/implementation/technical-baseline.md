@@ -4,7 +4,7 @@
 
 前版 PR300 已完整交付为 master `97fa899c477e1918898ec7e3f0c182272d6c5ea4`，原 15 条裁决、CR-M1 和恢复归档保留历史归属。当前 [v0.58.0](v0.58.0-plan.md) 在原共享二维码弹窗增加固定 M／Q／H；默认 M、不持久化，同一 generation 快照向 PNG 和 SVG 传递等级与颜色，原异步守卫及独立 SVG 不阻塞 PNG 保留。完整 URL、三深色／白底／320／四模块静区和文件名不变，编码失败不截断或默降等级；无 API／权限／Go／DB／依赖变更。
 
-独立准备实际 Node 26.5.1 Linux／pnpm 11.5.0，15 项行为 RED→GREEN、44 项相关回归、3973 项完整前端／四 100%、types／lint 与新旧 E2E 严格检查通过，准备 SHA 与正式产品分别取证。pnpm 11 使用进程级 `pnpm_config_verify_deps_before_run=false`，命令前读取有效配置断言关闭自动依赖阶段；原 RED 的旧 npm_config_ 失效及额外依赖阶段如实保留，不改原件或全局设置。正式产品、完整浏览器、原图和真实审查仍待验证；不查询 CI、不发布部署。
+独立准备实际 Node 26.5.1 Linux／pnpm 11.5.0，15 项行为 RED→GREEN、44 项相关回归；最终代码 fab61a70 的 3973 项／四 100%、types／lint 与四 QR E2E 严格检查通过。准确产品 431fe9e2 的 smoke／更新数据库后三目标 HIGH／CRITICAL 为 0；275 唯一浏览器身份由原 262 个非 QR 成功、当前 12 个 QR 和 setup 组成，不是最新产品单次全量全绿。ROOT 核 31 图，额外 375×667 英文补验明确正常滚动可达，唯一独立终审无发现。原运行、失败和警告分别冻结；pnpm 使用进程级 `pnpm_config_verify_deps_before_run=false`，原旧前缀失效诊断保留。候选提交时最终 head CodeRabbit、正常合并及恢复归档仍待；不查询 CI、不发布部署。
 
 ## 当前维护（2026-11-11）
 
