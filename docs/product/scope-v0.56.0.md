@@ -1,6 +1,6 @@
 # v0.56.0：CSV 自定义短码导入
 
-状态：本地实现与门禁通过，远端交付待完成。Task1–2 标准完成；准确 ad268ec 的 0.56.0 产品、完整 263 项浏览器、66 张原图及唯一独立终审 Critical 0／Important 0／Minor 2 已核准，两项提示文案明确延期。最终 head 真实 CodeRabbit、正常保护合并、独立核验及可恢复归档仍待。前版 [PR293](https://github.com/TomyJan/MoeURL/pull/293) 已完整交付；基线 master `cc7d03760b1d7ca78943593fe754f68ad056fad5`。原准备与准确产品验证保持各自执行身份，不冒整版已交付。
+已通过 [PR294](https://github.com/TomyJan/MoeURL/pull/294) 完整交付，master `35b5b2bd703a87492c1185061c81fa526cfe94f4`。标准 Task1–4、最终 5fba3ff 真实 CodeRabbit、有效反馈处置、正常合并独立核验、24 条裁决和 13 文件可恢复归档完成。原完整 263 项浏览器、66 张原图与各准备运行保持准确身份；两项提示及技术摘要 Minor 在原 PR 明确延期，由 v0.56.1 接续。以下阶段记录按原时点保留，不代表当前仍待交付。不查 CI，不发布部署。
 
 ## 目标
 

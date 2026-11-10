@@ -12,7 +12,9 @@
 
 [v0.55.1 CSV 字节边界测试维护](scope-v0.55.1.md) 已通过 [PR293](https://github.com/TomyJan/MoeURL/pull/293) 完整交付，master `cc7d03760b1d7ca78943593fe754f68ad056fad5`。六项边界、3883 项／四 100%、五种有效故障变体及 66 项配置上下文保留原执行身份；最终 2800df63 真实 CodeRabbit、正常合并独立 API／fetch／tree／唯一父核验、标准 Task1–2、11 条完整裁决和 9 文件可恢复归档完成。CR-M1 旧验收开头状态句在原 PR 明确延期，本版接续修正，不倒填历史。
 
-当前实施 [v0.56.0 CSV 自定义短码导入](scope-v0.56.0.md)：固定四列、独立严格第四协议、全部当前权限、原子回执及指定／随机短码互不抢占。Task1–2 已标准完成，后端完整门禁与前端 3930 项／四 100% 通过；准确 ad268ec 的 0.56.0 产品、smoke／扫描、完整 263 项浏览器和 ROOT 实看 66 张原图已核准。唯一独立终审 Critical 0／Important 0／Minor 2，两项提示文案明确延期；本地证据收尾后继续最终 head 真实 CodeRabbit、正常保护合并、独立核验及可恢复归档，尚未完成远端交付。不查 CI，不发布部署。
+[v0.56.0 CSV 自定义短码导入](scope-v0.56.0.md) 已通过 [PR294](https://github.com/TomyJan/MoeURL/pull/294) 完整交付，master `35b5b2bd703a87492c1185061c81fa526cfe94f4`。标准 Task1–4、最终 5fba3ff 真实 CodeRabbit、有效意见处置、正常合并独立 API／fetch／tree／唯一父核验、24 条裁决及 13 文件可恢复归档均完成；完整 263 项浏览器与 66 张原图保留准确运行身份，两项提示及两处技术摘要 Minor 在原 PR 明确延期。本版接续维护，不倒填原 PR。
+
+当前实施 [v0.56.1 四列 CSV 提示维护](scope-v0.56.1.md)：补齐四格式说明与占用／保留字提示，保持 unknown 重试安全；正式设计已建立，准备证据待准确转移，正式新版产品、浏览器、审查与交付仍待。不查 CI，不发布部署。
 
 v0.52.1 已通过 [PR281](https://github.com/TomyJan/MoeURL/pull/281) 完整交付，master `82355d63e2b7111912ac2d5eb6b067a3e1c14b5a`。最新 ca1 真实 CodeRabbit 覆盖、有效问题闭环、正常合并独立 API／fetch／SHA／tree／唯一父核验、标准 Task1–3 及 20 条裁决／11 文件可恢复归档完成。完整 3642 项前端／四项 100%、228 项浏览器和 28 张原图保持原执行身份，后继测试增量另有验证，见[验收](../implementation/v0.52.1-acceptance.md)。不等待或冒称 GitHub CI，未发布部署。
 
