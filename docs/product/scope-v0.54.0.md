@@ -1,6 +1,6 @@
 # v0.54.0 CSV 标题导入
 
-基线为 PR289 已核验的 master `ef47a7ba33cc405b96c3058d5183b26d849b7571`。本地实现、完整门禁和唯一独立终审修复已完成，最新真实 CodeRabbit、正常保护合并与恢复归档仍由 Task 4 独立验收，尚不据此声明远端交付。
+基线为 PR289 已核验的 master `ef47a7ba33cc405b96c3058d5183b26d849b7571`。已通过 [PR290](https://github.com/TomyJan/MoeURL/pull/290) 完整交付为 master `13749bc82b04b55d8802f626c3857fb5103a6179`：准确本地门禁、唯一终审修复、最终真实 CodeRabbit、正常合并独立核验、标准 Task1–4 和可恢复归档完成。原失败和执行身份保留，router 子测试 Minor 原版延期，由 v0.54.1 接续。
 
 ## 能力盘点与范围
 
