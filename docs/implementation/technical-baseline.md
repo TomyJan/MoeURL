@@ -4,7 +4,9 @@
 
 [v0.53.2](../product/scope-v0.53.2.md) 已通过 [PR289](https://github.com/TomyJan/MoeURL/pull/289) 完整交付，master `ef47a7ba33cc405b96c3058d5183b26d849b7571`。3732 项前端／四 100%、types／lint／build、唯一独立终审、最新 head 真实 CodeRabbit、正常合并独立核验、标准任务及可恢复归档完成。完整浏览器原 241 成功／4 项 fixture 失败，同产品补验四项及初始化 1 项通过，非单次 245 绿；12 张原图和 label 动画已核，旧超时根因未证明。
 
-当前实施 [v0.54.0 CSV 标题导入](../product/scope-v0.54.0.md)：兼容单列 URL，新增固定网址＋标题双列、只读结构化草稿和独立严格 API；保持当前权限、原子幂等和同身份手动重试。本地实现与唯一终审修复已完成，3813 项前端／四 100%、完整后端及准确新产品 251 个浏览器场景已验证；最新真实 CodeRabbit、正常合并与恢复归档仍待；无新依赖、权限或迁移。前版两项可维护性 Minor 由本版补齐交付文档和 fixture 用途注释。不查、不等或冒称 GitHub CI，未发布部署。
+[v0.54.0](../product/scope-v0.54.0.md) 已通过 [PR290](https://github.com/TomyJan/MoeURL/pull/290) 完整交付，master `13749bc82b04b55d8802f626c3857fb5103a6179`。最终 f4e9ee7 真实 CodeRabbit、有效意见处置、正常合并独立 API／fetch／tree／唯一父核验、标准 Task1–4、20 条裁决和 13 文件可恢复归档均完成。完整 3813 项前端／四 100%、准确产品 251 个唯一浏览器场景的分区组合及 75 张原图保留原执行身份；最终测试小修有独立输入证明和定向验证，不冒新产品执行。
+
+当前实施 [v0.54.1 测试隔离维护](../product/scope-v0.54.1.md)：原标题路由五个子测试各自拥有数据库、Session、权限和回执，消除单选顺序依赖。隔离准备已完成真实单选失败→通过、完整 Go／vet／HTTP race，准确转移和本地合同已完成，唯一独立终审、真实 CodeRabbit 和交付仍待；产品仍为 0.54.0，无生产、依赖或迁移变化。不查、不等或冒称 GitHub CI，未发布部署。
 
 v0.52.1 已通过 [PR281](https://github.com/TomyJan/MoeURL/pull/281) 完整交付，master `82355d63e2b7111912ac2d5eb6b067a3e1c14b5a`。最新 ca1 真实 CodeRabbit 覆盖、有效问题闭环、正常合并独立 API／fetch／SHA／tree／唯一父核验、标准 Task1–3 及 20 条裁决／11 文件可恢复归档完成。完整 3642 项前端／四项 100%、228 项浏览器和 28 张原图保持原执行身份，后继测试增量另有验证，见[验收](v0.52.1-acceptance.md)。不等待或冒称 GitHub CI，未发布部署。
 

@@ -20,6 +20,20 @@ import (
 
 // TestBulkCreateTitlesRouter persists visible titles through the real session, permissions and atomic write.
 func TestBulkCreateTitlesRouter(t *testing.T) {
+	for _, name := range []string{
+		"titles and receipt persist atomically",
+		"framing and invalid metadata never write",
+		"cookie identity and guest cannot write",
+		"cross protocol key reuse conflicts in both directions",
+		"revoked metadata denies empty titles and replay but not legacy",
+	} {
+		t.Run(name, func(t *testing.T) { runBulkCreateTitlesRouterCase(t, name) })
+	}
+}
+
+// runBulkCreateTitlesRouterCase owns a fresh database, session and permissions for the selected scenario.
+func runBulkCreateTitlesRouterCase(t *testing.T, name string) {
+	t.Helper()
 	pool := testdb.ProjectMigratedPool(t.Context(), t)
 	const actorID = "00000000-0000-0000-0000-000000005401"
 	_, err := pool.Exec(t.Context(), `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values
@@ -67,7 +81,15 @@ func TestBulkCreateTitlesRouter(t *testing.T) {
 	}
 	const key = "11111111-1111-4111-8111-111111115401"
 	payload := `{"requestId":"` + key + `","items":[{"targetUrl":"https://example.com/one","title":"　示例, \"标题\"　"},{"targetUrl":"https://example.com/two","title":""}]}`
-	t.Run("titles and receipt persist atomically", func(t *testing.T) {
+	require.Equal(t, []int{0, 0, 0}, counts(), "each scenario owns an empty database")
+	seedReceipt := func() {
+		code, count := post(t, endpoint, payload, actorID, true)
+		require.Zero(t, code)
+		require.Equal(t, 2, count)
+		require.Equal(t, []int{2, 2, 1}, counts())
+	}
+	switch name {
+	case "titles and receipt persist atomically":
 		code, count := post(t, endpoint, payload, actorID, true)
 		require.Zero(t, code)
 		require.Equal(t, 2, count)
@@ -85,8 +107,7 @@ func TestBulkCreateTitlesRouter(t *testing.T) {
 		require.Equal(t, []int{2, 2, 1}, counts())
 		code, _ = post(t, endpoint, strings.Replace(payload, "　示例", "示例", 1), actorID, true)
 		require.Equal(t, 200120, code, "raw title changes must conflict even if normalized storage is equal")
-	})
-	t.Run("framing and invalid metadata never write", func(t *testing.T) {
+	case "framing and invalid metadata never write":
 		before := counts()
 		row := `{"targetUrl":"https://example.org/strict","title":"ok"}`
 		for _, invalid := range []string{
@@ -141,16 +162,15 @@ func TestBulkCreateTitlesRouter(t *testing.T) {
 				require.Equal(t, before, counts())
 			}
 		}
-	})
-	t.Run("cookie identity and guest cannot write", func(t *testing.T) {
+	case "cookie identity and guest cannot write":
 		before := counts()
 		code, _ := post(t, endpoint, payload, "00000000-0000-0000-0000-000000005499", true)
 		require.Equal(t, 120001, code)
 		code, _ = post(t, endpoint, payload, "", false)
 		require.Equal(t, 120001, code)
 		require.Equal(t, before, counts())
-	})
-	t.Run("cross protocol key reuse conflicts in both directions", func(t *testing.T) {
+	case "cross protocol key reuse conflicts in both directions":
+		seedReceipt()
 		before := counts()
 		code, _ := post(t, "/api/v1/short-link/batch-create", `{"requestId":"`+key+`","targetUrls":["https://example.com/one","https://example.com/two"]}`, actorID, true)
 		require.Equal(t, 200120, code)
@@ -160,8 +180,8 @@ func TestBulkCreateTitlesRouter(t *testing.T) {
 		code, _ = post(t, endpoint, `{"requestId":"`+other+`","items":[{"targetUrl":"https://example.org/legacy","title":""}]}`, actorID, true)
 		require.Equal(t, 200120, code)
 		require.Equal(t, []int{before[0] + 1, before[1] + 1, before[2] + 1}, counts())
-	})
-	t.Run("revoked metadata denies empty titles and replay but not legacy", func(t *testing.T) {
+	case "revoked metadata denies empty titles and replay but not legacy":
+		seedReceipt()
 		_, err := pool.Exec(t.Context(), `update user_group set permissions='["short_link:create","domain:use_default"]' where key='user'`)
 		require.NoError(t, err)
 		before := counts()
@@ -172,5 +192,7 @@ func TestBulkCreateTitlesRouter(t *testing.T) {
 		}
 		code, _ := post(t, "/api/v1/short-link/batch-create", `{"requestId":"`+uuid.NewString()+`","targetUrls":["https://example.org/still-legacy"]}`, actorID, true)
 		require.Zero(t, code)
-	})
+	default:
+		t.Fatalf("unknown titles router scenario %q", name)
+	}
 }
