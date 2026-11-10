@@ -43,6 +43,106 @@ function pendingFile(text = 'target_url\nhttps://example.com/imported') {
 afterEach(() => { onlineManager.setOnline(true); clients.splice(0).forEach(client => client.clear()); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks() })
 
 describe('batch lifecycle and retry safety', () => {
+  it.each(['preview', 'queued write'])('checks current custom grants again before %s when a cache consumer skips notifications', async stage => {
+    const authorized = { ...actor, permissions: [...actor.permissions, 'short_link:set_metadata', 'short_link:custom_slug'] }
+    const { state, client, fetcher, invalidations } = mount(authorized)
+    state.begin()
+    const file = pendingFile('target_url,title,tags,custom_slug\nhttps://example.com/custom56,,[],Team56')
+    const read = state.importFile(file.file); file.resolve(); await read
+    if (stage === 'queued write') state.preview()
+    const request = stage === 'queued write' ? state.submit() : undefined
+    client.getQueryData<{ user: typeof actor }>(['auth', 'me'])!.user.permissions = [...actor.permissions, 'short_link:set_metadata']
+    if (stage === 'preview') state.preview()
+    await request
+    expect(fetcher).not.toHaveBeenCalled()
+    expect(invalidations).not.toHaveBeenCalled()
+    expect(toast.success).not.toHaveBeenCalled()
+    expect(state.pending.value).toBe(false)
+    if (stage === 'preview') {
+      expect(state.opened.value).toBe(false)
+      expect(state.snapshot.value).toBeNull()
+      expect(state.importedItems.value).toBeNull()
+    }
+  })
+  // Fourth-protocol retries must never fall through the old title endpoint or mutate the raw slug.
+  it('retries the identical deep-frozen custom-slug snapshot through its own endpoint and account', async () => {
+    const user = { ...actor, permissions: [...actor.permissions, 'short_link:set_metadata', 'short_link:custom_slug'] }
+    const { state, fetcher } = mount(user)
+    state.begin()
+    const file = pendingFile('target_url,title,tags,custom_slug\nhttps://example.org/custom56, raw ,"["" tag ""]",TeamDocs56')
+    const read = state.importFile(file.file); file.resolve(); await read
+    expect(state.errorKey.value).toBe('')
+    state.preview()
+    const captured = state.snapshot.value!
+    expect(captured).toMatchObject({ items: [{ targetUrl: 'https://example.org/custom56', title: ' raw ', tags: [' tag '], customSlug: 'TeamDocs56' }] })
+    expect(Object.isFrozen(captured)).toBe(true)
+    expect(Object.isFrozen(state.importedItems.value![0])).toBe(true)
+    expect(Object.isFrozen((state.importedItems.value![0] as { tags: readonly string[] }).tags)).toBe(true)
+    fetcher.mockRejectedValueOnce(new Error('acknowledgement lost'))
+    await state.submit()
+    expect(state.unknown.value).toBe(true)
+    state.edit(); state.clearImport(); state.preview()
+    expect(state.snapshot.value).toBe(captured)
+    fetcher.mockResolvedValueOnce(response({ requestId: captured.requestId, createdCount: 1 }))
+    await state.submit()
+    expect(fetcher.mock.calls).toHaveLength(2)
+    for (const [url, init] of fetcher.mock.calls) {
+      expect(url).toBe('/api/v1/short-link/batch-create-with-custom-slugs')
+      expect(init!.body).toBe(JSON.stringify(captured))
+      expect(new Headers(init!.headers).get('X-MoeURL-Expected-User-ID')).toBe(actor.id)
+    }
+    expect(state.opened.value).toBe(false)
+  })
+
+  it('refuses even an all-random four-column import without custom permission and preserves the draft', async () => {
+    const { state } = mount({ ...actor, permissions: [...actor.permissions, 'short_link:set_metadata'] })
+    state.begin(); state.draft.value = 'https://example.com/manual'
+    const file = pendingFile('target_url,title,tags,custom_slug\nhttps://example.org/random,,[],')
+    const read = state.importFile(file.file); file.resolve(); await read
+    expect(state.errorKey.value).toBe('bulkCreate.customSlugRequired')
+    expect(state.draft.value).toBe('https://example.com/manual')
+    expect(state.importedItems.value).toBeNull()
+  })
+
+  it.each(['draft', 'preview', 'unknown', 'queued', 'pending success', 'pending error'])('retires custom-slug %s immediately on custom grant loss', async stage => {
+    const user = { ...actor, permissions: [...actor.permissions, 'short_link:set_metadata', 'short_link:custom_slug'] }
+    const { state, client, fetcher } = mount(user)
+    state.begin()
+    const file = pendingFile('target_url,title,tags,custom_slug\nhttps://example.org/custom56,,[],TeamDocs56')
+    const read = state.importFile(file.file); file.resolve(); await read
+    if (stage !== 'draft') state.preview()
+    const input = state.snapshot.value
+    const pending = createDeferred<Response>()
+    let operation: Promise<void> | undefined
+    if (stage === 'unknown') { fetcher.mockRejectedValueOnce(new Error('lost')); await state.submit() }
+    if (stage.startsWith('pending')) { fetcher.mockImplementationOnce(() => pending.promise); operation = state.submit(); await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1)) }
+    else if (stage === 'queued') operation = state.submit()
+    client.setQueryData(['auth', 'me'], { user: { ...user, permissions: user.permissions.filter(p => p !== 'short_link:custom_slug') } })
+    expect(state.opened.value).toBe(false)
+    expect(state.snapshot.value).toBeNull()
+    expect(state.importedItems.value).toBeNull()
+    if (stage === 'pending success') pending.resolve(response({ requestId: input!.requestId, createdCount: 1 }))
+    if (stage === 'pending error') pending.reject(new Error('offline'))
+    await operation
+    expect(state.pending.value).toBe(false)
+    expect(toast.success).not.toHaveBeenCalled()
+    if (stage === 'queued') expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('rejects a late custom-slug file after grant loss and restoration without losing a newer draft', async () => {
+    const user = { ...actor, permissions: [...actor.permissions, 'short_link:set_metadata', 'short_link:custom_slug'] }
+    const { state, client } = mount(user); state.begin(); state.draft.value = 'https://example.com/manual'
+    const file = pendingFile('target_url,title,tags,custom_slug\nhttps://example.org/custom56,,[],TeamDocs56')
+    const read = state.importFile(file.file)
+    client.setQueryData(['auth', 'me'], { user: { ...user, permissions: user.permissions.filter(p => p !== 'short_link:custom_slug') } })
+    client.setQueryData(['auth', 'me'], { user })
+    file.resolve(); await read
+    expect(state.errorKey.value).toBe('bulkCreate.customSlugRequired')
+    expect(state.draft.value).toBe('https://example.com/manual')
+    expect(state.importedItems.value).toBeNull()
+    expect(state.reading.value).toBe(false)
+  })
+
   it('keeps raw tag arrays immutable and retries an unknown metadata write through the same protocol and UUID', async () => {
     const { state, fetcher } = mount({ ...actor, permissions: [...actor.permissions, 'short_link:set_metadata'] })
     const items = [{ targetUrl: 'https://example.org/tags', title: ' raw ', tags: ['　工具　', 'a,b'] }]

@@ -25,9 +25,10 @@ type BatchCreateWithMetadataInput struct {
 
 // batchCreateItem is an internal transaction input, preserving each public DTO and digest.
 type batchCreateItem struct {
-	TargetURL string
-	Title     string
-	Tags      []string
+	TargetURL  string
+	Title      string
+	Tags       []string
+	CustomSlug string
 }
 
 // BatchCreateWithMetadata checks current metadata grants even when replaying an existing receipt.
@@ -40,7 +41,7 @@ func (s *Service) BatchCreateWithMetadata(ctx context.Context, actor auth.Curren
 	for i, item := range input.Items {
 		items[i] = batchCreateItem{TargetURL: item.TargetURL, Title: item.Title, Tags: item.Tags}
 	}
-	return s.batchCreate(ctx, actor, id, digest, items, true)
+	return s.batchCreate(ctx, actor, id, digest, items, true, false)
 }
 
 // normalizeBulkCreateWithMetadata keeps raw whitespace and tag order in a separate versioned digest.

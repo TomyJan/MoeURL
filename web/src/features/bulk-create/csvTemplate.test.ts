@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { parseBulkCreateCsv, parseBulkCreateImportCsv } from '@/entities/short-link/bulk-create-csv'
-import { bulkCreateCsvTemplate, bulkCreateTitlesCsvTemplate, bulkCreateMetadataCsvTemplate } from './csvTemplate'
+import { bulkCreateCsvTemplate, bulkCreateTitlesCsvTemplate, bulkCreateMetadataCsvTemplate, bulkCreateCustomSlugsCsvTemplate } from './csvTemplate'
 
 describe('bulk creation CSV template', () => {
+  it('imports the custom-code template with literal metadata and one explicitly random row', () => {
+    expect(parseBulkCreateImportCsv(bulkCreateCustomSlugsCsvTemplate.content)).toEqual({ success: true, mode: 'custom-slugs', data: [
+      { targetUrl: 'https://example.com/one', title: 'Example title', tags: ['tools', 'a,b'], customSlug: 'TeamDocs56' },
+      { targetUrl: 'https://example.org/search?q=a,b', title: 'Title, with comma', tags: [], customSlug: '' },
+    ] })
+  })
   it('imports the metadata template as exact titles and ordered JSON tags', () => {
     expect(parseBulkCreateImportCsv(bulkCreateMetadataCsvTemplate.content)).toEqual({ success: true, mode: 'metadata', data: [
       { targetUrl: 'https://example.com/one', title: 'Example title', tags: ['tools', 'a,b'] },

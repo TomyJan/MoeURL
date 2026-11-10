@@ -20,3 +20,10 @@ export const bulkCreateMetadataCsvTemplate = {
   contentType: 'text/csv;charset=utf-8' as const,
   content: '\uFEFF' + bulkCreateMetadataCsvExample.replaceAll('\n', '\r\n') + '\r\n',
 }
+
+export const bulkCreateCustomSlugsCsvExample = 'target_url,title,tags,custom_slug\nhttps://example.com/one,Example title,"[""tools"",""a,b""]",TeamDocs56\n"https://example.org/search?q=a,b","Title, with comma",[],'
+export const bulkCreateCustomSlugsCsvTemplate = {
+  fileName: 'moeurl-custom-codes-template.csv',
+  contentType: 'text/csv;charset=utf-8' as const,
+  content: '\uFEFF' + bulkCreateCustomSlugsCsvExample.replaceAll('\n', '\r\n') + '\r\n',
+}

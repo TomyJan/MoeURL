@@ -15,13 +15,13 @@
           <BulkCreateCsvHelp v-if="state.opened.value" />
           <p v-if="state.reading.value" role="status">{{ t('bulkCreate.csvReading') }}</p>
           <template v-if="state.importedItems.value">
-            <ol data-testid="bulk-create-imported-list"><li v-for="(item, index) in state.importedItems.value" :key="index"><span>{{ item.targetUrl }}</span><span class="bulk-create-item-title">{{ t('bulkCreate.itemTitle') }} {{ item.title || t('bulkCreate.emptyTitle') }}</span><span v-if="'tags' in item" class="bulk-create-item-tags">{{ t('bulkCreate.itemTags') }} <span v-if="!item.tags.length">{{ t('bulkCreate.emptyTags') }}</span><span v-for="(tag, tagIndex) in item.tags" :key="tagIndex" class="bulk-create-tag">{{ tag }}</span></span></li></ol>
+            <ol data-testid="bulk-create-imported-list"><li v-for="(item, index) in state.importedItems.value" :key="index"><span>{{ item.targetUrl }}</span><span class="bulk-create-item-title">{{ t('bulkCreate.itemTitle') }} {{ item.title || t('bulkCreate.emptyTitle') }}</span><span v-if="'tags' in item" class="bulk-create-item-tags">{{ t('bulkCreate.itemTags') }} <span v-if="!item.tags.length">{{ t('bulkCreate.emptyTags') }}</span><span v-for="(tag, tagIndex) in item.tags" :key="tagIndex" class="bulk-create-tag">{{ tag }}</span></span><span v-if="'customSlug' in item" class="bulk-create-item-slug">{{ t('bulkCreate.itemSlug') }} {{ item.customSlug ? item.customSlug.toLowerCase() : t('bulkCreate.randomSlug') }}</span></li></ol>
             <v-btn data-testid="bulk-create-clear-import" variant="text" @click="state.clearImport">{{ t('bulkCreate.clearImport') }}</v-btn>
           </template>
           <v-textarea v-else v-model="state.draft.value" :label="t('bulkCreate.targets')" rows="6" variant="outlined" :disabled="state.pending.value" />
         </template>
         <template v-else>
-          <ol data-testid="bulk-create-preview-list"><li v-for="(item, index) in state.previewItems.value" :key="index"><span>{{ item.targetUrl }}</span><span v-if="'items' in state.snapshot.value" class="bulk-create-item-title">{{ t('bulkCreate.itemTitle') }} {{ item.title || t('bulkCreate.emptyTitle') }}</span><span v-if="'tags' in item" class="bulk-create-item-tags">{{ t('bulkCreate.itemTags') }} <span v-if="!item.tags.length">{{ t('bulkCreate.emptyTags') }}</span><span v-for="(tag, tagIndex) in item.tags" :key="tagIndex" class="bulk-create-tag">{{ tag }}</span></span></li></ol>
+          <ol data-testid="bulk-create-preview-list"><li v-for="(item, index) in state.previewItems.value" :key="index"><span>{{ item.targetUrl }}</span><span v-if="'items' in state.snapshot.value" class="bulk-create-item-title">{{ t('bulkCreate.itemTitle') }} {{ item.title || t('bulkCreate.emptyTitle') }}</span><span v-if="'tags' in item" class="bulk-create-item-tags">{{ t('bulkCreate.itemTags') }} <span v-if="!item.tags.length">{{ t('bulkCreate.emptyTags') }}</span><span v-for="(tag, tagIndex) in item.tags" :key="tagIndex" class="bulk-create-tag">{{ tag }}</span></span><span v-if="'customSlug' in item" class="bulk-create-item-slug">{{ t('bulkCreate.itemSlug') }} {{ item.customSlug ? item.customSlug.toLowerCase() : t('bulkCreate.randomSlug') }}</span></li></ol>
           <p>{{ t('bulkCreate.requestId') }} <code data-testid="bulk-create-request-id">{{ state.snapshot.value.requestId }}</code></p>
         </template>
         <v-alert v-if="state.errorKey.value" type="warning" variant="tonal" data-testid="bulk-create-error">{{ t(state.errorKey.value) }}</v-alert>
@@ -69,7 +69,7 @@ function selectFile(event: globalThis.Event) {
 .bulk-create-body p { margin: 0; }
 .bulk-create-body ol { padding-inline-start: 24px; }
 .bulk-create-body li + li { margin-top: 8px; }
-.bulk-create-item-title, .bulk-create-item-tags, .bulk-create-tag { display: block; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bulk-create-item-title, .bulk-create-item-tags, .bulk-create-tag, .bulk-create-item-slug { display: block; white-space: pre-wrap; overflow-wrap: anywhere; }
 .bulk-create-body code { user-select: text; }
 .bulk-create-actions { flex-wrap: wrap; }
 .bulk-create-file { display: grid; gap: 8px; min-width: 0; }
