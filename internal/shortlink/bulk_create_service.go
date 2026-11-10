@@ -45,11 +45,11 @@ func (s *Service) BatchCreate(ctx context.Context, actor auth.CurrentUser, input
 	for i, target := range input.TargetURLs {
 		items[i].TargetURL = target
 	}
-	return s.batchCreate(ctx, actor, requestID, digest, items, false)
+	return s.batchCreate(ctx, actor, requestID, digest, items, false, false)
 }
 
 // batchCreate shares authorization, locking and atomic receipts across independent wire protocols.
-func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, requestID uuid.UUID, digest [sha256.Size]byte, items []batchCreateItem, withMetadata bool) (BatchCreateResult, error) {
+func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, requestID uuid.UUID, digest [sha256.Size]byte, items []batchCreateItem, withMetadata, withCustomSlugs bool) (BatchCreateResult, error) {
 	actorID, err := uuid.Parse(actor.ID)
 	if err != nil || actorID == uuid.Nil || actorID.String() != actor.ID {
 		return BatchCreateResult{}, ErrPermissionDenied
@@ -81,6 +81,9 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 			return err
 		}
 		if group.Key == "guest" || !grants.Has(permission.ShortLinkCreate) || !grants.Has(permission.DomainUseDefault) {
+			return ErrPermissionDenied
+		}
+		if withCustomSlugs && !grants.Has(permission.ShortLinkCustomSlug) {
 			return ErrPermissionDenied
 		}
 		titles := make([]string, len(items))
@@ -124,15 +127,29 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 		if err != nil {
 			return err
 		}
+		requestedSlugs := make(map[string]bool, len(items))
+		for _, item := range items {
+			if item.CustomSlug != "" {
+				requestedSlugs[item.CustomSlug] = true
+			}
+		}
 		for i, item := range items {
 			created := false
-			for attempt := 0; attempt < maxSlugAttempts; attempt++ {
-				slug, err := generateSlug()
-				if err != nil {
-					return err
-				}
-				if isReservedSlug(slug) {
-					continue
+			attempts := maxSlugAttempts
+			if item.CustomSlug != "" {
+				attempts = 1
+			}
+			for attempt := 0; attempt < attempts; attempt++ {
+				slug := item.CustomSlug
+				if slug == "" {
+					var err error
+					slug, err = generateSlug()
+					if err != nil {
+						return err
+					}
+					if isReservedSlug(slug) || requestedSlugs[slug] {
+						continue
+					}
 				}
 				_, err = q.CreateBulkShortLink(ctx, sqlc.CreateBulkShortLinkParams{
 					ID: uuidToPgtype(uuid.New()), OwnerID: uuidToPgtype(actorID), DomainID: selected.ID,

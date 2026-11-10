@@ -83,6 +83,8 @@ func writeBulkCreateResult(w http.ResponseWriter, r *http.Request, result BatchC
 		businessError(w, CodeDomainUnavailable, "Domain unavailable")
 	case errors.Is(err, ErrSlugConflict):
 		businessError(w, CodeSlugConflict, "Slug conflict")
+	case errors.Is(err, ErrReservedSlug):
+		businessError(w, CodeReservedSlug, "Reserved slug")
 	default:
 		writeTransferResult(w, r, result, err, logger, "short_link_bulk_create_failed")
 	}
