@@ -31,6 +31,10 @@
           />
         </div>
         <p class="short-link-qr-dialog__url">{{ url }}</p>
+        <p v-if="svgGenerating" role="status">{{ t('shortLinkQr.svgGenerating') }}</p>
+        <v-alert v-else-if="svgError" type="error" variant="tonal">
+          {{ t('shortLinkQr.svgGenerateFailed') }}
+        </v-alert>
       </v-card-text>
       <v-card-actions class="short-link-qr-dialog__actions">
         <a
@@ -41,6 +45,14 @@
         >
           {{ t('shortLinkQr.download') }}
         </a>
+        <a
+          v-if="svgDataUrl"
+          class="short-link-qr-dialog__download"
+          :href="svgDataUrl"
+          :download="`moeurl-${slug}.svg`"
+        >
+          {{ t('shortLinkQr.downloadSvg') }}
+        </a>
         <v-btn variant="text" @click="$emit('update:open', false)">{{ t('shortLinkQr.close') }}</v-btn>
       </v-card-actions>
     </v-card>
@@ -48,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { qrAppearancePresets } from './appearance-presets'
 
@@ -67,7 +79,34 @@ const selectedPreset = ref<(typeof qrAppearancePresets)[number]>(qrAppearancePre
 const dataUrl = ref('')
 const generating = ref(false)
 const generationError = ref(false)
+const svgDataUrl = ref('')
+const svgGenerating = ref(false)
+const svgError = ref(false)
 let generationId = 0
+
+onBeforeUnmount(() => { generationId++ })
+
+/** Prepares a separate download without delaying or invalidating the PNG. */
+async function generateSvg(encoder: typeof import('qrcode'), url: string, dark: string, currentGeneration: number) {
+  svgGenerating.value = true
+  try {
+    const svg = await encoder.toString(url, {
+      type: 'svg', width: 320, margin: 4, errorCorrectionLevel: 'M',
+      color: { dark, light: '#FFFFFF' },
+    })
+    if (currentGeneration === generationId) {
+      svgDataUrl.value = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+    }
+  } catch {
+    if (currentGeneration === generationId) {
+      svgError.value = true
+    }
+  } finally {
+    if (currentGeneration === generationId) {
+      svgGenerating.value = false
+    }
+  }
+}
 
 watch(
   () => [props.open, props.slug, props.url] as const,
@@ -82,6 +121,9 @@ watch(
     dataUrl.value = ''
     generationError.value = false
     generating.value = false
+    svgDataUrl.value = ''
+    svgError.value = false
+    svgGenerating.value = false
     if (!open || !url) {
       return
     }
@@ -97,6 +139,7 @@ watch(
       })
       if (currentGeneration === generationId) {
         dataUrl.value = result
+        void generateSvg(QRCode, url, preset.dark, currentGeneration)
       }
     } catch {
       if (currentGeneration === generationId) {
@@ -168,6 +211,7 @@ watch(
 
 .short-link-qr-dialog__actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   padding: 0 24px 20px;
