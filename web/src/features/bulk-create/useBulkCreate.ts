@@ -144,7 +144,11 @@ export function useBulkCreate() {
       } else {
         // A definite failure on a later attempt cannot disprove an earlier unknown commit.
         unknown.value = unknown.value || error instanceof BulkCreateUnknownError
-        errorKey.value = unknown.value ? 'bulkCreate.unknown' : error instanceof ApiClientError && error.code === 200120 ? 'bulkCreate.conflict' : 'bulkCreate.failed'
+        errorKey.value = unknown.value ? 'bulkCreate.unknown'
+          : error instanceof ApiClientError && error.code === 200120 ? 'bulkCreate.conflict'
+            : mode === 'custom-slugs' && error instanceof ApiClientError && error.code === 200101 ? 'bulkCreate.customSlugTaken'
+              : mode === 'custom-slugs' && error instanceof ApiClientError && error.code === 200102 ? 'bulkCreate.customSlugReserved'
+                : 'bulkCreate.failed'
       }
     } finally { if (isCurrent(token, candidate)) pending.value = false }
   }
