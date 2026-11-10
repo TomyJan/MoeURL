@@ -11,10 +11,20 @@ const resultSchema = z.strictObject({ requestId, createdCount: z.number().int().
 export type BulkCreateInput = Readonly<{ requestId: string; targetUrls: readonly string[] }>
 export type BulkCreateItem = Readonly<{ targetUrl: string; title: string }>
 export type BulkCreateTitlesInput = Readonly<{ requestId: string; items: readonly BulkCreateItem[] }>
+export type BulkCreateMetadataItem = Readonly<{ targetUrl: string; title: string; tags: readonly string[] }>
+export type BulkCreateMetadataInput = Readonly<{ requestId: string; items: readonly BulkCreateMetadataItem[] }>
 const rawTitle = z.string().refine(value => !/[\uD800-\uDFFF]/u.test(value) && shortLinkMetadataSchema.safeParse({ title: value, tags: [] }).success)
 export const bulkCreateItemsSchema = z.array(z.strictObject({ targetUrl: target, title: rawTitle })).min(1).max(20)
   .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
 export const bulkCreateTitlesInputSchema = z.strictObject({ requestId, items: bulkCreateItemsSchema })
+  .refine(input => new TextEncoder().encode(JSON.stringify(input)).byteLength <= 65536)
+export const bulkCreateMetadataItemsSchema = z.array(z.strictObject({
+  targetUrl: target,
+  title: rawTitle,
+  tags: z.array(z.string().refine(value => !/[\uD800-\uDFFF]/u.test(value))).max(10),
+}).refine(item => shortLinkMetadataSchema.safeParse({ title: item.title, tags: item.tags }).success)).min(1).max(20)
+  .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
+export const bulkCreateMetadataInputSchema = z.strictObject({ requestId, items: bulkCreateMetadataItemsSchema })
   .refine(input => new TextEncoder().encode(JSON.stringify(input)).byteLength <= 65536)
 
 export class BulkCreateUnknownError extends Error {
@@ -40,8 +50,15 @@ export async function batchCreateShortLinksWithTitles(input: BulkCreateTitlesInp
   return sendBatch('/short-link/batch-create-with-titles', request.data, request.data.items.length, expectedUserId)
 }
 
-/** Shares bounded transport and exact receipt validation across the two independent protocols. */
-async function sendBatch(path: string, input: BulkCreateInput | BulkCreateTitlesInput, count: number, expectedUserId?: string) {
+/** Validates raw tag arrays without changing the payload used for idempotent retries. */
+export async function batchCreateShortLinksWithMetadata(input: BulkCreateMetadataInput, expectedUserId?: string) {
+  const request = bulkCreateMetadataInputSchema.safeParse(input)
+  if (!request.success) throw new ApiClientError(100001, 'Invalid metadata batch creation request')
+  return sendBatch('/short-link/batch-create-with-metadata', request.data, request.data.items.length, expectedUserId)
+}
+
+/** Shares bounded transport and exact receipt validation across independent protocols. */
+async function sendBatch(path: string, input: BulkCreateInput | BulkCreateTitlesInput | BulkCreateMetadataInput, count: number, expectedUserId?: string) {
   const controller = new AbortController()
   // Includes response-body decoding: an unacknowledged write must become recoverable.
   const deadline = setTimeout(() => controller.abort(), 15_000)

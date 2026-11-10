@@ -7,6 +7,26 @@ import BulkCreateDialog from './BulkCreateDialog.vue'
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 const clients: QueryClient[] = []
 
+it('renders raw metadata tags as text in both import and preview, including explicit empty tags', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }); clients.push(client)
+  client.setQueryData(['auth', 'me'], { user: { id: '00000000-0000-0000-0000-000000003881', username: 'creator', nickname: '', group: 'user', permissions: ['short_link:create', 'domain:use_default', 'short_link:set_metadata'] } })
+  const view = render(BulkCreateDialog, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: componentStubs } })
+  await fireEvent.click(screen.getByTestId('bulk-create-open'))
+  const tags = [' <b>literal</b> ', '工具,a'], cell = JSON.stringify(tags).replaceAll('"', '""')
+  const text = 'target_url,title,tags\nhttps://example.com,title,"' + cell + '"\nhttps://example.org,,[]'
+  const file = new File([text], 'metadata.csv', { type: 'text/csv' })
+  Object.defineProperty(file, 'arrayBuffer', { value: async () => new TextEncoder().encode(text).buffer })
+  await fireEvent.change(view.container.querySelector('input[type=file]')!, { target: { files: [file] } })
+  await waitFor(() => expect(screen.getByTestId('bulk-create-imported-list').textContent).toContain(tags[0]))
+  for (const tag of tags) expect(screen.getByTestId('bulk-create-imported-list').textContent).toContain(tag)
+  expect(screen.getByTestId('bulk-create-imported-list').textContent).toContain('bulkCreate.emptyTags')
+  expect(view.container.querySelector('b')).toBeNull()
+  await fireEvent.click(screen.getByTestId('bulk-create-preview'))
+  for (const tag of tags) expect(screen.getByTestId('bulk-create-preview-list').textContent).toContain(tag)
+  expect(screen.getByTestId('bulk-create-preview-list').textContent).toContain('bulkCreate.emptyTags')
+  expect(view.container.querySelector('b')).toBeNull()
+})
+
 it('shows literal imported titles in the draft and preview and explicitly clears them for manual input', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }); clients.push(client)
   client.setQueryData(['auth', 'me'], { user: { id: '00000000-0000-0000-0000-000000003881', username: 'creator', nickname: '', group: 'user', permissions: ['short_link:create', 'domain:use_default', 'short_link:set_metadata'] } })

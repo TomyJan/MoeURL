@@ -41,15 +41,15 @@ func (s *Service) BatchCreate(ctx context.Context, actor auth.CurrentUser, input
 	if err != nil {
 		return BatchCreateResult{}, err
 	}
-	items := make([]BatchCreateItem, len(input.TargetURLs))
+	items := make([]batchCreateItem, len(input.TargetURLs))
 	for i, target := range input.TargetURLs {
 		items[i].TargetURL = target
 	}
 	return s.batchCreate(ctx, actor, requestID, digest, items, false)
 }
 
-// batchCreate shares authorization, locking and atomic receipts between the two wire protocols.
-func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, requestID uuid.UUID, digest [sha256.Size]byte, items []BatchCreateItem, withTitles bool) (BatchCreateResult, error) {
+// batchCreate shares authorization, locking and atomic receipts across independent wire protocols.
+func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, requestID uuid.UUID, digest [sha256.Size]byte, items []batchCreateItem, withMetadata bool) (BatchCreateResult, error) {
 	actorID, err := uuid.Parse(actor.ID)
 	if err != nil || actorID == uuid.Nil || actorID.String() != actor.ID {
 		return BatchCreateResult{}, ErrPermissionDenied
@@ -84,16 +84,21 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 			return ErrPermissionDenied
 		}
 		titles := make([]string, len(items))
-		if withTitles {
+		tags := make([][]string, len(items))
+		for i := range tags {
+			tags[i] = []string{}
+		}
+		if withMetadata {
 			if !grants.Has(permission.ShortLinkSetMetadata) {
 				return ErrPermissionDenied
 			}
 			for i, item := range items {
-				title, _, err := normalizeMetadata(grants, &MetadataInput{Title: item.Title, Tags: []string{}})
+				title, normalizedTags, err := normalizeMetadata(grants, &MetadataInput{Title: item.Title, Tags: item.Tags})
 				if err != nil {
 					return err
 				}
 				titles[i] = title.String
+				tags[i] = normalizedTags
 			}
 		}
 		receipt, err := q.GetBulkCreateReceipt(ctx, sqlc.GetBulkCreateReceiptParams{
@@ -131,7 +136,7 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 				}
 				_, err = q.CreateBulkShortLink(ctx, sqlc.CreateBulkShortLinkParams{
 					ID: uuidToPgtype(uuid.New()), OwnerID: uuidToPgtype(actorID), DomainID: selected.ID,
-					Slug: slug, TargetUrl: item.TargetURL, Title: titles[i],
+					Slug: slug, TargetUrl: item.TargetURL, Title: titles[i], Tags: tags[i],
 				})
 				if errors.Is(err, pgx.ErrNoRows) {
 					continue

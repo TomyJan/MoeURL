@@ -20,57 +20,58 @@ import (
 )
 
 type Dependencies struct {
-	Logger                     *slog.Logger
-	Health                     HealthChecker
-	System                     system.ServicePort
-	SystemSettings             system.SettingsPort
-	HomeContent                system.HomeContentPort
-	Appearance                 system.AppearancePort
-	FooterLinks                system.FooterLinksPort
-	Auth                       auth.Port
-	Password                   auth.PasswordPort
-	CurrentUser                auth.CurrentUserResolver
-	ShortLink                  shortlink.Port
-	ShortLinkExport            shortlink.ExportPort
-	ShortLinkListExport        shortlink.ListExportPort
-	ShortLinkTagCatalog        shortlink.TagCatalogPort
-	AdminShortLinkTagCatalog   shortlink.AdminTagCatalogPort
-	ShortLinkNote              shortlink.NotePort
-	ShortLinkBatchNoteClear    shortlink.BatchNoteClearPort
-	ShortLinkBatchNoteReplace  shortlink.BatchNoteReplacePort
-	ShortLinkBatchNoteAppend   shortlink.BatchNoteAppendPort
-	ShortLinkNoteSearch        shortlink.NoteSearchPort
-	ShortLinkBatch             shortlink.BatchPort
-	ShortLinkTransfer          shortlink.TransferPort
-	ShortLinkBatchTransfer     shortlink.BatchTransferPort
-	ShortLinkBatchTags         shortlink.BatchTagsPort
-	ShortLinkBatchTagRename    shortlink.BatchTagRenamePort
-	ShortLinkBatchCreate       shortlink.BatchCreatePort
-	ShortLinkBatchCreateTitles shortlink.BatchCreateWithTitlesPort
-	Insights                   insights.Port
-	VisitExport                insights.VisitExportPort
-	Audit                      insights.AuditPort
-	AuditExport                insights.AuditExportPort
-	Domain                     domain.Port
-	DomainOrder                domain.OrderPort
-	DomainRedirectDefault      domain.RedirectDefaultPort
-	Redirect                   shortlink.RedirectPort
-	RedirectRecorder           event.Recorder
-	AnalyticsCountryHeader     string
-	SecureCookies              bool
-	User                       user.Port
-	UserMembership             user.GroupPort
-	UserBatchMembership        user.BatchGroupPort
-	UserPreferences            user.PreferencesPort
-	UserDomainPreference       user.DomainPreferencePort
-	UserTimeZonePreference     user.TimeZonePreferencePort
-	UserRedirectPreference     user.RedirectPreferencePort
-	UserListPreference         user.ListPreferencePort
-	UserGroup                  usergroup.Port
-	UserGroupDomainDefault     usergroup.DomainDefaultPort
-	OIDCProvider               oidc.ProviderPort
-	OIDCLogin                  oidc.LoginPort
-	StaticDir                  string
+	Logger                       *slog.Logger
+	Health                       HealthChecker
+	System                       system.ServicePort
+	SystemSettings               system.SettingsPort
+	HomeContent                  system.HomeContentPort
+	Appearance                   system.AppearancePort
+	FooterLinks                  system.FooterLinksPort
+	Auth                         auth.Port
+	Password                     auth.PasswordPort
+	CurrentUser                  auth.CurrentUserResolver
+	ShortLink                    shortlink.Port
+	ShortLinkExport              shortlink.ExportPort
+	ShortLinkListExport          shortlink.ListExportPort
+	ShortLinkTagCatalog          shortlink.TagCatalogPort
+	AdminShortLinkTagCatalog     shortlink.AdminTagCatalogPort
+	ShortLinkNote                shortlink.NotePort
+	ShortLinkBatchNoteClear      shortlink.BatchNoteClearPort
+	ShortLinkBatchNoteReplace    shortlink.BatchNoteReplacePort
+	ShortLinkBatchNoteAppend     shortlink.BatchNoteAppendPort
+	ShortLinkNoteSearch          shortlink.NoteSearchPort
+	ShortLinkBatch               shortlink.BatchPort
+	ShortLinkTransfer            shortlink.TransferPort
+	ShortLinkBatchTransfer       shortlink.BatchTransferPort
+	ShortLinkBatchTags           shortlink.BatchTagsPort
+	ShortLinkBatchTagRename      shortlink.BatchTagRenamePort
+	ShortLinkBatchCreate         shortlink.BatchCreatePort
+	ShortLinkBatchCreateTitles   shortlink.BatchCreateWithTitlesPort
+	ShortLinkBatchCreateMetadata shortlink.BatchCreateWithMetadataPort
+	Insights                     insights.Port
+	VisitExport                  insights.VisitExportPort
+	Audit                        insights.AuditPort
+	AuditExport                  insights.AuditExportPort
+	Domain                       domain.Port
+	DomainOrder                  domain.OrderPort
+	DomainRedirectDefault        domain.RedirectDefaultPort
+	Redirect                     shortlink.RedirectPort
+	RedirectRecorder             event.Recorder
+	AnalyticsCountryHeader       string
+	SecureCookies                bool
+	User                         user.Port
+	UserMembership               user.GroupPort
+	UserBatchMembership          user.BatchGroupPort
+	UserPreferences              user.PreferencesPort
+	UserDomainPreference         user.DomainPreferencePort
+	UserTimeZonePreference       user.TimeZonePreferencePort
+	UserRedirectPreference       user.RedirectPreferencePort
+	UserListPreference           user.ListPreferencePort
+	UserGroup                    usergroup.Port
+	UserGroupDomainDefault       usergroup.DomainDefaultPort
+	OIDCProvider                 oidc.ProviderPort
+	OIDCLogin                    oidc.LoginPort
+	StaticDir                    string
 }
 
 // NewRouter registers API, static-file, and short-link redirect routes.
@@ -281,6 +282,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			if dependency.ShortLinkBatchCreateTitles != nil {
 				handler := shortlink.NewBulkCreateTitlesHandler(dependency.ShortLinkBatchCreateTitles, logger)
 				businessAPI.Post("/short-link/batch-create-with-titles", handler.BatchCreateWithTitles)
+			}
+			if dependency.ShortLinkBatchCreateMetadata != nil {
+				handler := shortlink.NewBulkCreateMetadataHandler(dependency.ShortLinkBatchCreateMetadata, logger)
+				businessAPI.Post("/short-link/batch-create-with-metadata", handler.BatchCreateWithMetadata)
 			}
 			if dependency.Domain != nil {
 				domainHandler := domain.NewHandler(dependency.Domain, logger)

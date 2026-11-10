@@ -40,6 +40,28 @@ async function chooseFile(file?: File | NodeFile) {
 }
 
 describe('personal bounded creation', () => {
+  it('downloads the three-column JSON-tags template without including or changing the private draft', async () => {
+    const view = mount()
+    await waitFor(() => expect(view.client.isFetching()).toBe(0))
+    await fireEvent.click(await screen.findByTestId('bulk-create-open'))
+    await fireEvent.update(screen.getByLabelText('bulkCreate.targets'), 'https://private.example/sensitive')
+    const blobs: Blob[] = [], files: string[] = []
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, { createObjectURL: (blob: Blob) => { blobs.push(blob); return 'blob:bulk-metadata' }, revokeObjectURL: () => {} }))
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { files.push(this.download) })
+    await fireEvent.click(screen.getByText('bulkCreate.csvFormatTitle'))
+    await fireEvent.click(screen.getByRole('button', { name: 'bulkCreate.csvMetadataDownload' }))
+    expect(files).toEqual(['moeurl-metadata-template.csv'])
+    expect(blobs).toHaveLength(1)
+    const bytes = await new Promise<ArrayBuffer>(resolve => {
+      const reader = new FileReader(); reader.onload = () => resolve(reader.result as ArrayBuffer); reader.readAsArrayBuffer(blobs[0]!)
+    })
+    const text = new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes)
+    expect(text).toBe('\uFEFFtarget_url,title,tags\r\nhttps://example.com/one,Example title,"[""tools"",""a,b""]"\r\n"https://example.org/search?q=a,b","Title, with comma",[]\r\n')
+    expect((screen.getByLabelText('bulkCreate.targets') as HTMLTextAreaElement).value).toBe('https://private.example/sensitive')
+    expect(screen.getByTestId('bulk-create-csv-feedback').textContent).toBe('bulkCreate.csvDownloadStarted')
+    expect(document.querySelector('a[download]')).toBeNull()
+    expect(view.fetcher.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0)
+  })
   // Missing help, private draft leakage or a download that edits/submits the draft must fail.
   it('shows downloadable CSV help without changing the draft', async () => {
     const view = mount()
