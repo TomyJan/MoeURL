@@ -224,7 +224,7 @@ watch(
   }
 
   .short-link-qr-dialog__preview {
-    width: min(320px, 100%, 32dvh);
+    width: min(320px, 100%, 26dvh);
   }
 }
 

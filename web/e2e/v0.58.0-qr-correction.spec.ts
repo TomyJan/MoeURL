@@ -61,6 +61,8 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
           for (const name of [text.png, text.svg]) {
             await expect(dialog.getByRole('link', { name, exact: true })).toBeInViewport({ ratio: 1 })
           }
+          // Download focus must not scroll the title behind the card's clipped edge.
+          await expect(dialog.getByText(text.title, { exact: true })).toBeInViewport({ ratio: 1 })
           await page.screenshot({ path: info.outputPath(`correction-${language}-${width}-${index}.png`) })
         }
         expect(requests).toEqual([])
