@@ -16,7 +16,6 @@
             {{ t(preset.labelKey) }}
           </v-btn>
         </div>
-        <p class="short-link-qr-dialog__hint">{{ t('shortLinkQr.appearanceHint') }}</p>
         <div class="short-link-qr-dialog__presets" role="group" :aria-label="t('shortLinkQr.correction')">
           <v-btn
             v-for="level in qrCorrectionLevels"
@@ -217,6 +216,16 @@ watch(
   height: auto;
   aspect-ratio: 1;
   background: #fff;
+}
+
+@media (max-width: 600px) {
+  .short-link-qr-dialog__body {
+    gap: 8px;
+  }
+
+  .short-link-qr-dialog__preview {
+    width: min(320px, 100%, 32dvh);
+  }
 }
 
 .short-link-qr-dialog__url {
