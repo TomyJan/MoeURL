@@ -5,8 +5,8 @@ import type { Locator, Page } from '@playwright/test'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
 
 const labels = {
-  en: { target: 'Enter link', create: 'Create short link', qr: 'QR code', title: 'Short-link QR code', group: 'QR appearance', presets: ['Black and white', 'Iris blue', 'Forest green'], download: 'Download PNG', close: 'Close', more: 'More actions' },
-  zh: { target: '输入链接', create: '创建短链', qr: '二维码', title: '短链二维码', group: '二维码外观', presets: ['黑白', '鸢尾蓝', '森林绿'], download: '下载 PNG', close: '关闭', more: '更多操作' },
+  en: { target: 'Enter link', create: 'Create short link', qr: 'QR code', title: 'Short-link QR code', group: 'QR appearance', presets: ['Black and white', 'Iris blue', 'Forest green'], levels: ['M (standard)', 'Q (higher)', 'H (highest)'], download: 'Download PNG', svg: 'Download SVG', close: 'Close', more: 'More actions' },
+  zh: { target: '输入链接', create: '创建短链', qr: '二维码', title: '短链二维码', group: '二维码外观', presets: ['黑白', '鸢尾蓝', '森林绿'], levels: ['M（标准）', 'Q（较高）', 'H（最高）'], download: '下载 PNG', svg: '下载 SVG', close: '关闭', more: '更多操作' },
 } as const
 const colors = ['0,0,0,255', '49,46,129,255', '20,83,45,255']
 
@@ -73,7 +73,7 @@ for (const language of ['en', 'zh'] as const) {
           await download.saveAs(downloadedPath)
           expect(await readFile(downloadedPath)).toEqual(Buffer.from(preview!.split(',')[1]!, 'base64'))
           await expectNoHorizontalOverflow(page)
-          await expectControlsInViewport(page, dialog)
+          await expectControlsInViewport(page, dialog, text)
           await page.screenshot({ path: info.outputPath(`qr-${language}-${index}-screen.png`) })
           await info.attach(`qr-${language}-${index}-pixels`, { body: JSON.stringify(pixels), contentType: 'application/json' })
           // Download clicks move focus; resume Tab navigation from the selected appearance.
@@ -149,6 +149,13 @@ test('v0.32.0 long public QR URL preserves mobile layout and keyboard access', a
     for (const border of [pixels.left, pixels.top, pixels.right, pixels.bottom]) expect(border).toBeGreaterThanOrEqual(4 * pixels.finderBar / 7 - 1)
     await page.keyboard.press('Tab')
     await expect(group.getByRole('button', { name: labels.zh.presets[2], exact: true })).toBeFocused()
+    // The correction choices sit between the appearance controls and downloads.
+    for (const [index, name] of labels.zh.levels.entries()) {
+      await page.keyboard.press('Tab')
+      const correction = dialog.getByRole('button', { name, exact: true })
+      await expect(correction).toBeFocused()
+      await expect(correction).toHaveAttribute('aria-pressed', String(index === 0))
+    }
     await page.keyboard.press('Tab')
     const download = dialog.getByRole('link', { name: labels.zh.download, exact: true })
     await expect(download).toBeFocused()
@@ -177,6 +184,7 @@ test('v0.32.0 long public QR URL preserves mobile layout and keyboard access', a
     const close = dialog.getByRole('button', { name: labels.zh.close, exact: true })
     await expect(close).toBeFocused()
     await expect(close).toBeInViewport({ ratio: 1 })
+    await expectControlsInViewport(page, dialog, labels.zh)
     await page.screenshot({ path: info.outputPath('qr-long-url-mobile-screen.png') })
     await info.attach('qr-long-url-contract', { body: JSON.stringify({ publicUrl, pixels, viewport: page.viewportSize() }), contentType: 'application/json' })
     await page.keyboard.press('Enter')
@@ -240,9 +248,15 @@ async function readPixels(image: Locator) {
 }
 
 /** Verifies all dialog actions are visible in the current real viewport. */
-async function expectControlsInViewport(page: Page, dialog: Locator) {
+async function expectControlsInViewport(page: Page, dialog: Locator, text: (typeof labels)[keyof typeof labels]) {
   const viewport = page.viewportSize()!
-  for (const control of await dialog.locator('button,a').all()) {
+  const controls = [
+    ...[...text.presets, ...text.levels, text.close].map(name => dialog.getByRole('button', { name, exact: true })),
+    ...[text.download, text.svg].map(name => dialog.getByRole('link', { name, exact: true })),
+  ]
+  await expect(dialog.getByText(text.title, { exact: true })).toBeInViewport({ ratio: 1 })
+  for (const control of controls) {
+    await expect(control).toBeInViewport({ ratio: 1 })
     const box = await control.boundingBox()
     expect(box).not.toBeNull()
     expect(box!.x).toBeGreaterThanOrEqual(0)
