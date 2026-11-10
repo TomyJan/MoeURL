@@ -426,6 +426,9 @@ export const messages = {
       imageAlt: '短链二维码',
       generateFailed: '二维码生成失败，请稍后重试。',
       download: '下载 PNG',
+      downloadSvg: '下载 SVG',
+      svgGenerating: '正在准备 SVG 下载…',
+      svgGenerateFailed: 'SVG 生成失败。PNG 仍可使用，可切换外观后重试。',
       close: '关闭',
     },
     redirect: {
@@ -1289,6 +1292,9 @@ export const messages = {
       imageAlt: 'Short-link QR code',
       generateFailed: 'Failed to generate the QR code. Try again.',
       download: 'Download PNG',
+      downloadSvg: 'Download SVG',
+      svgGenerating: 'Preparing SVG download…',
+      svgGenerateFailed: 'SVG generation failed. PNG is still available. Change appearance to retry.',
       close: 'Close',
     },
     redirect: {
