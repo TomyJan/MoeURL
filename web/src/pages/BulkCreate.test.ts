@@ -67,6 +67,28 @@ describe('personal bounded creation', () => {
     expect(document.querySelector('a[download]')).toBeNull()
     expect(view.fetcher.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0)
   })
+  // Wiring the title button to the old template would silently produce a file with no title column.
+  it('downloads the two-column public template without leaking or changing the private draft', async () => {
+    const view = mount()
+    await waitFor(() => expect(view.client.isFetching()).toBe(0))
+    await fireEvent.click(await screen.findByTestId('bulk-create-open'))
+    await fireEvent.update(screen.getByLabelText('bulkCreate.targets'), 'https://private.example/sensitive')
+    const blobs: Blob[] = [], files: string[] = []
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, { createObjectURL: (blob: Blob) => { blobs.push(blob); return 'blob:bulk-titles' }, revokeObjectURL: () => {} }))
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { files.push(this.download) })
+    await fireEvent.click(screen.getByText('bulkCreate.csvFormatTitle'))
+    await fireEvent.click(screen.getByRole('button', { name: 'bulkCreate.csvTitlesDownload' }))
+    expect(files).toEqual(['moeurl-titles-template.csv'])
+    expect(blobs).toHaveLength(1)
+    const bytes = await new Promise<ArrayBuffer>(resolve => {
+      const reader = new FileReader(); reader.onload = () => resolve(reader.result as ArrayBuffer); reader.readAsArrayBuffer(blobs[0]!)
+    })
+    expect([...new Uint8Array(bytes)]).toEqual([...new TextEncoder().encode('\uFEFFtarget_url,title\r\nhttps://example.com/one,Example title\r\n"https://example.org/search?q=a,b","Title, with comma"\r\n')])
+    expect((screen.getByLabelText('bulkCreate.targets') as HTMLTextAreaElement).value).toBe('https://private.example/sensitive')
+    expect(screen.getByTestId('bulk-create-csv-feedback').textContent).toBe('bulkCreate.csvDownloadStarted')
+    expect(document.querySelector('a[download]')).toBeNull()
+    expect(view.fetcher.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0)
+  })
   // Download errors belong to the help, never to the import error or draft; reopening clears them.
   it('retries a failed template download without replacing the import error and resets on reopen', async () => {
     const view = mount()
