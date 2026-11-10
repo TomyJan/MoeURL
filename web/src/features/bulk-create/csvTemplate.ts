@@ -13,3 +13,10 @@ export const bulkCreateTitlesCsvTemplate = {
   contentType: 'text/csv;charset=utf-8' as const,
   content: '\uFEFF' + bulkCreateTitlesCsvExample.replaceAll('\n', '\r\n') + '\r\n',
 }
+
+export const bulkCreateMetadataCsvExample = 'target_url,title,tags\nhttps://example.com/one,Example title,"[""tools"",""a,b""]"\n"https://example.org/search?q=a,b","Title, with comma",[]'
+export const bulkCreateMetadataCsvTemplate = {
+  fileName: 'moeurl-metadata-template.csv',
+  contentType: 'text/csv;charset=utf-8' as const,
+  content: '\uFEFF' + bulkCreateMetadataCsvExample.replaceAll('\n', '\r\n') + '\r\n',
+}

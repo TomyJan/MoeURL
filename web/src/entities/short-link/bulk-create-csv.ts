@@ -1,8 +1,8 @@
-import { bulkCreateTitlesInputSchema, bulkCreateTargetsSchema, type BulkCreateItem } from './bulk-create'
+import { bulkCreateTitlesInputSchema, bulkCreateMetadataInputSchema, bulkCreateTargetsSchema, type BulkCreateItem, type BulkCreateMetadataItem } from './bulk-create'
 
 export const BULK_CSV_MAX_BYTES = 65536
 type CsvResult = { success: true; data: string[] } | { success: false }
-type ImportResult = { success: true; mode: 'targets'; data: string[] } | { success: true; mode: 'titles'; data: BulkCreateItem[] } | { success: false }
+type ImportResult = { success: true; mode: 'targets'; data: string[] } | { success: true; mode: 'titles'; data: BulkCreateItem[] } | { success: true; mode: 'metadata'; data: BulkCreateMetadataItem[] } | { success: false }
 
 /** Preserves the legacy one-column consumer contract. */
 export function parseBulkCreateCsv(text: string): CsvResult {
@@ -31,7 +31,7 @@ export function parseBulkCreateImportCsv(text: string): ImportResult {
       else return invalid
     } else if (character === ',') {
       fields.push(field); field = ''; state = 'start'
-      if (fields.length > 1) return invalid
+      if (fields.length > 2) return invalid
     } else if (character === '\n' || character === '\r') {
       if (character === '\r' && input[++i] !== '\n') return invalid
       rows.push([...fields, field])
@@ -48,6 +48,13 @@ export function parseBulkCreateImportCsv(text: string): ImportResult {
   if (header.length === 1 && header[0] === 'target_url' && rows.every(row => row.length === 1)) {
     const parsed = bulkCreateTargetsSchema.safeParse(rows.map(row => row[0]!))
     return parsed.success ? { success: true, mode: 'targets', data: parsed.data } : invalid
+  }
+  if (header.length === 3 && header[0] === 'target_url' && header[1] === 'title' && header[2] === 'tags' && rows.every(row => row.length === 3)) {
+    try {
+      const items = rows.map(row => ({ targetUrl: row[0]!, title: row[1]!, tags: JSON.parse(row[2]!) as unknown }))
+      const parsed = bulkCreateMetadataInputSchema.safeParse({ requestId: '11111111-1111-4111-8111-111111111111', items })
+      return parsed.success ? { success: true, mode: 'metadata', data: parsed.data.items } : invalid
+    } catch { return invalid }
   }
   if (header.length !== 2 || header[0] !== 'target_url' || header[1] !== 'title' || rows.some(row => row.length !== 2)) return invalid
   // UUIDs always occupy 36 ASCII bytes; validate the complete future wire body before replacing a draft.

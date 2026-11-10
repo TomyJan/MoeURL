@@ -5,9 +5,12 @@
       <p>{{ t('bulkCreate.csvFormatRules') }}</p>
       <pre><code data-testid="bulk-create-csv-example">{{ bulkCreateCsvExample }}</code></pre>
       <p>{{ t('bulkCreate.csvReplaceExamples') }}</p>
-      <v-btn variant="tonal" @click="downloadTemplate(false)">{{ t('bulkCreate.csvDownload') }}</v-btn>
+      <v-btn variant="tonal" @click="downloadTemplate('targets')">{{ t('bulkCreate.csvDownload') }}</v-btn>
       <pre><code data-testid="bulk-create-csv-titles-example">{{ bulkCreateTitlesCsvExample }}</code></pre>
-      <v-btn variant="tonal" @click="downloadTemplate(true)">{{ t('bulkCreate.csvTitlesDownload') }}</v-btn>
+      <v-btn variant="tonal" @click="downloadTemplate('titles')">{{ t('bulkCreate.csvTitlesDownload') }}</v-btn>
+      <p>{{ t('bulkCreate.csvTagsRules') }}</p>
+      <pre><code data-testid="bulk-create-csv-metadata-example">{{ bulkCreateMetadataCsvExample }}</code></pre>
+      <v-btn variant="tonal" @click="downloadTemplate('metadata')">{{ t('bulkCreate.csvMetadataDownload') }}</v-btn>
       <p v-if="feedback" role="status" data-testid="bulk-create-csv-feedback">{{ t(feedback) }}</p>
     </div>
   </details>
@@ -16,15 +19,15 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { downloadCsv } from '@/shared/download/csv'
-import { bulkCreateCsvExample, bulkCreateCsvTemplate, bulkCreateTitlesCsvExample, bulkCreateTitlesCsvTemplate } from './csvTemplate'
+import { bulkCreateCsvExample, bulkCreateCsvTemplate, bulkCreateTitlesCsvExample, bulkCreateTitlesCsvTemplate, bulkCreateMetadataCsvExample, bulkCreateMetadataCsvTemplate } from './csvTemplate'
 
 const { t } = useI18n()
 const feedback = ref('')
 /** Downloads only the public template; import and submission state remain owned by the parent. */
-function downloadTemplate(titles: boolean) {
+function downloadTemplate(mode: 'targets' | 'titles' | 'metadata') {
   feedback.value = ''
   try {
-    downloadCsv(titles ? bulkCreateTitlesCsvTemplate : bulkCreateCsvTemplate)
+    downloadCsv(mode === 'metadata' ? bulkCreateMetadataCsvTemplate : mode === 'titles' ? bulkCreateTitlesCsvTemplate : bulkCreateCsvTemplate)
     feedback.value = 'bulkCreate.csvDownloadStarted'
   } catch {
     feedback.value = 'bulkCreate.csvDownloadFailed'

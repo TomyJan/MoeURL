@@ -43,6 +43,63 @@ function pendingFile(text = 'target_url\nhttps://example.com/imported') {
 afterEach(() => { onlineManager.setOnline(true); clients.splice(0).forEach(client => client.clear()); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks() })
 
 describe('batch lifecycle and retry safety', () => {
+  it('keeps raw tag arrays immutable and retries an unknown metadata write through the same protocol and UUID', async () => {
+    const { state, fetcher } = mount({ ...actor, permissions: [...actor.permissions, 'short_link:set_metadata'] })
+    const items = [{ targetUrl: 'https://example.org/tags', title: ' raw ', tags: ['　工具　', 'a,b'] }]
+    const csv = 'target_url,title,tags\nhttps://example.org/tags, raw ,"[""　工具　"",""a,b""]"'
+    state.begin()
+    const file = pendingFile(csv), read = state.importFile(file.file); file.resolve(); await read
+    expect(state.errorKey.value).toBe('')
+    expect(state.importedItems.value).toEqual(items)
+    state.preview()
+    const captured = state.snapshot.value!
+    expect(captured).toMatchObject({ items })
+    expect(Object.isFrozen(captured)).toBe(true)
+    expect(Object.isFrozen(state.importedItems.value)).toBe(true)
+    expect(Object.isFrozen(state.importedItems.value![0])).toBe(true)
+    expect(Object.isFrozen((state.importedItems.value![0] as typeof items[0]).tags)).toBe(true)
+    fetcher.mockRejectedValueOnce(new Error('lost acknowledgement'))
+    await state.submit()
+    expect(state.unknown.value).toBe(true)
+    state.edit(); state.clearImport(); state.preview()
+    expect(state.snapshot.value).toBe(captured)
+    fetcher.mockImplementationOnce(async () => response({ requestId: captured.requestId, createdCount: 1 }))
+    await state.submit()
+    expect(fetcher.mock.calls).toHaveLength(2)
+    for (const [url, init] of fetcher.mock.calls) {
+      expect(url).toBe('/api/v1/short-link/batch-create-with-metadata')
+      expect(JSON.parse(init!.body as string)).toEqual(captured)
+      expect(init!.headers).toMatchObject({ 'X-MoeURL-Expected-User-ID': actor.id })
+    }
+    expect(state.opened.value).toBe(false)
+  })
+  it('keeps empty-tag CSV on the metadata protocol and clears it immediately on metadata revocation', async () => {
+    const { state, client, fetcher } = mount({ ...actor, permissions: [...actor.permissions, 'short_link:set_metadata'] })
+    state.begin()
+    const file = pendingFile('target_url,title,tags\nhttps://example.org/tags,,[]')
+    const read = state.importFile(file.file); file.resolve(); await read
+    expect(state.importedItems.value).toEqual([{ targetUrl: 'https://example.org/tags', title: '', tags: [] }])
+    state.preview()
+    client.setQueryData(['auth', 'me'], { user: actor })
+    expect(state.opened.value).toBe(false)
+    expect(state.snapshot.value).toBeNull()
+    expect(state.importedItems.value).toBeNull()
+    await state.submit(); expect(fetcher).not.toHaveBeenCalled()
+  })
+  it('rejects a late metadata file after revoke and restore without losing the manual draft', async () => {
+    const authorized = { ...actor, permissions: [...actor.permissions, 'short_link:set_metadata'] }
+    const { state, client, fetcher } = mount(authorized)
+    state.begin(); state.draft.value = 'https://example.org/keep'
+    const file = pendingFile('target_url,title,tags\nhttps://example.org/tags,,[]')
+    const read = state.importFile(file.file)
+    client.setQueryData(['auth', 'me'], { user: actor })
+    client.setQueryData(['auth', 'me'], { user: authorized })
+    file.resolve(); await read
+    expect(state.errorKey.value).toBe('bulkCreate.metadataRequired')
+    expect(state.draft.value).toBe('https://example.org/keep')
+    expect(state.importedItems.value).toBeNull()
+    expect(fetcher).not.toHaveBeenCalled()
+  })
   it.each(['manual', 'titles'])('preserves the prior %s draft when an allowed-size CSV would exceed the complete JSON request limit', async mode => {
     const { state, fetcher } = mount({ ...actor, permissions: [...actor.permissions, 'short_link:set_metadata'] })
     state.begin(); state.draft.value = 'https://example.org/keep'
