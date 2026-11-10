@@ -53,7 +53,14 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
           await expect(color).toHaveAttribute('aria-pressed', 'true')
           await verifyDownloads(page, dialog, text, url, link.slug, levels[index]!, colors[index]!, info, `${language}-${width}-${index}`)
           await expectNoHorizontalOverflow(page)
-          for (const control of await dialog.locator('button,a').all()) await expect(control).toBeInViewport({ ratio: 1 })
+          // Notification close buttons may expire while the dialog remains open.
+          // Verify every stable QR control by name, without hiding notifications.
+          for (const name of [...text.colors, ...text.levels, text.close]) {
+            await expect(dialog.getByRole('button', { name, exact: true })).toBeInViewport({ ratio: 1 })
+          }
+          for (const name of [text.png, text.svg]) {
+            await expect(dialog.getByRole('link', { name, exact: true })).toBeInViewport({ ratio: 1 })
+          }
           await page.screenshot({ path: info.outputPath(`correction-${language}-${width}-${index}.png`) })
         }
         expect(requests).toEqual([])
