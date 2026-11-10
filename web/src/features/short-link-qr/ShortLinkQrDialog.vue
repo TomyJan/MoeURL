@@ -17,6 +17,19 @@
           </v-btn>
         </div>
         <p class="short-link-qr-dialog__hint">{{ t('shortLinkQr.appearanceHint') }}</p>
+        <div class="short-link-qr-dialog__presets" role="group" :aria-label="t('shortLinkQr.correction')">
+          <v-btn
+            v-for="level in qrCorrectionLevels"
+            :key="level.key"
+            type="button"
+            :variant="selectedCorrection === level.key ? 'tonal' : 'outlined'"
+            :aria-pressed="selectedCorrection === level.key"
+            @click="selectedCorrection = level.key"
+          >
+            {{ t(level.labelKey) }}
+          </v-btn>
+        </div>
+        <p class="short-link-qr-dialog__hint">{{ t('shortLinkQr.correctionHint') }}</p>
         <div class="short-link-qr-dialog__preview" aria-live="polite">
           <v-progress-linear v-if="generating" indeterminate />
           <v-alert v-else-if="generationError" type="error" variant="tonal">
@@ -63,6 +76,7 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { qrAppearancePresets } from './appearance-presets'
+import { qrCorrectionLevels, type QrCorrectionLevel } from './error-correction-levels'
 
 const props = defineProps<{
   open: boolean
@@ -76,6 +90,7 @@ defineEmits<{
 
 const { t } = useI18n()
 const selectedPreset = ref<(typeof qrAppearancePresets)[number]>(qrAppearancePresets[0])
+const selectedCorrection = ref<QrCorrectionLevel>('M')
 const dataUrl = ref('')
 const generating = ref(false)
 const generationError = ref(false)
@@ -87,11 +102,11 @@ let generationId = 0
 onBeforeUnmount(() => { generationId++ })
 
 /** Prepares a separate download without delaying or invalidating the PNG. */
-async function generateSvg(encoder: typeof import('qrcode'), url: string, dark: string, currentGeneration: number) {
+async function generateSvg(encoder: typeof import('qrcode'), url: string, dark: string, correction: QrCorrectionLevel, currentGeneration: number) {
   svgGenerating.value = true
   try {
     const svg = await encoder.toString(url, {
-      type: 'svg', width: 320, margin: 4, errorCorrectionLevel: 'M',
+      type: 'svg', width: 320, margin: 4, errorCorrectionLevel: correction,
       color: { dark, light: '#FFFFFF' },
     })
     if (currentGeneration === generationId) {
@@ -110,13 +125,16 @@ async function generateSvg(encoder: typeof import('qrcode'), url: string, dark: 
 
 watch(
   () => [props.open, props.slug, props.url] as const,
-  () => { selectedPreset.value = qrAppearancePresets[0] },
+  () => {
+    selectedPreset.value = qrAppearancePresets[0]
+    selectedCorrection.value = 'M'
+  },
   { flush: 'sync' },
 )
 
 watch(
-  () => [props.open, props.slug, props.url, selectedPreset.value] as const,
-  async ([open, , url, preset]) => {
+  () => [props.open, props.slug, props.url, selectedPreset.value, selectedCorrection.value] as const,
+  async ([open, , url, preset, correction]) => {
     const currentGeneration = ++generationId
     dataUrl.value = ''
     generationError.value = false
@@ -134,12 +152,12 @@ watch(
       const result = await QRCode.toDataURL(url, {
         width: 320,
         margin: 4,
-        errorCorrectionLevel: 'M',
+        errorCorrectionLevel: correction,
         color: { dark: preset.dark, light: '#FFFFFF' },
       })
       if (currentGeneration === generationId) {
         dataUrl.value = result
-        void generateSvg(QRCode, url, preset.dark, currentGeneration)
+        void generateSvg(QRCode, url, preset.dark, correction, currentGeneration)
       }
     } catch {
       if (currentGeneration === generationId) {
