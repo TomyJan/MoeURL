@@ -186,7 +186,7 @@ watch(
 .short-link-qr-dialog__preview {
   display: grid;
   place-items: center;
-  width: min(320px, 100%);
+  width: min(320px, 100%, 36dvh);
   aspect-ratio: 1;
 }
 
