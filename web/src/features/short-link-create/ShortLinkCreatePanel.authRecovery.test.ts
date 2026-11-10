@@ -12,11 +12,13 @@ const globalId = '11111111-1111-4111-8111-111111111111'
 const assignedId = '22222222-2222-4222-8222-222222222222'
 const target = 'https://target.example/preserved'
 const user = { id: 'A', username: 'alice', nickname: '', group: 'user', permissions: ['short_link:create', 'domain:use_default', 'domain:use_assigned'] }
+/** Holds an auth response until the test has exercised a pending retry or revoked identity. */
 function deferred() {
   let resolve!: () => void
   const promise = new Promise<void>(done => { resolve = done })
   return { promise, resolve }
 }
+/** Mounts the real panel with HTTP-level auth failures; cached mode exercises background recovery without losing the draft. */
 function mount(cached = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity, staleTime: Infinity, refetchOnWindowFocus: false } } })
   clients.push(client)

@@ -2,7 +2,9 @@
 
 ## 当前进展（2026-11-10）
 
-[v0.53.0](product/scope-v0.53.0.md) 和 [v0.53.1](product/scope-v0.53.1.md) 已分别通过 PR287／[PR288](https://github.com/TomyJan/MoeURL/pull/288) 完整交付，最新 master `20757ce1b1bd8c4438bac5d568da6dedac44e146`。最新真实 CodeRabbit、独立终审、正常合并独立核验、标准任务及可恢复归档完成。v0.53.1 的 5 项桌面／手机焦点与重连回归、types／lint 通过，产品仍为 0.53.0；v0.53.0 原完整浏览器 238 通过／1 项超时及诊断保持原归属，不改写为单次全绿。当前开始 [v0.53.2 创建身份读取恢复](product/scope-v0.53.2.md)：增加局部错误提示和重试入口，保草稿及原身份权限守卫；本地实现与验证已完成：3732 项前端／四 100%、types／lint／build，完整浏览器原 241 成功／4 项测试 fixture 失败，修 fixture 后四恢复场景及额外初始化 1 项通过，产品未变；12 张原图已核。手机首次填值截图捕捉到浮动标签的 150 ms 动画过渡帧，原 trace 后续帧及 DOM 确认标签上移、输入保留；独立终审无阻断意见，最新真实 CodeRabbit、合并及归档仍待。无 API、数据库或依赖变化。不查、不等或冒称 GitHub CI，未发布部署。
+[v0.53.2](product/scope-v0.53.2.md) 已通过 [PR289](https://github.com/TomyJan/MoeURL/pull/289) 完整交付，master `ef47a7ba33cc405b96c3058d5183b26d849b7571`。3732 项前端／四 100%、types／lint／build、唯一独立终审、最新 head 真实 CodeRabbit、正常合并独立核验、标准任务及可恢复归档完成。完整浏览器原 241 成功／4 项 fixture 失败，同产品补验四项及初始化 1 项通过，非单次 245 绿；12 张原图和 label 动画已核，旧超时根因未证明。
+
+当前实施 [v0.54.0 CSV 标题导入](product/scope-v0.54.0.md)：兼容单列 URL，新增固定网址＋标题双列、只读结构化草稿和独立严格 API；保持当前权限、原子幂等和同身份手动重试。本地实现与唯一终审修复已完成，3813 项前端／四 100%、完整后端及准确新产品 251 个浏览器场景已验证；最新真实 CodeRabbit、正常合并与恢复归档仍待；无新依赖、权限或迁移。前版两项可维护性 Minor 由本版补齐交付文档和 fixture 用途注释。不查、不等或冒称 GitHub CI，未发布部署。
 
 v0.52.1 已通过 [PR281](https://github.com/TomyJan/MoeURL/pull/281) 完整交付，master `82355d63e2b7111912ac2d5eb6b067a3e1c14b5a`。最新 ca1 真实 CodeRabbit 覆盖、有效问题闭环、正常合并独立 API／fetch／SHA／tree／唯一父核验、标准 Task1–3 及 20 条裁决／11 文件可恢复归档完成。完整 3642 项前端／四项 100%、228 项浏览器和 28 张原图保持原执行身份，后继测试增量另有验证，见[验收](implementation/v0.52.1-acceptance.md)。不等待或冒称 GitHub CI，未发布部署。
 

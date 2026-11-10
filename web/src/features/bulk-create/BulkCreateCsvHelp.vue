@@ -5,7 +5,9 @@
       <p>{{ t('bulkCreate.csvFormatRules') }}</p>
       <pre><code data-testid="bulk-create-csv-example">{{ bulkCreateCsvExample }}</code></pre>
       <p>{{ t('bulkCreate.csvReplaceExamples') }}</p>
-      <v-btn variant="tonal" @click="downloadTemplate">{{ t('bulkCreate.csvDownload') }}</v-btn>
+      <v-btn variant="tonal" @click="downloadTemplate(false)">{{ t('bulkCreate.csvDownload') }}</v-btn>
+      <pre><code data-testid="bulk-create-csv-titles-example">{{ bulkCreateTitlesCsvExample }}</code></pre>
+      <v-btn variant="tonal" @click="downloadTemplate(true)">{{ t('bulkCreate.csvTitlesDownload') }}</v-btn>
       <p v-if="feedback" role="status" data-testid="bulk-create-csv-feedback">{{ t(feedback) }}</p>
     </div>
   </details>
@@ -14,15 +16,15 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { downloadCsv } from '@/shared/download/csv'
-import { bulkCreateCsvExample, bulkCreateCsvTemplate } from './csvTemplate'
+import { bulkCreateCsvExample, bulkCreateCsvTemplate, bulkCreateTitlesCsvExample, bulkCreateTitlesCsvTemplate } from './csvTemplate'
 
 const { t } = useI18n()
 const feedback = ref('')
 /** Downloads only the public template; import and submission state remain owned by the parent. */
-function downloadTemplate() {
+function downloadTemplate(titles: boolean) {
   feedback.value = ''
   try {
-    downloadCsv(bulkCreateCsvTemplate)
+    downloadCsv(titles ? bulkCreateTitlesCsvTemplate : bulkCreateCsvTemplate)
     feedback.value = 'bulkCreate.csvDownloadStarted'
   } catch {
     feedback.value = 'bulkCreate.csvDownloadFailed'

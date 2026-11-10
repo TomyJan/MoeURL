@@ -43,6 +43,139 @@ function pendingFile(text = 'target_url\nhttps://example.com/imported') {
 afterEach(() => { onlineManager.setOnline(true); clients.splice(0).forEach(client => client.clear()); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks() })
 
 describe('batch lifecycle and retry safety', () => {
+  it.each(['manual', 'titles'])('preserves the prior %s draft when an allowed-size CSV would exceed the complete JSON request limit', async mode => {
+    const { state, fetcher } = mount({ ...actor, permissions: [...actor.permissions, 'short_link:set_metadata'] })
+    state.begin(); state.draft.value = 'https://example.org/keep'
+    if (mode === 'titles') {
+      const previous = pendingFile('target_url,title\nhttps://example.org/keep,original title')
+      const reading = state.importFile(previous.file); previous.resolve(); await reading
+    }
+    const previousItems = state.importedItems.value, previousDraft = state.draft.value
+    const file = pendingFile('target_url,title\nhttps://example.com,' + ' '.repeat(65499))
+    const reading = state.importFile(file.file); file.resolve(); await reading
+    expect(state.errorKey.value).toBe('bulkCreate.csvInvalid')
+    expect(state.importedItems.value).toBe(previousItems)
+    expect(state.draft.value).toBe(previousDraft)
+    expect(state.reading.value).toBe(false); expect(state.snapshot.value).toBeNull()
+    expect(fetcher).not.toHaveBeenCalled()
+    state.preview()
+    expect(state.snapshot.value).toMatchObject(mode === 'titles' ? { items: [{ targetUrl: 'https://example.org/keep', title: 'original title' }] } : { targetUrls: ['https://example.org/keep'] })
+  })
+  // A metadata-only revocation must not discard a legacy URL-only batch or change its endpoint.
+  it('keeps a URL-only preview usable after metadata permission is withdrawn', async () => {
+    const { state, client, fetcher } = mount({ ...actor, permissions: [...actor.permissions, 'short_link:set_metadata'] })
+    expect(state.previewItems.value).toEqual([])
+    const input = preview(state)
+    client.setQueryData(['auth', 'me'], { user: actor })
+    expect(state.snapshot.value).toBe(input)
+    expect(state.previewItems.value).toEqual([{ targetUrl: 'https://example.com/one', title: '' }, { targetUrl: 'https://example.org/two', title: '' }])
+    await state.submit()
+    expect(fetcher.mock.calls[0]![0]).toBe('/api/v1/short-link/batch-create')
+    expect(state.opened.value).toBe(false)
+    expect(state.previewItems.value).toEqual([])
+  })
+  // Preview must read current grants even if another cache consumer mutates data without an event.
+  it('refuses a titled preview when cached grants change without notifying observers', async () => {
+    const { state, client, fetcher } = mount({ ...actor, permissions: [...actor.permissions, 'short_link:set_metadata'] })
+    state.begin()
+    const file = pendingFile('target_url,title\nhttps://example.com/a,title')
+    const read = state.importFile(file.file); file.resolve(); await read
+    client.getQueryData<{ user: typeof actor }>(['auth', 'me'])!.user.permissions = [...actor.permissions]
+    state.preview()
+    expect(state.opened.value).toBe(false); expect(state.snapshot.value).toBeNull(); expect(state.importedItems.value).toBeNull()
+    await state.submit(); expect(fetcher).not.toHaveBeenCalled()
+  })
+  it.each(['titles', 'targets'])('blocks late %s import appropriately after metadata revocation and restoration', async mode => {
+    const withMetadata = { ...actor, permissions: [...actor.permissions, 'short_link:set_metadata'] }
+    const { state, client } = mount(withMetadata); state.begin(); state.draft.value = 'https://example.com/manual'
+    const file = pendingFile(mode === 'titles' ? 'target_url,title\nhttps://example.com/imported,title' : undefined)
+    const request = state.importFile(file.file)
+    client.setQueryData(['auth', 'me'], { user: actor })
+    client.setQueryData(['auth', 'me'], { user: withMetadata })
+    file.resolve(); await request
+    expect(state.importedItems.value).toBeNull()
+    expect(state.draft.value).toBe(mode === 'titles' ? 'https://example.com/manual' : 'https://example.com/imported')
+    expect(state.errorKey.value).toBe(mode === 'titles' ? 'bulkCreate.metadataRequired' : '')
+    expect(state.reading.value).toBe(false)
+  })
+
+  it.each(['draft', 'preview', 'queued', 'unknown', 'pending success', 'pending error'])('retires titled %s on same-tick metadata revocation', async stage => {
+    const withMetadata = { ...actor, permissions: [...actor.permissions, 'short_link:set_metadata'] }
+    const { state, client, fetcher, invalidations } = mount(withMetadata); state.begin()
+    const file = pendingFile('target_url,title\nhttps://example.com/a,title')
+    const read = state.importFile(file.file); file.resolve(); await read
+    expect(Object.isFrozen(state.importedItems.value)).toBe(true)
+    expect(Object.isFrozen(state.importedItems.value![0])).toBe(true)
+    if (stage !== 'draft') state.preview()
+    const pending = createDeferred<Response>()
+    let request: Promise<void> | undefined
+    if (stage === 'unknown') { fetcher.mockRejectedValueOnce(new Error('lost')); await state.submit() }
+    if (stage.startsWith('pending')) {
+      fetcher.mockReturnValueOnce(pending.promise); request = state.submit()
+      await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
+    } else if (stage === 'queued') request = state.submit()
+    client.setQueryData(['auth', 'me'], { user: actor })
+    client.setQueryData(['auth', 'me'], { user: withMetadata })
+    expect(state.opened.value).toBe(false); expect(state.importedItems.value).toBeNull(); expect(state.snapshot.value).toBeNull()
+    if (stage === 'pending success') pending.resolve(response({ requestId: '00000000-0000-0000-0000-000000003891', createdCount: 1 }))
+    if (stage === 'pending error') pending.reject(new Error('offline'))
+    await request
+    expect(invalidations).not.toHaveBeenCalled(); expect(toast.success).not.toHaveBeenCalled()
+    expect(state.errorKey.value).toBe(''); expect(state.pending.value).toBe(false)
+    if (stage === 'queued') expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('preserves structured drafts across bad files and explicit edit, but clear-all cancels a late replacement', async () => {
+    const { state } = mount({ ...actor, permissions: [...actor.permissions, 'short_link:set_metadata'] }); state.begin()
+    const initial = pendingFile('target_url,title\nhttps://example.com/a,原始标题')
+    const read = state.importFile(initial.file); initial.resolve(); await read
+    const original = state.importedItems.value
+    const bad = pendingFile('target_url,title\nhttps://example.com/b,' + 'x'.repeat(121))
+    const failed = state.importFile(bad.file); bad.resolve(); await failed
+    expect(state.importedItems.value).toBe(original)
+    state.preview(); expect(state.previewItems.value).toEqual([{ targetUrl: 'https://example.com/a', title: '原始标题' }])
+    state.clearImport(); expect(state.importedItems.value).toBe(original)
+    state.edit(); expect(state.importedItems.value).toBe(original)
+    const late = pendingFile('target_url,title\nhttps://example.com/b,new')
+    const replacement = state.importFile(late.file); state.clearImport(); late.resolve(); await replacement
+    expect(state.importedItems.value).toBeNull(); expect(state.reading.value).toBe(false); expect(state.draft.value).toBe('')
+    state.draft.value = 'https://example.com/manual'; state.preview()
+    expect(state.previewItems.value).toEqual([{ targetUrl: 'https://example.com/manual', title: '' }])
+  })
+  // Dropping CSV titles or routing retries to the legacy endpoint loses the reviewed batch.
+  it('imports raw titles and explicitly retries the exact titled payload after a lost acknowledgement', async () => {
+    const { state, fetcher } = mount({ ...actor, permissions: [...actor.permissions, 'short_link:set_metadata'] })
+    state.begin()
+    const file = pendingFile('target_url,title\nhttps://example.com/one,"  中文,标题  "\nhttps://example.org/two,')
+    const reading = state.importFile(file.file); file.resolve(); await reading
+    expect(state.errorKey.value).toBe('')
+    state.preview()
+    expect(state.snapshot.value).toMatchObject({ items: [{ targetUrl: 'https://example.com/one', title: '  中文,标题  ' }, { targetUrl: 'https://example.org/two', title: '' }] })
+    const input = state.snapshot.value!
+    fetcher.mockRejectedValueOnce(new Error('acknowledgement lost'))
+    await state.submit()
+    expect(state.unknown.value).toBe(true)
+    state.edit(); state.draft.value = 'https://example.com/not-the-batch'; state.preview()
+    expect(state.snapshot.value).toBe(input)
+    fetcher.mockResolvedValueOnce(response({ requestId: input.requestId, createdCount: 2 }))
+    await state.submit()
+    expect(fetcher.mock.calls).toHaveLength(2)
+    for (const [url, init] of fetcher.mock.calls) {
+      expect(url).toBe('/api/v1/short-link/batch-create-with-titles')
+      expect(init!.body).toBe(JSON.stringify(input))
+      expect(new Headers(init!.headers).get('X-MoeURL-Expected-User-ID')).toBe(actor.id)
+    }
+    expect(state.opened.value).toBe(false)
+  })
+
+  it('rejects an empty-title two-column import without metadata permission while preserving manual input', async () => {
+    const { state } = mount(); state.begin(); state.draft.value = 'https://example.com/manual'
+    const file = pendingFile('target_url,title\nhttps://example.com/one,')
+    const reading = state.importFile(file.file); file.resolve(); await reading
+    expect(state.errorKey.value).toBe('bulkCreate.metadataRequired')
+    expect(state.draft.value).toBe('https://example.com/manual')
+    expect(state.reading.value).toBe(false)
+  })
   // Removing the captured-owner header would write an old tab's CSV under the new Cookie owner.
   it.each(['initial', 'unknown retry'])('rejects a stale CSV %s after a different tab changes the Cookie owner', async kind => {
     const { state, fetcher, client } = mount()
@@ -141,9 +274,9 @@ describe('batch lifecycle and retry safety', () => {
     expect(state.errorKey.value).toBe('bulkCreate.invalid')
     state.edit(); expect(state.errorKey.value).toBe('')
     const input = preview(state)
-    expect(Object.isFrozen(input)).toBe(true); expect(Object.isFrozen(input.targetUrls)).toBe(true)
+    expect(Object.isFrozen(input)).toBe(true); expect(Object.isFrozen('targetUrls' in input && input.targetUrls)).toBe(true)
     state.draft.value = 'https://example.com/changed'
-    expect(input.targetUrls).toEqual(['https://example.com/one', 'https://example.org/two'])
+    expect('targetUrls' in input && input.targetUrls).toEqual(['https://example.com/one', 'https://example.org/two'])
     state.edit(); state.preview()
     expect(state.snapshot.value!.requestId).not.toBe(input.requestId)
     await state.submit()
@@ -244,7 +377,7 @@ describe('local CSV ownership and explicit write boundary', () => {
     state.draft.value = 'https://example.com/manual'
     expect(state.reading.value).toBe(false); state.preview()
     const input = state.snapshot.value!
-    expect(input.targetUrls).toEqual(['https://example.com/manual'])
+    expect('targetUrls' in input && input.targetUrls).toEqual(['https://example.com/manual'])
     if (outcome === 'success') file.resolve(); else file.reject()
     await request
     expect(state.snapshot.value).toBe(input); expect(state.draft.value).toBe('https://example.com/manual')

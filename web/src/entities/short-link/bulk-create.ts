@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { apiPost, ApiClientError } from '@/shared/api/client'
 import { targetUrlSchema } from '@/shared/validation/shortLinkAccess'
+import { shortLinkMetadataSchema } from '@/shared/validation/shortLinkMetadata'
 
 const requestId = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/).refine(value => value !== '00000000-0000-0000-0000-000000000000')
 const target = z.string().min(1).max(2048).regex(/^[!-~]+$/).refine(value => targetUrlSchema.safeParse(value).success)
@@ -8,6 +9,13 @@ export const bulkCreateTargetsSchema = z.array(target).min(1).max(20).refine(val
 const inputSchema = z.strictObject({ requestId, targetUrls: bulkCreateTargetsSchema })
 const resultSchema = z.strictObject({ requestId, createdCount: z.number().int().min(1).max(20) })
 export type BulkCreateInput = Readonly<{ requestId: string; targetUrls: readonly string[] }>
+export type BulkCreateItem = Readonly<{ targetUrl: string; title: string }>
+export type BulkCreateTitlesInput = Readonly<{ requestId: string; items: readonly BulkCreateItem[] }>
+const rawTitle = z.string().refine(value => !/[\uD800-\uDFFF]/u.test(value) && shortLinkMetadataSchema.safeParse({ title: value, tags: [] }).success)
+export const bulkCreateItemsSchema = z.array(z.strictObject({ targetUrl: target, title: rawTitle })).min(1).max(20)
+  .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
+export const bulkCreateTitlesInputSchema = z.strictObject({ requestId, items: bulkCreateItemsSchema })
+  .refine(input => new TextEncoder().encode(JSON.stringify(input)).byteLength <= 65536)
 
 export class BulkCreateUnknownError extends Error {
   constructor() { super('Batch result is unknown'); this.name = 'BulkCreateUnknownError' }
@@ -22,14 +30,26 @@ export function parseBulkCreateLines(text: string) {
 export async function batchCreateShortLinks(input: BulkCreateInput, expectedUserId?: string) {
   const request = inputSchema.safeParse(input)
   if (!request.success) throw new ApiClientError(100001, 'Invalid batch creation request')
+  return sendBatch('/short-link/batch-create', request.data, request.data.targetUrls.length, expectedUserId)
+}
+
+/** Validates titles without transforming the raw payload used for idempotent retries. */
+export async function batchCreateShortLinksWithTitles(input: BulkCreateTitlesInput, expectedUserId?: string) {
+  const request = bulkCreateTitlesInputSchema.safeParse(input)
+  if (!request.success) throw new ApiClientError(100001, 'Invalid titled batch creation request')
+  return sendBatch('/short-link/batch-create-with-titles', request.data, request.data.items.length, expectedUserId)
+}
+
+/** Shares bounded transport and exact receipt validation across the two independent protocols. */
+async function sendBatch(path: string, input: BulkCreateInput | BulkCreateTitlesInput, count: number, expectedUserId?: string) {
   const controller = new AbortController()
   // Includes response-body decoding: an unacknowledged write must become recoverable.
   const deadline = setTimeout(() => controller.abort(), 15_000)
   try {
-    const response = await apiPost<unknown>('/short-link/batch-create', request.data, controller.signal,
+    const response = await apiPost<unknown>(path, input, controller.signal,
       expectedUserId === undefined ? undefined : { 'X-MoeURL-Expected-User-ID': expectedUserId })
     const result = resultSchema.safeParse(response.data)
-    if (!result.success || result.data.requestId !== request.data.requestId || result.data.createdCount !== request.data.targetUrls.length) throw new BulkCreateUnknownError()
+    if (!result.success || result.data.requestId !== input.requestId || result.data.createdCount !== count) throw new BulkCreateUnknownError()
     return result.data
   } catch (error) {
     if (error instanceof ApiClientError && ([401, 403].includes(error.code)

@@ -69,7 +69,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
     await draft.fill('https://example.net/keep-' + nonce)
     // A real browser File containing an old multi-column shape must preserve the entire prior draft.
     await file.setInputFiles({ name: 'targets.csv', mimeType: 'text/csv', buffer: Buffer.from('target_url,slug\r\n' + targets[0] + ',old\r\n') })
-    await expect(page.getByTestId('bulk-create-error')).toContainText(language === 'en' ? 'single target_url column' : '单列 CSV')
+    await expect(page.getByTestId('bulk-create-error')).toContainText('target_url,title')
     await expect(draft).toHaveValue('https://example.net/keep-' + nonce)
     expect(writes).toHaveLength(0); expect(await links(page.request)).toEqual([])
     // Selecting a corrected file with the same name must still dispatch a new read.

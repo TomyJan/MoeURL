@@ -3,10 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { me, type UserResponse } from '@/entities/auth/api'
-import { batchCreateShortLinks, BulkCreateUnknownError, parseBulkCreateLines, type BulkCreateInput } from '@/entities/short-link/bulk-create'
+import { batchCreateShortLinks, batchCreateShortLinksWithTitles, BulkCreateUnknownError, parseBulkCreateLines, type BulkCreateInput, type BulkCreateTitlesInput, type BulkCreateItem } from '@/entities/short-link/bulk-create'
 import { ApiClientError } from '@/shared/api/client'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
-import { BULK_CSV_MAX_BYTES, parseBulkCreateCsv } from '@/entities/short-link/bulk-create-csv'
+import { BULK_CSV_MAX_BYTES, parseBulkCreateImportCsv } from '@/entities/short-link/bulk-create-csv'
 
 /** Owns an in-memory batch, binding every asynchronous completion to current confirmed authority. */
 export function useBulkCreate() {
@@ -15,15 +15,17 @@ export function useBulkCreate() {
   const auth = useQuery({ queryKey: ['auth', 'me'], queryFn: me, retry: false, staleTime: Infinity })
   const { t } = useI18n()
   const opened = ref(false), draft = ref(''), pending = ref(false), unknown = ref(false), closing = ref(false), errorKey = ref('')
-  const snapshot = shallowRef<BulkCreateInput | null>(null)
+  const snapshot = shallowRef<BulkCreateInput | BulkCreateTitlesInput | null>(null)
+  const importedItems = shallowRef<readonly BulkCreateItem[] | null>(null)
+  const previewItems = computed(() => !snapshot.value ? [] : 'items' in snapshot.value ? snapshot.value.items : snapshot.value.targetUrls.map(targetUrl => ({ targetUrl, title: '' })))
   const reading = ref(false)
   let generation = 0, alive = true, scope = identity.scope.value
-  let fileSequence = 0, draftRevision = 0
+  let fileSequence = 0, draftRevision = 0, metadataEpoch = 0
   watch(draft, () => { draftRevision++; fileSequence++; reading.value = false }, { flush: 'sync' })
   const mutation = useMutation({
-    mutationFn: (attempt: { input: BulkCreateInput; token: number; candidate: typeof scope }) => {
-      if (!isCurrent(attempt.token, attempt.candidate)) throw new Error('Batch context retired')
-      return batchCreateShortLinks(attempt.input, attempt.candidate.userId)
+    mutationFn: (attempt: { input: BulkCreateInput | BulkCreateTitlesInput; token: number; candidate: typeof scope }) => {
+      if (!isCurrent(attempt.token, attempt.candidate) || ('items' in attempt.input && !canTitleNow())) throw new Error('Batch context retired')
+      return 'items' in attempt.input ? batchCreateShortLinksWithTitles(attempt.input, attempt.candidate.userId) : batchCreateShortLinks(attempt.input, attempt.candidate.userId)
     },
     networkMode: 'always',
     retry: false,
@@ -37,13 +39,19 @@ export function useBulkCreate() {
   const allowed = computed(() => auth.isSuccess.value && !!auth.data.value?.user && auth.data.value.user.group !== 'guest'
     && auth.data.value.user.username !== 'guest' && !!auth.data.value.user.id
     && auth.data.value.user.permissions.includes('short_link:create') && auth.data.value.user.permissions.includes('domain:use_default'))
+  function canTitleNow() { return canUseNow() && !!client.getQueryData<UserResponse>(['auth', 'me'])?.user.permissions.includes('short_link:set_metadata') }
   /** Retires private input immediately, without letting old finally blocks unlock a newer batch. */
   function reset() {
-    generation++; opened.value = false; draft.value = ''; snapshot.value = null; pending.value = false
+    generation++; opened.value = false; draft.value = ''; importedItems.value = null; snapshot.value = null; pending.value = false
     unknown.value = false; closing.value = false; errorKey.value = ''; fileSequence++; reading.value = false
   }
   const unsubscribe = client.getQueryCache().subscribe(event => {
-    if (event.query.queryKey[0] === 'auth' && event.query.queryKey[1] === 'me' && (!identity.isCurrent(scope) || !canUseNow())) reset()
+    if (event.query.queryKey[0] !== 'auth' || event.query.queryKey[1] !== 'me') return
+    if (!identity.isCurrent(scope) || !canUseNow()) reset()
+    if (!canTitleNow()) {
+      metadataEpoch++
+      if (importedItems.value || (snapshot.value && 'items' in snapshot.value)) reset()
+    }
   })
   /** Opens a new draft only under the currently confirmed account and grants. */
   function begin() {
@@ -53,19 +61,29 @@ export function useBulkCreate() {
   /** Freezes one ordered payload before generating its unique request identifier. */
   function preview() {
     if (!opened.value || pending.value || unknown.value || reading.value || !canUseNow()) return
-    const parsed = parseBulkCreateLines(draft.value)
-    if (!parsed.success) { errorKey.value = 'bulkCreate.invalid'; return }
-    snapshot.value = Object.freeze({ requestId: crypto.randomUUID(), targetUrls: Object.freeze([...parsed.data]) })
+    if (importedItems.value) {
+      if (!canTitleNow()) { reset(); return }
+      snapshot.value = Object.freeze({ requestId: crypto.randomUUID(), items: importedItems.value })
+    } else {
+      const parsed = parseBulkCreateLines(draft.value)
+      if (!parsed.success) { errorKey.value = 'bulkCreate.invalid'; return }
+      snapshot.value = Object.freeze({ requestId: crypto.randomUUID(), targetUrls: Object.freeze([...parsed.data]) })
+    }
     errorKey.value = ''
   }
   /** Allows changes only before an unknown result; another preview makes an explicit new batch. */
   function edit() { if (!pending.value && !unknown.value) { snapshot.value = null; errorKey.value = '' } }
+  /** Explicitly discards the entire structured import before returning to manual input. */
+  function clearImport() {
+    if (!opened.value || snapshot.value || pending.value || unknown.value) return
+    importedItems.value = null; draft.value = ''; draftRevision++; fileSequence++; reading.value = false; errorKey.value = ''
+  }
   /** Checks both login epoch and the operation generation immediately before any side effect. */
   function isCurrent(token: number, candidate: typeof scope) { return alive && token === generation && identity.isCurrent(candidate) && canUseNow() }
   /** Binds local file reads to both authority and the latest explicit draft intent. */
   async function importFile(file: File | undefined) {
     if (!file || !opened.value || snapshot.value || pending.value || unknown.value || !isCurrent(generation, scope)) return
-    const token = generation, candidate = scope, sequence = ++fileSequence, revision = draftRevision
+    const token = generation, candidate = scope, sequence = ++fileSequence, revision = draftRevision, titleEpoch = metadataEpoch
     const current = () => isCurrent(token, candidate) && sequence === fileSequence && revision === draftRevision
     reading.value = true; errorKey.value = ''
     try {
@@ -74,9 +92,13 @@ export function useBulkCreate() {
       if (!current()) return
       if (bytes.byteLength > BULK_CSV_MAX_BYTES) { errorKey.value = 'bulkCreate.csvTooLarge'; return }
       // Keep BOMs visible to the parser, which accepts only one opening marker.
-      const parsed = parseBulkCreateCsv(new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes))
+      const parsed = parseBulkCreateImportCsv(new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes))
       if (!parsed.success) { errorKey.value = 'bulkCreate.csvInvalid'; return }
-      draft.value = parsed.data.join('\n'); errorKey.value = ''
+      if (parsed.mode === 'titles') {
+        if (!canTitleNow() || titleEpoch !== metadataEpoch) { errorKey.value = 'bulkCreate.metadataRequired'; return }
+        draft.value = ''; importedItems.value = Object.freeze(parsed.data.map(item => Object.freeze({ ...item })))
+      } else { importedItems.value = null; draft.value = parsed.data.join('\n') }
+      draftRevision++; fileSequence++; reading.value = false; errorKey.value = ''
     } catch {
       if (current()) errorKey.value = 'bulkCreate.csvReadFailed'
     } finally { if (current()) reading.value = false }
@@ -115,5 +137,5 @@ export function useBulkCreate() {
   }
   window.addEventListener('beforeunload', beforeUnload)
   onBeforeUnmount(() => { alive = false; generation++; unsubscribe(); window.removeEventListener('beforeunload', beforeUnload) })
-  return { allowed, opened, draft, snapshot, pending, unknown, closing, errorKey, reading, importFile, begin, preview, edit, submit, close, cancelClose, discard }
+  return { allowed, opened, draft, importedItems, previewItems, snapshot, pending, unknown, closing, errorKey, reading, importFile, clearImport, begin, preview, edit, submit, close, cancelClose, discard }
 }

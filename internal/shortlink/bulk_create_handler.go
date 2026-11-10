@@ -69,6 +69,11 @@ func (h *BulkCreateHandler) BatchCreate(w http.ResponseWriter, r *http.Request) 
 
 // writeResult keeps batch-only failures distinct while reusing opaque infrastructure diagnostics.
 func (h *BulkCreateHandler) writeResult(w http.ResponseWriter, r *http.Request, result BatchCreateResult, err error) {
+	writeBulkCreateResult(w, r, result, err, h.logger)
+}
+
+// writeBulkCreateResult preserves the same public error and sanitized logging contract for both protocols.
+func writeBulkCreateResult(w http.ResponseWriter, r *http.Request, result BatchCreateResult, err error, logger *slog.Logger) {
 	switch {
 	case errors.Is(err, ErrBulkCreateConflict):
 		businessError(w, 200120, "Batch request has different content")
@@ -79,7 +84,7 @@ func (h *BulkCreateHandler) writeResult(w http.ResponseWriter, r *http.Request, 
 	case errors.Is(err, ErrSlugConflict):
 		businessError(w, CodeSlugConflict, "Slug conflict")
 	default:
-		writeTransferResult(w, r, result, err, h.logger, "short_link_bulk_create_failed")
+		writeTransferResult(w, r, result, err, logger, "short_link_bulk_create_failed")
 	}
 }
 

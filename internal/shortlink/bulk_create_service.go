@@ -41,9 +41,22 @@ func (s *Service) BatchCreate(ctx context.Context, actor auth.CurrentUser, input
 	if err != nil {
 		return BatchCreateResult{}, err
 	}
+	items := make([]BatchCreateItem, len(input.TargetURLs))
+	for i, target := range input.TargetURLs {
+		items[i].TargetURL = target
+	}
+	return s.batchCreate(ctx, actor, requestID, digest, items, false)
+}
+
+// batchCreate shares authorization, locking and atomic receipts between the two wire protocols.
+func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, requestID uuid.UUID, digest [sha256.Size]byte, items []BatchCreateItem, withTitles bool) (BatchCreateResult, error) {
+	actorID, err := uuid.Parse(actor.ID)
+	if err != nil || actorID == uuid.Nil || actorID.String() != actor.ID {
+		return BatchCreateResult{}, ErrPermissionDenied
+	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	result := BatchCreateResult{RequestID: input.RequestID}
+	result := BatchCreateResult{RequestID: requestID.String()}
 	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
 		if err := domain.LockShortLinkCreation(ctx, tx); err != nil {
 			return err
@@ -70,6 +83,19 @@ func (s *Service) BatchCreate(ctx context.Context, actor auth.CurrentUser, input
 		if group.Key == "guest" || !grants.Has(permission.ShortLinkCreate) || !grants.Has(permission.DomainUseDefault) {
 			return ErrPermissionDenied
 		}
+		titles := make([]string, len(items))
+		if withTitles {
+			if !grants.Has(permission.ShortLinkSetMetadata) {
+				return ErrPermissionDenied
+			}
+			for i, item := range items {
+				title, _, err := normalizeMetadata(grants, &MetadataInput{Title: item.Title, Tags: []string{}})
+				if err != nil {
+					return err
+				}
+				titles[i] = title.String
+			}
+		}
 		receipt, err := q.GetBulkCreateReceipt(ctx, sqlc.GetBulkCreateReceiptParams{
 			ActorID: uuidToPgtype(actorID), RequestID: uuidToPgtype(requestID),
 		})
@@ -93,7 +119,7 @@ func (s *Service) BatchCreate(ctx context.Context, actor auth.CurrentUser, input
 		if err != nil {
 			return err
 		}
-		for _, target := range input.TargetURLs {
+		for i, item := range items {
 			created := false
 			for attempt := 0; attempt < maxSlugAttempts; attempt++ {
 				slug, err := generateSlug()
@@ -105,7 +131,7 @@ func (s *Service) BatchCreate(ctx context.Context, actor auth.CurrentUser, input
 				}
 				_, err = q.CreateBulkShortLink(ctx, sqlc.CreateBulkShortLinkParams{
 					ID: uuidToPgtype(uuid.New()), OwnerID: uuidToPgtype(actorID), DomainID: selected.ID,
-					Slug: slug, TargetUrl: target,
+					Slug: slug, TargetUrl: item.TargetURL, Title: titles[i],
 				})
 				if errors.Is(err, pgx.ErrNoRows) {
 					continue
@@ -122,11 +148,11 @@ func (s *Service) BatchCreate(ctx context.Context, actor auth.CurrentUser, input
 		}
 		if err := q.InsertBulkCreateReceipt(ctx, sqlc.InsertBulkCreateReceiptParams{
 			ActorID: uuidToPgtype(actorID), RequestID: uuidToPgtype(requestID),
-			RequestHash: digest[:], CreatedCount: int16(len(input.TargetURLs)),
+			RequestHash: digest[:], CreatedCount: int16(len(items)),
 		}); err != nil {
 			return err
 		}
-		result.CreatedCount = len(input.TargetURLs)
+		result.CreatedCount = len(items)
 		return nil
 	})
 	if err != nil {
