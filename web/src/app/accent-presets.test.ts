@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createVuetify } from 'vuetify'
 import { applyAccentPreset } from './accent-presets'
 vi.mock('vuetify/components', () => ({
+  VAutocomplete: {},
   VAlert: {}, VApp: {}, VBtn: {}, VBtnToggle: {}, VCheckbox: {}, VCheckboxBtn: {}, VChip: {}, VCard: {}, VCardActions: {}, VCardText: {}, VCardTitle: {}, VContainer: {}, VDialog: {}, VList: {}, VListItem: {}, VListItemTitle: {}, VMain: {}, VMenu: {}, VProgressLinear: {}, VSelect: {}, VSlider: {}, VSnackbar: {}, VSwitch: {}, VTab: {}, VTabs: {}, VTable: {}, VTextField: {}, VTextarea: {},
 }))
 vi.mock('vuetify/directives', () => ({ Ripple: {} }))

@@ -44,7 +44,7 @@ function mount(options: Options = {}) {
     else throw new Error('Unexpected request ' + url)
     return new Response(JSON.stringify({ code: 0, message: '', data, meta: {} }))
   }))
-  const view = render(ProfilePage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, RedirectPreferencePanel: true, PasswordChangePanel: true, AccountPreferencesPanel: true, DomainPreferencePanel: true, PreferenceSwitcher: true } } })
+  const view = render(ProfilePage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, VAutocomplete: componentStubs.VSelect, RedirectPreferencePanel: true, PasswordChangePanel: true, AccountPreferencesPanel: true, DomainPreferencePanel: true, PreferenceSwitcher: true } } })
   return { ...view, client, bodies, options,
     setPreference(value: Preference) { preference = value },
     setUser(id: string) { user = { ...user, id }; client.setQueryData(['auth', 'me'], { user }) },
@@ -160,8 +160,8 @@ describe('account time-zone preference', () => {
     expect(view.bodies).toEqual([])
     loading.resolve({ timeZone: 'UTC', updatedAt: version })
     const select = await ready()
-    select.add(new Option('Untrusted zone', 'Europe/Berlin'))
-    await fireEvent.update(select, 'Europe/Berlin')
+    select.add(new Option('Untrusted zone', 'Invalid/Zone'))
+    await fireEvent.update(select, 'Invalid/Zone')
     await submit()
     await screen.findByText('timeZonePreference.invalid')
     expect(view.bodies).toEqual([])

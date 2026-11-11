@@ -11,6 +11,9 @@ describe('display-only instant formatter', () => {
     ['2026-07-15T12:00:00Z', 'America/New_York', 'Jul 15, 2026, 08:00'],
     ['2026-01-15T12:00:00Z', 'Australia/Sydney', 'Jan 15, 2026, 23:00'],
     ['2026-07-15T12:00:00Z', 'Australia/Sydney', 'Jul 15, 2026, 22:00'],
+    ['2026-01-15T12:00:00Z', 'Pacific/Chatham', 'Jan 16, 2026, 01:45'],
+    ['2026-07-15T12:00:00Z', 'Pacific/Chatham', 'Jul 16, 2026, 00:45'],
+    ['2026-01-01T20:00:00Z', 'Asia/Katmandu', 'Jan 2, 2026, 01:45'],
   ])('formats %s in %s as a literal local date and time', (instant, zone, expected) => {
     expect(formatInstant(instant!, 'en-US', zone!, 'dateTime')).toBe(expected)
   })
