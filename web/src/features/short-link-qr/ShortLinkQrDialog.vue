@@ -2,7 +2,7 @@
   <v-dialog :model-value="open" :aria-label="t('shortLinkQr.title')" max-width="440" @update:model-value="$emit('update:open', $event)">
     <v-card class="short-link-qr-dialog">
       <v-card-title>{{ t('shortLinkQr.title') }}</v-card-title>
-      <v-card-text class="short-link-qr-dialog__body">
+      <v-card-text class="short-link-qr-dialog__body py-0">
         <div class="short-link-qr-dialog__presets" role="group" :aria-label="t('shortLinkQr.appearance')">
           <v-btn
             v-for="preset in qrAppearancePresets"
@@ -49,6 +49,24 @@
         </v-alert>
       </v-card-text>
       <v-card-actions class="short-link-qr-dialog__actions">
+        <v-menu v-model="sizeMenuOpen">
+          <template #activator="{ props: menuProps }">
+            <v-btn v-bind="menuProps" variant="text">{{ t('shortLinkQr.exportSize') }}: {{ selectedSize }} px</v-btn>
+          </template>
+          <v-list role="menu" :aria-label="t('shortLinkQr.exportSize')">
+            <v-list-item
+              v-for="width in qrExportSizes"
+              :key="width"
+              tag="button"
+              role="menuitemradio"
+              :aria-checked="selectedSize === width"
+              :active="selectedSize === width"
+              @click="selectedSize = width"
+            >
+              {{ width }} px
+            </v-list-item>
+          </v-list>
+        </v-menu>
         <a
           v-if="dataUrl"
           class="short-link-qr-dialog__download"
@@ -76,6 +94,7 @@ import { onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { qrAppearancePresets } from './appearance-presets'
 import { qrCorrectionLevels, type QrCorrectionLevel } from './error-correction-levels'
+import { qrExportSizes, type QrExportSize } from './export-sizes'
 
 const props = defineProps<{
   open: boolean
@@ -90,6 +109,8 @@ defineEmits<{
 const { t } = useI18n()
 const selectedPreset = ref<(typeof qrAppearancePresets)[number]>(qrAppearancePresets[0])
 const selectedCorrection = ref<QrCorrectionLevel>('M')
+const selectedSize = ref<QrExportSize>(320)
+const sizeMenuOpen = ref(false)
 const dataUrl = ref('')
 const generating = ref(false)
 const generationError = ref(false)
@@ -101,11 +122,11 @@ let generationId = 0
 onBeforeUnmount(() => { generationId++ })
 
 /** Prepares a separate download without delaying or invalidating the PNG. */
-async function generateSvg(encoder: typeof import('qrcode'), url: string, dark: string, correction: QrCorrectionLevel, currentGeneration: number) {
+async function generateSvg(encoder: typeof import('qrcode'), url: string, dark: string, correction: QrCorrectionLevel, width: QrExportSize, currentGeneration: number) {
   svgGenerating.value = true
   try {
     const svg = await encoder.toString(url, {
-      type: 'svg', width: 320, margin: 4, errorCorrectionLevel: correction,
+      type: 'svg', width, margin: 4, errorCorrectionLevel: correction,
       color: { dark, light: '#FFFFFF' },
     })
     if (currentGeneration === generationId) {
@@ -127,13 +148,15 @@ watch(
   () => {
     selectedPreset.value = qrAppearancePresets[0]
     selectedCorrection.value = 'M'
+    selectedSize.value = 320
+    sizeMenuOpen.value = false
   },
   { flush: 'sync' },
 )
 
 watch(
-  () => [props.open, props.slug, props.url, selectedPreset.value, selectedCorrection.value] as const,
-  async ([open, , url, preset, correction]) => {
+  () => [props.open, props.slug, props.url, selectedPreset.value, selectedCorrection.value, selectedSize.value] as const,
+  async ([open, , url, preset, correction, width]) => {
     const currentGeneration = ++generationId
     dataUrl.value = ''
     generationError.value = false
@@ -149,14 +172,14 @@ watch(
     try {
       const { default: QRCode } = await import('qrcode')
       const result = await QRCode.toDataURL(url, {
-        width: 320,
+        width,
         margin: 4,
         errorCorrectionLevel: correction,
         color: { dark: preset.dark, light: '#FFFFFF' },
       })
       if (currentGeneration === generationId) {
         dataUrl.value = result
-        void generateSvg(QRCode, url, preset.dark, correction, currentGeneration)
+        void generateSvg(QRCode, url, preset.dark, correction, width, currentGeneration)
       }
     } catch {
       if (currentGeneration === generationId) {
@@ -175,12 +198,13 @@ watch(
 <style scoped>
 .short-link-qr-dialog {
   border-radius: 8px;
+  scroll-padding-block: 8px;
 }
 
 .short-link-qr-dialog__body {
   display: grid;
   justify-items: center;
-  gap: 14px;
+  gap: 8px;
 }
 
 .short-link-qr-dialog__preview {
@@ -220,7 +244,7 @@ watch(
 
 @media (max-width: 600px) {
   .short-link-qr-dialog__body {
-    gap: 8px;
+    gap: 6px;
   }
 
   .short-link-qr-dialog__preview {
@@ -241,7 +265,7 @@ watch(
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-  padding: 0 24px 20px;
+  padding: 0 24px 16px;
 }
 
 .short-link-qr-dialog__download {
