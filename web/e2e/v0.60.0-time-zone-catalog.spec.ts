@@ -99,7 +99,10 @@ for (const width of [1280, 390]) for (const language of ['zh-CN', 'en']) {
     const fallback = await scenario.open(width, language, true)
     await signIn(fallback, scenario.account)
     await expect(fallback.getByTestId('time-zone-preference-panel').getByText(/此设备不支持已保存的时区|This device does not support your saved time zone/)).toBeVisible()
-    await expect(fallback.getByTestId('console-time-zone')).toHaveText(/^(时间显示：设备本地时区|Time display: device local time zone)$/)
+    const fallbackStatus = language === 'zh-CN'
+      ? '时间显示：设备本地时区 此设备不支持已保存的时区，当前按设备时区显示；账号设置未改变。'
+      : 'Time display: device local time zone This device does not support your saved time zone. Using device time without changing your account setting.'
+    await expect(fallback.getByTestId('console-time-zone')).toHaveText(fallbackStatus)
     expect(await read(fallback)).toEqual(katmandu)
     await capture(info, `catalog-${width}-${language}-fallback`, fallback)
 
