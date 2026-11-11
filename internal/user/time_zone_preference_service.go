@@ -77,9 +77,7 @@ func (s *TimeZonePreferenceService) Update(ctx context.Context, actor auth.Curre
 		return TimeZonePreferenceResult{}, err
 	}
 	if input.TimeZone != nil {
-		switch *input.TimeZone {
-		case "UTC", "Asia/Shanghai", "Asia/Singapore", "Asia/Tokyo", "Europe/London", "Europe/Paris", "America/New_York", "America/Los_Angeles", "Australia/Sydney":
-		default:
+		if _, ok := timeZoneCatalog[*input.TimeZone]; !ok {
 			return TimeZonePreferenceResult{}, ErrInvalidInput
 		}
 	}
