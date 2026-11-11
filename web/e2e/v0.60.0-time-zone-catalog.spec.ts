@@ -114,7 +114,7 @@ for (const width of [1280, 390]) for (const language of ['zh-CN', 'en']) {
     await page.reload()
     await expect(page.getByTestId('time-zone-preference-selection')).toHaveText(language === 'zh-CN' ? `已选：${device}` : `Selected: ${device}`)
     expect(await read(page)).toEqual(deviceSaved)
-    await expect(page.getByTestId('console-time-zone')).toHaveText(/^(时间显示：设备本地时区|Time display: device local time zone)$/)
+    await expect(page.getByTestId('console-time-zone')).toHaveText(language === 'zh-CN' ? '时间显示：设备本地时区' : 'Time display: device local time zone')
     await page.getByTestId('time-zone-preference-panel').scrollIntoViewIfNeeded()
     await capture(info, `catalog-${width}-${language}-device-restored`, page)
   })
