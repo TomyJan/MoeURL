@@ -2,7 +2,7 @@
 
 ## 当前维护（2026-11-12，v0.61.3）
 
-v0.61.2／[PR309](https://github.com/TomyJan/MoeURL/pull/309) 已完整交付，master `d2346123a8eddcf8b667ed351a997ef77ec372a6`，22条裁决及两项延期Minor保留原报告。当前[手机编辑器回归补测](scope-v0.61.3.md)只补group四边裁剪与direct取消后重开UI的证明，设计完成、尚未执行验证；产品保持0.61.1。下方为历史检查点。
+v0.61.2／[PR309](https://github.com/TomyJan/MoeURL/pull/309) 已完整交付，master `d2346123a8eddcf8b667ed351a997ef77ec372a6`，22 条裁决及两项延期 Minor 保留原报告。当前[手机编辑器回归补测](scope-v0.61.3.md)已补 group 四边裁剪与 direct 取消后重开 UI 的证明，本地静态与 9 项浏览器验证通过，审查交付仍待；产品保持 0.61.1。下方为历史检查点。
 
 ## 当前维护（2026-11-12，v0.61.2）
 

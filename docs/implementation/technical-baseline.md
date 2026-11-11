@@ -2,7 +2,7 @@
 
 ## 当前维护（2026-11-12，v0.61.3）
 
-[手机编辑器回归补测](../product/scope-v0.61.3.md)沿用Node26.3.0、Playwright1.65.0、准确0.61.1产品镜像和已有锁定缓存；只增加E2E断言，产品输入不变时不重Go/前端suite/build/smoke/扫描。新测试须自身types/lint及原八场景证据；当前尚未执行。大操作遵守4GiB/12GiB/6GiB加预留，成功trace不留。前版PR309已完整交付，下方为历史检查点。
+[手机编辑器回归补测](../product/scope-v0.61.3.md)沿用 Windows Node 26.3.0／Playwright 1.65.0 driver、Linux Node 26.5.1 静态镜像、准确 0.61.1 产品镜像和已有缓存；只增加 E2E 断言，不重 Go／前端 suite／build／smoke／扫描。自身 types／lint 及原八场景加初始化共 9 项实际通过，审查交付仍待。大操作遵守 4 GiB／12 GiB／6 GiB 加预留，成功 trace 不留。前版 PR309 已完整交付，下方为历史检查点。
 
 ## 当前维护（2026-11-12，v0.61.2）
 

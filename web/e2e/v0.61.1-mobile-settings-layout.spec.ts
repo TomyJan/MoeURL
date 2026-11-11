@@ -57,6 +57,12 @@ for (const [language, width] of [['en', 320], ['en', 390], ['zh-CN', 390], ['en'
         await page.screenshot({ path: info.outputPath('editor-' + language + '-' + width + '-' + entry + '.png'), animations: 'disabled' })
         expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1)
         for (const button of geometry.buttons) {
+          for (const box of [button.box, button.textBox]) {
+            expect(box.left).toBeGreaterThanOrEqual(geometry.group.left - 1)
+            expect(box.right).toBeLessThanOrEqual(geometry.group.right + 1)
+            expect(box.top).toBeGreaterThanOrEqual(geometry.group.top - 1)
+            expect(box.bottom).toBeLessThanOrEqual(geometry.group.bottom + 1)
+          }
           expect(button.box.left).toBeGreaterThanOrEqual(Math.max(geometry.body.left, geometry.card.left, 0) - 1)
           expect(button.box.right).toBeLessThanOrEqual(Math.min(geometry.body.right, geometry.card.right, geometry.viewport) + 1)
           expect(button.textBox.left).toBeGreaterThanOrEqual(button.box.left - 1)
@@ -82,6 +88,12 @@ for (const [language, width] of [['en', 320], ['en', 390], ['zh-CN', 390], ['en'
         await open()
         await expect(toggle.getByRole('button', { name: text.confirmation, exact: true })).toHaveAttribute('aria-pressed', 'true')
         await activate(toggle.getByRole('button', { name: text.direct, exact: true }))
+        await activate(dialog.getByRole('button', { name: text.cancel, exact: true }))
+        await expect(dialog).toBeHidden()
+        await open()
+        await expect(toggle.getByRole('button', { name: text.confirmation, exact: true })).toHaveAttribute('aria-pressed', 'true')
+        await expect(toggle.getByRole('button', { name: text.direct, exact: true })).toHaveAttribute('aria-pressed', 'false')
+        await expect(dialog.getByRole('slider')).toHaveCount(0)
         await activate(dialog.getByRole('button', { name: text.cancel, exact: true }))
         await expect(dialog).toBeHidden()
         const stored = (await get<{ items: Array<{ id: string; redirectMode: string }> }>(page.request, '/short-link/list?page=1&pageSize=100')).items.find(value => value.id === link.id)

@@ -2,7 +2,7 @@
 
 ## 当前维护（2026-11-12，v0.61.3）
 
-v0.61.2／[PR309](https://github.com/TomyJan/MoeURL/pull/309) 已完成本地验证、真实审查、正常合并独立核验和恢复归档，master 为 `d2346123a8eddcf8b667ed351a997ef77ec372a6`。当前[手机编辑器回归补测](product/scope-v0.61.3.md)设计完成，验证尚未执行；产品仍0.61.1。见[计划](implementation/v0.61.3-plan.md)和[验收](implementation/v0.61.3-acceptance.md)。下方为历史检查点。
+v0.61.2／[PR309](https://github.com/TomyJan/MoeURL/pull/309) 已完整交付，master 为 `d2346123a8eddcf8b667ed351a997ef77ec372a6`。当前[手机编辑器回归补测](product/scope-v0.61.3.md)两项补测及本地验证完成，审查与交付仍待；产品仍为 0.61.1。见[计划](implementation/v0.61.3-plan.md)和[验收](implementation/v0.61.3-acceptance.md)。下方为历史检查点。
 
 ## 当前维护（2026-11-12，v0.61.2）
 
