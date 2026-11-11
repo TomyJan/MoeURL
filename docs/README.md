@@ -1,5 +1,9 @@
 # MoeURL 文档中心
 
+## 当前开发（2026-11-12，v0.62.0）
+
+v0.61.3／[PR310](https://github.com/TomyJan/MoeURL/pull/310) 已完整交付，master `3e75148a9364af6853c9f2de8e187597fbb3c2dd`；16 条裁决和两类非阻塞延期保留外置报告。当前[二维码留白](product/scope-v0.62.0.md)处于设计阶段，计划增加本地标准／宽留白，尚未实现或验证；产品仍为 0.61.1。见[计划](implementation/v0.62.0-plan.md)和[验收](implementation/v0.62.0-acceptance.md)。下方为历史检查点。
+
 ## 当前维护（2026-11-12，v0.61.3）
 
 v0.61.2／[PR309](https://github.com/TomyJan/MoeURL/pull/309) 已完整交付，master 为 `d2346123a8eddcf8b667ed351a997ef77ec372a6`。当前[手机编辑器回归补测](product/scope-v0.61.3.md)两项补测及本地验证完成，审查与交付仍待；产品仍为 0.61.1。见[计划](implementation/v0.61.3-plan.md)和[验收](implementation/v0.61.3-acceptance.md)。下方为历史检查点。
