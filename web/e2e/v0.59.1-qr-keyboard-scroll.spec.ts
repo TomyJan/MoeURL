@@ -30,6 +30,7 @@ for (const language of ['zh-CN', 'en'] as const) {
       const dialog = page.getByRole('dialog', { name: text.title, exact: true })
       let actualScrolls = 0
       for (const [entry, path] of [['home', ''], ['own', '/link'], ['admin', '/admin/link']] as const) {
+        await page.setViewportSize({ width: 375, height: 667 })
         if (path) {
           await page.goto(path)
           const row = page.getByTestId('console-link-row').filter({ hasText: payload.data.shortLink.slug })
@@ -59,37 +60,40 @@ for (const language of ['zh-CN', 'en'] as const) {
           names.push((await control.textContent())!.trim())
         }
         const card = dialog.locator('.short-link-qr-dialog'), title = dialog.getByText(text.title, { exact: true })
-        const geometry = await card.evaluate(element => ({ top: element.scrollTop, height: element.clientHeight, content: element.scrollHeight }))
-        const before = geometry.top, overflows = geometry.content > geometry.height + 1
-        if (overflows) {
-          expect(before, 'Tab to bottom must really scroll an overflowing card').toBeGreaterThan(0)
-          await expect(title).not.toBeInViewport({ ratio: 1 })
-        } else {
-          expect(before).toBe(0)
-          await expect(title).toBeInViewport({ ratio: 1 })
-        }
+        const keyboardGeometry = await card.evaluate(element => ({ top: element.scrollTop, height: element.clientHeight, content: element.scrollHeight }))
         await page.screenshot({ path: info.outputPath(`keyboard-${language}-${entry}-bottom.png`) })
+        // Natural notification expiry must finish before measuring the independent wheel phase.
+        await page.mouse.move(1, 666)
+        await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 10_000 })
+        await page.setViewportSize({ width: 375, height: 600 })
+        await expect.poll(() => card.evaluate(element => element.scrollHeight - element.clientHeight), { message: 'Shorter wheel viewport must overflow without a notification' }).toBeGreaterThan(1)
+        await page.keyboard.press('Shift+Tab')
+        await expect(controls[8]!).toBeFocused()
+        await page.keyboard.press('Tab')
+        await expect(controls[9]!).toBeFocused()
+        await expect(controls[9]!).toBeInViewport({ ratio: 1 })
+        const geometry = await card.evaluate(element => ({ top: element.scrollTop, height: element.clientHeight, content: element.scrollHeight }))
+        const before = geometry.top
+        expect(before, 'Real Tab to bottom must scroll the stable overflowing card').toBeGreaterThan(0)
+        await expect(title).not.toBeInViewport({ ratio: 1 })
+        await page.screenshot({ path: info.outputPath(`wheel-${language}-${entry}-bottom.png`) })
         const box = await card.boundingBox()
         expect(box).not.toBeNull()
         const x = Math.max(1, Math.min(374, box!.x + box!.width / 2))
-        const y = Math.max(1, Math.min(666, box!.y + box!.height / 2))
+        const y = Math.max(1, Math.min(599, box!.y + box!.height / 2))
         await page.mouse.move(x, y)
         expect(await card.evaluate(element => element.scrollTop), 'Card must remain at the bottom until wheel input').toBe(before)
         await page.mouse.wheel(0, -1200)
-        if (overflows) {
-          await expect.poll(() => card.evaluate(element => ({ top: element.scrollTop, height: element.clientHeight, content: element.scrollHeight })), { message: 'Wheel returns to top without a notification resize doing the work' }).toEqual({ top: 0, height: geometry.height, content: geometry.content })
-          actualScrolls++
-        } else {
-          await expect.poll(() => card.evaluate(element => element.scrollTop)).toBe(0)
-        }
+        await expect.poll(() => card.evaluate(element => ({ top: element.scrollTop, height: element.clientHeight, content: element.scrollHeight })), { message: 'Wheel returns to top with stable geometry after natural notification exit' }).toEqual({ top: 0, height: geometry.height, content: geometry.content })
+        actualScrolls++
         await expect(title).toBeInViewport({ ratio: 1 })
         await expectNoHorizontalOverflow(page)
-        await page.screenshot({ path: info.outputPath(`keyboard-${language}-${entry}-top.png`) })
-        await info.attach(`keyboard-${language}-${entry}-input-proof`, { body: JSON.stringify({ initial, names, geometry, overflows, before, after: await card.evaluate(element => ({ top: element.scrollTop, height: element.clientHeight, content: element.scrollHeight })), wheel: { x, y, deltaY: -1200 }, noProgrammaticControlFocus: true, noProgrammaticScroll: true }), contentType: 'application/json' })
+        await page.screenshot({ path: info.outputPath(`wheel-${language}-${entry}-top.png`) })
+        await info.attach(`keyboard-${language}-${entry}-input-proof`, { body: JSON.stringify({ initial, names, keyboardViewport: { width: 375, height: 667 }, keyboardGeometry, wheelViewport: page.viewportSize(), naturalNotificationsRemaining: await page.locator('[data-sonner-toast]').count(), geometry, before, after: await card.evaluate(element => ({ top: element.scrollTop, height: element.clientHeight, content: element.scrollHeight })), wheel: { x, y, deltaY: -1200 }, noProgrammaticControlFocus: true, noProgrammaticScroll: true }), contentType: 'application/json' })
         await dialog.getByRole('button', { name: text.close, exact: true }).click()
         await expect(dialog).toBeHidden()
       }
-      expect(actualScrolls, 'Each language must exercise a real overflowing card').toBeGreaterThan(0)
+      expect(actualScrolls, 'Each entry must exercise real wheel input without a notification').toBe(3)
       expect(pageErrors).toEqual([])
     } catch (error) { failures.push(error) } finally {
       for (const id of ids) { try { await post(page.request, '/admin/short-link/delete', { id }) } catch (error) { failures.push(error) } }
