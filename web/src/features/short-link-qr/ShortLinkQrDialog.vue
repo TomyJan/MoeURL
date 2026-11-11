@@ -90,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { qrAppearancePresets } from './appearance-presets'
 import { qrCorrectionLevels, type QrCorrectionLevel } from './error-correction-levels'
@@ -119,15 +119,19 @@ const svgDataUrl = ref('')
 const svgGenerating = ref(false)
 const svgError = ref(false)
 let generationId = 0
+let focusId = 0
 
-/** Returns focus during this mounted selection, without a delayed focus on a later identity. */
+/** Waits for the nested menu to become inert and cancels focus if this dialog identity retires. */
 function selectSize(width: QrExportSize) {
+  const currentFocusId = focusId
   selectedSize.value = width
   sizeMenuOpen.value = false
-  sizeActivator.value!.$el.focus()
+  void nextTick(() => {
+    if (currentFocusId === focusId) sizeActivator.value!.$el.focus()
+  })
 }
 
-onBeforeUnmount(() => { generationId++ })
+onBeforeUnmount(() => { generationId++; focusId++ })
 
 /** Prepares a separate download without delaying or invalidating the PNG. */
 async function generateSvg(encoder: typeof import('qrcode'), url: string, dark: string, correction: QrCorrectionLevel, width: QrExportSize, currentGeneration: number) {
@@ -154,6 +158,7 @@ async function generateSvg(encoder: typeof import('qrcode'), url: string, dark: 
 watch(
   () => [props.open, props.slug, props.url] as const,
   () => {
+    focusId++
     selectedPreset.value = qrAppearancePresets[0]
     selectedCorrection.value = 'M'
     selectedSize.value = 320

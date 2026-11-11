@@ -53,6 +53,28 @@ async function flushGeneration() {
 describe('ShortLinkQrDialog export sizes', () => {
   afterEach(() => { vi.restoreAllMocks() })
 
+  // A queued focus from a retired dialog must not steal the user's new position.
+  it.each(['slug', 'url', 'close', 'unmount'] as const)('cancels queued size focus on %s', async change => {
+    const view = mountDialog()
+    await downloads()
+    await fireEvent.click(screen.getByRole('button', { name: /^shortLinkQr.exportSize:/ }))
+    const option = screen.getByRole('menuitemradio', { name: '640 px' })
+    option.focus()
+    option.click()
+    const pending = change === 'slug' ? view.rerender({ slug: 'next456' })
+      : change === 'url' ? view.rerender({ url: 'https://next.example.org/next456' })
+      : change === 'close' ? view.rerender({ open: false }) : undefined
+    if (change === 'unmount') view.unmount()
+    const nextPosition = document.createElement('button')
+    document.body.append(nextPosition)
+    try {
+      nextPosition.focus()
+      await pending
+      await nextTick()
+      expect(document.activeElement).toBe(nextPosition)
+    } finally { nextPosition.remove() }
+  })
+
   // A changed default, missing selector, or enlarged screen preview must fail.
   it('keeps actual 320 downloads and a fixed responsive preview by default', async () => {
     mountDialog()
