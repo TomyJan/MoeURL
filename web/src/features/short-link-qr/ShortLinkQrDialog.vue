@@ -67,6 +67,24 @@
             </v-list-item>
           </v-list>
         </v-menu>
+        <v-menu ref="quietZoneMenu" v-model="quietZoneMenuOpen">
+          <template #activator="{ props: menuProps }">
+            <v-btn v-bind="menuProps" variant="text">{{ t('shortLinkQr.quietZone') }}: {{ t(selectedQuietZone === 4 ? 'shortLinkQr.quietZones.standard' : 'shortLinkQr.quietZones.wide') }}</v-btn>
+          </template>
+          <v-list role="menu" :aria-label="t('shortLinkQr.quietZone')">
+            <v-list-item
+              v-for="zone in qrQuietZones"
+              :key="zone.key"
+              tag="button"
+              role="menuitemradio"
+              :aria-checked="selectedQuietZone === zone.key"
+              :active="selectedQuietZone === zone.key"
+              @click="selectQuietZone(zone.key)"
+            >
+              {{ t(zone.labelKey) }}
+            </v-list-item>
+          </v-list>
+        </v-menu>
         <a
           v-if="dataUrl"
           class="short-link-qr-dialog__download"
@@ -95,6 +113,7 @@ import { useI18n } from 'vue-i18n'
 import { qrAppearancePresets } from './appearance-presets'
 import { qrCorrectionLevels, type QrCorrectionLevel } from './error-correction-levels'
 import { qrExportSizes, type QrExportSize } from './export-sizes'
+import { qrQuietZones, type QrQuietZone } from './quiet-zones'
 
 const props = defineProps<{
   open: boolean
@@ -110,8 +129,11 @@ const { t } = useI18n()
 const selectedPreset = ref<(typeof qrAppearancePresets)[number]>(qrAppearancePresets[0])
 const selectedCorrection = ref<QrCorrectionLevel>('M')
 const selectedSize = ref<QrExportSize>(320)
+const selectedQuietZone = ref<QrQuietZone>(4)
 const sizeMenuOpen = ref(false)
 const sizeMenu = ref<{ activatorEl: HTMLButtonElement }>()
+const quietZoneMenuOpen = ref(false)
+const quietZoneMenu = ref<{ activatorEl: HTMLButtonElement }>()
 const dataUrl = ref('')
 const generating = ref(false)
 const generationError = ref(false)
@@ -131,14 +153,24 @@ function selectSize(width: QrExportSize) {
   })
 }
 
+/** Restores only this selector's focus while its dialog identity is still active. */
+function selectQuietZone(margin: QrQuietZone) {
+  const currentFocusId = focusId
+  selectedQuietZone.value = margin
+  quietZoneMenuOpen.value = false
+  void nextTick(() => {
+    if (currentFocusId === focusId) quietZoneMenu.value!.activatorEl.focus()
+  })
+}
+
 onBeforeUnmount(() => { generationId++; focusId++ })
 
 /** Prepares a separate download without delaying or invalidating the PNG. */
-async function generateSvg(encoder: typeof import('qrcode'), url: string, dark: string, correction: QrCorrectionLevel, width: QrExportSize, currentGeneration: number) {
+async function generateSvg(encoder: typeof import('qrcode'), url: string, dark: string, correction: QrCorrectionLevel, width: QrExportSize, margin: QrQuietZone, currentGeneration: number) {
   svgGenerating.value = true
   try {
     const svg = await encoder.toString(url, {
-      type: 'svg', width, margin: 4, errorCorrectionLevel: correction,
+      type: 'svg', width, margin, errorCorrectionLevel: correction,
       color: { dark, light: '#FFFFFF' },
     })
     if (currentGeneration === generationId) {
@@ -162,14 +194,16 @@ watch(
     selectedPreset.value = qrAppearancePresets[0]
     selectedCorrection.value = 'M'
     selectedSize.value = 320
+    selectedQuietZone.value = 4
     sizeMenuOpen.value = false
+    quietZoneMenuOpen.value = false
   },
   { flush: 'sync' },
 )
 
 watch(
-  () => [props.open, props.slug, props.url, selectedPreset.value, selectedCorrection.value, selectedSize.value] as const,
-  async ([open, , url, preset, correction, width]) => {
+  () => [props.open, props.slug, props.url, selectedPreset.value, selectedCorrection.value, selectedSize.value, selectedQuietZone.value] as const,
+  async ([open, , url, preset, correction, width, margin]) => {
     const currentGeneration = ++generationId
     dataUrl.value = ''
     generationError.value = false
@@ -184,15 +218,19 @@ watch(
     generating.value = true
     try {
       const { default: QRCode } = await import('qrcode')
+      // qrcode floors its scaled matrix size; compensate only a floating-point undershoot.
+      const fullModules = QRCode.create(url, { errorCorrectionLevel: correction }).modules.size + margin * 2
+      const rasterWidth = Math.floor(fullModules * (width / fullModules)) < width
+        ? width + width * Number.EPSILON : width
       const result = await QRCode.toDataURL(url, {
-        width,
-        margin: 4,
+        width: rasterWidth,
+        margin,
         errorCorrectionLevel: correction,
         color: { dark: preset.dark, light: '#FFFFFF' },
       })
       if (currentGeneration === generationId) {
         dataUrl.value = result
-        void generateSvg(QRCode, url, preset.dark, correction, width, currentGeneration)
+        void generateSvg(QRCode, url, preset.dark, correction, width, margin, currentGeneration)
       }
     } catch {
       if (currentGeneration === generationId) {

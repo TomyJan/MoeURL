@@ -88,6 +88,8 @@ for (const [language, width] of [['en', 320], ['en', 390], ['zh-CN', 390], ['en'
         await open()
         await expect(toggle.getByRole('button', { name: text.confirmation, exact: true })).toHaveAttribute('aria-pressed', 'true')
         await activate(toggle.getByRole('button', { name: text.direct, exact: true }))
+        await expect(toggle.getByRole('button', { name: text.direct, exact: true })).toHaveAttribute('aria-pressed', 'true')
+        await expect(toggle.getByRole('button', { name: text.confirmation, exact: true })).toHaveAttribute('aria-pressed', 'false')
         await activate(dialog.getByRole('button', { name: text.cancel, exact: true }))
         await expect(dialog).toBeHidden()
         await open()

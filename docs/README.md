@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-12，v0.62.0）
 
-v0.61.3／[PR310](https://github.com/TomyJan/MoeURL/pull/310) 已完整交付，master `3e75148a9364af6853c9f2de8e187597fbb3c2dd`；16 条裁决和两类非阻塞延期保留外置报告。当前[二维码留白](product/scope-v0.62.0.md)处于设计阶段，计划增加本地标准／宽留白，尚未实现或验证；产品仍为 0.61.1。见[计划](implementation/v0.62.0-plan.md)和[验收](implementation/v0.62.0-acceptance.md)。下方为历史检查点。
+v0.61.3／[PR310](https://github.com/TomyJan/MoeURL/pull/310) 已完整交付，master `3e75148a9364af6853c9f2de8e187597fbb3c2dd`；16 条裁决和两类非阻塞延期保留外置报告。当前[二维码留白](product/scope-v0.62.0.md)已实现标准／宽两档，产品 0.62.0，完整 4652 项前端测试／四项 100%、types／lint／构建通过；准确产品、浏览器和审查交付仍待。见[计划](implementation/v0.62.0-plan.md)和[验收](implementation/v0.62.0-acceptance.md)。下方为历史检查点。
 
 ## 当前维护（2026-11-12，v0.61.3）
 
