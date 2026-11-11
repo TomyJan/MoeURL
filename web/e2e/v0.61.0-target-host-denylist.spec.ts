@@ -52,7 +52,9 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
     test.setTimeout(150_000)
     const { page, request } = scenario, labels = text[language]
     await write(request, [])
-    const historical = await create(page, 'https://blocked.example/original', labels)
+    const historicalTarget = new URL('/api/v1/health', info.project.use.baseURL as string)
+    historicalTarget.hostname = 'blocked.localhost'
+    const historical = await create(page, historicalTarget.href, labels)
     await page.goto('/admin/setting')
     const form = page.getByRole('form', { name: labels.form, exact: true })
     await expect(form.getByRole('button', { name: labels.add, exact: true })).toBeEnabled()
@@ -60,20 +62,23 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
     const first = form.getByRole('textbox', { name: labels.host + ' 1', exact: true })
     await first.focus(); await page.keyboard.type(' BLOCKED.Example. ')
     await activate(form.getByRole('button', { name: labels.add, exact: true }))
-    await activate(form.getByRole('button', { name: labels.remove + ' 2', exact: true }))
+    await form.getByRole('textbox', { name: labels.host + ' 2', exact: true }).fill('BLOCKED.LOCALHOST.')
+    await activate(form.getByRole('button', { name: labels.add, exact: true }))
+    await activate(form.getByRole('button', { name: labels.remove + ' 3', exact: true }))
     const saveResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1' + readPath + '/update')
     await activate(form.getByRole('button', { name: labels.save, exact: true }))
     const saved = await saveResponse
-    expect(saved.request().postDataJSON().hosts).toEqual([' BLOCKED.Example. '])
+    expect(saved.request().postDataJSON().hosts).toEqual([' BLOCKED.Example. ', 'BLOCKED.LOCALHOST.'])
     expect((await saved.json()).code).toBe(0)
-    await expect(first).toHaveValue('blocked.example'); await expect(form.getByText(labels.saved, { exact: true })).toBeVisible()
-    expect((await get<Policy>(request, readPath)).hosts).toEqual(['blocked.example'])
+    await expect(page.getByText(labels.saved, { exact: true })).toBeVisible(); await expect(first).toHaveValue('blocked.example')
+    expect((await get<Policy>(request, readPath)).hosts).toEqual(['blocked.example', 'blocked.localhost'])
     const auditPath = '/admin/audit/list?actorId=' + scenario.userId + '&resourceType=system_setting&action=settings_change'
     const policyAudit = (await get<{ items: AuditItem[] }>(request, auditPath)).items
     expect(policyAudit).toHaveLength(1)
     expect(policyAudit[0]).toMatchObject({ actorId: scenario.userId, resourceId: 'security.target_host_denylist', changedFields: ['security.target_host_denylist'] })
     expect(Object.keys(policyAudit[0]!).sort()).toEqual(['action', 'actorId', 'actorUsername', 'changedFields', 'id', 'occurredAt', 'resourceId', 'resourceType'])
     expect(JSON.stringify(policyAudit)).not.toContain('blocked.example')
+    expect(JSON.stringify(policyAudit)).not.toContain('blocked.localhost')
     await expectNoHorizontalOverflow(page)
     await form.scrollIntoViewIfNeeded(); await page.screenshot({ path: info.outputPath('policy-saved-' + language + '-' + width + '.png') })
 
@@ -122,7 +127,7 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
       const result = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/' + (scope === 'admin' ? 'admin/' : '') + 'short-link/update')
       await dialog.getByRole('button', { name: labels.saveSettings, exact: true }).click()
       expect((await (await result).json()).code).toBe(200121)
-      await expect(dialog.getByText(labels.denied)).toBeVisible()
+      await expect(page.getByText(labels.denied)).toBeVisible()
       await expect(dialog.getByRole('textbox', { name: labels.editTarget, exact: true })).toHaveValue('https://blocked.example/changed')
       await expectNoHorizontalOverflow(page)
       await page.screenshot({ path: info.outputPath('policy-' + scope + '-denied-' + language + '-' + width + '.png') })
@@ -130,11 +135,15 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
 
     const visitor = await browser.newContext({ baseURL: info.project.use.baseURL, serviceWorkers: 'block' }); scenario.context(visitor)
     expect((await get<{ items: AuditItem[] }>(request, auditPath)).items).toEqual(policyAudit)
-    // Fulfil only the external destination locally: the actual public short route still returns its redirect.
-    await visitor.route('https://blocked.example/**', route => route.fulfill({ contentType: 'text/plain', body: 'Owned historical destination' }))
-    const visit = await visitor.newPage(); await visit.goto('/' + historical.slug)
-    await expect(visit).toHaveURL('https://blocked.example/original')
-    await expect(visit.getByText('Owned historical destination')).toBeVisible()
+    // Both the public redirect and its blocked-host destination are real, isolated local HTTP requests.
+    const visit = await visitor.newPage()
+    const redirected = visit.waitForResponse(response => new URL(response.url()).pathname === '/' + historical.slug)
+    const destination = await visit.goto('/' + historical.slug)
+    expect((await redirected).status()).toBe(302)
+    expect((await redirected).headers().location).toBe(historicalTarget.href)
+    await expect(visit).toHaveURL(historicalTarget.href)
+    expect(destination?.status()).toBe(200)
+    expect((await destination!.json()).code).toBe(0)
     // Explicit unchanged-byte API supplement, separate from browser editor assertions.
     await post(page.request, '/short-link/update', { id: historical.id, targetUrl: historical.targetUrl, metadata: { title: 'Unchanged target remains editable', tags: [] } })
     await post(page.request, '/admin/short-link/update', { id: historical.id, targetUrl: historical.targetUrl, metadata: { title: 'Admin unchanged target', tags: [] } })
