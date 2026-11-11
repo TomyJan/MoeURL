@@ -21,7 +21,7 @@ describe('independent homepage editor in system settings', () => {
     vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
       const body = init?.body ? JSON.parse(String(init.body)) : undefined
       requests.push({ path, body })
-      const data = path.includes('footer-links') ? { links: [], updatedAt: '2026-10-30T04:00:00.123456Z' } : path.includes('home-content') ? content : settings
+      const data = path.includes('target-host-denylist') ? { hosts: ['blocked.example'], updatedAt: '2026-11-11T04:00:00.123456Z' } : path.includes('footer-links') ? { links: [], updatedAt: '2026-10-30T04:00:00.123456Z' } : path.includes('home-content') ? content : settings
       return new Response(JSON.stringify({ code: 0, message: 'OK', data, meta: {} }), { status: 200 })
     }))
   })
@@ -50,5 +50,17 @@ describe('independent homepage editor in system settings', () => {
     expect(footerForm).not.toBe(screen.getByLabelText('homeContent.title').closest('form'))
     expect(footerForm).not.toBe(screen.getByLabelText('settings.siteName').closest('form'))
     expect(footerForm.contains(screen.getByRole('button', { name: 'footerLinks.add' }))).toBe(true)
+  })
+  it('mounts the independent target host denylist outside existing forms and saves only its own document', async () => {
+    mountPage()
+    await waitFor(() => expect(screen.getByLabelText('homeContent.title')).toHaveProperty('value', content.title))
+    const policyForm = screen.getByRole('form', { name: 'targetPolicy.form' })
+    expect(policyForm).not.toBe(screen.getByLabelText('settings.siteName').closest('form'))
+    expect(policyForm).not.toBe(screen.getByLabelText('homeContent.title').closest('form'))
+    const host = await screen.findByRole('textbox', { name: 'targetPolicy.host 1' })
+    await fireEvent.update(host, 'other.example')
+    await fireEvent.submit(policyForm)
+    await waitFor(() => expect(requests.find(r => r.path.endsWith('/target-host-denylist/update'))?.body).toEqual({ hosts: ['other.example'], expectedUpdatedAt: '2026-11-11T04:00:00.123456Z' }))
+    expect(requests.some(r => r.path.endsWith('/settings/update') || r.path.endsWith('/home-content/update') || r.path.endsWith('/footer-links/update'))).toBe(false)
   })
 })

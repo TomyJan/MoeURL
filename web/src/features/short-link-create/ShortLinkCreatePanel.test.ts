@@ -182,6 +182,7 @@ describe('ShortLinkCreatePanel', () => {
     { code: 200102, key: 'shortLinkCreate.customSlugReserved' },
     { code: 120001, key: 'shortLinkCreate.failed' },
     { code: 200114, key: 'shortLinkCreate.domainOrPermissionsChanged' },
+    { code: 200121, key: 'targetPolicy.denied' },
   ])('preserves the entire draft after $code and allows random fallback', async ({ code, key }) => {
     setQueryResult(['short_link:create', 'domain:use_default', 'domain:use_assigned', 'short_link:custom_slug', 'short_link:set_metadata'])
     state.domainQueryResult = {

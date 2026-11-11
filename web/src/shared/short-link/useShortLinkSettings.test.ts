@@ -3,6 +3,7 @@ import { ref } from 'vue'
 
 import type { ShortLink, UpdateShortLinkInput } from '@/entities/short-link/model'
 import { useShortLinkSettings } from './useShortLinkSettings'
+import { ApiClientError } from '@/shared/api/client'
 
 type PasswordFreeUpdateShortLinkInput = Omit<UpdateShortLinkInput, 'password'>
 
@@ -236,6 +237,15 @@ describe('useShortLinkSettings', () => {
     ])
   })
 
+  it.each(['short-link', 'admin-short-link'])('preserves the %s editor and explains a target-host denial', queryKey => {
+    state.error = new ApiClientError(200121, 'private backend detail')
+    state.isError = true
+    const settings = useShortLinkSettings({ mutationFn: vi.fn(), queryKey: [queryKey] })
+    settings.configure(link)
+    expect(settings.settingsErrorMessage.value).toBe('targetPolicy.denied')
+    expect(settings.settingsLink.value?.targetUrl).toBe('https://example.com')
+    expect(state.invalidateQueries).not.toHaveBeenCalled()
+  })
   it('uses the translated fallback for non-Error mutation failures', () => {
     state.error = { code: 200103 }
     state.isError = true

@@ -5,6 +5,7 @@ import { toast } from 'vue-sonner'
 
 import type { ShortLink, UpdateShortLinkInput } from '@/entities/short-link/model'
 import { runShortLinkMutation } from './runShortLinkMutation'
+import { ApiClientError } from '@/shared/api/client'
 
 interface UseShortLinkSettingsOptions {
   mutationFn: (input: UpdateShortLinkInput) => Promise<unknown>
@@ -49,7 +50,7 @@ export function useShortLinkSettings(options: UseShortLinkSettingsOptions) {
     if (!settingsMutation.isError.value) {
       return ''
     }
-    return t('links.settingsSaveFailed')
+    return t(settingsMutation.error.value instanceof ApiClientError && settingsMutation.error.value.code === 200121 ? 'targetPolicy.denied' : 'links.settingsSaveFailed')
   })
 
   /** Opens the settings dialog with a fresh mutation state for the selected link. */

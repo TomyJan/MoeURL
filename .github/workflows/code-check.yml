@@ -179,6 +179,7 @@ jobs:
             ./internal/permission \
             ./internal/shortlink \
             ./internal/system \
+            ./internal/targetpolicy \
             ./internal/user \
             ./internal/usergroup \
             -coverprofile="$GITHUB_WORKSPACE/coverage.out"

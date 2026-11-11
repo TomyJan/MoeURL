@@ -481,11 +481,11 @@ describe('batch lifecycle and retry safety', () => {
     expect(fetcher.mock.calls[0]![1]!.body).toBe(fetcher.mock.calls[1]![1]!.body)
     expect(state.opened.value).toBe(false)
   })
-  it('keeps an earlier unknown result even when a later attempt is definitely rejected', async () => {
+  it.each([200114, 200121])('keeps an earlier unknown result even when a later attempt is definitely rejected with %i', async code => {
     const { state, fetcher } = mount(); const input = preview(state)
     fetcher.mockRejectedValueOnce(new Error('lost'))
     await state.submit()
-    fetcher.mockResolvedValueOnce(response(null, 200114))
+    fetcher.mockResolvedValueOnce(response(null, code))
     await state.submit()
     expect(state.unknown.value).toBe(true); expect(state.snapshot.value).toBe(input)
     state.close(); expect(state.opened.value).toBe(true); expect(state.closing.value).toBe(true)
@@ -494,12 +494,12 @@ describe('batch lifecycle and retry safety', () => {
     state.close(); state.discard()
     expect(state.opened.value).toBe(false); expect(state.snapshot.value).toBeNull(); expect(state.draft.value).toBe('')
   })
-  it.each([200103, 200120])('preserves editable input after a definite initial refusal %i', async code => {
+  it.each([200103, 200120, 200121])('preserves editable input after a definite initial refusal %i', async code => {
     const { state, fetcher } = mount(); const input = preview(state)
     fetcher.mockResolvedValueOnce(response(null, code))
     await state.submit()
     expect(state.unknown.value).toBe(false); expect(state.snapshot.value).toBe(input)
-    expect(state.errorKey.value).toBe(code === 200120 ? 'bulkCreate.conflict' : 'bulkCreate.failed')
+    expect(state.errorKey.value).toBe(code === 200120 ? 'bulkCreate.conflict' : code === 200121 ? 'targetPolicy.bulkDenied' : 'bulkCreate.failed')
     state.edit(); expect(state.snapshot.value).toBeNull(); expect(state.draft.value).toContain('https://example.com/one')
     state.close(); expect(state.opened.value).toBe(false)
   })

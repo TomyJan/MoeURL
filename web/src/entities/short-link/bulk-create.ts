@@ -89,7 +89,7 @@ async function sendBatch(path: string, input: BulkCreateInput | BulkCreateTitles
     return result.data
   } catch (error) {
     if (error instanceof ApiClientError && ([401, 403].includes(error.code)
-      || (!('status' in error.meta) && [100001, 120001, 200101, 200102, 200103, 200114, 200120].includes(error.code)))) throw error
+      || (!('status' in error.meta) && [100001, 120001, 200101, 200102, 200103, 200114, 200120, 200121].includes(error.code)))) throw error
     throw new BulkCreateUnknownError()
   } finally { clearTimeout(deadline) }
 }

@@ -42,6 +42,7 @@
     <HomeContentEditor />
     <AppearanceEditor />
     <FooterLinksEditor />
+    <TargetHostDenylistEditor />
     <AdminAuthenticationPage />
   </section>
 </template>
@@ -59,6 +60,7 @@ import AdminAuthenticationPage from './AdminAuthenticationPage.vue'
 import HomeContentEditor from '@/features/home-content/HomeContentEditor.vue'
 import AppearanceEditor from '@/features/site-appearance/AppearanceEditor.vue'
 import FooterLinksEditor from '@/features/footer-links/FooterLinksEditor.vue'
+import TargetHostDenylistEditor from '@/features/target-host-denylist/TargetHostDenylistEditor.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()
