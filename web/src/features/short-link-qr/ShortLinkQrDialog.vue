@@ -51,7 +51,7 @@
       <v-card-actions class="short-link-qr-dialog__actions">
         <v-menu v-model="sizeMenuOpen">
           <template #activator="{ props: menuProps }">
-            <v-btn v-bind="menuProps" variant="text">{{ t('shortLinkQr.exportSize') }}: {{ selectedSize }} px</v-btn>
+            <v-btn ref="sizeActivator" v-bind="menuProps" variant="text">{{ t('shortLinkQr.exportSize') }}: {{ selectedSize }} px</v-btn>
           </template>
           <v-list role="menu" :aria-label="t('shortLinkQr.exportSize')">
             <v-list-item
@@ -61,7 +61,7 @@
               role="menuitemradio"
               :aria-checked="selectedSize === width"
               :active="selectedSize === width"
-              @click="selectedSize = width"
+              @click="selectSize(width)"
             >
               {{ width }} px
             </v-list-item>
@@ -111,6 +111,7 @@ const selectedPreset = ref<(typeof qrAppearancePresets)[number]>(qrAppearancePre
 const selectedCorrection = ref<QrCorrectionLevel>('M')
 const selectedSize = ref<QrExportSize>(320)
 const sizeMenuOpen = ref(false)
+const sizeActivator = ref<{ $el: HTMLButtonElement }>()
 const dataUrl = ref('')
 const generating = ref(false)
 const generationError = ref(false)
@@ -118,6 +119,13 @@ const svgDataUrl = ref('')
 const svgGenerating = ref(false)
 const svgError = ref(false)
 let generationId = 0
+
+/** Returns focus during this mounted selection, without a delayed focus on a later identity. */
+function selectSize(width: QrExportSize) {
+  selectedSize.value = width
+  sizeMenuOpen.value = false
+  sizeActivator.value!.$el.focus()
+}
 
 onBeforeUnmount(() => { generationId++ })
 

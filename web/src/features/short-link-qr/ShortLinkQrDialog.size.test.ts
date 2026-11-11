@@ -23,8 +23,12 @@ function mountDialog() {
 
 /** Selects through the visible menu rather than changing internal state. */
 async function chooseSize(width: 320 | 640 | 1024) {
-  await fireEvent.click(screen.getByRole('button', { name: /^shortLinkQr.exportSize:/ }))
-  await fireEvent.click(screen.getByRole('menuitemradio', { name: `${width} px` }))
+  const activator = screen.getByRole('button', { name: /^shortLinkQr.exportSize:/ })
+  await fireEvent.click(activator)
+  const option = screen.getByRole('menuitemradio', { name: `${width} px` })
+  option.focus()
+  await fireEvent.click(option)
+  expect(document.activeElement).toBe(activator)
   expect(screen.getByRole('button', { name: `shortLinkQr.exportSize: ${width} px` })).toBeTruthy()
 }
 
