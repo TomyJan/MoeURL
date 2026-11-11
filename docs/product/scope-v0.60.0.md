@@ -1,6 +1,6 @@
 # v0.60.0 可搜索账号显示时区
 
-状态：后端 Task1 已标准完成；前端搜索及完整门禁通过，Task2 标准收尾中；浏览器、真实审查及交付尚未完成。基线为已完成 PR304 的 master `a371588c8c2a43ebeedab1e8d9b7a4064891e0c6`。实际验证与源扫描提示见[验收](../implementation/v0.60.0-acceptance.md)。
+状态：Task1–2 已标准完成，Task3 已开始；真实浏览器、审查及交付尚未完成。基线为已完成 PR304 的 master `a371588c8c2a43ebeedab1e8d9b7a4064891e0c6`。实际验证与源扫描提示见[验收](../implementation/v0.60.0-acceptance.md)。
 
 ## 目标与取舍
 
