@@ -1,8 +1,8 @@
 # MoeURL 文档中心
 
-## 当前开发（2026-11-12，v0.62.0）
+## 当前维护（2026-11-12，v0.62.1）
 
-v0.61.3／[PR310](https://github.com/TomyJan/MoeURL/pull/310) 已完整交付，master `3e75148a9364af6853c9f2de8e187597fbb3c2dd`。当前[二维码留白](product/scope-v0.62.0.md)已实现标准／宽两档，产品 0.62.0；完整前端及准确产品本地验证通过，原两项浏览器失败已修并由受影响分区验证。真实审查和集成交付仍待。见[计划](implementation/v0.62.0-plan.md)和[验收](implementation/v0.62.0-acceptance.md)。下方为历史检查点。
+v0.62.0／[PR311](https://github.com/TomyJan/MoeURL/pull/311) 已完整交付，master `8a9bc9ec6fe770a759e388031fc8988d80fc157c`，最终候选 `00422ad` 已真实 CodeRabbit 覆盖；三个标准任务、16 条裁决与 11 份文件恢复归档完成。原浏览器 311／313、修复后 29 个受影响场景加 setup、去重 313 个身份及 16 张原图保持原归属，不称单次全绿。当前[交付状态文档维护](product/scope-v0.62.1.md)只拆清验收阶段和整理量词，产品保持 0.62.0；本维护审查交付尚待，见[计划](implementation/v0.62.1-plan.md)及[验收](implementation/v0.62.1-acceptance.md)。下方为历史检查点。
 
 ## 当前维护（2026-11-12，v0.61.3）
 
