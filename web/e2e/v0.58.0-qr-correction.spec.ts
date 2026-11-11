@@ -12,10 +12,10 @@ const labels = {
 const levels = ['M', 'Q', 'H'] as const
 const colors = ['#000000', '#312e81', '#14532d'] as const
 
-for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]) {
+for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390, 375]) {
   test(`v0.58.0 ${language} ${width}px keeps selected QR correction in PNG and SVG at all three entrypoints`, async ({ browser }, info) => {
     const text = labels[language], ids: string[] = [], failures: unknown[] = []
-    const context = await browser.newContext({ baseURL: info.project.use.baseURL, viewport: { width, height: width === 1280 ? 900 : 800 }, reducedMotion: 'reduce', colorScheme: language === 'en' ? 'light' : 'dark', hasTouch: width === 390, serviceWorkers: 'block' })
+    const context = await browser.newContext({ baseURL: info.project.use.baseURL, viewport: { width, height: width === 1280 ? 900 : width === 375 ? 667 : 800 }, reducedMotion: 'reduce', colorScheme: language === 'en' ? 'light' : 'dark', hasTouch: width !== 1280, serviceWorkers: 'block' })
     const page = await context.newPage()
     try {
       await post(page.request, '/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword })
@@ -56,10 +56,17 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
           // Notification close buttons may expire while the dialog remains open.
           // Verify every stable QR control by name, without hiding notifications.
           for (const name of [...text.colors, ...text.levels, text.close]) {
+            if (width === 375) await dialog.getByRole('button', { name, exact: true }).focus()
             await expect(dialog.getByRole('button', { name, exact: true })).toBeInViewport({ ratio: 1 })
           }
           for (const name of [text.png, text.svg]) {
+            if (width === 375) await dialog.getByRole('link', { name, exact: true }).focus()
             await expect(dialog.getByRole('link', { name, exact: true })).toBeInViewport({ ratio: 1 })
+          }
+          // Short screens permit normal scrolling; larger viewports retain simultaneous visibility.
+          if (width === 375) {
+            await page.screenshot({ path: info.outputPath(`correction-${language}-${width}-${index}-actions.png`) })
+            await dialog.getByText(text.title, { exact: true }).scrollIntoViewIfNeeded()
           }
           // Download focus must not scroll the title behind the card's clipped edge.
           await expect(dialog.getByText(text.title, { exact: true })).toBeInViewport({ ratio: 1 })
