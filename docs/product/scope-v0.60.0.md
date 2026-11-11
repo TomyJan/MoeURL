@@ -1,6 +1,6 @@
 # v0.60.0 可搜索账号显示时区
 
-状态：Task1–2 已标准完成，Task3 已开始；真实浏览器、审查及交付尚未完成。基线为已完成 PR304 的 master `a371588c8c2a43ebeedab1e8d9b7a4064891e0c6`。实际验证与源扫描提示见[验收](../implementation/v0.60.0-acceptance.md)。
+状态：Task1–2 已标准完成；Task3 的准确产品浏览器分区、84 张原图、smoke 与产品扫描已核准，独立终审、真实 CodeRabbit 及交付尚未完成。基线为已完成 PR304 的 master `a371588c8c2a43ebeedab1e8d9b7a4064891e0c6`。实际验证与源扫描提示见[验收](../implementation/v0.60.0-acceptance.md)。
 
 ## 目标与取舍
 
