@@ -22,7 +22,7 @@ func TestFooterLinksMigrationPreservesHistory(t *testing.T) {
 	require.NoError(t, goose.UpTo(database, dir, 30))
 	var legacyBefore string
 	require.NoError(t, database.QueryRowContext(ctx, `select jsonb_agg(to_jsonb(s) order by key)::text from system_setting s`).Scan(&legacyBefore))
-	require.NoError(t, goose.Up(database, dir))
+	require.NoError(t, goose.UpTo(database, dir, 31))
 	var initial string
 	require.NoError(t, database.QueryRowContext(ctx, `select value::text from system_setting where key='site.footer_links'`).Scan(&initial))
 	require.JSONEq(t, `{"links":[]}`, initial)

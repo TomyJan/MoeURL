@@ -1,6 +1,13 @@
 # Files in this list are the backend business source coverage gate.
 # Generated SQLC files, database connection helpers, and process bootstrap code
 # are validated by build/integration tests, but are not counted in this gate.
+github.com/TomyJan/MoeURL/internal/targetpolicy/model.go
+github.com/TomyJan/MoeURL/internal/targetpolicy/normalize.go
+github.com/TomyJan/MoeURL/internal/targetpolicy/json.go
+github.com/TomyJan/MoeURL/internal/targetpolicy/locks.go
+github.com/TomyJan/MoeURL/internal/targetpolicy/service.go
+github.com/TomyJan/MoeURL/internal/targetpolicy/handler.go
+github.com/TomyJan/MoeURL/internal/shortlink/target_policy.go
 github.com/TomyJan/MoeURL/internal/auth/current_user.go
 github.com/TomyJan/MoeURL/internal/auth/handler.go
 github.com/TomyJan/MoeURL/internal/auth/password.go

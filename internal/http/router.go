@@ -14,6 +14,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/oidc"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/system"
+	"github.com/TomyJan/MoeURL/internal/targetpolicy"
 	"github.com/TomyJan/MoeURL/internal/user"
 	"github.com/TomyJan/MoeURL/internal/usergroup"
 	"github.com/go-chi/chi/v5"
@@ -25,6 +26,7 @@ type Dependencies struct {
 	System                          system.ServicePort
 	SystemSettings                  system.SettingsPort
 	HomeContent                     system.HomeContentPort
+	TargetHostDenylist              targetpolicy.Port
 	Appearance                      system.AppearancePort
 	FooterLinks                     system.FooterLinksPort
 	Auth                            auth.Port
@@ -156,6 +158,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				appearanceHandler := system.NewAppearanceHandler(dependency.Appearance, logger)
 				businessAPI.Get("/admin/system/appearance", appearanceHandler.Get)
 				businessAPI.Post("/admin/system/appearance/update", appearanceHandler.Update)
+			}
+			if dependency.TargetHostDenylist != nil {
+				handler := targetpolicy.NewHandler(dependency.TargetHostDenylist, logger)
+				businessAPI.Get("/admin/system/target-host-denylist", handler.Get)
+				businessAPI.Post("/admin/system/target-host-denylist/update", handler.Update)
 			}
 			if dependency.FooterLinks != nil {
 				footerLinksHandler := system.NewFooterLinksHandler(dependency.FooterLinks, logger)

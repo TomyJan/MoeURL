@@ -23,6 +23,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/system"
+	"github.com/TomyJan/MoeURL/internal/targetpolicy"
 	"github.com/TomyJan/MoeURL/internal/user"
 	"github.com/TomyJan/MoeURL/internal/usergroup"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -175,6 +176,12 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			return nil, fmt.Errorf("validate home content: %w", err)
 		}
 		deps.HomeContent = homeContentService
+		targetPolicyService := targetpolicy.NewService(pool)
+		if err := targetPolicyService.ValidateStartup(ctx); err != nil {
+			pool.Close()
+			return nil, fmt.Errorf("validate target host policy: %w", err)
+		}
+		deps.TargetHostDenylist = targetPolicyService
 		appearanceService := system.NewAppearanceService(pool)
 		if err := appearanceService.ValidateStartup(ctx); err != nil {
 			pool.Close()

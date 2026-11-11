@@ -34,7 +34,7 @@ func TestTimeZoneCatalogMigration(t *testing.T) {
 		return value
 	}
 	before := read()
-	if err := goose.Up(database, dir); err != nil {
+	if err := goose.UpTo(database, dir, 38); err != nil {
 		t.Fatal(err)
 	}
 	if got := read(); got != before {
@@ -77,7 +77,7 @@ func TestTimeZoneCatalogMigration(t *testing.T) {
 	if !errors.As(err, &pgErr) || pgErr.Code != "23514" {
 		t.Fatalf("old CHECK was not restored: %v", err)
 	}
-	if err := goose.Up(database, dir); err != nil {
+	if err := goose.UpTo(database, dir, 38); err != nil {
 		t.Fatal(err)
 	}
 	if got := read(); got != compatible || got != before {

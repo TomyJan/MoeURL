@@ -3,9 +3,12 @@ package shortlink
 import (
 	"errors"
 	"time"
+
+	"github.com/TomyJan/MoeURL/internal/targetpolicy"
 )
 
 var (
+	ErrTargetDenied             = targetpolicy.ErrTargetDenied
 	ErrInvalidInput             = errors.New("invalid input")
 	ErrPermissionDenied         = errors.New("permission denied")
 	ErrInvalidTargetURL         = errors.New("invalid target url")

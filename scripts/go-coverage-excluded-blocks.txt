@@ -26,11 +26,11 @@ github.com/TomyJan/MoeURL/internal/user/service.go:67.16,69.3
 # ResetPassword password hashing failure; argon2/random failure is an infrastructure branch that is not deterministically triggerable.
 github.com/TomyJan/MoeURL/internal/user/service.go:287.16,289.3
 # After a creation transaction starts, advisory locking or the granted-domain query can fail on database or context errors.
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:133.64,135.5
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:145.18,147.5
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:139.64,141.5
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:158.18,160.5
 # Successful updates retain a valid domain foreign key; a subsequent domain read can fail only on infrastructure error.
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:370.16,372.3
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:612.16,614.3
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:414.16,416.3
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:684.16,686.3
 
 # Redirect access transaction step failures are infrastructure/concurrency paths: each intermediate failure requires the database connection or row to change between locked statements.
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:300.35,302.3
@@ -45,7 +45,21 @@ github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:364.39,366.3
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:352.16,354.3
 
 # Password hashing failure is an Argon2id/random infrastructure path after input and permission validation.
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:916.16,918.3
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:988.16,990.3
+
+# Target writer callbacks run only after SetAuditContext has rejected every
+# malformed, zero, or noncanonical actor UUID. The remaining two ranges are
+# database I/O failures between successful transaction/gate and locked reads;
+# missing identities/groups, revoked grants and corrupt grants remain tested.
+github.com/TomyJan/MoeURL/internal/shortlink/target_policy.go:28.61,30.3
+github.com/TomyJan/MoeURL/internal/shortlink/target_policy.go:35.16,37.3
+github.com/TomyJan/MoeURL/internal/shortlink/target_policy.go:42.16,44.3
+
+# x/net v0.62.0 Lookup.ToUnicode has already checked NFC, allowed categories,
+# labels and Bidi. Its nontransitional mapping and canonical Punycode encoder
+# round-trip that validated lower-case ACE label. Keep this defensive check,
+# and reassess this exact block when changing the locked IDNA dependency.
+github.com/TomyJan/MoeURL/internal/targetpolicy/normalize.go:62.38,64.5
 
 # Domain mutations acquire the same advisory lock immediately after beginning a transaction; forcing only the lock
 # statement to fail requires a connection or context race after the transaction has already started.
