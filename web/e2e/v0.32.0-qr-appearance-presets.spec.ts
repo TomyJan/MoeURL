@@ -5,8 +5,8 @@ import type { Locator, Page } from '@playwright/test'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
 
 const labels = {
-  en: { target: 'Enter link', create: 'Create short link', qr: 'QR code', title: 'Short-link QR code', group: 'QR appearance', presets: ['Black and white', 'Iris blue', 'Forest green'], levels: ['M (standard)', 'Q (higher)', 'H (highest)'], size: 'Export size: 320 px', download: 'Download PNG', svg: 'Download SVG', close: 'Close', more: 'More actions' },
-  zh: { target: '输入链接', create: '创建短链', qr: '二维码', title: '短链二维码', group: '二维码外观', presets: ['黑白', '鸢尾蓝', '森林绿'], levels: ['M（标准）', 'Q（较高）', 'H（最高）'], size: '导出尺寸: 320 px', download: '下载 PNG', svg: '下载 SVG', close: '关闭', more: '更多操作' },
+  en: { target: 'Enter link', create: 'Create short link', qr: 'QR code', title: 'Short-link QR code', group: 'QR appearance', presets: ['Black and white', 'Iris blue', 'Forest green'], levels: ['M (standard)', 'Q (higher)', 'H (highest)'], size: 'Export size: 320 px', border: 'Border: Standard', download: 'Download PNG', svg: 'Download SVG', close: 'Close', more: 'More actions' },
+  zh: { target: '输入链接', create: '创建短链', qr: '二维码', title: '短链二维码', group: '二维码外观', presets: ['黑白', '鸢尾蓝', '森林绿'], levels: ['M（标准）', 'Q（较高）', 'H（最高）'], size: '导出尺寸: 320 px', border: '留白: 标准', download: '下载 PNG', svg: '下载 SVG', close: '关闭', more: '更多操作' },
 } as const
 const colors = ['0,0,0,255', '49,46,129,255', '20,83,45,255']
 
@@ -149,7 +149,7 @@ test('v0.32.0 long public QR URL preserves mobile layout and keyboard access', a
     for (const border of [pixels.left, pixels.top, pixels.right, pixels.bottom]) expect(border).toBeGreaterThanOrEqual(4 * pixels.finderBar / 7 - 1)
     await page.keyboard.press('Tab')
     await expect(group.getByRole('button', { name: labels.zh.presets[2], exact: true })).toBeFocused()
-    // Correction choices and the size menu precede the download links.
+    // Correction choices, size and border menus precede the download links.
     for (const [index, name] of labels.zh.levels.entries()) {
       await page.keyboard.press('Tab')
       const correction = dialog.getByRole('button', { name, exact: true })
@@ -160,6 +160,10 @@ test('v0.32.0 long public QR URL preserves mobile layout and keyboard access', a
     const size = dialog.getByRole('button', { name: labels.zh.size, exact: true })
     await expect(size).toBeFocused()
     await expect(size).toBeInViewport({ ratio: 1 })
+    await page.keyboard.press('Tab')
+    const border = dialog.getByRole('button', { name: labels.zh.border, exact: true })
+    await expect(border).toBeFocused()
+    await expect(border).toBeInViewport({ ratio: 1 })
     await page.keyboard.press('Tab')
     const download = dialog.getByRole('link', { name: labels.zh.download, exact: true })
     await expect(download).toBeFocused()
@@ -255,7 +259,7 @@ async function readPixels(image: Locator) {
 async function expectControlsInViewport(page: Page, dialog: Locator, text: (typeof labels)[keyof typeof labels]) {
   const viewport = page.viewportSize()!
   const controls = [
-    ...[...text.presets, ...text.levels, text.size, text.close].map(name => dialog.getByRole('button', { name, exact: true })),
+    ...[...text.presets, ...text.levels, text.size, text.border, text.close].map(name => dialog.getByRole('button', { name, exact: true })),
     ...[text.download, text.svg].map(name => dialog.getByRole('link', { name, exact: true })),
   ]
   await expect(dialog.getByText(text.title, { exact: true })).toBeInViewport({ ratio: 1 })

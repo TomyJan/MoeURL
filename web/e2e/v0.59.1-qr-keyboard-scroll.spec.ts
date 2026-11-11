@@ -4,8 +4,8 @@ import type { APIRequestContext } from '@playwright/test'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
 
 const labels = {
-  en: { target: 'Enter link', create: 'Create short link', qr: 'QR code', title: 'Short-link QR code', colors: ['Black and white', 'Iris blue', 'Forest green'], levels: ['M (standard)', 'Q (higher)', 'H (highest)'], size: 'Export size: 320 px', png: 'Download PNG', svg: 'Download SVG', close: 'Close', more: 'More actions' },
-  'zh-CN': { target: '输入链接', create: '创建短链', qr: '二维码', title: '短链二维码', colors: ['黑白', '鸢尾蓝', '森林绿'], levels: ['M（标准）', 'Q（较高）', 'H（最高）'], size: '导出尺寸: 320 px', png: '下载 PNG', svg: '下载 SVG', close: '关闭', more: '更多操作' },
+  en: { target: 'Enter link', create: 'Create short link', qr: 'QR code', title: 'Short-link QR code', colors: ['Black and white', 'Iris blue', 'Forest green'], levels: ['M (standard)', 'Q (higher)', 'H (highest)'], size: 'Export size: 320 px', border: 'Border: Standard', png: 'Download PNG', svg: 'Download SVG', close: 'Close', more: 'More actions' },
+  'zh-CN': { target: '输入链接', create: '创建短链', qr: '二维码', title: '短链二维码', colors: ['黑白', '鸢尾蓝', '森林绿'], levels: ['M（标准）', 'Q（较高）', 'H（最高）'], size: '导出尺寸: 320 px', border: '留白: 标准', png: '下载 PNG', svg: '下载 SVG', close: '关闭', more: '更多操作' },
 } as const
 
 // A skipped middle button or a non-scrollable card must break these real-input checks.
@@ -45,6 +45,7 @@ for (const language of ['zh-CN', 'en'] as const) {
           ...text.colors.map(name => dialog.getByRole('button', { name, exact: true })),
           ...text.levels.map(name => dialog.getByRole('button', { name, exact: true })),
           dialog.getByRole('button', { name: text.size, exact: true }),
+          dialog.getByRole('button', { name: text.border, exact: true }),
           dialog.getByRole('link', { name: text.png, exact: true }),
           dialog.getByRole('link', { name: text.svg, exact: true }),
           dialog.getByRole('button', { name: text.close, exact: true }),
@@ -68,10 +69,10 @@ for (const language of ['zh-CN', 'en'] as const) {
         await page.setViewportSize({ width: 375, height: 600 })
         await expect.poll(() => card.evaluate(element => element.scrollHeight - element.clientHeight), { message: 'Shorter wheel viewport must overflow without a notification' }).toBeGreaterThan(1)
         await page.keyboard.press('Shift+Tab')
-        await expect(controls[8]!).toBeFocused()
+        await expect(dialog.getByRole('link', { name: text.svg, exact: true })).toBeFocused()
         await page.keyboard.press('Tab')
-        await expect(controls[9]!).toBeFocused()
-        await expect(controls[9]!).toBeInViewport({ ratio: 1 })
+        await expect(dialog.getByRole('button', { name: text.close, exact: true })).toBeFocused()
+        await expect(dialog.getByRole('button', { name: text.close, exact: true })).toBeInViewport({ ratio: 1 })
         const geometry = await card.evaluate(element => ({ top: element.scrollTop, height: element.clientHeight, content: element.scrollHeight }))
         const before = geometry.top
         expect(before, 'Real Tab to bottom must scroll the stable overflowing card').toBeGreaterThan(0)
