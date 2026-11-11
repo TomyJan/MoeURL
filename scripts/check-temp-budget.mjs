@@ -5,21 +5,25 @@ import { spawnSync } from 'node:child_process'
 const MiB = 1024 ** 2
 const limits = Object.freeze({ active: 4 * 1024 ** 3, total: 12 * 1024 ** 3, docker: 6 * 1024 ** 3 })
 
+/** Rejects missing, negative, fractional or unsafe byte counts before arithmetic. */
 function size(value) {
   if (!Number.isSafeInteger(value) || value < 0) throw new Error('Capacity must be a nonnegative safe integer')
   return value
 }
 
+/** Adds validated byte counts and refuses an unsafe combined total. */
 function add(left, right) {
   return size(size(left) + size(right))
 }
 
+/** Accepts a single active-directory label and rejects paths or traversal names. */
 function activeDirectory(value) {
   if (typeof value !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(value)) {
     throw new Error('Active name must be one directory name, not a path')
   }
 }
 
+/** Folds Windows names conservatively; callers separately reject ambiguous roots. */
 function pathKey(value) {
   return process.platform === 'win32' ? value.toLowerCase() : value
 }
@@ -96,6 +100,7 @@ export function parseDockerReclaimable(output) {
   return add(size(Math.ceil(Number(match[1]) * units[match[2]])), 16 * MiB)
 }
 
+/** Parses the explicit root list and reserve, rejecting ambiguous or incomplete CLI input. */
 function options(args) {
   const result = { roots: [], reserveBytes: 256 * MiB, docker: false }
   const seen = new Set()
@@ -122,6 +127,7 @@ function options(args) {
   return result
 }
 
+/** Completes the read-only inventory before reporting whether reserved work fits all budgets. */
 async function main() {
   const args = options(process.argv.slice(2))
   const inventory = await inspectTemporaryFiles(args.roots, args.activeName)

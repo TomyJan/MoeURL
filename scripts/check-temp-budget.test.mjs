@@ -8,12 +8,14 @@ import { evaluateBudget, inspectTemporaryFiles, parseDockerReclaimable } from '.
 
 const evidence = fileURLToPath(new URL('../.tmp/v0612-evidence/', import.meta.url))
 
+/** Creates owned small roots and registers their cleanup before any test can fail. */
 async function fixture(t) {
   await mkdir(evidence, { recursive: true })
   const base = await mkdtemp(join(evidence, 'budget-fixture-'))
   t.after(() => rm(base, { recursive: true, force: true }))
   const roots = [join(base, 'worktree', '.tmp'), join(base, 'main', '.tmp')]
   for (const root of roots) await mkdir(root, { recursive: true })
+  /** Writes a deterministic small fixture and returns its path for read-only assertions. */
   async function put(root, relative, bytes) {
     const path = join(root, relative)
     await mkdir(dirname(path), { recursive: true })
@@ -154,6 +156,7 @@ test('rejects invalid capacity numbers rather than treating them as empty', () =
   assert.throws(() => evaluateBudget({ ...valid, totalBytes: Number.MAX_SAFE_INTEGER, reserveBytes: 1 }))
 })
 
+/** Builds a complete cache row alongside an unrelated image row to catch overcounting. */
 function dockerRows(value) {
   return JSON.stringify({ Type: 'Images', Reclaimable: '8GB (50%)' }) + '\n' + JSON.stringify({ Type: 'Build Cache', Reclaimable: value }) + '\n'
 }
@@ -172,6 +175,7 @@ test('rejects missing, ambiguous, malformed or unsafe Docker inventory', () => {
 })
 
 const cliPath = fileURLToPath(new URL('./check-temp-budget.mjs', import.meta.url))
+/** Exercises the actual CLI in this test's Node runtime with a bounded child lifetime. */
 function cli(args) {
   return spawnSync(process.execPath, [cliPath, ...args], { encoding: 'utf8', timeout: 10_000 })
 }
