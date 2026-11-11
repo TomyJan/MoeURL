@@ -49,9 +49,9 @@
         </v-alert>
       </v-card-text>
       <v-card-actions class="short-link-qr-dialog__actions">
-        <v-menu v-model="sizeMenuOpen">
+        <v-menu ref="sizeMenu" v-model="sizeMenuOpen">
           <template #activator="{ props: menuProps }">
-            <v-btn ref="sizeActivator" v-bind="menuProps" variant="text">{{ t('shortLinkQr.exportSize') }}: {{ selectedSize }} px</v-btn>
+            <v-btn v-bind="menuProps" variant="text">{{ t('shortLinkQr.exportSize') }}: {{ selectedSize }} px</v-btn>
           </template>
           <v-list role="menu" :aria-label="t('shortLinkQr.exportSize')">
             <v-list-item
@@ -111,7 +111,7 @@ const selectedPreset = ref<(typeof qrAppearancePresets)[number]>(qrAppearancePre
 const selectedCorrection = ref<QrCorrectionLevel>('M')
 const selectedSize = ref<QrExportSize>(320)
 const sizeMenuOpen = ref(false)
-const sizeActivator = ref<{ $el: HTMLButtonElement }>()
+const sizeMenu = ref<{ activatorEl: HTMLButtonElement }>()
 const dataUrl = ref('')
 const generating = ref(false)
 const generationError = ref(false)
@@ -127,7 +127,7 @@ function selectSize(width: QrExportSize) {
   selectedSize.value = width
   sizeMenuOpen.value = false
   void nextTick(() => {
-    if (currentFocusId === focusId) sizeActivator.value!.$el.focus()
+    if (currentFocusId === focusId) sizeMenu.value!.activatorEl.focus()
   })
 }
 

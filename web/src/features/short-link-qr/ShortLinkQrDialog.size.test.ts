@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import QRCode from 'qrcode'
-import { nextTick } from 'vue'
+import { defineComponent, h, nextTick, ref } from 'vue'
 
 import ShortLinkQrDialog from './ShortLinkQrDialog.vue'
 import { componentStubs } from '@/test/component-stubs'
@@ -13,11 +13,29 @@ const url = 'https://go.example.com/abc123'
 const pngWriter = QRCode.toDataURL
 const svgWriter = QRCode.toString
 
+/** Mirrors Vuetify's activator ref and its publicly forwarded activatorEl. */
+const sizeMenuStub = defineComponent({
+  props: { modelValue: Boolean },
+  emits: ['update:modelValue'],
+  setup(props, { slots, emit, expose }) {
+    const activator = ref<HTMLButtonElement>()
+    expose({ get activatorEl() { return activator.value } })
+    return () => h('div', [
+      slots.activator?.({ props: {
+        ref: (instance: unknown) => { activator.value = instance ? (instance as { $el: HTMLButtonElement }).$el : undefined },
+        'aria-haspopup': 'menu', 'aria-expanded': String(props.modelValue),
+        onClick: () => emit('update:modelValue', !props.modelValue),
+      } }),
+      props.modelValue ? h('div', { onClick: () => emit('update:modelValue', false) }, slots.default?.()) : null,
+    ])
+  },
+})
+
 /** Exercises the real component and encoder while substituting only layout. */
 function mountDialog() {
   return render(ShortLinkQrDialog, {
     props: { open: true, slug: 'abc123', url },
-    global: { stubs: componentStubs },
+    global: { stubs: { ...componentStubs, VMenu: sizeMenuStub } },
   })
 }
 

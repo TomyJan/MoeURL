@@ -18,6 +18,8 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390,
     const text = labels[language], ids: string[] = [], failures: unknown[] = []
     const context = await browser.newContext({ baseURL: info.project.use.baseURL, viewport: { width, height: width === 1280 ? 900 : width === 375 ? 667 : 800 }, reducedMotion: 'reduce', colorScheme: language === 'en' ? 'light' : 'dark', hasTouch: width !== 1280, serviceWorkers: 'block' })
     const page = await context.newPage()
+    const pageErrors: string[] = []
+    page.on('pageerror', error => pageErrors.push(error.message))
     try {
       await post(page.request, '/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword })
       await context.addInitScript(value => localStorage.setItem('moeurl.language', value), language)
@@ -63,6 +65,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390,
             if (entry === 'home' && index === 2) await page.screenshot({ path: info.outputPath(`size-${language}-${width}-menu.png`) })
             const option = menu.getByRole('menuitemradio', { name: `${pixels} px`, exact: true })
             await page.keyboard.press('ArrowDown')
+            await page.keyboard.press('Home')
             await expect(menu.getByRole('menuitemradio').first()).toBeFocused()
             for (let step = 0; step < index; step++) await page.keyboard.press('ArrowDown')
             await expect(option).toBeFocused()
@@ -77,6 +80,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390,
             await page.keyboard.press('Enter')
             await expect(menu).toBeVisible()
             await page.keyboard.press('ArrowDown')
+            await page.keyboard.press('Home')
             await expect(menu.getByRole('menuitemradio').first()).toBeFocused()
             await page.keyboard.press('Escape')
             await expect(menu).toBeHidden()
@@ -113,6 +117,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390,
         }
         await dialog.getByRole('button', { name: text.close, exact: true }).click()
       }
+      expect(pageErrors).toEqual([])
     } catch (error) { failures.push(error) } finally {
       for (const id of ids) { try { await post(page.request, '/admin/short-link/delete', { id }) } catch (error) { failures.push(error) } }
       await context.close()
