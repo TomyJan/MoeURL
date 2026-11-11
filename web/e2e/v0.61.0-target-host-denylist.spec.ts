@@ -221,30 +221,33 @@ for (const [operation, language, width] of [['load', 'en', 390], ['save', 'zh-CN
     const field = form.getByRole('textbox', { name: labels.host + ' 1', exact: true })
     await expect(field).toHaveValue('private.example')
     await field.fill('unsaved-private.example')
-    type Group = { key: string; permissions: string[]; updatedAt: string }
-    const adminGroup = async () => (await get<{ groups: Group[] }>(request, '/admin/user-group/list')).groups.find(group => group.key === 'admin')!
-    const original = await adminGroup(), failures: unknown[] = []
+    const original = (await get<{ user: { id: string; username: string; nickname: string } }>(page.request, '/auth/me')).user
+    expect(original.id).toBe(scenario.userId)
+    const failures: unknown[] = []
     try {
-      expect(original.permissions).toContain('system:manage')
-      await post(request, '/admin/user-group/update-permissions', { groupKey: 'admin', permissions: original.permissions.filter(permission => permission !== 'system:manage'), expectedUpdatedAt: original.updatedAt })
+      // Disable only this disposable account; protected administrator grants are immutable.
+      const disabled = await post<{ user: { id: string; status: string } }>(request, '/admin/user/update', { id: original.id, nickname: original.nickname, status: 'disabled' })
+      expect(disabled.user).toMatchObject({ id: original.id, status: 'disabled' })
       const refusal = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1' + readPath + (operation === 'save' ? '/update' : ''))
       const refreshed = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/auth/me')
       await activate(form.getByRole('button', { name: operation === 'save' ? labels.save : labels.reload, exact: true }))
       const rejected = await refusal
       expect(rejected.status()).toBe(200); expect((await rejected.json()).code).toBe(120001)
       const identity = (await (await refreshed).json()).data.user
-      expect(identity.group).toBe('admin'); expect(identity.permissions).not.toContain('system:manage')
+      expect(identity.group).toBe('guest'); expect(identity.permissions).not.toContain('system:manage')
       await expect(form).toBeHidden()
       await expect(page.locator('input[name^=target-host-]')).toHaveCount(0)
-      await info.attach('server-revocation', { body: JSON.stringify({ operation, status: rejected.status(), code: 120001, confirmedSystemManage: false, privateFormRemoved: true }), contentType: 'application/json' })
+      await info.attach('server-revocation', { body: JSON.stringify({ operation, status: rejected.status(), code: 120001, disabledOwnedAccount: true, confirmedGuest: true, privateFormRemoved: true }), contentType: 'application/json' })
       await page.screenshot({ path: info.outputPath('policy-revoked-' + operation + '-' + language + '-' + width + '.png') })
     } catch (error) { failures.push(error) } finally {
       try {
-        await post(request, '/admin/user-group/update-permissions', { groupKey: 'admin', permissions: original.permissions, expectedUpdatedAt: (await adminGroup()).updatedAt })
-        expect([...(await adminGroup()).permissions].sort()).toEqual([...original.permissions].sort())
+        const restored = await post<{ user: { id: string; nickname: string; status: string } }>(request, '/admin/user/update', { id: original.id, nickname: original.nickname, status: 'active' })
+        expect(restored.user).toMatchObject({ id: original.id, nickname: original.nickname, status: 'active' })
+        await post(page.request, '/auth/login', { username: original.username, password })
+        expect((await get<{ user: { id: string } }>(page.request, '/auth/me')).user.id).toBe(original.id)
       } catch (error) { failures.push(error) }
     }
-    if (failures.length) throw new AggregateError(failures, 'Server revocation or exact permission restoration failed')
+    if (failures.length) throw new AggregateError(failures, 'Server revocation or owned account restoration failed')
     expect((await get<Policy>(request, readPath)).hosts).toEqual(['private.example'])
   })
 }
