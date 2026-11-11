@@ -1,5 +1,9 @@
 # MoeURL 文档中心
 
+## 当前维护（2026-11-12，v0.61.2）
+
+[PR308](https://github.com/TomyJan/MoeURL/pull/308) 已完成真实审查、正常合并核验与恢复归档，master 为 `0012441aff26519ec7f98bdbfff1c9708c3a3fc3`。当前[临时容量检查维护](product/scope-v0.61.2.md)仅设计完成，产品保持 0.61.1；见[计划](implementation/v0.61.2-plan.md)及[验收](implementation/v0.61.2-acceptance.md)。下方为历史检查点。
+
 ## 当前维护（2026-11-11，v0.61.1）
 
 v0.61.0／PR307 已完整交付，正常 squash master 为 `99a1d62b5e1380c26448c5b0fef893eb24d796db`。最终 `bb38548` 真实 CodeRabbit、有效问题处置、独立合并核验、三个标准任务及可恢复归档完成；54 条裁决保留历史重复编号的勘误。原本地验证和扫描限制保持各自执行身份，不冒主分支重跑或正式发布。
