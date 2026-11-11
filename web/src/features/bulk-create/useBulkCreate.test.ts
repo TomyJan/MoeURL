@@ -43,6 +43,36 @@ function pendingFile(text = 'target_url\nhttps://example.com/imported') {
 afterEach(() => { onlineManager.setOnline(true); clients.splice(0).forEach(client => client.clear()); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks() })
 
 describe('batch lifecycle and retry safety', () => {
+  it.each(['targets', 'titles', 'metadata', 'custom'].flatMap(mode => [false, true].map(wasUnknown => ({ mode, wasUnknown }))))('keeps the shared allowlist refusal safe for $mode after unknown=$wasUnknown', async ({ mode, wasUnknown }) => {
+    const { state, fetcher } = mount({ ...actor, permissions: [...actor.permissions, 'short_link:set_metadata', 'short_link:custom_slug'] })
+    if (mode === 'targets') preview(state)
+    else {
+      state.begin()
+      const csv = mode === 'titles' ? 'target_url,title\nhttps://unlisted.example/item,title'
+        : mode === 'metadata' ? 'target_url,title,tags\nhttps://unlisted.example/item,title,[]'
+        : 'target_url,title,tags,custom_slug\nhttps://unlisted.example/item,title,[],TeamAllow63'
+      const file = pendingFile(csv), reading = state.importFile(file.file)
+      file.resolve(); await reading; state.preview()
+    }
+    const captured = state.snapshot.value!
+    expect(captured).not.toBeNull()
+    if (wasUnknown) {
+      fetcher.mockRejectedValueOnce(new Error('acknowledgement lost'))
+      await state.submit(); expect(state.unknown.value).toBe(true)
+    }
+    fetcher.mockResolvedValueOnce(response(null, 200121))
+    await state.submit()
+    expect(state.snapshot.value).toBe(captured)
+    expect(state.unknown.value).toBe(wasUnknown)
+    expect(state.errorKey.value).toBe(wasUnknown ? 'bulkCreate.unknown' : 'targetPolicy.bulkDenied')
+    for (const [, init] of fetcher.mock.calls) {
+      expect(init!.body).toBe(JSON.stringify(captured))
+      expect(new Headers(init!.headers).get('X-MoeURL-Expected-User-ID')).toBe(actor.id)
+    }
+    expect(fetcher).toHaveBeenCalledTimes(wasUnknown ? 2 : 1)
+    state.edit()
+    expect(state.snapshot.value).toBe(wasUnknown ? captured : null)
+  })
   // A fourth-protocol hint must never reclassify an older protocol's refusal.
   it.each([
     ['targets', 200101], ['targets', 200102],

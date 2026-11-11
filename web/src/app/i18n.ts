@@ -716,6 +716,16 @@ export const messages = {
       loadFailed: '强调色加载失败，请重新加载。', saveFailed: '保存失败，草稿已保留，请重试。',
       conflict: '强调色已被其他请求修改。草稿已保留，请重新加载后再保存。', invalid: '请选择有效的强调色预设。',
     },
+    targetAllowlist: {
+      heading: '目标主机白名单', form: '目标主机白名单设置', enabled: '启用目标主机白名单', host: '主机', add: '添加主机', remove: '删除主机', clear: '清空列表',
+      hint: '默认关闭，可预配置最多 100 个精确 ASCII 主机名；国际化域名使用 ACE（punycode）。不填写协议、端口、路径、IP 或通配符。关闭保留名单，清空不会关闭开关，所有修改均须保存。',
+      scope: '开启后只允许名单中的新目标，不包含子域，IP 目标也会被拒绝；黑名单始终优先。已有短链访问和已提交批次的结果恢复不受影响。这不是 SSRF 防护或目标安全认证。',
+      save: '保存白名单', reload: '重新加载白名单', saved: '目标主机白名单已保存。',
+      loadFailed: '白名单加载失败，请重新加载。', saveFailed: '保存失败，草稿已保留，请重试。',
+      conflict: '白名单已被其他请求修改。草稿已保留，请明确重新加载后再保存，不会自动重试写入。',
+      enabledEmpty: '启用白名单前请至少添加一个有效主机；清空列表不会自动关闭白名单。',
+      invalid: '请检查主机格式、重复项及数量；空行不会被自动忽略。', invalidField: '请填写有效的 ASCII 主机名。',
+    },
     targetPolicy: {
       heading: '目标主机黑名单', form: '目标主机黑名单设置', host: '主机', add: '添加主机', remove: '删除主机', clear: '清空列表',
       hint: '最多 100 个精确主机名。只填写 ASCII 域名，国际化域名使用 ACE（punycode）；不填写协议、端口、路径、IP 或通配符。空行必须填写或删除，清空后仍需保存。',
@@ -1598,6 +1608,16 @@ export const messages = {
       save: 'Save accent', reload: 'Reload accent', saved: 'Site accent saved.',
       loadFailed: 'Could not load the accent. Please reload.', saveFailed: 'Could not save. Your draft is kept; please retry.',
       conflict: 'The accent changed elsewhere. Your draft is kept; reload before saving again.', invalid: 'Choose a valid accent preset.',
+    },
+    targetAllowlist: {
+      heading: 'Allowed target hosts', form: 'Allowed target host settings', enabled: 'Enable target host allowlist', host: 'Host', add: 'Add host', remove: 'Remove host', clear: 'Clear list',
+      hint: 'Off by default. Preconfigure up to 100 exact ASCII host names; use ACE (punycode) for international domains. Omit schemes, ports, paths, IP addresses and wildcards. Switching off keeps the list; clearing does not switch it off. Save every change explicitly.',
+      scope: 'When enabled, only listed new targets are allowed, without matching subdomains. IP targets are refused and blocked hosts always take priority. Existing visits and recovery of committed batch results are unaffected. This is not SSRF protection or a safety certification.',
+      save: 'Save allowed hosts', reload: 'Reload allowed hosts', saved: 'Allowed target hosts saved.',
+      loadFailed: 'Could not load allowed hosts. Please reload.', saveFailed: 'Could not save. Your draft is retained; please retry.',
+      conflict: 'Another request changed the list. Your draft is retained. Explicitly reload before saving; writes are never retried automatically.',
+      enabledEmpty: 'Add at least one valid host before enabling. Clearing the list does not switch the allowlist off.',
+      invalid: 'Check host syntax, duplicates and the 100-host limit. Blank rows are not silently ignored.', invalidField: 'Enter a valid ASCII host name.',
     },
     targetPolicy: {
       heading: 'Blocked target hosts', form: 'Blocked target host settings', host: 'Host', add: 'Add host', remove: 'Remove host', clear: 'Clear list',

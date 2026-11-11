@@ -1,5 +1,9 @@
 # MoeURL 文档中心
 
+## 当前实施（2026-11-12，v0.63.0）
+
+[目标主机白名单](product/scope-v0.63.0.md)后端已提交 d5da262 并标准完成 Task1；独立管理卡片、相关 94 项和完整 4751 项前端测试／四项 100%、types／lint／build 已通过，Task2 提交与标准关闭继续，产品浏览器与本版审查交付仍待。产品当前实现为 0.63.0，默认关闭，黑名单优先；见[计划](implementation/v0.63.0-plan.md)及[验收](implementation/v0.63.0-acceptance.md)。前版 PR312 已完整交付为 master f61bec6f；下方保持各版原检查点。
+
 ## 当前维护（2026-11-12，v0.62.1）
 
 v0.62.0／[PR311](https://github.com/TomyJan/MoeURL/pull/311) 已完整交付，master `8a9bc9ec6fe770a759e388031fc8988d80fc157c`，最终候选 `00422ad` 已真实 CodeRabbit 覆盖；三个标准任务、16 条裁决与 11 份文件恢复归档完成。原浏览器 311／313、修复后 29 个受影响场景加 setup、去重 313 个身份及 16 张原图保持原归属，不称单次全绿。当前[交付状态文档维护](product/scope-v0.62.1.md)只拆清验收阶段和整理量词，产品保持 0.62.0；本维护审查交付尚待，见[计划](implementation/v0.62.1-plan.md)及[验收](implementation/v0.62.1-acceptance.md)。下方为历史检查点。
