@@ -1,5 +1,9 @@
 # MoeURL 文档中心
 
+## 当前维护（2026-11-12，v0.61.3）
+
+v0.61.2／[PR309](https://github.com/TomyJan/MoeURL/pull/309) 已完整交付，master 为 `d2346123a8eddcf8b667ed351a997ef77ec372a6`。当前[手机编辑器回归补测](product/scope-v0.61.3.md)两项补测及本地验证完成，审查与交付仍待；产品仍为 0.61.1。见[计划](implementation/v0.61.3-plan.md)和[验收](implementation/v0.61.3-acceptance.md)。下方为历史检查点。
+
 ## 当前维护（2026-11-12，v0.61.2）
 
 [PR308](https://github.com/TomyJan/MoeURL/pull/308) 已完成真实审查、正常合并核验与恢复归档，master 为 `0012441aff26519ec7f98bdbfff1c9708c3a3fc3`。当前[临时容量检查维护](product/scope-v0.61.2.md)已实现并通过本地验证，审查与交付仍待完成，产品保持 0.61.1；见[计划](implementation/v0.61.2-plan.md)及[验收](implementation/v0.61.2-acceptance.md)。下方为历史检查点。
