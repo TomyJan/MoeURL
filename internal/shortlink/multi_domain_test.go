@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/testdb"
@@ -133,7 +132,12 @@ func TestUpdateRetainsStoredDomainAfterDefaultChanges(t *testing.T) {
 	if err != nil || updated.ShortLink.URL != "https://go.example.com/old-domain" {
 		t.Fatalf("update link URL = %#v, %v", updated, err)
 	}
-	admin := auth.CurrentUser{ID: user.ID, GroupKey: permission.GroupAdmin}
+	adminGroupID := uuid.New().String()
+	if _, err := pool.Exec(ctx, `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at)
+		values($1,'admin','Admin',$2::jsonb,true,now(),now())`, adminGroupID, permissionsJSON(t, permission.AdminPermissions)); err != nil {
+		t.Fatalf("insert actual administrator group: %v", err)
+	}
+	admin := insertShortLinkUserForGroup(t, ctx, pool, "domain-admin", adminGroupID, uuid.New().String(), "admin", permission.AdminPermissions)
 	adminUpdated, err := service.AdminUpdate(ctx, admin, shortlink.UpdateInput{ID: linkID, TargetURL: &newTarget})
 	if err != nil || adminUpdated.ShortLink.URL != "https://go.example.com/old-domain" {
 		t.Fatalf("admin update link URL = %#v, %v", adminUpdated, err)

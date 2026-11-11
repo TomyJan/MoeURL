@@ -13,6 +13,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/domain"
 	"github.com/TomyJan/MoeURL/internal/permission"
+	"github.com/TomyJan/MoeURL/internal/targetpolicy"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
@@ -58,6 +59,9 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 	defer cancel()
 	result := BatchCreateResult{RequestID: requestID.String()}
 	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
+		if err := targetpolicy.LockTargets(ctx, tx); err != nil {
+			return err
+		}
 		if err := domain.LockShortLinkCreation(ctx, tx); err != nil {
 			return err
 		}
@@ -125,6 +129,13 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 			return ErrDomainUnavailable
 		}
 		if err != nil {
+			return err
+		}
+		targets := make([]string, len(items))
+		for i, item := range items {
+			targets[i] = item.TargetURL
+		}
+		if err := checkNewTargets(ctx, q, targets); err != nil {
 			return err
 		}
 		requestedSlugs := make(map[string]bool, len(items))

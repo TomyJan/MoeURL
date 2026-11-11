@@ -79,6 +79,8 @@ func writeBulkCreateResult(w http.ResponseWriter, r *http.Request, result BatchC
 		businessError(w, 200120, "Batch request has different content")
 	case errors.Is(err, ErrInvalidTargetURL):
 		businessError(w, CodeInvalidTargetURL, "Invalid target URL")
+	case errors.Is(err, ErrTargetDenied):
+		businessError(w, 200121, "Target host restricted")
 	case errors.Is(err, ErrDomainUnavailable):
 		businessError(w, CodeDomainUnavailable, "Domain unavailable")
 	case errors.Is(err, ErrSlugConflict):

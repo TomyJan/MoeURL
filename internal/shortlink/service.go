@@ -13,6 +13,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/domain"
 	"github.com/TomyJan/MoeURL/internal/permission"
+	"github.com/TomyJan/MoeURL/internal/targetpolicy"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -66,6 +67,8 @@ func NewServiceWithLogger(pool *pgxpool.Pool, permissions permission.Resolver, l
 
 // Create validates a target URL and creates an active short link for the caller.
 func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input CreateInput) (CreateResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	useDefault := input.DomainID == nil
 	required := permission.DomainUseDefault
 	domainID := uuid.Nil
@@ -130,19 +133,32 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 
 		var result CreateResult
 		err = appdb.WithAuditTx(ctx, s.pool, user.ID, func(tx pgx.Tx) error {
+			if err := targetpolicy.LockTargets(ctx, tx); err != nil {
+				return err
+			}
 			if err := domain.LockShortLinkCreation(ctx, tx); err != nil {
 				return err
 			}
 			queries := s.queries.WithTx(tx)
+			// The existing granted-domain query retains the create/domain/custom-slug
+			// checks and their public error; recheck only the other used capabilities here.
+			capabilities := targetWriteCapabilities(input.RedirectMode, input.IntermediateDelaySeconds != nil, input.Expiration != nil, input.Password != nil, input.MaxVisits != nil, input.Metadata != nil)
+			groupKey, err := lockTargetWriter(ctx, queries, user, false, capabilities...)
+			if err != nil {
+				return err
+			}
 			domain, err := queries.GetGrantedShortLinkDomainForCreate(ctx, sqlc.GetGrantedShortLinkDomainForCreateParams{
 				CustomSlug: input.CustomSlug != nil,
-				GroupKey:   user.GroupKey, RequiredPermission: required,
+				GroupKey:   groupKey, RequiredPermission: required,
 				UseDefault: useDefault, DomainID: uuidToPgtype(domainID),
 			})
 			if errors.Is(err, pgx.ErrNoRows) {
 				return ErrDomainUnavailable
 			}
 			if err != nil {
+				return err
+			}
+			if err := checkNewTargets(ctx, queries, []string{input.TargetURL}); err != nil {
 				return err
 			}
 			created, err := queries.CreateShortLink(ctx, sqlc.CreateShortLinkParams{
@@ -308,6 +324,11 @@ func (s *Service) list(ctx context.Context, user auth.CurrentUser, input ListInp
 
 // Update changes the target URL or status of a short link owned by the caller.
 func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input UpdateInput) (CreateResult, error) {
+	if input.TargetURL != nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+	}
 	permissions, err := s.authorize(ctx, user, permission.ShortLinkUpdateOwn)
 	if err != nil {
 		return CreateResult{}, err
@@ -339,9 +360,33 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 	}
 
 	var updated sqlc.UpdateOwnShortLinkRow
+	var domain sqlc.GetShortLinkDomainByIDRow
 	err = appdb.WithAuditTx(ctx, s.pool, user.ID, func(tx pgx.Tx) error {
+		q := s.queries.WithTx(tx)
+		if input.TargetURL != nil {
+			if err := targetpolicy.LockTargets(ctx, tx); err != nil {
+				return err
+			}
+			mode := ""
+			if input.RedirectMode != nil {
+				mode = *input.RedirectMode
+			}
+			keys := targetWriteCapabilities(mode, input.IntermediateDelaySeconds != nil, input.Expiration != nil, input.Password != nil, input.VisitLimit != nil, input.Metadata != nil)
+			if _, err := lockTargetWriter(ctx, q, user, false, append(keys, permission.ShortLinkUpdateOwn)...); err != nil {
+				return err
+			}
+			current, err := q.LockOwnShortLinkTargetForPolicy(ctx, sqlc.LockOwnShortLinkTargetForPolicyParams{ID: uuidToPgtype(linkID), OwnerID: uuidToPgtype(ownerID)})
+			if err != nil {
+				return err
+			}
+			if current != *input.TargetURL {
+				if err := checkNewTargets(ctx, q, []string{*input.TargetURL}); err != nil {
+					return err
+				}
+			}
+		}
 		var writeErr error
-		updated, writeErr = s.queries.WithTx(tx).UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
+		updated, writeErr = q.UpdateOwnShortLink(ctx, sqlc.UpdateOwnShortLinkParams{
 			Title:                    title,
 			Tags:                     tags,
 			ID:                       uuidToPgtype(linkID),
@@ -357,16 +402,15 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 			VisitLimitMode:           visitLimitMode,
 			MaxVisits:                maxVisits,
 		})
+		if writeErr != nil {
+			return writeErr
+		}
+		domain, writeErr = q.GetShortLinkDomainByID(ctx, updated.DomainID)
 		return writeErr
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return CreateResult{}, ErrShortLinkMissing
 	}
-	if err != nil {
-		return CreateResult{}, err
-	}
-
-	domain, err := s.queries.GetShortLinkDomainByID(ctx, updated.DomainID)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -552,6 +596,11 @@ func (s *Service) adminList(ctx context.Context, user auth.CurrentUser, input Li
 
 // AdminUpdate changes the target URL or status of any short link.
 func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input UpdateInput) (CreateResult, error) {
+	if input.TargetURL != nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+	}
 	permissions, err := s.authorizeAdmin(ctx, user, permission.ShortLinkUpdateAll)
 	if err != nil {
 		return CreateResult{}, err
@@ -582,9 +631,33 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 		return CreateResult{}, err
 	}
 	var updated sqlc.UpdateAnyShortLinkRow
+	var domain sqlc.GetShortLinkDomainByIDRow
 	err = appdb.WithAuditTx(ctx, s.pool, user.ID, func(tx pgx.Tx) error {
+		q := s.queries.WithTx(tx)
+		if input.TargetURL != nil {
+			if err := targetpolicy.LockTargets(ctx, tx); err != nil {
+				return err
+			}
+			mode := ""
+			if input.RedirectMode != nil {
+				mode = *input.RedirectMode
+			}
+			keys := targetWriteCapabilities(mode, input.IntermediateDelaySeconds != nil, input.Expiration != nil, input.Password != nil, input.VisitLimit != nil, input.Metadata != nil)
+			if _, err := lockTargetWriter(ctx, q, user, true, append(keys, permission.ShortLinkUpdateAll)...); err != nil {
+				return err
+			}
+			current, err := q.LockAnyShortLinkTargetForPolicy(ctx, uuidToPgtype(linkID))
+			if err != nil {
+				return err
+			}
+			if current != *input.TargetURL {
+				if err := checkNewTargets(ctx, q, []string{*input.TargetURL}); err != nil {
+					return err
+				}
+			}
+		}
 		var writeErr error
-		updated, writeErr = s.queries.WithTx(tx).UpdateAnyShortLink(ctx, sqlc.UpdateAnyShortLinkParams{
+		updated, writeErr = q.UpdateAnyShortLink(ctx, sqlc.UpdateAnyShortLinkParams{
 			Title:                    title,
 			Tags:                     tags,
 			ID:                       uuidToPgtype(linkID),
@@ -599,16 +672,15 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 			VisitLimitMode:           visitLimitMode,
 			MaxVisits:                maxVisits,
 		})
+		if writeErr != nil {
+			return writeErr
+		}
+		domain, writeErr = q.GetShortLinkDomainByID(ctx, updated.DomainID)
 		return writeErr
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return CreateResult{}, ErrShortLinkMissing
 	}
-	if err != nil {
-		return CreateResult{}, err
-	}
-
-	domain, err := s.queries.GetShortLinkDomainByID(ctx, updated.DomainID)
 	if err != nil {
 		return CreateResult{}, err
 	}
