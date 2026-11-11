@@ -6,8 +6,8 @@ import QRCode from 'qrcode'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
 
 const labels = {
-  en: { target: 'Enter link', create: 'Create short link', qr: 'QR code', title: 'Short-link QR code', size: 'Export size', levels: ['M (standard)', 'Q (higher)', 'H (highest)'], colors: ['Black and white', 'Iris blue', 'Forest green'], png: 'Download PNG', svg: 'Download SVG', close: 'Close', more: 'More actions' },
-  'zh-CN': { target: '输入链接', create: '创建短链', qr: '二维码', title: '短链二维码', size: '导出尺寸', levels: ['M（标准）', 'Q（较高）', 'H（最高）'], colors: ['黑白', '鸢尾蓝', '森林绿'], png: '下载 PNG', svg: '下载 SVG', close: '关闭', more: '更多操作' },
+  en: { target: 'Enter link', create: 'Create short link', qr: 'QR code', title: 'Short-link QR code', size: 'Export size', border: 'Border: Standard', levels: ['M (standard)', 'Q (higher)', 'H (highest)'], colors: ['Black and white', 'Iris blue', 'Forest green'], png: 'Download PNG', svg: 'Download SVG', close: 'Close', more: 'More actions' },
+  'zh-CN': { target: '输入链接', create: '创建短链', qr: '二维码', title: '短链二维码', size: '导出尺寸', border: '留白: 标准', levels: ['M（标准）', 'Q（较高）', 'H（最高）'], colors: ['黑白', '鸢尾蓝', '森林绿'], png: '下载 PNG', svg: '下载 SVG', close: '关闭', more: '更多操作' },
 } as const
 const widths = [320, 640, 1024] as const
 const levels = ['M', 'Q', 'H'] as const
@@ -76,7 +76,11 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390,
             await expect(activator).toBeFocused()
             await expect(dialog.getByRole('link', { name: text.png, exact: true })).toBeVisible()
             await page.keyboard.press('Tab')
+            await expect(dialog.getByRole('button', { name: text.border, exact: true })).toBeFocused()
+            await page.keyboard.press('Tab')
             await expect(dialog.getByRole('link', { name: text.png, exact: true })).toBeFocused()
+            await page.keyboard.press('Shift+Tab')
+            await expect(dialog.getByRole('button', { name: text.border, exact: true })).toBeFocused()
             await page.keyboard.press('Shift+Tab')
             await expect(activator).toBeFocused()
             await page.keyboard.press('Enter')

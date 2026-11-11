@@ -1,5 +1,9 @@
 # 开发进度与能力清单
 
+## 当前开发（2026-11-12，v0.62.0）
+
+v0.61.3／[PR310](https://github.com/TomyJan/MoeURL/pull/310) 已完整交付，master `3e75148a9364af6853c9f2de8e187597fbb3c2dd`。当前[二维码留白](scope-v0.62.0.md)产品 0.62.0，本地验证通过：4652 项／四100、types／lint／build、准确产品 smoke／HIGH+CRITICAL 扫描 0。完整浏览器首次 311／313，英文标题遮挡与旧 Tab 顺序修复后全部受影响 29 场景加 setup 通过，准确去重覆盖 313 身份，不称单次全绿。手机 direct 前置断言八场景补验通过。独立终审／CodeRabbit／正常合并及恢复归档仍待，下方为历史检查点。
+
 ## 当前维护（2026-11-12，v0.61.3）
 
 v0.61.2／[PR309](https://github.com/TomyJan/MoeURL/pull/309) 已完整交付，master `d2346123a8eddcf8b667ed351a997ef77ec372a6`，22 条裁决及两项延期 Minor 保留原报告。当前[手机编辑器回归补测](scope-v0.61.3.md)已补 group 四边裁剪与 direct 取消后重开 UI 的证明，本地静态与 9 项浏览器验证通过，审查交付仍待；产品保持 0.61.1。下方为历史检查点。
