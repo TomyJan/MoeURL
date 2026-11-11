@@ -152,3 +152,7 @@ github.com/TomyJan/MoeURL/internal/shortlink/bulk_create_metadata_service.go
 github.com/TomyJan/MoeURL/internal/shortlink/bulk_create_metadata_handler.go
 github.com/TomyJan/MoeURL/internal/shortlink/bulk_create_custom_slug_service.go
 github.com/TomyJan/MoeURL/internal/shortlink/bulk_create_custom_slug_handler.go
+github.com/TomyJan/MoeURL/internal/targetpolicy/allowlist_model.go
+github.com/TomyJan/MoeURL/internal/targetpolicy/allowlist_json.go
+github.com/TomyJan/MoeURL/internal/targetpolicy/allowlist_service.go
+github.com/TomyJan/MoeURL/internal/targetpolicy/allowlist_handler.go

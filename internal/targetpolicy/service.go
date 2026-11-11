@@ -133,8 +133,8 @@ func (s *Service) Update(ctx context.Context, actor auth.CurrentUser, input Upda
 	return result, nil
 }
 
-// CheckTargets reads the current policy in the caller's gate-holding transaction.
-// Empty policy preserves the previous URL syntax; missing/corrupt policy fails.
+// CheckTargets reads both resources in the caller's gate-holding transaction.
+// Denylist remains first; disabled allowlist preserves the previous URL syntax.
 func CheckTargets(ctx context.Context, q *sqlc.Queries, targets []string) error {
 	row, err := q.GetSystemSetting(ctx, Key)
 	if err != nil {
@@ -144,7 +144,18 @@ func CheckTargets(ctx context.Context, q *sqlc.Queries, targets []string) error 
 	if err != nil {
 		return err
 	}
-	return checkHosts(settings.Hosts, targets)
+	allowlistRow, err := q.GetSystemSetting(ctx, AllowlistKey)
+	if err != nil {
+		return err
+	}
+	allowlist, err := storedAllowlistSettings(allowlistRow)
+	if err != nil {
+		return err
+	}
+	if err := checkHosts(settings.Hosts, targets); err != nil {
+		return err
+	}
+	return checkAllowlistHosts(allowlist, targets)
 }
 
 // actorID accepts only a canonical nonzero UUID; guest markers never reach I/O.
