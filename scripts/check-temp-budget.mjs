@@ -36,7 +36,9 @@ export async function inspectTemporaryFiles(roots, activeName) {
     const info = await lstat(absolute)
     if (info.isSymbolicLink() || !info.isDirectory()) throw new Error('Managed root must be an ordinary directory')
     const canonical = await realpath(absolute)
-    physical.set(pathKey(canonical), canonical)
+    const key = pathKey(canonical)
+    if (physical.has(key) && physical.get(key) !== canonical) throw new Error('Ambiguous case-folded temporary roots')
+    physical.set(key, canonical)
   }
   const keys = [...physical.keys()]
   for (const outer of keys) {

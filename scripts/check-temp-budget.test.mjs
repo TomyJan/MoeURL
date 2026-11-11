@@ -59,6 +59,41 @@ test('counts active directory names using host path case rules', async t => {
   assert.equal(result.activeBytes, process.platform === 'win32' ? 5 : 0)
 })
 
+test('never drops distinct case-sensitive roots when Windows path keys collide', async t => {
+  const { base, put } = await fixture(t)
+  const roots = [join(base, 'upper', '.tmp'), join(base, 'lower', '.tmp')]
+  for (const root of roots) await mkdir(root, { recursive: true })
+  await put(roots[0], 'current/one', 5)
+  await put(roots[1], 'current/two', 7)
+  // Keep real directory contents and reads; simulate only canonical OS path metadata
+  // because not every Windows host can expose case-sensitive roots through Node.
+  assert.equal((await stat(roots[0], { bigint: true })).ino === (await stat(roots[1], { bigint: true })).ino, false)
+  const probe = `
+    import * as fs from 'node:fs/promises';
+    import { mock } from 'node:test';
+    const roots = ${JSON.stringify(roots)};
+    const canonical = ${JSON.stringify([join(base, 'CASE', '.tmp'), join(base, 'case', '.tmp')])};
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    const translate = path => {
+      const index = canonical.findIndex(root => path === root || path.startsWith(root + ${JSON.stringify(process.platform === 'win32' ? '\\' : '/')}));
+      return index < 0 ? path : roots[index] + path.slice(canonical[index].length);
+    };
+    mock.module('node:fs/promises', { namedExports: {
+      lstat: (path, ...args) => fs.lstat(translate(path), ...args),
+      readdir: (path, ...args) => fs.readdir(translate(path), ...args),
+      realpath: async path => { const index = roots.indexOf(path); return index < 0 ? fs.realpath(path) : canonical[index]; },
+    } });
+    const { inspectTemporaryFiles } = await import(${JSON.stringify(new URL('./check-temp-budget.mjs', import.meta.url).href)});
+    try { console.log(JSON.stringify({ rejected: false, result: await inspectTemporaryFiles(roots, 'current') })); }
+    catch (error) { console.log(JSON.stringify({ rejected: true, message: error.message })); }
+  `
+  const result = spawnSync(process.execPath, ['--experimental-test-module-mocks', '--input-type=module', '--eval', probe], { encoding: 'utf8', timeout: 10_000, windowsHide: true })
+  assert.equal(result.status, 0, result.stderr)
+  const report = JSON.parse(result.stdout)
+  assert.equal(report.rejected, true, JSON.stringify(report))
+  assert.match(report.message, /ambiguous/i)
+})
+
 test('skips directory links and cycles while preserving their external target', async t => {
   const { base, roots, put } = await fixture(t)
   const outside = join(base, 'outside')
