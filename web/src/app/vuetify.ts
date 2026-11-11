@@ -2,6 +2,7 @@ import { createVuetify } from 'vuetify'
 import {
   VAlert,
   VApp,
+  VAutocomplete,
   VBtn,
   VBtnToggle,
   VCheckbox,
@@ -115,6 +116,7 @@ export const vuetify = createVuetify({
   components: {
     VAlert,
     VApp,
+    VAutocomplete,
     VBtn,
     VBtnToggle,
     VCheckbox,

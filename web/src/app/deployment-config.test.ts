@@ -54,6 +54,11 @@ function workflowJob(workflow: string, jobName: string) {
 }
 
 describe('deployment configuration', () => {
+  it('provides the single shared time-zone catalog to the production frontend build stage', () => {
+    const dockerfile = readFileSync(resolve(repositoryRoot, 'Dockerfile'), 'utf8')
+    const frontend = dockerfile.split(' AS web-build')[1]!.split('\nFROM ')[0]!
+    expect(frontend).toContain('COPY internal/user/time_zone_catalog_v0600.json /workspace/internal/user/time_zone_catalog_v0600.json')
+  })
   beforeEach(() => {
     vi.stubEnv('MOEURL_E2E_SKIP_DOCKER', '')
     vi.resetModules()

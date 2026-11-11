@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getTimeZonePreference, updateTimeZonePreference, timeZonePresets } from './api'
+import { getTimeZonePreference, updateTimeZonePreference, timeZoneCatalog } from './api'
 
 function respond(data: unknown, code = 0) {
   const fetcher = vi.fn(async () => new Response(JSON.stringify({ code, message: '', data, meta: {} })))
@@ -16,7 +16,7 @@ describe('strict personal time-zone API', () => {
     expect(await updateTimeZonePreference(input)).toEqual(preference)
     expect(fetcher).toHaveBeenLastCalledWith('/api/v1/user/time-zone-preference/update', expect.objectContaining({ method: 'POST', credentials: 'include', body: JSON.stringify(input) }))
   })
-  it.each(timeZonePresets)('accepts the exact supported zone %s', async timeZone => {
+  it.each(timeZoneCatalog)('accepts the exact supported zone %s', async timeZone => {
     const preference = { timeZone, updatedAt: '2026-11-01T00:00:00Z' }
     respond({ preference })
     expect(await getTimeZonePreference()).toEqual(preference)
@@ -26,7 +26,8 @@ describe('strict personal time-zone API', () => {
     { preference: { timeZone: 'UTC', updatedAt: null } },
     { preference: { timeZone: 'utc', updatedAt: '2026-11-01T00:00:00Z' } },
     { preference: { timeZone: ' UTC ', updatedAt: '2026-11-01T00:00:00Z' } },
-    { preference: { timeZone: 'Europe/Berlin', updatedAt: '2026-11-01T00:00:00Z' } },
+    { preference: { timeZone: 'Invalid/Zone', updatedAt: '2026-11-01T00:00:00Z' } },
+    { preference: { timeZone: 'Asia/Kathmandu', updatedAt: '2026-11-01T00:00:00Z' } },
     { preference: { timeZone: null, updatedAt: '2026-02-30T00:00:00Z' } },
     { preference: { timeZone: null, updatedAt: '2026-11-01T00:00:00.1234567890Z' } },
     { preference: { timeZone: null, updatedAt: null, userId: 'private' } },

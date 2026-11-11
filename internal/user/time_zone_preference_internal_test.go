@@ -98,7 +98,7 @@ func TestTimeZonePreferenceFailures(t *testing.T) {
 			t.Fatalf("invalid version %s: %v", version, err)
 		}
 	}
-	zone := "Europe/Berlin"
+	zone := "Invalid/Zone"
 	if _, err := (&TimeZonePreferenceService{}).Update(t.Context(), actor, UpdateTimeZonePreferenceInput{TimeZone: &zone}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("unsupported zone: %v", err)
 	}

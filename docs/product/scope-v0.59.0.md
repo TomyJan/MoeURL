@@ -1,6 +1,6 @@
 # v0.59.0 二维码导出尺寸
 
-状态：已通过 [PR303](https://github.com/TomyJan/MoeURL/pull/303) 完整交付，最终7c9真实CodeRabbit、正常合并为 master `b94ebea6292cddefdd7ca1637ce45ab34df1338a` 并独立核验，标准Task1–3及12文件恢复归档完成。基线为PR302的master `3bc04123520c295356c12e629ee50446a2200898`；各次准备、构建与浏览器保留原执行身份。两项原文档Minor在v0.59.1接续修正，CR-M1未证实防御建议仍延期，不冒原版已修。
+状态：已通过 [PR303](https://github.com/TomyJan/MoeURL/pull/303) 完整交付，最终7c9真实CodeRabbit、正常合并为 master `b94ebea6292cddefdd7ca1637ce45ab34df1338a` 并独立核验，标准Task1–3及 12 个文件的可恢复归档完成。基线为PR302的master `3bc04123520c295356c12e629ee50446a2200898`；各次准备、构建与浏览器保留原执行身份。两项原文档Minor在v0.59.1接续修正，CR-M1未证实防御建议仍延期，不冒原版已修。
 
 ## 选择理由
 

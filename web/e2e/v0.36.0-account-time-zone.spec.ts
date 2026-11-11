@@ -35,7 +35,7 @@ for (const width of [1280, 390]) {
     await expect(editor.getByTestId('console-time-zone')).toHaveText('时间显示：设备本地时区')
     const oldPreferences = await get(editor.request, '/user/preferences')
     const oldDomain = await get(editor.request, '/user/domain-preference')
-    await choose(editor, / · America\/New_York$/)
+    await choose(editor, / · America\/New_York$/, 'America/New_York')
     const saved = await save(editor, 'America/New_York', null)
     await expect(editor.getByTestId('console-time-zone')).toHaveText('时间显示：America/New_York')
     await capture(info, 'time-zone-' + width + '-zh', editor, true)
@@ -86,7 +86,7 @@ for (const width of [1280, 390]) {
     await signIn(editor, account)
     await expect(editor.getByRole('combobox', { name: zoneLabel })).toHaveValue(/ · America\/New_York$/)
     expect(await read(editor)).toEqual(saved)
-    await choose(editor, deviceOption, 'f')
+    await choose(editor, deviceOption, 'Follow device')
     const cleared = await save(editor, null, saved.updatedAt)
     await expect(editor.getByTestId('console-time-zone')).toHaveText('Time display: device local time zone')
     const rangeAfter = await statistics(editor, link.id)
@@ -110,8 +110,8 @@ test('v0.36.0 preserves a real second-device conflict draft until explicit reloa
   const second = await scenario.openBrowser()
   await signIn(first, account)
   await signIn(second, account)
-  await choose(second, / · Asia\/Tokyo$/)
-  await choose(first, / · UTC$/)
+  await choose(second, / · Asia\/Tokyo$/, 'Asia/Tokyo')
+  await choose(first, / · UTC$/, 'UTC')
   const saved = await save(first, 'UTC', null)
   const pending = second.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/user/time-zone-preference/update')
   await second.getByTestId('time-zone-preference-save').click()
@@ -128,7 +128,7 @@ test('v0.36.0 preserves a real second-device conflict draft until explicit reloa
   expect(await (await reloaded).json()).toMatchObject({ code: 0, data: { preference: saved } })
   await expect(second.getByRole('combobox', { name: zoneLabel })).toHaveValue(/ · UTC$/)
   await expect(second.getByTestId('time-zone-preference-save')).toBeEnabled()
-  await choose(second, / · Europe\/London$/)
+  await choose(second, / · Europe\/London$/, 'Europe/London')
   const updated = await save(second, 'Europe/London', saved.updatedAt)
   expect(await read(first)).toEqual(updated)
 })
@@ -206,17 +206,11 @@ async function signOut(page: Page) {
 }
 
 /** Chooses a real accessible Vuetify option and verifies selection actually committed. */
-async function choose(page: Page, name: RegExp, typeahead?: string) {
+async function choose(page: Page, name: RegExp, search: string) {
   const selector = page.getByTestId('time-zone-preference-form').getByRole('combobox', { name: zoneLabel })
-  // Native closed-select typeahead also reaches items outside the popup's virtual viewport.
-  if (typeahead) await selector.press(typeahead)
-  else {
-    await selector.press('Enter')
-    await page.getByRole('option', { name }).click()
-  }
-  const selectedLabel = page.getByTestId('time-zone-preference-form').locator('.v-select__selection-text')
-  await expect(selectedLabel).toBeVisible()
-  await expect(selectedLabel).toHaveText(name)
+  await selector.fill(search)
+  await page.getByRole('option', { name }).click()
+  await expect(selector).toHaveValue(name)
 }
 
 /** Records the complete original CAS token and authoritative no-store response. */

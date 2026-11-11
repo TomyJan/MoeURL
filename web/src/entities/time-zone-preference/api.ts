@@ -1,9 +1,12 @@
 import { z } from 'zod'
 import { apiGet, apiPost, ApiClientError } from '@/shared/api/client'
+import catalog from '../../../../internal/user/time_zone_catalog_v0600.json'
 
 export const timeZonePresets = ['UTC', 'Asia/Shanghai', 'Asia/Singapore', 'Asia/Tokyo', 'Europe/London', 'Europe/Paris', 'America/New_York', 'America/Los_Angeles', 'Australia/Sydney'] as const
+export const timeZoneCatalog = Object.freeze(catalog)
+export const timeZoneSchema = z.enum(timeZoneCatalog)
 const preferenceSchema = z.strictObject({
-  timeZone: z.enum(timeZonePresets).nullable(),
+  timeZone: timeZoneSchema.nullable(),
   updatedAt: z.iso.datetime({ offset: true }).refine(value => !/[.][0-9]{10}/.test(value)).nullable(),
 }).refine(value => value.timeZone === null || value.updatedAt !== null)
 export type TimeZonePreference = z.infer<typeof preferenceSchema>

@@ -65,6 +65,8 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390,
             if (entry === 'home' && index === 2) await page.screenshot({ path: info.outputPath(`size-${language}-${width}-menu.png`) })
             const option = menu.getByRole('menuitemradio', { name: `${pixels} px`, exact: true })
             await page.keyboard.press('ArrowDown')
+            // A visible overlay can still be placing itself; await actual keyboard focus before sending Home.
+            await expect.poll(() => menu.evaluate(element => element.contains(document.activeElement))).toBe(true)
             await page.keyboard.press('Home')
             await expect(menu.getByRole('menuitemradio').first()).toBeFocused()
             for (let step = 0; step < index; step++) await page.keyboard.press('ArrowDown')
@@ -80,6 +82,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390,
             await page.keyboard.press('Enter')
             await expect(menu).toBeVisible()
             await page.keyboard.press('ArrowDown')
+            await expect.poll(() => menu.evaluate(element => element.contains(document.activeElement))).toBe(true)
             await page.keyboard.press('Home')
             await expect(menu.getByRole('menuitemradio').first()).toBeFocused()
             await page.keyboard.press('Escape')

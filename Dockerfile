@@ -20,6 +20,7 @@ RUN npm install -g $(node -p "require('./package.json').packageManager")
 RUN pnpm install --frozen-lockfile --config.dangerously-allow-all-builds=true
 COPY web/ ./
 COPY testdata/ /workspace/testdata/
+COPY internal/user/time_zone_catalog_v0600.json /workspace/internal/user/time_zone_catalog_v0600.json
 ARG MOEURL_BUILD_COMMIT
 ARG MOEURL_BUILD_TAG=
 ENV MOEURL_BUILD_COMMIT=${MOEURL_BUILD_COMMIT}

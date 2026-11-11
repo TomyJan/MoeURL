@@ -13,7 +13,8 @@
       <v-btn :disabled="busy" variant="text" @click="reload(true)">{{ t('timeZonePreference.reload') }}</v-btn>
     </v-alert>
     <form data-testid="time-zone-preference-form" @submit.prevent="submit">
-      <v-select :model-value="draft" :items="items" :label="t('timeZonePreference.zone')" :error-messages="invalid ? t('timeZonePreference.invalid') : undefined" :disabled="!original" variant="outlined" @update:model-value="edit" />
+      <v-autocomplete v-model:search="search" :model-value="draft" :items="items" :label="t('timeZonePreference.zone')" :hint="t('timeZonePreference.searchHint')" persistent-hint :no-data-text="t('timeZonePreference.noMatches')" :error-messages="invalid ? t('timeZonePreference.invalid') : undefined" :disabled="!original" :auto-select-first="false" variant="outlined" @update:model-value="edit" />
+      <p data-testid="time-zone-preference-selection">{{ t('timeZonePreference.selected', { zone: draft || t('timeZonePreference.device') }) }}</p>
       <v-btn data-testid="time-zone-preference-save" type="submit" color="primary" :disabled="locked" :loading="pending">{{ t('timeZonePreference.save') }}</v-btn>
     </form>
   </section>
@@ -24,7 +25,7 @@ import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { z } from 'zod'
 import { toast } from 'vue-sonner'
-import { timeZonePresets, updateTimeZonePreference, type TimeZonePreference } from '@/entities/time-zone-preference/api'
+import { timeZoneCatalog, timeZonePresets, timeZoneSchema, updateTimeZonePreference, type TimeZonePreference } from '@/entities/time-zone-preference/api'
 import { useTimeZonePreference } from '@/shared/preferences/useTimeZonePreference'
 import { ApiClientError } from '@/shared/api/client'
 
@@ -33,6 +34,7 @@ const { t } = useI18n()
 const { scope, isCurrent, query, preference, readError, unsupported, publish } = useTimeZonePreference(computed(() => props.active && !!props.userId))
 const original = shallowRef<TimeZonePreference>()
 const draft = ref('')
+const search = ref('')
 const editRevision = ref(0)
 const pending = ref(false)
 const reloading = ref(false)
@@ -42,22 +44,28 @@ const mounted = ref(true)
 const eligible = computed(() => mounted.value && props.active && !!props.userId && scope.value.userId === props.userId)
 const busy = computed(() => pending.value || reloading.value || query.isFetching.value)
 const dirty = computed(() => !!original.value && draft.value !== (original.value.timeZone ?? ''))
-const locked = computed(() => !eligible.value || !original.value || busy.value || readError.value || conflict.value)
-const items = computed(() => [{ title: t('timeZonePreference.device'), value: '' }, ...timeZonePresets.map(value => ({ title: t('timeZonePreference.zones.' + value) + ' · ' + value, value }))])
-const draftSchema = z.union([z.literal(''), z.enum(timeZonePresets)])
+const locked = computed(() => !eligible.value || !original.value || busy.value || readError.value || conflict.value || invalid.value)
+const items = computed(() => [{ title: t('timeZonePreference.device'), value: '' }, ...timeZoneCatalog.map(value => ({ title: (timeZonePresets as readonly string[]).includes(value) ? t('timeZonePreference.zones.' + value) + ' · ' + value : value, value }))])
+const draftSchema = z.union([z.literal(''), timeZoneSchema])
 onBeforeUnmount(() => { mounted.value = false })
 // Temporary authentication errors pause this editor without changing its owner.
 watch([scope, () => props.userId], () => {
-  original.value = undefined; draft.value = ''; editRevision.value++; pending.value = false; reloading.value = false; conflict.value = false; invalid.value = false
+  original.value = undefined; draft.value = ''; search.value = ''; editRevision.value++; pending.value = false; reloading.value = false; conflict.value = false; invalid.value = false
 }, { flush: 'sync' })
 watch([preference, eligible], ([value]) => {
   if (value && eligible.value && !dirty.value && !pending.value && !reloading.value && !conflict.value) adopt(value)
 }, { immediate: true })
 
 /** Counts user edits independently from authoritative snapshot adoption. */
-function edit(value: string) { draft.value = value; editRevision.value++; invalid.value = false }
+function edit(value: unknown) {
+  // Clearing the search field is not an explicit selection of the device option.
+  if (value === null) return
+  const selected = draftSchema.safeParse(value)
+  if (!selected.success) { invalid.value = true; return }
+  draft.value = selected.data; editRevision.value++; invalid.value = false
+}
 /** Adopts a successful server snapshot with its original CAS precision. */
-function adopt(value: TimeZonePreference) { original.value = value; draft.value = value.timeZone ?? ''; conflict.value = false; invalid.value = false }
+function adopt(value: TimeZonePreference) { original.value = value; draft.value = value.timeZone ?? ''; search.value = ''; conflict.value = false; invalid.value = false }
 
 /** Failed reloads preserve drafts; edits made after a reload started also win. */
 async function reload(discard: boolean) {
@@ -80,11 +88,9 @@ async function reload(discard: boolean) {
 /** Updates the saved revision, but never replaces a draft edited during the request. */
 async function submit() {
   if (locked.value) return
-  const value = draftSchema.safeParse(draft.value)
-  if (!value.success) { invalid.value = true; return }
   const owner = scope.value
   const revision = editRevision.value
-  const input = { timeZone: value.data || null, expectedUpdatedAt: original.value!.updatedAt }
+  const input = { timeZone: draft.value || null, expectedUpdatedAt: original.value!.updatedAt }
   pending.value = true
   try {
     const saved = await updateTimeZonePreference(input)
