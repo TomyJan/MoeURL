@@ -167,6 +167,88 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
   })
 }
 
+test('v0.61.0 en 390px visible refusal and editor geometry supplement', async ({ scenario }, info) => {
+  test.setTimeout(120_000)
+  const { page, request } = scenario, labels = text.en
+  await write(request, [])
+  const link = await create(page, 'https://blocked.example/geometry-fixture', labels)
+  await write(request, ['blocked.example'])
+  await page.goto('/link')
+  await activate(page.getByTestId('bulk-create-open'))
+  const bulk = page.getByTestId('bulk-create-dialog')
+  await bulk.locator('input[type=file]').setInputFiles({ name: 'policy.csv', mimeType: 'text/csv', buffer: Buffer.from('target_url,title,tags,custom_slug\nhttps://blocked.example/bulk,Policy,[],\nhttps://allowed.example/bulk,Policy,[],') })
+  await expect(page.getByTestId('bulk-create-imported-list')).toBeVisible()
+  await activate(page.getByTestId('bulk-create-preview'))
+  const rejected = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/short-link/batch-create-with-custom-slugs')
+  await activate(page.getByTestId('bulk-create-submit'))
+  expect((await (await rejected).json()).code).toBe(200121)
+  const alert = page.getByTestId('bulk-create-error')
+  await expect(alert).toContainText(labels.bulkDenied)
+  await alert.scrollIntoViewIfNeeded()
+  const refusal = await alert.evaluate(element => {
+    const rect = (node: Element) => { const value = node.getBoundingClientRect(); return { left: value.left, right: value.right, top: value.top, bottom: value.bottom } }
+    return { alert: rect(element), body: rect(element.closest('.v-card-text')!), viewportHeight: innerHeight }
+  })
+  expect(refusal.alert.top).toBeGreaterThanOrEqual(refusal.body.top - 1)
+  expect(refusal.alert.bottom).toBeLessThanOrEqual(Math.min(refusal.body.bottom, refusal.viewportHeight) + 1)
+  await info.attach('mobile-refusal-geometry', { body: JSON.stringify(refusal), contentType: 'application/json' })
+  await page.screenshot({ path: info.outputPath('policy-batch-denied-visible-en-390.png') })
+  await activate(page.getByTestId('bulk-create-close'))
+  await expect(bulk).toBeHidden()
+  const row = page.getByTestId('console-link-row').filter({ hasText: link.slug })
+  await row.getByRole('button', { name: labels.more, exact: true }).click()
+  await page.getByRole('menuitem', { name: labels.configure, exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('textbox', { name: labels.editTarget, exact: true }).fill('https://blocked.example/changed')
+  const result = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/short-link/update')
+  await dialog.getByRole('button', { name: labels.saveSettings, exact: true }).click()
+  expect((await (await result).json()).code).toBe(200121)
+  await expect(page.getByText(labels.denied)).toBeVisible()
+  const geometry = await dialog.locator('.short-link-settings-dialog').evaluate(card => {
+    const rect = (node: Element) => { const value = node.getBoundingClientRect(); return { left: value.left, right: value.right, top: value.top, bottom: value.bottom } }
+    return { card: rect(card), clientWidth: card.clientWidth, scrollWidth: card.scrollWidth, scrollLeft: card.scrollLeft, controls: Array.from(card.querySelectorAll('.v-btn-toggle button')).map(node => ({ text: node.textContent?.trim(), rect: rect(node) })) }
+  })
+  await info.attach('mobile-editor-geometry', { body: JSON.stringify(geometry), contentType: 'application/json' })
+  await page.screenshot({ path: info.outputPath('policy-editor-geometry-en-390.png') })
+})
+
+for (const [operation, language, width] of [['load', 'en', 390], ['save', 'zh-CN', 1280]] as const) {
+  test('v0.61.0 ' + language + ' ' + width + 'px server revocation clears the private ' + operation + ' draft', async ({ scenario }, info) => {
+    const { page, request } = scenario, labels = text[language]
+    await write(request, ['private.example'])
+    await page.goto('/admin/setting')
+    const form = page.getByRole('form', { name: labels.form, exact: true })
+    const field = form.getByRole('textbox', { name: labels.host + ' 1', exact: true })
+    await expect(field).toHaveValue('private.example')
+    await field.fill('unsaved-private.example')
+    type Group = { key: string; permissions: string[]; updatedAt: string }
+    const adminGroup = async () => (await get<{ groups: Group[] }>(request, '/admin/user-group/list')).groups.find(group => group.key === 'admin')!
+    const original = await adminGroup(), failures: unknown[] = []
+    try {
+      expect(original.permissions).toContain('system:manage')
+      await post(request, '/admin/user-group/update-permissions', { groupKey: 'admin', permissions: original.permissions.filter(permission => permission !== 'system:manage'), expectedUpdatedAt: original.updatedAt })
+      const refusal = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1' + readPath + (operation === 'save' ? '/update' : ''))
+      const refreshed = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/auth/me')
+      await activate(form.getByRole('button', { name: operation === 'save' ? labels.save : labels.reload, exact: true }))
+      const rejected = await refusal
+      expect(rejected.status()).toBe(200); expect((await rejected.json()).code).toBe(120001)
+      const identity = (await (await refreshed).json()).data.user
+      expect(identity.group).toBe('admin'); expect(identity.permissions).not.toContain('system:manage')
+      await expect(form).toBeHidden()
+      await expect(page.locator('input[name^=target-host-]')).toHaveCount(0)
+      await info.attach('server-revocation', { body: JSON.stringify({ operation, status: rejected.status(), code: 120001, confirmedSystemManage: false, privateFormRemoved: true }), contentType: 'application/json' })
+      await page.screenshot({ path: info.outputPath('policy-revoked-' + operation + '-' + language + '-' + width + '.png') })
+    } catch (error) { failures.push(error) } finally {
+      try {
+        await post(request, '/admin/user-group/update-permissions', { groupKey: 'admin', permissions: original.permissions, expectedUpdatedAt: (await adminGroup()).updatedAt })
+        expect([...(await adminGroup()).permissions].sort()).toEqual([...original.permissions].sort())
+      } catch (error) { failures.push(error) }
+    }
+    if (failures.length) throw new AggregateError(failures, 'Server revocation or exact permission restoration failed')
+    expect((await get<Policy>(request, readPath)).hosts).toEqual(['private.example'])
+  })
+}
+
 async function activate(control: Locator) { await control.focus(); await control.press('Enter') }
 async function create(page: Page, target: string, labels: typeof text[keyof typeof text]): Promise<Link> {
   await page.goto('/')

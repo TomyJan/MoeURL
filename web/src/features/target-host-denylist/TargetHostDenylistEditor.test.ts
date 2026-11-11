@@ -14,6 +14,7 @@ import { useTargetHostDenylistDraft } from './useTargetHostDenylistDraft'
 const original = { hosts: ['blocked.example'], updatedAt: '2026-11-11T05:00:00.123456Z' }
 const saved = { hosts: ['new.example'], updatedAt: '2026-11-11T05:00:01.654321Z' }
 const response = (data: unknown, code = 0) => new Response(JSON.stringify({ code, message: code ? 'private error' : 'OK', data, meta: {} }))
+const authReads = vi.fn<() => Promise<Response>>()
 const reads = vi.fn<() => Promise<Response>>()
 const writes = vi.fn<(body: unknown) => Promise<Response>>()
 const flush = () => new Promise<void>(resolve => setImmediate(resolve))
@@ -41,9 +42,11 @@ describe('independent target policy draft', () => {
   beforeEach(() => {
     client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } })
     client.setQueryDefaults(['auth', 'me'], { gcTime: Infinity })
+    authReads.mockReset().mockImplementation(async () => response({ user: { id: 'admin-a', username: 'admin-a', group: 'user', permissions: [] } }))
     reads.mockReset().mockImplementation(async () => response(original))
     writes.mockReset().mockImplementation(async () => response(saved))
     vi.stubGlobal('fetch', (path: string, init: RequestInit) => {
+      if (path === '/api/v1/auth/me' && init.method === 'GET') return authReads()
       if (path === '/api/v1/admin/system/target-host-denylist' && init.method === 'GET') return reads()
       if (path === '/api/v1/admin/system/target-host-denylist/update' && init.method === 'POST') return writes(JSON.parse(String(init.body)))
       throw new Error('Unexpected transport: ' + path)
@@ -158,13 +161,70 @@ describe('independent target policy draft', () => {
     controller.edit(0, 'forbidden.example'); controller.clear(); controller.remove(0); controller.add(); void controller.load(); void controller.save()
     expect(controller.state.rows.map(row => row.host)).toEqual(['draft.example'])
     if (kind === 'transport') pending.reject(new Error('offline'))
-    else pending.resolve(response(null, kind === 'business' ? 120001 : 900210))
+    else pending.resolve(response(null, kind === 'business' ? 100001 : 900210))
     await saving
     expect(controller.state.feedback).toBe('saveFailed'); expect(controller.state.saving).toBe(false)
     expect(writes).toHaveBeenCalledTimes(1); expect(reads).toHaveBeenCalledTimes(1)
     expect(controller.state.rows[0]!.host).toBe('draft.example')
     await controller.save(); expect(controller.state.rows[0]!.host).toBe('new.example')
   })
+  const denials = [120001, 401, 403].flatMap(code => (['load', 'save'] as const).map(operation => ({ code, operation })))
+  const denial = (code: number) => code === 120001 ? response(null, code) : new Response('', { status: code })
+  it.each(denials)('clears private data on current $operation denial $code before authentication recovery', async ({ code, operation }) => {
+    const recovery = createDeferred<Response>(); authReads.mockReturnValueOnce(recovery.promise)
+    const { controller } = mountController(); await flush(); controller.edit(0, 'private.example')
+    if (operation === 'load') reads.mockResolvedValueOnce(denial(code))
+    else writes.mockResolvedValueOnce(denial(code))
+    await controller[operation](); await flush()
+    expect(controller.state.allowed).toBe(false)
+    expect(controller.state.rows).toEqual([]); expect(controller.state.version).toBe('')
+    expect(controller.state.loading).toBe(false); expect(controller.state.saving).toBe(false)
+    expect(controller.state.feedback).toBe('')
+    expect(client.getQueriesData({ queryKey: adminTargetHostDenylistKey })).toEqual([])
+    expect(authReads).toHaveBeenCalledTimes(1)
+    const attempts = { read: reads.mock.calls.length, write: writes.mock.calls.length }
+    controller.add(); controller.edit(0, 'forbidden.example'); controller.clear(); controller.remove(0)
+    await controller.load(); await controller.save()
+    expect(reads).toHaveBeenCalledTimes(attempts.read); expect(writes).toHaveBeenCalledTimes(attempts.write)
+    recovery.resolve(response({ user: { id: 'admin-a', username: 'admin-a', group: 'user', permissions: [] } }))
+    await flush(); expect(controller.state.allowed).toBe(false); expect(controller.state.rows).toEqual([])
+  })
+  it('keeps denied grants cleared if the authentication recovery fails', async () => {
+    authReads.mockRejectedValueOnce(new Error('offline'))
+    const { controller } = mountController(); await flush()
+    writes.mockResolvedValueOnce(denial(120001)); await controller.save(); await flush()
+    expect(controller.state.allowed).toBe(false); expect(controller.state.rows).toEqual([])
+    expect(client.getQueriesData({ queryKey: adminTargetHostDenylistKey })).toEqual([])
+    await controller.save(); expect(writes).toHaveBeenCalledTimes(1)
+  })
+  it.each(['account', 'relogin', 'permissions'] as const)('does not apply an old authentication recovery after a newer %s notification', async kind => {
+    const recovery = createDeferred<Response>(); authReads.mockReturnValueOnce(recovery.promise)
+    const { controller } = mountController(); await flush()
+    writes.mockResolvedValueOnce(denial(120001)); await controller.save(); await flush()
+    expect(controller.state.allowed).toBe(false)
+    if (kind === 'account') auth('admin-b')
+    else if (kind === 'relogin') { auth('', []); auth() }
+    else auth('admin-a', ['system:manage'])
+    await flush()
+    recovery.resolve(response({ user: { id: 'admin-a', username: 'admin-a', group: 'admin', permissions: ['admin:access', 'system:manage'] } }))
+    await flush()
+    expect(client.getQueryData(['auth', 'me'])).toMatchObject({ user: { id: kind === 'account' ? 'admin-b' : 'admin-a', permissions: kind === 'permissions' ? ['system:manage'] : ['admin:access', 'system:manage'] } })
+    expect(controller.state.allowed).toBe(kind !== 'permissions')
+    expect(controller.state.rows.map(row => row.host)).toEqual(kind === 'permissions' ? [] : original.hosts)
+    expect(writes).toHaveBeenCalledTimes(1)
+  })
+  it('loads fresh policy only after this identity regains confirmed grants, without retrying the rejected write', async () => {
+    const recovery = createDeferred<Response>(); authReads.mockReturnValueOnce(recovery.promise)
+    const { controller } = mountController(); await flush(); controller.edit(0, 'private.example')
+    writes.mockResolvedValueOnce(denial(120001)); await controller.save(); await flush()
+    expect(controller.state.rows).toEqual([])
+    reads.mockResolvedValueOnce(response(saved))
+    recovery.resolve(response({ user: { id: 'admin-a', username: 'admin-a', group: 'admin', permissions: ['admin:access', 'system:manage'] } }))
+    await flush()
+    expect(controller.state.allowed).toBe(true); expect(controller.state.rows.map(row => row.host)).toEqual(saved.hosts)
+    expect(controller.state.version).toBe(saved.updatedAt); expect(writes).toHaveBeenCalledTimes(1)
+  })
+
   it.each([{ permissions: [] }, { permissions: ['admin:access'] }, { permissions: ['system:manage'] }])('requires both current permissions $permissions', async ({ permissions }) => {
     auth('admin-a', permissions); mount(); await flush()
     expect(screen.queryByRole('form')).toBeNull(); expect(reads).not.toHaveBeenCalled()
@@ -176,7 +236,7 @@ describe('independent target policy draft', () => {
     else if (kind === 'relogin') { auth('', []); auth() }
     else { auth('admin-a', ['admin:access', 'system:manage'].filter(value => value !== kind)); auth() }
   }
-  const matrix = transitions.flatMap(kind => ['load', 'save'].flatMap(operation => ['resolve', 'reject', ...(operation === 'save' ? ['conflict'] : [])].map(outcome => ({ kind, operation, outcome }))))
+  const matrix = transitions.flatMap(kind => ['load', 'save'].flatMap(operation => ['resolve', 'reject', 'denied', ...(operation === 'save' ? ['conflict'] : [])].map(outcome => ({ kind, operation, outcome }))))
   it.each(matrix)('retires $kind $operation $outcome before cache, draft, feedback and finally', async ({ kind, operation, outcome }) => {
     const old = createDeferred<Response>(), current = createDeferred<Response>()
     if (operation === 'load') reads.mockReturnValueOnce(old.promise).mockReturnValueOnce(current.promise)
@@ -184,12 +244,13 @@ describe('independent target policy draft', () => {
     mount(); if (operation === 'save') { await ready(); await fireEvent.submit(form()) }
     transition(kind); await flush()
     if (operation === 'save') { await ready(); await fireEvent.update(hosts()[0]!, 'current.example'); await fireEvent.submit(form()) }
-    if (outcome === 'reject') old.reject(new Error('stale')); else old.resolve(response(outcome === 'conflict' ? null : saved, outcome === 'conflict' ? 900211 : 0))
+    if (outcome === 'reject') old.reject(new Error('stale')); else if (outcome === 'denied') old.resolve(denial(120001)); else old.resolve(response(outcome === 'conflict' ? null : saved, outcome === 'conflict' ? 900211 : 0))
     await flush()
     expect(button('save').disabled).toBe(true); expect(button('reload').disabled).toBe(true)
     for (const feedback of ['saved', 'conflict', 'saveFailed', 'loadFailed']) expect(screen.queryByText('targetPolicy.' + feedback)).toBeNull()
     expect(client.getQueriesData({ queryKey: adminTargetHostDenylistKey }).some(([, value]) => (value as typeof saved)?.updatedAt === saved.updatedAt)).toBe(false)
     if (operation === 'load') expect(hosts()).toHaveLength(0); else expect(hosts()[0]!.value).toBe('current.example')
+    expect(authReads).not.toHaveBeenCalled()
     current.resolve(response(operation === 'load' ? original : saved)); await flush()
     if (operation === 'load') await ready(); else expect(screen.getByText('targetPolicy.saved')).toBeTruthy()
   })

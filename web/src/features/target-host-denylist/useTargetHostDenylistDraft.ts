@@ -3,12 +3,13 @@ import { useQueryClient } from '@tanstack/vue-query'
 import type { UserResponse } from '@/entities/auth/api'
 import { adminTargetHostDenylistKey, getTargetHostDenylist, updateTargetHostDenylist, UpdateTargetHostDenylistSchema, type TargetHostDenylist } from '@/entities/target-host-denylist/api'
 import { ApiClientError } from '@/shared/api/client'
+import { useAuthorizationRefresh } from '@/shared/auth/useAuthorizationRefresh'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 
 interface DraftRow { key: number; host: string }
 /** Owns a private draft and retires every asynchronous continuation synchronously. */
 export function useTargetHostDenylistDraft() {
-  const client = useQueryClient(), identity = useAccountIdentity()
+  const client = useQueryClient(), identity = useAccountIdentity(), authorization = useAuthorizationRefresh()
   const state = reactive({ allowed: false, rows: [] as DraftRow[], version: '', loading: false, saving: false, reloadRequired: false, feedback: '', errors: {} as Record<string, boolean> })
   let generation = 0, edited = 0, sequence = 0
   let previousScope: object | undefined, previousPermissions = ''
@@ -42,6 +43,13 @@ export function useTargetHostDenylistDraft() {
     if (!idle()) return
     state.rows = []; changed()
   }
+  /** Clears denied grants synchronously; only the same login round may restore confirmed access. */
+  function recoverAuthorization(error: unknown) {
+    if (!(error instanceof ApiClientError) || ![120001, 401, 403].includes(error.code)) return false
+    const scope = identity.scope.value
+    void authorization.refresh(() => identity.isCurrent(scope))
+    return true
+  }
   /** Rejects stale results before cache insertion and protects edits made mid-read. */
   async function load() {
     if (!state.allowed || state.loading || state.saving) return
@@ -57,13 +65,13 @@ export function useTargetHostDenylistDraft() {
       })
       if (token !== generation || revision !== edited) return
       fill(value); state.feedback = ''
-    } catch {
-      if (token === generation) state.feedback = 'loadFailed'
+    } catch (error) {
+      if (token === generation && !recoverAuthorization(error)) state.feedback = 'loadFailed'
     } finally {
       if (token === generation) state.loading = false
     }
   }
-  /** Saves exactly once and preserves the complete draft after any rejection. */
+  /** Saves exactly once; ordinary failures preserve the draft while denial retires private state. */
   async function save() {
     if (!idle() || state.reloadRequired) return
     const input = UpdateTargetHostDenylistSchema.safeParse({ hosts: state.rows.map(row => row.host), expectedUpdatedAt: state.version })
@@ -82,6 +90,7 @@ export function useTargetHostDenylistDraft() {
       fill(value); state.feedback = 'saved'
     } catch (error) {
       if (token === generation) {
+        if (recoverAuthorization(error)) return
         const conflict = error instanceof ApiClientError && error.code === 900211
         state.feedback = conflict ? 'conflict' : 'saveFailed'; state.reloadRequired = conflict
       }
