@@ -448,5 +448,15 @@ function toLocalDateTime(value: string | null) {
     align-items: stretch;
     flex-direction: column;
   }
+
+  .short-link-settings-dialog__mode :deep(.v-btn-toggle) {
+    flex-wrap: wrap;
+    height: auto;
+    max-width: 100%;
+  }
+
+  .short-link-settings-dialog__mode :deep(.v-btn-toggle > .v-btn) {
+    min-height: 44px;
+  }
 }
 </style>
