@@ -360,6 +360,7 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 	}
 
 	var updated sqlc.UpdateOwnShortLinkRow
+	var domain sqlc.GetShortLinkDomainByIDRow
 	err = appdb.WithAuditTx(ctx, s.pool, user.ID, func(tx pgx.Tx) error {
 		q := s.queries.WithTx(tx)
 		if input.TargetURL != nil {
@@ -401,16 +402,15 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 			VisitLimitMode:           visitLimitMode,
 			MaxVisits:                maxVisits,
 		})
+		if writeErr != nil {
+			return writeErr
+		}
+		domain, writeErr = q.GetShortLinkDomainByID(ctx, updated.DomainID)
 		return writeErr
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return CreateResult{}, ErrShortLinkMissing
 	}
-	if err != nil {
-		return CreateResult{}, err
-	}
-
-	domain, err := s.queries.GetShortLinkDomainByID(ctx, updated.DomainID)
 	if err != nil {
 		return CreateResult{}, err
 	}
@@ -631,6 +631,7 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 		return CreateResult{}, err
 	}
 	var updated sqlc.UpdateAnyShortLinkRow
+	var domain sqlc.GetShortLinkDomainByIDRow
 	err = appdb.WithAuditTx(ctx, s.pool, user.ID, func(tx pgx.Tx) error {
 		q := s.queries.WithTx(tx)
 		if input.TargetURL != nil {
@@ -671,16 +672,15 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 			VisitLimitMode:           visitLimitMode,
 			MaxVisits:                maxVisits,
 		})
+		if writeErr != nil {
+			return writeErr
+		}
+		domain, writeErr = q.GetShortLinkDomainByID(ctx, updated.DomainID)
 		return writeErr
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return CreateResult{}, ErrShortLinkMissing
 	}
-	if err != nil {
-		return CreateResult{}, err
-	}
-
-	domain, err := s.queries.GetShortLinkDomainByID(ctx, updated.DomainID)
 	if err != nil {
 		return CreateResult{}, err
 	}
