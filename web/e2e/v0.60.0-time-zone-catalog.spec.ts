@@ -110,10 +110,13 @@ for (const width of [1280, 390]) for (const language of ['zh-CN', 'en']) {
     await selector.fill(device)
     await page.getByRole('option', { name: device, exact: true }).click()
     expect(await read(page)).toEqual(katmandu)
-    await save(page, null, katmandu.updatedAt)
+    const deviceSaved = await save(page, null, katmandu.updatedAt)
     await page.reload()
-    await expect(selector).toHaveValue(device)
+    await expect(page.getByTestId('time-zone-preference-selection')).toHaveText(language === 'zh-CN' ? `已选：${device}` : `Selected: ${device}`)
+    expect(await read(page)).toEqual(deviceSaved)
     await expect(page.getByTestId('console-time-zone')).toHaveText(/^(时间显示：设备本地时区|Time display: device local time zone)$/)
+    await page.getByTestId('time-zone-preference-panel').scrollIntoViewIfNeeded()
+    await capture(info, `catalog-${width}-${language}-device-restored`, page)
   })
 }
 
