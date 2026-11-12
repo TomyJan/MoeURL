@@ -18,7 +18,7 @@ func TestGlobalVisitExportRouteRejectsGuestAndLinkFilters(t *testing.T) {
 		code  int
 	}{{"", 120001}, {"?id=00000000-0000-0000-0000-000000000001", 100001}, {"?pageSize=25", 100001}, {"?days=7&days=30", 100001}} {
 		response := httptest.NewRecorder()
-		router.ServeHTTP(response, httptest.NewRequest("GET", "/api/v1/admin/dashboard/visits/export"+tc.query, nil))
+		router.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), "GET", "/api/v1/admin/dashboard/visits/export"+tc.query, nil))
 		require.Equal(t, 200, response.Code)
 		require.Equal(t, "no-store", response.Header().Get("Cache-Control"))
 		var body struct {

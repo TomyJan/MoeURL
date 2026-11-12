@@ -1,10 +1,10 @@
 # 统计与事件
 
-## v0.66.0 全站访问记录 CSV（后端本地完成）
+## v0.66.0 全站访问记录 CSV（已交付）
 
-计划在全站仪表盘按已应用 UTC 日期下载匿名成功事件，含已软删短链历史。`GET /api/v1/admin/dashboard/visits/export` 只接收日期，不接收单链 ID、分页或设备／国家；最多 90 个 UTC 日、1000 条、原文与最终 CSV 各 8 MiB。受保护管理权限 `statistics:export_visits` 叠加 admin:access、statistics:read_all、short_link:read_all、short_link:read_visits，同一 5 秒只读快照重查。默认只补 builtin admin，不给 user／guest 或可配置预设。
+全站仪表盘可按已应用 UTC 日期下载匿名成功事件，含已软删短链历史。`GET /api/v1/admin/dashboard/visits/export` 只接收日期，不接收单链 ID、分页或设备／国家；最多 90 个 UTC 日、1000 条、原文与最终 CSV 各 8 MiB。受保护管理权限 `statistics:export_visits` 叠加 `admin:access`、`statistics:read_all`、`short_link:read_all`、`short_link:read_visits`，同一 5 秒只读快照重查。默认只补内置 admin，不给 user／guest 或可配置预设。
 
-上述后端与权限迁移已实现并完成本地门禁；仪表盘入口、浏览器和最终审查待做，旧单链／审计 CSV 不变。完整格式、容量、迁移回滚及异步边界见[设计](2026-11-12-v0.66.0-global-visit-export-design.md)，准确组合证据、运行时及既有漏洞边界见[验收](../implementation/v0.66.0-acceptance.md)。
+后端、权限迁移、仪表盘入口和本地验证已完成；PR319 的最终提交通过真实 CodeRabbit，正常合并为 master `07a7cf7a9339853d5211b3444095d146386e760e`，独立合并核验和恢复归档完成。旧单链／审计 CSV 不变，尚未正式发布。完整格式、容量、迁移回滚及异步边界见[设计](2026-11-12-v0.66.0-global-visit-export-design.md)，准确组合证据、运行时、四组延期 Minor 及条件安全风险见[验收](../implementation/v0.66.0-acceptance.md)。
 
 v0.18.0 已合并全站统计、匿名访问记录和事务审计；v0.24.0 已合并单链匿名记录 CSV，v0.25.0 独立分支实现操作审计 CSV。各版本验证与发布状态分别见对应验收，本页早期非目标只描述当时边界。
 
