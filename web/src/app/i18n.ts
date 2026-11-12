@@ -728,6 +728,12 @@ export const messages = {
       denied: '账号今日创建额度已用尽，或站点禁止新的创建。输入已保留；请在下一个 UTC 日或管理员调整后再试。',
       bulkDenied: '账号今日剩余额度不足，或站点禁止新的创建，整批未创建。请减少批次数量，或在下一个 UTC 日或管理员调整后重新预览。',
     },
+    ownDailyCreateUsage: {
+      heading: '今日创建用量', day: '统计日期', used: '已用数量', limit: '每日上限', remaining: '剩余数量', unlimited: '无限额',
+      snapshot: '当前快照。按 UTC 日期计算；创建时仍会重新校验额度。',
+      refresh: '刷新用量', retry: '重试读取用量', recover: '重新确认权限', loading: '正在读取用量…',
+      failed: '暂时无法读取用量，请重试。其他概览数据不受影响。', denied: '当前账号无法读取创建用量，请重新确认权限。',
+    },
     targetAllowlist: {
       heading: '目标主机白名单', form: '目标主机白名单设置', enabled: '启用目标主机白名单', host: '主机', add: '添加主机', remove: '删除主机', clear: '清空列表',
       hint: '默认关闭，可预配置最多 100 个精确 ASCII 主机名；国际化域名使用 ACE（punycode）。不填写协议、端口、路径、IP 或通配符。关闭保留名单，清空不会关闭开关，所有修改均须保存。',
@@ -1632,6 +1638,12 @@ export const messages = {
       invalid: 'Enter an integer from 0 to 1000000, or switch off the daily limit.', invalidField: 'Enter an integer from 0 to 1000000.',
       denied: 'Your daily creation quota is exhausted, or the site blocks new creation. Your input is retained. Try after the next UTC day or an administrator adjusts the quota.',
       bulkDenied: 'Your remaining daily quota cannot cover this batch, or the site blocks new creation. No links were created. Reduce the batch, or preview again after the next UTC day or an administrator adjusts the quota.',
+    },
+    ownDailyCreateUsage: {
+      heading: 'Today’s creation usage', day: 'Usage date', used: 'Used', limit: 'Daily limit', remaining: 'Remaining', unlimited: 'Unlimited',
+      snapshot: 'Current snapshot in UTC. Quota is checked again when creating links.',
+      refresh: 'Refresh usage', retry: 'Retry usage', recover: 'Check access again', loading: 'Loading usage…',
+      failed: 'Could not read usage. Please retry. Other overview data is unaffected.', denied: 'This account cannot read creation usage. Check access again.',
     },
     targetAllowlist: {
       heading: 'Allowed target hosts', form: 'Allowed target host settings', enabled: 'Enable target host allowlist', host: 'Host', add: 'Add host', remove: 'Remove host', clear: 'Clear list',
