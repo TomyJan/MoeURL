@@ -13,6 +13,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/targetpolicy"
 	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 )
 
@@ -38,7 +39,12 @@ func TestSuffixGateOrdering(t *testing.T) {
 		require.NoError(t, <-result)
 	})
 	t.Run("save before new create", func(t *testing.T) {
-		pool, _, actor := fixture(t)
+		fixturePool, _, actor := fixture(t)
+		config := fixturePool.Config()
+		config.MaxConns = 4 // The lock holder and three waiters exhaust this bounded pool.
+		pool, err := pgxpool.NewWithConfig(t.Context(), config)
+		require.NoError(t, err)
+		t.Cleanup(pool.Close)
 		tx, err := pool.Begin(t.Context())
 		require.NoError(t, err)
 		defer testdb.Rollback(t, tx.Rollback)
@@ -69,7 +75,10 @@ func TestSuffixGateOrdering(t *testing.T) {
 		}()
 		require.Eventually(t, func() bool {
 			var count int
-			err := pool.QueryRow(t.Context(), `select count(*) from pg_stat_activity where datname=current_database() and $1::integer=any(pg_blocking_pids(pid))`, tx.Conn().PgConn().PID()).Scan(&count)
+			if _, err := tx.Exec(t.Context(), `select pg_stat_clear_snapshot()`); err != nil {
+				return false
+			}
+			err := tx.QueryRow(t.Context(), `select count(*) from pg_stat_activity where datname=current_database() and $1::integer=any(pg_blocking_pids(pid))`, tx.Conn().PgConn().PID()).Scan(&count)
 			return err == nil && count == 3
 		}, 3*time.Second, 5*time.Millisecond, "create and both other policy managers must share this gate")
 		require.NoError(t, tx.Commit(t.Context()))
