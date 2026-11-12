@@ -1,6 +1,6 @@
 # v0.67.1 后缀提示与验证维护
 
-状态：设计完成，尚未实施。基线为 PR323 已核准 master `7a4c22073c9790c9f0cdc541db3344d57c2966ca`，分支 `feat/v0.67.1-suffix-policy-maintenance`；产品版本保持 0.67.0。
+状态：提示、取消测试和文档维护已实现，Task1 受影响本地验证通过，标准关闭待冻结合同。准确产品／浏览器、自身审查及交付仍待。基线为 PR323 已核准 master `7a4c22073c9790c9f0cdc541db3344d57c2966ca`，分支 `feat/v0.67.1-suffix-policy-maintenance`；产品版本保持 0.67.0。
 
 ## 目标和范围选择
 
