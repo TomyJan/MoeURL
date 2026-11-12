@@ -168,6 +168,7 @@ jobs:
             -p=1 \
             -count=1 \
             ./internal/auth \
+            ./internal/createquota \
             ./internal/db \
             ./internal/domain \
             ./internal/event \

@@ -12,6 +12,7 @@ import (
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/config"
+	"github.com/TomyJan/MoeURL/internal/createquota"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/domain"
@@ -188,6 +189,12 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			return nil, fmt.Errorf("validate target host allowlist: %w", err)
 		}
 		deps.TargetHostAllowlist = targetAllowlistService
+		createQuotaService := createquota.NewService(pool)
+		if err := createQuotaService.ValidateStartup(ctx); err != nil {
+			pool.Close()
+			return nil, fmt.Errorf("validate daily create quota: %w", err)
+		}
+		deps.AccountDailyCreateQuota = createQuotaService
 		appearanceService := system.NewAppearanceService(pool)
 		if err := appearanceService.ValidateStartup(ctx); err != nil {
 			pool.Close()

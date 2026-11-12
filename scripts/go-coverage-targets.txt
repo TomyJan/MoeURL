@@ -156,3 +156,9 @@ github.com/TomyJan/MoeURL/internal/targetpolicy/allowlist_model.go
 github.com/TomyJan/MoeURL/internal/targetpolicy/allowlist_json.go
 github.com/TomyJan/MoeURL/internal/targetpolicy/allowlist_service.go
 github.com/TomyJan/MoeURL/internal/targetpolicy/allowlist_handler.go
+github.com/TomyJan/MoeURL/internal/createquota/model.go
+github.com/TomyJan/MoeURL/internal/createquota/json.go
+github.com/TomyJan/MoeURL/internal/createquota/service.go
+github.com/TomyJan/MoeURL/internal/createquota/consume.go
+github.com/TomyJan/MoeURL/internal/createquota/locks.go
+github.com/TomyJan/MoeURL/internal/createquota/handler.go

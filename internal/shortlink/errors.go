@@ -4,11 +4,13 @@ import (
 	"errors"
 	"time"
 
+	"github.com/TomyJan/MoeURL/internal/createquota"
 	"github.com/TomyJan/MoeURL/internal/targetpolicy"
 )
 
 var (
 	ErrTargetDenied             = targetpolicy.ErrTargetDenied
+	ErrCreateQuotaExhausted     = createquota.ErrExhausted
 	ErrInvalidInput             = errors.New("invalid input")
 	ErrPermissionDenied         = errors.New("permission denied")
 	ErrInvalidTargetURL         = errors.New("invalid target url")

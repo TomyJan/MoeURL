@@ -258,6 +258,8 @@ func writeBusinessOrSystemError(w http.ResponseWriter, r *http.Request, logger *
 		businessError(w, CodeInvalidTargetURL, "Invalid target URL")
 	case errors.Is(err, ErrTargetDenied):
 		businessError(w, 200121, "Target host restricted")
+	case errors.Is(err, ErrCreateQuotaExhausted):
+		businessError(w, 200122, "Daily create quota exhausted")
 	case errors.Is(err, ErrInvalidStatus):
 		businessError(w, 100001, "Invalid request")
 	case errors.Is(err, ErrInvalidRedirectMode):

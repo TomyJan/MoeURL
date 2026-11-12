@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	"github.com/TomyJan/MoeURL/internal/createquota"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/domain"
@@ -60,6 +61,9 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 	result := BatchCreateResult{RequestID: requestID.String()}
 	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
 		if err := targetpolicy.LockTargets(ctx, tx); err != nil {
+			return err
+		}
+		if err := createquota.LockCreation(ctx, tx); err != nil {
 			return err
 		}
 		if err := domain.LockShortLinkCreation(ctx, tx); err != nil {
@@ -136,6 +140,9 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 			targets[i] = item.TargetURL
 		}
 		if err := checkNewTargets(ctx, q, targets); err != nil {
+			return err
+		}
+		if err := createquota.Consume(ctx, q, uuidToPgtype(actorID), len(items)); err != nil {
 			return err
 		}
 		requestedSlugs := make(map[string]bool, len(items))

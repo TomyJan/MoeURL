@@ -145,7 +145,8 @@ export function useBulkCreate() {
         // A definite failure on a later attempt cannot disprove an earlier unknown commit.
         unknown.value = unknown.value || error instanceof BulkCreateUnknownError
         errorKey.value = unknown.value ? 'bulkCreate.unknown'
-          : error instanceof ApiClientError && error.code === 200121 ? 'targetPolicy.bulkDenied'
+          : error instanceof ApiClientError && error.code === 200122 ? 'dailyCreateQuota.bulkDenied'
+            : error instanceof ApiClientError && error.code === 200121 ? 'targetPolicy.bulkDenied'
             : error instanceof ApiClientError && error.code === 200120 ? 'bulkCreate.conflict'
             : mode === 'custom-slugs' && error instanceof ApiClientError && error.code === 200101 ? 'bulkCreate.customSlugTaken'
               : mode === 'custom-slugs' && error instanceof ApiClientError && error.code === 200102 ? 'bulkCreate.customSlugReserved'
