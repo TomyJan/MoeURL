@@ -746,6 +746,15 @@ export const messages = {
       enabledEmpty: '启用白名单前请至少添加一个有效主机；清空列表不会自动关闭白名单。',
       invalid: '请检查主机格式、重复项及数量；空行不会被自动忽略。', invalidField: '请填写有效的 ASCII 主机名。',
     },
+    targetSuffixPolicy: {
+      heading: '目标 DNS 后缀黑名单', form: '目标 DNS 后缀黑名单设置', host: 'DNS 后缀', add: '添加后缀', remove: '删除后缀', clear: '清空列表',
+      hint: '最多 100 项。填写 ASCII 主机名，国际化域名使用 ACE（punycode）；不填写协议、端口、路径、IP 或通配符。允许父子规则重叠，规范化后的重复项不允许。空行必须填写或删除，清空后仍需保存。',
+      scope: '每项匹配主机自身及所有层级的子域，只限制今后的创建和目标变更；精确及后缀拒绝均优先于精确允许。已有短链访问和已提交批次恢复不受影响。清空仅停用后缀规则，不改变精确黑白名单。这不是 DNS 探测、SSRF 防护或目标安全认证。',
+      save: '保存后缀黑名单', reload: '重新加载后缀黑名单', saved: '目标 DNS 后缀黑名单已保存。',
+      loadFailed: '后缀黑名单加载失败，请重新加载。', saveFailed: '保存失败，草稿已保留，请重试。',
+      conflict: '后缀黑名单已被其他请求修改。草稿已保留，请明确重新加载后再保存，不会自动重试写入。',
+      invalid: '请检查后缀格式、重复项及数量；空行不会被自动忽略。', invalidField: '请填写有效的 ASCII DNS 主机名。',
+    },
     targetPolicy: {
       heading: '目标主机黑名单', form: '目标主机黑名单设置', host: '主机', add: '添加主机', remove: '删除主机', clear: '清空列表',
       hint: '最多 100 个精确主机名。只填写 ASCII 域名，国际化域名使用 ACE（punycode）；不填写协议、端口、路径、IP 或通配符。空行必须填写或删除，清空后仍需保存。',
@@ -1658,6 +1667,15 @@ export const messages = {
       conflict: 'Another request changed the list. Your draft is retained. Explicitly reload before saving; writes are never retried automatically.',
       enabledEmpty: 'Add at least one valid host before enabling. Clearing the list does not switch the allowlist off.',
       invalid: 'Check host syntax, duplicates and the 100-host limit. Blank rows are not silently ignored.', invalidField: 'Enter a valid ASCII host name.',
+    },
+    targetSuffixPolicy: {
+      heading: 'Blocked target host suffixes', form: 'Blocked target host suffix settings', host: 'DNS suffix', add: 'Add suffix', remove: 'Remove suffix', clear: 'Clear list',
+      hint: 'Up to 100 ASCII host names. Use ACE (punycode) for international domains. Omit schemes, ports, paths, IP addresses and wildcards. Parent and child rules may overlap; normalized duplicates are rejected. Complete or remove blank rows; clearing still requires saving.',
+      scope: 'Each rule matches the host itself and subdomains at every depth, only for new links and changed targets. Exact and suffix denial take priority over exact allowance. Existing visits and committed batch recovery are unaffected. Clearing disables only suffix rules. This is not DNS probing, SSRF protection or a safety certification.',
+      save: 'Save blocked suffixes', reload: 'Reload blocked suffixes', saved: 'Blocked target host suffixes saved.',
+      loadFailed: 'Could not load blocked suffixes. Please reload.', saveFailed: 'Could not save. Your draft is retained; please retry.',
+      conflict: 'Another request changed the suffix list. Your draft is retained. Explicitly reload before saving; writes are never retried automatically.',
+      invalid: 'Check suffix syntax, duplicates and the 100-rule limit. Blank rows are not silently ignored.', invalidField: 'Enter a valid ASCII DNS host name.',
     },
     targetPolicy: {
       heading: 'Blocked target hosts', form: 'Blocked target host settings', host: 'Host', add: 'Add host', remove: 'Remove host', clear: 'Clear list',

@@ -133,8 +133,8 @@ func (s *Service) Update(ctx context.Context, actor auth.CurrentUser, input Upda
 	return result, nil
 }
 
-// CheckTargets reads both resources in the caller's gate-holding transaction.
-// Denylist remains first; disabled allowlist preserves the previous URL syntax.
+// CheckTargets reads all three resources in the caller's gate-holding transaction.
+// Exact and suffix denial precede allowance; empty policies preserve URL syntax.
 func CheckTargets(ctx context.Context, q *sqlc.Queries, targets []string) error {
 	row, err := q.GetSystemSetting(ctx, Key)
 	if err != nil {
@@ -152,7 +152,18 @@ func CheckTargets(ctx context.Context, q *sqlc.Queries, targets []string) error 
 	if err != nil {
 		return err
 	}
+	suffixRow, err := q.GetSystemSetting(ctx, SuffixKey)
+	if err != nil {
+		return err
+	}
+	suffix, err := storedSuffixSettings(suffixRow)
+	if err != nil {
+		return err
+	}
 	if err := checkHosts(settings.Hosts, targets); err != nil {
+		return err
+	}
+	if err := checkSuffixes(suffix.Suffixes, targets); err != nil {
 		return err
 	}
 	return checkAllowlistHosts(allowlist, targets)
