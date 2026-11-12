@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	"github.com/TomyJan/MoeURL/internal/createquota"
 	appdb "github.com/TomyJan/MoeURL/internal/db"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/domain"
@@ -136,6 +137,9 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 			if err := targetpolicy.LockTargets(ctx, tx); err != nil {
 				return err
 			}
+			if err := createquota.LockCreation(ctx, tx); err != nil {
+				return err
+			}
 			if err := domain.LockShortLinkCreation(ctx, tx); err != nil {
 				return err
 			}
@@ -159,6 +163,9 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 				return err
 			}
 			if err := checkNewTargets(ctx, queries, []string{input.TargetURL}); err != nil {
+				return err
+			}
+			if err := createquota.Consume(ctx, queries, uuidToPgtype(ownerID), 1); err != nil {
 				return err
 			}
 			created, err := queries.CreateShortLink(ctx, sqlc.CreateShortLinkParams{

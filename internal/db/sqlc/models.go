@@ -8,6 +8,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AccountDailyCreateUsage struct {
+	ActorID  pgtype.UUID `json:"actor_id"`
+	UsageDay pgtype.Date `json:"usage_day"`
+	Used     int64       `json:"used"`
+}
+
 type AppUser struct {
 	ID           pgtype.UUID        `json:"id"`
 	Username     string             `json:"username"`

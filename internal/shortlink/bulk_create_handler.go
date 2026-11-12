@@ -81,6 +81,8 @@ func writeBulkCreateResult(w http.ResponseWriter, r *http.Request, result BatchC
 		businessError(w, CodeInvalidTargetURL, "Invalid target URL")
 	case errors.Is(err, ErrTargetDenied):
 		businessError(w, 200121, "Target host restricted")
+	case errors.Is(err, ErrCreateQuotaExhausted):
+		businessError(w, 200122, "Daily create quota exhausted")
 	case errors.Is(err, ErrDomainUnavailable):
 		businessError(w, CodeDomainUnavailable, "Domain unavailable")
 	case errors.Is(err, ErrSlugConflict):

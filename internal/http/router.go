@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	"github.com/TomyJan/MoeURL/internal/createquota"
 	"github.com/TomyJan/MoeURL/internal/domain"
 	"github.com/TomyJan/MoeURL/internal/event"
 	"github.com/TomyJan/MoeURL/internal/insights"
@@ -28,6 +29,7 @@ type Dependencies struct {
 	HomeContent                     system.HomeContentPort
 	TargetHostDenylist              targetpolicy.Port
 	TargetHostAllowlist             targetpolicy.AllowlistPort
+	AccountDailyCreateQuota         createquota.Port
 	Appearance                      system.AppearancePort
 	FooterLinks                     system.FooterLinksPort
 	Auth                            auth.Port
@@ -169,6 +171,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				handler := targetpolicy.NewAllowlistHandler(dependency.TargetHostAllowlist, logger)
 				businessAPI.Get("/admin/system/target-host-allowlist", handler.Get)
 				businessAPI.Post("/admin/system/target-host-allowlist/update", handler.Update)
+			}
+			if dependency.AccountDailyCreateQuota != nil {
+				handler := createquota.NewHandler(dependency.AccountDailyCreateQuota, logger)
+				businessAPI.Get("/admin/system/account-daily-create-quota", handler.Get)
+				businessAPI.Post("/admin/system/account-daily-create-quota/update", handler.Update)
 			}
 			if dependency.FooterLinks != nil {
 				footerLinksHandler := system.NewFooterLinksHandler(dependency.FooterLinks, logger)
