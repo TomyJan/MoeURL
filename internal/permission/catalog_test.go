@@ -34,6 +34,7 @@ func TestCatalogDefinitionsCoverPermissionConstants(t *testing.T) {
 		{Key: SystemManage, Category: "administration", Protected: true},
 		{Key: AdminAccess, Category: "administration", Protected: true},
 		{Key: StatisticsReadAll, Category: "administration", Protected: true},
+		{Key: "statistics:export_visits", Category: "administration", Protected: true},
 		{Key: AuditRead, Category: "administration", Protected: true},
 		{Key: AuditExport, Category: "administration", Protected: true},
 		{Key: ShortLinkReadAll, Category: "administration", Protected: true},
@@ -126,6 +127,7 @@ func TestPresetDefinitions(t *testing.T) {
 func TestProtectedPermissionNormalization(t *testing.T) {
 	adminInput := []string{
 		StatisticsReadAll,
+		StatisticsExportVisits,
 		AuditRead,
 		AuditExport,
 		ShortLinkDeleteAll,
@@ -142,6 +144,7 @@ func TestProtectedPermissionNormalization(t *testing.T) {
 		SystemManage,
 		AdminAccess,
 		StatisticsReadAll,
+		StatisticsExportVisits,
 		AuditRead,
 		AuditExport,
 		ShortLinkReadAll,
