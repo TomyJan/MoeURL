@@ -1,6 +1,9 @@
 <template>
   <section class="console-page dashboard-page" data-testid="admin-dashboard">
-    <header class="console-page__header"><div><h1>{{ t('dashboard.title') }}</h1><p>{{ t('dashboard.description') }}</p></div></header>
+    <header class="console-page__header">
+      <div><h1>{{ t('dashboard.title') }}</h1><p>{{ t('dashboard.description') }}</p></div>
+      <VisitExportButton id="site" context="site" :range="exportRange" :filters="{}" :blocked="denied || query.isPending.value || query.isFetching.value || query.isError.value" :context-revision="readRevision" />
+    </header>
     <InsightRangePicker v-model="range" />
     <InsightReadState :denied="denied" :error="query.isError.value" :pending="query.isPending.value" :fetching="query.isFetching.value" @retry="query.refetch()" />
     <template v-if="snapshot">
@@ -37,6 +40,7 @@ import { useInsightAccess, isInsightAccessError } from '@/shared/insights/useIns
 import InsightRangePicker from '@/features/insights/InsightRangePicker.vue'
 import InsightTrend from '@/features/insights/InsightTrend.vue'
 import InsightReadState from '@/features/insights/InsightReadState.vue'
+import VisitExportButton from '@/features/visit-records/VisitExportButton.vue'
 
 const { t } = useI18n()
 const range = ref<InsightRangeInput>({ days: 7 })
@@ -46,6 +50,10 @@ const { allowed, scope } = useInsightAccess(['admin:access', 'statistics:read_al
 const query = useQuery({ queryKey: computed(() => ['insights', 'dashboard', scope.value, range.value, readRevision.value] as const), enabled: allowed, retry: false, queryFn: ({ queryKey: [, , , applied] }) => getDashboard(applied) })
 const denied = computed(() => !allowed.value || isInsightAccessError(query.error.value))
 const snapshot = computed(() => !denied.value && !query.isError.value ? query.data.value : undefined)
+const exportRange = computed(() => {
+  const applied = snapshot.value?.range
+  return applied ? { startDate: applied.startDate, endDate: applied.endDate } : undefined
+})
 const metrics = computed(() => Object.entries(snapshot.value!.summary).map(([key, value]) => ({ key, value })))
 </script>
 <style scoped>
