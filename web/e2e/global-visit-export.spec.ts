@@ -5,6 +5,7 @@ import type { APIRequestContext, BrowserContext, Request } from '@playwright/tes
 import type { ShortLink } from '../src/entities/short-link/model'
 import type { DashboardResult, VisitResult } from '../src/entities/insights/model'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
+import { dismissNotifications } from './notification-dismissal'
 
 const endpoint = '/api/v1/admin/dashboard/visits/export'
 const password = 'owned-global-visit66-fixture'
@@ -106,18 +107,31 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
       expect(snapshot.summary.rangeVisitCount).toBeGreaterThanOrEqual(2)
       expect(snapshot.summary.rangeVisitCount).toBeLessThanOrEqual(1000)
       const button = page.getByRole('button', { name: text.csv, exact: true })
+      // A real user can dismiss the transient toast and return above the sticky header.
+      async function clickExport() {
+        await dismissNotifications(page)
+        await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }))
+        await expect.poll(() => button.evaluate(element => {
+          const box = element.getBoundingClientRect()
+          const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+          return hit === element || element.contains(hit)
+        })).toBe(true)
+        await button.click()
+      }
       await expect(button).toBeEnabled(); await expect(page.getByText(text.description, { exact: false })).toBeVisible()
       await button.scrollIntoViewIfNeeded(); await expectNoHorizontalOverflow(page)
       await page.screenshot({ path: info.outputPath('site-visits-' + language + '-' + width + '.png') })
-      const received = page.waitForResponse(response => new URL(response.url()).pathname === endpoint)
-      const download = page.waitForEvent('download')
-      await button.focus(); await expect(button).toBeFocused(); await button.press('Enter')
-      const response = await received
+      await button.focus(); await expect(button).toBeFocused()
+      const [response, saved] = await Promise.all([
+        page.waitForResponse(value => new URL(value.url()).pathname === endpoint),
+        page.waitForEvent('download'),
+        button.press('Enter'),
+      ])
       expect(response.status()).toBe(200); expect(response.headers()['cache-control']).toBe('no-store')
       expect(Object.fromEntries(new URL(response.url()).searchParams)).toEqual({ startDate: snapshot.range.startDate, endDate: snapshot.range.endDate })
       const payload = await response.json() as { code: number; data: { fileName: string; contentType: string; content: string } }
       expect(payload.code).toBe(0); expect(payload.data.contentType).toBe('text/csv;charset=utf-8')
-      const saved = await download, expectedName = 'moeurl-site-visits-' + snapshot.range.startDate + '-' + snapshot.range.endDate + '.csv'
+      const expectedName = 'moeurl-site-visits-' + snapshot.range.startDate + '-' + snapshot.range.endDate + '.csv'
       expect(saved.suggestedFilename()).toBe(expectedName); expect(payload.data.fileName).toBe(expectedName)
       const path = info.outputPath(expectedName); await saved.saveAs(path); expect(await saved.failure()).toBeNull()
       const bytes = await readFile(path)
@@ -135,9 +149,10 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
       await info.attach('actual-global-csv', { path, contentType: 'text/csv' })
       // Controlled capacity response checks UI framing; actual row/byte limits are exercised in real PG tests.
       await page.route('**' + endpoint + '?*', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ code: 200120, message: 'Controlled capacity', data: null, meta: {} }) }), { times: 1 })
-      await button.click(); await expect(page.getByText(text.limit, { exact: false })).toBeVisible(); expect(downloads).toHaveLength(1)
+      await clickExport(); await expect(page.getByText(text.limit, { exact: false })).toBeVisible(); expect(downloads).toHaveLength(1)
       await expect(button).toBeEnabled()
-      const retry = page.waitForEvent('download'); await button.click(); await retry; expect(downloads).toHaveLength(2)
+      const [retry] = await Promise.all([page.waitForEvent('download'), clickExport()])
+      expect(await retry.failure()).toBeNull(); expect(downloads).toHaveLength(2)
       // Keep one real A response held while the real SPA logs out and logs in as B.
       const marker = randomBytes(12).toString('hex')
       await page.evaluate(value => { (window as Window & { global66Marker?: string }).global66Marker = value }, marker)
@@ -155,7 +170,7 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
         catch (error) { fulfillError = error }
         finally { handled() }
       }, { times: 1 })
-      await button.click(); await expect.poll(() => captured).toBe(true)
+      await clickExport(); await expect.poll(() => captured).toBe(true)
       const signedOut = page.waitForResponse(value => new URL(value.url()).pathname === '/api/v1/auth/logout')
       if (width === 390) {
         await page.getByRole('button', { name: text.account, exact: true }).click()
