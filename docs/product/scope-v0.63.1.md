@@ -1,6 +1,6 @@
 # v0.63.1 白名单保存回读与交付状态维护
 
-状态：范围与计划已收敛，尚未实施；产品保持 0.63.0。基线为已完整交付的 [PR313](https://github.com/TomyJan/MoeURL/pull/313)，master `864a79d04567463130c51d4cdc822cbe04c2e3e2`。
+状态：Task1 实施中，保存回读测试质量 RED→GREEN、相关 97 项和 types／lint 已通过，状态文档已更新；标准收尾、自身审查和交付尚待。产品保持 0.63.0。基线为已完整交付的 [PR313](https://github.com/TomyJan/MoeURL/pull/313)，master `864a79d04567463130c51d4cdc822cbe04c2e3e2`。
 
 ## 盘点与选择
 
@@ -14,7 +14,7 @@
 ## 必须实现
 
 - 页面测试读取返回初始关闭文档，更新返回提交后的完整文档及新版本。保存后等待真实成功状态，再核开关、主机；再次修改并保存时使用服务端新版本。
-- docs/README.md、产品 overview／roadmap／development-status／scope-v0.63.0、技术 baseline／decision 及 v0.63.0 plan／tasks／acceptance 对齐实际交付。既有历史章节后缀逐字保留。
+- docs/README.md、产品 overview／roadmap／development-status／scope-v0.63.0、技术 baseline／decision 及 v0.63.0 plan／tasks／acceptance 对齐实际交付。六入口历史章节后缀逐字保留，仅 roadmap 的当前能力表精确风控行按下项更新，历史检查点不变。
 - 旧产品 319／319 与最终产品 7／7、4751 与 4759、独立 `23a21288` 与最终 `c626414` 审查范围分别记录；不改冻结合同、失败原件或原 PR 的 Minor 延期事实。
 - 精确白名单只从“待开发”移入当前基础；DNS 探测、SSRF、后缀／通配／IP-CIDR 及历史访问追溯封禁不冒已实现。
 - 所有生产、依赖、E2E、迁移和生成物与基线逐 hash 相同；只改一份页面测试及 Markdown。新维护自行完成本地验证、唯一 fresh 独立审查、最终提交真实 CodeRabbit、正常合并独立核验和可恢复归档。
