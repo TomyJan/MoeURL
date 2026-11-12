@@ -288,6 +288,27 @@ describe('independent optional target allowlist draft', () => {
     else if (kind === 'relogin') { auth('', []); auth() }
     else { auth('admin-a', ['admin:access', 'system:manage'].filter(value => value !== kind)); auth() }
   }
+  it.each(transitions.flatMap(kind => (['loaded', 'edited'] as const).map(source => ({ kind, source }))))('clears an enabled $source draft synchronously across $kind even if the new read fails and the old read arrives late', async ({ kind, source }) => {
+    reads.mockResolvedValueOnce(response({ ...original, enabled: source === 'loaded' }))
+    const { controller } = mountController(); await flush()
+    if (source === 'edited') controller.setEnabled(true)
+    expect(controller.state.enabled).toBe(true)
+    const old = createDeferred<Response>(), current = createDeferred<Response>()
+    reads.mockReturnValueOnce(old.promise).mockReturnValueOnce(current.promise)
+    const retiredRead = controller.load()
+    transition(kind)
+    expect(controller.state.enabled).toBe(false)
+    expect(controller.state.rows).toEqual([]); expect(controller.state.version).toBe('')
+    await flush(); expect(controller.state.loading).toBe(true)
+    current.reject(new Error('new identity offline')); await flush()
+    expect(controller.state.enabled).toBe(false); expect(controller.state.feedback).toBe('loadFailed')
+    expect(controller.state.loading).toBe(false); expect(controller.state.version).toBe('')
+    old.resolve(response(saved)); await retiredRead; await flush()
+    expect(controller.state.enabled).toBe(false); expect(controller.state.rows).toEqual([])
+    expect(controller.state.feedback).toBe('loadFailed'); expect(controller.state.loading).toBe(false)
+    await controller.save(); expect(writes).not.toHaveBeenCalled()
+    expect(client.getQueriesData({ queryKey: adminTargetHostAllowlistKey }).every(([, data]) => data === undefined)).toBe(true)
+  })
   const matrix = transitions.flatMap(kind => ['load', 'save'].flatMap(operation => ['resolve', 'reject', 'denied', ...(operation === 'save' ? ['conflict'] : [])].map(outcome => ({ kind, operation, outcome }))))
   it.each(matrix)('retires $kind $operation $outcome before cache, draft, feedback and finally', async ({ kind, operation, outcome }) => {
     const old = createDeferred<Response>(), current = createDeferred<Response>()

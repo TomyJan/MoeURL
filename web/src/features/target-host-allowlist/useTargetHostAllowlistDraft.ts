@@ -114,7 +114,7 @@ export function useTargetHostAllowlistDraft() {
     previousScope = scope; previousPermissions = signature; generation++
     void client.cancelQueries({ queryKey: key, exact: true }); client.removeQueries({ queryKey: key, exact: true })
     key = [...adminTargetHostAllowlistKey, scope.userId, scope.epoch, generation]
-    Object.assign(state, { allowed: !!scope.userId && permissions.includes('admin:access') && permissions.includes('system:manage'), rows: [], version: '', loading: false, saving: false, reloadRequired: false, feedback: '', errors: {} })
+    Object.assign(state, { allowed: !!scope.userId && permissions.includes('admin:access') && permissions.includes('system:manage'), enabled: false, rows: [], version: '', loading: false, saving: false, reloadRequired: false, feedback: '', errors: {} })
     edited = 0; void load()
   }
   const unsubscribe = client.getQueryCache().subscribe(event => {
