@@ -70,8 +70,11 @@ function firstList(page: Page, admin: boolean, pageSize: number, keyword?: strin
 
 /** Chooses through the real Vuetify listbox without writing account preferences implicitly. */
 async function choose(page: Page, label: RegExp, value: string | RegExp) {
-  await page.getByRole('combobox', { name: label, exact: true }).press('Enter')
+  const control = page.getByRole('combobox', { name: label, exact: true })
+  await control.scrollIntoViewIfNeeded()
+  await control.press('Enter')
   await page.getByRole('option', { name: value, exact: true }).click()
+  await expect(page.locator('.v-select').filter({ has: control }).locator('.v-select__selection-text')).toHaveText(value)
 }
 async function save(page: Page, pageSize: Preference['pageSize'], expectedUpdatedAt: string | null) {
   const waiting = page.waitForResponse(response => new URL(response.url()).pathname === resource + '/update')
