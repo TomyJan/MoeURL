@@ -16,7 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Service manages only the independent quota policy, without a process cache.
+// Service manages the independent quota policy and self usage reads without a process cache.
 type Service struct {
 	pool    *pgxpool.Pool
 	queries *sqlc.Queries

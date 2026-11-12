@@ -162,3 +162,5 @@ github.com/TomyJan/MoeURL/internal/createquota/service.go
 github.com/TomyJan/MoeURL/internal/createquota/consume.go
 github.com/TomyJan/MoeURL/internal/createquota/locks.go
 github.com/TomyJan/MoeURL/internal/createquota/handler.go
+github.com/TomyJan/MoeURL/internal/createquota/usage.go
+github.com/TomyJan/MoeURL/internal/createquota/usage_handler.go
