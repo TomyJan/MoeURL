@@ -182,6 +182,12 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			return nil, fmt.Errorf("validate target host policy: %w", err)
 		}
 		deps.TargetHostDenylist = targetPolicyService
+		targetAllowlistService := targetpolicy.NewAllowlistService(pool)
+		if err := targetAllowlistService.ValidateStartup(ctx); err != nil {
+			pool.Close()
+			return nil, fmt.Errorf("validate target host allowlist: %w", err)
+		}
+		deps.TargetHostAllowlist = targetAllowlistService
 		appearanceService := system.NewAppearanceService(pool)
 		if err := appearanceService.ValidateStartup(ctx); err != nil {
 			pool.Close()

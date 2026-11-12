@@ -27,6 +27,7 @@ type Dependencies struct {
 	SystemSettings                  system.SettingsPort
 	HomeContent                     system.HomeContentPort
 	TargetHostDenylist              targetpolicy.Port
+	TargetHostAllowlist             targetpolicy.AllowlistPort
 	Appearance                      system.AppearancePort
 	FooterLinks                     system.FooterLinksPort
 	Auth                            auth.Port
@@ -163,6 +164,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				handler := targetpolicy.NewHandler(dependency.TargetHostDenylist, logger)
 				businessAPI.Get("/admin/system/target-host-denylist", handler.Get)
 				businessAPI.Post("/admin/system/target-host-denylist/update", handler.Update)
+			}
+			if dependency.TargetHostAllowlist != nil {
+				handler := targetpolicy.NewAllowlistHandler(dependency.TargetHostAllowlist, logger)
+				businessAPI.Get("/admin/system/target-host-allowlist", handler.Get)
+				businessAPI.Post("/admin/system/target-host-allowlist/update", handler.Update)
 			}
 			if dependency.FooterLinks != nil {
 				footerLinksHandler := system.NewFooterLinksHandler(dependency.FooterLinks, logger)
