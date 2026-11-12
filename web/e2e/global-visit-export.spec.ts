@@ -139,7 +139,7 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
       const rows = cells(bytes.toString('utf8'))
       expect(rows).toHaveLength(snapshot.summary.rangeVisitCount + 1)
       const ours = rows.slice(1).filter(row => events.has(row[0]!))
-      expect(ours).toHaveLength(2)
+      expect(ours.map(row => row[0]).sort()).toEqual([...events.keys()].sort())
       for (const row of ours) {
         const event = events.get(row[0]!)!.items[0]!
         expect(row).toEqual([row[0], snapshot.range.startDate, snapshot.range.endDate, 'UTC', event.id, utc(event.occurredAt), 'global66.example.test', 'desktop', 'chrome', 'windows', 'SG'])
