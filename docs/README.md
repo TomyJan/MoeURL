@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-12，v0.64.0）
 
-PR314 已完整交付为 master `b98bd1cbdbecaed7f30fd91bab7b5324d4463801`。当前[账号每日创建配额](product/scope-v0.64.0.md)的后端与前端已实现：默认无限额、数据库 UTC 日原子计量、独立卡片和五入口耗尽反馈。Task1 标准完成；前端 4857 项／四项 100%、types／lint／0.64.0 构建通过。Task2 标准收尾、准确产品、真实浏览器、审查与交付仍待，见[计划](implementation/v0.64.0-plan.md)和[验收](implementation/v0.64.0-acceptance.md)。不查 CI，不发布部署，下方为原历史检查点。
+PR314 已完整交付为 master `b98bd1cbdbecaed7f30fd91bab7b5324d4463801`。当前[账号每日创建配额](product/scope-v0.64.0.md)的后端与前端已实现：默认无限额、数据库 UTC 日原子计量、独立卡片和五入口耗尽反馈。Task1–2 标准完成；前端 4857 项／四项 100%、types／lint／0.64.0 构建通过。准确产品 smoke／所选扫描、327 身份组合浏览器和 26 张原图核验已完成；Task3 标准收尾及 Task4 审查交付仍待，见[计划](implementation/v0.64.0-plan.md)和[验收](implementation/v0.64.0-acceptance.md)。不查 CI，不发布部署，下方为原历史检查点。
 
 ## 当前维护（2026-11-12，v0.63.1）
 

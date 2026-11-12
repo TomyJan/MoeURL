@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-12，v0.64.0）
 
-PR314 已完整交付，master `b98bd1cbdbecaed7f30fd91bab7b5324d4463801`，原证据保留其执行身份。[账号每日创建配额](../specs/2026-11-12-v0.64.0-account-daily-create-quota-design.md)已实现独立资源、00041／SQLC 1.30 和独立前端草稿。Windows Go 1.26.10 的完整 Go／组合业务 100／vet、固定 Linux Go 1.27.3 的完整 race 与新 HTTP 补验，以及 Node 26.5.1／pnpm 11.5.0／Vitest 5.0.3 的 4857 项／四项 100%、types／lint／0.64.0 构建通过。源扫描条件公告不冒清零，准确产品和浏览器仍待，详[验收](v0.64.0-acceptance.md)。本版不安装或新增依赖；4／12／6 GiB 预算及用完精确清理继续，不查 CI、不发布部署。下方原检查点不变。
+PR314 已完整交付，master `b98bd1cbdbecaed7f30fd91bab7b5324d4463801`，原证据保留其执行身份。[账号每日创建配额](../specs/2026-11-12-v0.64.0-account-daily-create-quota-design.md)已实现独立资源、00041／SQLC 1.30 和独立前端草稿。Windows Go 1.26.10 的完整 Go／组合业务 100／vet、固定 Linux Go 1.27.3 的完整 race 与新 HTTP 补验，以及 Node 26.5.1／pnpm 11.5.0／Vitest 5.0.3 的 4857 项／四项 100%、types／lint／0.64.0 构建通过。Task1–2 标准完成。准确 b53191c 产品 Go 1.27.3／CGO0、smoke／所选扫描通过；Windows Chromium 156.0.8078.80／Playwright 1.65 的 327 身份组合浏览器及 26 张原图核准，不冒单次全绿或实体手机软键盘验证。源扫描条件公告保留；Task3 标准收尾及 Task4 审查交付仍待，详[验收](v0.64.0-acceptance.md)。本版不安装或新增依赖；4／12／6 GiB 预算及用完精确清理继续，不查 CI、不发布部署。下方原检查点不变。
 
 ## 当前维护（2026-11-12，v0.63.1）
 
