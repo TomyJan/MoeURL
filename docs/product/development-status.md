@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-12，v0.64.0）
 
-PR314／v0.63.1 已完整交付为 master `b98bd1cbdbecaed7f30fd91bab7b5324d4463801`；两个标准任务、最终 efd32c8 真实 CodeRabbit、独立合并核验、23 条裁决／3 条延期 Minor 和 9 份文件的恢复归档完成。原 97 项／types／lint 保持原执行身份，产品仍为 0.63.0。当前[账号每日创建配额](scope-v0.64.0.md)仅设计，Task1–4 均未开始，未运行本版测试。按[计划](../implementation/v0.64.0-plan.md)推进，后续实证写入[验收](../implementation/v0.64.0-acceptance.md)，不借前版结果，不查 CI、不发布部署。下方是原历史检查点。
+PR314／v0.63.1 已完整交付为 master `b98bd1cbdbecaed7f30fd91bab7b5324d4463801`，原证据保持归属。当前[账号每日创建配额](scope-v0.64.0.md)后端与前端已实现，产品版本 0.64.0。Task1 标准完成，真实事务／并发／迁移、完整 Go／组合业务 100／vet／Linux race 已验证；前端 4857 项／四项 100%、types／lint／构建通过。Task2 标准收尾、Task3 准确产品与浏览器及 Task4 审查交付仍待，见[验收](../implementation/v0.64.0-acceptance.md)。不借前版结果，不查 CI、不发布部署。下方是原历史检查点。
 
 ## 当前维护（2026-11-12，v0.63.1）
 

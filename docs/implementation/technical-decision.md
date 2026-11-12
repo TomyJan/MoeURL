@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-12，v0.64.0）
 
-PR314 已完整交付为 master `b98bd1cbdbecaed7f30fd91bab7b5324d4463801`。当前[配额设计](../specs/2026-11-12-v0.64.0-account-daily-create-quota-design.md)选择独立 `security.account_daily_create_quota` 和统一每账号上限，避免耦合用户组权限／域名版本；默认 null，无管理员绕过。独立 gate、每账号一行、锁后读数据库 UTC 日，与链接／审计／回执同事务，无限额也计量、失败回滚、回执不重扣。00041 Down 对当日／未来非零用量安全拒绝；旧应用不执行配额。当前仅设计，未实施或验证；不引入依赖，不查 CI、不发布部署，下方历史原文保留。
+PR314 已完整交付为 master `b98bd1cbdbecaed7f30fd91bab7b5324d4463801`。当前[配额设计](../specs/2026-11-12-v0.64.0-account-daily-create-quota-design.md)已实现独立 `security.account_daily_create_quota`、统一每账号上限、shared／exclusive gate、锁后数据库 UTC 日和原事务计量；默认 null，管理员同样受限，回执不重扣，00041 Down 对当日／未来非零用量安全拒绝。前端采用独立严格资源和身份草稿，保存仅采信服务端字段与完整版本；首次明确 200122 可编辑，先 unknown 后拒绝仍保留原批次。当前本地后端与前端门禁已通过，准确产品及审查交付仍待，见[验收](v0.64.0-acceptance.md)。不引入依赖，不查 CI、不发布部署，下方历史原文保留。
 
 ## 当前维护（2026-11-12，v0.63.1）
 

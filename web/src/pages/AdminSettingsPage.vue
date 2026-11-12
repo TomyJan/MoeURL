@@ -44,6 +44,7 @@
     <FooterLinksEditor />
     <TargetHostDenylistEditor />
     <TargetHostAllowlistEditor />
+    <AccountDailyCreateQuotaEditor />
     <AdminAuthenticationPage />
   </section>
 </template>
@@ -63,6 +64,7 @@ import AppearanceEditor from '@/features/site-appearance/AppearanceEditor.vue'
 import FooterLinksEditor from '@/features/footer-links/FooterLinksEditor.vue'
 import TargetHostDenylistEditor from '@/features/target-host-denylist/TargetHostDenylistEditor.vue'
 import TargetHostAllowlistEditor from '@/features/target-host-allowlist/TargetHostAllowlistEditor.vue'
+import AccountDailyCreateQuotaEditor from '@/features/account-daily-create-quota/AccountDailyCreateQuotaEditor.vue'
 
 const { t } = useI18n()
 const queryClient = useQueryClient()

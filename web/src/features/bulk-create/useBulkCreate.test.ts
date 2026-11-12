@@ -43,7 +43,7 @@ function pendingFile(text = 'target_url\nhttps://example.com/imported') {
 afterEach(() => { onlineManager.setOnline(true); clients.splice(0).forEach(client => client.clear()); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks() })
 
 describe('batch lifecycle and retry safety', () => {
-  it.each(['targets', 'titles', 'metadata', 'custom'].flatMap(mode => [false, true].map(wasUnknown => ({ mode, wasUnknown }))))('keeps the shared allowlist refusal safe for $mode after unknown=$wasUnknown', async ({ mode, wasUnknown }) => {
+  it.each(['targets', 'titles', 'metadata', 'custom'].flatMap(mode => [false, true].flatMap(wasUnknown => [200121, 200122].map(code => ({ mode, wasUnknown, code })))))('keeps the shared creation refusal $code safe for $mode after unknown=$wasUnknown', async ({ mode, wasUnknown, code }) => {
     const { state, fetcher } = mount({ ...actor, permissions: [...actor.permissions, 'short_link:set_metadata', 'short_link:custom_slug'] })
     if (mode === 'targets') preview(state)
     else {
@@ -60,11 +60,11 @@ describe('batch lifecycle and retry safety', () => {
       fetcher.mockRejectedValueOnce(new Error('acknowledgement lost'))
       await state.submit(); expect(state.unknown.value).toBe(true)
     }
-    fetcher.mockResolvedValueOnce(response(null, 200121))
+    fetcher.mockResolvedValueOnce(response(null, code))
     await state.submit()
     expect(state.snapshot.value).toBe(captured)
     expect(state.unknown.value).toBe(wasUnknown)
-    expect(state.errorKey.value).toBe(wasUnknown ? 'bulkCreate.unknown' : 'targetPolicy.bulkDenied')
+    expect(state.errorKey.value).toBe(wasUnknown ? 'bulkCreate.unknown' : code === 200122 ? 'dailyCreateQuota.bulkDenied' : 'targetPolicy.bulkDenied')
     for (const [, init] of fetcher.mock.calls) {
       expect(init!.body).toBe(JSON.stringify(captured))
       expect(new Headers(init!.headers).get('X-MoeURL-Expected-User-ID')).toBe(actor.id)

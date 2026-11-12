@@ -57,6 +57,7 @@ it.each([
   ['zh-CN', 200101, '已被占用'], ['zh-CN', 200102, '系统保留字'],
   ['en', 200101, 'already in use'], ['en', 200102, 'reserved'],
   ['zh-CN', 200121, '目标主机被站点规则限制'], ['en', 200121, 'restricts a target host'],
+  ['zh-CN', 200122, '账号今日剩余额度不足'], ['en', 200122, 'remaining daily quota'],
 ] as const)('lets %s correct definite short-code refusal %i after explaining %s', async (locale, code, reason) => {
   const view = mount(locale, code)
   await fireEvent.click(screen.getByTestId('bulk-create-open'))
@@ -83,7 +84,7 @@ it.each([
 })
 
 // An unknown write followed by refusal never justifies telling the user that nothing was created.
-it.each([['zh-CN', 200101], ['zh-CN', 200102], ['en', 200101], ['en', 200102], ['zh-CN', 200121], ['en', 200121]] as const)('keeps %s unknown retry %i immutable and avoids a false rollback claim', async (locale, code) => {
+it.each([['zh-CN', 200101], ['zh-CN', 200102], ['en', 200101], ['en', 200102], ['zh-CN', 200121], ['en', 200121], ['zh-CN', 200122], ['en', 200122]] as const)('keeps %s unknown retry %i immutable and avoids a false rollback claim', async (locale, code) => {
   const view = mount(locale, code, true)
   await fireEvent.click(screen.getByTestId('bulk-create-open'))
   await selectCsv(view.container)

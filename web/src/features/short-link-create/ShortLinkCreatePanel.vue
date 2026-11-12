@@ -476,6 +476,7 @@ const creationErrorMessage = computed(() => {
     if (error.code === 200102) return t('shortLinkCreate.customSlugReserved')
     if (error.code === 200114) return t('shortLinkCreate.domainOrPermissionsChanged')
     if (error.code === 200121) return t('targetPolicy.denied')
+    if (error.code === 200122) return t('dailyCreateQuota.denied')
   }
   return t('shortLinkCreate.failed')
 })
