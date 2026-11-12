@@ -198,11 +198,27 @@ func TestSuffixAdminTransactions(t *testing.T) {
 }
 
 // TestSuffixStorageFailure catches missing/corrupt state being replaced by
-// an allow-all default at startup or on the caller's transactional write check.
+// an allow-all default, and requires cancellation to leave valid state untouched.
 func TestSuffixStorageFailure(t *testing.T) {
 	pool, _, actor := fixture(t)
 	service := targetpolicy.NewSuffixService(pool)
 	require.NoError(t, service.ValidateStartup(t.Context()))
+	current, err := service.Get(t.Context(), actor)
+	require.NoError(t, err)
+	var auditBefore string
+	require.NoError(t, pool.QueryRow(t.Context(), `select coalesce(jsonb_agg(to_jsonb(a) order by a.id), '[]'::jsonb)::text from audit_log a`).Scan(&auditBefore))
+	canceled, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err = service.Get(canceled, actor)
+	require.ErrorIs(t, err, context.Canceled)
+	_, err = service.Update(canceled, actor, targetpolicy.SuffixUpdateInput{Suffixes: []string{"cancel.example"}, ExpectedUpdatedAt: current.UpdatedAt})
+	require.ErrorIs(t, err, context.Canceled)
+	after, err := service.Get(t.Context(), actor)
+	require.NoError(t, err)
+	require.Equal(t, current, after)
+	var auditAfter string
+	require.NoError(t, pool.QueryRow(t.Context(), `select coalesce(jsonb_agg(to_jsonb(a) order by a.id), '[]'::jsonb)::text from audit_log a`).Scan(&auditAfter))
+	require.Equal(t, auditBefore, auditAfter, "canceled reads and writes must not change audit records")
 	for _, value := range []string{`null`, `{}`, `{"suffixes":null}`, `{"suffixes":["UPPER.example"]}`, `{"suffixes":["z.example","a.example"]}`, `{"suffixes":["a.example","a.example"]}`, `{"suffixes":[],"extra":true}`} {
 		_, err := pool.Exec(t.Context(), `update system_setting set value=$1 where key='security.target_host_suffix_denylist'`, value)
 		require.NoError(t, err)
@@ -213,7 +229,7 @@ func TestSuffixStorageFailure(t *testing.T) {
 		require.ErrorIs(t, err, targetpolicy.ErrCorrupt)
 		require.ErrorIs(t, targetpolicy.CheckTargets(t.Context(), sqlc.New(pool), []string{"https://safe.example"}), targetpolicy.ErrCorrupt)
 	}
-	_, err := pool.Exec(t.Context(), `delete from system_setting where key='security.target_host_suffix_denylist'`)
+	_, err = pool.Exec(t.Context(), `delete from system_setting where key='security.target_host_suffix_denylist'`)
 	require.NoError(t, err)
 	require.ErrorIs(t, service.ValidateStartup(t.Context()), pgx.ErrNoRows)
 	_, err = service.Get(t.Context(), actor)
@@ -232,10 +248,4 @@ func TestSuffixStorageFailure(t *testing.T) {
 	require.ErrorIs(t, err, targetpolicy.ErrInvalidInput)
 	_, err = service.Update(t.Context(), actor, targetpolicy.SuffixUpdateInput{Suffixes: []string{}, ExpectedUpdatedAt: "x"})
 	require.ErrorIs(t, err, targetpolicy.ErrInvalidInput)
-	canceled, cancel := context.WithCancel(t.Context())
-	cancel()
-	_, err = service.Get(canceled, actor)
-	require.Error(t, err)
-	_, err = service.Update(canceled, actor, targetpolicy.SuffixUpdateInput{Suffixes: []string{}, ExpectedUpdatedAt: "2026-11-11T00:00:00Z"})
-	require.Error(t, err)
 }
