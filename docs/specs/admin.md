@@ -1,5 +1,9 @@
 # 管理后台
 
+## v0.67.0 目标 DNS 后缀黑名单（设计）
+
+系统设置在精确黑名单后新增独立卡片，配置 DNS 主机自身及全部子域的新目标拒绝规则，默认空、最多 100 项。独立 GET／POST、完整版本 CAS、五秒事务和当前有效管理员双权限检查，不扩原设置 DTO 或权限。草稿隔离、冲突保稿和迟到身份结果保护沿用既有边界，实施及验证尚待，见[设计](2026-11-13-v0.67.0-target-host-suffix-denylist-design.md)与[验收](../implementation/v0.67.0-acceptance.md)。
+
 ## v0.66.0 全站访问记录 CSV（已交付）
 
 全站仪表盘可按已应用 UTC 日期下载匿名成功事件，含已软删短链历史。`GET /api/v1/admin/dashboard/visits/export` 只接收日期，不接收单链 ID、分页或设备／国家；最多 90 个 UTC 日、1000 条、原文与最终 CSV 各 8 MiB。受保护管理权限 `statistics:export_visits` 叠加 `admin:access`、`statistics:read_all`、`short_link:read_all`、`short_link:read_visits`，同一 5 秒只读快照重查。默认只补内置 admin，不给 user／guest 或可配置预设。

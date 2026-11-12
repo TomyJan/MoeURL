@@ -1,5 +1,9 @@
 # 权限模型
 
+## v0.67.0 后缀拒绝策略（设计）
+
+不新增权限。管理读写需当前有效非 builtin 账号、builtin admin 组、`admin:access` 和 `system:manage`；客户端身份与缓存不能授予权限。所有授权创建和实际改目标均受规则限制，管理员无绕过；公开历史访问不读新规则。实施验证尚待，见[设计](2026-11-13-v0.67.0-target-host-suffix-denylist-design.md)。
+
 ## v0.66.0 全站访问记录 CSV（已交付）
 
 全站仪表盘可按已应用 UTC 日期下载匿名成功事件，含已软删短链历史。`GET /api/v1/admin/dashboard/visits/export` 只接收日期，不接收单链 ID、分页或设备／国家；最多 90 个 UTC 日、1000 条、原文与最终 CSV 各 8 MiB。受保护管理权限 `statistics:export_visits` 叠加 `admin:access`、`statistics:read_all`、`short_link:read_all`、`short_link:read_visits`，同一 5 秒只读快照重查。默认只补内置 admin，不给 user／guest 或可配置预设。
