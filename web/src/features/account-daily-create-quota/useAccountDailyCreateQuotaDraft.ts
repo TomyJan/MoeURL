@@ -53,10 +53,10 @@ export function useAccountDailyCreateQuotaDraft() {
       if (token !== generation || revision !== edited) return
       fill(value); state.feedback = ''
     } catch (error) {
-      if (token === generation && !recoverAuthorization(error)) state.feedback = 'loadFailed'
+      if (token === generation && !recoverAuthorization(error) && state.feedback !== 'saveUnknown') state.feedback = 'loadFailed'
     } finally { if (token === generation) state.loading = false }
   }
-  /** Saves once; conflicts preserve the draft until a successful explicit reload. */
+  /** Saves once; conflicts and unknown results require a successful explicit reload. */
   async function save() {
     if (!idle() || state.reloadRequired) return
     const dailyLimit = state.enabled ? (/^[0-9]+$/.test(state.limit) ? Number(state.limit) : NaN) : null
@@ -74,7 +74,8 @@ export function useAccountDailyCreateQuotaDraft() {
       if (token === generation) {
         if (recoverAuthorization(error)) return
         const conflict = error instanceof ApiClientError && error.code === 900215
-        state.feedback = conflict ? 'conflict' : 'saveFailed'; state.reloadRequired = conflict
+        const rejected = error instanceof ApiClientError && error.code === 900214
+        state.feedback = conflict ? 'conflict' : rejected ? 'saveFailed' : 'saveUnknown'; state.reloadRequired = !rejected
       }
     } finally { if (token === generation) state.saving = false }
   }

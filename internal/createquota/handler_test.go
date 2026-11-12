@@ -47,7 +47,7 @@ func TestDailyCreateQuotaHandler(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var log bytes.Buffer
 			h := NewHandler(quotaPortResult{tc.err}, slog.New(slog.NewTextHandler(&log, nil)))
-			r := httptest.NewRequest(tc.method, tc.url, strings.NewReader(tc.body))
+			r := httptest.NewRequestWithContext(t.Context(), tc.method, tc.url, strings.NewReader(tc.body))
 			r.Header.Set("Content-Type", tc.media)
 			w := httptest.NewRecorder()
 			if tc.method == "GET" {
@@ -79,6 +79,6 @@ func TestDailyCreateQuotaHandler(t *testing.T) {
 		})
 	}
 	w := httptest.NewRecorder()
-	NewHandler(quotaPortResult{}, nil).Get(w, httptest.NewRequest("GET", "/quota", nil))
+	NewHandler(quotaPortResult{}, nil).Get(w, httptest.NewRequestWithContext(t.Context(), "GET", "/quota", nil))
 	require.Equal(t, 200, w.Code)
 }

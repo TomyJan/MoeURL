@@ -230,6 +230,55 @@ for (const language of ['en', 'zh-CN'] as const) {
   })
 }
 
+for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]) {
+  test('v0.64.1 ' + language + ' ' + width + 'px confirms a committed quota save after its response is lost', async ({ scenario }, info) => {
+    const { page, request } = scenario, labels = text[language]
+    await write(request, 7); await page.goto('/admin/setting')
+    const form = page.getByRole('form', { name: labels.form, exact: true })
+    const field = form.getByRole('textbox', { name: labels.limit, exact: true })
+    const save = form.getByRole('button', { name: labels.save, exact: true })
+    const reload = form.getByRole('button', { name: labels.reload, exact: true })
+    const warning = language === 'en' ? /Save result is unknown/ : /保存结果未确认/
+    const alert = form.getByRole('alert').filter({ hasText: warning })
+    await expect(field).toHaveValue('7')
+    const original = await get<Quota>(request, resource), writes: unknown[] = []
+    let committed: Quota | undefined, pageReads = 0
+    page.on('request', value => { if (value.method() === 'GET' && new URL(value.url()).pathname === '/api/v1' + resource) pageReads++ })
+    await page.route('**/api/v1' + resource + '/update', async route => {
+      writes.push(route.request().postDataJSON())
+      if (writes.length === 1) {
+        // Forward the real write, then lose only its response to the browser.
+        const response = await route.fetch(), payload = await response.json()
+        expect(response.status()).toBe(200); expect(payload.code).toBe(0)
+        committed = payload.data as Quota
+        await route.abort('failed')
+      } else await route.continue()
+    })
+    if (width === 390) await field.tap(); else await field.focus()
+    await field.fill('12'); await activate(save)
+    await expect(alert).toContainText(warning); await expect(alert).toHaveAttribute('aria-live', 'polite')
+    await expect(field).toHaveValue('12'); await expect(save).toBeDisabled(); await expect(reload).toBeEnabled()
+    expect(writes).toEqual([{ dailyLimit: 12, expectedUpdatedAt: original.updatedAt }])
+    expect(committed?.dailyLimit).toBe(12); expect(committed?.updatedAt).not.toBe(original.updatedAt)
+    expect(await get<Quota>(request, resource)).toEqual(committed); expect(pageReads).toBe(0)
+    await form.evaluate(element => (element as HTMLFormElement).requestSubmit())
+    const failedReload = page.waitForEvent('requestfailed', value => value.method() === 'GET' && new URL(value.url()).pathname === '/api/v1' + resource)
+    await page.route('**/api/v1' + resource, route => route.abort('failed'), { times: 1 })
+    await activate(reload); await failedReload
+    await expect(reload).toBeEnabled(); await expect(alert).toContainText(warning); await expect(save).toBeDisabled()
+    await field.fill('13'); await expect(alert).toContainText(warning)
+    await form.evaluate(element => (element as HTMLFormElement).requestSubmit())
+    await cardShot(page, info, 'quota-save-unknown-' + language + '-' + width)
+    expect(writes).toHaveLength(1); expect(await get<Quota>(request, resource)).toEqual(committed)
+    const confirmedRead = page.waitForResponse(response => response.request().method() === 'GET' && new URL(response.url()).pathname === '/api/v1' + resource)
+    await activate(reload); expect((await (await confirmedRead).json()).data).toEqual(committed)
+    await expect(field).toHaveValue('12'); await expect(save).toBeEnabled(); await expect(alert).toBeHidden()
+    await field.fill('14'); await saveCard(page, form, labels, 14)
+    expect(writes).toHaveLength(2); expect(writes[1]).toEqual({ dailyLimit: 14, expectedUpdatedAt: committed!.updatedAt })
+    await cardShot(page, info, 'quota-save-confirmed-' + language + '-' + width)
+  })
+}
+
 async function activate(control: Locator) { await control.focus(); await control.press('Enter') }
 async function cardShot(page: Page, info: TestInfo, label: string) {
   const card = page.locator('.daily-quota')
