@@ -42,8 +42,12 @@ const test = base.extend<{ scenario: Scenario }>({
       try { await write(request, original.suffixes); expect((await get<Policy>(request, readPath)).suffixes).toEqual(original.suffixes) } catch (error) { failures.push(error) }
       try { await post(request, '/admin/system/target-host-denylist/update', { hosts: originalExact.hosts, expectedUpdatedAt: (await get<{ updatedAt: string }>(request, '/admin/system/target-host-denylist')).updatedAt }) } catch (error) { failures.push(error) }
       try { await setAllowlist(request, originalAllow.enabled, originalAllow.hosts) } catch (error) { failures.push(error) }
-      if (page) {
-        try { for (const link of await ownLinks(page.request)) await post(request, '/admin/short-link/delete', { id: link.id }) } catch (error) { failures.push(error) }
+      if (page && user) {
+        try {
+          await post(page.request, '/auth/login', { username: user.username, password })
+          expect((await get<{ user: { id: string } }>(page.request, '/auth/me')).user.id).toBe(user.id)
+          for (const link of await ownLinks(page.request)) await post(request, '/admin/short-link/delete', { id: link.id })
+        } catch (error) { failures.push(error) }
       }
       if (user) { try { await post(request, '/admin/user/update', { id: user.id, nickname: 'Retired target-policy fixture', status: 'disabled' }) } catch (error) { failures.push(error) } }
       for (const context of contexts) { try { await context.close() } catch (error) { failures.push(error) } }
