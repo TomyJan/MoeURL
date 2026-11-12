@@ -1,8 +1,8 @@
 # 权限模型
 
-## v0.67.0 后缀拒绝策略（后端已验证）
+## v0.67.0 后缀拒绝策略（前后端已验证）
 
-不新增权限。管理读写需当前有效非 builtin 账号、builtin admin 组、`admin:access` 和 `system:manage`；客户端身份与缓存不能授予权限。所有授权创建和实际改目标均受规则限制，管理员无绕过；公开历史访问不读新规则。后端已实现并通过本地验证，前端与交付尚待，见[设计](2026-11-13-v0.67.0-target-host-suffix-denylist-design.md)。
+不新增权限。管理读写需当前有效非 builtin 账号、builtin admin 组、`admin:access` 和 `system:manage`；客户端身份与缓存不能授予权限。所有授权创建和实际改目标均受规则限制，管理员无绕过；公开历史访问不读新规则。前后端已实现并通过本地门禁，真实浏览器与交付尚待，见[设计](2026-11-13-v0.67.0-target-host-suffix-denylist-design.md)。
 
 ## v0.66.0 全站访问记录 CSV（已交付）
 

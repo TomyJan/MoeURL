@@ -43,6 +43,7 @@
     <AppearanceEditor />
     <FooterLinksEditor />
     <TargetHostDenylistEditor />
+    <TargetHostSuffixDenylistEditor />
     <TargetHostAllowlistEditor />
     <AccountDailyCreateQuotaEditor />
     <AdminAuthenticationPage />
@@ -63,6 +64,7 @@ import HomeContentEditor from '@/features/home-content/HomeContentEditor.vue'
 import AppearanceEditor from '@/features/site-appearance/AppearanceEditor.vue'
 import FooterLinksEditor from '@/features/footer-links/FooterLinksEditor.vue'
 import TargetHostDenylistEditor from '@/features/target-host-denylist/TargetHostDenylistEditor.vue'
+import TargetHostSuffixDenylistEditor from '@/features/target-host-suffix-denylist/TargetHostSuffixDenylistEditor.vue'
 import TargetHostAllowlistEditor from '@/features/target-host-allowlist/TargetHostAllowlistEditor.vue'
 import AccountDailyCreateQuotaEditor from '@/features/account-daily-create-quota/AccountDailyCreateQuotaEditor.vue'
 

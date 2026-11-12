@@ -24,7 +24,7 @@ describe('independent homepage editor in system settings', () => {
       const allowlist = path.endsWith('/target-host-allowlist/update')
         ? { enabled: body.enabled, hosts: body.hosts, updatedAt: requests.filter(r => r.path.endsWith('/target-host-allowlist/update')).length === 1 ? '2026-11-12T04:00:01.654321Z' : '2026-11-12T04:00:02.987654Z' }
         : { enabled: false, hosts: ['allowed.example'], updatedAt: '2026-11-12T04:00:00.123456Z' }
-      const data = path.includes('account-daily-create-quota') ? { dailyLimit: null, updatedAt: '2026-11-12T04:00:00.123456Z' } : path.includes('target-host-allowlist') ? allowlist : path.includes('target-host-denylist') ? { hosts: ['blocked.example'], updatedAt: '2026-11-11T04:00:00.123456Z' } : path.includes('footer-links') ? { links: [], updatedAt: '2026-10-30T04:00:00.123456Z' } : path.includes('home-content') ? content : settings
+      const data = path.includes('target-host-suffix-denylist') ? { suffixes: [], updatedAt: '2026-11-13T01:00:00.123456Z' } : path.includes('account-daily-create-quota') ? { dailyLimit: null, updatedAt: '2026-11-12T04:00:00.123456Z' } : path.includes('target-host-allowlist') ? allowlist : path.includes('target-host-denylist') ? { hosts: ['blocked.example'], updatedAt: '2026-11-11T04:00:00.123456Z' } : path.includes('footer-links') ? { links: [], updatedAt: '2026-10-30T04:00:00.123456Z' } : path.includes('home-content') ? content : settings
       return new Response(JSON.stringify({ code: 0, message: 'OK', data, meta: {} }), { status: 200 })
     }))
   })
