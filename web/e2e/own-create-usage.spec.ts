@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { expect, test } from '@playwright/test'
-import type { APIRequestContext, BrowserContext } from '@playwright/test'
+import type { APIRequestContext, BrowserContext, Request } from '@playwright/test'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
 
 type Quota = { dailyLimit: number | null; updatedAt: string }
@@ -133,18 +133,26 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
       const nextCard = page.locator('section', { has: page.getByRole('heading', { name: /^(今日创建用量|Today’s creation usage)$/ }) }).last()
       let release!: () => void
       let captured = false
-      let delivery: 'fulfilled' | 'cancelled' | undefined
+      let heldRequest: Request | undefined
+      let terminal: 'finished' | 'failed' | undefined
+      let fulfillReturned = false
+      let fulfillError: unknown
+      const onFinished = (value: Request) => { if (value === heldRequest) terminal = 'finished' }
+      const onFailed = (value: Request) => { if (value === heldRequest) terminal = 'failed' }
+      page.on('requestfinished', onFinished)
+      page.on('requestfailed', onFailed)
       let processed!: () => void
       const handled = new Promise<void>(resolve => { processed = resolve })
       const gate = new Promise<void>(resolve => { release = resolve })
       await page.route('**' + usagePath, async route => {
+        heldRequest = route.request()
         const result = await route.fetch()
         expect(route.request().headers()['x-moeurl-expected-user-id']).toBe(user!.id)
         expect((await result.json()).data.used).toBe('1')
         captured = true
         await gate
-        try { await route.fulfill({ response: result }); delivery = 'fulfilled' }
-        catch { delivery = 'cancelled' }
+        try { await route.fulfill({ response: result }); fulfillReturned = true }
+        catch (error) { fulfillError = error }
         finally { processed() }
       }, { times: 1 })
       try {
@@ -181,9 +189,24 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
         expect(await page.evaluate(() => (window as Window & { usageRuntimeMarker?: string }).usageRuntimeMarker)).toBe(runtimeMarker)
       } finally { release() }
       await handled
+      if (fulfillError) throw fulfillError
+      // Route completion is not a delivery oracle: Chromium can swallow fulfill protocol errors.
+      await expect.poll(() => terminal, { message: 'The exact held A request must reach a browser network terminal event' }).toMatch(/^(finished|failed)$/)
+      page.off('requestfinished', onFinished)
+      page.off('requestfailed', onFailed)
+      const failure = heldRequest!.failure()
+      if (terminal === 'finished') {
+        expect(failure).toBeNull()
+        const heldResponse = await heldRequest!.response()
+        expect(heldResponse).not.toBeNull()
+        expect(await heldResponse!.finished()).toBeNull()
+        expect((await heldResponse!.json()).data.used).toBe('1')
+      } else expect(failure?.errorText).toBeTruthy()
+      // Cross a browser rendering boundary after network completion before checking the already-visible B value.
+      await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
       await expect(nextCard.getByTestId('own-usage-used')).toHaveText('0')
       expect(await page.evaluate(() => (window as Window & { usageRuntimeMarker?: string }).usageRuntimeMarker)).toBe(runtimeMarker)
-      await info.attach('same-runtime-identity', { body: JSON.stringify({ from: user.id, to: nextUser.id, originalUsed: '1', currentUsed: '0', runtimeRetained: true, heldResponseDelivery: delivery, originalComponentUnmounted: true }), contentType: 'application/json' })
+      await info.attach('same-runtime-identity', { body: JSON.stringify({ from: user.id, to: nextUser.id, originalUsed: '1', currentUsed: '0', runtimeRetained: true, routeFulfillReturned: fulfillReturned, routeFulfillError: fulfillError instanceof Error ? fulfillError.message : null, heldRequestTerminal: terminal, heldRequestFailure: failure?.errorText ?? null, browserProcessingBoundary: 'two-animation-frames-after-request-terminal', originalComponentUnmounted: true }), contentType: 'application/json' })
       await expectNoHorizontalOverflow(page)
     } catch (error) { failures.push(error) } finally {
       if (original) { try { await setQuota(request, original.dailyLimit); expect((await get<Quota>(request, quotaPath)).dailyLimit).toBe(original.dailyLimit) } catch (error) { failures.push(error) } }

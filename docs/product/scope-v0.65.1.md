@@ -1,6 +1,6 @@
 # v0.65.1 用量卡片浏览器身份切换补测
 
-状态：Task1 浏览器补测已实现，原测试证明能力 RED 后，中英×桌面／390px 四场景及 setup 全部通过（29.6s）；E2E 静态核验及清理已完成，标准完成情况以本版账本及冻结合同为准；自身审查交付尚待。基线为 PR317 已交付 master `a716d42474994f7ba6e9deac37371396adff4852`；产品保持 0.65.0。
+状态：Task1 标准完成。唯一独立终审发现一项测试结果判定问题，已补真实请求终结和浏览器处理边界；真实取消诊断 RED→GREEN，完整中英×桌面／390px 四场景及 setup 再次通过（31.1s），E2E strict types／lint 通过。原 29.6s 及四份 fulfilled 附件只证明路由调用返回，原件不改。自身真实 CodeRabbit 与正常交付尚待。基线为 PR317 已交付 master `a716d42474994f7ba6e9deac37371396adff4852`；产品保持 0.65.0。
 
 ## 盘点与选择
 
@@ -14,7 +14,7 @@
 ## 必须实现
 
 - 中英 × 1280／390px 四个既有用量场景，退出和再次登录期间保留同一 window 标记；只能走真实 SPA UI，不注入 QueryClient 或手改 auth 缓存。
-- A 已用 1，B 是新建普通账号已用 0；截留 A 的真实服务端响应，B 登录并看到 0 后才放行。等待截留处理完成后，B 仍为 0，实际 usage 请求的 expected-owner header 属于 B。
+- A 已用 1，B 是新建普通账号已用 0；截留 A 的真实服务端响应，B 登录并看到 0 后才放行。按准确 Request 的 requestfinished／requestfailed 观察终结；成功读取已完成的 A 响应，失败记录实际 failure，跨浏览器渲染边界后 B 仍为 0。不能按 fulfill 调用返回判定投递或取消，实际 B 请求的 expected-owner header 属于 B。
 - guest 阶段用量卡片消失；真实登录与退出返回成功，并以真实 auth/me 对照身份。账号、短链与共享设置在 finally 精确恢复。
 - 先运行旧 goto 流程加运行时断言，预期标记丢失；这是测试证明能力的 RED，不冒产品缺陷。最小替换为真实 UI 后运行完整受影响 spec、E2E types 和 lint。
 - 唯一 fresh 整分支独立终审、最终真实 CodeRabbit、正常合并独立核验及 whole-owned 可恢复归档。
