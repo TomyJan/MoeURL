@@ -131,10 +131,80 @@ describe('independent daily quota draft', () => {
     expect(draft.state.limit).toBe('12'); expect(draft.state.enabled).toBe(true)
     if (kind === 'transport') pending.reject(new Error('offline'))
     else pending.resolve(response(null, kind === 'invalid' ? 900214 : 100001))
-    await saving; expect(draft.state.feedback).toBe('saveFailed'); expect(draft.state.saving).toBe(false)
+    await saving; expect(draft.state.feedback).toBe(kind === 'invalid' ? 'saveFailed' : 'saveUnknown'); expect(draft.state.saving).toBe(false)
     expect(draft.state.limit).toBe('12'); expect(draft.state.version).toBe(original.updatedAt)
     expect(writes).toHaveBeenCalledTimes(1); expect(reads).toHaveBeenCalledTimes(1)
-    await draft.save(); expect(draft.state.limit).toBe('7')
+    await draft.save()
+    if (kind === 'invalid') expect(draft.state.limit).toBe('7')
+    else { expect(draft.state.limit).toBe('12'); expect(writes).toHaveBeenCalledTimes(1); expect(draft.state.reloadRequired).toBe(true) }
+  })
+  it.each(['transport', 'http500', 'bad-json', 'bad-envelope', 'strict-document', 'unknown-code'] as const)('requires server readback after an unconfirmed %s save', async kind => {
+    const { draft } = controller(); await flush(); draft.setEnabled(true); draft.edit('12')
+    writes.mockImplementationOnce(async () => {
+      if (kind === 'transport') throw new Error('response lost')
+      if (kind === 'http500') return new Response(JSON.stringify({ code: 900214, message: 'private', data: null }), { status: 500 })
+      if (kind === 'bad-json') return new Response('{')
+      if (kind === 'bad-envelope') return new Response(JSON.stringify({ data: saved }))
+      if (kind === 'strict-document') return response({ ...saved, extra: true })
+      return response(null, 100001)
+    })
+    await draft.save()
+    expect(draft.state.feedback).toBe('saveUnknown'); expect(draft.state.reloadRequired).toBe(true)
+    expect(draft.state.limit).toBe('12'); expect(draft.state.version).toBe(original.updatedAt)
+    draft.edit('13'); await draft.save(); await flush()
+    expect(draft.state.limit).toBe('13'); expect(draft.state.feedback).toBe('saveUnknown')
+    expect(writes).toHaveBeenCalledTimes(1); expect(reads).toHaveBeenCalledTimes(1)
+  })
+  it('keeps the unknown-save warning and old revision after failed or superseded reloads', async () => {
+    const { draft } = controller(); await flush(); draft.setEnabled(true); draft.edit('12')
+    writes.mockRejectedValueOnce(new Error('response lost')); await draft.save()
+    reads.mockRejectedValueOnce(new Error('offline')); await draft.load()
+    expect(draft.state.feedback).toBe('saveUnknown'); expect(draft.state.reloadRequired).toBe(true)
+    expect(draft.state.limit).toBe('12'); expect(draft.state.version).toBe(original.updatedAt)
+    const pending = createDeferred<Response>(); reads.mockReturnValueOnce(pending.promise)
+    const loading = draft.load(); draft.edit('13'); pending.resolve(response(saved)); await loading
+    expect(draft.state.limit).toBe('13'); expect(draft.state.version).toBe(original.updatedAt)
+    expect(draft.state.feedback).toBe('saveUnknown'); expect(draft.state.reloadRequired).toBe(true)
+    await draft.save(); expect(writes).toHaveBeenCalledTimes(1)
+    reads.mockResolvedValueOnce(response(saved)); await draft.load()
+    expect(draft.state.limit).toBe('7'); expect(draft.state.version).toBe(saved.updatedAt)
+    expect(draft.state.feedback).toBe(''); expect(draft.state.reloadRequired).toBe(false)
+    draft.edit('8'); await draft.save()
+    expect(writes).toHaveBeenLastCalledWith({ dailyLimit: 8, expectedUpdatedAt: saved.updatedAt })
+  })
+  it.each(['zh-CN', 'en'] as const)('blocks another save after an applied write loses its response (%s)', async locale => {
+    let server = { ...original } as { dailyLimit: number | null; updatedAt: string }
+    reads.mockImplementation(async () => response(server))
+    writes.mockImplementationOnce(async body => {
+      const update = body as { dailyLimit: number | null; expectedUpdatedAt: string }
+      if (update.expectedUpdatedAt !== server.updatedAt) return response(null, 900215)
+      server = { dailyLimit: update.dailyLimit, updatedAt: saved.updatedAt }
+      throw new Error('committed response lost')
+    })
+    mount(locale); await flush()
+    const labels = locale === 'en'
+      ? { enabled: 'Limit daily creation', limit: 'Daily limit per account', save: 'Save daily quota', reload: 'Reload daily quota', form: 'Account daily creation quota settings' }
+      : { enabled: '限制每日创建数量', limit: '每账号每日上限', save: '保存每日配额', reload: '重新加载每日配额', form: '账号每日创建配额设置' }
+    const warning = locale === 'en' ? /Save result is unknown/ : /保存结果未确认/
+    const field = () => screen.getByLabelText(labels.limit) as HTMLInputElement
+    const saveButton = () => screen.getByRole('button', { name: labels.save }) as HTMLButtonElement
+    const reloadButton = () => screen.getByRole('button', { name: labels.reload })
+    const quotaForm = () => screen.getByRole('form', { name: labels.form })
+    await fireEvent.click(screen.getByRole('checkbox', { name: labels.enabled })); await fireEvent.update(field(), '12')
+    await fireEvent.submit(quotaForm()); await flush()
+    expect(server).toEqual({ dailyLimit: 12, updatedAt: saved.updatedAt })
+    expect(screen.getByRole('alert').textContent).toMatch(warning)
+    expect(screen.getByRole('alert').getAttribute('aria-live')).toBe('polite')
+    expect(field().value).toBe('12'); expect(saveButton().disabled).toBe(true)
+    await fireEvent.submit(quotaForm()); await flush(); expect(writes).toHaveBeenCalledTimes(1)
+    reads.mockRejectedValueOnce(new Error('offline')); await fireEvent.click(reloadButton()); await flush()
+    expect(screen.getByRole('alert').textContent).toMatch(warning); expect(saveButton().disabled).toBe(true)
+    await fireEvent.update(field(), '13'); expect(field().value).toBe('13')
+    expect(screen.getByRole('alert').textContent).toMatch(warning)
+    await fireEvent.click(reloadButton()); await flush()
+    expect(field().value).toBe('12'); expect(saveButton().disabled).toBe(false); expect(screen.queryByText(warning)).toBeNull()
+    await fireEvent.update(field(), '14'); await fireEvent.submit(quotaForm()); await flush()
+    expect(writes).toHaveBeenLastCalledWith({ dailyLimit: 14, expectedUpdatedAt: saved.updatedAt })
   })
   it.each([120001, 401, 403].flatMap(code => (['load', 'save'] as const).map(operation => ({ code, operation }))))('clears the current $operation denial $code before authentication recovery finishes', async ({ code, operation }) => {
     const recovery = createDeferred<Response>(); authReads.mockReturnValueOnce(recovery.promise)
@@ -216,7 +286,7 @@ describe('independent daily quota draft', () => {
     reads.mockRejectedValueOnce(new Error('offline')); mount(); await flush()
     expect(screen.getByText('dailyCreateQuota.loadFailed')).toBeTruthy(); expect(button('save').disabled).toBe(true)
     await fireEvent.click(button('reload')); await flush(); await fireEvent.click(toggle()); await fireEvent.update(input(), '12')
-    writes.mockRejectedValueOnce(new Error('offline')); await fireEvent.submit(form()); await flush()
+    writes.mockResolvedValueOnce(response(null, 900214)); await fireEvent.submit(form()); await flush()
     expect(screen.getByText('dailyCreateQuota.saveFailed')).toBeTruthy(); expect(input().value).toBe('12')
     expect(button('save').disabled).toBe(false)
   })
