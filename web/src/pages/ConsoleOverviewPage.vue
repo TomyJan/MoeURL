@@ -36,6 +36,8 @@
       </article>
     </section>
 
+    <OwnDailyCreateUsageCard />
+
     <section class="overview-recent" aria-labelledby="overview-recent-title">
       <header class="overview-section-header">
         <div>
@@ -100,6 +102,7 @@ import { useDateTimeDisplay } from '@/shared/preferences/useDateTimeDisplay'
 import { useQuery } from '@tanstack/vue-query'
 
 import { getShortLinkOverview, listShortLinks } from '@/entities/short-link/api'
+import OwnDailyCreateUsageCard from '@/features/account-daily-create-quota/OwnDailyCreateUsageCard.vue'
 
 const { t } = useI18n()
 const { format } = useDateTimeDisplay()

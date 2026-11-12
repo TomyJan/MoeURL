@@ -195,6 +195,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			return nil, fmt.Errorf("validate daily create quota: %w", err)
 		}
 		deps.AccountDailyCreateQuota = createQuotaService
+		deps.OwnDailyCreateUsage = createQuotaService
 		appearanceService := system.NewAppearanceService(pool)
 		if err := appearanceService.ValidateStartup(ctx); err != nil {
 			pool.Close()

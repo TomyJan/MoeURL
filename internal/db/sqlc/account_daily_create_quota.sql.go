@@ -32,6 +32,26 @@ func (q *Queries) GetAccountDailyCreateQuotaDay(ctx context.Context) (pgtype.Dat
 	return quota_day, err
 }
 
+const getAccountDailyCreateUsage = `-- name: GetAccountDailyCreateUsage :one
+select (pg_catalog.clock_timestamp() at time zone 'UTC')::date as quota_day,
+    d.usage_day,d.used
+from (select $1::uuid as actor_id) a
+left join account_daily_create_usage d on d.actor_id=a.actor_id
+`
+
+type GetAccountDailyCreateUsageRow struct {
+	QuotaDay pgtype.Date `json:"quota_day"`
+	UsageDay pgtype.Date `json:"usage_day"`
+	Used     pgtype.Int8 `json:"used"`
+}
+
+func (q *Queries) GetAccountDailyCreateUsage(ctx context.Context, dollar_1 pgtype.UUID) (GetAccountDailyCreateUsageRow, error) {
+	row := q.db.QueryRow(ctx, getAccountDailyCreateUsage, dollar_1)
+	var i GetAccountDailyCreateUsageRow
+	err := row.Scan(&i.QuotaDay, &i.UsageDay, &i.Used)
+	return i, err
+}
+
 const getCreateQuotaAdmin = `-- name: GetCreateQuotaAdmin :one
 select g.permissions from app_user u join user_group g on g.id=u.group_id
 where u.id=$1 and u.status='active' and u.deleted_at is null and not u.builtin
@@ -40,6 +60,18 @@ where u.id=$1 and u.status='active' and u.deleted_at is null and not u.builtin
 
 func (q *Queries) GetCreateQuotaAdmin(ctx context.Context, id pgtype.UUID) ([]byte, error) {
 	row := q.db.QueryRow(ctx, getCreateQuotaAdmin, id)
+	var permissions []byte
+	err := row.Scan(&permissions)
+	return permissions, err
+}
+
+const getCreateQuotaReader = `-- name: GetCreateQuotaReader :one
+select g.permissions from app_user u join user_group g on g.id=u.group_id
+where u.id=$1 and u.status='active' and u.deleted_at is null and not u.builtin
+`
+
+func (q *Queries) GetCreateQuotaReader(ctx context.Context, id pgtype.UUID) ([]byte, error) {
+	row := q.db.QueryRow(ctx, getCreateQuotaReader, id)
 	var permissions []byte
 	err := row.Scan(&permissions)
 	return permissions, err

@@ -3,6 +3,16 @@ select g.permissions from app_user u join user_group g on g.id=u.group_id
 where u.id=$1 and u.status='active' and u.deleted_at is null and not u.builtin
     and g.builtin and g.key='admin';
 
+-- name: GetCreateQuotaReader :one
+select g.permissions from app_user u join user_group g on g.id=u.group_id
+where u.id=$1 and u.status='active' and u.deleted_at is null and not u.builtin;
+
+-- name: GetAccountDailyCreateUsage :one
+select (pg_catalog.clock_timestamp() at time zone 'UTC')::date as quota_day,
+    d.usage_day,d.used
+from (select $1::uuid as actor_id) a
+left join account_daily_create_usage d on d.actor_id=a.actor_id;
+
 -- name: LockCreateQuotaActor :one
 select group_id from app_user
 where id=$1 and status='active' and deleted_at is null and not builtin

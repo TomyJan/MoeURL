@@ -30,6 +30,7 @@ type Dependencies struct {
 	TargetHostDenylist              targetpolicy.Port
 	TargetHostAllowlist             targetpolicy.AllowlistPort
 	AccountDailyCreateQuota         createquota.Port
+	OwnDailyCreateUsage             createquota.UsagePort
 	Appearance                      system.AppearancePort
 	FooterLinks                     system.FooterLinksPort
 	Auth                            auth.Port
@@ -176,6 +177,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				handler := createquota.NewHandler(dependency.AccountDailyCreateQuota, logger)
 				businessAPI.Get("/admin/system/account-daily-create-quota", handler.Get)
 				businessAPI.Post("/admin/system/account-daily-create-quota/update", handler.Update)
+			}
+			if dependency.OwnDailyCreateUsage != nil {
+				handler := createquota.NewUsageHandler(dependency.OwnDailyCreateUsage, logger)
+				businessAPI.Get("/account/daily-create-usage", handler.Get)
 			}
 			if dependency.FooterLinks != nil {
 				footerLinksHandler := system.NewFooterLinksHandler(dependency.FooterLinks, logger)
