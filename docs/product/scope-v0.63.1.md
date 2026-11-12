@@ -1,6 +1,6 @@
 # v0.63.1 白名单保存回读与交付状态维护
 
-状态：Task1 实施中，保存回读测试质量 RED→GREEN、相关 97 项和 types／lint 已通过，状态文档已更新；标准收尾、自身审查和交付尚待。产品保持 0.63.0。基线为已完整交付的 [PR313](https://github.com/TomyJan/MoeURL/pull/313)，master `864a79d04567463130c51d4cdc822cbe04c2e3e2`。
+状态：Task1 已提交 dde8335 并标准完成，保存回读测试质量 RED→GREEN、相关 97 项和 types／lint 已通过，状态文档及完整输入合同已核准；Task2 已启动，自身审查和交付尚待。产品保持 0.63.0。基线为已完整交付的 [PR313](https://github.com/TomyJan/MoeURL/pull/313)，master `864a79d04567463130c51d4cdc822cbe04c2e3e2`。
 
 ## 盘点与选择
 
