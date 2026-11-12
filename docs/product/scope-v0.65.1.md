@@ -1,5 +1,7 @@
 # v0.65.1 用量卡片浏览器身份切换补测
 
+交付结论（2026-11-12）：本维护已通过 PR318 正常 squash 为 master `a4c956b6f60148077c0b0d249810f3d83513d94b`。最终 bce0e 的真实 CodeRabbit、有效意见处置、独立 API／fetch／tree／唯一父、两个标准任务及 9 成员可恢复归档均已核准。18 条完整裁决、原失败、原 fulfilled 调用返回与修复后 31.1s／5 项浏览器保持各自归属；产品仍 0.65.0，未查 CI 或发布部署。完整报告见本机 `.tmp/v0651-evidence/v0651-owned-live-recovery/final-report.md`，原冻结合同不改。下方为原交付前检查点。
+
 状态：Task1 标准完成。唯一独立终审发现一项测试结果判定问题，已补真实请求终结和浏览器处理边界；真实取消诊断 RED→GREEN，完整中英×桌面／390px 四场景及 setup 再次通过（31.1s），E2E strict types／lint 通过。原 29.6s 及四份 fulfilled 附件只证明路由调用返回，原件不改。自身真实 CodeRabbit 与正常交付尚待。基线为 PR317 已交付 master `a716d42474994f7ba6e9deac37371396adff4852`；产品保持 0.65.0。
 
 ## 盘点与选择

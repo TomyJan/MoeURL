@@ -1,5 +1,11 @@
 # 管理后台
 
+## v0.66.0 全站访问记录 CSV（设计）
+
+计划在全站仪表盘按已应用 UTC 日期下载匿名成功事件，含已软删短链历史。`GET /api/v1/admin/dashboard/visits/export` 只接收日期，不接收单链 ID、分页或设备／国家；最多 90 个 UTC 日、1000 条、原文与最终 CSV 各 8 MiB。受保护管理权限 `statistics:export_visits` 叠加 admin:access、statistics:read_all、short_link:read_all、short_link:read_visits，同一 5 秒只读快照重查。默认只补 builtin admin，不给 user／guest 或可配置预设。
+
+此处为设计，尚未实现或验证；旧单链／审计 CSV 不变。完整格式、容量、迁移回滚及异步边界见[设计](2026-11-12-v0.66.0-global-visit-export-design.md)，实际阶段见[验收](../implementation/v0.66.0-acceptance.md)。
+
 ## v0.43.0 内部备注设计
 
 本人／全站短链行菜单提供独立备注查看和编辑，打开才读取。读取和写入分别检查当前 read／update 及 set_metadata 能力；转移保留备注并明示，公开页面和 CSV 不含正文。新增四个管理 API，没有新增权限、依赖、前端页面或公开短码路由；本地实现、171 项浏览器、产品与独立终审完成，远端交付待完成，见[设计](2026-11-03-v0.43.0-internal-link-notes-design.md)与[验收](../implementation/v0.43.0-acceptance.md)。
