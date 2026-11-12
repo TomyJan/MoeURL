@@ -57,6 +57,7 @@ type Dependencies struct {
 	ShortLinkBatchCreateCustomSlugs shortlink.BatchCreateWithCustomSlugsPort
 	Insights                        insights.Port
 	VisitExport                     insights.VisitExportPort
+	GlobalVisitExport               insights.GlobalVisitExportPort
 	Audit                           insights.AuditPort
 	AuditExport                     insights.AuditExportPort
 	Domain                          domain.Port
@@ -203,6 +204,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				handler := insights.NewVisitExportHandler(dependency.VisitExport, logger)
 				businessAPI.Get("/short-link/visits/export", handler.ExportVisits)
 				businessAPI.Get("/admin/short-link/visits/export", handler.AdminExportVisits)
+			}
+			if dependency.GlobalVisitExport != nil {
+				handler := insights.NewGlobalVisitExportHandler(dependency.GlobalVisitExport, logger)
+				businessAPI.Get("/admin/dashboard/visits/export", handler.Export)
 			}
 			if dependency.Audit != nil {
 				handler := insights.NewAuditHandler(dependency.Audit, logger)

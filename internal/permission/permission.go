@@ -11,6 +11,7 @@ const (
 	ShortLinkReadVisits       = "short_link:read_visits"
 	ShortLinkExportVisits     = "short_link:export_visits"
 	StatisticsReadAll         = "statistics:read_all"
+	StatisticsExportVisits    = "statistics:export_visits"
 	AuditRead                 = "audit:read"
 	AuditExport               = "audit:export"
 	ShortLinkExportStatistics = "short_link:export_statistics"
@@ -55,6 +56,7 @@ var UserPermissions = []string{
 
 var AdminPermissions = []string{
 	StatisticsReadAll,
+	StatisticsExportVisits,
 	AuditRead,
 	AuditExport,
 	ShortLinkCreate,

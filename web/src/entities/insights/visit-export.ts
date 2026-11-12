@@ -3,7 +3,7 @@ import { apiGet, ApiClientError } from '@/shared/api/client'
 import { statisticsDateRangeSchema } from '@/entities/short-link/schema'
 import { deviceTypes } from './api'
 
-export type VisitExportContext = 'own' | 'admin'
+export type VisitExportContext = 'own' | 'admin' | 'site'
 export interface VisitExportRange { startDate: string; endDate: string }
 export interface VisitExportFilters { deviceType?: string; countryCode?: string }
 export interface VisitExport { fileName: string; contentType: 'text/csv;charset=utf-8'; content: string }
@@ -15,18 +15,27 @@ const inputSchema = z.strictObject({
   range: statisticsDateRangeSchema,
   filters: z.strictObject({ deviceType: z.union([z.enum(deviceTypes), z.literal('')]).optional(), countryCode: z.string().regex(/^(?:[A-Z]{2}|unknown)?$/).optional() }),
 })
+const siteInputSchema = z.strictObject({
+  id: z.literal('site'), context: z.literal('site'), range: statisticsDateRangeSchema,
+  filters: z.strictObject({}),
+})
 const contentSchema = z.string().startsWith(header).max(8 * 1024 * 1024)
   .refine(content => new TextEncoder().encode(content).length <= 8 * 1024 * 1024)
 
 /** Requests a fresh bounded server snapshot for the displayed UTC dates, never a page. */
 export async function exportVisitRecords(id: string, context: VisitExportContext, range: VisitExportRange, filters: VisitExportFilters = {}): Promise<VisitExport> {
-  if (!inputSchema.safeParse({ id, context, range, filters }).success) throw new ApiClientError(100001, 'Invalid visit export input')
-  const search = new URLSearchParams({ id, startDate: range.startDate, endDate: range.endDate })
-  if (filters.deviceType) search.set('deviceType', filters.deviceType)
-  if (filters.countryCode) search.set('countryCode', filters.countryCode)
-  const response = await apiGet<unknown>(`/${context === 'admin' ? 'admin/' : ''}short-link/visits/export?${search}`)
+  const input = { id, context, range, filters }
+  if (!(context === 'site' ? siteInputSchema : inputSchema).safeParse(input).success) throw new ApiClientError(100001, 'Invalid visit export input')
+  const dates = { startDate: range.startDate, endDate: range.endDate }
+  const search = context === 'site' ? new URLSearchParams(dates) : new URLSearchParams({ id, ...dates })
+  if (context !== 'site') {
+    if (filters.deviceType) search.set('deviceType', filters.deviceType)
+    if (filters.countryCode) search.set('countryCode', filters.countryCode)
+  }
+  const path = context === 'site' ? 'admin/dashboard' : `${context === 'admin' ? 'admin/' : ''}short-link`
+  const response = await apiGet<unknown>(`/${path}/visits/export?${search}`)
   const parsed = z.strictObject({
-    fileName: z.literal(`moeurl-visits-${id}-${range.startDate}-${range.endDate}.csv`),
+    fileName: z.literal(context === 'site' ? `moeurl-site-visits-${range.startDate}-${range.endDate}.csv` : `moeurl-visits-${id}-${range.startDate}-${range.endDate}.csv`),
     contentType: z.literal('text/csv;charset=utf-8'), content: contentSchema,
   }).safeParse(response.data)
   if (!parsed.success) throw new ApiClientError(100001, 'Invalid visit export response')

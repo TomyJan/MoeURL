@@ -28,7 +28,7 @@ func TestGroupDefaultDomainMigrationRoundTrip(t *testing.T) {
 				insertUserGroups(t, ctx, database)
 				require.NoError(t, database.QueryRowContext(ctx, snapshot).Scan(&before))
 			}
-			require.NoError(t, goose.Up(database, dir))
+			require.NoError(t, goose.UpTo(database, dir, 27))
 			var configured int
 			require.NoError(t, database.QueryRowContext(ctx, `select count(*) from user_group where default_domain_id is not null`).Scan(&configured))
 			require.Zero(t, configured)
@@ -100,7 +100,7 @@ func TestGroupDefaultDomainMigrationRoundTrip(t *testing.T) {
 				from user_preference p join user_domain_preference dp using(user_id) join domain d on d.id=dp.domain_id
 				join short_link l on l.owner_id=p.user_id where p.user_id='00000000-0000-0000-0000-000000000201'`).Scan(&legacy))
 			require.True(t, legacy)
-			require.NoError(t, goose.Up(database, dir))
+			require.NoError(t, goose.UpTo(database, dir, 27))
 			require.NoError(t, database.QueryRowContext(ctx, `select count(*) from user_group where default_domain_id is not null`).Scan(&configured))
 			require.Zero(t, configured, "reapply must not recreate discarded settings")
 		})

@@ -111,6 +111,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		insightService := insights.NewService(pool, permissionService)
 		deps.Insights = insightService
 		deps.VisitExport = insightService
+		deps.GlobalVisitExport = insightService
 		deps.Audit = insightService
 		deps.AuditExport = insightService
 		deps.ShortLinkBatch = shortLinkService

@@ -149,15 +149,16 @@ func validateCatalog(definitions []Definition, presets []Preset) error {
 	}
 
 	protectedKeys := map[string]struct{}{
-		StatisticsReadAll:  {},
-		AuditRead:          {},
-		AuditExport:        {},
-		DomainManage:       {},
-		SystemManage:       {},
-		AdminAccess:        {},
-		ShortLinkReadAll:   {},
-		ShortLinkUpdateAll: {},
-		ShortLinkDeleteAll: {},
+		StatisticsReadAll:      {},
+		StatisticsExportVisits: {},
+		AuditRead:              {},
+		AuditExport:            {},
+		DomainManage:           {},
+		SystemManage:           {},
+		AdminAccess:            {},
+		ShortLinkReadAll:       {},
+		ShortLinkUpdateAll:     {},
+		ShortLinkDeleteAll:     {},
 	}
 	configurableKeys := make(map[string]struct{}, len(definitions)-len(protectedKeys))
 	for _, definition := range definitions {
@@ -283,6 +284,7 @@ func newCatalogDefinitions() []Definition {
 		{Key: SystemManage, Category: "administration", Protected: true},
 		{Key: AdminAccess, Category: "administration", Protected: true},
 		{Key: StatisticsReadAll, Category: "administration", Protected: true},
+		{Key: StatisticsExportVisits, Category: "administration", Protected: true},
 		{Key: AuditRead, Category: "administration", Protected: true},
 		{Key: AuditExport, Category: "administration", Protected: true},
 		{Key: ShortLinkReadAll, Category: "administration", Protected: true},

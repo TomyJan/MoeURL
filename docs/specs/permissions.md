@@ -1,5 +1,11 @@
 # 权限模型
 
+## v0.66.0 全站访问记录 CSV（后端本地完成）
+
+计划在全站仪表盘按已应用 UTC 日期下载匿名成功事件，含已软删短链历史。`GET /api/v1/admin/dashboard/visits/export` 只接收日期，不接收单链 ID、分页或设备／国家；最多 90 个 UTC 日、1000 条、原文与最终 CSV 各 8 MiB。受保护管理权限 `statistics:export_visits` 叠加 admin:access、statistics:read_all、short_link:read_all、short_link:read_visits，同一 5 秒只读快照重查。默认只补 builtin admin，不给 user／guest 或可配置预设。
+
+上述后端与权限迁移已实现并完成本地门禁；仪表盘入口、浏览器和最终审查待做，旧单链／审计 CSV 不变。完整格式、容量、迁移回滚及异步边界见[设计](2026-11-12-v0.66.0-global-visit-export-design.md)，准确组合证据、运行时及既有漏洞边界见[验收](../implementation/v0.66.0-acceptance.md)。
+
 ## v0.43.0 内部备注
 
 不新增权限或授权。个人读read_own＋当前owner，写再update_own＋set_metadata；管理读admin:access＋read_all，写再update_all＋set_metadata。均需有效非guest当前数据库身份；按能力支持自定义组，不能硬编码admin组。预期身份header只拒绝会话错配、不授予身份，原metadata权限key/grant/preset不变。本地实现、完整 171 项浏览器、产品与唯一独立终审完成；远端候选与 master 的审查及 CI、合并和最终交付另行核验；见[设计](2026-11-03-v0.43.0-internal-link-notes-design.md)及[验收](../implementation/v0.43.0-acceptance.md)。

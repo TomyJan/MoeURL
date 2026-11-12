@@ -1,7 +1,7 @@
 <template>
   <div v-if="canExport" class="visit-export">
-    <v-btn data-testid="visit-export" color="primary" variant="tonal" :disabled="disabled" :loading="pending" @click="submit">{{ t('visitExport.csv') }}</v-btn>
-    <p>{{ t('visitExport.description') }}</p>
+    <v-btn data-testid="visit-export" color="primary" variant="tonal" :disabled="disabled" :loading="pending" @click="submit">{{ t(`${copy}.csv`) }}</v-btn>
+    <p>{{ t(`${copy}.description`) }}</p>
   </div>
 </template>
 <script setup lang="ts">
@@ -24,6 +24,7 @@ const identity = useAccountIdentity()
 const authorization = useAuthorizationRefresh()
 const auth = useQuery({ queryKey: ['auth', 'me'], queryFn: me, staleTime: Infinity, retry: false })
 const pending = ref(false)
+const copy = computed(() => props.context === 'site' ? 'siteVisitExport' : 'visitExport')
 const canExport = computed(() => auth.isSuccess.value && hasAccess(auth.data.value))
 const disabled = computed(() => pending.value || props.blocked || !props.range)
 let alive = true
@@ -49,7 +50,9 @@ function permissionKey() { return JSON.stringify(client.getQueryData<UserRespons
 function hasAccess(response: UserResponse | undefined) {
   const user = response?.user
   if (!user?.id || user.group === 'guest' || user.username === 'guest') return false
-  const required = ['short_link:export_visits', 'short_link:read_visits', ...(props.context === 'own' ? ['short_link:read_own'] : ['admin:access', 'short_link:read_all'])]
+  const required = props.context === 'site'
+    ? ['admin:access', 'statistics:read_all', 'statistics:export_visits', 'short_link:read_all', 'short_link:read_visits']
+    : ['short_link:export_visits', 'short_link:read_visits', ...(props.context === 'own' ? ['short_link:read_own'] : ['admin:access', 'short_link:read_all'])]
   return required.every(permission => user.permissions.includes(permission))
 }
 
@@ -59,9 +62,9 @@ async function submit() {
   const scope = identity.scope.value
   const requestRevision = revision
   const range = { startDate: props.range!.startDate, endDate: props.range!.endDate }
-  const filters = { deviceType: props.filters.deviceType, countryCode: props.filters.countryCode }
   const id = props.id
   const context = props.context
+  const filters = context === 'site' ? {} : { deviceType: props.filters.deviceType, countryCode: props.filters.countryCode }
   /** Waits for the parent's synchronous revision to arrive, then checks cache grants directly. */
   const isCurrent = () => alive && revision === requestRevision && identity.isCurrent(scope)
     && hasAccess(client.getQueryData<UserResponse>(['auth', 'me'])) && !props.blocked
@@ -78,7 +81,7 @@ async function submit() {
     await nextTick()
     if (!isCurrent()) return
     const code = error instanceof ApiClientError ? error.code : 0
-    toast.error(t(code === 200120 ? 'visitExport.limitExceeded' : 'visitExport.failed'))
+    toast.error(t(code === 200120 ? `${copy.value}.limitExceeded` : 'visitExport.failed'))
     if ([120001, 401, 403].includes(code)) {
       await authorization.refresh(() => identity.isCurrent(scope))
     } else if (code === 200104) emit('unavailable')

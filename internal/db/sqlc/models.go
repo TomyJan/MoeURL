@@ -86,6 +86,11 @@ type MoeurlCustomSlugPermissionAddition struct {
 	PermissionRevision int64       `json:"permission_revision"`
 }
 
+type MoeurlGlobalVisitExportPermissionAddition struct {
+	UserGroupID        pgtype.UUID `json:"user_group_id"`
+	PermissionRevision int64       `json:"permission_revision"`
+}
+
 type MoeurlInsightsPermissionAddition struct {
 	UserGroupID        pgtype.UUID `json:"user_group_id"`
 	Permission         string      `json:"permission"`
