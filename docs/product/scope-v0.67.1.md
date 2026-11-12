@@ -1,6 +1,6 @@
 # v0.67.1 后缀提示与验证维护
 
-状态：提示、取消测试和文档维护已实现；Task1 标准完成，Task2 准确产品、9项浏览器及四张警示原图核验和可恢复清理完成。自身独立审查、最终head真实CodeRabbit、正常合并及整版归档仍待。基线为 PR323 已核准 master `7a4c22073c9790c9f0cdc541db3344d57c2966ca`，分支 `feat/v0.67.1-suffix-policy-maintenance`；产品版本保持 0.67.0。
+状态：提示、取消测试和文档维护已实现，Task1–2 标准完成；准确产品、9项浏览器及四张警示原图核验和可恢复清理完成。Task3 自身独立审查、最终head真实CodeRabbit、正常合并及整版归档仍待。基线为 PR323 已核准 master `7a4c22073c9790c9f0cdc541db3344d57c2966ca`，分支 `feat/v0.67.1-suffix-policy-maintenance`；产品版本保持 0.67.0。
 
 ## 目标和范围选择
 
