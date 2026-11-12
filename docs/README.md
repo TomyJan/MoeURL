@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-12，v0.63.0）
 
-[目标主机白名单](product/scope-v0.63.0.md)后端已提交 d5da262 并标准完成 Task1；独立管理卡片、相关 94 项和完整 4751 项前端测试／四项 100%、types／lint／build 已通过，Task2 提交与标准关闭继续，产品浏览器与本版审查交付仍待。产品当前实现为 0.63.0，默认关闭，黑名单优先；见[计划](implementation/v0.63.0-plan.md)及[验收](implementation/v0.63.0-acceptance.md)。前版 PR312 已完整交付为 master f61bec6f；下方保持各版原检查点。
+[目标主机白名单](product/scope-v0.63.0.md)的 Task1–2 已分别提交 d5da262／b30c507 并标准完成；前端 4751 项／四项 100%、types／lint／build 通过。准确 b30c507 产品的 smoke、选定扫描及完整 319 项浏览器通过，30 张本版原图已检查，消费副本已可恢复清理。Task3 提交与标准关闭、独立终审、真实 CodeRabbit 和合并归档仍待。产品为 0.63.0，默认关闭、黑名单优先；见[计划](implementation/v0.63.0-plan.md)及[验收](implementation/v0.63.0-acceptance.md)。前版 PR312 已完整交付为 master f61bec6f；下方为历史检查点。
 
 ## 当前维护（2026-11-12，v0.62.1）
 

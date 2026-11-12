@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-12，v0.63.0）
 
-[v0.63.0](../product/scope-v0.63.0.md)增加独立 security.target_host_allowlist 资源与管理 API，复用 targetpolicy 的规范化、双 int32 shared／exclusive gate 和当前身份双权限；同一事务读取两资源，黑名单优先，无缓存或新依赖。迁移 00040 Down 保留内容、完整版本及审计；旧应用回退不执行白名单。后端 Task1 标准完成，前端独立卡片、相关 94 项及完整 4751 项／四项 100%、types／lint／build 通过，Task2 收尾、产品浏览器及审查交付尚待。前版 PR312 已完整交付；下方保持各版原检查点。
+[v0.63.0](../product/scope-v0.63.0.md)增加独立 security.target_host_allowlist 资源与管理 API，复用 targetpolicy 的规范化、双 int32 shared／exclusive gate 和当前身份双权限；同一事务读取两资源，黑名单优先，无缓存或新依赖。迁移 00040 Down 保留内容、完整版本及审计；旧应用回退不执行白名单。后端 Task1 标准完成，前端独立卡片、相关 94 项及完整 4751 项／四项 100%、types／lint／build 通过，Task1–2 已标准完成，准确 b30c507 产品的 smoke／选定扫描及完整 319 项浏览器通过，30 张本版原图已检查；Task3 提交／标准关闭及审查交付仍待。前版 PR312 已完整交付；下方保持各版原检查点。
 
 ## 当前维护（2026-11-12，v0.62.1）
 
