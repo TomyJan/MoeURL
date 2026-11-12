@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-12，v0.64.0）
 
-PR314 已完整交付为 master `b98bd1cbdbecaed7f30fd91bab7b5324d4463801`。当前[配额设计](../specs/2026-11-12-v0.64.0-account-daily-create-quota-design.md)已实现独立 `security.account_daily_create_quota`、统一每账号上限、shared／exclusive gate、锁后数据库 UTC 日和原事务计量；默认 null，管理员同样受限，回执不重扣，00041 Down 对当日／未来非零用量安全拒绝。前端采用独立严格资源和身份草稿，保存仅采信服务端字段与完整版本；首次明确 200122 可编辑，先 unknown 后拒绝仍保留原批次。Task1–2 标准完成，本地后端／前端及准确产品 smoke／所选扫描已通过；327 身份分区浏览器与 26 张原图已核，首次测试误判和补验分开保留。Task3 标准收尾及 Task4 审查交付仍待，见[验收](v0.64.0-acceptance.md)。不引入依赖，不查 CI、不发布部署，下方历史原文保留。
+PR314 已完整交付为 master `b98bd1cbdbecaed7f30fd91bab7b5324d4463801`。当前[配额设计](../specs/2026-11-12-v0.64.0-account-daily-create-quota-design.md)已实现独立 `security.account_daily_create_quota`、统一每账号上限、shared／exclusive gate、锁后数据库 UTC 日和原事务计量；默认 null，管理员同样受限，回执不重扣，00041 Down 对当日／未来非零用量安全拒绝。前端采用独立严格资源和身份草稿，保存仅采信服务端字段与完整版本；首次明确 200122 可编辑，先 unknown 后拒绝仍保留原批次。Task1–3 标准完成，本地后端／前端及准确产品 smoke／所选扫描已通过；327 身份分区浏览器与 26 张原图已核，首次测试误判和补验分开保留。Task4 审查交付仍待，见[验收](v0.64.0-acceptance.md)。不引入依赖，不查 CI、不发布部署，下方历史原文保留。
 
 ## 当前维护（2026-11-12，v0.63.1）
 
