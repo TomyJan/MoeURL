@@ -1,5 +1,11 @@
 # 技术基线
 
+## 当前前后端验证（2026-11-14，v0.70.0）
+
+v0.69.1／[PR332](https://github.com/TomyJan/MoeURL/pull/332)已完整交付：最终67d4aab3真实CodeRabbit、正常squash master `e51ac428fe3d98793cbe337529f62d05cc88b5cc`、独立API／fetch相同tree／唯一父、三个标准任务和10文件恢复归档完成。15条裁决及原Linux失败／同输入恢复保留原报告，原门禁不冒新执行。
+
+[目标CIDR黑名单](../product/scope-v0.70.0.md)的前后端已实现并完成本地门禁：独立第六资源、最多100个网段，保持六资源完整验证、权限、CAS和原回执／历史访问边界。host Go4730项／业务100%、Linux完整race／vet，前端5649项／四项100%及types／lint／build通过；SQLC两次零漂移。clean85d8b22的新产品smoke／所选扫描及25项受影响浏览器通过，ROOT核16张原图，产品可恢复清理完成；产品版本0.70.0，无新依赖。真实审查和远端交付仍待，见[验收](v0.70.0-acceptance.md)。不查CI、不发布部署。
+
 ## 当前维护（2026-11-14，v0.69.1）
 
 v0.69.0／PR331 已完整交付：最终 bf20adb 真实 CodeRabbit、正常 squash master `fc8d240800f5eb3657d49c13286aef1ca1b6f685`、独立 API／fetch 相同 tree／唯一父、四个标准任务和 12 文件恢复归档完成。28 条裁决、M1 及原门禁保持原报告归属，下方是历史检查点。

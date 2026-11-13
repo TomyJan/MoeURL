@@ -32,6 +32,7 @@ type Dependencies struct {
 	TargetHostSuffixDenylist        targetpolicy.SuffixPort
 	TargetHostSuffixAllowlist       targetpolicy.SuffixAllowlistPort
 	TargetIPDenylist                targetpolicy.IPPort
+	TargetCIDRDenylist              targetpolicy.CIDRPort
 	AccountDailyCreateQuota         createquota.Port
 	OwnDailyCreateUsage             createquota.UsagePort
 	Appearance                      system.AppearancePort
@@ -191,6 +192,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				handler := targetpolicy.NewIPHandler(dependency.TargetIPDenylist, logger)
 				businessAPI.Get("/admin/system/target-ip-denylist", handler.Get)
 				businessAPI.Post("/admin/system/target-ip-denylist/update", handler.Update)
+			}
+			if dependency.TargetCIDRDenylist != nil {
+				handler := targetpolicy.NewCIDRHandler(dependency.TargetCIDRDenylist, logger)
+				businessAPI.Get("/admin/system/target-cidr-denylist", handler.Get)
+				businessAPI.Post("/admin/system/target-cidr-denylist/update", handler.Update)
 			}
 			if dependency.AccountDailyCreateQuota != nil {
 				handler := createquota.NewHandler(dependency.AccountDailyCreateQuota, logger)

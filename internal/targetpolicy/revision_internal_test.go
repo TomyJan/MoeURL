@@ -60,6 +60,7 @@ func TestStoredPolicyRevisionYearBounds(t *testing.T) {
 			return v.UpdatedAt, e
 		}},
 		{IPKey, `{"addresses":[]}`, func(row sqlc.SystemSetting) (string, error) { v, e := storedIPSettings(row); return v.UpdatedAt, e }},
+		{CIDRKey, `{"prefixes":[]}`, func(row sqlc.SystemSetting) (string, error) { v, e := storedCIDRSettings(row); return v.UpdatedAt, e }},
 	}
 	for _, policy := range policies {
 		t.Run(policy.key, func(t *testing.T) {
