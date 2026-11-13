@@ -96,6 +96,23 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
     await expectNoHorizontalOverflow(page)
     await page.screenshot({ path: info.outputPath('ip-heading-saved-' + language + '-' + width + '.png') })
     await form.scrollIntoViewIfNeeded()
+    // English390 reachability supplement start
+    if (language === 'en' && width === 390) {
+      for (const name of [labels.reload, labels.save]) {
+        const action = form.getByRole('button', { name, exact: true })
+        await expect(action).toBeEnabled()
+        await action.evaluate(element => element.scrollIntoView({ block: 'center' }))
+        await expect(action).toBeInViewport({ ratio: 1 })
+        await expect.poll(() => action.evaluate(element => {
+          const box = element.getBoundingClientRect()
+          return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))
+        })).toBe(true)
+        await action.tap({ trial: true, scroll: 'none' })
+      }
+      await expect(page.getByText(labels.saved, { exact: true })).toBeVisible()
+      await info.attach('ip-settings-actions-touch-reachability', { body: JSON.stringify({ width, hasTouch: true, wholeViewport: true, centerHit: true, touchTrial: true, liveSavedFeedback: true }), contentType: 'application/json' })
+    }
+    // English390 reachability supplement end
     await page.screenshot({ path: info.outputPath('ip-actions-saved-' + language + '-' + width + '.png') })
 
     await addAddress(form, labels, '::ffff:c000:201')
@@ -171,6 +188,20 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
       await expect(page.getByText(labels.denied)).toBeVisible()
       await expect(target).toHaveValue('https://[::ffff:192.0.2.1]/changed')
       await expectNoHorizontalOverflow(page)
+      // English390 reachability supplement start
+      if (language === 'en' && width === 390) {
+        const action = dialog.getByRole('button', { name: labels.saveSettings, exact: true })
+        await expect(action).toBeEnabled()
+        await action.evaluate(element => element.scrollIntoView({ block: 'center' }))
+        await expect(action).toBeInViewport({ ratio: 1 })
+        await expect.poll(() => action.evaluate(element => {
+          const box = element.getBoundingClientRect()
+          return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))
+        })).toBe(true)
+        await action.tap({ trial: true, scroll: 'none' })
+        await info.attach('ip-' + scope + '-save-touch-reachability', { body: JSON.stringify({ width, hasTouch: true, wholeViewport: true, centerHit: true, touchTrial: true }), contentType: 'application/json' })
+      }
+      // English390 reachability supplement end
       await page.screenshot({ path: info.outputPath('ip-' + scope + '-denied-' + language + '-' + width + '.png') })
     }
     // Exercise the real historical slug, but never follow to the documentation IP.
