@@ -38,8 +38,8 @@ async function mountToasts() {
   return view
 }
 
-/** Reads the consumer's rendered layout, rather than a mock or a private hook field. */
-function top() { return document.querySelector<HTMLElement>('.app-toasts')!.style.top }
+/** Reads the actual consumer's navigation boundary; browser tests prove the resulting geometry. */
+function top() { return document.querySelector<HTMLElement>('.app-toasts')!.style.getPropertyValue('--page-toast-clearance') }
 
 beforeEach(() => {
   rectangles = new WeakMap()
@@ -62,7 +62,7 @@ afterEach(() => {
 
 describe('page notification navigation clearance', () => {
   // Omitting navigation measurement must leave the consumer at the old, obstructing page position.
-  it('places page messages below the visible header and recomputes its actual height', async () => {
+  it('passes the visible header boundary to page layout and recomputes its actual height', async () => {
     const header = element()
     await mountToasts()
     expect(top()).toBe('88px')

@@ -1,6 +1,6 @@
 <template>
   <Teleport :to="target">
-    <div ref="region" class="app-toasts" :class="{ 'app-toasts--modal': target !== 'body', 'app-toasts--page': pageTop !== null }" :style="pageTop !== null ? { top: pageTop + 'px', maxHeight: `calc(100dvh - ${pageTop}px - 16px)` } : undefined" :data-toast-modal-region="target !== 'body' && hasMessages ? '' : undefined" @pointerdown.capture="allowNativeModalScroll">
+    <div ref="region" class="app-toasts" :class="{ 'app-toasts--modal': target !== 'body', 'app-toasts--page': pageTop !== null }" :style="pageTop !== null ? { '--page-toast-clearance': pageTop + 'px' } : undefined" :data-toast-modal-region="target !== 'body' && hasMessages ? '' : undefined" @pointerdown.capture="allowNativeModalScroll">
       <Toaster position="top-right" :theme="dark ? 'dark' : 'light'" :visible-toasts="5" :duration="6000" expand rich-colors close-button :toast-options="{ closeButtonAriaLabel: t('feedback.dismiss') }" />
     </div>
   </Teleport>
@@ -97,7 +97,7 @@ onUnmounted(() => {
 .app-toasts--modal { order: -1; flex: 0 1 auto; min-height: 0; max-height: 30dvh; overflow: auto; }
 .app-toasts--modal:not([data-toast-modal-region]) { position: absolute; width: 0; height: 0; }
 .app-toasts--modal[data-toast-modal-region] { padding: 10px; }
-.app-toasts--page { position: fixed; right: 16px; z-index: 10000; box-sizing: border-box; width: min(376px, calc(100vw - 32px)); padding: 10px; overflow: auto; pointer-events: none; }
+.app-toasts--page { position: fixed; right: 16px; bottom: max(16px, env(safe-area-inset-bottom, 0px)); z-index: 10000; box-sizing: border-box; width: min(376px, calc(100vw - 32px)); max-height: max(0px, min(30dvh, calc(100dvh - var(--page-toast-clearance) - max(16px, env(safe-area-inset-bottom, 0px))))); padding: 10px; overflow: auto; pointer-events: none; }
 .app-toasts--page [data-sonner-toaster] { pointer-events: auto; }
 /* Static rows must not inherit Sonner's negative stacking offsets behind their own list. */
 .app-toasts:is(.app-toasts--modal, .app-toasts--page) [data-sonner-toast] { z-index: 0; }
