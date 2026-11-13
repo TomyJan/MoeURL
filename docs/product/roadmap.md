@@ -1,5 +1,11 @@
 # 路线图
 
+## 当前开发（2026-11-14，v0.71.0）
+
+PR337／v0.70.1 已完整交付：最终 `c7f543e0` 真实 CodeRabbit，正常 squash master `ff6a86bf9109e776e70aa6119fd2c4fc3ea52d1c`，独立 API／fetch 核相同 tree 和唯一父；两个标准任务、11 条裁决及 8 份工作记录可恢复归档完成。旧测试、产品、失败及所选原图保持原执行归属。
+
+当前[目标 CIDR 白名单](scope-v0.71.0.md)处于设计与计划阶段，尚未实现或测试；产品仍为 0.70.0。新增默认关闭的独立允许资源：启用的 DNS 精确、DNS 后缀和 CIDR 集合取并集，基础禁限及所有拒绝策略优先，七份存储先完整验证。沿现有权限、事务 gate、严格 JSON／CAS 和身份隔离，不新增依赖；独立 API、迁移及完整本地验证按[计划](../implementation/v0.71.0-plan.md)推进，实际证据见[验收](../implementation/v0.71.0-acceptance.md)。不查或等 CI，不发布部署。
+
 ## 当前维护（2026-11-14，v0.70.1）
 
 [目标 CIDR 黑名单](scope-v0.70.0.md)已通过 [PR336](https://github.com/TomyJan/MoeURL/pull/336) 完整交付：最终候选 `28cc2a5e` 真实 CodeRabbit，正常 squash master `247672d1681d9bab269751f1d5e5cc4652025e6d`；独立 API／fetch 核相同 tree 与唯一父。四个标准任务、23 条裁决和 12 份工作记录的可恢复归档完成。
