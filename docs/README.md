@@ -1,5 +1,9 @@
 # MoeURL 文档中心
 
+## 当前开发（2026-11-13，v0.69.0）
+
+PR330 已交付为 master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。当前[精确目标 IP 黑名单](product/scope-v0.69.0.md)的标准 Task1–3 complete，Task4 进行中。唯一独立终审的两项 Important 修复后，完整前端 5464 项／四项 100%、后端 4647 项／业务 100% 和 Linux race／vet 通过；clean `37e4d5f` 新产品的完整浏览器一次 389／389 通过，ROOT 核对 32 张新原图及手机操作附件。用完的容器、卷、网络、产品镜像和副本已准确清理，三份恢复包全解压核验；真实 CodeRabbit、正常合并与整版交付仍待。year0000 Minor 和历史失败保持准确归属，见[设计](specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)、[计划](implementation/v0.69.0-plan.md)与[验收](implementation/v0.69.0-acceptance.md)。不查 CI，不发布部署。
+
 ## 当前维护（2026-11-13，v0.68.2）
 
 v0.67.2／PR325已完整交付，master `5734f46d76f6e12d33998f7d4d6040d34c92c44c`；三个标准任务、最终f380b195真实CodeRabbit、正常合并独立核验和11份文件恢复归档完成。21条裁决、4项延期文案Minor及原时钟／Goose准备失败保留完整报告；实际净清2706657683B，原测试与扫描保持准确执行归属，不冒CI或发布结果。

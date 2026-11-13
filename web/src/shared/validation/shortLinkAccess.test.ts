@@ -13,6 +13,49 @@ describe('short-link access validation', () => {
     expect(targetUrlSchema.safeParse('javascript:alert(1)').success).toBe(false)
   })
 
+  it.each([
+    'https://192.0.2.1/historical',
+    'http://203.0.113.20:8080/path?next=example.com#fragment',
+    'https://[2001:0DB8:0:0::1]:443/path?x=1',
+    'https://[::ffff:192.0.2.1]/path',
+    'https://[::ffff:c000:201]/path',
+  ])('accepts an HTTP IP target without rewriting its bytes: %s', (target) => {
+    expect(targetUrlSchema.parse(' ' + target + ' ')).toBe(target)
+  })
+
+  it.each([
+    'https://localhost/path',
+    'https://single-label/path',
+    'https://[2001:db8::gg]/path',
+    'https://999.0.2.1/path',
+    'ftp://192.0.2.1/path',
+    'file:///tmp/example',
+    'data:text/plain,example',
+  ])('preserves existing hostname and protocol rejection: %s', (target) => {
+    expect(targetUrlSchema.safeParse(target).success).toBe(false)
+  })
+
+  it.each([
+    'http://127.1/path',
+    'http://2130706433/path',
+    'http://0177.0.0.1/path',
+    'http://0x7f000001/path',
+    'http://１２７.０.０.１/path',
+    'http://%31%32%37.0.0.1/path',
+    'http://127.0.0.1./path',
+    'http://192.000.2.1/path',
+    'http://user:password@127.1:8080/path',
+  ])('rejects ambiguous IP spellings before browser normalization: %s', (target) => {
+    expect(targetUrlSchema.safeParse(target).success).toBe(false)
+  })
+
+  it.each([
+    'https://user:password@192.0.2.1:8443/path',
+    'https://[2001:db8::192.0.2.1]/path',
+  ])('retains unambiguous IP authority bytes: %s', (target) => {
+    expect(targetUrlSchema.parse(target)).toBe(target)
+  })
+
   it('accepts only non-empty date-times in the future', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-03T00:00:00Z'))

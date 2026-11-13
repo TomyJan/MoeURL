@@ -1,6 +1,12 @@
 import { z } from 'zod'
 
-export const targetUrlSchema = z.string().trim().pipe(z.httpUrl())
+// Check literal IP spelling before URL parsing can normalize aliases; retain URL bytes.
+export const targetUrlSchema = z.string().trim().pipe(z.union([
+  z.httpUrl(),
+  z.string()
+    .regex(/^https?:\/\/(?:[^/?#@\\]*@)?(?:(?:0|[1-9]\d{0,2})(?:\.(?:0|[1-9]\d{0,2})){3}|\[[\da-f:.]+\])(?::\d+)?(?:[/?#]|$)/i)
+    .pipe(z.url({ protocol: /^https?$/, hostname: /^(?:\d{1,3}(?:\.\d{1,3}){3}|\[[\da-f:]+\])$/i })),
+]))
 
 export const passwordSchema = z.string().refine(
   (value) => {

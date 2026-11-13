@@ -33,7 +33,7 @@ beforeEach(() => {
 afterEach(() => { cleanup(); client.clear(); vi.unstubAllGlobals() })
 
 it('TestAdminSettingsSuffixAllowlistCard: keeps its own form, explicit switch, raw draft and full revisions', async () => {
-  render(AdminSettingsPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, HomeContentEditor: true, AppearanceEditor: true, FooterLinksEditor: true, TargetHostDenylistEditor: true, TargetHostAllowlistEditor: true, TargetHostSuffixDenylistEditor: true, AccountDailyCreateQuotaEditor: true, AdminAuthenticationPage: true } } })
+  render(AdminSettingsPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, TargetIPDenylistEditor: true, HomeContentEditor: true, AppearanceEditor: true, FooterLinksEditor: true, TargetHostDenylistEditor: true, TargetHostAllowlistEditor: true, TargetHostSuffixDenylistEditor: true, AccountDailyCreateQuotaEditor: true, AdminAuthenticationPage: true } } })
   await waitFor(() => expect(screen.getByLabelText('settings.siteName')).toHaveProperty('value', 'MoeURL'))
   expect(screen.getByRole('heading', { name: 'targetSuffixAllowlist.heading' })).toBeTruthy()
   expect(screen.getByText('targetSuffixAllowlist.hint')).toBeTruthy()

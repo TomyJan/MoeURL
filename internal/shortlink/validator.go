@@ -36,6 +36,7 @@ func isLocalHostname(host string) bool {
 
 // isBlockedTargetIP reports whether an IP address is not publicly routable.
 func isBlockedTargetIP(ip netip.Addr) bool {
+	ip = ip.Unmap()
 	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
 		return true
 	}

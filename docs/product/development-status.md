@@ -1,5 +1,11 @@
 # 开发进度与能力清单
 
+## 当前开发（2026-11-13，v0.69.0）
+
+PR330 已完整交付，master`23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`；最终b9fc6d9真实CodeRabbit、两个标准任务、正常合并独立API/fetch/tree/唯一父和9文件恢复归档完成，11条裁决完整保留。六条语法误报逐项公开拒绝，无新延期Minor；原产品执行不重归属。
+
+当前[精确目标 IP 黑名单](scope-v0.69.0.md)已实现，标准 Task1–3 complete，Task4 进行中。唯一独立终审的两项 Important 已真实 RED→GREEN；修复后完整前端 5464 项／四项 100%、types／lint／build，后端 4647 项／业务 100%、Linux race／vet 通过。clean `37e4d5f` 的新 app／web 产品 smoke／所选扫描通过，完整浏览器一次 389／389 通过，无失败、跳过或重试通过；ROOT 核对 32 张新原图和手机可达性附件。容器、卷、网络及用完的产品镜像／副本已准确清理，三份恢复包全解压逐 hash 核验；真实 CodeRabbit、正常合并及整版交付仍待。year0000 Minor、旧通知残留和历史执行边界见[验收](../implementation/v0.69.0-acceptance.md)，四标准任务见[计划](../implementation/v0.69.0-plan.md)。不查 CI，不发布部署。
+
 ## 当前维护（2026-11-13，v0.68.2）
 
 v0.67.2／PR325已完整交付，master `5734f46d76f6e12d33998f7d4d6040d34c92c44c`；三个标准任务、最终f380b195真实CodeRabbit、正常合并独立核验和11份文件恢复归档完成。21条裁决、4项延期文案Minor及原时钟／Goose准备失败保留完整报告；实际净清2706657683B，原测试与扫描保持准确执行归属，不冒CI或发布结果。

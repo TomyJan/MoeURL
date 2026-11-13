@@ -31,7 +31,7 @@ afterEach(() => { cleanup(); client.clear(); vi.unstubAllGlobals() })
 // A missing registration or a merged general form must fail before any write;
 // coercing the draft or reusing a submitted revision must fail at the transport.
 it('mounts and saves the independent suffix denylist with confirmed canonical values and full revisions', async () => {
-  render(AdminSettingsPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, TargetHostSuffixAllowlistEditor: true, HomeContentEditor: true, AppearanceEditor: true, FooterLinksEditor: true, TargetHostDenylistEditor: true, TargetHostAllowlistEditor: true, AccountDailyCreateQuotaEditor: true, AdminAuthenticationPage: true } } })
+  render(AdminSettingsPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, TargetIPDenylistEditor: true, TargetHostSuffixAllowlistEditor: true, HomeContentEditor: true, AppearanceEditor: true, FooterLinksEditor: true, TargetHostDenylistEditor: true, TargetHostAllowlistEditor: true, AccountDailyCreateQuotaEditor: true, AdminAuthenticationPage: true } } })
   await waitFor(() => expect(screen.getByLabelText('settings.siteName')).toHaveProperty('value', 'MoeURL'))
   expect(screen.getByRole('heading', { name: 'targetSuffixPolicy.heading' })).toBeTruthy()
   const form = screen.getByRole('form', { name: 'targetSuffixPolicy.form' })
