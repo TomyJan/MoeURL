@@ -1,6 +1,6 @@
 # v0.71.0 可选目标 CIDR 白名单
 
-状态：后端与独立前端卡片已实现并完成阶段验证，产品验证与审查交付尚待。基线为 v0.70.1／[PR337](https://github.com/TomyJan/MoeURL/pull/337) 已完整交付的 master `ff6a86bf9109e776e70aa6119fd2c4fc3ea52d1c`。当前产品版本为 0.71.0；前端5790项／四100及types／lint／构建、E2E strict已通过，原两条旧文字断言失败／修复分别留证。独立审查、CodeRabbit、正常合并与本版交付均须各自取得证据。Linux 首次整套两处失败及精确补验、根因未确证的边界见[验收](../implementation/v0.71.0-acceptance.md)。该增量是 Agent 沿路线图和长期自主授权的决定。
+状态：后端、前端与准确产品验证已完成，审查交付尚待。基线为 v0.70.1／[PR337](https://github.com/TomyJan/MoeURL/pull/337) 已完整交付的 master `ff6a86bf9109e776e70aa6119fd2c4fc3ea52d1c`。产品 0.71.0；主机 4814 项／业务 100%、前端 5790 项／四项 100%、types／lint／构建与 E2E strict、新产品 smoke／所选扫描及 30 项浏览器检查通过，16 张重点原图已查看，准确资源已可恢复清理。独立审查、CodeRabbit、正常合并与本版交付仍须各自实证。Linux 首次整套两处失败及精确补验、根因未确证的边界见[验收](../implementation/v0.71.0-acceptance.md)。该增量是 Agent 沿路线图和长期自主授权的决定。
 
 ## 盘点与选择
 
