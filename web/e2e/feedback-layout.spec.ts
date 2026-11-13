@@ -486,6 +486,34 @@ test('mobile live notice keeps navigation touchable before expiry at ' + width +
     await assertMessage()
     await writeFile(info.outputPath('navigation-account-geometry.json'), JSON.stringify({ initial: initialGeometry, settled: await accountGeometry() }, null, 2))
     await page.screenshot({ path: info.outputPath('navigation-expanded-account.png'), animations: 'disabled' })
+    if (width === 320) {
+      // A real expanded menu can consume all available height; padding must not create an overlay floor.
+      for (const height of [240, 262]) {
+        await page.setViewportSize({ width, height })
+        await page.clock.runFor(100)
+        const region = page.locator('.app-toasts--page')
+        await expect.poll(() => region.evaluate(node => Number.parseFloat(getComputedStyle(node).maxHeight))).toBeLessThan(10)
+        const cramped = await region.evaluate(node => {
+          const region = node.getBoundingClientRect(), menu = document.querySelector('[data-testid="console-mobile-account-menu"]')!
+          const action = menu.querySelector('button[role="menuitem"]')!, button = action.getBoundingClientRect()
+          const hit = document.elementFromPoint((button.left + button.right) / 2, Math.min(button.bottom - 2, innerHeight - 1))
+          const clearance = Number.parseFloat(getComputedStyle(node).getPropertyValue('--page-toast-clearance'))
+          const limit = Number.parseFloat(getComputedStyle(node).maxHeight)
+          return { viewportHeight: innerHeight, menuBottom: menu.getBoundingClientRect().bottom, clearance, limit, height: region.height, top: region.top, bottom: region.bottom, navigationHit: hit === action || action.contains(hit) }
+        })
+        await writeFile(info.outputPath('navigation-cramped-' + height + '.json'), JSON.stringify(cramped, null, 2))
+        await page.screenshot({ path: info.outputPath('navigation-cramped-' + height + '.png'), animations: 'disabled' })
+        await assertMessage()
+        expect(cramped.height).toBeLessThanOrEqual(cramped.limit + 0.1)
+        expect(cramped.navigationHit).toBe(true)
+        if (height === 240) expect(cramped.height).toBe(0)
+      }
+      await page.setViewportSize({ width, height: 320 })
+      await page.clock.runFor(100)
+      await assertMessage()
+      expect(await page.locator('.app-toasts--page').evaluate(node => node.getBoundingClientRect().height)).toBeGreaterThan(20)
+      await page.screenshot({ path: info.outputPath('navigation-restored-space.png'), animations: 'disabled' })
+    }
     await account.locator('a[href="/profile"]').tap({ timeout: 1000 })
     await page.clock.runFor(50)
     await expect(page).toHaveURL(/\/profile$/)
