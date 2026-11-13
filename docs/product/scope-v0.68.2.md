@@ -1,6 +1,6 @@
 # v0.68.2 窄屏页面通知布局维护
 
-状态：共享布局、完整前端和准确新产品本地验证通过；新旧产品真实几何 RED→GREEN、28项浏览器与10张当前原图已核准，Task1–2标准完成；唯一终审I1已真实RED→GREEN，修复后完整前端、准确产品及28项浏览器验证通过，13张原图已核并可恢复清理；最终审查与交付继续。真实审查、合并和owned归档尚未完成。基线为 PR328 已独立核准的 master `ea56c08d6c3e3f2f4bd5bd4c59ca3119ca2b0915`；分支 `fix/v0.68.2-mobile-page-feedback`。本地验证、真实审查、正常合并和恢复归档分别验收，不查 CI，不发布部署。
+状态：PR329 已完整交付，master `198e36632f78e2c9504146de30ac9f5ac7189e16`；最终候选 `68a3dfe68a2b74cecbd1f1173bfe5ace1aaff7e6` 已获得真实 CodeRabbit reviewed／source=covered，全部有效问题已处置。三个标准任务、正常合并独立 SHA／tree／唯一父核验及 11 份文件的可恢复归档完成。原测试及恢复清理证据见验收，基线仍为 PR328／master `ea56c08d6c3e3f2f4bd5bd4c59ca3119ca2b0915`；原分支 `fix/v0.68.2-mobile-page-feedback`。本地验证、真实审查、正常合并和归档分别记录，不查 CI，不发布部署。
 
 ## 现状与选择
 
