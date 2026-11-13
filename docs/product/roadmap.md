@@ -1,10 +1,10 @@
 # 路线图
 
-## 当前前后端验证（2026-11-14，v0.70.0）
+## 当前维护（2026-11-14，v0.70.1）
 
-v0.69.1／[PR332](https://github.com/TomyJan/MoeURL/pull/332)已完整交付：最终67d4aab3真实CodeRabbit、正常squash master `e51ac428fe3d98793cbe337529f62d05cc88b5cc`、独立API／fetch相同tree／唯一父、三个标准任务和10文件恢复归档完成。15条裁决及原Linux失败／同输入恢复保留原报告，原门禁不冒新执行。
+[目标 CIDR 黑名单](scope-v0.70.0.md)已通过 [PR336](https://github.com/TomyJan/MoeURL/pull/336) 完整交付：最终候选 `28cc2a5e` 真实 CodeRabbit，正常 squash master `247672d1681d9bab269751f1d5e5cc4652025e6d`；独立 API／fetch 核相同 tree 与唯一父。四个标准任务、23 条裁决和 12 份工作记录的可恢复归档完成。
 
-[目标CIDR黑名单](scope-v0.70.0.md)的前后端已实现并完成本地门禁：独立第六资源、最多100个网段，保持六资源完整验证、权限、CAS和原回执／历史访问边界。host Go4730项／业务100%、Linux完整race／vet，前端5649项／四项100%及types／lint／build通过；SQLC两次零漂移，新E2E已严格检查但尚未执行。产品版本0.70.0，无新依赖；准确新产品、真实审查和交付仍待，见[验收](../implementation/v0.70.0-acceptance.md)。不查CI、不发布部署。
+原 Go 4730 项、前端 5649 项与准确 clean `85d8b226` 产品保持原执行归属：smoke、所选扫描和 25 项受影响浏览器单次通过，ROOT 查看 16 张原图、88 张全 hash，详见[验收](../implementation/v0.70.0-acceptance.md)。产品仍为 0.70.0。[当前 v0.70.1 维护](scope-v0.70.1.md)只修正状态文档和延期文字，自身本地核验、真实审查和交付另行记录；不查 CI、不发布部署。
 
 ## 当前维护（2026-11-14，v0.69.1）
 
@@ -521,7 +521,7 @@ v0.9.0 复用现有 `system_setting`、前端偏好和 OIDC Provider 管理，�
 | 域名与默认策略 | 管理员域名、组授权及全局默认；v0.26 个人偏好、v0.27 排序、v0.28 用户组默认及 v0.29 每域名默认跳转方式已合并。模式仅用于创建面板有权初选，旧 API 与既有短链不变。 | 尚未正式发布；自助绑定及自动 DNS/TLS 未实现。 | [域名](../specs/domains.md)、[多域名](scope-v0.8.0.md)、[个人默认](scope-v0.26.0.md)、[排序](scope-v0.27.0.md)、[组默认](scope-v0.28.0.md)、[默认模式](scope-v0.29.0.md) |
 | 品牌与模板 | 站点名称、默认语言／主题、纯文本页脚及固定署名；首页文案、三个固定强调色和最多五项有序页脚链接已交付。 | Logo／Favicon 上传、任意主题色、自定义 Open Graph、更多跳转页模板、高级编辑和自定义 CSS；尚未正式发布。 | [主题](../specs/themes-and-i18n.md)、[首页文案](scope-v0.33.0.md)、[强调色](scope-v0.34.0.md)、[页脚链接](scope-v0.35.0.md) |
 | 集成与权限扩展 | Cookie Session API 和按能力校验权限。 | 程序化接口鉴权、Webhook、与新增能力对应的更细粒度权限。 | [管理后台](../specs/admin.md)、[权限](../specs/permissions.md) |
-| 风控与滥用治理 | 认证及访问密码安全、访问条件检查；精确 DNS 黑白名单、账号每日创建配额及 DNS 后缀黑白名单已交付。v0.69.0 精确字面 IP 黑名单本地验证完成，真实审查和交付仍待。 | 通配／CIDR 等更广 IP 规则、DNS 探测、SSRF 防护、自动审核、外部安全数据源、管理员复审、举报及历史访问追溯封禁未实现。 | [统计与事件](../specs/statistics-and-events.md)、[精确白名单](scope-v0.63.0.md)、[每日创建配额](scope-v0.64.0.md)、[后缀黑名单](scope-v0.67.0.md)、[后缀白名单](scope-v0.68.0.md)、[精确 IP 黑名单](scope-v0.69.0.md) |
+| 风控与滥用治理 | 认证及访问密码安全、访问条件检查；精确 DNS 黑白名单、账号每日创建配额及 DNS 后缀黑白名单已交付。v0.69.0 精确字面 IP 黑名单与 v0.70.0 字面 IP 的 CIDR 黑名单均已交付。 | CIDR 白名单、通配规则、DNS 探测、SSRF 防护、自动审核、外部安全数据源、管理员复审、举报及历史访问追溯封禁未实现。 | [统计与事件](../specs/statistics-and-events.md)、[精确白名单](scope-v0.63.0.md)、[每日创建配额](scope-v0.64.0.md)、[后缀黑名单](scope-v0.67.0.md)、[后缀白名单](scope-v0.68.0.md)、[精确 IP 黑名单](scope-v0.69.0.md)、[CIDR 黑名单](scope-v0.70.0.md) |
 
 ## 非目标
 

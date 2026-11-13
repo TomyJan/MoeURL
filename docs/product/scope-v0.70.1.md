@@ -1,6 +1,6 @@
 # v0.70.1 交付状态文档维护
 
-状态：设计完成，实施和本维护审查交付尚待。产品保持 0.70.0。基线为 [PR336](https://github.com/TomyJan/MoeURL/pull/336) 已独立核验的 master `247672d1681d9bab269751f1d5e5cc4652025e6d`。
+状态：文档本地核验通过，Task1 随准确候选合同完成标准收尾，Task2 审查交付尚待。产品保持 0.70.0。基线为 [PR336](https://github.com/TomyJan/MoeURL/pull/336) 已独立核验的 master `247672d1681d9bab269751f1d5e5cc4652025e6d`。
 
 ## 现状与选择
 
