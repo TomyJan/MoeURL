@@ -1,4 +1,4 @@
-FROM golang:1.27.3 AS web-build
+FROM golang:1.27.4 AS web-build
 ARG NODE_VERSION=26.5.1
 ARG TARGETARCH
 WORKDIR /workspace/web
@@ -27,7 +27,7 @@ ENV MOEURL_BUILD_COMMIT=${MOEURL_BUILD_COMMIT}
 ENV MOEURL_BUILD_TAG=${MOEURL_BUILD_TAG}
 RUN pnpm build
 
-FROM golang:1.27.3 AS go-build
+FROM golang:1.27.4 AS go-build
 WORKDIR /workspace
 COPY go.mod go.sum ./
 RUN go mod download

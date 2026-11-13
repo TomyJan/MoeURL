@@ -367,7 +367,8 @@ func TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("hash protected password: %v", err)
 	}
-	if _, err := pool.Exec(ctx, `update short_link set password_hash = $2, password_updated_at = now() where id = $1`, linkID, hash); err != nil {
+	// Keep the initial revision independent of Docker clock corrections during password verification.
+	if _, err := pool.Exec(ctx, `update short_link set password_hash = $2, password_updated_at = timestamptz '2000-01-01 00:00:00+00' where id = $1`, linkID, hash); err != nil {
 		t.Fatalf("configure protected password: %v", err)
 	}
 	recorder := &recordingRecorder{}
@@ -438,7 +439,13 @@ func TestRedirectServiceProtectedDirectFlowUsesGrantAndRateLimit(t *testing.T) {
 	if err != nil || authorizedPreview.TargetHost != "example.com" {
 		t.Fatalf("expected protected preview metadata, got %#v error %v", authorizedPreview, err)
 	}
-	if _, err := pool.Exec(ctx, `update short_link set password_updated_at = now() where id = $1`, linkID); err != nil {
+	// Make this revision strictly newer than the grant without assuming a monotonic wall clock.
+	if _, err := pool.Exec(ctx, `
+		update short_link set password_updated_at = (
+			select max(created_at) + interval '1 microsecond'
+			from short_link_access_grant where short_link_id = $1
+		) where id = $1
+	`, linkID); err != nil {
 		t.Fatalf("invalidate protected grant: %v", err)
 	}
 	if _, err := service.Continue(ctx, "protected", grant.Token, "go.example.com"); !errors.Is(err, shortlink.ErrPasswordRequired) {
