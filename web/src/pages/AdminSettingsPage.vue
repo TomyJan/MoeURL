@@ -46,6 +46,7 @@
     <TargetHostSuffixDenylistEditor />
     <TargetHostAllowlistEditor />
     <TargetHostSuffixAllowlistEditor />
+    <TargetIPDenylistEditor />
     <AccountDailyCreateQuotaEditor />
     <AdminAuthenticationPage />
   </section>
@@ -68,6 +69,7 @@ import TargetHostDenylistEditor from '@/features/target-host-denylist/TargetHost
 import TargetHostSuffixDenylistEditor from '@/features/target-host-suffix-denylist/TargetHostSuffixDenylistEditor.vue'
 import TargetHostAllowlistEditor from '@/features/target-host-allowlist/TargetHostAllowlistEditor.vue'
 import TargetHostSuffixAllowlistEditor from '@/features/target-host-suffix-allowlist/TargetHostSuffixAllowlistEditor.vue'
+import TargetIPDenylistEditor from '@/features/target-ip-denylist/TargetIPDenylistEditor.vue'
 import AccountDailyCreateQuotaEditor from '@/features/account-daily-create-quota/AccountDailyCreateQuotaEditor.vue'
 
 const { t } = useI18n()

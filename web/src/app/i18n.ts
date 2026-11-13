@@ -780,6 +780,16 @@ export const messages = {
       denied: '目标主机被站点规则限制，请更换目标网址。输入已保留。',
       bulkDenied: '批次中的目标主机被站点规则限制，整批未创建。请编辑目标后重新预览。',
     },
+    targetIPPolicy: {
+      heading: '目标 IP 黑名单', form: '目标 IP 黑名单设置', address: 'IP 地址', add: '添加地址', remove: '删除地址', clear: '清空列表',
+      hint: '最多 100 个精确 IPv4／IPv6 地址，不填写方括号、zone、CIDR、协议或端口。IPv4 映射 IPv6 与对应 IPv4 视为同一地址，重复项会被拒绝。空行须填写或删除，清空后仍需保存。',
+      scope: '只匹配 URL 中直接填写的 IP，不解析 DNS，不支持 CIDR。只限制今后的创建和目标变更；已有短链访问与已提交批次的结果恢复不受影响。这不是 SSRF 防护或目标安全认证。',
+      save: '保存 IP 黑名单', reload: '重新加载 IP 黑名单', saved: '目标 IP 黑名单已保存。',
+      loadFailed: 'IP 黑名单加载失败，请重新加载。', saveFailed: '保存失败，草稿已保留，请重试。',
+      saveUnknown: '保存结果未确认。请先保留需要的草稿，再重新加载核对服务器设置；核对成功前无法再次保存。',
+      conflict: 'IP 黑名单已被其他请求修改。草稿已保留，请明确重新加载后再保存，不会自动重试写入。',
+      invalid: '请检查地址格式、重复项及 100 项限制；空行不会被自动忽略。', invalidField: '请填写有效的 IPv4 或 IPv6 地址。',
+    },
     footerLinks: {
       heading: '页脚链接', form: '页脚链接设置', navigation: '页脚导航', newWindow: '（在新窗口打开）',
       hint: '最多 5 项，标签为 1–40 个 Unicode 码点，网址最多 2048 字节。按列表顺序展示，允许重复；空行必须填写或删除。草稿不会公开，清空列表并保存可移除全部自定义链接。',
@@ -1715,6 +1725,16 @@ export const messages = {
       invalid: 'Check host syntax, duplicates and the 100-host limit. Blank rows are not silently ignored.', invalidField: 'Enter a valid ASCII host name.',
       denied: 'The site restricts this target host. Choose another target URL. Your input is retained.',
       bulkDenied: 'The site restricts a target host in this batch. No links were created. Edit the targets and preview again.',
+    },
+    targetIPPolicy: {
+      heading: 'Blocked target IP addresses', form: 'Blocked target IP settings', address: 'IP address', add: 'Add address', remove: 'Remove address', clear: 'Clear list',
+      hint: 'Up to 100 exact IPv4 or IPv6 addresses, without brackets, zones, CIDR, schemes or ports. IPv4-mapped IPv6 and its IPv4 address are the same identity; duplicates are rejected. Complete or remove blank rows; clearing still requires saving.',
+      scope: 'Matches only IP addresses written directly in URLs; does not resolve DNS or support CIDR. Applies only to new links and changed targets. Existing visits and recovery of committed batches are unaffected. This is not SSRF protection or a safety certification.',
+      save: 'Save blocked IPs', reload: 'Reload blocked IPs', saved: 'Blocked target IP addresses saved.',
+      loadFailed: 'Could not load blocked IPs. Please reload.', saveFailed: 'Could not save. Your draft is retained; please retry.',
+      saveUnknown: 'Save result is unknown. Keep a copy of your draft, then reload to check the server settings. You cannot save again until a successful reload.',
+      conflict: 'Another request changed the IP list. Your draft is retained. Explicitly reload before saving; writes are never retried automatically.',
+      invalid: 'Check address syntax, duplicates and the 100-address limit. Blank rows are not silently ignored.', invalidField: 'Enter a valid IPv4 or IPv6 address.',
     },
     footerLinks: {
       heading: 'Footer links', form: 'Footer link settings', navigation: 'Footer navigation', newWindow: '(opens in a new window)',

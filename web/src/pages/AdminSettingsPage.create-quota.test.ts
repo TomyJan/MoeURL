@@ -31,7 +31,7 @@ afterEach(() => { cleanup(); client.clear(); vi.unstubAllGlobals() })
 // Missing registration, merged forms, coercing null to zero, or keeping the
 // submitted revision instead of the confirmed server document must fail here.
 it('mounts and saves the independent nullable daily quota using confirmed server values and revisions', async () => {
-  render(AdminSettingsPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, TargetHostSuffixAllowlistEditor: true, HomeContentEditor: true, AppearanceEditor: true, FooterLinksEditor: true, TargetHostSuffixDenylistEditor: true, TargetHostDenylistEditor: true, TargetHostAllowlistEditor: true, AdminAuthenticationPage: true } } })
+  render(AdminSettingsPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, TargetIPDenylistEditor: true, TargetHostSuffixAllowlistEditor: true, HomeContentEditor: true, AppearanceEditor: true, FooterLinksEditor: true, TargetHostSuffixDenylistEditor: true, TargetHostDenylistEditor: true, TargetHostAllowlistEditor: true, AdminAuthenticationPage: true } } })
   await waitFor(() => expect(screen.getByLabelText('settings.siteName')).toHaveProperty('value', 'MoeURL'))
   expect(screen.getByRole('heading', { name: 'dailyCreateQuota.heading' })).toBeTruthy()
   const form = screen.getByRole('form', { name: 'dailyCreateQuota.form' })

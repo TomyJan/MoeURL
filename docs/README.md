@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-13，v0.69.0）
 
-PR330 文档收口已完整交付为 master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。当前[精确目标 IP 黑名单](product/scope-v0.69.0.md)的后端与迁移已实现，本地完整 4639 项／业务 100%、Linux race／vet 及条件源扫描已留证；前端、准确新产品、真实审查及整版交付仍待，产品仍为 0.68.2。只限制 URL 直接地址的新目标写入。见[设计](specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)、[计划](implementation/v0.69.0-plan.md)与[验收](implementation/v0.69.0-acceptance.md)。不查 CI，不发布部署；下方保持原历史归属。
+PR330 文档收口已完整交付为 master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。当前[精确目标 IP 黑名单](product/scope-v0.69.0.md)的后端标准 Task1 complete，独立中英前端已实现，完整 5441 项／四项覆盖率 100% 及 types／lint／build 通过，标准 Task2 收口中。后端完整 4639 项／业务 100%、Linux race／vet 及条件源扫描保持原执行归属。源码版本 0.69.0，准确新产品、真实审查及整版交付仍待。只限制 URL 直接地址的新目标写入。见[设计](specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)、[计划](implementation/v0.69.0-plan.md)与[验收](implementation/v0.69.0-acceptance.md)。不查 CI，不发布部署；下方保持原历史归属。
 
 ## 当前维护（2026-11-13，v0.68.2）
 
