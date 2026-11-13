@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-13，v0.69.0）
 
-PR330 已交付为 master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。当前[精确目标 IP 黑名单](scope-v0.69.0.md)的标准 Task1–2 complete：0–100 个直接地址、mapped 归一、仅今后目标，不加入 CIDR、DNS 解析或 SSRF 承诺，不影响旧公开访问。补充完整前端 5453 项／四项 100%、最终产品 389 个独立浏览器身份及英语手机操作补验通过，ROOT 已看 39 张原图，恢复清理完成；Task3 已标准 complete，Task4 已启动，真实审查与整版交付仍待。详见[验收](../implementation/v0.69.0-acceptance.md)，原失败及执行身份不改归属。
+PR330 已交付为 master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。当前[精确目标 IP 黑名单](scope-v0.69.0.md)支持 0–100 个直接地址、mapped 归一和今后目标写入，保持旧公开访问，不加入 CIDR、DNS 解析或 SSRF 承诺。标准 Task1–3 complete，Task4 进行中；唯一独立终审两项 Important 修复后，完整前端 5464 项／四项 100%、后端 4647 项／业务 100%、Linux race／vet 和新产品一次 389／389 浏览器通过，ROOT 核对 32 张新图，准确恢复清理完成。真实 CodeRabbit、正常合并与整版交付仍待，year0000 Minor、旧通知残留及原失败见[验收](../implementation/v0.69.0-acceptance.md)，执行身份不改归属。
 
 ## 当前维护（2026-11-13，v0.68.2）
 

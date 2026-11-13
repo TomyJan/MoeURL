@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-13，v0.69.0）
 
-PR330 已交付为 master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。当前[精确目标 IP 黑名单](product/scope-v0.69.0.md)的标准 Task1–2 complete；补充完整前端 5453 项／四项 100%、最终产品 389 个独立浏览器身份及英语手机操作补验通过，ROOT 已查看 39 张原图。Task3 已标准 complete，产品恢复清理完成；真实审查及整版交付仍待。后端 4639 项／业务 100%、Linux race／vet、各产品执行身份和失败保留原归属，分区通过不冒作一次全绿。见[设计](specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)、[计划](implementation/v0.69.0-plan.md)与[验收](implementation/v0.69.0-acceptance.md)。不查 CI，不发布部署。
+PR330 已交付为 master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。当前[精确目标 IP 黑名单](product/scope-v0.69.0.md)的标准 Task1–3 complete，Task4 进行中。唯一独立终审的两项 Important 修复后，完整前端 5464 项／四项 100%、后端 4647 项／业务 100% 和 Linux race／vet 通过；clean `37e4d5f` 新产品的完整浏览器一次 389／389 通过，ROOT 核对 32 张新原图及手机操作附件。用完的容器、卷、网络、产品镜像和副本已准确清理，三份恢复包全解压核验；真实 CodeRabbit、正常合并与整版交付仍待。year0000 Minor 和历史失败保持准确归属，见[设计](specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)、[计划](implementation/v0.69.0-plan.md)与[验收](implementation/v0.69.0-acceptance.md)。不查 CI，不发布部署。
 
 ## 当前维护（2026-11-13，v0.68.2）
 
