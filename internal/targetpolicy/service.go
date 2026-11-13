@@ -133,7 +133,7 @@ func (s *Service) Update(ctx context.Context, actor auth.CurrentUser, input Upda
 	return result, nil
 }
 
-// CheckTargets validates all six resources in the caller's gate-holding
+// CheckTargets validates all seven resources in the caller's gate-holding
 // transaction, then applies denials before the union of enabled allow rules.
 func CheckTargets(ctx context.Context, q *sqlc.Queries, targets []string) error {
 	row, err := q.GetSystemSetting(ctx, Key)
@@ -184,6 +184,14 @@ func CheckTargets(ctx context.Context, q *sqlc.Queries, targets []string) error 
 	if err != nil {
 		return err
 	}
+	cidrAllowlistRow, err := q.GetSystemSetting(ctx, CIDRAllowlistKey)
+	if err != nil {
+		return err
+	}
+	cidrAllowlist, err := storedCIDRAllowlistSettings(cidrAllowlistRow)
+	if err != nil {
+		return err
+	}
 	if err := checkCIDRs(cidrSettings.Prefixes, targets); err != nil {
 		return err
 	}
@@ -196,7 +204,7 @@ func CheckTargets(ctx context.Context, q *sqlc.Queries, targets []string) error 
 	if err := checkSuffixes(suffix.Suffixes, targets); err != nil {
 		return err
 	}
-	return checkAllowlistTargets(allowlist, suffixAllowlist, targets)
+	return checkCombinedAllowlistTargets(allowlist, suffixAllowlist, cidrAllowlist, targets)
 }
 
 // actorID accepts only a canonical nonzero UUID; guest markers never reach I/O.

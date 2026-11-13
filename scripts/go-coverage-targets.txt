@@ -176,6 +176,10 @@ github.com/TomyJan/MoeURL/internal/targetpolicy/cidr_normalize.go
 github.com/TomyJan/MoeURL/internal/targetpolicy/cidr_json.go
 github.com/TomyJan/MoeURL/internal/targetpolicy/cidr_service.go
 github.com/TomyJan/MoeURL/internal/targetpolicy/cidr_handler.go
+github.com/TomyJan/MoeURL/internal/targetpolicy/cidr_allowlist_model.go
+github.com/TomyJan/MoeURL/internal/targetpolicy/cidr_allowlist_json.go
+github.com/TomyJan/MoeURL/internal/targetpolicy/cidr_allowlist_service.go
+github.com/TomyJan/MoeURL/internal/targetpolicy/cidr_allowlist_handler.go
 github.com/TomyJan/MoeURL/internal/createquota/model.go
 github.com/TomyJan/MoeURL/internal/createquota/json.go
 github.com/TomyJan/MoeURL/internal/createquota/service.go
