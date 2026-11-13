@@ -1,5 +1,11 @@
 # MoeURL 产品总览
 
+## 当前设计（2026-11-14，v0.70.0）
+
+v0.69.1／[PR332](https://github.com/TomyJan/MoeURL/pull/332)已完整交付：最终67d4aab3真实CodeRabbit、正常squash master `e51ac428fe3d98793cbe337529f62d05cc88b5cc`、独立API／fetch相同tree／唯一父、三个标准任务和10文件恢复归档完成。15条裁决及原Linux失败／同输入恢复保留原报告，原门禁不冒新执行。
+
+下一项为[目标CIDR黑名单](scope-v0.70.0.md)，当前仅设计：默认空、最多100个IPv4／原生IPv6网段，独立第六资源，复用权限、完整CAS和共享gate；只影响今后字面IP目标写入，不解析DNS或追溯旧访问。尚无本版实现或验证，见[验收](../implementation/v0.70.0-acceptance.md)。不新增依赖、不查CI、不发布部署。
+
 ## 当前维护（2026-11-14，v0.69.1）
 
 v0.69.0／PR331 已完整交付：最终 bf20adb 真实 CodeRabbit、正常 squash master `fc8d240800f5eb3657d49c13286aef1ca1b6f685`、独立 API／fetch 相同 tree／唯一父、四个标准任务和 12 文件恢复归档完成。28 条裁决、M1 及原门禁保持原报告归属，下方是历史检查点。
