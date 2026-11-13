@@ -208,6 +208,12 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			return nil, fmt.Errorf("validate target IP denylist: %w", err)
 		}
 		deps.TargetIPDenylist = targetIPService
+		targetCIDRService := targetpolicy.NewCIDRService(pool)
+		if err := targetCIDRService.ValidateStartup(ctx); err != nil {
+			pool.Close()
+			return nil, fmt.Errorf("validate target CIDR denylist: %w", err)
+		}
+		deps.TargetCIDRDenylist = targetCIDRService
 		createQuotaService := createquota.NewService(pool)
 		if err := createQuotaService.ValidateStartup(ctx); err != nil {
 			pool.Close()
