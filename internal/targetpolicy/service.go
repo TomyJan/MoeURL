@@ -133,8 +133,8 @@ func (s *Service) Update(ctx context.Context, actor auth.CurrentUser, input Upda
 	return result, nil
 }
 
-// CheckTargets reads all three resources in the caller's gate-holding transaction.
-// Exact and suffix denial precede allowance; empty policies preserve URL syntax.
+// CheckTargets validates all four resources in the caller's gate-holding
+// transaction, then applies denials before the union of enabled allow rules.
 func CheckTargets(ctx context.Context, q *sqlc.Queries, targets []string) error {
 	row, err := q.GetSystemSetting(ctx, Key)
 	if err != nil {
@@ -160,13 +160,21 @@ func CheckTargets(ctx context.Context, q *sqlc.Queries, targets []string) error 
 	if err != nil {
 		return err
 	}
+	suffixAllowlistRow, err := q.GetSystemSetting(ctx, SuffixAllowlistKey)
+	if err != nil {
+		return err
+	}
+	suffixAllowlist, err := storedSuffixAllowlistSettings(suffixAllowlistRow)
+	if err != nil {
+		return err
+	}
 	if err := checkHosts(settings.Hosts, targets); err != nil {
 		return err
 	}
 	if err := checkSuffixes(suffix.Suffixes, targets); err != nil {
 		return err
 	}
-	return checkAllowlistHosts(allowlist, targets)
+	return checkAllowlistTargets(allowlist, suffixAllowlist, targets)
 }
 
 // actorID accepts only a canonical nonzero UUID; guest markers never reach I/O.
