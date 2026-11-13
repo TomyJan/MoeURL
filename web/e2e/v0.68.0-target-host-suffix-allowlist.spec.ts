@@ -227,9 +227,45 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
     expect((await get<Policy>(request, path)).suffixes).toHaveLength(100)
     await activate(form.getByRole('button', { name: labels.reload, exact: true })); await expect(form.getByRole('textbox')).toHaveCount(100)
     await toggle.uncheck(); await expect(form.getByRole('textbox')).toHaveCount(100)
-    const off = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1' + path + '/update')
-    await activate(form.getByRole('button', { name: labels.save, exact: true })); expect((await (await off).json()).code).toBe(0)
-    expect(await get<Policy>(request, path)).toMatchObject({ enabled: false, suffixes: expect.any(Array) }); expect((await get<Policy>(request, path)).suffixes).toHaveLength(100)
+    // Commit through the real endpoint, then lose only its browser response.
+    let committed: Policy | undefined, dropError: unknown, browserWrites = 0
+    let processed!: () => void
+    const dropped = new Promise<void>(resolve => { processed = resolve })
+    const onWrite = (value: Request) => { if (new URL(value.url()).pathname === '/api/v1' + path + '/update') browserWrites++ }
+    page.on('request', onWrite)
+    await page.route('**/api/v1' + path + '/update', async route => {
+      try {
+        const result = await route.fetch(), payload = await result.json()
+        expect(result.status()).toBe(200); expect(payload.code).toBe(0)
+        committed = payload.data as Policy
+        expect(committed.enabled).toBe(false); expect(committed.suffixes).toHaveLength(100)
+        await route.abort('failed')
+      } catch (error) { dropError = error; await route.abort('failed').catch(() => undefined) }
+      finally { processed() }
+    }, { times: 1 })
+    const lost = page.waitForEvent('requestfailed', { predicate: value => new URL(value.url()).pathname === '/api/v1' + path + '/update' })
+    await activate(form.getByRole('button', { name: labels.save, exact: true })); await dropped
+    if (dropError) throw dropError
+    expect((await lost).failure()?.errorText).toBeTruthy()
+    expect(await get<Policy>(request, path)).toEqual(committed)
+    const unknown = form.getByText(language === 'en' ? /Save result is unknown/ : /保存结果未确认/)
+    await expect(unknown).toBeVisible(); await expect(form.getByRole('button', { name: labels.save, exact: true })).toBeDisabled()
+    await form.evaluate(element => (element as HTMLFormElement).requestSubmit())
+    expect(browserWrites).toBe(1); expect((await get<Policy>(request, path)).updatedAt).toBe(committed!.updatedAt)
+    await page.route('**/api/v1' + path, route => route.abort('failed'), { times: 1 })
+    const failedReload = page.waitForEvent('requestfailed', { predicate: value => new URL(value.url()).pathname === '/api/v1' + path })
+    await activate(form.getByRole('button', { name: labels.reload, exact: true })); await failedReload
+    await expect(form.getByRole('button', { name: labels.reload, exact: true })).toBeEnabled()
+    await expect(unknown).toBeVisible(); await expect(form.getByRole('button', { name: labels.save, exact: true })).toBeDisabled()
+    await unknown.scrollIntoViewIfNeeded(); await expectNoHorizontalOverflow(page)
+    await page.screenshot({ path: info.outputPath('allowlist-save-unknown-' + language + '-' + width + '.png') })
+    const confirmedReload = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1' + path)
+    await activate(form.getByRole('button', { name: labels.reload, exact: true }))
+    expect((await (await confirmedReload).json()).data).toEqual(committed)
+    await expect(unknown).toBeHidden(); await expect(toggle).not.toBeChecked()
+    await expect(form.getByRole('button', { name: labels.save, exact: true })).toBeEnabled()
+    await info.attach('unknown-save-confirmation', { body: JSON.stringify({ actualCommitted: committed, browserRequestTerminal: 'failed', independentServerReadMatched: true, failedReloadKeptBarrier: true, browserWrites, appliedReloadMatched: true }), contentType: 'application/json' })
+    page.off('request', onWrite)
     await create(page, 'https://other.example/after-switch-off', labels)
     await setExactAllow(request, true, ['exact-only.test'])
     const disabledPreconfiguration = await page.request.post('/api/v1/short-link/create', { data: { targetUrl: 'https://host000.example/disabled-preconfiguration' } })

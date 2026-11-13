@@ -115,14 +115,50 @@ describe('independent optional target allowlist draft', () => {
     await fireEvent.submit(form()); await flush()
     expect(writes).toHaveBeenCalledExactlyOnceWith({ enabled: false, suffixes: ['draft.example'], expectedUpdatedAt: original.updatedAt })
   })
-  it('shows a save failure and keeps the editable draft available for an explicit retry', async () => {
-    writes.mockRejectedValueOnce(new Error('offline')); mount(); await ready()
+  it('keeps a confirmed input rejection editable for an explicit corrected retry', async () => {
+    writes.mockResolvedValueOnce(response(null, 900218)); mount(); await ready()
     await fireEvent.update(suffixes()[0]!, 'draft.example'); await fireEvent.submit(form()); await flush()
     expect(screen.getByText('targetSuffixAllowlist.saveFailed')).toBeTruthy()
     expect(suffixes()[0]!.value).toBe('draft.example'); expect(button('save').disabled).toBe(false)
     expect(writes).toHaveBeenCalledTimes(1)
     await fireEvent.submit(form()); await flush()
     expect(screen.getByText('targetSuffixAllowlist.saved')).toBeTruthy(); expect(suffixes()[0]!.value).toBe('new.example')
+  })
+  it.each(['transport', 'http500', 'invalid-envelope', 'invalid-data', 'business'] as const)('requires an applied explicit reload after an unknown %s save result', async kind => {
+    reads.mockResolvedValueOnce(response({ ...original, enabled: true }))
+    if (kind === 'transport') writes.mockRejectedValueOnce(new Error('response lost'))
+    else if (kind === 'http500') writes.mockResolvedValueOnce(new Response('', { status: 500 }))
+    else if (kind === 'invalid-envelope') writes.mockResolvedValueOnce(new Response('not JSON'))
+    else if (kind === 'invalid-data') writes.mockResolvedValueOnce(response({ enabled: false }))
+    else writes.mockResolvedValueOnce(response(null, 100001))
+    mount(); await ready(); await fireEvent.click(toggle())
+    await fireEvent.update(suffixes()[0]!, 'draft.example'); await fireEvent.submit(form()); await flush()
+    expect(screen.getByText('targetSuffixAllowlist.saveUnknown')).toBeTruthy()
+    expect(screen.queryByText('targetSuffixAllowlist.saveFailed')).toBeNull()
+    expect(toggle().checked).toBe(false); expect(suffixes()[0]!.value).toBe('draft.example')
+    expect(button('save').disabled).toBe(true)
+    await fireEvent.submit(form()); expect(writes).toHaveBeenCalledTimes(1); expect(reads).toHaveBeenCalledTimes(1)
+    reads.mockRejectedValueOnce(new Error('reload offline')); await fireEvent.click(button('reload')); await flush()
+    expect(screen.getByText('targetSuffixAllowlist.saveUnknown')).toBeTruthy()
+    expect(screen.queryByText('targetSuffixAllowlist.loadFailed')).toBeNull(); expect(button('save').disabled).toBe(true)
+    const pending = createDeferred<Response>(); reads.mockReturnValueOnce(pending.promise)
+    await fireEvent.click(button('reload')); await fireEvent.update(suffixes()[0]!, 'newer.example')
+    const confirmed = { ...saved, enabled: false, suffixes: ['server.example'] }
+    pending.resolve(response(confirmed)); await flush()
+    expect(suffixes()[0]!.value).toBe('newer.example'); expect(button('save').disabled).toBe(true)
+    expect(screen.getByText('targetSuffixAllowlist.saveUnknown')).toBeTruthy()
+    reads.mockResolvedValueOnce(response(confirmed)); await fireEvent.click(button('reload')); await ready('server.example')
+    expect(toggle().checked).toBe(false); expect(screen.queryByText('targetSuffixAllowlist.saveUnknown')).toBeNull()
+    await fireEvent.submit(form()); await flush()
+    expect(writes).toHaveBeenLastCalledWith({ enabled: false, suffixes: ['server.example'], expectedUpdatedAt: saved.updatedAt })
+    expect(screen.getByText('targetSuffixAllowlist.saved')).toBeTruthy()
+  })
+  it.each(['en', 'zh-CN'] as const)('explains the unknown save result persistently in %s and disables another write', async locale => {
+    writes.mockRejectedValueOnce(new Error('response lost')); mount(locale); await flush()
+    const save = screen.getByRole('button', { name: locale === 'en' ? 'Save allowed suffixes' : '保存后缀白名单' }) as HTMLButtonElement
+    await fireEvent.click(save); await flush()
+    expect(screen.getByText(locale === 'en' ? /Save result is unknown.*successful reload/ : /保存结果未确认.*核对成功前无法再次保存/)).toBeTruthy()
+    expect(save.disabled).toBe(true)
   })
   it('does not load, edit or save without an identity, and clears private state immediately on revocation', async () => {
     auth('', [])
@@ -174,10 +210,12 @@ describe('independent optional target allowlist draft', () => {
     if (kind === 'transport') pending.reject(new Error('offline'))
     else pending.resolve(response(null, kind === 'business' ? 100001 : 900218))
     await saving
-    expect(controller.state.feedback).toBe('saveFailed'); expect(controller.state.saving).toBe(false)
+    expect(controller.state.feedback).toBe(kind === 'invalid' ? 'saveFailed' : 'saveUnknown'); expect(controller.state.saving).toBe(false)
     expect(writes).toHaveBeenCalledTimes(1); expect(reads).toHaveBeenCalledTimes(1)
     expect(controller.state.rows[0]!.suffix).toBe('draft.example')
-    await controller.save(); expect(controller.state.rows[0]!.suffix).toBe('new.example')
+    await controller.save()
+    if (kind === 'invalid') expect(controller.state.rows[0]!.suffix).toBe('new.example')
+    else { expect(writes).toHaveBeenCalledTimes(1); expect(controller.state.rows[0]!.suffix).toBe('draft.example'); expect(controller.state.reloadRequired).toBe(true) }
   })
   it('retains suffixes when disabled and retains enabled when cleared, without sending implicit writes', async () => {
     mount(); await ready()
@@ -288,6 +326,18 @@ describe('independent optional target allowlist draft', () => {
     else if (kind === 'relogin') { auth('', []); auth() }
     else { auth('admin-a', ['admin:access', 'system:manage'].filter(value => value !== kind)); auth() }
   }
+  it.each(transitions)('retires an unknown private save result across %s before a failed fresh read', async kind => {
+    const { controller } = mountController(); await flush(); controller.edit(0, 'private.example')
+    writes.mockRejectedValueOnce(new Error('response lost')); await controller.save()
+    expect(controller.state.feedback).toBe('saveUnknown'); expect(controller.state.reloadRequired).toBe(true)
+    const pending = createDeferred<Response>(); reads.mockReturnValueOnce(pending.promise)
+    transition(kind)
+    expect(controller.state.feedback).toBe(''); expect(controller.state.reloadRequired).toBe(false)
+    expect(controller.state.rows).toEqual([]); expect(controller.state.version).toBe('')
+    pending.reject(new Error('fresh identity offline')); await flush()
+    expect(controller.state.feedback).toBe('loadFailed'); expect(controller.state.rows).toEqual([])
+    await controller.save(); expect(writes).toHaveBeenCalledTimes(1)
+  })
   it.each(transitions.flatMap(kind => (['loaded', 'edited'] as const).map(source => ({ kind, source }))))('clears an enabled $source draft synchronously across $kind even if the new read fails and the old read arrives late', async ({ kind, source }) => {
     reads.mockResolvedValueOnce(response({ ...original, enabled: source === 'loaded' }))
     const { controller } = mountController(); await flush()
@@ -320,7 +370,7 @@ describe('independent optional target allowlist draft', () => {
     if (outcome === 'reject') old.reject(new Error('stale')); else if (outcome === 'denied') old.resolve(denial(120001)); else old.resolve(response(outcome === 'conflict' ? null : saved, outcome === 'conflict' ? 900219 : 0))
     await flush()
     expect(button('save').disabled).toBe(true); expect(button('reload').disabled).toBe(true)
-    for (const feedback of ['saved', 'conflict', 'saveFailed', 'loadFailed']) expect(screen.queryByText('targetSuffixAllowlist.' + feedback)).toBeNull()
+    for (const feedback of ['saved', 'conflict', 'saveFailed', 'saveUnknown', 'loadFailed']) expect(screen.queryByText('targetSuffixAllowlist.' + feedback)).toBeNull()
     expect(client.getQueriesData({ queryKey: adminTargetHostSuffixAllowlistKey }).some(([, value]) => (value as typeof saved)?.updatedAt === saved.updatedAt)).toBe(false)
     if (operation === 'load') expect(suffixes()).toHaveLength(0); else expect(suffixes()[0]!.value).toBe('current.example')
     expect(authReads).not.toHaveBeenCalled()

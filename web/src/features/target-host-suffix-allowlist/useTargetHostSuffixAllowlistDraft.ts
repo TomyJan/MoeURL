@@ -72,12 +72,12 @@ export function useTargetHostSuffixAllowlistDraft() {
       if (token !== generation || revision !== edited) return
       fill(value); state.feedback = ''
     } catch (error) {
-      if (token === generation && !recoverAuthorization(error)) state.feedback = 'loadFailed'
+      if (token === generation && !recoverAuthorization(error) && state.feedback !== 'saveUnknown') state.feedback = 'loadFailed'
     } finally {
       if (token === generation) state.loading = false
     }
   }
-  /** Saves exactly once; ordinary failures preserve the draft while denial retires private state. */
+  /** Saves once; unknown results and conflicts require a confirmed explicit reload. */
   async function save() {
     if (!idle() || state.reloadRequired) return
     if (state.enabled && !state.rows.length) { state.feedback = 'enabledEmpty'; return }
@@ -99,7 +99,8 @@ export function useTargetHostSuffixAllowlistDraft() {
       if (token === generation) {
         if (recoverAuthorization(error)) return
         const conflict = error instanceof ApiClientError && error.code === 900219
-        state.feedback = conflict ? 'conflict' : 'saveFailed'; state.reloadRequired = conflict
+        const rejected = error instanceof ApiClientError && error.code === 900218
+        state.feedback = conflict ? 'conflict' : rejected ? 'saveFailed' : 'saveUnknown'; state.reloadRequired = !rejected
       }
     } finally {
       if (token === generation) state.saving = false
