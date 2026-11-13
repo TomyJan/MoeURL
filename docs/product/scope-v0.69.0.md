@@ -1,5 +1,7 @@
 # v0.69.0 精确目标 IP 黑名单
 
+最终状态：PR331 已完整交付。最终 bf20adb 真实 CodeRabbit reviewed／source=covered，正常 squash master `fc8d240800f5eb3657d49c13286aef1ca1b6f685`，独立 API／fetch 已核相同 tree 和唯一父。四标准任务、28 条完整裁决、12 文件恢复归档及准确 owned leaf 可恢复迁出完成。M1 在本版延期，由 v0.69.1 单独维护；下方保留原交付前检查点，不把原产品门禁归给后继。
+
 状态：标准 Task1–3 complete，Task4 进行中。唯一独立终审提出的两项 Important 已完成一轮修复：新增 IP 表单先拒绝数字别名，基础地址限制先归一 mapped 地址。当前完整前端 5464 项／四项 100%、host 后端 4647 项／业务 100% 和 Linux race／vet 通过；clean `37e4d5f` 新产品 smoke／所选扫描、一次完整 389／389 浏览器及 32 张新原图核验通过，准确恢复清理完成。真实 CodeRabbit、正常合并与整版交付仍待，year0000 Minor 保留。旧 Task3 产品证据不改归属。基线为 PR330/master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。完整记录见[验收](../implementation/v0.69.0-acceptance.md)，不查 CI，不发布部署。
 
 ## 目标与盘点

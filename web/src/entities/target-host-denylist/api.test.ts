@@ -1,10 +1,36 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TargetHostDenylistSchema, UpdateTargetHostDenylistSchema, normalizeTargetPolicyHost, getTargetHostDenylist, updateTargetHostDenylist } from './api'
+import { TargetHostAllowlistSchema, UpdateTargetHostAllowlistSchema } from '@/entities/target-host-allowlist/api'
+import { TargetHostSuffixDenylistSchema, UpdateTargetHostSuffixDenylistSchema } from '@/entities/target-host-suffix-denylist/api'
+import { TargetHostSuffixAllowlistSchema, UpdateTargetHostSuffixAllowlistSchema } from '@/entities/target-host-suffix-allowlist/api'
+import { TargetIPDenylistSchema, UpdateTargetIPDenylistSchema } from '@/entities/target-ip-denylist/api'
 
 const version = '2026-11-11T05:00:00.123456Z'
 const document = { hosts: ['blocked.example', 'xn--bcher-kva.example'], updatedAt: version }
 const envelope = (data: unknown) => new Response(JSON.stringify({ code: 0, message: 'OK', data, meta: {} }))
 afterEach(() => vi.unstubAllGlobals())
+
+describe('all five policy revision consumers', () => {
+  const policies = [
+    { name: 'host denylist', read: TargetHostDenylistSchema, write: UpdateTargetHostDenylistSchema, fields: { hosts: [] } },
+    { name: 'host allowlist', read: TargetHostAllowlistSchema, write: UpdateTargetHostAllowlistSchema, fields: { enabled: false, hosts: [] } },
+    { name: 'suffix denylist', read: TargetHostSuffixDenylistSchema, write: UpdateTargetHostSuffixDenylistSchema, fields: { suffixes: [] } },
+    { name: 'suffix allowlist', read: TargetHostSuffixAllowlistSchema, write: UpdateTargetHostSuffixAllowlistSchema, fields: { enabled: false, suffixes: [] } },
+    { name: 'IP denylist', read: TargetIPDenylistSchema, write: UpdateTargetIPDenylistSchema, fields: { addresses: [] } },
+  ]
+  it.each(policies)('rejects UTC year overflow in $name reads and commands', ({ read, write, fields }) => {
+    for (const revision of ['0001-01-01T00:00:00+00:01', '9999-12-31T23:59:59-00:01', '0000-12-31T23:59:59-00:01']) {
+      expect(read.safeParse({ ...fields, updatedAt: revision }).success, revision).toBe(false)
+      expect(write.safeParse({ ...fields, expectedUpdatedAt: revision }).success, revision).toBe(false)
+    }
+  })
+  it.each(policies)('preserves legal endpoint microseconds in $name reads and commands', ({ read, write, fields }) => {
+    for (const revision of ['0001-01-01T08:00:00.000001+08:00', '9999-12-31T23:59:59.999999Z']) {
+      expect(read.parse({ ...fields, updatedAt: revision }).updatedAt).toBe(revision)
+      expect(write.parse({ ...fields, expectedUpdatedAt: revision }).expectedUpdatedAt).toBe(revision)
+    }
+  })
+})
 
 describe('independent target host policy contract', () => {
   it.each([
@@ -46,11 +72,11 @@ describe('independent target host policy contract', () => {
   it.each([{}, null, [], { hosts: null, updatedAt: version }, { ...document, private: true }, { ...document, hosts: [null] }, { ...document, hosts: ['https://example.com'] }, { ...document, hosts: ['B.example'] }, { ...document, hosts: ['a.example.'] }, { ...document, hosts: ['b.example', 'a.example'] }, { ...document, hosts: ['a.example', 'a.example'] }])('rejects malformed or noncanonical server document %#', input => {
     expect(TargetHostDenylistSchema.safeParse(input).success).toBe(false)
   })
-  it.each(['', '0000-01-01T00:00:00Z', '0001-01-01T00:00:00Z', '0001-01-01T08:00:00+08:00', '2026-02-30T00:00:00Z', '2026-11-11', '2026-11-11T00:00:00', '2026-11-11T00:00:00.123456001Z'])('rejects invalid, zero or submicrosecond revision %s', updatedAt => {
+  it.each(['', '0000-01-01T00:00:00Z', '0000-12-31T23:59:59-00:01', '0001-01-01T00:00:00+00:01', '9999-12-31T23:59:59-00:01', '0001-01-01T00:00:00Z', '0001-01-01T08:00:00+08:00', '2026-02-30T00:00:00Z', '2026-11-11', '2026-11-11T00:00:00', '2026-11-11T00:00:00.123456001Z'])('rejects invalid, zero or submicrosecond revision %s', updatedAt => {
     expect(TargetHostDenylistSchema.safeParse({ hosts: [], updatedAt }).success).toBe(false)
     expect(UpdateTargetHostDenylistSchema.safeParse({ hosts: [], expectedUpdatedAt: updatedAt }).success).toBe(false)
   })
-  it.each([version, '2026-11-11T13:00:00.123456000+08:00', '0001-01-01T00:00:00.000001Z'])('preserves the complete usable revision %s', updatedAt => {
+  it.each([version, '2026-11-11T13:00:00.123456000+08:00', '0001-01-01T00:00:00.000001Z', '0001-01-01T08:00:00.000001+08:00', '0001-01-01T00:00:00-00:01', '9999-12-31T23:59:59.999999Z', '9999-12-31T23:59:59.999999+00:01'])('preserves the complete usable revision %s', updatedAt => {
     expect(TargetHostDenylistSchema.parse({ hosts: [], updatedAt }).updatedAt).toBe(updatedAt)
     expect(UpdateTargetHostDenylistSchema.parse({ hosts: [], expectedUpdatedAt: updatedAt }).expectedUpdatedAt).toBe(updatedAt)
   })

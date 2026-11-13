@@ -1,5 +1,11 @@
 # 技术基线
 
+## 当前维护（2026-11-14，v0.69.1）
+
+v0.69.0／PR331 已完整交付：最终 bf20adb 真实 CodeRabbit、正常 squash master `fc8d240800f5eb3657d49c13286aef1ca1b6f685`、独立 API／fetch 相同 tree／唯一父、四个标准任务和 12 文件恢复归档完成。28 条裁决、M1 及原门禁保持原报告归属，下方是历史检查点。
+
+当前[策略版本年份边界维护](../product/scope-v0.69.1.md)已实现并完成本地验证：后端 4667 项／业务 100%、前端 5481 项／四项 100%，types／lint／build／vet 通过。Linux 完整 race 的唯一数据库连接准备失败经同输入单用例补验通过，原失败保留；完整 vet 通过。新产品 smoke／所选扫描、21 项受影响浏览器及可恢复产品清理已完成；本版审查交付仍待，见[验收](v0.69.1-acceptance.md)。产品保持 0.69.0，无新依赖、API、权限或迁移。不查 CI，不发布部署。
+
 ## 当前开发（2026-11-13，v0.69.0）
 
 PR330 已交付为 master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。新[精确目标 IP 资源](../specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)的标准 Task1–3 complete，Task4 进行中。独立 GET／POST、900220／900221、00045 迁移和五资源锁序不变。独立终审两项 Important 修复后的 Node26.5.1 Linux／pnpm11.5.0 完整 5464 项／四项 100%、types／lint／build，Go1.26.11 Windows 完整 4647 项／业务 100%／vet，Go1.27.4 Linux／CGO1 完整 race／vet 均通过；执行身份为 9ea81b6 加 receipt 中六份源码／测试改动。clean `37e4d5f` 已新编 app／web，未变 Goose 从已核 ZIP 准确恢复、保留原 1efe144 编译身份；新产品一次 389／389 浏览器、32 张新图、smoke／所选扫描及准确恢复清理完成。Docker29.9.1、PG18.6 Linux musl、driver Node26.3.0 Windows／Playwright1.65.0／Chromium157.0.8103.51，双语双视口分别留证。真实 CodeRabbit、正常合并和交付仍待；旧产品、year0000 Minor 及扫描／未测平台边界见[验收](v0.69.0-acceptance.md)。依赖闭包／lock／workspace 不变、无安装。不查 CI，不发布部署。

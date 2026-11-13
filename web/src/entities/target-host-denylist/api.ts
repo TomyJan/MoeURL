@@ -25,7 +25,9 @@ const hosts = z.array(rawHost).max(100).refine(values => {
 })
 const revision = z.iso.datetime({ offset: true }).refine(value => {
   const fraction = value.match(/[.]([0-9]+)/)?.[1] ?? ''
+  const utcYear = new Date(value).getUTCFullYear()
   return !value.startsWith('0000-') && !/[1-9]/.test(fraction.slice(6))
+    && utcYear >= 1 && utcYear <= 9999
     && (Date.parse(value) !== -62135596800000 || /[1-9]/.test(fraction))
 })
 export const TargetHostDenylistSchema = z.strictObject({
