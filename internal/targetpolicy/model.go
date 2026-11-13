@@ -1,4 +1,4 @@
-// Package targetpolicy owns the independent exact-DNS-host write restriction.
+// Package targetpolicy owns independent DNS-host and literal-IP write policies.
 package targetpolicy
 
 import (

@@ -1,8 +1,8 @@
 # MoeURL 文档中心
 
-## 当前设计（2026-11-13，v0.69.0）
+## 当前开发（2026-11-13，v0.69.0）
 
-PR330 文档收口已完整交付为 master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`：最终b9fc6d9真实CodeRabbit、两个标准任务、正常合并独立核验及9份文件恢复归档完成，11条裁决完整保留。当前选择[精确目标IP黑名单](product/scope-v0.69.0.md)，仅限制URL直接地址的新目标写入；仍在设计，尚未实现或验证。见[设计](specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)、[计划](implementation/v0.69.0-plan.md)与[验收](implementation/v0.69.0-acceptance.md)。不查CI、不发布部署；下方保持原历史归属。
+PR330 文档收口已完整交付为 master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。当前[精确目标 IP 黑名单](product/scope-v0.69.0.md)的后端与迁移已实现，本地完整 4639 项／业务 100%、Linux race／vet 及条件源扫描已留证；前端、准确新产品、真实审查及整版交付仍待，产品仍为 0.68.2。只限制 URL 直接地址的新目标写入。见[设计](specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)、[计划](implementation/v0.69.0-plan.md)与[验收](implementation/v0.69.0-acceptance.md)。不查 CI，不发布部署；下方保持原历史归属。
 
 ## 当前维护（2026-11-13，v0.68.2）
 

@@ -1,8 +1,8 @@
 # 技术基线
 
-## 当前设计（2026-11-13，v0.69.0）
+## 当前开发（2026-11-13，v0.69.0）
 
-PR330 已完整交付为master`23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`，两个标准任务、真实CodeRabbit及正常独立核验和恢复归档完成。新[精确目标IP资源](../specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)拟使用`security.target_ip_denylist`、独立GET/POST、900220/900221和00045迁移；0–100个地址、严格canonical、mapped归一、第五资源同事务及原gate锁序，旧DTO/公开访问不变。当前仍设计，未声称这些API或迁移已存在；不改依赖/权限，不查CI、不发布部署。
+PR330 已完整交付为 master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。新[精确目标 IP 资源](../specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)后端及迁移已实现并通过本地验证：`security.target_ip_denylist`、独立 GET／POST、900220／900221 和 00045 迁移；0–100 个地址、严格 canonical、mapped 归一、第五资源同事务及原 gate 锁序，旧 DTO／公开访问不变。前端、准确新产品、真实审查和交付仍待；不改依赖或权限，不查 CI，不发布部署，准确运行时和扫描风险见[验收](v0.69.0-acceptance.md)。
 
 ## 当前维护（2026-11-13，v0.68.2）
 

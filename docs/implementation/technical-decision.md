@@ -1,8 +1,8 @@
 # 技术选型决策
 
-## 当前设计（2026-11-13，v0.69.0）
+## 当前开发（2026-11-13，v0.69.0）
 
-PR330 已完整交付为master`23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`，两个标准任务、真实CodeRabbit及正常独立核验和恢复归档完成。当前[精确目标IP设计](../specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)选择标准库netip和独立strict资源，复用现有gate/身份/CAS/键名审计；五份存储先验证、拒绝优先，mapped归为IPv4，旧访问保持。不增加依赖、权限、DNS请求或SSRF承诺；尚未实现，旧四DTO不扩展。
+PR330 已完整交付为 master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。当前[精确目标 IP 设计](../specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)已实现后端及迁移并通过本地验证：使用标准库 netip 和独立 strict 资源，复用现有 gate／身份／CAS／键名审计；五份存储先验证、拒绝优先，mapped 归为 IPv4，旧访问保持。不增加依赖、权限、DNS 请求或 SSRF 承诺，旧四 DTO 不扩展。前端、准确新产品、真实审查及整版交付仍待。
 
 ## 当前维护（2026-11-13，v0.68.2）
 

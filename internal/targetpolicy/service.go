@@ -133,7 +133,7 @@ func (s *Service) Update(ctx context.Context, actor auth.CurrentUser, input Upda
 	return result, nil
 }
 
-// CheckTargets validates all four resources in the caller's gate-holding
+// CheckTargets validates all five resources in the caller's gate-holding
 // transaction, then applies denials before the union of enabled allow rules.
 func CheckTargets(ctx context.Context, q *sqlc.Queries, targets []string) error {
 	row, err := q.GetSystemSetting(ctx, Key)
@@ -166,6 +166,17 @@ func CheckTargets(ctx context.Context, q *sqlc.Queries, targets []string) error 
 	}
 	suffixAllowlist, err := storedSuffixAllowlistSettings(suffixAllowlistRow)
 	if err != nil {
+		return err
+	}
+	ipRow, err := q.GetSystemSetting(ctx, IPKey)
+	if err != nil {
+		return err
+	}
+	ipSettings, err := storedIPSettings(ipRow)
+	if err != nil {
+		return err
+	}
+	if err := checkIPs(ipSettings.Addresses, targets); err != nil {
 		return err
 	}
 	if err := checkHosts(settings.Hosts, targets); err != nil {
