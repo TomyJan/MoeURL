@@ -10,7 +10,7 @@ const content = { title: 'Instance title', summary: 'Instance summary', updatedA
 let client: QueryClient
 let requests: Array<{ path: string; body: unknown }>
 function mountPage() {
-  return render(AdminSettingsPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, AdminAuthenticationPage: { template: '<div>OIDC</div>' } } } })
+  return render(AdminSettingsPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, TargetHostSuffixAllowlistEditor: true, AdminAuthenticationPage: { template: '<div>OIDC</div>' } } } })
 }
 describe('independent homepage editor in system settings', () => {
   beforeEach(() => {

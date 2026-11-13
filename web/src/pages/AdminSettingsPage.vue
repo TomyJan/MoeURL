@@ -45,6 +45,7 @@
     <TargetHostDenylistEditor />
     <TargetHostSuffixDenylistEditor />
     <TargetHostAllowlistEditor />
+    <TargetHostSuffixAllowlistEditor />
     <AccountDailyCreateQuotaEditor />
     <AdminAuthenticationPage />
   </section>
@@ -66,6 +67,7 @@ import FooterLinksEditor from '@/features/footer-links/FooterLinksEditor.vue'
 import TargetHostDenylistEditor from '@/features/target-host-denylist/TargetHostDenylistEditor.vue'
 import TargetHostSuffixDenylistEditor from '@/features/target-host-suffix-denylist/TargetHostSuffixDenylistEditor.vue'
 import TargetHostAllowlistEditor from '@/features/target-host-allowlist/TargetHostAllowlistEditor.vue'
+import TargetHostSuffixAllowlistEditor from '@/features/target-host-suffix-allowlist/TargetHostSuffixAllowlistEditor.vue'
 import AccountDailyCreateQuotaEditor from '@/features/account-daily-create-quota/AccountDailyCreateQuotaEditor.vue'
 
 const { t } = useI18n()
