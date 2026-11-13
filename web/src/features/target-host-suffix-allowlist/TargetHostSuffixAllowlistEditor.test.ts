@@ -41,7 +41,7 @@ async function ready(suffix = 'allowed.example') {
 }
 describe('independent optional target allowlist draft', () => {
   beforeEach(() => {
-    client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } })
+    client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } } })
     client.setQueryDefaults(['auth', 'me'], { gcTime: Infinity })
     authReads.mockReset().mockImplementation(async () => response({ user: { id: 'admin-a', username: 'admin-a', group: 'user', permissions: [] } }))
     reads.mockReset().mockImplementation(async () => response(original))
@@ -55,6 +55,37 @@ describe('independent optional target allowlist draft', () => {
     auth()
   })
   afterEach(() => { cleanup(); client.clear(); vi.unstubAllGlobals() })
+
+  it.each(['addition', 'removal'].flatMap(change => ['edited', 'conflict', 'unknown'].map(barrier => ({ change, barrier }))))('policy confirmation preserves $barrier draft across unrelated permission $change without reading', async ({ change, barrier }) => {
+    if (change === 'removal') auth('admin-a', ['admin:access', 'system:manage', 'short_link:read_all'])
+    const { controller } = mountController(); await flush(); controller.edit(0, 'private.example')
+    if (barrier === 'conflict') { writes.mockResolvedValueOnce(response(null, 900219)); await controller.save() }
+    if (barrier === 'unknown') { writes.mockRejectedValueOnce(new Error('lost response')); await controller.save() }
+    const before = { feedback: controller.state.feedback, blocked: controller.state.reloadRequired, reads: reads.mock.calls.length }
+    auth('admin-a', ['admin:access', 'system:manage', ...(change === 'addition' ? ['short_link:read_all'] : [])])
+    await flush()
+    expect(controller.state.rows[0]?.suffix).toBe('private.example'); expect(controller.state.version).toBe(original.updatedAt)
+    expect(controller.state.feedback).toBe(before.feedback); expect(controller.state.reloadRequired).toBe(before.blocked)
+    expect(reads).toHaveBeenCalledTimes(before.reads)
+    if (barrier !== 'edited') { await controller.save(); expect(writes).toHaveBeenCalledTimes(1) }
+  })
+  it.each(['addition', 'removal'].flatMap(change => (['load', 'save'] as const).map(operation => ({ change, operation }))))('policy confirmation preserves pending $operation across unrelated permission $change', async ({ change, operation }) => {
+    if (change === 'removal') auth('admin-a', ['admin:access', 'system:manage', 'short_link:read_all'])
+    const { controller } = mountController(); await flush(); controller.edit(0, 'private.example')
+    const pending = createDeferred<Response>()
+    if (operation === 'load') reads.mockReturnValueOnce(pending.promise)
+    else writes.mockReturnValueOnce(pending.promise)
+    const running = controller[operation]()
+    const attempts = reads.mock.calls.length
+    auth('admin-a', ['admin:access', 'system:manage', ...(change === 'addition' ? ['short_link:read_all'] : [])])
+    expect(controller.state.rows[0]?.suffix).toBe('private.example')
+    expect(controller.state[operation === 'load' ? 'loading' : 'saving']).toBe(true)
+    pending.resolve(response(saved)); await running; await flush()
+    expect(reads).toHaveBeenCalledTimes(attempts)
+    expect(controller.state.rows[0]?.suffix).toBe('new.example'); expect(controller.state.version).toBe(saved.updatedAt)
+    expect(controller.state.feedback).toBe(operation === 'save' ? 'saved' : '')
+    expect(controller.state.loading).toBe(false); expect(controller.state.saving).toBe(false)
+  })
   it('keeps unsorted raw edits local and replaces them only with the canonical saved response', async () => {
     mount(); await ready()
     await fireEvent.update(suffixes()[0]!, ' Z.example. '); await fireEvent.click(button('add'))

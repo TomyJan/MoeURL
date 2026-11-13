@@ -66,7 +66,7 @@ export function useTargetHostDenylistDraft() {
       if (token !== generation || revision !== edited) return
       fill(value); state.feedback = ''
     } catch (error) {
-      if (token === generation && !recoverAuthorization(error)) state.feedback = 'loadFailed'
+      if (token === generation && !recoverAuthorization(error) && state.feedback !== 'saveUnknown') state.feedback = 'loadFailed'
     } finally {
       if (token === generation) state.loading = false
     }
@@ -92,7 +92,8 @@ export function useTargetHostDenylistDraft() {
       if (token === generation) {
         if (recoverAuthorization(error)) return
         const conflict = error instanceof ApiClientError && error.code === 900211
-        state.feedback = conflict ? 'conflict' : 'saveFailed'; state.reloadRequired = conflict
+        const rejected = error instanceof ApiClientError && error.code === 900210
+        state.feedback = conflict ? 'conflict' : rejected ? 'saveFailed' : 'saveUnknown'; state.reloadRequired = !rejected
       }
     } finally {
       if (token === generation) state.saving = false
@@ -102,7 +103,7 @@ export function useTargetHostDenylistDraft() {
   function reconcile() {
     const scope = identity.scope.value
     const permissions = client.getQueryData<UserResponse>(['auth', 'me'])?.user?.permissions ?? []
-    const signature = [...permissions].sort().join('\n')
+    const signature = ['admin:access', 'system:manage'].map(permission => permissions.includes(permission)).join('\n')
     if (scope === previousScope && signature === previousPermissions) return
     previousScope = scope; previousPermissions = signature; generation++
     void client.cancelQueries({ queryKey: key, exact: true }); client.removeQueries({ queryKey: key, exact: true })

@@ -40,7 +40,7 @@ async function ready(host = 'blocked.example') {
 }
 describe('independent target policy draft', () => {
   beforeEach(() => {
-    client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } })
+    client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } } })
     client.setQueryDefaults(['auth', 'me'], { gcTime: Infinity })
     authReads.mockReset().mockImplementation(async () => response({ user: { id: 'admin-a', username: 'admin-a', group: 'user', permissions: [] } }))
     reads.mockReset().mockImplementation(async () => response(original))
@@ -54,6 +54,83 @@ describe('independent target policy draft', () => {
     auth()
   })
   afterEach(() => { cleanup(); client.clear(); vi.unstubAllGlobals() })
+
+  it.each(['transport', 'http500', 'invalid-envelope', 'invalid-data', 'other-code', 'foreign-input-rejection'] as const)('policy confirmation keeps unknown %s results until an accepted explicit reload', async kind => {
+    const { controller } = mountController(); await flush(); controller.edit(0, 'draft.example')
+    if (kind === 'transport') writes.mockRejectedValueOnce(new Error('response lost'))
+    else if (kind === 'http500') writes.mockResolvedValueOnce(new Response('', { status: 500 }))
+    else if (kind === 'invalid-envelope') writes.mockResolvedValueOnce(new Response('{}'))
+    else if (kind === 'invalid-data') writes.mockResolvedValueOnce(response({ ...saved, updatedAt: 'invalid' }))
+    else writes.mockResolvedValueOnce(response(null, kind === 'other-code' ? 900204 : 900218))
+    await controller.save()
+    expect(controller.state.feedback).toBe('saveUnknown'); expect(controller.state.reloadRequired).toBe(true)
+    expect(controller.state.rows[0]?.host).toBe('draft.example'); expect(controller.state.version).toBe(original.updatedAt)
+    expect(controller.state.saving).toBe(false)
+    await controller.save(); expect(writes).toHaveBeenCalledTimes(1)
+    reads.mockRejectedValueOnce(new Error('reload offline')); await controller.load()
+    expect(controller.state.feedback).toBe('saveUnknown'); expect(controller.state.reloadRequired).toBe(true)
+    const pending = createDeferred<Response>(); reads.mockReturnValueOnce(pending.promise)
+    const reloading = controller.load(); controller.edit(0, 'newer.example')
+    pending.resolve(response(saved)); await reloading
+    expect(controller.state.rows[0]?.host).toBe('newer.example'); expect(controller.state.version).toBe(original.updatedAt)
+    expect(controller.state.feedback).toBe('saveUnknown'); expect(controller.state.reloadRequired).toBe(true)
+    await controller.save(); expect(writes).toHaveBeenCalledTimes(1)
+    reads.mockResolvedValueOnce(response(saved)); await controller.load()
+    expect(controller.state.rows[0]?.host).toBe('new.example'); expect(controller.state.version).toBe(saved.updatedAt)
+    expect(controller.state.feedback).toBe(''); expect(controller.state.reloadRequired).toBe(false)
+    await controller.save()
+    expect(writes).toHaveBeenLastCalledWith({ suffixes: ['new.example'], expectedUpdatedAt: saved.updatedAt })
+    expect(writes).toHaveBeenCalledTimes(2)
+  })
+  it('policy confirmation retries only an explicit resource input rejection', async () => {
+    const { controller } = mountController(); await flush(); controller.edit(0, 'draft.example')
+    writes.mockResolvedValueOnce(response(null, 900216)); await controller.save()
+    expect(controller.state.feedback).toBe('saveFailed'); expect(controller.state.reloadRequired).toBe(false)
+    expect(controller.state.rows[0]?.host).toBe('draft.example')
+    controller.edit(0, 'corrected.example'); await controller.save()
+    expect(writes).toHaveBeenLastCalledWith({ suffixes: ['corrected.example'], expectedUpdatedAt: original.updatedAt })
+    expect(controller.state.feedback).toBe('saved')
+  })
+  it.each(['en', 'zh-CN'] as const)('policy confirmation persists usable %s unknown feedback and blocks another submit', async locale => {
+    mount(locale); await flush()
+    writes.mockRejectedValueOnce(new Error('response lost'))
+    await fireEvent.submit(screen.getByRole('form')); await flush()
+    const message = messages[locale].targetSuffixAllowlist.saveUnknown
+    expect(screen.getByText(message)).toBeTruthy()
+    expect(screen.getByRole('button', { name: messages[locale].targetSuffixPolicy.save })).toHaveProperty('disabled', true)
+    await fireEvent.submit(screen.getByRole('form')); expect(writes).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['addition', 'removal'].flatMap(change => ['edited', 'conflict', 'unknown'].map(barrier => ({ change, barrier }))))('policy confirmation preserves $barrier draft across unrelated permission $change without reading', async ({ change, barrier }) => {
+    if (change === 'removal') auth('admin-a', ['admin:access', 'system:manage', 'short_link:read_all'])
+    const { controller } = mountController(); await flush(); controller.edit(0, 'private.example')
+    if (barrier === 'conflict') { writes.mockResolvedValueOnce(response(null, 900217)); await controller.save() }
+    if (barrier === 'unknown') { writes.mockRejectedValueOnce(new Error('lost response')); await controller.save() }
+    const before = { feedback: controller.state.feedback, blocked: controller.state.reloadRequired, reads: reads.mock.calls.length }
+    auth('admin-a', ['admin:access', 'system:manage', ...(change === 'addition' ? ['short_link:read_all'] : [])])
+    await flush()
+    expect(controller.state.rows[0]?.host).toBe('private.example'); expect(controller.state.version).toBe(original.updatedAt)
+    expect(controller.state.feedback).toBe(before.feedback); expect(controller.state.reloadRequired).toBe(before.blocked)
+    expect(reads).toHaveBeenCalledTimes(before.reads)
+    if (barrier !== 'edited') { await controller.save(); expect(writes).toHaveBeenCalledTimes(1) }
+  })
+  it.each(['addition', 'removal'].flatMap(change => (['load', 'save'] as const).map(operation => ({ change, operation }))))('policy confirmation preserves pending $operation across unrelated permission $change', async ({ change, operation }) => {
+    if (change === 'removal') auth('admin-a', ['admin:access', 'system:manage', 'short_link:read_all'])
+    const { controller } = mountController(); await flush(); controller.edit(0, 'private.example')
+    const pending = createDeferred<Response>()
+    if (operation === 'load') reads.mockReturnValueOnce(pending.promise)
+    else writes.mockReturnValueOnce(pending.promise)
+    const running = controller[operation]()
+    const attempts = reads.mock.calls.length
+    auth('admin-a', ['admin:access', 'system:manage', ...(change === 'addition' ? ['short_link:read_all'] : [])])
+    expect(controller.state.rows[0]?.host).toBe('private.example')
+    expect(controller.state[operation === 'load' ? 'loading' : 'saving']).toBe(true)
+    pending.resolve(response(saved)); await running; await flush()
+    expect(reads).toHaveBeenCalledTimes(attempts)
+    expect(controller.state.rows[0]?.host).toBe('new.example'); expect(controller.state.version).toBe(saved.updatedAt)
+    expect(controller.state.feedback).toBe(operation === 'save' ? 'saved' : '')
+    expect(controller.state.loading).toBe(false); expect(controller.state.saving).toBe(false)
+  })
   it('keeps unsorted raw edits local and replaces them only with the canonical saved response', async () => {
     mount(); await ready()
     await fireEvent.update(suffixes()[0]!, ' Z.example. '); await fireEvent.click(button('add'))
@@ -105,8 +182,8 @@ describe('independent target policy draft', () => {
     await fireEvent.submit(form()); await flush()
     expect(writes).toHaveBeenCalledExactlyOnceWith({ suffixes: ['draft.example'], expectedUpdatedAt: original.updatedAt })
   })
-  it('shows a save failure and keeps the editable draft available for an explicit retry', async () => {
-    writes.mockRejectedValueOnce(new Error('offline')); mount(); await ready()
+  it('shows a confirmed input rejection and keeps the editable draft available for an explicit retry', async () => {
+    writes.mockResolvedValueOnce(response(null, 900216)); mount(); await ready()
     await fireEvent.update(suffixes()[0]!, 'draft.example'); await fireEvent.submit(form()); await flush()
     expect(screen.getByText('targetSuffixPolicy.saveFailed')).toBeTruthy()
     expect(suffixes()[0]!.value).toBe('draft.example'); expect(button('save').disabled).toBe(false)
@@ -163,10 +240,13 @@ describe('independent target policy draft', () => {
     if (kind === 'transport') pending.reject(new Error('offline'))
     else pending.resolve(response(null, kind === 'business' ? 100001 : 900216))
     await saving
-    expect(controller.state.feedback).toBe('saveFailed'); expect(controller.state.saving).toBe(false)
+    expect(controller.state.feedback).toBe(kind === 'invalid' ? 'saveFailed' : 'saveUnknown'); expect(controller.state.saving).toBe(false)
+    expect(controller.state.reloadRequired).toBe(kind !== 'invalid')
     expect(writes).toHaveBeenCalledTimes(1); expect(reads).toHaveBeenCalledTimes(1)
     expect(controller.state.rows[0]!.host).toBe('draft.example')
-    await controller.save(); expect(controller.state.rows[0]!.host).toBe('new.example')
+    await controller.save()
+    expect(writes).toHaveBeenCalledTimes(kind === 'invalid' ? 2 : 1)
+    expect(controller.state.rows[0]!.host).toBe(kind === 'invalid' ? 'new.example' : 'draft.example')
   })
   const denials = [120001, 401, 403].flatMap(code => (['load', 'save'] as const).map(operation => ({ code, operation })))
   const denial = (code: number) => code === 120001 ? response(null, code) : new Response('', { status: code })
@@ -236,6 +316,21 @@ describe('independent target policy draft', () => {
     else if (kind === 'relogin') { auth('', []); auth() }
     else { auth('admin-a', ['admin:access', 'system:manage'].filter(value => value !== kind)); auth() }
   }
+  it.each([...transitions, 'unmount'] as const)('retires an unknown private save result across %s before a failed fresh read', async kind => {
+    const { controller, unmount } = mountController(); await flush(); controller.edit(0, 'private.example')
+    writes.mockRejectedValueOnce(new Error('response lost')); await controller.save()
+    expect(controller.state.feedback).toBe('saveUnknown'); expect(controller.state.reloadRequired).toBe(true)
+    const pending = createDeferred<Response>()
+    if (kind === 'unmount') unmount()
+    else { reads.mockReturnValueOnce(pending.promise); transition(kind) }
+    expect(controller.state.feedback).toBe(''); expect(controller.state.reloadRequired).toBe(false)
+    expect(controller.state.rows).toEqual([]); expect(controller.state.version).toBe('')
+    if (kind !== 'unmount') {
+      pending.reject(new Error('fresh identity offline')); await flush()
+      expect(controller.state.feedback).toBe('loadFailed'); expect(controller.state.rows).toEqual([])
+    }
+    await controller.save(); expect(writes).toHaveBeenCalledTimes(1)
+  })
   const matrix = transitions.flatMap(kind => ['load', 'save'].flatMap(operation => ['resolve', 'reject', 'denied', ...(operation === 'save' ? ['conflict'] : [])].map(outcome => ({ kind, operation, outcome }))))
   it.each(matrix)('retires $kind $operation $outcome before cache, draft, feedback and finally', async ({ kind, operation, outcome }) => {
     const old = createDeferred<Response>(), current = createDeferred<Response>()
@@ -247,7 +342,7 @@ describe('independent target policy draft', () => {
     if (outcome === 'reject') old.reject(new Error('stale')); else if (outcome === 'denied') old.resolve(denial(120001)); else old.resolve(response(outcome === 'conflict' ? null : saved, outcome === 'conflict' ? 900217 : 0))
     await flush()
     expect(button('save').disabled).toBe(true); expect(button('reload').disabled).toBe(true)
-    for (const feedback of ['saved', 'conflict', 'saveFailed', 'loadFailed']) expect(screen.queryByText('targetSuffixPolicy.' + feedback)).toBeNull()
+    for (const feedback of ['saved', 'conflict', 'saveFailed', 'saveUnknown', 'loadFailed']) expect(screen.queryByText('targetSuffixPolicy.' + feedback)).toBeNull()
     expect(client.getQueriesData({ queryKey: adminTargetHostSuffixDenylistKey }).some(([, value]) => (value as typeof saved)?.updatedAt === saved.updatedAt)).toBe(false)
     if (operation === 'load') expect(suffixes()).toHaveLength(0); else expect(suffixes()[0]!.value).toBe('current.example')
     expect(authReads).not.toHaveBeenCalled()

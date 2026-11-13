@@ -110,7 +110,7 @@ export function useTargetHostSuffixAllowlistDraft() {
   function reconcile() {
     const scope = identity.scope.value
     const permissions = client.getQueryData<UserResponse>(['auth', 'me'])?.user?.permissions ?? []
-    const signature = [...permissions].sort().join('\n')
+    const signature = ['admin:access', 'system:manage'].map(permission => permissions.includes(permission)).join('\n')
     if (scope === previousScope && signature === previousPermissions) return
     previousScope = scope; previousPermissions = signature; generation++
     void client.cancelQueries({ queryKey: key, exact: true }); client.removeQueries({ queryKey: key, exact: true })
