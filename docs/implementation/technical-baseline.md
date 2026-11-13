@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-13，v0.69.0）
 
-PR330 已交付为 master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。新[精确目标 IP 资源](../specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)的标准 Task1–2 complete：独立 GET／POST、900220／900221、00045 迁移、五资源事务和原 gate 锁序，旧 DTO／公开访问保持。固定 Node26.5.1 Linux／pnpm11.5.0 补充完整 5453 项／四项 100% 及 types／lint／build 通过。产品 web/footer 来自 e1a9bc7，Go 准确复用本版 1efe144 编译；389 个独立浏览器身份及英语手机补验通过，ROOT 看 39 张原图，恢复清理完成，Task3 已标准 complete，Task4 已启动。依赖闭包／lock／workspace 不变、无安装；实际 Chromium／PostgreSQL、分区失败、源和所选产品扫描边界见[验收](v0.69.0-acceptance.md)。真实审查和交付仍待，不查 CI，不发布部署。
+PR330 已交付为 master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。新[精确目标 IP 资源](../specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)的标准 Task1–3 complete，Task4 进行中。独立 GET／POST、900220／900221、00045 迁移和五资源锁序不变。独立终审的两项 Important 修复后，Node26.5.1 Linux／pnpm11.5.0 完整 5464 项／四项 100%、types／lint／build，Go1.26.11 Windows 完整 4647 项／业务 100%／vet，Go1.27.4 Linux／CGO1 完整 race／vet 均通过；执行身份为 9ea81b6 加 receipt 中的六份源码／测试改动。后继 clean 产品须重新编译受影响的 app／web，并准确恢复未变 Goose。旧 Task3 产品、389 个浏览器身份及 39 张图保持原归属；新产品验证、真实 CodeRabbit 和交付仍需完成。依赖闭包／lock／workspace 不变、无安装，year0000 Minor 与扫描边界见[验收](v0.69.0-acceptance.md)。不查 CI，不发布部署。
 
 ## 当前维护（2026-11-13，v0.68.2）
 

@@ -68,6 +68,27 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
   test('v0.69.0 ' + language + ' ' + width + 'px exact IP policy, seven writes and historical access', async ({ scenario }, info) => {
     test.setTimeout(180_000)
     const { page, request } = scenario, labels = text[language]
+    // Empty policies must not make numeric aliases or mapped base-blocked addresses safe.
+    const emptyLinks = (await ownLinks(page.request)).map(link => link.id).sort()
+    for (const targetUrl of ['http://127.1/path', 'http://0177.0.0.1/path', 'http://0x7f000001/path']) {
+      await page.goto('/')
+      const field = page.getByRole('textbox', { name: labels.target, exact: true })
+      await expect(field).toBeEnabled(); await field.fill(targetUrl)
+      await page.getByRole('button', { name: labels.create, exact: true }).click()
+      await expect(page.getByText(language === 'en' ? 'Enter a valid URL' : '请输入有效的 URL', { exact: true })).toBeVisible()
+      await expect(field).toHaveValue(targetUrl)
+    }
+    for (const targetUrl of ['https://[::ffff:100.64.0.1]/', 'https://[::ffff:0.0.0.0]/']) {
+      await page.goto('/')
+      const field = page.getByRole('textbox', { name: labels.target, exact: true })
+      await expect(field).toBeEnabled(); await field.fill(targetUrl)
+      const response = page.waitForResponse(value => new URL(value.url()).pathname === '/api/v1/short-link/create')
+      await page.getByRole('button', { name: labels.create, exact: true }).click()
+      expect((await (await response).json()).code).toBe(200103)
+      await expect(field).toHaveValue(targetUrl)
+    }
+    expect((await ownLinks(page.request)).map(link => link.id).sort()).toEqual(emptyLinks)
+    expect((await create(page, 'https://[::ffff:203.0.113.20]/mapped-public', labels)).targetUrl).toBe('https://[::ffff:203.0.113.20]/mapped-public')
     const historicalTarget = 'https://192.0.2.1/historical'
     const historical = await create(page, historicalTarget, labels)
     await page.goto('/admin/setting')

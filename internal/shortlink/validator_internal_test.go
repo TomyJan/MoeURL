@@ -20,6 +20,9 @@ func TestValidateTargetURLRejectsInvalidAndUnsafeURLs(t *testing.T) {
 		"https:///missing-host",
 		"http://localhost/admin",
 		"http://127.0.0.1/admin",
+		"https://[::ffff:100.64.0.1]/admin",
+		"https://[::ffff:0.0.0.0]/admin",
+		"https://[::ffff:0.1.2.3]/admin",
 	}
 
 	for _, targetURL := range tests {
@@ -44,6 +47,10 @@ func TestIsBlockedTargetIPCoversPrivateAndExplicitPrefixes(t *testing.T) {
 		{name: "link local multicast", address: "ff02::1", blocked: true},
 		{name: "unspecified", address: "0.0.0.0", blocked: true},
 		{name: "carrier grade nat", address: "100.64.0.1", blocked: true},
+		{name: "mapped public", address: "::ffff:93.184.216.34", blocked: false},
+		{name: "mapped carrier grade nat", address: "::ffff:100.64.0.1", blocked: true},
+		{name: "mapped unspecified", address: "::ffff:0.0.0.0", blocked: true},
+		{name: "mapped zero prefix", address: "::ffff:0.1.2.3", blocked: true},
 	}
 
 	for _, tt := range tests {

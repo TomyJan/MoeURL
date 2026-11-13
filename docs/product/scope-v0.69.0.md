@@ -1,6 +1,6 @@
 # v0.69.0 精确目标 IP 黑名单
 
-状态：标准 Task1–2 complete。Task3 补充完整前端 5453 项／四项 100%、准确产品 smoke／所选扫描、389 个独立浏览器身份及英语手机操作补验通过，ROOT 已看 39 张原图，恢复清理完成，标准 Task3 已 complete、Task4 已启动；真实审查与整版交付仍待。基线为 PR330/master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。原失败、分区组合和各执行身份见[验收](../implementation/v0.69.0-acceptance.md)，不查 CI，不发布部署。
+状态：标准 Task1–3 complete，Task4 进行中。唯一独立终审提出的两项 Important 已完成一轮修复：新增 IP 表单先拒绝数字别名，基础地址限制先归一 mapped 地址。当前完整前端 5464 项／四项 100%、host 后端 4647 项／业务 100% 和 Linux race／vet 通过；修复后的准确产品、浏览器与真实 CodeRabbit 仍需完成。Task3 的 389 个独立浏览器身份、39 张原图及恢复清理保留历史归属，不代替新产品验证。基线为 PR330/master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。完整记录见[验收](../implementation/v0.69.0-acceptance.md)，不查 CI，不发布部署。
 
 ## 目标与盘点
 
@@ -20,6 +20,7 @@
 - 独立 `security.target_ip_denylist`，默认 `{"addresses":[]}`，0–100 个地址。控制字符先拒后 trim，使用标准库 `netip.ParseAddr`，拒绝 zone、CIDR、方括号、URL 和端口；IPv4 映射 IPv6 用 `Unmap` 归为 IPv4，其余 IPv6 小写压缩。规范重复整体拒绝、按规范文本排序存储，读取不暗中修正坏值。
 - 非空列表检查目标实际 Hostname，忽略 scheme／port／path／query 对地址身份的差别，不改保存的 URL 字节。可明确解析的无 zone 地址经相同规范化精确比较；数字简写、八进制／十六进制、带多余前导零或尾点的 IPv4 及 zone 等无法明确分类的目标拒绝为非法目标，不能当 DNS 未命中漏过。普通 DNS 沿用既有 IDNA／标签分类，错误不放行。
 - 空 IP 列表不增加 URL 语法限制。原系统对本机、私网等目标的基础限制仍执行，配置列表不能解除它们。此策略不解析 DNS、不跟踪跳转，不是 SSRF 防护，也不宣称阻止所有到达某 IP 的域名。
+- 新增前端 IP URL 分支必须在浏览器解析前校验原文字面地址，拒绝数字简写、前导零、十六进制和 Unicode 数字别名，保留旧 DNS 分支和合法目标原文字节。基础拒绝先 `Unmap`，mapped CGNAT／零地址网段与 IPv4 等价拒绝；不增加拒绝网段。
 - 同一持 gate 事务先读取并验证五份设置，缺行、坏值、非法版本或 I/O 均失败关闭；再应用三种拒绝及启用的两允许集合并集。任何 DNS 允许启用时，直接 IP 仍按旧行为被拒绝。
 - 独立 GET／POST、strict 完整 JSON、32768 B、完整微秒 CAS、先 CAS 后 no-op、五秒事务、no-store、仅键名审计。权限仍为当前有效非 builtin 账号、builtin admin 组及 admin:access＋system:manage；不扩旧设置或公开 DTO，不增加权限。
 - 七个实际目标写入口无管理员绕过；受限批次零链接、成功审计和新回执。当前授权后先恢复同内容已提交回执，后来策略不能破坏恢复；异内容仍冲突，unknown 不被后继确定拒绝清除。省略或锁内完全相同的原目标编辑不读取新限制，旧公开访问不读规则。

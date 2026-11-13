@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-13，v0.69.0）
 
-当前[精确目标 IP 设计](../specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)的标准 Task1–2 complete：标准库 netip、独立 strict 资源，复用 gate／身份／CAS／键名审计；五存储先验证、拒绝优先，mapped 归为 IPv4。前端保留编辑原文和身份 generation／未知与冲突屏障；共享 URL schema 保留旧 DNS 分支，仅增加合法 HTTP IP 主机，不重写 URL。补充完整 5453 项／四项 100% 和最终产品 389 个独立浏览器身份通过；手机按钮经滚动可达，补测试证明，不改产品 CSS。ROOT 已看 39 张原图，恢复清理完成，Task3 已标准 complete，Task4 已启动。无新依赖、权限、DNS 请求或 SSRF 承诺；真实审查与整版交付仍待，准确运行归属见[验收](v0.69.0-acceptance.md)。
+当前[精确目标 IP 设计](../specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)的标准 Task1–3 complete，Task4 进行中：标准库 netip、独立 strict 资源，复用 gate／身份／CAS／键名审计；五存储先验证、拒绝优先。唯一独立终审后，新增 IP URL 分支在浏览器规范化前拒绝原文数字别名，保留旧 DNS 分支与目标字节；基础地址检查先 Unmap，再执行原网段限制。两项 Important 已真实 RED→GREEN，当前前端 5464 项／四项 100%、host 后端 4647 项／业务 100% 及 Linux race／vet 通过；准确新产品、浏览器与真实 CodeRabbit 仍需完成。Task3 的 389 个浏览器身份／39 张图与恢复清理保留原产品归属。year0000 坏存储版本差异作为 Minor 延期；无新依赖、权限、DNS 请求或 SSRF 承诺，详见[验收](v0.69.0-acceptance.md)。
 
 ## 当前维护（2026-11-13，v0.68.2）
 

@@ -28,3 +28,24 @@ func TestTargetIPDenylistAppliesToNewTargets(t *testing.T) {
 	require.NoError(t, err)
 	homeContentCall(t, a, cookie, "POST", "/api/v1/short-link/create", `{"targetUrl":"https://203.0.113.9/path"}`, 200, 200121)
 }
+
+// Base address restrictions apply to mapped IPv4 independently of the configured denylist.
+func TestTargetIPDenylistPreservesMappedBaseRestrictions(t *testing.T) {
+	a := newTestApplication(t)
+	cookie := domainOrderLogin(t, a)
+	for _, settings := range []string{`{"addresses":[]}`, `{"addresses":["203.0.113.9"]}`} {
+		_, err := a.pool.Exec(t.Context(), `update system_setting set value=$1 where key='security.target_ip_denylist'`, settings)
+		require.NoError(t, err)
+		for _, body := range []string{
+			`{"targetUrl":"https://[::ffff:100.64.0.1]/"}`,
+			`{"targetUrl":"https://[::ffff:0.0.0.0]/"}`,
+			`{"targetUrl":"https://[::ffff:0.1.2.3]/"}`,
+		} {
+			homeContentCall(t, a, cookie, "POST", "/api/v1/short-link/create", body, 200, 200103)
+		}
+	}
+	var count int
+	require.NoError(t, a.pool.QueryRow(t.Context(), `select count(*) from short_link`).Scan(&count))
+	require.Zero(t, count)
+	homeContentCall(t, a, cookie, "POST", "/api/v1/short-link/create", `{"targetUrl":"https://[::ffff:203.0.113.20]/"}`, 200, 0)
+}
