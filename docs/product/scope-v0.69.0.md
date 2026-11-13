@@ -1,6 +1,6 @@
 # v0.69.0 精确目标 IP 黑名单
 
-状态：标准 Task1–2 complete。Task3 补充完整前端 5453 项／四项 100%、准确产品 smoke／所选扫描、389 个独立浏览器身份及英语手机操作补验通过，ROOT 已看 39 张原图，恢复清理完成，标准收口中；真实审查与整版交付仍待。基线为 PR330/master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。原失败、分区组合和各执行身份见[验收](../implementation/v0.69.0-acceptance.md)，不查 CI，不发布部署。
+状态：标准 Task1–2 complete。Task3 补充完整前端 5453 项／四项 100%、准确产品 smoke／所选扫描、389 个独立浏览器身份及英语手机操作补验通过，ROOT 已看 39 张原图，恢复清理完成，标准 Task3 已 complete、Task4 已启动；真实审查与整版交付仍待。基线为 PR330/master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。原失败、分区组合和各执行身份见[验收](../implementation/v0.69.0-acceptance.md)，不查 CI，不发布部署。
 
 ## 目标与盘点
 
