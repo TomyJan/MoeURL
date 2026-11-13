@@ -1,10 +1,10 @@
 # 技术基线
 
-## 当前前后端验证（2026-11-14，v0.70.0）
+## 当前维护（2026-11-14，v0.70.1）
 
-v0.69.1／[PR332](https://github.com/TomyJan/MoeURL/pull/332)已完整交付：最终67d4aab3真实CodeRabbit、正常squash master `e51ac428fe3d98793cbe337529f62d05cc88b5cc`、独立API／fetch相同tree／唯一父、三个标准任务和10文件恢复归档完成。15条裁决及原Linux失败／同输入恢复保留原报告，原门禁不冒新执行。
+[目标 CIDR 黑名单](../product/scope-v0.70.0.md)已通过 [PR336](https://github.com/TomyJan/MoeURL/pull/336) 完整交付：最终候选 `28cc2a5e` 真实 CodeRabbit，正常 squash master `247672d1681d9bab269751f1d5e5cc4652025e6d`；独立 API／fetch 核相同 tree 与唯一父。四个标准任务、23 条裁决和 12 份工作记录的可恢复归档完成。
 
-[目标CIDR黑名单](../product/scope-v0.70.0.md)的前后端已实现并完成本地门禁：独立第六资源、最多100个网段，保持六资源完整验证、权限、CAS和原回执／历史访问边界。host Go4730项／业务100%、Linux完整race／vet，前端5649项／四项100%及types／lint／build通过；SQLC两次零漂移。clean85d8b22的新产品smoke／所选扫描及25项受影响浏览器通过，ROOT核16张原图，产品可恢复清理完成；产品版本0.70.0，无新依赖。真实审查和远端交付仍待，见[验收](v0.70.0-acceptance.md)。不查CI、不发布部署。
+原 Go 4730 项、前端 5649 项与准确 clean `85d8b226` 产品保持原执行归属：smoke、所选扫描和 25 项受影响浏览器单次通过，ROOT 查看 16 张原图、88 张全 hash，详见[验收](v0.70.0-acceptance.md)。产品仍为 0.70.0。[当前 v0.70.1 维护](../product/scope-v0.70.1.md)只修正状态文档和延期文字，自身本地核验、真实审查和交付另行记录；不查 CI、不发布部署。
 
 ## 当前维护（2026-11-14，v0.69.1）
 
