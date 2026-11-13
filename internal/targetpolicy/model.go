@@ -43,13 +43,14 @@ type Port interface {
 	Update(context.Context, auth.CurrentUser, UpdateInput) (Settings, error)
 }
 
-// parseVersion rejects ambiguous, non-round-trippable and zero revisions.
+// parseVersion rejects revisions whose written or UTC year cannot round-trip,
+// as well as ambiguous, zero and submicrosecond timestamps.
 func parseVersion(raw string) (time.Time, error) {
 	if !versionPattern.MatchString(raw) {
 		return time.Time{}, ErrInvalidInput
 	}
 	v, err := time.Parse(time.RFC3339Nano, raw)
-	if err != nil || v.IsZero() || v.Nanosecond()%1000 != 0 {
+	if err != nil || v.Year() < 1 || v.Year() > 9999 || v.UTC().Year() < 1 || v.UTC().Year() > 9999 || v.IsZero() || v.Nanosecond()%1000 != 0 {
 		return time.Time{}, ErrInvalidInput
 	}
 	return v, nil
