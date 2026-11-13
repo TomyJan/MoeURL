@@ -49,7 +49,12 @@ const test = base.extend<{ scenario: Scenario }>({
       if (deny) { try { await writeDeny(request, deny.hosts); expect((await get<Deny>(request, denyPath)).hosts).toEqual(deny.hosts) } catch (error) { failures.push(error) } }
       if (exactAllow) { try { await setExactAllow(request, exactAllow.enabled, exactAllow.hosts) } catch (error) { failures.push(error) } }
       if (suffixDeny) { try { await setSuffixDeny(request, suffixDeny.suffixes) } catch (error) { failures.push(error) } }
-      if (page) { try { for (const link of await ownLinks(page.request)) await post(request, '/admin/short-link/delete', { id: link.id }) } catch (error) { failures.push(error) } }
+      if (page && user) { try {
+        // A same-SPA scenario may leave this cookie jar on a retired second account.
+        const restored = await post<{ user: { id: string } }>(page.request, '/auth/login', { username: user.username, password })
+        expect(restored.user.id).toBe(user.id)
+        for (const link of await ownLinks(page.request)) await post(request, '/admin/short-link/delete', { id: link.id })
+      } catch (error) { failures.push(error) } }
       if (user) { try { await post(request, '/admin/user/update', { id: user.id, nickname: 'Retired allowlist fixture', status: 'disabled' }) } catch (error) { failures.push(error) } }
       for (const context of contexts) { try { await context.close() } catch (error) { failures.push(error) } }
     }
@@ -204,7 +209,10 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
     await expect(form.getByRole('textbox', { name: labels.host + ' 1', exact: true })).toHaveValue('draft.example')
     await expect(form.getByRole('button', { name: labels.save, exact: true })).toBeDisabled()
     await expect(form.getByText(language === 'en' ? /Another request changed the suffix list/ : /后缀白名单已被其他请求修改/)).toBeVisible()
+    const reloaded = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1' + path)
     await activate(form.getByRole('button', { name: labels.reload, exact: true }))
+    expect((await (await reloaded).json()).data.suffixes).toEqual(['server.example'])
+    await expect(form.getByRole('textbox')).toHaveCount(1)
     await expect(form.getByRole('textbox')).toHaveValue('server.example')
     await expect(form.getByRole('button', { name: labels.save, exact: true })).toBeEnabled()
 
