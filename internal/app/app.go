@@ -196,6 +196,12 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			return nil, fmt.Errorf("validate target host suffix denylist: %w", err)
 		}
 		deps.TargetHostSuffixDenylist = targetSuffixService
+		targetSuffixAllowlistService := targetpolicy.NewSuffixAllowlistService(pool)
+		if err := targetSuffixAllowlistService.ValidateStartup(ctx); err != nil {
+			pool.Close()
+			return nil, fmt.Errorf("validate target host suffix allowlist: %w", err)
+		}
+		deps.TargetHostSuffixAllowlist = targetSuffixAllowlistService
 		createQuotaService := createquota.NewService(pool)
 		if err := createQuotaService.ValidateStartup(ctx); err != nil {
 			pool.Close()

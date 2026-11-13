@@ -30,6 +30,7 @@ type Dependencies struct {
 	TargetHostDenylist              targetpolicy.Port
 	TargetHostAllowlist             targetpolicy.AllowlistPort
 	TargetHostSuffixDenylist        targetpolicy.SuffixPort
+	TargetHostSuffixAllowlist       targetpolicy.SuffixAllowlistPort
 	AccountDailyCreateQuota         createquota.Port
 	OwnDailyCreateUsage             createquota.UsagePort
 	Appearance                      system.AppearancePort
@@ -179,6 +180,11 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 				handler := targetpolicy.NewSuffixHandler(dependency.TargetHostSuffixDenylist, logger)
 				businessAPI.Get("/admin/system/target-host-suffix-denylist", handler.Get)
 				businessAPI.Post("/admin/system/target-host-suffix-denylist/update", handler.Update)
+			}
+			if dependency.TargetHostSuffixAllowlist != nil {
+				handler := targetpolicy.NewSuffixAllowlistHandler(dependency.TargetHostSuffixAllowlist, logger)
+				businessAPI.Get("/admin/system/target-host-suffix-allowlist", handler.Get)
+				businessAPI.Post("/admin/system/target-host-suffix-allowlist/update", handler.Update)
 			}
 			if dependency.AccountDailyCreateQuota != nil {
 				handler := createquota.NewHandler(dependency.AccountDailyCreateQuota, logger)
