@@ -1,6 +1,10 @@
 import { z } from 'zod'
 
-export const targetUrlSchema = z.string().trim().pipe(z.httpUrl())
+// URL syntax is checked before the hostname pattern; retain the original URL bytes.
+export const targetUrlSchema = z.string().trim().pipe(z.union([
+  z.httpUrl(),
+  z.url({ protocol: /^https?$/, hostname: /^(?:\d{1,3}(?:\.\d{1,3}){3}|\[[\da-f:]+\])$/i }),
+]))
 
 export const passwordSchema = z.string().refine(
   (value) => {
