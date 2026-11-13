@@ -1,5 +1,11 @@
 # MoeURL 产品总览
 
+## 当前维护（2026-11-14，v0.69.1）
+
+v0.69.0／PR331 已完整交付：最终 bf20adb 真实 CodeRabbit、正常 squash master `fc8d240800f5eb3657d49c13286aef1ca1b6f685`、独立 API／fetch 相同 tree／唯一父、四个标准任务和 12 文件恢复归档完成。28 条裁决、M1 及原门禁保持原报告归属，下方是历史检查点。
+
+当前[策略版本年份边界维护](scope-v0.69.1.md)仅修五份目标策略共享版本的原文及 UTC 年份界限，保留微秒、合法 offset、CAS 和错误码；设计已完成，尚未实现／验证。产品保持 0.69.0，无新依赖、API、权限或迁移，见[计划](../implementation/v0.69.1-plan.md)。不查 CI，不发布部署。
+
 ## 当前开发（2026-11-13，v0.69.0）
 
 PR330 已交付为 master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。当前[精确目标 IP 黑名单](scope-v0.69.0.md)支持 0–100 个直接地址、mapped 归一和今后目标写入，保持旧公开访问，不加入 CIDR、DNS 解析或 SSRF 承诺。标准 Task1–3 complete，Task4 进行中；唯一独立终审两项 Important 修复后，完整前端 5464 项／四项 100%、后端 4647 项／业务 100%、Linux race／vet 和新产品一次 389／389 浏览器通过，ROOT 核对 32 张新图，准确恢复清理完成。真实 CodeRabbit、正常合并与整版交付仍待，year0000 Minor、旧通知残留及原失败见[验收](../implementation/v0.69.0-acceptance.md)，执行身份不改归属。
