@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-13，v0.69.0）
 
-PR330 已完整交付为 master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。当前[精确目标 IP 设计](../specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)后端标准 Task1 complete：使用标准库 netip 和独立 strict 资源，复用现有 gate／身份／CAS／键名审计；五份存储先验证、拒绝优先，mapped 归为 IPv4，旧访问保持。独立前端严格校验地址与响应，保留编辑原文，完整身份 generation／未知与冲突屏障沿用既有机制，本地完整门禁通过、标准 Task2 收口中。不增加依赖、权限、DNS 请求或 SSRF 承诺，旧四 DTO 不扩展；源码版本 0.69.0，准确新产品、真实审查及整版交付仍待。
+当前[精确目标 IP 设计](../specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)的标准 Task1–2 complete：标准库 netip、独立 strict 资源，复用 gate／身份／CAS／键名审计；五存储先验证、拒绝优先，mapped 归为 IPv4。前端保留编辑原文和身份 generation／未知与冲突屏障；共享 URL schema 保留旧 DNS 分支，仅增加合法 HTTP IP 主机，不重写 URL。补充完整 5453 项／四项 100% 和最终产品 389 个独立浏览器身份通过；手机按钮经滚动可达，补测试证明，不改产品 CSS。ROOT 已看 39 张原图，恢复清理完成，Task3 标准收口中。无新依赖、权限、DNS 请求或 SSRF 承诺；真实审查与整版交付仍待，准确运行归属见[验收](v0.69.0-acceptance.md)。
 
 ## 当前维护（2026-11-13，v0.68.2）
 

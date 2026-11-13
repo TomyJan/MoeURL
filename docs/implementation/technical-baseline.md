@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-13，v0.69.0）
 
-PR330 已完整交付为 master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。新[精确目标 IP 资源](../specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)后端标准 Task1 complete：`security.target_ip_denylist`、独立 GET／POST、900220／900221 和 00045 迁移；0–100 个地址、严格 canonical、mapped 归一、第五资源同事务及原 gate 锁序，旧 DTO／公开访问不变。独立中英卡片已实现，Node26.5.1 Linux／pnpm11.5.0 完整 5441 项／四项 100% 及 types／lint／build 通过，标准 Task2 收口中。源码版本 0.69.0，准确新产品、真实审查和交付仍待；依赖闭包／lock／workspace 不变、无安装，不改权限，不查 CI，不发布部署，准确运行时和扫描风险见[验收](v0.69.0-acceptance.md)。
+PR330 已交付为 master `23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`。新[精确目标 IP 资源](../specs/2026-11-13-v0.69.0-target-ip-denylist-design.md)的标准 Task1–2 complete：独立 GET／POST、900220／900221、00045 迁移、五资源事务和原 gate 锁序，旧 DTO／公开访问保持。固定 Node26.5.1 Linux／pnpm11.5.0 补充完整 5453 项／四项 100% 及 types／lint／build 通过。产品 web/footer 来自 e1a9bc7，Go 准确复用本版 1efe144 编译；389 个独立浏览器身份及英语手机补验通过，ROOT 看 39 张原图，恢复清理完成，Task3 标准收口中。依赖闭包／lock／workspace 不变、无安装；实际 Chromium／PostgreSQL、分区失败、源和所选产品扫描边界见[验收](v0.69.0-acceptance.md)。真实审查和交付仍待，不查 CI，不发布部署。
 
 ## 当前维护（2026-11-13，v0.68.2）
 

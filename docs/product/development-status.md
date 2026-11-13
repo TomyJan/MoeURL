@@ -4,7 +4,7 @@
 
 PR330 已完整交付，master`23bbc78ebd8c30871351e13b6a505d6ab6a01a8a`；最终b9fc6d9真实CodeRabbit、两个标准任务、正常合并独立API/fetch/tree/唯一父和9文件恢复归档完成，11条裁决完整保留。六条语法误报逐项公开拒绝，无新延期Minor；原产品执行不重归属。
 
-当前[精确目标 IP 黑名单](scope-v0.69.0.md)的后端、迁移及五策略事务已实现；真实行为 RED→GREEN、扩展 17 项、host 完整 4639 项／业务 100%、Linux 完整 race／vet、SQLC 两次零漂移及条件源扫描已留证，标准 Task1 complete。独立中英前端已实现，真实缺卡片 RED→GREEN、完整 5441 项／四项 100% 及 types／lint／build 通过，标准 Task2 收口中。源码版本 0.69.0，准确新产品、真实审查与交付仍待。四标准任务见[计划](../implementation/v0.69.0-plan.md)及[验收](../implementation/v0.69.0-acceptance.md)。不查询或等待 CI，不发布部署；下方旧检查点保持原归属。
+当前[精确目标 IP 黑名单](scope-v0.69.0.md)已实现，标准 Task1–2 complete。后端完整 4639 项／业务 100%、Linux race／vet、SQLC 两次零漂移及条件源扫描留证；浏览器发现的旧 IP URL 误拒已真实 RED→GREEN，补充完整前端 5453 项／四项 100%、types／lint／build 通过。最终产品 389 个独立浏览器身份均有通过，另有英语手机按钮可达性补验；ROOT 已看 39 张原图，产品副本及镜像在恢复包全解压核验后清理。Task3 本地验收完成、标准收口中，真实审查与整版交付仍待。各分区、原失败和执行身份见[验收](../implementation/v0.69.0-acceptance.md)，四标准任务见[计划](../implementation/v0.69.0-plan.md)。不查 CI，不发布部署。
 
 ## 当前维护（2026-11-13，v0.68.2）
 
