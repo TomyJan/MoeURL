@@ -376,7 +376,7 @@ describe('independent target policy draft', () => {
     expect(screen.getByRole('textbox', { name: locale === 'en' ? 'DNS suffix 1' : 'DNS 后缀 1' })).toHaveProperty('value', 'blocked.example')
     expect(screen.getByRole('button', { name: locale === 'en' ? 'Clear list' : '清空列表' })).toBeTruthy()
     expect(screen.getByText(locale === 'en' ? /subdomains at every depth/ : /所有层级的子域/)).toBeTruthy()
-    expect(screen.getByText(locale === 'en' ? /Exact and suffix denial take priority over both allow rules/ : /精确及后缀拒绝均优先于两种允许规则/)).toBeTruthy()
+    expect(screen.getByText(locale === 'en' ? /Exact and suffix denial take priority over all three allow rules/ : /精确及后缀拒绝均优先于三种允许规则/)).toBeTruthy()
     expect(screen.getByText(locale === 'en' ? /com blocks all new \.com targets and changes to \.com targets/ : /com 会拒绝所有新的 \.com 目标及改为 \.com 的目标/)).toBeTruthy()
   })
 })

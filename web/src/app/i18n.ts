@@ -739,7 +739,7 @@ export const messages = {
     targetAllowlist: {
       heading: '目标主机白名单', form: '目标主机白名单设置', enabled: '启用目标主机白名单', host: '主机', add: '添加主机', remove: '删除主机', clear: '清空列表',
       hint: '默认关闭，可预配置最多 100 个精确 ASCII 主机名；国际化域名使用 ACE（punycode）。不填写协议、端口、路径、IP 或通配符。关闭保留名单，清空不会关闭开关，所有修改均须保存。',
-      scope: '本卡片精确匹配 DNS 主机，不包含子域；与启用的后缀白名单取并集。任一白名单启用时拒绝 IP 目标，两种黑名单始终优先。已有短链访问和已提交批次的结果恢复不受影响。这不是 SSRF 防护或目标安全认证。',
+      scope: '本卡片精确匹配 DNS 主机，不包含子域；与启用的 DNS 后缀和 CIDR 白名单取并集。DNS 只匹配 DNS 规则，字面 IP 只匹配 CIDR；仅启用 DNS 允许规则时拒绝 IP。基础禁限及四种拒绝规则始终优先。已有短链访问和已提交批次的结果恢复不受影响。这不是 SSRF 防护或目标安全认证。',
       save: '保存白名单', reload: '重新加载白名单', saved: '目标主机白名单已保存。',
       loadFailed: '白名单加载失败，请重新加载。', saveFailed: '保存失败，草稿已保留，请重试。',
       saveUnknown: '保存结果未确认。请先保留需要的草稿，再重新加载核对服务器设置；核对成功前无法再次保存。',
@@ -750,7 +750,7 @@ export const messages = {
     targetSuffixAllowlist: {
       heading: '目标 DNS 后缀白名单', form: '目标 DNS 后缀白名单设置', enabled: '启用目标 DNS 后缀白名单', suffix: 'DNS 后缀', add: '添加后缀', remove: '删除后缀', clear: '清空列表',
       hint: '默认关闭，可预配置最多 100 个 ASCII DNS 后缀；国际化域名使用 ACE（punycode）。不填写协议、端口、路径、IP 或通配符。关闭保留名单，清空不会关闭开关，所有修改均须保存。',
-      scope: '每项匹配自身及按标签边界的所有子域，与启用的精确白名单取并集；两种黑名单始终优先，任一白名单启用时拒绝 IP 目标。只限制今后的创建和目标变更，已有短链访问和已提交批次恢复不受影响。请谨慎设置宽规则，例如 com 会允许所有 .com 目标，除非命中拒绝规则。这不是 DNS 探测、SSRF 防护或目标安全认证。',
+      scope: '每项匹配自身及按标签边界的所有子域，与启用的 DNS 精确和 CIDR 白名单取并集。DNS 只匹配 DNS 规则，字面 IP 只匹配 CIDR；仅启用 DNS 允许规则时拒绝 IP。基础禁限及四种拒绝规则始终优先。只限制今后的创建和目标变更，已有短链访问和已提交批次恢复不受影响。请谨慎设置宽规则，例如 com 会允许所有 .com 目标，除非命中拒绝规则。这不是 DNS 探测、SSRF 防护或目标安全认证。',
       save: '保存后缀白名单', reload: '重新加载后缀白名单', saved: '目标 DNS 后缀白名单已保存。',
       loadFailed: '后缀白名单加载失败，请重新加载。', saveFailed: '保存失败，草稿已保留，请重试。',
       saveUnknown: '保存结果未确认。请先保留需要的草稿，再重新加载核对服务器设置；核对成功前无法再次保存。',
@@ -761,7 +761,7 @@ export const messages = {
     targetSuffixPolicy: {
       heading: '目标 DNS 后缀黑名单', form: '目标 DNS 后缀黑名单设置', host: 'DNS 后缀', add: '添加后缀', remove: '删除后缀', clear: '清空列表',
       hint: '最多 100 项。填写 ASCII 主机名，国际化域名使用 ACE（punycode）；不填写协议、端口、路径、IP 或通配符。允许父子规则重叠，规范化后的重复项不允许。空行必须填写或删除，清空后仍需保存。',
-      scope: '每项匹配主机自身及所有层级的子域，只限制今后的创建和目标变更；精确及后缀拒绝均优先于两种允许规则。已有短链访问和已提交批次恢复不受影响。清空仅停用后缀拒绝，不改变其余规则。这不是 DNS 探测、SSRF 防护或目标安全认证。请谨慎设置宽范围后缀，例如 com 会拒绝所有新的 .com 目标及改为 .com 的目标。',
+      scope: '每项匹配主机自身及所有层级的子域，只限制今后的创建和目标变更；精确及后缀拒绝均优先于三种允许规则。已有短链访问和已提交批次恢复不受影响。清空仅停用后缀拒绝，不改变其余规则。这不是 DNS 探测、SSRF 防护或目标安全认证。请谨慎设置宽范围后缀，例如 com 会拒绝所有新的 .com 目标及改为 .com 的目标。',
       save: '保存后缀黑名单', reload: '重新加载后缀黑名单', saved: '目标 DNS 后缀黑名单已保存。',
       loadFailed: '后缀黑名单加载失败，请重新加载。', saveFailed: '保存失败，草稿已保留，请重试。',
       saveUnknown: '保存结果未确认。请先保留需要的草稿，再重新加载核对服务器设置；核对成功前无法再次保存。',
@@ -789,6 +789,18 @@ export const messages = {
       saveUnknown: '保存结果未确认。请先保留需要的草稿，再重新加载核对服务器设置；核对成功前无法再次保存。',
       conflict: 'IP 黑名单已被其他请求修改。草稿已保留，请明确重新加载后再保存，不会自动重试写入。',
       invalid: '请检查地址格式、重复项及 100 项限制；空行不会被自动忽略。', invalidField: '请填写有效的 IPv4 或 IPv6 地址。',
+    },
+    targetCIDRAllowlist: {
+      heading: '目标 CIDR 白名单', form: '目标 CIDR 白名单设置', enabled: '启用目标 CIDR 白名单', prefix: 'CIDR 网段', add: '添加网段', remove: '删除网段', clear: '清空列表',
+      hint: '默认关闭，可预配置最多 100 个 IPv4 或原生 IPv6 CIDR，例如 192.0.2.0/24 或 2001:db8::/32。保存时清零主机位并排序；规范重复项会被拒绝，重叠网段保留且不会合并。关闭保留名单，清空不会关闭开关，所有修改均须保存。',
+      scope: '启用的 DNS 精确、DNS 后缀和 CIDR 白名单取并集：DNS 只匹配 DNS 规则，字面 IP 只匹配 CIDR。只启用 CIDR 时拒绝全部 DNS 新目标；只启用 DNS 时仍拒绝 IP。基础地址禁限及四种拒绝规则始终优先。只限制今后创建和目标变更，已有短链访问和已提交批次恢复不受影响；不解析 DNS，也不是 SSRF 防护或目标安全认证。',
+      wideWarning: '/0 允许对应地址族的所有合规新目标：0.0.0.0/0 用于 IPv4，::/0 用于原生 IPv6，两者不能互相替代，且不能豁免基础禁限或任何拒绝规则。IPv4 映射 IPv6 目标按 IPv4 匹配，IPv4 兼容 IPv6 仍按原生 IPv6；请使用 IPv4 CIDR 配置映射目标，不接受映射形式的 CIDR。',
+      save: '保存网段白名单', reload: '重新加载网段白名单', saved: '目标 CIDR 白名单已保存。',
+      loadFailed: '网段白名单加载失败，请重新加载。', saveFailed: '保存失败，草稿已保留，请重试。',
+      saveUnknown: '保存结果未确认。请先保留需要的草稿，再重新加载核对服务器设置；核对成功前无法再次保存。',
+      conflict: '网段白名单已被其他请求修改。草稿已保留，请明确重新加载后再保存，不会自动重试写入。',
+      enabledEmpty: '启用白名单前请至少添加一个有效网段；清空列表不会自动关闭白名单。',
+      invalid: '请检查 CIDR 格式、规范重复项及 100 项限制；空行不会被自动忽略。', invalidField: '请填写有效的 IPv4 或原生 IPv6 CIDR；映射地址使用 IPv4 CIDR。',
     },
     targetCIDRPolicy: {
       heading: '目标 IP 网段黑名单', form: '目标 IP 网段黑名单设置', prefix: 'CIDR 网段', add: '添加网段', remove: '删除网段', clear: '清空列表',
@@ -1696,7 +1708,7 @@ export const messages = {
     targetAllowlist: {
       heading: 'Allowed target hosts', form: 'Allowed target host settings', enabled: 'Enable target host allowlist', host: 'Host', add: 'Add host', remove: 'Remove host', clear: 'Clear list',
       hint: 'Off by default. Preconfigure up to 100 exact ASCII host names; use ACE (punycode) for international domains. Omit schemes, ports, paths, IP addresses and wildcards. Switching off keeps the list; clearing does not switch it off. Save every change explicitly.',
-      scope: 'This card matches exact DNS hosts without matching subdomains. Enabled exact and suffix allowlists form a union. IP targets are refused when either is enabled, and both denial rules always take priority. Existing visits and recovery of committed batch results are unaffected. This is not SSRF protection or a safety certification.',
+      scope: 'This card matches exact DNS hosts without matching subdomains. Enabled exact DNS, DNS suffix and CIDR allowlists form a union. DNS targets match only DNS rules; literal IP targets match only CIDRs. Enabling only DNS allow rules still refuses IP targets. Base restrictions and all four denial policies take priority. Existing visits and recovery of committed batch results are unaffected. This is not SSRF protection or a safety certification.',
       save: 'Save allowed hosts', reload: 'Reload allowed hosts', saved: 'Allowed target hosts saved.',
       loadFailed: 'Could not load allowed hosts. Please reload.', saveFailed: 'Could not save. Your draft is retained; please retry.',
       saveUnknown: 'Save result is unknown. Keep a copy of your draft, then reload to check the server settings. You cannot save again until a successful reload.',
@@ -1707,7 +1719,7 @@ export const messages = {
     targetSuffixAllowlist: {
       heading: 'Allowed target DNS suffixes', form: 'Allowed target DNS suffix settings', enabled: 'Enable target DNS suffix allowlist', suffix: 'DNS suffix', add: 'Add suffix', remove: 'Remove suffix', clear: 'Clear list',
       hint: 'Off by default. Preconfigure up to 100 ASCII DNS suffixes; use ACE (punycode) for international domains. Omit schemes, ports, paths, IP addresses and wildcards. Switching off keeps the list; clearing does not switch it off. Save every change explicitly.',
-      scope: 'Each rule matches itself and subdomains at DNS label boundaries. Enabled exact and suffix allowlists form a union; both denial rules take priority. IP targets are refused when either allowlist is enabled. Only new links and changed targets are restricted; existing visits and committed batch recovery are unaffected. Use broad rules carefully: com allows all .com targets unless a deny rule matches. This is not DNS probing, SSRF protection or a safety certification.',
+      scope: 'Each rule matches itself and subdomains at DNS label boundaries. Enabled exact DNS, DNS suffix and CIDR allowlists form a union. DNS targets match only DNS rules; literal IP targets match only CIDRs. Enabling only DNS allow rules still refuses IP targets. Base restrictions and all four denial policies take priority. Only new links and changed targets are restricted; existing visits and committed batch recovery are unaffected. Use broad rules carefully: com allows all .com targets unless a deny rule matches. This is not DNS probing, SSRF protection or a safety certification.',
       save: 'Save allowed suffixes', reload: 'Reload allowed suffixes', saved: 'Allowed target DNS suffixes saved.',
       loadFailed: 'Could not load allowed suffixes. Please reload.', saveFailed: 'Could not save. Your draft is retained; please retry.',
       saveUnknown: 'Save result is unknown. Keep a copy of your draft, then reload to check the server settings. You cannot save again until a successful reload.',
@@ -1718,7 +1730,7 @@ export const messages = {
     targetSuffixPolicy: {
       heading: 'Blocked target host suffixes', form: 'Blocked target host suffix settings', host: 'DNS suffix', add: 'Add suffix', remove: 'Remove suffix', clear: 'Clear list',
       hint: 'Up to 100 ASCII host names. Use ACE (punycode) for international domains. Omit schemes, ports, paths, IP addresses and wildcards. Parent and child rules may overlap; normalized duplicates are rejected. Complete or remove blank rows; clearing still requires saving.',
-      scope: 'Each rule matches the host itself and subdomains at every depth, only for new links and changed targets. Exact and suffix denial take priority over both allow rules. Existing visits and committed batch recovery are unaffected. Clearing disables only suffix denial and leaves the other rules unchanged. This is not DNS probing, SSRF protection or a safety certification. Use broad suffixes carefully: for example, com blocks all new .com targets and changes to .com targets.',
+      scope: 'Each rule matches the host itself and subdomains at every depth, only for new links and changed targets. Exact and suffix denial take priority over all three allow rules. Existing visits and committed batch recovery are unaffected. Clearing disables only suffix denial and leaves the other rules unchanged. This is not DNS probing, SSRF protection or a safety certification. Use broad suffixes carefully: for example, com blocks all new .com targets and changes to .com targets.',
       save: 'Save blocked suffixes', reload: 'Reload blocked suffixes', saved: 'Blocked target host suffixes saved.',
       loadFailed: 'Could not load blocked suffixes. Please reload.', saveFailed: 'Could not save. Your draft is retained; please retry.',
       saveUnknown: 'Save result is unknown. Keep a copy of your draft, then reload to check the server settings. You cannot save again until a successful reload.',
@@ -1746,6 +1758,18 @@ export const messages = {
       saveUnknown: 'Save result is unknown. Keep a copy of your draft, then reload to check the server settings. You cannot save again until a successful reload.',
       conflict: 'Another request changed the IP list. Your draft is retained. Explicitly reload before saving; writes are never retried automatically.',
       invalid: 'Check address syntax, duplicates and the 100-address limit. Blank rows are not silently ignored.', invalidField: 'Enter a valid IPv4 or IPv6 address.',
+    },
+    targetCIDRAllowlist: {
+      heading: 'Allowed target CIDRs', form: 'Allowed target CIDR settings', enabled: 'Enable target CIDR allowlist', prefix: 'CIDR', add: 'Add CIDR', remove: 'Remove CIDR', clear: 'Clear list',
+      hint: 'Off by default. Preconfigure up to 100 IPv4 or native IPv6 CIDRs, such as 192.0.2.0/24 or 2001:db8::/32. Saving clears host bits and sorts; normalized duplicates are rejected, while overlapping networks stay separate. Switching off keeps the list; clearing does not switch it off. Save every change explicitly.',
+      scope: 'Enabled exact DNS, DNS suffix and CIDR allowlists form a union: DNS targets match only DNS rules, and literal IP targets match only CIDRs. Enabling only CIDR refuses all new DNS targets; enabling only DNS still refuses IP targets. Base address restrictions and all four denial policies take priority. Only new links and changed targets are restricted; existing visits and committed batch recovery are unaffected. No DNS is resolved. This is not SSRF protection or a safety certification.',
+      wideWarning: '/0 allows all otherwise permitted new targets in one address family: 0.0.0.0/0 for IPv4 and ::/0 for native IPv6. Neither replaces the other or bypasses base restrictions or any denial rule. IPv4-mapped IPv6 targets match IPv4; IPv4-compatible IPv6 stays native IPv6. Configure mapped targets with IPv4 CIDRs; mapped CIDR rules are not accepted.',
+      save: 'Save allowed CIDRs', reload: 'Reload allowed CIDRs', saved: 'Allowed target CIDRs saved.',
+      loadFailed: 'Could not load allowed CIDRs. Please reload.', saveFailed: 'Could not save. Your draft is retained; please retry.',
+      saveUnknown: 'Save result is unknown. Keep a copy of your draft, then reload to check the server settings. You cannot save again until a successful reload.',
+      conflict: 'Another request changed the CIDR list. Your draft is retained. Explicitly reload before saving; writes are never retried automatically.',
+      enabledEmpty: 'Add at least one valid CIDR before enabling. Clearing the list does not switch the allowlist off.',
+      invalid: 'Check CIDR syntax, normalized duplicates and the 100-rule limit. Blank rows are not silently ignored.', invalidField: 'Enter a valid IPv4 or native IPv6 CIDR. Use IPv4 CIDRs for mapped addresses.',
     },
     targetCIDRPolicy: {
       heading: 'Blocked target IP networks', form: 'Blocked target IP network settings', prefix: 'CIDR prefix', add: 'Add network', remove: 'Remove network', clear: 'Clear list',
