@@ -101,7 +101,7 @@ for (const resource of resources.slice(0, 3)) for (const language of ['en', 'zh-
     const failed = page.waitForEvent('requestfailed', { predicate: request => new URL(request.url()).pathname === '/api/v1' + resource.path })
     await activate(reload); await failed; await expect(reload).toBeEnabled()
     await expect(unknown).toBeVisible(); await expect(save).toBeDisabled(); await expect(field).toHaveValue('newer-draft.example')
-    await form.evaluate(element => { element.closest('section')!.scrollIntoView({ block: 'start' }); window.scrollBy(0, -80) })
+    await unknown.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }))
     await expect(unknown).toBeInViewport(); await expect(reload).toBeInViewport(); await expect(save).toBeInViewport(); await expectNoHorizontalOverflow(page)
     await page.screenshot({ path: info.outputPath(resource.key + '-unknown-' + language + '-' + width + '.png') })
     const confirmed = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1' + resource.path)
