@@ -3,7 +3,7 @@ allowBuilds:
   vue-demi: true
 overrides:
   '@eslint/config-array@0.23.5>minimatch': 11.0.2
-  '@typescript-eslint/typescript-estree@8.72.1>minimatch': 11.0.2
+  '@typescript-eslint/typescript-estree>minimatch': 11.0.2
   'editorconfig@3.0.2>minimatch': 11.0.2
   'eslint@10.14.0>minimatch': 11.0.2
   'js-beautify@2.0.3>glob': 14.0.3
