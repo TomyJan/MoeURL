@@ -13,9 +13,9 @@ for (const language of ['zh-CN', 'en'] as const) for (const { width, rows } of [
     const context = await browser.newContext({ baseURL: info.project.use.baseURL, viewport: { width, height: width === 320 ? 500 : width === 1280 ? 900 : 800 }, locale: language, hasTouch: width !== 1280, colorScheme: theme, reducedMotion: 'reduce', serviceWorkers: 'block' })
     const page = await context.newPage(), nonce = randomBytes(7).toString('hex'), password = 'phone-diagnostic-disposable-account'
     if (width !== 1280) touchPages.add(page)
-    let userId: string | undefined
-    const post = async (path: string, data: unknown) => {
-      const response = await page.request.post('/api/v1' + path, { data, timeout: 10_000 })
+    let account: { id: string; username: string } | undefined
+    const post = async (path: string, data: unknown, api = page.request) => {
+      const response = await api.post('/api/v1' + path, { data, timeout: 10_000 })
       expect(response.status()).toBe(200)
       const result = await response.json(); expect(result.code).toBe(0); return result.data
     }
@@ -23,7 +23,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const { width, rows } of [
       await context.addInitScript(({ language, theme }) => { localStorage.setItem('moeurl.language', language); localStorage.setItem('moeurl.theme', theme) }, { language, theme })
       await post('/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword })
       const { user } = await post('/admin/user/create', { username: 'phone-denial-' + nonce, password, nickname: 'Phone denial diagnostic', groupKey: 'admin', status: 'active' })
-      userId = user.id
+      account = { id: user.id, username: user.username }
       await post('/auth/logout', {})
       await post('/auth/login', { username: user.username, password })
       await page.goto('/link')
@@ -82,13 +82,20 @@ for (const language of ['zh-CN', 'en'] as const) for (const { width, rows } of [
       const afterCreation = await (await page.request.get('/api/v1/short-link/list?page=1&pageSize=100')).json()
       expect(afterCreation.code).toBe(0); expect(afterCreation.data.items).toHaveLength(rows)
     } finally {
-      try { if (userId) {
-        const list = await (await page.request.get('/api/v1/short-link/list?page=1&pageSize=100')).json()
-        expect(list.code).toBe(0)
-        await post('/auth/logout', {})
-        await post('/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword })
-        for (const link of list.data.items) await post('/admin/short-link/delete', { id: link.id })
-        await post('/admin/user/update', { id: userId, nickname: 'Phone denial diagnostic', status: 'disabled' })
+      try { if (account) {
+        // Cleanup ownership must not depend on where the scenario's login/logout failed.
+        const cleanup = await browser.newContext({ baseURL: info.project.use.baseURL })
+        try {
+          await post('/auth/login', { username: account.username, password }, cleanup.request)
+          const me = await (await cleanup.request.get('/api/v1/auth/me')).json()
+          expect(me).toMatchObject({ code: 0, data: { user: { id: account.id } } })
+          const list = await (await cleanup.request.get('/api/v1/short-link/list?page=1&pageSize=100')).json()
+          expect(list.code).toBe(0)
+          await post('/auth/logout', {}, cleanup.request)
+          await post('/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword }, cleanup.request)
+          for (const link of list.data.items) await post('/admin/short-link/delete', { id: link.id }, cleanup.request)
+          await post('/admin/user/update', { id: account.id, nickname: 'Phone denial diagnostic', status: 'disabled' }, cleanup.request)
+        } finally { await cleanup.close() }
       } } finally { await context.close() }
     }
   })
