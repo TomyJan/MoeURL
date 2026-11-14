@@ -35,6 +35,7 @@ type Dependencies struct {
 	TargetCIDRDenylist              targetpolicy.CIDRPort
 	TargetCIDRAllowlist             targetpolicy.CIDRAllowlistPort
 	TargetPolicyCheck               shortlink.TargetPolicyCheckPort
+	TargetPolicyBatchCheck          shortlink.TargetPolicyBatchCheckPort
 	AccountDailyCreateQuota         createquota.Port
 	OwnDailyCreateUsage             createquota.UsagePort
 	Appearance                      system.AppearancePort
@@ -153,6 +154,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			if dependency.TargetPolicyCheck != nil {
 				handler := shortlink.NewTargetPolicyCheckHandler(dependency.TargetPolicyCheck, logger)
 				businessAPI.Post("/admin/system/target-policy/check", handler.Check)
+			}
+			if dependency.TargetPolicyBatchCheck != nil {
+				handler := shortlink.NewTargetPolicyBatchCheckHandler(dependency.TargetPolicyBatchCheck, logger)
+				businessAPI.Post("/admin/system/target-policy/check-batch", handler.Check)
 			}
 			if dependency.System != nil {
 				systemHandler := system.NewHandlerWithLogger(dependency.System, logger)

@@ -136,75 +136,11 @@ func (s *Service) Update(ctx context.Context, actor auth.CurrentUser, input Upda
 // CheckTargets validates all seven resources in the caller's gate-holding
 // transaction, then applies denials before the union of enabled allow rules.
 func CheckTargets(ctx context.Context, q *sqlc.Queries, targets []string) error {
-	row, err := q.GetSystemSetting(ctx, Key)
+	saved, err := readSavedTargetPolicies(ctx, q)
 	if err != nil {
 		return err
 	}
-	settings, err := storedSettings(row)
-	if err != nil {
-		return err
-	}
-	allowlistRow, err := q.GetSystemSetting(ctx, AllowlistKey)
-	if err != nil {
-		return err
-	}
-	allowlist, err := storedAllowlistSettings(allowlistRow)
-	if err != nil {
-		return err
-	}
-	suffixRow, err := q.GetSystemSetting(ctx, SuffixKey)
-	if err != nil {
-		return err
-	}
-	suffix, err := storedSuffixSettings(suffixRow)
-	if err != nil {
-		return err
-	}
-	suffixAllowlistRow, err := q.GetSystemSetting(ctx, SuffixAllowlistKey)
-	if err != nil {
-		return err
-	}
-	suffixAllowlist, err := storedSuffixAllowlistSettings(suffixAllowlistRow)
-	if err != nil {
-		return err
-	}
-	ipRow, err := q.GetSystemSetting(ctx, IPKey)
-	if err != nil {
-		return err
-	}
-	ipSettings, err := storedIPSettings(ipRow)
-	if err != nil {
-		return err
-	}
-	cidrRow, err := q.GetSystemSetting(ctx, CIDRKey)
-	if err != nil {
-		return err
-	}
-	cidrSettings, err := storedCIDRSettings(cidrRow)
-	if err != nil {
-		return err
-	}
-	cidrAllowlistRow, err := q.GetSystemSetting(ctx, CIDRAllowlistKey)
-	if err != nil {
-		return err
-	}
-	cidrAllowlist, err := storedCIDRAllowlistSettings(cidrAllowlistRow)
-	if err != nil {
-		return err
-	}
-	if err := checkCIDRs(cidrSettings.Prefixes, targets); err != nil {
-		return err
-	}
-	if err := checkIPs(ipSettings.Addresses, targets); err != nil {
-		return err
-	}
-	if err := checkHosts(settings.Hosts, targets); err != nil {
-		return err
-	}
-	if err := checkSuffixes(suffix.Suffixes, targets); err != nil {
-		return err
-	}
-	return checkCombinedAllowlistTargets(allowlist, suffixAllowlist, cidrAllowlist, targets)
+	return saved.check(targets)
 }
 
 // actorID accepts only a canonical nonzero UUID; guest markers never reach I/O.

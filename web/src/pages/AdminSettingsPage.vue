@@ -50,6 +50,7 @@
     <TargetCIDRDenylistEditor />
     <TargetCIDRAllowlistEditor />
     <TargetPolicyCheck />
+    <TargetPolicyBatchCheck />
     <AccountDailyCreateQuotaEditor />
     <AdminAuthenticationPage />
   </section>
@@ -76,6 +77,7 @@ import TargetIPDenylistEditor from '@/features/target-ip-denylist/TargetIPDenyli
 import TargetCIDRDenylistEditor from '@/features/target-cidr-denylist/TargetCIDRDenylistEditor.vue'
 import TargetCIDRAllowlistEditor from '@/features/target-cidr-allowlist/TargetCIDRAllowlistEditor.vue'
 import TargetPolicyCheck from '@/features/target-policy-check/TargetPolicyCheck.vue'
+import TargetPolicyBatchCheck from '@/features/target-policy-batch-check/TargetPolicyBatchCheck.vue'
 import AccountDailyCreateQuotaEditor from '@/features/account-daily-create-quota/AccountDailyCreateQuotaEditor.vue'
 
 const { t } = useI18n()

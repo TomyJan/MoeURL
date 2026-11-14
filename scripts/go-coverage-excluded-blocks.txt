@@ -80,3 +80,15 @@ github.com/TomyJan/MoeURL/internal/oidc/provider_service.go:363.16,365.3
 # AES-256 keys are length-checked before construction; the standard AES and GCM constructors cannot reject this configuration.
 github.com/TomyJan/MoeURL/internal/oidc/secret.go:40.16,42.3
 github.com/TomyJan/MoeURL/internal/oidc/secret.go:44.16,46.3
+
+# Batch saved snapshots validate all seven resources before matching. The pure
+# matchers can then return only nil/ErrInvalidTarget/ErrTargetDenied; malformed
+# CIDR ErrCorrupt is already rejected by the snapshot reader. Keep unexpected
+# errors fatal if a future matcher gains another failure, and reassess these
+# exact blocks when changing that closed error set. Transport, storage failures
+# and every reachable decision remain covered through real PostgreSQL tests.
+github.com/TomyJan/MoeURL/internal/targetpolicy/batch_check.go:112.90,114.4
+# CheckTargetsIndividually returns unexpected errors via its top-level error,
+# never as an item; this second guard prevents a future contract violation from
+# being reported as allowed. Do not inject a production-only test hook to reach it.
+github.com/TomyJan/MoeURL/internal/shortlink/target_policy_batch_check.go:92.12,93.20
