@@ -19,6 +19,8 @@ export type BulkCreateRedirectModeItem = Readonly<BulkCreateCustomSlugItem & { r
 export type BulkCreateRedirectModesInput = Readonly<{ requestId: string; items: readonly BulkCreateRedirectModeItem[] }>
 export type BulkCreateExpirationItem = Readonly<BulkCreateRedirectModeItem & { expiresAt: string }>
 export type BulkCreateExpirationsInput = Readonly<{ requestId: string; items: readonly BulkCreateExpirationItem[] }>
+export type BulkCreateVisitLimitItem = Readonly<BulkCreateExpirationItem & { maxVisits: string }>
+export type BulkCreateVisitLimitsInput = Readonly<{ requestId: string; items: readonly BulkCreateVisitLimitItem[] }>
 const rawTitle = z.string().refine(value => !/[\uD800-\uDFFF]/u.test(value) && shortLinkMetadataSchema.safeParse({ title: value, tags: [] }).success)
 export const bulkCreateItemsSchema = z.array(z.strictObject({ targetUrl: target, title: rawTitle })).min(1).max(20)
   .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
@@ -60,6 +62,12 @@ function canonicalExpiration(value: string): boolean {
 }
 const expirationItemSchema = redirectModeItemSchema.safeExtend({ expiresAt: z.string().refine(canonicalExpiration) })
 export const bulkCreateExpirationsInputSchema = z.strictObject({ requestId, items: z.array(expirationItemSchema).min(1).max(20)
+  .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
+  .refine(items => { const slugs = items.filter(item => item.customSlug !== '').map(item => item.customSlug.toLowerCase()); return new Set(slugs).size === slugs.length }) })
+  .refine(input => new TextEncoder().encode(JSON.stringify(input)).byteLength <= 65536)
+
+const visitLimitItemSchema = expirationItemSchema.safeExtend({ maxVisits: z.string().refine(value => value === '' || (/^[1-9][0-9]{0,9}$/.test(value) && Number(value) <= 2147483647)) })
+export const bulkCreateVisitLimitsInputSchema = z.strictObject({ requestId, items: z.array(visitLimitItemSchema).min(1).max(20)
   .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
   .refine(items => { const slugs = items.filter(item => item.customSlug !== '').map(item => item.customSlug.toLowerCase()); return new Set(slugs).size === slugs.length }) })
   .refine(input => new TextEncoder().encode(JSON.stringify(input)).byteLength <= 65536)
@@ -115,8 +123,15 @@ export async function batchCreateShortLinksWithExpirations(input: BulkCreateExpi
   return sendBatch('/short-link/batch-create-with-expirations', request.data, request.data.items.length, expectedUserId)
 }
 
+/** Preserves literal visit limits and all six existing fields in the independent seventh protocol. */
+export async function batchCreateShortLinksWithVisitLimits(input: BulkCreateVisitLimitsInput, expectedUserId?: string) {
+  const request = bulkCreateVisitLimitsInputSchema.safeParse(input)
+  if (!request.success) throw new ApiClientError(100001, 'Invalid visit-limit batch creation request')
+  return sendBatch('/short-link/batch-create-with-visit-limits', request.data, request.data.items.length, expectedUserId)
+}
+
 /** Shares bounded transport and exact receipt validation across independent protocols. */
-async function sendBatch(path: string, input: BulkCreateInput | BulkCreateTitlesInput | BulkCreateMetadataInput | BulkCreateCustomSlugsInput | BulkCreateRedirectModesInput | BulkCreateExpirationsInput, count: number, expectedUserId?: string) {
+async function sendBatch(path: string, input: BulkCreateInput | BulkCreateTitlesInput | BulkCreateMetadataInput | BulkCreateCustomSlugsInput | BulkCreateRedirectModesInput | BulkCreateExpirationsInput | BulkCreateVisitLimitsInput, count: number, expectedUserId?: string) {
   const controller = new AbortController()
   // Includes response-body decoding: an unacknowledged write must become recoverable.
   const deadline = setTimeout(() => controller.abort(), 15_000)

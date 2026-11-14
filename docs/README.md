@@ -1,6 +1,10 @@
 # MoeURL 文档中心
 
-## 当前维护（2026-11-15，v0.75.3）
+## 当前开发（2026-11-15，v0.76.0）
+
+PR352／v0.75.3 已完整交付。当前[CSV 最大访问次数导入](product/scope-v0.76.0.md)已完成后端与前端本地验证：5241 项后端、6253 项前端及业务覆盖率 100%。准确 `f35a695` 产品的 smoke、所选扫描、24 项浏览器单轮通过，ROOT 查看 20 张原图，产品副本与镜像已可恢复清理；真实审查和交付尚待。准确状态见[开发进度](product/development-status.md)。
+
+## v0.75.3 交付前检查点（历史）
 
 本轮仅做[文档入口与执行设计维护](product/scope-v0.75.3.md)，产品保持 0.75.2。当前交付状态和准确历史统一见[开发进度](product/development-status.md)。
 
@@ -426,6 +430,9 @@ v0.9.0 系统设置与站点品牌基础闭环的功能实现已经完成；功�
 当前实施层文档包括：
 
 - [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)
+- [当前 v0.76.0 实施计划](implementation/v0.76.0-plan.md)
+- [当前 v0.76.0 验收](implementation/v0.76.0-acceptance.md)
+- [最近完整交付 v0.75.3 验收](implementation/v0.75.3-acceptance.md)
 - [v0.24.0 计划](implementation/v0.24.0-plan.md)
 - [v0.24.0 任务](implementation/v0.24.0-tasks.md)
 - [v0.24.0 验收](implementation/v0.24.0-acceptance.md)

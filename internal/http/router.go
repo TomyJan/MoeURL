@@ -64,6 +64,7 @@ type Dependencies struct {
 	ShortLinkBatchCreateCustomSlugs   shortlink.BatchCreateWithCustomSlugsPort
 	ShortLinkBatchCreateRedirectModes shortlink.BatchCreateWithRedirectModesPort
 	ShortLinkBatchCreateExpirations   shortlink.BatchCreateWithExpirationsPort
+	ShortLinkBatchCreateVisitLimits   shortlink.BatchCreateWithVisitLimitsPort
 	Insights                          insights.Port
 	VisitExport                       insights.VisitExportPort
 	GlobalVisitExport                 insights.GlobalVisitExportPort
@@ -371,6 +372,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			if dependency.ShortLinkBatchCreateExpirations != nil {
 				handler := shortlink.NewBulkCreateExpirationHandler(dependency.ShortLinkBatchCreateExpirations, logger)
 				businessAPI.Post("/short-link/batch-create-with-expirations", handler.BatchCreateWithExpirations)
+			}
+			if dependency.ShortLinkBatchCreateVisitLimits != nil {
+				handler := shortlink.NewBulkCreateVisitLimitHandler(dependency.ShortLinkBatchCreateVisitLimits, logger)
+				businessAPI.Post("/short-link/batch-create-with-visit-limits", handler.BatchCreateWithVisitLimits)
 			}
 			if dependency.Domain != nil {
 				domainHandler := domain.NewHandler(dependency.Domain, logger)

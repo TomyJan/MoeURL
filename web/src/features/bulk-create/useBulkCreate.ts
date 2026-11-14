@@ -8,6 +8,7 @@ import { ApiClientError } from '@/shared/api/client'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 import { BULK_CSV_MAX_BYTES, parseBulkCreateImportCsv } from '@/entities/short-link/bulk-create-csv'
 import { batchCreateShortLinksWithExpirations, type BulkCreateExpirationItem, type BulkCreateExpirationsInput } from '@/entities/short-link/bulk-create'
+import { batchCreateShortLinksWithVisitLimits, type BulkCreateVisitLimitItem, type BulkCreateVisitLimitsInput } from '@/entities/short-link/bulk-create'
 
 /** Owns an in-memory batch, binding every asynchronous completion to current confirmed authority. */
 export function useBulkCreate() {
@@ -16,20 +17,26 @@ export function useBulkCreate() {
   const auth = useQuery({ queryKey: ['auth', 'me'], queryFn: me, retry: false, staleTime: Infinity })
   const { t } = useI18n()
   const opened = ref(false), draft = ref(''), pending = ref(false), unknown = ref(false), closing = ref(false), errorKey = ref('')
-  type Protocol = 'targets' | 'titles' | 'metadata' | 'custom-slugs' | 'redirect-modes' | 'expirations'
-  type StructuredItem = BulkCreateItem | BulkCreateMetadataItem | BulkCreateCustomSlugItem | BulkCreateRedirectModeItem | BulkCreateExpirationItem
-  type Snapshot = BulkCreateInput | BulkCreateTitlesInput | BulkCreateMetadataInput | BulkCreateCustomSlugsInput | BulkCreateRedirectModesInput | BulkCreateExpirationsInput
+  type Protocol = 'targets' | 'titles' | 'metadata' | 'custom-slugs' | 'redirect-modes' | 'expirations' | 'visit-limits'
+  type StructuredItem = BulkCreateItem | BulkCreateMetadataItem | BulkCreateCustomSlugItem | BulkCreateRedirectModeItem | BulkCreateExpirationItem | BulkCreateVisitLimitItem
+  type Snapshot = BulkCreateInput | BulkCreateTitlesInput | BulkCreateMetadataInput | BulkCreateCustomSlugsInput | BulkCreateRedirectModesInput | BulkCreateExpirationsInput | BulkCreateVisitLimitsInput
   const snapshot = shallowRef<Snapshot | null>(null)
   const importedItems = shallowRef<readonly StructuredItem[] | null>(null)
   const importedMode = ref<Protocol>('targets'), snapshotMode = ref<Protocol>('targets')
   const previewItems = computed<readonly StructuredItem[]>(() => !snapshot.value ? [] : 'items' in snapshot.value ? snapshot.value.items : snapshot.value.targetUrls.map(targetUrl => ({ targetUrl, title: '' })))
   const reading = ref(false)
   let generation = 0, alive = true, scope = identity.scope.value
-  let fileSequence = 0, draftRevision = 0, metadataEpoch = 0, customSlugEpoch = 0, intermediateEpoch = 0, confirmationEpoch = 0, expirationEpoch = 0
+  let fileSequence = 0, draftRevision = 0, metadataEpoch = 0, customSlugEpoch = 0, intermediateEpoch = 0, confirmationEpoch = 0, expirationEpoch = 0, visitLimitEpoch = 0
   watch(draft, () => { draftRevision++; fileSequence++; reading.value = false }, { flush: 'sync' })
   const mutation = useMutation({
     mutationFn: (attempt: { input: Snapshot; mode: Protocol; token: number; candidate: typeof scope }) => {
-      if (!isCurrent(attempt.token, attempt.candidate) || ('items' in attempt.input && !canTitleNow())) throw new Error('Batch context retired')
+      if (!isCurrent(attempt.token, attempt.candidate)) throw new Error('Batch context retired')
+      if (attempt.mode === 'visit-limits') {
+        const input = attempt.input as BulkCreateVisitLimitsInput
+        if (!canVisitLimitsNow(input.items)) { reset(); throw new Error('Batch context retired') }
+        return batchCreateShortLinksWithVisitLimits(input, attempt.candidate.userId)
+      }
+      if ('items' in attempt.input && !canTitleNow()) throw new Error('Batch context retired')
       if (attempt.mode === 'expirations') {
         const input = attempt.input as BulkCreateExpirationsInput
         if (!canExpirationsNow(input.items)) { reset(); throw new Error('Batch context retired') }
@@ -70,6 +77,10 @@ export function useBulkCreate() {
   function canExpirationNow() { return canCustomSlugNow() && !!client.getQueryData<UserResponse>(['auth', 'me'])?.user.permissions.includes('short_link:set_expiration') }
   function canExpirationsNow(items: readonly StructuredItem[]) { return canRedirectModesNow(items) && (!usesExpiration(items) || canExpirationNow()) }
   function hasExpirationDraft() { return usesExpiration(snapshot.value && 'items' in snapshot.value ? snapshot.value.items : importedItems.value ?? []) }
+  function usesVisitLimit(items: readonly StructuredItem[]) { return items.some(item => 'maxVisits' in item && item.maxVisits !== '') }
+  function canVisitLimitNow() { return canCustomSlugNow() && !!client.getQueryData<UserResponse>(['auth', 'me'])?.user.permissions.includes('short_link:set_max_visits') }
+  function canVisitLimitsNow(items: readonly StructuredItem[]) { return canExpirationsNow(items) && (!usesVisitLimit(items) || canVisitLimitNow()) }
+  function hasVisitLimitDraft() { return usesVisitLimit(snapshot.value && 'items' in snapshot.value ? snapshot.value.items : importedItems.value ?? []) }
   /** Retires private input immediately, without letting old finally blocks unlock a newer batch. */
   function reset() {
     generation++; opened.value = false; draft.value = ''; importedItems.value = null; snapshot.value = null; pending.value = false
@@ -86,7 +97,7 @@ export function useBulkCreate() {
     if (!canCustomSlugNow()) {
       customSlugEpoch++
       const currentMode = snapshot.value ? snapshotMode.value : importedMode.value
-      if (currentMode === 'custom-slugs' || currentMode === 'redirect-modes' || currentMode === 'expirations') reset()
+      if (currentMode === 'custom-slugs' || currentMode === 'redirect-modes' || currentMode === 'expirations' || currentMode === 'visit-limits') reset()
     }
     if (!canModeNow('intermediate')) {
       intermediateEpoch++
@@ -99,6 +110,10 @@ export function useBulkCreate() {
     if (!canExpirationNow()) {
       expirationEpoch++
       if (hasExpirationDraft()) reset()
+    }
+    if (!canVisitLimitNow()) {
+      visitLimitEpoch++
+      if (hasVisitLimitDraft()) reset()
     }
   })
   /** Opens a new draft only under the currently confirmed account and grants. */
@@ -114,6 +129,7 @@ export function useBulkCreate() {
       if (importedMode.value === 'custom-slugs' && !canCustomSlugNow()) { reset(); return }
       if (importedMode.value === 'redirect-modes' && !canRedirectModesNow(importedItems.value)) { reset(); return }
       if (importedMode.value === 'expirations' && !canExpirationsNow(importedItems.value)) { reset(); return }
+      if (importedMode.value === 'visit-limits' && !canVisitLimitsNow(importedItems.value)) { reset(); return }
       snapshot.value = Object.freeze({ requestId: crypto.randomUUID(), items: importedItems.value })
       snapshotMode.value = importedMode.value
     } else {
@@ -136,7 +152,7 @@ export function useBulkCreate() {
   /** Binds local file reads to both authority and the latest explicit draft intent. */
   async function importFile(file: File | undefined) {
     if (!file || !opened.value || snapshot.value || pending.value || unknown.value || !isCurrent(generation, scope)) return
-    const token = generation, candidate = scope, sequence = ++fileSequence, revision = draftRevision, titleEpoch = metadataEpoch, slugEpoch = customSlugEpoch, intermediateReadEpoch = intermediateEpoch, confirmationReadEpoch = confirmationEpoch, expirationReadEpoch = expirationEpoch
+    const token = generation, candidate = scope, sequence = ++fileSequence, revision = draftRevision, titleEpoch = metadataEpoch, slugEpoch = customSlugEpoch, intermediateReadEpoch = intermediateEpoch, confirmationReadEpoch = confirmationEpoch, expirationReadEpoch = expirationEpoch, visitLimitReadEpoch = visitLimitEpoch
     const current = () => isCurrent(token, candidate) && sequence === fileSequence && revision === draftRevision
     reading.value = true; errorKey.value = ''
     try {
@@ -149,10 +165,11 @@ export function useBulkCreate() {
       if (!parsed.success) { errorKey.value = 'bulkCreate.csvInvalid'; return }
       if (parsed.mode !== 'targets') {
         if (!canTitleNow() || titleEpoch !== metadataEpoch) { errorKey.value = 'bulkCreate.metadataRequired'; return }
-        if ((parsed.mode === 'custom-slugs' || parsed.mode === 'redirect-modes' || parsed.mode === 'expirations') && (!canCustomSlugNow() || slugEpoch !== customSlugEpoch)) { errorKey.value = 'bulkCreate.customSlugRequired'; return }
-        if ((parsed.mode === 'redirect-modes' || parsed.mode === 'expirations') && ((usesMode(parsed.data, 'intermediate') && (!canModeNow('intermediate') || intermediateReadEpoch !== intermediateEpoch))
+        if ((parsed.mode === 'custom-slugs' || parsed.mode === 'redirect-modes' || parsed.mode === 'expirations' || parsed.mode === 'visit-limits') && (!canCustomSlugNow() || slugEpoch !== customSlugEpoch)) { errorKey.value = 'bulkCreate.customSlugRequired'; return }
+        if ((parsed.mode === 'redirect-modes' || parsed.mode === 'expirations' || parsed.mode === 'visit-limits') && ((usesMode(parsed.data, 'intermediate') && (!canModeNow('intermediate') || intermediateReadEpoch !== intermediateEpoch))
           || (usesMode(parsed.data, 'confirmation') && (!canModeNow('confirmation') || confirmationReadEpoch !== confirmationEpoch)))) { errorKey.value = 'bulkCreate.redirectModeRequired'; return }
-        if (parsed.mode === 'expirations' && usesExpiration(parsed.data) && (!canExpirationNow() || expirationReadEpoch !== expirationEpoch)) { errorKey.value = 'bulkCreate.expirationRequired'; return }
+        if ((parsed.mode === 'expirations' || parsed.mode === 'visit-limits') && usesExpiration(parsed.data) && (!canExpirationNow() || expirationReadEpoch !== expirationEpoch)) { errorKey.value = 'bulkCreate.expirationRequired'; return }
+        if (parsed.mode === 'visit-limits' && usesVisitLimit(parsed.data) && (!canVisitLimitNow() || visitLimitReadEpoch !== visitLimitEpoch)) { errorKey.value = 'bulkCreate.visitLimitRequired'; return }
         draft.value = ''
         importedItems.value = Object.freeze(parsed.data.map(item => Object.freeze('tags' in item ? { ...item, tags: Object.freeze([...item.tags]) } : { ...item })))
         importedMode.value = parsed.mode
@@ -186,9 +203,9 @@ export function useBulkCreate() {
           : error instanceof ApiClientError && error.code === 200122 ? 'dailyCreateQuota.bulkDenied'
             : error instanceof ApiClientError && error.code === 200121 ? 'targetPolicy.bulkDenied'
             : error instanceof ApiClientError && error.code === 200120 ? 'bulkCreate.conflict'
-            : mode === 'expirations' && error instanceof ApiClientError && error.code === 200108 ? 'bulkCreate.expirationDenied'
-            : (mode === 'custom-slugs' || mode === 'redirect-modes' || mode === 'expirations') && error instanceof ApiClientError && error.code === 200101 ? 'bulkCreate.customSlugTaken'
-              : (mode === 'custom-slugs' || mode === 'redirect-modes' || mode === 'expirations') && error instanceof ApiClientError && error.code === 200102 ? 'bulkCreate.customSlugReserved'
+            : (mode === 'expirations' || mode === 'visit-limits') && error instanceof ApiClientError && error.code === 200108 ? 'bulkCreate.expirationDenied'
+            : (mode === 'custom-slugs' || mode === 'redirect-modes' || mode === 'expirations' || mode === 'visit-limits') && error instanceof ApiClientError && error.code === 200101 ? 'bulkCreate.customSlugTaken'
+              : (mode === 'custom-slugs' || mode === 'redirect-modes' || mode === 'expirations' || mode === 'visit-limits') && error instanceof ApiClientError && error.code === 200102 ? 'bulkCreate.customSlugReserved'
                 : 'bulkCreate.failed'
       }
     } finally { if (isCurrent(token, candidate)) pending.value = false }

@@ -32,6 +32,7 @@ type batchCreateItem struct {
 	CustomSlug   string
 	RedirectMode string
 	ExpiresAt    pgtype.Timestamptz
+	MaxVisits    pgtype.Int8
 }
 
 // batchCreateOptions selects independent protocol requirements without changing legacy wire inputs.
@@ -40,6 +41,7 @@ type batchCreateOptions struct {
 	CustomSlugs   bool
 	RedirectModes bool
 	Expirations   bool
+	VisitLimits   bool
 }
 
 // BatchCreateWithMetadata checks current metadata grants even when replaying an existing receipt.

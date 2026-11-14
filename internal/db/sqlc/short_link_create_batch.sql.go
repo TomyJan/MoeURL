@@ -16,7 +16,7 @@ insert into short_link (
     id,owner_id,domain_id,slug,target_url,status,redirect_mode,
     intermediate_delay_seconds,expires_at,password_hash,password_updated_at,
     max_visits,title,tags,created_at,updated_at
-) values ($1,$2,$3,$4,$5,'active',$6,5,$7,null,null,null,$8,$9,now(),now())
+) values ($1,$2,$3,$4,$5,'active',$6,5,$7,null,null,$8,$9,$10,now(),now())
 on conflict (slug) do nothing
 returning id
 `
@@ -29,6 +29,7 @@ type CreateBulkShortLinkParams struct {
 	TargetUrl    string             `json:"target_url"`
 	RedirectMode string             `json:"redirect_mode"`
 	ExpiresAt    pgtype.Timestamptz `json:"expires_at"`
+	MaxVisits    pgtype.Int8        `json:"max_visits"`
 	Title        string             `json:"title"`
 	Tags         []string           `json:"tags"`
 }
@@ -42,6 +43,7 @@ func (q *Queries) CreateBulkShortLink(ctx context.Context, arg CreateBulkShortLi
 		arg.TargetUrl,
 		arg.RedirectMode,
 		arg.ExpiresAt,
+		arg.MaxVisits,
 		arg.Title,
 		arg.Tags,
 	)

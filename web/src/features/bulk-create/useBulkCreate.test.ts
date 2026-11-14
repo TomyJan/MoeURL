@@ -293,6 +293,21 @@ describe('batch lifecycle and retry safety', () => {
     expect(state.opened.value).toBe(false); expect(state.snapshot.value).toBeNull(); expect(state.importedItems.value).toBeNull()
     await state.submit(); expect(fetcher).not.toHaveBeenCalled()
   })
+  // Removing the legacy mutation guard would send this already-previewed title after revocation.
+  it('blocks a queued legacy title write when metadata grants silently disappear', async () => {
+    const { state, client, fetcher, invalidations } = mount({ ...actor, permissions: [...actor.permissions, 'short_link:set_metadata'] })
+    state.begin()
+    const file = pendingFile('target_url,title\nhttps://example.com/a,title')
+    const read = state.importFile(file.file); file.resolve(); await read
+    state.preview(); const input = state.snapshot.value
+    const request = state.submit()
+    client.getQueryData<{ user: typeof actor }>(['auth', 'me'])!.user.permissions = [...actor.permissions]
+    await request
+    expect(fetcher).not.toHaveBeenCalled(); expect(invalidations).not.toHaveBeenCalled()
+    expect(state.opened.value).toBe(true); expect(state.snapshot.value).toBe(input)
+    expect(state.errorKey.value).toBe('bulkCreate.failed'); expect(state.pending.value).toBe(false); expect(state.unknown.value).toBe(false)
+    expect(toast.success).not.toHaveBeenCalled()
+  })
   it.each(['titles', 'targets'])('blocks late %s import appropriately after metadata revocation and restoration', async mode => {
     const withMetadata = { ...actor, permissions: [...actor.permissions, 'short_link:set_metadata'] }
     const { state, client } = mount(withMetadata); state.begin(); state.draft.value = 'https://example.com/manual'
