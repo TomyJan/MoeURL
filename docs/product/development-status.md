@@ -1,6 +1,12 @@
 # 开发进度与能力清单
 
-## 当前维护（2026-11-14，v0.75.1）
+## 当前维护（2026-11-14，v0.75.2）
+
+PR345／v0.75.1 已完整交付：最终 `406ed6e8` 真实 CodeRabbit132484326389 success、reviewed/source=covered，正常 squash master `78228e170f89ccd2a9f59c2d7dcfcabe00854457`，独立 API/fetch 核相同 tree 和唯一父；两个标准任务、9 条裁决、两组延期文档 Minor、8 份 owned 文件可恢复归档完成。原16项浏览器单轮与quality保持原执行归属。
+
+当前[批量创建错误提示可达性](scope-v0.75.2.md)已完成四个中英手机现状诊断：真实200108、零创建、错误DOM存在，但提示完全在滚动裁切区外，焦点BODY。本版只修当前对话框的错误定位，保留UUID/payload与未知重试；实现、本地门禁、新产品、真实审查及交付分别按[验收](../implementation/v0.75.2-acceptance.md)判定。不查CI、不发布部署。
+
+## v0.75.1 交付前检查点（历史）
 
 PR344／v0.75.0 已完整交付：最终 `0bddc8a690b006c2bcec3899a80b0805c1b05ef8` 真实 CodeRabbit，正常 squash master `2a7c03e7b3c87d127d56c70e57986015095ff0e0`，独立核相同 tree 和唯一父；四项标准任务、27 条裁决、三组延期 Minor 和 12 份工作记录的恢复归档完成。原组合验证与失败分别保留，见[验收](../implementation/v0.75.0-acceptance.md)。
 
