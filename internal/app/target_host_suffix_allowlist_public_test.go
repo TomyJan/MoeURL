@@ -21,6 +21,9 @@ func TestAppSuffixAllowlistHistoricalPublicAccess(t *testing.T) {
 			_, err := a.pool.Exec(t.Context(), `update system_setting set value='{"enabled":false,"suffixes":[]}' where key='security.target_host_suffix_allowlist'`)
 			require.NoError(t, err)
 			created := homeContentCall(t, a, cookie, "POST", "/api/v1/short-link/create", fmt.Sprintf(`{"targetUrl":"https://deep.blocked.example/original","redirectMode":%q,"password":{"mode":"set","value":"suffix-public-password"}}`, mode), 200, 0)["shortLink"].(map[string]any)
+			// Historical policy access is independent of clock corrections; password revision revocation has separate regressions.
+			_, err = a.pool.Exec(t.Context(), `update short_link set password_updated_at=timestamptz '2000-01-01 00:00:00+00' where id=$1`, created["id"].(string))
+			require.NoError(t, err)
 			_, err = a.pool.Exec(t.Context(), `update system_setting set value='{"enabled":true,"suffixes":["allowed.example"]}' where key='security.target_host_suffix_allowlist'`)
 			require.NoError(t, err)
 			call := func(method, path, body string, grant *http.Cookie) *httptest.ResponseRecorder {

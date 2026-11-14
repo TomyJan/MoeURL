@@ -1,6 +1,6 @@
 # v0.72.0 管理员目标规则检查
 
-状态：设计完成，尚未实现或验证。基线为 v0.71.0／[PR338](https://github.com/TomyJan/MoeURL/pull/338) 已交付 master `5f0308bb9d3d370a2a1c4917366191acd0f39cd8`。这是 Agent 沿自主授权选择的下一合理增量，不声称用户指定了该具体功能。
+状态：后端实现及本地组合验证完成，前端、准确产品和审查交付尚待。基线为 v0.71.0／[PR338](https://github.com/TomyJan/MoeURL/pull/338) 已交付 master `5f0308bb9d3d370a2a1c4917366191acd0f39cd8`。这是 Agent 沿自主授权选择的下一合理增量，不声称用户指定了该具体功能。
 
 ## 现状与范围
 
