@@ -16,20 +16,21 @@ insert into short_link (
     id,owner_id,domain_id,slug,target_url,status,redirect_mode,
     intermediate_delay_seconds,expires_at,password_hash,password_updated_at,
     max_visits,title,tags,created_at,updated_at
-) values ($1,$2,$3,$4,$5,'active',$6,5,null,null,null,null,$7,$8,now(),now())
+) values ($1,$2,$3,$4,$5,'active',$6,5,$7,null,null,null,$8,$9,now(),now())
 on conflict (slug) do nothing
 returning id
 `
 
 type CreateBulkShortLinkParams struct {
-	ID           pgtype.UUID `json:"id"`
-	OwnerID      pgtype.UUID `json:"owner_id"`
-	DomainID     pgtype.UUID `json:"domain_id"`
-	Slug         string      `json:"slug"`
-	TargetUrl    string      `json:"target_url"`
-	RedirectMode string      `json:"redirect_mode"`
-	Title        string      `json:"title"`
-	Tags         []string    `json:"tags"`
+	ID           pgtype.UUID        `json:"id"`
+	OwnerID      pgtype.UUID        `json:"owner_id"`
+	DomainID     pgtype.UUID        `json:"domain_id"`
+	Slug         string             `json:"slug"`
+	TargetUrl    string             `json:"target_url"`
+	RedirectMode string             `json:"redirect_mode"`
+	ExpiresAt    pgtype.Timestamptz `json:"expires_at"`
+	Title        string             `json:"title"`
+	Tags         []string           `json:"tags"`
 }
 
 func (q *Queries) CreateBulkShortLink(ctx context.Context, arg CreateBulkShortLinkParams) (pgtype.UUID, error) {
@@ -40,6 +41,7 @@ func (q *Queries) CreateBulkShortLink(ctx context.Context, arg CreateBulkShortLi
 		arg.Slug,
 		arg.TargetUrl,
 		arg.RedirectMode,
+		arg.ExpiresAt,
 		arg.Title,
 		arg.Tags,
 	)

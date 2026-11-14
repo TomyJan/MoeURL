@@ -104,6 +104,15 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 				return ErrPermissionDenied
 			}
 		}
+		hasExpiration := false
+		if options.Expirations {
+			for _, item := range items {
+				hasExpiration = hasExpiration || item.ExpiresAt.Valid
+			}
+			if hasExpiration && !grants.Has(permission.ShortLinkSetExpiration) {
+				return ErrPermissionDenied
+			}
+		}
 		titles := make([]string, len(items))
 		tags := make([][]string, len(items))
 		for i := range tags {
@@ -155,6 +164,20 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 		if err := createquota.Consume(ctx, q, uuidToPgtype(actorID), len(items)); err != nil {
 			return err
 		}
+		// Domain and usage row locks may wait after the receipt lookup. Read the
+		// database clock only once these prerequisites have settled; any usage
+		// update rolls back with an expired batch before a link can be inserted.
+		if hasExpiration {
+			now, err := q.GetDatabaseTime(ctx)
+			if err != nil {
+				return err
+			}
+			for _, item := range items {
+				if item.ExpiresAt.Valid && !item.ExpiresAt.Time.After(now.Time) {
+					return ErrInvalidExpiration
+				}
+			}
+		}
 		requestedSlugs := make(map[string]bool, len(items))
 		for _, item := range items {
 			if item.CustomSlug != "" {
@@ -182,6 +205,7 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 				_, err = q.CreateBulkShortLink(ctx, sqlc.CreateBulkShortLinkParams{
 					ID: uuidToPgtype(uuid.New()), OwnerID: uuidToPgtype(actorID), DomainID: selected.ID,
 					Slug: slug, TargetUrl: item.TargetURL, Title: titles[i], Tags: tags[i], RedirectMode: modes[i],
+					ExpiresAt: item.ExpiresAt,
 				})
 				if errors.Is(err, pgx.ErrNoRows) {
 					continue
