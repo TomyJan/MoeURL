@@ -214,6 +214,12 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 			return nil, fmt.Errorf("validate target CIDR denylist: %w", err)
 		}
 		deps.TargetCIDRDenylist = targetCIDRService
+		targetCIDRAllowlistService := targetpolicy.NewCIDRAllowlistService(pool)
+		if err := targetCIDRAllowlistService.ValidateStartup(ctx); err != nil {
+			pool.Close()
+			return nil, fmt.Errorf("validate target CIDR allowlist: %w", err)
+		}
+		deps.TargetCIDRAllowlist = targetCIDRAllowlistService
 		createQuotaService := createquota.NewService(pool)
 		if err := createQuotaService.ValidateStartup(ctx); err != nil {
 			pool.Close()

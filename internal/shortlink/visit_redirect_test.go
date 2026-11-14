@@ -34,6 +34,11 @@ func TestRedirectVisitLimitsConsumeOnlyFinalRedirects(t *testing.T) {
 				}
 				created, err := manager.Create(ctx, user, input)
 				require.NoError(t, err)
+				if protected {
+					// Visit accounting is independent of wall-clock corrections; revision revocation has its own regression.
+					_, err = pool.Exec(ctx, `update short_link set password_updated_at = timestamptz '2000-01-01 00:00:00+00' where id = $1`, created.ShortLink.ID)
+					require.NoError(t, err)
+				}
 				slug := created.ShortLink.Slug
 				assertUsed := func(want int64) {
 					t.Helper()

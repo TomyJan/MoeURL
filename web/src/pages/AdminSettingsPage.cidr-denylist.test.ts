@@ -31,7 +31,7 @@ afterEach(() => { cleanup(); client.clear(); vi.unstubAllGlobals() })
 
 // Omitting the independent editor loses both the scope warning and the raw CIDR write.
 it('TestAdminSettingsCIDRDenylistCard: shows literal-IP network scope and saves independently with the full revision', async () => {
-  render(AdminSettingsPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, HomeContentEditor: true, AppearanceEditor: true, FooterLinksEditor: true, TargetHostDenylistEditor: true, TargetHostAllowlistEditor: true, TargetHostSuffixDenylistEditor: true, TargetHostSuffixAllowlistEditor: true, TargetIPDenylistEditor: true, AccountDailyCreateQuotaEditor: true, AdminAuthenticationPage: true } } })
+  render(AdminSettingsPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, HomeContentEditor: true, AppearanceEditor: true, FooterLinksEditor: true, TargetHostDenylistEditor: true, TargetHostAllowlistEditor: true, TargetHostSuffixDenylistEditor: true, TargetHostSuffixAllowlistEditor: true, TargetCIDRAllowlistEditor: true, TargetIPDenylistEditor: true, AccountDailyCreateQuotaEditor: true, AdminAuthenticationPage: true } } })
   await waitFor(() => expect(screen.getByLabelText('settings.siteName')).toHaveProperty('value', 'MoeURL'))
   expect(screen.getByRole('heading', { name: 'targetCIDRPolicy.heading' })).toBeTruthy()
   expect(screen.getByText('targetCIDRPolicy.hint')).toBeTruthy()
