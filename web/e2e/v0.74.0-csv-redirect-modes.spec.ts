@@ -9,7 +9,7 @@ interface Item { targetUrl: string; title: string; tags: string[]; customSlug: s
 interface Link { id: string; slug: string; targetUrl: string; title: string; tags: string[]; redirectMode: string; intermediateDelaySeconds: number }
 interface Group { key: string; updatedAt: string; permissions: string[] }
 interface Scenario { page: Page; manager: APIRequestContext; user: User; createUser: () => Promise<User> }
-const endpoint = '/api/v1/short-link/batch-create-with-redirect-modes'
+const endpoint = '/api/v1/short-link/batch-create-with-redirect-modes', touchPages = new WeakSet<Page>()
 const password = 'csv-redirect-mode-disposable-account'
 const required = ['short_link:create', 'domain:use_default', 'short_link:set_metadata', 'short_link:custom_slug', 'short_link:use_intermediate', 'short_link:use_confirmation']
 const test = base.extend<{ scenario: Scenario }>({
@@ -28,7 +28,7 @@ const test = base.extend<{ scenario: Scenario }>({
       const language = info.title.includes(' en ') ? 'en' : 'zh-CN', theme = language === 'en' ? 'dark' : 'light'
       context = await browser.newContext({ baseURL, viewport: { width, height: width === 320 ? 500 : width === 1280 ? 900 : 800 }, locale: language, hasTouch: width !== 1280, serviceWorkers: 'block', colorScheme: theme, reducedMotion: 'reduce' })
       await context.addInitScript(({ language, theme }) => { localStorage.setItem('moeurl.language', language); localStorage.setItem('moeurl.theme', theme) }, { language, theme })
-      const page = await context.newPage(); await post(page.request, '/auth/login', { username: user.username, password })
+      const page = await context.newPage(); if (width !== 1280) touchPages.add(page); await post(page.request, '/auth/login', { username: user.username, password })
       await attach(info, 'runtime', { browser: browser.version(), driverNode: process.version, width, language, theme, userId: user.id, disposableDatabase: true })
       await use({ page, manager: manager.request, user, createUser })
     } catch (error) { failures.push(error) } finally {
@@ -218,7 +218,7 @@ for (const outcome of ['success', 'error', 'unknown'] as const) {
     const { page } = scenario, next = await scenario.createUser(), nonce = randomBytes(7).toString('hex')
     await page.goto('/profile')
     await page.locator('button.console-topbar__menu').click()
-    await page.locator('a[href="/link"]').filter({ visible: true }).click()
+    await page.getByTestId('console-drawer-transition').locator('a[href="/link"]').click()
     await expect(page).toHaveURL(url => url.pathname === '/link')
     const marker = randomBytes(12).toString('hex')
     await page.evaluate(value => { (window as Window & { modeIdentity74?: string }).modeIdentity74 = value }, marker)
@@ -256,7 +256,7 @@ for (const outcome of ['success', 'error', 'unknown'] as const) {
       await page.getByRole('button', { name: /^(登录|Sign in)$/ }).click(); expect((await (await login).json()).data.user.id).toBe(next.id)
       await expect(page).not.toHaveURL(url => url.pathname === '/login')
       if (new URL(page.url()).pathname === '/') { await page.getByRole('button', { name: 'CSV redirect mode fixture', exact: true }).click(); await expect(page).toHaveURL(/\/profile$/) }
-      if (new URL(page.url()).pathname !== '/link') { await page.locator('button.console-topbar__menu').click(); await page.locator('a[href="/link"]').filter({ visible: true }).click() }
+      if (new URL(page.url()).pathname !== '/link') { await page.locator('button.console-topbar__menu').click(); await page.getByTestId('console-drawer-transition').locator('a[href="/link"]').click() }
       await activate(page.getByTestId('bulk-create-open'))
       const freshTarget = 'https://example.com/new-account74/' + nonce
       await page.getByRole('dialog').getByRole('textbox').fill(freshTarget)
@@ -281,7 +281,7 @@ for (const outcome of ['success', 'error', 'unknown'] as const) {
 
 /** Preserves all raw fields through both JSON-array and CSV quoting layers. */
 function csv(items: readonly Item[]) { return '\uFEFFtarget_url,title,tags,custom_slug,redirect_mode\r\n' + items.map(item => [item.targetUrl, item.title, JSON.stringify(item.tags), item.customSlug, item.redirectMode].map(value => '"' + value.replaceAll('"', '""') + '"').join(',')).join('\r\n') + '\r\n' }
-async function activate(control: Locator) { await control.focus(); await control.press('Enter') }
+async function activate(control: Locator) { if (touchPages.has(control.page())) await control.tap(); else { await control.focus(); await control.press('Enter') } }
 async function frames(page: Page) { await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))) }
 async function links(api: APIRequestContext) { return (await get<{ items: Link[] }>(api, '/short-link/list?page=1&pageSize=100')).items }
 async function userGroup(api: APIRequestContext) { const group = (await get<{ groups: Group[] }>(api, '/admin/user-group/list')).groups.find(group => group.key === 'user'); if (!group) throw new Error('Missing user group'); return group }
