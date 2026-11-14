@@ -41,3 +41,10 @@ export const bulkCreateExpirationsCsvTemplate = {
   contentType: 'text/csv;charset=utf-8' as const,
   content: '\uFEFF' + bulkCreateExpirationsCsvExample.replaceAll('\n', '\r\n') + '\r\n',
 }
+
+export const bulkCreateVisitLimitsCsvExample = 'target_url,title,tags,custom_slug,redirect_mode,expires_at,max_visits\nhttps://example.com/direct,Example title,"[""tools"",""a,b""]",TeamDocs76,direct,,1\nhttps://example.com/intermediate,,[],,intermediate,,\nhttps://example.com/confirmation,,[],Confirm76,confirmation,,2147483647'
+export const bulkCreateVisitLimitsCsvTemplate = {
+  fileName: 'moeurl-visit-limits-template.csv',
+  contentType: 'text/csv;charset=utf-8' as const,
+  content: '\uFEFF' + bulkCreateVisitLimitsCsvExample.replaceAll('\n', '\r\n') + '\r\n',
+}

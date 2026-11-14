@@ -20,6 +20,9 @@
       <p>{{ t('bulkCreate.csvExpirationsRules') }}</p>
       <pre><code data-testid="bulk-create-csv-expirations-example">{{ bulkCreateExpirationsCsvExample }}</code></pre>
       <v-btn variant="tonal" @click="downloadTemplate('expirations')">{{ t('bulkCreate.csvExpirationsDownload') }}</v-btn>
+      <p>{{ t('bulkCreate.csvVisitLimitsRules') }}</p>
+      <pre><code data-testid="bulk-create-csv-visit-limits-example">{{ bulkCreateVisitLimitsCsvExample }}</code></pre>
+      <v-btn variant="tonal" @click="downloadTemplate('visit-limits')">{{ t('bulkCreate.csvVisitLimitsDownload') }}</v-btn>
       <p v-if="feedback" role="status" data-testid="bulk-create-csv-feedback">{{ t(feedback) }}</p>
     </div>
   </details>
@@ -29,15 +32,16 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { downloadCsv } from '@/shared/download/csv'
 import { bulkCreateExpirationsCsvExample, bulkCreateExpirationsCsvTemplate } from './csvTemplate'
+import { bulkCreateVisitLimitsCsvExample, bulkCreateVisitLimitsCsvTemplate } from './csvTemplate'
 import { bulkCreateCsvExample, bulkCreateCsvTemplate, bulkCreateTitlesCsvExample, bulkCreateTitlesCsvTemplate, bulkCreateMetadataCsvExample, bulkCreateMetadataCsvTemplate, bulkCreateCustomSlugsCsvExample, bulkCreateCustomSlugsCsvTemplate, bulkCreateRedirectModesCsvExample, bulkCreateRedirectModesCsvTemplate } from './csvTemplate'
 
 const { t } = useI18n()
 const feedback = ref('')
 /** Downloads only the public template; import and submission state remain owned by the parent. */
-function downloadTemplate(mode: 'targets' | 'titles' | 'metadata' | 'custom-slugs' | 'redirect-modes' | 'expirations') {
+function downloadTemplate(mode: 'targets' | 'titles' | 'metadata' | 'custom-slugs' | 'redirect-modes' | 'expirations' | 'visit-limits') {
   feedback.value = ''
   try {
-    downloadCsv(mode === 'expirations' ? bulkCreateExpirationsCsvTemplate : mode === 'redirect-modes' ? bulkCreateRedirectModesCsvTemplate : mode === 'custom-slugs' ? bulkCreateCustomSlugsCsvTemplate : mode === 'metadata' ? bulkCreateMetadataCsvTemplate : mode === 'titles' ? bulkCreateTitlesCsvTemplate : bulkCreateCsvTemplate)
+    downloadCsv(mode === 'visit-limits' ? bulkCreateVisitLimitsCsvTemplate : mode === 'expirations' ? bulkCreateExpirationsCsvTemplate : mode === 'redirect-modes' ? bulkCreateRedirectModesCsvTemplate : mode === 'custom-slugs' ? bulkCreateCustomSlugsCsvTemplate : mode === 'metadata' ? bulkCreateMetadataCsvTemplate : mode === 'titles' ? bulkCreateTitlesCsvTemplate : bulkCreateCsvTemplate)
     feedback.value = 'bulkCreate.csvDownloadStarted'
   } catch {
     feedback.value = 'bulkCreate.csvDownloadFailed'

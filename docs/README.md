@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-15，v0.76.0）
 
-PR352／v0.75.3 已完成真实审查、正常合并及可恢复归档；当前[CSV 最大访问次数导入](product/scope-v0.76.0.md)仍在设计，产品目前为 0.75.2。准确状态见[开发进度](product/development-status.md)。
+PR352／v0.75.3 已完成真实审查、正常合并及可恢复归档；当前[CSV 最大访问次数导入](product/scope-v0.76.0.md)后端标准任务已完成，前端 6253 项测试、四项覆盖率 100%、类型检查、lint 和构建通过。产品源码为 0.76.0，准确产品／浏览器、真实审查与交付尚待。准确状态见[开发进度](product/development-status.md)。
 
 ## v0.75.3 交付前检查点（历史）
 
@@ -430,6 +430,9 @@ v0.9.0 系统设置与站点品牌基础闭环的功能实现已经完成；功�
 当前实施层文档包括：
 
 - [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)
+- [当前 v0.76.0 实施计划](implementation/v0.76.0-plan.md)
+- [当前 v0.76.0 验收](implementation/v0.76.0-acceptance.md)
+- [最近完整交付 v0.75.3 验收](implementation/v0.75.3-acceptance.md)
 - [v0.24.0 计划](implementation/v0.24.0-plan.md)
 - [v0.24.0 任务](implementation/v0.24.0-tasks.md)
 - [v0.24.0 验收](implementation/v0.24.0-acceptance.md)

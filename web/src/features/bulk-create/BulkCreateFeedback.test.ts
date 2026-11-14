@@ -38,14 +38,16 @@ async function selectCsv(container: Element, slug = 'TeamDocs56') {
 }
 afterEach(() => { cleanup(); clients.splice(0).forEach(c => c.clear()); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks() })
 
-// Missing sixth-format guidance must fail at the visible summary and parser-error boundary.
-it.each(['zh-CN', 'en'] as const)('describes all six formats in the visible %s summary and invalid-file recovery', async locale => {
+// Missing seventh-format guidance must fail at the visible summary and parser-error boundary.
+it.each(['zh-CN', 'en'] as const)('describes all seven formats in the visible %s summary and invalid-file recovery', async locale => {
   const view = mount(locale, 200101)
   await fireEvent.click(screen.getByTestId('bulk-create-open'))
-  const summary = screen.getByText(locale === 'zh-CN' ? /六种固定格式/ : /six fixed formats/i)
+  const summary = screen.getByText(locale === 'zh-CN' ? /七种固定格式/ : /seven fixed formats/i)
   expect(summary.textContent).toMatch(locale === 'zh-CN' ? /自定义短码/ : /custom code/)
   expect(summary.textContent).toMatch(locale === 'zh-CN' ? /跳转方式/ : /redirect mode/)
   expect(summary.textContent).toMatch(locale === 'zh-CN' ? /UTC 过期时间/ : /UTC expiration/)
+  expect(summary.textContent).toMatch(locale === 'zh-CN' ? /最大访问次数/ : /visit limits/)
+  expect(summary.textContent).toMatch(locale === 'zh-CN' ? /访问次数留空为无限额/ : /empty visit limit means unlimited visits/)
   const helpTitle = screen.getByTestId('bulk-create-csv-help').querySelector('summary')!.textContent!.trim()
   expect(helpTitle).toBe(locale === 'zh-CN' ? 'CSV 格式示例与模板' : 'CSV format example and template')
   const bytes = new TextEncoder().encode('target_url,title,tags,custom_slug\nhttps://example.com,bad')
@@ -60,6 +62,7 @@ it.each(['zh-CN', 'en'] as const)('describes all six formats in the visible %s s
   expect(help.querySelector('[data-testid=bulk-create-csv-custom-slugs-example]')?.textContent).toContain('target_url,title,tags,custom_slug')
   expect(help.querySelector('[data-testid=bulk-create-csv-redirect-modes-example]')?.textContent).toContain('redirect_mode')
   expect(help.querySelector('[data-testid=bulk-create-csv-expirations-example]')?.textContent).toContain('expires_at')
+  expect(help.querySelector('[data-testid=bulk-create-csv-visit-limits-example]')?.textContent).toContain('expires_at,max_visits')
   expect(view.requests).toHaveLength(0)
 })
 
