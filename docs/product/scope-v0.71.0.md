@@ -28,7 +28,7 @@
 
 ## 验证与交付
 
-真实缺端点、手插允许资源后原错误放行和 DNS 允许下 IP 错误拒绝先 RED→GREEN；具名解析／strict／七存储坏值／权限／CAS／gate／审计回滚／七协议／回执／旧访问／迁移往返验证。完整本地 Go／业务100／vet、固定 Linux race／vet、前端四100／types／lint／build和准确新产品 smoke／所选扫描／中英桌面手机浏览器及必要原图；准确输入未变才复用，不借旧产品或 CI。
+真实缺端点、手插允许资源后原错误放行和 DNS 允许下 IP 错误拒绝先 RED→GREEN；具名解析／strict／七存储坏值／权限／CAS／gate／审计回滚／七类协议／回执／旧访问／迁移往返验证。完整本地 Go／业务100／vet、固定 Linux race／vet、前端四100／types／lint／build和准确新产品 smoke／所选扫描／中英桌面手机浏览器及必要原图；准确输入未变才复用，不借旧产品或 CI。
 
 四标准任务、唯一 fresh 最强全分支独立终审、最新 head 真实 CodeRabbit、全部有效问题处置、正常 guarded squash、独立 API／一次 fetch／SHA／tree／唯一父及 whole-owned 恢复归档完成才交付。不查或等 CI，不碰 PR240／266／267、18080、日常数据库，不发布部署，不暂停或删除自动化。
 

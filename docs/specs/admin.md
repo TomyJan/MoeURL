@@ -1,5 +1,9 @@
 # 管理后台
 
+## v0.72.0 管理员目标规则检查（设计）
+
+管理设置页将提供独立中英只读检查卡片，按当前已保存七份目标规则判断单个目标。POST `/api/v1/admin/system/target-policy/check`，strict `targetUrl`／2048 UTF-8 bytes，当前管理员双权限授权；只返回 allowed／invalid_target／restricted，不写链接、审计或配额，不访问目标。当前仅设计，实际实现和验证见[设计](2026-11-14-v0.72.0-target-policy-check-design.md)及[验收](../implementation/v0.72.0-acceptance.md)。
+
 ## v0.67.0 目标 DNS 后缀黑名单（已完整交付）
 
 系统设置的精确黑名单后已新增独立卡片，配置 DNS 主机自身及全部子域的新目标拒绝规则，默认空、最多 100 项。独立 GET／POST、完整版本 CAS、五秒事务和当前有效管理员双权限检查，不扩原设置 DTO 或权限。前后端本地门禁通过；草稿隔离、冲突保稿和迟到身份结果保护已实现并有具名测试，当前准确新web＋原Go组合产品及347／347单次浏览器已验证、20张当前原图已核；原347个测试身份的组合／22张图另属历史。PR323最终80e1379真实CodeRabbit、四标准任务、正常合并独立核验及13个文件恢复归档完成，见[设计](2026-11-13-v0.67.0-target-host-suffix-denylist-design.md)与[验收](../implementation/v0.67.0-acceptance.md)。
