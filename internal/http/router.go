@@ -34,6 +34,7 @@ type Dependencies struct {
 	TargetIPDenylist                targetpolicy.IPPort
 	TargetCIDRDenylist              targetpolicy.CIDRPort
 	TargetCIDRAllowlist             targetpolicy.CIDRAllowlistPort
+	TargetPolicyCheck               shortlink.TargetPolicyCheckPort
 	AccountDailyCreateQuota         createquota.Port
 	OwnDailyCreateUsage             createquota.UsagePort
 	Appearance                      system.AppearancePort
@@ -149,6 +150,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 		api.Group(func(businessAPI chi.Router) {
 			businessAPI.Use(middleware.NoStore)
 			businessAPI.Use(auth.CurrentUserMiddlewareWithLogger(dependency.CurrentUser, logger))
+			if dependency.TargetPolicyCheck != nil {
+				handler := shortlink.NewTargetPolicyCheckHandler(dependency.TargetPolicyCheck, logger)
+				businessAPI.Post("/admin/system/target-policy/check", handler.Check)
+			}
 			if dependency.System != nil {
 				systemHandler := system.NewHandlerWithLogger(dependency.System, logger)
 				businessAPI.Get("/init/status", systemHandler.Status)

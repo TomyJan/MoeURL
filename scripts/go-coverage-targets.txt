@@ -180,6 +180,9 @@ github.com/TomyJan/MoeURL/internal/targetpolicy/cidr_allowlist_model.go
 github.com/TomyJan/MoeURL/internal/targetpolicy/cidr_allowlist_json.go
 github.com/TomyJan/MoeURL/internal/targetpolicy/cidr_allowlist_service.go
 github.com/TomyJan/MoeURL/internal/targetpolicy/cidr_allowlist_handler.go
+github.com/TomyJan/MoeURL/internal/targetpolicy/check_authorization.go
+github.com/TomyJan/MoeURL/internal/shortlink/target_policy_check.go
+github.com/TomyJan/MoeURL/internal/shortlink/target_policy_check_handler.go
 github.com/TomyJan/MoeURL/internal/createquota/model.go
 github.com/TomyJan/MoeURL/internal/createquota/json.go
 github.com/TomyJan/MoeURL/internal/createquota/service.go

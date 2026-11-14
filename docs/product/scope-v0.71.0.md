@@ -1,6 +1,6 @@
 # v0.71.0 可选目标 CIDR 白名单
 
-状态：后端、前端与准确产品验证已完成，审查交付尚待。基线为 v0.70.1／[PR337](https://github.com/TomyJan/MoeURL/pull/337) 已完整交付的 master `ff6a86bf9109e776e70aa6119fd2c4fc3ea52d1c`。产品 0.71.0；主机 4814 项／业务 100%、前端 5790 项／四项 100%、types／lint／构建与 E2E strict、新产品 smoke／所选扫描及 30 项浏览器检查通过，16 张重点原图已查看，准确资源已可恢复清理。独立审查、CodeRabbit、正常合并与本版交付仍须各自实证。Linux 首次整套两处失败及精确补验、根因未确证的边界见[验收](../implementation/v0.71.0-acceptance.md)。该增量是 Agent 沿路线图和长期自主授权的决定。
+状态：已通过 PR338 完整交付：最终 head `8a34a2b83c9b7d032464f30374353912b0f292b5` 真实 CodeRabbit，正常 squash master `5f0308bb9d3d370a2a1c4917366191acd0f39cd8`，独立 API／fetch 已核相同 tree 和唯一父；四个标准任务、24 条完整裁决与 12 份工作记录恢复归档完成。未查 CI、未发布部署。原失败及调查保持下方历史归属。 产品 0.71.0；本地门禁和准确产品证据见[验收](../implementation/v0.71.0-acceptance.md)。该增量是 Agent 沿路线图和长期自主授权的决定。
 
 ## 盘点与选择
 
@@ -28,7 +28,7 @@
 
 ## 验证与交付
 
-真实缺端点、手插允许资源后原错误放行和 DNS 允许下 IP 错误拒绝先 RED→GREEN；具名解析／strict／七存储坏值／权限／CAS／gate／审计回滚／七协议／回执／旧访问／迁移往返验证。完整本地 Go／业务100／vet、固定 Linux race／vet、前端四100／types／lint／build和准确新产品 smoke／所选扫描／中英桌面手机浏览器及必要原图；准确输入未变才复用，不借旧产品或 CI。
+真实缺端点、手插允许资源后原错误放行和 DNS 允许下 IP 错误拒绝先 RED→GREEN；具名解析／strict／七存储坏值／权限／CAS／gate／审计回滚／七类协议／回执／旧访问／迁移往返验证。完整本地 Go／业务100／vet、固定 Linux race／vet、前端四100／types／lint／build和准确新产品 smoke／所选扫描／中英桌面手机浏览器及必要原图；准确输入未变才复用，不借旧产品或 CI。
 
 四标准任务、唯一 fresh 最强全分支独立终审、最新 head 真实 CodeRabbit、全部有效问题处置、正常 guarded squash、独立 API／一次 fetch／SHA／tree／唯一父及 whole-owned 恢复归档完成才交付。不查或等 CI，不碰 PR240／266／267、18080、日常数据库，不发布部署，不暂停或删除自动化。
 
