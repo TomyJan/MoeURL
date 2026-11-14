@@ -34,3 +34,10 @@ export const bulkCreateRedirectModesCsvTemplate = {
   contentType: 'text/csv;charset=utf-8' as const,
   content: '\uFEFF' + bulkCreateRedirectModesCsvExample.replaceAll('\n', '\r\n') + '\r\n',
 }
+
+export const bulkCreateExpirationsCsvExample = 'target_url,title,tags,custom_slug,redirect_mode,expires_at\nhttps://example.com/direct,Example title,"[""tools"",""a,b""]",TeamDocs75,direct,2030-01-01T00:00:00Z\nhttps://example.com/intermediate,,[],,intermediate,2030-01-01T00:00:00Z\nhttps://example.com/confirmation,,[],Confirm75,confirmation,\nhttps://example.com/empty,,[],,,'
+export const bulkCreateExpirationsCsvTemplate = {
+  fileName: 'moeurl-expirations-template.csv',
+  contentType: 'text/csv;charset=utf-8' as const,
+  content: '\uFEFF' + bulkCreateExpirationsCsvExample.replaceAll('\n', '\r\n') + '\r\n',
+}

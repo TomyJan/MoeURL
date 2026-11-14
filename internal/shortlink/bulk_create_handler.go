@@ -89,6 +89,8 @@ func writeBulkCreateResult(w http.ResponseWriter, r *http.Request, result BatchC
 		businessError(w, CodeSlugConflict, "Slug conflict")
 	case errors.Is(err, ErrReservedSlug):
 		businessError(w, CodeReservedSlug, "Reserved slug")
+	case errors.Is(err, ErrInvalidExpiration):
+		businessError(w, CodeInvalidExpiration, "Invalid expiration")
 	default:
 		writeTransferResult(w, r, result, err, logger, "short_link_bulk_create_failed")
 	}

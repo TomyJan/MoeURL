@@ -17,6 +17,8 @@ export type BulkCreateCustomSlugItem = Readonly<{ targetUrl: string; title: stri
 export type BulkCreateCustomSlugsInput = Readonly<{ requestId: string; items: readonly BulkCreateCustomSlugItem[] }>
 export type BulkCreateRedirectModeItem = Readonly<BulkCreateCustomSlugItem & { redirectMode: '' | 'direct' | 'intermediate' | 'confirmation' }>
 export type BulkCreateRedirectModesInput = Readonly<{ requestId: string; items: readonly BulkCreateRedirectModeItem[] }>
+export type BulkCreateExpirationItem = Readonly<BulkCreateRedirectModeItem & { expiresAt: string }>
+export type BulkCreateExpirationsInput = Readonly<{ requestId: string; items: readonly BulkCreateExpirationItem[] }>
 const rawTitle = z.string().refine(value => !/[\uD800-\uDFFF]/u.test(value) && shortLinkMetadataSchema.safeParse({ title: value, tags: [] }).success)
 export const bulkCreateItemsSchema = z.array(z.strictObject({ targetUrl: target, title: rawTitle })).min(1).max(20)
   .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
@@ -43,6 +45,21 @@ export const bulkCreateCustomSlugsInputSchema = z.strictObject({ requestId, item
 
 const redirectModeItemSchema = customSlugItemSchema.safeExtend({ redirectMode: z.enum(['', 'direct', 'intermediate', 'confirmation']) })
 export const bulkCreateRedirectModesInputSchema = z.strictObject({ requestId, items: z.array(redirectModeItemSchema).min(1).max(20)
+  .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
+  .refine(items => { const slugs = items.filter(item => item.customSlug !== '').map(item => item.customSlug.toLowerCase()); return new Set(slugs).size === slugs.length }) })
+  .refine(input => new TextEncoder().encode(JSON.stringify(input)).byteLength <= 65536)
+
+/** Validates the literal Gregorian UTC second without consulting a browser clock or normalizing dates. */
+function canonicalExpiration(value: string): boolean {
+  if (value === '') return true
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value)) return false
+  const year = Number(value.slice(0, 4)), month = Number(value.slice(5, 7)), day = Number(value.slice(8, 10))
+  if (year < 1 || month < 1 || month > 12 || Number(value.slice(11, 13)) > 23 || Number(value.slice(14, 16)) > 59 || Number(value.slice(17, 19)) > 59) return false
+  const days = [31, year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  return day >= 1 && day <= days[month - 1]!
+}
+const expirationItemSchema = redirectModeItemSchema.safeExtend({ expiresAt: z.string().refine(canonicalExpiration) })
+export const bulkCreateExpirationsInputSchema = z.strictObject({ requestId, items: z.array(expirationItemSchema).min(1).max(20)
   .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
   .refine(items => { const slugs = items.filter(item => item.customSlug !== '').map(item => item.customSlug.toLowerCase()); return new Set(slugs).size === slugs.length }) })
   .refine(input => new TextEncoder().encode(JSON.stringify(input)).byteLength <= 65536)
@@ -91,8 +108,15 @@ export async function batchCreateShortLinksWithRedirectModes(input: BulkCreateRe
   return sendBatch('/short-link/batch-create-with-redirect-modes', request.data, request.data.items.length, expectedUserId)
 }
 
+/** Preserves all six raw fields and delegates future-time authority to the server. */
+export async function batchCreateShortLinksWithExpirations(input: BulkCreateExpirationsInput, expectedUserId?: string) {
+  const request = bulkCreateExpirationsInputSchema.safeParse(input)
+  if (!request.success) throw new ApiClientError(100001, 'Invalid expiration batch creation request')
+  return sendBatch('/short-link/batch-create-with-expirations', request.data, request.data.items.length, expectedUserId)
+}
+
 /** Shares bounded transport and exact receipt validation across independent protocols. */
-async function sendBatch(path: string, input: BulkCreateInput | BulkCreateTitlesInput | BulkCreateMetadataInput | BulkCreateCustomSlugsInput | BulkCreateRedirectModesInput, count: number, expectedUserId?: string) {
+async function sendBatch(path: string, input: BulkCreateInput | BulkCreateTitlesInput | BulkCreateMetadataInput | BulkCreateCustomSlugsInput | BulkCreateRedirectModesInput | BulkCreateExpirationsInput, count: number, expectedUserId?: string) {
   const controller = new AbortController()
   // Includes response-body decoding: an unacknowledged write must become recoverable.
   const deadline = setTimeout(() => controller.abort(), 15_000)
@@ -104,7 +128,7 @@ async function sendBatch(path: string, input: BulkCreateInput | BulkCreateTitles
     return result.data
   } catch (error) {
     if (error instanceof ApiClientError && ([401, 403].includes(error.code)
-      || (!('status' in error.meta) && [100001, 120001, 200101, 200102, 200103, 200114, 200120, 200121, 200122].includes(error.code)))) throw error
+      || (!('status' in error.meta) && [100001, 120001, 200101, 200102, 200103, 200108, 200114, 200120, 200121, 200122].includes(error.code)))) throw error
     throw new BulkCreateUnknownError()
   } finally { clearTimeout(deadline) }
 }

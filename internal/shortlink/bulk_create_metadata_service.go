@@ -8,6 +8,7 @@ import (
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // BatchCreateMetadataItem keeps raw ordered metadata separate from both existing wire protocols.
@@ -30,6 +31,7 @@ type batchCreateItem struct {
 	Tags         []string
 	CustomSlug   string
 	RedirectMode string
+	ExpiresAt    pgtype.Timestamptz
 }
 
 // batchCreateOptions selects independent protocol requirements without changing legacy wire inputs.
@@ -37,6 +39,7 @@ type batchCreateOptions struct {
 	Metadata      bool
 	CustomSlugs   bool
 	RedirectModes bool
+	Expirations   bool
 }
 
 // BatchCreateWithMetadata checks current metadata grants even when replaying an existing receipt.

@@ -1,8 +1,8 @@
-import { bulkCreateRedirectModesInputSchema, type BulkCreateRedirectModeItem, bulkCreateTitlesInputSchema, bulkCreateMetadataInputSchema, bulkCreateCustomSlugsInputSchema, bulkCreateTargetsSchema, type BulkCreateItem, type BulkCreateMetadataItem, type BulkCreateCustomSlugItem } from './bulk-create'
+import { bulkCreateExpirationsInputSchema, type BulkCreateExpirationItem, bulkCreateRedirectModesInputSchema, type BulkCreateRedirectModeItem, bulkCreateTitlesInputSchema, bulkCreateMetadataInputSchema, bulkCreateCustomSlugsInputSchema, bulkCreateTargetsSchema, type BulkCreateItem, type BulkCreateMetadataItem, type BulkCreateCustomSlugItem } from './bulk-create'
 
 export const BULK_CSV_MAX_BYTES = 65536
 type CsvResult = { success: true; data: string[] } | { success: false }
-type ImportResult = { success: true; mode: 'targets'; data: string[] } | { success: true; mode: 'titles'; data: BulkCreateItem[] } | { success: true; mode: 'metadata'; data: BulkCreateMetadataItem[] } | { success: true; mode: 'custom-slugs'; data: BulkCreateCustomSlugItem[] } | { success: true; mode: 'redirect-modes'; data: BulkCreateRedirectModeItem[] } | { success: false }
+type ImportResult = { success: true; mode: 'targets'; data: string[] } | { success: true; mode: 'titles'; data: BulkCreateItem[] } | { success: true; mode: 'metadata'; data: BulkCreateMetadataItem[] } | { success: true; mode: 'custom-slugs'; data: BulkCreateCustomSlugItem[] } | { success: true; mode: 'redirect-modes'; data: BulkCreateRedirectModeItem[] } | { success: true; mode: 'expirations'; data: BulkCreateExpirationItem[] } | { success: false }
 
 /** Preserves the legacy one-column consumer contract. */
 export function parseBulkCreateCsv(text: string): CsvResult {
@@ -31,7 +31,7 @@ export function parseBulkCreateImportCsv(text: string): ImportResult {
       else return invalid
     } else if (character === ',') {
       fields.push(field); field = ''; state = 'start'
-      if (fields.length > 4) return invalid
+      if (fields.length > 5) return invalid
     } else if (character === '\n' || character === '\r') {
       if (character === '\r' && input[++i] !== '\n') return invalid
       rows.push([...fields, field])
@@ -45,6 +45,13 @@ export function parseBulkCreateImportCsv(text: string): ImportResult {
   if (state === 'quoted') return invalid
   if (!endedRecord) rows.push([...fields, field])
   const header = rows.shift()!
+  if (header.length === 6 && header[0] === 'target_url' && header[1] === 'title' && header[2] === 'tags' && header[3] === 'custom_slug' && header[4] === 'redirect_mode' && header[5] === 'expires_at' && rows.every(row => row.length === 6)) {
+    try {
+      const items = rows.map(row => ({ targetUrl: row[0]!, title: row[1]!, tags: JSON.parse(row[2]!) as unknown, customSlug: row[3]!, redirectMode: row[4]!, expiresAt: row[5]! }))
+      const parsed = bulkCreateExpirationsInputSchema.safeParse({ requestId: '11111111-1111-4111-8111-111111111111', items })
+      return parsed.success ? { success: true, mode: 'expirations', data: parsed.data.items } : invalid
+    } catch { return invalid }
+  }
   if (header.length === 5 && header[0] === 'target_url' && header[1] === 'title' && header[2] === 'tags' && header[3] === 'custom_slug' && header[4] === 'redirect_mode' && rows.every(row => row.length === 5)) {
     try {
       const items = rows.map(row => ({ targetUrl: row[0]!, title: row[1]!, tags: JSON.parse(row[2]!) as unknown, customSlug: row[3]!, redirectMode: row[4]! }))

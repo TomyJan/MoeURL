@@ -63,6 +63,7 @@ type Dependencies struct {
 	ShortLinkBatchCreateMetadata      shortlink.BatchCreateWithMetadataPort
 	ShortLinkBatchCreateCustomSlugs   shortlink.BatchCreateWithCustomSlugsPort
 	ShortLinkBatchCreateRedirectModes shortlink.BatchCreateWithRedirectModesPort
+	ShortLinkBatchCreateExpirations   shortlink.BatchCreateWithExpirationsPort
 	Insights                          insights.Port
 	VisitExport                       insights.VisitExportPort
 	GlobalVisitExport                 insights.GlobalVisitExportPort
@@ -366,6 +367,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			if dependency.ShortLinkBatchCreateRedirectModes != nil {
 				handler := shortlink.NewBulkCreateRedirectModeHandler(dependency.ShortLinkBatchCreateRedirectModes, logger)
 				businessAPI.Post("/short-link/batch-create-with-redirect-modes", handler.BatchCreateWithRedirectModes)
+			}
+			if dependency.ShortLinkBatchCreateExpirations != nil {
+				handler := shortlink.NewBulkCreateExpirationHandler(dependency.ShortLinkBatchCreateExpirations, logger)
+				businessAPI.Post("/short-link/batch-create-with-expirations", handler.BatchCreateWithExpirations)
 			}
 			if dependency.Domain != nil {
 				domainHandler := domain.NewHandler(dependency.Domain, logger)
