@@ -1,8 +1,8 @@
 # 管理后台
 
-## v0.72.0 管理员目标规则检查（设计）
+## v0.72.0 管理员目标规则检查（本地实现完成）
 
-管理设置页将提供独立中英只读检查卡片，按当前已保存七份目标规则判断单个目标。POST `/api/v1/admin/system/target-policy/check`，strict `targetUrl`／2048 UTF-8 bytes，当前管理员双权限授权；只返回 allowed／invalid_target／restricted，不写链接、审计或配额，不访问目标。当前仅设计，实际实现和验证见[设计](2026-11-14-v0.72.0-target-policy-check-design.md)及[验收](../implementation/v0.72.0-acceptance.md)。
+管理设置页已提供独立中英只读检查卡片，按当前已保存七份目标规则判断单个目标，其他卡片草稿不参与。POST `/api/v1/admin/system/target-policy/check`，strict `targetUrl`／2048 UTF-8 bytes，当前管理员双权限授权；只返回 allowed／invalid_target／restricted，不写链接、审计或配额，不访问目标。输入改变立即清结果，身份及请求轮次保护迟到响应。后端和前端本地组合验证已完成，准确产品、真实浏览器和审查交付尚待，详见[设计](2026-11-14-v0.72.0-target-policy-check-design.md)及[验收](../implementation/v0.72.0-acceptance.md)。
 
 ## v0.67.0 目标 DNS 后缀黑名单（已完整交付）
 

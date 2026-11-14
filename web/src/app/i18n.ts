@@ -2,6 +2,13 @@ import { createI18n } from 'vue-i18n'
 
 export const messages = {
   'zh-CN': {
+    targetPolicyCheck: {
+      heading: '目标规则检查', form: '检查已保存目标规则', target: '完整目标网址', check: '检查目标',
+      hint: '使用当前已保存的规则，不包含其他卡片未保存的草稿。',
+      scope: '仅检查此时的目标规则，不检查配额、短码或目标可达性；结果不保证后续创建成功。',
+      allowed: '当前规则允许', invalid_target: '目标格式或基础地址不允许', restricted: '被目标规则拒绝',
+      invalid: '请输入 1–2048 个 UTF-8 字节的目标，不含控制字符。', failed: '检查失败，输入已保留，请重试。',
+    },
     batchNoteAppend: {
       action: '追加备注', title: '追加到所选内部备注', note: '追加内容', warning: '保留原备注，在末尾换行追加。此操作无法撤销。',
       hint: '非空，最多 1000 个 Unicode 字符，允许换行和制表符。追加后的总长度也不能超过 1000 字符。', invalidNote: '请输入非空内容，最多 1000 个 Unicode 字符，不含换行和制表符以外的控制字符。',
@@ -969,6 +976,13 @@ export const messages = {
     },
   },
   en: {
+    targetPolicyCheck: {
+      heading: 'Target policy check', form: 'Check saved target policies', target: 'Full target URL', check: 'Check target',
+      hint: 'Uses the currently saved rules, excluding unsaved drafts in other cards.',
+      scope: 'Checks target rules at this instant, not quotas, short codes or reachability; a result does not guarantee later creation.',
+      allowed: 'Allowed by current rules', invalid_target: 'Target format or base address is not allowed', restricted: 'Rejected by target rules',
+      invalid: 'Enter a target of 1–2048 UTF-8 bytes without control characters.', failed: 'Check failed. Your input is retained; try again.',
+    },
     batchNoteAppend: {
       action: 'Append notes', title: 'Append to selected internal notes', note: 'Text to append', warning: 'Keeps existing notes and appends on a new line. This cannot be undone.',
       hint: 'Nonempty, up to 1000 Unicode characters. Line breaks and tabs are allowed. The resulting total must also fit 1000 characters.', invalidNote: 'Enter nonempty text with up to 1000 Unicode characters and no controls other than line breaks and tabs.',
