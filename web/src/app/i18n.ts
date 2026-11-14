@@ -2,6 +2,13 @@ import { createI18n } from 'vue-i18n'
 
 export const messages = {
   'zh-CN': {
+    targetPolicyBatchCheck: {
+      heading: '批量目标规则检查', form: '批量检查已保存目标规则', targets: '目标网址（每行一个）', check: '检查这批目标',
+      hint: '每行一个完整目标网址，最多 20 行。使用当前已保存的规则，不包含其他卡片未保存的草稿。',
+      scope: '仅检查此时的目标规则，不检查配额、短码或目标可达性；结果不保证后续创建成功。',
+      results: '逐行检查结果', row: '第 {index} 行', allowed: '当前规则允许', invalid_target: '目标格式或基础地址不允许', restricted: '被目标规则拒绝',
+      invalid: '请输入 1–20 个非空行，每行不超过 2048 个 UTF-8 字节且不含控制字符。', failed: '检查失败，输入已保留，请重试。',
+    },
     targetPolicyCheck: {
       heading: '目标规则检查', form: '检查已保存目标规则', target: '完整目标网址', check: '检查目标',
       hint: '使用当前已保存的规则，不包含其他卡片未保存的草稿。',
@@ -976,6 +983,13 @@ export const messages = {
     },
   },
   en: {
+    targetPolicyBatchCheck: {
+      heading: 'Batch target rule check', form: 'Check saved target rules in a batch', targets: 'Target URLs (one per line)', check: 'Check these targets',
+      hint: 'Enter one full target URL per line, up to 20 lines. Uses saved rules, not unsaved drafts in other cards.',
+      scope: 'Only checks the current target rules, not quotas, short codes or reachability. Results do not guarantee later creation will succeed.',
+      results: 'Results by line', row: 'Line {index}', allowed: 'Allowed by current rules', invalid_target: 'Invalid target or disallowed base address', restricted: 'Rejected by target rules',
+      invalid: 'Enter 1–20 nonempty lines, each at most 2048 UTF-8 bytes without control characters.', failed: 'Check failed. Your input is kept; please retry.',
+    },
     targetPolicyCheck: {
       heading: 'Target policy check', form: 'Check saved target policies', target: 'Full target URL', check: 'Check target',
       hint: 'Uses the currently saved rules, excluding unsaved drafts in other cards.',
