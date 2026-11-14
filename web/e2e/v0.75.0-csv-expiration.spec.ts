@@ -309,14 +309,17 @@ test('v0.75.0 en 390px replays an expired receipt, rejects a new expired batch a
   expect(link).toMatchObject({ targetUrl: item.targetUrl, expiresAt })
   await expect.poll(async () => (await (await page.request.get('/go/' + link.slug + '/preview')).json()).code, { timeout: 25_000, intervals: [100, 250, 500] }).toBe(200109)
   const publicResponse = await page.request.get('/' + link.slug, { maxRedirects: 0 })
-  expect(publicResponse.status()).not.toBe(302)
+  expect(publicResponse.status()).toBe(302)
+  expect(publicResponse.headers().location).toBe('/go/' + link.slug + '?reason=expired')
+  const expiredLink = { ...link, expired: true }, expiredStored = [expiredLink]
+  expect(await links(page.request)).toEqual(expiredStored)
   expect(await readVisitCount(page, link.id)).toBe(0)
   const replay = page.waitForResponse(response => new URL(response.url()).pathname === endpoint)
   await activate(page.getByTestId('bulk-create-submit'))
   expect(await (await replay).json()).toMatchObject({ code: 0, data: { requestId, createdCount: 1 } })
   await expect(dialog).toBeHidden()
   expect(writes).toEqual([{ requestId, items: [item] }, { requestId, items: [item] }])
-  expect(await links(page.request)).toEqual(stored); expect(await readVisitCount(page, link.id)).toBe(0)
+  expect(await links(page.request)).toEqual(expiredStored); expect(await readVisitCount(page, link.id)).toBe(0)
 
   const newItem = { ...item, targetUrl: 'https://example.com/correction75/' + nonce }
   await activate(page.getByTestId('bulk-create-open'))
@@ -328,7 +331,7 @@ test('v0.75.0 en 390px replays an expired receipt, rejects a new expired batch a
   expect(await (await rejection).json()).toMatchObject({ code: 200108 })
   await expect(page.getByTestId('bulk-create-error')).toContainText('expired')
   await expect(page.getByTestId('bulk-create-edit')).toBeEnabled()
-  expect(await links(page.request)).toEqual(stored)
+  expect(await links(page.request)).toEqual(expiredStored)
   await capture(info, 'expiration-explicit-denial', page)
   await activate(page.getByTestId('bulk-create-edit'))
   const corrected = { ...newItem, expiresAt: '2030-01-01T00:00:00Z' }
@@ -339,7 +342,7 @@ test('v0.75.0 en 390px replays an expired receipt, rejects a new expired batch a
   await activate(page.getByTestId('bulk-create-submit'))
   expect(await (await creation).json()).toMatchObject({ code: 0, data: { requestId: correctedId, createdCount: 1 } })
   await expect(dialog).toBeHidden()
-  expect(await links(page.request)).toEqual(expect.arrayContaining([link, expect.objectContaining({ targetUrl: corrected.targetUrl, expiresAt: corrected.expiresAt })]))
+  expect(await links(page.request)).toEqual(expect.arrayContaining([expiredLink, expect.objectContaining({ targetUrl: corrected.targetUrl, expiresAt: corrected.expiresAt })]))
   expect(await links(page.request)).toHaveLength(2)
   await attach(info, 'expiration-real-deadline', { requestId, rejectedId, correctedId, expiresAt, writes, expiredPublicCode: 200109, expiredCreateCode: 200108, noDuplicateOrExpiredVisit: true })
 })
