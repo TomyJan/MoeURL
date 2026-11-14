@@ -4,7 +4,7 @@
 
 PR345／v0.75.1 已完整交付：最终 `406ed6e8` 真实 CodeRabbit132484326389 success、reviewed/source=covered，正常 squash master `78228e170f89ccd2a9f59c2d7dcfcabe00854457`，独立 API/fetch 核相同 tree 和唯一父；两个标准任务、9 条裁决、两组延期文档 Minor、8 份 owned 文件可恢复归档完成。原16项浏览器单轮与quality保持原执行归属。
 
-当前[批量创建错误提示可达性](scope-v0.75.2.md)已由四个中英手机诊断和原产品新断言RED确认；组件7项RED→GREEN，完整前端6133/6133、四项覆盖率100%，types/lint/E2E strict/build通过。原CIDR异步测试1失败、lint类型注解1失败及精确类型擦除桥接均保留实际归属，CIDR生产逻辑不变。旧诊断副本/镜像和7条专用cache已可恢复清理。准确新产品手机/桌面验证、真实审查和交付仍按[验收](../implementation/v0.75.2-acceptance.md)判定；UUID/payload与未知重试保持既有约束。不查CI、不发布部署。
+当前[批量创建错误提示可达性](scope-v0.75.2.md)已完成组件7项RED→GREEN、完整前端6133/6133/四100及quality；准确新产品smoke/所选安全扫描、单轮24项手机/桌面浏览器全部通过，ROOT核完26个唯一原图及34份JSON。新web与未变后端闭包分别记录实际身份，原CIDR异步用例失败、lint类型注解失败及精确桥接均保留。用完副本可恢复净释放181235153B，新镜像和7条私有cache已清；真实审查和交付仍按[验收](../implementation/v0.75.2-acceptance.md)判定。UUID/payload与未知重试保持既有约束。不查CI、不发布部署。
 
 ## v0.75.1 交付前检查点（历史）
 
