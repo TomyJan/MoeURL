@@ -94,6 +94,58 @@ for (const language of ['zh-CN', 'en'] as const) for (const { width, rows } of [
   })
 }
 
+for (const language of ['zh-CN', 'en'] as const) {
+  test('v0.75.2 ' + language + ' repeated local validation and malformed CSV feedback stays readable at 320px', async ({ browser }, info) => {
+    const theme = language === 'en' ? 'dark' : 'light'
+    const context = await browser.newContext({ baseURL: info.project.use.baseURL, viewport: { width: 320, height: 500 }, locale: language, hasTouch: true, colorScheme: theme, reducedMotion: 'reduce', serviceWorkers: 'block' })
+    const page = await context.newPage(), requests: { path: string; method: string }[] = []
+    const actor = { id: '00000000-0000-0000-0000-000000007599', username: 'local-feedback', nickname: '', group: 'user', permissions: ['short_link:create', 'short_link:read_own', 'domain:use_default'] }
+    const observations: unknown[] = []
+    touchPages.add(page)
+    try {
+      await context.addInitScript(({ language, theme }) => { localStorage.setItem('moeurl.language', language); localStorage.setItem('moeurl.theme', theme) }, { language, theme })
+      // Only external reads are fixtures; the actual dialog, parser, file and focus behavior run unchanged.
+      await page.route('**/api/v1/**', route => {
+        const path = new URL(route.request().url()).pathname
+        requests.push({ path, method: route.request().method() })
+        const data = path.endsWith('/auth/me') ? { user: actor } : { items: [], page: 1, pageSize: 20, total: 0 }
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ code: 0, data, message: '', meta: {} }) })
+      })
+      await page.goto('/link')
+      await activate(page.getByTestId('bulk-create-open'))
+      const dialog = page.getByTestId('bulk-create-dialog'), input = dialog.locator('input[type=file]'), draft = dialog.getByRole('textbox')
+      for (const kind of ['manual', 'oversized', 'malformed'] as const) {
+        const retained = kind === 'manual' ? 'not a valid URL' : 'https://example.com/retained-local-draft'
+        await draft.fill(retained)
+        for (const attempt of [1, 2]) {
+          if (kind === 'manual') await activate(page.getByTestId('bulk-create-preview'))
+          else {
+            await input.focus()
+            await input.setInputFiles({ name: kind + '.csv', mimeType: 'text/csv', buffer: kind === 'oversized' ? Buffer.alloc(65_537, 'x') : Buffer.from('bad_header\r\nnot_a_url\r\n') })
+          }
+          await expect(page.getByTestId('bulk-create-error')).toBeVisible()
+          await expect(page.getByTestId('bulk-create-error-feedback')).toBeFocused()
+          await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+          const measured = await geometry(dialog)
+          const shot = info.outputPath('local-feedback-' + language + '-' + kind + '-' + attempt + '.png')
+          await page.screenshot({ path: shot, animations: 'disabled' })
+          await info.attach('local-feedback-original', { path: shot, contentType: 'image/png' })
+          observations.push({ kind, attempt, measured })
+          expect(measured.error.fullyWithinVerticalClip).toBe(true)
+          expect(measured.focus.containsError).toBe(true)
+          expect(measured.pageScrollWidth).toBeLessThanOrEqual(320)
+          await expect(draft).toHaveValue(retained)
+          await expect(page.getByTestId('bulk-create-request-id')).toHaveCount(0)
+        }
+      }
+      expect(requests.filter(request => request.method !== 'GET')).toEqual([])
+      const path = info.outputPath('local-feedback-geometry.json')
+      await writeFile(path, JSON.stringify({ language, browser: browser.version(), driverNode: process.version, externalAPIsMocked: true, writes: 0, observations, requests }, null, 2))
+      await info.attach('local-feedback-geometry', { path, contentType: 'application/json' })
+    } finally { await context.close() }
+  })
+}
+
 async function geometry(dialog: Locator) {
   return dialog.evaluate(card => {
     const rect = (node: Element | null) => { if (!node) return null; const value = node.getBoundingClientRect(); return { x: value.x, y: value.y, width: value.width, height: value.height, top: value.top, bottom: value.bottom, left: value.left, right: value.right } }

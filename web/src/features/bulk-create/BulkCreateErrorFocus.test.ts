@@ -75,6 +75,39 @@ it('focuses a parse failure without a preview or network write and preserves its
   expect(view.requests).toEqual([])
 })
 
+// Ignoring a repeated synchronous refusal must fail after the user returns to its explicit action.
+it('refocuses the same manual validation error after another explicit invalid preview', async () => {
+  const view = mount(async () => { throw new Error('Invalid previews must not write') })
+  await fireEvent.click(screen.getByTestId('bulk-create-open'))
+  const input = screen.getByRole('textbox'), action = screen.getByTestId('bulk-create-preview')
+  for (const invalid of ['not a URL', 'still not a URL']) {
+    await fireEvent.update(input, invalid)
+    action.focus()
+    await fireEvent.click(action)
+    await focusedError(/HTTP/)
+    expect((input as HTMLTextAreaElement).value).toBe(invalid)
+    expect(screen.queryByTestId('bulk-create-request-id')).toBeNull()
+    expect(view.requests).toEqual([])
+  }
+})
+
+// The size guard rejects before an await; clearing and restoring the same key must still reveal it.
+it('refocuses a repeated oversized CSV rejection without reading or replacing the manual draft', async () => {
+  const view = mount(async () => { throw new Error('Rejected files must not write') })
+  await fireEvent.click(screen.getByTestId('bulk-create-open'))
+  await fireEvent.update(screen.getByRole('textbox'), targetUrl)
+  const input = view.container.querySelector('input[type=file]') as HTMLInputElement
+  const file = new File(['x'.repeat(65_537)], 'oversized.csv', { type: 'text/csv' })
+  for (let attempt = 0; attempt < 2; attempt++) {
+    input.focus()
+    await fireEvent.change(input, { target: { files: [file] } })
+    await focusedError(/64 KiB/)
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe(targetUrl)
+    expect(screen.queryByTestId('bulk-create-request-id')).toBeNull()
+    expect(view.requests).toEqual([])
+  }
+})
+
 it('refocuses a repeated unknown result while preserving the original request and locked editing', async () => {
   const view = mount(async (_input, attempt) => { if (attempt === 1) throw new Error('Lost acknowledgement'); return response(200121) })
   const id = await preview()

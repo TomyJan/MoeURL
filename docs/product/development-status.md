@@ -1,10 +1,10 @@
 # 开发进度与能力清单
 
-## 当前维护（2026-11-14，v0.75.2）
+## 当前维护（2026-11-15，v0.75.2）
 
 PR345／v0.75.1 已完整交付：最终 `406ed6e8` 真实 CodeRabbit132484326389 success、reviewed/source=covered，正常 squash master `78228e170f89ccd2a9f59c2d7dcfcabe00854457`，独立 API/fetch 核相同 tree 和唯一父；两个标准任务、9 条裁决、两组延期文档 Minor、8 份 owned 文件可恢复归档完成。原16项浏览器单轮与quality保持原执行归属。
 
-当前[批量创建错误提示可达性](scope-v0.75.2.md)已完成组件7项RED→GREEN、完整前端6133/6133/四100及quality；准确新产品smoke/所选安全扫描、单轮24项手机/桌面浏览器全部通过，ROOT核完26个唯一原图及34份JSON。新web与未变后端闭包分别记录实际身份，原CIDR异步用例失败、lint类型注解失败及精确桥接均保留。用完副本可恢复净释放181235153B，新镜像和7条私有cache已清；真实审查和交付仍按[验收](../implementation/v0.75.2-acceptance.md)判定。UUID/payload与未知重试保持既有约束。不查CI、不发布部署。
+当前[批量创建错误提示可达性](scope-v0.75.2.md)唯一独立终审两项Important已完成真实RED→GREEN：重复同步拒绝重新聚焦，手机CSV主错误缩短且完整规则仍在既有帮助。新完整前端6135/6135/四100、quality与准确新产品smoke/所选扫描通过；单轮26项浏览器全过，ROOT核完36个唯一原图及36份JSON。原6133/24、CIDR异步失败、lint失败和精确桥接保留各自实际输入；不改UUID/payload或未知重试协议。本轮用完副本再可恢复净释放96517493B，新增镜像和5条私有cache已清；前轮181235153B及7条cache不重复计算。最终候选真实CodeRabbit、正常合并及归档仍按[验收](../implementation/v0.75.2-acceptance.md)判定；新增1项文档Minor与前版2组Minor接续。不查CI、不发布部署。
 
 ## v0.75.1 交付前检查点（历史）
 
