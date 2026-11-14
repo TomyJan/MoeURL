@@ -1,8 +1,8 @@
 # 短链
 
-## v0.76.0 七列 CSV 最大访问次数导入（实施中）
+## v0.76.0 七列 CSV 最大访问次数导入（已完整交付）
 
-独立 `POST /api/v1/short-link/batch-create-with-visit-limits` 接受严格七字段项，CSV 精确表头为 `target_url,title,tags,custom_slug,redirect_mode,expires_at,max_visits`。新增 API 字段 `maxVisits` 为原文字符串，空值无限额，否则只接受规范 ASCII 十进制 1–2147483647；不 trim，不接受 JSON 数值或 null。原四项基础权限、实际模式／过期权限保持，仅实际非空上限要求当前 `short_link:set_max_visits`。持锁授权先于回执；七种协议共用 actor／requestId 冲突边界，但各自有独立摘要。链接、用量初值、审计、每日配额和回执原子提交，已耗尽或过期链接的精确重放不重置用量。旧六协议和模板不变；文件与完整 JSON 各限 65536 字节、1–20 行。后端标准任务已完成，前端继续验证，产品／浏览器和交付尚待，见[设计](2026-11-15-v0.76.0-csv-visit-limits-design.md)与[验收](../implementation/v0.76.0-acceptance.md)。
+独立 `POST /api/v1/short-link/batch-create-with-visit-limits` 接受严格七字段项，CSV 精确表头为 `target_url,title,tags,custom_slug,redirect_mode,expires_at,max_visits`。新增 API 字段 `maxVisits` 为原文字符串，空值无限额，否则只接受规范 ASCII 十进制 1–2147483647；不 trim，不接受 JSON 数值或 null。原四项基础权限、实际模式／过期权限保持，仅实际非空上限要求当前 `short_link:set_max_visits`。持锁授权先于回执；七种协议共用 actor／requestId 冲突边界，但各自有独立摘要。链接、用量初值、审计、每日配额和回执原子提交，已耗尽或过期链接的精确重放不重置用量。旧六协议和模板不变；文件与完整 JSON 各限 65536 字节、1–20 行。PR353 已完成本地验证、最终候选真实 CodeRabbit、正常合并独立核验和可恢复归档，未正式发布；原失败与扫描限制保持准确执行归属，见[设计](2026-11-15-v0.76.0-csv-visit-limits-design.md)与[验收](../implementation/v0.76.0-acceptance.md)。
 
 ## v0.75.0 六列 CSV 过期时间导入（已完整交付）
 
