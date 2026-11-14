@@ -1,6 +1,12 @@
 # 开发进度与能力清单
 
-## 当前开发（2026-11-15，v0.76.0）
+## 当前维护（2026-11-15，v0.76.1）
+
+PR353／[v0.76.0](scope-v0.76.0.md) 已完整交付：最终 `c1275ae47edcdc0bc914a1b65bae2adfd2f176fe` 自身真实 CodeRabbit132596733847 success、reviewed/source=covered、有效 open0。正常 squash master `ff6916d123f6454f094c15d136061fa14fa5b64a`，tree `001a96034f14b78051e0818f9fe88f6e11f25565`、唯一父 `510bdf5d5a15156a670097d6a50ff8129a915381`，独立 API/fetch 及四项标准任务完成；35 条裁决和 12 份工作记录已可恢复归档。原后端 5241、前端 6253、准确 f35a695 产品及 24 项浏览器保持原执行归属，原失败与扫描限制不变，见[验收](../implementation/v0.76.0-acceptance.md)。
+
+当前[文档状态维护](scope-v0.76.1.md)修正 short-links 阶段、overview 当前能力和过期验证入口，准确收口前版记录；产品保持 0.76.0。本维护本地核验、真实审查和交付另行实证，不查询或等待 CI，不安装、不发布部署。更早历史重复继续保留，下方原检查点不代表当前进展。
+
+## v0.76.0 交付前检查点（历史）
 
 PR352／v0.75.3 已完整交付：最终 `a65bca3596946e4d6ef734a84d790be2f3e47e84` 自身真实 CodeRabbit132547109135 success、reviewed/source=covered，全正文 ROOT 处置、有效 open0；正常 squash master `510bdf5d5a15156a670097d6a50ff8129a915381`，独立 API/fetch 核同 tree 和唯一父。两项标准任务、18 条裁决、三组延期 Minor 与 8 份工作记录可恢复归档完成。四份仅 EOF 文档的文件级 no reviewable changes 边界保留，不冒深审；原准备拒绝、清理总量勘误及前版组合验证归属不改。
 
