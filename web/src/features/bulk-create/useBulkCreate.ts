@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { me, type UserResponse } from '@/entities/auth/api'
-import { batchCreateShortLinks, batchCreateShortLinksWithTitles, batchCreateShortLinksWithMetadata, batchCreateShortLinksWithCustomSlugs, BulkCreateUnknownError, parseBulkCreateLines, type BulkCreateInput, type BulkCreateTitlesInput, type BulkCreateMetadataInput, type BulkCreateCustomSlugsInput, type BulkCreateCustomSlugItem, type BulkCreateItem, type BulkCreateMetadataItem } from '@/entities/short-link/bulk-create'
+import { batchCreateShortLinks, batchCreateShortLinksWithTitles, batchCreateShortLinksWithMetadata, batchCreateShortLinksWithCustomSlugs, batchCreateShortLinksWithRedirectModes, type BulkCreateRedirectModeItem, type BulkCreateRedirectModesInput, BulkCreateUnknownError, parseBulkCreateLines, type BulkCreateInput, type BulkCreateTitlesInput, type BulkCreateMetadataInput, type BulkCreateCustomSlugsInput, type BulkCreateCustomSlugItem, type BulkCreateItem, type BulkCreateMetadataItem } from '@/entities/short-link/bulk-create'
 import { ApiClientError } from '@/shared/api/client'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 import { BULK_CSV_MAX_BYTES, parseBulkCreateImportCsv } from '@/entities/short-link/bulk-create-csv'
@@ -15,20 +15,25 @@ export function useBulkCreate() {
   const auth = useQuery({ queryKey: ['auth', 'me'], queryFn: me, retry: false, staleTime: Infinity })
   const { t } = useI18n()
   const opened = ref(false), draft = ref(''), pending = ref(false), unknown = ref(false), closing = ref(false), errorKey = ref('')
-  type Protocol = 'targets' | 'titles' | 'metadata' | 'custom-slugs'
-  type StructuredItem = BulkCreateItem | BulkCreateMetadataItem | BulkCreateCustomSlugItem
-  type Snapshot = BulkCreateInput | BulkCreateTitlesInput | BulkCreateMetadataInput | BulkCreateCustomSlugsInput
+  type Protocol = 'targets' | 'titles' | 'metadata' | 'custom-slugs' | 'redirect-modes'
+  type StructuredItem = BulkCreateItem | BulkCreateMetadataItem | BulkCreateCustomSlugItem | BulkCreateRedirectModeItem
+  type Snapshot = BulkCreateInput | BulkCreateTitlesInput | BulkCreateMetadataInput | BulkCreateCustomSlugsInput | BulkCreateRedirectModesInput
   const snapshot = shallowRef<Snapshot | null>(null)
   const importedItems = shallowRef<readonly StructuredItem[] | null>(null)
   const importedMode = ref<Protocol>('targets'), snapshotMode = ref<Protocol>('targets')
   const previewItems = computed<readonly StructuredItem[]>(() => !snapshot.value ? [] : 'items' in snapshot.value ? snapshot.value.items : snapshot.value.targetUrls.map(targetUrl => ({ targetUrl, title: '' })))
   const reading = ref(false)
   let generation = 0, alive = true, scope = identity.scope.value
-  let fileSequence = 0, draftRevision = 0, metadataEpoch = 0, customSlugEpoch = 0
+  let fileSequence = 0, draftRevision = 0, metadataEpoch = 0, customSlugEpoch = 0, intermediateEpoch = 0, confirmationEpoch = 0
   watch(draft, () => { draftRevision++; fileSequence++; reading.value = false }, { flush: 'sync' })
   const mutation = useMutation({
     mutationFn: (attempt: { input: Snapshot; mode: Protocol; token: number; candidate: typeof scope }) => {
       if (!isCurrent(attempt.token, attempt.candidate) || ('items' in attempt.input && !canTitleNow())) throw new Error('Batch context retired')
+      if (attempt.mode === 'redirect-modes') {
+        const input = attempt.input as BulkCreateRedirectModesInput
+        if (!canRedirectModesNow(input.items)) { reset(); throw new Error('Batch context retired') }
+        return batchCreateShortLinksWithRedirectModes(input, attempt.candidate.userId)
+      }
       if (attempt.mode === 'custom-slugs') {
         if (!canCustomSlugNow()) throw new Error('Batch context retired')
         return batchCreateShortLinksWithCustomSlugs(attempt.input as BulkCreateCustomSlugsInput, attempt.candidate.userId)
@@ -50,6 +55,11 @@ export function useBulkCreate() {
     && auth.data.value.user.permissions.includes('short_link:create') && auth.data.value.user.permissions.includes('domain:use_default'))
   function canTitleNow() { return canUseNow() && !!client.getQueryData<UserResponse>(['auth', 'me'])?.user.permissions.includes('short_link:set_metadata') }
   function canCustomSlugNow() { return canTitleNow() && !!client.getQueryData<UserResponse>(['auth', 'me'])?.user.permissions.includes('short_link:custom_slug') }
+  /** Examines actual row intent so unrelated mode grants cannot retire a direct-only batch. */
+  function usesMode(items: readonly StructuredItem[], mode: 'intermediate' | 'confirmation') { return items.some(item => 'redirectMode' in item && item.redirectMode === mode) }
+  function canModeNow(mode: 'intermediate' | 'confirmation') { return canCustomSlugNow() && !!client.getQueryData<UserResponse>(['auth', 'me'])?.user.permissions.includes('short_link:use_' + mode) }
+  function canRedirectModesNow(items: readonly StructuredItem[]) { return canCustomSlugNow() && (!usesMode(items, 'intermediate') || canModeNow('intermediate')) && (!usesMode(items, 'confirmation') || canModeNow('confirmation')) }
+  function hasModeDraft(mode: 'intermediate' | 'confirmation') { return usesMode(snapshot.value && 'items' in snapshot.value ? snapshot.value.items : importedItems.value ?? [], mode) }
   /** Retires private input immediately, without letting old finally blocks unlock a newer batch. */
   function reset() {
     generation++; opened.value = false; draft.value = ''; importedItems.value = null; snapshot.value = null; pending.value = false
@@ -65,7 +75,15 @@ export function useBulkCreate() {
     }
     if (!canCustomSlugNow()) {
       customSlugEpoch++
-      if (importedMode.value === 'custom-slugs' || snapshotMode.value === 'custom-slugs') reset()
+      if (importedMode.value === 'custom-slugs' || snapshotMode.value === 'custom-slugs' || importedMode.value === 'redirect-modes' || snapshotMode.value === 'redirect-modes') reset()
+    }
+    if (!canModeNow('intermediate')) {
+      intermediateEpoch++
+      if (hasModeDraft('intermediate')) reset()
+    }
+    if (!canModeNow('confirmation')) {
+      confirmationEpoch++
+      if (hasModeDraft('confirmation')) reset()
     }
   })
   /** Opens a new draft only under the currently confirmed account and grants. */
@@ -79,6 +97,7 @@ export function useBulkCreate() {
     if (importedItems.value) {
       if (!canTitleNow()) { reset(); return }
       if (importedMode.value === 'custom-slugs' && !canCustomSlugNow()) { reset(); return }
+      if (importedMode.value === 'redirect-modes' && !canRedirectModesNow(importedItems.value)) { reset(); return }
       snapshot.value = Object.freeze({ requestId: crypto.randomUUID(), items: importedItems.value })
       snapshotMode.value = importedMode.value
     } else {
@@ -101,7 +120,7 @@ export function useBulkCreate() {
   /** Binds local file reads to both authority and the latest explicit draft intent. */
   async function importFile(file: File | undefined) {
     if (!file || !opened.value || snapshot.value || pending.value || unknown.value || !isCurrent(generation, scope)) return
-    const token = generation, candidate = scope, sequence = ++fileSequence, revision = draftRevision, titleEpoch = metadataEpoch, slugEpoch = customSlugEpoch
+    const token = generation, candidate = scope, sequence = ++fileSequence, revision = draftRevision, titleEpoch = metadataEpoch, slugEpoch = customSlugEpoch, intermediateReadEpoch = intermediateEpoch, confirmationReadEpoch = confirmationEpoch
     const current = () => isCurrent(token, candidate) && sequence === fileSequence && revision === draftRevision
     reading.value = true; errorKey.value = ''
     try {
@@ -114,7 +133,9 @@ export function useBulkCreate() {
       if (!parsed.success) { errorKey.value = 'bulkCreate.csvInvalid'; return }
       if (parsed.mode !== 'targets') {
         if (!canTitleNow() || titleEpoch !== metadataEpoch) { errorKey.value = 'bulkCreate.metadataRequired'; return }
-        if (parsed.mode === 'custom-slugs' && (!canCustomSlugNow() || slugEpoch !== customSlugEpoch)) { errorKey.value = 'bulkCreate.customSlugRequired'; return }
+        if ((parsed.mode === 'custom-slugs' || parsed.mode === 'redirect-modes') && (!canCustomSlugNow() || slugEpoch !== customSlugEpoch)) { errorKey.value = 'bulkCreate.customSlugRequired'; return }
+        if (parsed.mode === 'redirect-modes' && ((usesMode(parsed.data, 'intermediate') && (!canModeNow('intermediate') || intermediateReadEpoch !== intermediateEpoch))
+          || (usesMode(parsed.data, 'confirmation') && (!canModeNow('confirmation') || confirmationReadEpoch !== confirmationEpoch)))) { errorKey.value = 'bulkCreate.redirectModeRequired'; return }
         draft.value = ''
         importedItems.value = Object.freeze(parsed.data.map(item => Object.freeze('tags' in item ? { ...item, tags: Object.freeze([...item.tags]) } : { ...item })))
         importedMode.value = parsed.mode
@@ -148,8 +169,8 @@ export function useBulkCreate() {
           : error instanceof ApiClientError && error.code === 200122 ? 'dailyCreateQuota.bulkDenied'
             : error instanceof ApiClientError && error.code === 200121 ? 'targetPolicy.bulkDenied'
             : error instanceof ApiClientError && error.code === 200120 ? 'bulkCreate.conflict'
-            : mode === 'custom-slugs' && error instanceof ApiClientError && error.code === 200101 ? 'bulkCreate.customSlugTaken'
-              : mode === 'custom-slugs' && error instanceof ApiClientError && error.code === 200102 ? 'bulkCreate.customSlugReserved'
+            : (mode === 'custom-slugs' || mode === 'redirect-modes') && error instanceof ApiClientError && error.code === 200101 ? 'bulkCreate.customSlugTaken'
+              : (mode === 'custom-slugs' || mode === 'redirect-modes') && error instanceof ApiClientError && error.code === 200102 ? 'bulkCreate.customSlugReserved'
                 : 'bulkCreate.failed'
       }
     } finally { if (isCurrent(token, candidate)) pending.value = false }

@@ -38,17 +38,21 @@ async function selectCsv(container: Element, slug = 'TeamDocs56') {
 }
 afterEach(() => { cleanup(); clients.splice(0).forEach(c => c.clear()); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks() })
 
-// Missing fourth-format guidance must fail at the visible summary and parser-error boundary.
-it.each(['zh-CN', 'en'] as const)('describes all four formats in the visible %s summary and invalid-file recovery', async locale => {
+// Missing fifth-format guidance must fail at the visible summary and parser-error boundary.
+it.each(['zh-CN', 'en'] as const)('describes all five formats in the visible %s summary and invalid-file recovery', async locale => {
   const view = mount(locale, 200101)
   await fireEvent.click(screen.getByTestId('bulk-create-open'))
-  const summary = screen.getByText(locale === 'zh-CN' ? /四种固定格式/ : /four fixed formats/)
-  expect(summary.textContent).toMatch(/custom_slug/)
+  const summary = screen.getByText(locale === 'zh-CN' ? /五种固定格式/ : /five fixed formats/i)
+  expect(summary.textContent).toMatch(locale === 'zh-CN' ? /自定义短码/ : /custom code/)
+  expect(summary.textContent).toMatch(locale === 'zh-CN' ? /跳转方式/ : /redirect mode/)
   const bytes = new TextEncoder().encode('target_url,title,tags,custom_slug\nhttps://example.com,bad')
   const file = new File([bytes], 'invalid.csv', { type: 'text/csv' })
   Object.defineProperty(file, 'arrayBuffer', { value: async () => bytes.buffer })
-  await fireEvent.change(view.container.querySelector('input[type=file]')!, { target: { files: [file] } })
+  const input = view.container.querySelector('input[type=file]')!
+  Object.defineProperty(input, 'files', { value: [file], configurable: true })
+  input.dispatchEvent(new Event('change', { bubbles: true }))
   await waitFor(() => expect(screen.getByTestId('bulk-create-error').textContent).toContain('target_url,title,tags,custom_slug'))
+  expect(screen.getByTestId('bulk-create-error').textContent).toContain('redirect_mode')
   expect(view.requests).toHaveLength(0)
 })
 

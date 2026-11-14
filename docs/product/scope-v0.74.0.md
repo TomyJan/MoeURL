@@ -1,6 +1,6 @@
 # v0.74.0 CSV 跳转方式导入范围
 
-基线为已独立核验的 PR341 master `3def603c33406dd04b67d6dcaaf3179e9ff149b5`，分支 `feat/v0.74.0-csv-redirect-modes`。范围由 Agent 依持续无人值守授权选择，不写成用户逐项批准。当前为设计／实施阶段，不代表功能已交付。
+基线为已独立核验的 PR341 master `3def603c33406dd04b67d6dcaaf3179e9ff149b5`，分支 `feat/v0.74.0-csv-redirect-modes`。范围由 Agent 依持续无人值守授权选择，不写成用户逐项批准。前后端与本地门禁已完成，准确产品、浏览器和审查交付尚待。
 
 ## 目标与取舍
 

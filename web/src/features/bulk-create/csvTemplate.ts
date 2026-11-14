@@ -27,3 +27,10 @@ export const bulkCreateCustomSlugsCsvTemplate = {
   contentType: 'text/csv;charset=utf-8' as const,
   content: '\uFEFF' + bulkCreateCustomSlugsCsvExample.replaceAll('\n', '\r\n') + '\r\n',
 }
+
+export const bulkCreateRedirectModesCsvExample = 'target_url,title,tags,custom_slug,redirect_mode\nhttps://example.com/direct,Example title,"[""tools"",""a,b""]",TeamDocs74,direct\nhttps://example.com/intermediate,,[],,intermediate\nhttps://example.com/confirmation,,[],Confirm74,confirmation\nhttps://example.com/empty,,[],,'
+export const bulkCreateRedirectModesCsvTemplate = {
+  fileName: 'moeurl-redirect-modes-template.csv',
+  contentType: 'text/csv;charset=utf-8' as const,
+  content: '\uFEFF' + bulkCreateRedirectModesCsvExample.replaceAll('\n', '\r\n') + '\r\n',
+}

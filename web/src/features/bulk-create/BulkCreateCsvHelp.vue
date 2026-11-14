@@ -14,6 +14,9 @@
       <p>{{ t('bulkCreate.csvCustomSlugsRules') }}</p>
       <pre><code data-testid="bulk-create-csv-custom-slugs-example">{{ bulkCreateCustomSlugsCsvExample }}</code></pre>
       <v-btn variant="tonal" @click="downloadTemplate('custom-slugs')">{{ t('bulkCreate.csvCustomSlugsDownload') }}</v-btn>
+      <p>{{ t('bulkCreate.csvRedirectModesRules') }}</p>
+      <pre><code data-testid="bulk-create-csv-redirect-modes-example">{{ bulkCreateRedirectModesCsvExample }}</code></pre>
+      <v-btn variant="tonal" @click="downloadTemplate('redirect-modes')">{{ t('bulkCreate.csvRedirectModesDownload') }}</v-btn>
       <p v-if="feedback" role="status" data-testid="bulk-create-csv-feedback">{{ t(feedback) }}</p>
     </div>
   </details>
@@ -22,15 +25,15 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { downloadCsv } from '@/shared/download/csv'
-import { bulkCreateCsvExample, bulkCreateCsvTemplate, bulkCreateTitlesCsvExample, bulkCreateTitlesCsvTemplate, bulkCreateMetadataCsvExample, bulkCreateMetadataCsvTemplate, bulkCreateCustomSlugsCsvExample, bulkCreateCustomSlugsCsvTemplate } from './csvTemplate'
+import { bulkCreateCsvExample, bulkCreateCsvTemplate, bulkCreateTitlesCsvExample, bulkCreateTitlesCsvTemplate, bulkCreateMetadataCsvExample, bulkCreateMetadataCsvTemplate, bulkCreateCustomSlugsCsvExample, bulkCreateCustomSlugsCsvTemplate, bulkCreateRedirectModesCsvExample, bulkCreateRedirectModesCsvTemplate } from './csvTemplate'
 
 const { t } = useI18n()
 const feedback = ref('')
 /** Downloads only the public template; import and submission state remain owned by the parent. */
-function downloadTemplate(mode: 'targets' | 'titles' | 'metadata' | 'custom-slugs') {
+function downloadTemplate(mode: 'targets' | 'titles' | 'metadata' | 'custom-slugs' | 'redirect-modes') {
   feedback.value = ''
   try {
-    downloadCsv(mode === 'custom-slugs' ? bulkCreateCustomSlugsCsvTemplate : mode === 'metadata' ? bulkCreateMetadataCsvTemplate : mode === 'titles' ? bulkCreateTitlesCsvTemplate : bulkCreateCsvTemplate)
+    downloadCsv(mode === 'redirect-modes' ? bulkCreateRedirectModesCsvTemplate : mode === 'custom-slugs' ? bulkCreateCustomSlugsCsvTemplate : mode === 'metadata' ? bulkCreateMetadataCsvTemplate : mode === 'titles' ? bulkCreateTitlesCsvTemplate : bulkCreateCsvTemplate)
     feedback.value = 'bulkCreate.csvDownloadStarted'
   } catch {
     feedback.value = 'bulkCreate.csvDownloadFailed'
