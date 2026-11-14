@@ -286,14 +286,29 @@ for (const outcome of ['success', 'error', 'unknown'] as const) {
 test('v0.75.0 en 390px replays an expired receipt, rejects a new expired batch and accepts an explicit correction', async ({ scenario }, info) => {
   test.setTimeout(120_000)
   const { page } = scenario, nonce = randomBytes(7).toString('hex')
+  const readNavigationClock = async () => {
+    const response = await page.request.get('/api/v1/short-link/list?page=1&pageSize=100')
+    expect(response.status()).toBe(200)
+    const time = Date.parse(response.headers().date || '')
+    expect(Number.isFinite(time)).toBe(true)
+    return time
+  }
+  await page.route('**/link', async route => {
+    const started = await readNavigationClock()
+    let released = started
+    await expect.poll(async () => { released = await readNavigationClock(); return released }, { timeout: 20_000, intervals: [250, 500] }).toBeGreaterThanOrEqual(started + 13_000)
+    await attach(info, 'slow-navigation-clock', { started, released, minimumDelayMs: 13_000 })
+    await route.continue()
+  }, { times: 1 })
+  await page.goto('/link'); await activate(page.getByTestId('bulk-create-open'))
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
   const clock = await page.request.get('/api/v1/short-link/list?page=1&pageSize=100')
   expect(clock.status()).toBe(200)
   const serverTime = Date.parse(clock.headers().date || '')
   expect(Number.isFinite(serverTime)).toBe(true)
-  const expiresAt = new Date(serverTime + 12_000).toISOString().replace('.000Z', 'Z')
+  const expiresAt = new Date(serverTime + 30_000).toISOString().replace('.000Z', 'Z')
   const item: Item = { targetUrl: 'https://example.com/deadline75/' + nonce, title: '', tags: [], customSlug: '', redirectMode: 'direct', expiresAt }
-  await page.goto('/link'); await activate(page.getByTestId('bulk-create-open'))
-  const dialog = page.getByRole('dialog')
   await dialog.locator('input[type=file]').setInputFiles({ name: 'deadline.csv', mimeType: 'text/csv', buffer: Buffer.from(csv([item])) })
   await activate(page.getByTestId('bulk-create-preview'))
   const requestId = await page.getByTestId('bulk-create-request-id').innerText(), writes: unknown[] = []
@@ -307,7 +322,7 @@ test('v0.75.0 en 390px replays an expired receipt, rejects a new expired batch a
   const stored = await links(page.request); expect(stored).toHaveLength(1)
   const link = stored[0]!
   expect(link).toMatchObject({ targetUrl: item.targetUrl, expiresAt })
-  await expect.poll(async () => (await (await page.request.get('/go/' + link.slug + '/preview')).json()).code, { timeout: 25_000, intervals: [100, 250, 500] }).toBe(200109)
+  await expect.poll(async () => (await (await page.request.get('/go/' + link.slug + '/preview')).json()).code, { timeout: 45_000, intervals: [100, 250, 500] }).toBe(200109)
   const publicResponse = await page.request.get('/' + link.slug, { maxRedirects: 0 })
   expect(publicResponse.status()).toBe(302)
   expect(publicResponse.headers().location).toBe('/go/' + link.slug + '?reason=expired')

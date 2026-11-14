@@ -1,5 +1,10 @@
 # 短链
 
+## v0.75.0 六列 CSV 过期时间导入（已完整交付）
+
+独立 `POST /api/v1/short-link/batch-create-with-expirations` 接受严格六字段批次，CSV 表头固定为 `target_url,title,tags,custom_slug,redirect_mode,expires_at`；API 对应 `expiresAt` 只接受空值或年份 0001–9999 的合法 UTC 整秒。保留原四项基础权限，非空截止时间另核 `short_link:set_expiration`，实际行模式仍重查当前权限。当前授权先于回执；成功回执可在截止后按原 UUID／payload 重放。新批次在域名与配额锁后只取一次数据库时间，已截止则整批拒绝，链接、审计、配额和回执原子提交；公开到期访问不计成功量。旧五种协议、摘要及模板保持，文件和完整 JSON 各限 65536 字节、1–20 行。PR344 已真实审查、正常合并独立核验及恢复归档，未正式发布；原组合验证、失败及三组延期 Minor 见[设计](2026-11-14-v0.75.0-csv-expiration-design.md)与[验收](../implementation/v0.75.0-acceptance.md)。
+
+
 ## v0.74.0 五列 CSV 跳转方式导入（已完整交付）
 
 独立 `POST /api/v1/short-link/batch-create-with-redirect-modes` 接受有序批次，每项严格限定五个字段；CSV 表头固定为 `target_url,title,tags,custom_slug,redirect_mode`。空模式表示 direct，中间页固定 5 秒，五列始终要求原四项权限，实际交互模式另核当前权限；重放也先授权。五种协议共用账号／请求键冲突边界，五列原文参与独立摘要，链接、审计、配额与回执原子提交。旧四种协议保持原语义；文件和完整 JSON 各限 65536 字节，1–20 行。前后端、本地门禁、准确产品和受影响真实浏览器均已验证；PR342 最终候选真实 CodeRabbit、正常合并独立核验及恢复归档完成，未正式发布。原失败与组合证据见[设计](2026-11-14-v0.74.0-csv-redirect-modes-design.md)和[验收](../implementation/v0.74.0-acceptance.md)。
