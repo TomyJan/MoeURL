@@ -47,11 +47,11 @@ func (s *Service) BatchCreate(ctx context.Context, actor auth.CurrentUser, input
 	for i, target := range input.TargetURLs {
 		items[i].TargetURL = target
 	}
-	return s.batchCreate(ctx, actor, requestID, digest, items, false, false)
+	return s.batchCreate(ctx, actor, requestID, digest, items, batchCreateOptions{})
 }
 
 // batchCreate shares authorization, locking and atomic receipts across independent wire protocols.
-func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, requestID uuid.UUID, digest [sha256.Size]byte, items []batchCreateItem, withMetadata, withCustomSlugs bool) (BatchCreateResult, error) {
+func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, requestID uuid.UUID, digest [sha256.Size]byte, items []batchCreateItem, options batchCreateOptions) (BatchCreateResult, error) {
 	actorID, err := uuid.Parse(actor.ID)
 	if err != nil || actorID == uuid.Nil || actorID.String() != actor.ID {
 		return BatchCreateResult{}, ErrPermissionDenied
@@ -91,15 +91,25 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 		if group.Key == "guest" || !grants.Has(permission.ShortLinkCreate) || !grants.Has(permission.DomainUseDefault) {
 			return ErrPermissionDenied
 		}
-		if withCustomSlugs && !grants.Has(permission.ShortLinkCustomSlug) {
+		if options.CustomSlugs && !grants.Has(permission.ShortLinkCustomSlug) {
 			return ErrPermissionDenied
+		}
+		modes := make([]string, len(items))
+		for i, item := range items {
+			modes[i] = RedirectModeDirect
+			if options.RedirectModes && item.RedirectMode != "" {
+				modes[i] = item.RedirectMode
+			}
+			if required := redirectModePermission(modes[i]); required != "" && !grants.Has(required) {
+				return ErrPermissionDenied
+			}
 		}
 		titles := make([]string, len(items))
 		tags := make([][]string, len(items))
 		for i := range tags {
 			tags[i] = []string{}
 		}
-		if withMetadata {
+		if options.Metadata {
 			if !grants.Has(permission.ShortLinkSetMetadata) {
 				return ErrPermissionDenied
 			}
@@ -171,7 +181,7 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 				}
 				_, err = q.CreateBulkShortLink(ctx, sqlc.CreateBulkShortLinkParams{
 					ID: uuidToPgtype(uuid.New()), OwnerID: uuidToPgtype(actorID), DomainID: selected.ID,
-					Slug: slug, TargetUrl: item.TargetURL, Title: titles[i], Tags: tags[i],
+					Slug: slug, TargetUrl: item.TargetURL, Title: titles[i], Tags: tags[i], RedirectMode: modes[i],
 				})
 				if errors.Is(err, pgx.ErrNoRows) {
 					continue

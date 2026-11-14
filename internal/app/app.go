@@ -125,6 +125,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.ShortLinkBatchCreateTitles = shortLinkService
 		deps.ShortLinkBatchCreateMetadata = shortLinkService
 		deps.ShortLinkBatchCreateCustomSlugs = shortLinkService
+		deps.ShortLinkBatchCreateRedirectModes = shortLinkService
 		recorder := event.NewRecorder(pool, logger)
 		redirectService := shortlink.NewRedirectService(pool, recorder)
 		deps.Redirect = redirectService
