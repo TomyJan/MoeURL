@@ -16,4 +16,4 @@
 
 仍需本地 lint/types/E2E strict、完整受影响 16 个浏览器身份、唯一 fresh 独立终审、最终候选真实 CodeRabbit、正常合并独立核验与可恢复归档。不查 CI、不发布部署。资源硬上限活动 4 GiB、双临时根 12 GiB、Docker 可回收 6 GiB；大操作串行并先预算，只清本次明确归属用完资源。
 
-设计见[规格](../specs/2026-11-14-v0.75.1-csv-review-followup-design.md)，实施见[计划](../implementation/v0.75.1-plan.md)、[任务](../implementation/v0.75.1-tasks.md)和[验收](../implementation/v0.75.1-acceptance.md)。
+设计见[规格](../implementation/2026-11-14-v0.75.1-csv-review-followup-design.md)，实施见[计划](../implementation/v0.75.1-plan.md)、[任务](../implementation/v0.75.1-tasks.md)和[验收](../implementation/v0.75.1-acceptance.md)。
