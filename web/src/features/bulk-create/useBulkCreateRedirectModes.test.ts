@@ -40,7 +40,76 @@ async function imported(state: ReturnType<typeof useBulkCreate>, mode = 'interme
 }
 afterEach(() => { clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.clearAllMocks() })
 
+/** Supplies literal CSV bytes through the same native file boundary as user imports. */
+function readyFile(text: string) {
+  const file = new File([text], 'draft-transition.csv', { type: 'text/csv' })
+  Object.defineProperty(file, 'arrayBuffer', { value: async () => new TextEncoder().encode(text).buffer })
+  return file
+}
+const structuredImports = [
+  { protocol: 'custom-slugs', csv: 'target_url,title,tags,custom_slug\nhttps://example.com/old741,,[],Old741' },
+  { protocol: 'redirect-modes', csv: 'target_url,title,tags,custom_slug,redirect_mode\nhttps://example.com/old741,,[],Old741,intermediate' },
+] as const
+
 describe('redirect-mode batch authority and immutable retries', () => {
+  // Removing the real-snapshot guard must erase the user's unrelated manual draft again.
+  it.each(structuredImports)('preserves manual input after clearing a previewed structured import ($protocol)', async ({ csv }) => {
+    const { state, client, fetcher } = mount()
+    state.begin(); await state.importFile(readyFile(csv)); state.preview()
+    expect(state.snapshot.value).not.toBeNull()
+    state.edit(); state.clearImport()
+    const targetUrl = 'https://example.com/manual-after-clear741'
+    state.draft.value = targetUrl
+    client.setQueryData(['auth', 'me'], { user: { ...actor, permissions: actor.permissions.filter(p => p !== 'short_link:custom_slug') } })
+    expect(state.opened.value).toBe(true)
+    expect(state.draft.value).toBe(targetUrl)
+    expect(state.snapshot.value).toBeNull()
+    state.preview(); const input = state.snapshot.value!
+    expect(input).toEqual({ requestId: expect.any(String), targetUrls: [targetUrl] })
+    await state.submit()
+    expect(fetcher.mock.calls.map(([url, init]) => ({ url, input: JSON.parse(init!.body as string) }))).toEqual([
+      { url: '/api/v1/short-link/batch-create', input },
+    ])
+    expect(state.opened.value).toBe(false)
+  })
+
+  // An old custom-code protocol must not erase a replacement that only needs lower grants.
+  it.each(structuredImports.flatMap(old => [
+    { ...old, replacement: 'targets', csvNext: 'target_url\nhttps://example.com/replacement741', endpoint: 'batch-create' },
+    { ...old, replacement: 'titles', csvNext: 'target_url,title\nhttps://example.com/replacement741,New title', endpoint: 'batch-create-with-titles' },
+    { ...old, replacement: 'metadata', csvNext: 'target_url,title,tags\nhttps://example.com/replacement741,New title,[]', endpoint: 'batch-create-with-metadata' },
+  ]))('keeps lower-permission replacement imports after dropping an old snapshot ($protocol to $replacement)', async ({ csv, csvNext, replacement, endpoint }) => {
+    const { state, client, fetcher } = mount()
+    state.begin(); await state.importFile(readyFile(csv)); state.preview(); state.edit()
+    await state.importFile(readyFile(csvNext))
+    client.setQueryData(['auth', 'me'], { user: { ...actor, permissions: actor.permissions.filter(p => p !== 'short_link:custom_slug') } })
+    expect(state.opened.value).toBe(true)
+    state.preview(); const input = state.snapshot.value!
+    expect(input).not.toBeNull()
+    if (replacement === 'targets') expect(input).toEqual({ requestId: expect.any(String), targetUrls: ['https://example.com/replacement741'] })
+    else expect(input).toEqual({ requestId: expect.any(String), items: [{ targetUrl: 'https://example.com/replacement741', title: 'New title', ...(replacement === 'metadata' ? { tags: [] } : {}) }] })
+    await state.submit()
+    expect(fetcher.mock.calls.map(([url, init]) => ({ url, input: JSON.parse(init!.body as string) }))).toEqual([
+      { url: '/api/v1/short-link/' + endpoint, input },
+    ])
+    expect(state.opened.value).toBe(false)
+  })
+
+  // A broad removal of revocation cleanup would leave these actual privileged drafts alive.
+  it.each(structuredImports.flatMap(old => ['imported', 'preview', 'unknown'].map(stage => ({ ...old, stage }))))('still retires an active $protocol $stage when its custom-code grant is lost', async ({ csv, stage }) => {
+    const { state, client, fetcher } = mount()
+    state.begin(); await state.importFile(readyFile(csv))
+    if (stage !== 'imported') state.preview()
+    if (stage === 'unknown') { fetcher.mockRejectedValueOnce(new Error('lost acknowledgement')); await state.submit(); expect(state.unknown.value).toBe(true) }
+    const attempts = fetcher.mock.calls.length
+    client.setQueryData(['auth', 'me'], { user: { ...actor, permissions: actor.permissions.filter(p => p !== 'short_link:custom_slug') } })
+    expect(state.opened.value).toBe(false)
+    expect(state.importedItems.value).toBeNull()
+    expect(state.snapshot.value).toBeNull()
+    await state.submit()
+    expect(fetcher.mock.calls).toHaveLength(attempts)
+  })
+
   it('retries the same deep-frozen raw fifth-protocol snapshot and account after unknown outcomes', async () => {
     const { state, fetcher } = mount()
     await imported(state); state.preview()

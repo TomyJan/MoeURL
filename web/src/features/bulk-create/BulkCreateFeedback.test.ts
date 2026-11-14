@@ -45,6 +45,8 @@ it.each(['zh-CN', 'en'] as const)('describes all five formats in the visible %s 
   const summary = screen.getByText(locale === 'zh-CN' ? /五种固定格式/ : /five fixed formats/i)
   expect(summary.textContent).toMatch(locale === 'zh-CN' ? /自定义短码/ : /custom code/)
   expect(summary.textContent).toMatch(locale === 'zh-CN' ? /跳转方式/ : /redirect mode/)
+  const helpTitle = screen.getByTestId('bulk-create-csv-help').querySelector('summary')!.textContent!.trim()
+  expect(helpTitle).toBe(locale === 'zh-CN' ? 'CSV 格式示例与模板' : 'CSV format example and template')
   const bytes = new TextEncoder().encode('target_url,title,tags,custom_slug\nhttps://example.com,bad')
   const file = new File([bytes], 'invalid.csv', { type: 'text/csv' })
   Object.defineProperty(file, 'arrayBuffer', { value: async () => bytes.buffer })
@@ -53,6 +55,7 @@ it.each(['zh-CN', 'en'] as const)('describes all five formats in the visible %s 
   input.dispatchEvent(new Event('change', { bubbles: true }))
   await waitFor(() => expect(screen.getByTestId('bulk-create-error').textContent).toContain('target_url,title,tags,custom_slug'))
   expect(screen.getByTestId('bulk-create-error').textContent).toContain('redirect_mode')
+  expect(screen.getByTestId('bulk-create-error').textContent).toContain(helpTitle)
   expect(view.requests).toHaveLength(0)
 })
 

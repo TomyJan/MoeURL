@@ -75,7 +75,8 @@ export function useBulkCreate() {
     }
     if (!canCustomSlugNow()) {
       customSlugEpoch++
-      if (importedMode.value === 'custom-slugs' || snapshotMode.value === 'custom-slugs' || importedMode.value === 'redirect-modes' || snapshotMode.value === 'redirect-modes') reset()
+      const currentMode = snapshot.value ? snapshotMode.value : importedMode.value
+      if (currentMode === 'custom-slugs' || currentMode === 'redirect-modes') reset()
     }
     if (!canModeNow('intermediate')) {
       intermediateEpoch++
