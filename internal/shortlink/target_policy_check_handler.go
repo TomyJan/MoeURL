@@ -34,7 +34,7 @@ func NewTargetPolicyCheckHandler(service TargetPolicyCheckPort, logger *slog.Log
 func decodeTargetPolicyCheck(body io.Reader) (TargetPolicyCheckInput, error) {
 	invalid := ErrTargetPolicyCheckInvalidInput
 	raw, err := io.ReadAll(io.LimitReader(body, 16385))
-	if err != nil || len(raw) > 16384 || !utf8.Valid(raw) {
+	if err != nil || len(raw) > 16384 || !utf8.Valid(raw) || !validBulkTitleUnicodeEscapes(raw) {
 		return TargetPolicyCheckInput{}, invalid
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))

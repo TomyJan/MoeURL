@@ -70,6 +70,61 @@ func TestTargetPolicyCheckHandlerProtocol(t *testing.T) {
 
 type failedPolicyBody struct{}
 
+// JSON must not silently replace malformed surrogate escapes before checking
+// an administrator's original target. Valid Unicode and exact byte limits stay usable.
+func TestTargetPolicyCheckUnicodePreservation(t *testing.T) {
+	pool, service, actor := targetWriteFixture(t)
+	session, err := auth.NewSessionService(pool, time.Hour).Create(t.Context(), actor.ID)
+	require.NoError(t, err)
+	handler := auth.CurrentUserMiddleware(auth.NewService(pool, time.Hour))(http.HandlerFunc(shortlink.NewTargetPolicyCheckHandler(service, nil).Check))
+	before := policyCheckDatabaseSnapshot(t, pool)
+	// Authentication updates last_seen_at; the check must not change business tables.
+	delete(before, "session")
+	for _, tc := range []struct {
+		name, body, outcome string
+		code                int
+	}{
+		{"isolated high", `{"targetUrl":"https://example.com/\ud800"}`, "", 900226},
+		{"isolated low", `{"targetUrl":"https://example.com/\udfff"}`, "", 900226},
+		{"reversed pair", `{"targetUrl":"https://example.com/\udc00\ud800"}`, "", 900226},
+		{"interrupted pair", `{"targetUrl":"https://example.com/\ud800x\udc00"}`, "", 900226},
+		{"high followed by high", `{"targetUrl":"https://example.com/\ud800\ud801"}`, "", 900226},
+		{"high followed by non surrogate", `{"targetUrl":"https://example.com/\ud800\u0061"}`, "", 900226},
+		{"valid pair", `{"targetUrl":"https://example.com/\ud83d\ude00"}`, "allowed", 0},
+		{"literal non BMP", `{"targetUrl":"https://example.com/😀"}`, "allowed", 0},
+		{"literal replacement character", `{"targetUrl":"https://example.com/�"}`, "allowed", 0},
+		{"escaped replacement character", `{"targetUrl":"https://example.com/\ufffd"}`, "allowed", 0},
+		{"escaped backslash", `{"targetUrl":"https://example.com/\\ud800"}`, "allowed", 0},
+		{"non BMP at byte limit", `{"targetUrl":"https://example.com/` + strings.Repeat(`\ud83d\ude00`, 507) + `"}`, "allowed", 0},
+		{"non BMP over byte limit", `{"targetUrl":"https://example.com/` + strings.Repeat(`\ud83d\ude00`, 508) + `"}`, "", 900226},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := httptest.NewRequestWithContext(t.Context(), "POST", "/", strings.NewReader(tc.body))
+			r.Header.Set("Content-Type", "application/json")
+			r.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: session.ID})
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, r)
+			require.Equal(t, 200, w.Code)
+			require.Equal(t, "no-store", w.Header().Get("Cache-Control"))
+			var response struct {
+				Code int
+				Data map[string]string
+			}
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+			require.Equal(t, tc.code, response.Code, w.Body.String())
+			if tc.code == 0 {
+				require.Equal(t, map[string]string{"outcome": tc.outcome}, response.Data)
+			} else {
+				require.Nil(t, response.Data)
+			}
+			require.NotContains(t, w.Body.String(), "example.com")
+		})
+	}
+	after := policyCheckDatabaseSnapshot(t, pool)
+	delete(after, "session")
+	require.Equal(t, before, after)
+}
+
 func (failedPolicyBody) Read([]byte) (int, error) { return 0, errors.New("private body read failure") }
 
 // Truncated transport reads cannot be interpreted as an empty allowed target.
