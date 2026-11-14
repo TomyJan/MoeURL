@@ -1,5 +1,11 @@
 # v0.73.0 有界批量目标规则检查
 
+## 当前状态（2026-11-14）
+
+已通过 PR340 完整交付：最终候选 `3509923ec2e254ea5f66bcd79ccf4dc7fcb57a50` 真实 CodeRabbit，正常 squash master `2e6cbada32832bbbcba9d3859285eaaaab10d86e`，独立 API／fetch 核相同 tree 和唯一父。四标准任务、19 条裁决和 12 份工作记录恢复归档完成，详见[最终验收](../implementation/v0.73.0-acceptance.md)。原失败、组合门禁及产品执行归属不变；不查 CI，不发布部署。
+
+## 交付前检查点（历史）
+
 状态：后端和前端已实现并通过本地门禁：Windows 5010 项组合／业务 100%／vet，Linux 5010 项 race 组合／vet，前端完整 5936 项／四项 100%／types／lint／build 和 E2E strict。准确 dfe49f67 产品 smoke／所选扫描通过，13 个浏览器身份组合覆盖，10 张新原图已查看；产品镜像与副本已可恢复消费。原覆盖率失败及 Linux 锁观察超时保留，超时原因未确证，不称单次全绿。真实审查与交付未完成。基线为 v0.72.0／PR339 的 master `dfc78e9cf6bf1bd3509b2e1e62864b50bccb3755`。
 
 ## 目标与盘点
@@ -23,6 +29,6 @@
 
 ## 非目标与约束
 
-不变更原单目标接口、旧创建语义、七种规则、权限、依赖、migration、SQLC 输入或公开路由。不查或等 CI，不发布部署。会话中间件仍可能更新 last_seen_at，“只读”不声称整个数据库零写入。活动 4 GiB、双临时根 12 GiB、Docker 可回收 6 GiB，大操作串行先检查预算，用完精确清理。
+原单目标接口和旧创建语义保持不变；不调整七种规则、权限、依赖、migration、SQLC 输入或公开路由。不查或等 CI，不发布部署。会话中间件仍可能更新 last_seen_at，“只读”不声称整个数据库零写入。活动 4 GiB、双临时根 12 GiB、Docker 可回收 6 GiB，大操作串行先检查预算，用完精确清理。
 
 完整接口和测试依据见[设计](../specs/2026-11-14-v0.73.0-batch-target-policy-check-design.md)、[计划](../implementation/v0.73.0-plan.md)及[验收](../implementation/v0.73.0-acceptance.md)。
