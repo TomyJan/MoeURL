@@ -4,7 +4,7 @@
 
 PR352／v0.75.3 已完整交付：最终 `a65bca3596946e4d6ef734a84d790be2f3e47e84` 自身真实 CodeRabbit132547109135 success、reviewed/source=covered，全正文 ROOT 处置、有效 open0；正常 squash master `510bdf5d5a15156a670097d6a50ff8129a915381`，独立 API/fetch 核同 tree 和唯一父。两项标准任务、18 条裁决、三组延期 Minor 与 8 份工作记录可恢复归档完成。四份仅 EOF 文档的文件级 no reviewable changes 边界保留，不冒深审；原准备拒绝、清理总量勘误及前版组合验证归属不改。
 
-当前[CSV 最大访问次数导入](scope-v0.76.0.md)后端已在 `00ff368` 标准完成：Windows 完整 5241 项／业务 100%／vet、Linux 完整 race 5241 项／vet 通过，源扫描保留 required-only 公告。前端七列严格解析、独立端点、安全草稿、纯文本预览及模板已实现；最终完整 6253 项测试／四项覆盖率 100%、types／lint／新旧 E2E strict／0.76.0 构建通过。原文案测试失败及旧协议覆盖缺口分别保留；补验未改产品语义或阈值。准确产品／浏览器、真实审查、正常集成与归档尚待。计划、任务与实际证据见[实施计划](../implementation/v0.76.0-plan.md)和[验收](../implementation/v0.76.0-acceptance.md)；不查 CI，不发布部署。
+当前[CSV 最大访问次数导入](scope-v0.76.0.md)的 Task1／2 已在 `00ff368`／`f35a695` 标准完成：Windows 完整 5241 项／业务 100%／vet、Linux 完整 race 5241 项／vet，以及前端 6253 项／四项覆盖率 100%、types／lint／新旧 E2E strict／构建通过。准确 clean `f35a695` 产品的 smoke、三个目标所选 HIGH／CRITICAL 扫描和 24 项浏览器单轮通过；ROOT 看过 20 张原图，72 附件与 66 物理 PNG 已逐 hash 核验。产品副本、镜像及五条私有构建缓存已精确清理，恢复 ZIP 完整解压核验；原失败与扫描限制保留。Task3 合同收尾、真实审查、正常集成与最终归档继续。实际证据见[实施计划](../implementation/v0.76.0-plan.md)和[验收](../implementation/v0.76.0-acceptance.md)；不查 CI，不发布部署。
 
 ## v0.75.3 交付前检查点（历史）
 
