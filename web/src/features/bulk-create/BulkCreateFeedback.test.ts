@@ -54,10 +54,12 @@ it.each(['zh-CN', 'en'] as const)('describes all six formats in the visible %s s
   const input = view.container.querySelector('input[type=file]')!
   Object.defineProperty(input, 'files', { value: [file], configurable: true })
   input.dispatchEvent(new Event('change', { bubbles: true }))
-  await waitFor(() => expect(screen.getByTestId('bulk-create-error').textContent).toContain('target_url,title,tags,custom_slug'))
-  expect(screen.getByTestId('bulk-create-error').textContent).toContain('redirect_mode')
-  expect(screen.getByTestId('bulk-create-error').textContent).toContain('expires_at')
-  expect(screen.getByTestId('bulk-create-error').textContent).toContain(helpTitle)
+  await waitFor(() => expect(screen.getByTestId('bulk-create-error').textContent).toContain(helpTitle))
+  expect(screen.getByTestId('bulk-create-error').textContent).toMatch(locale === 'zh-CN' ? /草稿已保留/ : /draft is preserved/)
+  const help = screen.getByTestId('bulk-create-csv-help')
+  expect(help.querySelector('[data-testid=bulk-create-csv-custom-slugs-example]')?.textContent).toContain('target_url,title,tags,custom_slug')
+  expect(help.querySelector('[data-testid=bulk-create-csv-redirect-modes-example]')?.textContent).toContain('redirect_mode')
+  expect(help.querySelector('[data-testid=bulk-create-csv-expirations-example]')?.textContent).toContain('expires_at')
   expect(view.requests).toHaveLength(0)
 })
 

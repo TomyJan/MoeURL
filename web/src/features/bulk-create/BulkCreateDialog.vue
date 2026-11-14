@@ -25,7 +25,9 @@
           <p>{{ t('bulkCreate.requestId') }} <code data-testid="bulk-create-request-id">{{ state.snapshot.value.requestId }}</code></p>
         </template>
         <p v-if="['redirect-modes', 'expirations'].includes(state.snapshot.value ? state.snapshotMode.value : state.importedMode.value)">{{ t('bulkCreate.modeDelay') }}</p>
-        <v-alert v-if="state.errorKey.value" type="warning" variant="tonal" data-testid="bulk-create-error">{{ t(state.errorKey.value) }}</v-alert>
+        <div v-if="state.errorKey.value" ref="errorFeedback" tabindex="-1" data-testid="bulk-create-error-feedback">
+          <v-alert type="warning" variant="tonal" data-testid="bulk-create-error">{{ t(state.errorKey.value) }}</v-alert>
+        </div>
         <v-alert v-if="state.closing.value" type="warning" variant="tonal" data-testid="bulk-create-close-warning">
           <p>{{ t('bulkCreate.discardWarning') }}</p>
           <v-btn data-testid="bulk-create-keep" variant="text" @click="state.cancelClose">{{ t('bulkCreate.keep') }}</v-btn>
@@ -34,7 +36,7 @@
       </v-card-text>
       <v-card-actions class="bulk-create-actions">
         <v-btn data-testid="bulk-create-close" :disabled="state.pending.value" variant="text" @click="state.close">{{ t('bulkCreate.close') }}</v-btn>
-        <v-btn v-if="!state.snapshot.value" data-testid="bulk-create-preview" :disabled="state.reading.value" variant="flat" color="primary" @click="state.preview">{{ t('bulkCreate.preview') }}</v-btn>
+        <v-btn v-if="!state.snapshot.value" data-testid="bulk-create-preview" :disabled="state.reading.value" variant="flat" color="primary" @click="preview">{{ t('bulkCreate.preview') }}</v-btn>
         <template v-else>
           <v-btn data-testid="bulk-create-edit" :disabled="state.pending.value || state.unknown.value" variant="text" @click="state.edit">{{ t('bulkCreate.edit') }}</v-btn>
           <v-btn data-testid="bulk-create-submit" :disabled="state.pending.value || state.closing.value" :loading="state.pending.value" variant="flat" color="primary" @click="state.submit">{{ t(state.unknown.value ? 'bulkCreate.retry' : 'bulkCreate.create') }}</v-btn>
@@ -44,22 +46,31 @@
   </v-dialog>
 </template>
 <script setup lang="ts">
-import { watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useBulkCreate } from './useBulkCreate'
 import BulkCreateCsvHelp from './BulkCreateCsvHelp.vue'
 const { t } = useI18n()
 const props = defineProps<{ canOpen?: () => boolean }>()
 const state = useBulkCreate()
+const errorFeedback = ref<globalThis.HTMLDivElement | null>(null)
+const feedbackAttempt = ref(0)
 const emit = defineEmits<{ open: [value: boolean] }>()
 watch(state.opened, value => emit('open', value), { flush: 'sync' })
+// Post-flush reads only current rendered feedback; native focus also reveals it without queued work.
+watch([state.opened, state.errorKey, feedbackAttempt], ([opened, error]) => {
+  if (opened && error) errorFeedback.value?.focus()
+}, { flush: 'post' })
 /** Checks live parent locks before opening, even before parent props have rerendered. */
 function begin() { if (!props.canOpen || props.canOpen()) state.begin() }
+/** Reveals a fresh explicit refusal even when synchronous validation keeps the same error key. */
+function preview() { feedbackAttempt.value++; state.preview() }
 /** Releases the native selection so choosing the same file starts a fresh explicit read. */
 function selectFile(event: globalThis.Event) {
   const input = event.target as globalThis.HTMLInputElement
   const file = input.files?.[0]
   input.value = ''
+  if (file) feedbackAttempt.value++
   void state.importFile(file)
 }
 </script>

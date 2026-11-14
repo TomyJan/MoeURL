@@ -92,6 +92,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
     }, { times: 1 })
     await activate(page.getByTestId('bulk-create-submit'))
     await expect(page.getByTestId('bulk-create-error')).toBeVisible()
+    await expect(page.getByTestId('bulk-create-error-feedback')).toBeFocused()
     await expect(page.getByTestId('bulk-create-request-id')).toHaveText(requestId)
     expect(committed).toMatchObject({ code: 0 })
     await capture(info, 'mode-unknown-' + language + '-' + width, page)
