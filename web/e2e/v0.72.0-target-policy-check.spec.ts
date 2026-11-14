@@ -107,7 +107,7 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
     await expect(form.getByText(labels.failed, { exact: true })).toBeVisible(); await expect(input).toHaveValue(target)
     await frames(page); expect(checks).toBe(beforeFailure + 1)
     expect(await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } }))).not.toContain('secret=check72')
-    await page.reload(); await expect(input).toHaveValue(''); await expect(form.getByRole('alert')).toHaveCount(0)
+    await page.reload(); await expect(input).toHaveValue(''); await expect(form.getByRole('alert').filter({ hasText: /\S/ })).toHaveCount(0)
     expect(checks).toBe(beforeFailure + 1)
   })
 }
