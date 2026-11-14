@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/vue'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/vue'
 import { setImmediate } from 'node:timers'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { defineComponent, nextTick } from 'vue'
@@ -169,7 +169,11 @@ describe('independent optional target allowlist draft', () => {
     expect(toggle().checked).toBe(false); expect(prefixes()[0]!.value).toBe('198.51.100.3/32')
     expect(button('save').disabled).toBe(true)
     await fireEvent.submit(form()); expect(writes).toHaveBeenCalledTimes(1); expect(reads).toHaveBeenCalledTimes(1)
-    reads.mockRejectedValueOnce(new Error('reload offline')); await fireEvent.click(button('reload')); await flush()
+    const failedReload = createDeferred<Response>(); reads.mockReturnValueOnce(failedReload.promise)
+    await fireEvent.click(button('reload'))
+    await waitFor(() => { expect(reads).toHaveBeenCalledTimes(2); expect(button('reload').disabled).toBe(true) })
+    failedReload.reject(new Error('reload offline'))
+    await waitFor(() => expect(button('reload').disabled).toBe(false))
     expect(screen.getByText('targetCIDRAllowlist.saveUnknown')).toBeTruthy()
     expect(screen.queryByText('targetCIDRAllowlist.loadFailed')).toBeNull(); expect(button('save').disabled).toBe(true)
     const pending = createDeferred<Response>(); reads.mockReturnValueOnce(pending.promise)
