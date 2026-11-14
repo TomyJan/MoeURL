@@ -1,6 +1,12 @@
 # 开发进度与能力清单
 
-## 当前维护（2026-11-15，v0.75.2）
+## 当前维护（2026-11-15，v0.75.3）
+
+PR346／v0.75.2 已完整交付：最终 b9938bc1 真实 CodeRabbit132529574871 success、reviewed/source=covered；正常 squash master `d0352fdae905096a2430b85af206fbadc322b11b`，独立 API/fetch 核相同 tree 和唯一父。三项标准任务、24 条裁决、三组延期文档 Minor 和 10 份工作记录已可恢复归档。原 6135 项前端和四项 100%、26 项浏览器及清理修复 11 项补验保持各自准确执行归属；原失败和组合边界不倒填。
+
+当前[文档入口与执行设计维护](scope-v0.75.3.md)已建立范围和计划，实施验证、真实审查及正常交付尚未完成。只集中最近八组相同历史、归位执行设计并清理四个 EOF；更早重复继续保留，产品保持 0.75.2。准确进展见[验收](../implementation/v0.75.3-acceptance.md)，不查 CI、不安装、不发布部署。
+
+## v0.75.2 交付前检查点（历史）
 
 PR345／v0.75.1 已完整交付：最终 `406ed6e8` 真实 CodeRabbit132484326389 success、reviewed/source=covered，正常 squash master `78228e170f89ccd2a9f59c2d7dcfcabe00854457`，独立 API/fetch 核相同 tree 和唯一父；两个标准任务、9 条裁决、两组延期文档 Minor、8 份 owned 文件可恢复归档完成。原16项浏览器单轮与quality保持原执行归属。
 
