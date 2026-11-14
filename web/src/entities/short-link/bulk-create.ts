@@ -15,6 +15,8 @@ export type BulkCreateMetadataItem = Readonly<{ targetUrl: string; title: string
 export type BulkCreateMetadataInput = Readonly<{ requestId: string; items: readonly BulkCreateMetadataItem[] }>
 export type BulkCreateCustomSlugItem = Readonly<{ targetUrl: string; title: string; tags: readonly string[]; customSlug: string }>
 export type BulkCreateCustomSlugsInput = Readonly<{ requestId: string; items: readonly BulkCreateCustomSlugItem[] }>
+export type BulkCreateRedirectModeItem = Readonly<BulkCreateCustomSlugItem & { redirectMode: '' | 'direct' | 'intermediate' | 'confirmation' }>
+export type BulkCreateRedirectModesInput = Readonly<{ requestId: string; items: readonly BulkCreateRedirectModeItem[] }>
 const rawTitle = z.string().refine(value => !/[\uD800-\uDFFF]/u.test(value) && shortLinkMetadataSchema.safeParse({ title: value, tags: [] }).success)
 export const bulkCreateItemsSchema = z.array(z.strictObject({ targetUrl: target, title: rawTitle })).min(1).max(20)
   .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
@@ -35,6 +37,12 @@ const customSlugItemSchema = z.strictObject({
   customSlug: z.string().refine(value => value === '' || /^[A-Za-z0-9]{3,32}$/.test(value)),
 }).refine(item => shortLinkMetadataSchema.safeParse({ title: item.title, tags: item.tags }).success)
 export const bulkCreateCustomSlugsInputSchema = z.strictObject({ requestId, items: z.array(customSlugItemSchema).min(1).max(20)
+  .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
+  .refine(items => { const slugs = items.filter(item => item.customSlug !== '').map(item => item.customSlug.toLowerCase()); return new Set(slugs).size === slugs.length }) })
+  .refine(input => new TextEncoder().encode(JSON.stringify(input)).byteLength <= 65536)
+
+const redirectModeItemSchema = customSlugItemSchema.safeExtend({ redirectMode: z.enum(['', 'direct', 'intermediate', 'confirmation']) })
+export const bulkCreateRedirectModesInputSchema = z.strictObject({ requestId, items: z.array(redirectModeItemSchema).min(1).max(20)
   .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
   .refine(items => { const slugs = items.filter(item => item.customSlug !== '').map(item => item.customSlug.toLowerCase()); return new Set(slugs).size === slugs.length }) })
   .refine(input => new TextEncoder().encode(JSON.stringify(input)).byteLength <= 65536)
@@ -76,8 +84,15 @@ export async function batchCreateShortLinksWithCustomSlugs(input: BulkCreateCust
   return sendBatch('/short-link/batch-create-with-custom-slugs', request.data, request.data.items.length, expectedUserId)
 }
 
+/** Preserves every raw mode and field through the independent fifth protocol. */
+export async function batchCreateShortLinksWithRedirectModes(input: BulkCreateRedirectModesInput, expectedUserId?: string) {
+  const request = bulkCreateRedirectModesInputSchema.safeParse(input)
+  if (!request.success) throw new ApiClientError(100001, 'Invalid redirect-mode batch creation request')
+  return sendBatch('/short-link/batch-create-with-redirect-modes', request.data, request.data.items.length, expectedUserId)
+}
+
 /** Shares bounded transport and exact receipt validation across independent protocols. */
-async function sendBatch(path: string, input: BulkCreateInput | BulkCreateTitlesInput | BulkCreateMetadataInput | BulkCreateCustomSlugsInput, count: number, expectedUserId?: string) {
+async function sendBatch(path: string, input: BulkCreateInput | BulkCreateTitlesInput | BulkCreateMetadataInput | BulkCreateCustomSlugsInput | BulkCreateRedirectModesInput, count: number, expectedUserId?: string) {
   const controller = new AbortController()
   // Includes response-body decoding: an unacknowledged write must become recoverable.
   const deadline = setTimeout(() => controller.abort(), 15_000)

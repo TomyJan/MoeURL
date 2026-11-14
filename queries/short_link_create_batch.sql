@@ -14,6 +14,6 @@ insert into short_link (
     id,owner_id,domain_id,slug,target_url,status,redirect_mode,
     intermediate_delay_seconds,expires_at,password_hash,password_updated_at,
     max_visits,title,tags,created_at,updated_at
-) values ($1,$2,$3,$4,$5,'active','direct',5,null,null,null,null,sqlc.arg(title),sqlc.arg(tags),now(),now())
+) values ($1,$2,$3,$4,$5,'active',sqlc.arg(redirect_mode),5,null,null,null,null,sqlc.arg(title),sqlc.arg(tags),now(),now())
 on conflict (slug) do nothing
 returning id;

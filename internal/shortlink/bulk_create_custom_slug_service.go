@@ -36,7 +36,7 @@ func (s *Service) BatchCreateWithCustomSlugs(ctx context.Context, actor auth.Cur
 			items[i].CustomSlug, _ = normalizeCustomSlug(item.CustomSlug)
 		}
 	}
-	return s.batchCreate(ctx, actor, id, digest, items, true, true)
+	return s.batchCreate(ctx, actor, id, digest, items, batchCreateOptions{Metadata: true, CustomSlugs: true})
 }
 
 // normalizeBulkCreateWithCustomSlugs rejects aliases within a batch while hashing original ordered text.

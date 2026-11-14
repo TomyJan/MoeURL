@@ -22,71 +22,72 @@ import (
 )
 
 type Dependencies struct {
-	Logger                          *slog.Logger
-	Health                          HealthChecker
-	System                          system.ServicePort
-	SystemSettings                  system.SettingsPort
-	HomeContent                     system.HomeContentPort
-	TargetHostDenylist              targetpolicy.Port
-	TargetHostAllowlist             targetpolicy.AllowlistPort
-	TargetHostSuffixDenylist        targetpolicy.SuffixPort
-	TargetHostSuffixAllowlist       targetpolicy.SuffixAllowlistPort
-	TargetIPDenylist                targetpolicy.IPPort
-	TargetCIDRDenylist              targetpolicy.CIDRPort
-	TargetCIDRAllowlist             targetpolicy.CIDRAllowlistPort
-	TargetPolicyCheck               shortlink.TargetPolicyCheckPort
-	TargetPolicyBatchCheck          shortlink.TargetPolicyBatchCheckPort
-	AccountDailyCreateQuota         createquota.Port
-	OwnDailyCreateUsage             createquota.UsagePort
-	Appearance                      system.AppearancePort
-	FooterLinks                     system.FooterLinksPort
-	Auth                            auth.Port
-	Password                        auth.PasswordPort
-	CurrentUser                     auth.CurrentUserResolver
-	ShortLink                       shortlink.Port
-	ShortLinkExport                 shortlink.ExportPort
-	ShortLinkListExport             shortlink.ListExportPort
-	ShortLinkTagCatalog             shortlink.TagCatalogPort
-	AdminShortLinkTagCatalog        shortlink.AdminTagCatalogPort
-	ShortLinkNote                   shortlink.NotePort
-	ShortLinkBatchNoteClear         shortlink.BatchNoteClearPort
-	ShortLinkBatchNoteReplace       shortlink.BatchNoteReplacePort
-	ShortLinkBatchNoteAppend        shortlink.BatchNoteAppendPort
-	ShortLinkNoteSearch             shortlink.NoteSearchPort
-	ShortLinkBatch                  shortlink.BatchPort
-	ShortLinkTransfer               shortlink.TransferPort
-	ShortLinkBatchTransfer          shortlink.BatchTransferPort
-	ShortLinkBatchTags              shortlink.BatchTagsPort
-	ShortLinkBatchTagRename         shortlink.BatchTagRenamePort
-	ShortLinkBatchCreate            shortlink.BatchCreatePort
-	ShortLinkBatchCreateTitles      shortlink.BatchCreateWithTitlesPort
-	ShortLinkBatchCreateMetadata    shortlink.BatchCreateWithMetadataPort
-	ShortLinkBatchCreateCustomSlugs shortlink.BatchCreateWithCustomSlugsPort
-	Insights                        insights.Port
-	VisitExport                     insights.VisitExportPort
-	GlobalVisitExport               insights.GlobalVisitExportPort
-	Audit                           insights.AuditPort
-	AuditExport                     insights.AuditExportPort
-	Domain                          domain.Port
-	DomainOrder                     domain.OrderPort
-	DomainRedirectDefault           domain.RedirectDefaultPort
-	Redirect                        shortlink.RedirectPort
-	RedirectRecorder                event.Recorder
-	AnalyticsCountryHeader          string
-	SecureCookies                   bool
-	User                            user.Port
-	UserMembership                  user.GroupPort
-	UserBatchMembership             user.BatchGroupPort
-	UserPreferences                 user.PreferencesPort
-	UserDomainPreference            user.DomainPreferencePort
-	UserTimeZonePreference          user.TimeZonePreferencePort
-	UserRedirectPreference          user.RedirectPreferencePort
-	UserListPreference              user.ListPreferencePort
-	UserGroup                       usergroup.Port
-	UserGroupDomainDefault          usergroup.DomainDefaultPort
-	OIDCProvider                    oidc.ProviderPort
-	OIDCLogin                       oidc.LoginPort
-	StaticDir                       string
+	Logger                            *slog.Logger
+	Health                            HealthChecker
+	System                            system.ServicePort
+	SystemSettings                    system.SettingsPort
+	HomeContent                       system.HomeContentPort
+	TargetHostDenylist                targetpolicy.Port
+	TargetHostAllowlist               targetpolicy.AllowlistPort
+	TargetHostSuffixDenylist          targetpolicy.SuffixPort
+	TargetHostSuffixAllowlist         targetpolicy.SuffixAllowlistPort
+	TargetIPDenylist                  targetpolicy.IPPort
+	TargetCIDRDenylist                targetpolicy.CIDRPort
+	TargetCIDRAllowlist               targetpolicy.CIDRAllowlistPort
+	TargetPolicyCheck                 shortlink.TargetPolicyCheckPort
+	TargetPolicyBatchCheck            shortlink.TargetPolicyBatchCheckPort
+	AccountDailyCreateQuota           createquota.Port
+	OwnDailyCreateUsage               createquota.UsagePort
+	Appearance                        system.AppearancePort
+	FooterLinks                       system.FooterLinksPort
+	Auth                              auth.Port
+	Password                          auth.PasswordPort
+	CurrentUser                       auth.CurrentUserResolver
+	ShortLink                         shortlink.Port
+	ShortLinkExport                   shortlink.ExportPort
+	ShortLinkListExport               shortlink.ListExportPort
+	ShortLinkTagCatalog               shortlink.TagCatalogPort
+	AdminShortLinkTagCatalog          shortlink.AdminTagCatalogPort
+	ShortLinkNote                     shortlink.NotePort
+	ShortLinkBatchNoteClear           shortlink.BatchNoteClearPort
+	ShortLinkBatchNoteReplace         shortlink.BatchNoteReplacePort
+	ShortLinkBatchNoteAppend          shortlink.BatchNoteAppendPort
+	ShortLinkNoteSearch               shortlink.NoteSearchPort
+	ShortLinkBatch                    shortlink.BatchPort
+	ShortLinkTransfer                 shortlink.TransferPort
+	ShortLinkBatchTransfer            shortlink.BatchTransferPort
+	ShortLinkBatchTags                shortlink.BatchTagsPort
+	ShortLinkBatchTagRename           shortlink.BatchTagRenamePort
+	ShortLinkBatchCreate              shortlink.BatchCreatePort
+	ShortLinkBatchCreateTitles        shortlink.BatchCreateWithTitlesPort
+	ShortLinkBatchCreateMetadata      shortlink.BatchCreateWithMetadataPort
+	ShortLinkBatchCreateCustomSlugs   shortlink.BatchCreateWithCustomSlugsPort
+	ShortLinkBatchCreateRedirectModes shortlink.BatchCreateWithRedirectModesPort
+	Insights                          insights.Port
+	VisitExport                       insights.VisitExportPort
+	GlobalVisitExport                 insights.GlobalVisitExportPort
+	Audit                             insights.AuditPort
+	AuditExport                       insights.AuditExportPort
+	Domain                            domain.Port
+	DomainOrder                       domain.OrderPort
+	DomainRedirectDefault             domain.RedirectDefaultPort
+	Redirect                          shortlink.RedirectPort
+	RedirectRecorder                  event.Recorder
+	AnalyticsCountryHeader            string
+	SecureCookies                     bool
+	User                              user.Port
+	UserMembership                    user.GroupPort
+	UserBatchMembership               user.BatchGroupPort
+	UserPreferences                   user.PreferencesPort
+	UserDomainPreference              user.DomainPreferencePort
+	UserTimeZonePreference            user.TimeZonePreferencePort
+	UserRedirectPreference            user.RedirectPreferencePort
+	UserListPreference                user.ListPreferencePort
+	UserGroup                         usergroup.Port
+	UserGroupDomainDefault            usergroup.DomainDefaultPort
+	OIDCProvider                      oidc.ProviderPort
+	OIDCLogin                         oidc.LoginPort
+	StaticDir                         string
 }
 
 // NewRouter registers API, static-file, and short-link redirect routes.
@@ -361,6 +362,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			if dependency.ShortLinkBatchCreateCustomSlugs != nil {
 				handler := shortlink.NewBulkCreateCustomSlugHandler(dependency.ShortLinkBatchCreateCustomSlugs, logger)
 				businessAPI.Post("/short-link/batch-create-with-custom-slugs", handler.BatchCreateWithCustomSlugs)
+			}
+			if dependency.ShortLinkBatchCreateRedirectModes != nil {
+				handler := shortlink.NewBulkCreateRedirectModeHandler(dependency.ShortLinkBatchCreateRedirectModes, logger)
+				businessAPI.Post("/short-link/batch-create-with-redirect-modes", handler.BatchCreateWithRedirectModes)
 			}
 			if dependency.Domain != nil {
 				domainHandler := domain.NewHandler(dependency.Domain, logger)

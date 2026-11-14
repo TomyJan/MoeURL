@@ -1,6 +1,6 @@
 # v0.73.1 交付状态文档维护
 
-状态：文档修正及本地核验完成，真实审查和交付尚待。产品保持 0.73.0，基线为 PR340 的 master `2e6cbada32832bbbcba9d3859285eaaaab10d86e`。
+状态：已通过 PR341 完整交付，最终 `91f1dca835b17b4c12087972e9c634cc8e406153` 真实 CodeRabbit，正常合并 master `3def603c33406dd04b67d6dcaaf3179e9ff149b5`、独立 API／fetch／tree／唯一父核验、两项标准任务和 8 份文件恢复归档完成。8 条裁决与两个延期文档 Minor 保留原报告，由 v0.74.0 接续文字修正。产品保持 0.73.0，原基线为 PR340 master `2e6cbada32832bbbcba9d3859285eaaaab10d86e`；没有新产品执行、CI 或部署。
 
 ## 目标与范围
 
