@@ -1,6 +1,12 @@
 # 开发进度与能力清单
 
-## 当前维护（2026-11-15，v0.75.3）
+## 当前开发（2026-11-15，v0.76.0）
+
+PR352／v0.75.3 已完整交付：最终 `a65bca3596946e4d6ef734a84d790be2f3e47e84` 自身真实 CodeRabbit132547109135 success、reviewed/source=covered，全正文 ROOT 处置、有效 open0；正常 squash master `510bdf5d5a15156a670097d6a50ff8129a915381`，独立 API/fetch 核同 tree 和唯一父。两项标准任务、18 条裁决、三组延期 Minor 与 8 份工作记录可恢复归档完成。四份仅 EOF 文档的文件级 no reviewable changes 边界保留，不冒深审；原准备拒绝、清理总量勘误及前版组合验证归属不改。
+
+当前[CSV 最大访问次数导入](scope-v0.76.0.md)仍在设计：拟增加固定第七列和独立严格协议，原六种格式保持，复用现有权限及额度，成功回执重放不得重置用量。尚未实现或运行本版验证，产品目前为 0.75.2。计划、任务与实际证据见[实施计划](../implementation/v0.76.0-plan.md)和[验收](../implementation/v0.76.0-acceptance.md)；不查 CI，不发布部署。
+
+## v0.75.3 交付前检查点（历史）
 
 PR346／v0.75.2 已完整交付：最终 b9938bc1 真实 CodeRabbit132529574871 success、reviewed/source=covered；正常 squash master `d0352fdae905096a2430b85af206fbadc322b11b`，独立 API/fetch 核相同 tree 和唯一父。三项标准任务、24 条裁决、三组延期文档 Minor 和 10 份工作记录已可恢复归档。原 6135 项前端和四项 100%、26 项浏览器及清理修复 11 项补验保持各自准确执行归属；原失败和组合边界不倒填。
 
