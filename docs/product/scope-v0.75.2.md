@@ -17,4 +17,3 @@
 采用既有 linked worktree 内联执行，先真实 RED 再最小修复、完整前端门禁、新 web 产品及受影响浏览器，Go/Goose/SQLC/后端扫描只在完整闭包相同时复用原证据。仅版末一次 fresh 最强独立终审，最终 head 真实 CodeRabbit，正常合并独立 SHA/tree/唯一父核验及可恢复归档。不查 CI，不碰 PR240/266/267、18080 或日常数据库，不发布部署。临时活动 4 GiB、双根 12 GiB、Docker 可回收 6 GiB；大操作串行，精确清理。
 
 设计见[执行设计](../implementation/2026-11-14-v0.75.2-bulk-error-feedback-design.md)，后续按[计划](../implementation/v0.75.2-plan.md)、[任务](../implementation/v0.75.2-tasks.md)和[验收](../implementation/v0.75.2-acceptance.md)判定。
-
