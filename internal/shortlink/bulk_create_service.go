@@ -113,6 +113,13 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 				return ErrPermissionDenied
 			}
 		}
+		if options.VisitLimits {
+			for _, item := range items {
+				if item.MaxVisits.Valid && !grants.Has(permission.ShortLinkSetMaxVisits) {
+					return ErrPermissionDenied
+				}
+			}
+		}
 		titles := make([]string, len(items))
 		tags := make([][]string, len(items))
 		for i := range tags {
@@ -205,7 +212,7 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 				_, err = q.CreateBulkShortLink(ctx, sqlc.CreateBulkShortLinkParams{
 					ID: uuidToPgtype(uuid.New()), OwnerID: uuidToPgtype(actorID), DomainID: selected.ID,
 					Slug: slug, TargetUrl: item.TargetURL, Title: titles[i], Tags: tags[i], RedirectMode: modes[i],
-					ExpiresAt: item.ExpiresAt,
+					ExpiresAt: item.ExpiresAt, MaxVisits: item.MaxVisits,
 				})
 				if errors.Is(err, pgx.ErrNoRows) {
 					continue
