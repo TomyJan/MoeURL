@@ -112,6 +112,39 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
   })
 }
 
+for (const language of ['en', 'zh-CN'] as const) {
+  test('v0.73.0 ' + language + ' 390px reaches the twenty-line batch action by touch after dismissing a saved-rule notification', async ({ scenario }, info) => {
+    test.setTimeout(90_000)
+    const { page, user } = scenario, labels = text[language]
+    await page.goto('/admin/setting')
+    const rules = page.getByRole('form', { name: labels.rules, exact: true })
+    await activate(rules.getByRole('button', { name: labels.add, exact: true })); await rules.getByRole('textbox').fill('blocked.example')
+    const saved = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1' + resources[0] + '/update')
+    await activate(rules.getByRole('button', { name: labels.save, exact: true })); expect((await (await saved).json()).code).toBe(0)
+    const toast = page.locator('[data-sonner-toast]')
+    await expect(toast).toHaveCount(1)
+    await toast.getByRole('button', { name: language === 'en' ? 'Dismiss notification' : '关闭提示', exact: true }).tap()
+    await expect(toast).toHaveCount(0)
+    const form = page.getByRole('form', { name: labels.form, exact: true }), submit = form.getByRole('button', { name: labels.check, exact: true })
+    const targets = Array.from({ length: 20 }, () => 'https://allowed.example/')
+    await form.getByRole('textbox').fill(targets.join('\n'))
+    const before = await snapshot(page.request, user.id)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await submit.scrollIntoViewIfNeeded(); await expect(submit).toBeInViewport({ ratio: 1 })
+      await expect.poll(() => submit.evaluate(element => { const box = element.getBoundingClientRect(); return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)) })).toBe(true)
+      const response = page.waitForResponse(value => new URL(value.url()).pathname === endpoint)
+      await submit.tap({ scroll: 'none' })
+      expect((await (await response).json()).data).toEqual({ items: targets.map((_, index) => ({ index: index + 1, outcome: 'allowed' })) })
+      await expect(form.getByRole('listitem')).toHaveCount(20)
+    }
+    expect(await snapshot(page.request, user.id)).toEqual(before)
+    await expectNoHorizontalOverflow(page)
+    await submit.scrollIntoViewIfNeeded(); await expect(submit).toBeInViewport({ ratio: 1 })
+    await info.attach('batch-touch-reachability', { body: JSON.stringify({ language, width: 390, hasTouch: true, rows: 20, notificationDismissedByUser: true, centerHit: true, actualTouchRequests: 2, noCSSOrDOMRemoval: true }), contentType: 'application/json' })
+    await page.screenshot({ path: info.outputPath('batch-touch-' + language + '-390.png') })
+  })
+}
+
 test('v0.73.0 en 390px retires a delayed batch across a real same SPA account change', async ({ scenario }, info) => {
   test.setTimeout(180_000)
   const { page } = scenario, next = await scenario.createUser(), labels = text.en
