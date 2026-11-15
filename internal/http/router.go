@@ -65,6 +65,7 @@ type Dependencies struct {
 	ShortLinkBatchCreateRedirectModes shortlink.BatchCreateWithRedirectModesPort
 	ShortLinkBatchCreateExpirations   shortlink.BatchCreateWithExpirationsPort
 	ShortLinkBatchCreateVisitLimits   shortlink.BatchCreateWithVisitLimitsPort
+	ShortLinkBatchCreateCountdowns    shortlink.BatchCreateWithCountdownsPort
 	Insights                          insights.Port
 	VisitExport                       insights.VisitExportPort
 	GlobalVisitExport                 insights.GlobalVisitExportPort
@@ -376,6 +377,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			if dependency.ShortLinkBatchCreateVisitLimits != nil {
 				handler := shortlink.NewBulkCreateVisitLimitHandler(dependency.ShortLinkBatchCreateVisitLimits, logger)
 				businessAPI.Post("/short-link/batch-create-with-visit-limits", handler.BatchCreateWithVisitLimits)
+			}
+			if dependency.ShortLinkBatchCreateCountdowns != nil {
+				handler := shortlink.NewBulkCreateCountdownHandler(dependency.ShortLinkBatchCreateCountdowns, logger)
+				businessAPI.Post("/short-link/batch-create-with-countdowns", handler.BatchCreateWithCountdowns)
 			}
 			if dependency.Domain != nil {
 				domainHandler := domain.NewHandler(dependency.Domain, logger)

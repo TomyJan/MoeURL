@@ -1,6 +1,10 @@
 # MoeURL 文档中心
 
-## 当前维护（2026-11-15，v0.76.1）
+## 当前实施（2026-11-15，v0.77.0）
+
+PR354／v0.76.1 已完成真实审查、正常集成、实际合并补验及恢复归档；已交付产品保持 0.76.0。当前实施[CSV 中间页倒计时导入](product/scope-v0.77.0.md)：固定第八列，空默认 5、非空仅 intermediate 的规范 ASCII 3–10，旧七协议保持。后端和前端本地门禁、准确新产品及 33 项真实浏览器验证已完成，19 张原图已查看，产品副本/镜像/cache 已可恢复清理；审查和交付尚待；不查询 CI、不发布部署。准确阶段见[开发进度](product/development-status.md)；下方旧检查点保留原执行归属。
+
+## v0.76.1 交付前检查点（历史）
 
 [v0.76.0](product/scope-v0.76.0.md) 已完成真实审查、正常合并独立核验及恢复归档。当前只做[文档状态维护](product/scope-v0.76.1.md)，产品保持 0.76.0；本维护验证与交付单独判定。准确状态见[开发进度](product/development-status.md)，下方保留原交付前检查点。
 
@@ -434,9 +438,11 @@ v0.9.0 系统设置与站点品牌基础闭环的功能实现已经完成；功�
 当前实施层文档包括：
 
 - [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)
-- [当前 v0.76.0 实施计划](implementation/v0.76.0-plan.md)
-- [当前 v0.76.0 验收](implementation/v0.76.0-acceptance.md)
-- [最近完整交付 v0.75.3 验收](implementation/v0.75.3-acceptance.md)
+- [当前 v0.77.0 实施计划](implementation/v0.77.0-plan.md)
+- [当前 v0.77.0 验收](implementation/v0.77.0-acceptance.md)
+- [最近维护交付 v0.76.1 验收](implementation/v0.76.1-acceptance.md)
+- [已交付产品 v0.76.0 验收](implementation/v0.76.0-acceptance.md)
+- [历史 v0.75.3 验收](implementation/v0.75.3-acceptance.md)
 - [v0.24.0 计划](implementation/v0.24.0-plan.md)
 - [v0.24.0 任务](implementation/v0.24.0-tasks.md)
 - [v0.24.0 验收](implementation/v0.24.0-acceptance.md)
