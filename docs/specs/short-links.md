@@ -1,10 +1,10 @@
 # 短链
 
-## v0.77.0 八列 CSV 中间页倒计时（本地门禁完成，交付尚待）
+## v0.77.0 八列 CSV 中间页倒计时（本地产品验证完成，交付尚待）
 
 独立 `POST /api/v1/short-link/batch-create-with-countdowns` 接受严格八字段项；CSV 精确表头为 `target_url,title,tags,custom_slug,redirect_mode,expires_at,max_visits,intermediate_delay_seconds`。新增 `intermediateDelaySeconds` 为显式原文字符串：空值默认 5，非空仅允许 `redirectMode=intermediate` 的规范 ASCII `3`…`10`，不 trim、不接受数值/null、前导零、符号或其他模式的非空秒数。文件与完整 JSON 各限 65536 字节、1–20 行；原七协议、摘要和模板保持，旧路径显式写 5。
 
-复用当前元数据/短码基础授权与实际模式/过期/上限权限，倒计时没有新权限；持锁授权先回执，八协议共用 actor/requestId 冲突边界但独立摘要。精确重放只返回原回执，不覆盖后改倒计时、已耗用量、日期、配额或审计。后端及前端本地门禁完成；准确产品、真实浏览器、审查与交付尚待，见[设计](2026-11-15-v0.77.0-csv-countdowns-design.md)与[验收](../implementation/v0.77.0-acceptance.md)。
+复用当前元数据/短码基础授权与实际模式/过期/上限权限，倒计时没有新权限；持锁授权先回执，八协议共用 actor/requestId 冲突边界但独立摘要。精确重放只返回原回执，不覆盖后改倒计时、已耗用量、日期、配额或审计。后端及前端本地门禁、准确新产品和 33 项真实浏览器验证完成；原图及可恢复资源清理已核，审查与交付尚待，见[设计](2026-11-15-v0.77.0-csv-countdowns-design.md)与[验收](../implementation/v0.77.0-acceptance.md)。
 
 ## v0.76.0 七列 CSV 最大访问次数导入（已完整交付）
 
