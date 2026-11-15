@@ -1,39 +1,15 @@
 import { randomBytes } from 'node:crypto'
-import { writeFile } from 'node:fs/promises'
 import { expect, test as base } from '@playwright/test'
-import type { APIRequestContext, BrowserContext, Locator, Page, TestInfo } from '@playwright/test'
+import type { Locator, Page, TestInfo } from '@playwright/test'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
+import { csvIssueAttach as attach, csvIssueLinks as links, runCsvIssueScenario } from './csv-issues-fixture'
+import type { CsvIssueScenario } from './csv-issues-fixture'
 
-interface User { id: string; username: string }
 interface Item { targetUrl: string; title: string; tags: string[]; customSlug: string; redirectMode: string; expiresAt: string; maxVisits: string; intermediateDelaySeconds: string }
-interface Link { id: string; slug: string; targetUrl: string; title: string; tags: string[]; redirectMode: string; expiresAt: string | null; maxVisits: number | null; intermediateDelaySeconds: number }
-interface Scenario { page: Page; user: User }
 const endpoint = '/api/v1/short-link/batch-create-with-countdowns', touchPages = new WeakSet<Page>()
-const password = 'csv-csv-issues-disposable-account'
-const test = base.extend<{ scenario: Scenario }>({
+const test = base.extend<{ scenario: CsvIssueScenario }>({
   scenario: [async ({ browser, page: manager }, use, info) => {
-    let context: BrowserContext | undefined, user: User | undefined
-    const failures: unknown[] = []
-    try {
-      const baseURL = info.project.use.baseURL
-      if (typeof baseURL !== 'string') throw new Error('Disposable Compose baseURL required')
-      await post(manager.request, '/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword })
-      user = (await post<{ user: User }>(manager.request, '/admin/user/create', { username: 'csvissues-' + randomBytes(7).toString('hex'), password, nickname: 'CSV issue fixture', groupKey: 'admin', status: 'active' })).user
-      const width = info.title.includes('1280px') ? 1280 : info.title.includes('320px') ? 320 : 390, language = info.title.includes(' en ') ? 'en' : 'zh-CN', theme = language === 'en' ? 'dark' : 'light'
-      context = await browser.newContext({ baseURL, viewport: { width, height: width === 1280 ? 900 : width === 320 ? 500 : 800 }, locale: language, hasTouch: width !== 1280, serviceWorkers: 'block', colorScheme: theme, reducedMotion: 'reduce' })
-      await context.addInitScript(({ language, theme }) => { localStorage.setItem('moeurl.language', language); localStorage.setItem('moeurl.theme', theme) }, { language, theme })
-      const page = await context.newPage(); if (width !== 1280) touchPages.add(page)
-      await post(page.request, '/auth/login', { username: user.username, password })
-      await attach(info, 'runtime', { browser: browser.version(), driverNode: process.version, width, language, theme, userId: user.id, disposableDatabase: true })
-      await use({ page, user })
-    } catch (error) { failures.push(error) } finally {
-      if (context && user) {
-        try { for (const link of await links(context.request)) { try { await post(manager.request, '/admin/short-link/delete', { id: link.id }) } catch (error) { failures.push(error) } } } catch (error) { failures.push(error) }
-        try { await post(manager.request, '/admin/user/update', { id: user.id, nickname: 'CSV issue fixture', status: 'disabled' }) } catch (error) { failures.push(error) }
-      }
-      if (context) await context.close().catch(error => failures.push(error))
-    }
-    if (failures.length) throw new AggregateError(failures, 'CSV issue scenario or owned cleanup failed')
+    await runCsvIssueScenario({ browser, page: manager }, use, info, { username: e2eAdminUsername, password: e2eAdminPassword }, touchPages)
   }, { timeout: 90_000 }],
 })
 test.describe.configure({ mode: 'serial' })
@@ -113,7 +89,4 @@ function reversedCsv(items: readonly Item[]) {
 }
 async function upload(page: Page, text: string) { await page.getByRole('dialog').locator('input[type=file]').setInputFiles({ name: 'csv-issues.csv', mimeType: 'text/csv', buffer: Buffer.from(text) }) }
 async function activate(control: Locator) { if (touchPages.has(control.page())) await control.tap(); else { await control.focus(); await control.press('Enter') } }
-async function links(api: APIRequestContext) { const response = await api.get('/api/v1/short-link/list?page=1&pageSize=100'); expect(response.status()).toBe(200); const payload = await response.json(); expect(payload.code).toBe(0); return (payload.data as { items: Link[] }).items }
-async function post<T = unknown>(api: APIRequestContext, path: string, data: unknown): Promise<T> { const response = await api.post('/api/v1' + path, { data, timeout: 10_000 }); expect(response.status()).toBe(200); const payload = await response.json(); expect(payload.code).toBe(0); return payload.data as T }
-async function attach(info: TestInfo, name: string, value: unknown) { const output = info.outputPath(name + '.json'); await writeFile(output, JSON.stringify(value, null, 2)); await info.attach(name, { path: output, contentType: 'application/json' }) }
 async function capture(info: TestInfo, name: string, page: Page) { await expectNoHorizontalOverflow(page); await expect.poll(() => page.getByRole('dialog').evaluate(element => element.scrollWidth - element.clientWidth)).toBe(0); const output = info.outputPath(name + '.png'); await page.screenshot({ path: output, animations: 'disabled' }); await info.attach(name, { path: output, contentType: 'image/png' }) }
