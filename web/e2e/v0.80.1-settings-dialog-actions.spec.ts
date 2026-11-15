@@ -70,11 +70,11 @@ async function inspectPositions(page: Page, info: TestInfo, en: boolean, blocked
 }
 
 /** Exercises the real wheel entry point before later programmatic position checks. */
-async function inspectWheel(page: Page, password: Locator, records: unknown[]) {
+async function inspectWheel(page: Page, lastInput: Locator, records: unknown[]) {
   const body = page.getByRole('dialog').locator('.short-link-settings-dialog__body')
   // Establish the starting position only; every measured move below comes from the mouse.
   await body.evaluate(element => { element.scrollTop = 0 })
-  const before = await geometry(password), visible = (await geometry(body)).intersection
+  const before = await geometry(lastInput), visible = (await geometry(body)).intersection
   expect(before.clipped, 'last input starts below the visible body').toBeGreaterThan(1)
   expect(visible.right - visible.left).toBeGreaterThan(0)
   expect(visible.bottom - visible.top).toBeGreaterThan(before.bounds.height)
@@ -87,7 +87,7 @@ async function inspectWheel(page: Page, password: Locator, records: unknown[]) {
     const previous = await body.evaluate(element => element.scrollTop)
     await page.mouse.wheel(0, delta)
     await expect.poll(() => body.evaluate(element => element.scrollTop), { message: 'native wheel scrolls the form body' }).toBeGreaterThan(previous)
-    field = await geometry(password)
+    field = await geometry(lastInput)
   }
   expect(field.clipped, 'native wheel makes the last input fully reachable').toBeLessThanOrEqual(1)
   const fieldScroll = await body.evaluate(element => element.scrollTop)
@@ -127,7 +127,7 @@ for (const language of ['zh-CN', 'en']) for (const [width, height] of [[320, 500
       const dialog = page.getByRole('dialog'), target = 'https://example.com/' + keyword + '/' + 'long-path-'.repeat(20)
       await dialog.getByRole('textbox', { name: en ? 'Target URL' : '目标链接', exact: true }).fill(target)
       const password = dialog.getByLabel(en ? 'New access password' : '新访问密码', { exact: true }), newPassword = 'replacement-' + keyword
-      if (en && width === 320) await inspectWheel(page, password, records)
+      if (en && width === 320) await inspectWheel(page, dialog.getByLabel('Maximum visits', { exact: true }), records)
       await password.fill(newPassword)
       await expect(password).toBeFocused()
       await inspectPositions(page, info, en, false, records)
