@@ -6,7 +6,7 @@ import { me, type UserResponse } from '@/entities/auth/api'
 import { batchCreateShortLinks, batchCreateShortLinksWithTitles, batchCreateShortLinksWithMetadata, batchCreateShortLinksWithCustomSlugs, batchCreateShortLinksWithRedirectModes, type BulkCreateRedirectModeItem, type BulkCreateRedirectModesInput, BulkCreateUnknownError, parseBulkCreateLines, type BulkCreateInput, type BulkCreateTitlesInput, type BulkCreateMetadataInput, type BulkCreateCustomSlugsInput, type BulkCreateCustomSlugItem, type BulkCreateItem, type BulkCreateMetadataItem } from '@/entities/short-link/bulk-create'
 import { ApiClientError } from '@/shared/api/client'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
-import { BULK_CSV_MAX_BYTES, parseBulkCreateImportCsv } from '@/entities/short-link/bulk-create-csv'
+import { BULK_CSV_MAX_BYTES, parseBulkCreateImportCsvDetailed, type BulkCreateCsvIssue } from '@/entities/short-link/bulk-create-csv'
 import { batchCreateShortLinksWithExpirations, type BulkCreateExpirationItem, type BulkCreateExpirationsInput } from '@/entities/short-link/bulk-create'
 import { batchCreateShortLinksWithCountdowns, type BulkCreateCountdownItem, type BulkCreateCountdownsInput } from '@/entities/short-link/bulk-create'
 import { batchCreateShortLinksWithVisitLimits, type BulkCreateVisitLimitItem, type BulkCreateVisitLimitsInput } from '@/entities/short-link/bulk-create'
@@ -26,6 +26,8 @@ export function useBulkCreate() {
   const importedMode = ref<Protocol>('targets'), snapshotMode = ref<Protocol>('targets')
   const previewItems = computed<readonly StructuredItem[]>(() => !snapshot.value ? [] : 'items' in snapshot.value ? snapshot.value.items : snapshot.value.targetUrls.map(targetUrl => ({ targetUrl, title: '' })))
   const reading = ref(false)
+  const fileIssue = shallowRef<BulkCreateCsvIssue | null>(null)
+  const csvIssue = computed(() => errorKey.value === 'bulkCreate.csvInvalid' ? fileIssue.value : null)
   let generation = 0, alive = true, scope = identity.scope.value
   let fileSequence = 0, draftRevision = 0, metadataEpoch = 0, customSlugEpoch = 0, intermediateEpoch = 0, confirmationEpoch = 0, expirationEpoch = 0, visitLimitEpoch = 0
   watch(draft, () => { draftRevision++; fileSequence++; reading.value = false }, { flush: 'sync' })
@@ -91,7 +93,7 @@ export function useBulkCreate() {
   function reset() {
     generation++; opened.value = false; draft.value = ''; importedItems.value = null; snapshot.value = null; pending.value = false
     importedMode.value = 'targets'; snapshotMode.value = 'targets'
-    unknown.value = false; closing.value = false; errorKey.value = ''; fileSequence++; reading.value = false
+    unknown.value = false; closing.value = false; errorKey.value = ''; fileIssue.value = null; fileSequence++; reading.value = false
   }
   const unsubscribe = client.getQueryCache().subscribe(event => {
     if (event.query.queryKey[0] !== 'auth' || event.query.queryKey[1] !== 'me') return
@@ -151,7 +153,7 @@ export function useBulkCreate() {
   /** Explicitly discards the entire structured import before returning to manual input. */
   function clearImport() {
     if (!opened.value || snapshot.value || pending.value || unknown.value) return
-    importedItems.value = null; importedMode.value = 'targets'; draft.value = ''; draftRevision++; fileSequence++; reading.value = false; errorKey.value = ''
+    importedItems.value = null; importedMode.value = 'targets'; draft.value = ''; draftRevision++; fileSequence++; reading.value = false; errorKey.value = ''; fileIssue.value = null
   }
   /** Checks both login epoch and the operation generation immediately before any side effect. */
   function isCurrent(token: number, candidate: typeof scope) { return alive && token === generation && identity.isCurrent(candidate) && canUseNow() }
@@ -160,15 +162,15 @@ export function useBulkCreate() {
     if (!file || !opened.value || snapshot.value || pending.value || unknown.value || !isCurrent(generation, scope)) return
     const token = generation, candidate = scope, sequence = ++fileSequence, revision = draftRevision, titleEpoch = metadataEpoch, slugEpoch = customSlugEpoch, intermediateReadEpoch = intermediateEpoch, confirmationReadEpoch = confirmationEpoch, expirationReadEpoch = expirationEpoch, visitLimitReadEpoch = visitLimitEpoch
     const current = () => isCurrent(token, candidate) && sequence === fileSequence && revision === draftRevision
-    reading.value = true; errorKey.value = ''
+    reading.value = true; errorKey.value = ''; fileIssue.value = null
     try {
       if (file.size > BULK_CSV_MAX_BYTES) { errorKey.value = 'bulkCreate.csvTooLarge'; return }
       const bytes = await file.arrayBuffer()
       if (!current()) return
       if (bytes.byteLength > BULK_CSV_MAX_BYTES) { errorKey.value = 'bulkCreate.csvTooLarge'; return }
       // Keep BOMs visible to the parser, which accepts only one opening marker.
-      const parsed = parseBulkCreateImportCsv(new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes))
-      if (!parsed.success) { errorKey.value = 'bulkCreate.csvInvalid'; return }
+      const parsed = parseBulkCreateImportCsvDetailed(new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes))
+      if (!parsed.success) { fileIssue.value = parsed.issue ?? null; errorKey.value = 'bulkCreate.csvInvalid'; return }
       if (parsed.mode !== 'targets') {
         if (!canTitleNow() || titleEpoch !== metadataEpoch) { errorKey.value = 'bulkCreate.metadataRequired'; return }
         if ((parsed.mode === 'custom-slugs' || parsed.mode === 'redirect-modes' || parsed.mode === 'expirations' || (parsed.mode === 'visit-limits' || parsed.mode === 'countdowns')) && (!canCustomSlugNow() || slugEpoch !== customSlugEpoch)) { errorKey.value = 'bulkCreate.customSlugRequired'; return }
@@ -180,7 +182,7 @@ export function useBulkCreate() {
         importedItems.value = Object.freeze(parsed.data.map(item => Object.freeze('tags' in item ? { ...item, tags: Object.freeze([...item.tags]) } : { ...item })))
         importedMode.value = parsed.mode
       } else { importedItems.value = null; importedMode.value = 'targets'; draft.value = parsed.data.join('\n') }
-      draftRevision++; fileSequence++; reading.value = false; errorKey.value = ''
+      draftRevision++; fileSequence++; reading.value = false; errorKey.value = ''; fileIssue.value = null
     } catch {
       if (current()) errorKey.value = 'bulkCreate.csvReadFailed'
     } finally { if (current()) reading.value = false }
@@ -226,5 +228,5 @@ export function useBulkCreate() {
   }
   window.addEventListener('beforeunload', beforeUnload)
   onBeforeUnmount(() => { alive = false; generation++; unsubscribe(); window.removeEventListener('beforeunload', beforeUnload) })
-  return { allowed, opened, draft, importedItems, importedMode, previewItems, snapshot, snapshotMode, pending, unknown, closing, errorKey, reading, importFile, clearImport, begin, preview, edit, submit, close, cancelClose, discard }
+  return { allowed, opened, draft, importedItems, importedMode, previewItems, snapshot, snapshotMode, pending, unknown, closing, errorKey, csvIssue, reading, importFile, clearImport, begin, preview, edit, submit, close, cancelClose, discard }
 }

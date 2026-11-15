@@ -26,7 +26,10 @@
         </template>
         <p v-if="['redirect-modes', 'expirations', 'visit-limits'].includes(state.snapshot.value ? state.snapshotMode.value : state.importedMode.value)">{{ t('bulkCreate.modeDelay') }}</p>
         <div v-if="state.errorKey.value" ref="errorFeedback" tabindex="-1" data-testid="bulk-create-error-feedback">
-          <v-alert type="warning" variant="tonal" data-testid="bulk-create-error">{{ t(state.errorKey.value) }}</v-alert>
+          <v-alert type="warning" variant="tonal" data-testid="bulk-create-error">
+            <p>{{ t(state.errorKey.value) }}</p>
+            <p v-if="state.csvIssue.value" data-testid="bulk-create-csv-issue">{{ t('bulkCreate.csvIssue.' + state.csvIssue.value.kind, { record: state.csvIssue.value.record }) }}</p>
+          </v-alert>
         </div>
         <v-alert v-if="state.closing.value" type="warning" variant="tonal" data-testid="bulk-create-close-warning">
           <p>{{ t('bulkCreate.discardWarning') }}</p>

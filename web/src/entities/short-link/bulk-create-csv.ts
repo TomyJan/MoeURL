@@ -12,12 +12,22 @@ export function parseBulkCreateCsv(text: string): CsvResult {
   return result.success && result.mode === 'targets' ? { success: true, data: result.data } : { success: false }
 }
 
-/** Reads strict CSV records without discarding or normalizing raw fields. */
+export type BulkCreateCsvIssue = { kind: 'header' | 'syntax' | 'width'; record: number }
+export type DetailedImportResult = Exclude<ImportResult, { success: false }> | { success: false; issue?: BulkCreateCsvIssue }
+
+/** Keeps the original exact result shape for existing import consumers. */
 export function parseBulkCreateImportCsv(text: string): ImportResult {
-  const invalid: ImportResult = { success: false }
+  const result = parseBulkCreateImportCsvDetailed(text)
+  return result.success ? result : { success: false }
+}
+
+/** Reads strict CSV and reports bounded structure issues without exposing raw input. */
+export function parseBulkCreateImportCsvDetailed(text: string): DetailedImportResult {
+  const invalid: DetailedImportResult = { success: false }
   if (/[\uD800-\uDFFF]/u.test(text) || new TextEncoder().encode(text).byteLength > BULK_CSV_MAX_BYTES) return invalid
   const input = text.startsWith('\uFEFF') ? text.slice(1) : text
   let rows: string[][] = []
+  const structural = (kind: BulkCreateCsvIssue['kind'], record = rows.length + 1): DetailedImportResult => record <= 21 ? { success: false, issue: { kind, record } } : invalid
   let fields: string[] = [], field = '', state: 'start' | 'plain' | 'quoted' | 'closed' = 'start', endedRecord = false
   for (let i = 0; i < input.length; i++) {
     const character = input[i]!
@@ -30,26 +40,28 @@ export function parseBulkCreateImportCsv(text: string): ImportResult {
     if (character === '"') {
       if (state === 'start') state = 'quoted'
       else if (state === 'closed') { field += '"'; state = 'quoted' }
-      else return invalid
+      else return structural('syntax')
     } else if (character === ',') {
       fields.push(field); field = ''; state = 'start'
-      if (fields.length > 7) return invalid
+      if (fields.length > 7) return structural(rows.length === 0 ? 'header' : 'width')
     } else if (character === '\n' || character === '\r') {
-      if (character === '\r' && input[++i] !== '\n') return invalid
+      if (character === '\r' && input[++i] !== '\n') return structural('syntax')
       rows.push([...fields, field])
       if (rows.length > 21) return invalid
       fields = []; field = ''; state = 'start'; endedRecord = true
     } else {
-      if (state === 'closed') return invalid
+      if (state === 'closed') return structural('syntax')
       field += character; state = 'plain'
     }
   }
-  if (state === 'quoted') return invalid
+  if (state === 'quoted') return structural('syntax')
   if (!endedRecord) rows.push([...fields, field])
   const header = rows.shift()!
   const standard = ['target_url', 'title', 'tags', 'custom_slug', 'redirect_mode', 'expires_at', 'max_visits', 'intermediate_delay_seconds']
   const positions = standard.slice(0, header.length).map(name => header.indexOf(name))
-  if (positions.includes(-1) || rows.some(row => row.length !== header.length)) return invalid
+  if (positions.includes(-1)) return structural('header', 1)
+  const invalidWidth = rows.findIndex(row => row.length !== header.length)
+  if (invalidWidth !== -1) return structural('width', invalidWidth + 2)
   // Read the original row once: in-place swaps would overwrite values still needed by other columns.
   rows = rows.map(row => positions.map(index => row[index]!))
   if (header.length === 8) {
