@@ -1,6 +1,12 @@
 # 开发进度与能力清单
 
-## 当前开发（2026-11-15，v0.80.0）
+## 当前开发（2026-11-15，v0.80.1）
+
+PR360／v0.80.0 已完整交付：6488 项本地测试／四项100%、准确修复产品9项浏览器通过，最终候选03a0b883自身CodeRabbit132747889571 reviewed/source/covered、有效open0；正常squash master533a3ce2，独立API／一次fetch核同tree和唯一父，三个标准任务、28条裁决／两组文档Minor及10份工作记录已可恢复归档。准确执行来源与视觉限制见[v0.80.0验收](../implementation/v0.80.0-acceptance.md)。
+
+当前实施[访问配置操作可达性](scope-v0.80.1.md)：准确旧产品真实几何 RED、最小布局和完整6488项／四100、types/lint／六组E2E strict／build已通过，Task1标准完成。校正测试HTML根裁切后，同一准确新产品单轮7/7、36条真实几何、24张原图及现场3服务已核；smoke／所选扫描通过，四份恢复ZIP全解压逐hash后净清66732142B，专用镜像及7条独占cache已清。真实审查与交付尚待，见[验收](../implementation/v0.80.1-acceptance.md)。已交付产品仍为0.80.0，不查询CI、不发布部署。
+
+## v0.80.0 交付前检查点（历史）
 
 PR359／v0.79.0 已完整交付：候选 `e1256a0a2501e5247bd520023bd3950e545cc677` 自身 CodeRabbit132722418597 success、reviewed/source/covered，有效 open0。正常 squash master `8c748f16e9fccb896217744960e04327fe0a901f`，独立 API／一次 fetch 核同 tree 和唯一父；三个标准任务、26 条裁决和三组文档 Minor 随10份工作记录可恢复归档。原6466项／四100、浏览器9项及原生成功／受控拒绝保持原执行归属，见[v0.79.0验收](../implementation/v0.79.0-acceptance.md)。
 
