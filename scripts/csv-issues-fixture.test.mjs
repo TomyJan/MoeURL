@@ -14,14 +14,21 @@ async function fixture(t, options = {}, makeDirectory = () => mkdtemp(join(tmpdi
   let handle, server
   // Own the directory before opening the handle or starting the server can fail.
   t.after(async () => {
+    const errors = []
     try {
       if (server) {
         server.closeAllConnections()
         if (server.listening) await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
+        await options.afterRelease?.('server')
       }
-    } finally {
-      try { await handle?.close() } finally { await rm(directory, { recursive: true, force: true }) }
-    }
+    } catch (error) { errors.push(error) }
+    try {
+      if (handle) { await handle.close(); await options.afterRelease?.('handle') }
+    } catch (error) { errors.push(error) }
+    try {
+      await rm(directory, { recursive: true, force: true }); await options.afterRelease?.('directory')
+    } catch (error) { errors.push(error) }
+    if (errors.length) throw new AggregateError(errors, 'Fixture resource cleanup failed')
   })
   handle = await open(join(directory, 'browser-context'), 'wx+')
   const state = { users: [], links: [], operations: [] }
@@ -84,7 +91,35 @@ async function fixture(t, options = {}, makeDirectory = () => mkdtemp(join(tmpdi
   const read = async () => (await (await request('/state')).json()).data
   const addLinks = async () => request('/owned-links', {})
   const closed = () => assert.rejects(handle.stat(), { code: 'EBADF' })
-  return { run, read, addLinks, closed, page, touchPages }
+  return { run, read, addLinks, closed, page, touchPages, directory, serverListening: () => server.listening }
+}
+
+// Nested finally must not hide an earlier cleanup error, including falsey rejections.
+// The injected reports follow real releases; actual socket/handle/directory state is checked.
+for (const [name, failures] of [
+  ['server', new Map([['server', new Error('server close reported failure')]])],
+  ['handle', new Map([['handle', new Error('handle close reported failure')]])],
+  ['directory', new Map([['directory', new Error('directory removal reported failure')]])],
+  ['all resources', new Map([['server', new Error('server close failed')], ['handle', new Error('handle close failed')], ['directory', new Error('directory removal failed')]])],
+  ['falsey values', new Map([['server', undefined], ['handle', null], ['directory', false]])],
+]) {
+  test('retains fixture release diagnostics for ' + name, async t => {
+    const cleanups = [], attempts = []
+    const options = { afterRelease: stage => { attempts.push(stage); if (failures.has(stage)) throw failures.get(stage) } }
+    // Even RED assertion failures leave no resources; suppress only the injected reports.
+    t.after(async () => { delete options.afterRelease; for (const cleanup of cleanups) await cleanup() })
+    const f = await fixture({ after: cleanup => cleanups.push(cleanup) }, options)
+    let rejected = false, thrown
+    try { await cleanups[0]() } catch (error) { rejected = true; thrown = error }
+    assert.equal(rejected, true)
+    assert.deepEqual(attempts, ['server', 'handle', 'directory'])
+    assert.equal(f.serverListening(), false)
+    await f.closed()
+    await assert.rejects(access(f.directory), { code: 'ENOENT' })
+    assert.ok(thrown instanceof AggregateError)
+    assert.deepEqual(thrown.errors, [...failures.values()])
+    for (const [index, original] of [...failures.values()].entries()) assert.equal(thrown.errors[index], original)
+  })
 }
 
 test('releases its directory when context handle initialization fails', async () => {
