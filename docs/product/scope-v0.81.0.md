@@ -1,6 +1,6 @@
 # v0.81.0 CSV 标准列顺序
 
-基线是 PR362 已独立核验的 master `d03cbdcfa4845f92c3e314fca4ac8e9aa47e9ab3`，分支 `feat/v0.81.0-csv-column-order`。Agent 按持续自主授权选择此增量，当前处于设计阶段，尚未实现或验证。
+基线是 PR362 已独立核验的 master `d03cbdcfa4845f92c3e314fca4ac8e9aa47e9ab3`，分支 `feat/v0.81.0-csv-column-order`。Agent 按持续自主授权选择此增量，当前已实现并通过本地 6513 项测试、四项 100%、类型检查／lint、八份 E2E 严格类型检查及隔离构建。源码版本为 0.81.0；准确产品、真实浏览器、独立终审与 CodeRabbit 交付尚待，已交付产品仍为 0.80.1。
 
 ## 现状盘点与取舍
 

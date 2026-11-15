@@ -48,7 +48,7 @@ describe('fixed four-column CSV custom short codes', () => {
     expect(parseBulkCreateImportCsv('target_url,title,tags,custom_slug\nhttps://example.com,,[],"' + customSlug + '"')).toEqual({ success: false })
   })
 
-  it.each(['target_url,title,custom_slug,tags\nhttps://example.com,,Team56,[]', 'target_url,title,tags,custom_slug\nhttps://example.com,,[]', 'target_url,title,tags,custom_slug\nhttps://example.com,,[],Team56,extra', 'target_url,title,tags,custom_slug\nhttps://example.com,,null,Team56'])('rejects malformed four-column structure %j', text => {
+  it.each(['target_url,title,custom_slug,tagz\nhttps://example.com,,Team56,[]', 'target_url,title,tags,custom_slug\nhttps://example.com,,[]', 'target_url,title,tags,custom_slug\nhttps://example.com,,[],Team56,extra', 'target_url,title,tags,custom_slug\nhttps://example.com,,null,Team56'])('rejects malformed four-column structure %j', text => {
     expect(parseBulkCreateImportCsv(text)).toEqual({ success: false })
   })
 

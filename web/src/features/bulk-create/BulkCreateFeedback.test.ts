@@ -42,7 +42,7 @@ afterEach(() => { cleanup(); clients.splice(0).forEach(c => c.clear()); vi.unstu
 it.each(['zh-CN', 'en'] as const)('describes all eight formats in the visible %s summary and invalid-file recovery', async locale => {
   const view = mount(locale, 200101)
   await fireEvent.click(screen.getByTestId('bulk-create-open'))
-  const summary = screen.getByText(locale === 'zh-CN' ? /八种固定格式/ : /eight fixed formats/i)
+  const summary = screen.getByText(locale === 'zh-CN' ? /八种完整标准列集合/ : /eight complete standard column sets/i)
   expect(summary.textContent).toMatch(locale === 'zh-CN' ? /自定义短码/ : /custom code/)
   expect(summary.textContent).toMatch(locale === 'zh-CN' ? /跳转方式/ : /redirect mode/)
   expect(summary.textContent).toMatch(locale === 'zh-CN' ? /UTC 过期时间/ : /UTC expiration/)

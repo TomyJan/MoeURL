@@ -33,7 +33,7 @@ describe('eight-column countdown CSV', () => {
     header + '\nhttps://example.com/delay,,[],,intermediate,,,3,extra',
     header + '\nhttps://example.com/delay,,invalid,,intermediate,,,3',
     header + '\nhttps://example.com/delay,,null,,intermediate,,,3',
-    header.replace('max_visits,intermediate_delay_seconds', 'intermediate_delay_seconds,max_visits') + '\nhttps://example.com/delay,,[],,intermediate,,,3',
+    header.replace('intermediate_delay_seconds', 'delay_seconds') + '\nhttps://example.com/delay,,[],,intermediate,,,3',
     header + '\nhttps://example.com/delay,,[],,intermediate,,,3\nhttps://example.com/delay,,[],,intermediate,,,10',
     header + '\nhttps://example.com/a,,[],Team77,intermediate,,,3\nhttps://example.com/b,,[],team77,intermediate,,,10',
   ])('rejects malformed or conflicting eight-column content', text => {
