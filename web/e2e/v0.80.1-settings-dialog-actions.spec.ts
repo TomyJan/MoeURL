@@ -3,7 +3,7 @@ import { writeFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext, Locator, Page, TestInfo } from '@playwright/test'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
-import { collectSettingsCleanupErrors } from './settings-dialog-cleanup'
+import { collectSettingsCleanupErrors, withSettingsCleanup } from './settings-dialog-cleanup'
 import type { CreateShortLinkInput } from '../src/entities/short-link/model'
 
 interface Link { id: string; targetUrl: string }
@@ -135,7 +135,7 @@ for (const language of ['zh-CN', 'en']) for (const [width, height] of [[320, 500
       let observeList!: () => void
       const observed = new Promise<void>(resolve => { observeList = resolve }), released = new Promise<void>(resolve => { releaseList = resolve })
       await page.route(listURL, async route => { const response = await route.fetch(); observeList(); await released; await route.fulfill({ response }) })
-      try {
+      await withSettingsCleanup(async () => {
         await context.setOffline(true); await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false)
         await context.setOffline(false); await observed
         await expect(dialog.getByRole('button', { name: en ? 'Save' : '保存', exact: true })).toBeDisabled()
@@ -143,7 +143,7 @@ for (const language of ['zh-CN', 'en']) for (const [width, height] of [[320, 500
         await expect(password).toHaveValue(newPassword); await expect(password).toBeFocused()
         await inspectPositions(page, info, en, true, records)
         expect(writes).toHaveLength(0)
-      } finally { releaseList?.(); await context.setOffline(false) }
+      }, [() => releaseList?.(), () => context.setOffline(false)])
       await expect(dialog.getByRole('button', { name: en ? 'Save' : '保存', exact: true })).toBeEnabled()
       await expect(password).toHaveValue(newPassword); await expect(password).toBeFocused()
       await page.unroute(listURL)
