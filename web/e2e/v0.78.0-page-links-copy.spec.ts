@@ -71,10 +71,18 @@ for (const language of ['zh-CN', 'en']) for (const width of [1280, 320]) for (co
       const first = await (await filtered).json() as { data: { items: Link[] }; meta: { total: number } }
       expect(first.meta.total).toBe(22); expect(first.data.items).toHaveLength(20)
       await expect(copy).toBeEnabled(); await expect(copy).toHaveAccessibleName(language === 'en' ? 'Copy links on this page' : '复制本页短链')
+      // Observe the exact API argument while retaining the native OS clipboard write.
+      await page.evaluate(() => {
+        const values: string[] = [], native = navigator.clipboard.writeText.bind(navigator.clipboard)
+        Object.defineProperty(window, '__pageCopyPayloads', { configurable: true, value: values })
+        Object.defineProperty(navigator.clipboard, 'writeText', { configurable: true, value: (text: string) => { values.push(text); return native(text) } })
+      })
       let listReads = 0; page.on('request', request => { if (new URL(request.url()).pathname === path) listReads++ })
       await copy.focus(); await copy.press('Enter')
       const expected = first.data.items.map(item => item.url).join('\n')
-      await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(expected)
+      expect(await page.evaluate(() => (window as unknown as { __pageCopyPayloads: string[] }).__pageCopyPayloads)).toEqual([expected])
+      // Windows normalizes native text to CRLF; the API argument above must still be literal LF.
+      await expect.poll(() => page.evaluate(async () => (await navigator.clipboard.readText()).replace(/\r\n/g, '\n'))).toBe(expected)
       await expect(page.getByText(language === 'en' ? 'Copied 20 links from this page' : '已复制 20 条本页短链', { exact: true })).toBeVisible()
       expect(expected.split('\n')).toHaveLength(20); expect(expected.endsWith('\n')).toBe(false)
       for (const link of links) expect(expected).not.toContain(link.targetUrl)
@@ -87,7 +95,9 @@ for (const language of ['zh-CN', 'en']) for (const width of [1280, 320]) for (co
       const second = await (await secondResponse).json() as { data: { items: Link[] } }
       expect(second.data.items).toHaveLength(2); await expect(copy).toBeEnabled()
       if (width === 320) await copy.tap(); else await copy.click()
-      await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(second.data.items.map(item => item.url).join('\n'))
+      const nextExpected = second.data.items.map(item => item.url).join('\n')
+      expect(await page.evaluate(() => (window as unknown as { __pageCopyPayloads: string[] }).__pageCopyPayloads)).toEqual([expected, nextExpected])
+      await expect.poll(() => page.evaluate(async () => (await navigator.clipboard.readText()).replace(/\r\n/g, '\n'))).toBe(nextExpected)
       expect(first.data.items.map(item => item.id)).not.toContain(second.data.items[0]!.id)
       expect(listReads).toBe(1)
       // Only the OS failure boundary is replaced; real page/cache/feedback remain intact.
