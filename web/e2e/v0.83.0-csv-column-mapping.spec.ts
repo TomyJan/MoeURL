@@ -98,12 +98,14 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390,
 /** Encodes only the input fixture; the expected wire objects above remain explicit. */
 function csv(headers: string[], rows: string[][]) { return '\uFEFF' + [headers, ...rows].map(row => row.map(value => '"' + value.replaceAll('"', '""') + '"').join(',')).join('\r\n') + '\r\n' }
 function column(number: number, name: string, english: boolean) { return english ? 'Column ' + number + ': ' + name : '第 ' + number + ' 列：' + name }
-async function choose(page: Page, control: Locator, name: string) { await activate(control); await activate(page.getByRole('option', { name, exact: true })) }
+async function choose(page: Page, control: Locator, name: string) { await activate(control); await activate(page.getByRole('option', { name, exact: true })); await expect(page.locator('.v-select').filter({ has: control }).locator('.v-select__selection-text')).toHaveText(name) }
 async function upload(page: Page, text: string, mode: 'standard' | 'mapped') { await page.getByTestId(mode === 'standard' ? 'bulk-create-standard-file' : 'bulk-create-mapping-file').setInputFiles({ name: 'column-mapping.csv', mimeType: 'text/csv', buffer: Buffer.from(text) }) }
 async function activate(control: Locator) {
+  const role = await control.getAttribute('role')
   if (touchPages.has(control.page())) {
-    const target = await control.getAttribute('role') === 'combobox' ? control.page().locator('.v-select').filter({ has: control }).locator('.v-field') : control
+    const target = role === 'combobox' ? control.page().locator('.v-select').filter({ has: control }).locator('.v-field') : control
     await target.tap()
   } else { await control.focus(); await control.press('Enter') }
+  if (role === 'option') await expect(control).toBeHidden()
 }
 async function capture(info: TestInfo, name: string, page: Page) { await expectNoHorizontalOverflow(page); await expect.poll(() => page.getByRole('dialog').evaluate(element => element.scrollWidth - element.clientWidth)).toBe(0); const output = info.outputPath(name + '.png'); await page.screenshot({ path: output, animations: 'disabled' }); await info.attach(name, { path: output, contentType: 'image/png' }) }
