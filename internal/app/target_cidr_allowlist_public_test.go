@@ -21,6 +21,9 @@ func TestCIDRAllowlistPolicyHistoricalAccess(t *testing.T) {
 			_, err := a.pool.Exec(t.Context(), `update system_setting set value='{"enabled":false,"prefixes":[]}' where key='security.target_cidr_allowlist'`)
 			require.NoError(t, err)
 			created := homeContentCall(t, a, cookie, "POST", "/api/v1/short-link/create", fmt.Sprintf(`{"targetUrl":"https://203.0.113.9/original","redirectMode":%q,"password":{"mode":"set","value":"cidr-public-password"}}`, mode), 200, 0)["shortLink"].(map[string]any)
+			// Keep historical-policy access independent of wall-clock corrections; revision revocation has separate regressions.
+			_, err = a.pool.Exec(t.Context(), `update short_link set password_updated_at=timestamptz '2000-01-01 00:00:00+00' where id=$1`, created["id"].(string))
+			require.NoError(t, err)
 			_, err = a.pool.Exec(t.Context(), `update system_setting set value='{"enabled":true,"prefixes":["192.0.2.0/24"]}' where key='security.target_cidr_allowlist'`)
 			require.NoError(t, err)
 			call := func(method, path, body string, grant *http.Cookie) *httptest.ResponseRecorder {

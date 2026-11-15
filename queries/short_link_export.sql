@@ -1,5 +1,16 @@
 -- name: ExportShortLinkList :many
-with grant_snapshot as (
+with selection_input as materialized (
+    select sqlc.arg('selection_mode')::boolean as enabled,
+        sqlc.arg('selected_ids')::uuid[] as ids
+), selection_guard as materialized (
+    select enabled, ids, (not enabled or coalesce(
+        cardinality(ids) between 1 and 100
+        and array_position(ids, null) is null
+        and not ('00000000-0000-0000-0000-000000000000'::uuid = any(ids))
+        and (select count(distinct selected_id) from unnest(ids) as selected_id) = cardinality(ids), false)
+    )::boolean as valid
+    from selection_input
+), grant_snapshot as (
     select exists (
         select 1 from app_user
         join user_group on user_group.id = app_user.group_id
@@ -25,7 +36,9 @@ with grant_snapshot as (
     join domain on domain.id = short_link.domain_id
     join app_user as owner on owner.id = short_link.owner_id
     cross join grant_snapshot
-    where grant_snapshot.allowed and short_link.deleted_at is null
+    cross join selection_guard
+    where grant_snapshot.allowed and selection_guard.valid and short_link.deleted_at is null
+        and (not selection_guard.enabled or short_link.id = any(selection_guard.ids))
         and (sqlc.arg('is_admin')::boolean or short_link.owner_id = sqlc.arg('actor_id')::uuid)
         and (sqlc.arg('status')::text = '' or short_link.status = sqlc.arg('status')::text)
         and (sqlc.arg('tag')::text = '' or short_link.tags @> array[sqlc.arg('tag')::text])
@@ -44,11 +57,17 @@ with grant_snapshot as (
         )
     order by short_link.created_at desc, short_link.id desc
     limit 1001
-), read_budget as materialized (
-    select (count(*) > 1000 or coalesce(sum(text_bytes), 0) > 8388608)::boolean as limit_exceeded
+), candidate_budget as materialized (
+    select count(*) as row_count,
+        (count(*) > 1000 or coalesce(sum(text_bytes), 0) > 8388608)::boolean as limit_exceeded
     from candidates
+), read_budget as materialized (
+    select candidate_budget.limit_exceeded,
+        (selection_guard.enabled and (not selection_guard.valid
+            or candidate_budget.row_count <> coalesce(cardinality(selection_guard.ids), 0)))::boolean as selection_unavailable
+    from candidate_budget cross join selection_guard
 )
-select grant_snapshot.allowed, read_budget.limit_exceeded,
+select grant_snapshot.allowed, read_budget.limit_exceeded, read_budget.selection_unavailable,
     coalesce(links.id::text, '')::text as id,
     coalesce(links.domain_host, '')::text as domain_host,
     coalesce(links.slug, '')::text as slug,
@@ -79,6 +98,6 @@ left join lateral (
     join short_link on short_link.id = candidates.id
     join domain on domain.id = short_link.domain_id
     join app_user as owner on owner.id = short_link.owner_id
-    where not read_budget.limit_exceeded
+    where not read_budget.limit_exceeded and not read_budget.selection_unavailable
 ) as links on true
 order by links.created_at desc, links.id desc;

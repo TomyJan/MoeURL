@@ -13,6 +13,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const maxListExportBytes = 8 * 1024 * 1024
@@ -51,6 +52,11 @@ func (s *Service) exportList(ctx context.Context, user auth.CurrentUser, input L
 
 // exportFilteredList applies the private predicate inside the existing authorized single-select budget.
 func (s *Service) exportFilteredList(ctx context.Context, user auth.CurrentUser, input ListExportInput, admin bool, noteQuery string) (ListExport, error) {
+	return s.exportListSnapshot(ctx, user, input, admin, noteQuery, nil)
+}
+
+// exportListSnapshot shares the final grant, complete-selection check and byte budget in one SELECT.
+func (s *Service) exportListSnapshot(ctx context.Context, user auth.CurrentUser, input ListExportInput, admin bool, noteQuery string, ids []pgtype.UUID) (ListExport, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	required := []string{permission.ShortLinkExport, permission.ShortLinkReadOwn}
@@ -75,11 +81,11 @@ func (s *Service) exportFilteredList(ctx context.Context, user auth.CurrentUser,
 	if err != nil {
 		return ListExport{}, err
 	}
-	rows, err := s.listExports.ExportShortLinkList(ctx, sqlc.ExportShortLinkListParams{ActorID: uuidToPgtype(actorID), IsAdmin: admin, Status: input.Status, Query: query, Tag: tag, NoteStatus: noteStatus, NoteQuery: noteQuery})
+	rows, err := s.listExports.ExportShortLinkList(ctx, sqlc.ExportShortLinkListParams{ActorID: uuidToPgtype(actorID), IsAdmin: admin, Status: input.Status, Query: query, Tag: tag, NoteStatus: noteStatus, NoteQuery: noteQuery, SelectionMode: ids != nil, SelectedIds: ids})
 	if err != nil {
 		return ListExport{}, err
 	}
-	if len(rows) == 0 || !rows[0].Allowed {
+	if len(rows) == 0 || !rows[0].Allowed || rows[0].SelectionUnavailable {
 		return ListExport{}, ErrPermissionDenied
 	}
 	if rows[0].LimitExceeded {

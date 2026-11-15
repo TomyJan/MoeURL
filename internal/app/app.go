@@ -99,6 +99,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.DomainRedirectDefault = domainService
 		shortLinkService := shortlink.NewServiceWithLogger(pool, permissionService, logger)
 		deps.ShortLinkListExport = shortLinkService
+		deps.ShortLinkSelectedListExport = shortLinkService
 		deps.ShortLinkTagCatalog = shortLinkService
 		deps.AdminShortLinkTagCatalog = shortLinkService
 		deps.ShortLinkNote = shortLinkService
