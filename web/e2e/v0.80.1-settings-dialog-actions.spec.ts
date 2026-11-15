@@ -3,6 +3,7 @@ import { writeFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext, Locator, Page, TestInfo } from '@playwright/test'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
+import { collectSettingsCleanupErrors } from './settings-dialog-cleanup'
 import type { CreateShortLinkInput } from '../src/entities/short-link/model'
 
 interface Link { id: string; targetUrl: string }
@@ -68,6 +69,33 @@ async function inspectPositions(page: Page, info: TestInfo, en: boolean, blocked
   }
 }
 
+/** Exercises the real wheel entry point before later programmatic position checks. */
+async function inspectWheel(page: Page, password: Locator, records: unknown[]) {
+  const body = page.getByRole('dialog').locator('.short-link-settings-dialog__body')
+  // Establish the starting position only; every measured move below comes from the mouse.
+  await body.evaluate(element => { element.scrollTop = 0 })
+  const before = await geometry(password), visible = (await geometry(body)).intersection
+  expect(before.clipped, 'last input starts below the visible body').toBeGreaterThan(1)
+  expect(visible.right - visible.left).toBeGreaterThan(0)
+  expect(visible.bottom - visible.top).toBeGreaterThan(before.bounds.height)
+  await page.mouse.move((visible.left + visible.right) / 2, (visible.top + visible.bottom) / 2)
+  const delta = Math.max(1, Math.min(24, (visible.bottom - visible.top - before.bounds.height) / 2))
+  const initial = await body.evaluate(element => ({ top: element.scrollTop, range: element.scrollHeight - element.clientHeight }))
+  expect(initial.range).toBeGreaterThan(1)
+  let field = before
+  for (let step = 0; field.clipped > 1 && step <= Math.ceil(initial.range / delta); step++) {
+    const previous = await body.evaluate(element => element.scrollTop)
+    await page.mouse.wheel(0, delta)
+    await expect.poll(() => body.evaluate(element => element.scrollTop), { message: 'native wheel scrolls the form body' }).toBeGreaterThan(previous)
+    field = await geometry(password)
+  }
+  expect(field.clipped, 'native wheel makes the last input fully reachable').toBeLessThanOrEqual(1)
+  const fieldScroll = await body.evaluate(element => element.scrollTop)
+  await page.mouse.wheel(0, initial.range)
+  await expect.poll(() => body.evaluate(element => element.scrollHeight - element.clientHeight - element.scrollTop), { message: 'native wheel reaches the body bottom' }).toBeLessThanOrEqual(1)
+  records.push({ wheel: true, initial, before, field, fieldScroll, bottom: await body.evaluate(element => ({ top: element.scrollTop, range: element.scrollHeight - element.clientHeight })), body: await geometry(body) })
+}
+
 // A scrolling whole card or an alert left inside the form clips controls in these real viewports.
 for (const language of ['zh-CN', 'en']) for (const [width, height] of [[320, 500], [390, 800], [1280, 900]] as const) {
   test('v0.80.1 ' + language + ' ' + width + 'x' + height + ' keeps settings actions and feedback reachable', async ({ browser, request }, info) => {
@@ -99,6 +127,7 @@ for (const language of ['zh-CN', 'en']) for (const [width, height] of [[320, 500
       const dialog = page.getByRole('dialog'), target = 'https://example.com/' + keyword + '/' + 'long-path-'.repeat(20)
       await dialog.getByRole('textbox', { name: en ? 'Target URL' : '目标链接', exact: true }).fill(target)
       const password = dialog.getByLabel(en ? 'New access password' : '新访问密码', { exact: true }), newPassword = 'replacement-' + keyword
+      if (en && width === 320) await inspectWheel(page, password, records)
       await password.fill(newPassword)
       await expect(password).toBeFocused()
       await inspectPositions(page, info, en, false, records)
@@ -121,7 +150,7 @@ for (const language of ['zh-CN', 'en']) for (const [width, height] of [[320, 500
       const saved = page.waitForResponse(response => response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/v1/admin/short-link/update')
       await dialog.getByRole('button', { name: en ? 'Save' : '保存', exact: true }).click()
       const response = await saved
-      expect(response.request().postDataJSON()).toMatchObject({ id: link.id, targetUrl: target, password: { mode: 'set', value: newPassword } })
+      expect(response.request().postDataJSON()).toStrictEqual({ id: link.id, targetUrl: target, redirectMode: 'intermediate', intermediateDelaySeconds: 10, password: { mode: 'set', value: newPassword } })
       expect((await response.json()).code).toBe(0); await expect(dialog).toHaveCount(0)
       await expect(row.locator('a.link-table__target')).toHaveAttribute('href', target)
       await open()
@@ -131,11 +160,15 @@ for (const language of ['zh-CN', 'en']) for (const [width, height] of [[320, 500
       expect(writes).toHaveLength(1)
       await expect(row.locator('a.link-table__target')).toHaveAttribute('href', target)
     } catch (error) { errors.push(error) } finally {
-      releaseList?.(); await context.setOffline(false).catch(error => errors.push(error))
-      const file = info.outputPath('geometry.json')
-      await writeFile(file, JSON.stringify({ browser: browser.version(), driverNode: process.version, language, width, height, records }, null, 2)); await info.attach('geometry', { path: file, contentType: 'application/json' })
-      if (link) await api(request, '/admin/short-link/delete', { id: link.id }).catch(error => errors.push(error))
-      await context.close().catch(error => errors.push(error))
+      await collectSettingsCleanupErrors(errors, [
+        async () => { releaseList?.(); await context.setOffline(false) },
+        async () => {
+          const file = info.outputPath('geometry.json')
+          await writeFile(file, JSON.stringify({ browser: browser.version(), driverNode: process.version, language, width, height, records }, null, 2)); await info.attach('geometry', { path: file, contentType: 'application/json' })
+        },
+        async () => { if (link) await api(request, '/admin/short-link/delete', { id: link.id }) },
+        () => context.close(),
+      ])
     }
     if (errors.length) throw new AggregateError(errors, 'Settings geometry or owned fixture cleanup failed')
   })
