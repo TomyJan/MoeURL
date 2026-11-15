@@ -5,6 +5,7 @@
         <h1>{{ t('page.links') }}</h1>
       </div>
       <div class="bulk-create-header-actions">
+        <ShortLinkPageCopyButton :state="pageCopy" />
         <BulkCreateDialog :can-open="canBeginBulkCreate" @open="bulkCreateOpen = $event" />
         <ShortLinkListExportButton context="own" :filters="exportFilters" :blocked="exportBlocked" :can-start="canStartExport" @pending="exportPending = $event" />
       </div>
@@ -96,6 +97,8 @@ import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue
 import { useShortLinkAccess, useShortLinkBatch } from '@/features/short-link-batch/useShortLinkBatch'
 import ShortLinkBatchToolbar from '@/features/short-link-batch/ShortLinkBatchToolbar.vue'
 import ShortLinkListExportButton from '@/features/short-link-list-export/ShortLinkListExportButton.vue'
+import ShortLinkPageCopyButton from '@/features/short-link-page-copy/ShortLinkPageCopyButton.vue'
+import { usePageLinksCopy } from '@/features/short-link-page-copy/usePageLinksCopy'
 import BulkCreateDialog from '@/features/bulk-create/BulkCreateDialog.vue'
 import ShortLinkBatchTagsDialog from '@/features/short-link-tags/ShortLinkBatchTagsDialog.vue'
 import PersonalTagBrowser from '@/features/short-link-tags/PersonalTagBrowser.vue'
@@ -218,6 +221,12 @@ const exportBlocked = computed(() => !access.canRead.value || !query.isSuccess.v
 const noteFilterBlocked = computed(() => privateConfirmationOpen.value || !access.canRead.value || note.saving.value || batch.pending.value || batch.deleteIds.value !== null
   || batchTagTargets.value !== null || statusMutation.isPending.value || deleteMutation.isPending.value
   || settingsMutation.isPending.value || settingsLink.value !== null || qrLink.value !== null)
+
+const pageCopy = usePageLinksCopy({
+  access, queryKey: listQueryKey,
+  blocked: computed(() => exportBlocked.value || exportPending.value || bulkCreateOpen.value || qrLink.value !== null || batchTagsRefreshRequired.value || !initialPageSize.ready.value),
+  context: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value, noteStatusFilter.value, noteQuery.value, page.value, pageSize.value]),
+})
 
 const paginationBlocked = computed(() => noteFilterBlocked.value || note.target.value !== null || exportPending.value || bulkCreateOpen.value
   || filtersPending.value || keywordInvalid.value || tagInvalid.value || noteQueryInvalid.value)
