@@ -1,6 +1,12 @@
 # 开发进度与能力清单
 
-## 当前开发（2026-11-15，v0.79.0）
+## 当前开发（2026-11-15，v0.80.0）
+
+PR359／v0.79.0 已完整交付：候选 `e1256a0a2501e5247bd520023bd3950e545cc677` 自身 CodeRabbit132722418597 success、reviewed/source/covered，有效 open0。正常 squash master `8c748f16e9fccb896217744960e04327fe0a901f`，独立 API／一次 fetch 核同 tree 和唯一父；三个标准任务、26 条裁决和三组文档 Minor 随10份工作记录可恢复归档。原6466项／四100、浏览器9项及原生成功／受控拒绝保持原执行归属，见[v0.79.0验收](../implementation/v0.79.0-acceptance.md)。
+
+当前实施[单条操作权限](scope-v0.80.0.md)，收紧显示和即时分发，接续三组文档 Minor。设计已完成，尚未写产品代码或验证；本版阶段见[验收](../implementation/v0.80.0-acceptance.md)。无 API／数据库／权限／依赖新增，不查 CI，不发布部署。
+
+## v0.79.0 交付前检查点（历史）
 
 PR358／v0.78.1 已完成文档本地守恒核验、唯一独立终审、候选 ba6f033 自身真实 CodeRabbit132706599298 reviewed/source=covered 和有效 open0；正常 squash master a7c3200f85d1aaa15597e1831c8f1a3bc942e3cc，独立 API／一次 fetch 核同 tree 与唯一父。两标准任务、12 条裁决、两项延期文档 Minor 和8份工作记录完整可恢复归档；产品保持0.78.0，未重复运行套件，见[v0.78.1验收](../implementation/v0.78.1-acceptance.md)。
 
