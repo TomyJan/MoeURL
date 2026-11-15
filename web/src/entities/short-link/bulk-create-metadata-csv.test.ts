@@ -29,7 +29,7 @@ describe('fixed CSV title and JSON tag import', () => {
   })
 
   it.each([
-    'target_url,tags,title\nhttps://example.com,[],title',
+    'target_url,tags,tags\nhttps://example.com,[],title',
     'target_url,title,Tags\nhttps://example.com,title,[]',
     'target_url,title,tags\nhttps://example.com,title',
     'target_url,title,tags\nhttps://example.com,title,[],extra',

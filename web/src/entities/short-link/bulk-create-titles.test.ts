@@ -37,7 +37,7 @@ describe('CSV title import contract', () => {
   it.each([
     'target_url,title', 'target_url,title\n', 'target_url,title\n\n', 'target_url,title\nhttps://example.com',
     'target_url,title\nhttps://example.com,a,', 'target_url,title\nhttps://example.com,a\n\n',
-    'title,target_url\nx,https://example.com', 'target_url,Title\nhttps://example.com,a',
+    'title,title\nx,https://example.com', 'target_url,Title\nhttps://example.com,a',
     '\ufeff\ufefftarget_url,title\nhttps://example.com,a', 'target_url,title\nhttps://example.com,a\r',
     'target_url,title\nhttps://example.com,"x\ny"', 'target_url,title\nhttps://example.com,"x\ry"',
     'target_url,title\nhttps://example.com,x\u0000', 'target_url,title\nhttps://example.com,"x\u0085y"',

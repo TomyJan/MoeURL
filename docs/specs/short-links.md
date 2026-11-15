@@ -1,5 +1,11 @@
 # 短链
 
+## v0.81.0 CSV 标准列顺序（本地与产品验证完成，真实审查交付待完成）
+
+八种既有 CSV 格式支持各自完整标准列集合的任意排列。标准序列为 `target_url,title,tags,custom_slug,redirect_mode,expires_at,max_visits,intermediate_delay_seconds`；只接受其前 1 至 8 列的完整集合，不能缺列、多列、重复、使用别名或任意子集。表头逐字匹配、区分大小写且不 trim，坏行宽整体拒绝。按原始位置一次取值，保留行序、字面内容和 tags 数组，仍使用原 schema／端点／权限及 CSV／完整 JSON 各 65536 字节、1–20 行限制。八份模板继续使用原规范顺序。
+
+真实 parser／File／hook／组件 RED→GREEN、6513 项完整前端测试与四项 100%、类型检查／lint、八份 E2E 严格类型检查及隔离构建通过。准确 clean 产品的 smoke／所选扫描、单轮 setup 加中英文桌面／手机 5/5、8 原图及可恢复清理已核；独立终审无新增阻断，CodeRabbit 与正常集成尚待。下方固定表头描述属于各版本原始协议历史，本版只放开位置，不扩展字段集合，见[设计](2026-11-15-v0.81.0-csv-column-order-design.md)与[验收](../implementation/v0.81.0-acceptance.md)。
+
 ## v0.77.0 八列 CSV 中间页倒计时（已正常集成，尚未正式发布）
 
 独立 `POST /api/v1/short-link/batch-create-with-countdowns` 接受严格八字段项；CSV 精确表头为 `target_url,title,tags,custom_slug,redirect_mode,expires_at,max_visits,intermediate_delay_seconds`。新增 `intermediateDelaySeconds` 为显式原文字符串：空值默认 5，非空仅允许 `redirectMode=intermediate` 的规范 ASCII `3`…`10`，不 trim、不接受数值/null、前导零、符号或其他模式的非空秒数。文件与完整 JSON 各限 65536 字节、1–20 行；原七种协议、摘要和模板保持，旧路径显式写 5。

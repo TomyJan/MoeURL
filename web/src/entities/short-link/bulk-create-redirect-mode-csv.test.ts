@@ -20,7 +20,7 @@ describe('fixed five-column CSV redirect modes', () => {
     expect(parseBulkCreateImportCsv('target_url,title,tags,custom_slug,redirect_mode\nhttps://example.com,,[],,' + mode)).toEqual({ success: false })
   })
   it.each([
-    'target_url,title,tags,redirect_mode,custom_slug\nhttps://example.com,,[],direct,',
+    'target_url,title,tags,redirect_mode,redirect_mode\nhttps://example.com,,[],direct,',
     'target_url,title,tags,custom_slug,redirect_mode\nhttps://example.com,,[],',
     'target_url,title,tags,custom_slug,redirect_mode\nhttps://example.com,,[],,direct,extra',
     'target_url,title,tags,custom_slug,redirect_mode\nhttps://example.com,,null,,direct',
