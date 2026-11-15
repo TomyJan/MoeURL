@@ -35,6 +35,7 @@ const state = vi.hoisted(() => ({
   queryResultIndex: 0,
   queryKeys: [] as unknown[],
   queryFns: [] as Array<() => unknown>,
+  listQueryViews: [] as Array<{ key: unknown; result: { data?: { value: unknown }; isError?: { value: boolean }; isPending?: { value: boolean }; isFetching?: { value: boolean } } }>,
   chartConfigurations: [] as unknown[],
   chartInstances: [] as Array<{ canvas: unknown; destroy: ReturnType<typeof vi.fn> }>,
   mutationResult: {},
@@ -50,8 +51,8 @@ const state = vi.hoisted(() => ({
   },
   queryClient: {
     getQueryCache: vi.fn(),
-    getQueryState: vi.fn(() => ({ status: 'success' })),
-    getQueryData: vi.fn(() => ({ user: { id: 'test-account', username: 'test-account', group: 'user', permissions: ['short_link:read_own', 'short_link:update_own', 'short_link:delete_own', 'admin:access', 'short_link:read_all', 'short_link:update_all', 'short_link:delete_all'] } })),
+    getQueryState: vi.fn<(key?: unknown) => { status: string; fetchStatus: string; isInvalidated: boolean }>(),
+    getQueryData: vi.fn<(_key?: unknown) => unknown>(),
     cancelQueries: vi.fn(),
     removeQueries: vi.fn(),
     invalidateQueries: vi.fn(),
@@ -222,6 +223,9 @@ vi.mock('@tanstack/vue-query', async () => {
       }
       const result = state.queryResults[state.queryResultIndex] ?? state.queryResult
       state.queryResultIndex += 1
+      if (Array.isArray(key) && (key[0] === 'short-link' || key[0] === 'admin-short-link')) {
+        state.listQueryViews.push({ key: options?.queryKey, result: result as (typeof state.listQueryViews)[number]['result'] })
+      }
       return result
     }),
     useQueryClient: () => state.queryClient,
@@ -373,6 +377,17 @@ describe('pages', () => {
     setMutationResult()
     state.queryKeys = []
     state.queryFns = []
+    state.listQueryViews = []
+    // Cache reads must distinguish the current list from auth, including same-tick ref changes.
+    const currentList = (key: unknown) => state.listQueryViews.find(view => JSON.stringify(isRef(view.key) ? view.key.value : view.key) === JSON.stringify(key))
+    state.queryClient.getQueryData.mockReset().mockImplementation((key?: unknown) => {
+      if (Array.isArray(key) && (key[0] === 'short-link' || key[0] === 'admin-short-link')) return currentList(key)?.result.data?.value
+      return { user: { id: 'test-account', username: 'test-account', group: 'user', permissions: ['short_link:read_own', 'short_link:update_own', 'short_link:delete_own', 'admin:access', 'short_link:read_all', 'short_link:update_all', 'short_link:delete_all'] } }
+    })
+    state.queryClient.getQueryState.mockReset().mockImplementation((key?: unknown) => {
+      const query = currentList(key)?.result
+      return { status: query?.isError?.value ? 'error' : query?.isPending?.value ? 'pending' : 'success', fetchStatus: query?.isFetching?.value ? 'fetching' : 'idle', isInvalidated: false }
+    })
     state.chartConfigurations = []
     state.chartInstances = []
     state.routeQuery = {}
@@ -1266,7 +1281,7 @@ describe('pages', () => {
     setMutationResult()
     mount(HomePage)
 
-    const cached = state.queryClient.getQueryData()
+    const cached = state.queryClient.getQueryData() as { user: { permissions: string[] } }
     state.queryClient.getQueryData.mockReturnValueOnce({ user: { ...cached.user, permissions: [...cached.user.permissions, 'short_link:create', 'domain:use_default'] } })
 
     await fireEvent.update(screen.getByLabelText('shortLinkCreate.targetLabel'), 'https://example.com')

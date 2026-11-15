@@ -125,11 +125,12 @@
         <p v-if="canSetMaxVisits && limitEnabled">{{ t('visitLimit.hint') }}</p>
         <v-alert v-if="canSetMaxVisits && lowerLimitExhausts" type="warning" variant="tonal">{{ t('visitLimit.lowerWarning') }}</v-alert>
         <v-alert v-if="canSetMaxVisits && initialMaxVisits !== null && !limitEnabled" type="warning" variant="tonal">{{ t('visitLimit.clearWarning') }}</v-alert>
+        <v-alert v-if="!pending && canSave?.() === false" type="warning" variant="tonal">{{ t('shortLinkSettings.unavailable') }}</v-alert>
         <ActionToast v-if="errorMessage" type="error">{{ errorMessage }}</ActionToast>
       </v-card-text>
       <v-card-actions class="short-link-settings-dialog__actions">
         <v-btn variant="text" :disabled="pending" @click="close">{{ t('shortLinkSettings.cancel') }}</v-btn>
-        <v-btn color="primary" :loading="pending" :disabled="pending || !permissionsReady" @click="save">
+        <v-btn color="primary" :loading="pending" :disabled="pending || !permissionsReady || canSave?.() === false" @click="save">
           {{ t('shortLinkSettings.save') }}
         </v-btn>
       </v-card-actions>
@@ -151,6 +152,7 @@ import { futureDateTimeSchema, passwordSchema, targetUrlSchema } from '@/shared/
 import { metadataDraftSchema } from '@/shared/validation/shortLinkMetadata'
 
 const props = defineProps<{
+  canSave?: () => boolean
   errorMessage?: string
   link: Pick<ShortLink, 'id' | 'targetUrl' | 'title' | 'tags' | 'redirectMode' | 'intermediateDelaySeconds' | 'expiresAt' | 'passwordEnabled' | 'maxVisits' | 'visitsUsed' | 'visitsRemaining' | 'exhausted'>
   open: boolean
@@ -226,7 +228,7 @@ watch(
 
 /** Validates editable fields and emits the permitted access-setting changes. */
 function save() {
-  if (props.pending || !permissionsReady.value) {
+  if (props.pending || !permissionsReady.value || props.canSave?.() === false) {
     return
   }
   targetErrorMessage.value = ''

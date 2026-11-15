@@ -58,7 +58,7 @@ describe('ConsoleLinkList', () => {
       title: '', tags: [], status: 'active', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null,
       expired: false, passwordEnabled: false, maxVisits: null, visitsUsed: 0, visitsRemaining: null, exhausted: false,
     }
-    const view = render(ConsoleLinkList, { props: { links: [link] }, global: { stubs: componentStubs } })
+    const view = render(ConsoleLinkList, { props: { links: [link], canUpdate: true }, global: { stubs: componentStubs } })
 
     const table = screen.getByRole('table')
     expect(within(table).getByRole('columnheader', { name: 'links.shortUrl' })).toBeTruthy()
