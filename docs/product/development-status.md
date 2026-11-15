@@ -4,7 +4,7 @@
 
 PR359／v0.79.0 已完整交付：候选 `e1256a0a2501e5247bd520023bd3950e545cc677` 自身 CodeRabbit132722418597 success、reviewed/source/covered，有效 open0。正常 squash master `8c748f16e9fccb896217744960e04327fe0a901f`，独立 API／一次 fetch 核同 tree 和唯一父；三个标准任务、26 条裁决和三组文档 Minor 随10份工作记录可恢复归档。原6466项／四100、浏览器9项及原生成功／受控拒绝保持原执行归属，见[v0.79.0验收](../implementation/v0.79.0-acceptance.md)。
 
-当前实施[单条操作权限](scope-v0.80.0.md)，收紧显示和即时分发，接续三组文档 Minor。设计已完成，尚未写产品代码或验证；本版阶段见[验收](../implementation/v0.80.0-acceptance.md)。无 API／数据库／权限／依赖新增，不查 CI，不发布部署。
+当前实施[单条操作权限](scope-v0.80.0.md)，收紧显示和即时分发，接续三组文档 Minor。真实行为 RED→GREEN、相关回归及完整前端 6484 项／四项 100% 已通过，类型、lint、新旧 E2E strict 和构建均通过；准确产品浏览器、审查与交付尚待。本版阶段见[验收](../implementation/v0.80.0-acceptance.md)。无 API／数据库／权限／依赖新增，不查 CI，不发布部署。
 
 ## v0.79.0 交付前检查点（历史）
 

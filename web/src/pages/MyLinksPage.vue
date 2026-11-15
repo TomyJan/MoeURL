@@ -44,6 +44,8 @@
         :indeterminate="batch.indeterminate.value"
         :selection-disabled="batch.unavailable.value"
         :write-disabled="rowWriteBlocked"
+        :can-update="access.canUpdate.value"
+        :can-delete="access.canDelete.value"
         :can-note="access.canRead.value"
         :note-disabled="exportBlocked || exportPending || !!qrLink"
         @select="batch.toggle"
@@ -89,7 +91,7 @@ import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { deleteShortLink, listShortLinks, updateShortLink, type ShortLinkNoteStatus } from '@/entities/short-link/api'
-import type { ShortLink } from '@/entities/short-link/model'
+import type { ShortLink, UpdateShortLinkInput } from '@/entities/short-link/model'
 import { useMutationTargetId } from '@/shared/mutations/useMutationTargetId'
 import { useShortLinkSettings } from '@/shared/short-link/useShortLinkSettings'
 import { useShortLinkFilters } from '@/shared/short-link/useShortLinkFilters'
@@ -182,7 +184,7 @@ const {
   closeSettings,
   configure,
   qrLink,
-  saveSettings,
+  saveSettings: submitSettings,
   settingsErrorMessage,
   settingsLink,
   settingsMutation,
@@ -351,8 +353,26 @@ function beginBatchTags() {
   batchTagTargets.value = targets.map(link => ({ id: link.id, updatedAt: link.updatedAt!, url: link.url, tags: [...link.tags] }))
 }
 
-/** Prevents opening row settings while a batch is outstanding. */
-function configureLink(link: ConsoleLinkListItem) { if (!rowWriteBlocked.value) configure(link) }
+/** Resolves an authorized row from the live cache before dispatching a queued write. */
+function currentWritableLink(id: string, action: 'update' | 'delete') {
+  const state = queryClient.getQueryState(listQueryKey.value)
+  if (rowWriteBlocked.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value
+    || exportPending.value || filtersPending.value || keywordInvalid.value || tagInvalid.value || !access.canRead.value || !access.allows(action)
+    || state?.status !== 'success' || state.fetchStatus !== 'idle' || state.isInvalidated) return
+  return queryClient.getQueryData<{ items: ConsoleLinkListItem[] }>(listQueryKey.value)?.items.find(link => link.id === id)
+}
+
+/** Opens only a current authorized target without replacing another active editor. */
+function configureLink(link: ConsoleLinkListItem) {
+  const current = currentWritableLink(link.id, 'update')
+  if (current && !settingsLink.value) configure(current)
+}
+
+/** Rejects stale editor events after revocation, account changes or a collection change. */
+function saveSettings(input: UpdateShortLinkInput) {
+  if (settingsLink.value?.id === input.id && currentWritableLink(input.id, 'update')) submitSettings(input)
+}
+watch([access.identity.scope, access.canUpdate], () => closeSettings(false), { flush: 'sync' })
 
 /** Rechecks the live list and all competing operations before reading private text. */
 function beginNote(link: ConsoleLinkListItem) {
@@ -366,14 +386,15 @@ function showLinkQr(link: ConsoleLinkListItem) { if (!rowWriteBlocked.value) sho
 
 /** Toggles an owned short link through the personal update mutation. */
 function toggleStatus(link: ConsoleLinkListItem) {
-  if (rowWriteBlocked.value) return
-  statusMutation.mutate({ id: link.id, status: link.status === 'active' ? 'disabled' : 'active' })
+  const current = currentWritableLink(link.id, 'update')
+  if (!current || settingsLink.value) return
+  statusMutation.mutate({ id: current.id, status: current.status === 'active' ? 'disabled' : 'active' })
 }
 
 /** Starts a soft-delete for the selected owned short link. */
 function remove(id: string) {
-  if (rowWriteBlocked.value) return
-  deleteMutation.mutate(id)
+  const current = currentWritableLink(id, 'delete')
+  if (current && !settingsLink.value) deleteMutation.mutate(current.id)
 }
 
 /** Copies a public short-link URL when the Clipboard API is available. */

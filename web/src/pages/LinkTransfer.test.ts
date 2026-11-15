@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { defineComponent, nextTick, type Component, type PropType, type SetupContext } from 'vue'
@@ -18,14 +18,17 @@ function mount(permissions = actor.permissions, pending?: Promise<Response>, lis
   client.setQueryData(['auth', 'me'], { user: { ...actor, permissions } })
   const fetcher = vi.fn<typeof fetch>(async (url) => {
     if (String(url).endsWith('/transfer') && pending) return pending
-    return new Response(JSON.stringify({ code: 0, message: 'OK', data: { items: [link] }, meta: { total: 1 } }))
+    const path = new URL(String(url), 'http://localhost').pathname
+    const data = path.endsWith('/auth/me') ? { user: { ...actor, permissions } }
+      : path.endsWith('/user/list-preference') ? { preference: { pageSize: null, updatedAt: null } } : { items: [link] }
+    return new Response(JSON.stringify({ code: 0, message: 'OK', data, meta: { total: 1 } }))
   })
   vi.stubGlobal('fetch', fetcher)
   return { ...render(AdminLinksPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, ...(listStub ? { ConsoleLinkList: listStub } : {}) } } }), client, fetcher }
 }
 /** Opens the real row menu after the administrative list loads. */
 async function menu() { await screen.findByTestId('console-link-list'); await fireEvent.click(screen.getByRole('button', { name: 'links.actions.more' })) }
-afterEach(() => { clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals() })
+afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals() })
 describe('administrative ownership entry', () => {
   it('opens a fixed snapshot, blocks batch and row writes, and restores controls after cancel', async () => {
     mount(); await menu()

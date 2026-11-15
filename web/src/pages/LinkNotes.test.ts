@@ -54,10 +54,11 @@ describe('internal note page entry', () => {
     await fireEvent.click(screen.getByRole('menuitem', { name: 'linkNote.action' }))
     await waitFor(() => expect((screen.getByLabelText('linkNote.text') as HTMLTextAreaElement).value).toContain('Internal handoff'))
     expect(screen.queryByRole('button', { name: 'linkNote.save' })).toBeNull()
-    for (const name of ['links.actions.configure', 'links.actions.disable', 'links.actions.delete', 'links.actions.qrCode']) {
-      await fireEvent.click(screen.getByRole('button', { name: 'links.actions.more' }))
-      await fireEvent.click(screen.getByRole('menuitem', { name }))
+    await fireEvent.click(screen.getByRole('button', { name: 'links.actions.more' }))
+    for (const name of ['links.actions.configure', 'links.actions.disable', 'links.actions.delete']) {
+      expect(screen.queryByRole('menuitem', { name })).toBeNull()
     }
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'links.actions.qrCode' }))
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
     expect(screen.queryByTestId('short-link-qr-dialog-stub')).toBeNull()
     expect(view.fetcher.mock.calls.map(([url]) => new URL(String(url), 'http://localhost').pathname)).toEqual([
