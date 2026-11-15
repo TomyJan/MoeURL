@@ -1,6 +1,6 @@
 # v0.84.0 复制所选 Markdown 清单
 
-状态：设计已收敛，尚未实现；基线为 PR369 的 master `e2dd5b0fef23133a16ab1afbc845b5eff9d447e9`，已交付产品为 0.83.1。各阶段见[验收](../implementation/v0.84.0-acceptance.md)，不查询 CI，不发布部署。
+状态：前端实现与完整本地验证已通过，准确产品／浏览器及真实审查交付尚待；基线为 PR369 的 master `e2dd5b0fef23133a16ab1afbc845b5eff9d447e9`，已交付产品为 0.83.1。各阶段见[验收](../implementation/v0.84.0-acceptance.md)，不查询 CI，不发布部署。
 
 ## 盘点与取舍
 
