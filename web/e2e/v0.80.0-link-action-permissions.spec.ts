@@ -48,7 +48,7 @@ async function scenario(browser: Browser, manager: APIRequestContext, info: Test
     context = await browser.newContext({ baseURL, viewport: { width, height: width === 320 ? 640 : 900 }, locale: language, colorScheme: language === 'en' ? 'dark' : 'light', hasTouch: width === 320, serviceWorkers: 'block', reducedMotion: 'reduce', permissions: ['clipboard-read', 'clipboard-write'] })
     await context.addInitScript(language => { localStorage.setItem('moeurl.language', language); localStorage.setItem('moeurl.theme', language === 'en' ? 'dark' : 'light') }, language)
     await api(context.request, '/auth/login', { username: actor.username, password })
-    link = (await api<{ shortLink: Link }>(context.request, '/short-link/create', { targetUrl: 'https://example.com/private-' + keyword, metadata: { title: keyword, tags: [] } })).shortLink
+    link = (await api<{ shortLink: Link }>(context.request, '/short-link/create', { targetUrl: 'https://example.com/private-' + keyword, metadata: { title: keyword, tags: [] }, ...(admin ? { password: { mode: 'set', value: 'original-' + keyword } } : {}) })).shortLink
     if (!admin) await grants(manager, key, ['short_link:read_own'])
     const permissions = (await api<{ user: { permissions: string[] } }>(context.request, '/auth/me')).user.permissions
     if (!admin) expect(permissions).toEqual(['short_link:read_own'])
@@ -62,7 +62,7 @@ async function scenario(browser: Browser, manager: APIRequestContext, info: Test
     expect(payload.code).toBe(0); expect(payload.meta.total).toBe(1); expect(payload.data.items).toHaveLength(1)
     await run(page, link, keyword)
     const output = info.outputPath('runtime.json')
-    await writeFile(output, JSON.stringify({ browser: browser.version(), driverNode: process.version, language, width, admin, readOnlyOwn: !admin, nativeClipboardSuccess: true, realQR: true, authorizedStatusAndSettings: admin }, null, 2))
+    await writeFile(output, JSON.stringify({ browser: browser.version(), driverNode: process.version, language, width, admin, readOnlyOwn: !admin, nativeClipboardSuccess: true, realQR: true, authorizedStatusAndSettings: admin, refetchBlockedSave: admin }, null, 2))
     await info.attach('runtime', { path: output, contentType: 'application/json' })
   } catch (error) { errors.push(error) } finally {
     if (original && !admin) try { await grants(manager, key, original.permissions); expect((await group(manager, key)).permissions).toEqual(original.permissions) } catch (error) { errors.push(error) }
@@ -113,9 +113,38 @@ for (const language of ['zh-CN', 'en']) for (const width of [1280, 320]) for (co
         await page.getByRole('menuitem', { name: en ? 'Access settings' : '访问配置', exact: true }).click()
         const settings = page.getByRole('dialog'), target = 'https://example.com/updated-' + keyword
         await settings.getByRole('textbox', { name: en ? 'Target URL' : '目标链接', exact: true }).fill(target)
+        const password = settings.getByLabel(en ? 'New access password' : '新访问密码', { exact: true }), newPassword = 'replacement-' + keyword
+        await password.fill(newPassword)
+        const listURL = '**/api/v1/admin/short-link/list?**'
+        let releaseList!: () => void, observeList!: () => void
+        const released = new Promise<void>(resolve => { releaseList = resolve }), observed = new Promise<void>(resolve => { observeList = resolve })
+        await page.route(listURL, async route => {
+          const response = await route.fetch()
+          observeList()
+          await released
+          await route.fulfill({ response })
+        })
+        try {
+          await page.context().setOffline(true)
+          await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false)
+          await page.context().setOffline(false)
+          await observed
+          await expect(settings.getByRole('button', { name: en ? 'Save' : '保存', exact: true })).toBeDisabled()
+          await expect(settings.getByText(en ? 'The list or access state has changed. Wait for the list to recover, or cancel and reopen this editor.' : '列表或权限状态已变化。请等待列表恢复，或取消后重新打开访问配置。', { exact: true })).toBeVisible()
+          await expect(password).toHaveValue(newPassword)
+          const blockedImage = info.outputPath('settings-refresh-blocked.png')
+          await page.screenshot({ path: blockedImage, animations: 'disabled' })
+          await info.attach('settings-refresh-blocked', { path: blockedImage, contentType: 'image/png' })
+        } finally {
+          releaseList()
+          await page.context().setOffline(false)
+        }
+        await expect(settings.getByRole('button', { name: en ? 'Save' : '保存', exact: true })).toBeEnabled()
+        await expect(password).toHaveValue(newPassword)
+        await page.unroute(listURL)
         const saved = page.waitForResponse(response => response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/v1/admin/short-link/update')
         await settings.getByRole('button', { name: en ? 'Save' : '保存', exact: true }).click()
-        const response = await saved; expect(response.request().postDataJSON()).toMatchObject({ id: link.id, targetUrl: target }); expect((await response.json()).code).toBe(0)
+        const response = await saved; expect(response.request().postDataJSON()).toMatchObject({ id: link.id, targetUrl: target, password: { mode: 'set', value: newPassword } }); expect((await response.json()).code).toBe(0)
         await expect(settings).toHaveCount(0); await expect(row.locator('a.link-table__target')).toHaveAttribute('href', target)
       }
       expect(writes).toHaveLength(admin ? 3 : 0)

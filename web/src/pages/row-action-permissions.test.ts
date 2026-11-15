@@ -19,21 +19,23 @@ const row: AdminShortLink = {
   createdAt: '2026-11-15T00:00:00Z', updatedAt: '2026-11-15T00:00:00Z', owner: { id: 'reader', username: 'reader', nickname: '' },
 }
 /** Runs real list parents, menus and access logic, replacing only HTTP transport and UI primitives. */
-async function page(admin: boolean, actions: string[]) {
+async function page(admin: boolean, actions: string[], protectedLink = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   clients.push(client)
   const grants = (values: string[]) => client.setQueryData(['auth', 'me'], { user: {
     id: 'reader', username: 'reader', nickname: '', group: admin ? 'admin' : 'user',
-    permissions: [...(admin ? ['admin:access'] : []), `short_link:read_${admin ? 'all' : 'own'}`, ...values.map(action => `short_link:${action}_${admin ? 'all' : 'own'}`)],
+    permissions: [...(admin ? ['admin:access'] : []), ...(protectedLink ? ['short_link:set_password'] : []), `short_link:read_${admin ? 'all' : 'own'}`, ...values.map(action => `short_link:${action}_${admin ? 'all' : 'own'}`)],
   } })
   grants(actions)
   const writes: { path: string; body: unknown }[] = []
   vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost')
     if (init?.method === 'POST') writes.push({ path: url.pathname, body: JSON.parse(String(init.body)) })
-    const { owner, ...own } = row; void owner
-    const data = url.pathname.endsWith('/user/list-preference') ? { preference: { pageSize: null, updatedAt: null } }
-      : url.pathname.endsWith('/short-link/list') ? { items: [admin ? row : own] }
+    const item = { ...row, passwordEnabled: protectedLink }
+    const { owner, ...own } = item; void owner
+    const data = url.pathname.endsWith('/auth/me') ? client.getQueryData(['auth', 'me'])
+      : url.pathname.endsWith('/user/list-preference') ? { preference: { pageSize: null, updatedAt: null } }
+      : url.pathname.endsWith('/short-link/list') ? { items: [admin ? item : own] }
         : url.pathname.endsWith('/short-link/update') ? { shortLink: { ...(admin ? row : own), status: 'disabled' } } : { items: [] }
     return new Response(JSON.stringify({ code: 0, message: 'OK', data, meta: { total: 1 } }))
   })
@@ -53,6 +55,50 @@ async function page(admin: boolean, actions: string[]) {
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals() })
 
 describe('single row write authority', () => {
+  // Silently rejecting a real form event must not discard a password that never reached HTTP.
+  it.each([false, true])('preserves the unsent password through blocked real-form saves and sends it once after recovery, admin=%s', async admin => {
+    const view = await page(admin, ['update'], true)
+    await fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'Access settings' }))
+    const dialog = await screen.findByRole('dialog')
+    const password = dialog.querySelector<HTMLInputElement>('[data-testid="short-link-password-input"] input')!
+    await fireEvent.update(password, 'new-secret-80')
+    const save = screen.getByRole('button', { name: /^Save$/ }) as HTMLButtonElement
+    const original = { ...view.collection.state }
+    for (const change of [{ fetchStatus: 'fetching' as const }, { isInvalidated: true }, { status: 'error' as const, error: new Error('read failed') }, { data: { ...original.data as object, items: [] } }]) {
+      view.collection.setState({ ...original, ...change })
+      save.click()
+      await nextTick()
+      expect(view.writes).toEqual([])
+      expect(password.value).toBe('new-secret-80')
+      view.collection.setState(original)
+      await nextTick()
+    }
+    await fireEvent.click(save)
+    await waitFor(() => expect(view.writes).toHaveLength(1))
+    expect(view.writes[0]).toEqual({ path: '/api/v1' + (admin ? '/admin' : '') + '/short-link/update', body: { id: 'first', password: { mode: 'set', value: 'new-secret-80' } } })
+    expect(password.value).toBe('')
+  })
+
+  // A normal background refresh must disable Save without pretending a mutation started.
+  it.each([false, true])('disables the real editor Save while the current collection is refreshing, admin=%s', async admin => {
+    const view = await page(admin, ['update'], true)
+    await fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'Access settings' }))
+    const dialog = await screen.findByRole('dialog')
+    const password = dialog.querySelector<HTMLInputElement>('[data-testid="short-link-password-input"] input')!
+    await fireEvent.update(password, 'retained-secret-80')
+    const original = { ...view.collection.state }
+    view.collection.setState({ fetchStatus: 'fetching' })
+    await waitFor(() => expect((screen.getByRole('button', { name: /^Save$/ }) as HTMLButtonElement).disabled).toBe(true))
+    expect(screen.getByText('The list or access state has changed. Wait for the list to recover, or cancel and reopen this editor.')).toBeTruthy()
+    view.collection.setState(original)
+    await waitFor(() => expect((screen.getByRole('button', { name: /^Save$/ }) as HTMLButtonElement).disabled).toBe(false))
+    expect(screen.queryByText('The list or access state has changed. Wait for the list to recover, or cancel and reopen this editor.')).toBeNull()
+    expect(password.value).toBe('retained-secret-80')
+    expect(view.writes).toEqual([])
+  })
+
   // An unconditional configure/status/delete menu must fail for an account that only reads.
   it.each([false, true])('hides each unavailable write action while preserving read actions, admin=%s', async admin => {
     await page(admin, [])

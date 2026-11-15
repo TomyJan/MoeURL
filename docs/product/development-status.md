@@ -6,6 +6,8 @@ PR359／v0.79.0 已完整交付：候选 `e1256a0a2501e5247bd520023bd3950e545cc6
 
 当前实施[单条操作权限](scope-v0.80.0.md)，收紧显示和即时分发，接续三组文档 Minor。真实行为 RED→GREEN、相关回归及完整前端 6484 项／四项 100% 已通过，类型、lint、新旧 E2E strict 和构建均通过；clean de6b23a 准确产品 smoke／所选扫描、单轮 9 项浏览器通过，8 原图已检查，产品副本及独占镜像／缓存已清理，真实审查与交付尚待。本版阶段见[验收](../implementation/v0.80.0-acceptance.md)。无 API／数据库／权限／依赖新增，不查 CI，不发布部署。
 
+独立终审发现保存拒绝后密码被清空的问题，已用真实表单 RED→GREEN 修复；补充完整 6488 项／四项 100%、类型／lint／新旧 E2E strict／构建通过。修复候选的新产品浏览器与 CodeRabbit 尚待，原 Task1／2 证据保持原执行归属。
+
 ## v0.79.0 交付前检查点（历史）
 
 PR358／v0.78.1 已完成文档本地守恒核验、唯一独立终审、候选 ba6f033 自身真实 CodeRabbit132706599298 reviewed/source=covered 和有效 open0；正常 squash master a7c3200f85d1aaa15597e1831c8f1a3bc942e3cc，独立 API／一次 fetch 核同 tree 与唯一父。两标准任务、12 条裁决、两项延期文档 Minor 和8份工作记录完整可恢复归档；产品保持0.78.0，未重复运行套件，见[v0.78.1验收](../implementation/v0.78.1-acceptance.md)。

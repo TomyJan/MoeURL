@@ -62,6 +62,7 @@
   </section>
   <ShortLinkSettingsDialog
     v-if="settingsLink"
+    :can-save="canSaveSettings"
     :error-message="settingsErrorMessage"
     :link="settingsLink"
     :open="true"
@@ -366,6 +367,11 @@ function currentWritableLink(id: string, action: 'update' | 'delete') {
 function configureLink(link: ConsoleLinkListItem) {
   const current = currentWritableLink(link.id, 'update')
   if (current && !settingsLink.value) configure(current)
+}
+
+/** Keeps rejected form attempts from clearing sensitive input before dispatch is possible. */
+function canSaveSettings() {
+  return !!settingsLink.value && query.isSuccess.value && !query.isFetching.value && !!currentWritableLink(settingsLink.value.id, 'update')
 }
 
 /** Rejects stale editor events after revocation, account changes or a collection change. */
