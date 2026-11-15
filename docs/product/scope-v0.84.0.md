@@ -1,6 +1,6 @@
 # v0.84.0 复制所选 Markdown 清单
 
-状态：前端实现与完整本地验证已通过，准确产品／浏览器及真实审查交付尚待；基线为 PR369 的 master `e2dd5b0fef23133a16ab1afbc845b5eff9d447e9`，已交付产品为 0.83.1。各阶段见[验收](../implementation/v0.84.0-acceptance.md)，不查询 CI，不发布部署。
+状态：前端实现、完整本地验证、准确产品 smoke／所选扫描、单轮 9 项浏览器及资源恢复清理已通过；独立审查与真实 CodeRabbit 交付尚待。基线为 PR369 的 master `e2dd5b0fef23133a16ab1afbc845b5eff9d447e9`，已交付产品为 0.83.1。各阶段见[验收](../implementation/v0.84.0-acceptance.md)，不查询 CI，不发布部署。
 
 ## 盘点与取舍
 
