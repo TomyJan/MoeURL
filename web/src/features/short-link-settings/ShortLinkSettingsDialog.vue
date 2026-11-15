@@ -1,5 +1,5 @@
 <template>
-  <v-dialog :model-value="open" :persistent="pending" max-width="640" @update:model-value="handleOpenUpdate">
+  <v-dialog :model-value="open" :persistent="pending" scrollable max-width="640" @update:model-value="handleOpenUpdate">
     <v-card class="short-link-settings-dialog">
       <v-card-title>{{ t('shortLinkSettings.title') }}</v-card-title>
       <v-card-text class="short-link-settings-dialog__body">
@@ -125,9 +125,11 @@
         <p v-if="canSetMaxVisits && limitEnabled">{{ t('visitLimit.hint') }}</p>
         <v-alert v-if="canSetMaxVisits && lowerLimitExhausts" type="warning" variant="tonal">{{ t('visitLimit.lowerWarning') }}</v-alert>
         <v-alert v-if="canSetMaxVisits && initialMaxVisits !== null && !limitEnabled" type="warning" variant="tonal">{{ t('visitLimit.clearWarning') }}</v-alert>
-        <v-alert v-if="!pending && canSave?.() === false" type="warning" variant="tonal">{{ t('shortLinkSettings.unavailable') }}</v-alert>
         <ActionToast v-if="errorMessage" type="error">{{ errorMessage }}</ActionToast>
       </v-card-text>
+      <div v-if="!pending && canSave?.() === false" class="short-link-settings-dialog__feedback">
+        <v-alert type="warning" variant="tonal">{{ t('shortLinkSettings.unavailable') }}</v-alert>
+      </div>
       <v-card-actions class="short-link-settings-dialog__actions">
         <v-btn variant="text" :disabled="pending" @click="close">{{ t('shortLinkSettings.cancel') }}</v-btn>
         <v-btn color="primary" :loading="pending" :disabled="pending || !permissionsReady || canSave?.() === false" @click="save">
@@ -424,7 +426,15 @@ function toLocalDateTime(value: string | null) {
 
 .short-link-settings-dialog__body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
+  min-height: 0;
+  min-width: 0;
+}
+
+.short-link-settings-dialog__feedback {
+  flex-shrink: 0;
+  padding: 0 24px 16px;
 }
 
 .short-link-settings-dialog__mode {
@@ -440,9 +450,19 @@ function toLocalDateTime(value: string | null) {
 
 .short-link-settings-dialog__actions {
   display: flex;
+  flex-shrink: 0;
   justify-content: flex-end;
   gap: 8px;
   padding: 0 24px 20px;
+}
+
+.short-link-settings-dialog__actions :deep(.v-btn) {
+  min-height: 44px;
+}
+
+.short-link-settings-dialog__body :deep(.v-slider .v-label) {
+  max-width: 50%;
+  white-space: normal;
 }
 
 @media (max-width: 480px) {
