@@ -1,6 +1,6 @@
 # v0.84.1 测试资源清理诊断维护
 
-状态：设计；产品保持 0.84.0。前版 PR370 已真实审查、正常合并至 master `f2bc2bb92c5d524f8bb42d5cb08e5f8a53ec8df7`，三个标准任务及 10 份工作记录可恢复归档。阶段见[验收](../implementation/v0.84.1-acceptance.md)。
+状态：本地实现、19 项夹具／58 项完整 Node、lint／12 份 strict 通过，Task1 合同与标准完成；独立终审及真实交付待做。产品保持 0.84.0。前版 PR370 已真实审查、正常合并至 master `f2bc2bb92c5d524f8bb42d5cb08e5f8a53ec8df7`，三个标准任务及 10 份工作记录可恢复归档。阶段见[验收](../implementation/v0.84.1-acceptance.md)。
 
 ## 本版范围
 
