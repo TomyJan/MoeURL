@@ -1,16 +1,23 @@
 <template>
   <div v-if="state.visible.value" class="page-links-copy">
-    <v-btn :data-testid="mode === 'selected' ? 'short-link-selected-copy' : 'short-link-page-copy'" variant="tonal" :disabled="state.disabled.value" :loading="state.pending.value" @click="state.copy">
-      {{ t(mode === 'selected' ? 'selectedLinksCopy.action' : 'pageLinksCopy.action') }}
+    <v-btn :data-testid="content.testId" variant="tonal" :disabled="state.disabled.value" :loading="state.pending.value" @click="state.copy">
+      {{ t(`${content.key}.action`) }}
     </v-btn>
-    <p>{{ t(mode === 'selected' ? 'selectedLinksCopy.description' : 'pageLinksCopy.description') }}</p>
+    <p>{{ t(`${content.key}.description`) }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { PageLinksCopyState } from './usePageLinksCopy'
-defineProps<{ state: PageLinksCopyState; mode?: 'page' | 'selected' }>()
+const props = defineProps<{ state: PageLinksCopyState; mode?: 'page' | 'selected' | 'selected-markdown' }>()
+const modes = {
+  page: { testId: 'short-link-page-copy', key: 'pageLinksCopy' },
+  selected: { testId: 'short-link-selected-copy', key: 'selectedLinksCopy' },
+  'selected-markdown': { testId: 'short-link-selected-markdown-copy', key: 'selectedMarkdownCopy' },
+}
+const content = computed(() => modes[props.mode ?? 'page'])
 const { t } = useI18n()
 </script>
 

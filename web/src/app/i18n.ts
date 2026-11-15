@@ -2,6 +2,10 @@ import { createI18n } from 'vue-i18n'
 
 export const messages = {
   'zh-CN': {
+    selectedMarkdownCopy: {
+      action: '复制所选 Markdown', description: '仅当前页所选项，包含标题和公开短链地址。',
+      copied: '已复制 {count} 条 Markdown 短链',
+    },
     selectedLinksCopy: {
       action: '复制所选短链', description: '仅当前页所选项，每行一个公开短链地址。',
       copied: '已复制 {count} 条所选短链',
@@ -1021,6 +1025,10 @@ export const messages = {
     },
   },
   en: {
+    selectedMarkdownCopy: {
+      action: 'Copy selected Markdown', description: 'Selected items on this page only, with titles and public short links.',
+      copied: 'Copied {count} Markdown link | Copied {count} Markdown links',
+    },
     selectedLinksCopy: {
       action: 'Copy selected links', description: 'Selected items on this page only, one public short link per line.',
       copied: 'Copied {count} selected link | Copied {count} selected links',
