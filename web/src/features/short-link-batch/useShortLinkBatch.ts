@@ -26,7 +26,7 @@ export function useShortLinkAccess(context: 'own' | 'admin') {
   const canUpdate = computed(() => auth.isSuccess.value && allows('update', auth.data.value))
   const canDelete = computed(() => auth.isSuccess.value && allows('delete', auth.data.value))
   const canTag = computed(() => auth.isSuccess.value && allows('tags', auth.data.value))
-  const canSelect = computed(() => canUpdate.value || canDelete.value)
+  const canSelect = computed(() => canRead.value)
   return { identity, canRead, canUpdate, canDelete, canTag, canSelect, allows, authPending: auth.isPending }
 }
 

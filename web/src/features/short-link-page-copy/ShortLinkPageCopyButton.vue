@@ -1,16 +1,16 @@
 <template>
   <div v-if="state.visible.value" class="page-links-copy">
-    <v-btn data-testid="short-link-page-copy" variant="tonal" :disabled="state.disabled.value" :loading="state.pending.value" @click="state.copy">
-      {{ t('pageLinksCopy.action') }}
+    <v-btn :data-testid="mode === 'selected' ? 'short-link-selected-copy' : 'short-link-page-copy'" variant="tonal" :disabled="state.disabled.value" :loading="state.pending.value" @click="state.copy">
+      {{ t(mode === 'selected' ? 'selectedLinksCopy.action' : 'pageLinksCopy.action') }}
     </v-btn>
-    <p>{{ t('pageLinksCopy.description') }}</p>
+    <p>{{ t(mode === 'selected' ? 'selectedLinksCopy.description' : 'pageLinksCopy.description') }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import type { PageLinksCopyState } from './usePageLinksCopy'
-defineProps<{ state: PageLinksCopyState }>()
+defineProps<{ state: PageLinksCopyState; mode?: 'page' | 'selected' }>()
 const { t } = useI18n()
 </script>
 

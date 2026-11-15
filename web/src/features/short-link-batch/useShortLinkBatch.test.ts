@@ -38,6 +38,19 @@ function mount(context: 'own' | 'admin' = 'own', account: CurrentUser | null = u
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(batchShortLinks).mockReset().mockResolvedValue({ affectedCount: 1 }); vi.mocked(me).mockResolvedValue({ user: user() }) })
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()) })
 describe('batch selection and atomic submission', () => {
+  // Broadening selection to read must not broaden any existing write capability.
+  it.each(['own', 'admin'] as const)('permits read-only selection and blocks every write in %s', async context => {
+    const view = mount(context, user(context === 'own' ? ['short_link:read_own'] : ['admin:access', 'short_link:read_all']))
+    view.batch.toggle('two', true)
+    expect(view.batch.selected.value).toEqual(['two'])
+    view.batch.toggleAll(true)
+    expect(view.batch.selected.value).toEqual(['one', 'two'])
+    view.batch.openDelete()
+    expect(view.batch.deleteIds.value).toBeNull()
+    for (const action of ['enable', 'disable', 'delete'] as const) await view.batch.submit(action)
+    expect(batchShortLinks).not.toHaveBeenCalled()
+    expect(view.access.canUpdate.value).toBe(false); expect(view.access.canDelete.value).toBe(false); expect(view.access.canTag.value).toBe(false)
+  })
   it.each(['filter', 'unmount'] as const)('invalidates cached lists and overview after a late success following %s without changing current selection or feedback', async transition => {
     const first = mount()
     const keys = [['short-link', 'list', 'A', 1], ['short-link', 'overview'], ['admin-short-link', 'list', 'A', 1]]

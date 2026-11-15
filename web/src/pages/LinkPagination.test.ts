@@ -119,7 +119,8 @@ describe('short-link list pagination', () => {
     const url = new URL(String(view.fetcher.mock.calls.at(-1)![0]), 'http://localhost')
     expect(Object.fromEntries(url.searchParams)).toMatchObject({ page: '1', pageSize: '50', q: 'row' })
     expect((screen.getByLabelText('pagination.pageSize') as HTMLSelectElement).value).toBe('50')
-    expect(screen.queryByRole('checkbox')).toBeNull()
+    expect(screen.getAllByRole('checkbox')).toHaveLength(51)
+    for (const id of ['batch-enable', 'batch-disable', 'batch-delete']) expect(screen.queryByTestId(id)).toBeNull()
   })
 
   // Synchronous auth cache changes must retire the size even before component disabled props catch up.
@@ -382,7 +383,8 @@ describe('short-link list pagination', () => {
     const view = mount(context, false); await ready()
     await fireEvent.update(screen.getByLabelText('filter.noteStatus'), 'present'); await ready()
     await fireEvent.click(screen.getByRole('button', { name: 'pagination.next' })); await ready()
-    expect(screen.queryByRole('checkbox')).toBeNull()
+    expect(screen.getAllByRole('checkbox')).toHaveLength(2)
+    for (const id of ['batch-enable', 'batch-disable', 'batch-delete']) expect(screen.queryByTestId(id)).toBeNull()
     const pending = createDeferred<Response>(); view.fetcher.mockReturnValueOnce(pending.promise)
     await fireEvent.click(screen.getByTestId('short-link-list-export')); view.queuedNext()
     const url = new URL(String(view.fetcher.mock.calls.at(-1)![0]), 'http://localhost')

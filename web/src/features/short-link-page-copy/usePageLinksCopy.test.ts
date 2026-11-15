@@ -21,23 +21,27 @@ function user(permissions = ['short_link:read_own'], id = 'A'): CurrentUser {
   return { id, username: id, nickname: '', group: 'user', permissions }
 }
 /** Runs real cache/lifecycle logic; the Clipboard API is the sole side-effect substitute. */
-function mount(options: { context?: 'own' | 'admin'; user?: CurrentUser; count?: number; locale?: string } = {}) {
+function mount(options: { context?: 'own' | 'admin'; user?: CurrentUser; count?: number; locale?: string; selection?: string[]; pair?: boolean } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
   clients.push(client)
   client.setQueryData(['auth', 'me'], { user: options.user ?? user() })
   const key = ref<readonly unknown[]>(ownKey), blocked = ref(false), context = ref(['page1'])
-  const items = Array.from({ length: options.count ?? 2 }, (_, index) => ({ url: `https://sho.rt/${index + 1}`, targetUrl: `https://private.test/${index}` }))
+  const items = Array.from({ length: options.count ?? 2 }, (_, index) => ({ id: String(index + 1), url: `https://sho.rt/${index + 1}`, targetUrl: `https://private.test/${index}` }))
   client.setQueryData(ownKey, { items })
   let clipboard = ''
   const writeText = vi.fn(async (text: string) => { clipboard = text })
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
   let state!: ReturnType<typeof usePageLinksCopy>
+  let other!: ReturnType<typeof usePageLinksCopy>
+  const selection = ref(options.selection ?? []), lock = ref<symbol | null>(null)
   const host = defineComponent({ setup() {
-    state = usePageLinksCopy({ access: useShortLinkAccess(options.context ?? 'own'), queryKey: key, blocked, context })
-    return () => h(ShortLinkPageCopyButton, { state })
+    const access = useShortLinkAccess(options.context ?? 'own')
+    state = usePageLinksCopy({ access, queryKey: key, blocked, context, ...(options.selection ? { selection } : {}), ...(options.pair ? { lock } : {}) })
+    if (options.pair) other = usePageLinksCopy({ access, queryKey: key, blocked, context, lock })
+    return () => h(ShortLinkPageCopyButton, { state, ...(options.selection ? { mode: 'selected' as const } : {}) })
   } })
   const view = render(host, { global: { plugins: [[VueQueryPlugin, { queryClient: client }], createI18n({ legacy: false, locale: options.locale ?? 'en', messages })], stubs: componentStubs } })
-  return { ...view, client, key, blocked, context, state, items, writeText, readClipboard: () => clipboard }
+  return { ...view, client, key, blocked, context, state, other, selection, lock, items, writeText, readClipboard: () => clipboard }
 }
 beforeEach(() => vi.clearAllMocks())
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()); Reflect.deleteProperty(navigator, 'clipboard') })
@@ -151,5 +155,99 @@ describe('current-page clipboard lifecycle', () => {
     current.resolve(); await second
     expect(view.state.pending.value).toBe(false)
     expect(toast.success).toHaveBeenCalledOnce()
+  })
+})
+
+describe('selected public URLs and shared copy ownership', () => {
+  // Ignoring the selected IDs or using click order copies a wrong literal payload.
+  it('copies selected rows in page order synchronously and reports selected count', async () => {
+    const view = mount({ count: 3, selection: ['3', '1'] })
+    screen.getByRole('button', { name: 'Copy selected links' }).click()
+    expect(view.readClipboard()).toBe('https://sho.rt/1\nhttps://sho.rt/3')
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Copied 2 selected links'))
+  })
+  it.each([1, 100])('copies the valid selection of %i without a trailing newline', async count => {
+    const view = mount({ count, selection: Array.from({ length: count }, (_, i) => String(i + 1)) })
+    await view.state.copy()
+    expect(view.readClipboard().split('\n')).toHaveLength(count)
+    expect(view.readClipboard().split('\n').at(-1)).toBe(`https://sho.rt/${count}`)
+    expect(view.readClipboard().endsWith('\n')).toBe(false)
+  })
+  it.each([[], ['missing'], ['1', 'missing'], ['1', '1'], [''], Array.from({ length: 101 }, (_, i) => String(i + 1))].map(selection => ({ selection })))('rejects the entire invalid selection %#', async ({ selection }) => {
+    const view = mount({ selection })
+    await view.state.copy()
+    expect(view.readClipboard()).toBe('')
+    expect(view.state.disabled.value).toBe(true)
+    expect(toast.success).not.toHaveBeenCalled()
+  })
+  it.each(['missing-id', 'duplicate-id', 'bad-selected-url', 'empty-page', 'oversize-page'] as const)('rejects ambiguous or invalid selected page %s', async stage => {
+    const view = mount({ selection: ['1'] })
+    const items = stage === 'missing-id' ? [{ url: 'https://sho.rt/1' }]
+      : stage === 'duplicate-id' ? [view.items[0], view.items[0]]
+        : stage === 'bad-selected-url' ? [{ ...view.items[0], url: 'https://sho.rt/1\nprivate' }]
+          : stage === 'empty-page' ? [] : Array.from({ length: 101 }, (_, i) => ({ id: String(i + 1), url: `https://sho.rt/${i}` }))
+    view.client.setQueryData(ownKey, { items })
+    await view.state.copy()
+    expect(view.readClipboard()).toBe('')
+    expect(view.state.disabled.value).toBe(true)
+  })
+  it('ignores an unselected invalid URL and copies only the selected address', async () => {
+    const view = mount({ selection: ['1'] })
+    view.client.setQueryData(ownKey, { items: [view.items[0], { ...view.items[1], url: 'private\ninvalid' }] })
+    await view.state.copy()
+    expect(view.readClipboard()).toBe('https://sho.rt/1')
+  })
+  // A selection change that returns to its original value must still retire the old callbacks.
+  it.each([false, true])('retires selection roundtrips and preserves newer pending, failure=%s', async failure => {
+    const view = mount({ selection: ['1'] }), old = createDeferred<void>(), current = createDeferred<void>()
+    view.writeText.mockReturnValueOnce(old.promise).mockReturnValueOnce(current.promise)
+    const first = view.state.copy()
+    view.selection.value.push('2'); view.selection.value.pop()
+    const second = view.state.copy()
+    expect(view.writeText.mock.calls).toEqual([['https://sho.rt/1'], ['https://sho.rt/1']])
+    if (failure) old.reject(new Error('private')); else old.resolve()
+    await first
+    expect(view.state.pending.value).toBe(true)
+    expect(toast.success).not.toHaveBeenCalled(); expect(toast.error).not.toHaveBeenCalled()
+    current.resolve(); await second
+    expect(view.state.pending.value).toBe(false)
+    expect(toast.success).toHaveBeenCalledExactlyOnceWith('Copied 1 selected link')
+  })
+  // Sharing a boolean pending or releasing a foreign lock would let a third write overlap.
+  it.each([false, true])('keeps the other owner locked when a retired write settles, failure=%s', async failure => {
+    const view = mount({ selection: ['1'], pair: true }), old = createDeferred<void>(), current = createDeferred<void>()
+    view.writeText.mockReturnValueOnce(old.promise).mockReturnValueOnce(current.promise)
+    const first = view.state.copy()
+    expect(view.other.disabled.value).toBe(true)
+    await view.other.copy()
+    expect(view.writeText).toHaveBeenCalledTimes(1)
+    view.selection.value = ['2']
+    expect(view.other.disabled.value).toBe(false)
+    const second = view.other.copy(), owner = view.lock.value
+    expect(view.state.disabled.value).toBe(true)
+    view.selection.value = ['1'] // Retiring the first instance must not release the other's lock.
+    expect(view.lock.value).toBe(owner)
+    if (failure) old.reject(new Error('private')); else old.resolve()
+    await first
+    expect(view.other.pending.value).toBe(true)
+    expect(view.lock.value).toBe(owner)
+    await view.state.copy()
+    expect(view.writeText).toHaveBeenCalledTimes(2)
+    expect(toast.success).not.toHaveBeenCalled(); expect(toast.error).not.toHaveBeenCalled()
+    current.resolve(); await second
+    expect(view.lock.value).toBeNull()
+    expect(view.state.disabled.value).toBe(false)
+    expect(toast.success).toHaveBeenCalledExactlyOnceWith('Copied 2 links from this page')
+  })
+  it('blocks selected copies while the page owner is writing and releases on unmount', async () => {
+    const view = mount({ selection: ['2'], pair: true }), write = createDeferred<void>()
+    view.writeText.mockReturnValue(write.promise)
+    const first = view.other.copy()
+    const blocked = view.state.copy()
+    expect(view.writeText.mock.calls).toEqual([['https://sho.rt/1\nhttps://sho.rt/2']])
+    view.unmount()
+    expect(view.lock.value).toBeNull()
+    write.resolve(); await first; await blocked
+    expect(toast.success).not.toHaveBeenCalled()
   })
 })
