@@ -21,6 +21,8 @@ export type BulkCreateExpirationItem = Readonly<BulkCreateRedirectModeItem & { e
 export type BulkCreateExpirationsInput = Readonly<{ requestId: string; items: readonly BulkCreateExpirationItem[] }>
 export type BulkCreateVisitLimitItem = Readonly<BulkCreateExpirationItem & { maxVisits: string }>
 export type BulkCreateVisitLimitsInput = Readonly<{ requestId: string; items: readonly BulkCreateVisitLimitItem[] }>
+export type BulkCreateCountdownItem = Readonly<BulkCreateVisitLimitItem & { intermediateDelaySeconds: string }>
+export type BulkCreateCountdownsInput = Readonly<{ requestId: string; items: readonly BulkCreateCountdownItem[] }>
 const rawTitle = z.string().refine(value => !/[\uD800-\uDFFF]/u.test(value) && shortLinkMetadataSchema.safeParse({ title: value, tags: [] }).success)
 export const bulkCreateItemsSchema = z.array(z.strictObject({ targetUrl: target, title: rawTitle })).min(1).max(20)
   .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
@@ -68,6 +70,13 @@ export const bulkCreateExpirationsInputSchema = z.strictObject({ requestId, item
 
 const visitLimitItemSchema = expirationItemSchema.safeExtend({ maxVisits: z.string().refine(value => value === '' || (/^[1-9][0-9]{0,9}$/.test(value) && Number(value) <= 2147483647)) })
 export const bulkCreateVisitLimitsInputSchema = z.strictObject({ requestId, items: z.array(visitLimitItemSchema).min(1).max(20)
+  .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
+  .refine(items => { const slugs = items.filter(item => item.customSlug !== '').map(item => item.customSlug.toLowerCase()); return new Set(slugs).size === slugs.length }) })
+  .refine(input => new TextEncoder().encode(JSON.stringify(input)).byteLength <= 65536)
+
+const countdownItemSchema = visitLimitItemSchema.safeExtend({ intermediateDelaySeconds: z.string() })
+  .refine(item => item.intermediateDelaySeconds === '' || (item.redirectMode === 'intermediate' && /^(?:[3-9]|10)$/.test(item.intermediateDelaySeconds)))
+export const bulkCreateCountdownsInputSchema = z.strictObject({ requestId, items: z.array(countdownItemSchema).min(1).max(20)
   .refine(items => new Set(items.map(item => item.targetUrl)).size === items.length)
   .refine(items => { const slugs = items.filter(item => item.customSlug !== '').map(item => item.customSlug.toLowerCase()); return new Set(slugs).size === slugs.length }) })
   .refine(input => new TextEncoder().encode(JSON.stringify(input)).byteLength <= 65536)
@@ -130,8 +139,15 @@ export async function batchCreateShortLinksWithVisitLimits(input: BulkCreateVisi
   return sendBatch('/short-link/batch-create-with-visit-limits', request.data, request.data.items.length, expectedUserId)
 }
 
+/** Preserves all eight raw fields, including the empty default, for exact countdown retries. */
+export async function batchCreateShortLinksWithCountdowns(input: BulkCreateCountdownsInput, expectedUserId?: string) {
+  const request = bulkCreateCountdownsInputSchema.safeParse(input)
+  if (!request.success) throw new ApiClientError(100001, 'Invalid countdown batch creation request')
+  return sendBatch('/short-link/batch-create-with-countdowns', request.data, request.data.items.length, expectedUserId)
+}
+
 /** Shares bounded transport and exact receipt validation across independent protocols. */
-async function sendBatch(path: string, input: BulkCreateInput | BulkCreateTitlesInput | BulkCreateMetadataInput | BulkCreateCustomSlugsInput | BulkCreateRedirectModesInput | BulkCreateExpirationsInput | BulkCreateVisitLimitsInput, count: number, expectedUserId?: string) {
+async function sendBatch(path: string, input: BulkCreateInput | BulkCreateTitlesInput | BulkCreateMetadataInput | BulkCreateCustomSlugsInput | BulkCreateRedirectModesInput | BulkCreateExpirationsInput | BulkCreateVisitLimitsInput | BulkCreateCountdownsInput, count: number, expectedUserId?: string) {
   const controller = new AbortController()
   // Includes response-body decoding: an unacknowledged write must become recoverable.
   const deadline = setTimeout(() => controller.abort(), 15_000)

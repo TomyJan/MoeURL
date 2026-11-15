@@ -8,6 +8,7 @@ import { ApiClientError } from '@/shared/api/client'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 import { BULK_CSV_MAX_BYTES, parseBulkCreateImportCsv } from '@/entities/short-link/bulk-create-csv'
 import { batchCreateShortLinksWithExpirations, type BulkCreateExpirationItem, type BulkCreateExpirationsInput } from '@/entities/short-link/bulk-create'
+import { batchCreateShortLinksWithCountdowns, type BulkCreateCountdownItem, type BulkCreateCountdownsInput } from '@/entities/short-link/bulk-create'
 import { batchCreateShortLinksWithVisitLimits, type BulkCreateVisitLimitItem, type BulkCreateVisitLimitsInput } from '@/entities/short-link/bulk-create'
 
 /** Owns an in-memory batch, binding every asynchronous completion to current confirmed authority. */
@@ -17,9 +18,9 @@ export function useBulkCreate() {
   const auth = useQuery({ queryKey: ['auth', 'me'], queryFn: me, retry: false, staleTime: Infinity })
   const { t } = useI18n()
   const opened = ref(false), draft = ref(''), pending = ref(false), unknown = ref(false), closing = ref(false), errorKey = ref('')
-  type Protocol = 'targets' | 'titles' | 'metadata' | 'custom-slugs' | 'redirect-modes' | 'expirations' | 'visit-limits'
-  type StructuredItem = BulkCreateItem | BulkCreateMetadataItem | BulkCreateCustomSlugItem | BulkCreateRedirectModeItem | BulkCreateExpirationItem | BulkCreateVisitLimitItem
-  type Snapshot = BulkCreateInput | BulkCreateTitlesInput | BulkCreateMetadataInput | BulkCreateCustomSlugsInput | BulkCreateRedirectModesInput | BulkCreateExpirationsInput | BulkCreateVisitLimitsInput
+  type Protocol = 'targets' | 'titles' | 'metadata' | 'custom-slugs' | 'redirect-modes' | 'expirations' | 'visit-limits' | 'countdowns'
+  type StructuredItem = BulkCreateItem | BulkCreateMetadataItem | BulkCreateCustomSlugItem | BulkCreateRedirectModeItem | BulkCreateExpirationItem | BulkCreateVisitLimitItem | BulkCreateCountdownItem
+  type Snapshot = BulkCreateInput | BulkCreateTitlesInput | BulkCreateMetadataInput | BulkCreateCustomSlugsInput | BulkCreateRedirectModesInput | BulkCreateExpirationsInput | BulkCreateVisitLimitsInput | BulkCreateCountdownsInput
   const snapshot = shallowRef<Snapshot | null>(null)
   const importedItems = shallowRef<readonly StructuredItem[] | null>(null)
   const importedMode = ref<Protocol>('targets'), snapshotMode = ref<Protocol>('targets')
@@ -31,6 +32,11 @@ export function useBulkCreate() {
   const mutation = useMutation({
     mutationFn: (attempt: { input: Snapshot; mode: Protocol; token: number; candidate: typeof scope }) => {
       if (!isCurrent(attempt.token, attempt.candidate)) throw new Error('Batch context retired')
+      if (attempt.mode === 'countdowns') {
+        const input = attempt.input as BulkCreateCountdownsInput
+        if (!canVisitLimitsNow(input.items)) { reset(); throw new Error('Batch context retired') }
+        return batchCreateShortLinksWithCountdowns(input, attempt.candidate.userId)
+      }
       if (attempt.mode === 'visit-limits') {
         const input = attempt.input as BulkCreateVisitLimitsInput
         if (!canVisitLimitsNow(input.items)) { reset(); throw new Error('Batch context retired') }
@@ -97,7 +103,7 @@ export function useBulkCreate() {
     if (!canCustomSlugNow()) {
       customSlugEpoch++
       const currentMode = snapshot.value ? snapshotMode.value : importedMode.value
-      if (currentMode === 'custom-slugs' || currentMode === 'redirect-modes' || currentMode === 'expirations' || currentMode === 'visit-limits') reset()
+      if (currentMode === 'custom-slugs' || currentMode === 'redirect-modes' || currentMode === 'expirations' || currentMode === 'visit-limits' || currentMode === 'countdowns') reset()
     }
     if (!canModeNow('intermediate')) {
       intermediateEpoch++
@@ -129,7 +135,7 @@ export function useBulkCreate() {
       if (importedMode.value === 'custom-slugs' && !canCustomSlugNow()) { reset(); return }
       if (importedMode.value === 'redirect-modes' && !canRedirectModesNow(importedItems.value)) { reset(); return }
       if (importedMode.value === 'expirations' && !canExpirationsNow(importedItems.value)) { reset(); return }
-      if (importedMode.value === 'visit-limits' && !canVisitLimitsNow(importedItems.value)) { reset(); return }
+      if ((importedMode.value === 'visit-limits' || importedMode.value === 'countdowns') && !canVisitLimitsNow(importedItems.value)) { reset(); return }
       snapshot.value = Object.freeze({ requestId: crypto.randomUUID(), items: importedItems.value })
       snapshotMode.value = importedMode.value
     } else {
@@ -165,11 +171,11 @@ export function useBulkCreate() {
       if (!parsed.success) { errorKey.value = 'bulkCreate.csvInvalid'; return }
       if (parsed.mode !== 'targets') {
         if (!canTitleNow() || titleEpoch !== metadataEpoch) { errorKey.value = 'bulkCreate.metadataRequired'; return }
-        if ((parsed.mode === 'custom-slugs' || parsed.mode === 'redirect-modes' || parsed.mode === 'expirations' || parsed.mode === 'visit-limits') && (!canCustomSlugNow() || slugEpoch !== customSlugEpoch)) { errorKey.value = 'bulkCreate.customSlugRequired'; return }
-        if ((parsed.mode === 'redirect-modes' || parsed.mode === 'expirations' || parsed.mode === 'visit-limits') && ((usesMode(parsed.data, 'intermediate') && (!canModeNow('intermediate') || intermediateReadEpoch !== intermediateEpoch))
+        if ((parsed.mode === 'custom-slugs' || parsed.mode === 'redirect-modes' || parsed.mode === 'expirations' || (parsed.mode === 'visit-limits' || parsed.mode === 'countdowns')) && (!canCustomSlugNow() || slugEpoch !== customSlugEpoch)) { errorKey.value = 'bulkCreate.customSlugRequired'; return }
+        if ((parsed.mode === 'redirect-modes' || parsed.mode === 'expirations' || (parsed.mode === 'visit-limits' || parsed.mode === 'countdowns')) && ((usesMode(parsed.data, 'intermediate') && (!canModeNow('intermediate') || intermediateReadEpoch !== intermediateEpoch))
           || (usesMode(parsed.data, 'confirmation') && (!canModeNow('confirmation') || confirmationReadEpoch !== confirmationEpoch)))) { errorKey.value = 'bulkCreate.redirectModeRequired'; return }
-        if ((parsed.mode === 'expirations' || parsed.mode === 'visit-limits') && usesExpiration(parsed.data) && (!canExpirationNow() || expirationReadEpoch !== expirationEpoch)) { errorKey.value = 'bulkCreate.expirationRequired'; return }
-        if (parsed.mode === 'visit-limits' && usesVisitLimit(parsed.data) && (!canVisitLimitNow() || visitLimitReadEpoch !== visitLimitEpoch)) { errorKey.value = 'bulkCreate.visitLimitRequired'; return }
+        if ((parsed.mode === 'expirations' || (parsed.mode === 'visit-limits' || parsed.mode === 'countdowns')) && usesExpiration(parsed.data) && (!canExpirationNow() || expirationReadEpoch !== expirationEpoch)) { errorKey.value = 'bulkCreate.expirationRequired'; return }
+        if ((parsed.mode === 'visit-limits' || parsed.mode === 'countdowns') && usesVisitLimit(parsed.data) && (!canVisitLimitNow() || visitLimitReadEpoch !== visitLimitEpoch)) { errorKey.value = 'bulkCreate.visitLimitRequired'; return }
         draft.value = ''
         importedItems.value = Object.freeze(parsed.data.map(item => Object.freeze('tags' in item ? { ...item, tags: Object.freeze([...item.tags]) } : { ...item })))
         importedMode.value = parsed.mode
@@ -203,9 +209,9 @@ export function useBulkCreate() {
           : error instanceof ApiClientError && error.code === 200122 ? 'dailyCreateQuota.bulkDenied'
             : error instanceof ApiClientError && error.code === 200121 ? 'targetPolicy.bulkDenied'
             : error instanceof ApiClientError && error.code === 200120 ? 'bulkCreate.conflict'
-            : (mode === 'expirations' || mode === 'visit-limits') && error instanceof ApiClientError && error.code === 200108 ? 'bulkCreate.expirationDenied'
-            : (mode === 'custom-slugs' || mode === 'redirect-modes' || mode === 'expirations' || mode === 'visit-limits') && error instanceof ApiClientError && error.code === 200101 ? 'bulkCreate.customSlugTaken'
-              : (mode === 'custom-slugs' || mode === 'redirect-modes' || mode === 'expirations' || mode === 'visit-limits') && error instanceof ApiClientError && error.code === 200102 ? 'bulkCreate.customSlugReserved'
+            : (mode === 'expirations' || mode === 'visit-limits' || mode === 'countdowns') && error instanceof ApiClientError && error.code === 200108 ? 'bulkCreate.expirationDenied'
+            : (mode === 'custom-slugs' || mode === 'redirect-modes' || mode === 'expirations' || mode === 'visit-limits' || mode === 'countdowns') && error instanceof ApiClientError && error.code === 200101 ? 'bulkCreate.customSlugTaken'
+              : (mode === 'custom-slugs' || mode === 'redirect-modes' || mode === 'expirations' || mode === 'visit-limits' || mode === 'countdowns') && error instanceof ApiClientError && error.code === 200102 ? 'bulkCreate.customSlugReserved'
                 : 'bulkCreate.failed'
       }
     } finally { if (isCurrent(token, candidate)) pending.value = false }

@@ -48,3 +48,10 @@ export const bulkCreateVisitLimitsCsvTemplate = {
   contentType: 'text/csv;charset=utf-8' as const,
   content: '\uFEFF' + bulkCreateVisitLimitsCsvExample.replaceAll('\n', '\r\n') + '\r\n',
 }
+
+export const bulkCreateCountdownsCsvExample = 'target_url,title,tags,custom_slug,redirect_mode,expires_at,max_visits,intermediate_delay_seconds\nhttps://example.com/three,Example title,"[""tools"",""a,b""]",TeamDocs77,intermediate,,1,3\nhttps://example.com/ten,,[],,intermediate,,,10\nhttps://example.com/default,,[],,intermediate,,,'
+export const bulkCreateCountdownsCsvTemplate = {
+  fileName: 'moeurl-countdowns-template.csv',
+  contentType: 'text/csv;charset=utf-8' as const,
+  content: '\uFEFF' + bulkCreateCountdownsCsvExample.replaceAll('\n', '\r\n') + '\r\n',
+}
