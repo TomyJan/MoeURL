@@ -100,5 +100,10 @@ function csv(headers: string[], rows: string[][]) { return '\uFEFF' + [headers, 
 function column(number: number, name: string, english: boolean) { return english ? 'Column ' + number + ': ' + name : '第 ' + number + ' 列：' + name }
 async function choose(page: Page, control: Locator, name: string) { await activate(control); await activate(page.getByRole('option', { name, exact: true })) }
 async function upload(page: Page, text: string, mode: 'standard' | 'mapped') { await page.getByTestId(mode === 'standard' ? 'bulk-create-standard-file' : 'bulk-create-mapping-file').setInputFiles({ name: 'column-mapping.csv', mimeType: 'text/csv', buffer: Buffer.from(text) }) }
-async function activate(control: Locator) { if (touchPages.has(control.page())) await control.tap(); else { await control.focus(); await control.press('Enter') } }
+async function activate(control: Locator) {
+  if (touchPages.has(control.page())) {
+    const target = await control.getAttribute('role') === 'combobox' ? control.page().locator('.v-select').filter({ has: control }).locator('.v-field') : control
+    await target.tap()
+  } else { await control.focus(); await control.press('Enter') }
+}
 async function capture(info: TestInfo, name: string, page: Page) { await expectNoHorizontalOverflow(page); await expect.poll(() => page.getByRole('dialog').evaluate(element => element.scrollWidth - element.clientWidth)).toBe(0); const output = info.outputPath(name + '.png'); await page.screenshot({ path: output, animations: 'disabled' }); await info.attach(name, { path: output, contentType: 'image/png' }) }
