@@ -118,6 +118,26 @@ describe('explicit mapped CSV staging', () => {
     expect(state.mappingHeaders.value).toBeNull(); expect(state.errorKey.value).toBe(''); expect(requests).toEqual([])
   })
 
+  // A mapped-targets budget failure must not erase either kind of previously accepted draft.
+  it.each(['manual', 'structured'])('keeps the exact %s draft and makes no request when mapped targets exceed the full wire budget', async mode => {
+    const { state, requests } = mount()
+    if (mode === 'manual') state.draft.value = 'https://example.com/manual'; else await read(state, standard, 'standard')
+    const previous = { draft: state.draft.value, items: state.importedItems.value, mode: state.importedMode.value }
+    const targets = [...Array.from({ length: 19 }, (_, index) => 'https://example.com/' + '"'.repeat(1604) + index), 'https://example.com/end' + '"'.repeat(2013) + 'a']
+    const csv = 'address\n' + targets.map(value => '"' + value.replaceAll('"', '""') + '"').join('\n')
+    expect(new TextEncoder().encode(csv).byteLength).toBe(65477)
+    expect(new TextEncoder().encode(JSON.stringify({ requestId: '11111111-1111-4111-8111-111111111111', targetUrls: targets })).byteLength).toBe(65537)
+    await read(state, csv); state.mappingTarget.value = 0; state.applyMapping()
+    expect(state.errorKey.value).toBe('bulkCreate.csvMappingInvalid')
+    expect(state.draft.value).toBe(previous.draft); expect(state.importedItems.value).toBe(previous.items); expect(state.importedMode.value).toBe(previous.mode)
+    expect(state.mappingHeaders.value).toEqual(['address']); expect(state.snapshot.value).toBeNull(); expect(requests).toEqual([])
+    state.cancelMapping(); state.preview(); await state.submit()
+    const requestId = expect.any(String)
+    expect(requests.map(request => ({ path: request.path, body: JSON.parse(request.body) }))).toEqual(mode === 'manual'
+      ? [{ path: '/api/v1/short-link/batch-create', body: { requestId, targetUrls: ['https://example.com/manual'] } }]
+      : [{ path: '/api/v1/short-link/batch-create-with-titles', body: { requestId, items: [{ targetUrl: 'https://example.com/standard', title: 'Original title' }] } }])
+  })
+
   it('preserves the draft when chosen cells fail and resets choices for a new file', async () => {
     const { state } = mount(); state.draft.value = 'https://example.com/manual'
     await read(state, custom); state.mappingTarget.value = 0; state.applyMapping()

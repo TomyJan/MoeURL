@@ -34,7 +34,10 @@ export function parseBulkCreateMappedCsv(text: string, columns: ColumnSelection)
   const target = columns.target, title = columns.title
   if (title === null) {
     const parsed = bulkCreateTargetsSchema.safeParse(table.rows.map(row => row[target]!))
-    return parsed.success ? { success: true, mode: 'targets', data: parsed.data } : invalid
+    if (!parsed.success || new TextEncoder().encode(JSON.stringify({
+      requestId: '11111111-1111-4111-8111-111111111111', targetUrls: parsed.data,
+    })).byteLength > 65536) return invalid
+    return { success: true, mode: 'targets', data: parsed.data }
   }
   const parsed = bulkCreateTitlesInputSchema.safeParse({
     requestId: '11111111-1111-4111-8111-111111111111',

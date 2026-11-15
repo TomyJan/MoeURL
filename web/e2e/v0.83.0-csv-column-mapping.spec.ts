@@ -40,6 +40,17 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390,
     await expect(mapping).toBeVisible(); await expect(draft).toHaveCount(0)
     await expect(page.getByTestId('bulk-create-preview')).toBeDisabled()
     await activate(page.getByTestId('bulk-create-mapping-cancel')); await expect(draft).toHaveValue(manual)
+    // A small CSV can expand past the JSON limit; refuse it locally and keep the original draft.
+    const oversizedTargets = Array.from({ length: 20 }, (_, index) => 'https://example.com/' + '\\'.repeat(1700) + index)
+    const oversizedCsv = 'Address\n' + oversizedTargets.join('\n')
+    expect(Buffer.byteLength(oversizedCsv)).toBe(34457)
+    expect(Buffer.byteLength(JSON.stringify({ requestId: '11111111-1111-4111-8111-111111111111', targetUrls: oversizedTargets }))).toBe(68557)
+    await upload(page, oversizedCsv, 'mapped')
+    await choose(page, mapping.getByRole('combobox', { name: english ? 'URL column' : '网址列', exact: true }), column(1, 'Address', english))
+    await activate(page.getByTestId('bulk-create-mapping-apply'))
+    await expect(page.getByTestId('bulk-create-error-feedback')).toBeFocused(); await expect(mapping).toBeVisible()
+    await expect(page.getByTestId('bulk-create-preview')).toBeDisabled(); expect(writes).toStrictEqual([])
+    await activate(page.getByTestId('bulk-create-mapping-cancel')); await expect(draft).toHaveValue(manual)
     await upload(page, input, 'mapped'); await expect(mapping).toBeVisible()
     await expect(dialog).not.toContainText(privateValue); await expect(dialog.locator('img')).toHaveCount(0)
     await expect(mapping).toContainText(english ? 'Other columns are ignored.' : '其余列会被忽略。')
@@ -91,7 +102,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390,
     const saved = await links(page.request); expect(saved).toHaveLength(3)
     expect(saved.find(link => link.targetUrl === onlyTarget)).toMatchObject({ title: '', tags: [], redirectMode: 'direct' })
     expect(JSON.stringify(writes)).not.toContain(privateValue); expect(JSON.stringify(saved)).not.toContain(privateValue)
-    await attach(info, 'csv-mapping-persistence', { width, language, firstId, secondId, writes, saved, cancelledDraftPreserved: manual, ignoredColumnsNotSent: true, safeHeaderCodePoints: 60 })
+    await attach(info, 'csv-mapping-persistence', { width, language, firstId, secondId, writes, saved, cancelledDraftPreserved: manual, ignoredColumnsNotSent: true, safeHeaderCodePoints: 60, oversizedTargetsRejected: true, oversizedCsvBytes: 34457, oversizedWireBytes: 68557, draftPreservedAfterOversizedMapping: manual })
   })
 }
 

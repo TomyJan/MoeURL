@@ -117,6 +117,28 @@ describe('explicit CSV column mapping', () => {
     expect(parseBulkCreateMappedCsv(value + ' ', { target: 0, title: 1 })).toEqual({ success: false })
   })
 
+  // Omitting the targets JSON budget accepts this CSV but the server rejects the resulting write.
+  it('accepts exactly 65536 targets wire bytes and refuses the next byte before replacing a draft', () => {
+    const requestId = '11111111-1111-4111-8111-111111111111'
+    const targets = [...Array.from({ length: 19 }, (_, index) => 'https://example.com/' + '"'.repeat(1604) + index), 'https://example.com/end' + '"'.repeat(2013)]
+    const csv = (values: string[]) => 'address\n' + values.map(value => '"' + value.replaceAll('"', '""') + '"').join('\n')
+    const oversized = [...targets.slice(0, 19), targets[19]! + 'a']
+    expect(new TextEncoder().encode(JSON.stringify({ requestId, targetUrls: targets })).byteLength).toBe(65536)
+    expect(new TextEncoder().encode(JSON.stringify({ requestId, targetUrls: oversized })).byteLength).toBe(65537)
+    expect(new TextEncoder().encode(csv(targets)).byteLength).toBe(65476)
+    expect(new TextEncoder().encode(csv(oversized)).byteLength).toBe(65477)
+    expect(parseBulkCreateMappedCsv(csv(targets), { target: 0, title: null })).toEqual({ success: true, mode: 'targets', data: targets })
+    expect(parseBulkCreateMappedCsv(csv(oversized), { target: 0, title: null })).toEqual({ success: false })
+  })
+
+  it('rejects targets whose JSON escaping exceeds the wire cap although the CSV is small', () => {
+    const targets = Array.from({ length: 20 }, (_, index) => 'https://example.com/' + '\\'.repeat(1700) + index)
+    const value = 'address\n' + targets.join('\n')
+    expect(new TextEncoder().encode(value).byteLength).toBe(34457)
+    expect(new TextEncoder().encode(JSON.stringify({ requestId: '11111111-1111-4111-8111-111111111111', targetUrls: targets })).byteLength).toBe(68557)
+    expect(parseBulkCreateMappedCsv(value, { target: 0, title: null })).toEqual({ success: false })
+  })
+
   it('keeps strict legacy imports independent instead of silently mapping unknown columns', () => {
     expect(parseBulkCreateImportCsv(csv)).toEqual({ success: false })
     expect(parseBulkCreateImportCsvDetailed('unknown\n"unfinished')).toEqual({ success: false, issue: { kind: 'syntax', record: 2 } })
