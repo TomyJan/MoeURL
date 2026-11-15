@@ -1,10 +1,14 @@
 # 短链
 
-## v0.81.0 CSV 标准列顺序（本地与产品验证完成，真实审查交付待完成）
+## v0.82.0 CSV 结构错误定位（本地产品验证完成，审查交付待）
+
+本版在浏览器本地给出受限的表头、引号／换行和字段数量诊断，按逻辑记录计数，表头为第 1 条，引号内换行不另计；仅定位第 1–21 条。旧解析入口、八种成功格式、拒绝顺序、API／权限和整体拒绝规则保持。诊断不包含输入原值或异常，不新增网络或存储。真实 RED→GREEN、6569 项完整前端测试、四项 100%、types／lint／九份 E2E strict／隔离构建通过；准确组合产品的 smoke／所选扫描、中英三视口浏览器 7／7、18 张原图及可恢复资源清理完成，独立终审、真实 CodeRabbit 及正常交付仍待，见[设计](2026-11-15-v0.82.0-csv-structure-issues-design.md)及[验收](../implementation/v0.82.0-acceptance.md)。
+
+## v0.81.0 CSV 标准列顺序（已完整交付，未正式发布）
 
 八种既有 CSV 格式支持各自完整标准列集合的任意排列。标准序列为 `target_url,title,tags,custom_slug,redirect_mode,expires_at,max_visits,intermediate_delay_seconds`；只接受其前 1 至 8 列的完整集合，不能缺列、多列、重复、使用别名或任意子集。表头逐字匹配、区分大小写且不 trim，坏行宽整体拒绝。按原始位置一次取值，保留行序、字面内容和 tags 数组，仍使用原 schema／端点／权限及 CSV／完整 JSON 各 65536 字节、1–20 行限制。八份模板继续使用原规范顺序。
 
-真实 parser／File／hook／组件 RED→GREEN、6513 项完整前端测试与四项 100%、类型检查／lint、八份 E2E 严格类型检查及隔离构建通过。准确 clean 产品的 smoke／所选扫描、单轮 setup 加中英文桌面／手机 5/5、8 原图及可恢复清理已核；独立终审无新增阻断，CodeRabbit 与正常集成尚待。下方固定表头描述属于各版本原始协议历史，本版只放开位置，不扩展字段集合，见[设计](2026-11-15-v0.81.0-csv-column-order-design.md)与[验收](../implementation/v0.81.0-acceptance.md)。
+真实 parser／File／hook／组件 RED→GREEN、6513 项完整前端测试与四项 100%、类型检查／lint、八份 E2E 严格类型检查及隔离构建通过。准确 clean 产品的 smoke／所选扫描、单轮 setup 加中英文桌面／手机 5/5、8 原图及可恢复清理已核。PR363 最终候选真实 CodeRabbit reviewed／source／covered、有效 open 0，正常合并及独立核验、全部裁决和可恢复归档已完成。下方固定表头描述属于各版本原始协议历史，本版只放开位置，不扩展字段集合，见[设计](2026-11-15-v0.81.0-csv-column-order-design.md)与[验收](../implementation/v0.81.0-acceptance.md)。
 
 ## v0.77.0 八列 CSV 中间页倒计时（已正常集成，尚未正式发布）
 
