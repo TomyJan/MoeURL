@@ -23,6 +23,9 @@ async function geometry(locator: Locator) {
     const intersection = { left: Math.max(0, rect.left), top: Math.max(0, rect.top), right: Math.min(innerWidth, rect.right), bottom: Math.min(innerHeight, rect.bottom) }
     const clips = []
     for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+      // Root overflow applies to the viewport, already intersected above. Scroll locking
+      // offsets the root box but does not move the fixed overlay's visible viewport.
+      if (parent === document.documentElement) continue
       const style = getComputedStyle(parent), box = parent.getBoundingClientRect()
       const clipX = /auto|scroll|hidden|clip/.test(style.overflowX), clipY = /auto|scroll|hidden|clip/.test(style.overflowY)
       if (!clipX && !clipY) continue
