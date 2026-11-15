@@ -26,13 +26,14 @@ type BatchCreateWithMetadataInput struct {
 
 // batchCreateItem is an internal transaction input, preserving each public DTO and digest.
 type batchCreateItem struct {
-	TargetURL    string
-	Title        string
-	Tags         []string
-	CustomSlug   string
-	RedirectMode string
-	ExpiresAt    pgtype.Timestamptz
-	MaxVisits    pgtype.Int8
+	TargetURL                string
+	Title                    string
+	Tags                     []string
+	CustomSlug               string
+	RedirectMode             string
+	ExpiresAt                pgtype.Timestamptz
+	MaxVisits                pgtype.Int8
+	IntermediateDelaySeconds int16
 }
 
 // batchCreateOptions selects independent protocol requirements without changing legacy wire inputs.
@@ -42,6 +43,7 @@ type batchCreateOptions struct {
 	RedirectModes bool
 	Expirations   bool
 	VisitLimits   bool
+	Countdowns    bool
 }
 
 // BatchCreateWithMetadata checks current metadata grants even when replaying an existing receipt.

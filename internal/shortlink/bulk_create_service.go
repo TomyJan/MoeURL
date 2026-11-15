@@ -193,6 +193,10 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 		}
 		for i, item := range items {
 			created := false
+			delay := int16(5)
+			if options.Countdowns {
+				delay = item.IntermediateDelaySeconds
+			}
 			attempts := maxSlugAttempts
 			if item.CustomSlug != "" {
 				attempts = 1
@@ -213,6 +217,7 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 					ID: uuidToPgtype(uuid.New()), OwnerID: uuidToPgtype(actorID), DomainID: selected.ID,
 					Slug: slug, TargetUrl: item.TargetURL, Title: titles[i], Tags: tags[i], RedirectMode: modes[i],
 					ExpiresAt: item.ExpiresAt, MaxVisits: item.MaxVisits,
+					IntermediateDelaySeconds: delay,
 				})
 				if errors.Is(err, pgx.ErrNoRows) {
 					continue

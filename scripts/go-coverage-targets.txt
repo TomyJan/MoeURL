@@ -165,6 +165,8 @@ github.com/TomyJan/MoeURL/internal/shortlink/bulk_create_expiration_service.go
 github.com/TomyJan/MoeURL/internal/shortlink/bulk_create_expiration_handler.go
 github.com/TomyJan/MoeURL/internal/shortlink/bulk_create_visit_limit_service.go
 github.com/TomyJan/MoeURL/internal/shortlink/bulk_create_visit_limit_handler.go
+github.com/TomyJan/MoeURL/internal/shortlink/bulk_create_countdown_service.go
+github.com/TomyJan/MoeURL/internal/shortlink/bulk_create_countdown_handler.go
 github.com/TomyJan/MoeURL/internal/targetpolicy/allowlist_model.go
 github.com/TomyJan/MoeURL/internal/targetpolicy/allowlist_json.go
 github.com/TomyJan/MoeURL/internal/targetpolicy/allowlist_service.go
