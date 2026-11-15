@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { once } from 'node:events'
-import { mkdtemp, open, rm } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, open, rm } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -9,11 +9,23 @@ import { runCsvIssueScenario } from '../web/e2e/csv-issues-fixture.ts'
 
 // The real lifecycle must change server-side ownership state and release a real handle.
 // Only the external browser boundary and HTTP failures are controlled here; no source-text checks.
-async function fixture(t, options = {}) {
-  const directory = await mkdtemp(join(tmpdir(), 'moeurl-csv-fixture-'))
-  const handle = await open(join(directory, 'browser-context'), 'wx+')
+async function fixture(t, options = {}, makeDirectory = () => mkdtemp(join(tmpdir(), 'moeurl-csv-fixture-'))) {
+  const directory = await makeDirectory()
+  let handle, server
+  // Own the directory before opening the handle or starting the server can fail.
+  t.after(async () => {
+    try {
+      if (server) {
+        server.closeAllConnections()
+        if (server.listening) await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
+      }
+    } finally {
+      try { await handle?.close() } finally { await rm(directory, { recursive: true, force: true }) }
+    }
+  })
+  handle = await open(join(directory, 'browser-context'), 'wx+')
   const state = { users: [], links: [], operations: [] }
-  const server = createServer(async (request, response) => {
+  server = createServer(async (request, response) => {
     try {
       const path = new URL(request.url, 'http://127.0.0.1').pathname
       const chunks = []
@@ -48,13 +60,6 @@ async function fixture(t, options = {}) {
       throw new Error('Unexpected fixture endpoint: ' + path)
     } catch (error) { response.writeHead(500); response.end(String(error)) }
   })
-  // Register cleanup before listen, so even a startup failure releases the exact owned resources.
-  t.after(async () => {
-    server.closeAllConnections()
-    if (server.listening) await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
-    await handle.close()
-    await rm(directory, { recursive: true, force: true })
-  })
   server.listen(0, '127.0.0.1'); await once(server, 'listening')
   const baseURL = 'http://127.0.0.1:' + server.address().port
   const request = async (path, data) => {
@@ -82,6 +87,22 @@ async function fixture(t, options = {}) {
   return { run, read, addLinks, closed, page, touchPages }
 }
 
+test('releases its directory when context handle initialization fails', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'moeurl-csv-fixture-open-failure-'))
+  const cleanups = []
+  try {
+    await mkdir(join(directory, 'browser-context'))
+    await assert.rejects(fixture({ after: cleanup => cleanups.push(cleanup) }, {}, async () => directory), { code: 'EEXIST' })
+    for (const cleanup of cleanups) await cleanup()
+    const directoryExists = await access(directory).then(() => true, error => {
+      assert.equal(error.code, 'ENOENT'); return false
+    })
+    assert.equal(directoryExists, false)
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
 test('disables the created account when browser context initialization fails', async t => {
   const original = new Error('browser context initialization rejected')
   const f = await fixture(t, { contextFailure: original })
@@ -97,7 +118,8 @@ test('retains initialization and disable failures', async t => {
   const f = await fixture(t, { contextFailure: original, disableFailure: true })
   await assert.rejects(f.run(async () => assert.fail('scenario must not run')), error => {
     assert.ok(error instanceof AggregateError); assert.equal(error.errors.length, 2)
-    assert.equal(error.errors[0], original); assert.ok(error.errors[1] instanceof Error); return true
+    assert.equal(error.errors[0], original); assert.ok(error.errors[1] instanceof assert.AssertionError)
+    assert.equal(error.errors[1].actual, 7004); assert.equal(error.errors[1].expected, 0); return true
   })
   assert.equal((await f.read()).users[0].status, 'active')
 })
@@ -107,8 +129,11 @@ test('continues every cleanup after body and deletion failures', async t => {
   const f = await fixture(t, { deleteFailure: true, disableFailure: true, closeFailure: closing })
   await assert.rejects(f.run(async () => { await f.addLinks(); throw original }), error => {
     assert.ok(error instanceof AggregateError); assert.equal(error.errors.length, 4)
-    assert.equal(error.errors[0], original); assert.ok(error.errors[1] instanceof Error)
-    assert.ok(error.errors[2] instanceof Error); assert.equal(error.errors[3], closing); return true
+    assert.equal(error.errors[0], original); assert.ok(error.errors[1] instanceof assert.AssertionError)
+    assert.equal(error.errors[1].actual, 7003); assert.equal(error.errors[1].expected, 0)
+    assert.ok(error.errors[2] instanceof assert.AssertionError)
+    assert.equal(error.errors[2].actual, 7004); assert.equal(error.errors[2].expected, 0)
+    assert.equal(error.errors[3], closing); return true
   })
   const state = await f.read()
   assert.deepEqual(state.links, [{ id: 'owned-first' }])
@@ -121,7 +146,8 @@ test('still disables and closes after list failure', async t => {
   const original = new Error('scenario failed'), f = await fixture(t, { listFailure: true })
   await assert.rejects(f.run(async () => { throw original }), error => {
     assert.ok(error instanceof AggregateError); assert.equal(error.errors.length, 2)
-    assert.equal(error.errors[0], original); assert.ok(error.errors[1] instanceof Error); return true
+    assert.equal(error.errors[0], original); assert.ok(error.errors[1] instanceof assert.AssertionError)
+    assert.equal(error.errors[1].actual, 7002); assert.equal(error.errors[1].expected, 0); return true
   })
   assert.equal((await f.read()).users[0].status, 'disabled'); await f.closed()
 })
