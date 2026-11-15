@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseBulkCreateCsv, parseBulkCreateImportCsv, parseBulkCreateImportCsvDetailed as detailed } from './bulk-create-csv'
+import { scanBulkCreateCsv } from './bulk-create-csv-scan'
 
 describe('bounded CSV structure diagnostics', () => {
   it.each([
@@ -53,15 +54,18 @@ describe('bounded CSV structure diagnostics', () => {
     expect(detailed('unknown\n"' + 'x'.repeat(65536))).toStrictEqual({ success: false })
   })
 
-  it('preserves the exact65536-byte boundary and one-column legacy success', () => {
+  it('preserves the exact65536-byte file boundary while refusing an oversized complete request', () => {
     const urls = Array.from({ length: 20 }, (_, i) => {
       const prefix = `https://example.com/${i}/`, quotes = i === 0 ? 1231 : 1225
       return prefix + '"'.repeat(quotes) + 'x'.repeat(2048 - prefix.length - quotes)
     })
     const csv = 'target_url\n' + urls.map(url => '"' + url.replaceAll('"', '""') + '"').join('\n')
     expect(new TextEncoder().encode(csv)).toHaveLength(65536)
-    expect(detailed(csv)).toStrictEqual({ success: true, mode: 'targets', data: urls })
-    expect(parseBulkCreateCsv(csv)).toStrictEqual({ success: true, data: urls })
+    expect(scanBulkCreateCsv(csv)).toStrictEqual({ success: true, records: [['target_url'], ...urls.map(url => [url])] })
+    expect(new TextEncoder().encode(JSON.stringify({ requestId: '11111111-1111-4111-8111-111111111111', targetUrls: urls }))).toHaveLength(65593)
+    expect(detailed(csv)).toStrictEqual({ success: false })
+    expect(parseBulkCreateCsv(csv)).toStrictEqual({ success: false })
+    expect(scanBulkCreateCsv(csv + '\n')).toStrictEqual({ success: false })
     expect(detailed(csv + '\n')).toStrictEqual({ success: false })
   })
 
