@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseBulkCreateCsv } from './bulk-create-csv'
+import { scanBulkCreateCsv } from './bulk-create-csv-scan'
 
 describe('strict one-column target CSV', () => {
   // A lossy split or URL reserialization changes these exact preview targets.
@@ -32,7 +33,7 @@ describe('strict one-column target CSV', () => {
     const url = 'https://example.com/' + 'x'.repeat(2030)
     expect(parseBulkCreateCsv('target_url\n' + url)).toEqual({ success: false })
   })
-  it('accepts the exact byte budget but rejects one extra byte without partial results', () => {
+  it('keeps the scanner file limit distinct from the complete request budget without partial results', () => {
     const urls = Array.from({ length: 20 }, (_, i) => {
       const prefix = `https://example.com/${i}/`, quotes = i === 0 ? 1231 : 1225
       return prefix + '"'.repeat(quotes) + 'x'.repeat(2048 - prefix.length - quotes)
@@ -40,7 +41,10 @@ describe('strict one-column target CSV', () => {
     // 11 header + 40960 target bytes + 24506 escaped quotes + 40 wrappers + 19 separators.
     const csv = 'target_url\n' + urls.map(url => '"' + url.replaceAll('"', '""') + '"').join('\n')
     expect(new TextEncoder().encode(csv)).toHaveLength(65536)
-    expect(parseBulkCreateCsv(csv)).toEqual({ success: true, data: urls })
+    expect(new TextEncoder().encode(JSON.stringify({ requestId: '11111111-1111-4111-8111-111111111111', targetUrls: urls }))).toHaveLength(65593)
+    expect(scanBulkCreateCsv(csv)).toEqual({ success: true, records: [['target_url'], ...urls.map(url => [url])] })
+    expect(parseBulkCreateCsv(csv)).toEqual({ success: false })
+    expect(scanBulkCreateCsv(csv + '\n')).toEqual({ success: false })
     expect(parseBulkCreateCsv(csv + '\n')).toEqual({ success: false })
   })
   it('does not misrepresent the existing seventeen-column export as a restorable batch', () => {

@@ -6,6 +6,7 @@ import { shortLinkMetadataSchema } from '@/shared/validation/shortLinkMetadata'
 const requestId = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/).refine(value => value !== '00000000-0000-0000-0000-000000000000')
 const target = z.string().min(1).max(2048).regex(/^[!-~]+$/).refine(value => targetUrlSchema.safeParse(value).success)
 export const bulkCreateTargetsSchema = z.array(target).min(1).max(20).refine(values => new Set(values).size === values.length)
+  .refine(values => new TextEncoder().encode(JSON.stringify({ requestId: '11111111-1111-4111-8111-111111111111', targetUrls: values })).byteLength <= 65536)
 const inputSchema = z.strictObject({ requestId, targetUrls: bulkCreateTargetsSchema })
 const resultSchema = z.strictObject({ requestId, createdCount: z.number().int().min(1).max(20) })
 export type BulkCreateInput = Readonly<{ requestId: string; targetUrls: readonly string[] }>
