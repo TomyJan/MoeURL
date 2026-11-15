@@ -2,6 +2,8 @@
 
 PR363 已完整交付：最终 `a88aa3ea9a7e869b3b7ea2bce8acdd525019c9e0` 获 CodeRabbit `132798843579` 真实 reviewed／source／covered，完整 2 条评论／有效 open 0；正常 squash master `603cda0d523393d07afd4875b9a9350398aab138`、tree `32ec620ee9c3d732158ac4aa9aac83a1c55f9dba`、唯一父 `d03cbdcfa4845f92c3e314fca4ac8e9aa47e9ab3` 已由独立 API／唯一 fetch 核验。三个标准任务完成，10 份工作记录全 ZIP／解压逐 hash 后可恢复迁出，原套件与产品执行身份保持。完整 17 条裁决及两组延期 Minor 见 `.tmp/v0810-evidence/v0810-owned-live-recovery/final-report.md`；ZIP 76019 字节、SHA256 `ABB7857B7D8C81915467C58862CA2F25FC3E3D58525252D70A95658018C6F511`。产品为 0.81.0，不查 CI、不发布部署。
 
+归档本机位置（相对维护工作区）为 `.tmp/v0810-evidence/v0810-owned-final.zip`，包含 `final-report.md`（84820 字节，SHA256 `37449CD21C2C92FBDAE6F670CF0C54DD10E2404B133CBC072C694ED7A996C3EA`）。它是被忽略的本机恢复包，不是 Git 文件或公共下载；新检出如需报告，应向持包维护者取得并核对上述 hash。
+
 下方保留原交付前检查点及执行记录，阶段以本段为准。
 
 基线是 PR362 已独立核验的 master `d03cbdcfa4845f92c3e314fca4ac8e9aa47e9ab3`，分支 `feat/v0.81.0-csv-column-order`。Agent 按持续自主授权选择此增量，当前已实现并通过本地 6513 项测试、四项 100%、类型检查／lint、八份 E2E 严格类型检查及隔离构建。准确本地产品 0.81.0 的 smoke／所选扫描、单轮 5/5 双语桌面手机浏览器、8 原图和可恢复资源清理完成；独立终审无新增阻断，CodeRabbit 与正常交付尚待，已交付产品仍为 0.80.1。
