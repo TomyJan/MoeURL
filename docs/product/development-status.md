@@ -1,6 +1,10 @@
 # 开发进度与能力清单
 
-## 当前开发（2026-11-15，v0.80.1）
+## 当前开发（2026-11-15，v0.80.2）
+
+PR361／v0.80.1已完整交付，master975cb171；最终6bb11ff真实CodeRabbit132765335521覆盖，完整讨论有效open0，正常合并核验及工作记录可恢复归档完成。本版测试维护已通过清理RED→GREEN／Node29项、六组strict、真实wheel负对照与正常7项；24原图／36位置及资源精确清理已核。产品保持0.80.1，标准任务收口与审查交付继续，准确阶段见[本版验收](../implementation/v0.80.2-acceptance.md)。不查CI、不发布部署，不重成功套件或重新编译产品。
+
+## v0.80.1 交付前检查点（历史）
 
 PR360／v0.80.0 已完整交付：6488 项本地测试／四项100%、准确修复产品9项浏览器通过，最终候选03a0b883自身CodeRabbit132747889571 reviewed/source/covered、有效open0；正常squash master533a3ce2，独立API／一次fetch核同tree和唯一父，三个标准任务、28条裁决／两组文档Minor及10份工作记录已可恢复归档。准确执行来源与视觉限制见[v0.80.0验收](../implementation/v0.80.0-acceptance.md)。
 
@@ -394,7 +398,10 @@ v0.26.0 个人偏好已由 PR #224 合并，v0.27.0 域名排序已由 PR #225 �
 
 ## 验证进展与缺口
 
-当前实施与验收入口为 [v0.77.0](../implementation/v0.77.0-acceptance.md)，最近维护交付为 [v0.76.1](../implementation/v0.76.1-acceptance.md)，已交付产品为 [v0.76.0](../implementation/v0.76.0-acceptance.md)。[v0.75.3](../implementation/v0.75.3-acceptance.md)及下表为历史证据索引，不表示旧版本是最新验收。
+实时实施、验收和已交付产品统一见[本页顶部](#开发进度与能力清单)。本节保留历史入口及证据索引，不把旧版本称为当前验收。
+
+> 历史入口（v0.77 实施阶段，原文保留）：
+> 当前实施与验收入口为 [v0.77.0](../implementation/v0.77.0-acceptance.md)，最近维护交付为 [v0.76.1](../implementation/v0.76.1-acceptance.md)，已交付产品为 [v0.76.0](../implementation/v0.76.0-acceptance.md)。[v0.75.3](../implementation/v0.75.3-acceptance.md)及下表为历史证据索引，不表示旧版本是最新验收。
 
 以下汇总各版本已有记录；v0.20.0 行单独记录本次实现工作树的新验证，不将历史提交的门禁改写为当前结果。
 
