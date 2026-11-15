@@ -1,5 +1,7 @@
 # v0.80.2 访问配置回归测试维护
 
+交付状态：PR362 已正常合并为 `d03cbdcfa4845f92c3e314fca4ac8e9aa47e9ab3`；最终候选 `1ed4a46ff54310d94be56b5916fdc69450f046e7` 获真实 CodeRabbit 覆盖，全部有效问题已处置、open 0。两项标准任务及可恢复归档完成，产品保持 0.80.1。准确结果见[验收](../implementation/v0.80.2-acceptance.md)。
+
 Agent 在持续自主授权下选择此有界维护，基线为 PR361 已交付 master `975cb171eff2b5efd7bd514b6036bc486c784d07`。接续一项独立 Minor 和四组 CodeRabbit Minor；只改测试和文档，产品版本保持 0.80.1，不把测试增强冒作新产品行为。
 
 ## 必须完成
