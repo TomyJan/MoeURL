@@ -72,7 +72,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
     expect(template).not.toContain('private.example')
     await expect(draft).toHaveValue('https://private.example/not-in-template')
     expect(writes).toEqual([])
-    await dialog.locator('input[type=file]').setInputFiles({ name: 'modes.csv', mimeType: 'text/csv', buffer: Buffer.from(csv(items)) })
+    await dialog.getByTestId('bulk-create-standard-file').setInputFiles({ name: 'modes.csv', mimeType: 'text/csv', buffer: Buffer.from(csv(items)) })
     await expect(page.getByTestId('bulk-create-imported-list').locator('li')).toHaveCount(4)
     await expect(page.getByTestId('bulk-create-imported-list')).toContainText('<b>literal</b>')
     await expect(dialog.locator('b')).toHaveCount(0)
@@ -135,7 +135,7 @@ for (const language of ['zh-CN', 'en'] as const) {
     const modes = ['direct', 'intermediate', 'confirmation', ''] as const
     const items: Item[] = Array.from({ length: 20 }, (_, index) => ({ targetUrl: 'https://example.com/twenty75/' + nonce + '/' + index, title: '工具 <literal> ' + index, tags: ['a,b', '工具'], customSlug: index % 2 ? '' : 'Row' + index + nonce, redirectMode: modes[index % 4]!, expiresAt: index % 2 ? '' : '2030-01-01T00:00:00Z' }))
     await page.goto('/link'); await activate(page.getByTestId('bulk-create-open'))
-    await page.getByRole('dialog').locator('input[type=file]').setInputFiles({ name: 'twenty.csv', mimeType: 'text/csv', buffer: Buffer.from(csv(items)) })
+    await page.getByRole('dialog').getByTestId('bulk-create-standard-file').setInputFiles({ name: 'twenty.csv', mimeType: 'text/csv', buffer: Buffer.from(csv(items)) })
     await expect(page.getByTestId('bulk-create-imported-list').locator('li')).toHaveCount(20)
     await activate(page.getByTestId('bulk-create-preview'))
     await expect(page.getByTestId('bulk-create-preview-list').locator('li')).toHaveCount(20)
@@ -165,13 +165,13 @@ for (const removed of ['short_link:custom_slug', 'short_link:use_intermediate', 
       await page.goto('/link'); await activate(page.getByTestId('bulk-create-open'))
       const dialog = page.getByRole('dialog'), draft = dialog.getByRole('textbox')
       await draft.fill(target)
-      await dialog.locator('input[type=file]').setInputFiles({ name: 'denied.csv', mimeType: 'text/csv', buffer: Buffer.from(csv([item])) })
+      await dialog.getByTestId('bulk-create-standard-file').setInputFiles({ name: 'denied.csv', mimeType: 'text/csv', buffer: Buffer.from(csv([item])) })
       await expect(page.getByTestId('bulk-create-error')).toContainText(/permission/i)
       await expect(draft).toHaveValue(target); expect(writes).toEqual([])
       const denied = await page.request.post(endpoint, { data: { requestId: randomUUID(), items: [item] } })
       expect(await denied.json()).toMatchObject({ code: 120001 }); expect(await links(page.request)).toEqual([])
       await capture(info, 'mode-current-authority-' + removed.replaceAll(':', '-'), page)
-      await dialog.locator('input[type=file]').setInputFiles({ name: 'legacy.csv', mimeType: 'text/csv', buffer: Buffer.from('target_url,title,tags\n' + target + ',,[]') })
+      await dialog.getByTestId('bulk-create-standard-file').setInputFiles({ name: 'legacy.csv', mimeType: 'text/csv', buffer: Buffer.from('target_url,title,tags\n' + target + ',,[]') })
       await expect(page.getByTestId('bulk-create-imported-list').locator('li')).toHaveCount(1)
       await activate(page.getByTestId('bulk-create-preview')); await activate(page.getByTestId('bulk-create-submit'))
       await expect(dialog).toBeHidden(); expect(await links(page.request)).toEqual([expect.objectContaining({ targetUrl: target, redirectMode: 'direct' })])
@@ -188,7 +188,7 @@ test('v0.75.0 en 390px user grants retire an unknown expiration batch after serv
     await post(manager, '/admin/user-group/update-permissions', { groupKey: 'user', expectedUpdatedAt: original.updatedAt, permissions: [...new Set([...original.permissions, ...required])] })
     const item: Item = { targetUrl: 'https://example.com/revoked75/' + randomBytes(7).toString('hex'), title: '', tags: [], customSlug: '', redirectMode: 'intermediate', expiresAt: '2030-01-01T00:00:00Z' }
     await page.goto('/link'); await activate(page.getByTestId('bulk-create-open'))
-    await page.getByRole('dialog').locator('input[type=file]').setInputFiles({ name: 'unknown.csv', mimeType: 'text/csv', buffer: Buffer.from(csv([item])) })
+    await page.getByRole('dialog').getByTestId('bulk-create-standard-file').setInputFiles({ name: 'unknown.csv', mimeType: 'text/csv', buffer: Buffer.from(csv([item])) })
     await activate(page.getByTestId('bulk-create-preview'))
     const oldId = await page.getByTestId('bulk-create-request-id').innerText(), writes: unknown[] = []
     page.on('request', request => { if (new URL(request.url()).pathname === endpoint) writes.push(request.postDataJSON()) })
@@ -227,7 +227,7 @@ for (const outcome of ['success', 'error', 'unknown'] as const) {
     await page.evaluate(value => { (window as Window & { expirationIdentity75?: string }).expirationIdentity75 = value }, marker)
     const item: Item = { targetUrl: 'https://example.com/late75/' + nonce, title: '', tags: [], customSlug: '', redirectMode: 'confirmation', expiresAt: '2030-01-01T00:00:00Z' }
     await activate(page.getByTestId('bulk-create-open'))
-    await page.getByRole('dialog').locator('input[type=file]').setInputFiles({ name: 'old.csv', mimeType: 'text/csv', buffer: Buffer.from(csv([item])) })
+    await page.getByRole('dialog').getByTestId('bulk-create-standard-file').setInputFiles({ name: 'old.csv', mimeType: 'text/csv', buffer: Buffer.from(csv([item])) })
     await activate(page.getByTestId('bulk-create-preview'))
     const oldId = await page.getByTestId('bulk-create-request-id').innerText()
     let release!: () => void, processed!: () => void, held: Request | undefined, terminal: 'finished' | 'failed' | undefined, captured = false, routeError: unknown
@@ -310,7 +310,7 @@ test('v0.75.0 en 390px replays an expired receipt, rejects a new expired batch a
   expect(Number.isFinite(serverTime)).toBe(true)
   const expiresAt = new Date(serverTime + 30_000).toISOString().replace('.000Z', 'Z')
   const item: Item = { targetUrl: 'https://example.com/deadline75/' + nonce, title: '', tags: [], customSlug: '', redirectMode: 'direct', expiresAt }
-  await dialog.locator('input[type=file]').setInputFiles({ name: 'deadline.csv', mimeType: 'text/csv', buffer: Buffer.from(csv([item])) })
+  await dialog.getByTestId('bulk-create-standard-file').setInputFiles({ name: 'deadline.csv', mimeType: 'text/csv', buffer: Buffer.from(csv([item])) })
   await activate(page.getByTestId('bulk-create-preview'))
   const requestId = await page.getByTestId('bulk-create-request-id').innerText(), writes: unknown[] = []
   page.on('request', request => { if (new URL(request.url()).pathname === endpoint) writes.push(request.postDataJSON()) })
@@ -339,7 +339,7 @@ test('v0.75.0 en 390px replays an expired receipt, rejects a new expired batch a
 
   const newItem = { ...item, targetUrl: 'https://example.com/correction75/' + nonce }
   await activate(page.getByTestId('bulk-create-open'))
-  await dialog.locator('input[type=file]').setInputFiles({ name: 'expired.csv', mimeType: 'text/csv', buffer: Buffer.from(csv([newItem])) })
+  await dialog.getByTestId('bulk-create-standard-file').setInputFiles({ name: 'expired.csv', mimeType: 'text/csv', buffer: Buffer.from(csv([newItem])) })
   await activate(page.getByTestId('bulk-create-preview'))
   const rejectedId = await page.getByTestId('bulk-create-request-id').innerText(); expect(rejectedId).not.toBe(requestId)
   const rejection = page.waitForResponse(response => new URL(response.url()).pathname === endpoint)
@@ -351,7 +351,7 @@ test('v0.75.0 en 390px replays an expired receipt, rejects a new expired batch a
   await capture(info, 'expiration-explicit-denial', page)
   await activate(page.getByTestId('bulk-create-edit'))
   const corrected = { ...newItem, expiresAt: '2030-01-01T00:00:00Z' }
-  await dialog.locator('input[type=file]').setInputFiles({ name: 'corrected.csv', mimeType: 'text/csv', buffer: Buffer.from(csv([corrected])) })
+  await dialog.getByTestId('bulk-create-standard-file').setInputFiles({ name: 'corrected.csv', mimeType: 'text/csv', buffer: Buffer.from(csv([corrected])) })
   await activate(page.getByTestId('bulk-create-preview'))
   const correctedId = await page.getByTestId('bulk-create-request-id').innerText(); expect(correctedId).not.toBe(rejectedId)
   const creation = page.waitForResponse(response => new URL(response.url()).pathname === endpoint)
@@ -376,7 +376,7 @@ test('v0.75.0 en 390px user grants retire timed drafts and preserve empty-time a
       await activate(page.getByTestId('bulk-create-open'))
       const dialog = page.getByRole('dialog'), targetUrl = 'https://example.com/authority75/' + kind + '/' + randomBytes(7).toString('hex')
       const item: Item = { targetUrl, title: '', tags: [], customSlug: '', redirectMode: 'direct', expiresAt: kind.startsWith('empty') ? '' : '2030-01-01T00:00:00Z' }
-      await dialog.locator('input[type=file]').setInputFiles({ name: kind + '.csv', mimeType: 'text/csv', buffer: Buffer.from(csv([item])) })
+      await dialog.getByTestId('bulk-create-standard-file').setInputFiles({ name: kind + '.csv', mimeType: 'text/csv', buffer: Buffer.from(csv([item])) })
       await expect(page.getByTestId('bulk-create-imported-list').locator('li')).toHaveCount(1)
       if (kind.endsWith('snapshot') || kind === 'replacement') await activate(page.getByTestId('bulk-create-preview'))
       if (kind === 'replacement') {

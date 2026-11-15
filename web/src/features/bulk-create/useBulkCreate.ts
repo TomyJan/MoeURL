@@ -6,7 +6,8 @@ import { me, type UserResponse } from '@/entities/auth/api'
 import { batchCreateShortLinks, batchCreateShortLinksWithTitles, batchCreateShortLinksWithMetadata, batchCreateShortLinksWithCustomSlugs, batchCreateShortLinksWithRedirectModes, type BulkCreateRedirectModeItem, type BulkCreateRedirectModesInput, BulkCreateUnknownError, parseBulkCreateLines, type BulkCreateInput, type BulkCreateTitlesInput, type BulkCreateMetadataInput, type BulkCreateCustomSlugsInput, type BulkCreateCustomSlugItem, type BulkCreateItem, type BulkCreateMetadataItem } from '@/entities/short-link/bulk-create'
 import { ApiClientError } from '@/shared/api/client'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
-import { BULK_CSV_MAX_BYTES, parseBulkCreateImportCsvDetailed, type BulkCreateCsvIssue } from '@/entities/short-link/bulk-create-csv'
+import { BULK_CSV_MAX_BYTES, parseBulkCreateImportCsvDetailed, type BulkCreateCsvIssue, type DetailedImportResult } from '@/entities/short-link/bulk-create-csv'
+import { inspectBulkCreateCsvMapping, parseBulkCreateMappedCsv } from '@/entities/short-link/bulk-create-csv-mapping'
 import { batchCreateShortLinksWithExpirations, type BulkCreateExpirationItem, type BulkCreateExpirationsInput } from '@/entities/short-link/bulk-create'
 import { batchCreateShortLinksWithCountdowns, type BulkCreateCountdownItem, type BulkCreateCountdownsInput } from '@/entities/short-link/bulk-create'
 import { batchCreateShortLinksWithVisitLimits, type BulkCreateVisitLimitItem, type BulkCreateVisitLimitsInput } from '@/entities/short-link/bulk-create'
@@ -27,10 +28,13 @@ export function useBulkCreate() {
   const previewItems = computed<readonly StructuredItem[]>(() => !snapshot.value ? [] : 'items' in snapshot.value ? snapshot.value.items : snapshot.value.targetUrls.map(targetUrl => ({ targetUrl, title: '' })))
   const reading = ref(false)
   const fileIssue = shallowRef<BulkCreateCsvIssue | null>(null)
-  const csvIssue = computed(() => errorKey.value === 'bulkCreate.csvInvalid' ? fileIssue.value : null)
+  const csvIssue = computed(() => ['bulkCreate.csvInvalid', 'bulkCreate.csvMappingFileInvalid'].includes(errorKey.value) ? fileIssue.value : null)
+  const mappingSource = shallowRef<{ text: string; headers: readonly string[]; titleEpoch: number } | null>(null)
+  const mappingHeaders = computed(() => mappingSource.value?.headers ?? null)
+  const mappingTarget = ref<number | null>(null), mappingTitle = ref<number | null>(null)
   let generation = 0, alive = true, scope = identity.scope.value
   let fileSequence = 0, draftRevision = 0, metadataEpoch = 0, customSlugEpoch = 0, intermediateEpoch = 0, confirmationEpoch = 0, expirationEpoch = 0, visitLimitEpoch = 0
-  watch(draft, () => { draftRevision++; fileSequence++; reading.value = false }, { flush: 'sync' })
+  watch(draft, () => { draftRevision++; fileSequence++; reading.value = false; clearMapping() }, { flush: 'sync' })
   const mutation = useMutation({
     mutationFn: (attempt: { input: Snapshot; mode: Protocol; token: number; candidate: typeof scope }) => {
       if (!isCurrent(attempt.token, attempt.candidate)) throw new Error('Batch context retired')
@@ -74,6 +78,7 @@ export function useBulkCreate() {
   const allowed = computed(() => auth.isSuccess.value && !!auth.data.value?.user && auth.data.value.user.group !== 'guest'
     && auth.data.value.user.username !== 'guest' && !!auth.data.value.user.id
     && auth.data.value.user.permissions.includes('short_link:create') && auth.data.value.user.permissions.includes('domain:use_default'))
+  const mappingTitleAllowed = computed(() => allowed.value && !!auth.data.value?.user.permissions.includes('short_link:set_metadata'))
   function canTitleNow() { return canUseNow() && !!client.getQueryData<UserResponse>(['auth', 'me'])?.user.permissions.includes('short_link:set_metadata') }
   function canCustomSlugNow() { return canTitleNow() && !!client.getQueryData<UserResponse>(['auth', 'me'])?.user.permissions.includes('short_link:custom_slug') }
   /** Examines actual row intent so unrelated mode grants cannot retire a direct-only batch. */
@@ -94,13 +99,14 @@ export function useBulkCreate() {
     generation++; opened.value = false; draft.value = ''; importedItems.value = null; snapshot.value = null; pending.value = false
     importedMode.value = 'targets'; snapshotMode.value = 'targets'
     unknown.value = false; closing.value = false; errorKey.value = ''; fileIssue.value = null; fileSequence++; reading.value = false
+    clearMapping()
   }
   const unsubscribe = client.getQueryCache().subscribe(event => {
     if (event.query.queryKey[0] !== 'auth' || event.query.queryKey[1] !== 'me') return
     if (!identity.isCurrent(scope) || !canUseNow()) reset()
     if (!canTitleNow()) {
       metadataEpoch++
-      if (importedItems.value || (snapshot.value && 'items' in snapshot.value)) reset()
+      if (importedItems.value || (snapshot.value && 'items' in snapshot.value) || (mappingSource.value && mappingTitle.value !== null)) reset()
     }
     if (!canCustomSlugNow()) {
       customSlugEpoch++
@@ -131,7 +137,7 @@ export function useBulkCreate() {
   }
   /** Freezes one ordered payload before generating its unique request identifier. */
   function preview() {
-    if (!opened.value || pending.value || unknown.value || reading.value || !canUseNow()) return
+    if (!opened.value || pending.value || unknown.value || reading.value || mappingSource.value || !canUseNow()) return
     if (importedItems.value) {
       if (!canTitleNow()) { reset(); return }
       if (importedMode.value === 'custom-slugs' && !canCustomSlugNow()) { reset(); return }
@@ -154,22 +160,57 @@ export function useBulkCreate() {
   function clearImport() {
     if (!opened.value || snapshot.value || pending.value || unknown.value) return
     importedItems.value = null; importedMode.value = 'targets'; draft.value = ''; draftRevision++; fileSequence++; reading.value = false; errorKey.value = ''; fileIssue.value = null
+    clearMapping()
+  }
+  /** Drops only the local mapping, leaving the prior manual or structured draft untouched. */
+  function clearMapping() { mappingSource.value = null; mappingTarget.value = null; mappingTitle.value = null }
+  function cancelMapping() {
+    if (!opened.value || snapshot.value || pending.value || unknown.value) return
+    clearMapping(); fileSequence++; reading.value = false; errorKey.value = ''; fileIssue.value = null
+  }
+  /** Uses the same replacement and immutable item shape for both explicit import paths. */
+  function replaceDraft(parsed: Exclude<DetailedImportResult, { success: false }>) {
+    if (parsed.mode !== 'targets') {
+      draft.value = ''
+      importedItems.value = Object.freeze(parsed.data.map(item => Object.freeze('tags' in item ? { ...item, tags: Object.freeze([...item.tags]) } : { ...item })))
+      importedMode.value = parsed.mode
+    } else { importedItems.value = null; importedMode.value = 'targets'; draft.value = parsed.data.join('\n') }
+    clearMapping(); draftRevision++; fileSequence++; reading.value = false; errorKey.value = ''; fileIssue.value = null
+  }
+  /** Applies only current explicit choices; a refusal never replaces the previous draft. */
+  function applyMapping() {
+    const source = mappingSource.value
+    if (!source || !opened.value || snapshot.value || pending.value || unknown.value || reading.value || !isCurrent(generation, scope)) return
+    const parsed = parseBulkCreateMappedCsv(source.text, { target: mappingTarget.value, title: mappingTitle.value })
+    if (!parsed.success) { errorKey.value = 'bulkCreate.csvMappingInvalid'; return }
+    if (parsed.mode === 'titles' && (!canTitleNow() || source.titleEpoch !== metadataEpoch)) { errorKey.value = 'bulkCreate.metadataRequired'; return }
+    replaceDraft(parsed)
   }
   /** Checks both login epoch and the operation generation immediately before any side effect. */
   function isCurrent(token: number, candidate: typeof scope) { return alive && token === generation && identity.isCurrent(candidate) && canUseNow() }
   /** Binds local file reads to both authority and the latest explicit draft intent. */
-  async function importFile(file: File | undefined) {
+  async function importFile(file: File | undefined, mode: 'standard' | 'mapped' = 'standard') {
     if (!file || !opened.value || snapshot.value || pending.value || unknown.value || !isCurrent(generation, scope)) return
     const token = generation, candidate = scope, sequence = ++fileSequence, revision = draftRevision, titleEpoch = metadataEpoch, slugEpoch = customSlugEpoch, intermediateReadEpoch = intermediateEpoch, confirmationReadEpoch = confirmationEpoch, expirationReadEpoch = expirationEpoch, visitLimitReadEpoch = visitLimitEpoch
     const current = () => isCurrent(token, candidate) && sequence === fileSequence && revision === draftRevision
-    reading.value = true; errorKey.value = ''; fileIssue.value = null
+    clearMapping(); reading.value = true; errorKey.value = ''; fileIssue.value = null
     try {
       if (file.size > BULK_CSV_MAX_BYTES) { errorKey.value = 'bulkCreate.csvTooLarge'; return }
       const bytes = await file.arrayBuffer()
       if (!current()) return
       if (bytes.byteLength > BULK_CSV_MAX_BYTES) { errorKey.value = 'bulkCreate.csvTooLarge'; return }
       // Keep BOMs visible to the parser, which accepts only one opening marker.
-      const parsed = parseBulkCreateImportCsvDetailed(new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes))
+      const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)
+      if (mode === 'mapped') {
+        const inspected = inspectBulkCreateCsvMapping(text)
+        if (!inspected.success) {
+          fileIssue.value = inspected.issue?.kind === 'header' ? null : inspected.issue ?? null
+          errorKey.value = 'bulkCreate.csvMappingFileInvalid'; return
+        }
+        mappingSource.value = { text, headers: inspected.headers, titleEpoch }
+        return
+      }
+      const parsed = parseBulkCreateImportCsvDetailed(text)
       if (!parsed.success) { fileIssue.value = parsed.issue ?? null; errorKey.value = 'bulkCreate.csvInvalid'; return }
       if (parsed.mode !== 'targets') {
         if (!canTitleNow() || titleEpoch !== metadataEpoch) { errorKey.value = 'bulkCreate.metadataRequired'; return }
@@ -178,11 +219,8 @@ export function useBulkCreate() {
           || (usesMode(parsed.data, 'confirmation') && (!canModeNow('confirmation') || confirmationReadEpoch !== confirmationEpoch)))) { errorKey.value = 'bulkCreate.redirectModeRequired'; return }
         if ((parsed.mode === 'expirations' || (parsed.mode === 'visit-limits' || parsed.mode === 'countdowns')) && usesExpiration(parsed.data) && (!canExpirationNow() || expirationReadEpoch !== expirationEpoch)) { errorKey.value = 'bulkCreate.expirationRequired'; return }
         if ((parsed.mode === 'visit-limits' || parsed.mode === 'countdowns') && usesVisitLimit(parsed.data) && (!canVisitLimitNow() || visitLimitReadEpoch !== visitLimitEpoch)) { errorKey.value = 'bulkCreate.visitLimitRequired'; return }
-        draft.value = ''
-        importedItems.value = Object.freeze(parsed.data.map(item => Object.freeze('tags' in item ? { ...item, tags: Object.freeze([...item.tags]) } : { ...item })))
-        importedMode.value = parsed.mode
-      } else { importedItems.value = null; importedMode.value = 'targets'; draft.value = parsed.data.join('\n') }
-      draftRevision++; fileSequence++; reading.value = false; errorKey.value = ''; fileIssue.value = null
+      }
+      replaceDraft(parsed)
     } catch {
       if (current()) errorKey.value = 'bulkCreate.csvReadFailed'
     } finally { if (current()) reading.value = false }
@@ -227,6 +265,6 @@ export function useBulkCreate() {
     if (opened.value && (pending.value || unknown.value)) { event.preventDefault(); event.returnValue = '' }
   }
   window.addEventListener('beforeunload', beforeUnload)
-  onBeforeUnmount(() => { alive = false; generation++; unsubscribe(); window.removeEventListener('beforeunload', beforeUnload) })
-  return { allowed, opened, draft, importedItems, importedMode, previewItems, snapshot, snapshotMode, pending, unknown, closing, errorKey, csvIssue, reading, importFile, clearImport, begin, preview, edit, submit, close, cancelClose, discard }
+  onBeforeUnmount(() => { alive = false; generation++; clearMapping(); unsubscribe(); window.removeEventListener('beforeunload', beforeUnload) })
+  return { allowed, opened, draft, importedItems, importedMode, previewItems, snapshot, snapshotMode, pending, unknown, closing, errorKey, csvIssue, reading, mappingHeaders, mappingTarget, mappingTitle, mappingTitleAllowed, applyMapping, cancelMapping, importFile, clearImport, begin, preview, edit, submit, close, cancelClose, discard }
 }

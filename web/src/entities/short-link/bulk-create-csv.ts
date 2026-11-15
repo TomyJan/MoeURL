@@ -1,8 +1,9 @@
 import { bulkCreateVisitLimitsInputSchema, type BulkCreateVisitLimitItem, bulkCreateExpirationsInputSchema, type BulkCreateExpirationItem, bulkCreateRedirectModesInputSchema, type BulkCreateRedirectModeItem, bulkCreateTitlesInputSchema, bulkCreateMetadataInputSchema, bulkCreateCustomSlugsInputSchema, bulkCreateTargetsSchema, type BulkCreateItem, type BulkCreateMetadataItem, type BulkCreateCustomSlugItem } from './bulk-create'
 
 import { bulkCreateCountdownsInputSchema, type BulkCreateCountdownItem } from './bulk-create'
+import { scanBulkCreateCsv, type BulkCreateCsvIssue } from './bulk-create-csv-scan'
 
-export const BULK_CSV_MAX_BYTES = 65536
+export { BULK_CSV_MAX_BYTES, type BulkCreateCsvIssue } from './bulk-create-csv-scan'
 type CsvResult = { success: true; data: string[] } | { success: false }
 type ImportResult = { success: true; mode: 'targets'; data: string[] } | { success: true; mode: 'titles'; data: BulkCreateItem[] } | { success: true; mode: 'metadata'; data: BulkCreateMetadataItem[] } | { success: true; mode: 'custom-slugs'; data: BulkCreateCustomSlugItem[] } | { success: true; mode: 'redirect-modes'; data: BulkCreateRedirectModeItem[] } | { success: true; mode: 'expirations'; data: BulkCreateExpirationItem[] } | { success: true; mode: 'visit-limits'; data: BulkCreateVisitLimitItem[] } | { success: true; mode: 'countdowns'; data: BulkCreateCountdownItem[] } | { success: false }
 
@@ -12,7 +13,6 @@ export function parseBulkCreateCsv(text: string): CsvResult {
   return result.success && result.mode === 'targets' ? { success: true, data: result.data } : { success: false }
 }
 
-export type BulkCreateCsvIssue = { kind: 'header' | 'syntax' | 'width'; record: number }
 export type DetailedImportResult = Exclude<ImportResult, { success: false }> | { success: false; issue?: BulkCreateCsvIssue }
 
 /** Keeps the original exact result shape for existing import consumers. */
@@ -24,38 +24,10 @@ export function parseBulkCreateImportCsv(text: string): ImportResult {
 /** Reads strict CSV and reports bounded structure issues without exposing raw input. */
 export function parseBulkCreateImportCsvDetailed(text: string): DetailedImportResult {
   const invalid: DetailedImportResult = { success: false }
-  if (/[\uD800-\uDFFF]/u.test(text) || new TextEncoder().encode(text).byteLength > BULK_CSV_MAX_BYTES) return invalid
-  const input = text.startsWith('\uFEFF') ? text.slice(1) : text
-  let rows: string[][] = []
+  const scanned = scanBulkCreateCsv(text)
+  if (!scanned.success) return scanned
+  let rows = scanned.records
   const structural = (kind: BulkCreateCsvIssue['kind'], record = rows.length + 1): DetailedImportResult => record <= 21 ? { success: false, issue: { kind, record } } : invalid
-  let fields: string[] = [], field = '', state: 'start' | 'plain' | 'quoted' | 'closed' = 'start', endedRecord = false
-  for (let i = 0; i < input.length; i++) {
-    const character = input[i]!
-    endedRecord = false
-    if (state === 'quoted') {
-      if (character === '"') state = 'closed'
-      else field += character
-      continue
-    }
-    if (character === '"') {
-      if (state === 'start') state = 'quoted'
-      else if (state === 'closed') { field += '"'; state = 'quoted' }
-      else return structural('syntax')
-    } else if (character === ',') {
-      fields.push(field); field = ''; state = 'start'
-      if (fields.length > 7) return structural(rows.length === 0 ? 'header' : 'width')
-    } else if (character === '\n' || character === '\r') {
-      if (character === '\r' && input[++i] !== '\n') return structural('syntax')
-      rows.push([...fields, field])
-      if (rows.length > 21) return invalid
-      fields = []; field = ''; state = 'start'; endedRecord = true
-    } else {
-      if (state === 'closed') return structural('syntax')
-      field += character; state = 'plain'
-    }
-  }
-  if (state === 'quoted') return structural('syntax')
-  if (!endedRecord) rows.push([...fields, field])
   const header = rows.shift()!
   const standard = ['target_url', 'title', 'tags', 'custom_slug', 'redirect_mode', 'expires_at', 'max_visits', 'intermediate_delay_seconds']
   const positions = standard.slice(0, header.length).map(name => header.indexOf(name))

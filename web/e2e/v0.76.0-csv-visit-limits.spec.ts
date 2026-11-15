@@ -188,7 +188,7 @@ async function refreshAuthority(page: Page, userId: string, hasCap: boolean) {
   const payload = await (await response).json(); expect(payload.code).toBe(0); expect(payload.data.user.id).toBe(userId)
   expect(payload.data.user.permissions.includes('short_link:set_max_visits')).toBe(hasCap); expect(cached).toEqual(payload.data)
 }
-async function upload(page: Page, items: readonly Item[]) { await page.getByRole('dialog').locator('input[type=file]').setInputFiles({ name: 'visit-limits.csv', mimeType: 'text/csv', buffer: Buffer.from(csv(items)) }) }
+async function upload(page: Page, items: readonly Item[]) { await page.getByRole('dialog').getByTestId('bulk-create-standard-file').setInputFiles({ name: 'visit-limits.csv', mimeType: 'text/csv', buffer: Buffer.from(csv(items)) }) }
 /** Preserves raw strings through JSON-array and CSV quoting, including an empty cap. */
 function csv(items: readonly Item[]) { return '\uFEFFtarget_url,title,tags,custom_slug,redirect_mode,expires_at,max_visits\r\n' + items.map(item => [item.targetUrl, item.title, JSON.stringify(item.tags), item.customSlug, item.redirectMode, item.expiresAt, item.maxVisits].map(value => '"' + value.replaceAll('"', '""') + '"').join(',')).join('\r\n') + '\r\n' }
 async function activate(control: Locator) { if (touchPages.has(control.page())) await control.tap(); else { await control.focus(); await control.press('Enter') } }

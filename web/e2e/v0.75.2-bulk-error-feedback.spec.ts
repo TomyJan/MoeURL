@@ -37,7 +37,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const { width, rows } of [
       const expiresAt = new Date(serverTime - 60_000).toISOString().replace('.000Z', 'Z')
       const targetUrl = 'https://example.com/phone-denial/' + nonce
       const csv = (deadline: string) => '\uFEFFtarget_url,title,tags,custom_slug,redirect_mode,expires_at\r\n' + Array.from({ length: rows }, (_, index) => [targetUrl + '/' + index, rows === 20 ? 'Retained long preview title ' + index : '', '[]', '', 'direct', deadline].map(value => '"' + value.replaceAll('"', '""') + '"').join(',')).join('\r\n') + '\r\n'
-      await dialog.locator('input[type=file]').setInputFiles({ name: 'expired.csv', mimeType: 'text/csv', buffer: Buffer.from(csv(expiresAt)) })
+      await dialog.getByTestId('bulk-create-standard-file').setInputFiles({ name: 'expired.csv', mimeType: 'text/csv', buffer: Buffer.from(csv(expiresAt)) })
       await expect(page.getByTestId('bulk-create-imported-list').locator('li')).toHaveCount(rows)
       await activate(page.getByTestId('bulk-create-preview'))
       const requestId = await page.getByTestId('bulk-create-request-id').innerText(), writes: unknown[] = []
@@ -70,7 +70,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const { width, rows } of [
       await expect(page.getByTestId('bulk-create-error-feedback')).toBeFocused()
       // Only explicit editing may replace the rejected batch; positioning cannot retry or change it.
       await activate(page.getByTestId('bulk-create-edit'))
-      await dialog.locator('input[type=file]').setInputFiles({ name: 'corrected.csv', mimeType: 'text/csv', buffer: Buffer.from(csv('2030-01-01T00:00:00Z')) })
+      await dialog.getByTestId('bulk-create-standard-file').setInputFiles({ name: 'corrected.csv', mimeType: 'text/csv', buffer: Buffer.from(csv('2030-01-01T00:00:00Z')) })
       await activate(page.getByTestId('bulk-create-preview'))
       const correctedId = await page.getByTestId('bulk-create-request-id').innerText()
       expect(correctedId).not.toBe(requestId)
@@ -120,7 +120,7 @@ for (const language of ['zh-CN', 'en'] as const) {
       })
       await page.goto('/link')
       await activate(page.getByTestId('bulk-create-open'))
-      const dialog = page.getByTestId('bulk-create-dialog'), input = dialog.locator('input[type=file]'), draft = dialog.getByRole('textbox')
+      const dialog = page.getByTestId('bulk-create-dialog'), input = dialog.getByTestId('bulk-create-standard-file'), draft = dialog.getByRole('textbox')
       for (const kind of ['manual', 'oversized', 'malformed'] as const) {
         const retained = kind === 'manual' ? 'not a valid URL' : 'https://example.com/retained-local-draft'
         await draft.fill(retained)

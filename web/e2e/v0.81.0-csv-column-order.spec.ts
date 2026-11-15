@@ -85,7 +85,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
 function reversedCsv(items: readonly Item[]) {
   return '\uFEFFintermediate_delay_seconds,max_visits,expires_at,redirect_mode,custom_slug,tags,title,target_url\r\n' + items.map(item => [item.intermediateDelaySeconds, item.maxVisits, item.expiresAt, item.redirectMode, item.customSlug, JSON.stringify(item.tags), item.title, item.targetUrl].map(value => '"' + value.replaceAll('"', '""') + '"').join(',')).join('\r\n') + '\r\n'
 }
-async function upload(page: Page, text: string) { await page.getByRole('dialog').locator('input[type=file]').setInputFiles({ name: 'column-order.csv', mimeType: 'text/csv', buffer: Buffer.from(text) }) }
+async function upload(page: Page, text: string) { await page.getByRole('dialog').getByTestId('bulk-create-standard-file').setInputFiles({ name: 'column-order.csv', mimeType: 'text/csv', buffer: Buffer.from(text) }) }
 async function activate(control: Locator) { if (touchPages.has(control.page())) await control.tap(); else { await control.focus(); await control.press('Enter') } }
 async function links(api: APIRequestContext) { const response = await api.get('/api/v1/short-link/list?page=1&pageSize=100'); expect(response.status()).toBe(200); const payload = await response.json(); expect(payload.code).toBe(0); return (payload.data as { items: Link[] }).items }
 async function post<T = unknown>(api: APIRequestContext, path: string, data: unknown): Promise<T> { const response = await api.post('/api/v1' + path, { data, timeout: 10_000 }); expect(response.status()).toBe(200); const payload = await response.json(); expect(payload.code).toBe(0); return payload.data as T }

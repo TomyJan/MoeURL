@@ -311,7 +311,7 @@ async function batch(page: Page, mode: Mode, targets: string[]): Promise<Locator
   else {
     const header = mode === 'titles' ? 'target_url,title' : mode === 'metadata' ? 'target_url,title,tags' : 'target_url,title,tags,custom_slug'
     const fields = mode === 'titles' ? ',Quota' : mode === 'metadata' ? ',Quota,[]' : ',Quota,[],'
-    await dialog.locator('input[type=file]').setInputFiles({ name: 'quota.csv', mimeType: 'text/csv', buffer: Buffer.from(header + '\n' + targets.map(target => target + fields).join('\n')) })
+    await dialog.getByTestId('bulk-create-standard-file').setInputFiles({ name: 'quota.csv', mimeType: 'text/csv', buffer: Buffer.from(header + '\n' + targets.map(target => target + fields).join('\n')) })
     await expect(page.getByTestId('bulk-create-imported-list')).toBeVisible()
   }
   await activate(page.getByTestId('bulk-create-preview')); return dialog

@@ -115,7 +115,7 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
       else {
         const header = mode === 'titles' ? 'target_url,title' : mode === 'metadata' ? 'target_url,title,tags' : 'target_url,title,tags,custom_slug'
         const fields = mode === 'titles' ? ',Policy' : mode === 'metadata' ? ',Policy,[]' : ',Policy,[],'
-        await dialog.locator('input[type=file]').setInputFiles({ name: 'policy.csv', mimeType: 'text/csv', buffer: Buffer.from(header + '\nhttps://blocked.example/bulk' + fields + '\nhttps://allowed.example/bulk' + fields) })
+        await dialog.getByTestId('bulk-create-standard-file').setInputFiles({ name: 'policy.csv', mimeType: 'text/csv', buffer: Buffer.from(header + '\nhttps://blocked.example/bulk' + fields + '\nhttps://allowed.example/bulk' + fields) })
         await expect(page.getByTestId('bulk-create-imported-list')).toBeVisible()
       }
       await activate(page.getByTestId('bulk-create-preview'))

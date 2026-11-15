@@ -152,7 +152,7 @@ test('v0.77.0 en 390px retains the seventh protocol and its five-second default'
   const item = { targetUrl: 'https://example.com/legacy77/' + nonce, title: '', tags: [], customSlug: 'Legacy' + nonce, redirectMode: 'intermediate', expiresAt: '', maxVisits: '1' }
   const content = '\uFEFFtarget_url,title,tags,custom_slug,redirect_mode,expires_at,max_visits\r\n' + item.targetUrl + ',,[],' + item.customSlug + ',intermediate,,1\r\n'
   await page.goto('/link'); await activate(page.getByTestId('bulk-create-open'))
-  await page.getByRole('dialog').locator('input[type=file]').setInputFiles({ name: 'legacy-seven.csv', mimeType: 'text/csv', buffer: Buffer.from(content) })
+  await page.getByRole('dialog').getByTestId('bulk-create-standard-file').setInputFiles({ name: 'legacy-seven.csv', mimeType: 'text/csv', buffer: Buffer.from(content) })
   await expect(page.getByTestId('bulk-create-imported-list').locator('li')).toHaveCount(1)
   await activate(page.getByTestId('bulk-create-preview'))
   const requestId = await page.getByTestId('bulk-create-request-id').innerText()
@@ -222,7 +222,7 @@ async function refreshAuthority(page: Page, userId: string, grant: string, hasGr
   const payload = await (await response).json(); expect(payload.code).toBe(0); expect(payload.data.user.id).toBe(userId)
   expect(payload.data.user.permissions.includes(grant)).toBe(hasGrant); expect(cached).toEqual(payload.data)
 }
-async function upload(page: Page, items: readonly Item[]) { await page.getByRole('dialog').locator('input[type=file]').setInputFiles({ name: 'countdowns.csv', mimeType: 'text/csv', buffer: Buffer.from(csv(items)) }) }
+async function upload(page: Page, items: readonly Item[]) { await page.getByRole('dialog').getByTestId('bulk-create-standard-file').setInputFiles({ name: 'countdowns.csv', mimeType: 'text/csv', buffer: Buffer.from(csv(items)) }) }
 /** Preserves raw strings through JSON-array and CSV quoting, including empty cap and delay defaults. */
 function csv(items: readonly Item[]) { return '\uFEFFtarget_url,title,tags,custom_slug,redirect_mode,expires_at,max_visits,intermediate_delay_seconds\r\n' + items.map(item => [item.targetUrl, item.title, JSON.stringify(item.tags), item.customSlug, item.redirectMode, item.expiresAt, item.maxVisits, item.intermediateDelaySeconds].map(value => '"' + value.replaceAll('"', '""') + '"').join(',')).join('\r\n') + '\r\n' }
 async function activate(control: Locator) { if (touchPages.has(control.page())) await control.tap(); else { await control.focus(); await control.press('Enter') } }
