@@ -98,7 +98,7 @@ for (const language of ['en', 'zh-CN'] as const) for (const width of [1280, 390]
       else {
         const header = mode === 'titles' ? 'target_url,title' : mode === 'metadata' ? 'target_url,title,tags' : 'target_url,title,tags,custom_slug'
         const fields = mode === 'titles' ? ',Policy' : mode === 'metadata' ? ',Policy,[]' : ',Policy,[],'
-        await dialog.locator('input[type=file]').setInputFiles({ name: 'policy.csv', mimeType: 'text/csv', buffer: Buffer.from(header + '\nhttps://blocked.example/bulk' + fields + '\nhttps://allowed.example/bulk' + fields) })
+        await dialog.getByTestId('bulk-create-standard-file').setInputFiles({ name: 'policy.csv', mimeType: 'text/csv', buffer: Buffer.from(header + '\nhttps://blocked.example/bulk' + fields + '\nhttps://allowed.example/bulk' + fields) })
         await expect(page.getByTestId('bulk-create-imported-list')).toBeVisible()
       }
       await activate(page.getByTestId('bulk-create-preview'))
@@ -176,7 +176,7 @@ test('v0.61.0 en 390px visible refusal and editor geometry supplement', async ({
   await page.goto('/link')
   await activate(page.getByTestId('bulk-create-open'))
   const bulk = page.getByTestId('bulk-create-dialog')
-  await bulk.locator('input[type=file]').setInputFiles({ name: 'policy.csv', mimeType: 'text/csv', buffer: Buffer.from('target_url,title,tags,custom_slug\nhttps://blocked.example/bulk,Policy,[],\nhttps://allowed.example/bulk,Policy,[],') })
+  await bulk.getByTestId('bulk-create-standard-file').setInputFiles({ name: 'policy.csv', mimeType: 'text/csv', buffer: Buffer.from('target_url,title,tags,custom_slug\nhttps://blocked.example/bulk,Policy,[],\nhttps://allowed.example/bulk,Policy,[],') })
   await expect(page.getByTestId('bulk-create-imported-list')).toBeVisible()
   await activate(page.getByTestId('bulk-create-preview'))
   const rejected = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/short-link/batch-create-with-custom-slugs')

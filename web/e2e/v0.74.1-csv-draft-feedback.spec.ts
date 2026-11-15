@@ -53,7 +53,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
     const dialog = page.getByRole('dialog'), draft = dialog.getByRole('textbox'), help = page.getByTestId('bulk-create-csv-help')
     const preserved = 'https://example.com/help-draft741/' + nonce
     await draft.fill(preserved)
-    await dialog.locator('input[type=file]').setInputFiles({ name: 'invalid.csv', mimeType: 'text/csv', buffer: Buffer.from('target_url,title,tags,custom_slug,redirect_mode\nhttps://example.com/invalid,,,[],bad') })
+    await dialog.getByTestId('bulk-create-standard-file').setInputFiles({ name: 'invalid.csv', mimeType: 'text/csv', buffer: Buffer.from('target_url,title,tags,custom_slug,redirect_mode\nhttps://example.com/invalid,,,[],bad') })
     const title = language === 'en' ? 'CSV format example and template' : 'CSV 格式示例与模板'
     await expect(page.getByTestId('bulk-create-error')).toContainText(title)
     await expect(page.getByTestId('bulk-create-error')).toContainText('target_url,title,tags,custom_slug,redirect_mode')
@@ -70,7 +70,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
       const csv = protocol === 'custom-slugs'
         ? 'target_url,title,tags,custom_slug\nhttps://example.com/old741/' + nonce + ',old,[],Old' + nonce
         : 'target_url,title,tags,custom_slug,redirect_mode\nhttps://example.com/old741/' + nonce + ',old,[],Old' + nonce + ',intermediate'
-      await dialog.locator('input[type=file]').setInputFiles({ name: protocol + '.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
+      await dialog.getByTestId('bulk-create-standard-file').setInputFiles({ name: protocol + '.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
       await expect(page.getByTestId('bulk-create-imported-list').locator('li')).toHaveCount(1)
       await activate(page.getByTestId('bulk-create-preview'))
       const abandonedId = await page.getByTestId('bulk-create-request-id').innerText()
@@ -92,7 +92,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
 
       await setGrants(manager, [...new Set([...(await userGroup(manager)).permissions, ...grants])]); await refreshAuthority(page, user.id, true)
       await activate(page.getByTestId('bulk-create-open'))
-      await dialog.locator('input[type=file]').setInputFiles({ name: 'active-' + protocol + '.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
+      await dialog.getByTestId('bulk-create-standard-file').setInputFiles({ name: 'active-' + protocol + '.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
       await expect(page.getByTestId('bulk-create-imported-list').locator('li')).toHaveCount(1)
       await activate(page.getByTestId('bulk-create-preview'))
       await setGrants(manager, (await userGroup(manager)).permissions.filter(value => value !== 'short_link:custom_slug')); await refreshAuthority(page, user.id, false)

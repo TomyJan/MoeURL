@@ -41,7 +41,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390,
     }
     await draft.focus(); await upload(page, cases[2]!.text)
     await expect(feedback).toBeFocused(); await expect(issue).toHaveText(cases[2]!.expected)
-    await expect(dialog.locator('input[type=file]')).toHaveValue('')
+    await expect(dialog.getByTestId('bulk-create-standard-file')).toHaveValue('')
     await capture(info, 'csv-issues-location-' + language + '-' + width, page)
     await attach(info, 'csv-issues-diagnosis', { cases: cases.map(({ expected }) => expected), writes, manualKept: await draft.inputValue(), logicalRecord: 3, inputEchoed: false, width, language })
     await upload(page, 'target_url\nftp://secret.invalid')
@@ -87,6 +87,6 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390,
 function reversedCsv(items: readonly Item[]) {
   return '\uFEFFintermediate_delay_seconds,max_visits,expires_at,redirect_mode,custom_slug,tags,title,target_url\r\n' + items.map(item => [item.intermediateDelaySeconds, item.maxVisits, item.expiresAt, item.redirectMode, item.customSlug, JSON.stringify(item.tags), item.title, item.targetUrl].map(value => '"' + value.replaceAll('"', '""') + '"').join(',')).join('\r\n') + '\r\n'
 }
-async function upload(page: Page, text: string) { await page.getByRole('dialog').locator('input[type=file]').setInputFiles({ name: 'csv-issues.csv', mimeType: 'text/csv', buffer: Buffer.from(text) }) }
+async function upload(page: Page, text: string) { await page.getByRole('dialog').getByTestId('bulk-create-standard-file').setInputFiles({ name: 'csv-issues.csv', mimeType: 'text/csv', buffer: Buffer.from(text) }) }
 async function activate(control: Locator) { if (touchPages.has(control.page())) await control.tap(); else { await control.focus(); await control.press('Enter') } }
 async function capture(info: TestInfo, name: string, page: Page) { await expectNoHorizontalOverflow(page); await expect.poll(() => page.getByRole('dialog').evaluate(element => element.scrollWidth - element.clientWidth)).toBe(0); const output = info.outputPath(name + '.png'); await page.screenshot({ path: output, animations: 'disabled' }); await info.attach(name, { path: output, contentType: 'image/png' }) }

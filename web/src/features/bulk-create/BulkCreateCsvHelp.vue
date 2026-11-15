@@ -4,6 +4,7 @@
     <div class="bulk-csv-help__content">
       <p>{{ t('bulkCreate.csvFormatRules') }}</p>
       <p>{{ t('bulkCreate.csvColumnOrder') }}</p>
+      <p>{{ t('bulkCreate.csvMappingHelp') }}</p>
       <p>{{ t('bulkCreate.csvRecordCounting') }}</p>
       <pre><code data-testid="bulk-create-csv-example">{{ bulkCreateCsvExample }}</code></pre>
       <p>{{ t('bulkCreate.csvReplaceExamples') }}</p>
