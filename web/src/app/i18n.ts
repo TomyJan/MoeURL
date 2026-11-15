@@ -2,6 +2,10 @@ import { createI18n } from 'vue-i18n'
 
 export const messages = {
   'zh-CN': {
+    selectedLinksCopy: {
+      action: '复制所选短链', description: '仅当前页所选项，每行一个公开短链地址。',
+      copied: '已复制 {count} 条所选短链',
+    },
     pageLinksCopy: {
       action: '复制本页短链', description: '仅当前页，每行一个公开短链地址。',
       copied: '已复制 {count} 条本页短链', failed: '复制失败，请检查浏览器剪贴板权限后重试。',
@@ -1001,6 +1005,10 @@ export const messages = {
     },
   },
   en: {
+    selectedLinksCopy: {
+      action: 'Copy selected links', description: 'Selected items on this page only, one public short link per line.',
+      copied: 'Copied {count} selected link | Copied {count} selected links',
+    },
     pageLinksCopy: {
       action: 'Copy links on this page', description: 'This page only, one public short link per line.',
       copied: 'Copied {count} links from this page', failed: 'Copy failed. Check browser clipboard permissions and try again.',

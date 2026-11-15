@@ -18,7 +18,9 @@
         <v-text-field :model-value="tagFilter" :label="t('filter.tag')" :disabled="privateConfirmationOpen" :error-messages="tagInvalid ? t('linkMetadata.tagFilterInvalid') : ''" density="compact" variant="outlined" @update:model-value="selectTag" />
         <v-text-field :model-value="noteQuery" :label="t('filter.noteQuery')" :error-messages="noteQueryInvalid ? t('linkMetadata.noteQueryInvalid') : ''" :disabled="noteFilterBlocked || note.target.value !== null" density="compact" variant="outlined" @update:model-value="selectNoteQuery" />
       </div>
-      <ShortLinkBatchToolbar :state="batch" :access="access" @tags="beginBatchTags" @clear-notes="beginNoteClear" @replace-notes="beginNoteReplace" @append-notes="beginNoteAppend" @rename-tag="beginTagRename" />
+      <ShortLinkBatchToolbar :state="batch" :access="access" @tags="beginBatchTags" @clear-notes="beginNoteClear" @replace-notes="beginNoteReplace" @append-notes="beginNoteAppend" @rename-tag="beginTagRename">
+        <template #copy><ShortLinkPageCopyButton :state="selectedCopy" mode="selected" /></template>
+      </ShortLinkBatchToolbar>
     </div>
     <PersonalTagBrowser :access="access" @select="selectTag" />
     <div class="console-data-panel" data-testid="console-data-panel">
@@ -222,11 +224,15 @@ const noteFilterBlocked = computed(() => privateConfirmationOpen.value || !acces
   || batchTagTargets.value !== null || statusMutation.isPending.value || deleteMutation.isPending.value
   || settingsMutation.isPending.value || settingsLink.value !== null || qrLink.value !== null)
 
-const pageCopy = usePageLinksCopy({
+const copyLock = ref<symbol | null>(null)
+const copyOptions = {
   access, queryKey: listQueryKey,
+  lock: copyLock,
   blocked: computed(() => exportBlocked.value || exportPending.value || bulkCreateOpen.value || qrLink.value !== null || batchTagsRefreshRequired.value || !initialPageSize.ready.value),
   context: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value, noteStatusFilter.value, noteQuery.value, page.value, pageSize.value]),
-})
+}
+const pageCopy = usePageLinksCopy(copyOptions)
+const selectedCopy = usePageLinksCopy({ ...copyOptions, selection: batch.selected })
 
 const paginationBlocked = computed(() => noteFilterBlocked.value || note.target.value !== null || exportPending.value || bulkCreateOpen.value
   || filtersPending.value || keywordInvalid.value || tagInvalid.value || noteQueryInvalid.value)
