@@ -2,6 +2,10 @@ import { createI18n } from 'vue-i18n'
 
 export const messages = {
   'zh-CN': {
+    pageLinksCopy: {
+      action: '复制本页短链', description: '仅当前页，每行一个公开短链地址。',
+      copied: '已复制 {count} 条本页短链', failed: '复制失败，请检查浏览器剪贴板权限后重试。',
+    },
     targetPolicyBatchCheck: {
       heading: '批量目标规则检查', form: '批量检查已保存目标规则', targets: '目标网址（每行一个）', check: '检查这批目标',
       hint: '每行一个完整目标网址，最多 20 行。使用当前已保存的规则，不包含其他卡片未保存的草稿。',
@@ -997,6 +1001,10 @@ export const messages = {
     },
   },
   en: {
+    pageLinksCopy: {
+      action: 'Copy links on this page', description: 'This page only, one public short link per line.',
+      copied: 'Copied {count} links from this page', failed: 'Copy failed. Check browser clipboard permissions and try again.',
+    },
     targetPolicyBatchCheck: {
       heading: 'Batch target rule check', form: 'Check saved target rules in a batch', targets: 'Target URLs (one per line)', check: 'Check these targets',
       hint: 'Enter one full target URL per line, up to 20 lines. Uses saved rules, not unsaved drafts in other cards.',

@@ -5,7 +5,10 @@
         <h1>{{ t('page.adminLinks') }}</h1>
       </div>
       <span v-if="paginationTotal !== undefined" class="console-page__total">{{ t('adminLinks.total', { total }) }}</span>
-      <ShortLinkListExportButton context="admin" :filters="exportFilters" :blocked="exportBlocked" :can-start="canStartExport" @pending="exportPending = $event" />
+      <div class="list-header-actions">
+        <ShortLinkPageCopyButton :state="pageCopy" />
+        <ShortLinkListExportButton context="admin" :filters="exportFilters" :blocked="exportBlocked" :can-start="canStartExport" @pending="exportPending = $event" />
+      </div>
     </div>
     <div class="console-page__tools">
       <div class="console-page__filters console-page__metadata-filters">
@@ -100,6 +103,8 @@ import ShortLinkBatchToolbar from '@/features/short-link-batch/ShortLinkBatchToo
 import ShortLinkTransferDialog from '@/features/short-link-transfer/ShortLinkTransferDialog.vue'
 import ShortLinkBatchTransferDialog from '@/features/short-link-transfer/ShortLinkBatchTransferDialog.vue'
 import ShortLinkListExportButton from '@/features/short-link-list-export/ShortLinkListExportButton.vue'
+import ShortLinkPageCopyButton from '@/features/short-link-page-copy/ShortLinkPageCopyButton.vue'
+import { usePageLinksCopy } from '@/features/short-link-page-copy/usePageLinksCopy'
 import ShortLinkBatchTagsDialog from '@/features/short-link-tags/ShortLinkBatchTagsDialog.vue'
 import { batchTagVersionSchema, type BatchTagTarget } from '@/entities/short-link/batch-tags'
 import AdminTagBrowser from '@/features/short-link-tags/AdminTagBrowser.vue'
@@ -230,6 +235,12 @@ const noteFilterBlocked = computed(() => privateConfirmationOpen.value || !acces
   || batchTagTargets.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null
   || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value
   || settingsLink.value !== null || qrLink.value !== null)
+
+const pageCopy = usePageLinksCopy({
+  access, queryKey: listQueryKey,
+  blocked: computed(() => exportBlocked.value || exportPending.value || qrLink.value !== null || batchTagsRefreshRequired.value || batchTransferRefreshRequired.value || !initialPageSize.ready.value),
+  context: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value, noteStatusFilter.value, noteQuery.value, page.value, pageSize.value]),
+})
 
 const paginationBlocked = computed(() => noteFilterBlocked.value || note.target.value !== null || exportPending.value
   || filtersPending.value || keywordInvalid.value || tagInvalid.value || noteQueryInvalid.value)
@@ -400,6 +411,7 @@ function invalidateLinks() {
 </script>
 
 <style scoped>
+.list-header-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .console-page__tools { display: grid; }
 .console-page__metadata-filters {
   width: 100%;
