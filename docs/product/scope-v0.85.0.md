@@ -1,6 +1,6 @@
 # v0.85.0 导出所选短链 CSV
 
-状态：设计已收敛，实施尚未开始；已交付产品为 0.84.0。基线 master `569cacabe448eef9858e4653fa724c1cf835f5e6`，既有隔离工作区分支 `feat/v0.85.0-selected-csv-export`。前版 PR371 已真实审查、正常合并独立核验及恢复归档，准确身份见[前版验收](../implementation/v0.84.1-acceptance.md)。
+状态：后端和前端已实现并完成本地门禁，前端 6819 项／四项 100%、types／lint／13 份 E2E strict 和隔离构建通过；干净提交构建、Task2 标准收口、准确产品浏览器及审查交付继续，已交付产品仍为 0.84.0。基线 master `569cacabe448eef9858e4653fa724c1cf835f5e6`，既有隔离工作区分支 `feat/v0.85.0-selected-csv-export`。前版 PR371 已真实审查、正常合并独立核验及恢复归档，准确身份见[前版验收](../implementation/v0.84.1-acceptance.md)。
 
 ## 意图与范围
 

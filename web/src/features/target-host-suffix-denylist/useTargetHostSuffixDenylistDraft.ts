@@ -56,6 +56,8 @@ export function useTargetHostSuffixDenylistDraft() {
     const token = generation, revision = edited, readKey = key
     state.loading = true
     try {
+      // An explicit reload must reach the server even after the wall clock moves backward.
+      void client.invalidateQueries({ queryKey: readKey, exact: true, refetchType: 'none' })
       const value = await client.fetchQuery({ queryKey: readKey, staleTime: 0, retry: false,
         async queryFn() {
           const value = await getTargetHostSuffixDenylist()

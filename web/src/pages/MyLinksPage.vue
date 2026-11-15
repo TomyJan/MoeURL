@@ -7,7 +7,7 @@
       <div class="bulk-create-header-actions">
         <ShortLinkPageCopyButton :state="pageCopy" />
         <BulkCreateDialog :can-open="canBeginBulkCreate" @open="bulkCreateOpen = $event" />
-        <ShortLinkListExportButton context="own" :filters="exportFilters" :blocked="exportBlocked" :can-start="canStartExport" @pending="exportPending = $event" />
+        <ShortLinkListExportButton context="own" :filters="exportFilters" :blocked="exportBlocked || selectedExportPending" :can-start="canStartListExport" @pending="listExportPending = $event" />
       </div>
     </header>
     <div class="console-page__tools">
@@ -23,6 +23,7 @@
           <ShortLinkPageCopyButton :state="selectedCopy" mode="selected" />
           <ShortLinkPageCopyButton :state="selectedMarkdownCopy" mode="selected-markdown" />
         </template>
+        <template #export><ShortLinkSelectedExportButton :state="selectedExport" /></template>
       </ShortLinkBatchToolbar>
     </div>
     <PersonalTagBrowser :access="access" @select="selectTag" />
@@ -105,6 +106,8 @@ import ConsoleLinkList, { type ConsoleLinkListItem } from './ConsoleLinkList.vue
 import { useShortLinkAccess, useShortLinkBatch } from '@/features/short-link-batch/useShortLinkBatch'
 import ShortLinkBatchToolbar from '@/features/short-link-batch/ShortLinkBatchToolbar.vue'
 import ShortLinkListExportButton from '@/features/short-link-list-export/ShortLinkListExportButton.vue'
+import ShortLinkSelectedExportButton from '@/features/short-link-selected-export/ShortLinkSelectedExportButton.vue'
+import { useSelectedListExport } from '@/features/short-link-selected-export/useSelectedListExport'
 import ShortLinkPageCopyButton from '@/features/short-link-page-copy/ShortLinkPageCopyButton.vue'
 import { usePageLinksCopy } from '@/features/short-link-page-copy/usePageLinksCopy'
 import BulkCreateDialog from '@/features/bulk-create/BulkCreateDialog.vue'
@@ -140,7 +143,8 @@ const tagRename = useBatchTagRename('own', access, () => batch.clear(), readFres
 const privateConfirmationOpen = computed(() => noteClear.targets.value !== null || noteReplace.targets.value !== null || noteAppend.targets.value !== null || tagRename.targets.value !== null)
 const batchTagTargets = ref<readonly BatchTagTarget[] | null>(null)
 const batchTagsRefreshRequired = ref(false)
-const exportPending = ref(false)
+const listExportPending = ref(false), selectedExportPending = ref(false)
+const exportPending = computed(() => listExportPending.value || selectedExportPending.value)
 const bulkCreateOpen = ref(false)
 const statusFilter = ref<'' | ShortLink['status']>('')
 const noteStatusFilter = ref<ShortLinkNoteStatus>('')
@@ -240,6 +244,12 @@ const copyOptions = {
 const pageCopy = usePageLinksCopy(copyOptions)
 const selectedCopy = usePageLinksCopy({ ...copyOptions, selection: batch.selected })
 const selectedMarkdownCopy = usePageLinksCopy({ ...copyOptions, selection: batch.selected, format: 'markdown' })
+const selectedExport = useSelectedListExport({
+  access, context: computed(() => 'own'), queryKey: listQueryKey, selection: batch.selected,
+  collection: copyOptions.context, canStart: canStartExport,
+  blocked: computed(() => exportBlocked.value || listExportPending.value || bulkCreateOpen.value || qrLink.value !== null || batchTagsRefreshRequired.value || !initialPageSize.ready.value),
+})
+watch(selectedExport.pending, value => { selectedExportPending.value = value }, { flush: 'sync' })
 
 const paginationBlocked = computed(() => noteFilterBlocked.value || note.target.value !== null || exportPending.value || bulkCreateOpen.value
   || filtersPending.value || keywordInvalid.value || tagInvalid.value || noteQueryInvalid.value)
@@ -340,6 +350,8 @@ function canBeginBulkCreate() {
 }
 /** Prevents a queued export from racing a newly opened private confirmation. */
 function canStartExport() { return !privateConfirmationOpen.value && !bulkCreateOpen.value }
+/** Prevents a queued whole-list click before the selected request's pending props render. */
+function canStartListExport() { return !selectedExportPending.value && canStartExport() }
 /** Accepts controlled filter edits only outside the fixed confirmation. */
 function selectStatus(value: unknown) {
   if (!privateConfirmationOpen.value && (value === '' || value === 'active' || value === 'disabled')) statusFilter.value = value

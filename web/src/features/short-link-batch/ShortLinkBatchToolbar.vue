@@ -3,6 +3,7 @@
     <p aria-live="polite">{{ t('batch.selected', { count: state.selected.value.length }) }} <span>{{ t('batch.currentList') }}</span></p>
     <div class="batch-toolbar__actions">
       <slot name="copy" />
+      <slot name="export" />
       <v-btn v-if="access.canTag.value" data-testid="batch-tags" size="small" color="primary" variant="tonal" :disabled="disabled" @click="$emit('tags')">{{ t('batchTags.action') }}</v-btn>
       <v-btn v-if="access.canTag.value" data-testid="batch-tag-rename" size="small" color="primary" variant="tonal" :disabled="disabled" @click="$emit('rename-tag')">{{ t('batchTagRename.action') }}</v-btn>
       <v-btn v-if="access.canTag.value" data-testid="batch-note-clear" size="small" color="error" variant="tonal" :disabled="disabled" @click="$emit('clear-notes')">{{ t('batchNoteClear.action') }}</v-btn>
