@@ -8,6 +8,17 @@ interface Link { id: string; url: string; targetUrl: string }
 interface Group { key: string; updatedAt: string; permissions: string[] }
 interface User { id: string; username: string }
 test.describe.configure({ mode: 'serial' })
+test.use({ actionTimeout: 10_000 })
+
+/** Dismisses confirmed feedback through its real close action before another header interaction. */
+async function dismissFeedback(page: Page) {
+  const controls = page.locator('[data-sonner-toast][data-removed="false"] button[data-close-button]')
+  while (await controls.count()) {
+    const before = await controls.count()
+    await controls.first().click()
+    await expect.poll(() => controls.count()).toBeLessThan(before)
+  }
+}
 
 /** Uses real Cookie Session transport and rejects both HTTP and business failures. */
 async function api<T>(request: APIRequestContext, path: string, data?: unknown): Promise<T> {
@@ -90,6 +101,7 @@ for (const language of ['zh-CN', 'en']) for (const width of [1280, 320]) for (co
       await expectNoHorizontalOverflow(page)
       await copy.scrollIntoViewIfNeeded(); await expect(copy).toBeInViewport({ ratio: 1 })
       const image = info.outputPath('current-page-copy.png'); await page.screenshot({ path: image, animations: 'disabled' }); await info.attach('current-page-copy', { path: image, contentType: 'image/png' })
+      await dismissFeedback(page)
       const secondResponse = page.waitForResponse(response => { const url = new URL(response.url()); return url.pathname === path && url.searchParams.get('q') === keyword && url.searchParams.get('page') === '2' })
       await page.getByRole('button', { name: language === 'en' ? 'Next page' : '下一页', exact: true }).click()
       const second = await (await secondResponse).json() as { data: { items: Link[] } }
@@ -100,6 +112,8 @@ for (const language of ['zh-CN', 'en']) for (const width of [1280, 320]) for (co
       await expect.poll(() => page.evaluate(async () => (await navigator.clipboard.readText()).replace(/\r\n/g, '\n'))).toBe(nextExpected)
       expect(first.data.items.map(item => item.id)).not.toContain(second.data.items[0]!.id)
       expect(listReads).toBe(1)
+      await expect(page.getByText(language === 'en' ? 'Copied 2 links from this page' : '已复制 2 条本页短链', { exact: true })).toBeVisible()
+      await dismissFeedback(page)
       // Only the OS failure boundary is replaced; real page/cache/feedback remain intact.
       await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.reject(new Error('private OS diagnostic')) } }) })
       await copy.click()
