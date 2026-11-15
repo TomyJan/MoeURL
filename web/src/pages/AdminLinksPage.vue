@@ -19,7 +19,10 @@
         <v-text-field :model-value="noteQuery" :label="t('filter.noteQuery')" :error-messages="noteQueryInvalid ? t('linkMetadata.noteQueryInvalid') : ''" :disabled="noteFilterBlocked || note.target.value !== null" density="compact" variant="outlined" @update:model-value="selectNoteQuery" />
       </div>
       <ShortLinkBatchToolbar :state="batch" :access="access" transfer @transfer="beginBatchTransfer" @tags="beginBatchTags" @clear-notes="beginNoteClear" @replace-notes="beginNoteReplace" @append-notes="beginNoteAppend" @rename-tag="beginTagRename">
-        <template #copy><ShortLinkPageCopyButton :state="selectedCopy" mode="selected" /></template>
+        <template #copy>
+          <ShortLinkPageCopyButton :state="selectedCopy" mode="selected" />
+          <ShortLinkPageCopyButton :state="selectedMarkdownCopy" mode="selected-markdown" />
+        </template>
       </ShortLinkBatchToolbar>
     </div>
     <AdminTagBrowser :access="access" :blocked="tagSelectionBlocked" @select="selectCatalogTag" />
@@ -250,6 +253,7 @@ const copyOptions = {
 }
 const pageCopy = usePageLinksCopy(copyOptions)
 const selectedCopy = usePageLinksCopy({ ...copyOptions, selection: batch.selected })
+const selectedMarkdownCopy = usePageLinksCopy({ ...copyOptions, selection: batch.selected, format: 'markdown' })
 
 const paginationBlocked = computed(() => noteFilterBlocked.value || note.target.value !== null || exportPending.value
   || filtersPending.value || keywordInvalid.value || tagInvalid.value || noteQueryInvalid.value)

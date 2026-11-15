@@ -11,6 +11,7 @@ interface PageLinksCopyOptions {
   blocked: Readonly<Ref<boolean>>
   context: Readonly<Ref<unknown>>
   selection?: Readonly<Ref<readonly string[]>>
+  format?: 'markdown'
   lock?: Ref<symbol | null>
 }
 
@@ -46,7 +47,7 @@ export function usePageLinksCopy(options: PageLinksCopyOptions) {
   const visible = computed(() => options.access.canRead.value)
   const targets = computed(() => {
     const items = page.value?.items
-    if (!items || items.length < 1 || items.length > 100) return undefined
+    if (!items || items.length < 1 || items.length > 100 || (options.format === 'markdown' && !options.selection)) return undefined
     if (!options.selection) return items
     const ids = options.selection.value
     if (ids.length < 1 || ids.length > 100 || new Set(ids).size !== ids.length || ids.some(id => !id)) return undefined
@@ -56,7 +57,8 @@ export function usePageLinksCopy(options: PageLinksCopyOptions) {
   })
   const disabled = computed(() => pending.value || options.blocked.value || !visible.value || !options.access.allows('read')
     || options.lock?.value != null || !targets.value
-    || targets.value.some(link => !/^https?:\/\//.test(link.url) || /\p{Cc}/u.test(link.url)))
+    || targets.value.some(link => !/^https?:\/\//.test(link.url) || /\p{Cc}/u.test(link.url)
+      || (options.format === 'markdown' && (typeof link.title !== 'string' || /[\p{Cc}\p{Zl}\p{Zp}]/u.test(link.title)))))
 
   /** Calls Clipboard before the first await so the browser retains the direct user activation. */
   async function copy() {
@@ -65,7 +67,13 @@ export function usePageLinksCopy(options: PageLinksCopyOptions) {
     const ownGeneration = generation
     const key = hashKey(options.queryKey.value)
     const snapshot = page.value!
-    const urls = targets.value!.map(link => link.url)
+    const links = targets.value!
+    const text = links.map(link => {
+      if (options.format !== 'markdown') return link.url
+      const label = (link.title || link.url).replace(/&/g, '&amp;').replace(/[\\`*_[\]{}()#+.!|<>~-]/g, '\\$&')
+      const destination = link.url.replace(/[\\<> ]/g, character => encodeURIComponent(character))
+      return `- [${label}](<${destination}>)`
+    }).join('\n')
     /** Suppresses only late interface feedback; an accepted OS clipboard write cannot be revoked. */
     const current = () => alive && generation === ownGeneration && options.access.identity.isCurrent(scope)
       && options.access.canRead.value && options.access.allows('read') && !options.blocked.value
@@ -75,9 +83,9 @@ export function usePageLinksCopy(options: PageLinksCopyOptions) {
     pending.value = true
     try {
       if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable')
-      await navigator.clipboard.writeText(urls.join('\n'))
+      await navigator.clipboard.writeText(text)
       await nextTick()
-      if (current()) toast.success(t(options.selection ? 'selectedLinksCopy.copied' : 'pageLinksCopy.copied', { count: urls.length }, urls.length))
+      if (current()) toast.success(t(options.format === 'markdown' ? 'selectedMarkdownCopy.copied' : options.selection ? 'selectedLinksCopy.copied' : 'pageLinksCopy.copied', { count: links.length }, links.length))
     } catch {
       await nextTick()
       if (current()) toast.error(t('pageLinksCopy.failed'))
