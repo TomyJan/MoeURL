@@ -1,6 +1,6 @@
 # v0.83.0 CSV 自定义列映射
 
-Agent 按持续自主授权选择路线图中的有界列映射，先只支持网址和可选标题。基线为 PR366 已独立核验的 master `8540be11408bebd61cbd5872bf1125475a6aa8f3`，分支 `feat/v0.83.0-csv-column-mapping`；已交付产品仍为 0.82.0。Task1 标准完成，准确产品 0.83.0 的 smoke／所选扫描、单轮 7／7 中英三视口浏览器及可恢复资源清理已核；Task2 标准收口、真实审查与交付另见[验收](../implementation/v0.83.0-acceptance.md)，不借旧测试宣称完成。
+Agent 按持续自主授权选择路线图中的有界列映射，先只支持网址和可选标题。基线为 PR366 已独立核验的 master `8540be11408bebd61cbd5872bf1125475a6aa8f3`，分支 `feat/v0.83.0-csv-column-mapping`；已交付产品仍为 0.82.0。Task1、Task2 已标准完成，唯一终审的一项 Important 已修复，新完整 6642 项／四项 100% 及准确修复产品的 smoke／所选扫描、7／7 中英三视口浏览器和可恢复清理均已核。最终候选真实 CodeRabbit、正常合并及完整归档尚待，准确执行归属见[验收](../implementation/v0.83.0-acceptance.md)。
 
 ## 现状盘点与取舍
 
