@@ -1,6 +1,6 @@
 # v0.78.0 复制本页短链
 
-状态：本人／管理员入口已实现，本地完整前端 6,442 项、四项覆盖率 100%、types／lint／build 通过；产品浏览器、真实审查及合并交付仍待。基线为 PR356 合入的 master `64722b925560abc31248d4e227ff2e4a11186b76`。不查询 CI，不发布部署。
+状态：已由 PR357 正常合入 master `3db25bfb85f0cbc6687bf4a4857e2da9951f7baf`，本地门禁、准确产品、最终浏览器 9／9、候选自身真实 CodeRabbit、独立合并核验及恢复归档均完成，未正式发布或部署。原执行身份见[验收](../implementation/v0.78.0-acceptance.md)，当前维护状态统一见[开发进度](development-status.md)；不查询 CI。
 
 ## 必须实现
 
