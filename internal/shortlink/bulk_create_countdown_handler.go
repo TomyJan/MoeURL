@@ -19,7 +19,7 @@ type BatchCreateWithCountdownsPort interface {
 	BatchCreateWithCountdowns(context.Context, auth.CurrentUser, BatchCreateWithCountdownsInput) (BatchCreateResult, error)
 }
 
-// BulkCreateCountdownHandler binds a strict visit-limit batch endpoint to its service.
+// BulkCreateCountdownHandler binds a strict countdown batch endpoint to its service.
 type BulkCreateCountdownHandler struct {
 	service BatchCreateWithCountdownsPort
 	logger  *slog.Logger
