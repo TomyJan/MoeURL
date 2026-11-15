@@ -21,7 +21,7 @@ import (
 const countdownEndpoint = "/api/v1/short-link/batch-create-with-countdowns"
 const countdownRow = `{"targetUrl":"https://example.org/delay77","title":" raw ","tags":[" tag "],"customSlug":"","redirectMode":"intermediate","expiresAt":"2099-01-01T00:00:00Z","maxVisits":"1","intermediateDelaySeconds":"3"}`
 
-// newCountdownRouterFixture exercises actual sessions, permission storage and all seven production routes.
+// newCountdownRouterFixture exercises actual sessions, permission storage and all eight production routes.
 func newCountdownRouterFixture(t *testing.T) metadataRouterFixture {
 	t.Helper()
 	f := newMetadataRouterFixture(t)
