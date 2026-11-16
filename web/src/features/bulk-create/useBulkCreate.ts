@@ -29,9 +29,11 @@ export function useBulkCreate() {
   const reading = ref(false)
   const fileIssue = shallowRef<BulkCreateCsvIssue | null>(null)
   const csvIssue = computed(() => ['bulkCreate.csvInvalid', 'bulkCreate.csvMappingFileInvalid'].includes(errorKey.value) ? fileIssue.value : null)
-  const mappingSource = shallowRef<{ text: string; headers: readonly string[]; titleEpoch: number } | null>(null)
+  const mappingSource = shallowRef<{ text: string; headers: readonly string[]; titleEpoch: number; customSlugEpoch: number; intermediateEpoch: number; confirmationEpoch: number; expirationEpoch: number; visitLimitEpoch: number } | null>(null)
   const mappingHeaders = computed(() => mappingSource.value?.headers ?? null)
   const mappingTarget = ref<number | null>(null), mappingTitle = ref<number | null>(null), mappingTags = ref<number | null>(null)
+  const mappingCustomSlug = ref<number | null>(null), mappingRedirectMode = ref<number | null>(null), mappingExpiration = ref<number | null>(null)
+  const mappingVisitLimit = ref<number | null>(null), mappingCountdown = ref<number | null>(null)
   let generation = 0, alive = true, scope = identity.scope.value
   let fileSequence = 0, draftRevision = 0, metadataEpoch = 0, customSlugEpoch = 0, intermediateEpoch = 0, confirmationEpoch = 0, expirationEpoch = 0, visitLimitEpoch = 0
   watch(draft, () => { draftRevision++; fileSequence++; reading.value = false; clearMapping() }, { flush: 'sync' })
@@ -80,6 +82,7 @@ export function useBulkCreate() {
     && auth.data.value.user.permissions.includes('short_link:create') && auth.data.value.user.permissions.includes('domain:use_default'))
   const mappingTitleAllowed = computed(() => allowed.value && !!auth.data.value?.user.permissions.includes('short_link:set_metadata'))
   const mappingTagsAllowed = mappingTitleAllowed
+  const mappingAdvancedAllowed = computed(() => allowed.value && !!auth.data.value?.user.permissions.includes('short_link:set_metadata') && !!auth.data.value?.user.permissions.includes('short_link:custom_slug'))
   function canTitleNow() { return canUseNow() && !!client.getQueryData<UserResponse>(['auth', 'me'])?.user.permissions.includes('short_link:set_metadata') }
   function canCustomSlugNow() { return canTitleNow() && !!client.getQueryData<UserResponse>(['auth', 'me'])?.user.permissions.includes('short_link:custom_slug') }
   /** Examines actual row intent so unrelated mode grants cannot retire a direct-only batch. */
@@ -95,6 +98,8 @@ export function useBulkCreate() {
   function canVisitLimitNow() { return canCustomSlugNow() && !!client.getQueryData<UserResponse>(['auth', 'me'])?.user.permissions.includes('short_link:set_max_visits') }
   function canVisitLimitsNow(items: readonly StructuredItem[]) { return canExpirationsNow(items) && (!usesVisitLimit(items) || canVisitLimitNow()) }
   function hasVisitLimitDraft() { return usesVisitLimit(snapshot.value && 'items' in snapshot.value ? snapshot.value.items : importedItems.value ?? []) }
+  function hasStructuredMapping() { return mappingTitle.value !== null || mappingTags.value !== null || mappingCustomSlug.value !== null || mappingRedirectMode.value !== null || mappingExpiration.value !== null || mappingVisitLimit.value !== null || mappingCountdown.value !== null }
+  function hasAdvancedMapping() { return mappingCustomSlug.value !== null || mappingRedirectMode.value !== null || mappingExpiration.value !== null || mappingVisitLimit.value !== null || mappingCountdown.value !== null }
   /** Retires private input immediately, without letting old finally blocks unlock a newer batch. */
   function reset() {
     generation++; opened.value = false; draft.value = ''; importedItems.value = null; snapshot.value = null; pending.value = false
@@ -107,12 +112,12 @@ export function useBulkCreate() {
     if (!identity.isCurrent(scope) || !canUseNow()) reset()
     if (!canTitleNow()) {
       metadataEpoch++
-      if (importedItems.value || (snapshot.value && 'items' in snapshot.value) || (mappingSource.value && (mappingTitle.value !== null || mappingTags.value !== null))) reset()
+      if (importedItems.value || (snapshot.value && 'items' in snapshot.value) || (mappingSource.value && hasStructuredMapping())) reset()
     }
     if (!canCustomSlugNow()) {
       customSlugEpoch++
       const currentMode = snapshot.value ? snapshotMode.value : importedMode.value
-      if (currentMode === 'custom-slugs' || currentMode === 'redirect-modes' || currentMode === 'expirations' || currentMode === 'visit-limits' || currentMode === 'countdowns') reset()
+      if (currentMode === 'custom-slugs' || currentMode === 'redirect-modes' || currentMode === 'expirations' || currentMode === 'visit-limits' || currentMode === 'countdowns' || (mappingSource.value && hasAdvancedMapping())) reset()
     }
     if (!canModeNow('intermediate')) {
       intermediateEpoch++
@@ -164,7 +169,10 @@ export function useBulkCreate() {
     clearMapping()
   }
   /** Drops only the local mapping, leaving the prior manual or structured draft untouched. */
-  function clearMapping() { mappingSource.value = null; mappingTarget.value = null; mappingTitle.value = null; mappingTags.value = null }
+  function clearMapping() {
+    mappingSource.value = null; mappingTarget.value = null; mappingTitle.value = null; mappingTags.value = null
+    mappingCustomSlug.value = null; mappingRedirectMode.value = null; mappingExpiration.value = null; mappingVisitLimit.value = null; mappingCountdown.value = null
+  }
   function cancelMapping() {
     if (!opened.value || snapshot.value || pending.value || unknown.value) return
     clearMapping(); fileSequence++; reading.value = false; errorKey.value = ''; fileIssue.value = null
@@ -182,9 +190,22 @@ export function useBulkCreate() {
   function applyMapping() {
     const source = mappingSource.value
     if (!source || !opened.value || snapshot.value || pending.value || unknown.value || reading.value || !isCurrent(generation, scope)) return
-    const parsed = parseBulkCreateMappedCsv(source.text, { target: mappingTarget.value, title: mappingTitle.value, tags: mappingTags.value })
+    const parsed = parseBulkCreateMappedCsv(source.text, {
+      target: mappingTarget.value, title: mappingTitle.value, tags: mappingTags.value, customSlug: mappingCustomSlug.value,
+      redirectMode: mappingRedirectMode.value, expiresAt: mappingExpiration.value, maxVisits: mappingVisitLimit.value,
+      intermediateDelaySeconds: mappingCountdown.value,
+    })
     if (!parsed.success) { errorKey.value = 'bulkCreate.csvMappingInvalid'; return }
-    if ((parsed.mode === 'titles' || parsed.mode === 'metadata') && (!canTitleNow() || source.titleEpoch !== metadataEpoch)) { errorKey.value = 'bulkCreate.metadataRequired'; return }
+    if (parsed.mode !== 'targets' && (!canTitleNow() || source.titleEpoch !== metadataEpoch)) { errorKey.value = 'bulkCreate.metadataRequired'; return }
+    if (parsed.mode === 'custom-slugs' || parsed.mode === 'redirect-modes' || parsed.mode === 'expirations' || parsed.mode === 'visit-limits' || parsed.mode === 'countdowns') {
+      if (!canCustomSlugNow() || source.customSlugEpoch !== customSlugEpoch) { errorKey.value = 'bulkCreate.customSlugRequired'; return }
+    }
+    if (parsed.mode !== 'targets') {
+      if (usesMode(parsed.data, 'intermediate') && (!canModeNow('intermediate') || source.intermediateEpoch !== intermediateEpoch)) { errorKey.value = 'bulkCreate.redirectModeRequired'; return }
+      if (usesMode(parsed.data, 'confirmation') && (!canModeNow('confirmation') || source.confirmationEpoch !== confirmationEpoch)) { errorKey.value = 'bulkCreate.redirectModeRequired'; return }
+      if (usesExpiration(parsed.data) && (!canExpirationNow() || source.expirationEpoch !== expirationEpoch)) { errorKey.value = 'bulkCreate.expirationRequired'; return }
+      if (usesVisitLimit(parsed.data) && (!canVisitLimitNow() || source.visitLimitEpoch !== visitLimitEpoch)) { errorKey.value = 'bulkCreate.visitLimitRequired'; return }
+    }
     replaceDraft(parsed)
   }
   /** Checks both login epoch and the operation generation immediately before any side effect. */
@@ -208,7 +229,7 @@ export function useBulkCreate() {
           fileIssue.value = inspected.issue?.kind === 'header' ? null : inspected.issue ?? null
           errorKey.value = 'bulkCreate.csvMappingFileInvalid'; return
         }
-        mappingSource.value = { text, headers: inspected.headers, titleEpoch }
+        mappingSource.value = { text, headers: inspected.headers, titleEpoch, customSlugEpoch: slugEpoch, intermediateEpoch: intermediateReadEpoch, confirmationEpoch: confirmationReadEpoch, expirationEpoch: expirationReadEpoch, visitLimitEpoch: visitLimitReadEpoch }
         return
       }
       const parsed = parseBulkCreateImportCsvDetailed(text)
@@ -267,5 +288,5 @@ export function useBulkCreate() {
   }
   window.addEventListener('beforeunload', beforeUnload)
   onBeforeUnmount(() => { alive = false; generation++; clearMapping(); unsubscribe(); window.removeEventListener('beforeunload', beforeUnload) })
-  return { allowed, opened, draft, importedItems, importedMode, previewItems, snapshot, snapshotMode, pending, unknown, closing, errorKey, csvIssue, reading, mappingHeaders, mappingTarget, mappingTitle, mappingTags, mappingTitleAllowed, mappingTagsAllowed, applyMapping, cancelMapping, importFile, clearImport, begin, preview, edit, submit, close, cancelClose, discard }
+  return { allowed, opened, draft, importedItems, importedMode, previewItems, snapshot, snapshotMode, pending, unknown, closing, errorKey, csvIssue, reading, mappingHeaders, mappingTarget, mappingTitle, mappingTags, mappingCustomSlug, mappingRedirectMode, mappingExpiration, mappingVisitLimit, mappingCountdown, mappingTitleAllowed, mappingTagsAllowed, mappingAdvancedAllowed, applyMapping, cancelMapping, importFile, clearImport, begin, preview, edit, submit, close, cancelClose, discard }
 }
