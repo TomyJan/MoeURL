@@ -3,6 +3,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { defineComponent } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createDeferred } from '@/test/deferred'
+import { parseBulkCreateMappedCsv } from '@/entities/short-link/bulk-create-csv-mapping'
 import { useBulkCreate } from './useBulkCreate'
 
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
@@ -203,6 +204,41 @@ describe('explicit mapped CSV staging', () => {
     expect(state.importedItems.value).toBeNull(); expect(state.draft.value).toBe('')
   })
 
+  it.each([
+    { field: 'custom short code', select: (state: ReturnType<typeof useBulkCreate>) => { state.mappingCustomSlug.value = 1 } },
+    { field: 'redirect mode', select: (state: ReturnType<typeof useBulkCreate>) => { state.mappingRedirectMode.value = 2 } },
+    { field: 'expiration', select: (state: ReturnType<typeof useBulkCreate>) => { state.mappingExpiration.value = 3 } },
+    { field: 'visit limit', select: (state: ReturnType<typeof useBulkCreate>) => { state.mappingVisitLimit.value = 4 } },
+    { field: 'countdown', select: (state: ReturnType<typeof useBulkCreate>) => { state.mappingCountdown.value = 5 } },
+  ])('retires a staged $field selection when custom-slug permission is revoked', async ({ select }) => {
+    const permissions = [...actor.permissions, 'short_link:custom_slug', 'short_link:use_intermediate', 'short_link:set_expiration', 'short_link:set_max_visits']
+    const { state, client } = mount(permissions); await read(state, 'Address,Code,Mode,Expiry,Cap,Delay\nhttps://example.com/custom,team88,intermediate,2030-01-02T03:04:05Z,9,3')
+    state.mappingTarget.value = 0; select(state)
+    client.setQueryData(['auth', 'me'], { user: { ...actor, permissions: actor.permissions } })
+    expect(state.mappingHeaders.value).toBeNull(); expect(state.opened.value).toBe(false)
+    expect(state.mappingCustomSlug.value).toBeNull(); expect(state.mappingRedirectMode.value).toBeNull()
+    expect(state.mappingExpiration.value).toBeNull(); expect(state.mappingVisitLimit.value).toBeNull(); expect(state.mappingCountdown.value).toBeNull()
+    client.setQueryData(['auth', 'me'], { user: { ...actor, permissions } }); state.begin(); state.applyMapping()
+    expect(state.importedItems.value).toBeNull(); expect(state.draft.value).toBe('')
+  })
+
+  it.each([
+    { field: 'custom short code', select: (state: ReturnType<typeof useBulkCreate>) => { state.mappingCustomSlug.value = 1 } },
+    { field: 'redirect mode', select: (state: ReturnType<typeof useBulkCreate>) => { state.mappingRedirectMode.value = 2 } },
+    { field: 'expiration', select: (state: ReturnType<typeof useBulkCreate>) => { state.mappingExpiration.value = 3 } },
+    { field: 'visit limit', select: (state: ReturnType<typeof useBulkCreate>) => { state.mappingVisitLimit.value = 4 } },
+    { field: 'countdown', select: (state: ReturnType<typeof useBulkCreate>) => { state.mappingCountdown.value = 5 } },
+  ])('retires staged $field data when metadata permission is revoked', async ({ select }) => {
+    const permissions = [...actor.permissions, 'short_link:custom_slug', 'short_link:use_intermediate', 'short_link:set_expiration', 'short_link:set_max_visits']
+    const { state, client } = mount(permissions); await read(state, 'Address,Code,Mode,Expiry,Cap,Delay\nhttps://example.com/custom,team88,intermediate,2030-01-02T03:04:05Z,9,3')
+    state.mappingTarget.value = 0; select(state)
+    const withoutMetadata = permissions.filter(permission => permission !== 'short_link:set_metadata')
+    client.setQueryData(['auth', 'me'], { user: { ...actor, permissions: withoutMetadata } })
+    expect(state.mappingHeaders.value).toBeNull(); expect(state.opened.value).toBe(false)
+    client.setQueryData(['auth', 'me'], { user: { ...actor, permissions } }); state.begin(); state.applyMapping()
+    expect(state.importedItems.value).toBeNull(); expect(state.draft.value).toBe('')
+  })
+
   it('does not revive tag authority after revocation and restoration during a file read', async () => {
     const { state, client } = mount(); state.draft.value = 'https://example.com/manual'
     const csv = 'address,categories\nhttps://example.com/tagged,' + csvCell(JSON.stringify(['docs'])), file = pendingFile(csv), first = state.importFile(file.file, 'mapped')
@@ -211,6 +247,107 @@ describe('explicit mapped CSV staging', () => {
     state.mappingTarget.value = 0; state.mappingTags.value = 1; state.applyMapping()
     expect(state.mappingTagsAllowed.value).toBe(true); expect(state.errorKey.value).toBe('bulkCreate.metadataRequired')
     expect(state.draft.value).toBe('https://example.com/manual'); expect(state.importedItems.value).toBeNull()
+  })
+
+  it('maps all advanced fields through the original countdown API and freezes their values', async () => {
+    const permissions = [...actor.permissions, 'short_link:custom_slug', 'short_link:use_intermediate', 'short_link:set_expiration', 'short_link:set_max_visits']
+    const { state, requests } = mount(permissions)
+    const text = 'Expiry,Mode,Secret,Address,Delay,Code,Limit\n2030-01-02T03:04:05Z,intermediate,hidden,https://example.com/full-map,3,team88,9'
+    await read(state, text)
+    state.mappingTarget.value = 3; state.mappingCustomSlug.value = 5; state.mappingRedirectMode.value = 1
+    state.mappingExpiration.value = 0; state.mappingVisitLimit.value = 6; state.mappingCountdown.value = 4
+    state.applyMapping()
+    expect(state.importedMode.value).toBe('countdowns')
+    expect(state.importedItems.value).toEqual([{ targetUrl: 'https://example.com/full-map', title: '', tags: [], customSlug: 'team88', redirectMode: 'intermediate', expiresAt: '2030-01-02T03:04:05Z', maxVisits: '9', intermediateDelaySeconds: '3' }])
+    expect(Object.isFrozen(state.importedItems.value)).toBe(true)
+    state.preview(); const frozen = state.snapshot.value; await state.submit()
+    expect(requests).toEqual([{ path: '/api/v1/short-link/batch-create-with-countdowns', body: JSON.stringify(frozen) }])
+    expect(requests[0]!.body).not.toContain('hidden')
+  })
+
+  it('requires structural custom-slug permission even when the selected slug cell is empty', async () => {
+    const { state } = mount(); state.draft.value = 'https://example.com/manual'
+    await read(state, 'Address,Code\nhttps://example.com/empty,')
+    state.mappingTarget.value = 0; state.mappingCustomSlug.value = 1; state.applyMapping()
+    expect(state.errorKey.value).toBe('bulkCreate.customSlugRequired')
+    expect(state.draft.value).toBe('https://example.com/manual'); expect(state.mappingHeaders.value).toEqual(['Address', 'Code'])
+  })
+
+  it('does not require intermediate permission for an explicitly mapped direct-only batch', async () => {
+    const permissions = [...actor.permissions, 'short_link:custom_slug']
+    const { state } = mount(permissions)
+    await read(state, 'Address,Mode\nhttps://example.com/direct,direct')
+    state.mappingTarget.value = 0; state.mappingRedirectMode.value = 1; state.applyMapping()
+    expect(state.errorKey.value).toBe(''); expect(state.importedMode.value).toBe('redirect-modes')
+    expect(state.importedItems.value).toEqual([{ targetUrl: 'https://example.com/direct', title: '', tags: [], customSlug: '', redirectMode: 'direct' }])
+  })
+
+  it('applies a confirmation-only mapping through its existing protocol when authorized', async () => {
+    const { state } = mount([...actor.permissions, 'short_link:custom_slug', 'short_link:use_confirmation'])
+    await read(state, 'Address,Mode\nhttps://example.com/confirmation,confirmation')
+    state.mappingTarget.value = 0; state.mappingRedirectMode.value = 1; state.applyMapping()
+    expect(state.errorKey.value).toBe(''); expect(state.importedMode.value).toBe('redirect-modes')
+    expect(state.importedItems.value).toEqual([{ targetUrl: 'https://example.com/confirmation', title: '', tags: [], customSlug: '', redirectMode: 'confirmation' }])
+  })
+
+  it('preserves the manual draft when a mapped confirmation mode is not authorized', async () => {
+    const { state, requests } = mount([...actor.permissions, 'short_link:custom_slug'])
+    const manual = 'https://example.com/manual-confirmation'
+    state.draft.value = manual
+    await read(state, 'Address,Mode\nhttps://example.com/confirmation,confirmation')
+    state.mappingTarget.value = 0; state.mappingRedirectMode.value = 1; state.applyMapping()
+    expect(state.errorKey.value).toBe('bulkCreate.redirectModeRequired')
+    expect(state.draft.value).toBe(manual)
+    expect(state.importedItems.value).toBeNull()
+    expect(state.mappingHeaders.value).toEqual(['Address', 'Mode'])
+    expect(requests).toEqual([])
+  })
+
+  it('checks expiration and visit-limit grants only when their selected values are nonempty', async () => {
+    const structural = [...actor.permissions, 'short_link:custom_slug']
+    const expiration = mount(structural); await read(expiration.state, 'Address,Mode,Expiry\nhttps://example.com/expiry,direct,2030-01-02T03:04:05Z')
+    expiration.state.mappingTarget.value = 0; expiration.state.mappingRedirectMode.value = 1; expiration.state.mappingExpiration.value = 2
+    expiration.state.applyMapping()
+    expect(expiration.state.errorKey.value).toBe('bulkCreate.expirationRequired')
+    expect(expiration.state.mappingHeaders.value).toEqual(['Address', 'Mode', 'Expiry']); expect(expiration.requests).toEqual([])
+
+    const visitLimit = mount(structural); await read(visitLimit.state, 'Address,Mode,Limit\nhttps://example.com/limited,direct,9')
+    visitLimit.state.mappingTarget.value = 0; visitLimit.state.mappingRedirectMode.value = 1; visitLimit.state.mappingVisitLimit.value = 2
+    visitLimit.state.applyMapping()
+    expect(visitLimit.state.errorKey.value).toBe('bulkCreate.visitLimitRequired')
+    expect(visitLimit.state.mappingHeaders.value).toEqual(['Address', 'Mode', 'Limit']); expect(visitLimit.requests).toEqual([])
+  })
+
+  it('allows an empty optional expiration when its value permission is absent', async () => {
+    const permissions = [...actor.permissions, 'short_link:custom_slug']
+    const { state } = mount(permissions)
+    await read(state, 'Address,Mode,Expiry\nhttps://example.com/no-expiry,direct,')
+    state.mappingTarget.value = 0; state.mappingRedirectMode.value = 1; state.mappingExpiration.value = 2
+    state.applyMapping()
+    expect(state.errorKey.value).toBe(''); expect(state.importedMode.value).toBe('expirations')
+    expect(state.importedItems.value).toEqual([{ targetUrl: 'https://example.com/no-expiry', title: '', tags: [], customSlug: '', redirectMode: 'direct', expiresAt: '' }])
+  })
+
+  it('does not revive intermediate permission after a staged file crosses a revoke/restore epoch', async () => {
+    const full = [...actor.permissions, 'short_link:custom_slug', 'short_link:use_intermediate']
+    const { state, client } = mount(full); state.draft.value = 'https://example.com/manual'
+    const text = 'Address,Mode\nhttps://example.com/middle,intermediate'
+    await read(state, text)
+    state.mappingTarget.value = 0; state.mappingRedirectMode.value = 1
+    expect(state.opened.value).toBe(true)
+    expect(state.allowed.value).toBe(true)
+    expect(parseBulkCreateMappedCsv(text, { target: 0, title: null, tags: null, customSlug: null, redirectMode: 1, expiresAt: null, maxVisits: null, intermediateDelaySeconds: null })).toMatchObject({ success: true, mode: 'redirect-modes' })
+    client.setQueryData(['auth', 'me'], { user: { ...actor, permissions: [...actor.permissions, 'short_link:custom_slug'] } })
+    expect(state.mappingHeaders.value).toEqual(['Address', 'Mode'])
+    expect(state.mappingRedirectMode.value).toBe(1)
+    state.applyMapping()
+    expect(state.errorKey.value).toBe('bulkCreate.redirectModeRequired')
+    expect(state.mappingHeaders.value).toEqual(['Address', 'Mode'])
+    client.setQueryData(['auth', 'me'], { user: { ...actor, permissions: full } })
+    state.errorKey.value = ''
+    state.applyMapping()
+    expect(state.errorKey.value).toBe('bulkCreate.redirectModeRequired')
+    expect(state.draft.value).toBe('https://example.com/manual'); expect(state.mappingHeaders.value).toEqual(['Address', 'Mode'])
   })
 
   it.each(['resolve', 'reject'] as const)('prevents an older mapped %s from changing or unlocking a newer pending read', async finish => {

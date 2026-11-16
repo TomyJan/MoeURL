@@ -23,10 +23,15 @@ export function parseBulkCreateImportCsv(text: string): ImportResult {
 
 /** Reads strict CSV and reports bounded structure issues without exposing raw input. */
 export function parseBulkCreateImportCsvDetailed(text: string): DetailedImportResult {
-  const invalid: DetailedImportResult = { success: false }
   const scanned = scanBulkCreateCsv(text)
   if (!scanned.success) return scanned
-  let rows = scanned.records
+  return parseBulkCreateRecordsDetailed(scanned.records)
+}
+
+/** Reuses the original schema dispatch after either strict scanning or an explicit local projection. */
+export function parseBulkCreateRecordsDetailed(records: readonly string[][]): DetailedImportResult {
+  const invalid: DetailedImportResult = { success: false }
+  let rows = [...records]
   const structural = (kind: BulkCreateCsvIssue['kind'], record = rows.length + 1): DetailedImportResult => record <= 21 ? { success: false, issue: { kind, record } } : invalid
   const header = rows.shift()!
   const standard = ['target_url', 'title', 'tags', 'custom_slug', 'redirect_mode', 'expires_at', 'max_visits', 'intermediate_delay_seconds']
