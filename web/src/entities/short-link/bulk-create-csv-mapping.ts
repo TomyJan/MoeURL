@@ -1,10 +1,10 @@
-import { bulkCreateTargetsSchema, bulkCreateTitlesInputSchema, type BulkCreateItem } from './bulk-create'
+import { bulkCreateMetadataInputSchema, bulkCreateTargetsSchema, bulkCreateTitlesInputSchema, type BulkCreateItem, type BulkCreateMetadataItem } from './bulk-create'
 import { scanBulkCreateCsv, type CsvScanFailure } from './bulk-create-csv-scan'
 
 type MappingTable = { success: true; headers: string[]; rows: string[][] } | CsvScanFailure
 type MappingInspection = { success: true; headers: readonly string[] } | CsvScanFailure
-type ColumnSelection = { target: number | null; title: number | null }
-type MappedImport = { success: true; mode: 'targets'; data: string[] } | { success: true; mode: 'titles'; data: BulkCreateItem[] } | { success: false }
+type ColumnSelection = { target: number | null; title: number | null; tags?: number | null }
+export type MappedImport = { success: true; mode: 'targets'; data: string[] } | { success: true; mode: 'titles'; data: BulkCreateItem[] } | { success: true; mode: 'metadata'; data: BulkCreateMetadataItem[] } | { success: false }
 
 /** Requires a complete rectangular data table without interpreting arbitrary header names. */
 function readMappingTable(text: string): MappingTable {
@@ -30,8 +30,24 @@ export function parseBulkCreateMappedCsv(text: string, columns: ColumnSelection)
   const table = readMappingTable(text)
   if (!table.success) return invalid
   const valid = (value: number | null): value is number => value !== null && Number.isInteger(value) && value >= 0 && value < table.headers.length
-  if (!valid(columns.target) || (columns.title !== null && (!valid(columns.title) || columns.title === columns.target))) return invalid
+  const tags = columns.tags ?? null
+  if (!valid(columns.target)
+    || (columns.title !== null && (!valid(columns.title) || columns.title === columns.target))
+    || (tags !== null && (!valid(tags) || tags === columns.target || tags === columns.title))) return invalid
   const target = columns.target, title = columns.title
+  if (tags !== null) {
+    const items = [] as { targetUrl: string; title: string; tags: unknown }[]
+    for (const row of table.rows) {
+      let parsedTags: unknown
+      try { parsedTags = JSON.parse(row[tags]!) as unknown } catch { return invalid }
+      items.push({ targetUrl: row[target]!, title: title === null ? '' : row[title]!, tags: parsedTags })
+    }
+    const parsed = bulkCreateMetadataInputSchema.safeParse({
+      requestId: '11111111-1111-4111-8111-111111111111',
+      items,
+    })
+    return parsed.success ? { success: true, mode: 'metadata', data: parsed.data.items } : invalid
+  }
   if (title === null) {
     const parsed = bulkCreateTargetsSchema.safeParse(table.rows.map(row => row[target]!))
     if (!parsed.success || new TextEncoder().encode(JSON.stringify({

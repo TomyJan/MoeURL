@@ -7,7 +7,7 @@ import { batchCreateShortLinks, batchCreateShortLinksWithTitles, batchCreateShor
 import { ApiClientError } from '@/shared/api/client'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 import { BULK_CSV_MAX_BYTES, parseBulkCreateImportCsvDetailed, type BulkCreateCsvIssue, type DetailedImportResult } from '@/entities/short-link/bulk-create-csv'
-import { inspectBulkCreateCsvMapping, parseBulkCreateMappedCsv } from '@/entities/short-link/bulk-create-csv-mapping'
+import { inspectBulkCreateCsvMapping, parseBulkCreateMappedCsv, type MappedImport } from '@/entities/short-link/bulk-create-csv-mapping'
 import { batchCreateShortLinksWithExpirations, type BulkCreateExpirationItem, type BulkCreateExpirationsInput } from '@/entities/short-link/bulk-create'
 import { batchCreateShortLinksWithCountdowns, type BulkCreateCountdownItem, type BulkCreateCountdownsInput } from '@/entities/short-link/bulk-create'
 import { batchCreateShortLinksWithVisitLimits, type BulkCreateVisitLimitItem, type BulkCreateVisitLimitsInput } from '@/entities/short-link/bulk-create'
@@ -31,7 +31,7 @@ export function useBulkCreate() {
   const csvIssue = computed(() => ['bulkCreate.csvInvalid', 'bulkCreate.csvMappingFileInvalid'].includes(errorKey.value) ? fileIssue.value : null)
   const mappingSource = shallowRef<{ text: string; headers: readonly string[]; titleEpoch: number } | null>(null)
   const mappingHeaders = computed(() => mappingSource.value?.headers ?? null)
-  const mappingTarget = ref<number | null>(null), mappingTitle = ref<number | null>(null)
+  const mappingTarget = ref<number | null>(null), mappingTitle = ref<number | null>(null), mappingTags = ref<number | null>(null)
   let generation = 0, alive = true, scope = identity.scope.value
   let fileSequence = 0, draftRevision = 0, metadataEpoch = 0, customSlugEpoch = 0, intermediateEpoch = 0, confirmationEpoch = 0, expirationEpoch = 0, visitLimitEpoch = 0
   watch(draft, () => { draftRevision++; fileSequence++; reading.value = false; clearMapping() }, { flush: 'sync' })
@@ -79,6 +79,7 @@ export function useBulkCreate() {
     && auth.data.value.user.username !== 'guest' && !!auth.data.value.user.id
     && auth.data.value.user.permissions.includes('short_link:create') && auth.data.value.user.permissions.includes('domain:use_default'))
   const mappingTitleAllowed = computed(() => allowed.value && !!auth.data.value?.user.permissions.includes('short_link:set_metadata'))
+  const mappingTagsAllowed = mappingTitleAllowed
   function canTitleNow() { return canUseNow() && !!client.getQueryData<UserResponse>(['auth', 'me'])?.user.permissions.includes('short_link:set_metadata') }
   function canCustomSlugNow() { return canTitleNow() && !!client.getQueryData<UserResponse>(['auth', 'me'])?.user.permissions.includes('short_link:custom_slug') }
   /** Examines actual row intent so unrelated mode grants cannot retire a direct-only batch. */
@@ -106,7 +107,7 @@ export function useBulkCreate() {
     if (!identity.isCurrent(scope) || !canUseNow()) reset()
     if (!canTitleNow()) {
       metadataEpoch++
-      if (importedItems.value || (snapshot.value && 'items' in snapshot.value) || (mappingSource.value && mappingTitle.value !== null)) reset()
+      if (importedItems.value || (snapshot.value && 'items' in snapshot.value) || (mappingSource.value && (mappingTitle.value !== null || mappingTags.value !== null))) reset()
     }
     if (!canCustomSlugNow()) {
       customSlugEpoch++
@@ -163,13 +164,13 @@ export function useBulkCreate() {
     clearMapping()
   }
   /** Drops only the local mapping, leaving the prior manual or structured draft untouched. */
-  function clearMapping() { mappingSource.value = null; mappingTarget.value = null; mappingTitle.value = null }
+  function clearMapping() { mappingSource.value = null; mappingTarget.value = null; mappingTitle.value = null; mappingTags.value = null }
   function cancelMapping() {
     if (!opened.value || snapshot.value || pending.value || unknown.value) return
     clearMapping(); fileSequence++; reading.value = false; errorKey.value = ''; fileIssue.value = null
   }
   /** Uses the same replacement and immutable item shape for both explicit import paths. */
-  function replaceDraft(parsed: Exclude<DetailedImportResult, { success: false }>) {
+  function replaceDraft(parsed: Exclude<DetailedImportResult, { success: false }> | Extract<MappedImport, { success: true }>) {
     if (parsed.mode !== 'targets') {
       draft.value = ''
       importedItems.value = Object.freeze(parsed.data.map(item => Object.freeze('tags' in item ? { ...item, tags: Object.freeze([...item.tags]) } : { ...item })))
@@ -181,9 +182,9 @@ export function useBulkCreate() {
   function applyMapping() {
     const source = mappingSource.value
     if (!source || !opened.value || snapshot.value || pending.value || unknown.value || reading.value || !isCurrent(generation, scope)) return
-    const parsed = parseBulkCreateMappedCsv(source.text, { target: mappingTarget.value, title: mappingTitle.value })
+    const parsed = parseBulkCreateMappedCsv(source.text, { target: mappingTarget.value, title: mappingTitle.value, tags: mappingTags.value })
     if (!parsed.success) { errorKey.value = 'bulkCreate.csvMappingInvalid'; return }
-    if (parsed.mode === 'titles' && (!canTitleNow() || source.titleEpoch !== metadataEpoch)) { errorKey.value = 'bulkCreate.metadataRequired'; return }
+    if ((parsed.mode === 'titles' || parsed.mode === 'metadata') && (!canTitleNow() || source.titleEpoch !== metadataEpoch)) { errorKey.value = 'bulkCreate.metadataRequired'; return }
     replaceDraft(parsed)
   }
   /** Checks both login epoch and the operation generation immediately before any side effect. */
@@ -266,5 +267,5 @@ export function useBulkCreate() {
   }
   window.addEventListener('beforeunload', beforeUnload)
   onBeforeUnmount(() => { alive = false; generation++; clearMapping(); unsubscribe(); window.removeEventListener('beforeunload', beforeUnload) })
-  return { allowed, opened, draft, importedItems, importedMode, previewItems, snapshot, snapshotMode, pending, unknown, closing, errorKey, csvIssue, reading, mappingHeaders, mappingTarget, mappingTitle, mappingTitleAllowed, applyMapping, cancelMapping, importFile, clearImport, begin, preview, edit, submit, close, cancelClose, discard }
+  return { allowed, opened, draft, importedItems, importedMode, previewItems, snapshot, snapshotMode, pending, unknown, closing, errorKey, csvIssue, reading, mappingHeaders, mappingTarget, mappingTitle, mappingTags, mappingTitleAllowed, mappingTagsAllowed, applyMapping, cancelMapping, importFile, clearImport, begin, preview, edit, submit, close, cancelClose, discard }
 }
