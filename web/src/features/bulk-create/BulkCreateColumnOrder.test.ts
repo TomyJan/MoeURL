@@ -11,8 +11,8 @@ afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear())
 
 describe('bilingual reordered CSV dialog', () => {
   it.each([
-    { locale: 'zh-CN', help: '标准列名可调整顺序；每种格式必须包含完整列集合，不能缺列、多列或重复。示例和模板仍使用标准顺序。' },
-    { locale: 'en', help: 'Standard columns may appear in any order. Each format requires its complete column set, with no missing, extra or duplicate columns. Examples and templates keep the standard order.' },
+    { locale: 'zh-CN', help: '标准列名可任意排列；不能使用未知、重复或缺少 target_url 的表头。示例和模板仍使用完整标准顺序。' },
+    { locale: 'en', help: 'Standard columns may appear in any order. Unknown or duplicate names and headers without target_url are rejected. Examples and templates keep the complete standard order.' },
   ])('explains complete column sets and renders reordered raw fields as text ($locale)', async ({ locale, help }) => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }); clients.push(client)
     client.setQueryData(['auth', 'me'], { user: { id: '00000000-0000-0000-0000-000000008102', username: 'order-ui', nickname: '', group: 'user', permissions: ['short_link:create', 'domain:use_default', 'short_link:set_metadata'] } })

@@ -67,9 +67,9 @@ describe('reordered CSV through the real batch client', () => {
     const fresh = pendingFile(), next = state.importFile(fresh.file); fresh.resolve(); await next
     expect(state.importedItems.value).toStrictEqual(items); expect(state.errorKey.value).toBe('')
   })
-  it('rejects an incomplete column set without replacing a manual draft or issuing HTTP', async () => {
+  it('rejects a header without URL without replacing a manual draft or issuing HTTP', async () => {
     const { state, fetcher } = mount(); state.draft.value = 'https://example.com/manual'
-    const file = pendingFile('expires_at,target_url\n,https://example.com/invalid'), reading = state.importFile(file.file)
+    const file = pendingFile('expires_at,title\n,missing-url'), reading = state.importFile(file.file)
     file.resolve(); await reading
     expect(state.errorKey.value).toBe('bulkCreate.csvInvalid'); expect(state.draft.value).toBe('https://example.com/manual')
     expect(state.importedItems.value).toBeNull(); expect(state.snapshot.value).toBeNull(); expect(fetcher).not.toHaveBeenCalled()

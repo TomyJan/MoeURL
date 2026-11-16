@@ -51,13 +51,13 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
     await page.goto('/link'); await activate(page.getByTestId('bulk-create-open'))
     const dialog = page.getByRole('dialog'), draft = dialog.getByRole('textbox'), manual = 'https://example.com/manual-order81'
     await draft.fill(manual)
-    await upload(page, 'expires_at,target_url\r\n,https://example.com/invalid\r\n')
+    await upload(page, 'expires_at,title\r\n,missing-url\r\n')
     await expect(page.getByTestId('bulk-create-error')).toBeVisible(); await expect(draft).toHaveValue(manual)
     expect(writes).toStrictEqual([]); expect(await links(page.request)).toStrictEqual([])
     const help = page.getByTestId('bulk-create-csv-help'); await activate(help.locator('summary'))
     const rule = help.getByText(language === 'en'
-      ? 'Standard columns may appear in any order. Each format requires its complete column set, with no missing, extra or duplicate columns. Examples and templates keep the standard order.'
-      : '标准列名可调整顺序；每种格式必须包含完整列集合，不能缺列、多列或重复。示例和模板仍使用标准顺序。', { exact: true })
+      ? 'Standard columns may appear in any order. Unknown or duplicate names and headers without target_url are rejected. Examples and templates keep the complete standard order.'
+      : '标准列名可任意排列；不能使用未知、重复或缺少 target_url 的表头。示例和模板仍使用完整标准顺序。', { exact: true })
     await rule.scrollIntoViewIfNeeded(); await expect(rule).toBeVisible(); await expect(rule).toBeInViewport({ ratio: 1 })
     await capture(info, 'column-order-help-' + language + '-' + width, page)
     await activate(help.locator('summary'))

@@ -39,8 +39,8 @@ describe('CSV standard column order', () => {
   it.each([
     'title,title\nhello,world',
     'target_url,unknown\nhttps://example.com,x',
-    'expires_at,target_url\n,https://example.com',
-    'tags,target_url\n[],https://example.com',
+    'expires_at,title\n,missing-url',
+    'tags,target_url,owner\n[],https://example.com,user',
     'Title,target_url\nhello,https://example.com',
     'title, target_url\nhello,https://example.com',
     'title,target_url \nhello,https://example.com',
