@@ -157,7 +157,13 @@ async function activate(control: Locator) {
     else await control.tap()
   } else { await control.focus(); await control.press('Enter') }
 }
-async function choose(page: Page, control: Locator, name: string) { await activate(control); await activate(page.getByRole('option', { name, exact: true })); await expect(control).toHaveValue(name) }
+async function choose(page: Page, control: Locator, name: string) {
+  await activate(control)
+  const option = page.getByRole('option', { name, exact: true })
+  if (control.page().viewportSize()?.width === 390) await option.tap()
+  else await option.click()
+  await expect(control).toHaveValue(name)
+}
 async function capture(info: TestInfo, name: string, page: Page) {
   await expectNoHorizontalOverflow(page)
   const dialog = page.getByRole('dialog'); await expect.poll(() => dialog.evaluate(element => element.scrollWidth - element.clientWidth)).toBe(0)
