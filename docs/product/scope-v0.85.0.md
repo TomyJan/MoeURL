@@ -1,6 +1,6 @@
 # v0.85.0 导出所选短链 CSV
 
-状态：Task1–3 已标准完成，后端和前端本地门禁、准确产品 smoke／所选扫描及单轮 9 项真实浏览器通过；24 份 CSV 和 8 张唯一原图已核，产品副本／专用镜像／7 条缓存已可恢复清理。真实审查与正常交付继续，已交付产品仍为 0.84.0。基线 master `569cacabe448eef9858e4653fa724c1cf835f5e6`，既有隔离工作区分支 `feat/v0.85.0-selected-csv-export`。前版 PR371 已真实审查、正常合并独立核验及恢复归档，准确身份见[前版验收](../implementation/v0.84.1-acceptance.md)。
+状态：四个标准任务已完成。PR372 的准确候选已由唯一 Sol 终审及真实 CodeRabbit 覆盖，正常合并为 `be79aa005d5b82368b36337203b4dd4424198f3c`，独立API／一次fetch核同tree和唯一父，12份工作记录已可恢复归档；已交付产品为0.85.0，未正式发布部署。原后端Windows整轮失败、双平台／组合验证及浏览器和扫描限制保持原身份，见[验收](../implementation/v0.85.0-acceptance.md)。原分支基线 master `569cacabe448eef9858e4653fa724c1cf835f5e6`、分支 `feat/v0.85.0-selected-csv-export`，前版身份见[前版验收](../implementation/v0.84.1-acceptance.md)。
 
 ## 意图与范围
 
