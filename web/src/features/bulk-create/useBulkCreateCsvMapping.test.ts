@@ -12,6 +12,7 @@ const clients: QueryClient[] = []
 const custom = 'notes,address,name\nsecret,https://example.com/mapped,Mapped title'
 const standard = 'target_url,title\nhttps://example.com/standard,Original title'
 const response = (data: unknown) => new Response(JSON.stringify({ code: 0, message: '', data, meta: {} }))
+const csvCell = (value: string) => '"' + value.replaceAll('"', '""') + '"'
 function mount(permissions = actor.permissions) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } }); clients.push(client)
   client.setQueryData(['auth', 'me'], { user: { ...actor, permissions } })
@@ -91,6 +92,21 @@ describe('explicit mapped CSV staging', () => {
     expect(requests).toEqual([{ path: '/api/v1/short-link/batch-create-with-titles', body: JSON.stringify(frozen) }])
     expect(requests[0]!.body).not.toMatch(/secret|notes|address|name/)
     expect(state.opened.value).toBe(false)
+  })
+
+  it('uses the metadata protocol for tags-only mappings and freezes tag arrays', async () => {
+    const { state, requests } = mount(); await read(state, 'private,address,categories\nsecret,https://example.com/tagged,' + csvCell(JSON.stringify(['docs', '工程'])))
+    state.mappingTarget.value = 1; state.mappingTags.value = 2; state.applyMapping()
+    expect(state.importedMode.value).toBe('metadata')
+    expect(state.importedItems.value).toEqual([{ targetUrl: 'https://example.com/tagged', title: '', tags: ['docs', '工程'] }])
+    expect(Object.isFrozen(state.importedItems.value)).toBe(true)
+    const item = state.importedItems.value![0]!
+    if (!('tags' in item)) throw new Error('Tags-only mapping did not preserve tags')
+    expect(Object.isFrozen(item.tags)).toBe(true)
+    state.preview(); const frozen = state.snapshot.value; await state.submit()
+    expect(requests).toEqual([{ path: '/api/v1/short-link/batch-create-with-metadata', body: JSON.stringify(frozen) }])
+    expect(JSON.parse(requests[0]!.body)).toEqual({ requestId: expect.any(String), items: [{ targetUrl: 'https://example.com/tagged', title: '', tags: ['docs', '工程'] }] })
+    expect(requests[0]!.body).not.toContain('secret')
   })
 
   it('permits URL-only mapping without metadata but refuses a selected title', async () => {
@@ -177,6 +193,24 @@ describe('explicit mapped CSV staging', () => {
     expect(state.mappingHeaders.value).toBeNull(); expect(state.opened.value).toBe(false); expect(state.mappingTitleAllowed.value).toBe(false)
     client.setQueryData(['auth', 'me'], { user: actor }); state.begin(); state.applyMapping()
     expect(state.importedItems.value).toBeNull(); expect(state.draft.value).toBe('')
+  })
+
+  it('retires a tags-only staged mapping immediately when metadata permission is revoked', async () => {
+    const { state, client } = mount(); await read(state, custom); state.mappingTarget.value = 1; state.mappingTags.value = 0
+    client.setQueryData(['auth', 'me'], { user: { ...actor, permissions: ['short_link:create', 'domain:use_default'] } })
+    expect(state.mappingHeaders.value).toBeNull(); expect(state.opened.value).toBe(false); expect(state.mappingTags.value).toBeNull()
+    client.setQueryData(['auth', 'me'], { user: actor }); state.begin(); state.applyMapping()
+    expect(state.importedItems.value).toBeNull(); expect(state.draft.value).toBe('')
+  })
+
+  it('does not revive tag authority after revocation and restoration during a file read', async () => {
+    const { state, client } = mount(); state.draft.value = 'https://example.com/manual'
+    const csv = 'address,categories\nhttps://example.com/tagged,' + csvCell(JSON.stringify(['docs'])), file = pendingFile(csv), first = state.importFile(file.file, 'mapped')
+    client.setQueryData(['auth', 'me'], { user: { ...actor, permissions: ['short_link:create', 'domain:use_default'] } })
+    client.setQueryData(['auth', 'me'], { user: actor }); file.resolve(); await first
+    state.mappingTarget.value = 0; state.mappingTags.value = 1; state.applyMapping()
+    expect(state.mappingTagsAllowed.value).toBe(true); expect(state.errorKey.value).toBe('bulkCreate.metadataRequired')
+    expect(state.draft.value).toBe('https://example.com/manual'); expect(state.importedItems.value).toBeNull()
   })
 
   it.each(['resolve', 'reject'] as const)('prevents an older mapped %s from changing or unlocking a newer pending read', async finish => {
