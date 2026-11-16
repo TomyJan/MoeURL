@@ -2,7 +2,7 @@
 
 ## 当前阶段
 
-设计已确定，实施与验收按[计划](../implementation/v0.86.0-plan.md)和[验收](../implementation/v0.86.0-acceptance.md)分别记录。基线为 PR373 合并提交 `67d26fdf315540f6acc94bdc891366237d7fab17`，已交付运行产品仍为 0.85.0。
+Task1 实现和完整本地门禁已标准完成；准确产品浏览器、真实审查和交付尚未完成。实施与验收按[计划](../implementation/v0.86.0-plan.md)和[验收](../implementation/v0.86.0-acceptance.md)分别记录。基线为 PR373 合并提交 `67d26fdf315540f6acc94bdc891366237d7fab17`，已交付运行产品仍为 0.85.0。
 
 ## 目的与取舍
 
