@@ -7,7 +7,7 @@
       <span v-if="paginationTotal !== undefined" class="console-page__total">{{ t('adminLinks.total', { total }) }}</span>
       <div class="list-header-actions">
         <ShortLinkPageCopyButton :state="pageCopy" />
-        <ShortLinkListExportButton context="admin" :filters="exportFilters" :blocked="exportBlocked" :can-start="canStartExport" @pending="exportPending = $event" />
+        <ShortLinkListExportButton context="admin" :filters="exportFilters" :blocked="exportBlocked || selectedExportPending" :can-start="canStartListExport" @pending="listExportPending = $event" />
       </div>
     </div>
     <div class="console-page__tools">
@@ -23,6 +23,7 @@
           <ShortLinkPageCopyButton :state="selectedCopy" mode="selected" />
           <ShortLinkPageCopyButton :state="selectedMarkdownCopy" mode="selected-markdown" />
         </template>
+        <template #export><ShortLinkSelectedExportButton :state="selectedExport" /></template>
       </ShortLinkBatchToolbar>
     </div>
     <AdminTagBrowser :access="access" :blocked="tagSelectionBlocked" @select="selectCatalogTag" />
@@ -111,6 +112,8 @@ import ShortLinkBatchToolbar from '@/features/short-link-batch/ShortLinkBatchToo
 import ShortLinkTransferDialog from '@/features/short-link-transfer/ShortLinkTransferDialog.vue'
 import ShortLinkBatchTransferDialog from '@/features/short-link-transfer/ShortLinkBatchTransferDialog.vue'
 import ShortLinkListExportButton from '@/features/short-link-list-export/ShortLinkListExportButton.vue'
+import ShortLinkSelectedExportButton from '@/features/short-link-selected-export/ShortLinkSelectedExportButton.vue'
+import { useSelectedListExport } from '@/features/short-link-selected-export/useSelectedListExport'
 import ShortLinkPageCopyButton from '@/features/short-link-page-copy/ShortLinkPageCopyButton.vue'
 import { usePageLinksCopy } from '@/features/short-link-page-copy/usePageLinksCopy'
 import ShortLinkBatchTagsDialog from '@/features/short-link-tags/ShortLinkBatchTagsDialog.vue'
@@ -148,7 +151,8 @@ const batchTagsRefreshRequired = ref(false)
 const transferTarget = ref<AdminShortLink | null>(null)
 const batchTransferTargets = ref<readonly AdminShortLink[] | null>(null)
 const batchTransferRefreshRequired = ref(false)
-const exportPending = ref(false)
+const listExportPending = ref(false), selectedExportPending = ref(false)
+const exportPending = computed(() => listExportPending.value || selectedExportPending.value)
 const statusFilter = ref<'' | AdminShortLink['status']>('')
 const noteStatusFilter = ref<ShortLinkNoteStatus>('')
 const { searchKeyword, tagFilter, noteQuery, debouncedKeyword, debouncedTag, debouncedNoteQuery, keywordInvalid, tagInvalid, noteQueryInvalid, noteQueryPending, filtersPending } = useShortLinkFilters()
@@ -254,6 +258,12 @@ const copyOptions = {
 const pageCopy = usePageLinksCopy(copyOptions)
 const selectedCopy = usePageLinksCopy({ ...copyOptions, selection: batch.selected })
 const selectedMarkdownCopy = usePageLinksCopy({ ...copyOptions, selection: batch.selected, format: 'markdown' })
+const selectedExport = useSelectedListExport({
+  access, context: computed(() => 'admin'), queryKey: listQueryKey, selection: batch.selected,
+  collection: copyOptions.context, canStart: canStartExport,
+  blocked: computed(() => exportBlocked.value || listExportPending.value || qrLink.value !== null || batchTagsRefreshRequired.value || batchTransferRefreshRequired.value || !initialPageSize.ready.value),
+})
+watch(selectedExport.pending, value => { selectedExportPending.value = value }, { flush: 'sync' })
 
 const paginationBlocked = computed(() => noteFilterBlocked.value || note.target.value !== null || exportPending.value
   || filtersPending.value || keywordInvalid.value || tagInvalid.value || noteQueryInvalid.value)
@@ -355,6 +365,8 @@ function beginNoteReplace() {
 }
 /** Prevents a queued export from racing a newly opened private confirmation. */
 function canStartExport() { return !privateConfirmationOpen.value }
+/** Prevents a queued whole-list click before the selected request's pending props render. */
+function canStartListExport() { return !selectedExportPending.value && canStartExport() }
 /** Keeps filter changes outside the fixed confirmation, including queued component events. */
 function selectStatus(value: unknown) {
   if (!privateConfirmationOpen.value && (value === '' || value === 'active' || value === 'disabled')) statusFilter.value = value

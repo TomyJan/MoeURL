@@ -6,7 +6,7 @@ import { noteSearchFiltersSchema, noteSearchHeaders } from './note-search'
 export type ShortLinkListExportContext = 'own' | 'admin'
 export type ShortLinkListExportFilters = Pick<ShortLinkListInput, 'status' | 'q' | 'tag' | 'noteStatus'> & { noteQuery?: string }
 const header = '\uFEFFid,short_url,slug,target_url,title,tags,status,redirect_mode,intermediate_delay_seconds,expires_at,password_enabled,max_visits,visits_used,created_at,updated_at,owner_id,owner_username\r\n'
-const contentSchema = z.string().startsWith(header).max(8 * 1024 * 1024)
+export const listExportContentSchema = z.string().startsWith(header).max(8 * 1024 * 1024)
   .refine(content => new TextEncoder().encode(content).length <= 8 * 1024 * 1024)
 
 /** Downloads one bounded server snapshot, excluding pagination and client selection. */
@@ -26,7 +26,7 @@ export async function exportShortLinkList(filters: ShortLinkListExportFilters, c
   const schema = z.strictObject({
     fileName: z.literal(context === 'admin' ? 'moeurl-links-all.csv' : 'moeurl-links-own.csv'),
     contentType: z.literal('text/csv;charset=utf-8'),
-    content: contentSchema,
+    content: listExportContentSchema,
   })
   const parsed = schema.safeParse(response.data)
   if (!parsed.success) throw new ApiClientError(100001, 'Invalid short-link list export response')
