@@ -20,11 +20,11 @@ const test = base.extend<{ scenario: Scenario }>({
       await post(manager.request, '/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword })
       user = (await post<{ user: User }>(manager.request, '/admin/user/create', { username: 'csvsubsets-' + randomBytes(7).toString('hex'), password, nickname: 'CSV subsets fixture', groupKey: info.title.includes('user grants') ? 'user' : 'admin', status: 'active' })).user
       const width = info.title.includes('1280px') ? 1280 : 390, language = info.title.includes(' en ') ? 'en' : 'zh-CN', theme = language === 'en' ? 'dark' : 'light'
-      context = await browser.newContext({ baseURL, viewport: { width, height: width === 1280 ? 900 : 800 }, locale: language, hasTouch: width !== 1280, serviceWorkers: 'block', colorScheme: theme, reducedMotion: 'reduce' })
+      context = await browser.newContext({ baseURL, viewport: { width, height: width === 1280 ? 720 : 800 }, locale: language, hasTouch: width !== 1280, serviceWorkers: 'block', colorScheme: theme, reducedMotion: 'reduce' })
       await context.addInitScript(({ language, theme }) => { localStorage.setItem('moeurl.language', language); localStorage.setItem('moeurl.theme', theme) }, { language, theme })
       const page = await context.newPage(); if (width !== 1280) touchPages.add(page)
       await post(page.request, '/auth/login', { username: user.username, password })
-      await attach(info, 'runtime', { browser: browser.version(), driverNode: process.version, width, language, theme, userId: user.id, disposableDatabase: true })
+      await attach(info, 'runtime', { browser: browser.version(), driverNode: process.version, viewport: page.viewportSize(), language, theme, userId: user.id, disposableDatabase: true })
       await use({ page, manager: manager.request, user })
     } catch (error) { failures.push(error) } finally {
       if (context && user) {
@@ -40,12 +40,17 @@ test.describe.configure({ mode: 'serial' })
 test.use({ serviceWorkers: 'block', actionTimeout: 10_000 })
 
 for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]) {
-  test('v0.86.0 ' + language + ' ' + width + 'px imports sparse columns with real defaults and identical unknown retries', async ({ scenario }, info) => {
+  test('v0.86.1 ' + language + ' ' + width + 'px imports sparse columns with real defaults and identical unknown retries', async ({ scenario }, info) => {
     test.setTimeout(150_000)
     const { page, user } = scenario, nonce = randomBytes(7).toString('hex'), writes: Write[] = []
     recordWrites(page, writes)
     await page.goto('/link'); await activate(page.getByTestId('bulk-create-open'))
     const dialog = page.getByRole('dialog'), draft = dialog.getByRole('textbox'), manual = 'https://example.com/manual86'
+    const policy = dialog.getByText(language === 'en' ? /^One HTTP\(S\) URL per line/ : /^每行一个 HTTP\(S\) 网址/)
+    await policy.scrollIntoViewIfNeeded(); await expect(policy).toBeInViewport({ ratio: 1 })
+    await expect(policy).toContainText(language === 'en' ? 'Standard CSV uses the supplied fields for' : '标准 CSV 按所填字段指定跳转方式')
+    await expect(policy).toContainText(language === 'en' ? 'Omitting the mode uses direct redirects; omitting the countdown uses 5 seconds' : '省略跳转方式为直接跳转，省略倒计时为 5 秒')
+    await capture(info, 'subsets-policy-' + language + '-' + width, page)
     await draft.fill(manual)
     for (const invalid of ['tags,title\n[],no-url', 'owner,target_url\nuser,https://example.com', 'tags,target_url\n,https://example.com', 'intermediate_delay_seconds,target_url\n3,https://example.com', 'expires_at,target_url\n2099-01-01T00:00:00Z']) {
       await upload(page, invalid); await expect(page.getByTestId('bulk-create-error')).toBeVisible(); await expect(draft).toHaveValue(manual)
@@ -97,7 +102,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
   })
 }
 
-test('v0.86.0 en 390px user grants remain required for sparse and empty structured fields', async ({ scenario }, info) => {
+test('v0.86.1 en 390px user grants remain required for sparse and empty structured fields', async ({ scenario }, info) => {
   test.setTimeout(150_000)
   const { page, manager, user } = scenario, original = await userGroup(manager), failures: unknown[] = [], writes: Write[] = [], outcomes: unknown[] = []
   recordWrites(page, writes)
@@ -136,7 +141,34 @@ function csv(header: readonly string[], rows: readonly (readonly string[])[]) { 
 async function upload(page: Page, text: string) { await page.getByRole('dialog').getByTestId('bulk-create-standard-file').setInputFiles({ name: 'subsets.csv', mimeType: 'text/csv', buffer: Buffer.from(text) }) }
 async function activate(control: Locator) { if (touchPages.has(control.page())) await control.tap(); else { await control.focus(); await control.press('Enter') } }
 function recordWrites(page: Page, writes: Write[]) { page.on('request', request => { const path = new URL(request.url()).pathname; if (path.includes('/short-link/batch-create')) writes.push({ path, body: request.postDataJSON(), expected: request.headers()['x-moeurl-expected-user-id'] }) }) }
-async function capture(info: TestInfo, name: string, page: Page) { await expectNoHorizontalOverflow(page); await expect.poll(() => page.getByRole('dialog').evaluate(element => element.scrollWidth - element.clientWidth)).toBe(0); const path = info.outputPath(name + '.png'); await page.screenshot({ path, animations: 'disabled' }); await info.attach(name, { path, contentType: 'image/png' }) }
+async function capture(info: TestInfo, name: string, page: Page) {
+  const width = info.title.includes('1280px') ? 1280 : 390, viewport = { width, height: width === 1280 ? 720 : 800 }
+  expect(page.viewportSize()).toStrictEqual(viewport)
+  await expectNoHorizontalOverflow(page)
+  const dialog = page.getByRole('dialog'), actions = dialog.locator('.bulk-create-actions'), body = dialog.locator('.bulk-create-body')
+  await expect.poll(() => dialog.evaluate(element => element.scrollWidth - element.clientWidth)).toBe(0)
+  await expect(actions).toBeInViewport({ ratio: 1 })
+  const ids = await actions.locator('button').evaluateAll(buttons => buttons.map(button => button.getAttribute('data-testid')))
+  expect(ids).toStrictEqual(await page.getByTestId('bulk-create-submit').count() ? ['bulk-create-close', 'bulk-create-edit', 'bulk-create-submit'] : ['bulk-create-close', 'bulk-create-preview'])
+  const controls = []
+  for (const id of ids) {
+    expect(id).not.toBeNull()
+    const control = page.getByTestId(id!)
+    await expect(control).toBeVisible(); await expect(control).toBeInViewport({ ratio: 1 })
+    const box = await control.boundingBox(); expect(box).not.toBeNull()
+    if (!box) throw new Error('Visible action has no geometry')
+    expect(box.x).toBeGreaterThanOrEqual(0); expect(box.y).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(viewport.width); expect(box.y + box.height).toBeLessThanOrEqual(viewport.height)
+    expect(await control.evaluate(element => { const rect = element.getBoundingClientRect(); return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)) })).toBe(true)
+    controls.push({ id, ...box })
+  }
+  for (let index = 0; index < controls.length; index++) for (let next = index + 1; next < controls.length; next++) {
+    const a = controls[index]!, b = controls[next]!
+    expect(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y).toBe(true)
+  }
+  await attach(info, name + '-geometry', { viewport: page.viewportSize(), dialog: await dialog.boundingBox(), body: await body.boundingBox(), scroll: await body.evaluate(element => ({ top: element.scrollTop, height: element.clientHeight, content: element.scrollHeight })), actions: await actions.boundingBox(), controls })
+  const path = info.outputPath(name + '.png'); await page.screenshot({ path, animations: 'disabled' }); await info.attach(name, { path, contentType: 'image/png' })
+}
 async function userGroup(api: APIRequestContext) { const response = await api.get('/api/v1/admin/user-group/list'); expect(response.status()).toBe(200); const payload = await response.json(); expect(payload.code).toBe(0); const group = (payload.data.groups as Group[]).find(value => value.key === 'user'); if (!group) throw new Error('Missing user group'); return group }
 async function setGrants(api: APIRequestContext, permissions: string[]) { const current = await userGroup(api); await post(api, '/admin/user-group/update-permissions', { groupKey: 'user', expectedUpdatedAt: current.updatedAt, permissions }) }
 /** Refetches the original active auth query against the real server, without a synthetic cache replacement. */
