@@ -30,52 +30,54 @@ export function parseBulkCreateImportCsvDetailed(text: string): DetailedImportRe
   const structural = (kind: BulkCreateCsvIssue['kind'], record = rows.length + 1): DetailedImportResult => record <= 21 ? { success: false, issue: { kind, record } } : invalid
   const header = rows.shift()!
   const standard = ['target_url', 'title', 'tags', 'custom_slug', 'redirect_mode', 'expires_at', 'max_visits', 'intermediate_delay_seconds']
-  const positions = standard.slice(0, header.length).map(name => header.indexOf(name))
-  if (positions.includes(-1)) return structural('header', 1)
+  if (!header.includes('target_url') || new Set(header).size !== header.length || header.some(name => !standard.includes(name))) return structural('header', 1)
   const invalidWidth = rows.findIndex(row => row.length !== header.length)
   if (invalidWidth !== -1) return structural('width', invalidWidth + 2)
+  const width = Math.max(...header.map(name => standard.indexOf(name))) + 1
+  const positions = standard.slice(0, width).map(name => header.indexOf(name))
   // Read the original row once: in-place swaps would overwrite values still needed by other columns.
-  rows = rows.map(row => positions.map(index => row[index]!))
-  if (header.length === 8) {
+  // Only absent predecessor columns get defaults; present invalid cells still reach the original schema.
+  rows = rows.map(row => positions.map((index, column) => index === -1 ? (column === 2 ? '[]' : '') : row[index]!))
+  if (width === 8) {
     try {
       const items = rows.map(row => ({ targetUrl: row[0]!, title: row[1]!, tags: JSON.parse(row[2]!) as unknown, customSlug: row[3]!, redirectMode: row[4]!, expiresAt: row[5]!, maxVisits: row[6]!, intermediateDelaySeconds: row[7]! }))
       const parsed = bulkCreateCountdownsInputSchema.safeParse({ requestId: '11111111-1111-4111-8111-111111111111', items })
       return parsed.success ? { success: true, mode: 'countdowns', data: parsed.data.items } : invalid
     } catch { return invalid }
   }
-  if (header.length === 7) {
+  if (width === 7) {
     try {
       const items = rows.map(row => ({ targetUrl: row[0]!, title: row[1]!, tags: JSON.parse(row[2]!) as unknown, customSlug: row[3]!, redirectMode: row[4]!, expiresAt: row[5]!, maxVisits: row[6]! }))
       const parsed = bulkCreateVisitLimitsInputSchema.safeParse({ requestId: '11111111-1111-4111-8111-111111111111', items })
       return parsed.success ? { success: true, mode: 'visit-limits', data: parsed.data.items } : invalid
     } catch { return invalid }
   }
-  if (header.length === 6) {
+  if (width === 6) {
     try {
       const items = rows.map(row => ({ targetUrl: row[0]!, title: row[1]!, tags: JSON.parse(row[2]!) as unknown, customSlug: row[3]!, redirectMode: row[4]!, expiresAt: row[5]! }))
       const parsed = bulkCreateExpirationsInputSchema.safeParse({ requestId: '11111111-1111-4111-8111-111111111111', items })
       return parsed.success ? { success: true, mode: 'expirations', data: parsed.data.items } : invalid
     } catch { return invalid }
   }
-  if (header.length === 5) {
+  if (width === 5) {
     try {
       const items = rows.map(row => ({ targetUrl: row[0]!, title: row[1]!, tags: JSON.parse(row[2]!) as unknown, customSlug: row[3]!, redirectMode: row[4]! }))
       const parsed = bulkCreateRedirectModesInputSchema.safeParse({ requestId: '11111111-1111-4111-8111-111111111111', items })
       return parsed.success ? { success: true, mode: 'redirect-modes', data: parsed.data.items } : invalid
     } catch { return invalid }
   }
-  if (header.length === 4) {
+  if (width === 4) {
     try {
       const items = rows.map(row => ({ targetUrl: row[0]!, title: row[1]!, tags: JSON.parse(row[2]!) as unknown, customSlug: row[3]! }))
       const parsed = bulkCreateCustomSlugsInputSchema.safeParse({ requestId: '11111111-1111-4111-8111-111111111111', items })
       return parsed.success ? { success: true, mode: 'custom-slugs', data: parsed.data.items } : invalid
     } catch { return invalid }
   }
-  if (header.length === 1) {
+  if (width === 1) {
     const parsed = bulkCreateTargetsSchema.safeParse(rows.map(row => row[0]!))
     return parsed.success ? { success: true, mode: 'targets', data: parsed.data } : invalid
   }
-  if (header.length === 3) {
+  if (width === 3) {
     try {
       const items = rows.map(row => ({ targetUrl: row[0]!, title: row[1]!, tags: JSON.parse(row[2]!) as unknown }))
       const parsed = bulkCreateMetadataInputSchema.safeParse({ requestId: '11111111-1111-4111-8111-111111111111', items })
