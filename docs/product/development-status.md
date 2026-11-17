@@ -1,8 +1,8 @@
 # 开发进度与能力清单
 
-## 当前开发（2026-11-18，v0.89.0）
+## 最近完成（2026-11-18，v0.89.0）
 
-[有限 CSV 表头匹配](scope-v0.89.0.md)正在收尾：显式点击后仅填充有权限的空选项，保留手选、占用与歧义规则；不读取数据单元格、不自动应用或发请求。准确候选 `a7ecd860` 的真实产品镜像及中英文桌面／390 px 浏览器 5/5 已核验；当前 head 的 CodeRabbit、正常合并核验与恢复归档仍待。已交付产品代码仍为 v0.88.0。PR #385 的文档跟进已获准确 head `24fc0154` 自身真实 CodeRabbit，正常合并 `c7e50a8f`／tree `d67d40af`／唯一父 `9c20f60c` 已由 API 和独立 fetch 核验。原恢复包的两个同内容重名条目已去重，新 1296 项包经过实际解压逐 hash；旧标准任务账本收尾单独核验，不重复产品门禁。准确本版状态见[验收](../implementation/v0.89.0-acceptance.md)，不查 CI、不发布部署。
+[有限 CSV 表头匹配](scope-v0.89.0.md)已由 PR #386 合入，merge commit `f236951862f53e59cfedbe318e224d48fd1c902e`。准确 head 的真实 CodeRabbit 为 `reviewed`、source／covered SHA 一致且有效意见 0；合并 tree `3adb9207da8e368b24e8c613dab6e487ab2b0161`、唯一父 `38b16dda98669d3840ccf0c909f3efb031848bb8` 经 API 与独立 fetch 核验。候选完整本地门禁及准确产品中英桌面／390 px 浏览器 5/5 通过；未把 master 上随后合入的依赖更新冒充为重验。whole-owned 恢复归档已完成，ZIP 3316 项全解压逐 hash，SHA-256 `9925458E131201186DCCE8B6082C6406D899E83386DB8DEA28FD7485D51CDC4A`。未查 CI、未发布部署；完整边界和归档回执见[验收](../implementation/v0.89.0-acceptance.md)。
 
 ## v0.88.0 合并前检查点（历史）
 
