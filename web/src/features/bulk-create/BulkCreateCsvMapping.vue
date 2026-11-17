@@ -2,6 +2,8 @@
   <section class="bulk-csv-mapping" data-testid="bulk-create-csv-mapping">
     <h3>{{ t('bulkCreate.csvMappingTitle') }}</h3>
     <p>{{ t('bulkCreate.csvMappingIgnored') }}</p>
+    <v-btn class="bulk-csv-mapping__match" variant="tonal" @click="matchHeaders">{{ t('bulkCreate.csvMappingMatch') }}</v-btn>
+    <p v-if="matchedCount !== null" role="status">{{ matchedCount ? t('bulkCreate.csvMappingMatched', { count: matchedCount }) : t('bulkCreate.csvMappingNoMatch') }}</p>
     <v-select :model-value="target === null ? '' : String(target)" :items="[{ title: t('bulkCreate.csvMappingChoose'), value: '' }, ...columns]" :label="t('bulkCreate.csvMappingUrl')" variant="outlined" @update:model-value="emit('update:target', $event === '' ? null : Number($event))" />
     <v-select :model-value="title === null ? '' : String(title)" :items="[{ title: t('bulkCreate.csvMappingNoTitle'), value: '' }, ...columns]" :label="t('bulkCreate.csvMappingTitleColumn')" :disabled="!titleAllowed" variant="outlined" @update:model-value="emit('update:title', $event === '' ? null : Number($event))" />
     <v-select :model-value="tags === null ? '' : String(tags)" :items="[{ title: t('bulkCreate.csvMappingNoTags'), value: '' }, ...columns]" :label="t('bulkCreate.csvMappingTagsColumn')" :disabled="!tagsAllowed" variant="outlined" @update:model-value="emit('update:tags', $event === '' ? null : Number($event))" />
@@ -24,11 +26,26 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { matchCsvHeaderAliases } from './csv-header-aliases'
 const props = defineProps<{ headers: readonly string[]; target: number | null; title: number | null; tags: number | null; customSlug: number | null; redirectMode: number | null; expiration: number | null; visitLimit: number | null; countdown: number | null; titleAllowed: boolean; tagsAllowed: boolean; advancedAllowed: boolean }>()
 const emit = defineEmits<{ 'update:target': [value: number | null]; 'update:title': [value: number | null]; 'update:tags': [value: number | null]; 'update:customSlug': [value: number | null]; 'update:redirectMode': [value: number | null]; 'update:expiration': [value: number | null]; 'update:visitLimit': [value: number | null]; 'update:countdown': [value: number | null]; apply: []; cancel: [] }>()
 const { t } = useI18n()
+const matchedCount = ref<number | null>(null)
+watch(() => props.headers, () => { matchedCount.value = null })
+function matchHeaders() {
+  const matches = matchCsvHeaderAliases(props.headers, props, { title: props.titleAllowed, tags: props.tagsAllowed, advanced: props.advancedAllowed })
+  if (matches.target !== undefined) emit('update:target', matches.target)
+  if (matches.title !== undefined) emit('update:title', matches.title)
+  if (matches.tags !== undefined) emit('update:tags', matches.tags)
+  if (matches.customSlug !== undefined) emit('update:customSlug', matches.customSlug)
+  if (matches.redirectMode !== undefined) emit('update:redirectMode', matches.redirectMode)
+  if (matches.expiration !== undefined) emit('update:expiration', matches.expiration)
+  if (matches.visitLimit !== undefined) emit('update:visitLimit', matches.visitLimit)
+  if (matches.countdown !== undefined) emit('update:countdown', matches.countdown)
+  matchedCount.value = Object.keys(matches).length
+}
 function optionalColumns(key: string) { return [{ title: t(`bulkCreate.${key}`), value: '' }, ...columns.value] }
 // Column numbers disambiguate duplicate/empty names; never display data cells or full-value tooltips.
 const columns = computed(() => props.headers.map((header, index) => {
@@ -42,6 +59,7 @@ const columns = computed(() => props.headers.map((header, index) => {
 .bulk-csv-mapping__advanced { display: grid; gap: 12px; min-width: 0; overflow-wrap: anywhere; }
 .bulk-csv-mapping__advanced summary { cursor: pointer; font-weight: 600; }
 .bulk-csv-mapping__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.bulk-csv-mapping__match { justify-self: start; max-width: 100%; height: auto; min-height: 40px; white-space: normal; }
 .bulk-csv-mapping :deep(.v-field__input) { min-width: 0; }
 .bulk-csv-mapping :deep(.v-select__selection) { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 </style>

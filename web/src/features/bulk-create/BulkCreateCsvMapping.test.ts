@@ -45,6 +45,83 @@ async function select(container: Element, text: string) {
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 describe('explicit bilingual mapped CSV controls', () => {
+  it('clears the previous matching feedback when headers change without remounting', async () => {
+    const i18n = createI18n({ legacy: false, locale: 'en', fallbackLocale: 'en', messages })
+    const view = render(BulkCreateCsvMapping, {
+      props: { headers: ['url'], target: null, title: null, tags: null, customSlug: null, redirectMode: null, expiration: null, visitLimit: null, countdown: null, titleAllowed: true, tagsAllowed: true, advancedAllowed: true },
+      global: { plugins: [i18n], stubs: componentStubs },
+    })
+    await fireEvent.click(screen.getByRole('button', { name: 'Match empty choices by header' }))
+    expect(screen.getByRole('status').textContent).toContain('Filled 1 choices.')
+    await view.rerender({ headers: ['an unrecognized header'] })
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it.each([
+    { locale: 'en', button: 'Match empty choices by header', matched: 'Filled 2 choices. Check all choices, including More fields, then apply selected columns.', none: 'No additional unambiguous matches. Choose the remaining columns manually.' },
+    { locale: 'zh-CN', button: '按表头匹配空选项', matched: '已填充 2 个选项。请检查全部选项（包括更多字段），再应用所选列。', none: '没有可填充的唯一匹配，请手动选择其余列。' },
+  ])('reports matching and clears feedback when another file is selected in $locale', async ({ locale, button, matched, none }) => {
+    const { view, writes } = mount(locale); await fireEvent.click(screen.getByTestId('bulk-create-open'))
+    await select(view.container, 'url,title,Private\nhttps://example.com/one,One,hidden-one')
+    await fireEvent.click(screen.getByRole('button', { name: button }))
+    expect(screen.getByRole('status').textContent).toBe(matched)
+    await fireEvent.click(screen.getByRole('button', { name: button }))
+    expect(screen.getByRole('status').textContent).toBe(none)
+    await select(view.container, 'Private,Address\nhidden-two,https://example.com/two')
+    expect(screen.queryByRole('status')).toBeNull()
+    await fireEvent.click(screen.getByRole('button', { name: button }))
+    expect(screen.getByRole('status').textContent).toBe(none)
+    expect(view.container.textContent).not.toContain('hidden-two'); expect(writes).toEqual([])
+  })
+
+  it('preserves a hand-picked URL and leaves denied and ambiguous choices empty', async () => {
+    const { view, writes } = mount('en', false); await fireEvent.click(screen.getByTestId('bulk-create-open'))
+    await select(view.container, 'url,target_url,title,tags,slug,Address\nhttps://example.com/a,https://example.com/b,Title,[],code,https://example.com/manual')
+    await fireEvent.click(screen.getByRole('button', { name: 'Match empty choices by header' }))
+    expect((screen.getByRole('combobox', { name: 'URL column' }) as HTMLSelectElement).value).toBe('')
+    await fireEvent.update(screen.getByRole('combobox', { name: 'URL column' }), '5')
+    await fireEvent.click(screen.getByRole('button', { name: 'Match empty choices by header' }))
+    for (const [label, value] of [['URL column', '5'], ['Title column (optional)', ''], ['Tags column (optional)', ''], ['Custom short code column (optional)', '']]) {
+      expect((screen.getByRole('combobox', { name: label }) as HTMLSelectElement).value).toBe(value)
+    }
+    await fireEvent.click(screen.getByTestId('bulk-create-mapping-apply'))
+    expect(view.container.querySelector('textarea')!.value).toBe('https://example.com/manual'); expect(writes).toEqual([])
+  })
+
+  it('matches all eight permitted fields through the unchanged countdown request', async () => {
+    const { view, writes } = mount('en', true, true, ['short_link:use_intermediate', 'short_link:set_expiration', 'short_link:set_max_visits'])
+    await fireEvent.click(screen.getByTestId('bulk-create-open'))
+    await select(view.container, 'url,标题,标签,短码,跳转方式,过期时间,最大访问次数,倒计时\nhttps://example.com/all,All,[],alias89,intermediate,2030-01-02T03:04:05Z,8,3')
+    await fireEvent.click(screen.getByRole('button', { name: 'Match empty choices by header' }))
+    expect(screen.getByRole('status').textContent).toContain('Filled 8 choices.')
+    await fireEvent.click(screen.getByTestId('bulk-create-mapping-apply'))
+    await fireEvent.click(screen.getByTestId('bulk-create-preview')); await fireEvent.click(screen.getByTestId('bulk-create-submit'))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(writes).toEqual([{ path: '/api/v1/short-link/batch-create-with-countdowns', input: { requestId: expect.any(String), items: [{ targetUrl: 'https://example.com/all', title: 'All', tags: [], customSlug: 'alias89', redirectMode: 'intermediate', expiresAt: '2030-01-02T03:04:05Z', maxVisits: '8', intermediateDelaySeconds: '3' }] } }])
+  })
+
+  it('matches header aliases only on request and submits only the checked safe columns', async () => {
+    const { view, writes } = mount('en'); await fireEvent.click(screen.getByTestId('bulk-create-open'))
+    await fireEvent.update(view.container.querySelector('textarea')!, 'https://example.com/kept-draft')
+    await select(view.container, 'Private, URL ,标题\nnever-send-this,https://example.com/matched,Safe title')
+    const url = screen.getByRole('combobox', { name: 'URL column' }) as HTMLSelectElement
+    const title = screen.getByRole('combobox', { name: 'Title column (optional)' }) as HTMLSelectElement
+    expect(url.value).toBe(''); expect(title.value).toBe('')
+    await fireEvent.click(screen.getByRole('button', { name: 'Match empty choices by header' }))
+    expect(url.value).toBe('1'); expect(title.value).toBe('2')
+    expect(view.container.textContent).not.toContain('never-send-this'); expect(writes).toEqual([])
+    expect((screen.getByTestId('bulk-create-preview') as HTMLButtonElement).disabled).toBe(true)
+    await fireEvent.click(screen.getByTestId('bulk-create-mapping-cancel'))
+    expect(view.container.querySelector('textarea')!.value).toBe('https://example.com/kept-draft')
+    await select(view.container, 'Private, URL ,标题\nnever-send-this,https://example.com/matched,Safe title')
+    await fireEvent.click(screen.getByRole('button', { name: 'Match empty choices by header' }))
+    await fireEvent.click(screen.getByTestId('bulk-create-mapping-apply'))
+    expect(view.container.textContent).toContain('Safe title')
+    await fireEvent.click(screen.getByTestId('bulk-create-preview')); await fireEvent.click(screen.getByTestId('bulk-create-submit'))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(writes).toEqual([{ path: '/api/v1/short-link/batch-create-with-titles', input: { requestId: expect.any(String), items: [{ targetUrl: 'https://example.com/matched', title: 'Safe title' }] } }])
+  })
+
   it('renders the currently selected advanced columns as the chosen values', () => {
     const i18n = createI18n({ legacy: false, locale: 'en', fallbackLocale: 'en', messages })
     render(BulkCreateCsvMapping, {
