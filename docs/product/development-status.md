@@ -1,8 +1,8 @@
 # 开发进度与能力清单
 
-## 当前开发（2026-11-16，v0.88.0）
+## 当前开发（2026-11-17，v0.88.0）
 
-PR378／v0.87.1 已完整交付，master 为 `5b9017da3ab62194fa4834e55d0505f8b768f893`；详情见[v0.87.1 验收](../implementation/v0.87.1-acceptance.md)。v0.88.0 已补齐现有手动 CSV 映射的短码、跳转方式、过期、访问上限与倒计时字段。Task1 的 RED→GREEN、完整本地前端门禁及准确候选产品的中英文桌面／手机浏览器验收通过；实现继续使用原协议、权限、API 和请求保护，不增加依赖。已交付产品仍为 0.87.0；HIGH／CRITICAL 扫描缺本机扫描器，CodeRabbit 反馈处理、最终审查、合并及归档待完成。见[计划](../implementation/v0.88.0-plan.md)和[验收](../implementation/v0.88.0-acceptance.md)。不查询 CI、不发布部署。
+PR378／v0.87.1 已完整交付，master 为 `5b9017da3ab62194fa4834e55d0505f8b768f893`；详情见[v0.87.1 验收](../implementation/v0.87.1-acceptance.md)。v0.88.0 已补齐现有手动 CSV 映射的短码、跳转方式、过期、访问上限与倒计时字段。Task1 的 RED→GREEN、完整本地前端门禁及准确候选产品的中英文桌面／手机浏览器验收通过；按原权限、协议和请求保护实现，不新增依赖。Task2 的准确镜像 Trivy 扫描 HIGH／CRITICAL 均为 0，浏览器与自有资源清理已完成；已交付产品仍为 0.87.0。Task3 的最终变更 review、意见闭环、正常合并独立核验及归档待完成。见[计划](../implementation/v0.88.0-plan.md)和[验收](../implementation/v0.88.0-acceptance.md)。不查询 CI、不发布部署。
 
 ## 当前维护（2026-11-16，v0.87.1）
 
