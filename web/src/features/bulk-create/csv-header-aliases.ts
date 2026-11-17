@@ -14,13 +14,13 @@ const aliases: ReadonlyArray<readonly [CsvHeaderField, readonly string[]]> = [
 ]
 
 /** Suggests only unique, unoccupied, permitted columns after the user explicitly requests matching. */
-export function matchCsvHeaderAliases(headers: readonly string[], selected: CsvHeaderSelection, permissions: Permissions): Partial<Record<CsvHeaderField, number>> {
+export function matchCsvHeaderAliases(headers: readonly string[], selected: CsvHeaderSelection, permissions: Permissions, excluded: readonly CsvHeaderField[] = []): Partial<Record<CsvHeaderField, number>> {
   const normalized = headers.map(header => header.replace(/^[ \t]+|[ \t]+$/g, '').replace(/[A-Z]/g, letter => letter.toLowerCase()))
   const occupied = new Set(Object.values(selected).filter(index => index !== null))
   const matches: Partial<Record<CsvHeaderField, number>> = {}
   for (const [field, names] of aliases) {
     const permitted = field === 'target' || (field === 'title' || field === 'tags' ? permissions[field] : permissions.advanced)
-    if (selected[field] !== null || !permitted) continue
+    if (selected[field] !== null || !permitted || excluded.includes(field)) continue
     // Count all candidates before excluding occupied columns: occupancy must not resolve ambiguity.
     const candidates = normalized.flatMap((header, index) => names.includes(header) ? [index] : [])
     if (candidates.length !== 1 || occupied.has(candidates[0]!)) continue

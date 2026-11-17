@@ -122,6 +122,42 @@ describe('explicit bilingual mapped CSV controls', () => {
     expect(writes).toEqual([{ path: '/api/v1/short-link/batch-create-with-titles', input: { requestId: expect.any(String), items: [{ targetUrl: 'https://example.com/matched', title: 'Safe title' }] } }])
   })
 
+  it('keeps explicit no-import choices empty when matching is requested again', async () => {
+    const { view, writes } = mount('en', true, true); await fireEvent.click(screen.getByTestId('bulk-create-open'))
+    const target = 'https://example.com/keep-only-target'
+    await select(view.container, 'url,title,tags,slug\n' + target + ',Do not import,' + csvCell(JSON.stringify(['docs'])) + ',safe89')
+    const url = screen.getByRole('combobox', { name: 'URL column' }) as HTMLSelectElement
+    const title = screen.getByRole('combobox', { name: 'Title column (optional)' }) as HTMLSelectElement
+    const tags = screen.getByRole('combobox', { name: 'Tags column (optional)' }) as HTMLSelectElement
+    await fireEvent.click(screen.getByRole('button', { name: 'Match empty choices by header' }))
+    expect([url.value, title.value, tags.value]).toEqual(['0', '1', '2'])
+    await fireEvent.click(screen.getByText('More fields (optional)'))
+    const slug = screen.getByRole('combobox', { name: 'Custom short code column (optional)' }) as HTMLSelectElement
+    expect(slug.value).toBe('3')
+    await fireEvent.update(title, ''); await fireEvent.update(tags, ''); await fireEvent.update(slug, '')
+    await fireEvent.click(screen.getByRole('button', { name: 'Match empty choices by header' }))
+    expect([url.value, title.value, tags.value, slug.value]).toEqual(['0', '', '', ''])
+    expect(writes).toEqual([])
+    await fireEvent.click(screen.getByTestId('bulk-create-mapping-apply'))
+    expect(view.container.querySelector('textarea')!.value).toBe(target)
+    await fireEvent.click(screen.getByTestId('bulk-create-preview')); await fireEvent.click(screen.getByTestId('bulk-create-submit'))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(writes).toEqual([{ path: '/api/v1/short-link/batch-create', input: { requestId: expect.any(String), targetUrls: [target] } }])
+  })
+
+  it('retires explicit no-import choices when a new file is selected', async () => {
+    const { view, writes } = mount('en'); await fireEvent.click(screen.getByTestId('bulk-create-open'))
+    await select(view.container, 'url,title\nhttps://example.com/old,Old')
+    await fireEvent.update(screen.getByRole('combobox', { name: 'Title column (optional)' }), '')
+    await fireEvent.click(screen.getByRole('button', { name: 'Match empty choices by header' }))
+    expect((screen.getByRole('combobox', { name: 'Title column (optional)' }) as HTMLSelectElement).value).toBe('')
+    await select(view.container, 'url,title\nhttps://example.com/new,New')
+    await fireEvent.click(screen.getByRole('button', { name: 'Match empty choices by header' }))
+    expect((screen.getByRole('combobox', { name: 'Title column (optional)' }) as HTMLSelectElement).value).toBe('1')
+    expect(screen.getByRole('status').textContent).toContain('Filled 2 choices.')
+    expect(writes).toEqual([])
+  })
+
   it('renders the currently selected advanced columns as the chosen values', () => {
     const i18n = createI18n({ legacy: false, locale: 'en', fallbackLocale: 'en', messages })
     render(BulkCreateCsvMapping, {

@@ -41,6 +41,10 @@ describe('explicit CSV header alias matching', () => {
     expect(matchCsvHeaderAliases(['url', 'title', 'tags'], { ...empty, title: 0 }, allowed)).toEqual({ tags: 2 })
   })
 
+  it('keeps explicitly excluded fields empty while filling other untouched fields', () => {
+    expect(matchCsvHeaderAliases(['url', 'title', 'tags', 'slug'], empty, allowed, ['title', 'tags', 'customSlug'])).toEqual({ target: 0 })
+  })
+
   it('enforces title, tags and advanced permissions independently', () => {
     const headers = ['url', 'title', 'tags', 'slug', 'redirect_mode', 'expires_at', 'max_visits', '倒计时']
     expect(matchCsvHeaderAliases(headers, empty, { title: false, tags: false, advanced: false })).toEqual({ target: 0 })
