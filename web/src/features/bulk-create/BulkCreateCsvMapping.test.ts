@@ -2,6 +2,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/vu
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { createI18n } from 'vue-i18n'
 import { defineComponent, h } from 'vue'
+import { createVuetify } from 'vuetify'
+import { VSelect } from 'vuetify/components'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { messages } from '@/app/i18n'
 import { componentStubs } from '@/test/component-stubs'
@@ -16,12 +18,8 @@ const words = [
 const csvCell = (value: string) => '"' + value.replaceAll('"', '""') + '"'
 const mappingValueSelectStub = defineComponent({
   props: ['label', 'modelValue', 'items'],
-  emits: ['update:modelValue', 'item:added'],
-  setup(props, { emit }) { return () => h('select', { 'aria-label': props.label, 'data-model-value': props.modelValue, onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value), onKeydown: (event: KeyboardEvent) => {
-    const first = (props.items as { title: string; value: string }[] | undefined)?.[0]
-    const noChoiceKey = props.label === 'URL column' ? 'c' : 'd'
-    if (event.key.toLowerCase() === noChoiceKey && props.modelValue === '' && first) emit('item:added', first)
-  } }, [
+  emits: ['update:modelValue'],
+  setup(props, { emit }) { return () => h('select', { 'aria-label': props.label, 'data-model-value': props.modelValue, onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value) }, [
     ...((props.items ?? []) as { title: string; value: string }[]).map(item => h('option', { value: item.value }, item.title)),
   ]) },
 })
@@ -185,7 +183,7 @@ describe('explicit bilingual mapped CSV controls', () => {
     for (const label of [
       'Custom short code column (optional)', 'Redirect mode column (optional)', 'Expiration column (optional)',
       'Maximum visits column (optional)', 'Intermediate countdown column (optional)',
-    ]) expect(screen.getByRole('combobox', { name: label }).getAttribute('data-model-value')).toBe('')
+    ]) expect(screen.getByRole('combobox', { name: label }).getAttribute('data-model-value')).toBeNull()
   })
 
   it('emits selected indices and clears for each optional advanced mapping', async () => {
@@ -211,12 +209,13 @@ describe('explicit bilingual mapped CSV controls', () => {
     }
   })
 
-  it('keeps same-value keyboard no-import selections excluded from later matches', async () => {
+  it('keeps keyboard no-import selections excluded through real Vuetify selects', async () => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
     const i18n = createI18n({ legacy: false, locale: 'en', fallbackLocale: 'en', messages })
     const view = render(BulkCreateCsvMapping, { props: {
       headers: ['url', 'title', 'tags', 'custom_slug', 'redirect_mode', 'expires_at', 'max_visits', 'intermediate_delay_seconds'], target: null, title: null, tags: null, customSlug: null, redirectMode: null,
       expiration: null, visitLimit: null, countdown: null, titleAllowed: true, tagsAllowed: true, advancedAllowed: true,
-    }, global: { plugins: [i18n], stubs: { ...componentStubs, VSelect: mappingValueSelectStub } } })
+    }, global: { plugins: [i18n, createVuetify({ components: { VSelect } })], stubs: { VBtn: componentStubs.VBtn! } } })
 
     for (const label of ['Title column (optional)', 'Tags column (optional)']) {
       await fireEvent.keyDown(screen.getByRole('combobox', { name: label }), { key: 'd' })
@@ -229,21 +228,22 @@ describe('explicit bilingual mapped CSV controls', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'Match empty choices by header' }))
 
     expect(screen.getByRole('status').textContent).toContain('Filled 1 choices.')
-    expect(view.emitted()['update:title']).toBeUndefined()
+    expect(view.emitted()['update:title']).toEqual([[null]])
   })
 
   it('keeps a keyboard-cleared required URL distinct from an untouched empty choice', async () => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
     const i18n = createI18n({ legacy: false, locale: 'en', fallbackLocale: 'en', messages })
     const view = render(BulkCreateCsvMapping, { props: {
       headers: ['url'], target: null, title: null, tags: null, customSlug: null, redirectMode: null,
       expiration: null, visitLimit: null, countdown: null, titleAllowed: true, tagsAllowed: true, advancedAllowed: true,
-    }, global: { plugins: [i18n], stubs: { ...componentStubs, VSelect: mappingValueSelectStub } } })
+    }, global: { plugins: [i18n, createVuetify({ components: { VSelect } })], stubs: { VBtn: componentStubs.VBtn! } } })
 
     await fireEvent.keyDown(screen.getByRole('combobox', { name: 'URL column' }), { key: 'c' })
     await fireEvent.click(screen.getByRole('button', { name: 'Match empty choices by header' }))
 
     expect(screen.getByRole('status').textContent).toContain('No additional unambiguous matches.')
-    expect(view.emitted()['update:target']).toBeUndefined()
+    expect(view.emitted()['update:target']).toEqual([[null]])
   })
 
   // A dropped authority guard or an accidental titles projection would change the actual HTTP payload.
