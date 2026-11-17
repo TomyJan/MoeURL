@@ -16,8 +16,12 @@ const words = [
 const csvCell = (value: string) => '"' + value.replaceAll('"', '""') + '"'
 const mappingValueSelectStub = defineComponent({
   props: ['label', 'modelValue', 'items'],
-  emits: ['update:modelValue'],
-  setup(props, { emit }) { return () => h('select', { 'aria-label': props.label, 'data-model-value': props.modelValue, onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value) }, [
+  emits: ['update:modelValue', 'item:added'],
+  setup(props, { emit }) { return () => h('select', { 'aria-label': props.label, 'data-model-value': props.modelValue, onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value), onKeydown: (event: KeyboardEvent) => {
+    const first = (props.items as { title: string; value: string }[] | undefined)?.[0]
+    const noChoiceKey = props.label === 'URL column' ? 'c' : 'd'
+    if (event.key.toLowerCase() === noChoiceKey && props.modelValue === '' && first) emit('item:added', first)
+  } }, [
     ...((props.items ?? []) as { title: string; value: string }[]).map(item => h('option', { value: item.value }, item.title)),
   ]) },
 })
@@ -205,6 +209,41 @@ describe('explicit bilingual mapped CSV controls', () => {
       expect(updates[key]).toHaveBeenNthCalledWith(1, 1)
       expect(updates[key]).toHaveBeenNthCalledWith(2, null)
     }
+  })
+
+  it('keeps same-value keyboard no-import selections excluded from later matches', async () => {
+    const i18n = createI18n({ legacy: false, locale: 'en', fallbackLocale: 'en', messages })
+    const view = render(BulkCreateCsvMapping, { props: {
+      headers: ['url', 'title', 'tags', 'custom_slug', 'redirect_mode', 'expires_at', 'max_visits', 'intermediate_delay_seconds'], target: null, title: null, tags: null, customSlug: null, redirectMode: null,
+      expiration: null, visitLimit: null, countdown: null, titleAllowed: true, tagsAllowed: true, advancedAllowed: true,
+    }, global: { plugins: [i18n], stubs: { ...componentStubs, VSelect: mappingValueSelectStub } } })
+
+    for (const label of ['Title column (optional)', 'Tags column (optional)']) {
+      await fireEvent.keyDown(screen.getByRole('combobox', { name: label }), { key: 'd' })
+    }
+    await fireEvent.click(screen.getByText('More fields (optional)'))
+    for (const label of [
+      'Custom short code column (optional)', 'Redirect mode column (optional)', 'Expiration column (optional)',
+      'Maximum visits column (optional)', 'Intermediate countdown column (optional)',
+    ]) await fireEvent.keyDown(screen.getByRole('combobox', { name: label }), { key: 'd' })
+    await fireEvent.click(screen.getByRole('button', { name: 'Match empty choices by header' }))
+
+    expect(screen.getByRole('status').textContent).toContain('Filled 1 choices.')
+    expect(view.emitted()['update:title']).toBeUndefined()
+  })
+
+  it('keeps a keyboard-cleared required URL distinct from an untouched empty choice', async () => {
+    const i18n = createI18n({ legacy: false, locale: 'en', fallbackLocale: 'en', messages })
+    const view = render(BulkCreateCsvMapping, { props: {
+      headers: ['url'], target: null, title: null, tags: null, customSlug: null, redirectMode: null,
+      expiration: null, visitLimit: null, countdown: null, titleAllowed: true, tagsAllowed: true, advancedAllowed: true,
+    }, global: { plugins: [i18n], stubs: { ...componentStubs, VSelect: mappingValueSelectStub } } })
+
+    await fireEvent.keyDown(screen.getByRole('combobox', { name: 'URL column' }), { key: 'c' })
+    await fireEvent.click(screen.getByRole('button', { name: 'Match empty choices by header' }))
+
+    expect(screen.getByRole('status').textContent).toContain('No additional unambiguous matches.')
+    expect(view.emitted()['update:target']).toBeUndefined()
   })
 
   // A dropped authority guard or an accidental titles projection would change the actual HTTP payload.

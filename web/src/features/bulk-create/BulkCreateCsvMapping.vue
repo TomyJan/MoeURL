@@ -4,19 +4,19 @@
     <p>{{ t('bulkCreate.csvMappingIgnored') }}</p>
     <v-btn class="bulk-csv-mapping__match" variant="tonal" @click="matchHeaders">{{ t('bulkCreate.csvMappingMatch') }}</v-btn>
     <p v-if="matchedCount !== null" role="status">{{ matchedCount ? t('bulkCreate.csvMappingMatched', { count: matchedCount }) : t('bulkCreate.csvMappingNoMatch') }}</p>
-    <v-select :model-value="target === null ? '' : String(target)" :items="optionalColumns('csvMappingChoose', 'target')" :label="t('bulkCreate.csvMappingUrl')" variant="outlined" @update:model-value="rememberSelection('target', $event); emit('update:target', $event === '' ? null : Number($event))" />
-    <v-select :model-value="title === null ? '' : String(title)" :items="optionalColumns('csvMappingNoTitle', 'title')" :label="t('bulkCreate.csvMappingTitleColumn')" :disabled="!titleAllowed" variant="outlined" @update:model-value="rememberSelection('title', $event); emit('update:title', $event === '' ? null : Number($event))" />
-    <v-select :model-value="tags === null ? '' : String(tags)" :items="optionalColumns('csvMappingNoTags', 'tags')" :label="t('bulkCreate.csvMappingTagsColumn')" :disabled="!tagsAllowed" variant="outlined" @update:model-value="rememberSelection('tags', $event); emit('update:tags', $event === '' ? null : Number($event))" />
+    <v-select :model-value="target === null ? '' : String(target)" :items="optionalColumns('csvMappingChoose', 'target')" :label="t('bulkCreate.csvMappingUrl')" variant="outlined" @item:added="rememberAdded('target', $event)" @update:model-value="rememberSelection('target', $event); emit('update:target', $event === '' ? null : Number($event))" />
+    <v-select :model-value="title === null ? '' : String(title)" :items="optionalColumns('csvMappingNoTitle', 'title')" :label="t('bulkCreate.csvMappingTitleColumn')" :disabled="!titleAllowed" variant="outlined" @item:added="rememberAdded('title', $event)" @update:model-value="rememberSelection('title', $event); emit('update:title', $event === '' ? null : Number($event))" />
+    <v-select :model-value="tags === null ? '' : String(tags)" :items="optionalColumns('csvMappingNoTags', 'tags')" :label="t('bulkCreate.csvMappingTagsColumn')" :disabled="!tagsAllowed" variant="outlined" @item:added="rememberAdded('tags', $event)" @update:model-value="rememberSelection('tags', $event); emit('update:tags', $event === '' ? null : Number($event))" />
     <p v-if="!titleAllowed">{{ t('bulkCreate.csvMappingTitleDenied') }}</p>
     <p>{{ t('bulkCreate.csvMappingTagsHelp') }}</p>
     <details class="bulk-csv-mapping__advanced">
       <summary>{{ t('bulkCreate.csvMappingAdvancedTitle') }}</summary>
       <p>{{ t('bulkCreate.csvMappingAdvancedHelp') }}</p>
-      <v-select :model-value="customSlug === null ? '' : String(customSlug)" :items="optionalColumns('csvMappingNoCustomSlug', 'customSlug')" :label="t('bulkCreate.csvMappingCustomSlugColumn')" :disabled="!advancedAllowed" variant="outlined" @update:model-value="rememberSelection('customSlug', $event); emit('update:customSlug', $event === '' ? null : Number($event))" />
-      <v-select :model-value="redirectMode === null ? '' : String(redirectMode)" :items="optionalColumns('csvMappingNoRedirectMode', 'redirectMode')" :label="t('bulkCreate.csvMappingRedirectModeColumn')" :disabled="!advancedAllowed" variant="outlined" @update:model-value="rememberSelection('redirectMode', $event); emit('update:redirectMode', $event === '' ? null : Number($event))" />
-      <v-select :model-value="expiration === null ? '' : String(expiration)" :items="optionalColumns('csvMappingNoExpiration', 'expiration')" :label="t('bulkCreate.csvMappingExpirationColumn')" :disabled="!advancedAllowed" variant="outlined" @update:model-value="rememberSelection('expiration', $event); emit('update:expiration', $event === '' ? null : Number($event))" />
-      <v-select :model-value="visitLimit === null ? '' : String(visitLimit)" :items="optionalColumns('csvMappingNoVisitLimit', 'visitLimit')" :label="t('bulkCreate.csvMappingVisitLimitColumn')" :disabled="!advancedAllowed" variant="outlined" @update:model-value="rememberSelection('visitLimit', $event); emit('update:visitLimit', $event === '' ? null : Number($event))" />
-      <v-select :model-value="countdown === null ? '' : String(countdown)" :items="optionalColumns('csvMappingNoCountdown', 'countdown')" :label="t('bulkCreate.csvMappingCountdownColumn')" :disabled="!advancedAllowed" variant="outlined" @update:model-value="rememberSelection('countdown', $event); emit('update:countdown', $event === '' ? null : Number($event))" />
+      <v-select :model-value="customSlug === null ? '' : String(customSlug)" :items="optionalColumns('csvMappingNoCustomSlug', 'customSlug')" :label="t('bulkCreate.csvMappingCustomSlugColumn')" :disabled="!advancedAllowed" variant="outlined" @item:added="rememberAdded('customSlug', $event)" @update:model-value="rememberSelection('customSlug', $event); emit('update:customSlug', $event === '' ? null : Number($event))" />
+      <v-select :model-value="redirectMode === null ? '' : String(redirectMode)" :items="optionalColumns('csvMappingNoRedirectMode', 'redirectMode')" :label="t('bulkCreate.csvMappingRedirectModeColumn')" :disabled="!advancedAllowed" variant="outlined" @item:added="rememberAdded('redirectMode', $event)" @update:model-value="rememberSelection('redirectMode', $event); emit('update:redirectMode', $event === '' ? null : Number($event))" />
+      <v-select :model-value="expiration === null ? '' : String(expiration)" :items="optionalColumns('csvMappingNoExpiration', 'expiration')" :label="t('bulkCreate.csvMappingExpirationColumn')" :disabled="!advancedAllowed" variant="outlined" @item:added="rememberAdded('expiration', $event)" @update:model-value="rememberSelection('expiration', $event); emit('update:expiration', $event === '' ? null : Number($event))" />
+      <v-select :model-value="visitLimit === null ? '' : String(visitLimit)" :items="optionalColumns('csvMappingNoVisitLimit', 'visitLimit')" :label="t('bulkCreate.csvMappingVisitLimitColumn')" :disabled="!advancedAllowed" variant="outlined" @item:added="rememberAdded('visitLimit', $event)" @update:model-value="rememberSelection('visitLimit', $event); emit('update:visitLimit', $event === '' ? null : Number($event))" />
+      <v-select :model-value="countdown === null ? '' : String(countdown)" :items="optionalColumns('csvMappingNoCountdown', 'countdown')" :label="t('bulkCreate.csvMappingCountdownColumn')" :disabled="!advancedAllowed" variant="outlined" @item:added="rememberAdded('countdown', $event)" @update:model-value="rememberSelection('countdown', $event); emit('update:countdown', $event === '' ? null : Number($event))" />
       <p v-if="!advancedAllowed">{{ t('bulkCreate.csvMappingAdvancedDenied') }}</p>
     </details>
     <div class="bulk-csv-mapping__actions">
@@ -39,6 +39,10 @@ watch(() => props.headers, () => { matchedCount.value = null; excluded.clear() }
 function rememberSelection(field: CsvHeaderField, value: unknown) {
   if (value === '') excluded.add(field)
   else excluded.delete(field)
+}
+/** Vuetify also emits item:added for keyboard typeahead when the selected value is unchanged. */
+function rememberAdded(field: CsvHeaderField, item: { value: unknown }) {
+  rememberSelection(field, item.value)
 }
 function matchHeaders() {
   const matches = matchCsvHeaderAliases(props.headers, props, { title: props.titleAllowed, tags: props.tagsAllowed, advanced: props.advancedAllowed }, [...excluded])
