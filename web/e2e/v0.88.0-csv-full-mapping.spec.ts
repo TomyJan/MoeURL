@@ -97,13 +97,27 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
     const secret = 'never-render-or-send-' + nonce
     const privacyTarget = 'https://example.com/explicit-safe-column/' + nonce, privacySlug = 'safe' + nonce
     await page.getByRole('dialog').getByRole('textbox').fill(manualDraft)
-    await mappingInput.setInputFiles({ name: 'ignored-column.csv', mimeType: 'text/csv', buffer: Buffer.from(csv(['Address', 'Private', 'Code'], [[privacyTarget, secret, privacySlug]])) })
+    await mappingInput.setInputFiles({ name: 'ignored-column.csv', mimeType: 'text/csv', buffer: Buffer.from(csv(['url', 'title', 'custom_slug', 'Private'], [[privacyTarget, secret, privacySlug, secret]])) })
     const privacyMapping = page.getByTestId('bulk-create-csv-mapping')
     await expect(privacyMapping).toBeVisible(); await expect(privacyMapping).not.toContainText(secret)
-    await choose(page, privacyMapping.getByRole('combobox', { name: labels.target, exact: true }), column(1, 'Address', english))
+    // Choosing the already-empty option must still express an explicit exclusion in the real Vuetify select.
+    const noTitle = privacyMapping.getByRole('combobox', { name: labels.title, exact: true })
+    if (english && width === 1280) {
+      // Vuetify's keyboard typeahead selects without dispatching an item click.
+      await noTitle.focus(); await noTitle.press('d')
+    } else await choose(page, noTitle, english ? 'Do not import titles' : '不导入标题')
+    await activate(privacyMapping.getByRole('button', { name: english ? 'Match empty choices by header' : '按表头匹配空选项' }))
+    await expect(privacyMapping.getByRole('status')).toContainText(english ? 'Filled 2 choices.' : '已填充 2 个选项。')
+    await expect(privacyMapping.getByRole('combobox', { name: labels.target, exact: true })).toHaveValue(column(1, 'url', english))
+    await expect(privacyMapping.getByRole('combobox', { name: labels.title, exact: true })).toHaveValue(english ? 'Do not import titles' : '不导入标题')
     await activate(privacyMapping.locator('details').getByText(english ? 'More fields (optional)' : '更多字段（可选）', { exact: true }))
-    await choose(page, privacyMapping.getByRole('combobox', { name: labels.slug, exact: true }), column(3, 'Code', english))
-    await activate(page.getByTestId('bulk-create-mapping-apply'))
+    await expect(privacyMapping.getByRole('combobox', { name: labels.slug, exact: true })).toHaveValue(column(3, 'custom_slug', english))
+    await capture(info, 'header-aliases-' + language + '-' + width, page)
+    const applyMapping = page.getByTestId('bulk-create-mapping-apply')
+    await applyMapping.scrollIntoViewIfNeeded()
+    await expect(applyMapping).toBeInViewport()
+    await capture(info, 'mapping-apply-reachable-' + language + '-' + width, page)
+    await activate(applyMapping)
     await expect(privacyMapping).toHaveCount(0)
     await expect(page.getByTestId('bulk-create-imported-list')).toContainText(privacySlug)
     await expect(page.getByRole('dialog')).not.toContainText(secret)

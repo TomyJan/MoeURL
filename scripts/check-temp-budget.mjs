@@ -55,13 +55,15 @@ export async function inspectTemporaryFiles(roots, activeName) {
     const pending = [{ path: root, active: false, top: true }]
     while (pending.length) {
       const current = pending.pop()
-      for (const name of await readdir(current.path)) {
-        const path = join(current.path, name)
-        const info = await lstat(path)
-        if (info.isSymbolicLink()) {
+      for (const entry of await readdir(current.path, { withFileTypes: true })) {
+        const path = join(current.path, entry.name)
+        if (entry.isSymbolicLink()) {
           result.symlinksSkipped++
-        } else if (info.isDirectory()) {
-          pending.push({ path, active: current.active || (current.top && pathKey(name) === pathKey(activeName)), top: false })
+          continue
+        }
+        const info = await lstat(path)
+        if (info.isDirectory()) {
+          pending.push({ path, active: current.active || (current.top && pathKey(entry.name) === pathKey(activeName)), top: false })
         } else if (info.isFile()) {
           result.totalBytes = add(result.totalBytes, info.size)
           if (current.active) result.activeBytes = add(result.activeBytes, info.size)

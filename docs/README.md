@@ -1,8 +1,12 @@
 # MoeURL 文档中心
 
-## 当前开发（2026-11-17，v0.88.0）
+## 当前开发（2026-11-18，v0.89.0）
 
-v0.88.0 自定义 CSV 完整字段映射代码已由 PR #379 合入 `9c20f60c`。完整本地前端门禁、中英文桌面／手机真实浏览器和准确镜像 HIGH／CRITICAL 扫描通过；原 PR 最终 head 的真实 CodeRabbit 与正常合并核验已完成。扫描验收补记通过独立文档跟进 PR 收尾，其审查、集成与可恢复归档仍待完成。准确阶段统一见[开发进度](product/development-status.md)、[计划](implementation/v0.88.0-plan.md)与[验收](implementation/v0.88.0-acceptance.md)。未改后端、API、数据库、权限目录或依赖；不查 CI、不发布部署。
+正在收尾[自定义 CSV 表头匹配](product/scope-v0.89.0.md)：用户主动点击、只填有权限的空选项，不覆盖手选或猜测歧义列，仍需检查并应用。准确 head `a7ecd860` 的中英文桌面／390 px 浏览器 5/5 通过；CodeRabbit、正常合并核验和可恢复归档尚待。准确阶段见[验收](implementation/v0.89.0-acceptance.md)和[计划](implementation/v0.89.0-plan.md)。已交付代码仍为 v0.88.0；其扫描文档跟进 PR #385 已合入 `c7e50a8f`，具有自身真实 CodeRabbit 和独立集成证明。下方保留旧检查点，不作为当前阶段。不查 CI、不发布部署。
+
+## v0.88.0 合并前检查点（历史）
+
+v0.88.0 自定义 CSV 完整字段映射代码已由 PR #379 合入 `9c20f60c`。完整本地前端门禁、中英文桌面／手机真实浏览器和准确镜像 HIGH／CRITICAL 扫描通过；原 PR 最终 head 的真实 CodeRabbit 与正常合并核验已完成。扫描验收补记独立文档跟进 PR #385 的审查及集成核验已完成，恢复归档也已完成，标准合同收尾状态见验收。准确阶段统一见[开发进度](product/development-status.md)、[计划](implementation/v0.88.0-plan.md)与[验收](implementation/v0.88.0-acceptance.md)。未改后端、API、数据库、权限目录或依赖；不查 CI、不发布部署。
 
 ## 当前维护（2026-11-16，v0.87.1）
 
