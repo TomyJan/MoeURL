@@ -111,6 +111,41 @@ test('skips directory links and cycles while preserving their external target', 
   assert.equal(await readFile(join(outside, 'kept'), 'utf8'), 'external bytes')
 })
 
+test('skips reparse entries when ACL denies lstat on the link itself', async t => {
+  const { base, roots, put } = await fixture(t)
+  const outside = join(base, 'outside')
+  const blockedLink = join(roots[0], 'linked-cache')
+  await mkdir(outside)
+  await writeFile(join(outside, 'kept'), 'external bytes')
+  await put(roots[0], 'current/owned.bin', 3)
+  await symlink(outside, blockedLink, 'junction')
+  const probe = `
+    import * as fs from 'node:fs/promises';
+    import { mock } from 'node:test';
+    const link = ${JSON.stringify(blockedLink)};
+    mock.module('node:fs/promises', { namedExports: {
+      lstat: async (path, ...args) => {
+        if (path === link) { const error = new Error('access denied inspecting reparse point'); error.code = 'EACCES'; throw error; }
+        return fs.lstat(path, ...args);
+      },
+      readdir: (path, ...args) => fs.readdir(path, ...args),
+      realpath: path => fs.realpath(path),
+    } });
+    const { inspectTemporaryFiles } = await import(${JSON.stringify(new URL('./check-temp-budget.mjs', import.meta.url).href)});
+    console.log(JSON.stringify(await inspectTemporaryFiles([${JSON.stringify(roots[0])}], 'current')));
+  `
+  const result = spawnSync(process.execPath, ['--experimental-test-module-mocks', '--input-type=module', '--eval', probe], { encoding: 'utf8', timeout: 10_000, windowsHide: true })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), {
+    roots: [await (await import('node:fs/promises')).realpath(roots[0])],
+    activeBytes: 3,
+    totalBytes: 3,
+    files: 1,
+    symlinksSkipped: 1,
+  })
+  assert.equal(await readFile(join(outside, 'kept'), 'utf8'), 'external bytes')
+})
+
 test('rejects absent, non-directory, linked and overlapping managed roots', async t => {
   const { base, roots, put } = await fixture(t)
   const fileRoot = await put(roots[0], 'file/.tmp', 1)
