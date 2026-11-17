@@ -2,7 +2,7 @@
 
 ## 最近完成（2026-11-18，v0.89.0）
 
-[有限 CSV 表头匹配](scope-v0.89.0.md)已由 PR #386 合入，merge commit `f236951862f53e59cfedbe318e224d48fd1c902e`。准确 head 的真实 CodeRabbit 为 `reviewed`、source／covered SHA 一致且有效意见 0；合并 tree `3adb9207da8e368b24e8c613dab6e487ab2b0161`、唯一父 `38b16dda98669d3840ccf0c909f3efb031848bb8` 经 API 与独立 fetch 核验。候选完整本地门禁及准确产品中英桌面／390 px 浏览器 5/5 通过；未把 master 上随后合入的依赖更新冒充为重验。whole-owned 恢复归档已完成，ZIP 3316 项全解压逐 hash，SHA-256 `9925458E131201186DCCE8B6082C6406D899E83386DB8DEA28FD7485D51CDC4A`。未查 CI、未发布部署；完整边界和归档回执见[验收](../implementation/v0.89.0-acceptance.md)。
+[有限 CSV 表头匹配](scope-v0.89.0.md)已由 PR #386 合入，merge commit `f236951862f53e59cfedbe318e224d48fd1c902e`。准确 head 的真实 CodeRabbit 为 `reviewed`、source／covered SHA 一致且有效意见 0；合并 tree `3adb9207da8e368b24e8c613dab6e487ab2b0161`、唯一父 `38b16dda98669d3840ccf0c909f3efb031848bb8` 经 API 与独立 fetch 核验。候选完整本地门禁及准确产品中英桌面／390 px 浏览器 5/5 通过；未把 master 上随后合入的依赖更新冒充为重验。最终 whole-owned 恢复归档已完成，3312 项全解压逐 hash，SHA-256 `4E5111079E7745BCE55AE758F98E51F463A416442AD848DEE5C714ABC44AF315`。未查 CI、未发布部署；完整边界和归档回执见[验收](../implementation/v0.89.0-acceptance.md)。
 
 ## v0.88.0 合并前检查点（历史）
 
