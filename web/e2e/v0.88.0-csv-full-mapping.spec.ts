@@ -101,11 +101,11 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
     const privacyMapping = page.getByTestId('bulk-create-csv-mapping')
     await expect(privacyMapping).toBeVisible(); await expect(privacyMapping).not.toContainText(secret)
     // Choosing the already-empty option must still express an explicit exclusion in the real Vuetify select.
-    await choose(page, privacyMapping.getByRole('combobox', { name: labels.title, exact: true }), english ? 'Do not import a title' : '不导入标题')
+    await choose(page, privacyMapping.getByRole('combobox', { name: labels.title, exact: true }), english ? 'Do not import titles' : '不导入标题')
     await activate(privacyMapping.getByRole('button', { name: english ? 'Match empty choices by header' : '按表头匹配空选项' }))
     await expect(privacyMapping.getByRole('status')).toContainText(english ? 'Filled 2 choices.' : '已填充 2 个选项。')
     await expect(privacyMapping.getByRole('combobox', { name: labels.target, exact: true })).toHaveValue(column(1, 'url', english))
-    await expect(privacyMapping.getByRole('combobox', { name: labels.title, exact: true })).toHaveValue(english ? 'Do not import a title' : '不导入标题')
+    await expect(privacyMapping.getByRole('combobox', { name: labels.title, exact: true })).toHaveValue(english ? 'Do not import titles' : '不导入标题')
     await activate(privacyMapping.locator('details').getByText(english ? 'More fields (optional)' : '更多字段（可选）', { exact: true }))
     await expect(privacyMapping.getByRole('combobox', { name: labels.slug, exact: true })).toHaveValue(column(3, 'custom_slug', english))
     await capture(info, 'header-aliases-' + language + '-' + width, page)
