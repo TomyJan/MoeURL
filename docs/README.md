@@ -1,8 +1,8 @@
 # MoeURL 文档中心
 
-## 当前开发（2026-11-16，v0.88.0）
+## 当前开发（2026-11-17，v0.88.0）
 
-PR378／v0.87.1 已交付为 master `5b9017da`。v0.88.0 已实现自定义 CSV 的短码、跳转方式、过期、访问上限与倒计时映射；Task1 的 RED→GREEN、四项 100% 覆盖率、类型检查、lint、E2E strict 类型检查和隔离构建均通过。当前进入准确产品与真实浏览器验证；真实 CodeRabbit、合并与归档尚待。未改后端、API、数据库、权限目录或依赖；不查 CI、不发布部署。详情见[计划](implementation/v0.88.0-plan.md)与[验收](implementation/v0.88.0-acceptance.md)。
+v0.88.0 自定义 CSV 完整字段映射代码已由 PR #379 合入 `9c20f60c`。完整本地前端门禁、中英文桌面／手机真实浏览器和准确镜像 HIGH／CRITICAL 扫描通过；原 PR 最终 head 的真实 CodeRabbit 与正常合并核验已完成。扫描验收补记通过独立文档跟进 PR 收尾，其审查、集成与可恢复归档仍待完成。准确阶段统一见[开发进度](product/development-status.md)、[计划](implementation/v0.88.0-plan.md)与[验收](implementation/v0.88.0-acceptance.md)。未改后端、API、数据库、权限目录或依赖；不查 CI、不发布部署。
 
 ## 当前维护（2026-11-16，v0.87.1）
 

@@ -2,7 +2,7 @@
 
 ## 当前阶段
 
-本版实施中。基线为 PR378 合并提交 `5b9017da3ab62194fa4834e55d0505f8b768f893`，产品仍为 0.87.0；准确实现、验证、审查和交付状态见[计划](../implementation/v0.88.0-plan.md)及[验收](../implementation/v0.88.0-acceptance.md)。
+本版代码已由 PR #379 合入 `9c20f60c`，实现基线为 PR378 合并提交 `5b9017da3ab62194fa4834e55d0505f8b768f893`。本地产品验证、准确镜像扫描及原 PR 审查通过；扫描验收补记的独立文档 PR 与最终可恢复归档仍待完成。实现、代码合并、整版验收与正式发布分开判定，准确状态见[开发进度](development-status.md)、[计划](../implementation/v0.88.0-plan.md)及[验收](../implementation/v0.88.0-acceptance.md)。
 
 ## 目的
 
