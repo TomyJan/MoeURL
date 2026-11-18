@@ -6,7 +6,7 @@
 
 ## 当前实施（2026-11-18，v0.90.0）
 
-[导出清单恢复范围](product/scope-v0.90.0.md)、[技术设计](specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[实施计划](superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)已建立；当前没有运行时代码或验收结果。该能力只重建当前用户的新短链，不恢复数据库历史或密码；真实实现与本地验证状态见[任务](implementation/v0.90.0-tasks.md)和[验收](implementation/v0.90.0-acceptance.md)。
+[导出清单恢复范围](product/scope-v0.90.0.md)、[技术设计](specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[实施计划](superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)已建立；严格 handler 请求边界已有本地 RED→GREEN 定向证据，service、前端和整版门禁仍未完成。该能力只重建当前用户的新短链，不恢复数据库历史或密码；准确实现与本地验证状态见[任务](implementation/v0.90.0-tasks.md)和[验收](implementation/v0.90.0-acceptance.md)。
 
 ## v0.88.0 合并前检查点（历史）
 

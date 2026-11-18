@@ -2,7 +2,7 @@
 
 ## 当前实施设计（2026-11-18，v0.90.0）
 
-本版计划新增 `POST /api/v1/short-link/manifest/restore`，仅使用当前会话身份，不新增 migration、权限常量、环境变量或依赖。Go 服务复用 SQLC、`WithAuditTx`、短链目标策略、默认／分配域名授权、每日创建配额和既有批量创建幂等回执；整批最多 100 行在同一事务检查并创建。CSV 在浏览器本地按 v0.21.0 固定 17 列解析，JSON 请求另限 1 MiB；原导出、已有八种网址 CSV 创建协议和 service worker 缓存边界不变。前端加入独立恢复 panel，沿用账号／权限 epoch 及异步迟到结果守卫。详见[设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[实施计划](../superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)；所有实现和验证仍待对应证据，不把设计记作已交付能力。
+本版新增 `POST /api/v1/short-link/manifest/restore` 的严格 handler 边界和 router/app 接线草案，只有 handler 的 file-scoped RED→GREEN 已验证，router/app 仍待依赖可用后验证；service、CSV parser 和 UI 尚未实现。最终接口仅使用当前会话身份，不新增 migration、权限常量、环境变量或依赖。Go 服务计划复用 SQLC、`WithAuditTx`、短链目标策略、默认／分配域名授权、每日创建配额和既有批量创建幂等回执；整批最多 100 行在同一事务检查并创建。CSV 在浏览器本地按 v0.21.0 固定 17 列解析，JSON 请求另限 1 MiB；原导出、已有八种网址 CSV 创建协议和 service worker 缓存边界不变。前端加入独立恢复 panel，沿用账号／权限 epoch 及异步迟到结果守卫。详见[设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[实施计划](../superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)。
 
 ## 当前维护（2026-11-16，v0.87.1）
 
