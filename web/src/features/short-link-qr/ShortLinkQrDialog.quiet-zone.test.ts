@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/vue'
+import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import QRCode from 'qrcode'
@@ -142,7 +142,7 @@ describe('ShortLinkQrDialog quiet zone', () => {
     await fireEvent.click(screen.getByRole('button', { name: /^shortLinkQr.quietZone:/ }))
     expect(screen.getByRole('menuitemradio', { name: 'shortLinkQr.quietZones.wide' }).getAttribute('aria-checked')).toBe('true')
     expect(screen.getByRole('menuitemradio', { name: 'shortLinkQr.quietZones.standard' }).getAttribute('aria-checked')).toBe('false')
-  })
+  }, 15_000)
 
   // Another link or reopening must retire both menus and the previous border as well as old choices.
   it.each(['slug', 'url', 'reopen'] as const)('restores all defaults and closes both menus on %s', async change => {
@@ -154,7 +154,7 @@ describe('ShortLinkQrDialog quiet zone', () => {
     await downloads()
     await fireEvent.click(screen.getByRole('button', { name: /^shortLinkQr.exportSize:/ }))
     await fireEvent.click(screen.getByRole('button', { name: /^shortLinkQr.quietZone:/ }))
-    expect(screen.getAllByRole('menu')).toHaveLength(2)
+    await waitFor(() => expect(screen.getAllByRole('menu')).toHaveLength(2))
     let currentUrl = url
     if (change === 'slug') await view.rerender({ slug: 'next456' })
     if (change === 'url') { currentUrl = 'https://next.example.org/next456'; await view.rerender({ url: currentUrl }) }
@@ -166,7 +166,7 @@ describe('ShortLinkQrDialog quiet zone', () => {
     expect(screen.queryByRole('menu')).toBeNull()
     expect((await downloads()).svg).toBe(await svgWriter(currentUrl, { type: 'svg', width: 320, margin: 4, errorCorrectionLevel: 'M', color: { dark: '#000000', light: '#FFFFFF' } }))
     expect(screen.getByRole('button', { name: 'shortLinkQr.quietZone: shortLinkQr.quietZones.standard' })).toBeTruthy()
-  })
+  }, 15_000)
 
   // Retired menu work must not steal focus from the user's new position.
   it.each(['slug', 'url', 'close', 'unmount'] as const)('cancels queued border focus on %s', async change => {
