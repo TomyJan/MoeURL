@@ -1,8 +1,8 @@
 # MoeURL 文档中心
 
-## 当前开发（2026-11-18，v0.89.0）
+## 最近完成（2026-11-18，v0.89.0）
 
-正在收尾[自定义 CSV 表头匹配](product/scope-v0.89.0.md)：用户主动点击、只填有权限的空选项，不覆盖手选或猜测歧义列，仍需检查并应用。准确 head `a7ecd860` 的中英文桌面／390 px 浏览器 5/5 通过；CodeRabbit、正常合并核验和可恢复归档尚待。准确阶段见[验收](implementation/v0.89.0-acceptance.md)和[计划](implementation/v0.89.0-plan.md)。已交付代码仍为 v0.88.0；其扫描文档跟进 PR #385 已合入 `c7e50a8f`，具有自身真实 CodeRabbit 和独立集成证明。下方保留旧检查点，不作为当前阶段。不查 CI、不发布部署。
+[有限 CSV 表头匹配](product/scope-v0.89.0.md)已由 PR #386 合入，merge commit `f236951862f53e59cfedbe318e224d48fd1c902e`。准确 CodeRabbit 审查、独立合并核验、候选本地门禁与真实浏览器验收均有证据；最终 whole-owned 恢复包 3312 项已逐项解压验 hash，SHA-256 `4E5111079E7745BCE55AE758F98E51F463A416442AD848DEE5C714ABC44AF315`。证据和本地／集成边界见[验收](implementation/v0.89.0-acceptance.md)。未查 CI、未发布部署；PR #385 的扫描文档跟进也已独立完成。
 
 ## v0.88.0 合并前检查点（历史）
 
