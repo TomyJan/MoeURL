@@ -4,6 +4,10 @@
 
 [有限 CSV 表头匹配](product/scope-v0.89.0.md)已由 PR #386 合入，merge commit `f236951862f53e59cfedbe318e224d48fd1c902e`。准确 CodeRabbit 审查、独立合并核验、候选本地门禁与真实浏览器验收均有证据；最终 whole-owned 恢复包 3312 项已逐项解压验 hash，SHA-256 `4E5111079E7745BCE55AE758F98E51F463A416442AD848DEE5C714ABC44AF315`。证据和本地／集成边界见[验收](implementation/v0.89.0-acceptance.md)。未查 CI、未发布部署；PR #385 的扫描文档跟进也已独立完成。
 
+## 当前实施（2026-11-18，v0.90.0）
+
+[导出清单恢复范围](product/scope-v0.90.0.md)、[技术设计](specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[实施计划](superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)已建立；当前没有运行时代码或验收结果。该能力只重建当前用户的新短链，不恢复数据库历史或密码；真实实现与本地验证状态见[任务](implementation/v0.90.0-tasks.md)和[验收](implementation/v0.90.0-acceptance.md)。
+
 ## v0.88.0 合并前检查点（历史）
 
 v0.88.0 自定义 CSV 完整字段映射代码已由 PR #379 合入 `9c20f60c`。完整本地前端门禁、中英文桌面／手机真实浏览器和准确镜像 HIGH／CRITICAL 扫描通过；原 PR 最终 head 的真实 CodeRabbit 与正常合并核验已完成。扫描验收补记独立文档跟进 PR #385 的审查及集成核验已完成，恢复归档也已完成，标准合同收尾状态见验收。准确阶段统一见[开发进度](product/development-status.md)、[计划](implementation/v0.88.0-plan.md)与[验收](implementation/v0.88.0-acceptance.md)。未改后端、API、数据库、权限目录或依赖；不查 CI、不发布部署。
@@ -449,6 +453,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 - [v0.13.0 范围](product/scope-v0.13.0.md)
 - [v0.14.0 范围](product/scope-v0.14.0.md)
 - [v0.15.0 范围](product/scope-v0.15.0.md)
+- [v0.90.0 导出清单恢复范围](product/scope-v0.90.0.md)
 - [路线图](product/roadmap.md)
 
 ### 功能规格层
@@ -487,8 +492,11 @@ v0.9.0 系统设置与站点品牌基础闭环的功能实现已经完成；功�
 当前实施层文档包括：
 
 - [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)
-- [当前 v0.77.0 实施计划](implementation/v0.77.0-plan.md)
-- [当前 v0.77.0 验收](implementation/v0.77.0-acceptance.md)
+- [当前 v0.90.0 实施计划](superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)
+- [v0.90.0 任务清单](implementation/v0.90.0-tasks.md)
+- [v0.90.0 验收记录](implementation/v0.90.0-acceptance.md)
+- [v0.77.0 历史实施计划](implementation/v0.77.0-plan.md)
+- [v0.77.0 历史验收](implementation/v0.77.0-acceptance.md)
 - [最近维护交付 v0.76.1 验收](implementation/v0.76.1-acceptance.md)
 - [已交付产品 v0.76.0 验收](implementation/v0.76.0-acceptance.md)
 - [历史 v0.75.3 验收](implementation/v0.75.3-acceptance.md)

@@ -1,5 +1,9 @@
 # 技术选型决策
 
+## 当前设计（2026-11-18，v0.90.0）
+
+管理清单恢复沿用现有 Go／Chi、SQLC、PostgreSQL、Vue／TypeScript 与 Vitest／Playwright，不新增依赖、权限或数据库迁移。技术方案新增独立严格 CSV parser 和个人恢复 POST；服务器在单个有界审计事务内重新验证 Cookie actor、现有字段与域名权限、目标策略、创建配额和全局 slug 唯一性，并复用短链创建回执。前端以独立恢复面板承载本地解析、损失边界说明、明确确认及身份轮次／未知重试保护，不改原网址导入协议。方案和未完成状态见[v0.90.0 设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)及[计划](../superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)。
+
 ## 当前维护（2026-11-16，v0.87.1）
 
 PR377／v0.87.0 手动 CSV 标签列映射已完成三个标准任务、完整本地验证、唯一 Sol 终审、准确候选真实 CodeRabbit、正常合并独立核验及十份工作记录可恢复归档；合并提交为 `b15349df`，已交付产品为 0.87.0。空标签数组仍受 metadata 权限限制，其他高级字段映射和历史恢复尚未交付。准确执行身份、失败归属及延期 Minor 见[前版交付补记](v0.87.0-acceptance.md)。

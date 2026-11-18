@@ -1,5 +1,9 @@
 # 技术基线
 
+## 当前实施设计（2026-11-18，v0.90.0）
+
+本版计划新增 `POST /api/v1/short-link/manifest/restore`，仅使用当前会话身份，不新增 migration、权限常量、环境变量或依赖。Go 服务复用 SQLC、`WithAuditTx`、短链目标策略、默认／分配域名授权、每日创建配额和既有批量创建幂等回执；整批最多 100 行在同一事务检查并创建。CSV 在浏览器本地按 v0.21.0 固定 17 列解析，JSON 请求另限 1 MiB；原导出、已有八种网址 CSV 创建协议和 service worker 缓存边界不变。前端加入独立恢复 panel，沿用账号／权限 epoch 及异步迟到结果守卫。详见[设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[实施计划](../superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)；所有实现和验证仍待对应证据，不把设计记作已交付能力。
+
 ## 当前维护（2026-11-16，v0.87.1）
 
 PR377／v0.87.0 手动 CSV 标签列映射已完成三个标准任务、完整本地验证、唯一 Sol 终审、准确候选真实 CodeRabbit、正常合并独立核验及十份工作记录可恢复归档；合并提交为 `b15349df`，已交付产品为 0.87.0。空标签数组仍受 metadata 权限限制，其他高级字段映射和历史恢复尚未交付。准确执行身份、失败归属及延期 Minor 见[前版交付补记](v0.87.0-acceptance.md)。

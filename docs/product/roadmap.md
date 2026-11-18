@@ -4,6 +4,10 @@
 
 [有限 CSV 表头匹配](scope-v0.89.0.md)采用主动点击填空，避免上传时自动选择、模糊推断与历史恢复；保留八协议和手动应用，不新增后端、权限、数据库或依赖。PR #386 已获准确 head 的真实 CodeRabbit reviewed 并正常 squash 合入，API 与独立 fetch 核验完成；候选完整本地门禁和中英桌面／390 px 浏览器 5/5 已通过。whole-owned 恢复归档与本版验收已闭合，PR #385 的文档跟进也已完成。见[验收](../implementation/v0.89.0-acceptance.md)；不查 CI、不发布部署。
 
+## 当前实施（2026-11-18，v0.90.0）
+
+路线图中的“导出清单恢复”进入独立范围：[v0.90.0](scope-v0.90.0.md)只接受 v0.21.0 固定 17 列 CSV，恢复可重建配置并以当前账号为新 owner；不重用旧 ID、归属、时间、事件、访问用量或密码。它与既有单列网址导入、手动字段映射及所选 CSV 导出保持分离。计划采用本地预览、用户明确确认和服务端单事务全有或全无；真实实现与验收尚未完成。准确阶段见[开发进度](development-status.md)、[设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[实施计划](../superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)。
+
 ## v0.88.0 合并前检查点（历史）
 
 当前增量[自定义 CSV 完整字段映射](scope-v0.88.0.md)的代码已由 PR #379 合入 `9c20f60c`。完整本地前端门禁、准确产品浏览器及 HIGH／CRITICAL 扫描通过；原 PR 的真实审查和合并独立核验已完成。扫描验收文档跟进 PR #385 的自身审查和集成核验已完成，恢复归档也已完成，标准合同收尾状态见验收，详见[开发进度](development-status.md)与[验收](../implementation/v0.88.0-acceptance.md)。不做别名猜测、历史恢复或后端扩展，不查询 CI、不发布部署。
