@@ -15,6 +15,7 @@
             <span>{{ t('bulkCreate.csvMappingLabel') }}</span>
             <input type="file" accept=".csv,text/csv" data-testid="bulk-create-mapping-file" :disabled="state.pending.value" @change="selectFile($event, 'mapped')" />
           </label>
+          <ManifestRestoreDialog />
           <p>{{ t('bulkCreate.csvHelp') }}</p>
           <BulkCreateCsvHelp v-if="state.opened.value" />
           <p v-if="state.reading.value" role="status">{{ t('bulkCreate.csvReading') }}</p>
@@ -59,6 +60,7 @@ import { useI18n } from 'vue-i18n'
 import { useBulkCreate } from './useBulkCreate'
 import BulkCreateCsvHelp from './BulkCreateCsvHelp.vue'
 import BulkCreateCsvMapping from './BulkCreateCsvMapping.vue'
+import ManifestRestoreDialog from './ManifestRestoreDialog.vue'
 const { t } = useI18n()
 const props = defineProps<{ canOpen?: () => boolean }>()
 const state = useBulkCreate()
