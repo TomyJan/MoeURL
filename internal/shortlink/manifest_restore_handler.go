@@ -21,24 +21,25 @@ const manifestRestoreMaxItems = 100
 
 // ManifestRestoreItem contains only data that can be reconstructed from the management CSV.
 type ManifestRestoreItem struct {
-	DomainOrigin             string
-	Slug                     string
-	TargetURL                string
-	Title                    string
-	Tags                     []string
-	Status                   string
-	RedirectMode             string
-	IntermediateDelaySeconds string
-	ExpiresAt                string
-	MaxVisits                string
+	DomainOrigin             string   `json:"domainOrigin"`
+	Slug                     string   `json:"slug"`
+	TargetURL                string   `json:"targetUrl"`
+	Title                    string   `json:"title"`
+	Tags                     []string `json:"tags"`
+	Status                   string   `json:"status"`
+	RedirectMode             string   `json:"redirectMode"`
+	IntermediateDelaySeconds string   `json:"intermediateDelaySeconds"`
+	ExpiresAt                string   `json:"expiresAt"`
+	MaxVisits                string   `json:"maxVisits"`
 }
 
 // ManifestRestoreInput binds the ordered manifest rows to one request id.
 type ManifestRestoreInput struct {
-	RequestID string
-	Items     []ManifestRestoreItem
+	RequestID string                `json:"requestId"`
+	Items     []ManifestRestoreItem `json:"items"`
 
-	rawPayloadDigest [sha256.Size]byte
+	rawPayloadDigest [sha256.Size]byte `json:"-"`
+	rawPayloadSize   int               `json:"-"`
 }
 
 // ManifestRestorePort restores a complete management manifest for the current actor.
@@ -148,6 +149,7 @@ func decodeManifestRestore(body []byte) (ManifestRestoreInput, bool) {
 		return ManifestRestoreInput{}, false
 	}
 	input.rawPayloadDigest = sha256.Sum256(body)
+	input.rawPayloadSize = len(body)
 	return input, true
 }
 
