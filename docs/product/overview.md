@@ -6,7 +6,7 @@
 
 ## 当前设计与实施（2026-11-18，v0.90.0）
 
-[导出清单恢复](scope-v0.90.0.md)以 v0.21.0 固定 17 列管理 CSV 为唯一输入；预览在浏览器本地完成，确认后只在当前登录账号下创建新记录，整批授权和唯一性检查由服务端单事务负责。它不是数据库备份恢复：旧 ID、原归属、时间、访问事件／用量和密码不恢复，启用密码的任一行使整批拒绝；现有 CSV 网址导入与导出保持独立。范围、实现契约、计划和当前验证状态分别见[本版范围](scope-v0.90.0.md)、[设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)、[计划](../superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)和[验收](../implementation/v0.90.0-acceptance.md)。
+[导出清单恢复](scope-v0.90.0.md)的核心实现以 v0.21.0 固定 17 列管理 CSV 为唯一输入；预览在浏览器本地完成，确认后只在当前登录账号下创建新记录，整批授权和唯一性检查由服务端单事务负责。前端全量 7,238 项与四项 coverage 100%、类型／lint／E2E strict／build 通过；router/app、正式数据库 runner、真实浏览器和产品验证仍待。它不是数据库备份恢复：旧 ID、原归属、时间、访问事件／用量和密码不恢复，启用密码的任一行使整批拒绝；现有 CSV 网址导入与导出保持独立。范围、实现契约、计划和当前验证状态分别见[本版范围](scope-v0.90.0.md)、[设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)、[计划](../superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)和[验收](../implementation/v0.90.0-acceptance.md)。
 
 ## v0.88.0 合并前检查点（历史）
 

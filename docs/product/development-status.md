@@ -6,7 +6,7 @@
 
 ## 当前实施（2026-11-18，v0.90.0）
 
-[导出清单恢复](scope-v0.90.0.md)已完成范围、规格和任务计划设计，handler 的严格请求边界已实现并有定向 RED→GREEN 证据，整批服务、CSV parser、前端和真实浏览器尚未完成。目标是严格读取 v0.21.0 的固定 17 列管理 CSV，在浏览器本地预览后，由当前 Cookie 身份通过单个原子请求创建 1–100 条新链接；密码启用行、域名／权限／策略／配额／短码任一拒绝均整批不写入。恢复短链时访问用量从 0 开始，不恢复旧 ID、归属、时间、事件或密码；既有网址 CSV 导入与导出协议保持不变。设计、计划、任务和验收入口见[本版范围](scope-v0.90.0.md)。本机缓存中有 Go 1.26.8，handler 定向测试可运行；完整 Go 测试、router/app 验证受未缓存依赖阻断，不安装依赖。未查 CI、未发布部署。
+[导出清单恢复](scope-v0.90.0.md)的核心实现与前端本地门禁已完成：Node 26.3.0／Vitest 5.0.3 全量 7,238/7,238、290 个文件，Statements／Branches／Functions／Lines 均 100%；typecheck、lint（0 errors、5 个既有 warning）、E2E strict types、production build 通过。Go 1.26.8 handler／service 文件级测试、shortlink build／vet 和隔离 PostgreSQL supplemental 原子场景通过。router/app 编译因未缓存 `golang.org/x/oauth2 v0.38.0` 未验证；仓库 Testcontainers／Goose runner、Go 全包／业务 coverage、SQLC 漂移、真实浏览器与准确产品验证仍待，未安装依赖。能力只读取 v0.21.0 固定 17 列管理 CSV，在本地预览后以当前 Cookie 身份创建 1–100 条新链接；任一密码行、域名／权限／策略／配额／slug 拒绝均不得部分写入。访问用量从 0 开始，不恢复旧 ID、归属、时间、事件或密码；既有网址 CSV 导入与导出协议不变。一次 `pnpm exec` 误触发包解析安装的处置边界见[验收](../implementation/v0.90.0-acceptance.md)。未查 CI、未发布部署。
 
 ## v0.88.0 合并前检查点（历史）
 

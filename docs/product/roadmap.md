@@ -6,7 +6,7 @@
 
 ## 当前实施（2026-11-18，v0.90.0）
 
-路线图中的“导出清单恢复”进入独立范围：[v0.90.0](scope-v0.90.0.md)只接受 v0.21.0 固定 17 列 CSV，恢复可重建配置并以当前账号为新 owner；不重用旧 ID、归属、时间、事件、访问用量或密码。它与既有单列网址导入、手动字段映射及所选 CSV 导出保持分离。计划采用本地预览、用户明确确认和服务端单事务全有或全无；真实实现与验收尚未完成。准确阶段见[开发进度](development-status.md)、[设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[实施计划](../superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)。
+路线图中的“导出清单恢复”进入核心实现与本地验证阶段：[v0.90.0](scope-v0.90.0.md)只接受 v0.21.0 固定 17 列 CSV，恢复可重建配置并以当前账号为新 owner；不重用旧 ID、归属、时间、事件、访问用量或密码。它与既有单列网址导入、手动字段映射及所选 CSV 导出保持分离。前端全量测试及四项 coverage 100%、类型／lint／E2E strict／build 通过；正式 Go runner、router/app、真实浏览器、产品扫描及交付仍待。准确阶段见[开发进度](development-status.md)、[设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[实施计划](../superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)。
 
 ## v0.88.0 合并前检查点（历史）
 

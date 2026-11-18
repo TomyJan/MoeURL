@@ -2,7 +2,7 @@
 
 ## 当前实施设计（2026-11-18，v0.90.0）
 
-本版新增 `POST /api/v1/short-link/manifest/restore` 的严格 handler 边界和 router/app 接线草案，只有 handler 的 file-scoped RED→GREEN 已验证，router/app 仍待依赖可用后验证；service、CSV parser 和 UI 尚未实现。最终接口仅使用当前会话身份，不新增 migration、权限常量、环境变量或依赖。Go 服务计划复用 SQLC、`WithAuditTx`、短链目标策略、默认／分配域名授权、每日创建配额和既有批量创建幂等回执；整批最多 100 行在同一事务检查并创建。CSV 在浏览器本地按 v0.21.0 固定 17 列解析，JSON 请求另限 1 MiB；原导出、已有八种网址 CSV 创建协议和 service worker 缓存边界不变。前端加入独立恢复 panel，沿用账号／权限 epoch 及异步迟到结果守卫。详见[设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[实施计划](../superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)。
+本版新增 `POST /api/v1/short-link/manifest/restore` 严格 handler、router/app 接线与事务 service；handler／service 文件级测试、`internal/shortlink` build/vet 及隔离 PostgreSQL supplemental 原子场景通过。router/app 编译受未缓存 `golang.org/x/oauth2 v0.38.0` 阻断；仓库 Testcontainers／Goose runner、全 Go suite／业务 coverage 与 SQLC 漂移仍待，未安装依赖。接口仅使用当前 Cookie actor，不新增 migration、权限常量、环境变量或依赖；复用 SQLC、`WithAuditTx`、短链目标策略、默认／分配域名授权、每日创建配额和既有批量创建幂等回执。整批最多 100 行在同一事务检查并创建。CSV 在浏览器本地按 v0.21.0 固定 17 列解析，JSON 请求另限 1 MiB；原导出、已有八种网址 CSV 创建协议和 service worker 缓存边界不变。前端独立恢复 panel 已实现并通过完整 7,238 项／四项 100% coverage、类型、lint、E2E strict 与构建；真实浏览器与准确产品验证仍待。详见[设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[验收](v0.90.0-acceptance.md)。
 
 ## 当前维护（2026-11-16，v0.87.1）
 
