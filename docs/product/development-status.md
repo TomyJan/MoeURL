@@ -4,6 +4,12 @@
 
 [有限 CSV 表头匹配](scope-v0.89.0.md)已由 PR #386 合入，merge commit `f236951862f53e59cfedbe318e224d48fd1c902e`。准确 head 的真实 CodeRabbit 为 `reviewed`、source／covered SHA 一致且有效意见 0；合并 tree `3adb9207da8e368b24e8c613dab6e487ab2b0161`、唯一父 `38b16dda98669d3840ccf0c909f3efb031848bb8` 经 API 与独立 fetch 核验。候选完整本地门禁及准确产品中英桌面／390 px 浏览器 5/5 通过；未把 master 上随后合入的依赖更新冒充为重验。最终 whole-owned 恢复归档已完成，3312 项全解压逐 hash，SHA-256 `4E5111079E7745BCE55AE758F98E51F463A416442AD848DEE5C714ABC44AF315`。未查 CI、未发布部署；完整边界和归档回执见[验收](../implementation/v0.89.0-acceptance.md)。
 
+## 当前实施验证（2026-11-19，v0.90.0）
+
+[导出清单恢复](scope-v0.90.0.md)已实现：严格接受固定 17 列管理 CSV，经当前 Cookie actor 的权限、域名、策略、配额和短码检查后，以单事务新建 1–100 条记录。保留可重建配置，访问用量从 0 开始；旧 ID、归属、时间、事件和密码不恢复。新增 `POST /api/v1/short-link/manifest/restore` 限 1 MiB；migration 00048 将幂等回执容量扩至 100，大回执存在时 Down 安全拒绝。旧八种创建协议仍限 20 条。
+
+正式 Go 1.26.8 全仓、受影响 shortlink 最终复跑、业务覆盖率 100%、vet、Goose/Testcontainers 迁移和 SQLC 1.30.0 二次零漂移通过；Linux Go 1.27.4 四包 race 与全仓 vet 也通过。最终审查发现的父级操作丢失恢复重试状态、裸 CR 和 UTC 小数规范三项已修正，独立定向复核无新增问题。源码修正提交 `74f6bdcf`（按授权当次未签名，全局配置保留）；Node 26.3.0 最新全量 7,246/7,246、290 文件、四项覆盖率 100%，类型／源码 lint／E2E strict 检查通过。修正源码 `74f6bdcf` 的准确产品 readiness、真实浏览器 7/7（36.6 秒）、所选 HIGH／CRITICAL 扫描均通过，专属应用／tmpfs DB 已释放；空网络和被策略拒绝清理的可重建缓存准确保留。旧产品结果保留原身份；真实 CodeRabbit、正常合并及 whole-owned 可恢复归档尚待。必要依赖／工具可自主安装更新；未查 CI、未发布部署，产品显示版本仍为 0.89.0。准确命令、运行身份与剩余门禁见[验收](../implementation/v0.90.0-acceptance.md)。
+
 ## v0.88.0 合并前检查点（历史）
 
 v0.88.0 已补齐现有手动 CSV 映射的短码、跳转方式、过期、访问上限与倒计时字段，代码由 PR #379 正常合入 `9c20f60c5783f16ec187c02c9886b88262fd4bfd`，合并提交、tree 与唯一父已独立核验。Task1 的 RED→GREEN、完整本地前端门禁及准确候选产品的中英文桌面／手机浏览器验收通过；Task2 的准确镜像 Trivy 扫描 HIGH／CRITICAL 均为 0，扫描工具与测试资源已清理。原 PR 最终 head 已获真实 CodeRabbit 覆盖并完成有效意见闭环；合并后的扫描验收补记 PR #385 已由其自身 CodeRabbit 审查并正常合入 `c7e50a8f84cf6253050628cacfb7b146bcc68649`，tree `d67d40afc04924d6db05f9bf2e028aa5d910fbba`、唯一父 `9c20f60c5783f16ec187c02c9886b88262fd4bfd` 均经独立核验。PR #385 的可恢复归档已完成，标准合同收尾状态见验收；不将代码合并等同于整版验收或正式发布。见[计划](../implementation/v0.88.0-plan.md)和[验收](../implementation/v0.88.0-acceptance.md)。无新增后端、API、数据库、权限或依赖；不查询 CI、不发布部署。

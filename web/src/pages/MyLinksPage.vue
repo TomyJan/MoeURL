@@ -7,6 +7,7 @@
       <div class="bulk-create-header-actions">
         <ShortLinkPageCopyButton :state="pageCopy" />
         <BulkCreateDialog :can-open="canBeginBulkCreate" @open="bulkCreateOpen = $event" />
+        <ManifestRestoreDialog hide-when-default />
         <ShortLinkListExportButton context="own" :filters="exportFilters" :blocked="exportBlocked || selectedExportPending" :can-start="canStartListExport" @pending="listExportPending = $event" />
       </div>
     </header>
@@ -111,6 +112,7 @@ import { useSelectedListExport } from '@/features/short-link-selected-export/use
 import ShortLinkPageCopyButton from '@/features/short-link-page-copy/ShortLinkPageCopyButton.vue'
 import { usePageLinksCopy } from '@/features/short-link-page-copy/usePageLinksCopy'
 import BulkCreateDialog from '@/features/bulk-create/BulkCreateDialog.vue'
+import ManifestRestoreDialog from '@/features/bulk-create/ManifestRestoreDialog.vue'
 import ShortLinkBatchTagsDialog from '@/features/short-link-tags/ShortLinkBatchTagsDialog.vue'
 import PersonalTagBrowser from '@/features/short-link-tags/PersonalTagBrowser.vue'
 import ShortLinkNoteDialog from '@/features/short-link-note/ShortLinkNoteDialog.vue'

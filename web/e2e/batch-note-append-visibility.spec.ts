@@ -22,9 +22,9 @@ for (const clipping of ['warning-width', 'request-height', 'nested-container', '
     await page.getByTestId('batch-note-append-keep').focus()
     await page.evaluate(clipping => {
       const warning = document.querySelector<HTMLElement>('[data-testid="batch-note-append-discard-warning"]')!
-      const paragraph = document.querySelector('p')!
+      const paragraph = document.querySelector<HTMLElement>('p')!
       if (clipping === 'request-height') Object.assign(paragraph.style, { height: '8px', overflow: 'hidden' })
-      else if (clipping === 'nested-container') Object.assign(warning.firstElementChild!.style, { display: 'block', width: '80px', height: '18px', overflow: 'hidden' })
+      else if (clipping === 'nested-container') Object.assign((warning.firstElementChild as HTMLElement).style, { display: 'block', width: '80px', height: '18px', overflow: 'hidden' })
       else Object.assign(warning.style, { width: '80px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: clipping === 'ellipsis' ? 'ellipsis' : 'clip' })
     }, clipping)
     await expect(captureAppendDiscard(page, info, clipping, requestId)).rejects.toThrow()

@@ -130,6 +130,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.ShortLinkBatchCreateExpirations = shortLinkService
 		deps.ShortLinkBatchCreateVisitLimits = shortLinkService
 		deps.ShortLinkBatchCreateCountdowns = shortLinkService
+		deps.ShortLinkManifestRestore = shortLinkService
 		recorder := event.NewRecorder(pool, logger)
 		redirectService := shortlink.NewRedirectService(pool, recorder)
 		deps.Redirect = redirectService

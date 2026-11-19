@@ -67,6 +67,7 @@ type Dependencies struct {
 	ShortLinkBatchCreateExpirations   shortlink.BatchCreateWithExpirationsPort
 	ShortLinkBatchCreateVisitLimits   shortlink.BatchCreateWithVisitLimitsPort
 	ShortLinkBatchCreateCountdowns    shortlink.BatchCreateWithCountdownsPort
+	ShortLinkManifestRestore          shortlink.ManifestRestorePort
 	Insights                          insights.Port
 	VisitExport                       insights.VisitExportPort
 	GlobalVisitExport                 insights.GlobalVisitExportPort
@@ -387,6 +388,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			if dependency.ShortLinkBatchCreateCountdowns != nil {
 				handler := shortlink.NewBulkCreateCountdownHandler(dependency.ShortLinkBatchCreateCountdowns, logger)
 				businessAPI.Post("/short-link/batch-create-with-countdowns", handler.BatchCreateWithCountdowns)
+			}
+			if dependency.ShortLinkManifestRestore != nil {
+				handler := shortlink.NewManifestRestoreHandler(dependency.ShortLinkManifestRestore, logger)
+				businessAPI.Post("/short-link/manifest/restore", handler.RestoreManifest)
 			}
 			if dependency.Domain != nil {
 				domainHandler := domain.NewHandler(dependency.Domain, logger)

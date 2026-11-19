@@ -4,6 +4,12 @@
 
 [有限 CSV 表头匹配](product/scope-v0.89.0.md)已由 PR #386 合入，merge commit `f236951862f53e59cfedbe318e224d48fd1c902e`。准确 CodeRabbit 审查、独立合并核验、候选本地门禁与真实浏览器验收均有证据；最终 whole-owned 恢复包 3312 项已逐项解压验 hash，SHA-256 `4E5111079E7745BCE55AE758F98E51F463A416442AD848DEE5C714ABC44AF315`。证据和本地／集成边界见[验收](implementation/v0.89.0-acceptance.md)。未查 CI、未发布部署；PR #385 的扫描文档跟进也已独立完成。
 
+## 当前实施验证（2026-11-19，v0.90.0）
+
+[导出清单恢复](product/scope-v0.90.0.md)已实现：严格接受固定 17 列管理 CSV，经当前 Cookie actor 的权限、域名、策略、配额和短码检查后，以单事务新建 1–100 条记录。保留可重建配置，访问用量从 0 开始；旧 ID、归属、时间、事件和密码不恢复。新增 `POST /api/v1/short-link/manifest/restore` 限 1 MiB；migration 00048 将幂等回执容量扩至 100，大回执存在时 Down 安全拒绝。旧八种创建协议仍限 20 条。
+
+正式 Go 1.26.8 全仓、受影响 shortlink 最终复跑、业务覆盖率 100%、vet、Goose/Testcontainers 迁移和 SQLC 1.30.0 二次零漂移通过；Linux Go 1.27.4 四包 race 与全仓 vet 也通过。最终审查发现的父级操作丢失恢复重试状态、裸 CR 和 UTC 小数规范三项已修正，独立定向复核无新增问题。源码修正提交 `74f6bdcf`（按授权当次未签名，全局配置保留）；Node 26.3.0 最新全量 7,246/7,246、290 文件、四项覆盖率 100%，类型／源码 lint／E2E strict 检查通过。修正源码 `74f6bdcf` 的准确产品 readiness、真实浏览器 7/7（36.6 秒）、所选 HIGH／CRITICAL 扫描均通过，专属应用／tmpfs DB 已释放；空网络和被策略拒绝清理的可重建缓存准确保留。旧产品结果保留原身份；真实 CodeRabbit、正常合并及 whole-owned 可恢复归档尚待。必要依赖／工具可自主安装更新；未查 CI、未发布部署，产品显示版本仍为 0.89.0。准确命令、运行身份与剩余门禁见[验收](implementation/v0.90.0-acceptance.md)。
+
 ## v0.88.0 合并前检查点（历史）
 
 v0.88.0 自定义 CSV 完整字段映射代码已由 PR #379 合入 `9c20f60c`。完整本地前端门禁、中英文桌面／手机真实浏览器和准确镜像 HIGH／CRITICAL 扫描通过；原 PR 最终 head 的真实 CodeRabbit 与正常合并核验已完成。扫描验收补记独立文档跟进 PR #385 的审查及集成核验已完成，恢复归档也已完成，标准合同收尾状态见验收。准确阶段统一见[开发进度](product/development-status.md)、[计划](implementation/v0.88.0-plan.md)与[验收](implementation/v0.88.0-acceptance.md)。未改后端、API、数据库、权限目录或依赖；不查 CI、不发布部署。
@@ -449,6 +455,7 @@ MoeURL 文档按实施导向组织，目标是让产品规划、功能规格、�
 - [v0.13.0 范围](product/scope-v0.13.0.md)
 - [v0.14.0 范围](product/scope-v0.14.0.md)
 - [v0.15.0 范围](product/scope-v0.15.0.md)
+- [v0.90.0 导出清单恢复范围](product/scope-v0.90.0.md)
 - [路线图](product/roadmap.md)
 
 ### 功能规格层
@@ -487,8 +494,11 @@ v0.9.0 系统设置与站点品牌基础闭环的功能实现已经完成；功�
 当前实施层文档包括：
 
 - [Agent 自主交付规范](implementation/agent-delivery-guidelines.md)
-- [当前 v0.77.0 实施计划](implementation/v0.77.0-plan.md)
-- [当前 v0.77.0 验收](implementation/v0.77.0-acceptance.md)
+- [当前 v0.90.0 实施计划](superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)
+- [v0.90.0 任务清单](implementation/v0.90.0-tasks.md)
+- [v0.90.0 验收记录](implementation/v0.90.0-acceptance.md)
+- [v0.77.0 历史实施计划](implementation/v0.77.0-plan.md)
+- [v0.77.0 历史验收](implementation/v0.77.0-acceptance.md)
 - [最近维护交付 v0.76.1 验收](implementation/v0.76.1-acceptance.md)
 - [已交付产品 v0.76.0 验收](implementation/v0.76.0-acceptance.md)
 - [历史 v0.75.3 验收](implementation/v0.75.3-acceptance.md)
