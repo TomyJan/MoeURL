@@ -2,7 +2,7 @@
 
 ## 状态与目标
 
-状态：核心实现、正式 Go／数据库迁移／SQLC、Linux race／vet 和审查修正后的前端全量门禁通过；源码74f6bdcf的准确产品真实浏览器7/7与扫描通过。唯一终审三项发现已闭环；PR #391 与文档跟进 PR #393 已完成真实 CodeRabbit、正常 squash 合并、独立 SHA/tree/唯一父核验和 whole-owned 归档。PR #393 merge `fc2f847a61f43dc5938c7ffa0badbf06e7b17998` 的 tree 为 `ff0cff05769f3f92cd393905064240e8442c2402`、唯一 parent 为 `41290b8899dcfe20fc4971a99df6f4dcfa376da6`；归档 ZIP 与逐项回执位于 `D:/Dev/TomyJan/MoeURL/.tmp/v0900-evidence/whole-owned-delivery-20261119-docs/`。v0.90.0 将 v0.21.0 的完整短链管理清单作为受限恢复输入，在本地预览后，将可重建记录原子创建到当前账号名下。
+状态：核心实现、正式 Go／数据库迁移／SQLC、Linux race／vet、审查修正后的前端全量门禁及源码 `74f6bdcf` 准确产品真实浏览器 7/7 与扫描均通过。PR #391／#393／#394／#395 已正常 squash 合并；PR #395 的两项有效 CodeRabbit Minor 已修正，但 included allowance 用尽，修正后 head 未获复审。PR #395 merge `b0eb53d86b0ecb96f8c32eac3164020d34399170` 的 tree 为 `658eddb9600d296c24d462b141b35abfd8e041f1`、唯一 parent 为 `6d01027db7fe2cee88f53ab59f71570f3f6dabd6`，经 API 与独立 fetch 核验。最终 whole-owned 文档归档位于 `D:/Dev/TomyJan/MoeURL/.tmp/v0900-evidence/whole-owned-delivery-20261120-docs-final/`，ZIP 有 53,844 个成员逐项验证通过；回执与审查边界见[v0.90.0 验收](../implementation/v0.90.0-acceptance.md)。v0.90.0 将 v0.21.0 的完整短链管理清单作为受限恢复输入，在本地预览后，将可重建记录原子创建到当前账号名下。
 
 ## 盘点与范围
 

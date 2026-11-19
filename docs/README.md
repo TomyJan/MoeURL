@@ -4,11 +4,11 @@
 
 [有限 CSV 表头匹配](product/scope-v0.89.0.md)已由 PR #386 合入，merge commit `f236951862f53e59cfedbe318e224d48fd1c902e`。准确 CodeRabbit 审查、独立合并核验、候选本地门禁与真实浏览器验收均有证据；最终 whole-owned 恢复包 3312 项已逐项解压验 hash，SHA-256 `4E5111079E7745BCE55AE758F98E51F463A416442AD848DEE5C714ABC44AF315`。证据和本地／集成边界见[验收](implementation/v0.89.0-acceptance.md)。未查 CI、未发布部署；PR #385 的扫描文档跟进也已独立完成。
 
-## 当前实施验证（2026-11-19，v0.90.0）
+## 当前已完成实施（2026-11-20，v0.90.0）
 
 [导出清单恢复](product/scope-v0.90.0.md)已实现：严格接受固定 17 列管理 CSV，经当前 Cookie actor 的权限、域名、策略、配额和短码检查后，以单事务新建 1–100 条记录。保留可重建配置，访问用量从 0 开始；旧 ID、归属、时间、事件和密码不恢复。新增 `POST /api/v1/short-link/manifest/restore` 限 1 MiB；migration 00048 将幂等回执容量扩至 100，大回执存在时 Down 安全拒绝。旧八种创建协议仍限 20 条。
 
-PR #391、#393、#394 均已正常 squash 合并并经独立核验，合并提交依次为 `41290b8899dcfe20fc4971a99df6f4dcfa376da6`、`fc2f847a61f43dc5938c7ffa0badbf06e7b17998`、`6d01027db7fe2cee88f53ab59f71570f3f6dabd6`。PR #394 的真实 CodeRabbit `COMMENTED` 审查覆盖修正前 head；其中 1 项有效 Minor 已在后续 head 修正，受限于额度未对修正后 head 重复请求审查。最终 whole-owned 文档归档位于 `D:/Dev/TomyJan/MoeURL/.tmp/v0900-evidence/whole-owned-delivery-20261119-docs-final/`：18,200 项逐项 hash 核验通过，ZIP `moeurl-v0900-docs-final.zip` 的 SHA-256 为 `F31560B219CEA489477B341A1EB176B3BC3F9460DCFD9CE64A26C0ABEF7B626D`，独立 bare repo `fsck` exit 0。PR #394 merge tree `7afddd4e975abae3fa7bef29b0c2dcc9556db2a6`、唯一 parent `fc2f847a61f43dc5938c7ffa0badbf06e7b17998` 已由 API 与独立 fetch 核验。未查 CI、未发布部署；产品显示版本仍为 0.89.0。准确命令、运行身份及归档回执见[验收](implementation/v0.90.0-acceptance.md)。
+PR #391、#393、#394、#395 均已正常 squash 合并并经独立 SHA/tree/唯一父核验。PR #395 head 为 `d170a843e0bdf99e68bd31ceb32148c72e1f09ae`，merge `b0eb53d86b0ecb96f8c32eac3164020d34399170`，tree `658eddb9600d296c24d462b141b35abfd8e041f1`，唯一 parent `6d01027db7fe2cee88f53ab59f71570f3f6dabd6`。真实 CodeRabbit 覆盖了 PR #395 前一 head `34dba455` 并提出两项有效 Minor，均已修正；因 included allowance 用尽，修正后的 head 未获复审，不将其标记为已审查。whole-owned 文档归档 `D:/Dev/TomyJan/MoeURL/.tmp/v0900-evidence/whole-owned-delivery-20261120-docs-final/` 的 53,844 个成员逐项校验通过，ZIP `moeurl-v0900-delivery.zip` SHA-256 为 `A89F8B00A91490FE2460DCD94C04501BE249C26EF063838A1592B2E2766854F3`，独立离线恢复及 bare repo `fsck` 通过。未查 CI、未发布部署；产品显示版本仍为 0.89.0。准确命令、运行身份及回执见[验收](implementation/v0.90.0-acceptance.md)。
 
 ## v0.88.0 合并前检查点（历史）
 
