@@ -103,6 +103,7 @@ func TestNormalizeManifestRestoreRejectsInvalidRowsAndKeepsDigestVersioned(t *te
 		"invalid origin":          func(in *ManifestRestoreInput) { in.Items[0].DomainOrigin = "https://go.example/path" },
 		"invalid target":          func(in *ManifestRestoreInput) { in.Items[0].TargetURL = "javascript:alert(1)" },
 		"invalid title controls":  func(in *ManifestRestoreInput) { in.Items[0].Title = "bad\nline" },
+		"invalid title UTF-8":     func(in *ManifestRestoreInput) { in.Items[0].Title = string([]byte{0xff}) },
 		"duplicate tags":          func(in *ManifestRestoreInput) { in.Items[0].Tags = []string{"same", "same"} },
 		"invalid status":          func(in *ManifestRestoreInput) { in.Items[0].Status = "enabled" },
 		"invalid redirect mode":   func(in *ManifestRestoreInput) { in.Items[0].RedirectMode = "DIRECT" },
@@ -208,6 +209,19 @@ func TestManifestRestoreQuotaSplitsOneHundredRowsWithinExistingQuotaLimit(t *tes
 	want := []int{20, 20, 20, 20, 20}
 	if !slices.Equal(batches, want) {
 		t.Fatalf("quota batches = %v, want %v", batches, want)
+	}
+}
+
+func TestManifestRestoreQuotaRejectsInvalidBoundsWithoutConsumption(t *testing.T) {
+	for _, count := range []int{-1, 0, 101} {
+		calls := 0
+		err := consumeManifestRestoreQuota(count, func(int) error { calls++; return nil })
+		if err != ErrInvalidInput || calls != 0 {
+			t.Fatalf("count %d: error=%v calls=%d, want invalid input without consumption", count, err, calls)
+		}
+	}
+	if err := consumeManifestRestoreQuota(1, nil); err != ErrInvalidInput {
+		t.Fatalf("nil consumer error=%v, want invalid input", err)
 	}
 }
 

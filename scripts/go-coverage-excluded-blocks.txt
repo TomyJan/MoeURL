@@ -1,4 +1,23 @@
 # Go coverage profile blocks excluded from the backend business coverage gate.
+# Manifest restore: the three advisory-lock SELECTs and SELECT now() can fail
+# only on cancellation/connection failure between statements. Actor/group,
+# receipt/domain read failures and all writes have real PostgreSQL fault tests.
+github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:56.59,58.4
+github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:59.59,61.4
+github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:62.63,64.4
+github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:159.17,161.4
+# The current actor/group and domain creation advisory locks prevent grants or
+# origins changing between the available-domain read and its locked recheck.
+# Both queries require the same builtin group and enabled granted domain; the
+# required permission is taken from that locked group's snapshot. Thus no-row
+# and origin mismatch are defensive guards, while unexpected SELECT errors are
+# connection/storage failures. Reassess if either query or lock order changes.
+github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:133.37,135.5
+github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:136.18,138.5
+github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:140.59,142.5
+# ManifestRestoreInput is a closed struct of strings and slices; encoding/json
+# has no failing marshaler, cycle, unsupported value, or numeric value here.
+github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:254.16,256.3
 #
 # The gate matches each configured file and source range while ignoring only
 # compiler column offsets. A source-line shift is reported as uncovered so an

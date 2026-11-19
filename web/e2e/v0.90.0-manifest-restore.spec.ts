@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 import type { APIRequestContext, TestInfo } from '@playwright/test'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
 
-interface Link { id: string; slug: string; url: string }
+interface Link { id: string; slug: string; url: string; status: string; maxVisits: number | null; visitsUsed: number }
 interface RestoreItem {
   domainOrigin: string; slug: string; targetUrl: string; title: string; tags: string[]
   status: 'active' | 'disabled'; redirectMode: 'direct' | 'intermediate' | 'confirmation'
@@ -37,15 +37,22 @@ for (const scenario of [
     const sourceSlug = 'src' + randomBytes(6).toString('hex')
     const restoredSlug = 'rst' + randomBytes(7).toString('hex')
     const targetUrl = `https://example.com/manifest-restore/${randomBytes(5).toString('hex')}`
+    const restoredStatus = scenario.width === 390 ? 'disabled' : 'active'
     let source: Link | undefined
     let restored: Link | undefined
     try {
       const login = await api<{ user: { id: string } }>(page.request, '/auth/login', { username: e2eAdminUsername, password: e2eAdminPassword })
       const actor = login.user.id
       source = (await api<{ shortLink: Link }>(page.request, '/short-link/create', {
-        targetUrl, customSlug: sourceSlug,
+        targetUrl, customSlug: sourceSlug, maxVisits: 2,
         metadata: { title: 'Manifest restore source', tags: ['manifest-e2e'] },
       })).shortLink
+      const visit = await page.request.get(source.url, { maxRedirects: 0 })
+      expect(visit.status()).toBe(302)
+      expect(visit.headers().location).toBe(targetUrl)
+      const used = await api<{ shortLink: Link }>(page.request, `/short-link/statistics?id=${encodeURIComponent(source.id)}`)
+      expect(used.shortLink).toMatchObject({ maxVisits: 2, visitsUsed: 1 })
+      if (restoredStatus === 'disabled') await api(page.request, '/short-link/update', { id: source.id, status: restoredStatus })
       const exported = await api<{ content: string }>(page.request, `/short-link/export?q=${encodeURIComponent(sourceSlug)}`)
       expect(exported.content.startsWith('\uFEFFid,short_url,slug,target_url,title,tags,status,redirect_mode')).toBe(true)
       // A same-database restore must use an unused slug; all other columns remain the real export.
@@ -68,6 +75,8 @@ for (const scenario of [
       const confirm = panel.getByTestId('manifest-restore-confirm')
       await expect(confirm).toBeEnabled()
       await expect(confirm).toBeInViewport()
+      await panel.getByTestId('manifest-restore-impact').scrollIntoViewIfNeeded()
+      await page.screenshot({ path: info.outputPath(`manifest-restore-preview-${scenario.width}.png`), animations: 'disabled' })
 
       let capturedBody: { requestId: string; items: RestoreItem[] } | undefined
       let serverReceipt: { code: number; data: { requestId: string; createdCount: number } } | undefined
@@ -91,7 +100,7 @@ for (const scenario of [
       expect(capturedBody?.items).toHaveLength(1)
       expect(capturedBody?.items[0]).toMatchObject({
         slug: restoredSlug, targetUrl, title: 'Manifest restore source', tags: ['manifest-e2e'],
-        status: 'active', redirectMode: 'direct', intermediateDelaySeconds: '5', expiresAt: '', maxVisits: '',
+        status: restoredStatus, redirectMode: 'direct', intermediateDelaySeconds: '5', expiresAt: '', maxVisits: '2',
       })
       const requestId = await panel.getByTestId('manifest-restore-request-id').textContent()
       expect(requestId).toBe(capturedBody?.requestId)
@@ -107,10 +116,15 @@ for (const scenario of [
       expect(replayed.headers()['cache-control']).toBe('no-store')
       expect(await replayed.json()).toMatchObject({ code: 0, data: { requestId, createdCount: 1 } })
       await expect(panel.getByTestId('manifest-restore-success')).toBeVisible()
+      await expect(panel.getByTestId('manifest-restore-success')).toContainText('1')
+      await expect(panel.getByTestId('manifest-restore-error')).toHaveCount(0)
 
       const found = await ownLinks(page.request, restoredSlug)
       expect(found).toHaveLength(1)
       restored = found[0]
+      expect(restored).toMatchObject({ status: restoredStatus, maxVisits: 2, visitsUsed: 0 })
+      expect(new URL(restored.url).origin).toBe(new URL(source.url).origin)
+      expect(restored.id).not.toBe(source.id)
       const statistics = await api<{ stats: { visitCount: number } }>(page.request, `/short-link/statistics?id=${encodeURIComponent(restored.id)}`)
       expect(statistics.stats.visitCount).toBe(0)
 

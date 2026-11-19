@@ -85,7 +85,7 @@ func TestManifestRestoreProtocol(t *testing.T) {
 		require.Equal(t, 1, links, "restore retry must leave one new link with zero usage")
 		require.NoError(t, application.pool.QueryRow(t.Context(), `
 			select count(*) from audit_log where resource_type='short_link' and action='create'
-			  and actor_id=$1::uuid and resource_id=(select id from short_link where slug=$2)
+			  and actor_id=$1::uuid and resource_id=(select id::text from short_link where slug=$2)
 		`, actorID, slug).Scan(&audits))
 		require.Equal(t, 1, audits, "replay must not add audit entries")
 		require.NoError(t, application.pool.QueryRow(t.Context(), `

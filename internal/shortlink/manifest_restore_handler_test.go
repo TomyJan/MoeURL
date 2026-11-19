@@ -96,6 +96,15 @@ func TestManifestRestoreHandlerRejectsInvalidFraming(t *testing.T) {
 		contentType string
 	}{
 		{name: "query string", body: manifestRestoreBody(row), query: "?debug=1", contentType: "application/json"},
+		{name: "broken top-level separator", body: `{"requestId":"` + manifestRestoreRequestID + `",,}`, contentType: "application/json"},
+		{name: "non-string request id", body: `{"requestId":42,"items":[` + row + `]}`, contentType: "application/json"},
+		{name: "missing row value", body: `{"requestId":"` + manifestRestoreRequestID + `","items":[{"domainOrigin":`, contentType: "application/json"},
+		{name: "non-array tags", body: manifestRestoreBody(strings.Replace(row, `"tags":[]`, `"tags":"docs"`, 1)), contentType: "application/json"},
+		{name: "non-string tag", body: manifestRestoreBody(strings.Replace(row, `"tags":[]`, `"tags":[42]`, 1)), contentType: "application/json"},
+		{name: "eleven tags", body: manifestRestoreBody(strings.Replace(row, `"tags":[]`, `"tags":[`+strings.Repeat(`"docs",`, 10)+`"last"]`, 1)), contentType: "application/json"},
+		{name: "broken tag closing", body: `{"requestId":"` + manifestRestoreRequestID + `","items":[{"tags":["docs"}`, contentType: "application/json"},
+		{name: "broken tag token", body: `{"requestId":"` + manifestRestoreRequestID + `","items":[{"tags":["docs",`, contentType: "application/json"},
+		{name: "non-string field", body: manifestRestoreBody(strings.Replace(row, `"title":""`, `"title":42`, 1)), contentType: "application/json"},
 		{name: "duplicate top-level key", body: strings.Replace(manifestRestoreBody(row), `"items":[`, `"items":[],"items":[`, 1), contentType: "application/json"},
 		{name: "unknown top-level key", body: strings.Replace(manifestRestoreBody(row), `"requestId":`, `"unknown":true,"requestId":`, 1), contentType: "application/json"},
 		{name: "missing request id", body: strings.Replace(manifestRestoreBody(row), `"requestId":"`+manifestRestoreRequestID+`",`, "", 1), contentType: "application/json"},
@@ -167,11 +176,13 @@ func TestManifestRestoreHandlerBindsExpectedActor(t *testing.T) {
 func TestManifestRestoreHandlerPreservesPayloadAndReturnsReceipt(t *testing.T) {
 	actor := auth.CurrentUser{ID: "user-123", Username: "alice", GroupKey: "user"}
 	port := &manifestRestorePort{}
-	response := manifestRestoreRequest(t, manifestRestoreHandler(port, actor), manifestRestoreBody(manifestRestoreItemJSON), "", "application/json; charset=utf-8", actor.ID)
+	row := strings.Replace(manifestRestoreItemJSON, `"tags":[]`, `"tags":["docs","saved"]`, 1)
+	response := manifestRestoreRequest(t, manifestRestoreHandler(port, actor), manifestRestoreBody(row), "", "application/json; charset=utf-8", actor.ID)
 	assertManifestRestoreEqual(t, http.StatusOK, response.Code)
 	assertManifestRestoreEqual(t, 1, port.calls)
 	assertManifestRestoreEqual(t, manifestRestoreRequestID, port.input.RequestID)
 	assertManifestRestoreEqual(t, 1, len(port.input.Items))
+	assertManifestRestoreEqual(t, "docs,saved", strings.Join(port.input.Items[0].Tags, ","))
 	var payload struct {
 		Code int `json:"code"`
 		Data struct {

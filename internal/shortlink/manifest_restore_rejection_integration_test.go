@@ -171,6 +171,76 @@ func TestRestoreManifestHundredRowsAtQuotaBoundary(t *testing.T) {
 	}
 }
 
+// TestRestoreManifestReadFailuresRemainAtomic verifies that unavailable query
+// inputs fail closed and that the same request can recover without partial data.
+func TestRestoreManifestReadFailuresRemainAtomic(t *testing.T) {
+	for _, table := range []string{"app_user", "user_group", "short_link_create_batch", "domain"} {
+		t.Run(table, func(t *testing.T) {
+			ctx := t.Context()
+			pool := shortLinkTestPool(t, ctx)
+			insertShortLinkDefaultDomain(t, ctx, pool)
+			actor := insertShortLinkUser(t, ctx, pool, "restore-read-failure", permission.GroupUser, permission.UserPermissions)
+			input := manifestRestoreStorageInput(1)
+			service := shortlink.NewService(pool, permission.NewService())
+			before := manifestRestoreStorageSnapshot(t, ctx, pool)
+			// Names come exclusively from the fixed table allowlist above.
+			if _, err := pool.Exec(ctx, `alter table `+table+` rename to manifest_unavailable`); err != nil {
+				t.Fatal(err)
+			}
+			for attempt := 0; attempt < 2; attempt++ {
+				result, err := service.RestoreManifest(ctx, actor, input)
+				var pgErr *pgconn.PgError
+				if !errors.As(err, &pgErr) || pgErr.Code != "42P01" || result != (shortlink.BatchCreateResult{}) {
+					t.Fatalf("attempt %d: result=%#v error=%v, want unavailable relation and no receipt", attempt, result, err)
+				}
+			}
+			if _, err := pool.Exec(ctx, `alter table manifest_unavailable rename to `+table); err != nil {
+				t.Fatal(err)
+			}
+			if after := manifestRestoreStorageSnapshot(t, ctx, pool); after != before {
+				t.Fatal("unavailable read left persisted restore data")
+			}
+			created, err := service.RestoreManifest(ctx, actor, input)
+			if err != nil || created.CreatedCount != 1 || created.RequestID != input.RequestID {
+				t.Fatalf("same-key recovery: result=%#v error=%v", created, err)
+			}
+			recovered := manifestRestoreStorageSnapshot(t, ctx, pool)
+			replayed, err := service.RestoreManifest(ctx, actor, input)
+			if err != nil || replayed != created || manifestRestoreStorageSnapshot(t, ctx, pool) != recovered {
+				t.Fatalf("recovered replay: result=%#v error=%v", replayed, err)
+			}
+		})
+	}
+}
+
+// TestRestoreManifestMissingActorAndCorruptGrants verifies storage, rather than
+// the captured actor, remains authoritative even for missing or corrupt records.
+func TestRestoreManifestMissingActorAndCorruptGrants(t *testing.T) {
+	ctx := t.Context()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	actor := insertShortLinkUser(t, ctx, pool, "restore-corrupt-grants", permission.GroupUser, permission.UserPermissions)
+	service := shortlink.NewService(pool, permission.NewService())
+	input := manifestRestoreStorageInput(1)
+	before := manifestRestoreStorageSnapshot(t, ctx, pool)
+	missing := actor
+	missing.ID = uuid.NewString()
+	result, err := service.RestoreManifest(ctx, missing, input)
+	if !errors.Is(err, shortlink.ErrPermissionDenied) || result != (shortlink.BatchCreateResult{}) {
+		t.Fatalf("missing actor: result=%#v error=%v", result, err)
+	}
+	if _, err := pool.Exec(ctx, `update user_group set permissions='[true]'::jsonb where key='user'`); err != nil {
+		t.Fatal(err)
+	}
+	result, err = service.RestoreManifest(ctx, actor, input)
+	if err == nil || result != (shortlink.BatchCreateResult{}) {
+		t.Fatalf("corrupt grants: result=%#v error=%v", result, err)
+	}
+	if manifestRestoreStorageSnapshot(t, ctx, pool) != before {
+		t.Fatal("missing actor or corrupt grants left persisted restore data")
+	}
+}
+
 func manifestRestoreStorageInput(count int) shortlink.ManifestRestoreInput {
 	input := shortlink.ManifestRestoreInput{RequestID: uuid.NewString(), Items: make([]shortlink.ManifestRestoreItem, count)}
 	for i := range input.Items {
