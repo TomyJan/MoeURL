@@ -278,7 +278,8 @@ describe('manifest restore asynchronous identity and draft guards', () => {
     expect(state.errorKey.value).toBe('')
     fresh.resolve({ requestId: state.snapshot.value!.requestId, createdCount: 1 })
     await newSubmit
-    expect(state.errorKey.value).toBe('manifestRestore.success')
+    expect(state.errorKey.value).toBe('')
+    expect(state.createdCount.value).toBe(1)
   })
 
   it('sends only once for duplicate confirmation and explicitly retries unknown with the exact key and body', async () => {

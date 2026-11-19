@@ -76,6 +76,8 @@ describe('manifest restore panel', () => {
     await fireEvent.click(screen.getByTestId('manifest-restore-confirm'))
     await waitFor(() => expect(view.posts).toHaveLength(1))
     await waitFor(() => expect(screen.getByTestId('manifest-restore-success')).toBeTruthy())
+    expect(screen.getByTestId('manifest-restore-success').textContent).toBe(locale === 'zh-CN' ? '已创建 1 条新短链。' : 'Created 1 new short links.')
+    expect(screen.queryByTestId('manifest-restore-error')).toBeNull()
     expect(view.posts[0]?.url).toBe('/api/v1/short-link/manifest/restore')
     const submitted = JSON.parse(view.posts[0]!.body) as { requestId: string; items: Array<Record<string, unknown>> }
     expect(submitted.items).toEqual([{

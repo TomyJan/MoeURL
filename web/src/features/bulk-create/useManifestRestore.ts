@@ -137,7 +137,6 @@ export function useManifestRestore() {
       const result = await manifestRestoreShortLinks(input as ManifestRestoreInput, candidate.userId)
       if (!isCurrent(token, candidate, authorityToken)) return
       createdCount.value = result.createdCount
-      errorKey.value = 'manifestRestore.success'
       for (const key of ['short-link', 'short-link-overview']) void client.invalidateQueries({ queryKey: [key] })
       toast.success(t('manifestRestore.success', { count: result.createdCount }, result.createdCount))
     } catch (error) {
