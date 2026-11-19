@@ -137,7 +137,11 @@ function parseManifestRow(row: string[]): { success: true; item: ManifestRestore
   }
   const target = safeUrl(targetUrl!)
   if (!target || hasControlCharacters(targetUrl!)) return { success: false, field: 'target_url' }
-  if ([...title!.trim()].length > 120 || hasControlCharacters(title!)) return { success: false, field: 'title' }
+  let restoredTitle = title!
+  if ([...restoredTitle].length > 120 && restoredTitle.startsWith("'") && isExportFormulaGuard(restoredTitle.slice(1))) {
+    restoredTitle = restoredTitle.slice(1)
+  }
+  if ([...restoredTitle.trim()].length > 120 || hasControlCharacters(restoredTitle)) return { success: false, field: 'title' }
   let tags: unknown
   try { tags = JSON.parse(tagsText!) } catch { return { success: false, field: 'tags' } }
   if (!Array.isArray(tags) || tags.length > 10 || tags.some(tag => typeof tag !== 'string' || tag.trim() === '' || [...tag.trim()].length > 32 || hasControlCharacters(tag.trim()))) {
@@ -148,7 +152,7 @@ function parseManifestRow(row: string[]): { success: true; item: ManifestRestore
   if (status !== 'active' && status !== 'disabled') return { success: false, field: 'status' }
   if (redirectMode !== 'direct' && redirectMode !== 'intermediate' && redirectMode !== 'confirmation') return { success: false, field: 'redirect_mode' }
   const delayNumber = parseCanonicalNonnegative(delay!)
-  if (delayNumber === null || (redirectMode === 'intermediate' ? delayNumber < 3 || delayNumber > 10 : delayNumber !== 5)) return { success: false, field: 'intermediate_delay_seconds' }
+  if (delayNumber === null || delayNumber < 3 || delayNumber > 10) return { success: false, field: 'intermediate_delay_seconds' }
   if (expiresAt !== '' && !isCanonicalUTC(expiresAt!)) return { success: false, field: 'expires_at' }
   if (passwordEnabled !== 'false') return { success: false, field: 'password_enabled' }
   if (maxVisits !== '' && !isPositiveInt32(maxVisits!)) return { success: false, field: 'max_visits' }
@@ -161,7 +165,7 @@ function parseManifestRow(row: string[]): { success: true; item: ManifestRestore
       domainOrigin: link.origin,
       slug: slug!,
       targetUrl: targetUrl!,
-      title: title!,
+      title: restoredTitle,
       tags: tags as string[],
       status,
       redirectMode,
@@ -170,6 +174,11 @@ function parseManifestRow(row: string[]): { success: true; item: ManifestRestore
       maxVisits: maxVisits!,
     },
   }
+}
+
+function isExportFormulaGuard(value: string): boolean {
+  const trimmed = value.trimStart()
+  return value.startsWith('\t') || value.startsWith('\r') || value.startsWith('\n') || /^[=+\-@]/.test(trimmed)
 }
 
 const slugPattern = /^[a-z0-9]{3,32}$/

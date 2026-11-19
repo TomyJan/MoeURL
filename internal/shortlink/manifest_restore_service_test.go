@@ -107,7 +107,7 @@ func TestNormalizeManifestRestoreRejectsInvalidRowsAndKeepsDigestVersioned(t *te
 		"duplicate tags":          func(in *ManifestRestoreInput) { in.Items[0].Tags = []string{"same", "same"} },
 		"invalid status":          func(in *ManifestRestoreInput) { in.Items[0].Status = "enabled" },
 		"invalid redirect mode":   func(in *ManifestRestoreInput) { in.Items[0].RedirectMode = "DIRECT" },
-		"wrong default delay":     func(in *ManifestRestoreInput) { in.Items[0].IntermediateDelaySeconds = "3" },
+		"delay out of range":      func(in *ManifestRestoreInput) { in.Items[0].IntermediateDelaySeconds = "11" },
 		"noncanonical max visits": func(in *ManifestRestoreInput) { in.Items[0].MaxVisits = "01" },
 		"nonutc expiration":       func(in *ManifestRestoreInput) { in.Items[0].ExpiresAt = "2099-01-01T00:00:00+00:00" },
 		"invalid expiration date": func(in *ManifestRestoreInput) { in.Items[0].ExpiresAt = "2099-02-30T00:00:00Z" },

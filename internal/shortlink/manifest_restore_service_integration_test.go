@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func TestRestoreManifestAtomicAndAuthorized(t *testing.T) {
@@ -51,31 +53,32 @@ func TestRestoreManifestAtomicAndAuthorized(t *testing.T) {
 	for _, want := range []struct {
 		slug, domainID, status, mode, title, tag string
 		delay                                    int16
-		limited                                  bool
+		expiresAt                                pgtype.Timestamptz
+		maxVisits                                pgtype.Int4
 	}{
 		{slug: "restore1", domainID: "00000000-0000-0000-0000-000000000301", status: "active", mode: "direct", title: "Restored active", tag: "docs", delay: 5},
-		{slug: "restore2", domainID: assignedDomainID, status: "disabled", mode: "intermediate", title: "Restored disabled", tag: "saved", delay: 7, limited: true},
+		{slug: "restore2", domainID: assignedDomainID, status: "disabled", mode: "intermediate", title: "Restored disabled", tag: "saved", delay: 7,
+			expiresAt: pgtype.Timestamptz{Time: time.Date(2099, 1, 2, 3, 4, 5, 0, time.UTC), Valid: true}, maxVisits: pgtype.Int4{Int32: 5, Valid: true}},
 	} {
 		var ownerID, domainID, status, mode, title, password string
 		var visits int64
 		var tags []string
 		var delay int16
-		var expiresAtValid bool
-		var maxVisitsValid bool
+		var expiresAt pgtype.Timestamptz
+		var maxVisits pgtype.Int4
 		err := pool.QueryRow(ctx, `
 			select owner_id::text, domain_id::text, status, redirect_mode, intermediate_delay_seconds,
-			       coalesce(password_hash, ''), max_visits is not null, title, tags, visits_used,
-		       expires_at is not null
+			       coalesce(password_hash, ''), title, tags, visits_used, expires_at, max_visits
 			from short_link where slug = $1
-		`, want.slug).Scan(&ownerID, &domainID, &status, &mode, &delay, &password, &maxVisitsValid, &title, &tags, &visits, &expiresAtValid)
+		`, want.slug).Scan(&ownerID, &domainID, &status, &mode, &delay, &password, &title, &tags, &visits, &expiresAt, &maxVisits)
 		if err != nil {
 			t.Fatalf("read restored %s: %v", want.slug, err)
 		}
 		if ownerID != user.ID || domainID != want.domainID || status != want.status || mode != want.mode || delay != want.delay || title != want.title || len(tags) != 1 || tags[0] != want.tag {
 			t.Errorf("restored fields for %s do not match: owner=%s domain=%s status=%s mode=%s delay=%d title=%q tags=%v", want.slug, ownerID, domainID, status, mode, delay, title, tags)
 		}
-		if visits != 0 || password != "" || maxVisitsValid != want.limited || expiresAtValid != want.limited {
-			t.Errorf("snapshot-only fields were restored for %s: visits=%d password=%t maxVisits=%t expiration=%t", want.slug, visits, password != "", maxVisitsValid, expiresAtValid)
+		if visits != 0 || password != "" || maxVisits != want.maxVisits || expiresAt != want.expiresAt {
+			t.Errorf("snapshot-only fields were restored for %s: visits=%d password=%t maxVisits=%#v expiration=%#v", want.slug, visits, password != "", maxVisits, expiresAt)
 		}
 	}
 	var createdAuditCount int

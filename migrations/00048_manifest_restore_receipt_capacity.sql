@@ -2,7 +2,7 @@
 alter table short_link_create_batch
     drop constraint short_link_create_batch_created_count_check,
     add constraint short_link_create_batch_created_count_check
-        check (created_count between 1 and 100);
+        check (created_count between 1 and 100) not valid;
 
 -- +goose Down
 lock table short_link_create_batch in access exclusive mode;

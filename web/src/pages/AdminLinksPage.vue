@@ -7,6 +7,7 @@
       <span v-if="paginationTotal !== undefined" class="console-page__total">{{ t('adminLinks.total', { total }) }}</span>
       <div class="list-header-actions">
         <ShortLinkPageCopyButton :state="pageCopy" />
+        <ManifestRestoreDialog hide-when-default />
         <ShortLinkListExportButton context="admin" :filters="exportFilters" :blocked="exportBlocked || selectedExportPending" :can-start="canStartListExport" @pending="listExportPending = $event" />
       </div>
     </div>
@@ -115,6 +116,7 @@ import ShortLinkListExportButton from '@/features/short-link-list-export/ShortLi
 import ShortLinkSelectedExportButton from '@/features/short-link-selected-export/ShortLinkSelectedExportButton.vue'
 import { useSelectedListExport } from '@/features/short-link-selected-export/useSelectedListExport'
 import ShortLinkPageCopyButton from '@/features/short-link-page-copy/ShortLinkPageCopyButton.vue'
+import ManifestRestoreDialog from '@/features/bulk-create/ManifestRestoreDialog.vue'
 import { usePageLinksCopy } from '@/features/short-link-page-copy/usePageLinksCopy'
 import ShortLinkBatchTagsDialog from '@/features/short-link-tags/ShortLinkBatchTagsDialog.vue'
 import { batchTagVersionSchema, type BatchTagTarget } from '@/entities/short-link/batch-tags'

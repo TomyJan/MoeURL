@@ -11,7 +11,16 @@ import (
 // Consume belongs to the already-authorized caller's gate-holding creation
 // transaction. Even unlimited policy records usage; failures must roll it back.
 func Consume(ctx context.Context, q *sqlc.Queries, actorID pgtype.UUID, count int) error {
-	if count < 1 || count > 20 {
+	return consume(ctx, q, actorID, count, 20)
+}
+
+// ConsumeMany applies one UTC quota day to the entire atomic batch.
+func ConsumeMany(ctx context.Context, q *sqlc.Queries, actorID pgtype.UUID, count int) error {
+	return consume(ctx, q, actorID, count, 100)
+}
+
+func consume(ctx context.Context, q *sqlc.Queries, actorID pgtype.UUID, count, max int) error {
+	if count < 1 || count > max {
 		return ErrInvalidInput
 	}
 	row, err := q.GetSystemSetting(ctx, Key)
@@ -29,7 +38,7 @@ func Consume(ctx context.Context, q *sqlc.Queries, actorID pgtype.UUID, count in
 	if err != nil {
 		return err
 	}
-	// clock_timestamp is deliberately queried after acquiring the usage row.
+	// Query the day after acquiring the usage row, once for the whole atomic batch.
 	day, err := q.GetAccountDailyCreateQuotaDay(ctx)
 	if err != nil {
 		return err

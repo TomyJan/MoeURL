@@ -105,7 +105,7 @@ func TestManifestRestoreHandlerRejectsInvalidFraming(t *testing.T) {
 		{name: "broken tag closing", body: `{"requestId":"` + manifestRestoreRequestID + `","items":[{"tags":["docs"}`, contentType: "application/json"},
 		{name: "broken tag token", body: `{"requestId":"` + manifestRestoreRequestID + `","items":[{"tags":["docs",`, contentType: "application/json"},
 		{name: "non-string field", body: manifestRestoreBody(strings.Replace(row, `"title":""`, `"title":42`, 1)), contentType: "application/json"},
-		{name: "duplicate top-level key", body: strings.Replace(manifestRestoreBody(row), `"items":[`, `"items":[],"items":[`, 1), contentType: "application/json"},
+		{name: "duplicate top-level key", body: strings.Replace(manifestRestoreBody(row), `"requestId":"`+manifestRestoreRequestID+`",`, `"requestId":"`+manifestRestoreRequestID+`","requestId":"`+manifestRestoreRequestID+`",`, 1), contentType: "application/json"},
 		{name: "unknown top-level key", body: strings.Replace(manifestRestoreBody(row), `"requestId":`, `"unknown":true,"requestId":`, 1), contentType: "application/json"},
 		{name: "missing request id", body: strings.Replace(manifestRestoreBody(row), `"requestId":"`+manifestRestoreRequestID+`",`, "", 1), contentType: "application/json"},
 		{name: "duplicate item key", body: manifestRestoreBody(strings.Replace(row, `"title":""`, `"title":"","title":"duplicate"`, 1)), contentType: "application/json"},

@@ -27,6 +27,7 @@ export function useManifestRestore() {
   let authority = authorityKey(client.getQueryData<UserResponse>(['auth', 'me'])?.user)
 
   const allowed = computed(() => canRestore(auth.data.value?.user))
+  const hasDefaultDomain = computed(() => Boolean(currentUser()?.permissions.includes('domain:use_default')))
   const origins = computed(() => [...new Set(parsed.value?.map(item => item.domainOrigin) ?? [])])
 
   function currentUser() { return client.getQueryData<UserResponse>(['auth', 'me'])?.user }
@@ -41,6 +42,7 @@ export function useManifestRestore() {
       && (!items.some(item => item.status === 'disabled') || permissions.has('short_link:update_own'))
       && (!items.some(item => item.redirectMode === 'intermediate') || permissions.has('short_link:use_intermediate'))
       && (!items.some(item => item.redirectMode === 'confirmation') || permissions.has('short_link:use_confirmation'))
+      && (!items.some(item => item.intermediateDelaySeconds !== '5') || permissions.has('short_link:use_intermediate'))
       && (!items.some(item => item.expiresAt !== '') || permissions.has('short_link:set_expiration'))
       && (!items.some(item => item.maxVisits !== '') || permissions.has('short_link:set_max_visits'))
   }
@@ -180,7 +182,7 @@ export function useManifestRestore() {
   function discard() { if (opened.value && !pending.value) reset() }
 
   onBeforeUnmount(() => { alive = false; generation++; readSequence++; unsubscribe() })
-  return { allowed, opened, reading, pending, unknown, errorKey, errorIssue, fileName, parsed, origins, snapshot, createdCount, begin, selectFile, confirm, retry, close, discard }
+  return { allowed, hasDefaultDomain, opened, reading, pending, unknown, errorKey, errorIssue, fileName, parsed, origins, snapshot, createdCount, begin, selectFile, confirm, retry, close, discard }
 }
 
 function canRestore(user: UserResponse['user'] | undefined) {

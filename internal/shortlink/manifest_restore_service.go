@@ -150,9 +150,7 @@ func (s *Service) RestoreManifest(ctx context.Context, actor auth.CurrentUser, i
 		if err := checkNewTargets(ctx, q, targets); err != nil {
 			return err
 		}
-		if err := consumeManifestRestoreQuota(len(records), func(count int) error {
-			return createquota.Consume(ctx, q, uuidToPgtype(actorID), count)
-		}); err != nil {
+		if err := createquota.ConsumeMany(ctx, q, uuidToPgtype(actorID), len(records)); err != nil {
 			return err
 		}
 		now, err := q.GetDatabaseTime(ctx)
@@ -217,6 +215,9 @@ func authorizeManifestRestore(groupKey string, grants permission.Snapshot, recor
 			return ErrPermissionDenied
 		}
 		if record.expiresAt.Valid && !grants.Has(permission.ShortLinkSetExpiration) {
+			return ErrPermissionDenied
+		}
+		if record.intermediateDelaySeconds != defaultIntermediateDelay && !grants.Has(permission.ShortLinkUseIntermediate) {
 			return ErrPermissionDenied
 		}
 		if record.maxVisits.Valid && !grants.Has(permission.ShortLinkSetMaxVisits) {
@@ -332,12 +333,11 @@ func normalizeManifestRestoreDelay(value, mode string) (int16, error) {
 	if mode == RedirectModeIntermediate {
 		return parseBulkCountdown(value, mode)
 	}
-	// The fixed manifest exporter writes the stored five-second default for all modes.
-	// It is snapshot data for direct/confirmation rows, not a caller-selected override.
-	if value != strconv.FormatInt(int64(defaultIntermediateDelay), 10) {
+	parsed, err := strconv.ParseInt(value, 10, 16)
+	if err != nil || parsed < 3 || parsed > 10 {
 		return 0, ErrInvalidInput
 	}
-	return defaultIntermediateDelay, nil
+	return int16(parsed), nil
 }
 
 func parseManifestRestoreExpiration(value string) (pgtype.Timestamptz, error) {

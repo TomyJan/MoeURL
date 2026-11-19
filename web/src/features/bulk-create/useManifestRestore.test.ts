@@ -355,7 +355,7 @@ describe('manifest restore asynchronous identity and draft guards', () => {
     vi.mocked(manifestRestoreShortLinks).mockRejectedValueOnce(new ApiClientError(200120, 'conflict'))
       .mockImplementationOnce(async input => ({ requestId: input.requestId, createdCount: input.items.length }))
     await state.confirm()
-    const firstId = state.snapshot.value?.requestId
+    const firstId = vi.mocked(manifestRestoreShortLinks).mock.calls[0]?.[0].requestId
     expect(state.parsed.value?.[0]?.slug).toBe('first01')
     expect(state.unknown.value).toBe(false)
     expect(state.errorKey.value).toBe('manifestRestore.conflict')

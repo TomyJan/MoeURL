@@ -25,10 +25,10 @@ func TestManifestRestoreReceiptMigrationRoundTrip(t *testing.T) {
 	require.NoError(t, database.QueryRowContext(ctx, snapshot).Scan(&before))
 
 	for round := 0; round < 2; round++ {
-		require.NoError(t, goose.UpTo(database, dir, 48))
+		require.NoError(t, goose.UpTo(database, dir, 49))
 		version, err := goose.GetDBVersion(database)
 		require.NoError(t, err)
-		require.EqualValues(t, 48, version)
+		require.EqualValues(t, 49, version)
 		require.NoError(t, database.QueryRowContext(ctx, snapshot).Scan(&after))
 		require.Equal(t, before, after, "Up must preserve the exact historical receipt")
 	}
@@ -45,7 +45,7 @@ func TestManifestRestoreReceiptMigrationRoundTrip(t *testing.T) {
 	require.NoError(t, database.QueryRowContext(ctx, snapshot).Scan(&after))
 	require.Equal(t, before, after)
 
-	require.NoError(t, goose.UpTo(database, dir, 48))
+	require.NoError(t, goose.UpTo(database, dir, 49))
 	require.NoError(t, database.QueryRowContext(ctx, snapshot).Scan(&after))
 	require.Equal(t, before, after, "reapplying Up must not recreate or alter history")
 	_, err = database.ExecContext(ctx, `update short_link_create_batch set created_count=21`)
@@ -57,7 +57,7 @@ func TestManifestRestoreReceiptMigrationRefusesUnsafeDown(t *testing.T) {
 	ctx := t.Context()
 	database := migrationTestDatabase(t, ctx)
 	dir := filepath.Join("..", "..", "migrations")
-	require.NoError(t, goose.UpTo(database, dir, 48))
+	require.NoError(t, goose.UpTo(database, dir, 49))
 	insertUserGroups(t, ctx, database)
 	for index, count := range []int{1, 20, 21, 100} {
 		_, err := database.ExecContext(ctx, `insert into short_link_create_batch(actor_id,request_id,request_hash,created_count)
@@ -73,7 +73,7 @@ func TestManifestRestoreReceiptMigrationRefusesUnsafeDown(t *testing.T) {
 	}
 	const snapshot = `select jsonb_build_object(
 		'receipts',(select jsonb_agg(to_jsonb(b) order by request_id) from short_link_create_batch b),
-		'versions',(select jsonb_agg(to_jsonb(v) order by id) from goose_db_version v),
+		'versions',(select jsonb_agg(to_jsonb(v) order by id) from goose_db_version v where version_id <= 48),
 		'constraint',(select pg_get_constraintdef(oid) from pg_constraint where conrelid='short_link_create_batch'::regclass
 			and conname='short_link_create_batch_created_count_check'))::text`
 	var before, after string
@@ -83,11 +83,11 @@ func TestManifestRestoreReceiptMigrationRefusesUnsafeDown(t *testing.T) {
 		require.ErrorContains(t, err, "cannot reduce receipt capacity while larger manifest restore receipts exist")
 		version, err := goose.GetDBVersion(database)
 		require.NoError(t, err)
-		require.EqualValues(t, 48, version, "a failed Down must leave Goose on the applied version")
+		require.EqualValues(t, 48, version, "a failed Down must leave Goose on the still-applied capacity migration")
 		require.NoError(t, database.QueryRowContext(ctx, snapshot).Scan(&after))
 		require.Equal(t, before, after, "failed Down must preserve data, constraint and Goose history")
 	}
-	require.NoError(t, goose.UpTo(database, dir, 48), "a failed Down must not prevent a safe Up retry")
+	require.NoError(t, goose.UpTo(database, dir, 49), "a failed Down must not prevent a safe Up retry")
 	require.NoError(t, database.QueryRowContext(ctx, snapshot).Scan(&after))
 	require.Equal(t, before, after)
 }

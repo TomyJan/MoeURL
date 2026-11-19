@@ -40,7 +40,7 @@
         <v-alert v-if="state.closing.value" type="warning" variant="tonal" data-testid="bulk-create-close-warning">
           <p>{{ t('bulkCreate.discardWarning') }}</p>
           <v-btn data-testid="bulk-create-keep" variant="text" @click="state.cancelClose">{{ t('bulkCreate.keep') }}</v-btn>
-          <v-btn data-testid="bulk-create-discard" variant="text" @click="state.discard">{{ t('bulkCreate.discard') }}</v-btn>
+          <v-btn data-testid="bulk-create-discard" :disabled="restoreActive" variant="text" @click="state.discard">{{ t('bulkCreate.discard') }}</v-btn>
         </v-alert>
       </v-card-text>
       <v-card-actions class="bulk-create-actions">

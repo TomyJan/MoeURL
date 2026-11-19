@@ -156,6 +156,7 @@ describe('parseManifestRestoreCsv', () => {
     for (const redirect_mode of ['confirmation', 'intermediate']) {
       expect(parseManifestRestoreCsv(manifest([row(1, { redirect_mode, intermediate_delay_seconds: redirect_mode === 'intermediate' ? '3' : '5' })])).success).toBe(true)
     }
+    expect(parseManifestRestoreCsv(manifest([row(1, { redirect_mode: 'direct', intermediate_delay_seconds: '10' })])).success).toBe(true)
     expect(parseManifestRestoreCsv(manifest([row(1, { title: 'linked \ud83d\ude00', expires_at: '2026-10-01T00:00:00.123Z', max_visits: '2147483647' })])).success).toBe(true)
     expect(parseIssue(manifest([row(1, { short_url: 'ftp://go.example/doc001' })]))?.field).toBe('short_url')
     expect(parseIssue(manifest([row(1, { short_url: 'https://go.example/doc001#fragment' })]))?.field).toBe('short_url')

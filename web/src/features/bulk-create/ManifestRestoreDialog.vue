@@ -1,6 +1,6 @@
 <template>
   <section class="manifest-restore">
-    <v-btn v-if="state.allowed.value" data-testid="manifest-restore-open" variant="tonal" @click="state.begin">{{ t('manifestRestore.open') }}</v-btn>
+    <v-btn v-if="state.allowed.value && (!props.hideWhenDefault || !state.hasDefaultDomain.value)" data-testid="manifest-restore-open" variant="tonal" @click="state.begin">{{ t('manifestRestore.open') }}</v-btn>
     <v-card v-if="state.opened.value" class="manifest-restore-panel" data-testid="manifest-restore-dialog">
       <v-card-title>{{ t('manifestRestore.title') }}</v-card-title>
       <v-card-text>
@@ -58,6 +58,7 @@ import { useI18n } from 'vue-i18n'
 import { useManifestRestore } from './useManifestRestore'
 
 const { t } = useI18n()
+const props = defineProps<{ hideWhenDefault?: boolean }>()
 const state = useManifestRestore()
 const acknowledged = ref(false)
 const emit = defineEmits<{ active: [value: boolean] }>()
