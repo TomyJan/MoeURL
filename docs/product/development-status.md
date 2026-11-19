@@ -6,6 +6,8 @@
 
 ## 当前实施（2026-11-18，v0.90.0）
 
+最新补充验证：拒绝矩阵累计 22 类且失败不改变完整持久化快照；写入阶段故障回滚／恢复重试、并发幂等／唯一性和撤权后的回放拒绝也通过。100 行边界发现既有回执容量仅 20，新增 migration 00048 扩至 100 后成功／同 key 重试／后续 quota 拒绝通过。以上为 disposable PostgreSQL 补充结果；迁移 SQL 的旧回执保留和大回执阻止 Down 通过，正式 Goose／Testcontainers、安装版 Go 与 SQLC 门禁仍未完成。
+
 [导出清单恢复](scope-v0.90.0.md)的核心实现与前端本地门禁已完成：Node 26.3.0／Vitest 5.0.3 全量 7,238/7,238、290 个文件，Statements／Branches／Functions／Lines 均 100%；typecheck、lint（0 errors、5 个既有 warning）、E2E strict types、production build 通过。Go 1.26.8 handler／service 文件级测试、shortlink build／vet 和隔离 PostgreSQL supplemental 原子场景通过。router/app 编译因未缓存 `golang.org/x/oauth2 v0.38.0` 未验证；仓库 Testcontainers／Goose runner、Go 全包／业务 coverage、SQLC 漂移、真实浏览器与准确产品验证仍待，未安装依赖。能力只读取 v0.21.0 固定 17 列管理 CSV，在本地预览后以当前 Cookie 身份创建 1–100 条新链接；任一密码行、域名／权限／策略／配额／slug 拒绝均不得部分写入。访问用量从 0 开始，不恢复旧 ID、归属、时间、事件或密码；既有网址 CSV 导入与导出协议不变。一次 `pnpm exec` 误触发包解析安装的处置边界见[验收](../implementation/v0.90.0-acceptance.md)。未查 CI、未发布部署。
 
 ## v0.88.0 合并前检查点（历史）

@@ -2,7 +2,7 @@
 
 ## 当前实施设计（2026-11-18，v0.90.0）
 
-本版新增 `POST /api/v1/short-link/manifest/restore` 严格 handler、router/app 接线与事务 service；handler／service 文件级测试、`internal/shortlink` build/vet 及隔离 PostgreSQL supplemental 原子场景通过。router/app 编译受未缓存 `golang.org/x/oauth2 v0.38.0` 阻断；仓库 Testcontainers／Goose runner、全 Go suite／业务 coverage 与 SQLC 漂移仍待，未安装依赖。接口仅使用当前 Cookie actor，不新增 migration、权限常量、环境变量或依赖；复用 SQLC、`WithAuditTx`、短链目标策略、默认／分配域名授权、每日创建配额和既有批量创建幂等回执。整批最多 100 行在同一事务检查并创建。CSV 在浏览器本地按 v0.21.0 固定 17 列解析，JSON 请求另限 1 MiB；原导出、已有八种网址 CSV 创建协议和 service worker 缓存边界不变。前端独立恢复 panel 已实现并通过完整 7,238 项／四项 100% coverage、类型、lint、E2E strict 与构建；真实浏览器与准确产品验证仍待。详见[设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[验收](v0.90.0-acceptance.md)。
+本版新增 `POST /api/v1/short-link/manifest/restore` 严格 handler、router/app 接线与事务 service；handler／service 文件级测试、`internal/shortlink` build/vet 及隔离 PostgreSQL supplemental 原子场景通过。router/app 编译受未缓存 `golang.org/x/oauth2 v0.38.0` 阻断；仓库 Testcontainers／Goose runner、全 Go suite／业务 coverage 与 SQLC 漂移仍待，未安装依赖。接口仅使用当前 Cookie actor，不新增权限常量、环境变量或依赖；复用 SQLC、`WithAuditTx`、短链目标策略、默认／分配域名授权、每日创建配额和既有批量创建幂等回执。整批最多 100 行在同一事务检查并创建；migration 00048 将回执 `created_count` 从 1–20 扩至 1–100，Down 在排他表锁下遇大回执显式失败并保留数据／约束。disposable PostgreSQL 补充验证覆盖 22 类拒绝、写入故障回滚／恢复、并发幂等／唯一性、撤权回放拒绝、100 行 quota 边界和迁移 SQL；正式 Goose／SQLC 验证仍待。CSV 在浏览器本地按 v0.21.0 固定 17 列解析，JSON 请求另限 1 MiB；原导出、已有八种网址 CSV 创建协议的 20 条输入上限和 service worker 缓存边界不变。前端独立恢复 panel 已实现并通过完整 7,238 项／四项 100% coverage、类型、lint、E2E strict 与构建；真实浏览器与准确产品验证仍待。详见[设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[验收](v0.90.0-acceptance.md)。
 
 ## 当前维护（2026-11-16，v0.87.1）
 

@@ -6,6 +6,8 @@
 
 ## 当前实施（2026-11-18，v0.90.0）
 
+最新补充验证发现回执表的 20 条约束与本版 100 行合同冲突，已增加 migration 00048 扩展容量；22 类拒绝、写入故障回滚／恢复、并发幂等／唯一性、撤权回放拒绝、100 行成功／重试及迁移 SQL 保留／安全回滚测试通过。均属 disposable PostgreSQL 补充验证；正式 Goose／Testcontainers 与完整交付门禁仍待。
+
 路线图中的“导出清单恢复”进入核心实现与本地验证阶段：[v0.90.0](scope-v0.90.0.md)只接受 v0.21.0 固定 17 列 CSV，恢复可重建配置并以当前账号为新 owner；不重用旧 ID、归属、时间、事件、访问用量或密码。它与既有单列网址导入、手动字段映射及所选 CSV 导出保持分离。前端全量测试及四项 coverage 100%、类型／lint／E2E strict／build 通过；正式 Go runner、router/app、真实浏览器、产品扫描及交付仍待。准确阶段见[开发进度](development-status.md)、[设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[实施计划](../superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)。
 
 ## v0.88.0 合并前检查点（历史）

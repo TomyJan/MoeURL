@@ -2,7 +2,7 @@
 
 ## 当前设计（2026-11-18，v0.90.0）
 
-管理清单恢复沿用现有 Go／Chi、SQLC、PostgreSQL、Vue／TypeScript 与 Vitest／Playwright，不新增依赖、权限或数据库迁移。独立严格 CSV parser、个人恢复 POST、事务 service 和双语面板已在隔离 worktree 实现；服务器在单个有界审计事务内重新验证 Cookie actor、现有字段与域名权限、目标策略、创建配额和全局 slug 唯一性，并复用短链创建回执。前端以独立恢复面板承载本地解析、损失边界说明、明确确认及身份轮次／未知重试保护，不改原网址导入协议。前端本地全量门禁已通过；router/app、正式 Go runner、真实浏览器、产品验证和远端交付仍待，详见[设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[验收](v0.90.0-acceptance.md)。
+管理清单恢复沿用现有 Go／Chi、SQLC、PostgreSQL、Vue／TypeScript 与 Vitest／Playwright，不新增依赖或权限。独立严格 CSV parser、个人恢复 POST、事务 service 和双语面板已在隔离 worktree 实现；服务器在单个有界审计事务内重新验证 Cookie actor、现有字段与域名权限、目标策略、创建配额和全局 slug 唯一性，并复用短链创建回执。100 行真实测试发现回执表只允许 20，故 migration 00048 将数量约束扩至 100；保留大回执时 Down 安全失败，不删除幂等记录。现有八种创建协议保持 20 条输入上限。disposable PostgreSQL 补充覆盖 22 类拒绝、写入故障回滚／恢复、并发幂等／唯一性、撤权回放拒绝及 100 行成功／重试；正式 Goose 验证仍待。前端以独立恢复面板承载本地解析、损失边界说明、明确确认及身份轮次／未知重试保护，不改原网址导入协议。前端本地全量门禁已通过；router/app、正式 Go runner、真实浏览器、产品验证和远端交付仍待，详见[设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[验收](v0.90.0-acceptance.md)。
 
 ## 当前维护（2026-11-16，v0.87.1）
 

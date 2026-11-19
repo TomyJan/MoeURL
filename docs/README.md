@@ -6,6 +6,8 @@
 
 ## 当前实施（2026-11-18，v0.90.0）
 
+补充数据库验证发现并修正回执容量与 100 行合同的冲突：新增 migration 00048，将数量约束扩至 100，大回执存在时 Down 安全拒绝；22 类拒绝、写入故障回滚／恢复、并发与回放授权补充测试以及 100 行成功／重试和迁移 SQL 测试通过。均属缓存工具链 disposable PostgreSQL 补充证据；正式 Go／Goose／Testcontainers 门禁仍待，详见本版验收。
+
 [导出清单恢复范围](product/scope-v0.90.0.md)、[技术设计](specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[实施计划](superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)已建立；handler 边界、恢复事务服务、固定 17 列 parser、API client 和独立双语恢复面板／身份竞态守卫已实现于隔离 worktree。Node 26.3.0／Vitest 5.0.3 全量 7,238/7,238、290 个测试文件及四项 coverage 100%，typecheck、lint、E2E strict types、production build 均通过；Go 1.26.8 handler／service 文件级测试、build、vet 与隔离 PostgreSQL supplemental 场景通过。router/app 编译、仓库 Testcontainers／Goose runner、Go 全包／业务 coverage、SQLC 漂移、真实浏览器、准确产品镜像／扫描及 CodeRabbit／合并／归档仍待；router/app 所需 `golang.org/x/oauth2 v0.38.0` 未缓存，未安装依赖。准确状态见[任务](implementation/v0.90.0-tasks.md)和[验收](implementation/v0.90.0-acceptance.md)。
 
 ## v0.88.0 合并前检查点（历史）
