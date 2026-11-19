@@ -1,6 +1,6 @@
 <template>
   <v-btn v-if="state.allowed.value" data-testid="bulk-create-open" :disabled="canOpen && !canOpen()" variant="tonal" @click="begin">{{ t('bulkCreate.open') }}</v-btn>
-  <v-dialog :model-value="state.opened.value" :persistent="state.pending.value || state.unknown.value" max-width="680" scrollable @update:model-value="state.close">
+  <v-dialog :model-value="state.opened.value" :persistent="state.pending.value || state.unknown.value || restoreActive" max-width="680" scrollable @update:model-value="close">
     <v-card class="bulk-create-card" data-testid="bulk-create-dialog">
       <v-card-title>{{ t('bulkCreate.title') }}</v-card-title>
       <v-card-text class="bulk-create-body">
@@ -9,13 +9,13 @@
         <template v-if="!state.snapshot.value">
           <label class="bulk-create-file">
             <span>{{ t('bulkCreate.csvLabel') }}</span>
-            <input type="file" accept=".csv,text/csv" data-testid="bulk-create-standard-file" :disabled="state.pending.value" @change="selectFile" />
+            <input type="file" accept=".csv,text/csv" data-testid="bulk-create-standard-file" :disabled="state.pending.value || restoreActive" @change="selectFile" />
           </label>
           <label class="bulk-create-file">
             <span>{{ t('bulkCreate.csvMappingLabel') }}</span>
-            <input type="file" accept=".csv,text/csv" data-testid="bulk-create-mapping-file" :disabled="state.pending.value" @change="selectFile($event, 'mapped')" />
+            <input type="file" accept=".csv,text/csv" data-testid="bulk-create-mapping-file" :disabled="state.pending.value || restoreActive" @change="selectFile($event, 'mapped')" />
           </label>
-          <ManifestRestoreDialog />
+          <ManifestRestoreDialog @active="restoreActive = $event" />
           <p>{{ t('bulkCreate.csvHelp') }}</p>
           <BulkCreateCsvHelp v-if="state.opened.value" />
           <p v-if="state.reading.value" role="status">{{ t('bulkCreate.csvReading') }}</p>
@@ -24,7 +24,7 @@
             <ol data-testid="bulk-create-imported-list"><li v-for="(item, index) in state.importedItems.value" :key="index"><span>{{ item.targetUrl }}</span><span class="bulk-create-item-title">{{ t('bulkCreate.itemTitle') }} {{ item.title || t('bulkCreate.emptyTitle') }}</span><span v-if="'tags' in item" class="bulk-create-item-tags">{{ t('bulkCreate.itemTags') }} <span v-if="!item.tags.length">{{ t('bulkCreate.emptyTags') }}</span><span v-for="(tag, tagIndex) in item.tags" :key="tagIndex" class="bulk-create-tag">{{ tag }}</span></span><span v-if="'customSlug' in item" class="bulk-create-item-slug">{{ t('bulkCreate.itemSlug') }} {{ item.customSlug ? item.customSlug.toLowerCase() : t('bulkCreate.randomSlug') }}</span><span v-if="'redirectMode' in item" class="bulk-create-item-mode">{{ t('bulkCreate.itemMode') }} {{ t('bulkCreate.modes.' + (item.redirectMode || 'direct')) }}</span><span v-if="'expiresAt' in item" class="bulk-create-item-expiration">{{ t('bulkCreate.itemExpiration') }} {{ item.expiresAt || t('bulkCreate.noExpiration') }}</span><span v-if="'maxVisits' in item" class="bulk-create-item-limit">{{ t('bulkCreate.itemVisitLimit') }} {{ item.maxVisits || t('bulkCreate.unlimitedVisits') }}</span><span v-if="'intermediateDelaySeconds' in item" class="bulk-create-item-countdown">{{ t('bulkCreate.itemCountdown') }} {{ item.intermediateDelaySeconds || '5' }}</span></li></ol>
             <v-btn data-testid="bulk-create-clear-import" variant="text" @click="state.clearImport">{{ t('bulkCreate.clearImport') }}</v-btn>
           </template>
-          <v-textarea v-else v-model="state.draft.value" :label="t('bulkCreate.targets')" rows="6" variant="outlined" :disabled="state.pending.value" />
+          <v-textarea v-else v-model="state.draft.value" :label="t('bulkCreate.targets')" rows="6" variant="outlined" :disabled="state.pending.value || restoreActive" />
         </template>
         <template v-else>
           <ol data-testid="bulk-create-preview-list"><li v-for="(item, index) in state.previewItems.value" :key="index"><span>{{ item.targetUrl }}</span><span v-if="'items' in state.snapshot.value" class="bulk-create-item-title">{{ t('bulkCreate.itemTitle') }} {{ item.title || t('bulkCreate.emptyTitle') }}</span><span v-if="'tags' in item" class="bulk-create-item-tags">{{ t('bulkCreate.itemTags') }} <span v-if="!item.tags.length">{{ t('bulkCreate.emptyTags') }}</span><span v-for="(tag, tagIndex) in item.tags" :key="tagIndex" class="bulk-create-tag">{{ tag }}</span></span><span v-if="'customSlug' in item" class="bulk-create-item-slug">{{ t('bulkCreate.itemSlug') }} {{ item.customSlug ? item.customSlug.toLowerCase() : t('bulkCreate.randomSlug') }}</span><span v-if="'redirectMode' in item" class="bulk-create-item-mode">{{ t('bulkCreate.itemMode') }} {{ t('bulkCreate.modes.' + (item.redirectMode || 'direct')) }}</span><span v-if="'expiresAt' in item" class="bulk-create-item-expiration">{{ t('bulkCreate.itemExpiration') }} {{ item.expiresAt || t('bulkCreate.noExpiration') }}</span><span v-if="'maxVisits' in item" class="bulk-create-item-limit">{{ t('bulkCreate.itemVisitLimit') }} {{ item.maxVisits || t('bulkCreate.unlimitedVisits') }}</span><span v-if="'intermediateDelaySeconds' in item" class="bulk-create-item-countdown">{{ t('bulkCreate.itemCountdown') }} {{ item.intermediateDelaySeconds || '5' }}</span></li></ol>
@@ -44,8 +44,8 @@
         </v-alert>
       </v-card-text>
       <v-card-actions class="bulk-create-actions">
-        <v-btn data-testid="bulk-create-close" :disabled="state.pending.value" variant="text" @click="state.close">{{ t('bulkCreate.close') }}</v-btn>
-        <v-btn v-if="!state.snapshot.value" data-testid="bulk-create-preview" :disabled="state.reading.value || !!state.mappingHeaders.value" variant="flat" color="primary" @click="preview">{{ t('bulkCreate.preview') }}</v-btn>
+        <v-btn data-testid="bulk-create-close" :disabled="state.pending.value || restoreActive" variant="text" @click="close">{{ t('bulkCreate.close') }}</v-btn>
+        <v-btn v-if="!state.snapshot.value" data-testid="bulk-create-preview" :disabled="state.reading.value || !!state.mappingHeaders.value || restoreActive" variant="flat" color="primary" @click="preview">{{ t('bulkCreate.preview') }}</v-btn>
         <template v-else>
           <v-btn data-testid="bulk-create-edit" :disabled="state.pending.value || state.unknown.value" variant="text" @click="state.edit">{{ t('bulkCreate.edit') }}</v-btn>
           <v-btn data-testid="bulk-create-submit" :disabled="state.pending.value || state.closing.value" :loading="state.pending.value" variant="flat" color="primary" @click="state.submit">{{ t(state.unknown.value ? 'bulkCreate.retry' : 'bulkCreate.create') }}</v-btn>
@@ -64,6 +64,7 @@ import ManifestRestoreDialog from './ManifestRestoreDialog.vue'
 const { t } = useI18n()
 const props = defineProps<{ canOpen?: () => boolean }>()
 const state = useBulkCreate()
+const restoreActive = ref(false)
 const errorFeedback = ref<globalThis.HTMLDivElement | null>(null)
 const feedbackAttempt = ref(0)
 const emit = defineEmits<{ open: [value: boolean] }>()
@@ -73,15 +74,18 @@ watch([state.opened, state.errorKey, feedbackAttempt], ([opened, error]) => {
   if (opened && error) errorFeedback.value?.focus()
 }, { flush: 'post' })
 /** Checks live parent locks before opening, even before parent props have rerendered. */
-function begin() { if (!props.canOpen || props.canOpen()) state.begin() }
+function begin() { if (!restoreActive.value && (!props.canOpen || props.canOpen())) state.begin() }
 /** Reveals a fresh explicit refusal even when synchronous validation keeps the same error key. */
-function preview() { feedbackAttempt.value++; state.preview() }
+function preview() { if (!restoreActive.value) { feedbackAttempt.value++; state.preview() } }
 function applyMapping() { feedbackAttempt.value++; state.applyMapping() }
+/** Keeps the nested restore draft alive until its own close or explicit discard. */
+function close() { if (!restoreActive.value) state.close() }
 /** Releases the native selection so choosing the same file starts a fresh explicit read. */
 function selectFile(event: globalThis.Event, mode: 'standard' | 'mapped' = 'standard') {
   const input = event.target as globalThis.HTMLInputElement
   const file = input.files?.[0]
   input.value = ''
+  if (restoreActive.value) return
   if (file) feedbackAttempt.value++
   void state.importFile(file, mode)
 }

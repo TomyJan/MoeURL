@@ -53,13 +53,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useManifestRestore } from './useManifestRestore'
 
 const { t } = useI18n()
 const state = useManifestRestore()
 const acknowledged = ref(false)
+const emit = defineEmits<{ active: [value: boolean] }>()
+// The containing workflow must not unmount a draft without an explicit close or discard.
+watch(state.opened, value => emit('active', value), { flush: 'sync' })
 
 function selectFile(event: globalThis.Event) {
   const input = event.target as globalThis.HTMLInputElement

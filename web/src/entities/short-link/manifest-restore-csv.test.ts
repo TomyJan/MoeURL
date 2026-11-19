@@ -42,6 +42,19 @@ function parseIssue(text: string) {
 }
 
 describe('parseManifestRestoreCsv', () => {
+  it('rejects bare CR inside a quoted JSON field while accepting CRLF whitespace', () => {
+    expect(parseManifestRestoreCsv(manifest([row(1, { tags: '["docs",\r"saved"]' })]))).toMatchObject({ success: false, issue: { kind: 'syntax', record: 2 } })
+    expect(parseManifestRestoreCsv(manifest([row(1, { tags: '["docs",\r\n"saved"]' })])).success).toBe(true)
+  })
+
+  it.each(['2099-01-01T00:00:00.0Z', '2099-01-01T00:00:00.120Z', '0000-01-01T00:00:00Z'])('rejects noncanonical UTC timestamps: %s', expires_at => {
+    expect(parseIssue(manifest([row(1, { expires_at })]))?.field).toBe('expires_at')
+  })
+
+  it.each(['2099-01-01T00:00:00Z', '2099-01-01T00:00:00.1Z', '2099-01-01T00:00:00.000000001Z'])('accepts canonical UTC precision: %s', expires_at => {
+    expect(parseManifestRestoreCsv(manifest([row(1, { expires_at })])).success).toBe(true)
+  })
+
   it('accepts the exact export protocol and discards historical identity and usage', () => {
     const parsed = parseManifestRestoreCsv(`\uFEFF${manifest([row()])}`)
     expect(parsed).toEqual({ success: true, data: [{

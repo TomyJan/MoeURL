@@ -18,7 +18,7 @@ const csv = (passwordEnabled = 'false') => [
 ].join('\r\n')
 
 const clients: QueryClient[] = []
-function setup(locale: 'zh-CN' | 'en') {
+function setup(locale: 'zh-CN' | 'en', queuedEvents = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   clients.push(client)
   client.setQueryData(['auth', 'me'], { user: actor })
@@ -32,13 +32,19 @@ function setup(locale: 'zh-CN' | 'en') {
   }))
   const view = render(BulkCreateDialog, { global: {
     plugins: [[VueQueryPlugin, { queryClient: client }], createI18n({ legacy: false, locale, fallbackLocale: 'en', messages })],
-    stubs: componentStubs,
+    stubs: queuedEvents ? {
+      ...componentStubs,
+      // Deliver already queued component events even after native controls become disabled.
+      VBtn: { props: ['disabled', 'loading'], emits: ['click'], template: '<button :disabled="disabled || loading" @click="$emit(\'click\')" @queuedclick="$emit(\'click\')"><slot /></button>' },
+      VDialog: { props: ['modelValue', 'persistent'], emits: ['update:modelValue'], template: '<div v-if="modelValue" role="dialog" :data-persistent="persistent" @queuedclose="$emit(\'update:modelValue\', false)"><slot /></div>' },
+    } : componentStubs,
   } })
   return { ...view, posts }
 }
 
-async function openRestore(view: ReturnType<typeof setup>, text: string) {
+async function openRestore(view: ReturnType<typeof setup>, text: string, ordinaryDraft = '') {
   await fireEvent.click(screen.getByTestId('bulk-create-open'))
+  if (ordinaryDraft) await fireEvent.update(screen.getByRole('textbox'), ordinaryDraft)
   await fireEvent.click(screen.getByTestId('manifest-restore-open'))
   const file = new File([text], 'management-export.csv', { type: 'text/csv' })
   Object.defineProperty(file, 'arrayBuffer', { value: async () => new TextEncoder().encode(text).buffer })
@@ -55,6 +61,55 @@ afterEach(() => {
 })
 
 describe('manifest restore panel', () => {
+  it('retains a pending and unknown restore when ordinary preview or parent close is attempted', async () => {
+    const view = setup('en', true)
+    let failRequest!: (reason: Error) => void
+    const requests: string[] = []
+    vi.stubGlobal('fetch', vi.fn((_url: string, init?: RequestInit) => {
+      requests.push(String(init?.body))
+      return new Promise<Response>((_resolve, reject) => { failRequest = reject })
+    }))
+    await openRestore(view, csv(), 'https://ordinary.example')
+    await waitFor(() => expect(screen.getByTestId('manifest-restore-preview')).toBeTruthy())
+    await fireEvent.click(screen.getByTestId('manifest-restore-acknowledge'))
+    await fireEvent.click(screen.getByTestId('manifest-restore-confirm'))
+    await waitFor(() => expect(requests).toHaveLength(1))
+    const preview = screen.getByTestId('bulk-create-preview')
+    const close = screen.getByTestId('bulk-create-close')
+    expect(preview.hasAttribute('disabled')).toBe(true)
+    expect(close.hasAttribute('disabled')).toBe(true)
+    await fireEvent(preview, new Event('queuedclick'))
+    await fireEvent(close, new Event('queuedclick'))
+    await fireEvent(screen.getByRole('dialog'), new Event('queuedclose'))
+    await fireEvent(screen.getByTestId('bulk-create-open'), new Event('queuedclick'))
+    await fireEvent.change(screen.getByTestId('bulk-create-standard-file'), { target: { files: [new File(['https://replacement.example'], 'other.csv')] } })
+    await fireEvent.click(preview)
+    await fireEvent.click(close)
+    expect(screen.getByTestId('manifest-restore-dialog')).toBeTruthy()
+    expect(screen.queryByTestId('bulk-create-preview-list')).toBeNull()
+    failRequest(new Error('response lost'))
+    await waitFor(() => expect(screen.getByTestId('manifest-restore-unknown')).toBeTruthy())
+    const key = screen.getByTestId('manifest-restore-request-id').textContent
+    expect(screen.getByRole('dialog').getAttribute('data-persistent')).toBe('true')
+    await fireEvent(preview, new Event('queuedclick'))
+    await fireEvent(close, new Event('queuedclick'))
+    await fireEvent.click(preview)
+    await fireEvent.click(close)
+    expect(screen.getByTestId('manifest-restore-request-id').textContent).toBe(key)
+    expect(screen.queryByTestId('bulk-create-preview-list')).toBeNull()
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => {
+      requests.push(String(init?.body))
+      const input = JSON.parse(String(init?.body)) as { requestId: string }
+      return new Response(JSON.stringify({ code: 0, message: '', data: { requestId: input.requestId, createdCount: 1 }, meta: {} }))
+    }))
+    await fireEvent.click(screen.getByTestId('manifest-restore-retry'))
+    await waitFor(() => expect(screen.getByTestId('manifest-restore-success')).toBeTruthy())
+    expect(requests).toEqual([requests[0], requests[0]])
+    await fireEvent.click(screen.getByTestId('manifest-restore-close'))
+    await fireEvent.click(preview)
+    expect(screen.getByTestId('bulk-create-preview-list').textContent).toContain('https://ordinary.example')
+  })
+
   it.each(['zh-CN', 'en'] as const)('keeps the existing CSV import separate and requires an explicit local-preview confirmation in %s', async locale => {
     const view = setup(locale)
     await openRestore(view, csv())

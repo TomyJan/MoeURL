@@ -8,7 +8,7 @@ const manifestColumns = [
 
 const reservedSlugs = new Set(['api', 'assets', 'icons', 'setup', 'login', 'profile', 'console', 'link', 'links', 'analytics', 'admin', 'go'])
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-const utcTimestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/
+const utcTimestampPattern = /^(?!0000)\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{0,8}[1-9])?Z$/
 
 export type ManifestRestoreCsvItem = {
   domainOrigin: string
@@ -83,6 +83,7 @@ function scanManifestCsv(text: string): ScanResult {
   for (let index = 0; index < input.length; index++) {
     const character = input[index]!
     endedRecord = false
+    if (character === '\r' && input[index + 1] !== '\n') return { success: false, record: record(), kind: 'syntax' }
     if (state === 'quoted') {
       if (character === '"') {
         if (input[index + 1] === '"') {
@@ -101,7 +102,6 @@ function scanManifestCsv(text: string): ScanResult {
       if (fields.length > manifestColumns.length) return { success: false, record: record(), kind: 'width' }
     } else if (character === '\n' || character === '\r') {
       if (character === '\r') {
-        if (input[index + 1] !== '\n') return { success: false, record: record(), kind: 'syntax' }
         index++
       }
       fields.push(field)
