@@ -4,11 +4,11 @@
 
 [CSV 表头匹配](scope-v0.89.0.md)只增加用户主动填空操作，保留手动应用、隐私、八协议和权限，不新增后端、数据库或项目依赖。PR #386 已正常合入 master（`f236951862f53e59cfedbe318e224d48fd1c902e`），准确 CodeRabbit 审查与合并身份均独立核验；候选本地门禁和真实中英桌面／390 px 浏览器 5/5 通过。whole-owned 恢复包逐项解压验 hash 完成，未借 master 后续依赖更新宣称重验，也未查 CI 或发布部署。状态和恢复位置见[本版验收](../implementation/v0.89.0-acceptance.md)。
 
-## 当前设计与实施（2026-11-18，v0.90.0）
+## 当前实施验证（2026-11-19，v0.90.0）
 
-补充数据库验证已覆盖 22 类无副作用拒绝，并验证写入故障回滚与恢复、并发幂等／slug 冲突及撤权后的回放拒绝。100 行正向用例发现既有回执容量仅 20，现以 migration 00048 扩至 100；大回执保留期间 Down 安全失败，迁移 SQL 事务验证通过。以上为 disposable PostgreSQL 补充验证，正式 Goose／Testcontainers runner 仍待。
+[导出清单恢复](scope-v0.90.0.md)已实现：严格接受固定 17 列管理 CSV，经当前 Cookie actor 的权限、域名、策略、配额和短码检查后，以单事务新建 1–100 条记录。保留可重建配置，访问用量从 0 开始；旧 ID、归属、时间、事件和密码不恢复。新增 `POST /api/v1/short-link/manifest/restore` 限 1 MiB；migration 00048 将幂等回执容量扩至 100，大回执存在时 Down 安全拒绝。旧八种创建协议仍限 20 条。
 
-[导出清单恢复](scope-v0.90.0.md)的核心实现以 v0.21.0 固定 17 列管理 CSV 为唯一输入；预览在浏览器本地完成，确认后只在当前登录账号下创建新记录，整批授权和唯一性检查由服务端单事务负责。前端全量 7,238 项与四项 coverage 100%、类型／lint／E2E strict／build 通过；router/app、正式数据库 runner、真实浏览器和产品验证仍待。它不是数据库备份恢复：旧 ID、原归属、时间、访问事件／用量和密码不恢复，启用密码的任一行使整批拒绝；现有 CSV 网址导入与导出保持独立。范围、实现契约、计划和当前验证状态分别见[本版范围](scope-v0.90.0.md)、[设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)、[计划](../superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)和[验收](../implementation/v0.90.0-acceptance.md)。
+正式 Go 1.26.8 全仓、受影响 shortlink 最终复跑、业务覆盖率 100%、vet、Goose/Testcontainers 迁移和 SQLC 1.30.0 二次零漂移通过；Linux Go 1.27.4 四包 race 与全仓 vet 也通过。最终审查发现的父级操作丢失恢复重试状态、裸 CR 和 UTC 小数规范三项已修正，独立定向复核无新增问题。源码修正提交 `74f6bdcf`（按授权当次未签名，全局配置保留）；Node 26.3.0 最新全量 7,246/7,246、290 文件、四项覆盖率 100%，类型／源码 lint／E2E strict 检查通过。修正源码 `74f6bdcf` 的准确产品 readiness、真实浏览器 7/7（36.6 秒）、所选 HIGH／CRITICAL 扫描均通过，专属应用／tmpfs DB 已释放；空网络和被策略拒绝清理的可重建缓存准确保留。旧产品结果保留原身份；真实 CodeRabbit、正常合并及 whole-owned 可恢复归档尚待。必要依赖／工具可自主安装更新；未查 CI、未发布部署，产品显示版本仍为 0.89.0。准确命令、运行身份与剩余门禁见[验收](../implementation/v0.90.0-acceptance.md)。
 
 ## v0.88.0 合并前检查点（历史）
 

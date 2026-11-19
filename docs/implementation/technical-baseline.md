@@ -1,8 +1,10 @@
 # 技术基线
 
-## 当前实施设计（2026-11-18，v0.90.0）
+## 当前实施验证（2026-11-19，v0.90.0）
 
-本版新增 `POST /api/v1/short-link/manifest/restore` 严格 handler、router/app 接线与事务 service；handler／service 文件级测试、`internal/shortlink` build/vet 及隔离 PostgreSQL supplemental 原子场景通过。router/app 编译受未缓存 `golang.org/x/oauth2 v0.38.0` 阻断；仓库 Testcontainers／Goose runner、全 Go suite／业务 coverage 与 SQLC 漂移仍待，未安装依赖。接口仅使用当前 Cookie actor，不新增权限常量、环境变量或依赖；复用 SQLC、`WithAuditTx`、短链目标策略、默认／分配域名授权、每日创建配额和既有批量创建幂等回执。整批最多 100 行在同一事务检查并创建；migration 00048 将回执 `created_count` 从 1–20 扩至 1–100，Down 在排他表锁下遇大回执显式失败并保留数据／约束。disposable PostgreSQL 补充验证覆盖 22 类拒绝、写入故障回滚／恢复、并发幂等／唯一性、撤权回放拒绝、100 行 quota 边界和迁移 SQL；正式 Goose／SQLC 验证仍待。CSV 在浏览器本地按 v0.21.0 固定 17 列解析，JSON 请求另限 1 MiB；原导出、已有八种网址 CSV 创建协议的 20 条输入上限和 service worker 缓存边界不变。前端独立恢复 panel 已实现并通过完整 7,238 项／四项 100% coverage、类型、lint、E2E strict 与构建；真实浏览器与准确产品验证仍待。详见[设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[验收](v0.90.0-acceptance.md)。
+[导出清单恢复](../product/scope-v0.90.0.md)已实现：严格接受固定 17 列管理 CSV，经当前 Cookie actor 的权限、域名、策略、配额和短码检查后，以单事务新建 1–100 条记录。保留可重建配置，访问用量从 0 开始；旧 ID、归属、时间、事件和密码不恢复。新增 `POST /api/v1/short-link/manifest/restore` 限 1 MiB；migration 00048 将幂等回执容量扩至 100，大回执存在时 Down 安全拒绝。旧八种创建协议仍限 20 条。
+
+正式 Go 1.26.8 全仓、受影响 shortlink 最终复跑、业务覆盖率 100%、vet、Goose/Testcontainers 迁移和 SQLC 1.30.0 二次零漂移通过；Linux Go 1.27.4 四包 race 与全仓 vet 也通过。最终审查发现的父级操作丢失恢复重试状态、裸 CR 和 UTC 小数规范三项已修正，独立定向复核无新增问题。源码修正提交 `74f6bdcf`（按授权当次未签名，全局配置保留）；Node 26.3.0 最新全量 7,246/7,246、290 文件、四项覆盖率 100%，类型／源码 lint／E2E strict 检查通过。修正源码 `74f6bdcf` 的准确产品 readiness、真实浏览器 7/7（36.6 秒）、所选 HIGH／CRITICAL 扫描均通过，专属应用／tmpfs DB 已释放；空网络和被策略拒绝清理的可重建缓存准确保留。旧产品结果保留原身份；真实 CodeRabbit、正常合并及 whole-owned 可恢复归档尚待。必要依赖／工具可自主安装更新；未查 CI、未发布部署，产品显示版本仍为 0.89.0。准确命令、运行身份与剩余门禁见[验收](v0.90.0-acceptance.md)。
 
 ## 当前维护（2026-11-16，v0.87.1）
 

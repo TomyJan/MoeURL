@@ -4,11 +4,11 @@
 
 [有限 CSV 表头匹配](scope-v0.89.0.md)采用主动点击填空，避免上传时自动选择、模糊推断与历史恢复；保留八协议和手动应用，不新增后端、权限、数据库或依赖。PR #386 已获准确 head 的真实 CodeRabbit reviewed 并正常 squash 合入，API 与独立 fetch 核验完成；候选完整本地门禁和中英桌面／390 px 浏览器 5/5 已通过。whole-owned 恢复归档与本版验收已闭合，PR #385 的文档跟进也已完成。见[验收](../implementation/v0.89.0-acceptance.md)；不查 CI、不发布部署。
 
-## 当前实施（2026-11-18，v0.90.0）
+## 当前实施验证（2026-11-19，v0.90.0）
 
-最新补充验证发现回执表的 20 条约束与本版 100 行合同冲突，已增加 migration 00048 扩展容量；22 类拒绝、写入故障回滚／恢复、并发幂等／唯一性、撤权回放拒绝、100 行成功／重试及迁移 SQL 保留／安全回滚测试通过。均属 disposable PostgreSQL 补充验证；正式 Goose／Testcontainers 与完整交付门禁仍待。
+[导出清单恢复](scope-v0.90.0.md)已实现：严格接受固定 17 列管理 CSV，经当前 Cookie actor 的权限、域名、策略、配额和短码检查后，以单事务新建 1–100 条记录。保留可重建配置，访问用量从 0 开始；旧 ID、归属、时间、事件和密码不恢复。新增 `POST /api/v1/short-link/manifest/restore` 限 1 MiB；migration 00048 将幂等回执容量扩至 100，大回执存在时 Down 安全拒绝。旧八种创建协议仍限 20 条。
 
-路线图中的“导出清单恢复”进入核心实现与本地验证阶段：[v0.90.0](scope-v0.90.0.md)只接受 v0.21.0 固定 17 列 CSV，恢复可重建配置并以当前账号为新 owner；不重用旧 ID、归属、时间、事件、访问用量或密码。它与既有单列网址导入、手动字段映射及所选 CSV 导出保持分离。前端全量测试及四项 coverage 100%、类型／lint／E2E strict／build 通过；正式 Go runner、router/app、真实浏览器、产品扫描及交付仍待。准确阶段见[开发进度](development-status.md)、[设计](../specs/2026-11-18-v0.90.0-export-manifest-restore-design.md)与[实施计划](../superpowers/plans/2026-11-18-v0.90.0-export-manifest-restore.md)。
+正式 Go 1.26.8 全仓、受影响 shortlink 最终复跑、业务覆盖率 100%、vet、Goose/Testcontainers 迁移和 SQLC 1.30.0 二次零漂移通过；Linux Go 1.27.4 四包 race 与全仓 vet 也通过。最终审查发现的父级操作丢失恢复重试状态、裸 CR 和 UTC 小数规范三项已修正，独立定向复核无新增问题。源码修正提交 `74f6bdcf`（按授权当次未签名，全局配置保留）；Node 26.3.0 最新全量 7,246/7,246、290 文件、四项覆盖率 100%，类型／源码 lint／E2E strict 检查通过。修正源码 `74f6bdcf` 的准确产品 readiness、真实浏览器 7/7（36.6 秒）、所选 HIGH／CRITICAL 扫描均通过，专属应用／tmpfs DB 已释放；空网络和被策略拒绝清理的可重建缓存准确保留。旧产品结果保留原身份；真实 CodeRabbit、正常合并及 whole-owned 可恢复归档尚待。必要依赖／工具可自主安装更新；未查 CI、未发布部署，产品显示版本仍为 0.89.0。准确命令、运行身份与剩余门禁见[验收](../implementation/v0.90.0-acceptance.md)。
 
 ## v0.88.0 合并前检查点（历史）
 
