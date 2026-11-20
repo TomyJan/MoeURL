@@ -27,13 +27,19 @@ export function useShortLinkAccess(context: 'own' | 'admin') {
   const canDelete = computed(() => auth.isSuccess.value && allows('delete', auth.data.value))
   const canTag = computed(() => auth.isSuccess.value && allows('tags', auth.data.value))
   const canSelect = computed(() => canRead.value)
-  return { identity, canRead, canUpdate, canDelete, canTag, canSelect, allows, authPending: auth.isPending }
+  const permissionScope = computed(() => {
+    const user = auth.data.value?.user
+    return user ? `${user.group}:${[...user.permissions].sort().join('\0')}` : ''
+  })
+  return { identity, canRead, canUpdate, canDelete, canTag, canSelect, permissionScope, allows, authPending: auth.isPending }
 }
 
 interface BatchOptions {
   context: 'own' | 'admin'
   access: ReturnType<typeof useShortLinkAccess>
   ids: Ref<string[]>
+  pageKey: Ref<string>
+  ready: Ref<boolean>
   blocked: Ref<boolean>
   filters: Ref<unknown>
 }
@@ -48,13 +54,31 @@ export function useShortLinkBatch(options: BatchOptions) {
   const pending = ref(false)
   const unavailable = computed(() => pending.value || options.blocked.value || !access.canSelect.value)
   const allSelected = computed(() => options.ids.value.length > 0 && options.ids.value.every(id => selected.value.includes(id)))
-  const indeterminate = computed(() => selected.value.length > 0 && !allSelected.value)
+  const indeterminate = computed(() => options.ids.value.some(id => selected.value.includes(id)) && !allSelected.value)
   let revision = 0
   let alive = true
+  let pageAwaitingRead = !options.ready.value
+  let lastVisibleIds = options.ready.value ? [...new Set(options.ids.value)] : []
   /** Drops context-bound targets without releasing a request that is still outstanding. */
   function clear() { revision++; selected.value = []; deleteIds.value = null }
-  watch([options.filters, access.identity.scope, access.canSelect], clear, { flush: 'sync' })
-  watch(options.ids, ids => { selected.value = selected.value.filter(id => ids.includes(id)) }, { flush: 'sync' })
+  watch([options.filters, access.identity.scope, access.canSelect, access.permissionScope], clear, { flush: 'sync' })
+  watch(options.pageKey, () => {
+    pageAwaitingRead = true
+    lastVisibleIds = []
+  }, { flush: 'sync' })
+  watch([options.ready, options.ids], ([ready, ids]) => {
+    if (!ready) return
+    const visibleIds = [...new Set(ids)]
+    if (pageAwaitingRead) {
+      lastVisibleIds = visibleIds
+      pageAwaitingRead = false
+      return
+    }
+    const previousPageIds = new Set(lastVisibleIds)
+    const nextPageIds = new Set(visibleIds)
+    selected.value = selected.value.filter(id => !previousPageIds.has(id) || nextPageIds.has(id))
+    lastVisibleIds = visibleIds
+  }, { flush: 'sync' })
   onBeforeUnmount(() => { alive = false; clear() })
 
   /** Changes only current-list IDs and never grows a selection past the API limit. */
@@ -63,9 +87,21 @@ export function useShortLinkBatch(options: BatchOptions) {
     if (!checked) selected.value = selected.value.filter(value => value !== id)
     else if (!selected.value.includes(id) && selected.value.length < 100) selected.value = [...selected.value, id]
   }
-  /** Selects at most the first 100 distinct records currently returned by the list. */
+  /** Adds or removes only current-page IDs and rejects an over-limit addition atomically. */
   function toggleAll(checked: boolean) {
-    if (!unavailable.value) selected.value = checked ? [...new Set(options.ids.value)].slice(0, 100) : []
+    if (unavailable.value) return
+    const pageIds = [...new Set(options.ids.value)]
+    if (!checked) {
+      const currentIds = new Set(pageIds)
+      selected.value = selected.value.filter(id => !currentIds.has(id))
+      return
+    }
+    const combined = [...selected.value, ...pageIds.filter(id => !selected.value.includes(id))]
+    if (combined.length > 100) {
+      toast.error(t('batch.limit'))
+      return
+    }
+    selected.value = combined
   }
   /** Captures the delete target once, independently of subsequent checkbox changes. */
   function openDelete() {

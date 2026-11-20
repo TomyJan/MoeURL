@@ -24,16 +24,18 @@ function mount(context: 'own' | 'admin' = 'own', account: CurrentUser | null = u
   clients.push(client)
   if (account) client.setQueryData(['auth', 'me'], { user: account })
   const ids = ref(['one', 'two'])
+  const pageKey = ref('1:20')
+  const ready = ref(true)
   const blocked = ref(false)
   const filter = ref('')
   let batch!: ReturnType<typeof useShortLinkBatch>
   let access!: ReturnType<typeof useShortLinkAccess>
   const view = render(defineComponent({ setup() {
     access = useShortLinkAccess(context)
-    batch = useShortLinkBatch({ context, access, ids: computed(() => ids.value), blocked, filters: computed(() => filter.value) })
+    batch = useShortLinkBatch({ context, access, ids: computed(() => ids.value), pageKey, ready, blocked, filters: computed(() => filter.value) })
     return () => null
   } }), { global: { plugins: [[VueQueryPlugin, { queryClient: client }], createI18n({ legacy: false, locale: 'test', messages: {}, missingWarn: false })] } })
-  return { ...view, client, ids, blocked, filter, batch, access }
+  return { ...view, client, ids, pageKey, ready, blocked, filter, batch, access }
 }
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(batchShortLinks).mockReset().mockResolvedValue({ affectedCount: 1 }); vi.mocked(me).mockResolvedValue({ user: user() }) })
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()) })
@@ -44,7 +46,7 @@ describe('batch selection and atomic submission', () => {
     view.batch.toggle('two', true)
     expect(view.batch.selected.value).toEqual(['two'])
     view.batch.toggleAll(true)
-    expect(view.batch.selected.value).toEqual(['one', 'two'])
+    expect(view.batch.selected.value).toEqual(['two', 'one'])
     view.batch.openDelete()
     expect(view.batch.deleteIds.value).toBeNull()
     for (const action of ['enable', 'disable', 'delete'] as const) await view.batch.submit(action)
@@ -122,7 +124,7 @@ describe('batch selection and atomic submission', () => {
     vi.mocked(batchShortLinks).mockReturnValue(request.promise)
     let batch!: ReturnType<typeof useShortLinkBatch>
     const child = defineComponent({ props: { filter: { type: String, required: true } }, setup(props) {
-      batch = useShortLinkBatch({ context: 'own', access: useShortLinkAccess('own'), ids: ref(['one']), blocked: ref(false), filters: computed(() => props.filter) })
+      batch = useShortLinkBatch({ context: 'own', access: useShortLinkAccess('own'), ids: ref(['one']), pageKey: ref('1:20'), ready: ref(true), blocked: ref(false), filters: computed(() => props.filter) })
       return () => null
     } })
     render(defineComponent({ setup: () => () => h(child, { filter: filter.value }) }), { global: { plugins: [[VueQueryPlugin, { queryClient: client }], createI18n({ legacy: false, locale: 'test', messages: {}, missingWarn: false })] } })
@@ -144,7 +146,7 @@ describe('batch selection and atomic submission', () => {
     expect(toast.success).toHaveBeenCalledWith('batch.success')
   })
   it('enforces distinct current IDs, select-all state, and the 100 selection cap', () => {
-    const { batch, ids } = mount()
+    const { batch, ids, pageKey, ready } = mount()
     batch.toggle('missing', true)
     expect(batch.selected.value).toEqual([])
     batch.toggle('one', true); batch.toggle('one', true)
@@ -154,13 +156,79 @@ describe('batch selection and atomic submission', () => {
     expect(batch.allSelected.value).toBe(true)
     batch.toggleAll(false)
     expect(batch.selected.value).toEqual([])
-    ids.value = Array.from({ length: 101 }, (_, i) => String(i))
+    ids.value = Array.from({ length: 100 }, (_, i) => String(i))
     batch.toggleAll(true)
     expect(batch.selected.value).toHaveLength(100)
+    pageKey.value = '2:20'
+    ready.value = false
+    ids.value = ['0', '100']
+    ready.value = true
     batch.toggle('100', true)
     expect(batch.selected.value).toHaveLength(100)
     batch.toggle('0', false); batch.toggle('100', true)
     expect(batch.selected.value).toHaveLength(100)
+  })
+  it('keeps cross-page IDs while select-all and its header state affect only the current page', async () => {
+    const { batch, ids, pageKey, ready } = mount()
+    batch.toggle('one', true)
+    pageKey.value = '2:20'
+    ready.value = false
+    ids.value = ['three', 'four']
+    ready.value = true
+    await nextTick()
+
+    expect(batch.selected.value).toEqual(['one'])
+    expect(batch.allSelected.value).toBe(false)
+    expect(batch.indeterminate.value).toBe(false)
+
+    batch.toggleAll(true)
+    expect(batch.selected.value).toEqual(['one', 'three', 'four'])
+    expect(batch.allSelected.value).toBe(true)
+    batch.toggleAll(false)
+    expect(batch.selected.value).toEqual(['one'])
+    expect(batch.indeterminate.value).toBe(false)
+  })
+  it('prunes only IDs removed by a successful refresh of the same page', async () => {
+    const { batch, ids, pageKey, ready } = mount()
+    batch.toggle('one', true)
+    pageKey.value = '2:20'
+    ready.value = false
+    ids.value = ['three', 'four']
+    ready.value = true
+    await nextTick()
+    batch.toggle('three', true)
+
+    ready.value = false
+    ids.value = ['four']
+    ready.value = true
+    await nextTick()
+
+    expect(batch.selected.value).toEqual(['one'])
+  })
+  it('rejects a current-page select-all atomically when it would exceed 100 IDs', async () => {
+    const { batch, ids, pageKey, ready } = mount()
+    ids.value = Array.from({ length: 100 }, (_, index) => String(index))
+    await nextTick()
+    batch.toggleAll(true)
+    pageKey.value = '2:20'
+    ready.value = false
+    ids.value = ['0', 'other']
+    ready.value = true
+    await nextTick()
+    const before = [...batch.selected.value]
+    vi.mocked(toast.error).mockClear()
+
+    batch.toggle('other', true)
+    expect(batch.selected.value).toEqual(before)
+    batch.toggleAll(true)
+    expect(batch.selected.value).toEqual(before)
+    expect(toast.error).toHaveBeenCalledWith('batch.limit')
+
+    batch.toggle('0', false)
+    batch.toggle('other', true)
+    expect(batch.selected.value).toHaveLength(100)
+    expect(batch.selected.value).toContain('other')
+    expect(batch.selected.value).not.toContain('0')
   })
   it('prunes refreshed records and clears the frozen dialog on raw filter changes', () => {
     const { batch, ids, filter } = mount()
@@ -225,6 +293,15 @@ describe('batch selection and atomic submission', () => {
       expect(batchShortLinks).toHaveBeenLastCalledWith({ ids: ['one'], action: action === 'update' ? 'enable' : 'delete' }, context)
       view.unmount()
     }
+  })
+  it.each(['own', 'admin'] as const)('clears selection when an action permission changes without changing selectability in %s', context => {
+    const suffix = context === 'own' ? 'own' : 'all'
+    const base = context === 'own' ? [`short_link:read_${suffix}`] : ['admin:access', `short_link:read_${suffix}`]
+    const view = mount(context, user([...base, `short_link:update_${suffix}`]))
+    view.batch.toggle('one', true)
+    view.client.setQueryData(['auth', 'me'], { user: user([...base, `short_link:delete_${suffix}`]) })
+    expect(view.access.canSelect.value).toBe(true)
+    expect(view.batch.selected.value).toEqual([])
   })
   it.each(['filter', 'switch', 'logout', 'relogin', 'permission', 'unmount'])('suppresses late results after %s while keeping the single request locked', async transition => {
     for (const fail of [false, true]) {
