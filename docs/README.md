@@ -1,8 +1,8 @@
 # MoeURL 文档中心
 
-## 当前开发（2026-11-20，v0.91.0）
+## 当前开发（2026-11-21，v0.91.0）
 
-[短链跨页手动选择](product/scope-v0.91.0.md)已实现并由 PR #402 正常 squash 合入 `6bc21ef6bed07c77ee4a404e3cb961880087f8ff`；版本仍未验收或发布。同一筛选下跨页保留最多 100 条手动选择，表头全选仅作用当前页；复制、选中导出、批量标签和管理员转移也消费完整选择快照。Node 26.3.0／pnpm 11.5.0 下 8 个相关测试文件 330/330 通过，类型检查和生产构建通过，改动文件 lint 0 errors／2 warnings；受控全量 `--maxWorkers=2` 为 290 文件／7,266 项全部通过，coverage 四项均 100%。独立审查无发现，CodeRabbit Minor 已修复但新 head 复审受限流；可恢复归档已完成，完整 lint／E2E、目标 CI 与正式验收仍待。见[设计](superpowers/specs/2026-11-20-v0.91.0-cross-page-selection-design.md)、[计划](implementation/2026-11-20-v0.91.0-cross-page-selection.md)和[开发进度](product/development-status.md)。不查 CI、不发布部署。
+[短链跨页手动选择](product/scope-v0.91.0.md)已实现并由 PR #402 正常 squash 合入，随后 PR #403 补齐交付文档；测试跟进 PR #405、#406 也已正常合并并独立核验。本人／全站列表在同一筛选下保留最多 100 条手动选择，切页／更改每页条数保留选择，筛选变化清空；表头全选／半选只反映当前页。Node 26.3.0／pnpm 11.5.0 下 8 个相关单元测试文件 330/330 通过；受控全量前端测试 290 文件／7,266 项及四项 coverage 100%，生产构建和类型检查通过。真实浏览器主流程及分页历史回归共 34 项通过。PR #405/#406 的 CodeRabbit 意见均已修正，但限额未覆盖后续准确 head；完整 `test:e2e`、目标 CI 与正式验收仍待。可恢复归档、merge SHA/tree/唯一 parent 和审查覆盖边界见[验收](implementation/v0.91.0-acceptance.md)，统一进度见[开发进度](product/development-status.md)。不查 CI、不发布部署。
 
 ## 最近完成（2026-11-18，v0.89.0）
 

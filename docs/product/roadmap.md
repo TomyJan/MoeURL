@@ -1,8 +1,8 @@
 # 路线图
 
-## 当前开发（2026-11-20，v0.91.0）
+## 当前开发（2026-11-21，v0.91.0）
 
-[短链跨页手动选择](scope-v0.91.0.md)：本人和全站列表保留同一筛选下的手动勾选，最多 100 条；表头全选／半选只反映当前页。不做跨页全选，不新增 API、数据库、权限或依赖。PR #402 已正常 squash 合入，文档 follow-up PR #403 也已正常合入；最终 whole-owned 归档 `moeurl-v091-pr403-final-delivery.zip` 的 SHA-256 为 `320F70E9373DD97E6A6DDC2C7220EDEB14EA4172A6754324960BAEFA0EFC8062`。完整本地门禁、最终审查和正式验收仍分开记录；准确状态见[开发进度](development-status.md)及[计划](../implementation/2026-11-20-v0.91.0-cross-page-selection.md)。不查 CI、不发布部署。
+[短链跨页手动选择](scope-v0.91.0.md)：本人和全站列表保留同一筛选下最多 100 条手动勾选；切页／更改每页条数保留选择，筛选变化清空；表头全选／半选只反映当前页。不提供跨页全选，不新增 API、数据库、权限或依赖。实现 PR #402、文档 PR #403、E2E 跟进 PR #405/#406 已正常 squash 合并，merge 身份均经 API 与独立 fetch 核验。主流程及历史分页回归共 34 项真实浏览器测试通过；PR #405/#406 的 CodeRabbit 意见已修复，但最终 head 因额度限制未获复审。完整 E2E、目标 CI 和正式验收状态见[开发进度](development-status.md)与[验收](../implementation/v0.91.0-acceptance.md)。不查 CI、不发布部署。
 
 ## 最近完成（2026-11-18，v0.89.0）
 

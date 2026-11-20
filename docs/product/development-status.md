@@ -1,8 +1,8 @@
 # 开发进度与能力清单
 
-## 当前实施（2026-11-20，v0.91.0）
+## 当前实施（2026-11-21，v0.91.0）
 
-[短链跨页手动选择](scope-v0.91.0.md)已实现并由 PR #402 正常 squash 合入 `6bc21ef6bed07c77ee4a404e3cb961880087f8ff`；文档 follow-up PR #403 已正常 squash 合入 `044228c43926c6527af4ab7017fccb71aa80c692`，最终 tree `86ed380664e7a902cee8c347153b9088a835d0d3`。版本仍未正式验收或发布。本人／全站列表保留同一筛选下最多 100 条手动勾选，页头选择仅作用当前页；复制、选中 CSV 导出、批量标签和管理员转移继续使用完整选择快照。Node 26.3.0／pnpm 11.5.0 下 8 个相关文件 330/330 通过；类型检查、生产构建通过，改动文件 lint 0 errors／2 warnings。受控全量 `--maxWorkers=2` 为 290 文件／7,266 项全部通过，coverage 四项均为 100%；跨页选择影响的 5 组真实 Playwright 场景共 34/34 通过，包含 25 项复制／导出主流程以及 9 项历史分页／每页条数回归；完整 `test:e2e` 仍待运行。独立审查无发现，CodeRabbit Minor 已修复但最终 head 复审受限流；最新候选的 CodeRabbit 覆盖范围与后续门禁见[验收](../implementation/v0.91.0-acceptance.md)。原 PR #403 whole-owned 归档为 `D:/Dev/TomyJan/MoeURL/.tmp/v091-evidence/whole-owned-delivery-20261120-pr403-final/moeurl-v091-pr403-final-delivery.zip`，SHA-256 `320F70E9373DD97E6A6DDC2C7220EDEB14EA4172A6754324960BAEFA0EFC8062`；后续本地证据不替代完整 lint／E2E、目标 CI 与正式验收。无新 API、数据库、权限或依赖；不查 CI、不发布部署。设计、计划和准确验收见[规格](../superpowers/specs/2026-11-20-v0.91.0-cross-page-selection-design.md)、[计划](../implementation/2026-11-20-v0.91.0-cross-page-selection.md)与[验收](../implementation/v0.91.0-acceptance.md)。
+[短链跨页手动选择](scope-v0.91.0.md)已实现并由 PR #402 正常 squash 合入 `6bc21ef6bed07c77ee4a404e3cb961880087f8ff`；PR #403 文档、PR #405／#406 E2E 跟进也已正常 squash 合入，均经 GitHub API 与独立 fetch 核验。版本仍未正式验收或发布。本人／全站列表保留同一筛选下最多 100 条手动勾选，切页或更改每页条数保留，筛选、身份／登录轮次或权限集合变化清空；表头全选／半选仅作用当前页；复制、选中 CSV 导出、批量标签和管理员转移消费完整选择快照。Node 26.3.0／pnpm 11.5.0 下 8 个相关文件 330/330 通过；类型检查、生产构建通过，改动文件 lint 0 errors／2 warnings。受控全量 `--maxWorkers=2` 为 290 文件／7,266 项全部通过，coverage 四项均为 100%；跨页主流程及历史分页回归共 34 项真实 Playwright 测试通过，其中 PR #406 最终 head 再跑 9/9，定向 ESLint 2 文件 0 errors。完整 `test:e2e` 仍待运行。CodeRabbit 覆盖 PR #405 起始 head `3abef194` 与 PR #406 起始 head `9b8f148`；各自发现的两项和一项有效 nitpick 已修复，但 PR #405 最终 head `903e762`、PR #406 最终 head `5b044111` 未获限额复审。代码合并、审查覆盖和正式验收严格分开；无新 API、数据库、权限或依赖。详细身份、回执和剩余门禁见[验收](../implementation/v0.91.0-acceptance.md)。不查 CI、不发布部署。
 
 ## 最近完成（2026-11-18，v0.89.0）
 
