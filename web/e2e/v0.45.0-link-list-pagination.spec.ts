@@ -30,11 +30,15 @@ function listed(page: Page, prefix: string, keyword: string, number: number, sta
   })
 }
 
-/** Checks that only the confirmed page is visible and all current-page selections are clear. */
-async function visible(page: Page, items: ShortLink[]) {
+/** Checks the confirmed page and exact selections retained on this page. */
+async function visible(page: Page, items: ShortLink[], selectedIDs: readonly string[] = []) {
   await expect(page.getByTestId('console-link-row')).toHaveCount(items.length)
-  for (const item of items) await expect(page.getByTestId('console-link-row').filter({ hasText: item.slug })).toHaveCount(1)
-  for (const checkbox of await page.getByRole('checkbox').all()) await expect(checkbox).not.toBeChecked()
+  for (const item of items) {
+    const row = page.getByTestId('console-link-row').filter({ hasText: item.slug })
+    await expect(row).toHaveCount(1)
+    await expect(row.getByRole('checkbox')).toBeChecked({ checked: selectedIDs.includes(item.id) })
+  }
+  await expect(page.getByRole('checkbox').first()).toBeChecked({ checked: items.length > 0 && items.every(item => selectedIDs.includes(item.id)) })
 }
 
 /** Captures the original page with notifications and requires pagination to fit the viewport. */
@@ -52,7 +56,7 @@ async function capture(page: Page, info: TestInfo, name: string) {
 }
 
 test.use({ serviceWorkers: 'block', actionTimeout: 10_000 })
-// Missing page parameters, cross-page selection, paged CSV or private-note disclosure fail these real UI flows.
+// Exact pages, retained cross-page selection, paged CSV or private-note disclosure fail these real UI flows.
 for (const scope of ['own', 'admin'] as const) for (const en of [false, true]) {
   test('v0.45.0 ' + scope + (en ? ' en 390px' : ' zh-CN 1280px') + ' paginates exact owned links and exports every applied match', async ({ browser, page: manager }, info) => {
     test.setTimeout(90_000)
@@ -85,8 +89,9 @@ for (const scope of ['own', 'admin'] as const) for (const en of [false, true]) {
       await page.getByTestId('console-link-row').first().getByRole('checkbox').check()
       const secondRead = listed(page, prefix, keyword, 2)
       await page.getByRole('button', { name: en ? 'Next page' : '下一页', exact: true }).press('Enter')
-      const secondPage = await secondRead; await visible(page, secondPage)
+      const secondPage = await secondRead; await visible(page, secondPage, [firstPage[0]!.id])
       expect([...firstPage, ...secondPage].map(item => item.id).sort()).toEqual(links.map(item => item.id).sort())
+      await expect(page.getByTestId('batch-toolbar')).toContainText(en ? '1 selected' : '已选择 1 条')
       await expect(page.getByTestId('short-link-pagination-summary')).toHaveText(en ? 'Page 2 of 2, 21 links' : '第 2 / 2 页，共 21 条')
       await expect(page.getByRole('button', { name: en ? 'Next page' : '下一页', exact: true })).toBeDisabled()
 
@@ -109,10 +114,10 @@ for (const scope of ['own', 'admin'] as const) for (const en of [false, true]) {
 
       const returned = listed(page, prefix, keyword, 1)
       await page.getByRole('button', { name: en ? 'Previous page' : '上一页', exact: true }).press('Enter')
-      expect((await returned).map(item => item.id)).toEqual(firstPage.map(item => item.id)); await visible(page, firstPage)
+      expect((await returned).map(item => item.id)).toEqual(firstPage.map(item => item.id)); await visible(page, firstPage, [firstPage[0]!.id])
       const secondAgain = listed(page, prefix, keyword, 2)
       await page.getByRole('button', { name: en ? 'Next page' : '下一页', exact: true }).press('Enter'); await secondAgain
-      await visible(page, secondPage)
+      await visible(page, secondPage, [firstPage[0]!.id])
       const filtered = listed(page, prefix, keyword, 1, 'active')
       await page.getByRole('combobox', { name: en ? 'Status' : '状态筛选', exact: true }).press('Enter')
       await page.getByRole('option', { name: en ? 'Active' : '启用', exact: true }).click()
@@ -120,7 +125,7 @@ for (const scope of ['own', 'admin'] as const) for (const en of [false, true]) {
       await expect(page.getByRole('button', { name: en ? 'Previous page' : '上一页', exact: true })).toBeDisabled()
       await capture(page, info, 'pagination-filter-reset-' + scope + '-' + language)
       const proofPath = info.outputPath('pagination-proof.json')
-      await writeFile(proofPath, JSON.stringify({ scope, language, width, browser: browser.version(), driverNode: process.version, fixtureIDs: links.map(item => item.id), pageOneIDs: firstPage.map(item => item.id), pageTwoIDs: secondPage.map(item => item.id), fixedPageSize: 20, clearsSelection: true, filterResetsPage: true, exactAllMatchesCSV: true, originalColumns: 17, noteExcluded: true, disposableDatabase: true }, null, 2))
+      await writeFile(proofPath, JSON.stringify({ scope, language, width, browser: browser.version(), driverNode: process.version, fixtureIDs: links.map(item => item.id), pageOneIDs: firstPage.map(item => item.id), pageTwoIDs: secondPage.map(item => item.id), fixedPageSize: 20, retainsSelectionAcrossPages: true, filterClearsSelection: true, filterResetsPage: true, exactAllMatchesCSV: true, originalColumns: 17, noteExcluded: true, disposableDatabase: true }, null, 2))
       await info.attach('pagination-proof', { path: proofPath, contentType: 'application/json' })
     } catch (error) { failures.push(error) } finally {
       for (const link of links) { try { await success(manager.request, '/admin/short-link/delete', { id: link.id }) } catch (error) { failures.push(error) } }

@@ -39,11 +39,15 @@ function listed(page: Page, prefix: string, keyword: string, number: number, siz
   })
 }
 
-/** Matches the confirmed collection and requires every current-page selection to be clear. */
-async function visible(page: Page, items: ShortLink[]) {
+/** Matches the confirmed collection and exact selections retained on this page. */
+async function visible(page: Page, items: ShortLink[], selectedIDs: readonly string[] = []) {
   await expect(page.getByTestId('console-link-row')).toHaveCount(items.length)
-  for (const item of items) await expect(page.getByTestId('console-link-row').filter({ hasText: item.slug })).toHaveCount(1)
-  for (const checkbox of await page.getByRole('checkbox').all()) await expect(checkbox).not.toBeChecked()
+  for (const item of items) {
+    const row = page.getByTestId('console-link-row').filter({ hasText: item.slug })
+    await expect(row).toHaveCount(1)
+    await expect(row.getByRole('checkbox')).toBeChecked({ checked: selectedIDs.includes(item.id) })
+  }
+  await expect(page.getByRole('checkbox').first()).toBeChecked({ checked: items.length > 0 && items.every(item => selectedIDs.includes(item.id)) })
 }
 
 /** Saves the unmodified page and checks the size control and navigation fit the viewport. */
@@ -61,7 +65,7 @@ async function capture(page: Page, info: TestInfo, name: string) {
 }
 
 test.use({ serviceWorkers: 'block', actionTimeout: 10_000 })
-// A fixed request size, cross-page selection, paged CSV or private predicate in URLs fails these real flows.
+// A fixed request size, lost selection, paged CSV or private predicate in URLs fails these real flows.
 for (const scope of ['own', 'admin'] as const) for (const en of [false, true]) {
   test('v0.48.0 ' + scope + (en ? ' en 390px' : ' zh-CN 1280px') + ' changes exact page sizes for public and private lists', async ({ browser, page: manager }, info) => {
     test.setTimeout(180_000)
@@ -102,10 +106,11 @@ for (const scope of ['own', 'admin'] as const) for (const en of [false, true]) {
       await page.getByTestId('console-link-row').first().getByRole('checkbox').check()
       const fifty = listed(page, prefix, keyword, 1, 50)
       await size.press('Enter'); await page.getByRole('option', { name: '50', exact: true }).click()
-      const first = await fifty; await visible(page, first)
+      const first = await fifty; await visible(page, first, [first[0]!.id])
       const secondRead = listed(page, prefix, keyword, 2, 50)
       await page.getByRole('button', { name: en ? 'Next page' : '下一页', exact: true }).press('Enter')
-      const second = await secondRead; await visible(page, second)
+      const second = await secondRead; await visible(page, second, [first[0]!.id])
+      await expect(page.getByTestId('batch-toolbar')).toContainText(en ? '1 selected' : '已选择 1 条')
       expect([...first, ...second].map(link => link.id).sort()).toEqual([...links.keys()].sort())
       await expect(page.getByTestId('short-link-pagination-summary')).toHaveText(en ? 'Page 2 of 2, 61 links' : '第 2 / 2 页，共 61 条')
 
@@ -142,7 +147,7 @@ for (const scope of ['own', 'admin'] as const) for (const en of [false, true]) {
       await expect(page.getByTestId('short-link-pagination-summary')).toHaveText(en ? 'Page 1 of 1, 61 links' : '第 1 / 1 页，共 61 条')
       await capture(page, info, 'size-100-private-' + scope + '-' + language)
       const proofPath = info.outputPath('page-size-proof.json')
-      await writeFile(proofPath, JSON.stringify({ scope, language, width, browser: browser.version(), driverNode: process.version, fixtureIDs: [...links.keys()], pageOneIDs: first.map(link => link.id), pageTwoIDs: second.map(link => link.id), defaultSize: 20, supportedSizes: [20, 50, 100], exactAllMatchesCSV: true, originalColumns: 17, privatePOST: true, disposableDatabase: true }, null, 2))
+      await writeFile(proofPath, JSON.stringify({ scope, language, width, browser: browser.version(), driverNode: process.version, fixtureIDs: [...links.keys()], pageOneIDs: first.map(link => link.id), pageTwoIDs: second.map(link => link.id), defaultSize: 20, supportedSizes: [20, 50, 100], retainsSelectionOnPageSizeChange: true, retainsSelectionAcrossPages: true, filtersClearSelection: true, exactAllMatchesCSV: true, originalColumns: 17, privatePOST: true, disposableDatabase: true }, null, 2))
       await info.attach('page-size-proof', { path: proofPath, contentType: 'application/json' })
     } catch (error) { failures.push(error) } finally {
       // Recover exact fixture IDs if a post-batch read failed; never delete unknown rows.
