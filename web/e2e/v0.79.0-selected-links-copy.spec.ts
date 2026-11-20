@@ -113,12 +113,13 @@ for (const language of ['zh-CN', 'en']) for (const width of [1280, 320]) for (co
       expect(reads).toBe(0)
       await dismissFeedback(page)
       await page.getByRole('button', { name: en ? 'Next page' : '下一页', exact: true }).click()
-      await expect(rows).toHaveCount(2); await expect(whole).toBeEnabled(); await expect(selected).toBeDisabled()
+      await expect(rows).toHaveCount(2); await expect(whole).toBeEnabled(); await expect(selected).toBeEnabled()
       await choose(1)
       const last = await rows.nth(1).locator('a.link-table__url:not(.link-table__target)').textContent()
       if (width === 320) await selected.tap(); else await selected.click()
-      await expect.poll(() => page.evaluate(async () => (await navigator.clipboard.readText()).replace(/\r\n/g, '\n'))).toBe(last)
-      await expect(page.getByText(en ? 'Copied 1 selected link' : '已复制 1 条所选短链', { exact: true })).toBeVisible()
+      const crossPageExpected = urls[2] + '\n' + urls[0] + '\n' + last
+      await expect.poll(() => page.evaluate(async () => (await navigator.clipboard.readText()).replace(/\r\n/g, '\n'))).toBe(crossPageExpected)
+      await expect(page.getByText(en ? 'Copied 3 selected links' : '已复制 3 条所选短链', { exact: true })).toBeVisible()
       expect(reads).toBe(1)
       await dismissFeedback(page)
       // Only substitutes the OS rejection boundary, never claims actual OS permission denial.

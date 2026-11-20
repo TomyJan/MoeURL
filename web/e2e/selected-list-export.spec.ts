@@ -108,10 +108,14 @@ for (const language of ['zh-CN', 'en']) for (const width of [1280, 320]) for (co
       const actualRequest = await sent
       expect(actualRequest.method()).toBe('POST')
       expect(new URL(actualRequest.url()).search).toBe('')
-      expect(actualRequest.postDataJSON()).toEqual({ ids: [links[0]!.id, links[1]!.id] })
+      // Selection order is the explicit click order (row 1, then row 0), and
+      // v0.91 keeps that order stable while selection crosses pages.
+      expect(actualRequest.postDataJSON()).toEqual({ ids: [links[1]!.id, links[0]!.id] })
       const identity = await api<{ user: User }>(page.request, '/auth/me')
       expect(actualRequest.headers()['x-moeurl-expected-user-id']).toBe(identity.user.id)
       const text = await content(await downloaded, admin ? 'moeurl-links-all-selected.csv' : 'moeurl-links-own-selected.csv', info, 'selected.csv')
+      // The API orders CSV rows canonically even though the request preserves
+      // the user's click order.
       expect(text.slice(header.length).trimEnd().split('\r\n').map(line => line.split(',')[0])).toEqual([links[0]!.id, links[1]!.id])
       expect(text).toContain(freshTitle)
       expect(text).not.toContain('password_hash'); expect(text).not.toContain('note_content')
@@ -133,8 +137,26 @@ for (const language of ['zh-CN', 'en']) for (const width of [1280, 320]) for (co
       const full = await content(await fullDownload, admin ? 'moeurl-links-all.csv' : 'moeurl-links-own.csv', info, 'all-filtered.csv')
       expect(full.slice(header.length).trimEnd().split('\r\n')).toHaveLength(22)
       await dismissFeedback(page)
+      const pageTwoList = page.waitForResponse(response => {
+        const url = new URL(response.url())
+        return url.pathname === '/api/v1' + (admin ? '/admin' : '') + '/short-link/list' && url.searchParams.get('q') === keyword && url.searchParams.get('page') === '2'
+      })
       await page.getByRole('button', { name: en ? 'Next page' : '下一页', exact: true }).click()
-      await expect(rows).toHaveCount(2); await expect(selected).toBeDisabled()
+      const pageTwoPayload = await (await pageTwoList).json() as { code: number; data: { items: Link[] } }
+      expect(pageTwoPayload.code).toBe(0)
+      await expect(rows).toHaveCount(2); await expect(selected).toBeEnabled()
+      const pageTwo = pageTwoPayload.data.items[1]
+      expect(pageTwo).toBeTruthy()
+      await rows.nth(1).getByRole('checkbox').check()
+      const crossPageRequest = page.waitForRequest(value => new URL(value.url()).pathname === path)
+      const crossPageDownload = page.waitForEvent('download')
+      await selected.click()
+      expect((await crossPageRequest).postDataJSON()).toEqual({ ids: [links[1]!.id, links[0]!.id, pageTwo!.id] })
+      const crossPageText = await content(await crossPageDownload, admin ? 'moeurl-links-all-selected.csv' : 'moeurl-links-own-selected.csv', info, 'cross-page-selected.csv')
+      const crossPageIds = crossPageText.slice(header.length).trimEnd().split('\r\n').map(line => line.split(',')[0])
+      expect(crossPageIds).toHaveLength(3)
+      expect(new Set(crossPageIds)).toEqual(new Set([links[0]!.id, links[1]!.id, pageTwo!.id]))
+      await dismissFeedback(page)
       const current = await group(request, admin ? 'admin' : 'user')
       await grants(request, current.key, current.permissions.filter(value => value !== 'short_link:export'))
       await page.reload()

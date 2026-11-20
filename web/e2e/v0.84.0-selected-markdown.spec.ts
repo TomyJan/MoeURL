@@ -138,7 +138,19 @@ for (const language of ['zh-CN', 'en']) for (const width of [1280, 320]) for (co
       expect(reads).toBe(0)
       await dismissFeedback(page)
       await page.getByRole('button', { name: en ? 'Next page' : '下一页', exact: true }).click()
-      await expect(rows).toHaveCount(2); await expect(whole).toBeEnabled(); await expect(selected).toBeDisabled(); await expect(plain).toBeDisabled()
+      // v0.91 keeps the two selected links available after moving to the
+      // second page; page-local copy remains separate from selected copy.
+      await expect(rows).toHaveCount(2); await expect(whole).toBeEnabled(); await expect(selected).toBeEnabled(); await expect(plain).toBeEnabled()
+      if (width === 320) await selected.tap(); else await selected.click()
+      // Once selection spans pages, the selected snapshot is intentionally
+      // emitted in explicit click order rather than the current page order.
+      const crossPageExpected = [links[1], links[0]].map(link => {
+        const label = (link.title || link.url).replace(/&/g, '&amp;').replace(/[\\`*_[\]{}()#+.!|<>~-]/g, '\\$&')
+        const destination = link.url.replace(/[\\<> ]/g, character => encodeURIComponent(character))
+        return `- [${label}](<${destination}>)`
+      }).join('\n')
+      await expect.poll(() => page.evaluate(async () => (await navigator.clipboard.readText()).replace(/\r\n/g, '\n'))).toBe(crossPageExpected)
+      await expect(page.getByText(en ? 'Copied 2 Markdown links' : '已复制 2 条 Markdown 短链', { exact: true }).last()).toBeVisible()
       expect(reads).toBe(1)
     })
   })
