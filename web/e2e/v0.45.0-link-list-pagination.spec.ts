@@ -33,12 +33,15 @@ function listed(page: Page, prefix: string, keyword: string, number: number, sta
 /** Checks the confirmed page and exact selections retained on this page. */
 async function visible(page: Page, items: ShortLink[], selectedIDs: readonly string[] = []) {
   await expect(page.getByTestId('console-link-row')).toHaveCount(items.length)
+  const selectedOnPage = items.filter(item => selectedIDs.includes(item.id)).length
   for (const item of items) {
     const row = page.getByTestId('console-link-row').filter({ hasText: item.slug })
     await expect(row).toHaveCount(1)
     await expect(row.getByRole('checkbox')).toBeChecked({ checked: selectedIDs.includes(item.id) })
   }
-  await expect(page.getByRole('checkbox').first()).toBeChecked({ checked: items.length > 0 && items.every(item => selectedIDs.includes(item.id)) })
+  const header = page.getByRole('checkbox').first()
+  await expect(header).toBeChecked({ checked: items.length > 0 && selectedOnPage === items.length })
+  await expect(header).toHaveJSProperty('indeterminate', selectedOnPage > 0 && selectedOnPage < items.length)
 }
 
 /** Captures the original page with notifications and requires pagination to fit the viewport. */
