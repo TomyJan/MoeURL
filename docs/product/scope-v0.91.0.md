@@ -4,7 +4,7 @@
 
 当前实施中。本人和全站短链列表已完成 hook 与页面切片；其定向 54 项测试通过。完整前端测试、覆盖率、类型检查、lint、生产构建、独立最终审查和标准交付仍未完成，不据此宣称版本验收或发布。
 
-让用户在同一筛选结果中逐页检查时保留明确手动勾选的短链，并沿用既有批量操作。完整边界见[v0.91.0 设计](../superpowers/specs/2026-11-20-v0.91.0-cross-page-selection-design.md)及[实现计划](../superpowers/plans/2026-11-20-v0.91.0-cross-page-selection.md)。
+让用户在同一筛选结果中逐页检查时保留明确手动勾选的短链，并沿用既有批量操作。完整边界见[v0.91.0 设计](../superpowers/specs/2026-11-20-v0.91.0-cross-page-selection-design.md)及[实现计划](../implementation/2026-11-20-v0.91.0-cross-page-selection.md)。
 
 ## 必须实现
 
