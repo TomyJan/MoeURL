@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-20，v0.91.0）
 
-[短链跨页手动选择](product/scope-v0.91.0.md)正在实施：同一筛选下跨页保留最多 100 条手动选择，表头全选仅作用当前页；复制、选中导出、批量标签和管理员转移也消费完整选择快照。Node 26.3.0／pnpm 11.5.0 下 8 个相关测试文件 330/330 通过，类型检查和生产构建通过，改动文件 lint 0 errors／2 warnings；受控全量 `--maxWorkers=2` 为 290 文件／7,266 项全部通过，coverage 四项均 100%。独立审查无发现，CodeRabbit Minor 已修复但新 head 复审受限流；正常合并与归档仍待，不据此标记验收或发布。见[设计](superpowers/specs/2026-11-20-v0.91.0-cross-page-selection-design.md)、[计划](implementation/2026-11-20-v0.91.0-cross-page-selection.md)和[开发进度](product/development-status.md)。不查 CI、不发布部署。
+[短链跨页手动选择](product/scope-v0.91.0.md)已实现并由 PR #402 正常 squash 合入 `6bc21ef6bed07c77ee4a404e3cb961880087f8ff`；版本仍未验收或发布。同一筛选下跨页保留最多 100 条手动选择，表头全选仅作用当前页；复制、选中导出、批量标签和管理员转移也消费完整选择快照。Node 26.3.0／pnpm 11.5.0 下 8 个相关测试文件 330/330 通过，类型检查和生产构建通过，改动文件 lint 0 errors／2 warnings；受控全量 `--maxWorkers=2` 为 290 文件／7,266 项全部通过，coverage 四项均 100%。独立审查无发现，CodeRabbit Minor 已修复但新 head 复审受限流；可恢复归档已完成，完整 lint／E2E、目标 CI 与正式验收仍待。见[设计](superpowers/specs/2026-11-20-v0.91.0-cross-page-selection-design.md)、[计划](implementation/2026-11-20-v0.91.0-cross-page-selection.md)和[开发进度](product/development-status.md)。不查 CI、不发布部署。
 
 ## 最近完成（2026-11-18，v0.89.0）
 
