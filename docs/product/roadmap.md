@@ -12,6 +12,8 @@ PR #391、#393、#394、#395 均已正常 squash 合并并经独立 SHA/tree/唯
 
 文档状态随后由 PR #397 和 PR #399 同步到其他入口。PR #397 合并 `e3cf8be293496bf819f551c879cf01ee499bb975` 的 tree／唯一 parent 为 `f498a58f24f1b1f1e1d1548a2a428083a7b01770`／`e572ad631e77b582f13b80c09ba0127ee3bb8ef3`；起始 head 的 1 项 CodeRabbit Minor 已修正，最终 head 未获额度复审。PR #399 合并 `de03f93dfe67bc3dd8fd959d806079c953f820ff` 的 tree／唯一 parent 为 `3c7276a5d9d66c9f2d9e7c0569ba3ae99787c064`／`e3cf8be293496bf819f551c879cf01ee499bb975`，经独立 fetch 核验；其 CodeRabbit 请求被限流，没有 review。两次 follow-up 的归档回执见[v0.90.0 验收](../implementation/v0.90.0-acceptance.md)。
 
+PR #400 继续完成入口同步：准确签名候选 `2a476aee8300b06ca707d14d095be37674d23fe1` 经真实 CodeRabbit `reviewed`（source／covered SHA 一致、有效意见 0），正常 squash 合并 `db7573192f3b20c8ac21a334da625dc93f900f69`，tree `189281551770008387e50d85eafe0d9a732119e7`、唯一 parent `de03f93dfe67bc3dd8fd959d806079c953f820ff` 经独立 fetch 核验。恢复归档的 ZIP／逐项 hash／离线 refs 与 bare `fsck` 回执见[v0.90.0 验收](../implementation/v0.90.0-acceptance.md)。未查 CI、未发布部署。
+
 ## v0.88.0 合并前检查点（历史）
 
 当前增量[自定义 CSV 完整字段映射](scope-v0.88.0.md)的代码已由 PR #379 合入 `9c20f60c`。完整本地前端门禁、准确产品浏览器及 HIGH／CRITICAL 扫描通过；原 PR 的真实审查和合并独立核验已完成。扫描验收文档跟进 PR #385 的自身审查和集成核验已完成，恢复归档也已完成，标准合同收尾状态见验收，详见[开发进度](development-status.md)与[验收](../implementation/v0.88.0-acceptance.md)。不做别名猜测、历史恢复或后端扩展，不查询 CI、不发布部署。

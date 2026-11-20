@@ -8,6 +8,8 @@ PR #391、#393、#394、#395 均已正常 squash 合并并经独立 SHA/tree/唯
 
 PR #397 文档 follow-up 合并 `e3cf8be293496bf819f551c879cf01ee499bb975`（tree `f498a58f24f1b1f1e1d1548a2a428083a7b01770`，唯一 parent `e572ad631e77b582f13b80c09ba0127ee3bb8ef3`）；其起始 head 的 1 项 CodeRabbit Minor 已修正，最终 head 未获额度复审。PR #399 将该状态同步至其他文档入口，合并 `de03f93dfe67bc3dd8fd959d806079c953f820ff`（tree `3c7276a5d9d66c9f2d9e7c0569ba3ae99787c064`，唯一 parent `e3cf8be293496bf819f551c879cf01ee499bb975`）经独立 fetch 核验；其 CodeRabbit 请求被限流，没有 review。两个 follow-up 的归档和恢复回执见[v0.90.0 验收](v0.90.0-acceptance.md)。
 
+PR #400 将 PR #397／#399 的状态继续同步到全部入口。签名候选 `2a476aee8300b06ca707d14d095be37674d23fe1` 获真实 CodeRabbit `reviewed`，source／covered SHA 一致、有效意见 0；正常 squash merge `db7573192f3b20c8ac21a334da625dc93f900f69` 的 tree／唯一 parent 为 `189281551770008387e50d85eafe0d9a732119e7`／`de03f93dfe67bc3dd8fd959d806079c953f820ff`，经独立 fetch 核验。增量恢复归档包含已验真的 PR #399 基包，SHA-256 `45F3B69C8BC7AC9D4B609A81C1975D49FB8C4C8324813FAF6C4218DA104FB126`；离线 refs 和独立 bare `git fsck --full` 通过，详见[v0.90.0 验收](v0.90.0-acceptance.md)。未查 CI、未发布部署。
+
 ## 当前维护（2026-11-16，v0.87.1）
 
 PR377／v0.87.0 手动 CSV 标签列映射已完成三个标准任务、完整本地验证、唯一 Sol 终审、准确候选真实 CodeRabbit、正常合并独立核验及十份工作记录可恢复归档；合并提交为 `b15349df`，已交付产品为 0.87.0。空标签数组仍受 metadata 权限限制，其他高级字段映射和历史恢复尚未交付。准确执行身份、失败归属及延期 Minor 见[前版交付补记](v0.87.0-acceptance.md)。
