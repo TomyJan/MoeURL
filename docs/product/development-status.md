@@ -1,5 +1,9 @@
 # 开发进度与能力清单
 
+## 当前实施（2026-11-20，v0.91.0）
+
+[短链跨页手动选择](scope-v0.91.0.md)正在实施：本人／全站列表保留同一筛选下最多 100 条的手动勾选，页头选择仅作用当前页。hook 和两页集成切片已实现，54 项定向测试通过；完整本地前端门禁、最终审查及交付仍待，产品版本未据此标记完成。无新 API、数据库、权限或依赖；不查 CI、不发布部署。设计和任务见[规格](../superpowers/specs/2026-11-20-v0.91.0-cross-page-selection-design.md)与[计划](../superpowers/plans/2026-11-20-v0.91.0-cross-page-selection.md)。
+
 ## 最近完成（2026-11-18，v0.89.0）
 
 [有限 CSV 表头匹配](scope-v0.89.0.md)已由 PR #386 合入，merge commit `f236951862f53e59cfedbe318e224d48fd1c902e`。准确 head 的真实 CodeRabbit 为 `reviewed`、source／covered SHA 一致且有效意见 0；合并 tree `3adb9207da8e368b24e8c613dab6e487ab2b0161`、唯一父 `38b16dda98669d3840ccf0c909f3efb031848bb8` 经 API 与独立 fetch 核验。候选完整本地门禁及准确产品中英桌面／390 px 浏览器 5/5 通过；未把 master 上随后合入的依赖更新冒充为重验。最终 whole-owned 恢复归档已完成，3312 项全解压逐 hash，SHA-256 `4E5111079E7745BCE55AE758F98E51F463A416442AD848DEE5C714ABC44AF315`。未查 CI、未发布部署；完整边界和归档回执见[验收](../implementation/v0.89.0-acceptance.md)。
