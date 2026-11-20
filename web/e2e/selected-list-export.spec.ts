@@ -108,10 +108,14 @@ for (const language of ['zh-CN', 'en']) for (const width of [1280, 320]) for (co
       const actualRequest = await sent
       expect(actualRequest.method()).toBe('POST')
       expect(new URL(actualRequest.url()).search).toBe('')
-      expect(actualRequest.postDataJSON()).toEqual({ ids: [links[0]!.id, links[1]!.id] })
+      // Selection order is the explicit click order (row 1, then row 0), and
+      // v0.91 keeps that order stable while selection crosses pages.
+      expect(actualRequest.postDataJSON()).toEqual({ ids: [links[1]!.id, links[0]!.id] })
       const identity = await api<{ user: User }>(page.request, '/auth/me')
       expect(actualRequest.headers()['x-moeurl-expected-user-id']).toBe(identity.user.id)
       const text = await content(await downloaded, admin ? 'moeurl-links-all-selected.csv' : 'moeurl-links-own-selected.csv', info, 'selected.csv')
+      // The API orders CSV rows canonically even though the request preserves
+      // the user's click order.
       expect(text.slice(header.length).trimEnd().split('\r\n').map(line => line.split(',')[0])).toEqual([links[0]!.id, links[1]!.id])
       expect(text).toContain(freshTitle)
       expect(text).not.toContain('password_hash'); expect(text).not.toContain('note_content')
@@ -134,7 +138,7 @@ for (const language of ['zh-CN', 'en']) for (const width of [1280, 320]) for (co
       expect(full.slice(header.length).trimEnd().split('\r\n')).toHaveLength(22)
       await dismissFeedback(page)
       await page.getByRole('button', { name: en ? 'Next page' : '下一页', exact: true }).click()
-      await expect(rows).toHaveCount(2); await expect(selected).toBeDisabled()
+      await expect(rows).toHaveCount(2); await expect(selected).toBeEnabled()
       const current = await group(request, admin ? 'admin' : 'user')
       await grants(request, current.key, current.permissions.filter(value => value !== 'short_link:export'))
       await page.reload()

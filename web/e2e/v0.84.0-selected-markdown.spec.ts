@@ -138,7 +138,9 @@ for (const language of ['zh-CN', 'en']) for (const width of [1280, 320]) for (co
       expect(reads).toBe(0)
       await dismissFeedback(page)
       await page.getByRole('button', { name: en ? 'Next page' : '下一页', exact: true }).click()
-      await expect(rows).toHaveCount(2); await expect(whole).toBeEnabled(); await expect(selected).toBeDisabled(); await expect(plain).toBeDisabled()
+      // v0.91 keeps the two selected links available after moving to the
+      // second page; page-local copy remains separate from selected copy.
+      await expect(rows).toHaveCount(2); await expect(whole).toBeEnabled(); await expect(selected).toBeEnabled(); await expect(plain).toBeEnabled()
       expect(reads).toBe(1)
     })
   })
