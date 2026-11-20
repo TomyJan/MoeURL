@@ -12,6 +12,8 @@ PR #391、#393、#394、#395 均已正常 squash 合并并经独立 SHA/tree/唯
 
 PR #397 的文档 follow-up 已正常合入 `e3cf8be293496bf819f551c879cf01ee499bb975`，tree `f498a58f24f1b1f1e1d1548a2a428083a7b01770`、唯一 parent `e572ad631e77b582f13b80c09ba0127ee3bb8ef3` 经独立核验；其 CodeRabbit 起始 head 的 1 项 Minor 已修正，最终 head `e8291a40003ae34ae2fd9a91f3cad369b8eb38a7` 未获额度复审。随后 PR #399 已从该 master 正常 squash 合入 `de03f93dfe67bc3dd8fd959d806079c953f820ff`，tree `3c7276a5d9d66c9f2d9e7c0569ba3ae99787c064`、唯一 parent `e3cf8be293496bf819f551c879cf01ee499bb975` 经独立 fetch 核验；真实 CodeRabbit 明确限流、未产生 review。两个 follow-up 的可恢复归档和 SHA-256 见[v0.90.0 验收](implementation/v0.90.0-acceptance.md)。
 
+PR #400 将上述交付状态同步到其余入口：签名候选 `2a476aee8300b06ca707d14d095be37674d23fe1` 的真实 CodeRabbit 为 `reviewed`，source／covered SHA 一致且 actionable comments 为 0；8 份 Markdown 的链接与 `git diff --check` 本地核验通过。按 expected head 正常 squash 合并为 `db7573192f3b20c8ac21a334da625dc93f900f69`，tree `189281551770008387e50d85eafe0d9a732119e7`、唯一 parent `de03f93dfe67bc3dd8fd959d806079c953f820ff` 经独立 fetch 核验。增量 whole-owned 恢复包 SHA-256 `45F3B69C8BC7AC9D4B609A81C1975D49FB8C4C8324813FAF6C4218DA104FB126`，包含 PR #399 恢复基包，离线 candidate／merge refs 与独立 bare `git fsck --full` 通过；详细回执见[v0.90.0 验收](implementation/v0.90.0-acceptance.md)。未查 CI、未发布部署。
+
 ## v0.88.0 合并前检查点（历史）
 
 v0.88.0 自定义 CSV 完整字段映射代码已由 PR #379 合入 `9c20f60c`。完整本地前端门禁、中英文桌面／手机真实浏览器和准确镜像 HIGH／CRITICAL 扫描通过；原 PR 最终 head 的真实 CodeRabbit 与正常合并核验已完成。扫描验收补记独立文档跟进 PR #385 的审查及集成核验已完成，恢复归档也已完成，标准合同收尾状态见验收。准确阶段统一见[开发进度](product/development-status.md)、[计划](implementation/v0.88.0-plan.md)与[验收](implementation/v0.88.0-acceptance.md)。未改后端、API、数据库、权限目录或依赖；不查 CI、不发布部署。

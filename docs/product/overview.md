@@ -12,6 +12,8 @@ PR #391、#393、#394、#395 均已正常 squash 合并并经独立 SHA/tree/唯
 
 PR #397 的文档 follow-up 已正常合入 `e3cf8be293496bf819f551c879cf01ee499bb975`（tree `f498a58f24f1b1f1e1d1548a2a428083a7b01770`，唯一 parent `e572ad631e77b582f13b80c09ba0127ee3bb8ef3`）；其起始 head 的 1 项 CodeRabbit Minor 已修正，最终 head 未获额度复审。PR #399 再将该状态同步至其他入口，正常合入 `de03f93dfe67bc3dd8fd959d806079c953f820ff`（tree `3c7276a5d9d66c9f2d9e7c0569ba3ae99787c064`，唯一 parent `e3cf8be293496bf819f551c879cf01ee499bb975`）。PR #399 的真实 CodeRabbit 请求被限流，未产生 review；两个文档 follow-up 的恢复回执见[v0.90.0 验收](../implementation/v0.90.0-acceptance.md)。
 
+PR #400 将 PR #397／#399 的交付状态继续同步到全部入口。准确签名候选 `2a476aee8300b06ca707d14d095be37674d23fe1` 的真实 CodeRabbit 为 `reviewed`、source／covered SHA 一致、有效意见 0；正常 squash merge `db7573192f3b20c8ac21a334da625dc93f900f69` 的 tree 为 `189281551770008387e50d85eafe0d9a732119e7`，唯一 parent 为 `de03f93dfe67bc3dd8fd959d806079c953f820ff`，经独立 fetch 核验。增量恢复包与完整回执见[v0.90.0 验收](../implementation/v0.90.0-acceptance.md)；未查 CI、未发布部署。
+
 ## v0.88.0 合并前检查点（历史）
 
 v0.88.0 已在现有手动映射中补齐短码、跳转方式、过期、访问上限和倒计时五个字段，复用八种创建协议、原权限和请求保护。完整本地前端门禁、中英文桌面／手机浏览器及准确镜像 HIGH／CRITICAL 扫描通过；代码由 PR #379 合入 `9c20f60c`，原 PR 最终 head 的真实 CodeRabbit 和正常合并独立核验已完成。扫描验收补记另走文档跟进 PR #385，其准确候选的真实 CodeRabbit 与正常合并独立核验已完成；恢复归档已完成，标准合同收尾状态见验收。代码合并不代表整版验收或正式发布。准确阶段见[开发进度](development-status.md)、[计划](../implementation/v0.88.0-plan.md)和[验收](../implementation/v0.88.0-acceptance.md)。不查询 CI、不发布部署。
