@@ -4,11 +4,11 @@
 
 [CSV 表头匹配](scope-v0.89.0.md)只增加用户主动填空操作，保留手动应用、隐私、八协议和权限，不新增后端、数据库或项目依赖。PR #386 已正常合入 master（`f236951862f53e59cfedbe318e224d48fd1c902e`），准确 CodeRabbit 审查与合并身份均独立核验；候选本地门禁和真实中英桌面／390 px 浏览器 5/5 通过。whole-owned 恢复包逐项解压验 hash 完成，未借 master 后续依赖更新宣称重验，也未查 CI 或发布部署。状态和恢复位置见[本版验收](../implementation/v0.89.0-acceptance.md)。
 
-## 当前实施验证（2026-11-19，v0.90.0）
+## 当前已完成实施（2026-11-20，v0.90.0）
 
 [导出清单恢复](scope-v0.90.0.md)已实现：严格接受固定 17 列管理 CSV，经当前 Cookie actor 的权限、域名、策略、配额和短码检查后，以单事务新建 1–100 条记录。保留可重建配置，访问用量从 0 开始；旧 ID、归属、时间、事件和密码不恢复。新增 `POST /api/v1/short-link/manifest/restore` 限 1 MiB；migration 00048 将幂等回执容量扩至 100，大回执存在时 Down 安全拒绝。旧八种创建协议仍限 20 条。
 
-PR #391、#393、#394 均已正常 squash 合并并经独立核验，合并提交依次为 `41290b8899dcfe20fc4971a99df6f4dcfa376da6`、`fc2f847a61f43dc5938c7ffa0badbf06e7b17998`、`6d01027db7fe2cee88f53ab59f71570f3f6dabd6`。PR #394 的真实 CodeRabbit `COMMENTED` 审查覆盖修正前 head；其中 1 项有效 Minor 已在后续 head 修正，受限于额度未对修正后 head 重复请求审查。最终 whole-owned 文档归档位于 `D:/Dev/TomyJan/MoeURL/.tmp/v0900-evidence/whole-owned-delivery-20261119-docs-final/`：18,200 项逐项 hash 核验通过，ZIP `moeurl-v0900-docs-final.zip` 的 SHA-256 为 `F31560B219CEA489477B341A1EB176B3BC3F9460DCFD9CE64A26C0ABEF7B626D`，独立 bare repo `fsck` exit 0。PR #394 merge tree `7afddd4e975abae3fa7bef29b0c2dcc9556db2a6`、唯一 parent `fc2f847a61f43dc5938c7ffa0badbf06e7b17998` 已由 API 与独立 fetch 核验。未查 CI、未发布部署；产品显示版本仍为 0.89.0。准确命令、运行身份及归档回执见[v0.90.0 验收](../implementation/v0.90.0-acceptance.md)。
+PR #391、#393、#394、#395 均已正常 squash 合并并经独立 SHA/tree/唯一父核验。PR #395 head `d170a843e0bdf99e68bd31ceb32148c72e1f09ae` 合并为 `b0eb53d86b0ecb96f8c32eac3164020d34399170`，tree `658eddb9600d296c24d462b141b35abfd8e041f1`，唯一 parent `6d01027db7fe2cee88f53ab59f71570f3f6dabd6`。真实 CodeRabbit 覆盖前一 head `34dba455` 并提出两项有效 Minor，均已修正；修正后 head 未获复审，不标记为已审查。whole-owned 文档归档位于 `D:/Dev/TomyJan/MoeURL/.tmp/v0900-evidence/whole-owned-delivery-20261120-docs-final/`，53,844 个成员逐项校验通过；ZIP SHA-256 为 `A89F8B00A91490FE2460DCD94C04501BE249C26EF063838A1592B2E2766854F3`，独立离线恢复和 bare `fsck` 通过。未查 CI、未发布部署；产品显示版本仍为 0.89.0。准确身份及回执见[v0.90.0 验收](../implementation/v0.90.0-acceptance.md)。
 
 ## v0.88.0 合并前检查点（历史）
 
@@ -448,7 +448,7 @@ MoeURL 的核心控制逻辑是权限系统。
 
 主分支已通过 PR #208 合并 [v0.18.0 全站统计、匿名访问明细与操作审计](scope-v0.18.0.md)：管理员全站快照、已有单链分析页内的匿名记录，以及关键业务写入同事务审计和 180 天在线保留。各阶段证据见 [验收](../implementation/v0.18.0-acceptance.md)；已合并，尚未正式发布，不将主分支历史 CI 当作本版验证。
 
-尚未实现的主要方向包括自定义组、头像、自定义 OIDC 模板和账号绑定、独立标签实体与治理、超出 90 天或任意时区分析、品牌上传及模板编辑。导出清单恢复已进入 v0.90.0 实施；IANA 时区显示、有界 CSV 创建、固定强调色和只读标签查找已经交付，不作为全新功能重复规划；其他方向仍须独立收敛范围。
+尚未实现的主要方向包括自定义组、头像、自定义 OIDC 模板和账号绑定、独立标签实体与治理、超出 90 天或任意时区分析、品牌上传及模板编辑。导出清单恢复已在 v0.90.0 完成实现与交付记录；IANA 时区显示、有界 CSV 创建、固定强调色和只读标签查找也已交付，不作为全新功能重复规划；其他方向仍须独立收敛范围。
 
 ## 验证与发布边界
 
