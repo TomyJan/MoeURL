@@ -24,11 +24,11 @@ const links = ['one', 'two'].map(id => ({ id, slug: id, url: `https://go.example
 /** Supplies an explicit account boundary for each page test. */
 function user(permissions = grants, id = 'A'): CurrentUser { return { id, username: id, nickname: '', group: 'user', permissions } }
 /** Mounts the real private list page with isolated server state. */
-function mount(context: 'own' | 'admin' = 'own', account: CurrentUser | null = user(), locale = 'test', settingsStub?: Component) {
+function mount(context: 'own' | 'admin' = 'own', account: CurrentUser | null = user(), locale = 'test', settingsStub?: Component, paginationStub?: Component) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } } })
   clients.push(client)
   if (account) client.setQueryData(['auth', 'me'], { user: account })
-  const view = render(context === 'own' ? MyLinksPage : AdminLinksPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }], createI18n({ legacy: false, locale, messages: locale === 'test' ? {} : messages, missingWarn: false, fallbackWarn: false })], stubs: { ...componentStubs, ...(settingsStub ? { ShortLinkSettingsDialog: settingsStub } : {}) } } })
+  const view = render(context === 'own' ? MyLinksPage : AdminLinksPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }], createI18n({ legacy: false, locale, messages: locale === 'test' ? {} : messages, missingWarn: false, fallbackWarn: false })], stubs: { ...componentStubs, ...(settingsStub ? { ShortLinkSettingsDialog: settingsStub } : {}), ...(paginationStub ? { ShortLinkPagination: paginationStub } : {}) } } })
   return { ...view, client }
 }
 /** Waits for the first list result before choosing one current record. */
@@ -87,6 +87,47 @@ describe('private list batch controls', () => {
     expect(screen.getByRole('progressbar', { name: 'batch.processing' })).toBeTruthy()
     await waitFor(() => expect(batchShortLinks).toHaveBeenLastCalledWith({ ids: ['one'], action: 'disable' }, context))
     expect(client.getQueriesData({ queryKey: [context === 'own' ? 'short-link' : 'admin-short-link'] })[0]?.[0].slice(4, 6)).toEqual(['A', 1])
+  })
+  it.each(['own', 'admin'] as const)('retains manual selections across pages while the header acts only on the visible page in %s', async context => {
+    const firstPage = Array.from({ length: 20 }, (_, index) => ({ ...links[0]!, id: `page1-${index}`, slug: `page1-${index}` }))
+    const secondPage = ['page2-a', 'page2-b'].map(id => ({ ...links[0]!, id, slug: id }))
+    if (context === 'own') {
+      vi.mocked(listShortLinks).mockImplementation(async input => {
+        const page = input?.page ?? 1
+        return { items: page === 1 ? firstPage : secondPage, meta: { page, pageSize: input?.pageSize ?? 20, total: 22 } }
+      })
+    } else {
+      const adminItems = (items: typeof firstPage) => items.map(link => ({ ...link, updatedAt: '2026-10-23T00:00:00.123456Z', owner: { id: 'A', username: 'A', nickname: '' } }))
+      vi.mocked(listAdminShortLinks).mockImplementation(async input => {
+        const page = input?.page ?? 1
+        return { items: adminItems(page === 1 ? firstPage : secondPage), meta: { page, pageSize: input?.pageSize ?? 20, total: 22 } }
+      })
+    }
+    const pagination = defineComponent({ emits: ['change'], template: '<button aria-label="pagination.next" @click="$emit(\'change\', 2)">Next</button>' })
+    mount(context, user(), 'en', undefined, pagination)
+    await screen.findByTestId('console-link-list')
+    await waitFor(() => expect((screen.getAllByRole('checkbox')[1] as HTMLInputElement).disabled).toBe(false))
+    await fireEvent.click(screen.getAllByRole('checkbox')[1]!)
+    await fireEvent.click(screen.getByRole('button', { name: 'pagination.next' }))
+    await waitFor(() => expect((screen.getAllByRole('checkbox')[1] as HTMLInputElement).disabled).toBe(false))
+
+    const header = () => screen.getAllByRole('checkbox')[0] as HTMLInputElement
+    expect(screen.getByTestId('batch-toolbar').textContent).toContain('1 selected')
+    expect(header().checked).toBe(false)
+    expect(header().indeterminate).toBe(false)
+
+    await fireEvent.click(screen.getAllByRole('checkbox')[1]!)
+    expect(header().indeterminate).toBe(true)
+    await fireEvent.click(header())
+    expect(header().checked).toBe(true)
+    await fireEvent.click(header())
+    expect(header().checked).toBe(false)
+    expect(header().indeterminate).toBe(false)
+    expect(screen.getByTestId('batch-toolbar').textContent).toContain('1 selected')
+
+    await fireEvent.click(header())
+    await fireEvent.click(screen.getByTestId('batch-enable'))
+    await waitFor(() => expect(batchShortLinks).toHaveBeenCalledWith({ ids: ['page1-0', 'page2-a', 'page2-b'], action: 'enable' }, context))
   })
   it.each(['own', 'admin'] as const)('freezes delete targets, supports cancellation and manual failed-write retry in %s', async context => {
     mount(context)
@@ -178,9 +219,9 @@ describe('private list batch controls', () => {
     expect(screen.queryByRole('progressbar')).toBeNull()
   })
   it.each([
-    ['zh-CN', 1, '选择当前列表', '选择短链 one', '批量启用', '即将删除 1 条短链，删除后公开地址将不可访问。此操作无法撤销。', '已处理 1 条短链。'],
-    ['en', 1, 'Select current list', 'Select short link one', 'Enable selected', 'Delete 1 link? Its public address will become unavailable. This action cannot be undone.', 'Processed 1 link.'],
-    ['en', 2, 'Select current list', 'Select short link one', 'Enable selected', 'Delete 2 links? Their public addresses will become unavailable. This action cannot be undone.', 'Processed 2 links.'],
+    ['zh-CN', 1, '选择当前页', '选择短链 one', '批量启用', '即将删除 1 条短链，删除后公开地址将不可访问。此操作无法撤销。', '已处理 1 条短链。'],
+    ['en', 1, 'Select current page', 'Select short link one', 'Enable selected', 'Delete 1 link? Its public address will become unavailable. This action cannot be undone.', 'Processed 1 link.'],
+    ['en', 2, 'Select current page', 'Select short link one', 'Enable selected', 'Delete 2 links? Their public addresses will become unavailable. This action cannot be undone.', 'Processed 2 links.'],
   ] as const)('provides translated accessible controls and irreversible delete confirmation in %s (%i selected)', async (locale, count, all, one, enable, confirmation, success) => {
     mount('own', user(), locale)
     await screen.findByRole('checkbox', { name: one })

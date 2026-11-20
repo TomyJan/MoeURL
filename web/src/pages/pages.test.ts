@@ -204,9 +204,22 @@ vi.mock('@tanstack/vue-query', async () => {
       if (Array.isArray(key) && key[0] === 'domain' && key[1] === 'available') {
         return { data: ref({ items: [{ id: '00000000-0000-4000-8000-000000000801', host: 'https://go.example.com', displayName: 'Primary', isDefault: true }] }), isSuccess: ref(true), isError: ref(false), isPending: ref(false) }
       }
-      if (state.listAuth && Array.isArray(options?.queryKey) && options.queryKey[0] === 'auth' && options.queryKey[1] === 'me') {
+      const isAuthQuery = Array.isArray(key) && key[0] === 'auth' && key[1] === 'me'
+      const configuredAuthResult = isAuthQuery
+        ? state.queryResults.find((candidate) => {
+          if (typeof candidate !== 'object' || candidate === null || !('data' in candidate) || !isRef(candidate.data)) return false
+          const data = candidate.data.value
+          return typeof data === 'object' && data !== null && 'user' in data
+        })
+        : undefined
+      if (isAuthQuery && state.listAuth) {
         state.listAuth = false
         return { data: ref(state.queryClient.getQueryData()), isSuccess: ref(true), isPending: ref(false) }
+      }
+      if (isAuthQuery && configuredAuthResult) {
+        state.queryKeys.push(options?.queryKey)
+        state.queryResultIndex += 1
+        return configuredAuthResult
       }
       state.queryKeys.push(options?.queryKey)
       if (Array.isArray(options?.queryKey) && options.queryKey[0] === 'domain' && options.queryKey[1] === 'available') {
@@ -1472,7 +1485,6 @@ describe('pages', () => {
     )
     const view = mount(MyLinksPage)
     const row = screen.getByTestId('console-link-row')
-
     await fireEvent.click(within(row).getByRole('button', { name: 'links.actions.more' }))
     await fireEvent.click(within(row).getByRole('menuitem', { name: 'links.actions.configure' }))
     await fireEvent.update(screen.getByLabelText('shortLinkSettings.targetUrl'), 'https://example.com/updated')

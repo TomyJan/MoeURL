@@ -75,22 +75,22 @@ async function ready() {
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals(); vi.clearAllMocks() })
 
 describe('short-link list pagination', () => {
-  // A hard-coded request size or retained selection would target the wrong collection after resizing.
-  it.each(['own', 'admin'] as const)('changesPageSizeAndRetiresSelection in %s', async context => {
+  // Changing page size must retain selected IDs even though it returns to page one.
+  it.each(['own', 'admin'] as const)('changesPageSizeAndRetainsSelection in %s', async context => {
     const view = mount(context, true, false, 61); await ready()
     expect(screen.getAllByTestId('console-link-row')).toHaveLength(20)
     const pagination = within(screen.getByRole('navigation', { name: 'pagination.label' }))
     await fireEvent.click(within(screen.getAllByTestId('console-link-row')[0]!).getByRole('checkbox'))
     await fireEvent.update(screen.getByLabelText('pagination.pageSize'), '50'); await ready()
     expect(screen.getAllByTestId('console-link-row')).toHaveLength(50)
-    // Visibility is covered by the real row rendering; avoid recomputing JSDOM styles for all 50 checkboxes.
-    expect(screen.getAllByRole('checkbox', { hidden: true }).every(box => !(box as HTMLInputElement).checked)).toBe(true)
+    expect((within(screen.getAllByTestId('console-link-row')[0]!).getByRole('checkbox') as HTMLInputElement).checked).toBe(true)
     let url = new URL(String(view.fetcher.mock.calls.at(-1)![0]), 'http://localhost')
     expect(url.searchParams.get('page')).toBe('1'); expect(url.searchParams.get('pageSize')).toBe('50')
     await fireEvent.click(pagination.getByRole('button', { name: 'pagination.next' })); await ready()
     expect(screen.getAllByTestId('console-link-row')).toHaveLength(11)
     await fireEvent.update(screen.getByLabelText('pagination.pageSize'), '100'); await ready()
     expect(screen.getAllByTestId('console-link-row')).toHaveLength(61)
+    expect((within(screen.getAllByTestId('console-link-row')[0]!).getByRole('checkbox') as HTMLInputElement).checked).toBe(true)
     expect((pagination.getByRole('button', { name: 'pagination.next' }) as HTMLButtonElement).disabled).toBe(true)
     url = new URL(String(view.fetcher.mock.calls.at(-1)![0]), 'http://localhost')
     expect(url.searchParams.get('page')).toBe('1'); expect(url.searchParams.get('pageSize')).toBe('100')
@@ -233,8 +233,8 @@ describe('short-link list pagination', () => {
     await waitFor(() => expect(downloadCsv).toHaveBeenCalledWith(expect.objectContaining({ content: csv })))
     expect((screen.getByLabelText('pagination.pageSize') as HTMLSelectElement).value).toBe('50')
   })
-  // Omitting the page request or retaining selection across pages exposes the wrong write targets.
-  it.each(['own', 'admin'] as const)('loadsSecondPageAndClearsSelection in %s', async context => {
+  // Selection follows IDs across pages without visually selecting unrelated rows.
+  it.each(['own', 'admin'] as const)('retainsSelectionAcrossPages in %s', async context => {
     const view = mount(context)
     await ready()
     expect(screen.getAllByTestId('console-link-row')).toHaveLength(20)
@@ -244,14 +244,14 @@ describe('short-link list pagination', () => {
     expect(screen.getByText('page-two-row')).toBeTruthy()
     expect(screen.queryByText('page-one-row')).toBeNull()
     expect(screen.getAllByTestId('console-link-row')).toHaveLength(1)
-    expect((screen.getAllByRole('checkbox')[1] as HTMLInputElement).checked).toBe(false)
+    expect((within(screen.getAllByTestId('console-link-row')[0]!).getByRole('checkbox') as HTMLInputElement).checked).toBe(false)
     const url = new URL(String(view.fetcher.mock.calls.at(-1)![0]), 'http://localhost')
     expect(url.searchParams.get('page')).toBe('2')
     expect(url.searchParams.get('pageSize')).toBe('20')
     await fireEvent.click(screen.getByRole('button', { name: 'pagination.previous' }))
     await ready()
     expect(screen.getByText('page-one-row')).toBeTruthy()
-    expect((screen.getAllByRole('checkbox')[1] as HTMLInputElement).checked).toBe(false)
+    expect((within(screen.getAllByTestId('console-link-row')[0]!).getByRole('checkbox') as HTMLInputElement).checked).toBe(true)
   })
   // A page key reused after navigation or remount must never restore a retired collection.
   it.each(['own', 'admin'] as const)('ignoresRetiredPageResults in %s', async context => {

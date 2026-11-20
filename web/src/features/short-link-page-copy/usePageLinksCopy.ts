@@ -11,9 +11,12 @@ interface PageLinksCopyOptions {
   blocked: Readonly<Ref<boolean>>
   context: Readonly<Ref<unknown>>
   selection?: Readonly<Ref<readonly string[]>>
+  selectionItems?: Readonly<Ref<readonly SelectionCopyItem[]>>
   format?: 'markdown'
   lock?: Ref<symbol | null>
 }
+type SelectionCopyItem = Pick<ShortLinkListResponse['items'][number], 'id' | 'url'>
+  & Partial<Pick<ShortLinkListResponse['items'][number], 'title'>>
 
 /** Copies only the currently authorized, successful page without reading another server resource. */
 export function usePageLinksCopy(options: PageLinksCopyOptions) {
@@ -46,14 +49,21 @@ export function usePageLinksCopy(options: PageLinksCopyOptions) {
   })
   const visible = computed(() => options.access.canRead.value)
   const targets = computed(() => {
-    const items = page.value?.items
-    if (!items || items.length < 1 || items.length > 100 || (options.format === 'markdown' && !options.selection)) return undefined
-    if (!options.selection) return items
+    const currentPage = page.value
+    if (!currentPage || (options.format === 'markdown' && !options.selection)) return undefined
+    const currentPageIds = currentPage.items.map(link => link.id)
+    if (currentPage.items.length < 1 || currentPage.items.length > 100
+      || currentPageIds.some(id => !id) || new Set(currentPageIds).size !== currentPageIds.length) return undefined
+    if (!options.selection) return currentPage.items
     const ids = options.selection.value
     if (ids.length < 1 || ids.length > 100 || new Set(ids).size !== ids.length || ids.some(id => !id)) return undefined
-    const pageIds = items.map(link => link.id)
-    if (pageIds.some(id => !id) || new Set(pageIds).size !== pageIds.length || ids.some(id => !pageIds.includes(id))) return undefined
-    return items.filter(link => ids.includes(link.id))
+    const items = options.selectionItems?.value ?? currentPage.items.filter(link => ids.includes(link.id))
+    const itemIds = items.map(link => link.id)
+    if (items.length !== ids.length || itemIds.some(id => !id) || new Set(itemIds).size !== itemIds.length
+      || ids.some(id => !itemIds.includes(id))) return undefined
+    const byId = new Map(items.map(link => [link.id, link]))
+    if (ids.every(id => currentPageIds.includes(id))) return currentPage.items.filter(link => ids.includes(link.id))
+    return ids.map(id => byId.get(id)!)
   })
   const disabled = computed(() => pending.value || options.blocked.value || !visible.value || !options.access.allows('read')
     || options.lock?.value != null || !targets.value

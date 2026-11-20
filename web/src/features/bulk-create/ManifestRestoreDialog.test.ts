@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { messages } from '@/app/i18n'
 import { componentStubs } from '@/test/component-stubs'
 import BulkCreateDialog from './BulkCreateDialog.vue'
+import ManifestRestoreDialog from './ManifestRestoreDialog.vue'
 
 vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
@@ -61,6 +62,17 @@ afterEach(() => {
 })
 
 describe('manifest restore panel', () => {
+  it('hides the restore entry when the default domain is already available', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    clients.push(client)
+    client.setQueryData(['auth', 'me'], { user: actor })
+    render(ManifestRestoreDialog, { props: { hideWhenDefault: true }, global: {
+      plugins: [[VueQueryPlugin, { queryClient: client }], createI18n({ legacy: false, locale: 'en', fallbackLocale: 'en', messages })],
+      stubs: componentStubs,
+    } })
+    expect(screen.queryByTestId('manifest-restore-open')).toBeNull()
+  })
+
   it('retains a pending and unknown restore when ordinary preview or parent close is attempted', async () => {
     const view = setup('en', true)
     let failRequest!: (reason: Error) => void

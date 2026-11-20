@@ -226,8 +226,9 @@ const deleteMutation = useMutation({
 const updatingId = useMutationTargetId(statusMutation, (variables) => variables?.id)
 const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof variables === 'string' ? variables : undefined))
 const batch = useShortLinkBatch({
-  context: 'admin', access, ids: computed(() => links.value.map(link => link.id)),
-  filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value, noteStatusFilter.value, noteQuery.value, page.value, pageSize.value]),
+  context: 'admin', access, ids: computed(() => links.value.map(link => link.id)), items: links,
+  pageKey: computed(() => `${page.value}:${pageSize.value}`), ready: computed(() => query.isSuccess.value && !query.isFetching.value),
+  filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value, noteStatusFilter.value, noteQuery.value]),
   blocked: computed(() => privateConfirmationOpen.value || qrLink.value !== null || note.target.value !== null || !query.isSuccess.value || query.isFetching.value || batchTagsRefreshRequired.value || batchTagTargets.value !== null || batchTransferRefreshRequired.value || exportPending.value || keywordInvalid.value || tagInvalid.value || noteQueryInvalid.value || filtersPending.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null),
 })
 const rowWriteBlocked = computed(() => privateConfirmationOpen.value || noteQueryInvalid.value || noteQueryPending.value || note.target.value !== null || batch.pending.value || batchTagTargets.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null || batch.deleteIds.value !== null)
@@ -258,8 +259,8 @@ const copyOptions = {
   context: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value, noteStatusFilter.value, noteQuery.value, page.value, pageSize.value]),
 }
 const pageCopy = usePageLinksCopy(copyOptions)
-const selectedCopy = usePageLinksCopy({ ...copyOptions, selection: batch.selected })
-const selectedMarkdownCopy = usePageLinksCopy({ ...copyOptions, selection: batch.selected, format: 'markdown' })
+const selectedCopy = usePageLinksCopy({ ...copyOptions, selection: batch.selected, selectionItems: batch.selectedItems })
+const selectedMarkdownCopy = usePageLinksCopy({ ...copyOptions, selection: batch.selected, selectionItems: batch.selectedItems, format: 'markdown' })
 const selectedExport = useSelectedListExport({
   access, context: computed(() => 'admin'), queryKey: listQueryKey, selection: batch.selected,
   collection: copyOptions.context, canStart: canStartExport,
@@ -323,7 +324,7 @@ function beginNoteClear() {
   const state = queryClient.getQueryState(listQueryKey.value)
   if (batch.unavailable.value || exportBlocked.value || exportPending.value || qrLink.value !== null
     || !access.allows('tags') || !batch.selected.value.length || state?.status !== 'success' || state.fetchStatus !== 'idle' || state.isInvalidated) return
-  const targets = links.value.filter(link => batch.selected.value.includes(link.id))
+  const targets = batch.selectedItems.value
   if (targets.length !== batch.selected.value.length || targets.some(link => !noteVersionSchema.safeParse(link.updatedAt).success)) return
   noteClear.open(targets.map(link => ({ id: link.id, expectedUpdatedAt: link.updatedAt })))
 }
@@ -333,7 +334,7 @@ function beginTagRename() {
   const state = queryClient.getQueryState(listQueryKey.value)
   if (batch.unavailable.value || exportBlocked.value || exportPending.value || qrLink.value !== null
     || !access.allows('tags') || !batch.selected.value.length || state?.status !== 'success' || state.fetchStatus !== 'idle' || state.isInvalidated) return
-  const targets = links.value.filter(link => batch.selected.value.includes(link.id))
+  const targets = batch.selectedItems.value
   if (targets.length !== batch.selected.value.length || targets.some(link => !noteVersionSchema.safeParse(link.updatedAt).success)) return
   tagRename.open(targets.map(link => ({ id: link.id, expectedUpdatedAt: link.updatedAt!, url: link.url, tags: [...link.tags] })))
 }
@@ -353,7 +354,7 @@ function beginNoteAppend() {
   const state = queryClient.getQueryState(listQueryKey.value)
   if (batch.unavailable.value || exportBlocked.value || exportPending.value || qrLink.value !== null
     || !access.allows('tags') || !batch.selected.value.length || state?.status !== 'success' || state.fetchStatus !== 'idle' || state.isInvalidated) return
-  const targets = links.value.filter(link => batch.selected.value.includes(link.id))
+  const targets = batch.selectedItems.value
   if (targets.length !== batch.selected.value.length || targets.some(link => !noteVersionSchema.safeParse(link.updatedAt).success)) return
   noteAppend.open(targets.map(link => ({ id: link.id, expectedUpdatedAt: link.updatedAt })))
 }
@@ -361,7 +362,7 @@ function beginNoteReplace() {
   const state = queryClient.getQueryState(listQueryKey.value)
   if (batch.unavailable.value || exportBlocked.value || exportPending.value || qrLink.value !== null
     || !access.allows('tags') || !batch.selected.value.length || state?.status !== 'success' || state.fetchStatus !== 'idle' || state.isInvalidated) return
-  const targets = links.value.filter(link => batch.selected.value.includes(link.id))
+  const targets = batch.selectedItems.value
   if (targets.length !== batch.selected.value.length || targets.some(link => !noteVersionSchema.safeParse(link.updatedAt).success)) return
   noteReplace.open(targets.map(link => ({ id: link.id, expectedUpdatedAt: link.updatedAt })))
 }
@@ -382,7 +383,7 @@ function selectTag(value: unknown) { if (!privateConfirmationOpen.value && typeo
 function beginBatchTags() {
   const state = queryClient.getQueryState(listQueryKey.value)
   if (batch.unavailable.value || rowWriteBlocked.value || !access.allows('tags') || !batch.selected.value.length || state?.status !== 'success' || state.fetchStatus !== 'idle' || state.isInvalidated) return
-  const targets = links.value.filter(link => batch.selected.value.includes(link.id))
+  const targets = batch.selectedItems.value
   if (targets.length !== batch.selected.value.length || targets.some(link => !batchTagVersionSchema.safeParse(link.updatedAt).success)) return
   batchTagTargets.value = targets.map(link => ({ id: link.id, updatedAt: link.updatedAt, url: link.url, tags: [...link.tags] }))
 }
@@ -397,7 +398,7 @@ function beginTransfer(link: ConsoleLinkListItem) {
 /** Captures only selected current-list records after checking the live list and grants. */
 function beginBatchTransfer() {
   if (!canTransfer.value || batch.unavailable.value || rowWriteBlocked.value || queryClient.isFetching({ queryKey: listQueryKey.value, exact: true }) || queryClient.getQueryState(listQueryKey.value)?.isInvalidated !== false || !access.allows('update') || !batch.selected.value.length) return
-  batchTransferTargets.value = links.value.filter(link => batch.selected.value.includes(link.id)).map(link => ({ ...link, owner: { ...link.owner } }))
+  batchTransferTargets.value = batch.selectedItems.value.map(link => ({ ...link, owner: { ...link.owner } }))
 }
 
 /** Resolves an authorized row from the live cache before dispatching a queued write. */

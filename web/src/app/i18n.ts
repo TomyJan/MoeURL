@@ -3,11 +3,11 @@ import { createI18n } from 'vue-i18n'
 export const messages = {
   'zh-CN': {
     selectedMarkdownCopy: {
-      action: '复制所选 Markdown', description: '仅当前页所选项，包含标题和公开短链地址。',
+      action: '复制所选 Markdown', description: '跨页所选项，包含标题和公开短链地址。',
       copied: '已复制 {count} 条 Markdown 短链',
     },
     selectedLinksCopy: {
-      action: '复制所选短链', description: '仅当前页所选项，每行一个公开短链地址。',
+      action: '复制所选短链', description: '跨页所选项，每行一个公开短链地址。',
       copied: '已复制 {count} 条所选短链',
     },
     pageLinksCopy: {
@@ -192,13 +192,13 @@ export const messages = {
     visitExport: { csv: '导出访问记录 CSV', description: '导出完整筛选结果，最多 1000 条、8 MiB。', started: '已发起 CSV 下载，请在浏览器中确认保存。', failed: '导出失败，请重试。', limitExceeded: '导出超过 1000 条或 8 MiB，请缩小日期范围或筛选条件后重试。' },
     auditExport: { csv: '导出操作审计 CSV', description: '导出完整筛选结果，最多 1000 条、8 MiB。', started: '已发起 CSV 下载，请在浏览器中确认保存。', failed: '导出失败，请重试。', limitExceeded: '导出超过 1000 条或 8 MiB，请缩小日期范围或筛选条件后重试。' },
     listExport: { csv: '导出 CSV', description: '导出筛选结果，最多 1000 条。', started: '已发起 CSV 下载，请在浏览器中确认保存。', failed: '导出失败，请重试。', limitExceeded: '筛选结果超过 1000 条或导出数据超过 8 MiB，请缩小筛选范围后重试。' },
-    selectedListExport: { csv: '导出所选 CSV', description: '仅当前页 1–100 条，使用当前服务端数据。', limitExceeded: '所选数据超过导出上限，请减少选择后重试。' },
+    selectedListExport: { csv: '导出所选 CSV', description: '跨页所选 1–100 条，使用当前服务端数据。', limitExceeded: '所选数据超过导出上限，请减少选择后重试。' },
     insights: { noAccess: '当前账号无权查看此数据，或资源已不可用。', loadFailed: '数据加载失败，请重试。', loading: '正在加载数据', appliedRange: '已应用范围：{startDate} 至 {endDate}（UTC，含首尾日期）', occurredAt: '发生时间', preciseTime: '精确时间', previous: '上一页', next: '下一页', maintenance: '系统维护' },
     dashboard: { title: '全站仪表盘', description: '查看全站规模与成功跳转趋势。访问量仅表示已签发目标跳转响应。', userCount: '用户数', activeUserCount: '启用用户数', linkCount: '短链数', activeLinkCount: '启用短链数', todayCreatedLinkCount: '今日新增短链（UTC）', todayVisitCount: '今日访问量（UTC）', rangeVisitCount: '区间访问量', activeMeaning: '“启用”仅表示保存的状态；短链仍可能受过期、密码、额度或域名状态限制。', topLinks: '区间热门短链', deleted: '已删除', empty: '所选范围暂无成功访问。', generatedAt: '快照时间（UTC）：' },
     visits: { title: '访问记录', description: '仅列出成功签发目标跳转的匿名记录；旧记录未采集的类别显示为未知。', empty: '已应用范围与筛选下暂无访问记录。', device: '设备', country: '国家代码', countryHint: '两位大写代码、unknown 或留空', invalidCountry: '请输入两位大写国家代码、unknown，或留空查看全部。', referrer: '来源主机', browser: '浏览器', os: '操作系统', dimensions: { desktop: '桌面设备', mobile: '移动设备', tablet: '平板', bot: '机器人', chrome: 'Chrome', edge: 'Edge', firefox: 'Firefox', safari: 'Safari', opera: 'Opera', samsung: 'Samsung Internet', windows: 'Windows', macos: 'macOS', ios: 'iOS', android: 'Android', linux: 'Linux', chromeos: 'ChromeOS' } },
     audit: { title: '操作审计', description: '只读查看关键业务操作的操作者、动作和变更字段，不展示字段值。', id: '审计 ID', actor: '操作者', actorId: '操作者 UUID', resourceType: '资源类型', resourceId: '资源 ID', action: '动作', changedFields: '变更字段', applyFilters: '应用筛选', invalidActor: '请输入有效的操作者 UUID，或留空查看全部。', systemActor: '系统', empty: '已应用范围与筛选下暂无审计记录。', retention: '在线保留最近 {days} 天审计记录，独立备份策略仍需由部署者维护。', resources: { short_link: '短链', user: '用户', user_group: '用户组', domain: '域名', system_setting: '系统设置', oidc_provider: 'OIDC 提供商' }, actions: { create: '创建', update: '修改', enable: '启用', disable: '停用', delete: '删除', credential_change: '凭据变更', permissions_change: '权限变更', assignment_change: '授权变更', settings_change: '设置变更' } },
     batch: {
-      selectAll: '选择当前列表', selectLink: '选择短链 {slug}', selected: '已选择 {count} 条', currentList: '仅当前列表，最多 100 条',
+      selectAll: '选择当前页', selectLink: '选择短链 {slug}', selected: '已选择 {count} 条', currentList: '当前筛选内跨页手动选择，最多 100 条', limit: '最多选择 100 条短链；请先取消其他选择。',
       enable: '批量启用', disable: '批量停用', delete: '批量删除', deleteTitle: '删除所选短链？',
       deleteDescription: '即将删除 {count} 条短链，删除后公开地址将不可访问。此操作无法撤销。', cancel: '取消', confirmDelete: '确认删除',
       success: '已处理 {count} 条短链。', failed: '批量操作失败，请刷新列表后重试。', processing: '正在处理所选短链',
@@ -1064,11 +1064,11 @@ export const messages = {
   },
   en: {
     selectedMarkdownCopy: {
-      action: 'Copy selected Markdown', description: 'Selected items on this page only, with titles and public short links.',
+      action: 'Copy selected Markdown', description: 'Selected items across pages, with titles and public short links.',
       copied: 'Copied {count} Markdown link | Copied {count} Markdown links',
     },
     selectedLinksCopy: {
-      action: 'Copy selected links', description: 'Selected items on this page only, one public short link per line.',
+      action: 'Copy selected links', description: 'Selected items across pages, one public short link per line.',
       copied: 'Copied {count} selected link | Copied {count} selected links',
     },
     pageLinksCopy: {
@@ -1255,13 +1255,13 @@ export const messages = {
     visitExport: { csv: 'Export visit records CSV', description: 'Export all filtered results, up to 1000 records and 8 MiB.', started: 'CSV download started. Confirm saving in your browser.', failed: 'Export failed. Please try again.', limitExceeded: 'Export exceeds 1000 records or 8 MiB. Narrow the date range or filters and try again.' },
     auditExport: { csv: 'Export audit records CSV', description: 'Export all filtered results, up to 1000 records and 8 MiB.', started: 'CSV download started. Confirm saving in your browser.', failed: 'Export failed. Please try again.', limitExceeded: 'Export exceeds 1000 records or 8 MiB. Narrow the date range or filters and try again.' },
     listExport: { csv: 'Export CSV', description: 'Export filtered results, up to 1000 links.', started: 'CSV download started. Confirm saving in your browser.', failed: 'Export failed. Please try again.', limitExceeded: 'Export data exceeds 1000 links or 8 MiB. Narrow the filters and try again.' },
-    selectedListExport: { csv: 'Export selected CSV', description: 'Current page only, 1–100 links, using current server data.', limitExceeded: 'Selection exceeds the export limit. Choose fewer links and retry.' },
+    selectedListExport: { csv: 'Export selected CSV', description: 'Selected links across pages, 1–100 links, using current server data.', limitExceeded: 'Selection exceeds the export limit. Choose fewer links and retry.' },
     insights: { noAccess: 'This account cannot view these records, or the resource is unavailable.', loadFailed: 'Could not load data. Please retry.', loading: 'Loading data', appliedRange: 'Applied range: {startDate} to {endDate} (UTC, inclusive)', occurredAt: 'Occurred at', preciseTime: 'Exact time', previous: 'Previous page', next: 'Next page', maintenance: 'System maintenance' },
     dashboard: { title: 'Global dashboard', description: 'System usage and successful redirect trends. Visits count issued destination redirects.', userCount: 'Users', activeUserCount: 'Enabled users', linkCount: 'Short links', activeLinkCount: 'Enabled short links', todayCreatedLinkCount: 'Links created today (UTC)', todayVisitCount: 'Visits today (UTC)', rangeVisitCount: 'Visits in range', activeMeaning: 'Enabled refers only to the saved status. Expiration, passwords, quotas or domain status can still restrict a link.', topLinks: 'Popular links in range', deleted: 'Deleted', empty: 'No successful visits in this range.', generatedAt: 'Snapshot at (UTC):' },
     visits: { title: 'Visit records', description: 'Anonymous records of issued destination redirects only. Categories not collected for older records are unknown.', empty: 'No visit records match the applied range and filters.', device: 'Device', country: 'Country code', countryHint: 'Two uppercase letters, unknown, or blank', invalidCountry: 'Enter two uppercase country letters, unknown, or leave blank for all.', referrer: 'Referrer host', browser: 'Browser', os: 'Operating system', dimensions: { desktop: 'Desktop', mobile: 'Mobile', tablet: 'Tablet', bot: 'Bot', chrome: 'Chrome', edge: 'Edge', firefox: 'Firefox', safari: 'Safari', opera: 'Opera', samsung: 'Samsung Internet', windows: 'Windows', macos: 'macOS', ios: 'iOS', android: 'Android', linux: 'Linux', chromeos: 'ChromeOS' } },
     audit: { title: 'Operation audit', description: 'Read-only actors, actions and changed field names for key business operations. Field values are not shown.', id: 'Audit ID', actor: 'Actor', actorId: 'Actor UUID', resourceType: 'Resource type', resourceId: 'Resource ID', action: 'Action', changedFields: 'Changed fields', applyFilters: 'Apply filters', invalidActor: 'Enter a valid actor UUID or leave blank for all.', systemActor: 'System', empty: 'No audit records match the applied range and filters.', retention: 'Audit records are retained online for {days} days. Maintain a separate protected backup policy.', resources: { short_link: 'Short link', user: 'User', user_group: 'User group', domain: 'Domain', system_setting: 'System setting', oidc_provider: 'OIDC provider' }, actions: { create: 'Create', update: 'Update', enable: 'Enable', disable: 'Disable', delete: 'Delete', credential_change: 'Credential change', permissions_change: 'Permissions change', assignment_change: 'Assignment change', settings_change: 'Settings change' } },
     batch: {
-      selectAll: 'Select current list', selectLink: 'Select short link {slug}', selected: '{count} selected', currentList: 'Current list only, up to 100 links',
+      selectAll: 'Select current page', selectLink: 'Select short link {slug}', selected: '{count} selected', currentList: 'Manual selection across pages in current filters, up to 100 links', limit: 'Select up to 100 links. Deselect another link first.',
       enable: 'Enable selected', disable: 'Disable selected', delete: 'Delete selected', deleteTitle: 'Delete selected links?',
       deleteDescription: 'Delete {count} link? Its public address will become unavailable. This action cannot be undone. | Delete {count} links? Their public addresses will become unavailable. This action cannot be undone.', cancel: 'Cancel', confirmDelete: 'Confirm delete',
       success: 'Processed {count} link. | Processed {count} links.', failed: 'Batch action failed. Refresh the list and try again.', processing: 'Processing selected links',

@@ -1,5 +1,9 @@
 # MoeURL 文档中心
 
+## 当前开发（2026-11-20，v0.91.0）
+
+[短链跨页手动选择](product/scope-v0.91.0.md)正在实施：同一筛选下跨页保留最多 100 条手动选择，表头全选仅作用当前页；复制、选中导出、批量标签和管理员转移也消费完整选择快照。Node 26.3.0／pnpm 11.5.0 下 8 个相关测试文件 330/330 通过，类型检查和生产构建通过，改动文件 lint 0 errors／2 warnings；受控全量 `--maxWorkers=2` 为 290 文件／7,266 项全部通过，coverage 四项均 100%。独立审查无发现，CodeRabbit Minor 已修复但新 head 复审受限流；正常合并与归档仍待，不据此标记验收或发布。见[设计](superpowers/specs/2026-11-20-v0.91.0-cross-page-selection-design.md)、[计划](implementation/2026-11-20-v0.91.0-cross-page-selection.md)和[开发进度](product/development-status.md)。不查 CI、不发布部署。
+
 ## 最近完成（2026-11-18，v0.89.0）
 
 [有限 CSV 表头匹配](product/scope-v0.89.0.md)已由 PR #386 合入，merge commit `f236951862f53e59cfedbe318e224d48fd1c902e`。准确 CodeRabbit 审查、独立合并核验、候选本地门禁与真实浏览器验收均有证据；最终 whole-owned 恢复包 3312 项已逐项解压验 hash，SHA-256 `4E5111079E7745BCE55AE758F98E51F463A416442AD848DEE5C714ABC44AF315`。证据和本地／集成边界见[验收](implementation/v0.89.0-acceptance.md)。未查 CI、未发布部署；PR #385 的扫描文档跟进也已独立完成。
