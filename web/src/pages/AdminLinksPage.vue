@@ -227,7 +227,8 @@ const updatingId = useMutationTargetId(statusMutation, (variables) => variables?
 const deletingId = useMutationTargetId(deleteMutation, (variables) => (typeof variables === 'string' ? variables : undefined))
 const batch = useShortLinkBatch({
   context: 'admin', access, ids: computed(() => links.value.map(link => link.id)),
-  filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value, noteStatusFilter.value, noteQuery.value, page.value, pageSize.value]),
+  pageKey: computed(() => `${page.value}:${pageSize.value}`), ready: computed(() => query.isSuccess.value && !query.isFetching.value),
+  filters: computed(() => [statusFilter.value, searchKeyword.value, tagFilter.value, noteStatusFilter.value, noteQuery.value]),
   blocked: computed(() => privateConfirmationOpen.value || qrLink.value !== null || note.target.value !== null || !query.isSuccess.value || query.isFetching.value || batchTagsRefreshRequired.value || batchTagTargets.value !== null || batchTransferRefreshRequired.value || exportPending.value || keywordInvalid.value || tagInvalid.value || noteQueryInvalid.value || filtersPending.value || statusMutation.isPending.value || deleteMutation.isPending.value || settingsMutation.isPending.value || settingsLink.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null),
 })
 const rowWriteBlocked = computed(() => privateConfirmationOpen.value || noteQueryInvalid.value || noteQueryPending.value || note.target.value !== null || batch.pending.value || batchTagTargets.value !== null || transferTarget.value !== null || batchTransferTargets.value !== null || batch.deleteIds.value !== null)
