@@ -10,6 +10,8 @@
 
 PR #391、#393、#394、#395 均已正常 squash 合并并经独立 SHA/tree/唯一父核验。PR #395 head `d170a843e0bdf99e68bd31ceb32148c72e1f09ae` 合并为 `b0eb53d86b0ecb96f8c32eac3164020d34399170`，tree `658eddb9600d296c24d462b141b35abfd8e041f1`，唯一 parent `6d01027db7fe2cee88f53ab59f71570f3f6dabd6`。真实 CodeRabbit 对前一 head `34dba455` 提出的两项有效 Minor 均已修正；修正后 head 未获复审，不冒称最终 head 已覆盖。whole-owned 文档归档 `D:/Dev/TomyJan/MoeURL/.tmp/v0900-evidence/whole-owned-delivery-20261120-docs-final/` 的 53,844 个成员逐项校验通过，ZIP SHA-256 `A89F8B00A91490FE2460DCD94C04501BE249C26EF063838A1592B2E2766854F3`，独立离线恢复及 bare `fsck` 通过。未查 CI、未发布部署；产品显示版本仍为 0.89.0。准确身份和回执见[v0.90.0 验收](../implementation/v0.90.0-acceptance.md)。
 
+文档状态随后由 PR #397 和 PR #399 同步到其他入口。PR #397 合并 `e3cf8be293496bf819f551c879cf01ee499bb975` 的 tree／唯一 parent 为 `f498a58f24f1b1f1e1d1548a2a428083a7b01770`／`e572ad631e77b582f13b80c09ba0127ee3bb8ef3`；起始 head 的 1 项 CodeRabbit Minor 已修正，最终 head 未获额度复审。PR #399 合并 `de03f93dfe67bc3dd8fd959d806079c953f820ff` 的 tree／唯一 parent 为 `3c7276a5d9d66c9f2d9e7c0569ba3ae99787c064`／`e3cf8be293496bf819f551c879cf01ee499bb975`，经独立 fetch 核验；其 CodeRabbit 请求被限流，没有 review。两次 follow-up 的归档回执见[v0.90.0 验收](../implementation/v0.90.0-acceptance.md)。
+
 ## v0.88.0 合并前检查点（历史）
 
 当前增量[自定义 CSV 完整字段映射](scope-v0.88.0.md)的代码已由 PR #379 合入 `9c20f60c`。完整本地前端门禁、准确产品浏览器及 HIGH／CRITICAL 扫描通过；原 PR 的真实审查和合并独立核验已完成。扫描验收文档跟进 PR #385 的自身审查和集成核验已完成，恢复归档也已完成，标准合同收尾状态见验收，详见[开发进度](development-status.md)与[验收](../implementation/v0.88.0-acceptance.md)。不做别名猜测、历史恢复或后端扩展，不查询 CI、不发布部署。

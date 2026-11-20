@@ -2,7 +2,7 @@
 
 ## 状态与目标
 
-状态：核心实现、正式 Go／数据库迁移／SQLC、Linux race／vet、审查修正后的前端全量门禁及源码 `74f6bdcf` 准确产品真实浏览器 7/7 与扫描均通过。PR #391／#393／#394／#395 已正常 squash 合并；PR #395 的两项有效 CodeRabbit Minor 已修正，但 included allowance 用尽，修正后 head 未获复审。PR #395 merge `b0eb53d86b0ecb96f8c32eac3164020d34399170` 的 tree 为 `658eddb9600d296c24d462b141b35abfd8e041f1`、唯一 parent 为 `6d01027db7fe2cee88f53ab59f71570f3f6dabd6`，经 API 与独立 fetch 核验。最终 whole-owned 文档归档位于 `D:/Dev/TomyJan/MoeURL/.tmp/v0900-evidence/whole-owned-delivery-20261120-docs-final/`，ZIP 有 53,844 个成员逐项验证通过；回执与审查边界见[v0.90.0 验收](../implementation/v0.90.0-acceptance.md)。v0.90.0 将 v0.21.0 的完整短链管理清单作为受限恢复输入，在本地预览后，将可重建记录原子创建到当前账号名下。
+状态：核心实现、正式 Go／数据库迁移／SQLC、Linux race／vet、审查修正后的前端全量门禁及源码 `74f6bdcf` 准确产品真实浏览器 7/7 与扫描均通过。PR #391／#393／#394／#395／#397／#399 已正常 squash 合并并独立核验。PR #395 的两项有效 CodeRabbit Minor 和 PR #397 起始 head 的 1 项 Minor 均已修正，但两者最终 head 均未获额度复审；PR #399 的真实 CodeRabbit 请求被限流、没有 review。PR #397 merge `e3cf8be293496bf819f551c879cf01ee499bb975` 的 tree／唯一 parent 为 `f498a58f24f1b1f1e1d1548a2a428083a7b01770`／`e572ad631e77b582f13b80c09ba0127ee3bb8ef3`；PR #399 merge `de03f93dfe67bc3dd8fd959d806079c953f820ff` 的 tree／唯一 parent 为 `3c7276a5d9d66c9f2d9e7c0569ba3ae99787c064`／`e3cf8be293496bf819f551c879cf01ee499bb975`，均经独立核验。PR #399 状态 follow-up 的 ZIP SHA-256 为 `D2FA1CE1084C502663B050BEEAFE8B9FAB89A39F383CBADB594B3CC73EA97131`，离线 ref 恢复和 bare `git fsck --full` 通过；完整回执见[v0.90.0 验收](../implementation/v0.90.0-acceptance.md)。v0.90.0 将 v0.21.0 的完整短链管理清单作为受限恢复输入，在本地预览后，将可重建记录原子创建到当前账号名下。
 
 ## 盘点与范围
 

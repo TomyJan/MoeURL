@@ -6,6 +6,8 @@
 
 PR #391、#393、#394、#395 均已正常 squash 合并并经独立 SHA/tree/唯一父核验。PR #395 head `d170a843e0bdf99e68bd31ceb32148c72e1f09ae` 合并为 `b0eb53d86b0ecb96f8c32eac3164020d34399170`，tree `658eddb9600d296c24d462b141b35abfd8e041f1`，唯一 parent `6d01027db7fe2cee88f53ab59f71570f3f6dabd6`。真实 CodeRabbit 覆盖其前一 head `34dba455` 并提出两项有效 Minor，均已修正；修正后的 head 因 included allowance 用尽未获复审，不声称准确最终 head 已审查。whole-owned 文档归档 `D:/Dev/TomyJan/MoeURL/.tmp/v0900-evidence/whole-owned-delivery-20261120-docs-final/` 共 53,844 个成员逐项校验通过；ZIP SHA-256 为 `A89F8B00A91490FE2460DCD94C04501BE249C26EF063838A1592B2E2766854F3`，独立离线恢复与 bare `fsck` 通过。未查 CI、未发布部署；产品显示版本仍为 0.89.0。准确身份和回执见[v0.90.0 验收](v0.90.0-acceptance.md)。
 
+PR #397 文档 follow-up 正常合入 `e3cf8be293496bf819f551c879cf01ee499bb975`（tree `f498a58f24f1b1f1e1d1548a2a428083a7b01770`，唯一 parent `e572ad631e77b582f13b80c09ba0127ee3bb8ef3`）；起始 head 的 1 项 CodeRabbit Minor 已修正，但最终 head 未获额度复审。PR #399 将状态同步至其他入口，正常合入 `de03f93dfe67bc3dd8fd959d806079c953f820ff`（tree `3c7276a5d9d66c9f2d9e7c0569ba3ae99787c064`，唯一 parent `e3cf8be293496bf819f551c879cf01ee499bb975`）并经独立 fetch 核验；真实 CodeRabbit 明确限流，未产生 review。两个 follow-up 的可恢复归档回执见[v0.90.0 验收](v0.90.0-acceptance.md)。
+
 ## 当前维护（2026-11-16，v0.87.1）
 
 PR377／v0.87.0 手动 CSV 标签列映射已完成三个标准任务、完整本地验证、唯一 Sol 终审、准确候选真实 CodeRabbit、正常合并独立核验及十份工作记录可恢复归档；合并提交为 `b15349df`，已交付产品为 0.87.0。空标签数组仍受 metadata 权限限制，其他高级字段映射和历史恢复尚未交付。准确执行身份、失败归属及延期 Minor 见[前版交付补记](v0.87.0-acceptance.md)。
