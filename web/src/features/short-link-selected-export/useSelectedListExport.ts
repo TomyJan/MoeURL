@@ -58,8 +58,9 @@ export function useSelectedListExport(options: SelectedListExportOptions) {
     const items = page.value?.items, selected = options.selection.value
     if (!items || items.length < 1 || items.length > 100 || selected.length < 1 || selected.length > 100 || new Set(selected).size !== selected.length) return undefined
     const ids = items.map(item => item.id)
-    if (ids.some(id => !noteIdSchema.safeParse(id).success) || new Set(ids).size !== ids.length || selected.some(id => !ids.includes(id))) return undefined
-    return ids.filter(id => selected.includes(id))
+    if (ids.some(id => !noteIdSchema.safeParse(id).success) || new Set(ids).size !== ids.length
+      || selected.some(id => !noteIdSchema.safeParse(id).success)) return undefined
+    return [...selected]
   })
   const disabled = computed(() => pending.value || !visible.value || options.blocked.value || (options.canStart !== undefined && !options.canStart()) || !targets.value)
 

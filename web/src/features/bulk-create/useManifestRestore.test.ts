@@ -101,6 +101,7 @@ describe('manifest restore asynchronous identity and draft guards', () => {
     ['disabled', 'disabled,direct,5,,false,,3', 'short_link:update_own'],
     ['intermediate', 'active,intermediate,5,,false,,3', 'short_link:use_intermediate'],
     ['confirmation', 'active,confirmation,5,,false,,3', 'short_link:use_confirmation'],
+    ['non-default direct delay', 'active,direct,3,,false,,3', 'short_link:use_intermediate'],
     ['expiration', 'active,direct,5,2026-10-03T00:00:00Z,false,,3', 'short_link:set_expiration'],
     ['max-visits', 'active,direct,5,,false,5,3', 'short_link:set_max_visits'],
   ] as const)('rejects %s rows when their field permission is absent', async (_label, fields, permission) => {

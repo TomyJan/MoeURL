@@ -93,14 +93,14 @@ describe('private list batch controls', () => {
     const secondPage = ['page2-a', 'page2-b'].map(id => ({ ...links[0]!, id, slug: id }))
     if (context === 'own') {
       vi.mocked(listShortLinks).mockImplementation(async input => {
-        const page = input.page ?? 1
-        return { items: page === 1 ? firstPage : secondPage, meta: { page, pageSize: input.pageSize ?? 20, total: 22 } }
+        const page = input?.page ?? 1
+        return { items: page === 1 ? firstPage : secondPage, meta: { page, pageSize: input?.pageSize ?? 20, total: 22 } }
       })
     } else {
       const adminItems = (items: typeof firstPage) => items.map(link => ({ ...link, updatedAt: '2026-10-23T00:00:00.123456Z', owner: { id: 'A', username: 'A', nickname: '' } }))
       vi.mocked(listAdminShortLinks).mockImplementation(async input => {
-        const page = input.page ?? 1
-        return { items: adminItems(page === 1 ? firstPage : secondPage), meta: { page, pageSize: input.pageSize ?? 20, total: 22 } }
+        const page = input?.page ?? 1
+        return { items: adminItems(page === 1 ? firstPage : secondPage), meta: { page, pageSize: input?.pageSize ?? 20, total: 22 } }
       })
     }
     const pagination = defineComponent({ emits: ['change'], template: '<button aria-label="pagination.next" @click="$emit(\'change\', 2)">Next</button>' })

@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-20，v0.91.0）
 
-[短链跨页手动选择](scope-v0.91.0.md)正在实施：本人／全站列表保留同一筛选下最多 100 条的手动勾选，页头选择仅作用当前页。hook 和两页集成切片已实现，54 项定向测试通过；完整本地前端门禁、最终审查及交付仍待，产品版本未据此标记完成。无新 API、数据库、权限或依赖；不查 CI、不发布部署。设计和任务见[规格](../superpowers/specs/2026-11-20-v0.91.0-cross-page-selection-design.md)与[计划](../superpowers/plans/2026-11-20-v0.91.0-cross-page-selection.md)。
+[短链跨页手动选择](scope-v0.91.0.md)正在实施：本人／全站列表保留同一筛选下最多 100 条手动勾选，页头选择仅作用当前页；复制、选中 CSV 导出、批量标签和管理员转移继续使用完整选择快照。Node 26.3.0／pnpm 11.5.0 下 8 个相关文件 330/330 通过；类型检查、生产构建通过，改动文件 lint 0 errors／2 warnings。受控全量 `--maxWorkers=2` 为 290 文件／7,266 项全部通过，coverage 四项均为 100%；先前 4 项设置失败根因为页面测试 `auth/me` 假件未按 query key 复用权限 fixture，已在测试层修正，5 项并行超时在受控 worker 下不再复现。最终独立审查及交付仍待；产品版本未标记完成。无新 API、数据库、权限或依赖；不查 CI、不发布部署。设计、计划和准确验收见[规格](../superpowers/specs/2026-11-20-v0.91.0-cross-page-selection-design.md)、[计划](../superpowers/plans/2026-11-20-v0.91.0-cross-page-selection.md)与[验收](../implementation/v0.91.0-acceptance.md)。
 
 ## 最近完成（2026-11-18，v0.89.0）
 

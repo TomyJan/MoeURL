@@ -40,6 +40,50 @@ function mount(context: 'own' | 'admin' = 'own', account: CurrentUser | null = u
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(batchShortLinks).mockReset().mockResolvedValue({ affectedCount: 1 }); vi.mocked(me).mockResolvedValue({ user: user() }) })
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()) })
 describe('batch selection and atomic submission', () => {
+  it('retains selected row snapshots across pages and refreshes them when that page returns', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+    clients.push(client); client.setQueryData(['auth', 'me'], { user: user() })
+    const items = ref([{ id: 'one', slug: 'page-one-original' }])
+    const ids = computed(() => items.value.map(item => item.id))
+    const pageKey = ref('1:20'), ready = ref(true), blocked = ref(false), filters = ref('')
+    let batch!: ReturnType<typeof useShortLinkBatch>
+    render(defineComponent({ setup() {
+      batch = useShortLinkBatch({ context: 'own', access: useShortLinkAccess('own'), ids, items, pageKey, ready, blocked, filters })
+      return () => null
+    } }), { global: { plugins: [[VueQueryPlugin, { queryClient: client }], createI18n({ legacy: false, locale: 'test', messages: {}, missingWarn: false })] } })
+    batch.toggle('one', true)
+    expect(batch.selectedItems.value).toEqual([{ id: 'one', slug: 'page-one-original' }])
+
+    ready.value = false; pageKey.value = '2:20'; items.value = [{ id: 'two', slug: 'page-two' }]
+    ready.value = true; await nextTick()
+    expect(batch.selectedItems.value).toEqual([{ id: 'one', slug: 'page-one-original' }])
+
+    ready.value = false; pageKey.value = '1:20'; items.value = [{ id: 'one', slug: 'page-one-refreshed' }]
+    ready.value = true; await nextTick()
+    expect(batch.selectedItems.value).toEqual([{ id: 'one', slug: 'page-one-refreshed' }])
+    filters.value = 'new filter'; await nextTick()
+    expect(batch.selectedItems.value).toEqual([])
+  })
+
+  it('keeps an orphaned selection ID while exposing no stale item snapshot', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+    clients.push(client); client.setQueryData(['auth', 'me'], { user: user() })
+    const ids = ref(['orphan'])
+    const items = ref<readonly { id: string; slug: string }[]>([])
+    let batch!: ReturnType<typeof useShortLinkBatch>
+    render(defineComponent({ setup() {
+      batch = useShortLinkBatch({
+        context: 'own', access: useShortLinkAccess('own'), ids, items,
+        pageKey: ref('1:20'), ready: ref(false), blocked: ref(false), filters: ref(''),
+      })
+      return () => null
+    } }), { global: { plugins: [[VueQueryPlugin, { queryClient: client }], createI18n({ legacy: false, locale: 'test', messages: {}, missingWarn: false })] } })
+
+    batch.toggle('orphan', true)
+    expect(batch.selected.value).toEqual(['orphan'])
+    expect(batch.selectedItems.value).toEqual([])
+  })
+
   // Broadening selection to read must not broaden any existing write capability.
   it.each(['own', 'admin'] as const)('permits read-only selection and blocks every write in %s', async context => {
     const view = mount(context, user(context === 'own' ? ['short_link:read_own'] : ['admin:access', 'short_link:read_all']))

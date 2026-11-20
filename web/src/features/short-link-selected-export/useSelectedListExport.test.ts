@@ -71,24 +71,31 @@ describe('selected export lifecycle', () => {
       expect(view.state.pending.value).toBe(false)
     } finally { stop() }
   })
-  it.each(['own', 'admin'] as const)('exports a complete %s page-ordered selection without self-cancelling or additional list reads', async context => {
+  it.each(['own', 'admin'] as const)('exports a complete %s selection in selection order without self-cancelling or additional list reads', async context => {
     const view = mount({ context, selection: [id2, id1] })
     await fireEvent.click(screen.getByTestId('short-link-selected-export'))
     await waitFor(() => expect(downloadCsv).toHaveBeenCalledOnce())
     expect(view.fetcher).toHaveBeenCalledOnce()
-    expect(view.fetcher.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ ids: [id1, id2] }))
+    expect(view.fetcher.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ ids: [id2, id1] }))
     expect(view.fetcher.mock.calls[0]?.[1]?.headers).toEqual(expect.objectContaining({ 'X-MoeURL-Expected-User-ID': actor }))
     expect(view.state.pending.value).toBe(false)
+  })
+  it('exports valid selected IDs even when they belong to another page of the same filtered list', async () => {
+    const id3 = '00000000-0000-0000-0000-000000000022'
+    const view = mount({ ids: [id1], selection: [id3] })
+    await fireEvent.click(screen.getByTestId('short-link-selected-export'))
+    await waitFor(() => expect(downloadCsv).toHaveBeenCalledOnce())
+    expect(view.fetcher.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ ids: [id3] }))
   })
   it('permits 100 unique selected IDs and rejects a page larger than its bound', async () => {
     const ids = Array.from({ length: 100 }, (_, index) => '00000000-0000-0000-0000-' + String(index + 1).padStart(12, '0'))
     const view = mount({ ids, selection: [...ids].reverse() })
     await view.state.submit()
-    expect(view.fetcher.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ ids }))
+    expect(view.fetcher.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ ids: [...ids].reverse() }))
     view.client.setQueryData(view.key.value, { ...view.data, items: [...view.data.items, { id: '00000000-0000-0000-0000-000000000101' }] })
     expect(view.state.disabled.value).toBe(true)
   })
-  it.each([[], [id1, id1], ['unknown'], [id1, id2, '00000000-0000-0000-0000-000000000099'], Array(101).fill(id1)].map(selection => ({ selection })))('never takes an intersection or normalizes invalid selection %#', async ({ selection }) => {
+  it.each([[], [id1, id1], ['unknown'], [id1, id2, 'invalid'], Array(101).fill(id1)].map(selection => ({ selection })))('never takes an intersection or normalizes invalid selection %#', async ({ selection }) => {
     const view = mount({ selection })
     expect(view.state.disabled.value).toBe(true)
     await view.state.submit()

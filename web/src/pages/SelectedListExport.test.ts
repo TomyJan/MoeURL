@@ -80,7 +80,7 @@ describe('selected CSV page integration', () => {
     expect(view.fetcher).toHaveBeenCalledTimes(reads + 1)
     expect(view.fetcher.mock.calls.at(-1)).toEqual([
       '/api/v1/' + (context === 'admin' ? 'admin/' : '') + 'short-link/export/selected',
-      expect.objectContaining({ method: 'POST', body: JSON.stringify({ ids: [items[0]!.id, items[1]!.id] }),
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ ids: [items[1]!.id, items[0]!.id] }),
         signal: expect.any(AbortSignal), headers: expect.objectContaining({ 'X-MoeURL-Expected-User-ID': actorId }) }),
     ])
     expect((boxes[1] as HTMLInputElement).checked).toBe(true)
@@ -128,6 +128,8 @@ describe('selected CSV page integration', () => {
       view.client.setQueryData(['auth', 'me'], { user: { ...auth.user, permissions: auth.user.permissions.filter(value => value !== 'short_link:export') } })
       view.client.setQueryData(['auth', 'me'], auth)
       expect(oldSignal?.aborted).toBe(true)
+      await waitFor(() => expect((screen.getByTestId('short-link-selected-export') as HTMLButtonElement).disabled).toBe(true))
+      await fireEvent.click(screen.getAllByRole('checkbox')[1]!)
       await waitFor(() => expect((screen.getByTestId('short-link-selected-export') as HTMLButtonElement).disabled).toBe(false))
       view.fetcher.mockReturnValueOnce(current.promise)
       await fireEvent.click(screen.getByTestId('short-link-selected-export'))

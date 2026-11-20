@@ -1,4 +1,4 @@
-import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch, type Ref } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
@@ -34,10 +34,11 @@ export function useShortLinkAccess(context: 'own' | 'admin') {
   return { identity, canRead, canUpdate, canDelete, canTag, canSelect, permissionScope, allows, authPending: auth.isPending }
 }
 
-interface BatchOptions {
+interface BatchOptions<T extends { id: string } = { id: string }> {
   context: 'own' | 'admin'
   access: ReturnType<typeof useShortLinkAccess>
   ids: Ref<string[]>
+  items?: Ref<readonly T[]>
   pageKey: Ref<string>
   ready: Ref<boolean>
   blocked: Ref<boolean>
@@ -45,11 +46,17 @@ interface BatchOptions {
 }
 
 /** Keeps selection local to one visible list and pins every write to its initiating context. */
-export function useShortLinkBatch(options: BatchOptions) {
+export function useShortLinkBatch<T extends { id: string } = { id: string }>(options: BatchOptions<T>) {
   const { t } = useI18n()
   const client = useQueryClient()
   const { access } = options
   const selected = ref<string[]>([])
+  const snapshots = shallowRef(new Map<string, T>())
+  const pageItems = options.items ?? computed(() => options.ids.value.map(id => ({ id }) as T))
+  const selectedItems = computed(() => selected.value.flatMap(id => {
+    const item = snapshots.value.get(id)
+    return item ? [item] : []
+  }))
   const deleteIds = ref<string[] | null>(null)
   const pending = ref(false)
   const unavailable = computed(() => pending.value || options.blocked.value || !access.canSelect.value)
@@ -78,6 +85,13 @@ export function useShortLinkBatch(options: BatchOptions) {
     const nextPageIds = new Set(visibleIds)
     selected.value = selected.value.filter(id => !previousPageIds.has(id) || nextPageIds.has(id))
     lastVisibleIds = visibleIds
+  }, { flush: 'sync' })
+  /** Retains only authorized selection snapshots from pages already read in this filter scope. */
+  watch([options.ready, pageItems, selected], ([ready, items, ids]) => {
+    const selectedIds = new Set(ids)
+    const next = new Map([...snapshots.value].filter(([id]) => selectedIds.has(id)))
+    if (ready) for (const item of items) if (selectedIds.has(item.id)) next.set(item.id, item)
+    if (next.size !== snapshots.value.size || [...next].some(([id, item]) => snapshots.value.get(id) !== item)) snapshots.value = next
   }, { flush: 'sync' })
   onBeforeUnmount(() => { alive = false; clear() })
 
@@ -136,5 +150,5 @@ export function useShortLinkBatch(options: BatchOptions) {
       if (isCurrent()) toast.error(t('batch.failed'))
     } finally { pending.value = false }
   }
-  return { selected, deleteIds, pending, unavailable, allSelected, indeterminate, toggle, toggleAll, openDelete, closeDelete, confirmDelete, submit, clear }
+  return { selected, selectedItems, deleteIds, pending, unavailable, allSelected, indeterminate, toggle, toggleAll, openDelete, closeDelete, confirmDelete, submit, clear }
 }

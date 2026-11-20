@@ -71,6 +71,18 @@ describe('parseManifestRestoreCsv', () => {
     if (parsed.success) expect(parsed.data[0]).toMatchObject({ title, targetUrl: 'https://target.example/a,b' })
   })
 
+  it.each(['\t', '\r', '\n', '='])('handles long exported formula guards beginning with %j', prefix => {
+    const title = `'${prefix}${'x'.repeat(119)}`
+    const parsed = parseManifestRestoreCsv(manifest([row(1, { title })]))
+    if (prefix === '=') {
+      expect(parsed).toMatchObject({ success: true, data: [{ title: `${prefix}${'x'.repeat(119)}` }] })
+    } else {
+      expect(parsed).toMatchObject(prefix === '\r'
+        ? { success: false, issue: { kind: 'syntax' } }
+        : { success: false, issue: { kind: 'field', field: 'title' } })
+    }
+  })
+
   it('scans quoted newlines as one record before rejecting the invalid exported field', () => {
     const parsed = parseManifestRestoreCsv(manifest([row(1, { owner_username: 'old\nowner' })]))
     expect(parsed).toMatchObject({ success: false, issue: { kind: 'field', record: 2, field: 'owner_username' } })

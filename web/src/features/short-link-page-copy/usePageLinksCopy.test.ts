@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { defineComponent, h, nextTick, ref } from 'vue'
+import { computed, defineComponent, h, nextTick, ref } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { toast } from 'vue-sonner'
@@ -21,7 +21,7 @@ function user(permissions = ['short_link:read_own'], id = 'A'): CurrentUser {
   return { id, username: id, nickname: '', group: 'user', permissions }
 }
 /** Runs real cache/lifecycle logic; the Clipboard API is the sole side-effect substitute. */
-function mount(options: { context?: 'own' | 'admin'; user?: CurrentUser; count?: number; locale?: string; selection?: string[]; pair?: boolean } = {}) {
+function mount(options: { context?: 'own' | 'admin'; user?: CurrentUser; count?: number; locale?: string; selection?: string[]; selectionItems?: { id: string; url: string; targetUrl: string }[]; pair?: boolean } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
   clients.push(client)
   client.setQueryData(['auth', 'me'], { user: options.user ?? user() })
@@ -34,9 +34,10 @@ function mount(options: { context?: 'own' | 'admin'; user?: CurrentUser; count?:
   let state!: ReturnType<typeof usePageLinksCopy>
   let other!: ReturnType<typeof usePageLinksCopy>
   const selection = ref(options.selection ?? []), lock = ref<symbol | null>(null)
+  const selectionItems = computed(() => options.selectionItems ?? items.filter(item => selection.value.includes(item.id)))
   const host = defineComponent({ setup() {
     const access = useShortLinkAccess(options.context ?? 'own')
-    state = usePageLinksCopy({ access, queryKey: key, blocked, context, ...(options.selection ? { selection } : {}), ...(options.pair ? { lock } : {}) })
+    state = usePageLinksCopy({ access, queryKey: key, blocked, context, ...(options.selection ? { selection, selectionItems } : {}), ...(options.pair ? { lock } : {}) })
     if (options.pair) other = usePageLinksCopy({ access, queryKey: key, blocked, context, lock })
     return () => h(ShortLinkPageCopyButton, { state, ...(options.selection ? { mode: 'selected' as const } : {}) })
   } })
@@ -64,6 +65,15 @@ describe('current-page clipboard lifecycle', () => {
     expect(lines[0]).toBe('https://sho.rt/1')
     expect(lines.at(-1)).toBe(`https://sho.rt/${count}`)
     expect(view.readClipboard().endsWith('\n')).toBe(false)
+  })
+  it('copies cross-page selected snapshots in selection order without exposing destinations', async () => {
+    const view = mount({ selection: ['page-two', 'page-one'], selectionItems: [
+      { id: 'page-one', url: 'https://sho.rt/one', targetUrl: 'https://private.one' },
+      { id: 'page-two', url: 'https://sho.rt/two', targetUrl: 'https://private.two' },
+    ] })
+    await view.state.copy()
+    expect(view.readClipboard()).toBe('https://sho.rt/two\nhttps://sho.rt/one')
+    expect(view.readClipboard()).not.toContain('private.')
   })
   it.each([0, 101])('rejects the entire out-of-range page of %i rows', async count => {
     const view = mount({ count })

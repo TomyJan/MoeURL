@@ -13,14 +13,22 @@ const actor = { id: '00000000-0000-0000-0000-000000000001', username: 'manager',
 const links = [20, 21].map(number => ({ id: `00000000-0000-0000-0000-0000000000${number}`, slug: `link${number}`, url: `https://go.example/link${number}`, targetUrl: 'https://example.com', title: '', tags: [], owner: { id: 'old', username: 'original', nickname: '' }, updatedAt: '2026-10-25T00:00:00.123456Z', createdAt: '2026-10-25T00:00:00Z', status: 'active', redirectMode: 'direct', intermediateDelaySeconds: 5, expiresAt: null, expired: false, passwordEnabled: false, maxVisits: null, visitsUsed: 0, visitsRemaining: null, exhausted: false }))
 const clients: QueryClient[] = []
 /** Returns the real wire envelope used by the list and batch boundaries. */
-function response(data: unknown = { items: links }, code = 0) { return new Response(JSON.stringify({ code, message: 'private diagnostic', data, meta: { total: 2 } })) }
+function response(data: unknown = { items: links }, code = 0, total = 2) { return new Response(JSON.stringify({ code, message: 'private diagnostic', data, meta: { total } })) }
 /** Mounts the real page, batch toolbar, dialog and HTTP client. */
-function mount(toolbarStub?: Component) {
+function mount(toolbarStub?: Component, pageRows?: readonly [typeof links[number], typeof links[number]], paginationStub?: Component) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   clients.push(client); client.setQueryData(['auth', 'me'], { user: actor })
-  const fetcher = vi.fn<typeof fetch>(async () => response())
+  const fetcher = vi.fn<typeof fetch>(async url => {
+    if (String(url).endsWith('/batch-transfer')) return response({ transferredCount: 2, unchangedCount: 0 })
+    if (String(url).endsWith('/user/list-preference')) return response({ preference: { pageSize: null, updatedAt: null } })
+    if (pageRows) {
+      const page = Number(new URL(String(url), 'http://localhost').searchParams.get('page') ?? 1)
+      return response({ items: [pageRows[Math.min(1, page - 1)]!] }, 0, 22)
+    }
+    return response()
+  })
   vi.stubGlobal('fetch', fetcher)
-  return { ...render(AdminLinksPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, ...(toolbarStub ? { ShortLinkBatchToolbar: toolbarStub } : {}) } } }), client, fetcher }
+  return { ...render(AdminLinksPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: { ...componentStubs, ...(toolbarStub ? { ShortLinkBatchToolbar: toolbarStub } : {}), ...(paginationStub ? { ShortLinkPagination: paginationStub } : {}) } } }), client, fetcher }
 }
 /** Chooses both current rows and opens a frozen batch confirmation. */
 async function open() {
@@ -35,6 +43,27 @@ async function confirm() {
 }
 afterEach(() => { clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals(); vi.clearAllMocks() })
 describe('administrative batch ownership confirmation', () => {
+  it('transfers selected rows retained from different pages', async () => {
+    const first = { ...links[0]!, id: '00000000-0000-0000-0000-000000000032', slug: 'first-page', owner: { id: 'old-1', username: 'first-owner', nickname: '' } }
+    const second = { ...links[1]!, id: '00000000-0000-0000-0000-000000000033', slug: 'second-page', owner: { id: 'old-2', username: 'second-owner', nickname: '' } }
+    const pagination = { emits: ['change'], template: '<button aria-label="pagination.next" @click="$emit(\'change\', 2)">Next</button>' } as Component
+    const view = mount(undefined, [first, second], pagination)
+    await screen.findByTestId('console-link-list')
+    await fireEvent.click(screen.getAllByRole('checkbox')[1]!)
+    await fireEvent.click(screen.getByRole('button', { name: 'pagination.next' }))
+    await screen.findByText('second-owner')
+    await fireEvent.click(screen.getAllByRole('checkbox')[1]!)
+    await fireEvent.click(screen.getByTestId('batch-transfer'))
+    await confirm()
+    await fireEvent.click(screen.getByRole('button', { name: 'transfer.save' }))
+    await waitFor(() => expect(view.fetcher.mock.calls.some(([url]) => String(url).endsWith('/batch-transfer'))).toBe(true))
+    const call = view.fetcher.mock.calls.find(([url]) => String(url).endsWith('/batch-transfer'))!
+    expect(JSON.parse(call[1]!.body as string).items).toEqual([
+      { id: first.id, expectedUpdatedAt: first.updatedAt },
+      { id: second.id, expectedUpdatedAt: second.updatedAt },
+    ])
+  })
+
   it('requires confirmation, pins versions and owners, excludes overlapping actions and clears only successful selection', async () => {
     const view = mount(); await open()
     expect(screen.getByRole('dialog').textContent).toContain('original')
