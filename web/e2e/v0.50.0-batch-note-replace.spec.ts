@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { writeFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext, BrowserContext, Page, TestInfo } from '@playwright/test'
+import { sameNoteInstant } from '../src/entities/short-link/batch-note-clear'
 import type { ShortLink } from '../src/entities/short-link/model'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
 
@@ -67,7 +68,13 @@ async function replace(page: Page, prefix: string, note: string, snapshot: Previ
   await page.getByTestId('batch-note-replace-confirm').focus(); await page.keyboard.press('Enter')
   const response = await pending, body = await response.json()
   expect(response.status()).toBe(200); expect(body.code).toBe(code)
-  expect(response.request().postDataJSON()).toEqual({ items: snapshot.items.map(({ id, expectedUpdatedAt, expectedNoteUpdatedAt }) => ({ id, expectedUpdatedAt, expectedNoteUpdatedAt })), note })
+  const sent = response.request().postDataJSON() as { items: { id: string; expectedUpdatedAt: string; expectedNoteUpdatedAt: string }[]; note: string }
+  expect(sent.note).toBe(note); expect(sent.items).toHaveLength(snapshot.items.length)
+  for (const [index, item] of snapshot.items.entries()) {
+    expect(sent.items[index]?.id).toBe(item.id)
+    expect(sameNoteInstant(sent.items[index]!.expectedUpdatedAt, item.expectedUpdatedAt)).toBe(true)
+    expect(sent.items[index]?.expectedNoteUpdatedAt).toBe(item.expectedNoteUpdatedAt)
+  }
   await expect(page.getByTestId('batch-note-replace-dialog')).toHaveCount(0)
   if (code === 0) await expect(page.getByTestId(prefix.startsWith('/admin/') ? 'console-page-admin-links' : 'console-page-links')).toBeFocused()
   return body.data

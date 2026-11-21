@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { writeFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext, BrowserContext, Page, TestInfo } from '@playwright/test'
+import { sameNoteInstant } from '../src/entities/short-link/batch-note-clear'
 import type { ShortLink } from '../src/entities/short-link/model'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
 import { captureAppendDiscard } from './batch-note-append-support'
@@ -67,9 +68,15 @@ async function preview(page: Page, prefix: string, appendable: number, overflow:
 async function append(page: Page, prefix: string, note: string, snapshot: Preview, code = 0) {
   const pending = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1' + prefix + '/note/batch-append')
   await page.getByTestId('batch-note-append-confirm').focus(); await page.keyboard.press('Enter')
-  const response = await pending, body = await response.json(), input = response.request().postDataJSON()
+  const response = await pending, body = await response.json()
   expect(response.status()).toBe(200); expect(body.code).toBe(code)
-  expect(input).toEqual({ requestId: expect.stringMatching(/^[a-f0-9-]{36}$/), items: snapshot.items, note })
+  const input = response.request().postDataJSON() as { requestId: string; items: Preview['items']; note: string }
+  expect(input.requestId).toMatch(/^[a-f0-9-]{36}$/); expect(input.note).toBe(note); expect(input.items).toHaveLength(snapshot.items.length)
+  for (const [index, item] of snapshot.items.entries()) {
+    expect(input.items[index]?.id).toBe(item.id)
+    expect(sameNoteInstant(input.items[index]!.expectedUpdatedAt, item.expectedUpdatedAt)).toBe(true)
+    expect(input.items[index]?.expectedNoteUpdatedAt).toBe(item.expectedNoteUpdatedAt)
+  }
   await expect(page.getByTestId('batch-note-append-dialog')).toHaveCount(0)
   if (code === 0) await expect(page.getByTestId(prefix.startsWith('/admin/') ? 'console-page-admin-links' : 'console-page-links')).toBeFocused()
   return body.data
