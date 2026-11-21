@@ -10,6 +10,8 @@
 
 继续核对剩余时间失败簇：v0.36、v0.81、v0.82、v0.86 错误上下文中的到期值仅有 `Z`／`+08:00` 表示差异，代表同一 instant；四个 E2E 现比较 instant，保留输入／wire 原文断言。v0.49 批量备注清空的主版本按合同保留列表原文，而预览回显允许等价 offset；E2E 改为核精度到纳秒的 instant 等值，仍精确核 ID／顺序和备注版本字符串。五个文件定向 E2E 在宿主 UTC+08 fallback、本机 PostgreSQL 18.7 隔离库与本地 Go 1.26.8 app fallback 上 23/23 通过；entity／hook／页面组件测试 112/112、五文件 ESLint 与 diff 检查通过。此次数据库已清理，原 `moeurl` 未改；完整浏览器套件仍未重跑、仍不通过，详见 v0.91 验收记录。
 
+该增量提交 `41ba0ec1` 已推送；仅当次 GPG 超时后 unsigned，global signing 仍开启。新 PR 创建遇 GitHub integration 403，尚无该 head 的 CodeRabbit 审查、合并或归档；完整 E2E 仍未通过，见验收记录。
+
 对剩余历史失败的初步归类已记录：宿主 fallback 服务为 UTC+08、专用 PostgreSQL 为 UTC，部分时间断言尚需在等价 Compose 运行时核实；审计导出测试要求未创建的专用 Compose 项目；QR 焦点和窄屏布局等其它簇继续单独调查。未将这些失败简单归为产品缺陷或通过。
 
 ## 最近完成（2026-11-18，v0.89.0）
