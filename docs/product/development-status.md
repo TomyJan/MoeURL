@@ -4,6 +4,8 @@
 
 [短链跨页手动选择](scope-v0.91.0.md)已实现并由 PR #402 正常 squash 合入 `6bc21ef6bed07c77ee4a404e3cb961880087f8ff`；PR #403 文档、PR #405／#406 E2E 跟进也已正常 squash 合入，均经 GitHub API 与独立 fetch 核验。版本仍未正式验收或发布。本人／全站列表保留同一筛选下最多 100 条手动勾选，切页或更改每页条数保留，筛选、身份／登录轮次或权限集合变化清空；表头全选／半选仅作用当前页；复制、选中 CSV 导出、批量标签和管理员转移消费完整选择快照。Node 26.3.0／pnpm 11.5.0 下 8 个相关文件 330/330 通过；类型检查、生产构建通过，改动文件 lint 0 errors／2 warnings。受控全量 `--maxWorkers=2` 为 290 文件／7,266 项全部通过，coverage 四项均为 100%；跨页主流程及历史分页回归共 34 项真实 Playwright 测试通过。当前 HEAD 匹配源码构建的完整浏览器套件已运行但未通过：551 项中 453 passed、51 failed、46 未运行、1 skipped；v0.45/v0.48、v0.77、v0.79、v0.84 与 v0.88 主流程通过，feedback 标准命令复跑 17/18。完整 lint、目标 CI 与正式验收仍待。PR #407 已正常合并，CodeRabbit 准确 head 的唯一有效意见已补齐；无新 API、数据库、权限或依赖。详细身份、回执和剩余门禁见[验收](../implementation/v0.91.0-acceptance.md)。不查 CI、不发布部署。
 
+另发现 v0.17 批量管理历史 E2E 仍断言旧无障碍名称和工具栏提示，已按当前 v0.91 文案修正；隔离后端上的目标 Playwright 为 5/5，定向 ESLint 与 `git diff --check` 通过。完整套件历史数字对应修正前测试树，修正后未重跑全量；完整 E2E 门禁仍未通过，详见验收记录。
+
 ## 最近完成（2026-11-18，v0.89.0）
 
 [有限 CSV 表头匹配](scope-v0.89.0.md)已由 PR #386 合入，merge commit `f236951862f53e59cfedbe318e224d48fd1c902e`。准确 head 的真实 CodeRabbit 为 `reviewed`、source／covered SHA 一致且有效意见 0；合并 tree `3adb9207da8e368b24e8c613dab6e487ab2b0161`、唯一父 `38b16dda98669d3840ccf0c909f3efb031848bb8` 经 API 与独立 fetch 核验。候选完整本地门禁及准确产品中英桌面／390 px 浏览器 5/5 通过；未把 master 上随后合入的依赖更新冒充为重验。最终 whole-owned 恢复归档已完成，3312 项全解压逐 hash，SHA-256 `4E5111079E7745BCE55AE758F98E51F463A416442AD848DEE5C714ABC44AF315`。未查 CI、未发布部署；完整边界和归档回执见[验收](../implementation/v0.89.0-acceptance.md)。
