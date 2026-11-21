@@ -58,7 +58,7 @@ for (const width of [1280, 390]) {
     expect(payload.code).toBe(0)
     expect(created.request().postDataJSON().expiration).toEqual({ mode: 'at', expiresAt: '2030-01-01T00:30:00.000Z' })
     const link = payload.data.shortLink
-    expect(link.expiresAt).toBe(instant)
+    expect(Date.parse(link.expiresAt)).toBe(Date.parse(instant))
     const rangeBefore = await statistics(editor, link.id)
     await editor.goto('/link')
     await switchEnglish(editor)

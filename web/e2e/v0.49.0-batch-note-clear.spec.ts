@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { writeFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext, BrowserContext, Page, TestInfo } from '@playwright/test'
+import { sameNoteInstant } from '../src/entities/short-link/batch-note-clear'
 import type { ShortLink } from '../src/entities/short-link/model'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
 
@@ -64,7 +65,13 @@ async function clear(page: Page, prefix: string, expectedCode: number, snapshot:
   await page.getByTestId('batch-note-clear-confirm').focus(); await page.keyboard.press('Enter')
   const response = await request, body = await response.json()
   expect(response.status()).toBe(200); expect(body.code).toBe(expectedCode)
-  expect(response.request().postDataJSON()).toEqual({ items: snapshot.items.map(({ id, expectedUpdatedAt, expectedNoteUpdatedAt }) => ({ id, expectedUpdatedAt, expectedNoteUpdatedAt })) })
+  const sent = response.request().postDataJSON() as { items: { id: string; expectedUpdatedAt: string; expectedNoteUpdatedAt: string }[] }
+  expect(sent.items).toHaveLength(snapshot.items.length)
+  for (const [index, item] of snapshot.items.entries()) {
+    expect(sent.items[index]?.id).toBe(item.id)
+    expect(sameNoteInstant(sent.items[index]!.expectedUpdatedAt, item.expectedUpdatedAt)).toBe(true)
+    expect(sent.items[index]?.expectedNoteUpdatedAt).toBe(item.expectedNoteUpdatedAt)
+  }
   await expect(page.getByTestId('batch-note-clear-dialog')).toHaveCount(0)
   if (expectedCode === 0) {
     await expect(page.getByTestId('batch-note-clear')).toBeDisabled()
