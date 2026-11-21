@@ -12,6 +12,8 @@
 
 该增量提交 `41ba0ec1` 已推送；仅当次 GPG 超时后 unsigned，global signing 仍开启。新 PR 创建遇 GitHub integration 403，尚无该 head 的 CodeRabbit 审查、合并或归档；完整 E2E 仍未通过，见验收记录。
 
+另对 v0.87 CSV 标签映射历史失败做隔离复现：测试按 Enter 激活聚焦的 Vuetify option 后菜单未选中；将 E2E 的选项动作改为精确名称点击，不改产品代码，真实浏览器 4 场景通过，相关映射组件／hook／状态 184 项通过。运行与清理细节见 v0.91 验收；未将此定向通过扩展为全量 suite 结论。
+
 对剩余历史失败的初步归类已记录：宿主 fallback 服务为 UTC+08、专用 PostgreSQL 为 UTC，部分时间断言尚需在等价 Compose 运行时核实；审计导出测试要求未创建的专用 Compose 项目；QR 焦点和窄屏布局等其它簇继续单独调查。未将这些失败简单归为产品缺陷或通过。
 
 ## 最近完成（2026-11-18，v0.89.0）

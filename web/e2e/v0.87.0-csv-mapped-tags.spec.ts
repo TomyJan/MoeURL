@@ -198,7 +198,7 @@ function csv(headers: string[], rows: string[][]) {
 }
 function column(number: number, name: string, english: boolean) { return english ? 'Column ' + number + ': ' + name : '第 ' + number + ' 列：' + name }
 async function choose(page: Page, control: Locator, name: string) {
-  await activate(control); await activate(page.getByRole('option', { name, exact: true })); await expect(control).toHaveValue(name)
+  await activate(control); await page.getByRole('option', { name, exact: true }).click(); await expect(control).toHaveValue(name)
 }
 async function activate(control: Locator) {
   if (control.page().viewportSize()?.width === 390) {
