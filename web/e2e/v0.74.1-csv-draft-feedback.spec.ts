@@ -55,8 +55,9 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
     await draft.fill(preserved)
     await dialog.getByTestId('bulk-create-standard-file').setInputFiles({ name: 'invalid.csv', mimeType: 'text/csv', buffer: Buffer.from('target_url,title,tags,custom_slug,redirect_mode\nhttps://example.com/invalid,,,[],bad') })
     const title = language === 'en' ? 'CSV format example and template' : 'CSV 格式示例与模板'
-    await expect(page.getByTestId('bulk-create-error')).toContainText(title)
-    await expect(page.getByTestId('bulk-create-error')).toContainText('target_url,title,tags,custom_slug,redirect_mode')
+    await expect(page.getByTestId('bulk-create-error')).toContainText(language === 'en'
+      ? 'Invalid CSV. Open “CSV format example and template” for supported formats, then reselect the file. Your draft is preserved.'
+      : 'CSV 格式无效。请打开“CSV 格式示例与模板”核对后重新选择文件。原草稿已保留。')
     await expect(draft).toHaveValue(preserved); expect(writes).toEqual([])
     await expect(help.locator('summary')).toHaveText(title)
     await activate(help.locator('summary')); await expect(help).toHaveAttribute('open', '')
