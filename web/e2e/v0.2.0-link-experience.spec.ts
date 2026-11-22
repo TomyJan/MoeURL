@@ -379,6 +379,7 @@ async function expectIntermediateLayout(page: Page) {
 async function expectSettingsDialogLayout(page: Page, dialog: Locator) {
   await expectNoHorizontalOverflow(page)
   const controls = dialog.locator('.short-link-settings-dialog__body > *')
+  await controls.last().scrollIntoViewIfNeeded()
   await Promise.all([
     expect(dialog.getByLabel('目标链接')).toBeVisible(),
     expect(dialog.getByLabel('跳转方式')).toBeVisible(),
