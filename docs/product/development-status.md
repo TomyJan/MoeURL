@@ -12,7 +12,7 @@
 
 完整浏览器首轮中 feedback Toaster 用例的“需经 pnpm 启动”错误属于 harness 准备问题；标准 feedback 复跑时 Toaster 生命周期场景通过。原先唯一的 320 px 通知几何失败已按下面的 E2E 条件等待修正，完整 feedback 文件现 18/18 通过。
 
-QR 键盘失败簇已定位为菜单进入动画期间选项尚处于 `visibility:hidden`，旧 E2E 在 overlay 根可见时就发键盘输入。v0.59／v0.62 两文件改为等待首个菜单项可见；原 9 个失败浏览器组合修正后通过（两次隔离复测分别 3/3、8/8，含 setup）。未改产品组件。320 px 通知失败则是页面时钟 mock 的固定等待不等同真实 Chromium viewport-unit 样式更新；旧值可暂留为 8.015625 px。E2E 现等待 toast 几何达到原断言下限，320 px 用例重复 3 次通过，完整 feedback 文件 18/18 通过；未改产品 CSS 或放宽验收。全量 551 项结果尚未重跑，详见[v0.91 验收](../implementation/v0.91.0-acceptance.md)。
+QR 键盘失败簇已定位为菜单进入动画期间选项尚处于 `visibility:hidden`，旧 E2E 在 overlay 根可见时就发键盘输入。v0.59／v0.62 两文件改为等待首个菜单项可见；原 9 个失败浏览器组合修正后通过（两次隔离复测分别 3/3、8/8，含 setup），随后两文件完整定向复验共 15/15（含 setup）。未改产品组件。320 px 通知失败则是页面时钟 mock 的固定等待不等同真实 Chromium viewport-unit 样式更新；旧值可暂留为 8.015625 px。E2E 现等待 toast 几何达到原断言下限，320 px 用例重复 3 次通过，完整 feedback 文件 18/18 通过；未改产品 CSS 或放宽验收。全量 551 项结果尚未重跑，详见[v0.91 验收](../implementation/v0.91.0-acceptance.md)。
 
 该增量提交 `41ba0ec1` 已推送；仅当次 GPG 超时后 unsigned，global signing 仍开启。新 PR 创建遇 GitHub integration 403，尚无该 head 的 CodeRabbit 审查、合并或归档；完整 E2E 仍未通过，见验收记录。
 
