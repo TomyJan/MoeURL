@@ -62,6 +62,8 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390,
             await page.keyboard.press('Enter')
             const menu = page.getByRole('menu', { name: text.size, exact: true })
             await expect(menu).toBeVisible()
+            // The overlay root can be visible while its items are still visibility:hidden during the enter transition.
+            await expect(menu.getByRole('menuitemradio').first()).toBeVisible()
             if (entry === 'home' && index === 2) await page.screenshot({ path: info.outputPath(`size-${language}-${width}-menu.png`) })
             const option = menu.getByRole('menuitemradio', { name: `${pixels} px`, exact: true })
             await page.keyboard.press('ArrowDown')
@@ -85,6 +87,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390,
             await expect(activator).toBeFocused()
             await page.keyboard.press('Enter')
             await expect(menu).toBeVisible()
+            await expect(menu.getByRole('menuitemradio').first()).toBeVisible()
             await page.keyboard.press('ArrowDown')
             await expect.poll(() => menu.evaluate(element => element.contains(document.activeElement))).toBe(true)
             await page.keyboard.press('Home')

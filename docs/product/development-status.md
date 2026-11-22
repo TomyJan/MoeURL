@@ -12,6 +12,8 @@
 
 完整浏览器首轮中 feedback Toaster 用例的“需经 pnpm 启动”错误属于 harness 准备问题；标准 feedback 复跑中该 Toaster 场景通过，唯一场景失败仍为独立 320 px 通知几何，不把启动错误记为产品失败。
 
+QR 键盘失败簇已定位为菜单进入动画期间选项尚处于 `visibility:hidden`，旧 E2E 在 overlay 根可见时就发键盘输入。v0.59／v0.62 两文件改为等待首个菜单项可见；原 9 个失败浏览器组合修正后通过（两次隔离复测分别 3/3、8/8，含 setup）。未改产品组件。320 px 通知高度在连续 viewport resize 后仍会异常收缩至约 8 px，CSS 试验无稳定证据且已撤回；该簇仍待处理，详见[v0.91 验收](../implementation/v0.91.0-acceptance.md)。
+
 该增量提交 `41ba0ec1` 已推送；仅当次 GPG 超时后 unsigned，global signing 仍开启。新 PR 创建遇 GitHub integration 403，尚无该 head 的 CodeRabbit 审查、合并或归档；完整 E2E 仍未通过，见验收记录。
 
 另对 v0.87 CSV 标签映射历史失败做隔离复现：测试按 Enter 激活聚焦的 Vuetify option 后菜单未选中；将 E2E 的选项动作改为精确名称点击，不改产品代码，真实浏览器 4 场景通过，相关映射组件／hook／状态 184 项通过。运行与清理细节见 v0.91 验收；未将此定向通过扩展为全量 suite 结论。
