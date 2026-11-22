@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-22，v0.91.0）
 
-[短链跨页手动选择](scope-v0.91.0.md)已实现并由 PR #402 正常 squash 合入 `6bc21ef6bed07c77ee4a404e3cb961880087f8ff`；PR #403 文档、PR #405／#406 E2E 跟进也已正常 squash 合入，均经 GitHub API 与独立 fetch 核验。版本仍未正式验收或发布。本人／全站列表保留同一筛选下最多 100 条手动勾选，切页或更改每页条数保留，筛选、身份／登录轮次或权限集合变化清空；表头全选／半选仅作用当前页；复制、选中 CSV 导出、批量标签和管理员转移消费完整选择快照。Node 26.3.0／pnpm 11.5.0 下 8 个相关文件 330/330 通过；类型检查、生产构建通过，改动文件 lint 0 errors／2 warnings。受控全量 `--maxWorkers=2` 为 290 文件／7,266 项全部通过，coverage 四项均为 100%；跨页主流程及历史分页回归共 34 项真实 Playwright 测试通过。当前 HEAD 匹配源码构建的完整浏览器套件已运行但未通过：551 项中 453 passed、51 failed、46 未运行、1 skipped；v0.45/v0.48、v0.77、v0.79、v0.84 与 v0.88 主流程通过，feedback 标准命令复跑 17/18。完整 lint、目标 CI 与正式验收仍待。PR #407 已正常合并，CodeRabbit 准确 head 的唯一有效意见已补齐；无新 API、数据库、权限或依赖。详细身份、回执和剩余门禁见[验收](../implementation/v0.91.0-acceptance.md)。不查 CI、不发布部署。
+[短链跨页手动选择](scope-v0.91.0.md)已实现并由 PR #402 正常 squash 合入 `6bc21ef6bed07c77ee4a404e3cb961880087f8ff`；PR #403 文档、PR #405／#406 E2E 跟进也已正常 squash 合入，均经 GitHub API 与独立 fetch 核验。版本仍未正式验收或发布。本人／全站列表保留同一筛选下最多 100 条手动勾选，切页或更改每页条数保留，筛选、身份／登录轮次或权限集合变化清空；表头全选／半选仅作用当前页；复制、选中 CSV 导出、批量标签和管理员转移消费完整选择快照。Node 26.3.0／pnpm 11.5.0 下 8 个相关文件 330/330 通过；类型检查、生产构建通过，改动文件 lint 0 errors／2 warnings。受控全量 `--maxWorkers=2` 为 290 文件／7,266 项全部通过，coverage 四项均为 100%；跨页主流程及历史分页回归共 34 项真实 Playwright 测试通过。较早源码树的完整浏览器套件历史结果为 551 项中 453 passed、51 failed、46 未运行、1 skipped；该结果不代表当前 HEAD，修正后的全量 E2E 尚未重跑。feedback 标准命令的 17/18 是历史复测；最新完整 `feedback-layout.spec.ts` 为 18/18 通过。完整前端 `pnpm --dir web lint` 已通过（0 errors、7 warnings）；目标 CI 与正式验收仍待。PR #407 已正常合并，CodeRabbit 准确 head 的唯一有效意见已补齐；无新 API、数据库、权限或依赖。详细身份、回执和剩余门禁见[验收](../implementation/v0.91.0-acceptance.md)。不查 CI、不发布部署。
 
 另发现 v0.17 批量管理历史 E2E 仍断言旧无障碍名称和工具栏提示，已按当前 v0.91 文案修正；隔离后端上的目标 Playwright 为 5/5，定向 ESLint 与 `git diff --check` 通过。完整套件历史数字对应修正前测试树，修正后未重跑全量；完整 E2E 门禁仍未通过，详见验收记录。
 
@@ -14,7 +14,7 @@
 
 QR 键盘失败簇已定位为菜单进入动画期间选项尚处于 `visibility:hidden`，旧 E2E 在 overlay 根可见时就发键盘输入。v0.59／v0.62 两文件改为等待首个菜单项可见；原 9 个失败浏览器组合修正后通过（两次隔离复测分别 3/3、8/8，含 setup），随后两文件完整定向复验共 15/15（含 setup）。未改产品组件。320 px 通知失败则是页面时钟 mock 的固定等待不等同真实 Chromium viewport-unit 样式更新；旧值可暂留为 8.015625 px。E2E 现等待 toast 几何达到原断言下限，320 px 用例重复 3 次通过，完整 feedback 文件 18/18 通过；未改产品 CSS 或放宽验收。全量 551 项结果尚未重跑，详见[v0.91 验收](../implementation/v0.91.0-acceptance.md)。
 
-该增量提交 `41ba0ec1` 已推送；仅当次 GPG 超时后 unsigned，global signing 仍开启。新 PR 创建遇 GitHub integration 403，尚无该 head 的 CodeRabbit 审查、合并或归档；完整 E2E 仍未通过，见验收记录。
+增量提交 `41ba0ec1` 推送时 PR 创建曾遇 GitHub integration 403；该阶段尚无当前 head 审查。随后已通过本机 Git 凭据路径创建 PR #413，真实 CodeRabbit 正在审查 `8da53e1`；当前审查／集成状态以[验收记录](../implementation/v0.91.0-acceptance.md)的最新条目为准。
 
 另对 v0.87 CSV 标签映射历史失败做隔离复现：测试按 Enter 激活聚焦的 Vuetify option 后菜单未选中；将 E2E 的选项动作改为精确名称点击，不改产品代码，真实浏览器 4 场景通过，相关映射组件／hook／状态 184 项通过。运行与清理细节见 v0.91 验收；未将此定向通过扩展为全量 suite 结论。
 
