@@ -10,6 +10,8 @@
 
 继续核对剩余时间失败簇：v0.36、v0.81、v0.82、v0.86 错误上下文中的到期值仅有 `Z`／`+08:00` 表示差异，代表同一 instant；四个 E2E 现比较 instant，保留输入／wire 原文断言。v0.49 批量备注清空的主版本按合同保留列表原文，而预览回显允许等价 offset；E2E 改为核精度到纳秒的 instant 等值，仍精确核 ID／顺序和备注版本字符串。五个文件定向 E2E 在宿主 UTC+08 fallback、本机 PostgreSQL 18.7 隔离库与本地 Go 1.26.8 app fallback 上 23/23 通过；entity／hook／页面组件测试 112/112、五文件 ESLint 与 diff 检查通过。此次数据库已清理，原 `moeurl` 未改；完整浏览器套件仍未重跑、仍不通过，详见 v0.91 验收记录。
 
+完整浏览器首轮中 feedback Toaster 用例的“需经 pnpm 启动”错误属于 harness 准备问题；标准 feedback 复跑中该 Toaster 场景通过，唯一场景失败仍为独立 320 px 通知几何，不把启动错误记为产品失败。
+
 该增量提交 `41ba0ec1` 已推送；仅当次 GPG 超时后 unsigned，global signing 仍开启。新 PR 创建遇 GitHub integration 403，尚无该 head 的 CodeRabbit 审查、合并或归档；完整 E2E 仍未通过，见验收记录。
 
 另对 v0.87 CSV 标签映射历史失败做隔离复现：测试按 Enter 激活聚焦的 Vuetify option 后菜单未选中；将 E2E 的选项动作改为精确名称点击，不改产品代码，真实浏览器 4 场景通过，相关映射组件／hook／状态 184 项通过。运行与清理细节见 v0.91 验收；未将此定向通过扩展为全量 suite 结论。
