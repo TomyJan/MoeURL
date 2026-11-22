@@ -14,9 +14,9 @@
 
 QR 键盘失败簇已定位为菜单进入动画期间选项尚处于 `visibility:hidden`，旧 E2E 在 overlay 根可见时就发键盘输入。v0.59／v0.62 两文件改为等待首个菜单项可见；原 9 个失败浏览器组合修正后通过（两次隔离复测分别 3/3、8/8，含 setup），随后两文件完整定向复验共 15/15（含 setup）。未改产品组件。320 px 通知失败则是页面时钟 mock 的固定等待不等同真实 Chromium viewport-unit 样式更新；旧值可暂留为 8.015625 px。E2E 现等待 toast 几何达到原断言下限，320 px 用例重复 3 次通过，完整 feedback 文件 18/18 通过；未改产品 CSS 或放宽验收。全量 551 项结果尚未重跑，详见[v0.91 验收](../implementation/v0.91.0-acceptance.md)。
 
-PR #413 对 head `f65457c9` 的 CodeRabbit review 已核实覆盖准确 SHA，2 项 Minor 已按证据修正；v0.75 过期时间 E2E 新增与 `shortLinkSchema` 同源的 ISO 8601 时区格式检查后，完整文件 16/16 通过。当前修正 head 的再次 review／合并仍待，详见[v0.91 验收](../implementation/v0.91.0-acceptance.md)。
+PR #413 的 CodeRabbit review 已核实覆盖 head `f65457c9`，提出的 2 项 Minor 已在后续 head `51f7cfe7` 修正；v0.75 过期时间 E2E 新增与 `shortLinkSchema` 同源的 ISO 8601 时区格式检查后，完整文件 16/16 通过。当前 PR head 尚无复审覆盖，后续审查／合并仍待，详见[v0.91 验收](../implementation/v0.91.0-acceptance.md)。
 
-增量提交 `41ba0ec1` 推送时 PR 创建曾遇 GitHub integration 403；该阶段尚无当前 head 审查。随后已通过本机 Git 凭据路径创建 PR #413，真实 CodeRabbit 正在审查 `8da53e1`；当前审查／集成状态以[验收记录](../implementation/v0.91.0-acceptance.md)的最新条目为准。
+增量提交 `41ba0ec1` 推送时 PR 创建曾遇 GitHub integration 403；随后已通过本机 Git 凭据路径创建 PR #413。当前审查覆盖边界和最新 PR head 状态以[验收记录](../implementation/v0.91.0-acceptance.md)为准。
 
 另对 v0.87 CSV 标签映射历史失败做隔离复现：测试按 Enter 激活聚焦的 Vuetify option 后菜单未选中；将 E2E 的选项动作改为精确名称点击，不改产品代码，真实浏览器 4 场景通过，相关映射组件／hook／状态 184 项通过。运行与清理细节见 v0.91 验收；未将此定向通过扩展为全量 suite 结论。
 
