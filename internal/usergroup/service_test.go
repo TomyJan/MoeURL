@@ -18,12 +18,13 @@ import (
 var errTestInfrastructure = errors.New("test infrastructure failure")
 
 type fakeGroupQueries struct {
-	listResult   []sqlc.UserGroup
-	listErr      error
-	updateResult sqlc.UserGroup
-	updateErr    error
-	getResult    sqlc.UserGroup
-	getErr       error
+	listResult    []sqlc.UserGroup
+	allListResult []sqlc.ListUserGroupsRow
+	listErr       error
+	updateResult  sqlc.UserGroup
+	updateErr     error
+	getResult     sqlc.UserGroup
+	getErr        error
 
 	listCalls   int
 	updateCalls int
@@ -35,6 +36,22 @@ type fakeGroupQueries struct {
 func (f *fakeGroupQueries) ListBuiltinUserGroups(context.Context) ([]sqlc.UserGroup, error) {
 	f.listCalls++
 	return f.listResult, f.listErr
+}
+
+// ListUserGroups records the dynamic group projection and returns configured rows.
+func (f *fakeGroupQueries) ListUserGroups(context.Context) ([]sqlc.ListUserGroupsRow, error) {
+	f.listCalls++
+	if f.allListResult == nil && f.listResult != nil {
+		rows := make([]sqlc.ListUserGroupsRow, 0, len(f.listResult))
+		for _, group := range f.listResult {
+			rows = append(rows, sqlc.ListUserGroupsRow{
+				Key: group.Key, Name: group.Name, Description: group.Description,
+				Permissions: group.Permissions, Builtin: group.Builtin, UpdatedAt: group.UpdatedAt,
+			})
+		}
+		return rows, f.listErr
+	}
+	return f.allListResult, f.listErr
 }
 
 // UpdateBuiltinUserGroupPermissions records an update query and returns the configured result.
@@ -142,6 +159,30 @@ func TestServiceListReturnsNormalizedBuiltinGroupsAndCatalog(t *testing.T) {
 	}
 	if !reflect.DeepEqual(result.Presets, permission.Presets()) {
 		t.Fatalf("permission presets differ from catalog")
+	}
+}
+
+func TestServiceListIncludesCustomGroups(t *testing.T) {
+	updatedAt := time.Date(2026, 11, 23, 7, 30, 0, 123456000, time.UTC)
+	queries := &fakeGroupQueries{allListResult: []sqlc.ListUserGroupsRow{{
+		Key:         "550e8400-e29b-41d4-a716-446655440001",
+		Name:        "Operations",
+		Description: "Operational access",
+		Permissions: []byte(`["short_link:read_own","short_link:create"]`),
+		Builtin:     false,
+		UpdatedAt:   pgtype.Timestamptz{Time: updatedAt, Valid: true},
+		MemberCount: 3,
+	}}}
+
+	result, err := testService(queries, adminResolver()).List(context.Background(), testActor(permission.GroupAdmin))
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	if len(result.Groups) != 1 || result.Groups[0].Key != "550e8400-e29b-41d4-a716-446655440001" {
+		t.Fatalf("List() groups = %#v, want the custom group", result.Groups)
+	}
+	if result.Groups[0].MemberCount != 3 {
+		t.Fatalf("MemberCount = %d, want 3", result.Groups[0].MemberCount)
 	}
 }
 

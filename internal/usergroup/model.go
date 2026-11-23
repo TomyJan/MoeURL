@@ -9,6 +9,7 @@ type UserGroup struct {
 	Description string   `json:"description"`
 	Builtin     bool     `json:"builtin"`
 	Editable    bool     `json:"editable"`
+	MemberCount int64    `json:"memberCount"`
 	Permissions []string `json:"permissions"`
 	UpdatedAt   string   `json:"updatedAt"`
 }

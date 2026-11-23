@@ -81,20 +81,9 @@ func NormalizeForGroup(groupKey string, values []string) ([]string, error) {
 		return nil, fmt.Errorf("%w: %s", ErrUnknownGroup, groupKey)
 	}
 
-	indexes := make(map[string]int, len(catalogDefinitions))
-	for index, definition := range catalogDefinitions {
-		indexes[definition.Key] = index
-	}
-	selected := make([]bool, len(catalogDefinitions))
-	for _, value := range values {
-		index, ok := indexes[value]
-		if !ok {
-			return nil, fmt.Errorf("%w: %s", ErrUnknownPermission, value)
-		}
-		if selected[index] {
-			return nil, fmt.Errorf("%w: %s", ErrDuplicatePermission, value)
-		}
-		selected[index] = true
+	selected, err := normalizeCatalogPermissions(values)
+	if err != nil {
+		return nil, err
 	}
 
 	switch groupKey {
@@ -115,14 +104,50 @@ func NormalizeForGroup(groupKey string, values []string) ([]string, error) {
 			}
 		}
 	}
+	return catalogPermissions(selected), nil
+}
 
-	result := make([]string, 0, len(values))
+// NormalizeCustomGroup validates a configurable permission set for a non-builtin group.
+func NormalizeCustomGroup(values []string) ([]string, error) {
+	selected, err := normalizeCatalogPermissions(values)
+	if err != nil {
+		return nil, err
+	}
+	for index, definition := range catalogDefinitions {
+		if definition.Protected && selected[index] {
+			return nil, fmt.Errorf("%w: %s", ErrProtectedPermission, definition.Key)
+		}
+	}
+	return catalogPermissions(selected), nil
+}
+
+func normalizeCatalogPermissions(values []string) ([]bool, error) {
+	indexes := make(map[string]int, len(catalogDefinitions))
+	for index, definition := range catalogDefinitions {
+		indexes[definition.Key] = index
+	}
+	selected := make([]bool, len(catalogDefinitions))
+	for _, value := range values {
+		index, ok := indexes[value]
+		if !ok {
+			return nil, fmt.Errorf("%w: %s", ErrUnknownPermission, value)
+		}
+		if selected[index] {
+			return nil, fmt.Errorf("%w: %s", ErrDuplicatePermission, value)
+		}
+		selected[index] = true
+	}
+	return selected, nil
+}
+
+func catalogPermissions(selected []bool) []string {
+	result := make([]string, 0, len(selected))
 	for index, definition := range catalogDefinitions {
 		if selected[index] {
 			result = append(result, definition.Key)
 		}
 	}
-	return result, nil
+	return result
 }
 
 // validateCatalog verifies catalog structure against the active authorization baselines.

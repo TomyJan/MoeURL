@@ -91,6 +91,9 @@ func TestHandlerListReturnsUnifiedResultAndActor(t *testing.T) {
 	handler := NewHandler(service, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	response := serveUserGroupHandler(t, http.HandlerFunc(handler.List), actor, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/admin/user-group/list", nil))
+	if response.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", response.Header().Get("Cache-Control"))
+	}
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", response.Code)
 	}

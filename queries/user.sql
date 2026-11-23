@@ -13,6 +13,12 @@ select id, key, name, description, permissions, builtin, created_at, updated_at,
 from user_group
 where id = $1;
 
+-- name: LockUserGroupForCustomManagement :one
+select id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
+from user_group
+where key = $1
+for update;
+
 -- name: ListBuiltinUserGroups :many
 select id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
 from user_group

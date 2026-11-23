@@ -174,6 +174,48 @@ func TestCustomUserGroupSQLCQueries(t *testing.T) {
 	require.Zero(t, grants)
 }
 
+func TestCustomUserGroupMigrationAuditsLifecycleWithoutValues(t *testing.T) {
+	ctx := t.Context()
+	database := migrationTestDatabase(t, ctx)
+	dir := filepath.Join("..", "..", "migrations")
+	require.NoError(t, goose.UpTo(database, dir, 49))
+	insertUserGroups(t, ctx, database)
+	require.NoError(t, goose.UpTo(database, dir, 50))
+
+	const groupID = "00000000-0000-0000-0000-000000000904"
+	actorID := "00000000-0000-0000-0000-000000000201"
+	tx, err := database.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	_, err = tx.ExecContext(ctx, `select set_config('moeurl.audit_enabled','on',true),set_config('moeurl.audit_actor',$1,true)`, actorID)
+	require.NoError(t, err)
+	_, err = tx.ExecContext(ctx, `insert into user_group(id,key,name,description,permissions,builtin,created_at,updated_at)
+		values($1,'550e8400-e29b-41d4-a716-446655440004','Operations','Ops team','[]'::jsonb,false,now(),now())`, groupID)
+	require.NoError(t, err)
+	_, err = tx.ExecContext(ctx, `update user_group set name='Operations Team',description='Platform operators' where id=$1`, groupID)
+	require.NoError(t, err)
+	require.NoError(t, tx.Commit())
+
+	var action string
+	var fieldsJSON string
+	require.NoError(t, database.QueryRowContext(ctx, `select action,array_to_json(changed_fields)::text from audit_log where resource_type='user_group' and resource_id=$1 order by id limit 1`, groupID).Scan(&action, &fieldsJSON))
+	require.Equal(t, "create", action)
+	require.JSONEq(t, `["name","description","permissions"]`, fieldsJSON)
+	require.NoError(t, database.QueryRowContext(ctx, `select action,array_to_json(changed_fields)::text from audit_log where resource_type='user_group' and resource_id=$1 order by id desc limit 1`, groupID).Scan(&action, &fieldsJSON))
+	require.Equal(t, "update", action)
+	require.JSONEq(t, `["name","description"]`, fieldsJSON)
+
+	tx, err = database.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	_, err = tx.ExecContext(ctx, `select set_config('moeurl.audit_enabled','on',true),set_config('moeurl.audit_actor',$1,true)`, actorID)
+	require.NoError(t, err)
+	_, err = tx.ExecContext(ctx, `delete from user_group where id=$1`, groupID)
+	require.NoError(t, err)
+	require.NoError(t, tx.Commit())
+	require.NoError(t, database.QueryRowContext(ctx, `select action,array_to_json(changed_fields)::text from audit_log where resource_type='user_group' and resource_id=$1 order by id desc limit 1`, groupID).Scan(&action, &fieldsJSON))
+	require.Equal(t, "delete", action)
+	require.JSONEq(t, `["name","description","permissions","default_domain_id"]`, fieldsJSON)
+}
+
 func insertBuiltinUserGroupFixtures(t *testing.T, ctx context.Context, pool interface {
 	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
 }) {

@@ -523,6 +523,30 @@ func (q *Queries) LockGroupChangeUsers(ctx context.Context, ids []pgtype.UUID) (
 	return items, nil
 }
 
+const lockUserGroupForCustomManagement = `-- name: LockUserGroupForCustomManagement :one
+select id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
+from user_group
+where key = $1
+for update
+`
+
+func (q *Queries) LockUserGroupForCustomManagement(ctx context.Context, key string) (UserGroup, error) {
+	row := q.db.QueryRow(ctx, lockUserGroupForCustomManagement, key)
+	var i UserGroup
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Name,
+		&i.Description,
+		&i.Permissions,
+		&i.Builtin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DefaultDomainID,
+	)
+	return i, err
+}
+
 const revokeGroupChangeSessions = `-- name: RevokeGroupChangeSessions :exec
 update session set revoked_at=clock_timestamp()
 where user_id=$1 and revoked_at is null

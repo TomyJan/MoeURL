@@ -30,7 +30,7 @@ type Service struct {
 
 // groupQueries contains the SQLC operations needed by Service.
 type groupQueries interface {
-	ListBuiltinUserGroups(context.Context) ([]sqlc.UserGroup, error)
+	ListUserGroups(context.Context) ([]sqlc.ListUserGroupsRow, error)
 	UpdateBuiltinUserGroupPermissions(context.Context, auth.CurrentUser, sqlc.UpdateBuiltinUserGroupPermissionsParams) (sqlc.UserGroup, error)
 	GetUserGroupByKey(context.Context, string) (sqlc.UserGroup, error)
 }
@@ -108,13 +108,13 @@ func (s *Service) List(ctx context.Context, actor auth.CurrentUser) (ListResult,
 		return ListResult{}, err
 	}
 
-	rows, err := s.queries.ListBuiltinUserGroups(ctx)
+	rows, err := s.queries.ListUserGroups(ctx)
 	if err != nil {
 		return ListResult{}, err
 	}
 	groups := make([]UserGroup, 0, len(rows))
 	for _, row := range rows {
-		group, err := userGroupFromRow(row)
+		group, err := userGroupFromListRow(row)
 		if err != nil {
 			return ListResult{}, err
 		}
@@ -125,6 +125,22 @@ func (s *Service) List(ctx context.Context, actor auth.CurrentUser) (ListResult,
 		Permissions: permission.Definitions(),
 		Presets:     permission.Presets(),
 	}, nil
+}
+
+func userGroupFromListRow(row sqlc.ListUserGroupsRow) (UserGroup, error) {
+	group, err := userGroupFromRow(sqlc.UserGroup{
+		Key:         row.Key,
+		Name:        row.Name,
+		Description: row.Description,
+		Permissions: row.Permissions,
+		Builtin:     row.Builtin,
+		UpdatedAt:   row.UpdatedAt,
+	})
+	if err != nil {
+		return UserGroup{}, err
+	}
+	group.MemberCount = row.MemberCount
+	return group, nil
 }
 
 // UpdatePermissions conditionally replaces one editable built-in group's permissions.
@@ -204,21 +220,40 @@ func (s *Service) classifyConditionalMiss(ctx context.Context, groupKey string) 
 
 // userGroupFromRow validates stored permissions and formats the public model.
 func userGroupFromRow(row sqlc.UserGroup) (UserGroup, error) {
+	if !row.Builtin && isReservedBuiltinGroupKey(row.Key) {
+		return UserGroup{}, errors.New("reserved user group key is marked custom")
+	}
 	var stored []string
 	if err := json.Unmarshal(row.Permissions, &stored); err != nil {
 		return UserGroup{}, err
 	}
-	normalized, err := permission.NormalizeForGroup(row.Key, stored)
+	var normalized []string
+	var err error
+	if row.Builtin {
+		normalized, err = permission.NormalizeForGroup(row.Key, stored)
+	} else {
+		normalized, err = permission.NormalizeCustomGroup(stored)
+	}
 	if err != nil {
 		return UserGroup{}, err
 	}
+	editable := !row.Builtin || row.Key == permission.GroupUser || row.Key == permission.GroupAdmin
 	return UserGroup{
 		Key:         row.Key,
 		Name:        row.Name,
 		Description: row.Description,
 		Builtin:     row.Builtin,
-		Editable:    row.Key == permission.GroupUser || row.Key == permission.GroupAdmin,
+		Editable:    editable,
 		Permissions: normalized,
 		UpdatedAt:   row.UpdatedAt.Time.UTC().Format(time.RFC3339Nano),
 	}, nil
+}
+
+func isReservedBuiltinGroupKey(key string) bool {
+	switch key {
+	case permission.GroupGuest, permission.GroupUser, permission.GroupAdmin:
+		return true
+	default:
+		return false
+	}
 }
