@@ -511,7 +511,9 @@ test('mobile live notice keeps navigation touchable before expiry at ' + width +
       await page.setViewportSize({ width, height: 320 })
       await page.clock.runFor(100)
       await assertMessage()
-      expect(await page.locator('.app-toasts--page').evaluate(node => node.getBoundingClientRect().height)).toBeGreaterThan(20)
+      const restoredRegion = page.locator('.app-toasts--page')
+      // The mocked notification clock does not wait for Chromium's dynamic viewport-unit layout to settle.
+      await expect.poll(() => restoredRegion.evaluate(node => node.getBoundingClientRect().height), { timeout: 1000 }).toBeGreaterThan(20)
       await page.screenshot({ path: info.outputPath('navigation-restored-space.png'), animations: 'disabled' })
     }
     await account.locator('a[href="/profile"]').tap({ timeout: 1000 })

@@ -144,16 +144,16 @@ test('v0.55.0 en 390px preserves its draft when metadata JSON exceeds the reques
   await page.goto('/link'); await keyboard(page.getByTestId('bulk-create-open'))
   const dialog = page.getByRole('dialog'), draft = dialog.getByRole('textbox'), original = 'https://example.org/keep-' + randomBytes(7).toString('hex')
   await draft.fill(original)
-  const item = { targetUrl: 'https://example.com', title: '', tags: [] as string[] }, requestId = '11111111-1111-4111-8111-111111115552'
-  const fixed = Buffer.byteLength(JSON.stringify({ requestId, items: [item] }))
-  item.title = ' '.repeat(65537 - fixed)
-  expect(Buffer.byteLength(JSON.stringify({ requestId, items: [item] }))).toBe(65537)
-  const csv = Buffer.from('target_url,title,tags\n' + [item.targetUrl, item.title, '[]'].map(quote).join(','))
+  const requestId = '11111111-1111-4111-8111-111111115552'
+  const items = Array.from({ length: 20 }, (_, index) => ({ targetUrl: 'https://example.com/request-budget/' + index + '\\'.repeat(1700), title: '', tags: [] as string[] }))
+  const expected = { requestId, items }
+  expect(Buffer.byteLength(JSON.stringify(expected))).toBeGreaterThan(65536)
+  const csv = Buffer.from('target_url,title,tags\r\n' + items.map(item => [item.targetUrl, item.title, JSON.stringify(item.tags)].map(quote).join(',')).join('\r\n') + '\r\n')
   expect(csv.byteLength).toBeLessThanOrEqual(65536)
   const writes: unknown[] = []
   page.on('request', request => { if (new URL(request.url()).pathname.includes('/short-link/batch-create')) writes.push(request.postDataJSON()) })
   await dialog.getByLabel('Read URLs from CSV', { exact: true }).setInputFiles({ name: 'too-large-json.csv', mimeType: 'text/csv', buffer: csv })
-  await expect(page.getByTestId('bulk-create-error')).toContainText('complete create request must fit 64 KiB')
+  await expect(page.getByTestId('bulk-create-error')).toContainText('Invalid CSV. Open “CSV format example and template” for supported formats, then reselect the file. Your draft is preserved.')
   await expect(draft).toHaveValue(original); await expect(page.getByTestId('bulk-create-imported-list')).toBeHidden()
   expect(writes).toEqual([]); expect(await links(page.request)).toEqual([])
   await capture(info, 'metadata-request-size-refusal', page)

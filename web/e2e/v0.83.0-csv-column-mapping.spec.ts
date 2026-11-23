@@ -53,7 +53,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390,
     await activate(page.getByTestId('bulk-create-mapping-cancel')); await expect(draft).toHaveValue(manual)
     await upload(page, input, 'mapped'); await expect(mapping).toBeVisible()
     await expect(dialog).not.toContainText(privateValue); await expect(dialog.locator('img')).toHaveCount(0)
-    await expect(mapping).toContainText(english ? 'Other columns are ignored.' : '其余列会被忽略。')
+    await expect(mapping).toContainText(english ? 'Only explicitly selected fields are imported. Unselected columns are ignored and never uploaded.' : '仅导入明确选择的字段；未选列会被忽略，不会上传。')
     await expect(mapping).toContainText(english ? 'This does not restore historical data.' : '这不是历史数据恢复。')
     const url = mapping.getByRole('combobox', { name: english ? 'URL column' : '网址列', exact: true })
     const titleColumn = mapping.getByRole('combobox', { name: english ? 'Title column (optional)' : '标题列（可不导入）', exact: true })

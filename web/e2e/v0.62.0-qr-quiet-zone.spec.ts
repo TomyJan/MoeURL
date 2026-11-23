@@ -64,6 +64,8 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390,
               await border.focus(); await expect(border).toBeInViewport({ ratio: 1 }); await page.keyboard.press('Enter')
               const menu = page.getByRole('menu', { name: text.border, exact: true })
               await expect(menu).toBeVisible()
+              // Wait for the option, not just the overlay root, to leave the enter transition before key input.
+              await expect(menu.getByRole('menuitemradio').first()).toBeVisible()
               await page.keyboard.press('ArrowDown')
               await expect.poll(() => menu.evaluate(element => element.contains(document.activeElement))).toBe(true)
               await page.keyboard.press('Home')

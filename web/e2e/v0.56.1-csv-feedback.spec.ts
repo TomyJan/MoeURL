@@ -26,7 +26,7 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
       page.on('request', request => { if (new URL(request.url()).pathname === endpoint) writes.push(request.postDataJSON() as Batch) })
       await page.goto('/link'); await enter(page.getByTestId('bulk-create-open'))
       const dialog = page.getByRole('dialog'), error = page.getByTestId('bulk-create-error'), id = page.getByTestId('bulk-create-request-id')
-      await expect(dialog).toContainText(language === 'en' ? 'four fixed formats' : '四种固定格式')
+      await expect(dialog).toContainText(language === 'en' ? 'Standard CSV' : '标准 CSV')
       await expect(dialog).toContainText('custom_slug')
       await capture(info, 'feedback-help', page)
       const proof: { code: number; requestId: string; correctedId: string; countBefore: number; countAfter: number }[] = []

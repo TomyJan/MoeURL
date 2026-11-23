@@ -146,7 +146,7 @@ async function checkboxIconPath(checkbox: Locator) {
 
 /** Exercises visible unchecked, partial and checked glyphs before selecting exactly two targets. */
 async function selectTargets(page: Page, targets: ShortLink[], untouched: ShortLink | undefined, english = false) {
-  const all = page.getByRole('checkbox', { name: english ? 'Select current list' : '选择当前列表', exact: true })
+  const all = page.getByRole('checkbox', { name: english ? 'Select current page' : '选择当前页', exact: true })
   const uncheckedPath = await checkboxIconPath(all)
   await page.getByRole('checkbox', { name: `${english ? 'Select short link' : '选择短链'} ${targets[0]!.slug}`, exact: true }).check()
   const partialPath = await checkboxIconPath(all)
@@ -282,7 +282,7 @@ for (const scope of ['own', 'admin'] as const) {
 
       await switchToEnglish(page, width)
       await expect(page.getByTestId('batch-toolbar')).toContainText('2 selected')
-      await expect(page.getByTestId('batch-toolbar')).toContainText('Current list only, up to 100 links')
+      await expect(page.getByTestId('batch-toolbar')).toContainText('Manual selection across pages in current filters, up to 100 links')
       await expect(page.getByTestId('batch-enable')).toHaveText('Enable selected')
       await expect(page.getByTestId('batch-disable')).toHaveText('Disable selected')
       await expect(page.getByTestId('batch-delete')).toHaveText('Delete selected')

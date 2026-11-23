@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
 import { expect, test as base } from '@playwright/test'
 import type { APIRequestContext, BrowserContext, Locator, Page, Request, TestInfo } from '@playwright/test'
+import { z } from 'zod'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow, readVisitCount } from './support'
 
 interface User { id: string; username: string }
@@ -10,6 +11,7 @@ interface Link { id: string; slug: string; targetUrl: string; title: string; tag
 interface Group { key: string; updatedAt: string; permissions: string[] }
 interface Scenario { page: Page; manager: APIRequestContext; user: User; createUser: () => Promise<User> }
 const endpoint = '/api/v1/short-link/batch-create-with-expirations', touchPages = new WeakSet<Page>()
+const expirationTimestampSchema = z.iso.datetime({ offset: true })
 const password = 'csv-expiration-disposable-account'
 const required = ['short_link:create', 'domain:use_default', 'short_link:set_metadata', 'short_link:custom_slug', 'short_link:use_intermediate', 'short_link:use_confirmation', 'short_link:set_expiration']
 const test = base.extend<{ scenario: Scenario }>({
@@ -105,7 +107,9 @@ for (const language of ['zh-CN', 'en'] as const) for (const width of [1280, 390]
     await page.route('https://example.com/**', route => route.fulfill({ status: 200, contentType: 'text/html', body: '<main>Owned final redirect destination</main>' }))
     for (const item of items) {
       const link = persisted.find(link => link.targetUrl === item.targetUrl)!
-      expect(link).toMatchObject({ title: item.title.trim(), tags: item.tags.map(tag => tag.trim()), redirectMode: item.redirectMode || 'direct', expiresAt: item.expiresAt || null })
+      expect(link).toMatchObject({ title: item.title.trim(), tags: item.tags.map(tag => tag.trim()), redirectMode: item.redirectMode || 'direct' })
+      if (link.expiresAt !== null) expect(expirationTimestampSchema.safeParse(link.expiresAt).success).toBe(true)
+      expect(link.expiresAt === null ? null : Date.parse(link.expiresAt)).toBe(item.expiresAt ? Date.parse(item.expiresAt) : null)
       if (item.customSlug) expect(link.slug).toBe(item.customSlug.toLowerCase())
       expect(await readVisitCount(page, link.id)).toBe(0)
       if (!item.redirectMode || item.redirectMode === 'direct') {
@@ -322,7 +326,8 @@ test('v0.75.0 en 390px replays an expired receipt, rejects a new expired batch a
   await activate(page.getByTestId('bulk-create-submit')); await expect(page.getByTestId('bulk-create-error')).toBeVisible()
   const stored = await links(page.request); expect(stored).toHaveLength(1)
   const link = stored[0]!
-  expect(link).toMatchObject({ targetUrl: item.targetUrl, expiresAt })
+  expect(link).toMatchObject({ targetUrl: item.targetUrl })
+  expect(link.expiresAt === null ? null : Date.parse(link.expiresAt)).toBe(Date.parse(expiresAt))
   await expect.poll(async () => (await (await page.request.get('/go/' + link.slug + '/preview')).json()).code, { timeout: 45_000, intervals: [100, 250, 500] }).toBe(200109)
   const publicResponse = await page.request.get('/' + link.slug, { maxRedirects: 0 })
   expect(publicResponse.status()).toBe(302)
@@ -358,7 +363,10 @@ test('v0.75.0 en 390px replays an expired receipt, rejects a new expired batch a
   await activate(page.getByTestId('bulk-create-submit'))
   expect(await (await creation).json()).toMatchObject({ code: 0, data: { requestId: correctedId, createdCount: 1 } })
   await expect(dialog).toBeHidden()
-  expect(await links(page.request)).toEqual(expect.arrayContaining([expiredLink, expect.objectContaining({ targetUrl: corrected.targetUrl, expiresAt: corrected.expiresAt })]))
+  const correctedLinks = await links(page.request)
+  expect(correctedLinks).toEqual(expect.arrayContaining([expiredLink, expect.objectContaining({ targetUrl: corrected.targetUrl })]))
+  const correctedLink = correctedLinks.find(value => value.targetUrl === corrected.targetUrl)!
+  expect(correctedLink.expiresAt === null ? null : Date.parse(correctedLink.expiresAt)).toBe(Date.parse(corrected.expiresAt))
   expect(await links(page.request)).toHaveLength(2)
   await attach(info, 'expiration-real-deadline', { requestId, rejectedId, correctedId, expiresAt, writes, expiredPublicCode: 200109, expiredCreateCode: 200108, noDuplicateOrExpiredVisit: true })
 })
