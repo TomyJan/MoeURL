@@ -19,6 +19,7 @@ const state = vi.hoisted(() => ({
   error: undefined as unknown as ReturnType<typeof ref<boolean>>,
   groups: undefined as unknown as ReturnType<typeof ref<{ groups: Array<{ key: string; name: string }> }>>,
   groupsError: undefined as unknown as ReturnType<typeof ref<boolean>>,
+  groupsPending: undefined as unknown as ReturnType<typeof ref<boolean>>,
   refetch: vi.fn(), invalidate: vi.fn(), setQueryData: vi.fn(),
 }))
 
@@ -49,7 +50,7 @@ vi.mock('@tanstack/vue-query', () => ({
     return Array.isArray(key) && key[0] === 'auth'
       ? { data: ref({ user: { id: 'admin', permissions: ['admin:access', 'domain:manage'] } }) }
       : Array.isArray(key) && key[0] === 'admin-user-groups'
-        ? { data: state.groups, isPending: ref(false), isError: state.groupsError, refetch: state.refetch }
+        ? { data: state.groups, isPending: state.groupsPending, isError: state.groupsError, refetch: state.refetch }
         : { data: state.data, isPending: state.pending, isError: state.error, refetch: state.refetch }
   },
   useQueryClient: () => ({ invalidateQueries: state.invalidate, setQueryData: state.setQueryData }),
@@ -74,6 +75,7 @@ beforeEach(() => {
   state.data = ref({ items: [primary, secondary] })
   state.groups = ref({ groups: [{ key: 'guest', name: 'Guest' }, { key: 'user', name: 'User' }, { key: 'admin', name: 'Administrator' }] })
   state.groupsError = ref(false)
+  state.groupsPending = ref(false)
   state.pending = ref(false)
   state.error = ref(false)
   state.refetch.mockReset()
@@ -103,6 +105,24 @@ it('saves the order editor independently with the original complete revision', a
 })
 
 describe('AdminDomainsPage', () => {
+  it('keeps the existing domain editor safe while the dynamic group list is loading', async () => {
+    state.groups.value = undefined
+    state.groupsPending.value = true
+    mount()
+    await fireEvent.click(await screen.findByRole('button', { name: /Secondary/ }))
+    expect(screen.getByText('domains.allowedGroups')).toBeTruthy()
+    expect(screen.queryByLabelText('domains.groups.user')).toBeNull()
+
+    state.groups.value = { groups: [
+      { key: 'guest', name: 'Guest' },
+      { key: 'user', name: 'User' },
+      { key: 'admin', name: 'Administrator' },
+      { key: 'custom-opaque-key', name: 'Operations' },
+    ] }
+    state.groupsPending.value = false
+    expect(await screen.findByLabelText('Operations')).toBeTruthy()
+  })
+
   it('surfaces and retries an unavailable current user-group catalog', async () => {
     state.groupsError.value = true
     const failed = render(AdminDomainsPage, { global: { stubs: { ...componentStubs, VAlert: { template: '<div role="alert"><slot /><slot name="append" /></div>' } } } })

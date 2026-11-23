@@ -73,6 +73,18 @@ it('rejects empty create submissions even when a disabled button is activated di
   await fireEvent.click(create)
   expect(view.writes.filter(({ path }) => path.endsWith('/create'))).toHaveLength(0)
 })
+it('does not send a group mutation when identity is revoked before its queued mutation starts', async () => {
+  view = mountGroupDefault(AdminUserGroupsPage)
+  await screen.findByRole('tab', { name: 'user' })
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.createCustom' }))
+  await fireEvent.update(screen.getByLabelText('userGroups.name'), 'Operations')
+
+  screen.getByRole('button', { name: 'userGroups.create' }).click()
+  revokeAccountIdentity(view.client)
+  await waitFor(() => expect(view.client.isMutating()).toBe(0))
+  expect(view.writes.filter(({ path }) => path.endsWith('/create'))).toHaveLength(0)
+  expect(screen.queryByText('userGroups.managementFailed')).toBeNull()
+})
 it('does not apply a stale edit dialog to a newly selected builtin group', async () => {
   const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
   view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom] })
@@ -98,6 +110,23 @@ it('keeps the group form open while a create mutation is pending', async () => {
   expect(screen.getByRole('dialog')).toBeTruthy()
   pending.resolve(response({ group: { key: 'created', name: 'Operations', description: '', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: nextVersion } }))
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+})
+it.each([true, false])('ignores a late custom-group create %s result after identity revocation', async (success) => {
+  const pending = createDeferred<Response>()
+  view = mountGroupDefault(AdminUserGroupsPage, { overrides: { '/api/v1/admin/user-group/create': () => pending.promise } })
+  await screen.findByRole('tab', { name: 'user' })
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.createCustom' }))
+  await fireEvent.update(screen.getByLabelText('userGroups.name'), 'Operations')
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.create' }))
+  await waitFor(() => expect(view.writes.filter(({ path }) => path.endsWith('/create'))).toHaveLength(1))
+
+  revokeAccountIdentity(view.client)
+  pending.resolve(success
+    ? response({ group: { key: 'late-custom', name: 'Operations', description: '', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: nextVersion } })
+    : response(null, 900000))
+  await waitFor(() => expect(view.client.isMutating()).toBe(0))
+  expect(screen.queryByRole('tab', { name: 'Operations' })).toBeNull()
+  expect(screen.queryByText('userGroups.managementFailed')).toBeNull()
 })
 it('closes group dialogs through the dialog model and preserves delete failure feedback', async () => {
   const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
@@ -127,8 +156,12 @@ it('edits custom details with the captured revision and blocks deletion while me
   await screen.findByRole('tab', { name: 'On call' })
   expect(view.writes).toContainEqual({ path: '/api/v1/admin/user-group/update', input: { groupKey: custom.key, name: 'On call', description: custom.description, expectedUpdatedAt: version } })
   await fireEvent.click(screen.getByRole('button', { name: 'userGroups.deleteCustom' }))
-  expect(screen.getByRole('button', { name: 'userGroups.confirmDelete' })).toHaveProperty('disabled', true)
+  const confirmDelete = screen.getByRole('button', { name: 'userGroups.confirmDelete' })
+  expect(confirmDelete).toHaveProperty('disabled', true)
   expect(screen.getByText('userGroups.deleteMembersBlocked')).toBeTruthy()
+  confirmDelete.removeAttribute('disabled')
+  await fireEvent.click(confirmDelete)
+  expect(screen.getByRole('dialog')).toBeTruthy()
   expect(view.writes.some(({ path }) => path.endsWith('/delete'))).toBe(false)
 })
 it('deletes an empty custom group using its captured version and refreshes the list', async () => {
@@ -138,9 +171,30 @@ it('deletes an empty custom group using its captured version and refreshes the l
   await fireEvent.click(screen.getByRole('button', { name: 'userGroups.deleteCustom' }))
   expect(screen.getByText('userGroups.deleteDomainGrants')).toBeTruthy()
   expect(screen.getByText('userGroups.deleteConfirmation')).toBeTruthy()
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.cancel' }))
+  expect(screen.queryByRole('dialog')).toBeNull()
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.deleteCustom' }))
   await fireEvent.click(screen.getByRole('button', { name: 'userGroups.confirmDelete' }))
   await waitFor(() => expect(view.writes).toContainEqual({ path: '/api/v1/admin/user-group/delete', input: { groupKey: custom.key, expectedUpdatedAt: version } }))
   await waitFor(() => expect(screen.queryByRole('tab', { name: 'Operations' })).toBeNull())
+})
+it('does not invalidate account-scoped queries when a delete refresh completes after identity revocation', async () => {
+  const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
+  view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom] })
+  await fireEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+  const priorListReads = view.requests.filter((path) => path === '/api/v1/admin/user-group/list').length
+  const priorScopedReads = view.requests.filter((path) => path === '/api/v1/domain/available' || path === '/api/v1/domain/group-default').length
+  const pendingRefresh = createDeferred<Response>()
+  view.overrides['/api/v1/admin/user-group/list'] = () => pendingRefresh.promise
+
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.deleteCustom' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.confirmDelete' }))
+  await waitFor(() => expect(view.requests.filter((path) => path === '/api/v1/admin/user-group/list')).toHaveLength(priorListReads + 1))
+
+  revokeAccountIdentity(view.client)
+  pendingRefresh.resolve(response(view.catalog()))
+  await waitFor(() => expect(view.client.isMutating()).toBe(0))
+  expect(view.requests.filter((path) => path === '/api/v1/domain/available' || path === '/api/v1/domain/group-default')).toHaveLength(priorScopedReads)
 })
 it('locks protected permissions and omits builtin presets for custom groups', async () => {
   const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
