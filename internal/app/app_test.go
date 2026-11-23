@@ -717,6 +717,64 @@ func TestAppNewUsesDatabasePermissionsForUserGroupService(t *testing.T) {
 	}
 }
 
+func TestAppRechecksAdminGroupPermissionsWithoutDemotingAccount(t *testing.T) {
+	ctx := t.Context()
+	application := newTestApplication(t)
+
+	loginRequest := httptest.NewRequestWithContext(ctx, http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{"username":"admin","password":"secure-password"}`))
+	loginResponse := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(loginResponse, loginRequest)
+	cookies := loginResponse.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("expected one login cookie, got %d", len(cookies))
+	}
+
+	requestCode := func(path string) int {
+		t.Helper()
+		request := httptest.NewRequestWithContext(ctx, http.MethodGet, path, nil)
+		request.AddCookie(cookies[0])
+		response := httptest.NewRecorder()
+		application.server.Handler.ServeHTTP(response, request)
+		var body struct {
+			Code int `json:"code"`
+		}
+		if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+			t.Fatalf("decode %s response: %v", path, err)
+		}
+		return body.Code
+	}
+	paths := []string{"/api/v1/admin/user/list", "/api/v1/admin/user-group/list"}
+	for _, path := range paths {
+		if code := requestCode(path); code != 0 {
+			t.Fatalf("initial %s code = %d, want 0", path, code)
+		}
+	}
+
+	var actorGroup string
+	if err := application.pool.QueryRow(ctx, `
+		select g.key from app_user u join user_group g on g.id = u.group_id where u.username = 'admin'
+	`).Scan(&actorGroup); err != nil {
+		t.Fatalf("read current administrator group: %v", err)
+	}
+	if actorGroup != permission.GroupAdmin {
+		t.Fatalf("administrator group = %q, want %q", actorGroup, permission.GroupAdmin)
+	}
+	if _, err := application.pool.Exec(ctx, `
+		update user_group
+		set permissions = permissions - 'admin:access',
+		    updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
+		where builtin and key = 'admin'
+	`); err != nil {
+		t.Fatalf("revoke admin:access without demoting administrator: %v", err)
+	}
+
+	for _, path := range paths {
+		if code := requestCode(path); code == 0 {
+			t.Fatalf("revoked %s remained authorized with response code %d", path, code)
+		}
+	}
+}
+
 // TestAppAppliesUserPermissionChangesToNewRequests verifies runtime revocation and restoration use fresh database snapshots.
 func TestAppAppliesUserPermissionChangesToNewRequests(t *testing.T) {
 	application := newTestApplication(t)
