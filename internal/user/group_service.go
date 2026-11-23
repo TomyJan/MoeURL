@@ -22,7 +22,7 @@ func (s *Service) ChangeGroup(ctx context.Context, actor auth.CurrentUser, input
 	}
 	id, err := uuid.Parse(input.ID)
 	expected, timeErr := time.Parse(time.RFC3339Nano, input.ExpectedUpdatedAt)
-	if err != nil || id == uuid.Nil || id.String() != input.ID || timeErr != nil || expected.IsZero() || (input.GroupKey != "user" && input.GroupKey != "admin") {
+	if err != nil || id == uuid.Nil || id.String() != input.ID || timeErr != nil || expected.IsZero() || input.GroupKey == "" {
 		return UpdateResult{}, ErrInvalidInput
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -59,7 +59,7 @@ func (s *Service) ChangeGroup(ctx context.Context, actor auth.CurrentUser, input
 		if err != nil {
 			return err
 		}
-		if actorGroup.Key == "guest" || !grants.Has(permission.AdminAccess) {
+		if !actorGroup.Builtin || actorGroup.Key != permission.GroupAdmin || !grants.Has(permission.AdminAccess) {
 			return ErrPermissionDenied
 		}
 		if target == nil || target.DeletedAt.Valid {
@@ -74,14 +74,14 @@ func (s *Service) ChangeGroup(ctx context.Context, actor auth.CurrentUser, input
 		if !target.UpdatedAt.Time.Equal(expected) {
 			return ErrVersionConflict
 		}
-		group, err := q.GetUserGroupByKey(ctx, input.GroupKey)
+		group, err := q.LockUserGroupForCustomManagement(ctx, input.GroupKey)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrInvalidInput
 		}
 		if err != nil {
 			return err
 		}
-		if !group.Builtin {
+		if !isAssignableGroup(group.Key, group.Builtin) {
 			return ErrInvalidInput
 		}
 		updated := *target

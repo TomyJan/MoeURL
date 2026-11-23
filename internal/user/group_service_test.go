@@ -83,6 +83,34 @@ func TestChangeGroup(t *testing.T) {
 	require.Equal(t, 2, count)
 }
 
+func TestChangeGroupSupportsCustomGroupAndUsesItsCurrentPermissions(t *testing.T) {
+	pool, service, actor, id := groupFixture(t)
+	customKey := uuid.NewString()
+	_, err := pool.Exec(t.Context(), `insert into user_group(id,key,name,description,permissions,builtin,created_at,updated_at)
+		values(gen_random_uuid(),$1,'Operations','', $2::jsonb, false, now(), now())`, customKey, permissionsJSON([]string{permission.ShortLinkReadOwn}))
+	require.NoError(t, err)
+	sessions := auth.NewSessionService(pool, time.Hour)
+	session, err := sessions.Create(t.Context(), id)
+	require.NoError(t, err)
+
+	result, err := service.ChangeGroup(t.Context(), actor, user.ChangeGroupInput{ID: id, GroupKey: customKey, ExpectedUpdatedAt: groupVersion(t, pool, id)})
+	require.NoError(t, err)
+	require.Equal(t, customKey, result.User.Group)
+	_, err = sessions.Resolve(t.Context(), session.ID)
+	require.ErrorIs(t, err, auth.ErrInvalidSession)
+	fresh, err := sessions.Create(t.Context(), id)
+	require.NoError(t, err)
+	identity, err := auth.NewService(pool, time.Hour).Me(t.Context(), fresh.ID)
+	require.NoError(t, err)
+	require.Equal(t, customKey, identity.GroupKey)
+	require.Equal(t, []string{permission.ShortLinkReadOwn}, identity.Permissions)
+	_, err = pool.Exec(t.Context(), `update user_group set permissions='[]'::jsonb where key=$1`, customKey)
+	require.NoError(t, err)
+	identity, err = auth.NewService(pool, time.Hour).Me(t.Context(), fresh.ID)
+	require.NoError(t, err)
+	require.Empty(t, identity.Permissions, "the next request must observe custom-group permission revocation")
+}
+
 // TestChangeGroupGuards prevents forged entry-point roles, protected account edits and stale writes.
 func TestChangeGroupGuards(t *testing.T) {
 	pool, service, actor, id := groupFixture(t)
@@ -197,7 +225,7 @@ func (groupFaultTracer) TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQuery
 func TestChangeGroupDatabaseFailures(t *testing.T) {
 	pool, _, actor, id := groupFixture(t)
 	version := groupVersion(t, pool, id)
-	for _, prefix := range []string{"begin", "-- name: LockGroupChangeUsers", "-- name: GetUserGroupByID", "-- name: GetGroupChangeGroup", "-- name: GetUserGroupByKey", "-- name: ChangeAppUserGroup", "-- name: RevokeGroupChangeSessions", "commit"} {
+	for _, prefix := range []string{"begin", "-- name: LockGroupChangeUsers", "-- name: GetUserGroupByID", "-- name: GetGroupChangeGroup", "-- name: LockUserGroupForCustomManagement", "-- name: ChangeAppUserGroup", "-- name: RevokeGroupChangeSessions", "commit"} {
 		t.Run(prefix, func(t *testing.T) {
 			config := pool.Config()
 			config.ConnConfig.Tracer = groupFaultTracer{prefix}
