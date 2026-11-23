@@ -14,9 +14,7 @@
 
 QR 键盘失败簇已定位为菜单进入动画期间选项尚处于 `visibility:hidden`，旧 E2E 在 overlay 根可见时就发键盘输入。v0.59／v0.62 两文件改为等待首个菜单项可见；原 9 个失败浏览器组合修正后通过（两次隔离复测分别 3/3、8/8，含 setup），随后两文件完整定向复验共 15/15（含 setup）。未改产品组件。320 px 通知失败则是页面时钟 mock 的固定等待不等同真实 Chromium viewport-unit 样式更新；旧值可暂留为 8.015625 px。E2E 现等待 toast 几何达到原断言下限，320 px 用例重复 3 次通过，完整 feedback 文件 18/18 通过；未改产品 CSS 或放宽验收。全量 551 项结果尚未重跑，详见[v0.91 验收](../implementation/v0.91.0-acceptance.md)。
 
-PR #413 的 CodeRabbit review `PRR_kwDOStKc8M8AAAABZmpFvg` 覆盖 head `f65457c9`，两项 Minor 已在 `51f7cfe7` 修正；v0.75 过期时间 E2E 新增与 `shortLinkSchema` 同源的 ISO 8601 时区格式检查后，完整文件 16/16 通过。后续 review `PRR_kwDOStKc8M8AAAABZm333Q` 精确覆盖 `03c9d04b`，指出验收记录中“最新 head”措辞滞后；该点正在修正，新 head 仍需自己的 review，详见[v0.91 验收](../implementation/v0.91.0-acceptance.md)。
-
-增量提交 `41ba0ec1` 推送时 PR 创建曾遇 GitHub integration 403；随后已通过本机 Git 凭据路径创建 PR #413。当前审查覆盖边界和最新 PR head 状态以[验收记录](../implementation/v0.91.0-acceptance.md)为准。
+PR #413 已正常 squash 合并：候选 `151cbbad41ba3a45dd6355241f9d69f9fbbed42e`，merge/master `2a8b37eda49af3c27684f675c2f99f199cc136f9`，tree `80dce8b0b087fef6c67dc95ec8e2db4b87933bd2`，唯一 parent `6f18b370e6360b4e23ce9cd1d3d297e203cffcf5`，GitHub API 与独立 fetch 核验一致。CodeRabbit 更新 PR 摘要评论 `7080089929`（`2026-11-23T03:05:29Z`），包含当前轮 walkthrough 并明确无 actionable comments；请求 `7090383231`、完成回执 `7090384530`。whole-owned 恢复包含 29 项并已逐项解压核 hash，SHA-256 `A967B52194DED78FA88BAE9D788BF0156C59DEB102FB4868BA40FEE412795FE9`；候选／合并 refs 离线恢复和 `git fsck --full` 通过。准确执行与门禁边界见[v0.91 验收](../implementation/v0.91.0-acceptance.md)。
 
 另对 v0.87 CSV 标签映射历史失败做隔离复现：测试按 Enter 激活聚焦的 Vuetify option 后菜单未选中；将 E2E 的选项动作改为精确名称点击，不改产品代码，真实浏览器 4 场景通过，相关映射组件／hook／状态 184 项通过。运行与清理细节见 v0.91 验收；未将此定向通过扩展为全量 suite 结论。
 
