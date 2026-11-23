@@ -73,9 +73,9 @@ func (s *CustomService) Create(ctx context.Context, actor auth.CurrentUser, inpu
 		return UpdatePermissionsResult{}, err
 	}
 	var row sqlc.UserGroup
-	err = s.withWrite(ctx, actor, func(q *sqlc.Queries) error {
+	err = s.withWrite(ctx, actor, func(writeCtx context.Context, q *sqlc.Queries) error {
 		id := uuid.New()
-		row, err = q.CreateCustomUserGroup(ctx, sqlc.CreateCustomUserGroupParams{
+		row, err = q.CreateCustomUserGroup(writeCtx, sqlc.CreateCustomUserGroupParams{
 			ID: pgtype.UUID{Bytes: id, Valid: true}, GroupKey: id.String(), Name: name, Description: description,
 		})
 		return mapCustomGroupNameConflict(err)
@@ -101,8 +101,8 @@ func (s *CustomService) UpdateDetails(ctx context.Context, actor auth.CurrentUse
 	}
 	var row sqlc.UserGroup
 	var memberCount int64
-	err = s.withWrite(ctx, actor, func(q *sqlc.Queries) error {
-		current, err := q.LockUserGroupForCustomManagement(ctx, input.GroupKey)
+	err = s.withWrite(ctx, actor, func(writeCtx context.Context, q *sqlc.Queries) error {
+		current, err := q.LockUserGroupForCustomManagement(writeCtx, input.GroupKey)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrUserGroupNotFound
 		}
@@ -115,14 +115,14 @@ func (s *CustomService) UpdateDetails(ctx context.Context, actor auth.CurrentUse
 		if !current.UpdatedAt.Time.Equal(expected) {
 			return ErrPermissionConflict
 		}
-		row, err = q.UpdateCustomUserGroupDetails(ctx, sqlc.UpdateCustomUserGroupDetailsParams{
+		row, err = q.UpdateCustomUserGroupDetails(writeCtx, sqlc.UpdateCustomUserGroupDetailsParams{
 			Name: name, Description: description, GroupKey: input.GroupKey,
 			ExpectedUpdatedAt: pgtype.Timestamptz{Time: expected, Valid: true},
 		})
 		if err := mapCustomGroupNameConflict(err); err != nil {
 			return err
 		}
-		memberCount, err = customGroupMemberCount(ctx, q, input.GroupKey)
+		memberCount, err = customGroupMemberCount(writeCtx, q, input.GroupKey)
 		return err
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -157,8 +157,8 @@ func (s *CustomService) UpdatePermissions(ctx context.Context, actor auth.Curren
 	}
 	var row sqlc.UserGroup
 	var memberCount int64
-	err = s.withWrite(ctx, actor, func(q *sqlc.Queries) error {
-		current, err := q.LockUserGroupForCustomManagement(ctx, input.GroupKey)
+	err = s.withWrite(ctx, actor, func(writeCtx context.Context, q *sqlc.Queries) error {
+		current, err := q.LockUserGroupForCustomManagement(writeCtx, input.GroupKey)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrUserGroupNotFound
 		}
@@ -171,14 +171,14 @@ func (s *CustomService) UpdatePermissions(ctx context.Context, actor auth.Curren
 		if !current.UpdatedAt.Time.Equal(expected) {
 			return ErrPermissionConflict
 		}
-		row, err = q.UpdateCustomUserGroupPermissions(ctx, sqlc.UpdateCustomUserGroupPermissionsParams{
+		row, err = q.UpdateCustomUserGroupPermissions(writeCtx, sqlc.UpdateCustomUserGroupPermissionsParams{
 			Permissions: encoded, GroupKey: input.GroupKey,
 			ExpectedUpdatedAt: pgtype.Timestamptz{Time: expected, Valid: true},
 		})
 		if err != nil {
 			return err
 		}
-		memberCount, err = customGroupMemberCount(ctx, q, input.GroupKey)
+		memberCount, err = customGroupMemberCount(writeCtx, q, input.GroupKey)
 		return err
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -201,8 +201,8 @@ func (s *CustomService) Delete(ctx context.Context, actor auth.CurrentUser, inpu
 		return DeleteCustomGroupResult{}, ErrInvalidInput
 	}
 	var result DeleteCustomGroupResult
-	err = s.withWrite(ctx, actor, func(q *sqlc.Queries) error {
-		current, err := q.LockUserGroupForCustomManagement(ctx, input.GroupKey)
+	err = s.withWrite(ctx, actor, func(writeCtx context.Context, q *sqlc.Queries) error {
+		current, err := q.LockUserGroupForCustomManagement(writeCtx, input.GroupKey)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrUserGroupNotFound
 		}
@@ -215,7 +215,7 @@ func (s *CustomService) Delete(ctx context.Context, actor auth.CurrentUser, inpu
 		if !current.UpdatedAt.Time.Equal(expected) {
 			return ErrPermissionConflict
 		}
-		groups, err := q.ListUserGroups(ctx)
+		groups, err := q.ListUserGroups(writeCtx)
 		if err != nil {
 			return err
 		}
@@ -224,7 +224,7 @@ func (s *CustomService) Delete(ctx context.Context, actor auth.CurrentUser, inpu
 				return ErrUserGroupHasMembers
 			}
 		}
-		deleted, err := q.DeleteCustomUserGroup(ctx, input.GroupKey)
+		deleted, err := q.DeleteCustomUserGroup(writeCtx, input.GroupKey)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrUserGroupHasMembers
 		}
@@ -237,7 +237,7 @@ func (s *CustomService) Delete(ctx context.Context, actor auth.CurrentUser, inpu
 	return result, err
 }
 
-func (s *CustomService) withWrite(ctx context.Context, actor auth.CurrentUser, fn func(*sqlc.Queries) error) error {
+func (s *CustomService) withWrite(ctx context.Context, actor auth.CurrentUser, fn func(context.Context, *sqlc.Queries) error) error {
 	actorID, err := groupWriterID(actor.ID)
 	if err != nil {
 		return err
@@ -255,7 +255,7 @@ func (s *CustomService) withWrite(ctx context.Context, actor auth.CurrentUser, f
 		if _, err := authorizeGroupWriter(ctx, q, actorID, false); err != nil {
 			return err
 		}
-		return fn(q)
+		return fn(ctx, q)
 	})
 }
 

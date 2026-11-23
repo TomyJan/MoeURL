@@ -1,6 +1,7 @@
 package usergroup
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -8,9 +9,44 @@ import (
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 )
+
+type customWriteContextTracer struct {
+	deadline chan bool
+}
+
+func (tracer *customWriteContextTracer) TraceQueryStart(ctx context.Context, _ *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
+	if strings.Contains(data.SQL, "-- name: CreateCustomUserGroup") {
+		_, ok := ctx.Deadline()
+		tracer.deadline <- ok
+	}
+	return ctx
+}
+
+func (*customWriteContextTracer) TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQueryEndData) {}
+
+func TestCustomServiceWritesUseBoundedRequestContext(t *testing.T) {
+	_, pool, actor, _ := permissionWriterFixture(t)
+	config := pool.Config()
+	tracer := &customWriteContextTracer{deadline: make(chan bool, 1)}
+	config.ConnConfig.Tracer = tracer
+	tracedPool, err := pgxpool.NewWithConfig(t.Context(), config)
+	require.NoError(t, err)
+	t.Cleanup(tracedPool.Close)
+
+	_, err = NewCustomService(tracedPool).Create(t.Context(), actor, CreateCustomGroupInput{Name: "Bounded write"})
+	require.NoError(t, err)
+	select {
+	case hasDeadline := <-tracer.deadline:
+		require.True(t, hasDeadline, "custom-group SQL must receive withWrite's five-second context")
+	case <-time.After(time.Second):
+		t.Fatal("custom-group create query was not observed by pgx tracer")
+	}
+}
 
 func TestNormalizeCustomGroupDetails(t *testing.T) {
 	tests := []struct {
