@@ -38,6 +38,17 @@ func TestCustomHandlerMapsInfrastructureFailureWithoutLeakingDetails(t *testing.
 	require.NotContains(t, response.Body.String(), "database password")
 }
 
+func TestCustomHandlerMapsInvalidInputAsBusinessError(t *testing.T) {
+	service := &fakeCustomPort{createErr: ErrInvalidInput}
+	handler := NewCustomHandler(service, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/user-group/create", strings.NewReader(`{"name":"Operations","description":"Ops"}`))
+	response := serveUserGroupHandler(t, http.HandlerFunc(handler.Create), auth.CurrentUser{ID: "admin-id", GroupKey: "admin"}, request)
+
+	require.Equal(t, http.StatusOK, response.Code)
+	require.Equal(t, CodeInvalidRequest, decodeHandlerEnvelope(t, response).Code)
+	require.NotContains(t, response.Body.String(), "Internal server error")
+}
+
 func (*fakeCustomPort) UpdateDetails(context.Context, auth.CurrentUser, UpdateCustomGroupDetailsInput) (UpdatePermissionsResult, error) {
 	return UpdatePermissionsResult{}, nil
 }

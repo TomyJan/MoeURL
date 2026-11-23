@@ -94,6 +94,8 @@ func decodeCustomGroupJSON(w http.ResponseWriter, r *http.Request, target any) b
 func (h *CustomHandler) writeError(w http.ResponseWriter, r *http.Request, err error) {
 	status, code, message := http.StatusOK, CodeInvalidRequest, "Invalid request"
 	switch {
+	case errors.Is(err, ErrInvalidInput):
+		code, message = CodeInvalidRequest, "Invalid request"
 	case errors.Is(err, ErrPermissionDenied):
 		code, message = CodePermissionDenied, "Permission denied"
 	case errors.Is(err, ErrUserGroupNotFound):
