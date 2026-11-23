@@ -17,6 +17,7 @@ const state = vi.hoisted(() => ({
   data: undefined as unknown as ReturnType<typeof ref<{ items: typeof primary[] } | undefined>>,
   pending: undefined as unknown as ReturnType<typeof ref<boolean>>,
   error: undefined as unknown as ReturnType<typeof ref<boolean>>,
+  groups: undefined as unknown as ReturnType<typeof ref<{ groups: Array<{ key: string; name: string }> }>>,
   refetch: vi.fn(), invalidate: vi.fn(), setQueryData: vi.fn(),
 }))
 
@@ -24,6 +25,7 @@ vi.mock('@/entities/domain/api', async (original) => ({
   ...await original<typeof import('@/entities/domain/api')>(),
   createDomain: vi.fn(), deleteDomain: vi.fn(), listDomains: vi.fn(), setDefaultDomain: vi.fn(), setDomainOrder: vi.fn(), updateDomain: vi.fn(),
 }))
+vi.mock('@/entities/user-group/api', async (original) => ({ ...await original<typeof import('@/entities/user-group/api')>(), listUserGroups: vi.fn() }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('@/features/domain-redirect-default/useDomainRedirectManagement', () => ({
   /** Keeps this fully mocked legacy suite at its existing details/order seam.
@@ -41,9 +43,14 @@ vi.mock('@/shared/preferences/useAccountPreferences', () => ({
   },
 }))
 vi.mock('@tanstack/vue-query', () => ({
-  useQuery: (options: { queryKey: unknown }) => Array.isArray(options.queryKey) && options.queryKey[0] === 'auth'
-    ? { data: ref({ user: { id: 'admin', permissions: ['admin:access', 'domain:manage'] } }) }
-    : { data: state.data, isPending: state.pending, isError: state.error, refetch: state.refetch },
+  useQuery: (options: { queryKey: unknown }) => {
+    const key = options.queryKey && typeof options.queryKey === 'object' && 'value' in options.queryKey ? options.queryKey.value : options.queryKey
+    return Array.isArray(key) && key[0] === 'auth'
+      ? { data: ref({ user: { id: 'admin', permissions: ['admin:access', 'domain:manage'] } }) }
+      : Array.isArray(key) && key[0] === 'admin-user-groups'
+        ? { data: state.groups, isPending: ref(false), isError: ref(false), refetch: state.refetch }
+        : { data: state.data, isPending: state.pending, isError: state.error, refetch: state.refetch }
+  },
   useQueryClient: () => ({ invalidateQueries: state.invalidate, setQueryData: state.setQueryData }),
   useMutation: (options: { mutationFn: (input: unknown) => Promise<unknown>; onSuccess: (result: unknown, input: unknown) => void | Promise<void>; onError: (error: unknown, input: unknown) => Promise<void> }) => {
     const isPending = ref(false)
@@ -64,6 +71,7 @@ function mount() { return render(AdminDomainsPage, { global: { stubs: componentS
 
 beforeEach(() => {
   state.data = ref({ items: [primary, secondary] })
+  state.groups = ref({ groups: [{ key: 'guest', name: 'Guest' }, { key: 'user', name: 'User' }, { key: 'admin', name: 'Administrator' }] })
   state.pending = ref(false)
   state.error = ref(false)
   state.refetch.mockReset()

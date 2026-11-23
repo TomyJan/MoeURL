@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import { apiGet, apiPost, ApiClientError } from '@/shared/api/client'
-import type { EditableUserGroupKey, UserGroupKey } from './api'
+import type { UserGroupKey } from './api'
 
 export const groupDefaultDomainQueryKey = ['group-default-domain'] as const
 export const adminGroupDefaultDomainQueryKey = ['admin-user-group-domain-default'] as const
 const id = z.uuid().refine((value) => value === value.toLowerCase() && value !== '00000000-0000-0000-0000-000000000000')
 const revision = z.iso.datetime({ offset: true }).refine((value) => !/\.\d{10}/.test(value) && Date.parse(value) !== Date.parse('0001-01-01T00:00:00Z'))
-const settingSchema = z.strictObject({ groupKey: z.enum(['guest', 'user', 'admin']), domainId: id.nullable(), updatedAt: revision, editable: z.boolean() })
+const settingSchema = z.strictObject({ groupKey: z.string().min(1), domainId: id.nullable(), updatedAt: revision, editable: z.boolean() })
 const candidateSchema = z.strictObject({ id, host: z.string().min(1), displayName: z.string(), isDefault: z.boolean() })
 const managementSchema = z.strictObject({ setting: settingSchema, candidates: z.array(candidateSchema) }).refine(({ setting, candidates }) =>
   setting.editable === (setting.groupKey !== 'guest') &&
@@ -16,7 +16,7 @@ const selectionSchema = z.strictObject({ domainId: id.nullable(), status: z.enum
   .refine((value) => (value.status === 'available') === (value.domainId !== null))
 export type UserGroupDomainDefault = z.infer<typeof managementSchema>
 export type GroupDefaultDomainSelection = z.infer<typeof selectionSchema>
-export interface SetUserGroupDomainDefaultInput { groupKey: EditableUserGroupKey; domainId: string | null; expectedUpdatedAt: string }
+export interface SetUserGroupDomainDefaultInput { groupKey: UserGroupKey; domainId: string | null; expectedUpdatedAt: string }
 
 /** Reads a target group's own candidates and preserves its full shared revision. */
 export async function getUserGroupDomainDefault(groupKey: UserGroupKey): Promise<UserGroupDomainDefault> {

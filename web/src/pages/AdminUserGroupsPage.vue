@@ -2,7 +2,10 @@
   <section class="user-groups-page" data-testid="console-page-user-groups">
     <header class="user-groups-page__header">
       <div><h1>{{ t('userGroups.title') }}</h1><p>{{ t('userGroups.description') }}</p></div>
-      <strong>{{ t('userGroups.total', { total: displayedGroups.length }) }}</strong>
+      <div class="user-groups-page__header-actions">
+        <strong>{{ t('userGroups.total', { total: displayedGroups.length }) }}</strong>
+        <v-btn v-if="canManage" color="primary" :disabled="pending || groupMutation.isPending.value" @click="openCreate">{{ t('userGroups.createCustom') }}</v-btn>
+      </div>
     </header>
     <v-alert v-if="!canManage" type="warning">{{ t('groupDefault.accessDenied') }}</v-alert>
     <v-progress-linear v-else-if="query.isPending.value" indeterminate />
@@ -23,7 +26,12 @@
         <v-btn :disabled="pending" @click="reload(activeGroupKey)">{{ t('groupDefault.reload') }}</v-btn>
       </v-alert>
       <!-- The nonempty catalog branch guarantees an active group; capture its rendered target for event guards. -->
-      <template v-for="group in [activeGroup!]" :key="identity.scope.value.epoch + ':' + group.key + ':' + group.updatedAt + ':' + feedbackRevision">
+      <template v-for="group in displayedGroups.filter((candidate) => candidate.key === activeGroupKey)" :key="identity.scope.value.epoch + ':' + group.key + ':' + group.updatedAt + ':' + feedbackRevision">
+        <div v-if="!group.builtin" class="user-groups-page__custom-actions">
+          <v-btn :disabled="pending || groupMutation.isPending.value" variant="outlined" @click="openEdit(group)">{{ t('userGroups.editDetails') }}</v-btn>
+          <v-btn :disabled="pending || groupMutation.isPending.value" color="error" variant="text" @click="deleteDialog = true">{{ t('userGroups.deleteCustom') }}</v-btn>
+        </div>
+        <v-alert v-if="groupFeedback" type="error" variant="tonal">{{ t('userGroups.managementFailed') }}</v-alert>
         <UserGroupPermissionEditor
           :data-valid="group.key === 'guest' || (groupReady(group) && !defaultDirty(group.key))"
           :definitions="query.data.value!.permissions"
@@ -62,22 +70,117 @@
         </template>
       </template>
     </template>
+    <v-dialog :model-value="groupDialog !== ''" :persistent="groupMutation.isPending.value" max-width="520" @update:model-value="!$event && closeGroupDialog()">
+      <v-card>
+        <v-card-title>{{ t(groupDialog === 'create' ? 'userGroups.createTitle' : 'userGroups.editTitle') }}</v-card-title>
+        <v-card-text>
+          <v-text-field v-model="groupName" :label="t('userGroups.name')" :disabled="groupMutation.isPending.value" maxlength="64" />
+          <v-textarea v-model="groupDescription" :label="t('userGroups.descriptionField')" :disabled="groupMutation.isPending.value" />
+          <ActionToast v-if="groupFeedback" type="error">{{ t('userGroups.managementFailed') }}</ActionToast>
+        </v-card-text>
+        <v-card-actions>
+          <v-btn :disabled="groupMutation.isPending.value" variant="text" @click="closeGroupDialog">{{ t('userGroups.cancel') }}</v-btn>
+          <v-btn :disabled="!groupName.trim() || groupMutation.isPending.value" :loading="groupMutation.isPending.value" color="primary" variant="flat" @click="saveGroupDetails">
+            {{ t(groupDialog === 'create' ? 'userGroups.create' : 'userGroups.saveDetails') }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+    <v-dialog :model-value="deleteDialog" :persistent="groupMutation.isPending.value" max-width="520" @update:model-value="!$event && (deleteDialog = false)">
+      <v-card v-if="activeGroup && !activeGroup.builtin">
+        <v-card-title>{{ t('userGroups.deleteTitle') }}</v-card-title>
+        <v-card-text>
+          <p>{{ t('userGroups.deleteConfirmation', { name: activeGroup.name, count: activeGroup.memberCount }) }}</p>
+          <p>{{ t('userGroups.deleteDomainGrants') }}</p>
+          <v-alert v-if="activeGroup.memberCount > 0" type="warning">{{ t('userGroups.deleteMembersBlocked', { count: activeGroup.memberCount }) }}</v-alert>
+          <ActionToast v-if="groupFeedback" type="error">{{ t('userGroups.managementFailed') }}</ActionToast>
+        </v-card-text>
+        <v-card-actions>
+          <v-btn :disabled="groupMutation.isPending.value" variant="text" @click="deleteDialog = false">{{ t('userGroups.cancel') }}</v-btn>
+          <v-btn :disabled="activeGroup.memberCount > 0 || groupMutation.isPending.value" :loading="groupMutation.isPending.value" color="error" variant="flat" @click="deleteGroup">
+            {{ t('userGroups.confirmDelete') }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import ActionToast from '@/shared/feedback/ActionToast.vue'
 import UserGroupPermissionEditor from '@/features/user-group-permissions/UserGroupPermissionEditor.vue'
 import UserGroupDomainDefaultEditor from '@/features/user-group-domain-default/UserGroupDomainDefaultEditor.vue'
 import { useGroupDefaultManagement } from '@/features/user-group-domain-default/useGroupDefaultManagement'
+import { createCustomUserGroup, deleteCustomUserGroup, updateCustomUserGroup, type UserGroup } from '@/entities/user-group/api'
+import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
+import { adminGroupDefaultDomainQueryKey } from '@/entities/user-group/domain-default'
 
 const { t } = useI18n()
+const queryClient = useQueryClient()
+const groupIdentity = useAccountIdentity()
 const { identity, query, settingQuery, canManage, canManageDefault, activeGroupKey, activeGroup, displayedGroups, currentDefault, draft, stale, feedback, feedbackKind, feedbackRevision, refreshBroken, pending, groupReady, settingReady, defaultDirty, applyPreset, setPermission, savePermissions, selectDefault, saveDefault, cancelDefault, cancelPermissions, reload, changeGroup } = useGroupDefaultManagement()
+const groupDialog = ref<'' | 'create' | 'edit'>('')
+const deleteDialog = ref(false)
+const groupName = ref('')
+const groupDescription = ref('')
+const groupFeedback = ref(false)
+watch(groupIdentity.scope, () => {
+  groupDialog.value = ''
+  deleteDialog.value = false
+  groupName.value = ''
+  groupDescription.value = ''
+  groupFeedback.value = false
+}, { flush: 'sync' })
+const groupMutation = useMutation({
+  retry: false,
+  mutationFn: async (command: { kind: 'create'; scope: typeof groupIdentity.scope.value } | { kind: 'edit'; group: UserGroup; scope: typeof groupIdentity.scope.value } | { kind: 'delete'; group: UserGroup; scope: typeof groupIdentity.scope.value }) => {
+    if (!groupIdentity.isCurrent(command.scope) || !canManage.value) throw new Error('Inactive group manager')
+    if (command.kind === 'create') return createCustomUserGroup({ name: groupName.value.trim(), description: groupDescription.value })
+    if (command.kind === 'edit') return updateCustomUserGroup({ groupKey: command.group.key, name: groupName.value.trim(), description: groupDescription.value, expectedUpdatedAt: command.group.updatedAt })
+    return deleteCustomUserGroup({ groupKey: command.group.key, expectedUpdatedAt: command.group.updatedAt })
+  },
+  async onSuccess(result, command) {
+    if (!groupIdentity.isCurrent(command.scope)) return
+    groupFeedback.value = false
+    groupDialog.value = ''
+    deleteDialog.value = false
+    if (command.kind === 'delete') {
+      queryClient.removeQueries({ queryKey: adminGroupDefaultDomainQueryKey })
+      await query.refetch()
+      if (!groupIdentity.isCurrent(command.scope)) return
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['user-group-domain-default'] }),
+        queryClient.invalidateQueries({ queryKey: ['domain', 'available'] }),
+      ])
+      return
+    }
+    if (!('group' in result)) return
+    activeGroupKey.value = result.group.key
+    await reload(result.group.key)
+  },
+  onError(_error, command) { if (groupIdentity.isCurrent(command.scope)) groupFeedback.value = true },
+})
 const feedbackKey = computed(() => (feedbackKind.value === 'default'
   ? { success: 'groupDefault.saved', conflict: 'groupDefault.conflict', 'reload-error': 'groupDefault.reloadFailed', 'conflict-reload-error': 'groupDefault.reloadFailed', error: 'groupDefault.saveFailed' }
   : { success: 'userGroups.saveSuccess', conflict: 'userGroups.conflict', 'reload-error': 'groupDefault.reloadFailed', 'conflict-reload-error': 'userGroups.conflictReloadFailed', error: 'userGroups.saveFailed' })[feedback.value as 'success' | 'conflict' | 'reload-error' | 'conflict-reload-error' | 'error'])
+function openCreate() { groupName.value = ''; groupDescription.value = ''; groupFeedback.value = false; groupDialog.value = 'create' }
+function openEdit(group: UserGroup) { if (group.builtin) return; groupName.value = group.name; groupDescription.value = group.description; groupFeedback.value = false; groupDialog.value = 'edit' }
+function closeGroupDialog() { if (!groupMutation.isPending.value) groupDialog.value = '' }
+function saveGroupDetails() {
+  if (!canManage.value || !groupName.value.trim() || groupMutation.isPending.value) return
+  groupFeedback.value = false
+  if (groupDialog.value === 'create') groupMutation.mutate({ kind: 'create', scope: groupIdentity.scope.value })
+  else if (groupDialog.value === 'edit' && activeGroup.value && !activeGroup.value.builtin) groupMutation.mutate({ kind: 'edit', group: activeGroup.value, scope: groupIdentity.scope.value })
+}
+function deleteGroup() {
+  const group = activeGroup.value
+  if (!canManage.value || !group || group.builtin || group.memberCount !== 0 || groupMutation.isPending.value) return
+  groupFeedback.value = false
+  groupMutation.mutate({ kind: 'delete', group, scope: groupIdentity.scope.value })
+}
 </script>
 
 <style scoped>
@@ -99,6 +202,14 @@ const feedbackKey = computed(() => (feedbackKind.value === 'default'
 .user-groups-page__empty h2,
 .user-groups-page__empty p {
   margin: 0;
+}
+
+.user-groups-page__header-actions,
+.user-groups-page__custom-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .user-groups-page__header h1 {
@@ -125,6 +236,11 @@ const feedbackKey = computed(() => (feedbackKind.value === 'default'
   .user-groups-page__header {
     align-items: start;
     flex-direction: column;
+  }
+
+  .user-groups-page__header-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 </style>

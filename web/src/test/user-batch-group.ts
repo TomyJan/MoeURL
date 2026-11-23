@@ -22,7 +22,7 @@ export function membershipResponse(data: unknown, code = 0, status = 200, meta: 
 }
 
 /** Mounts the production user page with real QueryClient, Vuetify and translations; only the HTTP server is controlled. */
-export function mountBatchMembership(options: { user?: CurrentUser; users?: UserSummary[]; locale?: 'en' | 'zh-CN'; identityReady?: boolean; overrides?: Record<string, () => Response | Promise<Response>>; component?: Component } = {}) {
+export function mountBatchMembership(options: { user?: CurrentUser; users?: UserSummary[]; locale?: 'en' | 'zh-CN'; identityReady?: boolean; overrides?: Record<string, () => Response | Promise<Response>>; component?: Component; customGroups?: Array<{ key: string; name: string }> } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity, gcTime: Infinity }, mutations: { retry: false } } })
   const state = {
     user: options.user ?? { ...batchManager },
@@ -38,6 +38,12 @@ export function mountBatchMembership(options: { user?: CurrentUser; users?: User
     if (input) state.writes.push({ path, input })
     if (state.overrides[path]) return state.overrides[path]()
     if (path === '/api/v1/auth/me') return membershipResponse({ user: state.user })
+    if (path === '/api/v1/admin/user-group/list') return membershipResponse({ groups: [
+      { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: '2026-10-28T00:00:00Z' },
+      { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 2, permissions: [], updatedAt: '2026-10-28T00:00:00Z' },
+      { key: 'admin', name: 'Administrator', description: '', builtin: true, editable: true, memberCount: 1, permissions: ['admin:access'], updatedAt: '2026-10-28T00:00:00Z' },
+      ...(options.customGroups ?? []).map(({ key, name }) => ({ key, name, description: '', builtin: false, editable: true, memberCount: 1, permissions: [], updatedAt: '2026-10-28T00:00:00Z' })),
+    ], permissions: [{ key: 'admin:access', category: 'administration', protected: true }], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user', 'admin'], permissions: [] })) })
     if (path.startsWith('/api/v1/admin/user/list?')) return membershipResponse({ items: state.users }, 0, 200, { page: 1, pageSize: 20, total: state.users.length })
     throw new Error('Unexpected membership fixture request: ' + path)
   }))

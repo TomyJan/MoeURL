@@ -7,12 +7,12 @@
         <p>{{ group.description }}</p>
       </div>
       <div class="permission-editor__statuses">
-        <span class="permission-editor__status">{{ t('userGroups.builtin') }}</span>
+        <span class="permission-editor__status">{{ group.builtin ? t('userGroups.builtin') : t('userGroups.custom') }}</span>
         <span class="permission-editor__status">{{ group.editable ? t('userGroups.editable') : t('userGroups.readOnly') }}</span>
       </div>
     </header>
 
-    <div class="permission-editor__preset" data-testid="user-group-preset">
+    <div v-if="group.builtin" class="permission-editor__preset" data-testid="user-group-preset">
       <v-select
         v-model="selectedPreset"
         :disabled="pending || !dataValid || !group.editable"
@@ -103,7 +103,7 @@ const categories = computed(() => categoryOrder.map((key) => ({
 })).filter(({ definitions }) => definitions.length > 0))
 /** Builds the presets available to the active built-in group. */
 const presetItems = computed(() => {
-  if (!props.group.editable) {
+  if (!props.group.editable || !props.group.builtin) {
     return [{ title: t('userGroups.presets.restricted'), value: 'restricted' }]
   }
   return props.presets

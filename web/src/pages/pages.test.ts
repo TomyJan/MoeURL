@@ -195,6 +195,13 @@ vi.mock('@tanstack/vue-query', async () => {
       if (Array.isArray(key) && key[0] === 'group-default-domain') {
         return { data: ref({ domainId: null, status: 'not_set' }), isSuccess: ref(true), isError: ref(false), refetch: vi.fn() }
       }
+      if (Array.isArray(key) && key[0] === 'admin-user-groups') {
+        return { data: ref({ groups: [
+          { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: '2026-10-27T01:02:03Z' },
+          { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 0, permissions: [], updatedAt: '2026-10-27T01:02:03Z' },
+          { key: 'admin', name: 'Administrator', description: '', builtin: true, editable: true, memberCount: 1, permissions: ['admin:access'], updatedAt: '2026-10-27T01:02:03Z' },
+        ] }), isSuccess: ref(true), isError: ref(false), isPending: ref(false), refetch: vi.fn() }
+      }
       if (Array.isArray(key) && key[0] === 'user' && key[1] === 'domain-preference') {
         return { data: ref({ domainId: null, updatedAt: null }), isSuccess: ref(true), isError: ref(false) }
       }
@@ -247,7 +254,7 @@ vi.mock('@tanstack/vue-query', async () => {
 
 /** Mounts a page component with the shared router and component stubs. */
 function mount(component: object) {
-  state.listAuth = component === MyLinksPage || component === AdminLinksPage || component === AnalyticsPage || component === AdminUsersPage
+  state.listAuth = component === MyLinksPage || component === AdminLinksPage || component === AnalyticsPage || component === AdminUsersPage || component === CreateUserPage
   return render(component, {
     global: {
       // Export and bulk-create lifecycles have real QueryClient coverage in their dedicated page tests.
@@ -2131,7 +2138,9 @@ describe('pages', () => {
     const submitBlock = source.match(/<v-btn\s+class="console-form-panel__submit"[\s\S]+?<\/v-btn>/)?.[0] ?? ''
 
     expect(submitBlock).toContain(':loading="mutation.isPending.value"')
-    expect(submitBlock).toContain(':disabled="mutation.isPending.value"')
+    expect(submitBlock).toContain('groupsQuery.isPending.value')
+    expect(submitBlock).toContain('groupsQuery.isError.value')
+    expect(submitBlock).toContain('mutation.isPending.value')
   })
 
   it('renders admin users list and submits user actions', async () => {

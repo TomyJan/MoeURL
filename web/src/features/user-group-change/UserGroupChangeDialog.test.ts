@@ -4,17 +4,26 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { componentStubs } from '@/test/component-stubs'
 import { createDeferred } from '@/test/deferred'
 import UserGroupChangeDialog from './UserGroupChangeDialog.vue'
+import { userGroupQueryKey } from '@/entities/user-group/api'
 
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 const member = { id: '00000000-0000-0000-0000-000000000002', username: 'member', nickname: 'Member', group: 'user', status: 'active' as const, builtin: false, createdAt: '2026-10-23T00:00:00Z', updatedAt: '2026-10-23T00:00:00.123456Z' }
 const clients: QueryClient[] = []
 /** Mounts the actual dialog and HTTP client with a controllable network boundary. */
-function mount() {
+function mount(target = member, customGroups: Array<Record<string, unknown>> = []) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   clients.push(client)
   client.setQueryData(['auth', 'me'], { user: { id: '00000000-0000-0000-0000-000000000001', username: 'manager', group: 'admin', permissions: ['admin:access'] } })
-  const view = render(UserGroupChangeDialog, { props: { target: member }, global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: componentStubs } })
+  client.setQueryData([...userGroupQueryKey, '00000000-0000-0000-0000-000000000001', 1], {
+    groups: [
+      { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: '2026-10-23T00:00:00Z' },
+      { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 0, permissions: [], updatedAt: '2026-10-23T00:00:00Z' },
+      { key: 'admin', name: 'Administrator', description: '', builtin: true, editable: true, memberCount: 1, permissions: ['admin:access'], updatedAt: '2026-10-23T00:00:00Z' },
+      ...customGroups,
+    ], permissions: [], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user', 'admin'], permissions: [] })),
+  })
+  const view = render(UserGroupChangeDialog, { props: { target }, global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: componentStubs } })
   return { ...view, client }
 }
 /** Chooses a changed group and acknowledges session revocation. */
@@ -43,6 +52,19 @@ describe('membership dialog', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'membership.cancel' }))
     expect(view.emitted().close).toBeUndefined()
     pending.resolve(new Response(JSON.stringify({ code: 0, message: 'OK', data: { user: { ...member, group: 'admin' } }, meta: {} })))
+    await waitFor(() => expect(view.emitted().close).toHaveLength(1))
+  })
+  it('offers current custom groups for a single-member move and submits the opaque key', async () => {
+    const customKey = '52ef11fc-95a4-4a8d-8f72-1f707b5c6a80'
+    const view = mount(member, [{ key: customKey, name: 'Operations', description: '', builtin: false, editable: true, memberCount: 1, permissions: [], updatedAt: '2026-10-23T00:00:00Z' }])
+    const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { user: { ...member, group: customKey } }, meta: {} })))
+    vi.stubGlobal('fetch', fetcher)
+    await fireEvent.update(screen.getByLabelText('membership.group'), customKey)
+    expect((screen.getByLabelText('membership.group') as HTMLSelectElement).selectedOptions[0]?.textContent).toBe('Operations')
+    await fireEvent.click(screen.getByLabelText('membership.confirm'))
+    await fireEvent.click(screen.getByRole('button', { name: 'membership.save' }))
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
+    expect(JSON.parse(fetcher.mock.calls[0]![1]!.body as string)).toEqual({ id: member.id, groupKey: customKey, expectedUpdatedAt: member.updatedAt })
     await waitFor(() => expect(view.emitted().close).toHaveLength(1))
   })
   it.each([300105, 900000])('handles conflict or failure %s without automatically retrying', async (code) => {

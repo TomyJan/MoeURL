@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { ApiClientError, apiGet, apiPost } from '@/shared/api/client'
 import { INVALID_REQUEST_CODE } from '@/shared/api/error-codes'
 
-export type DomainGroupKey = 'user' | 'admin'
+export type DomainGroupKey = string
 
 export interface ManagedDomain {
   id: string
@@ -57,7 +57,7 @@ const availableSchema = z.strictObject({
 const managedSchema: z.ZodType<ManagedDomain> = availableSchema.safeExtend({
   purpose: z.literal('short_link'), enabled: z.boolean(),
   sortOrder: z.number().int().min(-10000).max(10000),
-  allowedGroups: z.array(z.enum(['user', 'admin'])).refine(unique),
+  allowedGroups: z.array(z.string().min(1)).refine(unique),
   referenced: z.boolean(), updatedAt: z.iso.datetime({ offset: true }),
 })
 const managedListSchema = z.strictObject({ items: z.array(managedSchema).refine(uniqueDomains) })

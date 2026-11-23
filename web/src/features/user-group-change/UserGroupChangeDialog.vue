@@ -5,8 +5,11 @@
       <v-card-text>
         <p class="membership-identity">{{ target.username }}</p>
         <p>{{ t('membership.warning') }}</p>
-        <v-select v-model="group" :items="options" :label="t('membership.group')" :disabled="mutation.isPending.value" variant="outlined" />
-        <v-alert :type="group === 'admin' ? 'warning' : 'info'" variant="tonal">{{ t(group === 'admin' ? 'membership.promote' : 'membership.demote') }}</v-alert>
+        <v-select v-model="group" :items="options" :label="t('membership.group')" :disabled="mutation.isPending.value || groupsQuery.isPending.value || groupsQuery.isError.value" variant="outlined" />
+        <v-alert :type="group === 'admin' ? 'warning' : 'info'" variant="tonal">{{ group === 'admin' ? t('membership.promote') : selectedGroup ? t('membership.assignGroup', { group: selectedGroup.name }) : t('membership.groupUnavailable') }}</v-alert>
+        <v-alert v-if="groupsQuery.isError.value" type="error" variant="tonal">
+          {{ t('membership.groupsLoadFailed') }} <v-btn variant="text" @click="groupsQuery.refetch()">{{ t('membership.retry') }}</v-btn>
+        </v-alert>
         <v-switch v-model="confirmed" :label="t('membership.confirm')" :disabled="mutation.isPending.value" color="primary" />
       </v-card-text>
       <v-card-actions>
@@ -23,6 +26,7 @@ import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { me } from '@/entities/auth/api'
 import { changeUserGroup, type UserSummary } from '@/entities/user/api'
+import { listUserGroups, userGroupQueryKey, type UserGroupKey } from '@/entities/user-group/api'
 import { ApiClientError } from '@/shared/api/client'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 
@@ -36,14 +40,17 @@ let alive = true
 onBeforeUnmount(() => { alive = false })
 const auth = useQuery({ queryKey: ['auth', 'me'], queryFn: me, staleTime: Infinity, retry: false })
 const allowed = computed(() => identity.isCurrent(initialScope) && !!initialScope.userId && !!auth.data.value?.user.permissions.includes('admin:access') && props.target.id !== initialScope.userId && !props.target.builtin)
-const group = ref(props.target.group as 'user' | 'admin')
+const groupsQuery = useQuery({ queryKey: [...userGroupQueryKey, initialScope.userId, initialScope.epoch], queryFn: listUserGroups, enabled: allowed, retry: false, staleTime: Infinity })
+const group = ref<UserGroupKey>(props.target.group)
 const confirmed = ref(false)
-const options = computed(() => [{ title: t('membership.user'), value: 'user' }, { title: t('membership.admin'), value: 'admin' }])
+const options = computed(() => (groupsQuery.data.value?.groups ?? []).filter(({ key }) => key !== 'guest').map(({ name, key }) => ({ title: name, value: key })))
+const selectedGroup = computed(() => groupsQuery.data.value?.groups.find(({ key }) => key === group.value))
 const mutation = useMutation({ mutationFn: changeUserGroup, retry: false })
 let revision = 0
-watch(() => props.target, () => { group.value = props.target.group as 'user' | 'admin'; confirmed.value = false; revision++ }, { flush: 'sync' })
+watch(() => props.target, () => { group.value = props.target.group; confirmed.value = false; revision++ }, { flush: 'sync' })
+watch(options, (items) => { if (!items.some(({ value }) => value === group.value)) group.value = items.find(({ value }) => value === 'user')?.value ?? items[0]?.value ?? '' }, { immediate: true })
 watch(allowed, (value) => { if (!value) emit('close') }, { flush: 'sync' })
-const canSave = computed(() => allowed.value && confirmed.value && group.value !== props.target.group && !mutation.isPending.value)
+const canSave = computed(() => allowed.value && !groupsQuery.isPending.value && !groupsQuery.isError.value && options.value.some(({ value }) => value === group.value) && confirmed.value && group.value !== props.target.group && !mutation.isPending.value)
 
 /** Keeps dismissal locked until the privileged mutation has settled. */
 function close() { if (!mutation.isPending.value) emit('close') }

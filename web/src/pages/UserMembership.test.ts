@@ -6,6 +6,13 @@ import { createDeferred } from '@/test/deferred'
 let view: ReturnType<typeof mountBatchMembership>
 afterEach(() => { cleanup(); view?.client.clear(); vi.unstubAllGlobals() })
 
+it('displays server-provided custom group names instead of opaque keys', async () => {
+  const key = '52ef11fc-95a4-4a8d-8f72-1f707b5c6a80'
+  view = mountBatchMembership({ users: [{ ...batchAlice, group: key }], customGroups: [{ key, name: 'Operations' }] })
+  await screen.findByText('Operations')
+  expect(screen.queryByText(key)).toBeNull()
+})
+
 it('reads no private list before current auth succeeds and never renders the old shared list cache', async () => {
   const auth = createDeferred<Response>()
   view = mountBatchMembership({ identityReady: false, overrides: { '/api/v1/auth/me': () => auth.promise } })
@@ -31,6 +38,7 @@ it('keeps the legacy single-account snapshot across background reads and holds t
   await fireEvent.click(within(row).getByRole('button', { name: 'More actions' }))
   await fireEvent.click(screen.getByRole('button', { name: 'Change user group' }))
   const dialog = within(screen.getByRole('dialog'))
+  await waitFor(() => expect(view.state.requests).toContain('/api/v1/admin/user-group/list'))
   view.state.users[0]!.updatedAt = '2026-10-28T04:00:00Z'
   await view.client.invalidateQueries({ queryKey: ['admin-user'] })
   await fireEvent.keyDown(dialog.getByRole('combobox', { name: 'Target group' }), { key: 'Enter' })

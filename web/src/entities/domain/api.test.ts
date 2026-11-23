@@ -49,6 +49,12 @@ describe('domain API', () => {
     expect(apiGet).toHaveBeenCalledWith('/admin/domain/list')
   })
 
+  it('accepts opaque custom-group keys in domain authorization responses', async () => {
+    const customDomain = { ...domain, allowedGroups: ['user', '52ef11fc-95a4-4a8d-8f72-1f707b5c6a80'] }
+    vi.mocked(apiGet).mockResolvedValue({ code: 0, message: 'OK', meta: {}, data: { items: [customDomain] } })
+    await expect(listDomains()).resolves.toEqual({ items: [customDomain] })
+  })
+
   it.each([
     [{ ...domain, clientSecret: 'unexpected' }],
     [domain, { ...domain, id: '00000000-0000-4000-8000-000000000802', host: 'https://GO.example.com:443' }],

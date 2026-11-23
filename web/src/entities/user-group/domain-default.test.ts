@@ -19,6 +19,14 @@ it('preserves the exact shared revision and target in independent GET and POST',
   expect(await setUserGroupDomainDefault(input)).toEqual(valid)
   expect(fetcher).toHaveBeenLastCalledWith('/api/v1/admin/user-group/set-domain-default', expect.objectContaining({ body: JSON.stringify(input) }))
 })
+it('accepts opaque custom-group keys in management settings and writes', async () => {
+  const groupKey = 'custom-opaque-key'
+  const custom = { ...valid, setting: { ...valid.setting, groupKey } }
+  respond(custom)
+  expect(await getUserGroupDomainDefault(groupKey)).toEqual(custom)
+  const input = { groupKey, domainId: id, expectedUpdatedAt: updatedAt }
+  expect(await setUserGroupDomainDefault(input)).toEqual(custom)
+})
 it.each([
   null, {}, { ...valid, extra: true }, { ...valid, setting: { ...valid.setting, extra: true } },
   { ...valid, setting: { ...valid.setting, groupKey: 'admin' } },

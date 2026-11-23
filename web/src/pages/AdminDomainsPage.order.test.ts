@@ -23,7 +23,7 @@ const clients: QueryClient[] = []
 function response(data: unknown, code = 0) { return new Response(JSON.stringify({ code, message: '', data, meta: {} })) }
 
 /** Runs the real editor, API parser, identity observer and QueryClient; only HTTP is controlled. */
-function mount(options: { save?: () => Promise<Response>; legacyWrite?: () => Promise<Response>; listFails?: boolean; authFails?: boolean; authPermissions?: string[]; authRead?: () => Promise<Response>; read?: () => Promise<ManagedDomain[]>; realVuetify?: boolean } = {}) {
+function mount(options: { save?: () => Promise<Response>; legacyWrite?: () => Promise<Response>; listFails?: boolean; authFails?: boolean; authPermissions?: string[]; authRead?: () => Promise<Response>; read?: () => Promise<ManagedDomain[]>; realVuetify?: boolean; customGroup?: boolean } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity, gcTime: Infinity } } })
   clients.push(client)
   const user = { id: 'A', username: 'admin', nickname: '', group: 'admin', permissions: ['admin:access', 'domain:manage'] }
@@ -45,6 +45,12 @@ function mount(options: { save?: () => Promise<Response>; legacyWrite?: () => Pr
       if (options.listFails) throw new Error('controlled offline list')
       return response({ items: options.read ? await options.read() : items })
     }
+    if (url === '/api/v1/admin/user-group/list') return response({ groups: [
+      { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: '2026-10-27T01:02:03.123456Z' },
+      { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 0, permissions: [], updatedAt: '2026-10-27T01:02:03.123456Z' },
+      { key: 'admin', name: 'Administrator', description: '', builtin: true, editable: true, memberCount: 1, permissions: ['admin:access'], updatedAt: '2026-10-27T01:02:03.123456Z' },
+      ...(options.customGroup ? [{ key: 'opaque-custom-key', name: 'Operations', description: '', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: '2026-10-27T01:02:03.123456Z' }] : []),
+    ], permissions: [{ key: 'admin:access', category: 'administration', protected: true }], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user', 'admin'], permissions: [] })) })
     if (url.startsWith('/api/v1/admin/domain/redirect-default?')) {
       const id = new URL(url, 'https://app.example').searchParams.get('id')
       const domain = items.find((item) => item.id === id)
@@ -95,6 +101,15 @@ async function selectSecondary() {
 afterEach(() => { cleanup(); clients.splice(0).forEach((client) => client.clear()); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 describe('domain ordering with real queries', () => {
+  it('loads custom groups by their server key when editing domain grants', async () => {
+    mount({ customGroup: true })
+    const add = screen.getByRole('button', { name: /domains.add/ })
+    await waitFor(() => expect(add).toHaveProperty('disabled', false))
+    await fireEvent.click(add)
+    const custom = await screen.findByLabelText('Operations')
+    expect(custom).toBeTruthy()
+    expect(screen.getByText('Operations')).toBeTruthy()
+  })
   it('invalidates group default management and self selections after a domain write', async () => {
     const { client } = mount()
     const management = ['admin-user-group-domain-default', 'A', 1, 'user']

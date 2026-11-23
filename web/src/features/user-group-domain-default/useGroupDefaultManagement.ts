@@ -71,7 +71,7 @@ export function useGroupDefaultManagement() {
   }, { immediate: true })
   watch(identity.scope, () => {
     displayedGroups.value = []; draft.reset([])
-    for (const key of ['guest', 'user', 'admin'] as const) delete defaults[key]
+    for (const key of Object.keys(defaults)) delete defaults[key]
     stale.clear(); feedback.value = ''; feedbackKind.value = 'permission'; refreshBroken.value = false; refreshing.value = false; activeGroupKey.value = 'guest'
   }, { flush: 'sync' })
   watch(activeGroupKey, () => { feedback.value = '' })

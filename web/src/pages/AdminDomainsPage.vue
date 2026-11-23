@@ -14,6 +14,9 @@
       {{ t('domains.loadFailed') }}
       <template #append><v-btn variant="text" @click="retryDomains">{{ t('domains.retry') }}</v-btn></template>
     </v-alert>
+    <v-alert v-if="groupsQuery.isError.value" type="error" variant="tonal">
+      {{ t('domains.groupsLoadFailed') }} <v-btn variant="text" @click="groupsQuery.refetch()">{{ t('domains.retry') }}</v-btn>
+    </v-alert>
     <v-alert v-if="permissionDenied" type="error" variant="tonal">
       {{ t('domainOrder.accessDenied') }}
       <v-btn type="button" variant="text" :disabled="mutation.isPending.value || orderReloading || !identity.scope.value.userId" @click="reloadAccess">{{ t('domainOrder.reloadAccess') }}</v-btn>
@@ -38,7 +41,7 @@
             <legend>{{ t('domains.allowedGroups') }}</legend>
             <label v-for="group in groupKeys" :key="group">
               <input type="checkbox" :checked="draft.allowedGroups.includes(group)" @change="toggleGroup(group, $event)" />
-              {{ t(`domains.groups.${group}`) }}
+              {{ groupNames[group] ?? group }}
             </label>
           </fieldset>
           <v-switch v-model="draft.enabled" :label="t('domains.enabled')" :disabled="writesBlocked || (!creating && selectedDomain?.isDefault)" />
@@ -100,6 +103,7 @@ import {
   createDomain, deleteDomain, listDomains, managedDomainQueryKey, setDefaultDomain, setDomainOrder, updateDomain,
   type DomainDraftInput, type DomainGroupKey, type ManagedDomain, type SetDomainOrderInput,
 } from '@/entities/domain/api'
+import { listUserGroups, userGroupQueryKey } from '@/entities/user-group/api'
 import { ApiClientError } from '@/shared/api/client'
 import { me } from '@/entities/auth/api'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
@@ -121,8 +125,13 @@ const auth = useQuery({ queryKey: ['auth', 'me'], queryFn: me, staleTime: Infini
 const eligible = computed(() => !auth.isError?.value && !!identity.scope.value.userId && auth.data.value?.user.id === identity.scope.value.userId && ['admin:access', 'domain:manage'].every((permission) => auth.data.value?.user.permissions.includes(permission)))
 const queryKey = computed(() => [...managedDomainQueryKey, identity.scope.value.userId, identity.scope.value.epoch])
 const query = useQuery({ queryKey, queryFn: listDomains, enabled: eligible, retry: false })
+const groupsQuery = useQuery({ queryKey: computed(() => [...userGroupQueryKey, identity.scope.value.userId, identity.scope.value.epoch]), queryFn: listUserGroups, enabled: eligible, retry: false, staleTime: Infinity })
 const domains = computed(() => query.data.value?.items ?? [])
-const groupKeys = ['user', 'admin'] as const
+const groupKeys = computed(() => (groupsQuery.data.value?.groups ?? []).filter(({ key }) => key !== 'guest').map(({ key }) => key))
+const groupNames = computed(() => Object.fromEntries((groupsQuery.data.value?.groups ?? []).map(({ key, name }) => [
+  key,
+  key === 'user' || key === 'admin' ? t(`domains.groups.${key}`) : name,
+])))
 const selectedID = ref('')
 const creating = ref(false)
 const feedback = ref<'success' | 'conflict' | 'error' | ''>('')
@@ -223,7 +232,7 @@ const mutation = useMutation({
   },
 })
 const redirectManagement = useDomainRedirectManagement({ domain: selectedDomain, identity, eligible, denied: permissionDenied, removed: selectionRemoved, dirty: redirectDirty, legacyDirty: computed(() => dirty() || orderDirty.value), legacyBusy: computed(() => mutation.isPending.value || orderReloading.value || defaultRefreshRequired.value), list: query, adopt: (domain) => { fillDraft(domain); orderRevision.value++ } })
-const transportBlocked = computed(() => mutation.isPending.value || redirectManagement.pending.value || redirectManagement.barrier.value || defaultRefreshRequired.value || orderReloading.value || query.isError.value || permissionDenied.value || !eligible.value)
+const transportBlocked = computed(() => mutation.isPending.value || redirectManagement.pending.value || redirectManagement.barrier.value || defaultRefreshRequired.value || orderReloading.value || query.isError.value || groupsQuery.isError.value || groupsQuery.isPending.value || permissionDenied.value || !eligible.value)
 const writesBlocked = computed(() => transportBlocked.value || orderDirty.value || redirectDirty.value)
 watch(identity.scope, () => {
   creating.value = false; selectedID.value = ''; selectedSnapshot.value = null; baseline = null
