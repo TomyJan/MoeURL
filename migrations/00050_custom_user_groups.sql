@@ -5,14 +5,15 @@ do $$
 begin
     if exists (
         select 1 from user_group
-        group by lower(btrim(name))
+        group by lower(btrim(name, U&'\0009\000A\000B\000C\000D\0020\0085\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000'))
         having count(*) > 1
     ) then
         raise exception 'existing user-group names are not unique after trimming and case folding';
     end if;
     if exists (
         select 1 from user_group
-        where char_length(btrim(name)) < 1 or char_length(btrim(name)) > 64
+        where char_length(btrim(name, U&'\0009\000A\000B\000C\000D\0020\0085\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000')) < 1
+           or char_length(btrim(name, U&'\0009\000A\000B\000C\000D\0020\0085\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000')) > 64
            or char_length(description) > 500
     ) then
         raise exception 'existing user-group name or description exceeds the custom group limits';
@@ -30,11 +31,11 @@ alter table user_group
         )
     ),
     add constraint user_group_name_length_check check (
-        char_length(btrim(name)) between 1 and 64
+        char_length(btrim(name, U&'\0009\000A\000B\000C\000D\0020\0085\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000')) between 1 and 64
         and char_length(description) <= 500
     );
 
-create unique index user_group_normalized_name_uidx on user_group(lower(btrim(name)));
+create unique index user_group_normalized_name_uidx on user_group(lower(btrim(name, U&'\0009\000A\000B\000C\000D\0020\0085\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000')));
 
 -- Keep lifecycle auditing separate from the existing permissions and default-domain triggers.
 -- Only field names are recorded; names, descriptions, permissions and domain IDs are not copied.

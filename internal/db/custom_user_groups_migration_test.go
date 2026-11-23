@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
@@ -74,6 +75,43 @@ func TestCustomUserGroupMigrationRoundTrip(t *testing.T) {
 	var grants int
 	require.NoError(t, database.QueryRowContext(ctx, `select count(*) from domain_user_group where user_group_id=$1`, groupID).Scan(&grants))
 	require.Zero(t, grants, "deleting a custom group must not leave domain grants")
+}
+
+func TestCustomUserGroupMigrationTrimsUnicodeWhitespaceConsistently(t *testing.T) {
+	ctx := t.Context()
+	database := migrationTestDatabase(t, ctx)
+	dir := filepath.Join("..", "..", "migrations")
+	require.NoError(t, goose.UpTo(database, dir, 49))
+	insertUserGroups(t, ctx, database)
+
+	_, err := database.ExecContext(ctx, `
+		update user_group
+		set name = case key when 'user' then $1 when 'admin' then 'Ops' end
+		where key in ('user', 'admin')
+	`, "\tOps\t")
+	require.NoError(t, err)
+	err = goose.UpTo(database, dir, 50)
+	require.ErrorContains(t, err, "names are not unique")
+
+	_, err = database.ExecContext(ctx, `update user_group set name = case key when 'user' then 'User' when 'admin' then 'Admin' end where key in ('user', 'admin')`)
+	require.NoError(t, err)
+	require.NoError(t, goose.UpTo(database, dir, 50), "migration should be retryable after conflicting legacy names are repaired")
+
+	const boundaryKey = "550e8400-e29b-41d4-a716-446655440010"
+	boundaryName := "\t" + strings.Repeat("G", 64) + "\t"
+	_, err = database.ExecContext(ctx, `
+		insert into user_group (id,key,name,description,permissions,builtin,created_at,updated_at)
+		values ('00000000-0000-0000-0000-000000000910',$1,$2,'','[]'::jsonb,false,now(),now())
+	`, boundaryKey, boundaryName)
+	require.NoError(t, err, "tabs are trimmed before enforcing the 64-rune name limit")
+	_, err = database.ExecContext(ctx, `
+		insert into user_group (id,key,name,description,permissions,builtin,created_at,updated_at)
+		values ('00000000-0000-0000-0000-000000000911','550e8400-e29b-41d4-a716-446655440011',$1,'','[]'::jsonb,false,now(),now())
+	`, strings.Repeat("g", 64))
+	var duplicate *pgconn.PgError
+	require.Error(t, err)
+	require.True(t, errors.As(err, &duplicate))
+	require.Equal(t, "23505", duplicate.Code, "the unique index must use the same trimmed key as Go")
 }
 
 func TestCustomUserGroupMigrationDownPreservesCustomData(t *testing.T) {
