@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-23，v0.92.0）
 
-当前分支 `feat/v0.92.0-custom-user-groups` 已完成 Task 1–5：migration 00050 与自定义组 API、成员迁移、域名授权和动态前端。前端最终复跑 291/291 测试文件、7,285/7,285 测试通过，类型检查和生产构建通过，ESLint 0 errors／7 既有测试警告。前端 commit `0cc854e7b24fc18186fca33b9967029ead451052` 未签名；只对本次提交关闭 GPG，全局设置保留。Task 6 文档及完整验收进行中；无 PR、最终 head CodeRabbit、merge 核验或归档，不标记发布。准确状态和命令见 [v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。不查 CI、不部署发布、不触碰 PR #240/#266/#267。
+当前分支 `feat/v0.92.0-custom-user-groups` 已完成 Task 1–5：migration 00050 与自定义组 API、成员迁移、域名授权和动态前端。前端最终复跑 291/291 测试文件、7,295/7,295 测试通过，类型检查和生产构建通过，ESLint 0 errors／7 既有测试警告；覆盖率 Statements 99.93%、Branches 99.87%、Functions 99.96%、Lines 100%，剩余短路分支待补。前端 commit `0cc854e7b24fc18186fca33b9967029ead451052` 未签名；只对本次提交关闭 GPG，全局设置保留。Task 6 文档及完整验收进行中；无 PR、最终 head CodeRabbit、merge 核验或归档，不标记发布。准确状态和命令见 [v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。不查 CI、不部署发布、不触碰 PR #240/#266/#267。
 
 ## 最近完成（2026-11-22，v0.91.0）
 
