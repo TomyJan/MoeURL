@@ -11,11 +11,11 @@ vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 const member = { id: '00000000-0000-0000-0000-000000000002', username: 'member', nickname: 'Member', group: 'user', status: 'active' as const, builtin: false, createdAt: '2026-10-23T00:00:00Z', updatedAt: '2026-10-23T00:00:00.123456Z' }
 const clients: QueryClient[] = []
 /** Mounts the actual dialog and HTTP client with a controllable network boundary. */
-function mount(target = member, customGroups: Array<Record<string, unknown>> = []) {
+function mount(target = member, customGroups: Array<Record<string, unknown>> = [], seedGroups = true) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   clients.push(client)
   client.setQueryData(['auth', 'me'], { user: { id: '00000000-0000-0000-0000-000000000001', username: 'manager', group: 'admin', permissions: ['admin:access'] } })
-  client.setQueryData([...userGroupQueryKey, '00000000-0000-0000-0000-000000000001', 1], {
+  if (seedGroups) client.setQueryData([...userGroupQueryKey, '00000000-0000-0000-0000-000000000001', 1], {
     groups: [
       { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: '2026-10-23T00:00:00Z' },
       { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 0, permissions: [], updatedAt: '2026-10-23T00:00:00Z' },
@@ -66,6 +66,24 @@ describe('membership dialog', () => {
     await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
     expect(JSON.parse(fetcher.mock.calls[0]![1]!.body as string)).toEqual({ id: member.id, groupKey: customKey, expectedUpdatedAt: member.updatedAt })
     await waitFor(() => expect(view.emitted().close).toHaveLength(1))
+  })
+  it('lets an administrator recover when the current group catalog initially fails', async () => {
+    const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 900000, message: 'offline', data: null, meta: {} })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, message: 'OK', data: { groups: [
+        { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: '2026-10-23T00:00:00Z' },
+        { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 0, permissions: [], updatedAt: '2026-10-23T00:00:00Z' },
+        { key: 'admin', name: 'Administrator', description: '', builtin: true, editable: true, memberCount: 1, permissions: ['admin:access'], updatedAt: '2026-10-23T00:00:00Z' },
+        { key: 'operations-key', name: 'Operations', description: '', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: '2026-10-23T00:00:00Z' },
+      ], permissions: [{ key: 'admin:access', category: 'administration', protected: true }], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user', 'admin'], permissions: [] })) }, meta: {} })))
+    vi.stubGlobal('fetch', fetcher)
+    mount(member, [], false)
+    await screen.findByText('membership.groupsLoadFailed')
+    expect((screen.getByLabelText('membership.group') as HTMLSelectElement).disabled).toBe(true)
+    await fireEvent.click(screen.getByRole('button', { name: 'membership.retry' }))
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2))
+    expect(await screen.findByRole('option', { name: 'Operations' })).toBeTruthy()
+    expect((screen.getByLabelText('membership.group') as HTMLSelectElement).disabled).toBe(false)
   })
   it.each([300105, 900000])('handles conflict or failure %s without automatically retrying', async (code) => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ code, message: 'private', data: null, meta: {} }))))

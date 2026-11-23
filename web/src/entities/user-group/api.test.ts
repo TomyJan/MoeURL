@@ -146,6 +146,17 @@ describe('user group api', () => {
     }))
   })
 
+  it('uses the custom permissions endpoint for opaque group keys', async () => {
+    const group = { ...responseData.groups[1], key: 'custom-key', builtin: false, editable: true, permissions: [] }
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { group }, meta: {} }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })))
+    const input = { groupKey: group.key, permissions: [], expectedUpdatedAt: group.updatedAt }
+    await expect(updateUserGroupPermissions(input)).resolves.toEqual({ group })
+    expect(fetch).toHaveBeenCalledWith('/api/v1/admin/user-group/update-custom-permissions', expect.anything())
+  })
+
   it('posts the complete optimistic update and parses the returned group', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
       code: 0,

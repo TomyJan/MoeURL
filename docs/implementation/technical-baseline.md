@@ -1,5 +1,9 @@
 # 技术基线
 
+## 当前实施（2026-11-23，v0.92.0）
+
+当前 feature `feat/v0.92.0-custom-user-groups` 在单主组模型上实现自定义组；没有多组关系表、权限合并层或新运行依赖。复用现有 Go／Chi／PostgreSQL／SQLC／Vue／Zod／TanStack Query。Migration `00050` 扩展 `user_group` 名称唯一性、默认域名约束与审计；Down 在 custom group 存在时安全拒绝。Go/backend Task 1–4 与前端 Task 5 已完成，前端门禁见[v0.92.0 验收](v0.92.0-acceptance.md)；Task 6、最终 review、PR、合并、恢复归档仍待。未发布或部署。
+
 ## 当前已完成实施（2026-11-20，v0.90.0）
 
 [导出清单恢复](../product/scope-v0.90.0.md)已实现：严格接受固定 17 列管理 CSV，经当前 Cookie actor 的权限、域名、策略、配额和短码检查后，以单事务新建 1–100 条记录。保留可重建配置，访问用量从 0 开始；旧 ID、归属、时间、事件和密码不恢复。新增 `POST /api/v1/short-link/manifest/restore` 限 1 MiB；migration 00048 将幂等回执容量扩至 100，大回执存在时 Down 安全拒绝。旧八种创建协议仍限 20 条。

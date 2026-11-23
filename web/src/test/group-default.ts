@@ -36,7 +36,7 @@ const managementStubs = {
 export function response(data: unknown, code = 0) { return new Response(JSON.stringify({ code, message: '', data, meta: {} })) }
 
 /** Mounts real parents, editors and queries; controlled HTTP is the only business boundary. */
-export function mountGroupDefault(component: Component, options: { client?: QueryClient; real?: boolean; permissions?: string[]; overrides?: Record<string, () => Promise<Response>>; personal?: string | null; selection?: { domainId: string | null; status: string }; domains?: typeof domains; customGroups?: UserGroup[] } = {}) {
+export function mountGroupDefault(component: Component, options: { client?: QueryClient; real?: boolean; permissions?: string[]; overrides?: Record<string, () => Promise<Response>>; personal?: string | null; selection?: { domainId: string | null; status: string }; domains?: typeof domains; customGroups?: UserGroup[]; stubs?: Record<string, Component> } = {}) {
   const client = options.client ?? new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity, staleTime: Infinity } } })
   const user = { id: 'A', username: 'alice', nickname: '', group: 'admin', permissions: options.permissions ?? ['short_link:create', 'domain:use_default', 'domain:use_assigned', 'admin:access', 'domain:manage'] }
   client.setQueryData(['auth', 'me'], { user })
@@ -115,7 +115,7 @@ export function mountGroupDefault(component: Component, options: { client?: Quer
   vi.stubGlobal('visualViewport', Object.assign(new window.EventTarget(), { width: 1024, height: 768, offsetLeft: 0, offsetTop: 0, pageLeft: 0, pageTop: 0, scale: 1 }))
   const view = render(component, { global: {
     plugins: options.real ? [[VueQueryPlugin, { queryClient: client }], createVuetify({ components, directives })] : [[VueQueryPlugin, { queryClient: client }]],
-    stubs: options.real ? { ShortLinkQrDialog: true, ActionToast: componentStubs.ActionToast } : managementStubs,
+    stubs: options.real ? { ShortLinkQrDialog: true, ActionToast: componentStubs.ActionToast, ...options.stubs } : { ...managementStubs, ...options.stubs },
   } })
   return { ...view, ...state, state, client, management, catalog }
 }

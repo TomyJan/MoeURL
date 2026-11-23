@@ -70,6 +70,14 @@ v0.19.0 在独立分支实现管理员将其他非内置账号在 `user`／`admi
 
 ## 用户组配置与默认域名
 
+### v0.92.0 单主组自定义组（当前 feature 分支）
+
+当前 `feat/v0.92.0-custom-user-groups` 在 `user_group` 现有表上加入自定义组，不改变每个账号单个 `group_id` 的模型。服务端生成稳定 UUID key，名称可修改但 key 不变；创建时权限、域名 grant 和默认域名均为空。自定义组不能拥有 protected 管理权限。权限配置每个后续请求从数据库解析，因此撤权立即生效且不需要 Session 缓存失效机制。
+
+管理员可创建用户或通过现有单账号迁移入口，将其他非 builtin 账号移入现存非 guest 自定义组；自身、builtin 账号及 guest 目标仍受保护，单账号变化继续保留版本冲突、事务审计和旧 Session 撤销。自定义组删除要求没有任何用户外键引用，域名 grant 级联移除，短链和域名保留。全组批量迁移仍限定内置 user/admin，不引入多组或自动 OIDC 组映射。
+
+Migration `00050` 扩展规范化名称唯一约束与组默认域名约束，Down 在自定义数据存在时安全拒绝，不删除或转换数据。Task 1–5 已在当前 feature 分支实现；Task 6 文档与完整验收进行中，尚未合并／发布。详见[v0.92 规格](2026-11-23-v0.92.0-custom-user-groups-spec.md)和[验收](../implementation/v0.92.0-acceptance.md)。
+
 ### v0.28.0 用户组配置共享版本
 
 分支实现为 `user_group` 增加可空 `default_domain_id`，仅 builtin `user`／`admin` 可配置；与权限共享原 `updated_at`。默认域名新端点不扩充旧严格七字段组 DTO，旧权限请求也不写默认字段。默认写需要当前数据库的 `admin:access`＋`domain:manage`，旧权限写仍只需要原 `admin:access`；两个写事务都在等待锁后重查当前有效账号、builtin admin 组及权限，不能信旧会话中的组标识。
