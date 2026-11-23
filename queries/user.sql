@@ -24,6 +24,42 @@ order by case key
 	when 'admin' then 3
 end;
 
+-- name: ListUserGroups :many
+select user_group.id, user_group.key, user_group.name, user_group.description,
+	user_group.permissions, user_group.builtin, user_group.created_at, user_group.updated_at,
+	user_group.default_domain_id,
+	(select count(*)::bigint from app_user where app_user.group_id = user_group.id) as member_count
+from user_group
+order by user_group.builtin desc,
+	case user_group.key when 'guest' then 1 when 'user' then 2 when 'admin' then 3 else 4 end,
+	lower(btrim(user_group.name)), user_group.id;
+
+-- name: CreateCustomUserGroup :one
+insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+values (sqlc.arg(id), sqlc.arg(group_key), sqlc.arg(name), sqlc.arg(description), '[]'::jsonb, false, clock_timestamp(), clock_timestamp())
+returning id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id;
+
+-- name: UpdateCustomUserGroupDetails :one
+update user_group
+set name = sqlc.arg(name),
+	description = sqlc.arg(description),
+	updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
+where key = sqlc.arg(group_key) and builtin = false and updated_at = sqlc.arg(expected_updated_at)
+returning id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id;
+
+-- name: UpdateCustomUserGroupPermissions :one
+update user_group
+set permissions = sqlc.arg(permissions)::jsonb,
+	updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
+where key = sqlc.arg(group_key) and builtin = false and updated_at = sqlc.arg(expected_updated_at)
+returning id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id;
+
+-- name: DeleteCustomUserGroup :one
+delete from user_group
+where key = $1 and builtin = false
+	and not exists (select 1 from app_user where app_user.group_id = user_group.id)
+returning id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id;
+
 -- name: UpdateBuiltinUserGroupPermissions :one
 update user_group
 set permissions = sqlc.arg(permissions)::jsonb,
