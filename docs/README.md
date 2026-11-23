@@ -1,8 +1,8 @@
 # MoeURL 文档中心
 
-## 当前开发（2026-11-23，v0.92.0）
+## 当前开发（2026-11-24，v0.92.0）
 
-自定义用户组分支已完成 Task 1–5，Task 6 文档与整体验收进行中；当前仍未创建 PR 或合并，不代表已发布。前端 Node 26.3.0 全量测试 291 文件／7,295 项通过，类型检查、ESLint 0 errors（7 条既有警告）、生产构建通过；覆盖率为 Statements 99.93%、Branches 99.87%、Functions 99.96%、Lines 100%，剩余短路分支待补。Task 5 commit `0cc854e7` 未签名，仅当次回退签名且未修改全局配置。准确状态见 [scope](product/scope-v0.92.0.md)、[计划](implementation/v0.92.0-plan.md)、[任务](implementation/v0.92.0-tasks.md)、[验收](implementation/v0.92.0-acceptance.md)。不查 CI、不发布部署。
+自定义用户组分支已完成 Task 1–5，Task 6 文档与整体验收进行中；当前仍未创建 PR 或合并，不代表已发布。前端 Node 26.3.0 全量 coverage 命令运行 291 文件／7,300 项全部通过；Statements 99.98%、Branches 99.93%、Functions 100%、Lines 100%，coverage 命令仍因 Statements／Branches 未达 100% 而非零退出。类型检查、改动文件 ESLint 与 `git diff --check` 通过；生产构建证据对应此前 Task 5 实现提交。最近测试／验收提交 `7070f312` 未签名，仅本次回退 GPG 且未修改全局配置；分支仍有未推送本地提交。准确状态见 [scope](product/scope-v0.92.0.md)、[计划](implementation/v0.92.0-plan.md)、[任务](implementation/v0.92.0-tasks.md)、[验收](implementation/v0.92.0-acceptance.md)。不查 CI、不发布部署。
 
 v0.92.0 文档入口：[范围](product/scope-v0.92.0.md)、[规格](specs/2026-11-23-v0.92.0-custom-user-groups-spec.md)、[设计](superpowers/specs/2026-11-23-v0.92.0-custom-user-groups-design.md)、[实施计划](implementation/v0.92.0-plan.md)、[任务](implementation/v0.92.0-tasks.md)及[验收](implementation/v0.92.0-acceptance.md)。
 
