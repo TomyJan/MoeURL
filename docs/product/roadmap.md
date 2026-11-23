@@ -1,6 +1,10 @@
 # 路线图
 
-## 当前开发（2026-11-23，v0.91.0）
+## 当前开发（2026-11-24，v0.92.0）
+
+[自定义用户组](scope-v0.92.0.md) Task 1–5 已实现；数据库／HTTP／浏览器验收的专用 PostgreSQL 18.7 与本地 Go 1.26.8 app fallback 流程在 Chrome 159 的 1280 px、390 px 场景均通过，setup + 2 个视口共 3/3。前端全量 7,300 项通过，但 Statements 99.98%、Branches 99.93% 未达 100% 覆盖率门槛；Task 6 仍进行中，不代表 PR、CodeRabbit、合并、发布或 Dockerfile build 完成。准确状态见[开发进度](development-status.md)与[v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。不查 CI、不发布部署。
+
+## 最近完成（2026-11-22，v0.91.0）
 
 [短链跨页手动选择](scope-v0.91.0.md)：本人和全站列表保留同一筛选下最多 100 条手动勾选；切页／更改每页条数保留选择，筛选变化清空；表头全选／半选只反映当前页。不提供跨页全选，不新增 API、数据库、权限或依赖。实现 PR #402、文档 PR #403、E2E 跟进 PR #405/#406 已正常 squash 合并，merge 身份均经 API 与独立 fetch 核验。主流程及历史分页回归共 34 项真实浏览器测试通过；较早源码树的完整 `test:e2e` 历史运行未通过（551 项：453 passed、51 failed、46 未运行、1 skipped），不是当前 HEAD 结果；修正后的全量套件尚未重跑。feedback 标准复测曾为 17/18，最新完整文件为 18/18；完整前端 lint 已通过。PR #407 已正常合并；PR #413 已经 CodeRabbit 准确 head 审查（最新摘要为无 actionable comments）并 squash 合并为 `2a8b37ed`。目标 CI 和正式验收状态见[开发进度](development-status.md)与[验收](../implementation/v0.91.0-acceptance.md)。不查 CI、不发布部署。
 
