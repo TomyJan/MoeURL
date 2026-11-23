@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-功能实现已在 `feat/v0.92.0-custom-user-groups` 完成本地 Task 1–5 并提交；专用 PostgreSQL／HTTP 与真实浏览器在桌面、移动视口通过（setup + 2 个视口，3/3）。前端覆盖率 Statements／Branches 仍未达 100%，Task 6 文档、生成物漂移和整体验收继续进行。该分支尚未创建 PR、合并或发布；产品版本号不因本范围文档而改变。准确验证及待办见 [v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
+功能实现已在 `feat/v0.92.0-custom-user-groups` 完成本地 Task 1–5；专用 PostgreSQL／HTTP 与真实浏览器在桌面、移动视口通过（setup + 2 个视口，3/3）。Statements／Branches 覆盖率仍未达 100%。Task 6 文档、整体验收及交付继续进行；PR #421（后端／数据层）和堆叠的 PR #420（前端／验收）已打开但未合并，产品版本号不因本范围文档而改变。准确验证及待办见 [v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
 
 ## 目标
 

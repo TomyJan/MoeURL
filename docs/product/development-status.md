@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-24，v0.92.0）
 
-当前分支 `feat/v0.92.0-custom-user-groups` 已完成 Task 1–5：migration 00050 与自定义组 API、成员迁移、域名授权和动态前端。后续身份／加载态回归后前端全量为 291/291 文件、7,300/7,300 测试通过，类型检查通过、改动文件 ESLint 0 errors、`git diff --check` 通过；覆盖率 Statements 99.98%、Branches 99.93%、Functions 100%、Lines 100%，Statements／Branches 未达 100% 门槛，覆盖率命令仍非零退出。另新增真实 PostgreSQL／HTTP／浏览器验收：自定义组创建／编辑／授权、真实成员登录与建链、非空组拒删、迁组撤销旧会话及最终删除，在 1280 px 和 390 px 各通过；setup 与两个视口共 3/3。运行环境为 Go 1.26.8 Windows 本地 app fallback、PostgreSQL 18.7、Node 26.3.0、Playwright 1.65.1、Chrome 159.0.8154.13；不等同于标准 Dockerfile build。最终生产构建的既有证据属于 Task 5 前端实现 commit，不冒充本次仅测试／文档改动。前端 commit `0cc854e7b24fc18186fca33b9967029ead451052` 未签名；只对本次提交关闭 GPG，全局设置保留。Task 6 文档及完整验收进行中；无 PR、最终 head CodeRabbit、merge 核验或归档，不标记发布。准确状态和命令见 [v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。不查 CI、不部署发布、不触碰 PR #240/#266/#267。
+当前 v0.92.0 分支已完成 Task 1–5：migration 00050 与自定义组 API、成员迁移、域名授权和动态前端。前端全量为 291/291 文件、7,300/7,300 测试通过，类型检查通过、定向 ESLint 0 errors、`git diff --check` 通过；覆盖率 Statements 99.98%、Branches 99.93%、Functions 100%、Lines 100%，Statements／Branches 未达门槛，覆盖率命令仍非零退出。真实 PostgreSQL／HTTP／浏览器验收覆盖自定义组及成员闭环，在 1280 px 和 390 px 各通过；setup 与两个视口共 3/3。运行环境为 Go 1.26.8 Windows 本地 app fallback、PostgreSQL 18.7、Node 26.3.0、Playwright 1.65.1、Chrome 159.0.8154.13；不等同于标准 Dockerfile build。PR #421 是 66 文件后端／数据层变更，PR #420 堆叠 47 文件前端／验收变更；两者均未合并。PR #421 的 CodeRabbit 正在审查；PR #420 最新请求受免费额度限制，待后续审查；不标记交付完成。前端实现 commit `0cc854e7b24fc18186fca33b9967029ead451052` 未签名，仅当次回退 GPG，全局设置保留。准确状态和命令见 [v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。不查 CI、不部署发布、不触碰 PR #240/#266/#267。
 
 ## 最近完成（2026-11-22，v0.91.0）
 
