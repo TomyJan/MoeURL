@@ -63,7 +63,7 @@ func (s *Service) BatchChangeGroup(ctx context.Context, actor auth.CurrentUser, 
 		if current == nil || current.DeletedAt.Valid || current.Status != "active" || current.Builtin {
 			return ErrPermissionDenied
 		}
-		admin, err := q.GetGroupChangeGroup(ctx, "admin")
+		admin, err := q.LockGroupChangeGroup(ctx, "admin")
 		if errors.Is(err, pgx.ErrNoRows) || (err == nil && !admin.Builtin) {
 			return ErrInvalidInput
 		}
@@ -84,7 +84,7 @@ func (s *Service) BatchChangeGroup(ctx context.Context, actor auth.CurrentUser, 
 		if !grants.Has(permission.AdminAccess) {
 			return ErrPermissionDenied
 		}
-		regular, err := q.GetGroupChangeGroup(ctx, "user")
+		regular, err := q.LockGroupChangeGroup(ctx, "user")
 		if errors.Is(err, pgx.ErrNoRows) || (err == nil && !regular.Builtin) {
 			return ErrInvalidInput
 		}

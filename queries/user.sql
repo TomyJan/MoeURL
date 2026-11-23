@@ -142,8 +142,8 @@ select * from app_user
 where id = any(sqlc.arg(ids)::uuid[])
 order by id for update;
 
--- name: GetGroupChangeGroup :one
-select * from user_group where key = $1 for share;
+-- name: LockGroupChangeGroup :one
+select * from user_group where key = $1 for no key update;
 
 -- name: ChangeAppUserGroup :one
 update app_user set group_id=$2,

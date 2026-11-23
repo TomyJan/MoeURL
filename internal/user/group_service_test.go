@@ -225,7 +225,7 @@ func (groupFaultTracer) TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQuery
 func TestChangeGroupDatabaseFailures(t *testing.T) {
 	pool, _, actor, id := groupFixture(t)
 	version := groupVersion(t, pool, id)
-	for _, prefix := range []string{"begin", "-- name: LockGroupChangeUsers", "-- name: GetUserGroupByID", "-- name: GetGroupChangeGroup", "-- name: LockUserGroupForCustomManagement", "-- name: ChangeAppUserGroup", "-- name: RevokeGroupChangeSessions", "commit"} {
+	for _, prefix := range []string{"begin", "-- name: LockGroupChangeUsers", "-- name: GetUserGroupByID", "-- name: LockGroupChangeGroup", "-- name: LockUserGroupForCustomManagement", "-- name: ChangeAppUserGroup", "-- name: RevokeGroupChangeSessions", "commit"} {
 		t.Run(prefix, func(t *testing.T) {
 			config := pool.Config()
 			config.ConnConfig.Tracer = groupFaultTracer{prefix}

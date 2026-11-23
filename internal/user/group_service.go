@@ -51,7 +51,7 @@ func (s *Service) ChangeGroup(ctx context.Context, actor auth.CurrentUser, input
 		if err != nil {
 			return err
 		}
-		actorGroup, err = q.GetGroupChangeGroup(ctx, actorGroup.Key)
+		actorGroup, err = q.LockGroupChangeGroup(ctx, actorGroup.Key)
 		if err != nil {
 			return err
 		}

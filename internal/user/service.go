@@ -83,7 +83,7 @@ func (s *Service) Create(ctx context.Context, actor auth.CurrentUser, input Crea
 		if err != nil {
 			return err
 		}
-		actorGroup, err = q.GetGroupChangeGroup(ctx, actorGroup.Key)
+		actorGroup, err = q.LockGroupChangeGroup(ctx, actorGroup.Key)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrPermissionDenied
 		}

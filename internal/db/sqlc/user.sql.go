@@ -237,27 +237,6 @@ func (q *Queries) GetAppUserMetaByID(ctx context.Context, id pgtype.UUID) (GetAp
 	return i, err
 }
 
-const getGroupChangeGroup = `-- name: GetGroupChangeGroup :one
-select id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id from user_group where key = $1 for share
-`
-
-func (q *Queries) GetGroupChangeGroup(ctx context.Context, key string) (UserGroup, error) {
-	row := q.db.QueryRow(ctx, getGroupChangeGroup, key)
-	var i UserGroup
-	err := row.Scan(
-		&i.ID,
-		&i.Key,
-		&i.Name,
-		&i.Description,
-		&i.Permissions,
-		&i.Builtin,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DefaultDomainID,
-	)
-	return i, err
-}
-
 const getUserByUsername = `-- name: GetUserByUsername :one
 select id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at, deleted_at
 from app_user
@@ -484,6 +463,27 @@ func (q *Queries) ListUserGroups(ctx context.Context) ([]ListUserGroupsRow, erro
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockGroupChangeGroup = `-- name: LockGroupChangeGroup :one
+select id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id from user_group where key = $1 for no key update
+`
+
+func (q *Queries) LockGroupChangeGroup(ctx context.Context, key string) (UserGroup, error) {
+	row := q.db.QueryRow(ctx, lockGroupChangeGroup, key)
+	var i UserGroup
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Name,
+		&i.Description,
+		&i.Permissions,
+		&i.Builtin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DefaultDomainID,
+	)
+	return i, err
 }
 
 const lockGroupChangeUsers = `-- name: LockGroupChangeUsers :many
