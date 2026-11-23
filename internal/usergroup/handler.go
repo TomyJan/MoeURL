@@ -11,6 +11,7 @@ import (
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/permission"
+	"github.com/google/uuid"
 )
 
 const (
@@ -159,6 +160,10 @@ func stableGroupKey(groupKey string) string {
 	case permission.GroupGuest, permission.GroupUser, permission.GroupAdmin:
 		return groupKey
 	default:
+		id, err := uuid.Parse(groupKey)
+		if err == nil && id != uuid.Nil && id.String() == groupKey {
+			return groupKey
+		}
 		return ""
 	}
 }

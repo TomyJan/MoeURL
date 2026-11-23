@@ -108,7 +108,7 @@ func TestAuditExportSnapshotAndNoMutation(t *testing.T) {
 			require.Equal(t, before, snapshot())
 			r, e := service.ExportAudit(t.Context(), admin, insights.AuditExportInput{})
 			if change == "revoke" {
-				require.ErrorIs(t, e, insights.ErrPermissionDenied)
+				require.ErrorIs(t, e, permission.ErrProtectedPermission)
 			} else {
 				require.NoError(t, e)
 				rows := auditCells(t, r)

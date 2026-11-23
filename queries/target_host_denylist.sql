@@ -13,5 +13,7 @@ select permissions from user_group where id=$1 and builtin and key='admin'
 for share;
 
 -- name: LockTargetWriterGroup :one
-select key,permissions from user_group where id=$1 and builtin and key<>'guest'
+select key,permissions,builtin from user_group
+where id=$1 and key<>'guest'
+  and ((builtin and key in ('user','admin')) or (not builtin and key not in ('user','admin')))
 for share;

@@ -42,7 +42,7 @@ func lockTargetWriter(ctx context.Context, q *sqlc.Queries, actor auth.CurrentUs
 	if err != nil {
 		return "", err
 	}
-	grants, err := permission.DecodeSnapshot(group.Permissions)
+	grants, err := permission.DecodeGroupSnapshot(group.Key, group.Builtin, group.Permissions)
 	if err != nil {
 		return "", err
 	}

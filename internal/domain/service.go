@@ -346,17 +346,29 @@ func (s *Service) validateInput(host, displayName string, groupKeys []string) (s
 // validateNameAndGroups enforces display-name and built-in group assignment constraints.
 func validateNameAndGroups(displayName string, groupKeys []string) (string, []string, error) {
 	displayName = strings.TrimSpace(displayName)
-	if displayName == "" || len([]rune(displayName)) > 80 || groupKeys == nil || len(groupKeys) > 2 {
+	if displayName == "" || len([]rune(displayName)) > 80 || groupKeys == nil {
 		return "", nil, ErrInvalidInput
 	}
 	seen := map[string]bool{}
 	for _, key := range groupKeys {
-		if (key != permission.GroupUser && key != permission.GroupAdmin) || seen[key] {
+		if !validDomainGroupKey(key) || seen[key] {
 			return "", nil, ErrInvalidInput
 		}
 		seen[key] = true
 	}
 	return displayName, groupKeys, nil
+}
+
+func validDomainGroupKey(key string) bool {
+	switch key {
+	case permission.GroupUser, permission.GroupAdmin:
+		return true
+	case permission.GroupGuest:
+		return false
+	default:
+		id, err := uuid.Parse(key)
+		return err == nil && id != uuid.Nil && id.String() == key
+	}
 }
 
 // lockDomainWrites serializes domain mutations with short-link creation transactions.

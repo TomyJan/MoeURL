@@ -10,6 +10,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/insights"
+	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
@@ -34,7 +35,11 @@ func TestGlobalVisitExportAuthorization(t *testing.T) {
 			_, err := pool.Exec(t.Context(), `update user_group set permissions=permissions-$1 where key='admin'`, key)
 			require.NoError(t, err)
 			result, err := service.ExportGlobalVisits(t.Context(), admin, insights.RangeInput{})
-			require.ErrorIs(t, err, insights.ErrPermissionDenied)
+			wantErr := error(insights.ErrPermissionDenied)
+			if key != permission.ShortLinkReadVisits {
+				wantErr = permission.ErrProtectedPermission
+			}
+			require.ErrorIs(t, err, wantErr)
 			require.Empty(t, result.Content)
 		})
 	}

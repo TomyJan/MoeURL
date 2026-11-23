@@ -135,7 +135,11 @@ func TestExportStatisticsDatabase(t *testing.T) {
 		} else {
 			_, err = service.ExportStatistics(ctx, actor, input)
 		}
-		require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
+		wantErr := error(shortlink.ErrPermissionDenied)
+		if test.admin && (test.remove == permission.ShortLinkReadAll || test.remove == permission.AdminAccess) {
+			wantErr = permission.ErrProtectedPermission
+		}
+		require.ErrorIs(t, err, wantErr)
 		_, err = pool.Exec(ctx, `update user_group set permissions=permissions || jsonb_build_array($1::text) where key=$2`, test.remove, test.key)
 		require.NoError(t, err)
 	}

@@ -168,7 +168,7 @@ func TestInsightAuthorization(t *testing.T) {
 	_, err = pool.Exec(t.Context(), `update user_group set permissions=permissions-'statistics:read_all' where key='admin'`)
 	require.NoError(t, err)
 	_, err = service.Dashboard(t.Context(), admin, insights.RangeInput{})
-	require.ErrorIs(t, err, insights.ErrPermissionDenied)
+	require.ErrorIs(t, err, permission.ErrProtectedPermission)
 }
 
 // TestInsightPermissionIntersections rejects loss of any required capability, even with a stale privileged session.
@@ -201,7 +201,11 @@ func TestInsightPermissionIntersections(t *testing.T) {
 			} else {
 				_, err = service.Visits(t.Context(), test.actor, insights.VisitInput{ID: link})
 			}
-			require.ErrorIs(t, err, insights.ErrPermissionDenied)
+			wantErr := error(insights.ErrPermissionDenied)
+			if test.group == "admin" && (test.key == permission.ShortLinkReadAll || test.key == permission.AdminAccess) {
+				wantErr = permission.ErrProtectedPermission
+			}
+			require.ErrorIs(t, err, wantErr)
 		})
 	}
 }

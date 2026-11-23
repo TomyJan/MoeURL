@@ -23,7 +23,11 @@ func TestBatchLockWaitRechecksAuthorizationAndTargets(t *testing.T) {
 			{"disabled actor", `update app_user set status='disabled'`, shortlink.ErrPermissionDenied},
 			{"deleted actor", `update app_user set deleted_at=now()`, shortlink.ErrPermissionDenied},
 			{"changed group key", `update user_group set key='changed'`, shortlink.ErrPermissionDenied},
-			{"changed actor group", `insert into user_group(id,key,name,description,permissions,builtin,created_at,updated_at) select gen_random_uuid(),'new-group',name,description,permissions,false,now(),now() from user_group; update app_user set group_id=(select id from user_group where key='new-group')`, shortlink.ErrPermissionDenied},
+			{"changed actor group", `with custom_group as (
+				insert into user_group(id,key,name,description,permissions,builtin,created_at,updated_at)
+				values(gen_random_uuid(),'new-group-'||gen_random_uuid()::text,'New Group '||gen_random_uuid()::text,'','[]',false,now(),now())
+				returning id
+			) update app_user set group_id=(select id from custom_group)`, shortlink.ErrPermissionDenied},
 			{"deleted target", `update short_link set deleted_at=now() where slug='second'`, shortlink.ErrShortLinkMissing},
 		} {
 			t.Run(action+"/"+mutate.name, func(t *testing.T) {

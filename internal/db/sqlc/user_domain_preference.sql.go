@@ -74,8 +74,9 @@ func (q *Queries) GetUserDomainPreference(ctx context.Context, userID pgtype.UUI
 }
 
 const lockDomainPreferenceGroup = `-- name: LockDomainPreferenceGroup :one
-select id, key, permissions from user_group
-where id = $1 and builtin and key <> 'guest'
+select id, key, permissions, builtin from user_group
+where id = $1 and key <> 'guest'
+  and ((builtin and key in ('user','admin')) or (not builtin and key not in ('user','admin')))
 for share
 `
 
@@ -83,12 +84,18 @@ type LockDomainPreferenceGroupRow struct {
 	ID          pgtype.UUID `json:"id"`
 	Key         string      `json:"key"`
 	Permissions []byte      `json:"permissions"`
+	Builtin     bool        `json:"builtin"`
 }
 
 func (q *Queries) LockDomainPreferenceGroup(ctx context.Context, groupID pgtype.UUID) (LockDomainPreferenceGroupRow, error) {
 	row := q.db.QueryRow(ctx, lockDomainPreferenceGroup, groupID)
 	var i LockDomainPreferenceGroupRow
-	err := row.Scan(&i.ID, &i.Key, &i.Permissions)
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Permissions,
+		&i.Builtin,
+	)
 	return i, err
 }
 

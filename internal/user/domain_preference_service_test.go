@@ -283,7 +283,7 @@ func TestDomainPreferenceCurrentAuthorization(t *testing.T) {
 	if _, err := pool.Exec(ctx, `update app_user set group_id=(select id from user_group where key='admin') where id=$1;`, actor.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, `update user_group set permissions='[]'::jsonb where key='admin'`); err != nil {
+	if _, err := pool.Exec(ctx, `update user_group set permissions=permissions-'short_link:create'-'domain:use_default'-'domain:use_assigned' where key='admin'`); err != nil {
 		t.Fatal(err)
 	}
 	current, err := s.Get(ctx, actor)

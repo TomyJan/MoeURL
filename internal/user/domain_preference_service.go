@@ -120,7 +120,7 @@ func (s *DomainPreferenceService) Update(ctx context.Context, actor auth.Current
 			return err
 		}
 		if selected.Valid {
-			grants, err := permission.DecodeSnapshot(group.Permissions)
+			grants, err := permission.DecodeGroupSnapshot(group.Key, group.Builtin, group.Permissions)
 			if err != nil {
 				return err
 			}

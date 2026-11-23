@@ -178,7 +178,7 @@ func TestDashboardConcurrentSnapshot(t *testing.T) {
 		t.Fatal("dashboard did not finish")
 	}
 	_, err = service.Dashboard(t.Context(), admin, insights.RangeInput{})
-	require.ErrorIs(t, err, insights.ErrPermissionDenied)
+	require.ErrorIs(t, err, permission.ErrProtectedPermission)
 }
 
 // TestInsightReadDeadlineAndDatabaseTimezone guards the request budget and UTC dates on non-UTC connections.

@@ -11,6 +11,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/insights"
+	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
@@ -52,7 +53,11 @@ func TestVisitExportAuthorization(t *testing.T) {
 				} else {
 					_, e = service.ExportVisits(t.Context(), scope.actor, input)
 				}
-				require.ErrorIs(t, e, insights.ErrPermissionDenied)
+				wantErr := error(insights.ErrPermissionDenied)
+				if scope.admin && (key == permission.AdminAccess || key == permission.ShortLinkReadAll) {
+					wantErr = permission.ErrProtectedPermission
+				}
+				require.ErrorIs(t, e, wantErr)
 			})
 		}
 	}

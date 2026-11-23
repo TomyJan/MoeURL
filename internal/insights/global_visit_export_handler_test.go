@@ -154,7 +154,7 @@ func TestGlobalVisitExportSnapshotAndNoMutation(t *testing.T) {
 			require.Equal(t, before, snapshot())
 			result, err := service.ExportGlobalVisits(t.Context(), admin, insights.RangeInput{})
 			if change == "revoke" {
-				require.ErrorIs(t, err, insights.ErrPermissionDenied)
+				require.ErrorIs(t, err, permission.ErrProtectedPermission)
 				require.Empty(t, result.Content)
 			} else {
 				require.NoError(t, err)
