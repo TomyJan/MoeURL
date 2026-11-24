@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-25，v0.92.0）
 
-[自定义用户组](scope-v0.92.0.md)已在单主组边界内实现 Task 1–5。本轮补强创建用户页身份 epoch 迟到回调隔离，并为手机 E2E 长组名布局 fixture 增加逐项 CAS 清理；实现与状态提交 `07a047a2`、`11f69d4e` 已推至 PR #420。前端全量 coverage 7,327 项、四项 100%，typecheck、lint 和 build 均通过。标准 Compose 镜像拉取超时后，以本机 Go 1.26.8 静态 app 和已缓存镜像完成隔离浏览器 fallback，3/3 通过，8 个辅助组清理后数量为 0；临时服务和镜像已移除。该 fallback 不代表标准 Dockerfile build／CI。后端 PR #421 已正常 squash 合并为 `f2d53c76`；PR #420 已 retarget `master`，差异仅 53 个前端／验收文件。CodeRabbit 已完成准确 head `11f69d4e` review，其指出的 1 条文档状态问题已纳入验收同步修正。PR 正常集成与 whole-owned 恢复归档仍待。未查 CI、不发布或部署。准确状态见[开发进度](development-status.md)和[v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
+[自定义用户组](scope-v0.92.0.md)已在单主组边界内实现 Task 1–5。本轮补强创建用户页身份 epoch 迟到回调隔离，并为手机 E2E 长组名布局 fixture 增加逐项 CAS 清理；`07a047a2`、`11f69d4e` 与验收状态同步 `c0f4495b` 已推至 PR #420。前端全量 coverage 7,327 项、四项 100%，typecheck、lint 和 build 均通过。隔离浏览器 fallback 3/3 通过，8 个辅助组清理后数量为 0；临时服务和镜像已移除，该 fallback 不代表标准 Dockerfile build／CI。后端 PR #421 已正常 squash 合并；PR #420 已 retarget `master`，当前分支仍 open。CodeRabbit 对 `11f69d4e` 指出的一条文档状态意见已修正、thread 已关闭；针对 `c0f4495b` 的 follow-up review 请求遭限流，尚无新 review。PR 正常集成与 whole-owned 恢复归档仍待。未查 CI、不发布或部署。准确状态见[开发进度](development-status.md)和[v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
 
 ## 当前开发（2026-11-23，v0.91.0）
 
@@ -460,7 +460,7 @@ MoeURL 的核心控制逻辑是权限系统。
 
 主分支已通过 PR #208 合并 [v0.18.0 全站统计、匿名访问明细与操作审计](scope-v0.18.0.md)：管理员全站快照、已有单链分析页内的匿名记录，以及关键业务写入同事务审计和 180 天在线保留。各阶段证据见 [验收](../implementation/v0.18.0-acceptance.md)；已合并，尚未正式发布，不将主分支历史 CI 当作本版验证。
 
-当前已交付产品尚未包含自定义用户组；v0.92.0 分支已完成 Task 1–5 本地实现、前端全量 7,313 项与四项覆盖率门槛、typecheck／lint／build，并完成 1280 px／390 px 专用数据库浏览器闭环（setup + 2 个视口，3/3）。整体验收与交付仍未完成。PR #421 和堆叠的 PR #420 尚未合并，不能据此描述为已交付能力，准确状态见 [v0.92.0 范围](scope-v0.92.0.md)和[验收](../implementation/v0.92.0-acceptance.md)。其他未实现方向包括头像、自定义 OIDC 模板和账号绑定、独立标签实体与治理、超出 90 天或任意时区分析、品牌上传及模板编辑。导出清单恢复已在 v0.90.0 完成实现与交付记录；IANA 时区显示、有界 CSV 创建、固定强调色和只读标签查找也已交付，不作为全新功能重复规划；其他方向仍须独立收敛范围。
+当前 master 尚未包含已合并的 v0.92 后端能力，前端 PR #420 仍 open，因此尚不能将自定义用户组描述为已交付产品。v0.92.0 分支已完成 Task 1–5 本地实现、前端全量 7,327 项与四项覆盖率门槛、typecheck／lint／build；隔离 PostgreSQL／HTTP／浏览器 fallback 的 1280 px／390 px 闭环为 setup + 2 个视口，3/3。整体验收与交付仍未完成；准确状态见 [v0.92.0 范围](scope-v0.92.0.md)和[验收](../implementation/v0.92.0-acceptance.md)。其他未实现方向包括头像、自定义 OIDC 模板和账号绑定、独立标签实体与治理、超出 90 天或任意时区分析、品牌上传及模板编辑。导出清单恢复已在 v0.90.0 完成实现与交付记录；IANA 时区显示、有界 CSV 创建、固定强调色和只读标签查找也已交付，不作为全新功能重复规划；其他方向仍须独立收敛范围。
 
 ## 验证与发布边界
 

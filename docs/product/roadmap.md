@@ -1,8 +1,8 @@
 # 路线图
 
-## 当前开发（2026-11-24，v0.92.0）
+## 当前开发（2026-11-25，v0.92.0）
 
-[自定义用户组](scope-v0.92.0.md) Task 1–5 已实现；数据库／HTTP／浏览器验收的专用 PostgreSQL 18.7 与本地 Go 1.26.8 app fallback 流程在 Chrome 159 的 1280 px、390 px 场景均通过，setup + 2 个视口共 3/3（该证据仍归属原验收候选）。重定基后前端全量 7,326 项通过，四项 coverage 均 100%，typecheck、lint 与 build 通过。PR #421 已正常 squash 合并为 `f2d53c76`，tree／唯一 parent 已独立核验；PR #420 retarget `master` 后差异回到 53 个前端／验收文件。当前 PR #420 最终 tip 的 CodeRabbit 复审和正常集成、恢复归档仍待。未查 CI、不发布部署。
+[自定义用户组](scope-v0.92.0.md) Task 1–5 已实现；当前前端候选全量 7,327 项通过，四项 coverage 均 100%，typecheck、lint 与 build 通过。标准 Compose 拉取 Go 基础镜像超时后，采用本机 Go 1.26.8 静态 app 与缓存镜像的隔离 fallback，在 Chrome 159 的 1280 px、390 px 场景完成 setup + 2 个视口，3/3 通过；8 个辅助组均已清理，专属容器／卷／网络和镜像已删除。PR #421 已正常 squash 合并为 `f2d53c76`，tree／唯一 parent 已独立核验；PR #420 已 retarget `master`，当前最终差异 53 个前端／验收文件。CodeRabbit 对 `11f69d4e` 的 1 条文档状态意见已在 `c0f4495b` 修正并公开回复、解决 thread；对新 head 的 review 请求遭限流，未产生审查结果。PR #420 正常合并及可恢复归档仍待。不查 CI、不发布部署。
 
 ## 最近完成（2026-11-22，v0.91.0）
 
@@ -631,7 +631,7 @@ v0.9.0 复用现有 `system_setting`、前端偏好和 OIDC Provider 管理，�
 
 ### 当前实施：v0.92.0 自定义用户组
 
-已完成自定义用户组的迁移、服务端 CRUD／权限／成员迁移／域名闭环和前端动态组管理 Task 1–5，并补强创建用户身份切换保护及手机 E2E fixture 清理。Task 6 文档及整体验收仍在进行；后端 PR #421 已合并，前端 PR #420 尚未合并或正式发布，不把本地门禁等同于 CI、浏览器产品验收或发布。当前前端全量 coverage 7,327 项和四项静态门禁通过；本轮没有重跑浏览器。具体范围、规格、计划和准确门禁见 [scope](scope-v0.92.0.md)、[spec](../specs/2026-11-23-v0.92.0-custom-user-groups-spec.md) 与 [验收](../implementation/v0.92.0-acceptance.md)。
+自定义用户组的 migration、服务端 CRUD／权限／成员迁移／域名闭环和前端动态组管理 Task 1–5 已完成，并补强创建用户身份切换保护及手机 E2E fixture 清理。Task 6 文档及整体验收仍在进行；后端 PR #421 已合并，前端 PR #420 仍 open、尚未正式发布。当前全量 coverage 为 7,327 项且四项 100%，typecheck／lint／build 通过；隔离浏览器 fallback setup + 桌面 + 手机 3/3 通过，明确不代表标准 Dockerfile build 或 CI。准确 CodeRabbit 状态、范围和验收见 [scope](scope-v0.92.0.md)、[spec](../specs/2026-11-23-v0.92.0-custom-user-groups-spec.md) 与 [验收](../implementation/v0.92.0-acceptance.md)。
 
 2026-11-09：当前选择标签重命名、保存进度维护、Go 压缩安全维护及批量追加内部备注已分别交付；v0.52.1 手机放弃重试说明和实际计划名称已由 PR281 合并为 `82355d63e2b7111912ac2d5eb6b067a3e1c14b5a`，审查、独立核验及可恢复归档均完成。v0.53.0 账号默认每页条数已由 PR287 完整交付，接续 v0.53.1 永久重连测试维护已由 PR288 完整交付，浏览器原失败、机制诊断和单 E2E 恢复的区别见 [v0.53.1 验收](../implementation/v0.53.1-acceptance.md)。原 CI／本地执行身份分别保留，未正式发布。下表只列剩余扩展，不重复列已交付能力；历史“本版不实现”仅描述该版本范围。
 
