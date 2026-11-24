@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-25，v0.92.0）
 
-当前 v0.92.0 分支已完成 Task 1–5：migration 00050 与自定义组 API、成员迁移、域名授权和动态前端。PR #421 已于 `f2d53c76` squash 合入 master，tree `5edb0d68`、唯一 parent `0bdc2174` 经独立核验。PR #420 已重定基到该 master；差异仅保留 53 个前端／验收文件。本轮修复创建用户 mutation 在身份 epoch 切换后仍可能覆盖新身份 UI 状态的问题，并让 390 px E2E 的 8 个辅助用户组在 `finally` 中逐个以最新版本删除；候选提交 `07a047a2979ec8975bc80882e45f52f0661c5e22` 已本地创建、尚未推送。当前候选前端 coverage 为 291/291 文件、7,327/7,327 测试，四项均 100%；typecheck、全量 ESLint（0 errors、7 项既有 fixture warnings）与 Vite build（1,642 modules）通过。E2E spec TypeScript 检查和测试发现通过，但 Docker Hub 镜像拉取超时，本轮未运行浏览器；之前 PostgreSQL／HTTP／浏览器 3/3 仍只归属原验收候选。PR #420 上次 CodeRabbit 根评论显示暂停，最后审查 `1d7353b0`、未审查 `af08d993`；本轮代码尚未获新 review。PR 正常合并、恢复归档与精确清理仍待。未查 CI、不部署发布、不触碰 PR #240/#266/#267。
+当前 v0.92.0 分支已完成 Task 1–5：migration 00050 与自定义组 API、成员迁移、域名授权和动态前端。PR #421 已于 `f2d53c76` squash 合入 master，tree `5edb0d68`、唯一 parent `0bdc2174` 经独立核验。PR #420 已重定基到该 master；差异仅保留 53 个前端／验收文件。本轮修复创建用户 mutation 的身份 epoch 迟到成功回调，并让 390 px E2E 的 8 个辅助用户组在 `finally` 中逐个以最新版本删除。实现提交 `07a047a2`、验收同步 `11f69d4e` 均已推送。当前 coverage 为 291/291 文件、7,327/7,327 测试，四项均 100%；typecheck、全量 ESLint（0 errors、7 项既有 fixture warnings）与 Vite build（1,642 modules）通过。标准 Compose 镜像拉取超时后，采用本机 Go 1.26.8 静态 app 与缓存镜像的隔离 fallback，浏览器 3/3 通过，8 个辅助组清理后数据库计数为 0；本轮 Compose 容器／卷／网络和临时 app 镜像已移除。该 fallback 不等同标准 Dockerfile build／CI。CodeRabbit 已完成准确 head `11f69d4e` review（`PRR_kwDOStKc8M8AAAABaH640Q`），其指出的 1 条 actionable 文档状态问题已纳入本次验收同步修正。PR #420 正常合并、恢复归档与精确清理仍待。未查 CI、不部署发布、不触碰 PR #240/#266/#267。
 
 ## 最近完成（2026-11-22，v0.91.0）
 
