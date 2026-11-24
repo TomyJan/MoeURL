@@ -125,7 +125,7 @@ import { adminGroupDefaultDomainQueryKey } from '@/entities/user-group/domain-de
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const groupIdentity = useAccountIdentity()
-const { identity, query, settingQuery, canManage, canManageDefault, activeGroupKey, activeGroup, displayedGroups, currentDefault, draft, stale, feedback, feedbackKind, feedbackRevision, refreshBroken, pending, groupReady, settingReady, defaultDirty, applyPreset, setPermission, savePermissions, selectDefault, saveDefault, cancelDefault, cancelPermissions, reload, recover, changeGroup } = useGroupDefaultManagement()
+const { identity, query, settingQuery, canManage, canManageDefault, activeGroupKey, activeGroup, displayedGroups, currentDefault, draft, stale, feedback, feedbackKind, feedbackRevision, refreshBroken, pending, groupReady, settingReady, defaultDirty, applyPreset, setPermission, savePermissions, selectDefault, saveDefault, cancelDefault, cancelPermissions, reload: reloadManagement, recover, changeGroup } = useGroupDefaultManagement()
 const groupDialog = ref<'' | 'create' | 'edit'>('')
 const groupEditSnapshot = ref<Pick<UserGroup, 'key' | 'updatedAt'> | null>(null)
 const deleteSnapshot = ref<Pick<UserGroup, 'key' | 'updatedAt'> | null>(null)
@@ -191,6 +191,11 @@ const groupMutation = useMutation({
       if (refreshed.isError) groupFeedback.value = true
       else if (command.kind === 'edit') {
         await nextTick()
+        if (!groupIdentity.isCurrent(command.scope)) return
+        if (activeGroupKey.value !== command.group.key) {
+          groupConflict.value = true
+          return
+        }
         const latest = query.data.value?.groups.find(({ key }) => key === command.group.key)
         if (latest && !latest.builtin) openEdit(latest)
         groupConflict.value = true
@@ -231,6 +236,11 @@ async function recoverAfterRefreshFailure() {
   const scope = groupIdentity.scope.value
   const recovered = await recover(preserveRecoveryDrafts.value)
   if (recovered && groupIdentity.isCurrent(scope)) preserveRecoveryDrafts.value = false
+}
+async function reload(key: string, scope = groupIdentity.scope.value, kind: 'permission' | 'default' = 'permission', preserveDrafts = false) {
+  const reloaded = await reloadManagement(key, scope, kind, preserveDrafts)
+  if (reloaded && groupIdentity.isCurrent(scope)) preserveRecoveryDrafts.value = false
+  return reloaded
 }
 function saveGroupDetails() {
   if (!canManage.value || !groupName.value.trim() || groupMutation.isPending.value) return

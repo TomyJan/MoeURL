@@ -236,8 +236,8 @@ describe('account domain selection through real queries', () => {
     mount({ empty: true, preference: async () => { throw new Error('offline') } })
     await screen.findByText('domainPreference.loadFailed')
     await fireEvent.click(screen.getByText('domainPreference.useSystem'))
-    expect((screen.getByText('shortLinkCreate.submit') as HTMLButtonElement).disabled).toBe(true)
     await screen.findByText('shortLinkCreate.noAvailableDomains')
+    expect((screen.getByText('shortLinkCreate.submit') as HTMLButtonElement).disabled).toBe(true)
   })
   it('warns and falls back after a manually selected global domain disappears', async () => {
     const { client, bodies } = mount()
