@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-24，v0.92.0）
 
-[自定义用户组](scope-v0.92.0.md)已在单主组边界内实现 Task 1–5。最新前端全量 7,326 项及 Statements（11,315/11,315）、Branches（9,349/9,349）、Functions（3,191/3,191）、Lines（8,115/8,115）覆盖率均通过 100% 门槛；本地 typecheck、lint、build 与专用 PostgreSQL／HTTP／真实浏览器 3/3 通过。Task 6 文档和交付仍在进行：PR #420 最近已审查 head `5558849d` 的 CodeRabbit review 结果无新增 actionable comments；后续状态文档提交不继承该 review 覆盖。PR #421 仍是未合并的集成前置，正常集成核验和可恢复归档尚待。未查 CI、未发布或部署。准确状态见[开发进度](development-status.md)和[v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
+[自定义用户组](scope-v0.92.0.md)已在单主组边界内实现 Task 1–5。最新前端全量 7,326 项及 Statements（11,315/11,315）、Branches（9,349/9,349）、Functions（3,191/3,191）、Lines（8,115/8,115）覆盖率均通过 100% 门槛；本地 typecheck、lint、build 与专用 PostgreSQL／HTTP／真实浏览器 3/3 通过。Task 6 文档和交付仍在进行：PR #420 最近已完成 review 的 head `5558849d` 无新增 actionable comments；对后续文档 head `d5a9df26` 的 review 请求 `7142111629` 被限流，未产生 review。PR #421 仍是未合并的集成前置，正常集成核验和可恢复归档尚待。未查 CI、未发布或部署。准确状态见[开发进度](development-status.md)和[v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
 
 ## 当前开发（2026-11-23，v0.91.0）
 

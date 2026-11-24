@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-24，v0.92.0）
 
-[自定义用户组](scope-v0.92.0.md) Task 1–5 已实现；数据库／HTTP／浏览器验收的专用 PostgreSQL 18.7 与本地 Go 1.26.8 app fallback 流程在 Chrome 159 的 1280 px、390 px 场景均通过，setup + 2 个视口共 3/3。最新前端全量 7,313 项通过，Statements（11,253/11,253）、Branches（9,309/9,309）、Functions（3,185/3,185）、Lines（8,066/8,066）覆盖率均为 100%，typecheck、lint 与 build 通过。Task 6 文档和交付仍进行中；后端／数据层 PR #421 与堆叠的前端／验收 PR #420 均未合并；#421 曾因 master ruleset 门禁正常合并受阻，#420 的两项 CodeRabbit 意见已在未提交工作树修复，提交推送后须对准确最新 head 复审。此状态不代表发布或 Dockerfile build 完成。准确状态见[开发进度](development-status.md)与[v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。不查 CI、不发布部署。
+[自定义用户组](scope-v0.92.0.md) Task 1–5 已实现；数据库／HTTP／浏览器验收的专用 PostgreSQL 18.7 与本地 Go 1.26.8 app fallback 流程在 Chrome 159 的 1280 px、390 px 场景均通过，setup + 2 个视口共 3/3。最新前端全量 7,326 项通过，Statements（11,315/11,315）、Branches（9,349/9,349）、Functions（3,191/3,191）、Lines（8,115/8,115）覆盖率均为 100%，typecheck、lint 与 build 通过。Task 6 文档和交付仍进行中；后端／数据层 PR #421 与堆叠的前端／验收 PR #420 均未合并；#421 受 master ruleset 阻止正常合并，#420 最近完成 review 的 head `5558849d` 无新增 actionable comments；新文档 head `d5a9df26` 的 review 请求 `7142111629` 被 CodeRabbit 限流，未产生 review。当前交付文档更新不继承旧 SHA 的 review 覆盖。此状态不代表发布或 Dockerfile build 完成。准确状态见[开发进度](development-status.md)与[v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。不查 CI、不发布部署。
 
 ## 最近完成（2026-11-22，v0.91.0）
 
