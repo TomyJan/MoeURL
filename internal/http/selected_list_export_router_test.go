@@ -22,10 +22,13 @@ func TestRouterSelectedListExportSessions(t *testing.T) {
 	const adminID = "00000000-0000-0000-0000-00000000e611"
 	const userID = "00000000-0000-0000-0000-00000000e612"
 	const linkID = "00000000-0000-0000-0000-00000000e613"
-	_, err := pool.Exec(t.Context(), `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values
-		('00000000-0000-0000-0000-00000000e621','admin','Admin','["admin:access","short_link:read_all","short_link:export"]',true,now(),now()),
-		('00000000-0000-0000-0000-00000000e622','user','User','["short_link:read_own","short_link:export"]',true,now(),now());
-		insert into app_user(id,username,nickname,group_id,status,builtin,created_at,updated_at) values
+	adminPermissions, err := json.Marshal(permission.AdminPermissions)
+	require.NoError(t, err)
+	_, err = pool.Exec(t.Context(), `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values
+		('00000000-0000-0000-0000-00000000e621','admin','Admin',$1::jsonb,true,now(),now()),
+		('00000000-0000-0000-0000-00000000e622','user','User','["short_link:read_own","short_link:export"]',true,now(),now())`, adminPermissions)
+	require.NoError(t, err)
+	_, err = pool.Exec(t.Context(), `insert into app_user(id,username,nickname,group_id,status,builtin,created_at,updated_at) values
 		('00000000-0000-0000-0000-00000000e611','selected-admin','Admin','00000000-0000-0000-0000-00000000e621','active',false,now(),now()),
 		('00000000-0000-0000-0000-00000000e612','selected-user','User','00000000-0000-0000-0000-00000000e622','active',false,now(),now());
 		insert into domain(id,host,display_name,purpose,enabled,is_default,created_at,updated_at) values

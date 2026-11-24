@@ -148,7 +148,8 @@ from domain
 join domain_user_group on domain_user_group.domain_id = domain.id
 join user_group on user_group.id = domain_user_group.user_group_id
 where domain.enabled and domain.purpose = 'short_link'
-  and user_group.key = $1 and user_group.builtin
+  and user_group.key = $1 and user_group.key <> 'guest'
+  and ((user_group.builtin and user_group.key in ('user','admin')) or (not user_group.builtin and user_group.key not in ('user','admin')))
   and user_group.permissions ? 'short_link:create'
   and user_group.permissions ? $2::text
   and (not $3::boolean or user_group.permissions ? 'short_link:custom_slug')
@@ -225,7 +226,9 @@ func (q *Queries) GetShortLinkDomainByID(ctx context.Context, id pgtype.UUID) (G
 
 const insertDomainGrant = `-- name: InsertDomainGrant :execrows
 insert into domain_user_group (domain_id, user_group_id)
-select $1, user_group.id from user_group where user_group.key = $2 and user_group.builtin = true and user_group.key in ('user', 'admin')
+select $1, user_group.id from user_group
+where user_group.key = $2 and user_group.key <> 'guest'
+  and ((user_group.builtin and user_group.key in ('user','admin')) or (not user_group.builtin and user_group.key not in ('user','admin')))
 `
 
 type InsertDomainGrantParams struct {
@@ -247,7 +250,8 @@ from domain
 join domain_user_group on domain_user_group.domain_id = domain.id
 join user_group on user_group.id = domain_user_group.user_group_id
 where user_group.key = $1
-  and user_group.builtin = true
+  and user_group.key <> 'guest'
+  and ((user_group.builtin and user_group.key in ('user','admin')) or (not user_group.builtin and user_group.key not in ('user','admin')))
   and domain.enabled = true and domain.purpose = 'short_link'
   and ((domain.is_default and $2::boolean)
        or (not domain.is_default and $3::boolean))

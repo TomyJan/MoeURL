@@ -106,11 +106,12 @@ func TestGroupDefaultDomainHTTPContract(t *testing.T) {
 		groupDefaultRequest(t, application, cookie, "POST", "/api/v1/admin/user-group/set-domain-default", body, "application/json", 100001)
 	}
 	groupDefaultRequest(t, application, cookie, "POST", "/api/v1/admin/user-group/set-domain-default", fmt.Sprintf(`{"groupKey":"admin","domainId":null,"expectedUpdatedAt":%q}`, admin.UpdatedAt), "text/plain", 100001)
-	// New domain fields must stay outside the original strict group response.
+	// Group lists expose membership counts, but keep group defaults on their dedicated endpoint.
 	var original struct{ Groups []map[string]json.RawMessage }
 	require.NoError(t, json.Unmarshal(groupDefaultRequest(t, application, cookie, "GET", "/api/v1/admin/user-group/list", "", "", 0), &original))
 	for _, group := range original.Groups {
-		require.Len(t, group, 7)
+		require.Len(t, group, 8)
+		require.Contains(t, group, "memberCount")
 		require.NotContains(t, group, "defaultDomainId")
 		require.NotContains(t, group, "default_domain_id")
 	}

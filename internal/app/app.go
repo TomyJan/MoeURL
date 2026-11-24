@@ -265,6 +265,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
 		deps.UserRedirectPreference = user.NewRedirectPreferenceService(pool)
 		deps.UserListPreference = user.NewListPreferenceService(pool)
 		deps.UserGroup = usergroup.NewService(pool, permissionService)
+		deps.CustomUserGroup = usergroup.NewCustomService(pool)
 		deps.UserGroupDomainDefault = usergroup.NewDomainDefaultService(pool)
 
 		if oidcConfigured {

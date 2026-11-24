@@ -58,20 +58,59 @@ func (s *Service) Create(ctx context.Context, actor auth.CurrentUser, input Crea
 	if input.Username == "" || input.Password == "" || input.Nickname == "" || input.GroupKey == "" || !validStatus(input.Status) {
 		return CreateResult{}, ErrInvalidInput
 	}
-
-	group, err := s.queries.GetUserGroupByKey(ctx, input.GroupKey)
-	if err != nil {
-		return CreateResult{}, err
+	actorID, err := uuid.Parse(actor.ID)
+	if err != nil || actorID == uuid.Nil || actorID.String() != actor.ID {
+		return CreateResult{}, ErrPermissionDenied
 	}
 	hash, err := auth.HashPassword(input.Password)
 	if err != nil {
 		return CreateResult{}, err
 	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 
 	var created sqlc.AppUser
 	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
-		var writeErr error
-		created, writeErr = s.queries.WithTx(tx).CreateAppUser(ctx, sqlc.CreateAppUserParams{
+		q := s.queries.WithTx(tx)
+		actors, err := q.LockGroupChangeUsers(ctx, []pgtype.UUID{uuidToPgtype(actorID)})
+		if err != nil {
+			return err
+		}
+		if len(actors) != 1 || actors[0].Status != "active" || actors[0].DeletedAt.Valid {
+			return ErrPermissionDenied
+		}
+		actorGroup, err := q.GetUserGroupByID(ctx, actors[0].GroupID)
+		if err != nil {
+			return err
+		}
+		actorGroup, err = q.LockGroupChangeGroup(ctx, actorGroup.Key)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrPermissionDenied
+		}
+		if err != nil {
+			return err
+		}
+		if !actorGroup.Builtin || actorGroup.Key != permission.GroupAdmin {
+			return ErrPermissionDenied
+		}
+		grants, err := permission.DecodeSnapshot(actorGroup.Permissions)
+		if err != nil {
+			return err
+		}
+		if !grants.Has(permission.AdminAccess) {
+			return ErrPermissionDenied
+		}
+		group, err := q.LockUserGroupForCustomManagement(ctx, input.GroupKey)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrInvalidInput
+		}
+		if err != nil {
+			return err
+		}
+		if !isAssignableGroup(group.Key, group.Builtin) {
+			return ErrInvalidInput
+		}
+		created, err = q.CreateAppUser(ctx, sqlc.CreateAppUserParams{
 			ID:           uuidToPgtype(uuid.New()),
 			Username:     input.Username,
 			PasswordHash: pgtype.Text{String: hash, Valid: true},
@@ -80,7 +119,7 @@ func (s *Service) Create(ctx context.Context, actor auth.CurrentUser, input Crea
 			Status:       input.Status,
 			Builtin:      false,
 		})
-		return writeErr
+		return err
 	})
 	if isUniqueViolation(err) {
 		return CreateResult{}, ErrUsernameExists
@@ -98,6 +137,16 @@ func (s *Service) Create(ctx context.Context, actor auth.CurrentUser, input Crea
 			Status:   created.Status,
 		},
 	}, nil
+}
+
+func isAssignableGroup(key string, builtin bool) bool {
+	if key == permission.GroupGuest {
+		return false
+	}
+	if builtin {
+		return key == permission.GroupUser || key == permission.GroupAdmin
+	}
+	return key != permission.GroupUser && key != permission.GroupAdmin
 }
 
 // List returns a paginated list of users for administrators.

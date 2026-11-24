@@ -96,6 +96,41 @@ func (q *Queries) CreateAppUser(ctx context.Context, arg CreateAppUserParams) (A
 	return i, err
 }
 
+const createCustomUserGroup = `-- name: CreateCustomUserGroup :one
+insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+values ($1, $2, $3, $4, '[]'::jsonb, false, clock_timestamp(), clock_timestamp())
+returning id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
+`
+
+type CreateCustomUserGroupParams struct {
+	ID          pgtype.UUID `json:"id"`
+	GroupKey    string      `json:"group_key"`
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+}
+
+func (q *Queries) CreateCustomUserGroup(ctx context.Context, arg CreateCustomUserGroupParams) (UserGroup, error) {
+	row := q.db.QueryRow(ctx, createCustomUserGroup,
+		arg.ID,
+		arg.GroupKey,
+		arg.Name,
+		arg.Description,
+	)
+	var i UserGroup
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Name,
+		&i.Description,
+		&i.Permissions,
+		&i.Builtin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DefaultDomainID,
+	)
+	return i, err
+}
+
 const createUserGroup = `-- name: CreateUserGroup :one
 insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
 values ($1, $2, $3, $4, $5, $6, now(), now())
@@ -120,6 +155,30 @@ func (q *Queries) CreateUserGroup(ctx context.Context, arg CreateUserGroupParams
 		arg.Permissions,
 		arg.Builtin,
 	)
+	var i UserGroup
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Name,
+		&i.Description,
+		&i.Permissions,
+		&i.Builtin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DefaultDomainID,
+	)
+	return i, err
+}
+
+const deleteCustomUserGroup = `-- name: DeleteCustomUserGroup :one
+delete from user_group
+where key = $1 and builtin = false
+	and not exists (select 1 from app_user where app_user.group_id = user_group.id)
+returning id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
+`
+
+func (q *Queries) DeleteCustomUserGroup(ctx context.Context, key string) (UserGroup, error) {
+	row := q.db.QueryRow(ctx, deleteCustomUserGroup, key)
 	var i UserGroup
 	err := row.Scan(
 		&i.ID,
@@ -175,27 +234,6 @@ func (q *Queries) GetAppUserMetaByID(ctx context.Context, id pgtype.UUID) (GetAp
 	row := q.db.QueryRow(ctx, getAppUserMetaByID, id)
 	var i GetAppUserMetaByIDRow
 	err := row.Scan(&i.ID, &i.Builtin, &i.DeletedAt)
-	return i, err
-}
-
-const getGroupChangeGroup = `-- name: GetGroupChangeGroup :one
-select id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id from user_group where key = $1 for share
-`
-
-func (q *Queries) GetGroupChangeGroup(ctx context.Context, key string) (UserGroup, error) {
-	row := q.db.QueryRow(ctx, getGroupChangeGroup, key)
-	var i UserGroup
-	err := row.Scan(
-		&i.ID,
-		&i.Key,
-		&i.Name,
-		&i.Description,
-		&i.Permissions,
-		&i.Builtin,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DefaultDomainID,
-	)
 	return i, err
 }
 
@@ -372,6 +410,82 @@ func (q *Queries) ListBuiltinUserGroups(ctx context.Context) ([]UserGroup, error
 	return items, nil
 }
 
+const listUserGroups = `-- name: ListUserGroups :many
+select user_group.id, user_group.key, user_group.name, user_group.description,
+	user_group.permissions, user_group.builtin, user_group.created_at, user_group.updated_at,
+	user_group.default_domain_id,
+	(select count(*)::bigint from app_user where app_user.group_id = user_group.id) as member_count
+from user_group
+order by user_group.builtin desc,
+	case user_group.key when 'guest' then 1 when 'user' then 2 when 'admin' then 3 else 4 end,
+	lower(btrim(user_group.name)), user_group.id
+`
+
+type ListUserGroupsRow struct {
+	ID              pgtype.UUID        `json:"id"`
+	Key             string             `json:"key"`
+	Name            string             `json:"name"`
+	Description     string             `json:"description"`
+	Permissions     []byte             `json:"permissions"`
+	Builtin         bool               `json:"builtin"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	DefaultDomainID pgtype.UUID        `json:"default_domain_id"`
+	MemberCount     int64              `json:"member_count"`
+}
+
+func (q *Queries) ListUserGroups(ctx context.Context) ([]ListUserGroupsRow, error) {
+	rows, err := q.db.Query(ctx, listUserGroups)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUserGroupsRow{}
+	for rows.Next() {
+		var i ListUserGroupsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.Name,
+			&i.Description,
+			&i.Permissions,
+			&i.Builtin,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DefaultDomainID,
+			&i.MemberCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockGroupChangeGroup = `-- name: LockGroupChangeGroup :one
+select id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id from user_group where key = $1 for no key update
+`
+
+func (q *Queries) LockGroupChangeGroup(ctx context.Context, key string) (UserGroup, error) {
+	row := q.db.QueryRow(ctx, lockGroupChangeGroup, key)
+	var i UserGroup
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Name,
+		&i.Description,
+		&i.Permissions,
+		&i.Builtin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DefaultDomainID,
+	)
+	return i, err
+}
+
 const lockGroupChangeUsers = `-- name: LockGroupChangeUsers :many
 select id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at, deleted_at from app_user
 where id = any($1::uuid[])
@@ -407,6 +521,30 @@ func (q *Queries) LockGroupChangeUsers(ctx context.Context, ids []pgtype.UUID) (
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockUserGroupForCustomManagement = `-- name: LockUserGroupForCustomManagement :one
+select id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
+from user_group
+where key = $1
+for update
+`
+
+func (q *Queries) LockUserGroupForCustomManagement(ctx context.Context, key string) (UserGroup, error) {
+	row := q.db.QueryRow(ctx, lockUserGroupForCustomManagement, key)
+	var i UserGroup
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Name,
+		&i.Description,
+		&i.Permissions,
+		&i.Builtin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DefaultDomainID,
+	)
+	return i, err
 }
 
 const revokeGroupChangeSessions = `-- name: RevokeGroupChangeSessions :exec
@@ -522,6 +660,75 @@ type UpdateBuiltinUserGroupPermissionsParams struct {
 
 func (q *Queries) UpdateBuiltinUserGroupPermissions(ctx context.Context, arg UpdateBuiltinUserGroupPermissionsParams) (UserGroup, error) {
 	row := q.db.QueryRow(ctx, updateBuiltinUserGroupPermissions, arg.Permissions, arg.GroupKey, arg.ExpectedUpdatedAt)
+	var i UserGroup
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Name,
+		&i.Description,
+		&i.Permissions,
+		&i.Builtin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DefaultDomainID,
+	)
+	return i, err
+}
+
+const updateCustomUserGroupDetails = `-- name: UpdateCustomUserGroupDetails :one
+update user_group
+set name = $1,
+	description = $2,
+	updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
+where key = $3 and builtin = false and updated_at = $4
+returning id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
+`
+
+type UpdateCustomUserGroupDetailsParams struct {
+	Name              string             `json:"name"`
+	Description       string             `json:"description"`
+	GroupKey          string             `json:"group_key"`
+	ExpectedUpdatedAt pgtype.Timestamptz `json:"expected_updated_at"`
+}
+
+func (q *Queries) UpdateCustomUserGroupDetails(ctx context.Context, arg UpdateCustomUserGroupDetailsParams) (UserGroup, error) {
+	row := q.db.QueryRow(ctx, updateCustomUserGroupDetails,
+		arg.Name,
+		arg.Description,
+		arg.GroupKey,
+		arg.ExpectedUpdatedAt,
+	)
+	var i UserGroup
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.Name,
+		&i.Description,
+		&i.Permissions,
+		&i.Builtin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DefaultDomainID,
+	)
+	return i, err
+}
+
+const updateCustomUserGroupPermissions = `-- name: UpdateCustomUserGroupPermissions :one
+update user_group
+set permissions = $1::jsonb,
+	updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
+where key = $2 and builtin = false and updated_at = $3
+returning id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
+`
+
+type UpdateCustomUserGroupPermissionsParams struct {
+	Permissions       []byte             `json:"permissions"`
+	GroupKey          string             `json:"group_key"`
+	ExpectedUpdatedAt pgtype.Timestamptz `json:"expected_updated_at"`
+}
+
+func (q *Queries) UpdateCustomUserGroupPermissions(ctx context.Context, arg UpdateCustomUserGroupPermissionsParams) (UserGroup, error) {
+	row := q.db.QueryRow(ctx, updateCustomUserGroupPermissions, arg.Permissions, arg.GroupKey, arg.ExpectedUpdatedAt)
 	var i UserGroup
 	err := row.Scan(
 		&i.ID,

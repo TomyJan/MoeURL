@@ -10,6 +10,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/insights"
+	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
@@ -205,7 +206,7 @@ func TestAuditExportAuthorization(t *testing.T) {
 			_, err := pool.Exec(t.Context(), `update user_group set permissions=permissions-$1 where key='admin'`, key)
 			require.NoError(t, err)
 			result, err := port.ExportAudit(t.Context(), admin, insights.AuditExportInput{})
-			require.ErrorIs(t, err, insights.ErrPermissionDenied)
+			require.ErrorIs(t, err, permission.ErrProtectedPermission)
 			require.Empty(t, result.Content)
 		})
 	}

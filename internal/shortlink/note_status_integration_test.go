@@ -115,7 +115,7 @@ func TestNoteStatusReadOnly(t *testing.T) {
 		admin  bool
 	}{
 		{owner, []string{permission.ShortLinkReadOwn, permission.ShortLinkExport}, false},
-		{admin, []string{permission.AdminAccess, permission.ShortLinkReadAll, permission.ShortLinkExport}, true},
+		{admin, removePermission(removePermission(permission.AdminPermissions, permission.ShortLinkCreate), permission.ShortLinkSetMetadata), true},
 	} {
 		raw, err := json.Marshal(tc.grants)
 		require.NoError(t, err)

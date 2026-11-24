@@ -69,6 +69,7 @@ type groupDefaultStore interface {
 	LockGroupDefaultTarget(context.Context, string) (sqlc.UserGroup, error)
 	GetGrantedDomainPreference(context.Context, sqlc.GetGrantedDomainPreferenceParams) (pgtype.UUID, error)
 	SetUserGroupDefaultDomain(context.Context, sqlc.SetUserGroupDefaultDomainParams) (sqlc.UserGroup, error)
+	LockUserGroupForCustomManagement(context.Context, string) (sqlc.UserGroup, error)
 }
 
 // DomainDefaultService keeps each read snapshot and each audited write within one bounded operation.
@@ -128,7 +129,7 @@ func (s *DomainDefaultService) Get(ctx context.Context, actor auth.CurrentUser, 
 			return ErrPermissionDenied
 		}
 		group, err := q.GetUserGroupByKey(ctx, groupKey)
-		if errors.Is(err, pgx.ErrNoRows) || (err == nil && !group.Builtin) {
+		if errors.Is(err, pgx.ErrNoRows) || (err == nil && !validGroupDefaultTarget(group, true)) {
 			return ErrUserGroupNotFound
 		}
 		if err != nil {
@@ -152,7 +153,7 @@ func (s *DomainDefaultService) Set(ctx context.Context, actor auth.CurrentUser, 
 	if input.GroupKey == permission.GroupGuest {
 		return DomainDefaultResult{}, ErrProtectedPermission
 	}
-	if input.GroupKey != permission.GroupUser && input.GroupKey != permission.GroupAdmin {
+	if input.GroupKey == permission.GroupGuest || stableGroupKey(input.GroupKey) == "" {
 		return DomainDefaultResult{}, ErrInvalidInput
 	}
 	expected, err := time.Parse(time.RFC3339Nano, input.ExpectedUpdatedAt)
@@ -179,12 +180,15 @@ func (s *DomainDefaultService) Set(ctx context.Context, actor auth.CurrentUser, 
 			return err
 		}
 		if input.GroupKey != permission.GroupAdmin {
-			group, err = q.LockGroupDefaultTarget(ctx, input.GroupKey)
+			group, err = q.LockUserGroupForCustomManagement(ctx, input.GroupKey)
 			if errors.Is(err, pgx.ErrNoRows) {
 				return ErrUserGroupNotFound
 			}
 			if err != nil {
 				return err
+			}
+			if !validGroupDefaultTarget(group, false) {
+				return ErrUserGroupNotFound
 			}
 		}
 		if !group.UpdatedAt.Time.Equal(expected) {
@@ -227,6 +231,16 @@ func (s *DomainDefaultService) Set(ctx context.Context, actor auth.CurrentUser, 
 		return DomainDefaultResult{}, err
 	}
 	return result, nil
+}
+
+func validGroupDefaultTarget(group sqlc.UserGroup, allowGuest bool) bool {
+	if group.Key == permission.GroupGuest {
+		return allowGuest && group.Builtin
+	}
+	if group.Builtin {
+		return group.Key == permission.GroupUser || group.Key == permission.GroupAdmin
+	}
+	return group.Key != permission.GroupUser && group.Key != permission.GroupAdmin
 }
 
 // GetCurrent computes availability from one current-account SQL snapshot and masks every ineligible UUID.

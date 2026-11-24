@@ -128,27 +128,13 @@ func TestBatchTagRenameAtomicity(t *testing.T) {
 	}
 }
 
-// TestBatchTagRenameReadIsNotWritePermission prevents accidentally inheriting the private-note read gate.
-func TestBatchTagRenameReadIsNotWritePermission(t *testing.T) {
-	for _, adminScope := range []bool{false, true} {
-		t.Run(fmt.Sprint(adminScope), func(t *testing.T) {
-			pool, svc, admin, owner, input := tagRenameFixture(t, 1)
-			actor := owner
-			capability := permission.ShortLinkReadOwn
-			if adminScope {
-				actor = admin
-				capability = permission.ShortLinkReadAll
-			}
-			_, err := pool.Exec(t.Context(), `update user_group set permissions=permissions-$2::text where key=$1`, actor.GroupKey, capability)
-			require.NoError(t, err)
-			if adminScope {
-				_, err = svc.RenameAdminTags(t.Context(), actor, input)
-			} else {
-				_, err = svc.RenameOwnTags(t.Context(), actor, input)
-			}
-			require.NoError(t, err)
-		})
-	}
+// TestBatchTagRenameDoesNotRequireReadOwn proves a write does not need the optional own-list grant.
+func TestBatchTagRenameDoesNotRequireReadOwn(t *testing.T) {
+	pool, svc, _, owner, input := tagRenameFixture(t, 1)
+	_, err := pool.Exec(t.Context(), `update user_group set permissions=permissions-$2::text where key=$1`, owner.GroupKey, permission.ShortLinkReadOwn)
+	require.NoError(t, err)
+	_, err = svc.RenameOwnTags(t.Context(), owner, input)
+	require.NoError(t, err)
 }
 
 // TestBatchTagRenameDatabaseFailures catches swallowed errors and partial transactions at real driver boundaries.

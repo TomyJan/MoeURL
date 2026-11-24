@@ -11,6 +11,7 @@ import (
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/permission"
+	"github.com/google/uuid"
 )
 
 const (
@@ -26,6 +27,12 @@ const (
 	CodePermissionConflict = 300202
 	// CodeProtectedPermission identifies a protected permission change.
 	CodeProtectedPermission = 300203
+	// CodeUserGroupNameConflict identifies a normalized group-name collision.
+	CodeUserGroupNameConflict = 300204
+	// CodeUserGroupHasMembers identifies a custom group that cannot yet be deleted.
+	CodeUserGroupHasMembers = 300205
+	// CodeProtectedGroup identifies an immutable built-in group.
+	CodeProtectedGroup = 300206
 	// CodeInternalServerError identifies infrastructure failures.
 	CodeInternalServerError = 900000
 )
@@ -122,11 +129,13 @@ func (h *Handler) writeResponse(w http.ResponseWriter, r *http.Request, actor au
 	var buffer bytes.Buffer
 	if err := encodeResponse(&buffer, body); err != nil {
 		h.logInfrastructure(r, actor, groupKey, "response_encoding", err)
+		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(`{"code":900000,"message":"Internal server error","data":null,"meta":{}}` + "\n"))
 		return
 	}
+	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	_, _ = w.Write(buffer.Bytes())
@@ -151,6 +160,10 @@ func stableGroupKey(groupKey string) string {
 	case permission.GroupGuest, permission.GroupUser, permission.GroupAdmin:
 		return groupKey
 	default:
+		id, err := uuid.Parse(groupKey)
+		if err == nil && id != uuid.Nil && id.String() == groupKey {
+			return groupKey
+		}
 		return ""
 	}
 }

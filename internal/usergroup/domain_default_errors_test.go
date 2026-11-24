@@ -43,6 +43,14 @@ func (f defaultStoreFault) LockGroupDefaultTarget(ctx context.Context, key strin
 	return f.groupDefaultStore.LockGroupDefaultTarget(ctx, key)
 }
 
+// LockUserGroupForCustomManagement injects a fault at the widened target lock used by domain defaults.
+func (f defaultStoreFault) LockUserGroupForCustomManagement(ctx context.Context, key string) (sqlc.UserGroup, error) {
+	if f.operation == "target-lock" {
+		return sqlc.UserGroup{}, f.failure
+	}
+	return f.groupDefaultStore.LockUserGroupForCustomManagement(ctx, key)
+}
+
 // GetGrantedDomainPreference keeps domain/grant errors distinct from an ordinary unavailable target.
 func (f defaultStoreFault) GetGrantedDomainPreference(ctx context.Context, input sqlc.GetGrantedDomainPreferenceParams) (pgtype.UUID, error) {
 	if f.operation == "grant" {

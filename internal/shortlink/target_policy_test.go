@@ -238,7 +238,11 @@ func TestTargetPolicyQueuedWriterRevocation(t *testing.T) {
 				if revocation == "disabled" {
 					_, err = tx.Exec(t.Context(), `update app_user set status='disabled' where id=$1`, actor.ID)
 				} else {
-					_, err = tx.Exec(t.Context(), `update user_group set permissions='[]' where key='admin'`)
+					revoked := permission.ShortLinkSetMetadata
+					if command == "batch" {
+						revoked = permission.ShortLinkCreate
+					}
+					_, err = tx.Exec(t.Context(), `update user_group set permissions=permissions-$1::text where key='admin'`, revoked)
 				}
 				require.NoError(t, err)
 				result := make(chan error, 1)
@@ -246,9 +250,6 @@ func TestTargetPolicyQueuedWriterRevocation(t *testing.T) {
 				waitTargetWriteBlocked(t, pool, tx.Conn().PgConn().PID())
 				require.NoError(t, tx.Commit(t.Context()))
 				want := shortlink.ErrPermissionDenied
-				if command == "create" && revocation == "grant" {
-					want = shortlink.ErrDomainUnavailable
-				}
 				require.ErrorIs(t, <-result, want)
 				var count, receipts int
 				var target, auditAfter string
@@ -297,18 +298,19 @@ func TestTargetPolicyQueuedWriterCancellation(t *testing.T) {
 
 func targetWriteCommand(ctx context.Context, service *shortlink.Service, actor auth.CurrentUser, command, id string) error {
 	target := "https://safe.example/changed"
+	metadata := &shortlink.MetadataInput{Title: "Changed after authorization", Tags: []string{}}
 	switch command {
 	case "create":
-		_, err := service.Create(ctx, actor, shortlink.CreateInput{TargetURL: target})
+		_, err := service.Create(ctx, actor, shortlink.CreateInput{TargetURL: target, Metadata: metadata})
 		return err
 	case "batch":
 		_, err := service.BatchCreate(ctx, actor, shortlink.BatchCreateInput{RequestID: uuid.NewString(), TargetURLs: []string{target}})
 		return err
 	case "own":
-		_, err := service.Update(ctx, actor, shortlink.UpdateInput{ID: id, TargetURL: &target})
+		_, err := service.Update(ctx, actor, shortlink.UpdateInput{ID: id, TargetURL: &target, Metadata: metadata})
 		return err
 	case "admin":
-		_, err := service.AdminUpdate(ctx, actor, shortlink.UpdateInput{ID: id, TargetURL: &target})
+		_, err := service.AdminUpdate(ctx, actor, shortlink.UpdateInput{ID: id, TargetURL: &target, Metadata: metadata})
 		return err
 	default:
 		return fmt.Errorf("unknown test command %s", command)

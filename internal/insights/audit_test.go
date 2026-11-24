@@ -8,6 +8,7 @@ import (
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/insights"
+	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,7 +53,7 @@ func TestAuditPaginationAndAuthorization(t *testing.T) {
 	_, err = pool.Exec(ctx, `update user_group set permissions=permissions-'audit:read' where key='admin'`)
 	require.NoError(t, err)
 	_, err = reader.Audit(ctx, admin, insights.AuditInput{})
-	require.ErrorIs(t, err, insights.ErrPermissionDenied)
+	require.ErrorIs(t, err, permission.ErrProtectedPermission)
 }
 
 // TestAuditRetentionReadAndUnknownActor keeps expired logs invisible even before cleanup and preserves null/system identity.

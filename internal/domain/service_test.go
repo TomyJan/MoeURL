@@ -2,6 +2,7 @@ package domain_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"sync"
@@ -23,11 +24,15 @@ func domainFixture(t *testing.T) (*domain.Service, *pgxpool.Pool, auth.CurrentUs
 	t.Helper()
 	pool := testdb.ProjectMigratedPool(t.Context(), t)
 	userID, adminID, defaultID := uuid.New(), uuid.New(), uuid.New()
+	adminPermissions, err := json.Marshal(permission.AdminPermissions)
+	if err != nil {
+		t.Fatalf("encode admin permissions: %v", err)
+	}
 	if _, err := pool.Exec(t.Context(), `
 		insert into user_group (id, key, name, permissions, builtin, created_at, updated_at)
 		values ($1, 'user', 'User', '["domain:use_default","domain:use_assigned"]', true, now(), now()),
-		       ($2, 'admin', 'Admin', '["admin:access","domain:manage","domain:use_default","domain:use_assigned"]', true, now(), now())
-	`, userID, adminID); err != nil {
+	       ($2, 'admin', 'Admin', $3::jsonb, true, now(), now())
+	`, userID, adminID, adminPermissions); err != nil {
 		t.Fatalf("prepare groups: %v", err)
 	}
 	if _, err := pool.Exec(t.Context(), `

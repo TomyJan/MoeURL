@@ -588,14 +588,16 @@ func TestRouterUnknownAPIUsesUnifiedResponse(t *testing.T) {
 // TestRouterRegistersOptionalDependencies verifies router registers optional dependencies.
 func TestRouterRegistersOptionalDependencies(t *testing.T) {
 	userGroupService := &routerUserGroupService{}
+	customUserGroupService := &routerCustomUserGroupService{}
 	router := apphttp.NewRouter(apphttp.Dependencies{
-		System:      &routerSystemService{},
-		Auth:        &routerAuthService{},
-		CurrentUser: &routerCurrentUserResolver{},
-		ShortLink:   &routerShortLinkService{},
-		Redirect:    &routerRedirectService{},
-		User:        &routerUserService{},
-		UserGroup:   userGroupService,
+		System:          &routerSystemService{},
+		Auth:            &routerAuthService{},
+		CurrentUser:     &routerCurrentUserResolver{},
+		ShortLink:       &routerShortLinkService{},
+		Redirect:        &routerRedirectService{},
+		User:            &routerUserService{},
+		UserGroup:       userGroupService,
+		CustomUserGroup: customUserGroupService,
 	})
 
 	tests := []struct {
@@ -622,6 +624,10 @@ func TestRouterRegistersOptionalDependencies(t *testing.T) {
 		{method: http.MethodPost, path: "/api/v1/admin/user/reset-password", body: `{}`},
 		{method: http.MethodGet, path: "/api/v1/admin/user-group/list"},
 		{method: http.MethodPost, path: "/api/v1/admin/user-group/update-permissions", body: `{}`},
+		{method: http.MethodPost, path: "/api/v1/admin/user-group/create", body: `{}`},
+		{method: http.MethodPost, path: "/api/v1/admin/user-group/update", body: `{}`},
+		{method: http.MethodPost, path: "/api/v1/admin/user-group/update-custom-permissions", body: `{}`},
+		{method: http.MethodPost, path: "/api/v1/admin/user-group/delete", body: `{}`},
 		{method: http.MethodPost, path: "/api/v1/user/profile/update", body: `{}`},
 		{method: http.MethodGet, path: "/api/v1/public/short-link/preview?slug=abc123"},
 		{method: http.MethodPost, path: "/go/abc123/unlock", body: `{}`},
@@ -644,6 +650,9 @@ func TestRouterRegistersOptionalDependencies(t *testing.T) {
 	}
 	if userGroupService.listCalls != 1 || userGroupService.updateCalls != 1 {
 		t.Fatalf("user-group route calls = list %d update %d, want 1 and 1", userGroupService.listCalls, userGroupService.updateCalls)
+	}
+	if customUserGroupService.createCalls != 1 || customUserGroupService.updateDetailsCalls != 1 || customUserGroupService.updatePermissionsCalls != 1 || customUserGroupService.deleteCalls != 1 {
+		t.Fatalf("custom user-group calls = create %d details %d permissions %d delete %d, want one each", customUserGroupService.createCalls, customUserGroupService.updateDetailsCalls, customUserGroupService.updatePermissionsCalls, customUserGroupService.deleteCalls)
 	}
 }
 
@@ -1003,6 +1012,30 @@ func (service routerUserService) ResetPassword(context.Context, auth.CurrentUser
 type routerUserGroupService struct {
 	listCalls   int
 	updateCalls int
+}
+
+type routerCustomUserGroupService struct {
+	createCalls, updateDetailsCalls, updatePermissionsCalls, deleteCalls int
+}
+
+func (service *routerCustomUserGroupService) Create(context.Context, auth.CurrentUser, usergroup.CreateCustomGroupInput) (usergroup.UpdatePermissionsResult, error) {
+	service.createCalls++
+	return usergroup.UpdatePermissionsResult{}, nil
+}
+
+func (service *routerCustomUserGroupService) UpdateDetails(context.Context, auth.CurrentUser, usergroup.UpdateCustomGroupDetailsInput) (usergroup.UpdatePermissionsResult, error) {
+	service.updateDetailsCalls++
+	return usergroup.UpdatePermissionsResult{}, nil
+}
+
+func (service *routerCustomUserGroupService) UpdatePermissions(context.Context, auth.CurrentUser, usergroup.UpdatePermissionsInput) (usergroup.UpdatePermissionsResult, error) {
+	service.updatePermissionsCalls++
+	return usergroup.UpdatePermissionsResult{}, nil
+}
+
+func (service *routerCustomUserGroupService) Delete(context.Context, auth.CurrentUser, usergroup.DeleteCustomGroupInput) (usergroup.DeleteCustomGroupResult, error) {
+	service.deleteCalls++
+	return usergroup.DeleteCustomGroupResult{}, nil
 }
 
 type routerOIDCProviderService struct {

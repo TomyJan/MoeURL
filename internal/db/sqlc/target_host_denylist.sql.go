@@ -50,18 +50,21 @@ func (q *Queries) LockTargetPolicyAdminGroup(ctx context.Context, id pgtype.UUID
 }
 
 const lockTargetWriterGroup = `-- name: LockTargetWriterGroup :one
-select key,permissions from user_group where id=$1 and builtin and key<>'guest'
+select key,permissions,builtin from user_group
+where id=$1 and key<>'guest'
+  and ((builtin and key in ('user','admin')) or (not builtin and key not in ('user','admin')))
 for share
 `
 
 type LockTargetWriterGroupRow struct {
 	Key         string `json:"key"`
 	Permissions []byte `json:"permissions"`
+	Builtin     bool   `json:"builtin"`
 }
 
 func (q *Queries) LockTargetWriterGroup(ctx context.Context, id pgtype.UUID) (LockTargetWriterGroupRow, error) {
 	row := q.db.QueryRow(ctx, lockTargetWriterGroup, id)
 	var i LockTargetWriterGroupRow
-	err := row.Scan(&i.Key, &i.Permissions)
+	err := row.Scan(&i.Key, &i.Permissions, &i.Builtin)
 	return i, err
 }

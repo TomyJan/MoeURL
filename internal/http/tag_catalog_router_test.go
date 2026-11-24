@@ -26,10 +26,13 @@ func TestRouterTagCatalogSessionBoundary(t *testing.T) {
 	pool := testdb.ProjectMigratedPool(ctx, t)
 	const userID = "00000000-0000-0000-0000-000000004111"
 	const adminID = "00000000-0000-0000-0000-000000004112"
-	_, err := pool.Exec(ctx, `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values
+	adminPermissions, err := json.Marshal(permission.AdminPermissions)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values
 		('00000000-0000-0000-0000-000000004121','user','User','["short_link:read_own"]',true,now(),now()),
-		('00000000-0000-0000-0000-000000004122','admin','Admin','["admin:access","short_link:read_all","short_link:read_own"]',true,now(),now());
-		insert into app_user(id,username,nickname,group_id,status,builtin,created_at,updated_at) values
+		('00000000-0000-0000-0000-000000004122','admin','Admin',$1::jsonb,true,now(),now())`, adminPermissions)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `insert into app_user(id,username,nickname,group_id,status,builtin,created_at,updated_at) values
 		('00000000-0000-0000-0000-000000004111','tag-user','User','00000000-0000-0000-0000-000000004121','active',false,now(),now()),
 		('00000000-0000-0000-0000-000000004112','tag-admin','Admin','00000000-0000-0000-0000-000000004122','active',false,now(),now());
 		insert into domain(id,host,display_name,purpose,enabled,is_default,created_at,updated_at)
@@ -93,12 +96,12 @@ func TestRouterTagCatalogSessionBoundary(t *testing.T) {
 	require.Contains(t, response.Body.String(), `"code":120001`)
 	_, err = pool.Exec(ctx, `update user_group set permissions='["admin:access","short_link:read_all"]' where key='admin'`)
 	require.NoError(t, err)
-	call(router, admin.ID, endpoint, 200, 120001)
-	call(router, admin.ID, adminEndpoint, 200, 0)
+	call(router, admin.ID, endpoint, 500, 900000)
+	call(router, admin.ID, adminEndpoint, 500, 900000)
 	for _, grants := range []string{`["admin:access"]`, `["short_link:read_all"]`} {
 		_, err = pool.Exec(ctx, `update user_group set permissions=$1 where key='admin'`, grants)
 		require.NoError(t, err)
-		call(router, admin.ID, adminEndpoint, 200, 120001)
+		call(router, admin.ID, adminEndpoint, 500, 900000)
 	}
 	_, err = pool.Exec(ctx, `update user_group set permissions='["admin:access","short_link:read_all"]' where key='admin'`)
 	require.NoError(t, err)

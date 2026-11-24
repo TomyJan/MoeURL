@@ -11,6 +11,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/user"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stretchr/testify/require"
 )
 
 type failingPermissionResolver struct {
@@ -72,7 +73,12 @@ func TestServiceCreateUserByAdmin(t *testing.T) {
 	pool := userTestPool(t, ctx)
 	insertUserGroup(t, ctx, pool, "admin", permission.AdminPermissions)
 	insertUserGroup(t, ctx, pool, "user", permission.UserPermissions)
-	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: "admin"}
+	_, err := pool.Exec(ctx, `update user_group set builtin=true`)
+	if err != nil {
+		t.Fatalf("mark builtin groups: %v", err)
+	}
+	adminID := insertAppUser(t, ctx, pool, "admin", "", "Admin", "admin", "active", false)
+	admin := auth.CurrentUser{ID: adminID, Username: "admin", GroupKey: "admin"}
 	service := user.NewService(pool, permission.NewService())
 
 	result, err := service.Create(ctx, admin, user.CreateInput{
@@ -99,16 +105,50 @@ func TestServiceCreateUserByAdmin(t *testing.T) {
 	}
 }
 
+func TestServiceCreateUserInCustomGroupAndRejectsGuestGroup(t *testing.T) {
+	pool, service, actor, _ := groupFixture(t)
+	customKey := "550e8400-e29b-41d4-a716-446655440001"
+	_, err := pool.Exec(t.Context(), `insert into user_group(id,key,name,description,permissions,builtin,created_at,updated_at)
+		values(gen_random_uuid(),$1,'Operations','', $2::jsonb, false, now(), now())`, customKey, permissionsJSON([]string{permission.ShortLinkReadOwn}))
+	require.NoError(t, err)
+
+	created, err := service.Create(t.Context(), actor, user.CreateInput{Username: "custom-member", Password: "secure-password", Nickname: "Member", GroupKey: customKey, Status: "active"})
+	require.NoError(t, err)
+	require.Equal(t, customKey, created.User.Group)
+
+	_, err = service.Create(t.Context(), actor, user.CreateInput{Username: "guest-member", Password: "secure-password", Nickname: "Guest", GroupKey: permission.GroupGuest, Status: "active"})
+	require.ErrorIs(t, err, user.ErrInvalidInput, "guest is not a persistently assignable user group")
+}
+
+func TestServiceCreateRechecksCurrentDatabaseAuthorization(t *testing.T) {
+	pool, _, actor, _ := groupFixture(t)
+	_, err := pool.Exec(t.Context(), `update user_group set permissions=permissions-'admin:access' where key='admin'`)
+	require.NoError(t, err)
+	service := user.NewService(pool, permission.NewService()) // Deliberately stale request snapshot.
+
+	_, err = service.Create(t.Context(), actor, user.CreateInput{Username: "revoked-manager-create", Password: "secure-password", Nickname: "Member", GroupKey: "user", Status: "active"})
+	require.ErrorIs(t, err, user.ErrPermissionDenied)
+	var count int
+	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from app_user where username='revoked-manager-create'`).Scan(&count))
+	require.Zero(t, count)
+}
+
 // TestServiceCreateUserRejectsPermissionAndDuplicateUsername verifies service create user rejects permission and duplicate username.
 func TestServiceCreateUserRejectsPermissionAndDuplicateUsername(t *testing.T) {
 	ctx := context.Background()
 	pool := userTestPool(t, ctx)
 	insertUserGroup(t, ctx, pool, "user", permission.UserPermissions)
+	insertUserGroup(t, ctx, pool, "admin", permission.AdminPermissions)
+	_, err := pool.Exec(ctx, `update user_group set builtin=true`)
+	if err != nil {
+		t.Fatalf("mark builtin groups: %v", err)
+	}
 	regular := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000602", Username: "bob", GroupKey: "user"}
-	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: "admin"}
+	adminID := insertAppUser(t, ctx, pool, "admin", "", "Admin", "admin", "active", false)
+	admin := auth.CurrentUser{ID: adminID, Username: "admin", GroupKey: "admin"}
 	service := user.NewService(pool, permission.NewService())
 
-	_, err := service.Create(ctx, regular, user.CreateInput{Username: "alice", Password: "secure-password", Nickname: "Alice", GroupKey: "user", Status: "active"})
+	_, err = service.Create(ctx, regular, user.CreateInput{Username: "alice", Password: "secure-password", Nickname: "Alice", GroupKey: "user", Status: "active"})
 	if !errors.Is(err, user.ErrPermissionDenied) {
 		t.Fatalf("expected ErrPermissionDenied, got %v", err)
 	}
@@ -129,7 +169,8 @@ func TestServiceCreateRejectsInvalidInputAndReturnsErrors(t *testing.T) {
 	pool := userTestPool(t, ctx)
 	insertUserGroup(t, ctx, pool, "admin", permission.AdminPermissions)
 	insertUserGroup(t, ctx, pool, "user", permission.UserPermissions)
-	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: "admin"}
+	adminID := insertAppUser(t, ctx, pool, "admin", "", "Admin", "admin", "active", false)
+	admin := auth.CurrentUser{ID: adminID, Username: "admin", GroupKey: "admin"}
 	service := user.NewService(pool, permission.NewService())
 
 	_, err := service.Create(ctx, admin, user.CreateInput{Username: "", Password: "secure-password", Nickname: "Alice", GroupKey: "user", Status: "active"})
@@ -158,7 +199,8 @@ func TestServiceCreateReturnsDatabaseError(t *testing.T) {
 	pool := userTestPool(t, ctx)
 	insertUserGroup(t, ctx, pool, "admin", permission.AdminPermissions)
 	insertUserGroup(t, ctx, pool, "user", permission.UserPermissions)
-	admin := auth.CurrentUser{ID: "00000000-0000-0000-0000-000000000601", Username: "admin", GroupKey: "admin"}
+	adminID := insertAppUser(t, ctx, pool, "admin", "", "Admin", "admin", "active", false)
+	admin := auth.CurrentUser{ID: adminID, Username: "admin", GroupKey: "admin"}
 	service := user.NewService(pool, permission.NewService())
 
 	pool.Close()

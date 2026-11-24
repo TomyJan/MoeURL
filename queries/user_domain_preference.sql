@@ -12,8 +12,9 @@ where id = sqlc.arg(user_id) and status = 'active' and deleted_at is null
 for share;
 
 -- name: LockDomainPreferenceGroup :one
-select id, key, permissions from user_group
-where id = sqlc.arg(group_id) and builtin and key <> 'guest'
+select id, key, permissions, builtin from user_group
+where id = sqlc.arg(group_id) and key <> 'guest'
+  and ((builtin and key in ('user','admin')) or (not builtin and key not in ('user','admin')))
 for share;
 
 -- name: GetGrantedDomainPreference :one

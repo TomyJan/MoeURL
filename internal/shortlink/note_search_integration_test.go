@@ -164,7 +164,7 @@ func TestNoteSearchReadOnly(t *testing.T) {
 		grants []string
 		admin  bool
 	}{
-		{owner, []string{permission.ShortLinkReadOwn}, false}, {admin, []string{permission.AdminAccess, permission.ShortLinkReadAll}, true},
+		{owner, []string{permission.ShortLinkReadOwn}, false}, {admin, removePermission(permission.AdminPermissions, permission.ShortLinkExport), true},
 	} {
 		raw, err := json.Marshal(scope.grants)
 		require.NoError(t, err)

@@ -1,6 +1,7 @@
 package permission
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -89,7 +90,32 @@ func (s *DatabaseService) Resolve(ctx context.Context, groupKey string) (Snapsho
 	if err != nil {
 		return Snapshot{}, err
 	}
-	return DecodeSnapshot(group.Permissions)
+	return DecodeGroupSnapshot(group.Key, group.Builtin, group.Permissions)
+}
+
+// DecodeGroupSnapshot validates stored permissions against the immutable builtin/custom-group boundary.
+func DecodeGroupSnapshot(groupKey string, builtin bool, data []byte) (Snapshot, error) {
+	data = bytes.TrimSpace(data)
+	if len(data) == 0 || data[0] != '[' {
+		return Snapshot{}, errors.New("invalid stored group permission array")
+	}
+	var stored []string
+	if err := json.Unmarshal(data, &stored); err != nil {
+		return Snapshot{}, err
+	}
+	var normalized []string
+	var err error
+	if builtin {
+		normalized, err = NormalizeForGroup(groupKey, stored)
+	} else if groupKey == GroupGuest || groupKey == GroupUser || groupKey == GroupAdmin {
+		return Snapshot{}, ErrUnknownGroup
+	} else {
+		normalized, err = NormalizeCustomGroup(stored)
+	}
+	if err != nil {
+		return Snapshot{}, err
+	}
+	return Snapshot{permissions: toSet(normalized)}, nil
 }
 
 // DecodeSnapshot validates stored group permissions and returns an immutable lookup.

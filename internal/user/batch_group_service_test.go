@@ -278,7 +278,7 @@ func TestBatchChangeGroupRollback(t *testing.T) {
 		n      int
 	}{
 		{"begin", 1}, {"select set_config", 1}, {"-- name: LockGroupChangeUsers", 1},
-		{"-- name: GetGroupChangeGroup", 1}, {"-- name: GetGroupChangeGroup", 2},
+		{"-- name: LockGroupChangeGroup", 1}, {"-- name: LockGroupChangeGroup", 2},
 		{"-- name: ChangeAppUserGroup", 2}, {"-- name: RevokeGroupChangeSessions", 2}, {"commit", 1},
 	} {
 		t.Run(fmt.Sprintf("%s-%d", tc.prefix, tc.n), func(t *testing.T) {

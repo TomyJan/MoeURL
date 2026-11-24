@@ -77,7 +77,11 @@ func TestRestoreManifestAtomicAndAuthorized(t *testing.T) {
 		if ownerID != user.ID || domainID != want.domainID || status != want.status || mode != want.mode || delay != want.delay || title != want.title || len(tags) != 1 || tags[0] != want.tag {
 			t.Errorf("restored fields for %s do not match: owner=%s domain=%s status=%s mode=%s delay=%d title=%q tags=%v", want.slug, ownerID, domainID, status, mode, delay, title, tags)
 		}
-		if visits != 0 || password != "" || maxVisits != want.maxVisits || expiresAt != want.expiresAt {
+		expirationMatches := expiresAt.Valid == want.expiresAt.Valid
+		if expirationMatches && expiresAt.Valid {
+			expirationMatches = expiresAt.Time.Equal(want.expiresAt.Time)
+		}
+		if visits != 0 || password != "" || maxVisits != want.maxVisits || !expirationMatches {
 			t.Errorf("snapshot-only fields were restored for %s: visits=%d password=%t maxVisits=%#v expiration=%#v", want.slug, visits, password != "", maxVisits, expiresAt)
 		}
 	}

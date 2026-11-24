@@ -657,11 +657,10 @@ func TestAppNewUsesDatabasePermissionsForUserService(t *testing.T) {
 		t.Fatalf("initial user list code = %d, want 0", code)
 	}
 	if _, err := application.pool.Exec(ctx, `
-		update user_group
-		set permissions = permissions - 'admin:access'
-		where key = 'admin'
+		update app_user set group_id = (select id from user_group where key = 'user')
+		where username = 'admin'
 	`); err != nil {
-		t.Fatalf("revoke admin access: %v", err)
+		t.Fatalf("demote administrator: %v", err)
 	}
 	if code := listCode(); code != user.CodePermissionDenied {
 		t.Fatalf("revoked user list code = %d, want %d", code, user.CodePermissionDenied)
@@ -672,25 +671,6 @@ func TestAppNewUsesDatabasePermissionsForUserService(t *testing.T) {
 func TestAppNewUsesDatabasePermissionsForUserGroupService(t *testing.T) {
 	ctx := t.Context()
 	application := newTestApplication(t)
-
-	var originalPermissions []byte
-	var originalUpdatedAt time.Time
-	if err := application.pool.QueryRow(ctx, `
-		select permissions, updated_at
-		from user_group
-		where key = 'admin'
-	`).Scan(&originalPermissions, &originalUpdatedAt); err != nil {
-		t.Fatalf("read original admin group: %v", err)
-	}
-	t.Cleanup(func() {
-		if _, err := application.pool.Exec(context.Background(), `
-			update user_group
-			set permissions = $1::jsonb, updated_at = $2
-			where key = 'admin'
-		`, originalPermissions, originalUpdatedAt); err != nil {
-			t.Errorf("restore admin group: %v", err)
-		}
-	})
 
 	loginRequest := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{"username":"admin","password":"secure-password"}`))
 	loginResponse := httptest.NewRecorder()
@@ -727,14 +707,71 @@ func TestAppNewUsesDatabasePermissionsForUserGroupService(t *testing.T) {
 		t.Fatalf("initial user-group list code = %d, want 0", code)
 	}
 	if _, err := application.pool.Exec(ctx, `
-		update user_group
-		set permissions = permissions - 'admin:access'
-		where key = 'admin'
+		update app_user set group_id = (select id from user_group where key = 'user')
+		where username = 'admin'
 	`); err != nil {
-		t.Fatalf("revoke admin access: %v", err)
+		t.Fatalf("demote administrator: %v", err)
 	}
 	if code := listCode(); code != usergroup.CodePermissionDenied {
 		t.Fatalf("revoked user-group list code = %d, want %d", code, usergroup.CodePermissionDenied)
+	}
+}
+
+func TestAppRechecksAdminGroupPermissionsWithoutDemotingAccount(t *testing.T) {
+	ctx := t.Context()
+	application := newTestApplication(t)
+
+	loginRequest := httptest.NewRequestWithContext(ctx, http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{"username":"admin","password":"secure-password"}`))
+	loginResponse := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(loginResponse, loginRequest)
+	cookies := loginResponse.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("expected one login cookie, got %d", len(cookies))
+	}
+
+	requestCode := func(path string) int {
+		t.Helper()
+		request := httptest.NewRequestWithContext(ctx, http.MethodGet, path, nil)
+		request.AddCookie(cookies[0])
+		response := httptest.NewRecorder()
+		application.server.Handler.ServeHTTP(response, request)
+		var body struct {
+			Code int `json:"code"`
+		}
+		if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+			t.Fatalf("decode %s response: %v", path, err)
+		}
+		return body.Code
+	}
+	paths := []string{"/api/v1/admin/user/list", "/api/v1/admin/user-group/list"}
+	for _, path := range paths {
+		if code := requestCode(path); code != 0 {
+			t.Fatalf("initial %s code = %d, want 0", path, code)
+		}
+	}
+
+	var actorGroup string
+	if err := application.pool.QueryRow(ctx, `
+		select g.key from app_user u join user_group g on g.id = u.group_id where u.username = 'admin'
+	`).Scan(&actorGroup); err != nil {
+		t.Fatalf("read current administrator group: %v", err)
+	}
+	if actorGroup != permission.GroupAdmin {
+		t.Fatalf("administrator group = %q, want %q", actorGroup, permission.GroupAdmin)
+	}
+	if _, err := application.pool.Exec(ctx, `
+		update user_group
+		set permissions = permissions - 'admin:access',
+		    updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
+		where builtin and key = 'admin'
+	`); err != nil {
+		t.Fatalf("revoke admin:access without demoting administrator: %v", err)
+	}
+
+	for _, path := range paths {
+		if code := requestCode(path); code == 0 {
+			t.Fatalf("revoked %s remained authorized with response code %d", path, code)
+		}
 	}
 }
 
