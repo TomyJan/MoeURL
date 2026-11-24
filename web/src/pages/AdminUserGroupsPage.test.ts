@@ -255,9 +255,10 @@ it('does not invalidate account-scoped queries when a delete refresh completes a
   await waitFor(() => expect(view.requests.filter((path) => path === '/api/v1/admin/user-group/list')).toHaveLength(priorListReads + 1))
 
   revokeAccountIdentity(view.client)
-  pendingRefresh.resolve(response(view.catalog()))
+  pendingRefresh.resolve(response(null, 900000))
   await waitFor(() => expect(view.client.isMutating()).toBe(0))
   expect(view.requests.filter((path) => path === '/api/v1/domain/available' || path === '/api/v1/domain/group-default')).toHaveLength(priorScopedReads)
+  expect(screen.queryByText('groupDefault.refreshRequired')).toBeNull()
 })
 it('locks protected permissions and omits builtin presets for custom groups', async () => {
   const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
