@@ -2,7 +2,7 @@
 
 ## v0.92.0 自定义用户组决策（当前 feature 分支）
 
-在现有 `user_group.permissions`、`app_user.group_id`、domain grant 和共享 `updated_at` 上增加单主组 custom groups。服务端创建 UUID 不透明 key；不引入多组／权限合并表、新权限或依赖。新组权限与域名授权 fail-closed，protected 权限仍仅属于 admin；custom key 不作为权限本身。Migration 00050 的 Down 遇到自定义数据时拒绝回滚，不转换或丢弃数据。Task 1–5 完成；最新本地前端全量 7,326 项、四项 coverage、typecheck／lint／build 均通过。PR #420 最近已完成 review 的 head `5558849d` 无新增 actionable comments；后续文档 head `d5a9df26` 的 CodeRabbit review 请求被限流，未产生 review。Task 6 正常集成交付与当前 head review 待完成。不将当前 feature 分支描述为已发布产品。详细约束见[v0.92 spec](../specs/2026-11-23-v0.92.0-custom-user-groups-spec.md)和[验收](v0.92.0-acceptance.md)。
+在现有 `user_group.permissions`、`app_user.group_id`、domain grant 和共享 `updated_at` 上增加单主组 custom groups。服务端创建 UUID 不透明 key；不引入多组／权限合并表、新权限或依赖。新组权限与域名授权 fail-closed，protected 权限仍仅属于 admin；custom key 不作为权限本身。Migration 00050 的 Down 遇到自定义数据时拒绝回滚，不转换或丢弃数据。Task 1–5 完成；最新本地前端全量 7,326 项、四项 coverage、typecheck／lint／build 均通过。PR #420 最近已完成 review 的 head `5558849d` 无新增 actionable comments；后续文档 head `d5a9df26` 的 review 请求被限流，`335e2b17` 与当前 `b7d503a8` 也没有继承旧 review 覆盖。Task 6 正常集成交付与当前 head review 待完成。不将当前 feature 分支描述为已发布产品。详细约束见[v0.92 spec](../specs/2026-11-23-v0.92.0-custom-user-groups-spec.md)和[验收](v0.92.0-acceptance.md)。
 
 ## 当前已完成实施（2026-11-20，v0.90.0）
 
