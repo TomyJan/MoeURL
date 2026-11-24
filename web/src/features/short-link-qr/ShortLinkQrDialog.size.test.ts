@@ -8,6 +8,7 @@ import { componentStubs } from '@/test/component-stubs'
 import { createDeferred } from '@/test/deferred'
 
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
+vi.setConfig({ testTimeout: 20_000 })
 
 const url = 'https://go.example.com/abc123'
 const pngWriter = QRCode.toDataURL

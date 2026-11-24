@@ -154,7 +154,8 @@ const groupMutation = useMutation({
     deleteDialog.value = false
     if (result.kind === 'deleted') {
       queryClient.removeQueries({ queryKey: adminGroupDefaultDomainQueryKey })
-      await query.refetch()
+      const refreshed = await query.refetch()
+      if (refreshed.isError) refreshBroken.value = true
       if (!groupIdentity.isCurrent(command.scope)) return
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['user-group-domain-default'] }),

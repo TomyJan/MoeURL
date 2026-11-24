@@ -229,6 +229,18 @@ it('deletes an empty custom group using its captured version and refreshes the l
   await waitFor(() => expect(view.writes).toContainEqual({ path: '/api/v1/admin/user-group/delete', input: { groupKey: custom.key, expectedUpdatedAt: version } }))
   await waitFor(() => expect(screen.queryByRole('tab', { name: 'Operations' })).toBeNull())
 })
+it('shows a recovery action when the user-group list refresh fails after deletion', async () => {
+  const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
+  view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom] })
+  await fireEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+  view.overrides['/api/v1/admin/user-group/list'] = async () => { throw new Error('offline after delete') }
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.deleteCustom' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.confirmDelete' }))
+
+  await waitFor(() => expect(view.writes).toContainEqual({ path: '/api/v1/admin/user-group/delete', input: { groupKey: custom.key, expectedUpdatedAt: version } }))
+  expect(await screen.findByText('groupDefault.refreshRequired')).toBeTruthy()
+  expect(screen.getAllByRole('button', { name: 'groupDefault.reload' }).length).toBeGreaterThan(0)
+})
 it('does not invalidate account-scoped queries when a delete refresh completes after identity revocation', async () => {
   const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
   view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom] })
