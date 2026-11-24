@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-24，v0.92.0）
 
-[自定义用户组](scope-v0.92.0.md) Task 1–5 已实现；数据库／HTTP／浏览器验收的专用 PostgreSQL 18.7 与本地 Go 1.26.8 app fallback 流程在 Chrome 159 的 1280 px、390 px 场景均通过，setup + 2 个视口共 3/3。最新前端全量 7,326 项通过，Statements（11,315/11,315）、Branches（9,349/9,349）、Functions（3,191/3,191）、Lines（8,115/8,115）覆盖率均为 100%，typecheck、lint 与 build 通过。Task 6 交付仍进行中；后端／数据层 PR #421 与堆叠的前端／验收 PR #420 均未合并。PR #420 当前准确 head `1d7353b0` 的 CodeRabbit 增量 review 覆盖 `5558849d..1d7353b0`，根摘要报告无 actionable comments。PR #421 本轮正常 merge API 调用因集成权限返回 403；未查看 checks／CI，也未绕过规则。此状态不代表发布或 Dockerfile build 完成。准确状态见[开发进度](development-status.md)与[v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。不查 CI、不发布部署。
+[自定义用户组](scope-v0.92.0.md) Task 1–5 已实现；数据库／HTTP／浏览器验收的专用 PostgreSQL 18.7 与本地 Go 1.26.8 app fallback 流程在 Chrome 159 的 1280 px、390 px 场景均通过，setup + 2 个视口共 3/3（该证据仍归属原验收候选）。重定基后前端全量 7,326 项通过，四项 coverage 均 100%，typecheck、lint 与 build 通过。PR #421 已正常 squash 合并为 `f2d53c76`，tree／唯一 parent 已独立核验；PR #420 retarget `master` 后差异回到 53 个前端／验收文件。当前 PR #420 最终 tip 的 CodeRabbit 复审和正常集成、恢复归档仍待。未查 CI、不发布部署。
 
 ## 最近完成（2026-11-22，v0.91.0）
 

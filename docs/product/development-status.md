@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-24，v0.92.0）
 
-当前 v0.92.0 分支已完成 Task 1–5：migration 00050 与自定义组 API、成员迁移、域名授权和动态前端。最新完整前端 coverage 为 291/291 文件、7,326/7,326 测试通过；Statements 11,315/11,315、Branches 9,349/9,349、Functions 3,191/3,191、Lines 8,115/8,115 均为 100%；typecheck、全量 ESLint、生产构建通过（ESLint 0 errors、7 项既有 warning）。真实 PostgreSQL／HTTP／浏览器验收覆盖自定义组及成员闭环，在 1280 px 和 390 px 各通过；setup 与两个视口共 3/3。390 px 页面为 8 个长授权组选项断言换行、组标签不超出 fieldset 且无横向溢出，截图已人工检查并留存。最新运行环境为 Go 1.26.8 Windows 本地 app fallback、Goose 3.30.1、锁定镜像 PostgreSQL 18.7、Node 26.3.0、Playwright 1.65.1、Chrome 159.0.8154.13；不等同于标准 Dockerfile build。PR #421 是 69 文件后端／数据层变更，head `c6306907`，仍 open；PR #420 当前准确 head `1d7353b0` 的 CodeRabbit 增量 review 覆盖 `5558849d..1d7353b0`，根摘要报告无 actionable comments。最新完整代码验证候选为 `5f540e11`，后续提交为交付状态文档更新。PR #421 本轮正常 merge API 调用因 integration 返回 403，未读取状态／CI、未绕过。Task 6 的正常集成、合并 SHA/tree/parent 独立核验、恢复归档与精确清理仍待。准确状态和命令见 [v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。不查 CI、不部署发布、不触碰 PR #240/#266/#267。
+当前 v0.92.0 分支已完成 Task 1–5：migration 00050 与自定义组 API、成员迁移、域名授权和动态前端。PR #421 已于 `f2d53c76` squash 合入 master，tree `5edb0d68`、唯一 parent `0bdc2174` 经独立核验。PR #420 已重定基到该 master；差异仅保留 53 个前端／验收文件。重定基后最新前端 coverage 为 291/291 文件、7,326/7,326 测试；Statements 11,315/11,315、Branches 9,349/9,349、Functions 3,191/3,191、Lines 8,115/8,115 均 100%；typecheck、全量 ESLint（0 errors、7 项既有 warning）与 Vite build 通过。真实 PostgreSQL／HTTP／浏览器 3/3 及截图仍归属之前的产品验收候选，不冒充新重定基 SHA。当前准确 PR #420 tip 尚待 CodeRabbit；PR 合并、恢复归档与精确清理仍待。未查 CI、不部署发布、不触碰 PR #240/#266/#267。
 
 ## 最近完成（2026-11-22，v0.91.0）
 
