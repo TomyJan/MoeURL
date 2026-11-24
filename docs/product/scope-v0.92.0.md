@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-功能实现已在 `feat/v0.92.0-custom-user-groups` 完成本地 Task 1–5；专用 PostgreSQL／HTTP 与真实浏览器在桌面、移动视口通过（setup + 2 个视口，3/3）。最新前端全量 7,326 项通过，Statements／Branches／Functions／Lines 覆盖率均为 100%。Task 6 文档、整体验收及交付继续进行；PR #421（后端／数据层）和堆叠的 PR #420（前端／验收）已打开但未合并，产品版本号不因本范围文档而改变。准确验证及待办见 [v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
+功能实现已在 `feat/v0.92.0-custom-user-groups` 完成本地 Task 1–5。后端 PR #421 已 squash 合并为 `f2d53c76`；前端 PR #420 已重定基到 master，差异为前端与交付文档。重定基后前端全量 7,326 项通过，四项 coverage 均为 100%，typecheck、lint 和 build 通过。专用 PostgreSQL／HTTP 与真实浏览器在桌面、移动视口通过（setup + 2 个视口，3/3），但该证据归属原验收候选，不冒充重定基后 SHA。Task 6、PR #420 准确 tip review、正常集成与可恢复归档继续进行，产品版本号不因本范围文档而改变。准确验证及待办见 [v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
 
 ## 目标
 

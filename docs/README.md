@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-24，v0.92.0）
 
-自定义用户组 Task 1–5 已实现，Task 6 文档及整体验收进行中；PR #421（后端／数据层）和堆叠的 PR #420（前端／验收）已打开，均未合并或发布。当前 Node 26.3.0 全量 coverage 为 291 文件／7,326 项全部通过；Statements 11,315/11,315、Branches 9,349/9,349、Functions 3,191/3,191、Lines 8,115/8,115 均为 100%。类型检查、全量 ESLint（0 errors、7 个既有 warnings）与 Vite build 通过。真实 PostgreSQL／HTTP／浏览器闭环在 Chrome 159 上覆盖 1280 px 与 390 px，含 setup 共 3/3 通过；390 px 页面以 8 个长组名验证授权标签换行及无横向溢出，并保留实际截图。使用 Go 1.26.8 本地 app fallback 和专属 PostgreSQL 18.7，不代表标准 Dockerfile build。PR #421 仍未合并；本轮正常 merge API 调用因集成权限返回 403，未检查 checks／CI、未绕过规则。PR #420 当前准确 head `1d7353b0` 的 CodeRabbit 增量 review 覆盖 `5558849d..1d7353b0`，根摘要为无 actionable comments。最新完整代码验证候选为 `5f540e11`；后续均为状态文档更新，不继承更早 review 覆盖。正常集成、merge SHA/tree/parent 独立核验与可恢复归档仍待。不查 CI、不发布部署。
+自定义用户组 Task 1–5 已实现，Task 6 文档及整体验收进行中。后端 PR #421 已 squash 合并为 `f2d53c76` 并核验 tree／唯一 parent；前端 PR #420 已 retarget `master` 并重定基，差异为 53 个前端／验收文件。重定基后 Node 26.3.0 下全量 coverage 为 291 文件／7,326 项全部通过，四项均 100%；类型检查、全量 ESLint（0 errors、7 个既有 warnings）与 Vite build 通过。专用 PostgreSQL／HTTP／浏览器 3/3 结果及截图属于之前准确产品候选，不冒充重定基后 SHA；此环境使用 Goose 3.30.1、PostgreSQL 18.7、Chrome 159，不代表标准 Dockerfile build。PR #420 当前 head `d12374c7` 的准确 CodeRabbit review 仍待；先前 `ca84335b` 请求限流，旧增量 review 不覆盖当前 tip。未查 CI／checks、不绕过规则、不发布部署；最终正常集成与 whole-owned 可恢复归档仍待。
 
 v0.92.0 文档入口：[范围](product/scope-v0.92.0.md)、[规格](specs/2026-11-23-v0.92.0-custom-user-groups-spec.md)、[设计](superpowers/specs/2026-11-23-v0.92.0-custom-user-groups-design.md)、[实施计划](implementation/v0.92.0-plan.md)、[任务](implementation/v0.92.0-tasks.md)及[验收](implementation/v0.92.0-acceptance.md)。
 

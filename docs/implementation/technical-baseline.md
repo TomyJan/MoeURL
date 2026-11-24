@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-23，v0.92.0）
 
-当前 feature `feat/v0.92.0-custom-user-groups` 在单主组模型上实现自定义组；没有多组关系表、权限合并层或新运行依赖。复用现有 Go／Chi／PostgreSQL／SQLC／Vue／Zod／TanStack Query。Migration `00050` 扩展 `user_group` 名称唯一性、默认域名约束与审计；Down 在 custom group 存在时安全拒绝。Go/backend Task 1–4 与前端 Task 5 已完成，最新前端全量 7,326 项测试和四项覆盖率门槛均通过，具体命令与身份见[v0.92.0 验收](v0.92.0-acceptance.md)。PR #420 最近完成 review 的 head `5558849d` 无新增 actionable comments；后续文档 head `d5a9df26` 的 review 请求限流，当前 tip `b7d503a8` 尚无 review。Task 6 正常集成与恢复归档仍待。未发布或部署。
+当前 v0.92.0 采用单主组模型实现自定义组；没有多组关系表、权限合并层或新运行依赖。后端 PR #421 已 squash 合入 master，包含 migration `00050`、自定义组 API 与域名授权；down migration 在 custom group 存在时安全拒绝。前端 PR #420 已重定基到 squash merge 后的 master。重定基后前端全量 7,326 项测试、四项 coverage 100%、typecheck／lint／build 均通过，环境和 SHA 见[v0.92.0 验收](v0.92.0-acceptance.md)。PR #420 当前准确 tip 的 CodeRabbit review、正常集成与恢复归档待完成。未发布或部署。
 
 ## 当前已完成实施（2026-11-20，v0.90.0）
 

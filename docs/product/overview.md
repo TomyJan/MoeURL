@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-24，v0.92.0）
 
-[自定义用户组](scope-v0.92.0.md)已在单主组边界内实现 Task 1–5。最新前端全量 7,326 项及 Statements（11,315/11,315）、Branches（9,349/9,349）、Functions（3,191/3,191）、Lines（8,115/8,115）覆盖率均通过 100% 门槛；重定基后的最终前端全量测试、typecheck、lint、build 均通过。专用 PostgreSQL／HTTP／真实浏览器 3/3 证据归属原验收代码候选，不冒充重定基后 SHA 结果。后端 PR #421 已正常 squash 合并为 `f2d53c76`，tree／唯一 parent 独立核验；PR #420 已 retarget `master`，差异仅 53 个前端／验收文件。PR #420 新 tip 尚无准确 CodeRabbit review；未查 CI、不发布或部署。whole-owned 恢复归档仍待。准确状态见[开发进度](development-status.md)和[v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
+[自定义用户组](scope-v0.92.0.md)已在单主组边界内实现 Task 1–5。重定基后的最终前端全量 7,326 项、四项 coverage 100%、typecheck、lint 和 build 均通过。专用 PostgreSQL／HTTP／真实浏览器 3/3 证据归属原验收代码候选，不冒充重定基后 SHA 结果。后端 PR #421 已正常 squash 合并为 `f2d53c76`；PR #420 已 retarget `master`，差异仅 53 个前端／验收文件。PR #420 新 tip 的准确 CodeRabbit review、正常集成及 whole-owned 恢复归档仍待；未查 CI、不发布或部署。准确状态见[开发进度](development-status.md)和[v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
 
 ## 当前开发（2026-11-23，v0.91.0）
 
