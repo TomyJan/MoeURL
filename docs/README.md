@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-25，v0.92.0）
 
-自定义用户组 Task 1–5 已实现，Task 6 文档及整体验收进行中。后端 PR #421 已 squash 合并为 `f2d53c76` 并核验 tree／唯一 parent；前端 PR #420 已 retarget `master` 并重定基，差异为 53 个前端／验收文件。修复创建用户页身份 epoch 迟到回调并清理手机 E2E 的 8 个辅助组；`07a047a2`、`11f69d4e` 与状态同步 `c0f4495b` 已推至 PR #420。Node 26.3.0 下全量 coverage 为 291/291 文件、7,327/7,327 测试，四项均 100%；类型检查、全量 ESLint（0 errors、7 个既有 fixture warnings）、Vite build（1,642 modules）通过。标准 Compose 因 Docker Hub 拉取 `golang:1.27.4` 超时；本机 Go 1.26.8 静态 app 与已缓存镜像的隔离 fallback 浏览器 3/3 通过，数据库确认 8 个辅助组已清理，专属容器／卷／网络和临时镜像已删除；该结果不代表标准 Dockerfile build／CI。CodeRabbit 对 `11f69d4e` 指出的一条文档状态意见已修正并关闭 thread；针对 `c0f4495b` 的 review 请求被限流，未产生新审查。未查 CI／checks、不绕过规则、不发布部署；正常集成与 whole-owned 可恢复归档仍待。
+自定义用户组 Task 1–5 已实现，Task 6 文档及整体验收进行中。后端 PR #421 已 squash 合并为 `f2d53c76` 并核验 tree／唯一 parent；前端 PR #420 已 retarget `master` 并重定基，差异为 53 个前端／验收文件。修复创建用户页身份 epoch 迟到回调并清理手机 E2E 的 8 个辅助组；`07a047a2`、`11f69d4e` 及后续状态文档提交均已推至 PR #420。Node 26.3.0 下全量 coverage 为 291/291 文件、7,327/7,327 测试，四项均 100%；类型检查、全量 ESLint（0 errors、7 个既有 fixture warnings）、Vite build（1,642 modules）通过。标准 Compose 因 Docker Hub 拉取 `golang:1.27.4` 超时；本机 Go 1.26.8 静态 app 与已缓存镜像的隔离 fallback 浏览器 3/3 通过，数据库确认 8 个辅助组已清理，专属容器／卷／网络和临时镜像已删除；该结果不代表标准 Dockerfile build／CI。CodeRabbit 对 `11f69d4e` 指出的一条文档状态意见已修正并关闭 thread；针对 `c0f4495b` 的 review 请求被限流，未产生新审查，随后文档-only heads 不继承旧 review。未查 CI／checks、不绕过规则、不发布部署；正常集成与 whole-owned 可恢复归档仍待。
 
 v0.92.0 文档入口：[范围](product/scope-v0.92.0.md)、[规格](specs/2026-11-23-v0.92.0-custom-user-groups-spec.md)、[设计](superpowers/specs/2026-11-23-v0.92.0-custom-user-groups-design.md)、[实施计划](implementation/v0.92.0-plan.md)、[任务](implementation/v0.92.0-tasks.md)及[验收](implementation/v0.92.0-acceptance.md)。
 
