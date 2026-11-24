@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-24，v0.92.0）
 
-[自定义用户组](scope-v0.92.0.md)已在单主组边界内实现 Task 1–5。最新前端全量 7,313 项及 Statements（11,253/11,253）、Branches（9,309/9,309）、Functions（3,185/3,185）、Lines（8,066/8,066）覆盖率均通过 100% 门槛；本地 typecheck、lint、build 与专用 PostgreSQL／HTTP／真实浏览器 3/3 通过。Task 6 文档和交付仍在进行：PR #421 与堆叠 PR #420 未合并，准确 head review、正常集成核验和可恢复归档尚待。未查 CI、未发布或部署。准确状态见[开发进度](development-status.md)和[v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
+[自定义用户组](scope-v0.92.0.md)已在单主组边界内实现 Task 1–5。最新前端全量 7,323 项及 Statements（11,306/11,306）、Branches（9,338/9,338）、Functions（3,190/3,190）、Lines（8,108/8,108）覆盖率均通过 100% 门槛；本地 typecheck、lint、build 与专用 PostgreSQL／HTTP／真实浏览器 3/3 通过。Task 6 文档和交付仍在进行：PR #421 与堆叠 PR #420 未合并，准确 head review、正常集成核验和可恢复归档尚待。未查 CI、未发布或部署。准确状态见[开发进度](development-status.md)和[v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
 
 ## 当前开发（2026-11-23，v0.91.0）
 
