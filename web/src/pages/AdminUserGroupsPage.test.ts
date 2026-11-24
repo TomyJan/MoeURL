@@ -176,6 +176,7 @@ it('closes group dialogs through the dialog model and preserves delete failure f
   await fireEvent.click(screen.getByRole('button', { name: 'userGroups.confirmDelete' }))
   await screen.findAllByText('userGroups.managementFailed')
   expect(screen.getAllByText('userGroups.managementFailed')).toHaveLength(2)
+  await waitFor(() => expect(screen.getByRole('button', { name: 'userGroups.confirmDelete' })).toHaveProperty('disabled', false))
   await fireEvent.click(screen.getByRole('button', { name: 'dismiss-dialog' }))
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   expect(view.writes.filter(({ path }) => path.endsWith('/delete'))).toHaveLength(1)
@@ -189,7 +190,9 @@ it('edits custom details with the captured revision and blocks deletion while me
   await fireEvent.click(screen.getByRole('button', { name: 'userGroups.saveDetails' }))
   await screen.findByRole('tab', { name: 'On call' })
   expect(view.writes).toContainEqual({ path: '/api/v1/admin/user-group/update', input: { groupKey: custom.key, name: 'On call', description: custom.description, expectedUpdatedAt: version } })
+  await waitFor(() => expect(screen.getByRole('button', { name: 'userGroups.deleteCustom' })).toHaveProperty('disabled', false))
   await fireEvent.click(screen.getByRole('button', { name: 'userGroups.deleteCustom' }))
+  await screen.findByRole('button', { name: 'userGroups.confirmDelete' })
   const confirmDelete = screen.getByRole('button', { name: 'userGroups.confirmDelete' })
   expect(confirmDelete).toHaveProperty('disabled', true)
   expect(screen.getByText('userGroups.deleteMembersBlocked')).toBeTruthy()
@@ -534,4 +537,179 @@ it('refuses a setting snapshot whose shared revision differs from the group list
   await nextTick()
   expect(screen.getByRole('button', { name: 'userGroups.save' })).toHaveProperty('disabled', true)
   expect(screen.getByLabelText('groupDefault.domain')).toHaveProperty('disabled', true)
+})
+
+it('requires reconfirmation when the delete target changes while confirmation is open', async () => {
+  const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
+  view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom] })
+  await fireEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.deleteCustom' }))
+
+  const refreshed = view.groups.find(({ key }) => key === custom.key)!
+  refreshed.updatedAt = nextVersion
+  view.client.setQueryData([...userGroupQueryKey, 'A', 1], view.catalog())
+  await screen.findByRole('button', { name: 'userGroups.confirmDelete' })
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.confirmDelete' }))
+
+  await screen.findByText('userGroups.conflict')
+  expect(view.writes.filter(({ path }) => path.endsWith('/delete'))).toHaveLength(0)
+  expect(screen.queryByRole('dialog')).toBeNull()
+})
+
+it('reloads after a server-side delete revision conflict without retrying the mutation', async () => {
+  const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
+  view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom], overrides: { '/api/v1/admin/user-group/delete': async () => response(null, 300202) } })
+  await fireEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'userGroups.deleteCustom' })).toHaveProperty('disabled', false))
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.deleteCustom' }))
+  await fireEvent.click(await screen.findByRole('button', { name: 'userGroups.confirmDelete' }))
+
+  await screen.findByText('userGroups.conflict')
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(view.writes.filter(({ path }) => path.endsWith('/delete'))).toHaveLength(1)
+})
+
+it('keeps delete recovery feedback when refreshing a changed target fails', async () => {
+  const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
+  view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom] })
+  await fireEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+  await waitFor(() => expect(screen.getByLabelText('groupDefault.domain')).toHaveProperty('disabled', false))
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.deleteCustom' }))
+  await screen.findByRole('button', { name: 'userGroups.confirmDelete' })
+  const refreshed = view.groups.find(({ key }) => key === custom.key)!
+  refreshed.updatedAt = nextVersion
+  view.client.setQueryData([...userGroupQueryKey, 'A', 1], view.catalog())
+  await waitFor(() => expect(screen.getByLabelText('groupDefault.domain')).toHaveProperty('disabled', true))
+  view.overrides['/api/v1/admin/user-group/list'] = async () => { throw new Error('offline during conflict refresh') }
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.confirmDelete' }))
+
+  await screen.findByText('userGroups.managementFailed')
+  expect(view.writes.filter(({ path }) => path.endsWith('/delete'))).toHaveLength(0)
+})
+
+it('ignores a late delete-conflict refresh after identity revocation', async () => {
+  const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
+  view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom] })
+  await fireEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+  await waitFor(() => expect(screen.getByLabelText('groupDefault.domain')).toHaveProperty('disabled', false))
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.deleteCustom' }))
+  await screen.findByRole('button', { name: 'userGroups.confirmDelete' })
+  const refreshed = view.groups.find(({ key }) => key === custom.key)!
+  refreshed.updatedAt = nextVersion
+  view.client.setQueryData([...userGroupQueryKey, 'A', 1], view.catalog())
+  await waitFor(() => expect(screen.getByLabelText('groupDefault.domain')).toHaveProperty('disabled', true))
+  const pendingRefresh = createDeferred<Response>()
+  view.overrides['/api/v1/admin/user-group/list'] = () => pendingRefresh.promise
+  const priorListReads = view.requests.filter((path) => path === '/api/v1/admin/user-group/list').length
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.confirmDelete' }))
+  await waitFor(() => expect(view.requests.filter((path) => path === '/api/v1/admin/user-group/list')).toHaveLength(priorListReads + 1))
+
+  revokeAccountIdentity(view.client)
+  pendingRefresh.resolve(response(view.catalog()))
+  await flushEventLoop()
+  expect(screen.queryByText('userGroups.conflict')).toBeNull()
+  expect(view.writes.filter(({ path }) => path.endsWith('/delete'))).toHaveLength(0)
+})
+
+it('keeps the delete dialog locked and ignores duplicate open events while its write is pending', async () => {
+  const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
+  const pendingDelete = createDeferred<Response>()
+  view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom], overrides: { '/api/v1/admin/user-group/delete': () => pendingDelete.promise } })
+  await fireEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'userGroups.deleteCustom' })).toHaveProperty('disabled', false))
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.deleteCustom' }))
+  await fireEvent.click(await screen.findByRole('button', { name: 'userGroups.confirmDelete' }))
+  await waitFor(() => expect(view.writes.filter(({ path }) => path.endsWith('/delete'))).toHaveLength(1))
+
+  const cancel = screen.getByRole('button', { name: 'userGroups.cancel' })
+  cancel.removeAttribute('disabled')
+  await fireEvent.click(cancel)
+  const deleteEntry = screen.getByRole('button', { name: 'userGroups.deleteCustom' })
+  deleteEntry.removeAttribute('disabled')
+  await fireEvent.click(deleteEntry)
+  expect(screen.getByRole('dialog')).toBeTruthy()
+  expect(view.writes.filter(({ path }) => path.endsWith('/delete'))).toHaveLength(1)
+
+  pendingDelete.resolve(response({ groupKey: custom.key, name: custom.name }))
+  await waitFor(() => expect(view.client.isMutating()).toBe(0))
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+})
+
+it('stops a successful permission refresh when identity changes between cache invalidations', async () => {
+  view = mountGroupDefault(AdminUserGroupsPage)
+  await editPermission()
+  const invalidate = view.client.invalidateQueries.bind(view.client)
+  let invalidations = 0
+  vi.spyOn(view.client, 'invalidateQueries').mockImplementation(async (...args) => {
+    invalidations++
+    const result = await invalidate(...args)
+    if (invalidations === 2) revokeAccountIdentity(view.client)
+    return result
+  })
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
+  await waitFor(() => expect(view.client.isMutating()).toBe(0))
+  expect(screen.queryByText('userGroups.saveSuccess')).toBeNull()
+  expect(view.requests.filter((path) => path === '/api/v1/auth/me')).toHaveLength(0)
+})
+
+it('reloads the latest group after a details conflict before allowing another edit', async () => {
+  const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
+  view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom], overrides: { '/api/v1/admin/user-group/update': async () => response(null, 300202) } })
+  await fireEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.editDetails' }))
+  await fireEvent.update(screen.getByLabelText('userGroups.name'), 'My edit')
+  const refreshed = view.groups.find(({ key }) => key === custom.key)!
+  refreshed.name = 'Concurrent edit'
+  refreshed.description = 'Latest description'
+  refreshed.updatedAt = nextVersion
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.saveDetails' }))
+
+  await screen.findAllByText('userGroups.conflict')
+  expect(screen.getByRole('button', { name: 'userGroups.saveDetails' })).toBeTruthy()
+  expect(screen.getByLabelText('userGroups.name')).toHaveProperty('value', 'Concurrent edit')
+  expect(screen.getByLabelText('userGroups.descriptionField')).toHaveProperty('value', 'Latest description')
+  expect(screen.getByRole('tab', { name: 'Concurrent edit' })).toBeTruthy()
+})
+
+it('keeps management feedback when a server-side details conflict refresh fails', async () => {
+  const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
+  view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom], overrides: { '/api/v1/admin/user-group/update': async () => response(null, 300202) } })
+  await fireEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.editDetails' }))
+  await fireEvent.update(screen.getByLabelText('userGroups.name'), 'My edit')
+  view.overrides['/api/v1/admin/user-group/list'] = async () => { throw new Error('offline during details conflict refresh') }
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.saveDetails' }))
+  await screen.findByText('userGroups.managementFailed')
+  expect(screen.queryByRole('button', { name: 'userGroups.saveDetails' })).toBeNull()
+  expect(view.writes.filter(({ path }) => path.endsWith('/update'))).toHaveLength(1)
+})
+
+it('ignores a late server-side details conflict refresh after identity revocation', async () => {
+  const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
+  const pendingRefresh = createDeferred<Response>()
+  view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom], overrides: { '/api/v1/admin/user-group/update': async () => response(null, 300202) } })
+  await fireEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.editDetails' }))
+  await fireEvent.update(screen.getByLabelText('userGroups.name'), 'My edit')
+  view.overrides['/api/v1/admin/user-group/list'] = () => pendingRefresh.promise
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.saveDetails' }))
+  await waitFor(() => expect(view.requests.filter((path) => path === '/api/v1/admin/user-group/list')).toHaveLength(2))
+  revokeAccountIdentity(view.client)
+  pendingRefresh.resolve(response(view.catalog()))
+  await flushEventLoop()
+  expect(screen.queryByText('userGroups.conflict')).toBeNull()
+  expect(screen.queryByText('userGroups.managementFailed')).toBeNull()
+})
+
+it('keeps the conflict visible without reopening a details form when the target disappeared', async () => {
+  const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
+  view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom], overrides: { '/api/v1/admin/user-group/update': async () => response(null, 300202) } })
+  await fireEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.editDetails' }))
+  await fireEvent.update(screen.getByLabelText('userGroups.name'), 'My edit')
+  view.groups.splice(view.groups.findIndex(({ key }) => key === custom.key), 1)
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.saveDetails' }))
+  await screen.findByText('userGroups.conflict')
+  expect(screen.queryByRole('button', { name: 'userGroups.saveDetails' })).toBeNull()
+  expect(screen.queryByRole('tab', { name: 'Operations' })).toBeNull()
 })

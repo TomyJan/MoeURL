@@ -69,6 +69,7 @@ it('cannot replay captured old-owner query options after identity changes', asyn
   const captured = { ...old.options, queryKey: old.queryKey, staleTime: 0 }
   identity(view.client, 'B')
   await waitFor(() => expect(view.state.reads).toBe(2))
+  await screen.findByText('direct')
   await expect(view.client.fetchQuery(captured)).rejects.toThrow('Redirect preference unavailable')
   expect(view.state.reads).toBe(2)
   expect(screen.getByText('direct')).toBeTruthy()
