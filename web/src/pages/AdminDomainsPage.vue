@@ -44,7 +44,7 @@
             <legend>{{ t('domains.allowedGroups') }}</legend>
             <label v-for="group in groupKeys" :key="group">
               <input type="checkbox" :checked="draft.allowedGroups.includes(group)" @change="toggleGroup(group, $event)" />
-              {{ groupNames[group] ?? group }}
+              {{ groupNames[group] }}
             </label>
           </fieldset>
           <v-switch v-model="draft.enabled" :label="t('domains.enabled')" :disabled="writesBlocked || (!creating && selectedDomain?.isDefault)" />
@@ -130,8 +130,9 @@ const queryKey = computed(() => [...managedDomainQueryKey, identity.scope.value.
 const query = useQuery({ queryKey, queryFn: listDomains, enabled: eligible, retry: false })
 const groupsQuery = useQuery({ queryKey: computed(() => [...userGroupQueryKey, identity.scope.value.userId, identity.scope.value.epoch]), queryFn: listUserGroups, enabled: eligible, retry: false, staleTime: Infinity })
 const domains = computed(() => query.data.value?.items ?? [])
-const groupKeys = computed(() => (groupsQuery.data.value?.groups ?? []).filter(({ key }) => key !== 'guest').map(({ key }) => key))
-const groupNames = computed(() => Object.fromEntries((groupsQuery.data.value?.groups ?? []).map(({ key, name }) => [
+const userGroups = computed(() => groupsQuery.data.value?.groups ?? [])
+const groupKeys = computed(() => userGroups.value.filter(({ key }) => key !== 'guest').map(({ key }) => key))
+const groupNames = computed(() => Object.fromEntries(userGroups.value.map(({ key, name }) => [
   key,
   key === 'user' || key === 'admin' ? t(`domains.groups.${key}`) : name,
 ])))
@@ -440,8 +441,8 @@ function targetsCurrentSelection(operation: Operation): boolean {
 .domains-page__list { display: flex; flex-direction: column; gap: 8px; }
 .domains-page__editor { display: grid; align-content: start; gap: 12px; }
 .domains-page__editors { display: grid; align-content: start; gap: 18px; min-width: 0; }
-.domains-page__groups { display: flex; gap: 18px; padding: 12px; border: 1px solid rgb(var(--v-theme-outline-variant)); border-radius: 8px; }
-.domains-page__groups label { display: flex; gap: 6px; align-items: center; }
+.domains-page__groups { display: flex; flex-wrap: wrap; gap: 18px; padding: 12px; border: 1px solid rgb(var(--v-theme-outline-variant)); border-radius: 8px; }
+.domains-page__groups label { display: flex; gap: 6px; align-items: center; max-width: 100%; min-width: 0; overflow-wrap: anywhere; }
 .domains-page__actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 @media (max-width: 720px) { .domains-page__header { align-items: start; flex-direction: column; } .domains-page__workspace { grid-template-columns: minmax(0, 1fr); } }
 </style>

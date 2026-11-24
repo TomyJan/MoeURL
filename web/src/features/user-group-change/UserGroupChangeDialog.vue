@@ -48,7 +48,11 @@ const selectedGroup = computed(() => groupsQuery.data.value?.groups.find(({ key 
 const mutation = useMutation({ mutationFn: changeUserGroup, retry: false })
 let revision = 0
 watch(() => props.target, () => { group.value = props.target.group; confirmed.value = false; revision++ }, { flush: 'sync' })
-watch(options, (items) => { if (!items.some(({ value }) => value === group.value)) group.value = items.find(({ value }) => value === 'user')?.value ?? items[0]?.value ?? '' }, { immediate: true })
+watch(options, (items) => {
+  if (!groupsQuery.data.value) return
+  if (!items.length) { group.value = ''; return }
+  if (!items.some(({ value }) => value === group.value)) group.value = items.find(({ value }) => value === 'user')!.value
+}, { immediate: true })
 watch(allowed, (value) => { if (!value) emit('close') }, { flush: 'sync' })
 const canSave = computed(() => allowed.value && !groupsQuery.isPending.value && !groupsQuery.isError.value && options.value.some(({ value }) => value === group.value) && confirmed.value && group.value !== props.target.group && !mutation.isPending.value)
 

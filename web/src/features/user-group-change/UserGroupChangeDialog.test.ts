@@ -67,6 +67,42 @@ describe('membership dialog', () => {
     expect(JSON.parse(fetcher.mock.calls[0]![1]!.body as string)).toEqual({ id: member.id, groupKey: customKey, expectedUpdatedAt: member.updatedAt })
     await waitFor(() => expect(view.emitted().close).toHaveLength(1))
   })
+  it('preserves the target current group until a previously uncached group catalog loads', async () => {
+    const target = { ...member, group: 'admin' }
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { groups: [
+      { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: '2026-10-23T00:00:00Z' },
+      { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 0, permissions: [], updatedAt: '2026-10-23T00:00:00Z' },
+      { key: 'admin', name: 'Administrator', description: '', builtin: true, editable: true, memberCount: 1, permissions: ['admin:access'], updatedAt: '2026-10-23T00:00:00Z' },
+    ], permissions: [{ key: 'admin:access', category: 'administration', protected: true }], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user', 'admin'], permissions: [] })) }, meta: {} }))))
+    mount(target, [], false)
+
+    const select = await screen.findByLabelText('membership.group') as HTMLSelectElement
+    await waitFor(() => expect(select.disabled).toBe(false))
+    expect(select.value).toBe('admin')
+    expect((screen.getByRole('button', { name: 'membership.save' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+  it('clears the selection and prevents saving when the current group catalog is empty', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: {
+      groups: [], permissions: [], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user'], permissions: [] })),
+    }, meta: {} })))
+    vi.stubGlobal('fetch', fetcher)
+    mount(member, [], false)
+
+    const select = await screen.findByLabelText('membership.group') as HTMLSelectElement
+    await waitFor(() => expect(select.value).toBe(''))
+    expect((screen.getByRole('button', { name: 'membership.save' }) as HTMLButtonElement).disabled).toBe(true)
+    await fireEvent.click(screen.getByRole('button', { name: 'membership.save' }))
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+  it('does not replace a target current group when the loaded catalog omits that group', async () => {
+    const target = { ...member, group: 'retired-custom-group' }
+    const view = mount(target)
+
+    const select = screen.getByLabelText('membership.group') as HTMLSelectElement
+    await waitFor(() => expect(select.value).toBe('user'))
+    expect(view.client.getQueryData([...userGroupQueryKey, '00000000-0000-0000-0000-000000000001', 1])).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'membership.save' }) as HTMLButtonElement).disabled).toBe(true)
+  })
   it('lets an administrator recover when the current group catalog initially fails', async () => {
     const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>()
       .mockResolvedValueOnce(new Response(JSON.stringify({ code: 900000, message: 'offline', data: null, meta: {} })))

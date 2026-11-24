@@ -4,6 +4,7 @@ import { nextTick, ref } from 'vue'
 import { setImmediate as flushEventLoop } from 'node:timers/promises'
 import AdminUserGroupsPage from './AdminUserGroupsPage.vue'
 import { mountGroupDefault, response, groupId, version, nextVersion } from '@/test/group-default'
+import { userGroupQueryKey } from '@/entities/user-group/api'
 import { createDeferred } from '@/test/deferred'
 import { revokeAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 
@@ -95,6 +96,39 @@ it('does not apply a stale edit dialog to a newly selected builtin group', async
   await fireEvent.click(screen.getByRole('button', { name: 'userGroups.saveDetails' }))
   expect(view.writes.filter(({ path }) => path.endsWith('/update'))).toHaveLength(0)
 })
+it('requires resolving a dirty permission draft before opening the details editor', async () => {
+  const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: ['short_link:create'], updatedAt: version }
+  view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom] })
+  await fireEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+  const permission = screen.getByLabelText('userGroups.permissions.short_link:create.label') as HTMLInputElement
+  await waitFor(() => expect(permission.disabled).toBe(false))
+  expect(permission.checked).toBe(true)
+  await fireEvent.click(permission)
+  expect(permission.checked).toBe(false)
+  expect(screen.getByRole('button', { name: 'userGroups.save' })).toHaveProperty('disabled', false)
+
+  const editButton = screen.getByRole('button', { name: 'userGroups.editDetails' }) as HTMLButtonElement
+  expect(editButton.disabled).toBe(true)
+  expect(screen.getByText('userGroups.detailsEditBlockedByDraft')).toBeTruthy()
+  editButton.removeAttribute('disabled')
+  await fireEvent.click(editButton)
+  expect(screen.queryByLabelText('userGroups.name')).toBeNull()
+})
+it('requires resolving a dirty default-domain draft before opening the details editor', async () => {
+  const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
+  view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom] })
+  await fireEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+  const defaultDomain = await screen.findByLabelText('groupDefault.domain') as HTMLSelectElement
+  await waitFor(() => expect(defaultDomain.disabled).toBe(false))
+  await fireEvent.update(defaultDomain, groupId)
+
+  const editButton = screen.getByRole('button', { name: 'userGroups.editDetails' }) as HTMLButtonElement
+  expect(editButton.disabled).toBe(true)
+  expect(screen.getByText('userGroups.detailsEditBlockedByDraft')).toBeTruthy()
+  editButton.removeAttribute('disabled')
+  await fireEvent.click(editButton)
+  expect(screen.queryByLabelText('userGroups.name')).toBeNull()
+})
 it('keeps the group form open while a create mutation is pending', async () => {
   const pending = createDeferred<Response>()
   view = mountGroupDefault(AdminUserGroupsPage, { overrides: { '/api/v1/admin/user-group/create': () => pending.promise } })
@@ -163,6 +197,23 @@ it('edits custom details with the captured revision and blocks deletion while me
   await fireEvent.click(confirmDelete)
   expect(screen.getByRole('dialog')).toBeTruthy()
   expect(view.writes.some(({ path }) => path.endsWith('/delete'))).toBe(false)
+})
+it('uses the revision captured when opening details even if the group refreshes during editing', async () => {
+  const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
+  view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom] })
+  await fireEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.editDetails' }))
+  await fireEvent.update(screen.getByLabelText('userGroups.name'), 'My edit')
+
+  const refreshed = view.groups.find(({ key }) => key === custom.key)!
+  refreshed.name = 'Concurrent edit'
+  refreshed.updatedAt = nextVersion
+  view.client.setQueryData([...userGroupQueryKey, 'A', 1], view.catalog())
+  await screen.findByRole('tab', { name: 'Concurrent edit' })
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.saveDetails' }))
+
+  await waitFor(() => expect(view.writes.filter(({ path }) => path.endsWith('/update'))).toHaveLength(1))
+  expect(view.writes.find(({ path }) => path.endsWith('/update'))?.input).toEqual({ groupKey: custom.key, name: 'My edit', description: custom.description, expectedUpdatedAt: version })
 })
 it('deletes an empty custom group using its captured version and refreshes the list', async () => {
   const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }

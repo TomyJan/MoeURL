@@ -108,7 +108,7 @@ function resetForm() {
   username.value = ''
   password.value = ''
   nickname.value = ''
-  groupKey.value = groupOptions.value.find(({ value }) => value === 'user')?.value ?? groupOptions.value[0]?.value ?? ''
+  groupKey.value = groupOptions.value.find(({ value }) => value === 'user')?.value ?? ''
   status.value = 'active'
 }
 </script>

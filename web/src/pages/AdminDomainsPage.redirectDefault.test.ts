@@ -2,7 +2,7 @@ import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/vu
 import { afterEach, expect, it, vi } from 'vitest'
 import AdminDomainsPage from './AdminDomainsPage.vue'
 import { messages } from '@/app/i18n'
-import { globalId, mountRedirectDefaults, nextRevision, revision } from '@/test/domain-redirect-default'
+import { globalId, mountRedirectDefaults, nextRevision, redirectResponse, revision } from '@/test/domain-redirect-default'
 
 let view: ReturnType<typeof mountRedirectDefaults>
 afterEach(() => { cleanup(); view?.client.clear(); vi.unstubAllGlobals() })
@@ -10,6 +10,29 @@ afterEach(() => { cleanup(); view?.client.clear(); vi.unstubAllGlobals() })
 async function loaded() { await waitFor(() => expect(view.client.isFetching()).toBe(0)) }
 /** Finds the existing details form independently of the new mode form. */
 function details() { return within(screen.getByRole('textbox', { name: messages.en.domains.host }).closest('form')!) }
+
+it('keeps the independent redirect-default editor available when the group catalog is empty', async () => {
+  view = mountRedirectDefaults(AdminDomainsPage, {
+    admin: true,
+    overrides: {
+      '/api/v1/admin/user-group/list': async () => redirectResponse({
+        groups: [], permissions: [],
+        presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user', 'admin'], permissions: [] })),
+      }),
+    },
+  })
+  await screen.findByRole('heading', { name: 'Default redirect mode' })
+  await loaded()
+
+  expect(screen.getByText(messages.en.domains.groupsUnavailable)).toBeTruthy()
+  await fireEvent.click(screen.getByRole('button', { name: 'Intermediate page' }))
+  expect(screen.getByRole('button', { name: 'Save redirect default' })).toHaveProperty('disabled', false)
+  expect(details().getByRole('button', { name: messages.en.domains.save })).toHaveProperty('disabled', true)
+
+  await fireEvent.click(screen.getByRole('button', { name: 'Save redirect default' }))
+  await waitFor(() => expect(view.state.writes).toHaveLength(1))
+  expect(view.state.writePaths[0]).toBe('/api/v1/admin/domain/set-redirect-default')
+})
 
 it('discards the mode draft when reselecting the same domain without losing editor interlocks', async () => {
   view = mountRedirectDefaults(AdminDomainsPage, { admin: true })

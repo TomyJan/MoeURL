@@ -107,7 +107,30 @@ for (const width of [1280, 390]) {
       expectedUpdatedAt: group.updatedAt,
     })
 
-    await page.reload()
+    if (width === 390) {
+      for (let index = 1; index <= 8; index++) {
+        await post(page.request, '/admin/user-group/create', {
+          name: `Long operations authorization group ${index} ${suffix}`,
+          description: 'Responsive authorization option fixture',
+        })
+      }
+      await page.reload()
+      await page.goto('/admin/domain')
+      await page.getByRole('button', { name: `Custom ${suffix}`, exact: false }).click()
+      const groupsFieldset = page.locator('.domains-page__groups')
+      await expect(groupsFieldset).toBeVisible()
+      const labelGeometry = await groupsFieldset.locator('label').evaluateAll((labels) => labels.map((label) => {
+        const { top, width: labelWidth } = label.getBoundingClientRect()
+        return { top, width: labelWidth }
+      }))
+      const fieldsetWidth = await groupsFieldset.evaluate((element) => element.getBoundingClientRect().width)
+      expect(new Set(labelGeometry.map(({ top }) => top)).size).toBeGreaterThan(1)
+      expect(labelGeometry.every(({ width: labelWidth }) => labelWidth <= fieldsetWidth)).toBe(true)
+      await expectNoHorizontalOverflow(page)
+      await page.screenshot({ path: info.outputPath('custom-domain-group-grants-390-zh.png'), fullPage: true })
+    }
+
+    await page.goto('/admin/user/group')
     await page.getByRole('tab', { name: groupName, exact: true }).click()
     await expect(page.getByRole('checkbox', { name: '创建短链', exact: true })).toBeChecked()
     await expectNoHorizontalOverflow(page)
@@ -117,8 +140,12 @@ for (const width of [1280, 390]) {
     await page.getByLabel('账号', { exact: true }).fill(username)
     await page.getByLabel('密码', { exact: true }).fill(password)
     await page.getByLabel('昵称', { exact: true }).fill(`Operator ${suffix}`)
-    await page.getByRole('combobox', { name: '用户组', exact: true }).press('Enter')
-    await page.getByRole('option', { name: groupName, exact: true }).click()
+    const groupCombobox = page.getByRole('combobox', { name: '用户组', exact: true })
+    await groupCombobox.press('Enter')
+    await expect(page.getByRole('listbox', { name: '用户组' })).toBeVisible()
+    await groupCombobox.press(groupName[0]!.toLowerCase())
+    await expect(groupCombobox).toHaveValue(groupName)
+    await groupCombobox.press('Escape')
     const createUserResponse = page.waitForResponse((response) =>
       new URL(response.url()).pathname === '/api/v1/admin/user/create' && response.request().method() === 'POST',
     )

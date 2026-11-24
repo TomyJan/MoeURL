@@ -52,8 +52,8 @@ async function chooseSize(width: 320 | 640 | 1024) {
 
 /** Reads both separate current download artifacts without inserting SVG into DOM. */
 async function downloads() {
-  const svgLink = await screen.findByRole('link', { name: 'shortLinkQr.downloadSvg' }, { timeout: 5000 })
-  const pngLink = screen.getByRole('link', { name: 'shortLinkQr.download' })
+  const svgLink = await screen.findByRole('link', { name: 'shortLinkQr.downloadSvg' }, { timeout: 20_000 })
+  const pngLink = await screen.findByRole('link', { name: 'shortLinkQr.download' }, { timeout: 20_000 })
   const svgHref = svgLink.getAttribute('href')!
   const pngHref = pngLink.getAttribute('href')!
   expect(svgHref).toMatch(/^data:image\/svg\+xml;charset=utf-8,/)

@@ -18,7 +18,7 @@
     </div>
     <template v-else>
       <v-tabs :model-value="activeGroupKey" class="user-groups-page__tabs" show-arrows @update:model-value="changeGroup">
-        <v-tab v-for="group in displayedGroups" :key="group.key" :value="group.key" :disabled="pending">{{ group.name }}</v-tab>
+        <v-tab v-for="group in displayedGroups" :key="group.key" :value="group.key" :disabled="pending || groupDialog !== ''">{{ group.name }}</v-tab>
       </v-tabs>
       <ActionToast v-if="feedback" :key="feedbackRevision + ':' + feedback" :type="feedback === 'success' ? 'success' : feedback === 'conflict' ? 'warning' : 'error'">{{ t(feedbackKey) }}</ActionToast>
       <v-alert v-if="refreshBroken" type="warning">
@@ -28,8 +28,9 @@
       <!-- The nonempty catalog branch guarantees an active group; capture its rendered target for event guards. -->
       <template v-for="group in displayedGroups.filter((candidate) => candidate.key === activeGroupKey)" :key="identity.scope.value.epoch + ':' + group.key + ':' + group.updatedAt + ':' + feedbackRevision">
         <div v-if="!group.builtin" class="user-groups-page__custom-actions">
-          <v-btn :disabled="pending || groupMutation.isPending.value" variant="outlined" @click="openEdit(group)">{{ t('userGroups.editDetails') }}</v-btn>
+          <v-btn :disabled="pending || groupMutation.isPending.value || draft.isDirty(group) || defaultDirty(group.key)" variant="outlined" @click="openEdit(group)">{{ t('userGroups.editDetails') }}</v-btn>
           <v-btn :disabled="pending || groupMutation.isPending.value" color="error" variant="text" @click="deleteDialog = true">{{ t('userGroups.deleteCustom') }}</v-btn>
+          <v-alert v-if="draft.isDirty(group) || defaultDirty(group.key)" type="warning" variant="tonal">{{ t('userGroups.detailsEditBlockedByDraft') }}</v-alert>
         </div>
         <v-alert v-if="groupFeedback" type="error" variant="tonal">{{ t('userGroups.managementFailed') }}</v-alert>
         <UserGroupPermissionEditor
@@ -123,12 +124,14 @@ const queryClient = useQueryClient()
 const groupIdentity = useAccountIdentity()
 const { identity, query, settingQuery, canManage, canManageDefault, activeGroupKey, activeGroup, displayedGroups, currentDefault, draft, stale, feedback, feedbackKind, feedbackRevision, refreshBroken, pending, groupReady, settingReady, defaultDirty, applyPreset, setPermission, savePermissions, selectDefault, saveDefault, cancelDefault, cancelPermissions, reload, changeGroup } = useGroupDefaultManagement()
 const groupDialog = ref<'' | 'create' | 'edit'>('')
+const groupEditSnapshot = ref<Pick<UserGroup, 'key' | 'updatedAt'> | null>(null)
 const deleteDialog = ref(false)
 const groupName = ref('')
 const groupDescription = ref('')
 const groupFeedback = ref(false)
 watch(groupIdentity.scope, () => {
   groupDialog.value = ''
+  groupEditSnapshot.value = null
   deleteDialog.value = false
   groupName.value = ''
   groupDescription.value = ''
@@ -136,18 +139,20 @@ watch(groupIdentity.scope, () => {
 }, { flush: 'sync' })
 const groupMutation = useMutation({
   retry: false,
-  mutationFn: async (command: { kind: 'create'; scope: typeof groupIdentity.scope.value } | { kind: 'edit'; group: UserGroup; scope: typeof groupIdentity.scope.value } | { kind: 'delete'; group: UserGroup; scope: typeof groupIdentity.scope.value }) => {
+  mutationFn: async (command: { kind: 'create'; scope: typeof groupIdentity.scope.value } | { kind: 'edit'; group: Pick<UserGroup, 'key' | 'updatedAt'>; scope: typeof groupIdentity.scope.value } | { kind: 'delete'; group: UserGroup; scope: typeof groupIdentity.scope.value }) => {
     if (!groupIdentity.isCurrent(command.scope) || !canManage.value) throw new Error('Inactive group manager')
-    if (command.kind === 'create') return createCustomUserGroup({ name: groupName.value.trim(), description: groupDescription.value })
-    if (command.kind === 'edit') return updateCustomUserGroup({ groupKey: command.group.key, name: groupName.value.trim(), description: groupDescription.value, expectedUpdatedAt: command.group.updatedAt })
-    return deleteCustomUserGroup({ groupKey: command.group.key, expectedUpdatedAt: command.group.updatedAt })
+    if (command.kind === 'create') return { kind: 'saved' as const, result: await createCustomUserGroup({ name: groupName.value.trim(), description: groupDescription.value }) }
+    if (command.kind === 'edit') return { kind: 'saved' as const, result: await updateCustomUserGroup({ groupKey: command.group.key, name: groupName.value.trim(), description: groupDescription.value, expectedUpdatedAt: command.group.updatedAt }) }
+    const result = await deleteCustomUserGroup({ groupKey: command.group.key, expectedUpdatedAt: command.group.updatedAt })
+    return { kind: 'deleted' as const, result }
   },
   async onSuccess(result, command) {
     if (!groupIdentity.isCurrent(command.scope)) return
     groupFeedback.value = false
     groupDialog.value = ''
+    groupEditSnapshot.value = null
     deleteDialog.value = false
-    if (command.kind === 'delete') {
+    if (result.kind === 'deleted') {
       queryClient.removeQueries({ queryKey: adminGroupDefaultDomainQueryKey })
       await query.refetch()
       if (!groupIdentity.isCurrent(command.scope)) return
@@ -157,23 +162,29 @@ const groupMutation = useMutation({
       ])
       return
     }
-    if (!('group' in result)) return
-    activeGroupKey.value = result.group.key
-    await reload(result.group.key)
+    activeGroupKey.value = result.result.group.key
+    await reload(result.result.group.key)
   },
   onError(_error, command) { if (groupIdentity.isCurrent(command.scope)) groupFeedback.value = true },
 })
 const feedbackKey = computed(() => (feedbackKind.value === 'default'
   ? { success: 'groupDefault.saved', conflict: 'groupDefault.conflict', 'reload-error': 'groupDefault.reloadFailed', 'conflict-reload-error': 'groupDefault.reloadFailed', error: 'groupDefault.saveFailed' }
   : { success: 'userGroups.saveSuccess', conflict: 'userGroups.conflict', 'reload-error': 'groupDefault.reloadFailed', 'conflict-reload-error': 'userGroups.conflictReloadFailed', error: 'userGroups.saveFailed' })[feedback.value as 'success' | 'conflict' | 'reload-error' | 'conflict-reload-error' | 'error'])
-function openCreate() { groupName.value = ''; groupDescription.value = ''; groupFeedback.value = false; groupDialog.value = 'create' }
-function openEdit(group: UserGroup) { if (group.builtin) return; groupName.value = group.name; groupDescription.value = group.description; groupFeedback.value = false; groupDialog.value = 'edit' }
-function closeGroupDialog() { if (!groupMutation.isPending.value) groupDialog.value = '' }
+function openCreate() { groupEditSnapshot.value = null; groupName.value = ''; groupDescription.value = ''; groupFeedback.value = false; groupDialog.value = 'create' }
+function openEdit(group: UserGroup) {
+  if (group.builtin || draft.isDirty(group) || defaultDirty(group.key)) return
+  groupEditSnapshot.value = { key: group.key, updatedAt: group.updatedAt }
+  groupName.value = group.name
+  groupDescription.value = group.description
+  groupFeedback.value = false
+  groupDialog.value = 'edit'
+}
+function closeGroupDialog() { if (!groupMutation.isPending.value) { groupDialog.value = ''; groupEditSnapshot.value = null } }
 function saveGroupDetails() {
   if (!canManage.value || !groupName.value.trim() || groupMutation.isPending.value) return
   groupFeedback.value = false
   if (groupDialog.value === 'create') groupMutation.mutate({ kind: 'create', scope: groupIdentity.scope.value })
-  else if (groupDialog.value === 'edit' && activeGroup.value && !activeGroup.value.builtin) groupMutation.mutate({ kind: 'edit', group: activeGroup.value, scope: groupIdentity.scope.value })
+  else if (groupDialog.value === 'edit' && groupEditSnapshot.value && activeGroup.value?.key === groupEditSnapshot.value.key && !activeGroup.value.builtin && !draft.isDirty(activeGroup.value) && !defaultDirty(activeGroup.value.key)) groupMutation.mutate({ kind: 'edit', group: groupEditSnapshot.value, scope: groupIdentity.scope.value })
 }
 function deleteGroup() {
   const group = activeGroup.value

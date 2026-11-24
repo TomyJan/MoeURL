@@ -719,6 +719,7 @@ export const messages = {
       create: '创建',
       saveDetails: '保存信息',
       editDetails: '编辑组信息',
+      detailsEditBlockedByDraft: '请先保存或取消当前组的权限和默认域名草稿，再编辑组信息。',
       deleteCustom: '删除组',
       deleteTitle: '删除自定义组',
       deleteConfirmation: '确定删除“{name}”（{count} 名成员）？',
@@ -964,7 +965,7 @@ export const messages = {
     },
     domains: {
       title: '域名管理', description: '管理短链域名、用户组授权和全局默认域名。', listLabel: '短链域名列表',
-      add: '新增域名', loadFailed: '域名加载失败。', groupsLoadFailed: '用户组列表加载失败，授权编辑已停用。', groupsUnavailable: '当前用户组目录为空，域名编辑已停用。请先恢复内置用户组。', retry: '重新加载', empty: '暂无可管理的域名。',
+      add: '新增域名', loadFailed: '域名加载失败。', groupsLoadFailed: '用户组列表加载失败，授权编辑已停用。', groupsUnavailable: '当前用户组目录为空，域名详情和组授权编辑已停用。请先恢复内置用户组。', retry: '重新加载', empty: '暂无可管理的域名。',
       createTitle: '新增短链域名', host: 'HTTPS Origin', displayName: '显示名称',
       allowedGroups: '授权用户组', groups: { user: '普通用户', admin: '管理员' },
       enabled: '启用', disabled: '停用', default: '默认', addressLocked: '已有短链引用，不能修改地址。',
@@ -1803,6 +1804,7 @@ export const messages = {
       create: 'Create',
       saveDetails: 'Save details',
       editDetails: 'Edit details',
+      detailsEditBlockedByDraft: 'Save or cancel this group’s permission and default-domain drafts before editing its details.',
       deleteCustom: 'Delete group',
       deleteTitle: 'Delete custom group',
       deleteConfirmation: 'Delete “{name}” ({count} members)?',
@@ -2048,7 +2050,7 @@ export const messages = {
     },
     domains: {
       title: 'Domain management', description: 'Manage short-link domains, group grants, and the global default.', listLabel: 'Short-link domains',
-      add: 'Add domain', loadFailed: 'Unable to load domains.', groupsLoadFailed: 'Unable to load groups; grant editing is disabled.', groupsUnavailable: 'The user-group catalog is empty, so domain editing is disabled. Restore the built-in groups first.', retry: 'Reload', empty: 'No domains to manage.',
+      add: 'Add domain', loadFailed: 'Unable to load domains.', groupsLoadFailed: 'Unable to load groups; grant editing is disabled.', groupsUnavailable: 'The user-group catalog is empty, so domain details and group grants are disabled. Restore the built-in groups first.', retry: 'Reload', empty: 'No domains to manage.',
       createTitle: 'Add short-link domain', host: 'HTTPS Origin', displayName: 'Display name',
       allowedGroups: 'Allowed groups', groups: { user: 'Users', admin: 'Administrators' },
       enabled: 'Enabled', disabled: 'Disabled', default: 'Default', addressLocked: 'The address is locked because links already use it.',

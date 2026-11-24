@@ -2,7 +2,7 @@
 
 ## v0.92.0 自定义用户组决策（当前 feature 分支）
 
-在现有 `user_group.permissions`、`app_user.group_id`、domain grant 和共享 `updated_at` 上增加单主组 custom groups。服务端创建 UUID 不透明 key；不引入多组／权限合并表、新权限或依赖。新组权限与域名授权 fail-closed，protected 权限仍仅属于 admin；custom key 不作为权限本身。Migration 00050 的 Down 遇到自定义数据时拒绝回滚，不转换或丢弃数据。Task 1–5 完成，Task 6 与最终集成交付待办；不将当前 feature 分支描述为已发布产品。详细约束见[v0.92 spec](../specs/2026-11-23-v0.92.0-custom-user-groups-spec.md)和[验收](v0.92.0-acceptance.md)。
+在现有 `user_group.permissions`、`app_user.group_id`、domain grant 和共享 `updated_at` 上增加单主组 custom groups。服务端创建 UUID 不透明 key；不引入多组／权限合并表、新权限或依赖。新组权限与域名授权 fail-closed，protected 权限仍仅属于 admin；custom key 不作为权限本身。Migration 00050 的 Down 遇到自定义数据时拒绝回滚，不转换或丢弃数据。Task 1–5 完成；最新本地前端全量 7,308 项、四项 coverage、typecheck／lint／build 均通过，Task 6 与最终集成交付待办。不将当前 feature 分支描述为已发布产品。详细约束见[v0.92 spec](../specs/2026-11-23-v0.92.0-custom-user-groups-spec.md)和[验收](v0.92.0-acceptance.md)。
 
 ## 当前已完成实施（2026-11-20，v0.90.0）
 

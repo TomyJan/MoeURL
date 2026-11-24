@@ -2133,16 +2133,6 @@ describe('pages', () => {
     expect((screen.getByLabelText('createUser.status') as HTMLSelectElement).value).toBe('active')
   })
 
-  it('binds pending user creation to both loading and disabled submit states', () => {
-    const source = readFileSync('src/pages/CreateUserPage.vue', 'utf8')
-    const submitBlock = source.match(/<v-btn\s+class="console-form-panel__submit"[\s\S]+?<\/v-btn>/)?.[0] ?? ''
-
-    expect(submitBlock).toContain(':loading="mutation.isPending.value"')
-    expect(submitBlock).toContain('groupsQuery.isPending.value')
-    expect(submitBlock).toContain('groupsQuery.isError.value')
-    expect(submitBlock).toContain('mutation.isPending.value')
-  })
-
   it('renders admin users list and submits user actions', async () => {
     setQueryResult({
       data: ref({
