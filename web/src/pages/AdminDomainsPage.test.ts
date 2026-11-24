@@ -132,6 +132,16 @@ describe('AdminDomainsPage', () => {
     failed.unmount()
   })
 
+  it('fails closed when the current group catalog succeeds without any assignable groups', async () => {
+    state.groups.value = { groups: [] }
+    mount()
+    await fireEvent.click(screen.getByRole('button', { name: /Secondary/ }))
+
+    expect(screen.getByText('domains.groupsUnavailable')).toBeTruthy()
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'domains.save' })).toHaveProperty('disabled', true)
+  })
+
   it('exposes the current domain selection and preserves it when discarding is canceled', async () => {
     mount()
     const primaryButton = screen.getByRole('button', { name: /Primary/ })

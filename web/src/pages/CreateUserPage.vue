@@ -16,6 +16,9 @@
         <v-alert v-if="groupsQuery.isError.value" type="error" variant="tonal">
           {{ t('createUser.groupsLoadFailed') }} <v-btn variant="text" @click="groupsQuery.refetch()">{{ t('createUser.retryGroups') }}</v-btn>
         </v-alert>
+        <v-alert v-else-if="canManage && !groupsQuery.isPending.value && !groupOptions.length" type="warning" variant="tonal">
+          {{ t('createUser.noAssignableGroups') }}
+        </v-alert>
         <fieldset class="console-form-panel__group" data-testid="console-form-group">
           <legend>{{ t('createUser.accountLegend') }}</legend>
           <div class="console-form-panel__grid">
@@ -28,7 +31,7 @@
         <fieldset class="console-form-panel__group" data-testid="console-form-group">
           <legend>{{ t('createUser.accessLegend') }}</legend>
           <div class="console-form-panel__grid console-form-panel__grid--compact">
-            <v-select v-model="groupKey" :label="t('createUser.group')" :items="groupOptions" :disabled="groupsQuery.isPending.value || groupsQuery.isError.value || mutation.isPending.value" density="compact" variant="outlined" />
+            <v-select v-model="groupKey" :label="t('createUser.group')" :items="groupOptions" :disabled="groupsQuery.isPending.value || groupsQuery.isError.value || !groupOptions.length || mutation.isPending.value" density="compact" variant="outlined" />
             <v-select v-model="status" :label="t('createUser.status')" :items="statusOptions" density="compact" variant="outlined" />
           </div>
         </fieldset>

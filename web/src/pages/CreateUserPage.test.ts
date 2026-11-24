@@ -64,5 +64,7 @@ it('keeps account creation unavailable when the server catalog has no assignable
   render(CreateUserPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: componentStubs } })
 
   await waitFor(() => expect((screen.getByLabelText('createUser.group') as HTMLSelectElement).value).toBe(''))
+  expect(await screen.findByText('createUser.noAssignableGroups')).toBeTruthy()
+  expect((screen.getByLabelText('createUser.group') as HTMLSelectElement).disabled).toBe(true)
   expect(screen.getByRole('button', { name: 'createUser.submit' })).toHaveProperty('disabled', true)
 })

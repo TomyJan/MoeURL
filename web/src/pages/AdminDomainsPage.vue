@@ -17,6 +17,9 @@
     <v-alert v-if="groupsQuery.isError.value" type="error" variant="tonal">
       {{ t('domains.groupsLoadFailed') }} <v-btn variant="text" @click="groupsQuery.refetch()">{{ t('domains.retry') }}</v-btn>
     </v-alert>
+    <v-alert v-else-if="eligible && groupsQuery.data.value && !groupsQuery.data.value.groups.length" type="warning" variant="tonal">
+      {{ t('domains.groupsUnavailable') }}
+    </v-alert>
     <v-alert v-if="permissionDenied" type="error" variant="tonal">
       {{ t('domainOrder.accessDenied') }}
       <v-btn type="button" variant="text" :disabled="mutation.isPending.value || orderReloading || !identity.scope.value.userId" @click="reloadAccess">{{ t('domainOrder.reloadAccess') }}</v-btn>
@@ -232,7 +235,7 @@ const mutation = useMutation({
   },
 })
 const redirectManagement = useDomainRedirectManagement({ domain: selectedDomain, identity, eligible, denied: permissionDenied, removed: selectionRemoved, dirty: redirectDirty, legacyDirty: computed(() => dirty() || orderDirty.value), legacyBusy: computed(() => mutation.isPending.value || orderReloading.value || defaultRefreshRequired.value), list: query, adopt: (domain) => { fillDraft(domain); orderRevision.value++ } })
-const transportBlocked = computed(() => mutation.isPending.value || redirectManagement.pending.value || redirectManagement.barrier.value || defaultRefreshRequired.value || orderReloading.value || query.isError.value || groupsQuery.isError.value || groupsQuery.isPending.value || permissionDenied.value || !eligible.value)
+const transportBlocked = computed(() => mutation.isPending.value || redirectManagement.pending.value || redirectManagement.barrier.value || defaultRefreshRequired.value || orderReloading.value || query.isError.value || groupsQuery.isError.value || groupsQuery.isPending.value || !groupsQuery.data.value?.groups.length || permissionDenied.value || !eligible.value)
 const writesBlocked = computed(() => transportBlocked.value || orderDirty.value || redirectDirty.value)
 watch(identity.scope, () => {
   creating.value = false; selectedID.value = ''; selectedSnapshot.value = null; baseline = null

@@ -964,7 +964,7 @@ export const messages = {
     },
     domains: {
       title: '域名管理', description: '管理短链域名、用户组授权和全局默认域名。', listLabel: '短链域名列表',
-      add: '新增域名', loadFailed: '域名加载失败。', groupsLoadFailed: '用户组列表加载失败，授权编辑已停用。', retry: '重新加载', empty: '暂无可管理的域名。',
+      add: '新增域名', loadFailed: '域名加载失败。', groupsLoadFailed: '用户组列表加载失败，授权编辑已停用。', groupsUnavailable: '当前用户组目录为空，域名编辑已停用。请先恢复内置用户组。', retry: '重新加载', empty: '暂无可管理的域名。',
       createTitle: '新增短链域名', host: 'HTTPS Origin', displayName: '显示名称',
       allowedGroups: '授权用户组', groups: { user: '普通用户', admin: '管理员' },
       enabled: '启用', disabled: '停用', default: '默认', addressLocked: '已有短链引用，不能修改地址。',
@@ -1069,6 +1069,7 @@ export const messages = {
       nickname: '昵称',
       group: '用户组',
       groupsLoadFailed: '用户组列表加载失败，暂时不能创建账号。',
+      noAssignableGroups: '当前没有可分配的用户组。请先恢复内置“普通用户”组，再创建账号。',
       retryGroups: '重试',
       status: '状态',
       submit: '创建用户',
@@ -2047,7 +2048,7 @@ export const messages = {
     },
     domains: {
       title: 'Domain management', description: 'Manage short-link domains, group grants, and the global default.', listLabel: 'Short-link domains',
-      add: 'Add domain', loadFailed: 'Unable to load domains.', groupsLoadFailed: 'Unable to load groups; grant editing is disabled.', retry: 'Reload', empty: 'No domains to manage.',
+      add: 'Add domain', loadFailed: 'Unable to load domains.', groupsLoadFailed: 'Unable to load groups; grant editing is disabled.', groupsUnavailable: 'The user-group catalog is empty, so domain editing is disabled. Restore the built-in groups first.', retry: 'Reload', empty: 'No domains to manage.',
       createTitle: 'Add short-link domain', host: 'HTTPS Origin', displayName: 'Display name',
       allowedGroups: 'Allowed groups', groups: { user: 'Users', admin: 'Administrators' },
       enabled: 'Enabled', disabled: 'Disabled', default: 'Default', addressLocked: 'The address is locked because links already use it.',
@@ -2152,6 +2153,7 @@ export const messages = {
       nickname: 'Nickname',
       group: 'Group',
       groupsLoadFailed: 'Unable to load groups. User creation is temporarily disabled.',
+      noAssignableGroups: 'No assignable user groups are available. Restore the built-in User group before creating accounts.',
       retryGroups: 'Retry',
       status: 'Status',
       submit: 'Create user',
