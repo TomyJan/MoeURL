@@ -81,10 +81,12 @@ const statusOptions = computed(() => [
   { title: t('createUser.statuses.disabled'), value: 'disabled' },
 ])
 
+type CreateUserMutation = { input: CreateUserInput; scope: typeof identity.scope.value }
 const mutation = useMutation({
-  mutationFn: createUser,
+  mutationFn: ({ input }: CreateUserMutation) => createUser(input),
   /** Displays the created account and clears the submitted form. */
-  onSuccess(result) {
+  onSuccess(result, variables) {
+    if (!identity.isCurrent(variables.scope)) return
     createdUsername.value = result.user.username
     resetForm()
   },
@@ -95,11 +97,14 @@ function submit() {
   if (!groupOptions.value.some(({ value }) => value === groupKey.value) || !canManage.value) return
   createdUsername.value = ''
   mutation.mutate({
-    username: username.value,
-    password: password.value,
-    nickname: nickname.value,
-    groupKey: groupKey.value,
-    status: status.value,
+    input: {
+      username: username.value,
+      password: password.value,
+      nickname: nickname.value,
+      groupKey: groupKey.value,
+      status: status.value,
+    },
+    scope: identity.scope.value,
   })
 }
 

@@ -108,26 +108,56 @@ for (const width of [1280, 390]) {
     })
 
     if (width === 390) {
-      for (let index = 1; index <= 8; index++) {
-        await post(page.request, '/admin/user-group/create', {
-          name: `Long operations authorization group ${index} ${suffix}`,
-          description: 'Responsive authorization option fixture',
+      const helperGroupKeys: string[] = []
+      const cleanupErrors: unknown[] = []
+      let scenarioError: unknown
+      try {
+        for (let index = 1; index <= 8; index++) {
+          const created = await post<{ group: UserGroup }>(page.request, '/admin/user-group/create', {
+            name: `Long operations authorization group ${index} ${suffix}`,
+            description: 'Responsive authorization option fixture',
+          })
+          helperGroupKeys.push(created.group.key)
+        }
+        await page.reload()
+        await page.goto('/admin/domain')
+        await page.getByRole('button', { name: `Custom ${suffix}`, exact: false }).click()
+        const groupsFieldset = page.locator('.domains-page__groups')
+        await expect(groupsFieldset).toBeVisible()
+        const labelGeometry = await groupsFieldset.locator('label').evaluateAll((labels) => labels.map((label) => {
+          const { top, width: labelWidth } = label.getBoundingClientRect()
+          return { top, width: labelWidth }
+        }))
+        const fieldsetWidth = await groupsFieldset.evaluate((element) => element.getBoundingClientRect().width)
+        expect(new Set(labelGeometry.map(({ top }) => top)).size).toBeGreaterThan(1)
+        expect(labelGeometry.every(({ width: labelWidth }) => labelWidth <= fieldsetWidth)).toBe(true)
+        await expectNoHorizontalOverflow(page)
+        await page.screenshot({ path: info.outputPath('custom-domain-group-grants-390-zh.png'), fullPage: true })
+      } catch (error) {
+        scenarioError = error
+      } finally {
+        for (const helperGroupKey of helperGroupKeys) {
+          try {
+            const currentGroups = await get<{ groups: UserGroup[] }>(page.request, '/admin/user-group/list')
+            const helperGroup = currentGroups.groups.find(({ key }) => key === helperGroupKey)
+            if (helperGroup) {
+              await post(page.request, '/admin/user-group/delete', {
+                groupKey: helperGroup.key,
+                expectedUpdatedAt: helperGroup.updatedAt,
+              })
+            }
+          } catch (error) {
+            cleanupErrors.push(error)
+          }
+        }
+        await info.attach('long-group-fixture-cleanup', {
+          body: JSON.stringify({ groups: helperGroupKeys, errors: cleanupErrors.map(String) }),
+          contentType: 'application/json',
         })
       }
-      await page.reload()
-      await page.goto('/admin/domain')
-      await page.getByRole('button', { name: `Custom ${suffix}`, exact: false }).click()
-      const groupsFieldset = page.locator('.domains-page__groups')
-      await expect(groupsFieldset).toBeVisible()
-      const labelGeometry = await groupsFieldset.locator('label').evaluateAll((labels) => labels.map((label) => {
-        const { top, width: labelWidth } = label.getBoundingClientRect()
-        return { top, width: labelWidth }
-      }))
-      const fieldsetWidth = await groupsFieldset.evaluate((element) => element.getBoundingClientRect().width)
-      expect(new Set(labelGeometry.map(({ top }) => top)).size).toBeGreaterThan(1)
-      expect(labelGeometry.every(({ width: labelWidth }) => labelWidth <= fieldsetWidth)).toBe(true)
-      await expectNoHorizontalOverflow(page)
-      await page.screenshot({ path: info.outputPath('custom-domain-group-grants-390-zh.png'), fullPage: true })
+      if (scenarioError || cleanupErrors.length) {
+        throw new AggregateError([...(scenarioError ? [scenarioError] : []), ...cleanupErrors], 'Responsive layout scenario or helper-group cleanup failed')
+      }
     }
 
     await page.goto('/admin/user/group')

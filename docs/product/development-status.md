@@ -1,8 +1,8 @@
 # 开发进度与能力清单
 
-## 当前实施（2026-11-24，v0.92.0）
+## 当前实施（2026-11-25，v0.92.0）
 
-当前 v0.92.0 分支已完成 Task 1–5：migration 00050 与自定义组 API、成员迁移、域名授权和动态前端。PR #421 已于 `f2d53c76` squash 合入 master，tree `5edb0d68`、唯一 parent `0bdc2174` 经独立核验。PR #420 已重定基到该 master；差异仅保留 53 个前端／验收文件。重定基后最新前端 coverage 为 291/291 文件、7,326/7,326 测试；Statements 11,315/11,315、Branches 9,349/9,349、Functions 3,191/3,191、Lines 8,115/8,115 均 100%；typecheck、全量 ESLint（0 errors、7 项既有 warning）与 Vite build 通过。真实 PostgreSQL／HTTP／浏览器 3/3 及截图仍归属之前的产品验收候选，不冒充新重定基 SHA。当前准确 PR #420 tip 尚待 CodeRabbit；PR 合并、恢复归档与精确清理仍待。未查 CI、不部署发布、不触碰 PR #240/#266/#267。
+当前 v0.92.0 分支已完成 Task 1–5：migration 00050 与自定义组 API、成员迁移、域名授权和动态前端。PR #421 已于 `f2d53c76` squash 合入 master，tree `5edb0d68`、唯一 parent `0bdc2174` 经独立核验。PR #420 已重定基到该 master；差异仅保留 53 个前端／验收文件。本轮修复创建用户 mutation 在身份 epoch 切换后仍可能覆盖新身份 UI 状态的问题，并让 390 px E2E 的 8 个辅助用户组在 `finally` 中逐个以最新版本删除。当前候选前端 coverage 为 291/291 文件、7,327/7,327 测试；Statements 11,318/11,318、Branches 9,351/9,351、Functions 3,192/3,192、Lines 8,117/8,117 均 100%；typecheck、全量 ESLint（0 errors、7 项既有 fixture warnings）与 Vite build（1,642 modules）通过。新 E2E spec 通过独立 TypeScript 检查和 Playwright 测试发现检查，但本轮未运行浏览器；之前 PostgreSQL／HTTP／浏览器 3/3 仍只归属原验收候选。PR #420 上次 CodeRabbit 根评论显示暂停，最后审查 `1d7353b0`、未审查 `af08d993`；本轮修改未提交／推送，尚未获新 review。PR 正常合并、恢复归档与精确清理仍待。未查 CI、不部署发布、不触碰 PR #240/#266/#267。
 
 ## 最近完成（2026-11-22，v0.91.0）
 

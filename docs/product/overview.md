@@ -1,8 +1,8 @@
 # MoeURL 产品总览
 
-## 当前开发（2026-11-24，v0.92.0）
+## 当前开发（2026-11-25，v0.92.0）
 
-[自定义用户组](scope-v0.92.0.md)已在单主组边界内实现 Task 1–5。重定基后的最终前端全量 7,326 项、四项 coverage 100%、typecheck、lint 和 build 均通过。专用 PostgreSQL／HTTP／真实浏览器 3/3 证据归属原验收代码候选，不冒充重定基后 SHA 结果。后端 PR #421 已正常 squash 合并为 `f2d53c76`；PR #420 已 retarget `master`，差异仅 53 个前端／验收文件。PR #420 新 tip 的准确 CodeRabbit review、正常集成及 whole-owned 恢复归档仍待；未查 CI、不发布或部署。准确状态见[开发进度](development-status.md)和[v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
+[自定义用户组](scope-v0.92.0.md)已在单主组边界内实现 Task 1–5。本轮补强创建用户页的身份 epoch 迟到回调隔离，并为手机 E2E 长组名布局 fixture 增加逐项 CAS 清理。当前候选前端全量 7,327 项、四项 coverage 100%、typecheck、lint 和 build 均通过；E2E spec TypeScript 检查与测试发现通过，但本轮未运行浏览器。专用 PostgreSQL／HTTP／真实浏览器 3/3 证据仍属原验收候选，不冒充当前候选结果。后端 PR #421 已正常 squash 合并为 `f2d53c76`；PR #420 已 retarget `master`，差异仅 53 个前端／验收文件。最新修复尚未提交／推送，因而还没有准确当前 tip 的 CodeRabbit review；PR 正常集成及 whole-owned 恢复归档仍待。未查 CI、不发布或部署。准确状态见[开发进度](development-status.md)和[v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
 
 ## 当前开发（2026-11-23，v0.91.0）
 

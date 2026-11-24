@@ -63,6 +63,39 @@ it('disables pending user creation and fails closed if the group catalog empties
   expect(screen.getByRole('button', { name: 'createUser.submit' })).toHaveProperty('disabled', true)
 })
 
+it('does not publish a pending creation result into a different identity epoch', async () => {
+  client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } } })
+  const firstManager = { id: 'first-manager', username: 'first-manager', nickname: '', group: 'admin', permissions: ['admin:access'] }
+  const secondManager = { id: 'second-manager', username: 'second-manager', nickname: '', group: 'admin', permissions: ['admin:access'] }
+  const catalog = { groups: [
+    { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: '2026-10-23T00:00:00Z' },
+    { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 0, permissions: [], updatedAt: '2026-10-23T00:00:00Z' },
+    { key: 'admin', name: 'Administrator', description: '', builtin: true, editable: true, memberCount: 1, permissions: ['admin:access'], updatedAt: '2026-10-23T00:00:00Z' },
+  ], permissions: [{ key: 'admin:access', category: 'administration', protected: true }], presets: ['restricted', 'basic', 'standard'].map((preset) => ({ key: preset, applicableGroups: ['user', 'admin'], permissions: [] })) }
+  client.setQueryData(['auth', 'me'], { user: firstManager })
+  client.setQueryData([...userGroupQueryKey, firstManager.id, 1], catalog)
+  client.setQueryData([...userGroupQueryKey, secondManager.id, 2], catalog)
+  const pending = createDeferred<Response>()
+  const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(() => pending.promise)
+  vi.stubGlobal('fetch', fetcher)
+  render(CreateUserPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: componentStubs } })
+
+  await fireEvent.update(screen.getByLabelText('createUser.username'), 'first-identity-user')
+  await fireEvent.update(screen.getByLabelText('createUser.password'), 'secure-password')
+  await fireEvent.click(screen.getByRole('button', { name: 'createUser.submit' }))
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
+
+  client.setQueryData(['auth', 'me'], { user: secondManager })
+  await fireEvent.update(screen.getByLabelText('createUser.username'), 'second-identity-draft')
+  await fireEvent.update(screen.getByLabelText('createUser.password'), 'new-secure-password')
+
+  pending.resolve(new Response(JSON.stringify({ code: 0, message: 'OK', data: { user: { id: 'old-user', username: 'first-identity-user', nickname: '', group: 'user', status: 'active' } }, meta: {} })))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'createUser.submit' })).toHaveProperty('disabled', false))
+  expect((screen.getByLabelText('createUser.username') as HTMLInputElement).value).toBe('second-identity-draft')
+  expect(screen.queryByText('feedback.created · first-identity-user')).toBeNull()
+  expect((screen.getByLabelText('createUser.password') as HTMLInputElement).value).toBe('new-secure-password')
+})
+
 it('allows retrying the current group catalog after a transient read failure', async () => {
   client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } } })
   const manager = { id: 'manager-id', username: 'manager', nickname: '', group: 'admin', permissions: ['admin:access'] }
