@@ -23,7 +23,7 @@
       <ActionToast v-if="feedback" :key="feedbackRevision + ':' + feedback" :type="feedback === 'success' ? 'success' : feedback === 'conflict' ? 'warning' : 'error'">{{ t(feedbackKey) }}</ActionToast>
       <v-alert v-if="refreshBroken" type="warning">
         {{ t('groupDefault.refreshRequired') }}
-        <v-btn :disabled="pending" @click="reload(activeGroupKey)">{{ t('groupDefault.reload') }}</v-btn>
+        <v-btn :disabled="pending" @click="recoverAfterRefreshFailure()">{{ t('groupDefault.reload') }}</v-btn>
       </v-alert>
       <!-- The nonempty catalog branch guarantees an active group; capture its rendered target for event guards. -->
       <template v-for="group in displayedGroups.filter((candidate) => candidate.key === activeGroupKey)" :key="identity.scope.value.epoch + ':' + group.key + ':' + group.updatedAt + ':' + feedbackRevision">
@@ -122,13 +122,14 @@ import { adminGroupDefaultDomainQueryKey } from '@/entities/user-group/domain-de
 const { t } = useI18n()
 const queryClient = useQueryClient()
 const groupIdentity = useAccountIdentity()
-const { identity, query, settingQuery, canManage, canManageDefault, activeGroupKey, activeGroup, displayedGroups, currentDefault, draft, stale, feedback, feedbackKind, feedbackRevision, refreshBroken, pending, groupReady, settingReady, defaultDirty, applyPreset, setPermission, savePermissions, selectDefault, saveDefault, cancelDefault, cancelPermissions, reload, changeGroup } = useGroupDefaultManagement()
+const { identity, query, settingQuery, canManage, canManageDefault, activeGroupKey, activeGroup, displayedGroups, currentDefault, draft, stale, feedback, feedbackKind, feedbackRevision, refreshBroken, pending, groupReady, settingReady, defaultDirty, applyPreset, setPermission, savePermissions, selectDefault, saveDefault, cancelDefault, cancelPermissions, reload, recover, changeGroup } = useGroupDefaultManagement()
 const groupDialog = ref<'' | 'create' | 'edit'>('')
 const groupEditSnapshot = ref<Pick<UserGroup, 'key' | 'updatedAt'> | null>(null)
 const deleteDialog = ref(false)
 const groupName = ref('')
 const groupDescription = ref('')
 const groupFeedback = ref(false)
+const preserveRecoveryDrafts = ref(false)
 watch(groupIdentity.scope, () => {
   groupDialog.value = ''
   groupEditSnapshot.value = null
@@ -136,6 +137,7 @@ watch(groupIdentity.scope, () => {
   groupName.value = ''
   groupDescription.value = ''
   groupFeedback.value = false
+  preserveRecoveryDrafts.value = false
 }, { flush: 'sync' })
 const groupMutation = useMutation({
   retry: false,
@@ -157,7 +159,10 @@ const groupMutation = useMutation({
       activeGroupKey.value = 'user'
       const refreshed = await query.refetch()
       if (!groupIdentity.isCurrent(command.scope)) return
-      if (refreshed.isError) refreshBroken.value = true
+      if (refreshed.isError) {
+        refreshBroken.value = true
+        preserveRecoveryDrafts.value = true
+      } else preserveRecoveryDrafts.value = false
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['user-group-domain-default'] }),
         queryClient.invalidateQueries({ queryKey: ['domain', 'available'] }),
@@ -182,6 +187,11 @@ function openEdit(group: UserGroup) {
   groupDialog.value = 'edit'
 }
 function closeGroupDialog() { if (!groupMutation.isPending.value) { groupDialog.value = ''; groupEditSnapshot.value = null } }
+async function recoverAfterRefreshFailure() {
+  const scope = groupIdentity.scope.value
+  const recovered = await recover(preserveRecoveryDrafts.value)
+  if (recovered && groupIdentity.isCurrent(scope)) preserveRecoveryDrafts.value = false
+}
 function saveGroupDetails() {
   if (!canManage.value || !groupName.value.trim() || groupMutation.isPending.value) return
   groupFeedback.value = false

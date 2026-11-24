@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
 import { setImmediate as flushEventLoop } from 'node:timers/promises'
 import AdminUserGroupsPage from './AdminUserGroupsPage.vue'
-import { mountGroupDefault, response, groupId, version, nextVersion } from '@/test/group-default'
+import { mountGroupDefault, response, groupId, personalId, version, nextVersion } from '@/test/group-default'
 import { userGroupQueryKey } from '@/entities/user-group/api'
 import { createDeferred } from '@/test/deferred'
 import { revokeAccountIdentity } from '@/shared/preferences/useAccountPreferences'
@@ -245,6 +245,101 @@ it('shows a recovery action when the user-group list refresh fails after deletio
   await fireEvent.click(screen.getAllByRole('button', { name: 'groupDefault.reload' })[0]!)
   await waitFor(() => expect(screen.queryByText('groupDefault.refreshRequired')).toBeNull())
   expect(screen.queryByRole('tab', { name: 'Operations' })).toBeNull()
+})
+it('preserves another group domain draft when recovering after a deleted-group refresh failure', async () => {
+  const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
+  view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom] })
+  await selectUser()
+  await fireEvent.update(screen.getByLabelText('groupDefault.domain'), personalId)
+  await fireEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+  view.overrides['/api/v1/admin/user-group/list'] = async () => { throw new Error('offline after delete') }
+
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.deleteCustom' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.confirmDelete' }))
+  await screen.findByText('groupDefault.refreshRequired')
+  expect(view.writes.filter(({ path }) => path === '/api/v1/admin/user-group/update-permissions' || path === '/api/v1/admin/user-group/set-domain-default')).toEqual([])
+
+  delete view.overrides['/api/v1/admin/user-group/list']
+  await fireEvent.click(screen.getAllByRole('button', { name: 'groupDefault.reload' })[0]!)
+  await waitFor(() => expect(screen.queryByText('groupDefault.refreshRequired')).toBeNull())
+  expect(screen.getByLabelText('groupDefault.domain')).toHaveProperty('value', personalId)
+  expect(screen.getByRole('button', { name: 'groupDefault.save' })).toHaveProperty('disabled', false)
+  expect(screen.queryByRole('tab', { name: 'Operations' })).toBeNull()
+})
+it('preserves another group permission draft when recovering after a deleted-group refresh failure', async () => {
+  const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
+  view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom] })
+  await selectUser()
+  await fireEvent.click(screen.getByLabelText('userGroups.permissions.short_link:create.label'))
+  await fireEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+  view.overrides['/api/v1/admin/user-group/list'] = async () => { throw new Error('offline after delete') }
+
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.deleteCustom' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.confirmDelete' }))
+  await screen.findByText('groupDefault.refreshRequired')
+  delete view.overrides['/api/v1/admin/user-group/list']
+  view.overrides['/api/v1/auth/me'] = async () => { throw new Error('still offline during recovery') }
+  await fireEvent.click(screen.getAllByRole('button', { name: 'groupDefault.reload' })[0]!)
+  await screen.findByText('groupDefault.reloadFailed')
+  delete view.overrides['/api/v1/auth/me']
+  await fireEvent.click(screen.getAllByRole('button', { name: 'groupDefault.reload' })[0]!)
+  await waitFor(() => expect(screen.queryByText('groupDefault.refreshRequired')).toBeNull())
+  expect(screen.getByLabelText('userGroups.permissions.short_link:create.label')).toHaveProperty('checked', true)
+  expect(screen.getByRole('button', { name: 'userGroups.save' })).toHaveProperty('disabled', false)
+  expect(screen.queryByRole('tab', { name: 'Operations' })).toBeNull()
+})
+it('keeps a changed shared revision stale while preserving a recovery draft', async () => {
+  const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
+  view = mountGroupDefault(AdminUserGroupsPage, { permissions: ['admin:access'], customGroups: [custom] })
+  await selectUser()
+  await fireEvent.click(screen.getByLabelText('userGroups.permissions.short_link:create.label'))
+  await fireEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+  view.overrides['/api/v1/admin/user-group/list'] = async () => { throw new Error('offline after delete') }
+
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.deleteCustom' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.confirmDelete' }))
+  await screen.findByText('groupDefault.refreshRequired')
+  delete view.overrides['/api/v1/admin/user-group/list']
+  const user = view.groups.find(({ key }) => key === 'user')!
+  user.permissions = []
+  user.updatedAt = nextVersion
+
+  await fireEvent.click(screen.getAllByRole('button', { name: 'groupDefault.reload' })[0]!)
+  await waitFor(() => expect(screen.queryByText('groupDefault.refreshRequired')).toBeNull())
+  expect(screen.getByLabelText('userGroups.permissions.short_link:create.label')).toHaveProperty('checked', true)
+  expect(screen.getByRole('button', { name: 'userGroups.save' })).toHaveProperty('disabled', true)
+  expect(view.writes).toHaveLength(1)
+  expect(view.writes[0]?.path).toContain('/delete')
+})
+it('limits draft preservation to the delete-recovery retry', async () => {
+  const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }
+  view = mountGroupDefault(AdminUserGroupsPage, { customGroups: [custom] })
+  await selectUser()
+  await fireEvent.click(screen.getByLabelText('userGroups.permissions.short_link:create.label'))
+  await fireEvent.click(await screen.findByRole('tab', { name: 'Operations' }))
+  view.overrides['/api/v1/admin/user-group/list'] = async () => { throw new Error('offline after delete') }
+
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.deleteCustom' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.confirmDelete' }))
+  await screen.findByText('groupDefault.refreshRequired')
+  delete view.overrides['/api/v1/admin/user-group/list']
+  await fireEvent.click(screen.getAllByRole('button', { name: 'groupDefault.reload' })[0]!)
+  await waitFor(() => expect(screen.queryByText('groupDefault.refreshRequired')).toBeNull())
+  expect(screen.getByLabelText('userGroups.permissions.short_link:create.label')).toHaveProperty('checked', true)
+
+  view.overrides['/api/v1/auth/me'] = async () => { throw new Error('offline after committed permission save') }
+  await fireEvent.click(screen.getByRole('button', { name: 'userGroups.save' }))
+  await waitFor(() => expect(view.writes.filter(({ path }) => path === '/api/v1/admin/user-group/update-permissions')).toHaveLength(1))
+  await screen.findByText('groupDefault.refreshRequired')
+  delete view.overrides['/api/v1/auth/me']
+  const user = view.groups.find(({ key }) => key === 'user')!
+  user.permissions = []
+  user.updatedAt = nextVersion
+
+  await fireEvent.click(screen.getAllByRole('button', { name: 'groupDefault.reload' })[0]!)
+  await waitFor(() => expect(screen.queryByText('groupDefault.refreshRequired')).toBeNull())
+  expect(screen.getByLabelText('userGroups.permissions.short_link:create.label')).toHaveProperty('checked', false)
+  expect(screen.getByRole('button', { name: 'userGroups.save' })).toHaveProperty('disabled', true)
 })
 it('does not invalidate account-scoped queries when a delete refresh completes after identity revocation', async () => {
   const custom = { key: 'opaque-custom-key', name: 'Operations', description: 'Ops', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: version }

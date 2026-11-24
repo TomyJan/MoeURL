@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-24，v0.92.0）
 
-自定义用户组 Task 1–5 已实现，Task 6 文档及整体验收进行中；PR #421（后端／数据层）和堆叠的 PR #420（前端／验收）已打开，均未合并或发布。当前 Node 26.3.0 全量 coverage 为 291 文件／7,309 项全部通过；Statements、Branches、Functions、Lines 均为 100%，coverage 门槛通过。类型检查、全量 ESLint（0 errors、7 个既有 warnings）与 Vite build 通过。真实 PostgreSQL／HTTP／浏览器闭环在 Chrome 159 上覆盖 1280 px 与 390 px，含 setup 共 3/3 通过；390 px 页面以 8 个长组名验证授权标签换行及无横向溢出，并保留实际截图。使用 Go 1.26.8 本地 app fallback 和专属 PostgreSQL 18.7，不代表标准 Dockerfile build。PR #421 CodeRabbit 增量摘要无 actionable，但正常合并受 master 规则阻塞；PR #420 最近真实 review 的一条 Minor 指出删组后刷新失败时恢复仍使用已删除组，已按 TDD 修复并通过全量 coverage/typecheck/lint/build；复审等待额度恢复。准确状态见 [scope](product/scope-v0.92.0.md)、[计划](implementation/v0.92.0-plan.md)、[任务](implementation/v0.92.0-tasks.md)、[验收](implementation/v0.92.0-acceptance.md)。不查 CI、不发布部署。
+自定义用户组 Task 1–5 已实现，Task 6 文档及整体验收进行中；PR #421（后端／数据层）和堆叠的 PR #420（前端／验收）已打开，均未合并或发布。当前 Node 26.3.0 全量 coverage 为 291 文件／7,313 项全部通过；Statements 11,253/11,253、Branches 9,309/9,309、Functions 3,185/3,185、Lines 8,066/8,066 均为 100%。类型检查、全量 ESLint（0 errors、7 个既有 warnings）与 Vite build 通过。真实 PostgreSQL／HTTP／浏览器闭环在 Chrome 159 上覆盖 1280 px 与 390 px，含 setup 共 3/3 通过；390 px 页面以 8 个长组名验证授权标签换行及无横向溢出，并保留实际截图。使用 Go 1.26.8 本地 app fallback 和专属 PostgreSQL 18.7，不代表标准 Dockerfile build。PR #421 CodeRabbit 增量摘要无 actionable，但正常合并受 master 规则阻塞；PR #420 两次真实 review 的有效恢复路径意见（删组后不读已删除组、重试不丢其他组草稿）均已按 TDD 修复并验证，当前工作树尚未提交，之后须对准确最新 head 复审。不查 CI、不发布部署。
 
 v0.92.0 文档入口：[范围](product/scope-v0.92.0.md)、[规格](specs/2026-11-23-v0.92.0-custom-user-groups-spec.md)、[设计](superpowers/specs/2026-11-23-v0.92.0-custom-user-groups-design.md)、[实施计划](implementation/v0.92.0-plan.md)、[任务](implementation/v0.92.0-tasks.md)及[验收](implementation/v0.92.0-acceptance.md)。
 

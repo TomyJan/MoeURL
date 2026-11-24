@@ -35,6 +35,15 @@ export function useUserGroupPermissionDraft() {
     }
   }
 
+  /** Restores an unsaved permission selection on top of a freshly read server snapshot. */
+  function restoreGroup(group: UserGroup, permissions: readonly string[]) {
+    drafts[group.key] = {
+      permissions: [...permissions],
+      sourcePermissions: [...group.permissions],
+      sourceUpdatedAt: group.updatedAt,
+    }
+  }
+
   /** Returns an independent view of one group's current draft permissions. */
   function permissionsFor(groupKey: UserGroupKey): string[] {
     return [...(drafts[groupKey]?.permissions ?? [])]
@@ -111,6 +120,7 @@ export function useUserGroupPermissionDraft() {
     permissionsFor,
     reset,
     resetGroup,
+    restoreGroup,
     setPermission,
     sourceUpdatedAtFor,
     toUpdateInput,
