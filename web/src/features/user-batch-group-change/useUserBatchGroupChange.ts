@@ -21,7 +21,7 @@ interface BatchOptions {
 
 /** Creates private UI state for one identity; old requests may finish only against their old state. */
 function createBatchState() {
-  return reactive({ selected: [] as string[], snapshot: null as UserSummary[] | null, snapshotGroups: null as UserGroup[] | null, pending: false, barrier: false, authRequired: false })
+  return reactive({ selected: [] as string[], snapshot: null as UserSummary[] | null, snapshotGroups: [] as UserGroup[], pending: false, barrier: false, authRequired: false })
 }
 
 /** Selects only eligible visible accounts and pins the exact opening versions for confirmation. */
@@ -121,6 +121,6 @@ export function useUserBatchGroupChange(options: BatchOptions) {
     state.value.snapshotGroups = assignableGroups.value.map(group => ({ ...group }))
   }
   /** Cancels the frozen draft and reconciles selection against the current eligible list. */
-  function close() { if (!pending.value) { state.value.snapshot = null; state.value.snapshotGroups = null } }
+  function close() { if (!pending.value) { state.value.snapshot = null; state.value.snapshotGroups = [] } }
   return { selected, snapshot, snapshotGroups, pending, barrier, unavailable, eligible, allSelected, indeterminate, toggle, toggleAll, clear, open, close, submit, reload }
 }

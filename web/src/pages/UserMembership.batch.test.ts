@@ -106,6 +106,28 @@ it('does not expose a prior identity custom-group directory after a delayed resp
   expect(screen.queryByRole('button', { name: 'Change selected groups' })).toHaveProperty('disabled', true)
 })
 
+it('does not offer a custom target that the current group directory marks as not editable', async () => {
+  const alphaKey = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  view = mountBatchMembership({ customGroups: [{ key: alphaKey, name: 'Research' }] })
+  await screen.findByText('alice')
+  const groupQueryKey = view.client.getQueryCache().getAll().find(query => query.queryKey[0] === userGroupQueryKey[0])?.queryKey
+  expect(groupQueryKey).toBeDefined()
+  view.client.setQueryData(groupQueryKey!, {
+    groups: [...batchGroups, { key: alphaKey, name: 'Research', description: '', builtin: false, editable: false, memberCount: 1, permissions: [], updatedAt: '2026-10-28T00:00:00Z' }],
+    permissions: [{ key: 'admin:access', category: 'administration', protected: true }],
+    presets: ['restricted', 'basic', 'standard'].map(key => ({ key, applicableGroups: ['user', 'admin'], permissions: [] })),
+  })
+  await fireEvent.click(screen.getByRole('checkbox', { name: 'Select account alice' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'Change selected groups' }))
+  const dialog = within(screen.getByRole('dialog'))
+  const target = dialog.getByRole('combobox', { name: 'Target group' })
+  await fireEvent.keyDown(target, { key: 'Enter' })
+  expect(screen.queryByRole('option', { name: 'Research' })).toBeNull()
+  await fireEvent.click(await screen.findByRole('option', { name: 'Administrator' }))
+  await fireEvent.click(dialog.getByRole('checkbox', { name: 'I confirm the group changes' }))
+  expect(dialog.getByRole('button', { name: 'Save group changes' })).toHaveProperty('disabled', false)
+})
+
 it('keeps the frozen custom target label but blocks submission after a successful read removes that target', async () => {
   const alphaKey = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
   const betaKey = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
@@ -128,6 +150,30 @@ it('keeps the frozen custom target label but blocks submission after a successfu
   })
   expect(dialog.getByText('Archive')).toBeTruthy()
   expect(await dialog.findByText('The selected group is no longer available. Read the latest groups or choose another target.')).toBeTruthy()
+  expect(dialog.getByRole('button', { name: 'Save group changes' })).toHaveProperty('disabled', true)
+  expect(view.state.writes).toEqual([])
+})
+
+it('keeps a frozen custom target blocked if the current directory data disappears', async () => {
+  const alphaKey = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  const betaKey = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+  view = mountBatchMembership({
+    users: [{ ...batchAlice, group: alphaKey }],
+    customGroups: [{ key: alphaKey, name: 'Research' }, { key: betaKey, name: 'Archive' }],
+  })
+  await screen.findByText('alice')
+  await fireEvent.click(screen.getByRole('checkbox', { name: 'Select account alice' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'Change selected groups' }))
+  const dialog = within(screen.getByRole('dialog'))
+  const target = dialog.getByRole('combobox', { name: 'Target group' })
+  await fireEvent.keyDown(target, { key: 'Enter' })
+  await fireEvent.click(await screen.findByRole('option', { name: 'Archive' }))
+  await fireEvent.click(dialog.getByRole('checkbox', { name: 'I confirm the group changes' }))
+  const groupQueryKey = view.client.getQueryCache().getAll().find(query => query.queryKey[0] === userGroupQueryKey[0])?.queryKey
+  expect(groupQueryKey).toBeDefined()
+  view.client.setQueryData(groupQueryKey!, { permissions: [], presets: [] })
+  expect(dialog.getByText('Archive')).toBeTruthy()
+  expect(await dialog.findByText('The group list is refreshing. Wait for it to finish before submitting.')).toBeTruthy()
   expect(dialog.getByRole('button', { name: 'Save group changes' })).toHaveProperty('disabled', true)
   expect(view.state.writes).toEqual([])
 })

@@ -150,7 +150,7 @@
       <p v-if="users.length > 0" class="console-page__notice">{{ t('adminUsers.paginationNotice') }}</p>
     </div>
     <UserGroupChangeDialog v-if="groupTarget" :target="groupTarget" managed @close="groupTarget = undefined" @pending="groupPending = $event" @refresh="batch.reload" />
-    <UserBatchGroupChangeDialog v-if="batch.snapshot.value" :snapshot="batch.snapshot.value" :groups="batch.snapshotGroups.value ?? []" :available-group-keys="availableGroupKeys" :groups-ready="groupsReady" :pending="batch.pending.value" @close="batch.close" @submit="batch.submit" />
+    <UserBatchGroupChangeDialog v-if="batch.snapshot.value" :snapshot="batch.snapshot.value" :groups="batch.snapshotGroups.value" :available-group-keys="availableGroupKeys" :groups-ready="groupsReady" :pending="batch.pending.value" @close="batch.close" @submit="batch.submit" />
   </section>
 </template>
 
@@ -181,7 +181,7 @@ const currentUserQuery = useQuery({ queryKey: ['auth', 'me'], queryFn: me, stale
 const canChangeGroup = computed(() => currentUserQuery.isSuccess.value && !!currentUserId.value && currentUserQuery.data.value?.user.id === currentUserId.value && currentUserQuery.data.value.user.permissions.includes('admin:access'))
 const groupsQuery = useQuery({ queryKey: computed(() => [...userGroupQueryKey, currentUserId.value, identity.scope.value.epoch]), queryFn: listUserGroups, enabled: canChangeGroup, retry: false, staleTime: Infinity })
 const groupNames = computed(() => Object.fromEntries((groupsQuery.data.value?.groups ?? []).map(({ key, name }) => [key, name])))
-const groupsReady = computed(() => groupsQuery.isSuccess.value && !groupsQuery.isError.value && !groupsQuery.isFetching.value)
+const groupsReady = computed(() => groupsQuery.isSuccess.value && !groupsQuery.isError.value && !groupsQuery.isFetching.value && Array.isArray(groupsQuery.data.value?.groups))
 const availableGroupKeys = computed(() => (groupsQuery.data.value?.groups ?? []).filter(group => group.key !== 'guest' && group.editable).map(group => group.key))
 const groupTarget = ref<UserSummary>()
 const groupPending = ref(false)
