@@ -154,6 +154,7 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (LoginResult, err
 	status := ""
 	user := CurrentUser{}
 	var permissionsJSON []byte
+	var supplementalGroupsJSON []byte
 	if userFound {
 		user.ID = userRow.UserID
 		user.Username = userRow.Username
@@ -161,6 +162,7 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (LoginResult, err
 		user.GroupKey = userRow.GroupKey
 		status = userRow.Status
 		permissionsJSON = userRow.Permissions
+		supplementalGroupsJSON = []byte(userRow.SupplementalGroups)
 		if userRow.PasswordHash.Valid && isSupportedPasswordHash(userRow.PasswordHash.String) {
 			passwordHash = userRow.PasswordHash.String
 			passwordHashUsable = true
@@ -193,6 +195,9 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (LoginResult, err
 		return LoginResult{}, ErrInvalidCredentials
 	}
 	if err := json.Unmarshal(permissionsJSON, &user.Permissions); err != nil {
+		return LoginResult{}, err
+	}
+	if err := json.Unmarshal(supplementalGroupsJSON, &user.SupplementalGroups); err != nil {
 		return LoginResult{}, err
 	}
 	if status != "active" {
@@ -287,6 +292,7 @@ func (s *Service) findUserByID(ctx context.Context, userID string) (CurrentUser,
 	var user CurrentUser
 	var passwordHash *string
 	var permissionsJSON []byte
+	var supplementalGroupsJSON []byte
 	var status string
 	err := s.pool.QueryRow(ctx, `
 		select app_user.id::text,
@@ -295,11 +301,17 @@ func (s *Service) findUserByID(ctx context.Context, userID string) (CurrentUser,
 			app_user.password_hash,
 			app_user.status,
 			user_group.key,
-			user_group.permissions
+			user_group.permissions,
+			coalesce((
+				select jsonb_agg(supplemental_group.key order by supplemental_group.key)
+				from app_user_group_membership as membership
+				join user_group as supplemental_group on supplemental_group.id = membership.user_group_id
+				where membership.user_id = app_user.id
+			), '[]'::jsonb)
 		from app_user
 		join user_group on user_group.id = app_user.group_id
 		where app_user.id = $1 and app_user.deleted_at is null
-	`, userID).Scan(&user.ID, &user.Username, &user.Nickname, &passwordHash, &status, &user.GroupKey, &permissionsJSON)
+	`, userID).Scan(&user.ID, &user.Username, &user.Nickname, &passwordHash, &status, &user.GroupKey, &permissionsJSON, &supplementalGroupsJSON)
 	if err == pgx.ErrNoRows {
 		return CurrentUser{}, "", "", ErrInvalidCredentials
 	}
@@ -307,6 +319,9 @@ func (s *Service) findUserByID(ctx context.Context, userID string) (CurrentUser,
 		return CurrentUser{}, "", "", err
 	}
 	if err := json.Unmarshal(permissionsJSON, &user.Permissions); err != nil {
+		return CurrentUser{}, "", "", err
+	}
+	if err := json.Unmarshal(supplementalGroupsJSON, &user.SupplementalGroups); err != nil {
 		return CurrentUser{}, "", "", err
 	}
 	password := ""

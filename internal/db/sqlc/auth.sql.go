@@ -156,7 +156,13 @@ select
     app_user.password_hash,
     app_user.status,
     user_group.key as group_key,
-    user_group.permissions
+    user_group.permissions,
+    coalesce((
+        select jsonb_agg(supplemental_group.key order by supplemental_group.key)
+        from app_user_group_membership as membership
+        join user_group as supplemental_group on supplemental_group.id = membership.user_group_id
+        where membership.user_id = app_user.id
+    ), '[]'::jsonb)::text as supplemental_groups
 from app_user
 join user_group on user_group.id = app_user.group_id
 where app_user.username = $1 and app_user.deleted_at is null
@@ -164,13 +170,14 @@ for share of app_user
 `
 
 type GetAuthUserByUsernameRow struct {
-	UserID       string      `json:"user_id"`
-	Username     string      `json:"username"`
-	Nickname     string      `json:"nickname"`
-	PasswordHash pgtype.Text `json:"password_hash"`
-	Status       string      `json:"status"`
-	GroupKey     string      `json:"group_key"`
-	Permissions  []byte      `json:"permissions"`
+	UserID             string      `json:"user_id"`
+	Username           string      `json:"username"`
+	Nickname           string      `json:"nickname"`
+	PasswordHash       pgtype.Text `json:"password_hash"`
+	Status             string      `json:"status"`
+	GroupKey           string      `json:"group_key"`
+	Permissions        []byte      `json:"permissions"`
+	SupplementalGroups string      `json:"supplemental_groups"`
 }
 
 func (q *Queries) GetAuthUserByUsername(ctx context.Context, username string) (GetAuthUserByUsernameRow, error) {
@@ -184,6 +191,7 @@ func (q *Queries) GetAuthUserByUsername(ctx context.Context, username string) (G
 		&i.Status,
 		&i.GroupKey,
 		&i.Permissions,
+		&i.SupplementalGroups,
 	)
 	return i, err
 }

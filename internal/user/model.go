@@ -55,6 +55,17 @@ type BatchChangeGroupResult struct {
 	UnchangedCount int `json:"unchangedCount"`
 }
 
+type UpdateGroupMembershipsInput struct {
+	ID                string   `json:"id"`
+	GroupKeys         []string `json:"groupKeys"`
+	ExpectedUpdatedAt string   `json:"expectedUpdatedAt"`
+}
+
+type GroupMembership struct {
+	Key  string `json:"key"`
+	Name string `json:"name"`
+}
+
 type UpdateResult struct {
 	User UserSummary `json:"user"`
 }
@@ -81,12 +92,13 @@ type CreatedUser struct {
 }
 
 type UserSummary struct {
-	ID        string `json:"id"`
-	Username  string `json:"username"`
-	Nickname  string `json:"nickname"`
-	Group     string `json:"group"`
-	Status    string `json:"status"`
-	Builtin   bool   `json:"builtin"`
-	CreatedAt string `json:"createdAt"`
-	UpdatedAt string `json:"updatedAt"`
+	ID                 string            `json:"id"`
+	Username           string            `json:"username"`
+	Nickname           string            `json:"nickname"`
+	Group              string            `json:"group"`
+	SupplementalGroups []GroupMembership `json:"supplementalGroups"`
+	Status             string            `json:"status"`
+	Builtin            bool              `json:"builtin"`
+	CreatedAt          string            `json:"createdAt"`
+	UpdatedAt          string            `json:"updatedAt"`
 }

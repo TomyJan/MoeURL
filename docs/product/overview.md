@@ -4,7 +4,7 @@
 
 v0.93.0 [自定义组批量成员迁移](scope-v0.93.0.md)已由 PR #424 正常 squash 合并为 `ca25239d377900f2c681006425e1b27ed96196f4`；tree、唯一 parent、准确 CodeRabbit 无 actionable 结论、逐项归档和离线恢复均已独立核验。代码本地门禁与 PostgreSQL fallback 浏览器证据按准确 SHA 和环境记录；fallback 不代表 Goose CLI、标准 Compose／Dockerfile 或 CI。v0.93.0 未正式发布。
 
-当前实施 [v0.94.0 多组补充授权](scope-v0.94.0.md)：设计与建造者检查已完成，Task 1 持久化结构与成员计数已本地验证并提交；后续推进身份／API、权限 Resolver、域名及前端切片。保留 `app_user.group_id` 作为唯一主组，支持自定义补充组及权限／域名授权并集。完整门禁和版本验收尚未完成。详见[设计](../superpowers/specs/2026-11-26-v0.94.0-supplemental-user-groups-design.md)、[计划](../superpowers/plans/2026-11-26-v0.94.0-supplemental-user-groups.md)及[v0.94 验收](../implementation/v0.94.0-acceptance.md)。
+当前实施 [v0.94.0 多组补充授权](scope-v0.94.0.md)：设计与建造者检查、Task 1 持久化结构与计数、Task 2 CAS 成员 API 与身份读回已完成本地实现和后端验证；后续推进权限 Resolver、域名和前端切片。保留 `app_user.group_id` 作为唯一主组，支持自定义补充组及权限／域名授权并集。完整门禁、独立审查和版本验收尚未完成。详见[设计](../superpowers/specs/2026-11-26-v0.94.0-supplemental-user-groups-design.md)、[计划](../superpowers/plans/2026-11-26-v0.94.0-supplemental-user-groups.md)及[v0.94 验收](../implementation/v0.94.0-acceptance.md)。
 
 ## 最近完成（2026-11-25，v0.92.0）
 

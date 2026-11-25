@@ -1,5 +1,9 @@
 # 技术选型决策
 
+## v0.94.0 多组补充授权决策（实施中）
+
+保留 `app_user.group_id` 作为兼容主组，并以 migration `00051` 的 `app_user_group_membership` 表保存自定义补充组关系。新增 CAS 完整集合更新 API；真实变化以同一 PostgreSQL 事务推进用户 `updated_at`、替换关系、撤销 Session 并记录一条不含前后集合的审计，准确 no-op 不产生这些副作用。用户列表与 `auth/me` 增加稳定排序的补充组字段，同时保留主组 `group`。Task 1–2 的本地实现和验证边界见[v0.94 验收](v0.94.0-acceptance.md)；权限并集和域名语义仍由 Task 3 实施，登录态补充组字段不是最终授权来源。
+
 ## v0.92.0 自定义用户组决策（已完成集成，未发布）
 
 在现有 `user_group.permissions`、`app_user.group_id`、domain grant 和共享 `updated_at` 上增加单主组 custom groups。服务端创建 UUID 不透明 key；不引入多组／权限合并表、新权限或依赖。新组权限与域名授权 fail-closed，protected 权限仍仅属于 admin；custom key 不作为权限本身。Migration 00050 的 Down 遇到自定义数据时拒绝回滚，不转换或丢弃数据。后端 Task 1–4 已通过 PR #421 squash 合并；前端 Task 5 已通过 PR #420 squash 合并，准确 head `8ed359ee` 的 CodeRabbit review 无 actionable comments。此版本已完成代码集成和可恢复归档，但未发布。详细约束见[v0.92 spec](../specs/2026-11-23-v0.92.0-custom-user-groups-spec.md)和[验收](v0.92.0-acceptance.md)。

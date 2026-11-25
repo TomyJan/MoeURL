@@ -1,5 +1,9 @@
 # 技术基线
 
+## 当前实施（2026-11-26，v0.94.0）
+
+v0.94.0 保持 Go／Chi／SQLC／Goose／PostgreSQL 技术栈，不新增依赖。migration `00051` 建立用户到自定义补充组的 UUID 关系；Down 在存在关系数据时 fail closed。Task 2 增加 `POST /api/v1/admin/user/update-group-memberships` 完整集合 CAS，沿用 HTTP 200 + 数字业务码、no-store 和数据库 Session／审计事务；列表及 `auth/me` 保留原主组字段并返回补充组。当前 Go 验证和 SQLC 生成证据见[v0.94 验收](v0.94.0-acceptance.md)；权限 Resolver、域名、前端、目标 CI 和发布仍待对应验收，不得用当前结果替代。
+
 ## 当前实施（2026-11-23，v0.92.0）
 
 当前 v0.92.0 采用单主组模型实现自定义组；没有多组关系表、权限合并层或新运行依赖。后端 PR #421 已 squash 合入 master，包含 migration `00050`、自定义组 API 与域名授权；down migration 在 custom group 存在时安全拒绝。前端 PR #420 已正常 squash 合入 master，合并前准确 head `8ed359ee` 的 CodeRabbit review 无 actionable comments；merge identity 与 whole-owned 归档均已独立核验。重定基后的前端全量测试、四项 coverage、typecheck／lint／build 证据及环境见[v0.92.0 验收](v0.92.0-acceptance.md)。该版本未发布或部署。

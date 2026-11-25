@@ -74,6 +74,15 @@ func (s *Service) ChangeGroup(ctx context.Context, actor auth.CurrentUser, input
 		if !target.UpdatedAt.Time.Equal(expected) {
 			return ErrVersionConflict
 		}
+		supplementalGroups, err := q.GetSupplementalUserGroupKeysByUserID(ctx, target.ID)
+		if err != nil {
+			return err
+		}
+		for _, key := range supplementalGroups {
+			if key == input.GroupKey {
+				return ErrInvalidInput
+			}
+		}
 		group, err := q.LockUserGroupForCustomManagement(ctx, input.GroupKey)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrInvalidInput
