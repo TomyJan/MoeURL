@@ -1,6 +1,6 @@
 # 技术选型决策
 
-## v0.92.0 自定义用户组决策（当前 feature 分支）
+## v0.92.0 自定义用户组决策（已完成集成，未发布）
 
 在现有 `user_group.permissions`、`app_user.group_id`、domain grant 和共享 `updated_at` 上增加单主组 custom groups。服务端创建 UUID 不透明 key；不引入多组／权限合并表、新权限或依赖。新组权限与域名授权 fail-closed，protected 权限仍仅属于 admin；custom key 不作为权限本身。Migration 00050 的 Down 遇到自定义数据时拒绝回滚，不转换或丢弃数据。后端 Task 1–4 已通过 PR #421 squash 合并；前端 Task 5 已通过 PR #420 squash 合并，准确 head `8ed359ee` 的 CodeRabbit review 无 actionable comments。此版本已完成代码集成和可恢复归档，但未发布。详细约束见[v0.92 spec](../specs/2026-11-23-v0.92.0-custom-user-groups-spec.md)和[验收](v0.92.0-acceptance.md)。
 

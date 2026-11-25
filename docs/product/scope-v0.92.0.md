@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-功能实现已在 `feat/v0.92.0-custom-user-groups` 完成本地 Task 1–5。后端 PR #421 已 squash 合并为 `f2d53c76`；前端 PR #420 已重定基到 master，差异为前端与交付文档。重定基后前端全量 7,326 项通过，四项 coverage 均为 100%，typecheck、lint 和 build 通过。专用 PostgreSQL／HTTP 与真实浏览器在桌面、移动视口通过（setup + 2 个视口，3/3），但该证据归属原验收候选，不冒充重定基后 SHA。Task 6、PR #420 准确 tip review、正常集成与可恢复归档继续进行，产品版本号不因本范围文档而改变。准确验证及待办见 [v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
+功能实现及代码集成已完成；产品版本尚未发布。后端 PR #421 已 squash 合并为 `f2d53c76`，前端 PR #420 已以准确 head `8ed359ee` squash 合并为 `367bfe6d`。Task 6 文档及整体验收状态已收口；PR #420 CodeRabbit 对准确 head 的结论为无 actionable comments，merge identity 与 whole-owned 可恢复归档均已核验。前端全量测试、coverage、typecheck、lint、build 与专用 PostgreSQL／HTTP／browser evidence 仍按原 SHA 和环境记录；隔离浏览器 fallback 不代表标准 Dockerfile build、CI 或发布验收。产品版本号不因本范围文档而改变。准确验证及边界见 [v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
 
 ## 目标
 
