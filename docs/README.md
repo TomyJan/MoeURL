@@ -3,7 +3,7 @@
 ## 当前开发（2026-11-26，v0.93.0）
 
 [自定义组批量成员迁移](product/scope-v0.93.0.md)的服务端／前端实现和本地验收已完成。独立终审范围 `1863adae..690b2e14` 的两项 Minor 已修复并按 RED→GREEN 核验。Go `1.26.8` 下 coverage workflow 16 个后端包通过，业务 coverage 100.00%，`go vet ./...` 通过；Node `26.3.0`／pnpm `11.5.0` 下前端 7,339/7,339、四项 coverage 100%，类型、lint、build 通过。准确产品的隔离 PostgreSQL fallback Playwright 为 3/3（中英桌面／手机），不代表标准 Dockerfile build／CI。产品实现提交 `50383a94`；准确 review-fix head 的真实 CodeRabbit、PR 集成核验及 whole-owned 归档仍待。不查 CI／checks，不发布部署，不触碰 PR #240/#266/#267。详细状态见[开发进度](product/development-status.md)和[v0.93 验收](implementation/v0.93.0-acceptance.md)。
-CodeRabbit 对 `3aa467c1` 的三条 Minor 已于 `e42b79f7` 修复；准确 head `60bf90b5` 的 follow-up review 新增一条 E2E cleanup Minor，已在 `a7416976` 修复并解决 thread。该测试树用 Node `v22.23.4`／pnpm `11.25.0` 和隔离 PostgreSQL fallback 执行 setup、英文桌面、中文手机 3/3 通过，专属 app／DB 已清理；这不代表标准 Dockerfile 或 CI。对 `a7416976` 的新 CodeRabbit 请求遭限流，未产生 review。PR #424 的正常集成、merge identity 核验与 whole-owned 可恢复归档待完成；不查询 CI、不部署发布、不触碰 PR #240/#266/#267。详见[v0.93 验收](implementation/v0.93.0-acceptance.md)。
+CodeRabbit 对 `3aa467c1` 的三条 Minor 已于 `e42b79f7` 修复；准确 head `60bf90b5` 的 follow-up review 新增一条 E2E cleanup Minor，已在 `a7416976` 修复并解决 thread。该测试树用 Node `v22.23.4`／pnpm `11.25.0` 和隔离 PostgreSQL fallback 执行 setup、英文桌面、中文手机 3/3 通过，专属 app／DB 已清理；这不代表标准 Dockerfile 或 CI。对 `a7416976` 的新 CodeRabbit 请求遭限流，未产生 review；后续 docs-only tip 尚无准确 head review。PR #424 的正常集成、merge identity 核验与 whole-owned 可恢复归档待完成；不查询 CI、不部署发布、不触碰 PR #240/#266/#267。详见[v0.93 验收](implementation/v0.93.0-acceptance.md)。
 
 v0.93.0 文档入口：[范围](product/scope-v0.93.0.md)、[设计](superpowers/specs/2026-11-25-v0.93.0-custom-group-batch-design.md)、[实施计划](superpowers/plans/2026-11-25-v0.93.0-custom-group-batch-plan.md)及[验收](implementation/v0.93.0-acceptance.md)。
 
