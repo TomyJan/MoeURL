@@ -23,6 +23,10 @@
         {{ t('batchMembership.readRequired') }}
         <v-btn :loading="query.isFetching.value" @click="batch.reload">{{ t('batchMembership.retryRead') }}</v-btn>
       </v-alert>
+      <v-alert v-if="canChangeGroup && groupsQuery.isError.value" type="error" variant="tonal">
+        {{ t('batchMembership.groupsLoadFailed') }}
+        <v-btn :loading="groupsQuery.isFetching.value" @click="groupsQuery.refetch()">{{ t('batchMembership.retryGroups') }}</v-btn>
+      </v-alert>
       <v-alert v-if="query.isError.value" type="error" variant="tonal">
         {{ t('adminUsers.loadFailed') }}
         <v-btn v-if="!batch.barrier.value" :loading="query.isFetching.value" @click="batch.reload">{{ t('batchMembership.retryRead') }}</v-btn>
@@ -146,7 +150,7 @@
       <p v-if="users.length > 0" class="console-page__notice">{{ t('adminUsers.paginationNotice') }}</p>
     </div>
     <UserGroupChangeDialog v-if="groupTarget" :target="groupTarget" managed @close="groupTarget = undefined" @pending="groupPending = $event" @refresh="batch.reload" />
-    <UserBatchGroupChangeDialog v-if="batch.snapshot.value" :snapshot="batch.snapshot.value" :pending="batch.pending.value" @close="batch.close" @submit="batch.submit" />
+    <UserBatchGroupChangeDialog v-if="batch.snapshot.value" :snapshot="batch.snapshot.value" :groups="batch.snapshotGroups.value ?? []" :available-group-keys="availableGroupKeys" :groups-ready="groupsReady" :pending="batch.pending.value" @close="batch.close" @submit="batch.submit" />
   </section>
 </template>
 
@@ -177,6 +181,8 @@ const currentUserQuery = useQuery({ queryKey: ['auth', 'me'], queryFn: me, stale
 const canChangeGroup = computed(() => currentUserQuery.isSuccess.value && !!currentUserId.value && currentUserQuery.data.value?.user.id === currentUserId.value && currentUserQuery.data.value.user.permissions.includes('admin:access'))
 const groupsQuery = useQuery({ queryKey: computed(() => [...userGroupQueryKey, currentUserId.value, identity.scope.value.epoch]), queryFn: listUserGroups, enabled: canChangeGroup, retry: false, staleTime: Infinity })
 const groupNames = computed(() => Object.fromEntries((groupsQuery.data.value?.groups ?? []).map(({ key, name }) => [key, name])))
+const groupsReady = computed(() => groupsQuery.isSuccess.value && !groupsQuery.isError.value && !groupsQuery.isFetching.value)
+const availableGroupKeys = computed(() => (groupsQuery.data.value?.groups ?? []).filter(group => group.key !== 'guest' && group.editable).map(group => group.key))
 const groupTarget = ref<UserSummary>()
 const groupPending = ref(false)
 const singlePending = ref('')
@@ -204,7 +210,15 @@ const users = computed(() => canChangeGroup.value ? query.data.value?.items ?? [
 const total = computed(() => canChangeGroup.value ? query.data.value?.meta.total ?? 0 : 0)
 // Match link-list selection without relying on an unloaded icon font.
 const selectionIcons = { trueIcon: aliases.checkboxOn, falseIcon: aliases.checkboxOff, indeterminateIcon: aliases.checkboxIndeterminate }
-const batch = useUserBatchGroupChange({ users, allowed: canChangeGroup, blocked: computed(() => !!singlePending.value || !!groupTarget.value), onSelect: () => { editingUserId.value = ''; moreUserId.value = '' }, read: () => query.refetch({ throwOnError: true }) })
+const batch = useUserBatchGroupChange({
+  users,
+  groups: computed(() => groupsQuery.data.value?.groups ?? []),
+  groupsReady,
+  allowed: canChangeGroup,
+  blocked: computed(() => !!singlePending.value || !!groupTarget.value),
+  onSelect: () => { editingUserId.value = ''; moreUserId.value = '' },
+  read: async () => Promise.all([query.refetch({ throwOnError: true }), groupsQuery.refetch({ throwOnError: true })]),
+})
 const writeLocked = computed(() => !canChangeGroup.value || !!singlePending.value || groupPending.value || batch.pending.value || batch.barrier.value || !!batch.snapshot.value || batch.selected.value.length > 0)
 const rowLocked = computed(() => writeLocked.value || !!groupTarget.value)
 watch([identity.scope, canChangeGroup], (_value, [previous]) => {

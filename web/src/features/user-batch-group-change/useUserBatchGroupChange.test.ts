@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { defineComponent, ref } from 'vue'
 import { setImmediate as eventLoop } from 'node:timers/promises'
 import { useUserBatchGroupChange } from './useUserBatchGroupChange'
-import { batchAlice, batchBob, batchManager, membershipResponse, mountBatchMembership } from '@/test/user-batch-group'
+import { batchAlice, batchBob, batchGroups, batchManager, membershipResponse, mountBatchMembership } from '@/test/user-batch-group'
 import { listUsers } from '@/entities/user/api'
 import { createDeferred } from '@/test/deferred'
 
@@ -17,7 +17,7 @@ function queuedControls(count = 2) {
       const users = ref(count === 2 ? [batchAlice, batchBob] : Array.from({ length: count }, (_, i) => ({ ...batchAlice, id: String(i), username: 'account-' + i })))
       const blocked = ref(false)
       const allowed = ref(true)
-      const batch = useUserBatchGroupChange({ users, allowed, blocked, onSelect: () => {}, read: () => listUsers() })
+      const batch = useUserBatchGroupChange({ users, groups: ref(batchGroups), groupsReady: ref(true), allowed, blocked, onSelect: () => {}, read: () => listUsers() })
       return { batch, users, blocked, allowed }
     },
     template: `<div>

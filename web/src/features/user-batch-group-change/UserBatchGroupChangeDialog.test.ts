@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/vue'
 import { afterEach, expect, it, vi } from 'vitest'
-import { batchAlice, batchBob, batchManager, confirmBatchMembership, mountBatchMembership, openBatchMembership } from '@/test/user-batch-group'
+import { batchAlice, batchBob, batchGroups, batchManager, confirmBatchMembership, mountBatchMembership, openBatchMembership } from '@/test/user-batch-group'
 import UserBatchGroupChangeDialog from './UserBatchGroupChangeDialog.vue'
 import { componentStubs } from '@/test/component-stubs'
 import { createI18n } from 'vue-i18n'
@@ -63,7 +63,7 @@ it('limits selection to current eligible accounts, maintains indeterminate state
 
 it('rejects a queued cancellation and submission after the parent marks the request pending', async () => {
   // The presentation-only button double deliberately delivers a previously queued click even when disabled.
-  const dialog = render(UserBatchGroupChangeDialog, { props: { snapshot: [batchAlice], pending: false }, global: { stubs: componentStubs, plugins: [createI18n({ legacy: false, locale: 'en', messages })] } })
+  const dialog = render(UserBatchGroupChangeDialog, { props: { snapshot: [batchAlice], groups: batchGroups, availableGroupKeys: ['user', 'admin'], groupsReady: true, pending: false }, global: { stubs: componentStubs, plugins: [createI18n({ legacy: false, locale: 'en', messages })] } })
   await fireEvent.click(screen.getByRole('button', { name: 'Save group changes' }))
   expect(dialog.emitted().submit).toBeUndefined()
   await dialog.rerender({ snapshot: [batchAlice], pending: true })
