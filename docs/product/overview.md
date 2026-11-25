@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-25，v0.92.0）
 
-[自定义用户组](scope-v0.92.0.md)已在单主组边界内实现 Task 1–5。本轮补强创建用户页身份 epoch 迟到回调隔离，并为手机 E2E 长组名布局 fixture 增加逐项 CAS 清理；实现与后续状态文档提交均已推至 PR #420，最近核验 tip `702e7338`。前端全量 coverage 7,327 项、四项 100%，typecheck、lint 和 build 均通过。隔离浏览器 fallback 3/3 通过，8 个辅助组清理后数量为 0；临时服务和镜像已移除，该 fallback 不代表标准 Dockerfile build／CI。后端 PR #421 已正常 squash 合并，其 core 分支已完成可恢复归档与精确清理；PR #420 已 retarget `master`，仍 open。CodeRabbit 对 `11f69d4e` 指出的一条文档状态意见已修正、thread 已关闭；针对 `c0f4495b` 的 follow-up review 请求遭限流，后续文档-only tip 不继承旧 SHA 的 review。PR 正常集成与其 whole-owned 恢复归档仍待。未查 CI、不发布或部署。准确状态见[开发进度](development-status.md)和[v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
+[自定义用户组](scope-v0.92.0.md)已在单主组边界内完成 Task 1–6。PR #421 已正常 squash 合并为 `f2d53c76`；PR #420 已以准确 head `8ed359ee` 正常 squash 合并为 `367bfe6d`。CodeRabbit 对该准确 head 的结论为无 actionable comments；whole-owned 归档、feature 分支及 worktree 清理均已完成。前端本地 coverage、typecheck、lint、build 和隔离 fallback 浏览器证据保留原执行归属；fallback 不代表标准 Dockerfile build／CI。未查 CI、不发布或部署。准确状态见[开发进度](development-status.md)和[v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
 
 ## 当前开发（2026-11-23，v0.91.0）
 

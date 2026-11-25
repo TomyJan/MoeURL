@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-25，v0.92.0）
 
-[自定义用户组](scope-v0.92.0.md) Task 1–5 已实现；当前前端候选全量 7,327 项通过，四项 coverage 均 100%，typecheck、lint 与 build 通过。标准 Compose 拉取 Go 基础镜像超时后，采用本机 Go 1.26.8 静态 app 与缓存镜像的隔离 fallback，在 Chrome 159 的 1280 px、390 px 场景完成 setup + 2 个视口，3/3 通过；8 个辅助组均已清理，专属容器／卷／网络和镜像已删除。PR #421 已正常 squash 合并为 `f2d53c76`，tree／唯一 parent 已独立核验，core 分支已完成可恢复归档与本地/远端清理；PR #420 已 retarget `master`，当前最终差异 53 个前端／验收文件。CodeRabbit 对 `11f69d4e` 的 1 条文档状态意见已在 `c0f4495b` 修正并公开回复、解决 thread；对 `c0f4495b` 的 review 请求遭限流，之后的文档-only heads（最近核验 `702e7338`）未获 review，不外推旧 SHA 结论。PR #420 正常合并及其可恢复归档仍待。不查 CI、不发布部署。
+[自定义用户组](scope-v0.92.0.md) Task 1–6 已完成。PR #421 已正常 squash 合并为 `f2d53c76`，tree／唯一 parent 已独立核验，core 分支归档及本地／远端清理已完成；PR #420 已以准确 head `8ed359ee` 正常 squash 合并为 `367bfe6d`，最终差异为 53 个前端／验收文件。CodeRabbit 对准确 head 的 review 结论为无 actionable comments；请求 `7151716233`，bot 回执 `7151718099`。PR #420 merge identity、whole-owned 归档与 feature 分支／worktree 清理均已核验。前端 coverage、typecheck、lint、build 与隔离 fallback 浏览器结果均按原执行身份记录，fallback 不代表标准 Dockerfile build／CI。不查 CI、不发布部署。
 
 ## 最近完成（2026-11-22，v0.91.0）
 
