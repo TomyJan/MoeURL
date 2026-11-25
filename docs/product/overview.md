@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-25，v0.92.0）
 
-[自定义用户组](scope-v0.92.0.md)已在单主组边界内实现 Task 1–5。本轮补强创建用户页身份 epoch 迟到回调隔离，并为手机 E2E 长组名布局 fixture 增加逐项 CAS 清理；实现与后续状态文档提交均已推至 PR #420，最近核验 tip `702e7338`。前端全量 coverage 7,327 项、四项 100%，typecheck、lint 和 build 均通过。隔离浏览器 fallback 3/3 通过，8 个辅助组清理后数量为 0；临时服务和镜像已移除，该 fallback 不代表标准 Dockerfile build／CI。后端 PR #421 已正常 squash 合并，其 core 分支已完成可恢复归档与精确清理；PR #420 已 retarget `master`，仍 open。CodeRabbit 对 `11f69d4e` 指出的一条文档状态意见已修正、thread 已关闭；针对 `c0f4495b` 的 follow-up review 请求遭限流，后续文档-only tip 不继承旧 SHA 的 review。PR 正常集成与其 whole-owned 恢复归档仍待。未查 CI、不发布或部署。准确状态见[开发进度](development-status.md)和[v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
+[自定义用户组](scope-v0.92.0.md)已在单主组边界内完成 Task 1–6。PR #421 已正常 squash 合并为 `f2d53c76`；PR #420 已以准确 head `8ed359ee` 正常 squash 合并为 `367bfe6d`。CodeRabbit 对该准确 head 的结论为无 actionable comments；whole-owned 归档、feature 分支及 worktree 清理均已完成。前端本地 coverage、typecheck、lint、build 和隔离 fallback 浏览器证据保留原执行归属；fallback 不代表标准 Dockerfile build／CI。未查 CI、不发布或部署。准确状态见[开发进度](development-status.md)和[v0.92.0 验收](../implementation/v0.92.0-acceptance.md)。
 
 ## 当前开发（2026-11-23，v0.91.0）
 
@@ -460,7 +460,7 @@ MoeURL 的核心控制逻辑是权限系统。
 
 主分支已通过 PR #208 合并 [v0.18.0 全站统计、匿名访问明细与操作审计](scope-v0.18.0.md)：管理员全站快照、已有单链分析页内的匿名记录，以及关键业务写入同事务审计和 180 天在线保留。各阶段证据见 [验收](../implementation/v0.18.0-acceptance.md)；已合并，尚未正式发布，不将主分支历史 CI 当作本版验证。
 
-当前 master 尚未包含已合并的 v0.92 后端能力，前端 PR #420 仍 open，因此尚不能将自定义用户组描述为已交付产品。v0.92.0 分支已完成 Task 1–5 本地实现、前端全量 7,327 项与四项覆盖率门槛、typecheck／lint／build；隔离 PostgreSQL／HTTP／浏览器 fallback 的 1280 px／390 px 闭环为 setup + 2 个视口，3/3。整体验收与交付仍未完成；准确状态见 [v0.92.0 范围](scope-v0.92.0.md)和[验收](../implementation/v0.92.0-acceptance.md)。其他未实现方向包括头像、自定义 OIDC 模板和账号绑定、独立标签实体与治理、超出 90 天或任意时区分析、品牌上传及模板编辑。导出清单恢复已在 v0.90.0 完成实现与交付记录；IANA 时区显示、有界 CSV 创建、固定强调色和只读标签查找也已交付，不作为全新功能重复规划；其他方向仍须独立收敛范围。
+v0.92.0 自定义用户组后端与前端分别经 PR #421、#420 合并；前端准确 head `8ed359ee` 的 CodeRabbit review 无 actionable comments，whole-owned 可恢复归档和 feature 分支清理已完成。前端本地门禁及隔离 PostgreSQL／HTTP／浏览器 fallback 结果按准确执行 SHA 记录；fallback 不代表标准 Dockerfile build、CI 或发布验收。产品尚未正式发布。其他未实现方向包括多主组、头像、自定义 OIDC 模板和账号绑定、独立标签实体与治理、超出 90 天或任意时区分析、品牌上传及模板编辑，均不自动纳入下一版本。导出清单恢复已在 v0.90.0 完成实现与交付记录；IANA 时区显示、有界 CSV 创建、固定强调色和只读标签查找也已交付，不作为全新功能重复规划；其他方向仍须独立收敛范围。
 
 ## 验证与发布边界
 

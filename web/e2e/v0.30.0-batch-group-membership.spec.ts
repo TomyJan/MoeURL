@@ -10,7 +10,7 @@ const cancelName = /^(取消|Cancel)$/
 const saveName = /^(保存用户组调整|Save group changes)$/
 const confirmName = /^(我确认这些用户组调整|I confirm the group changes)$/
 const groupName = /^(目标用户组|Target group)$/
-const groupTitles = { user: /^(普通用户|User)$/, admin: /^(管理员|Administrator)$/ }
+const groupTitles = { user: /^(普通用户|User)$/, admin: /^(管理员|Admin|Administrator)$/ }
 test.use({ serviceWorkers: 'block', actionTimeout: 10_000 })
 
 for (const width of [1280, 390]) {
@@ -68,7 +68,7 @@ for (const width of [1280, 390]) {
         await groupCell.scrollIntoViewIfNeeded()
         // A collapsed table border may clip subpixel geometry, not the group text.
         await expect(groupCell).toBeInViewport({ ratio: 0.99 })
-        await expect(groupCell).toHaveText('user')
+        await expect(groupCell).toHaveText(groupTitles.user)
         await page.locator('.user-table > .v-table__wrapper').evaluate(element => { element.scrollLeft = 0 })
       }
       await capture(page, info, 'batch-membership-selection-' + width)
@@ -128,7 +128,7 @@ for (const width of [1280, 390]) {
       await expect(dialog).toHaveCount(0)
       await expect(selectAccount(page, alice.username)).toBeEnabled()
       await expect(selectAccount(page, alice.username)).not.toBeChecked()
-      await expect(page.getByTestId('console-user-row').filter({ hasText: alice.username })).toContainText('admin')
+      await expect(page.getByTestId('console-user-row').filter({ hasText: alice.username }).locator('td').nth(2)).toHaveText(groupTitles.admin)
       await capture(page, info, 'batch-membership-refreshed-' + width)
       for (const [index, member] of [alice, bob].entries()) {
         expect((await get<{ user: { group: string } }>(members[index]!.request, '/auth/me')).user.group).toBe('guest')

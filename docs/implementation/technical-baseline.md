@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-23，v0.92.0）
 
-当前 v0.92.0 采用单主组模型实现自定义组；没有多组关系表、权限合并层或新运行依赖。后端 PR #421 已 squash 合入 master，包含 migration `00050`、自定义组 API 与域名授权；down migration 在 custom group 存在时安全拒绝。前端 PR #420 已重定基到 squash merge 后的 master。重定基后前端全量 7,326 项测试、四项 coverage 100%、typecheck／lint／build 均通过，环境和 SHA 见[v0.92.0 验收](v0.92.0-acceptance.md)。PR #420 当前准确 tip 的 CodeRabbit review、正常集成与恢复归档待完成。未发布或部署。
+当前 v0.92.0 采用单主组模型实现自定义组；没有多组关系表、权限合并层或新运行依赖。后端 PR #421 已 squash 合入 master，包含 migration `00050`、自定义组 API 与域名授权；down migration 在 custom group 存在时安全拒绝。前端 PR #420 已正常 squash 合入 master，合并前准确 head `8ed359ee` 的 CodeRabbit review 无 actionable comments；merge identity 与 whole-owned 归档均已独立核验。重定基后的前端全量测试、四项 coverage、typecheck／lint／build 证据及环境见[v0.92.0 验收](v0.92.0-acceptance.md)。该版本未发布或部署。
 
 ## 当前已完成实施（2026-11-20，v0.90.0）
 

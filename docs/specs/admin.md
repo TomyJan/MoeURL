@@ -155,7 +155,7 @@ v0.5.0 已交付内置用户组权限管理的第一阶段：
 
 v0.5.0 不创建自定义用户组，不修改用户所属组，也不实现访客短链归属、用户组成员、域名授权、配额或审计日志。
 
-v0.92.0 当前 feature 分支在 v0.5.0 的内置组权限管理基础上实现单主组自定义组闭环：管理员可以创建、编辑、删除无成员的自定义组，按既有 catalog 配置非 protected 权限，为组配置域名 grant/default，并在用户创建及单用户迁组时选择动态服务端组列表。删除确认显示 memberCount，有成员时 UI 与服务端均拒绝删除。受保护权限始终锁给 builtin admin，guest 只读；批量迁组仍限 builtin user/admin。该分支 Task 1–5 已完成，文档／整体验收、最终 review、合并及发布尚未完成。详见[v0.92 scope](../product/scope-v0.92.0.md)、[spec](2026-11-23-v0.92.0-custom-user-groups-spec.md)和[acceptance](../implementation/v0.92.0-acceptance.md)。
+v0.92.0 在 v0.5.0 的内置组权限管理基础上实现单主组自定义组闭环：管理员可以创建、编辑、删除无成员的自定义组，按既有 catalog 配置非 protected 权限，为组配置域名 grant/default，并在用户创建及单用户迁组时选择动态服务端组列表。删除确认显示 memberCount，有成员时 UI 与服务端均拒绝删除。受保护权限始终锁给 builtin admin，guest 只读；批量迁组仍限 builtin user/admin。后端与前端已分别经 PR #421、#420 合并；Task 1–6 的实现、审查、归档和本地验证记录见[v0.92 scope](../product/scope-v0.92.0.md)、[spec](2026-11-23-v0.92.0-custom-user-groups-spec.md)和[acceptance](../implementation/v0.92.0-acceptance.md)。目标 CI 与正式发布未验收。
 
 完整用户与权限管理页面不属于 v0.0.1 范围。
 

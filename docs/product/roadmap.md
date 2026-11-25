@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-25，v0.92.0）
 
-[自定义用户组](scope-v0.92.0.md) Task 1–5 已实现；当前前端候选全量 7,327 项通过，四项 coverage 均 100%，typecheck、lint 与 build 通过。标准 Compose 拉取 Go 基础镜像超时后，采用本机 Go 1.26.8 静态 app 与缓存镜像的隔离 fallback，在 Chrome 159 的 1280 px、390 px 场景完成 setup + 2 个视口，3/3 通过；8 个辅助组均已清理，专属容器／卷／网络和镜像已删除。PR #421 已正常 squash 合并为 `f2d53c76`，tree／唯一 parent 已独立核验，core 分支已完成可恢复归档与本地/远端清理；PR #420 已 retarget `master`，当前最终差异 53 个前端／验收文件。CodeRabbit 对 `11f69d4e` 的 1 条文档状态意见已在 `c0f4495b` 修正并公开回复、解决 thread；对 `c0f4495b` 的 review 请求遭限流，之后的文档-only heads（最近核验 `702e7338`）未获 review，不外推旧 SHA 结论。PR #420 正常合并及其可恢复归档仍待。不查 CI、不发布部署。
+[自定义用户组](scope-v0.92.0.md) Task 1–6 已完成。PR #421 已正常 squash 合并为 `f2d53c76`，tree／唯一 parent 已独立核验，core 分支归档及本地／远端清理已完成；PR #420 已以准确 head `8ed359ee` 正常 squash 合并为 `367bfe6d`，最终差异为 53 个前端／验收文件。CodeRabbit 对准确 head 的 review 结论为无 actionable comments；请求 `7151716233`，bot 回执 `7151718099`。PR #420 merge identity、whole-owned 归档与 feature 分支／worktree 清理均已核验。前端 coverage、typecheck、lint、build 与隔离 fallback 浏览器结果均按原执行身份记录，fallback 不代表标准 Dockerfile build／CI。不查 CI、不发布部署。
 
 ## 最近完成（2026-11-22，v0.91.0）
 
@@ -631,7 +631,7 @@ v0.9.0 复用现有 `system_setting`、前端偏好和 OIDC Provider 管理，�
 
 ### 当前实施：v0.92.0 自定义用户组
 
-自定义用户组的 migration、服务端 CRUD／权限／成员迁移／域名闭环和前端动态组管理 Task 1–5 已完成，并补强创建用户身份切换保护及手机 E2E fixture 清理。Task 6 文档及整体验收仍在进行；后端 PR #421 已合并，前端 PR #420 仍 open、尚未正式发布。当前全量 coverage 为 7,327 项且四项 100%，typecheck／lint／build 通过；隔离浏览器 fallback setup + 桌面 + 手机 3/3 通过，明确不代表标准 Dockerfile build 或 CI。准确 CodeRabbit 状态、范围和验收见 [scope](scope-v0.92.0.md)、[spec](../specs/2026-11-23-v0.92.0-custom-user-groups-spec.md) 与 [验收](../implementation/v0.92.0-acceptance.md)。
+自定义用户组的 migration、服务端 CRUD／权限／成员迁移／域名闭环和前端动态组管理 Task 1–6 已完成。后端 PR #421 已合并为 `f2d53c76`，前端 PR #420 已合并为 `367bfe6d`；准确 head `8ed359ee` 的 CodeRabbit review 无 actionable comments，whole-owned 归档和分支/worktree 清理已完成。当前 coverage、typecheck／lint／build 及隔离浏览器 fallback 证据按准确 SHA 和环境记录；fallback 不代表标准 Dockerfile build 或 CI。该版本尚未正式发布；准确范围与验收见 [scope](scope-v0.92.0.md)、[spec](../specs/2026-11-23-v0.92.0-custom-user-groups-spec.md) 与 [验收](../implementation/v0.92.0-acceptance.md)。
 
 2026-11-09：当前选择标签重命名、保存进度维护、Go 压缩安全维护及批量追加内部备注已分别交付；v0.52.1 手机放弃重试说明和实际计划名称已由 PR281 合并为 `82355d63e2b7111912ac2d5eb6b067a3e1c14b5a`，审查、独立核验及可恢复归档均完成。v0.53.0 账号默认每页条数已由 PR287 完整交付，接续 v0.53.1 永久重连测试维护已由 PR288 完整交付，浏览器原失败、机制诊断和单 E2E 恢复的区别见 [v0.53.1 验收](../implementation/v0.53.1-acceptance.md)。原 CI／本地执行身份分别保留，未正式发布。下表只列剩余扩展，不重复列已交付能力；历史“本版不实现”仅描述该版本范围。
 
@@ -639,7 +639,7 @@ v0.9.0 复用现有 `system_setting`、前端偏好和 OIDC Provider 管理，�
 
 | 方向 | 当前基础 | 尚待开发 | 规格来源 |
 | --- | --- | --- | --- |
-| 账号与用户组 | 本地／OIDC、昵称／密码、语言／主题、内置组及有界成员迁移；v0.92.0 当前分支实现单主组自定义组、动态权限／域名／成员操作（Task 1–5 已完成，整体验收进行中）。 | 多主组、自定义 OIDC 模板、自动组映射、主动绑定、头像及其他个人偏好；任意时区分析仍未实现。 | [认证](../specs/users-and-auth.md)、[v0.92 范围](scope-v0.92.0.md)、[v0.92 规格](../specs/2026-11-23-v0.92.0-custom-user-groups-spec.md)、[成员迁移](scope-v0.30.0.md)、[创建模板](scope-v0.31.0.md)、[时区目录](scope-v0.60.0.md)、[默认方式](scope-v0.39.0.md) |
+| 账号与用户组 | 本地／OIDC、昵称／密码、语言／主题、内置组及有界成员迁移；v0.92.0 已实现并合并单主组自定义组、动态权限／域名／成员操作。 | 多主组、自定义 OIDC 模板、自动组映射、主动绑定、头像及其他个人偏好；任意时区分析仍未实现。 | [认证](../specs/users-and-auth.md)、[v0.92 范围](scope-v0.92.0.md)、[v0.92 规格](../specs/2026-11-23-v0.92.0-custom-user-groups-spec.md)、[成员迁移](scope-v0.30.0.md)、[创建模板](scope-v0.31.0.md)、[时区目录](scope-v0.60.0.md)、[默认方式](scope-v0.39.0.md) |
 | 短链组织与交换 | 标题／标签、单条／批量转移、有界清单 CSV、v0.90.0 受限清单恢复、批量标签整理；最多 20 条原子创建、一至八列 CSV 录入／模板（v0.77.0）、完整标准列集合任意排列（v0.81.0）及唯一 target_url 加其余七个标准字段任选（v0.86.0）、本人／全站只读标签查找、内部备注及有无备注筛选、每页 20／50／100 条（默认 20）及单页选择、最多 100 码点私密备注关键词交集筛选、当前页 1–100 条备注原子清空（PR264）、统一替换（PR270）、当前选择标签重命名及保存进度维护（v0.51.0–1）和原子追加（PR280）均已交付。列表／CSV 不返回备注正文，v0.85.0 已交付当前页 1–100 条所选 CSV，原全部匹配元数据导出保持。 | 个人赠送、自定义字段别名／历史导入、独立标签实体／合并／颜色层级、全文搜索、备注历史／撤销、跨页全选；尚未正式发布。 | [短链](../specs/short-links.md)、[批量创建](scope-v0.38.0.md)、[CSV 录入](scope-v0.40.0.md)、[格式帮助](scope-v0.40.1.md)、[倒计时导入](scope-v0.77.0.md)、[标准列映射](scope-v0.81.0.md)、[标准字段子集](scope-v0.86.0.md)、[清单恢复](scope-v0.90.0.md)、[所选CSV](scope-v0.85.0.md)、[本人查找](scope-v0.41.0.md)、[全站查找](scope-v0.42.0.md)、[备注](scope-v0.43.0.md)、[补丁](scope-v0.43.1.md)、[备注状态](scope-v0.44.0.md)、[分页](scope-v0.45.0.md)、[私密关键词](scope-v0.46.0.md)、[每页条数](scope-v0.48.0.md)、[批量清空](scope-v0.49.0.md)、[统一替换](scope-v0.50.0.md)、[当前选择重命名](scope-v0.51.0.md)、[批量追加](scope-v0.52.0.md) |
 | 分析与操作追溯 | 个人概览、匿名单链接聚合、有界日期和聚合 CSV、全站仪表盘、匿名访问明细与事务审计已合并；v0.24.0 单链匿名记录 CSV、v0.25.0 审计 CSV、v0.66.0 全站访问合并 CSV 已交付。 | 尚未正式发布，v0.25.0 合并后 CI 修复见验收；超出 90 天或任意时区分析、访问事件归档、独立安全事件中心未实现。 | [统计与事件](../specs/statistics-and-events.md)、[v0.24.0 范围](scope-v0.24.0.md)、[v0.25.0 范围](scope-v0.25.0.md)、[全站访问 CSV](scope-v0.66.0.md)、[管理后台](../specs/admin.md) |
 | 域名与默认策略 | 管理员域名、组授权及全局默认；v0.26 个人偏好、v0.27 排序、v0.28 用户组默认及 v0.29 每域名默认跳转方式已合并。模式仅用于创建面板有权初选，旧 API 与既有短链不变。 | 尚未正式发布；自助绑定及自动 DNS/TLS 未实现。 | [域名](../specs/domains.md)、[多域名](scope-v0.8.0.md)、[个人默认](scope-v0.26.0.md)、[排序](scope-v0.27.0.md)、[组默认](scope-v0.28.0.md)、[默认模式](scope-v0.29.0.md) |
