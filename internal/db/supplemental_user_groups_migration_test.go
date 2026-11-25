@@ -15,6 +15,11 @@ func TestSupplementalUserGroupsMigrationRollbackGuard(t *testing.T) {
 	require.NoError(t, goose.UpTo(database, dir, 50))
 	insertUserGroups(t, ctx, database)
 	require.NoError(t, goose.UpTo(database, dir, 51))
+	require.NoError(t, goose.DownTo(database, dir, 50), "an empty supplemental relation table must be rollback-safe")
+	var emptyRelationExists bool
+	require.NoError(t, database.QueryRowContext(ctx, `select to_regclass('app_user_group_membership') is not null`).Scan(&emptyRelationExists))
+	require.False(t, emptyRelationExists)
+	require.NoError(t, goose.UpTo(database, dir, 51), "an empty rollback must be safely repeatable")
 
 	const userID = "00000000-0000-0000-0000-000000000201"
 	const groupID = "00000000-0000-0000-0000-000000000901"
