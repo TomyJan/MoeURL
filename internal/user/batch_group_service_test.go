@@ -13,6 +13,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/user"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 )
@@ -138,6 +139,41 @@ func TestBatchChangeGroupCustomGroups(t *testing.T) {
 		require.ErrorIs(t, err, user.ErrInvalidInput)
 		require.Equal(t, user.BatchChangeGroupResult{}, result)
 	}
+}
+
+func TestBatchChangeGroupCustomSourceReadFailureIsAtomic(t *testing.T) {
+	pool, _, actor, target := groupFixture(t)
+	const sourceKey = "custom-source-read-failure"
+	insertUserGroup(t, t.Context(), pool, sourceKey, []string{permission.ShortLinkCreate})
+	var sourceID pgtype.UUID
+	require.NoError(t, pool.QueryRow(t.Context(), `select id from user_group where key=$1`, sourceKey).Scan(&sourceID))
+	_, err := pool.Exec(t.Context(), `update app_user set group_id=$1 where id=$2`, sourceID, target)
+	require.NoError(t, err)
+	items := batchItems(t, pool, target)
+	config := pool.Config()
+	config.ConnConfig.Tracer = &batchFaultTracer{prefix: "-- name: GetUserGroupByID", occurrence: 1}
+	faulty, err := pgxpool.NewWithConfig(t.Context(), config)
+	require.NoError(t, err)
+	t.Cleanup(faulty.Close)
+
+	result, err := user.NewService(faulty, nil).BatchChangeGroup(t.Context(), actor, user.BatchChangeGroupInput{Items: items, GroupKey: permission.GroupAdmin})
+	require.Error(t, err)
+	require.Equal(t, user.BatchChangeGroupResult{}, result)
+	require.Equal(t, items, batchItems(t, pool, target))
+}
+
+func TestBatchChangeGroupRejectsCorruptBuiltinDestination(t *testing.T) {
+	pool, service, actor, target := groupFixture(t)
+	const destinationKey = "unexpected-builtin"
+	insertUserGroup(t, t.Context(), pool, destinationKey, []string{permission.AdminAccess})
+	_, err := pool.Exec(t.Context(), `update user_group set builtin=true where key=$1`, destinationKey)
+	require.NoError(t, err)
+	items := batchItems(t, pool, target)
+
+	result, err := service.BatchChangeGroup(t.Context(), actor, user.BatchChangeGroupInput{Items: items, GroupKey: destinationKey})
+	require.ErrorIs(t, err, user.ErrInvalidInput)
+	require.Equal(t, user.BatchChangeGroupResult{}, result)
+	require.Equal(t, items, batchItems(t, pool, target))
 }
 
 // TestBatchChangeGroupSyntax prevents ambiguous IDs/timestamps, silent deduplication and an unbounded transaction.

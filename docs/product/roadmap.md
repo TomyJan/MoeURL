@@ -1,6 +1,10 @@
 # 路线图
 
-## 当前开发（2026-11-25，v0.92.0）
+## 当前开发（2026-11-25，v0.93.0）
+
+[自定义组批量成员迁移](scope-v0.93.0.md)已完成产品实现和本地验证：后端 16 个 coverage workflow 包通过、业务 coverage 100.00%、`go vet ./...` 通过；前端 Node `26.3.0`／pnpm `11.5.0` 全量 7,338/7,338、四项 coverage 100%、类型／lint／build 通过；隔离 PostgreSQL fallback 的中英桌面／手机浏览器 3/3 通过。准确候选 `50383a94`，真实审查、正常集成与可恢复归档待执行；fallback 不替代标准 Dockerfile build 或 CI，不部署、不发布。详见[v0.93 验收](../implementation/v0.93.0-acceptance.md)。
+
+## 最近完成（2026-11-25，v0.92.0）
 
 [自定义用户组](scope-v0.92.0.md) Task 1–6 已完成。PR #421 已正常 squash 合并为 `f2d53c76`，tree／唯一 parent 已独立核验，core 分支归档及本地／远端清理已完成；PR #420 已以准确 head `8ed359ee` 正常 squash 合并为 `367bfe6d`，最终差异为 53 个前端／验收文件。CodeRabbit 对准确 head 的 review 结论为无 actionable comments；请求 `7151716233`，bot 回执 `7151718099`。PR #420 merge identity、whole-owned 归档与 feature 分支／worktree 清理均已核验。前端 coverage、typecheck、lint、build 与隔离 fallback 浏览器结果均按原执行身份记录，fallback 不代表标准 Dockerfile build／CI。不查 CI、不发布部署。
 

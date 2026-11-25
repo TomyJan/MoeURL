@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -225,6 +226,18 @@ func TestManifestRestoreQuotaRejectsInvalidBoundsWithoutConsumption(t *testing.T
 	}
 }
 
+func TestManifestRestoreQuotaPropagatesConsumerFailure(t *testing.T) {
+	want := errors.New("quota storage unavailable")
+	calls := 0
+	err := consumeManifestRestoreQuota(21, func(int) error {
+		calls++
+		return want
+	})
+	if !errors.Is(err, want) || calls != 1 {
+		t.Fatalf("quota error=%v calls=%d, want wrapped consumer error after one call", err, calls)
+	}
+}
+
 func TestAuthorizeManifestRestoreRechecksCurrentFieldCapabilities(t *testing.T) {
 	input := validManifestRestoreServiceInput(1)
 	_, _, records, err := normalizeManifestRestore(input)
@@ -245,6 +258,7 @@ func TestAuthorizeManifestRestoreRechecksCurrentFieldCapabilities(t *testing.T) 
 		{name: "metadata requires permission", group: permission.GroupUser, grants: []string{permission.ShortLinkCreate, permission.ShortLinkCustomSlug}},
 		{name: "empty structured metadata still requires permission", group: permission.GroupUser, grants: []string{permission.ShortLinkCreate, permission.ShortLinkCustomSlug}, records: withManifestRestoreEmptyMetadata(records)},
 		{name: "expiration requires permission", group: permission.GroupUser, grants: []string{permission.ShortLinkCreate, permission.ShortLinkCustomSlug, permission.ShortLinkSetMetadata}, records: withManifestRestoreExpiration(records)},
+		{name: "non-default countdown requires permission", group: permission.GroupUser, grants: []string{permission.ShortLinkCreate, permission.ShortLinkCustomSlug, permission.ShortLinkSetMetadata}, records: withManifestRestoreIntermediateDelay(records, 10)},
 		{name: "visit limit requires permission", group: permission.GroupUser, grants: []string{permission.ShortLinkCreate, permission.ShortLinkCustomSlug, permission.ShortLinkSetMetadata}, records: withManifestRestoreVisitLimit(records)},
 	}
 	for _, test := range cases {
@@ -293,6 +307,12 @@ func withManifestRestoreStatus(records []manifestRestoreRecord, status string) [
 func withManifestRestoreMode(records []manifestRestoreRecord, mode string) []manifestRestoreRecord {
 	copyOfRecords := append([]manifestRestoreRecord(nil), records...)
 	copyOfRecords[0].redirectMode = mode
+	return copyOfRecords
+}
+
+func withManifestRestoreIntermediateDelay(records []manifestRestoreRecord, seconds int16) []manifestRestoreRecord {
+	copyOfRecords := append([]manifestRestoreRecord(nil), records...)
+	copyOfRecords[0].intermediateDelaySeconds = seconds
 	return copyOfRecords
 }
 

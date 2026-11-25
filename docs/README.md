@@ -1,6 +1,12 @@
 # MoeURL 文档中心
 
-## 当前开发（2026-11-25，v0.92.0）
+## 当前开发（2026-11-25，v0.93.0）
+
+[自定义组批量成员迁移](product/scope-v0.93.0.md)的服务端／前端实现和本地验收已完成。Go `1.26.8` 下 coverage workflow 的 16 个后端包全部通过，业务 coverage 100.00%，`go vet ./...` 通过；Node `26.3.0`／pnpm `11.5.0` 下前端 7,338/7,338、四项 coverage 100%，类型、lint、build 通过。准确产品的隔离 PostgreSQL fallback Playwright 为 3/3（中英桌面／手机），非标准 Dockerfile build／CI。候选 `50383a94`；独立终审、真实 CodeRabbit、PR 合并核验及 whole-owned 归档仍待。不查 CI／checks，不发布部署，不触碰 PR #240/#266/#267。详细状态见[开发进度](product/development-status.md)和[v0.93 验收](implementation/v0.93.0-acceptance.md)。
+
+v0.93.0 文档入口：[范围](product/scope-v0.93.0.md)、[设计](superpowers/specs/2026-11-25-v0.93.0-custom-group-batch-design.md)、[实施计划](superpowers/plans/2026-11-25-v0.93.0-custom-group-batch-plan.md)及[验收](implementation/v0.93.0-acceptance.md)。
+
+## 最近完成（2026-11-25，v0.92.0）
 
 自定义用户组 Task 1–6 已完成。后端 PR #421 已 squash 合并为 `f2d53c76` 并核验 tree／唯一 parent，core 分支的 whole-owned 归档和本地／远端清理已完成；前端 PR #420 已正常 squash 合并为 `367bfe6d`，合并前准确 head `8ed359ee`，最终差异为 53 个前端／验收文件。Node 26.3.0 下全量 coverage 为 291/291 文件、7,327/7,327 测试，四项均 100%；类型检查、全量 ESLint（0 errors、7 个既有 fixture warnings）、Vite build（1,642 modules）通过。标准 Compose 因 Docker Hub 拉取 `golang:1.27.4` 超时；本机 Go 1.26.8 静态 app 与已缓存镜像的隔离 fallback 浏览器 3/3 通过，数据库确认 8 个辅助组已清理，专属容器／卷／网络和临时镜像已删除；该结果不代表标准 Dockerfile build／CI。CodeRabbit 对准确 head `8ed359ee` 的 review 已完成，结论为无 actionable comments（请求 `7151716233`，bot 回执 `7151718099`）。PR #420 merge tree／唯一 parent 与 whole-owned 归档已核验；本地／远端 feature 分支和 worktree 已清理。未查 CI／checks、不绕过规则、不发布部署。
 
