@@ -27,6 +27,11 @@ type AppUser struct {
 	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type AppUserGroupMembership struct {
+	UserID      pgtype.UUID `json:"user_id"`
+	UserGroupID pgtype.UUID `json:"user_group_id"`
+}
+
 type AuditLog struct {
 	ID            int64              `json:"id"`
 	ActorID       pgtype.UUID        `json:"actor_id"`

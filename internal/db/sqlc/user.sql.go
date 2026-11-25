@@ -173,6 +173,10 @@ func (q *Queries) CreateUserGroup(ctx context.Context, arg CreateUserGroupParams
 const deleteCustomUserGroup = `-- name: DeleteCustomUserGroup :one
 delete from user_group
 where key = $1 and builtin = false
+	and not exists (
+		select 1 from app_user_group_membership
+		where app_user_group_membership.user_group_id = user_group.id
+	)
 	and not exists (select 1 from app_user where app_user.group_id = user_group.id)
 returning id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
 `
@@ -414,7 +418,15 @@ const listUserGroups = `-- name: ListUserGroups :many
 select user_group.id, user_group.key, user_group.name, user_group.description,
 	user_group.permissions, user_group.builtin, user_group.created_at, user_group.updated_at,
 	user_group.default_domain_id,
-	(select count(*)::bigint from app_user where app_user.group_id = user_group.id) as member_count
+	(select count(*)::bigint
+	 from app_user
+	 where app_user.group_id = user_group.id
+		or exists (
+			select 1 from app_user_group_membership
+			where app_user_group_membership.user_id = app_user.id
+				and app_user_group_membership.user_group_id = user_group.id
+		)
+	) as member_count
 from user_group
 order by user_group.builtin desc,
 	case user_group.key when 'guest' then 1 when 'user' then 2 when 'admin' then 3 else 4 end,
