@@ -309,7 +309,7 @@ it.each([300105, 300103, 300102, 300106, 100001])('discards a rejected batch %s 
   expect(screen.getByRole('checkbox', { name: 'Select account alice' })).toHaveProperty('checked', false)
 })
 
-it.each([500, 'network'] as const)('keeps the original confirmation after %s without silently replaying a possibly committed write', async kind => {
+it.each([500, 'network'] as const)('clears confirmation after %s and waits for readback before retrying', async kind => {
   view = mountBatchMembership()
   await openBatchMembership()
   await confirmBatchMembership()
@@ -319,11 +319,12 @@ it.each([500, 'network'] as const)('keeps the original confirmation after %s wit
   }
   await fireEvent.click(screen.getByRole('button', { name: 'Save group changes' }))
   await screen.findByText('Could not confirm the batch outcome. Refresh to check its outcome before retrying.')
-  expect(screen.getByRole('dialog')).toBeTruthy()
-  expect(screen.getByRole('button', { name: 'Save group changes' })).toHaveProperty('disabled', false)
+  expect(screen.queryByRole('dialog')).toBeNull()
   expect(view.state.writes).toHaveLength(1)
-  await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-  expect(screen.getByText('2 accounts selected')).toBeTruthy()
+  expect(screen.getByRole('checkbox', { name: 'Select account alice' })).toHaveProperty('disabled', true)
+  await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Select account alice' })).toHaveProperty('disabled', false))
+  expect(screen.getByRole('checkbox', { name: 'Select account alice' })).toHaveProperty('checked', false)
+  expect(view.state.writes).toHaveLength(1)
 })
 
 it.each([120001, 401, 403])('refreshes current authorization after batch denial %s and hides revoked account data', async code => {
@@ -371,7 +372,7 @@ it('explains an empty eligible selection when only protected accounts are visibl
   expect(screen.getByRole('checkbox', { name: 'Select eligible accounts in this list' })).toHaveProperty('disabled', true)
 })
 
-it.each(['invalid-count', 'malformed-json'])('keeps the outcome uncertain after a %s success response rather than claiming zero changes', async kind => {
+it.each(['invalid-count', 'malformed-json'])('clears the frozen batch after a %s response while keeping the outcome uncertain', async kind => {
   view = mountBatchMembership()
   await openBatchMembership(); await confirmBatchMembership()
   view.state.overrides['/api/v1/admin/user/batch-change-group'] = () => kind === 'invalid-count'
@@ -379,7 +380,9 @@ it.each(['invalid-count', 'malformed-json'])('keeps the outcome uncertain after 
     : new Response('not-json', { status: 200 })
   await fireEvent.click(screen.getByRole('button', { name: 'Save group changes' }))
   await screen.findByText('Could not confirm the batch outcome. Refresh to check its outcome before retrying.')
-  expect(screen.getByRole('dialog')).toBeTruthy()
+  expect(screen.queryByRole('dialog')).toBeNull()
+  await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Select account alice' })).toHaveProperty('disabled', false))
+  expect(screen.getByRole('checkbox', { name: 'Select account alice' })).toHaveProperty('checked', false)
   expect(screen.queryByText('The batch was not applied. Read the latest list and confirm again.')).toBeNull()
   expect(view.state.writes).toHaveLength(1)
 })

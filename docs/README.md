@@ -1,8 +1,8 @@
 # MoeURL 文档中心
 
-## 当前开发（2026-11-25，v0.93.0）
+## 当前开发（2026-11-26，v0.93.0）
 
-[自定义组批量成员迁移](product/scope-v0.93.0.md)的服务端／前端实现和本地验收已完成。Go `1.26.8` 下 coverage workflow 的 16 个后端包全部通过，业务 coverage 100.00%，`go vet ./...` 通过；Node `26.3.0`／pnpm `11.5.0` 下前端 7,338/7,338、四项 coverage 100%，类型、lint、build 通过。准确产品的隔离 PostgreSQL fallback Playwright 为 3/3（中英桌面／手机），非标准 Dockerfile build／CI。候选 `50383a94`；独立终审、真实 CodeRabbit、PR 合并核验及 whole-owned 归档仍待。不查 CI／checks，不发布部署，不触碰 PR #240/#266/#267。详细状态见[开发进度](product/development-status.md)和[v0.93 验收](implementation/v0.93.0-acceptance.md)。
+[自定义组批量成员迁移](product/scope-v0.93.0.md)的服务端／前端实现和本地验收已完成。独立终审范围 `1863adae..690b2e14` 的两项 Minor 已修复并按 RED→GREEN 核验。Go `1.26.8` 下 coverage workflow 16 个后端包通过，业务 coverage 100.00%，`go vet ./...` 通过；Node `26.3.0`／pnpm `11.5.0` 下前端 7,339/7,339、四项 coverage 100%，类型、lint、build 通过。准确产品的隔离 PostgreSQL fallback Playwright 为 3/3（中英桌面／手机），不代表标准 Dockerfile build／CI。产品实现提交 `50383a94`；准确 review-fix head 的真实 CodeRabbit、PR 集成核验及 whole-owned 归档仍待。不查 CI／checks，不发布部署，不触碰 PR #240/#266/#267。详细状态见[开发进度](product/development-status.md)和[v0.93 验收](implementation/v0.93.0-acceptance.md)。
 
 v0.93.0 文档入口：[范围](product/scope-v0.93.0.md)、[设计](superpowers/specs/2026-11-25-v0.93.0-custom-group-batch-design.md)、[实施计划](superpowers/plans/2026-11-25-v0.93.0-custom-group-batch-plan.md)及[验收](implementation/v0.93.0-acceptance.md)。
 

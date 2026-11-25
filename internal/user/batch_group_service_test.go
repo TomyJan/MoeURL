@@ -237,20 +237,24 @@ func TestBatchChangeGroupErrorPriority(t *testing.T) {
 	builtin := insertAppUser(t, t.Context(), pool, "builtin", "", "Builtin", "user", "active", true)
 	unsupported := insertAppUser(t, t.Context(), pool, "guest-member", "", "Guest", "guest", "active", false)
 	deleted := insertAppUser(t, t.Context(), pool, "deleted", "", "Deleted", "user", "active", false)
+	const customSourceKey = "custom-error-priority-source"
+	insertUserGroup(t, t.Context(), pool, customSourceKey, []string{permission.ShortLinkCreate})
+	customMember := insertAppUser(t, t.Context(), pool, "custom-source-member", "", "Custom", customSourceKey, "active", false)
 	_, err := pool.Exec(t.Context(), `update app_user set deleted_at=now() where id=$1`, deleted)
 	require.NoError(t, err)
-	all := batchItems(t, pool, valid, builtin, actor.ID, unsupported, deleted)
+	all := batchItems(t, pool, valid, builtin, actor.ID, unsupported, deleted, customMember)
 	all[0].ExpectedUpdatedAt = "2020-01-01T00:00:00Z"
 	missing := user.BatchChangeGroupItem{ID: uuid.NewString(), ExpectedUpdatedAt: all[0].ExpectedUpdatedAt}
+	versionsBefore := batchItems(t, pool, valid, customMember)
 	for _, tc := range []struct {
 		items []user.BatchChangeGroupItem
 		want  error
 	}{
 		{append(slices.Clone(all), missing), user.ErrUserNotFound},
-		{all, user.ErrUserNotFound},
-		{all[:4], user.ErrBuiltinUserImmutable},
-		{[]user.BatchChangeGroupItem{all[0], all[2], all[3]}, user.ErrSelfGroupChange},
-		{[]user.BatchChangeGroupItem{all[0], all[3]}, user.ErrInvalidInput},
+		{slices.Clone(all), user.ErrUserNotFound},
+		{[]user.BatchChangeGroupItem{all[0], all[1], all[5]}, user.ErrBuiltinUserImmutable},
+		{[]user.BatchChangeGroupItem{all[0], all[2], all[5]}, user.ErrSelfGroupChange},
+		{[]user.BatchChangeGroupItem{all[0], all[3], all[5]}, user.ErrInvalidInput},
 		{all[:1], user.ErrVersionConflict},
 	} {
 		for range 2 {
@@ -263,6 +267,9 @@ func TestBatchChangeGroupErrorPriority(t *testing.T) {
 	var group string
 	require.NoError(t, pool.QueryRow(t.Context(), `select g.key from app_user u join user_group g on g.id=u.group_id where u.id=$1`, valid).Scan(&group))
 	require.Equal(t, "user", group)
+	require.NoError(t, pool.QueryRow(t.Context(), `select g.key from app_user u join user_group g on g.id=u.group_id where u.id=$1`, customMember).Scan(&group))
+	require.Equal(t, customSourceKey, group)
+	require.Equal(t, versionsBefore, batchItems(t, pool, valid, customMember))
 	var audits int
 	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from audit_log where changed_fields=array['group_id']`).Scan(&audits))
 	require.Zero(t, audits)

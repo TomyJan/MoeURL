@@ -93,7 +93,14 @@ export function useUserBatchGroupChange(options: BatchOptions) {
         current.snapshot = null
         current.selected = []
         await reload()
-      } else toast.error(t('batchMembership.failed'))
+      } else {
+        toast.error(t('batchMembership.failed'))
+        current.snapshot = null
+        current.snapshotGroups = []
+        current.selected = []
+        current.barrier = true
+        await reload()
+      }
     } finally { current.pending = false }
   }
 

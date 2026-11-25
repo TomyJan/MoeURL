@@ -5,19 +5,20 @@ import { setImmediate as eventLoop } from 'node:timers/promises'
 import { useUserBatchGroupChange } from './useUserBatchGroupChange'
 import { batchAlice, batchBob, batchGroups, batchManager, membershipResponse, mountBatchMembership } from '@/test/user-batch-group'
 import { listUsers } from '@/entities/user/api'
+import { listUserGroups } from '@/entities/user-group/api'
 import { createDeferred } from '@/test/deferred'
 
 let view: ReturnType<typeof mountBatchMembership>
 afterEach(() => { cleanup(); view?.client.clear(); vi.unstubAllGlobals() })
 
 /** Models callbacks already queued by the UI before controls become disabled, using the public composable boundary. */
-function queuedControls(count = 2) {
+function queuedControls(count = 2, read: () => Promise<unknown> = () => listUsers()) {
   return defineComponent({
     setup() {
       const users = ref(count === 2 ? [batchAlice, batchBob] : Array.from({ length: count }, (_, i) => ({ ...batchAlice, id: String(i), username: 'account-' + i })))
       const blocked = ref(false)
       const allowed = ref(true)
-      const batch = useUserBatchGroupChange({ users, groups: ref(batchGroups), groupsReady: ref(true), allowed, blocked, onSelect: () => {}, read: () => listUsers() })
+      const batch = useUserBatchGroupChange({ users, groups: ref(batchGroups), groupsReady: ref(true), allowed, blocked, onSelect: () => {}, read })
       return { batch, users, blocked, allowed }
     },
     template: `<div>
@@ -77,6 +78,42 @@ it('keeps all confirmation actions locked while a real HTTP write is pending and
   write.resolve(membershipResponse({ changedCount: 2, unchangedCount: 0 }))
   await eventLoop()
   expect(view.state.requests).toHaveLength(1)
+})
+
+it('clears an uncertain batch and holds the write barrier until both readbacks succeed', async () => {
+  const groupsRead = createDeferred<Response>()
+  const usersRead = createDeferred<Response>()
+  view = mountBatchMembership({ component: queuedControls(2, () => Promise.all([listUsers(), listUserGroups()])) })
+  view.state.overrides['/api/v1/admin/user/batch-change-group'] = () => Promise.reject(new Error('network failure'))
+  view.state.overrides['/api/v1/admin/user-group/list'] = () => groupsRead.promise
+  view.state.overrides['/api/v1/admin/user/list?page=1&pageSize=20'] = () => usersRead.promise
+
+  await queued('Select all'); await queued('Open'); await queued('Write')
+  await waitFor(() => expect(view.state.writes).toHaveLength(1))
+  await waitFor(() => {
+    expect(view.state.requests).toContain('/api/v1/admin/user-group/list')
+    expect(view.state.requests).toContain('/api/v1/admin/user/list?page=1&pageSize=20')
+  })
+  expect(screen.getByTestId('snapshot').textContent).toBe('')
+  expect(screen.getByTestId('selection').textContent).toBe('')
+  expect(screen.getByTestId('locked').textContent).toBe('true')
+
+  await queued('Select all'); await queued('Open'); await queued('Write')
+  expect(view.state.writes).toHaveLength(1)
+  groupsRead.resolve(membershipResponse({
+    groups: batchGroups,
+    permissions: [{ key: 'admin:access', category: 'administration', protected: true }],
+    presets: ['restricted', 'basic', 'standard'].map(key => ({ key, applicableGroups: ['user', 'admin'], permissions: [] })),
+  }))
+  await eventLoop()
+  expect(screen.getByTestId('locked').textContent).toBe('true')
+  await queued('Write')
+  expect(view.state.writes).toHaveLength(1)
+
+  usersRead.resolve(membershipResponse({ items: [batchAlice, batchBob] }, 0, 200, { page: 1, pageSize: 20, total: 2 }))
+  await waitFor(() => expect(screen.getByTestId('locked').textContent).toBe('false'))
+  await queued('Select all'); await queued('Open'); await queued('Write')
+  await waitFor(() => expect(view.state.writes).toHaveLength(2))
 })
 
 it('does not release a new login’s barrier using a delayed prior-login list read', async () => {

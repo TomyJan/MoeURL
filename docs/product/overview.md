@@ -1,8 +1,8 @@
 # MoeURL 产品总览
 
-## 当前开发（2026-11-25，v0.93.0）
+## 当前开发（2026-11-26，v0.93.0）
 
-[自定义组批量成员迁移](scope-v0.93.0.md)沿用既有原子 endpoint，支持可分配 custom 源／目标组；权限、锁序、CAS、no-op、会话撤销、审计和错误回滚边界保持。前端按当前身份目录 fail closed，冻结确认 key/name 和完整账号版本，目标删除后拒绝写入并读回。候选 `50383a94` 的本地后端 coverage 100%、前端 7,338/7,338 与四项 100%、typecheck／lint／build 及隔离 fallback 浏览器 3/3 均通过。标准 Dockerfile、CI、CodeRabbit、合并与归档仍待；不发布部署。准确执行信息见[验收](../implementation/v0.93.0-acceptance.md)。
+[自定义组批量成员迁移](scope-v0.93.0.md)沿用既有原子 endpoint，支持可分配 custom 源／目标组；权限、锁序、CAS、no-op、会话撤销、审计和错误回滚边界保持。前端按当前身份目录 fail closed，冻结确认 key/name 和完整账号版本，目标删除后拒绝写入并读回。产品实现提交 `50383a94` 的本地后端 coverage 为 100%、Node `26.3.0`／pnpm `11.5.0` 前端 7,339/7,339 与四项 100%、typecheck／lint／build 及隔离 fallback 浏览器 3/3 均通过。独立终审 `1863adae..690b2e14` 的两项 Minor 已修复；准确 review-fix head 的 CodeRabbit、PR 集成与归档仍待。不查 CI、不发布部署。准确执行信息见[验收](../implementation/v0.93.0-acceptance.md)。
 
 ## 最近完成（2026-11-25，v0.92.0）
 
