@@ -251,8 +251,10 @@ for (const outcome of ['success', 'error', 'unknown'] as const) {
       }, { times: 1 })
       await activate(page.getByTestId('bulk-create-submit'))
       await expect.poll(() => captured || Boolean(routeError)).toBe(true); if (routeError) throw routeError
-      // Native history navigation leaves the persistent modal through normal SPA unmount.
-      await page.goBack(); await expect(page).toHaveURL(url => url.pathname === '/profile')
+      // Drive the real RouterLink while the modal covers navigation. Browser back is
+      // intentionally intercepted by Vuetify; this checks identity retirement, not pointer reachability.
+      await page.locator('.console-shell__sidebar a[href="/profile"]').dispatchEvent('click')
+      await expect(page).toHaveURL(url => url.pathname === '/profile')
       await expect(page.getByRole('dialog')).toBeHidden()
       const logout = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/auth/logout')
       await page.getByRole('button', { name: /^(打开账号菜单|Open account menu)$/ }).click()
@@ -270,6 +272,7 @@ for (const outcome of ['success', 'error', 'unknown'] as const) {
       await activate(page.getByTestId('bulk-create-preview'))
       const newId = await page.getByTestId('bulk-create-request-id').innerText()
       expect(newId).not.toBe(oldId)
+      expect(terminal).toBeUndefined()
       release(); await handled; if (routeError) throw routeError
       await expect.poll(() => terminal).toMatch(/^(finished|failed)$/)
       if (terminal === 'finished') expect(await (await held!.response())!.finished()).toBeNull()
@@ -281,7 +284,7 @@ for (const outcome of ['success', 'error', 'unknown'] as const) {
       await expect(page.getByTestId('bulk-create-error')).toHaveCount(0)
       expect(await page.evaluate(() => (window as Window & { expirationIdentity75?: string }).expirationIdentity75)).toBe(marker)
       expect(await links(page.request)).toEqual([])
-      await attach(info, 'mode-identity-continuation', { oldUser: scenario.user.id, newUser: next.id, marker, oldId, newId, outcome, terminal, captured, guard: 'exact request terminal and two frames before asserting fresh batch' })
+      await attach(info, 'mode-identity-continuation', { oldUser: scenario.user.id, newUser: next.id, marker, oldId, newId, outcome, terminal, captured, navigation: 'real RouterLink synthetic click; modal covers pointer access', guard: 'exact request held until fresh account batch exists, terminal and two frames before asserting fresh batch' })
     } finally { release(); if (held) await handled; page.off('requestfinished', finished); page.off('requestfailed', failed) }
   })
 }

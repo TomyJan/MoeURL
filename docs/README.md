@@ -10,6 +10,8 @@ v0.92.0 文档入口：[范围](product/scope-v0.92.0.md)、[规格](specs/2026-
 
 [短链跨页手动选择](product/scope-v0.91.0.md)已实现并由 PR #402 正常 squash 合入，随后 PR #403 补齐交付文档；测试跟进 PR #405、#406 也已正常合并并独立核验。本人／全站列表在同一筛选下保留最多 100 条手动选择，切页／更改每页条数保留选择，筛选变化清空；表头全选／半选只反映当前页。Node 26.3.0／pnpm 11.5.0 下 8 个相关单元测试文件 330/330 通过；受控全量前端测试 290 文件／7,266 项及四项 coverage 100%，生产构建和类型检查通过。真实浏览器主流程及分页历史回归共 34 项通过。另将历史 v0.25 审计导出 Compose fixture 在隔离本地 Compose app／PostgreSQL 环境定向复验为 5/5；该自建测试镜像不替代标准 Dockerfile build 或全量 E2E。QR 两个历史键盘 E2E 文件按菜单项实际可见时序修正后，完整定向测试 15/15 通过；320 px 通知测试改为等待真实布局恢复后，完整 feedback 文件 18/18 通过；v0.75 过期时间 E2E 格式与 instant 双重断言完整文件 16/16 通过。较早源码树的完整浏览器套件历史运行未通过，551 项中 453 passed、51 failed、46 因文件内首错未运行、1 skipped；这些数字不代表当前 HEAD，修正后的完整 E2E 尚未重跑。完整前端 lint 已通过；PR #407 已正常 squash 合并；PR #413 已由准确 head `151cbbad` 正常 squash 合并为 `2a8b37ed`，tree `80dce8b0`、唯一 parent `6f18b370`，CodeRabbit 最新摘要为无 actionable comments。可恢复归档 SHA-256 `A967B52194DED78FA88BAE9D788BF0156C59DEB102FB4868BA40FEE412795FE9`；详情见[v0.91 验收](implementation/v0.91.0-acceptance.md)。统一进度见[开发进度](product/development-status.md)。不查 CI、不发布部署。
 
+2026-11-25：后续 master `733f9da1` 的全量 Playwright 是 543 passed／3 failed／6 未运行／1 skipped（553 项）。修正两个历史账号切换用例的导航驱动后，三个受影响完整文件 38/38（含 setup）通过；仍保持旧响应在新账号草稿之后释放的隔离断言。原 v0.75.2 清理登录超时未复现、原因未确认。未改产品代码、未将定向结果改写为单轮全量通过；见[v0.91 验收](implementation/v0.91.0-acceptance.md)。
+
 ## 最近完成（2026-11-18，v0.89.0）
 
 [有限 CSV 表头匹配](product/scope-v0.89.0.md)已由 PR #386 合入，merge commit `f236951862f53e59cfedbe318e224d48fd1c902e`。准确 CodeRabbit 审查、独立合并核验、候选本地门禁与真实浏览器验收均有证据；最终 whole-owned 恢复包 3312 项已逐项解压验 hash，SHA-256 `4E5111079E7745BCE55AE758F98E51F463A416442AD848DEE5C714ABC44AF315`。证据和本地／集成边界见[验收](implementation/v0.89.0-acceptance.md)。未查 CI、未发布部署；PR #385 的扫描文档跟进也已独立完成。

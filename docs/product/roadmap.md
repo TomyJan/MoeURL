@@ -4,6 +4,8 @@
 
 [自定义用户组](scope-v0.92.0.md) Task 1–6 已完成。PR #421 已正常 squash 合并为 `f2d53c76`，tree／唯一 parent 已独立核验，core 分支归档及本地／远端清理已完成；PR #420 已以准确 head `8ed359ee` 正常 squash 合并为 `367bfe6d`，最终差异为 53 个前端／验收文件。CodeRabbit 对准确 head 的 review 结论为无 actionable comments；请求 `7151716233`，bot 回执 `7151718099`。PR #420 merge identity、whole-owned 归档与 feature 分支／worktree 清理均已核验。前端 coverage、typecheck、lint、build 与隔离 fallback 浏览器结果均按原执行身份记录，fallback 不代表标准 Dockerfile build／CI。不查 CI、不发布部署。
 
+2026-11-25：master `733f9da1` 的完整浏览器运行是 543 passed／3 failed／6 未运行／1 skipped（553 项）。两个账号切换历史 E2E 的路由驱动已修正，保留迟到响应隔离检查；三个受影响完整文件 38/38（含 setup）通过。v0.75.2 原清理登录超时未复现，原因仍未确认。单轮全量 suite、标准 Dockerfile build／CI 与发布结果继续分别记录，见[v0.91 验收](../implementation/v0.91.0-acceptance.md)。
+
 ## 最近完成（2026-11-22，v0.91.0）
 
 [短链跨页手动选择](scope-v0.91.0.md)：本人和全站列表保留同一筛选下最多 100 条手动勾选；切页／更改每页条数保留选择，筛选变化清空；表头全选／半选只反映当前页。不提供跨页全选，不新增 API、数据库、权限或依赖。实现 PR #402、文档 PR #403、E2E 跟进 PR #405/#406 已正常 squash 合并，merge 身份均经 API 与独立 fetch 核验。主流程及历史分页回归共 34 项真实浏览器测试通过；较早源码树的完整 `test:e2e` 历史运行未通过（551 项：453 passed、51 failed、46 未运行、1 skipped），不是当前 HEAD 结果；修正后的全量套件尚未重跑。feedback 标准复测曾为 17/18，最新完整文件为 18/18；完整前端 lint 已通过。PR #407 已正常合并；PR #413 已经 CodeRabbit 准确 head 审查（最新摘要为无 actionable comments）并 squash 合并为 `2a8b37ed`。目标 CI 和正式验收状态见[开发进度](development-status.md)与[验收](../implementation/v0.91.0-acceptance.md)。不查 CI、不发布部署。

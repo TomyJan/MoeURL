@@ -14,6 +14,8 @@
 
 继续核对剩余时间失败簇：v0.36、v0.81、v0.82、v0.86 错误上下文中的到期值仅有 `Z`／`+08:00` 表示差异，代表同一 instant；四个 E2E 现比较 instant，保留输入／wire 原文断言。v0.49 批量备注清空的主版本按合同保留列表原文，而预览回显允许等价 offset；E2E 改为核精度到纳秒的 instant 等值，仍精确核 ID／顺序和备注版本字符串。五个文件定向 E2E 在宿主 UTC+08 fallback、本机 PostgreSQL 18.7 隔离库与本地 Go 1.26.8 app fallback 上 23/23 通过；entity／hook／页面组件测试 112/112、五文件 ESLint 与 diff 检查通过。此次数据库已清理，原 `moeurl` 未改；完整浏览器套件仍未重跑、仍不通过，详见 v0.91 验收记录。
 
+2026-11-25：master `733f9da1248d1e19bd84d61b5feb70ecb591ad99` 的完整 Playwright 运行共 553 项，543 passed、3 failed、6 未运行、1 skipped（46.9 分钟）。v0.74／v0.75 两项账号切换用例错误地假设 pending persistent dialog 允许浏览器回退；现通过真实 RouterLink 的合成 click 驱动 SPA 路由，保留旧请求直到新账号草稿建立之后才释放，并断言同一 document 与新草稿不受旧成功／拒绝／未知结果影响。两个文件六场景加 setup 定向 7/7 通过，随后三个完整受影响文件共 38/38（含 setup，5.1 分钟）通过。v0.75.2 原超时定位在 finally 清理登录；单独 2/2 及三文件回归均未复现，原始原因未确认。运行结束后删除数据库导致残留 app 不健康，不能倒推为之前超时的原因。未改产品代码、未重跑其余已通过项，完整单轮 suite 仍未全绿；标准 Dockerfile build、CI 与发布验收不在本轮结论内。准确环境、命令和证据见[v0.91 验收](../implementation/v0.91.0-acceptance.md)。
+
 完整浏览器首轮中 feedback Toaster 用例的“需经 pnpm 启动”错误属于 harness 准备问题；标准 feedback 复跑时 Toaster 生命周期场景通过。原先唯一的 320 px 通知几何失败已按下面的 E2E 条件等待修正，完整 feedback 文件现 18/18 通过。
 
 QR 键盘失败簇已定位为菜单进入动画期间选项尚处于 `visibility:hidden`，旧 E2E 在 overlay 根可见时就发键盘输入。v0.59／v0.62 两文件改为等待首个菜单项可见；原 9 个失败浏览器组合修正后通过（两次隔离复测分别 3/3、8/8，含 setup），随后两文件完整定向复验共 15/15（含 setup）。未改产品组件。320 px 通知失败则是页面时钟 mock 的固定等待不等同真实 Chromium viewport-unit 样式更新；旧值可暂留为 8.015625 px。E2E 现等待 toast 几何达到原断言下限，320 px 用例重复 3 次通过，完整 feedback 文件 18/18 通过；未改产品 CSS 或放宽验收。全量 551 项结果尚未重跑，详见[v0.91 验收](../implementation/v0.91.0-acceptance.md)。
