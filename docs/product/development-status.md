@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-25，v0.92.0）
 
-当前 v0.92.0 分支已完成 Task 1–5：migration 00050 与自定义组 API、成员迁移、域名授权和动态前端。PR #421 已于 `f2d53c76` squash 合入 master，tree `5edb0d68`、唯一 parent `0bdc2174` 经独立核验。PR #420 已重定基到该 master；差异仅保留 53 个前端／验收文件，路线图更新前最近核验 head `4313a855`。本轮修复创建用户 mutation 的身份 epoch 迟到成功回调，并让 390 px E2E 的 8 个辅助用户组在 `finally` 中逐个以最新版本删除。`07a047a2`、`11f69d4e` 与后续状态同步均已推送。当前 coverage 为 291/291 文件、7,327/7,327 测试，四项均 100%；typecheck、全量 ESLint（0 errors、7 项既有 fixture warnings）与 Vite build（1,642 modules）通过。标准 Compose 镜像拉取超时后，隔离 fallback 浏览器 3/3 通过，8 个辅助组清理后数据库计数为 0；临时容器／卷／网络和专属镜像已移除。该 fallback 不等同标准 Dockerfile build／CI。CodeRabbit 对 `11f69d4e` 指出的文档状态问题已修正并关闭 thread；对 `c0f4495b` 的 review 请求被限流、未产生 review，后续文档-only heads 不继承旧 review。PR #420 正常合并、恢复归档与精确清理仍待。未查 CI、不部署发布、不触碰 PR #240/#266/#267。
+当前 v0.92.0 分支已完成 Task 1–5：migration 00050 与自定义组 API、成员迁移、域名授权和动态前端。PR #421 已于 `f2d53c76` squash 合入 master，tree `5edb0d68`、唯一 parent `0bdc2174` 经独立核验；其 core 分支已完成 whole-owned 归档并精确删除本地/远端分支。PR #420 已重定基到该 master；差异仅保留 53 个前端／验收文件，最近核验 head `702e7338`。本轮修复创建用户 mutation 的身份 epoch 迟到成功回调，并让 390 px E2E 的 8 个辅助用户组在 `finally` 中逐个以最新版本删除。`07a047a2`、`11f69d4e` 与后续状态同步均已推送。当前 coverage 为 291/291 文件、7,327/7,327 测试，四项均 100%；typecheck、全量 ESLint（0 errors、7 项既有 fixture warnings）与 Vite build（1,642 modules）通过。标准 Compose 镜像拉取超时后，隔离 fallback 浏览器 3/3 通过，8 个辅助组清理后数据库计数为 0；临时容器／卷／网络和专属镜像已移除。该 fallback 不等同标准 Dockerfile build／CI。CodeRabbit 对 `11f69d4e` 指出的文档状态问题已修正并关闭 thread；对 `c0f4495b` 的 review 请求被限流、未产生 review，后续文档-only heads 不继承旧 review。PR #420 正常合并、最终 merge 核验、恢复归档与精确清理仍待。未查 CI、不部署发布、不触碰 PR #240/#266/#267。
 
 ## 最近完成（2026-11-22，v0.91.0）
 
