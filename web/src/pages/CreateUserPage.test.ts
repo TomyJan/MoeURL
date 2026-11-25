@@ -10,6 +10,15 @@ vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 let client: QueryClient
 afterEach(() => { cleanup(); client.clear(); vi.unstubAllGlobals() })
 
+const createUserStubs = {
+  ...componentStubs,
+  VBtn: {
+    props: ['color', 'disabled', 'href', 'loading', 'size', 'target', 'to', 'type', 'value', 'variant'],
+    emits: ['click'],
+    template: '<button v-bind="$attrs" :disabled="disabled" :type="type || \'button\'" :value="value" :data-href="href" :data-to="to" @click="$emit(\'click\', $event)"><slot /></button>',
+  },
+}
+
 it('uses current server groups when assigning a group to a new user', async () => {
   client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } } })
   const manager = { id: 'manager-id', username: 'manager', nickname: '', group: 'admin', permissions: ['admin:access'] }
@@ -46,7 +55,7 @@ it('disables pending user creation and fails closed if the group catalog empties
   const pending = createDeferred<Response>()
   const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(() => pending.promise)
   vi.stubGlobal('fetch', fetcher)
-  render(CreateUserPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: componentStubs } })
+  render(CreateUserPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: createUserStubs } })
 
   const submit = screen.getByRole('button', { name: 'createUser.submit' })
   await waitFor(() => expect((submit as HTMLButtonElement).disabled).toBe(false))
@@ -54,7 +63,7 @@ it('disables pending user creation and fails closed if the group catalog empties
   await fireEvent.update(screen.getByLabelText('createUser.password'), 'secure-password')
   await fireEvent.click(submit)
   await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
-  expect(submit).toHaveProperty('disabled', true)
+  expect((submit as HTMLButtonElement).disabled).toBe(true)
 
   client.setQueryData([...userGroupQueryKey, manager.id, 1], { groups: [], permissions: [], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user'], permissions: [] })) })
   pending.resolve(new Response(JSON.stringify({ code: 0, message: 'OK', data: { user: { id: 'new-user', username: 'pending-user', nickname: '', group: 'user', status: 'active' } }, meta: {} })))
