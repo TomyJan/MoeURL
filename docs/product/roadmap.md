@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-26，v0.93.0）
 
-[自定义组批量成员迁移](scope-v0.93.0.md)已完成产品实现和本地门禁：后端 16 个 coverage workflow 包通过、业务 coverage 100.00%、`go vet ./...` 通过；前端 Node `26.3.0`／pnpm `11.5.0` 全量 7,339/7,339、四项 coverage 100%、类型／lint／build 通过；此前产品 head 隔离 PostgreSQL fallback 的中英桌面／手机浏览器 3/3 通过。CodeRabbit 对 `3aa467c1` 的三条 Minor 已在 `e42b79f7` 修复；对准确 head `60bf90b5` 的后续 review 另发现一条 E2E cleanup Minor，本地已修复并通过定向 lint、严格 TypeScript 和 diff 检查，尚未提交／推送，也未重跑浏览器。独立终审 `1863adae..690b2e14` 的两项 Minor 已修复，正常集成与可恢复归档待执行。fallback 不替代标准 Dockerfile build 或 CI，不部署、不发布。详见[v0.93 验收](../implementation/v0.93.0-acceptance.md)。
+[自定义组批量成员迁移](scope-v0.93.0.md)已完成产品实现和既有本地门禁：后端 16 个 coverage workflow 包通过、业务 coverage 100.00%、`go vet ./...` 通过；前端 Node `26.3.0`／pnpm `11.5.0` 全量 7,339/7,339、四项 coverage 100%、类型／lint／build 通过；此前产品 head 隔离 PostgreSQL fallback 浏览器 3/3 通过。CodeRabbit 对 `3aa467c1` 的三条 Minor 已在 `e42b79f7` 修复；对准确 head `60bf90b5` 的 E2E cleanup Minor 已在 `a7416976` 修复并解决。修复树在 Node `v22.23.4`／pnpm `11.25.0` 的 fallback E2E setup、英文桌面和中文手机 3/3 通过，专属 app／数据库已清理。准确 `a7416976` 的 CodeRabbit 请求被限流，未产生正式 review；独立终审两项 Minor 已修复，正常集成与可恢复归档待执行。fallback 不替代标准 Dockerfile build 或 CI，不部署、不发布。详见[v0.93 验收](../implementation/v0.93.0-acceptance.md)。
 
 ## 最近完成（2026-11-25，v0.92.0）
 
