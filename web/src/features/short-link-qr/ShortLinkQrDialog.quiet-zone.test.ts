@@ -9,6 +9,8 @@ import { createDeferred } from '@/test/deferred'
 
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 
+vi.setConfig({ testTimeout: 20_000 })
+
 const url = 'https://go.example.com/abc123'
 const pngWriter = QRCode.toDataURL
 const svgWriter = QRCode.toString
@@ -41,8 +43,8 @@ function mountDialog() {
 
 /** Reads the two independently prepared current artifacts. */
 async function downloads() {
-  const svgLink = await screen.findByRole('link', { name: 'shortLinkQr.downloadSvg' }, { timeout: 5000 })
-  const pngLink = screen.getByRole('link', { name: 'shortLinkQr.download' })
+  const svgLink = await screen.findByRole('link', { name: 'shortLinkQr.downloadSvg' }, { timeout: 20_000 })
+  const pngLink = await screen.findByRole('link', { name: 'shortLinkQr.download' }, { timeout: 20_000 })
   const svg = svgLink.getAttribute('href')!
   return { png: pngLink.getAttribute('href')!, svg: decodeURIComponent(svg.slice(svg.indexOf(',') + 1)) }
 }

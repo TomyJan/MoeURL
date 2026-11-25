@@ -20,9 +20,7 @@ export function useUserGroupPermissionDraft() {
 
   /** Replaces every local draft with independent copies of current server state. */
   function reset(groups: readonly UserGroup[]) {
-    for (const key of ['guest', 'user', 'admin'] as const) {
-      delete drafts[key]
-    }
+    for (const key of Object.keys(drafts)) delete drafts[key]
     for (const group of groups) {
       resetGroup(group)
     }
@@ -32,6 +30,15 @@ export function useUserGroupPermissionDraft() {
   function resetGroup(group: UserGroup) {
     drafts[group.key] = {
       permissions: [...group.permissions],
+      sourcePermissions: [...group.permissions],
+      sourceUpdatedAt: group.updatedAt,
+    }
+  }
+
+  /** Restores an unsaved permission selection on top of a freshly read server snapshot. */
+  function restoreGroup(group: UserGroup, permissions: readonly string[]) {
+    drafts[group.key] = {
+      permissions: [...permissions],
       sourcePermissions: [...group.permissions],
       sourceUpdatedAt: group.updatedAt,
     }
@@ -65,7 +72,7 @@ export function useUserGroupPermissionDraft() {
 
   /** Replaces configurable permissions from a preset while preserving protected ownership. */
   function applyPreset(group: UserGroup, preset: PermissionPreset, definitions: readonly PermissionDefinition[]): boolean {
-    if (!group.editable || !preset.applicableGroups.includes(group.key as 'user' | 'admin')) {
+    if (!group.editable || !group.builtin || !preset.applicableGroups.includes(group.key as 'user' | 'admin')) {
       return false
     }
     const draft = ensureDraft(group)
@@ -113,6 +120,7 @@ export function useUserGroupPermissionDraft() {
     permissionsFor,
     reset,
     resetGroup,
+    restoreGroup,
     setPermission,
     sourceUpdatedAtFor,
     toUpdateInput,

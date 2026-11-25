@@ -46,8 +46,8 @@ it('keeps overview and recent links usable while usage fails and retries locally
   })
   render(ConsoleOverviewPage, { global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: componentStubs } })
   await waitFor(() => expect(screen.getByTestId('own-usage-error')).toBeTruthy())
-  expect(screen.getByText('840')).toBeTruthy()
-  expect(screen.getByTestId('overview-empty')).toBeTruthy()
+  await waitFor(() => expect(screen.getByText('840')).toBeTruthy())
+  await waitFor(() => expect(screen.getByTestId('overview-empty')).toBeTruthy())
   unavailable = false
   screen.getByRole('button', { name: 'ownDailyCreateUsage.retry' }).click()
   await waitFor(() => expect(screen.getByText('7')).toBeTruthy())

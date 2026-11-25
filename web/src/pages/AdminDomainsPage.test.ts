@@ -17,6 +17,9 @@ const state = vi.hoisted(() => ({
   data: undefined as unknown as ReturnType<typeof ref<{ items: typeof primary[] } | undefined>>,
   pending: undefined as unknown as ReturnType<typeof ref<boolean>>,
   error: undefined as unknown as ReturnType<typeof ref<boolean>>,
+  groups: undefined as unknown as ReturnType<typeof ref<{ groups: Array<{ key: string; name: string }> }>>,
+  groupsError: undefined as unknown as ReturnType<typeof ref<boolean>>,
+  groupsPending: undefined as unknown as ReturnType<typeof ref<boolean>>,
   refetch: vi.fn(), invalidate: vi.fn(), setQueryData: vi.fn(),
 }))
 
@@ -24,6 +27,7 @@ vi.mock('@/entities/domain/api', async (original) => ({
   ...await original<typeof import('@/entities/domain/api')>(),
   createDomain: vi.fn(), deleteDomain: vi.fn(), listDomains: vi.fn(), setDefaultDomain: vi.fn(), setDomainOrder: vi.fn(), updateDomain: vi.fn(),
 }))
+vi.mock('@/entities/user-group/api', async (original) => ({ ...await original<typeof import('@/entities/user-group/api')>(), listUserGroups: vi.fn() }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('@/features/domain-redirect-default/useDomainRedirectManagement', () => ({
   /** Keeps this fully mocked legacy suite at its existing details/order seam.
@@ -41,9 +45,14 @@ vi.mock('@/shared/preferences/useAccountPreferences', () => ({
   },
 }))
 vi.mock('@tanstack/vue-query', () => ({
-  useQuery: (options: { queryKey: unknown }) => Array.isArray(options.queryKey) && options.queryKey[0] === 'auth'
-    ? { data: ref({ user: { id: 'admin', permissions: ['admin:access', 'domain:manage'] } }) }
-    : { data: state.data, isPending: state.pending, isError: state.error, refetch: state.refetch },
+  useQuery: (options: { queryKey: unknown }) => {
+    const key = options.queryKey && typeof options.queryKey === 'object' && 'value' in options.queryKey ? options.queryKey.value : options.queryKey
+    return Array.isArray(key) && key[0] === 'auth'
+      ? { data: ref({ user: { id: 'admin', permissions: ['admin:access', 'domain:manage'] } }) }
+      : Array.isArray(key) && key[0] === 'admin-user-groups'
+        ? { data: state.groups, isPending: state.groupsPending, isError: state.groupsError, refetch: state.refetch }
+        : { data: state.data, isPending: state.pending, isError: state.error, refetch: state.refetch }
+  },
   useQueryClient: () => ({ invalidateQueries: state.invalidate, setQueryData: state.setQueryData }),
   useMutation: (options: { mutationFn: (input: unknown) => Promise<unknown>; onSuccess: (result: unknown, input: unknown) => void | Promise<void>; onError: (error: unknown, input: unknown) => Promise<void> }) => {
     const isPending = ref(false)
@@ -64,6 +73,9 @@ function mount() { return render(AdminDomainsPage, { global: { stubs: componentS
 
 beforeEach(() => {
   state.data = ref({ items: [primary, secondary] })
+  state.groups = ref({ groups: [{ key: 'guest', name: 'Guest' }, { key: 'user', name: 'User' }, { key: 'admin', name: 'Administrator' }] })
+  state.groupsError = ref(false)
+  state.groupsPending = ref(false)
   state.pending = ref(false)
   state.error = ref(false)
   state.refetch.mockReset()
@@ -93,6 +105,43 @@ it('saves the order editor independently with the original complete revision', a
 })
 
 describe('AdminDomainsPage', () => {
+  it('keeps the existing domain editor safe while the dynamic group list is loading', async () => {
+    state.groups.value = undefined
+    state.groupsPending.value = true
+    mount()
+    await fireEvent.click(await screen.findByRole('button', { name: /Secondary/ }))
+    expect(screen.getByText('domains.allowedGroups')).toBeTruthy()
+    expect(screen.queryByLabelText('domains.groups.user')).toBeNull()
+
+    state.groups.value = { groups: [
+      { key: 'guest', name: 'Guest' },
+      { key: 'user', name: 'User' },
+      { key: 'admin', name: 'Administrator' },
+      { key: 'custom-opaque-key', name: 'Operations' },
+    ] }
+    state.groupsPending.value = false
+    expect(await screen.findByLabelText('Operations')).toBeTruthy()
+  })
+
+  it('surfaces and retries an unavailable current user-group catalog', async () => {
+    state.groupsError.value = true
+    const failed = render(AdminDomainsPage, { global: { stubs: { ...componentStubs, VAlert: { template: '<div role="alert"><slot /><slot name="append" /></div>' } } } })
+    expect(screen.getByText('domains.groupsLoadFailed')).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: 'domains.retry' }))
+    expect(state.refetch).toHaveBeenCalledTimes(1)
+    failed.unmount()
+  })
+
+  it('fails closed when the current group catalog succeeds without any assignable groups', async () => {
+    state.groups.value = { groups: [] }
+    mount()
+    await fireEvent.click(screen.getByRole('button', { name: /Secondary/ }))
+
+    expect(screen.getByText('domains.groupsUnavailable')).toBeTruthy()
+    expect(screen.getByLabelText('domains.displayName')).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'domains.save' })).toHaveProperty('disabled', true)
+  })
+
   it('exposes the current domain selection and preserves it when discarding is canceled', async () => {
     mount()
     const primaryButton = screen.getByRole('button', { name: /Primary/ })
@@ -423,10 +472,12 @@ describe('AdminDomainsPage', () => {
 
   it('creates a domain with explicitly selected groups and preserves a real empty state', async () => {
     state.data.value = { items: [] }
+    state.groups.value!.groups.push({ key: 'custom-opaque-key', name: 'Operations' })
     const created = { ...secondary, allowedGroups: ['user'] as Array<'user' | 'admin'> }
     vi.mocked(createDomain).mockResolvedValue({ domain: created })
     mount()
     await fireEvent.click(screen.getByRole('button', { name: 'domains.add' }))
+    expect(screen.getByLabelText('Operations')).toBeTruthy()
     await fireEvent.update(screen.getByLabelText('domains.host'), ' https://links.example.com ')
     await fireEvent.update(screen.getByLabelText('domains.displayName'), ' Second ')
     await fireEvent.click(screen.getByLabelText('domains.groups.user'))

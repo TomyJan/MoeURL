@@ -31,6 +31,15 @@ describe('user api', () => {
     expect(fetch).toHaveBeenCalledWith('/api/v1/admin/user/create', expect.objectContaining({ method: 'POST' }))
   })
 
+  it('sends an opaque custom-group key when creating a user', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      code: 0, message: 'OK', data: { user: { id: 'new-id', username: 'ops', nickname: '', group: 'Operations', status: 'active' } }, meta: {},
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })))
+    const input = { username: 'ops', password: 'secure-password', nickname: '', groupKey: 'opaque-custom-key', status: 'active' as const }
+    await expect(createUser(input)).resolves.toMatchObject({ user: { group: 'Operations' } })
+    expect(fetch).toHaveBeenCalledWith('/api/v1/admin/user/create', expect.objectContaining({ body: JSON.stringify(input) }))
+  })
+
   it('gets admin user list', async () => {
     vi.stubGlobal(
       'fetch',

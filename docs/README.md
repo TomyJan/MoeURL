@@ -1,6 +1,12 @@
 # MoeURL 文档中心
 
-## 当前开发（2026-11-23，v0.91.0）
+## 当前开发（2026-11-25，v0.92.0）
+
+自定义用户组 Task 1–5 已实现，Task 6 文档及整体验收进行中。后端 PR #421 已 squash 合并为 `f2d53c76` 并核验 tree／唯一 parent，core 分支的 whole-owned 归档和本地/远端清理已完成；前端 PR #420 已 retarget `master` 并重定基，差异为 53 个前端／验收文件。修复创建用户页身份 epoch 迟到回调并清理手机 E2E 的 8 个辅助组；`07a047a2`、`11f69d4e` 及后续状态文档提交均已推至 PR #420。Node 26.3.0 下全量 coverage 为 291/291 文件、7,327/7,327 测试，四项均 100%；类型检查、全量 ESLint（0 errors、7 个既有 fixture warnings）、Vite build（1,642 modules）通过。标准 Compose 因 Docker Hub 拉取 `golang:1.27.4` 超时；本机 Go 1.26.8 静态 app 与已缓存镜像的隔离 fallback 浏览器 3/3 通过，数据库确认 8 个辅助组已清理，专属容器／卷／网络和临时镜像已删除；该结果不代表标准 Dockerfile build／CI。CodeRabbit 对 `11f69d4e` 指出的一条文档状态意见已修正并关闭 thread；针对 `c0f4495b` 的 review 请求被限流，未产生新审查，随后文档-only heads 不继承旧 review。未查 CI／checks、不绕过规则、不发布部署；PR #420 正常集成及其 whole-owned 归档仍待。
+
+v0.92.0 文档入口：[范围](product/scope-v0.92.0.md)、[规格](specs/2026-11-23-v0.92.0-custom-user-groups-spec.md)、[设计](superpowers/specs/2026-11-23-v0.92.0-custom-user-groups-design.md)、[实施计划](implementation/v0.92.0-plan.md)、[任务](implementation/v0.92.0-tasks.md)及[验收](implementation/v0.92.0-acceptance.md)。
+
+## 最近完成（2026-11-23，v0.91.0）
 
 [短链跨页手动选择](product/scope-v0.91.0.md)已实现并由 PR #402 正常 squash 合入，随后 PR #403 补齐交付文档；测试跟进 PR #405、#406 也已正常合并并独立核验。本人／全站列表在同一筛选下保留最多 100 条手动选择，切页／更改每页条数保留选择，筛选变化清空；表头全选／半选只反映当前页。Node 26.3.0／pnpm 11.5.0 下 8 个相关单元测试文件 330/330 通过；受控全量前端测试 290 文件／7,266 项及四项 coverage 100%，生产构建和类型检查通过。真实浏览器主流程及分页历史回归共 34 项通过。另将历史 v0.25 审计导出 Compose fixture 在隔离本地 Compose app／PostgreSQL 环境定向复验为 5/5；该自建测试镜像不替代标准 Dockerfile build 或全量 E2E。QR 两个历史键盘 E2E 文件按菜单项实际可见时序修正后，完整定向测试 15/15 通过；320 px 通知测试改为等待真实布局恢复后，完整 feedback 文件 18/18 通过；v0.75 过期时间 E2E 格式与 instant 双重断言完整文件 16/16 通过。较早源码树的完整浏览器套件历史运行未通过，551 项中 453 passed、51 failed、46 因文件内首错未运行、1 skipped；这些数字不代表当前 HEAD，修正后的完整 E2E 尚未重跑。完整前端 lint 已通过；PR #407 已正常 squash 合并；PR #413 已由准确 head `151cbbad` 正常 squash 合并为 `2a8b37ed`，tree `80dce8b0`、唯一 parent `6f18b370`，CodeRabbit 最新摘要为无 actionable comments。可恢复归档 SHA-256 `A967B52194DED78FA88BAE9D788BF0156C59DEB102FB4868BA40FEE412795FE9`；详情见[v0.91 验收](implementation/v0.91.0-acceptance.md)。统一进度见[开发进度](product/development-status.md)。不查 CI、不发布部署。
 

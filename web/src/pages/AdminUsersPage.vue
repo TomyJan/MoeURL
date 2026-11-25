@@ -67,7 +67,7 @@
                 </div>
               </td>
               <td><v-checkbox-btn v-if="batch.eligible.value.some(user => user.id === item.id)" v-bind="selectionIcons" :aria-label="t('batchMembership.selectAccount', { username: item.username })" :model-value="batch.selected.value.includes(item.id)" :disabled="batch.unavailable.value || !!batch.snapshot.value" @update:model-value="batch.toggle(item.id, !!$event)" /></td>
-              <td>{{ item.group }}</td>
+              <td>{{ groupNames[item.group] ?? item.group }}</td>
               <td><v-chip size="small" variant="tonal" :color="item.status === 'active' ? 'success' : undefined">{{ t(`adminUsers.status.${item.status}`) }}</v-chip></td>
               <td class="user-table__date">{{ formatDate(item.createdAt) }}</td>
               <td>
@@ -158,6 +158,7 @@ import { useDateTimeDisplay } from '@/shared/preferences/useDateTimeDisplay'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { listUsers, resetUserPassword, updateUser } from '@/entities/user/api'
+import { listUserGroups, userGroupQueryKey } from '@/entities/user-group/api'
 import { me } from '@/entities/auth/api'
 import type { UserSummary } from '@/entities/user/api'
 import { useAvatarText } from '@/shared/user/useAvatarText'
@@ -174,6 +175,8 @@ const identity = useAccountIdentity()
 const currentUserId = computed(() => identity.scope.value.userId)
 const currentUserQuery = useQuery({ queryKey: ['auth', 'me'], queryFn: me, staleTime: Infinity, retry: false })
 const canChangeGroup = computed(() => currentUserQuery.isSuccess.value && !!currentUserId.value && currentUserQuery.data.value?.user.id === currentUserId.value && currentUserQuery.data.value.user.permissions.includes('admin:access'))
+const groupsQuery = useQuery({ queryKey: computed(() => [...userGroupQueryKey, currentUserId.value, identity.scope.value.epoch]), queryFn: listUserGroups, enabled: canChangeGroup, retry: false, staleTime: Infinity })
+const groupNames = computed(() => Object.fromEntries((groupsQuery.data.value?.groups ?? []).map(({ key, name }) => [key, name])))
 const groupTarget = ref<UserSummary>()
 const groupPending = ref(false)
 const singlePending = ref('')

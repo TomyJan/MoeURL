@@ -71,7 +71,7 @@ export function useGroupDefaultManagement() {
   }, { immediate: true })
   watch(identity.scope, () => {
     displayedGroups.value = []; draft.reset([])
-    for (const key of ['guest', 'user', 'admin'] as const) delete defaults[key]
+    for (const key of Object.keys(defaults)) delete defaults[key]
     stale.clear(); feedback.value = ''; feedbackKind.value = 'permission'; refreshBroken.value = false; refreshing.value = false; activeGroupKey.value = 'guest'
   }, { flush: 'sync' })
   watch(activeGroupKey, () => { feedback.value = '' })
@@ -93,8 +93,12 @@ export function useGroupDefaultManagement() {
   }
 
   /** Refreshes auth outside the global cache and checks identity before publishing it. */
-  async function reload(key: UserGroupKey, scope = identity.scope.value, kind = feedbackKind.value) {
+  async function reload(key: UserGroupKey, scope = identity.scope.value, kind = feedbackKind.value, preserveDrafts = false) {
     if (!current(scope) || refreshing.value) return false
+    const preservePermissionDraft = preserveDrafts && !!activeGroup.value && draft.isDirty(activeGroup.value)
+    const retainedPermissions = preservePermissionDraft && activeGroup.value ? draft.permissionsFor(activeGroup.value.key) : null
+    const preserveDefaultDraft = preserveDrafts && defaultDirty(key)
+    const retainedDefaultValue = preserveDefaultDraft ? defaults[key]!.value : null
     feedbackKind.value = kind
     refreshing.value = true
     try {
@@ -108,13 +112,16 @@ export function useGroupDefaultManagement() {
       const setting = canManageDefault.value ? await getUserGroupDomainDefault(key) : undefined
       if (!current(scope)) return false
       client.setQueryData(queryKey.value, groups)
-      syncGroups(groups.groups, key)
+      syncGroups(groups.groups, preserveDrafts ? undefined : key)
+      const refreshedGroup = groups.groups.find((group) => group.key === key)
+      if (preservePermissionDraft && retainedPermissions && refreshedGroup) draft.restoreGroup(refreshedGroup, retainedPermissions)
       if (setting) {
         client.setQueryData([...adminGroupDefaultDomainQueryKey, scope.userId, scope.epoch, key], setting)
-        defaults[key] = { result: setting, value: setting.setting.domainId }
+        defaults[key] = { result: setting, value: preserveDefaultDraft ? retainedDefaultValue : setting.setting.domainId }
       }
-      stale.delete(key); align(key)
-      if (stale.has(key)) throw new Error('Shared revision changed')
+      if (!preserveDrafts) stale.delete(key)
+      align(key)
+      if (stale.has(key) && !preserveDrafts) throw new Error('Shared revision changed')
       await Promise.all([
         client.invalidateQueries({ queryKey: groupDefaultDomainQueryKey }, { throwOnError: true }),
         client.invalidateQueries({ queryKey: availableDomainQueryKey }, { throwOnError: true }),
@@ -209,6 +216,13 @@ export function useGroupDefaultManagement() {
   }
   /** Guards keyboard and delayed tab events as well as the disabled tab buttons. */
   function changeGroup(key: UserGroupKey) { if (!pending.value && displayedGroups.value.some((group) => group.key === key)) activeGroupKey.value = key }
+  /** Retries a directory recovery, optionally preserving drafts for this recovery only. */
+  async function recover(preserveDrafts = false) {
+    const scope = identity.scope.value
+    const recovered = await reload(activeGroupKey.value, scope, feedbackKind.value, preserveDrafts)
+    if (recovered && current(scope)) return true
+    return false
+  }
 
-  return { identity, query, settingQuery, canManage, canManageDefault, activeGroupKey, activeGroup, displayedGroups, currentDefault, draft, stale, feedback, feedbackKind, feedbackRevision, refreshBroken, pending, groupReady, settingReady, defaultDirty, applyPreset, setPermission, savePermissions, selectDefault, saveDefault, cancelDefault, cancelPermissions, reload, changeGroup }
+  return { identity, query, settingQuery, canManage, canManageDefault, activeGroupKey, activeGroup, displayedGroups, currentDefault, draft, stale, feedback, feedbackKind, feedbackRevision, refreshBroken, pending, groupReady, settingReady, defaultDirty, applyPreset, setPermission, savePermissions, selectDefault, saveDefault, cancelDefault, cancelPermissions, reload, recover, changeGroup }
 }

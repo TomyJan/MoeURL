@@ -15,9 +15,10 @@ const basic: PermissionPreset = {
   permissions: ['short_link:create'],
 }
 const groups: UserGroup[] = [
-  { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, permissions: [], updatedAt: 'guest-v1' },
-  { key: 'user', name: 'User', description: '', builtin: true, editable: true, permissions: ['short_link:read_own'], updatedAt: 'user-v1' },
-  { key: 'admin', name: 'Admin', description: '', builtin: true, editable: true, permissions: ['short_link:read_own', 'admin:access'], updatedAt: 'admin-v1' },
+  { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: 'guest-v1' },
+  { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 0, permissions: ['short_link:read_own'], updatedAt: 'user-v1' },
+  { key: 'admin', name: 'Admin', description: '', builtin: true, editable: true, memberCount: 0, permissions: ['short_link:read_own', 'admin:access'], updatedAt: 'admin-v1' },
+  { key: 'opaque-custom-key', name: 'Operations', description: '', builtin: false, editable: true, memberCount: 2, permissions: ['short_link:read_own'], updatedAt: 'custom-v1' },
 ]
 
 describe('useUserGroupPermissionDraft', () => {
@@ -46,6 +47,22 @@ describe('useUserGroupPermissionDraft', () => {
       permissions: ['short_link:create', 'admin:access'],
       expectedUpdatedAt: 'admin-v1',
     })
+  })
+
+  it('keeps opaque custom-group drafts independent and never applies builtin presets to them', () => {
+    const draft = useUserGroupPermissionDraft()
+    draft.reset(groups)
+    const custom = groups[3]!
+
+    expect(draft.applyPreset(custom, basic, definitions)).toBe(false)
+    expect(draft.setPermission(custom, definitions[0]!, true)).toBe(true)
+    expect(draft.toUpdateInput(custom)).toEqual({
+      groupKey: 'opaque-custom-key',
+      permissions: ['short_link:read_own', 'short_link:create'],
+      expectedUpdatedAt: 'custom-v1',
+    })
+    draft.reset(groups.slice(0, 3))
+    expect(draft.permissionsFor('opaque-custom-key')).toEqual([])
   })
 
   it('deduplicates permissions when a preset overlaps preserved protected state', () => {

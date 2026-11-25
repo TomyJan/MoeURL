@@ -24,7 +24,7 @@ it('saves a target group default using the original full revision through the re
     let data: unknown
     if (url === '/api/v1/auth/me') data = { user }
     else if (url === '/api/v1/admin/user-group/list') data = {
-      groups: ['guest', 'user', 'admin'].map((key) => ({ key, name: key, description: '', builtin: true, editable: key !== 'guest', permissions: [], updatedAt: version })),
+      groups: ['guest', 'user', 'admin'].map((key) => ({ key, name: key, description: '', builtin: true, editable: key !== 'guest', memberCount: 0, permissions: [], updatedAt: version })),
       permissions: [], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user', 'admin'], permissions: [] })),
     }
     else if (url.startsWith('/api/v1/admin/user-group/domain-default?') || url === '/api/v1/admin/user-group/set-domain-default') {

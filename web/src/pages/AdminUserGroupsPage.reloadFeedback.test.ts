@@ -36,7 +36,7 @@ async function verifyFeedback(locale: 'zh-CN' | 'en', mode: 'manual' | 'committe
   client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
   const user = { id: 'A', username: 'admin', nickname: '', group: 'admin', permissions: ['admin:access', 'domain:manage'] }
   client.setQueryData(['auth', 'me'], { user })
-  const groups = ['guest', 'user', 'admin'].map((key) => ({ key, name: key, description: '', builtin: true, editable: key !== 'guest', permissions: [] as string[], updatedAt: version }))
+  const groups = ['guest', 'user', 'admin'].map((key) => ({ key, name: key, description: '', builtin: true, editable: key !== 'guest', memberCount: 0, permissions: [] as string[], updatedAt: version }))
   const writes: Array<Record<string, unknown>> = []
   const authReadStarted = createDeferred<void>()
   const authResult = createDeferred<Response>()

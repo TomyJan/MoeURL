@@ -1,5 +1,9 @@
 # 技术选型决策
 
+## v0.92.0 自定义用户组决策（当前 feature 分支）
+
+在现有 `user_group.permissions`、`app_user.group_id`、domain grant 和共享 `updated_at` 上增加单主组 custom groups。服务端创建 UUID 不透明 key；不引入多组／权限合并表、新权限或依赖。新组权限与域名授权 fail-closed，protected 权限仍仅属于 admin；custom key 不作为权限本身。Migration 00050 的 Down 遇到自定义数据时拒绝回滚，不转换或丢弃数据。后端 Task 1–4 已通过 PR #421 squash 合并；前端 Task 5 重定基后的全量 7,326 项、coverage、typecheck／lint／build 均通过。PR #420 当前准确 tip 的 CodeRabbit review 和交付集成仍待完成。不将当前 feature 分支描述为已发布产品。详细约束见[v0.92 spec](../specs/2026-11-23-v0.92.0-custom-user-groups-spec.md)和[验收](v0.92.0-acceptance.md)。
+
 ## 当前已完成实施（2026-11-20，v0.90.0）
 
 [导出清单恢复](../product/scope-v0.90.0.md)已实现：严格接受固定 17 列管理 CSV，经当前 Cookie actor 的权限、域名、策略、配额和短码检查后，以单事务新建 1–100 条记录。保留可重建配置，访问用量从 0 开始；旧 ID、归属、时间、事件和密码不恢复。新增 `POST /api/v1/short-link/manifest/restore` 限 1 MiB；migration 00048 将幂等回执容量扩至 100，大回执存在时 Down 安全拒绝。旧八种创建协议仍限 20 条。

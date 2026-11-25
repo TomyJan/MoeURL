@@ -4,17 +4,26 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { componentStubs } from '@/test/component-stubs'
 import { createDeferred } from '@/test/deferred'
 import UserGroupChangeDialog from './UserGroupChangeDialog.vue'
+import { userGroupQueryKey } from '@/entities/user-group/api'
 
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 const member = { id: '00000000-0000-0000-0000-000000000002', username: 'member', nickname: 'Member', group: 'user', status: 'active' as const, builtin: false, createdAt: '2026-10-23T00:00:00Z', updatedAt: '2026-10-23T00:00:00.123456Z' }
 const clients: QueryClient[] = []
 /** Mounts the actual dialog and HTTP client with a controllable network boundary. */
-function mount() {
+function mount(target = member, customGroups: Array<Record<string, unknown>> = [], seedGroups = true) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   clients.push(client)
   client.setQueryData(['auth', 'me'], { user: { id: '00000000-0000-0000-0000-000000000001', username: 'manager', group: 'admin', permissions: ['admin:access'] } })
-  const view = render(UserGroupChangeDialog, { props: { target: member }, global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: componentStubs } })
+  if (seedGroups) client.setQueryData([...userGroupQueryKey, '00000000-0000-0000-0000-000000000001', 1], {
+    groups: [
+      { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: '2026-10-23T00:00:00Z' },
+      { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 0, permissions: [], updatedAt: '2026-10-23T00:00:00Z' },
+      { key: 'admin', name: 'Administrator', description: '', builtin: true, editable: true, memberCount: 1, permissions: ['admin:access'], updatedAt: '2026-10-23T00:00:00Z' },
+      ...customGroups,
+    ], permissions: [], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user', 'admin'], permissions: [] })),
+  })
+  const view = render(UserGroupChangeDialog, { props: { target }, global: { plugins: [[VueQueryPlugin, { queryClient: client }]], stubs: componentStubs } })
   return { ...view, client }
 }
 /** Chooses a changed group and acknowledges session revocation. */
@@ -44,6 +53,73 @@ describe('membership dialog', () => {
     expect(view.emitted().close).toBeUndefined()
     pending.resolve(new Response(JSON.stringify({ code: 0, message: 'OK', data: { user: { ...member, group: 'admin' } }, meta: {} })))
     await waitFor(() => expect(view.emitted().close).toHaveLength(1))
+  })
+  it('offers current custom groups for a single-member move and submits the opaque key', async () => {
+    const customKey = '52ef11fc-95a4-4a8d-8f72-1f707b5c6a80'
+    const view = mount(member, [{ key: customKey, name: 'Operations', description: '', builtin: false, editable: true, memberCount: 1, permissions: [], updatedAt: '2026-10-23T00:00:00Z' }])
+    const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { user: { ...member, group: customKey } }, meta: {} })))
+    vi.stubGlobal('fetch', fetcher)
+    await fireEvent.update(screen.getByLabelText('membership.group'), customKey)
+    expect((screen.getByLabelText('membership.group') as HTMLSelectElement).selectedOptions[0]?.textContent).toBe('Operations')
+    await fireEvent.click(screen.getByLabelText('membership.confirm'))
+    await fireEvent.click(screen.getByRole('button', { name: 'membership.save' }))
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
+    expect(JSON.parse(fetcher.mock.calls[0]![1]!.body as string)).toEqual({ id: member.id, groupKey: customKey, expectedUpdatedAt: member.updatedAt })
+    await waitFor(() => expect(view.emitted().close).toHaveLength(1))
+  })
+  it('preserves the target current group until a previously uncached group catalog loads', async () => {
+    const target = { ...member, group: 'admin' }
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { groups: [
+      { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: '2026-10-23T00:00:00Z' },
+      { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 0, permissions: [], updatedAt: '2026-10-23T00:00:00Z' },
+      { key: 'admin', name: 'Administrator', description: '', builtin: true, editable: true, memberCount: 1, permissions: ['admin:access'], updatedAt: '2026-10-23T00:00:00Z' },
+    ], permissions: [{ key: 'admin:access', category: 'administration', protected: true }], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user', 'admin'], permissions: [] })) }, meta: {} }))))
+    mount(target, [], false)
+
+    const select = await screen.findByLabelText('membership.group') as HTMLSelectElement
+    await waitFor(() => expect(select.disabled).toBe(false))
+    expect(select.value).toBe('admin')
+    expect((screen.getByRole('button', { name: 'membership.save' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+  it('clears the selection and prevents saving when the current group catalog is empty', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: {
+      groups: [], permissions: [], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user'], permissions: [] })),
+    }, meta: {} })))
+    vi.stubGlobal('fetch', fetcher)
+    mount(member, [], false)
+
+    const select = await screen.findByLabelText('membership.group') as HTMLSelectElement
+    await waitFor(() => expect(select.value).toBe(''))
+    expect((screen.getByRole('button', { name: 'membership.save' }) as HTMLButtonElement).disabled).toBe(true)
+    await fireEvent.click(screen.getByRole('button', { name: 'membership.save' }))
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+  it('does not replace a target current group when the loaded catalog omits that group', async () => {
+    const target = { ...member, group: 'retired-custom-group' }
+    const view = mount(target)
+
+    const select = screen.getByLabelText('membership.group') as HTMLSelectElement
+    await waitFor(() => expect(select.value).toBe('user'))
+    expect(view.client.getQueryData([...userGroupQueryKey, '00000000-0000-0000-0000-000000000001', 1])).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'membership.save' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+  it('lets an administrator recover when the current group catalog initially fails', async () => {
+    const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 900000, message: 'offline', data: null, meta: {} })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 0, message: 'OK', data: { groups: [
+        { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: '2026-10-23T00:00:00Z' },
+        { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 0, permissions: [], updatedAt: '2026-10-23T00:00:00Z' },
+        { key: 'admin', name: 'Administrator', description: '', builtin: true, editable: true, memberCount: 1, permissions: ['admin:access'], updatedAt: '2026-10-23T00:00:00Z' },
+        { key: 'operations-key', name: 'Operations', description: '', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: '2026-10-23T00:00:00Z' },
+      ], permissions: [{ key: 'admin:access', category: 'administration', protected: true }], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user', 'admin'], permissions: [] })) }, meta: {} })))
+    vi.stubGlobal('fetch', fetcher)
+    mount(member, [], false)
+    await screen.findByText('membership.groupsLoadFailed')
+    expect((screen.getByLabelText('membership.group') as HTMLSelectElement).disabled).toBe(true)
+    await fireEvent.click(screen.getByRole('button', { name: 'membership.retry' }))
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2))
+    expect(await screen.findByRole('option', { name: 'Operations' })).toBeTruthy()
+    expect((screen.getByLabelText('membership.group') as HTMLSelectElement).disabled).toBe(false)
   })
   it.each([300105, 900000])('handles conflict or failure %s without automatically retrying', async (code) => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ code, message: 'private', data: null, meta: {} }))))

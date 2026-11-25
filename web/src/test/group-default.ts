@@ -6,7 +6,7 @@ import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import { componentStubs } from './component-stubs'
-import type { UserGroupKey } from '@/entities/user-group/api'
+import type { UserGroup, UserGroupKey } from '@/entities/user-group/api'
 
 export const globalId = '11111111-1111-4111-8111-111111111111'
 export const groupId = '22222222-2222-4222-8222-222222222222'
@@ -36,12 +36,15 @@ const managementStubs = {
 export function response(data: unknown, code = 0) { return new Response(JSON.stringify({ code, message: '', data, meta: {} })) }
 
 /** Mounts real parents, editors and queries; controlled HTTP is the only business boundary. */
-export function mountGroupDefault(component: Component, options: { client?: QueryClient; real?: boolean; permissions?: string[]; overrides?: Record<string, () => Promise<Response>>; personal?: string | null; selection?: { domainId: string | null; status: string }; domains?: typeof domains } = {}) {
+export function mountGroupDefault(component: Component, options: { client?: QueryClient; real?: boolean; permissions?: string[]; overrides?: Record<string, () => Promise<Response>>; personal?: string | null; selection?: { domainId: string | null; status: string }; domains?: typeof domains; customGroups?: UserGroup[]; stubs?: Record<string, Component> } = {}) {
   const client = options.client ?? new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity, staleTime: Infinity } } })
   const user = { id: 'A', username: 'alice', nickname: '', group: 'admin', permissions: options.permissions ?? ['short_link:create', 'domain:use_default', 'domain:use_assigned', 'admin:access', 'domain:manage'] }
   client.setQueryData(['auth', 'me'], { user })
-  const groups = (['guest', 'user', 'admin'] as const).map((key) => ({ key, name: key, description: '', builtin: true, editable: key !== 'guest', permissions: [] as string[], updatedAt: version }))
-  const values: Record<UserGroupKey, string | null> = { guest: null, user: null, admin: null }
+  const groups: UserGroup[] = [
+    ...(['guest', 'user', 'admin'] as const).map((key) => ({ key, name: key, description: '', builtin: true, editable: key !== 'guest', memberCount: 0, permissions: [] as string[], updatedAt: version })),
+    ...(options.customGroups ?? []),
+  ]
+  const values: Record<UserGroupKey, string | null> = Object.fromEntries(groups.map(({ key }) => [key, null]))
   const state = {
     user, groups, values, domains: [...options.domains ?? domains], personal: options.personal ?? null,
     selection: options.selection ?? { domainId: groupId as string | null, status: 'available' },
@@ -54,7 +57,10 @@ export function mountGroupDefault(component: Component, options: { client?: Quer
   }
   /** Supplies the unchanged seven-field group list and full permission catalog. */
   function catalog() {
-    return { groups: groups.map((group) => ({ ...group, permissions: [...group.permissions] })), permissions: [{ key: 'short_link:create', category: 'short_link_basic', protected: false }], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user', 'admin'], permissions: key === 'restricted' ? [] : ['short_link:create'] })) }
+    return { groups: groups.map((group) => ({ ...group, permissions: [...group.permissions] })), permissions: [
+      { key: 'short_link:create', category: 'short_link_basic', protected: false },
+      { key: 'admin:access', category: 'administration', protected: true },
+    ], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user', 'admin'], permissions: key === 'restricted' ? [] : ['short_link:create'] })) }
   }
   vi.stubGlobal('fetch', vi.fn(async (path: string, init: RequestInit) => {
     state.requests.push(path)
@@ -76,6 +82,28 @@ export function mountGroupDefault(component: Component, options: { client?: Quer
       group.permissions = input.permissions; group.updatedAt = nextVersion
       return response({ group })
     }
+    if (path === '/api/v1/admin/user-group/update-custom-permissions') {
+      const group = groups.find(({ key }) => key === input.groupKey)!
+      group.permissions = input.permissions
+      group.updatedAt = nextVersion
+      return response({ group })
+    }
+    if (path === '/api/v1/admin/user-group/create') {
+      const group: UserGroup = { key: 'new-custom-key', name: input.name, description: input.description, builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: nextVersion }
+      groups.push(group); values[group.key] = null
+      return response({ group })
+    }
+    if (path === '/api/v1/admin/user-group/update') {
+      const group = groups.find(({ key }) => key === input.groupKey)!
+      group.name = input.name; group.description = input.description; group.updatedAt = nextVersion
+      return response({ group })
+    }
+    if (path === '/api/v1/admin/user-group/delete') {
+      const group = groups.find(({ key }) => key === input.groupKey)!
+      if (group.memberCount > 0) return response(null, 300107)
+      groups.splice(groups.indexOf(group), 1)
+      return response({ groupKey: group.key, name: group.name })
+    }
     if (path === '/api/v1/user/domain-preference') return response({ preference: { domainId: state.personal, updatedAt: state.personal ? version : null } })
     if (path === '/api/v1/domain/group-default') return response({ selection: state.selection })
     if (path === '/api/v1/domain/available') return response({ items: state.domains })
@@ -87,7 +115,7 @@ export function mountGroupDefault(component: Component, options: { client?: Quer
   vi.stubGlobal('visualViewport', Object.assign(new window.EventTarget(), { width: 1024, height: 768, offsetLeft: 0, offsetTop: 0, pageLeft: 0, pageTop: 0, scale: 1 }))
   const view = render(component, { global: {
     plugins: options.real ? [[VueQueryPlugin, { queryClient: client }], createVuetify({ components, directives })] : [[VueQueryPlugin, { queryClient: client }]],
-    stubs: options.real ? { ShortLinkQrDialog: true, ActionToast: componentStubs.ActionToast } : managementStubs,
+    stubs: options.real ? { ShortLinkQrDialog: true, ActionToast: componentStubs.ActionToast, ...options.stubs } : { ...managementStubs, ...options.stubs },
   } })
   return { ...view, ...state, state, client, management, catalog }
 }

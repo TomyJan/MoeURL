@@ -25,7 +25,7 @@ const presets: PermissionPreset[] = [
 ]
 const admin: UserGroup = {
   key: 'admin', name: 'Admin', description: 'Administrators', builtin: true, editable: true,
-  permissions: ['short_link:create', 'admin:access'], updatedAt: '2026-08-20T12:34:00Z',
+  memberCount: 1, permissions: ['short_link:create', 'admin:access'], updatedAt: '2026-08-20T12:34:00Z',
 }
 
 const stubs = {
@@ -91,7 +91,7 @@ describe('UserGroupPermissionEditor', () => {
   it('locks all guest controls and pending editable controls', () => {
     const guest: UserGroup = {
       key: 'guest', name: 'Guest', description: 'Guest', builtin: true, editable: false,
-      permissions: [], updatedAt: 'guest-v1',
+      memberCount: 0, permissions: [], updatedAt: 'guest-v1',
     }
     const guestView = mountEditor(guest, [], false)
     expect((screen.getByLabelText('userGroups.preset') as HTMLSelectElement).disabled).toBe(true)

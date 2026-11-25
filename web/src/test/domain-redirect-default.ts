@@ -45,6 +45,11 @@ export function mountRedirectDefaults(component: Component, options: { admin?: b
     if (path === '/api/v1/domain/group-default') return redirectResponse({ selection: { domainId: null, status: 'not_set' } })
     if (path === '/api/v1/domain/available') return redirectResponse({ items: state.domains })
     if (path === '/api/v1/domain/redirect-defaults') return redirectResponse({ items: state.defaults })
+    if (path === '/api/v1/admin/user-group/list') return redirectResponse({ groups: [
+      { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: revision },
+      { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 1, permissions: [], updatedAt: revision },
+      { key: 'admin', name: 'Administrator', description: '', builtin: true, editable: true, memberCount: 1, permissions: ['admin:access'], updatedAt: revision },
+    ], permissions: [{ key: 'admin:access', category: 'administration', protected: true }], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user', 'admin'], permissions: [] })) })
     if (path === '/api/v1/admin/domain/list') return redirectResponse({ items: state.managed })
     if (path.startsWith('/api/v1/admin/domain/redirect-default?')) {
       const id = new URL(path, 'https://app.example').searchParams.get('id')

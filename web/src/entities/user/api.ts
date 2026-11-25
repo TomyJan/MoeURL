@@ -1,9 +1,10 @@
 import { apiGet, apiPost } from '@/shared/api/client'
 import type { CurrentUser } from '@/entities/auth/api'
+import type { UserGroupKey } from '@/entities/user-group/api'
 
 export interface ChangeUserGroupInput {
   id: string
-  groupKey: 'user' | 'admin'
+  groupKey: UserGroupKey
   expectedUpdatedAt: string
 }
 
@@ -16,7 +17,7 @@ export interface CreateUserInput {
   username: string
   password: string
   nickname: string
-  groupKey: 'user' | 'admin'
+  groupKey: UserGroupKey
   status: 'active' | 'disabled'
 }
 

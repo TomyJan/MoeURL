@@ -1,5 +1,9 @@
 # 技术基线
 
+## 当前实施（2026-11-23，v0.92.0）
+
+当前 v0.92.0 采用单主组模型实现自定义组；没有多组关系表、权限合并层或新运行依赖。后端 PR #421 已 squash 合入 master，包含 migration `00050`、自定义组 API 与域名授权；down migration 在 custom group 存在时安全拒绝。前端 PR #420 已重定基到 squash merge 后的 master。重定基后前端全量 7,326 项测试、四项 coverage 100%、typecheck／lint／build 均通过，环境和 SHA 见[v0.92.0 验收](v0.92.0-acceptance.md)。PR #420 当前准确 tip 的 CodeRabbit review、正常集成与恢复归档待完成。未发布或部署。
+
 ## 当前已完成实施（2026-11-20，v0.90.0）
 
 [导出清单恢复](../product/scope-v0.90.0.md)已实现：严格接受固定 17 列管理 CSV，经当前 Cookie actor 的权限、域名、策略、配额和短码检查后，以单事务新建 1–100 条记录。保留可重建配置，访问用量从 0 开始；旧 ID、归属、时间、事件和密码不恢复。新增 `POST /api/v1/short-link/manifest/restore` 限 1 MiB；migration 00048 将幂等回执容量扩至 100，大回执存在时 Down 安全拒绝。旧八种创建协议仍限 20 条。
