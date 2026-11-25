@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-26，v0.93.0）
 
-[自定义组批量成员迁移](scope-v0.93.0.md)沿用既有原子 endpoint，支持可分配 custom 源／目标组；权限、锁序、CAS、no-op、会话撤销和审计边界保持。仅提交前失败或已确认回滚能保证整批不变；COMMIT 响应错误时结果可能不确定，客户端须读回且不得自动重放。前端按当前身份目录 fail closed，冻结确认 key/name 和完整账号版本，目标删除后拒绝写入并读回。产品实现提交 `50383a94` 的本地后端 coverage 为 100%、Node `26.3.0`／pnpm `11.5.0` 前端 7,339/7,339 与四项 100%、typecheck／lint／build 及此前隔离 fallback 浏览器 3/3 均通过。独立终审 `1863adae..690b2e14` 的两项 Minor 已修复；CodeRabbit 对 `3aa467c1` 的三条 Minor 已在 `e42b79f7` 修复。对准确 head `60bf90b5` 的 follow-up E2E cleanup Minor 已在 `a7416976` 修复并解决；该测试树在 Node `v22.23.4`／pnpm `11.25.0` 的 fallback 浏览器 setup+两种视口 3/3 通过，专属资源已清理。`a7416976` 的 CodeRabbit 请求被限流；后续 docs-only tip 尚无覆盖准确 head 的 review。PR 集成与归档仍待。不查 CI、不发布部署。准确执行信息见[验收](../implementation/v0.93.0-acceptance.md)。
+[自定义组批量成员迁移](scope-v0.93.0.md)沿用原子 endpoint 支持可分配 custom 源／目标组；COMMIT 结果不确定时须读回且不得重放。实现与已有 review findings 已修复；PR #424 最新 review 指出列表读回失败时也应禁用已登记账号，当前 follow-up 已按登记 ID 尝试禁用并补回归。cleanup fault-injection 3/3；Node `26.3.0`／pnpm `11.5.0` 全量 292 文件／7,342 测试、四项 coverage 100%，typecheck、定向 ESLint、E2E strict tsc 与 build 通过。当前 fallback 浏览器 setup 和两视口 3/3。隔离数据库以 psql 顺序执行 migration Up SQL，仅为 fixture，不代表 Goose CLI／Compose／标准 Dockerfile。新准确 PR head review、集成和归档仍待；不查 CI、不发布部署。详见[验收](../implementation/v0.93.0-acceptance.md)。
 
 ## 最近完成（2026-11-25，v0.92.0）
 

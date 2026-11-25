@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext, BrowserContext, Page, TestInfo } from '@playwright/test'
+import { cleanupCreatedUser } from './helpers/user-cleanup'
 import { e2eAdminPassword, e2eAdminUsername, expectNoHorizontalOverflow } from './support'
 
 const batchPath = '/api/v1/admin/user/batch-change-group'
@@ -159,15 +160,13 @@ for (const width of [1280, 390]) {
       for (const created of createdUsers) {
         try {
           const current = currentUsers.find(user => user.id === created.id)
-          if (!current) continue
-          if (current.group !== 'user') {
-            try {
-              await post(root.request, '/admin/user/change-group', { id: current.id, groupKey: 'user', expectedUpdatedAt: current.updatedAt })
-            } catch (error) { cleanupErrors.push(error) }
-          }
-          try {
-            await post(root.request, '/admin/user/update', { id: current.id, nickname: 'v0.93 batch fixture', status: 'disabled' })
-          } catch (error) { cleanupErrors.push(error) }
+          await cleanupCreatedUser(
+            created.id,
+            current,
+            user => post(root.request, '/admin/user/change-group', { id: user.id, groupKey: 'user', expectedUpdatedAt: user.updatedAt }),
+            userId => post(root.request, '/admin/user/update', { id: userId, nickname: 'v0.93 batch fixture', status: 'disabled' }),
+            cleanupErrors,
+          )
         } catch (error) { cleanupErrors.push(error) }
       }
       for (const created of createdGroups) {

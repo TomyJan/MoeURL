@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-26，v0.93.0）
 
-[自定义组批量成员迁移](scope-v0.93.0.md)已完成产品实现与既有本地门禁，产品实现提交 `50383a94`、基线 `1863adae`。独立终审范围 `1863adae..690b2e14` 已完成，两项 Minor 已修复并验证。Go `1.26.8` 下 coverage workflow 指定的 16 个后端包全过，精确业务 coverage 100.00%，`go vet ./...` 通过；Node `26.3.0`／pnpm `11.5.0` 下 7,339/7,339、coverage 四项 100%，typecheck、lint、production build 通过。此前产品 head 的 fallback 浏览器 3/3（1280 px 英文桌面、390 px 中文手机），截图已检查。CodeRabbit 对 `3aa467c1` 的三条 Minor 已在 `e42b79f7` 修复；准确 head `60bf90b5` 的 follow-up E2E cleanup Minor 已在 `a7416976` 修复、回复并解决。该测试树在 Node `v22.23.4`／pnpm `11.25.0` 的隔离 fallback setup + 英文桌面 + 中文手机为 3/3；独立 app／PostgreSQL 已清理，且未冒称标准 Dockerfile build 或 CI。准确 `a7416976` 的 CodeRabbit 请求被限流，未产生正式 review；其后的 docs-only tip 也尚无覆盖准确 head 的 review。PR 集成／合并核验和 whole-owned 归档仍待。不查 CI／checks、不发布部署、不触碰 PR #240/#266/#267。详见[v0.93 验收](../implementation/v0.93.0-acceptance.md)。
+[自定义组批量成员迁移](scope-v0.93.0.md)产品实现提交 `50383a94`、基线 `1863adae`；独立终审及已有 CodeRabbit findings 已修复。PR #424 对 `0d96561b` 的最新 review 指出用户列表读取失败时禁用请求被跳过；follow-up 现按登记 ID 始终尝试禁用，并新增回归。Node `26.3.0`／pnpm `11.5.0` cleanup fault-injection 3/3、全量 Vitest 292 文件／7,342 测试，语句／分支／函数／行 coverage 100%；typecheck、三文件 ESLint、E2E strict tsc 与 build 通过。Playwright fallback setup、1280 px 英文桌面、390 px 中文手机 3/3。临时 PostgreSQL 通过 psql 顺序应用 migration Up SQL，不表示 Goose CLI／Compose／标准 Dockerfile build；app 与容器已停止／移除，端口释放、无持久卷。新准确 PR head review、合并核验和 whole-owned 归档待；不查 CI／checks、不发布部署、不触碰 PR #240/#266/#267。详见[验收](../implementation/v0.93.0-acceptance.md)。
 
 ## 最近完成（2026-11-25，v0.92.0）
 
