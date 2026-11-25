@@ -18,11 +18,11 @@
 
 不新增权限。入口沿用管理访问，事务在有序账号锁后从当前 DB 重查 active、非 builtin、admin 组及 admin:access，再按 admin→user 取得内置组共享锁。客户端组名／权限缓存不构成授权。整批拒绝 builtin、自身、缺失／已删及不支持组；全批版本验证先于 no-op，实际变化的组写、全部旧 Session 撤销和逐账号审计同事务。只支持内置 user／admin，不实现多组／自定义组／映射；旧单项权限仍逐项执行。该能力已由 PR #228 合并；边界见[设计](2026-10-28-v0.30.0-batch-group-membership-design.md)和[验收](../implementation/v0.30.0-acceptance.md)。
 
-## v0.92.0 自定义组权限边界（当前 feature 分支）
+## v0.92.0 自定义组权限边界（已合并，未发布）
 
 v0.92.0 将上述“自定义组尚未实现”边界推进为单主组自定义组，但不改变批量接口：自定义组可持有既有 catalog 中非 protected 的权限；`admin:access` 与其他 protected 管理权限仍只属于 builtin `admin`。组默认权限、域名授权均 fail-closed，新组初始为空；权限 Resolver 继续每次从当前数据库组读取，不把 UI、Session 中缓存的权限当授权来源。任何新增业务能力仍须显式检查独立 permission key，不从“组可自定义”推导通用管理能力。
 
-权限／组配置写入事务内重查当前 actor、builtin admin 组及 `admin:access`；域名 grant/default 另外需要 `domain:manage`。自定义组 key 是不透明 UUID 字符串，显示名称不能作为权限或身份凭据。单账号迁移可以目标到现存非 guest 组，保留自身/builtin 保护、CAS、审计及会话撤销；批量迁移依然只接受 `user`／`admin`。Task 1–5 已在 `feat/v0.92.0-custom-user-groups` 实现，Task 6 与最终验收尚进行中，未合并或发布；详见[v0.92.0 规格](2026-11-23-v0.92.0-custom-user-groups-spec.md)及[验收](../implementation/v0.92.0-acceptance.md)。
+权限／组配置写入事务内重查当前 actor、builtin admin 组及 `admin:access`；域名 grant/default 另外需要 `domain:manage`。自定义组 key 是不透明 UUID 字符串，显示名称不能作为权限或身份凭据。单账号迁移可以目标到现存非 guest 组，保留自身/builtin 保护、CAS、审计及会话撤销；批量迁移依然只接受 `user`／`admin`。后端与前端已分别经 PR #421、#420 合并；实现、审查、归档及本地验证的准确边界见[v0.92.0 规格](2026-11-23-v0.92.0-custom-user-groups-spec.md)及[验收](../implementation/v0.92.0-acceptance.md)。目标 CI 与正式发布未验收。
 
 ## 权限优先
 
