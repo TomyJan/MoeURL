@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-26，v0.93.0）
 
-[自定义组批量成员迁移](scope-v0.93.0.md)已完成产品实现和本地验证：后端 16 个 coverage workflow 包通过、业务 coverage 100.00%、`go vet ./...` 通过；前端 Node `26.3.0`／pnpm `11.5.0` 全量 7,339/7,339、四项 coverage 100%、类型／lint／build 通过；产品 head 隔离 PostgreSQL fallback 的中英桌面／手机浏览器 3/3 通过。CodeRabbit 对 `3aa467c1` 提出的三条 Minor 修复已在当前工作树完成，定向 lint、typecheck 及隔离 PostgreSQL fallback 浏览器 3/3 通过，等待提交后准确 head review。独立终审 `1863adae..690b2e14` 的两项 Minor 已修复，正常集成与可恢复归档待执行。fallback 不替代标准 Dockerfile build 或 CI，不部署、不发布。详见[v0.93 验收](../implementation/v0.93.0-acceptance.md)。
+[自定义组批量成员迁移](scope-v0.93.0.md)已完成产品实现和本地验证：后端 16 个 coverage workflow 包通过、业务 coverage 100.00%、`go vet ./...` 通过；前端 Node `26.3.0`／pnpm `11.5.0` 全量 7,339/7,339、四项 coverage 100%、类型／lint／build 通过；产品 head 隔离 PostgreSQL fallback 的中英桌面／手机浏览器 3/3 通过。CodeRabbit 对 `3aa467c1` 提出的三条 Minor 已在 `e42b79f7` 修复，定向 lint、typecheck 及隔离 PostgreSQL fallback 浏览器 3/3 通过并已推送；准确当前 head review 请求遭限流。独立终审 `1863adae..690b2e14` 的两项 Minor 已修复，正常集成与可恢复归档待执行。fallback 不替代标准 Dockerfile build 或 CI，不部署、不发布。详见[v0.93 验收](../implementation/v0.93.0-acceptance.md)。
 
 ## 最近完成（2026-11-25，v0.92.0）
 

@@ -2,7 +2,7 @@
 
 ## 当前开发（2026-11-26，v0.93.0）
 
-[自定义组批量成员迁移](scope-v0.93.0.md)沿用既有原子 endpoint，支持可分配 custom 源／目标组；权限、锁序、CAS、no-op、会话撤销和审计边界保持。仅提交前失败或已确认回滚能保证整批不变；COMMIT 响应错误时结果可能不确定，客户端须读回且不得自动重放。前端按当前身份目录 fail closed，冻结确认 key/name 和完整账号版本，目标删除后拒绝写入并读回。产品实现提交 `50383a94` 的本地后端 coverage 为 100%、Node `26.3.0`／pnpm `11.5.0` 前端 7,339/7,339 与四项 100%、typecheck／lint／build 及隔离 fallback 浏览器 3/3 均通过。独立终审 `1863adae..690b2e14` 的两项 Minor 已修复；CodeRabbit 在 `3aa467c1` 提出 3 条 Minor，其修复在当前工作树已通过定向 lint、typecheck 和隔离 PostgreSQL fallback E2E 3/3，准确提交 head 的 review 与 PR 集成、归档仍待。不查 CI、不发布部署。准确执行信息见[验收](../implementation/v0.93.0-acceptance.md)。
+[自定义组批量成员迁移](scope-v0.93.0.md)沿用既有原子 endpoint，支持可分配 custom 源／目标组；权限、锁序、CAS、no-op、会话撤销和审计边界保持。仅提交前失败或已确认回滚能保证整批不变；COMMIT 响应错误时结果可能不确定，客户端须读回且不得自动重放。前端按当前身份目录 fail closed，冻结确认 key/name 和完整账号版本，目标删除后拒绝写入并读回。产品实现提交 `50383a94` 的本地后端 coverage 为 100%、Node `26.3.0`／pnpm `11.5.0` 前端 7,339/7,339 与四项 100%、typecheck／lint／build 及隔离 fallback 浏览器 3/3 均通过。独立终审 `1863adae..690b2e14` 的两项 Minor 已修复；CodeRabbit 对 `3aa467c1` 的三条 Minor 已在 `e42b79f7` 修复，定向 lint、typecheck 和隔离 PostgreSQL fallback E2E 3/3 通过。当前准确 head 的 review 请求已被限流；PR 集成与归档仍待。不查 CI、不发布部署。准确执行信息见[验收](../implementation/v0.93.0-acceptance.md)。
 
 ## 最近完成（2026-11-25，v0.92.0）
 
