@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-26，v0.93.0）
 
-[自定义组批量成员迁移](scope-v0.93.0.md)已完成产品实现与本地门禁，产品实现提交 `50383a94`、基线 `1863adae`。独立终审范围 `1863adae..690b2e14` 已完成，两项 Minor 已修复并验证。Go `1.26.8` 下 coverage workflow 指定的 16 个后端包全过，精确业务 coverage 100.00%，`go vet ./...` 通过；Node `26.3.0`／pnpm `11.5.0` 下 7,339/7,339、coverage 四项 100%，typecheck、lint、production build 通过。当前准确产品的 fallback 浏览器 3/3（1280 px 英文桌面、390 px 中文手机），截图已检查，专属 app／PostgreSQL 容器已清理。CodeRabbit 三条 Minor 已在 `e42b79f7` 修复；定向 lint、typecheck、隔离 PostgreSQL fallback Playwright 3/3 通过并推送。准确 head review 请求被限流，PR 集成／合并核验和 whole-owned 归档仍待。不把 fallback 等同标准容器或 CI，不查 CI／checks、不发布部署、不触碰 PR #240/#266/#267。命令和报告位置见[v0.93 验收](../implementation/v0.93.0-acceptance.md)。
+[自定义组批量成员迁移](scope-v0.93.0.md)已完成产品实现与既有本地门禁，产品实现提交 `50383a94`、基线 `1863adae`。独立终审范围 `1863adae..690b2e14` 已完成，两项 Minor 已修复并验证。Go `1.26.8` 下 coverage workflow 指定的 16 个后端包全过，精确业务 coverage 100.00%，`go vet ./...` 通过；Node `26.3.0`／pnpm `11.5.0` 下 7,339/7,339、coverage 四项 100%，typecheck、lint、production build 通过。此前产品 head 的 fallback 浏览器 3/3（1280 px 英文桌面、390 px 中文手机），截图已检查，专属 app／PostgreSQL 容器已清理。CodeRabbit 对 `3aa467c1` 的三条 Minor 已在 `e42b79f7` 修复；准确 head `60bf90b5` 的 follow-up review 又发现一条 E2E cleanup Minor，本地已修复并通过定向 lint、严格 TypeScript、diff 检查，尚未提交／推送且未重跑浏览器。PR 集成／合并核验和 whole-owned 归档仍待。不把 fallback 等同标准容器或 CI，不查 CI／checks、不发布部署、不触碰 PR #240/#266/#267。命令和报告位置见[v0.93 验收](../implementation/v0.93.0-acceptance.md)。
 
 ## 最近完成（2026-11-25，v0.92.0）
 

@@ -161,9 +161,13 @@ for (const width of [1280, 390]) {
           const current = currentUsers.find(user => user.id === created.id)
           if (!current) continue
           if (current.group !== 'user') {
-            await post(root.request, '/admin/user/change-group', { id: current.id, groupKey: 'user', expectedUpdatedAt: current.updatedAt })
+            try {
+              await post(root.request, '/admin/user/change-group', { id: current.id, groupKey: 'user', expectedUpdatedAt: current.updatedAt })
+            } catch (error) { cleanupErrors.push(error) }
           }
-          await post(root.request, '/admin/user/update', { id: current.id, nickname: 'v0.93 batch fixture', status: 'disabled' })
+          try {
+            await post(root.request, '/admin/user/update', { id: current.id, nickname: 'v0.93 batch fixture', status: 'disabled' })
+          } catch (error) { cleanupErrors.push(error) }
         } catch (error) { cleanupErrors.push(error) }
       }
       for (const created of createdGroups) {
