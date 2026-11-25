@@ -34,15 +34,20 @@ for (const width of [1280, 390]) {
       const targetName = `Target ${suffix}`
       const deletedTargetName = `Deleted ${suffix}`
       const source = await post<{ group: UserGroup }>(root.request, '/admin/user-group/create', { name: sourceName, description: 'v0.93 batch E2E source' })
+      createdGroups.push({ key: source.group.key, name: source.group.name })
       const target = await post<{ group: UserGroup }>(root.request, '/admin/user-group/create', { name: targetName, description: 'v0.93 batch E2E target' })
+      createdGroups.push({ key: target.group.key, name: target.group.name })
       const deletedTarget = await post<{ group: UserGroup }>(root.request, '/admin/user-group/create', { name: deletedTargetName, description: 'v0.93 deleted target E2E' })
-      createdGroups.push({ key: source.group.key, name: source.group.name }, { key: target.group.key, name: target.group.name }, { key: deletedTarget.group.key, name: deletedTarget.group.name })
+      createdGroups.push({ key: deletedTarget.group.key, name: deletedTarget.group.name })
 
       const alice = await createUser(root.request, `batch-source-${suffix}`, source.group.key, password)
+      createdUsers.push(alice)
       const bob = await createUser(root.request, `batch-user-${suffix}`, 'user', password)
+      createdUsers.push(bob)
       const charlie = await createUser(root.request, `batch-reject-${suffix}`, source.group.key, password)
+      createdUsers.push(charlie)
       const nextAdmin = await createUser(root.request, `batch-admin-${suffix}`, 'admin', password)
-      createdUsers.push(alice, bob, charlie, nextAdmin)
+      createdUsers.push(nextAdmin)
 
       await page.setViewportSize(viewport)
       await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -147,17 +152,20 @@ for (const width of [1280, 390]) {
       scenarioError = error
       try { await attachScreenshot(page, info, `custom-batch-failure-${width}-${locale}`) } catch (captureError) { cleanupErrors.push(captureError) }
     } finally {
+      let currentUsers: BatchUser[] = []
       try {
-        const currentUsers = await users(root.request)
-        for (const created of createdUsers) {
+        currentUsers = await users(root.request)
+      } catch (error) { cleanupErrors.push(error) }
+      for (const created of createdUsers) {
+        try {
           const current = currentUsers.find(user => user.id === created.id)
           if (!current) continue
           if (current.group !== 'user') {
             await post(root.request, '/admin/user/change-group', { id: current.id, groupKey: 'user', expectedUpdatedAt: current.updatedAt })
           }
           await post(root.request, '/admin/user/update', { id: current.id, nickname: 'v0.93 batch fixture', status: 'disabled' })
-        }
-      } catch (error) { cleanupErrors.push(error) }
+        } catch (error) { cleanupErrors.push(error) }
+      }
       for (const created of createdGroups) {
         try {
           const current = await get<{ groups: UserGroup[] }>(root.request, '/admin/user-group/list')
