@@ -24,7 +24,7 @@ func (s *Service) BatchChangeGroup(ctx context.Context, actor auth.CurrentUser, 
 	if err != nil || actorID == uuid.Nil || actorID.String() != actor.ID {
 		return BatchChangeGroupResult{}, ErrPermissionDenied
 	}
-	if len(input.Items) < 1 || len(input.Items) > 100 || (input.GroupKey != "user" && input.GroupKey != "admin") {
+	if len(input.Items) < 1 || len(input.Items) > 100 || input.GroupKey == "" || input.GroupKey == permission.GroupGuest {
 		return BatchChangeGroupResult{}, ErrInvalidInput
 	}
 	versions := make(map[uuid.UUID]time.Time, len(input.Items))
@@ -109,8 +109,15 @@ func (s *Service) BatchChangeGroup(ctx context.Context, actor auth.CurrentUser, 
 			return ErrSelfGroupChange
 		}
 		for _, target := range targets {
-			if target.GroupID != admin.ID && target.GroupID != regular.ID {
+			if target.GroupID == admin.ID || target.GroupID == regular.ID {
+				continue
+			}
+			source, err := q.GetUserGroupByID(ctx, target.GroupID)
+			if errors.Is(err, pgx.ErrNoRows) || (err == nil && !isAssignableGroup(source.Key, source.Builtin)) {
 				return ErrInvalidInput
+			}
+			if err != nil {
+				return err
 			}
 		}
 		for _, target := range targets {
@@ -118,16 +125,29 @@ func (s *Service) BatchChangeGroup(ctx context.Context, actor auth.CurrentUser, 
 				return ErrVersionConflict
 			}
 		}
-		destination := regular.ID
-		if input.GroupKey == "admin" {
-			destination = admin.ID
+		destinationGroup := regular
+		switch input.GroupKey {
+		case permission.GroupUser:
+		case permission.GroupAdmin:
+			destinationGroup = admin
+		default:
+			destinationGroup, err = q.LockUserGroupForCustomManagement(ctx, input.GroupKey)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrInvalidInput
+			}
+			if err != nil {
+				return err
+			}
+		}
+		if !isAssignableGroup(destinationGroup.Key, destinationGroup.Builtin) {
+			return ErrInvalidInput
 		}
 		for _, target := range targets {
-			if target.GroupID == destination {
+			if target.GroupID == destinationGroup.ID {
 				result.UnchangedCount++
 				continue
 			}
-			if _, err := q.ChangeAppUserGroup(ctx, sqlc.ChangeAppUserGroupParams{ID: target.ID, GroupID: destination}); err != nil {
+			if _, err := q.ChangeAppUserGroup(ctx, sqlc.ChangeAppUserGroupParams{ID: target.ID, GroupID: destinationGroup.ID}); err != nil {
 				return err
 			}
 			if err := q.RevokeGroupChangeSessions(ctx, target.ID); err != nil {

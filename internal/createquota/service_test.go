@@ -183,6 +183,18 @@ func TestDailyCreateQuotaTransactions(t *testing.T) {
 	})
 }
 
+func TestConsumeManyAcceptsBatchLimit(t *testing.T) {
+	pool, _, _, actor := fixture(t)
+	tx, err := pool.Begin(t.Context())
+	require.NoError(t, err)
+	defer testdb.Rollback(t, tx.Rollback)
+	require.NoError(t, createquota.LockCreation(t.Context(), tx))
+	actorID := pgtype.UUID{Bytes: uuid.MustParse(actor.ID), Valid: true}
+	require.NoError(t, createquota.ConsumeMany(t.Context(), sqlc.New(tx), actorID, 21))
+	require.NoError(t, tx.Commit(t.Context()))
+	require.Equal(t, int64(21), usage(t, pool, actor.ID))
+}
+
 // TestDailyCreateQuotaGateOrdering catches early reads, inconsistent gates and
 // a canceled wait proceeding into a creation or management write.
 func TestDailyCreateQuotaGateOrdering(t *testing.T) {

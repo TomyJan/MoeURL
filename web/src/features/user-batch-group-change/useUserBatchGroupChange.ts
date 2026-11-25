@@ -7,9 +7,12 @@ import { toast } from 'vue-sonner'
 import { ApiClientError } from '@/shared/api/client'
 import { useQueryClient } from '@tanstack/vue-query'
 import { me } from '@/entities/auth/api'
+import type { UserGroup } from '@/entities/user-group/api'
 
 interface BatchOptions {
   users: Ref<UserSummary[]>
+  groups: Ref<UserGroup[]>
+  groupsReady: Ref<boolean>
   allowed: Ref<boolean>
   blocked: Ref<boolean>
   onSelect: () => void
@@ -18,7 +21,7 @@ interface BatchOptions {
 
 /** Creates private UI state for one identity; old requests may finish only against their old state. */
 function createBatchState() {
-  return reactive({ selected: [] as string[], snapshot: null as UserSummary[] | null, pending: false, barrier: false, authRequired: false })
+  return reactive({ selected: [] as string[], snapshot: null as UserSummary[] | null, snapshotGroups: [] as UserGroup[], pending: false, barrier: false, authRequired: false })
 }
 
 /** Selects only eligible visible accounts and pins the exact opening versions for confirmation. */
@@ -28,12 +31,14 @@ export function useUserBatchGroupChange(options: BatchOptions) {
   const client = useQueryClient()
   let alive = true
   const state = shallowRef(createBatchState())
-  const eligible = computed(() => options.users.value.filter(item => !item.builtin && item.id !== identity.scope.value.userId && (item.group === 'user' || item.group === 'admin')))
+  const assignableGroups = computed(() => options.groups.value.filter(group => group.key !== 'guest' && group.editable))
+  const eligible = computed(() => options.users.value.filter(item => !item.builtin && item.id !== identity.scope.value.userId && assignableGroups.value.some(group => group.key === item.group)))
   const selected = computed(() => state.value.selected)
   const snapshot = computed(() => state.value.snapshot)
+  const snapshotGroups = computed(() => state.value.snapshotGroups)
   const pending = computed(() => state.value.pending)
   const barrier = computed(() => state.value.barrier)
-  const unavailable = computed(() => !options.allowed.value || options.blocked.value || pending.value || barrier.value)
+  const unavailable = computed(() => !options.allowed.value || !options.groupsReady.value || options.blocked.value || pending.value || barrier.value)
   const allSelected = computed(() => eligible.value.length > 0 && eligible.value.every(item => selected.value.includes(item.id)))
   const indeterminate = computed(() => selected.value.length > 0 && !allSelected.value)
   watch([identity.scope, options.allowed], () => { state.value = createBatchState() }, { flush: 'sync' })
@@ -59,10 +64,12 @@ export function useUserBatchGroupChange(options: BatchOptions) {
   }
 
   /** Submits the immutable opening versions once and releases controls only after committed readback. */
-  async function submit(groupKey: 'user' | 'admin') {
+  async function submit(groupKey: string) {
     const current = state.value
     const scope = identity.scope.value
-    if (unavailable.value || !current.snapshot || !current.snapshot.some(item => item.group !== groupKey)) return
+    if (unavailable.value || !current.snapshot || !current.snapshotGroups?.some(group => group.key === groupKey)
+      || !options.groups.value.some(group => group.key === groupKey && group.key !== 'guest' && group.editable)
+      || !current.snapshot.some(item => item.group !== groupKey)) return
     current.pending = true
     try {
       const result = await batchChangeUserGroup({ items: current.snapshot.map(item => ({ id: item.id, expectedUpdatedAt: item.updatedAt })), groupKey })
@@ -86,7 +93,14 @@ export function useUserBatchGroupChange(options: BatchOptions) {
         current.snapshot = null
         current.selected = []
         await reload()
-      } else toast.error(t('batchMembership.failed'))
+      } else {
+        toast.error(t('batchMembership.failed'))
+        current.snapshot = null
+        current.snapshotGroups = []
+        current.selected = []
+        current.barrier = true
+        await reload()
+      }
     } finally { current.pending = false }
   }
 
@@ -111,8 +125,9 @@ export function useUserBatchGroupChange(options: BatchOptions) {
   function open() {
     if (unavailable.value || snapshot.value || !selected.value.length) return
     state.value.snapshot = eligible.value.filter(item => selected.value.includes(item.id)).map(item => ({ ...item }))
+    state.value.snapshotGroups = assignableGroups.value.map(group => ({ ...group }))
   }
   /** Cancels the frozen draft and reconciles selection against the current eligible list. */
-  function close() { if (!pending.value) state.value.snapshot = null }
-  return { selected, snapshot, pending, barrier, unavailable, eligible, allSelected, indeterminate, toggle, toggleAll, clear, open, close, submit, reload }
+  function close() { if (!pending.value) { state.value.snapshot = null; state.value.snapshotGroups = [] } }
+  return { selected, snapshot, snapshotGroups, pending, barrier, unavailable, eligible, allSelected, indeterminate, toggle, toggleAll, clear, open, close, submit, reload }
 }

@@ -88,3 +88,19 @@ func TestStaticPermissionSnapshots(t *testing.T) {
 		t.Fatal("expected unknown snapshot to deny confirmation permission")
 	}
 }
+
+func TestDecodeSnapshotsRejectMalformedAndUnassignableStoredGroups(t *testing.T) {
+	if _, err := permission.DecodeGroupSnapshot(permission.GroupUser, true, []byte(`[`)); err == nil {
+		t.Fatal("malformed builtin permissions were accepted")
+	}
+	if _, err := permission.DecodeGroupSnapshot(permission.GroupUser, false, []byte(`[]`)); err != permission.ErrUnknownGroup {
+		t.Fatalf("reserved non-builtin group error = %v, want ErrUnknownGroup", err)
+	}
+	if _, err := permission.DecodeSnapshot([]byte(`{`)); err == nil {
+		t.Fatal("malformed permission snapshot was accepted")
+	}
+	snapshot, err := permission.DecodeSnapshot([]byte(`[` + `"admin:access"` + `]`))
+	if err != nil || !snapshot.Has(permission.AdminAccess) {
+		t.Fatalf("valid permission snapshot = %v, %v", snapshot.Has(permission.AdminAccess), err)
+	}
+}

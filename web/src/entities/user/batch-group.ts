@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import { ApiClientError, apiPost } from '@/shared/api/client'
+import type { UserGroupKey } from '@/entities/user-group/api'
 
 export interface BatchChangeUserGroupInput {
   items: { id: string; expectedUpdatedAt: string }[]
-  groupKey: 'user' | 'admin'
+  groupKey: UserGroupKey
 }
 export interface BatchChangeUserGroupResult { changedCount: number; unchangedCount: number }
 const resultSchema = z.strictObject({ changedCount: z.number().int().nonnegative(), unchangedCount: z.number().int().nonnegative() })

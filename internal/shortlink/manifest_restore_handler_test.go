@@ -114,6 +114,7 @@ func TestManifestRestoreHandlerRejectsInvalidFraming(t *testing.T) {
 		{name: "null request", body: "null", contentType: "application/json"},
 		{name: "non-object request", body: "[]", contentType: "application/json"},
 		{name: "null items", body: `{"requestId":"` + manifestRestoreRequestID + `","items":null}`, contentType: "application/json"},
+		{name: "empty items", body: `{"requestId":"` + manifestRestoreRequestID + `","items":[]}`, contentType: "application/json"},
 		{name: "non-array items", body: `{"requestId":"` + manifestRestoreRequestID + `","items":{}}`, contentType: "application/json"},
 		{name: "null item", body: manifestRestoreBody("null"), contentType: "application/json"},
 		{name: "non-object item", body: manifestRestoreBody("[]"), contentType: "application/json"},

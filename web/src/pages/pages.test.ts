@@ -36,6 +36,7 @@ const state = vi.hoisted(() => ({
   queryKeys: [] as unknown[],
   queryFns: [] as Array<() => unknown>,
   listQueryViews: [] as Array<{ key: unknown; result: { data?: { value: unknown }; isError?: { value: boolean }; isPending?: { value: boolean }; isFetching?: { value: boolean } } }>,
+  groupDirectoryUnavailable: false,
   chartConfigurations: [] as unknown[],
   chartInstances: [] as Array<{ canvas: unknown; destroy: ReturnType<typeof vi.fn> }>,
   mutationResult: {},
@@ -196,11 +197,12 @@ vi.mock('@tanstack/vue-query', async () => {
         return { data: ref({ domainId: null, status: 'not_set' }), isSuccess: ref(true), isError: ref(false), refetch: vi.fn() }
       }
       if (Array.isArray(key) && key[0] === 'admin-user-groups') {
+        if (state.groupDirectoryUnavailable) return { data: ref(undefined), isSuccess: ref(false), isError: ref(false), isPending: ref(true), isFetching: ref(false), refetch: vi.fn() }
         return { data: ref({ groups: [
           { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: '2026-10-27T01:02:03Z' },
           { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 0, permissions: [], updatedAt: '2026-10-27T01:02:03Z' },
           { key: 'admin', name: 'Administrator', description: '', builtin: true, editable: true, memberCount: 1, permissions: ['admin:access'], updatedAt: '2026-10-27T01:02:03Z' },
-        ] }), isSuccess: ref(true), isError: ref(false), isPending: ref(false), refetch: vi.fn() }
+        ] }), isSuccess: ref(true), isError: ref(false), isPending: ref(false), isFetching: ref(false), refetch: vi.fn() }
       }
       if (Array.isArray(key) && key[0] === 'user' && key[1] === 'domain-preference') {
         return { data: ref({ domainId: null, updatedAt: null }), isSuccess: ref(true), isError: ref(false) }
@@ -398,6 +400,7 @@ describe('pages', () => {
     state.queryKeys = []
     state.queryFns = []
     state.listQueryViews = []
+    state.groupDirectoryUnavailable = false
     // Cache reads must distinguish the current list from auth, including same-tick ref changes.
     const currentList = (key: unknown) => state.listQueryViews.find(view => JSON.stringify(isRef(view.key) ? view.key.value : view.key) === JSON.stringify(key))
     state.queryClient.getQueryData.mockReset().mockImplementation((key?: unknown) => {
@@ -2492,5 +2495,16 @@ describe('pages', () => {
     setQueryResult({ data: ref(undefined) })
     mount(AdminUsersPage)
     expect(screen.getByText('adminUsers.noUsers')).toBeTruthy()
+  })
+
+  it('keeps batch membership closed while the current group catalog has no data', () => {
+    setQueryResult({ data: ref({ meta: { total: 1 }, items: [{
+      id: 'user-id', username: 'alice', nickname: 'Alice', group: 'user', status: 'active', builtin: false,
+      createdAt: '2026-06-08T00:00:00Z', updatedAt: '2026-06-08T00:00:00Z',
+    }] }) })
+    state.groupDirectoryUnavailable = true
+    mount(AdminUsersPage)
+    expect(screen.getAllByRole('checkbox').every(checkbox => (checkbox as HTMLInputElement).disabled)).toBe(true)
+    expect(screen.getByRole('button', { name: 'batchMembership.open' })).toHaveProperty('disabled', true)
   })
 })

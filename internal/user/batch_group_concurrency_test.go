@@ -10,6 +10,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/TomyJan/MoeURL/internal/user"
+	"github.com/TomyJan/MoeURL/internal/usergroup"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
@@ -99,6 +100,105 @@ func waitBatchLock(t *testing.T, ctx context.Context, pool *pgxpool.Pool, pid, b
 		case <-ticker.C:
 		}
 	}
+}
+
+func customGroupVersion(t *testing.T, pool *pgxpool.Pool, key string) string {
+	t.Helper()
+	var updated time.Time
+	require.NoError(t, pool.QueryRow(t.Context(), `select updated_at from user_group where key=$1`, key).Scan(&updated))
+	return updated.UTC().Format(time.RFC3339Nano)
+}
+
+// TestBatchChangeGroupCustomTargetDeleteSerialization verifies both safe serial outcomes around target deletion.
+func TestBatchChangeGroupCustomTargetDeleteSerialization(t *testing.T) {
+	for _, deletionStartsFirst := range []bool{false, true} {
+		name := "batch-then-delete"
+		if deletionStartsFirst {
+			name = "delete-then-batch"
+		}
+		t.Run(name, func(t *testing.T) {
+			pool, _, actor, target := groupFixture(t)
+			const groupKey = "custom-race-target"
+			insertUserGroup(t, t.Context(), pool, groupKey, []string{"short_link:create"})
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+			defer cancel()
+			blocker, err := pool.Begin(ctx)
+			require.NoError(t, err)
+			defer testdb.Rollback(t, blocker.Rollback)
+			_, err = blocker.Exec(ctx, `select id from user_group where key=$1 for update`, groupKey)
+			require.NoError(t, err)
+
+			newObservedPool := func() (*pgxpool.Pool, int32) {
+				config := pool.Config()
+				config.MaxConns = 1
+				observed, poolErr := pgxpool.NewWithConfig(ctx, config)
+				require.NoError(t, poolErr)
+				t.Cleanup(observed.Close)
+				var pid int32
+				require.NoError(t, observed.QueryRow(ctx, `select pg_backend_pid()`).Scan(&pid))
+				return observed, pid
+			}
+			batchPool, batchPID := newObservedPool()
+			deletePool, deletePID := newObservedPool()
+			type batchOutcome struct {
+				result user.BatchChangeGroupResult
+				err    error
+			}
+			batchDone := make(chan batchOutcome, 1)
+			batchFinished := make(chan error, 1)
+			deleteDone := make(chan error, 1)
+			deleteVersion := customGroupVersion(t, pool, groupKey)
+			batchItemsSnapshot := batchItems(t, pool, target)
+			startDelete := func(blockerPID int32) {
+				go func() {
+					_, deleteErr := usergroup.NewCustomService(deletePool).Delete(ctx, actor, usergroup.DeleteCustomGroupInput{
+						GroupKey: groupKey, ExpectedUpdatedAt: deleteVersion,
+					})
+					deleteDone <- deleteErr
+				}()
+				waitBatchLock(t, ctx, pool, deletePID, blockerPID, deleteDone)
+			}
+			startBatch := func(blockerPID int32) {
+				go func() {
+					result, batchErr := user.NewService(batchPool, nil).BatchChangeGroup(ctx, actor, user.BatchChangeGroupInput{
+						Items: batchItemsSnapshot, GroupKey: groupKey,
+					})
+					batchDone <- batchOutcome{result: result, err: batchErr}
+					batchFinished <- batchErr
+				}()
+				waitBatchLock(t, ctx, pool, batchPID, blockerPID, batchFinished)
+			}
+
+			if deletionStartsFirst {
+				startDelete(int32(blocker.Conn().PgConn().PID()))
+				startBatch(deletePID)
+			} else {
+				startBatch(int32(blocker.Conn().PgConn().PID()))
+				startDelete(batchPID)
+			}
+			require.NoError(t, blocker.Commit(ctx))
+			batch := <-batchDone
+			deleteErr := <-deleteDone
+			if deletionStartsFirst {
+				require.NoError(t, deleteErr)
+				require.ErrorIs(t, batch.err, user.ErrInvalidInput)
+				require.Equal(t, user.BatchChangeGroupResult{}, batch.result)
+				require.Equal(t, "user", readUserGroupKey(t, pool, target))
+			} else {
+				require.NoError(t, batch.err)
+				require.Equal(t, user.BatchChangeGroupResult{ChangedCount: 1}, batch.result)
+				require.ErrorIs(t, deleteErr, usergroup.ErrUserGroupHasMembers)
+				require.Equal(t, groupKey, readUserGroupKey(t, pool, target))
+			}
+		})
+	}
+}
+
+func readUserGroupKey(t *testing.T, pool *pgxpool.Pool, userID string) string {
+	t.Helper()
+	var groupKey string
+	require.NoError(t, pool.QueryRow(t.Context(), `select g.key from app_user u join user_group g on g.id=u.group_id where u.id=$1`, userID).Scan(&groupKey))
+	return groupKey
 }
 
 // TestBatchChangeGroupWaitingAuthorization proves row and permission locks reauthorize after concurrent revocation commits.

@@ -13,8 +13,10 @@ import (
 
 func TestGroupDefaultCustomGroupCandidatesSetAndCurrentAvailability(t *testing.T) {
 	f := groupDefaultFixture(t)
+	_, err := f.s.Set(t.Context(), f.actor, SetDomainDefaultInput{GroupKey: uuid.NewString(), DomainID: &f.assigned, ExpectedUpdatedAt: "2026-11-25T00:00:00Z"})
+	require.ErrorIs(t, err, ErrUserGroupNotFound)
 	customKey := uuid.NewString()
-	_, err := f.pool.Exec(t.Context(), `insert into user_group(id,key,name,description,permissions,builtin,created_at,updated_at)
+	_, err = f.pool.Exec(t.Context(), `insert into user_group(id,key,name,description,permissions,builtin,created_at,updated_at)
 		values(gen_random_uuid(),$1,'Operations','',$2::jsonb,false,now(),now())`, customKey, ` ["short_link:create","domain:use_default","domain:use_assigned"] `)
 	require.NoError(t, err)
 	_, err = f.pool.Exec(t.Context(), `insert into domain_user_group(domain_id,user_group_id)

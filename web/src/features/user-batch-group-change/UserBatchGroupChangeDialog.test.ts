@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/vue'
 import { afterEach, expect, it, vi } from 'vitest'
-import { batchAlice, batchBob, batchManager, confirmBatchMembership, mountBatchMembership, openBatchMembership } from '@/test/user-batch-group'
+import { batchAlice, batchBob, batchGroups, batchManager, confirmBatchMembership, mountBatchMembership, openBatchMembership } from '@/test/user-batch-group'
 import UserBatchGroupChangeDialog from './UserBatchGroupChangeDialog.vue'
 import { componentStubs } from '@/test/component-stubs'
 import { createI18n } from 'vue-i18n'
@@ -25,6 +25,68 @@ it('requires an explicit destination, recomputes mixed counts, and clears confir
   await fireEvent.click(screen.getByRole('button', { name: 'Change selected groups' }))
   expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save group changes' })).toHaveProperty('disabled', true)
   expect(screen.getByRole('checkbox', { name: 'I confirm the group changes' })).toHaveProperty('checked', false)
+})
+
+it('shows localized built-in names and preserves an unknown source group key verbatim', () => {
+  render(UserBatchGroupChangeDialog, {
+    props: {
+      snapshot: [
+        { ...batchAlice, group: 'admin' },
+        { ...batchBob, group: 'user' },
+        { ...batchBob, id: '44444444-4444-4444-8444-444444444444', username: 'orphan', group: 'orphan-group-key' },
+      ],
+      groups: [batchGroups[0]!],
+      availableGroupKeys: [],
+      groupsReady: true,
+      pending: false,
+    },
+    global: { stubs: componentStubs, plugins: [createI18n({ legacy: false, locale: 'en', messages })] },
+  })
+  const dialog = within(screen.getByRole('dialog'))
+  expect(dialog.getByText('Administrator')).toBeTruthy()
+  expect(dialog.getByText('User')).toBeTruthy()
+  expect(dialog.getByText('orphan-group-key')).toBeTruthy()
+})
+
+it('keeps a selected target unsaveable while the group directory is refreshing', async () => {
+  const alphaKey = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  render(UserBatchGroupChangeDialog, {
+    props: {
+      snapshot: [batchAlice],
+      groups: [...batchGroups, { key: alphaKey, name: 'Research', description: '', builtin: false, editable: true, memberCount: 1, permissions: [], updatedAt: '2026-10-28T00:00:00Z' }],
+      availableGroupKeys: [alphaKey],
+      groupsReady: false,
+      pending: false,
+    },
+    global: { stubs: componentStubs, plugins: [createI18n({ legacy: false, locale: 'en', messages })] },
+  })
+  const dialog = within(screen.getByRole('dialog'))
+  await fireEvent.update(dialog.getByRole('combobox', { name: 'Target group' }), alphaKey)
+  await fireEvent.click(dialog.getByRole('checkbox', { name: 'I confirm the group changes' }))
+  expect(dialog.getByText('The group list is refreshing. Wait for it to finish before submitting.')).toBeTruthy()
+  expect(dialog.getByRole('button', { name: 'Save group changes' })).toHaveProperty('disabled', true)
+})
+
+it('uses the opaque key as a safe fallback for a target missing from the frozen directory', async () => {
+  render(UserBatchGroupChangeDialog, {
+    props: { snapshot: [batchAlice], groups: batchGroups, availableGroupKeys: ['user', 'admin'], groupsReady: true, pending: false },
+    global: {
+      stubs: {
+        ...componentStubs,
+        VSelect: {
+          props: ['disabled', 'items', 'label', 'modelValue'],
+          emits: ['update:modelValue'],
+          template: '<input role="combobox" :aria-label="label" :disabled="disabled" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+        },
+      },
+      plugins: [createI18n({ legacy: false, locale: 'en', messages })],
+    },
+  })
+  const dialog = within(screen.getByRole('dialog'))
+  await fireEvent.update(dialog.getByRole('combobox', { name: 'Target group' }), 'orphan-target-key')
+  expect(dialog.getByText('This account will join “orphan-target-key” and receive that group’s currently configured permissions.')).toBeTruthy()
+  expect(dialog.getByText('The selected group is no longer available. Read the latest groups or choose another target.')).toBeTruthy()
+  expect(dialog.getByRole('button', { name: 'Save group changes' })).toHaveProperty('disabled', true)
 })
 
 it('refuses an all-no-op confirmation and keeps the selection on ordinary cancellation', async () => {
@@ -63,7 +125,7 @@ it('limits selection to current eligible accounts, maintains indeterminate state
 
 it('rejects a queued cancellation and submission after the parent marks the request pending', async () => {
   // The presentation-only button double deliberately delivers a previously queued click even when disabled.
-  const dialog = render(UserBatchGroupChangeDialog, { props: { snapshot: [batchAlice], pending: false }, global: { stubs: componentStubs, plugins: [createI18n({ legacy: false, locale: 'en', messages })] } })
+  const dialog = render(UserBatchGroupChangeDialog, { props: { snapshot: [batchAlice], groups: batchGroups, availableGroupKeys: ['user', 'admin'], groupsReady: true, pending: false }, global: { stubs: componentStubs, plugins: [createI18n({ legacy: false, locale: 'en', messages })] } })
   await fireEvent.click(screen.getByRole('button', { name: 'Save group changes' }))
   expect(dialog.emitted().submit).toBeUndefined()
   await dialog.rerender({ snapshot: [batchAlice], pending: true })

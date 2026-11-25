@@ -1,6 +1,10 @@
 # 路线图
 
-## 当前开发（2026-11-25，v0.92.0）
+## 当前开发（2026-11-26，v0.93.0）
+
+[自定义组批量成员迁移](scope-v0.93.0.md)产品实现与已有 review findings 已修复。最新 cleanup regression 3/3；Node `26.3.0`／pnpm `11.5.0` 全量 292 文件、7,342 测试、四项 100% coverage，typecheck、定向 lint、E2E strict tsc、build 通过；包含 helper 的 fallback Playwright setup／英文桌面／中文手机 3/3。隔离 PostgreSQL 逐序执行 migration Up SQL 仅作 E2E fixture，不代表 Goose CLI、标准 Compose build 或 CI。PR #424 对 `0d96561b` 的用户清单读取失败 finding 已按登记 ID 禁用处理并补回归；新准确 head CodeRabbit、正常合并核验和 whole-owned 归档待。不查 CI、不发布部署。详见[v0.93 验收](../implementation/v0.93.0-acceptance.md)。
+
+## 最近完成（2026-11-25，v0.92.0）
 
 [自定义用户组](scope-v0.92.0.md) Task 1–6 已完成。PR #421 已正常 squash 合并为 `f2d53c76`，tree／唯一 parent 已独立核验，core 分支归档及本地／远端清理已完成；PR #420 已以准确 head `8ed359ee` 正常 squash 合并为 `367bfe6d`，最终差异为 53 个前端／验收文件。CodeRabbit 对准确 head 的 review 结论为无 actionable comments；请求 `7151716233`，bot 回执 `7151718099`。PR #420 merge identity、whole-owned 归档与 feature 分支／worktree 清理均已核验。前端 coverage、typecheck、lint、build 与隔离 fallback 浏览器结果均按原执行身份记录，fallback 不代表标准 Dockerfile build／CI。不查 CI、不发布部署。
 

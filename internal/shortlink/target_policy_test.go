@@ -120,6 +120,49 @@ func TestTargetPolicyEmptyAdminActor(t *testing.T) {
 	require.Equal(t, before, after, "rejection must preserve both link and audit state")
 }
 
+func TestTargetPolicyAdminWriteRequiresCurrentAdminGrant(t *testing.T) {
+	pool, service, actor := targetWriteFixture(t)
+	const groupID = "00000000-0000-0000-0000-000000000402"
+	_, err := pool.Exec(t.Context(), `insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+		values ($1, 'user', 'User', '', $2::jsonb, true, now(), now())`, groupID, permissionsJSON(t, permission.UserPermissions))
+	require.NoError(t, err)
+	created, err := service.Create(t.Context(), actor, shortlink.CreateInput{TargetURL: "https://safe.example/original"})
+	require.NoError(t, err)
+	tracer := &adminGroupDowngradeTracer{pool: pool, actorID: actor.ID, groupID: groupID}
+	config := pool.Config()
+	config.ConnConfig.Tracer = tracer
+	faulty, err := pgxpool.NewWithConfig(t.Context(), config)
+	require.NoError(t, err)
+	t.Cleanup(faulty.Close)
+	target := "https://safe.example/changed"
+	_, err = shortlink.NewService(faulty, permission.NewService()).AdminUpdate(t.Context(), actor, shortlink.UpdateInput{ID: created.ShortLink.ID, TargetURL: &target})
+	require.True(t, tracer.changed)
+	require.NoError(t, tracer.err)
+	require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
+	var stored string
+	require.NoError(t, pool.QueryRow(t.Context(), `select target_url from short_link where id=$1`, created.ShortLink.ID).Scan(&stored))
+	require.Equal(t, "https://safe.example/original", stored)
+}
+
+type adminGroupDowngradeTracer struct {
+	pool    *pgxpool.Pool
+	actorID string
+	groupID string
+	changed bool
+	err     error
+}
+
+// TraceQueryStart downgrades the authenticated actor after entry authorization but before the locked recheck.
+func (tr *adminGroupDowngradeTracer) TraceQueryStart(ctx context.Context, _ *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
+	if !tr.changed && strings.Contains(data.SQL, "-- name: LockTargetPolicyActor") {
+		tr.changed = true
+		_, tr.err = tr.pool.Exec(ctx, `update app_user set group_id=$2 where id=$1`, tr.actorID, tr.groupID)
+	}
+	return ctx
+}
+
+func (*adminGroupDowngradeTracer) TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQueryEndData) {}
+
 func waitTargetWriteBlocked(t *testing.T, pool *pgxpool.Pool, blocker uint32) {
 	t.Helper()
 	require.Eventually(t, func() bool {

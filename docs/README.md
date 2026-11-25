@@ -1,6 +1,13 @@
 # MoeURL 文档中心
 
-## 当前开发（2026-11-25，v0.92.0）
+## 当前开发（2026-11-26，v0.93.0）
+
+[自定义组批量成员迁移](product/scope-v0.93.0.md)产品实现提交 `50383a94`；独立终审两项 Minor、CodeRabbit 三项 Minor及两项 cleanup Minor 均已修复。cleanup helper fault-injection 3/3；Node `26.3.0`／pnpm `11.5.0` 全量 Vitest 292/292、7,342/7,342，四项 coverage 均 100%；typecheck、定向 ESLint、E2E strict tsc 与 production build 通过。Playwright fallback setup、英文桌面、中文手机 3/3（Node `26.3.0`／pnpm `11.5.0`）。隔离 PostgreSQL 按序执行 migration Up SQL 仅作 E2E fixture，不代表 Goose CLI、标准 Compose 或 Dockerfile。PR #424 准确最新 head 的 CodeRabbit、正常合并核验与 whole-owned 可恢复归档待；不发布部署、不触碰 PR #240/#266/#267。详见[v0.93 验收](implementation/v0.93.0-acceptance.md)。
+PR #424 对 `0d96561b` 的 review 还发现用户列表读取失败会跳过已登记账号禁用；follow-up 已改为按创建时登记 ID 始终尝试禁用，并新增回归。此 fix 与准确 head review 的边界、环境及资源清理见[v0.93 验收](implementation/v0.93.0-acceptance.md)。
+
+v0.93.0 文档入口：[范围](product/scope-v0.93.0.md)、[设计](superpowers/specs/2026-11-25-v0.93.0-custom-group-batch-design.md)、[实施计划](superpowers/plans/2026-11-25-v0.93.0-custom-group-batch-plan.md)及[验收](implementation/v0.93.0-acceptance.md)。
+
+## 最近完成（2026-11-25，v0.92.0）
 
 自定义用户组 Task 1–6 已完成。后端 PR #421 已 squash 合并为 `f2d53c76` 并核验 tree／唯一 parent，core 分支的 whole-owned 归档和本地／远端清理已完成；前端 PR #420 已正常 squash 合并为 `367bfe6d`，合并前准确 head `8ed359ee`，最终差异为 53 个前端／验收文件。Node 26.3.0 下全量 coverage 为 291/291 文件、7,327/7,327 测试，四项均 100%；类型检查、全量 ESLint（0 errors、7 个既有 fixture warnings）、Vite build（1,642 modules）通过。标准 Compose 因 Docker Hub 拉取 `golang:1.27.4` 超时；本机 Go 1.26.8 静态 app 与已缓存镜像的隔离 fallback 浏览器 3/3 通过，数据库确认 8 个辅助组已清理，专属容器／卷／网络和临时镜像已删除；该结果不代表标准 Dockerfile build／CI。CodeRabbit 对准确 head `8ed359ee` 的 review 已完成，结论为无 actionable comments（请求 `7151716233`，bot 回执 `7151718099`）。PR #420 merge tree／唯一 parent 与 whole-owned 归档已核验；本地／远端 feature 分支和 worktree 已清理。未查 CI／checks、不绕过规则、不发布部署。
 

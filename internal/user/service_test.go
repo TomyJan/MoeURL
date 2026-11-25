@@ -120,6 +120,62 @@ func TestServiceCreateUserInCustomGroupAndRejectsGuestGroup(t *testing.T) {
 	require.ErrorIs(t, err, user.ErrInvalidInput, "guest is not a persistently assignable user group")
 }
 
+func TestServiceCreateRejectsInvalidActorIDBeforeDatabaseAccess(t *testing.T) {
+	service := user.NewService(nil, permission.NewService())
+	_, err := service.Create(t.Context(), auth.CurrentUser{ID: "not-a-uuid", GroupKey: permission.GroupAdmin}, user.CreateInput{
+		Username: "unreachable", Password: "secure-password", Nickname: "Unreachable", GroupKey: permission.GroupUser, Status: "active",
+	})
+	require.ErrorIs(t, err, user.ErrPermissionDenied)
+}
+
+func TestServiceCreateRejectsInactiveActorAndCorruptGroupSnapshot(t *testing.T) {
+	t.Run("inactive actor", func(t *testing.T) {
+		pool, _, actor, _ := groupFixture(t)
+		_, err := pool.Exec(t.Context(), `update app_user set status='disabled' where id=$1`, actor.ID)
+		require.NoError(t, err)
+		service := user.NewService(pool, permission.NewService())
+		_, err = service.Create(t.Context(), actor, user.CreateInput{Username: "inactive-actor", Password: "secure-password", Nickname: "Inactive", GroupKey: permission.GroupUser, Status: "active"})
+		require.ErrorIs(t, err, user.ErrPermissionDenied)
+	})
+	t.Run("corrupt admin permissions", func(t *testing.T) {
+		pool, _, actor, _ := groupFixture(t)
+		_, err := pool.Exec(t.Context(), `update user_group set permissions='{}'::jsonb where key='admin'`)
+		require.NoError(t, err)
+		service := user.NewService(pool, permission.NewService())
+		_, err = service.Create(t.Context(), actor, user.CreateInput{Username: "corrupt-permissions", Password: "secure-password", Nickname: "Corrupt", GroupKey: permission.GroupUser, Status: "active"})
+		require.Error(t, err)
+		require.NotErrorIs(t, err, user.ErrPermissionDenied)
+	})
+}
+
+func TestServiceCreateRejectsMissingCustomGroup(t *testing.T) {
+	pool, service, actor, _ := groupFixture(t)
+	_, err := service.Create(t.Context(), actor, user.CreateInput{Username: "missing-group", Password: "secure-password", Nickname: "Missing", GroupKey: "missing-custom-group", Status: "active"})
+	require.ErrorIs(t, err, user.ErrInvalidInput)
+	var count int
+	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from app_user where username='missing-group'`).Scan(&count))
+	require.Zero(t, count)
+}
+
+func TestServiceCreateReturnsGroupReadFailures(t *testing.T) {
+	for _, prefix := range []string{"-- name: GetUserGroupByID", "-- name: LockGroupChangeGroup", "-- name: LockUserGroupForCustomManagement"} {
+		t.Run(prefix, func(t *testing.T) {
+			pool, _, actor, _ := groupFixture(t)
+			config := pool.Config()
+			config.ConnConfig.Tracer = groupFaultTracer{prefix: prefix}
+			faulty, err := pgxpool.NewWithConfig(t.Context(), config)
+			require.NoError(t, err)
+			t.Cleanup(faulty.Close)
+			service := user.NewService(faulty, permission.NewService())
+			_, err = service.Create(t.Context(), actor, user.CreateInput{Username: "read-failure", Password: "secure-password", Nickname: "Failure", GroupKey: permission.GroupUser, Status: "active"})
+			require.Error(t, err)
+			var count int
+			require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from app_user where username='read-failure'`).Scan(&count))
+			require.Zero(t, count)
+		})
+	}
+}
+
 func TestServiceCreateRechecksCurrentDatabaseAuthorization(t *testing.T) {
 	pool, _, actor, _ := groupFixture(t)
 	_, err := pool.Exec(t.Context(), `update user_group set permissions=permissions-'admin:access' where key='admin'`)

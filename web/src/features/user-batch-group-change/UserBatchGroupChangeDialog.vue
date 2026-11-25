@@ -4,11 +4,12 @@
       <v-card-title>{{ t('batchMembership.title') }}</v-card-title>
       <v-card-text class="batch-membership-body">
         <ul class="batch-membership-summary" :aria-label="t('batchMembership.summary')">
-          <li v-for="item in snapshot" :key="item.id"><strong>{{ item.username }}</strong><span>{{ t(item.group === 'admin' ? 'membership.admin' : 'membership.user') }}</span></li>
+          <li v-for="item in snapshot" :key="item.id"><strong>{{ item.username }}</strong><span>{{ sourceGroupName(item.group) }}</span></li>
         </ul>
         <p>{{ t('batchMembership.warning') }}</p>
         <v-select v-model="groupKey" :items="options" :label="t('batchMembership.group')" :disabled="pending" variant="outlined" />
-        <v-alert v-if="groupKey" :type="groupKey === 'admin' ? 'warning' : 'info'" variant="tonal">{{ t(groupKey === 'admin' ? 'membership.promote' : 'membership.demote') }}</v-alert>
+        <v-alert v-if="groupKey" :type="groupKey === 'admin' ? 'warning' : 'info'" variant="tonal">{{ targetWarning }}</v-alert>
+        <v-alert v-if="groupUnavailable" type="error" variant="tonal">{{ t(props.groupsReady ? 'batchMembership.targetUnavailable' : 'batchMembership.groupsRefreshing') }}</v-alert>
         <p>{{ t('batchMembership.counts', { changed: changedCount, unchanged: snapshot.length - changedCount }) }}</p>
         <v-switch v-model="confirmed" :label="t('batchMembership.confirm')" :disabled="pending" color="primary" />
       </v-card-text>
@@ -26,17 +27,28 @@ import { useForm } from 'vee-validate'
 import { useI18n } from 'vue-i18n'
 import { z } from 'zod'
 import type { UserSummary } from '@/entities/user/api'
+import type { UserGroup, UserGroupKey } from '@/entities/user-group/api'
 
-const props = defineProps<{ snapshot: readonly UserSummary[]; pending: boolean }>()
-const emit = defineEmits<{ close: []; submit: [group: 'user' | 'admin'] }>()
+const props = defineProps<{ snapshot: readonly UserSummary[]; groups: readonly UserGroup[]; availableGroupKeys: readonly UserGroupKey[]; groupsReady: boolean; pending: boolean }>()
+const emit = defineEmits<{ close: []; submit: [group: UserGroupKey] }>()
 const { t } = useI18n()
 const { defineField } = useForm({ initialValues: { groupKey: '', confirmed: false } })
 const [groupKey] = defineField('groupKey')
 const [confirmed] = defineField('confirmed')
-const schema = z.strictObject({ groupKey: z.enum(['user', 'admin']), confirmed: z.literal(true) })
-const options = computed(() => [{ title: t('membership.user'), value: 'user' }, { title: t('membership.admin'), value: 'admin' }])
+const schema = z.strictObject({ groupKey: z.string().min(1), confirmed: z.literal(true) })
+const options = computed(() => props.groups.filter(group => group.key !== 'guest').map(group => ({ title: group.name, value: group.key })))
 const changedCount = computed(() => groupKey.value ? props.snapshot.filter(item => item.group !== groupKey.value).length : 0)
-const canSave = computed(() => !props.pending && changedCount.value > 0 && schema.safeParse({ groupKey: groupKey.value, confirmed: confirmed.value }).success)
+const targetUnavailable = computed(() => !!groupKey.value && (!props.groupsReady || !props.availableGroupKeys.includes(groupKey.value)))
+const groupUnavailable = computed(() => targetUnavailable.value)
+const canSave = computed(() => !props.pending && !targetUnavailable.value && options.value.some(option => option.value === groupKey.value) && changedCount.value > 0 && schema.safeParse({ groupKey: groupKey.value, confirmed: confirmed.value }).success)
+const targetWarning = computed(() => groupKey.value === 'admin'
+  ? t('membership.promote')
+  : groupKey.value === 'user'
+    ? t('membership.demote')
+    : t('membership.assignGroup', { group: options.value.find(option => option.value === groupKey.value)?.title ?? groupKey.value }))
+function sourceGroupName(key: string) {
+  return props.groups.find(group => group.key === key)?.name ?? (key === 'admin' ? t('membership.admin') : key === 'user' ? t('membership.user') : key)
+}
 watch(groupKey, () => { confirmed.value = false }, { flush: 'sync' })
 
 /** Never dismisses an in-flight privilege change through cancel, overlay or Escape. */

@@ -9,12 +9,18 @@ import { vi } from 'vitest'
 import { messages } from '@/app/i18n'
 import type { CurrentUser } from '@/entities/auth/api'
 import type { UserSummary } from '@/entities/user/api'
+import type { UserGroup } from '@/entities/user-group/api'
 import AdminUsersPage from '@/pages/AdminUsersPage.vue'
 import AppToasts from '@/shared/feedback/AppToasts.vue'
 
 export const batchManager: CurrentUser = { id: '11111111-1111-4111-8111-111111111111', username: 'manager', nickname: 'Manager', group: 'admin', permissions: ['admin:access'] }
 export const batchAlice: UserSummary = { id: '22222222-2222-4222-8222-222222222222', username: 'alice', nickname: 'Alice', group: 'user', status: 'active', builtin: false, createdAt: '2026-10-28T00:00:00Z', updatedAt: '2026-10-28T01:02:03.123456Z' }
 export const batchBob: UserSummary = { ...batchAlice, id: '33333333-3333-4333-8333-333333333333', username: 'bob', nickname: 'Bob', updatedAt: '2026-10-28T01:02:04.654321Z' }
+export const batchGroups: UserGroup[] = [
+  { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: '2026-10-28T00:00:00Z' },
+  { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 2, permissions: [], updatedAt: '2026-10-28T00:00:00Z' },
+  { key: 'admin', name: 'Administrator', description: '', builtin: true, editable: true, memberCount: 1, permissions: ['admin:access'], updatedAt: '2026-10-28T00:00:00Z' },
+]
 
 /** Returns the complete existing server envelope at the controlled HTTP boundary. */
 export function membershipResponse(data: unknown, code = 0, status = 200, meta: Record<string, unknown> = {}) {
@@ -39,9 +45,7 @@ export function mountBatchMembership(options: { user?: CurrentUser; users?: User
     if (state.overrides[path]) return state.overrides[path]()
     if (path === '/api/v1/auth/me') return membershipResponse({ user: state.user })
     if (path === '/api/v1/admin/user-group/list') return membershipResponse({ groups: [
-      { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: '2026-10-28T00:00:00Z' },
-      { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 2, permissions: [], updatedAt: '2026-10-28T00:00:00Z' },
-      { key: 'admin', name: 'Administrator', description: '', builtin: true, editable: true, memberCount: 1, permissions: ['admin:access'], updatedAt: '2026-10-28T00:00:00Z' },
+      ...batchGroups,
       ...(options.customGroups ?? []).map(({ key, name }) => ({ key, name, description: '', builtin: false, editable: true, memberCount: 1, permissions: [], updatedAt: '2026-10-28T00:00:00Z' })),
     ], permissions: [{ key: 'admin:access', category: 'administration', protected: true }], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user', 'admin'], permissions: [] })) })
     if (path.startsWith('/api/v1/admin/user/list?')) return membershipResponse({ items: state.users }, 0, 200, { page: 1, pageSize: 20, total: state.users.length })

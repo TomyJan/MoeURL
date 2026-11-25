@@ -13,6 +13,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/user"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 )
@@ -66,6 +67,113 @@ func TestBatchChangeGroup(t *testing.T) {
 	var count int
 	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from audit_log where resource_type='user' and actor_id=$1 and action='update' and changed_fields=array['group_id']`, actor.ID).Scan(&count))
 	require.Equal(t, 1, count)
+}
+
+// TestBatchChangeGroupCustomGroups keeps single-primary-group changes atomic across custom targets.
+func TestBatchChangeGroupCustomGroups(t *testing.T) {
+	pool, service, actor, first := groupFixture(t)
+	insertUserGroup(t, t.Context(), pool, "custom-alpha", []string{"short_link:create"})
+	insertUserGroup(t, t.Context(), pool, "custom-beta", []string{"short_link:read_own"})
+	second := insertAppUser(t, t.Context(), pool, "custom-member", "", "Custom member", "custom-alpha", "active", false)
+	sessions := auth.NewSessionService(pool, time.Hour)
+	firstSession, err := sessions.Create(t.Context(), first)
+	require.NoError(t, err)
+	secondSession, err := sessions.Create(t.Context(), second)
+	require.NoError(t, err)
+	firstBefore := groupVersion(t, pool, first)
+	firstResult, err := service.BatchChangeGroup(t.Context(), actor, user.BatchChangeGroupInput{
+		Items: batchItems(t, pool, first), GroupKey: "custom-alpha",
+	})
+	require.NoError(t, err)
+	require.Equal(t, user.BatchChangeGroupResult{ChangedCount: 1}, firstResult)
+	require.NotEqual(t, firstBefore, groupVersion(t, pool, first))
+	_, err = sessions.Resolve(t.Context(), firstSession.ID)
+	require.ErrorIs(t, err, auth.ErrInvalidSession)
+	_, err = sessions.Resolve(t.Context(), secondSession.ID)
+	require.NoError(t, err)
+
+	customItems := batchItems(t, pool, first, second)
+	customResult, err := service.BatchChangeGroup(t.Context(), actor, user.BatchChangeGroupInput{
+		Items: customItems, GroupKey: "custom-beta",
+	})
+	require.NoError(t, err)
+	require.Equal(t, user.BatchChangeGroupResult{ChangedCount: 2}, customResult)
+	_, err = sessions.Resolve(t.Context(), secondSession.ID)
+	require.ErrorIs(t, err, auth.ErrInvalidSession)
+	staleResult, err := service.BatchChangeGroup(t.Context(), actor, user.BatchChangeGroupInput{
+		Items: customItems, GroupKey: "custom-beta",
+	})
+	require.ErrorIs(t, err, user.ErrVersionConflict)
+	require.Equal(t, user.BatchChangeGroupResult{}, staleResult)
+	for _, id := range []string{first, second} {
+		var key string
+		require.NoError(t, pool.QueryRow(t.Context(), `select g.key from app_user u join user_group g on g.id=u.group_id where u.id=$1`, id).Scan(&key))
+		require.Equal(t, "custom-beta", key)
+	}
+
+	adminResult, err := service.BatchChangeGroup(t.Context(), actor, user.BatchChangeGroupInput{
+		Items: batchItems(t, pool, first, second), GroupKey: "admin",
+	})
+	require.NoError(t, err)
+	require.Equal(t, user.BatchChangeGroupResult{ChangedCount: 2}, adminResult)
+	returnResult, err := service.BatchChangeGroup(t.Context(), actor, user.BatchChangeGroupInput{
+		Items: batchItems(t, pool, first, second), GroupKey: "custom-alpha",
+	})
+	require.NoError(t, err)
+	require.Equal(t, user.BatchChangeGroupResult{ChangedCount: 2}, returnResult)
+	noOpItems := batchItems(t, pool, first, second)
+	noOpResult, err := service.BatchChangeGroup(t.Context(), actor, user.BatchChangeGroupInput{
+		Items: noOpItems, GroupKey: "custom-alpha",
+	})
+	require.NoError(t, err)
+	require.Equal(t, user.BatchChangeGroupResult{UnchangedCount: 2}, noOpResult)
+	require.Equal(t, noOpItems, batchItems(t, pool, first, second))
+
+	var audits int
+	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from audit_log where resource_type='user' and resource_id=any($1::text[]) and actor_id=$2 and action='update' and changed_fields=array['group_id']`, []string{first, second}, actor.ID).Scan(&audits))
+	require.Equal(t, 7, audits)
+	for _, invalidGroup := range []string{"guest", "missing-custom"} {
+		result, err := service.BatchChangeGroup(t.Context(), actor, user.BatchChangeGroupInput{
+			Items: batchItems(t, pool, first), GroupKey: invalidGroup,
+		})
+		require.ErrorIs(t, err, user.ErrInvalidInput)
+		require.Equal(t, user.BatchChangeGroupResult{}, result)
+	}
+}
+
+func TestBatchChangeGroupCustomSourceReadFailureIsAtomic(t *testing.T) {
+	pool, _, actor, target := groupFixture(t)
+	const sourceKey = "custom-source-read-failure"
+	insertUserGroup(t, t.Context(), pool, sourceKey, []string{permission.ShortLinkCreate})
+	var sourceID pgtype.UUID
+	require.NoError(t, pool.QueryRow(t.Context(), `select id from user_group where key=$1`, sourceKey).Scan(&sourceID))
+	_, err := pool.Exec(t.Context(), `update app_user set group_id=$1 where id=$2`, sourceID, target)
+	require.NoError(t, err)
+	items := batchItems(t, pool, target)
+	config := pool.Config()
+	config.ConnConfig.Tracer = &batchFaultTracer{prefix: "-- name: GetUserGroupByID", occurrence: 1}
+	faulty, err := pgxpool.NewWithConfig(t.Context(), config)
+	require.NoError(t, err)
+	t.Cleanup(faulty.Close)
+
+	result, err := user.NewService(faulty, nil).BatchChangeGroup(t.Context(), actor, user.BatchChangeGroupInput{Items: items, GroupKey: permission.GroupAdmin})
+	require.Error(t, err)
+	require.Equal(t, user.BatchChangeGroupResult{}, result)
+	require.Equal(t, items, batchItems(t, pool, target))
+}
+
+func TestBatchChangeGroupRejectsCorruptBuiltinDestination(t *testing.T) {
+	pool, service, actor, target := groupFixture(t)
+	const destinationKey = "unexpected-builtin"
+	insertUserGroup(t, t.Context(), pool, destinationKey, []string{permission.AdminAccess})
+	_, err := pool.Exec(t.Context(), `update user_group set builtin=true where key=$1`, destinationKey)
+	require.NoError(t, err)
+	items := batchItems(t, pool, target)
+
+	result, err := service.BatchChangeGroup(t.Context(), actor, user.BatchChangeGroupInput{Items: items, GroupKey: destinationKey})
+	require.ErrorIs(t, err, user.ErrInvalidInput)
+	require.Equal(t, user.BatchChangeGroupResult{}, result)
+	require.Equal(t, items, batchItems(t, pool, target))
 }
 
 // TestBatchChangeGroupSyntax prevents ambiguous IDs/timestamps, silent deduplication and an unbounded transaction.
@@ -129,20 +237,24 @@ func TestBatchChangeGroupErrorPriority(t *testing.T) {
 	builtin := insertAppUser(t, t.Context(), pool, "builtin", "", "Builtin", "user", "active", true)
 	unsupported := insertAppUser(t, t.Context(), pool, "guest-member", "", "Guest", "guest", "active", false)
 	deleted := insertAppUser(t, t.Context(), pool, "deleted", "", "Deleted", "user", "active", false)
+	const customSourceKey = "custom-error-priority-source"
+	insertUserGroup(t, t.Context(), pool, customSourceKey, []string{permission.ShortLinkCreate})
+	customMember := insertAppUser(t, t.Context(), pool, "custom-source-member", "", "Custom", customSourceKey, "active", false)
 	_, err := pool.Exec(t.Context(), `update app_user set deleted_at=now() where id=$1`, deleted)
 	require.NoError(t, err)
-	all := batchItems(t, pool, valid, builtin, actor.ID, unsupported, deleted)
+	all := batchItems(t, pool, valid, builtin, actor.ID, unsupported, deleted, customMember)
 	all[0].ExpectedUpdatedAt = "2020-01-01T00:00:00Z"
 	missing := user.BatchChangeGroupItem{ID: uuid.NewString(), ExpectedUpdatedAt: all[0].ExpectedUpdatedAt}
+	versionsBefore := batchItems(t, pool, valid, customMember)
 	for _, tc := range []struct {
 		items []user.BatchChangeGroupItem
 		want  error
 	}{
 		{append(slices.Clone(all), missing), user.ErrUserNotFound},
-		{all, user.ErrUserNotFound},
-		{all[:4], user.ErrBuiltinUserImmutable},
-		{[]user.BatchChangeGroupItem{all[0], all[2], all[3]}, user.ErrSelfGroupChange},
-		{[]user.BatchChangeGroupItem{all[0], all[3]}, user.ErrInvalidInput},
+		{slices.Clone(all), user.ErrUserNotFound},
+		{[]user.BatchChangeGroupItem{all[0], all[1], all[5]}, user.ErrBuiltinUserImmutable},
+		{[]user.BatchChangeGroupItem{all[0], all[2], all[5]}, user.ErrSelfGroupChange},
+		{[]user.BatchChangeGroupItem{all[0], all[3], all[5]}, user.ErrInvalidInput},
 		{all[:1], user.ErrVersionConflict},
 	} {
 		for range 2 {
@@ -155,6 +267,9 @@ func TestBatchChangeGroupErrorPriority(t *testing.T) {
 	var group string
 	require.NoError(t, pool.QueryRow(t.Context(), `select g.key from app_user u join user_group g on g.id=u.group_id where u.id=$1`, valid).Scan(&group))
 	require.Equal(t, "user", group)
+	require.NoError(t, pool.QueryRow(t.Context(), `select g.key from app_user u join user_group g on g.id=u.group_id where u.id=$1`, customMember).Scan(&group))
+	require.Equal(t, customSourceKey, group)
+	require.Equal(t, versionsBefore, batchItems(t, pool, valid, customMember))
 	var audits int
 	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from audit_log where changed_fields=array['group_id']`).Scan(&audits))
 	require.Zero(t, audits)
@@ -264,6 +379,7 @@ func (*batchFaultTracer) TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQuer
 // TestBatchChangeGroupRollback catches partial batches, premature counts and revoked sessions after any failure.
 func TestBatchChangeGroupRollback(t *testing.T) {
 	pool, _, actor, first := groupFixture(t)
+	insertUserGroup(t, t.Context(), pool, "custom-target", []string{"short_link:create"})
 	second := insertAppUser(t, t.Context(), pool, "second", "", "Second", "user", "active", false)
 	items := batchItems(t, pool, first, second)
 	sessions := auth.NewSessionService(pool, time.Hour)
@@ -276,10 +392,12 @@ func TestBatchChangeGroupRollback(t *testing.T) {
 	for _, tc := range []struct {
 		prefix string
 		n      int
+		group  string
 	}{
-		{"begin", 1}, {"select set_config", 1}, {"-- name: LockGroupChangeUsers", 1},
-		{"-- name: LockGroupChangeGroup", 1}, {"-- name: LockGroupChangeGroup", 2},
-		{"-- name: ChangeAppUserGroup", 2}, {"-- name: RevokeGroupChangeSessions", 2}, {"commit", 1},
+		{"begin", 1, "admin"}, {"select set_config", 1, "admin"}, {"-- name: LockGroupChangeUsers", 1, "admin"},
+		{"-- name: LockGroupChangeGroup", 1, "admin"}, {"-- name: LockGroupChangeGroup", 2, "admin"},
+		{"-- name: LockUserGroupForCustomManagement", 1, "custom-target"},
+		{"-- name: ChangeAppUserGroup", 2, "admin"}, {"-- name: RevokeGroupChangeSessions", 2, "admin"}, {"commit", 1, "admin"},
 	} {
 		t.Run(fmt.Sprintf("%s-%d", tc.prefix, tc.n), func(t *testing.T) {
 			config := pool.Config()
@@ -287,7 +405,7 @@ func TestBatchChangeGroupRollback(t *testing.T) {
 			faulty, err := pgxpool.NewWithConfig(t.Context(), config)
 			require.NoError(t, err)
 			t.Cleanup(faulty.Close)
-			result, err := user.NewService(faulty, permission.NewDatabaseService(faulty)).BatchChangeGroup(t.Context(), actor, user.BatchChangeGroupInput{Items: items, GroupKey: "admin"})
+			result, err := user.NewService(faulty, permission.NewDatabaseService(faulty)).BatchChangeGroup(t.Context(), actor, user.BatchChangeGroupInput{Items: items, GroupKey: tc.group})
 			require.Error(t, err)
 			require.Equal(t, user.BatchChangeGroupResult{}, result)
 			require.Equal(t, items, batchItems(t, pool, first, second))
@@ -306,7 +424,7 @@ func TestBatchChangeGroupRollback(t *testing.T) {
 	slices.Sort(ids)
 	_, err := pool.Exec(t.Context(), fmt.Sprintf(`alter table audit_log add constraint reject_second check(resource_id <> '%s') not valid`, ids[1]))
 	require.NoError(t, err)
-	result, err := user.NewService(pool, nil).BatchChangeGroup(t.Context(), actor, user.BatchChangeGroupInput{Items: items, GroupKey: "admin"})
+	result, err := user.NewService(pool, nil).BatchChangeGroup(t.Context(), actor, user.BatchChangeGroupInput{Items: items, GroupKey: "custom-target"})
 	require.Error(t, err)
 	require.Equal(t, user.BatchChangeGroupResult{}, result)
 	require.Equal(t, items, batchItems(t, pool, first, second))
