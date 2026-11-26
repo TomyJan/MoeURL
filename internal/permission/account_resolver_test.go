@@ -130,6 +130,9 @@ func TestDatabaseServiceRejectsMalformedAccountRowsAndReadErrors(t *testing.T) {
 		{name: "corrupt primary permissions", db: scriptedPermissionDB{query: func(context.Context, string, ...any) (pgx.Rows, error) {
 			return &scriptedPermissionRows{values: [][]any{{"active", false, false, permission.GroupUser, true, []byte(`{}`), false, nil, nil, nil}}}, nil
 		}}},
+		{name: "invalid primary custom key", db: scriptedPermissionDB{query: func(context.Context, string, ...any) (pgx.Rows, error) {
+			return &scriptedPermissionRows{values: [][]any{{"active", false, false, "not-a-uuid", false, []byte(`[]`), false, nil, nil, nil}}}, nil
+		}}},
 		{name: "missing supplemental group", db: scriptedPermissionDB{query: func(context.Context, string, ...any) (pgx.Rows, error) {
 			return &scriptedPermissionRows{values: [][]any{{"active", false, false, permission.GroupUser, true, []byte(`[]`), true, nil, nil, nil}}}, nil
 		}}},

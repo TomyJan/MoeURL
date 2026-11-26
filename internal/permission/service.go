@@ -243,6 +243,9 @@ func resolveAccount(ctx context.Context, database sqlc.DBTX, userID string) (Sna
 			if status != "active" || deleted || accountBuiltin || *primaryKey == GroupGuest {
 				return Snapshot{permissions: toSet(nil)}, nil
 			}
+			if !*primaryBuiltin && !validCustomGroupKey(*primaryKey) {
+				return Snapshot{}, errors.New("invalid primary custom group key")
+			}
 			primary, err := DecodeGroupSnapshot(*primaryKey, *primaryBuiltin, primaryPermissions)
 			if err != nil {
 				return Snapshot{}, fmt.Errorf("invalid primary group permissions: %w", err)
@@ -259,8 +262,8 @@ func resolveAccount(ctx context.Context, database sqlc.DBTX, userID string) (Sna
 		if supplementalBuiltin == nil || *supplementalBuiltin || *supplementalKey == GroupGuest || *supplementalKey == GroupUser || *supplementalKey == GroupAdmin {
 			return Snapshot{}, errors.New("invalid supplemental group")
 		}
-		if _, err := uuid.Parse(*supplementalKey); err != nil {
-			return Snapshot{}, fmt.Errorf("invalid supplemental group key: %w", err)
+		if !validCustomGroupKey(*supplementalKey) {
+			return Snapshot{}, errors.New("invalid supplemental group key")
 		}
 		supplemental, err := DecodeGroupSnapshot(*supplementalKey, false, supplementalPermissions)
 		if err != nil {
@@ -278,6 +281,12 @@ func resolveAccount(ctx context.Context, database sqlc.DBTX, userID string) (Sna
 		return Snapshot{permissions: toSet(nil)}, nil
 	}
 	return Snapshot{permissions: permissions, groupKeys: groupKeys}, nil
+}
+
+// validCustomGroupKey accepts only the canonical non-zero UUID keys used by persisted custom groups.
+func validCustomGroupKey(groupKey string) bool {
+	id, err := uuid.Parse(groupKey)
+	return err == nil && id != uuid.Nil && id.String() == groupKey
 }
 
 func cloneSet(values map[string]struct{}) map[string]struct{} {
@@ -308,7 +317,15 @@ func (s *DatabaseService) Resolve(ctx context.Context, groupKey string) (Snapsho
 	if err != nil {
 		return Snapshot{}, err
 	}
-	return DecodeGroupSnapshot(group.Key, group.Builtin, group.Permissions)
+	snapshot, err := DecodeGroupSnapshot(group.Key, group.Builtin, group.Permissions)
+	if err != nil {
+		return Snapshot{}, err
+	}
+	if !group.Builtin && !validCustomGroupKey(group.Key) {
+		return Snapshot{}, errors.New("invalid custom group key")
+	}
+	snapshot.groupKeys = []string{group.Key}
+	return snapshot, nil
 }
 
 // DecodeGroupSnapshot validates stored permissions against the immutable builtin/custom-group boundary.
