@@ -155,3 +155,21 @@ it('does not expose the supplemental manager for a builtin account', async () =>
   expect((screen.getByRole('button', { name: 'More actions' }) as HTMLButtonElement).disabled).toBe(true)
 })
 
+it('keeps the page barrier until a successful supplemental membership is read back', async () => {
+  view = mountBatchMembership({
+    users: [{ ...batchAlice, group: 'admin', supplementalGroups: [] }],
+    customGroups: [{ key: 'custom-ops', name: 'Operations' }],
+  })
+  await screen.findByText('alice')
+  const row = screen.getByTestId('console-user-row')
+  await fireEvent.click(within(row).getByRole('button', { name: 'More actions' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'Manage supplemental groups' }))
+  const dialog = within(screen.getByRole('dialog'))
+  await fireEvent.click(dialog.getByRole('checkbox', { name: 'Operations' }))
+  await fireEvent.click(dialog.getByRole('checkbox', { name: 'I verified the account and complete supplemental group set, and approve revoking all existing sessions' }))
+  await fireEvent.click(dialog.getByRole('button', { name: 'Save supplemental groups' }))
+  await waitFor(() => expect(within(row).getByText('Operations')).toBeTruthy())
+  await waitFor(() => expect((within(row).getByRole('button', { name: 'More actions' }) as HTMLButtonElement).disabled).toBe(false))
+  expect(view.state.writes.filter(write => write.path === '/api/v1/admin/user/update-group-memberships')).toHaveLength(1)
+})
+

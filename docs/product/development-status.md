@@ -4,7 +4,7 @@
 
 v0.93.0 [自定义组批量成员迁移](scope-v0.93.0.md)已由 PR #424 正常 squash 合并为 `ca25239d377900f2c681006425e1b27ed96196f4`；tree `af4f2bcbe113b1980d46686344fbb2a03491303e`、唯一 parent `1863adae48237883ec1d4c26ec7323d167b88267` 经 GitHub 元数据与独立 fetch 核验。准确 head `bbc2ce576132bd7cf17b8ad42d9c3172f3d85783` 的真实 CodeRabbit source／covered SHA 一致、无 actionable comments；本地验证、归档及清理边界见[v0.93 验收](../implementation/v0.93.0-acceptance.md)。whole-owned ZIP SHA-256 `30B220F2D506EAD3016451BF6B8D12B499E9064EAF5320073F69A2A4C3A9FA87`；41 个源成员逐项核验，离线恢复及 `git fsck --full` 通过。v0.93.0 未正式发布；不查 CI/checks、不发布部署、不触碰 PR #240/#266/#267。
 
-当前 [v0.94.0 多组补充授权](scope-v0.94.0.md)的设计与建造者检查已完成；Task 1 migration／SQLC／成员计数已在 `77d1e858`／`2481bad7` 本地验证并提交，Task 2 CAS 成员 API、Session／审计事务、主组迁移冲突保护及用户／`auth/me` 身份读回已实现并通过后端全量本地测试与 `go vet`。权限 Resolver、域名、前端、独立任务审查、准确 head CodeRabbit、集成与完整验收继续按计划推进；状态见[范围](scope-v0.94.0.md)、[计划](../superpowers/plans/2026-11-26-v0.94.0-supplemental-user-groups.md)、[任务](../implementation/v0.94.0-tasks.md)及[验收](../implementation/v0.94.0-acceptance.md)。目标 CI、标准构建和正式发布仍未验收。
+当前 [v0.94.0 多组补充授权](scope-v0.94.0.md)的设计与建造者检查已完成；Task 1 migration／SQLC／成员计数已在 `77d1e858`／`2481bad7` 本地验证并提交，Task 2 CAS 成员 API、Session／审计事务、主组迁移冲突保护及用户／`auth/me` 身份读回已提交。Task 3 主／补充组实时权限并集、显式域名 grant 并集、主组默认域名和锁等待重授权已在本地实现验证；16 个后端业务包全量测试与 100.00% coverage、`go vet ./...`、SQLC 零漂移通过。Task 4 管理 UI、定向前端测试及 fallback 真实浏览器已通过；全量前端套件／coverage 和 Task 5 最终交付继续推进。Dockerfile Compose build 因 Docker Hub `golang:1.27.4` 拉取网络超时未通过；目标 CI、准确 head 审查、集成和正式发布仍未验收。状态见[范围](scope-v0.94.0.md)、[计划](../superpowers/plans/2026-11-26-v0.94.0-supplemental-user-groups.md)、[任务](../implementation/v0.94.0-tasks.md)及[验收](../implementation/v0.94.0-acceptance.md)。
 
 ## 最近完成（2026-11-25，v0.92.0）
 

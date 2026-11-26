@@ -4,7 +4,7 @@
 
 v0.93.0 [自定义组批量成员迁移](scope-v0.93.0.md)已由 PR #424 正常 squash 合并为 `ca25239d377900f2c681006425e1b27ed96196f4`；tree、唯一 parent、准确 CodeRabbit 无 actionable 结论、逐项归档和离线恢复均已独立核验。代码本地门禁与 PostgreSQL fallback 浏览器证据按准确 SHA 和环境记录；fallback 不代表 Goose CLI、标准 Compose／Dockerfile 或 CI。v0.93.0 未正式发布。
 
-当前实施 [v0.94.0 多组补充授权](scope-v0.94.0.md)：设计与建造者检查、Task 1 持久化结构与计数、Task 2 CAS 成员 API 与身份读回已完成本地实现和后端验证；后续推进权限 Resolver、域名和前端切片。保留 `app_user.group_id` 作为唯一主组，支持自定义补充组及权限／域名授权并集。完整门禁、独立审查和版本验收尚未完成。详见[设计](../superpowers/specs/2026-11-26-v0.94.0-supplemental-user-groups-design.md)、[计划](../superpowers/plans/2026-11-26-v0.94.0-supplemental-user-groups.md)及[v0.94 验收](../implementation/v0.94.0-acceptance.md)。
+当前实施 [v0.94.0 多组补充授权](scope-v0.94.0.md)：Task 1–3 的关系表、CAS 身份 API、账号实时权限与域名并集已完成本地后端验证；16 个业务包 coverage 为 100.00%，`go vet ./...` 和 SQLC 零漂移通过。Task 4 管理 UI、定向前端验证和 fallback 真实浏览器流程通过；Dockerfile Compose build 因 Docker Hub 基础镜像连接超时未通过。保留 `app_user.group_id` 作为唯一主组，补充自定义组只叠加权限与显式域名授权，组默认域名仍由主组决定。全量前端套件、独立审查、目标 CI 和版本交付验收尚待。详见[设计](../superpowers/specs/2026-11-26-v0.94.0-supplemental-user-groups-design.md)、[计划](../superpowers/plans/2026-11-26-v0.94.0-supplemental-user-groups.md)及[v0.94 验收](../implementation/v0.94.0-acceptance.md)。
 
 ## 最近完成（2026-11-25，v0.92.0）
 
