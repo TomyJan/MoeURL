@@ -11,6 +11,9 @@ create index app_user_group_membership_group_user_idx
 -- +goose Down
 -- Memberships grant live access; never drop them implicitly during rollback.
 -- +goose StatementBegin
+lock table app_user_group_membership in access exclusive mode;
+-- +goose StatementEnd
+-- +goose StatementBegin
 do $$
 begin
     if exists (select 1 from app_user_group_membership) then

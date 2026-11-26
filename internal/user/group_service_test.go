@@ -111,6 +111,24 @@ func TestChangeGroupSupportsCustomGroupAndUsesItsCurrentPermissions(t *testing.T
 	require.Empty(t, identity.Permissions, "the next request must observe custom-group permission revocation")
 }
 
+func TestChangeGroupResponseRetainsSupplementalGroups(t *testing.T) {
+	pool, service, actor, id := groupFixture(t)
+	customKey := uuid.NewString()
+	_, err := pool.Exec(t.Context(), `insert into user_group(id,key,name,description,permissions,builtin,created_at,updated_at)
+		values(gen_random_uuid(),$1,'Operations','', '[]'::jsonb, false, now(), now())`, customKey)
+	require.NoError(t, err)
+	_, err = pool.Exec(t.Context(), `insert into app_user_group_membership(user_id,user_group_id)
+		values ($1,(select id from user_group where key=$2))`, id, customKey)
+	require.NoError(t, err)
+
+	result, err := service.ChangeGroup(t.Context(), actor, user.ChangeGroupInput{
+		ID: id, GroupKey: "admin", ExpectedUpdatedAt: groupVersion(t, pool, id),
+	})
+	require.NoError(t, err)
+	require.Equal(t, "admin", result.User.Group)
+	require.Equal(t, []user.GroupMembership{{Key: customKey, Name: "Operations"}}, result.User.SupplementalGroups)
+}
+
 func TestChangeGroupRejectsDestinationAlreadyInSupplementalSet(t *testing.T) {
 	pool, service, actor, targetID := groupFixture(t)
 	customKey := uuid.NewString()

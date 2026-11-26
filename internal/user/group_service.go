@@ -103,7 +103,11 @@ func (s *Service) ChangeGroup(ctx context.Context, actor auth.CurrentUser, input
 				return err
 			}
 		}
-		result = UpdateResult{User: UserSummary{ID: input.ID, Username: updated.Username, Nickname: updated.Nickname, Group: group.Key, Status: updated.Status, Builtin: updated.Builtin, CreatedAt: formatTime(updated.CreatedAt), UpdatedAt: formatTime(updated.UpdatedAt)}}
+		supplementalRows, err := q.GetSupplementalUserGroupsByID(ctx, target.ID)
+		if err != nil {
+			return err
+		}
+		result = UpdateResult{User: userSummaryWithSupplementalGroups(updated, group.Key, membershipsFromRows(supplementalRows))}
 		return nil
 	})
 	return result, err

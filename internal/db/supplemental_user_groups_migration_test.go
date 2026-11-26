@@ -3,10 +3,55 @@ package db_test
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/require"
 )
+
+func TestSupplementalUserGroupsMigrationRollbackSerializesConcurrentMembership(t *testing.T) {
+	ctx := t.Context()
+	database := migrationTestDatabase(t, ctx)
+	dir := filepath.Join("..", "..", "migrations")
+	require.NoError(t, goose.UpTo(database, dir, 50))
+	insertUserGroups(t, ctx, database)
+	require.NoError(t, goose.UpTo(database, dir, 51))
+
+	const userID = "00000000-0000-0000-0000-000000000201"
+	const groupID = "00000000-0000-0000-0000-000000000901"
+	_, err := database.ExecContext(ctx, `
+		insert into user_group (id,key,name,description,permissions,builtin,created_at,updated_at)
+		values ($1,'550e8400-e29b-41d4-a716-446655440090','Concurrent','', '[]'::jsonb,false,now(),now())
+	`, groupID)
+	require.NoError(t, err)
+
+	tx, err := database.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	_, err = tx.ExecContext(ctx, `
+		insert into app_user_group_membership (user_id,user_group_id) values ($1,$2)
+	`, userID, groupID)
+	require.NoError(t, err)
+
+	done := make(chan error, 1)
+	go func() { done <- goose.DownTo(database, dir, 50) }()
+	var waiting bool
+	require.Eventually(t, func() bool {
+		return database.QueryRowContext(ctx, `
+			select exists (
+				select 1
+				from pg_locks l
+				join pg_class c on c.oid = l.relation
+				where c.relname = 'app_user_group_membership'
+				  and l.mode = 'AccessExclusiveLock'
+				  and not l.granted
+			)`).Scan(&waiting) == nil && waiting
+	}, 2*time.Second, 10*time.Millisecond)
+	require.NoError(t, tx.Commit())
+	require.ErrorContains(t, <-done, "supplemental user group memberships exist")
+	var membershipCount int
+	require.NoError(t, database.QueryRowContext(ctx, `select count(*) from app_user_group_membership`).Scan(&membershipCount))
+	require.Equal(t, 1, membershipCount, "a concurrent membership must not be dropped by rollback")
+}
 
 func TestSupplementalUserGroupsMigrationRollbackGuard(t *testing.T) {
 	ctx := t.Context()
