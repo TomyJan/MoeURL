@@ -27,7 +27,7 @@ func TestListExportReadBudget(t *testing.T) {
 		select gen_random_uuid(),$1,'00000000-0000-0000-0000-000000000301','readbudget'||n,
 		'https://example.com/' || repeat('a',900*1024),'active',now(),now() from generate_series(1,12) n`, owner.ID)
 	require.NoError(t, err)
-	rows, err := sqlc.New(pool).ExportShortLinkList(ctx, sqlc.ExportShortLinkListParams{ActorID: pgtype.UUID{Bytes: uuid.MustParse(owner.ID), Valid: true}})
+	rows, err := sqlc.New(pool).ExportShortLinkList(ctx, sqlc.ExportShortLinkListParams{PermissionGranted: true, ActorID: pgtype.UUID{Bytes: uuid.MustParse(owner.ID), Valid: true}})
 	require.NoError(t, err)
 	// Check lengths without dumping a multi-megabyte result on failure.
 	require.Equal(t, 1, len(rows), "over-budget reads must return a single empty sentinel")
@@ -53,7 +53,7 @@ func TestListExportReadBudget(t *testing.T) {
 	require.NoError(t, err)
 	read := func(t *testing.T) []sqlc.ExportShortLinkListRow {
 		t.Helper()
-		rows, err := sqlc.New(pool).ExportShortLinkList(ctx, sqlc.ExportShortLinkListParams{ActorID: pgtype.UUID{Bytes: uuid.MustParse(owner.ID), Valid: true}})
+		rows, err := sqlc.New(pool).ExportShortLinkList(ctx, sqlc.ExportShortLinkListParams{PermissionGranted: true, ActorID: pgtype.UUID{Bytes: uuid.MustParse(owner.ID), Valid: true}})
 		require.NoError(t, err)
 		return rows
 	}
@@ -231,12 +231,16 @@ func TestListExportAuthorizationAndFilters(t *testing.T) {
 	rows = listExportRows(t, result)
 	require.Greater(t, rows[1][0], rows[2][0])
 	// Revoke in the database after a permissive entry resolver. The SELECT must reject it itself.
-	stale := shortlink.NewService(pool, permission.NewService())
+	stale := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 	for _, test := range []struct {
 		actor auth.CurrentUser
 		key   string
 		admin bool
 	}{{owner, permission.ShortLinkExport, false}, {owner, permission.ShortLinkReadOwn, false}, {admin, permission.ShortLinkExport, true}, {admin, permission.ShortLinkReadAll, true}, {admin, permission.AdminAccess, true}} {
+		if test.admin && test.key != permission.ShortLinkExport {
+			// Read-all and admin access are protected; export is a revocable grant.
+			continue
+		}
 		_, err = pool.Exec(ctx, `update user_group set permissions=permissions-$1 where key=$2`, test.key, test.actor.GroupKey)
 		require.NoError(t, err)
 		if test.admin {
@@ -287,7 +291,7 @@ func TestListExportLimits(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, listExportRows(t, result), 1001)
 	insertStoredShortLink(t, ctx, pool, owner.ID, "overlimit", "https://example.com", "active", false)
-	limited, err := sqlc.New(pool).ExportShortLinkList(ctx, sqlc.ExportShortLinkListParams{ActorID: pgtype.UUID{Bytes: uuid.MustParse(owner.ID), Valid: true}})
+	limited, err := sqlc.New(pool).ExportShortLinkList(ctx, sqlc.ExportShortLinkListParams{PermissionGranted: true, ActorID: pgtype.UUID{Bytes: uuid.MustParse(owner.ID), Valid: true}})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(limited))
 	require.True(t, limited[0].Allowed && limited[0].LimitExceeded && limited[0].ID == "" && limited[0].TargetUrl == "")

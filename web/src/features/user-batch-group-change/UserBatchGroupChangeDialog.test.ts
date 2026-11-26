@@ -172,4 +172,3 @@ it('keeps the page barrier until a successful supplemental membership is read ba
   await waitFor(() => expect((within(row).getByRole('button', { name: 'More actions' }) as HTMLButtonElement).disabled).toBe(false))
   expect(view.state.writes.filter(write => write.path === '/api/v1/admin/user/update-group-memberships')).toHaveLength(1)
 })
-

@@ -39,7 +39,7 @@ func TestCustomSlugWaitsForConcurrentPermissionRevocation(t *testing.T) {
 	require.NoError(t, tx.QueryRow(ctx, `select pg_backend_pid()`).Scan(&revokingPID))
 	_, err = tx.Exec(ctx, `update user_group set permissions=permissions-'short_link:custom_slug' where key='user'`)
 	require.NoError(t, err)
-	service := shortlink.NewService(pool, permission.NewService())
+	service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 	input := customSlugInput(t, "revokedwhilewaiting")
 	result := make(chan error, 1)
 	go func() { _, err := service.Create(ctx, user, input); result <- err }()
@@ -51,7 +51,7 @@ func TestCustomSlugWaitsForConcurrentPermissionRevocation(t *testing.T) {
 	require.NoError(t, tx.Commit(ctx))
 	select {
 	case err := <-result:
-		require.ErrorIs(t, err, shortlink.ErrDomainUnavailable)
+		require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
 	case <-ctx.Done():
 		t.Fatal(ctx.Err())
 	}
@@ -107,9 +107,9 @@ func TestCustomSlugPermissionRecheck(t *testing.T) {
 	require.NoError(t, err)
 	_, err = pool.Exec(ctx, `update user_group set permissions=permissions-'short_link:custom_slug' where key='user'`)
 	require.NoError(t, err)
-	service := shortlink.NewService(pool, permission.NewService())
+	service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 	_, err = service.Create(ctx, user, customSlugInput(t, "notallowed"))
-	require.ErrorIs(t, err, shortlink.ErrDomainUnavailable)
+	require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
 	var count int
 	require.NoError(t, pool.QueryRow(ctx, `select count(*) from short_link where slug='notallowed'`).Scan(&count))
 	require.Zero(t, count)

@@ -8,7 +8,7 @@ import { userGroupQueryKey } from '@/entities/user-group/api'
 
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
-const member = { id: '00000000-0000-0000-0000-000000000002', username: 'member', nickname: 'Member', group: 'user', status: 'active' as const, builtin: false, createdAt: '2026-10-23T00:00:00Z', updatedAt: '2026-10-23T00:00:00.123456Z' }
+const member = { id: '00000000-0000-0000-0000-000000000002', username: 'member', nickname: 'Member', group: 'user', status: 'active' as const, builtin: false, createdAt: '2026-10-23T00:00:00Z', updatedAt: '2026-10-23T00:00:00.123456Z', supplementalGroups: [] }
 const clients: QueryClient[] = []
 /** Mounts the actual dialog and HTTP client with a controllable network boundary. */
 function mount(target = member, customGroups: Array<Record<string, unknown>> = [], seedGroups = true) {

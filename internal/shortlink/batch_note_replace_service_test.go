@@ -235,13 +235,13 @@ func TestBatchNoteReplaceRequiredPermissions(t *testing.T) {
 		required := []string{permission.ShortLinkReadOwn, permission.ShortLinkUpdateOwn, permission.ShortLinkSetMetadata}
 		if adminScope {
 			actor = admin
-			required = []string{permission.AdminAccess, permission.ShortLinkReadAll, permission.ShortLinkUpdateAll, permission.ShortLinkSetMetadata}
+			required = []string{permission.ShortLinkSetMetadata}
 		}
 		for _, capability := range required {
 			before := batchTagsSnapshot(t, pool)
 			_, err = pool.Exec(t.Context(), `update user_group set permissions=permissions-$2::text where id=(select group_id from app_user where id=$1)`, actor.ID, capability)
 			require.NoError(t, err)
-			current := shortlink.NewService(pool, permission.NewService())
+			current := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 			if adminScope {
 				_, err = current.PreviewAdminNoteReplace(t.Context(), actor, input)
 			} else {

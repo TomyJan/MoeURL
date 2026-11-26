@@ -117,6 +117,25 @@ func TestOwnDailyCreateUsageCurrentAuthorization(t *testing.T) {
 	}
 }
 
+func TestOwnDailyCreateUsageUsesSupplementalPermission(t *testing.T) {
+	pool, service, _, actor := fixture(t)
+	_, err := pool.Exec(t.Context(), `update app_user set group_id=(select id from user_group where key='user') where id=$1`, actor.ID)
+	require.NoError(t, err)
+	_, err = pool.Exec(t.Context(), `update user_group set permissions='[]'::jsonb where key='user'`)
+	require.NoError(t, err)
+	groupID := uuid.New()
+	groupKey := uuid.NewString()
+	_, err = pool.Exec(t.Context(), `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at)
+		values($1,$2,'Usage reader','["short_link:create"]'::jsonb,false,now(),now())`, groupID, groupKey)
+	require.NoError(t, err)
+	_, err = pool.Exec(t.Context(), `insert into app_user_group_membership(user_id,user_group_id) values($1,$2)`, actor.ID, groupID)
+	require.NoError(t, err)
+
+	value, err := service.GetOwnUsage(t.Context(), actor)
+	require.NoError(t, err)
+	require.Equal(t, "0", value.Used)
+}
+
 // TestOwnDailyCreateUsageBadStorage catches unsafe zero fallbacks for corrupt
 // rows/policy and ensures cancellation never returns a partially built result.
 func TestOwnDailyCreateUsageBadStorage(t *testing.T) {
@@ -146,7 +165,7 @@ func TestOwnDailyCreateUsageBadStorage(t *testing.T) {
 			require.Equal(t, createquota.Usage{}, value)
 		})
 	}
-	for _, after := range []string{"-- name: GetCreateQuotaReader :one", "-- name: GetSystemSetting :one", "-- name: GetAccountDailyCreateUsage :one"} {
+	for _, after := range []string{"select u.status, (u.deleted_at is not null)", "-- name: GetSystemSetting :one", "-- name: GetAccountDailyCreateUsage :one"} {
 		t.Run("cancel after "+after, func(t *testing.T) {
 			pool, _, _, actor := fixture(t)
 			before := usageReadState(t, pool)

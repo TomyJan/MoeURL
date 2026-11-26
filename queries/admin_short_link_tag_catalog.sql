@@ -1,14 +1,6 @@
 -- name: ListAdminTagCatalog :many
 with grant_snapshot as materialized (
-    select exists (
-        select 1 from app_user
-        join user_group on user_group.id = app_user.group_id
-        where app_user.id = sqlc.arg('actor_id')::uuid
-            and app_user.status = 'active' and app_user.deleted_at is null
-            and user_group.key <> 'guest'
-            and user_group.permissions ? 'admin:access'
-            and user_group.permissions ? 'short_link:read_all'
-    )::boolean as allowed
+    select sqlc.arg(permission_granted)::boolean as allowed
 ), catalog as (
     select tag_value::text as tag, count(distinct short_link.id)::bigint as link_count
     from short_link

@@ -160,6 +160,10 @@ func TestBatchTagRenameDatabaseFailures(t *testing.T) {
 func TestBatchTagRenameQueuedAuthorization(t *testing.T) {
 	for _, adminScope := range []bool{false, true} {
 		for _, kind := range []string{"disabled", "group", "write", "metadata", "admin"} {
+			if adminScope && (kind == "write" || kind == "admin") {
+				// Admin write-all and admin:access are protected grants.
+				continue
+			}
 			if !adminScope && kind == "admin" {
 				continue
 			}
@@ -203,7 +207,7 @@ func TestBatchTagRenameQueuedAuthorization(t *testing.T) {
 				before := batchTagsSnapshot(t, pool)
 				done := make(chan error, 1)
 				go func() {
-					svc := shortlink.NewService(pool, permission.NewService())
+					svc := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 					var err error
 					if adminScope {
 						_, err = svc.RenameAdminTags(ctx, actor, input)
@@ -392,8 +396,7 @@ func TestBatchTagRenameAuthorization(t *testing.T) {
 			case "invalid grants":
 				_, err := pool.Exec(t.Context(), `update user_group set permissions='{}' where key='admin'`)
 				require.NoError(t, err)
-				// Preserve a valid entry snapshot so the malformed current row is rejected inside the transaction.
-				svc = shortlink.NewService(pool, permission.NewService())
+				svc = shortlink.NewService(pool, permission.NewDatabaseService(pool))
 				want = nil
 			case "invalid input":
 				input.FromTag = input.ToTag

@@ -2,7 +2,7 @@
 
 ## 当前实施（2026-11-26，v0.94.0）
 
-v0.94.0 保持 Go／Chi／SQLC／Goose／PostgreSQL 技术栈，不新增依赖。migration `00051` 建立用户到自定义补充组的 UUID 关系；Down 在存在关系数据时 fail closed。Task 2 增加 `POST /api/v1/admin/user/update-group-memberships` 完整集合 CAS，沿用 HTTP 200 + 数字业务码、no-store 和数据库 Session／审计事务；列表及 `auth/me` 保留原主组字段并返回补充组。当前 Go 验证和 SQLC 生成证据见[v0.94 验收](v0.94.0-acceptance.md)；权限 Resolver、域名、前端、目标 CI 和发布仍待对应验收，不得用当前结果替代。
+v0.94.0 保持 Go／Chi／SQLC／Goose／PostgreSQL 技术栈，不新增依赖。migration `00051` 建立用户到自定义补充组的 UUID 关系；Down 在存在关系数据时 fail closed。Task 2 增加完整集合 CAS API；Task 3 按账号 ID 实时合并主／补充组权限、域名显式授权，并保留主组默认域名。16 个后端业务包全量 coverage 为 100.00%，`go vet ./...` 与 SQLC 1.30.0 生成零漂移已通过本地验证。Task 4 UI/E2E、目标 CI、独立审查、标准构建和发布仍待，不得用本地结果替代。
 
 ## 当前实施（2026-11-23，v0.92.0）
 

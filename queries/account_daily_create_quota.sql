@@ -3,10 +3,6 @@ select g.permissions from app_user u join user_group g on g.id=u.group_id
 where u.id=$1 and u.status='active' and u.deleted_at is null and not u.builtin
     and g.builtin and g.key='admin';
 
--- name: GetCreateQuotaReader :one
-select g.permissions from app_user u join user_group g on g.id=u.group_id
-where u.id=$1 and u.status='active' and u.deleted_at is null and not u.builtin;
-
 -- name: GetAccountDailyCreateUsage :one
 select (pg_catalog.clock_timestamp() at time zone 'UTC')::date as quota_day,
     d.usage_day,d.used

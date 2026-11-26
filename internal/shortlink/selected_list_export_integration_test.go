@@ -95,7 +95,7 @@ func TestSelectedListExportCompleteness(t *testing.T) {
 // TestSelectedListExportFinalGrant catches grants revoked after a permissive entry resolver.
 func TestSelectedListExportFinalGrant(t *testing.T) {
 	pool, _, admin, owner, _, transfer := transferFixture(t)
-	stale := shortlink.NewService(pool, permission.NewService())
+	stale := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 	run := func(t *testing.T, actor auth.CurrentUser, adminScope bool) {
 		t.Helper()
 		var result shortlink.ListExport
@@ -113,6 +113,10 @@ func TestSelectedListExportFinalGrant(t *testing.T) {
 		key   string
 		admin bool
 	}{{owner, permission.ShortLinkExport, false}, {owner, permission.ShortLinkReadOwn, false}, {admin, permission.ShortLinkExport, true}, {admin, permission.ShortLinkReadAll, true}, {admin, permission.AdminAccess, true}} {
+		if tc.admin && tc.key != permission.ShortLinkExport {
+			// Read-all and admin access are protected; the export grant is revocable.
+			continue
+		}
 		t.Run(tc.actor.GroupKey+"/"+tc.key, func(t *testing.T) {
 			var original string
 			require.NoError(t, pool.QueryRow(t.Context(), `select permissions::text from user_group where key=$1`, tc.actor.GroupKey).Scan(&original))
@@ -183,7 +187,7 @@ func TestSelectedListExportCountAndSQLDefense(t *testing.T) {
 	require.ErrorIs(t, err, shortlink.ErrInvalidInput)
 	require.Empty(t, result.Content)
 	for _, invalid := range [][]pgtype.UUID{nil, {}, {{}}, {{Bytes: uuid.Nil, Valid: true}}, {queryIDs[0], queryIDs[0]}, queryIDs} {
-		rows, err := sqlc.New(pool).ExportShortLinkList(ctx, sqlc.ExportShortLinkListParams{ActorID: pgtype.UUID{Bytes: uuid.MustParse(owner.ID), Valid: true}, SelectionMode: true, SelectedIds: invalid})
+		rows, err := sqlc.New(pool).ExportShortLinkList(ctx, sqlc.ExportShortLinkListParams{PermissionGranted: true, ActorID: pgtype.UUID{Bytes: uuid.MustParse(owner.ID), Valid: true}, SelectionMode: true, SelectedIds: invalid})
 		require.NoError(t, err)
 		require.Len(t, rows, 1)
 		require.True(t, rows[0].Allowed && rows[0].SelectionUnavailable)
@@ -221,7 +225,7 @@ func TestSelectedListExportReadBudget(t *testing.T) {
 	}
 	read := func(selected []pgtype.UUID) []sqlc.ExportShortLinkListRow {
 		t.Helper()
-		result, err := sqlc.New(pool).ExportShortLinkList(ctx, sqlc.ExportShortLinkListParams{ActorID: pgtype.UUID{Bytes: uuid.MustParse(owner.ID), Valid: true}, SelectionMode: true, SelectedIds: selected})
+		result, err := sqlc.New(pool).ExportShortLinkList(ctx, sqlc.ExportShortLinkListParams{PermissionGranted: true, ActorID: pgtype.UUID{Bytes: uuid.MustParse(owner.ID), Valid: true}, SelectionMode: true, SelectedIds: selected})
 		require.NoError(t, err)
 		return result
 	}

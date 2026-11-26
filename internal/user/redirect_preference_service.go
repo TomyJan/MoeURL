@@ -39,16 +39,20 @@ type redirectPreferenceStore interface {
 
 // RedirectPreferenceService checks current database authority while holding account and group locks.
 type RedirectPreferenceService struct {
-	store redirectPreferenceStore
-	inTx  func(context.Context, func(redirectPreferenceStore) error) error
+	store       redirectPreferenceStore
+	permissions permission.Resolver
+	inTx        func(context.Context, func(redirectPreferenceStore, sqlc.DBTX) error) error
 }
 
 // NewRedirectPreferenceService binds reads and transactional writes to the same pool.
 func NewRedirectPreferenceService(pool *pgxpool.Pool) *RedirectPreferenceService {
 	q := sqlc.New(pool)
-	return &RedirectPreferenceService{store: q, inTx: func(ctx context.Context, fn func(redirectPreferenceStore) error) error {
-		return appdb.WithTx(ctx, pool, func(tx pgx.Tx) error { return fn(q.WithTx(tx)) })
-	}}
+	return &RedirectPreferenceService{
+		store: q, permissions: permission.NewDatabaseService(pool),
+		inTx: func(ctx context.Context, fn func(redirectPreferenceStore, sqlc.DBTX) error) error {
+			return appdb.WithTx(ctx, pool, func(tx pgx.Tx) error { return fn(q.WithTx(tx), tx) })
+		},
+	}
 }
 
 // Get includes revoked saved values so their owner can see and clear them.
@@ -101,7 +105,7 @@ func (s *RedirectPreferenceService) Update(ctx context.Context, actor auth.Curre
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	var result RedirectPreferenceResult
-	err = s.inTx(ctx, func(q redirectPreferenceStore) error {
+	err = s.inTx(ctx, func(q redirectPreferenceStore, tx sqlc.DBTX) error {
 		current, err := q.LockRedirectPreferenceUser(ctx, id)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrPermissionDenied
@@ -109,7 +113,7 @@ func (s *RedirectPreferenceService) Update(ctx context.Context, actor auth.Curre
 		if err != nil {
 			return err
 		}
-		group, err := q.LockRedirectPreferenceGroup(ctx, current.GroupID)
+		_, err = q.LockRedirectPreferenceGroup(ctx, current.GroupID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrPermissionDenied
 		}
@@ -117,7 +121,7 @@ func (s *RedirectPreferenceService) Update(ctx context.Context, actor auth.Curre
 			return err
 		}
 		if required != "" {
-			permissions, err := permission.DecodeSnapshot(group.Permissions)
+			permissions, err := permission.ResolveForAccountLockedIn(ctx, tx, s.permissions, actor.ID, actor.GroupKey)
 			if err != nil {
 				return err
 			}

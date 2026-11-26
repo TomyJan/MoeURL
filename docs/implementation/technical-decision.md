@@ -2,7 +2,7 @@
 
 ## v0.94.0 多组补充授权决策（实施中）
 
-保留 `app_user.group_id` 作为兼容主组，并以 migration `00051` 的 `app_user_group_membership` 表保存自定义补充组关系。新增 CAS 完整集合更新 API；真实变化以同一 PostgreSQL 事务推进用户 `updated_at`、替换关系、撤销 Session 并记录一条不含前后集合的审计，准确 no-op 不产生这些副作用。用户列表与 `auth/me` 增加稳定排序的补充组字段，同时保留主组 `group`。Task 1–2 的本地实现和验证边界见[v0.94 验收](v0.94.0-acceptance.md)；权限并集和域名语义仍由 Task 3 实施，登录态补充组字段不是最终授权来源。
+保留 `app_user.group_id` 作为兼容主组，并以 migration `00051` 的 `app_user_group_membership` 表保存自定义补充组关系。新增 CAS 完整集合更新 API；真实变化以同一 PostgreSQL 事务推进用户 `updated_at`、替换关系、撤销 Session 并记录一条不含前后集合的审计，准确 no-op 不产生这些副作用。用户列表与 `auth/me` 增加稳定排序的补充组字段，同时保留主组 `group`。Task 3 已按账号 ID 实时合并主／补充组权限并迁移生产授权路径；域名显式 grant 取并集，个人默认规则不变，组默认域名仅由主组决定。Task 1–3 的本地验证见[v0.94 验收](v0.94.0-acceptance.md)；登录态字段仍不是最终授权来源。管理 UI／E2E 与整版验收尚待。
 
 ## v0.92.0 自定义用户组决策（已完成集成，未发布）
 

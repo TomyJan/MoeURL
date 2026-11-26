@@ -37,14 +37,7 @@ func (q *Queries) LockShortLinkNote(ctx context.Context, id pgtype.UUID) (LockSh
 
 const readShortLinkNote = `-- name: ReadShortLinkNote :one
 with grant_snapshot as materialized (
-    select exists (
-        select 1 from app_user u join user_group g on g.id=u.group_id
-        where u.id=$3::uuid and u.status='active' and u.deleted_at is null
-            and g.key <> 'guest'
-            and (case when $2::boolean
-                then g.permissions ? 'admin:access' and g.permissions ? 'short_link:read_all'
-                else g.permissions ? 'short_link:read_own' end)
-    )::boolean as allowed
+    select $4::boolean as allowed
 )
 select grant_snapshot.allowed, (l.id is not null)::boolean as found,
     coalesce(l.id::text,'')::text as id, coalesce(l.note,'')::text as note,
@@ -55,9 +48,10 @@ left join short_link l on grant_snapshot.allowed and l.id=$1::uuid
 `
 
 type ReadShortLinkNoteParams struct {
-	LinkID     pgtype.UUID `json:"link_id"`
-	AdminScope bool        `json:"admin_scope"`
-	ActorID    pgtype.UUID `json:"actor_id"`
+	LinkID            pgtype.UUID `json:"link_id"`
+	AdminScope        bool        `json:"admin_scope"`
+	ActorID           pgtype.UUID `json:"actor_id"`
+	PermissionGranted bool        `json:"permission_granted"`
 }
 
 type ReadShortLinkNoteRow struct {
@@ -69,7 +63,12 @@ type ReadShortLinkNoteRow struct {
 }
 
 func (q *Queries) ReadShortLinkNote(ctx context.Context, arg ReadShortLinkNoteParams) (ReadShortLinkNoteRow, error) {
-	row := q.db.QueryRow(ctx, readShortLinkNote, arg.LinkID, arg.AdminScope, arg.ActorID)
+	row := q.db.QueryRow(ctx, readShortLinkNote,
+		arg.LinkID,
+		arg.AdminScope,
+		arg.ActorID,
+		arg.PermissionGranted,
+	)
 	var i ReadShortLinkNoteRow
 	err := row.Scan(
 		&i.Allowed,

@@ -10,6 +10,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/testdb"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
@@ -21,12 +22,16 @@ func TestBatchNoteClearQueuedAuthorization(t *testing.T) {
 		for _, clear := range []bool{false, true} {
 			for _, change := range []struct{ name, sql, query string }{
 				{"disabled", `update app_user set status='disabled' where id=$1`, "-- name: LockBatchTagsActor"},
-				{"moved", `update app_user set group_id=(select id from user_group where key=$2) where id=$1`, "-- name: LockBatchTagsActor"},
+				{"moved", `update app_user set group_id=$2 where id=$1`, "-- name: LockBatchTagsActor"},
 				{"read revoked", `update user_group set permissions=permissions-$2::text where id=(select group_id from app_user where id=$1)`, "-- name: LockTransferActorGroup"},
 				{"write revoked", `update user_group set permissions=permissions-$2::text where id=(select group_id from app_user where id=$1)`, "-- name: LockTransferActorGroup"},
 				{"metadata revoked", `update user_group set permissions=permissions-'short_link:set_metadata' where id=(select group_id from app_user where id=$1)`, "-- name: LockTransferActorGroup"},
 				{"admin revoked", `update user_group set permissions=permissions-'admin:access' where id=(select group_id from app_user where id=$1)`, "-- name: LockTransferActorGroup"},
 			} {
+				if adminScope && change.name != "metadata revoked" && change.name != "disabled" && change.name != "moved" {
+					// Admin/read-all/update-all are protected; only metadata is revocable.
+					continue
+				}
 				if change.name == "admin revoked" && !adminScope {
 					continue
 				}
@@ -46,23 +51,27 @@ func TestBatchNoteClearQueuedAuthorization(t *testing.T) {
 					args := []any{actor.ID}
 					switch change.name {
 					case "moved":
-						args = append(args, map[bool]string{false: "admin", true: "user"}[adminScope])
+						groupID := ""
+						if adminScope {
+							require.NoError(t, pool.QueryRow(ctx, `select group_id::text from app_user where id=$1`, owner.ID).Scan(&groupID))
+						} else {
+							groupID = uuid.NewString()
+							groupKey := "no-read-" + groupID
+							_, err = tx.Exec(ctx, `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values($1,$2,$2,'[]',false,now(),now())`, groupID, groupKey)
+							require.NoError(t, err)
+						}
+						args = append(args, groupID)
 					case "read revoked":
 						args = append(args, map[bool]string{false: permission.ShortLinkReadOwn, true: permission.ShortLinkReadAll}[adminScope])
 					case "write revoked":
 						args = append(args, map[bool]string{false: permission.ShortLinkUpdateOwn, true: permission.ShortLinkUpdateAll}[adminScope])
-					}
-					// Moving own to admin must still be an actual revocation, not an accidental grant.
-					if change.name == "moved" && !adminScope {
-						_, err = tx.Exec(ctx, `update user_group set permissions='[]' where key='admin'`)
-						require.NoError(t, err)
 					}
 					_, err = tx.Exec(ctx, change.sql, args...)
 					require.NoError(t, err)
 					before := batchTagsSnapshot(t, pool)
 					done := make(chan error, 1)
 					go func() {
-						s := shortlink.NewService(pool, permission.NewService())
+						s := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 						var err error
 						if clear {
 							if adminScope {
@@ -211,7 +220,7 @@ func TestBatchNoteClearQueuedResourceChanges(t *testing.T) {
 				require.NoError(t, err)
 				done := make(chan error, 1)
 				go func() {
-					s := shortlink.NewService(pool, permission.NewService())
+					s := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 					var err error
 					if clear {
 						_, err = s.ClearOwnNotes(ctx, owner, batchNoteClearInput(p))

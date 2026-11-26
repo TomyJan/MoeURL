@@ -22,7 +22,7 @@ import (
 // TestAuditExportFailures rejects failed snapshots without partial content or sensitive diagnostics.
 func TestAuditExportFailures(t *testing.T) {
 	pool, _, _, admin, _, _ := fixture(t)
-	for _, boundary := range []string{"begin ", "-- name: GetInsightActor", "-- name: GetUserGroupByKey", "-- name: GetInsightTime", "-- name: ExportAuditLogs", "commit"} {
+	for _, boundary := range []string{"begin ", "-- name: GetInsightActor", "-- name: ResolveAccountPermissions", "-- name: GetInsightTime", "-- name: ExportAuditLogs", "commit"} {
 		t.Run(boundary, func(t *testing.T) {
 			faultPool := tracedPool(t, pool, queryTracer{start: func(ctx context.Context, sql string) context.Context {
 				if strings.HasPrefix(sql, boundary) {

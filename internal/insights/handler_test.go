@@ -106,7 +106,7 @@ func TestInsightInfrastructureFailures(t *testing.T) {
 	}{
 		{"begin ", "/api/v1/admin/dashboard", admin},
 		{"-- name: GetInsightActor", "/api/v1/admin/dashboard", admin},
-		{"-- name: GetUserGroupByKey", "/api/v1/admin/dashboard", admin},
+		{"-- name: ResolveAccountPermissions", "/api/v1/admin/dashboard", admin},
 		{"-- name: GetInsightTime", "/api/v1/admin/dashboard", admin},
 		{"-- name: GetDashboardSummary", "/api/v1/admin/dashboard", admin},
 		{"-- name: ListDashboardTrend", "/api/v1/admin/dashboard", admin},
@@ -221,7 +221,7 @@ func (errorResolver) Resolve(context.Context, string) (permission.Snapshot, erro
 // TestInsightFallbackResolverCannotExpandDatabaseGrants checks both denial and outage propagation.
 func TestInsightFallbackResolverCannotExpandDatabaseGrants(t *testing.T) {
 	pool, _, owner, admin, link, today := fixture(t)
-	service := insights.NewService(pool, permission.NewService())
+	service := insights.NewService(pool, permission.NewDatabaseService(pool))
 	_, err := service.Visits(t.Context(), owner, insights.VisitInput{ID: link})
 	require.NoError(t, err)
 	_, err = service.Dashboard(t.Context(), admin, insights.RangeInput{StartDate: today.AddDate(0, 0, 1).Format(time.DateOnly), EndDate: today.AddDate(0, 0, 1).Format(time.DateOnly)})

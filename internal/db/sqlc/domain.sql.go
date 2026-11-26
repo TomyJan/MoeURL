@@ -148,23 +148,18 @@ from domain
 join domain_user_group on domain_user_group.domain_id = domain.id
 join user_group on user_group.id = domain_user_group.user_group_id
 where domain.enabled and domain.purpose = 'short_link'
-  and user_group.key = $1 and user_group.key <> 'guest'
+  and user_group.key = any($1::text[]) and user_group.key <> 'guest'
   and ((user_group.builtin and user_group.key in ('user','admin')) or (not user_group.builtin and user_group.key not in ('user','admin')))
-  and user_group.permissions ? 'short_link:create'
-  and user_group.permissions ? $2::text
-  and (not $3::boolean or user_group.permissions ? 'short_link:custom_slug')
-  and (($4::boolean and domain.is_default)
-       or (not $4::boolean and not domain.is_default
-           and domain.id = $5::uuid))
+  and (($2::boolean and domain.is_default)
+       or (not $2::boolean and not domain.is_default
+           and domain.id = $3::uuid))
 for share of domain, domain_user_group, user_group
 `
 
 type GetGrantedShortLinkDomainForCreateParams struct {
-	GroupKey           string      `json:"group_key"`
-	RequiredPermission string      `json:"required_permission"`
-	CustomSlug         bool        `json:"custom_slug"`
-	UseDefault         bool        `json:"use_default"`
-	DomainID           pgtype.UUID `json:"domain_id"`
+	GroupKeys  []string    `json:"group_keys"`
+	UseDefault bool        `json:"use_default"`
+	DomainID   pgtype.UUID `json:"domain_id"`
 }
 
 type GetGrantedShortLinkDomainForCreateRow struct {
@@ -173,13 +168,7 @@ type GetGrantedShortLinkDomainForCreateRow struct {
 }
 
 func (q *Queries) GetGrantedShortLinkDomainForCreate(ctx context.Context, arg GetGrantedShortLinkDomainForCreateParams) (GetGrantedShortLinkDomainForCreateRow, error) {
-	row := q.db.QueryRow(ctx, getGrantedShortLinkDomainForCreate,
-		arg.GroupKey,
-		arg.RequiredPermission,
-		arg.CustomSlug,
-		arg.UseDefault,
-		arg.DomainID,
-	)
+	row := q.db.QueryRow(ctx, getGrantedShortLinkDomainForCreate, arg.GroupKeys, arg.UseDefault, arg.DomainID)
 	var i GetGrantedShortLinkDomainForCreateRow
 	err := row.Scan(&i.ID, &i.Host)
 	return i, err
@@ -247,11 +236,14 @@ func (q *Queries) InsertDomainGrant(ctx context.Context, arg InsertDomainGrantPa
 const listAvailableShortLinkDomains = `-- name: ListAvailableShortLinkDomains :many
 select domain.id, domain.host, domain.display_name, domain.is_default
 from domain
-join domain_user_group on domain_user_group.domain_id = domain.id
-join user_group on user_group.id = domain_user_group.user_group_id
-where user_group.key = $1
-  and user_group.key <> 'guest'
-  and ((user_group.builtin and user_group.key in ('user','admin')) or (not user_group.builtin and user_group.key not in ('user','admin')))
+where exists (
+    select 1 from domain_user_group
+    join user_group on user_group.id = domain_user_group.user_group_id
+    where domain_user_group.domain_id = domain.id
+      and user_group.key = any($1::text[])
+      and user_group.key <> 'guest'
+      and ((user_group.builtin and user_group.key in ('user','admin')) or (not user_group.builtin and user_group.key not in ('user','admin')))
+)
   and domain.enabled = true and domain.purpose = 'short_link'
   and ((domain.is_default and $2::boolean)
        or (not domain.is_default and $3::boolean))
@@ -259,9 +251,9 @@ order by domain.is_default desc, domain.sort_order, domain.created_at, domain.id
 `
 
 type ListAvailableShortLinkDomainsParams struct {
-	GroupKey    string `json:"group_key"`
-	CanDefault  bool   `json:"can_default"`
-	CanAssigned bool   `json:"can_assigned"`
+	GroupKeys   []string `json:"group_keys"`
+	CanDefault  bool     `json:"can_default"`
+	CanAssigned bool     `json:"can_assigned"`
 }
 
 type ListAvailableShortLinkDomainsRow struct {
@@ -272,7 +264,7 @@ type ListAvailableShortLinkDomainsRow struct {
 }
 
 func (q *Queries) ListAvailableShortLinkDomains(ctx context.Context, arg ListAvailableShortLinkDomainsParams) ([]ListAvailableShortLinkDomainsRow, error) {
-	rows, err := q.db.Query(ctx, listAvailableShortLinkDomains, arg.GroupKey, arg.CanDefault, arg.CanAssigned)
+	rows, err := q.db.Query(ctx, listAvailableShortLinkDomains, arg.GroupKeys, arg.CanDefault, arg.CanAssigned)
 	if err != nil {
 		return nil, err
 	}

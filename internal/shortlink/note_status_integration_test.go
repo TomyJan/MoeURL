@@ -142,14 +142,21 @@ func TestNoteStatusReadOnly(t *testing.T) {
 // TestNoteStatusCurrentAuthorization catches entrance grants being reused after a real database change.
 func TestNoteStatusCurrentAuthorization(t *testing.T) {
 	for _, adminScope := range []bool{false, true} {
-		for _, change := range []string{"disabled", "deleted", "guest", "revoked", "moved"} {
+		changes := []string{"disabled", "deleted", "guest"}
+		if !adminScope {
+			// Built-in admin groups must retain protected permissions, so a valid
+			// database state cannot revoke the admin read-all authorization.
+			changes = append(changes, "revoked")
+		}
+		changes = append(changes, "moved")
+		for _, change := range changes {
 			t.Run(map[bool]string{false: "own", true: "admin"}[adminScope]+"/"+change, func(t *testing.T) {
 				pool, _, admin, owner, _, _ := transferFixture(t)
 				actor := owner
 				if adminScope {
 					actor = admin
 				}
-				resolver := tagCatalogResolver{delegate: permission.NewService(), before: func() {
+				resolver := tagCatalogResolver{delegate: permission.NewDatabaseService(pool), before: func() {
 					var err error
 					switch change {
 					case "disabled":
@@ -188,7 +195,7 @@ func TestNoteStatusStorageFailures(t *testing.T) {
 	for _, failure := range []string{"cancelled", "actor storage", "group storage"} {
 		t.Run(failure, func(t *testing.T) {
 			pool, _, admin, owner, _, _ := transferFixture(t)
-			service := shortlink.NewService(pool, permission.NewService())
+			service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 			ctx := t.Context()
 			if failure == "cancelled" {
 				var cancel context.CancelFunc

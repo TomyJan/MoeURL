@@ -85,7 +85,7 @@
                   <div class="user-table__group-set">
                     <strong>{{ t('adminUsers.supplementalGroups') }}</strong>
                     <template v-if="item.supplementalGroups?.length">
-                      <v-chip v-for="group in item.supplementalGroups ?? []" :key="group.key" size="small" variant="tonal">{{ group.name }}</v-chip>
+                      <v-chip v-for="group in item.supplementalGroups" :key="group.key" size="small" variant="tonal">{{ group.name }}</v-chip>
                     </template>
                     <span v-else class="console-page__muted">{{ t('adminUsers.noSupplementalGroups') }}</span>
                   </div>
@@ -174,7 +174,7 @@
       v-if="supplementalTarget"
       :key="`${supplementalTarget.id}:${supplementalTarget.updatedAt}:${identity.scope.value.epoch}`"
       :target="supplementalTarget"
-      :groups="groupsQuery.data.value?.groups ?? []"
+      :groups="groupsQuery.data.value!.groups"
       :groups-ready="groupsReady"
       :groups-loading="groupsQuery.isPending.value || groupsQuery.isFetching.value"
       :groups-error="groupsQuery.isError.value"

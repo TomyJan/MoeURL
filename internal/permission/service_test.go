@@ -89,6 +89,68 @@ func TestStaticPermissionSnapshots(t *testing.T) {
 	}
 }
 
+func TestResolveForGuestBypassesDatabaseAccountLookup(t *testing.T) {
+	resolver := permission.NewDatabaseService(nil)
+	for name, resolve := range map[string]func() (permission.Snapshot, error){
+		"account": func() (permission.Snapshot, error) {
+			return permission.ResolveForAccount(context.Background(), resolver, "", permission.GroupGuest)
+		},
+		"transaction": func() (permission.Snapshot, error) {
+			return permission.ResolveForAccountIn(context.Background(), nil, resolver, "", permission.GroupGuest)
+		},
+		"locked transaction": func() (permission.Snapshot, error) {
+			return permission.ResolveForAccountLockedIn(context.Background(), nil, resolver, "", permission.GroupGuest)
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			snapshot, err := resolve()
+			if err != nil || snapshot.Has(permission.ShortLinkCreate) {
+				t.Fatalf("guest permissions = %v, error = %v; want empty permissions without database I/O", snapshot.Has(permission.ShortLinkCreate), err)
+			}
+		})
+	}
+}
+
+func TestResolveForAccountUsesStaticResolverOnlyAsTestFallback(t *testing.T) {
+	static := permission.NewService()
+	for name, resolve := range map[string]func() (permission.Snapshot, error){
+		"account": func() (permission.Snapshot, error) {
+			return permission.ResolveForAccount(context.Background(), static, "", permission.GroupUser)
+		},
+		"transaction": func() (permission.Snapshot, error) {
+			return permission.ResolveForAccountIn(context.Background(), nil, static, "", permission.GroupUser)
+		},
+		"locked transaction": func() (permission.Snapshot, error) {
+			return permission.ResolveForAccountLockedIn(context.Background(), nil, static, "", permission.GroupUser)
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			snapshot, err := resolve()
+			if err != nil || !snapshot.Has(permission.ShortLinkCreate) {
+				t.Fatalf("static user permissions = %v, error = %v; want create permission", snapshot.Has(permission.ShortLinkCreate), err)
+			}
+		})
+	}
+
+	for name, resolve := range map[string]func() (permission.Snapshot, error){
+		"account": func() (permission.Snapshot, error) {
+			return permission.ResolveForAccount(context.Background(), permission.NewDatabaseService(nil), "", permission.GroupUser)
+		},
+		"transaction": func() (permission.Snapshot, error) {
+			return permission.ResolveForAccountIn(context.Background(), nil, permission.NewDatabaseService(nil), "", permission.GroupUser)
+		},
+		"locked transaction": func() (permission.Snapshot, error) {
+			return permission.ResolveForAccountLockedIn(context.Background(), nil, permission.NewDatabaseService(nil), "", permission.GroupUser)
+		},
+	} {
+		t.Run("database resolver rejects missing ID/"+name, func(t *testing.T) {
+			if snapshot, err := resolve(); err == nil || snapshot.Has(permission.ShortLinkCreate) {
+				t.Fatalf("database user permissions = %v, error = %v; want a closed error", snapshot.Has(permission.ShortLinkCreate), err)
+			}
+		})
+	}
+}
+
 func TestDecodeSnapshotsRejectMalformedAndUnassignableStoredGroups(t *testing.T) {
 	if _, err := permission.DecodeGroupSnapshot(permission.GroupUser, true, []byte(`[`)); err == nil {
 		t.Fatal("malformed builtin permissions were accepted")

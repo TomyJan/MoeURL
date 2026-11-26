@@ -24,19 +24,7 @@ with selection_input as materialized (
     )::boolean as valid
     from selection_input
 ), grant_snapshot as (
-    select exists (
-        select 1 from app_user
-        join user_group on user_group.id = app_user.group_id
-        where app_user.id = $3::uuid
-            and app_user.status = 'active' and app_user.deleted_at is null
-            and user_group.key <> 'guest'
-            and user_group.permissions ? 'short_link:export'
-            and (
-                (not $4::boolean and user_group.permissions ? 'short_link:read_own')
-                or ($4::boolean and user_group.permissions ? 'admin:access'
-                    and user_group.permissions ? 'short_link:read_all')
-            )
-    )::boolean as allowed
+    select $3::boolean as allowed
 ), candidates as materialized (
     -- Retain bounded IDs/order/size metadata, never the possibly large text values.
     select short_link.id, short_link.created_at,
@@ -52,21 +40,21 @@ with selection_input as materialized (
     cross join selection_guard
     where grant_snapshot.allowed and selection_guard.valid and short_link.deleted_at is null
         and (not selection_guard.enabled or short_link.id = any(selection_guard.ids))
-        and ($4::boolean or short_link.owner_id = $3::uuid)
-        and ($5::text = '' or short_link.status = $5::text)
-        and ($6::text = '' or short_link.tags @> array[$6::text])
-        and ($7::text = ''
-            or ($7::text = 'present' and short_link.note <> '')
-            or ($7::text = 'absent' and short_link.note = ''))
-        and ($8::text = '' or strpos(lower(short_link.note), lower($8::text)) > 0)
+        and ($4::boolean or short_link.owner_id = $5::uuid)
+        and ($6::text = '' or short_link.status = $6::text)
+        and ($7::text = '' or short_link.tags @> array[$7::text])
+        and ($8::text = ''
+            or ($8::text = 'present' and short_link.note <> '')
+            or ($8::text = 'absent' and short_link.note = ''))
+        and ($9::text = '' or strpos(lower(short_link.note), lower($9::text)) > 0)
         and (
-            $9::text = ''
-            or short_link.slug ilike '%' || $9::text || '%'
-            or short_link.target_url ilike '%' || $9::text || '%'
-            or ($4::boolean and owner.username ilike '%' || $9::text || '%')
-            or short_link.title ilike '%' || $9::text || '%'
-            or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || $9::text || '%')
-            or ($4::boolean and owner.nickname ilike '%' || $9::text || '%')
+            $10::text = ''
+            or short_link.slug ilike '%' || $10::text || '%'
+            or short_link.target_url ilike '%' || $10::text || '%'
+            or ($4::boolean and owner.username ilike '%' || $10::text || '%')
+            or short_link.title ilike '%' || $10::text || '%'
+            or exists (select 1 from unnest(short_link.tags) as tag_value where tag_value ilike '%' || $10::text || '%')
+            or ($4::boolean and owner.nickname ilike '%' || $10::text || '%')
         )
     order by short_link.created_at desc, short_link.id desc
     limit 1001
@@ -117,15 +105,16 @@ order by links.created_at desc, links.id desc
 `
 
 type ExportShortLinkListParams struct {
-	SelectionMode bool          `json:"selection_mode"`
-	SelectedIds   []pgtype.UUID `json:"selected_ids"`
-	ActorID       pgtype.UUID   `json:"actor_id"`
-	IsAdmin       bool          `json:"is_admin"`
-	Status        string        `json:"status"`
-	Tag           string        `json:"tag"`
-	NoteStatus    string        `json:"note_status"`
-	NoteQuery     string        `json:"note_query"`
-	Query         string        `json:"query"`
+	SelectionMode     bool          `json:"selection_mode"`
+	SelectedIds       []pgtype.UUID `json:"selected_ids"`
+	PermissionGranted bool          `json:"permission_granted"`
+	IsAdmin           bool          `json:"is_admin"`
+	ActorID           pgtype.UUID   `json:"actor_id"`
+	Status            string        `json:"status"`
+	Tag               string        `json:"tag"`
+	NoteStatus        string        `json:"note_status"`
+	NoteQuery         string        `json:"note_query"`
+	Query             string        `json:"query"`
 }
 
 type ExportShortLinkListRow struct {
@@ -155,8 +144,9 @@ func (q *Queries) ExportShortLinkList(ctx context.Context, arg ExportShortLinkLi
 	rows, err := q.db.Query(ctx, exportShortLinkList,
 		arg.SelectionMode,
 		arg.SelectedIds,
-		arg.ActorID,
+		arg.PermissionGranted,
 		arg.IsAdmin,
+		arg.ActorID,
 		arg.Status,
 		arg.Tag,
 		arg.NoteStatus,

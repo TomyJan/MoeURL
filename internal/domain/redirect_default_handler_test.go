@@ -85,8 +85,9 @@ func TestDomainRedirectDefaultHTTPContract(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(check("get", "?id="+d.ID, "", "", admin, 0), &read))
 	require.Equal(t, saved.Data.Setting, read.Data.Setting)
-	_, err := pool.Exec(t.Context(), `update user_group set permissions=permissions || '["short_link:create","short_link:use_confirmation"]'::jsonb where key='admin'`)
-	require.NoError(t, err)
+	direct, directErr := s.RedirectDefaults(t.Context(), admin)
+	require.NoError(t, directErr)
+	require.Contains(t, direct, domain.EffectiveRedirectDefault{DomainID: d.ID, RedirectMode: "confirmation"})
 	var available struct {
 		Data struct {
 			Items []domain.EffectiveRedirectDefault

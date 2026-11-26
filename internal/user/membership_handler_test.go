@@ -66,6 +66,7 @@ func TestUpdateGroupMembershipsHTTPMapsBusinessAndInfrastructureErrors(t *testin
 		{user.ErrPermissionDenied, 120001, http.StatusOK}, {user.ErrUserNotFound, 300103, http.StatusOK},
 		{user.ErrBuiltinUserImmutable, 300102, http.StatusOK}, {user.ErrSelfGroupChange, 300106, http.StatusOK},
 		{user.ErrVersionConflict, 300105, http.StatusOK}, {errors.New("private database detail"), 900000, http.StatusInternalServerError},
+		{context.DeadlineExceeded, 900000, http.StatusInternalServerError}, {context.Canceled, 900000, http.StatusInternalServerError},
 	} {
 		port := &membershipPort{err: tc.err}
 		r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(valid))

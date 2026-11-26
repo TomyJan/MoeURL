@@ -77,6 +77,45 @@ describe('supplemental group membership dialog', () => {
     expect(JSON.parse(fetcher.mock.calls[0]![1]!.body as string)).toMatchObject({ id: target.id, expectedUpdatedAt: target.updatedAt, groupKeys: ['custom-ops', 'custom-support'] })
   })
 
+  it('resets an idle draft when the owner supplies a newer target revision', async () => {
+    const view = mount({ target, groups, groupsReady: true, groupsLoading: false, groupsError: false })
+    await fireEvent.click(screen.getByRole('checkbox', { name: 'Support' }))
+    expect((screen.getByRole('checkbox', { name: 'Support' }) as HTMLInputElement).checked).toBe(true)
+
+    await view.rerender({
+      target: { ...target, updatedAt: '2026-11-26T01:03:04.123456789Z', supplementalGroups: [] },
+      groups,
+      groupsReady: true,
+      groupsLoading: false,
+      groupsError: false,
+    })
+
+    expect((screen.getByRole('checkbox', { name: 'Support' }) as HTMLInputElement).checked).toBe(false)
+    expect((screen.getByRole('checkbox', { name: 'supplementalMembership.confirm' }) as HTMLInputElement).checked).toBe(false)
+  })
+
+  it('ignores group toggles while a membership write is pending and tracks permission recovery', async () => {
+    const pending = createDeferred<Response>()
+    const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(() => pending.promise)
+    vi.stubGlobal('fetch', fetcher)
+    const view = mount()
+    await fireEvent.click(screen.getByRole('checkbox', { name: 'Support' }))
+    await fireEvent.click(screen.getByRole('checkbox', { name: 'supplementalMembership.confirm' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'supplementalMembership.save' }))
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
+    await fireEvent.click(screen.getByRole('checkbox', { name: 'Support' }))
+    const cancel = screen.getByRole('button', { name: 'supplementalMembership.cancel' }) as HTMLButtonElement
+    cancel.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(cancel.disabled).toBe(true)
+
+    view.client.setQueryData(['auth', 'me'], { user: { id: '11111111-1111-4111-8111-111111111111', username: 'manager', group: 'user', permissions: [] } })
+    await waitFor(() => expect(view.emitted().close).toHaveLength(1))
+    view.client.setQueryData(['auth', 'me'], { user: { id: '11111111-1111-4111-8111-111111111111', username: 'manager', group: 'admin', permissions: ['admin:access'] } })
+    pending.resolve(new Response(JSON.stringify({ code: 0, message: 'OK', data: { user: target }, meta: {} })))
+    await waitFor(() => expect(view.emitted().refresh).toBeUndefined())
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
   it('uses the stable group key to order groups that share the same display name', async () => {
     const view = mount({
       target: { ...target, supplementalGroups: [] },

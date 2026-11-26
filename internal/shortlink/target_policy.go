@@ -23,38 +23,44 @@ func checkNewTargets(ctx context.Context, q *sqlc.Queries, targets []string) err
 
 // lockTargetWriter rechecks current actor and group after the gate wait. The
 // shared identity locks prevent completed revocations from using a stale role.
-func lockTargetWriter(ctx context.Context, q *sqlc.Queries, actor auth.CurrentUser, admin bool, required ...string) (string, error) {
+type targetWriterSnapshot struct {
+	PrimaryGroupKey string
+	Permissions     permission.Snapshot
+	GroupKeys       []string
+}
+
+func lockTargetWriter(ctx context.Context, tx pgx.Tx, q *sqlc.Queries, resolver permission.Resolver, actor auth.CurrentUser, admin bool, required ...string) (targetWriterSnapshot, error) {
 	id, err := uuid.Parse(actor.ID)
 	if err != nil || id == uuid.Nil || id.String() != actor.ID {
-		return "", ErrPermissionDenied
+		return targetWriterSnapshot{}, ErrPermissionDenied
 	}
 	groupID, err := q.LockTargetPolicyActor(ctx, uuidToPgtype(id))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrPermissionDenied
+		return targetWriterSnapshot{}, ErrPermissionDenied
 	}
 	if err != nil {
-		return "", err
+		return targetWriterSnapshot{}, err
 	}
 	group, err := q.LockTargetWriterGroup(ctx, groupID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrPermissionDenied
+		return targetWriterSnapshot{}, ErrPermissionDenied
 	}
 	if err != nil {
-		return "", err
+		return targetWriterSnapshot{}, err
 	}
-	grants, err := permission.DecodeGroupSnapshot(group.Key, group.Builtin, group.Permissions)
+	grants, err := permission.ResolveForAccountLockedIn(ctx, tx, resolver, actor.ID, group.Key)
 	if err != nil {
-		return "", err
+		return targetWriterSnapshot{}, err
 	}
-	if admin && (group.Key != "admin" || !grants.Has(permission.AdminAccess)) {
-		return "", ErrPermissionDenied
+	if admin && (group.Key != "admin" || !group.Builtin || !grants.Has(permission.AdminAccess)) {
+		return targetWriterSnapshot{}, ErrPermissionDenied
 	}
 	for _, key := range required {
 		if key != "" && !grants.Has(key) {
-			return "", ErrPermissionDenied
+			return targetWriterSnapshot{}, ErrPermissionDenied
 		}
 	}
-	return group.Key, nil
+	return targetWriterSnapshot{PrimaryGroupKey: group.Key, Permissions: grants, GroupKeys: grants.GroupKeys()}, nil
 }
 
 // targetWriteCapabilities rechecks only features actually present in this command,

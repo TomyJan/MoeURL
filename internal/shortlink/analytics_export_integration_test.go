@@ -23,8 +23,10 @@ func TestExportStatisticsDatabase(t *testing.T) {
 	owner := insertShortLinkUser(t, ctx, pool, "export-owner", "user", permission.UserPermissions)
 	linkID := insertStoredShortLink(t, ctx, pool, owner.ID, "export1", "https://private.example/secret", "active", false)
 	deletedID := insertStoredShortLink(t, ctx, pool, owner.ID, "deletedexport", "https://example.com", "active", true)
-	_, err := pool.Exec(ctx, `insert into user_group(id,key,name,description,permissions,builtin,created_at,updated_at) values(gen_random_uuid(),'admin','admin','',$1::jsonb,true,now(),now())`, permissionsJSON(t, permission.AdminPermissions))
+	adminGroupID := "00000000-0000-0000-0000-000000000402"
+	_, err := pool.Exec(ctx, `insert into user_group(id,key,name,description,permissions,builtin,created_at,updated_at) values($1,'admin','admin','',$2::jsonb,true,now(),now())`, adminGroupID, permissionsJSON(t, permission.AdminPermissions))
 	require.NoError(t, err)
+	adminUser := insertShortLinkUserForGroup(t, ctx, pool, "export-admin", adminGroupID, uuid.NewString(), permission.GroupAdmin, permission.AdminPermissions)
 	service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 	today := time.Now().UTC().Format(time.DateOnly)
 	input := shortlink.StatisticsInput{ID: linkID, StartDate: today, EndDate: today}
@@ -33,11 +35,11 @@ func TestExportStatisticsDatabase(t *testing.T) {
 		actor := owner
 		export := service.ExportStatistics
 		if admin {
-			actor = auth.CurrentUser{ID: uuid.NewString(), GroupKey: "admin"}
+			actor = adminUser
 			export = service.AdminExportStatistics
 		}
 		result, err := export(ctx, actor, input)
-		require.NoError(t, err)
+		require.NoError(t, err, "admin=%v actor=%+v", admin, actor)
 		rows, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(result.Content, "\ufeff"))).ReadAll()
 		require.NoError(t, err)
 		require.Len(t, rows, 10)
@@ -58,8 +60,7 @@ func TestExportStatisticsDatabase(t *testing.T) {
 			require.ErrorIs(t, err, shortlink.ErrShortLinkMissing)
 		}
 	}
-	other := owner
-	other.ID = uuid.NewString()
+	other := insertShortLinkUserForGroup(t, ctx, pool, "export-other", "00000000-0000-0000-0000-000000000401", uuid.NewString(), permission.GroupUser, permission.UserPermissions)
 	_, err = service.ExportStatistics(ctx, other, input)
 	require.ErrorIs(t, err, shortlink.ErrShortLinkMissing)
 	_, err = service.ExportStatistics(ctx, auth.CurrentUser{GroupKey: "guest"}, input)
@@ -71,7 +72,7 @@ func TestExportStatisticsDatabase(t *testing.T) {
 		export := service.ExportStatistics
 		statistics := service.Statistics
 		if admin {
-			actor.GroupKey = "admin"
+			actor = adminUser
 			export = service.AdminExportStatistics
 			statistics = service.AdminStatistics
 		}
@@ -129,8 +130,8 @@ func TestExportStatisticsDatabase(t *testing.T) {
 		_, err := pool.Exec(ctx, `update user_group set permissions=permissions-$1 where key=$2`, test.remove, test.key)
 		require.NoError(t, err)
 		actor := owner
-		actor.GroupKey = test.key
 		if test.admin {
+			actor = adminUser
 			_, err = service.AdminExportStatistics(ctx, actor, input)
 		} else {
 			_, err = service.ExportStatistics(ctx, actor, input)
@@ -149,11 +150,11 @@ func TestExportStatisticsDatabase(t *testing.T) {
 	_, err = service.ExportStatistics(ctx, owner, input)
 	require.Error(t, err)
 	require.NotErrorIs(t, err, shortlink.ErrPermissionDenied)
-	_, err = service.AdminExportStatistics(ctx, auth.CurrentUser{ID: owner.ID, GroupKey: "admin"}, input)
+	_, err = service.AdminExportStatistics(ctx, adminUser, input)
 	require.Error(t, err)
 	pool.Close()
 	_, err = service.ExportStatistics(ctx, owner, input)
 	require.Error(t, err)
-	_, err = service.AdminExportStatistics(ctx, auth.CurrentUser{ID: owner.ID, GroupKey: "admin"}, input)
+	_, err = service.AdminExportStatistics(ctx, adminUser, input)
 	require.Error(t, err)
 }

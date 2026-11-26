@@ -40,6 +40,56 @@ func TestNewServiceWithLoggerUsesDefaultLoggerWhenNil(t *testing.T) {
 	require.ErrorIs(t, err, errPermissionResolverRequired)
 }
 
+func TestParseLinkAndOwnerIDsRejectsInvalidIdentifiers(t *testing.T) {
+	linkID, ownerID := uuid.NewString(), uuid.NewString()
+	parsedLink, parsedOwner, err := parseLinkAndOwnerIDs(linkID, ownerID)
+	require.NoError(t, err)
+	require.Equal(t, linkID, parsedLink.String())
+	require.Equal(t, ownerID, parsedOwner.String())
+	if _, _, err := parseLinkAndOwnerIDs("bad-link", ownerID); err == nil {
+		t.Fatal("invalid link ID was accepted")
+	}
+	if _, _, err := parseLinkAndOwnerIDs(linkID, "bad-owner"); err == nil {
+		t.Fatal("invalid owner ID was accepted")
+	}
+}
+
+func TestServicesRejectMissingActorIDBeforeDatabaseAccess(t *testing.T) {
+	service := NewService(nil, permission.NewService())
+	user := auth.CurrentUser{GroupKey: permission.GroupUser}
+	admin := auth.CurrentUser{GroupKey: permission.GroupAdmin}
+
+	if _, err := service.Create(t.Context(), user, CreateInput{TargetURL: "https://example.com"}); err == nil {
+		t.Fatal("create accepted a missing account ID")
+	}
+	if _, err := service.Overview(t.Context(), user); err == nil {
+		t.Fatal("overview accepted a missing account ID")
+	}
+	if _, err := service.List(t.Context(), user, ListInput{}); err == nil {
+		t.Fatal("list accepted a missing account ID")
+	}
+	if _, err := service.AdminBatch(t.Context(), admin, BatchInput{IDs: []string{uuid.NewString()}, Action: "disable"}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("admin batch error = %v, want %v", err, ErrInvalidInput)
+	}
+	if _, err := service.RenameAdminTags(t.Context(), admin, BatchTagRenameInput{}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("admin tag rename error = %v, want %v", err, ErrPermissionDenied)
+	}
+	if _, err := service.AdminBatchTags(t.Context(), admin, BatchTagsInput{}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("admin batch tags error = %v, want %v", err, ErrPermissionDenied)
+	}
+	if _, err := service.BatchTransfer(t.Context(), admin, BatchTransferInput{}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("admin batch transfer error = %v, want %v", err, ErrPermissionDenied)
+	}
+	if _, err := service.Transfer(t.Context(), admin, TransferInput{}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("admin transfer error = %v, want %v", err, ErrPermissionDenied)
+	}
+}
+
+func TestLockTargetWriterRejectsInvalidActorBeforeDatabaseAccess(t *testing.T) {
+	_, err := lockTargetWriter(t.Context(), nil, nil, nil, auth.CurrentUser{ID: "not-a-uuid"}, false)
+	require.ErrorIs(t, err, ErrPermissionDenied)
+}
+
 type failingPermissionResolver struct {
 	err error
 }
@@ -99,7 +149,7 @@ func TestServiceAuthorizeResolvesOneReusableSnapshot(t *testing.T) {
 			service := &Service{permissions: test.resolver}
 			permissions, err := service.authorize(
 				t.Context(),
-				auth.CurrentUser{GroupKey: permission.GroupUser},
+				auth.CurrentUser{ID: uuid.NewString(), GroupKey: permission.GroupUser},
 				permission.ShortLinkCreate,
 				permission.DomainUseDefault,
 			)
@@ -154,7 +204,7 @@ func TestServiceAuthorizeAdminCombinesRequiredPermissions(t *testing.T) {
 			service := &Service{permissions: test.resolver}
 			permissions, err := service.authorizeAdmin(
 				t.Context(),
-				auth.CurrentUser{GroupKey: permission.GroupAdmin},
+				auth.CurrentUser{ID: uuid.NewString(), GroupKey: permission.GroupAdmin},
 				permission.ShortLinkReadAll,
 			)
 
@@ -173,8 +223,8 @@ func TestServicePermissionResolutionFailuresPropagate(t *testing.T) {
 	wantErr := errors.New("permission database down")
 	service := &Service{permissions: failingPermissionResolver{err: wantErr}}
 	ctx := context.Background()
-	user := auth.CurrentUser{GroupKey: permission.GroupUser}
-	admin := auth.CurrentUser{GroupKey: permission.GroupAdmin}
+	user := auth.CurrentUser{ID: uuid.NewString(), GroupKey: permission.GroupUser}
+	admin := auth.CurrentUser{ID: uuid.NewString(), GroupKey: permission.GroupAdmin}
 
 	tests := []struct {
 		name string
