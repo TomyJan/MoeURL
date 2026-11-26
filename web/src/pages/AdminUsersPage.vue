@@ -31,6 +31,11 @@
         {{ t('adminUsers.loadFailed') }}
         <v-btn v-if="!batch.barrier.value" :loading="query.isFetching.value" @click="batch.reload">{{ t('batchMembership.retryRead') }}</v-btn>
       </v-alert>
+      <v-alert v-if="supplementalReadFailed" type="error" variant="tonal">
+        {{ t('supplementalMembership.readFailed') }}
+        <v-btn :loading="query.isFetching.value || groupsQuery.isFetching.value" @click="refreshSupplementalMembership(false)">{{ t('supplementalMembership.retryRead') }}</v-btn>
+      </v-alert>
+      <v-alert v-if="supplementalBarrier && !supplementalReadFailed" type="warning" variant="tonal">{{ t('supplementalMembership.readRequired') }}</v-alert>
       <v-progress-linear v-if="query.isPending.value" indeterminate />
       <div v-else-if="users.length === 0 && !query.isError.value" class="console-page__empty">
         <div>
@@ -71,7 +76,21 @@
                 </div>
               </td>
               <td><v-checkbox-btn v-if="batch.eligible.value.some(user => user.id === item.id)" v-bind="selectionIcons" :aria-label="t('batchMembership.selectAccount', { username: item.username })" :model-value="batch.selected.value.includes(item.id)" :disabled="batch.unavailable.value || !!batch.snapshot.value" @update:model-value="batch.toggle(item.id, !!$event)" /></td>
-              <td>{{ groupNames[item.group] ?? item.group }}</td>
+              <td>
+                <div class="user-table__groups" data-testid="console-user-groups">
+                  <div class="user-table__group-set">
+                    <strong>{{ t('adminUsers.primaryGroup') }}</strong>
+                    <span>{{ groupNames[item.group] ?? item.group }}</span>
+                  </div>
+                  <div class="user-table__group-set">
+                    <strong>{{ t('adminUsers.supplementalGroups') }}</strong>
+                    <template v-if="item.supplementalGroups?.length">
+                      <v-chip v-for="group in item.supplementalGroups ?? []" :key="group.key" size="small" variant="tonal">{{ group.name }}</v-chip>
+                    </template>
+                    <span v-else class="console-page__muted">{{ t('adminUsers.noSupplementalGroups') }}</span>
+                  </div>
+                </div>
+              </td>
               <td><v-chip size="small" variant="tonal" :color="item.status === 'active' ? 'success' : undefined">{{ t(`adminUsers.status.${item.status}`) }}</v-chip></td>
               <td class="user-table__date">{{ formatDate(item.createdAt) }}</td>
               <td>
@@ -124,6 +143,7 @@
                 <div :id="userMorePanelId(item.id)" class="user-table__panel" data-testid="console-user-actions">
                   <p class="user-table__panel-title">{{ t('adminUsers.moreTitle') }}</p>
                   <v-btn v-if="!item.builtin && item.id !== currentUserId" :disabled="writeLocked" size="small" variant="text" @click="beginGroupChange(item)">{{ t('membership.title') }}</v-btn>
+                  <v-btn v-if="!item.builtin && item.id !== currentUserId" :disabled="writeLocked || !groupsReady" size="small" variant="text" @click="beginSupplementalMembershipChange(item)">{{ t('supplementalMembership.manage') }}</v-btn>
                   <v-btn size="small" variant="text" :disabled="item.builtin || writeLocked" :loading="isUpdatingUser(item.id)" @click="toggleStatus(item)">
                     {{ t(item.status === 'active' ? 'adminUsers.actions.disable' : 'adminUsers.actions.enable') }}
                   </v-btn>
@@ -150,6 +170,19 @@
       <p v-if="users.length > 0" class="console-page__notice">{{ t('adminUsers.paginationNotice') }}</p>
     </div>
     <UserGroupChangeDialog v-if="groupTarget" :target="groupTarget" managed @close="groupTarget = undefined" @pending="groupPending = $event" @refresh="batch.reload" />
+    <SupplementalGroupMembershipDialog
+      v-if="supplementalTarget"
+      :key="`${supplementalTarget.id}:${supplementalTarget.updatedAt}:${identity.scope.value.epoch}`"
+      :target="supplementalTarget"
+      :groups="groupsQuery.data.value?.groups ?? []"
+      :groups-ready="groupsReady"
+      :groups-loading="groupsQuery.isPending.value || groupsQuery.isFetching.value"
+      :groups-error="groupsQuery.isError.value"
+      @close="closeSupplementalMembership"
+      @pending="supplementalPending = $event"
+      @refresh="refreshSupplementalMembership"
+      @retry-groups="groupsQuery.refetch()"
+    />
     <UserBatchGroupChangeDialog v-if="batch.snapshot.value" :snapshot="batch.snapshot.value" :groups="batch.snapshotGroups.value" :available-group-keys="availableGroupKeys" :groups-ready="groupsReady" :pending="batch.pending.value" @close="batch.close" @submit="batch.submit" />
   </section>
 </template>
@@ -169,6 +202,7 @@ import { useAvatarText } from '@/shared/user/useAvatarText'
 import { useAccountIdentity } from '@/shared/preferences/useAccountPreferences'
 import UserGroupChangeDialog from '@/features/user-group-change/UserGroupChangeDialog.vue'
 import UserBatchGroupChangeDialog from '@/features/user-batch-group-change/UserBatchGroupChangeDialog.vue'
+import SupplementalGroupMembershipDialog from '@/features/user-supplemental-group-management/SupplementalGroupMembershipDialog.vue'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
 import { useUserBatchGroupChange } from '@/features/user-batch-group-change/useUserBatchGroupChange'
 
@@ -185,6 +219,10 @@ const groupsReady = computed(() => groupsQuery.isSuccess.value && !groupsQuery.i
 const availableGroupKeys = computed(() => (groupsQuery.data.value?.groups ?? []).filter(group => group.key !== 'guest' && group.editable).map(group => group.key))
 const groupTarget = ref<UserSummary>()
 const groupPending = ref(false)
+const supplementalTarget = ref<UserSummary>()
+const supplementalPending = ref(false)
+const supplementalBarrier = ref(false)
+const supplementalReadFailed = ref(false)
 const singlePending = ref('')
 let alive = true
 let pageRevision = 0
@@ -194,6 +232,40 @@ onBeforeUnmount(() => { alive = false })
 function beginGroupChange(item: UserSummary) {
   if (writeLocked.value || groupTarget.value || item.builtin || item.id === currentUserId.value) return
   groupTarget.value = { ...item }
+}
+
+/** Freezes target identity, primary/supplemental group labels, and its full CAS revision. */
+function beginSupplementalMembershipChange(item: UserSummary) {
+  if (writeLocked.value || supplementalTarget.value || item.builtin || item.id === currentUserId.value || !groupsReady.value) return
+  supplementalTarget.value = { ...item, supplementalGroups: (item.supplementalGroups ?? []).map(group => ({ ...group })) }
+}
+
+/** Clears the frozen target while leaving readback recovery in control of the write barrier. */
+function closeSupplementalMembership() {
+  supplementalTarget.value = undefined
+}
+
+/** Forces account and group-directory readback after one explicit membership attempt. */
+async function refreshSupplementalMembership(success = false) {
+  supplementalTarget.value = undefined
+  supplementalBarrier.value = true
+  supplementalReadFailed.value = false
+  const scope = identity.scope.value
+  const revision = pageRevision
+  try {
+    const results = await Promise.all([
+      query.refetch({ throwOnError: true }),
+      groupsQuery.refetch({ throwOnError: true }),
+    ])
+    if (!alive || revision !== pageRevision || !identity.isCurrent(scope) || !canChangeGroup.value) return
+    if (results.some(result => result && 'isError' in result && result.isError)) throw new Error('Membership readback failed')
+    supplementalBarrier.value = false
+    supplementalReadFailed.value = false
+    if (success) toast.success(t('supplementalMembership.success'))
+  } catch {
+    if (!alive || revision !== pageRevision || !identity.isCurrent(scope) || !canChangeGroup.value) return
+    supplementalReadFailed.value = true
+  }
 }
 const draftNicknames = reactive<Record<string, string>>({})
 const draftPasswords = reactive<Record<string, string>>({})
@@ -215,16 +287,20 @@ const batch = useUserBatchGroupChange({
   groups: computed(() => groupsQuery.data.value?.groups ?? []),
   groupsReady,
   allowed: canChangeGroup,
-  blocked: computed(() => !!singlePending.value || !!groupTarget.value),
+  blocked: computed(() => !!singlePending.value || !!groupTarget.value || !!supplementalTarget.value || supplementalPending.value || supplementalBarrier.value),
   onSelect: () => { editingUserId.value = ''; moreUserId.value = '' },
   read: async () => Promise.all([query.refetch({ throwOnError: true }), groupsQuery.refetch({ throwOnError: true })]),
 })
-const writeLocked = computed(() => !canChangeGroup.value || !!singlePending.value || groupPending.value || batch.pending.value || batch.barrier.value || !!batch.snapshot.value || batch.selected.value.length > 0)
-const rowLocked = computed(() => writeLocked.value || !!groupTarget.value)
+const writeLocked = computed(() => !canChangeGroup.value || !!singlePending.value || groupPending.value || supplementalPending.value || supplementalBarrier.value || batch.pending.value || batch.barrier.value || !!batch.snapshot.value || batch.selected.value.length > 0)
+const rowLocked = computed(() => writeLocked.value || !!groupTarget.value || !!supplementalTarget.value)
 watch([identity.scope, canChangeGroup], (_value, [previous]) => {
   pageRevision++
   groupTarget.value = undefined
   groupPending.value = false
+  supplementalTarget.value = undefined
+  supplementalPending.value = false
+  supplementalBarrier.value = false
+  supplementalReadFailed.value = false
   singlePending.value = ''
   editingUserId.value = ''; moreUserId.value = ''
   for (const drafts of [draftNicknames, draftPasswords, resetPasswordErrors]) for (const key of Object.keys(drafts)) delete drafts[key]
@@ -252,6 +328,14 @@ watch(
     for (const item of items) {
       draftNicknames[item.id] ??= item.nickname
       draftPasswords[item.id] ??= ''
+    }
+    const frozen = supplementalTarget.value
+    if (frozen) {
+      const latest = items.find(item => item.id === frozen.id)
+      if (!latest || latest.updatedAt !== frozen.updatedAt) {
+        supplementalTarget.value = undefined
+        void refreshSupplementalMembership(false)
+      }
     }
   },
   { immediate: true },
@@ -365,6 +449,9 @@ function userMorePanelId(id: string) {
 .user-table__date-column { width: 18%; }
 .user-table__actions-column { width: 200px; }
 .user-table__identity, .user-table__summary-actions { display: flex; align-items: center; gap: 12px; }
+.user-table__groups, .user-table__group-set { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.user-table__groups { flex-direction: column; align-items: flex-start; }
+.user-table__group-set strong { font-size: 0.75rem; color: rgb(var(--v-theme-on-surface-variant)); }
 .user-table__identity { min-width: 0; }
 .user-table__stack { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
 .user-table__stack small { color: rgb(var(--v-theme-on-surface-variant)); }

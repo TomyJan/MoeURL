@@ -2507,4 +2507,32 @@ describe('pages', () => {
     expect(screen.getAllByRole('checkbox').every(checkbox => (checkbox as HTMLInputElement).disabled)).toBe(true)
     expect(screen.getByRole('button', { name: 'batchMembership.open' })).toHaveProperty('disabled', true)
   })
+
+  it('shows supplemental group membership and keeps builtin accounts out of the manager action', async () => {
+    setQueryResult({ data: ref({ meta: { total: 2 }, items: [
+      {
+        id: 'ordinary-admin-id', username: 'ordinary-admin', nickname: 'Ops', group: 'admin', status: 'active', builtin: false,
+        createdAt: '2026-06-08T00:00:00Z', updatedAt: '2026-11-26T01:02:03.123456789Z',
+        supplementalGroups: [{ key: 'custom-ops', name: 'Operations' }],
+      },
+      {
+        id: 'builtin-admin-id', username: 'system-admin', nickname: 'System', group: 'admin', status: 'active', builtin: true,
+        createdAt: '2026-06-08T00:00:00Z', updatedAt: '2026-11-26T01:02:03Z', supplementalGroups: [],
+      },
+    ] }) })
+    mount(AdminUsersPage)
+
+    const rows = screen.getAllByTestId('console-user-row')
+    const ordinaryAdmin = rows.find(row => within(row).queryByText('ordinary-admin'))
+    const builtinAdmin = rows.find(row => within(row).queryByText('system-admin'))
+    if (!ordinaryAdmin || !builtinAdmin) throw new Error('expected both account rows')
+    expect(within(ordinaryAdmin).getByText('Operations')).toBeTruthy()
+    expect(within(builtinAdmin).queryByText('Operations')).toBeNull()
+
+    await fireEvent.click(within(ordinaryAdmin).getByRole('button', { name: 'adminUsers.actions.more' }))
+    expect(within(screen.getByTestId('console-user-actions')).getByRole('button', { name: 'supplementalMembership.manage' })).toBeTruthy()
+    await fireEvent.click(within(builtinAdmin).getByRole('button', { name: 'adminUsers.actions.more' }))
+    expect(screen.queryByRole('button', { name: 'supplementalMembership.manage' })).toBeNull()
+  })
+
 })

@@ -1017,6 +1017,15 @@ export const messages = {
       confirm: '我确认调整权限并撤销所有旧登录会话', save: '确认调整',
       success: '用户组已调整，账号需重新登录', conflict: '账号已被修改，请重新打开最新记录再操作', failed: '用户组调整失败，请重试',
     },
+    supplementalMembership: {
+      manage: '管理补充组', title: '设置补充用户组', primaryGroup: '主组：{group}', warning: '补充组按完整集合替换，只叠加自定义组权限。实际变化会撤销此账号的所有旧登录会话。',
+      groupsLabel: '当前补充组', groupsLoading: '正在读取可选自定义组……', groupsFailed: '无法读取最新用户组，暂时不能修改。', retryGroups: '重试读取用户组',
+      staleGroups: '已有补充组不在最新目录中，先刷新并核对账号与组目录。', unavailable: '目录不可用', noGroups: '没有可添加的自定义组。',
+      confirm: '我已核对账号、补充组集合，并确认撤销全部旧登录会话', cancel: '取消', save: '保存补充组',
+      revision: '提交将使用此账号版本：{updatedAt}', success: '补充组已更新，旧登录会话已撤销。', conflict: '账号已被其他操作修改；已取消本次编辑并读取最新状态。',
+      failed: '补充组更新未确认成功；请核对最新状态后再操作。', readRequired: '结果尚未核对；账号和组目录读取完成前已锁定其他写操作。',
+      readFailed: '无法读取最新账号和组目录，写操作已锁定。', retryRead: '重新读取账号与组目录',
+    },
     adminUsers: {
       createUser: '创建用户',
       loadFailed: '加载失败',
@@ -1034,6 +1043,9 @@ export const messages = {
         createdAt: '创建时间',
         actions: '操作',
       },
+      primaryGroup: '主组',
+      supplementalGroups: '补充组',
+      noSupplementalGroups: '无',
       labels: {
         nickname: '昵称',
         newPassword: '新密码',
@@ -2104,6 +2116,15 @@ export const messages = {
       confirm: 'I confirm the permission change and revocation of all existing sessions', save: 'Confirm change',
       success: 'Group changed. The account must sign in again.', conflict: 'This account changed. Reopen the latest record before trying again.', failed: 'Could not change the group. Please retry.',
     },
+    supplementalMembership: {
+      manage: 'Manage supplemental groups', title: 'Set supplemental user groups', primaryGroup: 'Primary group: {group}', warning: 'Supplemental groups replace the complete set and only add custom-group permissions. Any actual change revokes all existing sessions for this account.',
+      groupsLabel: 'Supplemental groups', groupsLoading: 'Loading available custom groups…', groupsFailed: 'Could not load the latest groups. Changes are unavailable.', retryGroups: 'Retry group list',
+      staleGroups: 'An existing supplemental group is missing from the latest directory. Refresh and verify the account and group list first.', unavailable: 'Unavailable in directory', noGroups: 'There are no custom groups to add.',
+      confirm: 'I verified the account and complete supplemental group set, and approve revoking all existing sessions', cancel: 'Cancel', save: 'Save supplemental groups',
+      revision: 'This account revision will be submitted: {updatedAt}', success: 'Supplemental groups updated. Existing sessions were revoked.', conflict: 'This account changed elsewhere. The edit was canceled and the latest state was read.',
+      failed: 'The supplemental group update could not be confirmed. Read the latest state before continuing.', readRequired: 'The result is not verified yet. Other writes remain locked until the account and group directory are read.',
+      readFailed: 'Could not read the latest account and group directory. Writes remain locked.', retryRead: 'Read account and groups again',
+    },
     adminUsers: {
       createUser: 'Create user',
       loadFailed: 'Failed to load users',
@@ -2121,6 +2142,9 @@ export const messages = {
         createdAt: 'Created at',
         actions: 'Actions',
       },
+      primaryGroup: 'Primary',
+      supplementalGroups: 'Supplemental',
+      noSupplementalGroups: 'None',
       labels: {
         nickname: 'Nickname',
         newPassword: 'New password',
