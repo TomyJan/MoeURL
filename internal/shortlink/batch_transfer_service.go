@@ -49,7 +49,7 @@ func (s *Service) BatchTransfer(ctx context.Context, actor auth.CurrentUser, inp
 	var result BatchTransferResult
 	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
 		q := s.queries.WithTx(tx)
-		recipient, err := lockTransferParticipants(ctx, q, actorID, input.NewOwnerUsername)
+		recipient, err := lockTransferParticipants(ctx, tx, q, s.permissions, actorID, input.NewOwnerUsername)
 		if err != nil {
 			return err
 		}

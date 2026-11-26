@@ -173,7 +173,7 @@ func TestBatchNoteClearCurrentAuthorization(t *testing.T) {
 				baseline := shortlink.NewService(pool, permission.NewService())
 				p, err := baseline.PreviewAdminNoteClear(t.Context(), admin, input)
 				require.NoError(t, err)
-				resolver := tagCatalogResolver{delegate: permission.NewService(), before: func() {
+				resolver := tagCatalogResolver{delegate: permission.NewDatabaseService(pool), before: func() {
 					var err error
 					switch change {
 					case "disabled":
@@ -183,11 +183,20 @@ func TestBatchNoteClearCurrentAuthorization(t *testing.T) {
 					case "guest":
 						_, err = pool.Exec(t.Context(), `update user_group set key='guest' where id=(select group_id from app_user where id=$1)`, actor.ID)
 					case "revoked":
-						_, err = pool.Exec(t.Context(), `update user_group set permissions='[]' where id=(select group_id from app_user where id=$1)`, actor.ID)
+						if adminScope {
+							_, err = pool.Exec(t.Context(), `update user_group set permissions=permissions-'short_link:set_metadata' where id=(select group_id from app_user where id=$1)`, actor.ID)
+						} else {
+							_, err = pool.Exec(t.Context(), `update user_group set permissions='[]' where id=(select group_id from app_user where id=$1)`, actor.ID)
+						}
 					case "moved":
-						_, err = pool.Exec(t.Context(), `update app_user set group_id=(select group_id from app_user where id=$2) where id=$1`, actor.ID, map[bool]string{false: admin.ID, true: owner.ID}[adminScope])
-						if !adminScope {
-							_, err = pool.Exec(t.Context(), `update user_group set permissions='[]' where id=(select group_id from app_user where id=$1)`, admin.ID)
+						if adminScope {
+							_, err = pool.Exec(t.Context(), `update app_user set group_id=(select group_id from app_user where id=$2) where id=$1`, actor.ID, owner.ID)
+						} else {
+							groupID := uuid.NewString()
+							groupKey := "no-read-" + groupID
+							_, err = pool.Exec(t.Context(), `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values($1,$2,$2,'[]',false,now(),now())`, groupID, groupKey)
+							require.NoError(t, err)
+							_, err = pool.Exec(t.Context(), `update app_user set group_id=$2 where id=$1`, actor.ID, groupID)
 						}
 					}
 					require.NoError(t, err)
@@ -269,13 +278,13 @@ func TestBatchNoteClearServiceAdmission(t *testing.T) {
 		required := []string{permission.ShortLinkReadOwn, permission.ShortLinkUpdateOwn, permission.ShortLinkSetMetadata}
 		if adminScope {
 			actor = admin
-			required = []string{permission.AdminAccess, permission.ShortLinkReadAll, permission.ShortLinkUpdateAll, permission.ShortLinkSetMetadata}
+			required = []string{permission.ShortLinkSetMetadata}
 		}
 		for _, capability := range required {
 			before := batchTagsSnapshot(t, pool)
 			_, err = pool.Exec(t.Context(), `update user_group set permissions=permissions-$2::text where id=(select group_id from app_user where id=$1)`, actor.ID, capability)
 			require.NoError(t, err)
-			s := shortlink.NewService(pool, permission.NewService())
+			s := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 			if adminScope {
 				_, err = s.PreviewAdminNoteClear(t.Context(), actor, input)
 			} else {
@@ -305,7 +314,7 @@ func TestBatchNoteClearStorageFailure(t *testing.T) {
 		for _, corruption := range []string{"actor storage", "group storage", "group JSON", "note storage", "transaction begin"} {
 			t.Run(strings.Join([]string{map[bool]string{false: "preview", true: "clear"}[clear], corruption}, "/"), func(t *testing.T) {
 				pool, _, admin, owner, input := batchNoteFixture(t)
-				service := shortlink.NewService(pool, permission.NewService())
+				service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 				p, err := service.PreviewOwnNoteClear(t.Context(), owner, input)
 				require.NoError(t, err)
 				switch corruption {

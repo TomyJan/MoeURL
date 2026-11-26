@@ -18,12 +18,15 @@ import (
 
 // Service manages the independent quota policy and self usage reads without a process cache.
 type Service struct {
-	pool    *pgxpool.Pool
-	queries *sqlc.Queries
+	pool        *pgxpool.Pool
+	queries     *sqlc.Queries
+	permissions permission.Resolver
 }
 
 // NewService binds the existing SQLC and audit transaction infrastructure.
-func NewService(pool *pgxpool.Pool) *Service { return &Service{pool: pool, queries: sqlc.New(pool)} }
+func NewService(pool *pgxpool.Pool) *Service {
+	return &Service{pool: pool, queries: sqlc.New(pool), permissions: permission.NewDatabaseService(pool)}
+}
 
 // ValidateStartup rejects missing or corrupt policy before serving requests.
 func (s *Service) ValidateStartup(ctx context.Context) error {

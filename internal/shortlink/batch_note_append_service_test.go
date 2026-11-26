@@ -290,7 +290,7 @@ func TestBatchNoteAppendReplayRequiresCurrentPermission(t *testing.T) {
 			first, err := service.AppendOwnNotes(t.Context(), owner, input)
 			require.NoError(t, err)
 			require.Equal(t, 3, first.AppendedCount)
-			resolver := tagCatalogResolver{delegate: permission.NewService(), before: func() {
+			resolver := tagCatalogResolver{delegate: permission.NewDatabaseService(pool), before: func() {
 				var mutationErr error
 				switch change {
 				case "disabled":

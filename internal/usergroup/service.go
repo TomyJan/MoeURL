@@ -193,7 +193,7 @@ func (s *Service) UpdatePermissions(ctx context.Context, actor auth.CurrentUser,
 
 // authorize resolves exactly one permission snapshot for the operation.
 func (s *Service) authorize(ctx context.Context, actor auth.CurrentUser) error {
-	snapshot, err := s.permissions.Resolve(ctx, actor.GroupKey)
+	snapshot, err := permission.ResolveForAccount(ctx, s.permissions, actor.ID, actor.GroupKey)
 	if err != nil {
 		return err
 	}

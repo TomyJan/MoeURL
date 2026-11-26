@@ -13,23 +13,16 @@ import (
 
 const listPersonalTagCatalog = `-- name: ListPersonalTagCatalog :many
 with grant_snapshot as materialized (
-    select exists (
-        select 1 from app_user
-        join user_group on user_group.id = app_user.group_id
-        where app_user.id = $1::uuid
-            and app_user.status = 'active' and app_user.deleted_at is null
-            and user_group.key <> 'guest'
-            and user_group.permissions ? 'short_link:read_own'
-    )::boolean as allowed
+    select $1::boolean as allowed
 ), catalog as (
     select tag_value::text as tag, count(distinct short_link.id)::bigint as link_count
     from short_link
     cross join grant_snapshot
     cross join lateral unnest(short_link.tags) as tag_value
     where grant_snapshot.allowed
-        and short_link.owner_id = $1::uuid
+        and short_link.owner_id = $2::uuid
         and short_link.deleted_at is null
-        and strpos(tag_value, $2::text) > 0
+        and strpos(tag_value, $3::text) > 0
     group by tag_value
     order by link_count desc, tag_value collate "C" asc
     limit 51
@@ -43,8 +36,9 @@ order by catalog.link_count desc, catalog.tag collate "C" asc
 `
 
 type ListPersonalTagCatalogParams struct {
-	ActorID pgtype.UUID `json:"actor_id"`
-	Query   string      `json:"query"`
+	PermissionGranted bool        `json:"permission_granted"`
+	ActorID           pgtype.UUID `json:"actor_id"`
+	Query             string      `json:"query"`
 }
 
 type ListPersonalTagCatalogRow struct {
@@ -54,7 +48,7 @@ type ListPersonalTagCatalogRow struct {
 }
 
 func (q *Queries) ListPersonalTagCatalog(ctx context.Context, arg ListPersonalTagCatalogParams) ([]ListPersonalTagCatalogRow, error) {
-	rows, err := q.db.Query(ctx, listPersonalTagCatalog, arg.ActorID, arg.Query)
+	rows, err := q.db.Query(ctx, listPersonalTagCatalog, arg.PermissionGranted, arg.ActorID, arg.Query)
 	if err != nil {
 		return nil, err
 	}

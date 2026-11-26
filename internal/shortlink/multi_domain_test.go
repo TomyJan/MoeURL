@@ -34,7 +34,7 @@ func TestCreateSelectsOnlyAnEnabledGrantedDomain(t *testing.T) {
 	`); err != nil {
 		t.Fatalf("prepare grants: %v", err)
 	}
-	service := shortlink.NewService(pool, permission.NewService())
+	service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 	defaultLink, err := service.Create(ctx, user, shortlink.CreateInput{TargetURL: "https://target.example.com"})
 	if err != nil || !strings.HasPrefix(defaultLink.ShortLink.URL, "https://go.example.com/") {
 		t.Fatalf("default link = %#v, %v", defaultLink, err)
@@ -91,16 +91,15 @@ func TestCreateRechecksCreatePermissionInsideDomainTransaction(t *testing.T) {
 	pool := testdb.ProjectMigratedPool(ctx, t)
 	insertShortLinkDefaultDomain(t, ctx, pool)
 	user := insertShortLinkUser(t, ctx, pool, "revoked-create", "user", permission.UserPermissions)
-	// The service's initial snapshot still permits creation, but the stored group
-	// loses that permission before the write transaction begins.
-	service := shortlink.NewService(pool, permission.NewService())
+	// Authorization must come from the current stored account, not a cached group set.
+	service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 	if _, err := pool.Exec(ctx, `
 		update user_group set permissions = permissions - 'short_link:create' where key = 'user'
 	`); err != nil {
 		t.Fatalf("revoke stored create permission: %v", err)
 	}
-	if _, err := service.Create(ctx, user, shortlink.CreateInput{TargetURL: "https://target.example.com"}); !errors.Is(err, shortlink.ErrDomainUnavailable) {
-		t.Fatalf("create after stored permission revocation = %v, want ErrDomainUnavailable", err)
+	if _, err := service.Create(ctx, user, shortlink.CreateInput{TargetURL: "https://target.example.com"}); !errors.Is(err, shortlink.ErrPermissionDenied) {
+		t.Fatalf("create after stored permission revocation = %v, want ErrPermissionDenied", err)
 	}
 	var count int
 	if err := pool.QueryRow(ctx, `select count(*) from short_link`).Scan(&count); err != nil || count != 0 {

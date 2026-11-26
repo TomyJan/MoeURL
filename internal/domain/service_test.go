@@ -51,9 +51,14 @@ func domainFixture(t *testing.T) (*domain.Service, *pgxpool.Pool, auth.CurrentUs
 		values($1,'domain-admin','Admin',$2,'active',false,now(),now())`, admin.ID, adminID); err != nil {
 		t.Fatalf("prepare persisted domain administrator: %v", err)
 	}
+	user := auth.CurrentUser{ID: uuid.NewString(), GroupKey: permission.GroupUser}
+	if _, err := pool.Exec(t.Context(), `insert into app_user(id,username,nickname,group_id,status,builtin,created_at,updated_at)
+		values($1,'domain-user','User',$2,'active',false,now(),now())`, user.ID, userID); err != nil {
+		t.Fatalf("prepare persisted domain user: %v", err)
+	}
 	return domain.NewService(pool, permission.NewService()), pool,
 		admin,
-		auth.CurrentUser{ID: uuid.NewString(), GroupKey: permission.GroupUser}
+		user
 }
 
 func TestAvailableDomainsReturnsEmptyForIneligibleActors(t *testing.T) {
@@ -83,6 +88,22 @@ func TestAvailableDomainsReturnsEmptyForIneligibleActors(t *testing.T) {
 	result, err := service.Available(t.Context(), user)
 	if err != nil || result.Items == nil || len(result.Items) != 0 {
 		t.Fatalf("no granted domains = %#v, error = %v", result, err)
+	}
+}
+
+func TestAvailableDomainsReturnsDatabaseReadFailure(t *testing.T) {
+	_, pool, _, user := domainFixture(t)
+	_, err := pool.Exec(t.Context(), `update user_group set permissions='["short_link:create","domain:use_default"]'::jsonb where key='user'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(t.Context(), `drop table domain_user_group`); err != nil {
+		t.Fatal(err)
+	}
+	service := domain.NewService(pool, permission.NewDatabaseService(pool))
+	result, err := service.Available(t.Context(), user)
+	if err == nil || result.Items == nil {
+		t.Fatalf("available domains with a failed grant read = %#v, %v", result, err)
 	}
 }
 
@@ -396,12 +417,6 @@ func TestDefaultSwitchAndConcurrentCreationUseTheNewDefault(t *testing.T) {
 	ctx := t.Context()
 	if _, err := pool.Exec(ctx, `update user_group set permissions = permissions || '["short_link:create"]'::jsonb where key = 'user'`); err != nil {
 		t.Fatalf("grant create permission: %v", err)
-	}
-	if _, err := pool.Exec(ctx, `
-		insert into app_user (id, username, nickname, group_id, status, builtin, created_at, updated_at)
-		select $1, 'switch-creator', 'Creator', id, 'active', false, now(), now() from user_group where key = 'user'
-	`, user.ID); err != nil {
-		t.Fatalf("prepare creator: %v", err)
 	}
 	next, err := service.Create(ctx, admin, domain.CreateInput{
 		Host: "https://next.example.com", DisplayName: "Next", AllowedGroups: []string{"user"}, Enabled: true,

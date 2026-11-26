@@ -93,6 +93,50 @@ func TestDomainPreferencePersistence(t *testing.T) {
 	}
 }
 
+func TestDomainPreferenceUsesSupplementalPermissionAndDomainGrant(t *testing.T) {
+	s, _, pool, actor, _, _, assigned := domainPreferenceFixture(t)
+	ctx := t.Context()
+	_, err := pool.Exec(ctx, `update user_group set permissions='["short_link:create","domain:use_default"]'::jsonb where key='user'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	supplementalID := uuid.New()
+	supplementalKey := uuid.NewString()
+	_, err = pool.Exec(ctx, `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at)
+		values($1,$2,'Assigned domain reader','["domain:use_assigned"]'::jsonb,false,now(),now())`, supplementalID, supplementalKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = pool.Exec(ctx, `delete from domain_user_group where domain_id=$1 and user_group_id=(select id from user_group where key='user')`, assigned.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = pool.Exec(ctx, `insert into domain_user_group(domain_id,user_group_id) values($1,$2)`, assigned.ID, supplementalID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = pool.Exec(ctx, `insert into app_user_group_membership(user_id,user_group_id) values($1,$2)`, actor.ID, supplementalID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	saved, err := s.Update(ctx, actor, user.UpdateDomainPreferenceInput{DomainID: &assigned.ID})
+	if err != nil {
+		t.Fatalf("supplemental permission and explicit domain grant were not combined: %v", err)
+	}
+	if saved.Preference.DomainID == nil || *saved.Preference.DomainID != assigned.ID {
+		t.Fatalf("saved domain = %#v, want %s", saved.Preference.DomainID, assigned.ID)
+	}
+	_, err = pool.Exec(ctx, `delete from app_user_group_membership where user_id=$1 and user_group_id=$2`, actor.ID, supplementalID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.Update(ctx, actor, user.UpdateDomainPreferenceInput{DomainID: &assigned.ID, ExpectedUpdatedAt: saved.Preference.UpdatedAt})
+	if !errors.Is(err, user.ErrPermissionDenied) {
+		t.Fatalf("revoked supplemental grant still authorized save: %v", err)
+	}
+}
+
 // TestDomainPreferenceAuthorizationAfterLockWait rechecks changes committed while the request was blocked.
 func TestDomainPreferenceAuthorizationAfterLockWait(t *testing.T) {
 	for _, change := range []string{"disabled", "deleted", "group_changed", "group_revoked", "grant_removed"} {

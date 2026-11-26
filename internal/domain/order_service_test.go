@@ -17,14 +17,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// orderFixture adds persisted actors: SetOrder intentionally ignores session group snapshots.
+// orderFixture grants create permission to the persisted actor: SetOrder ignores session group snapshots.
 func orderFixture(t *testing.T) (*domain.Service, *pgxpool.Pool, auth.CurrentUser, auth.CurrentUser, domain.Domain) {
 	t.Helper()
 	_, pool, admin, user := domainFixture(t)
-	_, err := pool.Exec(t.Context(), `insert into app_user(id,username,nickname,group_id,status,builtin,created_at,updated_at)
-		select $1,'order-user','User',id,'active',false,now(),now() from user_group where key='user'`, user.ID)
-	require.NoError(t, err)
-	_, err = pool.Exec(t.Context(), `update user_group set permissions=permissions || '["short_link:create"]'::jsonb where key='user'`)
+	_, err := pool.Exec(t.Context(), `update user_group set permissions=permissions || '["short_link:create"]'::jsonb where key='user'`)
 	require.NoError(t, err)
 	s := domain.NewService(pool, permission.NewDatabaseService(pool))
 	created, err := s.Create(t.Context(), admin, domain.CreateInput{Host: "https://ordered.example.com", DisplayName: "Ordered", Enabled: true, AllowedGroups: []string{"user", "admin"}})
@@ -84,6 +81,14 @@ func TestDomainOrderStableAuthorizedLists(t *testing.T) {
 	require.False(t, reordered.Enabled)
 	require.Equal(t, "Renamed", reordered.DisplayName)
 	require.Equal(t, []string{"admin"}, reordered.AllowedGroups)
+}
+
+func TestDomainOrderRejectsInvalidActorID(t *testing.T) {
+	s, _, _, _, d := orderFixture(t)
+	_, err := s.SetOrder(t.Context(), auth.CurrentUser{ID: "not-a-uuid", GroupKey: "admin"}, domain.SetOrderInput{
+		ID: d.ID, SortOrder: 1, ExpectedUpdatedAt: d.UpdatedAt,
+	})
+	require.ErrorIs(t, err, domain.ErrPermissionDenied)
 }
 
 // Catches no-op audit/version noise, lost updates and checking value before revision.

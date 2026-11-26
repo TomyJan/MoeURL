@@ -19,12 +19,16 @@ for share;
 
 -- name: GetGrantedDomainPreference :one
 select d.id from domain d
-join domain_user_group dg on dg.domain_id = d.id
-where d.id = sqlc.arg(domain_id) and dg.user_group_id = sqlc.arg(group_id)
+where d.id = sqlc.arg(domain_id)
+  and exists (
+      select 1 from domain_user_group dg
+      join user_group g on g.id = dg.user_group_id
+      where dg.domain_id = d.id and g.key = any(sqlc.arg(group_keys)::text[])
+  )
   and d.enabled and d.purpose = 'short_link'
   and ((d.is_default and sqlc.arg(can_default)::boolean)
        or (not d.is_default and sqlc.arg(can_assigned)::boolean))
-for share of d, dg;
+for share of d;
 
 -- name: SaveUserDomainPreference :one
 insert into user_domain_preference(user_id, domain_id)

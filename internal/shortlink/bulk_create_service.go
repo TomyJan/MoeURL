@@ -84,7 +84,7 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 		if err != nil {
 			return err
 		}
-		grants, err := permission.DecodeSnapshot(group.Permissions)
+		grants, err := permission.ResolveForAccountLockedIn(ctx, tx, s.permissions, actor.ID, group.Key)
 		if err != nil {
 			return err
 		}
@@ -152,7 +152,7 @@ func (s *Service) batchCreate(ctx context.Context, actor auth.CurrentUser, reque
 			return err
 		}
 		selected, err := q.GetGrantedShortLinkDomainForCreate(ctx, sqlc.GetGrantedShortLinkDomainForCreateParams{
-			GroupKey: group.Key, RequiredPermission: permission.DomainUseDefault, UseDefault: true,
+			GroupKeys: grants.GroupKeys(), UseDefault: true,
 			DomainID: uuidToPgtype(uuid.Nil),
 		})
 		if errors.Is(err, pgx.ErrNoRows) {

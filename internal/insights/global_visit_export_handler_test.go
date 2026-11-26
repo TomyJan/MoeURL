@@ -59,7 +59,7 @@ func TestGlobalVisitExportHTTP(t *testing.T) {
 // TestGlobalVisitExportFailures catches transaction faults, canceled work and private diagnostics.
 func TestGlobalVisitExportFailures(t *testing.T) {
 	pool, _, _, admin, _, _ := fixture(t)
-	for _, boundary := range []string{"begin ", "-- name: GetInsightActor", "-- name: GetUserGroupByKey", "-- name: GetInsightTime", "-- name: ExportGlobalInsightVisits", "commit"} {
+	for _, boundary := range []string{"begin ", "-- name: GetInsightActor", "-- name: ResolveAccountPermissions", "-- name: GetInsightTime", "-- name: ExportGlobalInsightVisits", "commit"} {
 		t.Run(boundary, func(t *testing.T) {
 			faultPool := tracedPool(t, pool, queryTracer{start: func(ctx context.Context, query string) context.Context {
 				if strings.HasPrefix(query, boundary) {

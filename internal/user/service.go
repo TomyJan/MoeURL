@@ -365,7 +365,7 @@ func (s *Service) ResetPassword(ctx context.Context, actor auth.CurrentUser, inp
 
 // authorizeAdmin resolves one permission snapshot for a managed-user operation.
 func (s *Service) authorizeAdmin(ctx context.Context, actor auth.CurrentUser) error {
-	permissions, err := s.permissions.Resolve(ctx, actor.GroupKey)
+	permissions, err := permission.ResolveForAccount(ctx, s.permissions, actor.ID, actor.GroupKey)
 	if err != nil {
 		return err
 	}

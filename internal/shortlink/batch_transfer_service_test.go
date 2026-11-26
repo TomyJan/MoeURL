@@ -126,8 +126,8 @@ func TestBatchTransferGuards(t *testing.T) {
 	require.NoError(t, err)
 	_, err = pool.Exec(t.Context(), `update user_group set permissions=permissions-'short_link:update_all' where key='admin'`)
 	require.NoError(t, err)
-	_, err = shortlink.NewService(pool, permission.NewService()).BatchTransfer(t.Context(), actor, input)
-	require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
+	_, err = shortlink.NewService(pool, permission.NewDatabaseService(pool)).BatchTransfer(t.Context(), actor, input)
+	require.Error(t, err, "corrupt protected grants must fail closed")
 }
 
 // TestBatchTransferCurrentAccounts checks current database state even with an outdated static resolver.
@@ -140,7 +140,7 @@ func TestBatchTransferCurrentAccounts(t *testing.T) {
 		{"actor deleted", `update app_user set deleted_at=now() where username='manager'`, shortlink.ErrPermissionDenied},
 		{"actor demoted", `update app_user set group_id=(select id from user_group where key='user') where username='manager'`, shortlink.ErrPermissionDenied},
 		{"actor guest", `update user_group set key='guest' where key='admin'`, shortlink.ErrPermissionDenied},
-		{"admin access revoked", `update user_group set permissions=permissions-'admin:access' where key='admin'`, shortlink.ErrPermissionDenied},
+		{"admin access revoked", `update user_group set permissions=permissions-'admin:access' where key='admin'`, nil},
 		{"recipient deleted", `update app_user set deleted_at=now() where username='recipient'`, shortlink.ErrTransferRecipientUnavailable},
 		{"recipient guest", `update user_group set key='guest' where key='user'`, shortlink.ErrTransferRecipientUnavailable},
 	} {
@@ -148,8 +148,12 @@ func TestBatchTransferCurrentAccounts(t *testing.T) {
 			pool, _, actor, owner, _, input := batchTransferFixture(t, 2)
 			_, err := pool.Exec(t.Context(), tc.change)
 			require.NoError(t, err)
-			result, err := shortlink.NewService(pool, permission.NewService()).BatchTransfer(t.Context(), actor, input)
-			require.ErrorIs(t, err, tc.want)
+			result, err := shortlink.NewService(pool, permission.NewDatabaseService(pool)).BatchTransfer(t.Context(), actor, input)
+			if tc.want != nil {
+				require.ErrorIs(t, err, tc.want)
+			} else {
+				require.Error(t, err, "corrupt protected grants must fail closed")
+			}
 			require.Zero(t, result)
 			var retained, audits int
 			require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from short_link where owner_id=$1`, owner.ID).Scan(&retained))

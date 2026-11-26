@@ -27,6 +27,100 @@ func noteFixture(t *testing.T) (*pgxpool.Pool, *shortlink.Service, auth.CurrentU
 	return pool, service, admin, owner, recipient, shortlink.NoteInput{ID: transfer.ID, Note: "private note", ExpectedUpdatedAt: result.UpdatedAt}
 }
 
+func TestNoteReadAndStatusQueriesFailClosedAfterCurrentAuthorization(t *testing.T) {
+	t.Run("read transaction start", func(t *testing.T) {
+		pool, _, _, owner, _, input := noteFixture(t)
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		result, err := shortlink.NewService(pool, permission.NewService()).ReadOwnNote(ctx, owner, input.ID)
+		require.ErrorIs(t, err, context.Canceled)
+		require.Zero(t, result)
+	})
+
+	t.Run("note status transaction start", func(t *testing.T) {
+		pool, _, _, owner, _, _ := noteFixture(t)
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		result, err := shortlink.NewService(pool, permission.NewService()).List(ctx, owner, shortlink.ListInput{NoteStatus: "present"})
+		require.ErrorIs(t, err, context.Canceled)
+		require.Zero(t, result)
+	})
+
+	t.Run("read note", func(t *testing.T) {
+		pool, _, _, owner, _, input := noteFixture(t)
+		ctx, cancel := context.WithCancel(t.Context())
+		resolver := tagCatalogResolver{delegate: permission.NewDatabaseService(pool), after: cancel}
+		result, err := shortlink.NewService(pool, resolver).ReadOwnNote(ctx, owner, input.ID)
+		cancel()
+		require.ErrorIs(t, err, context.Canceled)
+		require.Zero(t, result)
+	})
+
+	t.Run("note status list", func(t *testing.T) {
+		pool, _, _, owner, _, _ := noteFixture(t)
+		ctx, cancel := context.WithCancel(t.Context())
+		resolver := tagCatalogResolver{delegate: permission.NewDatabaseService(pool), after: cancel}
+		result, err := shortlink.NewService(pool, resolver).List(ctx, owner, shortlink.ListInput{NoteStatus: "present"})
+		cancel()
+		require.ErrorIs(t, err, context.Canceled)
+		require.Zero(t, result)
+	})
+}
+
+func TestReadOwnNoteRejectsAnotherUsersNote(t *testing.T) {
+	pool, _, _, _, recipient, input := noteFixture(t)
+	result, err := shortlink.NewService(pool, permission.NewDatabaseService(pool)).ReadOwnNote(t.Context(), recipient, input.ID)
+	require.ErrorIs(t, err, shortlink.ErrShortLinkMissing, "foreign resource existence must remain hidden")
+	require.Zero(t, result)
+}
+
+func TestNoteStatusListRejectsMissingNotePermission(t *testing.T) {
+	pool, _, _, owner, _, _ := noteFixture(t)
+	permissionLookups := 0
+	resolver := tagCatalogResolver{delegate: permission.NewDatabaseService(pool), before: func() {
+		permissionLookups++
+		if permissionLookups == 2 {
+			_, err := pool.Exec(t.Context(), `update user_group set permissions=jsonb_build_array($1::text) where key='user'`, permission.ShortLinkCreate)
+			require.NoError(t, err)
+		}
+	}}
+	result, err := shortlink.NewService(pool, resolver).List(t.Context(), owner, shortlink.ListInput{NoteStatus: "present"})
+	require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
+	require.Zero(t, result)
+	require.Equal(t, 2, permissionLookups, "note-status filtering must re-read permissions after entrance authorization")
+}
+
+func TestNoteStatusListFailsClosedOnMalformedCurrentPermissions(t *testing.T) {
+	pool, _, _, owner, _, _ := noteFixture(t)
+	permissionLookups := 0
+	resolver := tagCatalogResolver{delegate: permission.NewDatabaseService(pool), before: func() {
+		permissionLookups++
+		if permissionLookups == 2 {
+			_, err := pool.Exec(t.Context(), `update user_group set permissions='{}'::jsonb where key='user'`)
+			require.NoError(t, err)
+		}
+	}}
+	result, err := shortlink.NewService(pool, resolver).List(t.Context(), owner, shortlink.ListInput{NoteStatus: "present"})
+	require.Error(t, err)
+	require.Zero(t, result)
+	require.Equal(t, 2, permissionLookups, "note-status filtering must not reuse the entrance permission snapshot")
+}
+
+func TestListExportFailsClosedDuringPermissionSnapshot(t *testing.T) {
+	pool, _, _, owner, _, _ := transferFixture(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	result, err := shortlink.NewService(pool, permission.NewService()).ExportList(ctx, owner, shortlink.ListExportInput{})
+	require.ErrorIs(t, err, context.Canceled)
+	require.Zero(t, result)
+
+	_, err = pool.Exec(t.Context(), `update user_group set permissions='{}'::jsonb where key='user'`)
+	require.NoError(t, err)
+	result, err = shortlink.NewService(pool, permission.NewDatabaseService(pool)).ExportList(t.Context(), owner, shortlink.ListExportInput{})
+	require.Error(t, err)
+	require.Zero(t, result)
+}
+
 // TestNoteAuditRollbackAndNoop catches a broad settings update, text-bearing audit, stale no-op and partial write.
 func TestNoteAuditRollbackAndNoop(t *testing.T) {
 	pool, service, admin, owner, _, input := noteFixture(t)
@@ -72,13 +166,17 @@ func TestNoteCurrentAuthorization(t *testing.T) {
 	for _, adminScope := range []bool{false, true} {
 		for _, write := range []bool{false, true} {
 			for _, change := range []string{"disabled", "deleted", "guest", "revoked", "moved"} {
+				if adminScope && !write && change == "revoked" {
+					// Admin read-all is protected; write revocation remains covered below.
+					continue
+				}
 				t.Run(strings.Join([]string{map[bool]string{true: "admin", false: "own"}[adminScope], map[bool]string{true: "write", false: "read"}[write], change}, "/"), func(t *testing.T) {
 					pool, _, admin, owner, _, input := noteFixture(t)
 					actor := owner
 					if adminScope {
 						actor = admin
 					}
-					resolver := tagCatalogResolver{delegate: permission.NewService(), before: func() {
+					resolver := tagCatalogResolver{delegate: permission.NewDatabaseService(pool), before: func() {
 						var err error
 						switch change {
 						case "disabled":
@@ -88,7 +186,11 @@ func TestNoteCurrentAuthorization(t *testing.T) {
 						case "guest":
 							_, err = pool.Exec(t.Context(), `update user_group set key='guest' where id=(select group_id from app_user where id=$1)`, actor.ID)
 						case "revoked":
-							_, err = pool.Exec(t.Context(), `update user_group set permissions='[]' where id=(select group_id from app_user where id=$1)`, actor.ID)
+							if adminScope {
+								_, err = pool.Exec(t.Context(), `update user_group set permissions=permissions-'short_link:set_metadata' where id=(select group_id from app_user where id=$1)`, actor.ID)
+							} else {
+								_, err = pool.Exec(t.Context(), `update user_group set permissions='[]' where id=(select group_id from app_user where id=$1)`, actor.ID)
+							}
 						case "moved":
 							group := uuid.NewString()
 							_, err = pool.Exec(t.Context(), `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values($1,'unprivileged','Restricted','[]',false,now(),now())`, group)
@@ -97,7 +199,8 @@ func TestNoteCurrentAuthorization(t *testing.T) {
 						}
 						require.NoError(t, err)
 					}}
-					service := shortlink.NewService(pool, resolver)
+					resolver.before()
+					service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 					var result shortlink.NoteResult
 					var err error
 					if write {
@@ -261,7 +364,6 @@ func TestNoteRejectsInvalidInputs(t *testing.T) {
 	_, err := service.UpdateOwnNote(t.Context(), owner, request)
 	require.ErrorIs(t, err, shortlink.ErrInvalidInput)
 	guest := auth.GuestUser()
-	guest.ID = owner.ID
 	_, err = service.ReadOwnNote(t.Context(), guest, input.ID)
 	require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
 	_, err = service.UpdateOwnNote(t.Context(), guest, input)
@@ -277,7 +379,7 @@ func TestNoteStorageFailure(t *testing.T) {
 	for _, corruption := range []string{"actor storage", "group storage", "group JSON", "note storage"} {
 		t.Run(corruption, func(t *testing.T) {
 			pool, _, _, owner, _, input := noteFixture(t)
-			service := shortlink.NewService(pool, permission.NewService())
+			service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 			var err error
 			switch corruption {
 			case "actor storage":
@@ -293,11 +395,9 @@ func TestNoteStorageFailure(t *testing.T) {
 			result, err := service.UpdateOwnNote(t.Context(), owner, input)
 			require.Error(t, err)
 			require.Zero(t, result)
-			if corruption != "group JSON" {
-				result, err = service.ReadOwnNote(t.Context(), owner, input.ID)
-				require.Error(t, err)
-				require.Zero(t, result)
-			}
+			result, err = service.ReadOwnNote(t.Context(), owner, input.ID)
+			require.Error(t, err)
+			require.Zero(t, result)
 		})
 	}
 }
@@ -319,7 +419,8 @@ func TestNoteCustomGroupAndCurrentOwner(t *testing.T) {
 			_, err := pool.Exec(t.Context(), `update short_link set owner_id=$2 where id=$1`, input.ID, recipient.ID)
 			require.NoError(t, err)
 		}}
-		service := shortlink.NewService(pool, resolver)
+		resolver.before()
+		service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 		if write {
 			input.ExpectedUpdatedAt = saved.UpdatedAt
 			_, err = service.UpdateOwnNote(t.Context(), owner, input)

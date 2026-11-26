@@ -2,11 +2,13 @@ package usergroup
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
+	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
@@ -17,6 +19,12 @@ type defaultStoreFault struct {
 	groupDefaultStore
 	operation string
 	failure   error
+}
+
+type failingDefaultPermissionResolver struct{ err error }
+
+func (r failingDefaultPermissionResolver) Resolve(context.Context, string) (permission.Snapshot, error) {
+	return permission.Snapshot{}, r.err
 }
 
 // GetGroupDefaultReadActor models a failed identity read without substituting a granted permission set.
@@ -131,9 +139,53 @@ func TestGroupDefaultStoreFailures(t *testing.T) {
 	}
 	f := groupDefaultFixture(t)
 	f.s.store = defaultStoreFault{groupDefaultStore: f.s.store, operation: "current", failure: databaseFailure}
+	// Force the isolated store path so the injected current-row failure is observed.
+	f.s.pool = nil
 	result, err := f.s.GetCurrent(t.Context(), f.actor)
 	require.ErrorIs(t, err, databaseFailure)
 	require.Empty(t, result)
+	f.s.store = defaultStoreFault{groupDefaultStore: f.s.store, operation: "current", failure: pgx.ErrNoRows}
+	result, err = f.s.GetCurrent(t.Context(), f.actor)
+	require.ErrorIs(t, err, ErrPermissionDenied)
+	require.Empty(t, result)
+}
+
+func TestGroupDefaultGetCurrentAccountResolverAndFallback(t *testing.T) {
+	f := groupDefaultFixture(t)
+	_, err := f.pool.Exec(t.Context(), `update user_group set default_domain_id=$1 where key='admin'`, f.global)
+	require.NoError(t, err)
+	current, err := f.s.GetCurrent(t.Context(), f.actor)
+	require.NoError(t, err)
+	require.Equal(t, "available", current.Selection.Status)
+	require.Equal(t, &f.global, current.Selection.DomainID)
+
+	resolverErr := errors.New("account permissions unavailable")
+	f.s.permissions = failingDefaultPermissionResolver{err: resolverErr}
+	_, err = f.s.GetCurrent(t.Context(), f.actor)
+	require.ErrorIs(t, err, resolverErr)
+
+	f.s.pool = nil
+	f.s.permissions = nil
+	current, err = f.s.GetCurrent(t.Context(), f.actor)
+	require.NoError(t, err)
+	require.Equal(t, "available", current.Selection.Status)
+	require.Equal(t, &f.global, current.Selection.DomainID)
+	_, err = f.pool.Exec(t.Context(), `update user_group set permissions='{}'::jsonb where key='admin'`)
+	require.NoError(t, err)
+	_, err = f.s.GetCurrent(t.Context(), f.actor)
+	require.Error(t, err)
+
+	f.s.pool = f.pool
+	f.s.permissions = permission.NewDatabaseService(f.pool)
+	_, err = f.s.GetCurrent(t.Context(), auth.CurrentUser{ID: "00000000-0000-4000-8000-000000000000"})
+	require.ErrorIs(t, err, ErrPermissionDenied)
+	adminPermissions, err := json.Marshal(permission.AdminPermissions)
+	require.NoError(t, err)
+	_, err = f.pool.Exec(t.Context(), `update user_group set permissions=$1::jsonb where key='admin'`, adminPermissions)
+	require.NoError(t, err)
+	f.pool.Close()
+	_, err = f.s.GetCurrent(t.Context(), f.actor)
+	require.Error(t, err, "a failed read-only transaction start must not become an empty selection")
 }
 
 // Catches malformed public inputs reaching a database and noneditable groups becoming writable.

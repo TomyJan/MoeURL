@@ -1,15 +1,13 @@
 -- name: BatchSetShortLinkStatus :one
 WITH actor AS MATERIALIZED (
-    SELECT u.id, g.permissions
-    FROM app_user u JOIN user_group g ON g.id = u.group_id
+    SELECT u.id, sqlc.arg(permission_granted)::boolean AS permission_granted
+    FROM app_user u
     WHERE u.id = sqlc.arg(actor_id)::uuid
       AND u.status = 'active' AND u.deleted_at IS NULL
-      AND g.key = sqlc.arg(group_key)::text
-    FOR SHARE OF u, g
+    FOR SHARE OF u
 ), authorized_actor AS MATERIALIZED (
     SELECT EXISTS (
-        SELECT 1 FROM actor
-        WHERE permissions ?& sqlc.arg(required_permissions)::text[]
+        SELECT 1 FROM actor WHERE permission_granted
     ) AS authorized
 ), targets AS MATERIALIZED (
     SELECT s.id
@@ -32,16 +30,14 @@ SELECT (SELECT authorized FROM authorized_actor)::boolean AS authorized,
 
 -- name: BatchDeleteShortLinks :one
 WITH actor AS MATERIALIZED (
-    SELECT u.id, g.permissions
-    FROM app_user u JOIN user_group g ON g.id = u.group_id
+    SELECT u.id, sqlc.arg(permission_granted)::boolean AS permission_granted
+    FROM app_user u
     WHERE u.id = sqlc.arg(actor_id)::uuid
       AND u.status = 'active' AND u.deleted_at IS NULL
-      AND g.key = sqlc.arg(group_key)::text
-    FOR SHARE OF u, g
+    FOR SHARE OF u
 ), authorized_actor AS MATERIALIZED (
     SELECT EXISTS (
-        SELECT 1 FROM actor
-        WHERE permissions ?& sqlc.arg(required_permissions)::text[]
+        SELECT 1 FROM actor WHERE permission_granted
     ) AS authorized
 ), targets AS MATERIALIZED (
     SELECT s.id
