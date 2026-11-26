@@ -137,6 +137,12 @@ describe('supplemental group membership dialog', () => {
     expect((screen.getByRole('button', { name: 'supplementalMembership.save' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
+  it('renders the no-custom-group empty state when the directory has only built-ins', async () => {
+    mount({ target: { ...target, supplementalGroups: [] }, groups: groups.slice(0, 3), groupsReady: true, groupsLoading: false, groupsError: false })
+    expect(await screen.findByText('supplementalMembership.noGroups')).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'supplementalMembership.save' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
   it('ignores a late success after the frozen account revision changes', async () => {
     const pending = createDeferred<Response>()
     const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(() => pending.promise)
@@ -157,6 +163,22 @@ describe('supplemental group membership dialog', () => {
     expect(view.emitted().close).toHaveLength(2)
   })
 
+  it('ignores a late failure after the frozen account revision changes', async () => {
+    const pending = createDeferred<Response>()
+    const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(() => pending.promise)
+    vi.stubGlobal('fetch', fetcher)
+    const view = mount()
+    await fireEvent.click(screen.getByRole('checkbox', { name: 'Support' }))
+    await fireEvent.click(screen.getByRole('checkbox', { name: 'supplementalMembership.confirm' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'supplementalMembership.save' }))
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
+    await view.rerender({ target: { ...target, updatedAt: '2026-11-26T01:03:00Z' }, groups, groupsReady: true, groupsLoading: false, groupsError: false })
+    pending.reject(new Error('stale target failure'))
+    await waitFor(() => expect((screen.getByRole('button', { name: 'supplementalMembership.save' }) as HTMLButtonElement).disabled).toBe(true))
+    expect(view.emitted().refresh).toBeUndefined()
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
   it('ignores a late success after administrative permission is lost', async () => {
     const pending = createDeferred<Response>()
     const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(() => pending.promise)
@@ -169,6 +191,23 @@ describe('supplemental group membership dialog', () => {
     view.client.setQueryData(['auth', 'me'], { user: { id: '11111111-1111-4111-8111-111111111111', username: 'manager', group: 'user', permissions: [] } })
     await waitFor(() => expect(view.emitted().close).toHaveLength(1))
     pending.resolve(new Response(JSON.stringify({ code: 0, message: 'OK', data: { user: target }, meta: {} })))
+    await waitFor(() => expect((screen.getByRole('button', { name: 'supplementalMembership.save' }) as HTMLButtonElement).disabled).toBe(true))
+    expect(view.emitted().refresh).toBeUndefined()
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores a late failure after administrative permission is lost', async () => {
+    const pending = createDeferred<Response>()
+    const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(() => pending.promise)
+    vi.stubGlobal('fetch', fetcher)
+    const view = mount()
+    await fireEvent.click(screen.getByRole('checkbox', { name: 'Support' }))
+    await fireEvent.click(screen.getByRole('checkbox', { name: 'supplementalMembership.confirm' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'supplementalMembership.save' }))
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
+    view.client.setQueryData(['auth', 'me'], { user: { id: '11111111-1111-4111-8111-111111111111', username: 'manager', group: 'user', permissions: [] } })
+    await waitFor(() => expect(view.emitted().close).toHaveLength(1))
+    pending.reject(new Error('stale authorization failure'))
     await waitFor(() => expect((screen.getByRole('button', { name: 'supplementalMembership.save' }) as HTMLButtonElement).disabled).toBe(true))
     expect(view.emitted().refresh).toBeUndefined()
     expect(fetcher).toHaveBeenCalledTimes(1)
