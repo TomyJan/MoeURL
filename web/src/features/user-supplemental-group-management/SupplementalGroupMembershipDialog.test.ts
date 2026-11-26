@@ -77,6 +77,21 @@ describe('supplemental group membership dialog', () => {
     expect(JSON.parse(fetcher.mock.calls[0]![1]!.body as string)).toMatchObject({ id: target.id, expectedUpdatedAt: target.updatedAt, groupKeys: ['custom-ops', 'custom-support'] })
   })
 
+  it('uses the stable group key to order groups that share the same display name', async () => {
+    const view = mount({
+      target: { ...target, supplementalGroups: [] },
+      groups: [...groups, { ...groups[3]!, key: 'custom-a', name: 'Shared' }, { ...groups[4]!, key: 'custom-z', name: 'Shared' }],
+      groupsReady: true,
+      groupsLoading: false,
+      groupsError: false,
+    })
+    const options = screen.getAllByRole('checkbox').map(element => element.getAttribute('aria-label'))
+    expect(options.indexOf('Shared')).toBeGreaterThanOrEqual(0)
+    expect(options.filter(name => name === 'Shared')).toHaveLength(2)
+    await fireEvent.click(screen.getByRole('button', { name: 'supplementalMembership.cancel' }))
+    expect(view.emitted().close).toHaveLength(1)
+  })
+
   it('clears the snapshot and asks the owner to read back after conflict without replaying the write', async () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({ code: 300105, message: 'private conflict detail', data: null, meta: {} })))
     vi.stubGlobal('fetch', fetcher)
