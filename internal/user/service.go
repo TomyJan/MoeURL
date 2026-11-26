@@ -170,15 +170,23 @@ func (s *Service) List(ctx context.Context, actor auth.CurrentUser, input ListIn
 
 	items := make([]UserSummary, 0, len(rows))
 	for _, row := range rows {
+		var supplementalGroups []GroupMembership
+		if err := json.Unmarshal([]byte(row.SupplementalGroups), &supplementalGroups); err != nil {
+			return ListResult{}, err
+		}
+		if supplementalGroups == nil {
+			supplementalGroups = []GroupMembership{}
+		}
 		items = append(items, UserSummary{
-			ID:        uuidFromPgtype(row.ID),
-			Username:  row.Username,
-			Nickname:  row.Nickname,
-			Group:     row.GroupKey,
-			Status:    row.Status,
-			Builtin:   row.Builtin,
-			CreatedAt: formatTime(row.CreatedAt),
-			UpdatedAt: formatTime(row.UpdatedAt),
+			ID:                 uuidFromPgtype(row.ID),
+			Username:           row.Username,
+			Nickname:           row.Nickname,
+			Group:              row.GroupKey,
+			SupplementalGroups: supplementalGroups,
+			Status:             row.Status,
+			Builtin:            row.Builtin,
+			CreatedAt:          formatTime(row.CreatedAt),
+			UpdatedAt:          formatTime(row.UpdatedAt),
 		})
 	}
 
@@ -229,17 +237,12 @@ func (s *Service) Update(ctx context.Context, actor auth.CurrentUser, input Upda
 	if err != nil {
 		return UpdateResult{}, err
 	}
+	supplementalGroups, err := s.queries.GetSupplementalUserGroupsByID(ctx, updated.ID)
+	if err != nil {
+		return UpdateResult{}, err
+	}
 
-	return UpdateResult{User: UserSummary{
-		ID:        uuidFromPgtype(updated.ID),
-		Username:  updated.Username,
-		Nickname:  updated.Nickname,
-		Group:     group.Key,
-		Status:    updated.Status,
-		Builtin:   updated.Builtin,
-		CreatedAt: formatTime(updated.CreatedAt),
-		UpdatedAt: formatTime(updated.UpdatedAt),
-	}}, nil
+	return UpdateResult{User: userSummaryWithSupplementalGroups(updated, group.Key, membershipsFromRows(supplementalGroups))}, nil
 }
 
 // UpdateProfile changes the current user's own nickname.
@@ -274,6 +277,7 @@ func (s *Service) UpdateProfile(ctx context.Context, actor auth.CurrentUser, inp
 	var updated sqlc.AppUser
 	var group sqlc.UserGroup
 	var permissions []string
+	var supplementalGroups []string
 	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
 		txQueries := s.queries.WithTx(tx)
 		var err error
@@ -294,6 +298,10 @@ func (s *Service) UpdateProfile(ctx context.Context, actor auth.CurrentUser, inp
 		if err := json.Unmarshal(group.Permissions, &permissions); err != nil {
 			return err
 		}
+		supplementalGroups, err = txQueries.GetSupplementalUserGroupKeysByUserID(ctx, updated.ID)
+		if err != nil {
+			return err
+		}
 		return nil
 	})
 	if err != nil {
@@ -301,11 +309,12 @@ func (s *Service) UpdateProfile(ctx context.Context, actor auth.CurrentUser, inp
 	}
 
 	return UpdateProfileResult{User: auth.CurrentUser{
-		ID:          uuidFromPgtype(updated.ID),
-		Username:    updated.Username,
-		Nickname:    updated.Nickname,
-		GroupKey:    group.Key,
-		Permissions: permissions,
+		ID:                 uuidFromPgtype(updated.ID),
+		Username:           updated.Username,
+		Nickname:           updated.Nickname,
+		GroupKey:           group.Key,
+		SupplementalGroups: supplementalGroups,
+		Permissions:        permissions,
 	}}, nil
 }
 

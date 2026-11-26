@@ -1,8 +1,10 @@
 # 开发进度与能力清单
 
-## 当前实施（2026-11-26，v0.93.0）
+## 当前实施（2026-11-26，v0.94.0）
 
-[自定义组批量成员迁移](scope-v0.93.0.md)产品实现提交 `50383a94`、基线 `1863adae`；独立终审及已有 CodeRabbit findings 已修复。PR #424 对 `0d96561b` 的最新 review 指出用户列表读取失败时禁用请求被跳过；follow-up 现按登记 ID 始终尝试禁用，并新增回归。Node `26.3.0`／pnpm `11.5.0` cleanup fault-injection 3/3、全量 Vitest 292 文件／7,342 测试，语句／分支／函数／行 coverage 100%；typecheck、三文件 ESLint、E2E strict tsc 与 build 通过。Playwright fallback setup、1280 px 英文桌面、390 px 中文手机 3/3。临时 PostgreSQL 通过 psql 顺序应用 migration Up SQL，不表示 Goose CLI／Compose／标准 Dockerfile build；app 与容器已停止／移除，端口释放、无持久卷。新准确 PR head review、合并核验和 whole-owned 归档待；不查 CI／checks、不发布部署、不触碰 PR #240/#266/#267。详见[验收](../implementation/v0.93.0-acceptance.md)。
+v0.93.0 [自定义组批量成员迁移](scope-v0.93.0.md)已由 PR #424 正常 squash 合并为 `ca25239d377900f2c681006425e1b27ed96196f4`；tree `af4f2bcbe113b1980d46686344fbb2a03491303e`、唯一 parent `1863adae48237883ec1d4c26ec7323d167b88267` 经 GitHub 元数据与独立 fetch 核验。准确 head `bbc2ce576132bd7cf17b8ad42d9c3172f3d85783` 的真实 CodeRabbit source／covered SHA 一致、无 actionable comments；本地验证、归档及清理边界见[v0.93 验收](../implementation/v0.93.0-acceptance.md)。whole-owned ZIP SHA-256 `30B220F2D506EAD3016451BF6B8D12B499E9064EAF5320073F69A2A4C3A9FA87`；41 个源成员逐项核验，离线恢复及 `git fsck --full` 通过。v0.93.0 未正式发布；不查 CI/checks、不发布部署、不触碰 PR #240/#266/#267。
+
+当前 [v0.94.0 多组补充授权](scope-v0.94.0.md)的设计与建造者检查已完成；Task 1 migration／SQLC／成员计数已在 `77d1e858`／`2481bad7` 本地验证并提交，Task 2 CAS 成员 API、Session／审计事务、主组迁移冲突保护及用户／`auth/me` 身份读回已实现。`go test ./... -count=1` 的历史结果对应 Task 2 生产实现提交；其后新增关联写失败回归已单独重跑 `go test ./internal/user -count=1`，当前 Task 1–2 代码／测试提交范围为 `77d1e858..7f34f0f2`，不把历史全量结果外推为当前 tip 的全量门禁。权限 Resolver、域名、前端、独立任务审查、准确 head CodeRabbit、集成与完整验收继续按计划推进；状态见[范围](scope-v0.94.0.md)、[计划](../superpowers/plans/2026-11-26-v0.94.0-supplemental-user-groups.md)、[任务](../implementation/v0.94.0-tasks.md)及[验收](../implementation/v0.94.0-acceptance.md)。目标 CI、标准构建和正式发布仍未验收。
 
 ## 最近完成（2026-11-25，v0.92.0）
 

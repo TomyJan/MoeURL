@@ -143,6 +143,17 @@ func (s *Service) BatchChangeGroup(ctx context.Context, actor auth.CurrentUser, 
 			return ErrInvalidInput
 		}
 		for _, target := range targets {
+			supplementalGroups, err := q.GetSupplementalUserGroupKeysByUserID(ctx, target.ID)
+			if err != nil {
+				return err
+			}
+			for _, key := range supplementalGroups {
+				if key == destinationGroup.Key {
+					return ErrInvalidInput
+				}
+			}
+		}
+		for _, target := range targets {
 			if target.GroupID == destinationGroup.ID {
 				result.UnchangedCount++
 				continue

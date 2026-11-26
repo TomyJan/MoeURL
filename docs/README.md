@@ -1,9 +1,10 @@
 # MoeURL 文档中心
 
-## 当前开发（2026-11-26，v0.93.0）
+## 当前开发（2026-11-26，v0.94.0）
 
-[自定义组批量成员迁移](product/scope-v0.93.0.md)产品实现提交 `50383a94`；独立终审两项 Minor、CodeRabbit 三项 Minor及两项 cleanup Minor 均已修复。cleanup helper fault-injection 3/3；Node `26.3.0`／pnpm `11.5.0` 全量 Vitest 292/292、7,342/7,342，四项 coverage 均 100%；typecheck、定向 ESLint、E2E strict tsc 与 production build 通过。Playwright fallback setup、英文桌面、中文手机 3/3（Node `26.3.0`／pnpm `11.5.0`）。隔离 PostgreSQL 按序执行 migration Up SQL 仅作 E2E fixture，不代表 Goose CLI、标准 Compose 或 Dockerfile。PR #424 准确最新 head 的 CodeRabbit、正常合并核验与 whole-owned 可恢复归档待；不发布部署、不触碰 PR #240/#266/#267。详见[v0.93 验收](implementation/v0.93.0-acceptance.md)。
-PR #424 对 `0d96561b` 的 review 还发现用户列表读取失败会跳过已登记账号禁用；follow-up 已改为按创建时登记 ID 始终尝试禁用，并新增回归。此 fix 与准确 head review 的边界、环境及资源清理见[v0.93 验收](implementation/v0.93.0-acceptance.md)。
+[v0.93.0 自定义组批量成员迁移](product/scope-v0.93.0.md)已由 PR #424 正常 squash 合并为 `ca25239d377900f2c681006425e1b27ed96196f4`；tree `af4f2bcbe113b1980d46686344fbb2a03491303e`、唯一 parent `1863adae48237883ec1d4c26ec7323d167b88267` 经 GitHub 元数据与独立 fetch 核验。准确 head `bbc2ce576132bd7cf17b8ad42d9c3172f3d85783` 的 CodeRabbit source／covered SHA 一致，结论无 actionable comments；本地门禁、Playwright fallback 和限制见[验收](implementation/v0.93.0-acceptance.md)。whole-owned 归档为 30,743,854 bytes、SHA-256 `30B220F2D506EAD3016451BF6B8D12B499E9064EAF5320073F69A2A4C3A9FA87`，41 个成员逐项 hash／长度、离线 bundle 恢复及 `git fsck --full` 均已核验；feature 分支、远端分支、专属 worktree 和 PR attachment 已清理。未查 CI、不发布部署、不触碰 PR #240/#266/#267。
+
+当前 [v0.94.0 多组补充授权](product/scope-v0.94.0.md)已完成范围、技术设计和建造者检查。Task 1 持久化结构与成员计数、Task 2 CAS 成员 API／身份读回已实现并通过本地后端验证；权限 Resolver、域名、前端及整版验收继续按计划推进。文档入口：[范围](product/scope-v0.94.0.md)、[技术设计](superpowers/specs/2026-11-26-v0.94.0-supplemental-user-groups-design.md)、[计划](superpowers/plans/2026-11-26-v0.94.0-supplemental-user-groups.md)、[任务](implementation/v0.94.0-tasks.md)和[验收](implementation/v0.94.0-acceptance.md)。目标 CI、标准构建及正式发布未验收，产品未正式发布。
 
 v0.93.0 文档入口：[范围](product/scope-v0.93.0.md)、[设计](superpowers/specs/2026-11-25-v0.93.0-custom-group-batch-design.md)、[实施计划](superpowers/plans/2026-11-25-v0.93.0-custom-group-batch-plan.md)及[验收](implementation/v0.93.0-acceptance.md)。
 

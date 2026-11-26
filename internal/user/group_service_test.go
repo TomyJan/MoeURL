@@ -111,6 +111,216 @@ func TestChangeGroupSupportsCustomGroupAndUsesItsCurrentPermissions(t *testing.T
 	require.Empty(t, identity.Permissions, "the next request must observe custom-group permission revocation")
 }
 
+func TestChangeGroupResponseRetainsSupplementalGroups(t *testing.T) {
+	pool, service, actor, id := groupFixture(t)
+	customKey := uuid.NewString()
+	_, err := pool.Exec(t.Context(), `insert into user_group(id,key,name,description,permissions,builtin,created_at,updated_at)
+		values(gen_random_uuid(),$1,'Operations','', '[]'::jsonb, false, now(), now())`, customKey)
+	require.NoError(t, err)
+	_, err = pool.Exec(t.Context(), `insert into app_user_group_membership(user_id,user_group_id)
+		values ($1,(select id from user_group where key=$2))`, id, customKey)
+	require.NoError(t, err)
+
+	result, err := service.ChangeGroup(t.Context(), actor, user.ChangeGroupInput{
+		ID: id, GroupKey: "admin", ExpectedUpdatedAt: groupVersion(t, pool, id),
+	})
+	require.NoError(t, err)
+	require.Equal(t, "admin", result.User.Group)
+	require.Equal(t, []user.GroupMembership{{Key: customKey, Name: "Operations"}}, result.User.SupplementalGroups)
+}
+
+func TestChangeGroupRejectsDestinationAlreadyInSupplementalSet(t *testing.T) {
+	pool, service, actor, targetID := groupFixture(t)
+	customKey := uuid.NewString()
+	_, err := pool.Exec(t.Context(), `insert into user_group(id,key,name,description,permissions,builtin,created_at,updated_at)
+		values(gen_random_uuid(),$1,'Supplemental','', '[]'::jsonb,false,now(),now())`, customKey)
+	require.NoError(t, err)
+	_, err = pool.Exec(t.Context(), `insert into app_user_group_membership(user_id,user_group_id)
+		values ($1,(select id from user_group where key=$2))`, targetID, customKey)
+	require.NoError(t, err)
+	version := groupVersion(t, pool, targetID)
+
+	_, err = service.ChangeGroup(t.Context(), actor, user.ChangeGroupInput{
+		ID: targetID, GroupKey: customKey, ExpectedUpdatedAt: version,
+	})
+	require.ErrorIs(t, err, user.ErrInvalidInput, "a primary group cannot also remain in the supplemental set")
+	require.Equal(t, version, groupVersion(t, pool, targetID), "rejected primary changes must leave the account version unchanged")
+}
+
+func TestUpdateGroupMembershipsReplacesCASAndRevokesSessions(t *testing.T) {
+	pool, service, actor, id := groupFixture(t)
+	const firstKey = "550e8400-e29b-41d4-a716-446655440090"
+	const secondKey = "550e8400-e29b-41d4-a716-446655440091"
+	_, err := pool.Exec(t.Context(), `
+		insert into user_group(id,key,name,description,permissions,builtin,created_at,updated_at)
+		values
+			(gen_random_uuid(),$1,'Alpha','', '[]'::jsonb,false,now(),now()),
+			(gen_random_uuid(),$2,'Beta','', '[]'::jsonb,false,now(),now())
+	`, firstKey, secondKey)
+	require.NoError(t, err)
+	version := groupVersion(t, pool, id)
+	sessions := auth.NewSessionService(pool, time.Hour)
+	oldSession, err := sessions.Create(t.Context(), id)
+	require.NoError(t, err)
+
+	result, err := service.UpdateGroupMemberships(t.Context(), actor, user.UpdateGroupMembershipsInput{
+		ID: id, GroupKeys: []string{secondKey, firstKey}, ExpectedUpdatedAt: version,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "user", result.User.Group)
+	require.NotEqual(t, version, result.User.UpdatedAt)
+	require.Equal(t, []user.GroupMembership{
+		{Key: firstKey, Name: "Alpha"}, {Key: secondKey, Name: "Beta"},
+	}, result.User.SupplementalGroups)
+	_, err = sessions.Resolve(t.Context(), oldSession.ID)
+	require.ErrorIs(t, err, auth.ErrInvalidSession)
+
+	var auditCount int
+	require.NoError(t, pool.QueryRow(t.Context(), `
+		select count(*) from audit_log
+		where actor_id=$1 and resource_type='user' and resource_id=$2 and action='update'
+		and changed_fields=array['group_memberships']
+	`, actor.ID, id).Scan(&auditCount))
+	require.Equal(t, 1, auditCount)
+
+	currentSession, err := sessions.Create(t.Context(), id)
+	require.NoError(t, err)
+	identity, err := auth.NewService(pool, time.Hour).Me(t.Context(), currentSession.ID)
+	require.NoError(t, err)
+	require.Equal(t, []string{firstKey, secondKey}, identity.SupplementalGroups)
+	listed, err := service.List(t.Context(), actor, user.ListInput{})
+	require.NoError(t, err)
+	for _, item := range listed.Items {
+		if item.ID == id {
+			require.Equal(t, []user.GroupMembership{{Key: firstKey, Name: "Alpha"}, {Key: secondKey, Name: "Beta"}}, item.SupplementalGroups)
+		}
+	}
+	noOp, err := service.UpdateGroupMemberships(t.Context(), actor, user.UpdateGroupMembershipsInput{
+		ID: id, GroupKeys: []string{firstKey, secondKey}, ExpectedUpdatedAt: result.User.UpdatedAt,
+	})
+	require.NoError(t, err)
+	require.Equal(t, result.User.UpdatedAt, noOp.User.UpdatedAt)
+	_, err = sessions.Resolve(t.Context(), currentSession.ID)
+	require.NoError(t, err, "an exact no-op must not revoke active sessions")
+	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from audit_log where resource_id=$1 and changed_fields=array['group_memberships']`, id).Scan(&auditCount))
+	require.Equal(t, 1, auditCount, "an exact no-op must not add an audit row")
+
+	_, err = service.UpdateGroupMemberships(t.Context(), actor, user.UpdateGroupMembershipsInput{
+		ID: id, GroupKeys: []string{firstKey, secondKey}, ExpectedUpdatedAt: version,
+	})
+	require.ErrorIs(t, err, user.ErrVersionConflict, "a stale same-value request must conflict before no-op handling")
+}
+
+func TestUpdateGroupMembershipsRejectsBuiltinSelfDuplicateAndPrimaryGroup(t *testing.T) {
+	pool, service, actor, targetID := groupFixture(t)
+	const customKey = "550e8400-e29b-41d4-a716-446655440092"
+	_, err := pool.Exec(t.Context(), `insert into user_group(id,key,name,description,permissions,builtin,created_at,updated_at)
+		values(gen_random_uuid(),$1,'Supplemental','', '[]'::jsonb,false,now(),now())`, customKey)
+	require.NoError(t, err)
+	_, err = pool.Exec(t.Context(), `update app_user set group_id=(select id from user_group where key='admin') where id=$1`, targetID)
+	require.NoError(t, err)
+
+	_, err = service.UpdateGroupMemberships(t.Context(), actor, user.UpdateGroupMembershipsInput{
+		ID: targetID, GroupKeys: []string{customKey}, ExpectedUpdatedAt: groupVersion(t, pool, targetID),
+	})
+	require.NoError(t, err, "a non-builtin account with the admin primary group remains eligible")
+
+	version := groupVersion(t, pool, targetID)
+	for _, keys := range [][]string{{customKey, customKey}, {"550E8400-E29B-41D4-A716-446655440092"}, {"550e8400-e29b-41d4-a716-446655440099"}} {
+		_, err = service.UpdateGroupMemberships(t.Context(), actor, user.UpdateGroupMembershipsInput{ID: targetID, GroupKeys: keys, ExpectedUpdatedAt: version})
+		require.ErrorIs(t, err, user.ErrInvalidInput)
+	}
+	_, err = pool.Exec(t.Context(), `update app_user set group_id=(select id from user_group where key=$1) where id=$2`, customKey, targetID)
+	require.NoError(t, err)
+	_, err = service.UpdateGroupMemberships(t.Context(), actor, user.UpdateGroupMembershipsInput{
+		ID: targetID, GroupKeys: []string{customKey}, ExpectedUpdatedAt: groupVersion(t, pool, targetID),
+	})
+	require.ErrorIs(t, err, user.ErrInvalidInput, "the primary group cannot be repeated in the supplemental set")
+
+	builtinID := insertAppUser(t, t.Context(), pool, "builtin-membership-target", "", "Builtin", "user", "active", true)
+	_, err = service.UpdateGroupMemberships(t.Context(), actor, user.UpdateGroupMembershipsInput{
+		ID: builtinID, GroupKeys: []string{customKey}, ExpectedUpdatedAt: groupVersion(t, pool, builtinID),
+	})
+	require.ErrorIs(t, err, user.ErrBuiltinUserImmutable)
+
+	_, err = service.UpdateGroupMemberships(t.Context(), actor, user.UpdateGroupMembershipsInput{
+		ID: actor.ID, GroupKeys: []string{}, ExpectedUpdatedAt: groupVersion(t, pool, actor.ID),
+	})
+	require.ErrorIs(t, err, user.ErrSelfGroupChange)
+}
+
+func TestUpdateGroupMembershipsAuditFailureRollsBackMembersVersionAndSessions(t *testing.T) {
+	pool, service, actor, targetID := groupFixture(t)
+	const firstKey = "550e8400-e29b-41d4-a716-446655440093"
+	const secondKey = "550e8400-e29b-41d4-a716-446655440094"
+	_, err := pool.Exec(t.Context(), `
+		insert into user_group(id,key,name,description,permissions,builtin,created_at,updated_at)
+		values (gen_random_uuid(),$1,'First','', '[]'::jsonb,false,now(),now()), (gen_random_uuid(),$2,'Second','', '[]'::jsonb,false,now(),now())
+	`, firstKey, secondKey)
+	require.NoError(t, err)
+	version := groupVersion(t, pool, targetID)
+	session, err := auth.NewSessionService(pool, time.Hour).Create(t.Context(), targetID)
+	require.NoError(t, err)
+	_, err = pool.Exec(t.Context(), `alter table audit_log add constraint reject_membership_audit check (changed_fields <> array['group_memberships']::text[]) not valid`)
+	require.NoError(t, err)
+
+	_, err = service.UpdateGroupMemberships(t.Context(), actor, user.UpdateGroupMembershipsInput{
+		ID: targetID, GroupKeys: []string{firstKey, secondKey}, ExpectedUpdatedAt: version,
+	})
+	require.Error(t, err)
+	require.Equal(t, version, groupVersion(t, pool, targetID))
+	var memberships int
+	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from app_user_group_membership where user_id=$1`, targetID).Scan(&memberships))
+	require.Zero(t, memberships)
+	_, err = auth.NewSessionService(pool, time.Hour).Resolve(t.Context(), session.ID)
+	require.NoError(t, err, "audit failure must roll back session revocation")
+}
+
+func TestUpdateGroupMembershipsSecondInsertFailureRollsBackMembersVersionAndSessions(t *testing.T) {
+	pool, service, actor, targetID := groupFixture(t)
+	const firstKey = "550e8400-e29b-41d4-a716-446655440095"
+	const secondKey = "550e8400-e29b-41d4-a716-446655440096"
+	_, err := pool.Exec(t.Context(), `
+		insert into user_group(id,key,name,description,permissions,builtin,created_at,updated_at)
+		values ($1::uuid,$1,'First','', '[]'::jsonb,false,now(),now()), ($2::uuid,$2,'Second','', '[]'::jsonb,false,now(),now())
+	`, firstKey, secondKey)
+	require.NoError(t, err)
+	version := groupVersion(t, pool, targetID)
+	session, err := auth.NewSessionService(pool, time.Hour).Create(t.Context(), targetID)
+	require.NoError(t, err)
+	_, err = pool.Exec(t.Context(), `alter table app_user_group_membership add constraint reject_second_membership_insert check (user_group_id <> '550e8400-e29b-41d4-a716-446655440096'::uuid) not valid`)
+	require.NoError(t, err)
+
+	_, err = service.UpdateGroupMemberships(t.Context(), actor, user.UpdateGroupMembershipsInput{
+		ID: targetID, GroupKeys: []string{firstKey, secondKey}, ExpectedUpdatedAt: version,
+	})
+	require.Error(t, err, "the second association insert must fail after the first one succeeds inside the transaction")
+	require.Equal(t, version, groupVersion(t, pool, targetID))
+	var memberships int
+	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from app_user_group_membership where user_id=$1`, targetID).Scan(&memberships))
+	require.Zero(t, memberships, "the failed replacement must not leave its first association behind")
+	var audits int
+	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from audit_log where resource_id=$1 and changed_fields=array['group_memberships']`, targetID).Scan(&audits))
+	require.Zero(t, audits)
+	_, err = auth.NewSessionService(pool, time.Hour).Resolve(t.Context(), session.ID)
+	require.NoError(t, err, "a failed replacement must not revoke existing sessions")
+}
+
+func TestUpdateGroupMembershipsRejectsCorruptSupplementalPermissions(t *testing.T) {
+	pool, service, actor, targetID := groupFixture(t)
+	customKey := uuid.NewString()
+	_, err := pool.Exec(t.Context(), `insert into user_group(id,key,name,description,permissions,builtin,created_at,updated_at)
+		values(gen_random_uuid(),$1,'Corrupt grant','', '["admin:access"]'::jsonb,false,now(),now())`, customKey)
+	require.NoError(t, err)
+	_, err = service.UpdateGroupMemberships(t.Context(), actor, user.UpdateGroupMembershipsInput{
+		ID: targetID, GroupKeys: []string{customKey}, ExpectedUpdatedAt: groupVersion(t, pool, targetID),
+	})
+	require.Error(t, err, "a corrupt custom group must not be attached and later grant a protected permission")
+	var count int
+	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from app_user_group_membership where user_id=$1`, targetID).Scan(&count))
+	require.Zero(t, count)
+}
+
 // TestChangeGroupGuards prevents forged entry-point roles, protected account edits and stale writes.
 func TestChangeGroupGuards(t *testing.T) {
 	pool, service, actor, id := groupFixture(t)

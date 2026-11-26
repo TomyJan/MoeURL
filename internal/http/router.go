@@ -83,6 +83,7 @@ type Dependencies struct {
 	User                              user.Port
 	UserMembership                    user.GroupPort
 	UserBatchMembership               user.BatchGroupPort
+	UserSupplementalMembership        user.SupplementalMembershipPort
 	UserPreferences                   user.PreferencesPort
 	UserDomainPreference              user.DomainPreferencePort
 	UserTimeZonePreference            user.TimeZonePreferencePort
@@ -431,6 +432,10 @@ func NewRouter(deps ...Dependencies) nethttp.Handler {
 			if dependency.UserBatchMembership != nil {
 				batchHandler := user.NewBatchGroupHandler(dependency.UserBatchMembership, logger)
 				businessAPI.Post("/admin/user/batch-change-group", batchHandler.Change)
+			}
+			if dependency.UserSupplementalMembership != nil {
+				membershipHandler := user.NewMembershipHandler(dependency.UserSupplementalMembership, logger)
+				businessAPI.Post("/admin/user/update-group-memberships", membershipHandler.Update)
 			}
 			if dependency.UserPreferences != nil {
 				preferencesHandler := user.NewPreferencesHandler(dependency.UserPreferences, logger)

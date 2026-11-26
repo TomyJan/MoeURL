@@ -167,6 +167,43 @@ func TestCustomServiceCreatePermissionUpdateAndDelete(t *testing.T) {
 	require.Zero(t, remaining)
 }
 
+func TestCustomServiceCountsSupplementalMembersOnceAndProtectsDelete(t *testing.T) {
+	_, pool, actor, _ := permissionWriterFixture(t)
+	service := NewCustomService(pool)
+	created, err := service.Create(t.Context(), actor, CreateCustomGroupInput{Name: "Supplemental operators"})
+	require.NoError(t, err)
+
+	primaryAndSupplementalID := uuid.NewString()
+	supplementalOnlyID := uuid.NewString()
+	_, err = pool.Exec(t.Context(), `
+		insert into app_user(id,username,nickname,group_id,status,builtin,created_at,updated_at)
+		values
+			($1,'primary-supplemental','Primary and supplemental',(select id from user_group where key=$3),'active',false,now(),now()),
+			($2,'supplemental-only','Supplemental only',(select id from user_group where key='user'),'active',false,now(),now())
+	`, primaryAndSupplementalID, supplementalOnlyID, created.Group.Key)
+	require.NoError(t, err)
+	_, err = pool.Exec(t.Context(), `
+		insert into app_user_group_membership(user_id,user_group_id)
+		values ($1,(select id from user_group where key=$3)),($2,(select id from user_group where key=$3))
+	`, primaryAndSupplementalID, supplementalOnlyID, created.Group.Key)
+	require.NoError(t, err)
+
+	groups, err := sqlc.New(pool).ListUserGroups(t.Context())
+	require.NoError(t, err)
+	var memberCount int64 = -1
+	for _, group := range groups {
+		if group.Key == created.Group.Key {
+			memberCount = group.MemberCount
+		}
+	}
+	require.EqualValues(t, 2, memberCount, "primary and supplemental references for one account count once")
+
+	_, err = service.Delete(t.Context(), actor, DeleteCustomGroupInput{
+		GroupKey: created.Group.Key, ExpectedUpdatedAt: created.Group.UpdatedAt,
+	})
+	require.ErrorIs(t, err, ErrUserGroupHasMembers)
+}
+
 func TestCustomServiceRechecksCurrentDatabaseAuthorization(t *testing.T) {
 	_, pool, actor, _ := permissionWriterFixture(t)
 	_, err := pool.Exec(t.Context(), `update user_group set permissions = permissions - 'admin:access' where key = 'admin'`)

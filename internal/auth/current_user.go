@@ -10,11 +10,12 @@ import (
 type currentUserContextKey struct{}
 
 type CurrentUser struct {
-	ID          string   `json:"id"`
-	Username    string   `json:"username"`
-	Nickname    string   `json:"nickname"`
-	GroupKey    string   `json:"group"`
-	Permissions []string `json:"permissions"`
+	ID                 string   `json:"id"`
+	Username           string   `json:"username"`
+	Nickname           string   `json:"nickname"`
+	GroupKey           string   `json:"group"`
+	SupplementalGroups []string `json:"supplementalGroups"`
+	Permissions        []string `json:"permissions"`
 }
 
 type CurrentUserResolver interface {
@@ -24,10 +25,11 @@ type CurrentUserResolver interface {
 // GuestUser returns the built-in unauthenticated user identity.
 func GuestUser() CurrentUser {
 	return CurrentUser{
-		Username:    "guest",
-		Nickname:    "Guest",
-		GroupKey:    "guest",
-		Permissions: []string{},
+		Username:           "guest",
+		Nickname:           "Guest",
+		GroupKey:           "guest",
+		SupplementalGroups: []string{},
+		Permissions:        []string{},
 	}
 }
 

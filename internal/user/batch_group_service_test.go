@@ -141,6 +141,23 @@ func TestBatchChangeGroupCustomGroups(t *testing.T) {
 	}
 }
 
+func TestBatchChangeGroupRejectsDestinationAlreadySupplemental(t *testing.T) {
+	pool, service, actor, target := groupFixture(t)
+	insertUserGroup(t, t.Context(), pool, "custom-primary", []string{permission.ShortLinkCreate})
+	insertUserGroup(t, t.Context(), pool, "custom-supplemental", []string{permission.ShortLinkReadOwn})
+	_, err := pool.Exec(t.Context(), `update app_user set group_id=(select id from user_group where key='custom-primary') where id=$1`, target)
+	require.NoError(t, err)
+	_, err = pool.Exec(t.Context(), `insert into app_user_group_membership(user_id,user_group_id)
+		values ($1,(select id from user_group where key='custom-supplemental'))`, target)
+	require.NoError(t, err)
+	items := batchItems(t, pool, target)
+
+	result, err := service.BatchChangeGroup(t.Context(), actor, user.BatchChangeGroupInput{Items: items, GroupKey: "custom-supplemental"})
+	require.ErrorIs(t, err, user.ErrInvalidInput, "batch migration must not turn a supplemental grant into a duplicate primary membership")
+	require.Equal(t, user.BatchChangeGroupResult{}, result)
+	require.Equal(t, items, batchItems(t, pool, target), "rejected batch migration must not change the primary group or version")
+}
+
 func TestBatchChangeGroupCustomSourceReadFailureIsAtomic(t *testing.T) {
 	pool, _, actor, target := groupFixture(t)
 	const sourceKey = "custom-source-read-failure"

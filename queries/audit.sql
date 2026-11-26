@@ -1,3 +1,7 @@
+-- name: CreateUserGroupMembershipAudit :exec
+insert into audit_log (actor_id, resource_type, resource_id, action, changed_fields)
+values (sqlc.arg(actor_id), 'user', sqlc.arg(resource_id), 'update', array['group_memberships']);
+
 -- name: ListAuditLogs :many
 select audit_log.id, audit_log.actor_id, app_user.username as actor_username,
        audit_log.resource_type, audit_log.resource_id, audit_log.action, audit_log.changed_fields, audit_log.created_at

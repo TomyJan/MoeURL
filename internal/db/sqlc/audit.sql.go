@@ -11,6 +11,21 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createUserGroupMembershipAudit = `-- name: CreateUserGroupMembershipAudit :exec
+insert into audit_log (actor_id, resource_type, resource_id, action, changed_fields)
+values ($1, 'user', $2, 'update', array['group_memberships'])
+`
+
+type CreateUserGroupMembershipAuditParams struct {
+	ActorID    pgtype.UUID `json:"actor_id"`
+	ResourceID string      `json:"resource_id"`
+}
+
+func (q *Queries) CreateUserGroupMembershipAudit(ctx context.Context, arg CreateUserGroupMembershipAuditParams) error {
+	_, err := q.db.Exec(ctx, createUserGroupMembershipAudit, arg.ActorID, arg.ResourceID)
+	return err
+}
+
 const deleteExpiredAuditLogs = `-- name: DeleteExpiredAuditLogs :execrows
 delete from audit_log where id in (
     select id from audit_log where created_at < now() - interval '4320 hours'

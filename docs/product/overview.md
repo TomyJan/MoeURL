@@ -1,8 +1,10 @@
 # MoeURL 产品总览
 
-## 当前开发（2026-11-26，v0.93.0）
+## 当前开发（2026-11-26，v0.94.0）
 
-[自定义组批量成员迁移](scope-v0.93.0.md)沿用原子 endpoint 支持可分配 custom 源／目标组；COMMIT 结果不确定时须读回且不得重放。实现与已有 review findings 已修复；PR #424 最新 review 指出列表读回失败时也应禁用已登记账号，当前 follow-up 已按登记 ID 尝试禁用并补回归。cleanup fault-injection 3/3；Node `26.3.0`／pnpm `11.5.0` 全量 292 文件／7,342 测试、四项 coverage 100%，typecheck、定向 ESLint、E2E strict tsc 与 build 通过。当前 fallback 浏览器 setup 和两视口 3/3。隔离数据库以 psql 顺序执行 migration Up SQL，仅为 fixture，不代表 Goose CLI／Compose／标准 Dockerfile。新准确 PR head review、集成和归档仍待；不查 CI、不发布部署。详见[验收](../implementation/v0.93.0-acceptance.md)。
+v0.93.0 [自定义组批量成员迁移](scope-v0.93.0.md)已由 PR #424 正常 squash 合并为 `ca25239d377900f2c681006425e1b27ed96196f4`；tree、唯一 parent、准确 CodeRabbit 无 actionable 结论、逐项归档和离线恢复均已独立核验。代码本地门禁与 PostgreSQL fallback 浏览器证据按准确 SHA 和环境记录；fallback 不代表 Goose CLI、标准 Compose／Dockerfile 或 CI。v0.93.0 未正式发布。
+
+当前实施 [v0.94.0 多组补充授权](scope-v0.94.0.md)：设计与建造者检查、Task 1 持久化结构与计数、Task 2 CAS 成员 API 与身份读回已完成本地实现和后端验证；后续推进权限 Resolver、域名和前端切片。保留 `app_user.group_id` 作为唯一主组，支持自定义补充组及权限／域名授权并集。完整门禁、独立审查和版本验收尚未完成。详见[设计](../superpowers/specs/2026-11-26-v0.94.0-supplemental-user-groups-design.md)、[计划](../superpowers/plans/2026-11-26-v0.94.0-supplemental-user-groups.md)及[v0.94 验收](../implementation/v0.94.0-acceptance.md)。
 
 ## 最近完成（2026-11-25，v0.92.0）
 

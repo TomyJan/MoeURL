@@ -74,6 +74,15 @@ func (s *Service) ChangeGroup(ctx context.Context, actor auth.CurrentUser, input
 		if !target.UpdatedAt.Time.Equal(expected) {
 			return ErrVersionConflict
 		}
+		supplementalGroups, err := q.GetSupplementalUserGroupKeysByUserID(ctx, target.ID)
+		if err != nil {
+			return err
+		}
+		for _, key := range supplementalGroups {
+			if key == input.GroupKey {
+				return ErrInvalidInput
+			}
+		}
 		group, err := q.LockUserGroupForCustomManagement(ctx, input.GroupKey)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrInvalidInput
@@ -94,7 +103,11 @@ func (s *Service) ChangeGroup(ctx context.Context, actor auth.CurrentUser, input
 				return err
 			}
 		}
-		result = UpdateResult{User: UserSummary{ID: input.ID, Username: updated.Username, Nickname: updated.Nickname, Group: group.Key, Status: updated.Status, Builtin: updated.Builtin, CreatedAt: formatTime(updated.CreatedAt), UpdatedAt: formatTime(updated.UpdatedAt)}}
+		supplementalRows, err := q.GetSupplementalUserGroupsByID(ctx, target.ID)
+		if err != nil {
+			return err
+		}
+		result = UpdateResult{User: userSummaryWithSupplementalGroups(updated, group.Key, membershipsFromRows(supplementalRows))}
 		return nil
 	})
 	return result, err

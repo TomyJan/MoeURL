@@ -131,6 +131,21 @@ func (q *Queries) CreateCustomUserGroup(ctx context.Context, arg CreateCustomUse
 	return i, err
 }
 
+const createSupplementalUserGroupMembership = `-- name: CreateSupplementalUserGroupMembership :exec
+insert into app_user_group_membership (user_id, user_group_id)
+values ($1, $2)
+`
+
+type CreateSupplementalUserGroupMembershipParams struct {
+	UserID      pgtype.UUID `json:"user_id"`
+	UserGroupID pgtype.UUID `json:"user_group_id"`
+}
+
+func (q *Queries) CreateSupplementalUserGroupMembership(ctx context.Context, arg CreateSupplementalUserGroupMembershipParams) error {
+	_, err := q.db.Exec(ctx, createSupplementalUserGroupMembership, arg.UserID, arg.UserGroupID)
+	return err
+}
+
 const createUserGroup = `-- name: CreateUserGroup :one
 insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
 values ($1, $2, $3, $4, $5, $6, now(), now())
@@ -173,6 +188,10 @@ func (q *Queries) CreateUserGroup(ctx context.Context, arg CreateUserGroupParams
 const deleteCustomUserGroup = `-- name: DeleteCustomUserGroup :one
 delete from user_group
 where key = $1 and builtin = false
+	and not exists (
+		select 1 from app_user_group_membership
+		where app_user_group_membership.user_group_id = user_group.id
+	)
 	and not exists (select 1 from app_user where app_user.group_id = user_group.id)
 returning id, key, name, description, permissions, builtin, created_at, updated_at, default_domain_id
 `
@@ -192,6 +211,16 @@ func (q *Queries) DeleteCustomUserGroup(ctx context.Context, key string) (UserGr
 		&i.DefaultDomainID,
 	)
 	return i, err
+}
+
+const deleteSupplementalUserGroupMembershipsByUserID = `-- name: DeleteSupplementalUserGroupMembershipsByUserID :exec
+delete from app_user_group_membership
+where user_id = $1
+`
+
+func (q *Queries) DeleteSupplementalUserGroupMembershipsByUserID(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteSupplementalUserGroupMembershipsByUserID, userID)
+	return err
 }
 
 const getAppUserByID = `-- name: GetAppUserByID :one
@@ -235,6 +264,67 @@ func (q *Queries) GetAppUserMetaByID(ctx context.Context, id pgtype.UUID) (GetAp
 	var i GetAppUserMetaByIDRow
 	err := row.Scan(&i.ID, &i.Builtin, &i.DeletedAt)
 	return i, err
+}
+
+const getSupplementalUserGroupKeysByUserID = `-- name: GetSupplementalUserGroupKeysByUserID :many
+select user_group.key
+from app_user_group_membership
+join user_group on user_group.id = app_user_group_membership.user_group_id
+where app_user_group_membership.user_id = $1
+order by user_group.key
+`
+
+func (q *Queries) GetSupplementalUserGroupKeysByUserID(ctx context.Context, userID pgtype.UUID) ([]string, error) {
+	rows, err := q.db.Query(ctx, getSupplementalUserGroupKeysByUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return nil, err
+		}
+		items = append(items, key)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSupplementalUserGroupsByID = `-- name: GetSupplementalUserGroupsByID :many
+select user_group.key, user_group.name
+from app_user_group_membership
+join user_group on user_group.id = app_user_group_membership.user_group_id
+where app_user_group_membership.user_id = $1
+order by user_group.key
+`
+
+type GetSupplementalUserGroupsByIDRow struct {
+	Key  string `json:"key"`
+	Name string `json:"name"`
+}
+
+func (q *Queries) GetSupplementalUserGroupsByID(ctx context.Context, userID pgtype.UUID) ([]GetSupplementalUserGroupsByIDRow, error) {
+	rows, err := q.db.Query(ctx, getSupplementalUserGroupsByID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetSupplementalUserGroupsByIDRow{}
+	for rows.Next() {
+		var i GetSupplementalUserGroupsByIDRow
+		if err := rows.Scan(&i.Key, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
@@ -312,6 +402,12 @@ select app_user.id,
 	app_user.username,
 	app_user.nickname,
 	user_group.key as group_key,
+	coalesce((
+		select jsonb_agg(jsonb_build_object('key', supplemental_group.key, 'name', supplemental_group.name) order by supplemental_group.key)
+		from app_user_group_membership as membership
+		join user_group as supplemental_group on supplemental_group.id = membership.user_group_id
+		where membership.user_id = app_user.id
+	), '[]'::jsonb)::text as supplemental_groups,
 	app_user.status,
 	app_user.builtin,
 	app_user.created_at,
@@ -329,14 +425,15 @@ type ListAppUsersParams struct {
 }
 
 type ListAppUsersRow struct {
-	ID        pgtype.UUID        `json:"id"`
-	Username  string             `json:"username"`
-	Nickname  string             `json:"nickname"`
-	GroupKey  string             `json:"group_key"`
-	Status    string             `json:"status"`
-	Builtin   bool               `json:"builtin"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	ID                 pgtype.UUID        `json:"id"`
+	Username           string             `json:"username"`
+	Nickname           string             `json:"nickname"`
+	GroupKey           string             `json:"group_key"`
+	SupplementalGroups string             `json:"supplemental_groups"`
+	Status             string             `json:"status"`
+	Builtin            bool               `json:"builtin"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) ListAppUsers(ctx context.Context, arg ListAppUsersParams) ([]ListAppUsersRow, error) {
@@ -353,6 +450,7 @@ func (q *Queries) ListAppUsers(ctx context.Context, arg ListAppUsersParams) ([]L
 			&i.Username,
 			&i.Nickname,
 			&i.GroupKey,
+			&i.SupplementalGroups,
 			&i.Status,
 			&i.Builtin,
 			&i.CreatedAt,
@@ -414,7 +512,15 @@ const listUserGroups = `-- name: ListUserGroups :many
 select user_group.id, user_group.key, user_group.name, user_group.description,
 	user_group.permissions, user_group.builtin, user_group.created_at, user_group.updated_at,
 	user_group.default_domain_id,
-	(select count(*)::bigint from app_user where app_user.group_id = user_group.id) as member_count
+	(select count(*)::bigint
+	 from app_user
+	 where app_user.group_id = user_group.id
+		or exists (
+			select 1 from app_user_group_membership
+			where app_user_group_membership.user_id = app_user.id
+				and app_user_group_membership.user_group_id = user_group.id
+		)
+	) as member_count
 from user_group
 order by user_group.builtin desc,
 	case user_group.key when 'guest' then 1 when 'user' then 2 when 'admin' then 3 else 4 end,
@@ -555,6 +661,37 @@ where user_id=$1 and revoked_at is null
 func (q *Queries) RevokeGroupChangeSessions(ctx context.Context, userID pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, revokeGroupChangeSessions, userID)
 	return err
+}
+
+const updateAppUserMembershipRevision = `-- name: UpdateAppUserMembershipRevision :one
+update app_user
+set updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond')
+where id = $1 and deleted_at is null and builtin = false
+	and updated_at = $2
+returning id, username, password_hash, nickname, group_id, status, builtin, created_at, updated_at, deleted_at
+`
+
+type UpdateAppUserMembershipRevisionParams struct {
+	ID                pgtype.UUID        `json:"id"`
+	ExpectedUpdatedAt pgtype.Timestamptz `json:"expected_updated_at"`
+}
+
+func (q *Queries) UpdateAppUserMembershipRevision(ctx context.Context, arg UpdateAppUserMembershipRevisionParams) (AppUser, error) {
+	row := q.db.QueryRow(ctx, updateAppUserMembershipRevision, arg.ID, arg.ExpectedUpdatedAt)
+	var i AppUser
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Nickname,
+		&i.GroupID,
+		&i.Status,
+		&i.Builtin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
 }
 
 const updateAppUserNickname = `-- name: UpdateAppUserNickname :one
