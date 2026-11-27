@@ -5,19 +5,18 @@
 github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:56.59,58.4
 github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:59.59,61.4
 github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:62.63,64.4
-github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:157.17,159.4
+github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:160.17,162.4
 # The current actor/group and domain creation advisory locks prevent grants or
 # origins changing between the available-domain read and its locked recheck.
 # Both queries require the same builtin group and enabled granted domain; the
 # required permission is taken from that locked group's snapshot. Thus no-row
 # and origin mismatch are defensive guards, while unexpected SELECT errors are
 # connection/storage failures. Reassess if either query or lock order changes.
-github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:133.37,135.5
-github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:136.18,138.5
-github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:140.59,142.5
+github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:136.37,138.5
+github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:143.59,145.5
 # ManifestRestoreInput is a closed struct of strings and slices; encoding/json
 # has no failing marshaler, cycle, unsupported value, or numeric value here.
-github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:255.16,257.3
+github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:257.16,259.3
 #
 # The gate matches each configured file and source range while ignoring only
 # compiler column offsets. A source-line shift is reported as uncovered so an
@@ -58,7 +57,7 @@ github.com/TomyJan/MoeURL/internal/user/service.go:241.16,243.3
 github.com/TomyJan/MoeURL/internal/user/service.go:325.16,327.3
 # After a creation transaction starts, advisory locking or the granted-domain query can fail on database or context errors.
 github.com/TomyJan/MoeURL/internal/shortlink/service.go:143.64,145.5
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:162.18,164.5
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:164.18,166.5
 
 # Redirect access transaction step failures are infrastructure/concurrency paths: each intermediate failure requires the database connection or row to change between locked statements.
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:300.35,302.3
@@ -73,14 +72,14 @@ github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:364.39,366.3
 github.com/TomyJan/MoeURL/internal/shortlink/redirect_service.go:352.16,354.3
 
 # Password hashing failure is an Argon2id/random infrastructure path after input and permission validation.
-github.com/TomyJan/MoeURL/internal/shortlink/service.go:995.16,997.3
+github.com/TomyJan/MoeURL/internal/shortlink/service.go:997.16,999.3
 
 # Empty target writers are explicitly tested through AdminUpdate; nonempty
 # malformed, zero, or noncanonical UUIDs are rejected by SetAuditContext.
 # These two ranges are database I/O failures between successful gate and reads;
 # missing identities/groups, revoked grants and corrupt grants remain tested.
-github.com/TomyJan/MoeURL/internal/shortlink/target_policy.go:35.16,37.3
-github.com/TomyJan/MoeURL/internal/shortlink/target_policy.go:42.16,44.3
+github.com/TomyJan/MoeURL/internal/shortlink/target_policy.go:41.16,43.3
+github.com/TomyJan/MoeURL/internal/shortlink/target_policy.go:48.16,50.3
 
 # x/net v0.62.0 Lookup.ToUnicode has already checked NFC, allowed categories,
 # labels and Bidi. Its nontransitional mapping and canonical Punycode encoder
@@ -145,3 +144,50 @@ github.com/TomyJan/MoeURL/internal/targetpolicy/batch_check.go:112.90,114.4
 # never as an item; this second guard prevents a future contract violation from
 # being reported as allowed. Do not inject a production-only test hook to reach it.
 github.com/TomyJan/MoeURL/internal/shortlink/target_policy_batch_check.go:92.12,93.20
+
+# Database lock/query errors after entry authorization require a storage/context
+# failure at a precise statement boundary. These service methods use concrete
+# SQLC queries over one pgx transaction; production does not provide an injectable
+# per-query store. Row-not-found guards for actor/group locks additionally defend
+# against unsupported hard deletion or FK corruption; supported account/group
+# removal is soft/locked and relational references are constrained.
+github.com/TomyJan/MoeURL/internal/shortlink/batch_note_append_service.go:128.18,130.5
+github.com/TomyJan/MoeURL/internal/shortlink/batch_note_append_service.go:137.18,139.5
+github.com/TomyJan/MoeURL/internal/shortlink/batch_note_append_service.go:146.17,148.4
+github.com/TomyJan/MoeURL/internal/shortlink/batch_note_clear_service.go:67.17,69.4
+github.com/TomyJan/MoeURL/internal/shortlink/batch_note_clear_service.go:74.17,76.4
+github.com/TomyJan/MoeURL/internal/shortlink/batch_note_replace_service.go:71.17,73.4
+github.com/TomyJan/MoeURL/internal/shortlink/batch_note_replace_service.go:78.17,80.4
+github.com/TomyJan/MoeURL/internal/shortlink/batch_tag_rename_service.go:49.36,51.4
+github.com/TomyJan/MoeURL/internal/shortlink/batch_tag_rename_service.go:63.17,65.4
+github.com/TomyJan/MoeURL/internal/shortlink/batch_tags_service.go:72.36,74.4
+github.com/TomyJan/MoeURL/internal/shortlink/batch_tags_service.go:86.17,88.4
+
+# The current-default read begins a repeatable-read read-only transaction; a
+# query failure after BEGIN requires a database/context event at the immediate
+# first SELECT boundary and has no stable application-controlled trigger.
+
+# These guards encode invariants of the SQL snapshot rather than reachable
+# application input: the tag catalog SELECT starts from a one-row grant CTE and
+# left-joins its catalog, while the permission flag is set only after the locked
+# actor/group resolver succeeds. Keep the SQL and lock order paired with these
+# assumptions; corruption still fails closed in the resolver.
+github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:129.29,131.5
+github.com/TomyJan/MoeURL/internal/shortlink/manifest_restore_service.go:139.18,141.5
+github.com/TomyJan/MoeURL/internal/shortlink/admin_tag_catalog.go:44.40,46.3
+github.com/TomyJan/MoeURL/internal/shortlink/batch_service.go:104.17,106.3
+github.com/TomyJan/MoeURL/internal/shortlink/tag_catalog.go:59.40,61.3
+github.com/TomyJan/MoeURL/internal/shortlink/note_service.go:82.18,84.3
+github.com/TomyJan/MoeURL/internal/shortlink/transfer_service.go:108.111,110.3
+
+# Guest has an empty permission snapshot by resolver contract, and entry
+# authorization rejects these write permissions before the transactional guard.
+github.com/TomyJan/MoeURL/internal/shortlink/batch_note_clear_service.go:81.41,83.4
+github.com/TomyJan/MoeURL/internal/shortlink/batch_note_replace_service.go:85.41,87.4
+
+# Read-only transaction commit can fail only at the database commit boundary
+# after the result has been read and assembled.
+github.com/TomyJan/MoeURL/internal/shortlink/admin_tag_catalog.go:47.39,49.3
+github.com/TomyJan/MoeURL/internal/shortlink/list_export.go:123.40,125.4
+github.com/TomyJan/MoeURL/internal/shortlink/note_service.go:88.39,90.3
+github.com/TomyJan/MoeURL/internal/shortlink/tag_catalog.go:62.39,64.3
