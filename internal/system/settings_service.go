@@ -143,7 +143,7 @@ func (s *SettingsService) authorize(ctx context.Context, actor auth.CurrentUser)
 	if s.permissions == nil {
 		return ErrSettingsPermissionDenied
 	}
-	snapshot, err := s.permissions.Resolve(ctx, actor.GroupKey)
+	snapshot, err := permission.ResolveForAccount(ctx, s.permissions, actor.ID, actor.GroupKey)
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -41,5 +42,32 @@ func TestUUIDFromPgtypeReturnsEmptyForInvalidValue(t *testing.T) {
 	value := uuid.New()
 	if uuidFromPgtype(uuidToPgtype(value)) != value.String() {
 		t.Fatal("expected valid pgtype UUID to round trip")
+	}
+}
+
+func TestSupplementalMembershipHelpersPreserveEmptyAndCompareKeys(t *testing.T) {
+	validID := uuid.New()
+	if id, err := parseCanonicalUserID(validID.String()); err != nil || id != validID {
+		t.Fatalf("canonical ID parse = %s, %v", id, err)
+	}
+	for _, raw := range []string{"not-a-uuid", uuid.Nil.String(), "550E8400-E29B-41D4-A716-446655440001"} {
+		if _, err := parseCanonicalUserID(raw); !errors.Is(err, ErrInvalidInput) {
+			t.Fatalf("noncanonical ID %q error = %v", raw, err)
+		}
+	}
+
+	keys := []string{"550e8400-e29b-41d4-a716-446655440002", "550e8400-e29b-41d4-a716-446655440001"}
+	if normalized, err := normalizeSupplementalGroupKeys(keys); err != nil || normalized[0] > normalized[1] {
+		t.Fatalf("supplemental key normalization = %#v, %v", normalized, err)
+	}
+	if supplementalGroupKeysEqual([]sqlc.GetSupplementalUserGroupsByIDRow{{Key: keys[0]}}, []string{keys[1]}) {
+		t.Fatal("different same-length membership sets compared equal")
+	}
+	if !supplementalGroupKeysEqual([]sqlc.GetSupplementalUserGroupsByIDRow{{Key: keys[0]}}, []string{keys[0]}) {
+		t.Fatal("identical membership sets compared different")
+	}
+	summary := userSummaryWithSupplementalGroups(sqlc.AppUser{}, permission.GroupUser, nil)
+	if summary.SupplementalGroups == nil || len(summary.SupplementalGroups) != 0 {
+		t.Fatalf("empty supplemental groups = %#v, want a non-nil empty array", summary.SupplementalGroups)
 	}
 }

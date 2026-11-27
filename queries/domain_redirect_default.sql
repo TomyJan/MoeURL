@@ -3,7 +3,7 @@ select app_user.id, app_user.group_id, user_group.key, user_group.permissions
 from app_user
 join user_group on user_group.id = app_user.group_id
 where app_user.id = $1 and app_user.status = 'active' and app_user.deleted_at is null
-  and user_group.builtin and user_group.key in ('user', 'admin');
+  and not app_user.builtin and user_group.key <> 'guest';
 
 -- name: GetDomainRedirectDefault :one
 select id, host, display_name, purpose, enabled, is_default, created_at, updated_at, sort_order, default_redirect_mode
@@ -26,8 +26,12 @@ select domain.id,
             when domain.default_redirect_mode = 'confirmation' and not sqlc.arg(can_confirmation)::boolean then 'direct'
             else domain.default_redirect_mode end::text as redirect_mode
 from domain
-join domain_user_group on domain_user_group.domain_id = domain.id
-where domain_user_group.user_group_id = sqlc.arg(group_id)
+where exists (
+    select 1 from domain_user_group
+    join user_group on user_group.id = domain_user_group.user_group_id
+    where domain_user_group.domain_id = domain.id
+      and user_group.key = any(sqlc.arg(group_keys)::text[])
+)
   and domain.enabled and domain.purpose = 'short_link'
   and ((domain.is_default and sqlc.arg(can_default)::boolean)
        or (not domain.is_default and sqlc.arg(can_assigned)::boolean))

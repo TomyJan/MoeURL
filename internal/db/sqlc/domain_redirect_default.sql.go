@@ -39,7 +39,7 @@ select app_user.id, app_user.group_id, user_group.key, user_group.permissions
 from app_user
 join user_group on user_group.id = app_user.group_id
 where app_user.id = $1 and app_user.status = 'active' and app_user.deleted_at is null
-  and user_group.builtin and user_group.key in ('user', 'admin')
+  and not app_user.builtin and user_group.key <> 'guest'
 `
 
 type GetDomainRedirectDefaultActorRow struct {
@@ -90,8 +90,12 @@ select domain.id,
             when domain.default_redirect_mode = 'confirmation' and not $2::boolean then 'direct'
             else domain.default_redirect_mode end::text as redirect_mode
 from domain
-join domain_user_group on domain_user_group.domain_id = domain.id
-where domain_user_group.user_group_id = $3
+where exists (
+    select 1 from domain_user_group
+    join user_group on user_group.id = domain_user_group.user_group_id
+    where domain_user_group.domain_id = domain.id
+      and user_group.key = any($3::text[])
+)
   and domain.enabled and domain.purpose = 'short_link'
   and ((domain.is_default and $4::boolean)
        or (not domain.is_default and $5::boolean))
@@ -99,11 +103,11 @@ order by domain.is_default desc, domain.sort_order, domain.created_at, domain.id
 `
 
 type ListEffectiveDomainRedirectDefaultsParams struct {
-	CanIntermediate bool        `json:"can_intermediate"`
-	CanConfirmation bool        `json:"can_confirmation"`
-	GroupID         pgtype.UUID `json:"group_id"`
-	CanDefault      bool        `json:"can_default"`
-	CanAssigned     bool        `json:"can_assigned"`
+	CanIntermediate bool     `json:"can_intermediate"`
+	CanConfirmation bool     `json:"can_confirmation"`
+	GroupKeys       []string `json:"group_keys"`
+	CanDefault      bool     `json:"can_default"`
+	CanAssigned     bool     `json:"can_assigned"`
 }
 
 type ListEffectiveDomainRedirectDefaultsRow struct {
@@ -115,7 +119,7 @@ func (q *Queries) ListEffectiveDomainRedirectDefaults(ctx context.Context, arg L
 	rows, err := q.db.Query(ctx, listEffectiveDomainRedirectDefaults,
 		arg.CanIntermediate,
 		arg.CanConfirmation,
-		arg.GroupID,
+		arg.GroupKeys,
 		arg.CanDefault,
 		arg.CanAssigned,
 	)

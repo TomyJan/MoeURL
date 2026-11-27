@@ -10,9 +10,6 @@ import (
 func TestDomainDeletePreferenceCleanupFailure(t *testing.T) {
 	service, pool, admin, actor := domainFixture(t)
 	ctx := t.Context()
-	if _, err := pool.Exec(ctx, `insert into app_user(id,username,nickname,group_id,status,builtin,created_at,updated_at) select $1,'preference-owner','Owner',id,'active',false,now(),now() from user_group where key='user'`, actor.ID); err != nil {
-		t.Fatal(err)
-	}
 	created, err := service.Create(ctx, admin, domain.CreateInput{Host: "https://pref.example.com", DisplayName: "Preference", AllowedGroups: []string{"user"}, Enabled: true})
 	if err != nil {
 		t.Fatal(err)

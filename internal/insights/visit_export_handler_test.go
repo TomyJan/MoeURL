@@ -60,7 +60,7 @@ func TestVisitExportHTTP(t *testing.T) {
 // TestVisitExportFailures catches partial-file success after transaction or query failure and unsafe diagnostics.
 func TestVisitExportFailures(t *testing.T) {
 	pool, _, owner, _, link, _ := fixture(t)
-	for _, boundary := range []string{"begin ", "-- name: GetInsightActor", "-- name: GetUserGroupByKey", "-- name: GetInsightTime", "-- name: GetInsightLink", "-- name: ExportInsightVisits", "commit"} {
+	for _, boundary := range []string{"begin ", "-- name: GetInsightActor", "-- name: ResolveAccountPermissions", "-- name: GetInsightTime", "-- name: GetInsightLink", "-- name: ExportInsightVisits", "commit"} {
 		t.Run(boundary, func(t *testing.T) {
 			faultPool := tracedPool(t, pool, queryTracer{start: func(ctx context.Context, sql string) context.Context {
 				if strings.HasPrefix(sql, boundary) {

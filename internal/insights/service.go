@@ -51,23 +51,12 @@ func (s *Service) read(ctx context.Context, user auth.CurrentUser, input RangeIn
 	if err != nil {
 		return err
 	}
-	var resolved permission.Snapshot
-	if resolver, ok := s.permissions.(interface {
-		ResolveIn(context.Context, sqlc.DBTX, string) (permission.Snapshot, error)
-	}); ok {
-		resolved, err = resolver.ResolveIn(ctx, tx, actor.GroupKey)
-	} else {
-		resolved, err = s.permissions.Resolve(ctx, actor.GroupKey)
-	}
-	if err != nil {
-		return err
-	}
-	stored, err := permission.DecodeSnapshot(actor.Permissions)
+	resolved, err := permission.ResolveForAccountIn(ctx, tx, s.permissions, actor.ID, actor.GroupKey)
 	if err != nil {
 		return err
 	}
 	for _, key := range required {
-		if !resolved.Has(key) || !stored.Has(key) {
+		if !resolved.Has(key) {
 			return ErrPermissionDenied
 		}
 	}

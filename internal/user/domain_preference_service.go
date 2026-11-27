@@ -43,16 +43,20 @@ type domainPreferenceStore interface {
 
 // DomainPreferenceService reauthorizes personal domain choices inside a bounded transaction.
 type DomainPreferenceService struct {
-	store domainPreferenceStore
-	inTx  func(context.Context, func(domainPreferenceStore, pgx.Tx) error) error
+	store       domainPreferenceStore
+	permissions permission.Resolver
+	inTx        func(context.Context, func(domainPreferenceStore, pgx.Tx) error) error
 }
 
 // NewDomainPreferenceService shares the existing domain write lock without sharing interface-preference versions.
 func NewDomainPreferenceService(pool *pgxpool.Pool) *DomainPreferenceService {
 	q := sqlc.New(pool)
-	return &DomainPreferenceService{store: q, inTx: func(ctx context.Context, fn func(domainPreferenceStore, pgx.Tx) error) error {
-		return appdb.WithTx(ctx, pool, func(tx pgx.Tx) error { return fn(q.WithTx(tx), tx) })
-	}}
+	return &DomainPreferenceService{
+		store: q, permissions: permission.NewDatabaseService(pool),
+		inTx: func(ctx context.Context, fn func(domainPreferenceStore, pgx.Tx) error) error {
+			return appdb.WithTx(ctx, pool, func(tx pgx.Tx) error { return fn(q.WithTx(tx), tx) })
+		},
+	}
 }
 
 // Get reads a single current-account snapshot, even after creation permissions were revoked.
@@ -120,7 +124,12 @@ func (s *DomainPreferenceService) Update(ctx context.Context, actor auth.Current
 			return err
 		}
 		if selected.Valid {
-			grants, err := permission.DecodeGroupSnapshot(group.Key, group.Builtin, group.Permissions)
+			var grants permission.Snapshot
+			if s.permissions != nil {
+				grants, err = permission.ResolveForAccountLockedIn(ctx, tx, s.permissions, actor.ID, group.Key)
+			} else {
+				grants, err = permission.DecodeGroupSnapshot(group.Key, group.Builtin, group.Permissions)
+			}
 			if err != nil {
 				return err
 			}
@@ -128,7 +137,7 @@ func (s *DomainPreferenceService) Update(ctx context.Context, actor auth.Current
 				return ErrPermissionDenied
 			}
 			_, err = q.GetGrantedDomainPreference(ctx, sqlc.GetGrantedDomainPreferenceParams{
-				DomainID: selected, GroupID: group.ID,
+				DomainID: selected, GroupKeys: grants.GroupKeys(),
 				CanDefault: grants.Has(permission.DomainUseDefault), CanAssigned: grants.Has(permission.DomainUseAssigned),
 			})
 			if errors.Is(err, pgx.ErrNoRows) {

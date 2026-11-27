@@ -11,6 +11,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/TomyJan/MoeURL/internal/user"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +21,7 @@ func redirectPreferenceFixture(t *testing.T) (*user.RedirectPreferenceService, *
 	t.Helper()
 	pool := userTestPool(t, t.Context())
 	insertUserGroup(t, t.Context(), pool, "user", []string{permission.ShortLinkUseIntermediate, permission.ShortLinkUseConfirmation})
-	insertUserGroup(t, t.Context(), pool, "admin", nil)
+	insertUserGroup(t, t.Context(), pool, "admin", permission.AdminPermissions)
 	insertUserGroup(t, t.Context(), pool, "guest", nil)
 	_, err := pool.Exec(t.Context(), `update user_group set builtin=true`)
 	require.NoError(t, err)
@@ -129,6 +130,8 @@ func TestRedirectPreferenceCurrentAuthority(t *testing.T) {
 				_, err = gate.Exec(t.Context(), `update app_user set group_id=(select id from user_group where key='guest') where id=$1`, actor.ID)
 			case "changed_group":
 				_, err = gate.Exec(t.Context(), `update app_user set group_id=(select id from user_group where key='admin') where id=$1`, actor.ID)
+				require.NoError(t, err)
+				_, err = gate.Exec(t.Context(), `update user_group set permissions=permissions-'short_link:use_confirmation' where key='admin'`)
 			case "nonbuiltin":
 				_, err = gate.Exec(t.Context(), `update user_group set builtin=false where key='user'`)
 			default:
@@ -175,6 +178,27 @@ func TestRedirectPreferenceRevokedValueReadable(t *testing.T) {
 	require.ErrorIs(t, err, user.ErrPermissionDenied)
 	_, err = s.Update(t.Context(), actor, user.UpdateRedirectPreferenceInput{ExpectedUpdatedAt: saved.Preference.UpdatedAt})
 	require.NoError(t, err)
+}
+
+// TestRedirectPreferenceUsesSupplementalPermission proves current mode grants
+// are the union of the primary and supplemental groups, not the primary row alone.
+func TestRedirectPreferenceUsesSupplementalPermission(t *testing.T) {
+	s, pool, actor, _ := redirectPreferenceFixture(t)
+	ctx := t.Context()
+	_, err := pool.Exec(ctx, `update user_group set permissions='[]'::jsonb where key='user'`)
+	require.NoError(t, err)
+	supplementalID := uuid.New()
+	supplementalKey := uuid.NewString()
+	_, err = pool.Exec(ctx, `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at)
+		values($1,$2,'Redirect preference grant','["short_link:use_confirmation"]'::jsonb,false,now(),now())`, supplementalID, supplementalKey)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `insert into app_user_group_membership(user_id,user_group_id) values($1,$2)`, actor.ID, supplementalID)
+	require.NoError(t, err)
+
+	mode := "confirmation"
+	saved, err := s.Update(ctx, actor, user.UpdateRedirectPreferenceInput{RedirectMode: &mode})
+	require.NoError(t, err)
+	require.Equal(t, mode, *saved.Preference.RedirectMode)
 }
 
 // A canceled lock wait and a real PostgreSQL trigger failure must both roll back fully.

@@ -35,7 +35,14 @@ const getCurrentGroupDefaultDomain = `-- name: GetCurrentGroupDefaultDomain :one
 select g.permissions, g.default_domain_id, d.id as available_domain_id, d.is_default
 from app_user u join user_group g on g.id = u.group_id
 left join domain d on d.id = g.default_domain_id and d.enabled and d.purpose = 'short_link'
-  and exists(select 1 from domain_user_group dg where dg.domain_id = d.id and dg.user_group_id = g.id)
+  and exists (
+      select 1 from domain_user_group dg
+      where dg.domain_id = d.id
+        and dg.user_group_id in (
+            select u2.group_id from app_user u2 where u2.id = u.id
+            union select membership.user_group_id from app_user_group_membership membership where membership.user_id = u.id
+        )
+  )
 where u.id = $1 and u.status = 'active' and u.deleted_at is null
   and g.key <> 'guest'
   and ((g.builtin and g.key in ('user','admin')) or (not g.builtin and g.key not in ('user','admin')))

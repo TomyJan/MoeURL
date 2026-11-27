@@ -68,18 +68,23 @@ func (s *Service) Available(ctx context.Context, actor auth.CurrentUser) (Availa
 	if actor.ID == "" || actor.GroupKey == permission.GroupGuest {
 		return result, nil
 	}
-	if s.permissions == nil {
+	if s.permissions == nil || s.pool == nil {
 		return result, ErrPermissionDenied
 	}
-	snapshot, err := s.permissions.Resolve(ctx, actor.GroupKey)
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return result, err
+	}
+	defer tx.Rollback(ctx)
+	snapshot, err := permission.ResolveForAccountIn(ctx, tx, s.permissions, actor.ID, actor.GroupKey)
 	if err != nil {
 		return result, err
 	}
 	if !snapshot.Has(permission.ShortLinkCreate) {
 		return result, nil
 	}
-	rows, err := s.queries.ListAvailableShortLinkDomains(ctx, sqlc.ListAvailableShortLinkDomainsParams{
-		GroupKey: actor.GroupKey, CanDefault: snapshot.Has(permission.DomainUseDefault),
+	rows, err := s.queries.WithTx(tx).ListAvailableShortLinkDomains(ctx, sqlc.ListAvailableShortLinkDomainsParams{
+		GroupKeys: snapshot.GroupKeys(), CanDefault: snapshot.Has(permission.DomainUseDefault),
 		CanAssigned: snapshot.Has(permission.DomainUseAssigned),
 	})
 	if err != nil {
@@ -90,6 +95,9 @@ func (s *Service) Available(ctx context.Context, actor auth.CurrentUser) (Availa
 			ID: uuid.UUID(row.ID.Bytes).String(), Host: row.Host,
 			DisplayName: row.DisplayName, IsDefault: row.IsDefault,
 		})
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return AvailableResult{}, err
 	}
 	return result, nil
 }
@@ -323,7 +331,11 @@ func (s *Service) authorizeAdmin(ctx context.Context, actor auth.CurrentUser) er
 	if s.permissions == nil {
 		return ErrPermissionDenied
 	}
-	snapshot, err := s.permissions.Resolve(ctx, actor.GroupKey)
+	id, err := uuid.Parse(actor.ID)
+	if err != nil || id == uuid.Nil || id.String() != actor.ID {
+		return ErrPermissionDenied
+	}
+	snapshot, err := permission.ResolveForAccount(ctx, s.permissions, actor.ID, actor.GroupKey)
 	if err != nil {
 		return err
 	}
