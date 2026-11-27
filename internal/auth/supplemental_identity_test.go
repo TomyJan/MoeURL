@@ -1,13 +1,30 @@
 package auth_test
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/permission"
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 )
+
+type metadataFailureDBTX struct {
+	sqlc.DBTX
+	err error
+}
+
+func (database metadataFailureDBTX) QueryRow(context.Context, string, ...interface{}) pgx.Row {
+	return metadataFailureRow{err: database.err}
+}
+
+type metadataFailureRow struct{ err error }
+
+func (row metadataFailureRow) Scan(...any) error { return row.err }
 
 // TestAuthIdentityReturnsCurrentSupplementalPermissions protects every client identity from a primary-only permission projection.
 func TestAuthIdentityReturnsCurrentSupplementalPermissions(t *testing.T) {
@@ -50,4 +67,20 @@ func TestAuthIdentityReturnsCurrentSupplementalPermissions(t *testing.T) {
 		require.NoError(t, pool.QueryRow(ctx, `select count(*) from session`).Scan(&after))
 		require.Equal(t, before, after, "invalid permission storage must not mint a session")
 	})
+}
+
+// TestReadCurrentUserInPropagatesMetadataQueryError verifies a post-resolution metadata failure returns no partial identity.
+func TestReadCurrentUserInPropagatesMetadataQueryError(t *testing.T) {
+	ctx := t.Context()
+	pool := authTestPool(t, ctx)
+	insertLoginGroup(t, ctx, pool)
+	insertLoginUser(t, ctx, pool, "metadata-error-alice", "correct-password", "active")
+	var userID string
+	require.NoError(t, pool.QueryRow(ctx, `select id::text from app_user where username='metadata-error-alice'`).Scan(&userID))
+	wantErr := errors.New("controlled metadata query failure")
+
+	current, err := auth.ReadCurrentUserIn(ctx, metadataFailureDBTX{DBTX: pool, err: wantErr}, userID)
+
+	require.ErrorIs(t, err, wantErr)
+	require.Equal(t, auth.CurrentUser{}, current, "metadata errors must not expose a partially projected identity")
 }

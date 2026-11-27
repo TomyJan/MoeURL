@@ -129,10 +129,6 @@ github.com/TomyJan/MoeURL/internal/oidc/provider_service.go:363.16,365.3
 # AES-256 keys are length-checked before construction; the standard AES and GCM constructors cannot reject this configuration.
 github.com/TomyJan/MoeURL/internal/oidc/secret.go:40.16,42.3
 github.com/TomyJan/MoeURL/internal/oidc/secret.go:44.16,46.3
-# The account resolver succeeds against a held row lock or repeatable-read snapshot before metadata projection.
-# A subsequent missing-row result contradicts that snapshot; transport/query failure at the separate metadata
-# statement requires a connection/context event between deterministic SQL statements.
-github.com/TomyJan/MoeURL/internal/auth/current_account.go:29.16,31.3
 # Me uses a real resolved session and a read-only repeatable-read transaction; forcing BeginTx or Commit failure
 # requires an external pool/context/storage failure at that exact boundary.
 github.com/TomyJan/MoeURL/internal/auth/service.go:269.16,271.3
