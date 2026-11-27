@@ -31,6 +31,17 @@ func targetWriteFixture(t *testing.T) (*pgxpool.Pool, *shortlink.Service, auth.C
 	return pool, shortlink.NewService(pool, permission.NewService()), actor
 }
 
+func insertTargetPolicyUserGroup(t *testing.T, pool *pgxpool.Pool) string {
+	t.Helper()
+	userGroupID := uuid.NewString()
+	_, err := pool.Exec(t.Context(), `
+		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+		values ($1, 'user', 'user', '', $2::jsonb, true, now(), now())
+	`, userGroupID, permissionsJSON(t, permission.UserPermissions))
+	require.NoError(t, err)
+	return userGroupID
+}
+
 type updateCancelKey struct{}
 type updateCommitKey struct{}
 

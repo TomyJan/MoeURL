@@ -27,6 +27,7 @@ func TestRouterDailyCreateQuotaSessionBoundary(t *testing.T) {
 	('00000000-0000-4000-8000-000000006411','quota-admin','Admin','00000000-0000-4000-8000-000000006401','active',false,now(),now()),
 	('00000000-0000-4000-8000-000000006412','quota-user','User','00000000-0000-4000-8000-000000006402','active',false,now(),now())`)
 	require.NoError(t, err)
+	normalizeTestAdminPermissions(t, t.Context(), pool)
 	sessions := auth.NewSessionService(pool, time.Hour)
 	admin, err := sessions.Create(t.Context(), "00000000-0000-4000-8000-000000006411")
 	require.NoError(t, err)
@@ -74,7 +75,7 @@ func TestRouterDailyCreateQuotaSessionBoundary(t *testing.T) {
 	require.Equal(t, []string{"security.account_daily_create_quota"}, fields)
 	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from audit_log where resource_id='security.account_daily_create_quota'`).Scan(&count))
 	require.Equal(t, 1, count)
-	_, err = pool.Exec(t.Context(), `update user_group set permissions='["admin:access"]' where key='admin'`)
+	_, err = pool.Exec(t.Context(), `update app_user set group_id='00000000-0000-4000-8000-000000006402' where id='00000000-0000-4000-8000-000000006411'`)
 	require.NoError(t, err)
 	call("GET", path, admin.ID, "", 120001)
 	call("POST", path+"/update", admin.ID, body, 120001)

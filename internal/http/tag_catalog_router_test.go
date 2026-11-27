@@ -111,6 +111,8 @@ func TestRouterTagCatalogSessionBoundary(t *testing.T) {
 	// Keep real session resolution available while the directory's own storage fails.
 	_, err = pool.Exec(ctx, `update user_group set permissions='["short_link:read_own"]' where key='user'`)
 	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `update user_group set permissions=$1::jsonb where key='admin'`, string(adminPermissions))
+	require.NoError(t, err)
 	closed, err := pgxpool.New(ctx, pool.Config().ConnString())
 	require.NoError(t, err)
 	closed.Close()

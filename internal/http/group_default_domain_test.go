@@ -33,6 +33,7 @@ func TestRouterGroupDefaultDomainSessionBoundary(t *testing.T) {
 		insert into domain_user_group(domain_id,user_group_id)
 		values('00000000-0000-0000-0000-000000002813','00000000-0000-0000-0000-000000002822');`)
 	require.NoError(t, err)
+	normalizeTestAdminPermissions(t, t.Context(), pool)
 	sessions := auth.NewSessionService(pool, time.Hour)
 	adminSession, err := sessions.Create(t.Context(), manager)
 	require.NoError(t, err)

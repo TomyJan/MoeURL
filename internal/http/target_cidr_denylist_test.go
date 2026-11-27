@@ -27,6 +27,7 @@ func TestRouterTargetCIDRDenylistSessionBoundary(t *testing.T) {
 	('00000000-0000-4000-8000-000000006911','ip-admin','Admin','00000000-0000-4000-8000-000000006901','active',false,now(),now()),
 	('00000000-0000-4000-8000-000000006912','ip-user','User','00000000-0000-4000-8000-000000006902','active',false,now(),now())`)
 	require.NoError(t, err)
+	normalizeTestAdminPermissions(t, t.Context(), pool)
 	sessions := auth.NewSessionService(pool, time.Hour)
 	admin, err := sessions.Create(t.Context(), "00000000-0000-4000-8000-000000006911")
 	require.NoError(t, err)
@@ -65,7 +66,7 @@ func TestRouterTargetCIDRDenylistSessionBoundary(t *testing.T) {
 	var actor string
 	require.NoError(t, pool.QueryRow(t.Context(), `select actor_id::text from audit_log where resource_id='security.target_cidr_denylist'`).Scan(&actor))
 	require.Equal(t, "00000000-0000-4000-8000-000000006911", actor)
-	_, err = pool.Exec(t.Context(), `update user_group set permissions='["admin:access"]' where key='admin'`)
+	_, err = pool.Exec(t.Context(), `update app_user set group_id='00000000-0000-4000-8000-000000006902' where id='00000000-0000-4000-8000-000000006911'`)
 	require.NoError(t, err)
 	call("GET", path, admin.ID, "", 120001)
 	call("POST", path+"/update", admin.ID, body, 120001)

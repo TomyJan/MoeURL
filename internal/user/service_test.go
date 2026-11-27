@@ -20,6 +20,12 @@ type failingPermissionResolver struct {
 	groupKey string
 }
 
+type adminGrantTestResolver struct{}
+
+func (adminGrantTestResolver) Resolve(ctx context.Context, _ string) (permission.Snapshot, error) {
+	return permission.NewService().Resolve(ctx, permission.GroupAdmin)
+}
+
 // Resolve records the requested group and returns the configured infrastructure error.
 func (r *failingPermissionResolver) Resolve(_ context.Context, groupKey string) (permission.Snapshot, error) {
 	r.calls++
@@ -103,6 +109,29 @@ func TestServiceCreateUserByAdmin(t *testing.T) {
 	if passwordHash == "" || passwordHash == "secure-password" {
 		t.Fatal("expected password hash")
 	}
+}
+
+func TestServiceCreateRejectsNonBuiltinAdminActorPrimaryGroup(t *testing.T) {
+	ctx := t.Context()
+	pool := userTestPool(t, ctx)
+	customKey := "550e8400-e29b-41d4-a716-446655440099"
+	insertUserGroup(t, ctx, pool, customKey, []string{})
+	actorID := insertAppUser(t, ctx, pool, "custom-primary-admin", "hash", "Custom Admin", customKey, "active", false)
+	service := user.NewService(pool, adminGrantTestResolver{})
+	actor := auth.CurrentUser{ID: actorID, GroupKey: customKey}
+
+	_, err := service.Create(ctx, actor, user.CreateInput{
+		Username: "must-not-create",
+		Password: "secure-password",
+		Nickname: "Rejected",
+		GroupKey: permission.GroupUser,
+		Status:   "active",
+	})
+	require.ErrorIs(t, err, user.ErrPermissionDenied)
+
+	var created int
+	require.NoError(t, pool.QueryRow(ctx, `select count(*) from app_user where username='must-not-create'`).Scan(&created))
+	require.Zero(t, created)
 }
 
 func TestServiceCreateUserInCustomGroupAndRejectsGuestGroup(t *testing.T) {

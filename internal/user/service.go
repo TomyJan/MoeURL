@@ -274,14 +274,11 @@ func (s *Service) UpdateProfile(ctx context.Context, actor auth.CurrentUser, inp
 		return UpdateProfileResult{}, ErrBuiltinUserImmutable
 	}
 
-	var updated sqlc.AppUser
-	var group sqlc.UserGroup
-	var permissions []string
-	var supplementalGroups []string
+	var current auth.CurrentUser
 	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
 		txQueries := s.queries.WithTx(tx)
 		var err error
-		updated, err = txQueries.UpdateAppUserNickname(ctx, sqlc.UpdateAppUserNicknameParams{
+		_, err = txQueries.UpdateAppUserNickname(ctx, sqlc.UpdateAppUserNicknameParams{
 			ID:       uuidToPgtype(userID),
 			Nickname: nickname,
 		})
@@ -291,31 +288,14 @@ func (s *Service) UpdateProfile(ctx context.Context, actor auth.CurrentUser, inp
 		if err != nil {
 			return err
 		}
-		group, err = txQueries.GetUserGroupByID(ctx, updated.GroupID)
-		if err != nil {
-			return err
-		}
-		if err := json.Unmarshal(group.Permissions, &permissions); err != nil {
-			return err
-		}
-		supplementalGroups, err = txQueries.GetSupplementalUserGroupKeysByUserID(ctx, updated.ID)
-		if err != nil {
-			return err
-		}
-		return nil
+		current, err = auth.ReadCurrentUserIn(ctx, tx, actor.ID)
+		return err
 	})
 	if err != nil {
 		return UpdateProfileResult{}, err
 	}
 
-	return UpdateProfileResult{User: auth.CurrentUser{
-		ID:                 uuidFromPgtype(updated.ID),
-		Username:           updated.Username,
-		Nickname:           updated.Nickname,
-		GroupKey:           group.Key,
-		SupplementalGroups: supplementalGroups,
-		Permissions:        permissions,
-	}}, nil
+	return UpdateProfileResult{User: current}, nil
 }
 
 // ResetPassword replaces the password of a non-built-in user.

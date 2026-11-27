@@ -27,6 +27,7 @@ func TestRouterTargetPolicyBatchCheckSessionBoundary(t *testing.T) {
 	('00000000-0000-4000-8000-000000007211','check-admin','Admin','00000000-0000-4000-8000-000000007201','active',false,now(),now()),
 	('00000000-0000-4000-8000-000000007212','check-user','User','00000000-0000-4000-8000-000000007202','active',false,now(),now())`)
 	require.NoError(t, err)
+	normalizeTestAdminPermissions(t, t.Context(), pool)
 	sessions := auth.NewSessionService(pool, time.Hour)
 	admin, err := sessions.Create(t.Context(), "00000000-0000-4000-8000-000000007211")
 	require.NoError(t, err)
@@ -55,7 +56,7 @@ func TestRouterTargetPolicyBatchCheckSessionBoundary(t *testing.T) {
 	call("", 120001)
 	call(user.ID, 120001)
 	require.Equal(t, map[string]any{"items": []any{map[string]any{"index": float64(1), "outcome": "invalid_target"}}}, call(admin.ID, 0))
-	_, err = pool.Exec(t.Context(), `update user_group set permissions='["admin:access"]' where key='admin'`)
+	_, err = pool.Exec(t.Context(), `update app_user set group_id='00000000-0000-4000-8000-000000007202' where id='00000000-0000-4000-8000-000000007211'`)
 	require.NoError(t, err)
 	call(admin.ID, 120001)
 }

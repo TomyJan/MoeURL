@@ -27,6 +27,7 @@ func TestRouterTargetHostDenylistSessionBoundary(t *testing.T) {
 	('00000000-0000-4000-8000-000000006111','policy-admin','Admin','00000000-0000-4000-8000-000000006101','active',false,now(),now()),
 	('00000000-0000-4000-8000-000000006112','policy-user','User','00000000-0000-4000-8000-000000006102','active',false,now(),now())`)
 	require.NoError(t, err)
+	normalizeTestAdminPermissions(t, t.Context(), pool)
 	sessions := auth.NewSessionService(pool, time.Hour)
 	admin, err := sessions.Create(t.Context(), "00000000-0000-4000-8000-000000006111")
 	require.NoError(t, err)

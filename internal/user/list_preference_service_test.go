@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/TomyJan/MoeURL/internal/user"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -17,9 +18,9 @@ import (
 func listPreferenceFixture(t *testing.T) (*user.ListPreferenceService, *pgxpool.Pool, auth.CurrentUser, auth.CurrentUser) {
 	t.Helper()
 	pool := userTestPool(t, t.Context())
-	for _, key := range []string{"user", "admin", "guest"} {
-		insertUserGroup(t, t.Context(), pool, key, nil)
-	}
+	insertUserGroup(t, t.Context(), pool, "user", permission.UserPermissions)
+	insertUserGroup(t, t.Context(), pool, "admin", permission.AdminPermissions)
+	insertUserGroup(t, t.Context(), pool, "guest", []string{})
 	_, err := pool.Exec(t.Context(), `update user_group set builtin=true`)
 	require.NoError(t, err)
 	actor := auth.CurrentUser{ID: insertAppUser(t, t.Context(), pool, "list-owner", "hash", "Owner", "user", "active", false), GroupKey: "user"}

@@ -14,6 +14,7 @@ github.com/TomyJan/MoeURL/internal/targetpolicy/service.go
 github.com/TomyJan/MoeURL/internal/targetpolicy/handler.go
 github.com/TomyJan/MoeURL/internal/shortlink/target_policy.go
 github.com/TomyJan/MoeURL/internal/auth/current_user.go
+github.com/TomyJan/MoeURL/internal/auth/current_account.go
 github.com/TomyJan/MoeURL/internal/auth/handler.go
 github.com/TomyJan/MoeURL/internal/auth/password.go
 github.com/TomyJan/MoeURL/internal/auth/password_handler.go

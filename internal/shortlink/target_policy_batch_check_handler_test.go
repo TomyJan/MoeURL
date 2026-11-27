@@ -22,6 +22,7 @@ import (
 // ensure an accidentally accepted request becomes an observable wrong response.
 func TestTargetPolicyBatchCheckHandlerProtocol(t *testing.T) {
 	pool, service, actor := targetWriteFixture(t)
+	userGroupID := insertTargetPolicyUserGroup(t, pool)
 	session, err := auth.NewSessionService(pool, time.Hour).Create(t.Context(), actor.ID)
 	require.NoError(t, err)
 	handler := auth.CurrentUserMiddleware(auth.NewService(pool, time.Hour))(http.HandlerFunc(shortlink.NewTargetPolicyBatchCheckHandler(service, nil).Check))
@@ -72,7 +73,7 @@ func TestTargetPolicyBatchCheckHandlerProtocol(t *testing.T) {
 	call(t, "/", "application/json", `{"targetUrls":["https://private.example/","https://localhost/","https://second.example/","https://private.example/"]}`, 0, []shortlink.TargetPolicyBatchCheckItem{
 		{Index: 1, Outcome: "restricted"}, {Index: 2, Outcome: "invalid_target"}, {Index: 3, Outcome: "allowed"}, {Index: 4, Outcome: "restricted"},
 	})
-	_, err = pool.Exec(t.Context(), `update user_group set permissions='["admin:access"]' where key='admin'`)
+	_, err = pool.Exec(t.Context(), `update app_user set group_id=$1 where id=$2`, userGroupID, actor.ID)
 	require.NoError(t, err)
 	call(t, "/", "application/json", valid, 120001, nil)
 }
