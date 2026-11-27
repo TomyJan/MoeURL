@@ -29,6 +29,7 @@ func TestRouterFooterLinksSessionBoundary(t *testing.T) {
 		('00000000-0000-0000-0000-000000003511','footer-admin','Admin','00000000-0000-0000-0000-000000003521','active',false,now(),now()),
 		('00000000-0000-0000-0000-000000003512','footer-user','User','00000000-0000-0000-0000-000000003522','active',false,now(),now());`)
 	require.NoError(t, err)
+	normalizeTestAdminPermissions(t, t.Context(), pool)
 	sessions := auth.NewSessionService(pool, time.Hour)
 	admin, err := sessions.Create(t.Context(), adminID)
 	require.NoError(t, err)

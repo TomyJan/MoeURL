@@ -80,11 +80,12 @@ func TestServiceCoversPermissionQueryAndHelperFailures(t *testing.T) {
 	}
 
 	resolverErr := errors.New("permission lookup failed")
-	service := &Service{permissions: failingDomainPermissionResolver{err: resolverErr}}
-	if err := service.authorizeAdmin(t.Context(), actor); !errors.Is(err, resolverErr) {
+	failingService, _, persistedActor, _ := internalDomainFixture(t)
+	failingService.permissions = failingDomainPermissionResolver{err: resolverErr}
+	if err := failingService.authorizeAdmin(t.Context(), persistedActor); !errors.Is(err, resolverErr) {
 		t.Fatalf("resolver authorization error = %v", err)
 	}
-	if result, err := service.Available(t.Context(), actor); !errors.Is(err, resolverErr) || result.Items == nil {
+	if result, err := failingService.Available(t.Context(), persistedActor); !errors.Is(err, resolverErr) || result.Items == nil {
 		t.Fatalf("resolver available = %#v, %v", result, err)
 	}
 
@@ -114,6 +115,12 @@ func TestServiceCoversPermissionQueryAndHelperFailures(t *testing.T) {
 	}
 	if err := replaceGrants(t.Context(), sqlc.New(pool), pgUUID(uuid.New()), []string{"unknown"}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("unknown grant replacement error = %v", err)
+	}
+}
+
+func TestAuthorizeDomainWriterRejectsInvalidIdentityBeforeDatabaseRead(t *testing.T) {
+	if err := authorizeDomainWriter(t.Context(), nil, "not-a-uuid"); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("invalid identity authorization error = %v", err)
 	}
 }
 

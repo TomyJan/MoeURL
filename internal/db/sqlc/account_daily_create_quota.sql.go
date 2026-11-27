@@ -65,18 +65,6 @@ func (q *Queries) GetCreateQuotaAdmin(ctx context.Context, id pgtype.UUID) ([]by
 	return permissions, err
 }
 
-const getCreateQuotaReader = `-- name: GetCreateQuotaReader :one
-select g.permissions from app_user u join user_group g on g.id=u.group_id
-where u.id=$1 and u.status='active' and u.deleted_at is null and not u.builtin
-`
-
-func (q *Queries) GetCreateQuotaReader(ctx context.Context, id pgtype.UUID) ([]byte, error) {
-	row := q.db.QueryRow(ctx, getCreateQuotaReader, id)
-	var permissions []byte
-	err := row.Scan(&permissions)
-	return permissions, err
-}
-
 const lockAccountDailyCreateUsage = `-- name: LockAccountDailyCreateUsage :one
 select usage_day,used from account_daily_create_usage where actor_id=$1 for update
 `

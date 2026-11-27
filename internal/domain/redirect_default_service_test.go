@@ -8,6 +8,7 @@ import (
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/domain"
+	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -221,6 +222,57 @@ func TestEffectiveDomainRedirectDefaults(t *testing.T) {
 	require.NoError(t, err)
 	_, err = s.RedirectDefaults(ctx, user)
 	require.ErrorIs(t, err, domain.ErrPermissionDenied)
+}
+
+// TestRedirectDefaultsUseSupplementalGrantUnion proves that a supplemental
+// grant can authorize an explicitly granted domain and redirect mode.
+func TestRedirectDefaultsUseSupplementalGrantUnion(t *testing.T) {
+	s, pool, _, actor, d := orderFixture(t)
+	ctx := t.Context()
+	_, err := pool.Exec(ctx, `update domain set default_redirect_mode='confirmation' where id=$1`, d.ID)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `update user_group set permissions='["short_link:create","domain:use_default"]'::jsonb where key='user'`)
+	require.NoError(t, err)
+	supplementalID := uuid.New()
+	supplementalKey := uuid.NewString()
+	_, err = pool.Exec(ctx, `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at)
+		values($1,$2,'Supplemental redirect access','["domain:use_assigned","short_link:use_confirmation"]'::jsonb,false,now(),now())`, supplementalID, supplementalKey)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `insert into app_user_group_membership(user_id,user_group_id) values($1,$2)`, actor.ID, supplementalID)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `insert into domain_user_group(domain_id,user_group_id) values($1,$2)`, d.ID, supplementalID)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `delete from domain_user_group where domain_id=$1 and user_group_id=(select id from user_group where key='user')`, d.ID)
+	require.NoError(t, err)
+
+	items, err := s.RedirectDefaults(ctx, actor)
+	require.NoError(t, err)
+	require.Contains(t, items, domain.EffectiveRedirectDefault{DomainID: d.ID, RedirectMode: "confirmation"})
+
+	_, err = pool.Exec(ctx, `delete from app_user_group_membership where user_id=$1 and user_group_id=$2`, actor.ID, supplementalID)
+	require.NoError(t, err)
+	items, err = s.RedirectDefaults(ctx, actor)
+	require.NoError(t, err)
+	require.NotContains(t, items, domain.EffectiveRedirectDefault{DomainID: d.ID, RedirectMode: "confirmation"})
+}
+
+func TestRedirectDefaultsAllowCustomPrimaryGroup(t *testing.T) {
+	s, pool, _, actor, d := orderFixture(t)
+	ctx := t.Context()
+	groupID, groupKey := uuid.New(), uuid.NewString()
+	_, err := pool.Exec(ctx, `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at)
+		values($1,$2,'Custom primary','["short_link:create","domain:use_assigned"]'::jsonb,false,now(),now())`, groupID, groupKey)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `insert into domain_user_group(domain_id,user_group_id) values($1,$2)`, d.ID, groupID)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `delete from domain_user_group where domain_id=$1 and user_group_id=(select id from user_group where key='user')`, d.ID)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `update app_user set group_id=$2 where id=$1`, actor.ID, groupID)
+	require.NoError(t, err)
+
+	items, err := s.RedirectDefaults(ctx, auth.CurrentUser{ID: actor.ID, GroupKey: permission.GroupUser})
+	require.NoError(t, err)
+	require.Contains(t, items, domain.EffectiveRedirectDefault{DomainID: d.ID, RedirectMode: "direct"})
 }
 
 // TestDomainRedirectDefaultReauthorization catches a queued command retaining

@@ -37,13 +37,9 @@ func (s *Service) GetOwnUsage(ctx context.Context, actor auth.CurrentUser) (Usag
 	var result Usage
 	err = pgx.BeginTxFunc(ctx, s.pool, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}, func(tx pgx.Tx) error {
 		q := s.queries.WithTx(tx)
-		raw, err := q.GetCreateQuotaReader(ctx, id)
+		grants, err := permission.ResolveForAccountIn(ctx, tx, s.permissions, actor.ID, actor.GroupKey)
 		if err != nil {
 			return identityError(err)
-		}
-		grants, err := permission.DecodeSnapshot(raw)
-		if err != nil {
-			return ErrCorrupt
 		}
 		if !grants.Has(permission.ShortLinkCreate) {
 			return ErrPermissionDenied

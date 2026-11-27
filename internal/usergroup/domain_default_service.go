@@ -74,16 +74,20 @@ type groupDefaultStore interface {
 
 // DomainDefaultService keeps each read snapshot and each audited write within one bounded operation.
 type DomainDefaultService struct {
-	store   groupDefaultStore
-	inRead  func(context.Context, func(groupDefaultStore) error) error
-	inWrite func(context.Context, string, func(groupDefaultStore, pgx.Tx) error) error
+	store       groupDefaultStore
+	pool        *pgxpool.Pool
+	permissions permission.Resolver
+	inRead      func(context.Context, func(groupDefaultStore) error) error
+	inWrite     func(context.Context, string, func(groupDefaultStore, pgx.Tx) error) error
 }
 
 // NewDomainDefaultService uses repeatable-read management snapshots and the existing audit transaction owner.
 func NewDomainDefaultService(pool *pgxpool.Pool) *DomainDefaultService {
 	q := sqlc.New(pool)
 	return &DomainDefaultService{
-		store: q,
+		store:       q,
+		pool:        pool,
+		permissions: permission.NewDatabaseService(pool),
 		inRead: func(ctx context.Context, fn func(groupDefaultStore) error) error {
 			tx, err := pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
 			if err != nil {
@@ -203,7 +207,7 @@ func (s *DomainDefaultService) Set(ctx context.Context, actor auth.CurrentUser, 
 				return ErrPermissionDenied
 			}
 			_, err = q.GetGrantedDomainPreference(ctx, sqlc.GetGrantedDomainPreferenceParams{
-				DomainID: selected, GroupID: group.ID,
+				DomainID: selected, GroupKeys: []string{group.Key},
 				CanDefault: grants.Has(permission.DomainUseDefault), CanAssigned: grants.Has(permission.DomainUseAssigned),
 			})
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -251,16 +255,41 @@ func (s *DomainDefaultService) GetCurrent(ctx context.Context, actor auth.Curren
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	row, err := s.store.GetCurrentGroupDefaultDomain(ctx, id)
+	var row sqlc.GetCurrentGroupDefaultDomainRow
+	var grants permission.Snapshot
+	var tx pgx.Tx
+	if s.pool != nil && s.permissions != nil {
+		tx, err = s.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+		if err != nil {
+			return CurrentDomainDefaultResult{}, err
+		}
+		defer tx.Rollback(ctx)
+		q := sqlc.New(tx)
+		row, err = q.GetCurrentGroupDefaultDomain(ctx, id)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return CurrentDomainDefaultResult{}, ErrPermissionDenied
+		}
+		if err != nil {
+			return CurrentDomainDefaultResult{}, err
+		}
+		grants, err = permission.ResolveForAccountIn(ctx, tx, s.permissions, actor.ID, actor.GroupKey)
+		if err != nil {
+			return CurrentDomainDefaultResult{}, err
+		}
+	} else {
+		row, err = s.store.GetCurrentGroupDefaultDomain(ctx, id)
+	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		return CurrentDomainDefaultResult{}, ErrPermissionDenied
 	}
 	if err != nil {
 		return CurrentDomainDefaultResult{}, err
 	}
-	grants, err := decodeGroupConfigurationPermissions(row.Permissions)
-	if err != nil {
-		return CurrentDomainDefaultResult{}, err
+	if s.pool == nil || s.permissions == nil {
+		grants, err = decodeGroupConfigurationPermissions(row.Permissions)
+		if err != nil {
+			return CurrentDomainDefaultResult{}, err
+		}
 	}
 	var result CurrentDomainDefaultResult
 	result.Selection.Status = "not_set"
@@ -271,6 +300,11 @@ func (s *DomainDefaultService) GetCurrent(ctx context.Context, actor auth.Curren
 			result.Selection.Status = "available"
 			value := uuid.UUID(row.AvailableDomainID.Bytes).String()
 			result.Selection.DomainID = &value
+		}
+	}
+	if tx != nil {
+		if err := tx.Commit(ctx); err != nil {
+			return CurrentDomainDefaultResult{}, err
 		}
 	}
 	return result, nil

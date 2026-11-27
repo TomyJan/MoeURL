@@ -136,7 +136,7 @@ func (s *Service) RedirectDefaults(ctx context.Context, actor auth.CurrentUser) 
 			return nil
 		}
 		rows, err := q.ListEffectiveDomainRedirectDefaults(ctx, sqlc.ListEffectiveDomainRedirectDefaultsParams{
-			GroupID: current.GroupID, CanDefault: grants.Has(permission.DomainUseDefault), CanAssigned: grants.Has(permission.DomainUseAssigned),
+			GroupKeys: grants.GroupKeys(), CanDefault: grants.Has(permission.DomainUseDefault), CanAssigned: grants.Has(permission.DomainUseAssigned),
 			CanIntermediate: grants.Has(permission.ShortLinkUseIntermediate), CanConfirmation: grants.Has(permission.ShortLinkUseConfirmation),
 		})
 		if err != nil {
@@ -177,7 +177,7 @@ func (s *Service) withRedirectDefaultRead(ctx context.Context, actor auth.Curren
 	if err != nil {
 		return err
 	}
-	grants, err := permission.DecodeSnapshot(current.Permissions)
+	grants, err := permission.ResolveForAccountIn(ctx, tx, s.permissions, id.String(), current.Key)
 	if err != nil {
 		return err
 	}

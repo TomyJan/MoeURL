@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"strings"
@@ -153,16 +152,12 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (LoginResult, err
 	passwordHashUsable := false
 	status := ""
 	user := CurrentUser{}
-	var permissionsJSON []byte
-	var supplementalGroupsJSON []byte
 	if userFound {
 		user.ID = userRow.UserID
 		user.Username = userRow.Username
 		user.Nickname = userRow.Nickname
 		user.GroupKey = userRow.GroupKey
 		status = userRow.Status
-		permissionsJSON = userRow.Permissions
-		supplementalGroupsJSON = []byte(userRow.SupplementalGroups)
 		if userRow.PasswordHash.Valid && isSupportedPasswordHash(userRow.PasswordHash.String) {
 			passwordHash = userRow.PasswordHash.String
 			passwordHashUsable = true
@@ -194,14 +189,12 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (LoginResult, err
 		}
 		return LoginResult{}, ErrInvalidCredentials
 	}
-	if err := json.Unmarshal(permissionsJSON, &user.Permissions); err != nil {
-		return LoginResult{}, err
-	}
-	if err := json.Unmarshal(supplementalGroupsJSON, &user.SupplementalGroups); err != nil {
-		return LoginResult{}, err
-	}
 	if status != "active" {
 		return LoginResult{}, ErrUserDisabled
+	}
+	user, err = ReadCurrentUserIn(operationContext, tx, user.ID)
+	if err != nil {
+		return LoginResult{}, err
 	}
 
 	sessionID, err := s.sessionIDGenerator()
@@ -272,12 +265,17 @@ func (s *Service) Me(ctx context.Context, sessionID string) (CurrentUser, error)
 	if err != nil {
 		return GuestUser(), err
 	}
-	user, _, status, err := s.findUserByID(ctx, session.UserID)
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
 	if err != nil {
 		return GuestUser(), err
 	}
-	if status != "active" {
-		return GuestUser(), ErrUserDisabled
+	defer tx.Rollback(ctx)
+	user, err := ReadCurrentUserIn(ctx, tx, session.UserID)
+	if err != nil {
+		return GuestUser(), err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return GuestUser(), err
 	}
 	return user, nil
 }
@@ -285,50 +283,6 @@ func (s *Service) Me(ctx context.Context, sessionID string) (CurrentUser, error)
 // ResolveCurrentUser satisfies current-user resolution through Me.
 func (s *Service) ResolveCurrentUser(ctx context.Context, sessionID string) (CurrentUser, error) {
 	return s.Me(ctx, sessionID)
-}
-
-// findUserByID loads a user, optional password hash, and status by identifier.
-func (s *Service) findUserByID(ctx context.Context, userID string) (CurrentUser, string, string, error) {
-	var user CurrentUser
-	var passwordHash *string
-	var permissionsJSON []byte
-	var supplementalGroupsJSON []byte
-	var status string
-	err := s.pool.QueryRow(ctx, `
-		select app_user.id::text,
-			app_user.username,
-			app_user.nickname,
-			app_user.password_hash,
-			app_user.status,
-			user_group.key,
-			user_group.permissions,
-			coalesce((
-				select jsonb_agg(supplemental_group.key order by supplemental_group.key)
-				from app_user_group_membership as membership
-				join user_group as supplemental_group on supplemental_group.id = membership.user_group_id
-				where membership.user_id = app_user.id
-			), '[]'::jsonb)
-		from app_user
-		join user_group on user_group.id = app_user.group_id
-		where app_user.id = $1 and app_user.deleted_at is null
-	`, userID).Scan(&user.ID, &user.Username, &user.Nickname, &passwordHash, &status, &user.GroupKey, &permissionsJSON, &supplementalGroupsJSON)
-	if err == pgx.ErrNoRows {
-		return CurrentUser{}, "", "", ErrInvalidCredentials
-	}
-	if err != nil {
-		return CurrentUser{}, "", "", err
-	}
-	if err := json.Unmarshal(permissionsJSON, &user.Permissions); err != nil {
-		return CurrentUser{}, "", "", err
-	}
-	if err := json.Unmarshal(supplementalGroupsJSON, &user.SupplementalGroups); err != nil {
-		return CurrentUser{}, "", "", err
-	}
-	password := ""
-	if passwordHash != nil {
-		password = *passwordHash
-	}
-	return user, password, status, nil
 }
 
 // hashLoginUsername returns the base64url SHA-256 digest of a trim-normalized, case-sensitive username.

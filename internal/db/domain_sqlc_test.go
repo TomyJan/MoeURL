@@ -42,25 +42,25 @@ func TestDomainQueriesFilterGrantsAndReferences(t *testing.T) {
 		t.Fatalf("managed domains = %#v, error = %v", managed, err)
 	}
 	available, err := queries.ListAvailableShortLinkDomains(ctx, sqlc.ListAvailableShortLinkDomainsParams{
-		GroupKey: "user", CanDefault: true, CanAssigned: false,
+		GroupKeys: []string{"user"}, CanDefault: true, CanAssigned: false,
 	})
 	if err != nil || len(available) != 1 || available[0].ID != uuidToPgtype(defaultID) {
 		t.Fatalf("default-only domains = %#v, error = %v", available, err)
 	}
 	available, err = queries.ListAvailableShortLinkDomains(ctx, sqlc.ListAvailableShortLinkDomainsParams{
-		GroupKey: "user", CanDefault: false, CanAssigned: true,
+		GroupKeys: []string{"user"}, CanDefault: false, CanAssigned: true,
 	})
 	if err != nil || len(available) != 1 || available[0].ID != uuidToPgtype(assignedID) {
 		t.Fatalf("explicitly selectable domains = %#v, error = %v", available, err)
 	}
 	if _, err := queries.GetGrantedShortLinkDomainForCreate(ctx, sqlc.GetGrantedShortLinkDomainForCreateParams{
-		GroupKey: "user", RequiredPermission: "domain:use_assigned", UseDefault: false,
+		GroupKeys: []string{"user"}, UseDefault: false,
 		DomainID: uuidToPgtype(defaultID),
 	}); !errors.Is(err, pgx.ErrNoRows) {
 		t.Fatalf("explicit default selection error = %v, want pgx.ErrNoRows", err)
 	}
 	selected, err := queries.GetGrantedShortLinkDomainForCreate(ctx, sqlc.GetGrantedShortLinkDomainForCreateParams{
-		GroupKey: "user", RequiredPermission: "domain:use_assigned", UseDefault: false,
+		GroupKeys: []string{"user"}, UseDefault: false,
 		DomainID: uuidToPgtype(assignedID),
 	})
 	if err != nil || selected.ID != uuidToPgtype(assignedID) {
@@ -74,7 +74,7 @@ func TestDomainQueriesFilterGrantsAndReferences(t *testing.T) {
 		t.Fatalf("remove assigned domain grant: %v", err)
 	}
 	available, err = queries.ListAvailableShortLinkDomains(ctx, sqlc.ListAvailableShortLinkDomainsParams{
-		GroupKey: "user", CanDefault: false, CanAssigned: true,
+		GroupKeys: []string{"user"}, CanDefault: false, CanAssigned: true,
 	})
 	if err != nil || len(available) != 0 {
 		t.Fatalf("ungranted domain should be unavailable: %#v, %v", available, err)

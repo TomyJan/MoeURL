@@ -25,17 +25,21 @@ func (q *Queries) ClearDeletedDomainPreferences(ctx context.Context, domainID pg
 
 const getGrantedDomainPreference = `-- name: GetGrantedDomainPreference :one
 select d.id from domain d
-join domain_user_group dg on dg.domain_id = d.id
-where d.id = $1 and dg.user_group_id = $2
+where d.id = $1
+  and exists (
+      select 1 from domain_user_group dg
+      join user_group g on g.id = dg.user_group_id
+      where dg.domain_id = d.id and g.key = any($2::text[])
+  )
   and d.enabled and d.purpose = 'short_link'
   and ((d.is_default and $3::boolean)
        or (not d.is_default and $4::boolean))
-for share of d, dg
+for share of d
 `
 
 type GetGrantedDomainPreferenceParams struct {
 	DomainID    pgtype.UUID `json:"domain_id"`
-	GroupID     pgtype.UUID `json:"group_id"`
+	GroupKeys   []string    `json:"group_keys"`
 	CanDefault  bool        `json:"can_default"`
 	CanAssigned bool        `json:"can_assigned"`
 }
@@ -43,7 +47,7 @@ type GetGrantedDomainPreferenceParams struct {
 func (q *Queries) GetGrantedDomainPreference(ctx context.Context, arg GetGrantedDomainPreferenceParams) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, getGrantedDomainPreference,
 		arg.DomainID,
-		arg.GroupID,
+		arg.GroupKeys,
 		arg.CanDefault,
 		arg.CanAssigned,
 	)

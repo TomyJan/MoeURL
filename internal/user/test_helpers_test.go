@@ -20,7 +20,7 @@ func insertUserGroup(t *testing.T, ctx context.Context, pool *pgxpool.Pool, key 
 	t.Helper()
 	_, err := pool.Exec(ctx, `
 		insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
-		values (gen_random_uuid(), $1, $1, '', $2::jsonb, false, now(), now())
+		values (gen_random_uuid(), $1, $1, '', $2::jsonb, $1 in ('guest','user','admin'), now(), now())
 	`, key, permissionsJSON(permissions))
 	if err != nil {
 		t.Fatalf("insert user group: %v", err)

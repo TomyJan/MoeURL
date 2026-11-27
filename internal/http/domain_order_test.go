@@ -34,6 +34,7 @@ func TestRouterDomainOrderSessionBoundary(t *testing.T) {
 		insert into domain(id,host,display_name,purpose,enabled,is_default,created_at,updated_at) values
 		('00000000-0000-0000-0000-000000002713','https://router-order.example.com','Router order','short_link',true,false,now(),now());`)
 	require.NoError(t, err)
+	normalizeTestAdminPermissions(t, t.Context(), pool)
 	var version time.Time
 	require.NoError(t, pool.QueryRow(t.Context(), `select updated_at from domain where id=$1`, domainID).Scan(&version))
 	sessions := auth.NewSessionService(pool, time.Hour)

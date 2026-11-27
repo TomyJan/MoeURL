@@ -23,6 +23,7 @@ import (
 // database grants must control the actual JSON response.
 func TestTargetPolicyCheckHandlerProtocol(t *testing.T) {
 	pool, service, actor := targetWriteFixture(t)
+	userGroupID := insertTargetPolicyUserGroup(t, pool)
 	session, err := auth.NewSessionService(pool, time.Hour).Create(t.Context(), actor.ID)
 	require.NoError(t, err)
 	handler := auth.CurrentUserMiddleware(auth.NewService(pool, time.Hour))(http.HandlerFunc(shortlink.NewTargetPolicyCheckHandler(service, nil).Check))
@@ -63,7 +64,7 @@ func TestTargetPolicyCheckHandlerProtocol(t *testing.T) {
 	require.NoError(t, err)
 	call(t, "/", "application/json", valid, 0, "restricted")
 	call(t, "/", "application/json", `{"targetUrl":"https://localhost/"}`, 0, "invalid_target")
-	_, err = pool.Exec(t.Context(), `update user_group set permissions='["admin:access"]' where key='admin'`)
+	_, err = pool.Exec(t.Context(), `update app_user set group_id=$1 where id=$2`, userGroupID, actor.ID)
 	require.NoError(t, err)
 	call(t, "/", "application/json", valid, 120001, "")
 }

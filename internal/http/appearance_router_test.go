@@ -29,6 +29,7 @@ func TestRouterAppearanceSessionBoundary(t *testing.T) {
 		('00000000-0000-0000-0000-000000003311','accent-admin','Admin','00000000-0000-0000-0000-000000003321','active',false,now(),now()),
 		('00000000-0000-0000-0000-000000003312','accent-user','User','00000000-0000-0000-0000-000000003322','active',false,now(),now());`)
 	require.NoError(t, err)
+	normalizeTestAdminPermissions(t, t.Context(), pool)
 	sessions := auth.NewSessionService(pool, time.Hour)
 	admin, err := sessions.Create(t.Context(), adminID)
 	require.NoError(t, err)

@@ -45,7 +45,17 @@ github.com/TomyJan/MoeURL/internal/user/service.go:66.16,68.3
 # Create resolves the actor group key from the FK-backed group row, then re-locks it by key. Group keys are immutable through supported APIs; this no-row race requires direct database key mutation between those reads.
 github.com/TomyJan/MoeURL/internal/user/service.go:87.36,89.4
 # ResetPassword password hashing failure; argon2/random failure is an infrastructure branch that is not deterministically triggerable.
-github.com/TomyJan/MoeURL/internal/user/service.go:336.16,338.3
+# User list groups are emitted by SQLC as a COALESCE(jsonb_agg(...), '[]'::jsonb)
+# JSONB value. Unmarshal failure and the nil-slice fallback are defensive only;
+# they require changing that stable SQL projection or driver contract.
+github.com/TomyJan/MoeURL/internal/user/service.go:174.93,176.4
+github.com/TomyJan/MoeURL/internal/user/service.go:177.32,179.4
+# Update commits its audited profile change before this separate supplemental-group
+# readback. Failure here requires a DB/context fault at the next SELECT boundary.
+github.com/TomyJan/MoeURL/internal/user/service.go:241.16,243.3
+# ResetPassword Argon2id hashing fails only if the OS entropy source fails; this
+# package has no deterministic injection seam and the failure occurs before writes.
+github.com/TomyJan/MoeURL/internal/user/service.go:325.16,327.3
 # After a creation transaction starts, advisory locking or the granted-domain query can fail on database or context errors.
 github.com/TomyJan/MoeURL/internal/shortlink/service.go:143.64,145.5
 github.com/TomyJan/MoeURL/internal/shortlink/service.go:162.18,164.5
@@ -78,15 +88,33 @@ github.com/TomyJan/MoeURL/internal/shortlink/target_policy.go:42.16,44.3
 # and reassess this exact block when changing the locked IDNA dependency.
 github.com/TomyJan/MoeURL/internal/targetpolicy/normalize.go:62.38,64.5
 
-# Domain mutations acquire the same advisory lock immediately after beginning a transaction; forcing only the lock
-# statement to fail requires a connection or context race after the transaction has already started.
-github.com/TomyJan/MoeURL/internal/domain/service.go:108.51,110.4
-github.com/TomyJan/MoeURL/internal/domain/service.go:145.51,147.4
-github.com/TomyJan/MoeURL/internal/domain/service.go:215.51,217.4
-github.com/TomyJan/MoeURL/internal/domain/service.go:280.51,282.4
+# Domain mutations acquire the same advisory lock immediately after BEGIN;
+# failure at those statements requires a connection/context race. Available's
+# read-only transaction has completed all reads before its commit boundary.
+github.com/TomyJan/MoeURL/internal/domain/service.go:99.39,101.3
+github.com/TomyJan/MoeURL/internal/domain/service.go:116.51,118.4
+github.com/TomyJan/MoeURL/internal/domain/service.go:153.51,155.4
+github.com/TomyJan/MoeURL/internal/domain/service.go:223.51,225.4
+github.com/TomyJan/MoeURL/internal/domain/service.go:288.51,290.4
 
 # The default host is a validated string, so encoding/json cannot fail while marshaling it.
-github.com/TomyJan/MoeURL/internal/domain/service.go:261.16,263.3
+github.com/TomyJan/MoeURL/internal/domain/service.go:269.16,271.3
+
+# Group-default availability reads run after a read-only snapshot has begun;
+# SELECT failure is an external database/context fault between statements.
+github.com/TomyJan/MoeURL/internal/usergroup/domain_default_service.go:272.17,274.4
+# Current-default commit follows completed snapshot reads and fails only at the DB commit boundary.
+github.com/TomyJan/MoeURL/internal/usergroup/domain_default_service.go:306.40,308.4
+
+# These membership SELECTs follow successful account/group locks in the same
+# transaction. Error injection requires a DB/context failure between statements;
+# relation validity and permission corruption have deterministic regression tests.
+github.com/TomyJan/MoeURL/internal/user/group_service.go:78.17,80.4
+github.com/TomyJan/MoeURL/internal/user/batch_group_service.go:147.18,149.5
+# The group change and session revocation have succeeded inside the audit
+# transaction; this subsequent projection SELECT can fail only on DB/context I/O,
+# in which case the enclosing transaction rolls the mutation back.
+github.com/TomyJan/MoeURL/internal/user/group_service.go:107.17,109.4
 
 # Discovery validates the issuer URL before request construction, so net/http cannot reject the derived URL.
 github.com/TomyJan/MoeURL/internal/oidc/discovery.go:39.16,41.3
@@ -101,6 +129,10 @@ github.com/TomyJan/MoeURL/internal/oidc/provider_service.go:363.16,365.3
 # AES-256 keys are length-checked before construction; the standard AES and GCM constructors cannot reject this configuration.
 github.com/TomyJan/MoeURL/internal/oidc/secret.go:40.16,42.3
 github.com/TomyJan/MoeURL/internal/oidc/secret.go:44.16,46.3
+# Me uses a real resolved session and a read-only repeatable-read transaction; forcing BeginTx or Commit failure
+# requires an external pool/context/storage failure at that exact boundary.
+github.com/TomyJan/MoeURL/internal/auth/service.go:269.16,271.3
+github.com/TomyJan/MoeURL/internal/auth/service.go:277.39,279.3
 
 # Batch saved snapshots validate all seven resources before matching. The pure
 # matchers can then return only nil/ErrInvalidTarget/ErrTargetDenied; malformed
