@@ -110,7 +110,7 @@ func TestRestoreManifestRejectsWithoutSideEffects(t *testing.T) {
 				}
 			}
 			before := manifestRestoreStorageSnapshot(t, ctx, pool)
-			service := shortlink.NewService(pool, permission.NewService())
+			service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 			for attempt := 0; attempt < 2; attempt++ {
 				result, err := service.RestoreManifest(ctx, actor, input)
 				if !errors.Is(err, test.want) || result.CreatedCount != 0 || result.RequestID != "" {
@@ -134,7 +134,7 @@ func TestRestoreManifestHundredRowsAtQuotaBoundary(t *testing.T) {
 	if _, err := pool.Exec(ctx, `update system_setting set value='{"dailyLimit":100}' where key='security.account_daily_create_quota'`); err != nil {
 		t.Fatal(err)
 	}
-	service := shortlink.NewService(pool, permission.NewService())
+	service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 	input := manifestRestoreStorageInput(100)
 	result, err := service.RestoreManifest(ctx, actor, input)
 	if err != nil || result.CreatedCount != 100 || result.RequestID != input.RequestID {
@@ -181,7 +181,7 @@ func TestRestoreManifestReadFailuresRemainAtomic(t *testing.T) {
 			insertShortLinkDefaultDomain(t, ctx, pool)
 			actor := insertShortLinkUser(t, ctx, pool, "restore-read-failure", permission.GroupUser, permission.UserPermissions)
 			input := manifestRestoreStorageInput(1)
-			service := shortlink.NewService(pool, permission.NewService())
+			service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 			before := manifestRestoreStorageSnapshot(t, ctx, pool)
 			// Names come exclusively from the fixed table allowlist above.
 			if _, err := pool.Exec(ctx, `alter table `+table+` rename to manifest_unavailable`); err != nil {
@@ -220,7 +220,7 @@ func TestRestoreManifestMissingActorAndCorruptGrants(t *testing.T) {
 	pool := shortLinkTestPool(t, ctx)
 	insertShortLinkDefaultDomain(t, ctx, pool)
 	actor := insertShortLinkUser(t, ctx, pool, "restore-corrupt-grants", permission.GroupUser, permission.UserPermissions)
-	service := shortlink.NewService(pool, permission.NewService())
+	service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 	input := manifestRestoreStorageInput(1)
 	before := manifestRestoreStorageSnapshot(t, ctx, pool)
 	missing := actor
@@ -317,7 +317,7 @@ func TestRestoreManifestWriteFailuresRollbackAndAllowRetry(t *testing.T) {
 			if _, err := pool.Exec(ctx, fault.install); err != nil {
 				t.Fatalf("install isolated storage fault: %v", err)
 			}
-			service := shortlink.NewService(pool, permission.NewService())
+			service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 			input := manifestRestoreStorageInput(21)
 			before := manifestRestoreStorageSnapshot(t, ctx, pool)
 			for attempt := 0; attempt < 2; attempt++ {
@@ -374,7 +374,7 @@ func TestRestoreManifestReplayRequiresCurrentAuthorization(t *testing.T) {
 			pool := shortLinkTestPool(t, ctx)
 			insertShortLinkDefaultDomain(t, ctx, pool)
 			actor := insertShortLinkUser(t, ctx, pool, "restore-replay-revoked", permission.GroupUser, permission.UserPermissions)
-			service := shortlink.NewService(pool, permission.NewService())
+			service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 			input := manifestRestoreStorageInput(1)
 			if scenario.intermediate {
 				input.Items[0].RedirectMode = "intermediate"
@@ -410,7 +410,7 @@ func TestRestoreManifestConcurrentRequests(t *testing.T) {
 			pool := shortLinkTestPool(t, ctx)
 			insertShortLinkDefaultDomain(t, ctx, pool)
 			actor := insertShortLinkUser(t, ctx, pool, "restore-concurrent", permission.GroupUser, permission.UserPermissions)
-			service := shortlink.NewService(pool, permission.NewService())
+			service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 			inputs := [2]shortlink.ManifestRestoreInput{manifestRestoreStorageInput(21), manifestRestoreStorageInput(21)}
 			if scenario != "different_request_ids" {
 				inputs[1].RequestID = inputs[0].RequestID

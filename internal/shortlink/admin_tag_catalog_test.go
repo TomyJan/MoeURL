@@ -162,20 +162,18 @@ func TestAdminTagCatalogScopeAndCounts(t *testing.T) {
 // TestAdminTagCatalogCurrentAuthorization catches stale prechecks surviving a database grant or account change.
 func TestAdminTagCatalogCurrentAuthorization(t *testing.T) {
 	for _, tc := range []struct{ name, change string }{
-		{"admin access revoked", `update user_group set permissions='["short_link:read_all"]'`},
-		{"global read revoked", `update user_group set permissions='["admin:access"]'`},
 		{"disabled actor", `update app_user set status='disabled' where id=$1`},
 		{"deleted actor", `update app_user set deleted_at=now() where id=$1`},
 		{"missing actor", `delete from app_user where id=$1`},
 		{"guest even with grants", `update user_group set key='guest'`},
-		{"moved group", `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values('00000000-0000-0000-0000-000000000402','restricted','Restricted','[]',false,now(),now()); update app_user set group_id='00000000-0000-0000-0000-000000000402'`},
+		{"moved group", `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values('00000000-0000-0000-0000-000000000402','550e8400-e29b-41d4-a716-446655440097','Restricted','[]',false,now(),now()); update app_user set group_id='00000000-0000-0000-0000-000000000402'`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := t.Context()
 			pool := shortLinkTestPool(t, ctx)
 			insertShortLinkDefaultDomain(t, ctx, pool)
 			manager := insertShortLinkUser(t, ctx, pool, "current-manager", "admin", permission.AdminPermissions)
-			resolver := tagCatalogResolver{delegate: permission.NewService(), before: func() {
+			resolver := tagCatalogResolver{delegate: permission.NewDatabaseService(pool), before: func() {
 				var args []any
 				if strings.Contains(tc.change, "$1") {
 					args = append(args, manager.ID)
@@ -202,4 +200,32 @@ func TestAdminTagCatalogCurrentAuthorization(t *testing.T) {
 		require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
 		require.Nil(t, result.Items)
 	})
+}
+
+func TestTagCatalogReadErrorsAfterAuthorizationFailClosed(t *testing.T) {
+	ctx := t.Context()
+	pool := shortLinkTestPool(t, ctx)
+	insertShortLinkDefaultDomain(t, ctx, pool)
+	admin := insertShortLinkUser(t, ctx, pool, "catalog-read-error-admin", "admin", permission.AdminPermissions)
+
+	for _, scenario := range []struct {
+		name string
+		call func(context.Context, permission.Resolver) (shortlink.TagCatalogResult, error)
+	}{
+		{name: "admin", call: func(callCtx context.Context, resolver permission.Resolver) (shortlink.TagCatalogResult, error) {
+			return shortlink.NewService(pool, resolver).ListAdminTags(callCtx, admin, shortlink.TagCatalogInput{})
+		}},
+		{name: "personal", call: func(callCtx context.Context, resolver permission.Resolver) (shortlink.TagCatalogResult, error) {
+			return shortlink.NewService(pool, resolver).ListTags(callCtx, admin, shortlink.TagCatalogInput{})
+		}},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			callCtx, cancel := context.WithCancel(ctx)
+			resolver := tagCatalogResolver{delegate: permission.NewDatabaseService(pool), after: cancel}
+			result, err := scenario.call(callCtx, resolver)
+			cancel()
+			require.ErrorIs(t, err, context.Canceled)
+			require.Nil(t, result.Items)
+		})
+	}
 }

@@ -74,7 +74,7 @@ func TestSelectedListExportServiceSnapshot(t *testing.T) {
 					deadline, exists := ctx.Deadline()
 					require.True(t, exists)
 					require.InDelta(t, 5, time.Until(deadline).Seconds(), 0.2)
-					require.Equal(t, sqlc.ExportShortLinkListParams{ActorID: pgtype.UUID{Bytes: uuid.MustParse(actor.ID), Valid: true}, IsAdmin: admin, SelectionMode: true, SelectedIds: wantIDs}, p)
+					require.Equal(t, sqlc.ExportShortLinkListParams{PermissionGranted: true, ActorID: pgtype.UUID{Bytes: uuid.MustParse(actor.ID), Valid: true}, IsAdmin: admin, SelectionMode: true, SelectedIds: wantIDs}, p)
 					return []sqlc.ExportShortLinkListRow{{Allowed: true, ID: input.IDs[0], DomainHost: "go.example", Slug: "selected", TargetUrl: "https://example.com/target", Title: "=formula", Tags: []string{}, Status: "active", RedirectMode: "direct", OwnerID: actor.ID, OwnerUsername: "owner"}}, nil
 				})
 				result, err := run(t.Context(), user, input)

@@ -77,11 +77,11 @@ func (s *Service) RestoreManifest(ctx context.Context, actor auth.CurrentUser, i
 		if err != nil {
 			return err
 		}
-		grants, err := permission.DecodeSnapshot(group.Permissions)
+		grants, err := permission.ResolveForAccountLockedIn(ctx, tx, s.permissions, actor.ID, group.Key)
 		if err != nil {
 			return err
 		}
-		if err := authorizeManifestRestore(group.Key, grants, records); err != nil {
+		if err := authorizeManifestRestore(grants, records); err != nil {
 			return err
 		}
 
@@ -100,7 +100,7 @@ func (s *Service) RestoreManifest(ctx context.Context, actor auth.CurrentUser, i
 		}
 
 		domains, err := q.ListAvailableShortLinkDomains(ctx, sqlc.ListAvailableShortLinkDomainsParams{
-			GroupKey: group.Key, CanDefault: grants.Has(permission.DomainUseDefault),
+			GroupKeys: grants.GroupKeys(), CanDefault: grants.Has(permission.DomainUseDefault),
 			CanAssigned: grants.Has(permission.DomainUseAssigned),
 		})
 		if err != nil {
@@ -126,8 +126,11 @@ func (s *Service) RestoreManifest(ctx context.Context, actor auth.CurrentUser, i
 			if available.IsDefault {
 				required = permission.DomainUseDefault
 			}
+			if !grants.Has(required) {
+				return ErrDomainUnavailable
+			}
 			selected, err := q.GetGrantedShortLinkDomainForCreate(ctx, sqlc.GetGrantedShortLinkDomainForCreateParams{
-				GroupKey: group.Key, RequiredPermission: required, CustomSlug: true,
+				GroupKeys:  grants.GroupKeys(),
 				UseDefault: available.IsDefault, DomainID: uuidToPgtype(uuid.UUID(available.ID.Bytes)),
 			})
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -202,9 +205,8 @@ func normalizeManifestStoredOrigin(host string) (string, error) {
 }
 
 // authorizeManifestRestore applies current database grants to every reconstructed field.
-func authorizeManifestRestore(groupKey string, grants permission.Snapshot, records []manifestRestoreRecord) error {
-	if (groupKey != permission.GroupUser && groupKey != permission.GroupAdmin) ||
-		!grants.Has(permission.ShortLinkCreate) || !grants.Has(permission.ShortLinkCustomSlug) || !grants.Has(permission.ShortLinkSetMetadata) {
+func authorizeManifestRestore(grants permission.Snapshot, records []manifestRestoreRecord) error {
+	if !grants.Has(permission.ShortLinkCreate) || !grants.Has(permission.ShortLinkCustomSlug) || !grants.Has(permission.ShortLinkSetMetadata) {
 		return ErrPermissionDenied
 	}
 	for _, record := range records {

@@ -2,12 +2,14 @@ package shortlink_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/TomyJan/MoeURL/internal/testdb"
@@ -154,8 +156,8 @@ func TestTransferCurrentDatabaseState(t *testing.T) {
 		{"disabled actor", `update app_user set status='disabled' where username='manager'`, shortlink.ErrPermissionDenied},
 		{"deleted actor", `update app_user set deleted_at=now() where username='manager'`, shortlink.ErrPermissionDenied},
 		{"demoted actor", `update app_user set group_id=(select id from user_group where key='user') where username='manager'`, shortlink.ErrPermissionDenied},
-		{"missing admin access", `update user_group set permissions=permissions-'admin:access' where key='admin'`, shortlink.ErrPermissionDenied},
-		{"missing update all", `update user_group set permissions=permissions-'short_link:update_all' where key='admin'`, shortlink.ErrPermissionDenied},
+		{"missing admin access", `update user_group set permissions=permissions-'admin:access' where key='admin'`, nil},
+		{"missing update all", `update user_group set permissions=permissions-'short_link:update_all' where key='admin'`, nil},
 		{"malformed permissions", `update user_group set permissions='{}' where key='admin'`, nil},
 		{"unsupported recipient group", `update user_group set key='guest' where key='user'`, shortlink.ErrTransferRecipientUnavailable},
 	} {
@@ -163,11 +165,11 @@ func TestTransferCurrentDatabaseState(t *testing.T) {
 			pool, _, actor, _, _, input := transferFixture(t)
 			_, err := pool.Exec(t.Context(), tc.sql)
 			require.NoError(t, err)
-			_, err = shortlink.NewService(pool, permission.NewService()).Transfer(t.Context(), actor, input)
+			_, err = shortlink.NewService(pool, permission.NewDatabaseService(pool)).Transfer(t.Context(), actor, input)
 			if tc.expected != nil {
 				require.ErrorIs(t, err, tc.expected)
 			} else {
-				require.Error(t, err)
+				require.Error(t, err, "invalid or malformed group permissions must fail closed")
 			}
 		})
 	}
@@ -299,6 +301,39 @@ func TestTransferWaitsForUserChanges(t *testing.T) {
 	}
 }
 
+func TestTransferWaitsForCurrentPermissionAfterGroupLock(t *testing.T) {
+	pool, service, actor, owner, _, input := transferFixture(t)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	tx, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	defer func() { testdb.Rollback(t, tx.Rollback) }()
+	var blockerPID int
+	require.NoError(t, tx.QueryRow(ctx, `select pg_backend_pid()`).Scan(&blockerPID))
+	_, err = tx.Exec(ctx, `update user_group set permissions=permissions-'short_link:update_all' where key='admin'`)
+	require.NoError(t, err)
+
+	done := make(chan error, 1)
+	go func() {
+		_, transferErr := service.Transfer(ctx, actor, input)
+		done <- transferErr
+	}()
+	require.Eventually(t, func() bool {
+		var waiting bool
+		err := pool.QueryRow(ctx, `select exists(select 1 from pg_stat_activity where datname=current_database() and $1=any(pg_blocking_pids(pid)) and query like '-- name: LockTransferActorGroup%')`, blockerPID).Scan(&waiting)
+		return err == nil && waiting
+	}, 5*time.Second, 10*time.Millisecond, "transfer must wait for the locked current group before reauthorizing")
+	require.NoError(t, tx.Commit(ctx))
+	require.Error(t, <-done, "corrupt protected grants must fail closed after the lock wait")
+
+	var storedOwner string
+	require.NoError(t, pool.QueryRow(ctx, `select owner_id::text from short_link where id=$1`, input.ID).Scan(&storedOwner))
+	require.Equal(t, owner.ID, storedOwner)
+	var auditCount int
+	require.NoError(t, pool.QueryRow(ctx, `select count(*) from audit_log`).Scan(&auditCount))
+	require.Zero(t, auditCount)
+}
+
 type transferFaultTracer struct{ prefix string }
 
 // TraceQueryStart cancels a real database request at a controlled transaction boundary.
@@ -332,6 +367,34 @@ func TestTransferRollback(t *testing.T) {
 	require.NoError(t, err)
 	_, err = shortlink.NewService(pool, permission.NewDatabaseService(pool)).Transfer(t.Context(), actor, input)
 	require.Error(t, err)
+	var stored string
+	require.NoError(t, pool.QueryRow(t.Context(), `select owner_id::text from short_link where id=$1`, input.ID).Scan(&stored))
+	require.Equal(t, owner.ID, stored)
+	var audits int
+	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from audit_log`).Scan(&audits))
+	require.Zero(t, audits)
+}
+
+type transferLockedPermissionFailure struct {
+	delegate permission.Resolver
+	failure  error
+}
+
+func (r transferLockedPermissionFailure) Resolve(ctx context.Context, groupKey string) (permission.Snapshot, error) {
+	return r.delegate.Resolve(ctx, groupKey)
+}
+
+func (r transferLockedPermissionFailure) ResolveAccountLockedIn(context.Context, sqlc.DBTX, string) (permission.Snapshot, error) {
+	return permission.Snapshot{}, r.failure
+}
+
+func TestTransferFailsClosedWhenLockedPermissionLookupFails(t *testing.T) {
+	pool, _, actor, owner, _, input := transferFixture(t)
+	lookupFailure := errors.New("locked account permission read failed")
+	resolver := transferLockedPermissionFailure{delegate: permission.NewService(), failure: lookupFailure}
+	result, err := shortlink.NewService(pool, resolver).Transfer(t.Context(), actor, input)
+	require.ErrorIs(t, err, lookupFailure)
+	require.Zero(t, result)
 	var stored string
 	require.NoError(t, pool.QueryRow(t.Context(), `select owner_id::text from short_link where id=$1`, input.ID).Scan(&stored))
 	require.Equal(t, owner.ID, stored)

@@ -39,6 +39,12 @@ func (s *Service) batch(ctx context.Context, actor auth.CurrentUser, input Batch
 	if err != nil {
 		return BatchResult{}, err
 	}
+	if !admin && actor.ID != "" {
+		actorID, idErr := uuid.Parse(actor.ID)
+		if idErr != nil || actorID == uuid.Nil || actorID.String() != actor.ID {
+			return BatchResult{}, ErrInvalidInput
+		}
+	}
 	required := permission.ShortLinkUpdateOwn
 	if input.Action == "delete" {
 		required = permission.ShortLinkDeleteOwn
@@ -67,9 +73,17 @@ func (s *Service) batch(ctx context.Context, actor auth.CurrentUser, input Batch
 	var affected int64
 	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
+		writer, err := lockTargetWriter(ctx, tx, queries, s.permissions, actor, admin, requiredPermissions...)
+		if err != nil {
+			return err
+		}
+		permissionGranted := true
+		for _, key := range requiredPermissions {
+			permissionGranted = permissionGranted && writer.Permissions.Has(key)
+		}
 		if input.Action == "delete" {
 			row, queryErr := queries.BatchDeleteShortLinks(ctx, sqlc.BatchDeleteShortLinksParams{
-				ActorID: uuidToPgtype(actorID), GroupKey: actor.GroupKey, RequiredPermissions: requiredPermissions, Ids: ids, AdminScope: admin,
+				ActorID: uuidToPgtype(actorID), PermissionGranted: permissionGranted, Ids: ids, AdminScope: admin,
 			})
 			authorized, affected, err = row.Authorized, row.AffectedCount, queryErr
 		} else {
@@ -78,7 +92,7 @@ func (s *Service) batch(ctx context.Context, actor auth.CurrentUser, input Batch
 				status = "disabled"
 			}
 			row, queryErr := queries.BatchSetShortLinkStatus(ctx, sqlc.BatchSetShortLinkStatusParams{
-				ActorID: uuidToPgtype(actorID), GroupKey: actor.GroupKey, RequiredPermissions: requiredPermissions, Ids: ids, AdminScope: admin, Status: status,
+				ActorID: uuidToPgtype(actorID), PermissionGranted: permissionGranted, Ids: ids, AdminScope: admin, Status: status,
 			})
 			authorized, affected, err = row.Authorized, row.AffectedCount, queryErr
 		}

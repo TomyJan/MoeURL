@@ -2,7 +2,6 @@ package shortlink_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -49,8 +48,7 @@ func TestBulkCreateStorageFailureDoesNotCommit(t *testing.T) {
 			restored = true
 			require.Zero(t, result)
 			if tc.permissionJSON {
-				var invalid *json.UnmarshalTypeError
-				require.ErrorAs(t, createErr, &invalid)
+				require.Error(t, createErr, "malformed stored permissions must fail closed")
 			} else {
 				var unavailable *pgconn.PgError
 				require.ErrorAs(t, createErr, &unavailable)

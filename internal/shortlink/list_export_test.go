@@ -122,7 +122,7 @@ func TestListExportFailures(t *testing.T) {
 			require.True(t, ok)
 			require.LessOrEqual(t, deadline.Sub(start), 5*time.Second+time.Millisecond)
 			require.Greater(t, deadline.Sub(start), 4*time.Second)
-			require.Equal(t, sqlc.ExportShortLinkListParams{ActorID: uuidToPgtype(uuid.MustParse(actor.ID)), IsAdmin: admin, Status: "disabled", Query: `100\%\_\\`, Tag: "Case"}, input)
+			require.Equal(t, sqlc.ExportShortLinkListParams{PermissionGranted: true, ActorID: uuidToPgtype(uuid.MustParse(actor.ID)), IsAdmin: admin, Status: "disabled", Query: `100\%\_\\`, Tag: "Case"}, input)
 			return []sqlc.ExportShortLinkListRow{{Allowed: true}}, nil
 		})
 		input := ListExportInput{Status: "disabled", Query: ` 100%_\ `, Tag: " Case "}

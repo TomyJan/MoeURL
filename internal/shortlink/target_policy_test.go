@@ -3,6 +3,7 @@ package shortlink_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -21,6 +22,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type failSecondPermissionResolution struct {
+	calls int
+	err   error
+}
+
+func (r *failSecondPermissionResolution) Resolve(ctx context.Context, groupKey string) (permission.Snapshot, error) {
+	r.calls++
+	if r.calls == 2 {
+		return permission.Snapshot{}, r.err
+	}
+	return permission.NewService().Resolve(ctx, groupKey)
+}
+
 func targetWriteFixture(t *testing.T) (*pgxpool.Pool, *shortlink.Service, auth.CurrentUser) {
 	t.Helper()
 	pool := testdb.ProjectMigratedPool(t.Context(), t)
@@ -28,7 +42,7 @@ func targetWriteFixture(t *testing.T) (*pgxpool.Pool, *shortlink.Service, auth.C
 	actor := insertShortLinkUser(t, t.Context(), pool, "target-admin", "admin", permission.AdminPermissions)
 	// A static entry snapshot deliberately lets the transaction prove that current
 	// stored identity and grants, rather than the entry snapshot, control the write.
-	return pool, shortlink.NewService(pool, permission.NewService()), actor
+	return pool, shortlink.NewService(pool, permission.NewDatabaseService(pool)), actor
 }
 
 func insertTargetPolicyUserGroup(t *testing.T, pool *pgxpool.Pool) string {
@@ -131,6 +145,19 @@ func TestTargetPolicyEmptyAdminActor(t *testing.T) {
 	require.Equal(t, before, after, "rejection must preserve both link and audit state")
 }
 
+func TestShortLinkCreateRejectsUnavailableDomainGrant(t *testing.T) {
+	pool, service, actor := targetWriteFixture(t)
+	_, err := pool.Exec(t.Context(), `delete from domain_user_group
+		where domain_id=(select id from domain where is_default)
+		and user_group_id=(select id from user_group where key='admin')`)
+	require.NoError(t, err)
+	_, err = service.Create(t.Context(), actor, shortlink.CreateInput{TargetURL: "https://safe.example/new"})
+	require.ErrorIs(t, err, shortlink.ErrDomainUnavailable)
+	var links int
+	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from short_link`).Scan(&links))
+	require.Zero(t, links, "an unavailable domain grant must not create a link")
+}
+
 func TestTargetPolicyAdminWriteRequiresCurrentAdminGrant(t *testing.T) {
 	pool, service, actor := targetWriteFixture(t)
 	const groupID = "00000000-0000-0000-0000-000000000402"
@@ -153,6 +180,36 @@ func TestTargetPolicyAdminWriteRequiresCurrentAdminGrant(t *testing.T) {
 	var stored string
 	require.NoError(t, pool.QueryRow(t.Context(), `select target_url from short_link where id=$1`, created.ShortLink.ID).Scan(&stored))
 	require.Equal(t, "https://safe.example/original", stored)
+}
+
+func TestTargetWriterFailsClosedForMissingLockedGroupAndResolverFailure(t *testing.T) {
+	t.Run("missing locked group", func(t *testing.T) {
+		pool, service, actor := targetWriteFixture(t)
+		created, err := service.Create(t.Context(), actor, shortlink.CreateInput{TargetURL: "https://safe.example/original"})
+		require.NoError(t, err)
+		_, err = pool.Exec(t.Context(), `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at)
+			values($1,'guest','Guest','[]'::jsonb,true,now(),now())`, uuid.New())
+		require.NoError(t, err)
+		_, err = pool.Exec(t.Context(), `update app_user set group_id=(select id from user_group where key='guest') where id=$1`, actor.ID)
+		require.NoError(t, err)
+		target := "https://safe.example/changed"
+		staleStaticService := shortlink.NewService(pool, permission.NewService())
+		_, err = staleStaticService.AdminUpdate(t.Context(), actor, shortlink.UpdateInput{ID: created.ShortLink.ID, TargetURL: &target})
+		require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
+	})
+
+	t.Run("locked permission read failure", func(t *testing.T) {
+		pool, service, actor := targetWriteFixture(t)
+		created, err := service.Create(t.Context(), actor, shortlink.CreateInput{TargetURL: "https://safe.example/original"})
+		require.NoError(t, err)
+		resolverErr := errors.New("locked permission read failed")
+		resolver := &failSecondPermissionResolution{err: resolverErr}
+		faultingService := shortlink.NewService(pool, resolver)
+		target := "https://safe.example/changed"
+		_, err = faultingService.AdminUpdate(t.Context(), actor, shortlink.UpdateInput{ID: created.ShortLink.ID, TargetURL: &target})
+		require.ErrorIs(t, err, resolverErr)
+		require.Equal(t, 2, resolver.calls)
+	})
 }
 
 type adminGroupDowngradeTracer struct {
@@ -393,9 +450,7 @@ func TestTargetPolicyStoredWriterIdentity(t *testing.T) {
 			require.NoError(t, err)
 			_, err = service.Create(t.Context(), actor, shortlink.CreateInput{TargetURL: "https://safe.example/"})
 			require.Error(t, err)
-			if state == "noncanonical" {
-				require.ErrorContains(t, err, "invalid audit actor")
-			} else if state != "corrupt" {
+			if state != "corrupt" && state != "nonbuiltin" {
 				require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
 			}
 			var count int

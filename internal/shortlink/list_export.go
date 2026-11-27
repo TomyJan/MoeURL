@@ -13,6 +13,7 @@ import (
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -63,9 +64,6 @@ func (s *Service) exportListSnapshot(ctx context.Context, user auth.CurrentUser,
 	if admin {
 		required = []string{permission.ShortLinkExport, permission.AdminAccess, permission.ShortLinkReadAll}
 	}
-	if _, err := s.authorize(ctx, user, required...); err != nil {
-		return ListExport{}, err
-	}
 	if input.Status != "" && !isAllowedStatus(input.Status) {
 		return ListExport{}, ErrInvalidStatus
 	}
@@ -81,7 +79,33 @@ func (s *Service) exportListSnapshot(ctx context.Context, user auth.CurrentUser,
 	if err != nil {
 		return ListExport{}, err
 	}
-	rows, err := s.listExports.ExportShortLinkList(ctx, sqlc.ExportShortLinkListParams{ActorID: uuidToPgtype(actorID), IsAdmin: admin, Status: input.Status, Query: query, Tag: tag, NoteStatus: noteStatus, NoteQuery: noteQuery, SelectionMode: ids != nil, SelectedIds: ids})
+	params := sqlc.ExportShortLinkListParams{ActorID: uuidToPgtype(actorID), IsAdmin: admin, Status: input.Status, Query: query, Tag: tag, NoteStatus: noteStatus, NoteQuery: noteQuery, SelectionMode: ids != nil, SelectedIds: ids}
+	var tx pgx.Tx
+	var rows []sqlc.ExportShortLinkListRow
+	if s.pool != nil {
+		tx, err = s.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+		if err != nil {
+			return ListExport{}, err
+		}
+		defer tx.Rollback(ctx)
+		grants, resolveErr := permission.ResolveForAccountIn(ctx, tx, s.permissions, user.ID, user.GroupKey)
+		if resolveErr != nil {
+			return ListExport{}, resolveErr
+		}
+		for _, key := range required {
+			if !grants.Has(key) {
+				return ListExport{}, ErrPermissionDenied
+			}
+		}
+		params.PermissionGranted = true
+		rows, err = s.queries.WithTx(tx).ExportShortLinkList(ctx, params)
+	} else {
+		if _, err := s.authorize(ctx, user, required...); err != nil {
+			return ListExport{}, err
+		}
+		params.PermissionGranted = true
+		rows, err = s.listExports.ExportShortLinkList(ctx, params)
+	}
 	if err != nil {
 		return ListExport{}, err
 	}
@@ -91,7 +115,16 @@ func (s *Service) exportListSnapshot(ctx context.Context, user auth.CurrentUser,
 	if rows[0].LimitExceeded {
 		return ListExport{}, ErrListExportLimit
 	}
-	return listExportCSV(rows, admin)
+	result, err := listExportCSV(rows, admin)
+	if err != nil {
+		return ListExport{}, err
+	}
+	if tx != nil {
+		if err := tx.Commit(ctx); err != nil {
+			return ListExport{}, err
+		}
+	}
+	return result, nil
 }
 
 // listExportBuffer enforces the byte cap while the CSV writer emits escaped cells.

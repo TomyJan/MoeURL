@@ -1,11 +1,13 @@
 package shortlink_test
 
 import (
-	"github.com/TomyJan/MoeURL/internal/permission"
-	"github.com/TomyJan/MoeURL/internal/shortlink"
-	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
+
+	"github.com/TomyJan/MoeURL/internal/permission"
+	"github.com/TomyJan/MoeURL/internal/shortlink"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBatchNoteReplaceCurrentAuthorization(t *testing.T) {
@@ -20,7 +22,7 @@ func TestBatchNoteReplaceCurrentAuthorization(t *testing.T) {
 				baseline := shortlink.NewService(pool, permission.NewService())
 				p, err := baseline.PreviewAdminNoteReplace(t.Context(), admin, input)
 				require.NoError(t, err)
-				resolver := tagCatalogResolver{delegate: permission.NewService(), before: func() {
+				resolver := tagCatalogResolver{delegate: permission.NewDatabaseService(pool), before: func() {
 					var err error
 					switch change {
 					case "disabled":
@@ -30,11 +32,20 @@ func TestBatchNoteReplaceCurrentAuthorization(t *testing.T) {
 					case "guest":
 						_, err = pool.Exec(t.Context(), `update user_group set key='guest' where id=(select group_id from app_user where id=$1)`, actor.ID)
 					case "revoked":
-						_, err = pool.Exec(t.Context(), `update user_group set permissions='[]' where id=(select group_id from app_user where id=$1)`, actor.ID)
+						if adminScope {
+							_, err = pool.Exec(t.Context(), `update user_group set permissions=permissions-'short_link:set_metadata' where id=(select group_id from app_user where id=$1)`, actor.ID)
+						} else {
+							_, err = pool.Exec(t.Context(), `update user_group set permissions='[]' where id=(select group_id from app_user where id=$1)`, actor.ID)
+						}
 					case "moved":
-						_, err = pool.Exec(t.Context(), `update app_user set group_id=(select group_id from app_user where id=$2) where id=$1`, actor.ID, map[bool]string{false: admin.ID, true: owner.ID}[adminScope])
-						if !adminScope {
-							_, err = pool.Exec(t.Context(), `update user_group set permissions='[]' where id=(select group_id from app_user where id=$1)`, admin.ID)
+						if adminScope {
+							_, err = pool.Exec(t.Context(), `update app_user set group_id=(select group_id from app_user where id=$2) where id=$1`, actor.ID, owner.ID)
+						} else {
+							group := uuid.NewString()
+							groupKey := group
+							_, err = pool.Exec(t.Context(), `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values($1,$2,$2,'[]',false,now(),now())`, group, groupKey)
+							require.NoError(t, err)
+							_, err = pool.Exec(t.Context(), `update app_user set group_id=$2 where id=$1`, actor.ID, group)
 						}
 					}
 					require.NoError(t, err)
@@ -66,7 +77,7 @@ func TestBatchNoteReplaceStorageFailure(t *testing.T) {
 		for _, corruption := range []string{"actor storage", "group storage", "group JSON", "note storage", "transaction begin"} {
 			t.Run(strings.Join([]string{map[bool]string{false: "preview", true: "clear"}[clear], corruption}, "/"), func(t *testing.T) {
 				pool, _, admin, owner, input := batchNoteReplaceFixture(t)
-				service := shortlink.NewService(pool, permission.NewService())
+				service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 				p, err := service.PreviewOwnNoteReplace(t.Context(), owner, input)
 				require.NoError(t, err)
 				switch corruption {

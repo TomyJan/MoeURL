@@ -11,19 +11,7 @@ with selection_input as materialized (
     )::boolean as valid
     from selection_input
 ), grant_snapshot as (
-    select exists (
-        select 1 from app_user
-        join user_group on user_group.id = app_user.group_id
-        where app_user.id = sqlc.arg('actor_id')::uuid
-            and app_user.status = 'active' and app_user.deleted_at is null
-            and user_group.key <> 'guest'
-            and user_group.permissions ? 'short_link:export'
-            and (
-                (not sqlc.arg('is_admin')::boolean and user_group.permissions ? 'short_link:read_own')
-                or (sqlc.arg('is_admin')::boolean and user_group.permissions ? 'admin:access'
-                    and user_group.permissions ? 'short_link:read_all')
-            )
-    )::boolean as allowed
+    select sqlc.arg(permission_granted)::boolean as allowed
 ), candidates as materialized (
     -- Retain bounded IDs/order/size metadata, never the possibly large text values.
     select short_link.id, short_link.created_at,

@@ -7,6 +7,7 @@ import (
 
 	"github.com/TomyJan/MoeURL/internal/auth"
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
+	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -55,7 +56,7 @@ func (s *Service) noteListQueries(ctx context.Context, actor auth.CurrentUser, s
 	if status == "" && !force {
 		return s.queries, func() {}, nil
 	}
-	id, err := parseNoteID(actor.ID)
+	_, err := parseNoteID(actor.ID)
 	if err != nil {
 		return nil, nil, ErrPermissionDenied
 	}
@@ -65,7 +66,16 @@ func (s *Service) noteListQueries(ctx context.Context, actor auth.CurrentUser, s
 	}
 	finish := func() { _ = tx.Rollback(ctx) }
 	q := s.queries.WithTx(tx)
-	allowed, err := q.CheckShortLinkNoteListActor(ctx, sqlc.CheckShortLinkNoteListActorParams{ActorID: uuidToPgtype(id), AdminScope: admin})
+	grants, err := permission.ResolveForAccountIn(ctx, tx, s.permissions, actor.ID, actor.GroupKey)
+	if err != nil {
+		finish()
+		return nil, nil, err
+	}
+	permissionGranted := true
+	for _, key := range notePermissions(admin, false) {
+		permissionGranted = permissionGranted && grants.Has(key)
+	}
+	allowed, err := q.CheckShortLinkNoteListActor(ctx, permissionGranted)
 	if err != nil {
 		finish()
 		return nil, nil, err

@@ -31,7 +31,7 @@ func TestRestoreManifestAtomicAndAuthorized(t *testing.T) {
 	`, assignedDomainID); err != nil {
 		t.Fatalf("grant assigned domain: %v", err)
 	}
-	service := shortlink.NewService(pool, permission.NewService())
+	service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 	requestID := uuid.NewString()
 	input := shortlink.ManifestRestoreInput{RequestID: requestID, Items: []shortlink.ManifestRestoreItem{
 		{

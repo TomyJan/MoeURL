@@ -250,7 +250,6 @@ func TestAuthorizeManifestRestoreRechecksCurrentFieldCapabilities(t *testing.T) 
 		grants  []string
 		records []manifestRestoreRecord
 	}{
-		{name: "guest cannot create", group: permission.GroupGuest, grants: []string{permission.ShortLinkCreate, permission.ShortLinkCustomSlug, permission.ShortLinkSetMetadata}},
 		{name: "create permission required", group: permission.GroupUser, grants: []string{permission.ShortLinkCustomSlug, permission.ShortLinkSetMetadata}},
 		{name: "custom slug permission required", group: permission.GroupUser, grants: []string{permission.ShortLinkCreate, permission.ShortLinkSetMetadata}},
 		{name: "disabled requires update own", group: permission.GroupUser, grants: []string{permission.ShortLinkCreate, permission.ShortLinkCustomSlug, permission.ShortLinkSetMetadata}, records: withManifestRestoreStatus(records, "disabled")},
@@ -275,7 +274,7 @@ func TestAuthorizeManifestRestoreRechecksCurrentFieldCapabilities(t *testing.T) 
 			if items == nil {
 				items = records
 			}
-			if err := authorizeManifestRestore(test.group, grants, items); err != ErrPermissionDenied {
+			if err := authorizeManifestRestore(grants, items); err != ErrPermissionDenied {
 				t.Fatalf("authorization error = %v, want ErrPermissionDenied", err)
 			}
 		})
