@@ -63,11 +63,14 @@ for (const width of [1280, 390]) {
       let dialog = page.getByRole('dialog')
       await expect(dialog).toContainText(adminGroupName!)
       await expect(dialog.getByRole('checkbox', { name: operations.group.name, exact: true })).toBeVisible()
+      const firstOption = dialog.locator('.supplemental-membership__option').filter({ hasText: operations.group.name })
+      await expect(firstOption.locator('svg')).toBeVisible()
       await expect(dialog.getByRole('checkbox', { name: support.group.name, exact: true })).toBeVisible()
       await expectNoHorizontalOverflow(page)
       await attachScreenshot(page, info, `supplemental-groups-empty-${width}-${locale}`)
 
       await dialog.getByRole('checkbox', { name: operations.group.name, exact: true }).check()
+      await expect(firstOption.locator('svg')).toBeVisible()
       await expect(dialog.getByRole('button', { name: names.save })).toBeDisabled()
       await dialog.getByRole('checkbox', { name: names.confirm }).check()
       const addResponsePromise = page.waitForResponse(response => new URL(response.url()).pathname === membershipPath && response.request().method() === 'POST')
@@ -101,6 +104,32 @@ for (const width of [1280, 390]) {
       await expect(dialog).toHaveCount(0)
       await expect(targetRow.locator('td').nth(2)).toContainText(names.none)
       expect(membershipWrites).toHaveLength(2)
+
+      const beforePrimaryChange = (await users(root.request)).find(user => user.id === target.id)
+      expect(beforePrimaryChange).toBeDefined()
+      if (!beforePrimaryChange) throw new Error('Target account disappeared before the custom-primary scenario')
+      await post(root.request, '/admin/user/change-group', {
+        id: target.id, groupKey: operations.group.key, expectedUpdatedAt: beforePrimaryChange.updatedAt,
+      })
+      await page.reload()
+      await expect(page.getByTestId('console-page-admin-users')).toBeVisible()
+      await targetRow.getByRole('button', { name: names.more }).click()
+      await actions.getByRole('button', { name: names.manage }).click()
+      dialog = page.getByRole('dialog')
+      await expect(dialog.getByRole('checkbox', { name: operations.group.name, exact: true })).toHaveCount(0)
+      await dialog.getByRole('checkbox', { name: support.group.name, exact: true }).check()
+      await dialog.getByRole('checkbox', { name: names.confirm }).check()
+      const customPrimaryResponsePromise = page.waitForResponse(response => new URL(response.url()).pathname === membershipPath && response.request().method() === 'POST')
+      await dialog.getByRole('button', { name: names.save }).click()
+      const customPrimaryResponse = await customPrimaryResponsePromise
+      expect(customPrimaryResponse.request().postDataJSON().groupKeys).toEqual([support.group.key])
+      expect(await customPrimaryResponse.json()).toMatchObject({ code: 0, data: { user: {
+        group: operations.group.key, supplementalGroups: [{ key: support.group.key, name: support.group.name }],
+      } } })
+      await expect(dialog).toHaveCount(0)
+      await expectNoHorizontalOverflow(page)
+      await attachScreenshot(page, info, `supplemental-groups-custom-primary-${width}-${locale}`)
+      expect(membershipWrites).toHaveLength(3)
 
       const builtin = beforeUsers.find(user => user.builtin)
       if (builtin) {

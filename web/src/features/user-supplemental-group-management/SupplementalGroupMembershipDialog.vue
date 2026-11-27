@@ -15,7 +15,7 @@
           <legend>{{ t('supplementalMembership.groupsLabel') }}</legend>
           <p v-if="options.length === 0" class="supplemental-membership__empty">{{ t('supplementalMembership.noGroups') }}</p>
           <label v-for="group in options" :key="group.key" class="supplemental-membership__option">
-            <v-checkbox-btn :aria-label="group.name" :model-value="selectedKeys.includes(group.key)" :disabled="pending || !groupsReady || groupsError || !group.available" @update:model-value="toggleGroup(group.key, !!$event)" />
+            <v-checkbox-btn class="supplemental-membership__checkbox" :true-icon="aliases.checkboxOn" :false-icon="aliases.checkboxOff" :aria-label="group.name" :model-value="selectedKeys.includes(group.key)" :disabled="pending || !groupsReady || groupsError || !group.available" @update:model-value="toggleGroup(group.key, !!$event)" />
             <span>{{ group.name }}</span>
             <small v-if="!group.available">{{ t('supplementalMembership.unavailable') }}</small>
           </label>
@@ -35,6 +35,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
+import { aliases } from 'vuetify/iconsets/mdi-svg'
 import { toast } from 'vue-sonner'
 import { ApiClientError } from '@/shared/api/client'
 import { me } from '@/entities/auth/api'
@@ -76,7 +77,7 @@ const allowed = computed(() => identity.isCurrent(openingScope)
   && !props.target.builtin
   && props.target.id !== openingScope.userId)
 const frozenByKey = computed(() => new Map(target.value.supplementalGroups.map(group => [group.key, group])))
-const customGroups = computed(() => props.groups.filter(group => !group.builtin && group.editable))
+const customGroups = computed(() => props.groups.filter(group => !group.builtin && group.editable && group.key !== target.value.group))
 const frozenGroupsAvailable = computed(() => target.value.supplementalGroups.every(({ key }) => customGroups.value.some(group => group.key === key)))
 const options = computed(() => {
   const catalog = customGroups.value.map(group => ({
@@ -171,6 +172,7 @@ async function save() {
 .supplemental-membership__groups { display: grid; gap: 4px; margin: 0; padding: 8px 12px 12px; border: 1px solid rgb(var(--v-theme-outline)); border-radius: 8px; }
 .supplemental-membership__groups legend { padding: 0 4px; font-weight: 600; }
 .supplemental-membership__option { display: flex; align-items: center; gap: 8px; min-height: 44px; overflow-wrap: anywhere; }
+.supplemental-membership__checkbox { flex: 0 0 auto; }
 .supplemental-membership__option small { margin-inline-start: auto; color: rgb(var(--v-theme-on-surface-variant)); }
 .supplemental-membership__empty, .supplemental-membership__revision { color: rgb(var(--v-theme-on-surface-variant)); font-size: 0.875rem; }
 </style>

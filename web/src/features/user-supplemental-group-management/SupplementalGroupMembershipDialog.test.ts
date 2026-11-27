@@ -36,6 +36,23 @@ function mount(props = { target, groups, groupsReady: true, groupsLoading: false
 afterEach(() => { clients.splice(0).forEach(client => client.clear()); vi.unstubAllGlobals() })
 
 describe('supplemental group membership dialog', () => {
+  it('excludes the custom primary group while saving other supplemental groups', async () => {
+    const primaryTarget = { ...target, group: 'custom-ops', supplementalGroups: [] }
+    const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { user: {
+      ...primaryTarget, supplementalGroups: [{ key: 'custom-support', name: 'Support' }],
+    } }, meta: {} })))
+    vi.stubGlobal('fetch', fetcher)
+    mount({ target: primaryTarget, groups, groupsReady: true, groupsLoading: false, groupsError: false })
+    expect(screen.queryByRole('checkbox', { name: 'Operations (renamed)' })).toBeNull()
+    await fireEvent.click(screen.getByRole('checkbox', { name: 'Support' }))
+    await fireEvent.click(screen.getByRole('checkbox', { name: 'supplementalMembership.confirm' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'supplementalMembership.save' }))
+    await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
+    expect(JSON.parse(fetcher.mock.calls[0]![1]!.body as string)).toEqual({
+      id: target.id, groupKeys: ['custom-support'], expectedUpdatedAt: target.updatedAt,
+    })
+  })
+
   it('freezes target identity and full revision, changes only custom supplemental groups, and blocks duplicate pending writes', async () => {
     const pending = createDeferred<Response>()
     const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(() => pending.promise)

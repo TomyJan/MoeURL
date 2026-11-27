@@ -332,7 +332,8 @@ watch(
     const frozen = supplementalTarget.value
     if (frozen) {
       const latest = items.find(item => item.id === frozen.id)
-      if (!latest || latest.updatedAt !== frozen.updatedAt) {
+      // Keep the request owner mounted until it settles and releases the page mutex.
+      if ((!latest || latest.updatedAt !== frozen.updatedAt) && !supplementalPending.value) {
         supplementalTarget.value = undefined
         void refreshSupplementalMembership(false)
       }

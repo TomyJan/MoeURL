@@ -373,7 +373,7 @@ func TestDatabaseServiceLockedResolutionPropagatesDatabaseFailures(t *testing.T)
 func TestDatabaseServiceFailsClosedForInvalidAccountPermissionState(t *testing.T) {
 	pool := testdb.ProjectMigratedPool(t.Context(), t)
 	primaryID, supplementalID := uuid.New(), uuid.New()
-	_, err := pool.Exec(t.Context(), `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values($1,'user','User','[]',true,now(),now())`, primaryID)
+	_, err := pool.Exec(t.Context(), `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values($1,'user','User','["short_link:create"]',true,now(),now())`, primaryID)
 	require.NoError(t, err)
 	_, err = pool.Exec(t.Context(), `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values($1,$2,'Supplemental','["short_link:create"]',false,now(),now())`, supplementalID, uuid.NewString())
 	require.NoError(t, err)

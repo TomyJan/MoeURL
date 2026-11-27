@@ -2621,6 +2621,47 @@ describe('pages', () => {
     await nextTick()
   })
 
+  it.each(['success', 'conflict'])('keeps a pending membership request alive across a target revision change and unlocks only after readback: %s', async outcome => {
+    const listData = ref({ meta: { total: 1 }, items: [{
+      id: 'user-id', username: 'alice', nickname: 'Alice', group: 'user', status: 'active', builtin: false,
+      createdAt: '2026-06-08T00:00:00Z', updatedAt: '2026-11-26T01:02:03.123456789Z', supplementalGroups: [],
+    }] })
+    const write = createDeferred<Response>()
+    const readback = createDeferred<{ isError: boolean }>()
+    const listRefetch = vi.fn().mockReturnValue(readback.promise)
+    setQueryResults(
+      { data: listData, refetch: listRefetch },
+      { data: ref({ user: { id: 'test-account', permissions: ['admin:access'] } }) },
+    )
+    state.groupDirectoryGroups = [
+      { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 1, permissions: [], updatedAt: '2026-10-27T01:02:03Z' },
+      { key: 'custom-support', name: 'Support', description: '', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: '2026-10-27T01:02:03Z' },
+    ]
+    const fetcher = vi.fn(() => write.promise)
+    vi.stubGlobal('fetch', fetcher)
+    mount(AdminUsersPage)
+    await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.more' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'supplementalMembership.manage' }))
+    await fireEvent.click(screen.getByRole('checkbox', { name: 'Support' }))
+    await fireEvent.click(screen.getByRole('checkbox', { name: 'supplementalMembership.confirm' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'supplementalMembership.save' }))
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
+    listData.value = { ...listData.value, items: [{ ...listData.value.items[0]!, updatedAt: '2026-11-26T01:03:03.123456789Z' }] }
+    await nextTick()
+    expect(screen.getByRole('button', { name: 'supplementalMembership.save' })).toHaveProperty('disabled', true)
+    expect(listRefetch).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'adminUsers.createUser' })).toHaveProperty('disabled', true)
+    write.resolve(new Response(JSON.stringify(outcome === 'success'
+      ? { code: 0, message: 'OK', data: { user: { ...listData.value.items[0], supplementalGroups: [{ key: 'custom-support', name: 'Support' }] } }, meta: {} }
+      : { code: 300105, message: 'Conflict', data: null, meta: {} })))
+    await vi.waitFor(() => expect(listRefetch).toHaveBeenCalledWith({ throwOnError: true }))
+    expect(screen.getByRole('button', { name: 'adminUsers.createUser' })).toHaveProperty('disabled', true)
+    readback.resolve({ isError: false })
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: 'adminUsers.createUser' })).toHaveProperty('disabled', false))
+    expect(screen.queryByRole('button', { name: 'supplementalMembership.save' })).toBeNull()
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
   it('refreshes membership readback when the open target revision changes in the list', async () => {
     const listData = ref({ meta: { total: 1 }, items: [{
       id: 'user-id', username: 'alice', nickname: 'Alice', group: 'user', status: 'active', builtin: false,
