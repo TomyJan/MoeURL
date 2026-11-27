@@ -192,7 +192,7 @@ func TestAdminTagCatalogCurrentAuthorization(t *testing.T) {
 		ctx := t.Context()
 		pool := shortLinkTestPool(t, ctx)
 		insertShortLinkDefaultDomain(t, ctx, pool)
-		manager := insertShortLinkUser(t, ctx, pool, "custom-manager", "operators", []string{permission.ShortLinkCreate})
+		manager := insertShortLinkUser(t, ctx, pool, "custom-manager", "550e8400-e29b-41d4-a716-446655440099", []string{permission.ShortLinkCreate})
 		_, err := pool.Exec(ctx, `update user_group set builtin=false`)
 		require.NoError(t, err)
 		id := insertStoredShortLink(t, ctx, pool, manager.ID, "customgrant", "https://example.com", "active", false)

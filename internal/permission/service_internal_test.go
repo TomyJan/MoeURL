@@ -3,6 +3,7 @@ package permission
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/TomyJan/MoeURL/internal/db/sqlc"
@@ -39,7 +40,7 @@ func TestDatabaseServiceResolve(t *testing.T) {
 	}{
 		{
 			name:        "current permissions",
-			queries:     groupQueryStub{group: sqlc.UserGroup{Permissions: []byte(`["short_link:use_confirmation"]`)}},
+			queries:     groupQueryStub{group: sqlc.UserGroup{Key: GroupUser, Builtin: true, Permissions: []byte(`["short_link:use_confirmation"]`)}},
 			permission:  ShortLinkUseConfirmation,
 			wantAllowed: true,
 		},
@@ -63,6 +64,9 @@ func TestDatabaseServiceResolve(t *testing.T) {
 			}
 			if snapshot.Has(test.permission) != test.wantAllowed {
 				t.Fatalf("permission %q allowed = %t, want %t", test.permission, snapshot.Has(test.permission), test.wantAllowed)
+			}
+			if test.name == "current permissions" && !reflect.DeepEqual(snapshot.GroupKeys(), []string{GroupUser}) {
+				t.Fatalf("group keys = %v, want [%s]", snapshot.GroupKeys(), GroupUser)
 			}
 		})
 	}

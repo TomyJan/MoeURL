@@ -305,9 +305,10 @@ func TestNoteStorageFailure(t *testing.T) {
 // TestNoteCustomGroupAndCurrentOwner catches treating builtin group names or the entrance owner as authority.
 func TestNoteCustomGroupAndCurrentOwner(t *testing.T) {
 	pool, _, _, owner, recipient, input := noteFixture(t)
-	_, err := pool.Exec(t.Context(), `update user_group set key='curator',builtin=false where id=(select group_id from app_user where id=$1)`, owner.ID)
+	customGroupKey := "550e8400-e29b-41d4-a716-446655440098"
+	_, err := pool.Exec(t.Context(), `update user_group set key=$2,builtin=false where id=(select group_id from app_user where id=$1)`, owner.ID, customGroupKey)
 	require.NoError(t, err)
-	owner.GroupKey = "curator"
+	owner.GroupKey = customGroupKey
 	service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 	saved, err := service.UpdateOwnNote(t.Context(), owner, input)
 	require.NoError(t, err)
