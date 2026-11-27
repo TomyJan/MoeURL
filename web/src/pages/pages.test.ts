@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/vue'
 import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { computed, isRef, nextTick, ref } from 'vue'
+import { computed, defineComponent, isRef, nextTick, ref } from 'vue'
 
 import AdminLinksPage from './AdminLinksPage.vue'
 import AdminUsersPage from './AdminUsersPage.vue'
@@ -37,6 +37,9 @@ const state = vi.hoisted(() => ({
   queryFns: [] as Array<() => unknown>,
   listQueryViews: [] as Array<{ key: unknown; result: { data?: { value: unknown }; isError?: { value: boolean }; isPending?: { value: boolean }; isFetching?: { value: boolean } } }>,
   groupDirectoryUnavailable: false,
+  groupDirectoryError: false,
+  groupRefetch: vi.fn(),
+  groupDirectoryGroups: undefined as unknown[] | undefined,
   chartConfigurations: [] as unknown[],
   chartInstances: [] as Array<{ canvas: unknown; destroy: ReturnType<typeof vi.fn> }>,
   mutationResult: {},
@@ -197,12 +200,14 @@ vi.mock('@tanstack/vue-query', async () => {
         return { data: ref({ domainId: null, status: 'not_set' }), isSuccess: ref(true), isError: ref(false), refetch: vi.fn() }
       }
       if (Array.isArray(key) && key[0] === 'admin-user-groups') {
-        if (state.groupDirectoryUnavailable) return { data: ref(undefined), isSuccess: ref(false), isError: ref(false), isPending: ref(true), isFetching: ref(false), refetch: vi.fn() }
-        return { data: ref({ groups: [
+        if (state.groupDirectoryUnavailable) return { data: ref(undefined), isSuccess: ref(false), isError: ref(false), isPending: ref(true), isFetching: ref(false), refetch: state.groupRefetch }
+        if (state.groupDirectoryError) return { data: ref(undefined), isSuccess: ref(false), isError: ref(true), isPending: ref(false), isFetching: ref(false), refetch: state.groupRefetch }
+        const groups = state.groupDirectoryGroups ?? [
           { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: '2026-10-27T01:02:03Z' },
           { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 0, permissions: [], updatedAt: '2026-10-27T01:02:03Z' },
           { key: 'admin', name: 'Administrator', description: '', builtin: true, editable: true, memberCount: 1, permissions: ['admin:access'], updatedAt: '2026-10-27T01:02:03Z' },
-        ] }), isSuccess: ref(true), isError: ref(false), isPending: ref(false), isFetching: ref(false), refetch: vi.fn() }
+        ]
+        return { data: ref({ groups }), isSuccess: ref(true), isError: ref(false), isPending: ref(false), isFetching: ref(false), refetch: state.groupRefetch }
       }
       if (Array.isArray(key) && key[0] === 'user' && key[1] === 'domain-preference') {
         return { data: ref({ domainId: null, updatedAt: null }), isSuccess: ref(true), isError: ref(false) }
@@ -255,12 +260,12 @@ vi.mock('@tanstack/vue-query', async () => {
 })
 
 /** Mounts a page component with the shared router and component stubs. */
-function mount(component: object) {
+function mount(component: object, extraStubs: Record<string, object> = {}) {
   state.listAuth = component === MyLinksPage || component === AdminLinksPage || component === AnalyticsPage || component === AdminUsersPage || component === CreateUserPage
   return render(component, {
     global: {
       // Export and bulk-create lifecycles have real QueryClient coverage in their dedicated page tests.
-      stubs: { ...componentStubs, AnalyticsExportButton: true, ShortLinkListExportButton: true, VisitRecordsPanel: true, BulkCreateDialog: true, PersonalTagBrowser: true, AdminTagBrowser: true },
+      stubs: { ...componentStubs, AnalyticsExportButton: true, ShortLinkListExportButton: true, VisitRecordsPanel: true, BulkCreateDialog: true, PersonalTagBrowser: true, AdminTagBrowser: true, ...extraStubs },
     },
   })
 }
@@ -401,6 +406,9 @@ describe('pages', () => {
     state.queryFns = []
     state.listQueryViews = []
     state.groupDirectoryUnavailable = false
+    state.groupDirectoryError = false
+    state.groupRefetch.mockReset()
+    state.groupDirectoryGroups = undefined
     // Cache reads must distinguish the current list from auth, including same-tick ref changes.
     const currentList = (key: unknown) => state.listQueryViews.find(view => JSON.stringify(isRef(view.key) ? view.key.value : view.key) === JSON.stringify(key))
     state.queryClient.getQueryData.mockReset().mockImplementation((key?: unknown) => {
@@ -2507,4 +2515,164 @@ describe('pages', () => {
     expect(screen.getAllByRole('checkbox').every(checkbox => (checkbox as HTMLInputElement).disabled)).toBe(true)
     expect(screen.getByRole('button', { name: 'batchMembership.open' })).toHaveProperty('disabled', true)
   })
+
+  it('renders a group-directory read failure and retries that directory', async () => {
+    setQueryResult({ data: ref({ meta: { total: 1 }, items: [{
+      id: 'user-id', username: 'alice', nickname: 'Alice', group: 'user', status: 'active', builtin: false,
+      createdAt: '2026-06-08T00:00:00Z', updatedAt: '2026-06-08T00:00:00Z',
+    }] }) })
+    state.groupDirectoryError = true
+    mount(AdminUsersPage)
+
+    expect(screen.getByText('batchMembership.groupsLoadFailed')).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: 'batchMembership.retryGroups' }))
+    expect(state.groupRefetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not open supplemental membership while the group directory is unavailable', async () => {
+    setQueryResult({ data: ref({ meta: { total: 1 }, items: [{
+      id: 'user-id', username: 'alice', nickname: 'Alice', group: 'user', status: 'active', builtin: false,
+      createdAt: '2026-06-08T00:00:00Z', updatedAt: '2026-06-08T00:00:00Z',
+    }] }) })
+    state.groupDirectoryUnavailable = true
+    mount(AdminUsersPage)
+
+    await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.more' }))
+    const manage = screen.getByRole('button', { name: 'supplementalMembership.manage' }) as HTMLButtonElement
+    expect(manage).toHaveProperty('disabled', true)
+    manage.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  })
+
+  it('forwards a supplemental dialog group retry to the owning query', async () => {
+    setQueryResult({ data: ref({ meta: { total: 1 }, items: [{
+      id: 'user-id', username: 'alice', nickname: 'Alice', group: 'user', status: 'active', builtin: false,
+      createdAt: '2026-06-08T00:00:00Z', updatedAt: '2026-06-08T00:00:00Z', supplementalGroups: [{ key: 'custom-support', name: 'Support' }],
+    }] }) })
+    // eslint-disable-next-line vue/one-component-per-file -- isolated event stub for parent callback coverage
+    const retryStub = defineComponent({
+      emits: ['retry-groups'],
+      template: '<button @click="$emit(\'retry-groups\')">supplementalMembership.retryGroups</button>',
+    })
+    mount(AdminUsersPage, { SupplementalGroupMembershipDialog: retryStub })
+
+    await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.more' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'supplementalMembership.manage' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'supplementalMembership.retryGroups' }))
+    expect(state.groupRefetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads back successful supplemental membership changes and reports a readback failure', async () => {
+    const listData = ref({ meta: { total: 1 }, items: [{
+      id: 'user-id', username: 'alice', nickname: 'Alice', group: 'user', status: 'active', builtin: false,
+      createdAt: '2026-06-08T00:00:00Z', updatedAt: '2026-11-26T01:02:03.123456789Z', supplementalGroups: [],
+    }] })
+    const listRefetch = vi.fn()
+      .mockResolvedValueOnce({ isError: true })
+      .mockResolvedValue({ isError: false })
+    setQueryResults(
+      { data: listData, refetch: listRefetch },
+      { data: ref({ user: { id: 'test-account', permissions: ['admin:access'] } }) },
+    )
+    state.groupDirectoryGroups = [
+      { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: '2026-10-27T01:02:03Z' },
+      { key: 'user', name: 'User', description: '', builtin: true, editable: true, memberCount: 0, permissions: [], updatedAt: '2026-10-27T01:02:03Z' },
+      { key: 'admin', name: 'Administrator', description: '', builtin: true, editable: true, memberCount: 1, permissions: ['admin:access'], updatedAt: '2026-10-27T01:02:03Z' },
+      { key: 'custom-support', name: 'Support', description: '', builtin: false, editable: true, memberCount: 0, permissions: [], updatedAt: '2026-10-27T01:02:03Z' },
+    ]
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ code: 0, message: 'OK', data: { user: {
+      ...listData.value.items[0], supplementalGroups: [{ key: 'custom-support', name: 'Support' }],
+    } }, meta: {} })))
+    vi.stubGlobal('fetch', fetcher)
+    mount(AdminUsersPage)
+
+    await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.more' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'supplementalMembership.manage' }))
+    await fireEvent.click(screen.getByRole('checkbox', { name: 'Support' }))
+    await fireEvent.click(screen.getByRole('checkbox', { name: 'supplementalMembership.confirm' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'supplementalMembership.save' }))
+
+    await vi.waitFor(() => expect(screen.getByText('supplementalMembership.readFailed')).toBeTruthy())
+    expect(screen.getByRole('button', { name: 'supplementalMembership.retryRead' })).toBeTruthy()
+    await fireEvent.click(screen.getByRole('button', { name: 'supplementalMembership.retryRead' }))
+    await vi.waitFor(() => expect(screen.queryByText('supplementalMembership.readFailed')).toBeNull())
+    expect(listRefetch).toHaveBeenCalledWith({ throwOnError: true })
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
+  it('drops a readback completion when the page unmounts during the request', async () => {
+    const readback = createDeferred<{ isError: boolean }>()
+    const listRefetch = vi.fn().mockReturnValue(readback.promise)
+    setQueryResult({ data: ref({ meta: { total: 1 }, items: [{
+      id: 'user-id', username: 'alice', nickname: 'Alice', group: 'user', status: 'active', builtin: false,
+      createdAt: '2026-06-08T00:00:00Z', updatedAt: '2026-11-26T01:02:03.123456789Z',
+    }] }), refetch: listRefetch })
+    // eslint-disable-next-line vue/one-component-per-file -- isolated event stub for unmount race coverage
+    const refreshStub = defineComponent({
+      emits: ['refresh'],
+      template: '<button @click="$emit(\'refresh\', false)">refresh-supplemental</button>',
+    })
+    const view = mount(AdminUsersPage, { SupplementalGroupMembershipDialog: refreshStub })
+    await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.more' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'supplementalMembership.manage' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'refresh-supplemental' }))
+    expect(listRefetch).toHaveBeenCalledWith({ throwOnError: true })
+    view.unmount()
+    readback.resolve({ isError: false })
+    await nextTick()
+  })
+
+  it('refreshes membership readback when the open target revision changes in the list', async () => {
+    const listData = ref({ meta: { total: 1 }, items: [{
+      id: 'user-id', username: 'alice', nickname: 'Alice', group: 'user', status: 'active', builtin: false,
+      createdAt: '2026-06-08T00:00:00Z', updatedAt: '2026-11-26T01:02:03.123456789Z', supplementalGroups: [],
+    }] })
+    const readback = createDeferred<{ isError: boolean }>()
+    const listRefetch = vi.fn().mockReturnValue(readback.promise)
+    setQueryResults(
+      { data: listData, refetch: listRefetch },
+      { data: ref({ user: { id: 'test-account', permissions: ['admin:access'] } }) },
+    )
+    mount(AdminUsersPage)
+
+    await fireEvent.click(screen.getByRole('button', { name: 'adminUsers.actions.more' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'supplementalMembership.manage' }))
+    listData.value = { ...listData.value, items: [{ ...listData.value.items[0]! }] }
+    await nextTick()
+    listData.value = {
+      ...listData.value,
+      items: [{ ...listData.value.items[0]!, updatedAt: '2026-11-26T01:03:03.123456789Z' }],
+    }
+    await nextTick()
+    await vi.waitFor(() => expect(screen.getByText('supplementalMembership.readRequired')).toBeTruthy())
+    expect(listRefetch).toHaveBeenCalledWith({ throwOnError: true })
+    readback.resolve({ isError: false })
+  })
+
+  it('shows supplemental group membership and keeps builtin accounts out of the manager action', async () => {
+    setQueryResult({ data: ref({ meta: { total: 2 }, items: [
+      {
+        id: 'ordinary-admin-id', username: 'ordinary-admin', nickname: 'Ops', group: 'admin', status: 'active', builtin: false,
+        createdAt: '2026-06-08T00:00:00Z', updatedAt: '2026-11-26T01:02:03.123456789Z',
+        supplementalGroups: [{ key: 'custom-ops', name: 'Operations' }],
+      },
+      {
+        id: 'builtin-admin-id', username: 'system-admin', nickname: 'System', group: 'admin', status: 'active', builtin: true,
+        createdAt: '2026-06-08T00:00:00Z', updatedAt: '2026-11-26T01:02:03Z', supplementalGroups: [],
+      },
+    ] }) })
+    mount(AdminUsersPage)
+
+    const rows = screen.getAllByTestId('console-user-row')
+    const ordinaryAdmin = rows.find(row => within(row).queryByText('ordinary-admin'))
+    const builtinAdmin = rows.find(row => within(row).queryByText('system-admin'))
+    if (!ordinaryAdmin || !builtinAdmin) throw new Error('expected both account rows')
+    expect(within(ordinaryAdmin).getByText('Operations')).toBeTruthy()
+    expect(within(builtinAdmin).queryByText('Operations')).toBeNull()
+
+    await fireEvent.click(within(ordinaryAdmin).getByRole('button', { name: 'adminUsers.actions.more' }))
+    expect(within(screen.getByTestId('console-user-actions')).getByRole('button', { name: 'supplementalMembership.manage' })).toBeTruthy()
+    await fireEvent.click(within(builtinAdmin).getByRole('button', { name: 'adminUsers.actions.more' }))
+    expect(screen.queryByRole('button', { name: 'supplementalMembership.manage' })).toBeNull()
+  })
+
 })

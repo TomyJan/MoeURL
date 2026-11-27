@@ -101,7 +101,7 @@ it('refuses an all-no-op confirmation and keeps the selection on ordinary cancel
 })
 
 it('limits selection to current eligible accounts, maintains indeterminate state, and preserves same-login nickname drafts', async () => {
-  view = mountBatchMembership({ users: [batchAlice, { ...batchBob, status: 'disabled' }, { ...batchAlice, ...batchManager, builtin: false, status: 'active' }, { ...batchAlice, id: 'builtin', username: 'guest', builtin: true }, { ...batchAlice, id: 'future', username: 'future', group: 'custom' }] })
+  view = mountBatchMembership({ users: [batchAlice, { ...batchBob, status: 'disabled' }, { ...batchAlice, ...batchManager, supplementalGroups: [], builtin: false, status: 'active' }, { ...batchAlice, id: 'builtin', username: 'guest', builtin: true }, { ...batchAlice, id: 'future', username: 'future', group: 'custom' }] })
   await screen.findByText('alice')
   expect(screen.queryByRole('checkbox', { name: 'Select account manager' })).toBeNull()
   expect(screen.queryByRole('checkbox', { name: 'Select account guest' })).toBeNull()
@@ -131,4 +131,44 @@ it('rejects a queued cancellation and submission after the parent marks the requ
   await dialog.rerender({ snapshot: [batchAlice], pending: true })
   await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
   expect(dialog.emitted().close).toBeUndefined()
+})
+
+it('manages a normal admin primary account supplemental group and rereads its row', async () => {
+  view = mountBatchMembership({
+    users: [{ ...batchAlice, group: 'admin', supplementalGroups: [] }],
+    customGroups: [{ key: 'custom-ops', name: 'Operations' }],
+  })
+  await screen.findByText('alice')
+  await fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'Manage supplemental groups' }))
+  const dialog = within(screen.getByRole('dialog'))
+  await fireEvent.click(dialog.getByRole('checkbox', { name: 'Operations' }))
+  await fireEvent.click(dialog.getByRole('checkbox', { name: 'I verified the account and complete supplemental group set, and approve revoking all existing sessions' }))
+  await fireEvent.click(dialog.getByRole('button', { name: 'Save supplemental groups' }))
+  await waitFor(() => expect(screen.getByText('Operations')).toBeTruthy())
+  expect(view.state.writes).toContainEqual({ path: '/api/v1/admin/user/update-group-memberships', input: { id: batchAlice.id, groupKeys: ['custom-ops'], expectedUpdatedAt: batchAlice.updatedAt } })
+})
+
+it('does not expose the supplemental manager for a builtin account', async () => {
+  view = mountBatchMembership({ users: [{ ...batchAlice, id: 'builtin-id', username: 'system', builtin: true }], customGroups: [{ key: 'custom-ops', name: 'Operations' }] })
+  await screen.findByText('system')
+  expect((screen.getByRole('button', { name: 'More actions' }) as HTMLButtonElement).disabled).toBe(true)
+})
+
+it('keeps the page barrier until a successful supplemental membership is read back', async () => {
+  view = mountBatchMembership({
+    users: [{ ...batchAlice, group: 'admin', supplementalGroups: [] }],
+    customGroups: [{ key: 'custom-ops', name: 'Operations' }],
+  })
+  await screen.findByText('alice')
+  const row = screen.getByTestId('console-user-row')
+  await fireEvent.click(within(row).getByRole('button', { name: 'More actions' }))
+  await fireEvent.click(screen.getByRole('button', { name: 'Manage supplemental groups' }))
+  const dialog = within(screen.getByRole('dialog'))
+  await fireEvent.click(dialog.getByRole('checkbox', { name: 'Operations' }))
+  await fireEvent.click(dialog.getByRole('checkbox', { name: 'I verified the account and complete supplemental group set, and approve revoking all existing sessions' }))
+  await fireEvent.click(dialog.getByRole('button', { name: 'Save supplemental groups' }))
+  await waitFor(() => expect(within(row).getByText('Operations')).toBeTruthy())
+  await waitFor(() => expect((within(row).getByRole('button', { name: 'More actions' }) as HTMLButtonElement).disabled).toBe(false))
+  expect(view.state.writes.filter(write => write.path === '/api/v1/admin/user/update-group-memberships')).toHaveLength(1)
 })

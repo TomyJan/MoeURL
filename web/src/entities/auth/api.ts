@@ -5,6 +5,7 @@ export interface CurrentUser {
   username: string
   nickname: string
   group: string
+  supplementalGroups?: string[]
   permissions: string[]
 }
 

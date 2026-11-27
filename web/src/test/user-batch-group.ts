@@ -14,7 +14,7 @@ import AdminUsersPage from '@/pages/AdminUsersPage.vue'
 import AppToasts from '@/shared/feedback/AppToasts.vue'
 
 export const batchManager: CurrentUser = { id: '11111111-1111-4111-8111-111111111111', username: 'manager', nickname: 'Manager', group: 'admin', permissions: ['admin:access'] }
-export const batchAlice: UserSummary = { id: '22222222-2222-4222-8222-222222222222', username: 'alice', nickname: 'Alice', group: 'user', status: 'active', builtin: false, createdAt: '2026-10-28T00:00:00Z', updatedAt: '2026-10-28T01:02:03.123456Z' }
+export const batchAlice: UserSummary = { id: '22222222-2222-4222-8222-222222222222', username: 'alice', nickname: 'Alice', group: 'user', status: 'active', builtin: false, createdAt: '2026-10-28T00:00:00Z', updatedAt: '2026-10-28T01:02:03.123456Z', supplementalGroups: [] }
 export const batchBob: UserSummary = { ...batchAlice, id: '33333333-3333-4333-8333-333333333333', username: 'bob', nickname: 'Bob', updatedAt: '2026-10-28T01:02:04.654321Z' }
 export const batchGroups: UserGroup[] = [
   { key: 'guest', name: 'Guest', description: '', builtin: true, editable: false, memberCount: 0, permissions: [], updatedAt: '2026-10-28T00:00:00Z' },
@@ -48,6 +48,15 @@ export function mountBatchMembership(options: { user?: CurrentUser; users?: User
       ...batchGroups,
       ...(options.customGroups ?? []).map(({ key, name }) => ({ key, name, description: '', builtin: false, editable: true, memberCount: 1, permissions: [], updatedAt: '2026-10-28T00:00:00Z' })),
     ], permissions: [{ key: 'admin:access', category: 'administration', protected: true }], presets: ['restricted', 'basic', 'standard'].map((key) => ({ key, applicableGroups: ['user', 'admin'], permissions: [] })) })
+    if (path === '/api/v1/admin/user/update-group-memberships' && input) {
+      const current = state.users.find(item => item.id === input.id)
+      if (!current || current.updatedAt !== input.expectedUpdatedAt) return membershipResponse(null, 300105)
+      const groupKeys = input.groupKeys as string[]
+      const names = new Map((options.customGroups ?? []).map(group => [group.key, group.name]))
+      current.supplementalGroups = groupKeys.map(key => ({ key, name: names.get(key) ?? key }))
+      current.updatedAt = '2026-10-28T01:03:05.000001Z'
+      return membershipResponse({ user: { ...current } })
+    }
     if (path.startsWith('/api/v1/admin/user/list?')) return membershipResponse({ items: state.users }, 0, 200, { page: 1, pageSize: 20, total: state.users.length })
     throw new Error('Unexpected membership fixture request: ' + path)
   }))
