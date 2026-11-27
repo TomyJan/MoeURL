@@ -3,15 +3,23 @@ package permission_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/testdb"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 )
+
+type permissionResolution struct {
+	snapshot permission.Snapshot
+	err      error
+}
 
 func TestDatabaseServiceResolvesCurrentAccountPermissionUnion(t *testing.T) {
 	pool := testdb.ProjectMigratedPool(t.Context(), t)
@@ -69,6 +77,71 @@ func TestDatabaseServiceResolvesPrimaryOnlyAndLockedSnapshots(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, snapshot.Has(permission.ShortLinkCreate))
 	require.Equal(t, []string{permission.GroupUser}, snapshot.GroupKeys())
+}
+
+func TestDatabaseServiceLockedResolutionWaitsForPrimaryGroupReplacement(t *testing.T) {
+	pool := testdb.ProjectMigratedPool(t.Context(), t)
+	primaryID, replacementID, userID := uuid.New(), uuid.New(), uuid.New()
+	_, err := pool.Exec(t.Context(), `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values($1,'user','User','["short_link:create"]',true,now(),now())`, primaryID)
+	require.NoError(t, err)
+	replacementKey := "550e8400-e29b-41d4-a716-446655440099"
+	_, err = pool.Exec(t.Context(), `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values($1,$2,'Replacement','[]',false,now(),now())`, replacementID, replacementKey)
+	require.NoError(t, err)
+	_, err = pool.Exec(t.Context(), `insert into app_user(id,username,nickname,group_id,status,builtin,created_at,updated_at) values($1,$2,'Lock race',$3,'active',false,now(),now())`, userID, "primary-lock-"+userID.String(), primaryID)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	blocker, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	defer blocker.Rollback(context.Background())
+	_, err = blocker.Exec(ctx, `update app_user set group_id=$2 where id=$1`, userID, replacementID)
+	require.NoError(t, err)
+	var blockerPID int32
+	require.NoError(t, blocker.QueryRow(ctx, `select pg_backend_pid()`).Scan(&blockerPID))
+
+	reader, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	defer reader.Rollback(context.Background())
+	var readerPID int32
+	require.NoError(t, reader.QueryRow(ctx, `select pg_backend_pid()`).Scan(&readerPID))
+	done := make(chan permissionResolution, 1)
+	go func() {
+		snapshot, resolveErr := permission.NewDatabaseService(pool).ResolveAccountLockedIn(ctx, reader, userID.String())
+		done <- permissionResolution{snapshot: snapshot, err: resolveErr}
+	}()
+	waitForPermissionAccountLock(t, ctx, pool, readerPID, blockerPID, done)
+
+	require.NoError(t, blocker.Commit(ctx))
+	select {
+	case result := <-done:
+		require.NoError(t, result.err)
+		require.False(t, result.snapshot.Has(permission.ShortLinkCreate), "resolution must observe the committed replacement primary group")
+		require.Equal(t, []string{replacementKey}, result.snapshot.GroupKeys())
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+}
+
+// waitForPermissionAccountLock observes PostgreSQL's blocker graph instead of assuming goroutine order.
+func waitForPermissionAccountLock(t *testing.T, ctx context.Context, pool *pgxpool.Pool, pid, blocker int32, done <-chan permissionResolution) {
+	t.Helper()
+	ticker := time.NewTicker(5 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		var blockers []int32
+		require.NoError(t, pool.QueryRow(ctx, `select pg_blocking_pids($1::integer)`, pid).Scan(&blockers))
+		if slices.Contains(blockers, blocker) {
+			return
+		}
+		select {
+		case result := <-done:
+			t.Fatalf("permission resolution completed before waiting for the account row lock: %v", result.err)
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		case <-ticker.C:
+		}
+	}
 }
 
 func TestDatabaseServiceFailsClosedWhenAccountPermissionReadFails(t *testing.T) {

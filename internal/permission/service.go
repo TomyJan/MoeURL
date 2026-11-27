@@ -151,8 +151,9 @@ func (s *DatabaseService) ResolveAccountIn(ctx context.Context, database sqlc.DB
 	return resolveAccount(ctx, database, userID)
 }
 
-// ResolveAccountLockedIn waits for and holds share locks on every current account group before
-// reading permissions. Mutation callers must lock the actor row first to serialize memberships.
+// ResolveAccountLockedIn locks the account before enumerating its current groups, then holds share
+// locks on those groups before reading permissions. Mutation callers should lock the actor first to
+// preserve the repository's actor-before-target lock order.
 func (s *DatabaseService) ResolveAccountLockedIn(ctx context.Context, database sqlc.DBTX, userID string) (Snapshot, error) {
 	if database == nil {
 		return Snapshot{}, errors.New("account permission database is unavailable")
@@ -162,9 +163,14 @@ func (s *DatabaseService) ResolveAccountLockedIn(ctx context.Context, database s
 	}
 	var expected int
 	if err := database.QueryRow(ctx, `
+		with locked_account as materialized (
+			select id, group_id from app_user where id=$1::uuid for share
+		)
 		select count(*) from (
-			select group_id as id from app_user where id=$1::uuid
-			union select user_group_id as id from app_user_group_membership where user_id=$1::uuid
+			select group_id as id from locked_account
+			union select membership.user_group_id as id
+			from app_user_group_membership as membership
+			join locked_account on locked_account.id=membership.user_id
 		) as current_groups
 	`, userID).Scan(&expected); err != nil {
 		return Snapshot{}, err
