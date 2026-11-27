@@ -123,6 +123,52 @@ func TestDatabaseServiceLockedResolutionWaitsForPrimaryGroupReplacement(t *testi
 	}
 }
 
+func TestDatabaseServiceLockedResolutionWaitsBeforeCountingSupplementalMemberships(t *testing.T) {
+	pool := testdb.ProjectMigratedPool(t.Context(), t)
+	primaryID, supplementalID, userID := uuid.New(), uuid.New(), uuid.New()
+	_, err := pool.Exec(t.Context(), `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values($1,'user','User','["short_link:create"]',true,now(),now())`, primaryID)
+	require.NoError(t, err)
+	supplementalKey := uuid.NewString()
+	_, err = pool.Exec(t.Context(), `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values($1,$2,'Supplemental','["short_link:set_metadata"]',false,now(),now())`, supplementalID, supplementalKey)
+	require.NoError(t, err)
+	_, err = pool.Exec(t.Context(), `insert into app_user(id,username,nickname,group_id,status,builtin,created_at,updated_at) values($1,$2,'Membership lock',$3,'active',false,now(),now())`, userID, "membership-lock-"+userID.String(), primaryID)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	blocker, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	defer blocker.Rollback(context.Background())
+	_, err = blocker.Exec(ctx, `select id from app_user where id=$1 for update`, userID)
+	require.NoError(t, err)
+	_, err = blocker.Exec(ctx, `insert into app_user_group_membership(user_id,user_group_id) values($1,$2)`, userID, supplementalID)
+	require.NoError(t, err)
+	var blockerPID int32
+	require.NoError(t, blocker.QueryRow(ctx, `select pg_backend_pid()`).Scan(&blockerPID))
+
+	reader, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	defer reader.Rollback(context.Background())
+	var readerPID int32
+	require.NoError(t, reader.QueryRow(ctx, `select pg_backend_pid()`).Scan(&readerPID))
+	done := make(chan permissionResolution, 1)
+	go func() {
+		snapshot, resolveErr := permission.NewDatabaseService(pool).ResolveAccountLockedIn(ctx, reader, userID.String())
+		done <- permissionResolution{snapshot: snapshot, err: resolveErr}
+	}()
+	waitForPermissionAccountLock(t, ctx, pool, readerPID, blockerPID, done)
+
+	require.NoError(t, blocker.Commit(ctx))
+	select {
+	case result := <-done:
+		require.NoError(t, result.err)
+		require.True(t, result.snapshot.Has(permission.ShortLinkSetMetadata))
+		require.Equal(t, []string{supplementalKey, permission.GroupUser}, result.snapshot.GroupKeys())
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+}
+
 // waitForPermissionAccountLock observes PostgreSQL's blocker graph instead of assuming goroutine order.
 func waitForPermissionAccountLock(t *testing.T, ctx context.Context, pool *pgxpool.Pool, pid, blocker int32, done <-chan permissionResolution) {
 	t.Helper()
@@ -237,13 +283,27 @@ func TestDatabaseServiceRejectsMalformedAccountRowsAndReadErrors(t *testing.T) {
 func TestDatabaseServiceLockedResolutionPropagatesDatabaseFailures(t *testing.T) {
 	readErr := errors.New("locked permission read failed")
 	rowFailure := scriptedPermissionRow{err: readErr}
+	countRow := func(count int) func(context.Context, string, ...any) pgx.Row {
+		return func(_ context.Context, sql string, _ ...any) pgx.Row {
+			if strings.Contains(sql, "select id from app_user") {
+				return scriptedPermissionRow{values: []any{uuid.New()}}
+			}
+			return scriptedPermissionRow{values: []any{count}}
+		}
+	}
 	for _, test := range []struct {
 		name string
 		db   scriptedPermissionDB
 	}{
-		{name: "count query failure", db: scriptedPermissionDB{row: func(context.Context, string, ...any) pgx.Row { return rowFailure }}},
+		{name: "account lock failure", db: scriptedPermissionDB{row: func(context.Context, string, ...any) pgx.Row { return rowFailure }}},
+		{name: "count query failure", db: scriptedPermissionDB{row: func(_ context.Context, sql string, _ ...any) pgx.Row {
+			if strings.Contains(sql, "select id from app_user") {
+				return scriptedPermissionRow{values: []any{uuid.New()}}
+			}
+			return rowFailure
+		}}},
 		{name: "group lock query failure", db: scriptedPermissionDB{
-			row: func(context.Context, string, ...any) pgx.Row { return scriptedPermissionRow{values: []any{1}} },
+			row: countRow(1),
 			query: func(_ context.Context, sql string, _ ...any) (pgx.Rows, error) {
 				if strings.Contains(sql, "select g.id") {
 					return nil, readErr
@@ -252,7 +312,7 @@ func TestDatabaseServiceLockedResolutionPropagatesDatabaseFailures(t *testing.T)
 			},
 		}},
 		{name: "group lock row scan failure", db: scriptedPermissionDB{
-			row: func(context.Context, string, ...any) pgx.Row { return scriptedPermissionRow{values: []any{1}} },
+			row: countRow(1),
 			query: func(_ context.Context, sql string, _ ...any) (pgx.Rows, error) {
 				if strings.Contains(sql, "select g.id") {
 					return &scriptedPermissionRows{values: [][]any{{}}, scanErr: readErr}, nil
@@ -261,7 +321,7 @@ func TestDatabaseServiceLockedResolutionPropagatesDatabaseFailures(t *testing.T)
 			},
 		}},
 		{name: "group lock row iteration failure", db: scriptedPermissionDB{
-			row: func(context.Context, string, ...any) pgx.Row { return scriptedPermissionRow{values: []any{0}} },
+			row: countRow(0),
 			query: func(_ context.Context, sql string, _ ...any) (pgx.Rows, error) {
 				if strings.Contains(sql, "select g.id") {
 					return &scriptedPermissionRows{err: readErr}, nil
@@ -270,7 +330,7 @@ func TestDatabaseServiceLockedResolutionPropagatesDatabaseFailures(t *testing.T)
 			},
 		}},
 		{name: "missing locked group", db: scriptedPermissionDB{
-			row: func(context.Context, string, ...any) pgx.Row { return scriptedPermissionRow{values: []any{1}} },
+			row: countRow(1),
 			query: func(_ context.Context, sql string, _ ...any) (pgx.Rows, error) {
 				if strings.Contains(sql, "select g.id") {
 					return &scriptedPermissionRows{}, nil
@@ -281,13 +341,22 @@ func TestDatabaseServiceLockedResolutionPropagatesDatabaseFailures(t *testing.T)
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := (&permission.DatabaseService{}).ResolveAccountLockedIn(t.Context(), test.db, uuid.NewString())
-			require.Error(t, err)
+			if test.name == "missing locked group" {
+				require.ErrorContains(t, err, "one or more account groups are missing")
+			} else {
+				require.ErrorIs(t, err, readErr)
+			}
 		})
 	}
 
 	var queryCount int
 	db := scriptedPermissionDB{
-		row: func(context.Context, string, ...any) pgx.Row { return scriptedPermissionRow{values: []any{1}} },
+		row: func(_ context.Context, sql string, _ ...any) pgx.Row {
+			if strings.Contains(sql, "select id from app_user") {
+				return scriptedPermissionRow{values: []any{uuid.New()}}
+			}
+			return scriptedPermissionRow{values: []any{1}}
+		},
 		query: func(_ context.Context, sql string, _ ...any) (pgx.Rows, error) {
 			if strings.Contains(sql, "select g.id") {
 				return &scriptedPermissionRows{values: [][]any{{uuid.New()}}}, nil

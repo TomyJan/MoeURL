@@ -161,16 +161,17 @@ func (s *DatabaseService) ResolveAccountLockedIn(ctx context.Context, database s
 	if _, err := uuid.Parse(userID); err != nil {
 		return Snapshot{}, fmt.Errorf("invalid account ID: %w", err)
 	}
+	var accountID uuid.UUID
+	if err := database.QueryRow(ctx, `select id from app_user where id=$1::uuid for share`, userID).Scan(&accountID); err != nil {
+		return Snapshot{}, err
+	}
 	var expected int
 	if err := database.QueryRow(ctx, `
-		with locked_account as materialized (
-			select id, group_id from app_user where id=$1::uuid for share
-		)
 		select count(*) from (
-			select group_id as id from locked_account
+			select group_id as id from app_user where id=$1::uuid
 			union select membership.user_group_id as id
 			from app_user_group_membership as membership
-			join locked_account on locked_account.id=membership.user_id
+			where membership.user_id=$1::uuid
 		) as current_groups
 	`, userID).Scan(&expected); err != nil {
 		return Snapshot{}, err
