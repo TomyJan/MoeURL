@@ -52,7 +52,7 @@ func (s *Service) Transfer(ctx context.Context, actor auth.CurrentUser, input Tr
 	var result TransferResult
 	err = appdb.WithAuditTx(ctx, s.pool, actor.ID, func(tx pgx.Tx) error {
 		q := s.queries.WithTx(tx)
-		recipient, err := lockTransferParticipants(ctx, q, actorID, input.NewOwnerUsername)
+		recipient, err := lockTransferParticipants(ctx, tx, q, s.permissions, actorID, input.NewOwnerUsername)
 		if err != nil {
 			return err
 		}
@@ -80,7 +80,7 @@ func (s *Service) Transfer(ctx context.Context, actor auth.CurrentUser, input Tr
 }
 
 // lockTransferParticipants serializes both handoff variants with current account and group authorization.
-func lockTransferParticipants(ctx context.Context, q *sqlc.Queries, actorID uuid.UUID, username string) (pgtype.UUID, error) {
+func lockTransferParticipants(ctx context.Context, tx pgx.Tx, q *sqlc.Queries, resolver permission.Resolver, actorID uuid.UUID, username string) (pgtype.UUID, error) {
 	users, err := q.LockTransferUsers(ctx, sqlc.LockTransferUsersParams{ActorID: uuidToPgtype(actorID), Username: username})
 	if err != nil {
 		return pgtype.UUID{}, err
@@ -101,7 +101,7 @@ func lockTransferParticipants(ctx context.Context, q *sqlc.Queries, actorID uuid
 	if err != nil {
 		return pgtype.UUID{}, err
 	}
-	grants, err := permission.DecodeSnapshot(group.Permissions)
+	grants, err := permission.ResolveForAccountLockedIn(ctx, tx, resolver, actorID.String(), group.Key)
 	if err != nil {
 		return pgtype.UUID{}, err
 	}

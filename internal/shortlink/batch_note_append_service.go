@@ -146,7 +146,7 @@ func (s *Service) batchNoteAppend(ctx context.Context, actor auth.CurrentUser, i
 		if err != nil {
 			return err
 		}
-		grants, err := permission.DecodeSnapshot(group.Permissions)
+		grants, err := permission.ResolveForAccountLockedIn(ctx, tx, s.permissions, actor.ID, group.Key)
 		if err != nil {
 			return err
 		}

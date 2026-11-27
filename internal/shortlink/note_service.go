@@ -57,14 +57,25 @@ func (s *Service) readNote(ctx context.Context, actor auth.CurrentUser, rawID st
 	if err != nil {
 		return NoteResult{}, ErrPermissionDenied
 	}
-	if _, err = s.authorize(ctx, actor, notePermissions(admin, false)...); err != nil {
-		return NoteResult{}, err
-	}
 	id, err := parseNoteID(rawID)
 	if err != nil {
 		return NoteResult{}, err
 	}
-	row, err := s.queries.ReadShortLinkNote(ctx, sqlc.ReadShortLinkNoteParams{ActorID: uuidToPgtype(actorID), AdminScope: admin, LinkID: uuidToPgtype(id)})
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return NoteResult{}, err
+	}
+	defer tx.Rollback(ctx)
+	grants, err := permission.ResolveForAccountIn(ctx, tx, s.permissions, actor.ID, actor.GroupKey)
+	if err != nil {
+		return NoteResult{}, err
+	}
+	for _, key := range notePermissions(admin, false) {
+		if !grants.Has(key) {
+			return NoteResult{}, ErrPermissionDenied
+		}
+	}
+	row, err := s.queries.WithTx(tx).ReadShortLinkNote(ctx, sqlc.ReadShortLinkNoteParams{ActorID: uuidToPgtype(actorID), AdminScope: admin, LinkID: uuidToPgtype(id), PermissionGranted: true})
 	if err != nil {
 		return NoteResult{}, err
 	}
@@ -73,6 +84,9 @@ func (s *Service) readNote(ctx context.Context, actor auth.CurrentUser, rawID st
 	}
 	if !row.Found {
 		return NoteResult{}, ErrShortLinkMissing
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return NoteResult{}, err
 	}
 	return NoteResult{ID: row.ID, Note: row.Note, UpdatedAt: row.NoteUpdatedAt.Time.UTC().Format(time.RFC3339Nano)}, nil
 }
@@ -86,9 +100,6 @@ func (s *Service) updateNote(ctx context.Context, actor auth.CurrentUser, input 
 		return NoteResult{}, ErrPermissionDenied
 	}
 	required := notePermissions(admin, true)
-	if _, err = s.authorize(ctx, actor, required...); err != nil {
-		return NoteResult{}, err
-	}
 	id, err := parseNoteID(input.ID)
 	if err != nil {
 		return NoteResult{}, err
@@ -118,7 +129,7 @@ func (s *Service) updateNote(ctx context.Context, actor auth.CurrentUser, input 
 		if err != nil {
 			return err
 		}
-		grants, err := permission.DecodeSnapshot(group.Permissions)
+		grants, err := permission.ResolveForAccountLockedIn(ctx, tx, s.permissions, actor.ID, group.Key)
 		if err != nil {
 			return err
 		}

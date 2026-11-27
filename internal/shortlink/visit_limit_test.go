@@ -20,15 +20,21 @@ func TestServiceVisitLimitLifecycle(t *testing.T) {
 			ctx := t.Context()
 			pool := shortLinkTestPool(t, ctx)
 			insertShortLinkDefaultDomain(t, ctx, pool)
-			actor := insertShortLinkUser(t, ctx, pool, "alice", permission.GroupUser, permission.UserPermissions)
-			service := shortlink.NewService(pool, permission.NewService())
+			owner := insertShortLinkUser(t, ctx, pool, "alice", permission.GroupUser, permission.UserPermissions)
+			adminGroupID := "00000000-0000-0000-0000-000000000402"
+			_, err := pool.Exec(ctx, `
+				insert into user_group (id, key, name, description, permissions, builtin, created_at, updated_at)
+				values ($1, $2, $2, '', $3::jsonb, true, now(), now())
+			`, adminGroupID, permission.GroupAdmin, permissionsJSON(t, permission.AdminPermissions))
+			require.NoError(t, err)
+			admin := insertShortLinkUserForGroup(t, ctx, pool, "admin", adminGroupID, "00000000-0000-0000-0000-000000000502", permission.GroupAdmin, permission.AdminPermissions)
+			actor := owner
+			service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 			update := service.Update
 			if administrative {
-				actor.GroupKey = permission.GroupAdmin
+				actor = admin
 				update = service.AdminUpdate
 			}
-			owner := actor
-			owner.GroupKey = permission.GroupUser
 			created, err := service.Create(ctx, owner, shortlink.CreateInput{TargetURL: "https://example.com", MaxVisits: visitMax(3)})
 			require.NoError(t, err)
 			require.Equal(t, int64(3), *created.ShortLink.MaxVisits)
@@ -65,7 +71,7 @@ func TestServiceVisitLimitLifecycle(t *testing.T) {
 			statistics, err := service.Statistics(ctx, owner, shortlink.StatisticsInput{ID: created.ShortLink.ID})
 			require.NoError(t, err)
 			require.Equal(t, visitMax(2), statistics.ShortLink.VisitsRemaining)
-			adminList, err := service.AdminList(ctx, auth.CurrentUser{GroupKey: permission.GroupAdmin}, shortlink.ListInput{})
+			adminList, err := service.AdminList(ctx, admin, shortlink.ListInput{})
 			require.NoError(t, err)
 			require.Equal(t, visitMax(2), adminList.Items[0].MaxVisits)
 		})

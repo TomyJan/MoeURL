@@ -108,6 +108,10 @@ func TestBatchTagsAtomicity(t *testing.T) {
 func TestBatchTagsAuthorization(t *testing.T) {
 	for _, admin := range []bool{false, true} {
 		for _, kind := range []string{"guest", "bad actor", "zero actor", "noncanonical actor", "missing actor", "disabled", "deleted", "guest group", "write revoked", "metadata revoked", "admin revoked", "invalid grants", "deadline", "database"} {
+			if admin && (kind == "write revoked" || kind == "admin revoked") {
+				// Protected admin grants cannot be revoked in a valid group snapshot.
+				continue
+			}
 			if !admin && kind == "admin revoked" {
 				continue
 			}
@@ -161,7 +165,7 @@ func TestBatchTagsAuthorization(t *testing.T) {
 				}
 				require.NoError(t, err)
 				before := batchTagsSnapshot(t, pool)
-				svc := shortlink.NewService(pool, permission.NewService())
+				svc := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 				var result shortlink.BatchTagsResult
 				if admin {
 					result, err = svc.AdminBatchTags(ctx, actor, input)
@@ -311,7 +315,7 @@ func TestBatchTagsAuthorizationWait(t *testing.T) {
 			before := batchTagsSnapshot(t, pool)
 			done := make(chan error, 1)
 			go func() {
-				_, err := shortlink.NewService(pool, permission.NewService()).BatchTags(ctx, owner, input)
+				_, err := shortlink.NewService(pool, permission.NewDatabaseService(pool)).BatchTags(ctx, owner, input)
 				done <- err
 			}()
 			waitBatchTagsLock(t, ctx, pool, change.query, done)

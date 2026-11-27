@@ -13,23 +13,21 @@ import (
 
 const batchDeleteShortLinks = `-- name: BatchDeleteShortLinks :one
 WITH actor AS MATERIALIZED (
-    SELECT u.id, g.permissions
-    FROM app_user u JOIN user_group g ON g.id = u.group_id
-    WHERE u.id = $1::uuid
+    SELECT u.id, $1::boolean AS permission_granted
+    FROM app_user u
+    WHERE u.id = $2::uuid
       AND u.status = 'active' AND u.deleted_at IS NULL
-      AND g.key = $2::text
-    FOR SHARE OF u, g
+    FOR SHARE OF u
 ), authorized_actor AS MATERIALIZED (
     SELECT EXISTS (
-        SELECT 1 FROM actor
-        WHERE permissions ?& $3::text[]
+        SELECT 1 FROM actor WHERE permission_granted
     ) AS authorized
 ), targets AS MATERIALIZED (
     SELECT s.id
     FROM short_link s
     WHERE (SELECT authorized FROM authorized_actor)
-      AND s.id = ANY($4::uuid[]) AND s.deleted_at IS NULL
-      AND ($5::boolean OR s.owner_id = $1::uuid)
+      AND s.id = ANY($3::uuid[]) AND s.deleted_at IS NULL
+      AND ($4::boolean OR s.owner_id = $2::uuid)
     ORDER BY s.id
     FOR UPDATE OF s
 ), changed AS (
@@ -37,7 +35,7 @@ WITH actor AS MATERIALIZED (
     SET deleted_at = now(), updated_at = now()
     FROM targets
     WHERE s.id = targets.id
-      AND (SELECT count(*) FROM targets) = cardinality($4::uuid[])
+      AND (SELECT count(*) FROM targets) = cardinality($3::uuid[])
     RETURNING s.id
 )
 SELECT (SELECT authorized FROM authorized_actor)::boolean AS authorized,
@@ -45,11 +43,10 @@ SELECT (SELECT authorized FROM authorized_actor)::boolean AS authorized,
 `
 
 type BatchDeleteShortLinksParams struct {
-	ActorID             pgtype.UUID   `json:"actor_id"`
-	GroupKey            string        `json:"group_key"`
-	RequiredPermissions []string      `json:"required_permissions"`
-	Ids                 []pgtype.UUID `json:"ids"`
-	AdminScope          bool          `json:"admin_scope"`
+	PermissionGranted bool          `json:"permission_granted"`
+	ActorID           pgtype.UUID   `json:"actor_id"`
+	Ids               []pgtype.UUID `json:"ids"`
+	AdminScope        bool          `json:"admin_scope"`
 }
 
 type BatchDeleteShortLinksRow struct {
@@ -59,9 +56,8 @@ type BatchDeleteShortLinksRow struct {
 
 func (q *Queries) BatchDeleteShortLinks(ctx context.Context, arg BatchDeleteShortLinksParams) (BatchDeleteShortLinksRow, error) {
 	row := q.db.QueryRow(ctx, batchDeleteShortLinks,
+		arg.PermissionGranted,
 		arg.ActorID,
-		arg.GroupKey,
-		arg.RequiredPermissions,
 		arg.Ids,
 		arg.AdminScope,
 	)
@@ -72,31 +68,29 @@ func (q *Queries) BatchDeleteShortLinks(ctx context.Context, arg BatchDeleteShor
 
 const batchSetShortLinkStatus = `-- name: BatchSetShortLinkStatus :one
 WITH actor AS MATERIALIZED (
-    SELECT u.id, g.permissions
-    FROM app_user u JOIN user_group g ON g.id = u.group_id
-    WHERE u.id = $1::uuid
+    SELECT u.id, $1::boolean AS permission_granted
+    FROM app_user u
+    WHERE u.id = $2::uuid
       AND u.status = 'active' AND u.deleted_at IS NULL
-      AND g.key = $2::text
-    FOR SHARE OF u, g
+    FOR SHARE OF u
 ), authorized_actor AS MATERIALIZED (
     SELECT EXISTS (
-        SELECT 1 FROM actor
-        WHERE permissions ?& $3::text[]
+        SELECT 1 FROM actor WHERE permission_granted
     ) AS authorized
 ), targets AS MATERIALIZED (
     SELECT s.id
     FROM short_link s
     WHERE (SELECT authorized FROM authorized_actor)
-      AND s.id = ANY($4::uuid[]) AND s.deleted_at IS NULL
-      AND ($5::boolean OR s.owner_id = $1::uuid)
+      AND s.id = ANY($3::uuid[]) AND s.deleted_at IS NULL
+      AND ($4::boolean OR s.owner_id = $2::uuid)
     ORDER BY s.id
     FOR UPDATE OF s
 ), changed AS (
     UPDATE short_link s
-    SET status = $6::text, updated_at = now()
+    SET status = $5::text, updated_at = now()
     FROM targets
     WHERE s.id = targets.id
-      AND (SELECT count(*) FROM targets) = cardinality($4::uuid[])
+      AND (SELECT count(*) FROM targets) = cardinality($3::uuid[])
     RETURNING s.id
 )
 SELECT (SELECT authorized FROM authorized_actor)::boolean AS authorized,
@@ -104,12 +98,11 @@ SELECT (SELECT authorized FROM authorized_actor)::boolean AS authorized,
 `
 
 type BatchSetShortLinkStatusParams struct {
-	ActorID             pgtype.UUID   `json:"actor_id"`
-	GroupKey            string        `json:"group_key"`
-	RequiredPermissions []string      `json:"required_permissions"`
-	Ids                 []pgtype.UUID `json:"ids"`
-	AdminScope          bool          `json:"admin_scope"`
-	Status              string        `json:"status"`
+	PermissionGranted bool          `json:"permission_granted"`
+	ActorID           pgtype.UUID   `json:"actor_id"`
+	Ids               []pgtype.UUID `json:"ids"`
+	AdminScope        bool          `json:"admin_scope"`
+	Status            string        `json:"status"`
 }
 
 type BatchSetShortLinkStatusRow struct {
@@ -119,9 +112,8 @@ type BatchSetShortLinkStatusRow struct {
 
 func (q *Queries) BatchSetShortLinkStatus(ctx context.Context, arg BatchSetShortLinkStatusParams) (BatchSetShortLinkStatusRow, error) {
 	row := q.db.QueryRow(ctx, batchSetShortLinkStatus,
+		arg.PermissionGranted,
 		arg.ActorID,
-		arg.GroupKey,
-		arg.RequiredPermissions,
 		arg.Ids,
 		arg.AdminScope,
 		arg.Status,

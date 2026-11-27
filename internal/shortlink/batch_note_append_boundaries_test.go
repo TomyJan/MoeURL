@@ -60,7 +60,7 @@ func TestBatchNoteAppendStorageErrors(t *testing.T) {
 				p, err := service.PreviewOwnNoteAppend(t.Context(), owner, shortlink.BatchNoteAppendPreviewInput{Items: selected.Items, Note: "new"})
 				require.NoError(t, err)
 				input := batchNoteAppendInput(p, "new", uuid.NewString())
-				current := shortlink.NewService(pool, permission.NewService())
+				current := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 				switch failure {
 				case "actor missing":
 					owner.ID = uuid.NewString()

@@ -290,7 +290,7 @@ func TestBatchNoteAppendReplayRequiresCurrentPermission(t *testing.T) {
 			first, err := service.AppendOwnNotes(t.Context(), owner, input)
 			require.NoError(t, err)
 			require.Equal(t, 3, first.AppendedCount)
-			resolver := tagCatalogResolver{delegate: permission.NewService(), before: func() {
+			resolver := tagCatalogResolver{delegate: permission.NewDatabaseService(pool), before: func() {
 				var mutationErr error
 				switch change {
 				case "disabled":
@@ -303,7 +303,7 @@ func TestBatchNoteAppendReplayRequiresCurrentPermission(t *testing.T) {
 					_, mutationErr = pool.Exec(t.Context(), `update user_group set permissions='[]' where id=(select group_id from app_user where id=$1)`, owner.ID)
 				case "moved":
 					groupID := uuid.NewString()
-					_, mutationErr = pool.Exec(t.Context(), `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values($1,'batch-append-restricted','Restricted','[]'::jsonb,false,now(),now())`, groupID)
+					_, mutationErr = pool.Exec(t.Context(), `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values($1,$2::text,'Restricted','[]'::jsonb,false,now(),now())`, groupID, groupID)
 					if mutationErr == nil {
 						_, mutationErr = pool.Exec(t.Context(), `update app_user set group_id=$1 where id=$2`, groupID, owner.ID)
 					}

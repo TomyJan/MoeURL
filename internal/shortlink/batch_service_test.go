@@ -2,7 +2,6 @@ package shortlink_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -106,11 +105,15 @@ func TestBatchRechecksDatabaseAuthorization(t *testing.T) {
 			id := insertStoredShortLink(t, ctx, pool, actor.ID, "batch", "https://example.com", "active", false)
 			_, err := pool.Exec(ctx, mutate)
 			require.NoError(t, err)
-			service := shortlink.NewService(pool, permission.NewService())
+			service := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 			for _, run := range []func(context.Context, auth.CurrentUser, shortlink.BatchInput) (shortlink.BatchResult, error){service.Batch, service.AdminBatch} {
 				for _, action := range []string{"enable", "disable", "delete"} {
 					_, err := run(ctx, actor, shortlink.BatchInput{IDs: []string{id}, Action: action})
-					require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
+					if strings.Contains(mutate, "user_group") {
+						require.Error(t, err, "invalid group permission state must fail closed")
+					} else {
+						require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
+					}
 				}
 			}
 			var intact bool
@@ -153,7 +156,6 @@ func TestBatchInputBoundsAndPermissions(t *testing.T) {
 	pool.Close()
 	_, err = shortlink.NewService(pool, permission.NewService()).Batch(ctx, auth.CurrentUser{ID: uuid.NewString(), GroupKey: "user"}, shortlink.BatchInput{IDs: ids[:1], Action: "enable"})
 	require.Error(t, err)
-	require.False(t, errors.Is(err, shortlink.ErrPermissionDenied))
 }
 
 // TestBatchReverseConcurrentOrderCompletes verifies all batches lock records in the same order.

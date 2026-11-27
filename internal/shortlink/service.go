@@ -62,7 +62,7 @@ func NewServiceWithLogger(pool *pgxpool.Pool, permissions permission.Resolver, l
 		pool:        pool,
 		queries:     sqlc.New(pool),
 		permissions: permissions,
-		listExports: sqlc.New(pool),
+		listExports: nil,
 	}
 }
 
@@ -144,16 +144,18 @@ func (s *Service) Create(ctx context.Context, user auth.CurrentUser, input Creat
 				return err
 			}
 			queries := s.queries.WithTx(tx)
-			// The existing granted-domain query retains the create/domain/custom-slug
-			// checks and their public error; recheck only the other used capabilities here.
+			// Keep domain grants in the locking query and recheck every other capability
+			// used by this request against the locked account snapshot.
 			capabilities := targetWriteCapabilities(input.RedirectMode, input.IntermediateDelaySeconds != nil, input.Expiration != nil, input.Password != nil, input.MaxVisits != nil, input.Metadata != nil)
-			groupKey, err := lockTargetWriter(ctx, queries, user, false, capabilities...)
+			if customSlug != "" {
+				capabilities = append(capabilities, permission.ShortLinkCustomSlug)
+			}
+			writer, err := lockTargetWriter(ctx, tx, queries, s.permissions, user, false, append([]string{permission.ShortLinkCreate, required}, capabilities...)...)
 			if err != nil {
 				return err
 			}
 			domain, err := queries.GetGrantedShortLinkDomainForCreate(ctx, sqlc.GetGrantedShortLinkDomainForCreateParams{
-				CustomSlug: input.CustomSlug != nil,
-				GroupKey:   groupKey, RequiredPermission: required,
+				GroupKeys:  writer.GroupKeys,
 				UseDefault: useDefault, DomainID: uuidToPgtype(domainID),
 			})
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -379,7 +381,7 @@ func (s *Service) Update(ctx context.Context, user auth.CurrentUser, input Updat
 				mode = *input.RedirectMode
 			}
 			keys := targetWriteCapabilities(mode, input.IntermediateDelaySeconds != nil, input.Expiration != nil, input.Password != nil, input.VisitLimit != nil, input.Metadata != nil)
-			if _, err := lockTargetWriter(ctx, q, user, false, append(keys, permission.ShortLinkUpdateOwn)...); err != nil {
+			if _, err := lockTargetWriter(ctx, tx, q, s.permissions, user, false, append(keys, permission.ShortLinkUpdateOwn)...); err != nil {
 				return err
 			}
 			current, err := q.LockOwnShortLinkTargetForPolicy(ctx, sqlc.LockOwnShortLinkTargetForPolicyParams{ID: uuidToPgtype(linkID), OwnerID: uuidToPgtype(ownerID)})
@@ -650,7 +652,7 @@ func (s *Service) AdminUpdate(ctx context.Context, user auth.CurrentUser, input 
 				mode = *input.RedirectMode
 			}
 			keys := targetWriteCapabilities(mode, input.IntermediateDelaySeconds != nil, input.Expiration != nil, input.Password != nil, input.VisitLimit != nil, input.Metadata != nil)
-			if _, err := lockTargetWriter(ctx, q, user, true, append(keys, permission.ShortLinkUpdateAll)...); err != nil {
+			if _, err := lockTargetWriter(ctx, tx, q, s.permissions, user, true, append(keys, permission.ShortLinkUpdateAll)...); err != nil {
 				return err
 			}
 			current, err := q.LockAnyShortLinkTargetForPolicy(ctx, uuidToPgtype(linkID))
@@ -1089,7 +1091,20 @@ func expirationValues(value pgtype.Timestamptz, expired bool) (*time.Time, bool)
 
 // authorize resolves one reusable permission snapshot and checks every requested capability.
 func (s *Service) authorize(ctx context.Context, user auth.CurrentUser, requiredPermissions ...string) (permission.Snapshot, error) {
-	permissions, err := s.permissions.Resolve(ctx, user.GroupKey)
+	if user.ID == "" {
+		if _, accountBacked := s.permissions.(interface {
+			ResolveAccount(context.Context, string) (permission.Snapshot, error)
+		}); accountBacked {
+			return permission.Snapshot{}, ErrPermissionDenied
+		}
+	}
+	if user.ID != "" {
+		id, err := uuid.Parse(user.ID)
+		if err != nil || id == uuid.Nil || id.String() != user.ID {
+			return permission.Snapshot{}, ErrPermissionDenied
+		}
+	}
+	permissions, err := permission.ResolveForAccount(ctx, s.permissions, user.ID, user.GroupKey)
 	if err != nil {
 		return permission.Snapshot{}, err
 	}

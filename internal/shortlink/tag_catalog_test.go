@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/TomyJan/MoeURL/internal/auth"
+	"github.com/TomyJan/MoeURL/internal/db/sqlc"
 	"github.com/TomyJan/MoeURL/internal/permission"
 	"github.com/TomyJan/MoeURL/internal/shortlink"
 	"github.com/google/uuid"
@@ -124,14 +125,48 @@ func TestTagCatalogLiteralSearchAndLimit(t *testing.T) {
 
 type tagCatalogResolver struct {
 	before   func()
+	after    func()
 	delegate permission.Resolver
 }
 
 // Resolve places a real database change after the entrance permission snapshot and before the directory SELECT.
 func (r tagCatalogResolver) Resolve(ctx context.Context, key string) (permission.Snapshot, error) {
 	snapshot, err := r.delegate.Resolve(ctx, key)
-	r.before()
+	if r.before != nil {
+		r.before()
+	}
 	return snapshot, err
+}
+
+func (r tagCatalogResolver) ResolveAccount(ctx context.Context, userID string) (permission.Snapshot, error) {
+	if r.before != nil {
+		r.before()
+	}
+	resolver := r.delegate.(interface {
+		ResolveAccount(context.Context, string) (permission.Snapshot, error)
+	})
+	return resolver.ResolveAccount(ctx, userID)
+}
+
+func (r tagCatalogResolver) ResolveAccountIn(ctx context.Context, database sqlc.DBTX, userID string) (permission.Snapshot, error) {
+	if r.before != nil {
+		r.before()
+	}
+	resolver := r.delegate.(interface {
+		ResolveAccountIn(context.Context, sqlc.DBTX, string) (permission.Snapshot, error)
+	})
+	snapshot, err := resolver.ResolveAccountIn(ctx, database, userID)
+	if r.after != nil {
+		r.after()
+	}
+	return snapshot, err
+}
+
+func (r tagCatalogResolver) ResolveAccountLockedIn(ctx context.Context, database sqlc.DBTX, userID string) (permission.Snapshot, error) {
+	resolver := r.delegate.(interface {
+		ResolveAccountLockedIn(context.Context, sqlc.DBTX, string) (permission.Snapshot, error)
+	})
+	return resolver.ResolveAccountLockedIn(ctx, database, userID)
 }
 
 // TestTagCatalogCurrentAuthorization catches trusting a stale session or entrance snapshot instead of the directory's current database grant.
@@ -141,7 +176,7 @@ func TestTagCatalogCurrentAuthorization(t *testing.T) {
 		{"disabled actor", `update app_user set status='disabled' where id=$1`},
 		{"deleted actor", `update app_user set deleted_at=now() where id=$1`},
 		{"guest group with grants", `update user_group set key='guest'`},
-		{"moved to unprivileged group", `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values('00000000-0000-0000-0000-000000000402','restricted','Restricted','[]',false,now(),now()); update app_user set group_id='00000000-0000-0000-0000-000000000402'`},
+		{"moved to unprivileged group", `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values('00000000-0000-0000-0000-000000000402','550e8400-e29b-41d4-a716-446655440094','Restricted','[]',false,now(),now()); update app_user set group_id='00000000-0000-0000-0000-000000000402'`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := t.Context()
@@ -151,7 +186,7 @@ func TestTagCatalogCurrentAuthorization(t *testing.T) {
 			id := insertStoredShortLink(t, ctx, pool, owner.ID, "currenttag", "https://example.com/current", "active", false)
 			_, err := pool.Exec(ctx, `update short_link set tags=array['private'] where id=$1`, id)
 			require.NoError(t, err)
-			resolver := tagCatalogResolver{delegate: permission.NewService(), before: func() {
+			resolver := tagCatalogResolver{delegate: permission.NewDatabaseService(pool), before: func() {
 				args := []any{}
 				if strings.Contains(tc.change, "$1") {
 					args = append(args, owner.ID)
@@ -173,7 +208,7 @@ func TestTagCatalogCurrentAuthorization(t *testing.T) {
 		id := insertStoredShortLink(t, ctx, pool, owner.ID, "snapshotlink", "https://example.com/snapshot", "active", false)
 		_, err := pool.Exec(ctx, `update short_link set tags=array['transferred'] where id=$1`, id)
 		require.NoError(t, err)
-		resolver := tagCatalogResolver{delegate: permission.NewService(), before: func() {
+		resolver := tagCatalogResolver{delegate: permission.NewDatabaseService(pool), before: func() {
 			_, err := pool.Exec(ctx, `update short_link set owner_id=$2 where id=$1`, id, other.ID)
 			require.NoError(t, err)
 		}}

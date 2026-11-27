@@ -2,6 +2,7 @@ package shortlink_test
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"strings"
 	"sync"
@@ -21,7 +22,9 @@ func TestBatchNoteAppendQueuedAuthorization(t *testing.T) {
 	for _, adminScope := range []bool{false, true} {
 		grants := []string{permission.ShortLinkReadOwn, permission.ShortLinkUpdateOwn, permission.ShortLinkSetMetadata}
 		if adminScope {
-			grants = []string{permission.AdminAccess, permission.ShortLinkReadAll, permission.ShortLinkUpdateAll, permission.ShortLinkSetMetadata}
+			// Admin read/update-all grants are protected and cannot be revoked in
+			// a valid group snapshot; metadata remains an ordinary revocable grant.
+			grants = []string{permission.ShortLinkSetMetadata}
 		}
 		changes := append([]string{"disabled", "deleted", "moved", "guest"}, grants...)
 		for _, write := range []bool{false, true} {
@@ -58,7 +61,7 @@ func TestBatchNoteAppendQueuedAuthorization(t *testing.T) {
 						}
 						if change == "moved" {
 							group := uuid.NewString()
-							_, err = tx.Exec(ctx, `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values($1,'append-restricted','Restricted','[]',false,now(),now())`, group)
+						_, err = tx.Exec(ctx, `insert into user_group(id,key,name,permissions,builtin,created_at,updated_at) values($1,$2::text,'Restricted','[]',false,now(),now())`, group, group)
 							require.NoError(t, err)
 							_, err = tx.Exec(ctx, `update app_user set group_id=$2 where id=$1`, actor.ID, group)
 						}
@@ -71,7 +74,7 @@ func TestBatchNoteAppendQueuedAuthorization(t *testing.T) {
 					before := batchTagsSnapshot(t, pool)
 					done := make(chan error, 1)
 					workers.Go(func() {
-						current := shortlink.NewService(pool, permission.NewService())
+						current := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 						var callErr error
 						if write {
 							if adminScope {
@@ -321,7 +324,7 @@ func TestBatchNoteAppendQueuedBehindMembershipChange(t *testing.T) {
 			})
 			waitBatchTagsLock(t, ctx, pool, "-- name: LockGroupChangeUsers", membershipDone)
 			workers.Go(func() {
-				current := shortlink.NewService(pool, permission.NewService())
+				current := shortlink.NewService(pool, permission.NewDatabaseService(pool))
 				var err error
 				if write {
 					_, err = current.AppendOwnNotes(ctx, owner, batchNoteAppendInput(p, "must-not-append", uuid.NewString()))
@@ -350,4 +353,54 @@ func TestBatchNoteAppendQueuedBehindMembershipChange(t *testing.T) {
 			require.Zero(t, audits)
 		})
 	}
+}
+
+func TestBatchNoteMutationsFailClosedWhenAccountRecheckFails(t *testing.T) {
+	pool, _, _, owner, selected := batchNoteFixture(t)
+	ctx := t.Context()
+	appendPreview, err := shortlink.NewService(pool, permission.NewDatabaseService(pool)).PreviewOwnNoteAppend(ctx, owner, shortlink.BatchNoteAppendPreviewInput{Items: selected.Items, Note: "append"})
+	require.NoError(t, err)
+	clearPreview, err := shortlink.NewService(pool, permission.NewDatabaseService(pool)).PreviewOwnNoteClear(ctx, owner, shortlink.BatchNotePreviewInput{Items: selected.Items})
+	require.NoError(t, err)
+	replacePreview, err := shortlink.NewService(pool, permission.NewDatabaseService(pool)).PreviewOwnNoteReplace(ctx, owner, shortlink.BatchNoteReplacePreviewInput{Items: selected.Items, Note: "replacement"})
+	require.NoError(t, err)
+	before := batchTagsSnapshot(t, pool)
+
+	for _, scenario := range []struct {
+		name string
+		call func(*shortlink.Service) error
+	}{
+		{name: "append", call: func(service *shortlink.Service) error {
+			_, err := service.AppendOwnNotes(ctx, owner, batchNoteAppendInput(appendPreview, "append", uuid.NewString()))
+			return err
+		}},
+		{name: "clear", call: func(service *shortlink.Service) error {
+			_, err := service.ClearOwnNotes(ctx, owner, batchNoteClearInput(clearPreview))
+			return err
+		}},
+		{name: "replace", call: func(service *shortlink.Service) error {
+			_, err := service.ReplaceOwnNotes(ctx, owner, batchNoteReplaceInput(replacePreview, "replacement"))
+			return err
+		}},
+	} {
+		t.Run(scenario.name+" resolver error", func(t *testing.T) {
+			resolverErr := errors.New("locked account permissions unavailable")
+			resolver := &failSecondPermissionResolution{err: resolverErr}
+			err := scenario.call(shortlink.NewService(pool, resolver))
+			require.ErrorIs(t, err, resolverErr)
+			require.Equal(t, 2, resolver.calls, "the locked current-account permission snapshot must be read")
+			require.JSONEq(t, before, batchTagsSnapshot(t, pool), "resolver failure must not mutate notes or receipts")
+		})
+	}
+
+	missingActor := owner
+	missingActor.ID = uuid.NewString()
+	staticService := shortlink.NewService(pool, permission.NewService())
+	_, err = staticService.PreviewOwnNoteAppend(ctx, missingActor, shortlink.BatchNoteAppendPreviewInput{Items: selected.Items, Note: "append"})
+	require.ErrorIs(t, err, shortlink.ErrPermissionDenied, "a missing account after entrance authorization must fail closed")
+	_, err = staticService.AppendOwnNotes(ctx, missingActor, batchNoteAppendInput(appendPreview, "append", uuid.NewString()))
+	require.ErrorIs(t, err, shortlink.ErrPermissionDenied, "a missing account after entrance authorization must fail closed")
+	_, err = staticService.ReplaceOwnNotes(ctx, missingActor, batchNoteReplaceInput(replacePreview, "replacement"))
+	require.ErrorIs(t, err, shortlink.ErrPermissionDenied, "a missing account after entrance authorization must fail closed")
+	require.JSONEq(t, before, batchTagsSnapshot(t, pool))
 }
