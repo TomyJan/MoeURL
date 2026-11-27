@@ -161,11 +161,13 @@ func TestAppearanceCurrentPermissions(t *testing.T) {
 		}
 		appearanceCall(t, a, nil, method, path, `{"accentPreset":"ocean","expectedUpdatedAt":"2026-10-30T00:00:00Z"}`, "application/json", 200, 120001)
 	}
+	// These legacy rows violate protected admin permission ownership; current account
+	// resolution must fail closed before the feature handler can return a business denial.
 	for _, grants := range []string{`[]`, `["admin:access"]`, `["system:manage"]`} {
 		_, err := a.pool.Exec(t.Context(), `update user_group set permissions=$1 where key='admin'`, grants)
 		require.NoError(t, err)
-		appearanceCall(t, a, cookie, "GET", appearanceAdminPath, "", "", 200, 120001)
-		appearanceCall(t, a, cookie, "POST", appearanceUpdatePath, `{"accentPreset":"ocean","expectedUpdatedAt":"2026-10-30T00:00:00Z"}`, "application/json", 200, 120001)
+		appearanceCall(t, a, cookie, "GET", appearanceAdminPath, "", "", 500, 900000)
+		appearanceCall(t, a, cookie, "POST", appearanceUpdatePath, `{"accentPreset":"ocean","expectedUpdatedAt":"2026-10-30T00:00:00Z"}`, "application/json", 500, 900000)
 	}
 	appearanceCall(t, a, nil, "GET", appearancePublicPath, "", "", 200, 0)
 }

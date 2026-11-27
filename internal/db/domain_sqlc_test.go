@@ -81,6 +81,34 @@ func TestDomainQueriesFilterGrantsAndReferences(t *testing.T) {
 	}
 }
 
+func TestGrantedDomainQueryDoesNotFallBackToPrimaryGroupPermissionJSON(t *testing.T) {
+	ctx := t.Context()
+	pool := sqlcTestPool(t, ctx)
+	queries := sqlc.New(pool)
+	groupID, domainID := uuid.New(), uuid.New()
+	if _, err := pool.Exec(ctx, `
+		insert into user_group (id, key, name, permissions, builtin, created_at, updated_at)
+		values ($1, 'user', 'User', '["short_link:create","domain:use_default"]'::jsonb, true, now(), now())
+	`, groupID); err != nil {
+		t.Fatalf("prepare user group: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		insert into domain (id, host, display_name, purpose, enabled, is_default, created_at, updated_at)
+		values ($1, 'go.example.com', 'Default', 'short_link', true, true, now(), now())
+	`, domainID); err != nil {
+		t.Fatalf("prepare default domain: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `insert into domain_user_group (domain_id, user_group_id) values ($1, $2)`, domainID, groupID); err != nil {
+		t.Fatalf("prepare domain grant: %v", err)
+	}
+	_, err := queries.GetGrantedShortLinkDomainForCreate(ctx, sqlc.GetGrantedShortLinkDomainForCreateParams{
+		UseDefault: true, DomainID: uuidToPgtype(uuid.Nil),
+	})
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("empty resolver group snapshot selected domain with legacy primary permissions: error = %v, want pgx.ErrNoRows", err)
+	}
+}
+
 // TestDomainQueriesProtectDefaultAndReferences verifies atomic default changes and immutable referenced domains.
 func TestDomainQueriesProtectDefaultAndReferences(t *testing.T) {
 	ctx := t.Context()

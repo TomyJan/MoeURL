@@ -201,11 +201,13 @@ func TestAppHomeContentCurrentPermissions(t *testing.T) {
 		}
 		homeContentCall(t, a, nil, method, path, body, 200, 120001)
 	}
+	// These legacy rows violate protected admin permission ownership; current account
+	// resolution must fail closed before the feature handler can return a business denial.
 	for _, permissions := range []string{`[]`, `["admin:access"]`, `["system:manage"]`} {
 		_, err := a.pool.Exec(t.Context(), `update user_group set permissions=$1 where key='admin'`, permissions)
 		require.NoError(t, err)
-		homeContentCall(t, a, cookie, "GET", homeContentAdminPath, "", 200, 120001)
-		homeContentCall(t, a, cookie, "POST", homeContentUpdatePath, `{"title":"","summary":"","expectedUpdatedAt":"2026-10-29T00:00:00Z"}`, 200, 120001)
+		homeContentCall(t, a, cookie, "GET", homeContentAdminPath, "", 500, 900000)
+		homeContentCall(t, a, cookie, "POST", homeContentUpdatePath, `{"title":"","summary":"","expectedUpdatedAt":"2026-10-29T00:00:00Z"}`, 500, 900000)
 	}
 	homeContentCall(t, a, nil, "GET", "/api/v1/system/home-content", "", 200, 0)
 }
