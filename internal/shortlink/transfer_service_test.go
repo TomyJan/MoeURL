@@ -402,3 +402,27 @@ func TestTransferFailsClosedWhenLockedPermissionLookupFails(t *testing.T) {
 	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from audit_log`).Scan(&audits))
 	require.Zero(t, audits)
 }
+
+type transferLockedPermissionDowngrade struct{ delegate permission.Resolver }
+
+func (r transferLockedPermissionDowngrade) Resolve(ctx context.Context, groupKey string) (permission.Snapshot, error) {
+	return r.delegate.Resolve(ctx, groupKey)
+}
+
+func (r transferLockedPermissionDowngrade) ResolveAccountLockedIn(ctx context.Context, _ sqlc.DBTX, _ string) (permission.Snapshot, error) {
+	return r.delegate.Resolve(ctx, permission.GroupUser)
+}
+
+func TestTransferRejectsInsufficientPermissionsAfterLock(t *testing.T) {
+	pool, _, actor, owner, _, input := transferFixture(t)
+	resolver := transferLockedPermissionDowngrade{delegate: permission.NewService()}
+	result, err := shortlink.NewService(pool, resolver).Transfer(t.Context(), actor, input)
+	require.ErrorIs(t, err, shortlink.ErrPermissionDenied)
+	require.Zero(t, result)
+	var stored string
+	require.NoError(t, pool.QueryRow(t.Context(), `select owner_id::text from short_link where id=$1`, input.ID).Scan(&stored))
+	require.Equal(t, owner.ID, stored)
+	var audits int
+	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from audit_log`).Scan(&audits))
+	require.Zero(t, audits)
+}
