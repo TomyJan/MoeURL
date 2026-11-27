@@ -117,6 +117,19 @@ func TestOwnDailyCreateUsageCurrentAuthorization(t *testing.T) {
 	}
 }
 
+func TestOwnDailyCreateUsagePreservesPermissionQueryFailures(t *testing.T) {
+	pool, service, _, actor := fixture(t)
+	_, err := pool.Exec(t.Context(), `alter table app_user rename to hidden_app_user`)
+	require.NoError(t, err)
+
+	value, err := service.GetOwnUsage(t.Context(), actor)
+
+	require.Error(t, err)
+	require.NotErrorIs(t, err, createquota.ErrCorrupt)
+	require.ErrorContains(t, err, `relation "app_user" does not exist`)
+	require.Equal(t, createquota.Usage{}, value)
+}
+
 func TestOwnDailyCreateUsageUsesSupplementalPermission(t *testing.T) {
 	pool, service, _, actor := fixture(t)
 	_, err := pool.Exec(t.Context(), `update app_user set group_id=(select id from user_group where key='user') where id=$1`, actor.ID)

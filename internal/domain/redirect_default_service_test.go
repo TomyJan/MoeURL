@@ -242,6 +242,8 @@ func TestRedirectDefaultsUseSupplementalGrantUnion(t *testing.T) {
 	require.NoError(t, err)
 	_, err = pool.Exec(ctx, `insert into domain_user_group(domain_id,user_group_id) values($1,$2)`, d.ID, supplementalID)
 	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `delete from domain_user_group where domain_id=$1 and user_group_id=(select id from user_group where key='user')`, d.ID)
+	require.NoError(t, err)
 
 	items, err := s.RedirectDefaults(ctx, actor)
 	require.NoError(t, err)
@@ -262,6 +264,8 @@ func TestRedirectDefaultsAllowCustomPrimaryGroup(t *testing.T) {
 		values($1,$2,'Custom primary','["short_link:create","domain:use_assigned"]'::jsonb,false,now(),now())`, groupID, groupKey)
 	require.NoError(t, err)
 	_, err = pool.Exec(ctx, `insert into domain_user_group(domain_id,user_group_id) values($1,$2)`, d.ID, groupID)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `delete from domain_user_group where domain_id=$1 and user_group_id=(select id from user_group where key='user')`, d.ID)
 	require.NoError(t, err)
 	_, err = pool.Exec(ctx, `update app_user set group_id=$2 where id=$1`, actor.ID, groupID)
 	require.NoError(t, err)

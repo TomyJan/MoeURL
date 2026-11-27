@@ -39,7 +39,7 @@ func (s *Service) GetOwnUsage(ctx context.Context, actor auth.CurrentUser) (Usag
 		q := s.queries.WithTx(tx)
 		grants, err := permission.ResolveForAccountIn(ctx, tx, s.permissions, actor.ID, actor.GroupKey)
 		if err != nil {
-			return ErrCorrupt
+			return identityError(err)
 		}
 		if !grants.Has(permission.ShortLinkCreate) {
 			return ErrPermissionDenied

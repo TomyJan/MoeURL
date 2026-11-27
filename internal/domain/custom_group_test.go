@@ -58,6 +58,8 @@ func TestSupplementalGroupPermissionAndDomainGrantAreUnioned(t *testing.T) {
 	require.NoError(t, err)
 	_, err = pool.Exec(t.Context(), `insert into domain_user_group(domain_id,user_group_id) select id,$1 from domain where is_default`, groupID)
 	require.NoError(t, err)
+	_, err = pool.Exec(t.Context(), `delete from domain_user_group where domain_id=(select id from domain where is_default) and user_group_id=(select id from user_group where key='user')`)
+	require.NoError(t, err)
 
 	service := domain.NewService(pool, permission.NewDatabaseService(pool))
 	available, err := service.Available(t.Context(), auth.CurrentUser{ID: userID.String(), GroupKey: "forged-cache-group"})
