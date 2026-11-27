@@ -178,7 +178,6 @@ github.com/TomyJan/MoeURL/internal/shortlink/admin_tag_catalog.go:44.40,46.3
 github.com/TomyJan/MoeURL/internal/shortlink/batch_service.go:104.17,106.3
 github.com/TomyJan/MoeURL/internal/shortlink/tag_catalog.go:59.40,61.3
 github.com/TomyJan/MoeURL/internal/shortlink/note_service.go:82.18,84.3
-github.com/TomyJan/MoeURL/internal/shortlink/transfer_service.go:108.111,110.3
 
 # Guest has an empty permission snapshot by resolver contract, and entry
 # authorization rejects these write permissions before the transactional guard.
