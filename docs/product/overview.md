@@ -4,7 +4,7 @@
 
 v0.93.0 [自定义组批量成员迁移](scope-v0.93.0.md)已由 PR #424 正常 squash 合并为 `ca25239d377900f2c681006425e1b27ed96196f4`；tree、唯一 parent、准确 CodeRabbit 无 actionable 结论、逐项归档和离线恢复均已独立核验。代码本地门禁与 PostgreSQL fallback 浏览器证据按准确 SHA 和环境记录；fallback 不代表 Goose CLI、标准 Compose／Dockerfile 或 CI。v0.93.0 未正式发布。
 
-当前实施 [v0.94.0 多组补充授权](scope-v0.94.0.md)：Task 1／2 已完成并合入；Task 3 账号／域名及短链消费者由 PR #431／#432 正常合入，但最终授权路径盘点仍待收口。短链 transfer coverage follow-up 已通过新鲜 16 包本地门槛（100.00%），准确 CodeRabbit 与正常集成待完成。Task 4 管理用户补充组 UI 已实现，重基后的独立验证和审查继续推进。保留 `app_user.group_id` 作为唯一主组，支持自定义补充组及权限／域名授权并集。目标 CI、标准发布及版本验收仍未完成。详见[设计](../superpowers/specs/2026-11-26-v0.94.0-supplemental-user-groups-design.md)、[计划](../superpowers/plans/2026-11-26-v0.94.0-supplemental-user-groups.md)及[v0.94 验收](../implementation/v0.94.0-acceptance.md)。
+当前实施 [v0.94.0 多组补充授权](scope-v0.94.0.md)：Task 1／2 已完成并合入；Task 3 服务端权限并集、域名 grant 与 SQL resolver-only 收口已由 PR #431/#432/#433/#436 合入，最终权限路径审计及本地后端门禁完成。PR #436 merge `b98de063c6f7ee2a945398b094d9e591126e9978`。Task 4 管理用户补充组 UI 已实现并完成本地门禁与桌面／手机真实浏览器 3/3；PR #435 准确 CodeRabbit 审查与正常集成仍待。保留 `app_user.group_id` 作为唯一主组，支持自定义补充组及权限／域名授权并集。目标 CI、标准发布及版本验收仍未完成。详见[设计](../superpowers/specs/2026-11-26-v0.94.0-supplemental-user-groups-design.md)、[计划](../superpowers/plans/2026-11-26-v0.94.0-supplemental-user-groups.md)及[v0.94 验收](../implementation/v0.94.0-acceptance.md)。
 
 ## 最近完成（2026-11-25，v0.92.0）
 
