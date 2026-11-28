@@ -76,3 +76,19 @@ func TestDatabaseServiceResolve(t *testing.T) {
 		})
 	}
 }
+
+// TestDatabaseServiceResolveRejectsNonCanonicalCustomGroupKeys protects the legacy database resolver from corrupt stored group keys.
+func TestDatabaseServiceResolveRejectsNonCanonicalCustomGroupKeys(t *testing.T) {
+	for _, key := range []string{"operators", "00000000-0000-0000-0000-000000000000", "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA", "aaaaaaaaaaaa4aaa8aaaaaaaaaaaaaaa"} {
+		t.Run(key, func(t *testing.T) {
+			service := &DatabaseService{queries: groupQueryStub{group: sqlc.UserGroup{Key: key, Builtin: false, Permissions: []byte(`["short_link:create"]`)}}}
+			snapshot, err := service.Resolve(context.Background(), key)
+			if err == nil || err.Error() != "invalid custom group key" {
+				t.Fatalf("expected invalid stored custom group key error, got %v", err)
+			}
+			if snapshot.Has(ShortLinkCreate) || len(snapshot.GroupKeys()) != 0 {
+				t.Fatal("corrupt stored custom group key granted a permission snapshot")
+			}
+		})
+	}
+}

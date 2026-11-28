@@ -56,7 +56,7 @@ function mount(component: Component, props: Record<string, unknown> = {}, pagina
   vi.mocked(listShortLinks).mockResolvedValue({ items: [link], meta: { page: 1, pageSize: 5, total: 1 } })
   vi.mocked(getShortLinkOverview).mockResolvedValue({ totalLinkCount: 1, activeLinkCount: 1, visitCount: 1, todayVisitCount: 1 })
   vi.mocked(getShortLinkStatistics).mockResolvedValue({ shortLink: link, range, stats: { rangeVisitCount: 1, visitCount: 1, todayVisitCount: 1, lastVisitedAt: instant, trend: [{ date: '2026-01-01', visitCount: 1 }], referrers: [], devices: [], countries: [] } })
-  vi.mocked(listUsers).mockResolvedValue({ items: [{ ...user, builtin: false, status: 'active', createdAt: instant, updatedAt: version }], meta: { page: 1, pageSize: 20, total: 1 } })
+  vi.mocked(listUsers).mockResolvedValue({ items: [{ ...user, builtin: false, status: 'active', createdAt: instant, updatedAt: version, supplementalGroups: [] }], meta: { page: 1, pageSize: 20, total: 1 } })
   let observer!: ReturnType<typeof provideDateTimeDisplay>
   const Provider = defineComponent({ setup() { observer = provideDateTimeDisplay(ref(true)); return () => h(component, props) } })
   const view = render(Provider, { global: { stubs: { ...componentStubs, VCheckbox: true }, plugins: [[VueQueryPlugin, { queryClient: client }]] } })

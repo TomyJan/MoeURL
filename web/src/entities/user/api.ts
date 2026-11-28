@@ -33,6 +33,12 @@ export interface UserSummary extends CreatedUser {
   builtin: boolean
   createdAt: string
   updatedAt: string
+  supplementalGroups: SupplementalUserGroup[]
+}
+
+export interface SupplementalUserGroup {
+  key: UserGroupKey
+  name: string
 }
 
 export interface CreateUserResponse {
