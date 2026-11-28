@@ -115,12 +115,12 @@ func TestGroupDefaultDomainHTTPContract(t *testing.T) {
 		require.NotContains(t, group, "defaultDomainId")
 		require.NotContains(t, group, "default_domain_id")
 	}
-	// Raw revocation of a protected permission intentionally leaves an invalid legacy catalog row.
-	// Test new authorization after the legacy response compatibility check, not through that corrupt catalog.
+	// Raw revocation of a protected permission leaves an invalid legacy catalog row;
+	// current account resolution must fail closed instead of returning a business denial.
 	_, err = application.pool.Exec(t.Context(), `update user_group set permissions=permissions-'domain:manage' where key='admin'`)
 	require.NoError(t, err)
-	groupDefaultRequest(t, application, cookie, "GET", "/api/v1/admin/user-group/domain-default?groupKey=user", "", "", 120001)
-	write("admin", nil, admin.UpdatedAt, 120001)
+	groupDefaultRequest(t, application, cookie, "GET", "/api/v1/admin/user-group/domain-default?groupKey=user", "", "", 900000)
+	write("admin", nil, admin.UpdatedAt, 900000)
 }
 
 // groupDefaultRequest checks the actual HTTP envelope, privacy header and error status.

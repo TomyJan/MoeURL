@@ -11,16 +11,11 @@ join domain_user_group on domain_user_group.domain_id = domain.id
 join user_group on user_group.id = domain_user_group.user_group_id
 where domain.enabled and domain.purpose = 'short_link'
   and (
-      (coalesce(cardinality(sqlc.arg(group_keys)::text[]), 0) > 0 and user_group.key = any(sqlc.arg(group_keys)::text[]))
-      or (coalesce(cardinality(sqlc.arg(group_keys)::text[]), 0) = 0 and user_group.key = sqlc.arg(group_key)::text)
+      coalesce(cardinality(sqlc.arg(group_keys)::text[]), 0) > 0
+      and user_group.key = any(sqlc.arg(group_keys)::text[])
   )
   and user_group.key <> 'guest'
   and ((user_group.builtin and user_group.key in ('user','admin')) or (not user_group.builtin and user_group.key not in ('user','admin')))
-  and (coalesce(cardinality(sqlc.arg(group_keys)::text[]), 0) > 0 or (
-      user_group.permissions ? 'short_link:create'
-      and user_group.permissions ? sqlc.arg(required_permission)::text
-      and (not sqlc.arg(custom_slug)::boolean or user_group.permissions ? 'short_link:custom_slug')
-  ))
   and ((sqlc.arg(use_default)::boolean and domain.is_default)
        or (not sqlc.arg(use_default)::boolean and not domain.is_default
            and domain.id = sqlc.arg(domain_id)::uuid))
