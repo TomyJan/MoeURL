@@ -4,7 +4,7 @@
 
 v0.93.0 [自定义组批量成员迁移](scope-v0.93.0.md)已由 PR #424 正常 squash 合并为 `ca25239d377900f2c681006425e1b27ed96196f4`；tree `af4f2bcbe113b1980d46686344fbb2a03491303e`、唯一 parent `1863adae48237883ec1d4c26ec7323d167b88267` 经 GitHub 元数据与独立 fetch 核验。准确 head `bbc2ce576132bd7cf17b8ad42d9c3172f3d85783` 的真实 CodeRabbit source／covered SHA 一致、无 actionable comments；本地验证、归档及清理边界见[v0.93 验收](../implementation/v0.93.0-acceptance.md)。whole-owned ZIP SHA-256 `30B220F2D506EAD3016451BF6B8D12B499E9064EAF5320073F69A2A4C3A9FA87`；41 个源成员逐项核验，离线恢复及 `git fsck --full` 通过。v0.93.0 未正式发布；不查 CI/checks、不发布部署、不触碰 PR #240/#266/#267。
 
-当前 [v0.94.0 多组补充授权](scope-v0.94.0.md)的设计与建造者检查已完成；Task 1、Task 2 已验证并按依赖合入。Task 3 Resolver、账号／域名消费者由 PR #431、短链消费者由 PR #432 正常合入；全量授权路径盘点仍未收口。PR #432 后复核发现复用的旧 coverage profile 未覆盖 transfer 锁后拒绝分支，已在独立 follow-up 分支补真实 PostgreSQL 回归，当前准确 16 包 profile 门槛 100.00%，CodeRabbit 与正常集成待完成。Task 4 补充组管理 UI 已本地实现，正在以新 master 为基线做独立门禁与审查。历史测试结果不外推为当前候选完整门禁；详细证据见[验收](../implementation/v0.94.0-acceptance.md)。目标 CI、标准构建和正式发布仍未验收。
+当前 [v0.94.0 多组补充授权](scope-v0.94.0.md)的设计与建造者检查已完成；Task 1／2 已验证并按依赖合入。Task 3 Resolver、账号／域名、短链 consumers 与域名查询 resolver-only 收口由 PR #431/#432/#433/#436 正常合入；最终授权路径审计已完成，真实 PostgreSQL RED→GREEN 回归修复空 group-key 单组权限回退。#436 squash merge 为 `b98de063c6f7ee2a945398b094d9e591126e9978`，tree `28e4f3b58a1d47a022cf10da3fef28751eb050d2`、唯一 parent `11250406525f9766db035e8e8aa9b5eb9376a7cc`；全仓 21 包、`go vet ./...` 与覆盖率 100.00% 本地门禁均有证据。Task 4 UI 已完成本地验证及桌面／手机真实浏览器 3/3，PR #435 的准确 CodeRabbit review 与正常集成仍待。详细证据见[验收](../implementation/v0.94.0-acceptance.md)。目标 CI、标准构建和正式发布仍未验收。
 
 ## 最近完成（2026-11-25，v0.92.0）
 
